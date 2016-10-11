@@ -121,6 +121,7 @@
     NETDATA.d3_js               = NETDATA.serverDefault + 'lib/d3-3.5.17.min.js';
     NETDATA.morris_js           = NETDATA.serverDefault + 'lib/morris-0.5.1.min.js';
     NETDATA.morris_css          = NETDATA.serverDefault + 'css/morris-0.5.1.css';
+    NETDATA.chart_js            = NETDATA.serverDefault + 'css/chart.bundle.2.3.0.min.js';
     NETDATA.google_js           = 'https://www.google.com/jsapi';
 
     NETDATA.themes = {
@@ -4406,6 +4407,88 @@
     };
 
     // ----------------------------------------------------------------------------------------------------------------
+    // chart.js
+
+    NETDATA.chartjsInitialize = function(callback) {
+        if(typeof netdataNoChartjs === 'undefined' || !netdataNoChartjs) {
+            $.ajax({
+                url: NETDATA.chart_js,
+                cache: true,
+                dataType: "script",
+                xhrFields: { withCredentials: true } // required for the cookie
+            })
+            .done(function() {
+                NETDATA.registerChartLibrary('chartjs', NETDATA.chart_js);
+            })
+            .fail(function() {
+                NETDATA.chartLibraries.chartjs.enabled = false;
+                NETDATA.error(100, NETDATA.chartjs_js);
+            })
+            .always(function() {
+                if(typeof callback === "function")
+                    callback();
+            });
+        }
+        else {
+            NETDATA.chartLibraries.chartjs.enabled = false;
+            if(typeof callback === "function")
+                callback();
+        }
+    };
+
+    NETDATA.chartjsChartUpdate = function(state, data) {
+        state.chartjs_instance.setData(data.result.data);
+        return true;
+    };
+
+    NETDATA.chartjsChartCreate = function(state, data) {
+        state.chartjs_options = {
+            type: 'line',
+            data: {
+                labels: data.result.labels,
+                datasets: [{
+                    label: "My First dataset",
+                    data: [65, 59, 80, 81, 56, 55, 40],
+                    fill: (state.chart.chart_type === 'area' || state.chart.chart_type === 'stacked')?true:false,
+                    cubicInterpolationMode: (NETDATA.options.current.smooth_plot === true)?'default':'monotone',
+                    lineTension: (NETDATA.options.current.smooth_plot === true)?0.1:0,
+                    // backgroundColor: "rgba(75,192,192,0.4)", // The fill color under the line.
+                    // borderWidth: ,                       // The width of the line in pixels
+                    // borderColor: "rgba(75,192,192,1)",   // The color of the line
+                    // borderCapStyle: 'butt',              // Cap style of the line
+                    // borderDash: [],                      // Length and spacing of dashes
+                    // borderDashOffset: 0.0,               // Offset for line dashes
+                    // borderJoinStyle: 'miter',            // Line joint style.
+                    // pointBorderColor: "rgba(75,192,192,1)", // The border color for points.
+                    // pointBackgroundColor: "#fff",        // The fill color for points
+                    // pointBorderWidth: 1,                 // The width of the point border in pixels
+                    // pointRadius: 1,                      // The radius of the point shape. If set to 0, nothing is rendered.
+                    // pointHoverRadius: 5,                 // The radius of the point when hovered
+                    // pointHitRadius: 10,                  // The pixel size of the non-displayed point that reacts to mouse events
+                    // pointHoverBackgroundColor: "rgba(75,192,192,1)", // Point background color when hovered
+                    // pointHoverBorderColor: "rgba(220,220,220,1)",     // Point border color when hovered
+                    // pointHoverBorderWidth: 2,            // Border width of point when hovered
+                    // pointStyle: 'circle',                // The style of point. Options are 'circle', 'triangle', 'rect', 'rectRot', 'cross', 'crossRot', 'star', 'line', and 'dash'. If the option is an image, that image is drawn on the canvas using drawImage.
+                    showLine: true,                         // If false, the line is not drawn for this dataset
+                    spanGaps: false,                        // If true, lines will be drawn between points with no or null data
+                    steppedLine: false,                     // If true, the line is shown as a stepped line and 'lineTension' will be ignored
+                }]
+            },
+            options: {
+                scales: {
+                    yAxes: [{
+                        stacked: (state.chart.chart_type === 'stacked')?true:false
+                    }]
+                }
+            }
+        };
+
+        state.chartjs_instance = new Chart(state.element_chart, state.chartjs_options);
+
+        return true;
+    };
+
+    // ----------------------------------------------------------------------------------------------------------------
     // morris
 
     NETDATA.morrisInitialize = function(callback) {
@@ -5448,6 +5531,24 @@
             max_updates_to_recreate: function(state) { return 5000; },
             track_colors: function(state) { return false; },
             pixels_per_point: function(state) { return 3; }
+        },
+        "chartjs": {
+            initialize: NETDATA.chartjsInitialize,
+            create: NETDATA.chartjsChartCreate,
+            update: NETDATA.chartjsChartUpdate,
+            resize: null,
+            setSelection: undefined, // function(state, t) { return true; },
+            clearSelection: undefined, // function(state) { return true; },
+            toolboxPanAndZoom: null,
+            initialized: false,
+            enabled: true,
+            format: function(state) { return 'json'; },
+            options: function(state) { return 'objectrows|ms'; },
+            legend: function(state) { return null; },
+            autoresize: function(state) { return false; },
+            max_updates_to_recreate: function(state) { return 50; },
+            track_colors: function(state) { return false; },
+            pixels_per_point: function(state) { return 15; }
         },
         "morris": {
             initialize: NETDATA.morrisInitialize,

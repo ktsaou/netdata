@@ -91,6 +91,12 @@ connectivity is not available.
     [Simplified BSD License](http://morrisjs.github.io/morris.js/)
 
 
+- [chart.js](http://www.chartjs.org/)
+
+    Copyright 2013-2016 Nick Downie
+    [MIT License](https://github.com/chartjs/Chart.js/blob/master/LICENSE.md)
+
+
 - [Raphaël](http://raphaeljs.com/)
 
     Copyright 2008, Dmitry Baranovskiy

@@ -39,6 +39,7 @@ dist_weblib_DATA = \
 	lib/bootstrap-table-export-1.11.0.min.js \
 	lib/bootstrap-toggle-2.2.2.min.js \
 	lib/c3-0.4.11.min.js \
+	lib/chart.bundle.2.3.0.min.js \
 	lib/d3-3.5.17.min.js \
 	lib/dygraph-combined-dd74404.js \
 	lib/dygraph-smooth-plotter-dd74404.js \
