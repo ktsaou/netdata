@@ -115,6 +115,8 @@ netdata_SOURCES = \
 	rrddim.c \
 	rrddimvar.c \
 	rrdfamily.c \
+	rrdfile.c \
+	rrdfile.h \
 	rrdhost.c \
 	rrdpush.c \
 	rrdpush.h \

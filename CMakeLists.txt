@@ -139,6 +139,8 @@ set(NETDATA_COMMON_FILES
         src/rrddim.c
         src/rrddimvar.c
         src/rrdfamily.c
+        src/rrdfile.c
+        src/rrdfile.h
         src/rrdhost.c
         src/rrdpush.c
         src/rrdpush.h

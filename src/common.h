@@ -219,6 +219,7 @@ typedef enum rrdcalc_status {
 #include "statistical.h"
 #include "socket.h"
 #include "rrd.h"
+#include "rrdfile.h"
 #include "plugin_tc.h"
 #include "plugins_d.h"
 #include "statsd.h"
