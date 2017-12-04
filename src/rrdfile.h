@@ -4,8 +4,14 @@
 typedef struct rrdfile_name_value {
     size_t length;                  // the length of this record, including the name
     size_t value;                   // the value associated with the name
+    uint32_t hash;                  // the hash of the name
     char name[];                    // the name
 } RRDMETRIC;
+
+typedef struct rrdfile_slot_name_value {
+    size_t size_used;
+    size_t entries;
+} RRDFILE_SLOT_NAMEVALUE;
 
 typedef struct rrdfile_slot_rrdpage {
     size_t metric_id;
@@ -42,7 +48,8 @@ typedef struct rrdfile_slot_header {
     size_t size;                    // the length of the slot, from the first byte to the last, including the data
 
     union {
-        RRDFILE_SLOT_RRDPAGE rrdpage;
+        RRDFILE_SLOT_RRDPAGE rrd_page;
+        RRDFILE_SLOT_NAMEVALUE name_value;
     };
 } RRDFILE_SLOT_HEADER;
 
@@ -51,7 +58,7 @@ typedef struct rrdfile_slot {
     RRDFILE_SLOT_HEADER header;
 
     void *data;                     // the data of this slot
-    void *uncompressed_data         // the uncompressed data of this slot
+    void *uncompressed_data;        // the uncompressed data of this slot
 
     time_t uncompressed_t;
     time_t saved_t;
@@ -73,33 +80,34 @@ typedef struct rrdfile_slot {
 typedef struct rrdfile_header {
     char magic[20];
     size_t page_size;
+    size_t size;
 
 } RRDFILE_HEADER;
 
 // at memory
 typedef struct rrdfile {
-    RRDFILE_HEADER *header;
+    RRDFILE_HEADER header;
 
     const char *filename;
     int fd;
-    size_t size;
 
     size_t next_slot_seq;
     size_t next_metric_id;
 
     size_t slots_count;
+
     size_t reads;
     size_t writes;
     size_t seeks;
     size_t read_bytes;
     size_t write_bytes;
 
-    RRDFILE_SLOT *slots;
+    RRDFILE_SLOT *slots;            // a sorted list of all slots in the file
 
 } RRDFILE;
 
 
-extern RRDFILE *rrdfile_open(const char *filename);
+extern RRDFILE *rrdfile_open(const char *filename, size_t size);
 extern RRDFILE *rrdfile_create(const char *filename, size_t size);
 extern void rrdfile_close(RRDFILE *rf);
 
