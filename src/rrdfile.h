@@ -67,8 +67,8 @@ typedef struct rrdfile_slot {
 
     RRDSLOT_FLAGS flags;            // flags related to this slot
 
-    struct rrdfile_slot *prev;
-    struct rrdfile_slot *next;
+    struct rrdfile_slot *disk_prev;
+    struct rrdfile_slot *disk_next;
 
 } RRDFILE_SLOT;
 

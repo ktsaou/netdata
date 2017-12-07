@@ -65,22 +65,34 @@ static ssize_t rrdfile_write_slot_header(RRDFILE *rf, RRDFILE_SLOT *slot) {
     return ret;
 }
 
+static void rrdfile_unlink_and_delete_slot(RRDFILE *rf, RRDFILE_SLOT *slot) {
+    if(slot->disk_prev)
+        slot->disk_prev->disk_next = slot->disk_next;
+
+    if(slot->disk_next)
+        slot->disk_next->disk_prev = slot->disk_prev;
+
+    if(rf->slots == slot)
+        rf->slots = slot->disk_next;
+
+    rf->slots_count--;
+
+    freez(slot);
+}
+
 static RRDFILE_SLOT *rrdfile_free_slot(RRDFILE *rf, RRDFILE_SLOT *slot) {
     slot->header.type = RRDSLOT_FREE;
 
     // find the first free, before this one
-    while(slot->prev && slot->prev->header.type == RRDSLOT_FREE)
-        slot = slot->prev;
+    while(slot->disk_prev && slot->disk_prev->header.type == RRDSLOT_FREE)
+        slot = slot->disk_prev;
 
     // merge it with the next, if it is free too
-    RRDFILE_SLOT *t = slot->next;
+    RRDFILE_SLOT *t = slot->disk_next;
     while(t && t->header.type == RRDSLOT_FREE) {
         slot->header.size += t->header.size;
-        slot->next = t->next;
-        if(t->next) t->next->prev = slot;
-        freez(t);
-        t = slot->next;
-        rf->slots_count--;
+        rrdfile_unlink_and_delete_slot(rf, t);
+        t = slot->disk_next;
     }
 
     slot->header.seq = rf->next_slot_seq++;
@@ -92,7 +104,7 @@ static RRDFILE_SLOT *rrdfile_free_slot(RRDFILE *rf, RRDFILE_SLOT *slot) {
 static RRDFILE_SLOT *rrdfile_find_space(RRDFILE *rf, size_t size) {
     RRDFILE_SLOT *slot, *first_free = NULL;
 
-    for(slot = rf->slots; slot ; slot = slot->next) {
+    for(slot = rf->slots; slot ; slot = slot->disk_next) {
         if(slot->header.type == RRDSLOT_FREE) {
             // FIXME
         }
@@ -114,6 +126,27 @@ static RRDFILE_SLOT *rrdfile_create_free_slot(RRDFILE *rf, off_t offset, size_t 
     return slot;
 }
 
+
+// ----------------------------------------------------------------------------
+// rrdfile header read/write
+
+ssize_t rrdfile_header_read(RRDFILE *rf) {
+    ssize_t ret = rrdfile_read(rf, 0, &rf->header, sizeof(rf->header));
+
+    if(ret == -1)
+        error("RRDFILE '%s': failed to read header (%zu bytes)", rf->filename, sizeof(rf->header));
+
+    return ret;
+}
+
+ssize_t rrdfile_header_write(RRDFILE *rf) {
+    ssize_t ret = rrdfile_write(rf, 0, &rf->header, sizeof(rf->header));
+
+    if(ret == -1)
+        error("RRDFILE '%s': failed to write header", rf->filename);
+
+    return ret;
+}
 
 // ----------------------------------------------------------------------------
 // rrdfile open/create/close
@@ -143,8 +176,7 @@ RRDFILE *rrdfile_create(const char *filename, size_t size) {
     rf->header.page_size = (size_t)sysconf(_SC_PAGESIZE);
     rf->header.size = size;
 
-    if(write(rf->fd, &rf->header, sizeof(rf->header)) == -1) {
-        error("RRDFILE '%s': failed to write header", rf->filename);
+    if(rrdfile_header_write(rf) == -1) {
         rrdfile_close(rf);
         return NULL;
     }
@@ -174,8 +206,7 @@ RRDFILE *rrdfile_open(const char *filename, size_t size) {
     // ------------------------------------------------------------------------
     // read the header
 
-    if(rrdfile_read(rf, 0, &rf->header, sizeof(rf->header)) == -1) {
-        error("RRDFILE '%s': failed to read header (%zu bytes)", rf->filename, sizeof(rf->header));
+    if(rrdfile_header_read(rf) == -1) {
         rrdfile_close(rf);
         return NULL;
     }
@@ -213,16 +244,19 @@ RRDFILE *rrdfile_open(const char *filename, size_t size) {
 
         // find the last slot
         RRDFILE_SLOT *slot;
-        for(slot = rf->slots; slot->next; slot = slot->next) ;
+        for(slot = rf->slots; slot->disk_next; slot = slot->disk_next) ;
 
         // append a new free slot;
         off_t offset = rf->header.size;
         size_t len = size - rf->header.size;
         rf->header.size = size;
-        slot->next = rrdfile_create_free_slot(rf, offset, len);
+        slot->disk_next = rrdfile_create_free_slot(rf, offset, len);
 
         // merge it - possibly
-        rrdfile_free_slot(rf, slot->next);
+        rrdfile_free_slot(rf, slot->disk_next);
+
+        // save the header to the file (new size)
+        rrdfile_header_write(rf);
     }
     else if(rf->header.size > size) {
         error("RRDFILE '%s': cannot shrink files yet. Using the size found on disk (%zu).", rf->filename, rf->header.size);
