@@ -38,6 +38,7 @@ typedef enum rrdfile_slot_type {
 } RRDFILE_SLOT_TYPE;
 
 typedef enum rrdfile_slot_flags {
+    RRDSLOT_FLAG_DEFAULT
 } RRDSLOT_FLAGS;
 
 // on disk

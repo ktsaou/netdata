@@ -258,6 +258,9 @@ RRDFILE *rrdfile_open(const char *filename, size_t size) {
         // save the header to the file (new size)
         rrdfile_header_write(rf);
     }
+    else if(rf->header.size < size) {
+        error("RRDFILE '%s': new size ignored - the increment is too small to be used", rf->filename);
+    }
     else if(rf->header.size > size) {
         error("RRDFILE '%s': cannot shrink files yet. Using the size found on disk (%zu).", rf->filename, rf->header.size);
     }
