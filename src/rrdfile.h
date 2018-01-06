@@ -92,16 +92,16 @@ typedef struct rrdfile {
     const char *filename;
     int fd;
 
-    size_t next_slot_seq;
-    size_t next_metric_id;
+    volatile sig_atomic_t next_slot_seq;
+    volatile sig_atomic_t next_metric_id;
 
-    size_t slots_count;
+    volatile sig_atomic_t slots_count;
 
-    size_t reads;
-    size_t writes;
-    size_t seeks;
-    size_t read_bytes;
-    size_t write_bytes;
+    volatile sig_atomic_t reads;
+    volatile sig_atomic_t writes;
+    volatile sig_atomic_t seeks;
+    volatile sig_atomic_t read_bytes;
+    volatile sig_atomic_t write_bytes;
 
     RRDFILE_SLOT *slots;            // a sorted list of all slots in the file
 

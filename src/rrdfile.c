@@ -95,7 +95,7 @@ static RRDFILE_SLOT *rrdfile_free_slot(RRDFILE *rf, RRDFILE_SLOT *slot) {
         t = slot->disk_next;
     }
 
-    slot->header.seq = rf->next_slot_seq++;
+    slot->header.seq = (size_t)rf->next_slot_seq++;
     rrdfile_write_slot_header(rf, slot);
 
     return slot;
@@ -116,7 +116,7 @@ static RRDFILE_SLOT *rrdfile_find_space(RRDFILE *rf, size_t size) {
 static RRDFILE_SLOT *rrdfile_create_free_slot(RRDFILE *rf, off_t offset, size_t size) {
     RRDFILE_SLOT *slot = callocz(1, size);
     slot->header.type = RRDSLOT_FREE;
-    slot->header.seq = rf->next_slot_seq++;
+    slot->header.seq = (size_t)rf->next_slot_seq++;
     slot->header.offset = offset;
     slot->header.size = size;
 
