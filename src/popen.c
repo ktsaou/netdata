@@ -43,7 +43,7 @@ static void mypopen_del(FILE *fp) {
 #define PIPE_READ 0
 #define PIPE_WRITE 1
 
-FILE *mypopen(const char *command, pid_t *pidptr)
+FILE *mypopen(const char *command, volatile pid_t *pidptr)
 {
     int pipefd[2];
 
@@ -126,6 +126,8 @@ int mypclose(FILE *fp, pid_t pid) {
     // close the pipe file pointer
     fclose(fp);
 
+    errno = 0;
+
     siginfo_t info;
     if(waitid(P_PID, (id_t) pid, &info, WEXITED) != -1) {
         switch(info.si_code) {
@@ -133,37 +135,30 @@ int mypclose(FILE *fp, pid_t pid) {
                 if(info.si_status)
                     error("child pid %d exited with code %d.", info.si_pid, info.si_status);
                 return(info.si_status);
-                break;
 
             case CLD_KILLED:
                 error("child pid %d killed by signal %d.", info.si_pid, info.si_status);
                 return(-1);
-                break;
 
             case CLD_DUMPED:
                 error("child pid %d core dumped by signal %d.", info.si_pid, info.si_status);
                 return(-2);
-                break;
 
             case CLD_STOPPED:
                 error("child pid %d stopped by signal %d.", info.si_pid, info.si_status);
                 return(0);
-                break;
 
             case CLD_TRAPPED:
                 error("child pid %d trapped by signal %d.", info.si_pid, info.si_status);
                 return(-4);
-                break;
 
             case CLD_CONTINUED:
                 error("child pid %d continued by signal %d.", info.si_pid, info.si_status);
                 return(0);
-                break;
 
             default:
                 error("child pid %d gave us a SIGCHLD with code %d and status %d.", info.si_pid, info.si_code, info.si_status);
                 return(-5);
-                break;
         }
     }
     else

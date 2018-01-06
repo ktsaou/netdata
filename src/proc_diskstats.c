@@ -71,7 +71,7 @@ static struct disk {
     struct disk *next;
 } *disk_root = NULL;
 
-#define rrdset_obsolete_and_pointer_null(st) do { if(st) { rrdset_is_obsolete(st); st = NULL; } } while(st)
+#define rrdset_obsolete_and_pointer_null(st) do { if(st) { rrdset_is_obsolete(st); (st) = NULL; } } while(st)
 
 static char *path_to_get_hw_sector_size = NULL;
 static char *path_to_get_hw_sector_size_partitions = NULL;
@@ -501,8 +501,9 @@ int do_proc_diskstats(int update_every, usec_t dt) {
 
             if(unlikely(!excluded_disks)) {
                 excluded_disks = simple_pattern_create(
-                        config_get(CONFIG_SECTION_DISKSTATS, "exclude disks", DEFAULT_EXCLUDED_DISKS),
-                        SIMPLE_PATTERN_EXACT
+                        config_get(CONFIG_SECTION_DISKSTATS, "exclude disks", DEFAULT_EXCLUDED_DISKS)
+                        , NULL
+                        , SIMPLE_PATTERN_EXACT
                 );
             }
 

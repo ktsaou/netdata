@@ -175,7 +175,7 @@ void read_cgroup_plugin_configuration() {
                     " !/systemd "
                     " !/user "
                     " * "                                  // enable anything else
-            ), SIMPLE_PATTERN_EXACT);
+            ), NULL, SIMPLE_PATTERN_EXACT);
 
     enabled_cgroup_paths = simple_pattern_create(
             config_get("plugin:cgroups", "search for cgroups in subpaths matching",
@@ -187,9 +187,9 @@ void read_cgroup_plugin_configuration() {
                     " !/systemd "
                     " !/user "
                     " !/user.slice "
-                    " !/lxc/*/* "                         //  #2161 #2649
+                    " !/lxc/*/* "                          //  #2161 #2649
                     " * "
-            ), SIMPLE_PATTERN_EXACT);
+            ), NULL, SIMPLE_PATTERN_EXACT);
 
     snprintfz(filename, FILENAME_MAX, "%s/cgroup-name.sh", netdata_configured_plugins_dir);
     cgroups_rename_script = config_get("plugin:cgroups", "script to get cgroup names", filename);
@@ -199,13 +199,6 @@ void read_cgroup_plugin_configuration() {
 
     enabled_cgroup_renames = simple_pattern_create(
             config_get("plugin:cgroups", "run script to rename cgroups matching",
-                    " *.scope "
-                    " *docker* "
-                    " *lxc* "
-                    " *qemu* "
-                    " *.libvirt-qemu "                    //  #3010
-                    " !*/vcpu* "                          // libvirtd adds these sub-cgroups
-                    " !*/emulator* "                      // libvirtd adds these sub-cgroups
                     " !/ "
                     " !*.mount "
                     " !*.partition "
@@ -213,15 +206,23 @@ void read_cgroup_plugin_configuration() {
                     " !*.slice "
                     " !*.swap "
                     " !*.user "
+                    " !init.scope "
+                    " !*.scope/vcpu* "                    // libvirtd adds these sub-cgroups
+                    " !*.scope/emulator "                 // libvirtd adds these sub-cgroups
+                    " *.scope "
+                    " *docker* "
+                    " *lxc* "
+                    " *qemu* "
+                    " *.libvirt-qemu "                    //  #3010
                     " * "
-            ), SIMPLE_PATTERN_EXACT);
+            ), NULL, SIMPLE_PATTERN_EXACT);
 
     if(cgroup_enable_systemd_services) {
         systemd_services_cgroups = simple_pattern_create(
                 config_get("plugin:cgroups", "cgroups to match as systemd services",
                         " !/system.slice/*/*.service "
                         " /system.slice/*.service "
-                ), SIMPLE_PATTERN_EXACT);
+                ), NULL, SIMPLE_PATTERN_EXACT);
     }
 
     mountinfo_free(root);
@@ -1386,7 +1387,6 @@ static inline void find_all_cgroups() {
     }
 
     debug(D_CGROUP, "done searching for cgroups");
-    return;
 }
 
 // ----------------------------------------------------------------------------
@@ -2674,16 +2674,17 @@ void update_cgroup_charts(int update_every) {
 // ----------------------------------------------------------------------------
 // cgroups main
 
-void *cgroups_main(void *ptr) {
+static void cgroup_main_cleanup(void *ptr) {
     struct netdata_static_thread *static_thread = (struct netdata_static_thread *)ptr;
+    if(static_thread->enabled) {
+        static_thread->enabled = 0;
 
-    info("CGROUP plugin thread created with task id %d", gettid());
+        info("cleaning up...");
+    }
+}
 
-    if(pthread_setcanceltype(PTHREAD_CANCEL_DEFERRED, NULL) != 0)
-        error("CGROUP: cannot set pthread cancel type to DEFERRED.");
-
-    if(pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL) != 0)
-        error("CGROUP: cannot set pthread cancel state to ENABLE.");
+void *cgroups_main(void *ptr) {
+    netdata_thread_cleanup_push(cgroup_main_cleanup, ptr);
 
     struct rusage thread;
 
@@ -2698,7 +2699,8 @@ void *cgroups_main(void *ptr) {
     heartbeat_init(&hb);
     usec_t step = cgroup_update_every * USEC_PER_SEC;
     usec_t find_every = cgroup_check_for_new_every * USEC_PER_SEC, find_dt = 0;
-    for(;;) {
+
+    while(!netdata_exit) {
         usec_t hb_dt = heartbeat_next(&hb, step);
         if(unlikely(netdata_exit)) break;
 
@@ -2750,9 +2752,6 @@ void *cgroups_main(void *ptr) {
         }
     }
 
-    info("CGROUP thread exiting");
-
-    static_thread->enabled = 0;
-    pthread_exit(NULL);
+    netdata_thread_cleanup_pop(1);
     return NULL;
 }

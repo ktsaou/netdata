@@ -1,6 +1,20 @@
 #!/usr/bin/env bash
 
 export PATH="${PATH}:/sbin:/usr/sbin:/usr/local/bin:/usr/local/sbin"
+uniquepath() {
+    local path=""
+    while read
+    do
+        if [[ ! "${path}" =~ (^|:)"${REPLY}"(:|$) ]]
+        then
+            [ ! -z "${path}" ] && path="${path}:"
+            path="${path}${REPLY}"
+        fi
+    done < <( echo "${PATH}" | tr ":" "\n" )
+
+    [ ! -z "${path}" ] && [[ "${PATH}" =~ /bin ]] && [[ "${PATH}" =~ /sbin ]] && export PATH="${path}"
+}
+uniquepath
 
 netdata_source_dir="$(pwd)"
 installer_dir="$(dirname "${0}")"
@@ -219,27 +233,27 @@ do
         shift 1
     elif [ "$1" = "--enable-plugin-freeipmi" ]
         then
-        NETDATA_CONFIGURE_OPTIONS="${NETDATA_CONFIGURE_OPTIONS} --enable-plugin-freeipmi"
+        NETDATA_CONFIGURE_OPTIONS="${NETDATA_CONFIGURE_OPTIONS//--enable-plugin-freeipmi/} --enable-plugin-freeipmi"
         shift 1
     elif [ "$1" = "--disable-plugin-freeipmi" ]
         then
-        NETDATA_CONFIGURE_OPTIONS="${NETDATA_CONFIGURE_OPTIONS} --disable-plugin-freeipmi"
+        NETDATA_CONFIGURE_OPTIONS="${NETDATA_CONFIGURE_OPTIONS//--disable-plugin-freeipmi/} --disable-plugin-freeipmi"
         shift 1
     elif [ "$1" = "--enable-plugin-nfacct" ]
         then
-        NETDATA_CONFIGURE_OPTIONS="${NETDATA_CONFIGURE_OPTIONS} --enable-plugin-nfacct"
+        NETDATA_CONFIGURE_OPTIONS="${NETDATA_CONFIGURE_OPTIONS//--enable-plugin-nfacct/} --enable-plugin-nfacct"
         shift 1
     elif [ "$1" = "--disable-plugin-nfacct" ]
         then
-        NETDATA_CONFIGURE_OPTIONS="${NETDATA_CONFIGURE_OPTIONS} --disable-plugin-nfacct"
+        NETDATA_CONFIGURE_OPTIONS="${NETDATA_CONFIGURE_OPTIONS//--disable-plugin-nfacct/} --disable-plugin-nfacct"
         shift 1
     elif [ "$1" = "--enable-lto" ]
         then
-        NETDATA_CONFIGURE_OPTIONS="${NETDATA_CONFIGURE_OPTIONS} --enable-lto"
+        NETDATA_CONFIGURE_OPTIONS="${NETDATA_CONFIGURE_OPTIONS//--enable-lto/} --enable-lto"
         shift 1
     elif [ "$1" = "--disable-lto" ]
         then
-        NETDATA_CONFIGURE_OPTIONS="${NETDATA_CONFIGURE_OPTIONS} --disable-lto"
+        NETDATA_CONFIGURE_OPTIONS="${NETDATA_CONFIGURE_OPTIONS//--disable-lto/} --disable-lto"
         shift 1
     elif [ "$1" = "--help" -o "$1" = "-h" ]
         then
@@ -257,6 +271,9 @@ do
         exit 1
     fi
 done
+
+# replace multiple spaces with a single space
+NETDATA_CONFIGURE_OPTIONS="${NETDATA_CONFIGURE_OPTIONS//  / }"
 
 netdata_banner "real-time performance monitoring, done right!"
 cat <<BANNER1
@@ -557,7 +574,7 @@ config_signature_matches() {
 
 # backup user configurations
 installer_backup_suffix="${PID}.${RANDOM}"
-for x in $(find -L "${NETDATA_PREFIX}/etc/netdata/" -name '*.conf' -type f)
+for x in $(find -L "${NETDATA_PREFIX}/etc/netdata" -name '*.conf' -type f)
 do
     if [ -f "${x}" ]
         then
@@ -817,16 +834,7 @@ install_netdata_service || run_failed "Cannot install netdata init service."
 started=0
 if [ ${DONOTSTART} -eq 1 ]
     then
-    if [ ! -s "${NETDATA_PREFIX}/etc/netdata/netdata.conf" ]
-        then
-        echo "# Get config from http://127.0.0.1:${NETDATA_PORT}/netdata.conf" >"${NETDATA_PREFIX}/etc/netdata/netdata.conf"
-
-        if [ "${UID}" -eq 0 ]
-            then
-            chown "${NETDATA_USER}" "${NETDATA_PREFIX}/etc/netdata/netdata.conf"
-        fi
-        chmod 0644 "${NETDATA_PREFIX}/etc/netdata/netdata.conf"
-    fi
+    generate_netdata_conf "${NETDATA_USER}" "${NETDATA_PREFIX}/etc/netdata/netdata.conf" "http://localhost:${NETDATA_PORT}/netdata.conf"
 
 else
     restart_netdata ${NETDATA_PREFIX}/usr/sbin/netdata "${@}"
@@ -845,47 +853,7 @@ else
     # -----------------------------------------------------------------------------
     # save a config file, if it is not already there
 
-    if [ ! -s "${NETDATA_PREFIX}/etc/netdata/netdata.conf" ]
-        then
-        echo >&2
-        echo >&2 "-------------------------------------------------------------------------------"
-        echo >&2
-        echo >&2 "Downloading default configuration from netdata..."
-        sleep 5
-
-        # remove a possibly obsolete download
-        [ -f "${NETDATA_PREFIX}/etc/netdata/netdata.conf.new" ] && rm "${NETDATA_PREFIX}/etc/netdata/netdata.conf.new"
-
-        # disable a proxy to get data from the local netdata
-        export http_proxy=
-        export https_proxy=
-
-        # try wget
-        wget 2>/dev/null -O "${NETDATA_PREFIX}/etc/netdata/netdata.conf.new" "http://localhost:${NETDATA_PORT}/netdata.conf"
-        ret=$?
-
-        # try curl
-        if [ ${ret} -ne 0 -o ! -s "${NETDATA_PREFIX}/etc/netdata/netdata.conf.new" ]
-            then
-            curl -s -o "${NETDATA_PREFIX}/etc/netdata/netdata.conf.new" "http://localhost:${NETDATA_PORT}/netdata.conf"
-            ret=$?
-        fi
-
-        if [ ${ret} -eq 0 -a -s "${NETDATA_PREFIX}/etc/netdata/netdata.conf.new" ]
-            then
-            mv "${NETDATA_PREFIX}/etc/netdata/netdata.conf.new" "${NETDATA_PREFIX}/etc/netdata/netdata.conf"
-            echo >&2 "New configuration saved for you to edit at ${NETDATA_PREFIX}/etc/netdata/netdata.conf"
-
-            if [ "${UID}" -eq 0 ]
-                then
-                chown "${NETDATA_USER}" "${NETDATA_PREFIX}/etc/netdata/netdata.conf"
-            fi
-            chmod 0664 "${NETDATA_PREFIX}/etc/netdata/netdata.conf"
-        else
-            echo >&2 "Cannnot download configuration from netdata daemon using url 'http://localhost:${NETDATA_PORT}/netdata.conf'"
-            [ -f "${NETDATA_PREFIX}/etc/netdata/netdata.conf.new" ] && rm "${NETDATA_PREFIX}/etc/netdata/netdata.conf.new"
-        fi
-    fi
+    download_netdata_conf "${NETDATA_USER}" "${NETDATA_PREFIX}/etc/netdata/netdata.conf" "http://localhost:${NETDATA_PORT}/netdata.conf"
 fi
 
 # -----------------------------------------------------------------------------

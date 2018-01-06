@@ -54,6 +54,9 @@ static struct proc_module {
         // ZFS metrics
         { .name = "/proc/spl/kstat/zfs/arcstats", .dim = "zfs_arcstats", .func = do_proc_spl_kstat_zfs_arcstats },
 
+        // BTRFS metrics
+        { .name = "/sys/fs/btrfs", .dim = "btrfs", .func = do_sys_fs_btrfs },
+
         // IPC metrics
         { .name = "ipc", .dim = "ipc", .func = do_ipc },
 
@@ -61,16 +64,17 @@ static struct proc_module {
         { .name = NULL, .dim = NULL, .func = NULL }
 };
 
-void *proc_main(void *ptr) {
+static void proc_main_cleanup(void *ptr) {
     struct netdata_static_thread *static_thread = (struct netdata_static_thread *)ptr;
+    if(static_thread->enabled) {
+        static_thread->enabled = 0;
 
-    info("PROC Plugin thread created with task id %d", gettid());
+        info("cleaning up...");
+    }
+}
 
-    if(pthread_setcanceltype(PTHREAD_CANCEL_DEFERRED, NULL) != 0)
-        error("Cannot set pthread cancel type to DEFERRED.");
-
-    if(pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL) != 0)
-        error("Cannot set pthread cancel state to ENABLE.");
+void *proc_main(void *ptr) {
+    netdata_thread_cleanup_push(proc_main_cleanup, ptr);
 
     int vdo_cpu_netdata = config_get_boolean("plugin:proc", "netdata server resources", 1);
 
@@ -88,7 +92,7 @@ void *proc_main(void *ptr) {
     heartbeat_t hb;
     heartbeat_init(&hb);
 
-    for(;;) {
+    while(!netdata_exit) {
         usec_t hb_dt = heartbeat_next(&hb, step);
         usec_t duration = 0ULL;
 
@@ -158,10 +162,7 @@ void *proc_main(void *ptr) {
         }
     }
 
-    info("PROC thread exiting");
-
-    static_thread->enabled = 0;
-    pthread_exit(NULL);
+    netdata_thread_cleanup_pop(1);
     return NULL;
 }
 

@@ -1,6 +1,6 @@
 #include "common.h"
 
-#define DELAULT_EXLUDED_PATHS "/proc/* /sys/* /var/run/user/* /run/user/* /snap/* /var/lib/docker/*"
+#define DELAULT_EXCLUDED_PATHS "/proc/* /sys/* /var/run/user/* /run/user/* /snap/* /var/lib/docker/*"
 #define DEFAULT_EXCLUDED_FILESYSTEMS ""
 #define CONFIG_SECTION_DISKSPACE "plugin:proc:diskspace"
 
@@ -46,7 +46,7 @@ struct mount_point_metadata {
 
 static DICTIONARY *dict_mountpoints = NULL;
 
-#define rrdset_obsolete_and_pointer_null(st) do { if(st) { rrdset_is_obsolete(st); st = NULL; } } while(st)
+#define rrdset_obsolete_and_pointer_null(st) do { if(st) { rrdset_is_obsolete(st); (st) = NULL; } } while(st)
 
 int mount_point_cleanup(void *entry, void *data) {
     (void)data;
@@ -96,13 +96,15 @@ static inline void do_disk_space_stats(struct mountinfo *mi, int update_every) {
         }
 
         excluded_mountpoints = simple_pattern_create(
-                config_get(CONFIG_SECTION_DISKSPACE, "exclude space metrics on paths", DELAULT_EXLUDED_PATHS),
-                mode
+                config_get(CONFIG_SECTION_DISKSPACE, "exclude space metrics on paths", DELAULT_EXCLUDED_PATHS)
+                , NULL
+                , mode
         );
 
         excluded_filesystems = simple_pattern_create(
-                config_get(CONFIG_SECTION_DISKSPACE, "exclude space metrics on filesystems", DEFAULT_EXCLUDED_FILESYSTEMS),
-                SIMPLE_PATTERN_EXACT
+                config_get(CONFIG_SECTION_DISKSPACE, "exclude space metrics on filesystems", DEFAULT_EXCLUDED_FILESYSTEMS)
+                , NULL
+                , SIMPLE_PATTERN_EXACT
         );
 
         dict_mountpoints = dictionary_create(DICTIONARY_FLAG_SINGLE_THREADED);
@@ -326,16 +328,17 @@ static inline void do_disk_space_stats(struct mountinfo *mi, int update_every) {
         m->collected++;
 }
 
-void *proc_diskspace_main(void *ptr) {
+static void diskspace_main_cleanup(void *ptr) {
     struct netdata_static_thread *static_thread = (struct netdata_static_thread *)ptr;
+    if(static_thread->enabled) {
+        static_thread->enabled = 0;
 
-    info("DISKSPACE thread created with task id %d", gettid());
+        info("cleaning up...");
+    }
+}
 
-    if(pthread_setcanceltype(PTHREAD_CANCEL_DEFERRED, NULL) != 0)
-        error("DISKSPACE: Cannot set pthread cancel type to DEFERRED.");
-
-    if(pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL) != 0)
-        error("DISKSPACE: Cannot set pthread cancel state to ENABLE.");
+void *proc_diskspace_main(void *ptr) {
+    netdata_thread_cleanup_push(diskspace_main_cleanup, ptr);
 
     int vdo_cpu_netdata = config_get_boolean("plugin:proc", "netdata server resources", 1);
 
@@ -355,7 +358,7 @@ void *proc_diskspace_main(void *ptr) {
     usec_t step = update_every * USEC_PER_SEC;
     heartbeat_t hb;
     heartbeat_init(&hb);
-    for(;;) {
+    while(!netdata_exit) {
         duration = heartbeat_dt_usec(&hb);
         /* usec_t hb_dt = */ heartbeat_next(&hb, step);
 
@@ -452,9 +455,6 @@ void *proc_diskspace_main(void *ptr) {
         }
     }
 
-    info("DISKSPACE thread exiting");
-
-    static_thread->enabled = 0;
-    pthread_exit(NULL);
+    netdata_thread_cleanup_pop(1);
     return NULL;
 }

@@ -33,6 +33,7 @@ dist_pythonconfig_DATA = \
     python.d/couchdb.conf \
     python.d/cpufreq.conf \
     python.d/dns_query_time.conf \
+    python.d/dnsdist.conf \
     python.d/dovecot.conf \
     python.d/elasticsearch.conf \
     python.d/example.conf \
@@ -74,6 +75,7 @@ dist_healthconfig_DATA = \
     health.d/backend.conf \
     health.d/beanstalkd.conf \
     health.d/bind_rndc.conf \
+    health.d/btrfs.conf \
     health.d/cpu.conf \
     health.d/couchdb.conf \
     health.d/disks.conf \
@@ -120,6 +122,7 @@ dist_chartsconfig_DATA = \
     charts.d/apcupsd.conf \
     charts.d/cpufreq.conf \
     charts.d/exim.conf \
+    charts.d/libreswan.conf \
     charts.d/load_average.conf \
     charts.d/mysql.conf \
     charts.d/nut.conf \
