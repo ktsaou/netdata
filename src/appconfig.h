@@ -50,6 +50,10 @@ extern int appconfig_move(struct config *root, const char *section_old, const ch
 
 extern void appconfig_generate(struct config *root, BUFFER *wb, int only_changed);
 
+extern int appconfig_get_duration(struct config *root, const char *section, const char *name, const char *value);
+
+extern int config_parse_duration(const char *string, int *result);
+
 // ----------------------------------------------------------------------------
 // shortcuts for the default netdata configuration
 
@@ -59,6 +63,7 @@ extern void appconfig_generate(struct config *root, BUFFER *wb, int only_changed
 #define config_get_float(section, name, value) appconfig_get_float(&netdata_config, section, name, value)
 #define config_get_boolean(section, name, value) appconfig_get_boolean(&netdata_config, section, name, value)
 #define config_get_boolean_ondemand(section, name, value) appconfig_get_boolean_ondemand(&netdata_config, section, name, value)
+#define config_get_duration(section, name, value) appconfig_get_duration(&netdata_config, section, name, value)
 
 #define config_set(section, name, default_value) appconfig_set(&netdata_config, section, name, default_value)
 #define config_set_default(section, name, value) appconfig_set_default(&netdata_config, section, name, value)

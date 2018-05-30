@@ -180,6 +180,12 @@ typedef struct rrdcalc {
                                    // while now < delay_up_to
 
     // ------------------------------------------------------------------------
+    // notification repeat settings
+
+    int repeat_warning_duration;
+    int repeat_critical_duration;
+
+    // ------------------------------------------------------------------------
     // runtime information
 
     RRDCALC_STATUS status;          // the current status of the alarm
@@ -267,6 +273,12 @@ typedef struct rrdcalctemplate {
     float delay_multiplier;        // multiplier for all delays when alarms switch status
 
     // ------------------------------------------------------------------------
+    // notification repeat settings
+
+    int repeat_warning_duration;
+    int repeat_critical_duration;
+
+    // ------------------------------------------------------------------------
     // expressions related to the alarm
 
     EVAL_EXPRESSION *calculation;
@@ -278,12 +290,12 @@ typedef struct rrdcalctemplate {
 
 #define RRDCALCTEMPLATE_HAS_CALCULATION(rt) ((rt)->after)
 
-#define HEALTH_ENTRY_FLAG_PROCESSED             0x00000001
-#define HEALTH_ENTRY_FLAG_UPDATED               0x00000002
-#define HEALTH_ENTRY_FLAG_EXEC_RUN              0x00000004
-#define HEALTH_ENTRY_FLAG_EXEC_FAILED           0x00000008
-#define HEALTH_ENTRY_FLAG_SAVED                 0x10000000
-#define HEALTH_ENTRY_FLAG_NO_CLEAR_NOTIFICATION 0x80000000
+#define HEALTH_ENTRY_FLAG_PROCESSED             0x00000001 // set just before attempting to send a notification
+#define HEALTH_ENTRY_FLAG_UPDATED               0x00000002 // when set, this alarm entry has been updated with another (this is not the latest)
+#define HEALTH_ENTRY_FLAG_EXEC_RUN              0x00000004 // when set, we attempted to execute the notification program
+#define HEALTH_ENTRY_FLAG_EXEC_FAILED           0x00000008 // when set, the notification program returned failure (non zero exit code)
+#define HEALTH_ENTRY_FLAG_SAVED                 0x10000000 // when set, this alarm entry has been saved to transaction log
+#define HEALTH_ENTRY_FLAG_NO_CLEAR_NOTIFICATION 0x80000000 // when set, this alarm entry should not send clear notifications
 
 typedef struct alarm_entry {
     uint32_t unique_id;
@@ -425,7 +437,7 @@ extern int rrdcalc_exists(RRDHOST *host, const char *chart, const char *name, ui
 extern uint32_t rrdcalc_get_unique_id(RRDHOST *host, const char *chart, const char *name, uint32_t *next_event_id);
 extern int rrdvar_fix_name(char *variable);
 
-extern RRDCALC *rrdcalc_create(RRDHOST *host, RRDCALCTEMPLATE *rt, const char *chart);
+extern RRDCALC *rrdcalc_create_from_template(RRDHOST *host, RRDCALCTEMPLATE *rt, const char *chart);
 extern void rrdcalc_create_part2(RRDHOST *host, RRDCALC *rc);
 
 extern RRDVAR *rrdvar_create_and_index(const char *scope, avl_tree_lock *tree, const char *name, RRDVAR_TYPE type, void *value);

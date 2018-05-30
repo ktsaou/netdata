@@ -296,7 +296,7 @@ inline void rrdcalc_create_part2(RRDHOST *host, RRDCALC *rc) {
     }
 }
 
-inline RRDCALC *rrdcalc_create(RRDHOST *host, RRDCALCTEMPLATE *rt, const char *chart) {
+inline RRDCALC *rrdcalc_create_from_template(RRDHOST *host, RRDCALCTEMPLATE *rt, const char *chart) {
 
     debug(D_HEALTH, "Health creating dynamic alarm (from template) '%s.%s'", chart, rt->name);
 
@@ -322,6 +322,9 @@ inline RRDCALC *rrdcalc_create(RRDHOST *host, RRDCALCTEMPLATE *rt, const char *c
     rc->delay_down_duration = rt->delay_down_duration;
     rc->delay_max_duration = rt->delay_max_duration;
     rc->delay_multiplier = rt->delay_multiplier;
+
+    rc->repeat_warning_duration = rt->repeat_warning_duration;
+    rc->repeat_critical_duration = rt->repeat_critical_duration;
 
     rc->group = rt->group;
     rc->after = rt->after;

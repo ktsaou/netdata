@@ -479,6 +479,9 @@ struct rrdhost {
     size_t health_log_entries_written;              // the number of alarm events writtern to the alarms event log
     FILE *health_log_fp;                            // the FILE pointer to the open alarms event log file
 
+    int health_default_repeat_warning_duration;     // the default duration to repeat warning notifications
+    int health_default_repeat_critical_duration;    // the default duration to repeat critical notifications
+
     // all RRDCALCs are primarily allocated and linked here
     // RRDCALCs may be linked to charts at any point
     // (charts may or may not exist when these are loaded)

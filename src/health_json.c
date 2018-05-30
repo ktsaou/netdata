@@ -135,6 +135,8 @@ static inline void health_rrdcalc2json_nolock(RRDHOST *host, BUFFER *wb, RRDCALC
                     "\t\t\t\"delay_multiplier\": %f,\n"
                     "\t\t\t\"delay\": %d,\n"
                     "\t\t\t\"delay_up_to_timestamp\": %lu,\n"
+                    "\t\t\t\"repeat_warning_duration\": %d,\n"
+                    "\t\t\t\"repeat_critical_duration\": %d,\n"
                     "\t\t\t\"value_string\": \"%s\",\n"
                    , rc->chart, rc->name
                    , (unsigned long)rc->id
@@ -158,6 +160,8 @@ static inline void health_rrdcalc2json_nolock(RRDHOST *host, BUFFER *wb, RRDCALC
                    , rc->delay_multiplier
                    , rc->delay_last
                    , (unsigned long)rc->delay_up_to_timestamp
+                   , rc->repeat_warning_duration
+                   , rc->repeat_critical_duration
                    , value_string
     );
 

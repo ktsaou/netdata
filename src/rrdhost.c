@@ -164,6 +164,8 @@ RRDHOST *rrdhost_create(const char *hostname,
     if(config_get_boolean(CONFIG_SECTION_GLOBAL, "delete orphan hosts files", 1) && !is_localhost)
         rrdhost_flag_set(host, RRDHOST_FLAG_DELETE_ORPHAN_HOST);
 
+    host->health_default_repeat_warning_duration = config_get_duration(CONFIG_SECTION_HEALTH, "repeat warning notifications every", "never");
+    host->health_default_repeat_critical_duration = config_get_duration(CONFIG_SECTION_HEALTH, "repeat critical notifications every", "never");
 
     // ------------------------------------------------------------------------
     // initialize health variables
