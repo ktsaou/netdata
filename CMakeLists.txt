@@ -345,7 +345,7 @@ set(RRD_PLUGIN_FILES
         database/rrdsetvar.h
         database/rrdvar.c
         database/rrdvar.h
-        )
+        database/rrd2/rrddb2.c database/rrd2/rrddb2.h)
 
 set(WEB_PLUGIN_FILES
         web/server/web_client.c
