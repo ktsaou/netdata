@@ -236,15 +236,23 @@ void buffer_vsprintf(BUFFER *wb, const char *fmt, va_list args)
 {
     if(unlikely(!fmt || !*fmt)) return;
 
-    buffer_need_bytes(wb, 2);
+    size_t wrote = 0, need = 2, space_remaining = 0;
 
-    size_t len = wb->size - wb->len - 1;
+    do {
+        need += space_remaining * 2;
 
-    wb->len += vsnprintfz(&wb->buffer[wb->len], len, fmt, args);
+        debug(D_WEB_BUFFER, "web_buffer_sprintf(): increasing web_buffer at position %zu, size = %zu, by %zu bytes (wrote = %zu)\n", wb->len, wb->size, need, wrote);
+        buffer_need_bytes(wb, need);
 
-    buffer_overflow_check(wb);
+        space_remaining = wb->size - wb->len - 1;
 
-    // the buffer is \0 terminated by vsnprintfz
+        wrote = (size_t) vsnprintfz(&wb->buffer[wb->len], space_remaining, fmt, args);
+
+    } while(wrote >= space_remaining);
+
+    wb->len += wrote;
+
+    // the buffer is \0 terminated by vsnprintf
 }
 
 void buffer_sprintf(BUFFER *wb, const char *fmt, ...)
@@ -252,22 +260,21 @@ void buffer_sprintf(BUFFER *wb, const char *fmt, ...)
     if(unlikely(!fmt || !*fmt)) return;
 
     va_list args;
-    size_t wrote = 0, need = 2, multiplier = 0, len;
+    size_t wrote = 0, need = 2, space_remaining = 0;
 
     do {
-        need += wrote + multiplier * WEB_DATA_LENGTH_INCREASE_STEP;
-        multiplier++;
+        need += space_remaining * 2;
 
         debug(D_WEB_BUFFER, "web_buffer_sprintf(): increasing web_buffer at position %zu, size = %zu, by %zu bytes (wrote = %zu)\n", wb->len, wb->size, need, wrote);
         buffer_need_bytes(wb, need);
 
-        len = wb->size - wb->len - 1;
+        space_remaining = wb->size - wb->len - 1;
 
         va_start(args, fmt);
-        wrote = (size_t) vsnprintfz(&wb->buffer[wb->len], len, fmt, args);
+        wrote = (size_t) vsnprintfz(&wb->buffer[wb->len], space_remaining, fmt, args);
         va_end(args);
 
-    } while(wrote >= len);
+    } while(wrote >= space_remaining);
 
     wb->len += wrote;
 
@@ -420,16 +427,22 @@ void buffer_increase(BUFFER *b, size_t free_size_required) {
     buffer_overflow_check(b);
 
     size_t left = b->size - b->len;
-
     if(left >= free_size_required) return;
 
-    size_t increase = free_size_required - left;
-    if(increase < WEB_DATA_LENGTH_INCREASE_STEP) increase = WEB_DATA_LENGTH_INCREASE_STEP;
+    size_t wanted = free_size_required - left;
+    size_t minimum = WEB_DATA_LENGTH_INCREASE_STEP;
+    if(minimum > wanted) wanted = minimum;
 
-    debug(D_WEB_BUFFER, "Increasing data buffer from size %zu to %zu.", b->size, b->size + increase);
+    size_t optimal = b->size * 2;
+    if(b->size > 5*1024*1024) optimal = b->size / 3;
+    else if(b->size > 1*1024*1024) optimal = b->size;
 
-    b->buffer = reallocz(b->buffer, b->size + increase + sizeof(BUFFER_OVERFLOW_EOF) + 2);
-    b->size += increase;
+    if(optimal > wanted) wanted = optimal;
+
+    debug(D_WEB_BUFFER, "Increasing data buffer from size %zu to %zu.", b->size, b->size + wanted);
+
+    b->buffer = reallocz(b->buffer, b->size + wanted + sizeof(BUFFER_OVERFLOW_EOF) + 2);
+    b->size += wanted;
 
     buffer_overflow_init(b);
     buffer_overflow_check(b);
