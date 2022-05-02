@@ -179,7 +179,7 @@ int rrdset_set_name(RRDSET *st, const char *name) {
         st->hash_name = simple_hash(st->name);
     }
 
-    rrdset_wrlock(st);
+    rrdset_wrlock_to_update_the_dimensions(st);
     RRDDIM *rd;
     rrddim_foreach_write(rd, st)
         rrddimvar_rename_all(rd);
@@ -336,7 +336,7 @@ void rrdset_free(RRDSET *st) {
     RRDHOST *host = st->rrdhost;
 
     rrdhost_check_wrlock(host);  // make sure we have a write lock on the host
-    rrdset_wrlock(st);                  // lock this RRDSET
+    rrdset_wrlock_to_update_the_dimensions(st);                  // lock this RRDSET
     // info("Removing chart '%s' ('%s')", st->id, st->name);
 
     // ------------------------------------------------------------------------
@@ -447,7 +447,7 @@ void rrdset_save(RRDSET *st) {
     }
 }
 
-void rrdset_delete_custom(RRDSET *st, int db_rotated) {
+void rrdset_delete_map_and_save_files_internal(RRDSET *st, int db_rotated) {
     RRDDIM *rd;
 #ifndef ENABLE_ACLK
     UNUSED(db_rotated);
@@ -471,6 +471,7 @@ void rrdset_delete_custom(RRDSET *st, int db_rotated) {
     }
 
     recursively_delete_dir(st->cache_dir, "left-over chart");
+
 #ifdef ENABLE_ACLK
     if ((netdata_cloud_setting) && (db_rotated || RRD_MEMORY_MODE_DBENGINE != st->rrd_memory_mode)) {
         aclk_del_collector(st->rrdhost, st->plugin_name, st->module_name);
@@ -480,7 +481,7 @@ void rrdset_delete_custom(RRDSET *st, int db_rotated) {
 
 }
 
-void rrdset_delete_obsolete_dimensions(RRDSET *st) {
+void rrdset_delete_obsolete_dimensions_files(RRDSET *st) {
     RRDDIM *rd;
 
     rrdset_check_rdlock(st);
@@ -690,7 +691,7 @@ RRDSET *rrdset_create_custom(
             return st;
     }
 
-    rrdhost_wrlock(host);
+    rrdhost_wrlock_to_update_the_charts(host);
 
     st = rrdset_find_on_create(host, fullid);
     if(st) {
@@ -1387,7 +1388,7 @@ void rrdset_done(RRDSET *st) {
     netdata_thread_disable_cancelability();
 
     // a read lock is OK here
-    rrdset_rdlock(st);
+    rrdset_rdlock_to_read_the_dimensions(st);
 
 #ifdef ENABLE_ACLK
     if (likely(!st->state->is_ar_chart)) {
@@ -1907,7 +1908,7 @@ after_second_database_work:
             // there is a dimension to free
             // upgrade our read lock to a write lock
             rrdset_unlock(st);
-            rrdset_wrlock(st);
+            rrdset_wrlock_to_update_the_dimensions(st);
 
             for( rd = st->dimensions, last = NULL ; likely(rd) ; ) {
                 if(unlikely(rrddim_flag_check(rd, RRDDIM_FLAG_OBSOLETE) &&  !rrddim_flag_check(rd, RRDDIM_FLAG_ACLK)

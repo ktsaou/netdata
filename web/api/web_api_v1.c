@@ -523,7 +523,7 @@ inline int web_client_api_request_v1_data(RRDHOST *host, struct web_client *w, c
         RRDSET *st1;
         uint32_t context_hash = simple_hash(context);
 
-        rrdhost_rdlock(host);
+        rrdhost_rdlock_to_read_the_charts(host);
         char *words[MAX_CHART_LABELS_FILTER];
         uint32_t hash_key_list[MAX_CHART_LABELS_FILTER];
         int word_count = 0;
@@ -850,7 +850,7 @@ inline int web_client_api_request_v1_registry(RRDHOST *host, struct web_client *
 static inline void web_client_api_request_v1_info_summary_alarm_statuses(RRDHOST *host, BUFFER *wb) {
     int alarm_normal = 0, alarm_warn = 0, alarm_crit = 0;
     RRDCALC *rc;
-    rrdhost_rdlock(host);
+    rrdhost_rdlock_to_read_the_charts(host);
     for(rc = host->alarms; rc ; rc = rc->next) {
         if(unlikely(!rc->rrdset || !rc->rrdset->last_collected_time.tv_sec))
             continue;
@@ -877,7 +877,7 @@ static inline void web_client_api_request_v1_info_mirrored_hosts(BUFFER *wb) {
     int count = 0;
 
     buffer_strcat(wb, "\t\"mirrored_hosts\": [\n");
-    rrd_rdlock();
+    rrd_rdlock_to_read_the_hosts();
     rrdhost_foreach_read(host) {
         if (rrdhost_flag_check(host, RRDHOST_FLAG_ARCHIVED))
             continue;
@@ -937,7 +937,7 @@ inline void host_labels2json(RRDHOST *host, BUFFER *wb, size_t indentation) {
     }
 
     int count = 0;
-    rrdhost_rdlock(host);
+    rrdhost_rdlock_to_read_the_charts(host);
     netdata_rwlock_rdlock(&host->labels.labels_rwlock);
     for (struct label *label = host->labels.head; label; label = label->next) {
         if(count > 0) buffer_strcat(wb, ",\n");

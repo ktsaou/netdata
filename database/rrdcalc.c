@@ -708,7 +708,7 @@ void rrdcalc_labels_unlink_alarm_from_host(RRDHOST *host) {
 }
 
 void rrdcalc_labels_unlink() {
-    rrd_rdlock();
+    rrd_rdlock_to_read_the_hosts();
 
     RRDHOST *host;
     rrdhost_foreach_read(host) {
@@ -716,7 +716,7 @@ void rrdcalc_labels_unlink() {
             continue;
 
         if (host->labels.head) {
-            rrdhost_wrlock(host);
+            rrdhost_wrlock_to_update_the_charts(host);
 
             rrdcalc_labels_unlink_alarm_from_host(host);
 

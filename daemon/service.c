@@ -32,7 +32,7 @@ void *service_main(void *ptr)
 
         rrd_cleanup_obsolete_charts();
 
-        rrd_wrlock();
+        rrd_wrlock_to_update_the_hosts();
         rrdhost_cleanup_orphan_hosts_nolock(localhost);
         rrd_unlock();
 

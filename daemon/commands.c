@@ -218,7 +218,7 @@ static cmd_status_t cmd_reload_labels_execute(char *args, char **message)
 
     BUFFER *wb = buffer_create(10);
 
-    rrdhost_rdlock(localhost);
+    rrdhost_rdlock_to_read_the_charts(localhost);
     netdata_rwlock_rdlock(&localhost->labels.labels_rwlock);
     struct label *l = localhost->labels.head;
     while (l != NULL) {

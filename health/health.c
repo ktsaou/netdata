@@ -147,7 +147,7 @@ static void health_reload_host(RRDHOST *host) {
     char *stock_path = health_stock_config_dir();
 
     // free all running alarms
-    rrdhost_wrlock(host);
+    rrdhost_wrlock_to_update_the_charts(host);
 
     while(host->templates)
         rrdcalctemplate_unlink_and_free(host, host->templates);
@@ -178,7 +178,7 @@ static void health_reload_host(RRDHOST *host) {
             t->flags |= HEALTH_ENTRY_FLAG_UPDATED;
     }
 
-    rrdhost_rdlock(host);
+    rrdhost_rdlock_to_read_the_charts(host);
     // reset all thresholds to all charts
     RRDSET *st;
     rrdset_foreach_read(st, host) {
@@ -188,7 +188,7 @@ static void health_reload_host(RRDHOST *host) {
     rrdhost_unlock(host);
 
     // load the new alarms
-    rrdhost_wrlock(host);
+    rrdhost_wrlock_to_update_the_charts(host);
     health_readdir(host, user_path, stock_path, NULL);
 
     //Discard alarms with labels that do not apply to host
@@ -203,7 +203,7 @@ static void health_reload_host(RRDHOST *host) {
         rrdcalctemplate_link_matching(st);
 
         //This loop must be the last, because ` rrdcalctemplate_link_matching` will create alarms related to it.
-        rrdset_rdlock(st);
+        rrdset_rdlock_to_read_the_dimensions(st);
         rrddim_foreach_read(rd, st) {
             rrdcalc_link_to_rrddim(rd, st, host);
         }
@@ -225,7 +225,7 @@ void health_reload(void) {
 #endif
     sql_refresh_hashes();
 
-    rrd_rdlock();
+    rrd_rdlock_to_read_the_hosts();
 
     RRDHOST *host;
     rrdhost_foreach_read(host)
@@ -530,7 +530,7 @@ static inline int rrdcalc_isrunnable(RRDCALC *rc, time_t now, time_t *next_run) 
     }
 
     int update_every = rc->rrdset->update_every;
-    rrdset_rdlock(rc->rrdset);
+    rrdset_rdlock_to_read_the_dimensions(rc->rrdset);
     time_t first = rrdset_first_entry_t_nolock(rc->rrdset);
     time_t last = rrdset_last_entry_t_nolock(rc->rrdset);
     rrdset_unlock(rc->rrdset);
@@ -658,14 +658,14 @@ static int update_disabled_silenced(RRDHOST *host, RRDCALC *rc) {
 // Create alarms for dimensions that have been added to charts
 // since the previous iteration.
 static void init_pending_foreach_alarms(RRDHOST *host) {
-    rrdhost_wrlock(host);
+    rrdhost_wrlock_to_update_the_charts(host);
 
     if (host->alarms_with_foreach || host->alarms_template_with_foreach) {
         if (rrdhost_flag_check(host, RRDHOST_FLAG_PENDING_FOREACH_ALARMS)) {
             RRDSET *st;
 
             rrdset_foreach_read(st, host) {
-                rrdset_wrlock(st);
+                rrdset_wrlock_to_update_the_dimensions(st);
 
                 if (rrdset_flag_check(st, RRDSET_FLAG_PENDING_FOREACH_ALARMS)) {
                     RRDDIM *rd;
@@ -747,7 +747,7 @@ void *health_main(void *ptr) {
             marked_aclk_reload_loop = loop;
 #endif
 
-        rrd_rdlock();
+        rrd_rdlock_to_read_the_hosts();
 
         RRDHOST *host;
         rrdhost_foreach_read(host) {
@@ -776,7 +776,7 @@ void *health_main(void *ptr) {
 
             init_pending_foreach_alarms(host);
 
-            rrdhost_rdlock(host);
+            rrdhost_rdlock_to_read_the_charts(host);
 
             // the first loop is to lookup values from the db
             for (rc = host->alarms; rc; rc = rc->next) {
@@ -913,7 +913,7 @@ void *health_main(void *ptr) {
             rrdhost_unlock(host);
 
             if (unlikely(runnable && !netdata_exit)) {
-                rrdhost_rdlock(host);
+                rrdhost_rdlock_to_read_the_charts(host);
 
                 for (rc = host->alarms; rc; rc = rc->next) {
                     if (unlikely(!(rc->rrdcalc_flags & RRDCALC_FLAG_RUNNABLE)))

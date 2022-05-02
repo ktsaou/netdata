@@ -1629,7 +1629,7 @@ RRDR *rrd2rrdr(
         first_entry_t = context_param_list->first_entry_t;
         last_entry_t = context_param_list->last_entry_t;
     } else {
-        rrdset_rdlock(st);
+        rrdset_rdlock_to_read_the_dimensions(st);
         first_entry_t = rrdset_first_entry_t_nolock(st);
         last_entry_t = rrdset_last_entry_t_nolock(st);
         rrdset_unlock(st);

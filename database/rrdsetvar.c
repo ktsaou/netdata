@@ -142,7 +142,7 @@ RRDSETVAR *rrdsetvar_custom_chart_variable_create(RRDSET *st, const char *name) 
     rrdvar_fix_name(n);
     uint32_t hash = simple_hash(n);
 
-    rrdset_wrlock(st);
+    rrdset_wrlock_to_update_the_dimensions(st);
 
     // find it
     RRDSETVAR *rs;

@@ -24,7 +24,7 @@ static inline size_t shell_name_copy(char *d, const char *s, size_t usable) {
 
 void rrd_stats_api_v1_charts_allmetrics_shell(RRDHOST *host, BUFFER *wb) {
     analytics_log_shell();
-    rrdhost_rdlock(host);
+    rrdhost_rdlock_to_read_the_charts(host);
 
     // for each chart
     RRDSET *st;
@@ -35,7 +35,7 @@ void rrd_stats_api_v1_charts_allmetrics_shell(RRDHOST *host, BUFFER *wb) {
 
         buffer_sprintf(wb, "\n# chart: %s (name: %s)\n", st->id, st->name);
         if(rrdset_is_available_for_viewers(st)) {
-            rrdset_rdlock(st);
+            rrdset_rdlock_to_read_the_dimensions(st);
 
             // for each dimension
             RRDDIM *rd;
@@ -94,7 +94,7 @@ void rrd_stats_api_v1_charts_allmetrics_shell(RRDHOST *host, BUFFER *wb) {
 
 void rrd_stats_api_v1_charts_allmetrics_json(RRDHOST *host, BUFFER *wb) {
     analytics_log_json();
-    rrdhost_rdlock(host);
+    rrdhost_rdlock_to_read_the_charts(host);
 
     buffer_strcat(wb, "{");
 
@@ -105,7 +105,7 @@ void rrd_stats_api_v1_charts_allmetrics_json(RRDHOST *host, BUFFER *wb) {
     RRDSET *st;
     rrdset_foreach_read(st, host) {
         if(rrdset_is_available_for_viewers(st)) {
-            rrdset_rdlock(st);
+            rrdset_rdlock_to_read_the_dimensions(st);
 
             buffer_sprintf(
                 wb,

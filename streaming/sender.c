@@ -117,7 +117,7 @@ static void rrdpush_sender_thread_send_custom_host_variables(RRDHOST *host) {
 // resets all the chart, so that their definitions
 // will be resent to the central netdata
 static void rrdpush_sender_thread_reset_all_charts(RRDHOST *host) {
-    rrdhost_rdlock(host);
+    rrdhost_rdlock_to_read_the_charts(host);
 
     RRDSET *st;
     rrdset_foreach_read(st, host) {
@@ -125,7 +125,7 @@ static void rrdpush_sender_thread_reset_all_charts(RRDHOST *host) {
 
         st->upstream_resync_time = 0;
 
-        rrdset_rdlock(st);
+        rrdset_rdlock_to_read_the_dimensions(st);
 
         RRDDIM *rd;
         rrddim_foreach_read(rd, st)

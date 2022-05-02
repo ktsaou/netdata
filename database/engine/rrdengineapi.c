@@ -377,7 +377,7 @@ unsigned rrdeng_variable_step_boundaries(RRDSET *st, time_t start_time, time_t e
     page_info_array = NULL;
 
     RRDDIM *temp_rd = context_param_list ? context_param_list->rd : NULL;
-    rrdset_rdlock(st);
+    rrdset_rdlock_to_read_the_dimensions(st);
     for(rd_iter = temp_rd?temp_rd:st->dimensions, rd = NULL, min_time = (usec_t)-1 ; rd_iter ; rd_iter = rd_iter->next) {
         /*
          * Choose oldest dimension as reference. This is not equivalent to the union of all dimensions

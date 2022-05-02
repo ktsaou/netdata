@@ -1117,7 +1117,7 @@ void sql_rrdset2json(RRDHOST *host, BUFFER *wb)
     );
 
     if(unlikely(rrd_hosts_available > 1)) {
-        rrd_rdlock();
+        rrd_rdlock_to_read_the_hosts();
 
         size_t found = 0;
         RRDHOST *h;
@@ -1886,7 +1886,7 @@ int update_node_id(uuid_t *host_id, uuid_t *node_id)
 
     char host_guid[GUID_LEN + 1];
     uuid_unparse_lower(*host_id, host_guid);
-    rrd_wrlock();
+    rrd_wrlock_to_update_the_hosts();
     host = rrdhost_find_by_guid(host_guid, 0);
     if (likely(host))
             set_host_node_id(host, node_id);
@@ -1908,7 +1908,7 @@ char *get_hostname_by_node_id(char *node)
     char  *hostname = NULL;
     int rc;
 
-    rrd_rdlock();
+    rrd_rdlock_to_read_the_hosts();
     RRDHOST *host = find_host_by_node_id(node);
     rrd_unlock();
     if (host)
@@ -2099,7 +2099,7 @@ struct  node_instance_list *get_node_list(void)
     node_list = callocz(row + 1, sizeof(*node_list));
     int max_rows = row;
     row = 0;
-    rrd_rdlock();
+    rrd_rdlock_to_read_the_hosts();
     while (sqlite3_step(res) == SQLITE_ROW) {
         if (sqlite3_column_bytes(res, 0) == sizeof(uuid_t))
             uuid_copy(node_list[row].node_id, *((uuid_t *)sqlite3_column_blob(res, 0)));

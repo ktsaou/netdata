@@ -31,7 +31,7 @@ void rrdr_json_wrapper_begin(RRDR *r, BUFFER *wb, uint32_t format, RRDR_OPTIONS 
     }
 
     if (should_lock)
-        rrdset_rdlock(r->st);
+        rrdset_rdlock_to_read_the_dimensions(r->st);
     buffer_sprintf(wb, "{\n"
                        "   %sapi%s: 1,\n"
                        "   %sid%s: %s%s%s,\n"

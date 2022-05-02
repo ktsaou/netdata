@@ -69,7 +69,7 @@ void charts2json(RRDHOST *host, BUFFER *wb, int skip_volatile, int show_archived
     );
 
     c = 0;
-    rrdhost_rdlock(host);
+    rrdhost_rdlock_to_read_the_charts(host);
     rrdset_foreach_read(st, host) {
         if ((!show_archived && rrdset_is_available_for_viewers(st)) || (show_archived && rrdset_is_archived(st))) {
             if(c) buffer_strcat(wb, ",");
@@ -106,7 +106,7 @@ void charts2json(RRDHOST *host, BUFFER *wb, int skip_volatile, int show_archived
     );
 
     if(unlikely(rrd_hosts_available > 1)) {
-        rrd_rdlock();
+        rrd_rdlock_to_read_the_hosts();
 
         size_t found = 0;
         RRDHOST *h;
@@ -170,7 +170,7 @@ void chartcollectors2json(RRDHOST *host, BUFFER *wb) {
     char name[500];
 
     time_t now = now_realtime_sec();
-    rrdhost_rdlock(host);
+    rrdhost_rdlock_to_read_the_charts(host);
     rrdset_foreach_read(st, host) {
         if (rrdset_is_available_for_viewers(st)) {
             struct collector col = {

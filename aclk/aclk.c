@@ -1246,7 +1246,7 @@ char *ng_aclk_state(void)
 
 #ifdef ENABLE_NEW_CLOUD_PROTOCOL
         RRDHOST *host;
-        rrd_rdlock();
+        rrd_rdlock_to_read_the_hosts();
         rrdhost_foreach_read(host) {
             buffer_sprintf(wb, "\n\n> Node Instance for mGUID: \"%s\" hostname \"%s\"\n", host->machine_guid, host->hostname);
 
@@ -1433,7 +1433,7 @@ char *ng_aclk_state_json(void)
     grp = json_object_new_array();
 
     RRDHOST *host;
-    rrd_rdlock();
+    rrd_rdlock_to_read_the_hosts();
     rrdhost_foreach_read(host) {
         json_object *nodeinstance = json_object_new_object();
 

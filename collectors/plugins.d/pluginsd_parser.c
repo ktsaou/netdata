@@ -183,7 +183,7 @@ PARSER_RC pluginsd_overwrite_action(void *user, RRDHOST *host, struct label *new
     if (!host->labels.head) {
         host->labels.head = new_labels;
     } else {
-        rrdhost_rdlock(host);
+        rrdhost_rdlock_to_read_the_charts(host);
         replace_label_list(&host->labels, new_labels);
         rrdhost_unlock(host);
     }

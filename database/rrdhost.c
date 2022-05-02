@@ -40,7 +40,7 @@ RRDHOST *rrdhost_find_by_hostname(const char *hostname, uint32_t hash) {
 
     if(unlikely(!hash)) hash = simple_hash(hostname);
 
-    rrd_rdlock();
+    rrd_rdlock_to_read_the_hosts();
     RRDHOST *host;
     rrdhost_foreach_read(host) {
         if(unlikely((hash == host->hash_hostname && !strcmp(hostname, host->hostname)))) {
@@ -292,7 +292,7 @@ RRDHOST *rrdhost_create(const char *hostname,
     // load health configuration
 
     if(host->health_enabled) {
-        rrdhost_wrlock(host);
+        rrdhost_wrlock_to_update_the_charts(host);
         health_readdir(host, health_user_config_dir(), health_stock_config_dir(), NULL);
         rrdhost_unlock(host);
     }
@@ -528,7 +528,7 @@ void rrdhost_update(RRDHOST *host
             if(r != 0 && errno != EEXIST)
                 error("Host '%s': cannot create directory '%s'", host->hostname, filename);
 
-            rrdhost_wrlock(host);
+            rrdhost_wrlock_to_update_the_charts(host);
             health_readdir(host, health_user_config_dir(), health_stock_config_dir(), NULL);
             rrdhost_unlock(host);
 
@@ -578,7 +578,7 @@ RRDHOST *rrdhost_find_or_create(
 ) {
     debug(D_RRDHOST, "Searching for host '%s' with guid '%s'", hostname, guid);
 
-    rrd_wrlock();
+    rrd_wrlock_to_update_the_hosts();
     RRDHOST *host = rrdhost_find_by_guid(guid, 0);
     if (unlikely(host && RRD_MEMORY_MODE_DBENGINE != mode && rrdhost_flag_check(host, RRDHOST_FLAG_ARCHIVED))) {
         /* If a legacy memory mode instantiates all dbengine state must be discarded to avoid inconsistencies */
@@ -634,7 +634,7 @@ RRDHOST *rrdhost_find_or_create(
            , system_info);
     }
     if (host) {
-        rrdhost_wrlock(host);
+        rrdhost_wrlock_to_update_the_charts(host);
         rrdhost_flag_clear(host, RRDHOST_FLAG_ORPHAN);
         host->senders_disconnected_time = 0;
         rrdhost_unlock(host);
@@ -672,7 +672,7 @@ restart_after_removal:
                 && !(host->rrd_memory_mode == RRD_MEMORY_MODE_DBENGINE && host->rrdeng_ctx == &multidb_ctx)
 #endif
             )
-                rrdhost_delete_charts(host);
+                rrdhost_delete_all_host_charts_files(host);
             else
                 rrdhost_save_charts(host);
 
@@ -709,7 +709,7 @@ int rrd_init(char *hostname, struct rrdhost_system_info *system_info) {
     rrdpush_init();
 
     debug(D_RRDHOST, "Initializing localhost with hostname '%s'", hostname);
-    rrd_wrlock();
+    rrd_wrlock_to_update_the_hosts();
     localhost = rrdhost_create(
             hostname
             , registry_get_this_machine_hostname()
@@ -848,7 +848,7 @@ void rrdhost_free(RRDHOST *host) {
 
     rrd_check_wrlock();     // make sure the RRDs are write locked
 
-    rrdhost_wrlock(host);
+    rrdhost_wrlock_to_update_the_charts(host);
     ml_delete_host(host);
     rrdhost_unlock(host);
 
@@ -880,9 +880,7 @@ void rrdhost_free(RRDHOST *host) {
             netdata_mutex_unlock(&host->receiver_lock);
     }
 
-
-
-    rrdhost_wrlock(host);   // lock this RRDHOST
+    rrdhost_wrlock_to_update_the_charts(host);   // lock this RRDHOST
 #if defined(ENABLE_ACLK) && defined(ENABLE_NEW_CLOUD_PROTOCOL)
     struct aclk_database_worker_config *wc =  host->dbsync_worker;
     if (wc && !netdata_exit) {
@@ -1005,7 +1003,7 @@ void rrdhost_free(RRDHOST *host) {
 }
 
 void rrdhost_free_all(void) {
-    rrd_wrlock();
+    rrd_wrlock_to_update_the_hosts();
     /* Make sure child-hosts are released before the localhost. */
     while(localhost->next) rrdhost_free(localhost->next);
     rrdhost_free(localhost);
@@ -1024,10 +1022,10 @@ void rrdhost_save_charts(RRDHOST *host) {
 
     // we get a write lock
     // to ensure only one thread is saving the database
-    rrdhost_wrlock(host);
+    rrdhost_wrlock_to_update_the_charts(host);
 
     rrdset_foreach_write(st, host) {
-        rrdset_rdlock(st);
+        rrdset_rdlock_to_read_the_dimensions(st);
         rrdset_save(st);
         rrdset_unlock(st);
     }
@@ -1317,7 +1315,7 @@ void reload_host_labels(void)
     struct label *new_labels = merge_label_lists(from_auto, from_k8s);
     new_labels = merge_label_lists(new_labels, from_config);
 
-    rrdhost_rdlock(localhost);
+    rrdhost_rdlock_to_read_the_charts(localhost);
     replace_label_list(&localhost->labels, new_labels);
 
     health_label_log_save(localhost);
@@ -1335,7 +1333,7 @@ void reload_host_labels(void)
 // ----------------------------------------------------------------------------
 // RRDHOST - delete host files
 
-void rrdhost_delete_charts(RRDHOST *host) {
+void rrdhost_delete_all_host_charts_files(RRDHOST *host) {
     if(!host) return;
 
     info("Deleting database of host '%s'...", host->hostname);
@@ -1344,11 +1342,11 @@ void rrdhost_delete_charts(RRDHOST *host) {
 
     // we get a write lock
     // to ensure only one thread is saving the database
-    rrdhost_wrlock(host);
+    rrdhost_wrlock_to_update_the_charts(host);
 
     rrdset_foreach_write(st, host) {
-        rrdset_rdlock(st);
-        rrdset_delete(st);
+        rrdset_rdlock_to_read_the_dimensions(st);
+        rrdset_delete_map_and_save_files(st);
         rrdset_unlock(st);
     }
 
@@ -1360,7 +1358,7 @@ void rrdhost_delete_charts(RRDHOST *host) {
 // ----------------------------------------------------------------------------
 // RRDHOST - cleanup host files
 
-void rrdhost_cleanup_charts(RRDHOST *host) {
+void rrdhost_save_charts_and_delete_obsolete_files(RRDHOST *host) {
     if(!host) return;
 
     info("Cleaning up database of host '%s'...", host->hostname);
@@ -1370,15 +1368,15 @@ void rrdhost_cleanup_charts(RRDHOST *host) {
 
     // we get a write lock
     // to ensure only one thread is saving the database
-    rrdhost_wrlock(host);
+    rrdhost_wrlock_to_update_the_charts(host);
 
     rrdset_foreach_write(st, host) {
-        rrdset_rdlock(st);
+        rrdset_rdlock_to_read_the_dimensions(st);
 
         if(rrdhost_delete_obsolete_charts && rrdset_flag_check(st, RRDSET_FLAG_OBSOLETE))
-            rrdset_delete(st);
+            rrdset_delete_map_and_save_files(st);
         else if(rrdhost_delete_obsolete_charts && rrdset_flag_check(st, RRDSET_FLAG_OBSOLETE_DIMENSIONS))
-            rrdset_delete_obsolete_dimensions(st);
+            rrdset_delete_obsolete_dimensions_files(st);
         else
             rrdset_save(st);
 
@@ -1395,7 +1393,7 @@ void rrdhost_cleanup_charts(RRDHOST *host) {
 void rrdhost_save_all(void) {
     info("Saving database [%zu hosts(s)]...", rrd_hosts_available);
 
-    rrd_rdlock();
+    rrd_rdlock_to_read_the_hosts();
 
     RRDHOST *host;
     rrdhost_foreach_read(host)
@@ -1410,7 +1408,7 @@ void rrdhost_save_all(void) {
 void rrdhost_cleanup_all(void) {
     info("Cleaning up database [%zu hosts(s)]...", rrd_hosts_available);
 
-    rrd_rdlock();
+    rrd_rdlock_to_read_the_hosts();
 
     RRDHOST *host;
     rrdhost_foreach_read(host) {
@@ -1420,9 +1418,9 @@ void rrdhost_cleanup_all(void) {
             && !(host->rrd_memory_mode == RRD_MEMORY_MODE_DBENGINE && host->rrdeng_ctx == &multidb_ctx)
 #endif
         )
-            rrdhost_delete_charts(host);
+            rrdhost_delete_all_host_charts_files(host);
         else
-            rrdhost_cleanup_charts(host);
+            rrdhost_save_charts_and_delete_obsolete_files(host);
     }
 
     rrd_unlock();
@@ -1454,7 +1452,7 @@ restart_after_removal:
                 rrdset_flag_set(st, RRDSET_FLAG_ARCHIVED);
                 while (st->variables)  rrdsetvar_free(st->variables);
                 while (st->alarms)     rrdsetcalc_unlink(st->alarms);
-                rrdset_wrlock(st);
+                rrdset_wrlock_to_update_the_dimensions(st);
                 for (rd = st->dimensions, last = NULL ; likely(rd) ; ) {
                     if (rrddim_flag_check(rd, RRDDIM_FLAG_ARCHIVED)) {
                         last = rd;
@@ -1509,10 +1507,10 @@ restart_after_removal:
                 }
             }
 #endif
-            rrdset_rdlock(st);
+            rrdset_rdlock_to_read_the_dimensions(st);
 
             if(rrdhost_delete_obsolete_charts)
-                rrdset_delete(st);
+                rrdset_delete_map_and_save_files(st);
             else
                 rrdset_save(st);
 
@@ -1530,13 +1528,13 @@ restart_after_removal:
 
 void rrd_cleanup_obsolete_charts()
 {
-    rrd_rdlock();
+    rrd_rdlock_to_read_the_hosts();
 
     RRDHOST *host;
     rrdhost_foreach_read(host)
     {
         if (host->obsolete_charts_count) {
-            rrdhost_wrlock(host);
+            rrdhost_wrlock_to_update_the_charts(host);
 #ifdef ENABLE_ACLK
             host->deleted_charts_count = 0;
 #endif
@@ -1731,7 +1729,7 @@ int alarm_compare_name(void *a, void *b) {
 // Added for gap-filling, if this proves to be a bottleneck in large-scale systems then we will need to cache
 // the last entry times as the metric updates, but let's see if it is a problem first.
 time_t rrdhost_last_entry_t(RRDHOST *h) {
-    rrdhost_rdlock(h);
+    rrdhost_rdlock_to_read_the_charts(h);
     RRDSET *st;
     time_t result = 0;
     rrdset_foreach_read(st, h) {

@@ -318,16 +318,16 @@ void prepare_buffers(struct engine *engine)
     netdata_thread_disable_cancelability();
     start_batch_formatting(engine);
 
-    rrd_rdlock();
+    rrd_rdlock_to_read_the_hosts();
     RRDHOST *host;
     rrdhost_foreach_read(host)
     {
-        rrdhost_rdlock(host);
+        rrdhost_rdlock_to_read_the_charts(host);
         start_host_formatting(engine, host);
         RRDSET *st;
         rrdset_foreach_read(st, host)
         {
-            rrdset_rdlock(st);
+            rrdset_rdlock_to_read_the_dimensions(st);
             start_chart_formatting(engine, st);
 
             RRDDIM *rd;

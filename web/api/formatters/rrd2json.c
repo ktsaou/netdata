@@ -80,7 +80,7 @@ void build_context_param_list(struct context_param **param_list, RRDSET *st)
 
     RRDDIM *rd1;
     st->last_accessed_time = now_realtime_sec();
-    rrdset_rdlock(st);
+    rrdset_rdlock_to_read_the_dimensions(st);
 
     (*param_list)->first_entry_t = MIN((*param_list)->first_entry_t, rrdset_first_entry_t_nolock(st));
     (*param_list)->last_entry_t  = MAX((*param_list)->last_entry_t, rrdset_last_entry_t_nolock(st));

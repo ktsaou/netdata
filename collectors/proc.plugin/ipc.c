@@ -485,7 +485,7 @@ int do_ipc(int update_every, usec_t dt) {
 
             long long dimensions_num = 0;
             RRDDIM *rd;
-            rrdset_rdlock(st_msq_messages);
+            rrdset_rdlock_to_read_the_dimensions(st_msq_messages);
             rrddim_foreach_read(rd, st_msq_messages) dimensions_num++;
             rrdset_unlock(st_msq_messages);
 

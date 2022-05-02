@@ -325,7 +325,7 @@ void rrdset_push_chart_definition_now(RRDSET *st) {
     if(unlikely(!host->rrdpush_send_enabled || !should_send_chart_matching(st)))
         return;
 
-    rrdset_rdlock(st);
+    rrdset_rdlock_to_read_the_dimensions(st);
     sender_start(host->sender);
     rrdpush_send_chart_definition_nolock(st);
     sender_commit(host->sender);
@@ -373,7 +373,7 @@ void rrdpush_send_labels(RRDHOST *host) {
         return;
 
     sender_start(host->sender);
-    rrdhost_rdlock(host);
+    rrdhost_rdlock_to_read_the_charts(host);
     netdata_rwlock_rdlock(&host->labels.labels_rwlock);
 
     struct label *label_i = host->labels.head;
@@ -679,12 +679,12 @@ int rrdpush_receiver_thread_spawn(struct web_client *w, char *url) {
      */
     struct receiver_state *rpt = callocz(1, sizeof(*rpt));
 
-    rrd_rdlock();
+    rrd_rdlock_to_read_the_hosts();
     RRDHOST *host = rrdhost_find_by_guid(machine_guid, 0);
     if (unlikely(host && rrdhost_flag_check(host, RRDHOST_FLAG_ARCHIVED))) /* Ignore archived hosts. */
         host = NULL;
     if (host) {
-        rrdhost_wrlock(host);
+        rrdhost_wrlock_to_update_the_charts(host);
         netdata_mutex_lock(&host->receiver_lock);
         rrdhost_flag_clear(host, RRDHOST_FLAG_ORPHAN);
         host->senders_disconnected_time = 0;

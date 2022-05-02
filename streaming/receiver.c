@@ -504,7 +504,7 @@ static int rrdpush_receive(struct receiver_state *rpt)
         netdata_mutex_unlock(&rpt->host->receiver_lock);
     }
     else {
-        rrd_wrlock();
+        rrd_wrlock_to_update_the_hosts();
         rrdhost_update(
             rpt->host,
             rpt->hostname,
@@ -624,7 +624,7 @@ static int rrdpush_receive(struct receiver_state *rpt)
         return 0;
     }
 
-    rrdhost_wrlock(rpt->host);
+    rrdhost_wrlock_to_update_the_charts(rpt->host);
 /* if(rpt->host->connected_senders > 0) {
         rrdhost_unlock(rpt->host);
         log_stream_connection(rpt->client_ip, rpt->client_port, rpt->key, rpt->host->machine_guid, rpt->host->hostname, "REJECTED - ALREADY CONNECTED");
@@ -677,8 +677,8 @@ static int rrdpush_receive(struct receiver_state *rpt)
 
     // During a shutdown there is cleanup code in rrdhost that will cancel the sender thread
     if (!netdata_exit && rpt->host) {
-        rrd_rdlock();
-        rrdhost_wrlock(rpt->host);
+        rrd_rdlock_to_read_the_hosts();
+        rrdhost_wrlock_to_update_the_charts(rpt->host);
         netdata_mutex_lock(&rpt->host->receiver_lock);
         if (rpt->host->receiver == rpt) {
             rpt->host->senders_disconnected_time = now_realtime_sec();

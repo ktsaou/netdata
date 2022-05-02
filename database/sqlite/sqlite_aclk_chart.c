@@ -600,11 +600,11 @@ void aclk_receive_chart_reset(struct aclk_database_worker_config *wc, struct acl
 
         RRDHOST *host = wc->host;
         if (likely(host)) {
-            rrdhost_rdlock(host);
+            rrdhost_rdlock_to_read_the_charts(host);
             RRDSET *st;
             rrdset_foreach_read(st, host)
             {
-                rrdset_rdlock(st);
+                rrdset_rdlock_to_read_the_dimensions(st);
                 rrdset_flag_clear(st, RRDSET_FLAG_ACLK);
                 RRDDIM *rd;
                 rrddim_foreach_read(rd, st)
@@ -671,7 +671,7 @@ static void aclk_submit_param_command(char *node_id, enum aclk_database_opcode a
     cmd.opcode = aclk_command;
     cmd.param1 = param;
 
-    rrd_rdlock();
+    rrd_rdlock_to_read_the_hosts();
     RRDHOST *host = find_host_by_node_id(node_id);
     if (likely(host))
         wc = (struct aclk_database_worker_config *)host->dbsync_worker;
@@ -715,7 +715,7 @@ void aclk_start_streaming(char *node_id, uint64_t sequence_id, time_t created_at
     }
 
     struct aclk_database_worker_config *wc  = NULL;
-    rrd_rdlock();
+    rrd_rdlock_to_read_the_hosts();
     RRDHOST *host = localhost;
     while(host) {
         if (host->node_id && !(uuid_compare(*host->node_id, node_uuid))) {
@@ -1202,7 +1202,7 @@ void sql_check_chart_liveness(RRDSET *st) {
     if (unlikely(st->state->is_ar_chart))
         return;
 
-    rrdset_rdlock(st);
+    rrdset_rdlock_to_read_the_dimensions(st);
     if (unlikely(!rrdset_flag_check(st, RRDSET_FLAG_ACLK))) {
         if (likely(st->dimensions && st->counter_done && !queue_chart_to_aclk(st))) {
             debug(D_ACLK_SYNC,"Check chart liveness [%s] submit chart definition", st->name);

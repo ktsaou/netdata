@@ -330,7 +330,7 @@ void health_aggregate_alarms(RRDHOST *host, BUFFER *wb, BUFFER* contexts, RRDCAL
     char *tok = NULL;
     char *p = NULL;
 
-    rrdhost_rdlock(host);
+    rrdhost_rdlock_to_read_the_charts(host);
 
     if (contexts) {
         p = (char*)buffer_tostring(contexts);
@@ -381,7 +381,7 @@ static void health_alarms2json_fill_alarms(RRDHOST *host, BUFFER *wb, int all, v
 }
 
 void health_alarms2json(RRDHOST *host, BUFFER *wb, int all) {
-    rrdhost_rdlock(host);
+    rrdhost_rdlock_to_read_the_charts(host);
     buffer_sprintf(wb, "{\n\t\"hostname\": \"%s\","
                     "\n\t\"latest_alarm_log_unique_id\": %u,"
                     "\n\t\"status\": %s,"
@@ -404,7 +404,7 @@ void health_alarms2json(RRDHOST *host, BUFFER *wb, int all) {
 }
 
 void health_alarms_values2json(RRDHOST *host, BUFFER *wb, int all) {
-    rrdhost_rdlock(host);
+    rrdhost_rdlock_to_read_the_charts(host);
     buffer_sprintf(wb, "{\n\t\"hostname\": \"%s\","
                        "\n\t\"alarms\": {\n",
                    host->hostname);

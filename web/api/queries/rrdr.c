@@ -67,7 +67,7 @@ inline static void rrdr_lock_rrdset(RRDR *r) {
         return;
     }
 
-    rrdset_rdlock(r->st);
+    rrdset_rdlock_to_read_the_dimensions(r->st);
     r->has_st_lock = 1;
 }
 

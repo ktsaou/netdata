@@ -1892,9 +1892,9 @@ int test_dbengine(void)
         }
     }
 error_out:
-    rrd_wrlock();
+    rrd_wrlock_to_update_the_hosts();
     rrdeng_prepare_exit(host->rrdeng_ctx);
-    rrdhost_delete_charts(host);
+    rrdhost_delete_all_host_charts_files(host);
     rrdeng_exit(host->rrdeng_ctx);
     rrd_unlock();
 
@@ -2037,7 +2037,7 @@ void generate_dbengine_dataset(unsigned history_seconds)
         freez(thread_info[i]);
     }
     freez(thread_info);
-    rrd_wrlock();
+    rrd_wrlock_to_update_the_hosts();
     rrdhost_free(host);
     rrd_unlock();
 }
@@ -2284,9 +2284,9 @@ void dbengine_stress_test(unsigned TEST_DURATION_SEC, unsigned DSET_CHARTS, unsi
         freez(query_threads[i]);
     }
     freez(query_threads);
-    rrd_wrlock();
+    rrd_wrlock_to_update_the_hosts();
     rrdeng_prepare_exit(host->rrdeng_ctx);
-    rrdhost_delete_charts(host);
+    rrdhost_delete_all_host_charts_files(host);
     rrdeng_exit(host->rrdeng_ctx);
     rrd_unlock();
 }

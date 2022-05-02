@@ -495,7 +495,7 @@ static void rrd_stats_api_v1_charts_allmetrics_prometheus(
     int allhosts,
     PROMETHEUS_OUTPUT_OPTIONS output_options)
 {
-    rrdhost_rdlock(host);
+    rrdhost_rdlock_to_read_the_charts(host);
 
     char hostname[PROMETHEUS_ELEMENT_MAX + 1];
     prometheus_label_copy(hostname, host->hostname, PROMETHEUS_ELEMENT_MAX);
@@ -593,7 +593,7 @@ static void rrd_stats_api_v1_charts_allmetrics_prometheus(
     {
 
         if (likely(can_send_rrdset(instance, st))) {
-            rrdset_rdlock(st);
+            rrdset_rdlock_to_read_the_dimensions(st);
 
             char chart[PROMETHEUS_ELEMENT_MAX + 1];
             char context[PROMETHEUS_ELEMENT_MAX + 1];
@@ -916,7 +916,7 @@ void rrd_stats_api_v1_charts_allmetrics_prometheus_all_hosts(
         prometheus_exporter_instance->before,
         output_options);
 
-    rrd_rdlock();
+    rrd_rdlock_to_read_the_hosts();
     rrdhost_foreach_read(host)
     {
         rrd_stats_api_v1_charts_allmetrics_prometheus(

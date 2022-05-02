@@ -597,8 +597,8 @@ struct rrdset {
 
 };
 
-#define rrdset_rdlock(st) netdata_rwlock_rdlock(&((st)->rrdset_rwlock))
-#define rrdset_wrlock(st) netdata_rwlock_wrlock(&((st)->rrdset_rwlock))
+#define rrdset_rdlock_to_read_the_dimensions(st) netdata_rwlock_rdlock(&((st)->rrdset_rwlock))
+#define rrdset_wrlock_to_update_the_dimensions(st) netdata_rwlock_wrlock(&((st)->rrdset_rwlock))
 #define rrdset_unlock(st) netdata_rwlock_unlock(&((st)->rrdset_rwlock))
 
 
@@ -910,8 +910,8 @@ struct rrdhost {
 };
 extern RRDHOST *localhost;
 
-#define rrdhost_rdlock(host) netdata_rwlock_rdlock(&((host)->rrdhost_rwlock))
-#define rrdhost_wrlock(host) netdata_rwlock_wrlock(&((host)->rrdhost_rwlock))
+#define rrdhost_rdlock_to_read_the_charts(host) netdata_rwlock_rdlock(&((host)->rrdhost_rwlock))
+#define rrdhost_wrlock_to_update_the_charts(host) netdata_rwlock_wrlock(&((host)->rrdhost_rwlock))
 #define rrdhost_unlock(host) netdata_rwlock_unlock(&((host)->rrdhost_rwlock))
 
 #define rrdhost_aclk_state_lock(host) netdata_mutex_lock(&((host)->aclk_state_lock))
@@ -932,8 +932,8 @@ extern RRDHOST *localhost;
 
 extern netdata_rwlock_t rrd_rwlock;
 
-#define rrd_rdlock() netdata_rwlock_rdlock(&rrd_rwlock)
-#define rrd_wrlock() netdata_rwlock_wrlock(&rrd_rwlock)
+#define rrd_rdlock_to_read_the_hosts() netdata_rwlock_rdlock(&rrd_rwlock)
+#define rrd_wrlock_to_update_the_hosts() netdata_rwlock_wrlock(&rrd_rwlock)
 #define rrd_unlock() netdata_rwlock_unlock(&rrd_rwlock)
 
 // ----------------------------------------------------------------------------
@@ -1051,7 +1051,7 @@ extern void rrdhost_cleanup_orphan_hosts_nolock(RRDHOST *protected_host);
 extern void rrdhost_system_info_free(struct rrdhost_system_info *system_info);
 extern void rrdhost_free(RRDHOST *host);
 extern void rrdhost_save_charts(RRDHOST *host);
-extern void rrdhost_delete_charts(RRDHOST *host);
+extern void rrdhost_delete_all_host_charts_files(RRDHOST *host);
 extern void rrd_cleanup_obsolete_charts();
 
 extern int rrdhost_should_be_removed(RRDHOST *host, RRDHOST *protected_host, time_t now);
@@ -1340,9 +1340,9 @@ extern RRDSET *rrdset_index_del_name(RRDHOST *host, RRDSET *st);
 extern void rrdset_free(RRDSET *st);
 extern void rrdset_reset(RRDSET *st);
 extern void rrdset_save(RRDSET *st);
-#define rrdset_delete(st) rrdset_delete_custom(st, 0)
-extern void rrdset_delete_custom(RRDSET *st, int db_rotated);
-extern void rrdset_delete_obsolete_dimensions(RRDSET *st);
+#define rrdset_delete_map_and_save_files(st) rrdset_delete_map_and_save_files_internal(st, 0)
+extern void rrdset_delete_map_and_save_files_internal(RRDSET *st, int db_rotated);
+extern void rrdset_delete_obsolete_dimensions_files(RRDSET *st);
 
 extern RRDHOST *rrdhost_create(
     const char *hostname, const char *registry_hostname, const char *guid, const char *os, const char *timezone,

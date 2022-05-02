@@ -217,7 +217,7 @@ void analytics_mirrored_hosts(void)
     int unreachable = 0;
     char b[11];
 
-    rrd_rdlock();
+    rrd_rdlock_to_read_the_hosts();
     rrdhost_foreach_read(host)
     {
         if (rrdhost_flag_check(host, RRDHOST_FLAG_ARCHIVED))
@@ -415,7 +415,7 @@ void analytics_metrics(void)
     RRDDIM *rd;
     rrdset_foreach_read(st, localhost)
     {
-        rrdset_rdlock(st);
+        rrdset_rdlock_to_read_the_dimensions(st);
 
         if (rrdset_is_available_for_viewers(st)) {
             rrddim_foreach_read(rd, st)
@@ -529,7 +529,7 @@ void analytics_gather_immutable_meta_data(void)
  */
 void analytics_gather_mutable_meta_data(void)
 {
-    rrdhost_rdlock(localhost);
+    rrdhost_rdlock_to_read_the_charts(localhost);
 
     analytics_collectors();
     analytics_alarms();

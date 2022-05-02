@@ -59,7 +59,7 @@ static RRDHOST *node_id_2_rrdhost(const char *node_id)
     int res;
     uuid_t node_id_bin, host_id_bin;
 
-    rrd_rdlock();
+    rrd_rdlock_to_read_the_hosts();
     RRDHOST *host = find_host_by_node_id((char *) node_id);
     rrd_unlock();
     if (host)
