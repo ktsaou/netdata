@@ -109,7 +109,7 @@ __attribute__((constructor)) void initialize_lut(void) {
 }
 
 calculated_number unpack_storage_number(storage_number value) {
-    if(!value) return 0;
+    if(unlikely(!value)) return 0;
 
     int sign = 1, exp = 0;
     int factor = 0;

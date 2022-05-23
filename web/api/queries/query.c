@@ -561,21 +561,18 @@ static void cache_for_unpacked_metrics_fill(struct cache_for_unpacked_metrics *c
 }
 
 struct grouping_variables {
-    long dim_id_in_rrdr;
     calculated_number min;
     calculated_number max;
     time_t min_date;
     time_t max_date;
     long rrdr_line;
     long points_added;
-    long values_in_group;
-    long values_in_group_non_zero;
     RRDR_VALUE_FLAGS group_value_flags;
 };
 
-static void store_grouping_value(RRDR *r, struct grouping_variables *gv, time_t now) {
+static void store_grouping_value(RRDR *r, struct grouping_variables *gv, time_t now, long dim_id_in_rrdr, long values_in_group __maybe_unused, long values_in_group_non_zero __maybe_unused) {
     gv->rrdr_line = rrdr_line_init(r, now, gv->rrdr_line);
-    size_t rrdr_o_v_index = gv->rrdr_line * r->d + gv->dim_id_in_rrdr;
+    size_t rrdr_o_v_index = gv->rrdr_line * r->d + dim_id_in_rrdr;
 
     if(unlikely(!gv->min_date)) gv->min_date = now;
     gv->max_date = now;
@@ -585,13 +582,13 @@ static void store_grouping_value(RRDR *r, struct grouping_variables *gv, time_t 
     *rrdr_value_options_ptr = gv->group_value_flags;
 
     // update the dimension options
-    if(likely(gv->values_in_group_non_zero))
-        r->od[gv->dim_id_in_rrdr] |= RRDR_DIMENSION_NONZERO;
+    if(likely(values_in_group_non_zero))
+        r->od[dim_id_in_rrdr] |= RRDR_DIMENSION_NONZERO;
 
     // store the group value
     calculated_number group_value = r->v[rrdr_o_v_index] = r->internal.grouping_flush(r, rrdr_value_options_ptr);
 
-    if(likely(gv->points_added || gv->dim_id_in_rrdr)) {
+    if(likely(gv->points_added || dim_id_in_rrdr)) {
         // find the min/max across all dimensions
 
         if(unlikely(group_value < gv->min)) gv->min = group_value;
@@ -599,15 +596,13 @@ static void store_grouping_value(RRDR *r, struct grouping_variables *gv, time_t 
 
     }
     else {
-        // runs only when gv->dim_id_in_rrdr == 0 && points_added == 0
+        // runs only when dim_id_in_rrdr == 0 && points_added == 0
         // so, on the first point added for the query.
         gv->min = gv->max = group_value;
     }
 
     gv->points_added++;
-    gv->values_in_group = 0;
     gv->group_value_flags = RRDR_VALUE_NOTHING;
-    gv->values_in_group_non_zero = 0;
 }
 
 static inline void do_dimension_fixedstep(
@@ -624,17 +619,17 @@ static inline void do_dimension_fixedstep(
 #endif
 
     struct grouping_variables gv = {
-        .dim_id_in_rrdr = dim_id_in_rrdr,
         .min = r->min,
         .max = r->max,
         .min_date = 0,
         .max_date = 0,
         .rrdr_line = -1,
         .points_added = 0,
-        .values_in_group = 0,
-        .values_in_group_non_zero = 0,
         .group_value_flags = RRDR_VALUE_NOTHING
     };
+
+    long values_in_group = 0;
+    long values_in_group_non_zero = 0;
 
     time_t
             now = after_wanted,
@@ -729,22 +724,19 @@ static inline void do_dimension_fixedstep(
                 }
 #endif
 
-                if(likely(value != 0.0))
-                    gv.values_in_group_non_zero++;
+                if(likely(value != 0.0)) values_in_group_non_zero++;
+                if(unlikely(did_storage_number_reset(n))) gv.group_value_flags |= RRDR_VALUE_RESET;
 
-                if(unlikely(did_storage_number_reset(n)))
-                    gv.group_value_flags |= RRDR_VALUE_RESET;
+                grouping_add(r, value);
             }
 
-            // add this value for grouping
-            if(likely(value != NAN))
-                grouping_add(r, value);
-
-            gv.values_in_group++;
+            values_in_group++;
             db_points_read++;
 
-            if(unlikely(gv.values_in_group == group_size))
-                store_grouping_value(r, &gv, now);
+            if(unlikely(values_in_group == group_size)) {
+                store_grouping_value(r, &gv, now, dim_id_in_rrdr, values_in_group, values_in_group_non_zero);
+                values_in_group = values_in_group_non_zero = 0;
+            }
         }
         now = db_now;
     }
