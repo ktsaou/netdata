@@ -45,7 +45,6 @@ void grouping_free_average(RRDR *r __maybe_unused) {
 
 void grouping_add_average(RRDR *r __maybe_unused, calculated_number value) {
     if(likely(!isnan(value))) {
-        // struct grouping_average *g = (struct grouping_average *)r->internal.grouping_data;
         g.sum += value;
         g.count++;
     }
