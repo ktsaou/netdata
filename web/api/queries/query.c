@@ -574,7 +574,7 @@ static inline void do_dimension_fixedstep(
     size_t averaging_count = 0;
     calculated_number averaging_sum = 0.0;
 
-    size_t cache_size = 100;
+    size_t cache_size = 1000;
     size_t cache_slot = cache_size;
     time_t cache_db_now[cache_size];
     calculated_number cache_value[cache_size];
