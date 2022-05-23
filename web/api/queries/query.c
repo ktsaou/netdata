@@ -574,6 +574,12 @@ static inline void do_dimension_fixedstep(
     size_t averaging_count = 0;
     calculated_number averaging_sum = 0.0;
 
+    size_t cache_size = 100;
+    size_t cache_slot = cache_size;
+    time_t cache_db_now[cache_size];
+    calculated_number cache_value[cache_size];
+    storage_number cache_n[cache_size];
+
     for(rd->state->query_ops.init(rd, &handle, now, before_wanted) ; points_added < points_wanted ; now += dt) {
         // make sure we return data in the proper time range
         if(unlikely(now > before_wanted)) {
@@ -611,18 +617,39 @@ static inline void do_dimension_fixedstep(
             value = NAN;
         }
         else {
-            // load the metric value
-            n = next_metric(&handle, &db_now);
+            cache_slot++;
+            
+            if(unlikely(cache_slot >= cache_size)) {
+                // fill the cache in batch
 
-            // and unpack it
-            if(likely(does_storage_number_exist(n))) {
-                if (options & RRDR_OPTION_ANOMALY_BIT)
-                    value = (n & SN_ANOMALY_BIT) ? 0.0 : 100.0;
-                else
-                    value = unpack_storage_number(n);
+                time_t tmp_db_now = db_now;
+                calculated_number tmp_value;
+
+                for(cache_slot = 0; cache_slot < cache_size; cache_slot++, db_now += dt) {
+                    // load the metric value
+                    storage_number tmp_n = next_metric(&handle, &tmp_db_now);
+
+                    // and unpack it
+                    if(likely(does_storage_number_exist(tmp_n))) {
+                        if (options & RRDR_OPTION_ANOMALY_BIT)
+                            tmp_value = (tmp_n & SN_ANOMALY_BIT) ? 0.0 : 100.0;
+                        else
+                            tmp_value = unpack_storage_number(tmp_n);
+                    }
+                    else
+                        tmp_value = NAN;
+
+                    cache_n[cache_slot] = tmp_n;
+                    cache_value[cache_slot] = tmp_value;
+                    cache_db_now[cache_slot] = tmp_db_now;
+                }
+
+                cache_slot = 0;
             }
-            else
-                value = NAN;
+
+            n = cache_n[cache_slot];
+            value = cache_value[cache_slot];
+            db_now = cache_db_now[cache_slot];
         }
 
         if(unlikely(db_now > before_wanted)) {
