@@ -571,6 +571,9 @@ static inline void do_dimension_fixedstep(
     calculated_number (*grouping_flush)(struct rrdresult *r, RRDR_VALUE_FLAGS *rrdr_value_options_ptr) = r->internal.grouping_flush;
     RRD_MEMORY_MODE rrd_memory_mode = rd->rrd_memory_mode;
 
+    size_t averaging_count = 0;
+    calculated_number averaging_sum = 0.0;
+
     for(rd->state->query_ops.init(rd, &handle, now, before_wanted) ; points_added < points_wanted ; now += dt) {
         // make sure we return data in the proper time range
         if(unlikely(now > before_wanted)) {
@@ -652,8 +655,11 @@ static inline void do_dimension_fixedstep(
             }
 
             // add this value for grouping
-            if(likely(value != NAN))
-                grouping_add(r, value);
+            if(likely(value != NAN)) {
+                // grouping_add(r, value);
+                averaging_count++;
+                averaging_sum += value;
+            }
 
             values_in_group++;
             db_points_read++;
@@ -674,7 +680,18 @@ static inline void do_dimension_fixedstep(
                     r->od[dim_id_in_rrdr] |= RRDR_DIMENSION_NONZERO;
 
                 // store the group value
-                calculated_number group_value = r->v[rrdr_o_v_index] = grouping_flush(r, rrdr_value_options_ptr);
+                calculated_number group_value;
+                if(likely(averaging_count)) {
+                    // group_value = grouping_flush(r, rrdr_value_options_ptr);
+                    group_value = averaging_sum / averaging_count;
+                }
+                else {
+                    *rrdr_value_options_ptr |= RRDR_VALUE_EMPTY;
+                    group_value = 0.0;
+                }
+                r->v[rrdr_o_v_index] = group_value;
+                averaging_count = 0;
+                averaging_sum = 0.0;
 
                 if(likely(points_added || dim_id_in_rrdr)) {
                     // find the min/max across all dimensions
