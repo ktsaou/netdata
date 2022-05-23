@@ -618,16 +618,15 @@ static inline void do_dimension_fixedstep(
         }
         else {
             cache_slot++;
-            
+
             if(unlikely(cache_slot >= cache_size)) {
                 // fill the cache in batch
 
                 time_t tmp_db_now = db_now;
-                calculated_number tmp_value;
-
-                for(cache_slot = 0; cache_slot < cache_size; cache_slot++, db_now += dt) {
+                for(cache_slot = 0; cache_slot < cache_size; cache_slot++, tmp_db_now += dt) {
                     // load the metric value
                     storage_number tmp_n = next_metric(&handle, &tmp_db_now);
+                    calculated_number tmp_value;
 
                     // and unpack it
                     if(likely(does_storage_number_exist(tmp_n))) {
