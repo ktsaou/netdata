@@ -652,7 +652,7 @@ static inline void do_dimension_fixedstep(
             }
 
             // add this value for grouping
-            if(likely(calculated_number_isnumber(value)))
+            if(likely(value != NAN))
                 grouping_add(r, value);
 
             values_in_group++;
