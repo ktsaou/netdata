@@ -40,14 +40,15 @@ void grouping_reset_average(RRDR *r __maybe_unused) {
 
 void grouping_free_average(RRDR *r __maybe_unused) {
     g.used = 0;
-    r->internal.grouping_data = NULL;
+    g.sum = 0;
+    g.count = 0;
+    g.resampling_divisor = 1;
+    g.resampling_group = 1;
 }
 
 void grouping_add_average(RRDR *r __maybe_unused, calculated_number value) {
-    if(likely(!isnan(value))) {
-        g.sum += value;
-        g.count++;
-    }
+    g.sum += value;
+    g.count++;
 }
 
 calculated_number grouping_flush_average(RRDR *r __maybe_unused,  RRDR_VALUE_FLAGS *rrdr_value_options_ptr __maybe_unused) {

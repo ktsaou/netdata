@@ -652,7 +652,9 @@ static inline void do_dimension_fixedstep(
             }
 
             // add this value for grouping
-            grouping_add(r, value);
+            if(likely(calculated_number_isnumber(value)))
+                grouping_add(r, value);
+
             values_in_group++;
             db_points_read++;
 
@@ -665,17 +667,14 @@ static inline void do_dimension_fixedstep(
 
                 // find the place to store our values
                 RRDR_VALUE_FLAGS *rrdr_value_options_ptr = &r->o[rrdr_o_v_index];
+                *rrdr_value_options_ptr = group_value_flags;
 
                 // update the dimension options
                 if(likely(values_in_group_non_zero))
                     r->od[dim_id_in_rrdr] |= RRDR_DIMENSION_NONZERO;
 
-                // store the specific point options
-                *rrdr_value_options_ptr = group_value_flags;
-
                 // store the group value
-                calculated_number group_value = grouping_flush(r, rrdr_value_options_ptr);
-                r->v[rrdr_o_v_index] = group_value;
+                calculated_number group_value = r->v[rrdr_o_v_index] = grouping_flush(r, rrdr_value_options_ptr);
 
                 if(likely(points_added || dim_id_in_rrdr)) {
                     // find the min/max across all dimensions
@@ -1234,6 +1233,7 @@ static RRDR *rrd2rrdr_fixedstep(
 
     // free all resources used by the grouping method
     r->internal.grouping_free(r);
+    r->internal.grouping_data = NULL;
 
     // when all the dimensions are zero, we should return all of them
     if(unlikely(options & RRDR_OPTION_NONZERO && !dimensions_nonzero && !(r->result_options & RRDR_RESULT_OPTION_CANCEL))) {
