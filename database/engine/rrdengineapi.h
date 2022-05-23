@@ -3,7 +3,9 @@
 #ifndef NETDATA_RRDENGINEAPI_H
 #define NETDATA_RRDENGINEAPI_H
 
+#include "../rrd.h"
 #include "rrdengine.h"
+#include "pagecache.h"
 
 #define RRDENG_MIN_PAGE_CACHE_SIZE_MB (8)
 #define RRDENG_MIN_DISK_SPACE_MB (64)

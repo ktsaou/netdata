@@ -80,11 +80,11 @@ typedef uint32_t storage_number;
 #define did_storage_number_reset(value)  ((((storage_number) (value)) & SN_EXISTS_RESET) != 0)
 
 storage_number pack_storage_number(calculated_number value, uint32_t flags) __attribute__((const));
-static calculated_number unpack_storage_number(storage_number value) __attribute__((const));
+static inline calculated_number unpack_storage_number(storage_number value) __attribute__((const));
 
 extern calculated_number unpack_storage_number_lut10x[4 * 8];
 
-inline calculated_number unpack_storage_number(storage_number value) {
+static inline calculated_number unpack_storage_number(storage_number value) {
     if(unlikely(!value)) return 0;
 
     int sign = 1, exp = 0;
