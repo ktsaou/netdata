@@ -560,6 +560,56 @@ static void cache_for_unpacked_metrics_fill(struct cache_for_unpacked_metrics *c
     }
 }
 
+struct grouping_variables {
+    long dim_id_in_rrdr;
+    calculated_number min;
+    calculated_number max;
+    time_t min_date;
+    time_t max_date;
+    long rrdr_line;
+    long points_added;
+    long values_in_group;
+    long values_in_group_non_zero;
+    RRDR_VALUE_FLAGS group_value_flags;
+};
+
+static void store_grouping_value(RRDR *r, struct grouping_variables *gv, time_t now) {
+    gv->rrdr_line = rrdr_line_init(r, now, gv->rrdr_line);
+    size_t rrdr_o_v_index = gv->rrdr_line * r->d + gv->dim_id_in_rrdr;
+
+    if(unlikely(!gv->min_date)) gv->min_date = now;
+    gv->max_date = now;
+
+    // find the place to store our values
+    RRDR_VALUE_FLAGS *rrdr_value_options_ptr = &r->o[rrdr_o_v_index];
+    *rrdr_value_options_ptr = gv->group_value_flags;
+
+    // update the dimension options
+    if(likely(gv->values_in_group_non_zero))
+        r->od[gv->dim_id_in_rrdr] |= RRDR_DIMENSION_NONZERO;
+
+    // store the group value
+    calculated_number group_value = r->v[rrdr_o_v_index] = r->internal.grouping_flush(r, rrdr_value_options_ptr);
+
+    if(likely(gv->points_added || gv->dim_id_in_rrdr)) {
+        // find the min/max across all dimensions
+
+        if(unlikely(group_value < gv->min)) gv->min = group_value;
+        if(unlikely(group_value > gv->max)) gv->max = group_value;
+
+    }
+    else {
+        // runs only when gv->dim_id_in_rrdr == 0 && points_added == 0
+        // so, on the first point added for the query.
+        gv->min = gv->max = group_value;
+    }
+
+    gv->points_added++;
+    gv->values_in_group = 0;
+    gv->group_value_flags = RRDR_VALUE_NOTHING;
+    gv->values_in_group_non_zero = 0;
+}
+
 static inline void do_dimension_fixedstep(
         RRDR *r
         , long points_wanted
@@ -573,39 +623,40 @@ static inline void do_dimension_fixedstep(
     RRDSET *st = r->st;
 #endif
 
+    struct grouping_variables gv = {
+        .dim_id_in_rrdr = dim_id_in_rrdr,
+        .min = r->min,
+        .max = r->max,
+        .min_date = 0,
+        .max_date = 0,
+        .rrdr_line = -1,
+        .points_added = 0,
+        .values_in_group = 0,
+        .values_in_group_non_zero = 0,
+        .group_value_flags = RRDR_VALUE_NOTHING
+    };
+
     time_t
             now = after_wanted,
-            dt = r->update_every / r->group, /* usually is st->update_every */
-            max_date = 0,
-            min_date = 0;
+            dt = r->update_every / r->group; /* usually is st->update_every */
 
-    long
-            group_size = r->group,
-            points_added = 0,
-            values_in_group = 0,
-            values_in_group_non_zero = 0,
-            rrdr_line = -1;
-
-    RRDR_VALUE_FLAGS
-            group_value_flags = RRDR_VALUE_NOTHING;
+    long    group_size = r->group;
 
     struct rrddim_query_handle handle;
 
-    calculated_number min = r->min, max = r->max;
     size_t db_points_read = 0;
-    time_t db_now = now;
+    time_t db_now;
     time_t first_time_t = rrddim_first_entry_t(rd);
 
     // cache the function pointers we need in the loop
     storage_number (*next_metric)(struct rrddim_query_handle *handle, time_t *current_time) = rd->state->query_ops.next_metric;
     void (*grouping_add)(struct rrdresult *r, calculated_number value) = r->internal.grouping_add;
-    calculated_number (*grouping_flush)(struct rrdresult *r, RRDR_VALUE_FLAGS *rrdr_value_options_ptr) = r->internal.grouping_flush;
     RRD_MEMORY_MODE rrd_memory_mode = rd->rrd_memory_mode;
 
     struct cache_for_unpacked_metrics cache[CACHE_FOR_UNPACKED_METRICS_SIZE];
     size_t cache_slot = CACHE_FOR_UNPACKED_METRICS_SIZE;
 
-    for(rd->state->query_ops.init(rd, &handle, now, before_wanted) ; points_added < points_wanted ; now += dt) {
+    for(rd->state->query_ops.init(rd, &handle, now, before_wanted) ; gv.points_added < points_wanted ; now += dt) {
         // make sure we return data in the proper time range
         if(unlikely(now > before_wanted)) {
 #ifdef NETDATA_INTERNAL_CHECKS
@@ -679,72 +730,38 @@ static inline void do_dimension_fixedstep(
 #endif
 
                 if(likely(value != 0.0))
-                    values_in_group_non_zero++;
+                    gv.values_in_group_non_zero++;
 
                 if(unlikely(did_storage_number_reset(n)))
-                    group_value_flags |= RRDR_VALUE_RESET;
+                    gv.group_value_flags |= RRDR_VALUE_RESET;
             }
 
             // add this value for grouping
             if(likely(value != NAN))
                 grouping_add(r, value);
 
-            values_in_group++;
+            gv.values_in_group++;
             db_points_read++;
 
-            if(unlikely(values_in_group == group_size)) {
-                rrdr_line = rrdr_line_init(r, now, rrdr_line);
-                size_t rrdr_o_v_index = rrdr_line * r->d + dim_id_in_rrdr;
-
-                if(unlikely(!min_date)) min_date = now;
-                max_date = now;
-
-                // find the place to store our values
-                RRDR_VALUE_FLAGS *rrdr_value_options_ptr = &r->o[rrdr_o_v_index];
-                *rrdr_value_options_ptr = group_value_flags;
-
-                // update the dimension options
-                if(likely(values_in_group_non_zero))
-                    r->od[dim_id_in_rrdr] |= RRDR_DIMENSION_NONZERO;
-
-                // store the group value
-                calculated_number group_value = r->v[rrdr_o_v_index] = grouping_flush(r, rrdr_value_options_ptr);
-
-                if(likely(points_added || dim_id_in_rrdr)) {
-                    // find the min/max across all dimensions
-
-                    if(unlikely(group_value < min)) min = group_value;
-                    if(unlikely(group_value > max)) max = group_value;
-
-                }
-                else {
-                    // runs only when dim_id_in_rrdr == 0 && points_added == 0
-                    // so, on the first point added for the query.
-                    min = max = group_value;
-                }
-
-                points_added++;
-                values_in_group = 0;
-                group_value_flags = RRDR_VALUE_NOTHING;
-                values_in_group_non_zero = 0;
-            }
+            if(unlikely(gv.values_in_group == group_size))
+                store_grouping_value(r, &gv, now);
         }
         now = db_now;
     }
     rd->state->query_ops.finalize(&handle);
 
     r->internal.db_points_read += db_points_read;
-    r->internal.result_points_generated += points_added;
+    r->internal.result_points_generated += gv.points_added;
 
-    r->min = min;
-    r->max = max;
-    r->before = max_date;
-    r->after = min_date - (r->group - 1) * dt;
-    rrdr_done(r, rrdr_line);
+    r->min = gv.min;
+    r->max = gv.max;
+    r->before = gv.max_date;
+    r->after = gv.min_date - (r->group - 1) * dt;
+    rrdr_done(r, gv.rrdr_line);
 
 #ifdef NETDATA_INTERNAL_CHECKS
-    if(unlikely(r->rows != points_added))
-        error("INTERNAL ERROR: %s.%s added %zu rows, but RRDR says I added %zu.", r->st->name, rd->name, (size_t)points_added, (size_t)r->rows);
+    if(unlikely(r->rows != gv.points_added))
+        error("INTERNAL ERROR: %s.%s added %zu rows, but RRDR says I added %zu.", r->st->name, rd->name, (size_t)gv.points_added, (size_t)r->rows);
 #endif
 }
 
