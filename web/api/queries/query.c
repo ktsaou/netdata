@@ -531,9 +531,9 @@ static inline void do_dimension_variablestep(
 
 #define CACHE_FOR_UNPACKED_METRICS_SIZE 1000
 struct cache_for_unpacked_metrics {
-    time_t db_now[CACHE_FOR_UNPACKED_METRICS_SIZE];
-    calculated_number value[CACHE_FOR_UNPACKED_METRICS_SIZE];
-    storage_number n[CACHE_FOR_UNPACKED_METRICS_SIZE];
+    storage_number n;
+    calculated_number value;
+    time_t db_now;
 };
 
 static void cache_for_unpacked_metrics_fill(struct cache_for_unpacked_metrics *cache, storage_number (*next_metric)(struct rrddim_query_handle *handle, time_t *current_time), time_t db_now, struct rrddim_query_handle *handle, uint32_t options, time_t dt) {
@@ -553,9 +553,10 @@ static void cache_for_unpacked_metrics_fill(struct cache_for_unpacked_metrics *c
         else
             value = NAN;
 
-        cache->n[i] = n;
-        cache->value[i] = value;
-        cache->db_now[i] = db_now;
+        struct cache_for_unpacked_metrics *cache_point = &cache[i];
+        cache_point->n = n;
+        cache_point->value = value;
+        cache_point->db_now = db_now;
     }
 }
 
@@ -604,7 +605,7 @@ static inline void do_dimension_fixedstep(
     size_t averaging_count = 0;
     calculated_number averaging_sum = 0.0;
 
-    struct cache_for_unpacked_metrics cache;
+    struct cache_for_unpacked_metrics cache[CACHE_FOR_UNPACKED_METRICS_SIZE];
     size_t cache_slot = CACHE_FOR_UNPACKED_METRICS_SIZE;
 
     for(rd->state->query_ops.init(rd, &handle, now, before_wanted) ; points_added < points_wanted ; now += dt) {
@@ -648,13 +649,14 @@ static inline void do_dimension_fixedstep(
 
             if(unlikely(cache_slot >= CACHE_FOR_UNPACKED_METRICS_SIZE)) {
                 // fill the cache in batch
-                cache_for_unpacked_metrics_fill(&cache, next_metric, db_now, &handle, options, dt);
+                cache_for_unpacked_metrics_fill(cache, next_metric, db_now, &handle, options, dt);
                 cache_slot = 0;
             }
 
-            n = cache.n[cache_slot];
-            value = cache.value[cache_slot];
-            db_now = cache.db_now[cache_slot];
+            struct cache_for_unpacked_metrics *cache_point = &cache[cache_slot];
+            n = cache_point->n;
+            value = cache_point->value;
+            db_now = cache_point->db_now;
         }
 
         if(unlikely(db_now > before_wanted)) {
