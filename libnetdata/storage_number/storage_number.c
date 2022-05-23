@@ -92,23 +92,23 @@ RET_SN:
 }
 
 // Lookup table to make storage number unpacking efficient.
-static calculated_number lut10x[4 * 8];
+calculated_number unpack_storage_number_lut10x[4 * 8];
 
 __attribute__((constructor)) void initialize_lut(void) {
     // The lookup table is partitioned in 4 subtables based on the
     // values of the factor and exp bits.
     for (int i = 0; i < 8; i++) {
         // factor = 0
-        lut10x[0 * 8 + i] = 1 / pow(10, i);    // exp = 0
-        lut10x[1 * 8 + i] = pow(10, i);        // exp = 1
+        unpack_storage_number_lut10x[0 * 8 + i] = 1 / pow(10, i);    // exp = 0
+        unpack_storage_number_lut10x[1 * 8 + i] = pow(10, i);        // exp = 1
 
         // factor = 1
-        lut10x[2 * 8 + i] = 1 / pow(100, i);   // exp = 0
-        lut10x[3 * 8 + i] = pow(100, i);       // exp = 1
+        unpack_storage_number_lut10x[2 * 8 + i] = 1 / pow(100, i);   // exp = 0
+        unpack_storage_number_lut10x[3 * 8 + i] = pow(100, i);       // exp = 1
     }
 }
-
-calculated_number unpack_storage_number(storage_number value) {
+/*
+static inline calculated_number unpack_storage_number(storage_number value) {
     if(unlikely(!value)) return 0;
 
     int sign = 1, exp = 0;
@@ -141,6 +141,7 @@ calculated_number unpack_storage_number(storage_number value) {
 
     return sign * lut10x[(factor * 16) + (exp * 8) + mul] * n;
 }
+*/
 
 /*
 int print_calculated_number(char *str, calculated_number value)
