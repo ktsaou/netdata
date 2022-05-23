@@ -22,7 +22,7 @@ void *grouping_create_average(RRDR *r) {
 
 // resets when switches dimensions
 // so, clear everything to restart
-void grouping_reset_average(RRDR *r) {
+void grouping_reset_average(RRDR *r __maybe_unused) {
     // struct grouping_average *g = (struct grouping_average *)r->internal.grouping_data;
     g->sum = 0;
     g->count = 0;
@@ -35,7 +35,7 @@ void grouping_free_average(RRDR *r) {
     g = NULL;
 }
 
-void grouping_add_average(RRDR *r, calculated_number value) {
+void grouping_add_average(RRDR *r __maybe_unused, calculated_number value) {
     if(likely(!isnan(value))) {
         // struct grouping_average *g = (struct grouping_average *)r->internal.grouping_data;
         g->sum += value;
