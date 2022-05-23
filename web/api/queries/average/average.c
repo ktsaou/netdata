@@ -19,7 +19,7 @@ static __thread struct grouping_average {
     .count = 0
 };
 
-void *grouping_create_average(RRDR *r) {
+void *grouping_create_average(RRDR *r __maybe_unused) {
     if(unlikely(g.used))
         fatal("Grouping functions cannot be used in parallel for multiple queries per thread");
 
@@ -38,7 +38,7 @@ void grouping_reset_average(RRDR *r __maybe_unused) {
     g.count = 0;
 }
 
-void grouping_free_average(RRDR *r) {
+void grouping_free_average(RRDR *r __maybe_unused) {
     g.used = 0;
     r->internal.grouping_data = NULL;
 }
@@ -51,7 +51,7 @@ void grouping_add_average(RRDR *r __maybe_unused, calculated_number value) {
     }
 }
 
-calculated_number grouping_flush_average(RRDR *r,  RRDR_VALUE_FLAGS *rrdr_value_options_ptr) {
+calculated_number grouping_flush_average(RRDR *r __maybe_unused,  RRDR_VALUE_FLAGS *rrdr_value_options_ptr __maybe_unused) {
     calculated_number value;
 
     if(unlikely(!g.count)) {
