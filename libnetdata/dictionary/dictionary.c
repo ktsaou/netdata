@@ -531,7 +531,8 @@ int dictionary_unittest(size_t entries) {
 
     clocks_init();
 
-    usec_t started = now_realtime_usec();
+    usec_t creating = now_realtime_usec();
+
     DICTIONARY *d = dictionary_create(DICTIONARY_FLAG_SINGLE_THREADED|DICTIONARY_FLAG_WITH_STATISTICS);
     fprintf(stderr, "Creating dictionary of %zu entries...\n", entries);
     size_t i, errors = 0;
@@ -542,9 +543,10 @@ int dictionary_unittest(size_t entries) {
         dictionary_set(d, buf, buf, len + 1);
     }
 
-    usec_t checking = now_realtime_usec();
+    usec_t creating_end = now_realtime_usec();
+    usec_t positive_checking = now_realtime_usec();
 
-    fprintf(stderr, "Checking index of %zu entries...\n", entries);
+    fprintf(stderr, "Positive GET index of %zu entries...\n", entries);
     for(i = 0; i < entries ;i++) {
         snprintfz(buf, 1024, "string %zu", i);
         char *s = dictionary_get(d, buf);
@@ -554,19 +556,41 @@ int dictionary_unittest(size_t entries) {
         }
     }
 
+    usec_t positive_checking_end = now_realtime_usec();
+    usec_t negative_checking = now_realtime_usec();
+
+    fprintf(stderr, "Negative GET of %zu entries...\n", entries);
+    for(i = 0; i < entries ;i++) {
+        snprintfz(buf, 1024, "string %zu not matching anything", i);
+        char *s = dictionary_get(d, buf);
+        if(s) {
+            fprintf(stderr, "ERROR: found an expected item, searching for '%s', got '%s'\n", buf, s);
+            errors++;
+        }
+    }
+
+    usec_t negative_checking_end = now_realtime_usec();
     usec_t walking = now_realtime_usec();
 
-    fprintf(stderr, "Walking %zu entries and checking name-value pairs...\n", entries);
+    fprintf(stderr, "Walking %zu entries and positive_checking name-value pairs...\n", entries);
     errors += dictionary_walkthrough_with_name(d, verify_name_and_value_of_cloning_dictionary, NULL);
 
-    fprintf(stderr, "Created and checked %zu entries, found %zu errors - used %zu KB of memory\n", i, errors, dictionary_allocated_memory(d)/ 1024);
+    fprintf(stderr, "\nCreated and checked %zu entries, found %zu errors - used %zu KB of memory\n\n", i, errors, dictionary_allocated_memory(d)/ 1024);
 
+    usec_t walking_end = now_realtime_usec();
     usec_t destroying = now_realtime_usec();
+
     fprintf(stderr, "Destroying dictionary of %zu entries...\n", entries);
     dictionary_destroy(d);
 
-    fprintf(stderr, "create %llu usec, check %llu usec, walk %llu usec, destroy %llu usec\n",
-            checking - started, walking - checking, destroying - walking, now_realtime_usec() - destroying);
+    usec_t destroying_end = now_realtime_usec();
+
+    fprintf(stderr, "\nTIMINGS:\ncreate %llu usec, positive get %llu usec, negative get %llu, walk through %llu usec, destroy %llu usec\n",
+            creating_end - creating,
+            positive_checking_end - positive_checking,
+            negative_checking_end - negative_checking,
+            walking_end - walking,
+            destroying_end - destroying);
 
     return (int)errors;
 }
