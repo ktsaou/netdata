@@ -484,6 +484,16 @@ int labels_walkthrough_read(DICTIONARY *labels, int (*callback)(const char *name
     return dictionary_walkthrough_read(labels, labels_walkthrough_callback, &d);
 }
 
+int labels_sorted_walkthrough_read(DICTIONARY *labels, int (*callback)(const char *name, const char *value, LABEL_SOURCE ls, void *data), void *data) {
+    if(!labels) return 0;
+
+    struct labels_walkthrough d = {
+        .callback = callback,
+        .data = data
+    };
+    return dictionary_sorted_walkthrough_read(labels, labels_walkthrough_callback, &d);
+}
+
 
 // ----------------------------------------------------------------------------
 // labels_copy_and_replace_existing()

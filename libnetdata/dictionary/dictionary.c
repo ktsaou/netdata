@@ -943,6 +943,44 @@ int dictionary_walkthrough_rw(DICTIONARY *dict, char rw, int (*callback)(const c
 }
 
 // ----------------------------------------------------------------------------
+// sort
+
+static int dictionary_sort_compar(const void *nv1, const void *nv2) {
+    NAME_VALUE *a = (NAME_VALUE *)nv1;
+    NAME_VALUE *b = (NAME_VALUE *)nv2;
+    return strcmp(a->name, b->name);
+}
+
+int dictionary_sorted_walkthrough_rw(DICTIONARY *dict, char rw, int (*callback)(const char *name, void *entry, void *data), void *data) {
+    if(rw == 'r' || rw == 'R')
+        dictionary_lock_rlock(dict);
+    else
+        dictionary_lock_wrlock(dict);
+
+    size_t count = 0;
+    NAME_VALUE *nv;
+    for(nv = dict->first_item; nv ;nv = nv->next) count++;
+
+    NAME_VALUE **array = mallocz(sizeof(NAME_VALUE *) * count);
+
+    size_t i = 0;
+    for(nv = dict->first_item; nv ;nv = nv->next) array[i++] = nv;
+
+    qsort(array, count, sizeof(NAME_VALUE *), dictionary_sort_compar);
+
+    int ret = 0;
+    for(i = 0; i < count ;i++) {
+        int r = callback(array[i]->name, array[i]->value, data);
+        if(r < 0) { ret = r; break; }
+        ret += r;
+    }
+
+    freez(array);
+    dictionary_unlock(dict);
+    return ret;
+}
+
+// ----------------------------------------------------------------------------
 // unit test
 
 static void dictionary_unittest_free_char_pp(char **pp, size_t entries) {

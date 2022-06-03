@@ -208,6 +208,8 @@ extern void labels_unmark_all(DICTIONARY *labels);
 extern void labels_remove_all_unmarked(DICTIONARY *labels);
 
 extern int labels_walkthrough_read(DICTIONARY *labels, int (*callback)(const char *name, const char *value, LABEL_SOURCE ls, void *data), void *data);
+extern int labels_sorted_walkthrough_read(DICTIONARY *labels, int (*callback)(const char *name, const char *value, LABEL_SOURCE ls, void *data), void *data);
+
 extern void labels_log(DICTIONARY *labels, const char *prefix);
 extern void labels_log_buffer(DICTIONARY *labels, BUFFER *wb);
 extern bool labels_match_simple_pattern(DICTIONARY *labels, char *simple_pattern_txt);
