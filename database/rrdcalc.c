@@ -132,7 +132,7 @@ static inline int rrdcalc_test_additional_restriction(RRDCALC *rc, RRDSET *st){
         return 0;
 
     if (rc->labels) {
-        if(!labels_walkthrough_read(st->rrdhost->labels.head, count_label_matches_rrdcalc_pattern_callback, rc->splabels))
+        if(!labels_walkthrough_read(st->rrdhost->labels_dict, count_label_matches_rrdcalc_pattern_callback, rc->splabels))
             return 0;
     }
 
@@ -692,7 +692,7 @@ static void rrdcalc_labels_unlink_alarm_loop(RRDHOST *host, RRDCALC *alarms) {
     for(RRDCALC *rc = alarms ; rc ; rc = rc->next ) {
         if (!rc->labels) continue;
 
-        if(labels_walkthrough_read(host->labels.head, check_if_label_matches_rrdcalc_pattern_callback, rc->splabels) != -1) {
+        if(labels_walkthrough_read(host->labels_dict, check_if_label_matches_rrdcalc_pattern_callback, rc->splabels) != -1) {
             info("Health configuration for alarm '%s' cannot be applied, because the host %s does not have the label(s) '%s'",
                  rc->name,
                  host->hostname,
@@ -719,7 +719,7 @@ void rrdcalc_labels_unlink() {
         if (unlikely(!host->health_enabled))
             continue;
 
-        if (host->labels.head) {
+        if (host->labels_dict) {
             rrdhost_wrlock(host);
 
             rrdcalc_labels_unlink_alarm_from_host(host);

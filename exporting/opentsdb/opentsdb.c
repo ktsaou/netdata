@@ -164,7 +164,7 @@ int format_host_labels_opentsdb_telnet(struct instance *instance, RRDHOST *host)
     if (unlikely(!sending_labels_configured(instance)))
         return 0;
 
-    labels_walkthrough_read(host->labels.head, format_opentstb_label_telnet_callback, &instance);
+    labels_walkthrough_read(host->labels_dict, format_opentstb_label_telnet_callback, &instance);
     return 0;
 }
 
@@ -312,7 +312,7 @@ int format_host_labels_opentsdb_http(struct instance *instance, RRDHOST *host) {
     if (unlikely(!sending_labels_configured(instance)))
         return 0;
 
-    labels_walkthrough_read(host->labels.head, format_opentstb_label_http_callback, &instance);
+    labels_walkthrough_read(host->labels_dict, format_opentstb_label_http_callback, &instance);
     return 0;
 }
 

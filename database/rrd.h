@@ -188,14 +188,6 @@ typedef enum label_source {
     LABEL_FLAG_NEW                = (1 << 31)
 } LABEL_SOURCE;
 
-#define LABEL_FLAG_UPDATE_STREAM 1
-#define LABEL_FLAG_STOP_STREAM 2
-
-typedef struct label_index {
-    DICTIONARY *head;                       // Label list
-    uint32_t labels_flag;                   // Flags for labels
-} LABEL_INDEX;
-
 typedef enum strip_quotes {
     DO_NOT_STRIP_QUOTES,
     STRIP_QUOTES
@@ -226,9 +218,6 @@ extern int labels_is_valid_key(const char *key);
 extern int labels_is_valid_value(const char *value);
 extern void labels_copy_and_replace_existing(DICTIONARY *dst, DICTIONARY *src);
 extern void labels_copy(DICTIONARY *dst, DICTIONARY *src);
-
-// LABEL_INDEX
-extern void labelsindex_set_to_new_labels(LABEL_INDEX *label_index, DICTIONARY *new_labels);
 
 extern void strip_last_symbol(
     char *str,
@@ -403,7 +392,7 @@ struct rrdset_volatile {
     char *old_units;
     char *old_context;
     uuid_t hash_id;
-    struct label_index labels;
+    DICTIONARY *labels_dict;
     bool is_ar_chart;
 };
 
@@ -593,11 +582,14 @@ typedef enum rrdhost_flags {
     RRDHOST_FLAG_ORPHAN                 = 1 << 0, // this host is orphan (not receiving data)
     RRDHOST_FLAG_DELETE_OBSOLETE_CHARTS = 1 << 1, // delete files of obsolete charts
     RRDHOST_FLAG_DELETE_ORPHAN_HOST     = 1 << 2, // delete the entire host when orphan
-    RRDHOST_FLAG_EXPORTING_SEND           = 1 << 3, // send it to external databases
-    RRDHOST_FLAG_EXPORTING_DONT_SEND      = 1 << 4, // don't send it to external databases
+    RRDHOST_FLAG_EXPORTING_SEND         = 1 << 3, // send it to external databases
+    RRDHOST_FLAG_EXPORTING_DONT_SEND    = 1 << 4, // don't send it to external databases
     RRDHOST_FLAG_ARCHIVED               = 1 << 5, // The host is archived, no collected charts yet
     RRDHOST_FLAG_MULTIHOST              = 1 << 6, // Host belongs to localhost/megadb
-    RRDHOST_FLAG_PENDING_FOREACH_ALARMS  = 1 << 7, // contains dims with uninitialized foreach alarms
+    RRDHOST_FLAG_PENDING_FOREACH_ALARMS = 1 << 7, // contains dims with uninitialized foreach alarms
+    RRDHOST_FLAG_UPDATE_STREAM          = 1 << 8,
+    RRDHOST_FLAG_STOP_STREAM            = 1 << 9,
+
 } RRDHOST_FLAGS;
 
 #define rrdhost_flag_check(host, flag) (__atomic_load_n(&((host)->flags), __ATOMIC_SEQ_CST) & (flag))
@@ -859,7 +851,7 @@ struct rrdhost {
 
     // ------------------------------------------------------------------------
     // Support for host-level labels
-    struct label_index labels;
+    DICTIONARY *labels_dict;
 
     // ------------------------------------------------------------------------
     // indexes

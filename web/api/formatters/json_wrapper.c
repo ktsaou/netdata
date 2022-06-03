@@ -167,11 +167,8 @@ void rrdr_json_wrapper_begin(RRDR *r, BUFFER *wb, uint32_t format, RRDR_OPTIONS 
         dict = dictionary_create(DICTIONARY_FLAG_SINGLE_THREADED);
         for (i = 0, rd = temp_rd ? temp_rd : r->st->dimensions; rd; rd = rd->next) {
             st = rd->rrdset;
-            if (likely(st->state)) {
-                struct label_index *labels = &st->state->labels;
-                if (labels->head)
-                    labels_walkthrough_read(st->state->labels.head, fill_formatted_callback, dict);
-            }
+            if (st->state && st->state->labels_dict)
+                labels_walkthrough_read(st->state->labels_dict, fill_formatted_callback, dict);
         }
         dictionary_walkthrough_read(dict, value_list_output, &co);
         dictionary_destroy(dict);
@@ -230,7 +227,7 @@ void rrdr_json_wrapper_begin(RRDR *r, BUFFER *wb, uint32_t format, RRDR_OPTIONS 
                         buffer_strcat(wb, ", ");
 
                     // TODO - this does not get all the values of each key
-                    label_value = labels_get(rd->rrdset->state->labels.head, label_key);
+                    label_value = labels_get(rd->rrdset->state->labels_dict, label_key);
                     if (label_value) {
                         buffer_strcat(wb, sq);
                         buffer_strcat(wb, label_value);

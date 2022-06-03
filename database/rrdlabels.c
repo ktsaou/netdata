@@ -645,15 +645,6 @@ void labels_to_json(DICTIONARY *labels, BUFFER *wb, const char *prefix, const ch
 
 
 // ----------------------------------------------------------------------------
-// LABEL INDEX management
-
-void labelsindex_set_to_new_labels(LABEL_INDEX *label_index, DICTIONARY *new_labels) {
-    labels_copy_and_replace_existing(label_index->head, new_labels);
-    labels_destroy(new_labels);
-}
-
-
-// ----------------------------------------------------------------------------
 // string operations related to labels
 
 void strip_last_symbol(char *str, char symbol, SKIP_ESCAPED_CHARACTERS_OPTION skip_escaped_characters) {

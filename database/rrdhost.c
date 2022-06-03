@@ -199,7 +199,7 @@ RRDHOST *rrdhost_create(const char *hostname,
 #endif
 
     netdata_rwlock_init(&host->rrdhost_rwlock);
-    host->labels.head = labels_create();
+    host->labels_dict = labels_create();
 
     netdata_mutex_init(&host->aclk_state_lock);
 
@@ -976,7 +976,7 @@ void rrdhost_free(RRDHOST *host) {
     freez(host->aclk_state.claimed_id);
     freez(host->aclk_state.prev_claimed_id);
     freez((void *)host->tags);
-    labels_destroy(host->labels.head);
+    labels_destroy(host->labels_dict);
     freez((void *)host->os);
     freez((void *)host->timezone);
     freez((void *)host->abbrev_timezone);
@@ -1200,23 +1200,23 @@ static void rrdhost_load_kubernetes_labels(DICTIONARY *labels) {
 }
 
 void reload_host_labels(void) {
-    if(!localhost->labels.head)
-        localhost->labels.head = labels_create();
+    if(!localhost->labels_dict)
+        localhost->labels_dict = labels_create();
 
-    labels_unmark_all(localhost->labels.head);
+    labels_unmark_all(localhost->labels_dict);
 
     // priority is important here
-    rrdhost_load_config_labels(localhost->labels.head);
-    rrdhost_load_kubernetes_labels(localhost->labels.head);
-    rrdhost_load_auto_labels(localhost->labels.head);
+    rrdhost_load_config_labels(localhost->labels_dict);
+    rrdhost_load_kubernetes_labels(localhost->labels_dict);
+    rrdhost_load_auto_labels(localhost->labels_dict);
 
-    labels_remove_all_unmarked(localhost->labels.head);
+    labels_remove_all_unmarked(localhost->labels_dict);
 
     health_label_log_save(localhost);
 
 /*  TODO-GAPS - fix this so that it looks properly at the state and version of the sender
     if(localhost->rrdpush_send_enabled && localhost->rrdpush_sender_buffer){
-        localhost->labels.labels_flag |= LABEL_FLAG_UPDATE_STREAM;
+        localhost->labels.labels_flag |= RRDHOST_FLAG_UPDATE_STREAM;
         rrdpush_send_labels(localhost);
     }
 */

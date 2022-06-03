@@ -123,7 +123,7 @@ int format_host_labels_graphite_plaintext(struct instance *instance, RRDHOST *ho
     struct format_graphite_label_callback tmp = {
         .instance = instance
     };
-    labels_walkthrough_read(host->labels.head, format_graphite_label_callback, &tmp);
+    labels_walkthrough_read(host->labels_dict, format_graphite_label_callback, &tmp);
     return 0;
 }
 

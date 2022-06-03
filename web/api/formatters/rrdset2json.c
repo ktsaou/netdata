@@ -4,8 +4,10 @@
 
 void chart_labels2json(RRDSET *st, BUFFER *wb, size_t indentation)
 {
+    if(unlikely(!st->state || !st->state->labels_dict))
+        return;
+
     char tabs[11];
-    struct label_index *labels = &st->state->labels;
 
     if (indentation > 10)
         indentation = 10;
@@ -16,7 +18,7 @@ void chart_labels2json(RRDSET *st, BUFFER *wb, size_t indentation)
         indentation--;
     }
 
-    labels_to_json(labels->head, wb, "", ":", "\"", ",");
+    labels_to_json(st->state->labels_dict, wb, "", ":", "\"", ",");
     buffer_strcat(wb, "\n");
 }
 
