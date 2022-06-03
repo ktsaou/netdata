@@ -111,14 +111,14 @@ static void rrdsetcalc_link(RRDSET *st, RRDCALC *rc) {
 
 static int count_label_matches_rrdcalc_pattern_callback(const char *name, const char *value, LABEL_SOURCE ls, void *data) {
     (void)ls;
-    SIMPLE_PATTERN *t = (SIMPLE_PATTERN *)data;
+    SIMPLE_PATTERN *splabels = (SIMPLE_PATTERN *)data;
 
-    if(simple_pattern_matches(t->splabels, name))
+    if(simple_pattern_matches(splabels, name))
         return 1;
 
     char cmp[CONFIG_FILE_LINE_MAX+1];
     snprintf(cmp, CONFIG_FILE_LINE_MAX, "%s=%s", name, value);
-    if(simple_pattern_matches(t->splabels, cmp))
+    if(simple_pattern_matches(splabels, cmp))
         return 1;
 
     return 0;

@@ -192,13 +192,11 @@ PARSER_RC pluginsd_overwrite_action(void *user, RRDHOST *host, DICTIONARY *new_l
 {
     UNUSED(user);
 
-    if (!host->labels.head) {
+    if(!host->labels.head)
         host->labels.head = new_labels;
-    } else {
-        rrdhost_rdlock(host);
+    else
         labelsindex_set_to_new_labels(&host->labels, new_labels);
-        rrdhost_unlock(host);
-    }
+
     return PARSER_RC_OK;
 }
 
