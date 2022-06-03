@@ -24,8 +24,8 @@ static int rrdcalctemplate_is_there_label_restriction(RRDCALCTEMPLATE *rt,  RRDH
 
     errno = 0;
     int ret = 0;
-    if(host->labels_dict) {
-        if(labels_walkthrough_read(host->labels_dict, check_if_label_matches_rrdcalctemplate_pattern_callback, rt->splabels) != -1) {
+    if(host->host_labels) {
+        if(labels_walkthrough_read(host->host_labels, check_if_label_matches_rrdcalctemplate_pattern_callback, rt->splabels) != -1) {
             error("Health template '%s' cannot be applied, because the host %s does not have the label(s) '%s'", rt->name, host->hostname, rt->labels);
             ret = 1;
         }

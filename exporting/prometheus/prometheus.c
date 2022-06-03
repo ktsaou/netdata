@@ -327,7 +327,7 @@ void format_host_labels_prometheus(struct instance *instance, RRDHOST *host)
         .instance = instance,
         .count = 0
     };
-    labels_walkthrough_read(host->labels_dict, format_prometheus_label_callback, &tmp);
+    labels_walkthrough_read(host->host_labels, format_prometheus_label_callback, &tmp);
 }
 
 struct host_variables_callback_options {

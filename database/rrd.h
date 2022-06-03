@@ -392,7 +392,7 @@ struct rrdset_volatile {
     char *old_units;
     char *old_context;
     uuid_t hash_id;
-    DICTIONARY *labels_dict;
+    DICTIONARY *chart_labels;
     bool is_ar_chart;
 };
 
@@ -851,7 +851,7 @@ struct rrdhost {
 
     // ------------------------------------------------------------------------
     // Support for host-level labels
-    DICTIONARY *labels_dict;
+    DICTIONARY *host_labels;
 
     // ------------------------------------------------------------------------
     // indexes

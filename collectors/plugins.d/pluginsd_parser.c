@@ -192,10 +192,10 @@ PARSER_RC pluginsd_overwrite_action(void *user, RRDHOST *host, DICTIONARY *new_l
 {
     UNUSED(user);
 
-    if(!host->labels_dict)
-        host->labels_dict = labels_create();
+    if(!host->host_labels)
+        host->host_labels = labels_create();
 
-    labels_copy_and_replace_existing(host->labels_dict, new_labels);
+    labels_copy_and_replace_existing(host->host_labels, new_labels);
     labels_destroy(new_labels);
 
     return PARSER_RC_OK;

@@ -148,7 +148,7 @@ int format_host_labels_json_plaintext(struct instance *instance, RRDHOST *host)
         .instance = instance,
         .count = 0
     };
-    labels_walkthrough_read(host->labels_dict, format_json_label_callback, &tmp);
+    labels_walkthrough_read(host->host_labels, format_json_label_callback, &tmp);
 
     buffer_strcat(instance->labels, "},");
 

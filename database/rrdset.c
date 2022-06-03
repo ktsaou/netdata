@@ -401,7 +401,7 @@ void rrdset_free(RRDSET *st) {
     freez(st->state->old_title);
     freez(st->state->old_units);
     freez(st->state->old_context);
-    labels_destroy(st->state->labels_dict);
+    labels_destroy(st->state->chart_labels);
     freez(st->state);
     freez(st->chart_uuid);
 
@@ -887,7 +887,7 @@ RRDSET *rrdset_create_custom(
     avl_init_lock(&st->rrdvar_root_index, rrdvar_compare);
 
     netdata_rwlock_init(&st->rrdset_rwlock);
-    st->state->labels_dict = labels_create();
+    st->state->chart_labels = labels_create();
 
     if(name && *name && rrdset_set_name(st, name))
         // we did set the name
@@ -1964,14 +1964,14 @@ static int chart_label_store_to_sql_callback(const char *name, const char *value
 }
 
 void rrdset_update_labels(RRDSET *st, DICTIONARY *labels) {
-    if(!st->state->labels_dict)
-        st->state->labels_dict = labels_create();
+    if(!st->state->chart_labels)
+        st->state->chart_labels = labels_create();
 
     if (labels)
-        labels_copy_and_replace_existing(st->state->labels_dict, labels);
+        labels_copy_and_replace_existing(st->state->chart_labels, labels);
 
     // TODO - we should also cleanup sqlite from old labels that have been removed
-    labels_walkthrough_read(st->state->labels_dict, chart_label_store_to_sql_callback, st);
+    labels_walkthrough_read(st->state->chart_labels, chart_label_store_to_sql_callback, st);
 }
 
 static inline int k8s_space(char c) {
@@ -1985,7 +1985,7 @@ static inline int k8s_space(char c) {
 }
 
 int rrdset_labels_match_keys_and_values(RRDSET *st, char *keylist, char *words[], int *word_count, int size) {
-    if (!st->state->labels_dict) return 0;
+    if (!st->state->chart_labels) return 0;
 
     if (!*word_count)
         *word_count = quoted_strings_splitter(keylist, words, size, k8s_space, NULL, NULL, 0);
@@ -1994,7 +1994,7 @@ int rrdset_labels_match_keys_and_values(RRDSET *st, char *keylist, char *words[]
 
     int ret = 1;
     for (int i = 0; ret && i < *word_count - 1; i += 2)
-        ret = (labels_match_key_and_value(st->state->labels_dict, words[i], words[i+1]))?1:0;
+        ret = (labels_match_key_and_value(st->state->chart_labels, words[i], words[i+1]))?1:0;
 
     return ret;
 }

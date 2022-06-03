@@ -183,7 +183,7 @@ int format_host_prometheus_remote_write(struct instance *instance, RRDHOST *host
             .write_request = connector_specific_data->write_request,
             .instance = instance
         };
-        labels_walkthrough_read(host->labels_dict, format_remote_write_label_callback, &tmp);
+        labels_walkthrough_read(host->host_labels, format_remote_write_label_callback, &tmp);
     }
 
     return 0;

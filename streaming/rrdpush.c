@@ -199,8 +199,8 @@ static int send_clabels_callback(const char *name, const char *value, LABEL_SOUR
     return 1;
 }
 void rrdpush_send_clabels(RRDHOST *host, RRDSET *st) {
-    if (st->state && st->state->labels_dict) {
-        if(labels_walkthrough_read(st->state->labels_dict, send_clabels_callback, host->sender->build) > 0)
+    if (st->state && st->state->chart_labels) {
+        if(labels_walkthrough_read(st->state->chart_labels, send_clabels_callback, host->sender->build) > 0)
             buffer_sprintf(host->sender->build,"CLABEL_COMMIT\n");
     }
 }
@@ -365,12 +365,12 @@ static int send_labels_callback(const char *name, const char *value, LABEL_SOURC
     return 1;
 }
 void rrdpush_send_labels(RRDHOST *host) {
-    if (!host->labels_dict || !rrdhost_flag_check(host, RRDHOST_FLAG_UPDATE_STREAM) || (rrdhost_flag_check(host, RRDHOST_FLAG_STOP_STREAM)))
+    if (!host->host_labels || !rrdhost_flag_check(host, RRDHOST_FLAG_UPDATE_STREAM) || (rrdhost_flag_check(host, RRDHOST_FLAG_STOP_STREAM)))
         return;
 
     sender_start(host->sender);
 
-    labels_walkthrough_read(host->labels_dict, send_labels_callback, host->sender->build);
+    labels_walkthrough_read(host->host_labels, send_labels_callback, host->sender->build);
     buffer_sprintf(host->sender->build, "OVERWRITE %s\n", "labels");
     sender_commit(host->sender);
 

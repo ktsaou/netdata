@@ -82,7 +82,7 @@ inline void health_label_log_save(RRDHOST *host) {
     if(unlikely(host->health_log_fp)) {
         BUFFER *wb = buffer_create(1024);
 
-        labels_walkthrough_read(localhost->labels_dict, labels_buffer_printf_callback, wb);
+        labels_walkthrough_read(localhost->host_labels, labels_buffer_printf_callback, wb);
 
         char *write = (char *) buffer_tostring(wb) ;
         write[wb->len-2] = '\n';
