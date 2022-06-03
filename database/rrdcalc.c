@@ -109,28 +109,17 @@ static void rrdsetcalc_link(RRDSET *st, RRDCALC *rc) {
     health_alarm_log(host, ae);
 }
 
-struct count_label_matches_rrdcalc_pattern_callback {
-    SIMPLE_PATTERN *splabels;
-    size_t matching;
-    size_t all;
-};
-
 static int count_label_matches_rrdcalc_pattern_callback(const char *name, const char *value, LABEL_SOURCE ls, void *data) {
     (void)ls;
-    struct count_label_matches_rrdcalc_pattern_callback *t = (struct count_label_matches_rrdcalc_pattern_callback *)data;
-    t->all++;
+    SIMPLE_PATTERN *t = (SIMPLE_PATTERN *)data;
 
-    if(simple_pattern_matches(t->splabels, name)) {
-        t->matching++;
+    if(simple_pattern_matches(t->splabels, name))
         return 1;
-    }
 
     char cmp[CONFIG_FILE_LINE_MAX+1];
     snprintf(cmp, CONFIG_FILE_LINE_MAX, "%s=%s", name, value);
-    if(simple_pattern_matches(t->splabels, cmp)) {
-        t->matching++;
+    if(simple_pattern_matches(t->splabels, cmp))
         return 1;
-    }
 
     return 0;
 }
@@ -143,24 +132,7 @@ static inline int rrdcalc_test_additional_restriction(RRDCALC *rc, RRDSET *st){
         return 0;
 
     if (rc->labels) {
-        // TODO - this is wrong! We can't know how many labels a simple pattern would match!
-        int labels_count=1;
-        int labels_match=0;
-        char *s = rc->labels;
-        while (*s) {
-            if (*s==' ')
-                labels_count++;
-            s++;
-        }
-
-        struct count_label_matches_rrdcalc_pattern_callback tmp = {
-            .splabels = rc->splabels,
-            .matching = 0,
-            .all = 0
-        };
-        labels_match = labels_walkthrough_read(st->rrdhost->labels.head, count_label_matches_rrdcalc_pattern_callback, &tmp);
-
-        if (labels_match != labels_count)
+        if(!labels_walkthrough_read(st->rrdhost->labels.head, count_label_matches_rrdcalc_pattern_callback, rc->splabels))
             return 0;
     }
 
