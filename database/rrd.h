@@ -22,7 +22,6 @@ typedef void *ml_dimension_t;
 struct rrddim_volatile;
 struct rrdset_volatile;
 struct context_param;
-struct label;
 #ifdef ENABLE_DBENGINE
 struct rrdeng_page_descr;
 struct rrdengine_instance;
@@ -178,28 +177,24 @@ typedef enum rrddim_flags {
 #define rrddim_flag_clear(rd, flag) __atomic_and_fetch(&((rd)->flags), ~(flag), __ATOMIC_SEQ_CST)
 
 typedef enum label_source {
-    LABEL_SOURCE_AUTO             = 0,
-    LABEL_SOURCE_NETDATA_CONF     = 1,
-    LABEL_SOURCE_DOCKER           = 2,
-    LABEL_SOURCE_ENVIRONMENT      = 3,
-    LABEL_SOURCE_KUBERNETES       = 4
+    LABEL_SOURCE_AUTO             = (1 << 0),
+    LABEL_SOURCE_NETDATA_CONF     = (1 << 1),
+    LABEL_SOURCE_DOCKER           = (1 << 2),
+    LABEL_SOURCE_ENVIRONMENT      = (1 << 3),
+    LABEL_SOURCE_KUBERNETES       = (1 << 4),
+
+    // more sources can be added here
+    LABEL_FLAG_OLD                = (1 << 30),
+    LABEL_FLAG_NEW                = (1 << 31)
 } LABEL_SOURCE;
 
 #define LABEL_FLAG_UPDATE_STREAM 1
 #define LABEL_FLAG_STOP_STREAM 2
 
-struct label {
-    char *key, *value;
-    uint32_t key_hash;
-    LABEL_SOURCE label_source;
-    struct label *next;
-};
-
-struct label_index {
-    struct label *head;                     // Label list
-    netdata_rwlock_t labels_rwlock;         // lock for the label list
+typedef struct label_index {
+    DICTIONARY *head;                       // Label list
     uint32_t labels_flag;                   // Flags for labels
-};
+} LABEL_INDEX;
 
 typedef enum strip_quotes {
     DO_NOT_STRIP_QUOTES,
@@ -211,32 +206,38 @@ typedef enum skip_escaped_characters {
     SKIP_ESCAPED_CHARACTERS
 } SKIP_ESCAPED_CHARACTERS_OPTION;
 
-char *translate_label_source(LABEL_SOURCE l);
-struct label *create_label(char *key, char *value, LABEL_SOURCE label_source);
-extern struct label *add_label_to_list(struct label *l, char *key, char *value, LABEL_SOURCE label_source);
-extern void update_label_list(struct label **labels, struct label *new_labels);
-extern void replace_label_list(struct label_index *labels, struct label *new_labels);
-extern int is_valid_label_value(char *value);
-extern int is_valid_label_key(char *key);
-extern void free_label_list(struct label *labels);
-extern struct label *label_list_lookup_key(struct label *head, char *key, uint32_t key_hash);
-extern struct label *label_list_lookup_keylist(struct label *head, char *keylist);
-extern int label_list_contains_keylist(struct label *head, char *keylist);
-extern int label_list_contains_key(struct label *head, char *key, uint32_t key_hash);
-extern int label_list_contains(struct label *head, struct label *check);
-extern struct label *merge_label_lists(struct label *lo_pri, struct label *hi_pri);
+extern DICTIONARY *labels_create(void);
+extern void labels_destroy(DICTIONARY *labels_dict);
+extern void labels_add(DICTIONARY *dict, const char *key, const char *value, LABEL_SOURCE label_source);
+extern const char *labels_get(DICTIONARY *head, const char *key);
+extern DICTIONARY *labels_add_the_really_bad_way(DICTIONARY *labels, char *key, char *value, LABEL_SOURCE label_source);
+
+extern void labels_unmark_all(DICTIONARY *labels);
+extern void labels_remove_all_unmarked(DICTIONARY *labels);
+
+extern int labels_walkthrough_read(DICTIONARY *labels, int (*callback)(const char *name, const char *value, LABEL_SOURCE ls, void *data), void *data);
+extern void labels_log(DICTIONARY *labels, const char *prefix);
+extern void labels_log_buffer(DICTIONARY *labels, BUFFER *wb);
+extern bool labels_match_simple_pattern(DICTIONARY *labels, char *simple_pattern_txt);
+extern bool labels_match_key_and_value(DICTIONARY *labels, const char *name, const char *value);
+extern void labels_to_json(DICTIONARY *labels, BUFFER *wb, const char *prefix, const char *equal, const char *quote, const char *comma);
+
+extern int labels_is_valid_key(const char *key);
+extern int labels_is_valid_value(const char *value);
+extern void labels_copy_and_replace_existing(DICTIONARY *dst, DICTIONARY *src);
+extern void labels_copy(DICTIONARY *dst, DICTIONARY *src);
+
+// LABEL_INDEX
+extern void labelsindex_set_to_new_labels(LABEL_INDEX *label_index, DICTIONARY *new_labels);
+
 extern void strip_last_symbol(
     char *str,
     char symbol,
     SKIP_ESCAPED_CHARACTERS_OPTION skip_escaped_characters);
 extern char *strip_double_quotes(char *str, SKIP_ESCAPED_CHARACTERS_OPTION skip_escaped_characters);
 void reload_host_labels(void);
-extern void rrdset_add_label_to_new_list(RRDSET *st, char *key, char *value, LABEL_SOURCE source);
-extern void rrdset_finalize_labels(RRDSET *st);
-extern void rrdset_update_labels(RRDSET *st, struct label *labels);
-extern int rrdset_contains_label_keylist(RRDSET *st, char *key);
-extern int rrdset_matches_label_keys(RRDSET *st, char *key, char *words[], uint32_t *hash_key_list, int *word_count, int size);
-extern struct label *rrdset_lookup_label_key(RRDSET *st, char *key, uint32_t key_hash);
+extern void rrdset_update_labels(RRDSET *st, DICTIONARY *labels);
+extern int rrdset_labels_match_keys_and_values(RRDSET *st, char *keylist, char *words[], int *word_count, int size);
 
 // ----------------------------------------------------------------------------
 // RRD DIMENSION - this is a metric
@@ -402,7 +403,6 @@ struct rrdset_volatile {
     char *old_units;
     char *old_context;
     uuid_t hash_id;
-    struct label *new_labels;
     struct label_index labels;
     bool is_ar_chart;
 };

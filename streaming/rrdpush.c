@@ -193,20 +193,16 @@ static inline int need_to_send_chart_definition(RRDSET *st) {
 }
 
 // chart labels
+static int send_clabels_callback(const char *name, const char *value, LABEL_SOURCE ls, void *data) {
+    BUFFER *wb = (BUFFER *)data;
+    buffer_sprintf(wb, "CLABEL \"%s\" \"%s\" %d\n", name, value, ls);
+    return 1;
+}
 void rrdpush_send_clabels(RRDHOST *host, RRDSET *st) {
     struct label_index *labels_c = &st->state->labels;
     if (labels_c) {
-        netdata_rwlock_rdlock(&host->labels.labels_rwlock);
-        struct label *lbl = labels_c->head;
-        while(lbl) {
-            buffer_sprintf(host->sender->build,
-                           "CLABEL \"%s\" \"%s\" %d\n", lbl->key, lbl->value, (int)lbl->label_source);
-
-            lbl = lbl->next;
-        }
-        if (labels_c->head)
+        if(labels_walkthrough_read(labels_c->head, send_clabels_callback, host->sender->build) > 0)
             buffer_sprintf(host->sender->build,"CLABEL_COMMIT\n");
-        netdata_rwlock_unlock(&host->labels.labels_rwlock);
     }
 }
 
@@ -364,30 +360,19 @@ void rrdset_done_push(RRDSET *st) {
 }
 
 // labels
+static int send_labels_callback(const char *name, const char *value, LABEL_SOURCE ls, void *data) {
+    BUFFER *wb = (BUFFER *)data;
+    buffer_sprintf(wb, "LABEL \"%s\" = %d %s\n", name, ls, value);
+    return 1;
+}
 void rrdpush_send_labels(RRDHOST *host) {
     if (!host->labels.head || !(host->labels.labels_flag & LABEL_FLAG_UPDATE_STREAM) || (host->labels.labels_flag & LABEL_FLAG_STOP_STREAM))
         return;
 
     sender_start(host->sender);
-    rrdhost_rdlock(host);
-    netdata_rwlock_rdlock(&host->labels.labels_rwlock);
 
-    struct label *label_i = host->labels.head;
-    while(label_i) {
-        buffer_sprintf(host->sender->build
-                , "LABEL \"%s\" = %d %s\n"
-                , label_i->key
-                , (int)label_i->label_source
-                , label_i->value);
-
-        label_i = label_i->next;
-    }
-
-    buffer_sprintf(host->sender->build
-            , "OVERWRITE %s\n", "labels");
-
-    netdata_rwlock_unlock(&host->labels.labels_rwlock);
-    rrdhost_unlock(host);
+    labels_walkthrough_read(host->labels.head, send_labels_callback, host->sender->build);
+    buffer_sprintf(host->sender->build, "OVERWRITE %s\n", "labels");
     sender_commit(host->sender);
 
     if(host->rrdpush_sender_pipe[PIPE_WRITE] != -1 && write(host->rrdpush_sender_pipe[PIPE_WRITE], " ", 1) == -1)

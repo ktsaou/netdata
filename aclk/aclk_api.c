@@ -44,13 +44,13 @@ void aclk_single_update_enable()
 }
 #endif /* ENABLE_ACLK */
 
-struct label *add_aclk_host_labels(struct label *label) {
+DICTIONARY *add_aclk_host_labels(DICTIONARY *label) {
 #ifdef ENABLE_ACLK
-    label = add_label_to_list(label, "_aclk_ng_available", "true", LABEL_SOURCE_AUTO);
+    label = labels_add_the_really_bad_way(label, "_aclk_ng_available", "true", LABEL_SOURCE_AUTO);
 #else
-    label = add_label_to_list(label, "_aclk_ng_available", "false", LABEL_SOURCE_AUTO);
+    label = labels_add_the_really_bad_way(label, "_aclk_ng_available", "false", LABEL_SOURCE_AUTO);
 #endif
-    label = add_label_to_list(label, "_aclk_legacy_available", "false", LABEL_SOURCE_AUTO);
+    label = labels_add_the_really_bad_way(label, "_aclk_legacy_available", "false", LABEL_SOURCE_AUTO);
 #ifdef ENABLE_ACLK
     ACLK_PROXY_TYPE aclk_proxy;
     char *proxy_str;
@@ -68,12 +68,12 @@ struct label *add_aclk_host_labels(struct label *label) {
             break;
     }
 
-    label = add_label_to_list(label, "_aclk_impl", "Next Generation", LABEL_SOURCE_AUTO);
-    label = add_label_to_list(label, "_aclk_proxy", proxy_str, LABEL_SOURCE_AUTO);
+    label = labels_add_the_really_bad_way(label, "_aclk_impl", "Next Generation", LABEL_SOURCE_AUTO);
+    label = labels_add_the_really_bad_way(label, "_aclk_proxy", proxy_str, LABEL_SOURCE_AUTO);
 #ifdef ENABLE_NEW_CLOUD_PROTOCOL
-    label = add_label_to_list(label, "_aclk_ng_new_cloud_protocol", "true", LABEL_SOURCE_AUTO);
+    label = labels_add_the_really_bad_way(label, "_aclk_ng_new_cloud_protocol", "true", LABEL_SOURCE_AUTO);
 #else
-    label = add_label_to_list(label, "_aclk_ng_new_cloud_protocol", "false", LABEL_SOURCE_AUTO);
+    label = labels_add_the_really_bad_way(label, "_aclk_ng_new_cloud_protocol", "false", LABEL_SOURCE_AUTO);
 #endif
 #endif
     return label;

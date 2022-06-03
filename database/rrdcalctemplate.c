@@ -5,40 +5,30 @@
 
 // ----------------------------------------------------------------------------
 
+static int check_if_label_matches_rrdcalctemplate_pattern_callback(const char *name, const char *value, LABEL_SOURCE ls, void *data) {
+    (void)ls;
+    SIMPLE_PATTERN *splabels = (SIMPLE_PATTERN *)data;
+
+    if(simple_pattern_matches(splabels, name)) return -1;
+
+    char cmp[CONFIG_FILE_LINE_MAX+1];
+    snprintf(cmp, CONFIG_FILE_LINE_MAX, "%s=%s", name, value);
+    if(simple_pattern_matches(splabels, cmp)) return -1;
+
+    return 0;
+}
+
 static int rrdcalctemplate_is_there_label_restriction(RRDCALCTEMPLATE *rt,  RRDHOST *host) {
     if(!rt->labels)
         return 0;
 
     errno = 0;
-    struct label *move = host->labels.head;
-    char cmp[CONFIG_FILE_LINE_MAX+1];
-
-    int ret;
-    if(move) {
-        rrdhost_check_rdlock(host);
-        netdata_rwlock_rdlock(&host->labels.labels_rwlock);
-        while(move) {
-            snprintfz(cmp, CONFIG_FILE_LINE_MAX, "%s=%s", move->key, move->value);
-            if (simple_pattern_matches(rt->splabels, move->key) ||
-                simple_pattern_matches(rt->splabels, cmp)) {
-                break;
-            }
-            move = move->next;
-        }
-        netdata_rwlock_unlock(&host->labels.labels_rwlock);
-
-        if(!move) {
-            error("Health template '%s' cannot be applied, because the host %s does not have the label(s) '%s'",
-                   rt->name,
-                   host->hostname,
-                   rt->labels
-            );
+    int ret = 0;
+    if(host->labels.head) {
+        if(labels_walkthrough_read(host->labels.head, check_if_label_matches_rrdcalctemplate_pattern_callback, rt->splabels) != -1) {
+            error("Health template '%s' cannot be applied, because the host %s does not have the label(s) '%s'", rt->name, host->hostname, rt->labels);
             ret = 1;
-        } else {
-            ret = 0;
         }
-    } else {
-        ret =0;
     }
 
     return ret;

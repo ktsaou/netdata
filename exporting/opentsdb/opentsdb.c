@@ -144,28 +144,27 @@ void sanitize_opentsdb_label_value(char *dst, char *src, size_t len)
  * @param host a data collecting host.
  * @return Always returns 0.
  */
-int format_host_labels_opentsdb_telnet(struct instance *instance, RRDHOST *host)
-{
-    if (!instance->labels)
+
+static int format_opentstb_label_telnet_callback(const char *name, const char *value, LABEL_SOURCE ls, void *data) {
+    struct instance *instance = (struct instance *)data;
+
+    if(!should_send_label(instance, ls)) return 0;
+
+    char v[CONFIG_MAX_VALUE + 1];
+    sanitize_opentsdb_label_value(v, (char *)value, CONFIG_MAX_VALUE);
+    if(*v) buffer_sprintf(instance->labels, " %s=%s", name, v);
+
+    return 1;
+}
+
+int format_host_labels_opentsdb_telnet(struct instance *instance, RRDHOST *host) {
+    if(!instance->labels)
         instance->labels = buffer_create(1024);
 
     if (unlikely(!sending_labels_configured(instance)))
         return 0;
 
-    rrdhost_check_rdlock(host);
-    netdata_rwlock_rdlock(&host->labels.labels_rwlock);
-    for (struct label *label = host->labels.head; label; label = label->next) {
-        if (!should_send_label(instance, label))
-            continue;
-
-        char value[CONFIG_MAX_VALUE + 1];
-        sanitize_opentsdb_label_value(value, label->value, CONFIG_MAX_VALUE);
-
-        if (*value)
-            buffer_sprintf(instance->labels, " %s=%s", label->key, value);
-    }
-    netdata_rwlock_unlock(&host->labels.labels_rwlock);
-
+    labels_walkthrough_read(host->labels.head, format_opentstb_label_telnet_callback, &instance);
     return 0;
 }
 
@@ -287,33 +286,33 @@ void opentsdb_http_prepare_header(struct instance *instance)
  * @param host a data collecting host.
  * @return Always returns 0.
  */
-int format_host_labels_opentsdb_http(struct instance *instance, RRDHOST *host)
-{
+
+static int format_opentstb_label_http_callback(const char *name, const char *value, LABEL_SOURCE ls, void *data) {
+    struct instance *instance = (struct instance *)data;
+
+    if(!should_send_label(instance, ls)) return 0;
+
+    char escaped_value[CONFIG_MAX_VALUE * 2 + 1];
+    sanitize_json_string(escaped_value, (char *)value, CONFIG_MAX_VALUE);
+
+    char v[CONFIG_MAX_VALUE + 1];
+    sanitize_opentsdb_label_value(v, escaped_value, CONFIG_MAX_VALUE);
+
+    if (*v) {
+        buffer_strcat(instance->labels, ",");
+        buffer_sprintf(instance->labels, "\"%s\":\"%s\"", name, v);
+    }
+    return 1;
+}
+
+int format_host_labels_opentsdb_http(struct instance *instance, RRDHOST *host) {
     if (!instance->labels)
         instance->labels = buffer_create(1024);
 
     if (unlikely(!sending_labels_configured(instance)))
         return 0;
 
-    rrdhost_check_rdlock(host);
-    netdata_rwlock_rdlock(&host->labels.labels_rwlock);
-    for (struct label *label = host->labels.head; label; label = label->next) {
-        if (!should_send_label(instance, label))
-            continue;
-
-        char escaped_value[CONFIG_MAX_VALUE * 2 + 1];
-        sanitize_json_string(escaped_value, label->value, CONFIG_MAX_VALUE);
-
-        char value[CONFIG_MAX_VALUE + 1];
-        sanitize_opentsdb_label_value(value, escaped_value, CONFIG_MAX_VALUE);
-
-        if (*value) {
-            buffer_strcat(instance->labels, ",");
-            buffer_sprintf(instance->labels, "\"%s\":\"%s\"", label->key, value);
-        }
-    }
-    netdata_rwlock_unlock(&host->labels.labels_rwlock);
-
+    labels_walkthrough_read(host->labels.head, format_opentstb_label_http_callback, &instance);
     return 0;
 }
 

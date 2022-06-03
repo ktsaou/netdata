@@ -4,13 +4,14 @@
 #define ACLK_SCHEMA_WRAPPER_NODE_INFO_H
 
 #include <stdlib.h>
+#include <stdint.h>
 
-#include "database/rrd.h"
 #include "capability.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif
+#include "database/rrd.h"
 
 struct machine_learning_info {
     bool ml_capable;
@@ -54,7 +55,7 @@ struct aclk_node_info {
 
     char *machine_guid;
 
-    struct label *host_labels_head;
+    DICTIONARY *host_labels_head;
 
     struct machine_learning_info ml_info;
 };

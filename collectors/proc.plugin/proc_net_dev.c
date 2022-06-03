@@ -90,7 +90,7 @@ static struct netdev {
 
     const char *chart_family;
 
-    struct label *chart_labels;
+    DICTIONARY *chart_labels;
 
     int flipped;
     unsigned long priority;
@@ -273,7 +273,7 @@ static void netdev_free_chart_strings(struct netdev *d) {
 static void netdev_free(struct netdev *d) {
     netdev_charts_release(d);
     netdev_free_chart_strings(d);
-    free_label_list(d->chart_labels);
+    labels_destroy(d->chart_labels);
 
     freez((void *)d->name);
     freez((void *)d->filename_speed);
@@ -295,7 +295,7 @@ static struct netdev_rename {
     const char *container_device;
     const char *container_name;
 
-    struct label *chart_labels;
+    DICTIONARY *chart_labels;
 
     int processed;
 
@@ -316,9 +316,7 @@ static struct netdev_rename *netdev_rename_find(const char *host_device, uint32_
 }
 
 // other threads can call this function to register a rename to a netdev
-void netdev_rename_device_add(
-    const char *host_device, const char *container_device, const char *container_name, struct label *labels)
-{
+void netdev_rename_device_add(const char *host_device, const char *container_device, const char *container_name, DICTIONARY *labels) {
     netdata_mutex_lock(&netdev_rename_mutex);
 
     uint32_t hash = simple_hash(host_device);
@@ -328,7 +326,8 @@ void netdev_rename_device_add(
         r->host_device      = strdupz(host_device);
         r->container_device = strdupz(container_device);
         r->container_name   = strdupz(container_name);
-        update_label_list(&r->chart_labels, labels);
+        r->chart_labels     = labels_create();
+        labels_copy_and_replace_existing(r->chart_labels, labels);
         r->hash             = hash;
         r->next             = netdev_rename_root;
         r->processed        = 0;
@@ -344,7 +343,7 @@ void netdev_rename_device_add(
             r->container_device = strdupz(container_device);
             r->container_name   = strdupz(container_name);
 
-            update_label_list(&r->chart_labels, labels);
+            labels_copy_and_replace_existing(r->chart_labels, labels);
             
             r->processed        = 0;
             netdev_pending_renames++;
@@ -377,7 +376,7 @@ void netdev_rename_device_del(const char *host_device) {
             freez((void *) r->host_device);
             freez((void *) r->container_name);
             freez((void *) r->container_device);
-            free_label_list(r->chart_labels);
+            labels_destroy(r->chart_labels);
             freez((void *) r);
             break;
         }
@@ -449,7 +448,7 @@ static inline void netdev_rename_cgroup(struct netdev *d, struct netdev_rename *
     snprintfz(buffer, RRD_ID_LENGTH_MAX, "net %s", r->container_device);
     d->chart_family = strdupz(buffer);
 
-    update_label_list(&d->chart_labels, r->chart_labels);
+    labels_copy_and_replace_existing(d->chart_labels, r->chart_labels);
 
     d->priority = NETDATA_CHART_PRIO_CGROUP_NET_IFACE;
     d->flipped = 1;
@@ -542,6 +541,7 @@ static struct netdev *get_netdev(const char *name) {
     d->name = strdupz(name);
     d->hash = simple_hash(d->name);
     d->len = strlen(d->name);
+    d->chart_labels = labels_create();
 
     d->chart_type_net_bytes      = strdupz("net");
     d->chart_type_net_compressed = strdupz("net_compressed");

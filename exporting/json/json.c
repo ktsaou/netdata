@@ -113,6 +113,27 @@ int init_json_http_instance(struct instance *instance)
  * @param host a data collecting host.
  * @return Always returns 0.
  */
+
+struct format_json_label_callback {
+    struct instance *instance;
+    size_t count;
+};
+
+static int format_json_label_callback(const char *name, const char *value, LABEL_SOURCE ls, void *data) {
+    struct format_json_label_callback *d = (struct format_json_label_callback *)data;
+
+    if (!should_send_label(d->instance, ls)) return 0;
+
+    char v[CONFIG_MAX_VALUE * 2 + 1];
+    sanitize_json_string(v, (char *)value, CONFIG_MAX_VALUE);
+
+    if (d->count > 0) buffer_strcat(d->instance->labels, ",");
+    buffer_sprintf(d->instance->labels, "\"%s\":\"%s\"", name, v);
+
+    d->count++;
+    return 1;
+}
+
 int format_host_labels_json_plaintext(struct instance *instance, RRDHOST *host)
 {
     if (!instance->labels)
@@ -123,22 +144,11 @@ int format_host_labels_json_plaintext(struct instance *instance, RRDHOST *host)
 
     buffer_strcat(instance->labels, "\"labels\":{");
 
-    int count = 0;
-    rrdhost_check_rdlock(host);
-    netdata_rwlock_rdlock(&host->labels.labels_rwlock);
-    for (struct label *label = host->labels.head; label; label = label->next) {
-        if (!should_send_label(instance, label))
-            continue;
-
-        char value[CONFIG_MAX_VALUE * 2 + 1];
-        sanitize_json_string(value, label->value, CONFIG_MAX_VALUE);
-        if (count > 0)
-            buffer_strcat(instance->labels, ",");
-        buffer_sprintf(instance->labels, "\"%s\":\"%s\"", label->key, value);
-
-        count++;
-    }
-    netdata_rwlock_unlock(&host->labels.labels_rwlock);
+    struct format_json_label_callback tmp = {
+        .instance = instance,
+        .count = 0
+    };
+    labels_walkthrough_read(host->labels.head, format_json_label_callback, &tmp);
 
     buffer_strcat(instance->labels, "},");
 

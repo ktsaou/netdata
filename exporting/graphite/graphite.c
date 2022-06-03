@@ -91,6 +91,27 @@ void sanitize_graphite_label_value(char *dst, char *src, size_t len)
  * @param host a data collecting host.
  * @return Always returns 0.
  */
+
+struct format_graphite_label_callback {
+    struct instance *instance;
+};
+
+static int format_graphite_label_callback(const char *name, const char *value, LABEL_SOURCE ls, void *data) {
+    struct format_graphite_label_callback *d = (struct format_graphite_label_callback *)data;
+
+    if (!should_send_label(d->instance, ls)) return 0;
+
+    char v[CONFIG_MAX_VALUE + 1];
+    sanitize_graphite_label_value(v, (char *)value, CONFIG_MAX_VALUE);
+
+    if (*v) {
+        buffer_strcat(d->instance->labels, ";");
+        buffer_sprintf(d->instance->labels, "%s=%s", name, v);
+    }
+
+    return 1;
+}
+
 int format_host_labels_graphite_plaintext(struct instance *instance, RRDHOST *host)
 {
     if (!instance->labels)
@@ -99,22 +120,10 @@ int format_host_labels_graphite_plaintext(struct instance *instance, RRDHOST *ho
     if (unlikely(!sending_labels_configured(instance)))
         return 0;
 
-    rrdhost_check_rdlock(host);
-    netdata_rwlock_rdlock(&host->labels.labels_rwlock);
-    for (struct label *label = host->labels.head; label; label = label->next) {
-        if (!should_send_label(instance, label))
-            continue;
-
-        char value[CONFIG_MAX_VALUE + 1];
-        sanitize_graphite_label_value(value, label->value, CONFIG_MAX_VALUE);
-
-        if (*value) {
-            buffer_strcat(instance->labels, ";");
-            buffer_sprintf(instance->labels, "%s=%s", label->key, value);
-        }
-    }
-    netdata_rwlock_unlock(&host->labels.labels_rwlock);
-
+    struct format_graphite_label_callback tmp = {
+        .instance = instance
+    };
+    labels_walkthrough_read(host->labels.head, format_graphite_label_callback, &tmp);
     return 0;
 }
 

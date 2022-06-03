@@ -530,13 +530,13 @@ inline int web_client_api_request_v1_data(RRDHOST *host, struct web_client *w, c
 
         rrdhost_rdlock(host);
         char *words[MAX_CHART_LABELS_FILTER];
-        uint32_t hash_key_list[MAX_CHART_LABELS_FILTER];
         int word_count = 0;
         rrdset_foreach_read(st1, host) {
             if (st1->hash_context == context_hash && !strcmp(st1->context, context) &&
-                (!chart_label_key || rrdset_contains_label_keylist(st1, chart_label_key)) &&
+                (!chart_label_key || labels_match_simple_pattern(st1->state->labels.head, chart_label_key)) &&
                 (!chart_labels_filter ||
-                 rrdset_matches_label_keys(st1, chart_labels_filter, words, hash_key_list, &word_count, MAX_CHART_LABELS_FILTER)))
+                 rrdset_labels_match_keys_and_values(
+                     st1, chart_labels_filter, words, &word_count, MAX_CHART_LABELS_FILTER)))
                     build_context_param_list(owa, &context_param_list, st1);
         }
         rrdhost_unlock(host);
@@ -964,22 +964,7 @@ inline void host_labels2json(RRDHOST *host, BUFFER *wb, size_t indentation) {
         indentation--;
     }
 
-    int count = 0;
-    rrdhost_rdlock(host);
-    netdata_rwlock_rdlock(&host->labels.labels_rwlock);
-    for (struct label *label = host->labels.head; label; label = label->next) {
-        if(count > 0) buffer_strcat(wb, ",\n");
-        buffer_strcat(wb, tabs);
-
-        char value[CONFIG_MAX_VALUE * 2 + 1];
-        sanitize_json_string(value, label->value, CONFIG_MAX_VALUE * 2);
-        buffer_sprintf(wb, "\"%s\": \"%s\"", label->key, value);
-
-        count++;
-    }
-    buffer_strcat(wb, "\n");
-    netdata_rwlock_unlock(&host->labels.labels_rwlock);
-    rrdhost_unlock(host);
+    labels_to_json(host->labels.head, wb, tabs, ":", "\"", ",\n");
 }
 
 extern int aclk_connected;

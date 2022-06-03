@@ -69,33 +69,30 @@ static inline void health_log_rotate(RRDHOST *host) {
     }
 }
 
+static int labels_buffer_printf_callback(const char *name, const char *value, LABEL_SOURCE ls, void *data) {
+    (void)ls;
+    BUFFER *wb = (BUFFER *)data;
+    buffer_sprintf(wb,"%s=%s\t ", name, value);
+    return 1;
+}
+
 inline void health_label_log_save(RRDHOST *host) {
     health_log_rotate(host);
 
     if(unlikely(host->health_log_fp)) {
         BUFFER *wb = buffer_create(1024);
-        rrdhost_check_rdlock(host);
-        netdata_rwlock_rdlock(&host->labels.labels_rwlock);
-        struct label *l=localhost->labels.head;
-        while (l != NULL) {
-            buffer_sprintf(wb,"%s=%s\t ", l->key, l->value);
-            l = l->next;
-        }
-        netdata_rwlock_unlock(&host->labels.labels_rwlock);
+
+        labels_walkthrough_read(localhost->labels.head, labels_buffer_printf_callback, wb);
 
         char *write = (char *) buffer_tostring(wb) ;
-
         write[wb->len-2] = '\n';
         write[wb->len-1] = '\0';
 
-        if (unlikely(fprintf(host->health_log_fp, "L\t%s"
-                , write
-        ) < 0))
+        if (unlikely(fprintf(host->health_log_fp, "L\t%s", write) < 0))
             error("HEALTH [%s]: failed to save alarm log entry to '%s'. Health data may be lost in case of abnormal restart.",
                   host->hostname, host->health_log_filename);
-        else {
+        else
             host->health_log_entries_written++;
-        }
 
         buffer_free(wb);
     }

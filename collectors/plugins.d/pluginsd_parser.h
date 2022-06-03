@@ -13,8 +13,8 @@ typedef struct parser_user_object {
     void    *opaque;
     struct plugind *cd;
     int trust_durations;
-    struct label *new_labels;
-    struct label *chart_labels;
+    DICTIONARY *new_labels;
+    DICTIONARY *chart_labels;
     size_t count;
     int enabled;
     uint8_t st_exists;
@@ -35,8 +35,8 @@ extern PARSER_RC pluginsd_variable_action(void *user, RRDHOST *host, RRDSET *st,
 extern PARSER_RC pluginsd_dimension_action(void *user, RRDSET *st, char *id, char *name, char *algorithm,
                                            long multiplier, long divisor, char *options, RRD_ALGORITHM algorithm_type);
 extern PARSER_RC pluginsd_label_action(void *user, char *key, char *value, LABEL_SOURCE source);
-extern PARSER_RC pluginsd_overwrite_action(void *user, RRDHOST *host, struct label *new_labels);
-extern PARSER_RC pluginsd_clabel_commit_action(void *user, RRDHOST *host, struct label *new_labels);
+extern PARSER_RC pluginsd_overwrite_action(void *user, RRDHOST *host, DICTIONARY *new_labels);
+extern PARSER_RC pluginsd_clabel_commit_action(void *user, RRDHOST *host, DICTIONARY *new_labels);
 extern PARSER_RC pluginsd_clabel_action(void *user, char *key, char *value, LABEL_SOURCE source);
 
 

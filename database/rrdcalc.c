@@ -109,6 +109,32 @@ static void rrdsetcalc_link(RRDSET *st, RRDCALC *rc) {
     health_alarm_log(host, ae);
 }
 
+struct count_label_matches_rrdcalc_pattern_callback {
+    SIMPLE_PATTERN *splabels;
+    size_t matching;
+    size_t all;
+};
+
+static int count_label_matches_rrdcalc_pattern_callback(const char *name, const char *value, LABEL_SOURCE ls, void *data) {
+    (void)ls;
+    struct count_label_matches_rrdcalc_pattern_callback *t = (struct count_label_matches_rrdcalc_pattern_callback *)data;
+    t->all++;
+
+    if(simple_pattern_matches(t->splabels, name)) {
+        t->matching++;
+        return 1;
+    }
+
+    char cmp[CONFIG_FILE_LINE_MAX+1];
+    snprintf(cmp, CONFIG_FILE_LINE_MAX, "%s=%s", name, value);
+    if(simple_pattern_matches(t->splabels, cmp)) {
+        t->matching++;
+        return 1;
+    }
+
+    return 0;
+}
+
 static inline int rrdcalc_test_additional_restriction(RRDCALC *rc, RRDSET *st){
     if (rc->module_match && !simple_pattern_matches(rc->module_pattern, st->module_name))
         return 0;
@@ -117,6 +143,7 @@ static inline int rrdcalc_test_additional_restriction(RRDCALC *rc, RRDSET *st){
         return 0;
 
     if (rc->labels) {
+        // TODO - this is wrong! We can't know how many labels a simple pattern would match!
         int labels_count=1;
         int labels_match=0;
         char *s = rc->labels;
@@ -125,17 +152,13 @@ static inline int rrdcalc_test_additional_restriction(RRDCALC *rc, RRDSET *st){
                 labels_count++;
             s++;
         }
-        RRDHOST *host = st->rrdhost;
-        char cmp[CONFIG_FILE_LINE_MAX+1];
-        struct label *move = host->labels.head;
-        while(move) {
-            snprintf(cmp, CONFIG_FILE_LINE_MAX, "%s=%s", move->key, move->value);
-            if (simple_pattern_matches(rc->splabels, move->key) ||
-                simple_pattern_matches(rc->splabels, cmp)) {
-                labels_match++;
-            }
-            move = move->next;
-        }
+
+        struct count_label_matches_rrdcalc_pattern_callback tmp = {
+            .splabels = rc->splabels,
+            .matching = 0,
+            .all = 0
+        };
+        labels_match = labels_walkthrough_read(st->rrdhost->labels.head, count_label_matches_rrdcalc_pattern_callback, &tmp);
 
         if (labels_match != labels_count)
             return 0;
@@ -680,52 +703,40 @@ void rrdcalc_foreach_unlink_and_free(RRDHOST *host, RRDCALC *rc) {
     rrdcalc_free(rc);
 }
 
+static int check_if_label_matches_rrdcalc_pattern_callback(const char *name, const char *value, LABEL_SOURCE ls, void *data) {
+    (void)ls;
+    SIMPLE_PATTERN *splabels = (SIMPLE_PATTERN *)data;
+
+    if(simple_pattern_matches(splabels, name)) return -1;
+
+    char cmp[CONFIG_FILE_LINE_MAX+1];
+    snprintf(cmp, CONFIG_FILE_LINE_MAX, "%s=%s", name, value);
+    if(simple_pattern_matches(splabels, cmp)) return -1;
+
+    return 0;
+}
+
 static void rrdcalc_labels_unlink_alarm_loop(RRDHOST *host, RRDCALC *alarms) {
-    RRDCALC *rc = alarms;
-    while (rc) {
-        if (!rc->labels) {
-            rc = rc->next;
-            continue;
-        }
+    for(RRDCALC *rc = alarms ; rc ; rc = rc->next ) {
+        if (!rc->labels) continue;
 
-        char cmp[CONFIG_FILE_LINE_MAX+1];
-        struct label *move = host->labels.head;
-        while(move) {
-            snprintf(cmp, CONFIG_FILE_LINE_MAX, "%s=%s", move->key, move->value);
-            if (simple_pattern_matches(rc->splabels, move->key) ||
-                simple_pattern_matches(rc->splabels, cmp)) {
-                break;
-            }
-
-            move = move->next;
-        }
-
-        RRDCALC *next = rc->next;
-        if(!move) {
+        if(labels_walkthrough_read(host->labels.head, check_if_label_matches_rrdcalc_pattern_callback, rc->splabels) != -1) {
             info("Health configuration for alarm '%s' cannot be applied, because the host %s does not have the label(s) '%s'",
                  rc->name,
                  host->hostname,
                  rc->labels);
 
-            if(host->alarms == alarms) {
+            if(host->alarms == alarms)
                 rrdcalc_unlink_and_free(host, rc);
-            } else
+            else
                 rrdcalc_foreach_unlink_and_free(host, rc);
-
         }
-
-        rc = next;
     }
 }
 
 void rrdcalc_labels_unlink_alarm_from_host(RRDHOST *host) {
-    rrdhost_check_rdlock(host);
-    netdata_rwlock_rdlock(&host->labels.labels_rwlock);
-
     rrdcalc_labels_unlink_alarm_loop(host, host->alarms);
     rrdcalc_labels_unlink_alarm_loop(host, host->alarms_with_foreach);
-
-    netdata_rwlock_unlock(&host->labels.labels_rwlock);
 }
 
 void rrdcalc_labels_unlink() {

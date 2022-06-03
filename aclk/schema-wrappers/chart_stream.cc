@@ -76,16 +76,22 @@ void chart_instance_updated_destroy(struct chart_instance_updated *instance)
     freez((char*)instance->id);
     freez((char*)instance->claim_id);
 
-    free_label_list(instance->label_head);
+    labels_destroy(instance->label_head);
 
     freez((char*)instance->config_hash);
+}
+
+static int label_add_to_map(const char *name, const char *value, LABEL_SOURCE ls, void *data) {
+    (void)ls;
+    auto map = (google::protobuf::Map<std::string, std::string> *)data;
+    map->insert({name, value});
+    return 1;
 }
 
 static int set_chart_instance_updated(chart::v1::ChartInstanceUpdated *chart, const struct chart_instance_updated *update)
 {
     google::protobuf::Map<std::string, std::string> *map;
     aclk_lib::v1::ACLKMessagePosition *pos;
-    struct label *label;
 
     chart->set_id(update->id);
     chart->set_claim_id(update->claim_id);
@@ -93,11 +99,7 @@ static int set_chart_instance_updated(chart::v1::ChartInstanceUpdated *chart, co
     chart->set_name(update->name);
 
     map = chart->mutable_chart_labels();
-    label = update->label_head;
-    while (label) {
-        map->insert({label->key, label->value});
-        label = label->next;
-    }
+    labels_walkthrough_read(update->label_head, label_add_to_map, map);
 
     switch (update->memory_mode) {
     case RRD_MEMORY_MODE_NONE:
