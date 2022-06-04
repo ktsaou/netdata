@@ -10,8 +10,9 @@
  * All labels follow these rules:
  *
  * Character          Symbol               Values     Names
+ * UTF-8 characters   UTF-8                yes        no
  * Lower case letter  [a-z]                yes        yes
- * Upper case letter  [A-Z]                [a-z]      [a-z]
+ * Upper case letter  [A-Z]                yes        -> [a-z]
  * Digit              [0-9]                yes        yes
  * Underscore         _                    yes        yes
  * Minus              -                    yes        yes
@@ -49,7 +50,8 @@
  *
  */
 
-#define LABELS_MAX_LENGTH 300
+#define LABELS_MAX_LENGTH 400 // 400 in bytes, up to 200 UTF-8 characters
+
 static unsigned char label_spaces_char_map[256];
 static unsigned char label_names_char_map[256];
 static unsigned char label_values_char_map[256] = {
@@ -118,32 +120,32 @@ static unsigned char label_values_char_map[256] = {
     [62] = '_', // >
     [63] = '_', // ?
     [64] = '@', // @
-    [65] = 'a', // A convert capitals to lowercase
-    [66] = 'b', // B convert capitals to lowercase
-    [67] = 'c', // C convert capitals to lowercase
-    [68] = 'd', // D convert capitals to lowercase
-    [69] = 'e', // E convert capitals to lowercase
-    [70] = 'f', // F convert capitals to lowercase
-    [71] = 'g', // G convert capitals to lowercase
-    [72] = 'h', // H convert capitals to lowercase
-    [73] = 'i', // I convert capitals to lowercase
-    [74] = 'j', // J convert capitals to lowercase
-    [75] = 'k', // K convert capitals to lowercase
-    [76] = 'l', // L convert capitals to lowercase
-    [77] = 'm', // M convert capitals to lowercase
-    [78] = 'n', // N convert capitals to lowercase
-    [79] = 'o', // O convert capitals to lowercase
-    [80] = 'p', // P convert capitals to lowercase
-    [81] = 'q', // Q convert capitals to lowercase
-    [82] = 'r', // R convert capitals to lowercase
-    [83] = 's', // S convert capitals to lowercase
-    [84] = 't', // T convert capitals to lowercase
-    [85] = 'u', // U convert capitals to lowercase
-    [86] = 'v', // V convert capitals to lowercase
-    [87] = 'w', // W convert capitals to lowercase
-    [88] = 'x', // X convert capitals to lowercase
-    [89] = 'y', // Y convert capitals to lowercase
-    [90] = 'z', // Z convert capitals to lowercase
+    [65] = 'A', // A keep
+    [66] = 'B', // B keep
+    [67] = 'C', // C keep
+    [68] = 'D', // D keep
+    [69] = 'E', // E keep
+    [70] = 'F', // F keep
+    [71] = 'G', // G keep
+    [72] = 'H', // H keep
+    [73] = 'I', // I keep
+    [74] = 'J', // J keep
+    [75] = 'K', // K keep
+    [76] = 'L', // L keep
+    [77] = 'M', // M keep
+    [78] = 'N', // N keep
+    [79] = 'O', // O keep
+    [80] = 'P', // P keep
+    [81] = 'Q', // Q keep
+    [82] = 'R', // R keep
+    [83] = 'S', // S keep
+    [84] = 'T', // T keep
+    [85] = 'U', // U keep
+    [86] = 'V', // V keep
+    [87] = 'W', // W keep
+    [88] = 'X', // X keep
+    [89] = 'Y', // Y keep
+    [90] = 'Z', // Z keep
     [91] = '_', // [
     [92] = '/', // backslash convert \ to /
     [93] = '_', // ]
@@ -312,12 +314,38 @@ static unsigned char label_values_char_map[256] = {
 };
 
 __attribute__((constructor)) void initialize_labels_keys_char_map(void) {
-    // copy the values char map to the keys char map
+    // copy the values char map to the names char map
     size_t i;
     for(i = 0; i < 256 ;i++)
         label_names_char_map[i] = label_values_char_map[i];
 
-    // apply overrides to the keys map
+    // apply overrides to the label names map
+    label_names_char_map['A'] = 'a';
+    label_names_char_map['B'] = 'b';
+    label_names_char_map['C'] = 'c';
+    label_names_char_map['D'] = 'd';
+    label_names_char_map['E'] = 'e';
+    label_names_char_map['F'] = 'f';
+    label_names_char_map['G'] = 'g';
+    label_names_char_map['H'] = 'h';
+    label_names_char_map['I'] = 'i';
+    label_names_char_map['J'] = 'j';
+    label_names_char_map['K'] = 'k';
+    label_names_char_map['L'] = 'l';
+    label_names_char_map['M'] = 'm';
+    label_names_char_map['N'] = 'n';
+    label_names_char_map['O'] = 'o';
+    label_names_char_map['P'] = 'p';
+    label_names_char_map['Q'] = 'q';
+    label_names_char_map['R'] = 'r';
+    label_names_char_map['S'] = 's';
+    label_names_char_map['T'] = 't';
+    label_names_char_map['U'] = 'u';
+    label_names_char_map['V'] = 'v';
+    label_names_char_map['W'] = 'w';
+    label_names_char_map['X'] = 'x';
+    label_names_char_map['Y'] = 'y';
+    label_names_char_map['Z'] = 'z';
     label_names_char_map['='] = '_';
     label_names_char_map[':'] = '_';
     label_names_char_map['+'] = '_';
@@ -332,11 +360,14 @@ __attribute__((constructor)) void initialize_labels_keys_char_map(void) {
 
 }
 
-static inline void labels_sanitize(unsigned char *dst, const unsigned char *src, size_t dst_size, unsigned char *char_map) {
+static inline void labels_sanitize(unsigned char *dst, const unsigned char *src, size_t dst_size, unsigned char *char_map, bool utf) {
     unsigned char *d = dst;
 
     // skip leading spaces and control characters in src
-    while(label_spaces_char_map[*src]) src++;
+    while(label_spaces_char_map[*src]) {
+        if(utf && IS_UTF8_BYTE(*src)) break;
+        src++;
+    }
 
     // make room for the final string termination
     unsigned char *end = &d[dst_size - 1];
@@ -344,8 +375,13 @@ static inline void labels_sanitize(unsigned char *dst, const unsigned char *src,
     // copy while converting, but keep only one white space
     int last_is_space = 0;
     while(*src && d < end) {
-        if(label_spaces_char_map[*src]) {
-
+        if(utf && IS_UTF8_STARTBYTE(src[0]) && IS_UTF8_BYTE(src[1]) && d + 1 < end) {
+            // UTF-8 encoded 2-byte character
+            *d++ = *src++;
+            *d++ = *src++;
+            last_is_space = 0;
+        }
+        else if(label_spaces_char_map[*src]) {
             if(!last_is_space)
                 *d++ = char_map[*src++];
             else
@@ -373,11 +409,11 @@ static inline void labels_sanitize(unsigned char *dst, const unsigned char *src,
 }
 
 static void labels_sanitize_key(char *dst, const char *src, size_t dst_size) {
-    labels_sanitize((unsigned char *)dst, (const unsigned char *)src, dst_size, label_names_char_map);
+    labels_sanitize((unsigned char *)dst, (const unsigned char *)src, dst_size, label_names_char_map, 0);
 }
 
 static void labels_sanitize_value(char *dst, const char *src, size_t dst_size) {
-    labels_sanitize((unsigned char *)dst, (const unsigned char *)src, dst_size, label_values_char_map);
+    labels_sanitize((unsigned char *)dst, (const unsigned char *)src, dst_size, label_values_char_map, 1);
 }
 
 // ----------------------------------------------------------------------------
@@ -470,7 +506,7 @@ void labels_add(DICTIONARY *dict, const char *key, const char *value, LABEL_SOUR
     labels_sanitize_value(v, value, LABELS_MAX_LENGTH);
 
     if(!*k) {
-        error("%s: cannot add key '%s' which is sanitized as empty string", __FUNCTION__, key);
+        error("%s: cannot add key '%s' (value '%s') which is sanitized as empty string", __FUNCTION__, key, value);
         return;
     }
 
