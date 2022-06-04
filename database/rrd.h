@@ -217,8 +217,6 @@ extern bool labels_match_name_and_value(DICTIONARY *labels, const char *name, co
 extern bool labels_match_name_value_pairs(DICTIONARY *labels, char **words, size_t word_count);
 extern void labels_to_json(DICTIONARY *labels, BUFFER *wb, const char *prefix, const char *equal, const char *quote, const char *comma);
 
-extern int labels_is_valid_key(const char *key);
-extern int labels_is_valid_value(const char *value);
 extern void labels_copy_and_replace_existing(DICTIONARY *dst, DICTIONARY *src);
 extern void labels_copy(DICTIONARY *dst, DICTIONARY *src);
 
