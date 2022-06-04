@@ -1973,28 +1973,3 @@ void rrdset_update_labels(RRDSET *st, DICTIONARY *labels) {
     // TODO - we should also cleanup sqlite from old labels that have been removed
     labels_walkthrough_read(st->state->chart_labels, chart_label_store_to_sql_callback, st);
 }
-
-static inline int k8s_space(char c) {
-    switch(c) {
-        case ':':
-        case ',':
-            return 1;
-        default:
-            return 0;
-    }
-}
-
-int rrdset_labels_match_keys_and_values(RRDSET *st, char *keylist, char *words[], int *word_count, int size) {
-    if (!st->state->chart_labels) return 0;
-
-    if (!*word_count)
-        *word_count = quoted_strings_splitter(keylist, words, size, k8s_space, NULL, NULL, 0);
-
-    // words value has pairs of keys and values
-
-    int ret = 1;
-    for (int i = 0; ret && i < *word_count - 1; i += 2)
-        ret = (labels_match_key_and_value(st->state->chart_labels, words[i], words[i+1]))?1:0;
-
-    return ret;
-}

@@ -10,7 +10,7 @@
  * All labels follow these rules:
  *
  * Character          Symbol               Values     Names
- * UTF-8 characters   UTF-8                yes        no
+ * UTF-8 characters   UTF-8                yes        -> _
  * Lower case letter  [a-z]                yes        yes
  * Upper case letter  [A-Z]                yes        -> [a-z]
  * Digit              [0-9]                yes        yes
@@ -34,13 +34,17 @@
  * 2. email addresses as-is
  * 3. floating point numbers, converted to always use a dot as the decimal point
  *
- * Leading and trailing spaces are removed from both label names and values.
+ * Leading and trailing spaces and control characters are removed from both label
+ * names and values.
+ *
  * Multiple spaces inside the label name or the value are removed (only 1 is retained).
- * Names that are only underscores are not accepted.
+ * In names spaces are also converted to underscores.
+ *
+ * Names that are only underscores are rejected (they do not enter the dictionary).
  *
  * The above rules do not require any conversion to be included in JSON strings.
  *
- * Label keys and values are truncated to LABELS_MAX_LENGTH (200) characters.
+ * Label names and values are truncated to LABELS_MAX_LENGTH (200) characters.
  *
  * When parsing, label key and value are separated by the first colon (:) found.
  * So label:value1:value2 is parsed as key = "label", value = "value1:value2"
@@ -50,7 +54,8 @@
  *
  */
 
-#define LABELS_MAX_LENGTH 400 // 400 in bytes, up to 200 UTF-8 characters
+#define LABELS_MAX_NAME_LENGTH 200
+#define LABELS_MAX_VALUE_LENGTH 400 // 400 in bytes, up to 200 UTF-8 characters
 
 static unsigned char label_spaces_char_map[256];
 static unsigned char label_names_char_map[256];
@@ -360,44 +365,63 @@ __attribute__((constructor)) void initialize_labels_keys_char_map(void) {
 
 }
 
-static inline void labels_sanitize(unsigned char *dst, const unsigned char *src, size_t dst_size, unsigned char *char_map, bool utf) {
+static size_t labels_sanitize(unsigned char *dst, const unsigned char *src, size_t dst_size, unsigned char *char_map, bool utf) {
     unsigned char *d = dst;
-
-    // skip leading spaces and control characters in src
-    while(label_spaces_char_map[*src]) {
-        if(utf && IS_UTF8_BYTE(*src)) break;
-        src++;
-    }
 
     // make room for the final string termination
     unsigned char *end = &d[dst_size - 1];
 
     // copy while converting, but keep only one white space
-    int last_is_space = 0;
+    // we start wil last_is_space = 1 to skip leading spaces
+    int last_is_space = 1;
+    size_t mblen = 0;
     while(*src && d < end) {
-        if(utf && IS_UTF8_STARTBYTE(src[0]) && IS_UTF8_BYTE(src[1]) && d + 1 < end) {
+        unsigned char c = *src;
+
+        if(IS_UTF8_STARTBYTE(c) && IS_UTF8_BYTE(src[1]) && d + 1 < end) {
             // UTF-8 encoded 2-byte character
-            *d++ = *src++;
-            *d++ = *src++;
-            last_is_space = 0;
-        }
-        else if(label_spaces_char_map[*src]) {
-            if(!last_is_space)
-                *d++ = char_map[*src++];
-            else
+
+            if(utf) {
+                *d++ = *src++;
+                *d++ = *src++;
+                last_is_space = 0;
+                mblen++;
+                continue;
+            }
+            else {
+                // UTF-8 characters are not allowed.
+                // Assume it is an underscore
+                // and skip the second byte
+                c = '_';
                 src++;
+            }
+        }
+
+        if(label_spaces_char_map[c]) {
+            // a space character
+
+            if(!last_is_space) {
+                // add one space
+                *d++ = char_map[c];
+                mblen++;
+            }
 
             last_is_space++;
         }
         else {
-            *d++ = char_map[*src++];
+            *d++ = char_map[c];
             last_is_space = 0;
+            mblen++;
         }
+
+        src++;
     }
 
     // remove the last trailing space
-    if(last_is_space)
+    if(last_is_space) {
         d--;
+        mblen--;
+    }
 
     // put a termination at the end of what we copied
     *d = '\0';
@@ -405,15 +429,20 @@ static inline void labels_sanitize(unsigned char *dst, const unsigned char *src,
     // check if dst is all underscores and empty it if it is
     d = dst;
     while(*d++ == '_') ;
-    if(!*d) *dst = '\0';
+    if(!*d) {
+        *dst = '\0';
+        mblen = 0;
+    }
+
+    return mblen;
 }
 
-static void labels_sanitize_key(char *dst, const char *src, size_t dst_size) {
-    labels_sanitize((unsigned char *)dst, (const unsigned char *)src, dst_size, label_names_char_map, 0);
+static inline size_t labels_sanitize_name(char *dst, const char *src, size_t dst_size) {
+    return labels_sanitize((unsigned char *)dst, (const unsigned char *)src, dst_size, label_names_char_map, 0);
 }
 
-static void labels_sanitize_value(char *dst, const char *src, size_t dst_size) {
-    labels_sanitize((unsigned char *)dst, (const unsigned char *)src, dst_size, label_values_char_map, 1);
+static inline size_t labels_sanitize_value(char *dst, const char *src, size_t dst_size) {
+    return labels_sanitize((unsigned char *)dst, (const unsigned char *)src, dst_size, label_values_char_map, 1);
 }
 
 // ----------------------------------------------------------------------------
@@ -461,21 +490,6 @@ DICTIONARY *labels_create(void) {
 
 
 // ----------------------------------------------------------------------------
-// labels_empty()
-
-static int delete_all_labels_callback(const char *name, void *value, void *data) {
-    DICTIONARY *dict = (DICTIONARY *)data;
-    (void)value;
-    dictionary_del_having_write_lock(dict, name);
-    return 1;
-}
-
-void labels_empty(DICTIONARY *labels_dict) {
-    dictionary_walkthrough_write(labels_dict, delete_all_labels_callback, labels_dict);
-}
-
-
-// ----------------------------------------------------------------------------
 // labels_destroy()
 
 void labels_destroy(DICTIONARY *labels_dict) {
@@ -501,9 +515,9 @@ void labels_add(DICTIONARY *dict, const char *key, const char *value, LABEL_SOUR
         return;
     }
 
-    char k[LABELS_MAX_LENGTH + 1], v[LABELS_MAX_LENGTH + 1];
-    labels_sanitize_key(k, key, LABELS_MAX_LENGTH);
-    labels_sanitize_value(v, value, LABELS_MAX_LENGTH);
+    char k[LABELS_MAX_NAME_LENGTH + 1], v[LABELS_MAX_VALUE_LENGTH + 1];
+    labels_sanitize_name(k, key, LABELS_MAX_NAME_LENGTH);
+    labels_sanitize_value(v, value, LABELS_MAX_VALUE_LENGTH);
 
     if(!*k) {
         error("%s: cannot add key '%s' (value '%s') which is sanitized as empty string", __FUNCTION__, key, value);
@@ -561,6 +575,8 @@ static int remove_flags_old_new(const char *name, void *value, void *data) {
 }
 
 void labels_unmark_all(DICTIONARY *labels) {
+    if(!labels) return;
+
     dictionary_walkthrough_read(labels, remove_flags_old_new, NULL);
 }
 
@@ -582,6 +598,8 @@ static int remove_not_old_not_new_callback(const char *name, void *value, void *
 }
 
 void labels_remove_all_unmarked(DICTIONARY *labels) {
+    if(!labels) return;
+
     dictionary_walkthrough_write(labels, remove_not_old_not_new_callback, labels);
 }
 
@@ -633,14 +651,7 @@ static int copy_label_to_dictionary_callback(const char *name, void *value, void
 }
 
 void labels_copy_and_replace_existing(DICTIONARY *dst, DICTIONARY *src) {
-    if(!src) {
-        error("%s(): called with NULL src dictionary", __FUNCTION__ );
-        return;
-    }
-    if(!dst) {
-        error("%s(): called with NULL dst dictionary", __FUNCTION__ );
-        return;
-    }
+    if(!dst || !src) return;
 
     // remove the LABEL_FLAG_OLD and LABEL_FLAG_NEW from all items
     labels_unmark_all(dst);
@@ -654,12 +665,14 @@ void labels_copy_and_replace_existing(DICTIONARY *dst, DICTIONARY *src) {
 }
 
 void labels_copy(DICTIONARY *dst, DICTIONARY *src) {
+    if(!dst || !src) return;
+
     dictionary_walkthrough_read(src, copy_label_to_dictionary_callback, dst);
 }
 
 
 // ----------------------------------------------------------------------------
-// labels_match_simple_pattern()
+// labels_match_name_simple_pattern()
 // returns true when there are keys in the dictionary matching a simple pattern
 
 static int simple_pattern_match_callback(const char *name, void *value, void *data) {
@@ -672,7 +685,9 @@ static int simple_pattern_match_callback(const char *name, void *value, void *da
     return 0;
 }
 
-bool labels_match_simple_pattern(DICTIONARY *labels, char *simple_pattern_txt) {
+bool labels_match_name_simple_pattern(DICTIONARY *labels, char *simple_pattern_txt) {
+    if (!labels) return false;
+
     SIMPLE_PATTERN *pattern = simple_pattern_create(simple_pattern_txt, ",|\t\r\n\f\v", SIMPLE_PATTERN_EXACT);
 
     int ret = dictionary_walkthrough_read(labels, simple_pattern_match_callback, pattern);
@@ -684,17 +699,40 @@ bool labels_match_simple_pattern(DICTIONARY *labels, char *simple_pattern_txt) {
 
 
 // ----------------------------------------------------------------------------
-// labels_match_key_and_value()
+// labels_match_name_and_value()
 // return true if there is an item in the dictionary matching both
 // the key and its value
 
-bool labels_match_key_and_value(DICTIONARY *labels, const char *name, const char *value) {
+bool labels_match_name_and_value(DICTIONARY *labels, const char *name, const char *value) {
+    if (!labels) return false;
+
     LABEL *lb = dictionary_get(labels, name);
 
     if(strcmp(lb->value, value) == 0)
         return true;
 
     return false;
+}
+
+// ----------------------------------------------------------------------------
+// breaks the string into words (respecting quotes)
+// and tries to find
+
+bool labels_match_name_value_pairs(DICTIONARY *labels, char **words, size_t word_count) {
+    if (!labels) return false;
+
+    // words is pairs of names and values.
+
+    // we assume no sanitization is needed on the words, since these should be
+    // selections made by the user, provides the names and values we already have.
+
+    // if not enough words to make a check, ret is false
+    // otherwise we enter the loop
+    bool ret = (word_count >= 2);
+    for (size_t i = 0; ret && i + 1 < word_count; i += 2)
+        ret = labels_match_name_and_value(labels, words[i], words[i + 1]);
+
+    return ret;
 }
 
 
@@ -778,7 +816,6 @@ void labels_to_json(DICTIONARY *labels, BUFFER *wb, const char *prefix, const ch
     };
     dictionary_walkthrough_read(labels, label_to_json, (void *)&tmp);
 }
-
 
 // ----------------------------------------------------------------------------
 // string operations related to labels
