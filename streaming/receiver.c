@@ -661,12 +661,12 @@ static int rrdpush_receive(struct receiver_state *rpt)
 
 //    rpt->host->connected_senders++;
     if(rpt->stream_version > 0) {
-        rrdhost_flag_set(rpt->host, RRDHOST_FLAG_UPDATE_STREAM);
-        rrdhost_flag_clear(rpt->host, RRDHOST_FLAG_STOP_STREAM);
+        rrdhost_flag_set(rpt->host, RRDHOST_FLAG_STREAM_LABELS_UPDATE);
+        rrdhost_flag_clear(rpt->host, RRDHOST_FLAG_STREAM_LABELS_STOP);
     }
     else {
-        rrdhost_flag_set(rpt->host, RRDHOST_FLAG_STOP_STREAM);
-        rrdhost_flag_clear(rpt->host, RRDHOST_FLAG_UPDATE_STREAM);
+        rrdhost_flag_set(rpt->host, RRDHOST_FLAG_STREAM_LABELS_STOP);
+        rrdhost_flag_clear(rpt->host, RRDHOST_FLAG_STREAM_LABELS_UPDATE);
     }
 
     if(health_enabled != CONFIG_BOOLEAN_NO) {

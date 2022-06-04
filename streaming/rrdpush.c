@@ -365,7 +365,7 @@ static int send_labels_callback(const char *name, const char *value, LABEL_SOURC
     return 1;
 }
 void rrdpush_send_labels(RRDHOST *host) {
-    if (!host->host_labels || !rrdhost_flag_check(host, RRDHOST_FLAG_UPDATE_STREAM) || (rrdhost_flag_check(host, RRDHOST_FLAG_STOP_STREAM)))
+    if (!host->host_labels || !rrdhost_flag_check(host, RRDHOST_FLAG_STREAM_LABELS_UPDATE) || (rrdhost_flag_check(host, RRDHOST_FLAG_STREAM_LABELS_STOP)))
         return;
 
     sender_start(host->sender);
@@ -377,7 +377,7 @@ void rrdpush_send_labels(RRDHOST *host) {
     if(host->rrdpush_sender_pipe[PIPE_WRITE] != -1 && write(host->rrdpush_sender_pipe[PIPE_WRITE], " ", 1) == -1)
         error("STREAM %s [send]: cannot write to internal pipe", host->hostname);
 
-    rrdhost_flag_clear(host, RRDHOST_FLAG_UPDATE_STREAM);
+    rrdhost_flag_clear(host, RRDHOST_FLAG_STREAM_LABELS_UPDATE);
 }
 
 void rrdpush_claimed_id(RRDHOST *host)

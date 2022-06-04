@@ -5,26 +5,54 @@
 
 // ----------------------------------------------------------------------------
 // labels sanitization
+
 /*
- * Tags must start with a letter or an underscore and after that may contain:
+ * All labels follow these rules:
  *
- * Alphanumerics
- * Underscores
- * Minuses
- * Colons
- * Periods
- * Slashes
+ * Character          Symbol               Values     Names
+ * Lower case letter  [a-z]                yes        yes
+ * Upper case letter  [A-Z]                [a-z]      [a-z]
+ * Digit              [0-9]                yes        yes
+ * Underscore         _                    yes        yes
+ * Minus              -                    yes        yes
+ * Plus               +                    yes        -> _
+ * Colon              :                    yes        -> _
+ * Semicolon          ;                    -> :       -> _
+ * Equal              =                    -> :       -> _
+ * Period             .                    yes        yes
+ * Comma              ,                    -> .       -> .
+ * Slash              /                    yes        -> _
+ * Backslash          \                    -> /       -> _
+ * At                 @                    yes        -> _
+ * Space                                   -> _       -> _
+ * anything else                           -> _       -> _
+*
+ * The above rules should allow users to set in tags (indicative):
  *
- * Other special characters are converted to underscores.
+ * 1. hostnames and domain names as-is
+ * 2. email addresses as-is
+ * 3. floating point numbers, converted to always use a dot as the decimal point
  *
- * Note: A tag cannot end with a colon, for example tag:
+ * Leading and trailing spaces are removed from both label names and values.
+ * Multiple spaces inside the label name or the value are removed (only 1 is retained).
+ * Names that are only underscores are not accepted.
  *
- * Tags can be up to 200 characters long. Tags are converted to lowercase.
+ * The above rules do not require any conversion to be included in JSON strings.
+ *
+ * Label keys and values are truncated to LABELS_MAX_LENGTH (200) characters.
+ *
+ * When parsing, label key and value are separated by the first colon (:) found.
+ * So label:value1:value2 is parsed as key = "label", value = "value1:value2"
+ *
+ * This means a label key cannot contain a colon (:) - it is converted to
+ * underscore if it does.
+ *
  */
 
-#define LABELS_MAX_LENGTH 200
-
-static unsigned char labels_char_map[256] = {
+#define LABELS_MAX_LENGTH 300
+static unsigned char label_spaces_char_map[256];
+static unsigned char label_names_char_map[256];
+static unsigned char label_values_char_map[256] = {
     [0] = '\0', //
     [1] = '_', //
     [2] = '_', //
@@ -68,86 +96,86 @@ static unsigned char labels_char_map[256] = {
     [40] = '_', // (
     [41] = '_', // )
     [42] = '_', // *
-    [43] = '_', // +
-    [44] = '.', // ,        - convert , to .
-    [45] = '-', // -
-    [46] = '.', // .
-    [47] = '/', // /
-    [48] = '0', // 0
-    [49] = '1', // 1
-    [50] = '2', // 2
-    [51] = '3', // 3
-    [52] = '4', // 4
-    [53] = '5', // 5
-    [54] = '6', // 6
-    [55] = '7', // 7
-    [56] = '8', // 8
-    [57] = '9', // 9
-    [58] = ':', // :
-    [59] = ':', // ;        - convert ; to :
+    [43] = '+', // + keep
+    [44] = '.', // , convert , to .
+    [45] = '-', // - keep
+    [46] = '.', // . keep
+    [47] = '/', // / keep
+    [48] = '0', // 0 keep
+    [49] = '1', // 1 keep
+    [50] = '2', // 2 keep
+    [51] = '3', // 3 keep
+    [52] = '4', // 4 keep
+    [53] = '5', // 5 keep
+    [54] = '6', // 6 keep
+    [55] = '7', // 7 keep
+    [56] = '8', // 8 keep
+    [57] = '9', // 9 keep
+    [58] = ':', // : keep
+    [59] = ':', // ; convert ; to :
     [60] = '_', // <
-    [61] = ':', // =        - convert = to :
+    [61] = ':', // = convert = to :
     [62] = '_', // >
     [63] = '_', // ?
-    [64] = '_', // @
-    [65] = 'a', // A        - convert capitals to lowercase
-    [66] = 'b', // B
-    [67] = 'c', // C
-    [68] = 'd', // D
-    [69] = 'e', // E
-    [70] = 'f', // F
-    [71] = 'g', // G
-    [72] = 'h', // H
-    [73] = 'i', // I
-    [74] = 'j', // J
-    [75] = 'k', // K
-    [76] = 'l', // L
-    [77] = 'm', // M
-    [78] = 'n', // N
-    [79] = 'o', // O
-    [80] = 'p', // P
-    [81] = 'q', // Q
-    [82] = 'r', // R
-    [83] = 's', // S
-    [84] = 't', // T
-    [85] = 'u', // U
-    [86] = 'v', // V
-    [87] = 'w', // W
-    [88] = 'x', // X
-    [89] = 'y', // Y
-    [90] = 'z', // Z
+    [64] = '@', // @
+    [65] = 'a', // A convert capitals to lowercase
+    [66] = 'b', // B convert capitals to lowercase
+    [67] = 'c', // C convert capitals to lowercase
+    [68] = 'd', // D convert capitals to lowercase
+    [69] = 'e', // E convert capitals to lowercase
+    [70] = 'f', // F convert capitals to lowercase
+    [71] = 'g', // G convert capitals to lowercase
+    [72] = 'h', // H convert capitals to lowercase
+    [73] = 'i', // I convert capitals to lowercase
+    [74] = 'j', // J convert capitals to lowercase
+    [75] = 'k', // K convert capitals to lowercase
+    [76] = 'l', // L convert capitals to lowercase
+    [77] = 'm', // M convert capitals to lowercase
+    [78] = 'n', // N convert capitals to lowercase
+    [79] = 'o', // O convert capitals to lowercase
+    [80] = 'p', // P convert capitals to lowercase
+    [81] = 'q', // Q convert capitals to lowercase
+    [82] = 'r', // R convert capitals to lowercase
+    [83] = 's', // S convert capitals to lowercase
+    [84] = 't', // T convert capitals to lowercase
+    [85] = 'u', // U convert capitals to lowercase
+    [86] = 'v', // V convert capitals to lowercase
+    [87] = 'w', // W convert capitals to lowercase
+    [88] = 'x', // X convert capitals to lowercase
+    [89] = 'y', // Y convert capitals to lowercase
+    [90] = 'z', // Z convert capitals to lowercase
     [91] = '_', // [
-    [92] = '/', // backslash    - convert \ to /
+    [92] = '/', // backslash convert \ to /
     [93] = '_', // ]
     [94] = '_', // ^
-    [95] = '_', // _
+    [95] = '_', // _ keep
     [96] = '_', // `
-    [97] = 'a', // a
-    [98] = 'b', // b
-    [99] = 'c', // c
-    [100] = 'd', // d
-    [101] = 'e', // e
-    [102] = 'f', // f
-    [103] = 'g', // g
-    [104] = 'h', // h
-    [105] = 'i', // i
-    [106] = 'j', // j
-    [107] = 'k', // k
-    [108] = 'l', // l
-    [109] = 'm', // m
-    [110] = 'n', // n
-    [111] = 'o', // o
-    [112] = 'p', // p
-    [113] = 'q', // q
-    [114] = 'r', // r
-    [115] = 's', // s
-    [116] = 't', // t
-    [117] = 'u', // u
-    [118] = 'v', // v
-    [119] = 'w', // w
-    [120] = 'x', // x
-    [121] = 'y', // y
-    [122] = 'z', // z
+    [97] = 'a', // a keep
+    [98] = 'b', // b keep
+    [99] = 'c', // c keep
+    [100] = 'd', // d keep
+    [101] = 'e', // e keep
+    [102] = 'f', // f keep
+    [103] = 'g', // g keep
+    [104] = 'h', // h keep
+    [105] = 'i', // i keep
+    [106] = 'j', // j keep
+    [107] = 'k', // k keep
+    [108] = 'l', // l keep
+    [109] = 'm', // m keep
+    [110] = 'n', // n keep
+    [111] = 'o', // o keep
+    [112] = 'p', // p keep
+    [113] = 'q', // q keep
+    [114] = 'r', // r keep
+    [115] = 's', // s keep
+    [116] = 't', // t keep
+    [117] = 'u', // u keep
+    [118] = 'v', // v keep
+    [119] = 'w', // w keep
+    [120] = 'x', // x keep
+    [121] = 'y', // y keep
+    [122] = 'z', // z keep
     [123] = '_', // {
     [124] = '_', // |
     [125] = '_', // }
@@ -283,16 +311,73 @@ static unsigned char labels_char_map[256] = {
     [255] = '_'  //
 };
 
+__attribute__((constructor)) void initialize_labels_keys_char_map(void) {
+    // copy the values char map to the keys char map
+    size_t i;
+    for(i = 0; i < 256 ;i++)
+        label_names_char_map[i] = label_values_char_map[i];
 
-static void labels_sanitization(char *dst, const char *src, size_t dst_size) {
-    unsigned char *s = (unsigned char *)src, *d = (unsigned char *)dst;
-    dst_size--;
+    // apply overrides to the keys map
+    label_names_char_map['='] = '_';
+    label_names_char_map[':'] = '_';
+    label_names_char_map['+'] = '_';
+    label_names_char_map[';'] = '_';
+    label_names_char_map['@'] = '_';
+    label_names_char_map['/'] = '_';
+    label_names_char_map['\\'] = '_';
 
-    size_t i = 0;
-    while(*s && i++ < dst_size)
-        *d++ = labels_char_map[*s++];
+    // create the spaces map
+    for(i = 0; i < 256 ;i++)
+        label_spaces_char_map[i] = (isspace(i) || iscntrl(i) || !isprint(i))?1:0;
 
+}
+
+static inline void labels_sanitize(unsigned char *dst, const unsigned char *src, size_t dst_size, unsigned char *char_map) {
+    unsigned char *d = dst;
+
+    // skip leading spaces and control characters in src
+    while(label_spaces_char_map[*src]) src++;
+
+    // make room for the final string termination
+    unsigned char *end = &d[dst_size - 1];
+
+    // copy while converting, but keep only one white space
+    int last_is_space = 0;
+    while(*src && d < end) {
+        if(label_spaces_char_map[*src]) {
+
+            if(!last_is_space)
+                *d++ = char_map[*src++];
+            else
+                src++;
+
+            last_is_space++;
+        }
+        else {
+            *d++ = char_map[*src++];
+            last_is_space = 0;
+        }
+    }
+
+    // remove the last trailing space
+    if(last_is_space)
+        d--;
+
+    // put a termination at the end of what we copied
     *d = '\0';
+
+    // check if dst is all underscores and empty it if it is
+    d = dst;
+    while(*d++ == '_') ;
+    if(!*d) *dst = '\0';
+}
+
+static void labels_sanitize_key(char *dst, const char *src, size_t dst_size) {
+    labels_sanitize((unsigned char *)dst, (const unsigned char *)src, dst_size, label_names_char_map);
+}
+
+static void labels_sanitize_value(char *dst, const char *src, size_t dst_size) {
+    labels_sanitize((unsigned char *)dst, (const unsigned char *)src, dst_size, label_values_char_map);
 }
 
 // ----------------------------------------------------------------------------
@@ -381,8 +466,13 @@ void labels_add(DICTIONARY *dict, const char *key, const char *value, LABEL_SOUR
     }
 
     char k[LABELS_MAX_LENGTH + 1], v[LABELS_MAX_LENGTH + 1];
-    labels_sanitization(k, key, LABELS_MAX_LENGTH);
-    labels_sanitization(v, value, LABELS_MAX_LENGTH);
+    labels_sanitize_key(k, key, LABELS_MAX_LENGTH);
+    labels_sanitize_value(v, value, LABELS_MAX_LENGTH);
+
+    if(!*k) {
+        error("%s: cannot add key '%s' which is sanitized as empty string", __FUNCTION__, key);
+        return;
+    }
 
     labels_add_already_sanitized(dict, k, v, label_source);
 }
@@ -680,27 +770,3 @@ char *strip_double_quotes(char *str, SKIP_ESCAPED_CHARACTERS_OPTION skip_escaped
 
     return str;
 }
-
-int labels_is_valid_key(const char *key) {
-    // Prometheus exporter
-    if(!strcmp(key, "chart") || !strcmp(key, "family")  || !strcmp(key, "dimension")) return 0;
-
-    // Netdata and Prometheus  internal
-    if(*key == '_') return 0;
-
-    while(*key) {
-        if(!(isdigit(*key) || isalpha(*key) || *key == '.' || *key == '_' || *key == '-')) return 0;
-        key++;
-    }
-
-    return 1;
-}
-
-int labels_is_valid_value(const char *value) {
-    while(*value) {
-        if(*value == '"' || *value == '\'' || *value == '*' || *value == '!') return 0;
-        value++;
-    }
-    return 1;
-}
-

@@ -1105,10 +1105,6 @@ static void rrdhost_load_auto_labels(DICTIONARY *labels) {
         labels_add(labels, "_streams_to", localhost->rrdpush_send_destination, LABEL_SOURCE_AUTO);
 }
 
-static inline int rrdhost_is_valid_label_config_option(char *name, char *value) {
-    return (labels_is_valid_key(name) && labels_is_valid_value(value) && strcmp(name, "from environment") && strcmp(name, "from kubernetes pods"));
-}
-
 static void rrdhost_load_config_labels(DICTIONARY *labels) {
     if(!labels) return;
 
@@ -1123,27 +1119,14 @@ static void rrdhost_load_config_labels(DICTIONARY *labels) {
         config_section_wrlock(co);
         struct config_option *cv;
         for(cv = co->values; cv ; cv = cv->next) {
-            if(rrdhost_is_valid_label_config_option(cv->name, cv->value)) {
-                labels_add(labels, cv->name, cv->value, LABEL_SOURCE_NETDATA_CONF);
-                cv->flags |= CONFIG_VALUE_USED;
-            }
-            else {
-                error("LABELS: It was not possible to create the label '%s' because it contains invalid character(s) or values.", cv->name);
-            }
+            labels_add(labels, cv->name, cv->value, LABEL_SOURCE_NETDATA_CONF);
+            cv->flags |= CONFIG_VALUE_USED;
         }
         config_section_unlock(co);
     }
 }
 
-static int labels_copy_to_dictionary_callback(const char *name, const char *value, LABEL_SOURCE ls, void *data) {
-    DICTIONARY *labels = (DICTIONARY *)data;
-    labels_add(labels, name, value, ls);
-    return 1;
-}
-
 static void rrdhost_load_kubernetes_labels(DICTIONARY *labels) {
-    DICTIONARY *tmp = labels_create();
-
     char *label_script = mallocz(sizeof(char) * (strlen(netdata_configured_primary_plugins_dir) + strlen("get-kubernetes-labels.sh") + 2));
     sprintf(label_script, "%s/%s", netdata_configured_primary_plugins_dir, "get-kubernetes-labels.sh");
     if (unlikely(access(label_script, R_OK) != 0)) {
@@ -1159,44 +1142,27 @@ static void rrdhost_load_kubernetes_labels(DICTIONARY *labels) {
             int MAX_LINE_SIZE=300;
             char buffer[MAX_LINE_SIZE + 1];
             while (fgets(buffer, MAX_LINE_SIZE, fp) != NULL) {
-                char *name=buffer;
-                char *value=buffer;
-                while (*value && *value != ':') value++;
-                if (*value == ':') {
-                    *value = '\0';
+                char *name = buffer, *value = buffer;
+
+                // find the start of the value
+                while(*value && *value != ':')
                     value++;
-                }
-                char *eos=value;
-                while (*eos && *eos != '\n') eos++;
-                if (*eos == '\n') *eos = '\0';
-                if (strlen(value)>0) {
-                    if (labels_is_valid_key(name)){
-                        labels_add(tmp, name, value, LABEL_SOURCE_KUBERNETES);
-                    } else {
-                        info("Ignoring invalid label name '%s'", name);
-                    }
-                } else {
-                    error("%s outputted unexpected result: '%s'", label_script, name);
-                }
+
+                if(*value == ':')
+                    *value++ = '\0';
+
+                // sanitization in labels will remove \r\n and trim all strings
+                labels_add(labels, name, value, LABEL_SOURCE_KUBERNETES);
             }
 
             // Non-zero exit code means that all the script output is error messages. We've shown already any message that didn't include a ':'
             // Here we'll inform with an ERROR that the script failed, show whatever (if anything) was added to the list of labels, free the memory and set the return to null
             int retcode = mypclose(fp, command_pid);
-            if (retcode) {
-                error("%s exited abnormally. No kubernetes labels will be added to the host.", label_script);
-                labels_log(tmp, "Ignoring");
-                labels_destroy(tmp);
-                tmp = NULL;
-            }
+            if (retcode)
+                error("%s exited abnormally. Failed to get kubernetes labels.", label_script);
         }
     }
     freez(label_script);
-
-    if(tmp) {
-        labels_walkthrough_read(tmp, labels_copy_to_dictionary_callback, labels);
-        labels_destroy(tmp);
-    }
 }
 
 void reload_host_labels(void) {
@@ -1216,7 +1182,7 @@ void reload_host_labels(void) {
 
 /*  TODO-GAPS - fix this so that it looks properly at the state and version of the sender
     if(localhost->rrdpush_send_enabled && localhost->rrdpush_sender_buffer){
-        localhost->labels.labels_flag |= RRDHOST_FLAG_UPDATE_STREAM;
+        localhost->labels.labels_flag |= RRDHOST_FLAG_STREAM_LABELS_UPDATE;
         rrdpush_send_labels(localhost);
     }
 */
