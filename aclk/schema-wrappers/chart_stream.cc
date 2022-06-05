@@ -81,6 +81,13 @@ void chart_instance_updated_destroy(struct chart_instance_updated *instance)
     freez((char*)instance->config_hash);
 }
 
+static int label_add_to_map_callback(const char *name, const char *value, RRDLABEL_SRC ls, void *data) {
+    (void)ls;
+    auto map = (google::protobuf::Map<std::string, std::string> *)data;
+    map->insert({name, value});
+    return 1;
+}
+
 static int set_chart_instance_updated(chart::v1::ChartInstanceUpdated *chart, const struct chart_instance_updated *update)
 {
     google::protobuf::Map<std::string, std::string> *map;
