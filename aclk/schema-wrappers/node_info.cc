@@ -4,13 +4,6 @@
 
 #include "schema_wrapper_utils.h"
 
-static int label_add_to_map_callback(const char *name, const char *value, RRDLABEL_SRC ls, void *data) {
-    (void)ls;
-    auto map = (google::protobuf::Map<std::string, std::string> *)data;
-    map->insert({name, value});
-    return 1;
-}
-
 static int generate_node_info(nodeinstance::info::v1::NodeInfo *info, struct aclk_node_info *data)
 {
     google::protobuf::Map<std::string, std::string> *map;
