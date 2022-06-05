@@ -3,6 +3,10 @@
 #ifndef NETDATA_RRD_H
 #define NETDATA_RRD_H 1
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 // forward typedefs
 typedef struct rrdhost RRDHOST;
 typedef struct rrddim RRDDIM;
@@ -190,7 +194,8 @@ typedef enum rrdlabel_source {
 
 extern DICTIONARY *rrdlabels_create(void);
 extern void rrdlabels_destroy(DICTIONARY *labels_dict);
-extern void rrdlabels_add(DICTIONARY *dict, const char *key, const char *value, RRDLABEL_SRC ls);
+extern void rrdlabels_add(DICTIONARY *dict, const char *name, const char *value, RRDLABEL_SRC ls);
+extern void rrdlabels_add_pair(DICTIONARY *dict, const char *string, RRDLABEL_SRC ls);
 extern const char *rrdlabels_get(DICTIONARY *labels, const char *key);
 
 extern void rrdlabels_unmark_all(DICTIONARY *labels);
@@ -202,8 +207,6 @@ extern int rrdlabels_sorted_walkthrough_read(DICTIONARY *labels, int (*callback)
 extern void rrdlabels_log_to_buffer(DICTIONARY *labels, BUFFER *wb);
 extern bool rrdlabels_match_simple_pattern(DICTIONARY *labels, const char *simple_pattern_txt);
 extern bool rrdlabels_match_simple_pattern_parsed(DICTIONARY *labels, SIMPLE_PATTERN *pattern, char equal);
-extern bool rrdlabels_match_name_and_value(DICTIONARY *labels, const char *name, const char *value);
-extern bool rrdlabels_match_name_value_pairs(DICTIONARY *labels, char **words, size_t word_count);
 extern void rrdlabels_to_json(DICTIONARY *labels, BUFFER *wb, const char *prefix, const char *equal, const char *quote, const char *comma);
 
 extern void rrdlabels_migrate_to_these(DICTIONARY *dst, DICTIONARY *src);
@@ -1327,4 +1330,9 @@ extern void set_host_properties(
 #include "sqlite/sqlite_aclk_alert.h"
 #include "sqlite/sqlite_aclk_node.h"
 #include "sqlite/sqlite_health.h"
+
+#ifdef __cplusplus
+}
+#endif
+
 #endif /* NETDATA_RRD_H */

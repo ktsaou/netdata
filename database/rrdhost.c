@@ -1037,8 +1037,8 @@ void rrdhost_save_charts(RRDHOST *host) {
     rrdhost_unlock(host);
 }
 
-static void rrdhost_load_auto_labels(DICTIONARY *labels) {
-    if(!labels) return;
+static void rrdhost_load_auto_labels(void) {
+    DICTIONARY *labels = localhost->host_labels;
 
     if (localhost->system_info->cloud_provider_type)
         rrdlabels_add(labels, "_cloud_provider_type", localhost->system_info->cloud_provider_type, RRDLABEL_SRC_AUTO);
@@ -1107,9 +1107,7 @@ static void rrdhost_load_auto_labels(DICTIONARY *labels) {
         rrdlabels_add(labels, "_streams_to", localhost->rrdpush_send_destination, RRDLABEL_SRC_AUTO);
 }
 
-static void rrdhost_load_config_labels(DICTIONARY *labels) {
-    if(!labels) return;
-
+static void rrdhost_load_config_labels(void) {
     int status = config_load(NULL, 1, CONFIG_SECTION_HOST_LABEL);
     if(!status) {
         char *filename = CONFIG_DIR "/" CONFIG_FILENAME;
@@ -1121,50 +1119,36 @@ static void rrdhost_load_config_labels(DICTIONARY *labels) {
         config_section_wrlock(co);
         struct config_option *cv;
         for(cv = co->values; cv ; cv = cv->next) {
-            rrdlabels_add(labels, cv->name, cv->value, RRDLABEL_SRC_CONFIG);
+            rrdlabels_add(localhost->host_labels, cv->name, cv->value, RRDLABEL_SRC_CONFIG);
             cv->flags |= CONFIG_VALUE_USED;
         }
         config_section_unlock(co);
     }
 }
 
-static void rrdhost_load_kubernetes_labels(DICTIONARY *labels) {
-    char *label_script = mallocz(sizeof(char) * (strlen(netdata_configured_primary_plugins_dir) + strlen("get-kubernetes-labels.sh") + 2));
+static void rrdhost_load_kubernetes_labels(void) {
+    char label_script[sizeof(char) * (strlen(netdata_configured_primary_plugins_dir) + strlen("get-kubernetes-labels.sh") + 2)];
     sprintf(label_script, "%s/%s", netdata_configured_primary_plugins_dir, "get-kubernetes-labels.sh");
+
     if (unlikely(access(label_script, R_OK) != 0)) {
         error("Kubernetes pod label fetching script %s not found.",label_script);
+        return;
     }
-    else {
-        pid_t command_pid;
 
-        debug(D_RRDHOST, "Attempting to fetch external labels via %s", label_script);
+    debug(D_RRDHOST, "Attempting to fetch external labels via %s", label_script);
 
-        FILE *fp = mypopen(label_script, &command_pid);
-        if(fp) {
-            int MAX_LINE_SIZE=300;
-            char buffer[MAX_LINE_SIZE + 1];
-            while (fgets(buffer, MAX_LINE_SIZE, fp) != NULL) {
-                char *name = buffer, *value = buffer;
+    pid_t pid;
+    FILE *fp = mypopen(label_script, &pid);
+    if(!fp) return;
 
-                // find the start of the value
-                while(*value && *value != ':')
-                    value++;
+    char buffer[1000 + 1];
+    while (fgets(buffer, 1000, fp) != NULL)
+        rrdlabels_add_pair(localhost->host_labels, buffer, RRDLABEL_SRC_AUTO|RRDLABEL_SRC_K8S);
 
-                if(*value == ':')
-                    *value++ = '\0';
-
-                // sanitization in labels will remove \r\n and trim all strings
-                rrdlabels_add(labels, name, value, RRDLABEL_SRC_AUTO| RRDLABEL_SRC_K8S);
-            }
-
-            // Non-zero exit code means that all the script output is error messages. We've shown already any message that didn't include a ':'
-            // Here we'll inform with an ERROR that the script failed, show whatever (if anything) was added to the list of labels, free the memory and set the return to null
-            int retcode = mypclose(fp, command_pid);
-            if (retcode)
-                error("%s exited abnormally. Failed to get kubernetes labels.", label_script);
-        }
-    }
-    freez(label_script);
+    // Non-zero exit code means that all the script output is error messages. We've shown already any message that didn't include a ':'
+    // Here we'll inform with an ERROR that the script failed, show whatever (if anything) was added to the list of labels, free the memory and set the return to null
+    int rc = mypclose(fp, pid);
+    if(rc) error("%s exited abnormally. Failed to get kubernetes labels.", label_script);
 }
 
 void reload_host_labels(void) {
@@ -1174,9 +1158,9 @@ void reload_host_labels(void) {
     rrdlabels_unmark_all(localhost->host_labels);
 
     // priority is important here
-    rrdhost_load_config_labels(localhost->host_labels);
-    rrdhost_load_kubernetes_labels(localhost->host_labels);
-    rrdhost_load_auto_labels(localhost->host_labels);
+    rrdhost_load_config_labels();
+    rrdhost_load_kubernetes_labels();
+    rrdhost_load_auto_labels();
 
     rrdlabels_remove_all_unmarked(localhost->host_labels);
 

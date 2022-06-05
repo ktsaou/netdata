@@ -531,22 +531,69 @@ static void labels_add_already_sanitized(DICTIONARY *dict, const char *key, cons
 }
 
 
-void rrdlabels_add(DICTIONARY *dict, const char *key, const char *value, RRDLABEL_SRC ls) {
+void rrdlabels_add(DICTIONARY *dict, const char *name, const char *value, RRDLABEL_SRC ls) {
     if(!dict) {
         error("%s(): called with NULL dictionary.", __FUNCTION__ );
         return;
     }
 
-    char k[RRDLABELS_MAX_NAME_LENGTH + 1], v[RRDLABELS_MAX_VALUE_LENGTH + 1];
-    rrdlabels_sanitize_name(k, key, RRDLABELS_MAX_NAME_LENGTH);
+    char n[RRDLABELS_MAX_NAME_LENGTH + 1], v[RRDLABELS_MAX_VALUE_LENGTH + 1];
+    rrdlabels_sanitize_name(n, name, RRDLABELS_MAX_NAME_LENGTH);
     rrdlabels_sanitize_value(v, value, RRDLABELS_MAX_VALUE_LENGTH);
 
-    if(!*k) {
-        error("%s: cannot add key '%s' (value '%s') which is sanitized as empty string", __FUNCTION__, key, value);
+    if(!*n) {
+        error("%s: cannot add name '%s' (value '%s') which is sanitized as empty string", __FUNCTION__, name, value);
         return;
     }
 
-    labels_add_already_sanitized(dict, k, v, ls);
+    labels_add_already_sanitized(dict, n, v, ls);
+}
+
+static const char *get_quoted_string_up_to(char *dst, size_t dst_size, const char *string, char upto1, char upto2) {
+    size_t len = 0;
+    char *d = dst, quote = 0;
+    while(*string && len++ < dst_size) {
+        if(unlikely(!quote && (*string == '\'' || *string == '"'))) {
+            quote = *string++;
+            continue;
+        }
+
+        if(unlikely(quote && *string == quote)) {
+            quote = 0;
+            string++;
+            continue;
+        }
+
+        if(unlikely(quote && *string == '\\' && string[1])) {
+            string++;
+            *d++ = *string++;
+            continue;
+        }
+
+        if(unlikely(!quote && (*string == upto1 || *string == upto2))) break;
+
+        *d++ = *string++;
+    }
+    *d = '\0';
+
+    if(*string) string++;
+
+    return string;
+}
+
+void rrdlabels_add_pair(DICTIONARY *dict, const char *string, RRDLABEL_SRC ls) {
+    if(!dict) {
+        error("%s(): called with NULL dictionary.", __FUNCTION__ );
+        return;
+    }
+
+    char name[RRDLABELS_MAX_NAME_LENGTH + 1];
+    string = get_quoted_string_up_to(name, RRDLABELS_MAX_NAME_LENGTH, string, '=', ':');
+
+    char value[RRDLABELS_MAX_VALUE_LENGTH + 1];
+    get_quoted_string_up_to(value, RRDLABELS_MAX_VALUE_LENGTH, string, '\0', '\0');
+
+    rrdlabels_add(dict, name, value, ls);
 }
 
 // ----------------------------------------------------------------------------
@@ -761,44 +808,6 @@ bool rrdlabels_match_simple_pattern(DICTIONARY *labels, const char *simple_patte
 
 
 // ----------------------------------------------------------------------------
-// rrdlabels_match_name_and_value()
-// return true if there is an item in the dictionary matching both
-// the key and its value
-
-bool rrdlabels_match_name_and_value(DICTIONARY *labels, const char *name, const char *value) {
-    if (!labels) return false;
-
-    RRDLABEL *lb = dictionary_get(labels, name);
-
-    if(strcmp(lb->value, value) == 0)
-        return true;
-
-    return false;
-}
-
-// ----------------------------------------------------------------------------
-// breaks the string into words (respecting quotes)
-// and tries to find
-
-bool rrdlabels_match_name_value_pairs(DICTIONARY *labels, char **words, size_t word_count) {
-    if (!labels) return false;
-
-    // words is pairs of names and values.
-
-    // we assume no sanitization is needed on the words, since these should be
-    // selections made by the user, provides the names and values we already have.
-
-    // if not enough words to make a check, ret is false
-    // otherwise we enter the loop
-    bool ret = (word_count >= 2);
-    for (size_t i = 0; ret && i + 1 < word_count; i += 2)
-        ret = rrdlabels_match_name_and_value(labels, words[i], words[i + 1]);
-
-    return ret;
-}
-
-
-// ----------------------------------------------------------------------------
 // Log all labels
 
 static int rrdlabels_log_label_to_buffer_callback(const char *name, void *value, void *data) {
@@ -869,6 +878,61 @@ void rrdlabels_to_json(DICTIONARY *labels, BUFFER *wb, const char *prefix, const
 // ----------------------------------------------------------------------------
 // rrdlabels unit test
 
+int rrdlabels_unittest_add_a_pair(const char *pair, const char *name, const char *value) {
+    DICTIONARY *labels = rrdlabels_create();
+    int errors = 0;
+
+    fprintf(stderr, "rrdlabels_add_pair(labels, %s) ... ", pair);
+
+    rrdlabels_add_pair(labels, pair, RRDLABEL_SRC_CONFIG);
+
+    const char *v = rrdlabels_get(labels, name);
+    if(!v) {
+        fprintf(stderr, "failed to get \"%s\" label", name);
+        errors++;
+    }
+    else {
+        if(strcmp(v, value) != 0) {
+            fprintf(stderr, "value is \"%s\" but \"%s\" was expected", v, value);
+            errors++;
+        }
+    }
+
+    if(!errors)
+        fprintf(stderr, " OK, name='%s' and value='%s'\n", name, value);
+    else
+        fprintf(stderr, " FAILED\n");
+
+    rrdlabels_destroy(labels);
+    return errors;
+}
+
+int rrdlabels_unittest_add_pairs() {
+    int errors = 0;
+
+    // basic test
+    errors += rrdlabels_unittest_add_a_pair("tag=value", "tag", "value");
+    errors += rrdlabels_unittest_add_a_pair("tag:value", "tag", "value");
+
+    // test newlines
+    errors += rrdlabels_unittest_add_a_pair("   tag   = \t value \r\n", "tag", "value");
+
+    // test : in values
+    errors += rrdlabels_unittest_add_a_pair("tag=:value", "tag", ":value");
+    errors += rrdlabels_unittest_add_a_pair("tag::value", "tag", ":value");
+    errors += rrdlabels_unittest_add_a_pair("   tag   =   :value ", "tag", ":value");
+    errors += rrdlabels_unittest_add_a_pair("   tag   :   :value ", "tag", ":value");
+
+    // test UTF-8 in values
+    errors += rrdlabels_unittest_add_a_pair("tag: country:Ελλάδα", "tag", "country:Ελλάδα");
+    errors += rrdlabels_unittest_add_a_pair("\"tag\": \"country:Ελλάδα\"", "tag", "country:Ελλάδα");
+    errors += rrdlabels_unittest_add_a_pair("\"tag\": country:\"Ελλάδα\"", "tag", "country:Ελλάδα");
+    errors += rrdlabels_unittest_add_a_pair("\"tag=1\": country:\"Gre\\\"ece\"", "tag_1", "country:Gre_ece");
+    errors += rrdlabels_unittest_add_a_pair("\"tag=1\" = country:\"Gre\\\"ece\"", "tag_1", "country:Gre_ece");
+
+    return errors;
+}
+
 int rrdlabels_unittest_check_simple_pattern(DICTIONARY *labels, const char *pattern, bool expected) {
     fprintf(stderr, "rrdlabels_match_simple_pattern(labels, \"%s\") ... ", pattern);
 
@@ -909,6 +973,7 @@ int rrdlabels_unittest_simple_pattern() {
 int rrdlabels_unittest(void) {
     int errors = 0;
 
+    errors += rrdlabels_unittest_add_pairs();
     errors += rrdlabels_unittest_simple_pattern();
 
     fprintf(stderr, "%d errors found\n", errors);

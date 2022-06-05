@@ -393,17 +393,6 @@ void fix_google_param(char *s) {
 }
 
 
-static int chart_labels_filter_separator(char c) {
-    switch(c) {
-        case ':':
-        case ',':
-            return 1;
-        default:
-            return 0;
-    }
-}
-
-
 // returns the HTTP code
 inline int web_client_api_request_v1_data(RRDHOST *host, struct web_client *w, char *url) {
     debug(D_WEB_CLIENT, "%llu: API v1 data with URL '%s'", w->id, url);
@@ -540,30 +529,19 @@ inline int web_client_api_request_v1_data(RRDHOST *host, struct web_client *w, c
 
         uint32_t context_hash = simple_hash(context);
 
-        char *chart_labels_filter_words[MAX_CHART_LABELS_FILTER];
-        int chart_labels_filter_word_count = 0;
+        SIMPLE_PATTERN *chart_label_key_pattern = NULL;
+        if(chart_label_key)
+            chart_label_key_pattern = simple_pattern_create(chart_label_key, ",|\t\r\n\f\v", SIMPLE_PATTERN_EXACT);
 
-        if(chart_labels_filter) {
-            chart_labels_filter_word_count = quoted_strings_splitter(
-                chart_labels_filter,
-                chart_labels_filter_words,
-                MAX_CHART_LABELS_FILTER,
-                chart_labels_filter_separator,
-                NULL,
-                NULL,
-                0);
-
-            if(chart_labels_filter_word_count < 2)
-                chart_labels_filter_word_count = 0;
-        }
+        SIMPLE_PATTERN *chart_labels_filter_pattern = NULL;
+        if(chart_labels_filter)
+            chart_labels_filter_pattern = simple_pattern_create(chart_labels_filter, ",|\t\r\n\f\v", SIMPLE_PATTERN_EXACT);
 
         rrdhost_rdlock(host);
         rrdset_foreach_read(st1, host) {
             if (st1->hash_context == context_hash && !strcmp(st1->context, context) &&
-                (!chart_label_key || rrdlabels_match_simple_pattern(st1->state->chart_labels, chart_label_key)) &&
-                (!chart_labels_filter_word_count ||
-                 rrdlabels_match_name_value_pairs(
-                     st1->state->chart_labels, chart_labels_filter_words, chart_labels_filter_word_count)))
+                (!chart_label_key_pattern || rrdlabels_match_simple_pattern_parsed(st1->state->chart_labels, chart_label_key_pattern, '=')) &&
+                (!chart_labels_filter_pattern || rrdlabels_match_simple_pattern_parsed(st1->state->chart_labels, chart_labels_filter_pattern, '=')))
                     build_context_param_list(owa, &context_param_list, st1);
         }
         rrdhost_unlock(host);

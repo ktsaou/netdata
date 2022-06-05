@@ -7,11 +7,11 @@
 #include <stdint.h>
 
 #include "capability.h"
+#include "database/rrd.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif
-#include "database/rrd.h"
 
 struct machine_learning_info {
     bool ml_capable;
