@@ -560,7 +560,7 @@ PARSER_RC pluginsd_label(char **words, void *user, PLUGINSD_ACTION  *plugins_act
     char *store;
 
     if (!words[1] || !words[2] || !words[3]) {
-        error("Ignoring malformed or empty RRDLABEL command.");
+        error("Ignoring malformed or empty LABEL command.");
         return PARSER_RC_OK;
     }
     if (!words[4])
@@ -601,7 +601,7 @@ PARSER_RC pluginsd_label(char **words, void *user, PLUGINSD_ACTION  *plugins_act
 PARSER_RC pluginsd_clabel(char **words, void *user, PLUGINSD_ACTION  *plugins_action)
 {
     if (!words[1] || !words[2] || !words[3]) {
-        error("Ignoring malformed or empty CHART RRDLABEL command.");
+        error("Ignoring malformed or empty CHART LABEL command.");
         return PARSER_RC_OK;
     }
 
@@ -636,7 +636,7 @@ PARSER_RC pluginsd_overwrite(char **words, void *user, PLUGINSD_ACTION  *plugins
     UNUSED(words);
 
     RRDHOST *host = ((PARSER_USER_OBJECT *) user)->host;
-    debug(D_PLUGINSD, "requested a OVERWRITE a variable");
+    debug(D_PLUGINSD, "requested to OVERWRITE host labels");
 
     PARSER_RC rc = PARSER_RC_OK;
 
