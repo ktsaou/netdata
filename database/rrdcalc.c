@@ -652,25 +652,11 @@ void rrdcalc_foreach_unlink_and_free(RRDHOST *host, RRDCALC *rc) {
     rrdcalc_free(rc);
 }
 
-static int check_if_label_matches_rrdcalc_pattern_callback(const char *name, const char *value, RRDLABEL_SRC ls, void *data) {
-    (void)ls;
-    SIMPLE_PATTERN *splabels = (SIMPLE_PATTERN *)data;
-
-    if(simple_pattern_matches(splabels, name)) return -1;
-
-    char cmp[CONFIG_FILE_LINE_MAX+1];
-    snprintf(cmp, CONFIG_FILE_LINE_MAX, "%s=%s", name, value);
-    if(simple_pattern_matches(splabels, cmp)) return -1;
-
-    return 0;
-}
-
 static void rrdcalc_labels_unlink_alarm_loop(RRDHOST *host, RRDCALC *alarms) {
     for(RRDCALC *rc = alarms ; rc ; rc = rc->next ) {
         if (!rc->host_labels) continue;
 
-        if(rrdlabels_walkthrough_read(
-                host->host_labels, check_if_label_matches_rrdcalc_pattern_callback, rc->host_labels_pattern) != -1) {
+        if(!rrdlabels_match_simple_pattern_parsed(host->host_labels, rc->host_labels_pattern, '=')) {
             info("Health configuration for alarm '%s' cannot be applied, because the host %s does not have the label(s) '%s'",
                  rc->name,
                  host->hostname,
