@@ -55,7 +55,7 @@ struct aclk_node_info {
 
     char *machine_guid;
 
-    DICTIONARY *host_labels_head;
+    DICTIONARY *host_labels_ptr;
 
     struct machine_learning_info ml_info;
 };
