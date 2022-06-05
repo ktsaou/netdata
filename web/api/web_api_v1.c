@@ -560,7 +560,7 @@ inline int web_client_api_request_v1_data(RRDHOST *host, struct web_client *w, c
         rrdhost_rdlock(host);
         rrdset_foreach_read(st1, host) {
             if (st1->hash_context == context_hash && !strcmp(st1->context, context) &&
-                (!chart_label_key || rrdlabels_match_name_simple_pattern(st1->state->chart_labels, chart_label_key)) &&
+                (!chart_label_key || rrdlabels_match_simple_pattern(st1->state->chart_labels, chart_label_key)) &&
                 (!chart_labels_filter_word_count ||
                  rrdlabels_match_name_value_pairs(
                      st1->state->chart_labels, chart_labels_filter_words, chart_labels_filter_word_count)))

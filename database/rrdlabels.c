@@ -54,8 +54,8 @@
  *
  */
 
-#define LABELS_MAX_NAME_LENGTH 200
-#define LABELS_MAX_VALUE_LENGTH 400 // 400 in bytes, up to 200 UTF-8 characters
+#define RRDLABELS_MAX_NAME_LENGTH 200
+#define RRDLABELS_MAX_VALUE_LENGTH 400 // 400 in bytes, up to 200 UTF-8 characters
 
 static unsigned char label_spaces_char_map[256];
 static unsigned char label_names_char_map[256];
@@ -537,9 +537,9 @@ void rrdlabels_add(DICTIONARY *dict, const char *key, const char *value, RRDLABE
         return;
     }
 
-    char k[LABELS_MAX_NAME_LENGTH + 1], v[LABELS_MAX_VALUE_LENGTH + 1];
-    rrdlabels_sanitize_name(k, key, LABELS_MAX_NAME_LENGTH);
-    rrdlabels_sanitize_value(v, value, LABELS_MAX_VALUE_LENGTH);
+    char k[RRDLABELS_MAX_NAME_LENGTH + 1], v[RRDLABELS_MAX_VALUE_LENGTH + 1];
+    rrdlabels_sanitize_name(k, key, RRDLABELS_MAX_NAME_LENGTH);
+    rrdlabels_sanitize_value(v, value, RRDLABELS_MAX_VALUE_LENGTH);
 
     if(!*k) {
         error("%s: cannot add key '%s' (value '%s') which is sanitized as empty string", __FUNCTION__, key, value);
@@ -679,29 +679,84 @@ void rrdlabels_copy(DICTIONARY *dst, DICTIONARY *src) {
 
 
 // ----------------------------------------------------------------------------
-// rrdlabels_match_name_simple_pattern()
+// rrdlabels_match_simple_pattern()
 // returns true when there are keys in the dictionary matching a simple pattern
 
-static int simple_pattern_match_callback(const char *name, void *value, void *data) {
+struct simple_pattern_match_name_value {
+    SIMPLE_PATTERN *pattern;
+    char equal;
+};
+
+static int simple_pattern_match_name_only_callback(const char *name, void *value, void *data) {
+    struct simple_pattern_match_name_value *t = (struct simple_pattern_match_name_value *)data;
     (void)value;
-    SIMPLE_PATTERN *pattern = (SIMPLE_PATTERN *)data;
 
     // we return -1 to stop the walkthrough on first match
-    if(simple_pattern_matches(pattern, name)) return -1;
+    if(simple_pattern_matches(t->pattern, name)) return -1;
 
     return 0;
 }
 
-bool rrdlabels_match_name_simple_pattern(DICTIONARY *labels, char *simple_pattern_txt) {
+static int simple_pattern_match_name_and_value_callback(const char *name, void *value, void *data) {
+    struct simple_pattern_match_name_value *t = (struct simple_pattern_match_name_value *)data;
+    RRDLABEL *lb = (RRDLABEL *)value;
+
+    // we return -1 to stop the walkthrough on first match
+    if(simple_pattern_matches(t->pattern, name)) return -1;
+
+    size_t len = RRDLABELS_MAX_NAME_LENGTH + RRDLABELS_MAX_VALUE_LENGTH + 2; // +1 for =, +1 for \0
+    char tmp[len], *dst = &tmp[0];
+    const char *v = lb->value;
+
+    // copy the name
+    while(*name) *dst++ = *name++;
+
+    // add the equal
+    *dst++ = t->equal;
+
+    // add the value
+    while(*v) *dst++ = *v++;
+
+    // terminate it
+    *dst = '\0';
+
+    if(simple_pattern_matches(t->pattern, tmp)) return -1;
+
+    return 0;
+}
+
+bool rrdlabels_match_simple_pattern_parsed(DICTIONARY *labels, SIMPLE_PATTERN *pattern, char equal) {
     if (!labels) return false;
 
-    SIMPLE_PATTERN *pattern = simple_pattern_create(simple_pattern_txt, ",|\t\r\n\f\v", SIMPLE_PATTERN_EXACT);
+    struct simple_pattern_match_name_value t = {
+        .pattern = pattern,
+        .equal = equal
+    };
 
-    int ret = dictionary_walkthrough_read(labels, simple_pattern_match_callback, pattern);
+    int ret = dictionary_walkthrough_read(labels, equal?simple_pattern_match_name_and_value_callback:simple_pattern_match_name_only_callback, &t);
+
+    return (ret == -1)?true:false;
+}
+
+bool rrdlabels_match_simple_pattern(DICTIONARY *labels, const char *simple_pattern_txt) {
+    if (!labels) return false;
+
+    SIMPLE_PATTERN *pattern = simple_pattern_create(simple_pattern_txt, " ,|\t\r\n\f\v", SIMPLE_PATTERN_EXACT);
+    char equal = '\0';
+
+    const char *s;
+    for(s = simple_pattern_txt; *s ; s++) {
+        if (*s == '=' || *s == ':') {
+            equal = *s;
+            break;
+        }
+    }
+
+    bool ret = rrdlabels_match_simple_pattern_parsed(labels, pattern, equal);
 
     simple_pattern_free(pattern);
 
-    return (ret == -1);
+    return ret;
 }
 
 
@@ -808,4 +863,54 @@ void rrdlabels_to_json(DICTIONARY *labels, BUFFER *wb, const char *prefix, const
         .count = 0
     };
     dictionary_walkthrough_read(labels, label_to_json, (void *)&tmp);
+}
+
+
+// ----------------------------------------------------------------------------
+// rrdlabels unit test
+
+int rrdlabels_unittest_check_simple_pattern(DICTIONARY *labels, const char *pattern, bool expected) {
+    fprintf(stderr, "rrdlabels_match_simple_pattern(labels, \"%s\") ... ", pattern);
+
+    bool ret = rrdlabels_match_simple_pattern(labels, pattern);
+    fprintf(stderr, "%s, got %s expected %s\n", (ret == expected)?"OK":"FAILED", ret?"true":"false", expected?"true":"false");
+
+    return (ret == expected)?0:1;
+}
+
+int rrdlabels_unittest_simple_pattern() {
+    int errors = 0;
+
+    DICTIONARY *labels = rrdlabels_create();
+    rrdlabels_add(labels, "tag1", "value1", RRDLABEL_SRC_CONFIG);
+    rrdlabels_add(labels, "tag2", "value2", RRDLABEL_SRC_CONFIG);
+    rrdlabels_add(labels, "tag3", "value3", RRDLABEL_SRC_CONFIG);
+
+    errors += rrdlabels_unittest_check_simple_pattern(labels, "*", true);
+    errors += rrdlabels_unittest_check_simple_pattern(labels, "tag", false);
+    errors += rrdlabels_unittest_check_simple_pattern(labels, "tag*", true);
+    errors += rrdlabels_unittest_check_simple_pattern(labels, "*1", true);
+    errors += rrdlabels_unittest_check_simple_pattern(labels, "*2", true);
+    errors += rrdlabels_unittest_check_simple_pattern(labels, "*2 *3", true);
+    errors += rrdlabels_unittest_check_simple_pattern(labels, "!tag3 *2", true);
+    errors += rrdlabels_unittest_check_simple_pattern(labels, "tag1 tag2", true);
+    errors += rrdlabels_unittest_check_simple_pattern(labels, "tag1tag2", false);
+    errors += rrdlabels_unittest_check_simple_pattern(labels, "invalid1 invalid2 tag3", true);
+    errors += rrdlabels_unittest_check_simple_pattern(labels, "!tag1 tag4", false);
+    errors += rrdlabels_unittest_check_simple_pattern(labels, "tag1=value1", true);
+    errors += rrdlabels_unittest_check_simple_pattern(labels, "tag1=value2", false);
+    errors += rrdlabels_unittest_check_simple_pattern(labels, "tag*=value*", true);
+    errors += rrdlabels_unittest_check_simple_pattern(labels, "!tag*=value*", false);
+    errors += rrdlabels_unittest_check_simple_pattern(labels, "!tag2=something2 tag2=*2", true);
+
+    return errors;
+}
+
+int rrdlabels_unittest(void) {
+    int errors = 0;
+
+    errors += rrdlabels_unittest_simple_pattern();
+
+    fprintf(stderr, "%d errors found\n", errors);
+    return errors;
 }

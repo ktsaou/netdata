@@ -200,7 +200,8 @@ extern int rrdlabels_walkthrough_read(DICTIONARY *labels, int (*callback)(const 
 extern int rrdlabels_sorted_walkthrough_read(DICTIONARY *labels, int (*callback)(const char *name, const char *value, RRDLABEL_SRC ls, void *data), void *data);
 
 extern void rrdlabels_log_to_buffer(DICTIONARY *labels, BUFFER *wb);
-extern bool rrdlabels_match_name_simple_pattern(DICTIONARY *labels, char *simple_pattern_txt);
+extern bool rrdlabels_match_simple_pattern(DICTIONARY *labels, const char *simple_pattern_txt);
+extern bool rrdlabels_match_simple_pattern_parsed(DICTIONARY *labels, SIMPLE_PATTERN *pattern, char equal);
 extern bool rrdlabels_match_name_and_value(DICTIONARY *labels, const char *name, const char *value);
 extern bool rrdlabels_match_name_value_pairs(DICTIONARY *labels, char **words, size_t word_count);
 extern void rrdlabels_to_json(DICTIONARY *labels, BUFFER *wb, const char *prefix, const char *equal, const char *quote, const char *comma);
@@ -210,6 +211,8 @@ extern void rrdlabels_copy(DICTIONARY *dst, DICTIONARY *src);
 
 void reload_host_labels(void);
 extern void rrdset_update_rrdlabels(RRDSET *st, DICTIONARY *new_rrdlabels);
+
+extern int rrdlabels_unittest(void);
 
 // ----------------------------------------------------------------------------
 // RRD DIMENSION - this is a metric
