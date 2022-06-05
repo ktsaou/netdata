@@ -843,35 +843,65 @@ void rrdlabels_log_to_buffer(DICTIONARY *labels, BUFFER *wb) {
 
 
 // ----------------------------------------------------------------------------
-// rrdlabels_to_json()
+// rrdlabels_to_buffer()
 
-struct labels_to_json {
+struct labels_to_buffer {
     BUFFER *wb;
-    const char *prefix;
+    bool (*filter_callback)(const char *name, const char *value, RRDLABEL_SRC ls, void *data);
+    void *filter_data;
+    void (*name_sanitizer)(char *dst, const char *src, size_t dst_size);
+    void (*value_sanitizer)(char *dst, const char *src, size_t dst_size);
+    const char *before_each;
     const char *quote;
     const char *equal;
-    const char *comma;
+    const char *between_them;
     size_t count;
 };
 
-static int label_to_json(const char *name, void *value, void *data) {
-    struct labels_to_json *t = (struct labels_to_json *)data;
+static int label_to_buffer_callback(const char *name, void *value, void *data) {
+    struct labels_to_buffer *t = (struct labels_to_buffer *)data;
     RRDLABEL *lb = (RRDLABEL *)value;
 
-    buffer_sprintf(t->wb, "%s%s%s%s%s%s%s%s%s", t->count++?t->comma:"", t->prefix, t->quote, name, t->quote, t->equal, t->quote, lb->value, t->quote);
-    return 1;
+    size_t n_size = (t->name_sanitizer ) ? ( RRDLABELS_MAX_NAME_LENGTH  * 2 ) : 1;
+    size_t v_size = (t->value_sanitizer) ? ( RRDLABELS_MAX_VALUE_LENGTH * 2 ) : 1;
+
+    char n[n_size];
+    char v[v_size];
+
+    const char *nn = name, *vv = lb->value;
+
+    if(t->name_sanitizer) {
+        t->name_sanitizer(n, name, n_size);
+        nn = n;
+    }
+
+    if(t->value_sanitizer) {
+        t->value_sanitizer(v, lb->value, v_size);
+        vv = v;
+    }
+
+    if(!t->filter_callback || (t->filter_callback && t->filter_callback(name, lb->value, lb->label_source, t->filter_data))) {
+        buffer_sprintf(t->wb, "%s%s%s%s%s%s%s%s%s", t->count++?t->between_them:"", t->before_each, t->quote, nn, t->quote, t->equal, t->quote, vv, t->quote);
+        return 1;
+    }
+
+    return 0;
 }
 
-void rrdlabels_to_json(DICTIONARY *labels, BUFFER *wb, const char *prefix, const char *equal, const char *quote, const char *comma) {
-    struct labels_to_json tmp = {
+void rrdlabels_to_buffer(DICTIONARY *labels, BUFFER *wb, const char *before_each, const char *equal, const char *quote, const char *between_them, bool (*filter_callback)(const char *name, const char *value, RRDLABEL_SRC ls, void *data), void *filter_data, void (*name_sanitizer)(char *dst, const char *src, size_t dst_size), void (*value_sanitizer)(char *dst, const char *src, size_t dst_size)) {
+    struct labels_to_buffer tmp = {
         .wb = wb,
-        .prefix = prefix,
+        .filter_callback = filter_callback,
+        .filter_data = filter_data,
+        .name_sanitizer = name_sanitizer,
+        .value_sanitizer = value_sanitizer,
+        .before_each = before_each,
         .equal = equal,
         .quote = quote,
-        .comma = comma,
+        .between_them = between_them,
         .count = 0
     };
-    dictionary_walkthrough_read(labels, label_to_json, (void *)&tmp);
+    dictionary_walkthrough_read(labels, label_to_buffer_callback, (void *)&tmp);
 }
 
 

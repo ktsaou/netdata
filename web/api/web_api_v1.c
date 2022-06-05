@@ -970,7 +970,7 @@ inline void host_labels2json(RRDHOST *host, BUFFER *wb, size_t indentation) {
         indentation--;
     }
 
-    rrdlabels_to_json(host->host_labels, wb, tabs, ":", "\"", ",\n");
+    rrdlabels_to_buffer(host->host_labels, wb, tabs, ":", "\"", ",\n", NULL, NULL, NULL, NULL);
 }
 
 extern int aclk_connected;

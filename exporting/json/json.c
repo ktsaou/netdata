@@ -114,43 +114,19 @@ int init_json_http_instance(struct instance *instance)
  * @return Always returns 0.
  */
 
-struct format_json_label_callback {
-    struct instance *instance;
-    size_t count;
-};
-
-static int format_json_label_callback(const char *name, const char *value, RRDLABEL_SRC ls, void *data) {
-    struct format_json_label_callback *d = (struct format_json_label_callback *)data;
-
-    if (!should_send_label(d->instance, ls)) return 0;
-
-    char v[CONFIG_MAX_VALUE * 2 + 1];
-    sanitize_json_string(v, (char *)value, CONFIG_MAX_VALUE);
-
-    if (d->count > 0) buffer_strcat(d->instance->labels, ",");
-    buffer_sprintf(d->instance->labels, "\"%s\":\"%s\"", name, v);
-
-    d->count++;
-    return 1;
-}
-
 int format_host_labels_json_plaintext(struct instance *instance, RRDHOST *host)
 {
-    if (!instance->labels)
-        instance->labels = buffer_create(1024);
+    if (!instance->labels_buffer)
+        instance->labels_buffer = buffer_create(1024);
 
     if (unlikely(!sending_labels_configured(instance)))
         return 0;
 
-    buffer_strcat(instance->labels, "\"labels\":{");
-
-    struct format_json_label_callback tmp = {
-        .instance = instance,
-        .count = 0
-    };
-    rrdlabels_walkthrough_read(host->host_labels, format_json_label_callback, &tmp);
-
-    buffer_strcat(instance->labels, "},");
+    buffer_strcat(instance->labels_buffer, "\"labels\":{");
+    rrdlabels_to_buffer(host->host_labels, instance->labels_buffer, "", ":", "\"", ",",
+                        exporting_labels_filter_callback, instance,
+                        NULL, sanitize_json_string);
+    buffer_strcat(instance->labels_buffer, "},");
 
     return 0;
 }
@@ -213,7 +189,7 @@ int format_dimension_collected_json_plaintext(struct instance *instance, RRDDIM 
         tags_pre,
         tags,
         tags_post,
-        instance->labels ? buffer_tostring(instance->labels) : "",
+        instance->labels_buffer ? buffer_tostring(instance->labels_buffer) : "",
 
         st->id,
         st->name,
@@ -298,7 +274,7 @@ int format_dimension_stored_json_plaintext(struct instance *instance, RRDDIM *rd
         tags_pre,
         tags,
         tags_post,
-        instance->labels ? buffer_tostring(instance->labels) : "",
+        instance->labels_buffer ? buffer_tostring(instance->labels_buffer) : "",
 
         st->id,
         st->name,

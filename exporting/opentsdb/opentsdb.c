@@ -124,7 +124,7 @@ int init_opentsdb_http_instance(struct instance *instance)
  * @param len the maximum number of characters copied.
  */
 
-void sanitize_opentsdb_label_value(char *dst, char *src, size_t len)
+void sanitize_opentsdb_label_value(char *dst, const char *src, size_t len)
 {
     while (*src != '\0' && len) {
         if (isalpha(*src) || isdigit(*src) || *src == '-' || *src == '_' || *src == '.' || *src == '/' || IS_UTF8_BYTE(*src))
@@ -145,26 +145,17 @@ void sanitize_opentsdb_label_value(char *dst, char *src, size_t len)
  * @return Always returns 0.
  */
 
-static int format_opentstb_label_telnet_callback(const char *name, const char *value, RRDLABEL_SRC ls, void *data) {
-    struct instance *instance = (struct instance *)data;
-
-    if(!should_send_label(instance, ls)) return 0;
-
-    char v[CONFIG_MAX_VALUE + 1];
-    sanitize_opentsdb_label_value(v, (char *)value, CONFIG_MAX_VALUE);
-    if(*v) buffer_sprintf(instance->labels, " %s=%s", name, v);
-
-    return 1;
-}
-
 int format_host_labels_opentsdb_telnet(struct instance *instance, RRDHOST *host) {
-    if(!instance->labels)
-        instance->labels = buffer_create(1024);
+    if(!instance->labels_buffer)
+        instance->labels_buffer = buffer_create(1024);
 
     if (unlikely(!sending_labels_configured(instance)))
         return 0;
 
-    rrdlabels_walkthrough_read(host->host_labels, format_opentstb_label_telnet_callback, &instance);
+    buffer_strcat(instance->labels_buffer, " ");
+    rrdlabels_to_buffer(host->host_labels, instance->labels_buffer, "", "=", "\"", " ",
+                        exporting_labels_filter_callback, instance,
+                        NULL, sanitize_opentsdb_label_value);
     return 0;
 }
 
@@ -203,7 +194,7 @@ int format_dimension_collected_opentsdb_telnet(struct instance *instance, RRDDIM
         (host == localhost) ? instance->config.hostname : host->hostname,
         (host->tags) ? " " : "",
         (host->tags) ? host->tags : "",
-        (instance->labels) ? buffer_tostring(instance->labels) : "");
+        (instance->labels_buffer) ? buffer_tostring(instance->labels_buffer) : "");
 
     return 0;
 }
@@ -249,7 +240,7 @@ int format_dimension_stored_opentsdb_telnet(struct instance *instance, RRDDIM *r
         (host == localhost) ? instance->config.hostname : host->hostname,
         (host->tags) ? " " : "",
         (host->tags) ? host->tags : "",
-        (instance->labels) ? buffer_tostring(instance->labels) : "");
+        (instance->labels_buffer) ? buffer_tostring(instance->labels_buffer) : "");
 
     return 0;
 }
@@ -287,32 +278,25 @@ void opentsdb_http_prepare_header(struct instance *instance)
  * @return Always returns 0.
  */
 
-static int format_opentstb_label_http_callback(const char *name, const char *value, RRDLABEL_SRC ls, void *data) {
-    struct instance *instance = (struct instance *)data;
+static void sanitize_opentsdb_json_escaped_value(char *dst, const char *src, size_t dst_len) {
+    char escaped_value[dst_len + 1]; // dst_len is already double the max
 
-    if(!should_send_label(instance, ls)) return 0;
-
-    char escaped_value[CONFIG_MAX_VALUE * 2 + 1];
-    sanitize_json_string(escaped_value, (char *)value, CONFIG_MAX_VALUE);
-
-    char v[CONFIG_MAX_VALUE + 1];
-    sanitize_opentsdb_label_value(v, escaped_value, CONFIG_MAX_VALUE);
-
-    if (*v) {
-        buffer_strcat(instance->labels, ",");
-        buffer_sprintf(instance->labels, "\"%s\":\"%s\"", name, v);
-    }
-    return 1;
+    // really? we sanitize the value twice here?
+    sanitize_json_string(escaped_value, src, dst_len);
+    sanitize_opentsdb_label_value(dst, escaped_value, dst_len);
 }
 
 int format_host_labels_opentsdb_http(struct instance *instance, RRDHOST *host) {
-    if (!instance->labels)
-        instance->labels = buffer_create(1024);
+    if (!instance->labels_buffer)
+        instance->labels_buffer = buffer_create(1024);
 
     if (unlikely(!sending_labels_configured(instance)))
         return 0;
 
-    rrdlabels_walkthrough_read(host->host_labels, format_opentstb_label_http_callback, &instance);
+    buffer_strcat(instance->labels_buffer, ",");
+    rrdlabels_to_buffer(host->host_labels, instance->labels_buffer, "", ":", "\"", ",",
+                        exporting_labels_filter_callback, instance,
+                        NULL, sanitize_opentsdb_json_escaped_value);
     return 0;
 }
 
@@ -361,7 +345,7 @@ int format_dimension_collected_opentsdb_http(struct instance *instance, RRDDIM *
         (host == localhost) ? instance->config.hostname : host->hostname,
         (host->tags) ? " " : "",
         (host->tags) ? host->tags : "",
-        instance->labels ? buffer_tostring(instance->labels) : "");
+        instance->labels_buffer ? buffer_tostring(instance->labels_buffer) : "");
 
     return 0;
 }
@@ -417,7 +401,7 @@ int format_dimension_stored_opentsdb_http(struct instance *instance, RRDDIM *rd)
         (host == localhost) ? instance->config.hostname : host->hostname,
         (host->tags) ? " " : "",
         (host->tags) ? host->tags : "",
-        instance->labels ? buffer_tostring(instance->labels) : "");
+        instance->labels_buffer ? buffer_tostring(instance->labels_buffer) : "");
 
     return 0;
 }

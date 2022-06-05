@@ -69,24 +69,14 @@ static inline void health_log_rotate(RRDHOST *host) {
     }
 }
 
-static int labels_buffer_printf_callback(const char *name, const char *value, RRDLABEL_SRC ls, void *data) {
-    (void)ls;
-    BUFFER *wb = (BUFFER *)data;
-    buffer_sprintf(wb,"%s=%s\t ", name, value);
-    return 1;
-}
-
 inline void health_label_log_save(RRDHOST *host) {
     health_log_rotate(host);
 
     if(unlikely(host->health_log_fp)) {
         BUFFER *wb = buffer_create(1024);
 
-        rrdlabels_walkthrough_read(localhost->host_labels, labels_buffer_printf_callback, wb);
-
-        char *write = (char *) buffer_tostring(wb) ;
-        write[wb->len-2] = '\n';
-        write[wb->len-1] = '\0';
+        rrdlabels_to_buffer(localhost->host_labels, wb, "", "=", "", "\t ", NULL, NULL, NULL, NULL);
+        char *write = (char *) buffer_tostring(wb);
 
         if (unlikely(fprintf(host->health_log_fp, "L\t%s", write) < 0))
             error("HEALTH [%s]: failed to save alarm log entry to '%s'. Health data may be lost in case of abnormal restart.",

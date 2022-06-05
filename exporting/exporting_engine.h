@@ -4,7 +4,6 @@
 #define NETDATA_EXPORTING_ENGINE_H 1
 
 #include "daemon/common.h"
-
 #include <uv.h>
 
 #define exporter_get(section, name, value) expconfig_get(&exporting_config, section, name, value)
@@ -42,7 +41,7 @@ extern const char *global_exporting_prefix;
 
 #define should_send_label(instance, label_source)                                                                      \
     ((instance->config.options & EXPORTING_OPTION_SEND_CONFIGURED_LABELS &&                                            \
-      label_source & RRDLABEL_SRC_CONFIG) ||                                                                      \
+      label_source & RRDLABEL_SRC_CONFIG) ||                                                                           \
      (instance->config.options & EXPORTING_OPTION_SEND_AUTOMATIC_LABELS &&                                             \
       label_source & RRDLABEL_SRC_AUTO))
 
@@ -205,7 +204,7 @@ struct instance {
     int skip_host;
     int skip_chart;
 
-    BUFFER *labels;
+    BUFFER *labels_buffer;
 
     time_t after;
     time_t before;

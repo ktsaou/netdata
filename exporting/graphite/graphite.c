@@ -71,7 +71,7 @@ int init_graphite_instance(struct instance *instance)
  * @param len the maximum number of characters copied.
  */
 
-void sanitize_graphite_label_value(char *dst, char *src, size_t len)
+void sanitize_graphite_label_value(char *dst, const char *src, size_t len)
 {
     while (*src != '\0' && len) {
         if (isspace(*src) || *src == ';' || *src == '~')
@@ -92,38 +92,19 @@ void sanitize_graphite_label_value(char *dst, char *src, size_t len)
  * @return Always returns 0.
  */
 
-struct format_graphite_label_callback {
-    struct instance *instance;
-};
-
-static int format_graphite_label_callback(const char *name, const char *value, RRDLABEL_SRC ls, void *data) {
-    struct format_graphite_label_callback *d = (struct format_graphite_label_callback *)data;
-
-    if (!should_send_label(d->instance, ls)) return 0;
-
-    char v[CONFIG_MAX_VALUE + 1];
-    sanitize_graphite_label_value(v, (char *)value, CONFIG_MAX_VALUE);
-
-    if (*v) {
-        buffer_strcat(d->instance->labels, ";");
-        buffer_sprintf(d->instance->labels, "%s=%s", name, v);
-    }
-
-    return 1;
-}
-
 int format_host_labels_graphite_plaintext(struct instance *instance, RRDHOST *host)
 {
-    if (!instance->labels)
-        instance->labels = buffer_create(1024);
+    if (!instance->labels_buffer)
+        instance->labels_buffer = buffer_create(1024);
 
     if (unlikely(!sending_labels_configured(instance)))
         return 0;
 
-    struct format_graphite_label_callback tmp = {
-        .instance = instance
-    };
-    rrdlabels_walkthrough_read(host->host_labels, format_graphite_label_callback, &tmp);
+    buffer_strcat(instance->labels_buffer, ";");
+    rrdlabels_to_buffer(host->host_labels, instance->labels_buffer, "", "=", "", ";",
+                        exporting_labels_filter_callback, instance,
+                        NULL, sanitize_graphite_label_value);
+
     return 0;
 }
 
@@ -160,7 +141,7 @@ int format_dimension_collected_graphite_plaintext(struct instance *instance, RRD
         dimension_name,
         (host->tags) ? ";" : "",
         (host->tags) ? host->tags : "",
-        (instance->labels) ? buffer_tostring(instance->labels) : "",
+        (instance->labels_buffer) ? buffer_tostring(instance->labels_buffer) : "",
         rd->last_collected_value,
         (unsigned long long)rd->last_collected_time.tv_sec);
 
@@ -206,7 +187,7 @@ int format_dimension_stored_graphite_plaintext(struct instance *instance, RRDDIM
         dimension_name,
         (host->tags) ? ";" : "",
         (host->tags) ? host->tags : "",
-        (instance->labels) ? buffer_tostring(instance->labels) : "",
+        (instance->labels_buffer) ? buffer_tostring(instance->labels_buffer) : "",
         value,
         (unsigned long long)last_t);
 

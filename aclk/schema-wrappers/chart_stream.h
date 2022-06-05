@@ -57,7 +57,7 @@ struct chart_instance_updated {
     const char *node_id;
     const char *name;
 
-     DICTIONARY *label_head;
+    DICTIONARY *chart_labels;
 
     RRD_MEMORY_MODE memory_mode;
 
