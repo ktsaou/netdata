@@ -205,11 +205,11 @@ extern bool rrdlabels_match_name_and_value(DICTIONARY *labels, const char *name,
 extern bool rrdlabels_match_name_value_pairs(DICTIONARY *labels, char **words, size_t word_count);
 extern void rrdlabels_to_json(DICTIONARY *labels, BUFFER *wb, const char *prefix, const char *equal, const char *quote, const char *comma);
 
-extern void rrdlabels_copy_and_replace_existing(DICTIONARY *dst, DICTIONARY *src);
+extern void rrdlabels_migrate_to_these(DICTIONARY *dst, DICTIONARY *src);
 extern void rrdlabels_copy(DICTIONARY *dst, DICTIONARY *src);
 
 void reload_host_labels(void);
-extern void rrdset_update_labels(RRDSET *st, DICTIONARY *labels);
+extern void rrdset_update_rrdlabels(RRDSET *st, DICTIONARY *new_rrdlabels);
 
 // ----------------------------------------------------------------------------
 // RRD DIMENSION - this is a metric

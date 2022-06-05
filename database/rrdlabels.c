@@ -647,7 +647,7 @@ int rrdlabels_sorted_walkthrough_read(DICTIONARY *labels, int (*callback)(const 
 
 
 // ----------------------------------------------------------------------------
-// rrdlabels_copy_and_replace_existing()
+// rrdlabels_migrate_to_these()
 // migrate an existing label list to a new list, INPLACE
 
 static int copy_label_to_dictionary_callback(const char *name, void *value, void *data) {
@@ -657,7 +657,7 @@ static int copy_label_to_dictionary_callback(const char *name, void *value, void
     return 1;
 }
 
-void rrdlabels_copy_and_replace_existing(DICTIONARY *dst, DICTIONARY *src) {
+void rrdlabels_migrate_to_these(DICTIONARY *dst, DICTIONARY *src) {
     if(!dst || !src) return;
 
     // remove the RRDLABEL_FLAG_OLD and RRDLABEL_FLAG_NEW from all items

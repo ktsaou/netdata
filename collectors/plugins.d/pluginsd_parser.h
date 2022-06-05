@@ -13,8 +13,8 @@ typedef struct parser_user_object {
     void    *opaque;
     struct plugind *cd;
     int trust_durations;
-    DICTIONARY *new_labels;
-    DICTIONARY *chart_labels;
+    DICTIONARY *new_host_labels;
+    DICTIONARY *new_chart_labels;
     size_t count;
     int enabled;
     uint8_t st_exists;

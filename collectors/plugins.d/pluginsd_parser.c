@@ -162,20 +162,20 @@ PARSER_RC pluginsd_dimension_action(void *user, RRDSET *st, char *id, char *name
 PARSER_RC pluginsd_label_action(void *user, char *key, char *value, RRDLABEL_SRC source)
 {
 
-    if(unlikely(!((PARSER_USER_OBJECT *) user)->new_labels))
-        ((PARSER_USER_OBJECT *) user)->new_labels = rrdlabels_create();
+    if(unlikely(!((PARSER_USER_OBJECT *) user)->new_host_labels))
+        ((PARSER_USER_OBJECT *) user)->new_host_labels = rrdlabels_create();
 
-    rrdlabels_add(((PARSER_USER_OBJECT *)user)->new_labels, key, value, source);
+    rrdlabels_add(((PARSER_USER_OBJECT *)user)->new_host_labels, key, value, source);
 
     return PARSER_RC_OK;
 }
 
 PARSER_RC pluginsd_clabel_action(void *user, char *key, char *value, RRDLABEL_SRC source)
 {
-    if(unlikely(!((PARSER_USER_OBJECT *) user)->chart_labels))
-        ((PARSER_USER_OBJECT *) user)->chart_labels = rrdlabels_create();
+    if(unlikely(!((PARSER_USER_OBJECT *) user)->new_chart_labels))
+        ((PARSER_USER_OBJECT *) user)->new_chart_labels = rrdlabels_create();
 
-    rrdlabels_add(((PARSER_USER_OBJECT *)user)->chart_labels, key, value, source);
+    rrdlabels_add(((PARSER_USER_OBJECT *)user)->new_chart_labels, key, value, source);
 
     return PARSER_RC_OK;
 }
@@ -188,7 +188,8 @@ PARSER_RC pluginsd_clabel_commit_action(void *user, RRDHOST *host, DICTIONARY *n
         return PARSER_RC_OK;
     }
 
-    rrdset_update_labels(st, new_labels);
+    rrdset_update_rrdlabels(st, new_labels);
+
     return PARSER_RC_OK;
 }
 
@@ -199,8 +200,7 @@ PARSER_RC pluginsd_overwrite_action(void *user, RRDHOST *host, DICTIONARY *new_l
     if(!host->host_labels)
         host->host_labels = rrdlabels_create();
 
-    rrdlabels_copy_and_replace_existing(host->host_labels, new_labels);
-    rrdlabels_destroy(new_labels);
+    rrdlabels_migrate_to_these(host->host_labels, new_labels);
 
     return PARSER_RC_OK;
 }
@@ -620,14 +620,15 @@ PARSER_RC pluginsd_clabel_commit(char **words, void *user, PLUGINSD_ACTION  *plu
     RRDHOST *host = ((PARSER_USER_OBJECT *) user)->host;
     debug(D_PLUGINSD, "requested to commit chart labels");
 
-    DICTIONARY *chart_labels = ((PARSER_USER_OBJECT *)user)->chart_labels;
-    ((PARSER_USER_OBJECT *)user)->chart_labels = NULL;
+    PARSER_RC rc = PARSER_RC_OK;
 
-    if (plugins_action->clabel_commit_action) {
-        return plugins_action->clabel_commit_action(user, host, chart_labels);
-    }
+    if (plugins_action->clabel_commit_action)
+        rc = plugins_action->clabel_commit_action(user, host, ((PARSER_USER_OBJECT *)user)->new_chart_labels);
 
-    return PARSER_RC_OK;
+    rrdlabels_destroy(((PARSER_USER_OBJECT *)user)->new_chart_labels);
+    ((PARSER_USER_OBJECT *)user)->new_chart_labels = NULL;
+
+    return rc;
 }
 
 PARSER_RC pluginsd_overwrite(char **words, void *user, PLUGINSD_ACTION  *plugins_action)
@@ -637,14 +638,15 @@ PARSER_RC pluginsd_overwrite(char **words, void *user, PLUGINSD_ACTION  *plugins
     RRDHOST *host = ((PARSER_USER_OBJECT *) user)->host;
     debug(D_PLUGINSD, "requested a OVERWRITE a variable");
 
-    DICTIONARY *new_labels = ((PARSER_USER_OBJECT *)user)->new_labels;
-    ((PARSER_USER_OBJECT *)user)->new_labels = NULL;
+    PARSER_RC rc = PARSER_RC_OK;
 
-    if (plugins_action->overwrite_action) {
-        return plugins_action->overwrite_action(user, host, new_labels);
-    }
+    if (plugins_action->overwrite_action)
+        rc = plugins_action->overwrite_action(user, host, ((PARSER_USER_OBJECT *)user)->new_host_labels);
 
-    return PARSER_RC_OK;
+    rrdlabels_destroy(((PARSER_USER_OBJECT *)user)->new_host_labels);
+    ((PARSER_USER_OBJECT *)user)->new_host_labels = NULL;
+
+    return rc;
 }
 
 PARSER_RC pluginsd_guid(char **words, void *user, PLUGINSD_ACTION *plugins_action)
