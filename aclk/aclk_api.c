@@ -44,7 +44,9 @@ void aclk_single_update_enable()
 }
 #endif /* ENABLE_ACLK */
 
-void add_aclk_host_labels(DICTIONARY *labels) {
+void add_aclk_host_labels(void) {
+    DICTIONARY *labels = localhost->host_labels;
+
 #ifdef ENABLE_ACLK
     rrdlabels_add(labels, "_aclk_ng_available", "true", RRDLABEL_SRC_AUTO|RRDLABEL_SRC_ACLK);
 #else

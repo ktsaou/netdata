@@ -1098,7 +1098,7 @@ static void rrdhost_load_auto_labels(void) {
     if (localhost->system_info->prebuilt_dist)
         rrdlabels_add(labels, "_prebuilt_dist", localhost->system_info->prebuilt_dist, RRDLABEL_SRC_AUTO);
 
-    add_aclk_host_labels(labels);
+    add_aclk_host_labels();
 
     rrdlabels_add(
         labels, "_is_parent", (localhost->next || configured_as_parent()) ? "true" : "false", RRDLABEL_SRC_AUTO);
