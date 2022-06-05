@@ -1738,53 +1738,14 @@ static inline void substitute_dots_in_id(char *s) {
 // ----------------------------------------------------------------------------
 // parse k8s labels
 
-static void strip_last_symbol(char *str, char symbol, bool skip_escaped_characters) {
-    char *end = str;
-
-    while (*end && *end != symbol) {
-        if (unlikely(skip_escaped_characters && *end == '\\')) {
-            end++;
-            if (unlikely(!*end))
-                break;
-        }
-        end++;
-    }
-    if (likely(*end == symbol))
-        *end = '\0';
-}
-
-static char *strip_double_quotes(char *str, bool skip_escaped_characters) {
-    if (*str == '"') {
-        str++;
-        strip_last_symbol(str, '"', skip_escaped_characters);
-    }
-
-    return str;
-}
-
 static char *k8s_parse_resolved_name_and_labels(DICTIONARY *labels, char *data) {
     // the first word, up to the first space is the name
     char *name = mystrsep(&data, " ");
 
-    // the rest are key=value pairs
+    // the rest are key=value pairs separated by comma
     while(data) {
-        char *key = mystrsep(&data, "=");
-
-        char *value;
-        if (data && *data == ',') {
-            value = "";
-            *data++ = '\0';
-        }
-        else {
-            value = mystrsep(&data, ",");
-        }
-
-        value = strip_double_quotes(value, true);
-
-        if (!key || *key == '\0' || !value || *value == '\0')
-            continue;
-
-        rrdlabels_add(labels, key, value, RRDLABEL_SRC_AUTO| RRDLABEL_SRC_K8S);
+        char *pair = mystrsep(&data, ",");
+        rrdlabels_add_pair(labels, pair, RRDLABEL_SRC_AUTO| RRDLABEL_SRC_K8S);
     }
 
     return name;

@@ -878,28 +878,66 @@ void rrdlabels_to_json(DICTIONARY *labels, BUFFER *wb, const char *prefix, const
 // ----------------------------------------------------------------------------
 // rrdlabels unit test
 
+struct rrdlabels_unittest_add_a_pair {
+    const char *pair;
+    const char *expected_name;
+    const char *expected_value;
+    const char *name;
+    const char *value;
+    RRDLABEL_SRC ls;
+    int errors;
+};
+
+int rrdlabels_unittest_add_a_pair_callback(const char *name, const char *value, RRDLABEL_SRC ls, void *data) {
+    struct rrdlabels_unittest_add_a_pair *t = (struct rrdlabels_unittest_add_a_pair *)data;
+
+    t->name = name;
+    t->value = value;
+    t->ls = ls;
+
+    if(strcmp(name, t->expected_name) != 0) {
+        fprintf(stderr, "name is wrong, found \"%s\", expected \"%s\"", name, t->expected_name);
+        t->errors++;
+    }
+
+    if(value == NULL && t->expected_value == NULL) {
+        ;
+    }
+    else if(value == NULL || t->expected_value == NULL) {
+        fprintf(stderr, "value is wrong, found \"%s\", expected \"%s\"", value?value:"(null)", t->expected_value?t->expected_value:"(null)");
+        t->errors++;
+    }
+    else if(strcmp(value, t->expected_value) != 0) {
+        fprintf(stderr, "values don't match, found \"%s\", expected \"%s\"", value?value:"(null)", t->expected_value?t->expected_value:"(null)");
+        t->errors++;
+    }
+
+    return 1;
+}
+
 int rrdlabels_unittest_add_a_pair(const char *pair, const char *name, const char *value) {
     DICTIONARY *labels = rrdlabels_create();
-    int errors = 0;
+    int errors;
 
     fprintf(stderr, "rrdlabels_add_pair(labels, %s) ... ", pair);
 
     rrdlabels_add_pair(labels, pair, RRDLABEL_SRC_CONFIG);
 
-    const char *v = rrdlabels_get(labels, name);
-    if(!v) {
+    struct rrdlabels_unittest_add_a_pair tmp = {
+        .pair = pair,
+        .expected_name = name,
+        .expected_value = value,
+        .errors = 0
+    };
+    int ret = rrdlabels_walkthrough_read(labels, rrdlabels_unittest_add_a_pair_callback, &tmp);
+    errors = tmp.errors;
+    if(ret != 1) {
         fprintf(stderr, "failed to get \"%s\" label", name);
         errors++;
     }
-    else {
-        if(strcmp(v, value) != 0) {
-            fprintf(stderr, "value is \"%s\" but \"%s\" was expected", v, value);
-            errors++;
-        }
-    }
 
     if(!errors)
-        fprintf(stderr, " OK, name='%s' and value='%s'\n", name, value);
+        fprintf(stderr, " OK, name='%s' and value='%s'\n", tmp.name, tmp.value?tmp.value:"(null)");
     else
         fprintf(stderr, " FAILED\n");
 
@@ -908,6 +946,8 @@ int rrdlabels_unittest_add_a_pair(const char *pair, const char *name, const char
 }
 
 int rrdlabels_unittest_add_pairs() {
+    fprintf(stderr, "\n%s() tests\n", __FUNCTION__);
+
     int errors = 0;
 
     // basic test
@@ -922,6 +962,14 @@ int rrdlabels_unittest_add_pairs() {
     errors += rrdlabels_unittest_add_a_pair("tag::value", "tag", ":value");
     errors += rrdlabels_unittest_add_a_pair("   tag   =   :value ", "tag", ":value");
     errors += rrdlabels_unittest_add_a_pair("   tag   :   :value ", "tag", ":value");
+
+    // test empty values
+    errors += rrdlabels_unittest_add_a_pair("tag", "tag", "");
+    errors += rrdlabels_unittest_add_a_pair("tag:", "tag", "");
+    errors += rrdlabels_unittest_add_a_pair("tag:\"\"", "tag", "");
+    errors += rrdlabels_unittest_add_a_pair("tag:''", "tag", "");
+    errors += rrdlabels_unittest_add_a_pair("tag:\r\n", "tag", "");
+    errors += rrdlabels_unittest_add_a_pair("tag\r\n", "tag", "");
 
     // test UTF-8 in values
     errors += rrdlabels_unittest_add_a_pair("tag: country:Ελλάδα", "tag", "country:Ελλάδα");
@@ -943,6 +991,8 @@ int rrdlabels_unittest_check_simple_pattern(DICTIONARY *labels, const char *patt
 }
 
 int rrdlabels_unittest_simple_pattern() {
+    fprintf(stderr, "\n%s() tests\n", __FUNCTION__);
+
     int errors = 0;
 
     DICTIONARY *labels = rrdlabels_create();
