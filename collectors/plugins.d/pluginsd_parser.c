@@ -180,7 +180,7 @@ PARSER_RC pluginsd_clabel_action(void *user, char *key, char *value, RRDLABEL_SR
     return PARSER_RC_OK;
 }
 
-PARSER_RC pluginsd_clabel_commit_action(void *user, RRDHOST *host, DICTIONARY *new_labels)
+PARSER_RC pluginsd_clabel_commit_action(void *user, RRDHOST *host, DICTIONARY *new_chart_labels)
 {
     RRDSET *st = ((PARSER_USER_OBJECT *)user)->st;
     if (unlikely(!st)) {
@@ -188,19 +188,19 @@ PARSER_RC pluginsd_clabel_commit_action(void *user, RRDHOST *host, DICTIONARY *n
         return PARSER_RC_OK;
     }
 
-    rrdset_update_rrdlabels(st, new_labels);
+    rrdset_update_rrdlabels(st, new_chart_labels);
 
     return PARSER_RC_OK;
 }
 
-PARSER_RC pluginsd_overwrite_action(void *user, RRDHOST *host, DICTIONARY *new_labels)
+PARSER_RC pluginsd_overwrite_action(void *user, RRDHOST *host, DICTIONARY *new_host_labels)
 {
     UNUSED(user);
 
     if(!host->host_labels)
         host->host_labels = rrdlabels_create();
 
-    rrdlabels_migrate_to_these(host->host_labels, new_labels);
+    rrdlabels_migrate_to_these(host->host_labels, new_host_labels);
 
     return PARSER_RC_OK;
 }

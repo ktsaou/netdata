@@ -814,14 +814,14 @@ static int rrdlabels_log_label_to_buffer_callback(const char *name, void *value,
     BUFFER *wb = (BUFFER *)data;
     RRDLABEL *lb = (RRDLABEL *)value;
 
-    buffer_sprintf(wb, "label: \"%s\" = \"%s\" (", name, lb->value);
+    buffer_sprintf(wb, "Label: %s: \"%s\" (", name, lb->value);
 
     size_t sources = 0;
     if(lb->label_source & RRDLABEL_SRC_AUTO)
         buffer_sprintf(wb, "%sauto", sources++?",":"");
 
     if(lb->label_source & RRDLABEL_SRC_CONFIG)
-        buffer_sprintf(wb, "%sconfig", sources++?",":"");
+        buffer_sprintf(wb, "%snetdata.conf", sources++?",":"");
 
     if(lb->label_source & RRDLABEL_SRC_K8S)
         buffer_sprintf(wb, "%sk8s", sources++?",":"");
@@ -832,7 +832,7 @@ static int rrdlabels_log_label_to_buffer_callback(const char *name, void *value,
     if(!sources)
         buffer_strcat(wb, "unknown");
 
-    buffer_strcat(wb, ")");
+    buffer_strcat(wb, ")\n");
 
     return 1;
 }
