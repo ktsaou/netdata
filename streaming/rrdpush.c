@@ -193,14 +193,14 @@ static inline int need_to_send_chart_definition(RRDSET *st) {
 }
 
 // chart labels
-static int send_clabels_callback(const char *name, const char *value, LABEL_SOURCE ls, void *data) {
+static int send_clabels_callback(const char *name, const char *value, RRDLABEL_SRC ls, void *data) {
     BUFFER *wb = (BUFFER *)data;
     buffer_sprintf(wb, "CLABEL \"%s\" \"%s\" %d\n", name, value, ls);
     return 1;
 }
 void rrdpush_send_clabels(RRDHOST *host, RRDSET *st) {
     if (st->state && st->state->chart_labels) {
-        if(labels_walkthrough_read(st->state->chart_labels, send_clabels_callback, host->sender->build) > 0)
+        if(rrdlabels_walkthrough_read(st->state->chart_labels, send_clabels_callback, host->sender->build) > 0)
             buffer_sprintf(host->sender->build,"CLABEL_COMMIT\n");
     }
 }
@@ -359,9 +359,9 @@ void rrdset_done_push(RRDSET *st) {
 }
 
 // labels
-static int send_labels_callback(const char *name, const char *value, LABEL_SOURCE ls, void *data) {
+static int send_labels_callback(const char *name, const char *value, RRDLABEL_SRC ls, void *data) {
     BUFFER *wb = (BUFFER *)data;
-    buffer_sprintf(wb, "LABEL \"%s\" = %d %s\n", name, ls, value);
+    buffer_sprintf(wb, "RRDLABEL \"%s\" = %d %s\n", name, ls, value);
     return 1;
 }
 void rrdpush_send_labels(RRDHOST *host) {
@@ -370,7 +370,7 @@ void rrdpush_send_labels(RRDHOST *host) {
 
     sender_start(host->sender);
 
-    labels_walkthrough_read(host->host_labels, send_labels_callback, host->sender->build);
+    rrdlabels_walkthrough_read(host->host_labels, send_labels_callback, host->sender->build);
     buffer_sprintf(host->sender->build, "OVERWRITE %s\n", "labels");
     sender_commit(host->sender);
 

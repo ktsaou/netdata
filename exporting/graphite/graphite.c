@@ -96,7 +96,7 @@ struct format_graphite_label_callback {
     struct instance *instance;
 };
 
-static int format_graphite_label_callback(const char *name, const char *value, LABEL_SOURCE ls, void *data) {
+static int format_graphite_label_callback(const char *name, const char *value, RRDLABEL_SRC ls, void *data) {
     struct format_graphite_label_callback *d = (struct format_graphite_label_callback *)data;
 
     if (!should_send_label(d->instance, ls)) return 0;
@@ -123,7 +123,7 @@ int format_host_labels_graphite_plaintext(struct instance *instance, RRDHOST *ho
     struct format_graphite_label_callback tmp = {
         .instance = instance
     };
-    labels_walkthrough_read(host->host_labels, format_graphite_label_callback, &tmp);
+    rrdlabels_walkthrough_read(host->host_labels, format_graphite_label_callback, &tmp);
     return 0;
 }
 

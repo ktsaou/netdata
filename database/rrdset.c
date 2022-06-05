@@ -401,7 +401,7 @@ void rrdset_free(RRDSET *st) {
     freez(st->state->old_title);
     freez(st->state->old_units);
     freez(st->state->old_context);
-    labels_destroy(st->state->chart_labels);
+    rrdlabels_destroy(st->state->chart_labels);
     freez(st->state);
     freez(st->chart_uuid);
 
@@ -887,7 +887,7 @@ RRDSET *rrdset_create_custom(
     avl_init_lock(&st->rrdvar_root_index, rrdvar_compare);
 
     netdata_rwlock_init(&st->rrdset_rwlock);
-    st->state->chart_labels = labels_create();
+    st->state->chart_labels = rrdlabels_create();
 
     if(name && *name && rrdset_set_name(st, name))
         // we did set the name
@@ -1957,7 +1957,7 @@ after_second_database_work:
     netdata_thread_enable_cancelability();
 }
 
-static int chart_label_store_to_sql_callback(const char *name, const char *value, LABEL_SOURCE ls, void *data) {
+static int chart_label_store_to_sql_callback(const char *name, const char *value, RRDLABEL_SRC ls, void *data) {
     RRDSET *st = (RRDSET *)data;
     sql_store_chart_label(st->chart_uuid, (int)ls, (char *)name, (char *)value);
     return 1;
@@ -1965,11 +1965,11 @@ static int chart_label_store_to_sql_callback(const char *name, const char *value
 
 void rrdset_update_labels(RRDSET *st, DICTIONARY *labels) {
     if(!st->state->chart_labels)
-        st->state->chart_labels = labels_create();
+        st->state->chart_labels = rrdlabels_create();
 
     if (labels)
-        labels_copy_and_replace_existing(st->state->chart_labels, labels);
+        rrdlabels_copy_and_replace_existing(st->state->chart_labels, labels);
 
     // TODO - we should also cleanup sqlite from old labels that have been removed
-    labels_walkthrough_read(st->state->chart_labels, chart_label_store_to_sql_callback, st);
+    rrdlabels_walkthrough_read(st->state->chart_labels, chart_label_store_to_sql_callback, st);
 }

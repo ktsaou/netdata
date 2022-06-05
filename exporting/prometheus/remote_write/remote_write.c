@@ -147,7 +147,7 @@ struct format_remote_write_label_callback {
     void *write_request;
 };
 
-static int format_remote_write_label_callback(const char *name, const char *value, LABEL_SOURCE ls, void *data) {
+static int format_remote_write_label_callback(const char *name, const char *value, RRDLABEL_SRC ls, void *data) {
     struct format_remote_write_label_callback *d = (struct format_remote_write_label_callback *)data;
 
     if (!should_send_label(d->instance, ls)) return 0;
@@ -183,7 +183,7 @@ int format_host_prometheus_remote_write(struct instance *instance, RRDHOST *host
             .write_request = connector_specific_data->write_request,
             .instance = instance
         };
-        labels_walkthrough_read(host->host_labels, format_remote_write_label_callback, &tmp);
+        rrdlabels_walkthrough_read(host->host_labels, format_remote_write_label_callback, &tmp);
     }
 
     return 0;

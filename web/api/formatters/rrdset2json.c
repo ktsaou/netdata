@@ -18,7 +18,7 @@ void chart_labels2json(RRDSET *st, BUFFER *wb, size_t indentation)
         indentation--;
     }
 
-    labels_to_json(st->state->chart_labels, wb, "", ":", "\"", ",");
+    rrdlabels_to_json(st->state->chart_labels, wb, "", ":", "\"", ",");
     buffer_strcat(wb, "\n");
 }
 

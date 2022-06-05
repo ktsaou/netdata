@@ -69,7 +69,7 @@ static inline void health_log_rotate(RRDHOST *host) {
     }
 }
 
-static int labels_buffer_printf_callback(const char *name, const char *value, LABEL_SOURCE ls, void *data) {
+static int labels_buffer_printf_callback(const char *name, const char *value, RRDLABEL_SRC ls, void *data) {
     (void)ls;
     BUFFER *wb = (BUFFER *)data;
     buffer_sprintf(wb,"%s=%s\t ", name, value);
@@ -82,7 +82,7 @@ inline void health_label_log_save(RRDHOST *host) {
     if(unlikely(host->health_log_fp)) {
         BUFFER *wb = buffer_create(1024);
 
-        labels_walkthrough_read(localhost->host_labels, labels_buffer_printf_callback, wb);
+        rrdlabels_walkthrough_read(localhost->host_labels, labels_buffer_printf_callback, wb);
 
         char *write = (char *) buffer_tostring(wb) ;
         write[wb->len-2] = '\n';

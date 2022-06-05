@@ -44,13 +44,13 @@ void aclk_single_update_enable()
 }
 #endif /* ENABLE_ACLK */
 
-DICTIONARY *add_aclk_host_labels(DICTIONARY *label) {
+void add_aclk_host_labels(DICTIONARY *labels) {
 #ifdef ENABLE_ACLK
-    label = labels_add_the_really_bad_way(label, "_aclk_ng_available", "true", LABEL_SOURCE_AUTO);
+    rrdlabels_add(labels, "_aclk_ng_available", "true", RRDLABEL_SRC_AUTO|RRDLABEL_SRC_ACLK);
 #else
-    label = labels_add_the_really_bad_way(label, "_aclk_ng_available", "false", LABEL_SOURCE_AUTO);
+    labels_add(labels, "_aclk_ng_available", "false", RRDLABEL_SRC_AUTO|RRDLABEL_SRC_ACLK);
 #endif
-    label = labels_add_the_really_bad_way(label, "_aclk_legacy_available", "false", LABEL_SOURCE_AUTO);
+    rrdlabels_add(labels, "_aclk_legacy_available", "false", RRDLABEL_SRC_AUTO|RRDLABEL_SRC_ACLK);
 #ifdef ENABLE_ACLK
     ACLK_PROXY_TYPE aclk_proxy;
     char *proxy_str;
@@ -68,15 +68,14 @@ DICTIONARY *add_aclk_host_labels(DICTIONARY *label) {
             break;
     }
 
-    label = labels_add_the_really_bad_way(label, "_aclk_impl", "Next Generation", LABEL_SOURCE_AUTO);
-    label = labels_add_the_really_bad_way(label, "_aclk_proxy", proxy_str, LABEL_SOURCE_AUTO);
+    rrdlabels_add(labels, "_aclk_impl", "Next Generation", RRDLABEL_SRC_AUTO|RRDLABEL_SRC_ACLK);
+    rrdlabels_add(labels, "_aclk_proxy", proxy_str, RRDLABEL_SRC_AUTO|RRDLABEL_SRC_ACLK);
 #ifdef ENABLE_NEW_CLOUD_PROTOCOL
-    label = labels_add_the_really_bad_way(label, "_aclk_ng_new_cloud_protocol", "true", LABEL_SOURCE_AUTO);
+    rrdlabels_add(labels, "_aclk_ng_new_cloud_protocol", "true", RRDLABEL_SRC_AUTO|RRDLABEL_SRC_ACLK);
 #else
-    label = labels_add_the_really_bad_way(label, "_aclk_ng_new_cloud_protocol", "false", LABEL_SOURCE_AUTO);
+    rrdlabels_add(labels, "_aclk_ng_new_cloud_protocol", "false", RRDLABEL_SRC_AUTO|RRDLABEL_SRC_ACLK);
 #endif
 #endif
-    return label;
 }
 
 char *aclk_state(void) {

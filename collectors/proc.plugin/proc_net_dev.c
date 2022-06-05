@@ -273,7 +273,7 @@ static void netdev_free_chart_strings(struct netdev *d) {
 static void netdev_free(struct netdev *d) {
     netdev_charts_release(d);
     netdev_free_chart_strings(d);
-    labels_destroy(d->chart_labels);
+    rrdlabels_destroy(d->chart_labels);
 
     freez((void *)d->name);
     freez((void *)d->filename_speed);
@@ -326,8 +326,8 @@ void netdev_rename_device_add(const char *host_device, const char *container_dev
         r->host_device      = strdupz(host_device);
         r->container_device = strdupz(container_device);
         r->container_name   = strdupz(container_name);
-        r->chart_labels     = labels_create();
-        labels_copy_and_replace_existing(r->chart_labels, labels);
+        r->chart_labels     = rrdlabels_create();
+        rrdlabels_copy_and_replace_existing(r->chart_labels, labels);
         r->hash             = hash;
         r->next             = netdev_rename_root;
         r->processed        = 0;
@@ -343,7 +343,7 @@ void netdev_rename_device_add(const char *host_device, const char *container_dev
             r->container_device = strdupz(container_device);
             r->container_name   = strdupz(container_name);
 
-            labels_copy_and_replace_existing(r->chart_labels, labels);
+            rrdlabels_copy_and_replace_existing(r->chart_labels, labels);
             
             r->processed        = 0;
             netdev_pending_renames++;
@@ -376,7 +376,7 @@ void netdev_rename_device_del(const char *host_device) {
             freez((void *) r->host_device);
             freez((void *) r->container_name);
             freez((void *) r->container_device);
-            labels_destroy(r->chart_labels);
+            rrdlabels_destroy(r->chart_labels);
             freez((void *) r);
             break;
         }
@@ -448,7 +448,7 @@ static inline void netdev_rename_cgroup(struct netdev *d, struct netdev_rename *
     snprintfz(buffer, RRD_ID_LENGTH_MAX, "net %s", r->container_device);
     d->chart_family = strdupz(buffer);
 
-    labels_copy_and_replace_existing(d->chart_labels, r->chart_labels);
+    rrdlabels_copy_and_replace_existing(d->chart_labels, r->chart_labels);
 
     d->priority = NETDATA_CHART_PRIO_CGROUP_NET_IFACE;
     d->flipped = 1;
@@ -541,7 +541,7 @@ static struct netdev *get_netdev(const char *name) {
     d->name = strdupz(name);
     d->hash = simple_hash(d->name);
     d->len = strlen(d->name);
-    d->chart_labels = labels_create();
+    d->chart_labels = rrdlabels_create();
 
     d->chart_type_net_bytes      = strdupz("net");
     d->chart_type_net_compressed = strdupz("net_compressed");

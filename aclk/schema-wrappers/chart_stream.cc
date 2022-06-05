@@ -76,7 +76,7 @@ void chart_instance_updated_destroy(struct chart_instance_updated *instance)
     freez((char*)instance->id);
     freez((char*)instance->claim_id);
 
-    labels_destroy(instance->label_head);
+    rrdlabels_destroy(instance->label_head);
 
     freez((char*)instance->config_hash);
 }
@@ -92,7 +92,7 @@ static int set_chart_instance_updated(chart::v1::ChartInstanceUpdated *chart, co
     chart->set_name(update->name);
 
     map = chart->mutable_chart_labels();
-    labels_walkthrough_read(update->label_head, label_add_to_map_callback, map);
+    rrdlabels_walkthrough_read(update->label_head, label_add_to_map_callback, map);
 
     switch (update->memory_mode) {
     case RRD_MEMORY_MODE_NONE:

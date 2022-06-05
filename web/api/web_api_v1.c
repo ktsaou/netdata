@@ -560,8 +560,10 @@ inline int web_client_api_request_v1_data(RRDHOST *host, struct web_client *w, c
         rrdhost_rdlock(host);
         rrdset_foreach_read(st1, host) {
             if (st1->hash_context == context_hash && !strcmp(st1->context, context) &&
-                (!chart_label_key || labels_match_name_simple_pattern(st1->state->chart_labels, chart_label_key)) &&
-                (!chart_labels_filter_word_count || labels_match_name_value_pairs(st1->state->chart_labels, chart_labels_filter_words, chart_labels_filter_word_count)))
+                (!chart_label_key || rrdlabels_match_name_simple_pattern(st1->state->chart_labels, chart_label_key)) &&
+                (!chart_labels_filter_word_count ||
+                 rrdlabels_match_name_value_pairs(
+                     st1->state->chart_labels, chart_labels_filter_words, chart_labels_filter_word_count)))
                     build_context_param_list(owa, &context_param_list, st1);
         }
         rrdhost_unlock(host);
@@ -990,7 +992,7 @@ inline void host_labels2json(RRDHOST *host, BUFFER *wb, size_t indentation) {
         indentation--;
     }
 
-    labels_to_json(host->host_labels, wb, tabs, ":", "\"", ",\n");
+    rrdlabels_to_json(host->host_labels, wb, tabs, ":", "\"", ",\n");
 }
 
 extern int aclk_connected;

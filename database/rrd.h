@@ -176,55 +176,38 @@ typedef enum rrddim_flags {
 #define rrddim_flag_set(rd, flag)   __atomic_or_fetch(&((rd)->flags), (flag), __ATOMIC_SEQ_CST)
 #define rrddim_flag_clear(rd, flag) __atomic_and_fetch(&((rd)->flags), ~(flag), __ATOMIC_SEQ_CST)
 
-typedef enum label_source {
-    LABEL_SOURCE_AUTO             = (1 << 0),
-    LABEL_SOURCE_NETDATA_CONF     = (1 << 1),
-    LABEL_SOURCE_DOCKER           = (1 << 2),
-    LABEL_SOURCE_ENVIRONMENT      = (1 << 3),
-    LABEL_SOURCE_KUBERNETES       = (1 << 4),
+typedef enum rrdlabel_source {
+    RRDLABEL_SRC_AUTO   = (1 << 0), // set when Netdata found the label by some automation
+    RRDLABEL_SRC_CONFIG = (1 << 1), // set when the user configured the label
+    RRDLABEL_SRC_K8S    = (1 << 2), // set when this label is found from k8s (RRDLABEL_SRC_AUTO should also be set)
+    RRDLABEL_SRC_ACLK   = (1 << 3), // set when this label is found from ACLK (RRDLABEL_SRC_AUTO should also be set)
 
     // more sources can be added here
-    LABEL_FLAG_OLD                = (1 << 30),
-    LABEL_FLAG_NEW                = (1 << 31)
-} LABEL_SOURCE;
 
-typedef enum strip_quotes {
-    DO_NOT_STRIP_QUOTES,
-    STRIP_QUOTES
-} STRIP_QUOTES_OPTION;
+    RRDLABEL_FLAG_OLD   = (1 << 30), // marks set for rrdlabels internal use - they are not exposed outside rrdlabels
+    RRDLABEL_FLAG_NEW   = (1 << 31)  //
+} RRDLABEL_SRC;
 
-typedef enum skip_escaped_characters {
-    DO_NOT_SKIP_ESCAPED_CHARACTERS,
-    SKIP_ESCAPED_CHARACTERS
-} SKIP_ESCAPED_CHARACTERS_OPTION;
+extern DICTIONARY *rrdlabels_create(void);
+extern void rrdlabels_destroy(DICTIONARY *labels_dict);
+extern void rrdlabels_add(DICTIONARY *dict, const char *key, const char *value, RRDLABEL_SRC ls);
+extern const char *rrdlabels_get(DICTIONARY *labels, const char *key);
 
-extern DICTIONARY *labels_create(void);
-extern void labels_destroy(DICTIONARY *labels_dict);
-extern void labels_add(DICTIONARY *dict, const char *key, const char *value, LABEL_SOURCE label_source);
-extern const char *labels_get(DICTIONARY *head, const char *key);
-extern DICTIONARY *labels_add_the_really_bad_way(DICTIONARY *labels, char *key, char *value, LABEL_SOURCE label_source);
+extern void rrdlabels_unmark_all(DICTIONARY *labels);
+extern void rrdlabels_remove_all_unmarked(DICTIONARY *labels);
 
-extern void labels_unmark_all(DICTIONARY *labels);
-extern void labels_remove_all_unmarked(DICTIONARY *labels);
+extern int rrdlabels_walkthrough_read(DICTIONARY *labels, int (*callback)(const char *name, const char *value, RRDLABEL_SRC ls, void *data), void *data);
+extern int rrdlabels_sorted_walkthrough_read(DICTIONARY *labels, int (*callback)(const char *name, const char *value, RRDLABEL_SRC ls, void *data), void *data);
 
-extern int labels_walkthrough_read(DICTIONARY *labels, int (*callback)(const char *name, const char *value, LABEL_SOURCE ls, void *data), void *data);
-extern int labels_sorted_walkthrough_read(DICTIONARY *labels, int (*callback)(const char *name, const char *value, LABEL_SOURCE ls, void *data), void *data);
+extern void rrdlabels_log_to_buffer(DICTIONARY *labels, BUFFER *wb);
+extern bool rrdlabels_match_name_simple_pattern(DICTIONARY *labels, char *simple_pattern_txt);
+extern bool rrdlabels_match_name_and_value(DICTIONARY *labels, const char *name, const char *value);
+extern bool rrdlabels_match_name_value_pairs(DICTIONARY *labels, char **words, size_t word_count);
+extern void rrdlabels_to_json(DICTIONARY *labels, BUFFER *wb, const char *prefix, const char *equal, const char *quote, const char *comma);
 
-extern void labels_log(DICTIONARY *labels, const char *prefix);
-extern void labels_log_buffer(DICTIONARY *labels, BUFFER *wb);
-extern bool labels_match_name_simple_pattern(DICTIONARY *labels, char *simple_pattern_txt);
-extern bool labels_match_name_and_value(DICTIONARY *labels, const char *name, const char *value);
-extern bool labels_match_name_value_pairs(DICTIONARY *labels, char **words, size_t word_count);
-extern void labels_to_json(DICTIONARY *labels, BUFFER *wb, const char *prefix, const char *equal, const char *quote, const char *comma);
+extern void rrdlabels_copy_and_replace_existing(DICTIONARY *dst, DICTIONARY *src);
+extern void rrdlabels_copy(DICTIONARY *dst, DICTIONARY *src);
 
-extern void labels_copy_and_replace_existing(DICTIONARY *dst, DICTIONARY *src);
-extern void labels_copy(DICTIONARY *dst, DICTIONARY *src);
-
-extern void strip_last_symbol(
-    char *str,
-    char symbol,
-    SKIP_ESCAPED_CHARACTERS_OPTION skip_escaped_characters);
-extern char *strip_double_quotes(char *str, SKIP_ESCAPED_CHARACTERS_OPTION skip_escaped_characters);
 void reload_host_labels(void);
 extern void rrdset_update_labels(RRDSET *st, DICTIONARY *labels);
 

@@ -199,7 +199,7 @@ RRDHOST *rrdhost_create(const char *hostname,
 #endif
 
     netdata_rwlock_init(&host->rrdhost_rwlock);
-    host->host_labels = labels_create();
+    host->host_labels = rrdlabels_create();
 
     netdata_mutex_init(&host->aclk_state_lock);
 
@@ -976,7 +976,7 @@ void rrdhost_free(RRDHOST *host) {
     freez(host->aclk_state.claimed_id);
     freez(host->aclk_state.prev_claimed_id);
     freez((void *)host->tags);
-    labels_destroy(host->host_labels);
+    rrdlabels_destroy(host->host_labels);
     freez((void *)host->os);
     freez((void *)host->timezone);
     freez((void *)host->abbrev_timezone);
@@ -1041,68 +1041,70 @@ static void rrdhost_load_auto_labels(DICTIONARY *labels) {
     if(!labels) return;
 
     if (localhost->system_info->cloud_provider_type)
-        labels_add(labels, "_cloud_provider_type", localhost->system_info->cloud_provider_type, LABEL_SOURCE_AUTO);
+        rrdlabels_add(labels, "_cloud_provider_type", localhost->system_info->cloud_provider_type, RRDLABEL_SRC_AUTO);
 
     if (localhost->system_info->cloud_instance_type)
-        labels_add(labels, "_cloud_instance_type", localhost->system_info->cloud_instance_type, LABEL_SOURCE_AUTO);
+        rrdlabels_add(labels, "_cloud_instance_type", localhost->system_info->cloud_instance_type, RRDLABEL_SRC_AUTO);
 
     if (localhost->system_info->cloud_instance_region)
-        labels_add(labels, "_cloud_instance_region", localhost->system_info->cloud_instance_region, LABEL_SOURCE_AUTO);
+        rrdlabels_add(
+            labels, "_cloud_instance_region", localhost->system_info->cloud_instance_region, RRDLABEL_SRC_AUTO);
 
     if (localhost->system_info->host_os_name)
-        labels_add(labels, "_os_name", localhost->system_info->host_os_name, LABEL_SOURCE_AUTO);
+        rrdlabels_add(labels, "_os_name", localhost->system_info->host_os_name, RRDLABEL_SRC_AUTO);
 
     if (localhost->system_info->host_os_version)
-        labels_add(labels, "_os_version", localhost->system_info->host_os_version, LABEL_SOURCE_AUTO);
+        rrdlabels_add(labels, "_os_version", localhost->system_info->host_os_version, RRDLABEL_SRC_AUTO);
 
     if (localhost->system_info->kernel_version)
-        labels_add(labels, "_kernel_version", localhost->system_info->kernel_version, LABEL_SOURCE_AUTO);
+        rrdlabels_add(labels, "_kernel_version", localhost->system_info->kernel_version, RRDLABEL_SRC_AUTO);
 
     if (localhost->system_info->host_cores)
-        labels_add(labels, "_system_cores", localhost->system_info->host_cores, LABEL_SOURCE_AUTO);
+        rrdlabels_add(labels, "_system_cores", localhost->system_info->host_cores, RRDLABEL_SRC_AUTO);
 
     if (localhost->system_info->host_cpu_freq)
-        labels_add(labels, "_system_cpu_freq", localhost->system_info->host_cpu_freq, LABEL_SOURCE_AUTO);
+        rrdlabels_add(labels, "_system_cpu_freq", localhost->system_info->host_cpu_freq, RRDLABEL_SRC_AUTO);
 
     if (localhost->system_info->host_ram_total)
-        labels_add(labels, "_system_ram_total", localhost->system_info->host_ram_total, LABEL_SOURCE_AUTO);
+        rrdlabels_add(labels, "_system_ram_total", localhost->system_info->host_ram_total, RRDLABEL_SRC_AUTO);
 
     if (localhost->system_info->host_disk_space)
-        labels_add(labels, "_system_disk_space", localhost->system_info->host_disk_space, LABEL_SOURCE_AUTO);
+        rrdlabels_add(labels, "_system_disk_space", localhost->system_info->host_disk_space, RRDLABEL_SRC_AUTO);
 
     if (localhost->system_info->architecture)
-        labels_add(labels, "_architecture", localhost->system_info->architecture, LABEL_SOURCE_AUTO);
+        rrdlabels_add(labels, "_architecture", localhost->system_info->architecture, RRDLABEL_SRC_AUTO);
 
     if (localhost->system_info->virtualization)
-        labels_add(labels, "_virtualization", localhost->system_info->virtualization, LABEL_SOURCE_AUTO);
+        rrdlabels_add(labels, "_virtualization", localhost->system_info->virtualization, RRDLABEL_SRC_AUTO);
 
     if (localhost->system_info->container)
-        labels_add(labels, "_container", localhost->system_info->container, LABEL_SOURCE_AUTO);
+        rrdlabels_add(labels, "_container", localhost->system_info->container, RRDLABEL_SRC_AUTO);
 
     if (localhost->system_info->container_detection)
-        labels_add(labels, "_container_detection", localhost->system_info->container_detection, LABEL_SOURCE_AUTO);
+        rrdlabels_add(labels, "_container_detection", localhost->system_info->container_detection, RRDLABEL_SRC_AUTO);
 
     if (localhost->system_info->virt_detection)
-        labels_add(labels, "_virt_detection", localhost->system_info->virt_detection, LABEL_SOURCE_AUTO);
+        rrdlabels_add(labels, "_virt_detection", localhost->system_info->virt_detection, RRDLABEL_SRC_AUTO);
 
     if (localhost->system_info->is_k8s_node)
-        labels_add(labels, "_is_k8s_node", localhost->system_info->is_k8s_node, LABEL_SOURCE_AUTO);
+        rrdlabels_add(labels, "_is_k8s_node", localhost->system_info->is_k8s_node, RRDLABEL_SRC_AUTO);
 
     if (localhost->system_info->install_type)
-        labels_add(labels, "_install_type", localhost->system_info->install_type, LABEL_SOURCE_AUTO);
+        rrdlabels_add(labels, "_install_type", localhost->system_info->install_type, RRDLABEL_SRC_AUTO);
 
     if (localhost->system_info->prebuilt_arch)
-        labels_add(labels, "_prebuilt_arch", localhost->system_info->prebuilt_arch, LABEL_SOURCE_AUTO);
+        rrdlabels_add(labels, "_prebuilt_arch", localhost->system_info->prebuilt_arch, RRDLABEL_SRC_AUTO);
 
     if (localhost->system_info->prebuilt_dist)
-        labels_add(labels, "_prebuilt_dist", localhost->system_info->prebuilt_dist, LABEL_SOURCE_AUTO);
+        rrdlabels_add(labels, "_prebuilt_dist", localhost->system_info->prebuilt_dist, RRDLABEL_SRC_AUTO);
 
-    labels = add_aclk_host_labels(labels);
+    add_aclk_host_labels(labels);
 
-    labels_add(labels, "_is_parent", (localhost->next || configured_as_parent()) ? "true" : "false", LABEL_SOURCE_AUTO);
+    rrdlabels_add(
+        labels, "_is_parent", (localhost->next || configured_as_parent()) ? "true" : "false", RRDLABEL_SRC_AUTO);
 
     if (localhost->rrdpush_send_destination)
-        labels_add(labels, "_streams_to", localhost->rrdpush_send_destination, LABEL_SOURCE_AUTO);
+        rrdlabels_add(labels, "_streams_to", localhost->rrdpush_send_destination, RRDLABEL_SRC_AUTO);
 }
 
 static void rrdhost_load_config_labels(DICTIONARY *labels) {
@@ -1111,7 +1113,7 @@ static void rrdhost_load_config_labels(DICTIONARY *labels) {
     int status = config_load(NULL, 1, CONFIG_SECTION_HOST_LABEL);
     if(!status) {
         char *filename = CONFIG_DIR "/" CONFIG_FILENAME;
-        error("LABEL: Cannot reload the configuration file '%s', using labels in memory", filename);
+        error("RRDLABEL: Cannot reload the configuration file '%s', using labels in memory", filename);
     }
 
     struct section *co = appconfig_get_section(&netdata_config, CONFIG_SECTION_HOST_LABEL);
@@ -1119,7 +1121,7 @@ static void rrdhost_load_config_labels(DICTIONARY *labels) {
         config_section_wrlock(co);
         struct config_option *cv;
         for(cv = co->values; cv ; cv = cv->next) {
-            labels_add(labels, cv->name, cv->value, LABEL_SOURCE_NETDATA_CONF);
+            rrdlabels_add(labels, cv->name, cv->value, RRDLABEL_SRC_CONFIG);
             cv->flags |= CONFIG_VALUE_USED;
         }
         config_section_unlock(co);
@@ -1152,7 +1154,7 @@ static void rrdhost_load_kubernetes_labels(DICTIONARY *labels) {
                     *value++ = '\0';
 
                 // sanitization in labels will remove \r\n and trim all strings
-                labels_add(labels, name, value, LABEL_SOURCE_KUBERNETES);
+                rrdlabels_add(labels, name, value, RRDLABEL_SRC_AUTO| RRDLABEL_SRC_K8S);
             }
 
             // Non-zero exit code means that all the script output is error messages. We've shown already any message that didn't include a ':'
@@ -1167,16 +1169,16 @@ static void rrdhost_load_kubernetes_labels(DICTIONARY *labels) {
 
 void reload_host_labels(void) {
     if(!localhost->host_labels)
-        localhost->host_labels = labels_create();
+        localhost->host_labels = rrdlabels_create();
 
-    labels_unmark_all(localhost->host_labels);
+    rrdlabels_unmark_all(localhost->host_labels);
 
     // priority is important here
     rrdhost_load_config_labels(localhost->host_labels);
     rrdhost_load_kubernetes_labels(localhost->host_labels);
     rrdhost_load_auto_labels(localhost->host_labels);
 
-    labels_remove_all_unmarked(localhost->host_labels);
+    rrdlabels_remove_all_unmarked(localhost->host_labels);
 
     health_label_log_save(localhost);
 

@@ -158,8 +158,8 @@ int aclk_add_chart_event(struct aclk_database_worker_config *wc, struct aclk_dat
         chart_payload.claim_id = claim_id;
         chart_payload.id = strdupz(st->id);
 
-        chart_payload.label_head = labels_create();
-        labels_copy(chart_payload.label_head, st->state->chart_labels);
+        chart_payload.label_head = rrdlabels_create();
+        rrdlabels_copy(chart_payload.label_head, st->state->chart_labels);
 
         size_t size;
         char *payload = generate_chart_instance_updated(&size, &chart_payload);

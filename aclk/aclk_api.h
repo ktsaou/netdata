@@ -49,7 +49,7 @@ void aclk_host_state_update(RRDHOST *host, int connect);
 
 #endif
 
-DICTIONARY *add_aclk_host_labels(DICTIONARY *label);
+void add_aclk_host_labels(DICTIONARY *labels);
 char *aclk_state(void);
 char *aclk_state_json(void);
 

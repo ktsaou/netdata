@@ -19,7 +19,7 @@ static int value_list_output(const char *name, void *entry, void *data) {
     return 0;
 }
 
-static int fill_formatted_callback(const char *name, const char *value, LABEL_SOURCE ls, void *data) {
+static int fill_formatted_callback(const char *name, const char *value, RRDLABEL_SRC ls, void *data) {
     (void)ls;
     DICTIONARY *dict = (DICTIONARY *)data;
     char n[RRD_ID_LENGTH_MAX * 2 + 2];
@@ -168,7 +168,7 @@ void rrdr_json_wrapper_begin(RRDR *r, BUFFER *wb, uint32_t format, RRDR_OPTIONS 
         for (i = 0, rd = temp_rd ? temp_rd : r->st->dimensions; rd; rd = rd->next) {
             st = rd->rrdset;
             if (st->state && st->state->chart_labels)
-                labels_walkthrough_read(st->state->chart_labels, fill_formatted_callback, dict);
+                rrdlabels_walkthrough_read(st->state->chart_labels, fill_formatted_callback, dict);
         }
         dictionary_walkthrough_read(dict, value_list_output, &co);
         dictionary_destroy(dict);
@@ -227,7 +227,7 @@ void rrdr_json_wrapper_begin(RRDR *r, BUFFER *wb, uint32_t format, RRDR_OPTIONS 
                         buffer_strcat(wb, ", ");
 
                     // TODO - this does not get all the values of each key
-                    label_value = labels_get(rd->rrdset->state->chart_labels, label_key);
+                    label_value = rrdlabels_get(rd->rrdset->state->chart_labels, label_key);
                     if (label_value) {
                         buffer_strcat(wb, sq);
                         buffer_strcat(wb, label_value);

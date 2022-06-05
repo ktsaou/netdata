@@ -1254,7 +1254,7 @@ endif
         $(NULL)
     collectors_cgroups_plugin_tests_cgroups_testdriver_LDADD = $(NETDATA_COMMON_LIBS) $(TEST_LIBS)
     collectors_cgroups_plugin_tests_cgroups_testdriver_LDFLAGS = \
-        -Wl,--wrap=labels_add_the_really_bad_way \
+        -Wl,--wrap=rrdlabels_add \
         $(NULL)
 
 endif

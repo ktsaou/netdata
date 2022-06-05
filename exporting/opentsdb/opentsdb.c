@@ -145,7 +145,7 @@ void sanitize_opentsdb_label_value(char *dst, char *src, size_t len)
  * @return Always returns 0.
  */
 
-static int format_opentstb_label_telnet_callback(const char *name, const char *value, LABEL_SOURCE ls, void *data) {
+static int format_opentstb_label_telnet_callback(const char *name, const char *value, RRDLABEL_SRC ls, void *data) {
     struct instance *instance = (struct instance *)data;
 
     if(!should_send_label(instance, ls)) return 0;
@@ -164,7 +164,7 @@ int format_host_labels_opentsdb_telnet(struct instance *instance, RRDHOST *host)
     if (unlikely(!sending_labels_configured(instance)))
         return 0;
 
-    labels_walkthrough_read(host->host_labels, format_opentstb_label_telnet_callback, &instance);
+    rrdlabels_walkthrough_read(host->host_labels, format_opentstb_label_telnet_callback, &instance);
     return 0;
 }
 
@@ -287,7 +287,7 @@ void opentsdb_http_prepare_header(struct instance *instance)
  * @return Always returns 0.
  */
 
-static int format_opentstb_label_http_callback(const char *name, const char *value, LABEL_SOURCE ls, void *data) {
+static int format_opentstb_label_http_callback(const char *name, const char *value, RRDLABEL_SRC ls, void *data) {
     struct instance *instance = (struct instance *)data;
 
     if(!should_send_label(instance, ls)) return 0;
@@ -312,7 +312,7 @@ int format_host_labels_opentsdb_http(struct instance *instance, RRDHOST *host) {
     if (unlikely(!sending_labels_configured(instance)))
         return 0;
 
-    labels_walkthrough_read(host->host_labels, format_opentstb_label_http_callback, &instance);
+    rrdlabels_walkthrough_read(host->host_labels, format_opentstb_label_http_callback, &instance);
     return 0;
 }
 

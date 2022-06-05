@@ -109,7 +109,7 @@ static void rrdsetcalc_link(RRDSET *st, RRDCALC *rc) {
     health_alarm_log(host, ae);
 }
 
-static int count_label_matches_rrdcalc_pattern_callback(const char *name, const char *value, LABEL_SOURCE ls, void *data) {
+static int count_label_matches_rrdcalc_pattern_callback(const char *name, const char *value, RRDLABEL_SRC ls, void *data) {
     (void)ls;
     SIMPLE_PATTERN *splabels = (SIMPLE_PATTERN *)data;
 
@@ -132,7 +132,8 @@ static inline int rrdcalc_test_additional_restriction(RRDCALC *rc, RRDSET *st){
         return 0;
 
     if (rc->labels) {
-        if(!labels_walkthrough_read(st->rrdhost->host_labels, count_label_matches_rrdcalc_pattern_callback, rc->splabels))
+        if(!rrdlabels_walkthrough_read(
+                st->rrdhost->host_labels, count_label_matches_rrdcalc_pattern_callback, rc->splabels))
             return 0;
     }
 
@@ -675,7 +676,7 @@ void rrdcalc_foreach_unlink_and_free(RRDHOST *host, RRDCALC *rc) {
     rrdcalc_free(rc);
 }
 
-static int check_if_label_matches_rrdcalc_pattern_callback(const char *name, const char *value, LABEL_SOURCE ls, void *data) {
+static int check_if_label_matches_rrdcalc_pattern_callback(const char *name, const char *value, RRDLABEL_SRC ls, void *data) {
     (void)ls;
     SIMPLE_PATTERN *splabels = (SIMPLE_PATTERN *)data;
 
@@ -692,7 +693,8 @@ static void rrdcalc_labels_unlink_alarm_loop(RRDHOST *host, RRDCALC *alarms) {
     for(RRDCALC *rc = alarms ; rc ; rc = rc->next ) {
         if (!rc->labels) continue;
 
-        if(labels_walkthrough_read(host->host_labels, check_if_label_matches_rrdcalc_pattern_callback, rc->splabels) != -1) {
+        if(rrdlabels_walkthrough_read(
+                host->host_labels, check_if_label_matches_rrdcalc_pattern_callback, rc->splabels) != -1) {
             info("Health configuration for alarm '%s' cannot be applied, because the host %s does not have the label(s) '%s'",
                  rc->name,
                  host->hostname,

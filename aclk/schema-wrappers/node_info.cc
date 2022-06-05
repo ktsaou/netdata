@@ -66,7 +66,7 @@ static int generate_node_info(nodeinstance::info::v1::NodeInfo *info, struct acl
     ml_info->set_ml_enabled(data->ml_info.ml_enabled);
 
     map = info->mutable_host_labels();
-    labels_walkthrough_read(data->host_labels_head, label_add_to_map_callback, map);
+    rrdlabels_walkthrough_read(data->host_labels_head, label_add_to_map_callback, map);
     return 0;
 }
 

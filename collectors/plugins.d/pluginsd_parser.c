@@ -159,19 +159,23 @@ PARSER_RC pluginsd_dimension_action(void *user, RRDSET *st, char *id, char *name
     return PARSER_RC_OK;
 }
 
-PARSER_RC pluginsd_label_action(void *user, char *key, char *value, LABEL_SOURCE source)
+PARSER_RC pluginsd_label_action(void *user, char *key, char *value, RRDLABEL_SRC source)
 {
 
-    ((PARSER_USER_OBJECT *) user)->new_labels =
-        labels_add_the_really_bad_way(((PARSER_USER_OBJECT *)user)->new_labels, key, value, source);
+    if(unlikely(!((PARSER_USER_OBJECT *) user)->new_labels))
+        ((PARSER_USER_OBJECT *) user)->new_labels = rrdlabels_create();
+
+    rrdlabels_add(((PARSER_USER_OBJECT *)user)->new_labels, key, value, source);
 
     return PARSER_RC_OK;
 }
 
-PARSER_RC pluginsd_clabel_action(void *user, char *key, char *value, LABEL_SOURCE source)
+PARSER_RC pluginsd_clabel_action(void *user, char *key, char *value, RRDLABEL_SRC source)
 {
-    ((PARSER_USER_OBJECT *) user)->chart_labels =
-        labels_add_the_really_bad_way(((PARSER_USER_OBJECT *)user)->chart_labels, key, value, source);
+    if(unlikely(!((PARSER_USER_OBJECT *) user)->chart_labels))
+        ((PARSER_USER_OBJECT *) user)->chart_labels = rrdlabels_create();
+
+    rrdlabels_add(((PARSER_USER_OBJECT *)user)->chart_labels, key, value, source);
 
     return PARSER_RC_OK;
 }
@@ -193,10 +197,10 @@ PARSER_RC pluginsd_overwrite_action(void *user, RRDHOST *host, DICTIONARY *new_l
     UNUSED(user);
 
     if(!host->host_labels)
-        host->host_labels = labels_create();
+        host->host_labels = rrdlabels_create();
 
-    labels_copy_and_replace_existing(host->host_labels, new_labels);
-    labels_destroy(new_labels);
+    rrdlabels_copy_and_replace_existing(host->host_labels, new_labels);
+    rrdlabels_destroy(new_labels);
 
     return PARSER_RC_OK;
 }
@@ -556,7 +560,7 @@ PARSER_RC pluginsd_label(char **words, void *user, PLUGINSD_ACTION  *plugins_act
     char *store;
 
     if (!words[1] || !words[2] || !words[3]) {
-        error("Ignoring malformed or empty LABEL command.");
+        error("Ignoring malformed or empty RRDLABEL command.");
         return PARSER_RC_OK;
     }
     if (!words[4])
@@ -597,7 +601,7 @@ PARSER_RC pluginsd_label(char **words, void *user, PLUGINSD_ACTION  *plugins_act
 PARSER_RC pluginsd_clabel(char **words, void *user, PLUGINSD_ACTION  *plugins_action)
 {
     if (!words[1] || !words[2] || !words[3]) {
-        error("Ignoring malformed or empty CHART LABEL command.");
+        error("Ignoring malformed or empty CHART RRDLABEL command.");
         return PARSER_RC_OK;
     }
 

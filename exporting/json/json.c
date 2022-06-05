@@ -119,7 +119,7 @@ struct format_json_label_callback {
     size_t count;
 };
 
-static int format_json_label_callback(const char *name, const char *value, LABEL_SOURCE ls, void *data) {
+static int format_json_label_callback(const char *name, const char *value, RRDLABEL_SRC ls, void *data) {
     struct format_json_label_callback *d = (struct format_json_label_callback *)data;
 
     if (!should_send_label(d->instance, ls)) return 0;
@@ -148,7 +148,7 @@ int format_host_labels_json_plaintext(struct instance *instance, RRDHOST *host)
         .instance = instance,
         .count = 0
     };
-    labels_walkthrough_read(host->host_labels, format_json_label_callback, &tmp);
+    rrdlabels_walkthrough_read(host->host_labels, format_json_label_callback, &tmp);
 
     buffer_strcat(instance->labels, "},");
 
