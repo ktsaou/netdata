@@ -55,7 +55,7 @@
  */
 
 #define RRDLABELS_MAX_NAME_LENGTH 200
-#define RRDLABELS_MAX_VALUE_LENGTH 400 // 400 in bytes, up to 200 UTF-8 characters
+#define RRDLABELS_MAX_VALUE_LENGTH 800 // 800 in bytes, up to 200 UTF-8 characters
 
 static unsigned char label_spaces_char_map[256];
 static unsigned char label_names_char_map[256];
@@ -384,12 +384,19 @@ static size_t rrdlabels_sanitize(unsigned char *dst, const unsigned char *src, s
     while(*src && d < end) {
         unsigned char c = *src;
 
-        if(IS_UTF8_STARTBYTE(c) && IS_UTF8_BYTE(src[1]) && d + 1 < end) {
-            // UTF-8 encoded 2-byte character
+        if(IS_UTF8_STARTBYTE(c) && IS_UTF8_BYTE(src[1]) && d + 2 < end) {
+            // UTF-8 multi-byte encoded character
+
+            // find how big this character is (2-4 bytes)
+            size_t utf_character_size = 2;
+            while(utf_character_size <= 4 && src[utf_character_size] && IS_UTF8_BYTE(src[utf_character_size]) && !IS_UTF8_STARTBYTE(src[utf_character_size]))
+                utf_character_size++;
 
             if(utf) {
-                *d++ = *src++;
-                *d++ = *src++;
+                while(utf_character_size) {
+                    utf_character_size--;
+                    *d++ = *src++;
+                }
                 last_is_space = 0;
                 mblen++;
                 continue;
@@ -397,9 +404,9 @@ static size_t rrdlabels_sanitize(unsigned char *dst, const unsigned char *src, s
             else {
                 // UTF-8 characters are not allowed.
                 // Assume it is an underscore
-                // and skip the second byte
+                // and skip all except the first byte
                 c = '_';
-                src++;
+                src += (utf_character_size - 1);
             }
         }
 
