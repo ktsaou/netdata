@@ -601,6 +601,8 @@ DICTIONARY *dictionary_create(DICTIONARY_FLAGS flags) {
 }
 
 size_t dictionary_destroy(DICTIONARY *dict) {
+    if(!dict) return 0;
+
     debug(D_DICTIONARY, "Destroying dictionary.");
 
     dictionary_lock_wrlock(dict);
