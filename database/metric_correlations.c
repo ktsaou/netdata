@@ -28,6 +28,32 @@ static inline int binary_search_bigger_than(const DIFFS_NUMBERS arr[], int left,
     return left;
 }
 
+static inline int binary_search_bigger_than_double(const double arr[], int left, int size, double K) {
+    // binary search to find the index the smallest index
+    // of the first value in the array that is greater than K
+
+    int right = size;
+    while(left < right) {
+        int middle = (int)(((unsigned int)(left + right)) >> 1);
+
+        if(arr[middle] > K)
+            right = middle;
+
+        else
+            left = middle + 1;
+    }
+
+    return left;
+}
+
+int compare_doubles(const void *left, const void *right) {
+    double lt = *(double *)left;
+    double rt = *(double *)right;
+
+    // https://stackoverflow.com/a/3886497/1114110
+    return (lt > rt) - (lt < rt);
+}
+
 int compare_diffs(const void *left, const void *right) {
     DIFFS_NUMBERS lt = *(DIFFS_NUMBERS *)left;
     DIFFS_NUMBERS rt = *(DIFFS_NUMBERS *)right;
@@ -78,7 +104,7 @@ static double volume_delta(calculated_number baseline[], int baseline_points, ca
         pcent = (high_volume - base_volume) / base_volume;
 
     else if(high_volume > base_volume)
-        pcent = 1.0;
+        pcent = 1000000000.0;
 
     pcent = calculated_number_fabs(pcent);
     return (double)pcent;
@@ -192,7 +218,7 @@ static int rrdset_metric_correlations(BUFFER *wb, RRDSET *st, DICTIONARY *dict,
                                       long long baseline_after, long long baseline_before,
                                       long long highlight_after, long long highlight_before,
                                       long long max_points, uint32_t shifts, int timeout_ms) {
-    RRDR_OPTIONS options = RRDR_OPTION_NULL2ZERO;
+    RRDR_OPTIONS options = RRDR_OPTION_NULL2ZERO | RRDR_OPTION_NOT_ALIGNED | RRDR_OPTION_ALLOW_PAST | RRDR_OPTION_NONZERO;
     int group_method = RRDR_GROUPING_AVERAGE;
     long group_time = 0;
     struct context_param  *context_param_list = NULL;
@@ -201,7 +227,7 @@ static int rrdset_metric_correlations(BUFFER *wb, RRDSET *st, DICTIONARY *dict,
 
     RRDR *high_rrdr = NULL;
     RRDR *base_rrdr = NULL;
-
+    
     // get first the highlight to find the number of points available
     usec_t started_usec = now_realtime_usec();
     ONEWAYALLOC *owa = onewayalloc_create(0);
@@ -259,6 +285,10 @@ static int rrdset_metric_correlations(BUFFER *wb, RRDSET *st, DICTIONARY *dict,
         if(likely(!(base_rrdr->od[i] & RRDR_DIMENSION_SELECTED) || !(high_rrdr->od[i] & RRDR_DIMENSION_SELECTED)))
             continue;
 
+        // skip the zero dimensions
+        if(likely(!(base_rrdr->od[i] & RRDR_DIMENSION_NONZERO) && !(high_rrdr->od[i] & RRDR_DIMENSION_NONZERO)))
+            continue;
+
         // copy the baseline points of the dimension to a contiguous array
         calculated_number baseline[base_points];
         for(int c = 0; c < base_points; c++)
@@ -271,17 +301,12 @@ static int rrdset_metric_correlations(BUFFER *wb, RRDSET *st, DICTIONARY *dict,
 
         double prob = volume_delta(baseline, base_points, highlight, high_points, shifts);
 
-        // fprintf(stderr, "kstwo %d = %s:%s:%f\n", gettid(), st->name, d->name, prob);
-
-        //if(i) buffer_sprintf(wb, ",\n");
-        //buffer_sprintf(wb, "\t\t\t\t\"%s\": %f", d->name, prob);
         correlated_dimensions++;
 
         char buf[RRD_ID_LENGTH_MAX * 3 + 1];
         snprintfz(buf, 2000, "%s:%s:%s", st->id, st->context, d->id);
         dictionary_set(dict, buf, (void *)&prob, sizeof(double));
     }
-    //buffer_sprintf(wb, "\n");
 
 cleanup:
     rrdr_free(owa, high_rrdr);
@@ -429,74 +454,90 @@ int metric_correlations(RRDHOST *host, BUFFER *wb,
     dfe_done(ptr);
 
     double *value;
-    double max = 0.0;
-    dfe_start_read(results, value) {
-        if(*value > max) max = *value;
-    }
+    size_t dimensions = 0;
+    dfe_start_read(results, value)
+        dimensions++;
     dfe_done(value);
 
+    long long added_dimensions = 0;
+    if(dimensions) {
 
-    buffer_strcat(wb, "{\n\t\"correlated_charts\": {\n");
-
-    c = 0;
-    long long dims = 0;
-    long long total_dims = 0;
-    const char *last_chart = NULL;
-    dfe_start_read(results, value) {
-        double v = *value / max;
-        v = 1.0 - v;
-
-        const char *chart_id = value_name;
-        char *s = (char *)value_name;
-        while(*s && *s != ':') s++;
-
-        if(!*s || *s != ':') {
-            info("metric correlations internal error 1");
-            continue;
+        double slots[dimensions];
+        dimensions = 0;
+        dfe_start_read(results, value) {
+            slots[dimensions++] = *value;
         }
+        dfe_done(value);
 
-        *s++ = '\0';
-        const char *context = s;
+        double slot_size = 1.0 / (double)dimensions;
+        qsort(slots, dimensions, sizeof(double), compare_doubles);
 
-        while(*s && *s != ':') s++;
-        if(!*s || *s != ':') {
-            info("metric correlations internal error 2");
-            continue;
+        buffer_strcat(wb, "{\n\t\"correlated_charts\": {\n");
+
+        c = 0;
+        long long dims = 0;
+        const char *last_chart = NULL;
+        dfe_start_read(results, value) {
+            int slot = binary_search_bigger_than_double(slots, 0, (int)dimensions, *value);
+            double v = slot * slot_size;
+            if(unlikely(v > 1.0)) v = 1.0;
+            v = 1.0 - v;
+
+            const char *chart_id = value_name;
+            char *s = (char *)value_name;
+            while (*s && *s != ':')
+                s++;
+
+            if (!*s || *s != ':') {
+                info("metric correlations internal error 1");
+                continue;
+            }
+
+            *s++ = '\0';
+            const char *context = s;
+
+            while (*s && *s != ':')
+                s++;
+            if (!*s || *s != ':') {
+                info("metric correlations internal error 2");
+                continue;
+            }
+            *s++ = '\0';
+
+            const char *dimension = s;
+
+            if (!last_chart || strcmp(last_chart, chart_id) != 0) {
+                last_chart = chart_id;
+
+                if (c)
+                    buffer_strcat(wb, "\n\t\t\t}\n\t\t},\n");
+                buffer_strcat(wb, "\t\t\"");
+                buffer_strcat(wb, chart_id);
+                buffer_strcat(wb, "\": {\n");
+                buffer_strcat(wb, "\t\t\t\"context\": \"");
+                buffer_strcat(wb, context);
+                buffer_strcat(wb, "\",\n\t\t\t\"dimensions\": {\n");
+
+                c++;
+                dims = 0;
+            }
+
+            if (dims)
+                buffer_sprintf(wb, ",\n");
+            buffer_sprintf(wb, "\t\t\t\t\"%s\": %f", dimension, v);
+            dims++;
+            added_dimensions++;
         }
-        *s++ = '\0';
+        dfe_done(value);
+        // close dimensions and chart
+        if (added_dimensions)
+            buffer_strcat(wb, "\n\t\t\t}\n\t\t}\n");
 
-        const char *dimension = s;
-
-        if(!last_chart || strcmp(last_chart, chart_id) != 0) {
-            last_chart = chart_id;
-
-            if (c) buffer_strcat(wb, "\n\t\t\t}\n\t\t},\n");
-            buffer_strcat(wb, "\t\t\"");
-            buffer_strcat(wb, chart_id);
-            buffer_strcat(wb, "\": {\n");
-            buffer_strcat(wb, "\t\t\t\"context\": \"");
-            buffer_strcat(wb, context);
-            buffer_strcat(wb, "\",\n\t\t\t\"dimensions\": {\n");
-
-            c++;
-            dims = 0;
-        }
-
-        if(dims) buffer_sprintf(wb, ",\n");
-        buffer_sprintf(wb, "\t\t\t\t\"%s\": %f", dimension, v);
-        dims++;
-        total_dims ++;
-
+        // close correlated_charts
+        buffer_sprintf(wb, "\t},\n\t\"total_dimensions_count\": %lld\n}", added_dimensions);
     }
-    dfe_done(value);
-    // close dimensions and chart
-    if(total_dims)
-        buffer_strcat(wb, "\n\t\t\t}\n\t\t}\n");
 
-    // close correlated_charts
-    buffer_sprintf(wb, "\t},\n\t\"total_dimensions_count\": %lld\n}", total_dims);
-
-    if(!total_dims) {
+    if(!added_dimensions) {
         error = "no results produced from correlations";
         resp = HTTP_RESP_NOT_FOUND;
     }
