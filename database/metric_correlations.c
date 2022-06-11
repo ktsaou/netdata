@@ -227,7 +227,7 @@ static int rrdset_metric_correlations(BUFFER *wb, RRDSET *st, DICTIONARY *dict,
 
     RRDR *high_rrdr = NULL;
     RRDR *base_rrdr = NULL;
-    
+
     // get first the highlight to find the number of points available
     usec_t started_usec = now_realtime_usec();
     ONEWAYALLOC *owa = onewayalloc_create(0);
@@ -469,8 +469,23 @@ int metric_correlations(RRDHOST *host, BUFFER *wb,
         }
         dfe_done(value);
 
-        double slot_size = 1.0 / (double)dimensions;
+        // sort the values of all dimensions
         qsort(slots, dimensions, sizeof(double), compare_doubles);
+
+        // skip the duplicates in the sorted array
+        double last_value = NAN;
+        size_t unique_values = 0;
+        for(size_t i = 0; i < dimensions ;i++) {
+            if(likely(slots[i] != last_value))
+                slots[unique_values++] = last_value = slots[i];
+        }
+
+        // if we shortened the array, put an unrealistic value past the useful ones
+        if(unique_values > 0 && unique_values < dimensions)
+            slots[unique_values] = slots[unique_values - 1] * 2;
+
+        // calculate the weight of each slot, using the number of unique values
+        double slot_weight = 1.0 / (double)unique_values;
 
         buffer_strcat(wb, "{\n\t\"correlated_charts\": {\n");
 
@@ -478,8 +493,8 @@ int metric_correlations(RRDHOST *host, BUFFER *wb,
         long long dims = 0;
         const char *last_chart = NULL;
         dfe_start_read(results, value) {
-            int slot = binary_search_bigger_than_double(slots, 0, (int)dimensions, *value);
-            double v = slot * slot_size;
+            int slot = binary_search_bigger_than_double(slots, 0, (int)unique_values, *value);
+            double v = slot * slot_weight;
             if(unlikely(v > 1.0)) v = 1.0;
             v = 1.0 - v;
 
