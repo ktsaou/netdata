@@ -263,6 +263,7 @@ typedef enum {
     LOAD_ERRORS_PAGE_UPDATE_ZERO = 3,
     LOAD_ERRORS_PAGE_FLEXY_TIME = 4,
     LOAD_ERRORS_DROPPED_EXTENT = 5,
+    LOAD_ERRORS_PAGE_FUTURE_TIME = 6,
 } INVALID_PAGE_ID;
 
 struct rrdengine_instance {
@@ -293,7 +294,7 @@ struct rrdengine_instance {
     struct {
         size_t counter;
         usec_t latest_end_time_ut;
-    } load_errors[6];
+    } load_errors[7];
 };
 
 void *dbengine_page_alloc(void);
