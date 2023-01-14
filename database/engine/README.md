@@ -34,7 +34,7 @@ When data points are stored in higher tiers (time aggregations), each data point
 4. Their **maximum** value
 5. Their **anomaly rate**, i.e. the count of values that were anomalous
 6. A **timestamp**, which is the equal to the **end time** of the last point aggregated
-7. An **duration**, which is the sum of all the durations of the points aggregated, including any gaps.
+7. A **duration**, which is the sum of all the durations of the points aggregated, including any gaps.
 
 This design allows Netdata to accurately know the **average**, **minimum**, **maximum** and **anomaly rate** values even when using higher tiers to satisfy a query.
 
@@ -58,14 +58,14 @@ Once a **hot page** is full, becomes a **dirty page** and it is scheduled for im
 
 Flushed (saved) pages are **clean pages**, i.e. read-only pages that reside primarily on disk, and are loaded on demand to satisfy data queries.
 
-Pages are internally configured like this:
+Pages are configured like this:
 
-Description|                 Tier0                 |                 Tier1                 |                Tier2                |                Tier3                |Tier4
----|:-------------------------------------:|:-------------------------------------:|:-----------------------------------:|:-----------------------------------:|:----:
-Enabled by default|                  Yes                  |                  Yes                  |                 Yes                 |                 No                  |No
-Point Size in Bytes|                   4                   |                  16                   |                 16                  |                 16                  |16|16
-Page Size in Bytes| 4096<br/><small>2048 in 32bit</small> | 2048<br/><small>1024 in 32bit</small> | 384<br/><small>192 in 32bit</small> | 384<br/><small>192 in 32bit</small> |384<br/><small>192 in 32bit</small>
-Data Collections per Point|                   1                   |               60x Tier0               |              60x Tier1              |              60x Tier2              | 60x Tier3
+| Attribute              |                 Tier0                 |                              Tier1                              |                              Tier2                              |
+|------------------------|:-------------------------------------:|:---------------------------------------------------------------:|:---------------------------------------------------------------:|
+| Point Size in Bytes    |                   4                   |                               16                                |                               16                                |
+| Page Size in Bytes     | 4096<br/><small>2048 in 32bit</small> |              2048<br/><small>1024 in 32bit</small>              |              384<br/><small>192 in 32bit</small>                |
+| Collections per Point  |                   1                   | 60x Tier0<br/><small>configurable in<br/>`netdata.conf`</small> | 60x Tier1<br/><small>configurable in<br/>`netdata.conf`</small> |
+| Points per Page        | 1024<br/><small>512 in 32bit</small>  |               128<br/><small>64 in 32bit</small>                |                24<br/><small>12 in 32bit</small>                |
 
 
 ### Disk Format
