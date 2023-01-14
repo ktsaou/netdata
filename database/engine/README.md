@@ -4,11 +4,108 @@ description: "Netdata's highly-efficient database engine use both RAM and disk f
 custom_edit_url: https://github.com/netdata/netdata/edit/master/database/engine/README.md
 -->
 
-# Database engine
+# DBENGINE
 
-The Database Engine works like a traditional time series database. Unlike other [database modes](/database/README.md),
-the amount of historical metrics stored is based on the amount of disk space you allocate and the effective compression
-ratio, not a fixed number of metrics collected.
+DBENGINE is the time-series database of Netdata.
+
+## Design
+
+### Data Points
+
+Each data point represents a collected value.
+
+A data point has:
+
+1. A **value**, the data collected for a metric.
+2. A **timestamp**, the time it has been collected.
+3. A **duration**, the time between this and the previous data collection.
+4. A bit flag which is set when machine-learning categorized the collected value as **anomalous** (an outlier based on the trained models).
+5. A bit flag which is set when data collection failed to collect the value in time, marking this data point as a **gap**.
+
+Using the above, we have calculate for each point its **start time**, **end time** and **update every**.
+
+For incremental metrics (counters), Netdata interpolates the collected values to align them to the expected **end time**, at the microsecond level,  absorbing data collection micro-latencies.
+
+When data points are stored in higher tiers (time aggregations), each data point has:
+
+1. The **sum** of the original values that have been aggregated
+2. Their **count**
+3. Their **minimum** value
+4. Their **maximum** value
+5. Their **anomaly rate**, i.e. the count of values that were anomalous
+6. A **timestamp**, which is the equal to the **end time** of the last point aggregated
+7. An **duration**, which is the sum of all the durations of the points aggregated, including any gaps.
+
+This design allows Netdata to accurately know the **average**, **minimum**, **maximum** and **anomaly rate** values even when using higher tiers to satisfy a query.
+
+### Pages of Values
+Data points are organized into **pages**, i.e. segments of contiguous data collections of the same metric.
+
+Each page:
+
+1. Contains data points of a single metric.
+2. Contains data points having the same **update every**. If a metric changes **update every** on the fly, the page is flushed and a new one with the new **update every** is created. If a data collection is missed, a **gap point** is inserted into the page.
+3. Has a **start time**, which is equivalent to the **end time** of the first data point stored into it,
+4. Has an **end time**, which is equal to the ending time of the last data point stored into it,
+
+A **page** is a simple array of values. Each slot in the array has a timestamp implied by its position in the array, and each value stored represents the data collected for that time for the metric the page belongs to.
+
+This simple fixed step database design allows Netdata to collect several millions of points per second and pack all the values in a compact form with minimal metadata overhead.
+
+While a metric is being collected, there is one **hot page** in memory for each of the configured tiers. Values collected for a metric are appended to its **hot page** until that page becomes full. 
+
+Once a **hot page** is full, becomes a **dirty page** and it is scheduled for immediate **flushing** (saving) to disk.
+
+Flushed (saved) pages are **clean pages**, i.e. read-only pages that reside primarily on disk, and are loaded on demand to satisfy data queries.
+
+Pages are internally configured like this:
+
+Description|                 Tier0                 |                 Tier1                 |                Tier2                |                Tier3                |Tier4
+---|:-------------------------------------:|:-------------------------------------:|:-----------------------------------:|:-----------------------------------:|:----:
+Enabled by default|                  Yes                  |                  Yes                  |                 Yes                 |                 No                  |No
+Point Size in Bytes|                   4                   |                  16                   |                 16                  |                 16                  |16|16
+Page Size in Bytes| 4096<br/><small>2048 in 32bit</small> | 2048<br/><small>1024 in 32bit</small> | 384<br/><small>192 in 32bit</small> | 384<br/><small>192 in 32bit</small> |384<br/><small>192 in 32bit</small>
+Data Collections per Point|                   1                   |               60x Tier0               |              60x Tier1              |              60x Tier2              | 60x Tier3
+
+
+### Disk Format
+
+To minimize the amount of data written to disk and the amount of storage required for storing metrics, Netdata aggregates up to 64 **dirty pages** of independent metrics, packs them all together into one bigger buffer, compresses this buffer with LZ4 (about 75% savings on the average) and commits a transaction to the disk files.
+
+This collection of 64 pages that is packed and compressed together is called an **extent**. Netdata tries to store together, in the same **extent** metrics that are meant to be "close". Dimensions of the same chart are like that, they are usually queried together, so it is beneficial to have them in the same **extent** to read all of them at once at query time.
+
+Multiple **extents** are appended to **datafiles** (filename suffix `.ndf`), until these **datafiles** become full. The size of each **datafile** is determined automatically by Netdata. The minimum for each **datafile** is 1MB and the maximum 1GB. Depending on the amount of disk space configured for each tier, Netdata will decide a **datafile** size trying to maintain about 20 datafiles for the whole database, within the limits mentioned (1MB min, 1GB max per file).
+
+Each **datafile** has two **journal files** with metadata related to the stored data in the **datafile**.
+
+- journal file v1, with filename suffix `.njf`, which holds information about the transactions in its **datafile** and provides the ability to recover as much data as possible, in case either the datafile or the journal files get corrupted.
+
+- journal file v2, with filename suffix `.njfv2`, which is a disk-based index for all the **pages** and **extents**. This file is memory mapped at runtime and is consulted to find where the data of a metric are in the datafile. This journal file is automatically re-created from **journal file v1** if it is missing.
+
+Database rotation is achieved by deleting the oldest **datafile** (and its journals) and creating a new one (with its journals).
+
+Data on disk are append-only. There is no way to delete, add, or update data in the middle of the database. If data are not useful for whatever reason, Netdata can be instructed to ignore these data. They will eventually be deleted when the database is rotated. New data are always appended.
+
+### Tiers
+
+**datafiles** are organized in **tiers**. All tiers share the same metrics and same collected values.
+
+- **tier 0** is the high resolution tier that stores the collected data at the frequency they are collected.
+- **tier 1** by default aggregates 60 values of **tier 0**.
+- **tier 2** by default aggregates 60 values of **tier 1**, or 3600 values of **tier 0**.
+
+Updating the higher **tiers** is automated and it happens in real-time while data are being collected for **tier 0**.
+
+When the Netdata Agent starts, during the first data collection of each metric, higher tiers are automatically **backfilled** with data from lower tiers, so that the aggregation they provide will be accurate.
+
+### Data Loss Prevention
+
+Until **hot pages** and **dirty pages** are **flushed** to disk they are at risk (e.g. due to a crash, or
+power failure), as they are stored only in memory up to that time.
+
+The supported way of ensuring high data availability is the use  Netdata Parents to stream the data in real-time to
+multiple other Netdata agents.
+
 
 ## Tiering
 
@@ -299,4 +396,56 @@ and generate a read load of 1.7M/sec, whereas in the CPU-bound scenario the read
 Consequently, there is a significant degree of interference by the reader threads, that slow down the writer threads.
 This is also possible because the interference effects are greater than the SSD impact on data generation throughput.
 
+
+# DBENGINE Memory Requirements
+
+DBENGINE memory is mainly related to the number of metrics concurrently being collected, the retention of the metrics on disk and the number of metrics for which history is maintained.
+
+## Memory for concurrently collected metrics
+
+DBENGINE is automatically sized to use memory according to this equation:
+
+```
+memory in KiB = METRICS x (TIERS - 1) x 2 x 4KiB + 32768 KiB
+```
+
+Where:
+- `METRICS`: the maximum number of concurrently collected metrics (dimensions) from the time the agent started.
+- `TIERS`: the number of storage tiers configured, by default 3 ( `-1` when using 3+ tiers)
+- `x 2`, to accommodate room for flushing data to disk
+- `x 4KiB`, the data segment size of each metric
+- `+ 32768 KiB`, 32 MB for operational caches
+
+So, for 2000 metrics (dimensions) in 3 storage tiers:
+
+```
+memory for 2k metrics = 2000 x (3 - 1) x 2 x 4 KiB + 32768 KiB = 64 MiB
+```
+
+For 100k concurrently collected metrics in 3 storage tiers:
+
+```
+memory for 100k metrics = 100000 x (3 - 1) x 2 x 4 KiB + 32768 KiB = 1.6 GiB
+```
+
+### Exceptions
+
+DBENGINE has several protection mechanisms to prevent the use of more memory, by incrementally fetching data from disk and aggressively evicting old data to make room for the new, but still memory may grow beyond the above limit under the following conditions:
+
+1. The number of pages (metrics data segments) concurrently used in queries do not fit the in the above size. This can happen when multiple queries of unreasonably long time-frames run on lower, higher resolution, tiers. The query planner attempts to avoid such situations by gradually loading pages, but still under extreme conditions the system may use more memory to satisfy these queries.
+
+2. The disks that host DBENGINE files are extremely slow for the workload required by the database so that data cannot be flushed to disk quickly to free memory. DBENGINE will automatically spawn more flushing workers in an attempt to parallelize and speed up flushing, but still if the disks cannot write the data quickly enough, they will remain in memory until they are written to disk.
+
+### Operational Caches
+
+
+### How to find the number of concurrently collected metrics
+
+In the dashboard of the agent, at the `Netdata Monitoring` section, the `dbengine main cache` subsection, the chart `netdata.dbengine_main_cache_pages` shows the number of currently `hot` pages used. The `hot` pages is also the number of metrics `x` storage tiers. So, if you use 3 storage tiers (the default), divide the number of hot pages by 3 to find the number of concurrently collected metrics.
+
+## Memory for archived metrics
+
+DBENGINE uses 150 bytes of memory for every metric for which retention is maintained but is not currently being collected.
+
+### How to find the number of archived metrics
 
