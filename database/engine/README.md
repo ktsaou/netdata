@@ -6,73 +6,71 @@ custom_edit_url: https://github.com/netdata/netdata/edit/master/database/engine/
 
 # DBENGINE
 
-DBENGINE is the time-series database of Netdata.
+DBENGINE is the database of Netdata.
 
 ## Design
 
 ### Data Points
 
-Each data point represents a collected value.
+Each **data point** represents a collected value of a metric.
 
-A data point has:
+A **data point** has:
 
-1. A **value**, the data collected for a metric.
+1. A **value**, the data collected for a metric.  There is a special **value** to indicate that the collector failed to collect a valid value, and thus the data point is a **gap**.
 2. A **timestamp**, the time it has been collected.
 3. A **duration**, the time between this and the previous data collection.
-4. A bit flag which is set when machine-learning categorized the collected value as **anomalous** (an outlier based on the trained models).
-5. A bit flag which is set when data collection failed to collect the value in time, marking this data point as a **gap**.
+4. A flag which is set when machine-learning categorized the collected value as **anomalous** (an outlier based on the trained models).
 
-Using the above, we have calculate for each point its **start time**, **end time** and **update every**.
+Using the **timestamp** and **duration**, Netdata calculates for each point its **start time**, **end time** and **update every**.
 
-For incremental metrics (counters), Netdata interpolates the collected values to align them to the expected **end time**, at the microsecond level,  absorbing data collection micro-latencies.
+For incremental metrics (counters), Netdata interpolates the collected values to align them to the expected **end time** at the microsecond level,  absorbing data collection micro-latencies.
 
-When data points are stored in higher tiers (time aggregations), each data point has:
+When data points are stored in higher tiers (time aggregations - see below), each data point has:
 
-1. The **sum** of the original values that have been aggregated
-2. Their **count**
-3. Their **minimum** value
-4. Their **maximum** value
-5. Their **anomaly rate**, i.e. the count of values that were anomalous
-6. A **timestamp**, which is the equal to the **end time** of the last point aggregated
+1. The **sum** of the original values that have been aggregated,
+2. The **count**  of all the original values aggregated,
+3. The **minimum** value among them,
+4. The **maximum** value among them,
+5. Their **anomaly rate**, i.e. the count of values that were anomalous,
+6. A **timestamp**, which is the equal to the **end time** of the last point aggregated,
 7. A **duration**, which is the sum of all the durations of the points aggregated, including any gaps.
 
 This design allows Netdata to accurately know the **average**, **minimum**, **maximum** and **anomaly rate** values even when using higher tiers to satisfy a query.
 
-### Pages of Values
+### Pages of Data Points
 Data points are organized into **pages**, i.e. segments of contiguous data collections of the same metric.
 
 Each page:
 
-1. Contains data points of a single metric.
-2. Contains data points having the same **update every**. If a metric changes **update every** on the fly, the page is flushed and a new one with the new **update every** is created. If a data collection is missed, a **gap point** is inserted into the page.
+1. Contains contiguous **data points** of a single metric.
+2. Contains **data points** having the same **update every**. If a metric changes **update every** on the fly, the page is flushed and a new one with the new **update every** is created. If a data collection is missed, a **gap point** is inserted into the page, so the data points will remain contiguous.
 3. Has a **start time**, which is equivalent to the **end time** of the first data point stored into it,
-4. Has an **end time**, which is equal to the ending time of the last data point stored into it,
+4. Has an **end time**, which is equal to the **end time** of the last data point stored into it.
 
-A **page** is a simple array of values. Each slot in the array has a timestamp implied by its position in the array, and each value stored represents the data collected for that time for the metric the page belongs to.
+A **page** is a simple array of values. Each slot in the array has a **timestamp** implied by its position in the array, and each value stored represents the **data point** for that time, for the metric the page belongs to.
 
 This simple fixed step database design allows Netdata to collect several millions of points per second and pack all the values in a compact form with minimal metadata overhead.
 
-While a metric is being collected, there is one **hot page** in memory for each of the configured tiers. Values collected for a metric are appended to its **hot page** until that page becomes full. 
+While a metric is collected, there is one **hot page** in memory for each of the configured tiers. Values collected for a metric are appended to its **hot page** until that page becomes full.
 
-Once a **hot page** is full, becomes a **dirty page** and it is scheduled for immediate **flushing** (saving) to disk.
+Once a **hot page** is full, it becomes a **dirty page** and it is scheduled for immediate **flushing** (saving) to disk.
 
 Flushed (saved) pages are **clean pages**, i.e. read-only pages that reside primarily on disk, and are loaded on demand to satisfy data queries.
 
 Pages are configured like this:
 
-| Attribute              |                 Tier0                 |                              Tier1                              |                              Tier2                              |
-|------------------------|:-------------------------------------:|:---------------------------------------------------------------:|:---------------------------------------------------------------:|
-| Point Size in Bytes    |                   4                   |                               16                                |                               16                                |
-| Page Size in Bytes     | 4096<br/><small>2048 in 32bit</small> |              2048<br/><small>1024 in 32bit</small>              |              384<br/><small>192 in 32bit</small>                |
-| Collections per Point  |                   1                   | 60x Tier0<br/><small>configurable in<br/>`netdata.conf`</small> | 60x Tier1<br/><small>configurable in<br/>`netdata.conf`</small> |
-| Points per Page        | 1024<br/><small>512 in 32bit</small>  |               128<br/><small>64 in 32bit</small>                |                24<br/><small>12 in 32bit</small>                |
-
+| Attribute              |                 Tier0                  |                              Tier1                              |                              Tier2                              |
+|------------------------|:--------------------------------------:|:---------------------------------------------------------------:|:---------------------------------------------------------------:|
+| Point Size in Bytes    |                   4                    |                               16                                |                               16                                |
+| Page Size in Bytes     | 4096<br/><small>2048 in 32bit</small>  |              2048<br/><small>1024 in 32bit</small>              |               384<br/><small>192 in 32bit</small>               |
+| Collections per Point  |                   1                    | 60x Tier0<br/><small>configurable in<br/>`netdata.conf`</small> | 60x Tier1<br/><small>configurable in<br/>`netdata.conf`</small> |
+| Points per Page        | 1024<br/><small>512 in 32bit</small>   |              128<br/><small>64 in 32bit</small>                 |               24<br/><small>12 in 32bit</small>                 |
 
 ### Disk Format
 
 To minimize the amount of data written to disk and the amount of storage required for storing metrics, Netdata aggregates up to 64 **dirty pages** of independent metrics, packs them all together into one bigger buffer, compresses this buffer with LZ4 (about 75% savings on the average) and commits a transaction to the disk files.
 
-This collection of 64 pages that is packed and compressed together is called an **extent**. Netdata tries to store together, in the same **extent** metrics that are meant to be "close". Dimensions of the same chart are like that, they are usually queried together, so it is beneficial to have them in the same **extent** to read all of them at once at query time.
+This collection of 64 pages that is packed and compressed together is called an **extent**. Netdata tries to store together, in the same **extent**, metrics that are meant to be "close". Dimensions of the same chart are such. They are usually queried together, so it is beneficial to have them in the same **extent** to read all of them at once at query time.
 
 Multiple **extents** are appended to **datafiles** (filename suffix `.ndf`), until these **datafiles** become full. The size of each **datafile** is determined automatically by Netdata. The minimum for each **datafile** is 1MB and the maximum 1GB. Depending on the amount of disk space configured for each tier, Netdata will decide a **datafile** size trying to maintain about 20 datafiles for the whole database, within the limits mentioned (1MB min, 1GB max per file).
 
@@ -305,7 +303,7 @@ You can apply the settings by running `sysctl -p` or by rebooting.
 
 ## Files
 
-With the DB engine mode the metric data are stored in database files. These files are organized in pairs, the datafiles
+With the DB engine mode the metric data are stored in database files. These files are organized in pairs, the datafiles  
 and their corresponding journalfiles, e.g.:
 
 ```sh
@@ -448,4 +446,3 @@ In the dashboard of the agent, at the `Netdata Monitoring` section, the `dbengin
 DBENGINE uses 150 bytes of memory for every metric for which retention is maintained but is not currently being collected.
 
 ### How to find the number of archived metrics
-
