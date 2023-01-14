@@ -6,7 +6,7 @@ custom_edit_url: https://github.com/netdata/netdata/edit/master/database/engine/
 
 # DBENGINE
 
-DBENGINE is the database of Netdata.
+DBENGINE is the time-series database of Netdata.
 
 ## Design
 
@@ -446,3 +446,6 @@ In the dashboard of the agent, at the `Netdata Monitoring` section, the `dbengin
 DBENGINE uses 150 bytes of memory for every metric for which retention is maintained but is not currently being collected.
 
 ### How to find the number of archived metrics
+<!--stackedit_data:
+eyJoaXN0b3J5IjpbLTIwNzYwNTc1MjldfQ==
+-->
