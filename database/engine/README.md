@@ -12,7 +12,7 @@ DBENGINE is the time-series database of Netdata.
 
 ### Data Points
 
-Each **data point** represents a collected value of a metric.
+**Data points** represent the collected values of metrics.
 
 A **data point** has:
 
@@ -447,5 +447,5 @@ DBENGINE uses 150 bytes of memory for every metric for which retention is mainta
 
 ### How to find the number of archived metrics
 <!--stackedit_data:
-eyJoaXN0b3J5IjpbLTIwNzYwNTc1MjldfQ==
+eyJoaXN0b3J5IjpbLTI0NDI0MjEyNV19
 -->
