@@ -554,6 +554,8 @@ if ENABLE_DBENGINE
         database/engine/metric.h \
         database/engine/pdc.c \
         database/engine/pdc.h \
+        database/engine/pal.c \
+        database/engine/pal.h \
         $(NULL)
 endif
 

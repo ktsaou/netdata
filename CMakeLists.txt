@@ -781,6 +781,8 @@ set(RRD_PLUGIN_FILES
         database/engine/cache.h
         database/engine/metric.c
         database/engine/metric.h
+        database/engine/pal.c
+        database/engine/pal.h
         database/engine/pdc.c
         database/engine/pdc.h
         database/KolmogorovSmirnovDist.c
