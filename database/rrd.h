@@ -134,6 +134,7 @@ typedef struct storage_point {
 extern bool unittest_running;
 extern bool dbengine_enabled;
 extern size_t storage_tiers;
+extern bool use_direct_io;
 extern size_t storage_tiers_grouping_iterations[RRD_STORAGE_TIERS];
 
 typedef enum __attribute__ ((__packed__)) {
@@ -314,7 +315,7 @@ typedef struct storage_collect_handle STORAGE_COLLECT_HANDLE;
 struct rrddim_tier {
     STORAGE_POINT virtual_point;
     size_t tier_grouping;
-    time_t next_point_time_s;
+    time_t next_point_end_time_s;
     STORAGE_METRIC_HANDLE *db_metric_handle;        // the metric handle inside the database
     STORAGE_COLLECT_HANDLE *db_collection_handle;   // the data collection handle
     struct storage_engine_collect_ops *collect_ops;
@@ -436,8 +437,10 @@ void rrddim_memory_file_save(RRDDIM *rd);
     (x).end_time_s = end_s;                             \
     } while(0)
 
+#define STORAGE_POINT_UNSET { .min = NAN, .max = NAN, .sum = NAN, .count = 0, .anomaly_count = 0, .flags = SN_FLAG_NONE, .start_time_s = 0, .end_time_s = 0 }
+
 #define storage_point_is_unset(x) (!(x).count)
-#define storage_point_is_empty(x) (!netdata_double_isnumber((x).sum))
+#define storage_point_is_gap(x) (!netdata_double_isnumber((x).sum))
 
 // ------------------------------------------------------------------------
 // function pointers that handle data collection
@@ -905,9 +908,7 @@ typedef struct health {
     time_t health_delay_up_to;                     // a timestamp to delay alarms processing up to
     STRING *health_default_exec;                   // the full path of the alarms notifications program
     STRING *health_default_recipient;              // the default recipient for all alarms
-    char *health_log_filename;                     // the alarms event log filename
     size_t health_log_entries_written;             // the number of alarm events written to the alarms event log
-    FILE *health_log_fp;                           // the FILE pointer to the open alarms event log file
     uint32_t health_default_warn_repeat_every;     // the default value for the interval between repeating warning notifications
     uint32_t health_default_crit_repeat_every;     // the default value for the interval between repeating critical notifications
 } HEALTH;
@@ -1340,7 +1341,8 @@ void rrdset_free(RRDSET *st);
 
 #ifdef NETDATA_RRD_INTERNALS
 
-char *rrdset_cache_dir(RRDHOST *host, const char *id);
+char *rrdhost_cache_dir_for_rrdset_alloc(RRDHOST *host, const char *id);
+const char *rrdset_cache_dir(RRDSET *st);
 
 void rrddim_free(RRDSET *st, RRDDIM *rd);
 

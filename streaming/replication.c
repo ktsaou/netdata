@@ -311,7 +311,7 @@ static void replication_query_execute(BUFFER *wb, struct replication_query *q, s
     time_t now = after + 1;
     time_t last_end_time_in_buffer = 0;
     while(now <= before) {
-        time_t min_start_time = 0, min_end_time = 0;
+        time_t min_start_time = 0, max_start_time = 0, min_end_time = 0, max_end_time = 0, min_update_every = 0, max_update_every = 0;
         for (size_t i = 0; i < dimensions ;i++) {
             struct replication_dimension *d = &q->data[i];
             if(unlikely(!d->enabled || d->skip)) continue;
@@ -339,14 +339,58 @@ static void replication_query_execute(BUFFER *wb, struct replication_query *q, s
                 // this dimension does not provide any data
                 continue;
 
+            time_t update_every = d->sp.end_time_s - d->sp.start_time_s;
+            if(unlikely(!update_every))
+                update_every = q->st->update_every;
+
+            if(unlikely(!min_update_every))
+                min_update_every = update_every;
+
             if(unlikely(!min_start_time))
                 min_start_time = d->sp.start_time_s;
 
             if(unlikely(!min_end_time))
                 min_end_time = d->sp.end_time_s;
 
+            min_update_every = MIN(min_update_every, update_every);
+            max_update_every = MAX(max_update_every, update_every);
+
             min_start_time = MIN(min_start_time, d->sp.start_time_s);
+            max_start_time = MAX(max_start_time, d->sp.start_time_s);
+
             min_end_time = MIN(min_end_time, d->sp.end_time_s);
+            max_end_time = MAX(max_end_time, d->sp.end_time_s);
+        }
+
+        if (unlikely(min_update_every != max_update_every ||
+                     min_start_time != max_start_time)) {
+
+            time_t fix_min_start_time;
+            if(last_end_time_in_buffer &&
+                last_end_time_in_buffer >= min_start_time &&
+                last_end_time_in_buffer <= max_start_time) {
+                fix_min_start_time = last_end_time_in_buffer;
+            }
+            else
+                fix_min_start_time = min_end_time - min_update_every;
+
+            error_limit_static_global_var(erl, 1, 0);
+            error_limit(&erl, "REPLAY WARNING: 'host:%s/chart:%s' "
+                              "misaligned dimensions "
+                              "update every (min: %ld, max: %ld), "
+                              "start time (min: %ld, max: %ld), "
+                              "end time (min %ld, max %ld), "
+                              "now %ld, last end time sent %ld, "
+                              "min start time is fixed to %ld",
+                        rrdhost_hostname(q->st->rrdhost), rrdset_id(q->st),
+                        min_update_every, max_update_every,
+                        min_start_time, max_start_time,
+                        min_end_time, max_end_time,
+                        now, last_end_time_in_buffer,
+                        fix_min_start_time
+                        );
+
+            min_start_time = fix_min_start_time;
         }
 
         if(likely(min_start_time <= now && min_end_time >= now)) {
@@ -392,7 +436,7 @@ static void replication_query_execute(BUFFER *wb, struct replication_query *q, s
                 if (likely( d->sp.start_time_s <= min_end_time &&
                             d->sp.end_time_s >= min_end_time &&
                             !storage_point_is_unset(d->sp) &&
-                            !storage_point_is_empty(d->sp))) {
+                            !storage_point_is_gap(d->sp))) {
 
                     buffer_sprintf(wb, PLUGINSD_KEYWORD_REPLAY_SET " \"%s\" " NETDATA_DOUBLE_FORMAT " \"%s\"\n",
                                    rrddim_id(d->rd), d->sp.sum, d->sp.flags & SN_FLAG_RESET ? "R" : "");
@@ -1328,6 +1372,7 @@ static bool replication_execute_request(struct replication_request *rq, bool wor
     replication_response_execute_and_finalize(
             rq->q, (size_t)((unsigned long long)rq->sender->host->sender->buffer->max_size * MAX_REPLICATION_MESSAGE_PERCENT_SENDER_BUFFER / 100ULL));
 
+    rq->q = NULL;
     netdata_thread_enable_cancelability();
 
     __atomic_add_fetch(&replication_globals.atomic.executed, 1, __ATOMIC_RELAXED);
@@ -1335,6 +1380,11 @@ static bool replication_execute_request(struct replication_request *rq, bool wor
     ret = true;
 
 cleanup:
+    if(rq->q) {
+        replication_response_cancel_and_finalize(rq->q);
+        rq->q = NULL;
+    }
+
     string_freez(rq->chart_id);
     worker_is_idle();
     return ret;
@@ -1369,7 +1419,9 @@ void replication_sender_delete_pending_requests(struct sender_state *sender) {
 }
 
 void replication_init_sender(struct sender_state *sender) {
-    sender->replication.requests = dictionary_create(DICT_OPTION_DONT_OVERWRITE_VALUE);
+    sender->replication.requests = dictionary_create_advanced(DICT_OPTION_DONT_OVERWRITE_VALUE | DICT_OPTION_FIXED_SIZE,
+                                                              NULL, sizeof(struct replication_request));
+
     dictionary_register_react_callback(sender->replication.requests, replication_request_react_callback, sender);
     dictionary_register_conflict_callback(sender->replication.requests, replication_request_conflict_callback, sender);
     dictionary_register_delete_callback(sender->replication.requests, replication_request_delete_callback, sender);
@@ -1518,15 +1570,43 @@ static void replication_initialize_workers(bool master) {
 #define REQUEST_QUEUE_EMPTY (-1)
 #define REQUEST_CHART_NOT_FOUND (-2)
 
-static int replication_execute_next_pending_request(void) {
+static int replication_execute_next_pending_request(bool cancel) {
     static __thread int max_requests_ahead = 0;
     static __thread struct replication_request *rqs = NULL;
     static __thread int rqs_last_executed = 0, rqs_last_prepared = 0;
     static __thread size_t queue_rounds = 0; (void)queue_rounds;
     struct replication_request *rq;
 
+    if(unlikely(cancel)) {
+        if(rqs) {
+            size_t cancelled = 0;
+            do {
+                if (++rqs_last_executed >= max_requests_ahead)
+                    rqs_last_executed = 0;
+
+                rq = &rqs[rqs_last_executed];
+
+                if (rq->q) {
+                    internal_fatal(rq->executed, "REPLAY FATAL: query has already been executed!");
+                    internal_fatal(!rq->found, "REPLAY FATAL: orphan q in rq");
+
+                    replication_response_cancel_and_finalize(rq->q);
+                    rq->q = NULL;
+                    cancelled++;
+                }
+
+                rq->executed = true;
+                rq->found = false;
+
+            } while (rqs_last_executed != rqs_last_prepared);
+
+            internal_error(true, "REPLICATION: cancelled %zu inflight queries", cancelled);
+        }
+        return REQUEST_QUEUE_EMPTY;
+    }
+
     if(unlikely(!rqs)) {
-        max_requests_ahead = get_system_cpus() / 2;
+        max_requests_ahead = get_netdata_cpus() / 2;
 
         if(max_requests_ahead > libuv_worker_threads * 2)
             max_requests_ahead = libuv_worker_threads * 2;
@@ -1545,8 +1625,8 @@ static int replication_execute_next_pending_request(void) {
             queue_rounds++;
         }
 
-        internal_fatal(queue_rounds > 1 && !rqs[rqs_last_prepared].executed,
-                       "REPLAY FATAL: query has not been executed!");
+        internal_fatal(rqs[rqs_last_prepared].q,
+                       "REPLAY FATAL: slot is used by query that has not been executed!");
 
         worker_is_busy(WORKER_JOB_FIND_NEXT);
         rqs[rqs_last_prepared] = replication_request_get_first_available();
@@ -1562,6 +1642,8 @@ static int replication_execute_next_pending_request(void) {
                 worker_is_busy(WORKER_JOB_PREPARE_QUERY);
                 rq->q = replication_response_prepare(rq->st, rq->start_streaming, rq->after, rq->before);
             }
+
+            rq->executed = false;
         }
 
     } while(rq->found && rqs_last_prepared != rqs_last_executed);
@@ -1572,14 +1654,17 @@ static int replication_execute_next_pending_request(void) {
             rqs_last_executed = 0;
 
         rq = &rqs[rqs_last_executed];
-        rq->executed = true;
 
         if(rq->found) {
+            internal_fatal(rq->executed, "REPLAY FATAL: query has already been executed!");
+
             if (rq->sender_last_flush_ut != rrdpush_sender_get_flush_time(rq->sender)) {
                 // the sender has reconnected since this request was queued,
                 // we can safely throw it away, since the parent will resend it
                 replication_response_cancel_and_finalize(rq->q);
+                rq->executed = true;
                 rq->found = false;
+                rq->q = NULL;
             }
             else if (rrdpush_sender_replication_buffer_full_get(rq->sender)) {
                 // the sender buffer is full, so we can ignore this request,
@@ -1587,7 +1672,9 @@ static int replication_execute_next_pending_request(void) {
                 // and the sender will put it back in when there is
                 // enough room in the buffer for processing replication requests
                 replication_response_cancel_and_finalize(rq->q);
+                rq->executed = true;
                 rq->found = false;
+                rq->q = NULL;
             }
             else {
                 // we can execute this,
@@ -1596,6 +1683,8 @@ static int replication_execute_next_pending_request(void) {
                 dictionary_del(rq->sender->replication.requests, string2str(rq->chart_id));
             }
         }
+        else
+            internal_fatal(rq->q, "REPLAY FATAL: slot status says slot is empty, but it has a pending query!");
 
     } while(!rq->found && rqs_last_executed != rqs_last_prepared);
 
@@ -1606,7 +1695,12 @@ static int replication_execute_next_pending_request(void) {
 
     replication_set_latest_first_time(rq->after);
 
-    if(unlikely(!replication_execute_request(rq, true))) {
+    bool chart_found = replication_execute_request(rq, true);
+    rq->executed = true;
+    rq->found = false;
+    rq->q = NULL;
+
+    if(unlikely(!chart_found)) {
         worker_is_idle();
         return REQUEST_CHART_NOT_FOUND;
     }
@@ -1616,6 +1710,7 @@ static int replication_execute_next_pending_request(void) {
 }
 
 static void replication_worker_cleanup(void *ptr __maybe_unused) {
+    replication_execute_next_pending_request(true);
     worker_unregister();
 }
 
@@ -1625,7 +1720,7 @@ static void *replication_worker_thread(void *ptr) {
     netdata_thread_cleanup_push(replication_worker_cleanup, ptr);
 
     while(service_running(SERVICE_REPLICATION)) {
-        if(unlikely(replication_execute_next_pending_request() == REQUEST_QUEUE_EMPTY)) {
+        if(unlikely(replication_execute_next_pending_request(false) == REQUEST_QUEUE_EMPTY)) {
             sender_thread_buffer_free();
             worker_is_busy(WORKER_JOB_WAIT);
             worker_is_idle();
@@ -1640,6 +1735,8 @@ static void *replication_worker_thread(void *ptr) {
 static void replication_main_cleanup(void *ptr) {
     struct netdata_static_thread *static_thread = (struct netdata_static_thread *)ptr;
     static_thread->enabled = NETDATA_MAIN_THREAD_EXITING;
+
+    replication_execute_next_pending_request(true);
 
     int threads = (int)replication_globals.main_thread.threads;
     for(int i = 0; i < threads ;i++) {
@@ -1756,7 +1853,7 @@ void *replication_thread_main(void *ptr __maybe_unused) {
             worker_is_idle();
         }
 
-        if(unlikely(replication_execute_next_pending_request() == REQUEST_QUEUE_EMPTY)) {
+        if(unlikely(replication_execute_next_pending_request(false) == REQUEST_QUEUE_EMPTY)) {
 
             worker_is_busy(WORKER_JOB_WAIT);
             replication_recursive_lock();

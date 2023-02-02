@@ -18,22 +18,12 @@ struct extent_page_details_list {
         struct extent_page_details_list *prev;
         struct extent_page_details_list *next;
     } query;
-
-    struct {
-        struct extent_page_details_list *prev;
-        struct extent_page_details_list *next;
-    } cache;
 };
 
 typedef struct datafile_extent_offset_list {
     uv_file file;
     unsigned fileno;
     Pvoid_t extent_pd_list_by_extent_offset_JudyL;
-
-    struct {
-        struct datafile_extent_offset_list *prev;
-        struct datafile_extent_offset_list *next;
-    } cache;
 } DEOL;
 
 // ----------------------------------------------------------------------------
@@ -41,315 +31,129 @@ typedef struct datafile_extent_offset_list {
 
 static struct {
     struct {
-        SPINLOCK spinlock;
-        PDC *available_items;
-        size_t available;
-    } protected;
+        ARAL *ar;
+    } pdc;
 
     struct {
-        size_t allocated;
-    } atomics;
-} pdc_globals = {
-        .protected = {
-                .spinlock = NETDATA_SPINLOCK_INITIALIZER,
-                .available_items = NULL,
-                .available = 0,
-        },
-        .atomics = {
-                .allocated = 0,
-        },
-};
+        ARAL *ar;
+    } pd;
 
-void pdc_cleanup1(void) {
-    PDC *item = NULL;
+    struct {
+        ARAL *ar;
+    } epdl;
 
-    if(!netdata_spinlock_trylock(&pdc_globals.protected.spinlock))
-        return;
+    struct {
+        ARAL *ar;
+    } deol;
+} pdc_globals = {};
 
-    if(pdc_globals.protected.available_items && pdc_globals.protected.available > (size_t)libuv_worker_threads) {
-        item = pdc_globals.protected.available_items;
-        DOUBLE_LINKED_LIST_REMOVE_UNSAFE(pdc_globals.protected.available_items, item, cache.prev, cache.next);
-        pdc_globals.protected.available--;
-    }
-
-    netdata_spinlock_unlock(&pdc_globals.protected.spinlock);
-
-    if(item) {
-        freez(item);
-        __atomic_sub_fetch(&pdc_globals.atomics.allocated, 1, __ATOMIC_RELAXED);
-    }
+void pdc_init(void) {
+    pdc_globals.pdc.ar = aral_create(
+            "dbengine-pdc",
+            sizeof(PDC),
+            0,
+            65536,
+            NULL,
+            NULL, NULL, false, false
+            );
 }
 
 PDC *pdc_get(void) {
-    PDC *pdc = NULL;
-
-    netdata_spinlock_lock(&pdc_globals.protected.spinlock);
-
-    if(likely(pdc_globals.protected.available_items)) {
-        pdc = pdc_globals.protected.available_items;
-        DOUBLE_LINKED_LIST_REMOVE_UNSAFE(pdc_globals.protected.available_items, pdc, cache.prev, cache.next);
-        pdc_globals.protected.available--;
-    }
-
-    netdata_spinlock_unlock(&pdc_globals.protected.spinlock);
-
-    if(unlikely(!pdc)) {
-        pdc = mallocz(sizeof(PDC));
-        __atomic_add_fetch(&pdc_globals.atomics.allocated, 1, __ATOMIC_RELAXED);
-    }
-
+    PDC *pdc = aral_mallocz(pdc_globals.pdc.ar);
     memset(pdc, 0, sizeof(PDC));
     return pdc;
 }
 
 static void pdc_release(PDC *pdc) {
-    if(unlikely(!pdc)) return;
-
-    netdata_spinlock_lock(&pdc_globals.protected.spinlock);
-    DOUBLE_LINKED_LIST_APPEND_UNSAFE(pdc_globals.protected.available_items, pdc, cache.prev, cache.next);
-    pdc_globals.protected.available++;
-    netdata_spinlock_unlock(&pdc_globals.protected.spinlock);
+    aral_freez(pdc_globals.pdc.ar, pdc);
 }
 
 size_t pdc_cache_size(void) {
-    return __atomic_load_n(&pdc_globals.atomics.allocated, __ATOMIC_RELAXED) * sizeof(PDC);
+    return aral_overhead(pdc_globals.pdc.ar) + aral_structures(pdc_globals.pdc.ar);
 }
 
 // ----------------------------------------------------------------------------
 // PD cache
 
-static struct {
-    struct {
-        SPINLOCK spinlock;
-        struct page_details *available_items;
-        size_t available;
-    } protected;
-
-    struct {
-        size_t allocated;
-    } atomics;
-} page_details_globals = {
-        .protected = {
-                .spinlock = NETDATA_SPINLOCK_INITIALIZER,
-                .available_items = NULL,
-                .available = 0,
-        },
-        .atomics = {
-                .allocated = 0,
-        },
-};
-
-void page_details_cleanup1(void) {
-    struct page_details *item = NULL;
-
-    if(!netdata_spinlock_trylock(&page_details_globals.protected.spinlock))
-        return;
-
-    if(page_details_globals.protected.available_items && page_details_globals.protected.available > (size_t)libuv_worker_threads * 2) {
-        item = page_details_globals.protected.available_items;
-        DOUBLE_LINKED_LIST_REMOVE_UNSAFE(page_details_globals.protected.available_items, item, cache.prev, cache.next);
-        page_details_globals.protected.available--;
-    }
-
-    netdata_spinlock_unlock(&page_details_globals.protected.spinlock);
-
-    if(item) {
-        freez(item);
-        __atomic_sub_fetch(&page_details_globals.atomics.allocated, 1, __ATOMIC_RELAXED);
-    }
+void page_details_init(void) {
+    pdc_globals.pd.ar = aral_create(
+            "dbengine-pd",
+            sizeof(struct page_details),
+            0,
+            65536,
+            NULL,
+            NULL, NULL, false, false
+    );
 }
 
 struct page_details *page_details_get(void) {
-    struct page_details *pd = NULL;
-
-    netdata_spinlock_lock(&page_details_globals.protected.spinlock);
-
-    if(likely(page_details_globals.protected.available_items)) {
-        pd = page_details_globals.protected.available_items;
-        DOUBLE_LINKED_LIST_REMOVE_UNSAFE(page_details_globals.protected.available_items, pd, cache.prev, cache.next);
-        page_details_globals.protected.available--;
-    }
-
-    netdata_spinlock_unlock(&page_details_globals.protected.spinlock);
-
-    if(unlikely(!pd)) {
-        pd = mallocz(sizeof(struct page_details));
-        __atomic_add_fetch(&page_details_globals.atomics.allocated, 1, __ATOMIC_RELAXED);
-    }
-
+    struct page_details *pd = aral_mallocz(pdc_globals.pd.ar);
     memset(pd, 0, sizeof(struct page_details));
     return pd;
 }
 
 static void page_details_release(struct page_details *pd) {
-    if(unlikely(!pd)) return;
-
-    netdata_spinlock_lock(&page_details_globals.protected.spinlock);
-    DOUBLE_LINKED_LIST_APPEND_UNSAFE(page_details_globals.protected.available_items, pd, cache.prev, cache.next);
-    page_details_globals.protected.available++;
-    netdata_spinlock_unlock(&page_details_globals.protected.spinlock);
+    aral_freez(pdc_globals.pd.ar, pd);
 }
 
 size_t pd_cache_size(void) {
-    return __atomic_load_n(&page_details_globals.atomics.allocated, __ATOMIC_RELAXED) * sizeof(struct page_details);
+    return aral_overhead(pdc_globals.pd.ar) + aral_structures(pdc_globals.pd.ar);
 }
 
 // ----------------------------------------------------------------------------
 // epdl cache
 
-static struct {
-    struct {
-        SPINLOCK spinlock;
-        EPDL *available_items;
-        size_t available;
-    } protected;
-
-    struct {
-        size_t allocated;
-    } atomics;
-} epdl_globals = {
-        .protected = {
-                .spinlock = NETDATA_SPINLOCK_INITIALIZER,
-                .available_items = NULL,
-                .available = 0,
-        },
-        .atomics = {
-                .allocated = 0,
-        },
-};
-
-void epdl_cleanup1(void) {
-    EPDL *item = NULL;
-
-    if(!netdata_spinlock_trylock(&epdl_globals.protected.spinlock))
-        return;
-
-    if(epdl_globals.protected.available_items && epdl_globals.protected.available > 100) {
-        item = epdl_globals.protected.available_items;
-        DOUBLE_LINKED_LIST_REMOVE_UNSAFE(epdl_globals.protected.available_items, item, cache.prev, cache.next);
-        epdl_globals.protected.available--;
-    }
-
-    netdata_spinlock_unlock(&epdl_globals.protected.spinlock);
-
-    if(item) {
-        freez(item);
-        __atomic_sub_fetch(&epdl_globals.atomics.allocated, 1, __ATOMIC_RELAXED);
-    }
+void epdl_init(void) {
+    pdc_globals.epdl.ar = aral_create(
+            "dbengine-epdl",
+            sizeof(EPDL),
+            0,
+            65536,
+            NULL,
+            NULL, NULL, false, false
+    );
 }
 
 static EPDL *epdl_get(void) {
-    EPDL *epdl = NULL;
-
-    netdata_spinlock_lock(&epdl_globals.protected.spinlock);
-
-    if(likely(epdl_globals.protected.available_items)) {
-        epdl = epdl_globals.protected.available_items;
-        DOUBLE_LINKED_LIST_REMOVE_UNSAFE(epdl_globals.protected.available_items, epdl, cache.prev, cache.next);
-        epdl_globals.protected.available--;
-    }
-
-    netdata_spinlock_unlock(&epdl_globals.protected.spinlock);
-
-    if(unlikely(!epdl)) {
-        epdl = mallocz(sizeof(EPDL));
-        __atomic_add_fetch(&epdl_globals.atomics.allocated, 1, __ATOMIC_RELAXED);
-    }
-
+    EPDL *epdl = aral_mallocz(pdc_globals.epdl.ar);
     memset(epdl, 0, sizeof(EPDL));
     return epdl;
 }
 
 static void epdl_release(EPDL *epdl) {
-    if(unlikely(!epdl)) return;
-
-    netdata_spinlock_lock(&epdl_globals.protected.spinlock);
-    DOUBLE_LINKED_LIST_APPEND_UNSAFE(epdl_globals.protected.available_items, epdl, cache.prev, cache.next);
-    epdl_globals.protected.available++;
-    netdata_spinlock_unlock(&epdl_globals.protected.spinlock);
+    aral_freez(pdc_globals.epdl.ar, epdl);
 }
 
 size_t epdl_cache_size(void) {
-    return __atomic_load_n(&epdl_globals.atomics.allocated, __ATOMIC_RELAXED) * sizeof(EPDL);
+    return aral_overhead(pdc_globals.epdl.ar) + aral_structures(pdc_globals.epdl.ar);
 }
 
 // ----------------------------------------------------------------------------
 // deol cache
 
-static struct {
-    struct {
-        SPINLOCK spinlock;
-        DEOL *available_items;
-        size_t available;
-    } protected;
-
-    struct {
-        size_t allocated;
-    } atomics;
-} deol_globals = {
-        .protected = {
-                .spinlock = NETDATA_SPINLOCK_INITIALIZER,
-                .available_items = NULL,
-                .available = 0,
-        },
-        .atomics = {
-                .allocated = 0,
-        },
-};
-
-void deol_cleanup1(void) {
-    DEOL *item = NULL;
-
-    if(!netdata_spinlock_trylock(&deol_globals.protected.spinlock))
-        return;
-
-    if(deol_globals.protected.available_items && deol_globals.protected.available > 100) {
-        item = deol_globals.protected.available_items;
-        DOUBLE_LINKED_LIST_REMOVE_UNSAFE(deol_globals.protected.available_items, item, cache.prev, cache.next);
-        deol_globals.protected.available--;
-    }
-
-    netdata_spinlock_unlock(&deol_globals.protected.spinlock);
-
-    if(item) {
-        freez(item);
-        __atomic_sub_fetch(&deol_globals.atomics.allocated, 1, __ATOMIC_RELAXED);
-    }
+void deol_init(void) {
+    pdc_globals.deol.ar = aral_create(
+            "dbengine-deol",
+            sizeof(DEOL),
+            0,
+            65536,
+            NULL,
+            NULL, NULL, false, false
+    );
 }
 
 static DEOL *deol_get(void) {
-    DEOL *deol = NULL;
-
-    netdata_spinlock_lock(&deol_globals.protected.spinlock);
-
-    if(likely(deol_globals.protected.available_items)) {
-        deol = deol_globals.protected.available_items;
-        DOUBLE_LINKED_LIST_REMOVE_UNSAFE(deol_globals.protected.available_items, deol, cache.prev, cache.next);
-        deol_globals.protected.available--;
-    }
-
-    netdata_spinlock_unlock(&deol_globals.protected.spinlock);
-
-    if(unlikely(!deol)) {
-        deol = mallocz(sizeof(DEOL));
-        __atomic_add_fetch(&deol_globals.atomics.allocated, 1, __ATOMIC_RELAXED);
-    }
-
+    DEOL *deol = aral_mallocz(pdc_globals.deol.ar);
     memset(deol, 0, sizeof(DEOL));
     return deol;
 }
 
 static void deol_release(DEOL *deol) {
-    if(unlikely(!deol)) return;
-
-    netdata_spinlock_lock(&deol_globals.protected.spinlock);
-    DOUBLE_LINKED_LIST_APPEND_UNSAFE(deol_globals.protected.available_items, deol, cache.prev, cache.next);
-    deol_globals.protected.available++;
-    netdata_spinlock_unlock(&deol_globals.protected.spinlock);
+    aral_freez(pdc_globals.deol.ar, deol);
 }
 
 size_t deol_cache_size(void) {
-    return __atomic_load_n(&deol_globals.atomics.allocated, __ATOMIC_RELAXED) * sizeof(DEOL);
+    return aral_overhead(pdc_globals.deol.ar) + aral_structures(pdc_globals.deol.ar);
 }
 
 // ----------------------------------------------------------------------------
@@ -399,7 +203,7 @@ void extent_buffer_cleanup1(void) {
 
     if(extent_buffer_globals.protected.available_items && extent_buffer_globals.protected.available > 1) {
         item = extent_buffer_globals.protected.available_items;
-        DOUBLE_LINKED_LIST_REMOVE_UNSAFE(extent_buffer_globals.protected.available_items, item, cache.prev, cache.next);
+        DOUBLE_LINKED_LIST_REMOVE_ITEM_UNSAFE(extent_buffer_globals.protected.available_items, item, cache.prev, cache.next);
         extent_buffer_globals.protected.available--;
     }
 
@@ -424,7 +228,7 @@ struct extent_buffer *extent_buffer_get(size_t size) {
     netdata_spinlock_lock(&extent_buffer_globals.protected.spinlock);
     if(likely(extent_buffer_globals.protected.available_items)) {
         eb = extent_buffer_globals.protected.available_items;
-        DOUBLE_LINKED_LIST_REMOVE_UNSAFE(extent_buffer_globals.protected.available_items, eb, cache.prev, cache.next);
+        DOUBLE_LINKED_LIST_REMOVE_ITEM_UNSAFE(extent_buffer_globals.protected.available_items, eb, cache.prev, cache.next);
         extent_buffer_globals.protected.available--;
     }
     netdata_spinlock_unlock(&extent_buffer_globals.protected.spinlock);
@@ -452,7 +256,7 @@ void extent_buffer_release(struct extent_buffer *eb) {
     if(unlikely(!eb)) return;
 
     netdata_spinlock_lock(&extent_buffer_globals.protected.spinlock);
-    DOUBLE_LINKED_LIST_APPEND_UNSAFE(extent_buffer_globals.protected.available_items, eb, cache.prev, cache.next);
+    DOUBLE_LINKED_LIST_APPEND_ITEM_UNSAFE(extent_buffer_globals.protected.available_items, eb, cache.prev, cache.next);
     extent_buffer_globals.protected.available++;
     netdata_spinlock_unlock(&extent_buffer_globals.protected.spinlock);
 }
@@ -606,6 +410,9 @@ void pdc_acquire(PDC *pdc) {
 }
 
 bool pdc_release_and_destroy_if_unreferenced(PDC *pdc, bool worker, bool router __maybe_unused) {
+    if(unlikely(!pdc))
+        return true;
+
     netdata_spinlock_lock(&pdc->refcount_spinlock);
 
     if(pdc->refcount <= 0)
@@ -668,7 +475,7 @@ static bool epdl_pending_add(EPDL *epdl) {
             rrdeng_req_cmd(epdl_get_cmd, base, epdl->pdc->priority);
     }
 
-    DOUBLE_LINKED_LIST_APPEND_UNSAFE(base, epdl, query.prev, query.next);
+    DOUBLE_LINKED_LIST_APPEND_ITEM_UNSAFE(base, epdl, query.prev, query.next);
     *PValue = base;
 
     netdata_spinlock_unlock(&epdl->datafile->extent_queries.spinlock);
@@ -1006,7 +813,7 @@ static inline struct page_details *epdl_get_pd_load_link_list_from_metric_start_
                     if (unlikely(__atomic_load_n(&ep->pdc->workers_should_stop, __ATOMIC_RELAXED)))
                         pdc_page_status_set(pd, PDC_PAGE_FAILED | PDC_PAGE_CANCELLED);
                     else
-                        DOUBLE_LINKED_LIST_APPEND_UNSAFE(pd_list, pd, load.prev, load.next);
+                        DOUBLE_LINKED_LIST_APPEND_ITEM_UNSAFE(pd_list, pd, load.prev, load.next);
                 }
             }
         }
@@ -1157,7 +964,7 @@ static bool epdl_populate_pages_from_extent_data(
                 have_read_error);
 
         if(worker)
-            worker_is_busy(UV_EVENT_DBENGINE_EXTENT_PAGE_POPULATION);
+            worker_is_busy(UV_EVENT_DBENGINE_EXTENT_PAGE_ALLOCATION);
 
         void *page_data;
 
@@ -1188,6 +995,9 @@ static bool epdl_populate_pages_from_extent_data(
                 }
             }
         }
+
+        if(worker)
+            worker_is_busy(UV_EVENT_DBENGINE_EXTENT_PAGE_POPULATION);
 
         PGC_ENTRY page_entry = {
                 .hot = false,
@@ -1256,6 +1066,35 @@ static bool epdl_populate_pages_from_extent_data(
     return true;
 }
 
+static inline void *datafile_extent_read(struct rrdengine_instance *ctx, uv_file file, unsigned pos, unsigned size_bytes)
+{
+    void *buffer;
+    uv_fs_t request;
+
+    unsigned real_io_size = ALIGN_BYTES_CEILING(size_bytes);
+    int ret = posix_memalign(&buffer, RRDFILE_ALIGNMENT, real_io_size);
+    if (unlikely(ret))
+        fatal("DBENGINE: posix_memalign(): %s", strerror(ret));
+
+    uv_buf_t iov = uv_buf_init(buffer, real_io_size);
+    ret = uv_fs_read(NULL, &request, file, &iov, 1, pos, NULL);
+    if (unlikely(-1 == ret)) {
+        ctx_io_error(ctx);
+        posix_memfree(buffer);
+        buffer = NULL;
+    }
+    else
+        ctx_io_read_op_bytes(ctx, real_io_size);
+
+    uv_fs_req_cleanup(&request);
+
+    return buffer;
+}
+
+static inline void datafile_extent_read_free(void *buffer) {
+    posix_memfree(buffer);
+}
+
 void epdl_find_extent_and_populate_pages(struct rrdengine_instance *ctx, EPDL *epdl, bool worker) {
     size_t *statistics_counter = NULL;
     PDC_PAGE_STATUS not_loaded_pages_tag = 0, loaded_pages_tag = 0;
@@ -1303,18 +1142,12 @@ void epdl_find_extent_and_populate_pages(struct rrdengine_instance *ctx, EPDL *e
         if(worker)
             worker_is_busy(UV_EVENT_DBENGINE_EXTENT_MMAP);
 
-        off_t map_start =  ALIGN_BYTES_FLOOR(epdl->extent_offset);
-        size_t length = ALIGN_BYTES_CEILING(epdl->extent_offset + epdl->extent_size) - map_start;
-
-        void *mmap_data = mmap(NULL, length, PROT_READ, MAP_SHARED, epdl->file, map_start);
-        if(mmap_data != MAP_FAILED) {
-            extent_compressed_data = mmap_data + (epdl->extent_offset - map_start);
+        void *extent_data = datafile_extent_read(ctx, epdl->file, epdl->extent_offset, epdl->extent_size);
+        if(extent_data != NULL) {
 
             void *copied_extent_compressed_data = dbengine_extent_alloc(epdl->extent_size);
-            memcpy(copied_extent_compressed_data, extent_compressed_data, epdl->extent_size);
-
-            int ret = munmap(mmap_data, length);
-            fatal_assert(0 == ret);
+            memcpy(copied_extent_compressed_data, extent_data, epdl->extent_size);
+            datafile_extent_read_free(extent_data);
 
             if(worker)
                 worker_is_busy(UV_EVENT_DBENGINE_EXTENT_CACHE_LOOKUP);

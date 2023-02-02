@@ -243,7 +243,7 @@ STORAGE_COLLECT_HANDLE *rrdeng_store_metric_init(STORAGE_METRIC_HANDLE *db_metri
     struct rrdengine_instance *ctx = mrg_metric_ctx(metric);
 
     bool is_1st_metric_writer = true;
-    if(!mrg_metric_writer_acquire(main_mrg, metric)) {
+    if(!mrg_metric_set_writer(main_mrg, metric)) {
         is_1st_metric_writer = false;
         char uuid[UUID_STR_LEN + 1];
         uuid_unparse(*mrg_metric_uuid(main_mrg, metric), uuid);
@@ -266,16 +266,19 @@ STORAGE_COLLECT_HANDLE *rrdeng_store_metric_init(STORAGE_METRIC_HANDLE *db_metri
     if(!is_1st_metric_writer)
         __atomic_add_fetch(&ctx->atomic.collectors_running_duplicate, 1, __ATOMIC_RELAXED);
 
-    // this is important!
-    // if we don't set the page_end_time_ut during the first collection
-    // data collection may be able to go back in time and during the addition of new pages
-    // clean pages may be found matching ours!
-    handle->page_end_time_ut = (usec_t)mrg_metric_get_latest_time_s(main_mrg, metric) * USEC_PER_SEC;
-
     mrg_metric_set_update_every(main_mrg, metric, update_every);
 
     handle->alignment = (struct pg_alignment *)smg;
     rrdeng_page_alignment_acquire(handle->alignment);
+
+    // this is important!
+    // if we don't set the page_end_time_ut during the first collection
+    // data collection may be able to go back in time and during the addition of new pages
+    // clean pages may be found matching ours!
+
+    time_t db_first_time_s, db_last_time_s, db_update_every_s;
+    mrg_metric_get_retention(main_mrg, metric, &db_first_time_s, &db_last_time_s, &db_update_every_s);
+    handle->page_end_time_ut = (usec_t)db_last_time_s * USEC_PER_SEC;
 
     return (STORAGE_COLLECT_HANDLE *)handle;
 }
@@ -382,11 +385,12 @@ static void rrdeng_store_metric_create_new_page(struct rrdeng_collect_handle *ha
         error_limit(&erl,
 #endif
               "DBENGINE: metric '%s' new page from %ld to %ld, update every %ld, has a conflict in main cache "
-              "with existing %s page from %ld to %ld, update every %ld - "
+              "with existing %s%s page from %ld to %ld, update every %ld - "
               "is it collected more than once?",
               uuid,
               page_entry.start_time_s, page_entry.end_time_s, (time_t)page_entry.update_every_s,
               pgc_is_page_hot(page) ? "hot" : "not-hot",
+              pgc_page_data(page) == DBENGINE_EMPTY_PAGE ? " gap" : "",
               pgc_page_start_time_s(page), pgc_page_end_time_s(page), pgc_page_update_every_s(page)
               );
 
@@ -580,12 +584,8 @@ static void store_metric_next_error_log(struct rrdeng_collect_handle *handle, us
         collect_page_flags_to_buffer(wb, handle->page_flags);
     }
 
-#ifdef NETDATA_INTERNAL_CHECKS
-    internal_error(true,
-#else
     error_limit_static_global_var(erl, 1, 0);
     error_limit(&erl,
-#endif
                 "DBENGINE: metric '%s' collected point at %ld, %s last collection at %ld, "
                 "update every %ld, %s page from %ld to %ld, position %u (of %u), flags: %s",
                 uuid,
@@ -696,11 +696,11 @@ int rrdeng_store_metric_finalize(STORAGE_COLLECT_HANDLE *collection_handle) {
     if(!(handle->options & RRDENG_1ST_METRIC_WRITER))
         __atomic_sub_fetch(&ctx->atomic.collectors_running_duplicate, 1, __ATOMIC_RELAXED);
 
-    if((handle->options & RRDENG_1ST_METRIC_WRITER) && !mrg_metric_writer_release(main_mrg, handle->metric))
+    if((handle->options & RRDENG_1ST_METRIC_WRITER) && !mrg_metric_clear_writer(main_mrg, handle->metric))
         internal_fatal(true, "DBENGINE: metric is already released");
 
-    time_t first_time_s = mrg_metric_get_first_time_s(main_mrg, handle->metric);
-    time_t last_time_s = mrg_metric_get_latest_time_s(main_mrg, handle->metric);
+    time_t first_time_s, last_time_s, update_every_s;
+    mrg_metric_get_retention(main_mrg, handle->metric, &first_time_s, &last_time_s, &update_every_s);
 
     mrg_metric_release(main_mrg, handle->metric);
     freez(handle);
@@ -738,12 +738,12 @@ static void register_query_handle(struct rrdeng_query_handle *handle) {
     handle->started_time_s = now_realtime_sec();
 
     netdata_spinlock_lock(&global_query_handle_spinlock);
-    DOUBLE_LINKED_LIST_APPEND_UNSAFE(global_query_handle_ll, handle, prev, next);
+    DOUBLE_LINKED_LIST_APPEND_ITEM_UNSAFE(global_query_handle_ll, handle, prev, next);
     netdata_spinlock_unlock(&global_query_handle_spinlock);
 }
 static void unregister_query_handle(struct rrdeng_query_handle *handle) {
     netdata_spinlock_lock(&global_query_handle_spinlock);
-    DOUBLE_LINKED_LIST_REMOVE_UNSAFE(global_query_handle_ll, handle, prev, next);
+    DOUBLE_LINKED_LIST_REMOVE_ITEM_UNSAFE(global_query_handle_ll, handle, prev, next);
     netdata_spinlock_unlock(&global_query_handle_spinlock);
 }
 #else
@@ -759,7 +759,11 @@ static void unregister_query_handle(struct rrdeng_query_handle *handle __maybe_u
  * Gets a handle for loading metrics from the database.
  * The handle must be released with rrdeng_load_metric_final().
  */
-void rrdeng_load_metric_init(STORAGE_METRIC_HANDLE *db_metric_handle, struct storage_engine_query_handle *rrddim_handle, time_t start_time_s, time_t end_time_s, STORAGE_PRIORITY priority)
+void rrdeng_load_metric_init(STORAGE_METRIC_HANDLE *db_metric_handle,
+                             struct storage_engine_query_handle *rrddim_handle,
+                             time_t start_time_s,
+                             time_t end_time_s,
+                             STORAGE_PRIORITY priority)
 {
     usec_t started_ut = now_monotonic_usec();
 
@@ -768,8 +772,6 @@ void rrdeng_load_metric_init(STORAGE_METRIC_HANDLE *db_metric_handle, struct sto
     METRIC *metric = (METRIC *)db_metric_handle;
     struct rrdengine_instance *ctx = mrg_metric_ctx(metric);
     struct rrdeng_query_handle *handle;
-
-    mrg_metric_set_update_every_s_if_zero(main_mrg, metric, default_rrd_update_every);
 
     handle = rrdeng_query_handle_get();
     register_query_handle(handle);
@@ -781,23 +783,48 @@ void rrdeng_load_metric_init(STORAGE_METRIC_HANDLE *db_metric_handle, struct sto
 
     handle->ctx = ctx;
     handle->metric = metric;
-    handle->start_time_s = start_time_s;
-    handle->end_time_s = end_time_s;
     handle->priority = priority;
-    handle->now_s = start_time_s;
 
-    handle->dt_s = mrg_metric_get_update_every_s(main_mrg, metric);
-    if(!handle->dt_s)
-        handle->dt_s = default_rrd_update_every;
+    // IMPORTANT!
+    // It is crucial not to exceed the db boundaries, because dbengine
+    // now has gap caching, so when a gap is detected a negative page
+    // is inserted into the main cache, to avoid scanning the journals
+    // again for pages matching the gap.
 
-    rrddim_handle->handle = (STORAGE_QUERY_HANDLE *)handle;
-    rrddim_handle->start_time_s = start_time_s;
-    rrddim_handle->end_time_s = end_time_s;
-    rrddim_handle->priority = priority;
+    time_t db_first_time_s, db_last_time_s, db_update_every_s;
+    mrg_metric_get_retention(main_mrg, metric, &db_first_time_s, &db_last_time_s, &db_update_every_s);
 
-    pg_cache_preload(handle);
+    if(is_page_in_time_range(start_time_s, end_time_s, db_first_time_s, db_last_time_s) == PAGE_IS_IN_RANGE) {
+        handle->start_time_s = MAX(start_time_s, db_first_time_s);
+        handle->end_time_s = MIN(end_time_s, db_last_time_s);
+        handle->now_s = handle->start_time_s;
 
-    __atomic_add_fetch(&rrdeng_cache_efficiency_stats.query_time_init, now_monotonic_usec() - started_ut, __ATOMIC_RELAXED);
+        handle->dt_s = db_update_every_s;
+        if (!handle->dt_s) {
+            handle->dt_s = default_rrd_update_every;
+            mrg_metric_set_update_every_s_if_zero(main_mrg, metric, default_rrd_update_every);
+        }
+
+        rrddim_handle->handle = (STORAGE_QUERY_HANDLE *) handle;
+        rrddim_handle->start_time_s = handle->start_time_s;
+        rrddim_handle->end_time_s = handle->end_time_s;
+        rrddim_handle->priority = priority;
+
+        pg_cache_preload(handle);
+
+        __atomic_add_fetch(&rrdeng_cache_efficiency_stats.query_time_init, now_monotonic_usec() - started_ut, __ATOMIC_RELAXED);
+    }
+    else {
+        handle->start_time_s = start_time_s;
+        handle->end_time_s = end_time_s;
+        handle->now_s = start_time_s;
+        handle->dt_s = db_update_every_s;
+
+        rrddim_handle->handle = (STORAGE_QUERY_HANDLE *) handle;
+        rrddim_handle->start_time_s = handle->start_time_s;
+        rrddim_handle->end_time_s = 0;
+        rrddim_handle->priority = priority;
+    }
 }
 
 static bool rrdeng_load_page_next(struct storage_engine_query_handle *rrddim_handle, bool debug_this __maybe_unused) {
@@ -827,10 +854,19 @@ static bool rrdeng_load_page_next(struct storage_engine_query_handle *rrddim_han
     unsigned position;
     if(likely(handle->now_s >= page_start_time_s && handle->now_s <= page_end_time_s)) {
 
-        if(unlikely(entries == 1 || page_start_time_s == page_end_time_s))
+        if(unlikely(entries == 1 || page_start_time_s == page_end_time_s || !page_update_every_s)) {
             position = 0;
-        else
+            handle->now_s = page_start_time_s;
+        }
+        else {
             position = (handle->now_s - page_start_time_s) * (entries - 1) / (page_end_time_s - page_start_time_s);
+            time_t point_end_time_s = page_start_time_s + position * page_update_every_s;
+            if(point_end_time_s < handle->now_s && position + 1 < entries) {
+                position++;
+                point_end_time_s = page_start_time_s + position * page_update_every_s;
+            }
+            handle->now_s = point_end_time_s;
+        }
 
         internal_fatal(position >= entries, "DBENGINE: wrong page position calculation");
     }
@@ -986,8 +1022,8 @@ bool rrdeng_metric_retention_by_uuid(STORAGE_INSTANCE *db_instance, uuid_t *dim_
     if (unlikely(!metric))
         return false;
 
-    *first_entry_s = mrg_metric_get_first_time_s(main_mrg, metric);
-    *last_entry_s = mrg_metric_get_latest_time_s(main_mrg, metric);
+    time_t update_every_s;
+    mrg_metric_get_retention(main_mrg, metric, first_entry_s, last_entry_s, &update_every_s);
 
     mrg_metric_release(main_mrg, metric);
 
@@ -1054,12 +1090,12 @@ static void rrdeng_populate_mrg(struct rrdengine_instance *ctx) {
         datafiles++;
     uv_rwlock_rdunlock(&ctx->datafiles.rwlock);
 
-    size_t cpus = get_system_cpus() / 2;
+    size_t cpus = get_netdata_cpus() / storage_tiers;
     if(cpus > datafiles)
         cpus = datafiles;
 
-    if(cpus < 2)
-        cpus = 2;
+    if(cpus < 1)
+        cpus = 1;
 
     if(cpus > (size_t)libuv_worker_threads)
         cpus = (size_t)libuv_worker_threads;
@@ -1122,7 +1158,7 @@ void rrdeng_exit_mode(struct rrdengine_instance *ctx) {
 /*
  * Returns 0 on success, negative on error
  */
-int rrdeng_init(struct rrdengine_instance **ctxp, char *dbfiles_path, unsigned page_cache_mb,
+int rrdeng_init(struct rrdengine_instance **ctxp, const char *dbfiles_path,
                 unsigned disk_space_mb, size_t tier) {
     struct rrdengine_instance *ctx;
     uint32_t max_open_files;
@@ -1155,8 +1191,6 @@ int rrdeng_init(struct rrdengine_instance **ctxp, char *dbfiles_path, unsigned p
     ctx->config.tier = (int)tier;
     ctx->config.page_type = tier_page_type[tier];
     ctx->config.global_compress_alg = RRD_LZ4;
-    if (page_cache_mb < RRDENG_MIN_PAGE_CACHE_SIZE_MB)
-        page_cache_mb = RRDENG_MIN_PAGE_CACHE_SIZE_MB;
     if (disk_space_mb < RRDENG_MIN_DISK_SPACE_MB)
         disk_space_mb = RRDENG_MIN_DISK_SPACE_MB;
     ctx->config.max_disk_space = disk_space_mb * 1048576LLU;
@@ -1166,15 +1200,10 @@ int rrdeng_init(struct rrdengine_instance **ctxp, char *dbfiles_path, unsigned p
     ctx->atomic.transaction_id = 1;
     ctx->quiesce.enabled = false;
 
-    init_page_cache();
-    if (!init_rrd_files(ctx)) {
-        if(rrdeng_dbengine_spawn(ctx)) {
-            // success - we run this ctx too
-            rrdeng_populate_mrg(ctx);
-            return 0;
-        }
-
-        finalize_rrd_files(ctx);
+    if (rrdeng_dbengine_spawn(ctx) && !init_rrd_files(ctx)) {
+        // success - we run this ctx too
+        rrdeng_populate_mrg(ctx);
+        return 0;
     }
 
     if (ctx->config.legacy) {

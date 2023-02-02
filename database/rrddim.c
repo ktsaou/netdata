@@ -291,7 +291,8 @@ static void rrddim_react_callback(const DICTIONARY_ITEM *item __maybe_unused, vo
 
 void rrddim_index_init(RRDSET *st) {
     if(!st->rrddim_root_index) {
-        st->rrddim_root_index = dictionary_create_advanced(DICT_OPTION_DONT_OVERWRITE_VALUE, &dictionary_stats_category_rrdset_rrddim);
+        st->rrddim_root_index = dictionary_create_advanced(DICT_OPTION_DONT_OVERWRITE_VALUE | DICT_OPTION_FIXED_SIZE,
+                                                           &dictionary_stats_category_rrdset_rrddim, sizeof(RRDDIM));
 
         dictionary_register_insert_callback(st->rrddim_root_index, rrddim_insert_callback, NULL);
         dictionary_register_conflict_callback(st->rrddim_root_index, rrddim_conflict_callback, NULL);
@@ -686,7 +687,7 @@ bool rrddim_memory_load_or_create_map_save(RRDSET *st, RRDDIM *rd, RRD_MEMORY_MO
     char filename[FILENAME_MAX + 1];
     char fullfilename[FILENAME_MAX + 1];
     rrdset_strncpyz_name(filename, rrddim_id(rd), FILENAME_MAX);
-    snprintfz(fullfilename, FILENAME_MAX, "%s/%s.db", st->cache_dir, filename);
+    snprintfz(fullfilename, FILENAME_MAX, "%s/%s.db", rrdset_cache_dir(st), filename);
 
     rd_on_file = (struct rrddim_map_save_v019 *)netdata_mmap(
         fullfilename, size, ((memory_mode == RRD_MEMORY_MODE_MAP) ? MAP_SHARED : MAP_PRIVATE), 1, false, NULL);
