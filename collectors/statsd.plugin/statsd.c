@@ -20,9 +20,6 @@
 
 // --------------------------------------------------------------------------------------
 
-// DO NOT ENABLE MULTITHREADING - IT IS NOT WELL TESTED
-// #define STATSD_MULTITHREADED 1
-
 #define STATSD_DICTIONARY_OPTIONS (DICT_OPTION_DONT_OVERWRITE_VALUE | DICT_OPTION_ADD_IN_FRONT)
 #define STATSD_DECIMAL_DETAIL 1000 // floating point values get multiplied by this, with the same divisor
 
@@ -38,8 +35,6 @@ typedef struct statsd_metric_counter { // counter and meter
 } STATSD_METRIC_COUNTER;
 
 typedef struct statsd_histogram_extensions {
-    netdata_mutex_t mutex;
-
     // average is stored in metric->last
     collected_number last_min;
     collected_number last_max;
@@ -150,19 +145,19 @@ typedef struct statsd_metric {
 // each type of metric has its own index
 
 typedef struct statsd_index {
-    char *name;                     // the name of the index of metrics
+    char *name;                         // the name of the index of metrics
 
     STATS_METRIC_OPTIONS default_options;  // default options for all metrics in this index
-    STATSD_METRIC_TYPE type;        // the type of index
+    STATSD_METRIC_TYPE type;            // the type of index
     DICTIONARY *dict;
 
     struct {
         uint32_t events;                // the number of events processed for this index
     } atomic;
 
-    struct {
-        uint32_t count;          // the number of useful metrics in this index
-        STATSD_METRIC *first;    // the linked list of useful metrics (new metrics are added in front)
+    struct {                            // this structure is only accessed by the flusher
+        uint32_t count;                 // the number of useful metrics in this index
+        STATSD_METRIC *first;           // the linked list of useful metrics (new metrics are added in front)
     } useful;
 
 } STATSD_INDEX;
@@ -350,7 +345,7 @@ static struct statsd {
         .histogram_percentile = 95.0,
         .histogram_increase_step = 10,
         .dictionary_max_unique = 200,
-        .threads = 0,
+        .threads = 1,
         .collection_threads_status = NULL,
         .sockets = {
                 .config          = &netdata_config,
@@ -377,10 +372,8 @@ static void dictionary_metric_insert_callback(const DICTIONARY_ITEM *item, void 
     m->type = index->type;
     m->options = index->default_options;
 
-    if (m->type == STATSD_METRIC_TYPE_HISTOGRAM || m->type == STATSD_METRIC_TYPE_TIMER) {
+    if (m->type == STATSD_METRIC_TYPE_HISTOGRAM || m->type == STATSD_METRIC_TYPE_TIMER)
         m->histogram.ext = callocz(1,sizeof(STATSD_METRIC_HISTOGRAM_EXTENSIONS));
-        netdata_mutex_init(&m->histogram.ext->mutex);
-    }
 
     spinlock_init(&m->spinlock);
 }
@@ -403,17 +396,9 @@ static void dictionary_metric_delete_callback(const DICTIONARY_ITEM *item, void 
 static inline STATSD_METRIC *statsd_find_or_add_metric(STATSD_INDEX *index, const char *name) {
     netdata_log_debug(D_STATSD, "searching for metric '%s' under '%s'", name, index->name);
 
-#ifdef STATSD_MULTITHREADED
     // avoid the write lock of dictionary_set() for existing metrics
     STATSD_METRIC *m = dictionary_get(index->dict, name);
     if(!m) m = dictionary_set(index->dict, name, NULL, sizeof(STATSD_METRIC));
-#else
-    // no locks here, go faster
-    // this will call the dictionary_metric_insert_callback() if an item
-    // is inserted, otherwise it will return the existing one.
-    // We used the flag DICT_OPTION_DONT_OVERWRITE_VALUE to support this.
-    STATSD_METRIC *m = dictionary_set(index->dict, name, NULL, sizeof(STATSD_METRIC));
-#endif
 
     __atomic_add_fetch(&index->atomic.events, 1, __ATOMIC_RELAXED);
     return m;
@@ -550,10 +535,8 @@ static inline void statsd_process_histogram_or_timer(STATSD_METRIC *m, const cha
         while(samples-- > 0) {
 
             if(unlikely(m->histogram.ext->used == m->histogram.ext->size)) {
-                netdata_mutex_lock(&m->histogram.ext->mutex);
                 m->histogram.ext->size += statsd.histogram_increase_step;
                 m->histogram.ext->values = reallocz(m->histogram.ext->values, sizeof(NETDATA_DOUBLE) * m->histogram.ext->size);
-                netdata_mutex_unlock(&m->histogram.ext->mutex);
             }
 
             m->histogram.ext->values[m->histogram.ext->used++] = v;
@@ -590,13 +573,7 @@ static inline void statsd_process_set(STATSD_METRIC *m, const char *value) {
         // magic loading of metric, without affecting anything
     }
     else {
-#ifdef STATSD_MULTITHREADED
-        // avoid the write lock to check if something is already there
-        if(!dictionary_get(m->set.dict, value))
-            dictionary_set(m->set.dict, value, NULL, 0);
-#else
         dictionary_set(m->set.dict, value, NULL, 0);
-#endif
         m->events++;
         m->count++;
     }
@@ -682,41 +659,55 @@ static void statsd_process_metric(const char *name, const char *value, const cha
 
     char t0 = type[0], t1 = type[1];
     if(unlikely(t0 == 'g' && t1 == '\0')) {
-        statsd_process_gauge(
-            m = statsd_find_or_add_metric(&statsd.gauges, name),
-            value, sampling);
+        m = statsd_find_or_add_metric(&statsd.gauges, name);
+        if(m) {
+            spinlock_lock(&m->spinlock);
+            statsd_process_gauge(m, value, sampling);
+        }
     }
     else if(unlikely((t0 == 'c' || t0 == 'C') && t1 == '\0')) {
         // etsy/statsd uses 'c'
         // brubeck     uses 'C'
-        statsd_process_counter(
-            m = statsd_find_or_add_metric(&statsd.counters, name),
-            value, sampling);
+        m = statsd_find_or_add_metric(&statsd.counters, name);
+        if(m) {
+            spinlock_lock(&m->spinlock);
+            statsd_process_counter(m, value, sampling);
+        }
     }
     else if(unlikely(t0 == 'm' && t1 == '\0')) {
-        statsd_process_meter(
-            m = statsd_find_or_add_metric(&statsd.meters, name),
-            value, sampling);
+        m = statsd_find_or_add_metric(&statsd.meters, name);
+        if(m) {
+            spinlock_lock(&m->spinlock);
+            statsd_process_meter(m, value, sampling);
+        }
     }
     else if(unlikely(t0 == 'h' && t1 == '\0')) {
-        statsd_process_histogram(
-            m = statsd_find_or_add_metric(&statsd.histograms, name),
-            value, sampling);
+        m = statsd_find_or_add_metric(&statsd.histograms, name);
+        if(m) {
+            spinlock_lock(&m->spinlock);
+            statsd_process_histogram(m, value, sampling);
+        }
     }
     else if(unlikely(t0 == 's' && t1 == '\0')) {
-        statsd_process_set(
-            m = statsd_find_or_add_metric(&statsd.sets, name),
-            value);
+        m = statsd_find_or_add_metric(&statsd.sets, name);
+        if(m) {
+            spinlock_lock(&m->spinlock);
+            statsd_process_set(m, value);
+        }
     }
     else if(unlikely(t0 == 'd' && t1 == '\0')) {
-        statsd_process_dictionary(
-            m = statsd_find_or_add_metric(&statsd.dictionaries, name),
-            value);
+        m = statsd_find_or_add_metric(&statsd.dictionaries, name);
+        if(m) {
+            spinlock_lock(&m->spinlock);
+            statsd_process_dictionary(m, value);
+        }
     }
     else if(unlikely(t0 == 'm' && t1 == 's' && type[2] == '\0')) {
-        statsd_process_timer(
-            m = statsd_find_or_add_metric(&statsd.timers, name),
-            value, sampling);
+        m = statsd_find_or_add_metric(&statsd.timers, name);
+        if(m) {
+            spinlock_lock(&m->spinlock);
+            statsd_process_timer(m, value, sampling);
+        }
     }
     else {
         statsd_atomic_increment(unknown_types);
@@ -764,6 +755,9 @@ static void statsd_process_metric(const char *name, const char *value, const cha
             }
         }
     }
+
+    if(m)
+        spinlock_unlock(&m->spinlock);
 }
 
 static inline size_t statsd_process(char *buffer, size_t size, int require_newlines) {
@@ -1930,8 +1924,6 @@ static inline void statsd_flush_timer_or_histogram(STATSD_METRIC *m, const char 
 
     int updated = 0;
     if(unlikely(!m->reset && m->count && m->histogram.ext->used > 0)) {
-        netdata_mutex_lock(&m->histogram.ext->mutex);
-
         size_t len = m->histogram.ext->used;
         NETDATA_DOUBLE *series = m->histogram.ext->values;
         sort_series(series, len);
@@ -1948,8 +1940,6 @@ static inline void statsd_flush_timer_or_histogram(STATSD_METRIC *m, const char 
             m->histogram.ext->last_percentile = (collected_number)(series[0] * statsd.decimal_detail);
         else
             m->histogram.ext->last_percentile = (collected_number)roundndd(series[pct_len - 1] * statsd.decimal_detail);
-
-        netdata_mutex_unlock(&m->histogram.ext->mutex);
 
         netdata_log_debug(D_STATSD, "STATSD %s metric %s: min " COLLECTED_NUMBER_FORMAT ", max " COLLECTED_NUMBER_FORMAT ", last " COLLECTED_NUMBER_FORMAT ", pcent " COLLECTED_NUMBER_FORMAT ", median " COLLECTED_NUMBER_FORMAT ", stddev " COLLECTED_NUMBER_FORMAT ", sum " COLLECTED_NUMBER_FORMAT,
               dim, m->name, m->histogram.ext->last_min, m->histogram.ext->last_max, m->last, m->histogram.ext->last_percentile, m->histogram.ext->last_median, m->histogram.ext->last_stddev, m->histogram.ext->last_sum);
@@ -2326,7 +2316,9 @@ static inline void statsd_flush_index_metrics(STATSD_INDEX *index, void (*flush_
 
     // flush all the useful metrics
     for(m = index->useful.first; m ; m = m->next_useful) {
+        spinlock_lock(&m->spinlock);
         flush_metric(m);
+        spinlock_unlock(&m->spinlock);
     }
 }
 
@@ -2496,16 +2488,12 @@ void *statsd_main(void *ptr) {
 
     size_t max_sockets = (size_t)config_get_number(CONFIG_SECTION_STATSD, "statsd server max TCP sockets", (long long int)(rlimit_nofile.rlim_cur / 4));
 
-#ifdef STATSD_MULTITHREADED
-    statsd.threads = (int)config_get_number(CONFIG_SECTION_STATSD, "threads", processors);
+    statsd.threads = (int)config_get_number(CONFIG_SECTION_STATSD, "threads", statsd.threads);
     if(statsd.threads < 1) {
-        collector_error("STATSD: Invalid number of threads %d, using %d", statsd.threads, processors);
-        statsd.threads = processors;
+        collector_error("STATSD: Invalid number of threads %d, using %d", statsd.threads, statsd.threads);
+        statsd.threads = 1;
         config_set_number(CONFIG_SECTION_STATSD, "collector threads", statsd.threads);
     }
-#else
-    statsd.threads = 1;
-#endif
 
     // read custom application definitions
     statsd_readdir(netdata_configured_user_config_dir, netdata_configured_stock_config_dir, "statsd.d");
