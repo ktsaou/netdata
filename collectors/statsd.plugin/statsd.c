@@ -807,6 +807,7 @@ int web_client_api_request_v2_statsd(RRDHOST *host __maybe_unused, struct web_cl
     char *units = NULL;
     char *family = NULL;
     char *title = NULL;
+    char *instance = NULL;
 
     DICTIONARY *rrdlabels = NULL;
     BUFFER *b = NULL;
@@ -832,6 +833,8 @@ int web_client_api_request_v2_statsd(RRDHOST *host __maybe_unused, struct web_cl
             title = v;
         else if(!strcmp(n, "family"))
             family = v;
+        else if(!strcmp(n, "instance"))
+            instance = v;
         else if(!strcmp(n, "tag") || !strcmp(n, "tags") || !strcmp(n, "label") || !strcmp(n, "labels")) {
             if(!rrdlabels)
                 rrdlabels = rrdlabels_create();
@@ -876,7 +879,11 @@ int web_client_api_request_v2_statsd(RRDHOST *host __maybe_unused, struct web_cl
         goto cleanup;
     }
 
-    if(rrdlabels && dictionary_entries(rrdlabels)) {
+    if(instance && *instance) {
+        metric = instance;
+        netdata_fix_chart_id(metric);
+    }
+    else if(rrdlabels && dictionary_entries(rrdlabels)) {
         if(!b)
             b = buffer_create(0, NULL);
         else
