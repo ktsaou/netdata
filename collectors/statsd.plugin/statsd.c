@@ -127,6 +127,8 @@ typedef struct statsd_metric {
     char *units;
     char *dimname;
     char *family;
+    char *context;
+    DICTIONARY *rrdlabels;
 
     // chart related members
     STATS_METRIC_OPTIONS options;   // STATSD_METRIC_OPTION_* (bitfield)
@@ -391,6 +393,8 @@ static void dictionary_metric_delete_callback(const DICTIONARY_ITEM *item, void 
     freez(m->units);
     freez(m->family);
     freez(m->dimname);
+    freez(m->context);
+    rrdlabels_destroy(m->rrdlabels);
 }
 
 static inline STATSD_METRIC *statsd_find_or_add_metric(STATSD_INDEX *index, const char *name) {
@@ -758,6 +762,188 @@ static void statsd_process_metric(const char *name, const char *value, const cha
 
     if(m)
         spinlock_unlock(&m->spinlock);
+}
+
+static int sorted_rrdlabel_callback(const char *key, const char *value, RRDLABEL_SRC src, void *data) {
+    BUFFER *b = data;
+
+    if(buffer_strlen(b))
+        buffer_strcat(b, "|");
+
+    buffer_strcat(b, key);
+    buffer_strcat(b, "=");
+    buffer_strcat(b, value);
+
+    return 1;
+}
+
+int web_client_api_request_v2_statsd(RRDHOST *host __maybe_unused, struct web_client *w, char *url) {
+    char *type = NULL;
+    char *metric = NULL;
+    char *value = NULL;
+    char *dimname = NULL;
+    char *units = NULL;
+    char *family = NULL;
+
+    DICTIONARY *rrdlabels = NULL;
+    BUFFER *b = NULL;
+
+    while (url) {
+        char *v = strsep_skip_consecutive_separators(&url, "&");
+        if (!v || !*v) continue;
+
+        char *n = strsep_skip_consecutive_separators(&v, "=");
+        if (!n || !v || !*n || !*v) continue;
+
+        if(!strcmp(n, "type"))
+            type = v;
+        else if(!strcmp(n, "metric"))
+            metric = v;
+        else if(!strcmp(n, "value"))
+            value = v;
+        else if(!strcmp(n, "name"))
+            dimname = v;
+        else if(!strcmp(n, "units"))
+            units = v;
+        else if(!strcmp(n, "family"))
+            family = v;
+        else if(!strcmp(n, "tag") || !strcmp(n, "label")) {
+            if(!rrdlabels)
+                rrdlabels = rrdlabels_create();
+
+            char *key = v;
+
+            char *key_end = v;
+            while(*key_end && *key_end != ':') key_end++;
+
+            while(*key_end == ':') {
+                *key_end = '\0';
+                key_end++;
+            }
+
+            rrdlabels_add(rrdlabels, key, *key_end ? key_end : "[set]", RRDLABEL_SRC_AUTO);
+        }
+    }
+
+    if(!dimname) {
+        if(units)
+            dimname = units;
+        else
+            dimname = "value";
+    }
+
+    char *context = metric;
+    if(rrdlabels && dictionary_entries(rrdlabels)) {
+        if(!b)
+            b = buffer_create(0, NULL);
+        else
+            buffer_flush(b);
+
+        buffer_strcat(b, metric);
+        buffer_strcat(b, "_");
+
+        rrdlabels_sorted_walkthrough_read(rrdlabels, sorted_rrdlabel_callback, b);
+
+        uint32_t hash = simple_hash(buffer_tostring(b));
+        buffer_strcat(b, "_");
+        buffer_print_uint64_hex(b, hash);
+
+        metric = (char *)buffer_tostring(b);
+        netdata_fix_chart_id(metric);
+    }
+
+    netdata_fix_chart_id(context);
+
+    STATSD_METRIC *m = NULL;
+    if(!strcmp(type, "meter")) {
+        m = statsd_find_or_add_metric(&statsd.meters, metric);
+        spinlock_lock(&m->spinlock);
+        statsd_process_meter(m, value, NULL);
+    }
+    else if(!strcmp(type, "counter")) {
+        m = statsd_find_or_add_metric(&statsd.meters, metric);
+        spinlock_lock(&m->spinlock);
+        statsd_process_counter(m, value, NULL);
+    }
+    else if(!strcmp(type, "histogram")) {
+        m = statsd_find_or_add_metric(&statsd.histograms, metric);
+        spinlock_lock(&m->spinlock);
+        statsd_process_histogram(m, value, NULL);
+    }
+    else if(!strcmp(type, "timer")) {
+        m = statsd_find_or_add_metric(&statsd.timers, metric);
+        spinlock_lock(&m->spinlock);
+        statsd_process_timer(m, value, NULL);
+    }
+    else if(!strcmp(type, "set")) {
+        m = statsd_find_or_add_metric(&statsd.sets, metric);
+        spinlock_lock(&m->spinlock);
+        statsd_process_set(m, value);
+    }
+    else if(!strcmp(type, "dictionary")) {
+        m = statsd_find_or_add_metric(&statsd.dictionaries, metric);
+        spinlock_lock(&m->spinlock);
+        statsd_process_dictionary(m, value);
+    }
+    else if(!strcmp(type, "gauge")) {
+        m = statsd_find_or_add_metric(&statsd.gauges, metric);
+        spinlock_lock(&m->spinlock);
+        statsd_process_gauge(m, value, NULL);
+    }
+
+    int ret;
+    if(m) {
+        if(!m->rrdlabels) {
+            m->rrdlabels = rrdlabels;
+            rrdlabels = NULL;
+        }
+        else {
+            rrdlabels_migrate_to_these(m->rrdlabels, rrdlabels);
+        }
+
+        if(units && *units && (!m->units || strcmp(units, m->units) != 0)) {
+            freez(m->units);
+            m->units = strdupz(units);
+        }
+        if(family && *family && (!m->family || strcmp(family, m->family) != 0)) {
+            freez(m->family);
+            m->family = strdupz(family);
+        }
+        if(dimname && *dimname && (!m->dimname || strcmp(dimname, m->dimname) != 0)) {
+            freez(m->dimname);
+            m->dimname = strdupz(dimname);
+        }
+        if(context && *context && (!m->context || strcmp(context, m->context) != 0)) {
+            freez(m->context);
+            m->context = strdupz(context);
+        }
+
+        buffer_flush(w->response.data);
+        buffer_json_initialize(w->response.data, "\"", "\"", 0, true, false);
+        buffer_json_member_add_string(w->response.data, "metric", metric);
+        buffer_json_member_add_string(w->response.data, "context", context);
+        buffer_json_member_add_string(w->response.data, "value", value);
+        buffer_json_member_add_string(w->response.data, "family", family);
+        buffer_json_member_add_string(w->response.data, "name", dimname);
+        buffer_json_member_add_object(w->response.data, "labels");
+        rrdlabels_to_buffer_json_members(m->rrdlabels, w->response.data);
+        buffer_json_object_close(w->response.data); // labels
+        buffer_json_finalize(w->response.data);
+        spinlock_unlock(&m->spinlock);
+
+        ret = HTTP_RESP_OK;
+    }
+    else {
+        buffer_flush(w->response.data);
+        buffer_strcat(w->response.data, "Cannot find or create a metric of that type");
+
+        ret = HTTP_RESP_BAD_REQUEST;
+    }
+
+    buffer_free(b);
+    dictionary_destroy(rrdlabels);
+
+    return ret;
 }
 
 static inline size_t statsd_process(char *buffer, size_t size, int require_newlines) {
@@ -1567,7 +1753,10 @@ static inline void statsd_get_metric_type_and_id(STATSD_METRIC *m, char *type, c
         snprintfz(id, len, "%s", metrictype);
 
     // for the context, we want the full of both the above, separated with a dot (type.id):
-    snprintfz(context, RRD_ID_LENGTH_MAX, "%s.%s", type, id);
+    if(m->context)
+        snprintfz(context, RRD_ID_LENGTH_MAX, STATSD_CHART_PREFIX "_%s", m->context);
+    else
+        snprintfz(context, RRD_ID_LENGTH_MAX, "%s.%s", type, id);
 
     // make sure they don't have illegal characters
     netdata_fix_chart_id(type);
@@ -1576,7 +1765,7 @@ static inline void statsd_get_metric_type_and_id(STATSD_METRIC *m, char *type, c
 }
 
 static inline RRDSET *statsd_private_rrdset_create(
-        STATSD_METRIC *m __maybe_unused
+        STATSD_METRIC *m
         , const char *type
         , const char *id
         , const char *name
@@ -1612,6 +1801,15 @@ static inline RRDSET *statsd_private_rrdset_create(
 
     if(statsd.private_charts_hidden)
         rrdset_flag_set(st, RRDSET_FLAG_HIDDEN);
+
+    if(m->rrdlabels) {
+        if (!m->st->rrdlabels) {
+            m->st->rrdlabels = rrdlabels_create();
+            rrdlabels_copy(m->st->rrdlabels, m->rrdlabels);
+        }
+        else
+            rrdlabels_migrate_to_these(m->st->rrdlabels, m->rrdlabels);
+    }
 
     // rrdset_flag_set(st, RRDSET_FLAG_DEBUG);
     return st;

@@ -644,6 +644,8 @@ static int web_client_api_request_v2_webrtc(RRDHOST *host __maybe_unused, struct
     return webrtc_new_connection(w->post_payload, w->response.data);
 }
 
+int web_client_api_request_v2_statsd(RRDHOST *host __maybe_unused, struct web_client *w, char *url);
+
 static struct web_api_command api_commands_v2[] = {
         {"info",                0, WEB_CLIENT_ACL_DASHBOARD_ACLK_WEBRTC,                                       web_client_api_request_v2_info},
 
@@ -662,6 +664,8 @@ static struct web_api_command api_commands_v2[] = {
         {"alert_config",        0, WEB_CLIENT_ACL_DASHBOARD_ACLK_WEBRTC,                                       web_client_api_request_v2_alert_config},
 
         {"claim",               0, WEB_CLIENT_ACL_NOCHECK,                                                     web_client_api_request_v2_claim},
+
+        {"statsd",              0, ACL_DEV_OPEN_ACCESS,                                                        web_client_api_request_v2_statsd},
 
         {"rtc_offer",           0, WEB_CLIENT_ACL_ACLK | ACL_DEV_OPEN_ACCESS,                                  web_client_api_request_v2_webrtc},
         {"bearer_protection",   0, WEB_CLIENT_ACL_ACLK | ACL_DEV_OPEN_ACCESS, api_v2_bearer_protection},
