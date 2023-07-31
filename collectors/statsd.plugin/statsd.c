@@ -1277,15 +1277,15 @@ static int statsd_rcv_callback(POLLINFO *pi, short int *events) {
                     // read failed
                     if (errno != EWOULDBLOCK && errno != EAGAIN && errno != EINTR) {
                         netdata_log_error("STATSD: recv() on UDP socket %d failed.", fd);
-                        statsd.socket_errors++;
+                        statsd_atomic_increment(socket_errors);
                         retval = -1;
                         goto cleanup;
                     }
                 } else if (rc) {
                     // data received
-                    statsd.udp_socket_reads++;
-                    statsd.udp_packets_received++;
-                    statsd.udp_bytes_read += rc;
+                    statsd_atomic_increment(udp_socket_reads);
+                    statsd_atomic_increment(udp_packets_received);
+                    statsd_atomic_add(udp_bytes_read, rc);
                     statsd_process(d->buffer, (size_t) rc, 0);
                 }
             } while (rc != -1);
