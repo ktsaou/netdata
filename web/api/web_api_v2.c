@@ -647,11 +647,6 @@ static int web_client_api_request_v2_webrtc(RRDHOST *host __maybe_unused, struct
 int web_client_api_request_v2_statsd(RRDHOST *host __maybe_unused, struct web_client *w, char *url);
 
 #define CONFIG_API_V2_URL "/api/v2/config"
-
-static void freez_config(void *ptr) {
-    freez(ptr);
-}
-
 static int web_client_api_request_v2_config(RRDHOST *host __maybe_unused, struct web_client *w, char *query) {
 
     char *url = strdupz(buffer_tostring(w->url_as_received));
@@ -705,7 +700,7 @@ static int web_client_api_request_v2_config(RRDHOST *host __maybe_unused, struct
         if (resp.content_free)
             resp.content_free(resp.content);
         resp.content = con;
-        resp.content_free = freez_config;
+        resp.content_free = freez_dyncfg;
     }
     buffer_strcat(w->response.data, resp.content);
     if (resp.content_free)
