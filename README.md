@@ -624,7 +624,7 @@ In a nutshell, Netdata proves invaluable for:
 &nbsp;<br/>&nbsp;<br/>
 </details>
 
-### Is Netdata open-source?
+### :globe_with_meridians: Is Netdata open-source?
 
 The Netdata Agent back-end is entirely open-source. We ship 3 different versions of the UI: 2 open-source versions and 1 closed-source version.
 
@@ -709,7 +709,7 @@ instructions on building each Netdata component from the source and preparing a 
 
 ## License
 
-Netdata is [GPLv3+](https://github.com/netdata/netdata/blob/master/LICENSE). Netdata re-distributes other open-source tools and libraries. Please check the
+Netdata is released under [GPLv3+](https://github.com/netdata/netdata/blob/master/LICENSE). Netdata re-distributes other open-source tools and libraries. Please check the
 [third party licenses](https://github.com/netdata/netdata/blob/master/REDISTRIBUTED.md).
 
-The Latest Netdata UI, is [NCUL1](https://github.com/netdata/netdata/blob/master/web/gui/v2/LICENSE.md) and is not open-source. It also uses third party open source components. Check the [UI third party licenses](https://github.com/netdata/netdata/blob/master/web/gui/v2/3D_PARTY_LICENSES.txt)
+The Latest Netdata UI, is distributed under [NCUL1](https://github.com/netdata/netdata/blob/master/web/gui/v2/LICENSE.md). It also uses third party open source components. Check the [UI third party licenses](https://github.com/netdata/netdata/blob/master/web/gui/v2/3D_PARTY_LICENSES.txt)
