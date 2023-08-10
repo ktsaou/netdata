@@ -98,9 +98,6 @@ It scales nicely from just a single server to thousands of servers, even in comp
 
 ## What's New and Coming?
 
-> **Spoiler!**<br/>
-> Netdata Integrations Marketplace is coming...
-
 <details><summary>Click to see our immediate development plans and a summary view of the last 12 months' releases...</summary>
 &nbsp;<br/>
 
@@ -114,7 +111,7 @@ It scales nicely from just a single server to thousands of servers, even in comp
 |          UCUM Units           |                    Migrate all metrics to the Unified Code for Units of Measure.                    |     soon     |                                               in progress                                               |
 | **Netdata Cloud<br/>On-Prem** |                        **Netdata Cloud available for On-Prem installation!**                        |   **soon**   |                                             **in progress**                                             |
 |       Click to Activate       |                          Configure Alerts and Data Collectors from the UI!                          |     soon     |                                               in progress                                               |
-|         Integrations          |                                  Netdata Integrations Marketplace!                                  |     soon     |                                                finishing                                                |
+|         Integrations          |                                  Netdata Integrations Marketplace!                                  | Aug<br/>2023 |           [v1.42](https://github.com/netdata/netdata/releases#v1420-integrations-marketplace)           |
 |         New Agent UI          |                    Now Netdata Cloud and Netdata Agent share the same dashboard!                    | Jul<br/>2023 |          [v1.41](https://github.com/netdata/netdata/releases/tag/v1.41.0#v1410-one-dashboard)           |
 |      Summary Dashboards       |                                    High level tiles everywhere!                                     | Jun<br/>2023 | [v1.40](https://github.com/netdata/netdata/releases/tag/v1.40.0#v1400-visualization-summary-dashboards) |
 |       Machine Learning        |                                   Multiple ML models per metric.                                    | Jun<br/>2023 |       [v1.40](https://github.com/netdata/netdata/releases/tag/v1.40.0#v1400-ml-extended-training)       |
@@ -441,6 +438,8 @@ So, the biggest difference of Netdata to Prometheus, and Grafana, is that we dec
   - When compared to Prometheus, Netdata needs for each metric much more than just a name, some labels, and a value over time. A metric in Netdata is a structured entity that correlates with other metrics in a certain way and has specific attributes that depict how it should be organized, treated, queried, and visualized. We call this the NIDL (Nodes, Instances, Dimensions, Labels) framework.
 
     Maintaining such an index is a challenge: first, because the raw metrics collected do not provide this information, so we have to add it, and second because we need to maintain this index for the lifetime of each metric, which with our current database retention, it is usually more than a year.
+
+    At the same time, Netdata provides better retention than Prometheus due to database tiering, scales easier than Prometheus due to streaming, supports anomaly detection and it has a mertrics scoring engine to find the needle in the haystack when needed.
 
   - When compared to Grafana, Netdata is fully automated. Grafana has more customization capabilities than Netdata, but Netdata presents fully functional dashboards by itself and most importantly it gives you the means to understand, analyze, filter, slice and dice the data without the need for you to edit queries or be aware of any peculiarities the underlying metrics may have.
 
