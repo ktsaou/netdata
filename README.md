@@ -645,6 +645,39 @@ The Netdata Cloud UI is not open-source. But we thought that it is to the benefi
 &nbsp;<br/>&nbsp;<br/>
 </details>
 
+### :moneybag: What is your monetization strategy?
+
+Netdata generates revenue through subscriptions to advanced features of Netdata Cloud and sales of on-premise and private versions of Netdata Cloud.
+
+<details><summary>Click to see detailed answer ...</summary>
+&nbsp;<br/>&nbsp;<br/>
+
+Netdata generates revenue from these activities:
+
+1. **Netdata Cloud Subscriptions**<br/>
+   Direct funding for our project's vision comes from users subscribing to Netdata Cloud's advanced features.
+   
+2. **Netdata Cloud On-Prem or Private**<br/>
+   Purchasing the on-premises or private versions of Netdata Cloud supports our financial growth.
+
+Our Open-Source Community and the free access to Netdata Cloud, contribute to Netdata in the following ways:
+
+- **Netdata Cloud Community Use**<br/>
+  The free usage of Netdata Cloud demonstrates its market relevance. While this doesn't generate revenue, it reinforces trust among new users and aids in securing appropriate project funding.
+
+- **User Feedback**<br/>
+  Feedback, especially issues and bug reports, is invaluable. It steers us towards a more resilient and efficient product. This, too, isn't a revenue source but is pivotal for our project's evolution.
+
+- **Anonymous Telemetry Insights**<br/>
+  Users who keep anonymous telemetry enabled, help us make data informed decisions in refining and enhancing Netdata. This isn't a revenue stream, but knowing which features are used and how, contributes in building a better product for everyone.
+
+We don't monetize, directly or indirectly, users' or "device heuristics" data. Any data collected from community members are exclusively used for the purposes stated above.
+
+Netdata grows financially when tehnnology intensive organizations and operators, need - due to regulatory or business requirements - the entire Netdata suite (including Netdata Cloud) on-prem or private, bundled with top-tier support. It is a win-win case for all parties involved: these companies get a battle tested, robust and reliable solution, while the broader community that helps us build this product, enjoys it at no cost.
+
+&nbsp;<br/>&nbsp;<br/>
+</details>
+
 ## :book: Documentation
 
 Netdata's documentation is available at [**Netdata Learn**](https://learn.netdata.cloud).

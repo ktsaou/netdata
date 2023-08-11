@@ -887,6 +887,8 @@ static inline PARSER_RC pluginsd_function(char **words, size_t num_words, PARSER
 
     rrd_collector_add_function(host, st, name, timeout, help, false, pluginsd_execute_function_callback, parser);
 
+    parser->user.data_collections_count++;
+
     return PARSER_RC_OK;
 }
 
@@ -895,6 +897,8 @@ static void pluginsd_function_result_end(struct parser *parser, void *action_dat
     if(key)
         dictionary_del(parser->inflight.functions, string2str(key));
     string_freez(key);
+
+    parser->user.data_collections_count++;
 }
 
 static inline PARSER_RC pluginsd_function_result_begin(char **words, size_t num_words, PARSER *parser) {
@@ -2396,6 +2400,9 @@ PARSER_RC parser_execute(PARSER *parser, PARSER_KEYWORD *keyword, char **words, 
         
         case 102:
             return pluginsd_register_module(words, num_words, parser);
+
+        case 110:
+            return pluginsd_job_status(words, num_words, parser);
 
         default:
             fatal("Unknown keyword '%s' with id %zu", keyword->keyword, keyword->id);
