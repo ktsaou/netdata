@@ -6,6 +6,10 @@
 
 **Merged pull requests:**
 
+- Function systemd-journal: always have a nd\_journal\_process [\#15798](https://github.com/netdata/netdata/pull/15798) ([ktsaou](https://github.com/ktsaou))
+- prevent reporting negative retention when the db is empty [\#15796](https://github.com/netdata/netdata/pull/15796) ([ktsaou](https://github.com/ktsaou))
+- Fix typo in Readme [\#15794](https://github.com/netdata/netdata/pull/15794) ([shyamvalsan](https://github.com/shyamvalsan))
+- fix hpssa handle unassigned drives [\#15793](https://github.com/netdata/netdata/pull/15793) ([ilyam8](https://github.com/ilyam8))
 - count functions as collections, to restart plugins [\#15787](https://github.com/netdata/netdata/pull/15787) ([ktsaou](https://github.com/ktsaou))
 - Set correct path for ansible-playbook in deployment tutorial [\#15786](https://github.com/netdata/netdata/pull/15786) ([novotnyJiri](https://github.com/novotnyJiri))
 - minor Dyncfg mvp0 fixes [\#15785](https://github.com/netdata/netdata/pull/15785) ([underhood](https://github.com/underhood))
@@ -422,11 +426,6 @@
 - Fix handling of plugin ownership in static builds. [\#15230](https://github.com/netdata/netdata/pull/15230) ([Ferroin](https://github.com/Ferroin))
 - /api/v2 improvements [\#15227](https://github.com/netdata/netdata/pull/15227) ([ktsaou](https://github.com/ktsaou))
 - Remove erroneous space for unit [\#15226](https://github.com/netdata/netdata/pull/15226) ([ralphm](https://github.com/ralphm))
-- Relax jnfv2 caching [\#15224](https://github.com/netdata/netdata/pull/15224) ([ktsaou](https://github.com/ktsaou))
-- Fix /api/v2/contexts,nodes,nodes\_instances,q before match [\#15223](https://github.com/netdata/netdata/pull/15223) ([ktsaou](https://github.com/ktsaou))
-- Fix SSL non-blocking retry handling in the web server [\#15222](https://github.com/netdata/netdata/pull/15222) ([ktsaou](https://github.com/ktsaou))
-- Update dashboard to version v3.0.0. [\#15219](https://github.com/netdata/netdata/pull/15219) ([netdatabot](https://github.com/netdatabot))
-- fix arch detection on i386 \(native packages\) [\#15218](https://github.com/netdata/netdata/pull/15218) ([ilyam8](https://github.com/ilyam8))
 
 ## [v1.40.1](https://github.com/netdata/netdata/tree/v1.40.1) (2023-06-27)
 
