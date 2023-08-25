@@ -26,6 +26,7 @@ SUBDIRS = \
     ebpf.plugin \
     tc.plugin \
     systemd-journal.plugin \
+    grafana-loki.plugin \
     $(NULL)
 
 usercustompluginsconfigdir=$(configdir)/custom-plugins.d

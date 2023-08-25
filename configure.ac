@@ -1754,6 +1754,14 @@ fi
 AC_MSG_RESULT([${have_setns}])
 AM_CONDITIONAL([ENABLE_PLUGIN_CGROUP_NETWORK], [test "${have_setns}" = "yes"])
 
+# -----------------------------------------------------------------------------
+# grafana-loki.plugin - loki
+
+if test "${have_libcrypto}" = "yes" -a "${have_libssl}" = "yes" -a "${have_libcurl}" = "yes"; then
+    AM_CONDITIONAL([ENABLE_PLUGIN_GRAFANA_LOKI], [true])
+    OPTIONAL_GRAFANA_LOKI_CFLAGS="${LIBCRYPTO_CFLAGS} ${LIBSSL_CFLAGS} ${LIBCURL_CFLAGS}"
+    OPTIONAL_GRAFANA_LOKI_LIBS="${LIBCRYPTO_LIBS} ${LIBSSL_LIBS} ${LIBCURL_LIBS}"
+fi
 
 # -----------------------------------------------------------------------------
 # Link-Time-Optimization
@@ -1926,7 +1934,9 @@ AC_SUBST([OPTIONAL_GTEST_CFLAGS])
 AC_SUBST([OPTIONAL_GTEST_LIBS])
 AC_SUBST([OPTIONAL_ML_CFLAGS])
 AC_SUBST([OPTIONAL_ML_LIBS])
-AC_SUBST(OPTIONAL_SYSTEMD_LIBS)
+AC_SUBST([OPTIONAL_SYSTEMD_LIBS])
+AC_SUBST([OPTIONAL_GRAFANA_LOKI_CFLAGS])
+AC_SUBST([OPTIONAL_GRAFANA_LOKI_LIBS])
 
 # -----------------------------------------------------------------------------
 # Check if cmocka is available - needed for unit testing
@@ -1991,6 +2001,7 @@ AC_CONFIG_FILES([
     collectors/xenstat.plugin/Makefile
     collectors/perf.plugin/Makefile
     collectors/systemd-journal.plugin/Makefile
+    collectors/grafana-loki.plugin/Makefile
     daemon/Makefile
     database/Makefile
     database/contexts/Makefile

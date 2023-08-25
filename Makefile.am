@@ -310,6 +310,11 @@ SYSTEMD_JOURNAL_PLUGIN_FILES = \
     $(LIBNETDATA_FILES) \
     $(NULL)
 
+GRAFANA_LOKI_PLUGIN_FILES = \
+    collectors/grafana-loki.plugin/grafana-loki.c \
+    $(LIBNETDATA_FILES) \
+    $(NULL)
+
 CUPS_PLUGIN_FILES = \
     collectors/cups.plugin/cups_plugin.c \
     $(LIBNETDATA_FILES) \
@@ -1249,6 +1254,15 @@ if ENABLE_PLUGIN_SYSTEMD_JOURNAL
     systemd_journal_plugin_LDADD = \
         $(NETDATA_COMMON_LIBS) \
         $(OPTIONAL_SYSTEMD_LIBS) \
+        $(NULL)
+endif
+
+if ENABLE_PLUGIN_GRAFANA_LOKI
+    plugins_PROGRAMS += grafana-loki.plugin
+    grafana_loki_plugin_SOURCES = $(GRAFANA_LOKI_PLUGIN_FILES)
+    grafana_loki_plugin_LDADD = \
+        $(NETDATA_COMMON_LIBS) \
+        $(OPTIONAL_GRAFANA_LOKI_LIBS) \
         $(NULL)
 endif
 
