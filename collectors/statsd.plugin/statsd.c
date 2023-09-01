@@ -129,7 +129,7 @@ typedef struct statsd_metric {
     STRING *family;
     STRING *context;
     STRING *title;
-    DICTIONARY *rrdlabels;
+    RRDLABELS *rrdlabels;
 
     // chart related members
     STATS_METRIC_OPTIONS options;   // STATSD_METRIC_OPTION_* (bitfield)
@@ -809,7 +809,7 @@ int web_client_api_request_v2_statsd(RRDHOST *host __maybe_unused, struct web_cl
     char *title = NULL;
     char *instance = NULL;
 
-    DICTIONARY *rrdlabels = NULL;
+    RRDLABELS *rrdlabels = NULL;
     BUFFER *b = NULL;
 
     while (url) {
@@ -883,7 +883,7 @@ int web_client_api_request_v2_statsd(RRDHOST *host __maybe_unused, struct web_cl
         metric = instance;
         netdata_fix_chart_id(metric);
     }
-    else if(rrdlabels && dictionary_entries(rrdlabels)) {
+    else if(rrdlabels && rrdlabels_entries(rrdlabels)) {
         if(!b)
             b = buffer_create(0, NULL);
         else
@@ -1014,7 +1014,7 @@ int web_client_api_request_v2_statsd(RRDHOST *host __maybe_unused, struct web_cl
 
 cleanup:
     buffer_free(b);
-    dictionary_destroy(rrdlabels);
+    rrdlabels_destroy(rrdlabels);
     return ret;
 }
 
