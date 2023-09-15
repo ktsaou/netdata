@@ -187,7 +187,7 @@ static usec_t calculate_histogram_bar_width(usec_t after_ut, usec_t before_ut) {
     static int array_size = sizeof(valid_durations_s) / sizeof(valid_durations_s[0]);
 
     usec_t duration_ut = before_ut - after_ut;
-    usec_t bar_width_ut = 1 * 60 * USEC_PER_SEC;
+    usec_t bar_width_ut = 1 * USEC_PER_SEC;
 
     for (int i = array_size - 1; i >= 0; --i) {
         if (duration_ut / (valid_durations_s[i] * USEC_PER_SEC) >= HISTOGRAM_COLUMNS) {
@@ -647,8 +647,9 @@ static void facets_histogram_generate(FACETS *facets, FACET_KEY *k, BUFFER *wb) 
     {
         buffer_json_member_add_uint64(wb, "tiers", 1);
         buffer_json_member_add_uint64(wb, "update_every", facets->histogram.slot_width_ut / USEC_PER_SEC);
-        buffer_json_member_add_time_t(wb, "first_entry", facets->histogram.after_ut / USEC_PER_SEC);
-        buffer_json_member_add_time_t(wb, "last_entry", facets->histogram.before_ut / USEC_PER_SEC);
+//        we should add these only when we know the retention of the db
+//        buffer_json_member_add_time_t(wb, "first_entry", facets->histogram.after_ut / USEC_PER_SEC);
+//        buffer_json_member_add_time_t(wb, "last_entry", facets->histogram.before_ut / USEC_PER_SEC);
         buffer_json_member_add_string(wb, "units", "events");
         buffer_json_member_add_object(wb, "dimensions");
         {
@@ -675,8 +676,9 @@ static void facets_histogram_generate(FACETS *facets, FACET_KEY *k, BUFFER *wb) 
                 buffer_json_member_add_uint64(wb, "queries", 1);
                 buffer_json_member_add_uint64(wb, "points", count);
                 buffer_json_member_add_time_t(wb, "update_every", facets->histogram.slot_width_ut / USEC_PER_SEC);
-                buffer_json_member_add_time_t(wb, "first_entry", facets->histogram.after_ut / USEC_PER_SEC);
-                buffer_json_member_add_time_t(wb, "last_entry", facets->histogram.before_ut / USEC_PER_SEC);
+//                we should add these only when we know the retention of the db
+//                buffer_json_member_add_time_t(wb, "first_entry", facets->histogram.after_ut / USEC_PER_SEC);
+//                buffer_json_member_add_time_t(wb, "last_entry", facets->histogram.before_ut / USEC_PER_SEC);
             }
             buffer_json_object_close(wb); // tier0
         }
@@ -1454,6 +1456,7 @@ void facets_report(FACETS *facets, BUFFER *wb) {
             buffer_json_member_add_boolean(wb, "enabled", true);
             buffer_json_member_add_string(wb, "key", "anchor");
             buffer_json_member_add_string(wb, "column", "timestamp");
+            buffer_json_member_add_string(wb, "units", "timestamp_usec");
         }
         buffer_json_object_close(wb); // pagination
 
