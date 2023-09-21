@@ -59,6 +59,8 @@ static bool plugin_should_exit = false;
 
 // ----------------------------------------------------------------------------
 
+void sd_journal_enable_fast_query(sd_journal *j);
+
 static inline sd_journal *netdata_open_systemd_journal(void) {
     sd_journal *j = NULL;
     int r;
@@ -82,6 +84,8 @@ static inline sd_journal *netdata_open_systemd_journal(void) {
         netdata_log_error("SYSTEMD-JOURNAL: Failed to open SystemD Journal, with error %d", r);
         return NULL;
     }
+
+    sd_journal_enable_fast_query(j);
 
     return j;
 }

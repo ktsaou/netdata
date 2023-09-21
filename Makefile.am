@@ -1253,6 +1253,8 @@ if ENABLE_PLUGIN_SYSTEMD_JOURNAL
     plugins_PROGRAMS += systemd-journal.plugin
     systemd_journal_plugin_SOURCES = $(SYSTEMD_JOURNAL_PLUGIN_FILES)
     systemd_journal_plugin_LDADD = \
+        /home/costa/src/systemd-ktsaou.git/build/libsystemd.a \
+        -lzstd -lcap -lgcrypt -llzma \
         $(NETDATA_COMMON_LIBS) \
         $(OPTIONAL_SYSTEMD_LIBS) \
         $(NULL)
