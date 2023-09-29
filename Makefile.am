@@ -1256,7 +1256,6 @@ if ENABLE_PLUGIN_SYSTEMD_JOURNAL
         /home/costa/src/systemd-ktsaou.git/build/libsystemd.a \
         -lzstd -lcap -lgcrypt -llzma \
         $(NETDATA_COMMON_LIBS) \
-        $(OPTIONAL_SYSTEMD_LIBS) \
         $(NULL)
 endif
 
