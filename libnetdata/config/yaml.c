@@ -446,25 +446,28 @@ static inline void cfg_init(CFG *cfg) {
 
 // ----------------------------------------------------------------------------
 
-struct yaml_parser_stack_entry {
-    CFG_NODE *node;
+typedef struct yaml_parser_current_pos {
+    size_t line;
     size_t indent;
-};
+    size_t pos;
+    const char *line_start;
+    const char *s;
+} YAML_POS;
+
+typedef struct yaml_parser_stack_entry {
+    CFG_NODE *node;
+    YAML_POS pos;
+} YAML_STACK;
 
 typedef struct yaml_parser_state {
     const char *txt;
     size_t txt_len;
 
-    struct {
-        size_t line;
-        const char *line_start;
-
-        size_t pos;
-        size_t indent;
-    } current;
+    YAML_POS current;
+    BUFFER *literal;
 
     struct {
-        struct yaml_parser_stack_entry *array;
+        YAML_STACK *array;
         size_t depth;
         size_t size;
     } stack;
@@ -473,6 +476,14 @@ typedef struct yaml_parser_state {
 
     char error[1024];
 } YAML_PARSER;
+
+static bool yaml_error(YAML_PARSER *yp, const char *fmt, ...) {
+    va_list args;
+    va_start(args, fmt);
+    buffer_vsprintf(yp->error, fmt, args);
+    va_end(args);
+    return false;
+}
 
 static inline void yaml_push(YAML_PARSER *yp, CFG_NODE *node) {
     assert(node);
@@ -488,13 +499,24 @@ static inline void yaml_push(YAML_PARSER *yp, CFG_NODE *node) {
 
     yp->stack.array[yp->stack.depth++] = (struct yaml_parser_stack_entry) {
         .node = node,
-        .indent = yp->current.indent,
+        .pos = yp->current,
     };
 }
 
-static inline CFG_NODE *yaml_pop(YAML_PARSER *yp) {
+static inline void yaml_pop(YAML_PARSER *yp) {
     assert(yp->stack.depth);
-    return yp->stack.array[--yp->stack.depth].node;
+
+    // find the first node that has indentation more than the current
+    for(size_t i = 0; i < yp->stack.depth ;i++) {
+        if(yp->stack.array[i].pos.indent > yp->current.indent) {
+            yp->stack.array[i] = (struct yaml_parser_stack_entry){
+                .node = NULL,
+                .pos = { 0 },
+            };
+            yp->stack.depth = i;
+            return;
+        }
+    }
 }
 
 static inline CFG_NODE *yaml_parent_node(YAML_PARSER *yp) {
@@ -504,27 +526,37 @@ static inline CFG_NODE *yaml_parent_node(YAML_PARSER *yp) {
 
 static inline size_t yaml_parent_indent(YAML_PARSER *yp) {
     assert(yp->stack.depth);
-    return yp->stack.array[yp->stack.depth - 1].indent;
+    return yp->stack.array[yp->stack.depth - 1].pos.indent;
 }
 
 const char *yaml_current_pos(YAML_PARSER *yp) {
     assert(yp->current.pos <= yp->txt_len);
-
     return &yp->txt[yp->current.pos];
 }
 
-static inline bool yaml_is_line_done(YAML_PARSER *yp) {
-    const char *s = yaml_current_pos(yp);
-    return !*s || *s == '\n' || strncmp(s, "\r\n", 2) == 0;
+static inline void yaml_update_pos(YAML_PARSER *yp, const char *next) {
+    assert(next >= yp->txt && next <= &yp->txt[yp->txt_len]);
+    yp->current.pos += next - yaml_current_pos(yp);
+}
+
+static inline void yaml_newline(YAML_PARSER *yp, const char *s) {
+    assert(*s == '\n');
+
+    yp->current.line++;
+    yp->current.line_start = s;
+    yp->current.indent = 0;
+
+    while(*++s == ' ')
+        yp->current.indent++;
 }
 
 typedef enum {
-    TOKEN_NONE = 0,
-    TOKEN_KEYWORD,
-    TOKEN_VALUE,
+    TOKEN_FINISHED = 0,
+    TOKEN_SAME_LINE,
+    TOKEN_OTHER_LINE,
 } NEXT_TOKEN;
 
-static inline NEXT_TOKEN yaml_find_token_start(YAML_PARSER *yp, NEXT_TOKEN token) {
+static inline NEXT_TOKEN yaml_find_token_start(YAML_PARSER *yp) {
     const char *s = yaml_current_pos(yp);
     bool at_line_start = (s == yp->current.line_start);
     NEXT_TOKEN ret = token;
@@ -559,12 +591,7 @@ static inline NEXT_TOKEN yaml_find_token_start(YAML_PARSER *yp, NEXT_TOKEN token
 
     yp->current.pos += s - yaml_current_pos(yp);
 
-    return (!*s) ? TOKEN_NONE : ret;
-}
-
-static inline void yaml_update_pos(YAML_PARSER *yp, const char *next) {
-    assert(next >= yp->txt && next <= &yp->txt[yp->txt_len]);
-    yp->current.pos += next - yaml_current_pos(yp);
+    return (!*s) ? TOKEN_FINISHED : ret;
 }
 
 static inline void yaml_skip_spaces(YAML_PARSER *yp) {
@@ -981,15 +1008,106 @@ static inline bool yaml_parse_value(YAML_PARSER  *yp, CFG_NODE *node) {
     }
 }
 
-static inline bool yaml_parse_indented_key(YAML_PARSER *yp, CFG_NODE *node) {
+static inline bool yaml_parse_child(YAML_PARSER *yp) {
+    if(*yaml_current_pos(yp) == '-') {
+        CFG_NODE *parent = yaml_parent_node(yp);
+        if(!cfg_node_make_array(parent))
+            return yaml_error(yp, "parent object is a %s; cannot switch it to %s",
+                              cfg_value_type(parent->value.type), cfg_value_type(CFG_ARR));
+
+        yaml_update_pos(yp, yaml_current_pos(yp) + 1);
+
+        if(yaml_find_token_start(yp) == TOKEN_FINISHED)
+            return yaml_error(yp, "there is a hanging - at the end");
+
+        yp->current.indent = yaml_current_pos(yp) - yp->current.line_start;
+    }
+    else {
+        // we need the parent to become a map
+        CFG_NODE *parent = yaml_parent_node(yp);
+        if(!cfg_node_make_map(parent)) {
+            return yaml_error(yp, "parent object is a %s; cannot switch it to %s",
+                              cfg_value_type(parent->value.type), cfg_value_type(CFG_MAP));
+        }
+    }
+}
+
+static inline bool yaml_parse_indented_array_values(YAML_PARSER *yp) {
+    YAML_POS pos = yp->current;
+
+    while(yaml_find_token_start(yp) != TOKEN_FINISHED && yp->current.indent >= pos.indent) {
+        if(yp->current.indent > pos.indent) {
+            if(!yaml_parse_child(yp))
+                return false;
+            continue;
+        }
+    }
+
+    assert(yp->current.indent < pos.indent);
+
+}
+
+static inline bool yaml_parse_indented_key(YAML_PARSER *yp) {
     static const bool stop_map[256] = {
             ['#'] = true,
             [':'] = true,
             ['\n'] = true,
     };
 
+    if(yaml_find_token_start(yp) == TOKEN_FINISHED)
+        return true;
+
+    yaml_pop(yp); // pop the parent of the current indentation
+
+    bool with_dash = false;
+    YAML_POS before_dash = yp->current;
+    YAML_POS key_start = yp->current;
+
+    if(*yaml_current_pos(yp) == '-') {
+        with_dash = true;
+
+        // we need the parent to become an array
+        CFG_NODE *parent = yaml_parent_node(yp);
+        if(!cfg_node_make_array(parent)) {
+            snprintf(yp->error, sizeof(yp->error), "parent object is a %s; cannot switch it to %s",
+                     cfg_value_type(parent->value.type), cfg_value_type(CFG_ARR));
+            return false;
+        }
+
+        yaml_update_pos(yp, yaml_current_pos(yp) + 1);
+
+        if(yaml_find_token_start(yp) == TOKEN_FINISHED) {
+            snprintf(yp->error, sizeof(yp->error), "there is a hanging - at the end");
+            return false;
+        }
+
+        yp->current.indent = yaml_current_pos(yp) - yp->current.line_start;
+        key_start = yp->current;
+    }
+    else {
+        // we need the parent to become a map
+        CFG_NODE *parent = yaml_parent_node(yp);
+        if(!cfg_node_make_map(parent)) {
+            if(!yp->error[0])
+                snprintf(yp->error, sizeof(yp->error), "parent object is a %s; cannot switch it to %s",
+                         cfg_value_type(parent->value.type), cfg_value_type(CFG_MAP));
+            return false;
+        }
+    }
+
+    CLEANUP_CFG_NODE *node = cfg_node_create();
+
     if(!yaml_parse_string_literal(yp, stop_map, node, true))
         return false;
+
+    // skip spaces
+    yaml_find_token_start(yp);
+
+    if(yaml_parent_node(yp)->value.type == CFG_ARR) {
+        if(*yaml_current_pos(yp) == ':') {
+
+        }
+    }
 
     yaml_skip_spaces(yp);
     const char *s = yaml_current_pos(yp);
@@ -1018,7 +1136,17 @@ static inline CFG *cfg_parse_yaml(const char *txt, size_t len) {
     yp->txt_len = len;
     yp->current.line_start = txt;
     yp->current.line = 1;
+    yp->current.literal = buffer_create(0, NULL);
     size_t iteration = 0;
+
+    while(yaml_find_token_start(yp) != TOKEN_FINISHED) {
+        CFG_VALUE *yaml_parse_key(yp);
+
+
+
+
+    }
+
     while(yaml_find_token_start(yp, TOKEN_KEYWORD) == TOKEN_KEYWORD) {
         // expect a keyword or -
 
@@ -1102,7 +1230,7 @@ static inline CFG *cfg_parse_yaml(const char *txt, size_t len) {
 
             size_t last_indent = yp->current.indent;
             switch (yaml_find_token_start(yp, TOKEN_VALUE)) {
-                case TOKEN_NONE:
+                case TOKEN_FINISHED:
                     if (!yp->error[0])
                         snprintf(yp->error, sizeof(yp->error), "document ended without assigning value");
                     goto cleanup;
@@ -1145,6 +1273,7 @@ cleanup:
     nd_log(NDLS_DAEMON, NDLP_ERR, "YAML PARSER: at line %zu: %s", yp->current.line, yp->error);
     cfg_cleanup(yp->cfg);
     freez(yp->cfg);
+    buffer_free(yp->current.literal);
     return NULL;
 }
 
