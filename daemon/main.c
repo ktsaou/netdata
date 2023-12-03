@@ -1387,6 +1387,7 @@ void replication_initialize(void);
 void bearer_tokens_init(void);
 int unittest_rrdpush_compressions(void);
 int uuid_unittest(void);
+int unittest_yaml_config(void);
 
 int main(int argc, char **argv) {
     // initialize the system clocks
@@ -1607,6 +1608,10 @@ int main(int argc, char **argv) {
                         else if(strcmp(optarg, "parsertest") == 0) {
                             unittest_running = true;
                             return pluginsd_parser_unittest();
+                        }
+                        else if(strcmp(optarg, "yamltest") == 0) {
+                            unittest_running = true;
+                            return unittest_yaml_config();
                         }
                         else if(strcmp(optarg, "rrdpush_compressions_test") == 0) {
                             unittest_running = true;

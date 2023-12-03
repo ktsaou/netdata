@@ -523,6 +523,7 @@ int  snprintfz(char *dst, size_t n, const char *fmt, ...) PRINTFLIKE(3, 4);
 int malloc_trace_walkthrough(int (*callback)(void *item, void *data), void *data);
 
 #define strdupz(s) strdupz_int(s, __FILE__, __FUNCTION__, __LINE__)
+#define strndupz(s, size) strndupz_int(s, size, __FILE__, __FUNCTION__, __LINE__)
 #define callocz(nmemb, size) callocz_int(nmemb, size, __FILE__, __FUNCTION__, __LINE__)
 #define mallocz(size) mallocz_int(size, __FILE__, __FUNCTION__, __LINE__)
 #define reallocz(ptr, size) reallocz_int(ptr, size, __FILE__, __FUNCTION__, __LINE__)
@@ -530,6 +531,7 @@ int malloc_trace_walkthrough(int (*callback)(void *item, void *data), void *data
 #define mallocz_usable_size(ptr) mallocz_usable_size_int(ptr, __FILE__, __FUNCTION__, __LINE__)
 
 char *strdupz_int(const char *s, const char *file, const char *function, size_t line);
+char *strndupz_int(const char *s, size_t size, const char *file, const char *function, size_t line);
 void *callocz_int(size_t nmemb, size_t size, const char *file, const char *function, size_t line);
 void *mallocz_int(size_t size, const char *file, const char *function, size_t line);
 void *reallocz_int(void *ptr, size_t size, const char *file, const char *function, size_t line);
@@ -538,6 +540,7 @@ size_t mallocz_usable_size_int(void *ptr, const char *file, const char *function
 
 #else // NETDATA_TRACE_ALLOCATIONS
 char *strdupz(const char *s) MALLOCLIKE NEVERNULL;
+char *strndupz(const char *s, size_t size) MALLOCLIKE NEVERNULL;
 void *callocz(size_t nmemb, size_t size) MALLOCLIKE NEVERNULL;
 void *mallocz(size_t size) MALLOCLIKE NEVERNULL;
 void *reallocz(void *ptr, size_t size) MALLOCLIKE NEVERNULL;
@@ -786,6 +789,7 @@ struct malloc_trace {
     size_t calloc_calls;
     size_t realloc_calls;
     size_t strdup_calls;
+    size_t strndup_calls;
     size_t free_calls;
 
     size_t mmap_calls;

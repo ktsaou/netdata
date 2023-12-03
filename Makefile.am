@@ -139,6 +139,8 @@ plugins_PROGRAMS =
 LIBNETDATA_FILES = \
     libnetdata/adaptive_resortable_list/adaptive_resortable_list.c \
     libnetdata/adaptive_resortable_list/adaptive_resortable_list.h \
+    libnetdata/config/yaml.c \
+    libnetdata/config/utf8.c \
     libnetdata/config/appconfig.c \
     libnetdata/config/appconfig.h \
     libnetdata/aral/aral.c \
