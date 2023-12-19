@@ -90,7 +90,7 @@ typedef struct page_details_control {
     PDC_PAGE_STATUS common_status;
     size_t pages_to_load_from_disk;
 
-    SPINLOCK refcount_spinlock;     // spinlock to protect refcount
+    spinlock_t refcount_spinlock;     // spinlock to protect refcount
     int32_t refcount;               // the number of workers currently working on this request + 1 for the query thread
     size_t executed_with_gaps;
 
@@ -366,7 +366,7 @@ struct rrdengine_instance {
     } datafiles;
 
     struct {
-        RW_SPINLOCK spinlock;
+        rw_spinlock_t spinlock;
         Pvoid_t JudyL;
     } njfv2idx;
 

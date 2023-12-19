@@ -233,7 +233,7 @@ typedef struct statsd_app {
 // global statsd data
 
 struct collection_thread_status {
-    SPINLOCK spinlock;
+    spinlock_t spinlock;
     bool running;
     uint32_t max_sockets;
 

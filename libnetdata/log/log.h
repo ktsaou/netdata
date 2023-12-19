@@ -279,7 +279,7 @@ void netdata_logger(ND_LOG_SOURCES source, ND_LOG_FIELD_PRIORITY priority, const
 // logging with limits
 
 typedef struct error_with_limit {
-    SPINLOCK spinlock;
+    spinlock_t spinlock;
     time_t log_every;
     size_t count;
     time_t last_logged;

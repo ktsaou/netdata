@@ -1237,9 +1237,11 @@ __attribute__((constructor)) void initialize_build_info(void) {
 // system info
 
 int get_system_info(struct rrdhost_system_info *system_info);
-static void populate_system_info(void) {
+
+static void populate_system_info(void)
+{
     static bool populated = false;
-    static SPINLOCK spinlock = NETDATA_SPINLOCK_INITIALIZER;
+    static spinlock_t spinlock = SPINLOCK_INITIALIZER;
 
     if(populated)
         return;
@@ -1342,7 +1344,7 @@ void get_install_type(char **install_type, char **prebuilt_arch, char **prebuilt
 }
 
 static struct {
-    SPINLOCK spinlock;
+    spinlock_t spinlock;
     bool populated;
     char *install_type;
     char *prebuilt_arch;

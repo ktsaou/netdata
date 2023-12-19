@@ -240,7 +240,7 @@ typedef struct ebpf_network_viewer_hostname_list {
 } ebpf_network_viewer_hostname_list_t;
 
 typedef struct ebpf_network_viewer_options {
-    RW_SPINLOCK rw_spinlock;
+    rw_spinlock_t rw_spinlock;
 
     uint32_t enabled;
     uint32_t family;                                        // AF_INET, AF_INET6 or AF_UNSPEC (both)

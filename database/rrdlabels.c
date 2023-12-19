@@ -7,10 +7,10 @@
 
 struct {
     Pvoid_t JudyHS;
-    SPINLOCK spinlock;
+    spinlock_t spinlock;
 } global_labels = {
     .JudyHS = (Pvoid_t) NULL,
-    .spinlock = NETDATA_SPINLOCK_INITIALIZER
+    .spinlock = SPINLOCK_INITIALIZER
 };
 
 typedef struct label_registry_idx {
@@ -29,7 +29,7 @@ typedef struct labels_registry_idx_entry {
 } RRDLABEL_IDX;
 
 typedef struct rrdlabels {
-    SPINLOCK spinlock;
+    spinlock_t spinlock;
     size_t version;
     Pvoid_t JudyL;
 } RRDLABELS;

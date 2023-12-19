@@ -1213,7 +1213,7 @@ int rrdpush_receiver_thread_spawn(struct web_client *w, char *decoded_query_stri
     }
 
     if(unlikely(web_client_streaming_rate_t > 0)) {
-        static SPINLOCK spinlock = NETDATA_SPINLOCK_INITIALIZER;
+        static spinlock_t spinlock = SPINLOCK_INITIALIZER;
         static time_t last_stream_accepted_t = 0;
 
         time_t now = now_realtime_sec();

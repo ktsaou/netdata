@@ -32,7 +32,7 @@
 #define SECONDS_TO_RESET_POINT_IN_TIME 10
 
 static struct replication_query_statistics replication_queries = {
-        .spinlock = NETDATA_SPINLOCK_INITIALIZER,
+        .spinlock = SPINLOCK_INITIALIZER,
         .queries_started = 0,
         .queries_finished = 0,
         .points_read = 0,
@@ -1005,7 +1005,7 @@ struct replication_sort_entry {
 static struct replication_thread {
     ARAL *aral_rse;
 
-    SPINLOCK spinlock;
+    spinlock_t spinlock;
 
     struct {
         size_t pending;                 // number of requests pending in the queue
@@ -1042,7 +1042,7 @@ static struct replication_thread {
 
 } replication_globals = {
         .aral_rse = NULL,
-        .spinlock = NETDATA_SPINLOCK_INITIALIZER,
+        .spinlock = SPINLOCK_INITIALIZER,
         .unsafe = {
                 .pending = 0,
 

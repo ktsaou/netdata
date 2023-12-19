@@ -66,10 +66,10 @@ set(CMAKE_C_STANDARD_REQUIRED On)
 set(CMAKE_CXX_STANDARD_REQUIRED On)
 
 if(NOT CMAKE_BUILD_TYPE)
-        set(CMAKE_BUILD_TYPE "Release")
+        set(CMAKE_BUILD_TYPE "Debug")
 endif()
 
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fexceptions")
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fexceptions -fsanitize=thread -DNETDATA_SPINLOCK_WITH_MUTEX")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${CMAKE_C_FLAGS}")
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS On)
@@ -373,8 +373,11 @@ set(LIBNETDATA_FILES ${CONFIG_H}
                      libnetdata/line_splitter/line_splitter.c
                      libnetdata/line_splitter/line_splitter.h
                      libnetdata/libnetdata.h
-                     libnetdata/locks/locks.c
                      libnetdata/locks/locks.h
+                     libnetdata/locks/mutex.c
+                     libnetdata/locks/mutex.h
+                     libnetdata/locks/spinlock.c
+                     libnetdata/locks/spinlock.h
                      libnetdata/log/journal.c
                      libnetdata/log/journal.h
                      libnetdata/log/log.c

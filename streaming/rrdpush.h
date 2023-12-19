@@ -223,7 +223,7 @@ struct sender_state {
     size_t not_connected_loops;
     // Metrics are collected asynchronously by collector threads calling rrdset_done_push(). This can also trigger
     // the lazy creation of the sender thread - both cases (buffer access and thread creation) are guarded here.
-    SPINLOCK spinlock;
+    spinlock_t spinlock;
     struct circular_buffer *buffer;
     char read_buffer[PLUGINSD_LINE_MAX + 1];
     ssize_t read_len;

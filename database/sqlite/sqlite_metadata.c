@@ -113,7 +113,7 @@ struct metadata_wc {
     struct completion start_stop_complete;
     struct completion *scan_complete;
     /* FIFO command queue */
-    SPINLOCK cmd_queue_lock;
+    spinlock_t cmd_queue_lock;
     struct metadata_cmd *cmd_base;
 };
 
@@ -1776,7 +1776,7 @@ error_after_loop_init:
 
 void metadata_sync_shutdown(void)
 {
-    completion_init(&metasync_worker.start_stop_complete);
+    completion_init(&metasync_worker.start_stop_complete, COMPLETION_SOURCE_METADATA_SYNC_SHUTDOWN);
 
     struct metadata_cmd cmd;
     memset(&cmd, 0, sizeof(cmd));
@@ -1802,7 +1802,7 @@ void metadata_sync_shutdown_prepare(void)
     struct metadata_wc *wc = &metasync_worker;
 
     struct completion *compl = mallocz(sizeof(*compl));
-    completion_init(compl);
+    completion_init(compl, COMPLETION_SOURCE_METADATA_SYNC_SHUTDOWN_PREPARE);
     __atomic_store_n(&wc->scan_complete, compl, __ATOMIC_RELAXED);
 
     nd_log(NDLS_DAEMON, NDLP_DEBUG, "METADATA: Sending a scan host command");
@@ -1829,7 +1829,7 @@ void metadata_sync_init(void)
     struct metadata_wc *wc = &metasync_worker;
 
     memset(wc, 0, sizeof(*wc));
-    completion_init(&wc->start_stop_complete);
+    completion_init(&wc->start_stop_complete, COMPLETION_SOURCE_METADATA_SYNC_INIT);
 
     fatal_assert(0 == uv_thread_create(&(wc->thread), metadata_event_loop, wc));
 

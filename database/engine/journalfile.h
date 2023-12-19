@@ -26,14 +26,14 @@ typedef enum __attribute__ ((__packed__)) {
 /* only one event loop is supported for now */
 struct rrdengine_journalfile {
     struct {
-        SPINLOCK spinlock;
+        spinlock_t spinlock;
         void *data;                    // MMAPed file of journal v2
         uint32_t size;                 // Total file size mapped
         int fd;
     } mmap;
 
     struct {
-        SPINLOCK spinlock;
+        spinlock_t spinlock;
         JOURNALFILE_FLAGS flags;
         int32_t refcount;
         time_t first_time_s;
@@ -47,7 +47,7 @@ struct rrdengine_journalfile {
     } njfv2idx;
 
     struct {
-        SPINLOCK spinlock;
+        spinlock_t spinlock;
         uint64_t pos;
     } unsafe;
 

@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
+
 #define NETDATA_RRD_INTERNALS
 
 #include "rrdengine.h"
@@ -49,7 +50,7 @@ struct rrdeng_main {
         ARAL *ar;
 
         struct {
-            SPINLOCK spinlock;
+            spinlock_t spinlock;
 
             size_t waiting;
             struct rrdeng_cmd *waiting_items_by_priority[STORAGE_PRIORITY_INTERNAL_MAX_DONT_USE];
@@ -89,7 +90,7 @@ struct rrdeng_main {
 
         .cmd_queue = {
                 .unsafe = {
-                        .spinlock = NETDATA_SPINLOCK_INITIALIZER,
+                        .spinlock = SPINLOCK_INITIALIZER,
                 },
         }
 };
@@ -329,7 +330,7 @@ void rrdeng_query_handle_release(struct rrdeng_query_handle *handle) {
 
 static struct {
     struct {
-        SPINLOCK spinlock;
+        spinlock_t spinlock;
         WAL *available_items;
         size_t available;
     } protected;
@@ -339,7 +340,7 @@ static struct {
     } atomics;
 } wal_globals = {
         .protected = {
-                .spinlock = NETDATA_SPINLOCK_INITIALIZER,
+                .spinlock = SPINLOCK_INITIALIZER,
                 .available_items = NULL,
                 .available = 0,
         },
@@ -623,7 +624,8 @@ static void journalfile_extent_build(struct rrdengine_instance *ctx, struct exte
     crc32set(jf_trailer->checksum, crc);
 }
 
-static void after_extent_flushed_to_open(struct rrdengine_instance *ctx __maybe_unused, void *data __maybe_unused, struct completion *completion __maybe_unused, uv_work_t* req __maybe_unused, int status __maybe_unused) {
+static void after_extent_flushed_to_open(struct rrdengine_instance *ctx, void *data, struct completion *completion, uv_work_t* req, int status)
+{
     if(completion)
         completion_mark_complete(completion);
 
@@ -631,7 +633,8 @@ static void after_extent_flushed_to_open(struct rrdengine_instance *ctx __maybe_
         rrdeng_enq_cmd(ctx, RRDENG_OPCODE_DATABASE_ROTATE, NULL, NULL, STORAGE_PRIORITY_INTERNAL_DBENGINE, NULL, NULL);
 }
 
-static void *extent_flushed_to_open_tp_worker(struct rrdengine_instance *ctx __maybe_unused, void *data __maybe_unused, struct completion *completion __maybe_unused, uv_work_t *uv_work_req __maybe_unused) {
+static void *extent_flushed_to_open_tp_worker(struct rrdengine_instance *ctx, void *data, struct completion *completion, uv_work_t *uv_work_req)
+{
     worker_is_busy(UV_EVENT_DBENGINE_FLUSHED_TO_OPEN);
 
     uv_fs_t *uv_fs_request = data;
@@ -1605,7 +1608,7 @@ static void dbengine_initialize_structures(void) {
 
 bool rrdeng_dbengine_spawn(struct rrdengine_instance *ctx __maybe_unused) {
     static bool spawned = false;
-    static SPINLOCK spinlock = NETDATA_SPINLOCK_INITIALIZER;
+    static spinlock_t spinlock = SPINLOCK_INITIALIZER;
 
     spinlock_lock(&spinlock);
 

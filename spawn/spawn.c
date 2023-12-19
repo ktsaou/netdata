@@ -239,7 +239,7 @@ void spawn_init(void)
 
     init_spawn_cmd_queue();
 
-    completion_init(&completion);
+    completion_init(&completion, COMPLETION_SOURCE_SPAWN_INIT);
     error = uv_thread_create(&thread, spawn_client, &completion);
     if (error) {
         netdata_log_error("uv_thread_create(): %s", uv_strerror(error));

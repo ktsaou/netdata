@@ -2,8 +2,9 @@
 
 #include "completion.h"
 
-void completion_init(struct completion *p)
+void completion_init(struct completion *p, enum COMPLETION_SOURCE source)
 {
+    p->source = source;
     p->completed = 0;
     p->completed_jobs = 0;
     fatal_assert(0 == uv_cond_init(&p->cond));

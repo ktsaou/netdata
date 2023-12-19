@@ -1498,7 +1498,7 @@ static void rrdpush_sender_thread_cleanup_callback(void *ptr) {
 
 void rrdpush_initialize_ssl_ctx(RRDHOST *host __maybe_unused) {
 #ifdef ENABLE_HTTPS
-    static SPINLOCK sp = NETDATA_SPINLOCK_INITIALIZER;
+    static spinlock_t sp = SPINLOCK_INITIALIZER;
     spinlock_lock(&sp);
 
     if(netdata_ssl_streaming_sender_ctx || !host) {

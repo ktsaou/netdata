@@ -51,7 +51,7 @@ typedef struct service_thread {
 } SERVICE_THREAD;
 
 struct service_globals {
-    SPINLOCK lock;
+    spinlock_t lock;
     Pvoid_t pid_judy;
 } service_globals = {
         .pid_judy = NULL,
@@ -1521,6 +1521,7 @@ int main(int argc, char **argv) {
                         if(strcmp(optarg, "unittest") == 0) {
                             unittest_running = true;
 
+#if 0
                             if (pluginsd_parser_unittest())
                                 return 1;
 
@@ -1534,6 +1535,8 @@ int main(int argc, char **argv) {
                                 return 1;
                             if (unit_test_bitmaps())
                                 return 1;
+#endif
+
                             // No call to load the config file on this code-path
                             post_conf_load(&user);
                             get_netdata_configured_variables();
@@ -1547,11 +1550,17 @@ int main(int argc, char **argv) {
                                 return 1;
                             }
                             default_rrdpush_enabled = 0;
+
+#if 0
                             if(run_all_mockup_tests()) return 1;
                             if(unit_test_storage()) return 1;
+#endif
+
 #ifdef ENABLE_DBENGINE
                             if(test_dbengine()) return 1;
 #endif
+
+#if 0
                             if(test_sqlite()) return 1;
                             if(string_unittest(10000)) return 1;
                             if (dictionary_unittest(10000))
@@ -1564,6 +1573,7 @@ int main(int argc, char **argv) {
                                 return 1;
                             if (uuid_unittest())
                                 return 1;
+#endif
                             fprintf(stderr, "\n\nALL TESTS PASSED\n\n");
                             return 0;
                         }

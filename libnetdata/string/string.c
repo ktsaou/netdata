@@ -24,7 +24,7 @@ struct netdata_string {
 };
 
 static struct string_partition {
-    RW_SPINLOCK spinlock;       // the R/W spinlock to protect the Judy array
+    rw_spinlock_t spinlock;       // the R/W spinlock to protect the Judy array
 
     Pvoid_t JudyHSArray;        // the Judy array - hashtable
 

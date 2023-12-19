@@ -12,7 +12,7 @@ struct aclk_sync_config_s {
     time_t cleanup_after;          // Start a cleanup after this timestamp
     uv_async_t async;
     bool initialized;
-    SPINLOCK cmd_queue_lock;
+    spinlock_t cmd_queue_lock;
     struct aclk_database_cmd *cmd_base;
 } aclk_sync_config = { 0 };
 

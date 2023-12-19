@@ -60,7 +60,7 @@ static inline bool query_compare_keys(uuid_t *t1, uuid_t *t2) {
 }
 
 static struct progress {
-    SPINLOCK spinlock;
+    spinlock_t spinlock;
     bool initialized;
 
     struct {

@@ -721,7 +721,7 @@ void commands_init(void)
     }
     fatal_assert(0 == uv_rwlock_init(&exclusive_rwlock));
 
-    completion_init(&completion);
+    completion_init(&completion, COMPLETION_SOURCE_COMMANDS_INIT);
     error = uv_thread_create(&thread, command_thread, NULL);
     if (error) {
         netdata_log_error("uv_thread_create(): %s", uv_strerror(error));

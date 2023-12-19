@@ -127,7 +127,7 @@ typedef struct parser {
     } inflight;
 
     struct {
-        SPINLOCK spinlock;
+        spinlock_t spinlock;
     } writer;
 
 } PARSER;

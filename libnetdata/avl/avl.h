@@ -13,7 +13,7 @@
 #if defined(AVL_LOCK_WITH_RWLOCK)
 #define AVL_LOCK_INITIALIZER NETDATA_RWLOCK_INITIALIZER
 #else
-#define AVL_LOCK_INITIALIZER NETDATA_RW_SPINLOCK_INITIALIZER
+#define AVL_LOCK_INITIALIZER RW_SPINLOCK_INITIALIZER
 #endif
 
 /* Data structures */
@@ -41,7 +41,7 @@ typedef struct avl_tree_lock {
 #if defined(AVL_LOCK_WITH_RWLOCK)
     netdata_rwlock_t rwlock;
 #else
-    RW_SPINLOCK rwlock;
+    rw_spinlock_t rwlock;
 #endif
 } avl_tree_lock;
 

@@ -148,12 +148,12 @@ struct dictionary {
 
     struct {                            // support for multiple indexing engines
         Pvoid_t JudyHSArray;            // the hash table
-        RW_SPINLOCK rw_spinlock;        // protect the index
+        rw_spinlock_t rw_spinlock;        // protect the index
     } index;
 
     struct {
         DICTIONARY_ITEM *list;          // the double linked list of all items in the dictionary
-        RW_SPINLOCK rw_spinlock;        // protect the linked-list
+        rw_spinlock_t rw_spinlock;        // protect the linked-list
         pid_t writer_pid;               // the gettid() of the writer
         uint32_t writer_depth;          // nesting of write locks
     } items;
@@ -1269,7 +1269,7 @@ static ARAL *dict_items_aral =  NULL;
 static ARAL *dict_shared_items_aral = NULL;
 
 void dictionary_static_items_aral_init(void) {
-    static SPINLOCK spinlock;
+    static spinlock_t spinlock;
 
     if(unlikely(!dict_items_aral || !dict_shared_items_aral)) {
         spinlock_lock(&spinlock);

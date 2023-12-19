@@ -327,7 +327,7 @@ struct word_t2str_hashtable_entry {
 };
 
 struct word_t2str_hashtable {
-    SPINLOCK spinlock;
+    spinlock_t spinlock;
     size_t size;
     struct word_t2str_hashtable_entry *hashtable[UID_GID_HASHTABLE_SIZE];
 };

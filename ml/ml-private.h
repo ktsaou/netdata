@@ -196,7 +196,7 @@ typedef struct {
     std::vector<calculated_number_t> cns;
 
     std::vector<ml_kmeans_t> km_contexts;
-    SPINLOCK slock;
+    spinlock_t slock;
     ml_kmeans_t kmeans;
     std::vector<DSample> feature;
 

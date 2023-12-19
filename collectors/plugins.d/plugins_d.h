@@ -38,7 +38,7 @@ struct plugind {
     int update_every;                   // the plugin default data collection frequency
 
     struct {
-        SPINLOCK spinlock;
+        spinlock_t spinlock;
         bool running;                  // do not touch this structure after setting this to 1
         bool enabled;                   // if this is enabled or not
         netdata_thread_t thread;

@@ -31,7 +31,7 @@ struct JulyL {
 
 static struct {
     struct {
-        SPINLOCK spinlock;
+        spinlock_t spinlock;
         struct JulyL *available_items;
         size_t available;
     } protected;
@@ -44,7 +44,7 @@ static struct {
     } atomics;
 } julyl_globals = {
         .protected = {
-                .spinlock = NETDATA_SPINLOCK_INITIALIZER,
+                .spinlock = SPINLOCK_INITIALIZER,
                 .available_items = NULL,
                 .available = 0,
         },

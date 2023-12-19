@@ -355,7 +355,7 @@ struct nd_log_limit {
 #define ND_LOG_LIMITS_UNLIMITED (struct nd_log_limit){  .logs_per_period = 0, .logs_per_period_backup = 0, .throttle_period = 0, }
 
 struct nd_log_source {
-    SPINLOCK spinlock;
+    spinlock_t spinlock;
     ND_LOG_METHOD method;
     ND_LOG_FORMAT format;
     const char *filename;
@@ -396,12 +396,12 @@ static struct {
     } syslog;
 
     struct {
-        SPINLOCK spinlock;
+        spinlock_t spinlock;
         bool initialized;
     } std_output;
 
     struct {
-        SPINLOCK spinlock;
+        spinlock_t spinlock;
         bool initialized;
     } std_error;
 
@@ -419,16 +419,16 @@ static struct {
                 .facility = LOG_DAEMON,
         },
         .std_output = {
-                .spinlock = NETDATA_SPINLOCK_INITIALIZER,
+                .spinlock = SPINLOCK_INITIALIZER,
                 .initialized = false,
         },
         .std_error = {
-                .spinlock = NETDATA_SPINLOCK_INITIALIZER,
+                .spinlock = SPINLOCK_INITIALIZER,
                 .initialized = false,
         },
         .sources = {
                 [NDLS_UNSET] = {
-                        .spinlock = NETDATA_SPINLOCK_INITIALIZER,
+                        .spinlock = SPINLOCK_INITIALIZER,
                         .method = NDLM_DISABLED,
                         .format = NDLF_JOURNAL,
                         .filename = NULL,
@@ -438,7 +438,7 @@ static struct {
                         .limits = ND_LOG_LIMITS_UNLIMITED,
                 },
                 [NDLS_ACCESS] = {
-                        .spinlock = NETDATA_SPINLOCK_INITIALIZER,
+                        .spinlock = SPINLOCK_INITIALIZER,
                         .method = NDLM_DEFAULT,
                         .format = NDLF_LOGFMT,
                         .filename = LOG_DIR "/access.log",
@@ -448,7 +448,7 @@ static struct {
                         .limits = ND_LOG_LIMITS_UNLIMITED,
                 },
                 [NDLS_ACLK] = {
-                        .spinlock = NETDATA_SPINLOCK_INITIALIZER,
+                        .spinlock = SPINLOCK_INITIALIZER,
                         .method = NDLM_FILE,
                         .format = NDLF_LOGFMT,
                         .filename = LOG_DIR "/aclk.log",
@@ -458,7 +458,7 @@ static struct {
                         .limits = ND_LOG_LIMITS_UNLIMITED,
                 },
                 [NDLS_COLLECTORS] = {
-                        .spinlock = NETDATA_SPINLOCK_INITIALIZER,
+                        .spinlock = SPINLOCK_INITIALIZER,
                         .method = NDLM_DEFAULT,
                         .format = NDLF_LOGFMT,
                         .filename = LOG_DIR "/collectors.log",
@@ -468,7 +468,7 @@ static struct {
                         .limits = ND_LOG_LIMITS_DEFAULT,
                 },
                 [NDLS_DEBUG] = {
-                        .spinlock = NETDATA_SPINLOCK_INITIALIZER,
+                        .spinlock = SPINLOCK_INITIALIZER,
                         .method = NDLM_DISABLED,
                         .format = NDLF_LOGFMT,
                         .filename = LOG_DIR "/debug.log",
@@ -478,7 +478,7 @@ static struct {
                         .limits = ND_LOG_LIMITS_UNLIMITED,
                 },
                 [NDLS_DAEMON] = {
-                        .spinlock = NETDATA_SPINLOCK_INITIALIZER,
+                        .spinlock = SPINLOCK_INITIALIZER,
                         .method = NDLM_DEFAULT,
                         .filename = LOG_DIR "/daemon.log",
                         .format = NDLF_LOGFMT,
@@ -488,7 +488,7 @@ static struct {
                         .limits = ND_LOG_LIMITS_DEFAULT,
                 },
                 [NDLS_HEALTH] = {
-                        .spinlock = NETDATA_SPINLOCK_INITIALIZER,
+                        .spinlock = SPINLOCK_INITIALIZER,
                         .method = NDLM_DEFAULT,
                         .format = NDLF_LOGFMT,
                         .filename = LOG_DIR "/health.log",
@@ -1945,7 +1945,7 @@ static bool nd_logger_file(FILE *fp, ND_LOG_FORMAT format, struct log_field *fie
 // ----------------------------------------------------------------------------
 // logger router
 
-static ND_LOG_METHOD nd_logger_select_output(ND_LOG_SOURCES source, FILE **fpp, SPINLOCK **spinlock) {
+static ND_LOG_METHOD nd_logger_select_output(ND_LOG_SOURCES source, FILE **fpp, spinlock_t **spinlock) {
     *spinlock = NULL;
     ND_LOG_METHOD output = nd_log.sources[source].method;
 
@@ -2013,7 +2013,7 @@ static ND_LOG_METHOD nd_logger_select_output(ND_LOG_SOURCES source, FILE **fpp, 
 // ----------------------------------------------------------------------------
 // high level logger
 
-static void nd_logger_log_fields(SPINLOCK *spinlock, FILE *fp, bool limit, ND_LOG_FIELD_PRIORITY priority,
+static void nd_logger_log_fields(spinlock_t *spinlock, FILE *fp, bool limit, ND_LOG_FIELD_PRIORITY priority,
                                  ND_LOG_METHOD output, struct nd_log_source *source,
                                  struct log_field *fields, size_t fields_max) {
     if(spinlock)
@@ -2085,7 +2085,7 @@ static void nd_logger(const char *file, const char *function, const unsigned lon
                ND_LOG_SOURCES source, ND_LOG_FIELD_PRIORITY priority, bool limit, int saved_errno,
                const char *fmt, va_list ap) {
 
-    SPINLOCK *spinlock;
+    spinlock_t *spinlock;
     FILE *fp;
     ND_LOG_METHOD output = nd_logger_select_output(source, &fp, &spinlock);
     if(output != NDLM_FILE && output != NDLM_JOURNAL && output != NDLM_SYSLOG)

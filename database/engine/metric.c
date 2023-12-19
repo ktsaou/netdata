@@ -49,7 +49,7 @@ struct mrg {
     struct mrg_partition {
         ARAL *aral;                 // not protected by our spinlock - it has its own
 
-        RW_SPINLOCK rw_spinlock;
+        rw_spinlock_t rw_spinlock;
         Pvoid_t uuid_judy;          // JudyHS: each UUID has a JudyL of sections (tiers)
 
         struct mrg_statistics stats;
@@ -132,7 +132,7 @@ static inline time_t mrg_metric_get_first_time_s_smart(MRG *mrg __maybe_unused, 
 
 static inline REFCOUNT metric_acquire(MRG *mrg __maybe_unused, METRIC *metric) {
     size_t partition = metric->partition;
-    REFCOUNT expected = metric->refcount;
+    REFCOUNT expected = __atomic_load_n(&metric->refcount, __ATOMIC_RELAXED);
     REFCOUNT refcount;
 
     do {
@@ -152,7 +152,7 @@ static inline REFCOUNT metric_acquire(MRG *mrg __maybe_unused, METRIC *metric) {
 
 static inline bool metric_release_and_can_be_deleted(MRG *mrg __maybe_unused, METRIC *metric) {
     size_t partition = metric->partition;
-    REFCOUNT expected = metric->refcount;
+    REFCOUNT expected = __atomic_load_n(&metric->refcount, __ATOMIC_RELAXED);
     REFCOUNT refcount;
 
     do {

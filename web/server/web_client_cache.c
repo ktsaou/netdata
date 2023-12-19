@@ -18,7 +18,7 @@
 
 static struct clients_cache {
     struct {
-        SPINLOCK spinlock;
+        spinlock_t spinlock;
         struct web_client *head;    // the structures of the currently connected clients
         size_t count;               // the count the currently connected clients
 
@@ -27,20 +27,20 @@ static struct clients_cache {
     } used;
 
     struct {
-        SPINLOCK spinlock;
+        spinlock_t spinlock;
         struct web_client *head;    // the cached structures, available for future clients
         size_t count;               // the number of cached structures
     } avail;
 } web_clients_cache = {
         .used = {
-                .spinlock = NETDATA_SPINLOCK_INITIALIZER,
+                .spinlock = SPINLOCK_INITIALIZER,
                 .head = NULL,
                 .count = 0,
                 .reused = 0,
                 .allocated = 0,
         },
         .avail = {
-                .spinlock = NETDATA_SPINLOCK_INITIALIZER,
+                .spinlock = SPINLOCK_INITIALIZER,
                 .head = NULL,
                 .count = 0,
         },

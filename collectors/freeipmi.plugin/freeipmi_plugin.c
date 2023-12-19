@@ -1188,7 +1188,7 @@ struct ipmi_collection_thread {
     int freq_s;
     bool debug;
     IPMI_COLLECTION_TYPE type;
-    SPINLOCK spinlock;
+    spinlock_t spinlock;
     struct netdata_ipmi_state state;
 };
 
@@ -1928,7 +1928,7 @@ int main (int argc, char **argv) {
     struct ipmi_collection_thread sensors_data = {
             .type = IPMI_COLLECT_TYPE_SENSORS,
             .freq_s = update_every,
-            .spinlock = NETDATA_SPINLOCK_INITIALIZER,
+            .spinlock = SPINLOCK_INITIALIZER,
             .debug = debug,
             .state = {
                     .debug = debug,
@@ -1943,7 +1943,7 @@ int main (int argc, char **argv) {
     }, sel_data = {
             .type = IPMI_COLLECT_TYPE_SEL,
             .freq_s = update_every_sel,
-            .spinlock = NETDATA_SPINLOCK_INITIALIZER,
+            .spinlock = SPINLOCK_INITIALIZER,
             .debug = debug,
             .state = {
                     .debug = debug,

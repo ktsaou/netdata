@@ -46,18 +46,18 @@ struct rrdengine_datafile {
     struct rrdengine_datafile *next;
 
     struct {
-        SPINLOCK spinlock;
+        spinlock_t spinlock;
         bool populated;
     } populate_mrg;
 
     struct {
-        SPINLOCK spinlock;
+        spinlock_t spinlock;
         size_t running;
         size_t flushed_to_open_running;
     } writers;
 
     struct {
-        SPINLOCK spinlock;
+        spinlock_t spinlock;
         unsigned lockers;
         unsigned lockers_by_reason[DATAFILE_ACQUIRE_MAX];
         bool available;
@@ -65,7 +65,7 @@ struct rrdengine_datafile {
     } users;
 
     struct {
-        SPINLOCK spinlock;
+        spinlock_t spinlock;
         Pvoid_t pending_epdl_by_extent_offset_judyL;
     } extent_queries;
 };

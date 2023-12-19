@@ -795,7 +795,7 @@ struct rrdset {
     // ------------------------------------------------------------------------
     // data collection members
 
-    SPINLOCK data_collection_lock;
+    spinlock_t data_collection_lock;
 
     uint32_t counter;                               // the number of times we added values to this database
     uint32_t counter_done;                          // the number of times rrdset_done() has been called
@@ -857,12 +857,12 @@ struct rrdset {
     const RRDFAMILY_ACQUIRED *rrdfamily;            // pointer to RRDFAMILY dictionary item, this chart belongs to
 
     struct {
-        RW_SPINLOCK spinlock;                       // protection for RRDCALC *base
+        rw_spinlock_t spinlock;                       // protection for RRDCALC *base
         RRDCALC *base;                              // double linked list of RRDCALC related to this RRDSET
     } alerts;
 
     struct {
-        SPINLOCK spinlock; // used only for cleanup
+        spinlock_t spinlock; // used only for cleanup
         pid_t collector_tid;
         bool dims_with_slots;
         bool set;
@@ -1134,7 +1134,7 @@ typedef struct alarm_log {
     unsigned int max;
     uint32_t health_log_history;                   // the health log history in seconds to be kept in db
     ALARM_ENTRY *alarms;
-    RW_SPINLOCK spinlock;
+    rw_spinlock_t spinlock;
 } ALARM_LOG;
 
 typedef struct health {
@@ -1236,7 +1236,7 @@ struct rrdhost {
         struct {
             struct {
                 struct {
-                    SPINLOCK spinlock;
+                    spinlock_t spinlock;
 
                     bool ignore;                    // when set, freeing slots will not put them in the available
                     uint32_t used;
@@ -1250,7 +1250,7 @@ struct rrdhost {
 
         struct {
             struct {
-                SPINLOCK spinlock;                  // lock for the management of the allocation
+                spinlock_t spinlock;                  // lock for the management of the allocation
                 uint32_t size;
                 RRDSET **array;
             } pluginsd_chart_slots;
@@ -1314,7 +1314,7 @@ struct rrdhost {
     // ------------------------------------------------------------------------
     // locks
 
-    SPINLOCK rrdhost_update_lock;
+    spinlock_t rrdhost_update_lock;
 
     // ------------------------------------------------------------------------
     // ML handle
@@ -1347,7 +1347,7 @@ struct rrdhost {
     } rrdctx;
 
     struct {
-        SPINLOCK spinlock;
+        spinlock_t spinlock;
         time_t first_time_s;
         time_t last_time_s;
     } retention;

@@ -161,7 +161,7 @@ size_t deol_cache_size(void) {
 
 static struct {
     struct {
-        SPINLOCK spinlock;
+        spinlock_t spinlock;
         struct extent_buffer *available_items;
         size_t available;
     } protected;
@@ -175,7 +175,7 @@ static struct {
 
 } extent_buffer_globals = {
         .protected = {
-                .spinlock = NETDATA_SPINLOCK_INITIALIZER,
+                .spinlock = SPINLOCK_INITIALIZER,
                 .available_items = NULL,
                 .available = 0,
         },

@@ -10,7 +10,7 @@ static pthread_attr_t *netdata_threads_attr = NULL;
 typedef struct {
     void *arg;
     char tag[NETDATA_THREAD_NAME_MAX + 1];
-    SPINLOCK detach_lock;
+    spinlock_t detach_lock;
     void *(*start_routine) (void *);
     NETDATA_THREAD_OPTIONS options;
 } NETDATA_THREAD;

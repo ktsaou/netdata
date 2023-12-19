@@ -41,7 +41,7 @@ typedef struct aral_page {
     } aral_lock;
 
     struct {
-        SPINLOCK spinlock;
+        spinlock_t spinlock;
         ARAL_FREE *list;
     } free;
 
@@ -77,7 +77,7 @@ struct aral {
     } config;
 
     struct {
-        SPINLOCK spinlock;
+        spinlock_t spinlock;
         size_t file_number;             // for mmap
         struct aral_page *pages;        // linked list of pages
 
@@ -88,7 +88,7 @@ struct aral {
     } aral_lock;
 
     struct {
-        SPINLOCK spinlock;
+        spinlock_t spinlock;
         size_t allocating_elements;     // currently allocating elements
         size_t allocation_size;         // current / next allocation size
     } adders;
@@ -822,7 +822,7 @@ struct aral_by_size {
 
 struct {
     struct aral_statistics shared_statistics;
-    SPINLOCK spinlock;
+    spinlock_t spinlock;
     struct aral_by_size array[ARAL_BY_SIZE_MAX_SIZE + 1];
 } aral_by_size_globals = {};
 

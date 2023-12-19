@@ -15,24 +15,24 @@ static void query_node_release(QUERY_NODE *qn);
 static __thread QUERY_TARGET *thread_qt = NULL;
 static struct {
     struct {
-        SPINLOCK spinlock;
+        spinlock_t spinlock;
         size_t count;
         QUERY_TARGET *base;
     } available;
 
     struct {
-        SPINLOCK spinlock;
+        spinlock_t spinlock;
         size_t count;
         QUERY_TARGET *base;
     } used;
 } query_target_base = {
         .available = {
-                .spinlock = NETDATA_SPINLOCK_INITIALIZER,
+                .spinlock = SPINLOCK_INITIALIZER,
                 .base = NULL,
                 .count = 0,
         },
         .used = {
-                .spinlock = NETDATA_SPINLOCK_INITIALIZER,
+                .spinlock = SPINLOCK_INITIALIZER,
                 .base = NULL,
                 .count = 0,
         },

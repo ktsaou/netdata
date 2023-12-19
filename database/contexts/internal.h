@@ -252,7 +252,7 @@ typedef struct rrdcontext {
     uint32_t priority;
     RRDSET_TYPE chart_type;
 
-    SPINLOCK spinlock;
+    spinlock_t spinlock;
 
     RRD_FLAGS flags;
     time_t first_time_s;

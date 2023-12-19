@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
+
 #include "cache.h"
 
 /* STATES AND TRANSITIONS
@@ -54,7 +55,7 @@ struct pgc_page {
     REFCOUNT refcount;
     uint16_t accesses;              // counts the number of accesses on this page
     PGC_PAGE_FLAGS flags;
-    SPINLOCK transition_spinlock;   // when the page changes between HOT, DIRTY, CLEAN, we have to get this lock
+    spinlock_t transition_spinlock;   // when the page changes between HOT, DIRTY, CLEAN, we have to get this lock
 
     struct {
         struct pgc_page *next;
@@ -69,7 +70,7 @@ struct pgc_page {
 };
 
 struct pgc_linked_list {
-    SPINLOCK spinlock;
+    spinlock_t spinlock;
     union {
         PGC_PAGE *base;
         Pvoid_t sections_judy;
@@ -113,7 +114,7 @@ struct pgc {
     PGC_CACHE_LINE_PADDING(0);
 
     struct pgc_index {
-        RW_SPINLOCK rw_spinlock;
+        rw_spinlock_t rw_spinlock;
         Pvoid_t sections_judy;
         PGC_CACHE_LINE_PADDING(0);
     } *index;
@@ -121,7 +122,7 @@ struct pgc {
     PGC_CACHE_LINE_PADDING(1);
 
     struct {
-        SPINLOCK spinlock;
+        spinlock_t spinlock;
         size_t per1000;
     } usage;
 
@@ -410,7 +411,7 @@ static inline void atomic_set_max(size_t *max, size_t desired) {
 }
 
 struct section_pages {
-    SPINLOCK migration_to_v2_spinlock;
+    spinlock_t migration_to_v2_spinlock;
     size_t entries;
     size_t size;
     PGC_PAGE *base;
@@ -418,7 +419,7 @@ struct section_pages {
 
 static ARAL *pgc_section_pages_aral = NULL;
 static void pgc_section_pages_static_aral_init(void) {
-    static SPINLOCK spinlock = NETDATA_SPINLOCK_INITIALIZER;
+    static spinlock_t spinlock = SPINLOCK_INITIALIZER;
 
     if(unlikely(!pgc_section_pages_aral)) {
         spinlock_lock(&spinlock);
@@ -1168,14 +1169,19 @@ static bool evict_pages_with_filter(PGC *cache, size_t max_skip, size_t max_evic
 
     } while(all_of_them || (total_pages_evicted < max_evict && total_pages_skipped < max_skip));
 
-    if(all_of_them && !filter) {
+    if(all_of_them && !filter)
+    {
         pgc_ll_lock(cache, &cache->clean);
-        if(cache->clean.stats->entries) {
+
+        size_t entries = __atomic_load_n(&cache->clean.stats->entries, __ATOMIC_RELAXED);
+        if (entries)
+        {
             nd_log_limit_static_global_var(erl, 1, 0);
             nd_log_limit(&erl, NDLS_DAEMON, NDLP_NOTICE,
                          "DBENGINE CACHE: cannot free all clean pages, %zu are still in the clean queue",
                          cache->clean.stats->entries);
         }
+
         pgc_ll_unlock(cache, &cache->clean);
     }
 
@@ -1530,7 +1536,9 @@ static bool flush_pages(PGC *cache, size_t max_flushes, Word_t section, bool wai
 
     size_t optimal_flush_size = cache->config.max_dirty_pages_per_call;
     size_t dirty_version_at_entry = cache->dirty.version;
-    if(!all_of_them && (cache->dirty.stats->entries < optimal_flush_size || cache->dirty.last_version_checked == dirty_version_at_entry)) {
+
+    size_t dirty_entries = __atomic_load_n(&cache->dirty.stats->entries, __ATOMIC_RELAXED);
+    if(!all_of_them && (dirty_entries < optimal_flush_size || cache->dirty.last_version_checked == dirty_version_at_entry)) {
         pgc_ll_unlock(cache, &cache->dirty);
         return false;
     }

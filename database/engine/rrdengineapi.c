@@ -1080,7 +1080,7 @@ static void rrdeng_populate_mrg(struct rrdengine_instance *ctx) {
     ctx->loading.populate_mrg.array = callocz(ctx->loading.populate_mrg.size, sizeof(struct completion));
 
     for (size_t i = 0; i < ctx->loading.populate_mrg.size; i++) {
-        completion_init(&ctx->loading.populate_mrg.array[i]);
+        completion_init(&ctx->loading.populate_mrg.array[i], COMPLETION_SOURCE_RRDENG_POPULATE_MRG);
         rrdeng_enq_cmd(ctx, RRDENG_OPCODE_CTX_POPULATE_MRG, NULL, &ctx->loading.populate_mrg.array[i],
                        STORAGE_PRIORITY_INTERNAL_DBENGINE, NULL, NULL);
     }
@@ -1204,7 +1204,7 @@ int rrdeng_exit(struct rrdengine_instance *ctx) {
 
     netdata_log_info("DBENGINE: shutting down tier %d", (ctx->config.legacy) ? -1 : ctx->config.tier);
     struct completion completion = {};
-    completion_init(&completion);
+    completion_init(&completion, COMPLETION_SOURCE_RRDENG_EXIT);
     rrdeng_enq_cmd(ctx, RRDENG_OPCODE_CTX_SHUTDOWN, NULL, &completion, STORAGE_PRIORITY_BEST_EFFORT, NULL, NULL);
     completion_wait_for(&completion);
     completion_destroy(&completion);
@@ -1225,7 +1225,7 @@ void rrdeng_prepare_exit(struct rrdengine_instance *ctx) {
     // FIXME - ktsaou - properly cleanup ctx
     // 1. make sure all collectors are stopped
 
-    completion_init(&ctx->quiesce.completion);
+    completion_init(&ctx->quiesce.completion, COMPLETION_SOURCE_RRDENG_PREPARE_EXIT);
     rrdeng_enq_cmd(ctx, RRDENG_OPCODE_CTX_QUIESCE, NULL, NULL, STORAGE_PRIORITY_INTERNAL_DBENGINE, NULL, NULL);
 }
 

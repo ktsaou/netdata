@@ -2370,7 +2370,7 @@ void generate_dbengine_dataset(unsigned history_seconds)
         thread_info[i]->time_present = time_present;
         thread_info[i]->time_max = 0;
         thread_info[i]->done = 0;
-        completion_init(&thread_info[i]->charts_initialized);
+        completion_init(&thread_info[i]->charts_initialized, COMPLETION_SOURCE_GENERATE_DBENGINE_DATASET);
         fatal_assert(0 == uv_thread_create(&thread_info[i]->thread, generate_dbengine_chart, thread_info[i]));
         completion_wait_for(&thread_info[i]->charts_initialized);
         completion_destroy(&thread_info[i]->charts_initialized);
@@ -2577,7 +2577,7 @@ void dbengine_stress_test(unsigned TEST_DURATION_SEC, unsigned DSET_CHARTS, unsi
         chart_threads[i]->time_max = 0;
         chart_threads[i]->done = 0;
         chart_threads[i]->errors = chart_threads[i]->stored_metrics_nr = 0;
-        completion_init(&chart_threads[i]->charts_initialized);
+        completion_init(&chart_threads[i]->charts_initialized, COMPLETION_SOURCE_DBENGINE_STRESS_TEST);
         fatal_assert(0 == uv_thread_create(&chart_threads[i]->thread, generate_dbengine_chart, chart_threads[i]));
     }
     /* barrier so that subsequent queries can access valid chart data */
