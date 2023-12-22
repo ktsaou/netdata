@@ -1579,7 +1579,10 @@ void timer_cb(uv_timer_t* handle) {
     uv_stop(handle->loop);
     uv_update_time(handle->loop);
 
+    spinlock_lock(&rrdeng_main.cmd_queue.unsafe.spinlock);
     worker_set_metric(RRDENG_OPCODES_WAITING, (NETDATA_DOUBLE)rrdeng_main.cmd_queue.unsafe.waiting);
+    spinlock_unlock(&rrdeng_main.cmd_queue.unsafe.spinlock);
+
     worker_set_metric(RRDENG_WORKS_DISPATCHED, (NETDATA_DOUBLE)__atomic_load_n(&rrdeng_main.work_cmd.atomics.dispatched, __ATOMIC_RELAXED));
     worker_set_metric(RRDENG_WORKS_EXECUTING, (NETDATA_DOUBLE)__atomic_load_n(&rrdeng_main.work_cmd.atomics.executing, __ATOMIC_RELAXED));
 

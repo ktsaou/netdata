@@ -871,7 +871,7 @@ struct pgc_page *pg_cache_lookup_next(
         if (!pd)
             break;
 
-        page = pd->page;
+        page = __atomic_load_n(&pd->page, __ATOMIC_RELAXED);
         page_from_pd = true;
         preloaded = pdc_page_status_check(pd, PDC_PAGE_PRELOADED);
         if(!page) {
