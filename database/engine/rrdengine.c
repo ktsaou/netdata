@@ -890,8 +890,8 @@ static struct extent_io_descriptor *datafile_extent_build(struct rrdengine_insta
     datafile = get_datafile_to_write_extent(ctx);
     spinlock_lock(&datafile->writers.spinlock);
     xt_io_descr->datafile = datafile;
-    xt_io_descr->pos = datafile->pos;
-    datafile->pos += real_io_size;
+    xt_io_descr->pos = __atomic_load_n(&datafile->pos, __ATOMIC_RELAXED);
+    __atomic_add_fetch(&datafile->pos, real_io_size, __ATOMIC_RELAXED);
     spinlock_unlock(&datafile->writers.spinlock);
 
     xt_io_descr->bytes = size_bytes;
@@ -1400,8 +1400,9 @@ uint64_t rrdeng_target_data_file_size(struct rrdengine_instance *ctx) {
 
 bool rrdeng_ctx_exceeded_disk_quota(struct rrdengine_instance *ctx)
 {
+    uint64_t pos = __atomic_load_n(&ctx->datafiles.first->prev->pos, __ATOMIC_RELAXED);
     uint64_t estimated_disk_space = ctx_current_disk_space_get(ctx) + rrdeng_target_data_file_size(ctx) -
-                                    (ctx->datafiles.first->prev ? ctx->datafiles.first->prev->pos : 0);
+                                    (ctx->datafiles.first->prev ? pos : 0);
 
     return estimated_disk_space > ctx->config.max_disk_space;
 }
