@@ -860,10 +860,10 @@ static inline void free_this_page(PGC *cache, PGC_PAGE *page, size_t partition _
             .metric_id = page->metric_id,
             .start_time_s = page->start_time_s,
             .end_time_s = __atomic_load_n(&page->end_time_s, __ATOMIC_RELAXED),
-            .update_every_s = page->update_every_s,
+            .update_every_s = __atomic_load_n(&page->update_every_s, __ATOMIC_RELAXED),
             .size = page_size_from_assumed_size(cache, page->assumed_size),
             .hot = (is_page_hot(page)) ? true : false,
-            .data = page->data,
+            .data = __atomic_load_n(&page->data, __ATOMIC_RELAXED),
             .custom_data = (cache->config.additional_bytes_per_page) ? page->custom_data : NULL,
     });
 
@@ -1253,15 +1253,15 @@ static PGC_PAGE *page_add(PGC *cache, PGC_ENTRY *entry, bool *added) {
 #else
             page = mallocz(sizeof(PGC_PAGE) + cache->config.additional_bytes_per_page);
 #endif
-            page->refcount = 1;
+            __atomic_store_n(&page->refcount, 1, __ATOMIC_RELAXED);
             page->accesses = (entry->hot) ? 0 : 1;
             page->flags = 0;
             page->section = entry->section;
             page->metric_id = entry->metric_id;
             page->start_time_s = entry->start_time_s;
             page->end_time_s = entry->end_time_s,
-            page->update_every_s = entry->update_every_s,
-            page->data = entry->data;
+            __atomic_store_n(&page->update_every_s, entry->update_every_s, __ATOMIC_RELAXED);
+            __atomic_store_n(&page->data, entry->data, __ATOMIC_RELAXED);
             page->assumed_size = page_assumed_size(cache, entry->size);
             spinlock_init(&page->transition_spinlock);
             page->link.prev = NULL;
@@ -1607,9 +1607,9 @@ static bool flush_pages(PGC *cache, size_t max_flushes, Word_t section, bool wai
                             .metric_id = page->metric_id,
                             .start_time_s = page->start_time_s,
                             .end_time_s = __atomic_load_n(&page->end_time_s, __ATOMIC_RELAXED),
-                            .update_every_s = page->update_every_s,
+                            .update_every_s = __atomic_load_n(&page->update_every_s, __ATOMIC_RELAXED),
                             .size = page_size_from_assumed_size(cache, page->assumed_size),
-                            .data = page->data,
+                            .data = __atomic_load_n(&page->data, __ATOMIC_RELAXED),
                             .custom_data = (cache->config.additional_bytes_per_page) ? page->custom_data : NULL,
                             .hot = false,
                     };
@@ -1960,14 +1960,18 @@ time_t pgc_page_end_time_s(PGC_PAGE *page) {
 }
 
 uint32_t pgc_page_update_every_s(PGC_PAGE *page) {
-    return page->update_every_s;
+    return __atomic_load_n(&page->update_every_s, __ATOMIC_RELAXED);
 }
 
 uint32_t pgc_page_fix_update_every(PGC_PAGE *page, uint32_t update_every_s) {
-    if(page->update_every_s == 0)
-        page->update_every_s = update_every_s;
+    // FIXME: just to silence thread sanitizer (this should use a cmpxgh)
 
-    return page->update_every_s;
+    if(__atomic_load_n(&page->update_every_s, __ATOMIC_RELAXED) == 0) {
+        __atomic_store_n(&page->update_every_s, update_every_s, __ATOMIC_RELAXED);
+        return update_every_s;
+    } else {
+        return __atomic_load_n(&page->update_every_s, __ATOMIC_RELAXED);
+    }
 }
 
 time_t pgc_page_fix_end_time_s(PGC_PAGE *page, time_t end_time_s) {
@@ -1976,7 +1980,7 @@ time_t pgc_page_fix_end_time_s(PGC_PAGE *page, time_t end_time_s) {
 }
 
 void *pgc_page_data(PGC_PAGE *page) {
-    return page->data;
+    return __atomic_load_n(&page->data, __ATOMIC_RELAXED);
 }
 
 void *pgc_page_custom_data(PGC *cache, PGC_PAGE *page) {
@@ -2195,7 +2199,7 @@ void pgc_open_cache_to_journal_v2(PGC *cache, Word_t section, unsigned datafile_
             struct jv2_page_info *pi = aral_mallocz(ar_pi); // callocz(1, (sizeof(struct jv2_page_info)));
             pi->start_time_s = page->start_time_s;
             pi->end_time_s = page->end_time_s;
-            pi->update_every_s = page->update_every_s;
+            pi->update_every_s = __atomic_load_n(&page->update_every_s, __ATOMIC_RELAXED);
             pi->page_length = page_size_from_assumed_size(cache, page->assumed_size);
             pi->page = page;
             pi->extent_index = current_extent_index_id;
@@ -2264,7 +2268,7 @@ void pgc_open_cache_to_journal_v2(PGC *cache, Word_t section, unsigned datafile_
 }
 
 static bool match_page_data(PGC_PAGE *page, void *data) {
-    return (page->data == data);
+    return (__atomic_load_n(&page->data, __ATOMIC_RELAXED) == data);
 }
 
 void pgc_open_evict_clean_pages_of_datafile(PGC *cache, struct rrdengine_datafile *datafile) {

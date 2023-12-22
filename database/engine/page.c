@@ -159,7 +159,7 @@ PGD *pgd_create(uint8_t type, uint32_t slots)
 {
     PGD *pg = aral_mallocz(pgd_alloc_globals.aral_pgd);
     pg->type = type;
-    pg->used = 0;
+    __atomic_store_n(&pg->used, 0, __ATOMIC_RELAXED);
     pg->slots = slots;
     pg->options = PAGE_OPTION_ALL_VALUES_EMPTY;
     pg->states = PGD_STATE_CREATED_FROM_COLLECTOR;
@@ -222,8 +222,8 @@ PGD *pgd_create_from_disk_data(uint8_t type, void *base, uint32_t size)
         case PAGE_METRICS:
         case PAGE_TIER:
             pg->raw.size = size;
-            pg->used = size / page_type_size[type];
-            pg->slots = pg->used;
+            pg->slots = size / page_type_size[type];
+            __atomic_store_n(&pg->used, pg->slots, __ATOMIC_RELAXED);
 
             pg->raw.data = pgd_data_aral_alloc(size);
             memcpy(pg->raw.data, base, size);
@@ -242,8 +242,8 @@ PGD *pgd_create_from_disk_data(uint8_t type, void *base, uint32_t size)
 
             uint32_t total_entries = gorilla_buffer_patch((void *) pg->raw.data);
 
-            pg->used = total_entries;
-            pg->slots = pg->used;
+            pg->slots = total_entries;
+            __atomic_store_n(&pg->used, total_entries, __ATOMIC_RELAXED);
             break;
         default:
             fatal("Unknown page type: %uc", type);
@@ -328,7 +328,7 @@ bool pgd_is_empty(PGD *pg)
     if (pg == PGD_EMPTY)
         return true;
 
-    if (pg->used == 0)
+    if (__atomic_load_n(&pg->used, __ATOMIC_RELAXED) == 0)
         return true;
 
     if (pg->options & PAGE_OPTION_ALL_VALUES_EMPTY)
@@ -345,7 +345,7 @@ uint32_t pgd_slots_used(PGD *pg)
     if (pg == PGD_EMPTY)
         return 0;
 
-    return pg->used;
+    return __atomic_load_n(&pg->used, __ATOMIC_RELAXED);
 }
 
 uint32_t pgd_memory_footprint(PGD *pg)
@@ -387,7 +387,7 @@ uint32_t pgd_disk_footprint(PGD *pg)
     switch (pg->type) {
         case PAGE_METRICS:
         case PAGE_TIER: {
-            uint32_t used_size = pg->used * page_type_size[pg->type];
+            uint32_t used_size = __atomic_load_n(&pg->used, __ATOMIC_RELAXED) * page_type_size[pg->type];
             internal_fatal(used_size > pg->raw.size, "Wrong disk footprint page size");
             size = used_size;
 
@@ -475,13 +475,13 @@ void pgd_append_point(PGD *pg,
                       SN_FLAGS flags,
                       uint32_t expected_slot)
 {
-    if (unlikely(pg->used >= pg->slots))
+    if (unlikely(__atomic_load_n(&pg->used, __ATOMIC_RELAXED) >= pg->slots))
         fatal("DBENGINE: attempted to write beyond page size (page type %u, slots %u, used %u)",
               pg->type, pg->slots, pg->used /* FIXME:, pg->size */);
 
-    if (unlikely(pg->used != expected_slot))
+    if (unlikely(__atomic_load_n(&pg->used, __ATOMIC_RELAXED) != expected_slot))
         fatal("DBENGINE: page is not aligned to expected slot (used %u, expected %u)",
-              pg->used, expected_slot);
+              __atomic_load_n(&pg->used, __ATOMIC_RELAXED), expected_slot);
 
     if (!(pg->states & PGD_STATE_CREATED_FROM_COLLECTOR))
         fatal("DBENGINE: collection on page not created from a collector");
@@ -493,7 +493,7 @@ void pgd_append_point(PGD *pg,
         case PAGE_METRICS: {
             storage_number *tier0_metric_data = (storage_number *)pg->raw.data;
             storage_number t = pack_storage_number(n, flags);
-            tier0_metric_data[pg->used++] = t;
+            tier0_metric_data[__atomic_fetch_add(&pg->used, 1, __ATOMIC_RELAXED)] = t;
 
             if ((pg->options & PAGE_OPTION_ALL_VALUES_EMPTY) && does_storage_number_exist(t))
                 pg->options &= ~PAGE_OPTION_ALL_VALUES_EMPTY;
@@ -508,7 +508,7 @@ void pgd_append_point(PGD *pg,
             t.max_value = (float) max_value;
             t.anomaly_count = anomaly_count;
             t.count = count;
-            tier12_metric_data[pg->used++] = t;
+            tier12_metric_data[__atomic_fetch_add(&pg->used, 1, __ATOMIC_RELAXED)] = t;
 
             if ((pg->options & PAGE_OPTION_ALL_VALUES_EMPTY) && fpclassify(n) != FP_NAN)
                 pg->options &= ~PAGE_OPTION_ALL_VALUES_EMPTY;
@@ -552,7 +552,7 @@ static void pgdc_seek(PGDC *pgdc, uint32_t position)
     switch (pg->type) {
         case PAGE_METRICS:
         case PAGE_TIER:
-            pgdc->slots = pgdc->pgd->used;
+            pgdc->slots = __atomic_load_n(&pgdc->pgd->used, __ATOMIC_RELAXED);
             break;
         case PAGE_GORILLA_METRICS: {
             if (pg->states & PGD_STATE_CREATED_FROM_DISK) {
