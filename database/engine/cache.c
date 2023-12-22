@@ -1386,7 +1386,7 @@ static PGC_PAGE *page_find_and_acquire(PGC *cache, Word_t section, Word_t metric
                     // found a page starting before our timestamp
                     // check if our timestamp is included
                     page = *page_ptr;
-                    if(start_time_s > page->end_time_s)
+                    if(start_time_s > __atomic_load_n(&page->end_time_s, __ATOMIC_RELAXED))
                         // it is not good for us
                         page = NULL;
                 }
@@ -1946,7 +1946,7 @@ time_t pgc_page_start_time_s(PGC_PAGE *page) {
 }
 
 time_t pgc_page_end_time_s(PGC_PAGE *page) {
-    return page->end_time_s;
+    return __atomic_load_n(&page->end_time_s, __ATOMIC_RELAXED);
 }
 
 uint32_t pgc_page_update_every_s(PGC_PAGE *page) {
@@ -1961,8 +1961,8 @@ uint32_t pgc_page_fix_update_every(PGC_PAGE *page, uint32_t update_every_s) {
 }
 
 time_t pgc_page_fix_end_time_s(PGC_PAGE *page, time_t end_time_s) {
-    page->end_time_s = end_time_s;
-    return page->end_time_s;
+    __atomic_store_n(&page->end_time_s, end_time_s, __ATOMIC_RELAXED);
+    return end_time_s;
 }
 
 void *pgc_page_data(PGC_PAGE *page) {

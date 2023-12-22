@@ -829,10 +829,6 @@ VALIDATED_PAGE_DESCRIPTOR validate_page(
 
 static inline struct page_details *epdl_get_pd_load_link_list_from_metric_start_time(EPDL *epdl, Word_t metric_id, time_t start_time_s) {
 
-    if(unlikely(epdl->head_to_datafile_extent_queries_pending_for_extent))
-        // stop appending more pages to this epdl
-        epdl_pending_del(epdl);
-
     struct page_details *pd_list = NULL;
 
     for(EPDL *ep = epdl; ep ;ep = ep->query.next) {
@@ -1022,6 +1018,10 @@ static bool epdl_populate_pages_from_extent_data(
         }
     }
 
+    // stop appending more pages to this epdl
+    epdl_pending_del(epdl);
+    // it is now safe to read EPDL->query.next
+
     if(worker)
         worker_is_busy(UV_EVENT_DBENGINE_EXTENT_PAGE_LOOKUP);
 
@@ -1035,6 +1035,8 @@ static bool epdl_populate_pages_from_extent_data(
     uint32_t page_offset = 0, page_length;
     time_t now_s = max_acceptable_collected_time();
     for (i = 0; i < count; i++, page_offset += page_length) {
+        // for each page in the extent
+
         page_length = header->descr[i].page_length;
         time_t start_time_s = (time_t) (header->descr[i].start_time_ut / USEC_PER_SEC);
 
@@ -1055,6 +1057,7 @@ static bool epdl_populate_pages_from_extent_data(
         }
         mrg_metric_release(main_mrg, metric);
 
+        // find the requests (page_details) in epdl, we satisfy with this page (from the extent)
         struct page_details *pd_list = epdl_get_pd_load_link_list_from_metric_start_time(epdl, metric_id, start_time_s);
         if(likely(!pd_list))
             continue;
@@ -1124,12 +1127,13 @@ static bool epdl_populate_pages_from_extent_data(
         else
             stats_data_from_extent++;
 
+        // update the response of PDCs (which are now merged into this EPDL)
         struct page_details *pd = pd_list;
         do {
             if(pd != pd_list)
                 pgc_page_dup(main_cache, page);
 
-            pd->page = page;
+            __atomic_store_n(&pd->page, page, __ATOMIC_RELAXED);
             pdc_page_status_set(pd, PDC_PAGE_READY | tags | (pgd_is_empty(pgd) ? PDC_PAGE_EMPTY : 0));
 
             pd = pd->load.next;
@@ -1206,6 +1210,7 @@ void epdl_find_extent_and_populate_pages(struct rrdengine_instance *ctx, EPDL *e
     PDC_PAGE_STATUS not_loaded_pages_tag = 0, loaded_pages_tag = 0;
 
     bool should_stop = __atomic_load_n(&epdl->pdc->workers_should_stop, __ATOMIC_RELAXED);
+    spinlock_lock(&epdl->datafile->extent_queries.spinlock);
     for(EPDL *ep = epdl->query.next; ep ;ep = ep->query.next) {
         internal_fatal(ep->datafile != epdl->datafile, "DBENGINE: datafiles do not match");
         internal_fatal(ep->extent_offset != epdl->extent_offset, "DBENGINE: extent offsets do not match");
@@ -1217,6 +1222,7 @@ void epdl_find_extent_and_populate_pages(struct rrdengine_instance *ctx, EPDL *e
             break;
         }
     }
+    spinlock_unlock(&epdl->datafile->extent_queries.spinlock);
 
     if(unlikely(should_stop)) {
         statistics_counter = &rrdeng_cache_efficiency_stats.pages_load_fail_cancelled;
@@ -1309,6 +1315,8 @@ cleanup:
     // remove it from the datafile extent_queries
     // this can be called multiple times safely
     epdl_pending_del(epdl);
+
+    // it is now safe to read EPDL->query.next
 
     // mark all pending pages as failed
     for(EPDL *ep = epdl; ep ;ep = ep->query.next) {
