@@ -1262,6 +1262,12 @@ static void query_planer_initialize_plans(QUERY_ENGINE_OPS *ops) {
         else
             points_to_add_to_before = POINTS_TO_EXPAND_QUERY;
 
+
+//        if(unittest_running) {
+//            points_to_add_to_after = 0;
+//            points_to_add_to_before = 0;
+//        }
+
         time_t after = qm->plan.array[p].after - (time_t)(update_every * points_to_add_to_after);
         time_t before = qm->plan.array[p].before + (time_t)(update_every * points_to_add_to_before);
 

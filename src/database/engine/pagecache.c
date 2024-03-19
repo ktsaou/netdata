@@ -413,6 +413,9 @@ static size_t list_has_time_gaps(
         if(pd->update_every_s)
             dt_s = pd->update_every_s;
 
+        if(pd->first_time_s > now_s + 10)
+            netdata_log_error("A GAP: wanted [%lu, %lu], gap [%lu, %lu]", wanted_start_time_s, wanted_end_time_s, now_s, pd->first_time_s);
+
         if(populate_gaps && pd->first_time_s > now_s)
             pgc_inject_gap(ctx, metric, now_s, pd->first_time_s);
 
@@ -422,6 +425,9 @@ static size_t list_has_time_gaps(
             break;
         }
     }
+
+    if(now_s + 10 < wanted_end_time_s)
+        netdata_log_error("B GAP: wanted [%lu, %lu], gap [%lu, %lu]", wanted_start_time_s, wanted_end_time_s, now_s, wanted_end_time_s);
 
     if(populate_gaps && now_s < wanted_end_time_s)
         pgc_inject_gap(ctx, metric, now_s, wanted_end_time_s);
@@ -678,6 +684,9 @@ static Pvoid_t get_page_list(
             goto we_are_done;
     }
 
+//    if(query_gaps)
+//        netdata_log_error("1. Query with %zu gaps! (main cache pages %zu, main cache gaps %zu)", query_gaps, pages_found_in_main_cache, cache_gaps);
+
     // --------------------------------------------------------------
     // PASS 2: Check what the open journal page cache has available
     //         these will be loaded from disk
@@ -700,6 +709,9 @@ static Pvoid_t get_page_list(
             goto we_are_done;
     }
 
+//    if(query_gaps)
+//        netdata_log_error("2. Query with %zu gaps! (open cache pages %zu, open cache gaps %zu)", query_gaps, pages_found_in_open_cache, cache_gaps);
+
     // --------------------------------------------------------------
     // PASS 3: Check Journal v2 to fill the gaps
 
@@ -719,6 +731,9 @@ static Pvoid_t get_page_list(
     query_gaps = list_has_time_gaps(ctx, metric, JudyL_page_array, wanted_start_time_s, wanted_end_time_s,
                                     &pages_total, &pages_found_pass4, pages_to_load_from_disk, &pages_overlapping,
                                     optimal_end_time_s, true, common_status);
+
+//    if(query_gaps)
+//        netdata_log_error("3. Final: query with %zu gaps! (JV2 pages %zu)", query_gaps, pages_found_in_journals_v2);
 
 we_are_done:
     finish_ut = now_monotonic_usec();
