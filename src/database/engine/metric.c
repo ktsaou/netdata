@@ -21,6 +21,8 @@ struct metric {
     SPINLOCK refcount_spinlock;
     REFCOUNT refcount;
 
+    struct metric_page *pages;
+
     // THIS IS allocated with malloc()
     // YOU HAVE TO INITIALIZE IT YOURSELF !
 };
@@ -230,6 +232,7 @@ static inline METRIC *metric_add_and_acquire(MRG *mrg, MRG_ENTRY *entry, bool *r
     metric->writer = 0;
     metric->refcount = 0;
     metric->partition = partition;
+    metric->pages = NULL;
     spinlock_init(&metric->refcount_spinlock);
     metric_acquire(mrg, metric);
     *PValue = metric;
@@ -559,6 +562,47 @@ inline bool mrg_metric_set_update_every_s_if_zero(MRG *mrg __maybe_unused, METRI
 
 inline uint32_t mrg_metric_get_update_every_s(MRG *mrg __maybe_unused, METRIC *metric) {
     return __atomic_load_n(&metric->latest_update_every_s, __ATOMIC_RELAXED);
+}
+
+void mrg_metric_add_page(METRIC *metric, time_t first_t, time_t last_t, time_t update_every, uint8_t place, bool remove) {
+    struct metric_page *mp = mallocz(sizeof(*mp));
+    mp->first_t = first_t;
+    mp->last_t = last_t;
+    mp->update_every = update_every;
+    mp->places = place;
+    mp->prev = mp->next = NULL;
+
+    spinlock_lock(&metric->refcount_spinlock);
+    for(struct metric_page *m = metric->pages; m ;m = m->next) {
+        if(m->first_t == first_t && m->last_t == last_t) {
+            freez(mp);
+            mp = NULL;
+
+            if(remove)
+                m->places &= ~place;
+            else
+                m->places |= place;
+
+            break;
+        }
+        if (m->first_t > first_t) {
+            DOUBLE_LINKED_LIST_INSERT_ITEM_BEFORE_UNSAFE(metric->pages, m, mp, prev, next);
+            mp = NULL;
+            break;
+        }
+        if (m->next && m->next->first_t > first_t) {
+            DOUBLE_LINKED_LIST_INSERT_ITEM_AFTER_UNSAFE(metric->pages, m, mp, prev, next);
+            mp = NULL;
+            break;
+        }
+    }
+    if(mp)
+        DOUBLE_LINKED_LIST_APPEND_ITEM_UNSAFE(metric->pages, mp, prev, next);
+    spinlock_unlock(&metric->refcount_spinlock);
+}
+
+struct metric_page *mrg_metric_get_pages(METRIC *metric) {
+    return metric->pages;
 }
 
 inline bool mrg_metric_set_writer(MRG *mrg, METRIC *metric) {

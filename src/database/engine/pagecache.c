@@ -491,27 +491,18 @@ static size_t list_has_time_gaps(
     *pages_total = pages_pass2;
 
     if(unittest_running) {
-#define MAX_HISTORY_BUFFERS 5
-        static SPINLOCK spinlock = NETDATA_SPINLOCK_INITIALIZER;
-
-        spinlock_lock(&spinlock);
-        static BUFFER *arr[MAX_HISTORY_BUFFERS] = { 0 };
-        static size_t idx = MAX_HISTORY_BUFFERS;
-
-        if(++idx >= 5)
-            idx = 0;
-
-        if(!arr[idx])
-            arr[idx] = buffer_create(65536, NULL);
-
-        BUFFER *wb = arr[idx];
-
-        buffer_flush(wb);
-        buffer_sprintf(wb, "DUMP FROM %lu: ", wanted_start_time_s);
+        CLEAN_BUFFER *wb = buffer_create(16384, NULL);
+        buffer_sprintf(wb, "DUMP |FROM %lu: ", wanted_start_time_s);
 
         dt_s = mrg_metric_get_update_every_s(main_mrg, metric);
         if(!dt_s)
             dt_s = default_rrd_update_every;
+
+        struct metric_page *mp = mrg_metric_get_pages(metric);
+        while(mp && mp->last_t < wanted_start_time_s)
+            mp = mp->next;
+
+        size_t errors = 0;
 
         first = true;
         this_page_start_time = 0;
@@ -520,12 +511,28 @@ static size_t list_has_time_gaps(
             pd = *PValue;
 
             if(pd->status & PDC_PAGE_SKIP) {
-                buffer_sprintf(wb, "SKIP(%lu, %lu) ", pd->last_time_s + dt_s - pd->first_time_s, dt_s);
+                buffer_sprintf(wb, "|SKIP(%lu, %lu, [%lu - %lu]) ",
+                               pd->last_time_s + dt_s - pd->first_time_s, dt_s,
+                               pd->first_time_s, pd->last_time_s);
                 continue;
             }
 
+            while(mp && mp->last_t < pd->first_time_s) {
+                buffer_sprintf(wb, "|UNUSED1(%lu, %lu, [%lu - %lu] %s%s%s%s) ",
+                               mp->last_t + mp->update_every - mp->first_t,
+                               mp->update_every, mp->first_t, mp->last_t + mp->update_every,
+                               mp->places & METRIC_PLACE_MAIN_CACHE ? "M" : "",
+                               mp->places & METRIC_PLACE_OPEN_CACHE ? "O" : "",
+                               mp->places & METRIC_PLACE_FLUSHED ? "F" : "",
+                               mp->places & METRIC_PLACE_JOURNAL ? "J" : ""
+                               );
+                mp = mp->next;
+                errors++;
+            }
+
             if(pd->first_time_s > now_s) {
-                buffer_sprintf(wb, "GAP(%lu, %lu, %lu - %lu) ", pd->first_time_s - now_s, dt_s, now_s, pd->first_time_s);
+                buffer_sprintf(wb, "|GAP(%lu, %lu, [%lu - %lu]) ",
+                               pd->first_time_s - now_s, dt_s, now_s, pd->first_time_s);
             }
 
             const char *overlap = "";
@@ -549,33 +556,75 @@ static size_t list_has_time_gaps(
             if(pd->status & PDC_PAGE_EMPTY)
                 type = "EMPTY";
 
-            buffer_sprintf(wb, "%s(%lu, %lu%s, %lu - %lu) ", type, pd->last_time_s + dt_s - pd->first_time_s, dt_s, overlap, pd->first_time_s, pd->last_time_s + dt_s);
+            buffer_sprintf(wb, "|%s(%lu, %lu%s, [%lu - %lu]", type,
+                           pd->last_time_s + dt_s - pd->first_time_s, dt_s, overlap,
+                           pd->first_time_s, pd->last_time_s + dt_s);
+
+            if(mp) {
+                if(mp->first_t != pd->first_time_s || mp->last_t != pd->last_time_s || mp->update_every != pd->update_every_s) {
+                    buffer_sprintf(wb, " --- WRONG(%lu, %lu, [%lu - %lu] %s%s%s%s) ---",
+                                   mp->last_t + mp->update_every - mp->first_t,
+                                   mp->update_every, mp->first_t, mp->last_t + mp->update_every,
+                                   mp->places & METRIC_PLACE_MAIN_CACHE ? "M" : "",
+                                   mp->places & METRIC_PLACE_OPEN_CACHE ? "O" : "",
+                                   mp->places & METRIC_PLACE_FLUSHED ? "F" : "",
+                                   mp->places & METRIC_PLACE_JOURNAL ? "J" : ""
+                                   );
+                    errors++;
+                }
+                else {
+                    buffer_sprintf(wb, " OK %s%s%s%s",
+                                  mp->places & METRIC_PLACE_MAIN_CACHE ? "M" : "",
+                                  mp->places & METRIC_PLACE_OPEN_CACHE ? "O" : "",
+                                  mp->places & METRIC_PLACE_FLUSHED ? "F" : "",
+                                  mp->places & METRIC_PLACE_JOURNAL ? "J" : ""
+                                  );
+                    mp = mp->next;
+                }
+            }
+            else
+                buffer_strcat(wb, " NF");
+
+            buffer_strcat(wb, ") ");
 
             now_s = pd->last_time_s + dt_s;
+
+            while(mp && mp->last_t < now_s) {
+                buffer_sprintf(wb, "|UNUSED2(%lu, %lu, [%lu - %lu] %s%s%s%s) ",
+                               mp->last_t + mp->update_every - mp->first_t,
+                               mp->update_every, mp->first_t, mp->last_t + mp->update_every,
+                               mp->places & METRIC_PLACE_MAIN_CACHE ? "M" : "",
+                               mp->places & METRIC_PLACE_OPEN_CACHE ? "O" : "",
+                               mp->places & METRIC_PLACE_FLUSHED ? "F" : "",
+                               mp->places & METRIC_PLACE_JOURNAL ? "J" : ""
+                               );
+                mp = mp->next;
+                errors++;
+            }
+        }
+
+        while(mp && mp->last_t < wanted_end_time_s) {
+            buffer_sprintf(wb, "|UNUSED3(%lu, %lu, [%lu - %lu] %s%s%s%s) ",
+                           mp->last_t + mp->update_every - mp->first_t,
+                           mp->update_every, mp->first_t, mp->last_t + mp->update_every,
+                           mp->places & METRIC_PLACE_MAIN_CACHE ? "M" : "",
+                           mp->places & METRIC_PLACE_OPEN_CACHE ? "O" : "",
+                           mp->places & METRIC_PLACE_FLUSHED ? "F" : "",
+                           mp->places & METRIC_PLACE_JOURNAL ? "J" : ""
+                           );
+            mp = mp->next;
+            errors++;
         }
 
         if(wanted_end_time_s > now_s)
-            buffer_sprintf(wb, "GAP(%lu, %lu, %lu - %lu) ", wanted_end_time_s - now_s, dt_s, now_s, wanted_end_time_s);
+            buffer_sprintf(wb, "|FINAL_GAP(%lu, %lu, [%lu - %lu]) ",
+                           wanted_end_time_s - now_s, dt_s, now_s, wanted_end_time_s);
 
-        buffer_sprintf(wb, "TO %lu", wanted_end_time_s);
+        buffer_sprintf(wb, "|TO %lu", wanted_end_time_s);
 
-        if(max_gap > 10) {
-            size_t k = idx;
-
-            if(++k >= MAX_HISTORY_BUFFERS)
-                k = 0;
-
-            while(k != idx) {
-                if(arr[k])
-                    netdata_log_error("OLD(%zu)    %s", k, buffer_tostring(arr[k]));
-
-                if(++k >= MAX_HISTORY_BUFFERS)
-                    k = 0;
-            }
-
-            netdata_log_error("FAULTY(%zu) %s", idx, buffer_tostring(wb));
+        if(errors) {
+            netdata_log_error("ERROR: %s", buffer_tostring(wb));
         }
-        spinlock_unlock(&spinlock);
     }
 
     return gaps;

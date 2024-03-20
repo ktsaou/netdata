@@ -626,6 +626,25 @@ static inline void page_set_dirty(PGC *cache, PGC_PAGE *page, bool having_hot_lo
 
     page_transition_lock(cache, page);
 
+    if(page->data != PGD_EMPTY) {
+        if (cache == open_cache)
+            mrg_metric_add_page(
+                (METRIC *)page->metric_id,
+                page->start_time_s,
+                page->end_time_s,
+                page->update_every_s,
+                METRIC_PLACE_JOURNAL,
+                false);
+        else if (cache == main_cache)
+            mrg_metric_add_page(
+                (METRIC *)page->metric_id,
+                page->start_time_s,
+                page->end_time_s,
+                page->update_every_s,
+                METRIC_PLACE_MAIN_CACHE,
+                false);
+    }
+
     PGC_PAGE_FLAGS flags = page_get_status_flags(page);
 
     if(flags & PGC_PAGE_DIRTY) {
@@ -851,6 +870,25 @@ static inline bool acquired_page_get_for_deletion_or_release_it(PGC *cache __may
 // Indexing
 
 static inline void free_this_page(PGC *cache, PGC_PAGE *page, size_t partition __maybe_unused) {
+    if(page->data != PGD_EMPTY) {
+        if (cache == open_cache)
+            mrg_metric_add_page(
+                (METRIC *)page->metric_id,
+                page->start_time_s,
+                page->end_time_s,
+                page->update_every_s,
+                METRIC_PLACE_OPEN_CACHE,
+                true);
+        else if (cache == main_cache)
+            mrg_metric_add_page(
+                (METRIC *)page->metric_id,
+                page->start_time_s,
+                page->end_time_s,
+                page->update_every_s,
+                METRIC_PLACE_MAIN_CACHE,
+                true);
+    }
+
     // call the callback to free the user supplied memory
     cache->config.pgc_free_clean_cb(cache, (PGC_ENTRY){
             .section = page->section,
@@ -1270,6 +1308,16 @@ static PGC_PAGE *page_add(PGC *cache, PGC_ENTRY *entry, bool *added) {
             *page_ptr = page;
             pointer_add(cache, page);
             pgc_index_write_unlock(cache, partition);
+
+            if(cache == open_cache && page->data != PGD_EMPTY) {
+                mrg_metric_add_page(
+                    (METRIC *)entry->metric_id,
+                    entry->start_time_s,
+                    entry->end_time_s,
+                    entry->update_every_s,
+                    METRIC_PLACE_OPEN_CACHE,
+                    false);
+            }
 
             if (entry->hot)
                 page_set_hot(cache, page);
@@ -1694,6 +1742,10 @@ static bool flush_pages(PGC *cache, size_t max_flushes, Word_t section, bool wai
                 pages_to_evict++;
 
             page_set_clean(cache, tpg, true, false);
+
+            if(cache == main_cache)
+                mrg_metric_add_page((METRIC *)tpg->metric_id, tpg->start_time_s, tpg->end_time_s, tpg->update_every_s, METRIC_PLACE_FLUSHED, false);
+
             page_transition_unlock(cache, tpg);
             page_release(cache, tpg, false);
             // tpg ptr may be invalid now

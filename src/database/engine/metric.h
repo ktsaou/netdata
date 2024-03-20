@@ -6,8 +6,25 @@
 
 #define MRG_CACHE_LINE_PADDING(x) uint8_t padding##x[64]
 
+#define METRIC_PLACE_FLUSHED    (1 << 0)
+#define METRIC_PLACE_MAIN_CACHE (1 << 1)
+#define METRIC_PLACE_OPEN_CACHE (1 << 2)
+#define METRIC_PLACE_JOURNAL    (1 << 3)
+
+struct metric_page {
+    time_t first_t;
+    time_t last_t;
+    time_t update_every;
+    uint8_t places;
+    struct metric_page *prev;
+    struct metric_page *next;
+};
+
 typedef struct metric METRIC;
 typedef struct mrg MRG;
+
+void mrg_metric_add_page(METRIC *metric, time_t first_t, time_t last_t, time_t update_every, uint8_t place, bool remove);
+struct metric_page *mrg_metric_get_pages(METRIC *metric);
 
 typedef struct mrg_entry {
     uuid_t *uuid;

@@ -2130,7 +2130,7 @@ int test_dbengine(void)
     update_every = REGION_UPDATE_EVERY[current_region]; // set data collection frequency to 2 seconds
     test_dbengine_create_charts(host, st, rd, update_every);
 
-    time_start[current_region] = 2 * API_RELATIVE_TIME_MAX;
+    time_start[current_region] = MAX(2 * API_RELATIVE_TIME_MAX, 200000000);
     time_end[current_region] = test_dbengine_create_metrics(st,rd, current_region, time_start[current_region]);
 
     errors += test_dbengine_check_metrics(st, rd, current_region, time_start[current_region]);
@@ -2146,7 +2146,7 @@ int test_dbengine(void)
         }
     }
 
-    time_start[current_region] = time_end[current_region - 1] + update_every;
+    time_start[current_region] = time_end[current_region - 1] + update_every + 86400;
     if (0 != time_start[current_region] % update_every) // align to update_every
         time_start[current_region] += update_every - time_start[current_region] % update_every;
     time_end[current_region] = test_dbengine_create_metrics(st,rd, current_region, time_start[current_region]);
@@ -2164,7 +2164,7 @@ int test_dbengine(void)
         }
     }
 
-    time_start[current_region] = time_end[current_region - 1] + update_every;
+    time_start[current_region] = time_end[current_region - 1] + update_every + 86400;
     if (0 != time_start[current_region] % update_every) // align to update_every
         time_start[current_region] += update_every - time_start[current_region] % update_every;
     time_end[current_region] = test_dbengine_create_metrics(st,rd, current_region, time_start[current_region]);
