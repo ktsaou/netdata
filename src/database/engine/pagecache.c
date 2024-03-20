@@ -357,18 +357,18 @@ static void pgc_inject_gap(struct rrdengine_instance *ctx, METRIC *metric, time_
 }
 
 static size_t list_has_time_gaps(
-        struct rrdengine_instance *ctx,
-        METRIC *metric,
-        Pvoid_t JudyL_page_array,
-        time_t wanted_start_time_s,
-        time_t wanted_end_time_s,
-        size_t *pages_total,
-        size_t *pages_found_pass4,
-        size_t *pages_to_load_from_disk,
-        size_t *pages_overlapping,
-        time_t *optimal_end_time_s,
-        bool populate_gaps,
-        PDC_PAGE_STATUS *common_status
+    struct rrdengine_instance *ctx,
+    METRIC *metric,
+    Pvoid_t JudyL_page_array,
+    time_t wanted_start_time_s,
+    time_t wanted_end_time_s,
+    size_t *pages_total,
+    size_t *pages_found_pass4,
+    size_t *pages_to_load_from_disk,
+    size_t *pages_overlapping,
+    time_t *optimal_end_time_s,
+    bool populate_gaps,
+    PDC_PAGE_STATUS *common_status
 ) {
     // we will recalculate these, so zero them
     *pages_to_load_from_disk = 0;
@@ -397,24 +397,26 @@ static size_t list_has_time_gaps(
     // ------------------------------------------------------------------------
     // PASS 2: emulate processing to find the useful pages
 
+    time_t max_gap = 0;
     time_t now_s = wanted_start_time_s;
     time_t dt_s = mrg_metric_get_update_every_s(main_mrg, metric);
     if(!dt_s)
         dt_s = default_rrd_update_every;
 
     size_t pages_pass2 = 0, pages_pass3 = 0;
-    while((pd = pdc_find_page_for_time(
-            JudyL_page_array, now_s, &gaps,
-            PDC_PAGE_PREPROCESSED, 0))) {
-
+    while((pd = pdc_find_page_for_time(JudyL_page_array, now_s, &gaps, PDC_PAGE_PREPROCESSED, 0))) {
         pd->status |= PDC_PAGE_PREPROCESSED;
         pages_pass2++;
 
         if(pd->update_every_s)
             dt_s = pd->update_every_s;
 
-        if(populate_gaps && pd->first_time_s > now_s)
+        if(populate_gaps && pd->first_time_s > now_s) {
             pgc_inject_gap(ctx, metric, now_s, pd->first_time_s);
+            time_t gap_dt = pd->first_time_s - now_s;
+            if(gap_dt > max_gap)
+                max_gap = gap_dt;
+        }
 
         now_s = pd->last_time_s + dt_s;
         if(now_s > wanted_end_time_s) {
@@ -423,8 +425,12 @@ static size_t list_has_time_gaps(
         }
     }
 
-    if(populate_gaps && now_s < wanted_end_time_s)
+    if(populate_gaps && now_s < wanted_end_time_s) {
         pgc_inject_gap(ctx, metric, now_s, wanted_end_time_s);
+        time_t gap_dt = wanted_end_time_s - now_s;
+        if(gap_dt > max_gap)
+            max_gap = gap_dt;
+    }
 
     // ------------------------------------------------------------------------
     // PASS 3: mark as skipped all the pages not useful
@@ -483,6 +489,94 @@ static size_t list_has_time_gaps(
                    "DBENGINE: page count does not match");
 
     *pages_total = pages_pass2;
+
+    if(unittest_running) {
+#define MAX_HISTORY_BUFFERS 5
+        static SPINLOCK spinlock = NETDATA_SPINLOCK_INITIALIZER;
+
+        spinlock_lock(&spinlock);
+        static BUFFER *arr[MAX_HISTORY_BUFFERS] = { 0 };
+        static size_t idx = MAX_HISTORY_BUFFERS;
+
+        if(++idx >= 5)
+            idx = 0;
+
+        if(!arr[idx])
+            arr[idx] = buffer_create(65536, NULL);
+
+        BUFFER *wb = arr[idx];
+
+        buffer_flush(wb);
+        buffer_sprintf(wb, "DUMP FROM %lu: ", wanted_start_time_s);
+
+        dt_s = mrg_metric_get_update_every_s(main_mrg, metric);
+        if(!dt_s)
+            dt_s = default_rrd_update_every;
+
+        first = true;
+        this_page_start_time = 0;
+        now_s = wanted_start_time_s;
+        while((PValue = PDCJudyLFirstThenNext(JudyL_page_array, &this_page_start_time, &first))) {
+            pd = *PValue;
+
+            if(pd->status & PDC_PAGE_SKIP) {
+                buffer_sprintf(wb, "SKIP(%lu, %lu) ", pd->last_time_s + dt_s - pd->first_time_s, dt_s);
+                continue;
+            }
+
+            if(pd->first_time_s > now_s) {
+                buffer_sprintf(wb, "GAP(%lu, %lu, %lu - %lu) ", pd->first_time_s - now_s, dt_s, now_s, pd->first_time_s);
+            }
+
+            const char *overlap = "";
+            if(pd->first_time_s < now_s)
+                overlap = ", OVERLAP";
+
+            if(pd->update_every_s)
+                dt_s = pd->update_every_s;
+
+            const char *type = "CACHE";
+            if(pd->status & PDC_PAGE_DISK_PENDING)
+                type = "DISK";
+
+            if(pd->status & PDC_PAGE_SOURCE_OPEN_CACHE)
+                type = "OPEN";
+            if(pd->status & PDC_PAGE_SOURCE_JOURNAL_V2)
+                type = "JRNL";
+            if(pd->status & PDC_PAGE_SOURCE_MAIN_CACHE)
+                type = "MAIN";
+
+            if(pd->status & PDC_PAGE_EMPTY)
+                type = "EMPTY";
+
+            buffer_sprintf(wb, "%s(%lu, %lu%s, %lu - %lu) ", type, pd->last_time_s + dt_s - pd->first_time_s, dt_s, overlap, pd->first_time_s, pd->last_time_s + dt_s);
+
+            now_s = pd->last_time_s + dt_s;
+        }
+
+        if(wanted_end_time_s > now_s)
+            buffer_sprintf(wb, "GAP(%lu, %lu, %lu - %lu) ", wanted_end_time_s - now_s, dt_s, now_s, wanted_end_time_s);
+
+        buffer_sprintf(wb, "TO %lu", wanted_end_time_s);
+
+        if(max_gap > 10) {
+            size_t k = idx;
+
+            if(++k >= MAX_HISTORY_BUFFERS)
+                k = 0;
+
+            while(k != idx) {
+                if(arr[k])
+                    netdata_log_error("OLD(%zu)    %s", k, buffer_tostring(arr[k]));
+
+                if(++k >= MAX_HISTORY_BUFFERS)
+                    k = 0;
+            }
+
+            netdata_log_error("FAULTY(%zu) %s", idx, buffer_tostring(wb));
+        }
+        spinlock_unlock(&spinlock);
+    }
 
     return gaps;
 }
