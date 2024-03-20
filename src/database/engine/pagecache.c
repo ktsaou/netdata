@@ -490,7 +490,7 @@ static size_t list_has_time_gaps(
 
     *pages_total = pages_pass2;
 
-    if(unittest_running) {
+    if(unittest_running && populate_gaps) {
         CLEAN_BUFFER *wb = buffer_create(16384, NULL);
         buffer_sprintf(wb, "DUMP |FROM %lu: ", wanted_start_time_s);
 
