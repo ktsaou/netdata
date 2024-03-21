@@ -218,6 +218,8 @@ foreach(FLAG function-sections data-sections)
         add_simple_extra_compiler_flag("${FLAG}" "-f${FLAG}" EXTRA_OPT)
 endforeach()
 
+add_simple_extra_compiler_flag("-Wbuiltin-macro-redefined" "-Wno-builtin-macro-redefined" EXTRA_OPT)
+
 foreach(RELTYP RELEASE DEBUG RELWITHDEBINFO MINSIZEREL)
         foreach(L C CXX)
                 set(CMAKE_${L}_FLAGS_${RELTYP} "${CMAKE_${L}_FLAGS_${RELTYP}} ${EXTRA_HARDENING_C_FLAGS} ${EXTRA_OPT_C_FLAGS}")
@@ -267,6 +269,18 @@ if(NOT HAVE_LOG10)
                 message(FATAL_ERROR "Can not use log10 with/without libm.")
         endif()
 endif()
+
+#
+# Custom modules
+#
+
+include(NetdataYAML)
+
+#
+# Checks from custom modules
+#
+
+netdata_detect_libyaml()
 
 #
 # check include files
@@ -1525,21 +1539,7 @@ endif()
 # message(FATAL_ERROR "jsonc libraries: ${JSONC_LIBRARIES}")
 # message(FATAL_ERROR "jsonc ldflags: ${JSONC_LDFLAGS}")
 
-# yaml
-set(HAVE_LIBYAML  True)
-if(ENABLE_BUNDLED_YAML)
-        add_library(yaml STATIC IMPORTED)
-        set_property(TARGET yaml PROPERTY
-                     IMPORTED_LOCATION "${CMAKE_SOURCE_DIR}/externaldeps/libyaml/libyaml.a")
-
-        target_include_directories(libnetdata BEFORE PUBLIC "${CMAKE_SOURCE_DIR}/externaldeps/libyaml")
-        target_link_libraries(libnetdata PUBLIC yaml)
-else()
-        pkg_check_modules(YAML REQUIRED yaml-0.1)
-        target_include_directories(libnetdata BEFORE PUBLIC ${YAML_INCLUDE_DIRS})
-        target_compile_definitions(libnetdata PUBLIC ${YAML_CFLAGS_OTHER})
-        target_link_libraries(libnetdata PUBLIC ${YAML_LDFLAGS})
-endif()
+netdata_add_libyaml_to_target(libnetdata)
 
 # zlib
 pkg_check_modules(ZLIB REQUIRED zlib)
