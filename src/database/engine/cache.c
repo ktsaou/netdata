@@ -2078,6 +2078,8 @@ void pgc_page_hot_set_end_time_s(PGC *cache __maybe_unused, PGC_PAGE *page, time
 }
 
 PGC_PAGE *pgc_page_get_and_acquire(PGC *cache, Word_t section, Word_t metric_id, time_t start_time_s, PGC_SEARCH method) {
+    static const struct timespec ns = { .tv_sec = 0, .tv_nsec = 1 };
+
     PGC_PAGE *page = NULL;
 
     __atomic_add_fetch(&cache->stats.workers_search, 1, __ATOMIC_RELAXED);
@@ -2102,6 +2104,8 @@ PGC_PAGE *pgc_page_get_and_acquire(PGC *cache, Word_t section, Word_t metric_id,
 
         if(page || !retry)
             break;
+
+        nanosleep(&ns, NULL);
     }
 
     if(page) {
