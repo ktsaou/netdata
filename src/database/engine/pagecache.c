@@ -397,7 +397,6 @@ static size_t list_has_time_gaps(
     // ------------------------------------------------------------------------
     // PASS 2: emulate processing to find the useful pages
 
-    time_t max_gap = 0;
     time_t now_s = wanted_start_time_s;
     time_t dt_s = mrg_metric_get_update_every_s(main_mrg, metric);
     if(!dt_s)
@@ -411,12 +410,8 @@ static size_t list_has_time_gaps(
         if(pd->update_every_s)
             dt_s = pd->update_every_s;
 
-        if(populate_gaps && pd->first_time_s > now_s) {
+        if(populate_gaps && pd->first_time_s > now_s)
             pgc_inject_gap(ctx, metric, now_s, pd->first_time_s);
-            time_t gap_dt = pd->first_time_s - now_s;
-            if(gap_dt > max_gap)
-                max_gap = gap_dt;
-        }
 
         now_s = pd->last_time_s + dt_s;
         if(now_s > wanted_end_time_s) {
@@ -425,12 +420,8 @@ static size_t list_has_time_gaps(
         }
     }
 
-    if(populate_gaps && now_s < wanted_end_time_s) {
+    if(populate_gaps && now_s < wanted_end_time_s)
         pgc_inject_gap(ctx, metric, now_s, wanted_end_time_s);
-        time_t gap_dt = wanted_end_time_s - now_s;
-        if(gap_dt > max_gap)
-            max_gap = gap_dt;
-    }
 
     // ------------------------------------------------------------------------
     // PASS 3: mark as skipped all the pages not useful
@@ -560,7 +551,7 @@ static size_t list_has_time_gaps(
                            pd->last_time_s + dt_s - pd->first_time_s, dt_s, overlap,
                            pd->first_time_s, pd->last_time_s + dt_s);
 
-            if(mp) {
+            if(mp && mp->first_t <= pd->last_time_s && mp->last_t >= pd->first_time_s && !(pd->status & PDC_PAGE_EMPTY)) {
                 if(mp->first_t != pd->first_time_s || mp->last_t != pd->last_time_s || mp->update_every != pd->update_every_s) {
                     buffer_sprintf(wb, " --- WRONG(%lu, %lu, [%lu - %lu] %s%s%s%s) ---",
                                    mp->last_t + mp->update_every - mp->first_t,
