@@ -1,3 +1,4 @@
 click==8.1.7
 dagger-io==0.9.7
 Jinja2==3.1.4
+zipp>=3.19.1 # not directly required, pinned by Snyk to avoid a vulnerability
