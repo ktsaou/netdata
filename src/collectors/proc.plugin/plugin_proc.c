@@ -9,15 +9,16 @@ static struct proc_module {
     int enabled;
 
     int (*func)(int update_every, usec_t dt);
+    void (*cleanup)(void);  // Cleanup function pointer
 
     RRDDIM *rd;
 
 } proc_modules[] = {
 
     // system metrics
-    {.name = "/proc/stat",                   .dim = "stat",         .func = do_proc_stat},
+    {.name = "/proc/stat",                   .dim = "stat",         .func = do_proc_stat, .cleanup = proc_stat_plugin_cleanup},
     {.name = "/proc/uptime",                 .dim = "uptime",       .func = do_proc_uptime},
-    {.name = "/proc/loadavg",                .dim = "loadavg",      .func = do_proc_loadavg},
+    {.name = "/proc/loadavg",                .dim = "loadavg",      .func = do_proc_loadavg, .cleanup = proc_loadavg_plugin_cleanup},
     {.name = "/proc/sys/fs/file-nr",         .dim = "file-nr",      .func = do_proc_sys_fs_file_nr},
     {.name = "/proc/sys/kernel/random/entropy_avail", .dim = "entropy", .func = do_proc_sys_kernel_random_entropy_avail},
 
@@ -42,13 +43,13 @@ static struct proc_module {
 
     // network metrics
     {.name = "/proc/net/wireless",           .dim = "netwireless",  .func = do_proc_net_wireless},
-    {.name = "/proc/net/sockstat",           .dim = "sockstat",     .func = do_proc_net_sockstat},
+    {.name = "/proc/net/sockstat",           .dim = "sockstat",     .func = do_proc_net_sockstat, .cleanup = proc_net_sockstat_plugin_cleanup},
     {.name = "/proc/net/sockstat6",          .dim = "sockstat6",    .func = do_proc_net_sockstat6},
     {.name = "/proc/net/netstat",            .dim = "netstat",      .func = do_proc_net_netstat},
     {.name = "/proc/net/sctp/snmp",          .dim = "sctp",         .func = do_proc_net_sctp_snmp},
     {.name = "/proc/net/softnet_stat",       .dim = "softnet",      .func = do_proc_net_softnet_stat},
     {.name = "/proc/net/ip_vs/stats",        .dim = "ipvs",         .func = do_proc_net_ip_vs_stats},
-    {.name = "/sys/class/infiniband",        .dim = "infiniband",   .func = do_sys_class_infiniband},
+    {.name = "/sys/class/infiniband",        .dim = "infiniband",   .func = do_sys_class_infiniband, .cleanup = sys_class_infiniband_plugin_cleanup},
 
     // firewall metrics
     {.name = "/proc/net/stat/conntrack",     .dim = "conntrack",    .func = do_proc_net_stat_conntrack},
@@ -93,6 +94,13 @@ static void proc_main_cleanup(void *pptr)
     if(!static_thread) return;
 
     static_thread->enabled = NETDATA_MAIN_THREAD_EXITING;
+
+    // Run all module cleanup functions
+    int i;
+    for(i = 0; proc_modules[i].name; i++) {
+        if(proc_modules[i].cleanup)
+            proc_modules[i].cleanup();
+    }
 
     nd_thread_join(netdev_thread);
     worker_unregister();
