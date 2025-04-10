@@ -86,7 +86,7 @@ void inicfg_free(struct config *root) {
             struct config_option *next_opt = opt->next;
             
             // Remove from index
-            inicfg_option_del(sect, opt);
+            if(!inicfg_option_del(sect, opt)) { ; }
             
             // Free the option
             inicfg_option_free(opt);
@@ -96,7 +96,7 @@ void inicfg_free(struct config *root) {
         SECTION_UNLOCK(sect);
         
         // Remove from index
-        inicfg_section_del(root, sect);
+        if(!inicfg_section_del(root, sect)) { ; }
         
         // Free the section
         inicfg_section_free(sect);
