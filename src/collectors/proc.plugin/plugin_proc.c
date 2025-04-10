@@ -45,14 +45,14 @@ static struct proc_module {
     {.name = "/proc/net/wireless",           .dim = "netwireless",  .func = do_proc_net_wireless},
     {.name = "/proc/net/sockstat",           .dim = "sockstat",     .func = do_proc_net_sockstat, .cleanup = proc_net_sockstat_plugin_cleanup},
     {.name = "/proc/net/sockstat6",          .dim = "sockstat6",    .func = do_proc_net_sockstat6},
-    {.name = "/proc/net/netstat",            .dim = "netstat",      .func = do_proc_net_netstat},
+    {.name = "/proc/net/netstat",            .dim = "netstat",      .func = do_proc_net_netstat, .cleanup = proc_net_netstat_cleanup},
     {.name = "/proc/net/sctp/snmp",          .dim = "sctp",         .func = do_proc_net_sctp_snmp},
     {.name = "/proc/net/softnet_stat",       .dim = "softnet",      .func = do_proc_net_softnet_stat},
     {.name = "/proc/net/ip_vs/stats",        .dim = "ipvs",         .func = do_proc_net_ip_vs_stats},
     {.name = "/sys/class/infiniband",        .dim = "infiniband",   .func = do_sys_class_infiniband, .cleanup = sys_class_infiniband_plugin_cleanup},
 
     // firewall metrics
-    {.name = "/proc/net/stat/conntrack",     .dim = "conntrack",    .func = do_proc_net_stat_conntrack},
+    {.name = "/proc/net/stat/conntrack",     .dim = "conntrack",    .func = do_proc_net_stat_conntrack, .cleanup = proc_net_stat_conntrack_cleanup},
     {.name = "/proc/net/stat/synproxy",      .dim = "synproxy",     .func = do_proc_net_stat_synproxy},
 
     // disk metrics
@@ -70,7 +70,7 @@ static struct proc_module {
     {.name = "/sys/fs/btrfs",                .dim = "btrfs",        .func = do_sys_fs_btrfs},
 
     // IPC metrics
-    {.name = "ipc",                          .dim = "ipc",          .func = do_ipc},
+    {.name = "ipc",                          .dim = "ipc",          .func = do_proc_ipc, .cleanup = proc_ipc_cleanup},
 
     // linux power supply metrics
     {.name = "/sys/class/power_supply",      .dim = "power_supply", .func = do_sys_class_power_supply},

@@ -41,7 +41,7 @@ int do_sys_fs_btrfs(int update_every, usec_t dt);
 int do_proc_net_sockstat(int update_every, usec_t dt);
 int do_proc_net_sockstat6(int update_every, usec_t dt);
 int do_proc_net_sctp_snmp(int update_every, usec_t dt);
-int do_ipc(int update_every, usec_t dt);
+int do_proc_ipc(int update_every, usec_t dt);
 int do_sys_class_power_supply(int update_every, usec_t dt);
 int do_proc_pagetypeinfo(int update_every, usec_t dt);
 int do_sys_class_infiniband(int update_every, usec_t dt);
@@ -50,6 +50,9 @@ int get_numa_node_count(void);
 int do_run_reboot_required(int update_every, usec_t dt);
 
 // Plugin cleanup functions
+void proc_ipc_cleanup(void);
+void proc_net_netstat_cleanup(void);
+void proc_net_stat_conntrack_cleanup(void);
 void proc_stat_plugin_cleanup(void);
 void proc_net_sockstat_plugin_cleanup(void);
 void proc_loadavg_plugin_cleanup(void);
