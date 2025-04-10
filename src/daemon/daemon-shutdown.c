@@ -389,6 +389,9 @@ static void netdata_cleanup_and_exit(EXIT_REASON reason, bool abnormal, bool exi
     inicfg_free(&cloud_config);
     inicfg_free(&netdata_config);
     
+    fprintf(stderr, "Cleaning up worker utilization...\n");
+    worker_utilization_cleanup();
+    
     size_t strings_referenced = string_destroy();
     if(strings_referenced)
         fprintf(stderr, "WARNING: STRING has %zu strings still allocated.\n",
