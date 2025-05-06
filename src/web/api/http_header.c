@@ -62,6 +62,10 @@ static void http_header_origin(struct web_client *w, const char *v, size_t len _
 static void http_header_connection(struct web_client *w, const char *v, size_t len __maybe_unused) {
     if(strcasestr(v, "keep-alive"))
         web_client_enable_keepalive(w);
+    
+    // Check for WebSocket upgrade request
+    if(strcasestr(v, "upgrade"))
+        web_client_set_websocket_handshake(w);
 }
 
 static void http_header_dnt(struct web_client *w, const char *v, size_t len __maybe_unused) {
@@ -175,6 +179,47 @@ static void http_header_x_netdata_auth(struct web_client *w, const char *v, size
     }
 }
 
+// Handle WebSocket-specific headers
+static void http_header_upgrade(struct web_client *w, const char *v, size_t len __maybe_unused) {
+    if(strcasecmp(v, "websocket") == 0 && web_client_has_websocket_handshake(w)) {
+        web_client_set_websocket(w);
+    }
+}
+
+static void http_header_sec_websocket_key(struct web_client *w, const char *v, size_t len __maybe_unused) {
+    if(web_client_is_websocket(w)) {
+        // Store the websocket key for later use in the handshake
+        w->websocket.key = strdupz(v);
+    }
+}
+
+static void http_header_sec_websocket_version(struct web_client *w, const char *v, size_t len __maybe_unused) {
+    if(web_client_is_websocket(w)) {
+        // We only support version 13, which will be checked during handshake
+        // No need to store this as we only accept one version
+        if(strcmp(v, "13") != 0) {
+            netdata_log_debug(D_WEB_CLIENT, "%llu: WebSocket version %s not supported, only version 13 is supported", w->id, v);
+            web_client_clear_websocket(w);
+        }
+    }
+}
+
+static void http_header_sec_websocket_protocol(struct web_client *w, const char *v, size_t len __maybe_unused) {
+    if(web_client_is_websocket(w)) {
+        // Store the requested protocols for later evaluation during handshake
+        w->websocket.requested_protocols = strdupz(v);
+        
+        // Default to unknown protocol - will be set during handshake
+        w->websocket.protocol = WS_PROTOCOL_UNKNOWN;
+        
+        // Check if netdata-json protocol is supported
+        if(strstr(v, "netdata-json") != NULL) {
+            // Client supports our protocol, we'll confirm during handshake
+            w->websocket.protocol = WS_PROTOCOL_NETDATA_JSON;
+        }
+    }
+}
+
 struct {
     uint32_t hash;
     const char *key;
@@ -195,6 +240,12 @@ struct {
     { .hash = 0, .key = "X-Netdata-Permissions", .cb = http_header_x_netdata_permissions },
     { .hash = 0, .key = "X-Netdata-User-Name",   .cb = http_header_x_netdata_user_name },
     { .hash = 0, .key = "X-Netdata-Auth",        .cb = http_header_x_netdata_auth },
+
+    // WebSocket headers
+    { .hash = 0, .key = "Upgrade",               .cb = http_header_upgrade },
+    { .hash = 0, .key = "Sec-WebSocket-Key",     .cb = http_header_sec_websocket_key },
+    { .hash = 0, .key = "Sec-WebSocket-Version", .cb = http_header_sec_websocket_version },
+    { .hash = 0, .key = "Sec-WebSocket-Protocol",.cb = http_header_sec_websocket_protocol },
 
     // for historical reasons.
     // there are a few nightly versions of netdata UI that incorrectly use this instead of X-Netdata-Auth

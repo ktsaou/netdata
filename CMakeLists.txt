@@ -1829,6 +1829,12 @@ set(WEB_PLUGIN_FILES
         src/web/server/web_client.h
         src/web/server/web_server.c
         src/web/server/web_server.h
+        src/web/server/websocket-server/websocket.c
+        src/web/server/websocket-server/websocket.h
+        src/web/server/websocket-server/websocket-internal.h
+        src/web/server/websocket-server/websocket-receiver.c
+        src/web/server/websocket-server/websocket-thread.c
+        src/web/server/websocket-server/websocket-thread.h
         src/web/server/static/static-threaded.c
         src/web/server/static/static-threaded.h
         src/web/server/web_client_cache.c
