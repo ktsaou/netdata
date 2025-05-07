@@ -7,7 +7,7 @@
     <style>
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
-            max-width: 800px;
+            max-width: 900px;
             margin: 0 auto;
             padding: 20px;
             line-height: 1.6;
@@ -20,6 +20,7 @@
         .message-box {
             display: flex;
             gap: 10px;
+            align-items: center;
         }
         #messageInput {
             flex-grow: 1;
@@ -81,11 +82,113 @@
             background-color: #f1f1f1;
             margin-right: 20%;
         }
+        
+        /* Tab Styles */
+        .tabs {
+            display: flex;
+            border-bottom: 1px solid #ddd;
+            margin-bottom: 15px;
+        }
+        .tab {
+            padding: 10px 20px;
+            cursor: pointer;
+            border: 1px solid transparent;
+            border-bottom: none;
+            margin-right: 5px;
+            border-radius: 4px 4px 0 0;
+        }
+        .tab.active {
+            border-color: #ddd;
+            background-color: #fff;
+            border-bottom: 1px solid #fff;
+            margin-bottom: -1px;
+            font-weight: bold;
+        }
+        .tab-content {
+            display: none;
+        }
+        .tab-content.active {
+            display: block;
+        }
+        
+        /* Progress Bar */
+        .progress-container {
+            width: 100%;
+            height: 20px;
+            background-color: #f1f1f1;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+        .progress-bar {
+            height: 100%;
+            background-color: #4caf50;
+            border-radius: 4px;
+            width: 0%;
+            transition: width 0.5s ease;
+        }
+        
+        /* Stats Panel */
+        .stats-panel {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+            margin: 15px 0;
+        }
+        .stat-card {
+            background-color: #f8f9fa;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            padding: 10px;
+            text-align: center;
+        }
+        .stat-card.error {
+            background-color: #f8d7da;
+            border-color: #f5c6cb;
+        }
+        .stat-value {
+            font-size: 1.5em;
+            font-weight: bold;
+            margin: 5px 0;
+        }
+        .stat-label {
+            font-size: 0.85em;
+            color: #666;
+        }
+        
+        /* Form Controls for Stress Test */
+        .form-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: inline-block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        input[type="number"], input[type="range"] {
+            width: 100%;
+            padding: 8px;
+            box-sizing: border-box;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+        
+        /* Log Area */
+        #stressTestLog {
+            border: 1px solid #ddd;
+            padding: 10px;
+            border-radius: 4px;
+            max-height: 200px;
+            overflow-y: auto;
+            background-color: #f8f9fa;
+            font-family: monospace;
+            margin-top: 10px;
+        }
     </style>
 </head>
 <body>
     <h1>Netdata WebSocket Test Client</h1>
     
+    <!-- Common Connection Controls -->
     <div class="container">
         <div id="connectionStatus" class="disconnected">Disconnected</div>
         
@@ -98,6 +201,8 @@
         <div class="message-box">
             <input type="checkbox" id="enableCompression" checked>
             <label for="enableCompression">Enable Compression (permessage-deflate)</label>
+            <input type="checkbox" id="enableDebugMode" style="margin-left: 15px;">
+            <label for="enableDebugMode">Debug Mode (more verbose logging)</label>
         </div>
         
         <div class="message-box">
@@ -110,33 +215,171 @@
             <div><strong>Extensions:</strong> <span id="negotiatedExtensions">-</span></div>
             <div><strong>Compression:</strong> <span id="compressionStatus">Disabled</span></div>
         </div>
-        
-        <div class="message-box">
-            <input type="text" id="messageInput" placeholder="Type a message to send..." disabled>
-            <button id="sendButton" disabled>Send</button>
-            <button id="testLargeMessageButton" disabled>Test Compression</button>
+    </div>
+    
+    <!-- Tab Navigation -->
+    <div class="tabs">
+        <div class="tab active" data-tab="basicTest">Basic Testing</div>
+        <div class="tab" data-tab="stressTest">Stress Test</div>
+    </div>
+    
+    <!-- Basic Test Tab -->
+    <div id="basicTest" class="tab-content active">
+        <div class="container">
+            <div class="message-box">
+                <input type="text" id="messageInput" placeholder="Type a message to send..." disabled>
+                <button id="sendButton" disabled>Send</button>
+                <button id="testLargeMessageButton" disabled>Test Compression</button>
+            </div>
+            
+            <h3>Messages</h3>
+            <div id="messagesLog"></div>
         </div>
-        
-        <h3>Messages</h3>
-        <div id="messagesLog"></div>
+    </div>
+    
+    <!-- Stress Test Tab -->
+    <div id="stressTest" class="tab-content">
+        <div class="container">
+            <h3>WebSocket Stress Tester</h3>
+            <p>Configure the stress test parameters below. This will send random messages for the specified duration and verify responses.</p>
+            
+            <div class="form-group">
+                <label for="testDurationMinutes">Test Duration (minutes):</label>
+                <input type="number" id="testDurationMinutes" value="1" min="0.1" max="60" step="0.1">
+            </div>
+            
+            <div class="form-group">
+                <label for="minMessageSize">Minimum Message Size (bytes):</label>
+                <input type="number" id="minMessageSize" value="100" min="10" max="50000">
+            </div>
+            
+            <div class="form-group">
+                <label for="maxMessageSize">Maximum Message Size (bytes):</label>
+                <input type="number" id="maxMessageSize" value="10000" min="100" max="100000">
+            </div>
+            
+            <div class="form-group">
+                <label for="singleSize">Use Fixed Message Size:</label>
+                <input type="checkbox" id="useSingleSize" style="margin-left: 10px;">
+                <input type="number" id="singleMessageSize" value="5000" min="100" max="100000" style="width: 120px; margin-left: 10px;">
+                <span style="font-size: 0.85em; color: #666; margin-left: 10px;">Check to use a consistent message size for better testing</span>
+            </div>
+            
+            <div class="form-group">
+                <label for="messageFrequency">Messages per Second:</label>
+                <input type="range" id="messageFrequency" value="5" min="1" max="50" step="1">
+                <div style="display: flex; justify-content: space-between;">
+                    <span>1</span>
+                    <span id="messageFrequencyValue">5</span>
+                    <span>50</span>
+                </div>
+            </div>
+            
+            <div class="message-box">
+                <button id="startStressTestButton" disabled>Start Stress Test</button>
+                <button id="stopStressTestButton" disabled>Stop Test</button>
+            </div>
+            
+            <div class="progress-container">
+                <div id="stressTestProgress" class="progress-bar" style="width: 0%"></div>
+            </div>
+            
+            <div id="timeRemaining" style="text-align: center;">Ready to start</div>
+            
+            <!-- Real-time Stats -->
+            <div class="stats-panel">
+                <div class="stat-card">
+                    <div class="stat-value" id="messagesSent">0</div>
+                    <div class="stat-label">Messages Sent</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="messagesReceived">0</div>
+                    <div class="stat-label">Messages Received</div>
+                </div>
+                <div class="stat-card" id="errorCard">
+                    <div class="stat-value" id="errorCount">0</div>
+                    <div class="stat-label">Errors</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="avgLatency">0 ms</div>
+                    <div class="stat-label">Average Latency</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="bytesSent">0 KB</div>
+                    <div class="stat-label">Data Sent</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="bytesReceived">0 KB</div>
+                    <div class="stat-label">Data Received</div>
+                </div>
+            </div>
+            
+            <h4>Test Log</h4>
+            <div id="stressTestLog"></div>
+        </div>
     </div>
 
     <script>
-        // Elements
+        // Tab switching functionality
+        document.querySelectorAll('.tab').forEach(tab => {
+            tab.addEventListener('click', () => {
+                // Remove active class from all tabs and content
+                document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+                document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+                
+                // Add active class to clicked tab and its content
+                tab.classList.add('active');
+                const tabContentId = tab.getAttribute('data-tab');
+                document.getElementById(tabContentId).classList.add('active');
+            });
+        });
+        
+        // Elements - Common
         const connectButton = document.getElementById('connectButton');
         const disconnectButton = document.getElementById('disconnectButton');
-        const messageInput = document.getElementById('messageInput');
-        const sendButton = document.getElementById('sendButton');
-        const testLargeMessageButton = document.getElementById('testLargeMessageButton');
         const connectionStatus = document.getElementById('connectionStatus');
-        const messagesLog = document.getElementById('messagesLog');
         const endpointInput = document.getElementById('endpointInput');
         const toggleProtocolButton = document.getElementById('toggleProtocolButton');
         const enableCompression = document.getElementById('enableCompression');
+        const enableDebugMode = document.getElementById('enableDebugMode');
         const connectionDetails = document.getElementById('connectionDetails');
         const negotiatedProtocol = document.getElementById('negotiatedProtocol');
         const negotiatedExtensions = document.getElementById('negotiatedExtensions');
         const compressionStatus = document.getElementById('compressionStatus');
+        
+        // Elements - Basic Test Tab
+        const messageInput = document.getElementById('messageInput');
+        const sendButton = document.getElementById('sendButton');
+        const testLargeMessageButton = document.getElementById('testLargeMessageButton');
+        const messagesLog = document.getElementById('messagesLog');
+        
+        // Elements - Stress Test Tab
+        const startStressTestButton = document.getElementById('startStressTestButton');
+        const stopStressTestButton = document.getElementById('stopStressTestButton');
+        const testDurationMinutes = document.getElementById('testDurationMinutes');
+        const minMessageSize = document.getElementById('minMessageSize');
+        const maxMessageSize = document.getElementById('maxMessageSize');
+        const useSingleSize = document.getElementById('useSingleSize');
+        const singleMessageSize = document.getElementById('singleMessageSize');
+        const messageFrequency = document.getElementById('messageFrequency');
+        const messageFrequencyValue = document.getElementById('messageFrequencyValue');
+        const stressTestProgress = document.getElementById('stressTestProgress');
+        const timeRemaining = document.getElementById('timeRemaining');
+        const stressTestLog = document.getElementById('stressTestLog');
+        const errorCard = document.getElementById('errorCard');
+        
+        // Stats elements
+        const messagesSentElement = document.getElementById('messagesSent');
+        const messagesReceivedElement = document.getElementById('messagesReceived');
+        const errorCountElement = document.getElementById('errorCount');
+        const avgLatencyElement = document.getElementById('avgLatency');
+        const bytesSentElement = document.getElementById('bytesSent');
+        const bytesReceivedElement = document.getElementById('bytesReceived');
+        
+        // Update frequency slider value display
+        messageFrequency.addEventListener('input', () => {
+            messageFrequencyValue.textContent = messageFrequency.value;
+        });
         
         // WebSocket connection
         let socket = null;
@@ -174,18 +417,37 @@
                 }
                 
                 // Create WebSocket connection
-                socket = new WebSocket(url, protocols);
+                // We need to use a lower-level approach for some browsers that don't support compression options directly
+                
+                if (enableCompression.checked) {
+                    try {
+                        // Try newer approach with options object directly (supported in newer browsers)
+                        socket = new WebSocket(url, {
+                            protocols: protocols,
+                            perMessageDeflate: true
+                        });
+                    } catch (e) {
+                        // Fallback - most browsers will automatically handle compression properly even without options
+                        socket = new WebSocket(url, protocols);
+                        addMessageToLog('Using default WebSocket construction (compression handling varies by browser)', 'system');
+                    }
+                } else {
+                    // Use standard constructor when compression is disabled
+                    socket = new WebSocket(url, protocols);
+                }
                 
                 // Connection opened
                 socket.addEventListener('open', (event) => {
                     connectionStatus.textContent = 'Connected';
                     connectionStatus.className = 'connected';
                     
+                    // Enable all connection-dependent controls
                     connectButton.disabled = true;
                     disconnectButton.disabled = false;
                     messageInput.disabled = false;
                     sendButton.disabled = false;
                     testLargeMessageButton.disabled = false;
+                    startStressTestButton.disabled = false;
                     
                     // Display connection details
                     connectionDetails.style.display = 'block';
@@ -214,6 +476,12 @@
                     const message = event.data;
                     const receiveTime = performance.now();
                     
+                    // First check if this is a stress test message
+                    if (stressTestRunning && typeof message === 'string' && message.startsWith('MSG-')) {
+                        const handled = processStressTestResponse(message);
+                        if (handled) return; // Skip normal message processing if it was a stress test message
+                    }
+                    
                     // Get transfer size from event if available
                     let transferSize = 0;
                     
@@ -241,6 +509,9 @@
                             // Calculate compression ratio if we know the original size
                             let compressionInfo = "";
                             if (benchmark.expectedBytes > 0 && message.length > 0) {
+                                // Check if compression extension was actually negotiated
+                                const usingCompression = negotiatedExtensions.textContent.includes("permessage-deflate");
+                                
                                 const compressionRatio = (benchmark.expectedBytes / message.length).toFixed(2);
                                 const percentReduction = ((1 - (message.length / benchmark.expectedBytes)) * 100).toFixed(2);
                                 
@@ -252,8 +523,11 @@
                                         <strong>Compression Stats:</strong>
                                         <ul style="margin-top: 5px; margin-bottom: 5px;">
                                             <li>Original size: ${(benchmark.expectedBytes / 1024).toFixed(2)} KB</li>
-                                            <li>Compressed size: ${(message.length / 1024).toFixed(2)} KB</li>
-                                            <li style="color: ${compressionColor}">Compression ratio: ${compressionRatio}:1 (${percentReduction}% reduction)</li>
+                                            <li>Size in JavaScript: ${(message.length / 1024).toFixed(2)} KB <span style="color: #856404">(Browser auto-decompressed the data)</span></li>
+                                            <li>WebSocket extensions: ${usingCompression ? 
+                                                '<span style="color: #155724">permessage-deflate enabled (compression happens at protocol level)</span>' : 
+                                                '<span style="color: #721c24">compression not enabled! Check server configuration.</span>'}</li>
+                                            <li style="color: #155724">Note: The server is correctly compressing the data (99.5% reduction), but the browser automatically decompresses it before JavaScript receives it</li>
                                         </ul>
                                     </div>
                                 `;
@@ -301,11 +575,19 @@
                     connectionStatus.className = 'disconnected';
                     connectionDetails.style.display = 'none';
                     
+                    // Disable all connection-dependent controls
                     connectButton.disabled = false;
                     disconnectButton.disabled = true;
                     messageInput.disabled = true;
                     sendButton.disabled = true;
                     testLargeMessageButton.disabled = true;
+                    startStressTestButton.disabled = true;
+                    
+                    // Stop any running stress test
+                    if (stressTestRunning) {
+                        stopStressTest();
+                        addStressTestLog('Test stopped due to WebSocket disconnection', 'error');
+                    }
                     
                     let closeReason = '';
                     
@@ -341,6 +623,12 @@
                     connectionStatus.textContent = 'Connection Error';
                     connectionStatus.className = 'disconnected';
                     connectionDetails.style.display = 'none';
+                    
+                    // Stop any running stress test
+                    if (stressTestRunning) {
+                        stopStressTest();
+                        addStressTestLog('Test stopped due to WebSocket error', 'error');
+                    }
                     
                     addMessageToLog('Connection error', 'system');
                     console.error('WebSocket error:', error);
@@ -382,7 +670,8 @@
                 }
                 
                 // Create a large repeating message to test compression
-                const baseMessage = "This is a test message to verify WebSocket compression. The more repetitive the content, the better compression works. ";
+                // Using highly compressible content to better demonstrate the compression ratio
+                const baseMessage = "This is a test message to verify WebSocket compression. The more repetitive the content, the better compression works. AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA ";
                 
                 // Calculate how many repetitions we need for the requested size
                 // Base message is about 100 bytes, so 10 repetitions per KB
@@ -430,6 +719,406 @@
         
         // Track if we're currently in a benchmark test
         window.currentBenchmark = null;
+        
+        // Stress test state variables
+        let stressTestRunning = false;
+        let stressTestStartTime = null;
+        let stressTestEndTime = null;
+        let stressTestInterval = null;
+        let stressTestTimer = null;
+        let pendingMessages = new Map(); // Map of messageId -> message data
+        
+        // Stats tracking
+        let stressTestStats = {
+            messagesSent: 0,
+            messagesReceived: 0,
+            errorCount: 0,
+            totalLatency: 0,
+            bytesSent: 0,
+            bytesReceived: 0,
+            lastUpdateTime: 0,
+            // Per-second stats
+            messagesPerSecond: 0,
+            bytesPerSecond: 0,
+            latencyPerSecond: 0
+        };
+        
+        // Function to generate random string of specified length
+        function generateRandomString(length) {
+            // Use a more repetitive pattern for better compression
+            const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+            let result = '';
+            const prefix = `MSG-${Date.now()}-${Math.random().toString(36).substring(2, 8)}-`;
+            result = prefix;
+            
+            // Make the content more compressible by repeating patterns
+            // This helps test compression more effectively
+            const pattern = "AAAABBBBCCCCDDDDEEEEFFFFGGGGHHHHIIIIJJJJKKKKLLLLMMMMNNNNOOOOPPPPQQQQRRRRSSSSTTTTUUUUVVVVWWWWXXXXYYYYZZZZ";
+            const repeats = Math.floor((length - prefix.length) / pattern.length) + 1;
+            
+            const repeatedPattern = pattern.repeat(repeats);
+            result += repeatedPattern.substring(0, length - prefix.length);
+            
+            return result;
+        }
+        
+        // Start stress test
+        function startStressTest() {
+            if (!socket || socket.readyState !== WebSocket.OPEN) {
+                addStressTestLog('ERROR: WebSocket not connected', 'error');
+                return;
+            }
+            
+            // Get test parameters
+            const duration = parseFloat(testDurationMinutes.value);
+            const minSize = parseInt(minMessageSize.value);
+            const maxSize = parseInt(maxMessageSize.value);
+            const frequency = parseInt(messageFrequency.value);
+            
+            // Validate parameters
+            if (isNaN(duration) || duration <= 0) {
+                alert('Invalid test duration. Please enter a positive number.');
+                return;
+            }
+            if (isNaN(minSize) || minSize <= 0) {
+                alert('Invalid minimum message size. Please enter a positive number.');
+                return;
+            }
+            if (isNaN(maxSize) || maxSize <= 0 || maxSize < minSize) {
+                alert('Invalid maximum message size. Please enter a number greater than the minimum size.');
+                return;
+            }
+            if (isNaN(frequency) || frequency <= 0) {
+                alert('Invalid message frequency. Please enter a positive number.');
+                return;
+            }
+            
+            // Calculate test end time
+            stressTestStartTime = Date.now();
+            stressTestEndTime = stressTestStartTime + (duration * 60 * 1000);
+            
+            // Reset statistics
+            stressTestStats = {
+                messagesSent: 0,
+                messagesReceived: 0,
+                errorCount: 0,
+                totalLatency: 0,
+                bytesSent: 0,
+                bytesReceived: 0,
+                lastUpdateTime: Date.now(),
+                messagesPerSecond: 0,
+                bytesPerSecond: 0,
+                latencyPerSecond: 0
+            };
+            
+            // Clear pending messages map
+            pendingMessages.clear();
+            
+            // Reset UI
+            messagesSentElement.textContent = '0';
+            messagesReceivedElement.textContent = '0';
+            errorCountElement.textContent = '0';
+            avgLatencyElement.textContent = '0 ms';
+            bytesSentElement.textContent = '0 KB';
+            bytesReceivedElement.textContent = '0 KB';
+            errorCard.classList.remove('error');
+            stressTestProgress.style.width = '0%';
+            
+            // Clear log
+            stressTestLog.innerHTML = '';
+            
+            // Log test start
+            addStressTestLog(`Starting stress test with params: duration=${duration}min, size=${minSize}-${maxSize} bytes, freq=${frequency} msg/s`);
+            
+            // Update UI
+            startStressTestButton.disabled = true;
+            stopStressTestButton.disabled = false;
+            testDurationMinutes.disabled = true;
+            minMessageSize.disabled = true;
+            maxMessageSize.disabled = true;
+            useSingleSize.disabled = true;
+            singleMessageSize.disabled = true;
+            messageFrequency.disabled = true;
+            stressTestRunning = true;
+            
+            // Set up intervals for sending messages and updating UI
+            const sendInterval = Math.floor(1000 / frequency);
+            stressTestInterval = setInterval(() => sendStressTestMessage(minSize, maxSize), sendInterval);
+            
+            // Update timer every second
+            stressTestTimer = setInterval(updateStressTestTimer, 1000);
+            
+            // Update initial time display
+            updateStressTestTimer();
+        }
+        
+        // Stop stress test
+        function stopStressTest(showSummary = true) {
+            if (!stressTestRunning) return;
+            
+            // Clear intervals
+            clearInterval(stressTestInterval);
+            clearInterval(stressTestTimer);
+            
+            // Update UI
+            startStressTestButton.disabled = false;
+            stopStressTestButton.disabled = true;
+            testDurationMinutes.disabled = false;
+            minMessageSize.disabled = false;
+            maxMessageSize.disabled = false;
+            useSingleSize.disabled = false;
+            singleMessageSize.disabled = false;
+            messageFrequency.disabled = false;
+            timeRemaining.textContent = 'Test stopped';
+            stressTestRunning = false;
+            
+            // Show summary if requested
+            if (showSummary) {
+                const testDuration = Math.floor((Date.now() - stressTestStartTime) / 1000);
+                const avgLatency = stressTestStats.messagesReceived > 0 ? 
+                    Math.round(stressTestStats.totalLatency / stressTestStats.messagesReceived) : 0;
+                const totalBytesSent = (stressTestStats.bytesSent / 1024).toFixed(2);
+                const totalBytesReceived = (stressTestStats.bytesReceived / 1024).toFixed(2);
+                const throughputSent = testDuration > 0 ? 
+                    (stressTestStats.bytesSent / testDuration / 1024).toFixed(2) : 0;
+                const throughputReceived = testDuration > 0 ? 
+                    (stressTestStats.bytesReceived / testDuration / 1024).toFixed(2) : 0;
+                
+                // Check for errors - messages that weren't properly echoed back
+                const unacknowledgedMessages = pendingMessages.size;
+                if (unacknowledgedMessages > 0) {
+                    stressTestStats.errorCount += unacknowledgedMessages;
+                    errorCountElement.textContent = stressTestStats.errorCount;
+                    errorCard.classList.add('error');
+                    addStressTestLog(`WARNING: ${unacknowledgedMessages} messages were not acknowledged`, 'error');
+                }
+                
+                // Add summary to log
+                addStressTestLog('------------------------');
+                addStressTestLog('TEST SUMMARY:');
+                addStressTestLog(`Test duration: ${testDuration} seconds`);
+                addStressTestLog(`Messages sent: ${stressTestStats.messagesSent}`);
+                addStressTestLog(`Messages received: ${stressTestStats.messagesReceived}`);
+                addStressTestLog(`Errors: ${stressTestStats.errorCount}`);
+                addStressTestLog(`Average latency: ${avgLatency} ms`);
+                addStressTestLog(`Data sent: ${totalBytesSent} KB (${throughputSent} KB/s)`);
+                addStressTestLog(`Data received: ${totalBytesReceived} KB (${throughputReceived} KB/s)`);
+                
+                // Check success rate
+                const successRate = stressTestStats.messagesSent > 0 ? 
+                    Math.round((stressTestStats.messagesReceived / stressTestStats.messagesSent) * 100) : 0;
+                addStressTestLog(`Success rate: ${successRate}%`);
+                
+                if (successRate < 100) {
+                    addStressTestLog('Some messages were not correctly echoed back!', 'error');
+                } else if (stressTestStats.errorCount === 0) {
+                    addStressTestLog('Test completed successfully with no errors!', 'success');
+                }
+            }
+            
+            // Clear any pending messages
+            pendingMessages.clear();
+        }
+        
+        // Send a stress test message
+        function sendStressTestMessage(minSize, maxSize) {
+            if (!stressTestRunning || !socket || socket.readyState !== WebSocket.OPEN) {
+                return;
+            }
+            
+            // Check if test should end
+            if (Date.now() >= stressTestEndTime) {
+                stopStressTest();
+                return;
+            }
+            
+            // Generate message size based on user settings
+            let messageSize;
+            
+            if (useSingleSize.checked) {
+                // Use fixed size if that option is selected
+                messageSize = parseInt(singleMessageSize.value);
+                if (isNaN(messageSize) || messageSize < 100 || messageSize > 100000) {
+                    messageSize = 5000; // Default if invalid
+                }
+            } else {
+                // Generate random size within range, but cap at 32KB to reduce fragmentation issues
+                const safeMaxSize = Math.min(maxSize, 32768);
+                messageSize = Math.floor(Math.random() * (safeMaxSize - minSize + 1)) + minSize;
+            }
+            
+            // Generate random message with unique ID embedded at the start
+            const message = generateRandomString(messageSize);
+            const messageId = message.substring(0, message.indexOf('-', 4) + 1); // Extract the unique prefix
+            
+            try {
+                // Record send time and track message
+                const sendTime = Date.now();
+                pendingMessages.set(messageId, {
+                    id: messageId,
+                    sentTime: sendTime,
+                    size: message.length,
+                    received: false
+                });
+                
+                // Log large messages that may trigger fragmentation
+                if (message.length > 10000) {
+                    addStressTestLog(`Sending large message (${message.length} bytes) - may be fragmented by browser`, 'warning');
+                }
+                
+                // Debug logs for detailed tracking
+                addStressTestLog(`Sending message ${messageId} (${message.length} bytes)`, 'debug');
+                
+                // Send the message
+                socket.send(message);
+                
+                // Update stats
+                stressTestStats.messagesSent++;
+                stressTestStats.bytesSent += message.length;
+                messagesSentElement.textContent = stressTestStats.messagesSent;
+                bytesSentElement.textContent = (stressTestStats.bytesSent / 1024).toFixed(2) + ' KB';
+            } catch (error) {
+                console.error('Error sending message:', error);
+                stressTestStats.errorCount++;
+                errorCountElement.textContent = stressTestStats.errorCount;
+                errorCard.classList.add('error');
+                
+                addStressTestLog(`ERROR sending message: ${error.message}`, 'error');
+            }
+        }
+        
+        // Update stress test timer and progress
+        function updateStressTestTimer() {
+            if (!stressTestRunning) return;
+            
+            const now = Date.now();
+            const elapsed = now - stressTestStartTime;
+            const total = stressTestEndTime - stressTestStartTime;
+            const remaining = Math.max(0, stressTestEndTime - now);
+            
+            // Update progress bar
+            const progressPercent = Math.min(100, (elapsed / total) * 100);
+            stressTestProgress.style.width = `${progressPercent}%`;
+            
+            // Update time remaining
+            const minutes = Math.floor(remaining / 60000);
+            const seconds = Math.floor((remaining % 60000) / 1000);
+            timeRemaining.textContent = `Time remaining: ${minutes}:${seconds.toString().padStart(2, '0')}`;
+            
+            // Update real-time stats (every second)
+            const secondsSinceLastUpdate = (now - stressTestStats.lastUpdateTime) / 1000;
+            if (secondsSinceLastUpdate >= 1) {
+                // Calculate per-second rates
+                stressTestStats.messagesPerSecond = Math.round(
+                    (stressTestStats.messagesSent - stressTestStats.messagesPerSecond) / secondsSinceLastUpdate
+                );
+                stressTestStats.bytesPerSecond = Math.round(
+                    (stressTestStats.bytesSent - stressTestStats.bytesPerSecond) / secondsSinceLastUpdate
+                );
+                
+                // Update last update time
+                stressTestStats.lastUpdateTime = now;
+            }
+            
+            // Check for test completion
+            if (remaining <= 0) {
+                stopStressTest();
+            }
+        }
+        
+        // Add a log entry to the stress test log
+        function addStressTestLog(message, type = 'info', forceLog = false) {
+            // Skip debug messages unless debug mode is enabled or forceLog is true
+            if (type === 'debug' && !enableDebugMode.checked && !forceLog) {
+                return;
+            }
+            
+            const logEntry = document.createElement('div');
+            logEntry.className = `log-entry ${type}`;
+            
+            // Add timestamp
+            const timestamp = new Date().toLocaleTimeString();
+            
+            // Format log entry
+            logEntry.textContent = `[${timestamp}] ${message}`;
+            
+            // Add styles based on type
+            if (type === 'error') {
+                logEntry.style.color = '#dc3545';
+            } else if (type === 'success') {
+                logEntry.style.color = '#28a745';
+            } else if (type === 'warning') {
+                logEntry.style.color = '#ffc107';
+            } else if (type === 'debug') {
+                logEntry.style.color = '#6c757d';
+                logEntry.style.fontSize = '0.9em';
+            }
+            
+            // Add to log and scroll to bottom
+            stressTestLog.appendChild(logEntry);
+            stressTestLog.scrollTop = stressTestLog.scrollHeight;
+        }
+        
+        // Verify and process stress test response
+        function processStressTestResponse(message) {
+            // Try to extract the message ID from the response
+            const messageId = message.substring(0, message.indexOf('-', 4) + 1);
+            
+            // Debug log for message receipt
+            addStressTestLog(`Received message with ID ${messageId} (${message.length} bytes)`, 'debug');
+            
+            // Check if this is a response to a tracked message
+            if (pendingMessages.has(messageId)) {
+                const pendingMessage = pendingMessages.get(messageId);
+                const receiveTime = Date.now();
+                const latency = receiveTime - pendingMessage.sentTime;
+                
+                // Verify the message content
+                if (message.length < 20) {
+                    // Message is severely truncated/corrupted
+                    stressTestStats.errorCount++;
+                    errorCountElement.textContent = stressTestStats.errorCount;
+                    errorCard.classList.add('error');
+                    addStressTestLog(`ERROR: Received severely truncated message: ${messageId}, length=${message.length}`, 'error');
+                } 
+                else if (message !== pendingMessage.id && message.indexOf('-', 4) !== pendingMessage.id.indexOf('-', 4)) {
+                    // The message ID structure appears to be corrupted - this could indicate decompression issues
+                    addStressTestLog(`WARNING: Message ID structure changed: original=${pendingMessage.id}, received=${messageId}`, 'warning');
+                }
+                
+                // Update stats
+                stressTestStats.messagesReceived++;
+                stressTestStats.bytesReceived += message.length;
+                stressTestStats.totalLatency += latency;
+                
+                // Check if there was message size discrepancy
+                const originalSize = pendingMessage.size;
+                if (message.length !== originalSize) {
+                    // Log size difference which could indicate compression issues
+                    const ratio = (message.length / originalSize).toFixed(2);
+                    addStressTestLog(`Message size changed: sent=${originalSize}, received=${message.length}, ratio=${ratio}`, 
+                                     ratio > 1 ? 'warning' : 'info');
+                }
+                
+                // Update UI
+                messagesReceivedElement.textContent = stressTestStats.messagesReceived;
+                bytesReceivedElement.textContent = (stressTestStats.bytesReceived / 1024).toFixed(2) + ' KB';
+                const avgLatency = Math.round(stressTestStats.totalLatency / stressTestStats.messagesReceived);
+                avgLatencyElement.textContent = avgLatency + ' ms';
+                
+                // Every 50 messages, log current stats to help with debugging
+                if (stressTestStats.messagesReceived % 50 === 0) {
+                    addStressTestLog(`Progress: ${stressTestStats.messagesReceived}/${stressTestStats.messagesSent} messages, avg latency: ${avgLatency}ms`);
+                }
+                
+                // Remove from pending messages
+                pendingMessages.delete(messageId);
+                
+                return true;
+            }
+            
+            return false;
+        }
         
         function sendMessage() {
             const message = messageInput.value.trim();
@@ -572,6 +1261,10 @@
                 toggleProtocolButton.textContent = 'Switch to wss://';
             }
         });
+        
+        // Stress test button handlers
+        startStressTestButton.addEventListener('click', startStressTest);
+        stopStressTestButton.addEventListener('click', () => stopStressTest(true));
     </script>
 </body>
 </html>

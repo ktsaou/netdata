@@ -160,7 +160,8 @@ void websocket_init_client(WEBSOCKET_SERVER_CLIENT *wsc, int fd, NETDATA_SSL ssl
 void websocket_initialize(void) {
     // Initialize thread system
     websocket_threads_init();
-    
+
+    // debug_flags |= D_WEBSOCKET;
     netdata_log_info("WebSocket server subsystem initialized");
 }
 

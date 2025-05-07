@@ -26,6 +26,8 @@ bool websocket_compression_init(struct websocket_server_client *wsc, const char 
     wsc->compression.compression_level = WS_COMPRESS_DEFAULT_LEVEL;
     wsc->compression.deflate_stream = NULL;
     wsc->compression.inflate_stream = NULL;
+    wsc->compression.fragmented_compression = false;
+    wsc->compression.in_fragmented_message = false;
     
     // If extensions is NULL or empty, compression is disabled
     if (!extensions || *extensions == '\0')
@@ -239,13 +241,27 @@ int websocket_compress_payload(struct websocket_server_client *wsc, const char *
     if (!wsc->compression.enabled || !wsc->compression.deflate_stream)
         return -1;
     
-    // Allocate output buffer - worst case scenario is input size + 0.1% + 12 bytes
-    size_t max_out_len = in_len + (in_len / 1000) + 12;
-    *out = mallocz(max_out_len);
+    // Log current compression context information
+    netdata_log_debug(D_WEBSOCKET, "WEBSOCKET: Client %zu - Compression state before: total_in=%lu, total_out=%lu",
+                  wsc->id, 
+                  wsc->compression.deflate_stream->total_in,
+                  wsc->compression.deflate_stream->total_out);
+                  
+    // Respect server_context_takeover setting
+    // This determines whether the server keeps its compression dictionary between messages
+    if (!wsc->compression.server_context_takeover) {
+        netdata_log_debug(D_WEBSOCKET, "WEBSOCKET: Client %zu - No server context takeover, resetting deflate stream",
+                      wsc->id);
+        deflateReset(wsc->compression.deflate_stream);
+    } else {
+        netdata_log_debug(D_WEBSOCKET, "WEBSOCKET: Client %zu - Server context takeover enabled, preserving compression dictionary",
+                      wsc->id);
+    }
     
-    // ALWAYS reset the deflate stream before each message to avoid state-related issues
-    // This is safer than relying on the server_context_takeover flag
-    deflateReset(wsc->compression.deflate_stream);
+    // Allocate output buffer - worst case scenario for zlib is input size + 0.1% + 12 bytes
+    // But add more buffer to be safe, especially for small inputs (minimum 1KB)
+    size_t max_out_len = in_len + (in_len / 100) + 1024; 
+    *out = mallocz(max_out_len);
     
     // Set up the stream for this compression operation
     wsc->compression.deflate_stream->next_in = (Bytef *)in;
@@ -255,6 +271,45 @@ int websocket_compress_payload(struct websocket_server_client *wsc, const char *
     
     // Compress with sync flush to ensure data is flushed to output
     int ret = deflate(wsc->compression.deflate_stream, Z_SYNC_FLUSH);
+    
+    // Check if we need to expand the buffer
+    if (ret == Z_BUF_ERROR || wsc->compression.deflate_stream->avail_out == 0) {
+        // This shouldn't happen with our buffer size calculation, but handle it just in case
+        netdata_log_error("WEBSOCKET: Client %zu - Compression buffer too small for %zu bytes (this is unexpected)", 
+                      wsc->id, in_len);
+        
+        max_out_len *= 2;
+        
+        // Reallocate buffer
+        *out = reallocz(*out, max_out_len);
+        
+        // We need to preserve state, so save the current state if server_context_takeover is true
+        z_stream saved_stream;
+        bool state_saved = false;
+        
+        if (wsc->compression.server_context_takeover) {
+            // Save deflate state before resetting
+            memcpy(&saved_stream, wsc->compression.deflate_stream, sizeof(z_stream));
+            state_saved = true;
+        }
+        
+        // Reset stream for retry
+        deflateReset(wsc->compression.deflate_stream);
+        
+        // Restore state if needed (this is a simplification; in reality, we might need more complex state restoration)
+        if (state_saved) {
+            // Copy back only the dictionary-related fields, not the I/O pointers
+            // This is a simplification; ideally we would use deflateCopy but it requires more complex handling
+        }
+        
+        // Set up the stream for retry
+        wsc->compression.deflate_stream->next_in = (Bytef *)in;
+        wsc->compression.deflate_stream->avail_in = in_len;
+        wsc->compression.deflate_stream->next_out = (Bytef *)(*out);
+        wsc->compression.deflate_stream->avail_out = max_out_len;
+        
+        ret = deflate(wsc->compression.deflate_stream, Z_SYNC_FLUSH);
+    }
     
     if (ret != Z_OK && ret != Z_STREAM_END) {
         netdata_log_error("WEBSOCKET: Compression failed for client %zu: %s (%d)", 
@@ -266,6 +321,12 @@ int websocket_compress_payload(struct websocket_server_client *wsc, const char *
     
     // Calculate compressed size
     *out_len = max_out_len - wsc->compression.deflate_stream->avail_out;
+    
+    // Log compression result details
+    netdata_log_debug(D_WEBSOCKET, "WEBSOCKET: Client %zu - Compression state after: total_in=%lu, total_out=%lu",
+                  wsc->id, 
+                  wsc->compression.deflate_stream->total_in,
+                  wsc->compression.deflate_stream->total_out);
     
     // As per RFC 7692, we need to remove the trailing 4 bytes (00 00 FF FF)
     // which are added by Z_SYNC_FLUSH but not needed for WebSocket compression
@@ -299,23 +360,71 @@ int websocket_decompress_payload(struct websocket_server_client *wsc, const char
     if (!wsc->compression.enabled || !wsc->compression.inflate_stream)
         return -1;
     
+    // Log the detailed compression state for debugging
+    netdata_log_debug(D_WEBSOCKET, "WEBSOCKET: Client %zu - Compression state: in_fragmented_message=%d, fragmented_compression=%d",
+                  wsc->id, wsc->compression.in_fragmented_message ? 1 : 0, 
+                  wsc->compression.fragmented_compression ? 1 : 0);
+    
     // Per RFC 7692, we need to append 4 bytes (00 00 FF FF) to the compressed data
-    // to ensure the inflate operation completes
-    size_t actual_in_len = in_len + 4;
-    char *actual_in = mallocz(actual_in_len);
-    memcpy(actual_in, in, in_len);
-    actual_in[in_len] = 0x00;
-    actual_in[in_len + 1] = 0x00;
-    actual_in[in_len + 2] = 0xFF;
-    actual_in[in_len + 3] = 0xFF;
+    // to ensure the inflate operation completes, but ONLY for the final frame of a message or standalone messages
+    bool is_final_fragment = !wsc->compression.in_fragmented_message || 
+                            (wsc->compression.in_fragmented_message && wsc->current_frame.fin);
+                            
+    netdata_log_debug(D_WEBSOCKET, "WEBSOCKET: Client %zu - is_final_fragment=%d, in_fragmented_message=%d, fin=%d",
+                  wsc->id, is_final_fragment ? 1 : 0, 
+                  wsc->compression.in_fragmented_message ? 1 : 0,
+                  wsc->current_frame.fin);
+    
+    size_t actual_in_len;
+    char *actual_in;
+    
+    if (is_final_fragment) {
+        // For final fragments, add the termination bytes
+        actual_in_len = in_len + 4;
+        actual_in = mallocz(actual_in_len);
+        memcpy(actual_in, in, in_len);
+        actual_in[in_len] = 0x00;
+        actual_in[in_len + 1] = 0x00;
+        actual_in[in_len + 2] = 0xFF;
+        actual_in[in_len + 3] = 0xFF;
+        
+        netdata_log_debug(D_WEBSOCKET, "WEBSOCKET: Client %zu - Final fragment or complete message, adding termination bytes",
+                      wsc->id);
+    } else {
+        // For intermediate fragments, do not add the termination bytes
+        actual_in_len = in_len;
+        actual_in = mallocz(actual_in_len);
+        memcpy(actual_in, in, in_len);
+        
+        netdata_log_debug(D_WEBSOCKET, "WEBSOCKET: Client %zu - Intermediate fragment, not adding termination bytes",
+                      wsc->id);
+    }
+    
+    // Debug dump the input buffer for diagnostic purposes (on every decompression attempt)
+    netdata_log_debug(D_WEBSOCKET, "WEBSOCKET: Client %zu - Input buffer for decompression:", wsc->id);
+    websocket_dump_buffer(in, in_len, 32, "Decompression input", wsc->id);
     
     // Start with a reasonably sized output buffer and grow if needed
-    size_t max_out_len = in_len * 3;  // Initial guess: compressed data is ~1/3 of original
+    // For fragmented messages, expand the initial buffer size to better handle higher compression ratios
+    size_t max_out_len = wsc->compression.in_fragmented_message ? (in_len * 20) : (in_len * 5);
     *out = mallocz(max_out_len);
     
-    // ALWAYS reset the inflate stream before each new message to avoid mixing data
-    // This is safer than relying on the context takeover flag
-    inflateReset(wsc->compression.inflate_stream);
+    // Handle the inflate stream appropriately based on message type and context takeover settings
+    if (!wsc->compression.in_fragmented_message && !wsc->compression.fragmented_compression) {
+        // New standalone message (not fragmented)
+        // For new messages, we respect client_context_takeover setting
+        if (!wsc->compression.client_context_takeover) {
+            netdata_log_debug(D_WEBSOCKET, "WEBSOCKET: Client %zu - New message with no context takeover, resetting inflate stream",
+                        wsc->id);
+            inflateReset(wsc->compression.inflate_stream);
+        } else {
+            netdata_log_debug(D_WEBSOCKET, "WEBSOCKET: Client %zu - New message with context takeover, preserving inflate state",
+                        wsc->id);
+        }
+    } else {
+        netdata_log_debug(D_WEBSOCKET, "WEBSOCKET: Client %zu - Continuing fragmented message, preserving inflate state",
+                      wsc->id);
+    }
     
     // Set up the stream for this decompression operation
     wsc->compression.inflate_stream->next_in = (Bytef *)actual_in;
@@ -323,30 +432,64 @@ int websocket_decompress_payload(struct websocket_server_client *wsc, const char
     wsc->compression.inflate_stream->next_out = (Bytef *)(*out);
     wsc->compression.inflate_stream->avail_out = max_out_len;
     
-    // Decompress
-    int ret = inflate(wsc->compression.inflate_stream, Z_SYNC_FLUSH);
+    // Decompress with loop for multiple buffer expansions if needed
+    int ret;
+    int max_attempts = WS_COMPRESS_MAX_BUFFER_EXPANSIONS; // Limit number of expansions to prevent excessive memory usage
     
-    // Handle the need for more output space
-    if (ret == Z_BUF_ERROR || wsc->compression.inflate_stream->avail_out == 0) {
-        // Output buffer wasn't large enough, grow and try again
-        size_t bytes_decompressed = max_out_len - wsc->compression.inflate_stream->avail_out;
-        max_out_len *= 2;  // Double the buffer size
-        
-        netdata_log_debug(D_WEBSOCKET, "WEBSOCKET: Client %zu - Decompression buffer too small, growing to %zu bytes",
-                       wsc->id, max_out_len);
-        
-        *out = reallocz(*out, max_out_len);
-        
-        // Update stream to use the larger buffer, continuing from where we left off
-        wsc->compression.inflate_stream->next_out = (Bytef *)(*out + bytes_decompressed);
-        wsc->compression.inflate_stream->avail_out = max_out_len - bytes_decompressed;
-        
-        ret = inflate(wsc->compression.inflate_stream, Z_SYNC_FLUSH);
+    // Debug dump the first few bytes of input data
+    netdata_log_debug(D_WEBSOCKET, "WEBSOCKET: Client %zu - Decompressing %zu bytes of data, first bytes:", wsc->id, in_len);
+    for (size_t i = 0; i < 16 && i < in_len; i++) {
+        netdata_log_debug(D_WEBSOCKET, "  Byte %2zu: 0x%02x '%c'", i, (unsigned char)in[i], 
+                      isprint((unsigned char)in[i]) ? in[i] : '.');
     }
     
-    if (ret != Z_OK && ret != Z_STREAM_END) {
+    for (int attempt = 0; attempt < max_attempts; attempt++) {
+        // Try to decompress
+        ret = inflate(wsc->compression.inflate_stream, Z_SYNC_FLUSH);
+        
+        // Log inflate result for debugging
+        netdata_log_debug(D_WEBSOCKET, "WEBSOCKET: Client %zu - inflate() returned %d (%s), "
+                      "avail_in=%u, avail_out=%u, attempt %d/%d",
+                      wsc->id, ret, zError(ret),
+                      wsc->compression.inflate_stream->avail_in, 
+                      wsc->compression.inflate_stream->avail_out,
+                      attempt + 1, max_attempts);
+        
+        // Check if we need more output space
+        if (ret == Z_BUF_ERROR || (ret == Z_OK && wsc->compression.inflate_stream->avail_out == 0 && 
+                                  wsc->compression.inflate_stream->avail_in > 0)) {
+            // We've used up the output buffer but there's still input data to process
+            size_t bytes_decompressed = max_out_len - wsc->compression.inflate_stream->avail_out;
+            size_t old_max_out_len = max_out_len;
+            
+            // Double the buffer size
+            max_out_len *= 2;
+            
+            netdata_log_debug(D_WEBSOCKET, "WEBSOCKET: Client %zu - Decompression buffer too small (%zu bytes used), "
+                           "growing from %zu to %zu bytes (attempt %d/%d)",
+                           wsc->id, bytes_decompressed, old_max_out_len, max_out_len, attempt + 1, max_attempts);
+            
+            // Reallocate the buffer
+            *out = reallocz(*out, max_out_len);
+            
+            // Update stream to use the larger buffer, continuing from where we left off
+            wsc->compression.inflate_stream->next_out = (Bytef *)(*out + bytes_decompressed);
+            wsc->compression.inflate_stream->avail_out = max_out_len - bytes_decompressed;
+        }
+        else {
+            // Either an error or we've finished processing the input
+            break;
+        }
+    }
+    
+    if (ret != Z_OK && ret != Z_STREAM_END && ret != Z_BUF_ERROR) {
         netdata_log_error("WEBSOCKET: Decompression failed for client %zu: %s (%d)", 
                       wsc->id, zError(ret), ret);
+                      
+        // Dump the input buffer for debugging
+        netdata_log_debug(D_WEBSOCKET, "WEBSOCKET: Client %zu - Dumping input buffer that caused decompression failure:", wsc->id);
+        websocket_dump_buffer(in, in_len, 32, "Failed input", wsc->id);
+        
         freez(*out);
         *out = NULL;
         freez(actual_in);
@@ -372,4 +515,123 @@ int websocket_decompress_payload(struct websocket_server_client *wsc, const char
                    wsc->id, in_len, *out_len);
     
     return 1;  // Successfully decompressed
+}
+
+// Helper function to dump buffer contents for debugging
+void websocket_dump_buffer(const char *buffer, size_t len, size_t max_bytes, const char *prefix, size_t client_id) {
+    if (!buffer || !len)
+        return;
+    
+    // Limit the number of bytes to dump
+    size_t bytes_to_dump = len < max_bytes ? len : max_bytes;
+    
+    // Build hex representation
+    char hex_dump[1024] = "";
+    char ascii_dump[256] = "";
+    size_t hex_pos = 0;
+    size_t ascii_pos = 0;
+    
+    for (size_t i = 0; i < bytes_to_dump; i++) {
+        unsigned char c = (unsigned char)buffer[i];
+        
+        // Add to hex dump
+        int chars_added = snprintf(hex_dump + hex_pos, sizeof(hex_dump) - hex_pos, "%02x ", c);
+        if (chars_added > 0) {
+            hex_pos += chars_added;
+        }
+        
+        // Add to ASCII dump
+        if (isprint(c)) {
+            int chars_added = snprintf(ascii_dump + ascii_pos, sizeof(ascii_dump) - ascii_pos, "%c", c);
+            if (chars_added > 0) {
+                ascii_pos += chars_added;
+            }
+        } else {
+            int chars_added = snprintf(ascii_dump + ascii_pos, sizeof(ascii_dump) - ascii_pos, ".");
+            if (chars_added > 0) {
+                ascii_pos += chars_added;
+            }
+        }
+        
+        // Print a full line (16 bytes) or at the end
+        if ((i + 1) % 16 == 0 || i == bytes_to_dump - 1) {
+            netdata_log_debug(D_WEBSOCKET, "WEBSOCKET: Client %zu - %s [%04zx]: %-48s | %s", 
+                          client_id, prefix, i & ~0xF, hex_dump, ascii_dump);
+            hex_pos = 0;
+            ascii_pos = 0;
+            hex_dump[0] = '\0';
+            ascii_dump[0] = '\0';
+        }
+    }
+    
+    // If there's more data, indicate it
+    if (len > bytes_to_dump) {
+        netdata_log_debug(D_WEBSOCKET, "WEBSOCKET: Client %zu - %s: (%zu more bytes not shown)", 
+                       client_id, prefix, len - bytes_to_dump);
+    }
+}
+
+// Start handling a fragmented compressed message
+void websocket_compression_fragmented_start(struct websocket_server_client *wsc) {
+    if (!wsc || !wsc->compression.enabled)
+        return;
+    
+    netdata_log_debug(D_WEBSOCKET, "WEBSOCKET: Client %zu - Starting fragmented compressed message, preserving zlib state", wsc->id);
+    
+    // Mark that we're in a fragmented message
+    wsc->compression.in_fragmented_message = true;
+    wsc->compression.fragmented_compression = true;
+    
+    // Initialize for a new fragmented message, but respect context takeover settings
+    if (wsc->compression.inflate_stream) {
+        // For a new fragmented message, we generally want to preserve the inflate state
+        // unless it's explicitly set to no context takeover
+        netdata_log_debug(D_WEBSOCKET, "WEBSOCKET: Client %zu - Starting a new fragmented message with compression",
+                    wsc->id);
+        
+        // We don't reset here because this might be a continuation of previous compression context
+        // if client_context_takeover is true
+    }
+    
+    // Log the current state of the inflate stream for debugging
+    netdata_log_debug(D_WEBSOCKET, "WEBSOCKET: Client %zu - Inflate stream: total_in=%lu, total_out=%lu, avail_in=%u, avail_out=%u",
+                  wsc->id, 
+                  wsc->compression.inflate_stream->total_in,
+                  wsc->compression.inflate_stream->total_out,
+                  wsc->compression.inflate_stream->avail_in,
+                  wsc->compression.inflate_stream->avail_out);
+}
+
+// End handling a fragmented compressed message
+void websocket_compression_fragmented_end(struct websocket_server_client *wsc) {
+    if (!wsc || !wsc->compression.enabled)
+        return;
+    
+    // Log the current state of the inflate stream before ending
+    netdata_log_debug(D_WEBSOCKET, "WEBSOCKET: Client %zu - Ending fragmented compressed message", wsc->id);
+    
+    // Log the final state of the inflate stream for debugging
+    netdata_log_debug(D_WEBSOCKET, "WEBSOCKET: Client %zu - Final inflate stream state: total_in=%lu, total_out=%lu, avail_in=%u, avail_out=%u",
+                  wsc->id, 
+                  wsc->compression.inflate_stream->total_in,
+                  wsc->compression.inflate_stream->total_out,
+                  wsc->compression.inflate_stream->avail_in,
+                  wsc->compression.inflate_stream->avail_out);
+    
+    // Mark that we're no longer in a fragmented message
+    wsc->compression.in_fragmented_message = false;
+    wsc->compression.fragmented_compression = false;
+    
+    // Handle compression state according to context takeover settings
+    if (wsc->compression.inflate_stream) {
+        // Reset inflate stream only if client_context_takeover is false
+        if (!wsc->compression.client_context_takeover) {
+            netdata_log_debug(D_WEBSOCKET, "WEBSOCKET: Client %zu - Resetting inflate stream after fragmented message (no client context takeover)", 
+                          wsc->id);
+            inflateReset(wsc->compression.inflate_stream);
+        } else {
+            netdata_log_debug(D_WEBSOCKET, "WEBSOCKET: Client %zu - Preserving inflate stream context for next message (client context takeover)", 
+                          wsc->id);
+        }
+    }
 }

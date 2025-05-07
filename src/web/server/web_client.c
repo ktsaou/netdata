@@ -1234,8 +1234,6 @@ static inline int web_client_process_url(RRDHOST *host, struct web_client *w, ch
                     return HTTP_RESP_NOT_FOUND;
                 }
 
-                debug_flags |= D_RRD_STATS;
-
                 if(rrdset_flag_check(st, RRDSET_FLAG_DEBUG))
                     rrdset_flag_clear(st, RRDSET_FLAG_DEBUG);
                 else

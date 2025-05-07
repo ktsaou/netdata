@@ -104,6 +104,9 @@ int websocket_process_frames_buffered(WEBSOCKET_SERVER_CLIENT *wsc) {
             header.mask = mask;
             header.len = len;
             
+            // Store the frame header in the client state
+            wsc->current_frame = header;
+            
             // Log frame header details for debugging
             netdata_log_debug(D_WEBSOCKET, "Client %zu - Frame header: FIN=%d, RSV1=%d, RSV2=%d, RSV3=%d, OPCODE=%d, MASK=%d, LEN=%d",
                            wsc->id, fin, rsv1, rsv2, rsv3, opcode, mask, len);
@@ -319,14 +322,20 @@ int websocket_process_frames_buffered(WEBSOCKET_SERVER_CLIENT *wsc) {
                     buffer_need_bytes(wsc->message_buffer, wsc->frame_length);
                     buffer_memcat(wsc->message_buffer, (char *)payload, wsc->frame_length);
                     
-                    netdata_log_debug(D_WEBSOCKET, "Client %zu - Added %zu bytes to fragmented message (total: %zu)",
-                                  wsc->id, wsc->frame_length, buffer_strlen(wsc->message_buffer));
+                    netdata_log_debug(D_WEBSOCKET, "Client %zu - Added %zu bytes to fragmented message (total: %zu, compressed=%d)",
+                                  wsc->id, wsc->frame_length, buffer_strlen(wsc->message_buffer),
+                                  wsc->compression.fragmented_compression ? 1 : 0);
                     
                     // If this is the final frame of the message, process it
                     if (fin) {
                         // Process the complete message
                         netdata_log_debug(D_WEBSOCKET, "Client %zu - Final continuation frame received, message complete",
                                       wsc->id);
+                        
+                        // Mark the end of a fragmented compressed message before processing
+                        if (wsc->compression.fragmented_compression) {
+                            websocket_compression_fragmented_end(wsc);
+                        }
                         
                         if (wsc->on_message) {
                             wsc->on_message(wsc, buffer_tostring(wsc->message_buffer), 
@@ -368,15 +377,21 @@ int websocket_process_frames_buffered(WEBSOCKET_SERVER_CLIENT *wsc) {
                         wsc->fragmented_message = true;
                         wsc->fragmented_opcode = opcode;
                         
+                        // Mark the start of a fragmented message for compression tracking
+                        if (is_compressed) {
+                            websocket_compression_fragmented_start(wsc);
+                        }
+                        
                         // Reset and initialize the message buffer
                         buffer_flush(wsc->message_buffer);
                         buffer_need_bytes(wsc->message_buffer, wsc->frame_length);
                         buffer_memcat(wsc->message_buffer, (char *)payload, wsc->frame_length);
                         
-                        netdata_log_debug(D_WEBSOCKET, "Client %zu - Started fragmented %s message (%zu bytes)",
+                        netdata_log_debug(D_WEBSOCKET, "Client %zu - Started fragmented %s message (%zu bytes, compressed=%d)",
                                       wsc->id, 
                                       (opcode == WS_OPCODE_TEXT) ? "text" : "binary",
-                                      wsc->frame_length);
+                                      wsc->frame_length,
+                                      is_compressed ? 1 : 0);
                     }
                     else {
                         // This is a complete, unfragmented message
@@ -388,6 +403,17 @@ int websocket_process_frames_buffered(WEBSOCKET_SERVER_CLIENT *wsc) {
                             // Default behavior: echo the message back as-is
                             netdata_log_debug(D_WEBSOCKET, "Client %zu - No message handler registered, echoing back", wsc->id);
                             websocket_send_frame(wsc, (char *)payload, wsc->frame_length, opcode);
+                        }
+                        
+                        // If this was a compressed message, handle compression state according to context takeover settings
+                        if (is_compressed && wsc->compression.enabled && wsc->compression.inflate_stream) {
+                            // Reset inflate stream only if client_context_takeover is false
+                            if (!wsc->compression.client_context_takeover) {
+                                netdata_log_debug(D_WEBSOCKET, "Client %zu - Resetting inflate stream after complete compressed message (no client context takeover)", wsc->id);
+                                inflateReset(wsc->compression.inflate_stream);
+                            } else {
+                                netdata_log_debug(D_WEBSOCKET, "Client %zu - Preserving inflate stream context for next message (client context takeover)", wsc->id);
+                            }
                         }
                     }
                     break;
@@ -531,14 +557,15 @@ int websocket_process_frames_buffered(WEBSOCKET_SERVER_CLIENT *wsc) {
                 websocket_unmask_payload(payload, payload_length, wsc->mask_key);
             }
             
-            // Decompress payload if needed (RSV1 bit set and compression enabled)
+            // Decompress payload if needed (part of a fragmented compressed message)
             char *decompressed_payload = NULL;
             size_t decompressed_len = 0;
             size_t original_payload_length = payload_length; // Keep original length for buffer management
             
-            if(is_compressed && wsc->compression.enabled) {
+            // Check if this is part of a fragmented compressed message
+            if(wsc->compression.fragmented_compression) {
                 // Log compression info before attempting decompression
-                netdata_log_debug(D_WEBSOCKET, "Client %zu - Attempting to decompress continuation payload of %zu bytes",
+                netdata_log_debug(D_WEBSOCKET, "Client %zu - Attempting to decompress continuation payload of %zu bytes (fragmented)",
                               wsc->id, payload_length);
                 
                 int result = websocket_decompress_payload(wsc, (const char *)payload, payload_length, 
@@ -572,13 +599,19 @@ int websocket_process_frames_buffered(WEBSOCKET_SERVER_CLIENT *wsc) {
                         buffer_need_bytes(wsc->message_buffer, payload_length);
                         buffer_memcat(wsc->message_buffer, (char *)payload, payload_length);
                         
-                        netdata_log_debug(D_WEBSOCKET, "Client %zu - Added %zu bytes to fragmented message (total: %zu)",
-                                      wsc->id, payload_length, buffer_strlen(wsc->message_buffer));
+                        netdata_log_debug(D_WEBSOCKET, "Client %zu - Added %zu bytes to fragmented message (total: %zu, compressed=%d)",
+                                      wsc->id, payload_length, buffer_strlen(wsc->message_buffer),
+                                      wsc->compression.fragmented_compression ? 1 : 0);
                         
                         // If this is the final frame of the message, process it
                         if(fin) {
                             netdata_log_debug(D_WEBSOCKET, "Client %zu - Final continuation frame completed, message complete",
                                           wsc->id);
+                            
+                            // Mark the end of a fragmented compressed message before processing
+                            if (wsc->compression.fragmented_compression) {
+                                websocket_compression_fragmented_end(wsc);
+                            }
                             
                             if(wsc->on_message) {
                                 wsc->on_message(wsc, buffer_tostring(wsc->message_buffer), 
@@ -699,12 +732,6 @@ int websocket_process_frames_buffered(WEBSOCKET_SERVER_CLIENT *wsc) {
                         remaining);
             }
             wsc->in_buffer->len = remaining;
-            
-            // Free decompressed payload if it was allocated
-            if (is_compressed && decompressed_payload) {
-                freez(decompressed_payload);
-                decompressed_payload = NULL;
-            }
             
             // Free decompressed payload if it was allocated
             if (is_compressed && decompressed_payload) {
