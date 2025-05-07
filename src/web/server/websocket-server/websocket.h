@@ -22,6 +22,13 @@ typedef enum __attribute__((packed)) {
     // Additional protocols will be added here in the future
 } WEBSOCKET_PROTOCOL;
 
+// WebSocket extensions supported by Netdata
+typedef enum __attribute__((packed)) {
+    WS_EXTENSION_NONE      = 0,      // No extensions
+    WS_EXTENSION_PERMESSAGE_DEFLATE = 1 << 0,  // permessage-deflate (RFC 7692)
+    // Additional extensions can be added here in the future
+} WEBSOCKET_EXTENSION;
+
 // WebSocket connection states
 typedef enum __attribute__((packed)) {
     WS_STATE_HANDSHAKE  = 0, // Initial handshake in progress

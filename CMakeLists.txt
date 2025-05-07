@@ -1835,6 +1835,8 @@ set(WEB_PLUGIN_FILES
         src/web/server/websocket-server/websocket-receiver.c
         src/web/server/websocket-server/websocket-thread.c
         src/web/server/websocket-server/websocket-thread.h
+        src/web/server/websocket-server/websocket-compression.c
+        src/web/server/websocket-server/websocket-compression.h
         src/web/server/static/static-threaded.c
         src/web/server/static/static-threaded.h
         src/web/server/web_client_cache.c

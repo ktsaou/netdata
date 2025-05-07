@@ -189,6 +189,7 @@ static void http_header_upgrade(struct web_client *w, const char *v, size_t len 
 static void http_header_sec_websocket_key(struct web_client *w, const char *v, size_t len __maybe_unused) {
     if(web_client_is_websocket(w)) {
         // Store the websocket key for later use in the handshake
+        freez(w->websocket.key);
         w->websocket.key = strdupz(v);
     }
 }
@@ -207,6 +208,7 @@ static void http_header_sec_websocket_version(struct web_client *w, const char *
 static void http_header_sec_websocket_protocol(struct web_client *w, const char *v, size_t len __maybe_unused) {
     if(web_client_is_websocket(w)) {
         // Store the requested protocols for later evaluation during handshake
+        freez(w->websocket.requested_protocols);
         w->websocket.requested_protocols = strdupz(v);
         
         // Default to unknown protocol - will be set during handshake
@@ -217,6 +219,33 @@ static void http_header_sec_websocket_protocol(struct web_client *w, const char 
             // Client supports our protocol, we'll confirm during handshake
             w->websocket.protocol = WS_PROTOCOL_NETDATA_JSON;
         }
+    }
+}
+
+static void http_header_sec_websocket_extensions(struct web_client *w, const char *v, size_t len __maybe_unused) {
+    if(web_client_is_websocket(w)) {
+        // Store the requested extensions string for parameter parsing later
+        freez(w->websocket.extensions);
+        w->websocket.extensions = strdupz(v);
+        
+        // Reset extension flags
+        w->websocket.ext_flags = WS_EXTENSION_NONE;
+        
+        // Check for supported extensions and if our libraries can handle them
+        if(strstr(v, "permessage-deflate") != NULL) {
+            // Check if we have zlib available and working
+            extern bool websocket_compression_supported(void);
+            if(websocket_compression_supported()) {
+                w->websocket.ext_flags |= WS_EXTENSION_PERMESSAGE_DEFLATE;
+                netdata_log_debug(D_WEB_CLIENT, "%llu: Client requested permessage-deflate extension (supported)", w->id);
+            }
+            else {
+                netdata_log_debug(D_WEB_CLIENT, "%llu: Client requested permessage-deflate extension (not supported by this build)", w->id);
+            }
+        }
+        
+        netdata_log_debug(D_WEB_CLIENT, "%llu: Client requested WebSocket extensions: %s, enabled flags: %u",
+                      w->id, v, w->websocket.ext_flags);
     }
 }
 
@@ -246,6 +275,7 @@ struct {
     { .hash = 0, .key = "Sec-WebSocket-Key",     .cb = http_header_sec_websocket_key },
     { .hash = 0, .key = "Sec-WebSocket-Version", .cb = http_header_sec_websocket_version },
     { .hash = 0, .key = "Sec-WebSocket-Protocol",.cb = http_header_sec_websocket_protocol },
+    { .hash = 0, .key = "Sec-WebSocket-Extensions",.cb = http_header_sec_websocket_extensions },
 
     // for historical reasons.
     // there are a few nightly versions of netdata UI that incorrectly use this instead of X-Netdata-Auth

@@ -3,6 +3,7 @@
 
 #include "daemon/common.h"
 #include "websocket.h"
+#include "websocket-compression.h"
 
 // WebSocket protocol constants
 #define WS_GUID "258EAFA5-E914-47DA-95CA-C5AB0DC85B11"
@@ -17,8 +18,9 @@
 #define WS_CLOSE_INTERNAL_ERROR    1011
 
 // WebSocket frame constants
-#define WS_FIN                     0x80
-#define WS_MASK                    0x80
+#define WS_FIN                     0x80  // Final frame bit
+#define WS_RSV1                    0x40  // Reserved bit 1 (used for compression)
+#define WS_MASK                    0x80  // Mask bit
 #define WS_MAX_FRAME_LENGTH        (1 << 20) // 1MB max frame size
 
 // Maximum number of WebSocket threads
@@ -71,6 +73,9 @@ struct websocket_server_client {
     bool fragmented_message;        // Currently receiving a fragmented message
     WEBSOCKET_OPCODE fragmented_opcode; // Opcode of the fragmented message
     BUFFER *message_buffer;         // Buffer for accumulating fragmented message
+    
+    // Compression state
+    WEBSOCKET_COMPRESSION_CTX compression;
     
     // Message handling callbacks
     void (*on_message)(struct websocket_server_client *wsc, const char *message, size_t length, WEBSOCKET_OPCODE opcode);

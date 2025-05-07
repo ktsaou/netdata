@@ -15,8 +15,8 @@ struct websocket_server {
 };
 
 // The global (but private) instance of the WebSocket server state
-static struct websocket_server ws_server = {
-    .clients = NULL,
+static struct websocket_server ws_server = (struct websocket_server){
+    .clients = { 0 },
     .client_id_counter = 0,
     .active_clients = 0,
     .spinlock = SPINLOCK_INITIALIZER
@@ -72,6 +72,14 @@ short int websocket_handle_handshake(struct web_client *w) {
     if (!accept_key)
         return HTTP_RESP_INTERNAL_SERVER_ERROR;
     
+    // Create the WebSocket client object early so we can set up compression
+    WEBSOCKET_SERVER_CLIENT *wsc = websocket_client_create();
+    if (!wsc) {
+        netdata_log_error("WEBSOCKET: Failed to create WebSocket client");
+        freez(accept_key);
+        return HTTP_RESP_INTERNAL_SERVER_ERROR;
+    }
+    
     // Build the handshake response
     buffer_flush(w->response.header_output);
     buffer_flush(w->response.data);
@@ -91,7 +99,21 @@ short int websocket_handle_handshake(struct web_client *w) {
     else {
         // We should never get here as we validate protocols in websocket_detect_handshake_request
         freez(accept_key);
+        websocket_client_free(wsc);
         return HTTP_RESP_BAD_REQUEST;
+    }
+    
+    // Check for WebSocket compression extension
+    if (w->websocket.extensions && websocket_compression_supported()) {
+        // Negotiate compression if extensions are requested
+        char *extensions = websocket_compression_negotiate(wsc, w->websocket.extensions);
+        if (extensions) {
+            buffer_sprintf(w->response.header_output, "Sec-WebSocket-Extensions: %s\r\n", extensions);
+            freez(extensions);
+            
+            netdata_log_info("WEBSOCKET: Compression negotiated with client: %s", 
+                         wsc->compression.enabled ? "enabled" : "disabled");
+        }
     }
     
     // End of headers
@@ -100,19 +122,13 @@ short int websocket_handle_handshake(struct web_client *w) {
     freez(accept_key);
     
     // Take over the connection immediately
-    WEBSOCKET_SERVER_CLIENT *wsc = websocket_client_create();
-    if (!wsc) {
-        netdata_log_error("WEBSOCKET: Failed to create WebSocket client");
-        return HTTP_RESP_INTERNAL_SERVER_ERROR;
-    }
-    
-    // Similar to stream_receiver_takeover_web_connection
     websocket_takeover_connection(w, wsc);
     
     w->mode = HTTP_REQUEST_MODE_WEBSOCKET;
     web_client_disable_wait_receive(w);
     
-    netdata_log_debug(D_WEB_CLIENT, "%llu: WebSocket handshake successful, protocol: netdata-json", w->id);
+    netdata_log_debug(D_WEB_CLIENT, "%llu: WebSocket handshake successful, protocol: netdata-json, compression: %s", 
+                   w->id, wsc->compression.enabled ? "enabled" : "disabled");
     
     // Important: This code doesn't actually get sent to the client since we've already
     // taken over the socket. It's just used by the caller to identify what happened.
@@ -182,6 +198,9 @@ static void websocket_client_free(WEBSOCKET_SERVER_CLIENT *wsc) {
         
     if (wsc->message_buffer)
         buffer_free(wsc->message_buffer);
+    
+    // Clean up compression resources if needed
+    websocket_compression_cleanup(wsc);
     
     freez(wsc);
 }
@@ -398,6 +417,12 @@ void websocket_takeover_connection(struct web_client *w, WEBSOCKET_SERVER_CLIENT
         w->fd = -1;
     }
     
+    // Initialize compression if permessage-deflate extension is enabled
+    if (w->websocket.ext_flags & WS_EXTENSION_PERMESSAGE_DEFLATE) {
+        // Initialize the compression with the original extension string for parameter parsing
+        websocket_compression_init(wsc, w->websocket.extensions);
+    }
+    
     // Send the handshake response using ND_SOCK - we're still in the web server thread,
     // so we need to use the persist version to ensure the complete handshake is sent
     ssize_t bytes = nd_sock_write_persist(&wsc->sock, buffer_tostring(w->response.header_output), buffer_strlen(w->response.header_output), 20); // Try up to 20 chunks
@@ -529,47 +554,142 @@ int websocket_send_frame(WEBSOCKET_SERVER_CLIENT *wsc, const char *payload, size
     netdata_log_debug(D_WEBSOCKET, "Client %zu - Sending frame: opcode=%d, payload_len=%zu", 
                    wsc->id, opcode, payload_len);
     
+    // Variables for tracking compressed payload
+    char *compressed_payload = NULL;
+    size_t compressed_len = 0;
+    bool compressed = false;
+    
+    // Apply compression if supported and enabled
+    // Only compress data frames (text or binary), not control frames
+    if (wsc->compression.enabled && 
+        wsc->compression.deflate_stream &&
+        payload_len > WS_COMPRESS_MIN_SIZE && 
+        (opcode == WS_OPCODE_TEXT || opcode == WS_OPCODE_BINARY)) {
+        
+        // Try to compress the payload
+        int result = websocket_compress_payload(wsc, payload, payload_len, &compressed_payload, &compressed_len);
+        
+        if (result > 0) {
+            // Compression succeeded and saved space
+            compressed = true;
+            netdata_log_debug(D_WEBSOCKET, "Client %zu - Compressed payload from %zu to %zu bytes (%.1f%% reduction)",
+                         wsc->id, payload_len, compressed_len, 
+                         (100.0 - ((double)compressed_len / (double)payload_len) * 100.0));
+        }
+        else if (result == 0) {
+            // Compression succeeded but didn't save space, use original payload
+            netdata_log_debug(D_WEBSOCKET, "Client %zu - Compression didn't reduce size, using original payload", wsc->id);
+        }
+        else {
+            // Compression failed
+            netdata_log_error("WEBSOCKET: Client %zu - Compression failed, sending uncompressed", wsc->id);
+        }
+    }
+    
     // Calculate frame header size based on payload length
+    // Use compressed length if compression was applied
+    size_t actual_payload_len = compressed ? compressed_len : payload_len;
     size_t header_size = 2; // Base header size (2 bytes)
-    if (payload_len > 125 && payload_len <= 65535)
+    if (actual_payload_len > 125 && actual_payload_len <= 65535)
         header_size += 2; // Extended 16-bit length
-    else if (payload_len > 65535)
+    else if (actual_payload_len > 65535)
         header_size += 8; // Extended 64-bit length
     
     // Allocate buffer for the complete frame
-    char *frame = mallocz(header_size + payload_len);
+    char *frame = mallocz(header_size + actual_payload_len);
     
-    // Set first byte: FIN bit and opcode
+    // Set first byte: FIN bit, RSV1 bit (for compression) and opcode
     frame[0] = WS_FIN | (opcode & 0x0F);
     
+    // Set RSV1 bit if compression was applied
+    if (compressed)
+        frame[0] |= WS_RSV1;
+    
     // Set second byte: payload length
-    if (payload_len <= 125) {
-        frame[1] = (unsigned char)payload_len;
-    } else if (payload_len <= 65535) {
+    if (actual_payload_len <= 125) {
+        frame[1] = (unsigned char)actual_payload_len;
+    } else if (actual_payload_len <= 65535) {
         frame[1] = 126;
-        uint16_t len16 = htons((uint16_t)payload_len);
+        uint16_t len16 = htons((uint16_t)actual_payload_len);
         memcpy(frame + 2, &len16, 2);
     } else {
         frame[1] = 127;
-        uint64_t len64 = htobe64((uint64_t)payload_len);
+        uint64_t len64 = htobe64((uint64_t)actual_payload_len);
         memcpy(frame + 2, &len64, 8);
     }
     
-    // Copy payload (if any)
-    if (payload_len > 0)
-        memcpy(frame + header_size, payload, payload_len);
+    // Copy payload (compressed or original)
+    if (actual_payload_len > 0) {
+        if (compressed)
+            memcpy(frame + header_size, compressed_payload, compressed_len);
+        else if (payload_len > 0)
+            memcpy(frame + header_size, payload, payload_len);
+    }
+    
+    // Calculate the total frame size
+    size_t total_frame_size = header_size + actual_payload_len;
+    
+    // Check if there's already data in the output buffer
+    if (buffer_strlen(wsc->out_buffer) > 0) {
+        // There's already data waiting to be sent, just add this frame to the buffer
+        netdata_log_debug(D_WEBSOCKET, "Client %zu - Output buffer already has %zu bytes, adding frame to buffer",
+                       wsc->id, buffer_strlen(wsc->out_buffer));
+        
+        // Add this frame to the output buffer
+        buffer_need_bytes(wsc->out_buffer, total_frame_size);
+        memcpy(&wsc->out_buffer->buffer[wsc->out_buffer->len], frame, total_frame_size);
+        wsc->out_buffer->len += total_frame_size;
+        
+        // Make sure the client is marked for writing
+        if (wsc->thread && wsc->sock.fd >= 0) {
+            websocket_thread_update_client_poll_flags(wsc->thread, wsc, ND_POLL_READ | ND_POLL_WRITE);
+        }
+        
+        // Execute websocket_write_data to attempt to send buffered data immediately
+        websocket_write_data(wsc);
+        
+        freez(frame);
+        freez(compressed_payload);
+        
+        // Return the actual bytes that should be written (even though we're buffering)
+        return total_frame_size;
+    }
     
     // We're in the websocket thread, so use non-blocking writes
     // and buffer any data that couldn't be sent
-    netdata_log_debug(D_WEBSOCKET, "Client %zu - Attempting to send %zu bytes (header: %zu, payload: %zu)",
-                   wsc->id, header_size + payload_len, header_size, payload_len);
+    netdata_log_debug(D_WEBSOCKET, "Client %zu - Attempting to send %zu bytes (header: %zu, payload: %zu, compressed: %s)",
+                   wsc->id, total_frame_size, header_size, actual_payload_len, 
+                   compressed ? "yes" : "no");
                    
-    ssize_t sent = nd_sock_write(&wsc->sock, frame, header_size + payload_len, 1); // 1 retry
+    ssize_t sent = nd_sock_write(&wsc->sock, frame, total_frame_size, 1); // 1 retry
     
     if (sent < 0) {
+        if (errno == EAGAIN || errno == EWOULDBLOCK) {
+            // Would block - buffer the entire frame
+            netdata_log_debug(D_WEBSOCKET, "Client %zu - Socket would block, buffering entire frame (%zu bytes)",
+                           wsc->id, total_frame_size);
+            
+            buffer_need_bytes(wsc->out_buffer, total_frame_size);
+            memcpy(&wsc->out_buffer->buffer[wsc->out_buffer->len], frame, total_frame_size);
+            wsc->out_buffer->len += total_frame_size;
+            
+            // Mark for poll to include ND_POLL_WRITE
+            if (wsc->thread && wsc->sock.fd >= 0) {
+                websocket_thread_update_client_poll_flags(wsc->thread, wsc, ND_POLL_READ | ND_POLL_WRITE);
+            }
+            
+            freez(frame);
+            freez(compressed_payload);
+            
+            // Return 0 to indicate no bytes were sent but frame was buffered
+            return 0;
+        }
+        
+        // Other error
         netdata_log_error("WEBSOCKET: Client %zu - Failed to send frame: %s", 
                         wsc->id, strerror(errno));
         freez(frame);
+        freez(compressed_payload);
         if (wsc->on_error)
             wsc->on_error(wsc, "Failed to send WebSocket frame");
         return -1;
@@ -578,9 +698,12 @@ int websocket_send_frame(WEBSOCKET_SERVER_CLIENT *wsc, const char *payload, size
     netdata_log_debug(D_WEBSOCKET, "Client %zu - Successfully sent %zd bytes", wsc->id, sent);
     
     // Check if we sent all data
-    if (sent < (ssize_t)(header_size + payload_len)) {
+    if (sent < (ssize_t)total_frame_size) {
         // We couldn't send all data - buffer the rest for later sending
-        size_t remaining = (header_size + payload_len) - sent;
+        size_t remaining = total_frame_size - sent;
+        netdata_log_debug(D_WEBSOCKET, "Client %zu - Sent partial frame (%zd/%zu bytes), buffering remaining %zu bytes",
+                       wsc->id, sent, total_frame_size, remaining);
+        
         buffer_need_bytes(wsc->out_buffer, remaining);
         memcpy(&wsc->out_buffer->buffer[wsc->out_buffer->len], frame + sent, remaining);
         wsc->out_buffer->len += remaining;
@@ -592,7 +715,10 @@ int websocket_send_frame(WEBSOCKET_SERVER_CLIENT *wsc, const char *payload, size
     }
     
     freez(frame);
-    return (int)(header_size + payload_len); // Return full size as if all was sent
+    freez(compressed_payload);
+    
+    // Return actual bytes sent to socket
+    return sent;
 }
 
 // Read and parse a WebSocket frame header

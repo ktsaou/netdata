@@ -1,0 +1,577 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Netdata WebSocket Test</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        .container {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .message-box {
+            display: flex;
+            gap: 10px;
+        }
+        #messageInput {
+            flex-grow: 1;
+            padding: 8px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+        button {
+            padding: 8px 16px;
+            background-color: #0078d7;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #0063b1;
+        }
+        button:disabled {
+            background-color: #ccc;
+            cursor: not-allowed;
+        }
+        #connectionStatus {
+            padding: 8px;
+            border-radius: 4px;
+            margin-bottom: 10px;
+        }
+        .connected {
+            background-color: #d4edda;
+            color: #155724;
+        }
+        .disconnected {
+            background-color: #f8d7da;
+            color: #721c24;
+        }
+        .connecting {
+            background-color: #fff3cd;
+            color: #856404;
+        }
+        #messagesLog {
+            border: 1px solid #ddd;
+            padding: 10px;
+            border-radius: 4px;
+            max-height: 300px;
+            overflow-y: auto;
+            background-color: #f8f9fa;
+        }
+        .message {
+            margin-bottom: 5px;
+            padding: 5px;
+            border-radius: 4px;
+        }
+        .sent {
+            background-color: #e2f0fd;
+            text-align: right;
+            margin-left: 20%;
+        }
+        .received {
+            background-color: #f1f1f1;
+            margin-right: 20%;
+        }
+    </style>
+</head>
+<body>
+    <h1>Netdata WebSocket Test Client</h1>
+    
+    <div class="container">
+        <div id="connectionStatus" class="disconnected">Disconnected</div>
+        
+        <div class="message-box">
+            <label for="endpointInput">WebSocket URL:</label>
+            <input type="text" id="endpointInput" value="ws://localhost:19999/netdata-json" style="flex-grow: 1; padding: 8px; border: 1px solid #ccc; border-radius: 4px;">
+            <button id="toggleProtocolButton" title="Toggle between ws:// and wss://">Switch to wss://</button>
+        </div>
+        
+        <div class="message-box">
+            <input type="checkbox" id="enableCompression" checked>
+            <label for="enableCompression">Enable Compression (permessage-deflate)</label>
+        </div>
+        
+        <div class="message-box">
+            <button id="connectButton">Connect</button>
+            <button id="disconnectButton" disabled>Disconnect</button>
+        </div>
+        
+        <div id="connectionDetails" style="margin-top: 10px; display: none; background-color: #e7f3fe; padding: 10px; border-radius: 4px;">
+            <div><strong>Protocol:</strong> <span id="negotiatedProtocol">-</span></div>
+            <div><strong>Extensions:</strong> <span id="negotiatedExtensions">-</span></div>
+            <div><strong>Compression:</strong> <span id="compressionStatus">Disabled</span></div>
+        </div>
+        
+        <div class="message-box">
+            <input type="text" id="messageInput" placeholder="Type a message to send..." disabled>
+            <button id="sendButton" disabled>Send</button>
+            <button id="testLargeMessageButton" disabled>Test Compression</button>
+        </div>
+        
+        <h3>Messages</h3>
+        <div id="messagesLog"></div>
+    </div>
+
+    <script>
+        // Elements
+        const connectButton = document.getElementById('connectButton');
+        const disconnectButton = document.getElementById('disconnectButton');
+        const messageInput = document.getElementById('messageInput');
+        const sendButton = document.getElementById('sendButton');
+        const testLargeMessageButton = document.getElementById('testLargeMessageButton');
+        const connectionStatus = document.getElementById('connectionStatus');
+        const messagesLog = document.getElementById('messagesLog');
+        const endpointInput = document.getElementById('endpointInput');
+        const toggleProtocolButton = document.getElementById('toggleProtocolButton');
+        const enableCompression = document.getElementById('enableCompression');
+        const connectionDetails = document.getElementById('connectionDetails');
+        const negotiatedProtocol = document.getElementById('negotiatedProtocol');
+        const negotiatedExtensions = document.getElementById('negotiatedExtensions');
+        const compressionStatus = document.getElementById('compressionStatus');
+        
+        // WebSocket connection
+        let socket = null;
+        
+        // Connect to the WebSocket server
+        connectButton.addEventListener('click', () => {
+            // Get the URL from the input field
+            const url = endpointInput.value.trim();
+            if (!url) {
+                alert("Please enter a valid WebSocket URL");
+                return;
+            }
+            
+            // Validate the URL has a WebSocket protocol
+            if (!url.startsWith('ws://') && !url.startsWith('wss://')) {
+                alert("WebSocket URL must start with ws:// or wss://");
+                return;
+            }
+            
+            connectionStatus.textContent = 'Connecting to ' + url;
+            connectionStatus.className = 'connecting';
+            connectionDetails.style.display = 'none';
+            addMessageToLog('Connecting to: ' + url, 'system');
+            
+            try {
+                // Some browsers don't support passing options directly
+                // So we need to modify URL and protocols separately
+                const protocols = ['netdata-json'];
+                
+                if (enableCompression.checked) {
+                    // Browser will automatically request compression extensions
+                    addMessageToLog('Requesting permessage-deflate compression', 'system');
+                    // In some browsers, we can't directly control compression options,
+                    // the browser will automatically request them with appropriate headers
+                }
+                
+                // Create WebSocket connection
+                socket = new WebSocket(url, protocols);
+                
+                // Connection opened
+                socket.addEventListener('open', (event) => {
+                    connectionStatus.textContent = 'Connected';
+                    connectionStatus.className = 'connected';
+                    
+                    connectButton.disabled = true;
+                    disconnectButton.disabled = false;
+                    messageInput.disabled = false;
+                    sendButton.disabled = false;
+                    testLargeMessageButton.disabled = false;
+                    
+                    // Display connection details
+                    connectionDetails.style.display = 'block';
+                    negotiatedProtocol.textContent = socket.protocol || 'none';
+                    
+                    const extensions = socket.extensions || 'none';
+                    negotiatedExtensions.textContent = extensions;
+                    
+                    // Check if compression was negotiated
+                    if (extensions.includes('permessage-deflate')) {
+                        compressionStatus.textContent = 'Enabled (permessage-deflate)';
+                        compressionStatus.style.color = '#155724';
+                    } else {
+                        compressionStatus.textContent = 'Disabled';
+                        compressionStatus.style.color = '#721c24';
+                    }
+                    
+                    addMessageToLog(`Connection established (Protocol: ${socket.protocol}, Extensions: ${extensions})`, 'system');
+                });
+                
+                // Track message size for network analysis
+                let lastMessageSentInfo = null;
+                
+                // Listen for messages
+                socket.addEventListener('message', (event) => {
+                    const message = event.data;
+                    const receiveTime = performance.now();
+                    
+                    // Get transfer size from event if available
+                    let transferSize = 0;
+                    
+                    // Check if this is a response to a benchmark test
+                    if (window.currentBenchmark && !window.currentBenchmark.responseComplete) {
+                        // Update benchmark data
+                        const benchmark = window.currentBenchmark;
+                        
+                        if (!benchmark.lastResponseTime) {
+                            // First response packet
+                            benchmark.lastResponseTime = receiveTime;
+                            const firstPacketLatency = (receiveTime - benchmark.sendTime).toFixed(2);
+                            addMessageToLog(`First response received after ${firstPacketLatency}ms`, 'system');
+                        }
+                        
+                        // Track bytes received 
+                        benchmark.receivedBytes = message.length;
+                        
+                        // Check if response seems complete (using content matching rather than size)
+                        // For compressed responses, the size will be different from what we sent
+                        if (message && message.length > 0 && message.startsWith("This is a test")) {
+                            benchmark.responseComplete = true;
+                            const totalTime = (receiveTime - benchmark.sendTime).toFixed(2);
+                            
+                            // Calculate compression ratio if we know the original size
+                            let compressionInfo = "";
+                            if (benchmark.expectedBytes > 0 && message.length > 0) {
+                                const compressionRatio = (benchmark.expectedBytes / message.length).toFixed(2);
+                                const percentReduction = ((1 - (message.length / benchmark.expectedBytes)) * 100).toFixed(2);
+                                
+                                // Use color formatting based on compression effectiveness
+                                const compressionColor = percentReduction > 50 ? '#155724' : (percentReduction > 20 ? '#856404' : '#721c24');
+                                
+                                compressionInfo = `
+                                    <div style="margin-top: 5px;">
+                                        <strong>Compression Stats:</strong>
+                                        <ul style="margin-top: 5px; margin-bottom: 5px;">
+                                            <li>Original size: ${(benchmark.expectedBytes / 1024).toFixed(2)} KB</li>
+                                            <li>Compressed size: ${(message.length / 1024).toFixed(2)} KB</li>
+                                            <li style="color: ${compressionColor}">Compression ratio: ${compressionRatio}:1 (${percentReduction}% reduction)</li>
+                                        </ul>
+                                    </div>
+                                `;
+                            }
+                            
+                            // Calculate throughput
+                            const kbPerSecond = ((benchmark.receivedBytes / 1024) / (totalTime / 1000)).toFixed(2);
+                            
+                            addMessageToLog(
+                                `Benchmark complete: ${benchmark.messageSizeKB} KB message echoed back in ${totalTime}ms (${kbPerSecond} KB/s)${compressionInfo}`,
+                                'system',
+                                true
+                            );
+                            
+                            // Store this message info for display
+                            lastMessageSentInfo = {
+                                sent: benchmark.expectedBytes,
+                                received: message.length
+                            };
+                            
+                            // Reset benchmark
+                            window.currentBenchmark = null;
+                        }
+                    }
+                    
+                    // Add compression info to received message if available
+                    let receivedInfo = '';
+                    if (lastMessageSentInfo && lastMessageSentInfo.sent > 0 && message.length > 0 && message.length !== lastMessageSentInfo.sent) {
+                        const compressionRatio = (lastMessageSentInfo.sent / message.length).toFixed(2);
+                        const percentReduction = ((1 - (message.length / lastMessageSentInfo.sent)) * 100).toFixed(2);
+                        
+                        receivedInfo = ` | Compressed: ${(message.length / 1024).toFixed(2)} KB (${percentReduction}% smaller than sent)`;
+                        
+                        // Reset after use
+                        lastMessageSentInfo = null;
+                    }
+                    
+                    // Log the message
+                    addMessageToLog(message, 'received', false, receivedInfo);
+                });
+                
+                // Connection closed
+                socket.addEventListener('close', (event) => {
+                    connectionStatus.textContent = 'Disconnected';
+                    connectionStatus.className = 'disconnected';
+                    connectionDetails.style.display = 'none';
+                    
+                    connectButton.disabled = false;
+                    disconnectButton.disabled = true;
+                    messageInput.disabled = true;
+                    sendButton.disabled = true;
+                    testLargeMessageButton.disabled = true;
+                    
+                    let closeReason = '';
+                    
+                    // Try to give a friendly description of common close codes
+                    switch (event.code) {
+                        case 1000: closeReason = "Normal closure"; break;
+                        case 1001: closeReason = "Going away"; break;
+                        case 1002: closeReason = "Protocol error"; break;
+                        case 1003: closeReason = "Unsupported data"; break;
+                        case 1005: closeReason = "No status code"; break;
+                        case 1006: closeReason = "Abnormal closure"; break;
+                        case 1007: closeReason = "Invalid frame payload data"; break;
+                        case 1008: closeReason = "Policy violation"; break;
+                        case 1009: closeReason = "Message too big"; break;
+                        case 1010: closeReason = "Missing extension"; break;
+                        case 1011: closeReason = "Internal error"; break;
+                        case 1012: closeReason = "Service restart"; break;
+                        case 1013: closeReason = "Try again later"; break;
+                        case 1014: closeReason = "Bad gateway"; break;
+                        case 1015: closeReason = "TLS handshake failure"; break;
+                        default: closeReason = "Unknown";
+                    }
+                    
+                    addMessageToLog(`Connection closed (code: ${event.code} - ${closeReason})`, 'system');
+                    
+                    if (event.reason) {
+                        addMessageToLog(`Reason: ${event.reason}`, 'system');
+                    }
+                });
+                
+                // Connection error
+                socket.addEventListener('error', (error) => {
+                    connectionStatus.textContent = 'Connection Error';
+                    connectionStatus.className = 'disconnected';
+                    connectionDetails.style.display = 'none';
+                    
+                    addMessageToLog('Connection error', 'system');
+                    console.error('WebSocket error:', error);
+                });
+            } catch (error) {
+                connectionStatus.textContent = 'Connection Failed';
+                connectionStatus.className = 'disconnected';
+                console.error('Failed to create WebSocket:', error);
+            }
+        });
+        
+        // Disconnect from the WebSocket server
+        disconnectButton.addEventListener('click', () => {
+            if (socket) {
+                socket.close();
+                socket = null;
+            }
+        });
+        
+        // Send message
+        sendButton.addEventListener('click', sendMessage);
+        messageInput.addEventListener('keypress', (event) => {
+            if (event.key === 'Enter') {
+                sendMessage();
+            }
+        });
+        
+        // Test compression with large message
+        testLargeMessageButton.addEventListener('click', () => {
+            if (socket && socket.readyState === WebSocket.OPEN) {
+                // Prompt for message size
+                const sizePrompt = prompt("Enter approximate message size in KB (10-1000):", "100");
+                if (!sizePrompt) return;
+                
+                const sizeKB = parseInt(sizePrompt);
+                if (isNaN(sizeKB) || sizeKB < 10 || sizeKB > 1000) {
+                    alert("Please enter a valid size between 10 and 1000 KB");
+                    return;
+                }
+                
+                // Create a large repeating message to test compression
+                const baseMessage = "This is a test message to verify WebSocket compression. The more repetitive the content, the better compression works. ";
+                
+                // Calculate how many repetitions we need for the requested size
+                // Base message is about 100 bytes, so 10 repetitions per KB
+                const repetitions = Math.floor(sizeKB * 10);
+                
+                let largeMessage = "";
+                for (let i = 0; i < repetitions; i++) {
+                    largeMessage += baseMessage;
+                }
+                
+                // Show message size
+                const actualSizeKB = (largeMessage.length / 1024).toFixed(2);
+                addMessageToLog(`Sending large message (${actualSizeKB} KB) to test compression...`, 'system');
+                
+                // Measure time before sending
+                const startTime = performance.now();
+                
+                // Send the message
+                socket.send(largeMessage);
+                
+                // Record send completion time
+                const endTime = performance.now();
+                const sendDuration = (endTime - startTime).toFixed(2);
+                
+                // Show first part of message with timing info
+                addMessageToLog(
+                    `${baseMessage.substring(0, 50)}... [message truncated, full length: ${largeMessage.length} bytes, send time: ${sendDuration}ms]`, 
+                    'sent'
+                );
+                
+                // Set up tracking for response time
+                const responseBenchmark = {
+                    messageSizeKB: actualSizeKB,
+                    sendTime: startTime,
+                    lastResponseTime: null,
+                    receivedBytes: 0,
+                    expectedBytes: largeMessage.length,
+                    responseComplete: false
+                };
+                
+                // Store the benchmark data for the message listener to use
+                window.currentBenchmark = responseBenchmark;
+            }
+        });
+        
+        // Track if we're currently in a benchmark test
+        window.currentBenchmark = null;
+        
+        function sendMessage() {
+            const message = messageInput.value.trim();
+            if (message && socket && socket.readyState === WebSocket.OPEN) {
+                socket.send(message);
+                addMessageToLog(message, 'sent');
+                messageInput.value = '';
+            }
+        }
+        
+        // Add message to the log
+        function addMessageToLog(message, type, isHtml = false, additionalInfo = '') {
+            const messageElement = document.createElement('div');
+            messageElement.className = `message ${type}`;
+            
+            // Handle different message types
+            if (type === 'system') {
+                // System messages can contain HTML if specified
+                if (isHtml) {
+                    messageElement.innerHTML = message;
+                } else {
+                    messageElement.textContent = message;
+                }
+                messageElement.style.backgroundColor = '#fff3cd';
+                messageElement.style.color = '#856404';
+                messageElement.style.fontStyle = 'italic';
+            } 
+            else if (type === 'received' || type === 'sent') {
+                // For regular messages, check size
+                if (message.length > 1000) {
+                    // For large messages, create a collapsible view
+                    const messageSizeKB = (message.length / 1024).toFixed(2);
+                    
+                    // Create summary with expand button
+                    const summary = document.createElement('div');
+                    summary.innerHTML = `
+                        <span class="message-preview">${message.substring(0, 500)}...</span>
+                        <div class="message-info">
+                            Message length: ${message.length} bytes (${messageSizeKB} KB)${additionalInfo}
+                            <button class="toggle-button">Show Full Message</button>
+                        </div>
+                    `;
+                    
+                    // Create content div (initially hidden)
+                    const content = document.createElement('div');
+                    content.className = 'full-message';
+                    content.style.display = 'none';
+                    content.style.maxHeight = '300px';
+                    content.style.overflow = 'auto';
+                    content.style.border = '1px solid #ddd';
+                    content.style.marginTop = '5px';
+                    content.style.padding = '5px';
+                    content.textContent = message;
+                    
+                    // Add toggle functionality
+                    const toggleButton = summary.querySelector('.toggle-button');
+                    toggleButton.style.marginLeft = '10px';
+                    toggleButton.style.padding = '2px 5px';
+                    toggleButton.style.fontSize = '0.8em';
+                    toggleButton.addEventListener('click', function() {
+                        if (content.style.display === 'none') {
+                            content.style.display = 'block';
+                            this.textContent = 'Hide Full Message';
+                        } else {
+                            content.style.display = 'none';
+                            this.textContent = 'Show Full Message';
+                        }
+                    });
+                    
+                    // Add elements to message container
+                    messageElement.appendChild(summary);
+                    messageElement.appendChild(content);
+                } else {
+                    // Normal sized message, show in full with any additional info
+                    if (additionalInfo) {
+                        const wrapper = document.createElement('div');
+                        
+                        // Add the message text
+                        const messageText = document.createElement('div');
+                        messageText.textContent = message;
+                        wrapper.appendChild(messageText);
+                        
+                        // Add additional info
+                        const infoText = document.createElement('div');
+                        infoText.style.fontSize = '0.85em';
+                        infoText.style.color = '#666';
+                        infoText.style.marginTop = '3px';
+                        infoText.textContent = additionalInfo.trim();
+                        wrapper.appendChild(infoText);
+                        
+                        messageElement.appendChild(wrapper);
+                    } else {
+                        messageElement.textContent = message;
+                    }
+                }
+            }
+            
+            // Add timestamp
+            const timestamp = new Date().toLocaleTimeString();
+            const timeElement = document.createElement('span');
+            timeElement.className = 'timestamp';
+            timeElement.textContent = timestamp;
+            timeElement.style.fontSize = '0.8em';
+            timeElement.style.color = '#666';
+            timeElement.style.marginRight = '5px';
+            timeElement.style.fontWeight = 'bold';
+            
+            // For HTML content, we need to insert differently
+            if (type === 'system' && isHtml) {
+                // Create a container for the timestamp
+                const timestampContainer = document.createElement('div');
+                timestampContainer.appendChild(timeElement);
+                
+                // Prepend the timestamp container
+                messageElement.prepend(timestampContainer);
+            } else {
+                messageElement.prepend(timeElement);
+            }
+            
+            // Add to log and scroll to bottom
+            messagesLog.appendChild(messageElement);
+            messagesLog.scrollTop = messagesLog.scrollHeight;
+        }
+        
+        // Toggle between ws:// and wss:// protocols
+        toggleProtocolButton.addEventListener('click', () => {
+            const currentUrl = endpointInput.value.trim();
+            
+            if (currentUrl.startsWith('ws://')) {
+                // Switch from ws:// to wss://
+                endpointInput.value = currentUrl.replace('ws://', 'wss://');
+                toggleProtocolButton.textContent = 'Switch to ws://';
+            } else if (currentUrl.startsWith('wss://')) {
+                // Switch from wss:// to ws://
+                endpointInput.value = currentUrl.replace('wss://', 'ws://');
+                toggleProtocolButton.textContent = 'Switch to wss://';
+            } else {
+                // Invalid URL, add ws:// prefix
+                endpointInput.value = 'ws://' + currentUrl;
+                toggleProtocolButton.textContent = 'Switch to wss://';
+            }
+        });
+    </script>
+</body>
+</html>

@@ -205,6 +205,8 @@ struct web_client {
         char *key;                      // the Sec-WebSocket-Key header
         WEBSOCKET_PROTOCOL protocol;    // the selected subprotocol
         char *requested_protocols;      // the requested Sec-WebSocket-Protocol header
+        char *extensions;               // the raw Sec-WebSocket-Extensions header
+        WEBSOCKET_EXTENSION ext_flags;  // bit flags for supported extensions 
     } websocket;
 
     BUFFER *payload;                    // when this request is a POST, this has the payload
