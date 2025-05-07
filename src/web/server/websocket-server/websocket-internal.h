@@ -144,6 +144,7 @@ size_t websocket_clients_count(void);
 
 // Utility functions
 char *websocket_generate_handshake_key(const char *client_key);
+bool websocket_validate_close_code(uint16_t code);
 
 // Frame handling functions
 int websocket_send_frame(struct websocket_server_client *wsc, const char *payload, size_t payload_len, WEBSOCKET_OPCODE opcode);

@@ -239,6 +239,24 @@ WEBSOCKET_SERVER_CLIENT *websocket_client_find_by_id(size_t id) {
     return wsc;
 }
 
+// Validate a WebSocket close code according to RFC 6455
+bool websocket_validate_close_code(uint16_t code) {
+    // 1000-2999 are reserved for the WebSocket protocol
+    // 3000-3999 are reserved for use by libraries, frameworks, and applications
+    // 4000-4999 are reserved for private use
+    
+    // Check if code is in valid ranges
+    if ((code >= 1000 && code <= 1011) || // Protocol-defined codes
+        (code >= 3000 && code <= 4999))   // Application/library/private codes
+    {
+        // Codes 1005 and 1006 must not be used in a Close frame by an endpoint
+        if (code != 1005 && code != 1006)
+            return true;
+    }
+    
+    return false;
+}
+
 // Helper structure for foreach callback
 struct foreach_callback_params {
     void (*callback)(WEBSOCKET_SERVER_CLIENT *wsc, void *data);
@@ -437,8 +455,24 @@ void websocket_close_client(WEBSOCKET_SERVER_CLIENT *wsc, int close_code, const 
     if (!wsc || wsc->state == WS_STATE_CLOSED)
         return;
     
+    // Validate close code
+    if (!websocket_validate_close_code(close_code)) {
+        netdata_log_error("WEBSOCKET: Attempted to close client %zu with invalid code: %d - using protocol error",
+                      wsc->id, close_code);
+        close_code = WS_CLOSE_PROTOCOL_ERROR;
+        reason = "Internal error";
+    }
+    
     // Create close frame payload (code + reason)
     size_t reason_len = reason ? strlen(reason) : 0;
+    
+    // Per the spec, control frames are limited to 125 bytes of payload
+    // Close frame has 2 bytes for code + UTF-8 reason
+    if (reason_len > 123) { // 125 - 2 bytes for the code = 123 max bytes for reason
+        netdata_log_error("WEBSOCKET: Close reason too long (%zu bytes), truncating to 123 bytes", reason_len);
+        reason_len = 123;
+    }
+    
     size_t payload_len = 2 + reason_len; // 2 bytes for code, rest for reason
     char *payload = mallocz(payload_len);
     

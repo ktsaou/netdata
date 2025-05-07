@@ -108,11 +108,45 @@ int websocket_process_frames_buffered(WEBSOCKET_SERVER_CLIENT *wsc) {
             netdata_log_debug(D_WEBSOCKET, "Client %zu - Frame header: FIN=%d, RSV1=%d, RSV2=%d, RSV3=%d, OPCODE=%d, MASK=%d, LEN=%d",
                            wsc->id, fin, rsv1, rsv2, rsv3, opcode, mask, len);
             
+            // Validate RSV bits - they must be 0 unless an extension is negotiated
+            // Currently we don't support any extensions, so RSV bits must be 0
+            if (rsv1 || rsv2 || rsv3) {
+                netdata_log_error("WEBSOCKET: Client %zu - Invalid RSV bits in frame (RSV1=%d, RSV2=%d, RSV3=%d) - protocol violation",
+                              wsc->id, rsv1, rsv2, rsv3);
+                websocket_close_client(wsc, WS_CLOSE_PROTOCOL_ERROR, "Invalid RSV bits");
+                process_more = false;
+                frames_processed = -1;
+                break;
+            }
+            
             // Initialize frame processing state
             wsc->current_frame = header;
             wsc->frame_in_progress = true;
             wsc->frame_length = len;
             wsc->frame_read = 0;
+            
+            // Validate control frames according to the WebSocket spec
+            if (opcode >= 0x8) { // Control frames: 0x8 (Close), 0x9 (Ping), 0xA (Pong)
+                // Control frames must not be fragmented
+                if (!fin) {
+                    netdata_log_error("WEBSOCKET: Client %zu - Fragmented control frame (opcode=%d) - protocol violation", 
+                                  wsc->id, opcode);
+                    websocket_close_client(wsc, WS_CLOSE_PROTOCOL_ERROR, "Fragmented control frame");
+                    process_more = false;
+                    frames_processed = -1;
+                    break;
+                }
+                
+                // Control frames must have a payload length of 125 bytes or less
+                if (len > 125 || (len == 126 && wsc->frame_length > 125) || (len == 127)) {
+                    netdata_log_error("WEBSOCKET: Client %zu - Control frame too large: %zu bytes (max: 125)", 
+                                  wsc->id, wsc->frame_length);
+                    websocket_close_client(wsc, WS_CLOSE_PROTOCOL_ERROR, "Control frame too large");
+                    process_more = false;
+                    frames_processed = -1;
+                    break;
+                }
+            }
 
             // Determine full frame length based on payload length indicator
             size_t header_size = 2; // Basic 2-byte header
@@ -130,6 +164,16 @@ int websocket_process_frames_buffered(WEBSOCKET_SERVER_CLIENT *wsc) {
                 
                 netdata_log_debug(D_WEBSOCKET, "Client %zu - Extended payload length (16-bit): %zu", 
                                 wsc->id, wsc->frame_length);
+                                
+                // Check for excessive frame size
+                if (wsc->frame_length > WS_MAX_FRAME_LENGTH) {
+                    netdata_log_error("WEBSOCKET: Client %zu - Frame too large: %zu bytes (max: %d)", 
+                                  wsc->id, wsc->frame_length, WS_MAX_FRAME_LENGTH);
+                    websocket_close_client(wsc, WS_CLOSE_MESSAGE_TOO_BIG, "Frame too large");
+                    process_more = false;
+                    frames_processed = -1;
+                    break;
+                }
             }
             else if(len == 127) {
                 // 64-bit extended payload length
@@ -148,6 +192,16 @@ int websocket_process_frames_buffered(WEBSOCKET_SERVER_CLIENT *wsc) {
                 
                 netdata_log_debug(D_WEBSOCKET, "Client %zu - Extended payload length (64-bit): %zu", 
                                 wsc->id, wsc->frame_length);
+                                
+                // Check for excessive frame size
+                if (wsc->frame_length > WS_MAX_FRAME_LENGTH) {
+                    netdata_log_error("WEBSOCKET: Client %zu - Frame too large: %zu bytes (max: %d)", 
+                                  wsc->id, wsc->frame_length, WS_MAX_FRAME_LENGTH);
+                    websocket_close_client(wsc, WS_CLOSE_MESSAGE_TOO_BIG, "Frame too large");
+                    process_more = false;
+                    frames_processed = -1;
+                    break;
+                }
             }
 
             // Get masking key if frame is masked
@@ -291,8 +345,34 @@ int websocket_process_frames_buffered(WEBSOCKET_SERVER_CLIENT *wsc) {
                         if(wsc->frame_length >= 2) {
                             close_code = (payload[0] << 8) | payload[1];
                             
-                            if(wsc->frame_length > 2) {
+                            // Validate close code according to RFC 6455
+                            if (!websocket_validate_close_code(close_code)) {
+                                netdata_log_error("WEBSOCKET: Client %zu sent invalid close code: %d", 
+                                              wsc->id, close_code);
+                                // Use protocol error as response code
+                                close_code = WS_CLOSE_PROTOCOL_ERROR;
+                                reason = "Invalid close code";
+                            }
+                            else if(wsc->frame_length > 2) {
                                 reason = (char *)payload + 2;
+                                
+                                // Validate that reason text is valid UTF-8 (per RFC 6455)
+                                // Assuming that we trust our implementation to be correct,
+                                // we just check for null bytes in the middle of the string
+                                size_t reason_len = wsc->frame_length - 2;
+                                bool valid = true;
+                                for (size_t i = 0; i < reason_len; i++) {
+                                    if (reason[i] == '\0' && i < reason_len - 1) {
+                                        valid = false;
+                                        break;
+                                    }
+                                }
+                                if (!valid) {
+                                    netdata_log_error("WEBSOCKET: Client %zu sent invalid UTF-8 in close reason", 
+                                                  wsc->id);
+                                    close_code = WS_CLOSE_PROTOCOL_ERROR;
+                                    reason = "Invalid UTF-8 in close reason";
+                                }
                             }
                         }
                         
@@ -303,6 +383,9 @@ int websocket_process_frames_buffered(WEBSOCKET_SERVER_CLIENT *wsc) {
                         if(wsc->on_close) {
                             wsc->on_close(wsc, close_code, reason);
                         }
+                        
+                        // Echo the close frame back to the client (with potentially corrected code)
+                        websocket_close_client(wsc, close_code, reason);
                         
                         // Mark for disconnection
                         process_more = false;
