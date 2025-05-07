@@ -199,9 +199,7 @@
         </div>
         
         <div class="message-box">
-            <input type="checkbox" id="enableCompression" checked>
-            <label for="enableCompression">Enable Compression (permessage-deflate)</label>
-            <input type="checkbox" id="enableDebugMode" style="margin-left: 15px;">
+            <input type="checkbox" id="enableDebugMode">
             <label for="enableDebugMode">Debug Mode (more verbose logging)</label>
         </div>
         
@@ -340,7 +338,7 @@
         const connectionStatus = document.getElementById('connectionStatus');
         const endpointInput = document.getElementById('endpointInput');
         const toggleProtocolButton = document.getElementById('toggleProtocolButton');
-        const enableCompression = document.getElementById('enableCompression');
+        const enableCompression = { checked: true }; // Default to enabled
         const enableDebugMode = document.getElementById('enableDebugMode');
         const connectionDetails = document.getElementById('connectionDetails');
         const negotiatedProtocol = document.getElementById('negotiatedProtocol');
@@ -405,36 +403,10 @@
             addMessageToLog('Connecting to: ' + url, 'system');
             
             try {
-                // Some browsers don't support passing options directly
-                // So we need to modify URL and protocols separately
+                // Create WebSocket connection with netdata-json protocol
                 const protocols = ['netdata-json'];
-                
-                if (enableCompression.checked) {
-                    // Browser will automatically request compression extensions
-                    addMessageToLog('Requesting permessage-deflate compression', 'system');
-                    // In some browsers, we can't directly control compression options,
-                    // the browser will automatically request them with appropriate headers
-                }
-                
-                // Create WebSocket connection
-                // We need to use a lower-level approach for some browsers that don't support compression options directly
-                
-                if (enableCompression.checked) {
-                    try {
-                        // Try newer approach with options object directly (supported in newer browsers)
-                        socket = new WebSocket(url, {
-                            protocols: protocols,
-                            perMessageDeflate: true
-                        });
-                    } catch (e) {
-                        // Fallback - most browsers will automatically handle compression properly even without options
-                        socket = new WebSocket(url, protocols);
-                        addMessageToLog('Using default WebSocket construction (compression handling varies by browser)', 'system');
-                    }
-                } else {
-                    // Use standard constructor when compression is disabled
-                    socket = new WebSocket(url, protocols);
-                }
+                socket = new WebSocket(url, protocols);
+                addMessageToLog('WebSocket connection created', 'system');
                 
                 // Connection opened
                 socket.addEventListener('open', (event) => {
