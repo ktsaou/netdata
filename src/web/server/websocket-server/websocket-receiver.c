@@ -6,7 +6,11 @@ int websocket_receive_data(WEBSOCKET_SERVER_CLIENT *wsc) {
     if(!wsc || !wsc->in_buffer || wsc->sock.fd < 0)
         return -1;
 
-    // Allocate buffer space for reading
+    // Log current buffer state
+    netdata_log_debug(D_WEBSOCKET, "Client %zu - Before receive: buffer has %zu bytes",
+                     wsc->id, buffer_strlen(wsc->in_buffer));
+
+    // Allocate buffer space for reading - ensure we have enough space
     buffer_need_bytes(wsc->in_buffer, 4096);
     char *buffer_pos = &wsc->in_buffer->buffer[wsc->in_buffer->len];
     
@@ -29,6 +33,15 @@ int websocket_receive_data(WEBSOCKET_SERVER_CLIENT *wsc) {
 
     // Update buffer length
     wsc->in_buffer->len += bytes_read;
+    
+    // Log received data for debugging
+    char hex_dump[128] = "";
+    for(ssize_t i = 0; i < bytes_read && i < 16; i++) {
+        char *pos = hex_dump + strlen(hex_dump);
+        snprintf(pos, sizeof(hex_dump) - strlen(hex_dump), "%02x ", (unsigned char)buffer_pos[i]);
+    }
+    netdata_log_debug(D_WEBSOCKET, "Client %zu - Received %zd bytes: %s",
+                    wsc->id, bytes_read, hex_dump);
     
     // Update last activity time
     wsc->last_activity_t = now_monotonic_sec();
@@ -65,18 +78,46 @@ int websocket_process_frames_buffered(WEBSOCKET_SERVER_CLIENT *wsc) {
 
             // Read the basic frame header (2 bytes)
             unsigned char *data = (unsigned char *)buffer_tostring(wsc->in_buffer);
-            WEBSOCKET_FRAME_HEADER *header = (WEBSOCKET_FRAME_HEADER *)data;
+            
+            // Manually extract frame header bits for better reliability
+            unsigned char byte1 = data[0];
+            unsigned char byte2 = data[1];
+            
+            // Extract bits from first byte
+            unsigned char fin = (byte1 >> 7) & 0x01;
+            unsigned char rsv1 = (byte1 >> 6) & 0x01;
+            unsigned char rsv2 = (byte1 >> 5) & 0x01;
+            unsigned char rsv3 = (byte1 >> 4) & 0x01;
+            unsigned char opcode = byte1 & 0x0F;
+            
+            // Extract bits from second byte
+            unsigned char mask = (byte2 >> 7) & 0x01;
+            unsigned char len = byte2 & 0x7F;
+            
+            // Create and populate header structure
+            WEBSOCKET_FRAME_HEADER header;
+            header.fin = fin;
+            header.rsv1 = rsv1;
+            header.rsv2 = rsv2;
+            header.rsv3 = rsv3;
+            header.opcode = opcode;
+            header.mask = mask;
+            header.len = len;
+            
+            // Log frame header details for debugging
+            netdata_log_debug(D_WEBSOCKET, "Client %zu - Frame header: FIN=%d, RSV1=%d, RSV2=%d, RSV3=%d, OPCODE=%d, MASK=%d, LEN=%d",
+                           wsc->id, fin, rsv1, rsv2, rsv3, opcode, mask, len);
             
             // Initialize frame processing state
-            wsc->current_frame = *header;
+            wsc->current_frame = header;
             wsc->frame_in_progress = true;
-            wsc->frame_length = header->len;
+            wsc->frame_length = len;
             wsc->frame_read = 0;
 
             // Determine full frame length based on payload length indicator
             size_t header_size = 2; // Basic 2-byte header
             
-            if(header->len == 126) {
+            if(len == 126) {
                 // 16-bit extended payload length
                 if(buffer_strlen(wsc->in_buffer) < 4) {
                     // Not enough data yet
@@ -86,8 +127,11 @@ int websocket_process_frames_buffered(WEBSOCKET_SERVER_CLIENT *wsc) {
                 
                 wsc->frame_length = (data[2] << 8) | data[3];
                 header_size += 2;
+                
+                netdata_log_debug(D_WEBSOCKET, "Client %zu - Extended payload length (16-bit): %zu", 
+                                wsc->id, wsc->frame_length);
             }
-            else if(header->len == 127) {
+            else if(len == 127) {
                 // 64-bit extended payload length
                 if(buffer_strlen(wsc->in_buffer) < 10) {
                     // Not enough data yet
@@ -101,10 +145,13 @@ int websocket_process_frames_buffered(WEBSOCKET_SERVER_CLIENT *wsc) {
                     wsc->frame_length = (wsc->frame_length << 8) | data[2 + i];
                 }
                 header_size += 8;
+                
+                netdata_log_debug(D_WEBSOCKET, "Client %zu - Extended payload length (64-bit): %zu", 
+                                wsc->id, wsc->frame_length);
             }
 
             // Get masking key if frame is masked
-            if(header->mask) {
+            if(mask) {
                 if(buffer_strlen(wsc->in_buffer) < header_size + 4) {
                     // Not enough data for masking key
                     process_more = false;
@@ -114,34 +161,123 @@ int websocket_process_frames_buffered(WEBSOCKET_SERVER_CLIENT *wsc) {
                 // Read 4-byte masking key
                 memcpy(wsc->mask_key, data + header_size, 4);
                 header_size += 4;
+                
+                netdata_log_debug(D_WEBSOCKET, "Client %zu - Mask key: %02x %02x %02x %02x", 
+                               wsc->id, 
+                               wsc->mask_key[0], wsc->mask_key[1], 
+                               wsc->mask_key[2], wsc->mask_key[3]);
             }
 
             // Check if we have enough data for the complete frame
             if(buffer_strlen(wsc->in_buffer) < header_size + wsc->frame_length) {
                 // Not enough data for complete frame
+                netdata_log_debug(D_WEBSOCKET, "Client %zu - Partial frame: buffer has %zu bytes, need %zu bytes (header=%zu, payload=%zu)",
+                               wsc->id, buffer_strlen(wsc->in_buffer), header_size + wsc->frame_length, 
+                               header_size, wsc->frame_length);
+                
+                // Also log the first few bytes to help debug
+                char hex_dump[128] = "";
+                for(size_t i = 0; i < buffer_strlen(wsc->in_buffer) && i < 16; i++) {
+                    char *pos = hex_dump + strlen(hex_dump);
+                    snprintf(pos, sizeof(hex_dump) - strlen(hex_dump), "%02x ", (unsigned char)wsc->in_buffer->buffer[i]);
+                }
+                netdata_log_debug(D_WEBSOCKET, "Client %zu - Frame bytes: %s", wsc->id, hex_dump);
+                
                 process_more = false;
-                continue;
+                break; // Exit the loop instead of continue
             }
 
             // Process the frame
             unsigned char *payload = data + header_size;
             
             // Unmask payload if needed
-            if(header->mask) {
+            if(mask) {
                 websocket_unmask_payload(payload, wsc->frame_length, wsc->mask_key);
             }
 
             // Handle different frame types
-            switch(header->opcode) {
+            switch(opcode) {
                 case WS_OPCODE_CONTINUATION:
-                    // TODO: Handle continuation frames
+                    // Handle continuation of a fragmented message
+                    if (!wsc->fragmented_message) {
+                        netdata_log_error("WEBSOCKET: Client %zu - Received continuation frame without starting frame", wsc->id);
+                        break;
+                    }
+                    
+                    // Append this payload to the message buffer
+                    buffer_need_bytes(wsc->message_buffer, wsc->frame_length);
+                    buffer_memcat(wsc->message_buffer, (char *)payload, wsc->frame_length);
+                    
+                    netdata_log_debug(D_WEBSOCKET, "Client %zu - Added %zu bytes to fragmented message (total: %zu)",
+                                  wsc->id, wsc->frame_length, buffer_strlen(wsc->message_buffer));
+                    
+                    // If this is the final frame of the message, process it
+                    if (fin) {
+                        // Process the complete message
+                        netdata_log_debug(D_WEBSOCKET, "Client %zu - Final continuation frame received, message complete",
+                                      wsc->id);
+                        
+                        if (wsc->on_message) {
+                            wsc->on_message(wsc, buffer_tostring(wsc->message_buffer), 
+                                         buffer_strlen(wsc->message_buffer), 
+                                         wsc->fragmented_opcode);
+                        }
+                        else {
+                            // Default behavior: echo the message back
+                            netdata_log_debug(D_WEBSOCKET, "Client %zu - No message handler registered, echoing fragmented message back",
+                                         wsc->id);
+                            websocket_send_frame(wsc, buffer_tostring(wsc->message_buffer),
+                                            buffer_strlen(wsc->message_buffer),
+                                            wsc->fragmented_opcode);
+                        }
+                        
+                        // Reset fragmented message state
+                        wsc->fragmented_message = false;
+                        buffer_flush(wsc->message_buffer);
+                    }
                     break;
 
                 case WS_OPCODE_TEXT:
                 case WS_OPCODE_BINARY:
-                    // Call message handler if registered
-                    if(wsc->on_message) {
-                        wsc->on_message(wsc, (char *)payload, wsc->frame_length, header->opcode);
+                    // Log the received message for debugging
+                    {
+                        char msg_preview[64] = "";
+                        size_t copy_len = wsc->frame_length < sizeof(msg_preview) - 1 ? 
+                                        wsc->frame_length : sizeof(msg_preview) - 1;
+                        memcpy(msg_preview, payload, copy_len);
+                        msg_preview[copy_len] = '\0';
+                        
+                        netdata_log_debug(D_WEBSOCKET, "Client %zu - Received message: '%s'", 
+                                       wsc->id, msg_preview);
+                    }
+                    
+                    // Check if this is a fragmented message (FIN bit not set)
+                    if (!fin) {
+                        // Start of a fragmented message
+                        wsc->fragmented_message = true;
+                        wsc->fragmented_opcode = opcode;
+                        
+                        // Reset and initialize the message buffer
+                        buffer_flush(wsc->message_buffer);
+                        buffer_need_bytes(wsc->message_buffer, wsc->frame_length);
+                        buffer_memcat(wsc->message_buffer, (char *)payload, wsc->frame_length);
+                        
+                        netdata_log_debug(D_WEBSOCKET, "Client %zu - Started fragmented %s message (%zu bytes)",
+                                      wsc->id, 
+                                      (opcode == WS_OPCODE_TEXT) ? "text" : "binary",
+                                      wsc->frame_length);
+                    }
+                    else {
+                        // This is a complete, unfragmented message
+                        // Call message handler if registered
+                        if(wsc->on_message) {
+                            wsc->on_message(wsc, (char *)payload, wsc->frame_length, opcode);
+                        }
+                        else {
+                            // Default behavior: echo the message back as-is
+                            netdata_log_debug(D_WEBSOCKET, "Client %zu - No message handler registered, echoing back", wsc->id);
+                            websocket_send_frame(wsc, (char *)payload, wsc->frame_length, opcode);
+                        }
                     }
                     break;
 
@@ -189,7 +325,7 @@ int websocket_process_frames_buffered(WEBSOCKET_SERVER_CLIENT *wsc) {
                     break;
 
                 default:
-                    netdata_log_error("WEBSOCKET: Client %zu sent unknown frame type: %d", wsc->id, header->opcode);
+                    netdata_log_error("WEBSOCKET: Client %zu sent unknown frame type: %d", wsc->id, opcode);
                     break;
             }
 
@@ -206,11 +342,176 @@ int websocket_process_frames_buffered(WEBSOCKET_SERVER_CLIENT *wsc) {
             // Reset frame processing state
             wsc->frame_in_progress = false;
             frames_processed++;
+            
+            // Log remaining buffer size after processing this frame
+            netdata_log_debug(D_WEBSOCKET, "Client %zu - Frame processed, %zu bytes remaining in buffer",
+                          wsc->id, (size_t)wsc->in_buffer->len);
         }
         else {
-            // Continue processing an existing frame (for fragmented frames or large payloads)
-            // TODO: Implement fragmented frame handling
-            process_more = false;
+            // Continue processing an existing frame (for large payloads split across multiple TCP packets)
+            netdata_log_debug(D_WEBSOCKET, "Client %zu - Continuing with frame_in_progress, buffer has %zu bytes",
+                           wsc->id, buffer_strlen(wsc->in_buffer));
+            
+            // Check if we have enough data to complete the frame
+            if(buffer_strlen(wsc->in_buffer) < wsc->frame_length - wsc->frame_read) {
+                // Not enough data yet
+                netdata_log_debug(D_WEBSOCKET, "Client %zu - Not enough data for full payload: have %zu, need %zu more",
+                               wsc->id, buffer_strlen(wsc->in_buffer), wsc->frame_length - wsc->frame_read);
+                process_more = false;
+                break;
+            }
+            
+            // Now we have enough data to complete the frame
+            netdata_log_debug(D_WEBSOCKET, "Client %zu - Continuing frame with %zu more bytes of data",
+                          wsc->id, buffer_strlen(wsc->in_buffer));
+            
+            // Get the payload from the buffer
+            unsigned char *data = (unsigned char *)buffer_tostring(wsc->in_buffer);
+            unsigned char *payload = data;
+            size_t payload_length = wsc->frame_length - wsc->frame_read;
+            
+            // Unmask if needed (using the mask key saved from the header)
+            if(wsc->current_frame.mask) {
+                websocket_unmask_payload(payload, payload_length, wsc->mask_key);
+            }
+            
+            // Process based on opcode from saved header
+            WEBSOCKET_OPCODE opcode = wsc->current_frame.opcode;
+            bool fin = wsc->current_frame.fin;
+            
+            // Similar processing as in the main switch statement
+            switch(opcode) {
+                case WS_OPCODE_CONTINUATION:
+                    if(wsc->fragmented_message) {
+                        // Append this payload to the message buffer
+                        buffer_need_bytes(wsc->message_buffer, payload_length);
+                        buffer_memcat(wsc->message_buffer, (char *)payload, payload_length);
+                        
+                        netdata_log_debug(D_WEBSOCKET, "Client %zu - Added %zu bytes to fragmented message (total: %zu)",
+                                      wsc->id, payload_length, buffer_strlen(wsc->message_buffer));
+                        
+                        // If this is the final frame of the message, process it
+                        if(fin) {
+                            netdata_log_debug(D_WEBSOCKET, "Client %zu - Final continuation frame completed, message complete",
+                                          wsc->id);
+                            
+                            if(wsc->on_message) {
+                                wsc->on_message(wsc, buffer_tostring(wsc->message_buffer), 
+                                             buffer_strlen(wsc->message_buffer), 
+                                             wsc->fragmented_opcode);
+                            }
+                            else {
+                                // Default behavior: echo the message back
+                                netdata_log_debug(D_WEBSOCKET, "Client %zu - No message handler registered, echoing fragmented message back", 
+                                             wsc->id);
+                                websocket_send_frame(wsc, buffer_tostring(wsc->message_buffer),
+                                                buffer_strlen(wsc->message_buffer),
+                                                wsc->fragmented_opcode);
+                            }
+                            
+                            // Reset fragmented message state
+                            wsc->fragmented_message = false;
+                            buffer_flush(wsc->message_buffer);
+                        }
+                    }
+                    break;
+                    
+                case WS_OPCODE_TEXT:
+                case WS_OPCODE_BINARY:
+                    if(!fin) {
+                        // This is part of a fragmented message
+                        if(!wsc->fragmented_message) {
+                            // Start of a new fragmented message
+                            wsc->fragmented_message = true;
+                            wsc->fragmented_opcode = opcode;
+                            buffer_flush(wsc->message_buffer);
+                        }
+                        
+                        // Add payload to message buffer
+                        buffer_need_bytes(wsc->message_buffer, payload_length);
+                        buffer_memcat(wsc->message_buffer, (char *)payload, payload_length);
+                        
+                        netdata_log_debug(D_WEBSOCKET, "Client %zu - Added %zu bytes to fragmented message (total: %zu)",
+                                      wsc->id, payload_length, buffer_strlen(wsc->message_buffer));
+                    }
+                    else {
+                        // This is a complete message
+                        char msg_preview[64] = "";
+                        size_t copy_len = payload_length < sizeof(msg_preview) - 1 ? 
+                                         payload_length : sizeof(msg_preview) - 1;
+                        memcpy(msg_preview, payload, copy_len);
+                        msg_preview[copy_len] = '\0';
+                        
+                        netdata_log_debug(D_WEBSOCKET, "Client %zu - Completed full message: '%s'", 
+                                       wsc->id, msg_preview);
+                        
+                        if(wsc->on_message) {
+                            wsc->on_message(wsc, (char *)payload, payload_length, opcode);
+                        }
+                        else {
+                            // Echo back
+                            netdata_log_debug(D_WEBSOCKET, "Client %zu - No message handler registered, echoing back", wsc->id);
+                            websocket_send_frame(wsc, (char *)payload, payload_length, opcode);
+                        }
+                    }
+                    break;
+                    
+                case WS_OPCODE_PING:
+                    // Respond with pong
+                    websocket_send_frame(wsc, (char *)payload, payload_length, WS_OPCODE_PONG);
+                    break;
+                    
+                case WS_OPCODE_PONG:
+                    // Just update activity timestamp
+                    wsc->last_activity_t = now_monotonic_sec();
+                    break;
+                    
+                case WS_OPCODE_CLOSE:
+                    {
+                        uint16_t close_code = 1000; // Normal closure
+                        const char *reason = "";
+                        
+                        if(payload_length >= 2) {
+                            close_code = (payload[0] << 8) | payload[1];
+                            
+                            if(payload_length > 2) {
+                                reason = (char *)payload + 2;
+                            }
+                        }
+                        
+                        netdata_log_info("WEBSOCKET: Client %zu sent close frame (code: %d, reason: %s)",
+                                         wsc->id, close_code, reason);
+                        
+                        if(wsc->on_close) {
+                            wsc->on_close(wsc, close_code, reason);
+                        }
+                        
+                        process_more = false;
+                        frames_processed = -1;
+                    }
+                    break;
+                    
+                default:
+                    netdata_log_error("WEBSOCKET: Client %zu sent unknown frame type: %d", wsc->id, opcode);
+                    break;
+            }
+            
+            // Remove processed bytes from buffer
+            size_t processed_size = payload_length;
+            size_t remaining = wsc->in_buffer->len - processed_size;
+            if(remaining > 0) {
+                memmove(wsc->in_buffer->buffer, 
+                        wsc->in_buffer->buffer + processed_size, 
+                        remaining);
+            }
+            wsc->in_buffer->len = remaining;
+            
+            // Reset frame processing state
+            wsc->frame_in_progress = false;
+            frames_processed++;
+            
+            netdata_log_debug(D_WEBSOCKET, "Client %zu - Frame completed, %zu bytes remaining in buffer",
+                          wsc->id, (size_t)wsc->in_buffer->len);
         }
     }
 

@@ -179,6 +179,9 @@ static void websocket_client_free(WEBSOCKET_SERVER_CLIENT *wsc) {
     
     if (wsc->out_buffer)
         buffer_free(wsc->out_buffer);
+        
+    if (wsc->message_buffer)
+        buffer_free(wsc->message_buffer);
     
     freez(wsc);
 }
@@ -403,6 +406,11 @@ void websocket_takeover_connection(struct web_client *w, WEBSOCKET_SERVER_CLIENT
     wsc->frame_read = 0;
     memset(wsc->mask_key, 0, sizeof(wsc->mask_key));
     
+    // Initialize fragmented message state
+    wsc->fragmented_message = false;
+    wsc->fragmented_opcode = WS_OPCODE_TEXT; // Default
+    wsc->message_buffer = buffer_create(1024, NULL);
+    
     // Set socket to non-blocking mode
     if (fcntl(wsc->sock.fd, F_SETFL, O_NONBLOCK) == -1) {
         netdata_log_error("WEBSOCKET: Failed to set WebSocket socket to non-blocking mode");
@@ -473,8 +481,19 @@ int websocket_send_message(WEBSOCKET_SERVER_CLIENT *wsc, const char *message, si
 
 // Send a WebSocket frame to the client
 int websocket_send_frame(WEBSOCKET_SERVER_CLIENT *wsc, const char *payload, size_t payload_len, WEBSOCKET_OPCODE opcode) {
-    if (!wsc || wsc->state != WS_STATE_OPEN)
+    if (!wsc) {
+        netdata_log_error("WEBSOCKET: Cannot send frame - WebSocket client is NULL");
         return -1;
+    }
+    
+    if (wsc->state != WS_STATE_OPEN) {
+        netdata_log_error("WEBSOCKET: Cannot send frame to client %zu - WebSocket not in OPEN state (state: %d)", 
+                        wsc->id, wsc->state);
+        return -1;
+    }
+    
+    netdata_log_debug(D_WEBSOCKET, "Client %zu - Sending frame: opcode=%d, payload_len=%zu", 
+                   wsc->id, opcode, payload_len);
     
     // Calculate frame header size based on payload length
     size_t header_size = 2; // Base header size (2 bytes)
@@ -508,14 +527,21 @@ int websocket_send_frame(WEBSOCKET_SERVER_CLIENT *wsc, const char *payload, size
     
     // We're in the websocket thread, so use non-blocking writes
     // and buffer any data that couldn't be sent
+    netdata_log_debug(D_WEBSOCKET, "Client %zu - Attempting to send %zu bytes (header: %zu, payload: %zu)",
+                   wsc->id, header_size + payload_len, header_size, payload_len);
+                   
     ssize_t sent = nd_sock_write(&wsc->sock, frame, header_size + payload_len, 1); // 1 retry
     
     if (sent < 0) {
+        netdata_log_error("WEBSOCKET: Client %zu - Failed to send frame: %s", 
+                        wsc->id, strerror(errno));
         freez(frame);
         if (wsc->on_error)
             wsc->on_error(wsc, "Failed to send WebSocket frame");
         return -1;
     }
+    
+    netdata_log_debug(D_WEBSOCKET, "Client %zu - Successfully sent %zd bytes", wsc->id, sent);
     
     // Check if we sent all data
     if (sent < (ssize_t)(header_size + payload_len)) {

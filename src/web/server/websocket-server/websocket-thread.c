@@ -19,7 +19,6 @@ void websocket_threads_init(void) {
         websocket_threads[i].ndpl = NULL;
         websocket_threads[i].cmd.pipe[PIPE_READ] = -1;
         websocket_threads[i].cmd.pipe[PIPE_WRITE] = -1;
-        websocket_threads[i].cmd.slot = 0;
     }
 }
 
@@ -153,7 +152,29 @@ void *websocket_thread(void *ptr) {
             // Check for errors
             if(ev.events & (ND_POLL_ERROR | ND_POLL_HUP)) {
                 netdata_log_error("WEBSOCKET: Client %zu socket error or hangup", wsc->id);
-                // TODO: Handle client disconnection
+                
+                // Handle disconnection by first closing the connection gracefully if possible
+                if(wsc->state != WS_STATE_CLOSED) {
+                    // Try to send a close frame if socket is still usable
+                    if(!(ev.events & ND_POLL_ERROR)) {
+                        websocket_close_client(wsc, WS_CLOSE_GOING_AWAY, "Connection closed by server");
+                        
+                        // Try to flush any pending data
+                        if(buffer_strlen(wsc->out_buffer) > 0) {
+                            websocket_write_data(wsc);
+                        }
+                    }
+                    
+                    // Call the close handler if registered
+                    if(wsc->on_close) {
+                        wsc->on_close(wsc, WS_CLOSE_GOING_AWAY, "Connection hangup or error");
+                    }
+                }
+                
+                // Update client state
+                wsc->state = WS_STATE_CLOSED;
+                
+                // Send command to remove the client
                 websocket_thread_send_command(wth, WEBSOCKET_THREAD_CMD_REMOVE_CLIENT, &wsc->id, sizeof(wsc->id));
                 continue;
             }
@@ -165,6 +186,19 @@ void *websocket_thread(void *ptr) {
                 if(result < 0) {
                     // Error or connection closed
                     netdata_log_error("WEBSOCKET: Failed to receive data from client %zu", wsc->id);
+                    
+                    // Handle the disconnection more gracefully
+                    if(wsc->state != WS_STATE_CLOSED) {
+                        // Call the close handler if registered
+                        if(wsc->on_close) {
+                            wsc->on_close(wsc, WS_CLOSE_GOING_AWAY, "Failed to receive data");
+                        }
+                        
+                        // Update client state
+                        wsc->state = WS_STATE_CLOSED;
+                    }
+                    
+                    // Send command to remove the client
                     websocket_thread_send_command(wth, WEBSOCKET_THREAD_CMD_REMOVE_CLIENT, &wsc->id, sizeof(wsc->id));
                     continue;
                 }
@@ -177,6 +211,19 @@ void *websocket_thread(void *ptr) {
                 if(result < 0) {
                     // Error writing data
                     netdata_log_error("WEBSOCKET: Failed to write data to client %zu", wsc->id);
+                    
+                    // Handle the disconnection gracefully
+                    if(wsc->state != WS_STATE_CLOSED) {
+                        // Call the close handler if registered
+                        if(wsc->on_close) {
+                            wsc->on_close(wsc, WS_CLOSE_GOING_AWAY, "Failed to write data");
+                        }
+                        
+                        // Update client state
+                        wsc->state = WS_STATE_CLOSED;
+                    }
+                    
+                    // Send command to remove the client
                     websocket_thread_send_command(wth, WEBSOCKET_THREAD_CMD_REMOVE_CLIENT, &wsc->id, sizeof(wsc->id));
                     continue;
                 }
@@ -644,6 +691,11 @@ void websocket_thread_process_commands(WEBSOCKET_THREAD *wth) {
                 if(wsc->out_buffer) {
                     buffer_free(wsc->out_buffer);
                     wsc->out_buffer = NULL;
+                }
+                
+                if(wsc->message_buffer) {
+                    buffer_free(wsc->message_buffer);
+                    wsc->message_buffer = NULL;
                 }
                 
                 // Unregister from global client registry

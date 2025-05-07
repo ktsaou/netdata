@@ -67,6 +67,11 @@ struct websocket_server_client {
     uint64_t frame_read;            // Bytes read for current frame
     unsigned char mask_key[4];      // Masking key for current frame
     
+    // Fragmented message state
+    bool fragmented_message;        // Currently receiving a fragmented message
+    WEBSOCKET_OPCODE fragmented_opcode; // Opcode of the fragmented message
+    BUFFER *message_buffer;         // Buffer for accumulating fragmented message
+    
     // Message handling callbacks
     void (*on_message)(struct websocket_server_client *wsc, const char *message, size_t length, WEBSOCKET_OPCODE opcode);
     void (*on_close)(struct websocket_server_client *wsc, int code, const char *reason);
@@ -94,7 +99,6 @@ typedef struct websocket_thread {
 
     struct {
         int pipe[2];                 // Command pipe [0] = read, [1] = write
-        size_t slot;                 // Poll slot for pipe
     } cmd;
 
 } WEBSOCKET_THREAD;
