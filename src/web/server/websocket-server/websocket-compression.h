@@ -9,7 +9,7 @@
 #define WS_COMPRESS_MEMLEVEL         8      // Default memory level for zlib
 #define WS_COMPRESS_DEFAULT_LEVEL    Z_DEFAULT_COMPRESSION  // Default compression level
 #define WS_COMPRESS_MIN_SIZE         64     // Don't compress payloads smaller than this
-#define WS_COMPRESS_MAX_BUFFER_EXPANSIONS 10 // Maximum number of buffer expansions during decompression
+#define WS_COMPRESS_MAX_BUFFER_EXPANSIONS 200 // Maximum number of buffer expansions during decompression
 
 // WebSocket compression extension types
 typedef enum {
@@ -27,8 +27,6 @@ typedef struct websocket_compression_context {
     int compression_level;                  // Compression level
     z_stream* deflate_stream;               // Deflate context for outgoing messages
     z_stream* inflate_stream;               // Inflate context for incoming messages
-    bool fragmented_compression;            // Is this a fragmented compressed message?
-    bool in_fragmented_message;             // Currently processing a fragmented message
 } WEBSOCKET_COMPRESSION_CTX;
 
 // Forward declaration
@@ -41,12 +39,5 @@ char *websocket_compression_negotiate(struct websocket_server_client *wsc, const
 int websocket_compress_payload(struct websocket_server_client *wsc, const char *in, size_t in_len, char **out, size_t *out_len);
 int websocket_decompress_payload(struct websocket_server_client *wsc, const char *in, size_t in_len, char **out, size_t *out_len);
 bool websocket_compression_supported(void);
-
-// Helper functions for debugging
-void websocket_dump_buffer(const char *buffer, size_t len, size_t max_bytes, const char *prefix, size_t client_id);
-
-// Functions for handling fragmented compressed messages
-void websocket_compression_fragmented_start(struct websocket_server_client *wsc);
-void websocket_compression_fragmented_end(struct websocket_server_client *wsc);
 
 #endif // NETDATA_WEBSOCKET_COMPRESSION_H

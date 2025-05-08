@@ -230,6 +230,43 @@
                 <button id="testLargeMessageButton" disabled>Test Compression</button>
             </div>
             
+            <div id="compressionOptions" style="margin-top: 10px; display: none; background-color: #f8f9fa; padding: 10px; border-radius: 4px;">
+                <div style="margin-bottom: 10px;"><strong>Message Compression Characteristics:</strong></div>
+                
+                <div style="display: flex; gap: 15px; margin-bottom: 10px;">
+                    <label>
+                        <input type="radio" name="compressionType" value="high" checked>
+                        Highly Compressible
+                    </label>
+                    
+                    <label>
+                        <input type="radio" name="compressionType" value="medium">
+                        Medium Compression
+                    </label>
+                    
+                    <label>
+                        <input type="radio" name="compressionType" value="low">
+                        Low Compression
+                    </label>
+                    
+                    <label>
+                        <input type="radio" name="compressionType" value="mixed">
+                        Mixed Content
+                    </label>
+                </div>
+                
+                <div style="margin-top: 10px;">
+                    <label style="display: flex; align-items: center; cursor: pointer;">
+                        <input type="checkbox" id="useBinaryMode" style="margin-right: 8px;">
+                        <span>Send as Binary Frame (use for non-UTF8 content)</span>
+                    </label>
+                    <div style="font-size: 0.85em; color: #666; margin-top: 5px; margin-left: 24px;">
+                        Use binary mode only when sending data that is not valid UTF-8 text.
+                        For most test cases, text mode works fine.
+                    </div>
+                </div>
+            </div>
+            
             <h3>Messages</h3>
             <div id="messagesLog"></div>
         </div>
@@ -469,76 +506,168 @@
                             addMessageToLog(`First response received after ${firstPacketLatency}ms`, 'system');
                         }
                         
-                        // Track bytes received 
-                        benchmark.receivedBytes = message.length;
-                        
-                        // Check if response seems complete (using content matching rather than size)
-                        // For compressed responses, the size will be different from what we sent
-                        if (message && message.length > 0 && message.startsWith("This is a test")) {
-                            benchmark.responseComplete = true;
-                            const totalTime = (receiveTime - benchmark.sendTime).toFixed(2);
+                        // Handle different data types (string or blob)
+                        const processResponse = (responseData) => {
+                            // Track bytes received
+                            benchmark.receivedBytes = responseData.length;
                             
-                            // Calculate compression ratio if we know the original size
-                            let compressionInfo = "";
-                            if (benchmark.expectedBytes > 0 && message.length > 0) {
-                                // Check if compression extension was actually negotiated
-                                const usingCompression = negotiatedExtensions.textContent.includes("permessage-deflate");
+                            // Check if response is equal to what we sent
+                            // For compressed responses, the protocol should preserve the exact content
+                            const dataMatches = (responseData === benchmark.originalMessage);
+                            
+                            // Check if response seems complete - always do the verification
+                            // regardless of the content to ensure we check data integrity
+                            if (responseData && responseData.length > 0) {
+                                benchmark.responseComplete = true;
+                                const totalTime = (receiveTime - benchmark.sendTime).toFixed(2);
                                 
-                                const compressionRatio = (benchmark.expectedBytes / message.length).toFixed(2);
-                                const percentReduction = ((1 - (message.length / benchmark.expectedBytes)) * 100).toFixed(2);
+                                // Data verification results
+                                let verificationResults = '';
+                                if (dataMatches) {
+                                    verificationResults = `<div style="color: #155724; margin-top: 5px;"><strong>✓ Data Integrity:</strong> Response content matches sent data exactly!</div>`;
+                                } else {
+                                    // If sizes match but content differs
+                                    if (responseData.length === benchmark.originalMessage.length) {
+                                        verificationResults = `<div style="color: #721c24; margin-top: 5px;"><strong>❌ Data Integrity:</strong> Response size matches (${responseData.length} bytes) but content differs!</div>`;
+                                        
+                                        // Add some diagnostic info to help understand the mismatch
+                                        // Find the first point of difference
+                                        let diffPos = -1;
+                                        for (let i = 0; i < responseData.length; i++) {
+                                            if (responseData[i] !== benchmark.originalMessage[i]) {
+                                                diffPos = i;
+                                                break;
+                                            }
+                                        }
+                                        
+                                        if (diffPos >= 0) {
+                                            const sentContext = benchmark.originalMessage.substring(
+                                                Math.max(0, diffPos - 10), 
+                                                Math.min(benchmark.originalMessage.length, diffPos + 10)
+                                            );
+                                            const recvContext = responseData.substring(
+                                                Math.max(0, diffPos - 10), 
+                                                Math.min(responseData.length, diffPos + 10)
+                                            );
+                                            
+                                            verificationResults += `<div style="color: #721c24; margin-top: 5px;">
+                                                First difference at position ${diffPos}:<br>
+                                                Sent: "${sentContext}" (char code: ${benchmark.originalMessage.charCodeAt(diffPos)})<br>
+                                                Recv: "${recvContext}" (char code: ${responseData.charCodeAt(diffPos)})
+                                            </div>`;
+                                        }
+                                    } else {
+                                        verificationResults = `<div style="color: #721c24; margin-top: 5px;"><strong>❌ Data Integrity:</strong> Response content differs! Sent: ${benchmark.originalMessage.length} bytes, Received: ${responseData.length} bytes</div>`;
+                                    }
+                                }
                                 
-                                // Use color formatting based on compression effectiveness
-                                const compressionColor = percentReduction > 50 ? '#155724' : (percentReduction > 20 ? '#856404' : '#721c24');
+                                // Calculate compression ratio if we know the original size
+                                let compressionInfo = "";
+                                if (benchmark.expectedBytes > 0 && responseData.length > 0) {
+                                    // Check if compression extension was actually negotiated
+                                    const usingCompression = negotiatedExtensions.textContent.includes("permessage-deflate");
+                                    
+                                    const compressionRatio = (benchmark.expectedBytes / responseData.length).toFixed(2);
+                                    const percentReduction = ((1 - (responseData.length / benchmark.expectedBytes)) * 100).toFixed(2);
+                                    
+                                    // Use color formatting based on compression effectiveness
+                                    const compressionColor = percentReduction > 50 ? '#155724' : (percentReduction > 20 ? '#856404' : '#721c24');
+                                    
+                                    compressionInfo = `
+                                        <div style="margin-top: 5px;">
+                                            <strong>Compression Stats:</strong>
+                                            <ul style="margin-top: 5px; margin-bottom: 5px;">
+                                                <li>Original size: ${(benchmark.expectedBytes / 1024).toFixed(2)} KB</li>
+                                                <li>Size in JavaScript: ${(responseData.length / 1024).toFixed(2)} KB <span style="color: #856404">(Browser auto-decompressed the data)</span></li>
+                                                <li>WebSocket extensions: ${usingCompression ? 
+                                                    '<span style="color: #155724">permessage-deflate enabled (compression happens at protocol level)</span>' : 
+                                                    '<span style="color: #721c24">compression not enabled! Check server configuration.</span>'}</li>
+                                                <li style="color: #155724">Note: The server is correctly compressing the data (99.5% reduction), but the browser automatically decompresses it before JavaScript receives it</li>
+                                            </ul>
+                                        </div>
+                                    `;
+                                }
                                 
-                                compressionInfo = `
-                                    <div style="margin-top: 5px;">
-                                        <strong>Compression Stats:</strong>
-                                        <ul style="margin-top: 5px; margin-bottom: 5px;">
-                                            <li>Original size: ${(benchmark.expectedBytes / 1024).toFixed(2)} KB</li>
-                                            <li>Size in JavaScript: ${(message.length / 1024).toFixed(2)} KB <span style="color: #856404">(Browser auto-decompressed the data)</span></li>
-                                            <li>WebSocket extensions: ${usingCompression ? 
-                                                '<span style="color: #155724">permessage-deflate enabled (compression happens at protocol level)</span>' : 
-                                                '<span style="color: #721c24">compression not enabled! Check server configuration.</span>'}</li>
-                                            <li style="color: #155724">Note: The server is correctly compressing the data (99.5% reduction), but the browser automatically decompresses it before JavaScript receives it</li>
-                                        </ul>
-                                    </div>
-                                `;
+                                // Calculate throughput
+                                const kbPerSecond = ((benchmark.receivedBytes / 1024) / (totalTime / 1000)).toFixed(2);
+                                
+                                addMessageToLog(
+                                    `Benchmark complete: ${benchmark.messageSizeKB} KB message echoed back in ${totalTime}ms (${kbPerSecond} KB/s)${verificationResults}${compressionInfo}`,
+                                    'system',
+                                    true
+                                );
+                                
+                                // Store this message info for display
+                                lastMessageSentInfo = {
+                                    sent: benchmark.expectedBytes,
+                                    received: responseData.length,
+                                    dataMatches: dataMatches
+                                };
+                                
+                                // Reset benchmark
+                                window.currentBenchmark = null;
                             }
+                        };
+                        
+                        // Check if the response is a Blob (binary data)
+                        if (message instanceof Blob) {
+                            addMessageToLog(`Received response as BINARY data (${message.size} bytes)`, 'system');
                             
-                            // Calculate throughput
-                            const kbPerSecond = ((benchmark.receivedBytes / 1024) / (totalTime / 1000)).toFixed(2);
-                            
-                            addMessageToLog(
-                                `Benchmark complete: ${benchmark.messageSizeKB} KB message echoed back in ${totalTime}ms (${kbPerSecond} KB/s)${compressionInfo}`,
-                                'system',
-                                true
-                            );
-                            
-                            // Store this message info for display
-                            lastMessageSentInfo = {
-                                sent: benchmark.expectedBytes,
-                                received: message.length
+                            // Handle binary data by reading it as text for comparison
+                            const reader = new FileReader();
+                            reader.onload = function() {
+                                // Convert binary to text for comparison
+                                const responseText = reader.result;
+                                addMessageToLog(`Successfully converted binary response to text for comparison (${responseText.length} chars)`, 'system');
+                                processResponse(responseText);
                             };
-                            
-                            // Reset benchmark
-                            window.currentBenchmark = null;
+                            reader.onerror = function() {
+                                addMessageToLog(`Error: Failed to read binary response data for verification`, 'system');
+                                // Still try to process what we can
+                                benchmark.responseComplete = true;
+                                const totalTime = (receiveTime - benchmark.sendTime).toFixed(2);
+                                addMessageToLog(
+                                    `Benchmark complete: ${benchmark.messageSizeKB} KB message echoed back in ${totalTime}ms as binary data, but verification failed`,
+                                    'system',
+                                    true
+                                );
+                            };
+                            reader.readAsText(message);
+                        } else {
+                            // It's already text
+                            addMessageToLog(`Received response as TEXT data (${message.length} chars)`, 'system');
+                            processResponse(message);
                         }
                     }
                     
                     // Add compression info to received message if available
                     let receivedInfo = '';
-                    if (lastMessageSentInfo && lastMessageSentInfo.sent > 0 && message.length > 0 && message.length !== lastMessageSentInfo.sent) {
-                        const compressionRatio = (lastMessageSentInfo.sent / message.length).toFixed(2);
-                        const percentReduction = ((1 - (message.length / lastMessageSentInfo.sent)) * 100).toFixed(2);
+                    if (lastMessageSentInfo && lastMessageSentInfo.sent > 0) {
+                        // For binary blobs we use the size property, for string we use length
+                        const receivedLength = message instanceof Blob ? message.size : message.length;
                         
-                        receivedInfo = ` | Compressed: ${(message.length / 1024).toFixed(2)} KB (${percentReduction}% smaller than sent)`;
+                        if (receivedLength > 0 && receivedLength !== lastMessageSentInfo.sent) {
+                            const compressionRatio = (lastMessageSentInfo.sent / receivedLength).toFixed(2);
+                            const percentReduction = ((1 - (receivedLength / lastMessageSentInfo.sent)) * 100).toFixed(2);
+                            
+                            receivedInfo = ` | Compressed: ${(receivedLength / 1024).toFixed(2)} KB (${percentReduction}% smaller than sent)`;
+                        }
+                        
+                        // Add data integrity info if available
+                        if (lastMessageSentInfo.hasOwnProperty('dataMatches')) {
+                            receivedInfo += ` | Data Integrity: ${lastMessageSentInfo.dataMatches ? '✓ Match' : '❌ Mismatch'}`;
+                        }
                         
                         // Reset after use
                         lastMessageSentInfo = null;
                     }
                     
-                    // Log the message
-                    addMessageToLog(message, 'received', false, receivedInfo);
+                    // Log the message - if it's a blob, show that in a friendly way
+                    if (message instanceof Blob) {
+                        addMessageToLog(`[Binary data: ${message.size} bytes]`, 'received', false, receivedInfo);
+                    } else {
+                        addMessageToLog(message, 'received', false, receivedInfo);
+                    }
                 });
                 
                 // Connection closed
@@ -628,6 +757,11 @@
             }
         });
         
+        // Show compression options when hovering over test button
+        testLargeMessageButton.addEventListener('mouseenter', () => {
+            document.getElementById('compressionOptions').style.display = 'block';
+        });
+        
         // Test compression with large message
         testLargeMessageButton.addEventListener('click', () => {
             if (socket && socket.readyState === WebSocket.OPEN) {
@@ -641,17 +775,82 @@
                     return;
                 }
                 
-                // Create a large repeating message to test compression
-                // Using highly compressible content to better demonstrate the compression ratio
-                const baseMessage = "This is a test message to verify WebSocket compression. The more repetitive the content, the better compression works. AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA ";
+                // Create a large message with realistic data that has varying compression characteristics
+                // This will be a better test of real-world compression performance
                 
-                // Calculate how many repetitions we need for the requested size
-                // Base message is about 100 bytes, so 10 repetitions per KB
-                const repetitions = Math.floor(sizeKB * 10);
+                // Random compression efficiency for this test
+                const compressionType = document.querySelector('input[name="compressionType"]:checked')?.value || 'mixed';
                 
-                let largeMessage = "";
-                for (let i = 0; i < repetitions; i++) {
-                    largeMessage += baseMessage;
+                // Calculate target size in bytes
+                const targetBytes = sizeKB * 1024;
+                
+                // Whether to send as binary (true) or text (false)
+                // For the test page specifically, we're generating text data
+                // We'll only use binary mode for demonstration if explicitly selected by user
+                let sendAsBinary = false;
+                
+                // Add UI to let user choose text/binary mode 
+                const binaryModeCheckbox = document.getElementById('useBinaryMode');
+                if (binaryModeCheckbox && binaryModeCheckbox.checked) {
+                    sendAsBinary = true;
+                }
+                
+                // Create the message based on compression type selected
+                let largeMessage = "This is a test message to verify WebSocket compression. ";
+                
+                switch (compressionType) {
+                    case 'high':
+                        // Highly compressible - repeating text blocks
+                        const baseText = "This is a highly compressible repeating pattern. ";
+                        while (largeMessage.length < targetBytes) {
+                            largeMessage += baseText;
+                        }
+                        break;
+                        
+                    case 'medium':
+                        // Medium compressibility - structured data with some repetition
+                        // This is valid UTF-8 JSON-like data that compresses moderately well
+                        while (largeMessage.length < targetBytes) {
+                            largeMessage += `{"id":${Math.floor(Math.random() * 1000)},"name":"user${Math.floor(Math.random() * 100)}","timestamp":${Date.now()},"value":${Math.random()},"status":"active"},`;
+                        }
+                        break;
+                        
+                    case 'low':
+                        // Low compressibility - random data
+                        const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+                        while (largeMessage.length < targetBytes) {
+                            largeMessage += chars.charAt(Math.floor(Math.random() * chars.length));
+                        }
+                        break;
+                        
+                    case 'mixed':
+                    default:
+                        // Define character set for random data (also defined in 'low' case)
+                        const mixedChars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+                        
+                        // Mixed - combination of different patterns
+                        const sections = [
+                            // Highly compressible section (20%)
+                            Array(Math.floor(targetBytes * 0.2 / 50)).fill("AAAABBBBBCCCCCDDDDDEEEEEFFFFF").join(""),
+                            
+                            // Moderately compressible section (40%)
+                            Array(Math.floor(targetBytes * 0.4 / 100)).fill().map(() => 
+                                `{"id":${Math.floor(Math.random() * 100)},"data":"value"}`
+                            ).join(","),
+                            
+                            // Barely compressible section (40%)
+                            Array(Math.floor(targetBytes * 0.4)).fill().map(() => 
+                                mixedChars.charAt(Math.floor(Math.random() * mixedChars.length))
+                            ).join("")
+                        ];
+                        
+                        largeMessage += sections.join("");
+                        break;
+                }
+                
+                // Trim to exact size if needed
+                if (largeMessage.length > targetBytes) {
+                    largeMessage = largeMessage.substring(0, targetBytes);
                 }
                 
                 // Show message size
@@ -661,8 +860,18 @@
                 // Measure time before sending
                 const startTime = performance.now();
                 
-                // Send the message
-                socket.send(largeMessage);
+                // Send the message explicitly as a BINARY frame for large compressed data
+                // This prevents UTF-8 validation issues with random/compressed data
+                if (sendAsBinary) {
+                    // Convert string to binary blob for proper binary WebSocket frame
+                    // This ensures it's sent as opcode=2 (BINARY) not opcode=1 (TEXT)
+                    const binaryData = new Blob([largeMessage]);
+                    socket.send(binaryData);
+                    addMessageToLog(`Sent data as Blob in BINARY mode to avoid UTF-8 validation issues`, 'system');
+                } else {
+                    socket.send(largeMessage);  // Default TEXT mode
+                    addMessageToLog(`Sent data in TEXT mode (must be valid UTF-8)`, 'system');
+                }
                 
                 // Record send completion time
                 const endTime = performance.now();
@@ -670,7 +879,7 @@
                 
                 // Show first part of message with timing info
                 addMessageToLog(
-                    `${baseMessage.substring(0, 50)}... [message truncated, full length: ${largeMessage.length} bytes, send time: ${sendDuration}ms]`, 
+                    `${largeMessage.substring(0, 50)}... [message truncated, full length: ${largeMessage.length} bytes, send time: ${sendDuration}ms]`, 
                     'sent'
                 );
                 
@@ -681,11 +890,19 @@
                     lastResponseTime: null,
                     receivedBytes: 0,
                     expectedBytes: largeMessage.length,
+                    originalMessage: largeMessage,  // Store original message for verification
                     responseComplete: false
                 };
                 
                 // Store the benchmark data for the message listener to use
                 window.currentBenchmark = responseBenchmark;
+                
+                // Log whether this is sent as text or binary for verification purposes
+                if (sendAsBinary) {
+                    addMessageToLog(`Verification info: Message sent as BINARY (Blob) format, will convert back for comparison`, 'system');
+                } else {
+                    addMessageToLog(`Verification info: Message sent as TEXT format, expecting TEXT response`, 'system');
+                }
             }
         });
         
@@ -715,21 +932,82 @@
             latencyPerSecond: 0
         };
         
-        // Function to generate random string of specified length
+        // Function to generate random string of specified length with variable compression efficiency
         function generateRandomString(length) {
-            // Use a more repetitive pattern for better compression
-            const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-            let result = '';
+            // Message identifier prefix
             const prefix = `MSG-${Date.now()}-${Math.random().toString(36).substring(2, 8)}-`;
-            result = prefix;
+            let result = prefix;
             
-            // Make the content more compressible by repeating patterns
-            // This helps test compression more effectively
-            const pattern = "AAAABBBBCCCCDDDDEEEEFFFFGGGGHHHHIIIIJJJJKKKKLLLLMMMMNNNNOOOOPPPPQQQQRRRRSSSSTTTTUUUUVVVVWWWWXXXXYYYYZZZZ";
-            const repeats = Math.floor((length - prefix.length) / pattern.length) + 1;
+            // Calculate remaining length
+            const remainingLength = length - prefix.length;
             
-            const repeatedPattern = pattern.repeat(repeats);
-            result += repeatedPattern.substring(0, length - prefix.length);
+            // Determine the compression pattern type for this message
+            // This will create a mix of highly compressible, moderately compressible, and nearly incompressible messages
+            const patternType = Math.floor(Math.random() * 5);
+            
+            switch(patternType) {
+                case 0:
+                    // Highly compressible - repeating pattern (simulates repetitive data)
+                    const pattern1 = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+                    const repeatedPattern = pattern1.repeat(Math.ceil(remainingLength / pattern1.length));
+                    result += repeatedPattern.substring(0, remainingLength);
+                    break;
+                    
+                case 1:
+                    // Moderately compressible - English-like text with common words
+                    // This simulates natural language which has moderate compression
+                    const words = ["the", "quick", "brown", "fox", "jumps", "over", "lazy", "dog", 
+                                  "lorem", "ipsum", "dolor", "sit", "amet", "consectetur", "adipiscing", 
+                                  "elit", "sed", "do", "eiusmod", "tempor", "incididunt", "ut", "labore", 
+                                  "et", "dolore", "magna", "aliqua"];
+                    let text = "";
+                    while (text.length < remainingLength) {
+                        text += words[Math.floor(Math.random() * words.length)] + " ";
+                    }
+                    result += text.substring(0, remainingLength);
+                    break;
+                    
+                case 2:
+                    // JSON-like data with repeated keys but varying values
+                    // Simulates structured data which compresses moderately well
+                    let jsonData = "";
+                    const keys = ["id", "name", "value", "timestamp", "status"];
+                    while (jsonData.length < remainingLength) {
+                        jsonData += `{"${keys[Math.floor(Math.random() * keys.length)]}":"${Math.random().toString(36).substring(2, 8)}",`;
+                        jsonData += `"${keys[Math.floor(Math.random() * keys.length)]}":${Math.floor(Math.random() * 1000)},`;
+                        jsonData += `"${keys[Math.floor(Math.random() * keys.length)]}":"${Math.random() > 0.5 ? "true" : "false"}"},`;
+                    }
+                    result += jsonData.substring(0, remainingLength);
+                    break;
+                    
+                case 3:
+                    // Nearly incompressible - random data
+                    // This simulates already compressed or encrypted data
+                    let randomData = "";
+                    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+                    for (let i = 0; i < remainingLength; i++) {
+                        randomData += chars.charAt(Math.floor(Math.random() * chars.length));
+                    }
+                    result += randomData;
+                    break;
+                    
+                case 4:
+                    // Binary-like data with some patterns
+                    // This simulates mixed binary data which has varying compression efficiency
+                    let binaryData = "";
+                    for (let i = 0; i < remainingLength; i++) {
+                        // Mix of patterns and random data
+                        if (i % 16 < 8) {
+                            // Pattern part
+                            binaryData += String.fromCharCode((i % 256));
+                        } else {
+                            // Random part
+                            binaryData += String.fromCharCode(Math.floor(Math.random() * 256));
+                        }
+                    }
+                    result += binaryData;
+                    break;
+            }
             
             return result;
         }

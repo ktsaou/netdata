@@ -4,8 +4,6 @@
 #include "websocket-internal.h"
 #include <openssl/sha.h>
 
-// All constants are now in websocket-internal.h
-
 // Private structure for WebSocket server state
 struct websocket_server {
     WS_CLIENTS_JudyLSet clients;     // JudyL array of WebSocket clients
@@ -24,10 +22,6 @@ static struct websocket_server ws_server = (struct websocket_server){
 
 // Forward declarations for internal functions
 static WEBSOCKET_SERVER_CLIENT *websocket_client_create(void);
-static void websocket_client_free(WEBSOCKET_SERVER_CLIENT *wsc);
-static int websocket_read_frame_header(WEBSOCKET_SERVER_CLIENT *wsc, WEBSOCKET_FRAME_HEADER *header);
-static int websocket_recv_frame(WEBSOCKET_SERVER_CLIENT *wsc, char **payload, size_t *payload_len, WEBSOCKET_OPCODE *opcode);
-static void websocket_handle_control_frame(WEBSOCKET_SERVER_CLIENT *wsc, WEBSOCKET_OPCODE opcode, const char *payload, size_t payload_len);
 
 // Check if the current HTTP request is a WebSocket handshake request
 bool websocket_detect_handshake_request(struct web_client *w) {
@@ -135,27 +129,6 @@ short int websocket_handle_handshake(struct web_client *w) {
     return HTTP_RESP_WEBSOCKET_HANDSHAKE;
 }
 
-// Initialize a WebSocket client structure
-void websocket_init_client(WEBSOCKET_SERVER_CLIENT *wsc, int fd, NETDATA_SSL ssl) {
-    wsc->state = WS_STATE_OPEN;
-    
-    // Initialize the ND_SOCK structure with the web server's SSL context
-    nd_sock_init(&wsc->sock, netdata_ssl_web_server_ctx, false);
-    
-    // Now set the fd and ssl
-    wsc->sock.fd = fd;
-    wsc->sock.ssl = ssl;
-    
-    wsc->in_buffer = buffer_create(NETDATA_WEB_REQUEST_INITIAL_SIZE, NULL);
-    wsc->out_buffer = buffer_create(NETDATA_WEB_RESPONSE_INITIAL_SIZE, NULL);
-    
-    // Initialize callbacks to NULL
-    wsc->on_message = NULL;
-    wsc->on_close = NULL;
-    wsc->on_error = NULL;
-    wsc->user_data = NULL;
-}
-
 // Initialize WebSocket subsystem
 void websocket_initialize(void) {
     // Initialize thread system
@@ -180,7 +153,7 @@ static WEBSOCKET_SERVER_CLIENT *websocket_client_create(void) {
 }
 
 // Free a WebSocket client
-static void websocket_client_free(WEBSOCKET_SERVER_CLIENT *wsc) {
+void websocket_client_free(WEBSOCKET_SERVER_CLIENT *wsc) {
     if (!wsc)
         return;
     
@@ -197,8 +170,9 @@ static void websocket_client_free(WEBSOCKET_SERVER_CLIENT *wsc) {
     if (wsc->out_buffer)
         buffer_free(wsc->out_buffer);
         
-    if (wsc->message_buffer)
-        buffer_free(wsc->message_buffer);
+    // Free current message if any
+    if (wsc->current_message)
+        websocket_message_free(wsc->current_message);
     
     // Clean up compression resources if needed
     websocket_compression_cleanup(wsc);
@@ -329,7 +303,7 @@ static void websocket_broadcast_callback(WEBSOCKET_SERVER_CLIENT *wsc, void *dat
     struct broadcast_params *params = (struct broadcast_params *)data;
     
     if (wsc && wsc->state == WS_STATE_OPEN) {
-        if (websocket_send_message(wsc, params->message, params->length, params->opcode) > 0)
+        if (websocket_protocol_send_text(wsc, params->message) > 0)
             params->success_count++;
     }
 }
@@ -379,7 +353,7 @@ int websocket_broadcast_message(const char *message, size_t length, WEBSOCKET_OP
     for(size_t i = 0; i < WEBSOCKET_MAX_THREADS; i++) {
         if(websocket_threads[i].thread && websocket_threads[i].running) {
             if(websocket_thread_send_command(&websocket_threads[i], WEBSOCKET_THREAD_CMD_BROADCAST, 
-                                            cmd_data, cmd_size)) {
+                                           cmd_data, cmd_size)) {
                 success_count++;
             }
         }
@@ -389,449 +363,22 @@ int websocket_broadcast_message(const char *message, size_t length, WEBSOCKET_OP
     return success_count;
 }
 
-// Handle socket takeover from web client - similar to stream_receiver_takeover_web_connection
-void websocket_takeover_connection(struct web_client *w, WEBSOCKET_SERVER_CLIENT *wsc) {
-    // First initialize the ND_SOCK with the web server's SSL context
-    nd_sock_init(&wsc->sock, netdata_ssl_web_server_ctx, false);
-    
-    // Now set the file descriptor and ssl from the web client
-    wsc->sock.fd = w->fd;
-    wsc->sock.ssl = w->ssl;
-    
-    // Copy client information
-    strncpyz(wsc->client_ip, w->client_ip, sizeof(wsc->client_ip));
-    strncpyz(wsc->client_port, w->client_port, sizeof(wsc->client_port));
-    wsc->protocol = w->websocket.protocol;
-    
-    // Initialize buffers
-    wsc->in_buffer = buffer_create(NETDATA_WEB_REQUEST_INITIAL_SIZE, NULL);
-    wsc->out_buffer = buffer_create(NETDATA_WEB_RESPONSE_INITIAL_SIZE, NULL);
-    
-    // Take over the socket but don't close it when cleaning up the web client
-    w->ssl = NETDATA_SSL_UNSET_CONNECTION;
-    WEB_CLIENT_IS_DEAD(w);
-    
-    if(web_server_mode == WEB_SERVER_MODE_STATIC_THREADED) {
-        web_client_flag_set(w, WEB_CLIENT_FLAG_DONT_CLOSE_SOCKET);
-    }
-    else {
-        w->fd = -1;
-    }
-    
-    // Initialize compression if permessage-deflate extension is enabled
-    if (w->websocket.ext_flags & WS_EXTENSION_PERMESSAGE_DEFLATE) {
-        // Initialize the compression with the original extension string for parameter parsing
-        websocket_compression_init(wsc, w->websocket.extensions);
-    }
-    
-    // Send the handshake response using ND_SOCK - we're still in the web server thread,
-    // so we need to use the persist version to ensure the complete handshake is sent
-    ssize_t bytes = nd_sock_write_persist(&wsc->sock, buffer_tostring(w->response.header_output), buffer_strlen(w->response.header_output), 20); // Try up to 20 chunks
-    
-    if (bytes != (ssize_t)buffer_strlen(w->response.header_output)) {
-        netdata_log_error("WEBSOCKET: Failed to send complete WebSocket handshake response");
-        websocket_client_free(wsc);
-        return;
-    }
-    
-    // Now that we've sent the handshake response successfully, set the connection state to open
-    wsc->state = WS_STATE_OPEN;
-    
-    // Register the client in our registry
-    if (!websocket_client_register(wsc)) {
-        netdata_log_error("WEBSOCKET: Failed to register WebSocket client");
-        websocket_client_free(wsc);
-        return;
-    }
-    
-    // Initialize frame processing state
-    wsc->frame_in_progress = false;
-    wsc->frame_length = 0;
-    wsc->frame_read = 0;
-    memset(wsc->mask_key, 0, sizeof(wsc->mask_key));
-    
-    // Initialize fragmented message state
-    wsc->fragmented_message = false;
-    wsc->fragmented_opcode = WS_OPCODE_TEXT; // Default
-    wsc->message_buffer = buffer_create(1024, NULL);
-    
-    // Set socket to non-blocking mode
-    if (fcntl(wsc->sock.fd, F_SETFL, O_NONBLOCK) == -1) {
-        netdata_log_error("WEBSOCKET: Failed to set WebSocket socket to non-blocking mode");
-        websocket_client_free(wsc);
-        return;
-    }
-    
-    // Assign to a thread
-    WEBSOCKET_THREAD *wth = websocket_thread_assign_client(wsc);
-    if (!wth) {
-        netdata_log_error("WEBSOCKET: Failed to assign WebSocket client to a thread");
-        websocket_client_free(wsc);
-        return;
-    }
-    
-    netdata_log_info("WebSocket connection established with %s:%s using protocol: %s (client ID: %zu, thread: %zu)", 
-                    wsc->client_ip, wsc->client_port, 
-                    (wsc->protocol == WS_PROTOCOL_NETDATA_JSON) ? "netdata-json" : "unknown",
-                    wsc->id, wth->id);
-}
-
-// Close a WebSocket connection with a specific code and reason
-void websocket_close_client(WEBSOCKET_SERVER_CLIENT *wsc, int close_code, const char *reason) {
-    if (!wsc || wsc->state == WS_STATE_CLOSED)
-        return;
-    
-    // Validate close code
-    if (!websocket_validate_close_code(close_code)) {
-        netdata_log_error("WEBSOCKET: Attempted to close client %zu with invalid code: %d - using protocol error",
-                      wsc->id, close_code);
-        close_code = WS_CLOSE_PROTOCOL_ERROR;
-        reason = "Internal error";
-    }
-    
-    // Create close frame payload (code + reason)
-    size_t reason_len = reason ? strlen(reason) : 0;
-    
-    // Per the spec, control frames are limited to 125 bytes of payload
-    // Close frame has 2 bytes for code + UTF-8 reason
-    if (reason_len > 123) { // 125 - 2 bytes for the code = 123 max bytes for reason
-        netdata_log_error("WEBSOCKET: Close reason too long (%zu bytes), truncating to 123 bytes", reason_len);
-        reason_len = 123;
-    }
-    
-    size_t payload_len = 2 + reason_len; // 2 bytes for code, rest for reason
-    char *payload = mallocz(payload_len);
-    
-    // Set close code (network byte order)
-    uint16_t code_be = htons((uint16_t)close_code);
-    memcpy(payload, &code_be, 2);
-    
-    // Add reason text if provided
-    if (reason_len > 0)
-        memcpy(payload + 2, reason, reason_len);
-    
-    // Send close frame
-    websocket_send_frame(wsc, payload, payload_len, WS_OPCODE_CLOSE);
-    freez(payload);
-    
-    // Update state
-    wsc->state = WS_STATE_CLOSING;
-    
-    // Call close callback if set
-    if (wsc->on_close)
-        wsc->on_close(wsc, close_code, reason);
-}
-
-// Send a ping frame to check client connection
-void websocket_ping_client(WEBSOCKET_SERVER_CLIENT *wsc) {
-    if(!wsc || wsc->state != WS_STATE_OPEN)
-        return;
-
-    // Simple ping with no payload
-    websocket_send_frame(wsc, NULL, 0, WS_OPCODE_PING);
-}
-
 // Send a WebSocket message to the client
 int websocket_send_message(WEBSOCKET_SERVER_CLIENT *wsc, const char *message, size_t length, WEBSOCKET_OPCODE opcode) {
     if (!wsc || !message || wsc->state != WS_STATE_OPEN)
         return -1;
     
-    return websocket_send_frame(wsc, message, length, opcode);
-}
-
-// Send a WebSocket frame to the client
-int websocket_send_frame(WEBSOCKET_SERVER_CLIENT *wsc, const char *payload, size_t payload_len, WEBSOCKET_OPCODE opcode) {
-    if (!wsc) {
-        netdata_log_error("WEBSOCKET: Cannot send frame - WebSocket client is NULL");
-        return -1;
-    }
-    
-    if (wsc->state != WS_STATE_OPEN) {
-        netdata_log_error("WEBSOCKET: Cannot send frame to client %zu - WebSocket not in OPEN state (state: %d)", 
-                        wsc->id, wsc->state);
-        return -1;
-    }
-    
-    netdata_log_debug(D_WEBSOCKET, "Client %zu - Sending frame: opcode=%d, payload_len=%zu", 
-                   wsc->id, opcode, payload_len);
-    
-    // Variables for tracking compressed payload
-    char *compressed_payload = NULL;
-    size_t compressed_len = 0;
-    bool compressed = false;
-    
-    // Apply compression if supported and enabled
-    // Only compress data frames (text or binary), not control frames
-    if (wsc->compression.enabled && 
-        wsc->compression.deflate_stream &&
-        payload_len > WS_COMPRESS_MIN_SIZE && 
-        (opcode == WS_OPCODE_TEXT || opcode == WS_OPCODE_BINARY)) {
-        
-        // Try to compress the payload
-        int result = websocket_compress_payload(wsc, payload, payload_len, &compressed_payload, &compressed_len);
-        
-        if (result > 0) {
-            // Compression succeeded and saved space
-            compressed = true;
-            netdata_log_debug(D_WEBSOCKET, "Client %zu - Compressed payload from %zu to %zu bytes (%.1f%% reduction)",
-                         wsc->id, payload_len, compressed_len, 
-                         (100.0 - ((double)compressed_len / (double)payload_len) * 100.0));
-        }
-        else if (result == 0) {
-            // Compression succeeded but didn't save space, use original payload
-            netdata_log_debug(D_WEBSOCKET, "Client %zu - Compression didn't reduce size, using original payload", wsc->id);
-        }
-        else {
-            // Compression failed
-            netdata_log_error("WEBSOCKET: Client %zu - Compression failed, sending uncompressed", wsc->id);
-        }
-    }
-    
-    // Calculate frame header size based on payload length
-    // Use compressed length if compression was applied
-    size_t actual_payload_len = compressed ? compressed_len : payload_len;
-    size_t header_size = 2; // Base header size (2 bytes)
-    if (actual_payload_len > 125 && actual_payload_len <= 65535)
-        header_size += 2; // Extended 16-bit length
-    else if (actual_payload_len > 65535)
-        header_size += 8; // Extended 64-bit length
-    
-    // Allocate buffer for the complete frame
-    char *frame = mallocz(header_size + actual_payload_len);
-    
-    // Set first byte: FIN bit, RSV1 bit (for compression) and opcode
-    frame[0] = WS_FIN | (opcode & 0x0F);
-    
-    // Set RSV1 bit if compression was applied
-    if (compressed)
-        frame[0] |= WS_RSV1;
-    
-    // Set second byte: payload length
-    if (actual_payload_len <= 125) {
-        frame[1] = (unsigned char)actual_payload_len;
-    } else if (actual_payload_len <= 65535) {
-        frame[1] = 126;
-        uint16_t len16 = htons((uint16_t)actual_payload_len);
-        memcpy(frame + 2, &len16, 2);
+    // Use the appropriate protocol function based on opcode
+    if (opcode == WS_OPCODE_TEXT) {
+        return websocket_protocol_send_text(wsc, message);
+    } else if (opcode == WS_OPCODE_BINARY) {
+        return websocket_protocol_send_binary(wsc, message, length);
     } else {
-        frame[1] = 127;
-        uint64_t len64 = htobe64((uint64_t)actual_payload_len);
-        memcpy(frame + 2, &len64, 8);
-    }
-    
-    // Copy payload (compressed or original)
-    if (actual_payload_len > 0) {
-        if (compressed)
-            memcpy(frame + header_size, compressed_payload, compressed_len);
-        else if (payload_len > 0)
-            memcpy(frame + header_size, payload, payload_len);
-    }
-    
-    // Calculate the total frame size
-    size_t total_frame_size = header_size + actual_payload_len;
-    
-    // Check if there's already data in the output buffer
-    if (buffer_strlen(wsc->out_buffer) > 0) {
-        // There's already data waiting to be sent, just add this frame to the buffer
-        netdata_log_debug(D_WEBSOCKET, "Client %zu - Output buffer already has %zu bytes, adding frame to buffer",
-                       wsc->id, buffer_strlen(wsc->out_buffer));
+        // For other opcodes, use the generic frame sender
+        bool use_compression = wsc->compression.enabled && 
+                             !websocket_frame_is_control_opcode(opcode) &&
+                             length >= WS_COMPRESS_MIN_SIZE;
         
-        // Add this frame to the output buffer
-        buffer_need_bytes(wsc->out_buffer, total_frame_size);
-        memcpy(&wsc->out_buffer->buffer[wsc->out_buffer->len], frame, total_frame_size);
-        wsc->out_buffer->len += total_frame_size;
-        
-        // Make sure the client is marked for writing
-        if (wsc->thread && wsc->sock.fd >= 0) {
-            websocket_thread_update_client_poll_flags(wsc->thread, wsc, ND_POLL_READ | ND_POLL_WRITE);
-        }
-        
-        // Execute websocket_write_data to attempt to send buffered data immediately
-        websocket_write_data(wsc);
-        
-        freez(frame);
-        freez(compressed_payload);
-        
-        // Return the actual bytes that should be written (even though we're buffering)
-        return total_frame_size;
+        return websocket_protocol_send_frame(wsc, message, length, opcode, use_compression);
     }
-    
-    // We're in the websocket thread, so use non-blocking writes
-    // and buffer any data that couldn't be sent
-    netdata_log_debug(D_WEBSOCKET, "Client %zu - Attempting to send %zu bytes (header: %zu, payload: %zu, compressed: %s)",
-                   wsc->id, total_frame_size, header_size, actual_payload_len, 
-                   compressed ? "yes" : "no");
-                   
-    ssize_t sent = nd_sock_write(&wsc->sock, frame, total_frame_size, 1); // 1 retry
-    
-    if (sent < 0) {
-        if (errno == EAGAIN || errno == EWOULDBLOCK) {
-            // Would block - buffer the entire frame
-            netdata_log_debug(D_WEBSOCKET, "Client %zu - Socket would block, buffering entire frame (%zu bytes)",
-                           wsc->id, total_frame_size);
-            
-            buffer_need_bytes(wsc->out_buffer, total_frame_size);
-            memcpy(&wsc->out_buffer->buffer[wsc->out_buffer->len], frame, total_frame_size);
-            wsc->out_buffer->len += total_frame_size;
-            
-            // Mark for poll to include ND_POLL_WRITE
-            if (wsc->thread && wsc->sock.fd >= 0) {
-                websocket_thread_update_client_poll_flags(wsc->thread, wsc, ND_POLL_READ | ND_POLL_WRITE);
-            }
-            
-            freez(frame);
-            freez(compressed_payload);
-            
-            // Return 0 to indicate no bytes were sent but frame was buffered
-            return 0;
-        }
-        
-        // Other error
-        netdata_log_error("WEBSOCKET: Client %zu - Failed to send frame: %s", 
-                        wsc->id, strerror(errno));
-        freez(frame);
-        freez(compressed_payload);
-        if (wsc->on_error)
-            wsc->on_error(wsc, "Failed to send WebSocket frame");
-        return -1;
-    }
-    
-    netdata_log_debug(D_WEBSOCKET, "Client %zu - Successfully sent %zd bytes", wsc->id, sent);
-    
-    // Check if we sent all data
-    if (sent < (ssize_t)total_frame_size) {
-        // We couldn't send all data - buffer the rest for later sending
-        size_t remaining = total_frame_size - sent;
-        netdata_log_debug(D_WEBSOCKET, "Client %zu - Sent partial frame (%zd/%zu bytes), buffering remaining %zu bytes",
-                       wsc->id, sent, total_frame_size, remaining);
-        
-        buffer_need_bytes(wsc->out_buffer, remaining);
-        memcpy(&wsc->out_buffer->buffer[wsc->out_buffer->len], frame + sent, remaining);
-        wsc->out_buffer->len += remaining;
-        
-        // Mark for poll to include ND_POLL_WRITE
-        if (wsc->thread && wsc->sock.fd >= 0) {
-            websocket_thread_update_client_poll_flags(wsc->thread, wsc, ND_POLL_READ | ND_POLL_WRITE);
-        }
-    }
-    
-    freez(frame);
-    freez(compressed_payload);
-    
-    // Return actual bytes sent to socket
-    return sent;
-}
-
-// Read and parse a WebSocket frame header
-static int websocket_read_frame_header(WEBSOCKET_SERVER_CLIENT *wsc, WEBSOCKET_FRAME_HEADER *header) {
-    // Read initial 2 bytes using ND_SOCK
-    unsigned char buf[2];
-    ssize_t bytes = nd_sock_read(&wsc->sock, buf, 2, 2); // 2 retries
-    
-    if (bytes != 2)
-        return -1;
-    
-    // Parse header fields
-    header->fin = (buf[0] & 0x80) >> 7;
-    header->rsv1 = (buf[0] & 0x40) >> 6;
-    header->rsv2 = (buf[0] & 0x20) >> 5;
-    header->rsv3 = (buf[0] & 0x10) >> 4;
-    header->opcode = buf[0] & 0x0F;
-    header->mask = (buf[1] & 0x80) >> 7;
-    header->len = buf[1] & 0x7F;
-    
-    return 0;
-}
-
-// Receive and process a complete WebSocket frame
-// Note: This function is kept for compatibility, but we should use the buffered approach
-// from websocket_process_frames() in websocket-receiver.c for handling frames
-static int websocket_recv_frame(WEBSOCKET_SERVER_CLIENT *wsc, char **payload, size_t *payload_len, WEBSOCKET_OPCODE *opcode) {
-    // This function can only be used if we have a valid input buffer
-    if (!wsc || !wsc->in_buffer) {
-        netdata_log_error("WEBSOCKET: Cannot receive frame - invalid client or missing buffer");
-        return -1;
-    }
-    
-    // First, try to receive some data into the buffer
-    ssize_t bytes_read = websocket_receive_data(wsc);
-    if (bytes_read < 0) {
-        return -1;  // Error or connection closed
-    }
-    
-    // Process one frame from the buffer
-    int frames = websocket_process_frames_buffered(wsc);
-    if (frames <= 0) {
-        // No complete frames available yet, or error
-        *payload = NULL;
-        *payload_len = 0;
-        return -1;
-    }
-    
-    // The frame was already processed by websocket_process_frames
-    // which calls the appropriate handlers. Just return success.
-    *payload = NULL;
-    *payload_len = 0;
-    *opcode = WS_OPCODE_TEXT; // Default
-    
-    return 0;
-}
-
-// Handle a WebSocket control frame (Close, Ping, Pong)
-static void websocket_handle_control_frame(WEBSOCKET_SERVER_CLIENT *wsc, WEBSOCKET_OPCODE opcode, const char *payload, size_t payload_len) {
-    switch (opcode) {
-        case WS_OPCODE_CLOSE:
-            // Process close frame
-            uint16_t close_code = WS_CLOSE_NORMAL;
-            const char *reason = NULL;
-            
-            if (payload_len >= 2) {
-                // Extract close code from payload
-                memcpy(&close_code, payload, 2);
-                close_code = ntohs(close_code);
-                
-                // Extract reason if present
-                if (payload_len > 2)
-                    reason = payload + 2;
-            }
-            
-            // If we initiated the close, just set to CLOSED state
-            // If client initiated, send a close frame back
-            if (wsc->state != WS_STATE_CLOSING) {
-                websocket_close_client(wsc, close_code, reason);
-            }
-            
-            wsc->state = WS_STATE_CLOSED;
-            break;
-            
-        case WS_OPCODE_PING:
-            // Respond with a pong frame
-            websocket_send_frame(wsc, payload, payload_len, WS_OPCODE_PONG);
-            break;
-            
-        case WS_OPCODE_PONG:
-            // Just ignore pongs - we can use them for latency measurement if needed
-            break;
-            
-        default:
-            // Should never happen as this function is only called for control frames
-            break;
-    }
-}
-
-// Process incoming WebSocket data
-// This function is a wrapper around websocket_receive_and_process_data
-int websocket_process_frames(WEBSOCKET_SERVER_CLIENT *wsc) {
-    if (!wsc || wsc->state == WS_STATE_CLOSED)
-        return -1;
-    
-    // First try to receive data
-    if(websocket_receive_data(wsc) < 0) {
-        return -1;  // Error or connection closed
-    }
-    
-    // Then process any complete frames in the buffer
-    // This is the buffered implementation in websocket-receiver.c
-    extern int websocket_process_frames_buffered(WEBSOCKET_SERVER_CLIENT *wsc);
-    return websocket_process_frames_buffered(wsc);
 }

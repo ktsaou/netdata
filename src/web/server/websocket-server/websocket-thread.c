@@ -60,7 +60,7 @@ static bool websocket_thread_init_poll(WEBSOCKET_THREAD *wth) {
     if(!wth->ndpl) {
         wth->ndpl = nd_poll_create();
         if (!wth->ndpl) {
-            netdata_log_error("WEBSOCKET: Failed to create poll for thread %zu", wth->id);
+            netdata_log_error("WEBSOCKET: Thread %zu: Failed to create poll", wth->id);
             goto cleanup;
         }
     }
@@ -68,20 +68,20 @@ static bool websocket_thread_init_poll(WEBSOCKET_THREAD *wth) {
     // Create command pipe
     if(wth->cmd.pipe[PIPE_READ] == -1 || wth->cmd.pipe[PIPE_WRITE] == -1) {
         if (pipe(wth->cmd.pipe) == -1) {
-            netdata_log_error("WEBSOCKET: Failed to create command pipe for thread %zu: %s", wth->id, strerror(errno));
+            netdata_log_error("WEBSOCKET: Thread %zu: Failed to create command pipe: %s", wth->id, strerror(errno));
             goto cleanup;
         }
 
         // Set pipe to non-blocking
         if(fcntl(wth->cmd.pipe[PIPE_READ], F_SETFL, O_NONBLOCK) == -1) {
-            netdata_log_error("WEBSOCKET: Failed to set command pipe to non-blocking for thread %zu: %s", wth->id, strerror(errno));
+            netdata_log_error("WEBSOCKET: Thread %zu: Failed to set command pipe to non-blocking: %s", wth->id, strerror(errno));
             goto cleanup;
         }
 
         // Add command pipe to poll
         bool added = nd_poll_add(wth->ndpl, wth->cmd.pipe[PIPE_READ], ND_POLL_READ, &wth->cmd);
         if(!added) {
-            netdata_log_error("WEBSOCKET: Failed to add command pipe to poll for thread %zu", wth->id);
+            netdata_log_error("WEBSOCKET: Thread %zu: Failed to add command pipe to poll", wth->id);
             goto cleanup;
         }
     }
@@ -122,12 +122,12 @@ void *websocket_thread(void *ptr) {
 
         // Poll for events
         nd_poll_result_t ev;
-        int rc = nd_poll_wait(wth->ndpl, 100000, &ev); // 100ms timeout
+        int rc = nd_poll_wait(wth->ndpl, 100, &ev); // 100ms timeout
         if(rc < 0) {
             if(errno == EAGAIN || errno == EINTR)
                 continue;
                 
-            netdata_log_error("WEBSOCKET: Poll error in thread %zu: %s", wth->id, strerror(errno));
+            netdata_log_error("WEBSOCKET: Thread %zu: Poll error: %s", wth->id, strerror(errno));
             break;
         }
 
@@ -145,13 +145,13 @@ void *websocket_thread(void *ptr) {
             // Handle client events
             WEBSOCKET_SERVER_CLIENT *wsc = (WEBSOCKET_SERVER_CLIENT *)ev.data;
             if(!wsc) {
-                netdata_log_error("WEBSOCKET: Poll event with NULL client data in thread %zu", wth->id);
+                netdata_log_error("WEBSOCKET: Thread %zu: Poll event with NULL client data", wth->id);
                 continue;
             }
 
             // Check for errors
             if(ev.events & (ND_POLL_ERROR | ND_POLL_HUP)) {
-                netdata_log_error("WEBSOCKET: Client %zu socket error or hangup", wsc->id);
+                websocket_error(wsc, "Socket error or hangup");
                 
                 // Handle disconnection by first closing the connection gracefully if possible
                 if(wsc->state != WS_STATE_CLOSED) {
@@ -185,7 +185,7 @@ void *websocket_thread(void *ptr) {
                 int result = websocket_receive_data(wsc);
                 if(result < 0) {
                     // Error or connection closed
-                    netdata_log_error("WEBSOCKET: Failed to receive data from client %zu", wsc->id);
+                    websocket_error(wsc, "Failed to receive data");
                     
                     // Handle the disconnection more gracefully
                     if(wsc->state != WS_STATE_CLOSED) {
@@ -210,7 +210,7 @@ void *websocket_thread(void *ptr) {
                 int result = websocket_write_data(wsc);
                 if(result < 0) {
                     // Error writing data
-                    netdata_log_error("WEBSOCKET: Failed to write data to client %zu", wsc->id);
+                    websocket_error(wsc, "Failed to write data");
                     
                     // Handle the disconnection gracefully
                     if(wsc->state != WS_STATE_CLOSED) {
@@ -248,7 +248,7 @@ void *websocket_thread(void *ptr) {
                         
                         // If no activity for over 300 seconds (5 minutes), consider it dead
                         if(now - wsc->last_activity_t > 300) {
-                            netdata_log_error("WEBSOCKET: Client %zu timed out (no activity for over 5 minutes)", wsc->id);
+                            websocket_error(wsc, "Client timed out (no activity for over 5 minutes)");
                             websocket_close_client(wsc, 1001, "Timeout - no activity");
                             websocket_thread_send_command(wth, WEBSOCKET_THREAD_CMD_REMOVE_CLIENT, &wsc->id, sizeof(wsc->id));
                         }
@@ -261,7 +261,7 @@ void *websocket_thread(void *ptr) {
                 else if(wsc->state == WS_STATE_CLOSING) {
                     // If a client is in CLOSING state for more than 5 seconds, force close it
                     if(now - wsc->last_activity_t > 5) {
-                        netdata_log_error("WEBSOCKET: Forcing close of client %zu (stuck in CLOSING state)", wsc->id);
+                        websocket_error(wsc, "Forcing close (stuck in CLOSING state)");
                         websocket_thread_send_command(wth, WEBSOCKET_THREAD_CMD_REMOVE_CLIENT, &wsc->id, sizeof(wsc->id));
                     }
                 }
@@ -285,13 +285,13 @@ void *websocket_thread(void *ptr) {
     while(wsc) {
         WEBSOCKET_SERVER_CLIENT *next = wsc->next;
         
-        netdata_log_info("WEBSOCKET: Closing client %zu during thread shutdown", wsc->id);
+        netdata_log_info("WEBSOCKET: Thread %zu: Closing client %zu during thread shutdown", wth->id, wsc->id);
         
         // First remove from the poll to prevent further events
         if (wsc->sock.fd >= 0) {
             bool removed = nd_poll_del(wth->ndpl, wsc->sock.fd);
             if (!removed) {
-                netdata_log_error("WEBSOCKET: Failed to remove client %zu from poll during shutdown", wsc->id);
+                netdata_log_error("WEBSOCKET: Thread %zu: Failed to remove client %zu from poll during shutdown", wth->id, wsc->id);
             }
         }
         
@@ -319,6 +319,15 @@ void *websocket_thread(void *ptr) {
             buffer_free(wsc->out_buffer);
             wsc->out_buffer = NULL;
         }
+        
+        // Clean up any current message
+        if(wsc->current_message) {
+            websocket_message_free(wsc->current_message);
+            wsc->current_message = NULL;
+        }
+        
+        // Clean up compression resources
+        websocket_compression_cleanup(wsc);
         
         // Unregister from global client registry
         websocket_client_unregister(wsc);
@@ -378,7 +387,7 @@ WEBSOCKET_THREAD *websocket_thread_assign_client(WEBSOCKET_SERVER_CLIENT *wsc) {
         // Initialize poll
         if(!websocket_thread_init_poll(wth)) {
             spinlock_unlock(&wth->spinlock);
-            netdata_log_error("WEBSOCKET: Failed to initialize poll for thread %zu", wth->id);
+            netdata_log_error("WEBSOCKET: Thread %zu: Failed to initialize poll", wth->id);
             goto undo;
         }
 
@@ -393,7 +402,7 @@ WEBSOCKET_THREAD *websocket_thread_assign_client(WEBSOCKET_SERVER_CLIENT *wsc) {
 
     // Send command to add client
     if(!websocket_thread_send_command(wth, WEBSOCKET_THREAD_CMD_ADD_CLIENT, &wsc->id, sizeof(wsc->id))) {
-        netdata_log_error("WEBSOCKET: Failed to send add client command to thread %zu", wth->id);
+        netdata_log_error("WEBSOCKET: Thread %zu: Failed to send add client command", wth->id);
         goto undo;
     }
 
@@ -540,7 +549,7 @@ bool websocket_thread_update_client_poll_flags(WEBSOCKET_THREAD *wth, WEBSOCKET_
 // Send command to a thread
 bool websocket_thread_send_command(WEBSOCKET_THREAD *wth, uint8_t cmd, void *data, size_t data_len) {
     if(!wth || wth->cmd.pipe[PIPE_WRITE] == -1) {
-        netdata_log_error("WEBSOCKET: Failed to send command to thread %zu: pipe is not initialized", wth->id);
+        netdata_log_error("WEBSOCKET: Thread %zu: Failed to send command - pipe is not initialized", wth->id);
         return false;
     }
 
@@ -560,7 +569,7 @@ bool websocket_thread_send_command(WEBSOCKET_THREAD *wth, uint8_t cmd, void *dat
     // Write command header
     ssize_t bytes = write(wth->cmd.pipe[PIPE_WRITE], &message, sizeof(message.cmd) + sizeof(message.len));
     if(bytes != sizeof(message.cmd) + sizeof(message.len)) {
-        netdata_log_error("WEBSOCKET: Failed to write command header to thread %zu: %s", wth->id, strerror(errno));
+        netdata_log_error("WEBSOCKET: Thread %zu: Failed to write command header: %s", wth->id, strerror(errno));
         spinlock_unlock(&wth->spinlock);
         return false;
     }
@@ -569,7 +578,7 @@ bool websocket_thread_send_command(WEBSOCKET_THREAD *wth, uint8_t cmd, void *dat
     if(data && data_len > 0) {
         bytes = write(wth->cmd.pipe[PIPE_WRITE], data, data_len);
         if(bytes != (ssize_t)data_len) {
-            netdata_log_error("WEBSOCKET: Failed to write command data to thread %zu: %s", wth->id, strerror(errno));
+            netdata_log_error("WEBSOCKET: Thread %zu: Failed to write command data: %s", wth->id, strerror(errno));
             spinlock_unlock(&wth->spinlock);
             return false;
         }
@@ -599,20 +608,20 @@ void websocket_thread_process_commands(WEBSOCKET_THREAD *wth) {
         ssize_t bytes = read(wth->cmd.pipe[PIPE_READ], &header, sizeof(header));
         if(bytes <= 0) {
             if(bytes < 0 && errno != EAGAIN && errno != EWOULDBLOCK) {
-                netdata_log_error("WEBSOCKET: Failed to read command header from pipe: %s", strerror(errno));
+                netdata_log_error("WEBSOCKET: Thread %zu: Failed to read command header from pipe: %s", wth->id, strerror(errno));
             }
             break;
         }
 
         if(bytes != sizeof(header)) {
-            netdata_log_error("WEBSOCKET: Read partial command header (%zd/%zu bytes)", bytes, sizeof(header));
+            netdata_log_error("WEBSOCKET: Thread %zu: Read partial command header (%zd/%zu bytes)", wth->id, bytes, sizeof(header));
             break;
         }
 
         // Read command data
         if(header.len > 0) {
             if(header.len > sizeof(buffer)) {
-                netdata_log_error("WEBSOCKET: Command data too large (%zu bytes)", header.len);
+                netdata_log_error("WEBSOCKET: Thread %zu: Command data too large (%zu bytes)", wth->id, header.len);
                 // Skip the data
                 size_t to_skip = header.len;
                 while(to_skip > 0) {
@@ -627,7 +636,7 @@ void websocket_thread_process_commands(WEBSOCKET_THREAD *wth) {
 
             bytes = read(wth->cmd.pipe[PIPE_READ], buffer, header.len);
             if(bytes != (ssize_t)header.len) {
-                netdata_log_error("WEBSOCKET: Read partial command data (%zd/%zu bytes)", bytes, header.len);
+                netdata_log_error("WEBSOCKET: Thread %zu: Read partial command data (%zd/%zu bytes)", wth->id, bytes, header.len);
                 break;
             }
         }
@@ -640,13 +649,13 @@ void websocket_thread_process_commands(WEBSOCKET_THREAD *wth) {
 
             case WEBSOCKET_THREAD_CMD_ADD_CLIENT: {
                 if(header.len != sizeof(size_t)) {
-                    netdata_log_error("WEBSOCKET: Invalid add client command size (%zu != %zu)", header.len, sizeof(size_t));
+                    netdata_log_error("WEBSOCKET: Thread %zu: Invalid add client command size (%zu != %zu)", wth->id, header.len, sizeof(size_t));
                     continue;
                 }
                 size_t client_id = *(size_t *)buffer;
                 WEBSOCKET_SERVER_CLIENT *wsc = websocket_client_find_by_id(client_id);
                 if(!wsc) {
-                    netdata_log_error("WEBSOCKET: Client %zu not found for add command", client_id);
+                    netdata_log_error("WEBSOCKET: Thread %zu: Client %zu not found for add command", wth->id, client_id);
                     continue;
                 }
                 websocket_thread_add_client_to_poll(wth, wsc);
@@ -655,13 +664,13 @@ void websocket_thread_process_commands(WEBSOCKET_THREAD *wth) {
 
             case WEBSOCKET_THREAD_CMD_REMOVE_CLIENT: {
                 if(header.len != sizeof(size_t)) {
-                    netdata_log_error("WEBSOCKET: Invalid remove client command size (%zu != %zu)", header.len, sizeof(size_t));
+                    netdata_log_error("WEBSOCKET: Thread %zu: Invalid remove client command size (%zu != %zu)", wth->id, header.len, sizeof(size_t));
                     continue;
                 }
                 size_t client_id = *(size_t *)buffer;
                 WEBSOCKET_SERVER_CLIENT *wsc = websocket_client_find_by_id(client_id);
                 if(!wsc) {
-                    netdata_log_error("WEBSOCKET: Client %zu not found for remove command", client_id);
+                    netdata_log_error("WEBSOCKET: Thread %zu: Client %zu not found for remove command", wth->id, client_id);
                     continue;
                 }
                 
@@ -693,23 +702,26 @@ void websocket_thread_process_commands(WEBSOCKET_THREAD *wth) {
                     wsc->out_buffer = NULL;
                 }
                 
-                if(wsc->message_buffer) {
-                    buffer_free(wsc->message_buffer);
-                    wsc->message_buffer = NULL;
+                if(wsc->current_message) {
+                    websocket_message_free(wsc->current_message);
+                    wsc->current_message = NULL;
                 }
+                
+                // Clean up compression resources
+                websocket_compression_cleanup(wsc);
                 
                 // Unregister from global client registry
                 websocket_client_unregister(wsc);
                 
                 // Finally free the client structure
                 freez(wsc);
-                netdata_log_info("WEBSOCKET: Client %zu removed and resources freed", client_id);
+                netdata_log_info("WEBSOCKET: Thread %zu: Client %zu removed and resources freed", wth->id, client_id);
                 break;
             }
 
             case WEBSOCKET_THREAD_CMD_BROADCAST: {
                 if(header.len < sizeof(size_t) + sizeof(WEBSOCKET_OPCODE)) {
-                    netdata_log_error("WEBSOCKET: Invalid broadcast command size");
+                    netdata_log_error("WEBSOCKET: Thread %zu: Invalid broadcast command size", wth->id);
                     continue;
                 }
                 
@@ -728,7 +740,7 @@ void websocket_thread_process_commands(WEBSOCKET_THREAD *wth) {
                 
                 // Ensure we have the complete message
                 if(header.len != sizeof(size_t) + sizeof(WEBSOCKET_OPCODE) + message_len) {
-                    netdata_log_error("WEBSOCKET: Broadcast command size mismatch");
+                    netdata_log_error("WEBSOCKET: Thread %zu: Broadcast command size mismatch", wth->id);
                     continue;
                 }
                 
@@ -751,7 +763,7 @@ void websocket_thread_process_commands(WEBSOCKET_THREAD *wth) {
             }
 
             default:
-                netdata_log_error("WEBSOCKET: Unknown command %u", header.cmd);
+                netdata_log_error("WEBSOCKET: Thread %zu: Unknown command %u", wth->id, header.cmd);
                 break;
         }
     }
