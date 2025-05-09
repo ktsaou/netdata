@@ -61,10 +61,6 @@ void websocket_buffer_expand(WEBSOCKET_BUFFER *buffer, size_t length) {
     if (!buffer || !length)
         return;
     
-    // Log the buffer append operation with previous and new sizes
-    netdata_log_debug(D_WEBSOCKET, "WEBSOCKET: Buffer append: adding %zu bytes to buffer (previous size: %zu, new size: %zu)",
-                  length, buffer->length, buffer->length + length);
-
     // Check if we need to resize the buffer
     if (buffer->length + length > buffer->alloc_size) {
         // Calculate new size

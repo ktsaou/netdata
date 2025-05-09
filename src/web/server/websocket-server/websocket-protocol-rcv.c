@@ -32,12 +32,11 @@ static bool websocket_protocol_process_message(WEBSOCKET_SERVER_CLIENT *wsc) {
 }
 
 // Helper function to handle frame header parsing
-static bool websocket_protocol_parse_header_from_buffer(WEBSOCKET_SERVER_CLIENT *wsc, const char *buffer, size_t length, 
-                                                      WEBSOCKET_FRAME_HEADER *header, uint64_t *payload_length, 
-                                                      unsigned char *mask_key, size_t *header_size) {
-    if (!wsc || !buffer || !header || !payload_length || !mask_key || !header_size || length < 2)
+static bool websocket_protocol_parse_header_from_buffer(const char *buffer, size_t length, 
+                                                      WEBSOCKET_FRAME_HEADER *header) {
+    if (!buffer || !header || length < 2)
         return false;
-        
+
     // Get first byte - contains FIN bit, RSV bits, and opcode
     unsigned char byte1 = (unsigned char)buffer[0];
     header->fin = (byte1 & WS_FIN) ? 1 : 0;
@@ -52,54 +51,50 @@ static bool websocket_protocol_parse_header_from_buffer(WEBSOCKET_SERVER_CLIENT 
     header->len = byte2 & 0x7F;
     
     // Calculate header size and payload length based on length field
-    *header_size = 2; // Start with 2 bytes for the basic header
+    header->header_size = 2; // Start with 2 bytes for the basic header
     
     // Determine payload length
     if (header->len < 126) {
-        *payload_length = header->len;
+        header->payload_length = header->len;
     } 
     else if (header->len == 126) {
         // 16-bit length
         if (length < 4) return false; // Not enough data
         
-        *payload_length = ((uint64_t)((unsigned char)buffer[2]) << 8) | 
-                         ((uint64_t)((unsigned char)buffer[3]));
-        *header_size += 2;
+        header->payload_length = ((uint64_t)((unsigned char)buffer[2]) << 8) | ((uint64_t)((unsigned char)buffer[3]));
+        header->header_size += 2;
     } 
     else if (header->len == 127) {
         // 64-bit length
         if (length < 10) return false; // Not enough data
         
-        *payload_length = ((uint64_t)((unsigned char)buffer[2]) << 56) | 
-                         ((uint64_t)((unsigned char)buffer[3]) << 48) | 
-                         ((uint64_t)((unsigned char)buffer[4]) << 40) | 
-                         ((uint64_t)((unsigned char)buffer[5]) << 32) | 
-                         ((uint64_t)((unsigned char)buffer[6]) << 24) | 
-                         ((uint64_t)((unsigned char)buffer[7]) << 16) | 
-                         ((uint64_t)((unsigned char)buffer[8]) << 8) | 
-                         ((uint64_t)((unsigned char)buffer[9]));
-        *header_size += 8;
+        header->payload_length =
+            ((uint64_t)((unsigned char)buffer[2]) << 56) | 
+            ((uint64_t)((unsigned char)buffer[3]) << 48) | 
+            ((uint64_t)((unsigned char)buffer[4]) << 40) | 
+            ((uint64_t)((unsigned char)buffer[5]) << 32) | 
+            ((uint64_t)((unsigned char)buffer[6]) << 24) | 
+            ((uint64_t)((unsigned char)buffer[7]) << 16) | 
+            ((uint64_t)((unsigned char)buffer[8]) << 8) | 
+            ((uint64_t)((unsigned char)buffer[9]));
+        header->header_size += 8;
     }
     
     // Read masking key if frame is masked
     if (header->mask) {
-        if (length < *header_size + 4) return false; // Not enough data
+        if (length < header->header_size + 4) return false; // Not enough data
         
         // Copy masking key
-        memcpy(mask_key, buffer + *header_size, 4);
-        *header_size += 4;
+        memcpy(header->mask_key, buffer + header->header_size, 4);
+        header->header_size += 4;
     } else {
         // Clear mask key if not masked
-        memset(mask_key, 0, 4);
+        memset(header->mask_key, 0, 4);
     }
-    
-    // Log detailed header information for debugging
-    websocket_debug(wsc, "PARSED HEADER: FIN=%d, RSV1=%d, RSV2=%d, RSV3=%d, OPCODE=0x%x, MASK=%d, LEN=%d, PAYLOAD_LEN=%llu, HEADER_SIZE=%zu, BUFFER_POS=%zu, BUFFER_LEN=%zu",
-               header->fin, header->rsv1, header->rsv2, header->rsv3, 
-               header->opcode, header->mask, header->len, 
-               (unsigned long long)*payload_length, *header_size, 
-               buffer - wsc->in_buffer->buffer, length);
 
+    header->payload = (void *)&buffer[header->header_size];
+    header->frame_size = header->header_size + header->payload_length;
+    
     return true;
 }
 
@@ -221,6 +216,8 @@ static bool websocket_protocol_process_control_message(WEBSOCKET_SERVER_CLIENT *
 
     switch (opcode) {
         case WS_OPCODE_CLOSE: {
+            worker_is_busy(WORKERS_WEBSOCKET_MSG_CLOSE);
+
             uint16_t code = WS_CLOSE_NORMAL;
             char reason[124];
             reason[0] = '\0';  // Initialize reason string
@@ -255,6 +252,8 @@ static bool websocket_protocol_process_control_message(WEBSOCKET_SERVER_CLIENT *
         }
         
         case WS_OPCODE_PING:
+            worker_is_busy(WORKERS_WEBSOCKET_MSG_PING);
+
             // Ping frame - respond with pong
             websocket_debug(wsc, "Received PING frame with %zu bytes, responding with PONG", payload_length);
             
@@ -262,12 +261,15 @@ static bool websocket_protocol_process_control_message(WEBSOCKET_SERVER_CLIENT *
             return websocket_protocol_send_pong(wsc, payload, payload_length) > 0;
 
         case WS_OPCODE_PONG:
+            worker_is_busy(WORKERS_WEBSOCKET_MSG_PONG);
+
             // Pong frame - update last activity time
             websocket_debug(wsc, "Received PONG frame, updating last activity time");
             wsc->last_activity_t = now_monotonic_sec();
             return true;
 
         default:
+            worker_is_busy(WORKERS_WEBSOCKET_MSG_INVALID);
             break;
     }
 
@@ -289,61 +291,74 @@ websocket_protocol_consume_frame(WEBSOCKET_SERVER_CLIENT *wsc, char *data, size_
     size_t bytes = *bytes_processed; // Make a copy to avoid modifying the original unless successful
 
     // Local variables for frame processing
-    WEBSOCKET_FRAME_HEADER header;
-    uint64_t payload_length = 0;
-    unsigned char mask_key[4];
-    size_t header_size = 0;
+    WEBSOCKET_FRAME_HEADER header = { 0 };
 
     // Step 1: Parse the frame header
-    if (!websocket_protocol_parse_header_from_buffer(wsc, data + bytes, length - bytes,
-                                               &header, &payload_length, mask_key, &header_size)) {
+    if (!websocket_protocol_parse_header_from_buffer(data + bytes, length - bytes, &header)) {
         // Not enough data to parse a complete header
         return WS_FRAME_NEED_MORE_DATA;
     }
     
-    if(payload_length + header_size > wsc->max_message_size)
-        wsc->max_message_size = payload_length + header_size;
+    if(header.frame_size > wsc->max_message_size)
+        wsc->max_message_size = header.frame_size;
 
     // Check if we have enough data for the complete frame (header + payload)
     // If not, don't consume any bytes and wait for more data
-    if (bytes + header_size + payload_length > length) {
-        websocket_debug(wsc, "INCOMPLETE FRAME: header size %zu + payload %llu exceeds available data %zu. Have %zu bytes, need %zu more.",
-                   header_size, (unsigned long long)payload_length, length - bytes, 
-                   length - bytes, (bytes + header_size + payload_length) - length);
+    if (bytes + header.frame_size > length) {
+        worker_is_busy(WORKERS_WEBSOCKET_INCOMPLETE_FRAME);
+        websocket_debug(wsc,
+                        "RX FRAME INCOMPLETE (need %zu bytes more): OPCODE=0x%x, FIN=%s, RSV1=%d, RSV2=%d, RSV3=%d, MASK=%s, LEN=%d, "
+                        "PAYLOAD_LEN=%zu, HEADER_SIZE=%zu, FRAME_SIZE=%zu, MASK=%02x%02x%02x%02x",
+                        (bytes + header.frame_size) - length,
+                        header.opcode, header.fin ? "True" : "False", header.rsv1, header.rsv2, header.rsv3,
+                        header.mask ? "True" : "False", header.len,
+                        header.payload_length, header.header_size, header.frame_size,
+                        header.mask_key[0], header.mask_key[1], header.mask_key[2], header.mask_key[3]);
         return WS_FRAME_NEED_MORE_DATA;
     }
     
+    worker_is_busy(WORKERS_WEBSOCKET_COMPLETE_FRAME);
+
+    // Log detailed header information for debugging
+    websocket_debug(wsc,
+                    "RX FRAME: OPCODE=0x%x, FIN=%s, RSV1=%d, RSV2=%d, RSV3=%d, MASK=%s, LEN=%d, "
+                    "PAYLOAD_LEN=%zu, HEADER_SIZE=%zu, FRAME_SIZE=%zu, MASK=%02x%02x%02x%02x",
+                    header.opcode, header.fin ? "True" : "False", header.rsv1, header.rsv2, header.rsv3,
+                    header.mask ? "True" : "False", header.len,
+                    header.payload_length, header.header_size, header.frame_size,
+                    header.mask_key[0], header.mask_key[1], header.mask_key[2], header.mask_key[3]);
+    
     // Step 2: Validate the frame header
-    if (!websocket_protocol_validate_header(wsc, &header, payload_length, wsc->current_message != NULL)) {
+    if (!websocket_protocol_validate_header(wsc, &header, header.payload_length, wsc->current_message != NULL)) {
         // Invalid frame, close the connection
         websocket_client_send_close(wsc, WS_CLOSE_PROTOCOL_ERROR, "Invalid frame header");
         return WS_FRAME_ERROR;
     }
 
     // Advance past the header
-    bytes += header_size;
+    bytes += header.header_size;
     
     if (websocket_frame_is_control_opcode(header.opcode)) {
         // Handle control frames (PING, PONG, CLOSE) directly
-        websocket_debug(wsc, "Handling control frame: opcode=0x%x, payload_length=%llu",
-                        (unsigned)header.opcode, (unsigned long long)payload_length);
+        websocket_debug(wsc, "Handling control frame: opcode=0x%x, payload_length=%zu",
+                        (unsigned)header.opcode, header.payload_length);
 
         // Process the control frame with optional payload
-        char *payload = (payload_length > 0) ? (data + bytes) : NULL;
+        char *payload = (header.payload_length > 0) ? (data + bytes) : NULL;
 
         // Process control message directly without creating a message object
         if (!websocket_protocol_process_control_message(
                 wsc, (WEBSOCKET_OPCODE)header.opcode,
-                payload, (size_t)payload_length,
+                payload, header.payload_length,
                 header.mask ? true : false,
-                mask_key)) {
+                header.mask_key)) {
             websocket_error(wsc, "Failed to process control frame");
             return WS_FRAME_ERROR;
         }
 
         // Update bytes processed
-        if (payload_length > 0)
-            bytes += (size_t)payload_length;
+        if (header.payload_length > 0)
+            bytes += (size_t)header.payload_length;
 
         *bytes_processed = bytes;
 
@@ -360,7 +375,7 @@ websocket_protocol_consume_frame(WEBSOCKET_SERVER_CLIENT *wsc, char *data, size_
         }
         
         // If it's a zero-length frame, we don't need to append any data
-        if (payload_length == 0) {
+        if (header.payload_length == 0) {
             // For zero-length non-final frames, just update and continue
             if (!header.fin) {
                 // Non-final zero-length frame
@@ -376,10 +391,10 @@ websocket_protocol_consume_frame(WEBSOCKET_SERVER_CLIENT *wsc, char *data, size_
         }
 
         // update the total length of the current message
-        wsc->current_message->total_length += payload_length;
+        wsc->current_message->total_length += header.payload_length;
     }
     else {
-        if(payload_length == 0) {
+        if(!header.payload_length) {
             websocket_debug(wsc, "Received data frame with zero-length payload (fin=%d)", header.fin);
 
             // Create an empty message to be processed
@@ -415,7 +430,7 @@ websocket_protocol_consume_frame(WEBSOCKET_SERVER_CLIENT *wsc, char *data, size_
         }
         
         // Create a new message
-        WEBSOCKET_MESSAGE *msg = websocket_protocol_create_message_from_header(wsc, &header, payload_length);
+        WEBSOCKET_MESSAGE *msg = websocket_protocol_create_message_from_header(wsc, &header, header.payload_length);
         if (!msg) {
             websocket_error(wsc, "Failed to create message");
             return WS_FRAME_ERROR;
@@ -426,20 +441,33 @@ websocket_protocol_consume_frame(WEBSOCKET_SERVER_CLIENT *wsc, char *data, size_
     }
 
     // Step 4: Append payload data to the message
-    websocket_buffer_expand(&wsc->current_message->buffer, payload_length);
 
+    // expand the payload buffer in the message
+    websocket_buffer_expand(&wsc->current_message->buffer, header.payload_length);
+
+    // unmask and copy the payload to its destination
+    char *src = header.payload;
     char *dst = &wsc->current_message->buffer.data[wsc->current_message->buffer.length];
-    if(header.mask)
-        websocket_unmask(dst, data + header_size, payload_length, mask_key);
-    else
-        memcpy(dst, data + header_size, payload_length);
+    if(header.mask) {
+        websocket_debug(wsc, "Unmasking and copying payload data at position %zu (key=%02x%02x%02x%02x)",
+                        wsc->current_message->buffer.length,
+                        header.mask_key[0], header.mask_key[1], header.mask_key[2], header.mask_key[3]);
+        websocket_unmask(dst, src, header.payload_length, header.mask_key);
+    }
+    else {
+        websocket_debug(wsc, "Copying payload data at position %zu (not masked)",
+                        wsc->current_message->buffer.length);
+        memcpy(dst, src, header.payload_length);
+    }
 
-    wsc->current_message->buffer.length += payload_length;
+    wsc->current_message->buffer.length += header.payload_length;
+
+    websocket_dump_debug(wsc, dst, header.payload_length, "final data from frame's payload");
 
     // Step 5: At this point, we know we've processed a complete frame
     wsc->frame_id++;
 
-    bytes += payload_length;
+    bytes += header.payload_length;
     *bytes_processed = bytes;
 
     // If this is a final frame, mark the message as complete
@@ -498,6 +526,8 @@ bool websocket_protocol_got_data(WEBSOCKET_SERVER_CLIENT *wsc, char *data, size_
                 continue;
                 
             case WS_FRAME_MESSAGE_READY:
+                worker_is_busy(WORKERS_WEBSOCKET_MESSAGE);
+
                 wsc->current_message->complete = true;
 
                 if (!websocket_protocol_process_message(wsc)) {

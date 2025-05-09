@@ -37,6 +37,12 @@ typedef struct websocket_frame_header {
     unsigned char opcode:4;
     unsigned char mask:1;
     unsigned char len:7;
+
+    unsigned char mask_key[4];      // Masking key (if present)
+    size_t frame_size;              // Size of the entire frame
+    size_t header_size;             // Size of the header
+    size_t payload_length;          // Length of the payload data
+    void *payload;                  // Pointer to the payload data
 } WEBSOCKET_FRAME_HEADER;
 
 // Buffer for message data (used for reassembly of fragmented messages)
