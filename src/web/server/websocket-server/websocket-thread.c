@@ -104,6 +104,26 @@ cleanup:
     return false;
 }
 
+static void websocket_thread_client_socket_error(WEBSOCKET_THREAD *wth, WEBSOCKET_SERVER_CLIENT *wsc, const char *reason) {
+    worker_is_busy(WORKERS_WEBSOCKET_SOCK_ERROR);
+
+    websocket_error(wsc, reason);
+
+    // Handle the disconnection more gracefully
+    if(wsc->state != WS_STATE_CLOSED) {
+        // Call the close handler if registered
+        if(wsc->on_close) {
+            wsc->on_close(wsc, WS_CLOSE_GOING_AWAY, reason);
+        }
+
+        // Update client state
+        wsc->state = WS_STATE_CLOSED;
+    }
+
+    // Send command to remove the client
+    websocket_thread_send_command(wth, WEBSOCKET_THREAD_CMD_REMOVE_CLIENT, &wsc->id, sizeof(wsc->id));
+}
+
 // Thread main function
 void *websocket_thread(void *ptr) {
     WEBSOCKET_THREAD *wth = (WEBSOCKET_THREAD *)ptr;
@@ -113,16 +133,34 @@ void *websocket_thread(void *ptr) {
         return NULL;
     }
 
-    netdata_log_info("WEBSOCKET: Thread %zu started", wth->id);
+    worker_register("WEBSOCKET");
+    worker_register_job_name(WORKERS_WEBSOCKET_POLL, "poll");
+    worker_register_job_name(WORKERS_WEBSOCKET_CMD_READ, "cmd read");
+    worker_register_job_name(WORKERS_WEBSOCKET_CMD_EXIT, "cmd exit");
+    worker_register_job_name(WORKERS_WEBSOCKET_CMD_ADD, "cmd add");
+    worker_register_job_name(WORKERS_WEBSOCKET_CMD_DEL, "cmd del");
+    worker_register_job_name(WORKERS_WEBSOCKET_CMD_BROADCAST, "cmd bcast");
+    worker_register_job_name(WORKERS_WEBSOCKET_CMD_UNKNOWN, "cmd unknown");
+    worker_register_job_name(WORKERS_WEBSOCKET_SOCK_RECEIVE, "ws rcv");
+    worker_register_job_name(WORKERS_WEBSOCKET_SOCK_SEND, "ws snd");
+    worker_register_job_name(WORKERS_WEBSOCKET_SOCK_ERROR, "ws err");
+    worker_register_job_name(WORKERS_WEBSOCKET_CLIENT_TIMEOUT, "client timeout");
+    worker_register_job_name(WORKERS_WEBSOCKET_PING, "send ping");
+    worker_register_job_name(WORKERS_WEBSOCKET_CLIENT_STUCK, "client stuck");
 
     time_t last_cleanup = now_monotonic_sec();
     
     // Main thread loop
     while(service_running(SERVICE_STREAMING) && !nd_thread_signaled_to_cancel()) {
 
+        worker_is_idle();
+
         // Poll for events
         nd_poll_result_t ev;
         int rc = nd_poll_wait(wth->ndpl, 100, &ev); // 100ms timeout
+
+        worker_is_busy(WORKERS_WEBSOCKET_POLL);
+
         if(rc < 0) {
             if(errno == EAGAIN || errno == EINTR)
                 continue;
@@ -150,85 +188,35 @@ void *websocket_thread(void *ptr) {
             }
 
             // Check for errors
-            if(ev.events & (ND_POLL_ERROR | ND_POLL_HUP)) {
-                websocket_error(wsc, "Socket error or hangup");
-                
-                // Handle disconnection by first closing the connection gracefully if possible
-                if(wsc->state != WS_STATE_CLOSED) {
-                    // Try to send a close frame if socket is still usable
-                    if(!(ev.events & ND_POLL_ERROR)) {
-                        websocket_close_client(wsc, WS_CLOSE_GOING_AWAY, "Connection closed by server");
-                        
-                        // Try to flush any pending data
-                        if(buffer_strlen(wsc->out_buffer) > 0) {
-                            websocket_write_data(wsc);
-                        }
-                    }
-                    
-                    // Call the close handler if registered
-                    if(wsc->on_close) {
-                        wsc->on_close(wsc, WS_CLOSE_GOING_AWAY, "Connection hangup or error");
-                    }
-                }
-                
-                // Update client state
-                wsc->state = WS_STATE_CLOSED;
-                
-                // Send command to remove the client
-                websocket_thread_send_command(wth, WEBSOCKET_THREAD_CMD_REMOVE_CLIENT, &wsc->id, sizeof(wsc->id));
+            if(ev.events & ND_POLL_HUP) {
+                websocket_thread_client_socket_error(wth, wsc, "Client hangup");
+                continue;
+            }
+            if(ev.events & ND_POLL_ERROR) {
+                websocket_thread_client_socket_error(wth, wsc, "Socket error");
                 continue;
             }
 
             // Process read events
             if(ev.events & ND_POLL_READ) {
-                // Handle incoming data
                 int result = websocket_receive_data(wsc);
                 if(result < 0) {
-                    // Error or connection closed
-                    websocket_error(wsc, "Failed to receive data");
-                    
-                    // Handle the disconnection more gracefully
-                    if(wsc->state != WS_STATE_CLOSED) {
-                        // Call the close handler if registered
-                        if(wsc->on_close) {
-                            wsc->on_close(wsc, WS_CLOSE_GOING_AWAY, "Failed to receive data");
-                        }
-                        
-                        // Update client state
-                        wsc->state = WS_STATE_CLOSED;
-                    }
-                    
-                    // Send command to remove the client
-                    websocket_thread_send_command(wth, WEBSOCKET_THREAD_CMD_REMOVE_CLIENT, &wsc->id, sizeof(wsc->id));
+                    websocket_thread_client_socket_error(wth, wsc, "Failed to receive data");
                     continue;
                 }
             }
 
             // Process write events
             if(ev.events & ND_POLL_WRITE) {
-                // Send pending data
                 int result = websocket_write_data(wsc);
                 if(result < 0) {
-                    // Error writing data
-                    websocket_error(wsc, "Failed to write data");
-                    
-                    // Handle the disconnection gracefully
-                    if(wsc->state != WS_STATE_CLOSED) {
-                        // Call the close handler if registered
-                        if(wsc->on_close) {
-                            wsc->on_close(wsc, WS_CLOSE_GOING_AWAY, "Failed to write data");
-                        }
-                        
-                        // Update client state
-                        wsc->state = WS_STATE_CLOSED;
-                    }
-                    
-                    // Send command to remove the client
-                    websocket_thread_send_command(wth, WEBSOCKET_THREAD_CMD_REMOVE_CLIENT, &wsc->id, sizeof(wsc->id));
+                    websocket_thread_client_socket_error(wth, wsc, "Failed to send data");
                     continue;
                 }
             }
         }
+
+        worker_is_idle();
 
         // Periodic cleanup and health checks (every 30 seconds)
         time_t now = now_monotonic_sec();
@@ -244,23 +232,27 @@ void *websocket_thread(void *ptr) {
                     // Check if client is idle (no activity for over 120 seconds)
                     if(now - wsc->last_activity_t > 120) {
                         // Client is idle - send a ping to check if it's still alive
-                        websocket_ping_client(wsc);
+                        worker_is_busy(WORKERS_WEBSOCKET_PING);
+                        websocket_protocol_send_ping(wsc, NULL, 0);
                         
                         // If no activity for over 300 seconds (5 minutes), consider it dead
                         if(now - wsc->last_activity_t > 300) {
+                            worker_is_busy(WORKERS_WEBSOCKET_CLIENT_TIMEOUT);
                             websocket_error(wsc, "Client timed out (no activity for over 5 minutes)");
-                            websocket_close_client(wsc, 1001, "Timeout - no activity");
+                            websocket_client_send_close(wsc, 1001, "Timeout - no activity");
                             websocket_thread_send_command(wth, WEBSOCKET_THREAD_CMD_REMOVE_CLIENT, &wsc->id, sizeof(wsc->id));
                         }
                     }
                     // For normal clients, send periodic pings (every 60 seconds)
                     else if(now - wsc->last_activity_t > 60) {
-                        websocket_ping_client(wsc);
+                        worker_is_busy(WORKERS_WEBSOCKET_PING);
+                        websocket_protocol_send_ping(wsc, NULL, 0);
                     }
                 }
                 else if(wsc->state == WS_STATE_CLOSING) {
                     // If a client is in CLOSING state for more than 5 seconds, force close it
                     if(now - wsc->last_activity_t > 5) {
+                        worker_is_busy(WORKERS_WEBSOCKET_CLIENT_STUCK);
                         websocket_error(wsc, "Forcing close (stuck in CLOSING state)");
                         websocket_thread_send_command(wth, WEBSOCKET_THREAD_CMD_REMOVE_CLIENT, &wsc->id, sizeof(wsc->id));
                     }
@@ -298,43 +290,15 @@ void *websocket_thread(void *ptr) {
         // If client is still connected and not in CLOSED state, send close frame
         if(wsc->sock.fd >= 0 && wsc->state != WS_STATE_CLOSED) {
             // Try to send close frame (ignoring errors)
-            websocket_close_client(wsc, 1001, "Server shutting down");
+            websocket_client_send_close(wsc, 1001, "Server shutting down");
             
             // Flush any pending data - best effort, ignore errors
             if(buffer_strlen(wsc->out_buffer) > 0) {
                 websocket_write_data(wsc);
             }
         }
-        
-        // Close socket if still open
-        nd_sock_close(&wsc->sock);
-        
-        // Free buffers
-        if(wsc->in_buffer) {
-            buffer_free(wsc->in_buffer);
-            wsc->in_buffer = NULL;
-        }
-        
-        if(wsc->out_buffer) {
-            buffer_free(wsc->out_buffer);
-            wsc->out_buffer = NULL;
-        }
-        
-        // Clean up any current message
-        if(wsc->current_message) {
-            websocket_message_free(wsc->current_message);
-            wsc->current_message = NULL;
-        }
-        
-        // Clean up compression resources
-        websocket_compression_cleanup(wsc);
-        
-        // Unregister from global client registry
-        websocket_client_unregister(wsc);
-        
-        // Finally free the client structure
-        freez(wsc);
-        
+
+        websocket_client_free(wsc);
         wsc = next;
     }
     
@@ -605,6 +569,9 @@ void websocket_thread_process_commands(WEBSOCKET_THREAD *wth) {
     // Read all available commands
     for(;;) {
         // Read command header
+
+        worker_is_busy(WORKERS_WEBSOCKET_CMD_READ);
+
         ssize_t bytes = read(wth->cmd.pipe[PIPE_READ], &header, sizeof(header));
         if(bytes <= 0) {
             if(bytes < 0 && errno != EAGAIN && errno != EWOULDBLOCK) {
@@ -644,10 +611,12 @@ void websocket_thread_process_commands(WEBSOCKET_THREAD *wth) {
         // Process command
         switch(header.cmd) {
             case WEBSOCKET_THREAD_CMD_EXIT:
+                worker_is_busy(WORKERS_WEBSOCKET_CMD_EXIT);
                 netdata_log_info("WEBSOCKET: Thread %zu received exit command", wth->id);
                 return;
 
             case WEBSOCKET_THREAD_CMD_ADD_CLIENT: {
+                worker_is_busy(WORKERS_WEBSOCKET_CMD_ADD);
                 if(header.len != sizeof(size_t)) {
                     netdata_log_error("WEBSOCKET: Thread %zu: Invalid add client command size (%zu != %zu)", wth->id, header.len, sizeof(size_t));
                     continue;
@@ -663,10 +632,13 @@ void websocket_thread_process_commands(WEBSOCKET_THREAD *wth) {
             }
 
             case WEBSOCKET_THREAD_CMD_REMOVE_CLIENT: {
+                worker_is_busy(WORKERS_WEBSOCKET_CMD_DEL);
+
                 if(header.len != sizeof(size_t)) {
                     netdata_log_error("WEBSOCKET: Thread %zu: Invalid remove client command size (%zu != %zu)", wth->id, header.len, sizeof(size_t));
                     continue;
                 }
+
                 size_t client_id = *(size_t *)buffer;
                 WEBSOCKET_SERVER_CLIENT *wsc = websocket_client_find_by_id(client_id);
                 if(!wsc) {
@@ -680,46 +652,22 @@ void websocket_thread_process_commands(WEBSOCKET_THREAD *wth) {
                 // If client is still connected and not in CLOSED state, send close frame
                 if(wsc->sock.fd >= 0 && wsc->state != WS_STATE_CLOSED) {
                     // Try to send close frame (ignoring errors)
-                    websocket_close_client(wsc, 1000, "Connection closed by server");
+                    websocket_client_send_close(wsc, 1000, "Connection closed by server");
                     
                     // Flush any pending data - best effort, ignore errors
-                    if(buffer_strlen(wsc->out_buffer) > 0) {
+                    if(buffer_strlen(wsc->out_buffer) > 0)
                         websocket_write_data(wsc);
-                    }
                 }
                 
-                // Close socket if still open
-                nd_sock_close(&wsc->sock);
-                
-                // Free buffers
-                if(wsc->in_buffer) {
-                    buffer_free(wsc->in_buffer);
-                    wsc->in_buffer = NULL;
-                }
-                
-                if(wsc->out_buffer) {
-                    buffer_free(wsc->out_buffer);
-                    wsc->out_buffer = NULL;
-                }
-                
-                if(wsc->current_message) {
-                    websocket_message_free(wsc->current_message);
-                    wsc->current_message = NULL;
-                }
-                
-                // Clean up compression resources
-                websocket_compression_cleanup(wsc);
-                
-                // Unregister from global client registry
-                websocket_client_unregister(wsc);
-                
-                // Finally free the client structure
-                freez(wsc);
+                websocket_client_free(wsc);
+
                 netdata_log_info("WEBSOCKET: Thread %zu: Client %zu removed and resources freed", wth->id, client_id);
                 break;
             }
 
             case WEBSOCKET_THREAD_CMD_BROADCAST: {
+                worker_is_busy(WORKERS_WEBSOCKET_CMD_BROADCAST);
+
                 if(header.len < sizeof(size_t) + sizeof(WEBSOCKET_OPCODE)) {
                     netdata_log_error("WEBSOCKET: Thread %zu: Invalid broadcast command size", wth->id);
                     continue;
@@ -763,6 +711,7 @@ void websocket_thread_process_commands(WEBSOCKET_THREAD *wth) {
             }
 
             default:
+                worker_is_busy(WORKERS_WEBSOCKET_CMD_UNKNOWN);
                 netdata_log_error("WEBSOCKET: Thread %zu: Unknown command %u", wth->id, header.cmd);
                 break;
         }
@@ -770,7 +719,7 @@ void websocket_thread_process_commands(WEBSOCKET_THREAD *wth) {
 }
 
 // Cancel all WebSocket threads
-void websocket_threads_cancel(void) {
+void websocket_threads_join(void) {
     for(size_t i = 0; i < WEBSOCKET_MAX_THREADS; i++) {
         if(websocket_threads[i].thread) {
             // Send exit command

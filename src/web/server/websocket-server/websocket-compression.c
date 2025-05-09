@@ -552,17 +552,8 @@ int websocket_decompress_payload(struct websocket_server_client *wsc, const char
     websocket_debug(wsc, "Beginning decompression of %zu bytes (added 4 trailer bytes)",
                in_len);
                   
-#ifdef NETDATA_INTERNAL_CHECKS
-    // Dump the first few bytes of compressed data in hex format for debugging
-    char comp_hex_dump[128] = "";
-    size_t bytes_to_show = actual_in_len < 16 ? actual_in_len : 16;
-    for (size_t i = 0; i < bytes_to_show; i++) {
-        char *pos = comp_hex_dump + strlen(comp_hex_dump);
-        snprintf(pos, sizeof(comp_hex_dump) - strlen(comp_hex_dump), "%02x ", (unsigned char)actual_in[i]);
-    }
-    websocket_debug(wsc, "Compressed data preview: [%s]%s",
-               comp_hex_dump, actual_in_len > 16 ? "..." : "");
-#endif /* NETDATA_INTERNAL_CHECKS */
+    // Dump compressed data with trailer for debugging
+    websocket_dump_debug(wsc, actual_in, actual_in_len, "Compressed data with trailer for decompression");
     
     // Decompress with loop for multiple buffer expansions if needed
     int ret;
@@ -713,32 +704,8 @@ int websocket_decompress_payload(struct websocket_server_client *wsc, const char
         websocket_debug(wsc, "4-byte trailer added for decompression: [%s]", trailer_hex_dump);
     }
                    
-#ifdef NETDATA_INTERNAL_CHECKS
     // Show a preview of the decompressed data
-    char decomp_hex_dump[128] = "";
-    char ascii_dump[64] = "";
-    size_t bytes_to_dump = *out_len < 16 ? *out_len : 16;
-    
-    for (size_t i = 0; i < bytes_to_dump; i++) {
-        // Add to hex dump
-        char *pos = decomp_hex_dump + strlen(decomp_hex_dump);
-        snprintf(pos, sizeof(decomp_hex_dump) - strlen(decomp_hex_dump), "%02x ", (unsigned char)(*out)[i]);
-        
-        // Add to ASCII dump
-        unsigned char c = (unsigned char)(*out)[i];
-        if (isprint(c)) {
-            pos = ascii_dump + strlen(ascii_dump);
-            snprintf(pos, sizeof(ascii_dump) - strlen(ascii_dump), "%c", c);
-        } else {
-            pos = ascii_dump + strlen(ascii_dump);
-            snprintf(pos, sizeof(ascii_dump) - strlen(ascii_dump), ".");
-        }
-    }
-    
-    websocket_debug(wsc, "Decompressed data preview: [%s] \"%s\"%s",
-                decomp_hex_dump, ascii_dump, 
-                *out_len > 16 ? "..." : "");
-#endif /* NETDATA_INTERNAL_CHECKS */
+    websocket_dump_debug(wsc, *out, *out_len, "Decompressed data preview");
     
     return 1;  // Successfully decompressed
 }

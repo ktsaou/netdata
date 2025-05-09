@@ -6,6 +6,20 @@
 // Maximum number of WebSocket threads
 #define WEBSOCKET_MAX_THREADS 2
 
+#define WORKERS_WEBSOCKET_POLL              0
+#define WORKERS_WEBSOCKET_CMD_READ          1
+#define WORKERS_WEBSOCKET_CMD_EXIT          2
+#define WORKERS_WEBSOCKET_CMD_ADD           3
+#define WORKERS_WEBSOCKET_CMD_DEL           4
+#define WORKERS_WEBSOCKET_CMD_BROADCAST     5
+#define WORKERS_WEBSOCKET_CMD_UNKNOWN       6
+#define WORKERS_WEBSOCKET_SOCK_RECEIVE      7
+#define WORKERS_WEBSOCKET_SOCK_SEND         8
+#define WORKERS_WEBSOCKET_SOCK_ERROR        9
+#define WORKERS_WEBSOCKET_CLIENT_TIMEOUT    10
+#define WORKERS_WEBSOCKET_PING              11
+#define WORKERS_WEBSOCKET_CLIENT_STUCK      12
+
 // WebSocket frame opcodes as per RFC 6455
 typedef enum __attribute__((packed)) {
     WS_OPCODE_CONTINUATION = 0x0,
@@ -111,7 +125,7 @@ void websocket_threads_init(void);
 WEBSOCKET_THREAD *websocket_thread_assign_client(struct websocket_server_client *wsc);
 bool websocket_thread_add_client_to_poll(WEBSOCKET_THREAD *wth, struct websocket_server_client *wsc);
 void websocket_thread_remove_client_from_poll(WEBSOCKET_THREAD *wth, struct websocket_server_client *wsc);
-void websocket_threads_cancel(void);
+void websocket_threads_join(void);
 bool websocket_thread_send_command(WEBSOCKET_THREAD *wth, uint8_t cmd, void *data, size_t data_len);
 void websocket_thread_process_commands(WEBSOCKET_THREAD *wth);
 void *websocket_thread(void *ptr);
@@ -134,6 +148,7 @@ bool websocket_validate_close_code(uint16_t code);
 void websocket_debug(WEBSOCKET_SERVER_CLIENT *wsc, const char *format, ...);
 void websocket_info(WEBSOCKET_SERVER_CLIENT *wsc, const char *format, ...);
 void websocket_error(WEBSOCKET_SERVER_CLIENT *wsc, const char *format, ...);
+void websocket_dump_debug(WEBSOCKET_SERVER_CLIENT *wsc, const char *payload, size_t payload_length, const char *format, ...);
 
 // Frame processing result codes
 typedef enum {
@@ -174,8 +189,7 @@ int websocket_receive_data(struct websocket_server_client *wsc);
 int websocket_write_data(struct websocket_server_client *wsc);
 
 // Legacy functions to be eventually replaced
-void websocket_close_client(struct websocket_server_client *wsc, int code, const char *reason);
-void websocket_ping_client(struct websocket_server_client *wsc);
+void websocket_client_send_close(WEBSOCKET_SERVER_CLIENT *wsc, int close_code, const char *reason);
 
 // WebSocket message sending functions
 int websocket_send_message(WEBSOCKET_SERVER_CLIENT *wsc, const char *message, size_t length, WEBSOCKET_OPCODE opcode);

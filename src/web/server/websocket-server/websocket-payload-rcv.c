@@ -35,7 +35,12 @@ void websocket_payload_free(WEBSOCKET_PAYLOAD *payload) {
 
 // Process a payload - this is the main entry point for the payload layer
 bool websocket_payload_process(WEBSOCKET_SERVER_CLIENT *wsc, WEBSOCKET_PAYLOAD *payload) {
-    if (!wsc || !payload || !payload->data || !payload->length)
+    if (!wsc || !payload)
+        return false;
+
+    // All payloads should have a valid data pointer (even empty ones)
+    // Our payload preparation ensures this
+    if (!payload->data)
         return false;
         
     // Process based on opcode
@@ -76,45 +81,48 @@ bool websocket_payload_process(WEBSOCKET_SERVER_CLIENT *wsc, WEBSOCKET_PAYLOAD *
 
 // Echo a payload back to the client - useful for testing
 int websocket_payload_echo(WEBSOCKET_SERVER_CLIENT *wsc, WEBSOCKET_PAYLOAD *payload) {
-    if (!wsc || !payload || !payload->data || !payload->length)
+    if (!wsc || !payload)
+        return -1;
+
+    // All payloads should have a valid data pointer (even empty ones)
+    // Our payload preparation ensures this
+    if (!payload->data)
         return -1;
         
     websocket_debug(wsc, "Echoing payload: type=%s, length=%zu",
                payload->is_binary ? "binary" : "text", payload->length);
-    
-#ifdef NETDATA_INTERNAL_CHECKS
-    // Log the payload data (hex dump and text for small payloads)
-    char payload_dump[128] = "";
-    for (size_t i = 0; i < payload->length && i < 16; i++) {
-        char *pos = payload_dump + strlen(payload_dump);
-        snprintf(pos, sizeof(payload_dump) - strlen(payload_dump), "%02x ", (unsigned char)payload->data[i]);
-    }
-    websocket_debug(wsc, "Echo payload data: %s%s",
-               payload_dump, payload->length > 16 ? "..." : "");
-    
-    // For small text payloads, log the actual content
-    if (!payload->is_binary && payload->length < 100) {
-        char text_preview[101];
-        strncpy(text_preview, payload->data, payload->length > 100 ? 100 : payload->length);
-        text_preview[payload->length > 100 ? 100 : payload->length] = '\0';
-        websocket_debug(wsc, "Echo text content: '%s'", text_preview);
-    }
-#endif /* NETDATA_INTERNAL_CHECKS */
+
+    // Dump payload data for debugging
+    websocket_dump_debug(wsc, payload->data, payload->length,
+                      "Echo payload %s data", payload->is_binary ? "binary" : "text");
     
     int result;
     
     // Echo the payload with the same opcode
     if (payload->is_binary) {
         websocket_debug(wsc, "Sending binary echo response");
-        result = websocket_protocol_send_binary(wsc, payload->data, payload->length);
+        // Only send if we have valid data
+        if (payload->data && payload->length > 0) {
+            result = websocket_protocol_send_binary(wsc, payload->data, payload->length);
+        } else {
+            // Empty binary message
+            result = websocket_protocol_send_binary(wsc, "", 0);
+        }
     } else {
         websocket_debug(wsc, "Sending text echo response");
-        
+
         // Create a properly null-terminated copy of the text data for sending
         // This prevents sending garbage bytes beyond the actual payload length
-        char *text_copy = strndupz(payload->data, payload->length);
-        result = websocket_protocol_send_text(wsc, text_copy);
-        freez(text_copy);
+        if (payload->data && payload->length > 0) {
+            char *text_copy = mallocz(payload->length + 1);
+            memcpy(text_copy, payload->data, payload->length);
+            text_copy[payload->length] = '\0';
+            result = websocket_protocol_send_text(wsc, text_copy);
+            freez(text_copy);
+        } else {
+            // Empty text message
+            result = websocket_protocol_send_text(wsc, "");
+        }
     }
     
     websocket_debug(wsc, "Echo response result: %d", result);

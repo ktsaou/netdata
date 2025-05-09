@@ -316,7 +316,7 @@ websocket_protocol_consume_frame(WEBSOCKET_SERVER_CLIENT *wsc, char *data, size_
     // Step 2: Validate the frame header
     if (!websocket_protocol_validate_header(wsc, &header, payload_length, wsc->current_message != NULL)) {
         // Invalid frame, close the connection
-        websocket_close_client(wsc, WS_CLOSE_PROTOCOL_ERROR, "Invalid frame header");
+        websocket_client_send_close(wsc, WS_CLOSE_PROTOCOL_ERROR, "Invalid frame header");
         return WS_FRAME_ERROR;
     }
 
@@ -355,7 +355,7 @@ websocket_protocol_consume_frame(WEBSOCKET_SERVER_CLIENT *wsc, char *data, size_
         // This is a continuation frame - need an existing message
         if (!wsc->current_message) {
             websocket_error(wsc, "Received continuation frame with no message in progress");
-            websocket_close_client(wsc, WS_CLOSE_PROTOCOL_ERROR, "Invalid continuation frame");
+            websocket_client_send_close(wsc, WS_CLOSE_PROTOCOL_ERROR, "Invalid continuation frame");
             return WS_FRAME_ERROR;
         }
         
@@ -380,18 +380,37 @@ websocket_protocol_consume_frame(WEBSOCKET_SERVER_CLIENT *wsc, char *data, size_
     }
     else {
         if(payload_length == 0) {
-            websocket_debug(wsc, "Received data frame with zero-length payload");
-            *bytes_processed = bytes;
-            wsc->frame_id = 0;
-            wsc->message_id++;
-            return WS_FRAME_COMPLETE;
+            websocket_debug(wsc, "Received data frame with zero-length payload (fin=%d)", header.fin);
+
+            // Create an empty message to be processed
+            WEBSOCKET_MESSAGE *msg = websocket_protocol_create_message_from_header(wsc, &header, 0);
+            if (!msg) {
+                websocket_error(wsc, "Failed to create message for empty payload");
+                return WS_FRAME_ERROR;
+            }
+
+            // Store the message
+            wsc->current_message = msg;
+
+            // Check if this is a final frame
+            if (header.fin) {
+                // Final frame - mark message as complete and return message ready
+                wsc->current_message->complete = true;
+                *bytes_processed = bytes;
+                return WS_FRAME_MESSAGE_READY;
+            } else {
+                // Non-final frame - continue to next frame
+                *bytes_processed = bytes;
+                wsc->frame_id++;
+                return WS_FRAME_COMPLETE;
+            }
         }
 
         // This is a new data frame (TEXT or BINARY)
         // If we have an existing message, it's an error
         if (wsc->current_message) {
             websocket_error(wsc, "Received new data frame while another message is in progress");
-            websocket_close_client(wsc, WS_CLOSE_PROTOCOL_ERROR, "Invalid new data frame");
+            websocket_client_send_close(wsc, WS_CLOSE_PROTOCOL_ERROR, "Invalid new data frame");
             return WS_FRAME_ERROR;
         }
         

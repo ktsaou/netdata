@@ -3,6 +3,8 @@
 
 // Process incoming WebSocket data
 int websocket_receive_data(WEBSOCKET_SERVER_CLIENT *wsc) {
+    worker_is_busy(WORKERS_WEBSOCKET_SOCK_RECEIVE);
+
     if (!wsc || !wsc->in_buffer || wsc->sock.fd < 0)
         return -1;
 
@@ -38,7 +40,10 @@ int websocket_receive_data(WEBSOCKET_SERVER_CLIENT *wsc) {
 
     // Update buffer length
     wsc->in_buffer->len += bytes_read;
-    
+
+    // Dump the received data for debugging
+    websocket_dump_debug(wsc, buffer_pos, bytes_read, "READ %zd bytes", bytes_read);
+
     // Update last activity time
     wsc->last_activity_t = now_monotonic_sec();
 
@@ -91,50 +96,16 @@ int websocket_receive_data(WEBSOCKET_SERVER_CLIENT *wsc) {
 
 // Actually write data to the client socket
 int websocket_write_data(WEBSOCKET_SERVER_CLIENT *wsc) {
+    worker_is_busy(WORKERS_WEBSOCKET_SOCK_SEND);
+
     if (!wsc || !wsc->out_buffer || wsc->sock.fd < 0 || buffer_strlen(wsc->out_buffer) == 0)
         return 0;
 
-#ifdef NETDATA_INTERNAL_CHECKS
-    // Create a hex dump of the first 20 bytes being sent for logging
-    char hex_dump[256] = "";
-    char ascii_dump[64] = "";
-    size_t hex_pos = 0;
-    size_t ascii_pos = 0;
-    size_t data_length = buffer_strlen(wsc->out_buffer);
-    size_t bytes_to_show = data_length < 20 ? data_length : 20;
-    const char *data = buffer_tostring(wsc->out_buffer);
-    
-    // Build the hex and ASCII representations
-    for (size_t i = 0; i < bytes_to_show; i++) {
-        unsigned char c = (unsigned char)data[i];
-        
-        // Add to hex dump
-        int chars_added = snprintf(hex_dump + hex_pos, sizeof(hex_dump) - hex_pos, "%02x ", c);
-        if (chars_added > 0) {
-            hex_pos += chars_added;
-        }
-        
-        // Add to ASCII dump
-        if (isprint(c)) {
-            int chars_added = snprintf(ascii_dump + ascii_pos, sizeof(ascii_dump) - ascii_pos, "%c", c);
-            if (chars_added > 0) {
-                ascii_pos += chars_added;
-            }
-        } else {
-            int chars_added = snprintf(ascii_dump + ascii_pos, sizeof(ascii_dump) - ascii_pos, ".");
-            if (chars_added > 0) {
-                ascii_pos += chars_added;
-            }
-        }
-    }
-    
-    websocket_debug(wsc, "WRITE %zu bytes: [%s] \"%s\"%s",
-                data_length, hex_dump, ascii_dump, 
-                data_length > 20 ? " (more bytes not shown)" : "");
-#else
     const char *data = buffer_tostring(wsc->out_buffer);
     size_t data_length = buffer_strlen(wsc->out_buffer);
-#endif /* NETDATA_INTERNAL_CHECKS */
+
+    // Dump the data being written for debugging
+    websocket_dump_debug(wsc, data, data_length, "WRITE %zu bytes", data_length);
 
     // In the websocket thread we want non-blocking behavior
     // Use nd_sock_write with a single retry
@@ -181,24 +152,16 @@ int websocket_write_data(WEBSOCKET_SERVER_CLIENT *wsc) {
 
 // Handle socket takeover from web client - similar to stream_receiver_takeover_web_connection
 void websocket_takeover_connection(struct web_client *w, WEBSOCKET_SERVER_CLIENT *wsc) {
-    // First initialize the ND_SOCK with the web server's SSL context
-    nd_sock_init(&wsc->sock, netdata_ssl_web_server_ctx, false);
-
     // Now set the file descriptor and ssl from the web client
     wsc->sock.fd = w->fd;
     wsc->sock.ssl = w->ssl;
 
-    // Copy client information
-    strncpyz(wsc->client_ip, w->client_ip, sizeof(wsc->client_ip));
-    strncpyz(wsc->client_port, w->client_port, sizeof(wsc->client_port));
-    wsc->protocol = w->websocket.protocol;
-
-    // Initialize buffers
-    wsc->in_buffer = buffer_create(NETDATA_WEB_REQUEST_INITIAL_SIZE, NULL);
-    wsc->out_buffer = buffer_create(NETDATA_WEB_RESPONSE_INITIAL_SIZE, NULL);
-
     // Take over the socket but don't close it when cleaning up the web client
     w->ssl = NETDATA_SSL_UNSET_CONNECTION;
+
+    web_client_disable_wait_receive(w);
+    web_client_disable_wait_send(w);
+
     WEB_CLIENT_IS_DEAD(w);
 
     if(web_server_mode == WEB_SERVER_MODE_STATIC_THREADED) {
@@ -208,71 +171,12 @@ void websocket_takeover_connection(struct web_client *w, WEBSOCKET_SERVER_CLIENT
         w->fd = -1;
     }
 
-    // Initialize compression if permessage-deflate extension is enabled
-    if (w->websocket.ext_flags & WS_EXTENSION_PERMESSAGE_DEFLATE) {
-        // Initialize the compression with the original extension string for parameter parsing
-        websocket_compression_init(wsc, w->websocket.extensions);
-    }
-
-    // Send the handshake response using ND_SOCK - we're still in the web server thread,
-    // so we need to use the persist version to ensure the complete handshake is sent
-    ssize_t bytes = nd_sock_write_persist(&wsc->sock, buffer_tostring(w->response.header_output), buffer_strlen(w->response.header_output), 20); // Try up to 20 chunks
-
-    if (bytes != (ssize_t)buffer_strlen(w->response.header_output)) {
-        netdata_log_error("WEBSOCKET: Failed to send complete WebSocket handshake response"); // No client yet
-        websocket_client_free(wsc);
-        return;
-    }
-
-    // Now that we've sent the handshake response successfully, set the connection state to open
-    wsc->state = WS_STATE_OPEN;
-
-    // Register the client in our registry
-    if (!websocket_client_register(wsc)) {
-        websocket_error(wsc, "Failed to register WebSocket client");
-        websocket_client_free(wsc);
-        return;
-    }
-
-    // Initialize current message to NULL
-    wsc->current_message = NULL;
-
-    // Set socket to non-blocking mode
-    if (fcntl(wsc->sock.fd, F_SETFL, O_NONBLOCK) == -1) {
-        websocket_error(wsc, "Failed to set WebSocket socket to non-blocking mode");
-        websocket_client_free(wsc);
-        return;
-    }
-
-    // Assign to a thread
-    WEBSOCKET_THREAD *wth = websocket_thread_assign_client(wsc);
-    if (!wth) {
-        websocket_error(wsc, "Failed to assign WebSocket client to a thread");
-        websocket_client_free(wsc);
-        return;
-    }
-
-    nd_log(NDLS_DAEMON, NDLP_DEBUG,
-           "WebSocket connection established with %s:%s using protocol: %s (client ID: %zu, thread: %zu)",
-           wsc->client_ip, wsc->client_port,
-           (wsc->protocol == WS_PROTOCOL_NETDATA_JSON) ? "netdata-json" : "unknown",
-           wsc->id, wth->id);
-           
-    websocket_info(wsc, "Connection established on thread %zu using protocol: %s", 
-                wth->id, (wsc->protocol == WS_PROTOCOL_NETDATA_JSON) ? "netdata-json" : "unknown");
-}
-
-// Legacy function to ping client - redirects to our new protocol layer
-void websocket_ping_client(WEBSOCKET_SERVER_CLIENT *wsc) {
-    if (!wsc)
-        return;
-    
-    // Use new protocol layer to send ping
-    websocket_protocol_send_ping(wsc, NULL, 0);
+    buffer_flush(w->response.data);
+    buffer_flush(w->response.header_output);
 }
 
 // Close a WebSocket connection with a specific code and reason
-void websocket_close_client(WEBSOCKET_SERVER_CLIENT *wsc, int close_code, const char *reason) {
+void websocket_client_send_close(WEBSOCKET_SERVER_CLIENT *wsc, int close_code, const char *reason) {
     if (!wsc || wsc->state == WS_STATE_CLOSED)
         return;
 

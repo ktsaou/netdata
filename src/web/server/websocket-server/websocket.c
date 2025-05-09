@@ -29,10 +29,6 @@ bool websocket_detect_handshake_request(struct web_client *w) {
     if (!web_client_is_websocket(w) || !w->websocket.key)
         return false;
     
-    // We must have a supported protocol
-    if (w->websocket.protocol == WS_PROTOCOL_UNKNOWN)
-        return false;
-        
     return true;
 }
 
@@ -56,6 +52,41 @@ char *websocket_generate_handshake_key(const char *client_key) {
     return accept_key;
 }
 
+bool websocket_send_first_response(WEBSOCKET_SERVER_CLIENT *wsc, const char *accept_key, const char *extensions) {
+    CLEAN_BUFFER *header = buffer_create(1024, NULL);
+
+    buffer_sprintf(header,
+                   "HTTP/1.1 101 Switching Protocols\r\n"
+                   "Upgrade: websocket\r\n"
+                   "Connection: Upgrade\r\n"
+                   "Sec-WebSocket-Accept: %s\r\n",
+                   accept_key
+    );
+
+    // Add the selected subprotocol
+    if (wsc->protocol == WS_PROTOCOL_NETDATA_JSON)
+        buffer_strcat(header, "Sec-WebSocket-Protocol: netdata-json\r\n");
+
+    // Check for WebSocket compression extension
+    if (extensions && websocket_compression_supported()) {
+        // Negotiate compression if extensions are requested
+        char *used_extensions = websocket_compression_negotiate(wsc, extensions);
+        if (used_extensions) {
+            buffer_sprintf(header, "Sec-WebSocket-Extensions: %s\r\n", used_extensions);
+            freez(used_extensions);
+        }
+    }
+
+    // End of headers
+    buffer_strcat(header, "\r\n");
+
+    // Send the handshake response using ND_SOCK - we're still in the web server thread,
+    // so we need to use the persist version to ensure the complete handshake is sent
+    ssize_t bytes = nd_sock_write_persist(&wsc->sock, buffer_tostring(header), buffer_strlen(header), 20); // Try up to 20 chunks
+
+    return bytes == (ssize_t)buffer_strlen(header);
+}
+
 // Handle the WebSocket handshake procedure
 short int websocket_handle_handshake(struct web_client *w) {
     if (!websocket_detect_handshake_request(w))
@@ -68,62 +99,65 @@ short int websocket_handle_handshake(struct web_client *w) {
     
     // Create the WebSocket client object early so we can set up compression
     WEBSOCKET_SERVER_CLIENT *wsc = websocket_client_create();
-    if (!wsc) {
-        netdata_log_error("WEBSOCKET: Failed to create WebSocket client");
-        freez(accept_key);
-        return HTTP_RESP_INTERNAL_SERVER_ERROR;
-    }
-    
-    // Build the handshake response
-    buffer_flush(w->response.header_output);
-    buffer_flush(w->response.data);
-    
-    buffer_sprintf(w->response.header_output,
-        "HTTP/1.1 101 Switching Protocols\r\n"
-        "Upgrade: websocket\r\n"
-        "Connection: Upgrade\r\n"
-        "Sec-WebSocket-Accept: %s\r\n",
-        accept_key
-    );
-    
-    // Add the selected subprotocol
-    if (w->websocket.protocol == WS_PROTOCOL_NETDATA_JSON) {
-        buffer_strcat(w->response.header_output, "Sec-WebSocket-Protocol: netdata-json\r\n");
-    } 
-    else {
-        // We should never get here as we validate protocols in websocket_detect_handshake_request
-        freez(accept_key);
-        websocket_client_free(wsc);
-        return HTTP_RESP_BAD_REQUEST;
-    }
-    
-    // Check for WebSocket compression extension
-    if (w->websocket.extensions && websocket_compression_supported()) {
-        // Negotiate compression if extensions are requested
-        char *extensions = websocket_compression_negotiate(wsc, w->websocket.extensions);
-        if (extensions) {
-            buffer_sprintf(w->response.header_output, "Sec-WebSocket-Extensions: %s\r\n", extensions);
-            freez(extensions);
-            
-            netdata_log_info("WEBSOCKET: Compression negotiated with client: %s", 
-                         wsc->compression.enabled ? "enabled" : "disabled");
-        }
-    }
-    
-    // End of headers
-    buffer_strcat(w->response.header_output, "\r\n");
-    
-    freez(accept_key);
-    
+
+    // Copy client information
+    strncpyz(wsc->client_ip, w->client_ip, sizeof(wsc->client_ip));
+    strncpyz(wsc->client_port, w->client_port, sizeof(wsc->client_port));
+    wsc->protocol = w->websocket.protocol;
+
     // Take over the connection immediately
     websocket_takeover_connection(w, wsc);
-    
-    w->mode = HTTP_REQUEST_MODE_WEBSOCKET;
-    web_client_disable_wait_receive(w);
-    
-    netdata_log_debug(D_WEB_CLIENT, "%llu: WebSocket handshake successful, protocol: netdata-json, compression: %s", 
-                   w->id, wsc->compression.enabled ? "enabled" : "disabled");
-    
+
+    if(!websocket_send_first_response(wsc, accept_key, w->websocket.extensions)) {
+        netdata_log_error("WEBSOCKET: Failed to send complete WebSocket handshake response"); // No client yet
+        freez(accept_key);
+        websocket_client_free(wsc);
+        return HTTP_RESP_INTERNAL_SERVER_ERROR;
+    }
+
+    freez(accept_key);
+
+    // Now that we've sent the handshake response successfully, set the connection state to open
+    wsc->state = WS_STATE_OPEN;
+
+    // Register the client in our registry
+    if (!websocket_client_register(wsc)) {
+        websocket_error(wsc, "Failed to register WebSocket client");
+        websocket_client_free(wsc);
+        return HTTP_RESP_WEBSOCKET_HANDSHAKE;
+    }
+
+    // Initialize current message to NULL
+    wsc->current_message = NULL;
+
+    // Set socket to non-blocking mode
+    if (fcntl(wsc->sock.fd, F_SETFL, O_NONBLOCK) == -1) {
+        websocket_error(wsc, "Failed to set WebSocket socket to non-blocking mode");
+        websocket_client_free(wsc);
+        return HTTP_RESP_WEBSOCKET_HANDSHAKE;
+    }
+
+    // Assign to a thread
+    WEBSOCKET_THREAD *wth = websocket_thread_assign_client(wsc);
+    if (!wth) {
+        websocket_error(wsc, "Failed to assign WebSocket client to a thread");
+        websocket_client_free(wsc);
+        return HTTP_RESP_WEBSOCKET_HANDSHAKE;
+    }
+
+    // Initialize compression if permessage-deflate extension is enabled
+    if (w->websocket.ext_flags & WS_EXTENSION_PERMESSAGE_DEFLATE) {
+        // Initialize the compression with the original extension string for parameter parsing
+        websocket_compression_init(wsc, w->websocket.extensions);
+    }
+
+    nd_log(NDLS_DAEMON, NDLP_DEBUG,
+           "WebSocket connection established with %s:%s using protocol: %s (client ID: %zu, thread: %zu), compression: %s",
+           wsc->client_ip, wsc->client_port,
+           (wsc->protocol == WS_PROTOCOL_NETDATA_JSON) ? "netdata-json" : "unknown",
+           wsc->id, wth->id,
+           wsc->compression.enabled ? "enabled" : "disabled");
+
     // Important: This code doesn't actually get sent to the client since we've already
     // taken over the socket. It's just used by the caller to identify what happened.
     return HTTP_RESP_WEBSOCKET_HANDSHAKE;
@@ -139,6 +173,7 @@ void websocket_initialize(void) {
 }
 
 // Create a new WebSocket client with a unique ID
+NEVERNULL
 static WEBSOCKET_SERVER_CLIENT *websocket_client_create(void) {
     WEBSOCKET_SERVER_CLIENT *wsc = callocz(1, sizeof(WEBSOCKET_SERVER_CLIENT));
     
@@ -149,6 +184,13 @@ static WEBSOCKET_SERVER_CLIENT *websocket_client_create(void) {
     wsc->connected_t = now_realtime_sec();
     wsc->last_activity_t = wsc->connected_t;
     
+    // initialize the ND_SOCK with the web server's SSL context
+    nd_sock_init(&wsc->sock, netdata_ssl_web_server_ctx, false);
+
+    // Initialize buffers
+    wsc->in_buffer = buffer_create(NETDATA_WEB_REQUEST_INITIAL_SIZE, NULL);
+    wsc->out_buffer = buffer_create(NETDATA_WEB_RESPONSE_INITIAL_SIZE, NULL);
+
     return wsc;
 }
 
@@ -164,15 +206,11 @@ void websocket_client_free(WEBSOCKET_SERVER_CLIENT *wsc) {
     nd_sock_close(&wsc->sock);
     
     // Free buffers
-    if (wsc->in_buffer)
-        buffer_free(wsc->in_buffer);
-    
-    if (wsc->out_buffer)
-        buffer_free(wsc->out_buffer);
+    buffer_free(wsc->in_buffer);
+    buffer_free(wsc->out_buffer);
         
     // Free current message if any
-    if (wsc->current_message)
-        websocket_message_free(wsc->current_message);
+    websocket_message_free(wsc->current_message);
     
     // Clean up compression resources if needed
     websocket_compression_cleanup(wsc);

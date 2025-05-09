@@ -146,7 +146,12 @@ bool websocket_frame_is_control_opcode(WEBSOCKET_OPCODE opcode) {
 
 // Convert a message to a payload structure ready for application processing
 WEBSOCKET_PAYLOAD *websocket_message_prepare_payload(WEBSOCKET_SERVER_CLIENT *wsc, WEBSOCKET_MESSAGE *msg) {
-    if (!wsc || !msg || !msg->buffer.data || msg->buffer.length == 0)
+    if (!wsc || !msg)
+        return NULL;
+
+    // Empty messages (length=0) are valid in WebSocket and should create an empty payload
+    // We only need to check for msg->buffer.data if length is > 0
+    if (msg->buffer.length > 0 && !msg->buffer.data)
         return NULL;
         
     websocket_debug(wsc, "Preparing payload from message (opcode=0x%x, is_compressed=%d, length=%zu, fragmented=%d)",
@@ -167,24 +172,12 @@ WEBSOCKET_PAYLOAD *websocket_message_prepare_payload(WEBSOCKET_SERVER_CLIENT *ws
         // Compressed message - needs decompression
         char *uncompressed_data = NULL;
         size_t uncompressed_length = 0;
-        
-#ifdef NETDATA_INTERNAL_CHECKS
-        // Log the first few bytes of compressed data - this helps in debugging
-        char comp_dump[256] = "";
-        size_t bytes_to_dump = msg->buffer.length < 32 ? msg->buffer.length : 32;
-        
-        for (size_t i = 0; i < bytes_to_dump; i++) {
-            char *pos = comp_dump + strlen(comp_dump);
-            snprintf(pos, sizeof(comp_dump) - strlen(comp_dump), "%02x ", (unsigned char)msg->buffer.data[i]);
-        }
-        websocket_debug(wsc, "Compressed data (%zu bytes): [%s]%s",
-                   msg->buffer.length, comp_dump, msg->buffer.length > 32 ? "..." : "");
-                   
-        // Dump buffer metadata - this can help detect memory corruption
-        websocket_debug(wsc, "Buffer metadata: length=%zu, alloc_size=%zu, pos=%zu",
-                   msg->buffer.length, msg->buffer.alloc_size, msg->buffer.pos);
-#endif /* NETDATA_INTERNAL_CHECKS */
-        
+
+        // Dump compressed data and buffer metadata for debugging
+        websocket_dump_debug(wsc, msg->buffer.data, msg->buffer.length,
+                         "Compressed data, buffer metadata: length=%zu, alloc_size=%zu, pos=%zu",
+                         msg->buffer.length, msg->buffer.alloc_size, msg->buffer.pos);
+
         // Verify that the buffer is well-formed before attempting decompression
         if (msg->buffer.length > msg->buffer.alloc_size) {
             websocket_error(wsc, "Buffer corruption detected: length (%zu) > alloc_size (%zu)",
@@ -216,52 +209,21 @@ WEBSOCKET_PAYLOAD *websocket_message_prepare_payload(WEBSOCKET_SERVER_CLIENT *ws
             return NULL;
         }
         
-        websocket_debug(wsc, "Successfully decompressed message from %zu to %zu bytes (ratio: %.2fx)",
-                   msg->buffer.length, uncompressed_length, 
-                   (double)uncompressed_length / (double)msg->buffer.length);
-        
-#ifdef NETDATA_INTERNAL_CHECKS
-        // Log the first few bytes of decompressed data for validation
-        char decomp_dump[256] = "";
-        char ascii_dump[65] = "";
-        bytes_to_dump = uncompressed_length < 32 ? uncompressed_length : 32;
-        
-        for (size_t i = 0; i < bytes_to_dump; i++) {
-            // Add to hex dump
-            char *hex_pos = decomp_dump + strlen(decomp_dump);
-            snprintf(hex_pos, sizeof(decomp_dump) - strlen(decomp_dump), "%02x ", (unsigned char)uncompressed_data[i]);
-            
-            // Add to ASCII dump
-            unsigned char c = (unsigned char)uncompressed_data[i];
-            if (i < 64) {
-                if (isprint(c)) {
-                    ascii_dump[i] = c;
-                } else {
-                    ascii_dump[i] = '.';
-                }
-            }
-        }
-        
-        if (bytes_to_dump < 64) {
-            ascii_dump[bytes_to_dump] = '\0';
-        } else {
-            ascii_dump[64] = '\0';
-        }
-        
-        websocket_debug(wsc, "Decompressed data (%zu bytes): [%s]%s",
-                  uncompressed_length, decomp_dump, uncompressed_length > 32 ? "..." : "");
-        websocket_debug(wsc, "ASCII preview: \"%s\"%s", 
-                   ascii_dump, uncompressed_length > 64 ? "..." : "");
-        
+        // Dump decompressed data for debugging with complete stats
+        websocket_dump_debug(wsc, uncompressed_data, uncompressed_length,
+                         "Successfully decompressed message from %zu to %zu bytes (ratio: %.2fx)",
+                         msg->buffer.length, uncompressed_length,
+                         (double)uncompressed_length / (double)msg->buffer.length);
+
         // If it's a text message, try to show the decompressed content
-        if (msg->opcode == WS_OPCODE_TEXT && uncompressed_length < 100) {
+        if (msg->opcode == WS_OPCODE_TEXT && uncompressed_length < 100 && uncompressed_data) {
             char text_preview[101];
-            strncpy(text_preview, uncompressed_data, uncompressed_length > 100 ? 100 : uncompressed_length);
-            text_preview[uncompressed_length > 100 ? 100 : uncompressed_length] = '\0';
+            size_t copy_len = (uncompressed_length < 100) ? uncompressed_length : 100;
+            memcpy(text_preview, uncompressed_data, copy_len);
+            text_preview[copy_len] = '\0';
             websocket_debug(wsc, "Decompressed text: '%s'", text_preview);
         }
-#endif /* NETDATA_INTERNAL_CHECKS */
-        
+
         // Use the uncompressed data as payload
         payload->data = uncompressed_data;
         payload->length = uncompressed_length;
@@ -271,11 +233,38 @@ WEBSOCKET_PAYLOAD *websocket_message_prepare_payload(WEBSOCKET_SERVER_CLIENT *ws
         // Uncompressed message - directly use buffer data
         websocket_debug(wsc, "Message not compressed, copying %zu bytes directly",
                    msg->buffer.length);
-                      
-        // Make a copy to ensure ownership with proper length
-        payload->data = strndupz(msg->buffer.data, msg->buffer.length);
-        payload->length = msg->buffer.length;
-        payload->needs_free = true; // We'll need to free this data
+
+        // Handle empty messages
+        if (msg->buffer.length == 0) {
+            // For empty messages, create appropriate empty payload
+            if (msg->opcode == WS_OPCODE_BINARY) {
+                // Empty binary payload - empty data but valid pointer
+                payload->data = mallocz(1);  // Just allocate 1 byte to have a valid pointer
+            } else {
+                // Empty text payload - empty string (just null terminator)
+                payload->data = mallocz(1);
+                ((char*)payload->data)[0] = '\0';
+            }
+            payload->length = 0;
+            payload->needs_free = true;
+        }
+        else {
+            // Non-empty message - copy data normally
+            // Don't use strndupz for binary data as it expects null-terminated strings
+            if (msg->opcode == WS_OPCODE_BINARY) {
+                // For binary data, allocate exact size and use memcpy
+                payload->data = mallocz(msg->buffer.length);
+                memcpy(payload->data, msg->buffer.data, msg->buffer.length);
+            } else {
+                // For text data, manually allocate memory and copy data to ensure proper handling
+                // Don't use strndupz for safety, as it can cause issues with malformed text
+                payload->data = mallocz(msg->buffer.length + 1);
+                memcpy(payload->data, msg->buffer.data, msg->buffer.length);
+                ((char*)payload->data)[msg->buffer.length] = '\0';
+            }
+            payload->length = msg->buffer.length;
+            payload->needs_free = true; // We'll need to free this data
+        }
     }
     
     websocket_debug(wsc, "Payload prepared: opcode=0x%x, is_binary=%d, length=%zu",

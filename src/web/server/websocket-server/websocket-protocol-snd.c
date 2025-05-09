@@ -154,21 +154,8 @@ int websocket_protocol_send_text(WEBSOCKET_SERVER_CLIENT *wsc, const char *text)
     
     websocket_debug(wsc, "Sending text message, length=%zu", text_len);
     
-#ifdef NETDATA_INTERNAL_CHECKS
-    // Log the text content for small messages
-    if (text_len < 100) {
-        websocket_debug(wsc, "Text message content: '%s'", text);
-    }
-    
-    // Log the first few bytes of the text message in hex
-    char hex_dump[128] = "";
-    for (size_t i = 0; i < text_len && i < 16; i++) {
-        char *pos = hex_dump + strlen(hex_dump);
-        snprintf(pos, sizeof(hex_dump) - strlen(hex_dump), "%02x ", (unsigned char)text[i]);
-    }
-    websocket_debug(wsc, "Text message data: %s%s", 
-               hex_dump, text_len > 16 ? "..." : "");
-#endif /* NETDATA_INTERNAL_CHECKS */
+    // Dump text message for debugging
+    websocket_dump_debug(wsc, text, text_len, "Sending text message");
     
     // Enable compression for text messages by default
     return websocket_protocol_send_frame(wsc, text, text_len, WS_OPCODE_TEXT, true);
@@ -178,7 +165,12 @@ int websocket_protocol_send_text(WEBSOCKET_SERVER_CLIENT *wsc, const char *text)
 int websocket_protocol_send_binary(WEBSOCKET_SERVER_CLIENT *wsc, const void *data, size_t length) {
     if (!wsc || !data || length == 0)
         return -1;
-    
+
+    websocket_debug(wsc, "Sending binary message, length=%zu", length);
+
+    // Dump binary message for debugging
+    websocket_dump_debug(wsc, data, length, "Sending binary message");
+
     return websocket_protocol_send_frame(wsc, data, length, WS_OPCODE_BINARY, true);
 }
 

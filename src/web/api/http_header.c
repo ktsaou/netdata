@@ -181,7 +181,7 @@ static void http_header_x_netdata_auth(struct web_client *w, const char *v, size
 
 // Handle WebSocket-specific headers
 static void http_header_upgrade(struct web_client *w, const char *v, size_t len __maybe_unused) {
-    if(strcasecmp(v, "websocket") == 0 && web_client_has_websocket_handshake(w)) {
+    if(strcasecmp(v, "websocket") == 0) {
         web_client_set_websocket(w);
     }
 }
