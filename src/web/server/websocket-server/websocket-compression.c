@@ -152,7 +152,7 @@ bool websocket_compression_init(struct websocket_server_client *wsc, const char 
             return false;
         }
         
-        websocket_info(wsc, "Compression enabled (permessage-deflate, window bits: %d)",
+        websocket_debug(wsc, "Compression enabled (permessage-deflate, window bits: %d)",
                    wsc->compression.window_bits);
     }
     

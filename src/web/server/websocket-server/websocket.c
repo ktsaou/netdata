@@ -127,8 +127,7 @@ short int websocket_handle_handshake(struct web_client *w) {
         return HTTP_RESP_WEBSOCKET_HANDSHAKE;
     }
 
-    // Initialize current message to NULL
-    wsc->current_message = NULL;
+    // Message structures are already initialized in websocket_client_create()
 
     // Set socket to non-blocking mode
     if (fcntl(wsc->sock.fd, F_SETFL, O_NONBLOCK) == -1) {
@@ -191,6 +190,12 @@ static WEBSOCKET_SERVER_CLIENT *websocket_client_create(void) {
     wsc->in_buffer = buffer_create(NETDATA_WEB_REQUEST_INITIAL_SIZE, NULL);
     wsc->out_buffer = buffer_create(NETDATA_WEB_RESPONSE_INITIAL_SIZE, NULL);
 
+    // Initialize pre-allocated message structure
+    websocket_buffer_init(&wsc->message.buffer, 1024);
+    // The opcode will be set properly when an actual message begins
+    wsc->message.complete = true; // Not in a fragmented sequence initially
+    wsc->frame_id = 0;
+
     return wsc;
 }
 
@@ -209,8 +214,8 @@ void websocket_client_free(WEBSOCKET_SERVER_CLIENT *wsc) {
     buffer_free(wsc->in_buffer);
     buffer_free(wsc->out_buffer);
         
-    // Free current message if any
-    websocket_message_free(wsc->current_message);
+    // Cleanup pre-allocated message buffer
+    websocket_buffer_cleanup(&wsc->message.buffer);
     
     // Clean up compression resources if needed
     websocket_compression_cleanup(wsc);

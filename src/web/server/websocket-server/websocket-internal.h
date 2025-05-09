@@ -76,9 +76,11 @@ struct websocket_server_client {
     struct websocket_server_client *next; // Linked list for thread's client management
     
     // Message processing state
-    WEBSOCKET_MESSAGE *current_message;  // Current message being processed
-    size_t message_id;                  // Sequential ID for messages, starting from 0
-    size_t frame_id;                    // Sequential ID for frames within current message, starting from 0
+    WEBSOCKET_MESSAGE message;           // Pre-allocated message structure
+    // Note: We previously had a dynamic message allocation approach with current_message pointer,
+    // but now we use a single pre-allocated message structure for better memory efficiency
+    size_t message_id;                   // Sequential ID for messages, starting from 0
+    size_t frame_id;                    // Sequential ID for frames within current message
     
     // Compression state
     WEBSOCKET_COMPRESSION_CTX compression;

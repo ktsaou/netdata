@@ -2,21 +2,20 @@
 #include "websocket-internal.h"
 
 static void websocket_protocol_message_done(WEBSOCKET_SERVER_CLIENT *wsc) {
-    websocket_message_free(wsc->current_message);
-    wsc->current_message = NULL;
+    // Reset the message structure for reuse, don't free it
+    websocket_message_reset(&wsc->message);
     wsc->frame_id = 0;
+    // We no longer need to set current_message to NULL since we use the pre-allocated message directly
     wsc->message_id++;
 }
 
 // Process a complete WebSocket message
 static bool websocket_protocol_process_message(WEBSOCKET_SERVER_CLIENT *wsc) {
-    if (!wsc || !wsc->current_message || !wsc->current_message->complete)
+    if (!wsc || !wsc->message.complete)
         return false;
 
-    WEBSOCKET_MESSAGE *msg = wsc->current_message;
-
     // Convert message to payload
-    WEBSOCKET_PAYLOAD *payload = websocket_message_prepare_payload(wsc, msg);
+    WEBSOCKET_PAYLOAD *payload = websocket_message_prepare_payload(wsc, &wsc->message);
     if (!payload) {
         websocket_error(wsc, "Failed to prepare payload from message");
         return false;
@@ -176,27 +175,8 @@ static bool websocket_protocol_validate_header(WEBSOCKET_SERVER_CLIENT *wsc, WEB
     return true;
 }
 
-// Create a new message from an initial frame
-static WEBSOCKET_MESSAGE *websocket_protocol_create_message_from_header(WEBSOCKET_SERVER_CLIENT *wsc, 
-                                                                      WEBSOCKET_FRAME_HEADER *header,
-                                                                      uint64_t payload_length) {
-    if (!wsc || !header)
-        return NULL;
-        
-    // Create new message
-    WEBSOCKET_MESSAGE *msg = websocket_message_create(payload_length);
-
-    // Initialize message from the frame
-    msg->opcode = (WEBSOCKET_OPCODE)header->opcode;
-    msg->is_compressed = header->rsv1 ? true : false;
-    
-    // Set message state based on FIN bit
-    msg->complete = header->fin ? true : false;
-    msg->in_fragmented_sequence = !header->fin;
-    msg->total_length = payload_length; // Initial payload length
-    
-    return msg;
-}
+// Note: We used to create new message objects dynamically, but now we use a pre-allocated
+// message structure in the client object itself, which improves memory efficiency.
 
 static void websocket_unmask(char *dst, const char *src, size_t length, const unsigned char *mask_key) {
     for (size_t i = 0; i < length; i++)
@@ -329,7 +309,7 @@ websocket_protocol_consume_frame(WEBSOCKET_SERVER_CLIENT *wsc, char *data, size_
                     header.mask_key[0], header.mask_key[1], header.mask_key[2], header.mask_key[3]);
     
     // Step 2: Validate the frame header
-    if (!websocket_protocol_validate_header(wsc, &header, header.payload_length, wsc->current_message != NULL)) {
+    if (!websocket_protocol_validate_header(wsc, &header, header.payload_length, !wsc->message.complete)) {
         // Invalid frame, close the connection
         websocket_client_send_close(wsc, WS_CLOSE_PROTOCOL_ERROR, "Invalid frame header");
         return WS_FRAME_ERROR;
@@ -367,13 +347,13 @@ websocket_protocol_consume_frame(WEBSOCKET_SERVER_CLIENT *wsc, char *data, size_
 
     // Step 3: Handle the frame based on its opcode
     if (header.opcode == WS_OPCODE_CONTINUATION) {
-        // This is a continuation frame - need an existing message
-        if (!wsc->current_message) {
+        // This is a continuation frame - need an existing message in progress
+        if (wsc->message.complete) {
             websocket_error(wsc, "Received continuation frame with no message in progress");
             websocket_client_send_close(wsc, WS_CLOSE_PROTOCOL_ERROR, "Invalid continuation frame");
             return WS_FRAME_ERROR;
         }
-        
+
         // If it's a zero-length frame, we don't need to append any data
         if (header.payload_length == 0) {
             // For zero-length non-final frames, just update and continue
@@ -384,33 +364,35 @@ websocket_protocol_consume_frame(WEBSOCKET_SERVER_CLIENT *wsc, char *data, size_
                 wsc->frame_id++;
                 return WS_FRAME_COMPLETE;
             }
-            
+
             // Final zero-length frame - mark message as complete
+            wsc->message.complete = true;
             *bytes_processed = bytes;
             return WS_FRAME_MESSAGE_READY;
         }
 
         // update the total length of the current message
-        wsc->current_message->total_length += header.payload_length;
+        wsc->message.total_length += header.payload_length;
     }
     else {
         if(!header.payload_length) {
             websocket_debug(wsc, "Received data frame with zero-length payload (fin=%d)", header.fin);
 
-            // Create an empty message to be processed
-            WEBSOCKET_MESSAGE *msg = websocket_protocol_create_message_from_header(wsc, &header, 0);
-            if (!msg) {
-                websocket_error(wsc, "Failed to create message for empty payload");
-                return WS_FRAME_ERROR;
-            }
+            // Initialize the pre-allocated message for a new message
+            websocket_message_reset(&wsc->message);
+            wsc->message.opcode = (WEBSOCKET_OPCODE)header.opcode;
+            wsc->message.is_compressed = header.rsv1 ? true : false;
+            wsc->message.complete = header.fin ? true : false;
+            // Message is complete only if FIN bit is set
+            wsc->message.total_length = 0;
+            wsc->frame_id = 0;
 
-            // Store the message
-            wsc->current_message = msg;
+            // Our pre-allocated message is already set up
 
             // Check if this is a final frame
             if (header.fin) {
                 // Final frame - mark message as complete and return message ready
-                wsc->current_message->complete = true;
+                wsc->message.complete = true;
                 *bytes_processed = bytes;
                 return WS_FRAME_MESSAGE_READY;
             } else {
@@ -422,45 +404,47 @@ websocket_protocol_consume_frame(WEBSOCKET_SERVER_CLIENT *wsc, char *data, size_
         }
 
         // This is a new data frame (TEXT or BINARY)
-        // If we have an existing message, it's an error
-        if (wsc->current_message) {
+        // If we have an existing message in progress, it's an error
+        if (!wsc->message.complete) {
             websocket_error(wsc, "Received new data frame while another message is in progress");
             websocket_client_send_close(wsc, WS_CLOSE_PROTOCOL_ERROR, "Invalid new data frame");
             return WS_FRAME_ERROR;
         }
-        
-        // Create a new message
-        WEBSOCKET_MESSAGE *msg = websocket_protocol_create_message_from_header(wsc, &header, header.payload_length);
-        if (!msg) {
-            websocket_error(wsc, "Failed to create message");
-            return WS_FRAME_ERROR;
-        }
-        
-        // Store the message
-        wsc->current_message = msg;
+
+        // Initialize the pre-allocated message for a new message
+        websocket_message_reset(&wsc->message);
+        wsc->message.opcode = (WEBSOCKET_OPCODE)header.opcode;
+        wsc->message.is_compressed = header.rsv1 ? true : false;
+        wsc->message.complete = header.fin ? true : false;
+        // Message is complete only if FIN bit is set
+        wsc->message.total_length = header.payload_length;
+        wsc->frame_id = 0;
+
+        // Point current_message to our pre-allocated message
+        // We're using our pre-allocated message directly
     }
 
     // Step 4: Append payload data to the message
 
     // expand the payload buffer in the message
-    websocket_buffer_expand(&wsc->current_message->buffer, header.payload_length);
+    websocket_buffer_expand(&wsc->message.buffer, header.payload_length);
 
     // unmask and copy the payload to its destination
     char *src = header.payload;
-    char *dst = &wsc->current_message->buffer.data[wsc->current_message->buffer.length];
+    char *dst = &wsc->message.buffer.data[wsc->message.buffer.length];
     if(header.mask) {
         websocket_debug(wsc, "Unmasking and copying payload data at position %zu (key=%02x%02x%02x%02x)",
-                        wsc->current_message->buffer.length,
+                        wsc->message.buffer.length,
                         header.mask_key[0], header.mask_key[1], header.mask_key[2], header.mask_key[3]);
         websocket_unmask(dst, src, header.payload_length, header.mask_key);
     }
     else {
         websocket_debug(wsc, "Copying payload data at position %zu (not masked)",
-                        wsc->current_message->buffer.length);
+                        wsc->message.buffer.length);
         memcpy(dst, src, header.payload_length);
     }
 
-    wsc->current_message->buffer.length += header.payload_length;
+    wsc->message.buffer.length += header.payload_length;
 
     websocket_dump_debug(wsc, dst, header.payload_length, "final data from frame's payload");
 
@@ -528,7 +512,7 @@ bool websocket_protocol_got_data(WEBSOCKET_SERVER_CLIENT *wsc, char *data, size_
             case WS_FRAME_MESSAGE_READY:
                 worker_is_busy(WORKERS_WEBSOCKET_MESSAGE);
 
-                wsc->current_message->complete = true;
+                wsc->message.complete = true;
 
                 if (!websocket_protocol_process_message(wsc)) {
                     websocket_error(wsc, "Failed to process message");

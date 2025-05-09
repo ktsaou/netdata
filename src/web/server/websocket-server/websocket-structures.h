@@ -61,12 +61,12 @@ typedef struct websocket_message {
 
     // Message data
     WEBSOCKET_BUFFER buffer;         // Buffer for complete message data
-    
+
     // Processing state
     bool complete;                   // Whether the message is complete (all fragments received)
     uint64_t total_length;           // Total length of the reassembled message
-    bool in_fragmented_sequence;     // Whether we're processing a fragmented message sequence
-    
+    // Note: message is in a fragmented sequence when complete=false
+
 } WEBSOCKET_MESSAGE;
 
 // WebSocket payload structure - contains the processed, unmasked, uncompressed message data

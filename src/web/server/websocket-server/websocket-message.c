@@ -114,11 +114,10 @@ void websocket_message_reset(WEBSOCKET_MESSAGE *msg) {
     websocket_buffer_reset(&msg->buffer);
     
     // Reset message state
-    msg->complete = false;
+    msg->complete = true; // Initial state is complete (no fragmented message in progress)
     msg->is_compressed = false;
     msg->opcode = WS_OPCODE_TEXT; // Default opcode
     msg->total_length = 0;
-    msg->in_fragmented_sequence = false;
     
     // No current_frame to reset anymore
 }
@@ -151,7 +150,7 @@ WEBSOCKET_PAYLOAD *websocket_message_prepare_payload(WEBSOCKET_SERVER_CLIENT *ws
         return NULL;
         
     websocket_debug(wsc, "Preparing payload from message (opcode=0x%x, is_compressed=%d, length=%zu, fragmented=%d)",
-               msg->opcode, msg->is_compressed, msg->buffer.length, msg->in_fragmented_sequence);
+               msg->opcode, msg->is_compressed, msg->buffer.length, !msg->complete);
     
     // Create a new payload
     WEBSOCKET_PAYLOAD *payload = mallocz(sizeof(WEBSOCKET_PAYLOAD));
@@ -198,8 +197,8 @@ WEBSOCKET_PAYLOAD *websocket_message_prepare_payload(WEBSOCKET_SERVER_CLIENT *ws
             websocket_error(wsc, "Failed to decompress message payload - was this a fragmented compressed message?");
             
             // Additional debug information about the buffer
-            websocket_debug(wsc, "Message details: total_length=%llu, is_fragmented=%d, finished=%d",
-                        (unsigned long long)msg->total_length, msg->in_fragmented_sequence, msg->complete);
+            websocket_debug(wsc, "Message details: total_length=%llu, is_fragmented=%d, complete=%d",
+                        (unsigned long long)msg->total_length, !msg->complete, msg->complete);
             
             freez(payload);
             return NULL;
