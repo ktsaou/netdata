@@ -163,8 +163,17 @@ int websocket_protocol_send_text(WEBSOCKET_SERVER_CLIENT *wsc, const char *text)
 
 // Send a binary message
 int websocket_protocol_send_binary(WEBSOCKET_SERVER_CLIENT *wsc, const void *data, size_t length) {
-    if (!wsc || !data || length == 0)
+    if (!wsc)
         return -1;
+
+    // Special handling for empty binary message
+    if (!data || length == 0) {
+        websocket_debug(wsc, "Sending empty binary message");
+
+        // Use an empty buffer for zero-length binary messages
+        static const char empty_data[1] = {0};
+        return websocket_protocol_send_frame(wsc, empty_data, 0, WS_OPCODE_BINARY, false);
+    }
 
     websocket_debug(wsc, "Sending binary message, length=%zu", length);
 

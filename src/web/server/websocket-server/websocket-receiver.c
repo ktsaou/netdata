@@ -27,7 +27,7 @@ int websocket_receive_data(WEBSOCKET_SERVER_CLIENT *wsc) {
     if (bytes_read <= 0) {
         if (bytes_read == 0) {
             // Connection closed
-            websocket_info(wsc, "Client closed connection");
+            websocket_debug(wsc, "Client closed connection");
             return -1;
         }
 

@@ -503,9 +503,9 @@ bool websocket_protocol_got_data(WEBSOCKET_SERVER_CLIENT *wsc, char *data, size_
                       result, *bytes_processed, consumed, *bytes_processed - entry_bytes, length);
         
         // Safety check to ensure we always move forward in the buffer
-        if (consumed == 0 && result != WS_FRAME_NEED_MORE_DATA) {
+        if (consumed == 0 && result != WS_FRAME_NEED_MORE_DATA && result != WS_FRAME_ERROR) {
             // If we're processing a frame but not consuming bytes, we might be stuck
-            websocket_error(wsc, "Protocol processing stalled - consumed 0 bytes but not waiting for more data");
+            websocket_error(wsc, "Protocol processing stalled - consumed 0 bytes but not waiting for more data (%d)", (int)result);
             return false;
         }
         

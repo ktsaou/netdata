@@ -582,20 +582,20 @@ void websocket_thread_process_commands(WEBSOCKET_THREAD *wth) {
         ssize_t bytes = read(wth->cmd.pipe[PIPE_READ], &header, sizeof(header));
         if(bytes <= 0) {
             if(bytes < 0 && errno != EAGAIN && errno != EWOULDBLOCK) {
-                netdata_log_error("WEBSOCKET: Thread %zu: Failed to read command header from pipe: %s", wth->id, strerror(errno));
+                netdata_log_error("WEBSOCKET[%zu]: Failed to read command header from pipe: %s", wth->id, strerror(errno));
             }
             break;
         }
 
         if(bytes != sizeof(header)) {
-            netdata_log_error("WEBSOCKET: Thread %zu: Read partial command header (%zd/%zu bytes)", wth->id, bytes, sizeof(header));
+            netdata_log_error("WEBSOCKET[%zu]: Read partial command header (%zd/%zu bytes)", wth->id, bytes, sizeof(header));
             break;
         }
 
         // Read command data
         if(header.len > 0) {
             if(header.len > sizeof(buffer)) {
-                netdata_log_error("WEBSOCKET: Thread %zu: Command data too large (%zu bytes)", wth->id, header.len);
+                netdata_log_error("WEBSOCKET[%zu]: Command data too large (%zu bytes)", wth->id, header.len);
                 // Skip the data
                 size_t to_skip = header.len;
                 while(to_skip > 0) {
@@ -609,8 +609,14 @@ void websocket_thread_process_commands(WEBSOCKET_THREAD *wth) {
             }
 
             bytes = read(wth->cmd.pipe[PIPE_READ], buffer, header.len);
-            if(bytes != (ssize_t)header.len) {
-                netdata_log_error("WEBSOCKET: Thread %zu: Read partial command data (%zd/%zu bytes)", wth->id, bytes, header.len);
+            if(bytes < 0) {
+                if(errno != EAGAIN && errno != EWOULDBLOCK) {
+                    netdata_log_error("WEBSOCKET[%zu]: Failed to read command data from pipe: %s", wth->id, strerror(errno));
+                }
+                break;
+            }
+            else if(bytes != (ssize_t)header.len) {
+                netdata_log_error("WEBSOCKET[%zu]: Read partial command data (%zd/%zu bytes)", wth->id, bytes, header.len);
                 break;
             }
         }
@@ -619,19 +625,19 @@ void websocket_thread_process_commands(WEBSOCKET_THREAD *wth) {
         switch(header.cmd) {
             case WEBSOCKET_THREAD_CMD_EXIT:
                 worker_is_busy(WORKERS_WEBSOCKET_CMD_EXIT);
-                netdata_log_info("WEBSOCKET: Thread %zu received exit command", wth->id);
+                netdata_log_info("WEBSOCKET[%zu] received exit command", wth->id);
                 return;
 
             case WEBSOCKET_THREAD_CMD_ADD_CLIENT: {
                 worker_is_busy(WORKERS_WEBSOCKET_CMD_ADD);
                 if(header.len != sizeof(size_t)) {
-                    netdata_log_error("WEBSOCKET: Thread %zu: Invalid add client command size (%zu != %zu)", wth->id, header.len, sizeof(size_t));
+                    netdata_log_error("WEBSOCKET[%zu]: Invalid add client command size (%zu != %zu)", wth->id, header.len, sizeof(size_t));
                     continue;
                 }
                 size_t client_id = *(size_t *)buffer;
                 WEBSOCKET_SERVER_CLIENT *wsc = websocket_client_find_by_id(client_id);
                 if(!wsc) {
-                    netdata_log_error("WEBSOCKET: Thread %zu: Client %zu not found for add command", wth->id, client_id);
+                    netdata_log_error("WEBSOCKET[%zu]: Client %zu not found for add command", wth->id, client_id);
                     continue;
                 }
                 websocket_thread_add_client_to_poll(wth, wsc);
@@ -642,14 +648,14 @@ void websocket_thread_process_commands(WEBSOCKET_THREAD *wth) {
                 worker_is_busy(WORKERS_WEBSOCKET_CMD_DEL);
 
                 if(header.len != sizeof(size_t)) {
-                    netdata_log_error("WEBSOCKET: Thread %zu: Invalid remove client command size (%zu != %zu)", wth->id, header.len, sizeof(size_t));
+                    netdata_log_error("WEBSOCKET[%zu]: Invalid remove client command size (%zu != %zu)", wth->id, header.len, sizeof(size_t));
                     continue;
                 }
 
                 size_t client_id = *(size_t *)buffer;
                 WEBSOCKET_SERVER_CLIENT *wsc = websocket_client_find_by_id(client_id);
                 if(!wsc) {
-                    netdata_log_error("WEBSOCKET: Thread %zu: Client %zu not found for remove command", wth->id, client_id);
+                    netdata_log_error("WEBSOCKET[%zu]: Client %zu not found for remove command", wth->id, client_id);
                     continue;
                 }
                 
@@ -675,7 +681,7 @@ void websocket_thread_process_commands(WEBSOCKET_THREAD *wth) {
                 worker_is_busy(WORKERS_WEBSOCKET_CMD_BROADCAST);
 
                 if(header.len < sizeof(size_t) + sizeof(WEBSOCKET_OPCODE)) {
-                    netdata_log_error("WEBSOCKET: Thread %zu: Invalid broadcast command size", wth->id);
+                    netdata_log_error("WEBSOCKET[%zu]: Invalid broadcast command size", wth->id);
                     continue;
                 }
                 
@@ -694,7 +700,7 @@ void websocket_thread_process_commands(WEBSOCKET_THREAD *wth) {
                 
                 // Ensure we have the complete message
                 if(header.len != sizeof(size_t) + sizeof(WEBSOCKET_OPCODE) + message_len) {
-                    netdata_log_error("WEBSOCKET: Thread %zu: Broadcast command size mismatch", wth->id);
+                    netdata_log_error("WEBSOCKET[%zu]: Broadcast command size mismatch", wth->id);
                     continue;
                 }
                 
@@ -718,7 +724,7 @@ void websocket_thread_process_commands(WEBSOCKET_THREAD *wth) {
 
             default:
                 worker_is_busy(WORKERS_WEBSOCKET_CMD_UNKNOWN);
-                netdata_log_error("WEBSOCKET: Thread %zu: Unknown command %u", wth->id, header.cmd);
+                netdata_log_error("WEBSOCKET[%zu]: Unknown command %u", wth->id, header.cmd);
                 break;
         }
     }

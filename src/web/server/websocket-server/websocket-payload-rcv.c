@@ -100,16 +100,13 @@ int websocket_payload_echo(WEBSOCKET_SERVER_CLIENT *wsc, WEBSOCKET_PAYLOAD *payl
     
     // Echo the payload with the same opcode
     if (payload->is_binary) {
-        websocket_debug(wsc, "Sending binary echo response");
-        // Only send if we have valid data
-        if (payload->data && payload->length > 0) {
-            result = websocket_protocol_send_binary(wsc, payload->data, payload->length);
-        } else {
-            // Empty binary message
-            result = websocket_protocol_send_binary(wsc, "", 0);
-        }
+        websocket_debug(wsc, "Sending binary echo response (length=%zu)", payload->length);
+
+        // Handle both empty and non-empty binary messages
+        // Our updated protocol_send_binary function can handle NULL/empty data
+        result = websocket_protocol_send_binary(wsc, payload->data, payload->length);
     } else {
-        websocket_debug(wsc, "Sending text echo response");
+        websocket_debug(wsc, "Sending text echo response (length=%zu)", payload->length);
 
         // Create a properly null-terminated copy of the text data for sending
         // This prevents sending garbage bytes beyond the actual payload length
