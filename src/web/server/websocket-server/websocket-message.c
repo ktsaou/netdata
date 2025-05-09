@@ -7,9 +7,8 @@ void websocket_buffer_init(WEBSOCKET_BUFFER *buffer, size_t initial_size) {
         return;
     
     buffer->data = mallocz(initial_size);
-    buffer->alloc_size = initial_size;
+    buffer->size = initial_size;
     buffer->length = 0;
-    buffer->pos = 0;
 }
 
 // Clean up an embedded buffer (free data but not the buffer structure itself)
@@ -19,9 +18,8 @@ void websocket_buffer_cleanup(WEBSOCKET_BUFFER *buffer) {
 
     freez(buffer->data);
     buffer->data = NULL;
-    buffer->alloc_size = 0;
+    buffer->size = 0;
     buffer->length = 0;
-    buffer->pos = 0;
 }
 
 // Initialize buffer structure
@@ -45,15 +43,15 @@ void websocket_buffer_free(WEBSOCKET_BUFFER *buffer) {
 // Resize buffer to a new size
 void websocket_buffer_resize(WEBSOCKET_BUFFER *buffer, size_t new_size) {
     // If the buffer is already large enough, consider it a success
-    if (new_size <= buffer->alloc_size)
+    if (new_size <= buffer->size)
         return;
     
     netdata_log_debug(D_WEBSOCKET, "WEBSOCKET: Buffer resize: from %zu to %zu bytes (current length: %zu)",
-                   buffer->alloc_size, new_size, buffer->length);
+                   buffer->size, new_size, buffer->length);
 
     // Allocate new buffer
     buffer->data = reallocz(buffer->data, new_size);
-    buffer->alloc_size = new_size;
+    buffer->size = new_size;
 }
 
 // Append data to buffer
@@ -62,9 +60,9 @@ void websocket_buffer_expand(WEBSOCKET_BUFFER *buffer, size_t length) {
         return;
     
     // Check if we need to resize the buffer
-    if (buffer->length + length > buffer->alloc_size) {
+    if (buffer->length + length > buffer->size) {
         // Calculate new size
-        size_t new_size = buffer->alloc_size * 2;
+        size_t new_size = buffer->size * 2;
         if (new_size < buffer->length + length)
             new_size = buffer->length + length + 1024; // Add some extra space
         
@@ -78,7 +76,6 @@ void websocket_buffer_reset(WEBSOCKET_BUFFER *buffer) {
         return;
 
     buffer->length = 0;
-    buffer->pos = 0;
 }
 
 // Create a new WebSocket message
@@ -117,7 +114,7 @@ void websocket_message_reset(WEBSOCKET_MESSAGE *msg) {
     msg->complete = true; // Initial state is complete (no fragmented message in progress)
     msg->is_compressed = false;
     msg->opcode = WS_OPCODE_TEXT; // Default opcode
-    msg->total_length = 0;
+    // buffer.length is already reset by websocket_buffer_reset
     
     // No current_frame to reset anymore
 }
@@ -154,10 +151,12 @@ WEBSOCKET_PAYLOAD *websocket_message_prepare_payload(WEBSOCKET_SERVER_CLIENT *ws
     
     // Create a new payload
     WEBSOCKET_PAYLOAD *payload = mallocz(sizeof(WEBSOCKET_PAYLOAD));
-    
+
     // Set payload type
     payload->opcode = msg->opcode;
-    payload->is_binary = (msg->opcode == WS_OPCODE_BINARY);
+
+    // Initialize the buffer
+    websocket_buffer_init(&payload->buffer, msg->buffer.length > 0 ? msg->buffer.length : 1);
     
     // Handle compression if needed
     if (msg->is_compressed && wsc->compression.enabled) {
@@ -170,13 +169,13 @@ WEBSOCKET_PAYLOAD *websocket_message_prepare_payload(WEBSOCKET_SERVER_CLIENT *ws
 
         // Dump compressed data and buffer metadata for debugging
         websocket_dump_debug(wsc, msg->buffer.data, msg->buffer.length,
-                         "Compressed data, buffer metadata: length=%zu, alloc_size=%zu, pos=%zu",
-                         msg->buffer.length, msg->buffer.alloc_size, msg->buffer.pos);
+                         "Compressed data, buffer metadata: length=%zu, alloc_size=%zu",
+                         msg->buffer.length, msg->buffer.size);
 
         // Verify that the buffer is well-formed before attempting decompression
-        if (msg->buffer.length > msg->buffer.alloc_size) {
+        if (msg->buffer.length > msg->buffer.size) {
             websocket_error(wsc, "Buffer corruption detected: length (%zu) > alloc_size (%zu)",
-                        msg->buffer.length, msg->buffer.alloc_size);
+                        msg->buffer.length, msg->buffer.size);
             freez(payload);
             return NULL;
         }
@@ -184,7 +183,7 @@ WEBSOCKET_PAYLOAD *websocket_message_prepare_payload(WEBSOCKET_SERVER_CLIENT *ws
         // Ensure buffer is null-terminated to avoid potential overruns
         // This is defensive programming - the buffer may not need to be null-terminated
         // for binary data, but it doesn't hurt and may prevent certain issues
-        if (msg->buffer.length < msg->buffer.alloc_size) {
+        if (msg->buffer.length < msg->buffer.size) {
             msg->buffer.data[msg->buffer.length] = '\0';
         }
         
@@ -197,8 +196,8 @@ WEBSOCKET_PAYLOAD *websocket_message_prepare_payload(WEBSOCKET_SERVER_CLIENT *ws
             websocket_error(wsc, "Failed to decompress message payload - was this a fragmented compressed message?");
             
             // Additional debug information about the buffer
-            websocket_debug(wsc, "Message details: total_length=%llu, is_fragmented=%d, complete=%d",
-                        (unsigned long long)msg->total_length, !msg->complete, msg->complete);
+            websocket_debug(wsc, "Message details: buffer_length=%zu, is_fragmented=%d, complete=%d",
+                        msg->buffer.length, !msg->complete, msg->complete);
             
             freez(payload);
             return NULL;
@@ -220,9 +219,10 @@ WEBSOCKET_PAYLOAD *websocket_message_prepare_payload(WEBSOCKET_SERVER_CLIENT *ws
         }
 
         // Use the uncompressed data as payload
-        payload->data = uncompressed_data;
-        payload->length = uncompressed_length;
-        payload->needs_free = true; // We'll need to free this data
+        freez(payload->buffer.data); // Free the initial allocation
+        payload->buffer.data = uncompressed_data;
+        payload->buffer.length = uncompressed_length;
+        payload->buffer.size = uncompressed_length;
     }
     else {
         // Uncompressed message - directly use buffer data
@@ -231,39 +231,38 @@ WEBSOCKET_PAYLOAD *websocket_message_prepare_payload(WEBSOCKET_SERVER_CLIENT *ws
 
         // Handle empty messages
         if (msg->buffer.length == 0) {
-            // For empty messages, create appropriate empty payload
-            if (msg->opcode == WS_OPCODE_BINARY) {
-                // Empty binary payload - empty data but valid pointer
-                payload->data = mallocz(1);  // Just allocate 1 byte to have a valid pointer
-            } else {
-                // Empty text payload - empty string (just null terminator)
-                payload->data = mallocz(1);
-                ((char*)payload->data)[0] = '\0';
+            // For empty messages, we already have a 1-byte buffer from initialization
+            if (msg->opcode == WS_OPCODE_TEXT) {
+                // For text messages, ensure null termination
+                payload->buffer.data[0] = '\0';
             }
-            payload->length = 0;
-            payload->needs_free = true;
+            payload->buffer.length = 0;
         }
         else {
             // Non-empty message - copy data normally
-            // Don't use strndupz for binary data as it expects null-terminated strings
-            if (msg->opcode == WS_OPCODE_BINARY) {
-                // For binary data, allocate exact size and use memcpy
-                payload->data = mallocz(msg->buffer.length);
-                memcpy(payload->data, msg->buffer.data, msg->buffer.length);
-            } else {
-                // For text data, manually allocate memory and copy data to ensure proper handling
-                // Don't use strndupz for safety, as it can cause issues with malformed text
-                payload->data = mallocz(msg->buffer.length + 1);
-                memcpy(payload->data, msg->buffer.data, msg->buffer.length);
-                ((char*)payload->data)[msg->buffer.length] = '\0';
+            // Make sure buffer is large enough
+            size_t alloc_size = msg->buffer.length;
+            if (msg->opcode == WS_OPCODE_TEXT) {
+                // Add space for null terminator for text data
+                alloc_size++;
             }
-            payload->length = msg->buffer.length;
-            payload->needs_free = true; // We'll need to free this data
+
+            // Resize if needed
+            websocket_buffer_resize(&payload->buffer, alloc_size);
+
+            // Copy the data
+            memcpy(payload->buffer.data, msg->buffer.data, msg->buffer.length);
+            payload->buffer.length = msg->buffer.length;
+
+            // Add null termination for text data
+            if (msg->opcode == WS_OPCODE_TEXT) {
+                payload->buffer.data[msg->buffer.length] = '\0';
+            }
         }
     }
     
     websocket_debug(wsc, "Payload prepared: opcode=0x%x, is_binary=%d, length=%zu",
-               payload->opcode, payload->is_binary, payload->length);
+               payload->opcode, (payload->opcode == WS_OPCODE_BINARY), payload->buffer.length);
     
     return payload;
 }

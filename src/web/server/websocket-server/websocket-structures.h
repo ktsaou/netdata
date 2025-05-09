@@ -47,35 +47,23 @@ typedef struct websocket_frame_header {
 
 // Buffer for message data (used for reassembly of fragmented messages)
 typedef struct websocket_buffer {
-    char *data;                  // Buffer holding message data
-    size_t length;               // Current buffer length
-    size_t alloc_size;           // Allocated buffer size
-    size_t pos;                  // Current position for reading/writing
+    char *data;                     // Buffer holding message data
+    size_t length;                  // Current buffer length
+    size_t size;                    // Allocated buffer size
 } WEBSOCKET_BUFFER;
 
 // WebSocket message structure - contains a complete or partially complete message
 typedef struct websocket_message {
-    // Message metadata
-    WEBSOCKET_OPCODE opcode;         // Message type (from first frame)
-    bool is_compressed;              // Whether the message is compressed (RSV1 bit set)
-
-    // Message data
-    WEBSOCKET_BUFFER buffer;         // Buffer for complete message data
-
-    // Processing state
-    bool complete;                   // Whether the message is complete (all fragments received)
-    uint64_t total_length;           // Total length of the reassembled message
-    // Note: message is in a fragmented sequence when complete=false
-
+    WEBSOCKET_BUFFER buffer;        // Buffer for complete message data
+    WEBSOCKET_OPCODE opcode;        // Message type (from first frame)
+    bool is_compressed;             // Whether the message is compressed (RSV1 bit set)
+    bool complete;                  // Whether the message is complete (all fragments received)
 } WEBSOCKET_MESSAGE;
 
 // WebSocket payload structure - contains the processed, unmasked, uncompressed message data
 typedef struct websocket_payload {
-    WEBSOCKET_OPCODE opcode;         // Payload type
-    char *data;                      // Payload data (unmasked and uncompressed)
-    size_t length;                   // Payload length
-    bool is_binary;                  // Whether payload is binary data
-    bool needs_free;                 // Whether data needs to be freed
+    WEBSOCKET_BUFFER buffer;         // Buffer for payload data (unmasked and uncompressed)
+    WEBSOCKET_OPCODE opcode;         // Payload type (TEXT or BINARY)
 } WEBSOCKET_PAYLOAD;
 
 // Forward declaration for client structure

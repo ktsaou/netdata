@@ -14,8 +14,7 @@ void websocket_threads_init(void) {
         spinlock_init(&websocket_threads[i].spinlock);
         websocket_threads[i].clients_current = 0;
         spinlock_init(&websocket_threads[i].clients_spinlock);
-        websocket_threads[i].clients_first = NULL;
-        websocket_threads[i].clients_last = NULL;
+        websocket_threads[i].clients = NULL;
         websocket_threads[i].ndpl = NULL;
         websocket_threads[i].cmd.pipe[PIPE_READ] = -1;
         websocket_threads[i].cmd.pipe[PIPE_WRITE] = -1;
@@ -231,7 +230,7 @@ void *websocket_thread(void *ptr) {
             // Iterate through all clients in this thread
             spinlock_lock(&wth->clients_spinlock);
             
-            WEBSOCKET_SERVER_CLIENT *wsc = wth->clients_first;
+            WEBSOCKET_SERVER_CLIENT *wsc = wth->clients;
             while(wsc) {
                 WEBSOCKET_SERVER_CLIENT *next = wsc->next; // Save next in case we remove this client
                 
@@ -280,7 +279,7 @@ void *websocket_thread(void *ptr) {
     spinlock_lock(&wth->clients_spinlock);
     
     // Close all clients in this thread
-    WEBSOCKET_SERVER_CLIENT *wsc = wth->clients_first;
+    WEBSOCKET_SERVER_CLIENT *wsc = wth->clients;
     while(wsc) {
         WEBSOCKET_SERVER_CLIENT *next = wsc->next;
         
@@ -310,8 +309,7 @@ void *websocket_thread(void *ptr) {
     }
     
     // Reset thread's client list
-    wth->clients_first = NULL;
-    wth->clients_last = NULL;
+    wth->clients = NULL;
     wth->clients_current = 0;
     
     spinlock_unlock(&wth->clients_spinlock);
@@ -448,18 +446,8 @@ void websocket_thread_enqueue_client(WEBSOCKET_THREAD *wth, WEBSOCKET_SERVER_CLI
     // Lock the thread clients
     spinlock_lock(&wth->clients_spinlock);
 
-    // Add client to the thread's client list
-    if(!wth->clients_first) {
-        wth->clients_first = wsc;
-        wth->clients_last = wsc;
-        wsc->prev = NULL;
-        wsc->next = NULL;
-    } else {
-        wsc->prev = wth->clients_last;
-        wsc->next = NULL;
-        wth->clients_last->next = wsc;
-        wth->clients_last = wsc;
-    }
+    // Add client to the thread's client list using the double linked list macro
+    DOUBLE_LINKED_LIST_APPEND_ITEM_UNSAFE(wth->clients, wsc, prev, next);
 
     // Note: clients_current is already incremented in websocket_thread_assign_client
     // to ensure proper load distribution in concurrent scenarios
@@ -476,19 +464,8 @@ void websocket_thread_dequeue_client(WEBSOCKET_THREAD *wth, WEBSOCKET_SERVER_CLI
     // Lock the thread clients
     spinlock_lock(&wth->clients_spinlock);
 
-    // Remove client from the thread's client list
-    if(wsc->prev)
-        wsc->prev->next = wsc->next;
-    else
-        wth->clients_first = wsc->next;
-
-    if(wsc->next)
-        wsc->next->prev = wsc->prev;
-    else
-        wth->clients_last = wsc->prev;
-
-    wsc->prev = NULL;
-    wsc->next = NULL;
+    // Remove client from the thread's client list using the double linked list macro
+    DOUBLE_LINKED_LIST_REMOVE_ITEM_UNSAFE(wth->clients, wsc, prev, next);
 
     if(wth->clients_current > 0)
         wth->clients_current--;
@@ -710,7 +687,7 @@ void websocket_thread_process_commands(WEBSOCKET_THREAD *wth) {
                 // Send to all clients in this thread
                 spinlock_lock(&wth->clients_spinlock);
                 
-                WEBSOCKET_SERVER_CLIENT *wsc = wth->clients_first;
+                WEBSOCKET_SERVER_CLIENT *wsc = wth->clients;
                 while(wsc) {
                     if(wsc->state == WS_STATE_OPEN) {
                         websocket_send_message(wsc, message, message_len, opcode);

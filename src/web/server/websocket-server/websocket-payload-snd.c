@@ -10,16 +10,16 @@ WEBSOCKET_PAYLOAD *websocket_payload_create_json(struct json_object *json);
 
 // Send a payload to a WebSocket client
 int websocket_payload_send(WEBSOCKET_SERVER_CLIENT *wsc, WEBSOCKET_PAYLOAD *payload) {
-    if (!wsc || !payload || !payload->data || payload->length == 0)
+    if (!wsc || !payload || !payload->buffer.data || payload->buffer.length == 0)
         return -1;
-    
+
     // Use compression by default for data frames if compression is enabled
-    bool use_compression = wsc->compression.enabled && 
-                          !websocket_frame_is_control_opcode(payload->opcode) && 
-                          payload->length >= WS_COMPRESS_MIN_SIZE;
-    
+    bool use_compression = wsc->compression.enabled &&
+                          !websocket_frame_is_control_opcode(payload->opcode) &&
+                          payload->buffer.length >= WS_COMPRESS_MIN_SIZE;
+
     // Send the frame
-    return websocket_protocol_send_frame(wsc, payload->data, payload->length, payload->opcode, use_compression);
+    return websocket_protocol_send_frame(wsc, payload->buffer.data, payload->buffer.length, payload->opcode, use_compression);
 }
 
 // Create and send a text payload
@@ -93,8 +93,6 @@ WEBSOCKET_PAYLOAD *websocket_payload_create_binary(const void *data, size_t leng
         return NULL;
     
     WEBSOCKET_PAYLOAD *payload = websocket_payload_create(WS_OPCODE_BINARY, data, length);
-    if (payload)
-        payload->is_binary = true;
     
     return payload;
 }

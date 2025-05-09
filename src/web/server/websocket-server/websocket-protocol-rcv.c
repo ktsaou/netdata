@@ -371,8 +371,7 @@ websocket_protocol_consume_frame(WEBSOCKET_SERVER_CLIENT *wsc, char *data, size_
             return WS_FRAME_MESSAGE_READY;
         }
 
-        // update the total length of the current message
-        wsc->message.total_length += header.payload_length;
+        // The message buffer length is updated as we append frame data
     }
     else {
         if(!header.payload_length) {
@@ -384,7 +383,7 @@ websocket_protocol_consume_frame(WEBSOCKET_SERVER_CLIENT *wsc, char *data, size_
             wsc->message.is_compressed = header.rsv1 ? true : false;
             wsc->message.complete = header.fin ? true : false;
             // Message is complete only if FIN bit is set
-            wsc->message.total_length = 0;
+            // Buffer length is already 0 after reset
             wsc->frame_id = 0;
 
             // Our pre-allocated message is already set up
@@ -417,7 +416,7 @@ websocket_protocol_consume_frame(WEBSOCKET_SERVER_CLIENT *wsc, char *data, size_
         wsc->message.is_compressed = header.rsv1 ? true : false;
         wsc->message.complete = header.fin ? true : false;
         // Message is complete only if FIN bit is set
-        wsc->message.total_length = header.payload_length;
+        // Buffer length will be updated when we append the payload data
         wsc->frame_id = 0;
 
         // Point current_message to our pre-allocated message

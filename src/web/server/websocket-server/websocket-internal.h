@@ -105,8 +105,7 @@ typedef struct websocket_thread {
 
     size_t clients_current;                   // Current number of clients in the thread
     SPINLOCK clients_spinlock;                // Spinlock for client operations
-    struct websocket_server_client *clients_first; // First client in the thread
-    struct websocket_server_client *clients_last;  // Last client in the thread
+    struct websocket_server_client *clients;  // Head of the clients double-linked list
 
     nd_poll_t *ndpl;             // Poll instance
 
