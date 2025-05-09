@@ -301,7 +301,7 @@ void *websocket_thread(void *ptr) {
             websocket_client_send_close(wsc, 1001, "Server shutting down");
             
             // Flush any pending data - best effort, ignore errors
-            if(buffer_strlen(wsc->out_buffer) > 0) {
+            if(wsb_length(&wsc->out_buffer) > 0) {
                 websocket_write_data(wsc);
             }
         }
@@ -647,7 +647,7 @@ void websocket_thread_process_commands(WEBSOCKET_THREAD *wth) {
                     websocket_client_send_close(wsc, 1000, "Connection closed by server");
                     
                     // Flush any pending data - best effort, ignore errors
-                    if(buffer_strlen(wsc->out_buffer) > 0)
+                    if(wsb_length(&wsc->out_buffer) > 0)
                         websocket_write_data(wsc);
                 }
                 

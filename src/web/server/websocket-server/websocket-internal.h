@@ -64,8 +64,8 @@ struct websocket_server_client {
     time_t last_activity_t; // Last activity timestamp
 
     // Buffer for I/O data
-    BUFFER *in_buffer;   // Incoming raw data
-    BUFFER *out_buffer;  // Outgoing raw data
+    WS_BUF in_buffer;    // Incoming raw data
+    WS_BUF out_buffer;   // Outgoing raw data
 
     // Connection info
     char client_ip[INET6_ADDRSTRLEN];
@@ -131,7 +131,14 @@ DEFINE_JUDYL_TYPED(WS_CLIENTS, struct websocket_server_client *);
 #define WEBSOCKET_THREAD_CMD_REMOVE_CLIENT   3
 #define WEBSOCKET_THREAD_CMD_BROADCAST       4
 
-#define WEBSOCKET_RECEIVE_BUFFER_SIZE 4096
+// Buffer size definitions for WebSocket operations
+#define WEBSOCKET_RECEIVE_BUFFER_SIZE 4096  // Size used for network read operations
+
+// Initial buffer sizes
+#define WEBSOCKET_IN_BUFFER_INITIAL_SIZE  8192  // Initial size for incoming data buffer
+#define WEBSOCKET_OUT_BUFFER_INITIAL_SIZE 16384 // Initial size for outgoing data buffer
+#define WEBSOCKET_PAYLOAD_INITIAL_SIZE    8192  // Initial size for message payload buffer
+#define WEBSOCKET_UNPACKED_INITIAL_SIZE   16384 // Initial size for uncompressed message buffer
 
 // Thread management
 void websocket_threads_init(void);

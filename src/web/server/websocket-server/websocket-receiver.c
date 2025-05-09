@@ -7,24 +7,24 @@
 int websocket_receive_data(WS_CLIENT *wsc) {
     worker_is_busy(WORKERS_WEBSOCKET_SOCK_RECEIVE);
 
-    if (!wsc || !wsc->in_buffer || wsc->sock.fd < 0)
+    if (!wsc || !wsb_data(&wsc->in_buffer) || wsc->sock.fd < 0)
         return -1;
 
     // Log current buffer state
     websocket_debug(wsc, "Before receive: buffer has %zu bytes (out of %zu bytes)",
-                buffer_strlen(wsc->in_buffer), (size_t)wsc->in_buffer->size);
+                wsb_length(&wsc->in_buffer), wsb_size(&wsc->in_buffer));
 
     // Allocate buffer space for reading - ensure we have enough space
-    if(wsc->in_buffer->size < wsc->max_message_size)
-        buffer_need_bytes(wsc->in_buffer, wsc->max_message_size + 1 - buffer_strlen(wsc->in_buffer));
+    if(wsb_size(&wsc->in_buffer) < wsc->max_message_size)
+        wsb_need_bytes(&wsc->in_buffer, wsc->max_message_size + 1 - wsb_length(&wsc->in_buffer));
 
-    if(wsc->in_buffer->size - wsc->in_buffer->len - 1 < WEBSOCKET_RECEIVE_BUFFER_SIZE / 8)
-        buffer_need_bytes(wsc->in_buffer, WEBSOCKET_RECEIVE_BUFFER_SIZE);
+    if(wsb_size(&wsc->in_buffer) - wsb_length(&wsc->in_buffer) - 1 < WEBSOCKET_RECEIVE_BUFFER_SIZE / 8)
+        wsb_need_bytes(&wsc->in_buffer, WEBSOCKET_RECEIVE_BUFFER_SIZE);
 
-    char *buffer_pos = &wsc->in_buffer->buffer[wsc->in_buffer->len];
+    char *buffer_pos = wsb_data(&wsc->in_buffer) + wsb_length(&wsc->in_buffer);
     
     // Read data from socket into buffer using ND_SOCK
-    ssize_t bytes_read = nd_sock_read(&wsc->sock, buffer_pos, wsc->in_buffer->size - wsc->in_buffer->len - 1, 1); // 1 retry for non-blocking read
+    ssize_t bytes_read = nd_sock_read(&wsc->sock, buffer_pos, wsb_size(&wsc->in_buffer) - wsb_length(&wsc->in_buffer) - 1, 1); // 1 retry for non-blocking read
 
     if (bytes_read <= 0) {
         if (bytes_read == 0) {
@@ -41,7 +41,7 @@ int websocket_receive_data(WS_CLIENT *wsc) {
     }
 
     // Update buffer length
-    wsc->in_buffer->len += bytes_read;
+    wsb_set_length(&wsc->in_buffer, wsb_length(&wsc->in_buffer) + bytes_read);
 
     // Dump the received data for debugging
     websocket_dump_debug(wsc, buffer_pos, bytes_read, "READ %zd bytes", bytes_read);
@@ -52,8 +52,8 @@ int websocket_receive_data(WS_CLIENT *wsc) {
     // Process received data using the new protocol layers
     // Note: websocket_protocol_process_data works through the buffer and updates bytes_processed
     size_t bytes_processed = 0;
-    char *process_buffer = wsc->in_buffer->buffer; // Process from the beginning of the buffer
-    size_t buffer_length = wsc->in_buffer->len; // Total data available including previous data
+    char *process_buffer = wsb_data(&wsc->in_buffer); // Process from the beginning of the buffer
+    size_t buffer_length = wsb_length(&wsc->in_buffer); // Total data available including previous data
     
     bool result = websocket_protocol_got_data(wsc, process_buffer, buffer_length, &bytes_processed);
     if (!result) {
@@ -73,22 +73,8 @@ int websocket_receive_data(WS_CLIENT *wsc) {
     }
     
     if (bytes_processed > 0) {
-        // We've processed some data - remove it from the buffer
-        if (bytes_processed < buffer_length) {
-            // More data in buffer - shift remaining data to beginning
-            size_t remaining = buffer_length - bytes_processed;
-            
-            // Shift the remaining data to the beginning of the buffer
-            memmove(wsc->in_buffer->buffer, 
-                    wsc->in_buffer->buffer + bytes_processed, 
-                    remaining);
-            
-            // Update buffer length to reflect the shift
-            wsc->in_buffer->len = remaining;
-        } else {
-            // All data was processed - reset buffer
-            wsc->in_buffer->len = 0;
-        }
+        // We've processed some data - remove it from the front of the buffer
+        wsb_trim_front(&wsc->in_buffer, bytes_processed);
     }
     
     // Return the number of bytes we processed from this read
@@ -100,11 +86,11 @@ int websocket_receive_data(WS_CLIENT *wsc) {
 int websocket_write_data(WS_CLIENT *wsc) {
     worker_is_busy(WORKERS_WEBSOCKET_SOCK_SEND);
 
-    if (!wsc || !wsc->out_buffer || wsc->sock.fd < 0 || buffer_strlen(wsc->out_buffer) == 0)
+    if (!wsc || !wsb_data(&wsc->out_buffer) || wsc->sock.fd < 0 || wsb_length(&wsc->out_buffer) == 0)
         return 0;
 
-    const char *data = buffer_tostring(wsc->out_buffer);
-    size_t data_length = buffer_strlen(wsc->out_buffer);
+    const char *data = wsb_data(&wsc->out_buffer);
+    size_t data_length = wsb_length(&wsc->out_buffer);
 
     // Dump the data being written for debugging
     websocket_dump_debug(wsc, data, data_length, "WRITE %zu bytes", data_length);
@@ -129,20 +115,18 @@ int websocket_write_data(WS_CLIENT *wsc) {
 
     // Consume written bytes (shift remaining data to the front of the buffer)
     if (bytes_written > 0) {
-        size_t remaining = wsc->out_buffer->len - bytes_written;
+        size_t remaining = wsb_length(&wsc->out_buffer) - bytes_written;
         if (remaining > 0) {
-            memmove(wsc->out_buffer->buffer, 
-                    wsc->out_buffer->buffer + bytes_written, 
-                    remaining);
-            wsc->out_buffer->len = remaining;
-            
+            // Remove the bytes from the front of the buffer
+            wsb_trim_front(&wsc->out_buffer, bytes_written);
+
             // Still have data to write - keep ND_POLL_WRITE set
             if (wsc->thread && wsc->sock.fd >= 0) {
                 websocket_thread_update_client_poll_flags(wsc->thread, wsc, ND_POLL_READ | ND_POLL_WRITE);
             }
         } else {
-            // All data written - remove ND_POLL_WRITE
-            wsc->out_buffer->len = 0;
+            // All data written - reset buffer and remove ND_POLL_WRITE
+            wsb_reset(&wsc->out_buffer);
             if (wsc->thread && wsc->sock.fd >= 0) {
                 websocket_thread_update_client_poll_flags(wsc->thread, wsc, ND_POLL_READ);
             }
@@ -169,6 +153,7 @@ void websocket_takeover_web_connection(struct web_client *w, WS_CLIENT *wsc) {
         w->fd = -1;
     }
 
+    // Clear web client buffer
     buffer_flush(w->response.data);
 }
 

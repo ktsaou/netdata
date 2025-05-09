@@ -82,9 +82,11 @@ bool websocket_send_first_response(WS_CLIENT *wsc, const char *accept_key, const
 
     // Send the handshake response using ND_SOCK - we're still in the web server thread,
     // so we need to use the persist version to ensure the complete handshake is sent
-    ssize_t bytes = nd_sock_write_persist(&wsc->sock, buffer_tostring(header), buffer_strlen(header), 20); // Try up to 20 chunks
+    const char *header_str = buffer_tostring(header);
+    size_t header_len = buffer_strlen(header);
+    ssize_t bytes = nd_sock_write_persist(&wsc->sock, header_str, header_len, 20); // Try up to 20 chunks
 
-    return bytes == (ssize_t)buffer_strlen(header);
+    return bytes == (ssize_t)header_len;
 }
 
 // Handle the WebSocket handshake procedure
@@ -186,16 +188,16 @@ static WS_CLIENT *websocket_client_create(void) {
     // initialize the ND_SOCK with the web server's SSL context
     nd_sock_init(&wsc->sock, netdata_ssl_web_server_ctx, false);
 
-    // Initialize I/O buffers
-    wsc->in_buffer = buffer_create(NETDATA_WEB_REQUEST_INITIAL_SIZE, NULL);
-    wsc->out_buffer = buffer_create(NETDATA_WEB_RESPONSE_INITIAL_SIZE, NULL);
+    // Initialize I/O buffers with WebSocket-specific sizes
+    wsb_init(&wsc->in_buffer, WEBSOCKET_IN_BUFFER_INITIAL_SIZE);
+    wsb_init(&wsc->out_buffer, WEBSOCKET_OUT_BUFFER_INITIAL_SIZE);
 
-    // Initialize pre-allocated message buffer with a reasonable initial size
-    wsb_init(&wsc->payload, 4096);
+    // Initialize pre-allocated message buffer
+    wsb_init(&wsc->payload, WEBSOCKET_PAYLOAD_INITIAL_SIZE);
 
     // Initialize uncompressed buffer with a larger size since decompressed data can expand
     // For compressed content, the expanded data can be much larger than the input
-    wsb_init(&wsc->u_payload, 16384);
+    wsb_init(&wsc->u_payload, WEBSOCKET_UNPACKED_INITIAL_SIZE);
 
     // Set the initial message state
     wsc->opcode = WS_OPCODE_TEXT; // Default opcode
@@ -219,8 +221,8 @@ void websocket_client_free(WS_CLIENT *wsc) {
     nd_sock_close(&wsc->sock);
 
     // Free buffers
-    buffer_free(wsc->in_buffer);
-    buffer_free(wsc->out_buffer);
+    wsb_cleanup(&wsc->in_buffer);
+    wsb_cleanup(&wsc->out_buffer);
 
     // Cleanup pre-allocated message and uncompressed buffers
     wsb_cleanup(&wsc->payload);

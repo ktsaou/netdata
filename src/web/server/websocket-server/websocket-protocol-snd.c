@@ -105,16 +105,16 @@ int websocket_protocol_send_frame(
     websocket_debug(wsc, "Sending frame: opcode=%d, payload_len=%zu%s",
                opcode, frame_payload_len, compress ? ", compressed" : "uncompressed");
     
-    // If we have an output buffer, add to it
-    if (wsc->out_buffer) {
-        buffer_need_bytes(wsc->out_buffer, frame_size);
-        buffer_memcat(wsc->out_buffer, frame_buffer, frame_size);
-        
+    // Always use the output buffer
+    {
+        wsb_need_bytes(&wsc->out_buffer, frame_size);
+        wsb_append(&wsc->out_buffer, frame_buffer, frame_size);
+
         // Make sure the client's poll flags include WRITE
         if (wsc->thread && wsc->sock.fd >= 0) {
             websocket_thread_update_client_poll_flags(wsc->thread, wsc, ND_POLL_READ | ND_POLL_WRITE);
         }
-        
+
         // Try to write immediately in case the buffer is getting large
         websocket_write_data(wsc);
         

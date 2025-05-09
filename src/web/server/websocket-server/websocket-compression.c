@@ -528,7 +528,10 @@ bool websocket_client_decompress_message(WS_CLIENT *wsc) {
     do {
         wsb_resize(&wsc->u_payload, wanted_size);
 
-        z_stream->next_out = (Bytef *)wsb_data(&wsc->u_payload);
+        // Position next_out to point to the end of the currently decompressed data
+        z_stream->next_out = (Bytef *)wsb_data(&wsc->u_payload) + wsb_length(&wsc->u_payload);
+
+        // Only make the newly available space available to zlib
         z_stream->avail_out = wsb_size(&wsc->u_payload) - wsb_length(&wsc->u_payload);
 
         // Try to decompress
@@ -544,7 +547,7 @@ bool websocket_client_decompress_message(WS_CLIENT *wsc) {
 
         success = ret == Z_STREAM_END || (ret == Z_OK && z_stream->avail_in == 0 && z_stream->avail_out > 0);
 
-        // it may have uncompressed some data, set the length of the buffer to it
+        // Update the buffer's length to include the newly written data
         wsb_set_length(&wsc->u_payload, wsb_size(&wsc->u_payload) - z_stream->avail_out);
 
         // Check if we need more output space

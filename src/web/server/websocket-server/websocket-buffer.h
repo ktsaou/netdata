@@ -191,4 +191,31 @@ static char *wsb_append_padding(WS_BUF *wsb, const void *data, size_t length) {
     return dst;
 }
 
+// Remove bytes from the front of the buffer, shifting remaining content forward
+// Returns the number of bytes actually trimmed (may be less than requested if buffer is smaller)
+ALWAYS_INLINE
+static size_t wsb_trim_front(WS_BUF *wsb, size_t bytes_to_trim) {
+    if (!wsb || !wsb->data || bytes_to_trim == 0 || wsb->length == 0)
+        return 0;
+
+    // Cap the trim size to the actual buffer length
+    size_t actual_trim = (bytes_to_trim > wsb->length) ? wsb->length : bytes_to_trim;
+
+    if (actual_trim < wsb->length) {
+        // More data in buffer - shift remaining data to beginning
+        size_t remaining = wsb->length - actual_trim;
+
+        // Shift the remaining data to the beginning of the buffer
+        memmove(wsb->data, wsb->data + actual_trim, remaining);
+
+        // Update buffer length to reflect the shift
+        wsb->length = remaining;
+    } else {
+        // All data was trimmed or the buffer is empty - reset length
+        wsb->length = 0;
+    }
+
+    return actual_trim;
+}
+
 #endif //NETDATA_WEBSOCKET_BUFFER_H
