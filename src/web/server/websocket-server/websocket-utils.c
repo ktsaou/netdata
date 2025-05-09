@@ -1,9 +1,9 @@
-#include "daemon/common.h"
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 #include "websocket-internal.h"
-#include <stdarg.h>
 
 // Debug log function with client, message, and frame IDs
-void websocket_debug(WEBSOCKET_SERVER_CLIENT *wsc, const char *format, ...) {
+void websocket_debug(WS_CLIENT *wsc, const char *format, ...) {
 #ifdef NETDATA_INTERNAL_CHECKS
     if (!wsc || !format)
         return;
@@ -21,7 +21,7 @@ void websocket_debug(WEBSOCKET_SERVER_CLIENT *wsc, const char *format, ...) {
 }
 
 // Info log function with client, message, and frame IDs
-void websocket_info(WEBSOCKET_SERVER_CLIENT *wsc, const char *format, ...) {
+void websocket_info(WS_CLIENT *wsc, const char *format, ...) {
     if (!wsc || !format)
         return;
         
@@ -37,7 +37,7 @@ void websocket_info(WEBSOCKET_SERVER_CLIENT *wsc, const char *format, ...) {
 }
 
 // Error log function with client, message, and frame IDs
-void websocket_error(WEBSOCKET_SERVER_CLIENT *wsc, const char *format, ...) {
+void websocket_error(WS_CLIENT *wsc, const char *format, ...) {
     if (!wsc || !format)
         return;
 
@@ -53,7 +53,7 @@ void websocket_error(WEBSOCKET_SERVER_CLIENT *wsc, const char *format, ...) {
 }
 
 // Debug function that logs a message and dumps payload data for debugging
-void websocket_dump_debug(WEBSOCKET_SERVER_CLIENT *wsc, const char *payload, size_t payload_length,
+void websocket_dump_debug(WS_CLIENT *wsc, const char *payload, size_t payload_length,
                        const char *format, ...) {
 #ifdef NETDATA_INTERNAL_CHECKS
     if (!wsc || !format)

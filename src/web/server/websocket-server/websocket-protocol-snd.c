@@ -1,9 +1,12 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 #include "daemon/common.h"
 #include "websocket-internal.h"
 #include "websocket-structures.h"
 
 // Create and send a WebSocket frame
-int websocket_protocol_send_frame(WEBSOCKET_SERVER_CLIENT *wsc, const char *payload, 
+int websocket_protocol_send_frame(
+    WS_CLIENT *wsc, const char *payload,
                                  size_t payload_len, WEBSOCKET_OPCODE opcode, bool use_compression) {
     if (!wsc || wsc->sock.fd < 0)
         return -1;
@@ -95,11 +98,12 @@ int websocket_protocol_send_frame(WEBSOCKET_SERVER_CLIENT *wsc, const char *payl
     }
     
     // Copy payload to frame buffer
-    memcpy(frame_buffer + header_size, frame_payload, frame_payload_len);
+    if(frame_payload && frame_payload_len > 0)
+        memcpy(frame_buffer + header_size, frame_payload, frame_payload_len);
     
     // Log frame being sent
     websocket_debug(wsc, "Sending frame: opcode=%d, payload_len=%zu%s",
-               opcode, frame_payload_len, compress ? ", compressed=yes" : "");
+               opcode, frame_payload_len, compress ? ", compressed" : "uncompressed");
     
     // If we have an output buffer, add to it
     if (wsc->out_buffer) {
@@ -146,23 +150,32 @@ int websocket_protocol_send_frame(WEBSOCKET_SERVER_CLIENT *wsc, const char *payl
 }
 
 // Send a text message
-int websocket_protocol_send_text(WEBSOCKET_SERVER_CLIENT *wsc, const char *text) {
-    if (!wsc || !text)
+int websocket_protocol_send_text(WS_CLIENT *wsc, const char *text) {
+    if (!wsc)
         return -1;
-    
+
+    // Special handling for null or empty text message
+    if (!text || text[0] == '\0') {
+        websocket_debug(wsc, "Sending empty text message");
+
+        // Use an empty buffer for zero-length text messages
+        static const char empty_data[1] = {0};
+        return websocket_protocol_send_frame(wsc, empty_data, 0, WS_OPCODE_TEXT, false);
+    }
+
     size_t text_len = strlen(text);
-    
+
     websocket_debug(wsc, "Sending text message, length=%zu", text_len);
-    
+
     // Dump text message for debugging
     websocket_dump_debug(wsc, text, text_len, "Sending text message");
-    
+
     // Enable compression for text messages by default
     return websocket_protocol_send_frame(wsc, text, text_len, WS_OPCODE_TEXT, true);
 }
 
 // Send a binary message
-int websocket_protocol_send_binary(WEBSOCKET_SERVER_CLIENT *wsc, const void *data, size_t length) {
+int websocket_protocol_send_binary(WS_CLIENT *wsc, const void *data, size_t length) {
     if (!wsc)
         return -1;
 
@@ -184,7 +197,7 @@ int websocket_protocol_send_binary(WEBSOCKET_SERVER_CLIENT *wsc, const void *dat
 }
 
 // Send a close frame
-int websocket_protocol_send_close(WEBSOCKET_SERVER_CLIENT *wsc, uint16_t code, const char *reason) {
+int websocket_protocol_send_close(WS_CLIENT *wsc, uint16_t code, const char *reason) {
     if (!wsc)
         return -1;
     
@@ -229,7 +242,7 @@ int websocket_protocol_send_close(WEBSOCKET_SERVER_CLIENT *wsc, uint16_t code, c
 }
 
 // Send a ping frame
-int websocket_protocol_send_ping(WEBSOCKET_SERVER_CLIENT *wsc, const char *data, size_t length) {
+int websocket_protocol_send_ping(WS_CLIENT *wsc, const char *data, size_t length) {
     if (!wsc)
         return -1;
     
@@ -251,7 +264,7 @@ int websocket_protocol_send_ping(WEBSOCKET_SERVER_CLIENT *wsc, const char *data,
 }
 
 // Send a pong frame
-int websocket_protocol_send_pong(WEBSOCKET_SERVER_CLIENT *wsc, const char *data, size_t length) {
+int websocket_protocol_send_pong(WS_CLIENT *wsc, const char *data, size_t length) {
     if (!wsc)
         return -1;
     

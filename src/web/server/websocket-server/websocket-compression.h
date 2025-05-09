@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 #ifndef NETDATA_WEBSOCKET_COMPRESSION_H
 #define NETDATA_WEBSOCKET_COMPRESSION_H
 
@@ -9,7 +11,6 @@
 #define WS_COMPRESS_MEMLEVEL         8      // Default memory level for zlib
 #define WS_COMPRESS_DEFAULT_LEVEL    Z_DEFAULT_COMPRESSION  // Default compression level
 #define WS_COMPRESS_MIN_SIZE         64     // Don't compress payloads smaller than this
-#define WS_COMPRESS_MAX_BUFFER_EXPANSIONS 200 // Maximum number of buffer expansions during decompression
 
 // WebSocket compression extension types
 typedef enum {
@@ -37,7 +38,11 @@ bool websocket_compression_init(struct websocket_server_client *wsc, const char 
 void websocket_compression_cleanup(struct websocket_server_client *wsc);
 char *websocket_compression_negotiate(struct websocket_server_client *wsc, const char *requested_extensions);
 int websocket_compress_payload(struct websocket_server_client *wsc, const char *in, size_t in_len, char **out, size_t *out_len);
-int websocket_decompress_payload(struct websocket_server_client *wsc, const char *in, size_t in_len, char **out, size_t *out_len);
 bool websocket_compression_supported(void);
+
+// Decompression-specific functions
+void websocket_decompression_cleanup(struct websocket_server_client *wsc);
+bool websocket_decompression_init(struct websocket_server_client *wsc);
+bool websocket_decompression_reset(struct websocket_server_client *wsc);
 
 #endif // NETDATA_WEBSOCKET_COMPRESSION_H

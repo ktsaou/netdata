@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 #ifndef NETDATA_WEBSOCKET_INTERNAL_H
 #define NETDATA_WEBSOCKET_INTERNAL_H
 
@@ -60,36 +62,38 @@ struct websocket_server_client {
     size_t max_message_size;
     time_t connected_t;  // Connection timestamp
     time_t last_activity_t; // Last activity timestamp
-    
+
     // Buffer for I/O data
     BUFFER *in_buffer;   // Incoming raw data
     BUFFER *out_buffer;  // Outgoing raw data
-    
+
     // Connection info
     char client_ip[INET6_ADDRSTRLEN];
     char client_port[NI_MAXSERV];
     WEBSOCKET_PROTOCOL protocol; // The negotiated subprotocol
-    
+
     // Thread management
     struct websocket_thread *thread; // The thread handling this client
     struct websocket_server_client *prev; // Linked list for thread's client management
     struct websocket_server_client *next; // Linked list for thread's client management
-    
+
     // Message processing state
-    WEBSOCKET_MESSAGE message;           // Pre-allocated message structure
-    // Note: We previously had a dynamic message allocation approach with current_message pointer,
-    // but now we use a single pre-allocated message structure for better memory efficiency
-    size_t message_id;                   // Sequential ID for messages, starting from 0
+    WS_BUF payload;                     // Pre-allocated buffer for message data
+    WS_BUF u_payload;                   // Pre-allocated buffer for uncompressed message data
+    WEBSOCKET_OPCODE opcode;            // Current message opcode
+    bool is_compressed;                 // Whether the current message is compressed
+    bool message_complete;              // Whether the current message is complete
+    size_t message_id;                  // Sequential ID for messages, starting from 0
     size_t frame_id;                    // Sequential ID for frames within current message
-    
+
     // Compression state
     WEBSOCKET_COMPRESSION_CTX compression;
-    
+
     // Message handling callbacks
     void (*on_message)(struct websocket_server_client *wsc, const char *message, size_t length, WEBSOCKET_OPCODE opcode);
     void (*on_close)(struct websocket_server_client *wsc, int code, const char *reason);
     void (*on_error)(struct websocket_server_client *wsc, const char *error);
-    
+
     // User data for application use
     void *user_data;
 };
@@ -144,7 +148,7 @@ bool websocket_thread_update_client_poll_flags(WEBSOCKET_THREAD *wth, struct web
 WEBSOCKET_THREAD *websocket_thread_by_id(size_t id);
 
 // Client registry internals
-void websocket_client_free(WEBSOCKET_SERVER_CLIENT *wsc);
+void websocket_client_free(WS_CLIENT *wsc);
 bool websocket_client_register(struct websocket_server_client *wsc);
 void websocket_client_unregister(struct websocket_server_client *wsc);
 struct websocket_server_client *websocket_client_find_by_id(size_t id);
@@ -154,10 +158,10 @@ size_t websocket_clients_count(void);
 // Utility functions
 char *websocket_generate_handshake_key(const char *client_key);
 bool websocket_validate_close_code(uint16_t code);
-void websocket_debug(WEBSOCKET_SERVER_CLIENT *wsc, const char *format, ...);
-void websocket_info(WEBSOCKET_SERVER_CLIENT *wsc, const char *format, ...);
-void websocket_error(WEBSOCKET_SERVER_CLIENT *wsc, const char *format, ...);
-void websocket_dump_debug(WEBSOCKET_SERVER_CLIENT *wsc, const char *payload, size_t payload_length, const char *format, ...);
+void websocket_debug(WS_CLIENT *wsc, const char *format, ...);
+void websocket_info(WS_CLIENT *wsc, const char *format, ...);
+void websocket_error(WS_CLIENT *wsc, const char *format, ...);
+void websocket_dump_debug(WS_CLIENT *wsc, const char *payload, size_t payload_length, const char *format, ...);
 
 // Frame processing result codes
 typedef enum {
@@ -168,40 +172,37 @@ typedef enum {
 } WEBSOCKET_FRAME_RESULT;
 
 // Protocol receiver functions - websocket-protocol-rcv.c
-bool websocket_protocol_got_data(WEBSOCKET_SERVER_CLIENT *wsc, char *data, size_t length, size_t *bytes_processed);
+bool websocket_protocol_got_data(WS_CLIENT *wsc, char *data, size_t length, size_t *bytes_processed);
 
 // Protocol sender functions - websocket-protocol-snd.c
-int websocket_protocol_send_frame(WEBSOCKET_SERVER_CLIENT *wsc, const char *payload, 
+int websocket_protocol_send_frame(
+    WS_CLIENT *wsc, const char *payload,
                                   size_t payload_len, WEBSOCKET_OPCODE opcode, bool use_compression);
-int websocket_protocol_send_text(WEBSOCKET_SERVER_CLIENT *wsc, const char *text);
-int websocket_protocol_send_binary(WEBSOCKET_SERVER_CLIENT *wsc, const void *data, size_t length);
-int websocket_protocol_send_close(WEBSOCKET_SERVER_CLIENT *wsc, uint16_t code, const char *reason);
-int websocket_protocol_send_ping(WEBSOCKET_SERVER_CLIENT *wsc, const char *data, size_t length);
-int websocket_protocol_send_pong(WEBSOCKET_SERVER_CLIENT *wsc, const char *data, size_t length);
-
-// Message handler functions - websocket-message.c
-bool websocket_message_process(WEBSOCKET_SERVER_CLIENT *wsc, WEBSOCKET_MESSAGE *msg);
-WEBSOCKET_PAYLOAD *websocket_message_prepare_payload(WEBSOCKET_SERVER_CLIENT *wsc, WEBSOCKET_MESSAGE *msg);
+int websocket_protocol_send_text(WS_CLIENT *wsc, const char *text);
+int websocket_protocol_send_binary(WS_CLIENT *wsc, const void *data, size_t length);
+int websocket_protocol_send_close(WS_CLIENT *wsc, uint16_t code, const char *reason);
+int websocket_protocol_send_ping(WS_CLIENT *wsc, const char *data, size_t length);
+int websocket_protocol_send_pong(WS_CLIENT *wsc, const char *data, size_t length);
 
 // Payload handler functions - websocket-payload-rcv.c
-bool websocket_payload_process(WEBSOCKET_SERVER_CLIENT *wsc, WEBSOCKET_PAYLOAD *payload);
-bool websocket_payload_handle(WEBSOCKET_SERVER_CLIENT *wsc, WEBSOCKET_PAYLOAD *payload);
-int websocket_payload_echo(WEBSOCKET_SERVER_CLIENT *wsc, WEBSOCKET_PAYLOAD *payload);
-struct json_object *websocket_payload_parse_json(WEBSOCKET_PAYLOAD *payload);
-void websocket_payload_error(WEBSOCKET_SERVER_CLIENT *wsc, const char *error_message);
+bool websocket_payload_handle_message(WS_CLIENT *wsc);
+int websocket_payload_echo(struct websocket_server_client *wsc, WS_BUF *wsb);
+struct json_object *websocket_client_parse_json(struct websocket_server_client *wsc);
+void websocket_payload_error(struct websocket_server_client *wsc, const char *error_message);
 
 // JSON payload functions - websocket-payload-snd.c
-int websocket_payload_send_json(WEBSOCKET_SERVER_CLIENT *wsc, struct json_object *json);
+int websocket_client_send_json(struct websocket_server_client *wsc, struct json_object *json);
 
 // IO functions from old implementation - will be refactored
 int websocket_receive_data(struct websocket_server_client *wsc);
 int websocket_write_data(struct websocket_server_client *wsc);
 
 // Legacy functions to be eventually replaced
-void websocket_client_send_close(WEBSOCKET_SERVER_CLIENT *wsc, int close_code, const char *reason);
+void websocket_client_send_close(WS_CLIENT *wsc, int close_code, const char *reason);
 
 // WebSocket message sending functions
-int websocket_send_message(WEBSOCKET_SERVER_CLIENT *wsc, const char *message, size_t length, WEBSOCKET_OPCODE opcode);
+int websocket_send_message(WS_CLIENT *wsc, const char *message, size_t length, WEBSOCKET_OPCODE opcode);
 int websocket_broadcast_message(const char *message, size_t length, WEBSOCKET_OPCODE opcode);
+int websocket_client_send_text_fragmented(WS_CLIENT *wsc, const char **fragments, int count);
 
 #endif // NETDATA_WEBSOCKET_INTERNAL_H

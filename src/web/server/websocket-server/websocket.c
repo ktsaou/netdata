@@ -21,7 +21,7 @@ static struct websocket_server ws_server = (struct websocket_server){
 };
 
 // Forward declarations for internal functions
-static WEBSOCKET_SERVER_CLIENT *websocket_client_create(void);
+static WS_CLIENT *websocket_client_create(void);
 
 // Check if the current HTTP request is a WebSocket handshake request
 bool websocket_detect_handshake_request(struct web_client *w) {
@@ -52,7 +52,7 @@ char *websocket_generate_handshake_key(const char *client_key) {
     return accept_key;
 }
 
-bool websocket_send_first_response(WEBSOCKET_SERVER_CLIENT *wsc, const char *accept_key, const char *extensions) {
+bool websocket_send_first_response(WS_CLIENT *wsc, const char *accept_key, const char *extensions) {
     CLEAN_BUFFER *header = buffer_create(1024, NULL);
 
     buffer_sprintf(header,
@@ -98,7 +98,7 @@ short int websocket_handle_handshake(struct web_client *w) {
         return HTTP_RESP_INTERNAL_SERVER_ERROR;
     
     // Create the WebSocket client object early so we can set up compression
-    WEBSOCKET_SERVER_CLIENT *wsc = websocket_client_create();
+    WS_CLIENT *wsc = websocket_client_create();
 
     // Copy client information
     strncpyz(wsc->client_ip, w->client_ip, sizeof(wsc->client_ip));
@@ -106,7 +106,7 @@ short int websocket_handle_handshake(struct web_client *w) {
     wsc->protocol = w->websocket.protocol;
 
     // Take over the connection immediately
-    websocket_takeover_connection(w, wsc);
+    websocket_takeover_web_connection(w, wsc);
 
     if(!websocket_send_first_response(wsc, accept_key, w->websocket.extensions)) {
         netdata_log_error("WEBSOCKET: Failed to send complete WebSocket handshake response"); // No client yet
@@ -173,58 +173,67 @@ void websocket_initialize(void) {
 
 // Create a new WebSocket client with a unique ID
 NEVERNULL
-static WEBSOCKET_SERVER_CLIENT *websocket_client_create(void) {
-    WEBSOCKET_SERVER_CLIENT *wsc = callocz(1, sizeof(WEBSOCKET_SERVER_CLIENT));
-    
+static WS_CLIENT *websocket_client_create(void) {
+    WS_CLIENT *wsc = callocz(1, sizeof(WS_CLIENT));
+
     spinlock_lock(&ws_server.spinlock);
     wsc->id = ++ws_server.client_id_counter; // Generate unique ID
     spinlock_unlock(&ws_server.spinlock);
-    
+
     wsc->connected_t = now_realtime_sec();
     wsc->last_activity_t = wsc->connected_t;
-    
+
     // initialize the ND_SOCK with the web server's SSL context
     nd_sock_init(&wsc->sock, netdata_ssl_web_server_ctx, false);
 
-    // Initialize buffers
+    // Initialize I/O buffers
     wsc->in_buffer = buffer_create(NETDATA_WEB_REQUEST_INITIAL_SIZE, NULL);
     wsc->out_buffer = buffer_create(NETDATA_WEB_RESPONSE_INITIAL_SIZE, NULL);
 
-    // Initialize pre-allocated message structure
-    websocket_buffer_init(&wsc->message.buffer, 1024);
-    // The opcode will be set properly when an actual message begins
-    wsc->message.complete = true; // Not in a fragmented sequence initially
+    // Initialize pre-allocated message buffer with a reasonable initial size
+    wsb_init(&wsc->payload, 4096);
+
+    // Initialize uncompressed buffer with a larger size since decompressed data can expand
+    // For compressed content, the expanded data can be much larger than the input
+    wsb_init(&wsc->u_payload, 16384);
+
+    // Set the initial message state
+    wsc->opcode = WS_OPCODE_TEXT; // Default opcode
+    wsc->is_compressed = false;
+    wsc->message_complete = true; // Not in a fragmented sequence initially
     wsc->frame_id = 0;
+    wsc->message_id = 0;
 
     return wsc;
 }
 
 // Free a WebSocket client
-void websocket_client_free(WEBSOCKET_SERVER_CLIENT *wsc) {
+void websocket_client_free(WS_CLIENT *wsc) {
     if (!wsc)
         return;
-    
+
     // First unregister from the client registry
     websocket_client_unregister(wsc);
-    
+
     // Close socket using ND_SOCK abstraction
     nd_sock_close(&wsc->sock);
-    
+
     // Free buffers
     buffer_free(wsc->in_buffer);
     buffer_free(wsc->out_buffer);
-        
-    // Cleanup pre-allocated message buffer
-    websocket_buffer_cleanup(&wsc->message.buffer);
-    
+
+    // Cleanup pre-allocated message and uncompressed buffers
+    wsb_cleanup(&wsc->payload);
+    wsb_cleanup(&wsc->u_payload);
+
     // Clean up compression resources if needed
     websocket_compression_cleanup(wsc);
-    
+
     freez(wsc);
 }
 
 // Register a WebSocket client in the registry
-bool websocket_client_register(WEBSOCKET_SERVER_CLIENT *wsc) {
+bool websocket_client_register(WS_CLIENT *wsc) {
     if (!wsc || wsc->id == 0)
         return false;
     
@@ -243,13 +252,13 @@ bool websocket_client_register(WEBSOCKET_SERVER_CLIENT *wsc) {
 }
 
 // Unregister a WebSocket client from the registry
-void websocket_client_unregister(WEBSOCKET_SERVER_CLIENT *wsc) {
+void websocket_client_unregister(WS_CLIENT *wsc) {
     if (!wsc || wsc->id == 0)
         return;
     
     spinlock_lock(&ws_server.spinlock);
-    
-    WEBSOCKET_SERVER_CLIENT *existing = WS_CLIENTS_GET(&ws_server.clients, wsc->id);
+
+    WS_CLIENT *existing = WS_CLIENTS_GET(&ws_server.clients, wsc->id);
     if (existing && existing == wsc) {
         WS_CLIENTS_DEL(&ws_server.clients, wsc->id);
         if (ws_server.active_clients > 0)
@@ -263,11 +272,11 @@ void websocket_client_unregister(WEBSOCKET_SERVER_CLIENT *wsc) {
 }
 
 // Find a WebSocket client by ID
-WEBSOCKET_SERVER_CLIENT *websocket_client_find_by_id(size_t id) {
+WS_CLIENT *websocket_client_find_by_id(size_t id) {
     if (id == 0)
         return NULL;
-    
-    WEBSOCKET_SERVER_CLIENT *wsc = NULL;
+
+    WS_CLIENT *wsc = NULL;
     
     spinlock_lock(&ws_server.spinlock);
     wsc = WS_CLIENTS_GET(&ws_server.clients, id);
@@ -296,19 +305,19 @@ bool websocket_validate_close_code(uint16_t code) {
 
 // Helper structure for foreach callback
 struct foreach_callback_params {
-    void (*callback)(WEBSOCKET_SERVER_CLIENT *wsc, void *data);
+    void (*callback)(WS_CLIENT *wsc, void *data);
     void *data;
 };
 
 // Iterate through all WebSocket clients using JudyL FIRST/NEXT
-void websocket_clients_foreach(void (*callback)(WEBSOCKET_SERVER_CLIENT *wsc, void *data), void *data) {
+void websocket_clients_foreach(void (*callback)(WS_CLIENT *wsc, void *data), void *data) {
     if (!callback)
         return;
     
     spinlock_lock(&ws_server.spinlock);
     
     Word_t index = 0;
-    WEBSOCKET_SERVER_CLIENT *wsc;
+    WS_CLIENT *wsc;
     
     // Get the first entry
     wsc = WS_CLIENTS_FIRST(&ws_server.clients, &index);
@@ -342,7 +351,7 @@ struct broadcast_params {
 };
 
 // Callback function for broadcast
-static void websocket_broadcast_callback(WEBSOCKET_SERVER_CLIENT *wsc, void *data) {
+static void websocket_broadcast_callback(WS_CLIENT *wsc, void *data) {
     struct broadcast_params *params = (struct broadcast_params *)data;
     
     if (wsc && wsc->state == WS_STATE_OPEN) {
@@ -407,7 +416,7 @@ int websocket_broadcast_message(const char *message, size_t length, WEBSOCKET_OP
 }
 
 // Send a WebSocket message to the client
-int websocket_send_message(WEBSOCKET_SERVER_CLIENT *wsc, const char *message, size_t length, WEBSOCKET_OPCODE opcode) {
+int websocket_send_message(WS_CLIENT *wsc, const char *message, size_t length, WEBSOCKET_OPCODE opcode) {
     if (!wsc || !message || wsc->state != WS_STATE_OPEN)
         return -1;
     

@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 #include "daemon/common.h"
 #include "websocket-internal.h"
 #include "poll.h"
@@ -103,7 +105,7 @@ cleanup:
     return false;
 }
 
-static void websocket_thread_client_socket_error(WEBSOCKET_THREAD *wth, WEBSOCKET_SERVER_CLIENT *wsc, const char *reason) {
+static void websocket_thread_client_socket_error(WEBSOCKET_THREAD *wth, WS_CLIENT *wsc, const char *reason) {
     worker_is_busy(WORKERS_WEBSOCKET_SOCK_ERROR);
 
     websocket_debug(wsc, reason);
@@ -187,7 +189,7 @@ void *websocket_thread(void *ptr) {
             }
 
             // Handle client events
-            WEBSOCKET_SERVER_CLIENT *wsc = (WEBSOCKET_SERVER_CLIENT *)ev.data;
+            WS_CLIENT *wsc = (WS_CLIENT *)ev.data;
             if(!wsc) {
                 netdata_log_error("WEBSOCKET[%zu]: Poll event with NULL client data", wth->id);
                 continue;
@@ -229,10 +231,10 @@ void *websocket_thread(void *ptr) {
         if(now - last_cleanup > 30) {
             // Iterate through all clients in this thread
             spinlock_lock(&wth->clients_spinlock);
-            
-            WEBSOCKET_SERVER_CLIENT *wsc = wth->clients;
+
+            WS_CLIENT *wsc = wth->clients;
             while(wsc) {
-                WEBSOCKET_SERVER_CLIENT *next = wsc->next; // Save next in case we remove this client
+                WS_CLIENT *next = wsc->next; // Save next in case we remove this client
                 
                 if(wsc->state == WS_STATE_OPEN) {
                     // Check if client is idle (no activity for over 120 seconds)
@@ -279,9 +281,9 @@ void *websocket_thread(void *ptr) {
     spinlock_lock(&wth->clients_spinlock);
     
     // Close all clients in this thread
-    WEBSOCKET_SERVER_CLIENT *wsc = wth->clients;
+    WS_CLIENT *wsc = wth->clients;
     while(wsc) {
-        WEBSOCKET_SERVER_CLIENT *next = wsc->next;
+        WS_CLIENT *next = wsc->next;
         
         netdata_log_info("WEBSOCKET[%zu]: Closing client %zu during thread shutdown", wth->id, wsc->id);
         
@@ -340,7 +342,7 @@ void *websocket_thread(void *ptr) {
 }
 
 // Assign a client to a thread
-WEBSOCKET_THREAD *websocket_thread_assign_client(WEBSOCKET_SERVER_CLIENT *wsc) {
+WEBSOCKET_THREAD *websocket_thread_assign_client(WS_CLIENT *wsc) {
     if(!wsc)
         return NULL;
 
@@ -393,7 +395,7 @@ undo:
 }
 
 // Add a client to a thread's poll
-bool websocket_thread_add_client_to_poll(WEBSOCKET_THREAD *wth, WEBSOCKET_SERVER_CLIENT *wsc) {
+bool websocket_thread_add_client_to_poll(WEBSOCKET_THREAD *wth, WS_CLIENT *wsc) {
     if(!wth || !wsc || wsc->sock.fd < 0)
         return false;
 
@@ -418,7 +420,7 @@ bool websocket_thread_add_client_to_poll(WEBSOCKET_THREAD *wth, WEBSOCKET_SERVER
 }
 
 // Remove a client from a thread's poll
-void websocket_thread_remove_client_from_poll(WEBSOCKET_THREAD *wth, WEBSOCKET_SERVER_CLIENT *wsc) {
+void websocket_thread_remove_client_from_poll(WEBSOCKET_THREAD *wth, WS_CLIENT *wsc) {
     if(!wth || !wsc || wsc->sock.fd < 0)
         return;
 
@@ -439,7 +441,7 @@ void websocket_thread_remove_client_from_poll(WEBSOCKET_THREAD *wth, WEBSOCKET_S
 }
 
 // Thread client enqueue function
-void websocket_thread_enqueue_client(WEBSOCKET_THREAD *wth, WEBSOCKET_SERVER_CLIENT *wsc) {
+void websocket_thread_enqueue_client(WEBSOCKET_THREAD *wth, WS_CLIENT *wsc) {
     if(!wth || !wsc)
         return;
 
@@ -457,7 +459,7 @@ void websocket_thread_enqueue_client(WEBSOCKET_THREAD *wth, WEBSOCKET_SERVER_CLI
 }
 
 // Thread client dequeue function
-void websocket_thread_dequeue_client(WEBSOCKET_THREAD *wth, WEBSOCKET_SERVER_CLIENT *wsc) {
+void websocket_thread_dequeue_client(WEBSOCKET_THREAD *wth, WS_CLIENT *wsc) {
     if(!wth || !wsc)
         return;
 
@@ -475,7 +477,7 @@ void websocket_thread_dequeue_client(WEBSOCKET_THREAD *wth, WEBSOCKET_SERVER_CLI
 }
 
 // Update a client's poll event flags
-bool websocket_thread_update_client_poll_flags(WEBSOCKET_THREAD *wth, WEBSOCKET_SERVER_CLIENT *wsc, nd_poll_event_t events) {
+bool websocket_thread_update_client_poll_flags(WEBSOCKET_THREAD *wth, WS_CLIENT *wsc, nd_poll_event_t events) {
     if(!wth || !wsc || wsc->sock.fd < 0)
         return false;
 
@@ -612,7 +614,7 @@ void websocket_thread_process_commands(WEBSOCKET_THREAD *wth) {
                     continue;
                 }
                 size_t client_id = *(size_t *)buffer;
-                WEBSOCKET_SERVER_CLIENT *wsc = websocket_client_find_by_id(client_id);
+                WS_CLIENT *wsc = websocket_client_find_by_id(client_id);
                 if(!wsc) {
                     netdata_log_error("WEBSOCKET[%zu]: Client %zu not found for add command", wth->id, client_id);
                     continue;
@@ -630,7 +632,7 @@ void websocket_thread_process_commands(WEBSOCKET_THREAD *wth) {
                 }
 
                 size_t client_id = *(size_t *)buffer;
-                WEBSOCKET_SERVER_CLIENT *wsc = websocket_client_find_by_id(client_id);
+                WS_CLIENT *wsc = websocket_client_find_by_id(client_id);
                 if(!wsc) {
                     netdata_log_error("WEBSOCKET[%zu]: Client %zu not found for remove command", wth->id, client_id);
                     continue;
@@ -686,8 +688,8 @@ void websocket_thread_process_commands(WEBSOCKET_THREAD *wth) {
                 
                 // Send to all clients in this thread
                 spinlock_lock(&wth->clients_spinlock);
-                
-                WEBSOCKET_SERVER_CLIENT *wsc = wth->clients;
+
+                WS_CLIENT *wsc = wth->clients;
                 while(wsc) {
                     if(wsc->state == WS_STATE_OPEN) {
                         websocket_send_message(wsc, message, message_len, opcode);

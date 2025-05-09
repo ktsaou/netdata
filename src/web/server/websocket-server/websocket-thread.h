@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 #ifndef NETDATA_WEBSOCKET_THREAD_H
 #define NETDATA_WEBSOCKET_THREAD_H
 

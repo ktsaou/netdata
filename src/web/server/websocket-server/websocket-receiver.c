@@ -1,8 +1,10 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 #include "daemon/common.h"
 #include "websocket-internal.h"
 
 // Process incoming WebSocket data
-int websocket_receive_data(WEBSOCKET_SERVER_CLIENT *wsc) {
+int websocket_receive_data(WS_CLIENT *wsc) {
     worker_is_busy(WORKERS_WEBSOCKET_SOCK_RECEIVE);
 
     if (!wsc || !wsc->in_buffer || wsc->sock.fd < 0)
@@ -95,7 +97,7 @@ int websocket_receive_data(WEBSOCKET_SERVER_CLIENT *wsc) {
 }
 
 // Actually write data to the client socket
-int websocket_write_data(WEBSOCKET_SERVER_CLIENT *wsc) {
+int websocket_write_data(WS_CLIENT *wsc) {
     worker_is_busy(WORKERS_WEBSOCKET_SOCK_SEND);
 
     if (!wsc || !wsc->out_buffer || wsc->sock.fd < 0 || buffer_strlen(wsc->out_buffer) == 0)
@@ -151,16 +153,12 @@ int websocket_write_data(WEBSOCKET_SERVER_CLIENT *wsc) {
 }
 
 // Handle socket takeover from web client - similar to stream_receiver_takeover_web_connection
-void websocket_takeover_connection(struct web_client *w, WEBSOCKET_SERVER_CLIENT *wsc) {
-    // Now set the file descriptor and ssl from the web client
+void websocket_takeover_web_connection(struct web_client *w, WS_CLIENT *wsc) {
+    // Set the file descriptor and ssl from the web client
     wsc->sock.fd = w->fd;
     wsc->sock.ssl = w->ssl;
 
-    // Take over the socket but don't close it when cleaning up the web client
     w->ssl = NETDATA_SSL_UNSET_CONNECTION;
-
-    web_client_disable_wait_receive(w);
-    web_client_disable_wait_send(w);
 
     WEB_CLIENT_IS_DEAD(w);
 
@@ -172,11 +170,10 @@ void websocket_takeover_connection(struct web_client *w, WEBSOCKET_SERVER_CLIENT
     }
 
     buffer_flush(w->response.data);
-    buffer_flush(w->response.header_output);
 }
 
 // Close a WebSocket connection with a specific code and reason
-void websocket_client_send_close(WEBSOCKET_SERVER_CLIENT *wsc, int close_code, const char *reason) {
+void websocket_client_send_close(WS_CLIENT *wsc, int close_code, const char *reason) {
     if (!wsc || wsc->state == WS_STATE_CLOSED)
         return;
 

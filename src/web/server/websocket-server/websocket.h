@@ -21,7 +21,7 @@ typedef enum __attribute__((packed)) {
 
 
 // Forward declarations for websocket client
-typedef struct websocket_server_client WEBSOCKET_SERVER_CLIENT;
+typedef struct websocket_server_client WS_CLIENT;
 
 // Public WebSocket API functions
 struct web_client;
@@ -31,7 +31,7 @@ bool websocket_detect_handshake_request(struct web_client *w);
 short int websocket_handle_handshake(struct web_client *w);
 
 // WebSocket socket takeover
-void websocket_takeover_connection(struct web_client *w, WEBSOCKET_SERVER_CLIENT *wsc);
+void websocket_takeover_web_connection(struct web_client *w, WS_CLIENT *wsc);
 
 // Initialize the WebSocket subsystem
 void websocket_initialize(void);

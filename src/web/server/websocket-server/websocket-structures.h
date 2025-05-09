@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 #ifndef NETDATA_WEBSOCKET_STRUCTURES_H
 #define NETDATA_WEBSOCKET_STRUCTURES_H
 
@@ -50,58 +52,21 @@ typedef struct websocket_buffer {
     char *data;                     // Buffer holding message data
     size_t length;                  // Current buffer length
     size_t size;                    // Allocated buffer size
-} WEBSOCKET_BUFFER;
-
-// WebSocket message structure - contains a complete or partially complete message
-typedef struct websocket_message {
-    WEBSOCKET_BUFFER buffer;        // Buffer for complete message data
-    WEBSOCKET_OPCODE opcode;        // Message type (from first frame)
-    bool is_compressed;             // Whether the message is compressed (RSV1 bit set)
-    bool complete;                  // Whether the message is complete (all fragments received)
-} WEBSOCKET_MESSAGE;
-
-// WebSocket payload structure - contains the processed, unmasked, uncompressed message data
-typedef struct websocket_payload {
-    WEBSOCKET_BUFFER buffer;         // Buffer for payload data (unmasked and uncompressed)
-    WEBSOCKET_OPCODE opcode;         // Payload type (TEXT or BINARY)
-} WEBSOCKET_PAYLOAD;
+} WS_BUF;
 
 // Forward declaration for client structure
 struct websocket_server_client;
 
-// Function prototypes for message/payload handling
+// Function prototypes for buffer handling
 
-// Buffer functions
-void websocket_buffer_init(WEBSOCKET_BUFFER *buffer, size_t initial_size);
-void websocket_buffer_cleanup(WEBSOCKET_BUFFER *buffer);
-WEBSOCKET_BUFFER *websocket_buffer_create(size_t initial_size);
-void websocket_buffer_free(WEBSOCKET_BUFFER *buffer);
-void websocket_buffer_resize(WEBSOCKET_BUFFER *buffer, size_t new_size);
-void websocket_buffer_expand(WEBSOCKET_BUFFER *buffer, size_t length);
-void websocket_buffer_reset(WEBSOCKET_BUFFER *buffer);
-
-// Message functions
-NEVERNULL
-WEBSOCKET_MESSAGE *websocket_message_create(size_t initial_size);
-
-void websocket_message_free(WEBSOCKET_MESSAGE *msg);
-void websocket_message_reset(WEBSOCKET_MESSAGE *msg);
-bool websocket_message_process_frame_data(struct websocket_server_client *wsc, WEBSOCKET_MESSAGE *msg, const char *data, size_t length);
-bool websocket_message_is_complete(const WEBSOCKET_MESSAGE *msg);
-bool websocket_message_is_control(const WEBSOCKET_MESSAGE *msg);
-WEBSOCKET_PAYLOAD *websocket_message_to_payload(struct websocket_server_client *wsc, WEBSOCKET_MESSAGE *msg);
-
-// Payload functions
-WEBSOCKET_PAYLOAD *websocket_payload_create(WEBSOCKET_OPCODE opcode, const char *data, size_t length);
-void websocket_payload_free(WEBSOCKET_PAYLOAD *payload);
-int websocket_payload_send(struct websocket_server_client *wsc, WEBSOCKET_PAYLOAD *payload);
-WEBSOCKET_PAYLOAD *websocket_payload_create_text(const char *text);
-WEBSOCKET_PAYLOAD *websocket_payload_create_binary(const void *data, size_t length);
-int websocket_payload_send_text(struct websocket_server_client *wsc, const char *text);
-int websocket_payload_send_binary(struct websocket_server_client *wsc, const void *data, size_t length);
-int websocket_payload_send_text_fmt(struct websocket_server_client *wsc, const char *format, ...);
+// Message and payload processing functions
+void websocket_client_message_reset(struct websocket_server_client *wsc);
+bool websocket_client_process_message(struct websocket_server_client *wsc);
+bool websocket_client_decompress_message(struct websocket_server_client *wsc);
 
 // Additional functions to help with transition from old code to new
 bool websocket_frame_is_control_opcode(WEBSOCKET_OPCODE opcode);
+
+#include "websocket-buffer.h"
 
 #endif // NETDATA_WEBSOCKET_STRUCTURES_H

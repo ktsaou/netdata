@@ -1,268 +1,106 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 #include "daemon/common.h"
 #include "websocket-internal.h"
 
-// Initialize an already allocated buffer structure
-void websocket_buffer_init(WEBSOCKET_BUFFER *buffer, size_t initial_size) {
-    if (!buffer)
-        return;
-    
-    buffer->data = mallocz(initial_size);
-    buffer->size = initial_size;
-    buffer->length = 0;
-}
-
-// Clean up an embedded buffer (free data but not the buffer structure itself)
-void websocket_buffer_cleanup(WEBSOCKET_BUFFER *buffer) {
-    if (!buffer)
-        return;
-
-    freez(buffer->data);
-    buffer->data = NULL;
-    buffer->size = 0;
-    buffer->length = 0;
-}
-
-// Initialize buffer structure
-WEBSOCKET_BUFFER *websocket_buffer_create(size_t initial_size) {
-    WEBSOCKET_BUFFER *buffer = mallocz(sizeof(WEBSOCKET_BUFFER));
-
-    websocket_buffer_init(buffer, MAX(initial_size, 1024));
-
-    return buffer;
-}
-
-// Free buffer structure
-void websocket_buffer_free(WEBSOCKET_BUFFER *buffer) {
-    if (!buffer)
-        return;
-
-    freez(buffer->data);
-    freez(buffer);
-}
-
-// Resize buffer to a new size
-void websocket_buffer_resize(WEBSOCKET_BUFFER *buffer, size_t new_size) {
-    // If the buffer is already large enough, consider it a success
-    if (new_size <= buffer->size)
-        return;
-    
-    netdata_log_debug(D_WEBSOCKET, "WEBSOCKET: Buffer resize: from %zu to %zu bytes (current length: %zu)",
-                   buffer->size, new_size, buffer->length);
-
-    // Allocate new buffer
-    buffer->data = reallocz(buffer->data, new_size);
-    buffer->size = new_size;
-}
-
-// Append data to buffer
-void websocket_buffer_expand(WEBSOCKET_BUFFER *buffer, size_t length) {
-    if (!buffer || !length)
-        return;
-    
-    // Check if we need to resize the buffer
-    if (buffer->length + length > buffer->size) {
-        // Calculate new size
-        size_t new_size = buffer->size * 2;
-        if (new_size < buffer->length + length)
-            new_size = buffer->length + length + 1024; // Add some extra space
-        
-        websocket_buffer_resize(buffer, new_size);
-    }
-}
-
-// Reset buffer
-void websocket_buffer_reset(WEBSOCKET_BUFFER *buffer) {
-    if (!buffer)
-        return;
-
-    buffer->length = 0;
-}
-
-// Create a new WebSocket message
-NEVERNULL
-WEBSOCKET_MESSAGE *websocket_message_create(size_t initial_size) {
-    WEBSOCKET_MESSAGE *msg = callocz(1, sizeof(WEBSOCKET_MESSAGE));
-    
-    // Initialize the embedded buffer directly
-    websocket_buffer_init(&msg->buffer, initial_size);
-    msg->opcode = WS_OPCODE_TEXT;
-
-    return msg;
-}
-
-// Free a WebSocket message
-void websocket_message_free(WEBSOCKET_MESSAGE *msg) {
-    if (!msg)
-        return;
-        
-    // Clean up the embedded buffer using our buffer cleanup function
-    websocket_buffer_cleanup(&msg->buffer);
-    
-    // Free the message itself
-    freez(msg);
-}
-
-// Reset a WebSocket message for reuse
-void websocket_message_reset(WEBSOCKET_MESSAGE *msg) {
-    if (!msg)
-        return;
-        
-    // Reset buffer using the buffer reset function
-    websocket_buffer_reset(&msg->buffer);
-    
-    // Reset message state
-    msg->complete = true; // Initial state is complete (no fragmented message in progress)
-    msg->is_compressed = false;
-    msg->opcode = WS_OPCODE_TEXT; // Default opcode
-    // buffer.length is already reset by websocket_buffer_reset
-    
-    // No current_frame to reset anymore
-}
-
-// Check if a message is a control message
-bool websocket_message_is_control(const WEBSOCKET_MESSAGE *msg) {
-    if (!msg)
-        return false;
-        
-    return (msg->opcode == WS_OPCODE_CLOSE || 
-            msg->opcode == WS_OPCODE_PING || 
-            msg->opcode == WS_OPCODE_PONG);
-}
-
 // Helper function to determine if an opcode is a control opcode
 bool websocket_frame_is_control_opcode(WEBSOCKET_OPCODE opcode) {
-    return (opcode == WS_OPCODE_CLOSE || 
-            opcode == WS_OPCODE_PING || 
+    return (opcode == WS_OPCODE_CLOSE ||
+            opcode == WS_OPCODE_PING ||
             opcode == WS_OPCODE_PONG);
 }
 
-// Convert a message to a payload structure ready for application processing
-WEBSOCKET_PAYLOAD *websocket_message_prepare_payload(WEBSOCKET_SERVER_CLIENT *wsc, WEBSOCKET_MESSAGE *msg) {
-    if (!wsc || !msg)
-        return NULL;
+// Reset a client's message state for a new message
+void websocket_client_message_reset(WS_CLIENT *wsc) {
+    if (!wsc)
+        return;
 
-    // Empty messages (length=0) are valid in WebSocket and should create an empty payload
-    // We only need to check for msg->buffer.data if length is > 0
-    if (msg->buffer.length > 0 && !msg->buffer.data)
-        return NULL;
-        
-    websocket_debug(wsc, "Preparing payload from message (opcode=0x%x, is_compressed=%d, length=%zu, fragmented=%d)",
-               msg->opcode, msg->is_compressed, msg->buffer.length, !msg->complete);
-    
-    // Create a new payload
-    WEBSOCKET_PAYLOAD *payload = mallocz(sizeof(WEBSOCKET_PAYLOAD));
+    // Reset message buffer
+    wsb_reset(&wsc->payload);
 
-    // Set payload type
-    payload->opcode = msg->opcode;
+    // Also reset uncompressed buffer to avoid keeping stale data
+    wsb_reset(&wsc->u_payload);
 
-    // Initialize the buffer
-    websocket_buffer_init(&payload->buffer, msg->buffer.length > 0 ? msg->buffer.length : 1);
-    
-    // Handle compression if needed
-    if (msg->is_compressed && wsc->compression.enabled) {
-        websocket_debug(wsc, "Message is compressed, decompressing %zu bytes",
-                   msg->buffer.length);
-        
-        // Compressed message - needs decompression
-        char *uncompressed_data = NULL;
-        size_t uncompressed_length = 0;
+    // Reset client's message state
+    wsc->message_complete = true; // Initial state is complete (no fragmented message in progress)
+    wsc->is_compressed = false;
+    wsc->opcode = WS_OPCODE_TEXT; // Default opcode
+    wsc->frame_id = 0;
+}
 
-        // Dump compressed data and buffer metadata for debugging
-        websocket_dump_debug(wsc, msg->buffer.data, msg->buffer.length,
-                         "Compressed data, buffer metadata: length=%zu, alloc_size=%zu",
-                         msg->buffer.length, msg->buffer.size);
+// Process a complete message (decompress if needed and call handler)
+bool websocket_client_process_message(WS_CLIENT *wsc) {
+    if (!wsc || !wsc->message_complete)
+        return false;
 
-        // Verify that the buffer is well-formed before attempting decompression
-        if (msg->buffer.length > msg->buffer.size) {
-            websocket_error(wsc, "Buffer corruption detected: length (%zu) > alloc_size (%zu)",
-                        msg->buffer.length, msg->buffer.size);
-            freez(payload);
-            return NULL;
-        }
-        
-        // Ensure buffer is null-terminated to avoid potential overruns
-        // This is defensive programming - the buffer may not need to be null-terminated
-        // for binary data, but it doesn't hurt and may prevent certain issues
-        if (msg->buffer.length < msg->buffer.size) {
-            msg->buffer.data[msg->buffer.length] = '\0';
-        }
-        
-        // Decompress the message payload
-        int result = websocket_decompress_payload(wsc, msg->buffer.data, msg->buffer.length, 
-                                             &uncompressed_data, &uncompressed_length);
-        
-        if (result < 0 || !uncompressed_data || uncompressed_length == 0) {
-            // Decompression failed
-            websocket_error(wsc, "Failed to decompress message payload - was this a fragmented compressed message?");
-            
-            // Additional debug information about the buffer
-            websocket_debug(wsc, "Message details: buffer_length=%zu, is_fragmented=%d, complete=%d",
-                        msg->buffer.length, !msg->complete, msg->complete);
-            
-            freez(payload);
-            return NULL;
-        }
-        
-        // Dump decompressed data for debugging with complete stats
-        websocket_dump_debug(wsc, uncompressed_data, uncompressed_length,
-                         "Successfully decompressed message from %zu to %zu bytes (ratio: %.2fx)",
-                         msg->buffer.length, uncompressed_length,
-                         (double)uncompressed_length / (double)msg->buffer.length);
+    worker_is_busy(WORKERS_WEBSOCKET_MESSAGE);
 
-        // If it's a text message, try to show the decompressed content
-        if (msg->opcode == WS_OPCODE_TEXT && uncompressed_length < 100 && uncompressed_data) {
-            char text_preview[101];
-            size_t copy_len = (uncompressed_length < 100) ? uncompressed_length : 100;
-            memcpy(text_preview, uncompressed_data, copy_len);
-            text_preview[copy_len] = '\0';
-            websocket_debug(wsc, "Decompressed text: '%s'", text_preview);
-        }
+    websocket_debug(wsc, "Processing message (opcode=0x%x, is_compressed=%d, length=%zu)",
+               wsc->opcode, wsc->is_compressed,
+        wsb_length(&wsc->payload));
 
-        // Use the uncompressed data as payload
-        freez(payload->buffer.data); // Free the initial allocation
-        payload->buffer.data = uncompressed_data;
-        payload->buffer.length = uncompressed_length;
-        payload->buffer.size = uncompressed_length;
+    // Handle control frames immediately
+    if (wsc->opcode != WS_OPCODE_TEXT && wsc->opcode != WS_OPCODE_BINARY) {
+        websocket_debug(wsc, "Control frame (opcode=0x%x) should not be handled by %s()", wsc->opcode, __FUNCTION__);
+        return false;
     }
-    else {
-        // Uncompressed message - directly use buffer data
-        websocket_debug(wsc, "Message not compressed, copying %zu bytes directly",
-                   msg->buffer.length);
 
-        // Handle empty messages
-        if (msg->buffer.length == 0) {
-            // For empty messages, we already have a 1-byte buffer from initialization
-            if (msg->opcode == WS_OPCODE_TEXT) {
-                // For text messages, ensure null termination
-                payload->buffer.data[0] = '\0';
-            }
-            payload->buffer.length = 0;
+    // At this point, we know we're dealing with a data frame (text or binary)
+
+    // Handle decompression if needed
+    if (wsc->is_compressed) {
+        if (!websocket_client_decompress_message(wsc)) {
+            websocket_client_send_close(wsc, WS_CLOSE_INTERNAL_ERROR, "Decompression failed");
+            return false;
         }
-        else {
-            // Non-empty message - copy data normally
-            // Make sure buffer is large enough
-            size_t alloc_size = msg->buffer.length;
-            if (msg->opcode == WS_OPCODE_TEXT) {
-                // Add space for null terminator for text data
-                alloc_size++;
+    } else {
+        // For uncompressed messages, we just use payload buffer directly
+
+        // Reset the uncompressed buffer (maintain allocated memory)
+        wsb_reset(&wsc->u_payload);
+
+        if (wsc->payload.length == 0) {
+            // Empty message - handle specially
+            websocket_debug(wsc, "Handling empty %s message",
+                          (wsc->opcode == WS_OPCODE_BINARY) ? "binary" : "text");
+
+            // For text messages, ensure null termination
+            if (wsc->opcode == WS_OPCODE_TEXT) {
+                wsb_null_terminate(&wsc->u_payload);
             }
+        } else {
+            // Normal non-empty message - copy from payload buffer
+            // The buffer should already be pre-allocated with sufficient size
 
-            // Resize if needed
-            websocket_buffer_resize(&payload->buffer, alloc_size);
+            // Copy data from payload to uncompressed buffer
+            wsb_append(&wsc->u_payload, wsb_data(&wsc->payload), wsb_length(&wsc->payload));
 
-            // Copy the data
-            memcpy(payload->buffer.data, msg->buffer.data, msg->buffer.length);
-            payload->buffer.length = msg->buffer.length;
-
-            // Add null termination for text data
-            if (msg->opcode == WS_OPCODE_TEXT) {
-                payload->buffer.data[msg->buffer.length] = '\0';
+            // Ensure null termination for text data
+            if (wsc->opcode == WS_OPCODE_TEXT) {
+                wsb_null_terminate(&wsc->u_payload);
             }
         }
     }
-    
-    websocket_debug(wsc, "Payload prepared: opcode=0x%x, is_binary=%d, length=%zu",
-               payload->opcode, (payload->opcode == WS_OPCODE_BINARY), payload->buffer.length);
-    
-    return payload;
+
+    // Now handle the uncompressed message - using the new function
+    // that contains the actual handler logic
+    bool result = websocket_payload_handle_message(wsc);
+
+    if (!result) {
+        // If message handling failed, just call the on_message callback directly as a fallback
+        if (wsc->on_message) {
+            wsc->on_message(wsc,
+                wsb_data(&wsc->u_payload), wsb_length(&wsc->u_payload),
+                          wsc->opcode);
+        }
+    }
+
+    // Update client message stats
+    wsc->message_id++;
+    wsc->frame_id = 0;
+
+    // Reset for the next message
+    websocket_client_message_reset(wsc);
+
+    return true;
 }
