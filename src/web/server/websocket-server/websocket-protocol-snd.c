@@ -106,47 +106,30 @@ int websocket_protocol_send_frame(
                opcode, frame_payload_len, compress ? ", compressed" : "uncompressed");
     
     // Always use the output buffer
-    {
-        wsb_need_bytes(&wsc->out_buffer, frame_size);
-        wsb_append(&wsc->out_buffer, frame_buffer, frame_size);
+    // Add frame to circular buffer - let the circular buffer handle memory management
+    if (cbuffer_add_unsafe(&wsc->out_buffer, frame_buffer, frame_size) != 0) {
+        // If this fails, it means the client is too slow or the buffer reached max size
+        websocket_error(wsc, "Client too slow to consume data or buffer reached max size - disconnecting");
 
-        // Make sure the client's poll flags include WRITE
-        if (wsc->thread && wsc->sock.fd >= 0) {
-            websocket_thread_update_client_poll_flags(wsc->thread, wsc, ND_POLL_READ | ND_POLL_WRITE);
-        }
-
-        // Try to write immediately in case the buffer is getting large
-        websocket_write_data(wsc);
-        
         // Free temporary buffers
         freez(frame_buffer);
         if (payload_compressed)
             freez(frame_payload);
-        
-        return (int)frame_size;
+
+        // Schedule a client disconnect
+        websocket_client_send_close(wsc, WS_CLOSE_GOING_AWAY, "Client too slow");
+        return -1;
     }
-    
-    // Direct send, no buffer
-    ssize_t bytes_sent = nd_sock_write(&wsc->sock, frame_buffer, frame_size, 0);
-    
-    // Check for errors
-    if (bytes_sent < 0) {
-        websocket_error(wsc, "Failed to send frame: %s", strerror(errno));
-    }
-    else if ((size_t)bytes_sent < frame_size) {
-        websocket_error(wsc, "Partial frame sent: %zd of %zu bytes",
-                   bytes_sent, frame_size);
-    }
-    else {
-        websocket_debug(wsc, "Successfully sent %zd bytes", bytes_sent);
-    }
-    
+
+    // Make sure the client's poll flags include WRITE
+    websocket_thread_update_client_poll_flags(wsc);
+
     // Free temporary buffers
     freez(frame_buffer);
     if (payload_compressed)
         freez(frame_payload);
-    
-    return (int)bytes_sent;
+
+    return (int)frame_size;
 }
 
 // Send a text message

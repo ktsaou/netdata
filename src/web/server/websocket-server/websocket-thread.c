@@ -207,8 +207,7 @@ void *websocket_thread(void *ptr) {
 
             // Process read events
             if(ev.events & ND_POLL_READ) {
-                int result = websocket_receive_data(wsc);
-                if(result < 0) {
+                if(websocket_receive_data(wsc) < 0) {
                     websocket_thread_client_socket_error(wth, wsc, "Failed to receive data");
                     continue;
                 }
@@ -216,8 +215,7 @@ void *websocket_thread(void *ptr) {
 
             // Process write events
             if(ev.events & ND_POLL_WRITE) {
-                int result = websocket_write_data(wsc);
-                if(result < 0) {
+                if(websocket_write_data(wsc) < 0) {
                     websocket_thread_client_socket_error(wth, wsc, "Failed to send data");
                     continue;
                 }
@@ -299,11 +297,7 @@ void *websocket_thread(void *ptr) {
         if(wsc->sock.fd >= 0 && wsc->state != WS_STATE_CLOSED) {
             // Try to send close frame (ignoring errors)
             websocket_client_send_close(wsc, 1001, "Server shutting down");
-            
-            // Flush any pending data - best effort, ignore errors
-            if(wsb_length(&wsc->out_buffer) > 0) {
-                websocket_write_data(wsc);
-            }
+            websocket_write_data(wsc);
         }
 
         websocket_client_free(wsc);
@@ -378,7 +372,7 @@ WEBSOCKET_THREAD *websocket_thread_assign_client(WS_CLIENT *wsc) {
     }
 
     // Link thread to client
-    wsc->thread = wth;
+    wsc->wth = wth;
 
     return wth;
 
@@ -477,21 +471,19 @@ void websocket_thread_dequeue_client(WEBSOCKET_THREAD *wth, WS_CLIENT *wsc) {
 }
 
 // Update a client's poll event flags
-bool websocket_thread_update_client_poll_flags(WEBSOCKET_THREAD *wth, WS_CLIENT *wsc, nd_poll_event_t events) {
-    if(!wth || !wsc || wsc->sock.fd < 0)
+bool websocket_thread_update_client_poll_flags(WS_CLIENT *wsc) {
+    if(!wsc || !wsc->wth || wsc->sock.fd < 0)
         return false;
 
-    // Lock the thread poll
-    spinlock_lock(&wth->spinlock);
+    nd_poll_event_t events = ND_POLL_READ;
+    if(cbuffer_next_unsafe(&wsc->out_buffer, NULL) > 0)
+        events |= ND_POLL_WRITE;
 
     // Update poll events
-    bool updated = nd_poll_upd(wth->ndpl, wsc->sock.fd, events);
+    bool updated = nd_poll_upd(wsc->wth->ndpl, wsc->sock.fd, events);
     if(!updated) {
-        netdata_log_error("WEBSOCKET[%zu]: Failed to update poll events for client %zu", wth->id, wsc->id);
+        netdata_log_error("WEBSOCKET[%zu]: Failed to update poll events for client %zu", wsc->wth->id, wsc->id);
     }
-
-    // Release the thread poll lock
-    spinlock_unlock(&wth->spinlock);
 
     return updated;
 }
@@ -647,8 +639,7 @@ void websocket_thread_process_commands(WEBSOCKET_THREAD *wth) {
                     websocket_client_send_close(wsc, 1000, "Connection closed by server");
                     
                     // Flush any pending data - best effort, ignore errors
-                    if(wsb_length(&wsc->out_buffer) > 0)
-                        websocket_write_data(wsc);
+                    websocket_write_data(wsc);
                 }
                 
                 websocket_debug(wsc, "Removed and resources freed", wth->id, client_id);

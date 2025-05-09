@@ -231,11 +231,11 @@ static bool websocket_protocol_process_control_message(
 // - WS_FRAME_COMPLETE: Frame was successfully parsed and handled, but is not a complete message yet
 // - WS_FRAME_MESSAGE_READY: Message is ready for processing
 static WEBSOCKET_FRAME_RESULT
-websocket_protocol_consume_frame(WS_CLIENT *wsc, char *data, size_t length, size_t *bytes_processed) {
+websocket_protocol_consume_frame(WS_CLIENT *wsc, char *data, size_t length, ssize_t *bytes_processed) {
     if (!wsc || !data || !length || !bytes_processed)
         return WS_FRAME_ERROR;
         
-    size_t bytes = *bytes_processed; // Make a copy to avoid modifying the original unless successful
+    size_t bytes = *bytes_processed = 0;
 
     // Local variables for frame processing
     WEBSOCKET_FRAME_HEADER header = { 0 };
@@ -252,6 +252,10 @@ websocket_protocol_consume_frame(WS_CLIENT *wsc, char *data, size_t length, size
     // Check if we have enough data for the complete frame (header + payload)
     // If not, don't consume any bytes and wait for more data
     if (bytes + header.frame_size > length) {
+
+        // let the circular buffer know how much data we need
+        wsc->next_frame_size = header.frame_size;
+
         worker_is_busy(WORKERS_WEBSOCKET_INCOMPLETE_FRAME);
         websocket_debug(wsc,
                         "RX FRAME INCOMPLETE (need %zu bytes more): OPCODE=0x%x, FIN=%s, RSV1=%d, RSV2=%d, RSV3=%d, MASK=%s, LEN=%d, "
@@ -261,8 +265,11 @@ websocket_protocol_consume_frame(WS_CLIENT *wsc, char *data, size_t length, size
                         header.mask ? "True" : "False", header.len,
                         header.payload_length, header.header_size, header.frame_size,
                         header.mask_key[0], header.mask_key[1], header.mask_key[2], header.mask_key[3]);
+
         return WS_FRAME_NEED_MORE_DATA;
     }
+
+    wsc->next_frame_size = 0; // reset it, since we have enough data now
     
     worker_is_busy(WORKERS_WEBSOCKET_COMPLETE_FRAME);
 
@@ -434,50 +441,46 @@ websocket_protocol_consume_frame(WS_CLIENT *wsc, char *data, size_t length, size
 // 1. Consume frames from the input buffer 
 // 2. Build messages
 // 3. Process complete messages
-bool websocket_protocol_got_data(WS_CLIENT *wsc, char *data, size_t length, size_t *bytes_processed) {
-    if (!wsc || !data || !length || !bytes_processed)
-        return false;
-    
-    // Initialize output parameter
-    *bytes_processed = 0;
+ssize_t websocket_protocol_got_data(WS_CLIENT *wsc, char *data, size_t length) {
+    if (!wsc || !data || !length)
+        return -1;
     
     // Keep processing frames until we can't process any more
-    size_t entry_bytes = *bytes_processed;
-    while (*bytes_processed < length) {
-
+    size_t processed = 0;
+    while (processed < length) {
         // Try to consume one complete frame
-        size_t before = *bytes_processed;
-        WEBSOCKET_FRAME_RESULT result = websocket_protocol_consume_frame(wsc, data, length, bytes_processed);
-        size_t consumed = *bytes_processed - before;
-        
-        websocket_debug(wsc, "Frame processing result: %d, bytes_processed: %zu, consumed: %zu, total processed: %zu/%zu", 
-                      result, *bytes_processed, consumed, *bytes_processed - entry_bytes, length);
+        ssize_t consumed = 0;
+        WEBSOCKET_FRAME_RESULT result = websocket_protocol_consume_frame(wsc, data + processed, length - processed, &consumed);
+
+        websocket_debug(wsc, "Frame processing result: %d, processed: %zu/%zu", result, consumed, length);
         
         // Safety check to ensure we always move forward in the buffer
         if (consumed == 0 && result != WS_FRAME_NEED_MORE_DATA && result != WS_FRAME_ERROR) {
             // If we're processing a frame but not consuming bytes, we might be stuck
             websocket_error(wsc, "Protocol processing stalled - consumed 0 bytes but not waiting for more data (%d)", (int)result);
-            return false;
+            return -(ssize_t)processed;
         }
         
         switch (result) {
             case WS_FRAME_ERROR:
                 // Error occurred during frame processing
                 websocket_error(wsc, "Error processing WebSocket frame");
-                return false;
+                return processed ? -(ssize_t)processed : -1;
 
             case WS_FRAME_NEED_MORE_DATA:
                 // Need more data to complete the current frame
                 websocket_debug(wsc, "Need more data to complete the current frame");
-                return true;
+                return (ssize_t)processed;
 
             case WS_FRAME_COMPLETE:
                 // Frame was processed successfully, but more frames are needed for a complete message
                 websocket_debug(wsc, "Frame complete, but message not yet complete");
+                processed += consumed;
                 continue;
 
             case WS_FRAME_MESSAGE_READY:
                 worker_is_busy(WORKERS_WEBSOCKET_MESSAGE);
+                processed += consumed;
 
                 wsc->message_complete = true;
                 if (!websocket_client_process_message(wsc))
@@ -487,6 +490,6 @@ bool websocket_protocol_got_data(WS_CLIENT *wsc, char *data, size_t length, size
         }
     }
     
-    return true;
+    return (ssize_t)processed;
 }
 

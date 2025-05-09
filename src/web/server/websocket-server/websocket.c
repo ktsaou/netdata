@@ -188,9 +188,9 @@ static WS_CLIENT *websocket_client_create(void) {
     // initialize the ND_SOCK with the web server's SSL context
     nd_sock_init(&wsc->sock, netdata_ssl_web_server_ctx, false);
 
-    // Initialize I/O buffers with WebSocket-specific sizes
-    wsb_init(&wsc->in_buffer, WEBSOCKET_IN_BUFFER_INITIAL_SIZE);
-    wsb_init(&wsc->out_buffer, WEBSOCKET_OUT_BUFFER_INITIAL_SIZE);
+    // Initialize circular buffers for I/O with WebSocket-specific sizes and max limits
+    cbuffer_init(&wsc->in_buffer, WEBSOCKET_IN_BUFFER_INITIAL_SIZE, WEBSOCKET_IN_BUFFER_MAX_SIZE, NULL);
+    cbuffer_init(&wsc->out_buffer, WEBSOCKET_OUT_BUFFER_INITIAL_SIZE, WEBSOCKET_OUT_BUFFER_MAX_SIZE, NULL);
 
     // Initialize pre-allocated message buffer
     wsb_init(&wsc->payload, WEBSOCKET_PAYLOAD_INITIAL_SIZE);
@@ -220,9 +220,9 @@ void websocket_client_free(WS_CLIENT *wsc) {
     // Close socket using ND_SOCK abstraction
     nd_sock_close(&wsc->sock);
 
-    // Free buffers
-    wsb_cleanup(&wsc->in_buffer);
-    wsb_cleanup(&wsc->out_buffer);
+    // Free circular buffers
+    cbuffer_cleanup(&wsc->in_buffer);
+    cbuffer_cleanup(&wsc->out_buffer);
 
     // Cleanup pre-allocated message and uncompressed buffers
     wsb_cleanup(&wsc->payload);

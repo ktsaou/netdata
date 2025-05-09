@@ -64,8 +64,9 @@ struct websocket_server_client {
     time_t last_activity_t; // Last activity timestamp
 
     // Buffer for I/O data
-    WS_BUF in_buffer;    // Incoming raw data
-    WS_BUF out_buffer;   // Outgoing raw data
+    struct circular_buffer in_buffer;   // Incoming raw data (circular buffer)
+    struct circular_buffer out_buffer;  // Outgoing raw data (circular buffer)
+    size_t next_frame_size;             // The size of the next complete frame to read
 
     // Connection info
     char client_ip[INET6_ADDRSTRLEN];
@@ -73,7 +74,7 @@ struct websocket_server_client {
     WEBSOCKET_PROTOCOL protocol; // The negotiated subprotocol
 
     // Thread management
-    struct websocket_thread *thread; // The thread handling this client
+    struct websocket_thread *wth; // The thread handling this client
     struct websocket_server_client *prev; // Linked list for thread's client management
     struct websocket_server_client *next; // Linked list for thread's client management
 
@@ -135,10 +136,14 @@ DEFINE_JUDYL_TYPED(WS_CLIENTS, struct websocket_server_client *);
 #define WEBSOCKET_RECEIVE_BUFFER_SIZE 4096  // Size used for network read operations
 
 // Initial buffer sizes
-#define WEBSOCKET_IN_BUFFER_INITIAL_SIZE  8192  // Initial size for incoming data buffer
-#define WEBSOCKET_OUT_BUFFER_INITIAL_SIZE 16384 // Initial size for outgoing data buffer
-#define WEBSOCKET_PAYLOAD_INITIAL_SIZE    8192  // Initial size for message payload buffer
-#define WEBSOCKET_UNPACKED_INITIAL_SIZE   16384 // Initial size for uncompressed message buffer
+#define WEBSOCKET_IN_BUFFER_INITIAL_SIZE  8192UL  // Initial size for incoming data buffer
+#define WEBSOCKET_OUT_BUFFER_INITIAL_SIZE 16384UL // Initial size for outgoing data buffer
+#define WEBSOCKET_PAYLOAD_INITIAL_SIZE    8192UL  // Initial size for message payload buffer
+#define WEBSOCKET_UNPACKED_INITIAL_SIZE   16384UL // Initial size for uncompressed message buffer
+
+// Maximum buffer sizes to protect against memory exhaustion
+#define WEBSOCKET_IN_BUFFER_MAX_SIZE  (10UL * 1024 * 1024)  // 10MiB max for incoming data buffer
+#define WEBSOCKET_OUT_BUFFER_MAX_SIZE (10UL * 1024 * 1024)  // 10MiB max for outgoing data buffer
 
 // Thread management
 void websocket_threads_init(void);
@@ -151,7 +156,7 @@ void websocket_thread_process_commands(WEBSOCKET_THREAD *wth);
 void *websocket_thread(void *ptr);
 void websocket_thread_enqueue_client(WEBSOCKET_THREAD *wth, struct websocket_server_client *wsc);
 void websocket_thread_dequeue_client(WEBSOCKET_THREAD *wth, struct websocket_server_client *wsc);
-bool websocket_thread_update_client_poll_flags(WEBSOCKET_THREAD *wth, struct websocket_server_client *wsc, nd_poll_event_t events);
+bool websocket_thread_update_client_poll_flags(struct websocket_server_client *wsc);
 WEBSOCKET_THREAD *websocket_thread_by_id(size_t id);
 
 // Client registry internals
@@ -179,7 +184,7 @@ typedef enum {
 } WEBSOCKET_FRAME_RESULT;
 
 // Protocol receiver functions - websocket-protocol-rcv.c
-bool websocket_protocol_got_data(WS_CLIENT *wsc, char *data, size_t length, size_t *bytes_processed);
+ssize_t websocket_protocol_got_data(WS_CLIENT *wsc, char *data, size_t length);
 
 // Protocol sender functions - websocket-protocol-snd.c
 int websocket_protocol_send_frame(
@@ -201,8 +206,8 @@ void websocket_payload_error(struct websocket_server_client *wsc, const char *er
 int websocket_client_send_json(struct websocket_server_client *wsc, struct json_object *json);
 
 // IO functions from old implementation - will be refactored
-int websocket_receive_data(struct websocket_server_client *wsc);
-int websocket_write_data(struct websocket_server_client *wsc);
+ssize_t websocket_receive_data(struct websocket_server_client *wsc);
+ssize_t websocket_write_data(struct websocket_server_client *wsc);
 
 // Legacy functions to be eventually replaced
 void websocket_client_send_close(WS_CLIENT *wsc, int close_code, const char *reason);
