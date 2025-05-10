@@ -380,7 +380,7 @@ bool websocket_client_decompress_message(WS_CLIENT *wsc) {
 
     if(!success) {
         // Decompression failed
-        websocket_error(wsc, "Decompression failed: %s (ret = %d, avail_in = %d)", zError(ret), ret, z_stream->total_in);
+        websocket_error(wsc, "Decompression failed: %s (ret = %d, avail_in = %u)", zError(ret), ret, z_stream->avail_in);
         wsb_reset(&wsc->u_payload);
         websocket_decompression_reset(wsc);
         return false;
