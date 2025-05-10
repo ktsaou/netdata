@@ -41,9 +41,28 @@ int websocket_protocol_send_frame(
                     wsc->compression.enabled &&
                     wsc->compression.deflate_stream &&
                     payload_len >= WS_COMPRESS_MIN_SIZE;
-    
-    // Calculate maximum possible header size based on uncompressed size or potential compressed size
-    size_t max_compressed_size = (size_t)((double)payload_len * (compress ? 1.2 : 1.0));
+
+    // Calculate maximum possible compressed size using deflateBound
+    size_t max_compressed_size;
+    if (compress) {
+        // Reset the deflate stream to prevent use-after-free issues with previous buffers
+        // This maintains compression context (dictionary) but clears references to old buffers
+        int reset_result = deflateReset(wsc->compression.deflate_stream);
+        if (reset_result != Z_OK) {
+            websocket_error(wsc, "Failed to reset deflate stream: %s", zError(reset_result));
+            disconnect_msg = "Deflate reset failed";
+            goto abnormal_disconnect;
+        }
+
+        // Use deflateBound to accurately calculate maximum possible size
+        max_compressed_size = deflateBound(wsc->compression.deflate_stream, payload_len);
+
+        // Add 4 bytes for Z_SYNC_FLUSH trailer (will be removed later)
+        max_compressed_size += 4;
+    } else {
+        // For uncompressed data, just use the payload length
+        max_compressed_size = payload_len;
+    }
 
     // Determine header size based on maximum potential size
     size_t header_size = select_header_size(max_compressed_size);
