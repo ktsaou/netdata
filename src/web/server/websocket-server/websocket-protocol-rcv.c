@@ -4,7 +4,7 @@
 #include "websocket-internal.h"
 
 // Helper function to handle frame header parsing
-static bool websocket_protocol_parse_header_from_buffer(const char *buffer, size_t length, 
+bool websocket_protocol_parse_header_from_buffer(const char *buffer, size_t length,
                                                       WEBSOCKET_FRAME_HEADER *header) {
     if (!buffer || !header || length < 2)
         return false;

@@ -4,132 +4,180 @@
 #include "websocket-internal.h"
 #include "websocket-structures.h"
 
+static inline size_t select_header_size(size_t payload_len) {
+    if (payload_len < 126)
+        return 2;
+    else if (payload_len <= 65535)
+        return 4;
+    else
+        return 10;
+}
+
 // Create and send a WebSocket frame
 int websocket_protocol_send_frame(
-    WS_CLIENT *wsc, const char *payload,
-                                 size_t payload_len, WEBSOCKET_OPCODE opcode, bool use_compression) {
-    if (!wsc || wsc->sock.fd < 0)
+    WS_CLIENT *wsc, const char *payload, size_t payload_len,
+    WEBSOCKET_OPCODE opcode, bool use_compression) {
+
+    if(!wsc)
         return -1;
+
+    const char *disconnect_msg = "";
+
+    if (wsc->sock.fd < 0) {
+        disconnect_msg = "Client not connected";
+        goto abnormal_disconnect;
+    }
     
     // Validate parameters based on WebSocket protocol
     if (websocket_frame_is_control_opcode(opcode) && payload_len > 125) {
-        websocket_error(wsc, "Control frame payload too large: %zu bytes (max: 125)",
-                   payload_len);
-        return -1;
+        disconnect_msg = "Control frame payload too large";
+        goto abnormal_disconnect;
     }
     
     // Check if we should actually use compression
-    bool compress = use_compression && wsc->compression.enabled && wsc->compression.deflate_stream && 
-                   payload_len >= WS_COMPRESS_MIN_SIZE && !websocket_frame_is_control_opcode(opcode);
+    bool compress = !websocket_frame_is_control_opcode(opcode) &&
+                    use_compression &&
+                    payload && payload_len &&
+                    wsc->compression.enabled &&
+                    wsc->compression.deflate_stream &&
+                    payload_len >= WS_COMPRESS_MIN_SIZE;
     
-    char *frame_payload = (char *)payload;
-    size_t frame_payload_len = payload_len;
-    bool payload_compressed = false;
-    
-    // Compress the payload if needed
+    // Calculate maximum possible header size based on uncompressed size or potential compressed size
+    size_t max_compressed_size = (size_t)((double)payload_len * (compress ? 1.2 : 1.0));
+
+    // Determine header size based on maximum potential size
+    size_t header_size = select_header_size(max_compressed_size);
+
+    // Calculate maximum potential frame size
+    size_t max_frame_size = header_size + max_compressed_size;
+
+    // Reserve space in the circular buffer for the entire frame
+    unsigned char *header_dst = (unsigned char *)cbuffer_reserve_unsafe(&wsc->out_buffer, max_frame_size);
+    if (!header_dst) {
+        disconnect_msg = "Buffer full - too much outgoing data";
+        goto abnormal_disconnect;
+    }
+
+    // The payload will be written directly after the header in our reserved buffer
+    char *payload_dst = (char *)(header_dst + header_size);
+    size_t final_payload_len = 0;
+
     if (compress) {
-        char *compressed_payload = NULL;
-        size_t compressed_len = 0;
-        
-        int compression_result = websocket_compress_payload(wsc, payload, payload_len, 
-                                                          &compressed_payload, &compressed_len);
-        
-        if (compression_result > 0 && compressed_payload && compressed_len > 0) {
-            // Successfully compressed
-            frame_payload = compressed_payload;
-            frame_payload_len = compressed_len;
-            payload_compressed = true;
-            
-            websocket_debug(wsc, "Compressed payload from %zu to %zu bytes (%.1f%% reduction)",
-                       payload_len, compressed_len, 
-                       (100.0 - ((double)compressed_len / (double)payload_len) * 100.0));
+        // Setup temporary parameters for the compressor to use
+        // We'll use the space after our header for the compressed data
+        wsc->compression.deflate_stream->next_in = (Bytef *)payload;
+        wsc->compression.deflate_stream->avail_in = payload_len;
+        wsc->compression.deflate_stream->next_out = (Bytef *)payload_dst;
+        wsc->compression.deflate_stream->avail_out = max_compressed_size;
+
+        // Compress with sync flush to ensure data is flushed
+        int ret = deflate(wsc->compression.deflate_stream, Z_SYNC_FLUSH);
+
+        bool success = (ret == Z_OK || ret == Z_STREAM_END) &&
+                       wsc->compression.deflate_stream->avail_in == 0 &&
+                       max_compressed_size - wsc->compression.deflate_stream->avail_out > 4;
+
+        // Calculate compressed size if successful
+        if (!success) {
+            // Compression failed
+            websocket_debug(wsc, "Compression failed: %s (ret = %d, avail_in = %d, used_out)",
+                            zError(ret), ret, wsc->compression.deflate_stream->avail_in,
+                            max_compressed_size - wsc->compression.deflate_stream->avail_out);
+            disconnect_msg = "Compression failed";
+            goto graceful_disconnect;
         }
-        else {
-            // Compression failed or wasn't effective, use original payload
-            compress = false;
-            websocket_debug(wsc, "Compression ineffective or failed, using original payload");
+
+        // As per RFC 7692, remove trailing 4 bytes (00 00 FF FF) from Z_SYNC_FLUSH
+        final_payload_len = max_compressed_size - wsc->compression.deflate_stream->avail_out - 4;
+
+        websocket_debug(wsc, "Compressed payload from %zu to %zu bytes (%.1f%%)",
+                        payload_len, final_payload_len,
+                        (double)final_payload_len * 100.0 / (double)payload_len);
+
+        // we may have selected a bigger header size than needed
+        // so we need to move the payload to the right place
+        size_t optimal_header_size = select_header_size(final_payload_len);
+        if(optimal_header_size < header_size) {
+            char *dst = (char *)header_dst + optimal_header_size;
+            char *src = payload_dst;
+            memmove(dst, src, final_payload_len);
+            payload_dst = dst;
+            header_size = optimal_header_size;
         }
-    }
-    
-    // Calculate frame size
-    size_t header_size;
-    if (frame_payload_len < 126)
-        header_size = 2;
-    else if (frame_payload_len <= 65535)
-        header_size = 4;
-    else
-        header_size = 10;
-    
-    size_t frame_size = header_size + frame_payload_len;
-    
-    // Allocate buffer for the complete frame
-    char *frame_buffer = mallocz(frame_size);
-    if (!frame_buffer) {
-        if (payload_compressed)
-            freez(frame_payload);
-        return -1;
-    }
-    
-    // Build frame header
-    unsigned char *header = (unsigned char *)frame_buffer;
-    
-    // First byte: FIN(1) + RSV1(compress) + RSV2(0) + RSV3(0) + OPCODE(4)
-    header[0] = 0x80 | (compress ? 0x40 : 0) | (opcode & 0x0F);
-    
-    // Second byte: MASK(0) + payload length
-    if (frame_payload_len < 126) {
-        header[1] = frame_payload_len & 0x7F;
-    }
-    else if (frame_payload_len <= 65535) {
-        header[1] = 126;
-        header[2] = (frame_payload_len >> 8) & 0xFF;
-        header[3] = frame_payload_len & 0xFF;
     }
     else {
-        header[1] = 127;
-        header[2] = (frame_payload_len >> 56) & 0xFF;
-        header[3] = (frame_payload_len >> 48) & 0xFF;
-        header[4] = (frame_payload_len >> 40) & 0xFF;
-        header[5] = (frame_payload_len >> 32) & 0xFF;
-        header[6] = (frame_payload_len >> 24) & 0xFF;
-        header[7] = (frame_payload_len >> 16) & 0xFF;
-        header[8] = (frame_payload_len >> 8) & 0xFF;
-        header[9] = frame_payload_len & 0xFF;
+        memcpy(payload_dst, payload, payload_len);
+        final_payload_len = payload_len;
     }
-    
-    // Copy payload to frame buffer
-    if(frame_payload && frame_payload_len > 0)
-        memcpy(frame_buffer + header_size, frame_payload, frame_payload_len);
-    
-    // Log frame being sent
-    websocket_debug(wsc, "Sending frame: opcode=%d, payload_len=%zu%s",
-               opcode, frame_payload_len, compress ? ", compressed" : "uncompressed");
-    
-    // Always use the output buffer
-    // Add frame to circular buffer - let the circular buffer handle memory management
-    if (cbuffer_add_unsafe(&wsc->out_buffer, frame_buffer, frame_size) != 0) {
-        // If this fails, it means the client is too slow or the buffer reached max size
-        websocket_error(wsc, "Client too slow to consume data or buffer reached max size - disconnecting");
 
-        // Free temporary buffers
-        freez(frame_buffer);
-        if (payload_compressed)
-            freez(frame_payload);
+    // Write the header
+    // First byte: FIN(1) + RSV1(compress) + RSV2(0) + RSV3(0) + OPCODE(4)
+    header_dst[0] = 0x80 | (compress ? 0x40 : 0) | (opcode & 0x0F);
 
-        // Schedule a client disconnect
-        websocket_client_send_close(wsc, WS_CLOSE_GOING_AWAY, "Client too slow");
-        return -1;
+    // Write payload length with the appropriate format
+    switch(header_size) {
+        case 2:
+            header_dst[1] = final_payload_len & 0x7F;
+            break;
+
+        case 4:
+            header_dst[1] = 126;
+            header_dst[2] = (final_payload_len >> 8) & 0xFF;
+            header_dst[3] = final_payload_len & 0xFF;
+            break;
+
+        case 10:
+            header_dst[1] = 127;
+            header_dst[2] = (final_payload_len >> 56) & 0xFF;
+            header_dst[3] = (final_payload_len >> 48) & 0xFF;
+            header_dst[4] = (final_payload_len >> 40) & 0xFF;
+            header_dst[5] = (final_payload_len >> 32) & 0xFF;
+            header_dst[6] = (final_payload_len >> 24) & 0xFF;
+            header_dst[7] = (final_payload_len >> 16) & 0xFF;
+            header_dst[8] = (final_payload_len >> 8) & 0xFF;
+            header_dst[9] = final_payload_len & 0xFF;
+            break;
+
+        default:
+            // impossible case - added to avoid compiler warning
+            disconnect_msg = "Invalid header size";
+            goto abnormal_disconnect;
     }
+
+    WEBSOCKET_FRAME_HEADER header;
+    if(!websocket_protocol_parse_header_from_buffer((const char *)header_dst, header_size, &header)) {
+        disconnect_msg = "Failed to parse the header we generated";
+        goto abnormal_disconnect;
+    }
+
+    // Commit the final frame size (header + payload)
+    size_t final_frame_size = header_size + final_payload_len;
+    cbuffer_commit_reserved_unsafe(&wsc->out_buffer, final_frame_size);
+
+    // Log frame being sent with detailed format matching the received frame logging
+    websocket_debug(wsc,
+                    "TX FRAME: OPCODE=0x%x, FIN=%s, RSV1=%d, RSV2=%d, RSV3=%d, MASK=%s, LEN=%d, "
+                    "PAYLOAD_LEN=%zu, HEADER_SIZE=%zu, FRAME_SIZE=%zu, MASK=%02x%02x%02x%02x",
+                    header.opcode, header.fin ? "True" : "False", header.rsv1, header.rsv2, header.rsv3,
+                    header.mask ? "True" : "False", header.len,
+                    header.payload_length, header.header_size, header.frame_size,
+                    header.mask_key[0], header.mask_key[1], header.mask_key[2], header.mask_key[3]);
 
     // Make sure the client's poll flags include WRITE
     websocket_thread_update_client_poll_flags(wsc);
 
-    // Free temporary buffers
-    freez(frame_buffer);
-    if (payload_compressed)
-        freez(frame_payload);
+    return (int)final_frame_size;
 
-    return (int)frame_size;
+abnormal_disconnect:
+    websocket_error(wsc, "triggering abnormal disconnect: %s", disconnect_msg);
+    websocket_thread_send_command(wsc->wth, WEBSOCKET_THREAD_CMD_REMOVE_CLIENT, &wsc->id, sizeof(wsc->id));
+    return -1;
+
+graceful_disconnect:
+    // the current implementation does not support graceful disconnect - so we do an abnormal one
+    websocket_error(wsc, "triggering graceful disconnect: %s", disconnect_msg);
+    websocket_thread_send_command(wsc->wth, WEBSOCKET_THREAD_CMD_REMOVE_CLIENT, &wsc->id, sizeof(wsc->id));
+    return -1;
 }
 
 // Send a text message

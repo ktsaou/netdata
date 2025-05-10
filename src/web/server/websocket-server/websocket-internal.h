@@ -217,4 +217,6 @@ int websocket_send_message(WS_CLIENT *wsc, const char *message, size_t length, W
 int websocket_broadcast_message(const char *message, size_t length, WEBSOCKET_OPCODE opcode);
 int websocket_client_send_text_fragmented(WS_CLIENT *wsc, const char **fragments, int count);
 
+bool websocket_protocol_parse_header_from_buffer(const char *buffer, size_t length,
+                                                 WEBSOCKET_FRAME_HEADER *header);
 #endif // NETDATA_WEBSOCKET_INTERNAL_H

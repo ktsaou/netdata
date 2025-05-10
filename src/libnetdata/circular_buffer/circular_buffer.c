@@ -102,7 +102,7 @@ size_t cbuffer_available_size_unsafe(struct circular_buffer *buf) {
 }
 
 int cbuffer_add_unsafe(struct circular_buffer *buf, const char *d, size_t d_len) {
-    size_t len = (buf->write >= buf->read) ? (buf->write - buf->read) : (buf->size - buf->read + buf->write);
+    size_t len = cbuffer_used_size_unsafe(buf);
     while (d_len + len >= buf->size) {
         if (cbuffer_realloc_unsafe(buf)) {
             return 1;
@@ -177,4 +177,57 @@ bool cbuffer_ensure_unwrapped_size(struct circular_buffer *buf, size_t size) {
     buf->write = unwrapped_size + wrapped_size;
 
     return true;
+}
+
+// Reserve space in the circular buffer for direct writing
+// Returns a pointer to the reserved space, or NULL if reservation fails
+char *cbuffer_reserve_unsafe(struct circular_buffer *buf, size_t size) {
+    if (unlikely(!buf || !buf->data || size == 0))
+        return NULL;
+
+    // First, make sure we have enough space in the buffer
+    size_t len = cbuffer_used_size_unsafe(buf);
+    while (size + len >= buf->size) {
+        if (cbuffer_realloc_unsafe(buf)) {
+            // Can't grow buffer anymore
+            return NULL;
+        }
+    }
+
+    if(buf->write + size > buf->size) {
+        if (!cbuffer_ensure_unwrapped_size(buf, len))
+            return NULL;
+
+        if(buf->read != 0 && buf->write + size > buf->size) {
+            // It is a contiguous buffer, but we need to move the data
+            // Move the data to the beginning of the buffer
+            memmove(buf->data, buf->data + buf->read, buf->write - buf->read);
+            buf->write -= buf->read;
+            buf->read = 0;
+        }
+    }
+
+    // Check if we can write contiguously from the current write position
+    if (buf->write + size <= buf->size) {
+        // Simple case - we have enough space at the current write position
+        return buf->data + buf->write;
+    }
+    else {
+        // impossible case since cbuffer_ensure_unwrapped_size() returned true
+        return NULL;
+    }
+}
+
+// Commit the reserved space after writing to it
+// Size should be less than or equal to the size passed to cbuffer_reserve_unsafe
+void cbuffer_commit_reserved_unsafe(struct circular_buffer *buf, size_t size) {
+    if (unlikely(!buf || !buf->data || size == 0))
+        return;
+
+    // Update the write pointer
+    buf->write += size;
+
+    // Handle wrap-around if we've gone past the buffer boundary
+    if (buf->write >= buf->size)
+        buf->write -= buf->size;
 }

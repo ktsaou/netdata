@@ -23,9 +23,6 @@ int websocket_payload_echo(WS_CLIENT *wsc, WS_BUF *wsb) {
                        (wsc->opcode == WS_OPCODE_BINARY) ? "binary" : "text");
 
         result = websocket_protocol_send_frame(wsc, NULL, 0, wsc->opcode, true);
-
-        websocket_debug(wsc, "Empty echo response result: %d", result);
-        return result;
     }
     else {
         // Ensure the buffer is null-terminated for text messages
@@ -35,6 +32,12 @@ int websocket_payload_echo(WS_CLIENT *wsc, WS_BUF *wsb) {
     }
 
     websocket_debug(wsc, "Echo response result: %d", result);
+
+    if (result < 0) {
+        websocket_error(wsc, "Failed to echo payload");
+        return result;
+    }
+
     return result;
 }
 

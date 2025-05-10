@@ -37,7 +37,6 @@ struct websocket_server_client;
 bool websocket_compression_init(struct websocket_server_client *wsc, const char *extensions);
 void websocket_compression_cleanup(struct websocket_server_client *wsc);
 char *websocket_compression_negotiate(struct websocket_server_client *wsc, const char *requested_extensions);
-int websocket_compress_payload(struct websocket_server_client *wsc, const char *in, size_t in_len, char **out, size_t *out_len);
 bool websocket_compression_supported(void);
 
 // Decompression-specific functions
