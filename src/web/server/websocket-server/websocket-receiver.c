@@ -179,29 +179,3 @@ void websocket_takeover_web_connection(struct web_client *w, WS_CLIENT *wsc) {
     // Clear web client buffer
     buffer_flush(w->response.data);
 }
-
-// Close a WebSocket connection with a specific code and reason
-void websocket_client_send_close(WS_CLIENT *wsc, int close_code, const char *reason) {
-    if (!wsc || wsc->state == WS_STATE_CLOSED)
-        return;
-
-    // Log close information
-    websocket_info(wsc, "Closing client with code %d%s%s",
-              close_code, reason ? ": " : "", reason ? reason : "");
-
-    // Send close frame using new protocol layer
-    websocket_protocol_send_close(wsc, close_code, reason);
-
-    // Update state
-    wsc->state = WS_STATE_CLOSING;
-
-    // Call close callback if set
-    if (wsc->on_close)
-        wsc->on_close(wsc, close_code, reason);
-
-    // Mark client for removal from thread
-    if (wsc->wth) {
-        // Send command to remove client
-        websocket_thread_send_command(wsc->wth, WEBSOCKET_THREAD_CMD_REMOVE_CLIENT, &wsc->id, sizeof(wsc->id));
-    }
-}

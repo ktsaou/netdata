@@ -3,6 +3,93 @@
 #include "daemon/common.h"
 #include "websocket-internal.h"
 
+// Centralized function to handle WebSocket protocol exceptions
+void websocket_protocol_exception(WS_CLIENT *wsc, uint16_t reason_code, const char *reason_txt) {
+    if (!wsc) return;
+
+    websocket_error(wsc, "Protocol exception: %s (code: %d)", reason_txt, reason_code);
+
+    // Always send a close frame with the reason
+    websocket_protocol_send_close(wsc, reason_code, reason_txt);
+
+    // Update state based on current state
+    if (wsc->state == WS_STATE_OPEN) {
+        // We're initiating the close - transition to server-initiated closing
+        wsc->state = WS_STATE_CLOSING_SERVER;
+    }
+    else if (wsc->state == WS_STATE_CLOSING_CLIENT || wsc->state == WS_STATE_CLOSING_SERVER) {
+        // Already in closing state, nothing to do
+        websocket_debug(wsc, "Protocol exception during closing state %d", wsc->state);
+    }
+    else {
+        // For any other state, move straight to CLOSED
+        wsc->state = WS_STATE_CLOSED;
+    }
+
+    // For severe protocol errors, force immediate disconnection
+    if (reason_code == WS_CLOSE_PROTOCOL_ERROR ||
+        reason_code == WS_CLOSE_POLICY_VIOLATION ||
+        reason_code == WS_CLOSE_INVALID_PAYLOAD) {
+
+        websocket_info(wsc, "Forcing immediate disconnection due to protocol exception");
+
+        // First try to flush outgoing data to send the close frame
+        websocket_write_data(wsc);
+
+        // Remove client from thread
+        if (wsc->wth) {
+            websocket_thread_send_command(wsc->wth, WEBSOCKET_THREAD_CMD_REMOVE_CLIENT, &wsc->id, sizeof(wsc->id));
+        }
+    }
+}
+
+// Centralized function to check if a frame is allowed based on connection state
+bool websocket_is_frame_allowed(WS_CLIENT *wsc, const WEBSOCKET_FRAME_HEADER *header) {
+    if (!wsc || !header) return false;
+
+    bool is_control = websocket_frame_is_control_opcode(header->opcode);
+
+    // Check state-based restrictions
+    switch (wsc->state) {
+        case WS_STATE_OPEN:
+            // In OPEN state, all frames are allowed
+            return true;
+
+        case WS_STATE_CLOSING_SERVER:
+            // When server initiated closing, only control frames are allowed
+            if (!is_control) {
+                websocket_debug(wsc, "Non-control frame rejected in CLOSING_SERVER state");
+                return false;
+            }
+            return true;
+
+        case WS_STATE_CLOSING_CLIENT:
+            // When client initiated closing, we shouldn't receive any frames,
+            // but the RFC requires us to process control frames
+            if (!is_control) {
+                websocket_debug(wsc, "Non-control frame rejected in CLOSING_CLIENT state");
+                return false;
+            }
+            // Even for control frames, only accept CLOSE, PING, PONG
+            return true;
+
+        case WS_STATE_CLOSED:
+            // In CLOSED state, no frames should be processed
+            websocket_debug(wsc, "Frame rejected in CLOSED state");
+            return false;
+
+        case WS_STATE_HANDSHAKE:
+            // In HANDSHAKE state, no WebSocket frames should be processed yet
+            websocket_debug(wsc, "Frame rejected in HANDSHAKE state");
+            return false;
+
+        default:
+            // Unknown state - reject frame
+            websocket_debug(wsc, "Frame rejected in unknown state: %d", wsc->state);
+            return false;
+    }
+}
+
 // Helper function to handle frame header parsing
 bool websocket_protocol_parse_header_from_buffer(const char *buffer, size_t length,
                                                       WEBSOCKET_FRAME_HEADER *header) {
@@ -84,75 +171,84 @@ static bool websocket_protocol_validate_header(
                                             uint64_t payload_length, bool in_fragment_sequence) {
     if (!wsc || !header)
         return false;
-        
+
     // Check RSV bits - must be 0 unless extensions are negotiated
     if (header->rsv2 || header->rsv3) {
         websocket_error(wsc, "Invalid frame: RSV2 or RSV3 bits set");
+        websocket_protocol_exception(wsc, WS_CLOSE_PROTOCOL_ERROR, "RSV2 or RSV3 bits set");
         return false;
     }
-    
+
     // RSV1 is only valid if compression is enabled
     if (header->rsv1 && (!wsc->compression.enabled)) {
         websocket_error(wsc, "Invalid frame: RSV1 bit set but compression not enabled");
+        websocket_protocol_exception(wsc, WS_CLOSE_PROTOCOL_ERROR, "RSV1 bit set without compression");
         return false;
     }
-    
+
     // For continuation frames in a compressed message, RSV1 must be 0 per RFC 7692
     // Continuation frames for a compressed message must not have RSV1 set
     if (header->opcode == WS_OPCODE_CONTINUATION && in_fragment_sequence && header->rsv1) {
         websocket_error(wsc, "Invalid frame: Continuation frame should not have RSV1 bit set");
+        websocket_protocol_exception(wsc, WS_CLOSE_PROTOCOL_ERROR, "RSV1 bit set on continuation frame");
         return false;
     }
-    
+
     // Check opcode validity
     switch (header->opcode) {
         case WS_OPCODE_CONTINUATION:
             // Continuation frames must be in a fragment sequence
             if (!in_fragment_sequence) {
                 websocket_error(wsc, "Invalid frame: Continuation frame without initial frame");
+                websocket_protocol_exception(wsc, WS_CLOSE_PROTOCOL_ERROR, "Continuation frame without initial frame");
                 return false;
             }
             break;
-            
+
         case WS_OPCODE_TEXT:
         case WS_OPCODE_BINARY:
             // New data frames cannot start inside a fragment sequence
             if (in_fragment_sequence) {
                 websocket_error(wsc, "Invalid frame: New data frame during fragmented message");
+                websocket_protocol_exception(wsc, WS_CLOSE_PROTOCOL_ERROR, "New data frame during fragmented message");
                 return false;
             }
             break;
-            
+
         case WS_OPCODE_CLOSE:
         case WS_OPCODE_PING:
         case WS_OPCODE_PONG:
             // Control frames must not be fragmented
             if (!header->fin) {
                 websocket_error(wsc, "Invalid frame: Fragmented control frame");
+                websocket_protocol_exception(wsc, WS_CLOSE_PROTOCOL_ERROR, "Fragmented control frame");
                 return false;
             }
-            
+
             // Control frames must have payload ≤ 125 bytes
             if (payload_length > 125) {
                 websocket_error(wsc, "Invalid frame: Control frame payload too large (%llu bytes)",
                            (unsigned long long)payload_length);
+                websocket_protocol_exception(wsc, WS_CLOSE_PROTOCOL_ERROR, "Control frame payload too large");
                 return false;
             }
             break;
-            
+
         default:
             // Unknown opcode
             websocket_error(wsc, "Invalid frame: Unknown opcode: 0x%x", (unsigned int)header->opcode);
+            websocket_protocol_exception(wsc, WS_CLOSE_PROTOCOL_ERROR, "Unknown opcode");
             return false;
     }
-    
+
     // Validate payload length against limits
     if (payload_length > (uint64_t)WS_MAX_FRAME_LENGTH) {
-        websocket_error(wsc, "Invalid frame: Payload too large (%llu bytes)", 
+        websocket_error(wsc, "Invalid frame: Payload too large (%llu bytes)",
                    (unsigned long long)payload_length);
+        websocket_protocol_exception(wsc, WS_CLOSE_MESSAGE_TOO_BIG, "Frame payload too large");
         return false;
     }
-    
+
     // All checks passed
     return true;
 }
@@ -162,8 +258,8 @@ static bool websocket_protocol_process_control_message(
     WS_CLIENT *wsc, WEBSOCKET_OPCODE opcode,
                                                     char *payload, size_t payload_length,
                                                     bool is_masked, const unsigned char *mask_key) {
-    websocket_debug(wsc, "Processing control frame opcode=0x%x, payload_length=%zu, is_masked=%d",
-                  opcode, payload_length, is_masked);
+    websocket_debug(wsc, "Processing control frame opcode=0x%x, payload_length=%zu, is_masked=%d, connection state=%d",
+                  opcode, payload_length, is_masked, wsc->state);
 
     // If payload is masked, unmask it first
     if (is_masked && mask_key && payload && payload_length > 0)
@@ -176,47 +272,119 @@ static bool websocket_protocol_process_control_message(
             uint16_t code = WS_CLOSE_NORMAL;
             char reason[124];
             reason[0] = '\0';  // Initialize reason string
-            
+
+            // Check for malformed CLOSE frame payload
+            if (payload && payload_length == 1) {
+                websocket_error(wsc, "Invalid CLOSE frame payload length: 1 byte (must be 0 or >= 2 bytes)");
+                code = WS_CLOSE_PROTOCOL_ERROR;
+                strncpyz(reason, "Invalid payload length", sizeof(reason) - 1);
+            }
             // Parse close code if present
-            if (payload && payload_length >= 2) {
+            else if (payload && payload_length >= 2) {
                 code = ((uint16_t)((unsigned char)payload[0]) << 8) |
                        ((uint16_t)((unsigned char)payload[1]));
-                
+
                 // Validate close code
                 if (!websocket_validate_close_code(code)) {
                     websocket_error(wsc, "Invalid close code: %u", code);
                     code = WS_CLOSE_PROTOCOL_ERROR;
+                    strncpyz(reason, "Invalid close code", sizeof(reason) - 1);
                 }
-                
+
                 // Extract reason if present
-                if (payload_length > 2)
+                else if (payload_length > 2)
                     strncpyz(reason, payload + 2, MIN(payload_length - 2, sizeof(reason) - 1));
             }
-            
-            // Send close frame in response
-            websocket_protocol_send_close(wsc, code, reason);
-            
-            // Update client state
-            wsc->state = WS_STATE_CLOSING;
-            
-            // Call close callback if set
-            if (wsc->on_close)
-                wsc->on_close(wsc, code, reason);
+
+            // Different handling based on connection state
+            if (wsc->state == WS_STATE_OPEN) {
+                // This is the initial CLOSE from client - respond with our own CLOSE
+                websocket_debug(wsc, "Received initial CLOSE frame from client, responding with CLOSE");
+
+                // First, change state to indicate client initiated closing
+                wsc->state = WS_STATE_CLOSING_CLIENT;
+
+                // Set the flag to indicate we should close the socket after flushing the buffer
+                wsc->pending_flush_and_close = true;
+
+                // Send close frame in response
+                websocket_protocol_send_close(wsc, code, reason);
+                websocket_thread_update_client_poll_flags(wsc);
+            }
+            else if (wsc->state == WS_STATE_CLOSING_SERVER) {
+                // We initiated the closing handshake and now received client's response
+                // This completes the closing handshake
+                websocket_debug(wsc, "Closing handshake complete - received client's CLOSE response to our close");
+
+                // The RFC requires us to close the TCP connection immediately now
+                wsc->state = WS_STATE_CLOSED;
+
+                // Ensure immediate removal from thread/poll
+                if (wsc->wth) {
+                    websocket_info(wsc, "Closing TCP connection after completed handshake (server initiated)");
+                    websocket_thread_send_command(wsc->wth,
+                                               WEBSOCKET_THREAD_CMD_REMOVE_CLIENT,
+                                               &wsc->id, sizeof(wsc->id));
+                }
+            }
+            else if (wsc->state == WS_STATE_CLOSING_CLIENT) {
+                // Client already sent a CLOSE, and we responded, but they sent another CLOSE
+                // This is not strictly according to protocol, but we'll handle it gracefully
+                websocket_debug(wsc, "Received another CLOSE frame while in client-initiated closing state");
+
+                // Move to CLOSED state and close the connection
+                wsc->state = WS_STATE_CLOSED;
+
+                // Remove client from thread
+                if (wsc->wth) {
+                    websocket_info(wsc, "Closing TCP connection (duplicate close from client)");
+                    websocket_thread_send_command(wsc->wth,
+                                               WEBSOCKET_THREAD_CMD_REMOVE_CLIENT,
+                                               &wsc->id, sizeof(wsc->id));
+                }
+            }
+            else {
+                // Already in CLOSED state - ignore
+                websocket_debug(wsc, "Ignoring CLOSE frame - connection already in CLOSED state");
+            }
 
             return true;
         }
-        
+
         case WS_OPCODE_PING:
             worker_is_busy(WORKERS_WEBSOCKET_MSG_PING);
 
+            // If we're in CLOSING or CLOSED state, decide how to handle PING based on state
+            if (wsc->state == WS_STATE_CLOSING_SERVER || wsc->state == WS_STATE_CLOSING_CLIENT || wsc->state == WS_STATE_CLOSED) {
+                // When we initiated closing, we should still respond to control frames
+                if (wsc->state == WS_STATE_CLOSING_SERVER) {
+                    websocket_debug(wsc, "Received PING during server-initiated closing, responding with PONG");
+                    return websocket_protocol_send_pong(wsc, payload, payload_length) > 0;
+                }
+
+                // For client-initiated closing or CLOSED, we should ignore control frames
+                websocket_debug(wsc, "Ignoring PING frame - connection in %s state",
+                             wsc->state == WS_STATE_CLOSING_CLIENT ? "client closing" : "closed");
+                return true; // Successfully processed (by ignoring)
+            }
+
             // Ping frame - respond with pong
             websocket_debug(wsc, "Received PING frame with %zu bytes, responding with PONG", payload_length);
-            
+
             // Send pong with the same payload
             return websocket_protocol_send_pong(wsc, payload, payload_length) > 0;
 
         case WS_OPCODE_PONG:
             worker_is_busy(WORKERS_WEBSOCKET_MSG_PONG);
+
+            // If we're in CLOSING or CLOSED state, decide how to handle PONG
+            if (wsc->state == WS_STATE_CLOSING_SERVER || wsc->state == WS_STATE_CLOSING_CLIENT || wsc->state == WS_STATE_CLOSED) {
+                // We can safely ignore PONG frames in any closing or closed state
+                websocket_debug(wsc, "Ignoring PONG frame - connection in %s state",
+                             wsc->state == WS_STATE_CLOSING_SERVER ? "server closing" :
+                             wsc->state == WS_STATE_CLOSING_CLIENT ? "client closing" : "closed");
+                return true; // Successfully processed (by ignoring)
+            }
 
             // Pong frame - update last activity time
             websocket_debug(wsc, "Received PONG frame, updating last activity time");
@@ -291,11 +459,36 @@ websocket_protocol_consume_frame(WS_CLIENT *wsc, char *data, size_t length, ssiz
                     header.mask ? "True" : "False", header.len,
                     header.payload_length, header.header_size, header.frame_size,
                     header.mask_key[0], header.mask_key[1], header.mask_key[2], header.mask_key[3]);
-    
+
+    // Check for invalid RSV bits
+    if (header.rsv2 || header.rsv3 || (header.rsv1 && !wsc->compression.enabled)) {
+        const char *reason = header.rsv2 ? "RSV2 bit set" :
+                            (header.rsv3 ? "RSV3 bit set" : "RSV1 bit set without compression");
+
+        // Handle protocol exception in a centralized way
+        websocket_protocol_exception(wsc, WS_CLOSE_PROTOCOL_ERROR, reason);
+        return WS_FRAME_ERROR;
+    }
+
+    // Check if this frame is allowed in the current connection state
+    if (!websocket_is_frame_allowed(wsc, &header)) {
+        // Create an appropriate reason based on state
+        char reason[64];
+        snprintf(reason, sizeof(reason), "Frame not allowed in %s state",
+                 wsc->state == WS_STATE_CLOSING_SERVER ? "server closing" :
+                 wsc->state == WS_STATE_CLOSING_CLIENT ? "client closing" :
+                 "current");
+
+        // Handle the protocol exception
+        websocket_protocol_exception(wsc, WS_CLOSE_PROTOCOL_ERROR, reason);
+        return WS_FRAME_ERROR;
+    }
+
     // Step 2: Validate the frame header
     if (!websocket_protocol_validate_header(wsc, &header, header.payload_length, !wsc->message_complete)) {
-        // Invalid frame, close the connection
-        websocket_client_send_close(wsc, WS_CLOSE_PROTOCOL_ERROR, "Invalid frame header");
+        // Invalid frame - websocket_protocol_validate_header sent a close frame
+        // but we should handle the connection closing consistently
+        websocket_protocol_exception(wsc, WS_CLOSE_PROTOCOL_ERROR, "Invalid frame header");
         return WS_FRAME_ERROR;
     }
 
@@ -329,12 +522,27 @@ websocket_protocol_consume_frame(WS_CLIENT *wsc, char *data, size_t length, ssiz
         return WS_FRAME_COMPLETE; // Return COMPLETE so we continue processing other frames
     }
 
+    // For non-control frames (text, binary, continuation), check if connection is closing
+    if (wsc->state == WS_STATE_CLOSING_SERVER || wsc->state == WS_STATE_CLOSING_CLIENT || wsc->state == WS_STATE_CLOSED) {
+        // Per RFC 6455, once the closing handshake is started, we should ignore non-control frames
+        websocket_debug(wsc, "Ignoring non-control frame (opcode=0x%x) - connection in %s state",
+                    header.opcode,
+                    wsc->state == WS_STATE_CLOSING_SERVER ? "server closing" :
+                    wsc->state == WS_STATE_CLOSING_CLIENT ? "client closing" : "closed");
+
+        // Consume the frame bytes but don't process it
+        bytes += header.header_size + header.payload_length;
+        *bytes_processed = bytes;
+
+        return WS_FRAME_COMPLETE;
+    }
+
     // Step 3: Handle the frame based on its opcode
     if (header.opcode == WS_OPCODE_CONTINUATION) {
         // This is a continuation frame - need an existing message in progress
         if (wsc->message_complete) {
             websocket_error(wsc, "Received continuation frame with no message in progress");
-            websocket_client_send_close(wsc, WS_CLOSE_PROTOCOL_ERROR, "Invalid continuation frame");
+            websocket_protocol_exception(wsc, WS_CLOSE_PROTOCOL_ERROR, "Continuation frame without initial frame");
             return WS_FRAME_ERROR;
         }
 
@@ -388,7 +596,7 @@ websocket_protocol_consume_frame(WS_CLIENT *wsc, char *data, size_t length, ssiz
         // If we have an existing message in progress, it's an error
         if (!wsc->message_complete) {
             websocket_error(wsc, "Received new data frame while another message is in progress");
-            websocket_client_send_close(wsc, WS_CLOSE_PROTOCOL_ERROR, "Invalid new data frame");
+            websocket_protocol_exception(wsc, WS_CLOSE_PROTOCOL_ERROR, "New data frame during fragmented message");
             return WS_FRAME_ERROR;
         }
 

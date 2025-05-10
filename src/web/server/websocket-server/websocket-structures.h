@@ -15,6 +15,7 @@
 #define WS_CLOSE_GOING_AWAY        1001
 #define WS_CLOSE_PROTOCOL_ERROR    1002
 #define WS_CLOSE_UNSUPPORTED_DATA  1003
+#define WS_CLOSE_INVALID_PAYLOAD   1007  // Frame payload data is invalid
 #define WS_CLOSE_POLICY_VIOLATION  1008
 #define WS_CLOSE_MESSAGE_TOO_BIG   1009
 #define WS_CLOSE_INTERNAL_ERROR    1011
@@ -64,8 +65,9 @@ void websocket_client_message_reset(struct websocket_server_client *wsc);
 bool websocket_client_process_message(struct websocket_server_client *wsc);
 bool websocket_client_decompress_message(struct websocket_server_client *wsc);
 
-// Additional functions to help with transition from old code to new
+// Additional helper functions
 bool websocket_frame_is_control_opcode(WEBSOCKET_OPCODE opcode);
+bool websocket_validate_utf8(const char *data, size_t length);
 
 #include "websocket-buffer.h"
 

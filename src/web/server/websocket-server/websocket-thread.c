@@ -23,6 +23,23 @@ void websocket_threads_init(void) {
     }
 }
 
+static void websocket_thread_remove_client(WEBSOCKET_THREAD *wth, WS_CLIENT *wsc, bool send_close) {
+    // First remove from the poll to prevent further events
+    websocket_thread_remove_client_from_poll(wth, wsc);
+
+    // If client is still connected and not in CLOSED state, send close frame
+    if(send_close && wsc->sock.fd >= 0 && wsc->state != WS_STATE_CLOSED) {
+        // Try to send close frame (ignoring errors)
+        websocket_protocol_exception(wsc, WS_CLOSE_NORMAL, "Connection closed by server");
+
+        // Flush any pending data - best effort, ignore errors
+        websocket_write_data(wsc);
+    }
+
+    websocket_debug(wsc, "Removed and resources freed", wth->id, wsc->id);
+    websocket_client_free(wsc);
+}
+
 // Find the thread with the minimum client load and atomically increment its count
 NEVERNULL
 static WEBSOCKET_THREAD *websocket_thread_get_min_load(void) {
@@ -157,7 +174,7 @@ void *websocket_thread(void *ptr) {
     worker_register_job_name(WORKERS_WEBSOCKET_MSG_INVALID, "rx invalid");
 
     time_t last_cleanup = now_monotonic_sec();
-    
+
     // Main thread loop
     while(service_running(SERVICE_STREAMING) && !nd_thread_signaled_to_cancel()) {
 
@@ -219,6 +236,9 @@ void *websocket_thread(void *ptr) {
                     websocket_thread_client_socket_error(wth, wsc, "Failed to send data");
                     continue;
                 }
+
+                if(wsc->pending_flush_and_close && cbuffer_used_size_unsafe(&wsc->out_buffer) == 0)
+                    websocket_thread_remove_client(wth, wsc, false);
             }
         }
 
@@ -245,8 +265,7 @@ void *websocket_thread(void *ptr) {
                         if(now - wsc->last_activity_t > 300) {
                             worker_is_busy(WORKERS_WEBSOCKET_CLIENT_TIMEOUT);
                             websocket_error(wsc, "Client timed out (no activity for over 5 minutes)");
-                            websocket_client_send_close(wsc, 1001, "Timeout - no activity");
-                            websocket_thread_send_command(wth, WEBSOCKET_THREAD_CMD_REMOVE_CLIENT, &wsc->id, sizeof(wsc->id));
+                            websocket_protocol_exception(wsc, WS_CLOSE_GOING_AWAY, "Timeout - no activity");
                         }
                     }
                     // For normal clients, send periodic pings (every 60 seconds)
@@ -255,11 +274,12 @@ void *websocket_thread(void *ptr) {
                         websocket_protocol_send_ping(wsc, NULL, 0);
                     }
                 }
-                else if(wsc->state == WS_STATE_CLOSING) {
-                    // If a client is in CLOSING state for more than 5 seconds, force close it
+                else if(wsc->state == WS_STATE_CLOSING_SERVER || wsc->state == WS_STATE_CLOSING_CLIENT) {
+                    // If a client is in any CLOSING state for more than 5 seconds, force close it
                     if(now - wsc->last_activity_t > 5) {
                         worker_is_busy(WORKERS_WEBSOCKET_CLIENT_STUCK);
-                        websocket_error(wsc, "Forcing close (stuck in CLOSING state)");
+                        websocket_error(wsc, "Forcing close (stuck in %s state)",
+                            wsc->state == WS_STATE_CLOSING_SERVER ? "CLOSING_SERVER" : "CLOSING_CLIENT");
                         websocket_thread_send_command(wth, WEBSOCKET_THREAD_CMD_REMOVE_CLIENT, &wsc->id, sizeof(wsc->id));
                     }
                 }
@@ -296,7 +316,7 @@ void *websocket_thread(void *ptr) {
         // If client is still connected and not in CLOSED state, send close frame
         if(wsc->sock.fd >= 0 && wsc->state != WS_STATE_CLOSED) {
             // Try to send close frame (ignoring errors)
-            websocket_client_send_close(wsc, 1001, "Server shutting down");
+            websocket_protocol_exception(wsc, WS_CLOSE_GOING_AWAY, "Server shutting down");
             websocket_write_data(wsc);
         }
 
@@ -475,7 +495,7 @@ bool websocket_thread_update_client_poll_flags(WS_CLIENT *wsc) {
     if(!wsc || !wsc->wth || wsc->sock.fd < 0)
         return false;
 
-    nd_poll_event_t events = ND_POLL_READ;
+    nd_poll_event_t events = wsc->pending_flush_and_close ? 0 : ND_POLL_READ;
     if(cbuffer_next_unsafe(&wsc->out_buffer, NULL) > 0)
         events |= ND_POLL_WRITE;
 
@@ -629,21 +649,8 @@ void websocket_thread_process_commands(WEBSOCKET_THREAD *wth) {
                     netdata_log_error("WEBSOCKET[%zu]: Client %zu not found for remove command", wth->id, client_id);
                     continue;
                 }
-                
-                // First remove from the poll to prevent further events
-                websocket_thread_remove_client_from_poll(wth, wsc);
-                
-                // If client is still connected and not in CLOSED state, send close frame
-                if(wsc->sock.fd >= 0 && wsc->state != WS_STATE_CLOSED) {
-                    // Try to send close frame (ignoring errors)
-                    websocket_client_send_close(wsc, 1000, "Connection closed by server");
-                    
-                    // Flush any pending data - best effort, ignore errors
-                    websocket_write_data(wsc);
-                }
-                
-                websocket_debug(wsc, "Removed and resources freed", wth->id, client_id);
-                websocket_client_free(wsc);
+
+                websocket_thread_remove_client(wth, wsc, true);
                 break;
             }
 

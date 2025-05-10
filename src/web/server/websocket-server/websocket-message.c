@@ -10,6 +10,92 @@ bool websocket_frame_is_control_opcode(WEBSOCKET_OPCODE opcode) {
             opcode == WS_OPCODE_PONG);
 }
 
+// Validates that a buffer contains valid UTF-8 encoded data
+// Returns true if the data is valid UTF-8, false otherwise
+bool websocket_validate_utf8(const char *data, size_t length) {
+    if (!data)
+        return length == 0; // Empty data is valid
+
+    const unsigned char *bytes = (const unsigned char *)data;
+    size_t i = 0;
+
+    while (i < length) {
+        // Check for ASCII (single-byte character)
+        if (bytes[i] <= 0x7F) {
+            i++;
+            continue;
+        }
+
+        // Check for 2-byte sequence
+        else if ((bytes[i] & 0xE0) == 0xC0) {
+            // Need at least 2 bytes
+            if (i + 1 >= length)
+                return false;
+
+            // Second byte must be a continuation byte
+            if ((bytes[i+1] & 0xC0) != 0x80)
+                return false;
+
+            // Must not be overlong encoding
+            if (bytes[i] < 0xC2)
+                return false;
+
+            i += 2;
+        }
+
+        // Check for 3-byte sequence
+        else if ((bytes[i] & 0xF0) == 0xE0) {
+            // Need at least 3 bytes
+            if (i + 2 >= length)
+                return false;
+
+            // Second and third bytes must be continuation bytes
+            if ((bytes[i+1] & 0xC0) != 0x80 || (bytes[i+2] & 0xC0) != 0x80)
+                return false;
+
+            // Check for overlong encoding
+            if (bytes[i] == 0xE0 && (bytes[i+1] & 0xE0) == 0x80)
+                return false;
+
+            // Check for UTF-16 surrogates (not allowed in UTF-8)
+            if (bytes[i] == 0xED && (bytes[i+1] & 0xE0) == 0xA0)
+                return false;
+
+            i += 3;
+        }
+
+        // Check for 4-byte sequence
+        else if ((bytes[i] & 0xF8) == 0xF0) {
+            // Need at least 4 bytes
+            if (i + 3 >= length)
+                return false;
+
+            // Second, third, and fourth bytes must be continuation bytes
+            if ((bytes[i+1] & 0xC0) != 0x80 ||
+                (bytes[i+2] & 0xC0) != 0x80 ||
+                (bytes[i+3] & 0xC0) != 0x80)
+                return false;
+
+            // Check for overlong encoding
+            if (bytes[i] == 0xF0 && (bytes[i+1] & 0xF0) == 0x80)
+                return false;
+
+            // Check for values outside Unicode range
+            if (bytes[i] > 0xF4 || (bytes[i] == 0xF4 && bytes[i+1] > 0x8F))
+                return false;
+
+            i += 4;
+        }
+
+        // Invalid UTF-8 leading byte
+        else {
+            return false;
+        }
+    }
+
+    return true;
+}
+
 // Reset a client's message state for a new message
 void websocket_client_message_reset(WS_CLIENT *wsc) {
     if (!wsc)
@@ -46,54 +132,33 @@ bool websocket_client_process_message(WS_CLIENT *wsc) {
     }
 
     // At this point, we know we're dealing with a data frame (text or binary)
+    WS_BUF *wsb;
 
     // Handle decompression if needed
     if (wsc->is_compressed) {
         if (!websocket_client_decompress_message(wsc)) {
-            websocket_client_send_close(wsc, WS_CLOSE_INTERNAL_ERROR, "Decompression failed");
+            websocket_protocol_exception(wsc, WS_CLOSE_INTERNAL_ERROR, "Decompression failed");
             return false;
         }
-    } else {
-        // For uncompressed messages, we just use payload buffer directly
-
-        // Reset the uncompressed buffer (maintain allocated memory)
-        wsb_reset(&wsc->u_payload);
-
-        if (wsc->payload.length == 0) {
-            // Empty message - handle specially
-            websocket_debug(wsc, "Handling empty %s message",
-                          (wsc->opcode == WS_OPCODE_BINARY) ? "binary" : "text");
-
-            // For text messages, ensure null termination
-            if (wsc->opcode == WS_OPCODE_TEXT) {
-                wsb_null_terminate(&wsc->u_payload);
-            }
-        } else {
-            // Normal non-empty message - copy from payload buffer
-            // The buffer should already be pre-allocated with sufficient size
-
-            // Copy data from payload to uncompressed buffer
-            wsb_append(&wsc->u_payload, wsb_data(&wsc->payload), wsb_length(&wsc->payload));
-
-            // Ensure null termination for text data
-            if (wsc->opcode == WS_OPCODE_TEXT) {
-                wsb_null_terminate(&wsc->u_payload);
-            }
-        }
+        wsb = &wsc->u_payload;
     }
+    else
+        wsb = &wsc->payload;
+
+   // For uncompressed messages, we just use payload buffer directly
+   if (wsc->opcode == WS_OPCODE_TEXT) {
+       wsb_null_terminate(wsb);
+
+       if (!websocket_validate_utf8(wsb_data(wsb), wsb_length(wsb))) {
+           websocket_protocol_exception(wsc, WS_CLOSE_INVALID_PAYLOAD,
+                                        "Invalid UTF-8 data in text message");
+           return false;
+       }
+   }
 
     // Now handle the uncompressed message - using the new function
     // that contains the actual handler logic
-    bool result = websocket_payload_handle_message(wsc);
-
-    if (!result) {
-        // If message handling failed, just call the on_message callback directly as a fallback
-        if (wsc->on_message) {
-            wsc->on_message(wsc,
-                wsb_data(&wsc->u_payload), wsb_length(&wsc->u_payload),
-                          wsc->opcode);
-        }
-    }
+    websocket_payload_handle_message(wsc, wsb);
 
     // Update client message stats
     wsc->message_id++;

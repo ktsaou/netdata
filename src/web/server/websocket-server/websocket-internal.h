@@ -42,10 +42,11 @@ typedef enum __attribute__((packed)) {
 
 // WebSocket connection states
 typedef enum __attribute__((packed)) {
-    WS_STATE_HANDSHAKE  = 0, // Initial handshake in progress
-    WS_STATE_OPEN       = 1, // Connection established
-    WS_STATE_CLOSING    = 2, // Closing in progress
-    WS_STATE_CLOSED     = 3  // Connection closed
+    WS_STATE_HANDSHAKE         = 0, // Initial handshake in progress
+    WS_STATE_OPEN              = 1, // Connection established
+    WS_STATE_CLOSING_SERVER    = 2, // Server initiated closing handshake
+    WS_STATE_CLOSING_CLIENT    = 3, // Client initiated closing handshake
+    WS_STATE_CLOSED            = 4  // Connection closed
 } WEBSOCKET_STATE;
 
 // Forward declaration for thread structure
@@ -89,6 +90,9 @@ struct websocket_server_client {
 
     // Compression state
     WEBSOCKET_COMPRESSION_CTX compression;
+
+    // Connection closing state
+    bool pending_flush_and_close;       // Flag to indicate we're just flushing buffer before close
 
     // Message handling callbacks
     void (*on_message)(struct websocket_server_client *wsc, const char *message, size_t length, WEBSOCKET_OPCODE opcode);
@@ -183,6 +187,10 @@ typedef enum {
     WS_FRAME_MESSAGE_READY = 2 // A complete message is ready to be processed
 } WEBSOCKET_FRAME_RESULT;
 
+// Centralized protocol validation functions
+bool websocket_is_frame_allowed(WS_CLIENT *wsc, const WEBSOCKET_FRAME_HEADER *header);
+void websocket_protocol_exception(WS_CLIENT *wsc, uint16_t reason_code, const char *reason_txt);
+
 // Protocol receiver functions - websocket-protocol-rcv.c
 ssize_t websocket_protocol_got_data(WS_CLIENT *wsc, char *data, size_t length);
 
@@ -197,7 +205,7 @@ int websocket_protocol_send_ping(WS_CLIENT *wsc, const char *data, size_t length
 int websocket_protocol_send_pong(WS_CLIENT *wsc, const char *data, size_t length);
 
 // Payload handler functions - websocket-payload-rcv.c
-bool websocket_payload_handle_message(WS_CLIENT *wsc);
+bool websocket_payload_handle_message(WS_CLIENT *wsc, WS_BUF *wsb);
 int websocket_payload_echo(struct websocket_server_client *wsc, WS_BUF *wsb);
 struct json_object *websocket_client_parse_json(struct websocket_server_client *wsc);
 void websocket_payload_error(struct websocket_server_client *wsc, const char *error_message);
@@ -208,9 +216,6 @@ int websocket_client_send_json(struct websocket_server_client *wsc, struct json_
 // IO functions from old implementation - will be refactored
 ssize_t websocket_receive_data(struct websocket_server_client *wsc);
 ssize_t websocket_write_data(struct websocket_server_client *wsc);
-
-// Legacy functions to be eventually replaced
-void websocket_client_send_close(WS_CLIENT *wsc, int close_code, const char *reason);
 
 // WebSocket message sending functions
 int websocket_send_message(WS_CLIENT *wsc, const char *message, size_t length, WEBSOCKET_OPCODE opcode);

@@ -94,13 +94,13 @@ void websocket_payload_error(WS_CLIENT *wsc, const char *error_message) {
 
 
 // Handle a client's message based on protocol
-bool websocket_payload_handle_message(WS_CLIENT *wsc) {
+bool websocket_payload_handle_message(WS_CLIENT *wsc, WS_BUF *wsb) {
     if (!wsc)
         return false;
 
     websocket_debug(wsc, "Handling message: type=%s, length=%zu",
-               (wsc->opcode == WS_OPCODE_BINARY) ? "binary" : "text",
-        wsb_length(&wsc->u_payload));
+                    (wsc->opcode == WS_OPCODE_BINARY) ? "binary" : "text",
+                    wsb_length(wsb));
 
     // For now, we just echo back any message
     // This can be enhanced to handle specific operations based on the protocol
@@ -108,12 +108,11 @@ bool websocket_payload_handle_message(WS_CLIENT *wsc) {
     // Call the message callback if set
     if (wsc->on_message) {
         websocket_debug(wsc, "Calling client message handler");
-        wsc->on_message(wsc, wsb_data(&wsc->u_payload), wsb_length(&wsc->u_payload),
-                      wsc->opcode);
+        wsc->on_message(wsc, wsb_data(wsb), wsb_length(wsb), wsc->opcode);
     }
 
     // Echo the message
-    int result = websocket_payload_echo(wsc, &wsc->u_payload);
+    int result = websocket_payload_echo(wsc, wsb);
     if (result <= 0) {
         websocket_error(wsc, "Failed to echo payload");
         return false;

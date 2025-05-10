@@ -391,10 +391,6 @@ bool websocket_client_decompress_message(WS_CLIENT *wsc) {
                     wsb_length(&wsc->payload), wsb_length(&wsc->u_payload),
                     (double)wsb_length(&wsc->u_payload) / (double)wsb_length(&wsc->payload));
 
-    // For text messages, ensure null termination
-    if (wsc->opcode == WS_OPCODE_TEXT)
-        wsb_null_terminate(&wsc->u_payload);
-
     // Show a preview of the decompressed data
     websocket_dump_debug(wsc, wsb_data(&wsc->u_payload), wsb_length(&wsc->u_payload), "Decompressed data preview");
 
