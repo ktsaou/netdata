@@ -3,7 +3,7 @@
 #include "websocket-internal.h"
 
 // Debug log function with client, message, and frame IDs
-void websocket_debug(WS_CLIENT *wsc, const char *format, ...) {
+void websocket_debug(WS_CLIENT *wsc __maybe_unused, const char *format __maybe_unused, ...) {
 #ifdef NETDATA_INTERNAL_CHECKS
     if (!wsc || !format)
         return;
@@ -53,8 +53,8 @@ void websocket_error(WS_CLIENT *wsc, const char *format, ...) {
 }
 
 // Debug function that logs a message and dumps payload data for debugging
-void websocket_dump_debug(WS_CLIENT *wsc, const char *payload, size_t payload_length,
-                       const char *format, ...) {
+void websocket_dump_debug(WS_CLIENT *wsc __maybe_unused, const char *payload __maybe_unused,
+    size_t payload_length __maybe_unused, const char *format __maybe_unused, ...) {
 #ifdef NETDATA_INTERNAL_CHECKS
     if (!wsc || !format)
         return;
