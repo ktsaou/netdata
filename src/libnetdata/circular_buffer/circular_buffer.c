@@ -92,7 +92,7 @@ static int cbuffer_realloc_unsafe(struct circular_buffer *buf) {
 }
 
 ALWAYS_INLINE
-static size_t cbuffer_used_size_unsafe(struct circular_buffer *buf) {
+size_t cbuffer_used_size_unsafe(struct circular_buffer *buf) {
     return (buf->write >= buf->read) ? (buf->write - buf->read) : (buf->size - buf->read + buf->write);
 }
 

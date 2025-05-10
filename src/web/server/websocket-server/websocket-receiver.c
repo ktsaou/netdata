@@ -3,6 +3,49 @@
 #include "daemon/common.h"
 #include "websocket-internal.h"
 
+static inline bool cbuffer_has_enough_data_for_next_frame(WS_CLIENT *wsc) {
+    return wsc->next_frame_size > 0 &&
+           cbuffer_used_size_unsafe(&wsc->in_buffer) >= wsc->next_frame_size;
+}
+
+static inline bool cbuffer_next_frame_is_fragmented(WS_CLIENT *wsc) {
+    return cbuffer_has_enough_data_for_next_frame(wsc) &&
+           cbuffer_next_unsafe(&wsc->in_buffer,  NULL) < wsc->next_frame_size;
+}
+
+static ssize_t websocket_received_data_process(WS_CLIENT *wsc, ssize_t bytes_read) {
+    if(cbuffer_next_frame_is_fragmented(wsc))
+        cbuffer_ensure_unwrapped_size(&wsc->in_buffer, wsc->next_frame_size);
+
+    char *buffer_pos;
+    size_t contiguous_input = cbuffer_next_unsafe(&wsc->in_buffer, &buffer_pos);
+
+    // Now we have contiguous data for processing
+    ssize_t bytes_consumed = websocket_protocol_got_data(wsc, buffer_pos, contiguous_input);
+    if (bytes_consumed < 0) {
+        if (bytes_consumed < -1) {
+            bytes_consumed = -bytes_consumed;
+            cbuffer_remove_unsafe(&wsc->in_buffer, bytes_consumed);
+        }
+
+        websocket_error(wsc, "Failed to process received data");
+        return -1;
+    }
+
+    // Check if bytes_processed is 0 but this was a successful call
+    // This means we have an incomplete frame and need to keep the entire buffer
+    if (bytes_consumed == 0) {
+        websocket_debug(
+            wsc, "Incomplete frame detected - keeping all %zu bytes in buffer for next read", contiguous_input);
+        return bytes_read; // Return the bytes read so caller knows we made progress
+    }
+
+    // We've processed some data - remove it from the circular buffer
+    cbuffer_remove_unsafe(&wsc->in_buffer, bytes_consumed);
+
+    return bytes_consumed;
+}
+
 // Process incoming WebSocket data
 ssize_t websocket_receive_data(WS_CLIENT *wsc) {
     worker_is_busy(WORKERS_WEBSOCKET_SOCK_RECEIVE);
@@ -10,19 +53,23 @@ ssize_t websocket_receive_data(WS_CLIENT *wsc) {
     if (!wsc || !wsc->in_buffer.data || wsc->sock.fd < 0)
         return -1;
 
-    // Log current buffer state - properly calculate buffer usage with circular buffer API
-    size_t buffer_used = cbuffer_next_unsafe(&wsc->in_buffer, NULL);
-    websocket_debug(wsc, "Before receive: buffer has %zu bytes (out of %zu bytes)",
-                buffer_used, wsc->in_buffer.size);
+    size_t available_space = WEBSOCKET_RECEIVE_BUFFER_SIZE;
+    if(wsc->next_frame_size > 0) {
+        size_t used_space = cbuffer_used_size_unsafe(&wsc->in_buffer);
+        if(used_space < wsc->next_frame_size) {
+            size_t missing_for_next_frame = wsc->next_frame_size - used_space;
+            available_space = MAX(missing_for_next_frame, WEBSOCKET_RECEIVE_BUFFER_SIZE);
+        }
+    }
 
-    // The circular buffer will handle its own memory management
-    // No need to manually resize - if it grows beyond max size, we'll get an error on add
-
-    // Get a pointer to where to write the data
-    char buffer[WEBSOCKET_RECEIVE_BUFFER_SIZE];
+    char *buffer = cbuffer_reserve_unsafe(&wsc->in_buffer, available_space);
+    if(!buffer) {
+        websocket_error(wsc, "Not enough space to read %zu bytes", available_space);
+        return -1;
+    }
 
     // Read data from socket into temporary buffer using ND_SOCK
-    ssize_t bytes_read = nd_sock_read(&wsc->sock, buffer, WEBSOCKET_RECEIVE_BUFFER_SIZE, 1); // 1 retry for non-blocking read
+    ssize_t bytes_read = nd_sock_read(&wsc->sock, buffer, available_space, 0);
 
     if (bytes_read <= 0) {
         if (bytes_read == 0) {
@@ -38,62 +85,35 @@ ssize_t websocket_receive_data(WS_CLIENT *wsc) {
         return -1;
     }
 
+    if (bytes_read > (ssize_t)available_space) {
+        websocket_error(wsc, "Received more data (%zd) than available space in buffer (%zd)",
+                        bytes_read, available_space);
+        return -1;
+    }
+
+    cbuffer_commit_reserved_unsafe(&wsc->in_buffer, bytes_read);
+
     // Update last activity time
     wsc->last_activity_t = now_monotonic_sec();
 
     // Dump the received data for debugging
     websocket_dump_debug(wsc, buffer, bytes_read, "READ %zd bytes", bytes_read);
 
-    // Add data to circular buffer
-    if (cbuffer_add_unsafe(&wsc->in_buffer, buffer, bytes_read) != 0) {
-        // If this fails, it means the client is sending too much data too quickly
-        websocket_error(wsc, "Client buffer full - too much incoming data - disconnecting");
+    if(wsc->next_frame_size  == 0 || cbuffer_has_enough_data_for_next_frame(wsc)) {
+        // we don't know the next frame size
+        // or, we know it and we have all the data for it
 
-        // Schedule client disconnect
-        websocket_client_send_close(wsc, WS_CLOSE_MESSAGE_TOO_BIG, "Too much incoming data");
-        return -1;
-    }
+        // process the received data
+        if(websocket_received_data_process(wsc, bytes_read) < 0)
+            return -1;
 
-    char *buffer_pos;
-    buffer_used = cbuffer_next_unsafe(&wsc->in_buffer, &buffer_pos);
-
-    // Process received data using the protocol layers
-    // First, check if we know the next frame size and ensure it's unwrapped if needed
-    if (wsc->next_frame_size > 0) {
-        // Try to ensure the frame data is contiguous
-        if (!cbuffer_ensure_unwrapped_size(&wsc->in_buffer, wsc->next_frame_size)) {
-            // Not enough data for the next frame or couldn't unwrap
-            // This is not an error - we'll get more data in the next read
-            websocket_debug(wsc, "Need more data for next frame (need %zu bytes, have %zu bytes)",
-                       wsc->next_frame_size, buffer_used);
-            return bytes_read;
+        // we may still have wrapped data in the circular buffer that can satisfy the entire next frame
+        if(cbuffer_next_frame_is_fragmented(wsc)) {
+            // we have enough data to process this frame, no need to wait for more input
+            if(websocket_received_data_process(wsc, bytes_read) < 0)
+                return -1;
         }
-
-        // Get the updated buffer view after unwrapping
-        buffer_used = cbuffer_next_unsafe(&wsc->in_buffer, &buffer_pos);
     }
-
-    // Now we have contiguous data for processing
-    ssize_t bytes_consumed = websocket_protocol_got_data(wsc, buffer_pos, buffer_used);
-    if (bytes_consumed < 0) {
-        if(bytes_consumed < -1) {
-            bytes_consumed = -bytes_consumed;
-            cbuffer_remove_unsafe(&wsc->in_buffer, bytes_consumed);
-        }
-
-        websocket_error(wsc, "Failed to process received data");
-        return -1;
-    }
-
-    // Check if bytes_processed is 0 but this was a successful call
-    // This means we have an incomplete frame and need to keep the entire buffer
-    if (bytes_consumed == 0) {
-        websocket_debug(wsc, "Incomplete frame detected - keeping all %zu bytes in buffer for next read", buffer_used);
-        return bytes_read;  // Return the bytes read so caller knows we made progress
-    }
-
-    // We've processed some data - remove it from the circular buffer
-    cbuffer_remove_unsafe(&wsc->in_buffer, bytes_consumed);
 
     // Return the number of bytes we processed from this read
     // Even if bytes_processed is 0, we still read data which will be processed later

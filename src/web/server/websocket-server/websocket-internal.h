@@ -142,8 +142,8 @@ DEFINE_JUDYL_TYPED(WS_CLIENTS, struct websocket_server_client *);
 #define WEBSOCKET_UNPACKED_INITIAL_SIZE   16384UL // Initial size for uncompressed message buffer
 
 // Maximum buffer sizes to protect against memory exhaustion
-#define WEBSOCKET_IN_BUFFER_MAX_SIZE  (10UL * 1024 * 1024)  // 10MiB max for incoming data buffer
-#define WEBSOCKET_OUT_BUFFER_MAX_SIZE (10UL * 1024 * 1024)  // 10MiB max for outgoing data buffer
+#define WEBSOCKET_IN_BUFFER_MAX_SIZE  (20UL * 1024 * 1024)  // 10MiB max for incoming data buffer
+#define WEBSOCKET_OUT_BUFFER_MAX_SIZE (20UL * 1024 * 1024)  // 10MiB max for outgoing data buffer
 
 // Thread management
 void websocket_threads_init(void);

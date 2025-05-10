@@ -169,7 +169,7 @@ void websocket_initialize(void) {
     // Initialize thread system
     websocket_threads_init();
 
-    // debug_flags |= D_WEBSOCKET;
+    debug_flags |= D_WEBSOCKET;
     netdata_log_info("WebSocket server subsystem initialized");
 }
 

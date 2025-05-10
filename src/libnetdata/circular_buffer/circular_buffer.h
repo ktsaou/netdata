@@ -31,4 +31,6 @@ void cbuffer_commit_reserved_unsafe(struct circular_buffer *buf, size_t size);
 // Check if a size is wrapped in buffer and unwrap if necessary
 bool cbuffer_ensure_unwrapped_size(struct circular_buffer *buf, size_t size);
 
+size_t cbuffer_used_size_unsafe(struct circular_buffer *buf);
+
 #endif

@@ -6,8 +6,10 @@
 // Helper function to handle frame header parsing
 bool websocket_protocol_parse_header_from_buffer(const char *buffer, size_t length,
                                                       WEBSOCKET_FRAME_HEADER *header) {
-    if (!buffer || !header || length < 2)
+    if (!buffer || !header || length < 2) {
+        websocket_debug(NULL, "We need at least 2 bytes to parse a header: buffer=%p, length=%zu", buffer, length);
         return false;
+    }
 
     // Get first byte - contains FIN bit, RSV bits, and opcode
     unsigned char byte1 = (unsigned char)buffer[0];
@@ -31,14 +33,20 @@ bool websocket_protocol_parse_header_from_buffer(const char *buffer, size_t leng
     } 
     else if (header->len == 126) {
         // 16-bit length
-        if (length < 4) return false; // Not enough data
+        if (length < 4) {
+            websocket_debug(NULL, "We need at least 4 bytes to parse this header: buffer=%p, length=%zu", buffer, length);
+            return false; // Not enough data
+        }
         
         header->payload_length = ((uint64_t)((unsigned char)buffer[2]) << 8) | ((uint64_t)((unsigned char)buffer[3]));
         header->header_size += 2;
     } 
     else if (header->len == 127) {
         // 64-bit length
-        if (length < 10) return false; // Not enough data
+        if (length < 10) {
+            websocket_debug(NULL, "We need at least 10 bytes to parse this header: buffer=%p, length=%zu", buffer, length);
+            return false; // Not enough data
+        }
         
         header->payload_length =
             ((uint64_t)((unsigned char)buffer[2]) << 56) | 
@@ -241,8 +249,9 @@ websocket_protocol_consume_frame(WS_CLIENT *wsc, char *data, size_t length, ssiz
     WEBSOCKET_FRAME_HEADER header = { 0 };
 
     // Step 1: Parse the frame header
-    if (!websocket_protocol_parse_header_from_buffer(data + bytes, length - bytes, &header)) {
-        // Not enough data to parse a complete header
+    if (!websocket_protocol_parse_header_from_buffer(data, length, &header)) {
+        websocket_debug(wsc, "Not enough data to parse a complete header: bytes available = %zu",
+                        length);
         return WS_FRAME_NEED_MORE_DATA;
     }
     
@@ -259,12 +268,13 @@ websocket_protocol_consume_frame(WS_CLIENT *wsc, char *data, size_t length, ssiz
         worker_is_busy(WORKERS_WEBSOCKET_INCOMPLETE_FRAME);
         websocket_debug(wsc,
                         "RX FRAME INCOMPLETE (need %zu bytes more): OPCODE=0x%x, FIN=%s, RSV1=%d, RSV2=%d, RSV3=%d, MASK=%s, LEN=%d, "
-                        "PAYLOAD_LEN=%zu, HEADER_SIZE=%zu, FRAME_SIZE=%zu, MASK=%02x%02x%02x%02x",
+                        "PAYLOAD_LEN=%zu, HEADER_SIZE=%zu, FRAME_SIZE=%zu, MASK=%02x%02x%02x%02x, bytes available = %zu",
                         (bytes + header.frame_size) - length,
                         header.opcode, header.fin ? "True" : "False", header.rsv1, header.rsv2, header.rsv3,
                         header.mask ? "True" : "False", header.len,
                         header.payload_length, header.header_size, header.frame_size,
-                        header.mask_key[0], header.mask_key[1], header.mask_key[2], header.mask_key[3]);
+                        header.mask_key[0], header.mask_key[1], header.mask_key[2], header.mask_key[3],
+                        length);
 
         return WS_FRAME_NEED_MORE_DATA;
     }
