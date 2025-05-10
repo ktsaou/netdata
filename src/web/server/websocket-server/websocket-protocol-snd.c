@@ -105,7 +105,7 @@ int websocket_protocol_send_frame(
             header_size = optimal_header_size;
         }
     }
-    else {
+    else if(payload && payload_len > 0) {
         memcpy(payload_dst, payload, payload_len);
         final_payload_len = payload_len;
     }
@@ -144,17 +144,18 @@ int websocket_protocol_send_frame(
             goto abnormal_disconnect;
     }
 
+    // Commit the final frame size (header + payload)
+    size_t final_frame_size = header_size + final_payload_len;
+    cbuffer_commit_reserved_unsafe(&wsc->out_buffer, final_frame_size);
+
+#ifdef NETDATA_INTERNAL_CHECKS
+    // Log frame being sent with detailed format matching the received frame logging
     WEBSOCKET_FRAME_HEADER header;
     if(!websocket_protocol_parse_header_from_buffer((const char *)header_dst, header_size, &header)) {
         disconnect_msg = "Failed to parse the header we generated";
         goto abnormal_disconnect;
     }
 
-    // Commit the final frame size (header + payload)
-    size_t final_frame_size = header_size + final_payload_len;
-    cbuffer_commit_reserved_unsafe(&wsc->out_buffer, final_frame_size);
-
-    // Log frame being sent with detailed format matching the received frame logging
     websocket_debug(wsc,
                     "TX FRAME: OPCODE=0x%x, FIN=%s, RSV1=%d, RSV2=%d, RSV3=%d, MASK=%s, LEN=%d, "
                     "PAYLOAD_LEN=%zu, HEADER_SIZE=%zu, FRAME_SIZE=%zu, MASK=%02x%02x%02x%02x",
@@ -162,6 +163,7 @@ int websocket_protocol_send_frame(
                     header.mask ? "True" : "False", header.len,
                     header.payload_length, header.header_size, header.frame_size,
                     header.mask_key[0], header.mask_key[1], header.mask_key[2], header.mask_key[3]);
+#endif
 
     // Make sure the client's poll flags include WRITE
     websocket_thread_update_client_poll_flags(wsc);
