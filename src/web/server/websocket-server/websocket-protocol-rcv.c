@@ -43,9 +43,14 @@ void websocket_protocol_exception(WS_CLIENT *wsc, uint16_t reason_code, const ch
     }
 }
 
+#define WS_ALLOW_USE       ( 1)
+#define WS_ALLOW_DISCARD   ( 0)
+#define WS_ALLOW_ERROR     (-1)
+
 // Centralized function to check if a frame is allowed based on connection state
-bool websocket_is_frame_allowed(WS_CLIENT *wsc, const WEBSOCKET_FRAME_HEADER *header) {
-    if (!wsc || !header) return false;
+static int websocket_is_frame_allowed(WS_CLIENT *wsc, const WEBSOCKET_FRAME_HEADER *header) {
+    if (!wsc || !header)
+        return WS_ALLOW_ERROR;
 
     bool is_control = websocket_frame_is_control_opcode(header->opcode);
 
@@ -53,40 +58,36 @@ bool websocket_is_frame_allowed(WS_CLIENT *wsc, const WEBSOCKET_FRAME_HEADER *he
     switch (wsc->state) {
         case WS_STATE_OPEN:
             // In OPEN state, all frames are allowed
-            return true;
+            return WS_ALLOW_USE;
 
         case WS_STATE_CLOSING_SERVER:
             // When server initiated closing, only control frames are allowed
             if (!is_control) {
                 websocket_debug(wsc, "Non-control frame rejected in CLOSING_SERVER state");
-                return false;
+                return WS_ALLOW_DISCARD;
             }
-            return true;
+            return WS_ALLOW_USE;
 
         case WS_STATE_CLOSING_CLIENT:
-            // When client initiated closing, we shouldn't receive any frames,
-            // but the RFC requires us to process control frames
-            if (!is_control) {
-                websocket_debug(wsc, "Non-control frame rejected in CLOSING_CLIENT state");
-                return false;
-            }
-            // Even for control frames, only accept CLOSE, PING, PONG
-            return true;
+            // When client initiated closing, we shouldn't process any further frames
+            // All frames in this state should be silently ignored
+            websocket_debug(wsc, "Frame rejected in CLOSING_CLIENT state (will be silently ignored)");
+            return WS_ALLOW_DISCARD;
 
         case WS_STATE_CLOSED:
             // In CLOSED state, no frames should be processed
             websocket_debug(wsc, "Frame rejected in CLOSED state");
-            return false;
+            return WS_ALLOW_DISCARD;
 
         case WS_STATE_HANDSHAKE:
             // In HANDSHAKE state, no WebSocket frames should be processed yet
             websocket_debug(wsc, "Frame rejected in HANDSHAKE state");
-            return false;
+            return WS_ALLOW_ERROR;
 
         default:
             // Unknown state - reject frame
             websocket_debug(wsc, "Frame rejected in unknown state: %d", wsc->state);
-            return false;
+            return WS_ALLOW_DISCARD;
     }
 }
 
@@ -446,7 +447,6 @@ websocket_protocol_consume_frame(WS_CLIENT *wsc, char *data, size_t length, ssiz
 
         return WS_FRAME_NEED_MORE_DATA;
     }
-
     wsc->next_frame_size = 0; // reset it, since we have enough data now
     
     worker_is_busy(WORKERS_WEBSOCKET_COMPLETE_FRAME);
@@ -471,17 +471,26 @@ websocket_protocol_consume_frame(WS_CLIENT *wsc, char *data, size_t length, ssiz
     }
 
     // Check if this frame is allowed in the current connection state
-    if (!websocket_is_frame_allowed(wsc, &header)) {
-        // Create an appropriate reason based on state
-        char reason[64];
-        snprintf(reason, sizeof(reason), "Frame not allowed in %s state",
-                 wsc->state == WS_STATE_CLOSING_SERVER ? "server closing" :
-                 wsc->state == WS_STATE_CLOSING_CLIENT ? "client closing" :
-                 "current");
+    switch(websocket_is_frame_allowed(wsc, &header)) {
+        case WS_ALLOW_USE:
+            break;
 
-        // Handle the protocol exception
-        websocket_protocol_exception(wsc, WS_CLOSE_PROTOCOL_ERROR, reason);
-        return WS_FRAME_ERROR;
+        case WS_ALLOW_DISCARD:
+            // we have already logged in websocket_is_frame_allowed()
+            return WS_FRAME_COMPLETE;
+
+        default:
+        case WS_ALLOW_ERROR: {
+            char reason[128];
+
+            snprintf(reason, sizeof(reason), "Frame not allowed in %s state",
+                     wsc->state == WS_STATE_CLOSING_SERVER ? "server closing" :
+                     wsc->state == WS_STATE_CLOSING_CLIENT ? "client closing" :
+                     "current");
+
+            websocket_protocol_exception(wsc, WS_CLOSE_PROTOCOL_ERROR, reason);
+            return WS_FRAME_ERROR;
+        }
     }
 
     // Step 2: Validate the frame header

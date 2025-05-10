@@ -188,7 +188,6 @@ typedef enum {
 } WEBSOCKET_FRAME_RESULT;
 
 // Centralized protocol validation functions
-bool websocket_is_frame_allowed(WS_CLIENT *wsc, const WEBSOCKET_FRAME_HEADER *header);
 void websocket_protocol_exception(WS_CLIENT *wsc, uint16_t reason_code, const char *reason_txt);
 
 // Protocol receiver functions - websocket-protocol-rcv.c
