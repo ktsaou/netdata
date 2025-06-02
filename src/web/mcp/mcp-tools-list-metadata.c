@@ -385,99 +385,97 @@ void mcp_unified_list_tool_schema(BUFFER *buffer, const MCP_LIST_TOOL_CONFIG *co
 
 // Removed extract_string_param and extract_size_param - now using mcp-params functions
 
-// Unified execution
-MCP_RETURN_CODE mcp_unified_list_tool_execute(MCP_CLIENT *mcpc, const MCP_LIST_TOOL_CONFIG *config,
-                                               struct json_object *params, MCP_REQUEST_ID id)
+#include "core/mcp-core.h" // For mcp_job_add_error_response, mcp_job_add_json_response
+
+// Refactored unified execution function
+static int mcp_refactored_unified_list_tool_execute(MCP_REQ_JOB *job, const MCP_LIST_TOOL_CONFIG *config)
 {
-    if (!mcpc || !config || id == 0)
-        return MCP_RC_ERROR;
+    if (!job || !config) {
+        // This should not happen if called from wrappers
+        if (job) mcp_job_add_error_response(job, "Internal error: Missing job or config.", 500);
+        return -1;
+    }
+
+    USER_AUTH *auth = job->auth; // May be NULL
+    struct json_object *params = job->params; // May be NULL if no params sent
+
+    CLEAN_BUFFER *error_buffer = buffer_create(128);
 
     // Extract parameters based on configuration
     const char *q = config->params.has_q ? mcp_params_extract_string(params, "q", NULL) : NULL;
     
-    // Handle metrics - either as array or string pattern
     const char *metrics_pattern = NULL;
     CLEAN_BUFFER *metrics_buffer = NULL;
-    
     if (config->params.has_metrics) {
         if (config->params.metrics_as_array) {
-            // Parse metrics as an array
-            metrics_buffer = mcp_params_parse_array_to_pattern(params, "metrics", false, false, MCP_TOOL_LIST_METRICS, mcpc->error);
-            if (buffer_strlen(mcpc->error) > 0) {
-                return MCP_RC_BAD_REQUEST;
+            metrics_buffer = mcp_params_parse_array_to_pattern(params, "metrics", false, false, MCP_TOOL_LIST_METRICS, error_buffer);
+            if (buffer_strlen(error_buffer) > 0) {
+                mcp_job_add_error_response(job, buffer_tostring(error_buffer), 400);
+                buffer_free(error_buffer);
+                buffer_free(metrics_buffer); // metrics_buffer might be allocated even on error
+                return -1;
             }
             metrics_pattern = buffer_tostring(metrics_buffer);
         } else {
-            // Parse metrics as a string pattern
             metrics_pattern = mcp_params_extract_string(params, "metrics", NULL);
         }
-        if(metrics_pattern && !*metrics_pattern) {
-            metrics_pattern = NULL; // Treat empty string as no metrics specified
-        }
+        if(metrics_pattern && !*metrics_pattern) metrics_pattern = NULL;
     }
     
-    // Handle nodes - either as array or string pattern
     const char *nodes_pattern = NULL;
     CLEAN_BUFFER *nodes_buffer = NULL;
-    
     if (config->params.has_nodes) {
         if (config->params.nodes_as_array) {
-            // Parse nodes as array
-            nodes_buffer = mcp_params_parse_array_to_pattern(params, "nodes", false, false, MCP_TOOL_LIST_NODES, mcpc->error);
-            if (buffer_strlen(mcpc->error) > 0) {
-                return MCP_RC_BAD_REQUEST;
+            nodes_buffer = mcp_params_parse_array_to_pattern(params, "nodes", false, false, MCP_TOOL_LIST_NODES, error_buffer);
+            if (buffer_strlen(error_buffer) > 0) {
+                mcp_job_add_error_response(job, buffer_tostring(error_buffer), 400);
+                buffer_free(error_buffer);
+                buffer_free(nodes_buffer);
+                buffer_free(metrics_buffer); // Free previously allocated buffer
+                return -1;
             }
             nodes_pattern = buffer_tostring(nodes_buffer);
         } else {
-            // Parse nodes as a string pattern
             nodes_pattern = mcp_params_extract_string(params, "nodes", NULL);
         }
-        if(nodes_pattern && !*nodes_pattern) {
-            nodes_pattern = NULL; // Treat empty string as no nodes specified
-        }
+        if(nodes_pattern && !*nodes_pattern) nodes_pattern = NULL;
     }
     
-    // Check required parameters
     if (config->params.metrics_required && !metrics_pattern) {
-        buffer_sprintf(mcpc->error, "Missing required parameter 'metrics'. Use '" MCP_TOOL_LIST_METRICS "' to discover available metrics.");
-        return MCP_RC_ERROR;
+        buffer_sprintf(error_buffer, "Missing required parameter 'metrics'. Use '" MCP_TOOL_LIST_METRICS "' to discover available metrics.");
+        mcp_job_add_error_response(job, buffer_tostring(error_buffer), 400);
+        goto cleanup_error;
     }
     
     if (config->params.nodes_required && !nodes_pattern) {
-        buffer_sprintf(mcpc->error, "Missing required parameter 'nodes'. Use '" MCP_TOOL_LIST_NODES "' to discover available nodes.");
-        return MCP_RC_ERROR;
+        buffer_sprintf(error_buffer, "Missing required parameter 'nodes'. Use '" MCP_TOOL_LIST_NODES "' to discover available nodes.");
+        mcp_job_add_error_response(job, buffer_tostring(error_buffer), 400);
+        goto cleanup_error;
     }
 
-    // Extract time parameters (only if the tool supports them)
-    time_t after = 0;
-    time_t before = 0;
+    time_t after = 0, before = 0;
     if (config->params.has_time_range) {
         after = mcp_params_parse_time(params, "after", MCP_DEFAULT_AFTER_TIME);
         before = mcp_params_parse_time(params, "before", MCP_DEFAULT_BEFORE_TIME);
     }
     
-    // Extract cardinality limit if supported
     size_t cardinality_limit = 0;
     if (config->params.has_cardinality_limit) {
         size_t default_cardinality = config->defaults.cardinality_limit ?: MCP_METADATA_CARDINALITY_LIMIT;
-        cardinality_limit = mcp_params_extract_size(params, "cardinality_limit", default_cardinality, 1, 500, mcpc->error);
-        if (buffer_strlen(mcpc->error) > 0) {
-            return MCP_RC_BAD_REQUEST;
+        cardinality_limit = mcp_params_extract_size(params, "cardinality_limit", default_cardinality, 1, 500, error_buffer);
+        if (buffer_strlen(error_buffer) > 0) {
+            mcp_job_add_error_response(job, buffer_tostring(error_buffer), 400);
+            goto cleanup_error;
         }
     }
     
-    // Extract alert-specific parameters
     const char *alert_pattern = NULL;
-    
     if (config->params.has_alert_pattern) {
-        // Parse alerts as a string pattern
         alert_pattern = mcp_params_extract_string(params, "alerts", NULL);
-        if(alert_pattern && !*alert_pattern) {
-            alert_pattern = NULL; // Treat empty string as no alerts specified
-        }
+        if(alert_pattern && !*alert_pattern) alert_pattern = NULL;
     }
     
-    CLEAN_BUFFER *t = buffer_create(0, NULL);
+    CLEAN_BUFFER *result_payload_buffer = buffer_create(0, NULL); // This will hold the direct output of rrdcontext_to_json_v2
 
     struct api_v2_contexts_request req = {
         .scope_contexts = metrics_pattern,
@@ -489,44 +487,92 @@ MCP_RETURN_CODE mcp_unified_list_tool_execute(MCP_CLIENT *mcpc, const MCP_LIST_T
         .before = before,
         .cardinality_limit = cardinality_limit,
         .options = config->options | CONTEXTS_OPTION_MCP | CONTEXTS_OPTION_RFC3339 | CONTEXTS_OPTION_JSON_LONG_KEYS | CONTEXTS_OPTION_MINIFY,
-        .alerts = {
-            .alert = alert_pattern,
-            .status = config->defaults.alert_status,
-        },
+        .alerts = { .alert = alert_pattern, .status = config->defaults.alert_status, },
+        .access_level = auth ? auth->access : HTTP_ACCESS_ANONYMOUS_DATA, // Derive access_level
     };
 
-    // Determine mode - add SEARCH if q is provided
     CONTEXTS_V2_MODE mode = config->mode;
     if (config->params.has_q && q) {
         mode = CONTEXTS_V2_SEARCH;
         req.options |= CONTEXTS_OPTION_FAMILY | CONTEXTS_OPTION_UNITS | CONTEXTS_OPTION_TITLES |
-            CONTEXTS_OPTION_LABELS | CONTEXTS_OPTION_INSTANCES | CONTEXTS_OPTION_DIMENSIONS;
+                       CONTEXTS_OPTION_LABELS | CONTEXTS_OPTION_INSTANCES | CONTEXTS_OPTION_DIMENSIONS;
     }
 
-    int code = rrdcontext_to_json_v2(t, &req, mode);
+    int code = rrdcontext_to_json_v2(result_payload_buffer, &req, mode);
     if (code != HTTP_RESP_OK) {
-        buffer_sprintf(mcpc->error, "Failed to fetch %s, query returned http error code %d", config->name, code);
-        return MCP_RC_ERROR;
+        buffer_sprintf(error_buffer, "Failed to fetch %s, query returned http error code %d. Details: %s",
+                       config->name, code, buffer_strlen(result_payload_buffer) > 0 ? buffer_tostring(result_payload_buffer) : "No details provided.");
+        mcp_job_add_error_response(job, buffer_tostring(error_buffer), 500); // Or map code to HTTP status
+        buffer_free(result_payload_buffer);
+        goto cleanup_error;
     }
 
-    // Initialize success response
-    mcp_init_success_result(mcpc, id);
-    {
-        // Start building a content array for the result
-        buffer_json_member_add_array(mcpc->result, "content");
-        {
-            // Return text content for LLM compatibility
-            buffer_json_add_array_item_object(mcpc->result);
-            {
-                buffer_json_member_add_string(mcpc->result, "type", "text");
-                buffer_json_member_add_string(mcpc->result, "text", buffer_tostring(t));
-            }
-            buffer_json_object_close(mcpc->result); // Close text content
-        }
-        buffer_json_array_close(mcpc->result);  // Close content array
-    }
-    buffer_json_object_close(mcpc->result); // Close result object
-    buffer_json_finalize(mcpc->result); // Finalize the JSON
+    // Wrap the result_payload_buffer in the {"content": [{"type": "text", "text": ...}]} structure
+    CLEAN_BUFFER *final_response_buffer = buffer_create(0);
+    buffer_json_initialize(final_response_buffer, "\"", "\"", 0, true, BUFFER_JSON_OPTIONS_MINIFY);
+    buffer_json_member_add_array(final_response_buffer, "content");
+    buffer_json_add_array_item_object(final_response_buffer);
+    buffer_json_member_add_string(final_response_buffer, "type", "text");
+    buffer_json_member_add_string(final_response_buffer, "text", buffer_tostring(result_payload_buffer));
+    buffer_json_object_close(final_response_buffer); // Close text content object
+    buffer_json_array_close(final_response_buffer);  // Close content array
+    buffer_json_object_close(final_response_buffer); // Close main result object
+    buffer_json_finalize(final_response_buffer);
 
-    return MCP_RC_OK;
+    mcp_job_add_json_response(job, final_response_buffer); // Takes ownership of final_response_buffer
+
+    buffer_free(result_payload_buffer);
+    buffer_free(metrics_buffer);
+    buffer_free(nodes_buffer);
+    buffer_free(error_buffer);
+    return 0; // Success
+
+cleanup_error:
+    buffer_free(metrics_buffer);
+    buffer_free(nodes_buffer);
+    buffer_free(error_buffer);
+    return -1; // Error
+}
+
+// --- New Wrapper Functions ---
+int mcp_tool_list_metrics_job(MCP_REQ_JOB *job) {
+    const MCP_LIST_TOOL_CONFIG *config = mcp_get_list_tool_config(MCP_TOOL_LIST_METRICS);
+    if (!config) { mcp_job_add_error_response(job, "Internal error: Tool configuration not found for list_metrics.", 500); return -1; }
+    return mcp_refactored_unified_list_tool_execute(job, config);
+}
+
+int mcp_tool_get_metrics_details_job(MCP_REQ_JOB *job) {
+    const MCP_LIST_TOOL_CONFIG *config = mcp_get_list_tool_config(MCP_TOOL_GET_METRICS_DETAILS);
+    if (!config) { mcp_job_add_error_response(job, "Internal error: Tool configuration not found for get_metrics_details.", 500); return -1; }
+    return mcp_refactored_unified_list_tool_execute(job, config);
+}
+
+int mcp_tool_list_nodes_job(MCP_REQ_JOB *job) {
+    const MCP_LIST_TOOL_CONFIG *config = mcp_get_list_tool_config(MCP_TOOL_LIST_NODES);
+    if (!config) { mcp_job_add_error_response(job, "Internal error: Tool configuration not found for list_nodes.", 500); return -1; }
+    return mcp_refactored_unified_list_tool_execute(job, config);
+}
+
+int mcp_tool_get_nodes_details_job(MCP_REQ_JOB *job) {
+    const MCP_LIST_TOOL_CONFIG *config = mcp_get_list_tool_config(MCP_TOOL_GET_NODES_DETAILS);
+    if (!config) { mcp_job_add_error_response(job, "Internal error: Tool configuration not found for get_nodes_details.", 500); return -1; }
+    return mcp_refactored_unified_list_tool_execute(job, config);
+}
+
+int mcp_tool_list_functions_job(MCP_REQ_JOB *job) {
+    const MCP_LIST_TOOL_CONFIG *config = mcp_get_list_tool_config(MCP_TOOL_LIST_FUNCTIONS);
+    if (!config) { mcp_job_add_error_response(job, "Internal error: Tool configuration not found for list_functions.", 500); return -1; }
+    return mcp_refactored_unified_list_tool_execute(job, config);
+}
+
+int mcp_tool_list_raised_alerts_job(MCP_REQ_JOB *job) {
+    const MCP_LIST_TOOL_CONFIG *config = mcp_get_list_tool_config(MCP_TOOL_LIST_RAISED_ALERTS);
+    if (!config) { mcp_job_add_error_response(job, "Internal error: Tool configuration not found for list_raised_alerts.", 500); return -1; }
+    return mcp_refactored_unified_list_tool_execute(job, config);
+}
+
+int mcp_tool_list_all_alerts_job(MCP_REQ_JOB *job) {
+    const MCP_LIST_TOOL_CONFIG *config = mcp_get_list_tool_config(MCP_TOOL_LIST_ALL_ALERTS);
+    if (!config) { mcp_job_add_error_response(job, "Internal error: Tool configuration not found for list_all_alerts.", 500); return -1; }
+    return mcp_refactored_unified_list_tool_execute(job, config);
 }

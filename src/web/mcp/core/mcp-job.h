@@ -18,7 +18,8 @@ typedef struct mcp_http_adapter_job {
 
 typedef struct mcp_jsonrpc_adapter_job {
     struct mcp_req_job *req_job; // Parent
-    // Add jsonrpc specific members
+    struct json_object *jsonrpc_id_obj; // JSON-RPC request ID (string, number, or null)
+    // Add other jsonrpc specific members
 } MCP_JSONRPC_ADAPTER_JOB;
 
 typedef struct mcp_req_job {

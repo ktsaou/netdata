@@ -89,8 +89,8 @@ typedef struct {
     // Request context - all parsed parameters
     struct {
         // Core request data
-        MCP_CLIENT *mcpc;              // The MCP client
-        struct json_object *params;    // The raw parameters as given by the client
+        // MCP_CLIENT *mcpc;           // Removed, use job context for auth, params, and response building
+        struct json_object *tool_params; // The parameters for the tool (from job->params)
         
         // Parsed required parameters
         const char *function;          // Function name to execute
@@ -151,6 +151,7 @@ typedef struct {
         BUFFER *result;                // Response to send to the client
         size_t rows;                   // Number of rows after filtering
         size_t columns;                // Number of columns selected
+        BUFFER *error_buffer;          // For accumulating error messages
     } output;
 } MCP_FUNCTION_DATA;
 

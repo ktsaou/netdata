@@ -2,18 +2,26 @@
 
 #include "mcp-tools-weights.h"
 #include "mcp-params.h"
-#include "web/api/web_api.h"
-#include "web/api/queries/weights.h"
-#include "web/api/queries/query.h"
+#include "web/api/web_api.h" // For web_api_v12_weights
+#include "web/api/queries/weights.h" // For QUERY_WEIGHTS_REQUEST, WEIGHTS_METHOD
+#include "web/api/queries/query.h"   // For RRDR_OPTIONS etc.
+#include "core/mcp-core.h"     // For mcp_job_add_error_response, mcp_job_add_json_response
+#include "core/mcp-job.h"      // For MCP_REQ_JOB
+#include "libnetdata/log/nd_log.h" // For D_MCP if used in logging
 
-// Common function to execute the 'weights' request
-static MCP_RETURN_CODE execute_weights_request(
-    MCP_CLIENT *mcpc,
-    struct json_object *params,
-    MCP_REQUEST_ID id,
+// Common function to execute the 'weights' request (refactored)
+static int refactored_execute_weights_request(
+    MCP_REQ_JOB *job,
+    // MCP_CLIENT *mcpc, // Removed
+    // struct json_object *params, // Now from job->params
+    // MCP_REQUEST_ID id, // Removed
     WEIGHTS_METHOD method,
     const char *default_time_group
 ) {
+    USER_AUTH *auth = job->auth;
+    struct json_object *params = job->params;
+    CLEAN_BUFFER *error_buffer = buffer_create(256);
+
     // Extract time parameters using common parsing functions
     time_t after = mcp_params_parse_time(params, "after", MCP_DEFAULT_AFTER_TIME);
     time_t before = mcp_params_parse_time(params, "before", MCP_DEFAULT_BEFORE_TIME);
@@ -42,45 +50,59 @@ static MCP_RETURN_CODE execute_weights_request(
     CLEAN_BUFFER *labels_buffer = NULL;
     
     // Parse metrics as an array
-    metrics_buffer = mcp_params_parse_array_to_pattern(params, "metrics", false, false, MCP_TOOL_LIST_METRICS, mcpc->error);
-    if (buffer_strlen(mcpc->error) > 0) {
-        return MCP_RC_BAD_REQUEST;
+    metrics_buffer = mcp_params_parse_array_to_pattern(params, "metrics", false, false, MCP_TOOL_LIST_METRICS, error_buffer);
+    if (buffer_strlen(error_buffer) > 0) {
+        mcp_job_add_error_response(job, buffer_tostring(error_buffer), 400);
+        buffer_free(error_buffer); buffer_free(metrics_buffer);
+        return -1;
     }
     
     // Parse nodes as array
-    nodes_buffer = mcp_params_parse_array_to_pattern(params, "nodes", false, false, MCP_TOOL_LIST_NODES, mcpc->error);
-    if (buffer_strlen(mcpc->error) > 0) {
-        return MCP_RC_BAD_REQUEST;
+    nodes_buffer = mcp_params_parse_array_to_pattern(params, "nodes", false, false, MCP_TOOL_LIST_NODES, error_buffer);
+    if (buffer_strlen(error_buffer) > 0) {
+        mcp_job_add_error_response(job, buffer_tostring(error_buffer), 400);
+        buffer_free(error_buffer); buffer_free(metrics_buffer); buffer_free(nodes_buffer);
+        return -1;
     }
     
     // Parse instances as an array
-    instances_buffer = mcp_params_parse_array_to_pattern(params, "instances", false, false, MCP_TOOL_GET_METRICS_DETAILS, mcpc->error);
-    if (buffer_strlen(mcpc->error) > 0) {
-        return MCP_RC_BAD_REQUEST;
+    instances_buffer = mcp_params_parse_array_to_pattern(params, "instances", false, false, MCP_TOOL_GET_METRICS_DETAILS, error_buffer);
+    if (buffer_strlen(error_buffer) > 0) {
+        mcp_job_add_error_response(job, buffer_tostring(error_buffer), 400);
+        buffer_free(error_buffer); buffer_free(metrics_buffer); buffer_free(nodes_buffer); buffer_free(instances_buffer);
+        return -1;
     }
     
     // Parse dimensions as array
-    dimensions_buffer = mcp_params_parse_array_to_pattern(params, "dimensions", false, false, MCP_TOOL_GET_METRICS_DETAILS, mcpc->error);
-    if (buffer_strlen(mcpc->error) > 0) {
-        return MCP_RC_BAD_REQUEST;
+    dimensions_buffer = mcp_params_parse_array_to_pattern(params, "dimensions", false, false, MCP_TOOL_GET_METRICS_DETAILS, error_buffer);
+    if (buffer_strlen(error_buffer) > 0) {
+        mcp_job_add_error_response(job, buffer_tostring(error_buffer), 400);
+        buffer_free(error_buffer); buffer_free(metrics_buffer); buffer_free(nodes_buffer); buffer_free(instances_buffer); buffer_free(dimensions_buffer);
+        return -1;
     }
     
     // Parse labels as object
-    labels_buffer = mcp_params_parse_labels_object(params, MCP_TOOL_GET_METRICS_DETAILS, mcpc->error);
-    if (buffer_strlen(mcpc->error) > 0) {
-        return MCP_RC_BAD_REQUEST;
+    labels_buffer = mcp_params_parse_labels_object(params, MCP_TOOL_GET_METRICS_DETAILS, error_buffer);
+    if (buffer_strlen(error_buffer) > 0) {
+        mcp_job_add_error_response(job, buffer_tostring(error_buffer), 400);
+        buffer_free(error_buffer); buffer_free(metrics_buffer); buffer_free(nodes_buffer); buffer_free(instances_buffer); buffer_free(dimensions_buffer); buffer_free(labels_buffer);
+        return -1;
     }
     
     // Get cardinality limit
     struct json_object *obj;
     size_t cardinality_limit = 50; // Default for MCP
-    if (json_object_object_get_ex(params, "cardinality_limit", &obj) && json_object_is_type(obj, json_type_int))
-        cardinality_limit = json_object_get_int(obj);
+    if (json_object_object_get_ex(params, "cardinality_limit", &obj) && json_object_is_type(obj, json_type_int)) {
+        long long val = json_object_get_int64(obj); // Use int64 to check range
+        if (val > 0 && val <= (long long)SIZE_MAX) cardinality_limit = (size_t)val;
+    }
     
     // Extract timeout parameter
-    int timeout = mcp_params_extract_timeout(params, "timeout", 120, 1, 3600, mcpc->error);
-    if (buffer_strlen(mcpc->error) > 0) {
-        return MCP_RC_BAD_REQUEST;
+    int timeout = mcp_params_extract_timeout(params, "timeout", 120, 1, 3600, error_buffer);
+    if (buffer_strlen(error_buffer) > 0) {
+        mcp_job_add_error_response(job, buffer_tostring(error_buffer), 400);
+        buffer_free(error_buffer); buffer_free(metrics_buffer); buffer_free(nodes_buffer); buffer_free(instances_buffer); buffer_free(dimensions_buffer); buffer_free(labels_buffer);
+        return -1;
     }
         
     // Set time_group parameter based on the method
@@ -144,50 +166,70 @@ static MCP_RETURN_CODE execute_weights_request(
     
     // Call the weights API function with the temporary buffer
     int http_code = web_api_v12_weights(tmp_buffer, &qwr);
+
+        .access_level = auth ? auth->access : HTTP_ACCESS_ANONYMOUS_DATA, // Added access level
+    };
+
+    // Create a temporary buffer for the 'weights' API response
+    CLEAN_BUFFER *tmp_buffer = buffer_create(0, NULL);
+    if (!tmp_buffer) {
+        mcp_job_add_error_response(job, "Failed to allocate temporary buffer for weights tool.", 500);
+        buffer_free(error_buffer); buffer_free(metrics_buffer); buffer_free(nodes_buffer); buffer_free(instances_buffer); buffer_free(dimensions_buffer); buffer_free(labels_buffer);
+        return -1;
+    }
+
+    // Call the weights API function with the temporary buffer
+    int http_code = web_api_v12_weights(tmp_buffer, &qwr);
     
     // Handle response
     if (http_code != HTTP_RESP_OK) {
-        buffer_flush(mcpc->error);
-        
+        // buffer_flush(mcpc->error); // Not needed
+        const char *error_desc = "unknown error";
         switch (http_code) {
-            case HTTP_RESP_BAD_REQUEST:
-                buffer_sprintf(mcpc->error, "Invalid request parameters");
-                return MCP_RC_BAD_REQUEST;
-                
-            case HTTP_RESP_NOT_FOUND:
-                buffer_sprintf(mcpc->error, "No results found");
-                return MCP_RC_NOT_FOUND;
-                
-            case HTTP_RESP_GATEWAY_TIMEOUT:
-                buffer_sprintf(mcpc->error, "Request timed out");
-                return MCP_RC_ERROR;
-                
-            default:
-                buffer_sprintf(mcpc->error, "Internal error (HTTP %d)", http_code);
-                return MCP_RC_INTERNAL_ERROR;
+            case HTTP_RESP_BAD_REQUEST: error_desc = "Invalid request parameters"; break;
+            case HTTP_RESP_NOT_FOUND: error_desc = "No results found"; break;
+            case HTTP_RESP_GATEWAY_TIMEOUT: error_desc = "Request timed out"; break;
+            default: error_desc = "Internal error"; break;
         }
-    }
-    
-    // Initialize response
-    mcp_init_success_result(mcpc, id);
+        buffer_sprintf(error_buffer, "%s (HTTP %d). Details: %s",
+                       error_desc, http_code, buffer_strlen(tmp_buffer) > 0 ? buffer_tostring(tmp_buffer) : "No details.");
+        mcp_job_add_error_response(job, buffer_tostring(error_buffer), http_code); // Use actual http_code
 
-    // Wrap the response in MCP JSON-RPC format
-    buffer_json_member_add_array(mcpc->result, "content");
-    {
-        buffer_json_add_array_item_object(mcpc->result);
-        {
-            buffer_json_member_add_string(mcpc->result, "type", "text");
-            buffer_json_member_add_string(mcpc->result, "text", buffer_tostring(tmp_buffer));
-        }
-        buffer_json_object_close(mcpc->result);
+        buffer_free(tmp_buffer);
+        buffer_free(error_buffer); buffer_free(metrics_buffer); buffer_free(nodes_buffer); buffer_free(instances_buffer); buffer_free(dimensions_buffer); buffer_free(labels_buffer);
+        return -1;
     }
-    buffer_json_array_close(mcpc->result);
     
-    // Close the result object and finalize JSON
-    buffer_json_object_close(mcpc->result); // Close the "result" object
-    buffer_json_finalize(mcpc->result);
-    
-    return MCP_RC_OK;
+    // Wrap the response in MCP JSON structure
+    CLEAN_BUFFER *content_wrapper = buffer_create(0);
+    if (!content_wrapper) {
+        mcp_job_add_error_response(job, "Failed to allocate content wrapper for weights tool.", 500);
+        buffer_free(tmp_buffer);
+        buffer_free(error_buffer); buffer_free(metrics_buffer); buffer_free(nodes_buffer); buffer_free(instances_buffer); buffer_free(dimensions_buffer); buffer_free(labels_buffer);
+        return -1;
+    }
+
+    buffer_json_initialize(content_wrapper, "\"", "\"", 0, true, BUFFER_JSON_OPTIONS_MINIFY);
+    buffer_json_member_add_array(content_wrapper, "content");
+    buffer_json_add_array_item_object(content_wrapper);
+    buffer_json_member_add_string(content_wrapper, "type", "text");
+    buffer_json_member_add_string(content_wrapper, "text", buffer_tostring(tmp_buffer));
+    buffer_json_object_close(content_wrapper); // Close text content object
+    buffer_json_array_close(content_wrapper);  // Close content array
+    buffer_json_object_close(content_wrapper); // Close main result object
+    buffer_json_finalize(content_wrapper);
+
+    mcp_job_add_json_response(job, content_wrapper); // Takes ownership of content_wrapper
+
+    buffer_free(tmp_buffer);
+    buffer_free(error_buffer);
+    buffer_free(metrics_buffer);
+    buffer_free(nodes_buffer);
+    buffer_free(instances_buffer);
+    buffer_free(dimensions_buffer);
+    buffer_free(labels_buffer);
+
+    return 0; // Success
 }
 
 // Schema helper for common time window parameters
@@ -248,20 +290,19 @@ static void add_weights_filter_parameters(BUFFER *buffer) {
 }
 
 // find_correlated_metrics implementation
-MCP_RETURN_CODE mcp_tool_find_correlated_metrics_execute(MCP_CLIENT *mcpc, struct json_object *params, MCP_REQUEST_ID id) {
-    // Parse method parameter
-    WEIGHTS_METHOD method = WEIGHTS_METHOD_MC_VOLUME; // Default to volume as per schema
+int mcp_tool_find_correlated_metrics(MCP_REQ_JOB *job) { // MCP_RETURN_CODE mcp_tool_find_correlated_metrics_execute(...)
+    struct json_object *params = job->params; // Get params from job
+    WEIGHTS_METHOD method = WEIGHTS_METHOD_MC_VOLUME; // Default
     
     struct json_object *obj;
-    if (json_object_object_get_ex(params, "method", &obj) && json_object_is_type(obj, json_type_string)) {
+    if (params && json_object_object_get_ex(params, "method", &obj) && json_object_is_type(obj, json_type_string)) {
         const char *method_str = json_object_get_string(obj);
-        if (strcmp(method_str, "ks2") == 0)
-            method = WEIGHTS_METHOD_MC_KS2;
-        else if (strcmp(method_str, "volume") == 0)
-            method = WEIGHTS_METHOD_MC_VOLUME;
+        if (strcmp(method_str, "ks2") == 0) method = WEIGHTS_METHOD_MC_KS2;
+        else if (strcmp(method_str, "volume") == 0) method = WEIGHTS_METHOD_MC_VOLUME;
+        // else keep default or error out if method is mandatory & invalid
     }
     
-    return execute_weights_request(mcpc, params, id, method, NULL);
+    return refactored_execute_weights_request(job, method, NULL);
 }
 
 void mcp_tool_find_correlated_metrics_schema(BUFFER *buffer) {
@@ -312,8 +353,8 @@ void mcp_tool_find_correlated_metrics_schema(BUFFER *buffer) {
 }
 
 // find_anomalous_metrics implementation
-MCP_RETURN_CODE mcp_tool_find_anomalous_metrics_execute(MCP_CLIENT *mcpc, struct json_object *params, MCP_REQUEST_ID id) {
-    return execute_weights_request(mcpc, params, id, WEIGHTS_METHOD_ANOMALY_RATE, NULL);
+int mcp_tool_find_anomalous_metrics(MCP_REQ_JOB *job) { // MCP_RETURN_CODE mcp_tool_find_anomalous_metrics_execute(...)
+    return refactored_execute_weights_request(job, WEIGHTS_METHOD_ANOMALY_RATE, NULL);
 }
 
 void mcp_tool_find_anomalous_metrics_schema(BUFFER *buffer) {
@@ -350,9 +391,8 @@ void mcp_tool_find_anomalous_metrics_schema(BUFFER *buffer) {
 }
 
 // find_unstable_metrics implementation
-MCP_RETURN_CODE mcp_tool_find_unstable_metrics_execute(MCP_CLIENT *mcpc, struct json_object *params, MCP_REQUEST_ID id) {
-    // Use coefficient of variation for finding unstable metrics
-    return execute_weights_request(mcpc, params, id, WEIGHTS_METHOD_VALUE, "cv");
+int mcp_tool_find_unstable_metrics(MCP_REQ_JOB *job) { // MCP_RETURN_CODE mcp_tool_find_unstable_metrics_execute(...)
+    return refactored_execute_weights_request(job, WEIGHTS_METHOD_VALUE, "cv");
 }
 
 void mcp_tool_find_unstable_metrics_schema(BUFFER *buffer) {

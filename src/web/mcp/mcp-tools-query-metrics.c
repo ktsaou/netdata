@@ -34,6 +34,9 @@
 #include "mcp-tools.h"
 #include "mcp-params.h"
 #include "web/api/formatters/rrd2json.h"
+#include "core/mcp-core.h" // For mcp_job_add_error_response, mcp_job_add_json_response
+#include "core/mcp-job.h"  // For MCP_REQ_JOB
+#include "libnetdata/log/nd_log.h" // For D_MCP if used in logging
 
 
 // JSON schema for the metrics query tool
@@ -273,31 +276,35 @@ void mcp_tool_query_metrics_schema(BUFFER *buffer) {
 
 // Structure to hold interruption data
 typedef struct {
-    MCP_CLIENT *mcpc;
-    MCP_REQUEST_ID id;
-} mcp_query_interrupt_data;
+// typedef struct { // Removed, not directly compatible with job-based approach without mapping job to client
+//     MCP_CLIENT *mcpc;
+//     MCP_REQUEST_ID id;
+// } mcp_query_interrupt_data;
 
-// Interrupt callback for query execution
-static bool mcp_query_interrupt_callback(void *data) {
-    mcp_query_interrupt_data *int_data = (mcp_query_interrupt_data *)data;
-    
-    // Check if the MCP client is still valid and connected
-    if (!int_data || !int_data->mcpc)
-        return false;
-        
-    // Real implementations might check for client disconnection or timeout
-    // Here we're just returning false to indicate "no interrupt"
-    return false;
+// Simplified interrupt callback for job-based execution
+static bool mcp_query_interrupt_callback_job(void *data) {
+    (void)data; // data could be *MCP_REQ_JOB in the future if needed
+    // Real implementations might check for client disconnection or timeout via job status
+    return false; // For now, indicate "no interrupt"
 }
 
 // Removed extract_string_param and extract_size_param - now using mcp-params functions
 
 // Execute the metrics query
-MCP_RETURN_CODE mcp_tool_query_metrics_execute(MCP_CLIENT *mcpc, struct json_object *params, MCP_REQUEST_ID id) {
-    if (!mcpc || id == 0)
-        return MCP_RC_ERROR;
+int mcp_tool_query_metrics(MCP_REQ_JOB *job) { // MCP_RETURN_CODE mcp_tool_query_metrics_execute(MCP_CLIENT *mcpc, struct json_object *params, MCP_REQUEST_ID id) {
+    if (!job || !job->params) { // !mcpc || id == 0)
+        // MCP_RC_ERROR;
+        // This case should ideally be caught by MCP core.
+        // If job is NULL, we can't even add an error response to it.
+        netdata_error_log(D_MCP, "%s: Called with NULL job or job->params.", __func__);
+        return -1;
+    }
 
-    buffer_flush(mcpc->result);
+    USER_AUTH *auth = job->auth;
+    struct json_object *params = job->params;
+    CLEAN_BUFFER *error_buffer = buffer_create(256);
+
+    // buffer_flush(mcpc->result); // Will use job's response mechanism
 
     usec_t received_ut = now_monotonic_usec();
     
@@ -306,16 +313,20 @@ MCP_RETURN_CODE mcp_tool_query_metrics_execute(MCP_CLIENT *mcpc, struct json_obj
     
     // Validate required parameters with detailed error messages
     if (!context || !*context) {
-        buffer_sprintf(mcpc->error, "Missing required parameter 'metric'. Use the '" MCP_TOOL_LIST_METRICS "' tool to discover available metrics/contexts.");
-        return MCP_RC_BAD_REQUEST;
+        buffer_sprintf(error_buffer, "Missing required parameter 'metric'. Use the '" MCP_TOOL_LIST_METRICS "' tool to discover available metrics/contexts.");
+        mcp_job_add_error_response(job, buffer_tostring(error_buffer), 400);
+        buffer_free(error_buffer);
+        return -1; // MCP_RC_BAD_REQUEST;
     }
     
     // Check if context contains patterns
     if (simple_pattern_contains_wildcards(context, SIMPLE_PATTERN_DEFAULT_WEB_SEPARATORS)) {
-        buffer_sprintf(mcpc->error, "The 'context' parameter must be an exact context name, not a pattern. "
+        buffer_sprintf(error_buffer, "The 'context' parameter must be an exact context name, not a pattern. "
                                     "Wildcards or pattern separators are not supported. "
                                     "Use the " MCP_TOOL_LIST_METRICS " tool to discover exact context names.");
-        return MCP_RC_BAD_REQUEST;
+        mcp_job_add_error_response(job, buffer_tostring(error_buffer), 400);
+        buffer_free(error_buffer);
+        return -1; // MCP_RC_BAD_REQUEST;
     }
     
     // Check if all required parameters are provided
@@ -323,44 +334,60 @@ MCP_RETURN_CODE mcp_tool_query_metrics_execute(MCP_CLIENT *mcpc, struct json_obj
     struct json_object *group_by_obj = NULL, *aggregation_obj = NULL, *dimensions_obj = NULL;
     
     if (!json_object_object_get_ex(params, "dimensions", &dimensions_obj) || !dimensions_obj) {
-        buffer_sprintf(mcpc->error, "Missing required parameter 'dimensions'. Use the '" MCP_TOOL_LIST_METRICS "' to get the list of dimensions for this metric/context.");
-        return MCP_RC_BAD_REQUEST;
+        buffer_sprintf(error_buffer, "Missing required parameter 'dimensions'. Use the '" MCP_TOOL_LIST_METRICS "' to get the list of dimensions for this metric/context.");
+        mcp_job_add_error_response(job, buffer_tostring(error_buffer), 400);
+        buffer_free(error_buffer);
+        return -1; // MCP_RC_BAD_REQUEST;
     }
     
     if (!json_object_object_get_ex(params, "after", &after_obj) || !after_obj) {
-        buffer_sprintf(mcpc->error, "Missing required parameter 'after'. This parameter defines the start time for your query (Unix epoch timestamp in seconds, or negative value relative to 'before', or RFC3339 datetime string).");
-        return MCP_RC_BAD_REQUEST;
+        buffer_sprintf(error_buffer, "Missing required parameter 'after'. This parameter defines the start time for your query (Unix epoch timestamp in seconds, or negative value relative to 'before', or RFC3339 datetime string).");
+        mcp_job_add_error_response(job, buffer_tostring(error_buffer), 400);
+        buffer_free(error_buffer);
+        return -1; // MCP_RC_BAD_REQUEST;
     }
     
     if (!json_object_object_get_ex(params, "before", &before_obj) || !before_obj) {
-        buffer_sprintf(mcpc->error, "Missing required parameter 'before'. This parameter defines the end time for your query (Unix epoch timestamp in seconds, or negative value relative to now, or RFC3339 datetime string).");
-        return MCP_RC_BAD_REQUEST;
+        buffer_sprintf(error_buffer, "Missing required parameter 'before'. This parameter defines the end time for your query (Unix epoch timestamp in seconds, or negative value relative to now, or RFC3339 datetime string).");
+        mcp_job_add_error_response(job, buffer_tostring(error_buffer), 400);
+        buffer_free(error_buffer);
+        return -1; // MCP_RC_BAD_REQUEST;
     }
     
     if (!json_object_object_get_ex(params, "points", &points_obj) || !points_obj) {
-        buffer_sprintf(mcpc->error, "Missing required parameter 'points'. This parameter defines how many data points to return in your result set (e.g., 60 for minute-level granularity in an hour).");
-        return MCP_RC_BAD_REQUEST;
+        buffer_sprintf(error_buffer, "Missing required parameter 'points'. This parameter defines how many data points to return in your result set (e.g., 60 for minute-level granularity in an hour).");
+        mcp_job_add_error_response(job, buffer_tostring(error_buffer), 400);
+        buffer_free(error_buffer);
+        return -1; // MCP_RC_BAD_REQUEST;
     }
     
     if (!json_object_object_get_ex(params, "time_group", &time_group_obj) || !time_group_obj) {
-        buffer_sprintf(mcpc->error, "Missing required parameter 'time_group'. This parameter defines how to aggregate data points over time (e.g., 'average', 'min', 'max', 'sum').");
-        return MCP_RC_BAD_REQUEST;
+        buffer_sprintf(error_buffer, "Missing required parameter 'time_group'. This parameter defines how to aggregate data points over time (e.g., 'average', 'min', 'max', 'sum').");
+        mcp_job_add_error_response(job, buffer_tostring(error_buffer), 400);
+        buffer_free(error_buffer);
+        return -1; // MCP_RC_BAD_REQUEST;
     }
     
     if (!json_object_object_get_ex(params, "group_by", &group_by_obj) || !group_by_obj) {
-        buffer_sprintf(mcpc->error, "Missing required parameter 'group_by'. This parameter defines how to group metrics (e.g., 'dimension', 'instance', 'node', or combinations like 'dimension,node').");
-        return MCP_RC_BAD_REQUEST;
+        buffer_sprintf(error_buffer, "Missing required parameter 'group_by'. This parameter defines how to group metrics (e.g., 'dimension', 'instance', 'node', or combinations like 'dimension,node').");
+        mcp_job_add_error_response(job, buffer_tostring(error_buffer), 400);
+        buffer_free(error_buffer);
+        return -1; // MCP_RC_BAD_REQUEST;
     }
     
     if (!json_object_object_get_ex(params, "aggregation", &aggregation_obj) || !aggregation_obj) {
-        buffer_sprintf(mcpc->error, "Missing required parameter 'aggregation'. This parameter defines the function to use when aggregating metrics (e.g., 'sum', 'min', 'max', 'average').");
-        return MCP_RC_BAD_REQUEST;
+        buffer_sprintf(error_buffer, "Missing required parameter 'aggregation'. This parameter defines the function to use when aggregating metrics (e.g., 'sum', 'min', 'max', 'average').");
+        mcp_job_add_error_response(job, buffer_tostring(error_buffer), 400);
+        buffer_free(error_buffer);
+        return -1; // MCP_RC_BAD_REQUEST;
     }
     
     struct json_object *cardinality_limit_obj = NULL;
     if (!json_object_object_get_ex(params, "cardinality_limit", &cardinality_limit_obj) || !cardinality_limit_obj) {
-        buffer_sprintf(mcpc->error, "Missing required parameter 'cardinality_limit'. This parameter limits the number of items returned to keep response sizes manageable (default: %d).", MCP_DATA_CARDINALITY_LIMIT);
-        return MCP_RC_BAD_REQUEST;
+        buffer_sprintf(error_buffer, "Missing required parameter 'cardinality_limit'. This parameter limits the number of items returned to keep response sizes manageable (default: %d).", MCP_DATA_CARDINALITY_LIMIT);
+        mcp_job_add_error_response(job, buffer_tostring(error_buffer), 400);
+        buffer_free(error_buffer);
+        return -1; // MCP_RC_BAD_REQUEST;
     }
     
     // Get time_group value to check if it's a percentile or countif
@@ -376,11 +403,13 @@ MCP_RETURN_CODE mcp_tool_query_metrics_execute(MCP_CLIENT *mcpc, struct json_obj
             struct json_object *time_group_options_obj = NULL;
             if (!json_object_object_get_ex(params, "time_group_options", &time_group_options_obj) || !time_group_options_obj) {
                 if (strcmp(time_group_str, "percentile") == 0) {
-                    buffer_sprintf(mcpc->error, "Missing required parameter 'time_group_options' when using time_group='percentile'. You must specify a percentage value between 0-100 (e.g., '95' for 95th percentile).");
+                    buffer_sprintf(error_buffer, "Missing required parameter 'time_group_options' when using time_group='percentile'. You must specify a percentage value between 0-100 (e.g., '95' for 95th percentile).");
                 } else {
-                    buffer_sprintf(mcpc->error, "Missing required parameter 'time_group_options' when using time_group='countif'. You must specify a comparison operator and value (e.g., '>0', '=0', '!=0', '<=10').");
+                    buffer_sprintf(error_buffer, "Missing required parameter 'time_group_options' when using time_group='countif'. You must specify a comparison operator and value (e.g., '>0', '=0', '!=0', '<=10').");
                 }
-                return MCP_RC_BAD_REQUEST;
+                mcp_job_add_error_response(job, buffer_tostring(error_buffer), 400);
+                buffer_free(error_buffer);
+                return -1; // MCP_RC_BAD_REQUEST;
             }
         }
     }
@@ -388,34 +417,42 @@ MCP_RETURN_CODE mcp_tool_query_metrics_execute(MCP_CLIENT *mcpc, struct json_obj
     // Handle nodes array parameter
     CLEAN_BUFFER *nodes_buffer = NULL;
     
-    nodes_buffer = mcp_params_parse_array_to_pattern(params, "nodes", false, false, MCP_TOOL_LIST_NODES, mcpc->error);
-    if (buffer_strlen(mcpc->error) > 0) {
-        return MCP_RC_BAD_REQUEST;
+    nodes_buffer = mcp_params_parse_array_to_pattern(params, "nodes", false, false, MCP_TOOL_LIST_NODES, error_buffer); // mcpc->error);
+    if (buffer_strlen(error_buffer) > 0) { // mcpc->error) > 0) {
+        mcp_job_add_error_response(job, buffer_tostring(error_buffer), 400);
+        buffer_free(error_buffer); buffer_free(nodes_buffer);
+        return -1; // MCP_RC_BAD_REQUEST;
     }
     
     // Handle instances array parameter
     CLEAN_BUFFER *instances_buffer = NULL;
     
-    instances_buffer = mcp_params_parse_array_to_pattern(params, "instances", false, false, MCP_TOOL_GET_METRICS_DETAILS, mcpc->error);
-    if (buffer_strlen(mcpc->error) > 0) {
-        return MCP_RC_BAD_REQUEST;
+    instances_buffer = mcp_params_parse_array_to_pattern(params, "instances", false, false, MCP_TOOL_GET_METRICS_DETAILS, error_buffer); // mcpc->error);
+    if (buffer_strlen(error_buffer) > 0) { // mcpc->error) > 0) {
+        mcp_job_add_error_response(job, buffer_tostring(error_buffer), 400);
+        buffer_free(error_buffer); buffer_free(nodes_buffer); buffer_free(instances_buffer);
+        return -1; // MCP_RC_BAD_REQUEST;
     }
     
     // Handle dimensions array parameter
     CLEAN_BUFFER *dimensions_buffer = NULL;
     
-    dimensions_buffer = mcp_params_parse_array_to_pattern(params, "dimensions", true, false, MCP_TOOL_GET_METRICS_DETAILS, mcpc->error);
-    if (buffer_strlen(mcpc->error) > 0) {
-        buffer_strcat(mcpc->error, ". You must explicitly list every dimension you want to query. "
+    dimensions_buffer = mcp_params_parse_array_to_pattern(params, "dimensions", true, false, MCP_TOOL_GET_METRICS_DETAILS, error_buffer); // mcpc->error);
+    if (buffer_strlen(error_buffer) > 0) { // mcpc->error) > 0) {
+        buffer_strcat(error_buffer, ". You must explicitly list every dimension you want to query. "
                                    "Use the '" MCP_TOOL_GET_METRICS_DETAILS "' tool to discover available dimensions for the context.");
-        return MCP_RC_BAD_REQUEST;
+        mcp_job_add_error_response(job, buffer_tostring(error_buffer), 400);
+        buffer_free(error_buffer); buffer_free(nodes_buffer); buffer_free(instances_buffer); buffer_free(dimensions_buffer);
+        return -1; // MCP_RC_BAD_REQUEST;
     }
     // Handle labels - expects a structured object only
     CLEAN_BUFFER *labels_buffer = NULL;
     
-    labels_buffer = mcp_params_parse_labels_object(params, MCP_TOOL_GET_METRICS_DETAILS, mcpc->error);
-    if (buffer_strlen(mcpc->error) > 0) {
-        return MCP_RC_BAD_REQUEST;
+    labels_buffer = mcp_params_parse_labels_object(params, MCP_TOOL_GET_METRICS_DETAILS, error_buffer); // mcpc->error);
+    if (buffer_strlen(error_buffer) > 0) { // mcpc->error) > 0) {
+        mcp_job_add_error_response(job, buffer_tostring(error_buffer), 400);
+        buffer_free(error_buffer); buffer_free(nodes_buffer); buffer_free(instances_buffer); buffer_free(dimensions_buffer); buffer_free(labels_buffer);
+        return -1; // MCP_RC_BAD_REQUEST;
     }
     
     // Removed alerts parameter - not used in query_metrics
@@ -426,49 +463,63 @@ MCP_RETURN_CODE mcp_tool_query_metrics_execute(MCP_CLIENT *mcpc, struct json_obj
     
     // Validate time range
     if (after == 0 && before == 0) {
-        buffer_sprintf(mcpc->error, "Invalid time range: both 'after' and 'before' cannot be zero. Use negative values for relative times (e.g., after=-3600, before=-0 for the last hour) or specific timestamps for absolute times.");
-        return MCP_RC_BAD_REQUEST;
+        buffer_sprintf(error_buffer, "Invalid time range: both 'after' and 'before' cannot be zero. Use negative values for relative times (e.g., after=-3600, before=-0 for the last hour) or specific timestamps for absolute times.");
+        mcp_job_add_error_response(job, buffer_tostring(error_buffer), 400);
+        buffer_free(error_buffer); buffer_free(nodes_buffer); buffer_free(instances_buffer); buffer_free(dimensions_buffer); buffer_free(labels_buffer);
+        return -1; // MCP_RC_BAD_REQUEST;
     }
     
     // Check if after is later than before (when both are absolute timestamps)
     if (after > 0 && before > 0 && after >= before) {
-        buffer_sprintf(mcpc->error, "Invalid time range: 'after' (%lld) must be earlier than 'before' (%lld). The query time range must be at least 1 second.", (long long)after, (long long)before);
-        return MCP_RC_BAD_REQUEST;
+        buffer_sprintf(error_buffer, "Invalid time range: 'after' (%lld) must be earlier than 'before' (%lld). The query time range must be at least 1 second.", (long long)after, (long long)before);
+        mcp_job_add_error_response(job, buffer_tostring(error_buffer), 400);
+        buffer_free(error_buffer); buffer_free(nodes_buffer); buffer_free(instances_buffer); buffer_free(dimensions_buffer); buffer_free(labels_buffer);
+        return -1; // MCP_RC_BAD_REQUEST;
     }
     
     // No need to check aggregation_obj here - we already have a default in group_by struct
     
     // Other parameters
-    size_t points = mcp_params_extract_size(params, "points", 0, 0, SIZE_MAX, mcpc->error);
-    if (buffer_strlen(mcpc->error) > 0) {
-        return MCP_RC_BAD_REQUEST;
+    size_t points = mcp_params_extract_size(params, "points", 0, 0, SIZE_MAX, error_buffer); // mcpc->error);
+    if (buffer_strlen(error_buffer) > 0) { // mcpc->error) > 0) {
+        mcp_job_add_error_response(job, buffer_tostring(error_buffer), 400);
+        buffer_free(error_buffer); buffer_free(nodes_buffer); buffer_free(instances_buffer); buffer_free(dimensions_buffer); buffer_free(labels_buffer);
+        return -1; // MCP_RC_BAD_REQUEST;
     }
     
-    size_t cardinality_limit = mcp_params_extract_size(params, "cardinality_limit", MCP_DATA_CARDINALITY_LIMIT, 1, 1000, mcpc->error);
-    if (buffer_strlen(mcpc->error) > 0) {
-        return MCP_RC_BAD_REQUEST;
+    size_t cardinality_limit = mcp_params_extract_size(params, "cardinality_limit", MCP_DATA_CARDINALITY_LIMIT, 1, 1000, error_buffer); // mcpc->error);
+    if (buffer_strlen(error_buffer) > 0) { // mcpc->error) > 0) {
+        mcp_job_add_error_response(job, buffer_tostring(error_buffer), 400);
+        buffer_free(error_buffer); buffer_free(nodes_buffer); buffer_free(instances_buffer); buffer_free(dimensions_buffer); buffer_free(labels_buffer);
+        return -1; // MCP_RC_BAD_REQUEST;
     }
 
     // Check if points is more than 1000
     if (points < 1) {
-        buffer_sprintf(mcpc->error,
+        buffer_sprintf(error_buffer, // mcpc->error,
                        "Too few data points requested: %zu. The minimum allowed is 1 point.",
                        points);
-        return MCP_RC_BAD_REQUEST;
+        mcp_job_add_error_response(job, buffer_tostring(error_buffer), 400);
+        buffer_free(error_buffer); buffer_free(nodes_buffer); buffer_free(instances_buffer); buffer_free(dimensions_buffer); buffer_free(labels_buffer);
+        return -1; // MCP_RC_BAD_REQUEST;
     }
 
     // Check if points is more than 1000
     if (points > 1000) {
-        buffer_sprintf(mcpc->error, 
+        buffer_sprintf(error_buffer, // mcpc->error,
             "Too many data points requested: %zu. The maximum allowed is 1000 points. Please reduce the 'points' parameter value to 1000 or less.\n"
             "This limit helps reduce response size and save context space when used with AI assistants.",
             points);
-        return MCP_RC_BAD_REQUEST;
+        mcp_job_add_error_response(job, buffer_tostring(error_buffer), 400);
+        buffer_free(error_buffer); buffer_free(nodes_buffer); buffer_free(instances_buffer); buffer_free(dimensions_buffer); buffer_free(labels_buffer);
+        return -1; // MCP_RC_BAD_REQUEST;
     }
     
-    long timeout = mcp_params_extract_timeout(params, "timeout", 0, 0, 3600, mcpc->error);
-    if (buffer_strlen(mcpc->error) > 0) {
-        return MCP_RC_BAD_REQUEST;
+    long timeout = mcp_params_extract_timeout(params, "timeout", 0, 0, 3600, error_buffer); // mcpc->error);
+    if (buffer_strlen(error_buffer) > 0) { // mcpc->error) > 0) {
+        mcp_job_add_error_response(job, buffer_tostring(error_buffer), 400);
+        buffer_free(error_buffer); buffer_free(nodes_buffer); buffer_free(instances_buffer); buffer_free(dimensions_buffer); buffer_free(labels_buffer);
+        return -1; // MCP_RC_BAD_REQUEST;
     }
     
     const char *options_str = mcp_params_extract_string(params, "options", NULL);
@@ -484,9 +535,11 @@ MCP_RETURN_CODE mcp_tool_query_metrics_execute(MCP_CLIENT *mcpc, struct json_obj
     const char *time_group_options = mcp_params_extract_string(params, "time_group_options", NULL);
     
     // Tier selection (give an invalid default to now the caller added a tier to the query)
-    size_t tier = mcp_params_extract_size(params, "tier", nd_profile.storage_tiers + 1, 0, SIZE_MAX, mcpc->error);
-    if (buffer_strlen(mcpc->error) > 0) {
-        return MCP_RC_BAD_REQUEST;
+    size_t tier = mcp_params_extract_size(params, "tier", nd_profile.storage_tiers + 1, 0, SIZE_MAX, error_buffer); // mcpc->error);
+    if (buffer_strlen(error_buffer) > 0) { // mcpc->error) > 0) {
+        mcp_job_add_error_response(job, buffer_tostring(error_buffer), 400);
+        buffer_free(error_buffer); buffer_free(nodes_buffer); buffer_free(instances_buffer); buffer_free(dimensions_buffer); buffer_free(labels_buffer);
+        return -1; // MCP_RC_BAD_REQUEST;
     }
     if (tier < nd_profile.storage_tiers)
         options |= RRDR_OPTION_SELECTED_TIER;
@@ -506,9 +559,11 @@ MCP_RETURN_CODE mcp_tool_query_metrics_execute(MCP_CLIENT *mcpc, struct json_obj
     CLEAN_BUFFER *group_by_buffer = NULL;
     const char *group_by_str = NULL;
     
-    group_by_buffer = mcp_params_parse_array_to_pattern(params, "group_by", true, false, MCP_TOOL_GET_METRICS_DETAILS, mcpc->error);
-    if (buffer_strlen(mcpc->error) > 0) {
-        return MCP_RC_BAD_REQUEST;
+    group_by_buffer = mcp_params_parse_array_to_pattern(params, "group_by", true, false, MCP_TOOL_GET_METRICS_DETAILS, error_buffer); // mcpc->error);
+    if (buffer_strlen(error_buffer) > 0) { // mcpc->error) > 0) {
+        mcp_job_add_error_response(job, buffer_tostring(error_buffer), 400);
+        buffer_free(error_buffer); buffer_free(nodes_buffer); buffer_free(instances_buffer); buffer_free(dimensions_buffer); buffer_free(labels_buffer); buffer_free(group_by_buffer);
+        return -1; // MCP_RC_BAD_REQUEST;
     }
     
     if (group_by_buffer && buffer_strlen(group_by_buffer) > 0) {
@@ -527,10 +582,10 @@ MCP_RETURN_CODE mcp_tool_query_metrics_execute(MCP_CLIENT *mcpc, struct json_obj
         group_by[0].aggregation = group_by_aggregate_function_parse(aggregation_str);
     
     // Create interrupt callback data
-    mcp_query_interrupt_data interrupt_data = {
-        .mcpc = mcpc,
-        .id = id
-    };
+    // mcp_query_interrupt_data interrupt_data = { // Old
+    //     .mcpc = mcpc,
+    //     .id = id
+    // };
     
     // Prepare a query target request
     QUERY_TARGET_REQUEST qtr = {
@@ -542,7 +597,7 @@ MCP_RETURN_CODE mcp_tool_query_metrics_execute(MCP_CLIENT *mcpc, struct json_obj
         .scope_dimensions = buffer_tostring(dimensions_buffer), // Use dimensions as scope_dimensions for MCP
         .after = after,
         .before = before,
-        .host = NULL,
+        .host = NULL, // rrdhost_find_by_hostname_or_node_id(buffer_tostring(nodes_buffer), auth ? auth->access : HTTP_ACCESS_ANONYMOUS_DATA), // Needs adaptation if single node target
         .st = NULL,
         .nodes = NULL,              // Don't use the 'nodes' parameter here (we use scope_nodes)
         .contexts = NULL,           // Don't use the 'contexts' parameter here (we use scope_contexts)
@@ -551,7 +606,7 @@ MCP_RETURN_CODE mcp_tool_query_metrics_execute(MCP_CLIENT *mcpc, struct json_obj
         .alerts = NULL,
         .timeout_ms = (int)(timeout * MSEC_PER_SEC),
         .points = points,
-        .format = DATASOURCE_JSON2,
+        .format = DATASOURCE_JSON2, // Output format for the query engine
         .options = options |
                    RRDR_OPTION_ABSOLUTE | RRDR_OPTION_JSON_WRAP | RRDR_OPTION_RETURN_JWAR |
                    RRDR_OPTION_VIRTUAL_POINTS | RRDR_OPTION_NOT_ALIGNED | RRDR_OPTION_NONZERO |
@@ -563,13 +618,13 @@ MCP_RETURN_CODE mcp_tool_query_metrics_execute(MCP_CLIENT *mcpc, struct json_obj
         .tier = tier,
         .chart_label_key = NULL,
         .labels = NULL,             // Don't use labels parameter here (we use scope_labels)
-        .query_source = QUERY_SOURCE_API_DATA,
+        .query_source = QUERY_SOURCE_API_DATA, // Or a new MCP-specific source
         .priority = STORAGE_PRIORITY_NORMAL,
         .received_ut = received_ut,
         .cardinality_limit = cardinality_limit,
         
         .interrupt_callback = mcp_query_interrupt_callback,
-        .interrupt_callback_data = &interrupt_data,
+        .interrupt_callback_data = NULL, // &interrupt_data, // Pass job if needed
         
         .transaction = NULL, // No transaction for MCP
     };
@@ -581,8 +636,10 @@ MCP_RETURN_CODE mcp_tool_query_metrics_execute(MCP_CLIENT *mcpc, struct json_obj
     // Create a query target
     QUERY_TARGET *qt = query_target_create(&qtr);
     if (!qt) {
-        buffer_sprintf(mcpc->error, "Failed to prepare the query.");
-        return MCP_RC_INTERNAL_ERROR;
+        buffer_sprintf(error_buffer, "Failed to prepare the query."); // mcpc->error
+        mcp_job_add_error_response(job, buffer_tostring(error_buffer), 500);
+        buffer_free(error_buffer); buffer_free(nodes_buffer); buffer_free(instances_buffer); buffer_free(dimensions_buffer); buffer_free(labels_buffer); buffer_free(group_by_buffer);
+        return -1; // MCP_RC_INTERNAL_ERROR;
     }
 
     // Create a temporary buffer for the query result
@@ -600,54 +657,44 @@ MCP_RETURN_CODE mcp_tool_query_metrics_execute(MCP_CLIENT *mcpc, struct json_obj
     onewayalloc_destroy(owa);
     
     if (ret != HTTP_RESP_OK) {
-        buffer_flush(mcpc->result);
+        // buffer_flush(mcpc->result); // Not needed
         const char *error_desc = "unknown error";
-        
-        // Map common HTTP error codes to more descriptive messages
         switch (ret) {
-            case HTTP_RESP_BAD_REQUEST:
-                error_desc = "bad request parameters";
-                break;
-            case HTTP_RESP_NOT_FOUND:
-                error_desc = "metric/context not found";
-                break;
-            case HTTP_RESP_GATEWAY_TIMEOUT:
-            case HTTP_RESP_SERVICE_UNAVAILABLE:
-                error_desc = "timeout or service unavailable";
-                break;
-            case HTTP_RESP_INTERNAL_SERVER_ERROR:
-                error_desc = "internal server error";
-                break;
-            default:
-                break;
+            case HTTP_RESP_BAD_REQUEST: error_desc = "bad request parameters"; break;
+            case HTTP_RESP_NOT_FOUND: error_desc = "metric/context not found"; break;
+            case HTTP_RESP_GATEWAY_TIMEOUT: case HTTP_RESP_SERVICE_UNAVAILABLE: error_desc = "timeout or service unavailable"; break;
+            case HTTP_RESP_INTERNAL_SERVER_ERROR: error_desc = "internal server error"; break;
         }
-        
-        buffer_sprintf(mcpc->error, "Failed to execute query: %s (http error code: %d). The context '%s' might not exist, or no data is available for the specified time range.",
-                      error_desc, ret, context);
-        return MCP_RC_INTERNAL_ERROR;
+        buffer_sprintf(error_buffer, "Failed to execute query: %s (http error code: %d). The context '%s' might not exist, or no data is available for the specified time range. Details: %s",
+                      error_desc, ret, context, buffer_strlen(tmp_buffer) > 0 ? buffer_tostring(tmp_buffer) : "No additional details.");
+        mcp_job_add_error_response(job, buffer_tostring(error_buffer), 500); // Or map 'ret' to a more specific HTTP status
+        buffer_free(tmp_buffer);
+        buffer_free(error_buffer); buffer_free(nodes_buffer); buffer_free(instances_buffer); buffer_free(dimensions_buffer); buffer_free(labels_buffer); buffer_free(group_by_buffer);
+        return -1; // MCP_RC_INTERNAL_ERROR;
     }
     
     // Check if instance filtering or grouping is used
     bool using_instances = (instances_buffer && buffer_strlen(instances_buffer) > 0) || 
                           (group_by[0].group_by & RRDR_GROUP_BY_INSTANCE);
     
-    // Return the raw query engine response as-is
-    mcp_init_success_result(mcpc, id);
+    // Return the raw query engine response as-is, wrapped in the content structure
+    // mcp_init_success_result(mcpc, id); // Removed
+    CLEAN_BUFFER *content_wrapper = buffer_create(0);
+    buffer_json_initialize(content_wrapper, "\"", "\"", 0, true, BUFFER_JSON_OPTIONS_MINIFY);
     {
-        buffer_json_member_add_array(mcpc->result, "content");
+        buffer_json_member_add_array(content_wrapper, "content"); // mcpc->result
         {
             // Main result content
-            buffer_json_add_array_item_object(mcpc->result);
+            buffer_json_add_array_item_object(content_wrapper); // mcpc->result
             {
-                buffer_json_member_add_string(mcpc->result, "type", "text");
-                buffer_json_member_add_string(mcpc->result, "text", buffer_tostring(tmp_buffer));
+                buffer_json_member_add_string(content_wrapper, "type", "text"); // mcpc->result
+                buffer_json_member_add_string(content_wrapper, "text", buffer_tostring(tmp_buffer)); // mcpc->result
             }
-            buffer_json_object_close(mcpc->result);
+            buffer_json_object_close(content_wrapper); // mcpc->result
             
             // Add a warning about potentially misleading aggregation
             bool warn_aggregation = false;
-            // Only warn if using average without dimension grouping AND multiple dimensions selected
-            int dimensions_count = (int)json_object_array_length(dimensions_obj);
+            int dimensions_count = dimensions_obj ? (int)json_object_array_length(dimensions_obj) : 0;
             if (dimensions_count > 1 &&
                 group_by[0].aggregation == RRDR_GROUP_BY_FUNCTION_AVERAGE && 
                 !(group_by[0].group_by & RRDR_GROUP_BY_DIMENSION)) {
@@ -655,10 +702,10 @@ MCP_RETURN_CODE mcp_tool_query_metrics_execute(MCP_CLIENT *mcpc, struct json_obj
             }
             
             if (warn_aggregation) {
-                buffer_json_add_array_item_object(mcpc->result);
+                buffer_json_add_array_item_object(content_wrapper); // mcpc->result
                 {
-                    buffer_json_member_add_string(mcpc->result, "type", "text");
-                    buffer_json_member_add_string(mcpc->result, "text",
+                    buffer_json_member_add_string(content_wrapper, "type", "text"); // mcpc->result
+                    buffer_json_member_add_string(content_wrapper, "text", // mcpc->result
                         "⚠️ WARNING: Potentially Misleading Aggregation\n\n"
                         "You are using 'average' aggregation without including 'dimension' in group_by. "
                         "This means different metric types are being averaged together, which rarely produces meaningful results.\n\n"
@@ -673,15 +720,15 @@ MCP_RETURN_CODE mcp_tool_query_metrics_execute(MCP_CLIENT *mcpc, struct json_obj
                         "- Include 'dimension' in group_by (e.g., 'instance,dimension')\n"
                         "- Review the summary section to understand what's being aggregated");
                 }
-                buffer_json_object_close(mcpc->result);
+                buffer_json_object_close(content_wrapper); // mcpc->result
             }
             
             // Add an instance usage warning if applicable
             if (using_instances) {
-                buffer_json_add_array_item_object(mcpc->result);
+                buffer_json_add_array_item_object(content_wrapper); // mcpc->result
                 {
-                    buffer_json_member_add_string(mcpc->result, "type", "text");
-                    buffer_json_member_add_string(mcpc->result, "text", 
+                    buffer_json_member_add_string(content_wrapper, "type", "text"); // mcpc->result
+                    buffer_json_member_add_string(content_wrapper, "text",  // mcpc->result
                         "⚠️ Instance Usage Notice: Instance filtering/grouping behavior varies by collector type:\n\n"
                         "- **Stable instances** (systemd services, cgroups): Instance names are typically stable and match their labels. "
                         "Filtering by instance works reliably.\n\n"
@@ -692,13 +739,23 @@ MCP_RETURN_CODE mcp_tool_query_metrics_execute(MCP_CLIENT *mcpc, struct json_obj
                         "Best practice: Check if your target system uses stable or dynamic instances. When in doubt, group by labels for comprehensive data, "
                         "then examine instance patterns for additional insights.");
                 }
-                buffer_json_object_close(mcpc->result);
+                buffer_json_object_close(content_wrapper); // mcpc->result
             }
         }
-        buffer_json_array_close(mcpc->result);  // Close content array
+        buffer_json_array_close(content_wrapper);  // mcpc->result // Close content array
     }
-    buffer_json_object_close(mcpc->result); // Close result object
-    buffer_json_finalize(mcpc->result); // Finalize the JSON
+    buffer_json_object_close(content_wrapper); // mcpc->result // Close result object
+    buffer_json_finalize(content_wrapper); // mcpc->result // Finalize the JSON
+
+    mcp_job_add_json_response(job, content_wrapper); // Takes ownership of content_wrapper
+
+    buffer_free(tmp_buffer);
+    buffer_free(error_buffer);
+    buffer_free(nodes_buffer);
+    buffer_free(instances_buffer);
+    buffer_free(dimensions_buffer);
+    buffer_free(labels_buffer);
+    buffer_free(group_by_buffer);
     
-    return MCP_RC_OK;
+    return 0; // MCP_RC_OK;
 }

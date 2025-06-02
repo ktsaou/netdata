@@ -134,19 +134,26 @@ void mcp_http_adapter_job_free(MCP_HTTP_ADAPTER_JOB *http_job) {
     freez(http_job);
 }
 
-MCP_JSONRPC_ADAPTER_JOB *mcp_jsonrpc_adapter_job_create(MCP_CLIENT *mcpc, uint64_t jsonrpcid, const char *methodname, struct json_object *params_for_job, const char *toolname_from_method, USER_AUTH *user_auth_ctx) {
+MCP_JSONRPC_ADAPTER_JOB *mcp_jsonrpc_adapter_job_create(MCP_CLIENT *mcpc, struct json_object *id_obj, const char *methodname, struct json_object *params_for_job, const char *toolname_from_method, USER_AUTH *user_auth_ctx) {
     (void)mcpc;
-    (void)jsonrpcid;
 
     MCP_JSONRPC_ADAPTER_JOB *jsonrpc_job = callocz(1, sizeof(MCP_JSONRPC_ADAPTER_JOB));
     if (!jsonrpc_job) {
         if (params_for_job) json_object_put(params_for_job);
+        if (id_obj) json_object_put(id_obj); // Release the ref if we fail early
         return NULL;
+    }
+
+    if (id_obj) {
+        jsonrpc_job->jsonrpc_id_obj = json_object_get(id_obj); // Take ownership of the ID object
+    } else {
+        jsonrpc_job->jsonrpc_id_obj = NULL; // Explicitly NULL for notifications
     }
 
     jsonrpc_job->req_job = mcp_req_job_create(params_for_job, methodname, user_auth_ctx);
     if (!jsonrpc_job->req_job) {
         // mcp_req_job_create failed and handled params_for_job.
+        if (jsonrpc_job->jsonrpc_id_obj) json_object_put(jsonrpc_job->jsonrpc_id_obj);
         freez(jsonrpc_job);
         return NULL;
     }
@@ -154,7 +161,13 @@ MCP_JSONRPC_ADAPTER_JOB *mcp_jsonrpc_adapter_job_create(MCP_CLIENT *mcpc, uint64
     if (toolname_from_method) {
         jsonrpc_job->req_job->tool_name = strdupz(toolname_from_method);
         if (!jsonrpc_job->req_job->tool_name) {
-            mcp_req_job_free(jsonrpc_job->req_job);
+            // No need to put jsonrpc_id_obj here, mcp_req_job_free won't touch it
+            // but adapter job free will. Let mcp_jsonrpc_adapter_job_free handle it via mcp_req_job_free path.
+            // Actually, mcp_req_job_free does not free jsonrpc_id_obj.
+            // So, if strdupz fails, jsonrpc_job->req_job is valid and will be freed by mcp_req_job_free.
+            // jsonrpc_job->jsonrpc_id_obj also needs to be freed.
+            mcp_req_job_free(jsonrpc_job->req_job); // This frees params_for_job
+            if (jsonrpc_job->jsonrpc_id_obj) json_object_put(jsonrpc_job->jsonrpc_id_obj);
             freez(jsonrpc_job);
             return NULL;
         }
@@ -163,6 +176,7 @@ MCP_JSONRPC_ADAPTER_JOB *mcp_jsonrpc_adapter_job_create(MCP_CLIENT *mcpc, uint64
     jsonrpc_job->req_job->source = strdupz("JSONRPC");
     if (!jsonrpc_job->req_job->source) {
         mcp_req_job_free(jsonrpc_job->req_job);
+        if (jsonrpc_job->jsonrpc_id_obj) json_object_put(jsonrpc_job->jsonrpc_id_obj);
         freez(jsonrpc_job);
         return NULL;
     }
@@ -171,11 +185,12 @@ MCP_JSONRPC_ADAPTER_JOB *mcp_jsonrpc_adapter_job_create(MCP_CLIENT *mcpc, uint64
         jsonrpc_job->req_job->endpoint = strdupz(methodname);
          if (!jsonrpc_job->req_job->endpoint) {
             mcp_req_job_free(jsonrpc_job->req_job);
+            if (jsonrpc_job->jsonrpc_id_obj) json_object_put(jsonrpc_job->jsonrpc_id_obj);
             freez(jsonrpc_job);
             return NULL;
         }
     }
-    jsonrpc_job->req_job->context = jsonrpc_job; // Corrected from http_job to jsonrpc_job
+    jsonrpc_job->req_job->context = jsonrpc_job;
 
     return jsonrpc_job;
 }
@@ -183,6 +198,9 @@ MCP_JSONRPC_ADAPTER_JOB *mcp_jsonrpc_adapter_job_create(MCP_CLIENT *mcpc, uint64
 void mcp_jsonrpc_adapter_job_free(MCP_JSONRPC_ADAPTER_JOB *jsonrpc_job) {
     if (!jsonrpc_job) {
         return;
+    }
+    if (jsonrpc_job->jsonrpc_id_obj) {
+        json_object_put(jsonrpc_job->jsonrpc_id_obj);
     }
     mcp_req_job_free(jsonrpc_job->req_job);
     freez(jsonrpc_job);

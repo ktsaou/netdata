@@ -3,12 +3,13 @@
 #ifndef NETDATA_MCP_TOOLS_EXECUTE_FUNCTION_H
 #define NETDATA_MCP_TOOLS_EXECUTE_FUNCTION_H
 
-#include "mcp-tools.h"
+#include "mcp-tools.h" // For MCP_RETURN_CODE, MCP_REQUEST_ID if they are used internally or by schema
+#include "core/mcp-job.h" // For MCP_REQ_JOB
 
 // Schema definition function - provides JSON schema for this tool
 void mcp_tool_execute_function_schema(BUFFER *buffer);
 
 // Execution function - performs the function execution
-MCP_RETURN_CODE mcp_tool_execute_function_execute(MCP_CLIENT *mcpc, struct json_object *params, MCP_REQUEST_ID id);
+int mcp_tool_execute_function(MCP_REQ_JOB *job);
 
 #endif // NETDATA_MCP_TOOLS_EXECUTE_FUNCTION_H

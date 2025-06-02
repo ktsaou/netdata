@@ -3,8 +3,12 @@
 #include "mcp-tools-execute-function.h"
 #include "mcp-tools-execute-function-internal.h"
 #include "mcp-tools-execute-function-registry.h"
-#include "mcp-params.h"
+#include "mcp-params.h" // For mcp_params_extract_timeout etc.
+#include "core/mcp-core.h" // For mcp_job_add_error_response, mcp_job_add_json_response
+#include "core/mcp-job.h"  // For MCP_REQ_JOB
 #include "database/rrdfunctions.h"
+#include "libnetdata/log/nd_log.h" // For netdata_error_log, D_MCP
+
 
 // Analyze the JSON response and determine its type
 MCP_FUNCTION_TYPE mcp_functions_analyze_response(struct json_object *json_obj, int *out_status) {
@@ -2611,20 +2615,30 @@ static bool check_requirements_and_violations(MCP_FUNCTION_DATA *data,
     return false;
 }
 
-MCP_RETURN_CODE mcp_tool_execute_function_execute(MCP_CLIENT *mcpc, struct json_object *params, MCP_REQUEST_ID id)
+// Main execution function for the tool
+int mcp_tool_execute_function(MCP_REQ_JOB *job) // MCP_RETURN_CODE mcp_tool_execute_function_execute(MCP_CLIENT *mcpc, struct json_object *params, MCP_REQUEST_ID id)
 {
-    if (!mcpc || id == 0 || !params)
-        return MCP_RC_ERROR;
+    if (!job || !job->params) { // job->params are the tool_params
+        // This case should ideally be caught by MCP core before calling the tool.
+        // If it happens, we can't even form a proper error response for the job.
+        netdata_error_log(D_MCP, "execute_function tool called with NULL job or job->params.");
+        return -1;
+    }
 
     // Create and initialize function data structure
     MCP_FUNCTION_DATA data;
     mcp_functions_data_init(&data);
+    data.output.error_buffer = buffer_create(256); // Initialize error buffer
     
     // Parse the request
-    MCP_RETURN_CODE rc = mcp_parse_function_request(&data, mcpc, params);
+    // Pass job->params as tool_params, job->auth, and job->id (string version)
+    MCP_RETURN_CODE rc = mcp_parse_function_request(&data, job->params, job->auth, job->id);
     if (rc != MCP_RC_OK) {
+        // mcp_parse_function_request populated data.output.error_buffer
+        mcp_job_add_error_response(job, buffer_tostring(data.output.error_buffer), 400); // HTTP 400 for bad request
+        buffer_free(data.output.error_buffer);
         mcp_functions_data_cleanup(&data);
-        return rc;
+        return -1; // Indicate error to MCP core
     }
     
     // Get function registry entry
@@ -2632,28 +2646,49 @@ MCP_RETURN_CODE mcp_tool_execute_function_execute(MCP_CLIENT *mcpc, struct json_
     MCP_FUNCTION_REGISTRY_ENTRY *registry_entry = mcp_functions_registry_get(data.request.host, data.request.function, registry_error);
     
     if (!registry_entry) {
-        buffer_sprintf(mcpc->error, "Failed to get function info: %s", buffer_tostring(registry_error));
+        // Use data.output.error_buffer
+        buffer_sprintf(data.output.error_buffer, "Failed to get function info for '%s': %s",
+                       data.request.function, buffer_tostring(registry_error));
+        mcp_job_add_error_response(job, buffer_tostring(data.output.error_buffer), 404); // Not found or internal error
+        buffer_free(registry_error);
+        buffer_free(data.output.error_buffer);
         mcp_functions_data_cleanup(&data);
-        return MCP_RC_ERROR;
+        return -1;
     }
+    buffer_free(registry_error);
     
     // Check if function requires parameters
     struct json_object *selections = NULL;
-    if (json_object_object_get_ex(params, "selections", &selections)) {
+    if (json_object_object_get_ex(job->params, "selections", &selections)) { // Use job->params
         // Selections provided - validate they are an object
         if (!json_object_is_type(selections, json_type_object)) {
-            buffer_strcat(mcpc->error, "The 'selections' parameter must be an object with key-value pairs where values are arrays of strings");
+            buffer_sprintf(data.output.error_buffer, "The 'selections' parameter must be an object.");
+            mcp_job_add_error_response(job, buffer_tostring(data.output.error_buffer), 400);
             mcp_functions_registry_release(registry_entry);
+            buffer_free(data.output.error_buffer);
             mcp_functions_data_cleanup(&data);
-            return MCP_RC_BAD_REQUEST;
+            return -1;
         }
     }
     
     // Check all requirements and violations collectively
-    if (!check_requirements_and_violations(&data, registry_entry, selections, id)) {
+    // This function now populates data.output.result with a "content" array for info/error messages
+    // and data.output.error_buffer with a simpler error string.
+    if (!check_requirements_and_violations(&data, registry_entry, selections)) { // id removed
+        // Violations found. check_requirements_and_violations populated data.output.result with details.
+        // and data.output.error_buffer with a summary.
+        // We can send data.output.result as the "data" part of a structured error, or send the simpler error string.
+        // For now, let's send the detailed structured message as a success (as it's informational error)
+        // or decide if this should be a firm error. The original code sent it as success with content.
+        // Let's treat it as a "soft error" that still results in a 200 from the tool, but the payload indicates issues.
+        // Or, more correctly, it's a 400 Bad Request because parameters are wrong.
+        mcp_job_add_error_response(job, buffer_tostring(data.output.error_buffer), 400);
+        // The detailed explanation is in data.output.result, which could be added as "data" to the error response.
+        // For now, the simple error message is sent.
         mcp_functions_registry_release(registry_entry);
+        buffer_free(data.output.error_buffer);
         mcp_functions_data_cleanup(&data);
-        return MCP_RC_OK;  // We've already set up the response in the validation function
+        return -1;
     }
     
     // Build the actual function name to execute and POST payload if needed
@@ -2678,7 +2713,7 @@ MCP_RETURN_CODE mcp_tool_execute_function_execute(MCP_CLIENT *mcpc, struct json_
     // Copy pagination settings to avoid keeping registry_entry locked
     data.pagination.enabled = registry_entry->pagination.enabled;
     data.pagination.units = registry_entry->pagination.units;
-    data.pagination.column = string_dup(registry_entry->pagination.column);
+    data.pagination.column = string_dupz(registry_entry->pagination.column); // Use strdupz
     
     // Release registry entry - we're done with it now
     mcp_functions_registry_release(registry_entry);
@@ -2686,16 +2721,40 @@ MCP_RETURN_CODE mcp_tool_execute_function_execute(MCP_CLIENT *mcpc, struct json_
     
     // Execute the function
     rc = mcp_function_run(&data, post_payload);
+    buffer_free(actual_function); // Free the buffer used for actual_function string
+    buffer_free(post_payload);    // Free the buffer used for post_payload string
+
     if (rc != MCP_RC_OK) {
+        // mcp_function_run populated data.output.error_buffer
+        mcp_job_add_error_response(job, buffer_tostring(data.output.error_buffer), 500); // Internal server error
+        buffer_free(data.output.error_buffer);
         mcp_functions_data_cleanup(&data);
-        return rc;
+        return -1;
     }
     
     // Process the response (all function types use table processing now)
-    rc = mcp_functions_process_table(&data, id);
+    // mcp_functions_process_table populates data.output.result with the final data table (or error info)
+    // and data.output.error_buffer if processing itself fails.
+    rc = mcp_functions_process_table(&data); // id removed
+
+    if (rc != MCP_RC_OK || data.output.status != MCP_TABLE_OK) {
+        // If mcp_functions_process_table failed or marked status as error, use error_buffer.
+        // generate_table_error_message would have populated error_buffer.
+        if(buffer_strlen(data.output.error_buffer) == 0 && data.output.status != MCP_TABLE_OK) {
+            // Ensure error_buffer has a fallback message if not already set
+            buffer_sprintf(data.output.error_buffer, "Error processing function result. Status: %d", data.output.status);
+        }
+        mcp_job_add_error_response(job, buffer_tostring(data.output.error_buffer), 500);
+    } else {
+        // Success, data.output.result contains the JSON payload for the "result" field.
+        // mcp_job_add_json_response takes ownership of the buffer.
+        mcp_job_add_json_response(job, data.output.result);
+        data.output.result = NULL; // Mark as NULL so cleanup doesn't free it.
+    }
     
     // Cleanup
+    buffer_free(data.output.error_buffer);
     mcp_functions_data_cleanup(&data);
     
-    return rc;
+    return (rc == MCP_RC_OK && data.output.status == MCP_TABLE_OK) ? 0 : -1;
 }

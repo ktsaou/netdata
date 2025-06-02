@@ -59,9 +59,21 @@ typedef struct mcp_list_tool_config {
 // Get tool configuration by name
 const MCP_LIST_TOOL_CONFIG *mcp_get_list_tool_config(const char *name);
 
-// Unified functions
+// Schema function (remains the same for now)
 void mcp_unified_list_tool_schema(BUFFER *buffer, const MCP_LIST_TOOL_CONFIG *config);
-MCP_RETURN_CODE mcp_unified_list_tool_execute(MCP_CLIENT *mcpc, const MCP_LIST_TOOL_CONFIG *config, 
-                                               struct json_object *params, MCP_REQUEST_ID id);
+
+// Old unified execute function - to be removed or commented out
+// MCP_RETURN_CODE mcp_unified_list_tool_execute(MCP_CLIENT *mcpc, const MCP_LIST_TOOL_CONFIG *config,
+//                                              struct json_object *params, MCP_REQUEST_ID id);
+
+// New job-based wrapper functions for each list tool
+int mcp_tool_list_metrics_job(MCP_REQ_JOB *job);
+int mcp_tool_get_metrics_details_job(MCP_REQ_JOB *job);
+int mcp_tool_list_nodes_job(MCP_REQ_JOB *job);
+int mcp_tool_get_nodes_details_job(MCP_REQ_JOB *job);
+int mcp_tool_list_functions_job(MCP_REQ_JOB *job);
+int mcp_tool_list_raised_alerts_job(MCP_REQ_JOB *job);
+int mcp_tool_list_all_alerts_job(MCP_REQ_JOB *job);
+
 
 #endif //NETDATA_MCP_TOOLS_LIST_METADATA_H

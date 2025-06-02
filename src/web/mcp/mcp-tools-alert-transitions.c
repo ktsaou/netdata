@@ -154,42 +154,54 @@ void mcp_tool_list_alert_transitions_schema(BUFFER *buffer) {
     buffer_json_object_close(buffer); // inputSchema
 }
 
+#include "core/mcp-core.h" // For mcp_job_add_error_response, mcp_job_add_json_response
+#include "core/mcp-job.h"  // For MCP_REQ_JOB
+
 // Execute alert transitions query
-MCP_RETURN_CODE mcp_tool_list_alert_transitions_execute(MCP_CLIENT *mcpc, struct json_object *params, MCP_REQUEST_ID id) {
-    if (!mcpc || id == 0)
-        return MCP_RC_ERROR;
+int mcp_tool_list_alert_transitions(MCP_REQ_JOB *job) { // MCP_RETURN_CODE mcp_tool_list_alert_transitions_execute(MCP_CLIENT *mcpc, struct json_object *params, MCP_REQUEST_ID id) {
+    if (!job) { // Simplified check, assumes job->params might be NULL if no params are sent
+        return -1; // Should be caught by MCP core ideally
+    }
+
+    // USER_AUTH *auth = job->auth; // Not directly used by rrdcontext_to_json_v2 for this call
+    struct json_object *params = job->params;
+    CLEAN_BUFFER *error_buffer = buffer_create(256);
     
     // Extract nodes array
     const char *nodes_pattern = NULL;
     CLEAN_BUFFER *nodes_buffer = NULL;
     
-    nodes_buffer = mcp_params_parse_array_to_pattern(params, "nodes", false, false, MCP_TOOL_LIST_NODES, mcpc->error);
-    if (buffer_strlen(mcpc->error) > 0) {
-        return MCP_RC_BAD_REQUEST;
+    nodes_buffer = mcp_params_parse_array_to_pattern(params, "nodes", false, false, MCP_TOOL_LIST_NODES, error_buffer);
+    if (buffer_strlen(error_buffer) > 0) {
+        mcp_job_add_error_response(job, buffer_tostring(error_buffer), 400);
+        buffer_free(error_buffer); buffer_free(nodes_buffer);
+        return -1;
     }
-    if (nodes_buffer)
-        nodes_pattern = buffer_tostring(nodes_buffer);
+    if (nodes_buffer) nodes_pattern = buffer_tostring(nodes_buffer);
     
     // Extract time parameters
     time_t after = mcp_params_parse_time(params, "after", MCP_DEFAULT_AFTER_TIME);
     time_t before = mcp_params_parse_time(params, "before", MCP_DEFAULT_BEFORE_TIME);
     
     // Extract cardinality limit
-    size_t cardinality_limit = mcp_params_extract_size(params, "cardinality_limit", 1, 1, 100, mcpc->error);
-    if (buffer_strlen(mcpc->error) > 0) {
-        return MCP_RC_BAD_REQUEST;
+    size_t cardinality_limit = mcp_params_extract_size(params, "cardinality_limit", MCP_ALERTS_CARDINALITY_LIMIT, 1, MAX(MCP_ALERTS_CARDINALITY_LIMIT, MCP_ALERTS_CARDINALITY_LIMIT_MAX), error_buffer);
+    if (buffer_strlen(error_buffer) > 0) {
+        mcp_job_add_error_response(job, buffer_tostring(error_buffer), 400);
+        buffer_free(error_buffer); buffer_free(nodes_buffer);
+        return -1;
     }
     
     // Extract pagination cursor (global_id_anchor)
     usec_t global_id_anchor = 0;
     const char *cursor = mcp_params_extract_string(params, "cursor", NULL);
     if (cursor) {
-        // Parse cursor as usec_t
         char *endptr;
         unsigned long long value = strtoull(cursor, &endptr, 10);
         if (*endptr != '\0' || endptr == cursor) {
-            buffer_sprintf(mcpc->error, "Invalid cursor value");
-            return MCP_RC_BAD_REQUEST;
+            buffer_sprintf(error_buffer, "Invalid cursor value");
+            mcp_job_add_error_response(job, buffer_tostring(error_buffer), 400);
+            buffer_free(error_buffer); buffer_free(nodes_buffer);
+            return -1;
         }
         global_id_anchor = (usec_t)value;
     }
@@ -198,95 +210,98 @@ MCP_RETURN_CODE mcp_tool_list_alert_transitions_execute(MCP_CLIENT *mcpc, struct
     CLEAN_BUFFER *status_buffer = NULL;
     const char *status_pattern = NULL;
     
-    status_buffer = mcp_params_parse_array_to_pattern(params, "status", true, false, NULL, mcpc->error);
-    if (buffer_strlen(mcpc->error) > 0) {
-        buffer_strcat(mcpc->error, ". You must select at least one alert status to filter by.");
-        return MCP_RC_BAD_REQUEST;
+    status_buffer = mcp_params_parse_array_to_pattern(params, "status", true, false, NULL, error_buffer);
+    if (buffer_strlen(error_buffer) > 0) {
+        buffer_strcat(error_buffer, ". You must select at least one alert status to filter by.");
+        mcp_job_add_error_response(job, buffer_tostring(error_buffer), 400);
+        buffer_free(error_buffer); buffer_free(nodes_buffer); buffer_free(status_buffer);
+        return -1;
     }
-    if (status_buffer)
-        status_pattern = buffer_tostring(status_buffer);
+    if (status_buffer) status_pattern = buffer_tostring(status_buffer);
     
     // Extract instances array
     const char *instances_pattern = NULL;
     CLEAN_BUFFER *instances_buffer = NULL;
-    
-    instances_buffer = mcp_params_parse_array_to_pattern(params, "instances", false, false, NULL, mcpc->error);
-    if (buffer_strlen(mcpc->error) > 0) {
-        return MCP_RC_BAD_REQUEST;
+    instances_buffer = mcp_params_parse_array_to_pattern(params, "instances", false, false, NULL, error_buffer);
+    if (buffer_strlen(error_buffer) > 0) {
+        mcp_job_add_error_response(job, buffer_tostring(error_buffer), 400);
+        buffer_free(error_buffer); buffer_free(nodes_buffer); buffer_free(status_buffer); buffer_free(instances_buffer);
+        return -1;
     }
-    if (instances_buffer)
-        instances_pattern = buffer_tostring(instances_buffer);
+    if (instances_buffer) instances_pattern = buffer_tostring(instances_buffer);
     
     // Extract metrics array
     const char *metrics_pattern = NULL;
     CLEAN_BUFFER *metrics_buffer = NULL;
-    
-    metrics_buffer = mcp_params_parse_array_to_pattern(params, "metrics", false, false, MCP_TOOL_LIST_METRICS, mcpc->error);
-    if (buffer_strlen(mcpc->error) > 0) {
-        return MCP_RC_BAD_REQUEST;
+    metrics_buffer = mcp_params_parse_array_to_pattern(params, "metrics", false, false, MCP_TOOL_LIST_METRICS, error_buffer);
+    if (buffer_strlen(error_buffer) > 0) {
+        mcp_job_add_error_response(job, buffer_tostring(error_buffer), 400);
+        buffer_free(error_buffer); buffer_free(nodes_buffer); buffer_free(status_buffer); buffer_free(instances_buffer); buffer_free(metrics_buffer);
+        return -1;
     }
-    if (metrics_buffer)
-        metrics_pattern = buffer_tostring(metrics_buffer);
+    if (metrics_buffer) metrics_pattern = buffer_tostring(metrics_buffer);
     
     // Extract alerts array
     const char *alerts_pattern = NULL;
     CLEAN_BUFFER *alerts_buffer = NULL;
-    
-    alerts_buffer = mcp_params_parse_array_to_pattern(params, "alerts", false, false, MCP_TOOL_LIST_ALL_ALERTS, mcpc->error);
-    if (buffer_strlen(mcpc->error) > 0) {
-        return MCP_RC_BAD_REQUEST;
+    alerts_buffer = mcp_params_parse_array_to_pattern(params, "alerts", false, false, MCP_TOOL_LIST_ALL_ALERTS, error_buffer);
+    if (buffer_strlen(error_buffer) > 0) {
+        mcp_job_add_error_response(job, buffer_tostring(error_buffer), 400);
+        buffer_free(error_buffer); buffer_free(nodes_buffer); buffer_free(status_buffer); buffer_free(instances_buffer); buffer_free(metrics_buffer); buffer_free(alerts_buffer);
+        return -1;
     }
-    if (alerts_buffer)
-        alerts_pattern = buffer_tostring(alerts_buffer);
+    if (alerts_buffer) alerts_pattern = buffer_tostring(alerts_buffer);
     
     // Extract classifications array
     const char *classifications_pattern = NULL;
     CLEAN_BUFFER *classifications_buffer = NULL;
-    
-    classifications_buffer = mcp_params_parse_array_to_pattern(params, "classifications", false, false, MCP_TOOL_LIST_ALL_ALERTS, mcpc->error);
-    if (buffer_strlen(mcpc->error) > 0) {
-        return MCP_RC_BAD_REQUEST;
+    classifications_buffer = mcp_params_parse_array_to_pattern(params, "classifications", false, false, MCP_TOOL_LIST_ALL_ALERTS, error_buffer);
+    if (buffer_strlen(error_buffer) > 0) {
+        mcp_job_add_error_response(job, buffer_tostring(error_buffer), 400);
+        buffer_free(error_buffer); buffer_free(nodes_buffer); buffer_free(status_buffer); buffer_free(instances_buffer); buffer_free(metrics_buffer); buffer_free(alerts_buffer); buffer_free(classifications_buffer);
+        return -1;
     }
-    if (classifications_buffer)
-        classifications_pattern = buffer_tostring(classifications_buffer);
+    if (classifications_buffer) classifications_pattern = buffer_tostring(classifications_buffer);
     
     // Extract types array
     const char *types_pattern = NULL;
     CLEAN_BUFFER *types_buffer = NULL;
-    
-    types_buffer = mcp_params_parse_array_to_pattern(params, "types", false, false, MCP_TOOL_LIST_ALL_ALERTS, mcpc->error);
-    if (buffer_strlen(mcpc->error) > 0) {
-        return MCP_RC_BAD_REQUEST;
+    types_buffer = mcp_params_parse_array_to_pattern(params, "types", false, false, MCP_TOOL_LIST_ALL_ALERTS, error_buffer);
+    if (buffer_strlen(error_buffer) > 0) {
+        mcp_job_add_error_response(job, buffer_tostring(error_buffer), 400);
+        buffer_free(error_buffer); buffer_free(nodes_buffer); buffer_free(status_buffer); buffer_free(instances_buffer); buffer_free(metrics_buffer); buffer_free(alerts_buffer); buffer_free(classifications_buffer); buffer_free(types_buffer);
+        return -1;
     }
-    if (types_buffer)
-        types_pattern = buffer_tostring(types_buffer);
+    if (types_buffer) types_pattern = buffer_tostring(types_buffer);
     
     // Extract components array
     const char *components_pattern = NULL;
     CLEAN_BUFFER *components_buffer = NULL;
-    
-    components_buffer = mcp_params_parse_array_to_pattern(params, "components", false, false, MCP_TOOL_LIST_ALL_ALERTS, mcpc->error);
-    if (buffer_strlen(mcpc->error) > 0) {
-        return MCP_RC_BAD_REQUEST;
+    components_buffer = mcp_params_parse_array_to_pattern(params, "components", false, false, MCP_TOOL_LIST_ALL_ALERTS, error_buffer);
+    if (buffer_strlen(error_buffer) > 0) {
+        mcp_job_add_error_response(job, buffer_tostring(error_buffer), 400);
+        buffer_free(error_buffer); buffer_free(nodes_buffer); buffer_free(status_buffer); buffer_free(instances_buffer); buffer_free(metrics_buffer); buffer_free(alerts_buffer); buffer_free(classifications_buffer); buffer_free(types_buffer); buffer_free(components_buffer);
+        return -1;
     }
-    if (components_buffer)
-        components_pattern = buffer_tostring(components_buffer);
+    if (components_buffer) components_pattern = buffer_tostring(components_buffer);
     
     // Extract roles array
     const char *roles_pattern = NULL;
     CLEAN_BUFFER *roles_buffer = NULL;
-    
-    roles_buffer = mcp_params_parse_array_to_pattern(params, "roles", false, false, MCP_TOOL_LIST_ALL_ALERTS, mcpc->error);
-    if (buffer_strlen(mcpc->error) > 0) {
-        return MCP_RC_BAD_REQUEST;
+    roles_buffer = mcp_params_parse_array_to_pattern(params, "roles", false, false, MCP_TOOL_LIST_ALL_ALERTS, error_buffer);
+    if (buffer_strlen(error_buffer) > 0) {
+        mcp_job_add_error_response(job, buffer_tostring(error_buffer), 400);
+        buffer_free(error_buffer); buffer_free(nodes_buffer); buffer_free(status_buffer); buffer_free(instances_buffer); buffer_free(metrics_buffer); buffer_free(alerts_buffer); buffer_free(classifications_buffer); buffer_free(types_buffer); buffer_free(components_buffer); buffer_free(roles_buffer);
+        return -1;
     }
-    if (roles_buffer)
-        roles_pattern = buffer_tostring(roles_buffer);
+    if (roles_buffer) roles_pattern = buffer_tostring(roles_buffer);
     
     // Extract timeout parameter
-    int timeout = mcp_params_extract_timeout(params, "timeout", 60, 1, 3600, mcpc->error);
-    if (buffer_strlen(mcpc->error) > 0) {
-        return MCP_RC_BAD_REQUEST;
+    int timeout = mcp_params_extract_timeout(params, "timeout", 60, 1, 3600, error_buffer);
+    if (buffer_strlen(error_buffer) > 0) {
+        mcp_job_add_error_response(job, buffer_tostring(error_buffer), 400);
+        buffer_free(error_buffer); buffer_free(nodes_buffer); buffer_free(status_buffer); buffer_free(instances_buffer); buffer_free(metrics_buffer); buffer_free(alerts_buffer); buffer_free(classifications_buffer); buffer_free(types_buffer); buffer_free(components_buffer); buffer_free(roles_buffer);
+        return -1;
     }
     
     // Create request structure
@@ -309,41 +324,55 @@ MCP_RETURN_CODE mcp_tool_list_alert_transitions_execute(MCP_CLIENT *mcpc, struct
                 [ATF_TYPE] = types_pattern,
                 [ATF_COMPONENT] = components_pattern,
                 [ATF_ROLE] = roles_pattern,
-                [ATF_NODE] = NULL,
+                [ATF_NODE] = NULL, // nodes_pattern is used in scope_nodes
                 [ATF_ALERT_NAME] = alerts_pattern,
-                [ATF_CHART_NAME] = instances_pattern,
+                [ATF_CHART_NAME] = instances_pattern, // Historically, chart name was used for instance
                 [ATF_CONTEXT] = metrics_pattern,
             },
-        }
+        },
+        .access_level = job->auth ? job->auth->access : HTTP_ACCESS_ANONYMOUS_DATA,
     };
     
     // Execute the query
     CONTEXTS_V2_MODE mode = CONTEXTS_V2_NODES | CONTEXTS_V2_ALERT_TRANSITIONS;
     CLEAN_BUFFER *t = buffer_create(0, NULL);
-    int response = rrdcontext_to_json_v2(t, &req, mode);
-    
-    if (response != HTTP_RESP_OK) {
-        buffer_sprintf(mcpc->error, "Query failed with response code %d", response);
-        return MCP_RC_ERROR;
+    int response_code = rrdcontext_to_json_v2(t, &req, mode);
+
+    // Prepare for cleanup
+    buffer_free(nodes_buffer);
+    buffer_free(status_buffer);
+    buffer_free(instances_buffer);
+    buffer_free(metrics_buffer);
+    buffer_free(alerts_buffer);
+    buffer_free(classifications_buffer);
+    buffer_free(types_buffer);
+    buffer_free(components_buffer);
+    buffer_free(roles_buffer);
+
+    if (response_code != HTTP_RESP_OK) {
+        buffer_sprintf(error_buffer, "Query failed with response code %d. Details: %s",
+                       response_code, buffer_strlen(t) > 0 ? buffer_tostring(t) : "No details.");
+        mcp_job_add_error_response(job, buffer_tostring(error_buffer), 500); // Or map response_code
+        buffer_free(error_buffer);
+        buffer_free(t);
+        return -1;
     }
     
-    // Initialize success response
-    mcp_init_success_result(mcpc, id);
-    
-    // Start building a content-array for the result
-    buffer_json_member_add_array(mcpc->result, "content");
-    {
-        // Return text content for LLM compatibility
-        buffer_json_add_array_item_object(mcpc->result);
-        {
-            buffer_json_member_add_string(mcpc->result, "type", "text");
-            buffer_json_member_add_string(mcpc->result, "text", buffer_tostring(t));
-        }
-        buffer_json_object_close(mcpc->result); // Close text content
-    }
-    buffer_json_array_close(mcpc->result);  // Close content array
-    buffer_json_object_close(mcpc->result); // Close result object
-    buffer_json_finalize(mcpc->result); // Finalize the JSON
-    
-    return MCP_RC_OK;
+    // Wrap the result in the standard MCP content structure
+    CLEAN_BUFFER *content_wrapper = buffer_create(0);
+    buffer_json_initialize(content_wrapper, "\"", "\"", 0, true, BUFFER_JSON_OPTIONS_MINIFY);
+    buffer_json_member_add_array(content_wrapper, "content");
+    buffer_json_add_array_item_object(content_wrapper);
+    buffer_json_member_add_string(content_wrapper, "type", "text");
+    buffer_json_member_add_string(content_wrapper, "text", buffer_tostring(t));
+    buffer_json_object_close(content_wrapper); // Close text content object
+    buffer_json_array_close(content_wrapper);  // Close content array
+    buffer_json_object_close(content_wrapper); // Close main result object
+    buffer_json_finalize(content_wrapper);
+
+    mcp_job_add_json_response(job, content_wrapper); // Takes ownership
+
+    buffer_free(t);
+    buffer_free(error_buffer);
+    return 0;
 }
