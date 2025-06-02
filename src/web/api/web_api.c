@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 #include "web_api.h"
+#include "web/mcp/adapters/http/mcp-http-adapter.h" // MCP HTTP Adapter
 
 void host_labels2json(RRDHOST *host, BUFFER *wb, const char *key) {
     buffer_json_member_add_object(wb, key);
@@ -142,6 +143,7 @@ void nd_web_api_init(void) {
     contexts_options_init();
     datasource_formats_init();
     time_grouping_init();
+    mcp_http_adapter_init_routes(); // Initialize MCP HTTP routes
 }
 
 void web_client_progress_functions_update(void *data, size_t done, size_t all) {
