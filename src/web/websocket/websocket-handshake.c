@@ -4,7 +4,7 @@
 #include "websocket-internal.h"
 #include "websocket-jsonrpc.h"
 #include "websocket-echo.h"
-#include "../mcp/adapters/mcp-websocket.h"
+#include "../mcp/adapters/websocket/mcp-websocket.h"
 #include "../mcp/mcp-api-key.h"
 
 // Global array of WebSocket threads

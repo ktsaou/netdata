@@ -1,24 +1,20 @@
 #include "mcp-response.h"
-#include <libnetdata/memory/nd-mallocz.h>
-#include <libnetdata/buffer/buffer.h> // For buffer_free
+#include "libnetdata/memory/nd-mallocz.h" // For callocz, freez
+#include <libnetdata/buffer/buffer.h>     // For buffer_free
+#include <json-c/json.h>                  // For json_object_put
 
-// MCP_RESPONSE_BUFFER *mcp_response_buffer_create(BUFFER *buffer, const char *response_type) {
-//     (void)response_type; // Temporarily unused, might be used later for content-type or other metadata
-MCP_RESPONSE_BUFFER *mcp_response_buffer_create(BUFFER *buffer, const char *response_type) {
-    (void)response_type; // Temporarily unused
-    MCP_RESPONSE_BUFFER *rb = (MCP_RESPONSE_BUFFER *)nd_callocz(1, sizeof(MCP_RESPONSE_BUFFER));
+MCP_RESPONSE_BUFFER *mcp_response_buffer_create(BUFFER *buf, const char *resp_type) {
+    (void)resp_type; // This parameter can be used later for categorizing responses if needed.
+
+    MCP_RESPONSE_BUFFER *rb = callocz(1, sizeof(MCP_RESPONSE_BUFFER));
     if (!rb) {
-        // Error log: Failed to allocate MCP_RESPONSE_BUFFER
+        // The caller of mcp_response_buffer_create is responsible for freeing 'buf' if this allocation fails,
+        // as 'buf' was passed in and not yet assigned to rb->data.
         return NULL;
     }
 
-    rb->data = buffer; // The buffer is passed in, MCP_RESPONSE_BUFFER takes ownership or a reference based on design.
-                       // Assuming it takes ownership for now. If it's a reference, buffer_free should not be called here.
-                       // For json_object, it would be json_object_get() if passed and stored.
-
-    // rb->json is not initialized here, assuming it's set separately if the response is JSON.
-    // If data buffer is meant to contain JSON string which is then parsed to rb->json,
-    // that logic would be elsewhere.
+    rb->data = buf; // MCP_RESPONSE_BUFFER takes ownership of the passed BUFFER.
+    // rb->json can be set separately if needed. If set, it must be a 'gotten' reference.
 
     return rb;
 }
@@ -29,10 +25,10 @@ void mcp_response_buffer_free(MCP_RESPONSE_BUFFER *rb) {
     }
 
     if (rb->data) {
-        buffer_free(rb->data); // Free the BUFFER if MCP_RESPONSE_BUFFER owns it.
+        buffer_free(rb->data); // Free the BUFFER.
     }
     if (rb->json) {
-        json_object_put(rb->json); // Decrement ref count for the json object
+        json_object_put(rb->json); // Release reference to the json object.
     }
-    nd_free(rb);
+    freez(rb); // Free the MCP_RESPONSE_BUFFER struct itself.
 }

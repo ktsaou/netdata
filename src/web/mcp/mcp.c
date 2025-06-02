@@ -9,7 +9,7 @@
 #include "mcp-logging.h"
 #include "mcp-completion.h"
 #include "mcp-tools-execute-function-registry.h"
-#include "adapters/mcp-websocket.h"
+#include "adapters/websocket/mcp-websocket.h"
 #include "mcp-api-key.h"
 
 // Define the enum to string mapping for protocol versions

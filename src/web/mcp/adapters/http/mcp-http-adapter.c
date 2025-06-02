@@ -84,16 +84,16 @@ static int mcp_http_handle_tool_call(RRDHOST *host, struct web_client *w, char *
 
     // Create MCP HTTP Adapter Job
     MCP_HTTP_ADAPTER_JOB *http_job = mcp_http_adapter_job_create(w, url, w->url_querystring, params_json, tool_name, &w->user_auth);
-    // mcp_http_adapter_job_create calls mcp_req_job_create, which calls json_object_get on params_json.
-    // So, we can release our reference if http_job is created. If not, we need to free params_json.
+    // If mcp_http_adapter_job_create fails, it is responsible for calling json_object_put(params_json).
+    // params_json was a new reference created in this function.
     if (!http_job) {
-        json_object_put(params_json);
+        // json_object_put(params_json); // This is now handled by mcp_http_adapter_job_create or below if they fail
         web_client_api_request_v1_info_send_message(w, 500, "text/plain", "Failed to create MCP job.");
         return HTTP_RESP_INTERNAL_SERVER_ERROR;
     }
-    // If job created successfully, it now owns params_json. We don't put it here.
+    // If job created successfully, params_json is now owned by the job.
 
-    // Execute the tool - mcp_execute_tool will use http_job->req.tool_name
+    // Execute the tool - mcp_execute_tool will use http_job->req_job->tool_name
     mcp_execute_tool(http_job->req_job); // Pass the embedded MCP_REQ_JOB
 
     // Process responses

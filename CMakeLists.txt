@@ -1874,8 +1874,21 @@ set(WEB_PLUGIN_FILES
         src/web/api/queries/backfill.h
         src/web/api/v3/api_v3_stream_info.c
         src/web/api/v3/api_v3_stream_path.c
-        src/web/mcp/adapters/mcp-websocket.c
-        src/web/mcp/adapters/mcp-websocket.h
+        # MCP Core files
+        src/web/mcp/core/mcp-core.c
+        src/web/mcp/core/mcp-core.h
+        src/web/mcp/core/mcp-job.c
+        src/web/mcp/core/mcp-job.h
+        src/web/mcp/core/mcp-registry.c
+        src/web/mcp/core/mcp-registry.h
+        src/web/mcp/core/mcp-response.c
+        src/web/mcp/core/mcp-response.h
+        # MCP Adapters
+        src/web/mcp/adapters/http/mcp-http-adapter.c
+        src/web/mcp/adapters/http/mcp-http-adapter.h
+        src/web/mcp/adapters/websocket/mcp-websocket.c
+        src/web/mcp/adapters/websocket/mcp-websocket.h
+        # Other MCP files
         src/web/mcp/mcp-initialize.c
         src/web/mcp/mcp-initialize.h
         src/web/mcp/mcp-prompts.c

@@ -3,7 +3,7 @@
 #include "websocket-internal.h"
 #include "websocket-echo.h"
 #include "websocket-jsonrpc.h"
-#include "../mcp/adapters/mcp-websocket.h"
+#include "../mcp/adapters/websocket/mcp-websocket.h"
 
 ENUM_STR_MAP_DEFINE(WEBSOCKET_PROTOCOL) = {
     { .id = WS_PROTOCOL_JSONRPC, .name = "jsonrpc" },
