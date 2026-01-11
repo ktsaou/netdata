@@ -165,11 +165,13 @@ alarm: some_stock_alert_name
 
 Setting `to: silent` prevents notifications without stopping evaluation.
 
-**Method 2: Disable evaluation entirely**
+**Method 2: Override with never-firing condition**
 ```conf
-# Completely disable alert evaluation
+# Override alert to never trigger
 alarm: some_stock_alert_name
-enabled: no
+   on: <chart>
+ warn: 0
+ crit: 0
 ```
 
 **Method 3: Disable via Cloud silencing rules**
@@ -202,9 +204,11 @@ If you're transitioning from a file-based setup to Cloud-managed alerts:
 2. Test on a subset of nodes
 3. Once verified, disable the file-based versions:
    ```conf
-   # Migrated to Cloud, disabled locally
+   # Migrated to Cloud, override locally to never trigger
    alarm: disk_space_alert
-   enabled: no
+      on: <chart>
+    warn: 0
+    crit: 0
    ```
 
 **Phase 3: Keep Node-Specific Alerts as Files**
@@ -354,7 +358,7 @@ Look for:
 
 **Solution:**
 - If you want only one, **disable** the other:
-  - File-based: set `enabled: no` in the custom config
+  - File-based: override with `warn: 0` and `crit: 0` or set `to: silent`
   - Cloud-based: delete from Cloud UI or use silencing rules
 
 </details>

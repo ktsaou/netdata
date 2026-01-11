@@ -1,120 +1,175 @@
 # 11.1 System Resource Alerts
 
-System resource alerts cover the fundamental building blocks of any server: CPU, memory, disk, network, and load. These alerts apply to every Netdata node and provide the baseline monitoring that every infrastructure should have.
+System resource alerts cover the fundamental building blocks of any server: CPU, memory, disk, and network. These alerts apply to every Netdata node and provide baseline monitoring.
 
 ## CPU Alerts
 
-The CPU alerts monitor utilization, saturation, and scheduling behavior.
+### 10min_cpu_usage
 
-### cpu_core_cumulative_100ms_percentage
-
-The primary CPU alert tracks aggregate CPU usage across all cores as a percentage of available capacity. This alert uses a 100ms window to capture brief spikes that might indicate transient load bursts without triggering on normal variation.
+The primary CPU alert tracks aggregate CPU usage across all cores. Uses hysteresis to prevent flapping.
 
 **Context:** `system.cpu`
-**Thresholds:** WARN > 90%, CRIT > 95%
+**Thresholds:**
+- WARNING: > 85% (stays in WARNING until drops below 75%)
+- CRITICAL: > 95% (stays in CRITICAL until drops below 85%)
 
-### system.cpu_suppression
+```conf
+   template: 10min_cpu_usage
+         on: system.cpu
+     lookup: average -10m unaligned of user,system,softirq,irq,guest
+      units: %
+       warn: $this > (($status >= $WARNING)  ? (75) : (85))
+       crit: $this > (($status == $CRITICAL) ? (85) : (95))
+```
 
-This alert measures time spent waiting in the scheduler queue. This metric catches problems that pure utilization percentage misses—a server at 70% CPU with high queue depth is more stressed than a server at 90% with empty queues.
+### 10min_cpu_iowait
 
-**Thresholds:** WARN > 5s, CRIT > 10s
-
-### cpu_core_frequency
-
-Detects when CPU frequency drops below 90% of the nominal maximum, which may indicate thermal throttling or power-saving behavior that affects performance.
+Monitors time spent waiting for I/O. High iowait indicates disk bottlenecks affecting CPU scheduling.
 
 **Context:** `system.cpu`
-**Thresholds:** WARN < 90% of max
+**Thresholds:** WARNING > 40% (with 20% recovery)
+
+### 20min_steal_cpu
+
+For virtual machines, monitors CPU cycles stolen by the hypervisor. Indicates overcommitted host resources.
+
+**Context:** `system.cpu`
+**Thresholds:** WARNING > 10% (with 5% recovery)
 
 ## Memory Alerts
 
-Memory monitoring balances three competing concerns: availability for new allocations, pressure on cached data, and swapping activity that indicates the working set exceeds physical memory.
+### ram_in_use
+
+Tracks system memory utilization. Accounts for buffers and cached memory that's reclaimable.
+
+**Context:** `system.ram`
+**Thresholds:**
+- WARNING: > 90% (stays in WARNING until drops below 80%)
+- CRITICAL: > 98% (stays in CRITICAL until drops below 90%)
+
+```conf
+      alarm: ram_in_use
+         on: system.ram
+       calc: $used * 100 / ($used + $cached + $free + $buffers)
+      units: %
+       warn: $this > (($status >= $WARNING)  ? (80) : (90))
+       crit: $this > (($status == $CRITICAL) ? (90) : (98))
+```
 
 ### ram_available
 
-Monitors actual available memory, accounting for free memory, reclaimable caches, and reserved allocations. The thresholds provide headroom for memory allocation spikes while catching genuine exhaustion before OOM conditions.
+Monitors the percentage of RAM available for userspace processes without causing swapping.
 
-**Context:** `system.ram`
-**Thresholds:** WARN < 20%, CRIT < 10%
+**Context:** `mem.available`
+**Thresholds:** WARNING < 10% (with 15% recovery)
 
-### ram_in_use
+### oom_kill
 
-Tracks utilization percentage from the complementary perspective. Useful for identifying workloads that consistently run near capacity, even when available memory appears adequate.
+Counts Out-of-Memory killer events. Any OOM kill indicates severe memory pressure.
 
-**Context:** `system.ram`
-**Thresholds:** WARN > 80%, CRIT > 90%
-
-### swap_fill
-
-Monitors swap space usage for systems with swap configured. Significant swap activity indicates working set exceeds physical memory.
-
-**Context:** `system.swap`
-**Thresholds:** WARN > 80%, CRIT > 95%
-
-### low_memory_endanger
-
-Provides the most sensitive early warning of memory exhaustion. Fires when available memory drops below 100MB, giving operators opportunity to investigate before OOM killer activates.
-
-**Context:** `system.ram`
-**Thresholds:** CRIT < 100MB
+**Context:** `mem.oom_kill`
+**Thresholds:** WARNING > 0 kills in 30 minutes
 
 ## Disk Space Alerts
 
-Disk space monitoring addresses space availability and inode exhaustion.
-
 ### disk_space_usage
 
-Tracks percentage of allocated space across all mounted filesystems. The 80%/90% thresholds provide time to plan capacity expansions while preventing complete failure.
+Monitors disk space utilization for all mounted filesystems (excluding /dev, /run, and similar).
 
 **Context:** `disk.space`
-**Thresholds:** WARN > 80%, CRIT > 90%
+**Thresholds:**
+- WARNING: > 90% (stays in WARNING until drops below 80%)
+- CRITICAL: > 98% (stays in CRITICAL until drops below 90%) AND available < 5GB
+
+```conf
+    template: disk_space_usage
+          on: disk.space
+chart labels: mount_point=!/dev !/dev/* !/run !/run/* *
+        calc: $used * 100 / ($avail + $used)
+       units: %
+        warn: $this > (($status >= $WARNING ) ? (80) : (90))
+        crit: ($this > (($status == $CRITICAL) ? (90) : (98))) && $avail < 5
+```
 
 ### disk_inode_usage
 
 For filesystems with many small files, tracks inode exhaustion which can occur before space exhaustion.
 
 **Context:** `disk.inodes`
-**Thresholds:** WARN > 80%, CRIT > 90%
+**Thresholds:**
+- WARNING: > 90%
+- CRITICAL: > 98%
+
+### out_of_disk_space_time
+
+Predicts when disk will run out of space based on current fill rate. Provides early warning for capacity planning.
+
+**Context:** `disk.space`
+**Thresholds:**
+- WARNING: < 8 hours (stays until > 48 hours)
+- CRITICAL: < 2 hours (stays until > 24 hours)
 
 ## Disk I/O Alerts
 
-Disk I/O monitoring catches performance problems that capacity metrics miss.
+### 10min_disk_utilization
 
-### disk_busy
+Measures the percentage of time the disk spends processing I/O requests. High utilization indicates the disk is a bottleneck.
 
-Measures the percentage of time the disk spends processing I/O requests. At 80% busy, most disks begin queuing delays; at 95%, degradation is nearly certain.
+**Context:** `disk.util`
+**Thresholds:** WARNING > 98%
 
-**Context:** `disk利用率`
-**Thresholds:** WARN > 80%, CRIT > 95%
+### 10min_disk_backlog
 
-### disk_wait
+Monitors disk I/O backlog (queued operations). High backlog indicates the disk cannot keep up with demand.
 
-Average wait time for I/O operations. High latency indicates the disk cannot keep up with workload demands.
-
-**Context:** `disk`
-**Thresholds:** WARN > 50ms, CRIT > 100ms
+**Context:** `disk.backlog`
+**Thresholds:** WARNING > 5000ms
 
 ## Network Interface Alerts
 
-Network alerts focus on error conditions rather than throughput.
+### 1m_received_traffic_overflow / 1m_sent_traffic_overflow
 
-### network_interface_errors
+Monitors bandwidth utilization as a percentage of interface speed.
 
-Fires when any interface reports errors, checksum failures, or other problems. Even a single error may indicate cable problems or hardware degradation.
+**Context:** `net.net`
+**Thresholds:** WARNING > 90% (with 85% recovery)
 
-**Context:** `net.errors`
-**Thresholds:** WARN > 0, CRIT > 10
+### inbound_packets_dropped_ratio / outbound_packets_dropped_ratio
 
-### network_interface_drops
-
-Tracks packet drops indicating the interface buffer filled faster than processing could handle.
+Tracks the ratio of dropped packets to total packets. Excludes wireless interfaces which have separate thresholds.
 
 **Context:** `net.drops`
-**Thresholds:** WARN > 0, CRIT > 100
+**Thresholds:** WARNING >= 2% drop rate
 
-### network_interface_speed
+### interface_inbound_errors / interface_outbound_errors
 
-Detects when link negotiation resulted in speeds below expected maximum, indicating configuration problems.
+Monitors interface errors which may indicate cable problems or hardware degradation.
 
-**Context:** `net.speed`
-**Thresholds:** WARN < nominal speed
+**Context:** `net.errors`
+**Thresholds:** WARNING >= 5 errors in 10 minutes
+
+### 10min_fifo_errors
+
+Monitors FIFO buffer errors indicating kernel buffer overflow on the interface.
+
+**Context:** `net.fifo`
+**Thresholds:** WARNING > 0 errors
+
+### 10s_received_packets_storm
+
+Detects sudden packet storms by comparing short-term to long-term packet rates.
+
+**Context:** `net.packets`
+**Thresholds:**
+- WARNING: 10-second rate > 5000% of 1-minute average
+- CRITICAL: 10-second rate > 6000% of 1-minute average
+
+## Related Files
+
+Stock alerts are defined in:
+- `/usr/lib/netdata/conf.d/health.d/cpu.conf`
+- `/usr/lib/netdata/conf.d/health.d/ram.conf`
+- `/usr/lib/netdata/conf.d/health.d/disks.conf`
+- `/usr/lib/netdata/conf.d/health.d/net.conf`
+
+To customize thresholds, copy to `/etc/netdata/health.d/` and modify.

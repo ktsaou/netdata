@@ -1,88 +1,128 @@
 # 11.4 Network and Connectivity Alerts
 
-Network alerts focus on endpoints and services rather than interface statistics. These alerts ensure that network-dependent services remain reachable.
+Network alerts focus on endpoints and services rather than interface statistics.
 
-## Ping and Latency Monitoring
+:::note
+This is a selection of key alerts. For the complete list, check the stock alert files in `/usr/lib/netdata/conf.d/health.d/`.
+:::
 
-### ping_latency
+## DNS Query Monitoring
 
-Tracks round-trip time with thresholds calibrated for typical operational requirements.
+Stock alerts: `/usr/lib/netdata/conf.d/health.d/dns_query.conf`
 
-**Context:** `ping.latency`
-**Thresholds:** WARN > 100ms, CRIT > 500ms
+### dns_query_query_status
 
-### ping_packet_loss
+Monitors DNS query success for configured servers.
 
-Measures percentage of packets that do not receive responses. Network problems often manifest as partial packet loss before complete failure.
+**Context:** `dns_query.query_status`
+**Thresholds:** WARNING when queries fail
 
-**Context:** `ping.packets`
-**Thresholds:** WARN > 1%, CRIT > 5%
-
-## Port and Service Monitoring
-
-### port_check_failed
-
-Attempts to connect to a specified port and fires when the connection fails. Can monitor any TCP service.
-
-**Context:** `net.port`
-**Thresholds:** CRIT not responding
-
-### port_response_time
-
-Tracks how long the connection takes to establish, catching slow services before they fail.
-
-**Context:** `net.port`
-**Thresholds:** WARN > 1s
-
-### ssl_certificate_expiry
-
-Monitors certificate validity period with sufficient lead time for renewal.
-
-**Context:** `ssl.cert`
-**Thresholds:** WARN < 30 days, CRIT < 7 days
-
-### ssl_handshake_failure
-
-Tracks SSL/TLS handshake failures which may indicate certificate or protocol problems.
-
-**Context:** `ssl.handshake`
-**Thresholds:** WARN > 0
-
-## DNS Monitoring
-
-### dns_query_time
-
-Tracks resolution latency for DNS-dependent applications.
-
-**Context:** `dns.query`
-**Thresholds:** WARN > 50ms, CRIT > 200ms
-
-### dns_query_failures
-
-Fires when DNS resolution fails entirely, which causes cascading failures in dependent applications.
-
-**Context:** `dns.query`
-**Thresholds:** WARN > 0
-
-### dns_no_response
-
-Monitors for complete DNS non-responses.
-
-**Context:** `dns.response`
-**Thresholds:** CRIT > 0
+```conf
+ template: dns_query_query_status
+       on: dns_query.query_status
+     calc: $success
+    units: status
+     warn: $this != nan && $this != 1
+  summary: DNS query unsuccessful requests to ${label:server}
+     info: DNS request type ${label:record_type} to server ${label:server} is unsuccessful
+```
 
 ## HTTP Endpoint Monitoring
 
-### http_response_code_not_2xx
+Stock alerts: `/usr/lib/netdata/conf.d/health.d/httpcheck.conf`
 
-Tracks non-2xx responses indicating client or server errors.
+### httpcheck_web_service_up
 
-**Context:** `httpcheck.response`
-**Thresholds:** WARN > 0, CRIT > 10%
+Fast-reacting liveness check for HTTP endpoints.
 
-### http_response_time_percentile
+**Context:** `httpcheck.status`
+**Thresholds:** Based on success percentage over 1 minute
 
-Monitors 95th percentile latency for SLA compliance.
+### httpcheck_web_service_bad_content
 
-**Context:** `httpcheck.response`
-**Thresholds:** WARN > 2s
+Monitors responses with unexpected content.
+
+**Context:** `httpcheck.status`
+**Thresholds:**
+- WARNING: >= 10% bad content
+- CRITICAL: >= 40% bad content
+
+### httpcheck_web_service_bad_status
+
+Monitors responses with unexpected HTTP status codes.
+
+**Context:** `httpcheck.status`
+**Thresholds:**
+- WARNING: >= 10% bad status
+- CRITICAL: >= 40% bad status
+
+### httpcheck_web_service_timeouts
+
+Monitors connection timeouts.
+
+**Context:** `httpcheck.status`
+**Thresholds:**
+- WARNING: >= 10% timeouts
+- CRITICAL: >= 40% timeouts
+
+```conf
+ template: httpcheck_web_service_timeouts
+       on: httpcheck.status
+   lookup: average -5m unaligned percentage of timeout
+    units: %
+     warn: $this >= 10 AND $this < 40
+     crit: $this >= 40
+  summary: HTTP check for ${label:url} timeouts
+```
+
+### httpcheck_web_service_no_connection
+
+Monitors failed connection attempts.
+
+**Context:** `httpcheck.status`
+**Thresholds:**
+- WARNING: >= 10% connection failures
+- CRITICAL: >= 40% connection failures
+
+## SSL/TLS Certificate Monitoring
+
+Stock alerts: `/usr/lib/netdata/conf.d/health.d/x509check.conf`
+
+### x509check_days_until_expiration
+
+Monitors SSL/TLS certificate expiration dates.
+
+**Context:** `x509check.time_until_expiration`
+**Thresholds:**
+- WARNING: < 14 days
+- CRITICAL: < 7 days
+
+### x509check_revocation_status
+
+Monitors certificate revocation status via OCSP/CRL.
+
+**Context:** `x509check.revocation_status`
+**Thresholds:** CRITICAL when revoked
+
+## TCP Port Monitoring
+
+Stock alerts: `/usr/lib/netdata/conf.d/health.d/portcheck.conf`
+
+### portcheck_service_up
+
+Monitors TCP port availability for configured services.
+
+**Context:** `portcheck.status`
+**Thresholds:**
+- WARNING: success rate < 75%
+- CRITICAL: service completely unreachable
+
+## Related Files
+
+Network and connectivity alerts are defined in:
+- `/usr/lib/netdata/conf.d/health.d/dns_query.conf`
+- `/usr/lib/netdata/conf.d/health.d/httpcheck.conf`
+- `/usr/lib/netdata/conf.d/health.d/x509check.conf`
+- `/usr/lib/netdata/conf.d/health.d/portcheck.conf`
+
+To customize, copy to `/etc/netdata/health.d/` and modify.

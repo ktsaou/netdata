@@ -1,22 +1,44 @@
 # 9.4 Health Management API
 
-## 9.4.1 Enable/Disable Alerts
+The Health Management API allows runtime control of alert evaluation and notifications.
+
+**Base endpoint:** `/api/v1/manage/health`
+
+## 9.4.1 Disable/Silence Alerts
 
 ```bash
-# Disable an alert
-curl -s "http://localhost:19999/api/v1/health?cmd=disable&alarm=high_cpu"
+# Disable a specific alert (stops evaluation entirely)
+curl -s "http://localhost:19999/api/v1/manage/health?cmd=DISABLE&alarm=high_cpu"
 
-# Enable an alert
-curl -s "http://localhost:19999/api/v1/health?cmd=enable&alarm=high_cpu"
+# Silence a specific alert (evaluates but suppresses notifications)
+curl -s "http://localhost:19999/api/v1/manage/health?cmd=SILENCE&alarm=high_cpu"
+
+# Disable ALL alerts on this node
+curl -s "http://localhost:19999/api/v1/manage/health?cmd=DISABLE%20ALL"
+
+# Silence ALL alerts on this node
+curl -s "http://localhost:19999/api/v1/manage/health?cmd=SILENCE%20ALL"
 ```
 
-## 9.4.2 Reload Configuration
+## 9.4.2 Re-enable Alerts
 
 ```bash
-curl -s "http://localhost:19999/api/v1/health?cmd=reload"
+# Reset a specific alert to normal operation
+curl -s "http://localhost:19999/api/v1/manage/health?cmd=RESET&alarm=high_cpu"
+
+# List current health management state
+curl -s "http://localhost:19999/api/v1/manage/health?cmd=LIST"
 ```
 
-Equivalent to `netdatacli reload-health`.
+## 9.4.3 Reload Configuration
+
+Health configuration reload is done via `netdatacli`, not the API:
+
+```bash
+sudo netdatacli reload-health
+```
+
+Or by sending SIGUSR2 to the netdata process.
 
 ## 9.4.3 Related Sections
 

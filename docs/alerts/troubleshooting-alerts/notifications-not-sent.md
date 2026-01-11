@@ -5,7 +5,7 @@ The alert fires but no one receives notifications.
 ## 7.5.1 Is It Evaluation or Notification?
 
 ```bash
-curl -s "http://localhost:19999/api/v1/alarms" | jq '.alerts.your_alert_name'
+curl -s "http://localhost:19999/api/v1/alarms" | jq '.alarms.your_alert_name'
 ```
 
 - Status changes? → Evaluation works, notification problem

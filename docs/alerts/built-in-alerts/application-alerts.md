@@ -1,169 +1,166 @@
 # 11.3 Application Alerts
 
-Application alerts cover common database, web server, cache, and message queue technologies. Each application has unique metrics that indicate health and performance.
+Application alerts cover common databases, web servers, caches, and message queues. Each application has unique metrics that indicate health and performance.
 
-## Database Alerts
+:::note
+This is a selection of key alerts. For the complete list, check the stock alert files in `/usr/lib/netdata/conf.d/health.d/`.
+:::
 
-Databases are typically the most critical components in an infrastructure, and their alerts reflect this importance.
+## MySQL and MariaDB
 
-### MySQL and MariaDB
+Stock alerts: `/usr/lib/netdata/conf.d/health.d/mysql.conf`
 
-#### mysql_gtid_binlog_gtid_0
+### mysql_10s_slow_queries
 
-Tracks whether the GTID position is advancing, catching replication stalls immediately.
+Tracks slow queries over a 10-second window. Excessive slow queries often precede performance degradation.
 
-**Context:** `mysql.gtid`
-**Thresholds:** WARN > 0 lag
+**Context:** `mysql.queries`
+**Thresholds:**
+- WARNING: > 10 (stays until < 5)
+- CRITICAL: > 20 (stays until < 10)
 
-#### mysql_slow_queries
+```conf
+ template: mysql_10s_slow_queries
+       on: mysql.queries
+   lookup: sum -10s of slow_queries
+    units: slow queries
+     warn: $this > (($status >= $WARNING)  ? (5)  : (10))
+     crit: $this > (($status == $CRITICAL) ? (10) : (20))
+```
 
-Identifies workloads generating excessive slow query traffic, which often precedes performance degradation.
+### mysql_connections
 
-**Context:** `mysql.global_status`
-**Thresholds:** WARN > 5/s
+Monitors connection pool utilization as percentage of maximum allowed connections.
 
-#### mysql_innodb_buffer_pool_bytes
+**Context:** `mysql.connections_active`
+**Thresholds:**
+- WARNING: > 70% (stays until < 60%)
+- CRITICAL: > 90% (stays until < 80%)
 
-Monitors InnoDB buffer pool usage to prevent memory pressure on buffer pool-intensive workloads.
+### mysql_10s_waited_locks_ratio
 
-**Context:** `mysql.innodb`
-**Thresholds:** WARN > 90%
+Tracks the ratio of table lock waits to immediate locks, indicating contention.
 
-### PostgreSQL
+**Context:** `mysql.table_locks`
+**Thresholds:**
+- WARNING: > 25%
+- CRITICAL: > 50%
 
-#### pg_stat_database_deadlocks
+### mysql_replication
 
-Detects deadlocks that indicate concurrent transaction conflicts.
+Monitors replication status (SQL thread and I/O thread running).
 
-**Context:** `pg.stat_database`
-**Thresholds:** WARN > 0
+**Context:** `mysql.slave_status`
+**Thresholds:** CRITICAL when replication is stopped
 
-#### pg_stat_database_connections
+### mysql_replication_lag
 
-Tracks connection pool saturation to prevent connection exhaustion.
+Measures seconds behind master for replicas.
 
-**Context:** `pg.stat_database`
-**Thresholds:** WARN > 80% of max
+**Context:** `mysql.slave_behind`
+**Thresholds:**
+- WARNING: > 10 seconds
+- CRITICAL: > 30 seconds
 
-#### pg_replication_lag
+### mysql_galera_cluster_size
 
-Monitors streaming replication lag to prevent data inconsistency.
+For Galera clusters, monitors cluster node count changes.
 
-**Context:** `pg.replication`
-**Thresholds:** WARN > 10s, CRIT > 60s
+**Context:** `mysql.galera_cluster_size`
+**Thresholds:**
+- WARNING: cluster grew
+- CRITICAL: cluster shrank
 
-### Redis
+## PostgreSQL
 
-#### redis_memory_fragmentation
+Stock alerts: `/usr/lib/netdata/conf.d/health.d/postgres.conf`
 
-Detects when memory fragmentation exceeds 1.5, indicating the allocator is struggling with the workload pattern.
+### postgres_total_connection_utilization
 
-**Context:** `redis.mem`
-**Thresholds:** WARN > 1.5
+Monitors connection pool usage against maximum connections.
 
-#### redis_evictions
+**Context:** `postgres.connections_utilization`
+**Thresholds:**
+- WARNING: > 80%
+- CRITICAL: > 90%
 
-Catches eviction-based memory pressure, which indicates the working set exceeds capacity.
+### postgres_database_deadlocks_rate
 
-**Context:** `redis.keys`
-**Thresholds:** WARN > 0
+Detects deadlocks indicating concurrent transaction conflicts.
 
-## Web Server Alerts
+**Context:** `postgres.database_deadlocks_rate`
+**Thresholds:** WARNING > 0
 
-### Nginx
+### postgres_replication_lag
 
-#### nginx_requests
+Monitors streaming replication lag.
 
-Tracks request throughput as a baseline health indicator. A sudden change indicates availability problems.
+**Context:** `postgres.replication_standby_app_wal_lag_size`
+**Thresholds:**
+- WARNING: > 200 MB
+- CRITICAL: > 400 MB
 
-**Context:** `nginx.requests`
-**Thresholds:** WARN > 10000/s
+## Redis
 
-#### nginx_connections_active
+Stock alerts: `/usr/lib/netdata/conf.d/health.d/redis.conf`
 
-Monitors active connections against worker limits to prevent connection exhaustion.
+### redis_connections_rejected
 
-**Context:** `nginx.connections`
-**Thresholds:** WARN > 80% of limit
+Monitors rejected connections due to maxclients limit.
 
-#### nginx_4xx_requests
+**Context:** `redis.connections`
+**Thresholds:** WARNING > 0
 
-Tracks client error rates which may indicate client problems or configuration errors.
+### redis_master_link_down
 
-**Context:** `nginx.requests`
-**Thresholds:** WARN > 1%, CRIT > 5%
+For replicas, monitors connection to master.
 
-#### nginx_5xx_requests
+**Context:** `redis.master_link_status`
+**Thresholds:** CRITICAL when link is down
 
-Tracks server error rates which indicate server problems requiring investigation.
+### redis_bgsave_broken
 
-**Context:** `nginx.requests`
-**Thresholds:** WARN > 0.1%, CRIT > 1%
+Monitors background save failures.
 
-### Apache
+**Context:** `redis.bgsave_health`
+**Thresholds:** CRITICAL > 0
 
-#### apache_requests
+## RabbitMQ
 
-Similar to nginx, tracks request throughput for baseline health.
+Stock alerts: `/usr/lib/netdata/conf.d/health.d/rabbitmq.conf`
 
-**Context:** `apache.requests`
-**Thresholds:** WARN > 5000/s
+### rabbitmq_node_disk_free_alarm_status
 
-#### apache_idle_workers
+Monitors disk space alarms from RabbitMQ.
 
-Monitors available worker threads to prevent connection queuing.
+**Context:** `rabbitmq.node_disk_free_alarm_status`
+**Thresholds:** CRITICAL when alarm is active
 
-**Context:** `apache.workers`
-**Thresholds:** WARN < 10% available
+### rabbitmq_node_mem_alarm_status
 
-## Cache Alerts
+Monitors memory alarms from RabbitMQ.
 
-### Memcached
+**Context:** `rabbitmq.node_mem_alarm_status`
+**Thresholds:** CRITICAL when alarm is active
 
-#### memcached_hit_rate
+## Memcached
 
-Tracks the ratio of cache hits to total requests. A rate below 80% suggests the cache is not effective.
+Stock alerts: `/usr/lib/netdata/conf.d/health.d/memcached.conf`
 
-**Context:** `memcache.hits`
-**Thresholds:** WARN < 80%
+### memcached_fill_rate
 
-#### memcached_evictions
+Monitors the rate at which the cache is filling.
 
-Catches when items are being removed due to size limits.
+**Context:** `memcached.evictions`
+**Thresholds:** WARNING when fill rate exceeds eviction rate significantly
 
-**Context:** `memcache.evictions`
-**Thresholds:** WARN > 0
+## Related Files
 
-## Message Queue Alerts
+Application alerts are defined in:
+- `/usr/lib/netdata/conf.d/health.d/mysql.conf`
+- `/usr/lib/netdata/conf.d/health.d/postgres.conf`
+- `/usr/lib/netdata/conf.d/health.d/redis.conf`
+- `/usr/lib/netdata/conf.d/health.d/rabbitmq.conf`
+- `/usr/lib/netdata/conf.d/health.d/memcached.conf`
 
-### RabbitMQ
-
-#### rabbitmq_queue_messages_ready
-
-Monitors messages ready for delivery to detect consumer backlog.
-
-**Context:** `rabbitmq.queue`
-**Thresholds:** WARN > 1000
-
-#### rabbitmq_queue_messages_unacknowledged
-
-Tracks unacknowledged messages indicating consumer problems.
-
-**Context:** `rabbitmq.queue`
-**Thresholds:** WARN > 100
-
-### Kafka
-
-#### kafka_under_replicated_partitions
-
-Monitors replication health to detect partition availability issues.
-
-**Context:** `kafka.replication`
-**Thresholds:** WARN > 0, CRIT > 0
-
-#### kafka_offline_partitions
-
-Critical alert for partitions without leadership.
-
-**Context:** `kafka.replication`
-**Thresholds:** CRIT > 0
+To customize, copy to `/etc/netdata/health.d/` and modify.

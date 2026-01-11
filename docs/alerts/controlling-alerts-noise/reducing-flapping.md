@@ -80,7 +80,7 @@ template: disk_space_low
    every: 1m
    warn: $this < 20
    crit: $this < 10
-   repeat: 24h
+   repeat: warning 24h critical 24h
    info: Disk space is running low
 ```
 
@@ -95,7 +95,7 @@ template: service_health
    every: 1m
    crit: $this == 0
    delay: up 10m down 2m
-   repeat: 6h
+   repeat: warning 6h critical 6h
 ```
 
 **Behavior:**

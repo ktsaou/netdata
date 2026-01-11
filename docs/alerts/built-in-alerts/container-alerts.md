@@ -1,104 +1,121 @@
 # 11.2 Container and Orchestration Alerts
 
-Container and orchestration alerts address the unique monitoring requirements of dynamic infrastructure. These alerts rely on collectors specific to container runtimes and orchestrators.
+Container and orchestration alerts address the unique monitoring requirements of dynamic infrastructure.
 
 ## Docker Container Alerts
 
-Docker container alerts monitor both the runtime state of containers and their resource consumption.
+Stock alerts: `/usr/lib/netdata/conf.d/health.d/docker.conf`
 
-### docker_container_status
+### docker_container_unhealthy
 
-Tracks the running state of each container. A critical alert fires when a previously running container stops, which may indicate crashes, health check failures, or manual stops.
+Monitors Docker's built-in health check status. Fires when containers report unhealthy status.
 
-**Context:** `docker.status`
-**Thresholds:** CRIT not running
+**Context:** `docker.container_health_status`
+**Thresholds:** WARNING when unhealthy
 
-### docker_container_cpu_usage
+```conf
+template: docker_container_unhealthy
+       on: docker.container_health_status
+   lookup: average -10s of unhealthy
+     warn: $this > 0
+  summary: Docker container ${label:container_name} health
+     info: ${label:container_name} docker container health status is unhealthy
+```
 
-Tracks CPU utilization within the container's configured limits. Helps identify containers approaching resource ceilings.
+### docker_container_down
 
-**Context:** `docker.cpu`
-**Thresholds:** WARN > 80%, CRIT > 95%
+Monitors container running state. Fires when containers exit unexpectedly.
 
-### docker_container_mem_usage
+**Context:** `docker.container_state`
+**Thresholds:** WARNING when container is exited
 
-Tracks memory consumption against container limits. Prevents noisy neighbor problems from affecting other containers.
+:::note
+This alert is disabled by default (`chart labels: container_name=!*`). To enable for specific containers, modify the chart labels filter.
+:::
 
-**Context:** `docker.mem`
-**Thresholds:** WARN > 80%, CRIT > 95%
+```conf
+    template: docker_container_down
+          on: docker.container_state
+chart labels: container_name=!*
+      lookup: average -10s of exited
+        warn: $this > 0
+```
 
-### docker_container_ooms
+## cgroups Container Alerts
 
-Specifically tracks out-of-memory kills. When the Linux OOM killer terminates a container process, this alert fires immediately.
+Stock alerts: `/usr/lib/netdata/conf.d/health.d/cgroups.conf`
 
-**Context:** `docker.events`
-**Thresholds:** CRIT > 0
+These alerts apply to containers monitored via Linux cgroups (Docker, systemd-nspawn, LXC, etc.).
 
-### docker_container_restarts
+### cgroup_10min_cpu_usage
 
-Monitors restart counts which indicate application stability.
+Monitors CPU utilization for containers over 10-minute windows.
 
-**Context:** `docker.status`
-**Thresholds:** WARN > 3/hour, CRIT > 10/hour
+**Context:** `cgroup.cpu_limit`
+**Thresholds:**
+- WARNING: > 85%
+- CRITICAL: > 95%
 
-## Kubernetes Pod Alerts
+### cgroup_ram_in_use
 
-Kubernetes pod alerts require the Netdata Kubernetes collector and provide visibility into pod health from the cluster perspective.
+Monitors memory usage against container limits.
 
-### k8s_pod_ready
+**Context:** `cgroup.mem_usage`
+**Thresholds:**
+- WARNING: > 80%
+- CRITICAL: > 90%
 
-Monitors the Kubernetes readiness probe status. Pods that fail readiness checks are not routable from Services.
+## Kubernetes Alerts
 
-**Context:** `k8s.pod.ready`
-**Thresholds:** CRIT not ready
+Stock alerts:
+- `/usr/lib/netdata/conf.d/health.d/k8sstate.conf`
+- `/usr/lib/netdata/conf.d/health.d/kubelet.conf`
 
-### k8s_pod_restarting
+:::note
+Kubernetes alerts require the Kubernetes state metrics collector to be enabled.
+:::
 
-Container restart counts indicate application stability. Uses thresholds of three and ten restarts per hour.
+### k8s_pod_container_waiting
 
-**Context:** `k8s.pod.restarts`
-**Thresholds:** WARN > 3, CRIT > 10
+Monitors containers stuck in waiting state (CrashLoopBackOff, ImagePullBackOff, etc.).
 
-### k8s_pod_not_scheduled
+**Context:** `k8s_state.pod_container_waiting_state_reason`
+**Thresholds:** WARNING when container is waiting
 
-Catches pods stuck in Pending state because no node has capacity to satisfy resource requests.
+### k8s_pod_container_terminated
 
-**Context:** `k8s.pod.scheduled`
-**Thresholds:** CRIT > 5 minutes
+Monitors containers that terminated with non-zero exit codes.
 
-### k8s_container_cpu_limits
+**Context:** `k8s_state.pod_container_terminated_state_reason`
+**Thresholds:** WARNING when OOMKilled, Error, or similar
 
-Fires when containers reach 90% of their configured CPU limits, indicating the limit may be constraining performance.
+### k8s_node_not_ready
 
-**Context:** `k8s.container.cpu`
-**Thresholds:** WARN > 90% of limit
+Monitors Kubernetes node ready condition.
 
-### k8s_container_mem_limits
+**Context:** `k8s_state.node_condition`
+**Thresholds:** WARNING when node is not ready
 
-Fires when containers reach 90% of their configured memory limits.
+### kubelet_token_requests
 
-**Context:** `k8s.container.mem`
-**Thresholds:** WARN > 90% of limit
+Monitors kubelet API token request failures.
 
-## Kubernetes Node Alerts
+**Context:** `k8s_kubelet.token_requests`
+**Thresholds:** WARNING when failed requests > 0
 
-### node_not_ready
+### kubelet_operations_error
 
-Kubernetes node ready status. A not-ready node cannot schedule new workloads and may indicate hardware or system problems.
+Monitors kubelet runtime operation errors.
 
-**Context:** `k8s.node`
-**Thresholds:** CRIT not ready
+**Context:** `k8s_kubelet.kubelet_operations_errors`
+**Thresholds:** WARNING when errors > 0 over 10 minutes
 
-### node_disk_pressure
+## Related Files
 
-Node disk pressure indicates that kubelet is managing pressure on local storage.
+Container alerts are defined in:
+- `/usr/lib/netdata/conf.d/health.d/docker.conf`
+- `/usr/lib/netdata/conf.d/health.d/cgroups.conf`
+- `/usr/lib/netdata/conf.d/health.d/k8sstate.conf`
+- `/usr/lib/netdata/conf.d/health.d/kubelet.conf`
 
-**Context:** `k8s.node`
-**Thresholds:** WARN > 0
-
-### node_memory_pressure
-
-Node memory pressure indicates the node is approaching memory exhaustion.
-
-**Context:** `k8s.node`
-**Thresholds:** WARN > 0
+To customize, copy to `/etc/netdata/health.d/` and modify.

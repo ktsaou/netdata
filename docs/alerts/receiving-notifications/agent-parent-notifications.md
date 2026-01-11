@@ -26,19 +26,23 @@ Netdata supports multiple notification destinations:
 
 ## 5.2.3 Configuring Email Notifications
 
+Email notifications require a local mail transfer agent (sendmail, postfix, etc.) to be configured on the system.
+
 ```conf
 # Enable email notifications
+# Options: YES, NO, AUTO (auto-detect sendmail availability)
 SEND_EMAIL="YES"
 
-# SMTP configuration (for systems without local MTA)
-SMTP_SERVER="smtp.example.com:587"
-SMTP_USER="alerts@example.com"
-SMTP_PASSWORD="your-password"
-FROM_ADDRESS="netdata@example.com"
+# The email address notifications are sent from
+EMAIL_SENDER="netdata@yourdomain.com"
 
 # Default recipients (can be overridden per alert)
-DEFAULT_RECIPIENT_EMAIL="admin@example.com"
+DEFAULT_RECIPIENT_EMAIL="admin@yourdomain.com"
 ```
+
+:::note
+Netdata uses the system's `sendmail` command to send emails. Ensure your system has a properly configured MTA (Mail Transfer Agent) such as Postfix, Sendmail, or an SMTP relay.
+:::
 
 ## 5.2.4 Configuring Slack Notifications
 

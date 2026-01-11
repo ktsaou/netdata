@@ -106,7 +106,7 @@ lookup: average -10m of used
   info: Disk space usage over the last 10 minutes
 summary: Disk space critically low
  delay: up 5m down 0
-repeat: 30m
+repeat: warning 30m critical 30m
     to: sysadmin
  class: system
   type: capacity

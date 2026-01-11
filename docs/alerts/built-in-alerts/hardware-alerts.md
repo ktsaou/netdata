@@ -1,125 +1,126 @@
 # 11.5 Hardware and Sensor Alerts
 
-Hardware monitoring provides visibility into infrastructure that is often neglected until failure occurs. These alerts protect physical infrastructure health.
+Hardware monitoring provides visibility into infrastructure that is often neglected until failure occurs.
+
+:::note
+This is a selection of key alerts. For the complete list, check the stock alert files in `/usr/lib/netdata/conf.d/health.d/`.
+:::
 
 ## RAID Monitoring
 
-### raid_degraded
+Stock alerts: `/usr/lib/netdata/conf.d/health.d/mdstat.conf`
 
-Fires when an array has lost redundancy, which could mean a second disk failure would cause data loss.
+### mdstat_mismatch_cnt
 
-**Context:** `raid.status`
-**Thresholds:** CRIT > 0
+Monitors RAID array mismatch counts which indicate potential data corruption.
 
-### raid_disk_failed
+**Context:** `md.mismatch_cnt`
+**Thresholds:** CRITICAL > 0
 
-Tracks individual disk failures within RAID arrays.
+### mdstat_disks
 
-**Context:** `raid.disk`
-**Thresholds:** CRIT > 0
+Monitors RAID disk status for missing or failed disks.
 
-## SMART Monitoring
+**Context:** `md.disks`
+**Thresholds:**
+- WARNING: disk count < expected
+- CRITICAL: failed disks > 0
 
-### smart_self_test
+## UPS Monitoring (APC UPS)
 
-Monitors the results of regular SMART self-tests. Self-test failures indicate imminent disk failure.
+Stock alerts: `/usr/lib/netdata/conf.d/health.d/apcupsd.conf`
 
-**Context:** `smart.test`
-**Thresholds:** WARN > 0, CRIT > 0
+### apcupsd_ups_battery_charge
 
-### smart_reallocated_sectors
+Monitors remaining battery capacity.
 
-Tracks bad sector remapping which indicates the disk is beginning to fail.
+**Context:** `apcupsd.ups_battery_charge`
+**Thresholds:**
+- WARNING: < 100%
+- CRITICAL: < 40%
 
-**Context:** `smart.sectors`
-**Thresholds:** WARN > 0
+```conf
+ template: apcupsd_ups_battery_charge
+       on: apcupsd.ups_battery_charge
+   lookup: average -60s unaligned of charge
+    units: %
+     warn: $this < 100
+     crit: $this < 40
+```
 
-### smart_pending_sectors
+### apcupsd_ups_load_capacity
 
-Monitors pending sector remaps that indicate imminent failure.
+Monitors UPS load percentage against capacity.
 
-**Context:** `smart.pending`
-**Thresholds:** WARN > 0
+**Context:** `apcupsd.ups_load_capacity_utilization`
+**Thresholds:** WARNING > 80% (stays until < 70%)
 
-### smart_wear_level
+### apcupsd_ups_status_onbatt
 
-For SSDs, tracks remaining write endurance.
+Fires when UPS switches to battery power.
 
-**Context:** `smart.wear`
-**Thresholds:** WARN < 10% remaining
+**Context:** `apcupsd.ups_status`
+**Thresholds:** WARNING when on battery
 
-## Temperature Monitoring
+### apcupsd_ups_status_overload
 
-### sensor_temperature
+Fires when UPS is overloaded.
 
-Monitors hardware temperatures with thresholds that vary by device specifications.
+**Context:** `apcupsd.ups_status`
+**Thresholds:** WARNING when overloaded
 
-**Context:** `sensors.temperature`
-**Thresholds:** WARN > 80C, CRIT > 90C
+### apcupsd_ups_status_lowbatt
 
-### fan_speed_low
+Fires when battery charge is critically low.
 
-Detects when fans are spinning below expected RPM, indicating potential cooling failure.
+**Context:** `apcupsd.ups_status`
+**Thresholds:** WARNING when low battery
 
-**Context:** `sensors.fan`
-**Thresholds:** WARN < 90% of expected
+### apcupsd_ups_status_replacebatt
 
-### fan_speed_zero
+Fires when battery needs replacement.
 
-Critical alert for completely stopped fans.
+**Context:** `apcupsd.ups_status`
+**Thresholds:** WARNING when battery replacement needed
 
-**Context:** `sensors.fan`
-**Thresholds:** CRIT == 0
+## IPMI Monitoring
 
-## Power Monitoring
+Stock alerts: `/usr/lib/netdata/conf.d/health.d/ipmi.conf`
 
-### ups_battery_charge
+### ipmi_sensor_state
 
-Monitors remaining battery capacity on UPS-equipped systems.
+Monitors IPMI sensor states for critical and warning conditions.
 
-**Context:** `ups.battery`
-**Thresholds:** WARN < 25%, CRIT < 10%
+**Context:** `ipmi.sensor_state`
+**Thresholds:**
+- WARNING: sensor in warning state
+- CRITICAL: sensor in critical state
 
-### ups_on_battery
+## Adaptec RAID
 
-Fires immediately when mains power fails and system switches to battery.
+Stock alerts: `/usr/lib/netdata/conf.d/health.d/adaptec_raid.conf`
 
-**Context:** `ups.status`
-**Thresholds:** CRIT > 0
+### adaptec_raid_ld_status
 
-### ups_input_voltage
+Monitors Adaptec RAID logical drive status.
 
-Monitors input voltage for instability or power quality issues.
+**Context:** `adaptec_raid.ld_status`
+**Thresholds:** CRITICAL when degraded or failed
 
-**Context:** `ups.input`
-**Thresholds:** WARN > 10% deviation
+### adaptec_raid_pd_state
 
-### ups_load_percentage
+Monitors Adaptec RAID physical drive states.
 
-Tracks UPS load percentage to prevent overloading.
+**Context:** `adaptec_raid.pd_state`
+**Thresholds:** WARNING/CRITICAL for non-optimal states
 
-**Context:** `ups.output`
-**Thresholds:** WARN > 80%, CRIT > 90%
+## Related Files
 
-## BMC/IPMI Monitoring
+Hardware alerts are defined in:
+- `/usr/lib/netdata/conf.d/health.d/apcupsd.conf`
+- `/usr/lib/netdata/conf.d/health.d/ipmi.conf`
+- `/usr/lib/netdata/conf.d/health.d/mdstat.conf`
+- `/usr/lib/netdata/conf.d/health.d/adaptec_raid.conf`
+- `/usr/lib/netdata/conf.d/health.d/megacli.conf`
 
-### bmc_temp
-
-Monitors Baseboard Management Controller temperature for servers with IPMI.
-
-**Context:** `ipmi.temperature`
-**Thresholds:** WARN > 80C, CRIT > 90C
-
-### bmc_fan_speed
-
-Monitors BMC-controlled fan speeds.
-
-**Context:** `ipmi.fans`
-**Thresholds:** WARN < 1000 RPM
-
-### bmc_power_consumption
-
-Tracks power consumption against baseline for anomaly detection.
-
-**Context:** `ipmi.power`
-**Thresholds:** WARN > baseline * 1.2
+To customize, copy to `/etc/netdata/health.d/` and modify.

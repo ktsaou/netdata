@@ -1,32 +1,38 @@
 # 6.4 Anomaly-Based Alerts
 
-## 6.4.1 Anomaly Bit Alert
+Netdata's Machine Learning engine calculates anomaly rates for metrics. You can create alerts based on these rates.
+
+## 6.4.1 Node-Level Anomaly Rate Alert
+
+Alert when the overall node anomaly rate exceeds a threshold:
 
 ```conf
-template: cpu_anomaly_detected
-    on: system.cpu
-lookup: average -5m of user
-    units: %
-    every: 1m
-     warn: $anomaly_bit > 0.5
-       to: sysadmin
+template: node_anomaly_rate
+      on: anomaly_detection.anomaly_rate
+  lookup: average -1m of anomaly_rate
+   units: %
+   every: 30s
+    warn: $this > 1
+    info: Rolling 1min node level anomaly rate
+      to: sysadmin
 ```
 
-Requires ML enabled with sufficient historical data.
+## 6.4.2 Per-Chart Anomaly Rate Alert
 
-## 6.4.2 Adaptive Threshold
+Alert on anomaly rate for a specific chart using the `anomaly-bit` lookup option:
 
 ```conf
-template: traffic_anomaly
-    on: net.net
-lookup: average -5m of bandwidth
-    units: Mbps
-    every: 1m
-     warn: ($this > ($this - 10m + 2 * $stddev)) && ($this > 100)
-       to: netops
+template: cpu_chart_anomaly
+      on: system.cpu
+  lookup: average -5m anomaly-bit of *
+   units: %
+   every: 30s
+    warn: $this > 20
+    info: Rolling 5min anomaly rate for system.cpu chart
+      to: sysadmin
 ```
 
-See **3.3 Calculations and Transformations** for complex expressions.
+Requires ML to be enabled (`[ml]` section in `netdata.conf`).
 
 ## 6.4.3 Related Sections
 

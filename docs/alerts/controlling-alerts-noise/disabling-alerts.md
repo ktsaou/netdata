@@ -26,15 +26,31 @@ Create or edit a file in `/etc/netdata/health.d/`:
 sudo /etc/netdata/edit-config health.d/disabled.conf
 ```
 
-Add the alert you want to disable:
+Add the alert you want to override with a "never trigger" condition:
 
 ```conf
-# Disable stock alert that doesn't apply to our environment
-alarm: mysql_gtid_binlog_gtid_0
+# Override a stock alert to never trigger
+# Use the exact same alert name to override
+template: mysql_10s_slow_queries
+      on: mysql.queries
+  lookup: average -10s of slow_queries
+   units: queries
+   every: 10s
+    warn: 0  # Never triggers (condition always false)
+    crit: 0
+    info: Disabled - not relevant to our environment
+```
 
-# Disable by setting enabled to no
-template: some_stock_alert
-   enabled: no
+Alternatively, route to silent recipient:
+
+```conf
+template: mysql_10s_slow_queries
+      on: mysql.queries
+  lookup: average -10s of slow_queries
+   units: queries
+   every: 10s
+    warn: $this > 10
+      to: silent
 ```
 
 Reload configuration:
@@ -72,14 +88,17 @@ This keeps the alert loaded but ensures it never triggers notifications.
 
 ## 4.1.3 Disable via Health Management API
 
-You can also disable alerts programmatically:
+You can also disable alerts programmatically at runtime:
 
 ```bash
-# Disable a specific alert
-curl -s "http://localhost:19999/api/v1/health?cmd=disable&alarm=my_alert"
+# Disable a specific alert (stops evaluation entirely)
+curl -s "http://localhost:19999/api/v1/manage/health?cmd=DISABLE&alarm=my_alert"
 
-# Disable all alerts
-curl -s "http://localhost:19999/api/v1/health?cmd=disable_all"
+# Disable ALL alerts on this node
+curl -s "http://localhost:19999/api/v1/manage/health?cmd=DISABLE%20ALL"
+
+# Re-enable a specific alert
+curl -s "http://localhost:19999/api/v1/manage/health?cmd=RESET&alarm=my_alert"
 ```
 
 See **9.4 Health Management API** for full documentation.

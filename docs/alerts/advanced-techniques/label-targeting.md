@@ -3,21 +3,36 @@
 ## 8.3.1 Understanding Labels
 
 Netdata supports:
-- **Host labels**: `env:production`, `role:database`
-- **Chart labels**: `mount_point:/data`
+- **Host labels**: Set in `netdata.conf` under `[host labels]` or auto-detected (e.g., `_os=linux`)
+- **Chart labels**: Set by collectors for specific charts (e.g., `mount_point=/data`)
 
 ## 8.3.2 Label-Based Alert Scope
 
+Use the `host labels` or `chart labels` line to filter which nodes/charts an alert applies to:
+
 ```conf
 template: db_cpu_high
-    on: system.cpu
-lookup: average -5m of user,system
-    every: 1m
-     warn: $this > 80
-   calc: if($host_labels.role == "database" && $host_labels.env == "production", $this, 0)
+      on: system.cpu
+  lookup: average -5m of user,system
+   every: 1m
+    warn: $this > 80
+    crit: $this > 95
+host labels: role=database env=production
 ```
 
-This targets only production database servers.
+This alert only applies to nodes that have **both** `role=database` and `env=production` labels.
+
+```conf
+template: disk_space_critical
+      on: disk.space
+  lookup: average -1m percentage of avail
+   every: 1m
+    warn: $this < 20
+    crit: $this < 10
+chart labels: mount_point=!/dev !/dev/* !/run !/run/* *
+```
+
+This alert applies to all mount points except `/dev` and `/run` paths.
 
 ## 8.3.3 Related Sections
 

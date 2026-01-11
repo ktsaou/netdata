@@ -62,11 +62,11 @@ This is useful when:
 2. Look for active rules (shown with a green indicator)
 3. Check the **Next Activation** time for scheduled rules
 
-**Check via API:**
+**Check via Health Management API:**
 
 ```bash
-# List active silencing rules
-curl -s "http://localhost:19999/api/v1/alarms?silenced=1" | jq '.'
+# List current health management state (shows disabled/silenced alerts)
+curl -s "http://localhost:19999/api/v1/manage/health?cmd=LIST"
 ```
 
 ## 4.3.5 Related Sections
