@@ -96,7 +96,9 @@ Pick a function that matches the question you're asking:
 
 :::tip Method Aliases
 
-Many functions have aliases: `avg`/`mean` for `average`, `ema`/`ewma` for `ses`, `abs` for `absolute`. You may see these in older alert configurations—they work identically to their primary names.
+Many functions have aliases: `avg`/`mean` for `average`, `ema`/`ewma` for `ses`. You may see these in older alert configurations—they work identically to their primary names.
+
+**Note:** `absolute` is a lookup **option** (not a function alias) that converts values to positive numbers. See section 3.2.4 below.
 
 :::
 
@@ -106,11 +108,18 @@ Netdata supports many additional aggregation methods:
 
 | Category | Functions | Description |
 |----------|-----------|-------------|
-| **Statistical** | `stddev`, `cv` | Standard deviation, coefficient of variation |
+| **Statistical** | `stddev`, `cv` | Standard deviation, coefficient of variation (stddev/mean × 100) |
 | **Percentiles** | `percentile25`, `percentile50`, `percentile75`, `percentile80`, `percentile90`, `percentile95`, `percentile97`, `percentile98`, `percentile99` | Various percentile calculations |
 | **Trimmed aggregations** | `trimmed-mean`, `trimmed-median` | Remove outliers (1-25%) before aggregating |
 | **Smoothing** | `ses`, `des` | Single/double exponential smoothing |
 | **Special** | `incremental_sum`, `countif`, `extremes` | Incremental sums, conditional counting, extreme values |
+
+**Example using `cv` (coefficient of variation):**
+```conf
+# Alert when metric variability is too high
+lookup: cv -5m unaligned of response_time
+  warn: $this > 50  # CV > 50% indicates high variability
+```
 
 For the complete list with syntax details, refer to Netdata's `REFERENCE.md`.
 

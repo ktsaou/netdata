@@ -159,13 +159,13 @@ or a combination of `lookup` and more complex `calc`.
 **Example: working directly with chart variables**
 
 ```conf
-# From cockroachdb.conf
+# From cockroachdb.conf (with hysteresis)
 template: cockroachdb_used_storage_capacity
       on: cockroachdb.storage_used_capacity_percentage
     calc: $total
    units: %
-    warn: $this > 60
-    crit: $this > 80
+    warn: $this > (($status >= $WARNING)  ? (80) : (85))
+    crit: $this > (($status == $CRITICAL) ? (85) : (95))
 ```
 
 **Example: combining multiple variables**

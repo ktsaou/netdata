@@ -26,6 +26,7 @@ Netdata ships with hundreds of ready-made alert definitions covering:
 | **Updated by** | Netdata package upgrades |
 | **Should you edit?** | **No**, changes will be lost on upgrade |
 | **Purpose** | Out-of-the-box monitoring for common scenarios |
+| **Can be disabled** | Set `enable stock health configuration = no` in `netdata.conf` `[health]` section |
 
 ### How Stock Alert Files Override Works
 

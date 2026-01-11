@@ -17,9 +17,10 @@ Your Netdata deployment can have alerts from three sources:
 :::note
 
 All three sources **coexist** on your nodes:
-- Stock alerts load first
-- Custom file-based alerts load next and can override stock alerts **with the same alert name** (regardless of filename). Additionally, if a user file has the same filename as a stock file, the stock file is skipped entirely.
-- Cloud-defined alerts load at runtime (and use separate identifiers, so they don't automatically override file-based ones)
+- Custom file-based alerts in `/etc/netdata/health.d/` are loaded first
+- Stock alerts in `/usr/lib/netdata/conf.d/health.d/` are loaded next, but **only if no user file with the same filename exists**
+- Within the combined set, alerts with the **same name** accumulate—the last-loaded definition takes precedence for that name
+- Cloud-defined alerts load at runtime and **replace** any file-based alert with the same name
 
 :::
 
@@ -344,22 +345,26 @@ Look for:
 <summary><strong>My custom override isn't working</strong></summary>
 
 **Check:**
-1. **Alert name matches exactly** (stock and custom must use the same name)
-2. **Custom alert loads after stock** (it's in `/etc/netdata/health.d/`, not `/usr/lib/...`)
+1. **Alert name matches exactly** (stock and custom must use the same name for override to work)
+2. **Custom alert is in the right location** (`/etc/netdata/health.d/`, not `/usr/lib/...`)
 3. **No syntax errors** (check `/var/log/netdata/error.log`)
-4. **Health configuration reloaded** (`sudo netdatacli reload-health`)
+4. **Health configuration reloaded** (`sudo netdatacli reload-health` returns exit 0)
 
 </details>
 
 <details>
 <summary><strong>Cloud alert and file-based alert both firing</strong></summary>
 
-**This is expected behavior.** Cloud and file-based alerts **coexist** (they use different identifiers).
+**This is expected behavior** when the alerts have different names. Cloud and file-based alerts coexist unless they share the same name.
 
-**Solution:**
-- If you want only one, **disable** the other:
-  - File-based: override with `warn: 0` and `crit: 0` or set `to: silent`
-  - Cloud-based: delete from Cloud UI or use silencing rules
+**How Cloud alerts interact with file-based alerts:**
+- Cloud alerts with the **same name** as a file-based alert will **replace** that alert at runtime
+- Cloud alerts with **different names** run alongside file-based alerts
+
+**Solution if you want only one:**
+- File-based: override with `warn: 0` and `crit: 0` or set `to: silent`
+- Cloud-based: delete from Cloud UI or use silencing rules
+- To replace a file-based alert with Cloud: create the Cloud alert with the **same name**
 
 </details>
 

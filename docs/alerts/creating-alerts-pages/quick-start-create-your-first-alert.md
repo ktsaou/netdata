@@ -81,10 +81,10 @@ Tell Netdata to load your new alert:
 sudo netdatacli reload-health
 ```
 
-You should see:
+The command returns exit code 0 on success (no output). To verify the reload worked, check the Netdata logs:
 
-```
-Health configuration reloaded
+```bash
+sudo grep -i "reloading health" /var/log/netdata/netdata.log | tail -1
 ```
 
 :::note
@@ -93,6 +93,8 @@ If `netdatacli` is not available, restart the Netdata service:
 ```bash
 sudo systemctl restart netdata
 ```
+
+**Troubleshooting:** If your alert doesn't appear after reloading, check for syntax errors in `/var/log/netdata/error.log`.
 :::
 
 **Step 5: Verify the Alert Loaded**

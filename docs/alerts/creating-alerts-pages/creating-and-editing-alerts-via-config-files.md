@@ -17,6 +17,17 @@ Netdata loads alert (health) configuration from two main directories:
 | `/usr/lib/netdata/conf.d/health.d/` | Stock alerts (built-in) | Netdata packages | **No** (overwritten) |
 | `/etc/netdata/health.d/` | Custom alerts (yours) | You | **Yes** |
 
+:::tip Disabling Stock Alerts Entirely
+
+If you want to disable all stock alerts and only use custom alerts, add this to your `netdata.conf` under the `[health]` section:
+
+```ini
+[health]
+    enable stock health configuration = no
+```
+
+:::
+
 **Rule of thumb:**
 - **Never edit** files in `/usr/lib/netdata/conf.d/health.d/` directly, your changes will be lost on upgrade
 - **Always place** your custom alerts in `/etc/netdata/health.d/`
@@ -231,10 +242,10 @@ After editing alert configuration files, you must **reload** the health configur
 sudo netdatacli reload-health
 ```
 
-If successful, you will see:
+The command returns exit code 0 on success (no output). You can verify the reload worked by checking the logs:
 
-```text
-Health configuration reloaded
+```bash
+sudo grep -i "reloading health" /var/log/netdata/netdata.log | tail -1
 ```
 
 This method:
@@ -340,9 +351,9 @@ To modify a **built-in (stock) alert** without losing your changes on upgrade:
 5. **Reload** health configuration
 
 **How precedence works:**
-- Stock alerts load first from `/usr/lib/netdata/conf.d/health.d/`
-- Custom alerts load next from `/etc/netdata/health.d/`
-- If a custom alert has the **same name** as a stock alert, the custom version **overrides** it
+- Custom alerts in `/etc/netdata/health.d/` are loaded first
+- Stock alerts from `/usr/lib/netdata/conf.d/health.d/` are loaded next, **but only if no custom file with the same filename exists**
+- If a custom alert has the **same name** as a stock alert, the last-loaded definition takes precedence
 
 :::tip
 

@@ -256,18 +256,22 @@ calc: $now - $last_collected_t
 warn: $this > (5 * $update_every)
 ```
 
-### `$collected_total_raw` (Sum of All Dimensions)
+### Total Capacity Calculations
 
-**Contains:** Sum of all dimensions' last collected values (raw).
-
-When to use: Total capacity calculations.
+To calculate percentages or totals, sum the relevant dimensions explicitly:
 
 **Example:**
 ```conf
-# Total disk capacity = used + available
-calc: $used * 100 / $collected_total_raw
+# Disk usage as percentage of total capacity
+calc: $used * 100 / ($used + $avail)
 warn: $this > 80
 ```
+
+:::tip
+
+Always sum the specific dimensions you need rather than relying on undocumented totals. This makes your alert logic explicit and maintainable.
+
+:::
 
 ### `$green` and `$red` (Threshold Values)
 

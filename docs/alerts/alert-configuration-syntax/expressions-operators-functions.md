@@ -138,9 +138,9 @@ For clarity, keep complex arithmetic in `calc` and use `warn`/`crit` mainly for 
 
 :::
 
-## 3.4.4 Logical Operators and Grouping
+## 3.4.4 Logical Operators, Ternary Operator, and Grouping
 
-Logical operators let you combine conditions.
+Logical operators let you combine conditions. The ternary operator provides conditional expressions.
 
 ### Logical Operators
 
@@ -149,6 +149,19 @@ Logical operators let you combine conditions.
 | `&&`, `AND` | logical AND (case-insensitive) | `($this > 80) && ($status == $CLEAR)` |
 | `\|\|`, `OR` | logical OR (case-insensitive) | `($cpu > 90) \|\| ($error_rate > 5)` |
 | `!`, `NOT` | logical NOT (case-insensitive) | `!($status == $CRITICAL)` |
+
+### Ternary Operator (Conditional Expression)
+
+| Operator | Syntax | Example |
+|----------|--------|---------|
+| `? :` | `condition ? value_if_true : value_if_false` | `($status >= $WARNING) ? 75 : 85` |
+
+The ternary operator is essential for hysteresis patterns—using different thresholds based on current alert status:
+
+```conf
+# Enter WARNING at 85, exit when below 75
+warn: $this > (($status >= $WARNING) ? 75 : 85)
+```
 
 :::tip
 
@@ -171,14 +184,29 @@ warn: ($this > 75) && !($status == $CRITICAL)
 
 ### Parentheses and Precedence
 
-Netdata follows normal operator precedence rules:
+Netdata follows these operator precedence rules (highest to lowest):
 
 1. Parentheses `(...)`
-2. Arithmetic operators (`*`, `/`, `%`, then `+`, `-`)
-3. Comparison operators (`>`, `<`, `>=`, `<=`, `==`, `!=`)
-4. Logical NOT `!`
-5. Logical AND `&&`
-6. Logical OR `||`
+2. Ternary operator `? :`
+3. Unary operators: Logical NOT `!`, unary `+`, unary `-`, `abs()`
+4. Multiplicative: `*`, `/`, `%`
+5. Additive: `+`, `-`
+6. Comparison operators: `>`, `<`, `>=`, `<=`, `==`, `!=`
+7. Logical AND `&&` and OR `||` (**same precedence level**)
+
+:::warning AND and OR Have Equal Precedence
+
+Unlike some languages where AND binds tighter than OR, Netdata evaluates `&&` and `||` at the **same precedence level** (left to right). Always use parentheses to make your intent explicit:
+
+```conf
+# Ambiguous - depends on left-to-right evaluation
+warn: $a > 1 && $b > 2 || $c > 3
+
+# Clear - explicit grouping
+warn: ($a > 1 && $b > 2) || ($c > 3)
+```
+
+:::
 
 :::tip
 

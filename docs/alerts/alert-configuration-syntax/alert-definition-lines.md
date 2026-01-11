@@ -50,10 +50,21 @@ Most practical alerts are built from the same core lines. A minimal, functional 
 |------|-----------|---------|
 | `alarm` / `template` | Yes | Names the rule so it can be referenced and managed |
 | `on` | Yes | Chooses what to monitor: a chart (for `alarm`) or context (for `template`) |
-| `lookup` or `calc` | Yes (at least one) | `lookup` reads and aggregates metrics; `calc` transforms values or references variables |
-| `every` | Yes | Sets how often the health engine evaluates the rule |
-| `warn` and/or `crit` | Yes (at least one) | Boolean expressions that decide when the alert changes status |
+| `lookup` or `calc` | At least one of: `lookup`, `calc`, `warn`, or `crit` | `lookup` reads and aggregates metrics; `calc` transforms values or references variables |
+| `every` | Recommended | Sets how often the health engine evaluates the rule (defaults to update frequency) |
+| `warn` and/or `crit` | At least one of: `lookup`, `calc`, `warn`, or `crit` | Boolean expressions that decide when the alert changes status |
 | `to` | Strongly recommended | Tells Netdata who should receive notifications (or `silent`) |
+
+**Optional matcher lines** (for templates to narrow scope):
+
+| Line | Purpose |
+|------|---------|
+| `os` | Match specific operating systems (e.g., `linux`, `freebsd`) |
+| `hosts` | Match specific hostnames (supports patterns) |
+| `plugin` | Match alerts to charts from specific plugins |
+| `module` | Match alerts to charts from specific modules |
+| `chart_labels` | Match charts with specific labels |
+| `host_labels` | Match hosts with specific labels |
 
 ### Example: Minimal template
 
