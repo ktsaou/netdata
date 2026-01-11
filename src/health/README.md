@@ -348,13 +348,14 @@ Variables resolve in order (first match wins):
 | `$now`              | Current time              | Unix timestamp     |
 | `$last_collected_t` | Last collection time      | Unix timestamp     |
 | `$update_every`     | Collection frequency      | Seconds            |
-| `$status`           | Current status code       | -2 to 3            |
+| `$status`           | Current status code       | -2 to 4            |
 | `$REMOVED`          | Status constant           | -2                 |
-| `$UNINITIALIZED`    | Status constant           | -1                 |
-| `$UNDEFINED`        | Status constant           | 0                  |
+| `$UNDEFINED`        | Status constant           | -1                 |
+| `$UNINITIALIZED`    | Status constant           | 0                  |
 | `$CLEAR`            | Status constant           | 1                  |
-| `$WARNING`          | Status constant           | 2                  |
-| `$CRITICAL`         | Status constant           | 3                  |
+| `$RAISED`           | Status constant           | 2                  |
+| `$WARNING`          | Status constant           | 3                  |
+| `$CRITICAL`         | Status constant           | 4                  |
 
 #### 2. Dimension Values
 

@@ -995,11 +995,12 @@ Although the `alarm_variables` link shows variables for a particular chart, the 
 | Constant         | Numeric Value | Usage                          |
 |------------------|---------------|--------------------------------|
 | `$REMOVED`       | -2            | Alert deleted (SIGUSR2 reload) |
-| `$UNINITIALIZED` | -1            | Alert not initialized          |
-| `$UNDEFINED`     | 0             | Calculation failed             |
+| `$UNDEFINED`     | -1            | Calculation failed             |
+| `$UNINITIALIZED` | 0             | Alert not initialized          |
 | `$CLEAR`         | 1             | Alert OK/not triggered         |
-| `$WARNING`       | 2             | Warning condition met          |
-| `$CRITICAL`      | 3             | Critical condition met         |
+| `$RAISED`        | 2             | Generic raised state           |
+| `$WARNING`       | 3             | Warning condition met          |
+| `$CRITICAL`      | 4             | Critical condition met         |
 
 **Status Comparison Examples:**
 
