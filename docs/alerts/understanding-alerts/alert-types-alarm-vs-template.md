@@ -73,28 +73,30 @@ Use **template** when:
 
 ## How to Target a Specific Chart with `template`
 
-If you need to target a specific chart instance (the use case for legacy `alarm`), use `template` with scoped context matching:
-- Specify the exact context dimension or filter
-- Use `from` and `to` options to narrow scope
+If you need to target a specific chart instance (the use case for legacy `alarm`), use `template` with scoped matching:
+- Use `host labels` to restrict to specific hosts
+- Use `chart labels` to target specific chart instances (e.g., by mount point, device, container name)
 - This approach migrates cleanly to the future YAML format
 
 Example (legacy `alarm` vs equivalent `template`):
 ```conf
 # Legacy alarm syntax (discouraged)
 alarm: disk_fill_alarm
-    on: disk space
-    to: disk
+    on: disk.space
+    lookup: average -1m percentage of avail
     units: %
     every: 10s
-    warn: $this > 80
-    crit: $this > 90
+    warn: $this < 20
+    crit: $this < 10
 
-# Preferred template syntax (future-compatible)
+# Preferred template syntax (applies to all matching charts)
 template: disk_fill_alert
-    on: disk space
-    dimensions: /var/lib
-    warn: $this > 80
-    crit: $this > 90
+    on: disk.space
+    lookup: average -1m percentage of avail
+    units: %
+    every: 10s
+    warn: $this < 20
+    crit: $this < 10
 ```
 
 ## Key Takeaways
