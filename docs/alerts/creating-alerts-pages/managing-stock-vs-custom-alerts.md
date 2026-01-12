@@ -19,7 +19,7 @@ Your Netdata deployment can have alerts from three sources:
 All three sources **coexist** on your nodes:
 - Custom file-based alerts in `/etc/netdata/health.d/` are loaded first
 - Stock alerts in `/usr/lib/netdata/conf.d/health.d/` are loaded next, but **only if no user file with the same filename exists**
-- Within the combined set, alerts with the **same name** accumulate—the last-loaded definition takes precedence for that name
+- Within the combined set, file-based alerts with the **same name** accumulate in a linked list (all definitions are kept and evaluated)
 - Cloud-defined alerts load at runtime and **replace** any file-based alert with the same name
 
 :::
@@ -99,9 +99,18 @@ Custom alerts handle:
    ```
 
 **What happens:**
-- Your custom version **overrides** the stock alert (same name = precedence)
-- Future Netdata upgrades won't affect your override
+- Both files are loaded (they have different filenames: `cpu_custom.conf` vs `cpu.conf`)
+- Alerts with the same **name** from both files accumulate in a linked list
+- User-defined alerts are loaded first and take precedence when applied to charts
+- Future Netdata upgrades won't affect your custom file
 - You still benefit from stock alert updates for alerts you **didn't** override
+
+**Alternative: Same filename override**
+If you want to completely prevent the stock file from loading, use the **same filename**:
+```bash
+sudo /etc/netdata/edit-config health.d/cpu.conf
+```
+This way, `/etc/netdata/health.d/cpu.conf` exists, so `/usr/lib/netdata/conf.d/health.d/cpu.conf` is never loaded.
 
 :::tip
 
@@ -138,7 +147,7 @@ File-based custom alerts:
 
 :::note
 
-**Important:** Cloud-defined and file-based alerts use different identifiers, so they **don't automatically override each other**. If you want to "replace" a file-based alert with a Cloud one, you must explicitly disable or remove the file-based version.
+**Important:** Cloud-defined alerts with the **same name** as a file-based alert will **replace** that alert at runtime. However, if they have different names, they run independently. To fully replace a file-based alert with a Cloud one, ensure they share the same alert name, or explicitly disable the file-based version.
 
 :::
 
@@ -168,12 +177,18 @@ Setting `to: silent` prevents notifications without stopping evaluation.
 
 **Method 2: Override with never-firing condition**
 ```conf
-# Override alert to never trigger
+# Override alert to never trigger (expressions that always evaluate to false)
 alarm: some_stock_alert_name
    on: <chart>
- warn: 0
- crit: 0
+ warn: 0    # Expression "0" always evaluates to false/CLEAR
+ crit: 0    # Expression "0" always evaluates to false/CLEAR
 ```
+
+:::note
+
+Setting `warn: 0` and `crit: 0` works because alert conditions are expressions. The constant `0` evaluates to false (CLEAR status), so the alert never triggers. This is different from setting a threshold of zero.
+
+:::
 
 **Method 3: Disable via Cloud silencing rules**
 - Use **silencing rules** in Netdata Cloud to suppress notifications space-wide (see **Chapter 4: Controlling Alerts and Noise**)
@@ -337,7 +352,7 @@ curl -s "http://localhost:19999/api/v1/alarms" | jq '.alarms["alert_name"]'
 
 Look for:
 - `chart`: tells you which chart it's attached to
-- `source`: may indicate file path (file-based) or Cloud origin
+- `source`: contains the file path and line number for file-based alerts (e.g., `line=42,file=/etc/netdata/health.d/cpu.conf`)
 
 </details>
 
@@ -345,10 +360,11 @@ Look for:
 <summary><strong>My custom override isn't working</strong></summary>
 
 **Check:**
-1. **Alert name matches exactly** (stock and custom must use the same name for override to work)
-2. **Custom alert is in the right location** (`/etc/netdata/health.d/`, not `/usr/lib/...`)
-3. **No syntax errors** (check `/var/log/netdata/error.log`)
-4. **Health configuration reloaded** (`sudo netdatacli reload-health` returns exit 0)
+1. **File location is correct** - custom files must be in `/etc/netdata/health.d/`, not `/usr/lib/...`
+2. **Filename strategy** - if you want to completely replace a stock file, use the **same filename** in `/etc/netdata/health.d/` (stock file won't be loaded)
+3. **Alert name for accumulation** - if using a different filename, alerts with the same name will accumulate (both are evaluated)
+4. **No syntax errors** - check `/var/log/netdata/error.log` for parsing errors
+5. **Health configuration reloaded** - run `sudo netdatacli reload-health` (should return exit 0)
 
 </details>
 
@@ -358,8 +374,9 @@ Look for:
 **This is expected behavior** when the alerts have different names. Cloud and file-based alerts coexist unless they share the same name.
 
 **How Cloud alerts interact with file-based alerts:**
-- Cloud alerts with the **same name** as a file-based alert will **replace** that alert at runtime
+- Cloud alerts (DYNCFG source) with the **same name** as a file-based alert will **replace** that alert at runtime
 - Cloud alerts with **different names** run alongside file-based alerts
+- File-based alerts with the same name **accumulate** (all are kept and evaluated)
 
 **Solution if you want only one:**
 - File-based: override with `warn: 0` and `crit: 0` or set `to: silent`

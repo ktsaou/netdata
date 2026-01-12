@@ -1,30 +1,39 @@
-# 8.5 Performance Considerations
+# Performance Considerations
 
-## 8.5.1 What Affects Performance
+## What Affects Performance
 
 | Factor | Impact | Recommendation |
 |--------|--------|----------------|
 | `every` frequency | Lower (more frequent) = more CPU | Use 1m for most alerts |
-| `lookup` window | Longer windows need more processing | Match to needs |
-| Number of alerts | More alerts = more evaluation | Disable unused alerts |
+| `lookup` window | Longer windows require more data processing | Match window to detection needs |
+| Number of alerts | More alerts = more evaluation cycles | Disable unused alerts |
 
-## 8.5.2 Efficient Configuration
+The health engine runs at a minimum interval of 10 seconds (configurable via `run at least every` in `netdata.conf`). Individual alerts can specify longer intervals with the `every` option.
 
-```conf
-# Efficient: 1-minute evaluation
-template: system_health
-    on: system.cpu
-lookup: average -5m of user,system
-    every: 1m     # Good: 60 evaluations/hour
+## Efficient Configuration
+
+```yaml
+# Efficient: 1-minute evaluation interval
+ template: system_health
+       on: system.cpu
+   lookup: average -5m of user,system
+    every: 1m
      warn: $this > 80
 
-# Inefficient: 10-second evaluation
-template: system_fast
-    on: system.cpu
-lookup: average -1m of user,system
-    every: 10s    # Bad: 360 evaluations/hour
+# Less efficient: 10-second evaluation interval
+ template: system_fast
+       on: system.cpu
+   lookup: average -1m of user,system
+    every: 10s
+     warn: $this > 80
 ```
 
-## 8.5.3 Related Sections
+**Evaluation frequency impact:**
+- `every: 1m` results in 60 evaluations per hour
+- `every: 10s` results in 360 evaluations per hour
 
-- **13.1 Evaluation Architecture** for internal behavior
+For most monitoring scenarios, 1-minute evaluation provides adequate detection speed while conserving resources.
+
+## Related Sections
+
+- [Evaluation Architecture](../architecture/evaluation-architecture.md) for internal behavior

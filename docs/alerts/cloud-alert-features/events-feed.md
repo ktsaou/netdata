@@ -1,25 +1,40 @@
 # 10.1 Events Feed
 
+The Events Feed provides a historical view of key activities across your infrastructure and Space, helping you correlate changes with anomalies or node behavior.
+
+## 10.1.1 Accessing the Events Feed
+
 1. Log in to Netdata Cloud
-2. Navigate to **Events** in the left sidebar
+2. Click the **Events** tab in the left sidebar
+3. Define the timeframe using the Date and Time selector
+4. Apply filters from the right-hand bar
 
-## 10.1.1 Event Types
+## 10.1.2 Event Domains
 
-| Type | Description |
-|------|-------------|
-| Alert Created | New alert defined |
-| Alert Triggered | Status changed to WARNING/CRITICAL |
-| Alert Cleared | Returned to CLEAR |
+| Event Domain | Description | Retention (Community) | Retention (Homelab/Business) |
+|--------------|-------------|----------------------|------------------------------|
+| **Alert Events** | Alert state transitions (CLEAR, WARNING, CRITICAL, Removed, Error, Unknown) | 4 hours | 90 days |
+| **Topology Events** | Node connectivity changes (live, offline, created, deleted) | 4 hours | 14 days |
+| **Auditing Events** | User actions and Space configuration changes | 4 hours | 90 days |
 
-## 10.1.2 Filtering
+## 10.1.3 Filtering Options
 
-```text
-status:CRITICAL  # Only critical alerts
-host:prod-db-*   # Database servers
-alert:*cpu*      # CPU-related alerts
-```
+The right-hand filter bar provides options for:
 
-## 10.1.3 Related Sections
+- **Event domain** - Filter by Alerts, Topology, or Auditing events
+- **Node** - Filter by specific nodes
+- **Alert severity** - Filter by alert severity level
+- **Time range** - Define the timeframe for event history
 
-- **9.5 Cloud Events API** for programmatic access
-- **5.3 Cloud Notifications** for routing
+## 10.1.4 Access Restrictions
+
+| User Role | Accessible Event Domains |
+|-----------|--------------------------|
+| Administrators | All domains (Auditing, Topology, Alerts) |
+| Non-administrators | Topology and Alerts only |
+
+## 10.1.5 Related Sections
+
+- **9.5 Cloud Events** for Cloud Events overview
+- **5.3 Cloud Notifications** for notification routing
+- See also: [Events Tab](/docs/dashboards-and-charts/events-feed.md) for complete reference

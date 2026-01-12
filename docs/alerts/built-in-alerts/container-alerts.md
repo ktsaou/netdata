@@ -53,8 +53,7 @@ Monitors CPU utilization for containers over 10-minute windows.
 
 **Context:** `cgroup.cpu_limit`
 **Thresholds:**
-- WARNING: > 85%
-- CRITICAL: > 95%
+- WARNING: > 95% (with hysteresis to 85%)
 
 ### cgroup_ram_in_use
 
@@ -62,8 +61,25 @@ Monitors memory usage against container limits.
 
 **Context:** `cgroup.mem_usage`
 **Thresholds:**
-- WARNING: > 80%
-- CRITICAL: > 90%
+- WARNING: > 90% (with hysteresis to 80%)
+- CRITICAL: > 98% (with hysteresis to 90%)
+
+### k8s_cgroup_10min_cpu_usage
+
+Monitors CPU utilization for Kubernetes containers over 10-minute windows.
+
+**Context:** `k8s.cgroup.cpu_limit`
+**Thresholds:**
+- WARNING: > 85% (with hysteresis to 75%)
+
+### k8s_cgroup_ram_in_use
+
+Monitors memory usage for Kubernetes containers against limits.
+
+**Context:** `k8s.cgroup.mem_usage`
+**Thresholds:**
+- WARNING: > 90% (with hysteresis to 80%)
+- CRITICAL: > 98% (with hysteresis to 90%)
 
 ## Kubernetes Alerts
 
@@ -75,40 +91,47 @@ Stock alerts:
 Kubernetes alerts require the Kubernetes state metrics collector to be enabled.
 :::
 
-### k8s_pod_container_waiting
+### k8s_state_deployment_condition_available
 
-Monitors containers stuck in waiting state (CrashLoopBackOff, ImagePullBackOff, etc.).
+Monitors Kubernetes deployment availability status.
 
-**Context:** `k8s_state.pod_container_waiting_state_reason`
-**Thresholds:** WARNING when container is waiting
+**Context:** `k8s_state.deployment_conditions`
+**Thresholds:** WARNING when deployment does not have minimum required replicas
 
-### k8s_pod_container_terminated
+### k8s_state_cronjob_last_execution_failed
 
-Monitors containers that terminated with non-zero exit codes.
+Monitors Kubernetes CronJob execution failures.
 
-**Context:** `k8s_state.pod_container_terminated_state_reason`
-**Thresholds:** WARNING when OOMKilled, Error, or similar
+**Context:** `k8s_state.cronjob_last_execution_status`
+**Thresholds:** WARNING when last CronJob execution failed
 
-### k8s_node_not_ready
+### kubelet_node_config_error
 
-Monitors Kubernetes node ready condition.
+Monitors kubelet node configuration errors.
 
-**Context:** `k8s_state.node_condition`
-**Thresholds:** WARNING when node is not ready
+**Context:** `k8s_kubelet.kubelet_node_config_error`
+**Thresholds:** WARNING when the node is experiencing a configuration-related error
 
 ### kubelet_token_requests
 
 Monitors kubelet API token request failures.
 
-**Context:** `k8s_kubelet.token_requests`
-**Thresholds:** WARNING when failed requests > 0
+**Context:** `k8s_kubelet.kubelet_token_requests`
+**Thresholds:** WARNING when failed requests > 0 over the last 10 seconds
 
 ### kubelet_operations_error
 
 Monitors kubelet runtime operation errors.
 
 **Context:** `k8s_kubelet.kubelet_operations_errors`
-**Thresholds:** WARNING when errors > 0 over 10 minutes
+**Thresholds:** WARNING when errors > 20 over 1 minute (with hysteresis to 0)
+
+### kubelet_10s_pleg_relist_latency_quantile_05/09/099
+
+Monitors Pod Lifecycle Event Generator (PLEG) relisting latency. These alerts compare the 10-second average latency to the 1-minute baseline for quantiles 0.5, 0.9, and 0.99.
+
+**Context:** `k8s_kubelet.kubelet_pleg_relist_latency_microseconds`
+**Thresholds:** Vary by quantile, WARNING/CRITICAL when 10s latency exceeds baseline by 2x-12x
 
 ## Related Files
 

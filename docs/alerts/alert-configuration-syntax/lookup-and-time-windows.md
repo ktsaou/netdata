@@ -25,12 +25,12 @@ In most alerts, `lookup` is where you specify:
 Typical form:
 
 ```conf
-lookup: <function> <time_window> [at <before>] [every <resampling>] [options] of <dimensions>
+lookup: <function> <time_window> [at <before>] [every <update_every>] [options] of <dimensions>
 ```
 
 :::note 
 
-The `every` parameter can appear within lookups for data resampling but is **extremely rare** in practice. Most alerts control evaluation frequency using the alert-level `every` line instead.
+The `every` parameter can appear within lookups to set the alert evaluation interval, but is **extremely rare** in practice. Most alerts control evaluation frequency using the alert-level `every` line instead (both have the same effect).
 
 :::
 
@@ -117,8 +117,8 @@ Netdata supports many additional aggregation methods:
 **Example using `cv` (coefficient of variation):**
 ```conf
 # Alert when metric variability is too high
-lookup: cv -5m unaligned of response_time
-  warn: $this > 50  # CV > 50% indicates high variability
+    lookup: cv -5m unaligned of response_time
+      warn: $this > 50  # CV > 50% indicates high variability
 ```
 
 For the complete list with syntax details, refer to Netdata's `REFERENCE.md`.
@@ -208,7 +208,7 @@ Options modify how the lookup processes data. **Always include `unaligned`** and
 
 ### The `unaligned` Option (Always Use This)
 
-**The `unaligned` keyword appears in 95% of Netdata's stock alerts** and should be your default choice.
+**The `unaligned` keyword appears in the vast majority of Netdata's stock alerts** and should be your default choice.
 
 **Without `unaligned`:**
 - The engine may align windows to internal boundaries (for example, whole minutes)
@@ -311,9 +311,10 @@ lookup: max -1m unaligned of used
 lookup: average -10m unaligned of user,system,softirq,irq
 ```
 
-How Netdata handles the dimensions depends on the chart and function. For most stock alerts:
-- Multiple dimensions are combined in a way that makes sense for that chart (for example, summing CPU states)
-- The combined result is then fed into the aggregation function and exposed as `$this`
+How Netdata processes multiple dimensions:
+1. The aggregation function (for example, `average`) is applied to each dimension separately over the time window
+2. The resulting values are then combined across dimensions (summed by default, or using dimension options like `min`, `max`, `average`)
+3. The final result is exposed as `$this`
 
 If you're not sure which dimensions a chart has:
 - Open the chart in the Netdata dashboard and inspect its legend, or

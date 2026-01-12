@@ -73,35 +73,47 @@ This is useful when:
 - You're doing maintenance and don't want alerts firing
 - You want to completely stop health monitoring on a development or test node
 
-## 4.1.2 Disable Evaluation While Keeping Notifications
+## 4.1.2 Disable Evaluation While Keeping Alert Visible
 
-If you want to stop the alert from **ever changing status** but still see it in the UI, set both conditions to false:
+If you want the alert to remain visible in the UI but **never trigger** (stay in CLEAR status), set both conditions to always-false values:
 
 ```conf
 template: noisy_alert
-   on: system.cpu
-   warn: ($this) = 0
-   crit: ($this) = 0
+      on: system.cpu
+    warn: 0
+    crit: 0
 ```
 
-This keeps the alert loaded but ensures it never triggers notifications.
+Since `0` evaluates to false, the alert will never raise to WARNING or CRITICAL status. The alert remains loaded and visible in the alerts list, but stays in CLEAR state.
 
 ## 4.1.3 Disable via Health Management API
 
-You can also disable alerts programmatically at runtime:
+You can also disable alerts programmatically at runtime using the health management API.
+
+**Important:** This API requires authentication via the `X-Auth-Token` header. By default, access is only allowed from localhost.
 
 ```bash
-# Disable a specific alert (stops evaluation entirely)
-curl -s "http://localhost:19999/api/v1/manage/health?cmd=DISABLE&alarm=my_alert"
+# Disable alerts matching a context (stops evaluation entirely)
+curl "http://localhost:19999/api/v1/manage/health?cmd=DISABLE&context=random" \
+     -H "X-Auth-Token: YOUR_API_KEY"
 
 # Disable ALL alerts on this node
-curl -s "http://localhost:19999/api/v1/manage/health?cmd=DISABLE%20ALL"
+curl "http://localhost:19999/api/v1/manage/health?cmd=DISABLE%20ALL" \
+     -H "X-Auth-Token: YOUR_API_KEY"
 
-# Re-enable a specific alert
-curl -s "http://localhost:19999/api/v1/manage/health?cmd=RESET&alarm=my_alert"
+# Re-enable all alerts (clears all silencers and disablers)
+curl "http://localhost:19999/api/v1/manage/health?cmd=RESET" \
+     -H "X-Auth-Token: YOUR_API_KEY"
 ```
 
-See **9.4 Health Management API** for full documentation.
+**Note:** Runtime-disabled alerts are still **loaded** in memory but skip evaluation. To verify the current state, use:
+
+```bash
+curl "http://localhost:19999/api/v1/manage/health?cmd=LIST" \
+     -H "X-Auth-Token: YOUR_API_KEY"
+```
+
+See **9.4 Health Management API** for full documentation on selectors and authentication.
 
 ## 4.1.4 Related Sections
 

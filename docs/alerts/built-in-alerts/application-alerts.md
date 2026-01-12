@@ -84,21 +84,17 @@ Monitors connection pool usage against maximum connections.
 - WARNING: > 80%
 - CRITICAL: > 90%
 
-### postgres_database_deadlocks_rate
+### postgres_db_deadlocks_rate
 
 Detects deadlocks indicating concurrent transaction conflicts.
 
-**Context:** `postgres.database_deadlocks_rate`
-**Thresholds:** WARNING > 0
-
-### postgres_replication_lag
-
-Monitors streaming replication lag.
-
-**Context:** `postgres.replication_standby_app_wal_lag_size`
+**Context:** `postgres.db_deadlocks_rate`
 **Thresholds:**
-- WARNING: > 200 MB
-- CRITICAL: > 400 MB
+- WARNING: > 10 (stays until <= 0)
+
+:::note
+PostgreSQL replication lag alerts are not included in the stock configuration. You can create custom alerts based on the `postgres.replication_standby_app_wal_lag_size` context if needed.
+:::
 
 ## Redis
 
@@ -115,8 +111,8 @@ Monitors rejected connections due to maxclients limit.
 
 For replicas, monitors connection to master.
 
-**Context:** `redis.master_link_status`
-**Thresholds:** CRITICAL when link is down
+**Context:** `redis.master_link_down_since_time`
+**Thresholds:** CRITICAL when link down time > 0
 
 ### redis_bgsave_broken
 
@@ -129,30 +125,41 @@ Monitors background save failures.
 
 Stock alerts: `/usr/lib/netdata/conf.d/health.d/rabbitmq.conf`
 
-### rabbitmq_node_disk_free_alarm_status
+### rabbitmq.node_disk_free_alarm_status_triggered
 
 Monitors disk space alarms from RabbitMQ.
 
 **Context:** `rabbitmq.node_disk_free_alarm_status`
-**Thresholds:** CRITICAL when alarm is active
+**Thresholds:** WARNING when alarm is triggered
 
-### rabbitmq_node_mem_alarm_status
+### rabbitmq_node_mem_alarm_status_triggered
 
 Monitors memory alarms from RabbitMQ.
 
 **Context:** `rabbitmq.node_mem_alarm_status`
-**Thresholds:** CRITICAL when alarm is active
+**Thresholds:** WARNING when alarm is triggered
 
 ## Memcached
 
 Stock alerts: `/usr/lib/netdata/conf.d/health.d/memcached.conf`
 
-### memcached_fill_rate
+### memcached_cache_memory_usage
 
-Monitors the rate at which the cache is filling.
+Monitors cache memory utilization.
 
-**Context:** `memcached.evictions`
-**Thresholds:** WARNING when fill rate exceeds eviction rate significantly
+**Context:** `memcached.cache`
+**Thresholds:**
+- WARNING: > 80% (stays until < 70%)
+- CRITICAL: > 90% (stays until < 80%)
+
+### memcached_out_of_cache_space_time
+
+Estimates hours until cache runs out of space based on fill rate.
+
+**Context:** `memcached.cache`
+**Thresholds:**
+- WARNING: < 8 hours (stays while < 48 hours)
+- CRITICAL: < 2 hours (stays while < 24 hours)
 
 ## Related Files
 

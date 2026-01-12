@@ -32,7 +32,7 @@ Document the removal decision. A log of removed alerts and the reasoning helps f
 
 Alert configurations should be tested before deployment. Untested alerts frequently have configuration errors preventing them from firing when needed.
 
-Use `netdatacli reload-health` to validate configurations before deployment. This catches syntax errors that would prevent alerts from loading.
+Use `netdatacli reload-health` to reload configurations after changes. Syntax errors are logged but do not cause the command to fail. Check `/var/log/netdata/error.log` after reload to verify your configuration loaded without errors.
 
 Test thresholds against representative data. Before deploying a CPU alert at 90%, verify that it fires for actual CPU patterns and does not fire for normal variation.
 

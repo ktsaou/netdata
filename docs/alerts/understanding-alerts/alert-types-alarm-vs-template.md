@@ -2,7 +2,7 @@
 
 :::note
 
-The distinction between `alarm` and `template` is a legacy feature. Netdata is moving toward a unified alert definition format (YAML-based) where both will be consolidated into a single alert type. The `alarm` syntax is essentially a subset of `template` functionality. For new alert definitions, **use `template` exclusively**.
+The distinction between `alarm` and `template` is a legacy feature. Netdata plans to move toward a unified alert definition format where both will be consolidated into a single alert type. The key difference is scope: `alarm` targets a specific chart by ID, while `template` targets all charts matching a context. For new alert definitions, **use `template` exclusively**.
 
 :::
 
@@ -14,11 +14,11 @@ In Netdata, alerts are rules that monitor metrics from charts and assign a statu
 |--------|-------------|
 | **Unified evaluation** | Both use the same health engine and evaluation logic |
 | **Scope** | The rule can target one specific chart or all charts of a context |
-| **Future direction** | Both will be unified into a single YAML-based alert definition format |
+| **Future direction** | Both are planned to be unified into a single alert definition format |
 
 ## `template`: The Preferred Alert Type
 
-A **template** is the recommended way to define alerts. It is attached to a **context** (a chart "family" or type) and automatically applies to **all charts that match that context**.
+A **template** is the recommended way to define alerts. It is attached to a **context** (a chart type identifier like `disk.space` or `net.net`) and automatically applies to **all charts that match that context**.
 
 | Aspect | Description |
 |--------|-------------|
@@ -34,7 +34,7 @@ An **alarm** is a legacy syntax for defining chart-specific alerts. It is tied t
 :::note 
 
 Deprecation Notice
-The `alarm` syntax is maintained for backward compatibility. New alert definitions should use `template` exclusively. In future versions, both will be consolidated into a unified YAML format.
+The `alarm` syntax is maintained for backward compatibility. New alert definitions should use `template` exclusively. In future versions, both are planned to be consolidated into a unified format.
 
 :::
 
@@ -50,8 +50,8 @@ flowchart TD
     Start("Do you need to monitor<br/>a specific chart instance?")
     Start -->|No| Template("Use **`template`**<br/>One rule applies to all<br/>matching charts automatically")
     Start -->|Yes| TemplateScoped("Use **`template`** with<br/>specific context match<br/>instead of `alarm` syntax")
-    TemplateScoped --> Explain["Define context and<br/>specific dimension/chart<br/>to target one instance"]
-    Template --> Benefits("**Benefits:**<br/>✓ Future-proof syntax<br/>✓ Unified configuration<br/>✓ Easier migration to YAML")
+    TemplateScoped --> Explain["Define context and<br/>use chart labels<br/>to target specific instances"]
+    Template --> Benefits("**Benefits:**<br/>✓ Future-proof syntax<br/>✓ Unified configuration<br/>✓ Easier migration path")
     Explain --> Benefits
     
     classDef decision fill: #2196F3, stroke: #000000, stroke-width: 3px, color: #ffffff, font-size: 16px
@@ -69,20 +69,21 @@ Use **template** when:
 - You want **consistent monitoring** across all disks, interfaces, containers, or other repeated components
 - You expect new instances to appear over time and want them **automatically covered**
 - You are **creating new alert definitions** (strongly preferred over `alarm`)
-- You want **future compatibility** with the upcoming YAML format
+- You want **future compatibility** with planned alert format changes
 
 ## How to Target a Specific Chart with `template`
 
 If you need to target a specific chart instance (the use case for legacy `alarm`), use `template` with scoped matching:
 - Use `host labels` to restrict to specific hosts
 - Use `chart labels` to target specific chart instances (e.g., by mount point, device, container name)
-- This approach migrates cleanly to the future YAML format
+- This approach migrates cleanly to future alert format changes
 
 Example (legacy `alarm` vs equivalent `template`):
 ```conf
 # Legacy alarm syntax (discouraged)
+# Note: 'alarm' requires a specific chart ID, not a context
 alarm: disk_fill_alarm
-    on: disk.space
+    on: disk_sda.space
     lookup: average -1m percentage of avail
     units: %
     every: 10s
@@ -90,6 +91,7 @@ alarm: disk_fill_alarm
     crit: $this < 10
 
 # Preferred template syntax (applies to all matching charts)
+# Note: 'template' uses a context to match all charts of that type
 template: disk_fill_alert
     on: disk.space
     lookup: average -1m percentage of avail
@@ -99,13 +101,17 @@ template: disk_fill_alert
     crit: $this < 10
 ```
 
+**Key Difference:**
+- `alarm` uses a **chart ID** (e.g., `disk_sda.space` for a specific disk)
+- `template` uses a **context** (e.g., `disk.space` matching all disk space charts)
+
 ## Key Takeaways
 
 - **`template`** is the **recommended and future-proof** way to define alerts
 - **`alarm`** is legacy syntax maintained for backward compatibility only
 - Both use the same health engine; only the **scope and syntax** differ
 - New alert definitions should **exclusively use `template`**
-- Netdata is moving toward a **unified YAML format** that will replace both
+- Netdata plans to unify both into a **single alert format** in future versions
 
 ## What's Next
 

@@ -23,5 +23,5 @@ This chapter provides systematic approaches to diagnose and fix alerts that don'
 ## What's Next
 
 - **7.1 Alert Never Triggers** covers diagnostic steps
-- **7.2 Always Critical** for calculation errors
+- **7.2 Always Critical/Warning** for calculation errors
 - **7.5 Notifications Not Sent** for notification debugging

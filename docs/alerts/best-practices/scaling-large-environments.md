@@ -10,7 +10,7 @@ Store templates in version control alongside configurations. When templates chan
 
 ## Parent-Based Alerting
 
-Use Parent-based alerting for hierarchical setups to centralize control. Child nodes send metrics to parents; parents evaluate alerts for aggregate views.
+Use Parent-based alerting for hierarchical setups to centralize control (see **13.5 Agent-Parent-Cloud Notification Relationship**). Child nodes send metrics to parents; parents evaluate alerts for aggregate views.
 
 Design hierarchical alerting to respect ownership boundaries. A team responsible for a service should receive alerts for that service regardless of where in the hierarchy they originate.
 
@@ -26,7 +26,7 @@ Design alert scope to match data locality. Alerts on local metrics evaluate loca
 
 In large environments, the same alert may fire across many nodes. Alert deduplication and aggregation prevent notification storms from distributed problems.
 
-Configure Cloud deduplication to combine similar alerts from multiple sources. This reduces noise while preserving visibility into problem scope.
+Configure Netdata Cloud deduplication to combine similar alerts from multiple sources (see **11.4 Alert Notification Deduplication**). This reduces noise while preserving visibility into problem scope.
 
 Use labels and tags to scope alerts appropriately. An alert should fire for the appropriate scope: per-instance, per-service, or per-cluster.
 

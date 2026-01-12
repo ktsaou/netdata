@@ -84,7 +84,7 @@ Monitors disk space utilization for all mounted filesystems (excluding /dev, /ru
 ```conf
     template: disk_space_usage
           on: disk.space
-chart labels: mount_point=!/dev !/dev/* !/run !/run/* *
+chart labels: mount_point=!/dev !/dev/* !/run !/run/* !HarddiskVolume* *
         calc: $used * 100 / ($avail + $used)
        units: %
         warn: $this > (($status >= $WARNING ) ? (80) : (90))
@@ -97,8 +97,8 @@ For filesystems with many small files, tracks inode exhaustion which can occur b
 
 **Context:** `disk.inodes`
 **Thresholds:**
-- WARNING: > 90%
-- CRITICAL: > 98%
+- WARNING: > 90% (stays in WARNING until drops below 80%)
+- CRITICAL: > 98% (stays in CRITICAL until drops below 90%)
 
 ### out_of_disk_space_time
 
@@ -116,20 +116,20 @@ Predicts when disk will run out of space based on current fill rate. Provides ea
 Measures the percentage of time the disk spends processing I/O requests. High utilization indicates the disk is a bottleneck.
 
 **Context:** `disk.util`
-**Thresholds:** WARNING > 98%
+**Thresholds:** WARNING > 98% (stays in WARNING until drops below 68.6%)
 
 ### 10min_disk_backlog
 
 Monitors disk I/O backlog (queued operations). High backlog indicates the disk cannot keep up with demand.
 
 **Context:** `disk.backlog`
-**Thresholds:** WARNING > 5000ms
+**Thresholds:** WARNING > 5000ms (stays in WARNING until drops below 3500ms)
 
 ## Network Interface Alerts
 
 ### 1m_received_traffic_overflow / 1m_sent_traffic_overflow
 
-Monitors bandwidth utilization as a percentage of interface speed.
+Monitors bandwidth utilization as a percentage of interface speed. **Linux and Windows only.**
 
 **Context:** `net.net`
 **Thresholds:** WARNING > 90% (with 85% recovery)
@@ -143,14 +143,14 @@ Tracks the ratio of dropped packets to total packets. Excludes wireless interfac
 
 ### interface_inbound_errors / interface_outbound_errors
 
-Monitors interface errors which may indicate cable problems or hardware degradation.
+Monitors interface errors which may indicate cable problems or hardware degradation. **FreeBSD only.**
 
 **Context:** `net.errors`
 **Thresholds:** WARNING >= 5 errors in 10 minutes
 
 ### 10min_fifo_errors
 
-Monitors FIFO buffer errors indicating kernel buffer overflow on the interface.
+Monitors FIFO buffer errors indicating kernel buffer overflow on the interface. **Linux only.**
 
 **Context:** `net.fifo`
 **Thresholds:** WARNING > 0 errors
@@ -161,8 +161,8 @@ Detects sudden packet storms by comparing short-term to long-term packet rates.
 
 **Context:** `net.packets`
 **Thresholds:**
-- WARNING: 10-second rate > 5000% of 1-minute average
-- CRITICAL: 10-second rate > 6000% of 1-minute average
+- WARNING: 10-second rate > 5000% of 1-minute average (stays in WARNING until drops below 200%)
+- CRITICAL: 10-second rate > 6000% of 1-minute average (stays in CRITICAL until drops below 5000%)
 
 ## Related Files
 

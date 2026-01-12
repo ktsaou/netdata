@@ -16,7 +16,7 @@ These variables are always available in alert expressions after `lookup` or `cal
 
 **Contains:** The primary value being evaluated by this alert. If `calc` is defined, this is the result of the `calc` expression. If no `calc`, this is the result of the `lookup` aggregation.
 
-**Scope:** Available in all `calc`, `warn`, `crit`, and `ok` expressions.
+**Scope:** Available in all `calc`, `warn`, and `crit` expressions.
 
 **Example:**
 ```conf
@@ -123,9 +123,9 @@ Use when you need the exact raw value from the collector, not the interpolated c
 
 **Example:**
 ```conf
-on: system.mem
-calc: $mem_raw > 5000000  # Raw collected value in KiB
-warn: $this > 4000000
+on: disk.space
+calc: $used_raw  # Raw collected value (before storage conversion)
+warn: $this > 4000000000
 ```
 
 </details>
@@ -183,6 +183,8 @@ Alert status values are exposed as constants you can use in expressions for stat
 **Why values 1, 3, 4 instead of 1, 2, 3?**
 
 There's an internal status value 2 (`RAISED`) used by the health engine for state transitions. This status is not exposed as a constant variable (no `$RAISED`), but you may see `$status == 2` in logs or API responses during alert lifecycle transitions.
+
+:::
 
 :::note
 
@@ -277,7 +279,9 @@ Always sum the specific dimensions you need rather than relying on undocumented 
 
 **Contains:** The `green` and `red` threshold values **explicitly defined** in the alert configuration using the `green:` and `red:` lines.
 
-**Important:** These are NOT automatically set from `warn`/`crit` thresholds — you must define them explicitly if you want to reference them in expressions.
+**Important:**
+- These are NOT automatically set from `warn`/`crit` thresholds — you must define them explicitly if you want to reference them in expressions.
+- These values are **hardcoded into the expression at parse time**, not resolved dynamically at runtime. This means if you define `green: 80`, every occurrence of `$green` in your `calc`, `warn`, and `crit` expressions is replaced with the literal value `80` when the alert is loaded.
 
 **When to use:** Use `green` and `red` when you want to:
 - Reference thresholds in `calc` expressions
@@ -296,7 +300,7 @@ green: 80
 
 :::note
 
-These variables are `NaN` (not a number) if `green:` and `red:` lines are not present in the alert configuration. Test for `NaN` in expressions if these might be undefined.
+If `green:` or `red:` lines are not present in the alert configuration, any `$green` or `$red` references in expressions will remain unresolved and evaluate to `NaN`.
 
 :::
 
@@ -391,7 +395,7 @@ curl -s "http://localhost:19999/api/v1/alarm_variables?chart=mem.available" | jq
 
 ### API Response Structure
 
-The API returns a JSON object with five main sections providing complete variable information for the specified chart.
+The API returns a JSON object with multiple sections providing complete variable information for the specified chart.
 
 <details>
 <summary><strong>Response Sections Overview</strong></summary>
@@ -405,7 +409,7 @@ The API returns a JSON object with five main sections providing complete variabl
 
 **2. Current Alert Values (`current_alert_values`)**
 
-Core expression variables and status constants with their current values.
+Core expression variables (`this`, `after`, `before`, `now`, `status`) and status constants (`REMOVED`, `UNDEFINED`, `UNINITIALIZED`, `CLEAR`, `WARNING`, `CRITICAL`, `green`, `red`). Note: In the API response, `this`, `green`, and `red` show `NaN` and `status` shows `REMOVED` as placeholders - actual values are only available during alert evaluation.
 
 **3. Dimensions Last Stored Values (`dimensions_last_stored_values`)**
 
@@ -421,7 +425,15 @@ Timestamp variables with `_last_collected_t` suffix for each dimension.
 
 **6. Chart Variables (`chart_variables`)**
 
-Chart-level metadata: `last_collected_t`, `update_every`, `collected_total_raw`.
+Chart-level metadata: `last_collected_t`, `update_every`, and any custom chart variables.
+
+**7. Host Variables (`host_variables`)**
+
+Custom host-level variables.
+
+**8. Alerts (`alerts`)**
+
+Values from other running alerts that can be referenced.
 
 </details>
 
@@ -546,8 +558,8 @@ alarm: system_overload
 
 When Netdata resolves a variable name, it searches in this order:
 
-1. Special variables: `$this`, `$status`, `$now`, status constants (highest priority)
-2. Chart dimensions: Dimension IDs and names from current chart
+1. Special variables: `$this`, `$after`, `$before`, `$now`, `$status`, status constants (`$REMOVED`, `$UNDEFINED`, `$UNINITIALIZED`, `$CLEAR`, `$WARNING`, `$CRITICAL`), `$last_collected_t`, `$update_every` (highest priority)
+2. Chart dimensions: Dimension IDs and names from current chart (including `_raw` and `_last_collected_t` suffixes)
 3. Chart variables: Custom chart variables
 4. Host variables: Custom host variables
 5. Running alerts: Values from other alerts

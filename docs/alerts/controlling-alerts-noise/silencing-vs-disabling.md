@@ -4,10 +4,12 @@ This distinction is critical—confusing them is one of the most common sources 
 
 | Aspect | Disabling | Silencing |
 |--------|-----------|-----------|
-| **What stops** | Alert **evaluation** (never runs) | **Notifications** only (evaluation still runs) |
+| **What stops** | Alert **evaluation** (skipped) | **Notifications** only (evaluation still runs) |
 | **Alert events generated?** | **No** | **Yes**, but suppressed |
-| **Alert visible in UI?** | **No** (not loaded) | **Yes**, with its current status |
-| **Use case** | Permanent removal | Temporary quiet periods |
+| **Alert visible in UI?** | **Yes** (loaded but disabled) | **Yes**, with its current status |
+| **Use case** | Permanent removal or maintenance | Temporary quiet periods |
+
+**Note:** With runtime disabling (via the health management API), the alert is still loaded but skips evaluation. With configuration-level disabling (via `enabled: no`), the alert is not loaded at all.
 
 ## 4.2.1 How Silencing Works
 

@@ -10,21 +10,29 @@ This is a selection of key alerts. For the complete list, check the stock alert 
 
 Stock alerts: `/usr/lib/netdata/conf.d/health.d/mdstat.conf`
 
+### mdstat_disks
+
+Monitors RAID disk status for failed/down disks.
+
+**Context:** `md.disks`
+**Thresholds:** WARNING when down > 0 (any failed device)
+
 ### mdstat_mismatch_cnt
 
 Monitors RAID array mismatch counts which indicate potential data corruption.
 
 **Context:** `md.mismatch_cnt`
-**Thresholds:** CRITICAL > 0
+**Thresholds:** WARNING > 1024 unsynchronized blocks
+**Note:** Excludes raid1 and raid10 arrays (mismatch count is not reliable for mirrored arrays).
 
-### mdstat_disks
+### mdstat_nonredundant_last_collected
 
-Monitors RAID disk status for missing or failed disks.
+Monitors data collection freshness for non-redundant MD arrays.
 
-**Context:** `md.disks`
+**Context:** `md.nonredundant`
 **Thresholds:**
-- WARNING: disk count < expected
-- CRITICAL: failed disks > 0
+- WARNING: stale data (> 5 update intervals)
+- CRITICAL: very stale data (> 60 update intervals)
 
 ## UPS Monitoring (APC UPS)
 
@@ -44,8 +52,10 @@ Monitors remaining battery capacity.
        on: apcupsd.ups_battery_charge
    lookup: average -60s unaligned of charge
     units: %
+    every: 60s
      warn: $this < 100
      crit: $this < 40
+    delay: down 10m multiplier 1.5 max 1h
 ```
 
 ### apcupsd_ups_load_capacity
@@ -53,14 +63,22 @@ Monitors remaining battery capacity.
 Monitors UPS load percentage against capacity.
 
 **Context:** `apcupsd.ups_load_capacity_utilization`
-**Thresholds:** WARNING > 80% (stays until < 70%)
+**Thresholds:** WARNING > 80% (with hysteresis: stays in warning until < 70%)
+**Lookup:** 10-minute average
+
+### apcupsd_ups_selftest_warning
+
+Fires when UPS self-test fails.
+
+**Context:** `apcupsd.ups_selftest`
+**Thresholds:** WARNING when self-test result is BT (battery capacity) or NG (failure)
 
 ### apcupsd_ups_status_onbatt
 
 Fires when UPS switches to battery power.
 
 **Context:** `apcupsd.ups_status`
-**Thresholds:** WARNING when on battery
+**Thresholds:** WARNING when on battery (with 1 minute delay)
 
 ### apcupsd_ups_status_overload
 
@@ -83,6 +101,27 @@ Fires when battery needs replacement.
 **Context:** `apcupsd.ups_status`
 **Thresholds:** WARNING when battery replacement needed
 
+### apcupsd_ups_status_nobatt
+
+Fires when no battery is detected.
+
+**Context:** `apcupsd.ups_status`
+**Thresholds:** WARNING when no battery
+
+### apcupsd_ups_status_commlost
+
+Fires when communication with UPS is lost.
+
+**Context:** `apcupsd.ups_status`
+**Thresholds:** WARNING when communication lost
+
+### apcupsd_last_collected_secs
+
+Monitors data collection freshness.
+
+**Context:** `apcupsd.ups_status`
+**Thresholds:** WARNING when data collection is stale
+
 ## IPMI Monitoring
 
 Stock alerts: `/usr/lib/netdata/conf.d/health.d/ipmi.conf`
@@ -96,23 +135,105 @@ Monitors IPMI sensor states for critical and warning conditions.
 - WARNING: sensor in warning state
 - CRITICAL: sensor in critical state
 
+### ipmi_events
+
+Monitors IPMI System Event Log entries.
+
+**Context:** `ipmi.events`
+**Thresholds:** WARNING when events > 0 (sent to silent by default)
+
 ## Adaptec RAID
 
 Stock alerts: `/usr/lib/netdata/conf.d/health.d/adaptec_raid.conf`
 
-### adaptec_raid_ld_status
+### adaptec_raid_ld_health_status
 
-Monitors Adaptec RAID logical drive status.
+Monitors Adaptec RAID logical drive health status.
 
-**Context:** `adaptec_raid.ld_status`
-**Thresholds:** CRITICAL when degraded or failed
+**Context:** `adaptecraid.logical_device_status`
+**Thresholds:** CRITICAL when health < 100% (any non-ok state)
 
-### adaptec_raid_pd_state
+### adaptec_raid_pd_health_state
 
-Monitors Adaptec RAID physical drive states.
+Monitors Adaptec RAID physical drive health states.
 
-**Context:** `adaptec_raid.pd_state`
-**Thresholds:** WARNING/CRITICAL for non-optimal states
+**Context:** `adaptecraid.physical_device_state`
+**Thresholds:** CRITICAL when health < 100% (any non-ok state)
+
+## MegaCLI RAID
+
+Stock alerts: `/usr/lib/netdata/conf.d/health.d/megacli.conf`
+
+### megacli_adapter_health_state
+
+Monitors MegaCLI RAID adapter (controller) health.
+
+**Context:** `megacli.adapter_health_state`
+**Thresholds:** CRITICAL when health < 100% (degraded state)
+
+### megacli_phys_drive_media_errors
+
+Monitors physical drive media errors.
+
+**Context:** `megacli.phys_drive_media_errors`
+**Thresholds:** WARNING when media errors > 0
+
+### megacli_phys_drive_predictive_failures
+
+Monitors physical drive predictive failures (SMART).
+
+**Context:** `megacli.phys_drive_predictive_failures`
+**Thresholds:** WARNING when predictive failures > 0
+
+### megacli_bbu_charge
+
+Monitors Backup Battery Unit charge level.
+
+**Context:** `megacli.bbu_charge`
+**Thresholds:**
+- WARNING: <= 80% (with hysteresis at 85%)
+- CRITICAL: <= 40% (with hysteresis at 50%)
+
+### megacli_bbu_recharge_cycles
+
+Monitors BBU recharge cycle count (battery wear indicator).
+
+**Context:** `megacli.bbu_recharge_cycles`
+**Thresholds:**
+- WARNING: >= 100 cycles
+- CRITICAL: >= 500 cycles
+
+## StorCLI RAID
+
+Stock alerts: `/usr/lib/netdata/conf.d/health.d/storcli.conf`
+
+### storcli_controller_health_status
+
+Monitors RAID controller health status.
+
+**Context:** `storcli.controller_health_status`
+**Thresholds:** CRITICAL when health < 100%
+
+### storcli_controller_bbu_status
+
+Monitors RAID controller BBU (Backup Battery Unit) health.
+
+**Context:** `storcli.controller_bbu_status`
+**Thresholds:** CRITICAL when BBU health < 100%
+
+### storcli_phys_drive_errors
+
+Monitors physical drive errors.
+
+**Context:** `storcli.phys_drive_errors`
+**Thresholds:** WARNING when errors > 0
+
+### storcli_phys_drive_predictive_failures
+
+Monitors physical drive predictive failures.
+
+**Context:** `storcli.phys_drive_predictive_failures`
+**Thresholds:** WARNING when predictive failures > 0
 
 ## Related Files
 
@@ -122,5 +243,6 @@ Hardware alerts are defined in:
 - `/usr/lib/netdata/conf.d/health.d/mdstat.conf`
 - `/usr/lib/netdata/conf.d/health.d/adaptec_raid.conf`
 - `/usr/lib/netdata/conf.d/health.d/megacli.conf`
+- `/usr/lib/netdata/conf.d/health.d/storcli.conf`
 
 To customize, copy to `/etc/netdata/health.d/` and modify.

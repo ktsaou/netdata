@@ -28,9 +28,9 @@ Netdata ships with hundreds of ready-made alert definitions covering:
 | **Purpose** | Out-of-the-box monitoring for common scenarios |
 | **Can be disabled** | Set `enable stock health configuration = no` in `netdata.conf` `[health]` section |
 
-### How Stock Alert Files Override Works
+### How Custom Files Override Stock Files
 
-When you create a custom alert file with the **same name** as a stock alert file in `/etc/netdata/health.d/`, that custom file **completely overrides** the stock file. This is important to consider when customizing alerts.
+When you create a custom alert file with the **same name** as a stock alert file in `/etc/netdata/health.d/`, that custom file **completely replaces** the stock file (the stock file is not loaded). This is important to consider when customizing alerts.
 
 **Best practices for naming custom alert files:**
 - Use descriptive names that don't match stock file names (e.g., `my-org-critical-alerts.conf`)
@@ -119,7 +119,7 @@ sequenceDiagram
 
 ### Alert Naming and Overrides
 
-When creating Cloud-pushed alerts, you **must provide a unique name** for each alert. Alert definitions with the same name as a stock or custom file-based alert on the same Agent **will override that definition**.
+When creating Cloud-pushed alerts, you **must provide a unique name** for each alert. Alert definitions with the same name as a stock or custom file-based alert on the same Agent **will replace that definition**.
 
 Choose alert names that:
 - Are unique within your deployment
@@ -137,26 +137,27 @@ Choose alert names that:
 
 When multiple alert sources exist, Netdata applies them in this order:
 
-1. **Stock alerts** are loaded first from `/usr/lib/netdata/conf.d/health.d/`
-2. **Custom alerts** are loaded next from `/etc/netdata/health.d/`
-   - If a custom alert has the **same name** as a stock alert, the custom version **overrides** it
-3. **Cloud-pushed alerts** are loaded at runtime and **override** file-based alerts with the same name
+1. **Custom alerts** are loaded first from `/etc/netdata/health.d/`
+2. **Stock alerts** are loaded next from `/usr/lib/netdata/conf.d/health.d/`
+   - If a **file with the same name** already exists in the custom alerts directory, the stock file is **not loaded**
+   - Multiple alerts with the **same alert name** across different files are merged (appended to a linked list)
+3. **Cloud-pushed alerts** are loaded at runtime and **replace** file-based alerts with the same alert name
    - Alert names are provided by you when creating them in Cloud
-   - Same-name alerts will conflict regardless of source
+   - Cloud-pushed alerts completely replace any file-based alert definition with the same name
 
 This layering means:
-- You can **extend** stock alerts by creating new custom files with unique names
-- You can **override** stock alerts by creating files with matching names
-- Cloud-pushed alerts **override** any file-based alert with the same name
+- You can **extend** stock alerts by creating new custom files with unique filenames
+- You can **override** stock alerts by creating files with matching filenames (the stock file won't be loaded)
+- Cloud-pushed alerts **replace** any file-based alert with the same alert name
 - Centralized management via Cloud doesn't require touching local files
 
 ## Key Takeaways
 
+- **Custom alerts** are loaded first from `/etc/netdata/health.d/` and **survive upgrades**
 - **Stock alerts** live in `/usr/lib/netdata/conf.d/health.d/` and are **overwritten on upgrades**, never edit them directly
-- **Custom alerts** live in `/etc/netdata/health.d/` and **survive upgrades**, use unique filenames to avoid overriding stock alerts
 - **Cloud-pushed alerts** are **pushed to agents via ACLK** at runtime, persisted locally to `/var/lib/netdata/config/` for resilience
-- Custom alerts **override** stock alerts with the same filename
-- Cloud-pushed alerts **override** any alert with the same name
+- If a custom file has the **same filename** as a stock file, the stock file is **not loaded** (custom takes precedence)
+- Cloud-pushed alerts **replace** any file-based alert with the same **alert name**
 - Use **infrastructure-as-code tools** (Ansible, Helm, Terraform) for file-based alert management
 
 ## What's Next

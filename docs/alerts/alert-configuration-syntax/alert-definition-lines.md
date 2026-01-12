@@ -21,21 +21,21 @@ There are two types of blocks:
 
 For the conceptual difference, see 1.2 Alert Types: alarm versus template.
 
-A very simple `alarm` might look like this:
+A very simple `template` might look like this:
 
 ```conf
-alarm: high_cpu_usage
-   on: system.cpu
-lookup: average -5m of user,system
- every: 1m
-  warn: $this > 80
-  crit: $this > 95
-   to: sysadmin
+template: high_cpu_usage
+      on: system.cpu
+  lookup: average -5m of user,system
+   every: 1m
+    warn: $this > 80
+    crit: $this > 95
+      to: sysadmin
 ```
 
 Even in this minimal example you can see the main pieces:
-- **Identity**: `alarm` name
-- **Target**: `on` chart (or context for templates)
+- **Identity**: `template` name
+- **Target**: `on` context (or chart for alarms)
 - **Data selection**: `lookup` and `every`
 - **Conditions**: `warn` and `crit`
 - **Routing/metadata**: `to` (and optionally `info`, `class`, `type`, etc.)
@@ -51,11 +51,11 @@ Most practical alerts are built from the same core lines. A minimal, functional 
 | `alarm` / `template` | Yes | Names the rule so it can be referenced and managed |
 | `on` | Yes | Chooses what to monitor: a chart (for `alarm`) or context (for `template`) |
 | `lookup` or `calc` | At least one of: `lookup`, `calc`, `warn`, or `crit` | `lookup` reads and aggregates metrics; `calc` transforms values or references variables |
-| `every` | Recommended | Sets how often the health engine evaluates the rule (defaults to update frequency) |
+| `every` | Recommended | Sets how often the health engine evaluates the rule (if `lookup` is present, defaults to the lookup time window; otherwise required) |
 | `warn` and/or `crit` | At least one of: `lookup`, `calc`, `warn`, or `crit` | Boolean expressions that decide when the alert changes status |
 | `to` | Strongly recommended | Tells Netdata who should receive notifications (or `silent`) |
 
-**Optional matcher lines** (for templates to narrow scope):
+**Optional matcher lines** (typically used with templates to narrow scope, but also work with alarms):
 
 | Line | Purpose |
 |------|---------|
@@ -63,8 +63,8 @@ Most practical alerts are built from the same core lines. A minimal, functional 
 | `hosts` | Match specific hostnames (supports patterns) |
 | `plugin` | Match alerts to charts from specific plugins |
 | `module` | Match alerts to charts from specific modules |
-| `chart_labels` | Match charts with specific labels |
-| `host_labels` | Match hosts with specific labels |
+| `chart labels` | Match charts with specific labels |
+| `host labels` | Match hosts with specific labels |
 
 ### Example: Minimal template
 
@@ -95,10 +95,11 @@ The table below summarizes the most common optional lines you'll see in stock an
 |------|----------|------------------------|
 | `info` | Description | Human-readable description explaining what the alert monitors and why it matters. Shown in UIs and notifications. |
 | `summary` | Description | Short summary/title for the alert, often used in condensed views. |
+| `units` | Description | Specifies the units for the alert value (for example, `%`, `MB`, `requests/s`). Used in notifications and UIs. |
 | `calc` | Data transformation | Expression to transform `lookup` results or reference chart variables directly (see **3.3**). |
-| `green` / `red` | Visualization | Static threshold lines shown on charts (green = healthy range, red = critical threshold). |
-| `delay` | Flapping control | Defines how long a condition must hold before changing status (for example, delay entering WARNING/CRITICAL or CLEAR). See **4.4**. |
-| `repeat` | Notifications | Controls how often notifications are sent while a condition remains active, to avoid spam. |
+| `green` / `red` | Thresholds | Define threshold values that become available as `$green` and `$red` variables in `calc`, `warn`, and `crit` expressions. |
+| `delay` | Flapping control | Defines how long a condition must hold before changing status (for example, `delay: up 5m down 1m multiplier 1.5 max 1h`). See **4.4**. |
+| `repeat` | Notifications | Controls how often notifications are sent while a condition remains active (for example, `repeat: warning 30m critical 15m` or `repeat: off`). |
 | `options` | Behavior flags | Modifies alert behavior (for example, `no-clear-notification`). |
 | `exec` | Automation | Runs a script or command when the alert changes status (for integrations or custom actions). See **8.4**. |
 | `class` | Metadata | High-level category (for example, `system`, `application`, `network`) used for grouping and filtering. |
@@ -108,25 +109,26 @@ The table below summarizes the most common optional lines you'll see in stock an
 A more complete alert might look like this:
 
 ```conf
-alarm: disk_space_critical
-   on: disk_space._
-lookup: average -10m of used
- every: 1m
-  warn: $this > 80
-  crit: $this > 90
-  info: Disk space usage over the last 10 minutes
-summary: Disk space critically low
- delay: up 5m down 0
-repeat: warning 30m critical 30m
-    to: sysadmin
- class: system
-  type: capacity
-component: disk
+ template: disk_space_critical
+       on: disk.space
+   lookup: average -10m of used
+    every: 1m
+     warn: $this > 80
+     crit: $this > 90
+    units: %
+     info: Disk space usage over the last 10 minutes
+  summary: Disk space critically low
+    delay: up 5m down 0
+   repeat: warning 30m critical 30m
+       to: sysadmin
+    class: System
+     type: Utilization
+component: Disk
 ```
 
 Here you can see:
-- **Core logic**: `alarm`, `on`, `lookup`, `every`, `warn`, `crit`, `to`
-- **Presentation**: `info`, `summary`
+- **Core logic**: `template`, `on`, `lookup`, `every`, `warn`, `crit`, `to`
+- **Presentation**: `info`, `summary`, `units`
 - **Behavior control**: `delay`, `repeat`
 - **Metadata**: `class`, `type`, `component`
 

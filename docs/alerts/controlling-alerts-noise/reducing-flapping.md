@@ -20,22 +20,22 @@ Alert flapping—rapidly switching between CLEAR, WARNING, and CRITICAL states�
 
 ## 4.4.2 The `delay` Line
 
-The `delay` line controls how long conditions must **hold** before the alert changes status. This prevents brief excursions from triggering status changes.
+The `delay` line controls how long **notifications** are delayed after a status change. This prevents notification floods when alerts flap rapidly between states. Note that status changes happen immediately; only the notification timing is affected.
 
 **Syntax:**
 
 ```conf
-delay: [up|down] [seconds] [max]
+delay: [[[up U] [down D] multiplier M] max X]
 ```
 
 **Parameters:**
 
 | Param | Description | Default |
 |-------|-------------|---------|
-| `up` | Delay before entering WARNING/CRITICAL | Required |
-| `down` | Delay before returning to CLEAR | Optional |
-| `seconds` | Delay duration | Required |
-| `max` | Maximum total delay accumulated | Optional |
+| `up U` | Delay for status increases (CLEAR→WARNING, WARNING→CRITICAL) | 0 |
+| `down D` | Delay for status decreases (CRITICAL→WARNING, WARNING→CLEAR) | 0 |
+| `multiplier M` | Multiplies delays when alert changes state during delay period | 1.0 |
+| `max X` | Maximum absolute notification delay | max(U×M, D×M) |
 
 **Example: Basic Delay**
 
@@ -50,8 +50,10 @@ template: high_cpu
 ```
 
 This means:
-- **Up delay (5 minutes):** CPU must exceed threshold for **5 minutes** before WARNING/CRITICAL fires
-- **Down delay (1 minute):** CPU must stay below threshold for **1 minute** before returning to CLEAR
+- **Up delay (5 minutes):** After entering WARNING/CRITICAL, wait **5 minutes** before sending the notification
+- **Down delay (1 minute):** After returning to CLEAR, wait **1 minute** before sending the notification
+
+Note: The status **changes immediately** when the threshold is crossed. The delay affects only when you receive the notification, not when the status changes.
 
 ## 4.4.3 The `repeat` Line
 
@@ -60,16 +62,16 @@ The `repeat` line controls **how often notifications are sent** while the alert 
 **Syntax:**
 
 ```conf
-repeat: [warning] [critical] [all]
+repeat: [off] [warning DURATION] [critical DURATION]
 ```
 
 **Parameters:**
 
 | Param | Description | Default |
 |-------|-------------|---------|
-| `warning` | Interval between WARNING notifications | Required |
-| `critical` | Interval between CRITICAL notifications | Defaults to `warning` value |
-| `all` | Apply same interval to all severities | Optional flag |
+| `off` | Turns off repeating for this alert | - |
+| `warning DURATION` | Interval between WARNING notifications (use `0s` to disable) | from netdata.conf |
+| `critical DURATION` | Interval between CRITICAL notifications (use `0s` to disable) | from netdata.conf |
 
 **Example: Daily Repeat for Sustained Issues**
 
@@ -99,10 +101,11 @@ template: service_health
 ```
 
 **Behavior:**
-1. Service must be down for **10 minutes** before CRITICAL fires
-2. First notification sends immediately when CRITICAL fires
-3. If service stays down, next notification in **6 hours**
-4. Once service recovers, must stay up for **2 minutes** before CLEAR
+1. When service goes down, status changes to CRITICAL **immediately**
+2. First CRITICAL notification is delayed by **10 minutes** (up delay)
+3. If service stays down, repeat notifications every **6 hours**
+4. When service recovers, status changes to CLEAR **immediately**
+5. CLEAR notification is delayed by **2 minutes** (down delay)
 
 ## 4.4.5 Status-Dependent Conditions
 
@@ -113,15 +116,15 @@ template: cpu_trend
    on: system.cpu
    lookup: average -5m of user,system
    every: 1m
-   warn: $this > ($status != CRITICAL ? 80 : 90)
-   crit: $this > ($status != CLEAR ? 95 : 98)
+   warn: $this > (($status >= $WARNING)  ? (75) : (85))
+   crit: $this > (($status == $CRITICAL) ? (85) : (95))
 ```
 
 This means:
-- **Entering WARNING:** needs >80% CPU
-- **Staying in WARNING:** tolerates up to 90% before CRITICAL
+- **Entering WARNING:** needs >85% CPU
+- **Staying in WARNING:** threshold drops to 75% (harder to clear)
 - **Entering CRITICAL:** needs >95%
-- **Staying in CRITICAL:** tolerates up to 98%
+- **Staying in CRITICAL:** threshold drops to 85% (harder to clear)
 
 See **8.1 Hysteresis and Status-Based Conditions** for more examples.
 

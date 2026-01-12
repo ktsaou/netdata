@@ -8,7 +8,7 @@ This chapter covers advanced patterns for experienced users.
 |---------|-----------|
 | **8.1 Hysteresis** | Status-dependent thresholds |
 | **8.2 Multi-Dimensional** | Target specific dimensions |
-| **8.3 Label-Based Targeting** | Host and chart labels |
+| **8.3 Label Targeting** | Host and chart labels |
 | **8.4 Custom Actions** | `exec` for automation |
 | **8.5 Performance** | Efficient alert sets |
 

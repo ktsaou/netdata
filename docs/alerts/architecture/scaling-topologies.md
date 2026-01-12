@@ -1,4 +1,4 @@
-# 13.6 Scaling Alerting in Complex Topologies
+# 13.5 Scaling Alerting in Complex Topologies
 
 Large deployments face different scaling challenges than single-node installations.
 

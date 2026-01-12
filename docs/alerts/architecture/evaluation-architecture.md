@@ -22,6 +22,8 @@ The `WARNING` state indicates that a condition has exceeded the warning threshol
 
 The `CRITICAL` state indicates that a condition has exceeded the critical threshold.
 
+The `RAISED` state is an internal marker used when an alert has transitioned from CLEAR but has not yet been classified as WARNING or CRITICAL.
+
 The `UNDEFINED` state indicates that the alert encountered an error during evaluation.
 
 The `REMOVED` state indicates that the alert has been deleted or the configuration has been removed.

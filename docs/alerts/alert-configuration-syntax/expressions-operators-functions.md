@@ -187,12 +187,13 @@ warn: ($this > 75) && !($status == $CRITICAL)
 Netdata follows these operator precedence rules (highest to lowest):
 
 1. Parentheses `(...)`
-2. Ternary operator `? :`
-3. Unary operators: Logical NOT `!`, unary `+`, unary `-`, `abs()`
-4. Multiplicative: `*`, `/`, `%`
-5. Additive: `+`, `-`
-6. Comparison operators: `>`, `<`, `>=`, `<=`, `==`, `!=`
+2. Unary operators: Logical NOT `!`, unary `+`, unary `-`, `abs()`
+3. Multiplicative: `*`, `/`, `%`
+4. Additive: `+`, `-`
+5. Relational comparison: `>`, `<`, `>=`, `<=`
+6. Equality comparison: `==`, `!=`
 7. Logical AND `&&` and OR `||` (**same precedence level**)
+8. Ternary operator `? :` (**lowest precedence**)
 
 :::warning AND and OR Have Equal Precedence
 
@@ -258,22 +259,23 @@ flowchart TD
     CLEAR("CLEAR")
     WARNING("WARNING")
     CRITICAL("CRITICAL")
-    
+
     Start --> CLEAR
-    
-    CLEAR -->|"$this > 85<br/>(and $status == $CLEAR)"| WARNING
-    WARNING -->|"$this < 75"| CLEAR
+
+    CLEAR -->|"$this > 85"| WARNING
+    WARNING -->|"$this <= 75"| CLEAR
     WARNING -->|"$this > 95"| CRITICAL
-    CRITICAL -->|"$this < 75"| CLEAR
-    
-    Note1("Threshold to enter WARNING: 85<br/>Uses condition:<br/>($this > 85) && ($status == $CLEAR)")
-    Note2("Threshold to exit WARNING: 75<br/>10-point hysteresis buffer<br/>Uses condition:<br/>($this > ($status >= $WARNING ? 75 : 85))")
-    Note3("Once CRITICAL, must drop below 75 to clear<br/>Cannot go back to WARNING directly")
-    
+    CRITICAL -->|"75 < $this <= 85"| WARNING
+    CRITICAL -->|"$this <= 75"| CLEAR
+
+    Note1("Threshold to enter WARNING: 85<br/>Uses condition:<br/>$this > (($status >= $WARNING) ? 75 : 85)")
+    Note2("Threshold to stay in WARNING: 75<br/>10-point hysteresis buffer")
+    Note3("Threshold to stay in CRITICAL: 85<br/>Can drop to WARNING or CLEAR")
+
     CLEAR -.-> Note1
     WARNING -.-> Note2
     CRITICAL -.-> Note3
-    
+
     style CLEAR fill:#4caf50,stroke:#666666,stroke-width:3px,color:#000000
     style WARNING fill:#ffeb3b,stroke:#666666,stroke-width:3px,color:#000000
     style CRITICAL fill:#f44336,stroke:#666666,stroke-width:3px,color:#ffffff
@@ -311,8 +313,8 @@ Netdata's expression evaluator provides a minimal set of helper functions.
 ```conf
 # Alert when deviation (positive or negative) exceeds threshold
 lookup: average -5m unaligned of deviation
-  warn: abs($this) > 10
-  crit: abs($this) > 20
+warn: abs($this) > 10
+crit: abs($this) > 20
 ```
 
 :::note

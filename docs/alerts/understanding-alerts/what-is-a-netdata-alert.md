@@ -15,29 +15,34 @@ At each evaluation cycle (typically every 10 seconds, configurable per alert via
 
 Alert events are:
 - Visible in the local Agent dashboard
-- Queryable via Agent APIs (`/api/v1/alarms`, `/api/v2/alerts`)
+- Queryable via Agent APIs (`/api/v3/alerts` is the current endpoint; `/api/v1/alarms` and `/api/v2/alerts` are deprecated)
 - Sent to Netdata Cloud and displayed in the Events Tab
 - Used to trigger notifications (email, Slack, PagerDuty, etc.)
 
 ## Alert Statuses
 
-Every alert has one of seven possible statuses at any given time:
+Every alert has one of six possible statuses at any given time:
 
 | Status | Meaning |
 |--------|---------|
 | **UNINITIALIZED** | The alert has just been created but has not yet collected enough data to evaluate |
 | **UNDEFINED** | The alert could not be evaluated (missing data, division by zero, NaN/Inf result) |
 | **CLEAR** | The alert can be evaluated and neither warning nor critical thresholds are triggered; the metric is in a normal, healthy state |
-| **RAISED** | The alert expression returned a non-zero value but neither warning nor critical conditions are met (internal transitional state) |
 | **WARNING** | The warning expression evaluated to true; something may require attention |
 | **CRITICAL** | The critical expression evaluated to true; if both warning and critical conditions are met, CRITICAL takes precedence |
 | **REMOVED** | The alert has been deleted (configuration reload, child node disconnected, obsolete chart instance, or the device/service is no longer there) |
+
+:::note
+
+You may see `RAISED` in API responses. When used as a filter parameter (e.g., `?status=RAISED`), it means "both WARNING and CRITICAL alerts". However, `RAISED` is not a final alert status - alerts are always either WARNING or CRITICAL, never just RAISED.
+
+:::
 
 ### Status Lifecycle
 
 Alerts typically flow through this lifecycle:
 ```
-UNINITIALIZED → UNDEFINED / CLEAR → RAISED → WARNING → CRITICAL
+UNINITIALIZED → UNDEFINED / CLEAR → WARNING → CRITICAL
 ```
 
 - New alerts start in `UNINITIALIZED` until enough data is collected
@@ -93,7 +98,7 @@ For a given alert definition applied to a given chart instance, there is one **a
 ## Key Takeaways
 
 - A Netdata alert is a **rule that monitors metrics from charts** and assigns a status
-- Alerts have **seven possible statuses**: `UNINITIALIZED`, `UNDEFINED`, `CLEAR`, `RAISED`, `WARNING`, `CRITICAL`, `REMOVED`
+- Alerts have **six possible statuses**: `UNINITIALIZED`, `UNDEFINED`, `CLEAR`, `WARNING`, `CRITICAL`, `REMOVED`
 - Status transitions become **alert events** visible locally and in Netdata Cloud
 - Alerts can be **chart-specific (alarms)** or **context-based (templates)**
 - Alert evaluation happens **on the Agent**, not in Cloud

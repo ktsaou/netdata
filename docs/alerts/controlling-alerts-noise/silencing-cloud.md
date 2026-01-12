@@ -18,28 +18,17 @@ Netdata Cloud provides **silencing rules** that let you suppress notifications s
 | **Schedule** | When rule is active | `Every Saturday 1:00 AM to Monday 6:00 AM` |
 | **Duration** | Optional fixed duration | `4 hours` |
 
-**Example Rule:**
-
-```yaml
-# Silence all disk alerts on production nodes during maintenance
-name: Production Maintenance
-scope:
-  nodes: env:production
-  alerts: *disk*
-schedule:
-  - every: Saturday 1:00 AM
-    to: Monday 6:00 AM
-```
-
 ## 4.3.2 Silencing Patterns
 
-Silencing rules support pattern matching:
+Silencing rules support Netdata's [simple pattern](/src/libnetdata/simple_pattern/README.md) matching:
 
 | Pattern | Matches | Example |
 |---------|---------|---------|
-| `*` | Any characters | `*cpu*` matches `high_cpu` and `cpu_usage` |
-| `?` | Single character | `disk_?` matches `disk_a`, `disk_b` |
-| `\|` | OR logic | `mysql\|postgres\|redis` matches any of these |
+| `*` | Any characters (wildcard) | `*cpu*` matches `high_cpu` and `cpu_usage` |
+| `prefix*` | Prefix match | `disk_*` matches `disk_read`, `disk_write` |
+| `*suffix` | Suffix match | `*_usage` matches `cpu_usage`, `memory_usage` |
+| `!pattern` | Negation (exclude) | `!localhost` excludes localhost |
+| `pat1 pat2` | Multiple patterns (OR) | `mysql postgres redis` matches any of these |
 
 ## 4.3.3 Personal Silencing Rules
 
@@ -62,12 +51,7 @@ This is useful when:
 2. Look for active rules (shown with a green indicator)
 3. Check the **Next Activation** time for scheduled rules
 
-**Check via Health Management API:**
-
-```bash
-# List current health management state (shows disabled/silenced alerts)
-curl -s "http://localhost:19999/api/v1/manage/health?cmd=LIST"
-```
+> **Note:** Cloud silencing rules are managed entirely through the Netdata Cloud UI. For local Agent-level silencing via API, see [Health Management API](/src/web/api/health/README.md#health-management-api).
 
 ## 4.3.5 Related Sections
 

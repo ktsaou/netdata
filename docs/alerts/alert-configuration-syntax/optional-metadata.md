@@ -80,11 +80,11 @@ Keep the set of classes small and consistent (use the four recommended values). 
 
 :::
 
-## 3.6.3 `type`: Technical Nature of the Symptom
+## 3.6.3 `type`: Functional Domain
 
 `type` describes the functional domain of the infrastructure this alert covers (broader category).
 
-**Common values** (partial list, see Netdata REFERENCE.md for complete taxonomy):
+**Common values** (partial list, see [REFERENCE.md](/src/health/REFERENCE.md#alert-line-type) for complete taxonomy):
 
 | Type | Description | Examples |
 |------|-------------|----------|
@@ -94,21 +94,26 @@ Keep the set of classes small and consistent (use the four recommended values). 
 | `Kubernetes` | Kubernetes orchestration | K8s nodes, pods |
 | `Web Server` | Web servers | Apache, nginx |
 | `Messaging` | Message brokers | RabbitMQ, Kafka |
+| `KV Storage` | Key-Value storage | Memcached, Redis |
 | `Search engine` | Search services | Elasticsearch, Solr |
+| `Linux` | Linux-specific services | systemd |
+| `Virtual Machine` | VM software | QEMU, VMware |
+| `Netdata` | Internal Netdata monitoring | Exporting engine |
 
 **Default if omitted:** Unknown
 
 **Example:**
 
 ```conf
-alarm: http_5xx_rate
-   on: web_log.http_statuses
-lookup: average -5m of response_5xx
-  calc: 100 * $this / $responses_total
-  warn: $this > 1
-  crit: $this > 5
- class: Errors
-  type: Web Server
+ template: http_5xx_rate
+       on: web_log.type_requests
+   lookup: sum -1m unaligned of error
+     calc: $this * 100 / $web_log_1m_requests
+    units: %
+     warn: $this > 1
+     crit: $this > 5
+    class: Errors
+     type: Web Server
 component: nginx
 ```
 
@@ -171,9 +176,9 @@ While the Netdata Agent's health engine ignores metadata for evaluation purposes
 
 Examples of Cloud workflows that rely on metadata:
 
-- "Mute all `class: capacity` alerts for `component: storage` in the `staging` room during this maintenance window."
-- "Send `class: availability` alerts for `component: payments-service` to the on-call team's PagerDuty integration."
-- "Show me only `class: latency` alerts from `component: api` over the last 24 hours in the events feed."
+- "Mute all `class: Utilization` alerts for `component: Disk` in the `staging` room during this maintenance window."
+- "Send `class: Errors` alerts for `component: payments-service` to the on-call team's PagerDuty integration."
+- "Show me only `class: Latency` alerts from `component: API` over the last 24 hours in the events feed."
 
 Having metadata consistently set across alerts is what makes these workflows reliable.
 
@@ -184,17 +189,17 @@ To avoid inconsistent values (for example, `db`, `database`, `Database`), define
 <details>
 <summary><strong>Step-by-Step Metadata Design</strong></summary>
 
-1. **Agree on a small fixed set of `class` values**
-   
-   Example: `availability`, `performance`, `capacity`, `reliability`, `security`
+1. **Use the standard set of `class` values**
 
-2. **Define recommended `type` values aligned with your SRE vocabulary**
-   
-   Example: `latency`, `error`, `saturation`, `traffic`, `anomaly`
+   Netdata's recommended classes: `Errors`, `Latency`, `Utilization`, `Workload`
+
+2. **Use the standard `type` values from Netdata's taxonomy**
+
+   Examples: `System`, `Database`, `Web Server`, `Containers`, `Kubernetes`, `Messaging`
 
 3. **Map `component` values to your services or teams**
-   
-   Example: `database.mysql`, `application.api`, `network.edge`, `storage.ceph`
+
+   Examples: `MySQL`, `PostgreSQL`, `nginx`, `Docker`, `API Gateway`
 
 4. **Document the scheme** in your runbooks and code review guidelines for alert definitions
 
@@ -207,27 +212,27 @@ To avoid inconsistent values (for example, `db`, `database`, `Database`), define
 Below is a complete example that pulls together all metadata fields with the configuration concepts from Chapter 3:
 
 ```conf
-alarm: api_latency_high
-   on: web_log.latency
-lookup: average -5m of p95
-  calc: $this / 1000    # convert ms to seconds
-  warn: ($this > 0.5) && ($status != $CRITICAL)
-  crit: $this > 1.0
- every: 10s
-  delay: up 1m down 2m
-   to: sysadmin
- class: Latency
-  type: Web Server
+    alarm: api_latency_high
+       on: web_log.request_processing_time
+   lookup: average -5m
+    units: ms
+     warn: ($this > 500) && ($status != $CRITICAL)
+     crit: $this > 1000
+    every: 10s
+    delay: up 1m down 2m
+       to: sysadmin
+    class: Latency
+     type: Web Server
 component: API Gateway
-summary: High API p95 latency on ${label:service}
-  info: p95 latency above 500ms (warning) or 1s (critical) over the last 5 minutes
+  summary: High API latency on ${family}
+     info: Average request processing time above 500ms (warning) or 1s (critical) over the last 5 minutes
 ```
 
 In this definition:
 
 - **Alert logic** (what fires when): `lookup`, `calc`, `warn`, `crit`, `every`, `delay`, `to`
 - **Metadata** (how we organize/filter it): `class`, `type`, `component`
-- **User-facing text**: `summary`, `info` with template substitutions (`${label:service}`)
+- **User-facing text**: `summary`, `info` with template substitutions (`${family}` or `${label:name}`)
 
 :::note
 

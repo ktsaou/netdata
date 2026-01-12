@@ -81,15 +81,15 @@ lookup: average -5m unaligned of used
   crit: $this > 900
 ```
 
-**Example: kilobytes to megabytes with percentage**
+**Example: swapped memory as percentage of RAM**
 
 ```conf
-# From swap.conf
+# From swap.conf - converts KB lookup result to % of total RAM
 lookup: sum -30m unaligned absolute of out
   calc: $this / 1024 * 100 / ( $system.ram.used + $system.ram.cached + $system.ram.free )
- units: MB/s
-  warn: $this > 200
-  crit: $this > 400
+ units: % of RAM
+  warn: $this > 20
+  crit: $this > 30
 ```
 
 **Guidelines**:
@@ -105,8 +105,7 @@ lookup: sum -30m unaligned absolute of out
 **Example: disk usage as a percentage of total**
 
 ```conf
-# From disks.conf
-lookup: average -5m unaligned of used
+# Pattern from disks.conf (simplified)
   calc: $used * 100 / ($avail + $used)
  units: %
   warn: $this > 80
@@ -196,8 +195,8 @@ template: disk_fill_rate
   lookup: min -10m at -50m unaligned of avail
     calc: ($this - $avail) / (($now - $after) / 3600)
    units: GB/hour
-    warn: $this > 0
-    crit: $this > 0
+   every: 1m
+    info: average rate the disk fills up (positive), or frees up (negative) space
 ```
 
 **What's happening:**
@@ -279,18 +278,20 @@ A typical ML-based pattern:
 - Optionally use the `anomaly-bit` option in the lookup line
 - Evaluate simple conditions such as "if anomalous, raise WARNING/CRITICAL"
 
-**Example (illustrative):**
+**Example (from ml.conf):**
 
 ```conf
-# Example from ml.conf (commented in stock alerts)
+# Example from ml.conf - anomaly rate as percentage
 lookup: average -5m anomaly-bit of *
-  warn: $this > 0.5
-  crit: $this > 0.8
+  calc: $this
+ units: %
+  warn: $this > (($status >= $WARNING)  ? (5) : (20))
+  crit: $this > (($status == $CRITICAL) ? (20) : (100))
 ```
 
 In practice:
 - Netdata's ML engine trains on historical data and maintains per-metric anomaly indicators
-- The `anomaly-bit` option (or similar) maps those indicators into values you can compare in `warn`/`crit`
+- The `anomaly-bit` option returns the **anomaly rate as a percentage (0-100)**, representing the fraction of samples in the window that were flagged as anomalous
 
 :::note
 

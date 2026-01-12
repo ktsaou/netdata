@@ -9,9 +9,9 @@ The alert stays `CLEAR` even when you expect it to fire.
 curl -s "http://localhost:19999/api/v1/alarms" | jq '.alarms | keys[]' | grep "your_alert"
 ```
 
-2. Check current value:
+2. Check current value (format is `chart_name.alert_name`):
 ```bash
-curl -s "http://localhost:19999/api/v1/alarms" | jq '.alarms.your_alert_name'
+curl -s "http://localhost:19999/api/v1/alarms?all" | jq '.alarms["system.cpu.cpu_usage"]'
 ```
 
 3. Verify the chart exists:

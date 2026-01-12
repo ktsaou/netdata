@@ -8,7 +8,7 @@ The alert rapidly switches between statuses.
 - Status changes every evaluation cycle
 - Alert shows WARNING/CRITICAL briefly, then CLEAR
 
-## 7.3.2 Solution: Add Delays
+## 7.3.2 Solution: Add Notification Delays
 
 ```conf
 template: cpu_usage
@@ -20,15 +20,30 @@ lookup: average -5m of user,system
    delay: up 5m down 2m
 ```
 
-This requires 5 minutes above threshold before WARNING fires.
+The `delay` line controls **notification timing only**, not when the alert status changes. In this example:
+- Status changes **immediately** when thresholds are crossed
+- The notification is delayed by 5 minutes for status increases (CLEAR→WARNING, WARNING→CRITICAL)
+- If status returns to CLEAR within that 5 minutes, no notification is sent
 
 ## 7.3.3 Solution: Repeat Intervals
 
 ```conf
-repeat: 6h  # Only notify every 6 hours for sustained issues
+repeat: warning 6h critical 6h
 ```
 
-## 7.3.4 Related Sections
+This limits ongoing notifications to every 6 hours while the alert remains active.
 
-- **4.4 Reducing Flapping and Noise** for delay techniques
+## 7.3.4 Solution: Hysteresis Thresholds
+
+For true threshold hysteresis (different entry and exit thresholds), use status-based conditions:
+
+```conf
+warn: (($this > 80) && ($status != WARNING)) || (($this > 70) && ($status == WARNING))
+```
+
+This enters WARNING at 80% but only clears when below 70%.
+
+## 7.3.5 Related Sections
+
+- **4.4 Reducing Flapping and Noise** for delay and repeat techniques
 - **8.1 Hysteresis** for status-based thresholds

@@ -10,7 +10,7 @@ Netdata gives you multiple layers of control:
 |-------|---------------|-------------|
 | **Disabling** | Stops alert evaluation entirely | You never want this alert to run |
 | **Silencing** | Evaluates but suppresses notifications | You want to defer or skip notifications for a period |
-| **Delays & Hysteresis** | Requires conditions to hold before changing status | Preventing flapping between states |
+| **Delays & Hysteresis** | Delays notifications and uses status-aware thresholds | Preventing flapping between states |
 | **Repeat Intervals** | Limits notification frequency | Avoids notification storms for sustained conditions |
 
 ## What You'll Find in This Chapter
@@ -20,7 +20,7 @@ Netdata gives you multiple layers of control:
 | **4.1 Disabling Alerts** | How to completely stop alert evaluation (globally, per-host, or per-alert) |
 | **4.2 Silencing vs Disabling** | The critical difference between stopping evaluation vs. suppressing notifications |
 | **4.3 Silencing in Netdata Cloud** | How to use Cloud silencing rules for space-wide or scheduled quiet periods |
-| **4.4 Reducing Flapping and Noise** | Practical techniques: delays, hysteresis, repeat intervals, and smoothing |
+| **4.4 Reducing Flapping and Noise** | Practical techniques: delays, hysteresis, and repeat intervals |
 
 ## How to Navigate This Chapter
 

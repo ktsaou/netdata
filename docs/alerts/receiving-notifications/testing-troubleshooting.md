@@ -5,17 +5,39 @@
 **Send a test notification:**
 
 ```bash
-# Using netdata-ui (if available)
-/usr/lib/netdata/netdata-ui send-test-notification --type slack
+# Switch to the Netdata user first
+sudo su -s /bin/bash netdata
 
-# Or manually trigger a test
-curl -s "http://localhost:19999/api/v1/alarms?test=1"
+# Enable debugging (optional, for detailed output)
+export NETDATA_ALARM_NOTIFY_DEBUG=1
+
+# Test notifications for the default role (sysadmin)
+/usr/libexec/netdata/plugins.d/alarm-notify.sh test
+
+# Test notifications for a specific role
+/usr/libexec/netdata/plugins.d/alarm-notify.sh test webmaster
+```
+
+This sends WARNING, CRITICAL, and CLEAR test alerts sequentially to verify your notification pipeline.
+
+**Check current alerts via API:**
+
+```bash
+# Get currently raised alerts (WARNING or CRITICAL)
+curl -s "http://localhost:19999/api/v1/alarms"
+
+# Get all enabled alerts (including CLEAR)
+curl -s "http://localhost:19999/api/v1/alarms?all"
 ```
 
 **Check notification logs:**
 
 ```bash
-sudo tail -n 100 /var/log/netdata/error.log | grep -i notification
+# Check Netdata error log for notification issues
+sudo tail -n 100 /var/log/netdata/error.log | grep -i "alarm.notify"
+
+# Or use journalctl if using systemd
+sudo journalctl -u netdata --since "1 hour ago" | grep -i "alarm"
 ```
 
 ## 5.5.2 Testing Cloud Notifications
@@ -39,10 +61,12 @@ sudo tail -n 100 /var/log/netdata/error.log | grep -i notification
 ## 5.5.4 Debugging Checklist
 
 1. Is the alert firing? Check API: `curl http://localhost:19999/api/v1/alarms`
-2. Is the recipient correct? Check `to:` line
-3. Is the notification method enabled? Verify `SEND_SLACK=YES`
-4. Are logs showing errors? Check `/var/log/netdata/error.log`
-5. Is Cloud connected? Verify Agent-Cloud link status
+2. Is the recipient correct? Check the `to:` line in your alert configuration
+3. Is the notification method enabled? Check `health_alarm_notify.conf` for `SEND_SLACK="YES"` (or the relevant method)
+4. Is the recipient configured for the role? Check `role_recipients_slack[sysadmin]` in `health_alarm_notify.conf`
+5. Are required credentials set? Check webhook URLs, API tokens, or service keys in `health_alarm_notify.conf`
+6. Are logs showing errors? Check `/var/log/netdata/error.log` or use `journalctl -u netdata`
+7. Is Cloud connected? Verify Agent-Cloud link status in the dashboard
 
 ## 5.5.5 Related Sections
 

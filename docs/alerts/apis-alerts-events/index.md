@@ -10,7 +10,7 @@ Netdata provides APIs for querying and managing alerts programmatically.
 | **9.2 Alert History** | `/api/v1/alarm_log` | Get transitions |
 | **9.3 Inspect Variables** | `/api/v1/alarm_variables` | Debug expressions |
 | **9.4 Health Management** | `/api/v1/manage/health` | Disable/silence/reset alerts |
-| **9.5 Cloud Events API** | Cloud API | Query events from Cloud |
+| **9.5 Cloud Events** | Cloud UI | Events Feed in Netdata Cloud |
 
 ## What's Next
 

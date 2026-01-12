@@ -13,17 +13,24 @@ curl -s "http://localhost:19999/api/v1/alarms" | jq '.alarms.your_alert_name'
 
 ## 7.5.2 Notification Checklist
 
-1. Is recipient defined? `to: sysadmin` not `to: silent`
-2. Is channel enabled? `SEND_SLACK=YES`
-3. Check logs: `tail /var/log/netdata/error.log | grep notification`
+1. Is recipient defined? `to: sysadmin` not `to: silent` or `to: disabled`
+2. Is channel enabled? `SEND_SLACK="YES"` in `health_alarm_notify.conf`
+3. Check logs:
+   ```bash
+   # On systemd systems (preferred - notification script logs here)
+   journalctl -u netdata --since "1 hour ago" | grep alarm-notify
+
+   # Alternative - Netdata error log
+   tail /var/log/netdata/error.log | grep -i alarm
+   ```
 
 ## 7.5.3 Common Issues
 
 | Issue | Fix |
 |-------|-----|
-| Silent recipient | Change `to: sysadmin` |
-| Channel disabled | Enable in `health_alarm_notify.conf` |
-| Wrong severity | Configure WARNING routing |
+| Silent recipient | Change `to: silent` to `to: sysadmin` (or another valid role) |
+| Channel disabled | Set `SEND_SLACK="YES"` (or relevant channel) in `health_alarm_notify.conf` |
+| Wrong severity | Configure severity filtering for recipient (e.g., `user@example.com\|critical`) |
 
 ## 7.5.4 Related Sections
 

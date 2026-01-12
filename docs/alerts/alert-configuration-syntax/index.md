@@ -11,7 +11,7 @@ This chapter provides a precise reference for alert configuration syntax.
 | **3.3 Calculations and Transformations** | calc expressions, absolute, percentage, anomaly-bit flags |
 | **3.4 Expressions, Operators, and Functions** | Arithmetic, comparisons, logical operators, helper functions |
 | **3.5 Variables and Special Symbols** | $this, $status, $now, chart/dimension variables, context variables |
-| **3.6 Optional Metadata** | class, type, component, tags for grouping and filtering |
+| **3.6 Optional Metadata** | class, type, component, labels for grouping and filtering |
 
 ## How to Navigate This Chapter
 
@@ -22,8 +22,9 @@ This chapter provides a precise reference for alert configuration syntax.
 
 ## Key Concepts
 
-- Each alert needs: `alarm`/`template`, `on`, `lookup`, `every`, `warn`, `crit`
-- Optional lines: `delay`, `exec`, `to`, `summary`, `info`
+- Required lines: `alarm`/`template`, `on`, `every`
+- At least one of: `lookup`, `calc`, `warn`, or `crit`
+- Optional lines: `delay`, `exec`, `to`, `summary`, `info`, `class`, `type`, `component`
 - Use `calc` to transform lookup results
 - Variables like `$this` and `$status` provide dynamic values
 

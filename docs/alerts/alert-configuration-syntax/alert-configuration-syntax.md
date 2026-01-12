@@ -47,7 +47,7 @@ graph LR
 
 **How it works:**
 
-1. **Define** (§3.1): Name the alert and target a chart
+1. **Define** (§3.1): Name the alert and target a chart or context
 2. **Get Data** (§3.2): Use `lookup` to read metrics over time
 3. **Transform** (§3.3): Optionally use `calc` to compute derived values
 4. **Evaluate** (§3.4): Apply `warn`/`crit` conditions using variables (§3.5)
@@ -61,7 +61,7 @@ Each section mirrors Netdata's `REFERENCE.md`, but is reorganized by what you're
 
 | Section | What It Covers |
 |---------|----------------|
-| **3.1 Alert Definition Lines (Minimal and Full Forms)** | The structure of an alert block. Shows the essential lines (`alarm`/`template`, `on`, `lookup`, `every`, `warn`, `crit`) and optional ones (`to`, `summary`, `info`, `delay`, `exec`, etc.), with valid values and defaults. Helps you read or assemble a complete alert from top to bottom. |
+| **3.1 Alert Definition Lines (Minimal and Full Forms)** | The structure of an alert block. Shows the required lines (`alarm`/`template`, `on`) and conditionally required ones (`lookup`, `every`, `warn`, `crit`), plus optional ones (`to`, `summary`, `info`, `delay`, `exec`, etc.), with valid values and defaults. Helps you read or assemble a complete alert from top to bottom. |
 | **3.2 Lookup and Time Windows** | The `lookup` line in detail: how to choose aggregation functions (`average`, `min`, `max`, `sum`, etc.), time windows (`1m`, `10m`, `1h`, etc.), and dimensions, and how these lookups interact with Netdata's time-series storage (dbengine). This is where you learn what data your alert actually sees. |
 | **3.3 Calculations and Transformations (`calc`)** | How to transform lookup results before comparing them to thresholds. Documents the `calc` expression and how to build percentages and rate-of-change calculations on top of raw metrics. |
 | **3.4 Expressions, Operators, and Functions** | The expression language used in `warn`, `crit`, and related lines: arithmetic operators, comparisons, logical operators, and any supported helper functions. This section explains how to write conditions that evaluate to true/false. |

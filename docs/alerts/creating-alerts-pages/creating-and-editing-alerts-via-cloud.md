@@ -12,12 +12,16 @@ Use this workflow when you want **centralized management**, **instant rollout** 
 
 :::note
 
-You need appropriate permissions in Netdata Cloud to manage alerts:
+You need appropriate permissions in Netdata Cloud to manage alerts. Alert management is handled through the **Dynamic Configuration Manager**, which requires a Netdata Cloud paid subscription:
 
-| Permission Level | Can Create Alerts | Can Edit Alerts | Can Disable Alerts |
-|-----------------|-------------------|-----------------|-------------------|
-| **Space Admin** | ✓ | ✓ | ✓ |
-| **Space Member** | Contact your Space Admin for access |  |  |
+| Role | Can View Alerts | Can Create Alerts | Can Edit Alerts | Can Disable Alerts |
+|------|-----------------|-------------------|-----------------|-------------------|
+| **Admin** | ✓ | ✓ | ✓ | ✓ |
+| **Manager** | ✓ | ✓ | ✓ | ✓ |
+| **Troubleshooter** | ✓ | - | - | - |
+| **Observer** | ✓ | - | - | - |
+
+For the complete RBAC permissions reference, see [Role-Based Access Control](/docs/netdata-cloud/authentication-and-authorization/role-based-access-model.md).
 
 :::
 
@@ -67,16 +71,16 @@ You'll see a form with fields like:
 | **Description** | Human-readable explanation of what this alert monitors | `CPU usage exceeds 80% for 5 minutes` |
 | **Metric / Chart** | The metric/chart to monitor on this node | Select `system.cpu` |
 | **Dimension** | Specific dimension within the chart (optional) | `user` (user CPU time) |
-| **Detection Mode** | How the alert evaluates data (see 2.3.3) | `Static Threshold` |
-| **Aggregation / Function** | How data is aggregated over the time window | `average` |
+| **Data Source** | What data to use for the alert (see 2.3.3) | `Samples` |
+| **Time Aggregation** | How data is aggregated over the time window | `average` |
 | **Time Window** | How far back to look when evaluating | `5 minutes` |
 | **Warning Threshold** | Condition that triggers WARNING status | `> 80` |
 | **Critical Threshold** | Condition that triggers CRITICAL status | `> 95` |
 | **Notification Recipients / Routing** | Who gets notified when this alert fires | Select integration or role |
 
-### Step 3: Choose Detection Mode
+### Step 3: Choose Data Source
 
-Select the **Detection Mode** (for example, Static Threshold, Dynamic Baseline, or Rate of Change). See **2.3.3 Detection Modes** for details.
+Select the **Data Source** (Samples, Percentages, or Anomalies). See **2.3.3 Data Sources** for details on each option.
 
 ### Step 4: Set Scope (Optional)
 
@@ -100,26 +104,27 @@ Click **Save**. Netdata Cloud will:
 2. Push it to the selected node (and any additional nodes in scope)
 3. The node will load it into memory and begin evaluating it immediately
 
-## 2.3.3 Detection Modes
+## 2.3.3 Data Sources
 
-The **Detection Mode** field determines how the alert evaluates metric data.
+The **Data Source** field determines what type of data the alert uses for evaluation.
 
 <details>
-<summary><strong>Static Threshold</strong></summary>
+<summary><strong>Samples (Default)</strong></summary>
 
-**What it does:**  
-Compares aggregated metric values against fixed thresholds you define.
+**What it does:**
+Uses the actual time-series values for each dimension. This is the standard approach for threshold-based alerting.
 
-**When to use:**  
+**When to use:**
 - You know the exact acceptable range for a metric (for example, "CPU should stay below 80%")
-- You want predictable, consistent alerting behavior
+- You want predictable, consistent alerting behavior based on actual values
 
 **Example:**
 
 | Setting | Value |
 |---------|-------|
 | Metric | `system.cpu` |
-| Aggregation | `average` |
+| Data Source | `Samples` |
+| Time Aggregation | `average` |
 | Time Window | `5 minutes` |
 | Warning | `> 80` |
 | Critical | `> 95` |
@@ -129,54 +134,79 @@ This fires WARNING if average CPU over the last 5 minutes exceeds 80%.
 </details>
 
 <details>
-<summary><strong>Dynamic Baseline (ML-Based)</strong></summary>
+<summary><strong>Percentages</strong></summary>
 
-**What it does:**  
-Uses Netdata's machine learning models to detect anomalies based on learned patterns, rather than fixed thresholds.
+**What it does:**
+Uses the percentage of each dimension relative to the sum of all dimensions, rather than absolute values.
 
-**When to use:**  
+**When to use:**
+- You want to alert on relative proportions rather than absolute values
+- Useful when the total varies but the ratio matters (for example, one process consuming disproportionate resources)
+
+**Example:**
+
+| Setting | Value |
+|---------|-------|
+| Metric | `system.cpu` |
+| Data Source | `Percentages` |
+| Dimension | `user` |
+| Warning | `> 90` |
+
+This fires if user CPU time represents more than 90% of total CPU time.
+
+</details>
+
+<details>
+<summary><strong>Anomalies (ML-Based)</strong></summary>
+
+**What it does:**
+Uses Netdata's machine learning anomaly rate for each dimension. Instead of comparing values against thresholds, it alerts when the metric behaves anomalously compared to learned patterns.
+
+**When to use:**
 - Metrics have variable "normal" ranges (for example, traffic patterns that differ by time of day)
 - You want to detect unusual behavior without manually tuning thresholds
 
-**How it works:**  
-Netdata's ML engine trains on historical data and flags values that deviate significantly from expected patterns.
+**How it works:**
+Netdata's ML engine continuously trains on historical data and assigns an anomaly rate (0-100%) to each metric. Higher values indicate more unusual behavior.
 
 **Example:**
-- Metric: `net.net` (network traffic)
-- Detection Mode: `Dynamic Baseline`
-- Sensitivity: `Medium`
 
-This fires when network traffic is anomalously high or low compared to learned patterns, even if absolute values vary throughout the day.
+| Setting | Value |
+|---------|-------|
+| Metric | `net.net` (network traffic) |
+| Data Source | `Anomalies` |
+| Time Aggregation | `average` |
+| Time Window | `5 minutes` |
+| Warning | `> 50` |
+
+This fires when the average anomaly rate exceeds 50% over the last 5 minutes, indicating unusual network traffic patterns.
 
 :::note
 
-Dynamic Baseline requires Netdata's ML features to be enabled and trained. See [Netdata ML documentation](https://learn.netdata.cloud/docs/machine-learning-and-anomaly-detection) for details.
+Anomaly-based alerts require Netdata's ML features to be enabled and trained. See the [ML Anomaly Detection documentation](/docs/ml-ai/ml-anomaly-detection/ml-anomaly-detection.md) for details.
 
 :::
 
 </details>
 
 <details>
-<summary><strong>Rate of Change</strong></summary><br/>
+<summary><strong>Detecting Rate of Change</strong></summary>
 
-**What it does:**  
-Alerts when a metric changes too rapidly (spikes or drops) rather than crossing an absolute threshold.
+To alert on rapid changes (spikes or drops), use the **Calculation** field with an expression that computes rate of change.
 
-**When to use:**  
-- You care about sudden changes more than absolute values
-- Detecting capacity exhaustion (for example, disk filling up fast)
-- Catching traffic spikes or drops
+**Example approach:**
 
-**Example:**
+1. Use `Data Source: Samples`
+2. Set a short **Time Window** (for example, 1 minute)
+3. Use the **Calculation** field to compute the difference or derivative
 
-| Setting | Value |
-|---------|-------|
-| Metric | `disk.space` |
-| Detection Mode | `Rate of Change` |
-| Time Window | `10 minutes` |
-| Warning | `> 5% decrease per minute` |
+Alternatively, use `incremental_sum` as the Time Aggregation method, which computes the sum of changes over the time window.
 
-This fires if available disk space is dropping faster than 5% per minute, signaling rapid consumption.
+:::tip
+
+For disk fill rate alerts, the stock alerts in `health.d/disks.conf` demonstrate this pattern using calculations like `$this / $last * 100`.
+
+:::
 
 </details>
 
@@ -207,9 +237,10 @@ Alternatively, you can access alerts from the top navigation:
 
 ### Editing vs File-Based Alerts
 
-- You **cannot** edit file-based alerts (from `/etc/netdata/health.d/`) via the Cloud UI
-- Cloud UI only shows and manages **Cloud-defined** alerts
-- To modify file-based alerts, use the workflow in **2.2 Creating and Editing Alerts via Configuration Files**
+- The Cloud UI shows **all alerts** (both file-based and Cloud-defined)
+- When you **edit a file-based alert** via the Cloud UI, Netdata creates a Cloud-defined version that overrides the original
+- You **cannot remove** file-based alerts via the Cloud UI (only Cloud-defined alerts can be removed)
+- To permanently modify or remove file-based alerts, use the workflow in **2.2 Creating and Editing Alerts via Configuration Files**
 
 ## 2.3.5 Disabling Cloud-Defined Alerts
 
@@ -250,10 +281,18 @@ When you create, edit, or disable a Cloud-defined alert:
 <details>
 <summary><strong>Interaction with File-Based Alerts</strong></summary>
 
-Cloud-defined alerts and file-based alerts **coexist**:
-- Both are loaded into the same health engine on the Agent/Parent
-- They do **not** override each other by default (they use different identifiers)
-- If you want to "replace" a file-based alert with a Cloud-defined one, you must **disable or remove** the file-based version manually (see **2.2.7 Modifying Existing Alerts**)
+Cloud-defined alerts and file-based alerts work together in the same health engine:
+
+- When you **edit a file-based alert** via the Cloud UI, a Cloud-defined version is created that **replaces** the file-based version in memory
+- Alerts are identified by **name**: a Cloud-defined alert with the same name as a file-based alert will override it
+- File-based alerts with the same name are **appended** (multiple rules can exist), but Cloud-defined alerts **replace** any existing alert with that name
+- The original file-based configuration remains on disk and will be restored if the Cloud-defined version is removed
+
+:::warning
+
+Creating a Cloud-defined alert with the same name as an existing file-based alert will override the file-based behavior. Choose unique names to avoid conflicts, or intentionally use the same name when you want to override stock alerts.
+
+:::
 
 </details>
 
@@ -274,7 +313,7 @@ After creating or editing a Cloud alert, verify it's working:
 <summary><strong>Method 2: Check a Node's Alert List</strong></summary>
 
 1. Navigate to **Nodes** → select a node
-2. Click the **🔔 bell icon** (top-right)
+2. Click the **bell icon** (top-right)
 3. Search for your alert name
 4. Verify its status (`CLEAR`, `WARNING`, `CRITICAL`, etc.)
 

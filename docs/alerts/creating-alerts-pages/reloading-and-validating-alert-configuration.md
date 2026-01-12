@@ -12,7 +12,7 @@ Netdata evaluates alerts using the health engine inside each Agent or Parent. Th
 
 | Source | How It's Applied | Needs Manual Reload? |
 |--------|------------------|----------------------|
-| **Stock alerts** (`/usr/lib/netdata/conf.d/health.d/`) | Loaded at Agent start | Only when you upgrade Netdata or restart the Agent |
+| **Stock alerts** (`/usr/lib/netdata/conf.d/health.d/`) | Loaded at Agent start, or when you explicitly reload | **Yes**, same as custom alerts (reloaded together) |
 | **Custom alerts** (`/etc/netdata/health.d/`) | Read at Agent start, or when you explicitly reload | **Yes**, after you edit files |
 | **Cloud-defined alerts** (Health configuration in Cloud UI) | Pushed from Cloud to connected nodes at runtime | **No**, Agents reload automatically when they receive changes |
 
@@ -51,13 +51,17 @@ Use `reload-health` whenever you only changed alert definitions. It's faster tha
 
 ### Using Reload in Automation
 
-Because `netdatacli` returns a non-zero exit code on error, you can safely include it in scripts or CI/CD:
+You can include `netdatacli reload-health` in scripts or CI/CD:
 
 ```bash
-sudo netdatacli reload-health && echo "Health reload OK" || echo "Health reload FAILED"
+sudo netdatacli reload-health && echo "Health reload command sent"
 ```
 
-If the reload fails, check logs (see **2.5.4 Method B: Using logs**).
+:::note
+
+The `reload-health` command confirms that Netdata received and executed the reload request. Configuration errors (syntax issues, missing charts, etc.) are logged but do not cause the command to fail. Always check logs after reload to verify your configuration loaded without errors (see **2.5.4 Using Logs**).
+
+:::
 
 ## 2.5.3 When a Full Restart Is Required
 
@@ -94,7 +98,7 @@ You can validate using the Alarms API on the node, logs on the node, or the Netd
 
 The Alarms API shows the alerts the Agent or Parent currently knows about and their active state.
 
-**List All Active Alerts**
+**List All Enabled Alerts**
 
 On the node, run:
 
@@ -102,14 +106,16 @@ On the node, run:
 curl -s "http://localhost:19999/api/v1/alarms?all" | jq '.'
 ```
 
+The `?all` parameter is required to see alerts in any state (including `CLEAR`). Without it, the API only returns raised alerts (`WARNING` or `CRITICAL`).
+
 Check that your alert appears by name (for example, `high_cpu_usage`), the associated chart/context is correct, and the status is one of `CLEAR`, `WARNING`, `CRITICAL`, etc.
 
 **Filter for a Specific Alert**
 
-To verify a specific alert by name:
+To verify a specific alert by name (including those in `CLEAR` status):
 
 ```bash
-curl -s "http://localhost:19999/api/v1/alarms" \
+curl -s "http://localhost:19999/api/v1/alarms?all" \
   | jq '.alarms | to_entries[] | select(.key | test("high_cpu"; "i"))'
 ```
 
@@ -140,10 +146,11 @@ Look for messages mentioning `health configuration`, `loading health` or `reload
 
 **Check Netdata Log Files**
 
-On systems where Netdata writes to its own log file, you might see something like:
+On systems where Netdata writes to its own log files, health-related messages are written to `health.log` or `daemon.log`:
 
 ```bash
-sudo tail -n 200 /var/log/netdata/error.log
+sudo tail -n 200 /var/log/netdata/health.log
+sudo tail -n 200 /var/log/netdata/daemon.log
 ```
 
 Common issues you might see:
@@ -212,10 +219,10 @@ Navigate to the node's Health configuration in Cloud (Nodes → select node → 
 Cloud-defined alerts are pushed to the node and loaded into the health engine. Verify using the Alarms API:
 
 ```bash
-curl -s "http://localhost:19999/api/v1/alarms" | jq '.alarms'
+curl -s "http://localhost:19999/api/v1/alarms?all" | jq '.alarms'
 ```
 
-Look for your Cloud-defined alert by name. If it appears with `CLEAR`, `WARNING`, or `CRITICAL` status, it's loaded and evaluating.
+The `?all` parameter ensures you see alerts in any status, including `CLEAR`. Look for your Cloud-defined alert by name. If it appears with `CLEAR`, `WARNING`, or `CRITICAL` status, it's loaded and evaluating.
 
 **3. Test by Triggering (Optional)**
 
@@ -242,7 +249,7 @@ Use this checklist every time you change alerts:
 - **Cloud UI:** create/edit the alert in Health configuration, wait a few seconds for propagation (see **2.3.6**)
 
 **2. Check for errors**
-- Run `journalctl -u netdata` or check `/var/log/netdata/error.log`
+- Run `journalctl -u netdata` or check `/var/log/netdata/health.log` and `/var/log/netdata/daemon.log`
 - Fix any syntax or load errors and reload health again
 
 **3. Confirm presence**

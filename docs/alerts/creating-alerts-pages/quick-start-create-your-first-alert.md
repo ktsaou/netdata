@@ -56,7 +56,7 @@ template: filesystem_low_space
 This example uses a `template` which monitors **all filesystems**, not just root. This is the recommended approach because:
 - It automatically monitors all mount points
 - New disks are monitored automatically without configuration changes
-- It matches Netdata's stock alert patterns
+- It follows the same template pattern used by Netdata's built-in alerts (though the stock `disk_space_usage` alert uses different thresholds and additional filtering)
 
 If you only want to monitor a specific filesystem, see **Chapter 3: Alert Configuration Syntax** for how to create chart-specific `alarm` definitions.
 
@@ -84,7 +84,7 @@ sudo netdatacli reload-health
 The command returns exit code 0 on success (no output). To verify the reload worked, check the Netdata logs:
 
 ```bash
-sudo grep -i "reloading health" /var/log/netdata/netdata.log | tail -1
+sudo grep -i "reloading health" /var/log/netdata/daemon.log | tail -1
 ```
 
 :::note
@@ -94,7 +94,7 @@ If `netdatacli` is not available, restart the Netdata service:
 sudo systemctl restart netdata
 ```
 
-**Troubleshooting:** If your alert doesn't appear after reloading, check for syntax errors in `/var/log/netdata/error.log`.
+**Troubleshooting:** If your alert doesn't appear after reloading, check for syntax errors in `/var/log/netdata/daemon.log`.
 :::
 
 **Step 5: Verify the Alert Loaded**
@@ -102,7 +102,7 @@ sudo systemctl restart netdata
 Check that your alert is active:
 
 ```bash
-curl -s "http://localhost:19999/api/v1/alarms?all" | grep -i "filesystem_low_space"
+curl -s "http://localhost:19999/api/v3/alerts" | grep -i "filesystem_low_space"
 ```
 
 You should see JSON output containing your alert name and current status. If all filesystems have more than 20% free space, the alert status will be `CLEAR` (healthy). This is expected, the alert is working correctly.
@@ -233,7 +233,7 @@ Both workflows (file-based and Cloud UI) produce alerts that **run on your Agent
 <details>
 <summary><strong>What if my alert didn't load?</strong></summary>
 
-- **File-based:** Check `/var/log/netdata/error.log` for syntax errors
+- **File-based:** Check `/var/log/netdata/daemon.log` for syntax errors
 - **Cloud UI:** Ensure your node is connected to Cloud and has a recent agent version
 - See **2.5 Reloading and Validating Alert Configuration** for detailed troubleshooting
 

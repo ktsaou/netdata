@@ -119,7 +119,7 @@ Add this alert definition:
 ```conf
 # Alert when root filesystem free space drops below 20%
 alarm: root_filesystem_low_space
-   on: disk.space./
+   on: disk_space./
  lookup: average -1m percentage of avail
   units: %
   every: 1m
@@ -130,7 +130,7 @@ alarm: root_filesystem_low_space
 
 **What this does:**
 - `alarm:` gives the alert a unique name
-- `on:` attaches it to the `disk.space./` chart (root filesystem)
+- `on:` attaches it to the `disk_space./` chart (root filesystem)
 - `lookup:` aggregates data over the last minute
 - `warn:` and `crit:` define warning and critical thresholds
 
@@ -163,7 +163,7 @@ Both chart IDs and contexts use **dots** in their naming convention.
 
 **The difference is specificity:**
 - **Chart IDs** (for `alarm` rules): Reference **specific chart instances**
-  - Example: `disk.space./` (root filesystem only)
+  - Example: `disk_space./` (root filesystem only)
   - Example: `system.cpu` (CPU chart on this specific node)
   
 - **Contexts** (for `template` rules): Reference **chart types**
@@ -174,7 +174,7 @@ Both chart IDs and contexts use **dots** in their naming convention.
 - **Dashboard:** Hover over the date on a chart and check the tooltip
 - **API:** `curl "http://localhost:19999/api/v1/charts" | jq '.charts[] | {id, context}'`
 
-+Contexts use dots (`.`), while chart IDs may include dots or underscores (for example, `disk_space._run`).
+Contexts use dots (`.`), while chart IDs use underscores in the type and preserve mount paths (for example, `disk_space./run`).
 
 :::
 
@@ -221,8 +221,8 @@ Example output:
 
 ```json
 {
-  "id": "disk.space._",
-  "name": "disk_space._",
+  "id": "disk_space./",
+  "name": "disk_space./",
   "context": "disk.space"
 }
 ```
@@ -245,7 +245,11 @@ sudo netdatacli reload-health
 The command returns exit code 0 on success (no output). You can verify the reload worked by checking the logs:
 
 ```bash
-sudo grep -i "reloading health" /var/log/netdata/netdata.log | tail -1
+# If using systemd (default):
+journalctl -u netdata --since "1 minute ago" | grep -i "reloading health"
+
+# If logging to files:
+sudo grep -i "reloading health" /var/log/netdata/daemon.log | tail -1
 ```
 
 This method:
@@ -274,8 +278,14 @@ After reloading, verify your alerts are active and error-free.
 ### Check for Errors in the Log
 
 ```bash
-sudo tail -n 100 /var/log/netdata/error.log | grep -iE "(health|alarm|template)"
+sudo tail -n 100 /var/log/netdata/health.log | grep -iE "(health|alarm|template)"
 ```
+
+:::note
+
+On systemd-based systems, Netdata may log to the journal instead of files. Use `journalctl -u netdata | grep -iE "(health|alarm|template)"` if log files are empty.
+
+:::
 
 Common issues:
 - Syntax errors in configuration lines
@@ -298,7 +308,7 @@ curl -s "http://localhost:19999/api/v1/alarms" | jq '.alarms.root_filesystem_low
 
 You should see:
 - Alert name
-- Current status (`CLEAR`, `WARNING`, `CRITICAL`, etc.)
+- Current status (`CLEAR`, `RAISED`, `WARNING`, `CRITICAL`, `UNDEFINED`, `UNINITIALIZED`, or `REMOVED`)
 - Chart/context
 - Expression details
 
@@ -353,7 +363,8 @@ To modify a **built-in (stock) alert** without losing your changes on upgrade:
 **How precedence works:**
 - Custom alerts in `/etc/netdata/health.d/` are loaded first
 - Stock alerts from `/usr/lib/netdata/conf.d/health.d/` are loaded next, **but only if no custom file with the same filename exists**
-- If a custom alert has the **same name** as a stock alert, the last-loaded definition takes precedence
+
+This means that if you create `/etc/netdata/health.d/cpu.conf`, the entire stock file `/usr/lib/netdata/conf.d/health.d/cpu.conf` is ignored. Your custom file completely replaces the stock file.
 
 :::tip
 

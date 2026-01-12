@@ -1,54 +1,63 @@
 # 5.4 Controlling Who Gets Notified
 
-### 5.4.1 Severity-to-Recipient Mapping
+### 5.4.1 Severity Filtering for Recipients
 
-In Cloud integrations, you can configure which severities trigger notifications:
+In Agent notifications, you can filter which alert severities reach specific recipients using modifiers appended to recipient addresses:
 
-```yaml
-integration: Slack #alerts
-  severity:
-    critical:
-      - "#urgent"
-      - on-call-pager
-    warning:
-      - "#alerts"
-    clear:
-      - "#alerts"
+| Modifier | Effect |
+|----------|--------|
+| `|critical` | Only receive critical alerts and their subsequent status changes until cleared |
+| `|nowarn` | Do not receive warning notifications |
+| `|noclear` | Do not receive clear notifications |
+
+**Example Configuration** (`health_alarm_notify.conf`):
+
+```ini
+# user1 receives all alerts; user2 only receives critical-related alerts
+role_recipients_email[sysadmin]="user1@example.com user2@example.com|critical"
+
+# Receive critical alerts, but no clear notifications
+role_recipients_slack[dba]="alerts-channel disasters-channel|critical|noclear"
 ```
 
 ### 5.4.2 Using Cloud Roles
 
-Assign roles to users in Netdata Cloud:
+Netdata Cloud uses Role-Based Access Control (RBAC). Available roles are:
 
-1. Navigate to **Settings** → **Users**
-2. Select a user
-3. Assign roles: `Admin`, `Member`, `Viewer`, or custom roles
+| Role | Description |
+|------|-------------|
+| **Admin** | Full system control including billing and user management |
+| **Manager** | Manage users, rooms, and configurations (not billing) |
+| **Troubleshooter** | Investigate issues, run diagnostics, view assigned rooms |
+| **Observer** | View-only access to assigned rooms |
+| **Billing** | Handle invoices and payments only |
 
-Then configure notification routing by role:
+Cloud notification delivery is configured through **Settings** → **Notification Integrations** in the Netdata Cloud UI, not through configuration files.
 
-```yaml
-integration: Email ops-team@company.com
-  role:
-    - name: sre-on-call
-      severity: [critical, warning]
-    - name: manager
-      severity: [critical]
-```
+### 5.4.3 Agent Role-Based Routing
 
-### 5.4.3 Alert-Specific Routing
+In Agent alerts, the `to:` parameter specifies which **role** receives notifications (not email addresses directly):
 
 ```conf
-# In local health configuration
+# In health configuration
 template: critical_service
-   on: health.service
-   lookup: average -1m of status
+      on: system.uptime
+    calc: $uptime
    every: 1m
-   crit: $this == 0
-   to: ops-pager@company.com
-   from: ops-team@company.com
+    crit: $this < 300
+      to: sysadmin
 ```
 
-## 5.4.4 Related Sections
+Then, in `health_alarm_notify.conf`, assign actual recipients per role:
+
+```ini
+# Define recipients for the sysadmin role
+role_recipients_email[sysadmin]="ops-team@company.com"
+role_recipients_slack[sysadmin]="#critical-alerts"
+role_recipients_pagerduty[sysadmin]="PDK3Y5EXAMPLE"
+```
+
+### 5.4.4 Related Sections
 
 - **5.2 Agent and Parent Notifications** - Local routing
 - **5.5 Testing and Troubleshooting** - Debugging delivery issues
