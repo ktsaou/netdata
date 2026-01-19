@@ -38,8 +38,8 @@ The Netdata container requires specific **privileges** and **mounts** to provide
 |      go.d.plugin       |          /var/log          | Web servers logs tailing. See [weblog](https://github.com/netdata/go.d.plugin/tree/master/modules/weblog#readme) collector.                      |
 |      apps.plugin       |  /etc/passwd, /etc/group   | Monitoring of host system resource usage by each user and user group.                                                                            |
 |      proc.plugin       |           /proc            | Host system monitoring (CPU, memory, network interfaces, disks, etc.).                                                                           |
-| systemd-journal.plugin |          /var/log          | Viewing, exploring and analyzing systemd journal logs.                                                                                           |
-| systemd-journal.plugin |         /run/dbus          | Systemd-list-units function: information about all systemd units, including their active state, description, whether they are enabled, and more. |
+| journal-viewer-plugin  |          /var/log          | Viewing, exploring and analyzing systemd journal logs.                                                                                           |
+| systemd-units.plugin   |         /run/dbus          | Systemd-list-units function: information about all systemd units, including their active state, description, whether they are enabled, and more. |
 |      go.d.plugin       |         /run/dbus          | [go.d/systemdunits](https://github.com/netdata/go.d.plugin/tree/master/modules/systemdunits#readme)                                              |
 
 </details>
@@ -133,9 +133,10 @@ volumes:
 </TabItem>
 </Tabs>
 
-:::note
+:::tip
 
-If you plan to connect the node to Netdata Cloud, you can find the command with the right parameters by clicking the "Add Nodes" button in your Space's "Nodes" view.
+- When using `netdata/netdata` without a tag, Docker pulls the latest image by default. To run the stable version, replace it with `netdata/netdata:stable`.
+- If you plan to connect the node to Netdata Cloud, you can find the command with the right parameters by clicking the "Add Nodes" button in your Space's "Nodes" view.
 
 :::
 
@@ -258,6 +259,13 @@ volumes:
 </TabItem>
 </Tabs>
 
+:::tip
+
+- When using `netdata/netdata` without a tag, Docker pulls the latest image by default. To run the stable version, replace it with `netdata/netdata:stable`.
+- If you plan to connect the node to Netdata Cloud, you can find the command with the right parameters by clicking the "Add Nodes" button in your Space's "Nodes" view.
+
+:::
+
 ### With SSL/TLS enabled HTTP Proxy
 
 Below is an example of installing Netdata with an **SSL reverse proxy** and **basic authentication** using Docker.
@@ -328,9 +336,7 @@ volumes:
 
 #### Restrict access with basic auth
 
-You can restrict access by
-following the [official caddy guide](https://caddyserver.com/docs/caddyfile/directives/basicauth#basicauth) and adding lines
-to Caddyfile.
+You can restrict access by following the [official caddy guide](https://caddyserver.com/docs/caddyfile/directives/basicauth#basicauth) and adding lines to Caddyfile.
 
 ### With Docker socket proxy
 
@@ -388,9 +394,10 @@ volumes:
   netdatacache:
 ```
 
-:::note
+:::tip
 
-Replace `2375` with the port of your proxy.
+- When using `netdata/netdata` without a tag, Docker pulls the latest image by default. To run the stable version, replace it with `netdata/netdata:stable`.
+- Replace `2375` with the port of your proxy.
 
 :::
 
@@ -468,7 +475,7 @@ The following components won't work:
 - freeipmi.plugin
 - perf.plugin
 - slabinfo.plugin
-- systemd-journal.plugin
+- journal-viewer-plugin
 
 This method creates a [volume](https://docs.docker.com/storage/volumes/) for Netdata's configuration files
 _within the container_ at `/etc/netdata`.
@@ -504,9 +511,10 @@ docker run -d --name=netdata \
 
 </Tabs>
 
-:::note
+:::tip
 
-If you plan to connect the node to Netdata Cloud, you can find the command with the right parameters by clicking the "Add Nodes" button in your Space's "Nodes" view.
+- When using `netdata/netdata` without a tag, Docker pulls the latest image by default. To run the stable version, replace it with `netdata/netdata:stable`.
+- If you plan to connect the node to Netdata Cloud, you can find the command with the right parameters by clicking the "Add Nodes" button in your Space's "Nodes" view.
 
 :::
 

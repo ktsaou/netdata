@@ -1,0 +1,70 @@
+{
+  "jsonSchema": {
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "title": "Microsoft SQL Server collector configuration.",
+    "type": "object",
+    "properties": {
+      "update_every": {
+        "title": "Update every",
+        "description": "Data collection interval, measured in seconds.",
+        "type": "integer",
+        "minimum": 1,
+        "default": 10
+      },
+      "dsn": {
+        "title": "DSN",
+        "description": "Microsoft SQL Server [Data Source Name](https://github.com/microsoft/go-mssqldb#connection-parameters-and-dsn).",
+        "type": "string",
+        "default": "sqlserver://localhost:1433"
+      },
+      "vnode": {
+        "title": "Virtual Node",
+        "description": "Associates this data collection job with a [Virtual Node](https://learn.netdata.cloud/docs/netdata-agent/configuration/organize-systems-metrics-and-alerts#virtual-nodes).",
+        "type": "string",
+        "default": ""
+      },
+      "timeout": {
+        "title": "Timeout",
+        "description": "Query timeout, in seconds.",
+        "type": "number",
+        "minimum": 0.5,
+        "default": 5
+      }
+    },
+    "required": [
+      "dsn"
+    ],
+    "additionalProperties": false,
+    "patternProperties": {
+      "^name$": {}
+    }
+  },
+  "uiSchema": {
+    "uiOptions": {
+      "fullPage": true
+    },
+    "dsn": {
+      "ui:placeholder": "sqlserver://user:password@localhost:1433"
+    },
+    "vnode": {
+      "ui:help": "Optional: Group metrics under a virtual node for multi-instance setups."
+    },
+    "timeout": {
+      "ui:help": "Accepts decimals for sub-second granularity (e.g., 0.5 for 500ms)."
+    },
+    "ui:flavour": "tabs",
+    "ui:options": {
+      "tabs": [
+        {
+          "title": "Base",
+          "fields": [
+            "update_every",
+            "dsn",
+            "timeout",
+            "vnode"
+          ]
+        }
+      ]
+    }
+  }
+}

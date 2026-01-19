@@ -41,13 +41,13 @@ static void initialize(void)
 
 static BOOL fill_dictionary_with_content()
 {
-    static PVOID buffer = NULL;
-    static DWORD bytes_needed = 0;
+    PVOID buffer = NULL;
+    DWORD bytes_needed = 0;
 
     LPENUM_SERVICE_STATUS_PROCESS service, services;
     DWORD total_services = 0;
     SC_HANDLE ndSCMH = OpenSCManager(NULL, NULL, SC_MANAGER_ENUMERATE_SERVICE | SC_MANAGER_CONNECT);
-    if (!ndSCMH) {
+    if (unlikely(!ndSCMH)) {
         return FALSE;
     }
 
@@ -64,34 +64,24 @@ static BOOL fill_dictionary_with_content()
         NULL,
         NULL);
 
-    if (GetLastError() == ERROR_MORE_DATA) {
-        if (!buffer)
-            buffer = HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, bytes_needed);
-        else
-            buffer = HeapReAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, buffer, bytes_needed);
+    if (ret) {
+        // This only happens if there are truly 0 services in the system (a valid edge case).
+        goto endServiceCollection;
     }
 
+    if (GetLastError() != ERROR_MORE_DATA) {
+        goto endServiceCollection;
+    }
+
+    buffer = HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, bytes_needed);
     if (!buffer) {
         ret = FALSE;
         goto endServiceCollection;
     }
 
-    if (!ret) {
-        ret = EnumServicesStatusEx(
-            ndSCMH,
-            SC_ENUM_PROCESS_INFO,
-            SERVICE_WIN32,
-            SERVICE_STATE_ALL,
-            (LPBYTE)buffer,
-            bytes_needed,
-            (LPDWORD)&bytes_needed,
-            (LPDWORD)&total_services,
-            NULL,
-            NULL);
-
-        if (!ret) {
-            goto endServiceCollection;
-        }
+    if (!EnumServicesStatusEx(ndSCMH, SC_ENUM_PROCESS_INFO, SERVICE_WIN32, SERVICE_STATE_ALL,
+                              (LPBYTE)buffer, bytes_needed, &bytes_needed, &total_services, NULL, NULL)) {
+        goto endServiceCollection;
     }
 
     services = (LPENUM_SERVICE_STATUS_PROCESS)buffer;
@@ -112,6 +102,8 @@ static BOOL fill_dictionary_with_content()
     ret = TRUE;
 
 endServiceCollection:
+    if (buffer)
+        HeapFree(GetProcessHeap(), 0, buffer);
 
     CloseServiceHandle(ndSCMH);
     return ret;
@@ -160,7 +152,7 @@ dict_win_services_charts_cb(const DICTIONARY_ITEM *item __maybe_unused, void *va
             "Service state",
             "state",
             PLUGIN_WINDOWS_NAME,
-            "PerflibbService",
+            "PerflibService",
             PRIO_SERVICE_STATE,
             *update_every,
             RRDSET_TYPE_LINE);

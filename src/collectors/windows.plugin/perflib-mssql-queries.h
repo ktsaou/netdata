@@ -23,11 +23,8 @@
 // https://learn.microsoft.com/en-us/sql/relational-databases/system-compatibility-views/sys-sysprocesses-transact-sql?view=sql-server-ver16
 // SQL SERVER BEFORE 2008 DOES NOT HAVE DATA IN THIS TABLE
 // https://github.com/influxdata/telegraf/blob/081dfa26e80d8764fb7f9aac5230e81584b62b56/plugins/inputs/sqlserver/sqlqueriesV2.go#L1259
-#define NETDATA_QUERY_TRANSACTIONS_MASK                                                                                \
-    "SELECT counter_name, cntr_value FROM %s.sys.dm_os_performance_counters WHERE instance_name = '%s' AND counter_name IN ('Active Transactions', 'Transactions/sec', 'Write Transactions/sec', 'Backup/Restore Throughput/sec', 'Log Bytes Flushed/sec', 'Log Flushes/sec', 'Number of Deadlocks/sec', 'Lock Waits/sec', 'Lock Timeouts/sec', 'Lock Requests/sec');"
-
-#define NETDATA_QUERY_BUFFER_STATS                                                                                \
-    "SELECT counter_name, cntr_value FROM sys.dm_os_performance_counters WHERE (object_name like '%%Buffer Manager%%' or object_name like '%%SQL Statistics%%') AND counter_name IN ('Page reads/sec', 'Page writes/sec', 'Buffer cache hit ratio', 'Checkpoint pages/sec', 'Page life expectancy', 'Lazy writes/sec', 'Page Lookups/sec', 'SQL Compilations/sec', 'SQL Re-Compilations/sec');"
+#define NETDATA_QUERY_PERFORMANCE_COUNTER \
+    "SELECT counter_name, cntr_value FROM %s.sys.dm_os_performance_counters WHERE ltrim(rtrim(instance_name)) = '%s' AND counter_name IN ('Active Transactions', 'Transactions/sec', 'Write Transactions/sec', 'Backup/Restore Throughput/sec', 'Log Bytes Flushed/sec', 'Log Flushes/sec', 'Number of Deadlocks/sec', 'Lock Waits/sec', 'Lock Timeouts/sec', 'Lock Requests/sec', 'Page reads/sec', 'Page writes/sec', 'Buffer cache hit ratio', 'Checkpoint pages/sec', 'Page life expectancy', 'Lazy writes/sec', 'Page Lookups/sec', 'SQL Compilations/sec', 'SQL Re-Compilations/sec');"
 
 #define NETDATA_QUERY_CHECK_PERM                                                                                       \
     "SELECT CASE WHEN IS_SRVROLEMEMBER('sysadmin') = 1 OR HAS_PERMS_BY_NAME(null, null, 'VIEW SERVER STATE') = 1 THEN 1 ELSE 0 END AS has_permission;"
@@ -38,6 +35,9 @@
 #define NETDATA_QUERY_JOBS_STATUS "SELECT name, enabled FROM msdb.dbo.sysjobs;"
 
 #define NETDATA_QUERY_CONNECTIONS "SELECT COUNT(*), is_user_process FROM sys.dm_exec_sessions GROUP BY is_user_process;"
+
+#define NETDATA_QUERY_BLOCKED_PROCESSES \
+    "SELECT COUNT(DISTINCT session_id) AS blocked_sessions FROM sys.dm_exec_requests WHERE blocking_session_id <> 0;"
 
 // https://learn.microsoft.com/en-us/sql/relational-databases/system-dynamic-management-views/sys-dm-os-wait-stats-transact-sql?view=sql-server-ver16
 #define NETDATA_QUERY_CHECK_WAITS                                                                                      \
@@ -656,6 +656,7 @@ struct netdata_mssql_conn {
     const char *password;
     int instances;
     bool windows_auth;
+    bool trust_server_certificate;
     bool is_sqlexpress;
 
     SQLCHAR *connectionString;
@@ -666,13 +667,14 @@ struct netdata_mssql_conn {
     SQLHSTMT checkPermSTMT;
     SQLHSTMT databaseListSTMT;
     SQLHSTMT dataFileSizeSTMT;
-    SQLHSTMT dbTransactionSTMT;
+    SQLHSTMT dbPerfCounterSTMT;
     SQLHSTMT dbInstanceTransactionSTMT;
     SQLHSTMT dbWaitsSTMT;
     SQLHSTMT dbLocksSTMT;
     SQLHSTMT dbSQLState;
     SQLHSTMT dbSQLJobs;
     SQLHSTMT dbSQLConnections;
+    SQLHSTMT dbSQLBlockedProcesses;
     SQLHSTMT dbReplicationPublisher;
 
     BOOL collect_transactions;
@@ -683,6 +685,7 @@ struct netdata_mssql_conn {
     BOOL collect_buffer;
     BOOL collect_data_size;
     BOOL collect_user_connections;
+    BOOL collect_blocked_processes;
 
     BOOL is_connected;
 };
@@ -700,6 +703,7 @@ enum netdata_mssql_metrics {
     NETDATA_MSSQL_BUFFER_MANAGEMENT,
     NETDATA_MSSQL_JOBS,
     NETDATA_USER_CONNECTIONS,
+    NETDATA_BLOCKED_PROCESS,
 
     NETDATA_MSSQL_METRICS_END
 };
@@ -998,4 +1002,5 @@ extern void do_mssql_statistics_perflib(PERF_DATA_BLOCK *pDataBlock, struct mssq
 extern void do_mssql_access_methods(PERF_DATA_BLOCK *pDataBlock, struct mssql_instance *mi, int update_every);
 extern void do_mssql_user_connections(struct mssql_instance *mi, int update_every);
 extern void do_mssql_sessions_connections(struct mssql_instance *mi, int update_every);
+extern void netdata_mssql_blocked_processes_chart(struct mssql_instance *mi, int update_every);
 #endif

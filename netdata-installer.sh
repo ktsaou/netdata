@@ -213,11 +213,10 @@ USAGE: ${PROGRAM} [options]
   --disable-plugin-nfacct    Explicitly disable the nfacct plugin.
   --enable-plugin-xenstat    Enable the xenstat plugin. Default: enable it when libxenstat and libyajl are available.
   --disable-plugin-xenstat   Explicitly disable the xenstat plugin.
-  --enable-plugin-systemd-journal Enable the systemd journal plugin. Default: enable it when libsystemd is available.
-  --disable-plugin-systemd-journal Explicitly disable the systemd journal plugin.
-  --internal-systemd-journal Enable the internal journal file reader instead of using libsystemd
   --enable-plugin-otel Enable the Netdata OpenTelemetry plugin. Default: disabled
   --disable-plugin-otel Explicitly disable the Netdata OpenTelemetry plugin.
+  --enable-plugin-systemd-journal Enable the systemd journal reader plugin. Default: enabled if Rust is available and the build isn’t known broken
+  --disable-plugin-systemd-journal Explicitly disable the systemd journal reader plugin.
   --enable-plugin-ibm        Enable the IBM ecosystem monitoring plugin. Default: disabled
   --disable-plugin-ibm       Explicitly disable the IBM ecosystem monitoring plugin.
   --enable-exporting-kinesis Enable AWS Kinesis exporting connector. Default: enable it when libaws_cpp_sdk_kinesis
@@ -301,7 +300,6 @@ while [ -n "${1}" ]; do
     "--disable-plugin-xenstat") ENABLE_XENSTAT=0 ;;
     "--enable-plugin-systemd-journal") ENABLE_SYSTEMD_JOURNAL=1 ;;
     "--disable-plugin-systemd-journal") ENABLE_SYSTEMD_JOURNAL=0 ;;
-    "--internal-systemd-journal") USE_RUST_JOURNAL_FILE=1 ;;
     "--enable-plugin-otel") ENABLE_OTEL=1 ;;
     "--disable-plugin-otel") ENABLE_OTEL=0 ;;
     "--enable-plugin-ibm") ENABLE_IBM=1 ;;
@@ -754,8 +752,8 @@ fi
 [ -L "${NETDATA_USER_CONFIG_DIR}/orig" ] && run rm -f "${NETDATA_USER_CONFIG_DIR}/orig"
 run ln -s "${NETDATA_STOCK_CONFIG_DIR}" "${NETDATA_USER_CONFIG_DIR}/orig"
 
-# --- web dir ----
 
+# --- web dir ---
 if [ ! -d "${NETDATA_WEB_DIR}" ]; then
   echo >&2 "Creating directory '${NETDATA_WEB_DIR}'"
   run mkdir -p "${NETDATA_WEB_DIR}" || exit 1
@@ -763,33 +761,9 @@ fi
 run find "${NETDATA_WEB_DIR}" -type f -exec chmod 0664 {} \;
 run find "${NETDATA_WEB_DIR}" -type d -exec chmod 0775 {} \;
 
-# --- data dirs ----
+# --- other dirs ----
 
-for x in "${NETDATA_LIB_DIR}" "${NETDATA_CACHE_DIR}" "${NETDATA_LOG_DIR}"; do
-  if [ ! -d "${x}" ]; then
-    echo >&2 "Creating directory '${x}'"
-    if ! run mkdir -p "${x}"; then
-      warning "Failed to create ${x}, it must be created by hand or the Netdata Agent will not be able to be started."
-    fi
-  fi
-
-  run chown -R "${NETDATA_USER}:${NETDATA_GROUP}" "${x}"
-  #run find "${x}" -type f -exec chmod 0660 {} \;
-  #run find "${x}" -type d -exec chmod 0770 {} \;
-done
-
-run chmod 755 "${NETDATA_LOG_DIR}"
-
-# --- claiming dir ----
-
-if [ ! -d "${NETDATA_CLAIMING_DIR}" ]; then
-  echo >&2 "Creating directory '${NETDATA_CLAIMING_DIR}'"
-  if ! run mkdir -p "${NETDATA_CLAIMING_DIR}"; then
-    warning "failed to create ${NETDATA_CLAIMING_DIR}, it will need to be created manually."
-  fi
-fi
-run chown -R "${NETDATA_USER}:${NETDATA_GROUP}" "${NETDATA_CLAIMING_DIR}"
-run chmod 770 "${NETDATA_CLAIMING_DIR}"
+install_netdata_dirs
 
 # --- plugins ----
 
@@ -843,6 +817,8 @@ if [ "$(id -u)" -eq 0 ]; then
     fi
   fi
 
+  # The Rust-based 'journal-viewer' plugin was added in 2.8-nightly to replace 'systemd-journal'.
+  # TODO: After 2.9 release and proper deprecation announcement, remove this.
   if [ -f "${NETDATA_PREFIX}/usr/libexec/netdata/plugins.d/systemd-journal.plugin" ]; then
     run chown "root:${NETDATA_GROUP}" "${NETDATA_PREFIX}/usr/libexec/netdata/plugins.d/systemd-journal.plugin"
     capabilities=0
@@ -855,6 +831,21 @@ if [ "$(id -u)" -eq 0 ]; then
 
     if [ $capabilities -eq 0 ]; then
       run chmod 4750 "${NETDATA_PREFIX}/usr/libexec/netdata/plugins.d/systemd-journal.plugin"
+    fi
+  fi
+
+  if [ -f "${NETDATA_PREFIX}/usr/libexec/netdata/plugins.d/journal-viewer-plugin" ]; then
+    run chown "root:${NETDATA_GROUP}" "${NETDATA_PREFIX}/usr/libexec/netdata/plugins.d/journal-viewer-plugin"
+    capabilities=0
+    if ! iscontainer && command -v setcap 1> /dev/null 2>&1; then
+      run chmod 0750 "${NETDATA_PREFIX}/usr/libexec/netdata/plugins.d/journal-viewer-plugin"
+      if run setcap cap_dac_read_search+ep "${NETDATA_PREFIX}/usr/libexec/netdata/plugins.d/journal-viewer-plugin"; then
+        capabilities=1
+      fi
+    fi
+
+    if [ $capabilities -eq 0 ]; then
+      run chmod 4750 "${NETDATA_PREFIX}/usr/libexec/netdata/plugins.d/journal-viewer-plugin"
     fi
   fi
 

@@ -330,24 +330,14 @@ prepare_cmake_options() {
   fi
 
   if [ -z "${ENABLE_SYSTEMD_JOURNAL}" ]; then
-    if check_for_module libsystemd; then
-      if check_for_module libelogind; then
-        ENABLE_SYSTEMD_JOURNAL=0
-      else
-        ENABLE_SYSTEMD_JOURNAL=1
-      fi
+    if command -v rustc > /dev/null 2>&1; then
+      ENABLE_SYSTEMD_JOURNAL=1
     else
       ENABLE_SYSTEMD_JOURNAL=0
     fi
   fi
 
-  enable_feature PLUGIN_SYSTEMD_JOURNAL "${ENABLE_SYSTEMD_JOURNAL}"
-
-  if [ "${ENABLE_SYSTEMD_JOURNAL}" -eq 1 ] && [ -n "${USE_RUST_JOURNAL_FILE}" ]; then
-    enable_feature NETDATA_JOURNAL_FILE_READER 1
-  else
-    enable_feature NETDATA_JOURNAL_FILE_READER 0
-  fi
+  enable_feature NETDATA_JOURNAL_FILE_READER "${ENABLE_SYSTEMD_JOURNAL}"
 
   if check_for_module 'libsystemd >= 221'; then
     enable_feature PLUGIN_SYSTEMD_UNITS 1
@@ -745,6 +735,47 @@ install_netdata_service() {
   return 1
 }
 
+install_netdata_tmpfiles() {
+  if [ "${UID}" -eq 0 ]; then
+    run mkdir -p /usr/lib/tmpfiles.d || return 1
+    run install -m 0644 -p "${NETDATA_PREFIX}/usr/lib/netdata/system/systemd/tmpfiles/netdata.conf" /usr/lib/tmpfiles.d/netdata.conf || return 1
+    return 0
+  else
+    return 1
+  fi
+}
+
+install_netdata_dirs() {
+  _DIRS_INSTALLED=0
+  if install_netdata_tmpfiles && command -v systemd-tmpfiles >/dev/null 2>&1 ; then
+    systemd-tmpfiles --create /usr/lib/tmpfiles.d/netdata.conf && _DIRS_INSTALLED=1
+  fi
+
+  if [ "${_DIRS_INSTALLED}" -eq 0 ]; then
+    for x in "${NETDATA_LIB_DIR}" "${NETDATA_CACHE_DIR}" "${NETDATA_LOG_DIR}"; do
+      if [ ! -d "${x}" ]; then
+        echo >&2 "Creating directory '${x}'"
+        if ! run mkdir -p "${x}"; then
+          warning "Failed to create ${x}, it must be created by hand or the Netdata Agent will not be able to be started."
+        fi
+      fi
+
+      run chown -R "${NETDATA_USER}:${NETDATA_GROUP}" "${x}"
+    done
+
+    run chmod 755 "${NETDATA_LOG_DIR}"
+
+    if [ ! -d "${NETDATA_CLAIMING_DIR}" ]; then
+      echo >&2 "Creating directory '${NETDATA_CLAIMING_DIR}'"
+      if ! run mkdir -p "${NETDATA_CLAIMING_DIR}"; then
+        warning "failed to create ${NETDATA_CLAIMING_DIR}, it will need to be created manually."
+      fi
+    fi
+    run chown -R "${NETDATA_USER}:${NETDATA_GROUP}" "${NETDATA_CLAIMING_DIR}"
+    run chmod 770 "${NETDATA_CLAIMING_DIR}"
+  fi
+}
+
 # -----------------------------------------------------------------------------
 # stop netdata
 
@@ -1044,6 +1075,9 @@ create_netdata_accounts() {
 
   if [ -d "/etc/pve" ]; then
     NETDATA_WANTED_GROUPS="${NETDATA_WANTED_GROUPS} www-data"
+  fi
+  if [ -e "/dev/nvidiactl" ]; then
+    NETDATA_WANTED_GROUPS="${NETDATA_WANTED_GROUPS} video"
   fi
 
   if command -v systemd-sysusers >/dev/null 2>&1; then

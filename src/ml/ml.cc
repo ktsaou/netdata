@@ -747,9 +747,14 @@ ml_dimension_predict(ml_dimension_t *dim, calculated_number_t value, bool exists
     if (dim->mls != MACHINE_LEARNING_STATUS_ENABLED)
         return false;
 
+    // Acquire lock to protect dim->cns from concurrent access by ml_host_stop()
+    if (spinlock_trylock(&dim->slock) == 0)
+        return false;
+
     // Don't treat values that don't exist as anomalous
     if (!exists) {
         dim->cns.clear();
+        spinlock_unlock(&dim->slock);
         return false;
     }
 
@@ -757,6 +762,7 @@ ml_dimension_predict(ml_dimension_t *dim, calculated_number_t value, bool exists
     unsigned n = Cfg.diff_n + Cfg.max_samples_to_smooth + Cfg.lag_n;
     if (dim->cns.size() < n) {
         dim->cns.push_back(value);
+        spinlock_unlock(&dim->slock);
         return false;
     }
 
@@ -784,12 +790,6 @@ ml_dimension_predict(ml_dimension_t *dim, calculated_number_t value, bool exists
         dim->feature
     };
     ml_features_preprocess(&features, 1.0);
-
-    /*
-     * Lock to predict
-    */
-    if (spinlock_trylock(&dim->slock) == 0)
-        return false;
 
     // Mark the metric time as variable if we received different values
     if (!same_value)
@@ -1042,6 +1042,7 @@ void ml_detect_main(void *arg)
 }
 
 static void ml_flush_pending_models(ml_worker_t *worker) {
+    static time_t next_vacuum_run = 0;
     int op_no = 1;
 
     // begin transaction
@@ -1089,7 +1090,7 @@ static void ml_flush_pending_models(ml_worker_t *worker) {
         worker->num_models_to_prune += worker->pending_model_info.size();
     }
 
-    vacuum_database(ml_db, "ML", 0, 0);
+    vacuum_database(ml_db, "ML", 0, 0, &next_vacuum_run);
 
     worker->pending_model_info.clear();
 }
