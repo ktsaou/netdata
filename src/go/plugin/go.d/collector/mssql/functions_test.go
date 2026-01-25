@@ -13,16 +13,35 @@ func TestMssqlMethods(t *testing.T) {
 	methods := mssqlMethods()
 
 	require := assert.New(t)
-	require.Len(methods, 1)
-	require.Equal("top-queries", methods[0].ID)
-	require.Equal("Top Queries", methods[0].Name)
-	require.NotEmpty(methods[0].RequiredParams)
+	require.Len(methods, 2)
+
+	topIdx := -1
+	deadlockIdx := -1
+	for i := range methods {
+		switch methods[i].ID {
+		case "top-queries":
+			topIdx = i
+		case "deadlock-info":
+			deadlockIdx = i
+		}
+	}
+
+	require.NotEqual(-1, topIdx, "expected top-queries method")
+	require.NotEqual(-1, deadlockIdx, "expected deadlock-info method")
+
+	topMethod := methods[topIdx]
+	require.Equal("Top Queries", topMethod.Name)
+	require.NotEmpty(topMethod.RequiredParams)
+
+	deadlockMethod := methods[deadlockIdx]
+	require.Equal("Deadlock Info", deadlockMethod.Name)
+	require.Empty(deadlockMethod.RequiredParams)
 
 	// Verify at least one default sort option exists
 	var sortParam *funcapi.ParamConfig
-	for i := range methods[0].RequiredParams {
-		if methods[0].RequiredParams[i].ID == "__sort" {
-			sortParam = &methods[0].RequiredParams[i]
+	for i := range topMethod.RequiredParams {
+		if topMethod.RequiredParams[i].ID == "__sort" {
+			sortParam = &topMethod.RequiredParams[i]
 			break
 		}
 	}
@@ -260,7 +279,12 @@ func TestCollector_buildMSSQLDynamicColumns(t *testing.T) {
 func TestMssqlMethods_SortOptionsHaveLabels(t *testing.T) {
 	methods := mssqlMethods()
 
+	foundTopQueries := false
 	for _, method := range methods {
+		if method.ID != "top-queries" {
+			continue
+		}
+		foundTopQueries = true
 		var sortParam *funcapi.ParamConfig
 		for i := range method.RequiredParams {
 			if method.RequiredParams[i].ID == "__sort" {
@@ -275,6 +299,7 @@ func TestMssqlMethods_SortOptionsHaveLabels(t *testing.T) {
 			assert.Contains(t, opt.Name, "Top queries by", "label should have standard prefix")
 		}
 	}
+	assert.True(t, foundTopQueries, "expected top-queries method")
 }
 
 // TestMapAndValidateMSSQLSortColumn_NoSortOptions verifies fallback when no sort columns exist

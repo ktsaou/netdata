@@ -224,6 +224,13 @@ func mssqlMethods() []module.MethodConfig {
 				},
 			},
 		},
+		{
+			UpdateEvery:  10,
+			ID:           "deadlock-info",
+			Name:         "Deadlock Info",
+			Help:         deadlockInfoHelp,
+			RequireCloud: true,
+		},
 	}
 }
 
@@ -238,6 +245,8 @@ func mssqlMethodParams(ctx context.Context, job *module.Job, method string) ([]f
 	switch method {
 	case "top-queries":
 		return collector.topQueriesParams(ctx)
+	case "deadlock-info":
+		return collector.deadlockInfoParams(ctx)
 	default:
 		return nil, fmt.Errorf("unknown method: %s", method)
 	}
@@ -261,6 +270,8 @@ func mssqlHandleMethod(ctx context.Context, job *module.Job, method string, para
 	switch method {
 	case "top-queries":
 		return collector.collectTopQueries(ctx, params.Column(paramSort))
+	case "deadlock-info":
+		return collector.collectDeadlockInfo(ctx)
 	default:
 		return &module.FunctionResponse{Status: 404, Message: fmt.Sprintf("unknown method: %s", method)}
 	}
