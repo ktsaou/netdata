@@ -211,6 +211,14 @@ func mysqlMethods() []module.MethodConfig {
 			RequireCloud:   true,
 			RequiredParams: []funcapi.ParamConfig{},
 		},
+		{
+			UpdateEvery:    10,
+			ID:             "error-info",
+			Name:           "Error Info",
+			Help:           "Recent SQL errors from performance_schema statement history tables",
+			RequireCloud:   true,
+			RequiredParams: []funcapi.ParamConfig{},
+		},
 	}
 }
 
@@ -227,6 +235,8 @@ func mysqlMethodParams(ctx context.Context, job *module.Job, method string) ([]f
 		return collector.topQueriesParams(ctx)
 	case "deadlock-info":
 		return collector.deadlockInfoParams(ctx)
+	case "error-info":
+		return collector.errorInfoParams(ctx)
 	default:
 		return nil, fmt.Errorf("unknown method: %s", method)
 	}
@@ -252,6 +262,8 @@ func mysqlHandleMethod(ctx context.Context, job *module.Job, method string, para
 		return collector.collectTopQueries(ctx, params.Column(paramSort))
 	case "deadlock-info":
 		return collector.collectDeadlockInfo(ctx)
+	case "error-info":
+		return collector.collectErrorInfo(ctx)
 	default:
 		return &module.FunctionResponse{Status: 404, Message: fmt.Sprintf("unknown method: %s", method)}
 	}
@@ -591,6 +603,70 @@ func (c *Collector) collectTopQueries(ctx context.Context, sortColumn string) *m
 	data, err := c.scanMySQLDynamicRows(rows, cols)
 	if err != nil {
 		return &module.FunctionResponse{Status: 500, Message: err.Error()}
+	}
+
+	errorCols := mysqlErrorAttributionColumns()
+	errorStatus := mysqlErrorAttrNotSupported
+	errorDetails := map[string]mysqlErrorRow{}
+	digestIdx := -1
+	for i, col := range cols {
+		if col.uiKey == "digest" {
+			digestIdx = i
+			break
+		}
+	}
+	if digestIdx >= 0 {
+		digests := make([]string, 0, len(data))
+		seen := make(map[string]bool)
+		for _, row := range data {
+			if digestIdx >= len(row) {
+				continue
+			}
+			digest, ok := row[digestIdx].(string)
+			if !ok || digest == "" {
+				continue
+			}
+			if seen[digest] {
+				continue
+			}
+			seen[digest] = true
+			digests = append(digests, digest)
+		}
+
+		if len(digests) > 0 {
+			errorStatus, errorDetails = c.collectMySQLErrorDetailsForDigests(ctx, digests)
+		} else {
+			errorStatus = mysqlErrorAttrNoData
+		}
+	}
+
+	if len(errorCols) > 0 {
+		for i := range data {
+			status := errorStatus
+			var errRow mysqlErrorRow
+			var errNo any
+			if digestIdx >= 0 && digestIdx < len(data) {
+				if digest, ok := data[i][digestIdx].(string); ok && digest != "" {
+					if row, ok := errorDetails[digest]; ok {
+						status = mysqlErrorAttrEnabled
+						errRow = row
+						if errRow.ErrorNumber != nil {
+							errNo = *errRow.ErrorNumber
+						}
+					} else if status == mysqlErrorAttrEnabled {
+						status = mysqlErrorAttrNoData
+					}
+				}
+			}
+
+			data[i] = append(data[i],
+				status,
+				errNo,
+				nullableString(errRow.SQLState),
+				nullableString(errRow.Message),
+			)
+		}
+		cols = append(cols, errorCols...)
 	}
 
 	// Build dynamic sort options from available columns (only those actually detected)

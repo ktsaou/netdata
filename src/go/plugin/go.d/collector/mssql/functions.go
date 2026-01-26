@@ -179,6 +179,8 @@ var mssqlChartGroups = []mssqlChartGroup{
 	{key: "Rows", title: "Rows", columns: []string{"avgRows", "lastRows", "minRows", "maxRows", "stdevRows"}},
 	{key: "LogBytes", title: "Log Bytes", columns: []string{"avgLogBytes", "lastLogBytes", "minLogBytes", "maxLogBytes", "stdevLogBytes"}},
 	{key: "TempDB", title: "TempDB Usage", columns: []string{"avgTempdb", "lastTempdb", "minTempdb", "maxTempdb", "stdevTempdb"}},
+	{key: "Joins", title: "Join Operators", columns: []string{"hashMatch", "mergeJoin", "nestedLoops"}},
+	{key: "Sorts", title: "Sort Operations", columns: []string{"sorts"}},
 }
 
 var mssqlLabelColumns = map[string]bool{
@@ -231,6 +233,13 @@ func mssqlMethods() []module.MethodConfig {
 			Help:         deadlockInfoHelp,
 			RequireCloud: true,
 		},
+		{
+			UpdateEvery:  10,
+			ID:           "error-info",
+			Name:         "Error Info",
+			Help:         "Recent SQL errors from Extended Events error_reported",
+			RequireCloud: true,
+		},
 	}
 }
 
@@ -247,6 +256,8 @@ func mssqlMethodParams(ctx context.Context, job *module.Job, method string) ([]f
 		return collector.topQueriesParams(ctx)
 	case "deadlock-info":
 		return collector.deadlockInfoParams(ctx)
+	case "error-info":
+		return collector.errorInfoParams(ctx)
 	default:
 		return nil, fmt.Errorf("unknown method: %s", method)
 	}
@@ -272,6 +283,8 @@ func mssqlHandleMethod(ctx context.Context, job *module.Job, method string, para
 		return collector.collectTopQueries(ctx, params.Column(paramSort))
 	case "deadlock-info":
 		return collector.collectDeadlockInfo(ctx)
+	case "error-info":
+		return collector.collectErrorInfo(ctx)
 	default:
 		return &module.FunctionResponse{Status: 404, Message: fmt.Sprintf("unknown method: %s", method)}
 	}
@@ -747,6 +760,89 @@ func (c *Collector) collectTopQueries(ctx context.Context, sortColumn string) *m
 	data, err := c.scanMSSQLDynamicRows(rows, cols)
 	if err != nil {
 		return &module.FunctionResponse{Status: 500, Message: err.Error()}
+	}
+
+	errorStatus, errorDetails := c.collectMSSQLErrorDetails(ctx)
+	planOpsByDB := c.collectMSSQLPlanOps(ctx, data, cols)
+	extraCols := append(mssqlErrorAttributionColumns(), mssqlPlanAttributionColumns()...)
+
+	queryIdx := -1
+	queryHashIdx := -1
+	dbIdx := -1
+	for i, col := range cols {
+		switch col.uiKey {
+		case "query":
+			queryIdx = i
+		case "queryHash":
+			queryHashIdx = i
+		case "database":
+			dbIdx = i
+		}
+	}
+
+	if len(extraCols) > 0 {
+		for i := range data {
+			status := errorStatus
+			var errRow mssqlErrorRow
+			if errorStatus == mssqlErrorAttrEnabled {
+				found := false
+				if queryHashIdx >= 0 && queryHashIdx < len(data[i]) {
+					queryHash := rowString(data[i][queryHashIdx])
+					if queryHash != "" {
+						if row, ok := errorDetails[queryHash]; ok {
+							status = mssqlErrorAttrEnabled
+							errRow = row
+							found = true
+						}
+					}
+				}
+				if !found && queryIdx >= 0 && queryIdx < len(data[i]) {
+					queryText := normalizeSQLText(rowString(data[i][queryIdx]))
+					if queryText != "" {
+						if row, ok := errorDetails[queryText]; ok {
+							status = mssqlErrorAttrEnabled
+							errRow = row
+							found = true
+						}
+					}
+				}
+				if !found {
+					status = mssqlErrorAttrNoData
+				}
+			}
+
+			var hashMatch, mergeJoin, nestedLoops, sorts any
+			if dbIdx >= 0 && dbIdx < len(data[i]) && queryHashIdx >= 0 && queryHashIdx < len(data[i]) {
+				dbName := rowString(data[i][dbIdx])
+				queryHash := rowString(data[i][queryHashIdx])
+				if dbName != "" && queryHash != "" {
+					if opsByHash, ok := planOpsByDB[dbName]; ok {
+						if ops, ok := opsByHash[queryHash]; ok {
+							hashMatch = ops.HashMatch
+							mergeJoin = ops.MergeJoin
+							nestedLoops = ops.NestedLoops
+							sorts = ops.Sorts
+						}
+					}
+				}
+			}
+
+			var errNo any
+			if errRow.ErrorNumber != nil {
+				errNo = *errRow.ErrorNumber
+			}
+			data[i] = append(data[i],
+				status,
+				errNo,
+				nil, // SQL State is not available in MSSQL
+				nullableString(rowString(errRow.Message)),
+				hashMatch,
+				mergeJoin,
+				nestedLoops,
+				sorts,
+			)
+		}
+		cols = append(cols, extraCols...)
 	}
 
 	// Build dynamic sort options from available columns (only those actually detected)
