@@ -53,7 +53,10 @@ var (
 	reDeadlockTS     = regexp.MustCompile(`\b\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\b`)
 )
 
-const deadlockInfoHelp = "Latest detected deadlock from SHOW ENGINE INNODB STATUS. WARNING: query text may include unmasked sensitive literals; restrict dashboard access."
+const (
+	deadlockInfoHelp         = "Latest detected deadlock from SHOW ENGINE INNODB STATUS. WARNING: query text may include unmasked sensitive literals; restrict dashboard access."
+	deadlockParseErrorStatus = 561
+)
 
 type mysqlDeadlockTxn struct {
 	txnNum       int
@@ -82,7 +85,7 @@ func (c *Collector) deadlockInfoParams(context.Context) ([]funcapi.ParamConfig, 
 func (c *Collector) collectDeadlockInfo(ctx context.Context) *module.FunctionResponse {
 	if !c.Config.GetDeadlockInfoFunctionEnabled() {
 		return &module.FunctionResponse{
-			Status: 403,
+			Status: 503,
 			Message: "deadlock-info function has been disabled in configuration. " +
 				"To enable, set deadlock_info_function_enabled: true in the MySQL collector config.",
 		}
@@ -92,7 +95,7 @@ func (c *Collector) collectDeadlockInfo(ctx context.Context) *module.FunctionRes
 	if err != nil {
 		if isMySQLPermissionError(err) {
 			return c.deadlockInfoResponse(
-				200,
+				403,
 				"Deadlock info requires permission to run SHOW ENGINE INNODB STATUS. "+
 					"Grant with: GRANT USAGE, REPLICATION CLIENT, PROCESS ON *.* TO 'netdata'@'%';",
 				nil,
@@ -105,7 +108,7 @@ func (c *Collector) collectDeadlockInfo(ctx context.Context) *module.FunctionRes
 	parseRes := parseInnoDBDeadlock(statusText, time.Now().UTC())
 	if parseRes.parseErr != nil {
 		c.Warningf("deadlock-info: parse failed: %v", parseRes.parseErr)
-		return c.deadlockInfoResponse(200, "deadlock section could not be parsed", nil)
+		return c.deadlockInfoResponse(deadlockParseErrorStatus, "deadlock section could not be parsed", nil)
 	}
 	if !parseRes.found {
 		return c.deadlockInfoResponse(200, "no deadlock found in SHOW ENGINE INNODB STATUS", nil)
