@@ -53,6 +53,7 @@ require (
 	go.mongodb.org/mongo-driver v1.17.9
 	go.opentelemetry.io/proto/otlp v1.9.0 // indirect
 	go.uber.org/automaxprocs v1.6.0
+	go4.org/netipx v0.0.0-20231129151722-fdeea329fbba
 	golang.org/x/net v0.53.0
 	golang.org/x/sync v0.20.0
 	golang.org/x/text v0.36.0
@@ -76,7 +77,9 @@ require (
 	github.com/cespare/xxhash/v2 v2.3.0
 	github.com/docker/go-units v0.5.0
 	github.com/ibm-messaging/mq-golang/v5 v5.7.1
+	github.com/maxmind/mmdbwriter v1.2.0
 	github.com/microsoft/go-mssqldb v1.9.8
+	github.com/oschwald/maxminddb-golang v1.13.1
 	github.com/santhosh-tekuri/jsonschema/v6 v6.0.2
 	gopkg.in/yaml.v3 v3.0.1
 )
@@ -149,6 +152,7 @@ require (
 	github.com/opencontainers/go-digest v1.0.0 // indirect
 	github.com/opencontainers/image-spec v1.0.2 // indirect
 	github.com/opentracing/opentracing-go v1.1.0 // indirect
+	github.com/oschwald/maxminddb-golang/v2 v2.1.1 // indirect
 	github.com/pkg/browser v0.0.0-20240102092130-5ac0b6a4141c // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 // indirect
