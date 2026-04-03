@@ -68,7 +68,121 @@ metadata:
         value: "Firewall"
 
 metrics:
-  # CPU
+  # Licensing
+  #
+  # licensingTable rows expose multiple signals for one license blade.
+  # Each signal becomes its own hidden _license_row metric and the shared
+  # _license_id metric_tag glues them back together inside licensing.go.
+  - MIB: CHECKPOINT-MIB
+    table:
+      OID: 1.3.6.1.4.1.2620.1.6.18.1
+      name: licensingTable
+    symbols:
+      - OID: 1.3.6.1.4.1.2620.1.6.18.1.1.8
+        name: _license_row
+        metric_type: gauge
+        chart_meta:
+          description: "Hidden licensing capacity helper"
+          family: 'Internal/Licensing'
+          unit: "{row}"
+        transform: |
+          {{- setTag .Metric "_license_value_kind" "capacity" -}}
+      - OID: 1.3.6.1.4.1.2620.1.6.18.1.1.9
+        name: _license_row
+        metric_type: gauge
+        chart_meta:
+          description: "Hidden licensing usage helper"
+          family: 'Internal/Licensing'
+          unit: "{row}"
+        transform: |
+          {{- setTag .Metric "_license_value_kind" "usage" -}}
+      - OID: 1.3.6.1.4.1.2620.1.6.18.1.1.4
+        name: _license_row
+        # licensingState is a DisplayString. The Check Point MIB lists
+        # valid/up-to-date/about-to-expire/not-associated/unknown/expired
+        # in adjacent IPS/blade DESCRIPTIONs (CHECKPOINT-MIB.txt). Real
+        # devices in the wild also report TitleCase variants like
+        # "Not Entitled" and "Evaluation" — captured from a public Check
+        # Point community thread and replayed in
+        # testdata/licensing/checkpoint-community.snmpwalk. The mapping
+        # below covers both vocabularies. Mapping the state through a
+        # symbol (instead of leaving it only as a cached metric_tag) keeps
+        # the per-poll bucket fresh: the SNMP table cache reuses row tags
+        # on cache hits, but symbol values are re-fetched.
+        mapping:
+          # MIB-documented hyphenated tokens
+          valid: "0"
+          "up-to-date": "0"
+          "about-to-expire": "1"
+          unknown: "1"
+          expired: "2"
+          "not-associated": "2"
+          # Real on-wire TitleCase variants observed on production gateways
+          Valid: "0"
+          "Up To Date": "0"
+          "About To Expire": "1"
+          Unknown: "1"
+          Expired: "2"
+          "Not Associated": "2"
+          "Not Entitled": "2"
+          Evaluation: "1"
+          Trial: "1"
+        metric_type: gauge
+        chart_meta:
+          description: "Hidden licensing state severity helper"
+          family: 'Internal/Licensing'
+          unit: "{row}"
+        transform: |
+          {{- setTag .Metric "_license_value_kind" "state_severity" -}}
+      - OID: 1.3.6.1.4.1.2620.1.6.18.1.1.5
+        name: _license_row
+        # licensingExpirationDate is declared as Unsigned32 in the MIB. The
+        # public Check Point community fixture confirms it as a unix epoch
+        # in seconds, with 4294967295 (2^32-1) as the "never" sentinel. The
+        # numeric value processor reads it directly; licensing.go drops the
+        # sentinel before computing remaining time.
+        metric_type: gauge
+        chart_meta:
+          description: "Hidden licensing expiry helper"
+          family: 'Internal/Licensing'
+          unit: "{row}"
+        transform: |
+          {{- setTag .Metric "_license_value_kind" "expiry_timestamp" -}}
+    metric_tags:
+      # Tag-fallback: prefer licensingID, fall back to the licensingIndex column.
+      - symbol:
+          OID: 1.3.6.1.4.1.2620.1.6.18.1.1.2
+          name: licensingID
+        tag: _license_id
+      - symbol:
+          OID: 1.3.6.1.4.1.2620.1.6.18.1.1.1
+          name: licensingIndex
+        tag: _license_id
+      # Tag-fallback: prefer the blade name, fall back to the licensingIndex column.
+      - symbol:
+          OID: 1.3.6.1.4.1.2620.1.6.18.1.1.3
+          name: licensingBladeName
+        tag: _license_name
+      - symbol:
+          OID: 1.3.6.1.4.1.2620.1.6.18.1.1.1
+          name: licensingIndex
+        tag: _license_name
+      - symbol:
+          OID: 1.3.6.1.4.1.2620.1.6.18.1.1.4
+          name: licensingState
+        tag: _license_state_raw
+      - symbol:
+          OID: 1.3.6.1.4.1.2620.1.6.18.1.1.6
+          name: licensingImpact
+        tag: _license_impact
+    static_tags:
+      - tag: _license_type
+        value: subscription
+      - tag: _license_component
+        value: blade
+      - tag: _license_expiry_source
+        value: licensingExpirationDate
+    # CPU
   - MIB: CHECKPOINT-MIB
     table:
       OID: 1.3.6.1.4.1.2620.1.6.7.5

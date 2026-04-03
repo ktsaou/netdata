@@ -16,8 +16,10 @@ const (
 	prioProfileChart = collectorapi.Priority + iota
 	prioPingRtt
 	prioPingStdDev
+)
 
-	prioInternalStatsTimings
+const (
+	prioInternalStatsTimings = prioLicenseState + 1 + iota
 	prioInternalStatsSnmpOps
 	prioInternalStatsMetrics
 	prioInternalStatsTableCache

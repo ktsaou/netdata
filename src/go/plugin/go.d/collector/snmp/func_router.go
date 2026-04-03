@@ -17,14 +17,24 @@ type funcRouter struct {
 	handlers map[string]funcapi.MethodHandler
 }
 
-func newFuncRouter(cache *ifaceCache) *funcRouter {
+func newFuncRouter(ifaceCache *ifaceCache) *funcRouter {
 	r := &funcRouter{
-		ifaceCache: cache,
+		ifaceCache: ifaceCache,
 		handlers:   make(map[string]funcapi.MethodHandler),
 	}
-	r.handlers[ifacesMethodID] = newFuncInterfaces(r)
+	r.registerHandler(ifacesMethodID, newFuncInterfaces(r))
 	addTopologyFunctionHandler(r.handlers)
 	return r
+}
+
+func (r *funcRouter) registerHandler(method string, handler funcapi.MethodHandler) {
+	if r == nil || handler == nil {
+		return
+	}
+	if r.handlers == nil {
+		r.handlers = make(map[string]funcapi.MethodHandler)
+	}
+	r.handlers[method] = handler
 }
 
 // Compile-time interface check.
@@ -50,7 +60,7 @@ func (r *funcRouter) Cleanup(ctx context.Context) {
 	}
 }
 
-func snmpMethods() []funcapi.MethodConfig {
+func snmpBaseMethods() []funcapi.MethodConfig {
 	methods := []funcapi.MethodConfig{
 		ifacesMethodConfig(),
 	}

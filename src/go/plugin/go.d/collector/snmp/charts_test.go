@@ -77,6 +77,24 @@ func TestAddMetricTagLabels_PrefersUnprefixedTags(t *testing.T) {
 	}, labels)
 }
 
+func TestLicenseChartsSkipGaps(t *testing.T) {
+	charts := []struct {
+		name string
+		skip bool
+	}{
+		{name: licenseRemainingTimeChart.ID, skip: licenseRemainingTimeChart.SkipGaps},
+		{name: licenseAuthorizationRemainingTimeChart.ID, skip: licenseAuthorizationRemainingTimeChart.SkipGaps},
+		{name: licenseCertificateRemainingTimeChart.ID, skip: licenseCertificateRemainingTimeChart.SkipGaps},
+		{name: licenseGraceRemainingTimeChart.ID, skip: licenseGraceRemainingTimeChart.SkipGaps},
+		{name: licenseUsagePercentChart.ID, skip: licenseUsagePercentChart.SkipGaps},
+		{name: licenseStateChart.ID, skip: licenseStateChart.SkipGaps},
+	}
+
+	for _, tc := range charts {
+		assert.True(t, tc.skip, "chart %s must skip gaps to avoid empty licensing charts", tc.name)
+	}
+}
+
 func chartLabels(chart *collectorapi.Chart) map[string]string {
 	labels := make(map[string]string, len(chart.Labels))
 	for _, label := range chart.Labels {
