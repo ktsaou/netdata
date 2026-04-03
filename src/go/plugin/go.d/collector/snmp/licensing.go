@@ -304,6 +304,7 @@ func buildLicenseRow(metric ddsnmp.Metric, now time.Time) licenseRow {
 	}
 
 	applyLicenseMetricValueKind(&row, metric.Value, tags, now)
+	applyVendorLicenseSanityRules(&row)
 	row.StateBucket = normalizeLicenseStateBucket(row, now)
 
 	return row

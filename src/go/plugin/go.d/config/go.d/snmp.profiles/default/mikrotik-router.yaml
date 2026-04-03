@@ -81,6 +81,41 @@ metric_tags:
     tag: license_version
 
 metrics:
+  # Basic RouterOS licensing / upgrade entitlement telemetry.
+  - MIB: MIKROTIK-MIB
+    symbol:
+      OID: 1.3.6.1.4.1.14988.1.1.4.3.0
+      name: _license_row
+      metric_type: gauge
+      chart_meta:
+        description: Hidden licensing row helper
+        family: 'Internal/Licensing'
+        unit: "{row}"
+    static_tags:
+      - tag: _license_name
+        value: RouterOS upgrade entitlement
+      - tag: _license_type
+        value: upgrade_entitlement
+      - tag: _license_component
+        value: routeros
+      - tag: _license_impact
+        value: RouterOS software upgrade entitlement for this device
+      - tag: _license_expiry_source
+        value: mtxrLicUpgrUntil
+    metric_tags:
+      - tag: _license_id
+        symbol:
+          OID: 1.3.6.1.4.1.14988.1.1.4.1.0
+          name: mtxrLicSoftwareId
+      - tag: _license_feature
+        symbol:
+          OID: 1.3.6.1.4.1.14988.1.1.4.5.0
+          name: mtxrLicUpgradableTo
+      - tag: _license_expiry_raw
+        symbol:
+          OID: 1.3.6.1.4.1.14988.1.1.4.2.0
+          name: mtxrLicUpgrUntil
+          format: snmp_dateandtime
   - MIB: MIKROTIK-MIB
     symbol:
       OID: 1.3.6.1.4.1.14988.1.1.3.11.0

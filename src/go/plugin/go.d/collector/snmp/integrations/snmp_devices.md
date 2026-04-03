@@ -28,7 +28,7 @@ This collector discovers and monitors any SNMP-enabled network device.
 - **Automatic vendor/model detection**: Devices are matched to the right profile using selectors such as `sysObjectID` and `sysDescr`.
 - **ICMP ping**: Optional round-trip latency monitoring alongside SNMP, with a `ping_only` mode available.
 - **SNMP v1, v2c, and v3 support**: Fully implemented via the [gosnmp](https://github.com/gosnmp/gosnmp) library.
-- **Shared device-level licensing metrics for supported profiles**: When a profile exposes license telemetry, Netdata emits compact per-device licensing charts for earliest expiry, license-state counts (`healthy`, `degraded`, `broken`, `ignored`), and highest usage pressure. Current branch coverage includes Check Point, Fortinet FortiGate contract/service/account expirations, Cisco traditional licensing end-date/remaining-time/state/usage telemetry, Cisco Smart Licensing authorization, certificate, evaluation, and state telemetry, Sophos Firewall subscription state/expiry telemetry, and Blue Coat ProxySG application/feature/component expiry, expire-type, and state telemetry.
+- **Shared device-level licensing metrics for supported profiles**: When a profile exposes license telemetry, Netdata emits compact per-device licensing charts for earliest expiry, license-state counts (`healthy`, `degraded`, `broken`, `ignored`), and highest usage pressure. Current branch coverage includes Check Point, Fortinet FortiGate contract/service/account expirations, Cisco traditional licensing end-date/remaining-time/state/usage telemetry, Cisco Smart Licensing authorization, certificate, evaluation, and state telemetry, Sophos Firewall subscription state/expiry telemetry, Blue Coat ProxySG application/feature/component expiry, expire-type, and state telemetry, and basic MikroTik RouterOS upgrade-entitlement telemetry. For MikroTik, epoch-like placeholder `mtxrLicUpgrUntil` values are ignored instead of treated as real expired licenses.
 - **Interactive licensing drill-down**: The `snmp:licenses` function follows the existing SNMP function pattern and shows normalized licensing rows for the selected SNMP job/device using cached collector data.
 
 
@@ -421,7 +421,7 @@ If `ping.enabled` is true, ICMP latency/packet-loss charts are also provided (or
 
 ### Per device licensing
 
-Shared device-level licensing health metrics emitted when the matched SNMP profile provides licensing telemetry. Current branch coverage includes Check Point, Fortinet FortiGate contract/service/account expirations, Cisco traditional licensing end-date/remaining-time/state/usage telemetry, Cisco Smart Licensing authorization, certificate, evaluation, and state telemetry, Sophos Firewall subscription state/expiry telemetry, and Blue Coat ProxySG application/feature/component expiry, expire-type, and state telemetry.
+Shared device-level licensing health metrics emitted when the matched SNMP profile provides licensing telemetry. Current branch coverage includes Check Point, Fortinet FortiGate contract/service/account expirations, Cisco traditional licensing end-date/remaining-time/state/usage telemetry, Cisco Smart Licensing authorization, certificate, evaluation, and state telemetry, Sophos Firewall subscription state/expiry telemetry, Blue Coat ProxySG application/feature/component expiry, expire-type, and state telemetry, and basic MikroTik RouterOS upgrade-entitlement telemetry. MikroTik support is intentionally limited to the RouterOS upgrade-entitlement fields exposed by SNMP, and epoch-like placeholder `mtxrLicUpgrUntil` values are ignored.
 
 Labels:
 
@@ -538,7 +538,7 @@ No additional configuration is required.
 
 #### Parameters
 
-This function has no user-configurable parameters.
+This function has no parameters.
 
 #### Returns
 
@@ -676,4 +676,3 @@ Table metrics are usually the slowest and often determine the total collection t
 1. Do logs show “skipping data collection”?  
 2. Does *Internal → Stats* show collection time > `update_every`?  
 3. Increase `update_every` until skips disappear.
-

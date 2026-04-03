@@ -161,6 +161,56 @@ func TestCollector_Collect_FortiGateLicensingProfile_DisablesTableCache(t *testi
 	require.NotNil(t, byID["FortiCare Premium"])
 }
 
+func TestCollector_Collect_MikroTikLicensingProfile(t *testing.T) {
+	ctrl, mockHandler := setupMockHandler(t)
+	defer ctrl.Finish()
+
+	expectSNMPGet(mockHandler,
+		[]string{
+			"1.3.6.1.4.1.14988.1.1.4.3.0",
+			"1.3.6.1.4.1.14988.1.1.4.1.0",
+			"1.3.6.1.4.1.14988.1.1.4.5.0",
+			"1.3.6.1.4.1.14988.1.1.4.2.0",
+		},
+		[]gosnmp.SnmpPDU{
+			createIntegerPDU("1.3.6.1.4.1.14988.1.1.4.3.0", 6),
+			createStringPDU("1.3.6.1.4.1.14988.1.1.4.1.0", "LD1Z-M65N"),
+			createIntegerPDU("1.3.6.1.4.1.14988.1.1.4.5.0", 7),
+			createDateAndTimePDU("1.3.6.1.4.1.14988.1.1.4.2.0", time.Date(2030, time.January, 1, 0, 0, 0, 0, time.UTC)),
+		},
+	)
+
+	profile := mustLoadLicensingProfile(t, "mikrotik-router", func(metric ddprofiledefinition.MetricsConfig) bool {
+		return metric.MIB == "MIKROTIK-MIB" && strings.TrimPrefix(metric.Symbol.OID, ".") == "1.3.6.1.4.1.14988.1.1.4.3.0"
+	})
+
+	collector := New(Config{
+		SnmpClient:  mockHandler,
+		Profiles:    []*ddsnmp.Profile{profile},
+		Log:         logger.New(),
+		SysObjectID: "",
+	})
+
+	results, err := collector.Collect()
+	require.NoError(t, err)
+	require.Len(t, results, 1)
+
+	pm := results[0]
+	assert.Empty(t, pm.Metrics)
+	require.Len(t, pm.HiddenMetrics, 1)
+
+	row := licenseMetricsByID(pm.HiddenMetrics)["LD1Z-M65N"]
+	require.NotNil(t, row)
+	assert.EqualValues(t, 6, row.Value)
+	assert.Equal(t, "LD1Z-M65N", row.Tags[testTagLicenseID])
+	assert.Equal(t, "7", row.Tags["_license_feature"])
+	assert.Equal(t, "1893456000", row.Tags["_license_expiry_raw"])
+	assert.Equal(t, "RouterOS upgrade entitlement", row.StaticTags[testTagLicenseName])
+	assert.Equal(t, "upgrade_entitlement", row.StaticTags["_license_type"])
+	assert.Equal(t, "routeros", row.StaticTags["_license_component"])
+	assert.Equal(t, "mtxrLicUpgrUntil", row.StaticTags["_license_expiry_source"])
+}
+
 func mustLoadLicensingProfile(t *testing.T, profileName string, keep func(metric ddprofiledefinition.MetricsConfig) bool) *ddsnmp.Profile {
 	t.Helper()
 
