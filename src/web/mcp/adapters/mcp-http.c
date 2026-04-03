@@ -19,6 +19,24 @@
 #include <string.h>
 #include <strings.h>
 
+// ---------------------------------------------------------------------------
+// MCP HTTP Streamable HTTP transport (MCP 2025-03-26)
+//
+// The spec requires returning Mcp-Session-Id on a successful initialize.
+// We generate a random UUID and return it.  No server-side session state
+// is kept — every request is self-contained.
+// ---------------------------------------------------------------------------
+
+// Emit Mcp-Session-Id response header if the web_client has one set.
+static void mcp_http_emit_session_id_header(struct web_client *w) {
+    if (uuid_is_null(w->mcp_session_id))
+        return;
+
+    char buf[UUID_STR_LEN];
+    uuid_unparse_lower(w->mcp_session_id, buf);
+    buffer_sprintf(w->response.header, "Mcp-Session-Id: %s\r\n", buf);
+}
+
 #define IS_PARAM_SEPARATOR(c) ((c) == '&' || (c) == '\0')
 
 static const char *mcp_http_body(struct web_client *w, size_t *len) {
@@ -131,6 +149,13 @@ int mcp_http_handle_request(struct rrdhost *host __maybe_unused, struct web_clie
         return mcp_http_prepare_error_response(w, payload, HTTP_RESP_BAD_REQUEST);
     }
 
+    // Detect "initialize" so we can generate a session ID for it.
+    const char *method = NULL;
+    struct json_object *method_obj = NULL;
+    if (json_object_is_type(root, json_type_object) &&
+        json_object_object_get_ex(root, "method", &method_obj))
+        method = json_object_get_string(method_obj);
+
     MCP_CLIENT *mcpc = mcp_create_client(MCP_TRANSPORT_HTTP, w);
     if (!mcpc) {
         json_object_put(root);
@@ -155,26 +180,14 @@ int mcp_http_handle_request(struct rrdhost *host __maybe_unused, struct web_clie
 
         if (json_object_is_type(root, json_type_array)) {
             size_t len = json_object_array_length(root);
-            BUFFER **responses = NULL;
+            BUFFER **responses = callocz(len, sizeof(*responses));
             size_t responses_used = 0;
-            size_t responses_size = 0;
 
             for (size_t i = 0; i < len; i++) {
                 struct json_object *req_item = json_object_array_get_idx(root, i);
                 BUFFER *resp_item = mcp_jsonrpc_process_single_request(mcpc, req_item, NULL);
                 if (!resp_item)
                     continue;
-
-                if (responses_used == responses_size) {
-                    size_t new_size = responses_size ? responses_size * 2 : 4;
-                    BUFFER **tmp = reallocz(responses, new_size * sizeof(*tmp));
-                    if (!tmp) {
-                        buffer_free(resp_item);
-                        continue;
-                    }
-                    responses = tmp;
-                    responses_size = new_size;
-                }
                 responses[responses_used++] = resp_item;
             }
 
@@ -207,6 +220,13 @@ int mcp_http_handle_request(struct rrdhost *host __maybe_unused, struct web_clie
 
         result_code = w->response.code;
     }
+
+    // On successful initialize, generate a new session ID
+    if (method && strcmp(method, "initialize") == 0 && result_code == HTTP_RESP_OK)
+        uuid_generate_random(w->mcp_session_id);
+
+    // Emit Mcp-Session-Id header if we have one (from initialize or from the client's request)
+    mcp_http_emit_session_id_header(w);
 
     json_object_put(root);
     mcp_free_client(mcpc);
