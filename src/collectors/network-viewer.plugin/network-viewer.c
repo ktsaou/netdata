@@ -191,8 +191,8 @@ ENUM_STR_MAP_DEFINE(TCP_STATE) = {
     { .id = TCP_ESTABLISHED, .name = "established" },
     { .id = TCP_SYN_SENT, .name = "syn-sent" },
     { .id = TCP_SYN_RECV, .name = "syn-received" },
-    { .id = TCP_FIN_WAIT1, .name = "fin1-wait1" },
-    { .id = TCP_FIN_WAIT2, .name = "fin1-wait2" },
+    { .id = TCP_FIN_WAIT1, .name = "fin-wait1" },
+    { .id = TCP_FIN_WAIT2, .name = "fin-wait2" },
     { .id = TCP_TIME_WAIT, .name = "time-wait" },
     { .id = TCP_CLOSE, .name = "close" },
     { .id = TCP_CLOSE_WAIT, .name = "close-wait" },
@@ -2317,7 +2317,7 @@ static void topology_write_links_and_stats(BUFFER *wb, const NV_TOPOLOGY_CONTEXT
             char src_display_name[NV_TOPOLOGY_KEY_MAX];
             char process_actor_id[NV_TOPOLOGY_KEY_MAX];
             char process_display_name[NV_TOPOLOGY_KEY_MAX];
-            char ownership_display_name[NV_TOPOLOGY_KEY_MAX];
+            char ownership_display_name[NV_TOPOLOGY_KEY_MAX * 2 + 7];
             topology_actor_id_for_process(ctx, pa->pid, pa->uid, pa->net_ns_inode, pa->process, process_actor_id, sizeof(process_actor_id));
             topology_process_display_name(ctx, pa->process, pa->pid, process_display_name, sizeof(process_display_name));
 
@@ -2448,7 +2448,7 @@ static void topology_write_links_and_stats(BUFFER *wb, const NV_TOPOLOGY_CONTEXT
             char process_display_name[NV_TOPOLOGY_KEY_MAX];
             char dst_process_display_name[NV_TOPOLOGY_KEY_MAX];
             char dst_process_port_name[64] = "";
-            char link_display_name[NV_TOPOLOGY_KEY_MAX];
+            char link_display_name[NV_TOPOLOGY_KEY_MAX * 2 + 256 + 7];
             bool remote_is_self = topology_ip_belongs_to_self(ctx, link->remote_ip, link->remote_address_space);
             bool dst_is_process = false;
             bool dst_local_peer_unresolved = false;
@@ -2767,6 +2767,7 @@ void network_viewer_function(const char *transaction, char *function __maybe_unu
     size_t num_words = quoted_strings_splitter_whitespace(function_copy, words, 1024);
     for(size_t i = 1; i < num_words ;i++) {
         char *param = get_word(words, num_words, i);
+        if(!param || !*param) continue;
         if(strcmp(param, "sockets:aggregated") == 0) {
             aggregated = true;
         }
@@ -2837,24 +2838,29 @@ void network_viewer_function(const char *transaction, char *function __maybe_unu
         local_sockets_process(&ls);
 
         if(aggregated) {
-            LOCAL_SOCKET *array[ht.used];
             size_t added = 0;
             uint64_t proc_self_net_ns_inode = ls.proc_self_net_ns_inode;
-            for(SIMPLE_HASHTABLE_SLOT_AGGREGATED_SOCKETS *sl = simple_hashtable_first_read_only_AGGREGATED_SOCKETS(&ht);
-                 sl;
-                 sl = simple_hashtable_next_read_only_AGGREGATED_SOCKETS(&ht, sl)) {
-                LOCAL_SOCKET *n = SIMPLE_HASHTABLE_SLOT_DATA(sl);
-                if(!n || added >= ht.used) continue;
 
-                array[added++] = n;
-            }
+            if(ht.used) {
+                LOCAL_SOCKET **array = mallocz(ht.used * sizeof(LOCAL_SOCKET *));
+                for(SIMPLE_HASHTABLE_SLOT_AGGREGATED_SOCKETS *sl = simple_hashtable_first_read_only_AGGREGATED_SOCKETS(&ht);
+                     sl;
+                     sl = simple_hashtable_next_read_only_AGGREGATED_SOCKETS(&ht, sl)) {
+                    LOCAL_SOCKET *n = SIMPLE_HASHTABLE_SLOT_DATA(sl);
+                    if(!n || added >= ht.used) continue;
 
-            qsort(array, added, sizeof(LOCAL_SOCKET *), local_sockets_compar);
+                    array[added++] = n;
+                }
 
-            for(size_t i = 0; i < added ;i++) {
-                local_socket_to_json_array(&st, array[i], proc_self_net_ns_inode, true);
-                string_freez(array[i]->cmdline);
-                freez(array[i]);
+                qsort(array, added, sizeof(LOCAL_SOCKET *), local_sockets_compar);
+
+                for(size_t i = 0; i < added ;i++) {
+                    local_socket_to_json_array(&st, array[i], proc_self_net_ns_inode, true);
+                    string_freez(array[i]->cmdline);
+                    freez(array[i]);
+                }
+
+                freez(array);
             }
 
             simple_hashtable_destroy_AGGREGATED_SOCKETS(&ht);
@@ -3098,8 +3104,7 @@ void network_viewer_function(const char *transaction, char *function __maybe_unu
 
         buffer_json_member_add_object(wb, "charts");
         {
-            // Data Collection Age chart
-            buffer_json_member_add_object(wb, "Count");
+            buffer_json_member_add_object(wb, "Count by Direction");
             {
                 buffer_json_member_add_string(wb, "type", "stacked-bar");
                 buffer_json_member_add_array(wb, "columns");
@@ -3110,8 +3115,7 @@ void network_viewer_function(const char *transaction, char *function __maybe_unu
             }
             buffer_json_object_close(wb);
 
-            // Streaming Age chart
-            buffer_json_member_add_object(wb, "Count");
+            buffer_json_member_add_object(wb, "Count by Process");
             {
                 buffer_json_member_add_string(wb, "type", "stacked-bar");
                 buffer_json_member_add_array(wb, "columns");
@@ -3122,8 +3126,7 @@ void network_viewer_function(const char *transaction, char *function __maybe_unu
             }
             buffer_json_object_close(wb);
 
-            // DB Duration
-            buffer_json_member_add_object(wb, "Count");
+            buffer_json_member_add_object(wb, "Count by Protocol");
             {
                 buffer_json_member_add_string(wb, "type", "stacked-bar");
                 buffer_json_member_add_array(wb, "columns");

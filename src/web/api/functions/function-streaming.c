@@ -1397,7 +1397,7 @@ int function_streaming_topology(BUFFER *wb, const char *function, BUFFER *payloa
 
                     // determine link target and type from streaming_path
                     const char *link_type = NULL;
-                    char target_actor_id[256];
+                    char target_actor_id[256] = "";
 
                     ND_UUID link_ids[2];
                     uint16_t link_n = streaming_topology_get_path_ids(host, 0, link_ids, 2);

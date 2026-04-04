@@ -486,7 +486,7 @@ static inline void local_listeners_print_socket(LS_STATE *ls __maybe_unused, con
         ipv6_address_to_txt(&n->remote.ip.ipv6, remote_address);
     }
 
-    printf("%s, direction=%s%s%s%s%s pid=%d ppid=%d, state=0x%0x, ns=%"PRIu64", local=%s[:%u], remote=%s[:%u], uid=%u, inode=%"PRIu64", comm=%s\n",
+    printf("%s, direction=%s%s%s%s%s pid=%d, ppid=%d, state=0x%0x, ns=%"PRIu64", local=%s[:%u], remote=%s[:%u], uid=%u, inode=%"PRIu64", comm=%s\n",
         local_sockets_protocol_name(n),
            (n->direction & SOCKET_DIRECTION_LISTEN) ? "LISTEN," : "",
            (n->direction & SOCKET_DIRECTION_INBOUND) ? "INBOUND," : "",
