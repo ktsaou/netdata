@@ -1364,10 +1364,14 @@ fn server_handshake(
     };
 
     // Negotiate limits:
-    // - requests use the larger of client/server advertised capacities
-    // - responses are server-authoritative
-    let agreed_req_pay = max_u32(hello.max_request_payload_bytes, s_req_pay).min(MAX_PAYLOAD_CAP);
-    let agreed_req_bat = max_u32(hello.max_request_batch_items, s_req_bat);
+    // - requests: server-authoritative (min), so a client cannot inflate the server's
+    //   accepted payload/batch limits beyond ServerConfig — prevents unbounded allocs.
+    // - responses: server-authoritative (server decides what it will send).
+    let agreed_req_pay = hello
+        .max_request_payload_bytes
+        .min(s_req_pay)
+        .min(MAX_PAYLOAD_CAP);
+    let agreed_req_bat = hello.max_request_batch_items.min(s_req_bat);
     let agreed_resp_pay = s_resp_pay;
     let agreed_resp_bat = s_resp_bat;
     let mut agreed_pkt = min_u32(hello.packet_size, server_pkt_size);

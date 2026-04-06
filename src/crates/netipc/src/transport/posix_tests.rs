@@ -1344,8 +1344,9 @@ fn test_directional_limit_negotiation() {
         ready_clone.store(true, Ordering::Release);
 
         let session = listener.accept().expect("accept");
-        assert_eq!(session.max_request_payload_bytes, 4096);
-        assert_eq!(session.max_request_batch_items, 16);
+        // server limits are authoritative: min(client=4096, server=2048)=2048, min(16,8)=8
+        assert_eq!(session.max_request_payload_bytes, 2048);
+        assert_eq!(session.max_request_batch_items, 8);
         assert_eq!(session.max_response_payload_bytes, 8192);
         assert_eq!(session.max_response_batch_items, 32);
     });
@@ -1363,8 +1364,9 @@ fn test_directional_limit_negotiation() {
     };
     let session = UdsSession::connect(TEST_RUN_DIR, &svc, &ccfg).expect("connect");
 
-    assert_eq!(session.max_request_payload_bytes, 4096);
-    assert_eq!(session.max_request_batch_items, 16);
+    // client learns the server-clamped limits from the ACK
+    assert_eq!(session.max_request_payload_bytes, 2048);
+    assert_eq!(session.max_request_batch_items, 8);
     assert_eq!(session.max_response_payload_bytes, 8192);
     assert_eq!(session.max_response_batch_items, 32);
 
