@@ -282,6 +282,23 @@ impl UdsSession {
             return Err(UdsError::BadParam("session closed".into()));
         }
 
+        // Validate payload against negotiated directional limits before transmitting.
+        // The u32 cast below requires payload.len() <= u32::MAX.
+        let (max_payload, max_items) = if self.role == Role::Client {
+            (self.max_request_payload_bytes, self.max_request_batch_items)
+        } else {
+            (
+                self.max_response_payload_bytes,
+                self.max_response_batch_items,
+            )
+        };
+        if payload.len() > max_payload as usize || payload.len() > u32::MAX as usize {
+            return Err(UdsError::LimitExceeded);
+        }
+        if hdr.item_count > max_items {
+            return Err(UdsError::LimitExceeded);
+        }
+
         // Client-side: track in-flight message_ids for requests
         if self.role == Role::Client && hdr.kind == KIND_REQUEST {
             if !self.inflight_ids.insert(hdr.message_id) {
