@@ -245,6 +245,10 @@ static void ebpf_parse_cgroup_netipc_data(void)
     ebpf_cgroup_systemd_enabled = (int)ebpf_cgroup_cache.systemd_enabled;
     ebpf_cgroup_integration_active = (count > 0) ? 1 : 0;
 
+    // nothing to process; preserve existing targets rather than wiping them
+    if (count == 0)
+        return;
+
     netdata_mutex_lock(&mutex_cgroup_shm);
     ebpf_remove_cgroup_target_update_list();
     ebpf_reset_updated_var();
