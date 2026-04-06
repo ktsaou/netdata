@@ -416,6 +416,13 @@ nipc_shm_error_t nipc_shm_client_attach(const char *run_dir,
         return NIPC_SHM_ERR_NOT_READY;
     }
 
+    /* Guard against uint32 overflow in request_offset + request_capacity */
+    if (hdr->request_offset > UINT32_MAX - hdr->request_capacity) {
+        munmap(map, file_size);
+        close(fd);
+        return NIPC_SHM_ERR_BAD_SIZE;
+    }
+
     if ((hdr->request_offset % NIPC_SHM_REGION_ALIGNMENT) != 0 ||
         (hdr->request_capacity % NIPC_SHM_REGION_ALIGNMENT) != 0 ||
         (hdr->response_offset % NIPC_SHM_REGION_ALIGNMENT) != 0 ||
