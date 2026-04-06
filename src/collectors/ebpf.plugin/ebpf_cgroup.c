@@ -245,9 +245,13 @@ static void ebpf_parse_cgroup_netipc_data(void)
     ebpf_cgroup_systemd_enabled = (int)ebpf_cgroup_cache.systemd_enabled;
     ebpf_cgroup_integration_active = (count > 0) ? 1 : 0;
 
-    // nothing to process; preserve existing targets rather than wiping them
-    if (count == 0)
+    // nothing to process; preserve existing targets rather than wiping them.
+    // reset previous_count so the next non-zero snapshot triggers send_cgroup_chart=1,
+    // ensuring systemd charts are recreated after a cgroup list becomes empty.
+    if (count == 0) {
+        previous_count = 0;
         return;
+    }
 
     netdata_mutex_lock(&mutex_cgroup_shm);
     ebpf_remove_cgroup_target_update_list();
