@@ -216,15 +216,17 @@ impl ShmContext {
     ) -> Result<Self, ShmError> {
         let path = build_shm_path(run_dir, service_name, session_id)?;
 
-        // Round capacities to alignment
-        let req_cap = align64(req_capacity);
-        let resp_cap = align64(resp_capacity);
+        // Round capacities to alignment (fails if rounding would overflow u32)
+        let req_cap = align64(req_capacity)
+            .ok_or_else(|| ShmError::BadParam("request capacity overflow".into()))?;
+        let resp_cap = align64(resp_capacity)
+            .ok_or_else(|| ShmError::BadParam("response capacity overflow".into()))?;
 
-        let req_off = align64(HEADER_LEN as u32);
-        // Guard against u32 overflow on large capacities
+        let req_off = align64(HEADER_LEN as u32)
+            .ok_or_else(|| ShmError::BadParam("header offset overflow".into()))?;
         let resp_off = req_off
             .checked_add(req_cap)
-            .map(align64)
+            .and_then(align64)
             .ok_or_else(|| ShmError::BadParam("region offset overflow".into()))?;
         let region_size = resp_off
             .checked_add(resp_cap)
@@ -422,7 +424,7 @@ impl ShmContext {
             )
         };
 
-        let header_end = align64(HEADER_LEN as u32);
+        let header_end = align64(HEADER_LEN as u32).unwrap_or(HEADER_LEN as u32);
         if req_off < header_end || req_cap == 0 || resp_off < header_end || resp_cap == 0 {
             unsafe {
                 libc::munmap(base as *mut libc::c_void, file_size);
@@ -437,7 +439,7 @@ impl ShmContext {
             || resp_cap % REGION_ALIGNMENT != 0
             || req_off
                 .checked_add(req_cap)
-                .map(align64)
+                .and_then(align64)
                 .map_or(true, |min| resp_off < min)
         {
             unsafe {
@@ -818,9 +820,11 @@ pub fn cleanup_stale(run_dir: &str, service_name: &str) {
 //  Internal helpers
 // ---------------------------------------------------------------------------
 
-fn align64(v: u32) -> u32 {
-    // Saturate to prevent wrap on values near u32::MAX
-    v.saturating_add(REGION_ALIGNMENT - 1) & !(REGION_ALIGNMENT - 1)
+/// Round v up to REGION_ALIGNMENT. Returns None if the rounded value would
+/// overflow u32 — callers must reject such inputs rather than silently wrap.
+fn align64(v: u32) -> Option<u32> {
+    v.checked_add(REGION_ALIGNMENT - 1)
+        .map(|x| x & !(REGION_ALIGNMENT - 1))
 }
 
 /// Validate service_name: only [a-zA-Z0-9._-], non-empty, not "." or "..".
