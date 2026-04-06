@@ -175,19 +175,27 @@ impl ShmContext {
         if self.base.is_null() || self.region_size < HEADER_LEN as usize {
             return false;
         }
-        // SAFETY: `self.base` is a valid mmap'd region of `self.region_size`
-        // bytes (checked above to be at least HEADER_LEN). RegionHeader fits
-        // within HEADER_LEN. The pointer is non-null and the read is within
-        // bounds of the mapped region.
-        let hdr = self.base as *const RegionHeader;
-        let pid = unsafe { ptr::read_volatile(&(*hdr).owner_pid) };
+        // Read the PID and generation fields by computing their byte offsets
+        // directly from self.base, avoiding any pointer dereference through
+        // a reference type. This is safer than casting to *const RegionHeader
+        // and dereferencing because we never materialize a borrow of the
+        // header struct — we just read raw bytes at known offsets.
+        //
+        // SAFETY: self.base is a non-null mmap'd region of at least HEADER_LEN
+        // bytes (checked above). The field offsets below are within HEADER_LEN.
+        // owner_pid is at offset 8, owner_generation at offset 12
+        let pid: i32 = unsafe {
+            let p = self.base.add(8) as *const i32;
+            ptr::read_volatile(p)
+        };
         if !pid_alive(pid) {
             return false;
         }
-        // Verify generation matches to detect PID reuse.
-        // Skip check if cached generation is 0 (legacy region).
         if self.owner_generation != 0 {
-            let cur_gen = unsafe { ptr::read_volatile(&(*hdr).owner_generation) };
+            let cur_gen: u32 = unsafe {
+                let p = self.base.add(12) as *const u32;
+                ptr::read_volatile(p)
+            };
             if cur_gen != self.owner_generation {
                 return false;
             }
