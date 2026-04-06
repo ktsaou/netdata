@@ -700,7 +700,7 @@ impl WinShmContext {
             ),
         };
 
-        if msg.len() > area_cap as usize {
+        if msg.len() > area_cap as usize || msg.len() > i32::MAX as usize {
             return Err(WinShmError::MsgTooLarge);
         }
 

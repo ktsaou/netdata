@@ -1444,20 +1444,6 @@ static void cache_free_items(nipc_cgroups_cache_item_t *items, uint32_t count)
     free(items);
 }
 
-/* Round up to the next power of 2. Minimum 16. */
-static uint32_t next_power_of_2(uint32_t n)
-{
-    if (n < 16)
-        return 16;
-    n--;
-    n |= n >> 1;
-    n |= n >> 2;
-    n |= n >> 4;
-    n |= n >> 8;
-    n |= n >> 16;
-    return n + 1;
-}
-
 /* Hash a name string (djb2). Combined with item hash for bucket index. */
 static uint32_t cache_hash_name(const char *name)
 {
@@ -1481,7 +1467,7 @@ static bool cache_build_hashtable(nipc_cgroups_cache_t *cache)
     if (cache->item_count == 0)
         return true;
 
-    uint32_t bcount = next_power_of_2(cache->item_count * 2);
+    uint32_t bcount = next_power_of_2_u32(cache->item_count * 2);
     nipc_cgroups_hash_bucket_t *buckets = service_calloc(
         bcount, sizeof(nipc_cgroups_hash_bucket_t),
         NIPC_WIN_SERVICE_TEST_FAULT_CACHE_BUCKETS_CALLOC_INTERNAL);

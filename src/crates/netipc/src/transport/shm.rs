@@ -172,18 +172,22 @@ impl ShmContext {
 
     /// Check if the region's owner process is still alive.
     pub fn owner_alive(&self) -> bool {
-        if self.base.is_null() {
+        if self.base.is_null() || self.region_size < HEADER_LEN as usize {
             return false;
         }
+        // SAFETY: `self.base` is a valid mmap'd region of `self.region_size`
+        // bytes (checked above to be at least HEADER_LEN). RegionHeader fits
+        // within HEADER_LEN. The pointer is non-null and the read is within
+        // bounds of the mapped region.
         let hdr = self.base as *const RegionHeader;
-        let pid = unsafe { (*hdr).owner_pid };
+        let pid = unsafe { ptr::read_volatile(&(*hdr).owner_pid) };
         if !pid_alive(pid) {
             return false;
         }
         // Verify generation matches to detect PID reuse.
         // Skip check if cached generation is 0 (legacy region).
         if self.owner_generation != 0 {
-            let cur_gen = unsafe { (*hdr).owner_generation };
+            let cur_gen = unsafe { ptr::read_volatile(&(*hdr).owner_generation) };
             if cur_gen != self.owner_generation {
                 return false;
             }
@@ -235,7 +239,7 @@ impl ShmContext {
             if stale == StaleResult::LiveServer {
                 return Err(ShmError::AddrInUse);
             }
-            // Stale file was unlinked, retry create
+            // Stale file was (hopefully) unlinked, retry create
             fd = unsafe {
                 libc::open(
                     c_path.as_ptr(),
@@ -243,6 +247,12 @@ impl ShmContext {
                     0o600,
                 )
             };
+            // If retry still fails with EEXIST, the stale check couldn't
+            // unlink (e.g., EACCES) — treat as address-in-use rather than
+            // leaking EEXIST up the stack.
+            if fd < 0 && unsafe { *libc::__errno_location() } == libc::EEXIST {
+                return Err(ShmError::AddrInUse);
+            }
         }
         if fd < 0 {
             return Err(ShmError::Open(errno()));
