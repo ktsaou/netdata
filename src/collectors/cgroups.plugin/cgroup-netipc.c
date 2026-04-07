@@ -37,6 +37,8 @@ static bool cgroups_snapshot_handler(void *user __maybe_unused,
                                      const nipc_cgroups_req_t *request __maybe_unused,
                                      nipc_cgroups_builder_t *builder) {
     static uint64_t generation = 0;
+    static uint64_t last_logged_zero_generation = 0;
+    static uint64_t last_logged_truncated_generation = 0;
     char name_buf[256];
     char path_buf[FILENAME_MAX + 1];
 
@@ -47,6 +49,8 @@ static bool cgroups_snapshot_handler(void *user __maybe_unused,
 
     struct cgroup *cg;
     int count;
+    int enabled_count = 0;
+    bool truncated = false;
     for (cg = cgroup_root, count = 0; cg && count < cgroup_root_max; cg = cg->next, count++) {
         const char *prefix = is_cgroup_systemd_service(cg)
             ? services_chart_id_prefix
@@ -70,16 +74,37 @@ static bool cgroups_snapshot_handler(void *user __maybe_unused,
                 enabled = 0;
         }
 
+        if (enabled)
+            enabled_count++;
+
         nipc_error_t err = nipc_cgroups_builder_add(
             builder, hash, options, enabled,
             name_buf, (uint32_t)strlen(name_buf),
             path_buf, (uint32_t)strlen(path_buf));
 
-        if (err == NIPC_ERR_OVERFLOW)
+        if (err == NIPC_ERR_OVERFLOW) {
+            truncated = true;
             break; // buffer full — send what we have
+        }
     }
 
     netdata_mutex_unlock(&cgroup_root_mutex);
+
+    if (count == 0 && last_logged_zero_generation != generation) {
+        last_logged_zero_generation = generation;
+        collector_info("CGROUP: netipc snapshot generation=%llu returned zero items",
+                       (unsigned long long)generation);
+    }
+
+    if (truncated && last_logged_truncated_generation != generation) {
+        last_logged_truncated_generation = generation;
+        collector_error(
+            "CGROUP: netipc snapshot generation=%llu truncated after %d items (%d enabled) due to response size limits",
+            (unsigned long long)generation,
+            count,
+            enabled_count);
+    }
+
     return true;
 }
 
@@ -126,7 +151,7 @@ void cgroup_netipc_init(void) {
         return;
     }
 
-    collector_info("CGROUP: netipc server started on '%s/%s'",
+    collector_info("CGROUP: netipc server started on '%s/%s.sock'",
                    os_run_dir(true), CGROUP_NETIPC_SERVICE_NAME);
 }
 

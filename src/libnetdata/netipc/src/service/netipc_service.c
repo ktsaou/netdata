@@ -16,6 +16,7 @@
 
 #include <errno.h>
 #include <poll.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/socket.h>
@@ -123,6 +124,170 @@ static uint64_t monotonic_time_ms(void)
     struct timespec ts;
     clock_gettime(CLOCK_MONOTONIC, &ts);
     return (uint64_t)ts.tv_sec * 1000u + (uint64_t)ts.tv_nsec / 1000000u;
+}
+
+static const char *client_state_name(nipc_client_state_t state)
+{
+    switch (state) {
+    case NIPC_CLIENT_DISCONNECTED:
+        return "disconnected";
+    case NIPC_CLIENT_CONNECTING:
+        return "connecting";
+    case NIPC_CLIENT_READY:
+        return "ready";
+    case NIPC_CLIENT_NOT_FOUND:
+        return "not-found";
+    case NIPC_CLIENT_AUTH_FAILED:
+        return "auth-failed";
+    case NIPC_CLIENT_INCOMPATIBLE:
+        return "incompatible";
+    case NIPC_CLIENT_BROKEN:
+        return "broken";
+    default:
+        return "unknown";
+    }
+}
+
+static const char *uds_error_name(nipc_uds_error_t err)
+{
+    switch (err) {
+    case NIPC_UDS_OK:
+        return "ok";
+    case NIPC_UDS_ERR_PATH_TOO_LONG:
+        return "path-too-long";
+    case NIPC_UDS_ERR_SOCKET:
+        return "socket";
+    case NIPC_UDS_ERR_CONNECT:
+        return "connect";
+    case NIPC_UDS_ERR_ACCEPT:
+        return "accept";
+    case NIPC_UDS_ERR_SEND:
+        return "send";
+    case NIPC_UDS_ERR_RECV:
+        return "recv";
+    case NIPC_UDS_ERR_HANDSHAKE:
+        return "handshake";
+    case NIPC_UDS_ERR_AUTH_FAILED:
+        return "auth-failed";
+    case NIPC_UDS_ERR_NO_PROFILE:
+        return "no-profile";
+    case NIPC_UDS_ERR_INCOMPATIBLE:
+        return "incompatible";
+    case NIPC_UDS_ERR_PROTOCOL:
+        return "protocol";
+    case NIPC_UDS_ERR_ADDR_IN_USE:
+        return "addr-in-use";
+    case NIPC_UDS_ERR_CHUNK:
+        return "chunk";
+    case NIPC_UDS_ERR_ALLOC:
+        return "alloc";
+    case NIPC_UDS_ERR_LIMIT_EXCEEDED:
+        return "limit-exceeded";
+    case NIPC_UDS_ERR_BAD_PARAM:
+        return "bad-param";
+    case NIPC_UDS_ERR_DUPLICATE_MSG_ID:
+        return "duplicate-msg-id";
+    case NIPC_UDS_ERR_UNKNOWN_MSG_ID:
+        return "unknown-msg-id";
+    default:
+        return "unknown";
+    }
+}
+
+static const char *profile_name(uint32_t profile)
+{
+    switch (profile) {
+    case NIPC_PROFILE_BASELINE:
+        return "baseline";
+    case NIPC_PROFILE_SHM_HYBRID:
+        return "shm-hybrid";
+    case NIPC_PROFILE_SHM_FUTEX:
+        return "shm-futex";
+    default:
+        return "unknown";
+    }
+}
+
+static void build_posix_shm_path(char *dst, size_t dst_len,
+                                 const char *run_dir, const char *service_name,
+                                 uint64_t session_id)
+{
+    if (!dst || dst_len == 0)
+        return;
+
+    if (!run_dir)
+        run_dir = "";
+    if (!service_name)
+        service_name = "";
+
+    int n = snprintf(dst, dst_len, "%s/%s-%016llx.ipcshm",
+                     run_dir, service_name,
+                     (unsigned long long)session_id);
+    if (n < 0 || (size_t)n >= dst_len)
+        dst[dst_len - 1] = '\0';
+}
+
+static void build_posix_socket_path(char *dst, size_t dst_len,
+                                    const char *run_dir,
+                                    const char *service_name)
+{
+    if (!dst || dst_len == 0)
+        return;
+
+    if (!run_dir)
+        run_dir = "";
+    if (!service_name)
+        service_name = "";
+
+    int n = snprintf(dst, dst_len, "%s/%s.sock", run_dir, service_name);
+    if (n < 0 || (size_t)n >= dst_len)
+        dst[dst_len - 1] = '\0';
+}
+
+static void log_shm_fallback(const char *role,
+                             const char *run_dir,
+                             const char *service_name,
+                             uint64_t session_id,
+                             uint32_t profile,
+                             int errnum,
+                             const char *detail)
+{
+    char shm_path[512];
+    build_posix_shm_path(shm_path, sizeof(shm_path), run_dir, service_name, session_id);
+
+    fprintf(stderr,
+            "NETIPC %s: SHM unavailable for service='%s' session=%016llx profile=%s path='%s'%s%s%s; "
+            "falling back to UDS (errno=%d: %s)\n",
+            role ? role : "posix",
+            service_name ? service_name : "",
+            (unsigned long long)session_id,
+            profile_name(profile),
+            shm_path,
+            detail ? " detail='" : "",
+            detail ? detail : "",
+            detail ? "'" : "",
+            errnum,
+            strerror(errnum));
+}
+
+static void log_client_connect_failure(const nipc_client_ctx_t *ctx,
+                                       nipc_uds_error_t err,
+                                       int errnum)
+{
+    char socket_path[512];
+    build_posix_socket_path(socket_path, sizeof(socket_path),
+                            ctx ? ctx->run_dir : "",
+                            ctx ? ctx->service_name : "");
+
+    fprintf(stderr,
+            "NETIPC client: connect failed for service='%s' socket='%s' uds_err=%s(%d) "
+            "state=%s errno=%d: %s\n",
+            (ctx && ctx->service_name[0]) ? ctx->service_name : "",
+            socket_path,
+            uds_error_name(err), (int)err,
+            ctx ? client_state_name(ctx->state) : "unknown",
+            errnum,
+            strerror(errnum));
 }
 
 static uint32_t next_power_of_2_u32(uint32_t n)
@@ -269,11 +434,13 @@ static nipc_client_state_t client_try_connect(nipc_client_ctx_t *ctx)
     nipc_uds_error_t err = nipc_uds_connect(
         ctx->run_dir, ctx->service_name,
         &ctx->transport_config, &session);
+    int saved_errno = errno;
 
     switch (err) {
     case NIPC_UDS_OK:
         break;
     case NIPC_UDS_ERR_CONNECT:
+        log_client_connect_failure(ctx, err, saved_errno ? saved_errno : ENOENT);
         return NIPC_CLIENT_NOT_FOUND;
     case NIPC_UDS_ERR_AUTH_FAILED:
         return NIPC_CLIENT_AUTH_FAILED;
@@ -281,6 +448,7 @@ static nipc_client_state_t client_try_connect(nipc_client_ctx_t *ctx)
     case NIPC_UDS_ERR_INCOMPATIBLE:
         return NIPC_CLIENT_INCOMPATIBLE;
     default:
+        log_client_connect_failure(ctx, err, saved_errno ? saved_errno : EIO);
         return NIPC_CLIENT_DISCONNECTED;
     }
 
@@ -328,13 +496,20 @@ static nipc_client_state_t client_try_connect(nipc_client_ctx_t *ctx)
             if (serr == NIPC_SHM_OK) {
                 ctx->shm = shm;
             } else {
-                /* SHM attach failed after retries. The handshake selected
-                 * SHM but we can't use it. Fail the session to avoid
-                 * transport desync (server on SHM, client on UDS). */
+                /* SHM attach failed after retries. Keep the UDS session and
+                 * fall back to it for this connection instead of dropping the
+                 * cgroups snapshot flow entirely. */
+                char detail[64];
+                int saved_errno = errno;
+                snprintf(detail, sizeof(detail), "attach failed (shm_err=%d)", (int)serr);
+                if (saved_errno == 0 && serr == NIPC_SHM_ERR_OPEN)
+                    saved_errno = ENOENT;
+                if (saved_errno == 0)
+                    saved_errno = EIO;
+                log_shm_fallback("client", ctx->run_dir, ctx->service_name,
+                                 session.session_id, session.selected_profile,
+                                 saved_errno, detail);
                 free(shm);
-                nipc_uds_close_session(&ctx->session);
-                ctx->session_valid = false;
-                return NIPC_CLIENT_DISCONNECTED;
             }
         }
     }
@@ -1253,16 +1428,23 @@ void nipc_server_run(nipc_managed_server_t *server)
                     shm = s;
                 } else {
                     /* SHM create failed for a session that negotiated SHM.
-                     * Reject the session to avoid transport desync. */
+                     * Keep the accepted UDS session and serve it without SHM. */
+                    char detail[72];
+                    int saved_errno = errno;
+                    snprintf(detail, sizeof(detail), "server create failed (shm_err=%d)", (int)serr);
+                    if (saved_errno == 0 && serr == NIPC_SHM_ERR_OPEN)
+                        saved_errno = ENOENT;
+                    if (saved_errno == 0)
+                        saved_errno = EIO;
+                    log_shm_fallback("server", server->run_dir, server->service_name,
+                                     sid, session.selected_profile,
+                                     saved_errno, detail);
                     free(s);
-                    pthread_mutex_unlock(&server->sessions_lock);
-                    nipc_uds_close_session(&session);
-                    continue;
                 }
             } else {
-                pthread_mutex_unlock(&server->sessions_lock);
-                nipc_uds_close_session(&session);
-                continue;
+                log_shm_fallback("server", server->run_dir, server->service_name,
+                                 sid, session.selected_profile,
+                                 ENOMEM, "session shm context allocation failed");
             }
         }
 

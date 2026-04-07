@@ -63,6 +63,28 @@ static void ebpf_remove_cgroup_target_update_list()
     }
 }
 
+static size_t ebpf_count_cgroup_targets_unsafe(void)
+{
+    size_t count = 0;
+
+    for (ebpf_cgroup_target_t *ect = ebpf_cgroup_pids; ect; ect = ect->next)
+        count++;
+
+    return count;
+}
+
+static size_t ebpf_count_cgroup_pids_unsafe(void)
+{
+    size_t count = 0;
+
+    for (ebpf_cgroup_target_t *ect = ebpf_cgroup_pids; ect; ect = ect->next) {
+        for (struct pid_on_target2 *pt = ect->pids; pt; pt = pt->next)
+            count++;
+    }
+
+    return count;
+}
+
 // --------------------------------------------------------------------------------------------------------------------
 // Fill variables
 
@@ -197,7 +219,7 @@ static void ebpf_cgroup_cache_init(void)
     };
 
     nipc_cgroups_cache_init(&ebpf_cgroup_cache,
-                             os_run_dir(true),
+                             os_run_dir(false),
                              "cgroups-snapshot",
                              &config);
 
@@ -227,6 +249,12 @@ static void ebpf_parse_cgroup_netipc_data(void)
 {
 #ifdef OS_LINUX
     static uint32_t previous_count = 0;
+    static uint64_t previous_generation = 0;
+    static uint32_t previous_enabled_count = 0;
+    static size_t previous_imported_targets = 0;
+    static size_t previous_total_pids = 0;
+    static int previous_integration_active = -1;
+    static int previous_systemd_enabled = -1;
 
     if (!ebpf_cgroup_cache_initialized)
         return;
@@ -239,17 +267,56 @@ static void ebpf_parse_cgroup_netipc_data(void)
     }
     refresh_fail_count = 0;
 
+    uint32_t last_count = previous_count;
     uint32_t count = ebpf_cgroup_cache.item_count;
+    uint64_t generation = ebpf_cgroup_cache.generation;
+    uint32_t enabled_count = 0;
 
     // update global flags for other ebpf modules
     ebpf_cgroup_systemd_enabled = (int)ebpf_cgroup_cache.systemd_enabled;
     ebpf_cgroup_integration_active = (count > 0) ? 1 : 0;
 
+    for (uint32_t i = 0; i < count; i++) {
+        const nipc_cgroups_cache_item_t *item = &ebpf_cgroup_cache.items[i];
+        if (item->enabled)
+            enabled_count++;
+    }
+
     // nothing to process; preserve existing targets rather than wiping them.
     // reset previous_count so the next non-zero snapshot triggers send_cgroup_chart=1,
     // ensuring systemd charts are recreated after a cgroup list becomes empty.
     if (count == 0) {
+        size_t preserved_targets = 0;
+        size_t preserved_pids = 0;
+
+        netdata_mutex_lock(&mutex_cgroup_shm);
+        preserved_targets = ebpf_count_cgroup_targets_unsafe();
+        preserved_pids = ebpf_count_cgroup_pids_unsafe();
+        netdata_mutex_unlock(&mutex_cgroup_shm);
+
+        if (last_count != 0 || previous_generation != generation ||
+            previous_integration_active != ebpf_cgroup_integration_active ||
+            previous_systemd_enabled != ebpf_cgroup_systemd_enabled) {
+            collector_info(
+                "EBPF CGROUP: empty netipc snapshot generation=%llu items=%u enabled=%u preserved_targets=%zu "
+                "preserved_pids=%zu integration_active=%d systemd_enabled=%d refresh_failures=%d",
+                (unsigned long long)generation,
+                count,
+                enabled_count,
+                preserved_targets,
+                preserved_pids,
+                ebpf_cgroup_integration_active,
+                ebpf_cgroup_systemd_enabled,
+                refresh_fail_count);
+        }
+
         previous_count = 0;
+        previous_generation = generation;
+        previous_enabled_count = enabled_count;
+        previous_imported_targets = preserved_targets;
+        previous_total_pids = preserved_pids;
+        previous_integration_active = ebpf_cgroup_integration_active;
+        previous_systemd_enabled = ebpf_cgroup_systemd_enabled;
         return;
     }
 
@@ -265,9 +332,40 @@ static void ebpf_parse_cgroup_netipc_data(void)
         }
     }
 
+    size_t imported_targets = ebpf_count_cgroup_targets_unsafe();
+    size_t total_pids = ebpf_count_cgroup_pids_unsafe();
+
     send_cgroup_chart = previous_count != count;
     previous_count = count;
     netdata_mutex_unlock(&mutex_cgroup_shm);
+
+    if (previous_generation != generation || last_count != count ||
+        previous_enabled_count != enabled_count ||
+        previous_imported_targets != imported_targets ||
+        previous_total_pids != total_pids ||
+        previous_integration_active != ebpf_cgroup_integration_active ||
+        previous_systemd_enabled != ebpf_cgroup_systemd_enabled ||
+        enabled_count == 0 || imported_targets == 0 || total_pids == 0) {
+        collector_info(
+            "EBPF CGROUP: netipc snapshot generation=%llu items=%u enabled=%u imported_targets=%zu total_pids=%zu "
+            "send_cgroup_chart=%d integration_active=%d systemd_enabled=%d refresh_failures=%d",
+            (unsigned long long)generation,
+            count,
+            enabled_count,
+            imported_targets,
+            total_pids,
+            send_cgroup_chart,
+            ebpf_cgroup_integration_active,
+            ebpf_cgroup_systemd_enabled,
+            refresh_fail_count);
+    }
+
+    previous_generation = generation;
+    previous_enabled_count = enabled_count;
+    previous_imported_targets = imported_targets;
+    previous_total_pids = total_pids;
+    previous_integration_active = ebpf_cgroup_integration_active;
+    previous_systemd_enabled = ebpf_cgroup_systemd_enabled;
 #endif
 }
 
