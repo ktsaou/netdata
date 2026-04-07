@@ -137,7 +137,7 @@ void cgroup_netipc_init(void) {
         &handler);
 
     if (err != NIPC_OK) {
-        collector_error("CGROUP: netipc server init failed (error %d), IPC sharing disabled", err);
+        collector_error("CGROUP: netipc server init failed (error %u), IPC sharing disabled", (unsigned int)err);
         return;
     }
 
