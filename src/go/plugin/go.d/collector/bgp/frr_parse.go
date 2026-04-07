@@ -166,6 +166,44 @@ func parseFRRNeighbors(data []byte) (map[string]map[string]neighborDetails, erro
 				continue
 			}
 
+			// FRR does not expose per-peer normal-withdraw counters via JSON.
+			// The neighbor "messageStats" block we read below carries only
+			// the fields modeled in frrNeighborMessageStats (notifications,
+			// updates, keepalives, route-refresh); FRR's JSON also emits
+			// open, capability, and total counters on that same block but
+			// Netdata does not currently model them. None of those fields
+			// are a normal-withdraw counter.
+			//
+			// The only field named "withdrawn" that FRR emits (under
+			// "prefixStats" in "show bgp neighbor json") is backed by
+			// bgpd/bgp_packet.c "stat_pfx_withdraw", which is incremented
+			// at bgp_packet.c:2462 for treat-as-withdraw handling only:
+			// either RFC 7606 malformed-attribute error recovery
+			// (BGP_ATTR_PARSE_WITHDRAW) or the configured
+			// "neighbor ... path-attribute treat-as-withdraw" policy
+			// (BGP_ATTR_PARSE_WITHDRAW_IGNORE, via bgp_attr_ignore in
+			// bgp_attr.c). The FRR struct comment at bgpd/bgpd.h:2030
+			// confirms this ("RFC7606: treat-as-withdraw"). Neither case
+			// counts normal withdraw NLRIs. The normal withdraw path
+			// bgp_withdraw in bgpd/bgp_route.c:6577-6664 does not
+			// increment any per-peer counter on the success path; it
+			// just calls bgp_rib_withdraw and returns.
+			//
+			// As a result, neighborStats.WithdrawsReceived and
+			// neighborStats.WithdrawsSent stay at zero for the FRR
+			// backend, while BIRD populates them from channel-level
+			// "Import withdraws received" and "Export withdraws
+			// accepted" counters exposed by "show protocols all" (see
+			// bird_collect.go). This is a current FRR JSON limitation,
+			// not a permanent one. If upstream FRR ever adds a
+			// normal-withdraw counter to the JSON output, wiring it in
+			// is a small multi-point edit: (1) add WithdrawsSent and
+			// WithdrawsRecv fields to frrNeighborMessageStats in
+			// model.go, (2) add WithdrawsReceived and WithdrawsSent
+			// fields to neighborDetails in model.go and map them in
+			// this literal, and (3) extend applyNeighborDetails() to
+			// copy them into peerStats. The peer-to-neighbor merge in
+			// neighbors.go already handles the final step.
 			details := neighborDetails{
 				Desc:                   normalizeNeighborDescription(neighbor.Description),
 				PeerGroup:              strings.TrimSpace(neighbor.PeerGroup),

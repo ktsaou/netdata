@@ -388,6 +388,21 @@ jobs:
 - For BIRD, the current `vrf` selector slot is the BIRD routing table
   name. Netdata also exposes that raw table name as a `table` label on
   family, peer, and neighbor charts.
+- For FRR, the `bgp.neighbor_churn` chart leaves `withdraws_received`
+  and `withdraws_sent` at zero because FRR's current JSON API does not
+  expose per-peer normal-withdraw counters. The only `withdrawn` field
+  FRR emits under `show bgp neighbor json` is a treat-as-withdraw
+  counter (RFC 7606 malformed-attribute error recovery and the
+  configured `neighbor ... path-attribute treat-as-withdraw` policy),
+  not normal withdraw NLRIs. The normal withdraw path in FRR `bgpd`
+  does not increment any per-peer counter on the success path, so
+  Netdata leaves these dimensions at zero rather than synthesizing a
+  misleading proxy from other counters. Use `updates_received` and
+  `updates_sent` on the same chart for FRR churn visibility instead,
+  or use the BIRD backend for true per-direction withdraw counters
+  (BIRD exposes them from `show protocols all` and Netdata fills both
+  dimensions directly). This is a current FRR JSON limitation, not a
+  permanent one.
 - EVPN VNI charts are tenant-VRF and VNI scoped. They stay separate from
   peer charts so Netdata keeps one clean instance type per context.
 - If ML-based alerts stay quiet on a new installation, confirm that ML
