@@ -137,6 +137,68 @@ func TestNormalizeCollectorMetrics_BGPPeerAndDeviceSummaries(t *testing.T) {
 	assert.Nil(t, findMetric(metrics, "bgpPeerOutUpdates", nil))
 }
 
+func TestNormalizeCollectorMetrics_DeviceSummariesUseMergedPeerIdentity(t *testing.T) {
+	pm := &ddsnmp.ProfileMetrics{Tags: map[string]string{}}
+	metrics := normalizeCollectorMetrics([]*ddsnmp.ProfileMetrics{
+		{
+			Metrics: []ddsnmp.Metric{
+				{
+					Profile:    pm,
+					Name:       "bgpPeerAvailability",
+					IsTable:    true,
+					Table:      "bgpPeerTable",
+					Tags:       map[string]string{"neighbor": "192.0.2.1", "remote_as": "65001"},
+					MultiValue: map[string]int64{"admin_enabled": 1, "established": 1},
+				},
+				{
+					Profile:    pm,
+					Name:       "bgpPeerAvailability",
+					IsTable:    true,
+					Table:      "bgpPeerTable",
+					Tags:       map[string]string{"neighbor": "192.0.2.1", "remote_as": "65001"},
+					MultiValue: map[string]int64{"admin_enabled": 1, "established": 1},
+				},
+				{
+					Profile: pm,
+					Name:    "bgpPeerState",
+					IsTable: true,
+					Table:   "bgpPeerTable",
+					Tags:    map[string]string{"neighbor": "192.0.2.1", "remote_as": "65001"},
+					MultiValue: map[string]int64{
+						"idle":        0,
+						"connect":     0,
+						"active":      0,
+						"opensent":    0,
+						"openconfirm": 0,
+						"established": 1,
+					},
+				},
+				{
+					Profile: pm,
+					Name:    "bgpPeerState",
+					IsTable: true,
+					Table:   "bgpPeerTable",
+					Tags:    map[string]string{"neighbor": "192.0.2.1", "remote_as": "65001"},
+					MultiValue: map[string]int64{
+						"idle":        0,
+						"connect":     0,
+						"active":      0,
+						"opensent":    0,
+						"openconfirm": 0,
+						"established": 1,
+					},
+				},
+			},
+		},
+	})
+
+	counts := requireMetric(t, metrics, "bgp.devices.peer_counts", nil)
+	assert.Equal(t, map[string]int64{"configured": 1, "admin_enabled": 1, "established": 1}, counts.MultiValue)
+
+	states := requireMetric(t, metrics, "bgp.devices.peer_states", nil)
+	assert.EqualValues(t, 1, states.MultiValue["established"])
+}
+
 func TestNormalizeCollectorMetrics_HuaweiPeerFamiliesAndCounts(t *testing.T) {
 	pm := &ddsnmp.ProfileMetrics{Tags: map[string]string{}}
 	metrics := normalizeCollectorMetrics([]*ddsnmp.ProfileMetrics{
@@ -317,8 +379,11 @@ func findMetric(metrics []ddsnmp.Metric, name string, tags map[string]string) *d
 		if metrics[i].Name != name {
 			continue
 		}
-		if len(tags) == 0 && len(metrics[i].Tags) == 0 {
-			return &metrics[i]
+		if len(tags) == 0 {
+			if len(metrics[i].Tags) == 0 {
+				return &metrics[i]
+			}
+			continue
 		}
 		if tagsContained(metrics[i].Tags, tags) {
 			return &metrics[i]

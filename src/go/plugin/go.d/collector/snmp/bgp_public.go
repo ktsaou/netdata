@@ -66,6 +66,8 @@ func newBGPPublicNormalizer() *bgpPublicNormalizer {
 }
 
 func (n *bgpPublicNormalizer) metrics() []ddsnmp.Metric {
+	n.buildDeviceSummaries()
+
 	metrics := make([]ddsnmp.Metric, 0, len(n.scalarMetrics)+len(n.tableMetrics))
 
 	scalarKeys := sortedKeys(n.scalarMetrics)
@@ -103,15 +105,6 @@ func (n *bgpPublicNormalizer) handle(metric ddsnmp.Metric) bool {
 	publicTags := publicBGPTags(metric, scope)
 	acc := n.tableMetric(name, spec, metric, publicTags)
 	n.mergeMetricValue(acc, route, metric)
-
-	if scope == bgpScopePeers {
-		switch name {
-		case "bgp.peers.availability":
-			n.addPeerCountSummary(metric)
-		case "bgp.peers.connection_state":
-			n.addPeerStateSummary(metric)
-		}
-	}
 
 	return true
 }
@@ -157,34 +150,6 @@ func (n *bgpPublicNormalizer) tableMetric(name string, spec bgpPublicMetricSpec,
 	return metric
 }
 
-func (n *bgpPublicNormalizer) addPeerCountSummary(metric ddsnmp.Metric) {
-	spec, ok := bgpPublicSpec("bgp.devices.peer_counts")
-	if !ok {
-		return
-	}
-	acc := n.scalarMetric("bgp.devices.peer_counts", spec, metric)
-	if acc.MultiValue == nil {
-		acc.MultiValue = make(map[string]int64)
-	}
-	acc.MultiValue["configured"]++
-	acc.MultiValue["admin_enabled"] += metric.MultiValue["admin_enabled"]
-	acc.MultiValue["established"] += metric.MultiValue["established"]
-}
-
-func (n *bgpPublicNormalizer) addPeerStateSummary(metric ddsnmp.Metric) {
-	spec, ok := bgpPublicSpec("bgp.devices.peer_states")
-	if !ok {
-		return
-	}
-	acc := n.scalarMetric("bgp.devices.peer_states", spec, metric)
-	if acc.MultiValue == nil {
-		acc.MultiValue = make(map[string]int64)
-	}
-	for dim, value := range metric.MultiValue {
-		acc.MultiValue[dim] += value
-	}
-}
-
 func newBGPPublicMetric(name string, spec bgpPublicMetricSpec, sample ddsnmp.Metric, tags map[string]string) *ddsnmp.Metric {
 	metric := &ddsnmp.Metric{
 		Profile:     sample.Profile,
@@ -200,4 +165,77 @@ func newBGPPublicMetric(name string, spec bgpPublicMetricSpec, sample ddsnmp.Met
 		metric.Tags = maps.Clone(tags)
 	}
 	return metric
+}
+
+func (n *bgpPublicNormalizer) buildDeviceSummaries() {
+	n.buildPeerCountSummary()
+	n.buildPeerStateSummary()
+}
+
+func (n *bgpPublicNormalizer) buildPeerCountSummary() {
+	spec, ok := bgpPublicSpec("bgp.devices.peer_counts")
+	if !ok {
+		return
+	}
+
+	var sample ddsnmp.Metric
+	found := false
+	for _, metric := range n.tableMetrics {
+		if metric.Name == "bgp.peers.availability" {
+			sample = *metric
+			found = true
+			break
+		}
+	}
+	if !found {
+		return
+	}
+
+	acc := n.scalarMetric("bgp.devices.peer_counts", spec, sample)
+	if acc.MultiValue == nil {
+		acc.MultiValue = make(map[string]int64)
+	}
+
+	for _, metric := range n.tableMetrics {
+		if metric.Name != "bgp.peers.availability" {
+			continue
+		}
+		acc.MultiValue["configured"]++
+		acc.MultiValue["admin_enabled"] += metric.MultiValue["admin_enabled"]
+		acc.MultiValue["established"] += metric.MultiValue["established"]
+	}
+}
+
+func (n *bgpPublicNormalizer) buildPeerStateSummary() {
+	spec, ok := bgpPublicSpec("bgp.devices.peer_states")
+	if !ok {
+		return
+	}
+
+	var sample ddsnmp.Metric
+	found := false
+	for _, metric := range n.tableMetrics {
+		if metric.Name == "bgp.peers.connection_state" {
+			sample = *metric
+			found = true
+			break
+		}
+	}
+	if !found {
+		return
+	}
+
+	acc := n.scalarMetric("bgp.devices.peer_states", spec, sample)
+	if acc.MultiValue == nil {
+		acc.MultiValue = make(map[string]int64)
+	}
+
+	for _, metric := range n.tableMetrics {
+		if metric.Name != "bgp.peers.connection_state" {
+			continue
+		}
+		for dim, value := range metric.MultiValue {
+			acc.MultiValue[dim] += value
+		}
+	}
 }
