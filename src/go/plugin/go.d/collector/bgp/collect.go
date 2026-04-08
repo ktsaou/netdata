@@ -265,6 +265,47 @@ func (c *Collector) collectFRRData(scrape *scrapeMetrics) ([]familyStats, []neig
 	return families, buildNeighbors(families), nil, rpkiCaches, rpkiInventories, nil
 }
 
+// collectDeepPeerPrefixMetrics issues optional per-peer FRR route queries
+// ("show bgp ... neighbors X routes json" / "advertised-routes json") to fill
+// in prefix-policy and sent-prefix counters that the cheap summary and
+// neighbors JSON paths did not provide. It is a rare-but-real safety net,
+// NOT a normal code path. It activates for selected, Established peers in
+// three realistic situations:
+//
+//  1. FRR < 7.0 (pre June 2019), where "show bgp vrf all neighbors json"
+//     does not emit acceptedPrefixCounter or sentPrefixCounter at all. Both
+//     fields were added in upstream commit 50e05855f0 and first released in
+//     FRR 7.0. On these legacy deployments the neighbors-JSON path cannot
+//     set HasPrefixPolicy or HasPrefixesSent, so both deep queries fire.
+//
+//  2. FRR 7.0 through 7.5.x (June 2019 to November 2020), for Established
+//     peers that do not have an update-subgroup attached (no outbound routes,
+//     restrictive outbound policy, transient post-open states). On these
+//     versions neighbors acceptedPrefixCounter is always present (so the
+//     policy path is satisfied) but both summary pfxSnt and neighbors
+//     sentPrefixCounter are still gated on "paf && PAF_SUBGRP(paf)" and
+//     are omitted for subgroup-less peers. Upstream commit a616dd1fa0,
+//     first released in FRR 8.0 (August 2021), made summary pfxSnt unconditional.
+//     So on 7.0-7.5.x the advertised-routes deep query can still fire for
+//     subgroup-less Established peers.
+//
+//  3. Any FRR version including the current 10.6 default integration image,
+//     on a cold scrape where the neighbors-JSON query fails or parses badly
+//     and the collector's neighbor cache is still empty. In that state
+//     detailsByVRF stays nil in the Neighbors() handling block of
+//     collectFRRData, applyNeighborDetails is not called for any peer,
+//     HasPrefixPolicy stays false, and the prefix-policy deep query fires
+//     even though the daemon is modern. HasPrefixesSent may still be
+//     satisfied by the summary pfxSnt path on FRR 8.0+, so only the policy
+//     branch of the deep fallback runs.
+//     TestCollector_CollectDeepPeerPrefixMetricsCoversColdScrapeNeighborFailure
+//     covers this realistic modern-FRR activation case.
+//
+// On a healthy modern FRR (8.0 or later) deployment with a warm neighbors cache the
+// fallback is never reached: the peer-state filter below and the flag checks
+// in collectDeepPeerPolicyMetrics short-circuit before any deep query is
+// issued. TestIntegration_FRRLiveEstablishedCollection proves this live
+// against a real FRR 10.6 container with DeepPeerPrefixMetrics = true.
 func (c *Collector) collectDeepPeerPrefixMetrics(families []familyStats, selectedFamilies, selectedPeers map[string]bool, scrape *scrapeMetrics) {
 	if !c.DeepPeerPrefixMetrics {
 		return

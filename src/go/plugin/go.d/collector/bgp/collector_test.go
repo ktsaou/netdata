@@ -460,6 +460,69 @@ func TestCollector_CollectDeepPeerPrefixMetricsRespectsBudget(t *testing.T) {
 	assert.False(t, ok)
 }
 
+// TestCollector_CollectDeepPeerPrefixMetricsCoversColdScrapeNeighborFailure
+// covers the realistic modern-FRR activation case for the deep fallback that
+// the other tests in this file do not exercise: a cold scrape on any FRR
+// version (including current 10.6) where the "show bgp vrf all neighbors json"
+// query or parse fails before the collector has a warm neighbor cache. In
+// that state detailsByVRF stays nil in collectFRRData, applyNeighborDetails
+// is never called, HasPrefixPolicy stays false, and the prefix-policy deep
+// query fires even though the daemon is modern. HasPrefixesSent is still
+// satisfied by the summary pfxSnt path on FRR 8.0 or later, so the advertised-routes
+// branch of the deep fallback must NOT fire. See the comment at
+// collectDeepPeerPrefixMetrics for the full set of realistic activation
+// situations for this code path.
+func TestCollector_CollectDeepPeerPrefixMetricsCoversColdScrapeNeighborFailure(t *testing.T) {
+	collr := newTestCollector(t, &mockClient{
+		responses: map[string][]byte{
+			"ipv4": dataFRRIPv4SummaryPfxSnt,
+			"ipv6": dataFRREmptySummary,
+		},
+		// Simulate a cold-scrape Neighbors() failure: the cache is empty
+		// (newTestCollector starts with a fresh collector) and the remote
+		// query fails, so detailsByVRF stays nil for this scrape.
+		neighborsErr: errors.New("mock Neighbors() error"),
+		peerRoutes: map[string][]byte{
+			buildFRRPeerCommand("default", "ipv4", "unicast", "192.168.0.2", "routes"): dataFRRPeerRoutesDefault,
+			buildFRRPeerCommand("red", "ipv4", "unicast", "192.168.1.2", "routes"):     dataFRRPeerRoutesRed,
+		},
+		// Intentionally do NOT provide peerAdvertisedRoutes. If the deep
+		// fallback incorrectly tries to fetch advertised routes (i.e. treats
+		// HasPrefixesSent as false despite summary pfxSnt being present),
+		// the mockClient will return an empty response and the assertions
+		// on prefixes_advertised below would fail.
+	})
+	collr.DeepPeerPrefixMetrics = true
+
+	mx := collr.Collect(context.Background())
+	require.NotNil(t, mx)
+	// query=1 because Neighbors() failed once (non-fatal, continues).
+	// deep attempted=2: one policy query per Established peer
+	// (192.168.0.2 in default, 192.168.1.2 in red). No advertised queries
+	// are attempted because the summary pfxSnt path already set
+	// HasPrefixesSent on both peers.
+	mx = assertAndStripCollectorMetrics(t, mx, collectorStatusOK, 1, 0, 0, 2, 0, 0)
+
+	defaultPeerID := makePeerID("default_ipv4_unicast", "192.168.0.2")
+	redPeerID := makePeerID("red_ipv4_unicast", "192.168.1.2")
+
+	// Accepted counts come from the deep policy query, proving the fallback
+	// ran for both Established peers despite the missing neighbor metadata.
+	assert.Equal(t, int64(2), mx["peer_"+defaultPeerID+"_prefixes_accepted"])
+	assert.Equal(t, int64(1), mx["peer_"+redPeerID+"_prefixes_accepted"])
+
+	// Advertised counts come from the summary pfxSnt field, NOT from any
+	// deep advertised-routes query. dataFRRIPv4SummaryPfxSnt has pfxSnt=3
+	// for 192.168.0.2 and pfxSnt=2 for 192.168.1.2.
+	assert.Equal(t, int64(3), mx["peer_"+defaultPeerID+"_prefixes_advertised"])
+	assert.Equal(t, int64(2), mx["peer_"+redPeerID+"_prefixes_advertised"])
+
+	// The prefix-policy chart is instantiated for both peers because the
+	// deep fallback successfully populated the policy metrics.
+	require.NotNil(t, collr.Charts().Get(peerPolicyChartID(defaultPeerID)))
+	require.NotNil(t, collr.Charts().Get(peerPolicyChartID(redPeerID)))
+}
+
 func TestCollector_CollectWithoutNeighborMetadata(t *testing.T) {
 	collr := newTestCollector(t, &mockClient{
 		responses: map[string][]byte{

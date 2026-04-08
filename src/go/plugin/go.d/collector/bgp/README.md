@@ -363,6 +363,22 @@ jobs:
   `show bgp vrf all neighbors json` exposes `acceptedPrefixCounter` for
   the relevant address family. Only then fall back to checking the
   per-peer route JSON commands and `deep_peer_prefix_metrics`.
+- `deep_peer_prefix_metrics` is a rare safety net, not a normal code
+  path. On a healthy modern FRR (8.0 or later) with a warm neighbor
+  cache the fallback never fires because the cheap summary `pfxSnt` and
+  neighbor `acceptedPrefixCounter` fields already set the required
+  flags. The fallback only activates for Established, selected peers
+  in three realistic situations: FRR < 7.0 (where neighbor
+  `acceptedPrefixCounter` and `sentPrefixCounter` did not exist yet),
+  FRR 7.0 through 7.5.x for peers without an update-subgroup (where
+  summary `pfxSnt` and neighbor `sentPrefixCounter` are still
+  conditional on the subgroup attachment), and a cold-scrape
+  degraded state on any FRR version including current 10.6 when the
+  `show bgp vrf all neighbors json` query fails or parses badly and
+  the collector's neighbor cache is still empty. Leave
+  `deep_peer_prefix_metrics` disabled unless you have a specific
+  reason to enable it; per-peer route queries are expensive on
+  large routers.
 - If `zebra.vty` is unavailable, Netdata still collects family, peer,
   and neighbor charts. EVPN VNI collection stays best-effort, and the
   failed VNI query appears under `bgp.collector_failures`.
