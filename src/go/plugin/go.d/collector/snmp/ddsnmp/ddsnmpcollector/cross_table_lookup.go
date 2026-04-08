@@ -28,12 +28,12 @@ func (r *crossTableResolver) resolveLookupIndexByValue(
 		return "", fmt.Errorf("value '%s' could not be normalized for lookup column %s", lookupValue, tagCfg.LookupSymbol.OID)
 	}
 
-	cacheKey := strings.Join([]string{
-		refTableOID,
-		trimOID(tagCfg.LookupSymbol.OID),
-		trimOID(tagCfg.Symbol.OID),
-		normalizedLookupValue,
-	}, "\x00")
+	cacheKey := crossTableLookupKey{
+		refTableOID:     refTableOID,
+		lookupColumnOID: trimOID(tagCfg.LookupSymbol.OID),
+		targetColumnOID: trimOID(tagCfg.Symbol.OID),
+		lookupValue:     normalizedLookupValue,
+	}
 	if rowIndex, ok := ctx.lookupIndexCache[cacheKey]; ok {
 		if rowIndex == "" {
 			return "", fmt.Errorf("value '%s' not found in lookup column %s", normalizedLookupValue, tagCfg.LookupSymbol.OID)
@@ -133,7 +133,7 @@ func (r *crossTableResolver) normalizeLookupText(sym ddprofiledefinition.SymbolC
 
 	if sym.Format == "ip_address" {
 		if addr, err := netip.ParseAddr(val); err == nil {
-			val = addr.String()
+			val = addr.Unmap().String()
 		}
 	}
 

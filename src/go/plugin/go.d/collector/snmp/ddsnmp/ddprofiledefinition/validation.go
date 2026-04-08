@@ -361,8 +361,8 @@ func validateEnrichMetricTag(metricTag *MetricTagConfig) error {
 			errs = append(errs, fmt.Errorf("`tags` mapping must be provided if `match` (`%s`) is defined", metricTag.Match))
 		}
 	}
-	if len(metricTag.Mapping) > 0 && metricTag.Tag == "" {
-		errs = append(errs, fmt.Errorf("``tag` must be provided if `mapping` (`%s`) is defined", metricTag.Mapping))
+	if len(metricTag.Mapping) > 0 && metricTag.Tag == "" && metricTag.Symbol.Name == "" {
+		errs = append(errs, fmt.Errorf("`tag` or `symbol.name` must be provided if `mapping` (`%s`) is defined", metricTag.Mapping))
 	}
 	for _, transform := range metricTag.IndexTransform {
 		if transform.DropRight == 0 && transform.Start > transform.End {

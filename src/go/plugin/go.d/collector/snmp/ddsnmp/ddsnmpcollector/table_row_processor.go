@@ -196,6 +196,12 @@ func (p *tableRowProcessor) createMetric(sym ddprofiledefinition.SymbolConfig, p
 }
 
 type (
+	crossTableLookupKey struct {
+		refTableOID     string
+		lookupColumnOID string
+		targetColumnOID string
+		lookupValue     string
+	}
 	// crossTableResolver handles resolving tags from other tables
 	crossTableResolver struct {
 		log          *logger.Logger
@@ -205,7 +211,7 @@ type (
 	crossTableContext struct {
 		walkedData       map[string]map[string]gosnmp.SnmpPDU // tableOID -> PDUs
 		tableNameToOID   map[string]string                    // tableName -> tableOID
-		lookupIndexCache map[string]string                    // cache key -> resolved row index
+		lookupIndexCache map[crossTableLookupKey]string       // cache key -> resolved row index
 		rowTags          map[string]string
 	}
 )

@@ -34,7 +34,7 @@ func TestCrossTableResolver_ResolveLookupIndexByValue_NormalizesIPv6CurrentRowIn
 		"0.0.16.32.1.18.248.0.0.0.0.0.0.0.0.2.35.2.83",
 		"1.3.6.1.4.1.2011.5.25.177.1.1.2",
 		refTablePDUs,
-		&crossTableContext{lookupIndexCache: map[string]string{}},
+		&crossTableContext{lookupIndexCache: map[crossTableLookupKey]string{}},
 	)
 	require.NoError(t, err)
 	assert.Equal(t, "0.2.1.2.16.32.1.18.248.0.0.0.0.0.0.0.0.2.35.2.83", rowIndex)
@@ -73,7 +73,7 @@ func TestCrossTableResolver_ResolveLookupIndexByValue_AllowsDuplicateRowsWhenTar
 		"0.0.4.10.45.2.2",
 		"1.3.6.1.4.1.2011.5.25.177.1.1.2",
 		refTablePDUs,
-		&crossTableContext{lookupIndexCache: map[string]string{}},
+		&crossTableContext{lookupIndexCache: map[crossTableLookupKey]string{}},
 	)
 	require.NoError(t, err)
 	assert.Contains(t, []string{
@@ -115,7 +115,7 @@ func TestCrossTableResolver_ResolveLookupIndexByValue_RejectsDuplicateRowsWhenTa
 		"0.0.4.10.45.2.2",
 		"1.3.6.1.4.1.2011.5.25.177.1.1.2",
 		refTablePDUs,
-		&crossTableContext{lookupIndexCache: map[string]string{}},
+		&crossTableContext{lookupIndexCache: map[crossTableLookupKey]string{}},
 	)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "matched multiple rows")

@@ -434,8 +434,8 @@ func Test_validateEnrichMetrics(t *testing.T) {
 				},
 			},
 		},
-		"mapping used without tag": {
-			wantError: true,
+		"mapping used with symbol.name and no explicit tag": {
+			wantError: false,
 			metrics: []MetricsConfig{
 				{
 					Symbols: []SymbolConfig{

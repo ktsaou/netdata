@@ -416,21 +416,25 @@ func vmBuildEmitTags(tags map[string]string, agg *vmetricsAggregator) map[string
 }
 
 func vmMetricTags(m ddsnmp.Metric) map[string]string {
-	switch {
-	case len(m.StaticTags) == 0:
+	if len(m.StaticTags) == 0 {
 		return m.Tags
-	case len(m.Tags) == 0:
-		return m.StaticTags
-	default:
-		out := make(map[string]string, len(m.Tags)+len(m.StaticTags))
-		for k, v := range m.StaticTags {
-			out[k] = v
-		}
-		for k, v := range m.Tags {
-			out[k] = v
-		}
-		return out
 	}
+	if len(m.Tags) == 0 {
+		return m.StaticTags
+	}
+	for k, v := range m.StaticTags {
+		if m.Tags[k] != v {
+			out := make(map[string]string, len(m.Tags)+len(m.StaticTags))
+			for key, value := range m.StaticTags {
+				out[key] = value
+			}
+			for key, value := range m.Tags {
+				out[key] = value
+			}
+			return out
+		}
+	}
+	return m.Tags
 }
 
 // vmCollapseMetricValue collapses a metric to an int64 quickly; return mv if present for merge path.

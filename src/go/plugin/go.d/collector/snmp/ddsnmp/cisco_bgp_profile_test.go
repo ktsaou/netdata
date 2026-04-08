@@ -16,7 +16,8 @@ import (
 )
 
 func Test_CiscoBGPProfileMergedIntoCiscoASR(t *testing.T) {
-	dir, _ := filepath.Abs("../../../config/go.d/snmp.profiles/default")
+	dir, err := filepath.Abs("../../../config/go.d/snmp.profiles/default")
+	require.NoError(t, err)
 
 	profiles, err := loadProfilesFromDir(dir, multipath.New(dir))
 	require.NoError(t, err)
@@ -71,7 +72,8 @@ func Test_CiscoBGPProfileMergedIntoCiscoASR(t *testing.T) {
 }
 
 func Test_CiscoBgpPrefixProfileMergedIntoCiscoASR(t *testing.T) {
-	dir, _ := filepath.Abs("../../../config/go.d/snmp.profiles/default")
+	dir, err := filepath.Abs("../../../config/go.d/snmp.profiles/default")
+	require.NoError(t, err)
 
 	profiles, err := loadProfilesFromDir(dir, multipath.New(dir))
 	require.NoError(t, err)

@@ -441,7 +441,7 @@ func (tc *tableCollector) processRows(ctx *tableProcessingContext, stats *ddsnmp
 	crossTableCtx := &crossTableContext{
 		walkedData:       ctx.walkedData,
 		tableNameToOID:   ctx.tableNameToOID,
-		lookupIndexCache: make(map[string]string),
+		lookupIndexCache: make(map[crossTableLookupKey]string),
 	}
 
 	for index, rowPDUs := range ctx.rows {

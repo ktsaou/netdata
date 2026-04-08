@@ -70,7 +70,7 @@ func TestHuaweiBGPStatisticsRowTags(t *testing.T) {
 			tableNameToOID: map[string]string{
 				"hwBgpPeerTable": trimOID(peerTableOID),
 			},
-			lookupIndexCache: make(map[string]string),
+			lookupIndexCache: make(map[crossTableLookupKey]string),
 			rowTags:          row.tags,
 		},
 		orderedTags: ordered,
