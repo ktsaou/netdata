@@ -21,6 +21,7 @@ user:
   auth_key: "ok"
   priv_proto: "ok"
   priv_key: "ok"
+  context_name: "ok"
 
 options:
   port: 123

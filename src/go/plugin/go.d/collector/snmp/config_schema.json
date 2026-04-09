@@ -186,6 +186,12 @@
           "priv_key": {
             "title": "Privacy passphrase",
             "type": "string"
+          },
+          "context_name": {
+            "title": "Context name",
+            "description": "SNMPv3 context name used to address a specific MIB view on multi-context agents (e.g. virtual routers, logical partitions, snmpsim-simulated devices). Leave empty to use the default context.",
+            "type": "string",
+            "default": ""
           }
         }
       },
@@ -310,6 +316,9 @@
       },
       "priv_key": {
         "ui:widget": "password"
+      },
+      "context_name": {
+        "ui:help": "Advanced. Usually left empty. Required when targeting a specific context on multi-context agents or when driving snmpsim virtual devices."
       }
     },
     "ping": {

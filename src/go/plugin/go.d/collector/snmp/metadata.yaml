@@ -379,6 +379,11 @@ modules:
               description: Privacy protocol pass phrase for SNMPv3 messages.
               default_value: ""
               required: false
+            - name: user.context_name
+              group: SNMPv3
+              description: SNMPv3 context name used to address a specific MIB view on multi-context agents (e.g. virtual routers, logical partitions, snmpsim-simulated devices). Leave empty to use the default context.
+              default_value: ""
+              required: false
 
             - name: options.version
               group: SNMP transport
