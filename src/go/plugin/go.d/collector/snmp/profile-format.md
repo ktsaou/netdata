@@ -218,6 +218,8 @@ The final profile is the **merged result** of all inherited profiles plus the co
 2. **Metrics are merged** — all metrics from all referenced profiles are included.
 3. **Later overrides earlier** — if the same field is defined multiple times, the last one wins.
 
+Metric override identity includes the OID/table identity, not only the metric name. This is intentional: multiple entries with the same `symbol.name` but different OIDs are preserved as fallback definitions.
+
 **Common base profiles**
 
 | Profile             | Provides                                  | Typical Use        |
