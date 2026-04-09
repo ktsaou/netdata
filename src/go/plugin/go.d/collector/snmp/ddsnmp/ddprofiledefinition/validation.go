@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"regexp"
 	"slices"
+	"strings"
 )
 
 var validMetadataResources = map[string]map[string]bool{
@@ -396,17 +397,7 @@ func isRawIndexMetricTag(metricTag MetricTagConfig) bool {
 func validateEnrichVirtualMetrics(metrics []MetricsConfig, vmetrics []VirtualMetricConfig) error {
 	var errs []error
 
-	metricSources := make(map[string]map[string]bool)
-	for _, metric := range metrics {
-		switch {
-		case metric.IsScalar():
-			addVirtualMetricSource(metricSources, metric.Symbol.Name, "")
-		case metric.IsColumn():
-			for _, sym := range metric.Symbols {
-				addVirtualMetricSource(metricSources, sym.Name, metric.Table.Name)
-			}
-		}
-	}
+	metricSources := collectVirtualMetricSourceSpecs(metrics)
 
 	seenNames := make(map[string]int)
 
@@ -462,16 +453,7 @@ func validateEnrichVirtualMetrics(metrics []MetricsConfig, vmetrics []VirtualMet
 	return errors.Join(errs...)
 }
 
-func addVirtualMetricSource(metricSources map[string]map[string]bool, metricName, tableName string) {
-	tables, ok := metricSources[metricName]
-	if !ok {
-		tables = make(map[string]bool)
-		metricSources[metricName] = tables
-	}
-	tables[tableName] = true
-}
-
-func validateVirtualMetricSources(path string, sources []VirtualMetricSourceConfig, metricSources map[string]map[string]bool, grouped bool) error {
+func validateVirtualMetricSources(path string, sources []VirtualMetricSourceConfig, metricSources map[string]map[string]virtualMetricSourceSpec, grouped bool) error {
 	var errs []error
 
 	var groupTable string
@@ -489,11 +471,37 @@ func validateVirtualMetricSources(path string, sources []VirtualMetricSourceConf
 			case !ok:
 				errs = append(errs, fmt.Errorf("%s[%d]: unknown metric source %q", path, i, src.Metric))
 			case src.Table == "":
-				if !tables[""] {
+				if _, ok := tables[""]; !ok {
 					errs = append(errs, fmt.Errorf("%s[%d]: missing table for non-scalar source %q", path, i, src.Metric))
 				}
-			case !tables[src.Table]:
-				errs = append(errs, fmt.Errorf("%s[%d]: unknown metric/table source %q/%q", path, i, src.Metric, src.Table))
+			default:
+				if _, ok := tables[src.Table]; !ok {
+					errs = append(errs, fmt.Errorf("%s[%d]: unknown metric/table source %q/%q", path, i, src.Metric, src.Table))
+				}
+			}
+		}
+
+		if src.Dim != "" && src.Metric != "" {
+			tables, ok := metricSources[src.Metric]
+			if !ok {
+				continue
+			}
+
+			spec, ok := tables[src.Table]
+			if !ok && src.Table == "" {
+				spec, ok = tables[""]
+			}
+			if !ok {
+				continue
+			}
+
+			switch spec.dimSupport.mode {
+			case virtualMetricDimUnsupported:
+				errs = append(errs, fmt.Errorf("%s[%d]: dim %q requires a MultiValue source metric (%s)", path, i, src.Dim, formatVirtualMetricSourceRef(src)))
+			case virtualMetricDimKnown:
+				if !spec.dimSupport.dims[src.Dim] {
+					errs = append(errs, fmt.Errorf("%s[%d]: dim %q is not available on %s (available: %s)", path, i, src.Dim, formatVirtualMetricSourceRef(src), strings.Join(virtualMetricSourceAvailableDims(spec), ", ")))
+				}
 			}
 		}
 
@@ -507,4 +515,11 @@ func validateVirtualMetricSources(path string, sources []VirtualMetricSourceConf
 	}
 
 	return errors.Join(errs...)
+}
+
+func formatVirtualMetricSourceRef(src VirtualMetricSourceConfig) string {
+	if src.Table == "" {
+		return fmt.Sprintf("metric %q", src.Metric)
+	}
+	return fmt.Sprintf("metric/table %q/%q", src.Metric, src.Table)
 }

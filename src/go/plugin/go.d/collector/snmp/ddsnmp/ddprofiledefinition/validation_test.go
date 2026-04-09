@@ -541,6 +541,145 @@ func Test_validateEnrichVirtualMetrics(t *testing.T) {
 				},
 			},
 		},
+		"valid mapped source dim": {
+			metrics: append(baseMetrics, MetricsConfig{
+				Table: SymbolConfig{
+					OID:  "1.3.6.1.2.1.15.3",
+					Name: "bgpPeerTable",
+				},
+				Symbols: []SymbolConfig{
+					{
+						OID:  "1.3.6.1.2.1.15.3.1.2",
+						Name: "bgpPeerAdminStatus",
+						Mapping: map[string]string{
+							"1": "stop",
+							"2": "start",
+						},
+					},
+				},
+				MetricTags: MetricTagConfigList{
+					{Tag: "neighbor", Index: 1},
+				},
+			}),
+			virtualMetrics: []VirtualMetricConfig{
+				{
+					Name:   "bgpPeerAvailability",
+					PerRow: true,
+					Sources: []VirtualMetricSourceConfig{
+						{Metric: "bgpPeerAdminStatus", Table: "bgpPeerTable", As: "admin_enabled", Dim: "start"},
+					},
+				},
+			},
+		},
+		"invalid mapped source dim": {
+			metrics: append(baseMetrics, MetricsConfig{
+				Table: SymbolConfig{
+					OID:  "1.3.6.1.2.1.15.3",
+					Name: "bgpPeerTable",
+				},
+				Symbols: []SymbolConfig{
+					{
+						OID:  "1.3.6.1.2.1.15.3.1.2",
+						Name: "bgpPeerAdminStatus",
+						Mapping: map[string]string{
+							"1": "stop",
+							"2": "start",
+						},
+					},
+				},
+				MetricTags: MetricTagConfigList{
+					{Tag: "neighbor", Index: 1},
+				},
+			}),
+			virtualMetrics: []VirtualMetricConfig{
+				{
+					Name:   "bgpPeerAvailability",
+					PerRow: true,
+					Sources: []VirtualMetricSourceConfig{
+						{Metric: "bgpPeerAdminStatus", Table: "bgpPeerTable", As: "admin_enabled", Dim: "running"},
+					},
+				},
+			},
+			wantErrContains: []string{
+				`virtual_metrics[0].sources[0]: dim "running" is not available on metric/table "bgpPeerAdminStatus"/"bgpPeerTable" (available: start, stop)`,
+			},
+		},
+		"dim requires multivalue source": {
+			metrics: baseMetrics,
+			virtualMetrics: []VirtualMetricConfig{
+				{
+					Name:   "ifTraffic",
+					PerRow: true,
+					Sources: []VirtualMetricSourceConfig{
+						{Metric: "ifHCInOctets", Table: "ifXTable", As: "in", Dim: "up"},
+					},
+				},
+			},
+			wantErrContains: []string{
+				`virtual_metrics[0].sources[0]: dim "up" requires a MultiValue source metric (metric/table "ifHCInOctets"/"ifXTable")`,
+			},
+		},
+		"valid transform multivalue source dim": {
+			metrics: append(baseMetrics, MetricsConfig{
+				Table: SymbolConfig{
+					OID:  "1.3.6.1.4.1.14988.1.1.3.100",
+					Name: "mtxrHlTable",
+				},
+				Symbols: []SymbolConfig{
+					{
+						OID:  "1.3.6.1.4.1.14988.1.1.3.100.1.3",
+						Name: "mtxrHlSensorState",
+						Transform: `
+{{- setMultivalue .Metric (i64map 0 "down" 1 "up") -}}
+`,
+					},
+				},
+				MetricTags: MetricTagConfigList{
+					{Tag: "sensor", Index: 1},
+				},
+			}),
+			virtualMetrics: []VirtualMetricConfig{
+				{
+					Name:   "sensorAvailability",
+					PerRow: true,
+					Sources: []VirtualMetricSourceConfig{
+						{Metric: "mtxrHlSensorState", Table: "mtxrHlTable", As: "up", Dim: "up"},
+					},
+				},
+			},
+		},
+		"invalid transform multivalue source dim": {
+			metrics: append(baseMetrics, MetricsConfig{
+				Table: SymbolConfig{
+					OID:  "1.3.6.1.4.1.14988.1.1.3.100",
+					Name: "mtxrHlTable",
+				},
+				Symbols: []SymbolConfig{
+					{
+						OID:  "1.3.6.1.4.1.14988.1.1.3.100.1.3",
+						Name: "mtxrHlSensorState",
+						Transform: `
+{{- setMultivalue .Metric (i64map 0 "down" 1 "up") -}}
+`,
+					},
+				},
+				MetricTags: MetricTagConfigList{
+					{Tag: "sensor", Index: 1},
+				},
+			}),
+			virtualMetrics: []VirtualMetricConfig{
+				{
+					Name:   "sensorAvailability",
+					PerRow: true,
+					Sources: []VirtualMetricSourceConfig{
+						{Metric: "mtxrHlSensorState", Table: "mtxrHlTable", As: "up", Dim: "idle"},
+					},
+				},
+			},
+			wantErrContains: []string{
+				`virtual_metrics[0].sources[0]: dim "idle" is not available on metric/table "mtxrHlSensorState"/"mtxrHlTable" (available: down, up)`,
+			},
+		},
 		"missing name and sources": {
 			metrics: baseMetrics,
 			virtualMetrics: []VirtualMetricConfig{

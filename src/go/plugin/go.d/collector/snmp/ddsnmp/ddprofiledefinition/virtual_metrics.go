@@ -42,7 +42,7 @@ type (
 		Metric string `yaml:"metric"`
 		Table  string `yaml:"table"`
 		As     string `yaml:"as"`  // dimension name for composite charts
-		Dim    string `yaml:"dim"` // optional MultiValue dimension selector for mapped metrics
+		Dim    string `yaml:"dim"` // optional MultiValue dimension selector for source metrics
 	}
 	VirtualMetricAlternativeSourcesConfig struct {
 		Sources []VirtualMetricSourceConfig `yaml:"sources"`
