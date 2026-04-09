@@ -122,7 +122,9 @@ func (n *bgpPublicNormalizer) mergeMetricValue(acc *ddsnmp.Metric, route bgpRout
 		if acc.MultiValue == nil {
 			acc.MultiValue = make(map[string]int64)
 		}
-		acc.MultiValue[route.dim] += metric.Value
+		if _, ok := acc.MultiValue[route.dim]; !ok {
+			acc.MultiValue[route.dim] = metric.Value
+		}
 		return
 	}
 

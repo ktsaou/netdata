@@ -304,6 +304,162 @@ func TestNormalizeCollectorMetrics_AlcatelRouteFamilyInference(t *testing.T) {
 	assert.Equal(t, map[string]int64{"received": 77}, routes.MultiValue)
 }
 
+func TestNormalizeCollectorMetrics_RouteDimKeepsFirstEquivalentSource(t *testing.T) {
+	pm := &ddsnmp.ProfileMetrics{Tags: map[string]string{}}
+	metrics := normalizeCollectorMetrics([]*ddsnmp.ProfileMetrics{
+		{
+			Metrics: []ddsnmp.Metric{
+				{
+					Profile: pm,
+					Name:    "bgpPeerInTotalMessages",
+					IsTable: true,
+					Table:   "aristaBgp4V2PeerCountersTable",
+					Tags: map[string]string{
+						"routing_instance": "default",
+						"neighbor":         "192.0.2.1",
+						"remote_as":        "65001",
+					},
+					Value: 20,
+				},
+				{
+					Profile: pm,
+					Name:    "bgpPeerInTotalMessages",
+					IsTable: true,
+					Table:   "bgpPeerTable",
+					Tags: map[string]string{
+						"routing_instance": "default",
+						"neighbor":         "192.0.2.1",
+						"remote_as":        "65001",
+					},
+					Value: 10,
+				},
+				{
+					Profile: pm,
+					Name:    "bgpPeerOutTotalMessages",
+					IsTable: true,
+					Table:   "aristaBgp4V2PeerCountersTable",
+					Tags: map[string]string{
+						"routing_instance": "default",
+						"neighbor":         "192.0.2.1",
+						"remote_as":        "65001",
+					},
+					Value: 30,
+				},
+				{
+					Profile: pm,
+					Name:    "bgpPeerOutTotalMessages",
+					IsTable: true,
+					Table:   "bgpPeerTable",
+					Tags: map[string]string{
+						"routing_instance": "default",
+						"neighbor":         "192.0.2.1",
+						"remote_as":        "65001",
+					},
+					Value: 15,
+				},
+			},
+		},
+	})
+
+	messages := requireMetric(t, metrics, "bgp.peers.message_traffic", map[string]string{
+		"routing_instance": "default",
+		"neighbor":         "192.0.2.1",
+		"remote_as":        "65001",
+	})
+	assert.Equal(t, map[string]int64{"received": 20, "sent": 30}, messages.MultiValue)
+}
+
+func TestNormalizeCollectorMetrics_HuaweiTotalMessagesKeepPeerAndPeerFamilyScopesSeparate(t *testing.T) {
+	pm := &ddsnmp.ProfileMetrics{Tags: map[string]string{}}
+	metrics := normalizeCollectorMetrics([]*ddsnmp.ProfileMetrics{
+		{
+			Metrics: []ddsnmp.Metric{
+				{
+					Profile: pm,
+					Name:    "huawei.hwBgpPeerInTotalMsgCounter",
+					IsTable: true,
+					Table:   "hwBgpPeerMessageTable",
+					Tags: map[string]string{
+						"_routing_instance":          "Public",
+						"_neighbor":                  "10.45.2.2",
+						"_remote_as":                 "26479",
+						"_address_family":            "ipv4",
+						"_subsequent_address_family": "unicast",
+						"_neighbor_address_type":     "ipv4",
+					},
+					Value: 100,
+				},
+				{
+					Profile: pm,
+					Name:    "huawei.hwBgpPeerOutTotalMsgCounter",
+					IsTable: true,
+					Table:   "hwBgpPeerMessageTable",
+					Tags: map[string]string{
+						"_routing_instance":          "Public",
+						"_neighbor":                  "10.45.2.2",
+						"_remote_as":                 "26479",
+						"_address_family":            "ipv4",
+						"_subsequent_address_family": "unicast",
+						"_neighbor_address_type":     "ipv4",
+					},
+					Value: 80,
+				},
+				{
+					Profile: pm,
+					Name:    "huawei.hwBgpPeerInTotalMsgs",
+					IsTable: true,
+					Table:   "hwBgpPeerStatisticTable",
+					Tags: map[string]string{
+						"_routing_instance":          "0",
+						"_neighbor":                  "10.45.2.2",
+						"_remote_as":                 "26479",
+						"_address_family":            "all",
+						"_subsequent_address_family": "all",
+						"_neighbor_address_type":     "ipv4",
+					},
+					Value: 200,
+				},
+				{
+					Profile: pm,
+					Name:    "huawei.hwBgpPeerOutTotalMsgs",
+					IsTable: true,
+					Table:   "hwBgpPeerStatisticTable",
+					Tags: map[string]string{
+						"_routing_instance":          "0",
+						"_neighbor":                  "10.45.2.2",
+						"_remote_as":                 "26479",
+						"_address_family":            "all",
+						"_subsequent_address_family": "all",
+						"_neighbor_address_type":     "ipv4",
+					},
+					Value: 160,
+				},
+			},
+		},
+	})
+
+	peerMessages := requireMetric(t, metrics, "bgp.peers.message_traffic", map[string]string{
+		"routing_instance":      "0",
+		"neighbor":              "10.45.2.2",
+		"remote_as":             "26479",
+		"neighbor_address_type": "ipv4",
+	})
+	assert.Equal(t, map[string]int64{"received": 200, "sent": 160}, peerMessages.MultiValue)
+	assert.NotContains(t, peerMessages.Tags, "address_family")
+	assert.NotContains(t, peerMessages.Tags, "subsequent_address_family")
+
+	peerFamilyMessages := requireMetric(t, metrics, "bgp.peer_families.message_traffic", map[string]string{
+		"routing_instance":          "Public",
+		"neighbor":                  "10.45.2.2",
+		"remote_as":                 "26479",
+		"neighbor_address_type":     "ipv4",
+		"address_family":            "ipv4",
+		"subsequent_address_family": "unicast",
+		"address_family_name":       "ipv4 unicast",
+	})
+	assert.Equal(t, map[string]int64{"received": 100, "sent": 80}, peerFamilyMessages.MultiValue)
+}
+
 func TestCollector_Collect_UsesBGPPublicMetricIDs(t *testing.T) {
 	mockCtl := gomock.NewController(t)
 	defer mockCtl.Finish()
