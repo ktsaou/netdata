@@ -12,6 +12,18 @@ import (
 	"github.com/netdata/netdata/go/plugins/plugin/go.d/collector/snmp/ddsnmp/ddprofiledefinition"
 )
 
+type scalarMetricKey struct {
+	name string
+	oid  string
+}
+
+type columnMetricKey struct {
+	tableOID   string
+	tableName  string
+	symbolOID  string
+	symbolName string
+}
+
 // FindProfiles returns profiles matching the given sysObjectID.
 // Profiles are sorted by match specificity: most specific first.
 func FindProfiles(sysObjID, sysDescr string, manualProfiles []string) []*Profile {
@@ -137,19 +149,20 @@ func (p *Profile) merge(base *Profile) {
 	p.mergeMetrics(base)
 	// Append other fields as before (these likely don't need deduplication)
 	p.Definition.MetricTags = append(p.Definition.MetricTags, base.Definition.MetricTags...)
-	p.Definition.StaticTags = append(p.Definition.StaticTags, base.Definition.StaticTags...)
+	p.Definition.StaticTags = append(slices.Clone(base.Definition.StaticTags), p.Definition.StaticTags...)
 }
 
 func (p *Profile) mergeMetrics(base *Profile) {
-	seen := make(map[string]bool)
+	seenScalars := make(map[scalarMetricKey]bool)
+	seenColumns := make(map[columnMetricKey]bool)
 
 	for _, m := range p.Definition.Metrics {
 		switch {
 		case m.IsScalar():
-			seen[m.Symbol.Name+"|"+m.Symbol.OID] = true
+			seenScalars[scalarMetricKey{name: m.Symbol.Name, oid: m.Symbol.OID}] = true
 		case m.IsColumn():
 			for _, sym := range m.Symbols {
-				seen[sym.Name] = true
+				seenColumns[columnMetricSymbolKey(m.Table, sym)] = true
 			}
 		}
 	}
@@ -157,15 +170,16 @@ func (p *Profile) mergeMetrics(base *Profile) {
 	for _, bm := range base.Definition.Metrics {
 		switch {
 		case bm.IsScalar():
-			key := bm.Symbol.Name + "|" + bm.Symbol.OID
-			if !seen[key] {
+			key := scalarMetricKey{name: bm.Symbol.Name, oid: bm.Symbol.OID}
+			if !seenScalars[key] {
 				p.Definition.Metrics = append(p.Definition.Metrics, bm)
-				seen[key] = true
+				seenScalars[key] = true
 			}
 		case bm.IsColumn():
 			bm.Symbols = slices.DeleteFunc(bm.Symbols, func(sym ddprofiledefinition.SymbolConfig) bool {
-				v := seen[sym.Name]
-				seen[sym.Name] = true
+				key := columnMetricSymbolKey(bm.Table, sym)
+				v := seenColumns[key]
+				seenColumns[key] = true
 				return v
 			})
 			if len(bm.Symbols) > 0 {
@@ -184,6 +198,15 @@ func (p *Profile) mergeMetrics(base *Profile) {
 			p.Definition.VirtualMetrics = append(p.Definition.VirtualMetrics, bm)
 			seenVmetrics[bm.Name] = true
 		}
+	}
+}
+
+func columnMetricSymbolKey(table ddprofiledefinition.SymbolConfig, sym ddprofiledefinition.SymbolConfig) columnMetricKey {
+	return columnMetricKey{
+		tableOID:   table.OID,
+		tableName:  table.Name,
+		symbolOID:  sym.OID,
+		symbolName: sym.Name,
 	}
 }
 
