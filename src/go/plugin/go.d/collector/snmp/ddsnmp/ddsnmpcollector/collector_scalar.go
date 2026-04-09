@@ -70,6 +70,7 @@ func (sc *scalarCollector) identifyScalarOIDs(configs []ddprofiledefinition.Metr
 			missingOIDs = append(missingOIDs, cfg.Symbol.OID)
 			continue
 		}
+
 		oids = append(oids, cfg.Symbol.OID)
 
 		oids = append(oids, cfg.Symbol.OID)

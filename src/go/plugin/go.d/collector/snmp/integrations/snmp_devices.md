@@ -28,7 +28,7 @@ This collector discovers and monitors any SNMP-enabled network device.
 - **Automatic vendor/model detection**: Devices are matched to the right profile using selectors such as `sysObjectID` and `sysDescr`.
 - **ICMP ping**: Optional round-trip latency monitoring alongside SNMP, with a `ping_only` mode available.
 - **SNMP v1, v2c, and v3 support**: Fully implemented via the [gosnmp](https://github.com/gosnmp/gosnmp) library.
-- **Shared device-level licensing metrics for supported profiles**: When a profile exposes license telemetry, Netdata emits compact per-device licensing charts for earliest expiry, license-state counts (`healthy`, `degraded`, `broken`, `ignored`), and highest usage pressure. Current branch coverage includes Check Point, Fortinet FortiGate contract/service/account expirations, Cisco traditional licensing end-date/remaining-time/state/usage telemetry, Cisco Smart Licensing authorization, certificate, evaluation, and state telemetry, Sophos Firewall subscription state/expiry telemetry, Blue Coat ProxySG application/feature/component expiry, expire-type, and state telemetry, and basic MikroTik RouterOS upgrade-entitlement telemetry. For MikroTik, epoch-like placeholder `mtxrLicUpgrUntil` values are ignored instead of treated as real expired licenses.
+- **Shared device-level licensing metrics for supported profiles**: When a profile exposes license telemetry, Netdata emits compact per-device licensing charts for earliest expiry, license-state counts (`healthy`, `degraded`, `broken`, `ignored`), and highest usage pressure. Current branch coverage includes Check Point licensing state and per-blade expiry, Fortinet FortiGate contract/service/account expirations, Cisco traditional licensing end-date/remaining-time/state/usage telemetry, Cisco Smart Licensing authorization, certificate, evaluation, and state telemetry, Sophos Firewall subscription state and per-license expiry telemetry, Blue Coat ProxySG application/feature/component expiry, expire-type, and state telemetry, and basic MikroTik RouterOS upgrade-entitlement telemetry. For MikroTik, epoch-like placeholder `mtxrLicUpgrUntil` values are ignored instead of treated as real expired licenses.
 - **Interactive licensing drill-down**: The `snmp:licenses` function follows the existing SNMP function pattern and shows normalized licensing rows for the selected SNMP job/device using cached collector data.
 
 
@@ -421,7 +421,7 @@ If `ping.enabled` is true, ICMP latency/packet-loss charts are also provided (or
 
 ### Per device licensing
 
-Shared device-level licensing health metrics emitted when the matched SNMP profile provides licensing telemetry. Current branch coverage includes Check Point, Fortinet FortiGate contract/service/account expirations, Cisco traditional licensing end-date/remaining-time/state/usage telemetry, Cisco Smart Licensing authorization, certificate, evaluation, and state telemetry, Sophos Firewall subscription state/expiry telemetry, Blue Coat ProxySG application/feature/component expiry, expire-type, and state telemetry, and basic MikroTik RouterOS upgrade-entitlement telemetry. MikroTik support is intentionally limited to the RouterOS upgrade-entitlement fields exposed by SNMP, and epoch-like placeholder `mtxrLicUpgrUntil` values are ignored.
+Shared device-level licensing health metrics emitted when the matched SNMP profile provides licensing telemetry. Current branch coverage includes Check Point licensing state and per-blade expiry, Fortinet FortiGate contract/service/account expirations, Cisco traditional licensing end-date/remaining-time/state/usage telemetry, Cisco Smart Licensing authorization, certificate, evaluation, and state telemetry, Sophos Firewall subscription state and per-license expiry telemetry, Blue Coat ProxySG application/feature/component expiry, expire-type, and state telemetry, and basic MikroTik RouterOS upgrade-entitlement telemetry. MikroTik support is intentionally limited to the RouterOS upgrade-entitlement fields exposed by SNMP, and epoch-like placeholder `mtxrLicUpgrUntil` values are ignored.
 
 Labels:
 
@@ -530,7 +530,7 @@ Data is sourced from the last successful SNMP collection. No extra SNMP requests
 | Require Cloud | no |
 | Performance | Uses cached SNMP data only, no additional SNMP requests are triggered:<br/>• Responses are instantaneous from memory cache<br/>• Large devices with many licensing rows may return many rows |
 | Security | Exposes licensing names, states, timers, counts, and impact notes only:<br/>• No credentials or secrets are exposed<br/>• No device configuration is modified |
-| Availability | Available when:<br/>• The collector has completed at least one licensing-aware data collection cycle<br/>• Licensing data is cached from the last successful SNMP collection<br/>• Returns HTTP 503 if cache is not ready yet |
+| Availability | Available when:<br/>• The collector has completed at least one licensing-aware data collection cycle that produced licensing rows<br/>• Licensing data is cached from the last successful SNMP collection<br/>• Returns HTTP 503 if cache is not ready yet or the device/profile exposes no licensing rows |
 
 #### Prerequisites
 

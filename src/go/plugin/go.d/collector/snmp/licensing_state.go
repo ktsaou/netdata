@@ -17,28 +17,30 @@ const (
 )
 
 func normalizeLicenseStateBucket(row licenseRow, now time.Time) licenseStateBucket {
-	rawBucket, hasRawBucket := mapLicenseStateBucket(row.StateRaw)
-
-	if hasRawBucket && rawBucket == licenseStateBucketBroken {
-		return rawBucket
-	}
-	if row.HasState && row.StateSeverity >= 2 {
-		return licenseStateBucketBroken
-	}
+	// Hard-fail conditions: a broken-timer or fully-consumed pool is broken
+	// regardless of state. These come from FRESH metric values (the table
+	// cache re-fetches symbol PDUs on every poll), so they cannot be stale.
 	if licenseRowHasBrokenTimerOrUsage(row, now) {
 		return licenseStateBucketBroken
 	}
-	if hasRawBucket {
-		switch rawBucket {
-		case licenseStateBucketIgnored, licenseStateBucketDegraded, licenseStateBucketHealthy:
-			return rawBucket
-		}
-	}
-	if row.HasGraceTime {
-		return licenseStateBucketDegraded
-	}
+
+	// Fresh severity wins over the cached raw state string. The raw state
+	// string lives in a same-table metric_tag and the SNMP table cache
+	// reuses row tags on cache hits, so a renewed-or-expired license could
+	// continue to read the previous text for up to the cache TTL. Severity,
+	// in contrast, is collected as a symbol whose value is re-fetched on
+	// every poll, so it is always current.
 	if row.HasState {
 		return bucketFromSeverity(row.StateSeverity)
+	}
+
+	// No fresh severity → fall back to the raw vendor state classification.
+	if rawBucket, ok := mapLicenseStateBucket(row.StateRaw); ok {
+		return rawBucket
+	}
+
+	if row.HasGraceTime {
+		return licenseStateBucketDegraded
 	}
 	if row.HasExpiry && !row.IsPerpetual {
 		return licenseStateBucketHealthy

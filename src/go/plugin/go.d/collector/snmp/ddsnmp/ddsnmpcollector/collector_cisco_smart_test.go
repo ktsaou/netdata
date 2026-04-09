@@ -3,7 +3,6 @@
 package ddsnmpcollector
 
 import (
-	"strconv"
 	"strings"
 	"testing"
 
@@ -13,14 +12,6 @@ import (
 	"github.com/netdata/netdata/go/plugins/plugin/go.d/collector/snmp/ddsnmp/ddprofiledefinition"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-)
-
-const (
-	testTagLicenseID        = "_license_id"
-	testTagLicenseName      = "_license_name"
-	testTagLicenseStateRaw  = "_license_state_raw"
-	testTagLicenseValueKind = "_license_value_kind"
-	testTagLicenseUsageRaw  = "_license_usage_raw"
 )
 
 func TestCollector_Collect_CiscoSmartLicensingProfile(t *testing.T) {
@@ -58,12 +49,7 @@ func TestCollector_Collect_CiscoSmartLicensingProfile(t *testing.T) {
 	)
 
 	profile := mustLoadCiscoSmartProfile(t)
-	require.True(t, hasMetricTable(profile, "1.3.6.1.4.1.9.9.831.0.5.1"), profileMetricsSummary(profile))
-	for _, metric := range profile.Definition.Metrics {
-		if strings.TrimPrefix(metric.Table.OID, ".") == "1.3.6.1.4.1.9.9.831.0.5.1" {
-			assert.True(t, metric.DisableTableCache)
-		}
-	}
+	require.True(t, hasMetricTable(profile, "1.3.6.1.4.1.9.9.831.0.5.1"))
 
 	collector := New(Config{
 		SnmpClient:  mockHandler,
@@ -78,41 +64,24 @@ func TestCollector_Collect_CiscoSmartLicensingProfile(t *testing.T) {
 
 	pm := results[0]
 	assert.Empty(t, pm.Metrics)
-	require.Len(t, pm.HiddenMetrics, 6)
+	require.Len(t, pm.HiddenMetrics, 7)
 
-	byID := licenseMetricsByID(pm.HiddenMetrics)
+	byID := licenseMetricsByIDAndKind(pm.HiddenMetrics)
 
-	registration := byID["smart_registration"]
-	require.NotNil(t, registration)
-	assert.EqualValues(t, 0, registration.Value)
-	assert.Equal(t, "state_severity", registration.StaticTags[testTagLicenseValueKind])
-	assert.Equal(t, "Smart Licensing registration", registration.StaticTags[testTagLicenseName])
+	require.EqualValues(t, 0, byID["smart_registration"]["state_severity"].Value)
+	assert.Equal(t, "Smart Licensing registration", metricTagValue(*byID["smart_registration"]["state_severity"], "_license_name"))
 
-	authState := byID["smart_authorization_state"]
-	require.NotNil(t, authState)
-	assert.EqualValues(t, 2, authState.Value)
-	assert.Equal(t, "state_severity", authState.StaticTags[testTagLicenseValueKind])
-
-	authExpiry := byID["smart_authorization_expiry"]
-	require.NotNil(t, authExpiry)
-	assert.EqualValues(t, 1775152800, authExpiry.Value)
-	assert.Equal(t, "authorization_timestamp", authExpiry.StaticTags[testTagLicenseValueKind])
-
-	certExpiry := byID["smart_id_certificate_expiry"]
-	require.NotNil(t, certExpiry)
-	assert.EqualValues(t, 1777831200, certExpiry.Value)
-	assert.Equal(t, "certificate_timestamp", certExpiry.StaticTags[testTagLicenseValueKind])
-
-	evalExpiry := byID["smart_evaluation_expiry"]
-	require.NotNil(t, evalExpiry)
-	assert.EqualValues(t, 1773943200, evalExpiry.Value)
-	assert.Equal(t, "grace_timestamp", evalExpiry.StaticTags[testTagLicenseValueKind])
+	require.EqualValues(t, 2, byID["smart_authorization_state"]["state_severity"].Value)
+	require.EqualValues(t, 1775152800, byID["smart_authorization_expiry"]["authorization_timestamp"].Value)
+	require.EqualValues(t, 1777831200, byID["smart_id_certificate_expiry"]["certificate_timestamp"].Value)
+	require.EqualValues(t, 1773943200, byID["smart_evaluation_expiry"]["grace_timestamp"].Value)
 
 	entitlement := byID["dna_advantage"]
 	require.NotNil(t, entitlement)
-	assert.Equal(t, "network-advantage", entitlement.Tags[testTagLicenseName])
-	assert.Equal(t, "authorization_expired", entitlement.Tags[testTagLicenseStateRaw])
-	assert.Equal(t, "42", entitlement.Tags[testTagLicenseUsageRaw])
+	require.EqualValues(t, 42, entitlement["usage"].Value)
+	require.EqualValues(t, 2, entitlement["state_severity"].Value)
+	assert.Equal(t, "network-advantage", metricTagValue(*entitlement["usage"], "_license_name"))
+	assert.Equal(t, "authorization_expired", metricTagValue(*entitlement["state_severity"], "_license_state_raw"))
 }
 
 func TestCollector_Collect_CiscoSmartLicensingProfile_PartialData(t *testing.T) {
@@ -160,22 +129,18 @@ func TestCollector_Collect_CiscoSmartLicensingProfile_PartialData(t *testing.T) 
 
 	pm := results[0]
 	assert.Empty(t, pm.Metrics)
-	require.Len(t, pm.HiddenMetrics, 3)
+	require.Len(t, pm.HiddenMetrics, 4)
 
-	byID := licenseMetricsByID(pm.HiddenMetrics)
+	byID := licenseMetricsByIDAndKind(pm.HiddenMetrics)
 
-	registration := byID["smart_registration"]
-	require.NotNil(t, registration)
-	assert.EqualValues(t, 0, registration.Value)
-
-	authState := byID["smart_authorization_state"]
-	require.NotNil(t, authState)
-	assert.EqualValues(t, 0, authState.Value)
+	require.EqualValues(t, 0, byID["smart_registration"]["state_severity"].Value)
+	require.EqualValues(t, 0, byID["smart_authorization_state"]["state_severity"].Value)
 
 	entitlement := byID["dna_essentials"]
 	require.NotNil(t, entitlement)
-	assert.Equal(t, "authorized", entitlement.Tags[testTagLicenseStateRaw])
-	assert.Equal(t, "7", entitlement.Tags[testTagLicenseUsageRaw])
+	require.EqualValues(t, 7, entitlement["usage"].Value)
+	require.EqualValues(t, 0, entitlement["state_severity"].Value)
+	assert.Equal(t, "authorized", metricTagValue(*entitlement["state_severity"], "_license_state_raw"))
 
 	assert.NotContains(t, byID, "smart_authorization_expiry")
 	assert.NotContains(t, byID, "smart_id_certificate_expiry")
@@ -199,44 +164,4 @@ func mustLoadCiscoSmartProfile(t *testing.T) *ddsnmp.Profile {
 		}
 		return false
 	})
-}
-
-func licenseMetricsByID(metrics []ddsnmp.Metric) map[string]*ddsnmp.Metric {
-	out := make(map[string]*ddsnmp.Metric, len(metrics))
-	for i := range metrics {
-		metric := &metrics[i]
-		id := metric.StaticTags[testTagLicenseID]
-		if id == "" {
-			id = metric.Tags[testTagLicenseID]
-		}
-		if id == "" {
-			continue
-		}
-		out[id] = metric
-	}
-	return out
-}
-
-func hasMetricTable(profile *ddsnmp.Profile, oid string) bool {
-	for _, metric := range profile.Definition.Metrics {
-		if strings.TrimPrefix(metric.Table.OID, ".") == oid {
-			return true
-		}
-	}
-	return false
-}
-
-func profileMetricsSummary(profile *ddsnmp.Profile) string {
-	var lines []string
-	for _, metric := range profile.Definition.Metrics {
-		switch {
-		case metric.Symbol.OID != "":
-			lines = append(lines, "scalar:"+strings.TrimPrefix(metric.Symbol.OID, ".")+" name="+metric.Symbol.Name+" mib="+metric.MIB)
-		case metric.Table.OID != "":
-			lines = append(lines, "table:"+strings.TrimPrefix(metric.Table.OID, ".")+" name="+metric.Table.Name+" mib="+metric.MIB)
-		default:
-			lines = append(lines, "other:table_name="+metric.Table.Name+" symbol_name="+metric.Symbol.Name+" mib="+metric.MIB+" symbols="+strconv.Itoa(len(metric.Symbols)))
-		}
-	}
-	return strings.Join(lines, "\n")
 }

@@ -51,31 +51,50 @@ metrics:
     table:
       OID: 1.3.6.1.4.1.3417.2.16.1.1.1
       name: appLicenseStatusTable
-    disable_table_cache: true
     symbols:
-      - OID: 1.3.6.1.4.1.3417.2.16.1.1.1.1.1
+      - OID: 1.3.6.1.4.1.3417.2.16.1.1.1.1.6
+        name: _license_row
+        format: snmp_dateandtime
+        metric_type: gauge
+        chart_meta:
+          description: Hidden licensing expiry helper
+          family: 'Internal/Licensing'
+          unit: "{row}"
+        transform: |
+          {{- licenseRow .Metric "expiry_timestamp" -}}
+      - OID: 1.3.6.1.4.1.3417.2.16.1.1.1.1.7
         name: _license_row
         metric_type: gauge
         chart_meta:
-          description: Hidden licensing row helper
+          description: Hidden licensing state helper
           family: 'Internal/Licensing'
           unit: "{row}"
+        mapping:
+          "0": "1"
+          "1": "0"
+          "2": "2"
+        transform: |
+          {{- licenseRow .Metric "state_severity" -}}
     static_tags:
       - tag: _license_expiry_source
         value: appLicenseStatusExpireDate
     metric_tags:
-      - tag: _license_index
-        symbol:
-          OID: 1.3.6.1.4.1.3417.2.16.1.1.1.1.1
-          name: appLicenseStatusIndex
+      # Tag-fallback: prefer the license index (always present),
+      # then fall back to the row index from the OID itself.
       - tag: _license_id
         symbol:
           OID: 1.3.6.1.4.1.3417.2.16.1.1.1.1.1
           name: appLicenseStatusIndex
+      - tag: _license_id
+        index: 1
       - tag: _license_name
         symbol:
           OID: 1.3.6.1.4.1.3417.2.16.1.1.1.1.2
           name: appLicenseStatusApplicationName
+      - tag: _license_name
+        symbol:
+          OID: 1.3.6.1.4.1.3417.2.16.1.1.1.1.1
+          name: appLicenseStatusIndex
       - tag: _license_feature
         symbol:
           OID: 1.3.6.1.4.1.3417.2.16.1.1.1.1.3
@@ -98,12 +117,7 @@ metrics:
           OID: 1.3.6.1.4.1.3417.2.16.1.1.1.1.5
           name: appLicenseStatusExpireType
         mapping:
-          1: true
-      - tag: _license_expiry_raw
-        symbol:
-          OID: 1.3.6.1.4.1.3417.2.16.1.1.1.1.6
-          name: appLicenseStatusExpireDate
-          format: snmp_dateandtime
+          1: "true"
       - tag: _license_state_raw
         symbol:
           OID: 1.3.6.1.4.1.3417.2.16.1.1.1.1.7
@@ -112,11 +126,3 @@ metrics:
           0: unknown
           1: active
           2: expired
-      - tag: _license_state_severity_raw
-        symbol:
-          OID: 1.3.6.1.4.1.3417.2.16.1.1.1.1.7
-          name: appLicenseStatusLicenseState
-        mapping:
-          0: 1
-          1: 0
-          2: 2

@@ -1937,3 +1937,147 @@ What this does
 - Builds a **single total chart** combining multiple related packet counters.
 - Each `as` becomes a **dimension** (`in_ucast`, `out_ucast`, `in_mcast`, …).
 - No `per_row`/`group_by` → totals aggregated across all interfaces.
+
+## Licensing rows
+
+The SNMP collector ships a **shared device-level licensing pipeline** that
+turns vendor-specific licensing telemetry into six common contexts
+(`snmp.license.remaining_time`, `snmp.license.authorization_remaining_time`,
+`snmp.license.certificate_remaining_time`, `snmp.license.grace_remaining_time`,
+`snmp.license.usage_percent`, `snmp.license.state`) plus an interactive
+`snmp:licenses` drill-down function. Profiles describe each licensing signal
+using only the existing profile-format building blocks; nothing about
+licensing requires a new YAML field on the contract.
+
+### Authoring contract
+
+A licensing signal is a hidden metric named `_license_row` (or `_license_row_*`)
+whose integer value carries one signal — an expiry epoch, a usage count, a
+state severity, etc. The collector picks these up from the profile's hidden
+metric set and feeds them into the licensing pipeline.
+
+Identity tags name the row, and a `_license_value_kind` tag tells the
+pipeline how to interpret the integer value. Multiple `_license_row` metrics
+that share the same **(profile source, SNMP table, `_license_id`)** tuple are
+merged into a single license row before aggregation, so a single license can
+carry an expiry, a state, and a usage signal as three separate metrics.
+Different SNMP tables that happen to use the same `_license_id` stay distinct.
+
+| Tag                              | Purpose                                                          |
+|----------------------------------|------------------------------------------------------------------|
+| `_license_id`                    | Stable identifier used to merge signals of the same license     |
+| `_license_name`                  | Human-readable license label shown in the drill-down            |
+| `_license_feature` (optional)    | Feature/blade name when the vendor distinguishes them           |
+| `_license_component` (optional)  | Logical component the license enables                            |
+| `_license_type` (optional)       | License type (subscription, contract, certificate, …)            |
+| `_license_impact` (optional)     | Operational impact text shown in the drill-down                  |
+| `_license_state_raw` (optional)  | Raw vendor state string (used by the bucket normalizer)         |
+| `_license_unlimited` (optional)  | "true" if the row represents an unlimited pool                  |
+| `_license_perpetual` (optional)  | "true" if the row represents a perpetual entitlement            |
+| `_license_value_kind`            | Tells the pipeline how to read the metric value                  |
+
+Supported `_license_value_kind` values:
+
+- `expiry_timestamp` / `expiry_remaining`
+- `authorization_timestamp` / `authorization_remaining`
+- `certificate_timestamp` / `certificate_remaining`
+- `grace_timestamp` / `grace_remaining`
+- `usage`, `capacity`, `available`, `usage_percent`
+- `state_severity` (0 = healthy, 1 = degraded, 2 = broken)
+
+### Stamping the value kind
+
+Profiles can stamp the value kind in two equivalent ways:
+
+1. **Static tag** — when one metric definition produces one signal of one
+   fixed kind (typical for scalars):
+
+    ```yaml
+    - MIB: CISCO-SMART-LIC-MIB
+      symbol:
+        OID: 1.3.6.1.4.1.9.9.831.0.7.1
+        name: _license_row
+      static_tags:
+        - {tag: _license_id,         value: smart_authorization_expiry}
+        - {tag: _license_name,       value: Smart Licensing authorization}
+        - {tag: _license_value_kind, value: authorization_timestamp}
+    ```
+
+2. **Transform** — when one table emits multiple signal kinds from different
+   columns of the same row, use the `licenseRow` template helper to stamp the
+   kind per symbol while sharing the row's `metric_tags`:
+
+    ```yaml
+    - MIB: CHECKPOINT-MIB
+      table:
+        OID: 1.3.6.1.4.1.2620.1.6.18.1
+        name: licensingTable
+      symbols:
+        - OID: 1.3.6.1.4.1.2620.1.6.18.1.1.8
+          name: _license_row
+          transform: |
+            {{- licenseRow .Metric "capacity" -}}
+        - OID: 1.3.6.1.4.1.2620.1.6.18.1.1.9
+          name: _license_row
+          transform: |
+            {{- licenseRow .Metric "usage" -}}
+      metric_tags:
+        - tag: _license_id
+          symbol: { OID: 1.3.6.1.4.1.2620.1.6.18.1.1.2, name: licensingID }
+    ```
+
+### Parsing vendor expiry dates
+
+The value-processor format mechanism handles licensing expiry dates directly,
+so they are decoded fresh from each poll's PDU rather than being read from a
+cached tag (which would risk staleness within the SNMP table cache window).
+Three options are available:
+
+- **No format** — for vendors that publish expiry as a plain integer unix
+  epoch in `Gauge32` / `Counter32` / `Unsigned32`. The numeric value
+  processor reads it directly. The `licenseRow` transform then stamps the
+  value kind. Check Point's `licensingExpirationDate` is one example.
+- `format: snmp_dateandtime` — for SNMPv2-TC `DateAndTime` octet strings (8
+  or 11 byte fixed binary). Used by vendors like Blue Coat ProxySG and Cisco
+  `CISCO-LICENSE-MGMT-MIB`.
+- `format: text_date` — for textual date strings (e.g., `2026-12-31`,
+  `Mon Jan 2 2030`, epoch seconds/milliseconds embedded as text). Accepts
+  the same layouts as the licensing pipeline's internal date parser. Used
+  by Fortinet's `DisplayString` expiry columns.
+
+```yaml
+symbols:
+  - OID: 1.3.6.1.4.1.12356.101.4.6.3.1.2.1.2  # fgLicContractExpiry ("2026-12-31")
+    name: _license_row
+    format: text_date
+    transform: |
+      {{- licenseRow .Metric "expiry_timestamp" -}}
+```
+
+The decoded unix timestamp is the metric value. The `licenseRow` transform
+stamps the value kind so the licensing pipeline knows the value is an absolute
+expiry timestamp. The pipeline drops well-known "no expiry" sentinels such as
+`0` and `0xFFFFFFFF` (`4294967295`) before computing remaining time.
+
+For the rare case where the date must come from a tag instead of the symbol's
+own value, the `licenseDateFromTag` transform helper is also available — it
+reads the tag, parses it the same way, and rewrites the metric value. Prefer
+the `format:` approach when possible because it avoids any reliance on the
+table cache for expiry data.
+
+### Identity fallbacks
+
+Profiles should declare the same `_license_id` (and `_license_name`) tag
+multiple times in preference order, leveraging the documented
+[Tag fallback (first non-empty wins)](#tag-fallback-first-non-empty-wins)
+mechanism, instead of relying on the collector to derive identifying values.
+For tables this typically means "prefer the symbolic description column,
+fall back to the row index":
+
+```yaml
+metric_tags:
+  - tag: _license_id
+    symbol: { OID: ...desc, name: licensingDescription }
+  - tag: _license_id
+    index: 1
+```

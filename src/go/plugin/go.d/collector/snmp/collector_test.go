@@ -7,7 +7,6 @@ import (
 	"errors"
 	"os"
 	"slices"
-	"strconv"
 	"strings"
 	"sync"
 	"syscall"
@@ -711,21 +710,17 @@ func TestCollector_Collect_LicensingAggregation(t *testing.T) {
 	collr.snmpProfiles = []*ddsnmp.Profile{{}}
 	collr.newSnmpClient = func() gosnmp.Handler { return mockSNMP }
 	collr.newDdSnmpColl = func(ddsnmpcollector.Config) ddCollector {
+		// A single Check Point license contributes four signals under the same
+		// _license_id: state severity, expiry, used, capacity. licensing.go
+		// merges them into one row before aggregation.
 		pm := &ddsnmp.ProfileMetrics{
 			Source: "checkpoint.yaml",
 			HiddenMetrics: []ddsnmp.Metric{
-				{
-					Name:  licenseSourceMetricName,
-					Value: 17,
-					Tags: map[string]string{
-						tagLicenseID:          "17",
-						tagLicenseName:        "Application Control",
-						tagLicenseStateRaw:    "about-to-expire",
-						tagLicenseExpiryRaw:   strconv.FormatInt(expiry, 10),
-						tagLicenseUsageRaw:    "95",
-						tagLicenseCapacityRaw: "100",
-					},
-				},
+				licenseSignal("17", "Application Control", licenseValueKindStateSeverity, 1,
+					map[string]string{tagLicenseStateRaw: "about-to-expire"}),
+				licenseSignal("17", "Application Control", licenseValueKindExpiryTimestamp, expiry, nil),
+				licenseSignal("17", "Application Control", licenseValueKindUsage, 95, nil),
+				licenseSignal("17", "Application Control", licenseValueKindCapacity, 100, nil),
 			},
 		}
 		for i := range pm.HiddenMetrics {
@@ -750,6 +745,25 @@ func TestCollector_Collect_LicensingAggregation(t *testing.T) {
 	assert.Contains(t, got, "snmp_device_prof_checkpoint_stats_metrics_table")
 }
 
+// licenseSignal builds one hidden _license_row metric. Multiple signals that
+// share the same id belong to the same license and licensing.go merges them
+// into one row before aggregation, matching the new documented contract.
+func licenseSignal(id, name, kind string, value int64, extraTags map[string]string) ddsnmp.Metric {
+	tags := map[string]string{
+		tagLicenseID:        id,
+		tagLicenseName:      name,
+		tagLicenseValueKind: kind,
+	}
+	for k, v := range extraTags {
+		tags[k] = v
+	}
+	return ddsnmp.Metric{
+		Name:  licenseSourceMetricName,
+		Value: value,
+		Tags:  tags,
+	}
+}
+
 func TestCollector_Collect_LicensingAggregation_CiscoSmartPartialData(t *testing.T) {
 	mockCtl := gomock.NewController(t)
 	defer mockCtl.Finish()
@@ -768,59 +782,37 @@ func TestCollector_Collect_LicensingAggregation_CiscoSmartPartialData(t *testing
 	collr.snmpProfiles = []*ddsnmp.Profile{{}}
 	collr.newSnmpClient = func() gosnmp.Handler { return mockSNMP }
 	collr.newDdSnmpColl = func(ddsnmpcollector.Config) ddCollector {
+		// Cisco Smart Licensing is exposed as scalar OIDs. Each licensing
+		// signal is its own _license_row metric with static tags identifying
+		// the logical license and a transform stamp for the value kind.
 		pm := &ddsnmp.ProfileMetrics{
 			Source: "cisco.yaml",
 			HiddenMetrics: []ddsnmp.Metric{
-				{
-					Name:  licenseSourceMetricName,
-					Value: 2,
-					StaticTags: map[string]string{
-						tagLicenseID:        "smart_authorization_state",
-						tagLicenseName:      "Smart Licensing authorization state",
+				licenseSignal("smart_authorization_state", "Smart Licensing authorization state",
+					licenseValueKindStateSeverity, 0, map[string]string{
 						tagLicenseComponent: "smart_licensing",
 						tagLicenseType:      "authorization",
-						tagLicenseValueKind: licenseValueKindStateSeverity,
-					},
-				},
-				{
-					Name:  licenseSourceMetricName,
-					Value: authExpiry,
-					StaticTags: map[string]string{
-						tagLicenseID:                  "smart_authorization_expiry",
-						tagLicenseName:                "Smart Licensing authorization",
+					}),
+				licenseSignal("smart_authorization_expiry", "Smart Licensing authorization",
+					licenseValueKindAuthorizationTimestamp, authExpiry, map[string]string{
 						tagLicenseComponent:           "smart_licensing",
 						tagLicenseType:                "authorization",
-						tagLicenseValueKind:           licenseValueKindAuthorizationTimestamp,
 						tagLicenseAuthorizationSource: "ciscoSlaAuthExpireTime",
-					},
-				},
-				{
-					Name:  licenseSourceMetricName,
-					Value: certExpiry,
-					StaticTags: map[string]string{
-						tagLicenseID:                "smart_id_certificate_expiry",
-						tagLicenseName:              "Smart Licensing ID certificate",
+					}),
+				licenseSignal("smart_id_certificate_expiry", "Smart Licensing ID certificate",
+					licenseValueKindCertificateTimestamp, certExpiry, map[string]string{
 						tagLicenseComponent:         "smart_licensing",
 						tagLicenseType:              "certificate",
-						tagLicenseValueKind:         licenseValueKindCertificateTimestamp,
 						tagLicenseCertificateSource: "ciscoSlaNextCertificateExpireTime",
-					},
-				},
-				{
-					Name:  licenseSourceMetricName,
-					Value: 1,
-					Tags: map[string]string{
-						tagLicenseID:               "dna_advantage",
-						tagLicenseName:             "network-advantage",
-						tagLicenseStateRaw:         "authorization_expired",
-						tagLicenseStateSeverityRaw: "2",
-						tagLicenseUsageRaw:         "42",
-					},
-					StaticTags: map[string]string{
+					}),
+				licenseSignal("dna_advantage", "network-advantage",
+					licenseValueKindStateSeverity, 2, map[string]string{
 						tagLicenseComponent: "smart_licensing",
 						tagLicenseType:      "entitlement",
-					},
-				},
+						tagLicenseStateRaw:  "authorization_expired",
+					}),
+				licenseSignal("dna_advantage", "network-advantage",
+					licenseValueKindUsage, 42, nil),
 			},
 		}
 		for i := range pm.HiddenMetrics {
@@ -835,9 +827,10 @@ func TestCollector_Collect_LicensingAggregation_CiscoSmartPartialData(t *testing
 	got := collr.Collect(context.Background())
 	require.NotNil(t, got)
 
-	assert.EqualValues(t, 2, got[metricIDLicenseStateHealthy])
+	// 4 logical rows: state (healthy), auth (healthy), cert (healthy), entitlement (broken).
+	assert.EqualValues(t, 3, got[metricIDLicenseStateHealthy])
 	assert.EqualValues(t, 0, got[metricIDLicenseStateDegraded])
-	assert.EqualValues(t, 2, got[metricIDLicenseStateBroken])
+	assert.EqualValues(t, 1, got[metricIDLicenseStateBroken])
 	assert.EqualValues(t, 0, got[metricIDLicenseStateIgnored])
 	assert.GreaterOrEqual(t, got[metricIDLicenseAuthorizationRemainingTime], int64((48*time.Hour/time.Second)-5))
 	assert.LessOrEqual(t, got[metricIDLicenseAuthorizationRemainingTime], int64(48*time.Hour/time.Second))
@@ -856,7 +849,7 @@ func TestCollector_Collect_LicensingAggregation_CiscoTraditional(t *testing.T) {
 	setMockClientInitExpect(mockSNMP)
 	setMockClientSysInfoExpect(mockSNMP)
 
-	expiry := time.Now().UTC().Add(72 * time.Hour).Unix()
+	securityExpiry := time.Now().UTC().Add(72 * time.Hour).Unix()
 
 	collr := New()
 	collr.Config = prepareV2Config()
@@ -865,37 +858,25 @@ func TestCollector_Collect_LicensingAggregation_CiscoTraditional(t *testing.T) {
 	collr.snmpProfiles = []*ddsnmp.Profile{{}}
 	collr.newSnmpClient = func() gosnmp.Handler { return mockSNMP }
 	collr.newDdSnmpColl = func(ddsnmpcollector.Config) ddCollector {
+		// "SECURITYK9" is healthy (in use, 85% used); "APPXK9" is broken
+		// (usage count consumed) with 1 hour of grace left. licensing.go
+		// reports the worst state and the highest usage across rows.
 		pm := &ddsnmp.ProfileMetrics{
 			Source: "cisco.yaml",
 			HiddenMetrics: []ddsnmp.Metric{
-				{
-					Name:  licenseSourceMetricName,
-					Value: 0,
-					Tags: map[string]string{
-						tagLicenseID:           "17",
-						tagLicenseName:         "SECURITYK9",
-						tagLicenseType:         "paid_subscription",
-						tagLicenseExpiryRaw:    strconv.FormatInt(expiry, 10),
-						tagLicenseCapacityRaw:  "100",
-						tagLicenseAvailableRaw: "15",
-						tagLicenseStateRaw:     "in_use",
-					},
-				},
-				{
-					Name:  licenseSourceMetricName,
-					Value: 3600,
-					Tags: map[string]string{
-						tagLicenseID:               "23",
-						tagLicenseName:             "APPXK9",
-						tagLicenseType:             "grace_period",
-						tagLicenseCapacityRaw:      "10",
-						tagLicenseAvailableRaw:     "0",
-						tagLicenseStateRaw:         "usage_count_consumed",
-						tagLicenseStateSeverityRaw: "2",
-						tagLicenseValueKind:        licenseValueKindExpiryRemaining,
-						tagLicenseComponent:        "traditional_licensing",
-					},
-				},
+				licenseSignal("17", "SECURITYK9", licenseValueKindExpiryTimestamp, securityExpiry,
+					map[string]string{tagLicenseType: "paid_subscription", tagLicenseStateRaw: "in_use"}),
+				licenseSignal("17", "SECURITYK9", licenseValueKindCapacity, 100, nil),
+				licenseSignal("17", "SECURITYK9", licenseValueKindAvailable, 15, nil),
+				licenseSignal("23", "APPXK9", licenseValueKindStateSeverity, 2,
+					map[string]string{
+						tagLicenseType:      "grace_period",
+						tagLicenseStateRaw:  "usage_count_consumed",
+						tagLicenseComponent: "traditional_licensing",
+					}),
+				licenseSignal("23", "APPXK9", licenseValueKindGraceRemaining, 3600, nil),
+				licenseSignal("23", "APPXK9", licenseValueKindCapacity, 10, nil),
+				licenseSignal("23", "APPXK9", licenseValueKindAvailable, 0, nil),
 			},
 		}
 		for i := range pm.HiddenMetrics {
@@ -914,9 +895,12 @@ func TestCollector_Collect_LicensingAggregation_CiscoTraditional(t *testing.T) {
 	assert.EqualValues(t, 0, got[metricIDLicenseStateDegraded])
 	assert.EqualValues(t, 1, got[metricIDLicenseStateBroken])
 	assert.EqualValues(t, 0, got[metricIDLicenseStateIgnored])
+	// APPXK9 is fully consumed (0 available of 10) → 100% usage, wins max.
 	assert.EqualValues(t, 100, got[metricIDLicenseUsagePercent])
-	assert.GreaterOrEqual(t, got[metricIDLicenseRemainingTime], int64((time.Hour/time.Second)-5))
-	assert.LessOrEqual(t, got[metricIDLicenseRemainingTime], int64(time.Hour/time.Second))
+	assert.GreaterOrEqual(t, got[metricIDLicenseRemainingTime], int64((72*time.Hour/time.Second)-5))
+	assert.LessOrEqual(t, got[metricIDLicenseRemainingTime], int64(72*time.Hour/time.Second))
+	assert.GreaterOrEqual(t, got[metricIDLicenseGraceRemainingTime], int64((time.Hour/time.Second)-5))
+	assert.LessOrEqual(t, got[metricIDLicenseGraceRemainingTime], int64(time.Hour/time.Second))
 }
 
 func TestCollector_Collect_LicensingAggregation_SelectsWorstCaseAcrossMixedRows(t *testing.T) {
@@ -941,83 +925,34 @@ func TestCollector_Collect_LicensingAggregation_SelectsWorstCaseAcrossMixedRows(
 	collr.snmpProfiles = []*ddsnmp.Profile{{}}
 	collr.newSnmpClient = func() gosnmp.Handler { return mockSNMP }
 	collr.newDdSnmpColl = func(ddsnmpcollector.Config) ddCollector {
+		// Mixed corpus: a perpetual base whose expiry must not count toward
+		// the device-wide earliest-expiry signal, a soon-expiring contract
+		// (wins), auth/cert/grace timers, an explicit broken row, and an
+		// unlimited pool at 100% which must not count toward usage pressure.
 		pm := &ddsnmp.ProfileMetrics{
 			Source: "mixed-licensing.yaml",
 			HiddenMetrics: []ddsnmp.Metric{
-				{
-					Name:  licenseSourceMetricName,
-					Value: 0,
-					Tags: map[string]string{
-						tagLicenseID:          "perpetual",
-						tagLicenseName:        "Perpetual base",
-						tagLicenseExpiryRaw:   strconv.FormatInt(perpetualExpiry, 10),
-						tagLicensePerpetual:   "true",
-						tagLicenseStateRaw:    "active",
-						tagLicenseUsageRaw:    "50",
-						tagLicenseCapacityRaw: "100",
-					},
-				},
-				{
-					Name:  licenseSourceMetricName,
-					Value: 0,
-					Tags: map[string]string{
-						tagLicenseID:          "soonest_expiring",
-						tagLicenseName:        "Threat prevention",
-						tagLicenseExpiryRaw:   strconv.FormatInt(earliestRealExpiry, 10),
-						tagLicenseStateRaw:    "about-to-expire",
-						tagLicenseUsageRaw:    "90",
-						tagLicenseCapacityRaw: "100",
-					},
-				},
-				{
-					Name:  licenseSourceMetricName,
-					Value: 0,
-					Tags: map[string]string{
-						tagLicenseID:                  "auth",
-						tagLicenseName:                "Smart auth",
-						tagLicenseAuthorizationRaw:    strconv.FormatInt(authExpiry, 10),
-						tagLicenseAuthorizationSource: "auth_timer",
-					},
-				},
-				{
-					Name:  licenseSourceMetricName,
-					Value: 0,
-					Tags: map[string]string{
-						tagLicenseID:                "cert",
-						tagLicenseName:              "Smart cert",
-						tagLicenseCertificateRaw:    strconv.FormatInt(certExpiry, 10),
-						tagLicenseCertificateSource: "cert_timer",
-					},
-				},
-				{
-					Name:  licenseSourceMetricName,
-					Value: 0,
-					Tags: map[string]string{
-						tagLicenseID:               "grace",
-						tagLicenseName:             "Eval grace",
-						tagLicenseGraceRaw:         strconv.FormatInt(graceExpiry, 10),
-						tagLicenseStateSeverityRaw: "1",
-					},
-				},
-				{
-					Name:  licenseSourceMetricName,
-					Value: 0,
-					Tags: map[string]string{
-						tagLicenseID:               "broken",
-						tagLicenseName:             "Broken feature",
-						tagLicenseStateSeverityRaw: "2",
-					},
-				},
-				{
-					Name:  licenseSourceMetricName,
-					Value: 0,
-					Tags: map[string]string{
-						tagLicenseID:              "unlimited",
-						tagLicenseName:            "Unlimited pool",
-						tagLicenseUsagePercentRaw: "100",
-						tagLicenseUnlimited:       "true",
-					},
-				},
+				licenseSignal("perpetual", "Perpetual base", licenseValueKindExpiryTimestamp, perpetualExpiry,
+					map[string]string{tagLicensePerpetual: "true", tagLicenseStateRaw: "active"}),
+				licenseSignal("perpetual", "Perpetual base", licenseValueKindUsage, 50, nil),
+				licenseSignal("perpetual", "Perpetual base", licenseValueKindCapacity, 100, nil),
+
+				licenseSignal("soonest_expiring", "Threat prevention", licenseValueKindExpiryTimestamp, earliestRealExpiry,
+					map[string]string{tagLicenseStateRaw: "about-to-expire"}),
+				licenseSignal("soonest_expiring", "Threat prevention", licenseValueKindUsage, 90, nil),
+				licenseSignal("soonest_expiring", "Threat prevention", licenseValueKindCapacity, 100, nil),
+
+				licenseSignal("auth", "Smart auth", licenseValueKindAuthorizationTimestamp, authExpiry,
+					map[string]string{tagLicenseAuthorizationSource: "auth_timer"}),
+				licenseSignal("cert", "Smart cert", licenseValueKindCertificateTimestamp, certExpiry,
+					map[string]string{tagLicenseCertificateSource: "cert_timer"}),
+				licenseSignal("grace", "Eval grace", licenseValueKindGraceTimestamp, graceExpiry,
+					map[string]string{tagLicenseStateRaw: "evaluation"}),
+
+				licenseSignal("broken", "Broken feature", licenseValueKindStateSeverity, 2, nil),
+
+				licenseSignal("unlimited", "Unlimited pool", licenseValueKindUsagePercent, 100,
+					map[string]string{tagLicenseUnlimited: "true"}),
 			},
 		}
 		for i := range pm.HiddenMetrics {
@@ -1032,11 +967,16 @@ func TestCollector_Collect_LicensingAggregation_SelectsWorstCaseAcrossMixedRows(
 	got := collr.Collect(context.Background())
 	require.NotNil(t, got)
 
+	// 7 rows: perpetual + auth + cert + unlimited = 4 healthy,
+	// soonest (about-to-expire) + grace (evaluation) = 2 degraded,
+	// broken = 1 broken.
 	assert.EqualValues(t, 4, got[metricIDLicenseStateHealthy])
 	assert.EqualValues(t, 2, got[metricIDLicenseStateDegraded])
 	assert.EqualValues(t, 1, got[metricIDLicenseStateBroken])
 	assert.EqualValues(t, 0, got[metricIDLicenseStateIgnored])
+	// Soonest-expiring row contributes 90% (unlimited pool skipped).
 	assert.EqualValues(t, 90, got[metricIDLicenseUsagePercent])
+	// Perpetual license must not contribute to the earliest-expiry signal.
 	assert.GreaterOrEqual(t, got[metricIDLicenseRemainingTime], int64((6*time.Hour/time.Second)-5))
 	assert.LessOrEqual(t, got[metricIDLicenseRemainingTime], int64(6*time.Hour/time.Second))
 	assert.GreaterOrEqual(t, got[metricIDLicenseAuthorizationRemainingTime], int64((30*time.Hour/time.Second)-5))

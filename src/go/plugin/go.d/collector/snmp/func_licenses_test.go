@@ -22,6 +22,7 @@ func TestFuncLicensesHandle(t *testing.T) {
 	cache.store(now, []licenseRow{
 		{
 			ID:           "broken-license",
+			Source:       "vendor",
 			Name:         "Shared License",
 			StateRaw:     "expired",
 			StateBucket:  licenseStateBucketBroken,
@@ -33,6 +34,7 @@ func TestFuncLicensesHandle(t *testing.T) {
 		},
 		{
 			ID:             "ignored-license",
+			Source:         "vendor",
 			Name:           "Unused License",
 			StateRaw:       "not_subscribed",
 			StateBucket:    licenseStateBucketIgnored,
@@ -41,6 +43,7 @@ func TestFuncLicensesHandle(t *testing.T) {
 		},
 		{
 			ID:           "healthy-license",
+			Source:       "vendor",
 			Name:         "Shared License",
 			StateRaw:     "active",
 			StateBucket:  licenseStateBucketHealthy,
@@ -79,22 +82,31 @@ func TestFuncLicensesHandle(t *testing.T) {
 
 func TestLicenseRowUniqueKeyEscapesDelimiterContent(t *testing.T) {
 	left := licenseRow{
-		Source:         "source|a",
-		ID:             "id",
-		Name:           "same",
-		Feature:        "feature",
-		Component:      "component",
-		Type:           "type",
-		OriginalMetric: "metric",
+		Source: "source|a",
+		Table:  "table",
+		ID:     "id",
 	}
 	right := licenseRow{
-		Source:         "source",
-		ID:             "a|id",
-		Name:           "same",
-		Feature:        "feature",
-		Component:      "component",
-		Type:           "type",
-		OriginalMetric: "metric",
+		Source: "source",
+		Table:  "table|id",
+		ID:     "",
+	}
+
+	assert.NotEqual(t, licenseRowUniqueKey(left), licenseRowUniqueKey(right))
+}
+
+func TestLicenseRowUniqueKey_DifferentTablesStayDistinct(t *testing.T) {
+	left := licenseRow{
+		Source: "fortinet",
+		Table:  "fgLicContractTable",
+		ID:     "FortiCare",
+		Name:   "FortiCare",
+	}
+	right := licenseRow{
+		Source: "fortinet",
+		Table:  "fgLicVersionTable",
+		ID:     "FortiCare",
+		Name:   "FortiCare",
 	}
 
 	assert.NotEqual(t, licenseRowUniqueKey(left), licenseRowUniqueKey(right))
@@ -102,6 +114,15 @@ func TestLicenseRowUniqueKeyEscapesDelimiterContent(t *testing.T) {
 
 func TestFuncLicensesHandleUnavailable(t *testing.T) {
 	resp := newTestFuncLicenses(newLicenseCache()).Handle(context.Background(), licensesMethodID, nil)
+	require.NotNil(t, resp)
+	assert.Equal(t, 503, resp.Status)
+}
+
+func TestFuncLicensesHandleUnavailableWhenNoRowsWereCollected(t *testing.T) {
+	cache := newLicenseCache()
+	cache.store(time.Date(2026, time.April, 3, 10, 0, 0, 0, time.UTC), nil)
+
+	resp := newTestFuncLicenses(cache).Handle(context.Background(), licensesMethodID, nil)
 	require.NotNil(t, resp)
 	assert.Equal(t, 503, resp.Status)
 }

@@ -3,8 +3,6 @@
 package ddsnmpcollector
 
 import (
-	"path/filepath"
-	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -56,17 +54,17 @@ func TestCollector_Collect_CheckPointLicensingProfile(t *testing.T) {
 
 	pm := results[0]
 	assert.Empty(t, pm.Metrics)
-	require.Len(t, pm.HiddenMetrics, 1)
+	require.Len(t, pm.HiddenMetrics, 4)
 
-	row := licenseMetricsByID(pm.HiddenMetrics)["17"]
+	row := licenseMetricsByIDAndKind(pm.HiddenMetrics)["17"]
 	require.NotNil(t, row)
-	assert.EqualValues(t, 17, row.Value)
-	assert.Equal(t, "Application Control", row.Tags[testTagLicenseName])
-	assert.Equal(t, "about-to-expire", row.Tags[testTagLicenseStateRaw])
-	assert.Equal(t, "1775152800", row.Tags["_license_expiry_raw"])
-	assert.Equal(t, "85", row.Tags[testTagLicenseUsageRaw])
-	assert.Equal(t, "100", row.Tags["_license_capacity_raw"])
-	assert.Equal(t, "Threat prevention coverage", row.Tags["_license_impact"])
+	require.EqualValues(t, 100, row["capacity"].Value)
+	require.EqualValues(t, 85, row["usage"].Value)
+	require.EqualValues(t, 1, row["state_severity"].Value)
+	require.EqualValues(t, 1775152800, row["expiry_timestamp"].Value)
+	assert.Equal(t, "Application Control", metricTagValue(*row["state_severity"], "_license_name"))
+	assert.Equal(t, "about-to-expire", metricTagValue(*row["state_severity"], "_license_state_raw"))
+	assert.Equal(t, "Threat prevention coverage", metricTagValue(*row["state_severity"], "_license_impact"))
 }
 
 func TestCollector_Collect_FortiGateLicensingProfile(t *testing.T) {
@@ -94,71 +92,27 @@ func TestCollector_Collect_FortiGateLicensingProfile(t *testing.T) {
 	assert.Empty(t, pm.Metrics)
 	require.Len(t, pm.HiddenMetrics, 3)
 
-	byID := licenseMetricsByID(pm.HiddenMetrics)
+	byID := licenseMetricsByIDAndKind(pm.HiddenMetrics)
 
 	contract := byID["FortiCare Support"]
 	require.NotNil(t, contract)
-	assert.EqualValues(t, 1, contract.Value)
-	assert.Equal(t, "FortiCare Support", contract.Tags[testTagLicenseName])
-	assert.Equal(t, "Mon 11 November 2030", contract.Tags["_license_expiry_raw"])
-	assert.Equal(t, "contract", contract.StaticTags["_license_type"])
-	assert.Equal(t, "device", contract.StaticTags["_license_component"])
+	require.EqualValues(t, 1920585600, contract["expiry_timestamp"].Value)
+	assert.Equal(t, "FortiCare Support", metricTagValue(*contract["expiry_timestamp"], "_license_name"))
+	assert.Equal(t, "contract", metricTagValue(*contract["expiry_timestamp"], "_license_type"))
+	assert.Equal(t, "device", metricTagValue(*contract["expiry_timestamp"], "_license_component"))
 
 	service := byID["FortiGuard Antivirus"]
 	require.NotNil(t, service)
-	assert.EqualValues(t, 1, service.Value)
-	assert.Equal(t, "FortiGuard Antivirus", service.Tags[testTagLicenseName])
-	assert.Equal(t, "Sat Jul 26 01:00:00 2025", service.Tags["_license_expiry_raw"])
-	assert.Equal(t, "1.00000", service.Tags["_license_feature"])
-	assert.Equal(t, "service", service.StaticTags["_license_type"])
-	assert.Equal(t, "fortiguard", service.StaticTags["_license_component"])
+	require.EqualValues(t, 1753491600, service["expiry_timestamp"].Value)
+	assert.Equal(t, "1.00000", metricTagValue(*service["expiry_timestamp"], "_license_feature"))
+	assert.Equal(t, "service", metricTagValue(*service["expiry_timestamp"], "_license_type"))
+	assert.Equal(t, "fortiguard", metricTagValue(*service["expiry_timestamp"], "_license_component"))
 
 	accountContract := byID["FortiCare Premium"]
 	require.NotNil(t, accountContract)
-	assert.EqualValues(t, 1, accountContract.Value)
-	assert.Equal(t, "FortiCare Premium", accountContract.Tags[testTagLicenseName])
-	assert.Equal(t, "Mon 11 November 2030", accountContract.Tags["_license_expiry_raw"])
-	assert.Equal(t, "account_contract", accountContract.StaticTags["_license_type"])
-	assert.Equal(t, "account", accountContract.StaticTags["_license_component"])
-}
-
-func TestCollector_Collect_FortiGateLicensingProfile_DisablesTableCache(t *testing.T) {
-	ctrl, mockHandler := setupMockHandler(t)
-	defer ctrl.Finish()
-
-	expectFortiGateLicensingWalks(mockHandler)
-	expectFortiGateLicensingWalks(mockHandler)
-
-	profile := mustLoadLicensingProfile(t, "fortinet-fortigate", func(metric ddprofiledefinition.MetricsConfig) bool {
-		return strings.HasPrefix(strings.TrimPrefix(metric.Table.OID, "."), "1.3.6.1.4.1.12356.101.4.6.3.")
-	})
-	for _, metric := range profile.Definition.Metrics {
-		assert.True(t, metric.DisableTableCache)
-	}
-
-	collector := New(Config{
-		SnmpClient:  mockHandler,
-		Profiles:    []*ddsnmp.Profile{profile},
-		Log:         logger.New(),
-		SysObjectID: "",
-	})
-	collector.tableCache.setTTL(30*time.Second, 0)
-
-	_, err := collector.Collect()
-	require.NoError(t, err)
-
-	results, err := collector.Collect()
-	require.NoError(t, err)
-	require.Len(t, results, 1)
-
-	pm := results[0]
-	assert.Empty(t, pm.Metrics)
-	require.Len(t, pm.HiddenMetrics, 3)
-
-	byID := licenseMetricsByID(pm.HiddenMetrics)
-	require.NotNil(t, byID["FortiCare Support"])
-	require.NotNil(t, byID["FortiGuard Antivirus"])
-	require.NotNil(t, byID["FortiCare Premium"])
+	require.EqualValues(t, 1920585600, accountContract["expiry_timestamp"].Value)
+	assert.Equal(t, "account_contract", metricTagValue(*accountContract["expiry_timestamp"], "_license_type"))
+	assert.Equal(t, "account", metricTagValue(*accountContract["expiry_timestamp"], "_license_component"))
 }
 
 func TestCollector_Collect_MikroTikLicensingProfile(t *testing.T) {
@@ -167,21 +121,15 @@ func TestCollector_Collect_MikroTikLicensingProfile(t *testing.T) {
 
 	expectSNMPGet(mockHandler,
 		[]string{
-			"1.3.6.1.4.1.14988.1.1.4.3.0",
-			"1.3.6.1.4.1.14988.1.1.4.1.0",
-			"1.3.6.1.4.1.14988.1.1.4.5.0",
 			"1.3.6.1.4.1.14988.1.1.4.2.0",
 		},
 		[]gosnmp.SnmpPDU{
-			createIntegerPDU("1.3.6.1.4.1.14988.1.1.4.3.0", 6),
-			createStringPDU("1.3.6.1.4.1.14988.1.1.4.1.0", "LD1Z-M65N"),
-			createIntegerPDU("1.3.6.1.4.1.14988.1.1.4.5.0", 7),
 			createDateAndTimePDU("1.3.6.1.4.1.14988.1.1.4.2.0", time.Date(2030, time.January, 1, 0, 0, 0, 0, time.UTC)),
 		},
 	)
 
 	profile := mustLoadLicensingProfile(t, "mikrotik-router", func(metric ddprofiledefinition.MetricsConfig) bool {
-		return metric.MIB == "MIKROTIK-MIB" && strings.TrimPrefix(metric.Symbol.OID, ".") == "1.3.6.1.4.1.14988.1.1.4.3.0"
+		return metric.MIB == "MIKROTIK-MIB" && strings.TrimPrefix(metric.Symbol.OID, ".") == "1.3.6.1.4.1.14988.1.1.4.2.0"
 	})
 
 	collector := New(Config{
@@ -199,38 +147,13 @@ func TestCollector_Collect_MikroTikLicensingProfile(t *testing.T) {
 	assert.Empty(t, pm.Metrics)
 	require.Len(t, pm.HiddenMetrics, 1)
 
-	row := licenseMetricsByID(pm.HiddenMetrics)["LD1Z-M65N"]
+	row := licenseMetricsByIDAndKind(pm.HiddenMetrics)["routeros_upgrade"]
 	require.NotNil(t, row)
-	assert.EqualValues(t, 6, row.Value)
-	assert.Equal(t, "LD1Z-M65N", row.Tags[testTagLicenseID])
-	assert.Equal(t, "7", row.Tags["_license_feature"])
-	assert.Equal(t, "1893456000", row.Tags["_license_expiry_raw"])
-	assert.Equal(t, "RouterOS upgrade entitlement", row.StaticTags[testTagLicenseName])
-	assert.Equal(t, "upgrade_entitlement", row.StaticTags["_license_type"])
-	assert.Equal(t, "routeros", row.StaticTags["_license_component"])
-	assert.Equal(t, "mtxrLicUpgrUntil", row.StaticTags["_license_expiry_source"])
-}
-
-func mustLoadLicensingProfile(t *testing.T, profileName string, keep func(metric ddprofiledefinition.MetricsConfig) bool) *ddsnmp.Profile {
-	t.Helper()
-
-	profiles := ddsnmp.FindProfiles("", "", []string{profileName})
-	require.Len(t, profiles, 1)
-
-	profile := profiles[0]
-	profile.Definition.Metadata = nil
-	profile.Definition.SysobjectIDMetadata = nil
-	profile.Definition.MetricTags = nil
-	profile.Definition.StaticTags = nil
-	profile.Definition.VirtualMetrics = nil
-	profile.Definition.Metrics = slices.DeleteFunc(profile.Definition.Metrics, func(metric ddprofiledefinition.MetricsConfig) bool {
-		return !keep(metric)
-	})
-
-	require.NotEmpty(t, profile.Definition.Metrics)
-	assert.Equal(t, profileName+".yaml", filepath.Base(profile.SourceFile))
-
-	return profile
+	require.EqualValues(t, time.Date(2030, time.January, 1, 0, 0, 0, 0, time.UTC).Unix(), row["expiry_timestamp"].Value)
+	assert.Equal(t, "RouterOS upgrade entitlement", metricTagValue(*row["expiry_timestamp"], "_license_name"))
+	assert.Equal(t, "upgrade_entitlement", metricTagValue(*row["expiry_timestamp"], "_license_type"))
+	assert.Equal(t, "routeros", metricTagValue(*row["expiry_timestamp"], "_license_component"))
+	assert.Equal(t, "mtxrLicUpgrUntil", metricTagValue(*row["expiry_timestamp"], "_license_expiry_source"))
 }
 
 func expectFortiGateLicensingWalks(mockHandler *snmpmock.MockHandler) {

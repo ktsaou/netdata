@@ -57,7 +57,6 @@ func TestCollector_Collect_CiscoTraditionalLicensingProfile(t *testing.T) {
 		return strings.TrimPrefix(metric.Table.OID, ".") == "1.3.6.1.4.1.9.9.543.1.2.3.1"
 	})
 	require.Len(t, profile.Definition.Metrics, 1)
-	assert.True(t, profile.Definition.Metrics[0].DisableTableCache)
 
 	collector := New(Config{
 		SnmpClient:  mockHandler,
@@ -72,135 +71,31 @@ func TestCollector_Collect_CiscoTraditionalLicensingProfile(t *testing.T) {
 
 	pm := results[0]
 	assert.Empty(t, pm.Metrics)
-	require.Len(t, pm.HiddenMetrics, 2)
+	require.Len(t, pm.HiddenMetrics, 7)
 
-	byID := licenseMetricsByID(pm.HiddenMetrics)
+	byID := licenseMetricsByIDAndKind(pm.HiddenMetrics)
 
-	subscription := byID["17"]
+	subscription := byID["SECURITYK9"]
 	require.NotNil(t, subscription)
-	assert.EqualValues(t, 0, subscription.Value)
-	assert.Equal(t, "SECURITYK9", subscription.Tags[testTagLicenseName])
-	assert.Equal(t, "paid_subscription", subscription.Tags["_license_type"])
-	assert.Equal(t, "in_use", subscription.Tags[testTagLicenseStateRaw])
-	assert.Equal(t, "100", subscription.Tags["_license_capacity_raw"])
-	assert.Equal(t, "15", subscription.Tags["_license_available_raw"])
-	assert.Equal(t, "Security subscription", subscription.Tags["_license_impact"])
-	expiryRaw, err := strconv.ParseInt(subscription.Tags["_license_expiry_raw"], 10, 64)
-	require.NoError(t, err)
-	assert.EqualValues(t, time.Date(2030, time.November, 11, 0, 0, 0, 0, time.UTC).Unix(), expiryRaw)
+	require.EqualValues(t, time.Date(2030, time.November, 11, 0, 0, 0, 0, time.UTC).Unix(), subscription["expiry_timestamp"].Value)
+	require.EqualValues(t, 100, subscription["capacity"].Value)
+	require.EqualValues(t, 15, subscription["available"].Value)
+	require.EqualValues(t, 0, subscription["state_severity"].Value)
+	assert.Equal(t, "SECURITYK9", metricTagValue(*subscription["state_severity"], "_license_name"))
+	assert.Equal(t, "paid_subscription", metricTagValue(*subscription["state_severity"], "_license_type"))
+	assert.Equal(t, "in_use", metricTagValue(*subscription["state_severity"], "_license_state_raw"))
+	assert.Equal(t, "Security subscription", metricTagValue(*subscription["state_severity"], "_license_impact"))
 
-	grace := byID["23"]
+	grace := byID["APPXK9"]
 	require.NotNil(t, grace)
-	assert.EqualValues(t, 7200, grace.Value)
-	assert.Equal(t, "APPXK9", grace.Tags[testTagLicenseName])
-	assert.Equal(t, "grace_period", grace.Tags["_license_type"])
-	assert.Equal(t, "usage_count_consumed", grace.Tags[testTagLicenseStateRaw])
-	assert.Equal(t, "10", grace.Tags["_license_capacity_raw"])
-	assert.Equal(t, "0", grace.Tags["_license_available_raw"])
-}
-
-func TestCollector_Collect_CiscoTraditionalLicensingProfile_DisablesTableCache(t *testing.T) {
-	ctrl, mockHandler := setupMockHandler(t)
-	defer ctrl.Finish()
-
-	expectCiscoTraditionalLicensingWalk(mockHandler,
-		ciscoTraditionalRow{
-			entPhysical:   1,
-			storeUsed:     1,
-			index:         17,
-			name:          "SECURITYK9",
-			version:       "1.0",
-			licenseType:   5,
-			remaining:     0,
-			capacity:      100,
-			available:     15,
-			impact:        "Security subscription",
-			status:        3,
-			endDate:       time.Date(2030, time.November, 11, 0, 0, 0, 0, time.UTC),
-			hasEndDatePDU: true,
-		},
-		ciscoTraditionalRow{
-			entPhysical: 1,
-			storeUsed:   2,
-			index:       23,
-			name:        "APPXK9",
-			version:     "2.1",
-			licenseType: 3,
-			remaining:   7200,
-			capacity:    10,
-			available:   0,
-			impact:      "Session count exhausted",
-			status:      6,
-		},
-	)
-	expectCiscoTraditionalLicensingWalk(mockHandler,
-		ciscoTraditionalRow{
-			entPhysical:   1,
-			storeUsed:     1,
-			index:         17,
-			name:          "SECURITYK9",
-			version:       "1.0",
-			licenseType:   5,
-			remaining:     0,
-			capacity:      100,
-			available:     5,
-			impact:        "Security subscription renewed",
-			status:        3,
-			endDate:       time.Date(2031, time.January, 15, 0, 0, 0, 0, time.UTC),
-			hasEndDatePDU: true,
-		},
-		ciscoTraditionalRow{
-			entPhysical: 1,
-			storeUsed:   2,
-			index:       23,
-			name:        "APPXK9",
-			version:     "2.1",
-			licenseType: 3,
-			remaining:   3600,
-			capacity:    10,
-			available:   2,
-			impact:      "Sessions released",
-			status:      3,
-		},
-	)
-
-	profile := mustLoadLicensingProfile(t, "cisco", func(metric ddprofiledefinition.MetricsConfig) bool {
-		return strings.TrimPrefix(metric.Table.OID, ".") == "1.3.6.1.4.1.9.9.543.1.2.3.1"
-	})
-	require.Len(t, profile.Definition.Metrics, 1)
-	assert.True(t, profile.Definition.Metrics[0].DisableTableCache)
-
-	collector := New(Config{
-		SnmpClient:  mockHandler,
-		Profiles:    []*ddsnmp.Profile{profile},
-		Log:         logger.New(),
-		SysObjectID: "",
-	})
-	collector.tableCache.setTTL(30*time.Second, 0)
-
-	_, err := collector.Collect()
-	require.NoError(t, err)
-
-	results, err := collector.Collect()
-	require.NoError(t, err)
-	require.Len(t, results, 1)
-
-	pm := results[0]
-	assert.Empty(t, pm.Metrics)
-	require.Len(t, pm.HiddenMetrics, 2)
-
-	byID := licenseMetricsByID(pm.HiddenMetrics)
-
-	subscription := byID["17"]
-	require.NotNil(t, subscription)
-	assert.Equal(t, "Security subscription renewed", subscription.Tags["_license_impact"])
-	assert.Equal(t, "5", subscription.Tags["_license_available_raw"])
-
-	grace := byID["23"]
-	require.NotNil(t, grace)
-	assert.EqualValues(t, 3600, grace.Value)
-	assert.Equal(t, "Sessions released", grace.Tags["_license_impact"])
-	assert.Equal(t, "2", grace.Tags["_license_available_raw"])
+	require.EqualValues(t, 10, grace["capacity"].Value)
+	require.EqualValues(t, 0, grace["available"].Value)
+	require.EqualValues(t, 2, grace["state_severity"].Value)
+	assert.Equal(t, "APPXK9", metricTagValue(*grace["state_severity"], "_license_name"))
+	assert.Equal(t, "grace_period", metricTagValue(*grace["state_severity"], "_license_type"))
+	assert.Equal(t, "usage_count_consumed", metricTagValue(*grace["state_severity"], "_license_state_raw"))
+	assert.Equal(t, "Session count exhausted", metricTagValue(*grace["state_severity"], "_license_impact"))
+	assert.NotContains(t, grace, "expiry_timestamp")
 }
 
 type ciscoTraditionalRow struct {

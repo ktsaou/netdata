@@ -55,6 +55,9 @@ func (f *funcLicenses) Handle(_ context.Context, method string, _ funcapi.Resolv
 	if lastUpdate.IsZero() {
 		return funcapi.UnavailableResponse("license data not available yet, please retry after data collection")
 	}
+	if len(rows) == 0 {
+		return funcapi.UnavailableResponse("license data is not available for this device")
+	}
 
 	sortLicenseRows(rows)
 	now := time.Now().UTC()
@@ -84,7 +87,7 @@ func licenseColumnSet(cols []licenseColumn) funcapi.ColumnSet[licenseColumn] {
 }
 
 var licenseAllColumns = []licenseColumn{
-	{ColumnMeta: funcapi.ColumnMeta{Name: "License", Tooltip: "License", Type: funcapi.FieldTypeString, Visible: true, Sort: funcapi.FieldSortAscending, Summary: funcapi.FieldSummaryCount, Filter: funcapi.FieldFilterMultiselect, Sticky: true, Sortable: true}, Value: func(r licenseRow, _ time.Time) any { return firstNonEmpty(r.Name, r.ID) }, DefaultSort: true},
+	{ColumnMeta: funcapi.ColumnMeta{Name: "License", Tooltip: "License", Type: funcapi.FieldTypeString, Visible: true, Sort: funcapi.FieldSortAscending, Summary: funcapi.FieldSummaryCount, Filter: funcapi.FieldFilterMultiselect, Sticky: true, Sortable: true}, Value: func(r licenseRow, _ time.Time) any { return firstNonBlank(r.Name, r.ID) }, DefaultSort: true},
 	{ColumnMeta: funcapi.ColumnMeta{Name: "Bucket", Tooltip: "Normalized State Bucket", Type: funcapi.FieldTypeString, Visible: true, Sort: funcapi.FieldSortAscending, Summary: funcapi.FieldSummaryCount, Filter: funcapi.FieldFilterMultiselect, Sortable: true, Visualization: funcapi.FieldVisualPill}, Value: func(r licenseRow, _ time.Time) any { return string(r.StateBucket) }},
 	{ColumnMeta: funcapi.ColumnMeta{Name: "State", Tooltip: "Raw vendor state", Type: funcapi.FieldTypeString, Visible: true, Sort: funcapi.FieldSortAscending, Summary: funcapi.FieldSummaryCount, Filter: funcapi.FieldFilterMultiselect, Sortable: true}, Value: func(r licenseRow, _ time.Time) any { return emptyToNil(r.StateRaw) }},
 	{ColumnMeta: funcapi.ColumnMeta{Name: "Source", Tooltip: "Profile source", Type: funcapi.FieldTypeString, Visible: false, Sort: funcapi.FieldSortAscending, Summary: funcapi.FieldSummaryCount, Filter: funcapi.FieldFilterMultiselect, Sortable: true}, Value: func(r licenseRow, _ time.Time) any { return emptyToNil(r.Source) }},
@@ -194,12 +197,8 @@ func licenseBucketPriority(bucket licenseStateBucket) int {
 func licenseRowUniqueKey(row licenseRow) string {
 	key, _ := json.Marshal([]string{
 		row.Source,
+		row.Table,
 		row.ID,
-		row.Name,
-		row.Feature,
-		row.Component,
-		row.Type,
-		row.OriginalMetric,
 	})
 	return string(key)
 }
