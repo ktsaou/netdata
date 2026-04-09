@@ -514,7 +514,7 @@ func Test_validateEnrichVirtualMetrics(t *testing.T) {
 				{
 					Name:    "ifTraffic",
 					PerRow:  true,
-					GroupBy: StringArray{"interface"},
+					GroupBy: []string{"interface"},
 					Sources: []VirtualMetricSourceConfig{
 						{Metric: "ifHCInOctets", Table: "ifXTable", As: "in"},
 						{Metric: "ifHCOutOctets", Table: "ifXTable", As: "out"},
@@ -569,7 +569,7 @@ func Test_validateEnrichVirtualMetrics(t *testing.T) {
 				{
 					Name:    "brokenGrouped",
 					PerRow:  true,
-					GroupBy: StringArray{"", "interface"},
+					GroupBy: []string{"", "interface"},
 					Sources: []VirtualMetricSourceConfig{
 						{Metric: "ifHCInOctets", Table: "ifXTable", As: "in"},
 						{Metric: "ifInErrors", Table: "ifTable", As: "out"},

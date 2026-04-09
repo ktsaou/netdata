@@ -1646,7 +1646,7 @@ virtual_metrics:
           - { metric: <fallbackMetricB>, table: <tableName>, as: <dimensionName> }
 
     per_row: <true|false>
-    group_by: <label | [labels]>
+    group_by: [<labels>]
     emit_tags:
       - { tag: <outputTag>, from: <sourceTag> }
     chart_meta:
@@ -1670,7 +1670,7 @@ The collector evaluates alternatives **in order** and uses the **first** set tha
 |                    | `sources`      | array\<Source\>      | no*      | —       | totals, per_row, grouped | Direct source set. Ignored if `alternatives` exist (alternatives take precedence).                                                                                              |
 |                    | `alternatives` | array\<Alternative\> | no*      | —       | totals, per_row, grouped | Ordered fallback sets. The first alternative whose sources produce data is used.                                                                                                |
 |                    | `per_row`      | bool                 | no       | false   | per-row/grouped          | When `true`, emits one output per input row; sources become dimensions; row tags attach.                                                                                        |
-|                    | `group_by`     | string / array       | no       | —       | per-row/grouped          | Label(s) used as row-key hints (in order). With `per_row:true`, missing/empty hints fall back to a stable key built from all non-underscore tags. With `per_row:false`, this acts like PromQL’s `sum by (...)`. |
+|                    | `group_by`     | array\<string\>      | no       | —       | per-row/grouped          | Label(s) used as row-key hints (in order). With `per_row:true`, missing/empty hints fall back to a stable key built from all non-underscore tags. With `per_row:false`, this acts like PromQL’s `sum by (...)`. |
 |                    | `emit_tags`    | array\<EmitTag\>     | no       | —       | per-row/grouped          | Renames or selects which source tags are emitted on the resulting virtual metric. Useful when grouping by private tags such as `_neighbor` but exporting standard tags such as `neighbor`. |
 |                    | `chart_meta`   | object               | no       | —       | all                      | Presentation metadata (`description`, `family`, `unit`, `type`).                                                                                                                |
 | **Source**         | `metric`       | string               | yes      | —       | —                        | Name of an existing metric (scalar or table column metric).                                                                                                                     |
