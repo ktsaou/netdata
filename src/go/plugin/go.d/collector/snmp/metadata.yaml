@@ -199,6 +199,8 @@ modules:
           - `snmp.bgp.devices.peer_counts`
           - `snmp.bgp.devices.peer_states`
 
+          Rich per-peer diagnostics such as previous state, last error, graceful-restart state, and vendor unavailability reasons are exposed through the **Live** function `Snmp:bgp-peers` instead of being charted as regular time-series.
+
           This SNMP BGP surface is designed for:
 
           - peer/session availability and FSM state
@@ -710,6 +712,123 @@ modules:
             Exposes interface names, operational status, and traffic counters only:<br/>• No packet payloads or authentication credentials are exposed<br/>• No device configuration details are exposed
           availability: |
             Available when:<br/>• The collector has completed at least one data collection cycle<br/>• Interface data is cached from the last successful SNMP collection<br/>• Returns HTTP 503 if cache is not ready yet
+        - id: bgp-peers
+          name: BGP Peers
+          description: |
+            Provides detailed current BGP peer and peer-family state from cached SNMP data.
+
+            This function uses the normalized BGP surface produced during regular SNMP polling and presents it as a sortable, filterable troubleshooting table. It is designed for details that are useful operationally but should not be charted as regular time-series, such as previous state, last error, last down reason, graceful restart state, and vendor-specific unavailability reasons.
+
+            Use cases:
+            - Identify exactly which peer or peer-family is unhealthy right now
+            - See the most recent BGP NOTIFICATION error as human-readable text
+            - Inspect peer identity, AFI/SAFI scope, prefix gauges, and current troubleshooting context in one view
+
+            Data is sourced from the last successful SNMP collection cycle. No additional SNMP requests are triggered when calling this function.
+          parameters:
+            - id: view
+              name: View
+              description: Choose whether to show peer rows, peer-family rows, or both.
+              type: select
+              required: true
+              default: peers
+              options:
+                - id: peers
+                  name: Peers
+                  default: true
+                - id: peer_families
+                  name: Peer Families
+                - id: all
+                  name: All
+          returns:
+            description: Current BGP peer and peer-family details from cached normalized SNMP data. Each row represents either one peer or one peer plus AFI/SAFI, depending on the selected view. Additional hidden columns provide raw codes, message totals, and threshold fields for deeper inspection in the UI.
+            columns:
+              - name: Scope
+                type: string
+                unit: ""
+                description: Whether the row represents a peer or a peer-family.
+              - name: Routing Instance
+                type: string
+                unit: ""
+                description: Routing-instance / VRF identifier when exposed by the source MIB.
+              - name: Neighbor
+                type: string
+                unit: ""
+                description: Remote peer address.
+              - name: Local Address
+                type: string
+                unit: ""
+                description: Local address used for the BGP session when exposed by the source MIB.
+              - name: Remote AS
+                type: string
+                unit: ""
+                description: Remote Autonomous System number.
+              - name: Peer Description
+                type: string
+                unit: ""
+                description: Peer description or label when exposed by the source MIB.
+              - name: Family
+                type: string
+                unit: ""
+                description: Address-family / SAFI scope for peer-family rows.
+              - name: Admin Status
+                type: string
+                unit: ""
+                description: Whether the peer is administratively enabled.
+              - name: Connection State
+                type: string
+                unit: ""
+                description: Current BGP FSM state.
+              - name: Previous State
+                type: string
+                unit: ""
+                description: Previous FSM state when the source MIB exposes it.
+              - name: Established Uptime
+                type: integer
+                unit: "seconds"
+                description: Time spent in the Established state.
+              - name: Last Update Age
+                type: integer
+                unit: "seconds"
+                description: Time since the last received UPDATE.
+              - name: Updates Received
+                type: integer
+                unit: "updates"
+                description: Current received UPDATE counter from the latest poll.
+              - name: Updates Sent
+                type: integer
+                unit: "updates"
+                description: Current sent UPDATE counter from the latest poll.
+              - name: Prefixes Accepted
+                type: integer
+                unit: "prefixes"
+                description: Current accepted-prefix gauge where the source MIB exposes it.
+              - name: Prefixes Advertised
+                type: integer
+                unit: "prefixes"
+                description: Current advertised-prefix gauge where the source MIB exposes it.
+              - name: Last Error
+                type: string
+                unit: ""
+                description: Human-readable BGP last-error text derived from the code/subcode pair when available.
+              - name: Down Reason
+                type: string
+                unit: ""
+                description: Last peer-down reason when the source MIB exposes it.
+              - name: GR State
+                type: string
+                unit: ""
+                description: Graceful-restart state for peer-family scoped rows when exposed by the source MIB.
+              - name: Unavailability Reason
+                type: string
+                unit: ""
+                description: Vendor-specific unavailability reason for peer-family scoped rows when exposed by the source MIB.
+          performance: |
+            Uses cached normalized SNMP data only, no additional SNMP requests are triggered:<br/>• Responses are instantaneous from memory cache<br/>• Large devices with many peers or peer-families may return many rows
+          security: |
+            Exposes current BGP control-plane state and identifiers only:<br/>• No authentication credentials are exposed<br/>• No device configuration changes are triggered<br/>• No packet payloads or full route inventory are exposed
+          availability: |
+            Available when:<br/>• The collector has completed at least one successful BGP-capable SNMP collection cycle<br/>• BGP peer data exists for the matched profile(s)<br/>• Returns HTTP 503 if no BGP rows are available yet
     metrics:
       folding:
         title: Metrics
@@ -731,6 +850,7 @@ modules:
         - `snmp.bgp.peer_families.*` for one peer plus AFI/SAFI per chart instance
         - `snmp.bgp.devices.peer_counts` for device-level peer/session counts
         - `snmp.bgp.devices.peer_states` for device-level peer-state summaries where the source MIB exposes canonical peer rows
+        - Rich peer diagnostics live in the Live function `Snmp:bgp-peers`, not in charted time-series
 
         **BGP capability notes**
 
