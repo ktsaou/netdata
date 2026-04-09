@@ -199,7 +199,7 @@ modules:
           - `snmp.bgp.devices.peer_counts`
           - `snmp.bgp.devices.peer_states`
 
-          Rich per-peer diagnostics such as previous state, last error, graceful-restart state, and vendor unavailability reasons are exposed through the **Live** function `Snmp:bgp-peers` instead of being charted as regular time-series.
+          Rich per-peer diagnostics such as previous state, last error, graceful-restart state, and vendor unavailability reasons are exposed through the **Live** function `snmp:bgp-peers` instead of being charted as regular time-series.
 
           This SNMP BGP surface is designed for:
 
@@ -855,7 +855,7 @@ modules:
         - `snmp.bgp.peer_families.*` for one peer plus AFI/SAFI per chart instance
         - `snmp.bgp.devices.peer_counts` for device-level peer/session counts
         - `snmp.bgp.devices.peer_states` for device-level peer-state summaries where the source MIB exposes canonical peer rows
-        - Rich peer diagnostics live in the Live function `Snmp:bgp-peers`, not in charted time-series
+        - Rich peer diagnostics live in the Live function `snmp:bgp-peers`, not in charted time-series
 
         **BGP capability notes**
 

@@ -456,7 +456,7 @@ Data is sourced from the last successful SNMP collection cycle. No additional SN
 
 | Aspect | Description |
 |:-------|:------------|
-| Name | `Snmp:bgp-peers` |
+| Name | `snmp:bgp-peers` |
 | Require Cloud | no |
 | Performance | Uses cached normalized SNMP data only, no additional SNMP requests are triggered:<br/>• Responses are instantaneous from memory cache<br/>• Large devices with many peers or peer-families may return many rows |
 | Security | Exposes current BGP control-plane state and identifiers only:<br/>• No authentication credentials are exposed<br/>• No device configuration changes are triggered<br/>• No packet payloads or full route inventory are exposed |
