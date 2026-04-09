@@ -369,6 +369,7 @@ func prepareV3Config() Config {
 		AuthKey:       "auth_key",
 		PrivProto:     strings.ToLower(gosnmp.AES.String()),
 		PrivKey:       "priv_key",
+		ContextName:   "test-context",
 	}
 	return cfg
 }
@@ -425,6 +426,7 @@ func setMockClientSetterExpect(m *snmpmock.MockHandler) {
 	m.EXPECT().SetSecurityModel(gomock.Any()).AnyTimes()
 	m.EXPECT().SetMsgFlags(gomock.Any()).AnyTimes()
 	m.EXPECT().SetSecurityParameters(gomock.Any()).AnyTimes()
+	m.EXPECT().SetContextName(gomock.Any()).AnyTimes()
 	m.EXPECT().MaxRepetitions().Return(uint32(25)).AnyTimes()
 }
 

@@ -37,6 +37,7 @@ type (
 		AuthKey       string `yaml:"auth_key,omitempty" json:"auth_key"`
 		PrivProto     string `yaml:"priv_proto,omitempty" json:"priv_proto"`
 		PrivKey       string `yaml:"priv_key,omitempty" json:"priv_key"`
+		ContextName   string `yaml:"context_name,omitempty" json:"context_name"`
 	}
 	OptionsConfig struct {
 		Port           int    `yaml:"port,omitempty" json:"port"`
