@@ -149,7 +149,7 @@ func (p *Profile) merge(base *Profile) {
 	p.mergeMetrics(base)
 	// Append other fields as before (these likely don't need deduplication)
 	p.Definition.MetricTags = append(p.Definition.MetricTags, base.Definition.MetricTags...)
-	p.Definition.StaticTags = append(p.Definition.StaticTags, base.Definition.StaticTags...)
+	p.Definition.StaticTags = append(slices.Clone(base.Definition.StaticTags), p.Definition.StaticTags...)
 }
 
 func (p *Profile) mergeMetrics(base *Profile) {

@@ -4,7 +4,6 @@ package ddsnmpcollector
 
 import (
 	"slices"
-	"sort"
 	"strings"
 
 	"github.com/netdata/netdata/go/plugins/logger"
@@ -311,85 +310,6 @@ func (p *vmetricsCollector) getDefinedMetricNames(profMetrics []ddprofiledefinit
 		}
 	}
 	return names
-}
-
-// vmBuildGroupKey returns a stable group key.
-func vmBuildGroupKey(tags map[string]string, agg *vmetricsAggregator) (string, bool) {
-	if !agg.grouped || len(tags) == 0 {
-		return "", false
-	}
-
-	const (
-		groupKeySep = '\x1F' // ASCII Unit Separator between values/pairs
-		kvSep       = '='    // used in per-row fallback "k=v"
-	)
-
-	agg.keyBuf.Reset()
-
-	if agg.perRow {
-		if len(agg.groupBy) > 0 {
-			missingHint := false
-			for i, l := range agg.groupBy {
-				v := tags[l]
-				if v == "" {
-					missingHint = true
-					break
-				}
-				if i > 0 {
-					agg.keyBuf.WriteByte(groupKeySep)
-				}
-				agg.keyBuf.WriteString(v)
-			}
-			if !missingHint {
-				return agg.keyBuf.String(), true
-			}
-			agg.keyBuf.Reset()
-		}
-
-		// per-row without group_by: stable key from all non-underscore tags
-		keys := make([]string, 0, len(tags))
-		for k := range tags {
-			if !strings.HasPrefix(k, "_") {
-				keys = append(keys, k)
-			}
-		}
-		if len(keys) == 0 {
-			return "", false
-		}
-
-		sort.Strings(keys)
-		for i, k := range keys {
-			if i > 0 {
-				agg.keyBuf.WriteByte(groupKeySep)
-			}
-			agg.keyBuf.WriteString(k)
-			agg.keyBuf.WriteByte(kvSep)
-			agg.keyBuf.WriteString(tags[k])
-		}
-		return agg.keyBuf.String(), true
-	}
-
-	// non per-row: respect group_by exactly; underscore labels are NOT special
-	switch len(agg.groupBy) {
-	case 0:
-		return "", false
-	case 1:
-		l := agg.groupBy[0]
-		v := tags[l]
-		return v, v != ""
-	default:
-		for i, l := range agg.groupBy {
-			v := tags[l]
-			if v == "" {
-				return "", false
-			}
-			if i > 0 {
-				agg.keyBuf.WriteByte(groupKeySep)
-			}
-			agg.keyBuf.WriteString(v)
-		}
-		return agg.keyBuf.String(), true
-	}
 }
 
 // vmBuildEmitTags captures labels to emit for a group (called once per new group)

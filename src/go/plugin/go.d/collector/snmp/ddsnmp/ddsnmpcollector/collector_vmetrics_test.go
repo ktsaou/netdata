@@ -4,6 +4,7 @@ package ddsnmpcollector
 
 import (
 	"strconv"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -1918,7 +1919,15 @@ func TestVirtualMetricsCollector_Collect(t *testing.T) {
 }
 
 func Test_vmBuildGroupKey(t *testing.T) {
-	const sep = '\x1F'
+	encodeParts := func(parts ...string) string {
+		var b strings.Builder
+		for _, part := range parts {
+			b.WriteString(strconv.Itoa(len(part)))
+			b.WriteByte(':')
+			b.WriteString(part)
+		}
+		return b.String()
+	}
 
 	tests := map[string]struct {
 		agg     vmetricsAggregator
@@ -1937,7 +1946,7 @@ func Test_vmBuildGroupKey(t *testing.T) {
 			agg:     vmetricsAggregator{grouped: true, perRow: true},
 			tags:    map[string]string{"iface": "eth0", "_if_type": "loopback", "zone": "a"},
 			wantOK:  true,
-			wantKey: "iface=eth0" + string(sep) + "zone=a",
+			wantKey: encodeParts("iface", "eth0", "zone", "a"),
 		},
 
 		"per_row + no groupBy: all tags underscore -> no key": {
@@ -1951,14 +1960,14 @@ func Test_vmBuildGroupKey(t *testing.T) {
 			agg:     vmetricsAggregator{grouped: true, perRow: true, groupBy: []string{"_if_type", "iface"}},
 			tags:    map[string]string{"iface": "eth0", "_if_type": "ethernetCsmacd"},
 			wantOK:  true,
-			wantKey: "ethernetCsmacd" + string(sep) + "eth0",
+			wantKey: encodeParts("ethernetCsmacd", "eth0"),
 		},
 
 		"per_row + groupBy: missing hint falls back to stable visible-tag key": {
 			agg:     vmetricsAggregator{grouped: true, perRow: true, groupBy: []string{"iface", "zone"}},
 			tags:    map[string]string{"iface": "eth0"},
 			wantOK:  true,
-			wantKey: "iface=eth0",
+			wantKey: encodeParts("iface", "eth0"),
 		},
 
 		"non per_row + groupBy(1): returns that label value": {
@@ -1972,7 +1981,7 @@ func Test_vmBuildGroupKey(t *testing.T) {
 			agg:     vmetricsAggregator{grouped: true, perRow: false, groupBy: []string{"_if_type", "zone"}},
 			tags:    map[string]string{"_if_type": "ethernetCsmacd", "zone": "edge"},
 			wantOK:  true,
-			wantKey: "ethernetCsmacd" + string(sep) + "edge",
+			wantKey: encodeParts("ethernetCsmacd", "edge"),
 		},
 
 		"non per_row + groupBy: missing one value -> no key": {
@@ -1990,6 +1999,27 @@ func Test_vmBuildGroupKey(t *testing.T) {
 			assert.Equal(t, tc.wantKey, key, "key mismatch")
 		})
 	}
+
+	t.Run("per_row fallback encodes key-value pairs without raw-delimiter collisions", func(t *testing.T) {
+		keyA, okA := vmBuildGroupKey(map[string]string{"a=b": "c"}, &vmetricsAggregator{grouped: true, perRow: true})
+		keyB, okB := vmBuildGroupKey(map[string]string{"a": "b=c"}, &vmetricsAggregator{grouped: true, perRow: true})
+
+		assert.True(t, okA)
+		assert.True(t, okB)
+		assert.NotEqual(t, keyA, keyB)
+	})
+
+	t.Run("multi-label group_by encodes values without separator collisions", func(t *testing.T) {
+		sep := string(rune(0x1F))
+		agg := vmetricsAggregator{grouped: true, groupBy: []string{"iface", "zone"}}
+
+		keyA, okA := vmBuildGroupKey(map[string]string{"iface": "a" + sep + "b", "zone": "c"}, &agg)
+		keyB, okB := vmBuildGroupKey(map[string]string{"iface": "a", "zone": "b" + sep + "c"}, &vmetricsAggregator{grouped: true, groupBy: []string{"iface", "zone"}})
+
+		assert.True(t, okA)
+		assert.True(t, okB)
+		assert.NotEqual(t, keyA, keyB)
+	})
 }
 
 var (

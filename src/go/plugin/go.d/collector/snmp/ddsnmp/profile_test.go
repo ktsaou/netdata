@@ -1334,8 +1334,8 @@ func TestProfile_MultipleExtends(t *testing.T) {
 
 	// Main profile extending both
 	main := filepath.Join(tmp, "device.yaml")
-	writeYAML(t, main, map[string]any{
-		"extends": []string{"_base1.yaml", "_base2.yaml"},
+	writeYAML(t, main, ddprofiledefinition.ProfileDefinition{
+		Extends: []string{"_base1.yaml", "_base2.yaml"},
 	})
 
 	paths := multipath.New(tmp)
@@ -1418,8 +1418,16 @@ func TestProfile_MultipleExtends_LaterOverrideEarlier(t *testing.T) {
 	assert.Equal(t, "base2", prof.Definition.Metadata["device"].Fields["model"].Value)
 
 	require.Len(t, prof.Definition.StaticTags, 2)
-	assert.Equal(t, "base2", prof.Definition.StaticTags[0].Value)
-	assert.Equal(t, "base1", prof.Definition.StaticTags[1].Value)
+	assert.Equal(t, "base1", prof.Definition.StaticTags[0].Value)
+	assert.Equal(t, "base2", prof.Definition.StaticTags[1].Value)
+
+	mergedStaticTags := make(map[string]string, len(prof.Definition.StaticTags))
+	for _, tag := range prof.Definition.StaticTags {
+		if tag.Tag != "" && tag.Value != "" {
+			mergedStaticTags[tag.Tag] = tag.Value
+		}
+	}
+	assert.Equal(t, "base2", mergedStaticTags["source"])
 }
 
 func TestProfile_ComplexHierarchy(t *testing.T) {
