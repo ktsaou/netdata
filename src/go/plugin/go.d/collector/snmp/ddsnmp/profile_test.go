@@ -303,6 +303,44 @@ func TestProfileMerge_BaseScalarDuplicateAddedOnce(t *testing.T) {
 	assert.Equal(t, "1.2.4.0", child.Definition.Metrics[1].Symbol.OID)
 }
 
+func TestProfileMerge_BaseScalarDuplicateAddedOnce(t *testing.T) {
+	child := &Profile{
+		Definition: &ddprofiledefinition.ProfileDefinition{},
+	}
+	base := &Profile{
+		Definition: &ddprofiledefinition.ProfileDefinition{
+			Metrics: []ddprofiledefinition.MetricsConfig{
+				{
+					Symbol: ddprofiledefinition.SymbolConfig{
+						OID:  "1.2.3.0",
+						Name: "license.expiry",
+					},
+				},
+				{
+					Symbol: ddprofiledefinition.SymbolConfig{
+						OID:  "1.2.3.0",
+						Name: "license.expiry",
+					},
+				},
+				{
+					Symbol: ddprofiledefinition.SymbolConfig{
+						OID:  "1.2.4.0",
+						Name: "license.state",
+					},
+				},
+			},
+		},
+	}
+
+	child.mergeMetrics(base)
+
+	require.Len(t, child.Definition.Metrics, 2)
+	assert.Equal(t, "license.expiry", child.Definition.Metrics[0].Symbol.Name)
+	assert.Equal(t, "1.2.3.0", child.Definition.Metrics[0].Symbol.OID)
+	assert.Equal(t, "license.state", child.Definition.Metrics[1].Symbol.Name)
+	assert.Equal(t, "1.2.4.0", child.Definition.Metrics[1].Symbol.OID)
+}
+
 func TestDeduplicateMetricsAcrossProfiles(t *testing.T) {
 	tests := map[string]struct {
 		profiles []*Profile

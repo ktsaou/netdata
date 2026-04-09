@@ -433,6 +433,43 @@ func TestExtractLicenseRows_DifferentTablesWithSameIDStaySeparate(t *testing.T) 
 	assert.Contains(t, caps, int64(200))
 }
 
+func TestExtractLicenseRows_MergeKeyHandlesEmbeddedNULs(t *testing.T) {
+	now := time.Date(2026, 4, 9, 12, 0, 0, 0, time.UTC)
+
+	pm := &ddsnmp.ProfileMetrics{
+		Source: "vendor.yaml",
+		HiddenMetrics: []ddsnmp.Metric{
+			{
+				Name:  licenseSourceMetricName,
+				Value: 100,
+				Table: "tableA",
+				Tags: map[string]string{
+					tagLicenseID:        "row\x00suffix",
+					tagLicenseValueKind: licenseValueKindCapacity,
+				},
+			},
+			{
+				Name:  licenseSourceMetricName,
+				Value: 200,
+				Table: "tableA\x00row",
+				Tags: map[string]string{
+					tagLicenseID:        "suffix",
+					tagLicenseValueKind: licenseValueKindCapacity,
+				},
+			},
+		},
+	}
+	for i := range pm.HiddenMetrics {
+		pm.HiddenMetrics[i].Profile = pm
+	}
+
+	rows := extractLicenseRows([]*ddsnmp.ProfileMetrics{pm}, now)
+	require.Len(t, rows, 2)
+	caps := []int64{rows[0].Capacity, rows[1].Capacity}
+	assert.Contains(t, caps, int64(100))
+	assert.Contains(t, caps, int64(200))
+}
+
 func TestExtractLicenseRows_StaticTagsAreMerged(t *testing.T) {
 	now := time.Date(2026, 4, 9, 12, 0, 0, 0, time.UTC)
 	rows := extractLicenseRows([]*ddsnmp.ProfileMetrics{{

@@ -114,6 +114,12 @@ type licenseRow struct {
 	OriginalMetric string
 }
 
+type licenseRowMergeKey struct {
+	Source string
+	Table  string
+	ID     string
+}
+
 type licenseCache struct {
 	mu         sync.RWMutex
 	lastUpdate time.Time
@@ -168,7 +174,7 @@ func (c *licenseCache) snapshot() (time.Time, []licenseRow) {
 // device-level aggregates.
 func extractLicenseRows(pms []*ddsnmp.ProfileMetrics, now time.Time) []licenseRow {
 	var rows []licenseRow
-	rowIdx := make(map[string]int)
+	rowIdx := make(map[licenseRowMergeKey]int)
 
 	for _, pm := range pms {
 		if pm == nil {
@@ -192,7 +198,11 @@ func extractLicenseRows(pms []*ddsnmp.ProfileMetrics, now time.Time) []licenseRo
 			// description). Scalars have an empty Table so they continue to
 			// merge across metric definitions, which is what Cisco Smart
 			// Licensing relies on.
-			key := source + "\x00" + metric.Table + "\x00" + id
+			key := licenseRowMergeKey{
+				Source: source,
+				Table:  metric.Table,
+				ID:     id,
+			}
 
 			idx, seen := rowIdx[key]
 			if !seen {
