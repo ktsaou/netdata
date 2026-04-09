@@ -4,14 +4,14 @@ package snmp
 
 import "strings"
 
-func metricBaseIDFromName(name string) string {
+func chartIDFromName(name string) string {
 	if isBGPPublicMetricName(name) {
 		return "snmp_" + cleanMetricName.Replace(name)
 	}
 	return "snmp_device_prof_" + cleanMetricName.Replace(name)
 }
 
-func metricBaseIDFromKey(key string) string {
+func chartIDFromKey(key string) string {
 	if isBGPPublicMetricKey(key) {
 		return "snmp_" + cleanMetricName.Replace(key)
 	}
@@ -19,15 +19,29 @@ func metricBaseIDFromKey(key string) string {
 }
 
 func metricIDFromName(name string, subkeys ...string) string {
-	id := metricBaseIDFromName(name)
+	if isBGPPublicMetricName(name) {
+		return cleanedMetricID("snmp_", name, subkeys...)
+	}
+	return rawMetricID("snmp_device_prof_", name, subkeys...)
+}
+
+func metricIDFromKey(key string, subkeys ...string) string {
+	if isBGPPublicMetricKey(key) {
+		return cleanedMetricID("snmp_", key, subkeys...)
+	}
+	return rawMetricID("snmp_device_prof_", key, subkeys...)
+}
+
+func rawMetricID(prefix, base string, subkeys ...string) string {
+	id := prefix + base
 	for _, subkey := range subkeys {
-		id += "_" + cleanMetricName.Replace(subkey)
+		id += "_" + subkey
 	}
 	return id
 }
 
-func metricIDFromKey(key string, subkeys ...string) string {
-	id := metricBaseIDFromKey(key)
+func cleanedMetricID(prefix, base string, subkeys ...string) string {
+	id := prefix + cleanMetricName.Replace(base)
 	for _, subkey := range subkeys {
 		id += "_" + cleanMetricName.Replace(subkey)
 	}

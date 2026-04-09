@@ -42,6 +42,8 @@ func (p *vmetricsCollector) accumulate(lookup map[vmetricsSourceKey][]vmetricsSi
 			ok  bool
 		}
 		var gkCache map[*vmetricsAggregator]gke
+		var tags map[string]string
+		var tagsReady bool
 
 		for _, sink := range sinks {
 			agg := sink.agg
@@ -53,7 +55,6 @@ func (p *vmetricsCollector) accumulate(lookup map[vmetricsSourceKey][]vmetricsSi
 			if !ok {
 				continue
 			}
-			tags := vmMetricTags(m)
 
 			if agg.metricType == "" {
 				agg.metricType = m.MetricType
@@ -66,6 +67,10 @@ func (p *vmetricsCollector) accumulate(lookup map[vmetricsSourceKey][]vmetricsSi
 
 			if gkCache == nil {
 				gkCache = make(map[*vmetricsAggregator]gke, 2)
+			}
+			if !tagsReady {
+				tags = vmMetricTags(m)
+				tagsReady = true
 			}
 			entry, found := gkCache[agg]
 			if !found {

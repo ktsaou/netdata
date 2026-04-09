@@ -130,11 +130,11 @@ func TestNormalizeCollectorMetrics_BGPPeerAndDeviceSummaries(t *testing.T) {
 	assert.EqualValues(t, 1, states.MultiValue["established"])
 	assert.EqualValues(t, 0, states.MultiValue["idle"])
 
-	assert.Nil(t, findMetric(metrics, "bgpPeerAvailability", nil))
-	assert.Nil(t, findMetric(metrics, "bgpPeerAdminStatus", nil))
-	assert.Nil(t, findMetric(metrics, "bgpPeerState", nil))
-	assert.Nil(t, findMetric(metrics, "bgpPeerInUpdates", nil))
-	assert.Nil(t, findMetric(metrics, "bgpPeerOutUpdates", nil))
+	assertMetricNameAbsent(t, metrics, "bgpPeerAvailability")
+	assertMetricNameAbsent(t, metrics, "bgpPeerAdminStatus")
+	assertMetricNameAbsent(t, metrics, "bgpPeerState")
+	assertMetricNameAbsent(t, metrics, "bgpPeerInUpdates")
+	assertMetricNameAbsent(t, metrics, "bgpPeerOutUpdates")
 }
 
 func TestNormalizeCollectorMetrics_DeviceSummariesUseMergedPeerIdentity(t *testing.T) {
@@ -460,6 +460,72 @@ func TestNormalizeCollectorMetrics_HuaweiTotalMessagesKeepPeerAndPeerFamilyScope
 	assert.Equal(t, map[string]int64{"received": 100, "sent": 80}, peerFamilyMessages.MultiValue)
 }
 
+func TestNormalizeCollectorMetrics_AlcatelIPv4AndIPv6AliasesSharePublicSurface(t *testing.T) {
+	pm := &ddsnmp.ProfileMetrics{Tags: map[string]string{}}
+	metrics := normalizeCollectorMetrics([]*ddsnmp.ProfileMetrics{
+		{
+			Metrics: []ddsnmp.Metric{
+				{
+					Profile:    pm,
+					Name:       "bgpPeerAvailability",
+					IsTable:    true,
+					Table:      "bgpPeerTable",
+					Tags:       map[string]string{"neighbor": "192.0.2.1", "remote_as": "65001"},
+					MultiValue: map[string]int64{"admin_enabled": 1, "established": 1},
+				},
+				{
+					Profile:    pm,
+					Name:       "alcatel.bgpPeerAvailability",
+					IsTable:    true,
+					Table:      "alaBgpPeer6Table",
+					Tags:       map[string]string{"neighbor": "2001:db8::1", "remote_as": "65001"},
+					MultiValue: map[string]int64{"admin_enabled": 1, "established": 0},
+				},
+				{
+					Profile:    pm,
+					Name:       "bgpPeerUpdates",
+					IsTable:    true,
+					Table:      "bgpPeerTable",
+					Tags:       map[string]string{"neighbor": "192.0.2.1", "remote_as": "65001"},
+					MultiValue: map[string]int64{"received": 5, "sent": 7},
+				},
+				{
+					Profile:    pm,
+					Name:       "alcatel.bgpPeerUpdates",
+					IsTable:    true,
+					Table:      "alaBgpPeer6Table",
+					Tags:       map[string]string{"neighbor": "2001:db8::1", "remote_as": "65001"},
+					MultiValue: map[string]int64{"received": 9, "sent": 11},
+				},
+			},
+		},
+	})
+
+	v4Availability := requireMetric(t, metrics, "bgp.peers.availability", map[string]string{
+		"neighbor":  "192.0.2.1",
+		"remote_as": "65001",
+	})
+	assert.Equal(t, map[string]int64{"admin_enabled": 1, "established": 1}, v4Availability.MultiValue)
+
+	v6Availability := requireMetric(t, metrics, "bgp.peers.availability", map[string]string{
+		"neighbor":  "2001:db8::1",
+		"remote_as": "65001",
+	})
+	assert.Equal(t, map[string]int64{"admin_enabled": 1, "established": 0}, v6Availability.MultiValue)
+
+	v4Updates := requireMetric(t, metrics, "bgp.peers.update_traffic", map[string]string{
+		"neighbor":  "192.0.2.1",
+		"remote_as": "65001",
+	})
+	assert.Equal(t, map[string]int64{"received": 5, "sent": 7}, v4Updates.MultiValue)
+
+	v6Updates := requireMetric(t, metrics, "bgp.peers.update_traffic", map[string]string{
+		"neighbor":  "2001:db8::1",
+		"remote_as": "65001",
+	})
+	assert.Equal(t, map[string]int64{"received": 9, "sent": 11}, v6Updates.MultiValue)
+}
+
 func TestCollector_Collect_UsesBGPPublicMetricIDs(t *testing.T) {
 	mockCtl := gomock.NewController(t)
 	defer mockCtl.Finish()
@@ -553,6 +619,15 @@ func requireMetric(t *testing.T, metrics []ddsnmp.Metric, name string, tags map[
 	metric := findMetric(metrics, name, tags)
 	require.NotNil(t, metric, "expected metric %s with tags %v", name, tags)
 	return metric
+}
+
+func assertMetricNameAbsent(t *testing.T, metrics []ddsnmp.Metric, name string) {
+	t.Helper()
+	for i := range metrics {
+		if metrics[i].Name == name {
+			t.Fatalf("unexpected metric %s with tags %v", name, metrics[i].Tags)
+		}
+	}
 }
 
 func tagsContained(have, want map[string]string) bool {

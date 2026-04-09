@@ -6,7 +6,7 @@ import "github.com/netdata/netdata/go/plugins/plugin/go.d/collector/snmp/ddsnmp"
 
 func routeBGPPublicMetric(name string) (bgpRoute, bool) {
 	switch name {
-	case "bgpPeerAvailability":
+	case "bgpPeerAvailability", "alcatel.bgpPeerAvailability":
 		return bgpRoute{leaf: "availability", copyMultiValue: true, scope: bgpScopeAuto}, true
 	case "bgpPeerState", "huawei.hwBgpPeerState", "aristaBgp4V2PeerState", "dell.os10bgp4V2PeerState":
 		return bgpRoute{leaf: "connection_state", copyMultiValue: true, scope: bgpScopeAuto}, true
@@ -14,7 +14,7 @@ func routeBGPPublicMetric(name string) (bgpRoute, bool) {
 		return bgpRoute{leaf: "previous_connection_state", copyMultiValue: true, scope: bgpScopePeers}, true
 	case "bgpPeerFsmEstablishedTime":
 		return bgpRoute{leaf: "established_uptime", dim: "uptime", scope: bgpScopeAuto}, true
-	case "bgpPeerUpdates":
+	case "bgpPeerUpdates", "alcatel.bgpPeerUpdates":
 		return bgpRoute{leaf: "update_traffic", copyMultiValue: true, scope: bgpScopeAuto}, true
 	case "bgpPeerInTotalMessages", "huawei.hwBgpPeerInTotalMsgCounter", "huawei.hwBgpPeerInTotalMsgs":
 		return bgpRoute{leaf: "message_traffic", dim: "received", scope: bgpScopeAuto}, true

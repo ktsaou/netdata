@@ -49,8 +49,8 @@ func ipAddressFromText(raw string) (string, bool) {
 		return "", false
 	}
 
-	if _, err := netip.ParseAddr(raw); err == nil {
-		return raw, true
+	if s, ok := canonicalIPAddressText(raw); ok {
+		return s, true
 	}
 
 	decoded, ok := parseDecimalOctets(raw)
@@ -67,11 +67,19 @@ func ipAddressFromText(raw string) (string, bool) {
 	}
 
 	text := strings.TrimSpace(string(decoded))
-	if _, err := netip.ParseAddr(text); err == nil {
-		return text, true
+	if s, ok := canonicalIPAddressText(text); ok {
+		return s, true
 	}
 
 	return "", false
+}
+
+func canonicalIPAddressText(raw string) (string, bool) {
+	addr, err := netip.ParseAddr(raw)
+	if err != nil {
+		return "", false
+	}
+	return addr.Unmap().String(), true
 }
 
 func ipAddressFromRawBytes(bs []byte) (string, bool) {

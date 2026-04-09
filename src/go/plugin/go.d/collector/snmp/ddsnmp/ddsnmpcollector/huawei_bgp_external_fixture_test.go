@@ -3,6 +3,7 @@
 package ddsnmpcollector
 
 import (
+	"net/netip"
 	"testing"
 
 	"github.com/gosnmp/gosnmp"
@@ -113,7 +114,7 @@ func TestCollector_Collect_HuaweiBGP_FromLibreNMSFixture(t *testing.T) {
 
 	ipv6Updates := requireMetricWithTags(t, metrics, "bgpPeerUpdates", map[string]string{
 		"routing_instance":          "0",
-		"neighbor":                  "2001:12F8::223:253",
+		"neighbor":                  netip.MustParseAddr("2001:12F8::223:253").String(),
 		"address_family":            "all",
 		"subsequent_address_family": "all",
 		"neighbor_address_type":     "ipv6",
@@ -123,7 +124,7 @@ func TestCollector_Collect_HuaweiBGP_FromLibreNMSFixture(t *testing.T) {
 
 	ipv6ReceivedPrefixes := requireMetricWithTags(t, metrics, "huawei.hwBgpPeerPrefixRcvCounter", map[string]string{
 		"_routing_instance":          "PublicV6",
-		"_neighbor":                  "2001:12F8::223:253",
+		"_neighbor":                  netip.MustParseAddr("2001:12F8::223:253").String(),
 		"_address_family":            "ipv6",
 		"_subsequent_address_family": "unicast",
 	})

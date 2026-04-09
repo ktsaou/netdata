@@ -3,6 +3,7 @@
 package ddsnmpcollector
 
 import (
+	"net/netip"
 	"testing"
 
 	"github.com/gosnmp/gosnmp"
@@ -30,9 +31,16 @@ func TestConvPduToIPAddress(t *testing.T) {
 	})
 
 	t.Run("textual ipv6 octet string", func(t *testing.T) {
+		input := "2001:0550:0002:002f:0000:0000:0033:0001"
 		s, err := convPduToIPAddress(createPDU("1.2.3", gosnmp.OctetString, []byte("2001:0550:0002:002f:0000:0000:0033:0001")))
 		require.NoError(t, err)
-		assert.Equal(t, "2001:0550:0002:002f:0000:0000:0033:0001", s)
+		assert.Equal(t, netip.MustParseAddr(input).String(), s)
+	})
+
+	t.Run("textual ipv6-mapped ipv4 octet string is unmapped", func(t *testing.T) {
+		s, err := convPduToIPAddress(createPDU("1.2.3", gosnmp.OctetString, []byte("::ffff:192.0.2.10")))
+		require.NoError(t, err)
+		assert.Equal(t, "192.0.2.10", s)
 	})
 
 	t.Run("raw ipv4z octets", func(t *testing.T) {

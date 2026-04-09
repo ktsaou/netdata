@@ -136,6 +136,29 @@ func Test_BGPVirtualMetricContracts_ByProfile(t *testing.T) {
 				},
 			},
 		},
+		{
+			name:        "Alcatel dual-stack keeps IPv4 generic and adds IPv6 aliases",
+			sysObjectID: "1.3.6.1.4.1.6486.801.1.1.2.1.1",
+			profileFile: "alcatel-lucent-ent.yaml",
+			virtuals: map[string][]ddprofiledefinition.VirtualMetricSourceConfig{
+				"bgpPeerAvailability": {
+					{Metric: "bgpPeerAdminStatus", Table: "bgpPeerTable", As: "admin_enabled", Dim: "start"},
+					{Metric: "bgpPeerState", Table: "bgpPeerTable", As: "established", Dim: "established"},
+				},
+				"bgpPeerUpdates": {
+					{Metric: "bgpPeerInUpdates", Table: "bgpPeerTable", As: "received"},
+					{Metric: "bgpPeerOutUpdates", Table: "bgpPeerTable", As: "sent"},
+				},
+				"alcatel.bgpPeerAvailability": {
+					{Metric: "bgpPeerAdminStatus", Table: "alaBgpPeer6Table", As: "admin_enabled", Dim: "start"},
+					{Metric: "bgpPeerState", Table: "alaBgpPeer6Table", As: "established", Dim: "established"},
+				},
+				"alcatel.bgpPeerUpdates": {
+					{Metric: "bgpPeerInUpdates", Table: "alaBgpPeer6Table", As: "received"},
+					{Metric: "bgpPeerOutUpdates", Table: "alaBgpPeer6Table", As: "sent"},
+				},
+			},
+		},
 	}
 
 	for _, tc := range tests {

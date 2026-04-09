@@ -187,7 +187,7 @@ func (c *Collector) addProfileScalarMetricChart(m ddsnmp.Metric) {
 	}
 
 	chart := &collectorapi.Chart{
-		ID:       metricBaseIDFromName(m.Name),
+		ID:       chartIDFromName(m.Name),
 		Title:    m.Description,
 		Type:     collectorapi.ChartType(m.ChartType),
 		Units:    m.Unit,
@@ -244,7 +244,7 @@ func (c *Collector) addProfileTableMetricChart(m ddsnmp.Metric) {
 	key := tableMetricKey(m)
 
 	chart := &collectorapi.Chart{
-		ID:       metricBaseIDFromKey(key),
+		ID:       chartIDFromKey(key),
 		Title:    m.Description,
 		Units:    m.Unit,
 		Fam:      m.Family,
@@ -298,7 +298,7 @@ func (c *Collector) addProfileTableMetricChart(m ddsnmp.Metric) {
 }
 
 func (c *Collector) removeProfileTableMetricChart(key string) {
-	id := metricBaseIDFromKey(key)
+	id := chartIDFromKey(key)
 	if chart := c.Charts().Get(id); chart != nil {
 		chart.MarkRemove()
 		chart.MarkNotCreated()
