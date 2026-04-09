@@ -825,6 +825,35 @@ func Test_validateEnrichMetricTags(t *testing.T) {
 				},
 			},
 		},
+		"raw index transform with drop_right": {
+			wantError: false,
+			metrics: []MetricTagConfig{
+				{
+					Tag: "remote_addr",
+					IndexTransform: []MetricIndexTransform{
+						{
+							Start:     2,
+							DropRight: 2,
+						},
+					},
+				},
+			},
+		},
+		"raw index transform cannot combine end and drop_right": {
+			wantError: true,
+			metrics: []MetricTagConfig{
+				{
+					Tag: "remote_addr",
+					IndexTransform: []MetricIndexTransform{
+						{
+							Start:     2,
+							End:       6,
+							DropRight: 2,
+						},
+					},
+				},
+			},
+		},
 	}
 	for name, tc := range tests {
 		t.Run(name, func(t *testing.T) {
