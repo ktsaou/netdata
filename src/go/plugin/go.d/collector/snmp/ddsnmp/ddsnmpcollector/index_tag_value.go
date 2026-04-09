@@ -57,7 +57,10 @@ func formatIndexTagValue(raw string, format string) (string, error) {
 
 func formatIndexIPAddress(raw string) (string, error) {
 	if strings.Contains(raw, ":") {
-		return raw, nil
+		if s, ok := canonicalIPAddressText(raw); ok {
+			return s, nil
+		}
+		return "", fmt.Errorf("cannot convert transformed index '%s' to IP address", raw)
 	}
 
 	parts := strings.Split(raw, ".")
@@ -76,17 +79,8 @@ func formatIndexIPAddress(raw string) (string, error) {
 		bytes = append(bytes, byte(n))
 	}
 
-	if len(bytes) == 4 {
-		return renderIPv4Bytes(bytes), nil
-	}
-
-	switch len(bytes) {
-	case 8:
-		return renderIPv4Bytes(bytes[:4]) + "%" + renderZoneIndex(bytes[4:8]), nil
-	case 16:
-		return renderIPv6Bytes(bytes), nil
-	case 20:
-		return renderIPv6Bytes(bytes[:16]) + "%" + renderZoneIndex(bytes[16:20]), nil
+	if s, ok := ipAddressFromRawBytes(bytes); ok {
+		return s, nil
 	}
 
 	return "", fmt.Errorf("cannot convert transformed index '%s' to IP address", raw)

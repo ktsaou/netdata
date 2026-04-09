@@ -68,26 +68,26 @@ func TestCollector_Collect_AristaBGP_IPv6ZoneIndexTags(t *testing.T) {
 	availability := requireMetricWithTags(t, metrics, "bgpPeerAvailability", map[string]string{
 		"routing_instance":      "7",
 		"neighbor_address_type": "ipv6z",
-		"neighbor":              "fe80:0102:0000:0000:c2d5:82fd:fe7b:22a7%0.0.14.132",
+		"neighbor":              "fe80:102::c2d5:82fd:fe7b:22a7%0.0.14.132",
 		"remote_as":             "65001",
 	})
 	assert.Equal(t, map[string]int64{"admin_enabled": 1, "established": 1}, availability.MultiValue)
-	assert.Equal(t, "fe80:0102:0000:0000:c2d5:82fd:fe7b:22a8%0.0.14.133", availability.Tags["local_address"])
+	assert.Equal(t, "fe80:102::c2d5:82fd:fe7b:22a8%0.0.14.133", availability.Tags["local_address"])
 
 	updates := requireMetricWithTags(t, metrics, "bgpPeerUpdates", map[string]string{
 		"neighbor_address_type": "ipv6z",
-		"neighbor":              "fe80:0102:0000:0000:c2d5:82fd:fe7b:22a7%0.0.14.132",
+		"neighbor":              "fe80:102::c2d5:82fd:fe7b:22a7%0.0.14.132",
 	})
 	assert.Equal(t, map[string]int64{"received": 16, "sent": 17}, updates.MultiValue)
 
 	accepted := requireMetricWithTags(t, metrics, "bgpPeerPrefixesAccepted", map[string]string{
 		"neighbor_address_type":     "ipv6z",
-		"neighbor":                  "fe80:0102:0000:0000:c2d5:82fd:fe7b:22a7%0.0.14.132",
+		"neighbor":                  "fe80:102::c2d5:82fd:fe7b:22a7%0.0.14.132",
 		"address_family":            "ipv6",
 		"subsequent_address_family": "unicast",
 	})
 	assert.EqualValues(t, 1301, accepted.Value)
-	assert.Equal(t, "fe80:0102:0000:0000:c2d5:82fd:fe7b:22a8%0.0.14.133", accepted.Tags["local_address"])
+	assert.Equal(t, "fe80:102::c2d5:82fd:fe7b:22a8%0.0.14.133", accepted.Tags["local_address"])
 }
 
 func TestCollector_Collect_CiscoBgpPeer3_IPv6ZoneIndexTags(t *testing.T) {
@@ -156,25 +156,25 @@ func TestCollector_Collect_CiscoBgpPeer3_IPv6ZoneIndexTags(t *testing.T) {
 		"routing_instance":      "blue",
 		"routing_instance_id":   "7",
 		"neighbor_address_type": "ipv6z",
-		"neighbor":              "fe80:0102:0000:0000:c2d5:82fd:fe7b:22a7%0.0.14.132",
+		"neighbor":              "fe80:102::c2d5:82fd:fe7b:22a7%0.0.14.132",
 		"remote_as":             "65001",
 	})
 	assert.Equal(t, map[string]int64{"admin_enabled": 1, "established": 1}, availability.MultiValue)
-	assert.Equal(t, "fe80:0102:0000:0000:c2d5:82fd:fe7b:22a8%0.0.14.133", availability.Tags["local_address"])
+	assert.Equal(t, "fe80:102::c2d5:82fd:fe7b:22a8%0.0.14.133", availability.Tags["local_address"])
 
 	updates := requireMetricWithTags(t, metrics, "bgpPeerUpdates", map[string]string{
 		"neighbor_address_type": "ipv6z",
-		"neighbor":              "fe80:0102:0000:0000:c2d5:82fd:fe7b:22a7%0.0.14.132",
+		"neighbor":              "fe80:102::c2d5:82fd:fe7b:22a7%0.0.14.132",
 	})
 	assert.Equal(t, map[string]int64{"received": 21, "sent": 22}, updates.MultiValue)
 
 	lastErrorCode := requireMetricWithTags(t, metrics, "bgpPeerLastErrorCode", map[string]string{
-		"neighbor": "fe80:0102:0000:0000:c2d5:82fd:fe7b:22a7%0.0.14.132",
+		"neighbor": "fe80:102::c2d5:82fd:fe7b:22a7%0.0.14.132",
 	})
 	assert.EqualValues(t, 2, lastErrorCode.Value)
 
 	lastErrorSubcode := requireMetricWithTags(t, metrics, "bgpPeerLastErrorSubcode", map[string]string{
-		"neighbor": "fe80:0102:0000:0000:c2d5:82fd:fe7b:22a7%0.0.14.132",
+		"neighbor": "fe80:102::c2d5:82fd:fe7b:22a7%0.0.14.132",
 	})
 	assert.EqualValues(t, 3, lastErrorSubcode.Value)
 }

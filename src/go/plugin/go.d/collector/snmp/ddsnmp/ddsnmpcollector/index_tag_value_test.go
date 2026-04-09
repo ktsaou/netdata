@@ -82,5 +82,37 @@ func TestTableRowProcessor_ProcessIndexTag_IPv6zAddress(t *testing.T) {
 
 	require.NoError(t, err)
 	assert.Equal(t, "neighbor", tagName)
-	assert.Equal(t, "fe80:0102:0000:0000:c2d5:82fd:fe7b:22a7%0.0.14.132", tagValue)
+	assert.Equal(t, "fe80:102::c2d5:82fd:fe7b:22a7%0.0.14.132", tagValue)
+}
+
+func TestTableRowProcessor_ProcessIndexTag_TextIPv6AddressIsCanonicalized(t *testing.T) {
+	p := newTableRowProcessor(logger.New())
+
+	tagName, tagValue, err := p.processIndexTag(ddprofiledefinition.MetricTagConfig{
+		Tag: "neighbor",
+		Symbol: ddprofiledefinition.SymbolConfigCompat{
+			Name:   "bgpPeerRemoteAddrIndex",
+			Format: "ip_address",
+		},
+	}, "2001:0550:0002:002f:0000:0000:0033:0001")
+
+	require.NoError(t, err)
+	assert.Equal(t, "neighbor", tagName)
+	assert.Equal(t, "2001:550:2:2f::33:1", tagValue)
+}
+
+func TestTableRowProcessor_ProcessIndexTag_RawIPv6AddressIsCanonicalized(t *testing.T) {
+	p := newTableRowProcessor(logger.New())
+
+	tagName, tagValue, err := p.processIndexTag(ddprofiledefinition.MetricTagConfig{
+		Tag: "neighbor",
+		Symbol: ddprofiledefinition.SymbolConfigCompat{
+			Name:   "bgpPeerRemoteAddrIndex",
+			Format: "ip_address",
+		},
+	}, "32.1.5.80.0.2.0.47.0.0.0.0.0.51.0.1")
+
+	require.NoError(t, err)
+	assert.Equal(t, "neighbor", tagName)
+	assert.Equal(t, "2001:550:2:2f::33:1", tagValue)
 }

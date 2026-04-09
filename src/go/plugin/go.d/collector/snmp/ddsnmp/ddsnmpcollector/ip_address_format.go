@@ -89,9 +89,12 @@ func ipAddressFromRawBytes(bs []byte) (string, bool) {
 	case 8:
 		return renderIPv4Bytes(bs[:4]) + "%" + renderZoneIndex(bs[4:8]), true
 	case 16:
-		return renderIPv6Bytes(bs), true
+		return canonicalIPAddressBytes(bs)
 	case 20:
-		return renderIPv6Bytes(bs[:16]) + "%" + renderZoneIndex(bs[16:20]), true
+		if s, ok := canonicalIPAddressBytes(bs[:16]); ok {
+			return s + "%" + renderZoneIndex(bs[16:20]), true
+		}
+		return "", false
 	default:
 		return "", false
 	}
@@ -101,12 +104,12 @@ func renderIPv4Bytes(bs []byte) string {
 	return fmt.Sprintf("%d.%d.%d.%d", bs[0], bs[1], bs[2], bs[3])
 }
 
-func renderIPv6Bytes(bs []byte) string {
-	parts := make([]string, 0, 8)
-	for i := 0; i < 16; i += 2 {
-		parts = append(parts, fmt.Sprintf("%02x%02x", bs[i], bs[i+1]))
+func canonicalIPAddressBytes(bs []byte) (string, bool) {
+	addr, ok := netip.AddrFromSlice(bs)
+	if !ok {
+		return "", false
 	}
-	return strings.Join(parts, ":")
+	return addr.Unmap().String(), true
 }
 
 func renderZoneIndex(bs []byte) string {

@@ -13,7 +13,7 @@ import (
 	"github.com/netdata/netdata/go/plugins/plugin/go.d/collector/snmp/ddsnmp"
 )
 
-func TestCollector_Collect_CumulusBGP_FromLibreNMSFixture(t *testing.T) {
+func TestCollector_Collect_GenericBGP4Rows_WithCumulusProfile(t *testing.T) {
 	profile := matchedProfileByFile(t, "1.3.6.1.4.1.40310", "nvidia-cumulus-linux-switch.yaml")
 	filterProfileForAlertSurface(profile, map[string][]string{
 		"bgpPeerTable": {
@@ -27,6 +27,9 @@ func TestCollector_Collect_CumulusBGP_FromLibreNMSFixture(t *testing.T) {
 		},
 	}, []string{"bgpPeerAvailability", "bgpPeerUpdates"})
 
+	// LibreNMS does not currently ship a Cumulus peer-table capture with BGP rows.
+	// Use a real generic BGP4-MIB fixture here to verify that the Cumulus profile
+	// still produces the stock alert surface when standard peer rows are present.
 	pdus := loadSnmprecPDUs(t, "librenms/pfsense_frr_bgp_peer_table.snmprec")
 	pdus = append(pdus,
 		createPDU("1.3.6.1.2.1.15.3.1.7.169.254.1.1", gosnmp.IPAddress, "169.254.1.1"),

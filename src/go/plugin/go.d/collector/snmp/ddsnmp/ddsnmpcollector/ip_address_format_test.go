@@ -49,13 +49,21 @@ func TestConvPduToIPAddress(t *testing.T) {
 		assert.Equal(t, "192.0.2.1%0.0.0.7", s)
 	})
 
+	t.Run("raw ipv6 octets are canonicalized like text", func(t *testing.T) {
+		s, err := convPduToIPAddress(createPDU("1.2.3", gosnmp.OctetString, []byte{
+			32, 1, 5, 80, 0, 2, 0, 47, 0, 0, 0, 0, 0, 51, 0, 1,
+		}))
+		require.NoError(t, err)
+		assert.Equal(t, "2001:550:2:2f::33:1", s)
+	})
+
 	t.Run("raw ipv6z octets", func(t *testing.T) {
 		s, err := convPduToIPAddress(createPDU("1.2.3", gosnmp.OctetString, []byte{
 			254, 128, 1, 2, 0, 0, 0, 0, 194, 213, 130, 253, 254, 123, 34, 167,
 			0, 0, 14, 132,
 		}))
 		require.NoError(t, err)
-		assert.Equal(t, "fe80:0102:0000:0000:c2d5:82fd:fe7b:22a7%0.0.14.132", s)
+		assert.Equal(t, "fe80:102::c2d5:82fd:fe7b:22a7%0.0.14.132", s)
 	})
 
 	t.Run("invalid octet string", func(t *testing.T) {

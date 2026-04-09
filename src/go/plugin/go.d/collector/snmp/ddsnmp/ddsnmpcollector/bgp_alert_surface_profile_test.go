@@ -509,7 +509,7 @@ func TestCollector_Collect_BGPAlertSurface_FromMatchedProfiles(t *testing.T) {
 
 				availabilityV6 := requireMetricWithTags(t, metrics, "bgpPeerAvailability", map[string]string{
 					"routing_instance":          "blue",
-					"neighbor":                  "2001:0db8:0000:0000:0000:0000:0000:0014",
+					"neighbor":                  "2001:db8::14",
 					"address_family":            "ipv6",
 					"subsequent_address_family": "unicast",
 				})
@@ -522,7 +522,7 @@ func TestCollector_Collect_BGPAlertSurface_FromMatchedProfiles(t *testing.T) {
 				assert.Equal(t, map[string]int64{"received": 31, "sent": 41}, updatesV4.MultiValue)
 
 				updatesV6 := requireMetricWithTags(t, metrics, "bgpPeerUpdates", map[string]string{
-					"neighbor":       "2001:0db8:0000:0000:0000:0000:0000:0014",
+					"neighbor":       "2001:db8::14",
 					"address_family": "ipv6",
 				})
 				assert.Equal(t, map[string]int64{"received": 51, "sent": 61}, updatesV6.MultiValue)
@@ -534,7 +534,7 @@ func TestCollector_Collect_BGPAlertSurface_FromMatchedProfiles(t *testing.T) {
 				assert.EqualValues(t, 4, transitionsV4.Value)
 
 				transitionsV6 := requireMetricWithTags(t, metrics, "bgpPeerFsmEstablishedTransitions", map[string]string{
-					"neighbor":       "2001:0db8:0000:0000:0000:0000:0000:0014",
+					"neighbor":       "2001:db8::14",
 					"address_family": "ipv6",
 				})
 				assert.EqualValues(t, 9, transitionsV6.Value)
