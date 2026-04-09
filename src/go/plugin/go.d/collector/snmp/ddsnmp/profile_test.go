@@ -1430,7 +1430,7 @@ func TestProfile_MultipleExtends_LaterOverrideEarlier(t *testing.T) {
 	assert.Equal(t, "base2", mergedStaticTags["source"])
 }
 
-func TestProfile_MultipleExtends_PreservesSameNameFallbackOIDs(t *testing.T) {
+func TestProfile_MultipleExtends_PreservesScalarSameNameFallbackOIDs(t *testing.T) {
 	tmp := t.TempDir()
 
 	writeYAML(t, filepath.Join(tmp, "_base1.yaml"), ddprofiledefinition.ProfileDefinition{

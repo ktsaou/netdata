@@ -218,7 +218,10 @@ The final profile is the **merged result** of all inherited profiles plus the co
 2. **Metrics are merged** — all metrics from all referenced profiles are included.
 3. **Later overrides earlier** — if the same field is defined multiple times, the last one wins.
 
-Metric override identity includes the OID/table identity, not only the metric name. This is intentional: multiple entries with the same `symbol.name` but different OIDs are preserved as fallback definitions.
+Metric override identity depends on metric type:
+
+- **Scalar metrics** use `symbol.name + symbol.OID`. This preserves same-name scalar fallback definitions that try alternative OIDs.
+- **Table metrics** use `table + symbol.name`. If two inherited profiles define the same table metric name, the later profile wins even when the symbol OID differs. Different metric names can still read from the same column OID when separate transformations are needed.
 
 **Common base profiles**
 
@@ -368,9 +371,9 @@ virtual_metrics:
       - { metric: _ifHCOutOctets, table: ifXTable, as: out }
 ```
 
-#### Multiple symbol fallbacks
+#### Scalar symbol fallbacks
 
-You can express “try this OID, otherwise try that OID” by declaring **multiple metrics with the same** `symbol.name`, each pointing to a different OID. At runtime the collector **GETs** all declared scalar OIDs, marks missing ones, and **emits** the metric from whichever OID returns data. Missing OIDs are skipped cleanly.
+You can express “try this OID, otherwise try that OID” by declaring **multiple scalar metrics with the same** `symbol.name`, each pointing to a different OID. At runtime the collector **GETs** all declared scalar OIDs, marks missing ones, and **emits** the metric from whichever OID returns data. Missing OIDs are skipped cleanly.
 
 ```yaml
 metrics:
@@ -1145,8 +1148,9 @@ metrics:
 
 - `lookup_symbol` is used only for **cross-table tags**
 - it works together with `index_transform`, not instead of it
-- the transformed index value must match **exactly one** row in the target table
-- if no row matches, or if multiple rows match, the tag lookup fails for that row
+- if no row matches, the tag lookup fails for that row
+- if one row matches, the collector reads the requested tag from that row
+- if multiple rows match, the lookup succeeds only when all matched rows resolve to the same final tag value; conflicting values fail the lookup
 
 ### Index-Based
 

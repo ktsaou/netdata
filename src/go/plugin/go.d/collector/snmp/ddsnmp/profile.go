@@ -20,7 +20,6 @@ type scalarMetricKey struct {
 type columnMetricKey struct {
 	tableOID   string
 	tableName  string
-	symbolOID  string
 	symbolName string
 }
 
@@ -205,7 +204,6 @@ func columnMetricSymbolKey(table ddprofiledefinition.SymbolConfig, sym ddprofile
 	return columnMetricKey{
 		tableOID:   table.OID,
 		tableName:  table.Name,
-		symbolOID:  sym.OID,
 		symbolName: sym.Name,
 	}
 }
