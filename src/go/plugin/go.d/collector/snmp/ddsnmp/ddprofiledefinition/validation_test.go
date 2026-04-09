@@ -474,6 +474,156 @@ func Test_validateEnrichMetrics(t *testing.T) {
 	}
 }
 
+func Test_validateEnrichVirtualMetrics(t *testing.T) {
+	baseMetrics := []MetricsConfig{
+		{
+			Table: SymbolConfig{
+				OID:  "1.3.6.1.2.1.31.1.1",
+				Name: "ifXTable",
+			},
+			Symbols: []SymbolConfig{
+				{OID: "1.3.6.1.2.1.31.1.1.1.6", Name: "ifHCInOctets"},
+				{OID: "1.3.6.1.2.1.31.1.1.1.10", Name: "ifHCOutOctets"},
+			},
+			MetricTags: MetricTagConfigList{
+				{Tag: "interface", Index: 1},
+			},
+		},
+		{
+			Table: SymbolConfig{
+				OID:  "1.3.6.1.2.1.2.2",
+				Name: "ifTable",
+			},
+			Symbols: []SymbolConfig{
+				{OID: "1.3.6.1.2.1.2.2.1.14", Name: "ifInErrors"},
+			},
+			MetricTags: MetricTagConfigList{
+				{Tag: "interface", Index: 1},
+			},
+		},
+	}
+
+	tests := map[string]struct {
+		metrics         []MetricsConfig
+		virtualMetrics  []VirtualMetricConfig
+		wantErrContains []string
+	}{
+		"valid grouped virtual metric": {
+			metrics: baseMetrics,
+			virtualMetrics: []VirtualMetricConfig{
+				{
+					Name:    "ifTraffic",
+					PerRow:  true,
+					GroupBy: StringArray{"interface"},
+					Sources: []VirtualMetricSourceConfig{
+						{Metric: "ifHCInOctets", Table: "ifXTable", As: "in"},
+						{Metric: "ifHCOutOctets", Table: "ifXTable", As: "out"},
+					},
+					EmitTags: []VirtualMetricEmitTagConfig{
+						{Tag: "interface", From: "interface"},
+					},
+				},
+			},
+		},
+		"valid scalar total without table": {
+			metrics: append(baseMetrics, MetricsConfig{
+				Symbol: SymbolConfig{
+					OID:  "1.3.6.1.4.1.2021.11.50.0",
+					Name: "_ucd.ssCpuRawUser",
+				},
+			}),
+			virtualMetrics: []VirtualMetricConfig{
+				{
+					Name: "ucd.cpuUsage",
+					Sources: []VirtualMetricSourceConfig{
+						{Metric: "_ucd.ssCpuRawUser", As: "user"},
+					},
+				},
+			},
+		},
+		"missing name and sources": {
+			metrics: baseMetrics,
+			virtualMetrics: []VirtualMetricConfig{
+				{},
+			},
+			wantErrContains: []string{
+				"virtual_metrics[0]: missing name",
+				"virtual_metrics[0]: must define sources or alternatives",
+			},
+		},
+		"duplicate name conflicting with metric": {
+			metrics: baseMetrics,
+			virtualMetrics: []VirtualMetricConfig{
+				{Name: "ifTraffic", Sources: []VirtualMetricSourceConfig{{Metric: "ifHCInOctets", Table: "ifXTable"}}},
+				{Name: "ifTraffic", Sources: []VirtualMetricSourceConfig{{Metric: "ifHCOutOctets", Table: "ifXTable"}}},
+				{Name: "ifInErrors", Sources: []VirtualMetricSourceConfig{{Metric: "ifHCOutOctets", Table: "ifXTable"}}},
+			},
+			wantErrContains: []string{
+				`virtual_metrics[1]: duplicate name "ifTraffic"`,
+				`virtual_metrics[2]: name "ifInErrors" conflicts with an existing metric`,
+			},
+		},
+		"invalid grouped sources and emit tags": {
+			metrics: baseMetrics,
+			virtualMetrics: []VirtualMetricConfig{
+				{
+					Name:    "brokenGrouped",
+					PerRow:  true,
+					GroupBy: StringArray{"", "interface"},
+					Sources: []VirtualMetricSourceConfig{
+						{Metric: "ifHCInOctets", Table: "ifXTable", As: "in"},
+						{Metric: "ifInErrors", Table: "ifTable", As: "out"},
+						{Metric: "", Table: "", As: "missing"},
+					},
+					EmitTags: []VirtualMetricEmitTagConfig{
+						{Tag: "", From: "interface"},
+						{Tag: "interface", From: ""},
+					},
+				},
+			},
+			wantErrContains: []string{
+				"virtual_metrics[0].group_by[0]: label cannot be empty",
+				"virtual_metrics[0].emit_tags[0]: missing tag",
+				"virtual_metrics[0].emit_tags[1]: missing from",
+				`virtual_metrics[0].sources[1]: grouped virtual metrics require all sources to use the same table`,
+				"virtual_metrics[0].sources[2]: missing metric",
+				"virtual_metrics[0].sources[2]: missing table",
+			},
+		},
+		"invalid alternatives": {
+			metrics: baseMetrics,
+			virtualMetrics: []VirtualMetricConfig{
+				{
+					Name: "ifTraffic",
+					Alternatives: []VirtualMetricAlternativeSourcesConfig{
+						{},
+						{Sources: []VirtualMetricSourceConfig{{Metric: "missingMetric", Table: "ifXTable"}}},
+					},
+				},
+			},
+			wantErrContains: []string{
+				"virtual_metrics[0].alternatives[0]: must define sources",
+				`virtual_metrics[0].alternatives[1].sources[0]: unknown metric source "missingMetric"`,
+			},
+		},
+	}
+
+	for name, tt := range tests {
+		t.Run(name, func(t *testing.T) {
+			err := validateEnrichVirtualMetrics(tt.metrics, tt.virtualMetrics)
+			if len(tt.wantErrContains) == 0 {
+				assert.NoError(t, err)
+				return
+			}
+
+			assert.Error(t, err)
+			for _, msg := range tt.wantErrContains {
+				assert.ErrorContains(t, err, msg)
+			}
+		})
+	}
+}
+
 func Test_validateEnrichMetricTags(t *testing.T) {
 	tests := map[string]struct {
 		metrics     []MetricTagConfig

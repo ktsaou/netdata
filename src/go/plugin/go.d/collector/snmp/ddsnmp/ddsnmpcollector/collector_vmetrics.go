@@ -328,17 +328,22 @@ func vmBuildGroupKey(tags map[string]string, agg *vmetricsAggregator) (string, b
 
 	if agg.perRow {
 		if len(agg.groupBy) > 0 {
+			missingHint := false
 			for i, l := range agg.groupBy {
 				v := tags[l]
 				if v == "" {
-					return "", false
+					missingHint = true
+					break
 				}
 				if i > 0 {
 					agg.keyBuf.WriteByte(groupKeySep)
 				}
 				agg.keyBuf.WriteString(v)
 			}
-			return agg.keyBuf.String(), true
+			if !missingHint {
+				return agg.keyBuf.String(), true
+			}
+			agg.keyBuf.Reset()
 		}
 
 		// per-row without group_by: stable key from all non-underscore tags

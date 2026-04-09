@@ -817,7 +817,7 @@ func TestVirtualMetricsCollector_Collect(t *testing.T) {
 				VirtualMetrics: []ddprofiledefinition.VirtualMetricConfig{
 					{
 						Name:    "ifTrafficPerInterface",
-						GroupBy: []string{"interface", "ifType"},
+						GroupBy: ddprofiledefinition.StringArray{"interface", "ifType"},
 						Sources: []ddprofiledefinition.VirtualMetricSourceConfig{
 							{Metric: "ifHCInOctets", Table: "ifXTable", As: "in"},
 							{Metric: "ifHCOutOctets", Table: "ifXTable", As: "out"},
@@ -852,7 +852,7 @@ func TestVirtualMetricsCollector_Collect(t *testing.T) {
 				VirtualMetrics: []ddprofiledefinition.VirtualMetricConfig{
 					{
 						Name:    "ifErrorsPerInterface",
-						GroupBy: []string{"interface"},
+						GroupBy: ddprofiledefinition.StringArray{"interface"},
 						Sources: []ddprofiledefinition.VirtualMetricSourceConfig{
 							{Metric: "ifInErrors", Table: "ifTable"},
 						},
@@ -940,7 +940,7 @@ func TestVirtualMetricsCollector_Collect(t *testing.T) {
 				VirtualMetrics: []ddprofiledefinition.VirtualMetricConfig{
 					{
 						Name:    "invalidGroupedVM",
-						GroupBy: []string{"interface"},
+						GroupBy: ddprofiledefinition.StringArray{"interface"},
 						Sources: []ddprofiledefinition.VirtualMetricSourceConfig{
 							{Metric: "ifInOctets", Table: "ifTable", As: "in"},
 							{Metric: "ifHCInOctets", Table: "ifXTable", As: "in2"},
@@ -1060,7 +1060,7 @@ func TestVirtualMetricsCollector_Collect(t *testing.T) {
 					{
 						Name:    "ifTrafficPerRowHint",
 						PerRow:  true,
-						GroupBy: []string{"interface"}, // used as row-key hint
+						GroupBy: ddprofiledefinition.StringArray{"interface"}, // used as row-key hint
 						Sources: []ddprofiledefinition.VirtualMetricSourceConfig{
 							{Metric: "ifHCInOctets", Table: "ifXTable", As: "in"},
 							{Metric: "ifHCOutOctets", Table: "ifXTable", As: "out"},
@@ -1096,13 +1096,44 @@ func TestVirtualMetricsCollector_Collect(t *testing.T) {
 			},
 		},
 
+		"per_row with missing key hint falls back to stable visible tags": {
+			profileDef: &ddprofiledefinition.ProfileDefinition{
+				VirtualMetrics: []ddprofiledefinition.VirtualMetricConfig{
+					{
+						Name:    "ifTrafficPerRowHintFallback",
+						PerRow:  true,
+						GroupBy: ddprofiledefinition.StringArray{"interface"},
+						Sources: []ddprofiledefinition.VirtualMetricSourceConfig{
+							{Metric: "ifHCInOctets", Table: "ifXTable", As: "in"},
+							{Metric: "ifHCOutOctets", Table: "ifXTable", As: "out"},
+						},
+					},
+				},
+			},
+			collectedMetrics: []ddsnmp.Metric{
+				{Name: "ifHCInOctets", Value: 5, IsTable: true, Table: "ifXTable",
+					Tags: map[string]string{"ifType": "ethernetCsmacd", "ifIndex": "11"}},
+				{Name: "ifHCOutOctets", Value: 7, IsTable: true, Table: "ifXTable",
+					Tags: map[string]string{"ifType": "ethernetCsmacd", "ifIndex": "11"}},
+			},
+			expected: []ddsnmp.Metric{
+				{
+					Name:       "ifTrafficPerRowHintFallback",
+					IsTable:    true,
+					Table:      "ifXTable",
+					Tags:       map[string]string{"ifType": "ethernetCsmacd", "ifIndex": "11"},
+					MultiValue: map[string]int64{"in": 5, "out": 7},
+				},
+			},
+		},
+
 		"per_row composite with selected multivalue dimensions": {
 			profileDef: &ddprofiledefinition.ProfileDefinition{
 				VirtualMetrics: []ddprofiledefinition.VirtualMetricConfig{
 					{
 						Name:    "bgpPeerAvailability",
 						PerRow:  true,
-						GroupBy: []string{"neighbor"},
+						GroupBy: ddprofiledefinition.StringArray{"neighbor"},
 						Sources: []ddprofiledefinition.VirtualMetricSourceConfig{
 							{Metric: "bgpPeerAdminStatus", Table: "bgpPeerTable", As: "admin_enabled", Dim: "start"},
 							{Metric: "bgpPeerState", Table: "bgpPeerTable", As: "established", Dim: "established"},
@@ -1175,7 +1206,7 @@ func TestVirtualMetricsCollector_Collect(t *testing.T) {
 					{
 						Name:    "bgpPeerAvailability",
 						PerRow:  true,
-						GroupBy: []string{"_routing_instance", "_neighbor", "_address_family", "_subsequent_address_family"},
+						GroupBy: ddprofiledefinition.StringArray{"_routing_instance", "_neighbor", "_address_family", "_subsequent_address_family"},
 						EmitTags: []ddprofiledefinition.VirtualMetricEmitTagConfig{
 							{Tag: "routing_instance", From: "_routing_instance"},
 							{Tag: "neighbor", From: "_neighbor"},
@@ -1299,7 +1330,7 @@ func TestVirtualMetricsCollector_Collect(t *testing.T) {
 					{
 						Name:    "bgpPeerUpdates",
 						PerRow:  true,
-						GroupBy: []string{"routing_instance", "neighbor", "address_family", "subsequent_address_family"},
+						GroupBy: ddprofiledefinition.StringArray{"routing_instance", "neighbor", "address_family", "subsequent_address_family"},
 						EmitTags: []ddprofiledefinition.VirtualMetricEmitTagConfig{
 							{Tag: "routing_instance", From: "routing_instance"},
 							{Tag: "neighbor", From: "neighbor"},
@@ -1761,7 +1792,7 @@ func TestVirtualMetricsCollector_Collect(t *testing.T) {
 					{
 						Name:    "ifTraffic",
 						PerRow:  true,
-						GroupBy: []string{"interface"},
+						GroupBy: ddprofiledefinition.StringArray{"interface"},
 						Alternatives: []ddprofiledefinition.VirtualMetricAlternativeSourcesConfig{
 							{Sources: []ddprofiledefinition.VirtualMetricSourceConfig{
 								{Metric: "ifHCInOctets", Table: "ifXTable", As: "in"},
@@ -1823,7 +1854,7 @@ func TestVirtualMetricsCollector_Collect(t *testing.T) {
 					{
 						Name:    "ifTraffic",
 						PerRow:  true,
-						GroupBy: []string{"interface"},
+						GroupBy: ddprofiledefinition.StringArray{"interface"},
 						Alternatives: []ddprofiledefinition.VirtualMetricAlternativeSourcesConfig{
 							{Sources: []ddprofiledefinition.VirtualMetricSourceConfig{
 								{Metric: "ifHCInOctets", Table: "ifXTable", As: "in"},
@@ -1923,11 +1954,11 @@ func Test_vmBuildGroupKey(t *testing.T) {
 			wantKey: "ethernetCsmacd" + string(sep) + "eth0",
 		},
 
-		"per_row + groupBy: missing required tag -> no key": {
+		"per_row + groupBy: missing hint falls back to stable visible-tag key": {
 			agg:     vmetricsAggregator{grouped: true, perRow: true, groupBy: []string{"iface", "zone"}},
 			tags:    map[string]string{"iface": "eth0"},
-			wantOK:  false,
-			wantKey: "",
+			wantOK:  true,
+			wantKey: "iface=eth0",
 		},
 
 		"non per_row + groupBy(1): returns that label value": {

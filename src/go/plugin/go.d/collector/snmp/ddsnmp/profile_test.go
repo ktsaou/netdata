@@ -1356,6 +1356,72 @@ func TestProfile_MultipleExtends(t *testing.T) {
 	assert.Len(t, allFiles, 2)
 }
 
+func TestProfile_MultipleExtends_LaterOverrideEarlier(t *testing.T) {
+	tmp := t.TempDir()
+
+	writeBase := func(path, suffix string) {
+		writeYAML(t, path, ddprofiledefinition.ProfileDefinition{
+			Metadata: ddprofiledefinition.MetadataConfig{
+				"device": {
+					Fields: map[string]ddprofiledefinition.MetadataField{
+						"model": {Value: suffix},
+					},
+				},
+			},
+			StaticTags: []ddprofiledefinition.StaticMetricTagConfig{
+				{Tag: "source", Value: suffix},
+			},
+			Metrics: []ddprofiledefinition.MetricsConfig{
+				{
+					Symbol: ddprofiledefinition.SymbolConfig{
+						OID:  "1.3.6.1.2.1.1.5.0",
+						Name: "sysName",
+						ChartMeta: ddprofiledefinition.ChartMeta{
+							Description: suffix,
+						},
+					},
+				},
+			},
+			VirtualMetrics: []ddprofiledefinition.VirtualMetricConfig{
+				{
+					Name: "ifTraffic",
+					Sources: []ddprofiledefinition.VirtualMetricSourceConfig{
+						{Metric: "sysName", Table: ""},
+					},
+					ChartMeta: ddprofiledefinition.ChartMeta{
+						Description: suffix,
+					},
+				},
+			},
+		})
+	}
+
+	base1 := filepath.Join(tmp, "_base1.yaml")
+	base2 := filepath.Join(tmp, "_base2.yaml")
+	writeBase(base1, "base1")
+	writeBase(base2, "base2")
+
+	main := filepath.Join(tmp, "device.yaml")
+	writeYAML(t, main, map[string]any{
+		"extends": []string{"_base1.yaml", "_base2.yaml"},
+	})
+
+	prof, err := loadProfile(main, multipath.New(tmp))
+	require.NoError(t, err)
+
+	require.Len(t, prof.Definition.Metrics, 1)
+	assert.Equal(t, "base2", prof.Definition.Metrics[0].Symbol.ChartMeta.Description)
+
+	require.Len(t, prof.Definition.VirtualMetrics, 1)
+	assert.Equal(t, "base2", prof.Definition.VirtualMetrics[0].ChartMeta.Description)
+
+	assert.Equal(t, "base2", prof.Definition.Metadata["device"].Fields["model"].Value)
+
+	require.Len(t, prof.Definition.StaticTags, 2)
+	assert.Equal(t, "base2", prof.Definition.StaticTags[0].Value)
+	assert.Equal(t, "base1", prof.Definition.StaticTags[1].Value)
+}
+
 func TestProfile_ComplexHierarchy(t *testing.T) {
 	tmp := t.TempDir()
 

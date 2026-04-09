@@ -21,6 +21,10 @@ type MySymbolStruct struct {
 	SymbolField SymbolConfigCompat `yaml:"my_symbol_field"`
 }
 
+type MyVirtualMetricStruct struct {
+	GroupBy StringArray `yaml:"group_by"`
+}
+
 func Test_metricTagConfig_UnmarshalYAML(t *testing.T) {
 	myStruct := MetricsConfig{}
 	expected := MetricsConfig{MetricTags: []MetricTagConfig{{Index: 3}}}
@@ -88,6 +92,17 @@ func TestSymbolConfig_UnmarshalYAML_symbolString(t *testing.T) {
 
 	yaml.Unmarshal([]byte(`
 my_symbol_field: aSymbol
+`), &myStruct)
+
+	assert.Equal(t, expected, myStruct)
+}
+
+func TestVirtualMetricConfig_GroupBy_UnmarshalString(t *testing.T) {
+	myStruct := MyVirtualMetricStruct{}
+	expected := MyVirtualMetricStruct{GroupBy: StringArray{"interface"}}
+
+	yaml.Unmarshal([]byte(`
+group_by: interface
 `), &myStruct)
 
 	assert.Equal(t, expected, myStruct)

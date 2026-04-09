@@ -7,7 +7,7 @@ import (
 type VirtualMetricConfig struct {
 	Name         string                                  `yaml:"name"`
 	PerRow       bool                                    `yaml:"per_row"`
-	GroupBy      []string                                `yaml:"group_by"`
+	GroupBy      StringArray                             `yaml:"group_by"`
 	EmitTags     []VirtualMetricEmitTagConfig            `yaml:"emit_tags"`
 	Sources      []VirtualMetricSourceConfig             `yaml:"sources"`
 	Alternatives []VirtualMetricAlternativeSourcesConfig `yaml:"alternatives"`
@@ -25,7 +25,7 @@ func (vm VirtualMetricConfig) Clone() VirtualMetricConfig {
 	return VirtualMetricConfig{
 		Name:         vm.Name,
 		PerRow:       vm.PerRow,
-		GroupBy:      slices.Clone(vm.GroupBy),
+		GroupBy:      StringArray(slices.Clone(vm.GroupBy)),
 		EmitTags:     slices.Clone(vm.EmitTags),
 		Sources:      slices.Clone(vm.Sources),
 		Alternatives: alts,
