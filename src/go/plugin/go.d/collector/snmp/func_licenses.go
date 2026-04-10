@@ -4,8 +4,9 @@ package snmp
 
 import (
 	"context"
-	"encoding/json"
 	"sort"
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/netdata/netdata/go/plugins/pkg/funcapi"
@@ -195,12 +196,17 @@ func licenseBucketPriority(bucket licenseStateBucket) int {
 }
 
 func licenseRowUniqueKey(row licenseRow) string {
-	key, _ := json.Marshal([]string{
-		row.Source,
-		row.Table,
-		row.ID,
-	})
-	return string(key)
+	return licenseKeyParts(row.Source, row.Table, row.ID)
+}
+
+func licenseKeyParts(parts ...string) string {
+	var b strings.Builder
+	for _, part := range parts {
+		b.WriteString(strconv.Itoa(len(part)))
+		b.WriteByte(':')
+		b.WriteString(part)
+	}
+	return b.String()
 }
 
 func licenseRemainingCell(expiry int64, ok bool, ts time.Time) any {
