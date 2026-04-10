@@ -95,11 +95,30 @@ func TestBGPPeerEntryKeyUsesStableIdentityTags(t *testing.T) {
 		"address_family":            "ipv6",
 		"subsequent_address_family": "unicast",
 	})
+	keyWithoutRoutingInstance := bgpPeerEntryKey("peers", map[string]string{
+		"neighbor":  "198.51.100.1",
+		"remote_as": "65001",
+	})
+	keyWithEmptyRoutingInstance := bgpPeerEntryKey("peers", map[string]string{
+		"routing_instance": "",
+		"neighbor":         "198.51.100.1",
+		"remote_as":        "65001",
+	})
 
 	assert.Equal(t, keyA, keyB)
 	assert.NotEqual(t, keyA, familyKey)
 	assert.NotEqual(t, familyKey, otherFamilyKey)
+	assert.NotEmpty(t, keyWithoutRoutingInstance)
+	assert.Equal(t, keyWithoutRoutingInstance, keyWithEmptyRoutingInstance)
+	assert.NotEqual(t, keyA, keyWithoutRoutingInstance)
 	assert.Empty(t, bgpPeerEntryKey("peers", map[string]string{"remote_as": "65001"}))
+	assert.Empty(t, bgpPeerEntryKey("peers", map[string]string{"neighbor": "198.51.100.1"}))
+	assert.Empty(t, bgpPeerEntryKey("peer_families", map[string]string{
+		"neighbor":                  "198.51.100.1",
+		"remote_as":                 "65001",
+		"address_family":            "ipv4",
+		"subsequent_address_family": "",
+	}))
 }
 
 func TestBGPAdminStatus(t *testing.T) {
@@ -191,6 +210,44 @@ func TestMergeBGPPeerEntryTagsPrefersUnprefixedWithinSample(t *testing.T) {
 		"_local_address": "192.0.2.30",
 	})
 	assert.Equal(t, "192.0.2.30", entry.tags["local_address"])
+}
+
+func TestBGPPeerCacheClearsZeroLastError(t *testing.T) {
+	cache := newBGPPeerCache()
+	cache.reset()
+	tags := map[string]string{
+		"neighbor":  "198.51.100.1",
+		"remote_as": "65001",
+	}
+
+	cache.updateEntry(ddsnmp.Metric{
+		Name:       "bgp.peers.last_error",
+		IsTable:    true,
+		Tags:       tags,
+		MultiValue: map[string]int64{"code": 2, "subcode": 3},
+	})
+	require.Len(t, cache.entries, 1)
+
+	for _, entry := range cache.entries {
+		require.NotNil(t, entry.lastErrorCode)
+		require.NotNil(t, entry.lastErrorSubcode)
+		assert.Equal(t, "OPEN Message Error - Bad BGP Identifier", bgpLastErrorDisplay(entry))
+	}
+
+	cache.updateEntry(ddsnmp.Metric{
+		Name:       "bgp.peers.last_error",
+		IsTable:    true,
+		Tags:       tags,
+		MultiValue: map[string]int64{"code": 0, "subcode": 0},
+	})
+	require.Len(t, cache.entries, 1)
+
+	for _, entry := range cache.entries {
+		assert.Nil(t, entry.lastErrorCode)
+		assert.Nil(t, entry.lastErrorSubcode)
+		assert.Empty(t, entry.lastErrorText)
+		assert.Empty(t, bgpLastErrorDisplay(entry))
+	}
 }
 
 func TestFuncBGPPeersHandle(t *testing.T) {

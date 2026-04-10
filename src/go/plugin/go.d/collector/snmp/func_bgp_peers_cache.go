@@ -58,8 +58,10 @@ type bgpPeerEntry struct {
 }
 
 var (
-	bgpPeerIdentityTags       = []string{"routing_instance", "neighbor", "remote_as"}
-	bgpPeerFamilyIdentityTags = []string{"routing_instance", "neighbor", "remote_as", "address_family", "subsequent_address_family"}
+	bgpPeerIdentityTags               = []string{"routing_instance", "neighbor", "remote_as"}
+	bgpPeerRequiredIdentityTags       = []string{"neighbor", "remote_as"}
+	bgpPeerFamilyIdentityTags         = []string{"routing_instance", "neighbor", "remote_as", "address_family", "subsequent_address_family"}
+	bgpPeerFamilyRequiredIdentityTags = []string{"neighbor", "remote_as", "address_family", "subsequent_address_family"}
 )
 
 func newBGPPeerCache() *bgpPeerCache {
@@ -143,9 +145,7 @@ func (c *bgpPeerCache) updateEntry(metric ddsnmp.Metric) {
 	case "last_received_update_age":
 		entry.lastReceivedUpdate = metricDimValuePtr(metric.MultiValue, "age")
 	case "last_error":
-		entry.lastErrorCode = metricDimValuePtr(metric.MultiValue, "code")
-		entry.lastErrorSubcode = metricDimValuePtr(metric.MultiValue, "subcode")
-		entry.lastErrorText = bgpLastErrorText(entry.lastErrorCode, entry.lastErrorSubcode)
+		setBGPPeerLastError(entry, metric.MultiValue)
 	case "last_down_reason":
 		entry.lastDownReason = humanizeBGPLabel(activeMultiValueDimension(metric.MultiValue))
 	case "last_received_notification_reason":
@@ -234,30 +234,35 @@ func bgpPeerMetricLeaf(name string) string {
 }
 
 func bgpPeerEntryKey(scope string, tags map[string]string) string {
-	if scope == "" {
+	identityTags, requiredTags := bgpPeerIdentityKeyTags(scope)
+	if len(identityTags) == 0 {
 		return ""
 	}
 
-	if bgpTagValue(tags, "neighbor") == "" {
-		return ""
-	}
-
-	identityTags := bgpPeerIdentityTags
-	if scope == "peer_families" {
-		identityTags = bgpPeerFamilyIdentityTags
+	for _, key := range requiredTags {
+		if bgpTagValue(tags, key) == "" {
+			return ""
+		}
 	}
 
 	var sb strings.Builder
 	bgpWritePeerKeyPart(&sb, scope)
 	for _, key := range identityTags {
-		value := bgpTagValue(tags, key)
-		if value == "" {
-			continue
-		}
 		bgpWritePeerKeyPart(&sb, key)
-		bgpWritePeerKeyPart(&sb, value)
+		bgpWritePeerKeyPart(&sb, bgpTagValue(tags, key))
 	}
 	return sb.String()
+}
+
+func bgpPeerIdentityKeyTags(scope string) ([]string, []string) {
+	switch scope {
+	case "peers":
+		return bgpPeerIdentityTags, bgpPeerRequiredIdentityTags
+	case "peer_families":
+		return bgpPeerFamilyIdentityTags, bgpPeerFamilyRequiredIdentityTags
+	default:
+		return nil, nil
+	}
 }
 
 func bgpAdminStatus(mv map[string]int64) string {
@@ -306,6 +311,25 @@ func metricDimValuePtr(mv map[string]int64, key string) *int64 {
 		return nil
 	}
 	return int64Ptr(v)
+}
+
+func setBGPPeerLastError(entry *bgpPeerEntry, mv map[string]int64) {
+	code := metricDimValuePtr(mv, "code")
+	subcode := metricDimValuePtr(mv, "subcode")
+	if isNoBGPLastError(code, subcode) {
+		entry.lastErrorCode = nil
+		entry.lastErrorSubcode = nil
+		entry.lastErrorText = ""
+		return
+	}
+
+	entry.lastErrorCode = code
+	entry.lastErrorSubcode = subcode
+	entry.lastErrorText = bgpLastErrorText(code, subcode)
+}
+
+func isNoBGPLastError(code, subcode *int64) bool {
+	return (code == nil || *code == 0) && (subcode == nil || *subcode == 0)
 }
 
 func int64Ptr(v int64) *int64 {
