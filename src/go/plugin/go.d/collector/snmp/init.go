@@ -60,6 +60,10 @@ func (c *Collector) initSNMPClient() (gosnmp.Handler, error) {
 			PrivacyProtocol:          snmputils.ParseSNMPv3PrivProtocol(c.User.PrivProto),
 			PrivacyPassphrase:        c.User.PrivKey,
 		})
+		// Context name addresses a specific MIB view on multi-context
+		// agents (virtual routers, logical partitions, snmpsim virtual
+		// devices). Empty string means the default context.
+		client.SetContextName(c.User.ContextName)
 	default:
 		return nil, fmt.Errorf("invalid SNMP version: %s", c.Options.Version)
 	}

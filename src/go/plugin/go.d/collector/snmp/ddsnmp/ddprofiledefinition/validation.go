@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"regexp"
 	"slices"
+	"strings"
 )
 
 var validMetadataResources = map[string]map[string]bool{
@@ -59,6 +60,7 @@ func ValidateEnrichProfile(p *ProfileDefinition) error {
 		validateEnrichSysobjectIDMetadata(p.SysobjectIDMetadata),
 		validateEnrichMetrics(p.Metrics),
 		validateEnrichMetricTags(p.MetricTags),
+		validateEnrichVirtualMetrics(p.Metrics, p.VirtualMetrics),
 	}
 
 	return errors.Join(errs...)
@@ -315,10 +317,40 @@ func validateEnrichMetricTag(metricTag *MetricTagConfig) error {
 		metricTag.Symbol.OID = metricTag.OID
 		metricTag.OID = ""
 	}
-	if metricTag.Symbol.OID != "" || metricTag.Symbol.Name != "" {
+	if isRawIndexMetricTag(*metricTag) {
+		symbol := SymbolConfig(metricTag.Symbol)
+		if symbol.Name == "" && metricTag.Tag == "" {
+			errs = append(errs, errors.New("raw index metric tag requires `tag` or `symbol.name`"))
+		}
+		if symbol.ExtractValue != "" {
+			pattern, err := regexp.Compile(symbol.ExtractValue)
+			if err != nil {
+				errs = append(errs, fmt.Errorf("cannot compile `extract_value` (%s): %s", symbol.ExtractValue, err.Error()))
+			} else {
+				symbol.ExtractValueCompiled = pattern
+			}
+		}
+		if symbol.MatchPattern != "" {
+			pattern, err := regexp.Compile(symbol.MatchPattern)
+			if err != nil {
+				errs = append(errs, fmt.Errorf("cannot compile `match_pattern` (%s): %s", symbol.MatchPattern, err.Error()))
+			} else {
+				symbol.MatchPatternCompiled = pattern
+			}
+		}
+		metricTag.Symbol = SymbolConfigCompat(symbol)
+	} else if metricTag.Symbol.OID != "" || metricTag.Symbol.Name != "" {
 		symbol := SymbolConfig(metricTag.Symbol)
 		errs = append(errs, validateEnrichSymbol(&symbol, MetricTagSymbol))
 		metricTag.Symbol = SymbolConfigCompat(symbol)
+	}
+	if metricTag.LookupSymbol.OID != "" || metricTag.LookupSymbol.Name != "" {
+		symbol := SymbolConfig(metricTag.LookupSymbol)
+		errs = append(errs, validateEnrichSymbol(&symbol, MetricTagSymbol))
+		metricTag.LookupSymbol = SymbolConfigCompat(symbol)
+		if metricTag.Table == "" {
+			errs = append(errs, errors.New("`lookup_symbol` requires `table`"))
+		}
 	}
 	if metricTag.Match != "" {
 		pattern, err := regexp.Compile(metricTag.Match)
@@ -331,14 +363,166 @@ func validateEnrichMetricTag(metricTag *MetricTagConfig) error {
 			errs = append(errs, fmt.Errorf("`tags` mapping must be provided if `match` (`%s`) is defined", metricTag.Match))
 		}
 	}
-	if len(metricTag.Mapping) > 0 && metricTag.Tag == "" {
-		errs = append(errs, fmt.Errorf("``tag` must be provided if `mapping` (`%s`) is defined", metricTag.Mapping))
+	if len(metricTag.Mapping) > 0 && metricTag.Tag == "" && metricTag.Symbol.Name == "" {
+		errs = append(errs, fmt.Errorf("`tag` or `symbol.name` must be provided if `mapping` (`%v`) is defined", metricTag.Mapping))
 	}
 	for _, transform := range metricTag.IndexTransform {
-		if transform.Start > transform.End {
+		if transform.DropRight != 0 && transform.End != 0 {
+			errs = append(errs, fmt.Errorf("transform rule cannot define both end and drop_right. Invalid rule: %#v", transform))
+		}
+		if transform.DropRight == 0 && transform.Start > transform.End {
 			errs = append(errs, fmt.Errorf("transform rule end should be greater than start. Invalid rule: %#v", transform))
 		}
 	}
 
 	return errors.Join(errs...)
+}
+
+func isRawIndexMetricTag(metricTag MetricTagConfig) bool {
+	if metricTag.Table != "" || metricTag.Symbol.OID != "" {
+		return false
+	}
+
+	if metricTag.Index != 0 {
+		return metricTag.Symbol.Format != "" ||
+			metricTag.Symbol.ExtractValue != "" ||
+			metricTag.Symbol.MatchPattern != "" ||
+			len(metricTag.Mapping) > 0
+	}
+
+	return len(metricTag.IndexTransform) > 0 ||
+		metricTag.Symbol.Format != "" ||
+		metricTag.Symbol.ExtractValue != "" ||
+		metricTag.Symbol.MatchPattern != "" ||
+		len(metricTag.Mapping) > 0
+}
+
+func validateEnrichVirtualMetrics(metrics []MetricsConfig, vmetrics []VirtualMetricConfig) error {
+	var errs []error
+
+	metricSources := collectVirtualMetricSourceSpecs(metrics)
+
+	seenNames := make(map[string]int)
+
+	for i := range vmetrics {
+		vm := &vmetrics[i]
+
+		if vm.Name == "" {
+			errs = append(errs, fmt.Errorf("virtual_metrics[%d]: missing name", i))
+		} else {
+			if firstIdx, ok := seenNames[vm.Name]; ok {
+				errs = append(errs, fmt.Errorf("virtual_metrics[%d]: duplicate name %q (first occurrence at index %d)", i, vm.Name, firstIdx))
+			} else {
+				seenNames[vm.Name] = i
+			}
+			if _, ok := metricSources[vm.Name]; ok {
+				errs = append(errs, fmt.Errorf("virtual_metrics[%d]: name %q conflicts with an existing metric", i, vm.Name))
+			}
+		}
+
+		for j, label := range vm.GroupBy {
+			if label == "" {
+				errs = append(errs, fmt.Errorf("virtual_metrics[%d].group_by[%d]: label cannot be empty", i, j))
+			}
+		}
+
+		for j, emitTag := range vm.EmitTags {
+			if emitTag.Tag == "" {
+				errs = append(errs, fmt.Errorf("virtual_metrics[%d].emit_tags[%d]: missing tag", i, j))
+			}
+			if emitTag.From == "" {
+				errs = append(errs, fmt.Errorf("virtual_metrics[%d].emit_tags[%d]: missing from", i, j))
+			}
+		}
+
+		grouped := vm.PerRow || len(vm.GroupBy) > 0
+
+		switch {
+		case len(vm.Sources) == 0 && len(vm.Alternatives) == 0:
+			errs = append(errs, fmt.Errorf("virtual_metrics[%d]: must define sources or alternatives", i))
+		case len(vm.Alternatives) == 0:
+			errs = append(errs, validateVirtualMetricSources(fmt.Sprintf("virtual_metrics[%d].sources", i), vm.Sources, metricSources, grouped))
+		default:
+			for j, alt := range vm.Alternatives {
+				if len(alt.Sources) == 0 {
+					errs = append(errs, fmt.Errorf("virtual_metrics[%d].alternatives[%d]: must define sources", i, j))
+					continue
+				}
+				errs = append(errs, validateVirtualMetricSources(fmt.Sprintf("virtual_metrics[%d].alternatives[%d].sources", i, j), alt.Sources, metricSources, grouped))
+			}
+		}
+	}
+
+	return errors.Join(errs...)
+}
+
+func validateVirtualMetricSources(path string, sources []VirtualMetricSourceConfig, metricSources map[string]map[string]virtualMetricSourceSpec, grouped bool) error {
+	var errs []error
+
+	var groupTable string
+	for i, src := range sources {
+		if src.Metric == "" {
+			errs = append(errs, fmt.Errorf("%s[%d]: missing metric", path, i))
+		}
+		if grouped && src.Table == "" {
+			errs = append(errs, fmt.Errorf("%s[%d]: missing table", path, i))
+		}
+
+		if src.Metric != "" {
+			tables, ok := metricSources[src.Metric]
+			switch {
+			case !ok:
+				errs = append(errs, fmt.Errorf("%s[%d]: unknown metric source %q", path, i, src.Metric))
+			case src.Table == "":
+				if _, ok := tables[""]; !ok {
+					errs = append(errs, fmt.Errorf("%s[%d]: missing table for non-scalar source %q", path, i, src.Metric))
+				}
+			default:
+				if _, ok := tables[src.Table]; !ok {
+					errs = append(errs, fmt.Errorf("%s[%d]: unknown metric/table source %q/%q", path, i, src.Metric, src.Table))
+				}
+			}
+		}
+
+		if src.Dim != "" && src.Metric != "" {
+			tables, ok := metricSources[src.Metric]
+			if !ok {
+				continue
+			}
+
+			spec, ok := tables[src.Table]
+			if !ok && src.Table == "" {
+				spec, ok = tables[""]
+			}
+			if !ok {
+				continue
+			}
+
+			switch spec.dimSupport.mode {
+			case virtualMetricDimUnsupported:
+				errs = append(errs, fmt.Errorf("%s[%d]: dim %q requires a MultiValue source metric (%s)", path, i, src.Dim, formatVirtualMetricSourceRef(src)))
+			case virtualMetricDimKnown:
+				if !spec.dimSupport.dims[src.Dim] {
+					errs = append(errs, fmt.Errorf("%s[%d]: dim %q is not available on %s (available: %s)", path, i, src.Dim, formatVirtualMetricSourceRef(src), strings.Join(virtualMetricSourceAvailableDims(spec), ", ")))
+				}
+			}
+		}
+
+		if grouped && src.Table != "" {
+			if groupTable == "" {
+				groupTable = src.Table
+			} else if src.Table != groupTable {
+				errs = append(errs, fmt.Errorf("%s[%d]: grouped virtual metrics require all sources to use the same table (saw %q and %q)", path, i, groupTable, src.Table))
+			}
+		}
+	}
+
+	return errors.Join(errs...)
+}
+
+func formatVirtualMetricSourceRef(src VirtualMetricSourceConfig) string {
+	if src.Table == "" {
+		return fmt.Sprintf("metric %q", src.Metric)
+	}
+	return fmt.Sprintf("metric/table %q/%q", src.Metric, src.Table)
 }
