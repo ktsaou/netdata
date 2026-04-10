@@ -33,6 +33,26 @@ func TestProfile_MultipleExtends_TableSymbolLaterOverrideEarlierByNameWithinTabl
 	assert.Equal(t, "base2", sym.ChartMeta.Description)
 }
 
+func TestProfile_MultipleExtends_TableSymbolLaterOverrideEarlierByTableNameWhenOIDDiffers(t *testing.T) {
+	tmp := t.TempDir()
+
+	writeTableBase(t, filepath.Join(tmp, "_base1.yaml"), "1.3.6.1.2.1.2.2", "ifTable", "1.3.6.1.2.1.2.2.1.10", "ifInOctets", "base1")
+	writeTableBase(t, filepath.Join(tmp, "_base2.yaml"), "1.3.6.1.4.1.999.2", "ifTable", "1.3.6.1.4.1.999.2.1.10", "ifInOctets", "base2")
+	writeYAML(t, filepath.Join(tmp, "device.yaml"), ddprofiledefinition.ProfileDefinition{
+		Extends: []string{"_base1.yaml", "_base2.yaml"},
+	})
+
+	prof, err := loadProfile(filepath.Join(tmp, "device.yaml"), multipath.New(tmp))
+	require.NoError(t, err)
+	require.Len(t, prof.Definition.Metrics, 1)
+	require.Len(t, prof.Definition.Metrics[0].Symbols, 1)
+
+	assert.Equal(t, "1.3.6.1.4.1.999.2", prof.Definition.Metrics[0].Table.OID)
+	assert.Equal(t, "ifTable", prof.Definition.Metrics[0].Table.Name)
+	assert.Equal(t, "1.3.6.1.4.1.999.2.1.10", prof.Definition.Metrics[0].Symbols[0].OID)
+	assert.Equal(t, "base2", prof.Definition.Metrics[0].Symbols[0].ChartMeta.Description)
+}
+
 func TestProfile_MultipleExtends_TableSymbolsPreserveSameOIDDifferentNames(t *testing.T) {
 	tmp := t.TempDir()
 
@@ -58,24 +78,22 @@ func TestProfile_MultipleExtends_TableSymbolsPreserveSameOIDDifferentNames(t *te
 	}, got)
 }
 
-func writeTableBase(t *testing.T, path, tableOID, tableName, symbolOID, symbolName, description string) {
-	t.Helper()
-
-	writeYAML(t, path, ddprofiledefinition.ProfileDefinition{
+func TestProfile_MergeMetrics_DoesNotMutateBaseColumnSymbols(t *testing.T) {
+	target := &Profile{Definition: &ddprofiledefinition.ProfileDefinition{
+		Metrics: []ddprofiledefinition.MetricsConfig{
+			tableMetricConfig("1.3.6.1.2.1.2.2", "ifTable", "1.3.6.1.2.1.2.2.1.10", "ifInOctets", "target"),
+		},
+	}}
+	base := &Profile{Definition: &ddprofiledefinition.ProfileDefinition{
 		Metrics: []ddprofiledefinition.MetricsConfig{
 			{
 				Table: ddprofiledefinition.SymbolConfig{
-					OID:  tableOID,
-					Name: tableName,
+					OID:  "1.3.6.1.2.1.2.2",
+					Name: "ifTable",
 				},
 				Symbols: []ddprofiledefinition.SymbolConfig{
-					{
-						OID:  symbolOID,
-						Name: symbolName,
-						ChartMeta: ddprofiledefinition.ChartMeta{
-							Description: description,
-						},
-					},
+					{OID: "1.3.6.1.2.1.2.2.1.10", Name: "ifInOctets"},
+					{OID: "1.3.6.1.2.1.2.2.1.16", Name: "ifOutOctets"},
 				},
 				MetricTags: []ddprofiledefinition.MetricTagConfig{
 					{
@@ -87,5 +105,50 @@ func writeTableBase(t *testing.T, path, tableOID, tableName, symbolOID, symbolNa
 				},
 			},
 		},
+	}}
+
+	target.mergeMetrics(base)
+
+	require.Len(t, base.Definition.Metrics[0].Symbols, 2)
+	assert.Equal(t, "ifInOctets", base.Definition.Metrics[0].Symbols[0].Name)
+	assert.Equal(t, "ifOutOctets", base.Definition.Metrics[0].Symbols[1].Name)
+	require.Len(t, target.Definition.Metrics, 2)
+	require.Len(t, target.Definition.Metrics[1].Symbols, 1)
+	assert.Equal(t, "ifOutOctets", target.Definition.Metrics[1].Symbols[0].Name)
+}
+
+func writeTableBase(t *testing.T, path, tableOID, tableName, symbolOID, symbolName, description string) {
+	t.Helper()
+
+	writeYAML(t, path, ddprofiledefinition.ProfileDefinition{
+		Metrics: []ddprofiledefinition.MetricsConfig{
+			tableMetricConfig(tableOID, tableName, symbolOID, symbolName, description),
+		},
 	})
+}
+
+func tableMetricConfig(tableOID, tableName, symbolOID, symbolName, description string) ddprofiledefinition.MetricsConfig {
+	return ddprofiledefinition.MetricsConfig{
+		Table: ddprofiledefinition.SymbolConfig{
+			OID:  tableOID,
+			Name: tableName,
+		},
+		Symbols: []ddprofiledefinition.SymbolConfig{
+			{
+				OID:  symbolOID,
+				Name: symbolName,
+				ChartMeta: ddprofiledefinition.ChartMeta{
+					Description: description,
+				},
+			},
+		},
+		MetricTags: []ddprofiledefinition.MetricTagConfig{
+			{
+				Tag: "row",
+				IndexTransform: []ddprofiledefinition.MetricIndexTransform{
+					{Start: 0, End: 0},
+				},
+			},
+		},
+	}
 }

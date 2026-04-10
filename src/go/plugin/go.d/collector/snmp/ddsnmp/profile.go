@@ -18,8 +18,7 @@ type scalarMetricKey struct {
 }
 
 type columnMetricKey struct {
-	tableOID   string
-	tableName  string
+	table      string
 	symbolName string
 }
 
@@ -175,12 +174,16 @@ func (p *Profile) mergeMetrics(base *Profile) {
 				seenScalars[key] = true
 			}
 		case bm.IsColumn():
-			bm.Symbols = slices.DeleteFunc(bm.Symbols, func(sym ddprofiledefinition.SymbolConfig) bool {
+			symbols := make([]ddprofiledefinition.SymbolConfig, 0, len(bm.Symbols))
+			for _, sym := range bm.Symbols {
 				key := columnMetricSymbolKey(bm.Table, sym)
-				v := seenColumns[key]
+				if seenColumns[key] {
+					continue
+				}
 				seenColumns[key] = true
-				return v
-			})
+				symbols = append(symbols, sym)
+			}
+			bm.Symbols = symbols
 			if len(bm.Symbols) > 0 {
 				p.Definition.Metrics = append(p.Definition.Metrics, bm)
 			}
@@ -202,10 +205,16 @@ func (p *Profile) mergeMetrics(base *Profile) {
 
 func columnMetricSymbolKey(table ddprofiledefinition.SymbolConfig, sym ddprofiledefinition.SymbolConfig) columnMetricKey {
 	return columnMetricKey{
-		tableOID:   table.OID,
-		tableName:  table.Name,
+		table:      columnMetricTableIdentity(table),
 		symbolName: sym.Name,
 	}
+}
+
+func columnMetricTableIdentity(table ddprofiledefinition.SymbolConfig) string {
+	if table.Name != "" {
+		return table.Name
+	}
+	return table.OID
 }
 
 func (p *Profile) mergeMetadata(base *Profile) {
