@@ -106,10 +106,7 @@ func (p *tableRowProcessor) processSingleIndexTag(row *tableRowData, tagCfg ddpr
 }
 
 func (p *tableRowProcessor) processIndexTag(cfg ddprofiledefinition.MetricTagConfig, index string) (string, string, error) {
-	tagName := ternary(cfg.Tag != "", cfg.Tag, fmt.Sprintf("index%d", cfg.Index))
-	if cfg.Index == 0 && cfg.Tag == "" {
-		tagName = cfg.Symbol.Name
-	}
+	tagName := metricTagDisplayName(cfg)
 
 	rawValue := index
 	if cfg.Index != 0 {
