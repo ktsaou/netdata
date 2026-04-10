@@ -250,6 +250,48 @@ func TestBGPPeerCacheClearsZeroLastError(t *testing.T) {
 	}
 }
 
+func TestBGPPeerCacheResetClearsStaleFieldsBetweenPolls(t *testing.T) {
+	cache := newBGPPeerCache()
+	tags := map[string]string{
+		"neighbor":       "198.51.100.1",
+		"remote_as":      "65001",
+		"_local_address": "192.0.2.1",
+	}
+
+	cache.reset()
+	for _, metric := range []ddsnmp.Metric{
+		{Name: "bgp.peers.availability", IsTable: true, Tags: tags, MultiValue: map[string]int64{"admin_enabled": 1}},
+		{Name: "bgp.peers.last_error", IsTable: true, Tags: tags, MultiValue: map[string]int64{"code": 2, "subcode": 3}},
+		{Name: "bgp.peers.update_traffic", IsTable: true, Tags: tags, MultiValue: map[string]int64{"received": 10, "sent": 20}},
+	} {
+		cache.updateEntry(metric)
+	}
+	cache.finalize()
+	require.Len(t, cache.entries, 1)
+
+	cache.reset()
+	cache.updateEntry(ddsnmp.Metric{
+		Name:       "bgp.peers.connection_state",
+		IsTable:    true,
+		Tags:       map[string]string{"neighbor": "198.51.100.1", "remote_as": "65001"},
+		MultiValue: map[string]int64{"established": 1},
+	})
+	cache.finalize()
+	require.Len(t, cache.entries, 1)
+
+	for _, entry := range cache.entries {
+		assert.Equal(t, "established", entry.state)
+		assert.Empty(t, entry.adminStatus)
+		assert.Nil(t, entry.lastErrorCode)
+		assert.Nil(t, entry.lastErrorSubcode)
+		assert.Empty(t, entry.lastErrorText)
+		assert.Nil(t, entry.updateCounts)
+		assert.Equal(t, "198.51.100.1", entry.tags["neighbor"])
+		assert.Equal(t, "65001", entry.tags["remote_as"])
+		assert.NotContains(t, entry.tags, "local_address")
+	}
+}
+
 func TestFuncBGPPeersHandle(t *testing.T) {
 	cache := newBGPPeerCache()
 	cache.reset()

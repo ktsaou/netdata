@@ -70,6 +70,23 @@ func newBGPPeerCache() *bgpPeerCache {
 	}
 }
 
+func (entry *bgpPeerEntry) reset() {
+	key := entry.key
+	scope := entry.scope
+	tags := entry.tags
+	if tags == nil {
+		tags = make(map[string]string)
+	} else {
+		clear(tags)
+	}
+
+	*entry = bgpPeerEntry{
+		key:   key,
+		scope: scope,
+		tags:  tags,
+	}
+}
+
 func (c *bgpPeerCache) reset() {
 	if c == nil {
 		return
@@ -80,7 +97,7 @@ func (c *bgpPeerCache) reset() {
 
 	c.updateTime = time.Now()
 	for _, entry := range c.entries {
-		entry.updated = false
+		entry.reset()
 	}
 }
 
