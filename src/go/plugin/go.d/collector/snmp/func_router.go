@@ -12,21 +12,28 @@ import (
 
 // funcRouter routes method calls to appropriate function handlers.
 type funcRouter struct {
-	ifaceCache   *ifaceCache
-	licenseCache *licenseCache
+	ifaceCache *ifaceCache
 
 	handlers map[string]funcapi.MethodHandler
 }
 
-func newFuncRouter(ifaceCache *ifaceCache, licenseCache *licenseCache) *funcRouter {
+func newFuncRouter(ifaceCache *ifaceCache) *funcRouter {
 	r := &funcRouter{
-		ifaceCache:   ifaceCache,
-		licenseCache: licenseCache,
-		handlers:     make(map[string]funcapi.MethodHandler),
+		ifaceCache: ifaceCache,
+		handlers:   make(map[string]funcapi.MethodHandler),
 	}
-	r.handlers[ifacesMethodID] = newFuncInterfaces(r)
-	r.handlers[licensesMethodID] = newFuncLicenses(r)
+	r.registerHandler(ifacesMethodID, newFuncInterfaces(r))
 	return r
+}
+
+func (r *funcRouter) registerHandler(method string, handler funcapi.MethodHandler) {
+	if r == nil || handler == nil {
+		return
+	}
+	if r.handlers == nil {
+		r.handlers = make(map[string]funcapi.MethodHandler)
+	}
+	r.handlers[method] = handler
 }
 
 // Compile-time interface check.
@@ -52,10 +59,9 @@ func (r *funcRouter) Cleanup(ctx context.Context) {
 	}
 }
 
-func snmpMethods() []funcapi.MethodConfig {
+func snmpBaseMethods() []funcapi.MethodConfig {
 	return []funcapi.MethodConfig{
 		ifacesMethodConfig(),
-		licensesMethodConfig(),
 	}
 }
 

@@ -71,8 +71,8 @@ func New() *Collector {
 		seenTableMetrics:  make(map[string]bool),
 		seenProfiles:      make(map[string]bool),
 
-		ifaceCache:   newIfaceCache(),
-		licenseCache: newLicenseCache(),
+		ifaceCache: newIfaceCache(),
+		licensing:  newLicensingIntegration(),
 
 		newPinger:     pinger.New,
 		newSnmpClient: gosnmp.NewHandler,
@@ -81,7 +81,8 @@ func New() *Collector {
 		},
 	}
 
-	c.funcRouter = newFuncRouter(c.ifaceCache, c.licenseCache)
+	c.funcRouter = newFuncRouter(c.ifaceCache)
+	c.licensing.registerFunction(c.funcRouter)
 
 	return c
 }
@@ -98,9 +99,9 @@ type (
 		seenTableMetrics  map[string]bool
 		seenProfiles      map[string]bool
 
-		ifaceCache   *ifaceCache   // interface metrics cache for functions
-		licenseCache *licenseCache // licensing rows cache for future drill-down functions
-		funcRouter   *funcRouter   // function router for method handlers
+		ifaceCache *ifaceCache // interface metrics cache for functions
+		licensing  *licensingIntegration
+		funcRouter *funcRouter // function router for method handlers
 
 		pingClient pinger.Client
 		newPinger  func(pinger.Config, *logger.Logger) (pinger.Client, error)

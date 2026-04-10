@@ -12,8 +12,7 @@ import (
 )
 
 func newTestFuncLicenses(cache *licenseCache) *funcLicenses {
-	r := &funcRouter{licenseCache: cache}
-	return newFuncLicenses(r)
+	return newFuncLicenses(cache)
 }
 
 func TestFuncLicensesHandle(t *testing.T) {

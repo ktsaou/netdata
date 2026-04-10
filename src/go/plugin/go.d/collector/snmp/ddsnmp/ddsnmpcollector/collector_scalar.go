@@ -73,8 +73,6 @@ func (sc *scalarCollector) identifyScalarOIDs(configs []ddprofiledefinition.Metr
 
 		oids = append(oids, cfg.Symbol.OID)
 
-		oids = append(oids, cfg.Symbol.OID)
-
 		for _, tagCfg := range cfg.MetricTags {
 			if tagCfg.Symbol.OID == "" {
 				continue

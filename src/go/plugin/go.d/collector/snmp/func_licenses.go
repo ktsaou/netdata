@@ -26,11 +26,11 @@ func licensesMethodConfig() funcapi.MethodConfig {
 var _ funcapi.MethodHandler = (*funcLicenses)(nil)
 
 type funcLicenses struct {
-	router *funcRouter
+	cache *licenseCache
 }
 
-func newFuncLicenses(r *funcRouter) *funcLicenses {
-	return &funcLicenses{router: r}
+func newFuncLicenses(cache *licenseCache) *funcLicenses {
+	return &funcLicenses{cache: cache}
 }
 
 func (f *funcLicenses) MethodParams(_ context.Context, method string) ([]funcapi.ParamConfig, error) {
@@ -47,11 +47,11 @@ func (f *funcLicenses) Handle(_ context.Context, method string, _ funcapi.Resolv
 		return funcapi.NotFoundResponse(method)
 	}
 
-	if f.router.licenseCache == nil {
+	if f.cache == nil {
 		return funcapi.UnavailableResponse("license data not available yet, please retry after data collection")
 	}
 
-	lastUpdate, rows := f.router.licenseCache.snapshot()
+	lastUpdate, rows := f.cache.snapshot()
 	if lastUpdate.IsZero() {
 		return funcapi.UnavailableResponse("license data not available yet, please retry after data collection")
 	}
