@@ -59,10 +59,15 @@ func (c *Collector) collectProfileScalarMetrics(mx map[string]int64, pms []*ddsn
 
 func (c *Collector) collectProfileTableMetrics(mx map[string]int64, pms []*ddsnmp.ProfileMetrics) {
 	seen := make(map[string]bool)
+	ifaceStatuses := c.prepareIfaceMetrics(pms)
 
 	for _, pm := range pms {
 		for _, m := range pm.Metrics {
 			if !m.IsTable || m.Name == "" || len(m.Tags) == 0 {
+				continue
+			}
+
+			if skipDownIfaceMetric(m, ifaceStatuses) {
 				continue
 			}
 
@@ -87,10 +92,6 @@ func (c *Collector) collectProfileTableMetrics(mx map[string]int64, pms []*ddsnm
 					mx[id] = v
 				}
 			}
-
-			if isIfaceMetric(m.Name) {
-				c.updateIfaceCacheEntry(m)
-			}
 		}
 	}
 
@@ -100,6 +101,77 @@ func (c *Collector) collectProfileTableMetrics(mx map[string]int64, pms []*ddsnm
 			c.removeProfileTableMetricChart(key)
 		}
 	}
+}
+
+type ifaceStatus struct {
+	admin    string
+	hasAdmin bool
+	oper     string
+	hasOper  bool
+}
+
+func (s ifaceStatus) hasStatus() bool {
+	return s.hasAdmin || s.hasOper
+}
+
+func (s ifaceStatus) isUp() bool {
+	return s.hasAdmin && s.hasOper && s.admin == "up" && s.oper == "up"
+}
+
+func (c *Collector) prepareIfaceMetrics(pms []*ddsnmp.ProfileMetrics) map[string]ifaceStatus {
+	statuses := make(map[string]ifaceStatus)
+
+	for _, pm := range pms {
+		for _, m := range pm.Metrics {
+			if !m.IsTable || m.Name == "" || len(m.Tags) == 0 {
+				continue
+			}
+
+			if isIfaceMetric(m.Name) {
+				c.updateIfaceCacheEntry(m)
+			}
+
+			updateIfaceStatus(statuses, m)
+		}
+	}
+
+	return statuses
+}
+
+func updateIfaceStatus(statuses map[string]ifaceStatus, m ddsnmp.Metric) {
+	ifaceName := m.Tags[tagInterface]
+	if ifaceName == "" {
+		return
+	}
+
+	status := statuses[ifaceName]
+
+	switch m.Name {
+	case "ifAdminStatus":
+		status.admin = extractStatus(m.MultiValue)
+		status.hasAdmin = true
+	case "ifOperStatus":
+		status.oper = extractStatus(m.MultiValue)
+		status.hasOper = true
+	default:
+		return
+	}
+
+	statuses[ifaceName] = status
+}
+
+func skipDownIfaceMetric(m ddsnmp.Metric, statuses map[string]ifaceStatus) bool {
+	ifaceName := m.Tags[tagInterface]
+	if ifaceName == "" {
+		return false
+	}
+
+	status, ok := statuses[ifaceName]
+	if !ok || !status.hasStatus() {
+		return false
+	}
+
+	return !status.isUp()
 }
 
 func (c *Collector) collectProfileStats(mx map[string]int64, pms []*ddsnmp.ProfileMetrics) {
