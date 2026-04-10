@@ -175,6 +175,24 @@ func TestBGPPeerCacheUsesStableIdentityAndMutableTags(t *testing.T) {
 	assert.Equal(t, "Transit B", entry.tags["peer_description"])
 }
 
+func TestMergeBGPPeerEntryTagsPrefersUnprefixedWithinSample(t *testing.T) {
+	entry := &bgpPeerEntry{tags: make(map[string]string)}
+
+	for i := 0; i < 100; i++ {
+		entry.tags = make(map[string]string)
+		mergeBGPPeerEntryTags(entry, map[string]string{
+			"local_address":  "192.0.2.10",
+			"_local_address": "192.0.2.20",
+		})
+		assert.Equal(t, "192.0.2.10", entry.tags["local_address"])
+	}
+
+	mergeBGPPeerEntryTags(entry, map[string]string{
+		"_local_address": "192.0.2.30",
+	})
+	assert.Equal(t, "192.0.2.30", entry.tags["local_address"])
+}
+
 func TestFuncBGPPeersHandle(t *testing.T) {
 	cache := newBGPPeerCache()
 	cache.reset()
