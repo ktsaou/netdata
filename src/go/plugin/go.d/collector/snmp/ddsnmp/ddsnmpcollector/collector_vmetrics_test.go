@@ -1905,6 +1905,103 @@ func TestVirtualMetricsCollector_Collect(t *testing.T) {
 				},
 			},
 		},
+
+		"compatible source scales propagate to total virtual metric": {
+			profileDef: &ddprofiledefinition.ProfileDefinition{
+				VirtualMetrics: []ddprofiledefinition.VirtualMetricConfig{
+					{
+						Name: "ifTotalTraffic",
+						Sources: []ddprofiledefinition.VirtualMetricSourceConfig{
+							{Metric: "ifInOctets", Table: "ifTable"},
+							{Metric: "ifOutOctets", Table: "ifTable"},
+						},
+						ChartMeta: ddprofiledefinition.ChartMeta{
+							Description: "Total traffic",
+							Family:      "Network/Total/Traffic",
+							Unit:        "bit/s",
+						},
+					},
+				},
+			},
+			collectedMetrics: []ddsnmp.Metric{
+				{Name: "ifInOctets", Value: 100, IsTable: true, Table: "ifTable", MetricType: ddprofiledefinition.ProfileMetricTypeCounter, ScaleMul: 8, ScaleDiv: 1},
+				{Name: "ifOutOctets", Value: 200, IsTable: true, Table: "ifTable", MetricType: ddprofiledefinition.ProfileMetricTypeCounter, ScaleMul: 8, ScaleDiv: 1},
+			},
+			expected: []ddsnmp.Metric{
+				{
+					Name:        "ifTotalTraffic",
+					Value:       300,
+					Description: "Total traffic",
+					Family:      "Network/Total/Traffic",
+					Unit:        "bit/s",
+					MetricType:  ddprofiledefinition.ProfileMetricTypeCounter,
+					ScaleMul:    8,
+					ScaleDiv:    1,
+				},
+			},
+		},
+
+		"mixed source scales skip total virtual metric": {
+			profileDef: &ddprofiledefinition.ProfileDefinition{
+				VirtualMetrics: []ddprofiledefinition.VirtualMetricConfig{
+					{
+						Name: "ifTotalTraffic",
+						Sources: []ddprofiledefinition.VirtualMetricSourceConfig{
+							{Metric: "ifInOctets", Table: "ifTable"},
+							{Metric: "ifOutOctets", Table: "ifTable"},
+						},
+					},
+				},
+			},
+			collectedMetrics: []ddsnmp.Metric{
+				{Name: "ifInOctets", Value: 100, IsTable: true, Table: "ifTable", MetricType: ddprofiledefinition.ProfileMetricTypeCounter, ScaleMul: 8, ScaleDiv: 1},
+				{Name: "ifOutOctets", Value: 200, IsTable: true, Table: "ifTable", MetricType: ddprofiledefinition.ProfileMetricTypeCounter, ScaleMul: 1, ScaleDiv: 100},
+			},
+			expected: []ddsnmp.Metric{},
+		},
+
+		"alternatives skip mixed-scale child and choose compatible child": {
+			profileDef: &ddprofiledefinition.ProfileDefinition{
+				VirtualMetrics: []ddprofiledefinition.VirtualMetricConfig{
+					{
+						Name: "ifTotalTraffic",
+						Alternatives: []ddprofiledefinition.VirtualMetricAlternativeSourcesConfig{
+							{Sources: []ddprofiledefinition.VirtualMetricSourceConfig{
+								{Metric: "ifHCInOctets", Table: "ifXTable"},
+								{Metric: "ifHCOutOctets", Table: "ifXTable"},
+							}},
+							{Sources: []ddprofiledefinition.VirtualMetricSourceConfig{
+								{Metric: "ifInOctets", Table: "ifTable"},
+								{Metric: "ifOutOctets", Table: "ifTable"},
+							}},
+						},
+						ChartMeta: ddprofiledefinition.ChartMeta{
+							Description: "Total traffic",
+							Family:      "Network/Total/Traffic",
+							Unit:        "bit/s",
+						},
+					},
+				},
+			},
+			collectedMetrics: []ddsnmp.Metric{
+				{Name: "ifHCInOctets", Value: 1000, IsTable: true, Table: "ifXTable", MetricType: ddprofiledefinition.ProfileMetricTypeCounter, ScaleMul: 8, ScaleDiv: 1},
+				{Name: "ifHCOutOctets", Value: 2000, IsTable: true, Table: "ifXTable", MetricType: ddprofiledefinition.ProfileMetricTypeCounter, ScaleMul: 1, ScaleDiv: 100},
+				{Name: "ifInOctets", Value: 100, IsTable: true, Table: "ifTable", MetricType: ddprofiledefinition.ProfileMetricTypeCounter, ScaleMul: 8, ScaleDiv: 1},
+				{Name: "ifOutOctets", Value: 200, IsTable: true, Table: "ifTable", MetricType: ddprofiledefinition.ProfileMetricTypeCounter, ScaleMul: 8, ScaleDiv: 1},
+			},
+			expected: []ddsnmp.Metric{
+				{
+					Name:        "ifTotalTraffic",
+					Value:       300,
+					Description: "Total traffic",
+					Family:      "Network/Total/Traffic",
+					Unit:        "bit/s",
+					MetricType:  ddprofiledefinition.ProfileMetricTypeCounter,
+					ScaleMul:    8,
+					ScaleDiv:    1,
+				},
+			},
+		},
 	}
 
 	for name, tc := range tests {

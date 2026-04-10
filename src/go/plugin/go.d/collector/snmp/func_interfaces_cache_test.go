@@ -89,6 +89,56 @@ func TestCalcRate(t *testing.T) {
 	}
 }
 
+func TestCalcScaledRate(t *testing.T) {
+	tests := map[string]struct {
+		current  int64
+		previous int64
+		elapsed  time.Duration
+		scale    counterScale
+		wantNil  bool
+		wantRate float64
+	}{
+		"multiplier converts octets per second to bits per second": {
+			current:  200,
+			previous: 100,
+			elapsed:  time.Second,
+			scale:    counterScale{mul: 8, div: 1},
+			wantRate: 800,
+		},
+		"divisor converts hundredths to units": {
+			current:  200,
+			previous: 100,
+			elapsed:  time.Second,
+			scale:    counterScale{mul: 1, div: 100},
+			wantRate: 1,
+		},
+		"unset scale keeps raw rate": {
+			current:  200,
+			previous: 100,
+			elapsed:  time.Second,
+			wantRate: 100,
+		},
+		"zero elapsed remains nil": {
+			current:  200,
+			previous: 100,
+			scale:    counterScale{mul: 8, div: 1},
+			wantNil:  true,
+		},
+	}
+
+	for name, tc := range tests {
+		t.Run(name, func(t *testing.T) {
+			result := calcScaledRate(tc.current, tc.previous, tc.elapsed, tc.scale)
+			if tc.wantNil {
+				assert.Nil(t, result)
+				return
+			}
+			require.NotNil(t, result)
+			assert.InDelta(t, tc.wantRate, *result, 0.001)
+		})
+	}
+}
+
 func TestExtractStatus(t *testing.T) {
 	tests := map[string]struct {
 		mv       map[string]int64
