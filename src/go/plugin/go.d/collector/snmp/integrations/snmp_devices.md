@@ -381,7 +381,8 @@ The following alerts are available:
 
 Metrics grouped by *scope*.
 
-The scope defines the instance that the metric belongs to. An instance is uniquely identified by a set of labels.
+The scope defines the instance that the metric belongs to.
+An instance is uniquely identified by a set of labels.
 
 Metrics and charts are **defined by the matched SNMP profile(s)** at runtime. They differ by vendor/model/OS and may include, for example, interface counters, optics, CPU/memory, temperature, VLANs, and more. Use the **Metrics** tab on the device’s dashboard to see exactly what is collected for that device.
 
