@@ -50,6 +50,7 @@ type ifaceEntry struct {
 
 	// Raw counter values (cumulative, stored for next delta calculation)
 	counters ifaceCounters
+	scales   ifaceCounterScales
 
 	// Previous counter values (for delta calculation)
 	prevCounters ifaceCounters
@@ -77,6 +78,26 @@ type ifaceCounters struct {
 	errorsOut    int64
 	discardsIn   int64
 	discardsOut  int64
+}
+
+type ifaceCounterScales struct {
+	trafficIn    counterScale
+	trafficOut   counterScale
+	ucastPktsIn  counterScale
+	ucastPktsOut counterScale
+	bcastPktsIn  counterScale
+	bcastPktsOut counterScale
+	mcastPktsIn  counterScale
+	mcastPktsOut counterScale
+	errorsIn     counterScale
+	errorsOut    counterScale
+	discardsIn   counterScale
+	discardsOut  counterScale
+}
+
+type counterScale struct {
+	mul int
+	div int
 }
 
 // ifaceRates holds computed per-second rates.
@@ -157,46 +178,64 @@ func (c *Collector) updateIfaceCacheEntry(m ddsnmp.Metric) {
 
 	switch m.Name {
 	case "ifTraffic":
+		scale := newCounterScale(m)
 		if v, ok := m.MultiValue["in"]; ok {
 			entry.counters.trafficIn = v
+			entry.scales.trafficIn = scale
 		}
 		if v, ok := m.MultiValue["out"]; ok {
 			entry.counters.trafficOut = v
+			entry.scales.trafficOut = scale
 		}
 	case "ifPacketsUcast":
+		scale := newCounterScale(m)
 		if v, ok := m.MultiValue["in"]; ok {
 			entry.counters.ucastPktsIn = v
+			entry.scales.ucastPktsIn = scale
 		}
 		if v, ok := m.MultiValue["out"]; ok {
 			entry.counters.ucastPktsOut = v
+			entry.scales.ucastPktsOut = scale
 		}
 	case "ifPacketsBroadcast":
+		scale := newCounterScale(m)
 		if v, ok := m.MultiValue["in"]; ok {
 			entry.counters.bcastPktsIn = v
+			entry.scales.bcastPktsIn = scale
 		}
 		if v, ok := m.MultiValue["out"]; ok {
 			entry.counters.bcastPktsOut = v
+			entry.scales.bcastPktsOut = scale
 		}
 	case "ifPacketsMulticast":
+		scale := newCounterScale(m)
 		if v, ok := m.MultiValue["in"]; ok {
 			entry.counters.mcastPktsIn = v
+			entry.scales.mcastPktsIn = scale
 		}
 		if v, ok := m.MultiValue["out"]; ok {
 			entry.counters.mcastPktsOut = v
+			entry.scales.mcastPktsOut = scale
 		}
 	case "ifErrors":
+		scale := newCounterScale(m)
 		if v, ok := m.MultiValue["in"]; ok {
 			entry.counters.errorsIn = v
+			entry.scales.errorsIn = scale
 		}
 		if v, ok := m.MultiValue["out"]; ok {
 			entry.counters.errorsOut = v
+			entry.scales.errorsOut = scale
 		}
 	case "ifDiscards":
+		scale := newCounterScale(m)
 		if v, ok := m.MultiValue["in"]; ok {
 			entry.counters.discardsIn = v
+			entry.scales.discardsIn = scale
 		}
 		if v, ok := m.MultiValue["out"]; ok {
 			entry.counters.discardsOut = v
+			entry.scales.discardsOut = scale
 		}
 	case "ifAdminStatus":
 		entry.adminStatus = extractStatus(m.MultiValue)
@@ -227,18 +266,18 @@ func (c *Collector) finalizeIfaceCache() {
 
 		if entry.hasPrev {
 			elapsed := now.Sub(entry.prevTime)
-			entry.rates.trafficIn = calcRate(entry.counters.trafficIn, entry.prevCounters.trafficIn, elapsed)
-			entry.rates.trafficOut = calcRate(entry.counters.trafficOut, entry.prevCounters.trafficOut, elapsed)
-			entry.rates.ucastPktsIn = calcRate(entry.counters.ucastPktsIn, entry.prevCounters.ucastPktsIn, elapsed)
-			entry.rates.ucastPktsOut = calcRate(entry.counters.ucastPktsOut, entry.prevCounters.ucastPktsOut, elapsed)
-			entry.rates.bcastPktsIn = calcRate(entry.counters.bcastPktsIn, entry.prevCounters.bcastPktsIn, elapsed)
-			entry.rates.bcastPktsOut = calcRate(entry.counters.bcastPktsOut, entry.prevCounters.bcastPktsOut, elapsed)
-			entry.rates.mcastPktsIn = calcRate(entry.counters.mcastPktsIn, entry.prevCounters.mcastPktsIn, elapsed)
-			entry.rates.mcastPktsOut = calcRate(entry.counters.mcastPktsOut, entry.prevCounters.mcastPktsOut, elapsed)
-			entry.rates.errorsIn = calcRate(entry.counters.errorsIn, entry.prevCounters.errorsIn, elapsed)
-			entry.rates.errorsOut = calcRate(entry.counters.errorsOut, entry.prevCounters.errorsOut, elapsed)
-			entry.rates.discardsIn = calcRate(entry.counters.discardsIn, entry.prevCounters.discardsIn, elapsed)
-			entry.rates.discardsOut = calcRate(entry.counters.discardsOut, entry.prevCounters.discardsOut, elapsed)
+			entry.rates.trafficIn = calcScaledRate(entry.counters.trafficIn, entry.prevCounters.trafficIn, elapsed, entry.scales.trafficIn)
+			entry.rates.trafficOut = calcScaledRate(entry.counters.trafficOut, entry.prevCounters.trafficOut, elapsed, entry.scales.trafficOut)
+			entry.rates.ucastPktsIn = calcScaledRate(entry.counters.ucastPktsIn, entry.prevCounters.ucastPktsIn, elapsed, entry.scales.ucastPktsIn)
+			entry.rates.ucastPktsOut = calcScaledRate(entry.counters.ucastPktsOut, entry.prevCounters.ucastPktsOut, elapsed, entry.scales.ucastPktsOut)
+			entry.rates.bcastPktsIn = calcScaledRate(entry.counters.bcastPktsIn, entry.prevCounters.bcastPktsIn, elapsed, entry.scales.bcastPktsIn)
+			entry.rates.bcastPktsOut = calcScaledRate(entry.counters.bcastPktsOut, entry.prevCounters.bcastPktsOut, elapsed, entry.scales.bcastPktsOut)
+			entry.rates.mcastPktsIn = calcScaledRate(entry.counters.mcastPktsIn, entry.prevCounters.mcastPktsIn, elapsed, entry.scales.mcastPktsIn)
+			entry.rates.mcastPktsOut = calcScaledRate(entry.counters.mcastPktsOut, entry.prevCounters.mcastPktsOut, elapsed, entry.scales.mcastPktsOut)
+			entry.rates.errorsIn = calcScaledRate(entry.counters.errorsIn, entry.prevCounters.errorsIn, elapsed, entry.scales.errorsIn)
+			entry.rates.errorsOut = calcScaledRate(entry.counters.errorsOut, entry.prevCounters.errorsOut, elapsed, entry.scales.errorsOut)
+			entry.rates.discardsIn = calcScaledRate(entry.counters.discardsIn, entry.prevCounters.discardsIn, elapsed, entry.scales.discardsIn)
+			entry.rates.discardsOut = calcScaledRate(entry.counters.discardsOut, entry.prevCounters.discardsOut, elapsed, entry.scales.discardsOut)
 		}
 
 		entry.prevCounters = entry.counters
@@ -247,6 +286,11 @@ func (c *Collector) finalizeIfaceCache() {
 	}
 
 	c.ifaceCache.lastUpdate = now
+}
+
+func newCounterScale(m ddsnmp.Metric) counterScale {
+	mul, div := m.Scale()
+	return counterScale{mul: mul, div: div}
 }
 
 // calcRate computes per-second rate from counter delta.
@@ -271,6 +315,21 @@ func calcRate(current, previous int64, elapsed time.Duration) *float64 {
 
 	rate := float64(delta) / elapsed.Seconds()
 	return &rate
+}
+
+func calcScaledRate(current, previous int64, elapsed time.Duration, scale counterScale) *float64 {
+	rate := calcRate(current, previous, elapsed)
+	if rate == nil {
+		return nil
+	}
+	if scale.mul == 0 {
+		scale.mul = 1
+	}
+	if scale.div == 0 {
+		scale.div = 1
+	}
+	scaled := *rate * float64(scale.mul) / float64(scale.div)
+	return &scaled
 }
 
 // extractStatus finds the active status from a MultiValue map.

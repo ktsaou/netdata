@@ -62,8 +62,12 @@ func (mb *metricBuilder) fromSymbol(sym ddprofiledefinition.SymbolConfig, pdu go
 	mb.metric.Description = sym.ChartMeta.Description
 	mb.metric.Family = sym.ChartMeta.Family
 	mb.metric.ChartType = sym.ChartMeta.Type
-	mb.metric.MetricType = ternary(sym.MetricType != "", sym.MetricType, getMetricTypeFromPDUType(pdu))
+	mb.metric.MetricType = symbolMetricType(sym, pdu)
 	mb.metric.MultiValue = buildMultiValue(mb.metric.Value, sym.Mapping)
+	if mul, div, ok := deferredScaleFactor(sym, pdu); ok {
+		mb.metric.ScaleMul = mul
+		mb.metric.ScaleDiv = div
+	}
 	return mb
 }
 

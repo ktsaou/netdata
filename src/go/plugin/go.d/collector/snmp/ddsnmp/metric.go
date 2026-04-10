@@ -27,8 +27,21 @@ type Metric struct {
 	Table       string
 	Value       int64
 	MultiValue  map[string]int64
+	ScaleMul    int
+	ScaleDiv    int
 
 	IsTable bool
+}
+
+func (m Metric) Scale() (mul, div int) {
+	mul, div = m.ScaleMul, m.ScaleDiv
+	if mul == 0 {
+		mul = 1
+	}
+	if div == 0 {
+		div = 1
+	}
+	return mul, div
 }
 
 type MetaTag struct {

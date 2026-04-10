@@ -59,6 +59,7 @@ func (p *vmetricsCollector) accumulate(lookup map[vmetricsSourceKey][]vmetricsSi
 			if agg.metricType == "" {
 				agg.metricType = m.MetricType
 			}
+			agg.observeScale(m)
 
 			if !agg.grouped {
 				agg.accumulateTotal(sink, v, mv)
@@ -92,9 +93,9 @@ func (p *vmetricsCollector) emit(aggrs []*vmetricsAggregator) []ddsnmp.Metric {
 	for _, agg := range aggrs {
 		// --- Alternatives parent: choose first child with data ---
 		if len(agg.alts) > 0 {
-			i := slices.IndexFunc(agg.alts, func(alt *vmetricsAggregator) bool { return alt.hadData })
+			i := slices.IndexFunc(agg.alts, func(alt *vmetricsAggregator) bool { return alt.hadData && !alt.scaleConflict })
 			if i == -1 {
-				p.log.Debugf("no alternative had data for virtual metric '%s'", agg.config.Name)
+				p.log.Debugf("no compatible alternative had data for virtual metric '%s'", agg.config.Name)
 				continue
 			}
 			winner := agg.alts[i]
@@ -106,6 +107,10 @@ func (p *vmetricsCollector) emit(aggrs []*vmetricsAggregator) []ddsnmp.Metric {
 		// --- Plain VM
 		if !agg.hadData {
 			p.log.Debugf("no source metrics found for virtual metric '%s'", agg.config.Name)
+			continue
+		}
+		if agg.scaleConflict {
+			p.log.Warningf("virtual metric '%s' has source metrics with incompatible scale factors, skipping", agg.config.Name)
 			continue
 		}
 		agg.emitInto(&out)
@@ -126,6 +131,12 @@ type (
 		// metricType is inferred from the first seen source sample for this aggregator.
 		// If sources disagree, the first one wins (caller may log/debug mismatches).
 		metricType ddprofiledefinition.ProfileMetricType
+		scaleMul   int
+		scaleDiv   int
+		scaleSet   bool
+		// A virtual metric has one chart-level scale. Mixed source scales cannot
+		// be represented safely without per-dimension scale metadata.
+		scaleConflict bool
 
 		// --- grouping controls ---
 		// grouped is true when PerRow is set OR len(GroupBy) > 0.
@@ -216,6 +227,19 @@ func (agg *vmetricsAggregator) accumulateTotal(sink vmetricsSink, v int64, mv ma
 	agg.sum += v
 }
 
+func (agg *vmetricsAggregator) observeScale(m ddsnmp.Metric) {
+	mul, div := m.Scale()
+	if !agg.scaleSet {
+		agg.scaleMul = mul
+		agg.scaleDiv = div
+		agg.scaleSet = true
+		return
+	}
+	if agg.scaleMul != mul || agg.scaleDiv != div {
+		agg.scaleConflict = true
+	}
+}
+
 func (agg *vmetricsAggregator) accumulateGroupedWithKey(sink vmetricsSink, gkey string, v int64, tags map[string]string) {
 	agg.hadData = true
 
@@ -261,6 +285,7 @@ func (agg *vmetricsAggregator) emitGroupedAs(out *[]ddsnmp.Metric, name string, 
 			Table:       agg.groupTable, // winner's table (e.g., ifXTable or ifTable)
 			Tags:        b.emitTags,
 		}
+		agg.setMetricScale(&vm)
 		if len(agg.dimNames) > 0 {
 			mv := make(map[string]int64, len(agg.dimNames))
 			for i, dn := range agg.dimNames {
@@ -285,6 +310,7 @@ func (agg *vmetricsAggregator) emitTotalAs(out *[]ddsnmp.Metric, name string, me
 		ChartType:   meta.Type,
 		MetricType:  agg.metricType,
 	}
+	agg.setMetricScale(&vm)
 	switch {
 	case len(agg.perDim) > 0:
 		vm.MultiValue = agg.perDim
@@ -294,6 +320,14 @@ func (agg *vmetricsAggregator) emitTotalAs(out *[]ddsnmp.Metric, name string, me
 		vm.Value = agg.sum
 	}
 	*out = append(*out, vm)
+}
+
+func (agg *vmetricsAggregator) setMetricScale(m *ddsnmp.Metric) {
+	if !agg.scaleSet || agg.scaleConflict || (agg.scaleMul == 1 && agg.scaleDiv == 1) {
+		return
+	}
+	m.ScaleMul = agg.scaleMul
+	m.ScaleDiv = agg.scaleDiv
 }
 
 func (p *vmetricsCollector) buildAggregators(profDef *ddprofiledefinition.ProfileDefinition) (map[vmetricsSourceKey][]vmetricsSink, []*vmetricsAggregator) {

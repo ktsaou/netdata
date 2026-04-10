@@ -221,13 +221,13 @@ func (c *Collector) addProfileScalarMetricChart(m ddsnmp.Metric) {
 			if !seen[k] {
 				seen[k] = true
 				id := fmt.Sprintf("snmp_device_prof_%s_%s", m.Name, k)
-				chart.Dims = append(chart.Dims, &collectorapi.Dim{ID: id, Name: k, Algo: dimAlgoFromDdSnmpType(m)})
+				chart.Dims = append(chart.Dims, newProfileMetricDim(m, id, k))
 			}
 		}
 	} else {
 		id := fmt.Sprintf("snmp_device_prof_%s", m.Name)
 		chart.Dims = collectorapi.Dims{
-			{ID: id, Name: m.Name, Algo: dimAlgoFromDdSnmpType(m)},
+			newProfileMetricDim(m, id, m.Name),
 		}
 	}
 
@@ -282,13 +282,13 @@ func (c *Collector) addProfileTableMetricChart(m ddsnmp.Metric) {
 			if !seen[k] {
 				seen[k] = true
 				id := fmt.Sprintf("snmp_device_prof_%s_%s", key, k)
-				chart.Dims = append(chart.Dims, &collectorapi.Dim{ID: id, Name: k, Algo: dimAlgoFromDdSnmpType(m)})
+				chart.Dims = append(chart.Dims, newProfileMetricDim(m, id, k))
 			}
 		}
 	} else {
 		id := fmt.Sprintf("snmp_device_prof_%s", key)
 		chart.Dims = collectorapi.Dims{
-			{ID: id, Name: m.Name, Algo: dimAlgoFromDdSnmpType(m)},
+			newProfileMetricDim(m, id, m.Name),
 		}
 	}
 
@@ -336,6 +336,16 @@ func dimAlgoFromDdSnmpType(m ddsnmp.Metric) collectorapi.DimAlgo {
 		return collectorapi.Absolute
 	default:
 		return collectorapi.Incremental
+	}
+}
+
+func newProfileMetricDim(m ddsnmp.Metric, id, name string) *collectorapi.Dim {
+	return &collectorapi.Dim{
+		ID:   id,
+		Name: name,
+		Algo: dimAlgoFromDdSnmpType(m),
+		Mul:  m.ScaleMul,
+		Div:  m.ScaleDiv,
 	}
 }
 

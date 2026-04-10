@@ -51,7 +51,7 @@ func (p *numericValueProcessor) processOpaqueFloat(sym ddprofiledefinition.Symbo
 		return 0, fmt.Errorf("OpaqueFloat has unexpected type %T", pdu.Value)
 	}
 
-	if sym.ScaleFactor != 0 {
+	if shouldApplyScaleFactorToValue(sym, pdu) {
 		return int64(float64(floatVal) * sym.ScaleFactor), nil
 	}
 	return int64(floatVal), nil
@@ -63,7 +63,7 @@ func (p *numericValueProcessor) processOpaqueDouble(sym ddprofiledefinition.Symb
 		return 0, fmt.Errorf("OpaqueDouble has unexpected type %T", pdu.Value)
 	}
 
-	if sym.ScaleFactor != 0 {
+	if shouldApplyScaleFactorToValue(sym, pdu) {
 		return int64(floatVal * sym.ScaleFactor), nil
 	}
 	return int64(floatVal), nil
@@ -82,7 +82,7 @@ func (p *numericValueProcessor) processInteger(sym ddprofiledefinition.SymbolCon
 		}
 	}
 
-	if sym.ScaleFactor != 0 {
+	if shouldApplyScaleFactorToValue(sym, pdu) {
 		value = int64(float64(value) * sym.ScaleFactor)
 	}
 
@@ -122,7 +122,7 @@ func (p *stringValueProcessor) processValue(sym ddprofiledefinition.SymbolConfig
 		return 0, err
 	}
 
-	if sym.ScaleFactor != 0 {
+	if shouldApplyScaleFactorToValue(sym, pdu) {
 		value = int64(float64(value) * sym.ScaleFactor)
 	}
 
