@@ -1430,6 +1430,42 @@ func TestProfile_MultipleExtends_LaterOverrideEarlier(t *testing.T) {
 	assert.Equal(t, "base2", mergedStaticTags["source"])
 }
 
+func TestProfile_MultipleExtends_PreservesScalarSameNameFallbackOIDs(t *testing.T) {
+	tmp := t.TempDir()
+
+	writeYAML(t, filepath.Join(tmp, "_base1.yaml"), ddprofiledefinition.ProfileDefinition{
+		Metrics: []ddprofiledefinition.MetricsConfig{
+			{
+				Symbol: ddprofiledefinition.SymbolConfig{
+					OID:  "1.3.6.1.2.1.25.1.1.0",
+					Name: "systemUptime",
+				},
+			},
+		},
+	})
+	writeYAML(t, filepath.Join(tmp, "_base2.yaml"), ddprofiledefinition.ProfileDefinition{
+		Metrics: []ddprofiledefinition.MetricsConfig{
+			{
+				Symbol: ddprofiledefinition.SymbolConfig{
+					OID:  "1.3.6.1.2.1.1.3.0",
+					Name: "systemUptime",
+				},
+			},
+		},
+	})
+	writeYAML(t, filepath.Join(tmp, "device.yaml"), map[string]any{
+		"extends": []string{"_base1.yaml", "_base2.yaml"},
+	})
+
+	prof, err := loadProfile(filepath.Join(tmp, "device.yaml"), multipath.New(tmp))
+	require.NoError(t, err)
+	require.Len(t, prof.Definition.Metrics, 2)
+	assert.Equal(t, "systemUptime", prof.Definition.Metrics[0].Symbol.Name)
+	assert.Equal(t, "1.3.6.1.2.1.1.3.0", prof.Definition.Metrics[0].Symbol.OID)
+	assert.Equal(t, "systemUptime", prof.Definition.Metrics[1].Symbol.Name)
+	assert.Equal(t, "1.3.6.1.2.1.25.1.1.0", prof.Definition.Metrics[1].Symbol.OID)
+}
+
 func TestProfile_ComplexHierarchy(t *testing.T) {
 	tmp := t.TempDir()
 

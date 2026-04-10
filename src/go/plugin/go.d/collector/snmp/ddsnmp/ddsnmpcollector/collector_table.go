@@ -92,7 +92,7 @@ type (
 
 		// columnOIDs maps column OIDs to all symbol configurations that read from them.
 		// A single column can back multiple metrics when profiles use different
-		// extract_value rules on the same raw OID, such as BGP last-error code/subcode.
+		// extract_value rules on the same raw OID, such as separate code/subcode fields.
 		// Key: column OID (e.g., "1.3.6.1.2.1.2.2.1.10"), Value: symbol configs
 		columnOIDs map[string][]ddprofiledefinition.SymbolConfig
 

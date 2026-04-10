@@ -2,6 +2,17 @@
 
 ### Merged Pull Requests:
 
+- Stabilize runtime metrics shutdown test ([#22169](https://github.com/netdata/netdata/issues/22169))
+- Chore(go): go fix ([#22173](https://github.com/netdata/netdata/issues/22173))
+- Chore(go/ibm.d): remove buildtag comment ([#22174](https://github.com/netdata/netdata/issues/22174))
+- Ci(go-tests): add "go fix" check to workflow ([#22172](https://github.com/netdata/netdata/issues/22172))
+- Feat(go.d/snmp): add SNMPv3 context name support ([#22175](https://github.com/netdata/netdata/issues/22175))
+- Regenerate integrations docs ([#22176](https://github.com/netdata/netdata/issues/22176))
+
+## [2.10.0] - 2026-04-09
+
+### Merged Pull Requests:
+
 - Increase minimum language standards to C17 and C++17, and update to the latest versions of Protobuf and Abseil. ([#21574](https://github.com/netdata/netdata/issues/21574))
 - Drop Ubuntu 20.04 from CI and package builds. ([#21647](https://github.com/netdata/netdata/issues/21647))
 - Clarify default storage retention limits in docs ([#21780](https://github.com/netdata/netdata/issues/21780))

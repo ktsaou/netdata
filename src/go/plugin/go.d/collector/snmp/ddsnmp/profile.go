@@ -18,9 +18,7 @@ type scalarMetricKey struct {
 }
 
 type columnMetricKey struct {
-	tableOID   string
-	tableName  string
-	symbolOID  string
+	table      string
 	symbolName string
 }
 
@@ -155,12 +153,14 @@ func (p *Profile) merge(base *Profile) {
 func (p *Profile) mergeMetrics(base *Profile) {
 	seenScalars := make(map[scalarMetricKey]bool)
 	seenColumns := make(map[columnMetricKey]bool)
+	seenTableOIDs := make(map[string]string)
 
 	for _, m := range p.Definition.Metrics {
 		switch {
 		case m.IsScalar():
 			seenScalars[scalarMetricKey{name: m.Symbol.Name, oid: m.Symbol.OID}] = true
 		case m.IsColumn():
+			seenTableOIDs[columnMetricTableIdentity(m.Table)] = m.Table.OID
 			for _, sym := range m.Symbols {
 				seenColumns[columnMetricSymbolKey(m.Table, sym)] = true
 			}
@@ -176,14 +176,23 @@ func (p *Profile) mergeMetrics(base *Profile) {
 				seenScalars[key] = true
 			}
 		case bm.IsColumn():
-			bm.Symbols = slices.DeleteFunc(bm.Symbols, func(sym ddprofiledefinition.SymbolConfig) bool {
+			tableID := columnMetricTableIdentity(bm.Table)
+			if tableOID, ok := seenTableOIDs[tableID]; ok && tableOID != bm.Table.OID {
+				continue
+			}
+
+			symbols := make([]ddprofiledefinition.SymbolConfig, 0, len(bm.Symbols))
+			for _, sym := range bm.Symbols {
 				key := columnMetricSymbolKey(bm.Table, sym)
-				v := seenColumns[key]
-				seenColumns[key] = true
-				return v
-			})
+				if seenColumns[key] {
+					continue
+				}
+				symbols = append(symbols, sym)
+			}
+			bm.Symbols = symbols
 			if len(bm.Symbols) > 0 {
 				p.Definition.Metrics = append(p.Definition.Metrics, bm)
+				seenTableOIDs[tableID] = bm.Table.OID
 			}
 		}
 	}
@@ -203,11 +212,16 @@ func (p *Profile) mergeMetrics(base *Profile) {
 
 func columnMetricSymbolKey(table ddprofiledefinition.SymbolConfig, sym ddprofiledefinition.SymbolConfig) columnMetricKey {
 	return columnMetricKey{
-		tableOID:   table.OID,
-		tableName:  table.Name,
-		symbolOID:  sym.OID,
+		table:      columnMetricTableIdentity(table),
 		symbolName: sym.Name,
 	}
+}
+
+func columnMetricTableIdentity(table ddprofiledefinition.SymbolConfig) string {
+	if table.Name != "" {
+		return table.Name
+	}
+	return table.OID
 }
 
 func (p *Profile) mergeMetadata(base *Profile) {

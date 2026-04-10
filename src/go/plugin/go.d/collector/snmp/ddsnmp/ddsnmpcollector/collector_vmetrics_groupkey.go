@@ -33,7 +33,7 @@ func vmBuildGroupKey(tags map[string]string, agg *vmetricsAggregator) (string, b
 			agg.keyBuf.Reset()
 		}
 
-		// per-row without group_by: stable key from all non-underscore tags
+		// per-row without group_by: stable length-prefixed key from all non-underscore tags
 		keys := make([]string, 0, len(tags))
 		for key := range tags {
 			if !strings.HasPrefix(key, "_") {

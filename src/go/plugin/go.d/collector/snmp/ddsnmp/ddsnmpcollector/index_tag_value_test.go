@@ -53,6 +53,24 @@ func TestTableRowProcessor_ProcessIndexTag_RegexMappedFamily(t *testing.T) {
 	assert.Equal(t, "vpn", tagValue)
 }
 
+func TestTableRowProcessor_ProcessIndexTag_PositionUsesSymbolNameFallback(t *testing.T) {
+	p := newTableRowProcessor(logger.New())
+
+	tagName, tagValue, err := p.processIndexTag(ddprofiledefinition.MetricTagConfig{
+		Index: 2,
+		Symbol: ddprofiledefinition.SymbolConfigCompat{
+			Name: "neighbor",
+		},
+		Mapping: map[string]string{
+			"42": "mapped",
+		},
+	}, "7.42.9")
+
+	require.NoError(t, err)
+	assert.Equal(t, "neighbor", tagName)
+	assert.Equal(t, "mapped", tagValue)
+}
+
 func TestTableRowProcessor_ProcessIndexTag_IPv4zAddress(t *testing.T) {
 	p := newTableRowProcessor(logger.New())
 

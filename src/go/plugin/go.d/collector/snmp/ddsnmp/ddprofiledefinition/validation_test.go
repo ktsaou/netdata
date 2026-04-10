@@ -474,6 +474,21 @@ func Test_validateEnrichMetrics(t *testing.T) {
 	}
 }
 
+func Test_validateEnrichMetricTag_MappingErrorUsesReadableFormat(t *testing.T) {
+	tag := MetricTagConfig{
+		Mapping: map[string]string{
+			"1": "up",
+		},
+	}
+
+	err := validateEnrichMetricTag(&tag)
+
+	if assert.Error(t, err) {
+		assert.Contains(t, err.Error(), "map[1:up]")
+		assert.NotContains(t, err.Error(), "%!s")
+	}
+}
+
 func Test_validateEnrichVirtualMetrics(t *testing.T) {
 	baseMetrics := []MetricsConfig{
 		{
@@ -821,6 +836,35 @@ func Test_validateEnrichMetricTags(t *testing.T) {
 				{
 					Symbol: SymbolConfigCompat{
 						Name: "mySymbol",
+					},
+				},
+			},
+		},
+		"raw index transform with drop_right": {
+			wantError: false,
+			metrics: []MetricTagConfig{
+				{
+					Tag: "remote_addr",
+					IndexTransform: []MetricIndexTransform{
+						{
+							Start:     2,
+							DropRight: 2,
+						},
+					},
+				},
+			},
+		},
+		"raw index transform cannot combine end and drop_right": {
+			wantError: true,
+			metrics: []MetricTagConfig{
+				{
+					Tag: "remote_addr",
+					IndexTransform: []MetricIndexTransform{
+						{
+							Start:     2,
+							End:       6,
+							DropRight: 2,
+						},
 					},
 				},
 			},

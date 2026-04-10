@@ -43,7 +43,6 @@ func (r *crossTableResolver) resolveLookupIndexByValue(
 
 	rowIndex, err := r.findRowIndexByLookupValue(tagCfg, normalizedLookupValue, refTablePDUs)
 	if err != nil {
-		ctx.lookupIndexCache[cacheKey] = ""
 		return "", err
 	}
 
