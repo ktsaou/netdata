@@ -105,7 +105,6 @@ func (c *Collector) Collect() ([]*ddsnmp.ProfileMetrics, error) {
 		}
 
 		c.updateProfileMetrics(pm)
-		pm.HiddenMetrics = collectHiddenMetrics(pm.Metrics)
 
 		metrics = append(metrics, pm)
 
@@ -120,6 +119,7 @@ func (c *Collector) Collect() ([]*ddsnmp.ProfileMetrics, error) {
 			pm.Stats.Timing.VirtualMetrics = time.Since(now)
 		}
 
+		pm.HiddenMetrics = collectHiddenMetrics(pm.Metrics)
 		pm.Metrics = slices.DeleteFunc(pm.Metrics, func(m ddsnmp.Metric) bool { return strings.HasPrefix(m.Name, "_") })
 	}
 

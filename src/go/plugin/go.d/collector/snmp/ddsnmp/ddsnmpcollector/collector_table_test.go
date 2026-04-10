@@ -4102,6 +4102,28 @@ func TestTableCollector_Collect(t *testing.T) {
 	}
 }
 
+func TestBuildColumnOIDs_SkipsConstantValueOneSymbols(t *testing.T) {
+	cfg := ddprofiledefinition.MetricsConfig{
+		Symbols: []ddprofiledefinition.SymbolConfig{
+			{
+				OID:  "1.2.3.1",
+				Name: "real_metric",
+			},
+			{
+				OID:              "1.2.3.2",
+				Name:             "_row_anchor",
+				ConstantValueOne: true,
+			},
+		},
+	}
+
+	got := buildColumnOIDs(cfg)
+
+	require.Len(t, got, 1)
+	require.Contains(t, got, "1.2.3.1")
+	assert.NotContains(t, got, "1.2.3.2")
+}
+
 func TestCollector_Collect_TableCaching(t *testing.T) {
 	tests := map[string]struct {
 		profiles       []*ddsnmp.Profile

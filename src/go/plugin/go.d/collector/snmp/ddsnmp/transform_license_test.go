@@ -69,6 +69,14 @@ func TestLicenseDateFromTagTransform_ParsesCheckpointShortDate(t *testing.T) {
 	assert.NotZero(t, m.Value)
 }
 
+func TestLicenseDateFromTagTransform_RejectsAmbiguousSlashDate(t *testing.T) {
+	m := &Metric{Value: 999, Tags: map[string]string{"x": "01/02/2024"}}
+	runLicenseTransform(t, `{{- licenseDateFromTag .Metric "x" "expiry_timestamp" -}}`, m)
+
+	assert.Empty(t, m.Tags["_license_value_kind"])
+	assert.EqualValues(t, 999, m.Value)
+}
+
 func TestLicenseDateFromTagTransform_RejectsSentinels(t *testing.T) {
 	cases := []string{"0", "never", "perpetual", "n/a", "4294967295", ""}
 	for _, raw := range cases {

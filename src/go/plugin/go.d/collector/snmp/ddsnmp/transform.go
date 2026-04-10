@@ -398,13 +398,12 @@ func newMetricTransformFuncMap() template.FuncMap {
 // textDateLayouts is the set of vendor-friendly date formats accepted by
 // text_date and licenseDateFromTag. The list is intentionally generous:
 // vendors that publish operational dates through SNMP rarely agree on a single
-// textual format. parseTextDate stops at the first layout that succeeds.
+// textual format. Numeric slash-only dates are intentionally excluded because
+// dd/mm/yyyy and mm/dd/yyyy are ambiguous for values like 01/02/2024.
 var textDateLayouts = []string{
 	time.RFC3339,
 	"2006-01-02 15:04:05",
 	"2006-01-02",
-	"02/01/2006",
-	"01/02/2006",
 	"Mon Jan 2 15:04:05 2006",
 	"Mon Jan 2 2006",
 	"Mon 2 January 2006",

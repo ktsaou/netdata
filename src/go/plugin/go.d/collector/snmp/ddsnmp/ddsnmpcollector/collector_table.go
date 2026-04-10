@@ -653,7 +653,7 @@ func parseStaticTags(staticTags []ddprofiledefinition.StaticMetricTagConfig) map
 func buildColumnOIDs(cfg ddprofiledefinition.MetricsConfig) map[string][]ddprofiledefinition.SymbolConfig {
 	columnOIDs := make(map[string][]ddprofiledefinition.SymbolConfig)
 	for _, sym := range cfg.Symbols {
-		if sym.OID == "" {
+		if sym.OID == "" || sym.ConstantValueOne {
 			continue
 		}
 		columnOID := trimOID(sym.OID)

@@ -189,6 +189,15 @@ func TestCollector_Collect_PreservesHiddenMetrics(t *testing.T) {
 						},
 					},
 				},
+				{
+					Name: "_privateMetric_total",
+					Sources: []ddprofiledefinition.VirtualMetricSourceConfig{
+						{
+							Metric: "_privateMetric",
+							Table:  "privateTable",
+						},
+					},
+				},
 			},
 		},
 	}
@@ -208,8 +217,9 @@ func TestCollector_Collect_PreservesHiddenMetrics(t *testing.T) {
 	require.Len(t, results, 1)
 
 	pm := results[0]
-	require.Len(t, pm.HiddenMetrics, 1)
+	require.Len(t, pm.HiddenMetrics, 2)
 	assert.Equal(t, "_privateMetric", pm.HiddenMetrics[0].Name)
+	assert.Equal(t, "_privateMetric_total", pm.HiddenMetrics[1].Name)
 	require.Len(t, pm.Metrics, 1)
 	assert.Equal(t, "privateMetric_total", pm.Metrics[0].Name)
 }
