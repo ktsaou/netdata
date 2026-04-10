@@ -25,11 +25,11 @@ type bgpPeerColumn struct {
 }
 
 type funcBGPPeers struct {
-	router *funcRouter
+	cache *bgpPeerCache
 }
 
-func newFuncBGPPeers(r *funcRouter) *funcBGPPeers {
-	return &funcBGPPeers{router: r}
+func newFuncBGPPeers(cache *bgpPeerCache) *funcBGPPeers {
+	return &funcBGPPeers{cache: cache}
 }
 
 func bgpPeerColumnSet(cols []bgpPeerColumn) funcapi.ColumnSet[bgpPeerColumn] {
@@ -71,7 +71,7 @@ func (f *funcBGPPeers) Handle(_ context.Context, method string, params funcapi.R
 	if method != bgpPeersMethodID {
 		return funcapi.NotFoundResponse(method)
 	}
-	if f.router.bgpPeerCache == nil {
+	if f.cache == nil {
 		return funcapi.UnavailableResponse("BGP peer data not available yet, please retry after data collection")
 	}
 
@@ -80,15 +80,15 @@ func (f *funcBGPPeers) Handle(_ context.Context, method string, params funcapi.R
 		view = bgpPeersDefaultView
 	}
 
-	f.router.bgpPeerCache.mu.RLock()
-	defer f.router.bgpPeerCache.mu.RUnlock()
+	f.cache.mu.RLock()
+	defer f.cache.mu.RUnlock()
 
-	if len(f.router.bgpPeerCache.entries) == 0 {
+	if len(f.cache.entries) == 0 {
 		return funcapi.UnavailableResponse("no BGP peer data is available for this device")
 	}
 
-	rows := make([][]any, 0, len(f.router.bgpPeerCache.entries))
-	for _, entry := range f.router.bgpPeerCache.entries {
+	rows := make([][]any, 0, len(f.cache.entries))
+	for _, entry := range f.cache.entries {
 		if !matchesBGPPeerView(entry.scope, view) {
 			continue
 		}

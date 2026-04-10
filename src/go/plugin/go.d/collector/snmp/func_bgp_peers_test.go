@@ -17,8 +17,7 @@ import (
 )
 
 func newTestFuncBGPPeers(cache *bgpPeerCache) *funcBGPPeers {
-	r := &funcRouter{bgpPeerCache: cache}
-	return newFuncBGPPeers(r)
+	return newFuncBGPPeers(cache)
 }
 
 func TestBGPLastErrorText(t *testing.T) {
@@ -135,10 +134,9 @@ func TestBGPAdminStatus(t *testing.T) {
 
 func TestBGPPeerCacheUsesStableIdentityAndMutableTags(t *testing.T) {
 	cache := newBGPPeerCache()
-	coll := &Collector{bgpPeerCache: cache}
-	coll.resetBGPPeerCache()
+	cache.reset()
 
-	coll.updateBGPPeerCacheEntry(ddsnmp.Metric{
+	cache.updateEntry(ddsnmp.Metric{
 		Name:    "bgp.peers.availability",
 		IsTable: true,
 		Tags: map[string]string{
@@ -150,7 +148,7 @@ func TestBGPPeerCacheUsesStableIdentityAndMutableTags(t *testing.T) {
 		},
 		MultiValue: map[string]int64{"admin_enabled": 0},
 	})
-	coll.updateBGPPeerCacheEntry(ddsnmp.Metric{
+	cache.updateEntry(ddsnmp.Metric{
 		Name:    "bgp.peers.connection_state",
 		IsTable: true,
 		Tags: map[string]string{
@@ -162,7 +160,7 @@ func TestBGPPeerCacheUsesStableIdentityAndMutableTags(t *testing.T) {
 		},
 		MultiValue: map[string]int64{"established": 1},
 	})
-	coll.finalizeBGPPeerCache()
+	cache.finalize()
 
 	require.Len(t, cache.entries, 1)
 	var entry *bgpPeerEntry
@@ -179,8 +177,7 @@ func TestBGPPeerCacheUsesStableIdentityAndMutableTags(t *testing.T) {
 
 func TestFuncBGPPeersHandle(t *testing.T) {
 	cache := newBGPPeerCache()
-	coll := &Collector{bgpPeerCache: cache}
-	coll.resetBGPPeerCache()
+	cache.reset()
 
 	peerTags := map[string]string{
 		"routing_instance":  "blue",
@@ -211,9 +208,9 @@ func TestFuncBGPPeersHandle(t *testing.T) {
 		{Name: "bgp.peer_families.graceful_restart_state", IsTable: true, Tags: familyTags, MultiValue: map[string]int64{"restart_time_wait": 1}},
 		{Name: "bgp.peer_families.unavailability_reason", IsTable: true, Tags: familyTags, MultiValue: map[string]int64{"peer_not_ready": 1}},
 	} {
-		coll.updateBGPPeerCacheEntry(metric)
+		cache.updateEntry(metric)
 	}
-	coll.finalizeBGPPeerCache()
+	cache.finalize()
 
 	tests := map[string]struct {
 		params   funcapi.ResolvedParams
@@ -320,9 +317,10 @@ func TestCollectSNMP_HidesBGPDiagnosticsButKeepsFunctionCache(t *testing.T) {
 		assert.NotContains(t, key, "last_error")
 	}
 
-	require.NotNil(t, collr.bgpPeerCache)
-	require.Len(t, collr.bgpPeerCache.entries, 1)
-	for _, entry := range collr.bgpPeerCache.entries {
+	require.NotNil(t, collr.bgp)
+	require.NotNil(t, collr.bgp.peerCache)
+	require.Len(t, collr.bgp.peerCache.entries, 1)
+	for _, entry := range collr.bgp.peerCache.entries {
 		assert.Equal(t, "OPEN Message Error - Bad BGP Identifier", entry.lastErrorText)
 	}
 }

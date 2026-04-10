@@ -12,20 +12,27 @@ import (
 
 // funcRouter routes method calls to appropriate function handlers.
 type funcRouter struct {
-	ifaceCache   *ifaceCache
-	bgpPeerCache *bgpPeerCache
+	ifaceCache *ifaceCache
 
 	handlers map[string]funcapi.MethodHandler
 }
 
-func newFuncRouter(ifaceCache *ifaceCache, bgpPeerCache *bgpPeerCache) *funcRouter {
+type registeredSNMPFunction struct {
+	methodID string
+	handler  funcapi.MethodHandler
+}
+
+func newFuncRouter(ifaceCache *ifaceCache, extraHandlers ...registeredSNMPFunction) *funcRouter {
 	r := &funcRouter{
-		ifaceCache:   ifaceCache,
-		bgpPeerCache: bgpPeerCache,
-		handlers:     make(map[string]funcapi.MethodHandler),
+		ifaceCache: ifaceCache,
+		handlers:   make(map[string]funcapi.MethodHandler),
 	}
 	r.handlers[ifacesMethodID] = newFuncInterfaces(r)
-	r.handlers[bgpPeersMethodID] = newFuncBGPPeers(r)
+	for _, h := range extraHandlers {
+		if h.methodID != "" && h.handler != nil {
+			r.handlers[h.methodID] = h.handler
+		}
+	}
 	return r
 }
 
@@ -53,10 +60,10 @@ func (r *funcRouter) Cleanup(ctx context.Context) {
 }
 
 func snmpMethods() []funcapi.MethodConfig {
-	return []funcapi.MethodConfig{
+	methods := []funcapi.MethodConfig{
 		ifacesMethodConfig(),
-		bgpPeersMethodConfig(),
 	}
+	return append(methods, collectorSpecificMethodConfigs()...)
 }
 
 func snmpFunctionHandler(job collectorapi.RuntimeJob) funcapi.MethodHandler {

@@ -68,22 +68,22 @@ func newBGPPeerCache() *bgpPeerCache {
 	}
 }
 
-func (c *Collector) resetBGPPeerCache() {
-	if c.bgpPeerCache == nil {
+func (c *bgpPeerCache) reset() {
+	if c == nil {
 		return
 	}
 
-	c.bgpPeerCache.mu.Lock()
-	defer c.bgpPeerCache.mu.Unlock()
+	c.mu.Lock()
+	defer c.mu.Unlock()
 
-	c.bgpPeerCache.updateTime = time.Now()
-	for _, entry := range c.bgpPeerCache.entries {
+	c.updateTime = time.Now()
+	for _, entry := range c.entries {
 		entry.updated = false
 	}
 }
 
-func (c *Collector) updateBGPPeerCacheEntry(metric ddsnmp.Metric) {
-	if c.bgpPeerCache == nil || !metric.IsTable || !isBGPPeerFunctionMetric(metric.Name) || len(metric.Tags) == 0 {
+func (c *bgpPeerCache) updateEntry(metric ddsnmp.Metric) {
+	if c == nil || !metric.IsTable || !isBGPPeerFunctionMetric(metric.Name) || len(metric.Tags) == 0 {
 		return
 	}
 
@@ -97,17 +97,17 @@ func (c *Collector) updateBGPPeerCacheEntry(metric ddsnmp.Metric) {
 		return
 	}
 
-	c.bgpPeerCache.mu.Lock()
-	defer c.bgpPeerCache.mu.Unlock()
+	c.mu.Lock()
+	defer c.mu.Unlock()
 
-	entry := c.bgpPeerCache.entries[key]
+	entry := c.entries[key]
 	if entry == nil {
 		entry = &bgpPeerEntry{
 			key:   key,
 			scope: scope,
 			tags:  make(map[string]string, len(metric.Tags)),
 		}
-		c.bgpPeerCache.entries[key] = entry
+		c.entries[key] = entry
 	}
 	mergeBGPPeerEntryTags(entry, metric.Tags)
 
@@ -181,21 +181,21 @@ func mergeBGPPeerEntryTags(entry *bgpPeerEntry, tags map[string]string) {
 	}
 }
 
-func (c *Collector) finalizeBGPPeerCache() {
-	if c.bgpPeerCache == nil {
+func (c *bgpPeerCache) finalize() {
+	if c == nil {
 		return
 	}
 
-	c.bgpPeerCache.mu.Lock()
-	defer c.bgpPeerCache.mu.Unlock()
+	c.mu.Lock()
+	defer c.mu.Unlock()
 
-	for key, entry := range c.bgpPeerCache.entries {
+	for key, entry := range c.entries {
 		if !entry.updated {
-			delete(c.bgpPeerCache.entries, key)
+			delete(c.entries, key)
 		}
 	}
 
-	c.bgpPeerCache.lastUpdate = c.bgpPeerCache.updateTime
+	c.lastUpdate = c.updateTime
 }
 
 func bgpPeerEntryScope(name string) string {

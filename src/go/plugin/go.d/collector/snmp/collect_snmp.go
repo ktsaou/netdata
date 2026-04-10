@@ -22,22 +22,14 @@ func (c *Collector) collectSNMP(mx map[string]int64) error {
 	}
 
 	c.resetIfaceCache()
-	c.resetBGPPeerCache()
 
-	metrics := normalizeCollectorMetrics(pms)
-	for _, metric := range metrics {
-		if isBGPPeerFunctionMetric(metric.Name) {
-			c.updateBGPPeerCacheEntry(metric)
-		}
-	}
-	metrics = filterChartMetrics(metrics)
-
+	metrics := c.prepareProfileMetrics(pms)
 	c.collectProfileScalarMetrics(mx, metrics)
 	c.collectProfileTableMetrics(mx, metrics)
 	c.collectProfileStats(mx, pms)
 
 	c.finalizeIfaceCache()
-	c.finalizeBGPPeerCache()
+	c.finalizeProfileMetrics()
 
 	return nil
 }
