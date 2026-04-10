@@ -9,7 +9,9 @@ import (
 	"math"
 	"net"
 	"strconv"
+	"strings"
 	"text/template"
+	"time"
 
 	"github.com/Masterminds/sprig/v3"
 
@@ -321,9 +323,142 @@ func newMetricTransformFuncMap() template.FuncMap {
 
 			return ""
 		},
+		"licenseDateFromTag": func(m *Metric, tagName, kind string) string {
+			/*
+				licenseDateFromTag parses a vendor date string carried in a metric tag,
+				replaces the metric value with its unix epoch, and stamps the licensing
+				value kind. Use it when the SNMP OID returns a textual date (e.g.,
+				Checkpoint's "1Jan2030", Sophos' "2026-03-15", Blue Coat's "Mar 15 2026")
+				and snmp_dateandtime cannot be applied.
+
+				kind must be one of the timestamp value kinds accepted by licenseRow:
+				expiry_timestamp, authorization_timestamp, certificate_timestamp,
+				grace_timestamp.
+
+				If parsing fails the metric is left untouched and no licensing kind is
+				stamped, so collector-level consumers can ignore the row signal.
+			*/
+			if m.Tags == nil {
+				return ""
+			}
+			raw := strings.TrimSpace(m.Tags[tagName])
+			if raw == "" {
+				return ""
+			}
+
+			ts, ok := parseTextDate(raw)
+			if !ok {
+				return ""
+			}
+			m.Value = ts
+			m.Tags["_license_value_kind"] = kind
+			return ""
+		},
+		"licenseRow": func(m *Metric, kind string) string {
+			/*
+				licenseRow marks a metric as a licensing row carrier for a collector-level
+				licensing consumer.
+
+				Profiles describe each licensing signal as a hidden ("_"-prefixed) metric
+				whose value corresponds to the signal itself (expiry epoch, used count,
+				severity, etc). The transform stamps a "value kind" tag so the collector
+				knows how to interpret the integer value.
+
+				Supported kinds:
+				  - "expiry_timestamp"           absolute unix-epoch expiry
+				  - "expiry_remaining"           seconds-from-now until expiry
+				  - "authorization_timestamp"    absolute unix-epoch auth expiry
+				  - "authorization_remaining"    seconds-from-now auth expiry
+				  - "certificate_timestamp"      absolute unix-epoch cert expiry
+				  - "certificate_remaining"      seconds-from-now cert expiry
+				  - "grace_timestamp"            absolute unix-epoch grace/eval end
+				  - "grace_remaining"            seconds-from-now grace/eval end
+				  - "usage"                      used license units (integer)
+				  - "capacity"                   total license capacity (integer)
+				  - "available"                  available license units (integer)
+				  - "usage_percent"              usage pressure in percent (0-100)
+				  - "state_severity"             normalized severity (0 healthy, 1 degraded, 2 broken)
+
+				Multiple signals for the same logical license can be merged by the
+				collector-level licensing consumer.
+			*/
+			if m.Tags == nil {
+				m.Tags = make(map[string]string)
+			}
+			m.Tags["_license_value_kind"] = kind
+			return ""
+		},
 	}
 
 	maps.Copy(fm, extra)
 
 	return fm
+}
+
+// textDateLayouts is the set of vendor-friendly date formats accepted by
+// text_date and licenseDateFromTag. The list is intentionally generous:
+// vendors that publish operational dates through SNMP rarely agree on a single
+// textual format. parseTextDate stops at the first layout that succeeds.
+var textDateLayouts = []string{
+	time.RFC3339,
+	"2006-01-02 15:04:05",
+	"2006-01-02",
+	"02/01/2006",
+	"01/02/2006",
+	"Mon Jan 2 15:04:05 2006",
+	"Mon Jan 2 2006",
+	"Mon 2 January 2006",
+	"2 January 2006",
+	"January 2 2006",
+	"Jan 2 2006",
+	"Jan 2 2006 15:04:05",
+	"2 Jan 2006",
+	"2 Jan 2006 15:04:05",
+	"02 Jan 2006",
+	"02 Jan 2006 15:04:05",
+	"02Jan2006",
+	"2Jan2006",
+}
+
+// ParseTextDate accepts integer- and string-encoded SNMP date shapes (epoch
+// seconds, milliseconds, the 0xFFFFFFFF "never" sentinel, and the textual
+// layouts above) and returns the equivalent unix timestamp. It is exported so
+// the value-processor format "text_date" in ddsnmpcollector/utils.go can apply
+// the same parsing rules.
+func ParseTextDate(raw string) (int64, bool) {
+	return parseTextDate(raw)
+}
+
+func parseTextDate(raw string) (int64, bool) {
+	raw = strings.TrimSpace(raw)
+	if raw == "" {
+		return 0, false
+	}
+	switch strings.ToLower(raw) {
+	case "0", "none", "n/a", "na", "perpetual", "permanent", "never", "unlimited":
+		return 0, false
+	}
+
+	if n, err := strconv.ParseInt(raw, 10, 64); err == nil {
+		switch {
+		case n <= 0:
+			return 0, false
+		case n == 4_294_967_295:
+			return 0, false
+		case n > 1_000_000_000_000:
+			return n / 1000, true
+		default:
+			return n, true
+		}
+	}
+
+	for _, layout := range textDateLayouts {
+		if t, err := time.Parse(layout, raw); err == nil {
+			return t.Unix(), true
+		}
+		if t, err := time.ParseInLocation(layout, raw, time.UTC); err == nil {
+			return t.Unix(), true
+		}
+	}
+	return 0, false
 }

@@ -349,7 +349,7 @@ See also
 
 #### Underscore-prefixed metrics
 
-Metric names that start with an underscore (e.g., `_ifHCInOctets`) are **private**: they’re collected but **not** propagated to the SNMP collector output. Use them as internal building blocks (typically as inputs for [virtual_metrics](#7-virtual_metrics)) so the final metric set remains clean. After virtual metrics are computed, the collector drops underscored metrics from the exported set.
+Metric names that start with an underscore (e.g., `_ifHCInOctets`) are **private**: they’re collected but **not** propagated to the SNMP collector output. Use them as internal building blocks (typically as inputs for [virtual_metrics](#7-virtual_metrics)) so the final metric set remains clean. After virtual metrics are computed, the collector drops underscored metrics from the exported set, while preserving them in the internal hidden metric set for collector-level consumers.
 
 ```yaml
 # IF-MIB::ifXTable
@@ -370,6 +370,11 @@ virtual_metrics:
       - { metric: _ifHCInOctets,  table: ifXTable, as: in }
       - { metric: _ifHCOutOctets, table: ifXTable, as: out }
 ```
+
+Hidden table symbols may also use `constant_value_one: true` to emit a row
+presence/helper metric with value `1` without polling a value column. Non-hidden
+constant table symbols are discarded during profile preparation so they do not
+create accidental chart output.
 
 #### Scalar symbol fallbacks
 
@@ -757,14 +762,15 @@ They let you distinguish between instances (for example, which interface, disk, 
 - Attaches tags to each metric as labels.
 - Uses tags to differentiate rows when building charts.
 - Requires at least one tag for every **table metric** (to identify each row).
-- Ignores tags for **scalar metrics**, which represent a single value per device.
+- Supports optional **scalar metric_tags** when a scalar metric needs
+  descriptive dynamic labels from other scalar OIDs.
 
 **Key Concepts**:
 
 | Concept                            | Description                                                                                                                                   |
 |------------------------------------|-----------------------------------------------------------------------------------------------------------------------------------------------|
 | **Table metrics must have tags**   | Each table row must be uniquely identified by at least one tag (for example, interface name or index). Without tags, only one row is emitted. |
-| **Scalar metrics don’t need tags** | Scalars represent one value for the entire device, not per-instance data.                                                                     |
+| **Scalar metrics don’t need tags for identity** | Scalars represent one value for the entire device, so tags are optional context rather than row identifiers.                      |
 | **Static tags**                    | Fixed values that never change (for example, datacenter, environment).                                                                        |
 | **Dynamic tags**                   | Extracted from SNMP data — from table columns, related tables, or row indexes.                                                                |
 | **Global tags**                    | Defined in the profile’s top-level `metric_tags` section and applied to all metrics.                                                          |
@@ -783,6 +789,8 @@ They let you distinguish between instances (for example, which interface, disk, 
 
 - Each **table metric** must define at least one **tag source** (`metric_tags`) to distinguish rows.
 - Tags can come from **the same table**, **another table**, or the **row index** itself.
+- Scalar metrics may define **symbol-based** `metric_tags` to attach
+  descriptive labels from other scalar OIDs.
 - Tag transformations (`mapping`, `extract_value`, `match_pattern`, `match + tags`) can modify or extract parts of raw values.
 - **Static tags** apply globally and are not transformed.
 - **Index transformations** are a special mechanism used only for aligning multi-part indexes between tables.
@@ -1460,6 +1468,7 @@ These transformations are typically used to:
 |---------------------------------|-------------------------------------------------------------------|-------------------------------------|
 | `mapping`                       | Convert numeric or string codes into state dimensions.            | `1 → up`, `2 → down`, `3 → testing` |
 | `extract_value`                 | Extract a numeric substring via regex.                            | `"23.8 °C" → "23"`                  |
+| `format`                        | Decode raw SNMP data into a value shape before other processing.  | DateAndTime bytes → unix timestamp  |
 | `scale_factor`                  | Multiply values by a constant to adjust units.                    | `"1.5" (MBps) × 8 → 12 (Mbps)`      |
 | `match_pattern` + `match_value` | *Not applicable* for metric values (use `extract_value` instead). | —                                   |
 
@@ -1495,6 +1504,16 @@ These transformations are typically used to:
     ```yaml
     format: hex
     extract_value: '^([0-9a-f]{2})'   # First byte of an OCTET STRING
+    ```
+
+- `format: snmp_dateandtime`
+    ```yaml
+    format: snmp_dateandtime   # SNMPv2-TC DateAndTime OCTET STRING -> unix timestamp
+    ```
+
+- `format: text_date`
+    ```yaml
+    format: text_date   # Textual dates such as "2026-12-31" -> unix timestamp
     ```
 
 - `scale_factor`
@@ -1573,6 +1592,34 @@ metrics:
 - If the value doesn’t match, the original string is retained.
 - Ideal for string metrics that embed numbers, units, or labels.
 - If `format: hex` is also set, the extracted value is interpreted as hexadecimal before being stored as a metric.
+
+### Format
+
+Use `format` to decode raw SNMP values before the rest of the value
+processor runs.
+
+Supported formats:
+
+- `hex`: decodes OCTET STRING bytes to lowercase hexadecimal text.
+- `ip_address`: decodes IP address values.
+- `mac_address`: decodes MAC address values.
+- `snmp_dateandtime`: decodes SNMPv2-TC `DateAndTime` OCTET STRING values
+  into unix timestamps.
+- `text_date`: parses common textual date strings and epoch strings into
+  unix timestamps.
+- `uint32`: interprets integer values as unsigned 32-bit values.
+
+```yaml
+metrics:
+  - MIB: EXAMPLE-MIB
+    symbol:
+      OID: 1.3.6.1.4.1.99999.1.1.0
+      name: example.expiry_timestamp
+      format: snmp_dateandtime
+```
+
+The decoded value becomes the metric value seen by later processing steps,
+such as `extract_value`, `mapping`, `scale_factor`, or `transform`.
 
 ### Scale Factor
 
