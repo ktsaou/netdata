@@ -459,6 +459,107 @@ func Test_validateEnrichMetrics(t *testing.T) {
 				},
 			},
 		},
+		"scalar metric_tags with scalar OID symbol are supported": {
+			wantError: false,
+			metrics: []MetricsConfig{
+				{
+					Symbol: SymbolConfig{
+						OID:  "1.2.3",
+						Name: "myMetric",
+					},
+					MetricTags: MetricTagConfigList{
+						{
+							OID: "1.2.4",
+							Symbol: SymbolConfigCompat{
+								Name: "stateSource",
+							},
+							Tag: "state",
+						},
+					},
+				},
+			},
+			wantMetrics: []MetricsConfig{
+				{
+					Symbol: SymbolConfig{
+						OID:  "1.2.3",
+						Name: "myMetric",
+					},
+					MetricTags: MetricTagConfigList{
+						{
+							Tag: "state",
+							Symbol: SymbolConfigCompat{
+								OID:  "1.2.4",
+								Name: "stateSource",
+							},
+						},
+					},
+				},
+			},
+		},
+		"scalar metric_tags do not support index lookups": {
+			wantError: true,
+			metrics: []MetricsConfig{
+				{
+					Symbol: SymbolConfig{
+						OID:  "1.2.3",
+						Name: "myMetric",
+					},
+					MetricTags: MetricTagConfigList{
+						{
+							Tag:   "idx",
+							Index: 1,
+						},
+					},
+				},
+			},
+		},
+		"scalar metric_tags do not support table lookups": {
+			wantError: true,
+			metrics: []MetricsConfig{
+				{
+					Symbol: SymbolConfig{
+						OID:  "1.2.3",
+						Name: "myMetric",
+					},
+					MetricTags: MetricTagConfigList{
+						{
+							Tag:   "peer",
+							Table: "ifTable",
+							Symbol: SymbolConfigCompat{
+								OID:  "1.2.4",
+								Name: "ifDescr",
+							},
+						},
+					},
+				},
+			},
+		},
+		"scalar metric_tags do not support index transforms": {
+			wantError: true,
+			metrics: []MetricsConfig{
+				{
+					Symbol: SymbolConfig{
+						OID:  "1.2.3",
+						Name: "myMetric",
+					},
+					MetricTags: MetricTagConfigList{
+						{
+							Tag: "peer",
+							Symbol: SymbolConfigCompat{
+								OID:  "1.2.4",
+								Name: "peerState",
+							},
+							IndexTransform: []MetricIndexTransform{
+								{
+									Start: 1,
+									End:   1,
+								},
+							},
+						},
+					},
+				},
+			},
+		},
 	}
 	for name, tc := range tests {
 		t.Run(name, func(t *testing.T) {

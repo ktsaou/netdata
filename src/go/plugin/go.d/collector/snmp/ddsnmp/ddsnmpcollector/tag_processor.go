@@ -3,6 +3,8 @@
 package ddsnmpcollector
 
 import (
+	"errors"
+
 	"github.com/gosnmp/gosnmp"
 
 	"github.com/netdata/netdata/go/plugins/plugin/go.d/collector/snmp/ddsnmp/ddprofiledefinition"
@@ -56,6 +58,9 @@ func (p *tableTagProcessor) processTag(cfg ddprofiledefinition.MetricTagConfig, 
 
 	val, err := convPduToStringf(pdu, cfg.Symbol.Format)
 	if err != nil {
+		if errors.Is(err, errNoTextDateValue) {
+			return nil
+		}
 		return err
 	}
 

@@ -192,6 +192,117 @@ func Test_Profile_merge(t *testing.T) {
 	}
 }
 
+func TestProfileMerge_ColumnSymbolsWithSameNameFromBaseArePreserved(t *testing.T) {
+	child := &Profile{
+		Definition: &ddprofiledefinition.ProfileDefinition{},
+	}
+	base := &Profile{
+		Definition: &ddprofiledefinition.ProfileDefinition{
+			Metrics: []ddprofiledefinition.MetricsConfig{
+				{
+					Table: ddprofiledefinition.SymbolConfig{OID: "1.2.3", Name: "tableA"},
+					Symbols: []ddprofiledefinition.SymbolConfig{
+						{OID: "1.2.3.1", Name: "_license_row"},
+						{OID: "1.2.3.2", Name: "_license_row"},
+					},
+				},
+				{
+					Table: ddprofiledefinition.SymbolConfig{OID: "1.2.4", Name: "tableB"},
+					Symbols: []ddprofiledefinition.SymbolConfig{
+						{OID: "1.2.4.1", Name: "_license_row"},
+					},
+				},
+			},
+		},
+	}
+
+	child.mergeMetrics(base)
+
+	require.Len(t, child.Definition.Metrics, 2)
+	require.Len(t, child.Definition.Metrics[0].Symbols, 2)
+	assert.Equal(t, "1.2.3.1", child.Definition.Metrics[0].Symbols[0].OID)
+	assert.Equal(t, "1.2.3.2", child.Definition.Metrics[0].Symbols[1].OID)
+	require.Len(t, child.Definition.Metrics[1].Symbols, 1)
+	assert.Equal(t, "1.2.4.1", child.Definition.Metrics[1].Symbols[0].OID)
+}
+
+func TestProfileMerge_DifferentTablesDoNotOverrideColumnsByName(t *testing.T) {
+	child := &Profile{
+		Definition: &ddprofiledefinition.ProfileDefinition{
+			Metrics: []ddprofiledefinition.MetricsConfig{
+				{
+					Table: ddprofiledefinition.SymbolConfig{OID: "9.9.9", Name: "childTable"},
+					Symbols: []ddprofiledefinition.SymbolConfig{
+						{OID: "9.9.9.1", Name: "memory.used"},
+					},
+				},
+			},
+		},
+	}
+	base := &Profile{
+		Definition: &ddprofiledefinition.ProfileDefinition{
+			Metrics: []ddprofiledefinition.MetricsConfig{
+				{
+					Table: ddprofiledefinition.SymbolConfig{OID: "1.2.3", Name: "baseTable"},
+					Symbols: []ddprofiledefinition.SymbolConfig{
+						{OID: "1.2.3.1", Name: "memory.used"},
+						{OID: "1.2.3.2", Name: "memory.free"},
+					},
+				},
+			},
+		},
+	}
+
+	child.mergeMetrics(base)
+
+	require.Len(t, child.Definition.Metrics, 2)
+	assert.Equal(t, "childTable", child.Definition.Metrics[0].Table.Name)
+	require.Len(t, child.Definition.Metrics[0].Symbols, 1)
+	assert.Equal(t, "memory.used", child.Definition.Metrics[0].Symbols[0].Name)
+	assert.Equal(t, "baseTable", child.Definition.Metrics[1].Table.Name)
+	require.Len(t, child.Definition.Metrics[1].Symbols, 2)
+	assert.Equal(t, "memory.used", child.Definition.Metrics[1].Symbols[0].Name)
+	assert.Equal(t, "memory.free", child.Definition.Metrics[1].Symbols[1].Name)
+}
+
+func TestProfileMerge_BaseScalarDuplicateAddedOnce(t *testing.T) {
+	child := &Profile{
+		Definition: &ddprofiledefinition.ProfileDefinition{},
+	}
+	base := &Profile{
+		Definition: &ddprofiledefinition.ProfileDefinition{
+			Metrics: []ddprofiledefinition.MetricsConfig{
+				{
+					Symbol: ddprofiledefinition.SymbolConfig{
+						OID:  "1.2.3.0",
+						Name: "license.expiry",
+					},
+				},
+				{
+					Symbol: ddprofiledefinition.SymbolConfig{
+						OID:  "1.2.3.0",
+						Name: "license.expiry",
+					},
+				},
+				{
+					Symbol: ddprofiledefinition.SymbolConfig{
+						OID:  "1.2.4.0",
+						Name: "license.state",
+					},
+				},
+			},
+		},
+	}
+
+	child.mergeMetrics(base)
+
+	require.Len(t, child.Definition.Metrics, 2)
+	assert.Equal(t, "license.expiry", child.Definition.Metrics[0].Symbol.Name)
+	assert.Equal(t, "1.2.3.0", child.Definition.Metrics[0].Symbol.OID)
+	assert.Equal(t, "license.state", child.Definition.Metrics[1].Symbol.Name)
+	assert.Equal(t, "1.2.4.0", child.Definition.Metrics[1].Symbol.OID)
+}
+
 func TestDeduplicateMetricsAcrossProfiles(t *testing.T) {
 	tests := map[string]struct {
 		profiles []*Profile

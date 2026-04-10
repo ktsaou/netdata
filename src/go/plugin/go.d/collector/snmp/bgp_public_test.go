@@ -12,7 +12,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/netdata/netdata/go/plugins/plugin/framework/collectorapi"
 	"github.com/netdata/netdata/go/plugins/plugin/go.d/collector/snmp/ddsnmp"
 	"github.com/netdata/netdata/go/plugins/plugin/go.d/collector/snmp/ddsnmp/ddsnmpcollector"
 )
@@ -682,14 +681,6 @@ func assertMetricNameAbsent(t *testing.T, metrics []ddsnmp.Metric, name string) 
 			t.Fatalf("unexpected metric %s with tags %v", name, metrics[i].Tags)
 		}
 	}
-}
-
-func chartLabels(chart *collectorapi.Chart) map[string]string {
-	labels := make(map[string]string, len(chart.Labels))
-	for _, label := range chart.Labels {
-		labels[label.Key] = label.Value
-	}
-	return labels
 }
 
 func tagsContained(have, want map[string]string) bool {

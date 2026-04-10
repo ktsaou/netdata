@@ -222,6 +222,22 @@ func validateEnrichMetrics(metrics []MetricsConfig) error {
 		}
 		if metricConfig.IsScalar() {
 			errs = append(errs, validateEnrichSymbol(&metricConfig.Symbol, ScalarSymbol))
+			for j := range metricConfig.MetricTags {
+				metricTag := &metricConfig.MetricTags[j]
+				errs = append(errs, validateEnrichMetricTag(metricTag))
+				if metricTag.Table != "" {
+					errs = append(errs, fmt.Errorf("scalar metric_tags do not support `table` lookups (tag=%q, table=%q)", metricTag.Tag, metricTag.Table))
+				}
+				if metricTag.Index != 0 {
+					errs = append(errs, fmt.Errorf("scalar metric_tags do not support `index` lookups (tag=%q, index=%d)", metricTag.Tag, metricTag.Index))
+				}
+				if len(metricTag.IndexTransform) > 0 {
+					errs = append(errs, fmt.Errorf("scalar metric_tags do not support `index_transform` (tag=%q)", metricTag.Tag))
+				}
+				if metricTag.Symbol.OID == "" {
+					errs = append(errs, fmt.Errorf("scalar metric_tags require `symbol.OID` (tag=%q)", metricTag.Tag))
+				}
+			}
 		}
 		if metricConfig.IsColumn() {
 			for j := range metricConfig.Symbols {

@@ -4,10 +4,12 @@ package ddsnmpcollector
 
 import (
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"regexp"
 	"strconv"
 	"strings"
+	"time"
 	"unicode/utf8"
 
 	"github.com/gosnmp/gosnmp"
@@ -15,6 +17,8 @@ import (
 	"github.com/netdata/netdata/go/plugins/plugin/go.d/collector/snmp/ddsnmp"
 	"github.com/netdata/netdata/go/plugins/plugin/go.d/collector/snmp/ddsnmp/ddprofiledefinition"
 )
+
+var errNoTextDateValue = errors.New("text_date: no timestamp value")
 
 func getMetricTypeFromPDUType(pdu gosnmp.SnmpPDU) ddprofiledefinition.ProfileMetricType {
 	switch pdu.Type {
@@ -71,6 +75,27 @@ func convPduToStringf(pdu gosnmp.SnmpPDU, format string) (string, error) {
 			return "", fmt.Errorf("cannot convert %T to hex", pdu.Value)
 		}
 		return hex.EncodeToString(bs), nil
+	case "snmp_dateandtime":
+		ts, err := convPduToDateAndTimeUnix(pdu)
+		if err != nil {
+			return "", err
+		}
+		return strconv.FormatInt(ts, 10), nil
+	case "text_date":
+		// Decode textual dates into unix timestamps directly from the
+		// fresh PDU value on every poll.
+		raw, err := convPduToString(pdu)
+		if err != nil {
+			return "", err
+		}
+		ts, ok := ddsnmp.ParseTextDate(raw)
+		if !ok {
+			if ddsnmp.IsTextDateNoValue(raw) {
+				return "", errNoTextDateValue
+			}
+			return "", fmt.Errorf("text_date: cannot parse %q", raw)
+		}
+		return strconv.FormatInt(ts, 10), nil
 	default:
 		// For unknown formats, use the default string conversion
 		return convPduToString(pdu)
@@ -92,6 +117,66 @@ func convNumericPduToInt64f(pdu gosnmp.SnmpPDU, format string) (int64, error) {
 	}
 
 	return value, nil
+}
+
+func convPduToDateAndTimeUnix(pdu gosnmp.SnmpPDU) (int64, error) {
+	var bs []byte
+
+	switch v := pdu.Value.(type) {
+	case []byte:
+		bs = v
+	case string:
+		bs = []byte(v)
+	default:
+		return 0, fmt.Errorf("cannot convert %T to SNMP DateAndTime", pdu.Value)
+	}
+
+	if len(bs) != 8 && len(bs) != 11 {
+		return 0, fmt.Errorf("invalid SNMP DateAndTime length %d", len(bs))
+	}
+
+	year := int(bs[0])<<8 | int(bs[1])
+	month := time.Month(bs[2])
+	day := int(bs[3])
+	hour := int(bs[4])
+	minute := int(bs[5])
+	second := int(bs[6])
+	deci := int(bs[7])
+
+	// The 8-octet SNMPv2-TC DateAndTime form omits timezone fields when
+	// only local time is known. The collector does not know the device's
+	// timezone, so it uses UTC as a deterministic fallback; 11-octet values
+	// use their embedded UTC offset below.
+	loc := time.UTC
+	if len(bs) == 11 {
+		sign := bs[8]
+		tzHours := int(bs[9])
+		tzMinutes := int(bs[10])
+		if sign != '+' && sign != '-' {
+			return 0, fmt.Errorf("invalid SNMP DateAndTime UTC direction %q", sign)
+		}
+		if tzHours > 13 {
+			return 0, fmt.Errorf("invalid SNMP DateAndTime UTC hours offset %d", tzHours)
+		}
+		if tzMinutes > 59 {
+			return 0, fmt.Errorf("invalid SNMP DateAndTime UTC minutes offset %d", tzMinutes)
+		}
+		offset := tzHours*3600 + tzMinutes*60
+		if sign == '-' {
+			offset = -offset
+		}
+		loc = time.FixedZone("snmp", offset)
+	}
+
+	if second == 60 {
+		return 0, fmt.Errorf("unsupported SNMP DateAndTime leap second")
+	}
+
+	tm := time.Date(year, month, day, hour, minute, second, deci*100_000_000, loc)
+	if tm.Year() != year || tm.Month() != month || tm.Day() != day || tm.Hour() != hour || tm.Minute() != minute || tm.Second() != second || tm.Nanosecond()/100_000_000 != deci {
+		return 0, fmt.Errorf("invalid SNMP DateAndTime value")
+	}
+	return tm.Unix(), nil
 }
 
 func convPduToString(pdu gosnmp.SnmpPDU) (string, error) {

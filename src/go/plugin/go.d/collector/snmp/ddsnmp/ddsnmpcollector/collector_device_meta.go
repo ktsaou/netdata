@@ -176,6 +176,9 @@ func (dc *deviceMetadataCollector) processSymbolValue(cfg ddprofiledefinition.Sy
 
 	val, err := convPduToStringf(pdu, cfg.Format)
 	if err != nil {
+		if errors.Is(err, errNoTextDateValue) {
+			return "", nil
+		}
 		return "", err
 	}
 

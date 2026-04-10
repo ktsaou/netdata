@@ -541,6 +541,9 @@ func (tc *tableCollector) buildMetricsFromCache(ctx *cacheProcessingContext, sta
 			for _, sym := range syms {
 				value, err := tc.valProc.processValue(sym, pdu)
 				if err != nil {
+					if errors.Is(err, errNoTextDateValue) {
+						continue
+					}
 					stats.Errors.Processing.Table++
 					tc.log.Debugf("Error processing value for %s: %v", sym.Name, err)
 					continue

@@ -114,11 +114,13 @@ func (c *Collector) Collect() ([]*ddsnmp.ProfileMetrics, error) {
 				vmetrics[i].Profile = pm
 			}
 
-			pm.Metrics = slices.DeleteFunc(pm.Metrics, func(m ddsnmp.Metric) bool { return strings.HasPrefix(m.Name, "_") })
 			pm.Metrics = append(pm.Metrics, vmetrics...)
 			pm.Stats.Metrics.Virtual += int64(len(vmetrics))
 			pm.Stats.Timing.VirtualMetrics = time.Since(now)
 		}
+
+		pm.HiddenMetrics = collectHiddenMetrics(pm.Metrics)
+		pm.Metrics = slices.DeleteFunc(pm.Metrics, func(m ddsnmp.Metric) bool { return strings.HasPrefix(m.Name, "_") })
 	}
 
 	if len(metrics) == 0 && len(errs) > 0 {
@@ -129,6 +131,16 @@ func (c *Collector) Collect() ([]*ddsnmp.ProfileMetrics, error) {
 	}
 
 	return metrics, nil
+}
+
+func collectHiddenMetrics(metrics []ddsnmp.Metric) []ddsnmp.Metric {
+	var hidden []ddsnmp.Metric
+	for _, metric := range metrics {
+		if strings.HasPrefix(metric.Name, "_") {
+			hidden = append(hidden, metric)
+		}
+	}
+	return hidden
 }
 
 func (c *Collector) SetSNMPClient(snmpClient gosnmp.Handler) {

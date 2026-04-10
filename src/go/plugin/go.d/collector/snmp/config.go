@@ -22,7 +22,8 @@ type (
 
 		ManualProfiles []string `yaml:"manual_profiles,omitempty" json:"manual_profiles"`
 
-		Ping PingConfig `yaml:"ping,omitempty" json:"ping"`
+		PingOnly bool       `yaml:"ping_only,omitempty" json:"ping_only"`
+		Ping     PingConfig `yaml:"ping,omitempty" json:"ping"`
 	}
 
 	PingConfig struct {
@@ -41,7 +42,7 @@ type (
 	}
 	OptionsConfig struct {
 		Port           int    `yaml:"port,omitempty" json:"port"`
-		Retries        int    `yaml:"retries,omitempty" json:"retries"`
+		Retries        int    `yaml:"retries" json:"retries"`
 		Timeout        int    `yaml:"timeout,omitempty" json:"timeout"`
 		Version        string `yaml:"version,omitempty" json:"version"`
 		MaxOIDs        int    `yaml:"max_request_size,omitempty" json:"max_request_size"`

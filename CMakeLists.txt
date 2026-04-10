@@ -1388,7 +1388,12 @@ set(API_PLUGIN_FILES
         src/web/api/queries/rrdr.h
         src/web/api/queries/query.c
         src/web/api/queries/query.h
+        src/web/api/queries/query-execute.c
+        src/web/api/queries/query-window.c
         src/web/api/queries/query-group-by.c
+        src/web/api/queries/query-group-by-init.c
+        src/web/api/queries/query-group-by-finalize.c
+        src/web/api/queries/query-cardinality-limit.c
         src/web/api/queries/query-group-over-time.c
         src/web/api/queries/query-internal.h
         src/web/api/queries/query-plan.c
