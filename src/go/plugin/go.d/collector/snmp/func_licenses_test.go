@@ -79,6 +79,32 @@ func TestFuncLicensesHandle(t *testing.T) {
 	assert.Equal(t, true, idCol["unique_key"])
 }
 
+func TestFuncLicensesHandle_DefaultSortUsesDisplayedLicenseValue(t *testing.T) {
+	cache := newLicenseCache()
+	cache.store(time.Date(2026, time.April, 3, 10, 0, 0, 0, time.UTC), []licenseRow{
+		{
+			ID:          "Zulu",
+			Source:      "vendor",
+			StateBucket: licenseStateBucketHealthy,
+		},
+		{
+			ID:          "alpha-id",
+			Source:      "vendor",
+			Name:        "Alpha",
+			StateBucket: licenseStateBucketHealthy,
+		},
+	})
+
+	resp := newTestFuncLicenses(cache).Handle(context.Background(), licensesMethodID, nil)
+	require.NotNil(t, resp)
+	require.Equal(t, 200, resp.Status)
+
+	rows := resp.Data.([][]any)
+	require.Len(t, rows, 2)
+	assert.Equal(t, "Alpha", rows[0][0])
+	assert.Equal(t, "Zulu", rows[1][0])
+}
+
 func TestLicenseRowUniqueKeyEscapesDelimiterContent(t *testing.T) {
 	left := licenseRow{
 		Source: "source|a",

@@ -88,7 +88,7 @@ func licenseColumnSet(cols []licenseColumn) funcapi.ColumnSet[licenseColumn] {
 }
 
 var licenseAllColumns = []licenseColumn{
-	{ColumnMeta: funcapi.ColumnMeta{Name: "License", Tooltip: "License", Type: funcapi.FieldTypeString, Visible: true, Sort: funcapi.FieldSortAscending, Summary: funcapi.FieldSummaryCount, Filter: funcapi.FieldFilterMultiselect, Sticky: true, Sortable: true}, Value: func(r licenseRow, _ time.Time) any { return firstNonBlank(r.Name, r.ID) }, DefaultSort: true},
+	{ColumnMeta: funcapi.ColumnMeta{Name: "License", Tooltip: "License", Type: funcapi.FieldTypeString, Visible: true, Sort: funcapi.FieldSortAscending, Summary: funcapi.FieldSummaryCount, Filter: funcapi.FieldFilterMultiselect, Sticky: true, Sortable: true}, Value: func(r licenseRow, _ time.Time) any { return licenseDisplayValue(r) }, DefaultSort: true},
 	{ColumnMeta: funcapi.ColumnMeta{Name: "Bucket", Tooltip: "Normalized State Bucket", Type: funcapi.FieldTypeString, Visible: true, Sort: funcapi.FieldSortAscending, Summary: funcapi.FieldSummaryCount, Filter: funcapi.FieldFilterMultiselect, Sortable: true, Visualization: funcapi.FieldVisualPill}, Value: func(r licenseRow, _ time.Time) any { return string(r.StateBucket) }},
 	{ColumnMeta: funcapi.ColumnMeta{Name: "State", Tooltip: "Raw vendor state", Type: funcapi.FieldTypeString, Visible: true, Sort: funcapi.FieldSortAscending, Summary: funcapi.FieldSummaryCount, Filter: funcapi.FieldFilterMultiselect, Sortable: true}, Value: func(r licenseRow, _ time.Time) any { return emptyToNil(r.StateRaw) }},
 	{ColumnMeta: funcapi.ColumnMeta{Name: "Source", Tooltip: "Profile source", Type: funcapi.FieldTypeString, Visible: false, Sort: funcapi.FieldSortAscending, Summary: funcapi.FieldSummaryCount, Filter: funcapi.FieldFilterMultiselect, Sortable: true}, Value: func(r licenseRow, _ time.Time) any { return emptyToNil(r.Source) }},
@@ -175,11 +175,21 @@ func sortLicenseRows(rows []licenseRow) {
 		if lp, rp := licenseBucketPriority(left.StateBucket), licenseBucketPriority(right.StateBucket); lp != rp {
 			return lp < rp
 		}
-		if left.Name != right.Name {
-			return left.Name < right.Name
+		if leftDisplay, rightDisplay := licenseDisplayValue(left), licenseDisplayValue(right); leftDisplay != rightDisplay {
+			return leftDisplay < rightDisplay
+		}
+		if left.Source != right.Source {
+			return left.Source < right.Source
+		}
+		if left.Table != right.Table {
+			return left.Table < right.Table
 		}
 		return left.ID < right.ID
 	})
+}
+
+func licenseDisplayValue(row licenseRow) string {
+	return firstNonBlank(row.Name, row.ID)
 }
 
 func licenseBucketPriority(bucket licenseStateBucket) int {
