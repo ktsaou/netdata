@@ -117,6 +117,31 @@ func TestProfile_MergeMetrics_DoesNotMutateBaseColumnSymbols(t *testing.T) {
 	assert.Equal(t, "ifOutOctets", target.Definition.Metrics[1].Symbols[0].Name)
 }
 
+func TestProfile_MergeMetrics_PreservesRepeatedBaseColumnSymbols(t *testing.T) {
+	target := &Profile{Definition: &ddprofiledefinition.ProfileDefinition{}}
+	base := &Profile{Definition: &ddprofiledefinition.ProfileDefinition{
+		Metrics: []ddprofiledefinition.MetricsConfig{
+			{
+				Table: ddprofiledefinition.SymbolConfig{
+					OID:  "1.3.6.1.4.1.999.1",
+					Name: "eventTable",
+				},
+				Symbols: []ddprofiledefinition.SymbolConfig{
+					{OID: "1.3.6.1.4.1.999.1.1.5", Name: "eventCode"},
+					{OID: "1.3.6.1.4.1.999.1.1.6", Name: "eventCode"},
+				},
+			},
+		},
+	}}
+
+	target.mergeMetrics(base)
+
+	require.Len(t, target.Definition.Metrics, 1)
+	require.Len(t, target.Definition.Metrics[0].Symbols, 2)
+	assert.Equal(t, "1.3.6.1.4.1.999.1.1.5", target.Definition.Metrics[0].Symbols[0].OID)
+	assert.Equal(t, "1.3.6.1.4.1.999.1.1.6", target.Definition.Metrics[0].Symbols[1].OID)
+}
+
 func writeTableBase(t *testing.T, path, tableOID, tableName, symbolOID, symbolName, description string) {
 	t.Helper()
 

@@ -165,6 +165,8 @@ func (p *Profile) mergeMetrics(base *Profile) {
 		}
 	}
 
+	baseColumns := make(map[columnMetricKey]bool)
+
 	for _, bm := range base.Definition.Metrics {
 		switch {
 		case bm.IsScalar():
@@ -180,7 +182,7 @@ func (p *Profile) mergeMetrics(base *Profile) {
 				if seenColumns[key] {
 					continue
 				}
-				seenColumns[key] = true
+				baseColumns[key] = true
 				symbols = append(symbols, sym)
 			}
 			bm.Symbols = symbols
@@ -188,6 +190,10 @@ func (p *Profile) mergeMetrics(base *Profile) {
 				p.Definition.Metrics = append(p.Definition.Metrics, bm)
 			}
 		}
+	}
+
+	for key := range baseColumns {
+		seenColumns[key] = true
 	}
 
 	seenVmetrics := make(map[string]bool)

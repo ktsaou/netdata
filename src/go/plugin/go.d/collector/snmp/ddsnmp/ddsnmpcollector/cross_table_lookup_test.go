@@ -122,6 +122,50 @@ func TestCrossTableResolver_ResolveLookupIndexByValue_RejectsDuplicateRowsWhenTa
 	assert.Contains(t, err.Error(), tagCfg.Symbol.OID)
 }
 
+func TestCrossTableResolver_ResolveLookupIndexByValue_DoesNotCacheLookupErrorsAsNotFound(t *testing.T) {
+	resolver := newCrossTableResolver(logger.New())
+	tagCfg := lookupTestTagConfig(
+		"remote_as",
+		"1.3.6.1.4.1.2011.5.25.177.1.1.2.1.2",
+		"neighbor",
+		"1.3.6.1.4.1.2011.5.25.177.1.1.2.1.4",
+	)
+
+	refTablePDUs := map[string]gosnmp.SnmpPDU{
+		"1.3.6.1.4.1.2011.5.25.177.1.1.2.1.4.0.1.1.1.4.10.45.2.2": createStringPDU(
+			"1.3.6.1.4.1.2011.5.25.177.1.1.2.1.4.0.1.1.1.4.10.45.2.2",
+			"10.45.2.2",
+		),
+		"1.3.6.1.4.1.2011.5.25.177.1.1.2.1.4.0.1.128.1.4.10.45.2.2": createStringPDU(
+			"1.3.6.1.4.1.2011.5.25.177.1.1.2.1.4.0.1.128.1.4.10.45.2.2",
+			"10.45.2.2",
+		),
+		"1.3.6.1.4.1.2011.5.25.177.1.1.2.1.2.0.1.1.1.4.10.45.2.2": createGauge32PDU(
+			"1.3.6.1.4.1.2011.5.25.177.1.1.2.1.2.0.1.1.1.4.10.45.2.2",
+			26479,
+		),
+		"1.3.6.1.4.1.2011.5.25.177.1.1.2.1.2.0.1.128.1.4.10.45.2.2": createGauge32PDU(
+			"1.3.6.1.4.1.2011.5.25.177.1.1.2.1.2.0.1.128.1.4.10.45.2.2",
+			64512,
+		),
+	}
+	ctx := &crossTableContext{lookupIndexCache: map[crossTableLookupKey]string{}}
+
+	for i := 0; i < 2; i++ {
+		_, err := resolver.resolveLookupIndexByValue(
+			tagCfg,
+			"0.0.4.10.45.2.2",
+			"1.3.6.1.4.1.2011.5.25.177.1.1.2",
+			refTablePDUs,
+			ctx,
+		)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "matched multiple rows")
+		assert.Contains(t, err.Error(), tagCfg.Symbol.OID)
+	}
+	assert.Empty(t, ctx.lookupIndexCache)
+}
+
 func lookupTestTagConfig(tagName, symbolOID, lookupName, lookupOID string) ddprofiledefinition.MetricTagConfig {
 	return ddprofiledefinition.MetricTagConfig{
 		Tag: tagName,
