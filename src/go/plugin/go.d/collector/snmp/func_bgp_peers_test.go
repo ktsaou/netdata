@@ -67,6 +67,42 @@ func TestBGPPeerEntryKeyEscapesValues(t *testing.T) {
 	assert.NotEqual(t, keyA, keyB)
 }
 
+func TestBGPPeerEntryKeyUsesStableIdentityTags(t *testing.T) {
+	keyA := bgpPeerEntryKey("peers", map[string]string{
+		"routing_instance": "blue",
+		"neighbor":         "198.51.100.1",
+		"remote_as":        "65001",
+		"local_address":    "192.0.2.1",
+		"peer_description": "Transit A",
+	})
+	keyB := bgpPeerEntryKey("peers", map[string]string{
+		"routing_instance": "blue",
+		"neighbor":         "198.51.100.1",
+		"remote_as":        "65001",
+		"local_address":    "192.0.2.2",
+		"peer_description": "Transit B",
+	})
+	familyKey := bgpPeerEntryKey("peer_families", map[string]string{
+		"routing_instance":          "blue",
+		"neighbor":                  "198.51.100.1",
+		"remote_as":                 "65001",
+		"address_family":            "ipv4",
+		"subsequent_address_family": "unicast",
+	})
+	otherFamilyKey := bgpPeerEntryKey("peer_families", map[string]string{
+		"routing_instance":          "blue",
+		"neighbor":                  "198.51.100.1",
+		"remote_as":                 "65001",
+		"address_family":            "ipv6",
+		"subsequent_address_family": "unicast",
+	})
+
+	assert.Equal(t, keyA, keyB)
+	assert.NotEqual(t, keyA, familyKey)
+	assert.NotEqual(t, familyKey, otherFamilyKey)
+	assert.Empty(t, bgpPeerEntryKey("peers", map[string]string{"remote_as": "65001"}))
+}
+
 func TestBGPAdminStatus(t *testing.T) {
 	tests := map[string]struct {
 		mv       map[string]int64
@@ -80,6 +116,10 @@ func TestBGPAdminStatus(t *testing.T) {
 			mv:       map[string]int64{"admin_disabled": 1},
 			expected: "disabled",
 		},
+		"disabled from explicit admin_enabled zero": {
+			mv:       map[string]int64{"admin_enabled": 0},
+			expected: "disabled",
+		},
 		"unknown when absent": {
 			mv:       map[string]int64{"established": 1},
 			expected: "",
@@ -91,6 +131,50 @@ func TestBGPAdminStatus(t *testing.T) {
 			assert.Equal(t, tc.expected, bgpAdminStatus(tc.mv))
 		})
 	}
+}
+
+func TestBGPPeerCacheUsesStableIdentityAndMutableTags(t *testing.T) {
+	cache := newBGPPeerCache()
+	coll := &Collector{bgpPeerCache: cache}
+	coll.resetBGPPeerCache()
+
+	coll.updateBGPPeerCacheEntry(ddsnmp.Metric{
+		Name:    "bgp.peers.availability",
+		IsTable: true,
+		Tags: map[string]string{
+			"routing_instance": "blue",
+			"neighbor":         "198.51.100.1",
+			"remote_as":        "65001",
+			"local_address":    "192.0.2.1",
+			"peer_description": "Transit A",
+		},
+		MultiValue: map[string]int64{"admin_enabled": 0},
+	})
+	coll.updateBGPPeerCacheEntry(ddsnmp.Metric{
+		Name:    "bgp.peers.connection_state",
+		IsTable: true,
+		Tags: map[string]string{
+			"routing_instance": "blue",
+			"neighbor":         "198.51.100.1",
+			"remote_as":        "65001",
+			"local_address":    "192.0.2.2",
+			"peer_description": "Transit B",
+		},
+		MultiValue: map[string]int64{"established": 1},
+	})
+	coll.finalizeBGPPeerCache()
+
+	require.Len(t, cache.entries, 1)
+	var entry *bgpPeerEntry
+	for _, got := range cache.entries {
+		entry = got
+	}
+	require.NotNil(t, entry)
+
+	assert.Equal(t, "disabled", entry.adminStatus)
+	assert.Equal(t, "established", entry.state)
+	assert.Equal(t, "192.0.2.2", entry.tags["local_address"])
+	assert.Equal(t, "Transit B", entry.tags["peer_description"])
 }
 
 func TestFuncBGPPeersHandle(t *testing.T) {
@@ -151,6 +235,7 @@ func TestFuncBGPPeersHandle(t *testing.T) {
 
 				assert.Equal(t, "peer", rows[0][findBGPPeerColIdx("Scope")])
 				assert.Equal(t, "192.0.2.1", rows[0][findBGPPeerColIdx("Neighbor")])
+				assert.Equal(t, "enabled", rows[0][findBGPPeerColIdx("Admin Status")])
 				assert.Equal(t, "OPEN Message Error - Bad BGP Identifier", rows[0][findBGPPeerColIdx("Last Error")])
 				assert.Equal(t, "idle", rows[0][findBGPPeerColIdx("Previous State")])
 			},

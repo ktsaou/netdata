@@ -56,13 +56,21 @@ func Test_LibreNMSJuniperVMXFixture_MatchesJuniperMXBGPProfile(t *testing.T) {
 func Test_LibreNMSTiMOSIXRSFixture_MatchesNokiaSROSBGPProfile(t *testing.T) {
 	profile := matchedProfileFromIdentityFixture(t, "timos_ixr_s_identity.json", "nokia-service-router-os.yaml")
 
-	assertVirtualSources(t, profile, "bgpPeerAvailability", []ddprofiledefinition.VirtualMetricSourceConfig{
+	assertVirtualAlternativeSources(t, profile, "bgpPeerAvailability", 0, []ddprofiledefinition.VirtualMetricSourceConfig{
 		{Metric: "bgpPeerAdminStatus", Table: "tBgpPeerNgTable", As: "admin_enabled", Dim: "start"},
 		{Metric: "bgpPeerState", Table: "tBgpPeerNgTable", As: "established", Dim: "established"},
 	})
-	assertVirtualSources(t, profile, "bgpPeerUpdates", []ddprofiledefinition.VirtualMetricSourceConfig{
+	assertVirtualAlternativeSources(t, profile, "bgpPeerAvailability", 1, []ddprofiledefinition.VirtualMetricSourceConfig{
+		{Metric: "bgpPeerAdminStatus", Table: "bgpPeerTable", As: "admin_enabled", Dim: "start"},
+		{Metric: "bgpPeerState", Table: "bgpPeerTable", As: "established", Dim: "established"},
+	})
+	assertVirtualAlternativeSources(t, profile, "bgpPeerUpdates", 0, []ddprofiledefinition.VirtualMetricSourceConfig{
 		{Metric: "bgpPeerInUpdates", Table: "tBgpPeerNgOperTable", As: "received"},
 		{Metric: "bgpPeerOutUpdates", Table: "tBgpPeerNgOperTable", As: "sent"},
+	})
+	assertVirtualAlternativeSources(t, profile, "bgpPeerUpdates", 1, []ddprofiledefinition.VirtualMetricSourceConfig{
+		{Metric: "bgpPeerInUpdates", Table: "bgpPeerTable", As: "received"},
+		{Metric: "bgpPeerOutUpdates", Table: "bgpPeerTable", As: "sent"},
 	})
 }
 
@@ -105,15 +113,27 @@ func matchedProfileFromIdentityFixture(t *testing.T, fixtureFile, profileFile st
 func assertVirtualSources(t *testing.T, profile *Profile, name string, want []ddprofiledefinition.VirtualMetricSourceConfig) {
 	t.Helper()
 
+	vm := requireVirtualMetric(t, profile, name)
+
+	assert.Equal(t, want, vm.Sources)
+}
+
+func assertVirtualAlternativeSources(t *testing.T, profile *Profile, name string, alternative int, want []ddprofiledefinition.VirtualMetricSourceConfig) {
+	t.Helper()
+
+	vm := requireVirtualMetric(t, profile, name)
+	require.Less(t, alternative, len(vm.Alternatives), "expected virtual metric %s alternative %d", name, alternative)
+
+	assert.Equal(t, want, vm.Alternatives[alternative].Sources)
+}
+
+func requireVirtualMetric(t *testing.T, profile *Profile, name string) ddprofiledefinition.VirtualMetricConfig {
+	t.Helper()
+
 	vmIndex := slices.IndexFunc(profile.Definition.VirtualMetrics, func(vm ddprofiledefinition.VirtualMetricConfig) bool {
 		return vm.Name == name
 	})
 	require.NotEqual(t, -1, vmIndex, "expected virtual metric %s", name)
 
-	vm := profile.Definition.VirtualMetrics[vmIndex]
-	got := vm.Sources
-	if len(got) == 0 && len(vm.Alternatives) > 0 {
-		got = vm.Alternatives[0].Sources
-	}
-	assert.Equal(t, want, got)
+	return profile.Definition.VirtualMetrics[vmIndex]
 }

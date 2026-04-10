@@ -57,6 +57,11 @@ type bgpPeerEntry struct {
 	routeLimitThresholds map[string]int64
 }
 
+var (
+	bgpPeerIdentityTags       = []string{"routing_instance", "neighbor", "remote_as"}
+	bgpPeerFamilyIdentityTags = []string{"routing_instance", "neighbor", "remote_as", "address_family", "subsequent_address_family"}
+)
+
 func newBGPPeerCache() *bgpPeerCache {
 	return &bgpPeerCache{
 		entries: make(map[string]*bgpPeerEntry),
@@ -100,10 +105,11 @@ func (c *Collector) updateBGPPeerCacheEntry(metric ddsnmp.Metric) {
 		entry = &bgpPeerEntry{
 			key:   key,
 			scope: scope,
-			tags:  maps.Clone(metric.Tags),
+			tags:  make(map[string]string, len(metric.Tags)),
 		}
 		c.bgpPeerCache.entries[key] = entry
 	}
+	mergeBGPPeerEntryTags(entry, metric.Tags)
 
 	switch bgpPeerMetricLeaf(metric.Name) {
 	case "availability":
@@ -163,6 +169,14 @@ func (c *Collector) updateBGPPeerCacheEntry(metric ddsnmp.Metric) {
 	entry.updated = true
 }
 
+func mergeBGPPeerEntryTags(entry *bgpPeerEntry, tags map[string]string) {
+	for key, value := range tags {
+		if value != "" {
+			entry.tags[key] = value
+		}
+	}
+}
+
 func (c *Collector) finalizeBGPPeerCache() {
 	if c.bgpPeerCache == nil {
 		return
@@ -207,22 +221,21 @@ func bgpPeerEntryKey(scope string, tags map[string]string) string {
 		return ""
 	}
 
-	keys := make([]string, 0, len(tags))
-	for key, value := range tags {
-		if value == "" || strings.HasPrefix(key, "_") {
-			continue
-		}
-		keys = append(keys, key)
-	}
-	if len(keys) == 0 {
-		return bgpPeerKey(scope)
+	if tags["neighbor"] == "" {
+		return ""
 	}
 
-	slices.Sort(keys)
+	identityTags := bgpPeerIdentityTags
+	if scope == "peer_families" {
+		identityTags = bgpPeerFamilyIdentityTags
+	}
 
 	var sb strings.Builder
 	bgpWritePeerKeyPart(&sb, scope)
-	for _, key := range keys {
+	for _, key := range identityTags {
+		if tags[key] == "" {
+			continue
+		}
 		bgpWritePeerKeyPart(&sb, key)
 		bgpWritePeerKeyPart(&sb, tags[key])
 	}
@@ -233,14 +246,18 @@ func bgpAdminStatus(mv map[string]int64) string {
 	if len(mv) == 0 {
 		return ""
 	}
-	switch {
-	case mv["admin_enabled"] == 1:
-		return "enabled"
-	case mv["admin_disabled"] == 1:
-		return "disabled"
-	default:
-		return ""
+	if v, ok := mv["admin_enabled"]; ok {
+		if v == 1 {
+			return "enabled"
+		}
+		if v == 0 {
+			return "disabled"
+		}
 	}
+	if mv["admin_disabled"] == 1 {
+		return "disabled"
+	}
+	return ""
 }
 
 func activeMultiValueDimension(mv map[string]int64) string {
@@ -294,12 +311,6 @@ func humanizeBGPLabel(value string) string {
 		return ""
 	}
 	return strings.ReplaceAll(value, "_", " ")
-}
-
-func bgpPeerKey(scope string) string {
-	var sb strings.Builder
-	bgpWritePeerKeyPart(&sb, scope)
-	return sb.String()
 }
 
 func bgpWritePeerKeyPart(sb *strings.Builder, value string) {
