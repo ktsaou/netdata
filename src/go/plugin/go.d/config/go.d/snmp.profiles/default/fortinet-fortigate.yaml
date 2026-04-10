@@ -74,7 +74,7 @@ metrics:
   # a description column and an "expiry" column whose value is a textual date
   # like "2026-12-31". The expiry column is anchored as a hidden _license_row
   # metric using format: text_date so the value is decoded fresh from each
-  # poll's PDU; the per-symbol licenseRow transform stamps the value kind
+  # poll's PDU; the per-symbol transform stamps the value kind
   # for the licensing pipeline.
   - MIB: FORTINET-FORTIGATE-MIB
     table:
@@ -92,7 +92,7 @@ metrics:
           family: 'Internal/Licensing'
           unit: "{row}"
         transform: |
-          {{- licenseRow .Metric "expiry_timestamp" -}}
+          {{- setTag .Metric "_license_value_kind" "expiry_timestamp" -}}
     static_tags:
       - tag: _license_type
         value: contract
@@ -129,7 +129,7 @@ metrics:
           family: 'Internal/Licensing'
           unit: "{row}"
         transform: |
-          {{- licenseRow .Metric "expiry_timestamp" -}}
+          {{- setTag .Metric "_license_value_kind" "expiry_timestamp" -}}
     static_tags:
       - tag: _license_type
         value: service
@@ -169,7 +169,7 @@ metrics:
           family: 'Internal/Licensing'
           unit: "{row}"
         transform: |
-          {{- licenseRow .Metric "expiry_timestamp" -}}
+          {{- setTag .Metric "_license_value_kind" "expiry_timestamp" -}}
     static_tags:
       - tag: _license_type
         value: account_contract

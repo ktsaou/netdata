@@ -30,7 +30,7 @@ metrics:
           family: 'Internal/Licensing'
           unit: "{row}"
         transform: |
-          {{- licenseRow .Metric "expiry_timestamp" -}}
+          {{- setTag .Metric "_license_value_kind" "expiry_timestamp" -}}
       - OID: 1.3.6.1.4.1.9.9.543.1.2.3.1.10
         name: _license_row
         metric_type: gauge
@@ -39,7 +39,7 @@ metrics:
           family: 'Internal/Licensing'
           unit: "{row}"
         transform: |
-          {{- licenseRow .Metric "capacity" -}}
+          {{- setTag .Metric "_license_value_kind" "capacity" -}}
       - OID: 1.3.6.1.4.1.9.9.543.1.2.3.1.11
         name: _license_row
         metric_type: gauge
@@ -48,7 +48,7 @@ metrics:
           family: 'Internal/Licensing'
           unit: "{row}"
         transform: |
-          {{- licenseRow .Metric "available" -}}
+          {{- setTag .Metric "_license_value_kind" "available" -}}
       - OID: 1.3.6.1.4.1.9.9.543.1.2.3.1.14
         name: _license_row
         metric_type: gauge
@@ -64,7 +64,7 @@ metrics:
           "5": "2"
           "6": "2"
         transform: |
-          {{- licenseRow .Metric "state_severity" -}}
+          {{- setTag .Metric "_license_value_kind" "state_severity" -}}
     static_tags:
       - tag: _license_component
         value: traditional_licensing
@@ -265,7 +265,7 @@ metrics:
           family: 'Internal/Licensing'
           unit: "{row}"
         transform: |
-          {{- licenseRow .Metric "usage" -}}
+          {{- setTag .Metric "_license_value_kind" "usage" -}}
       - OID: 1.3.6.1.4.1.9.9.831.0.5.1.1.5
         name: _license_row
         metric_type: gauge
@@ -291,7 +291,7 @@ metrics:
           "15": "0"
           "16": "0"
         transform: |
-          {{- licenseRow .Metric "state_severity" -}}
+          {{- setTag .Metric "_license_value_kind" "state_severity" -}}
     static_tags:
       - tag: _license_type
         value: entitlement

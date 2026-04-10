@@ -15,10 +15,10 @@ import (
 //
 // Profiles describe each licensing signal as a hidden ("_"-prefixed) metric
 // named "_license_row". The integer value carries a single signal (expiry
-// epoch, used count, severity, etc). The transform "licenseRow .Metric <kind>"
-// stamps a "_license_value_kind" tag so this pipeline knows how to interpret
-// the value. Identifying fields (id, name, component, ...) are set as tags
-// in the profile, using the documented tag-fallback pattern.
+// epoch, used count, severity, etc). Profiles stamp the "_license_value_kind"
+// tag, usually with the generic setTag transform, so this pipeline knows how
+// to interpret the value. Identifying fields (id, name, component, ...) are set
+// as tags in the profile, using the documented tag-fallback pattern.
 //
 // Rows are grouped by (profile source, SNMP table, _license_id) so a single
 // license can carry both an expiry and a usage signal in separate metrics
@@ -42,7 +42,7 @@ const (
 	tagLicenseGraceSource         = "_license_grace_source"
 	tagLicenseValueKind           = "_license_value_kind"
 
-	// Value kinds — must match the documented "licenseRow" transform kinds.
+	// Value kinds accepted in the profile-stamped "_license_value_kind" tag.
 	licenseValueKindExpiryTimestamp        = "expiry_timestamp"
 	licenseValueKindExpiryRemaining        = "expiry_remaining"
 	licenseValueKindAuthorizationTimestamp = "authorization_timestamp"

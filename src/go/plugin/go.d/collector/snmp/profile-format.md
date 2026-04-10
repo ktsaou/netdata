@@ -2004,8 +2004,8 @@ Profiles can stamp the value kind in two equivalent ways:
     ```
 
 2. **Transform** — when one table emits multiple signal kinds from different
-   columns of the same row, use the `licenseRow` template helper to stamp the
-   kind per symbol while sharing the row's `metric_tags`:
+   columns of the same row, use the generic `setTag` template helper to stamp
+   `_license_value_kind` per symbol while sharing the row's `metric_tags`:
 
     ```yaml
     - MIB: CHECKPOINT-MIB
@@ -2016,11 +2016,11 @@ Profiles can stamp the value kind in two equivalent ways:
         - OID: 1.3.6.1.4.1.2620.1.6.18.1.1.8
           name: _license_row
           transform: |
-            {{- licenseRow .Metric "capacity" -}}
+            {{- setTag .Metric "_license_value_kind" "capacity" -}}
         - OID: 1.3.6.1.4.1.2620.1.6.18.1.1.9
           name: _license_row
           transform: |
-            {{- licenseRow .Metric "usage" -}}
+            {{- setTag .Metric "_license_value_kind" "usage" -}}
       metric_tags:
         - tag: _license_id
           symbol: { OID: 1.3.6.1.4.1.2620.1.6.18.1.1.2, name: licensingID }
@@ -2035,8 +2035,8 @@ Three options are available:
 
 - **No format** — for vendors that publish expiry as a plain integer unix
   epoch in `Gauge32` / `Counter32` / `Unsigned32`. The numeric value
-  processor reads it directly. The `licenseRow` transform then stamps the
-  value kind. Check Point's `licensingExpirationDate` is one example.
+  processor reads it directly. A `setTag` transform then stamps the value
+  kind. Check Point's `licensingExpirationDate` is one example.
 - `format: snmp_dateandtime` — for SNMPv2-TC `DateAndTime` octet strings (8
   or 11 byte fixed binary). Used by vendors like Blue Coat ProxySG and Cisco
   `CISCO-LICENSE-MGMT-MIB`.
@@ -2051,13 +2051,13 @@ symbols:
     name: _license_row
     format: text_date
     transform: |
-      {{- licenseRow .Metric "expiry_timestamp" -}}
+      {{- setTag .Metric "_license_value_kind" "expiry_timestamp" -}}
 ```
 
-The decoded unix timestamp is the metric value. The `licenseRow` transform
-stamps the value kind so the licensing pipeline knows the value is an absolute
-expiry timestamp. The pipeline drops well-known "no expiry" sentinels such as
-`0` and `0xFFFFFFFF` (`4294967295`) before computing remaining time.
+The decoded unix timestamp is the metric value. The `setTag` transform stamps
+the value kind so the licensing pipeline knows the value is an absolute expiry
+timestamp. The pipeline drops well-known "no expiry" sentinels such as `0` and
+`0xFFFFFFFF` (`4294967295`) before computing remaining time.
 
 For the rare case where the date must come from a tag instead of the symbol's
 own value, the `licenseDateFromTag` transform helper is also available — it
