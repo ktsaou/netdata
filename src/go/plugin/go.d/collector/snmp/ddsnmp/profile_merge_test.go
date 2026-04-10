@@ -53,6 +53,42 @@ func TestProfile_MultipleExtends_TableSymbolLaterOverrideEarlierByTableNameWhenO
 	assert.Equal(t, "base2", prof.Definition.Metrics[0].Symbols[0].ChartMeta.Description)
 }
 
+func TestProfile_MultipleExtends_TableOIDOverrideDropsEarlierTableSymbols(t *testing.T) {
+	tmp := t.TempDir()
+
+	writeYAML(t, filepath.Join(tmp, "_base1.yaml"), ddprofiledefinition.ProfileDefinition{
+		Metrics: []ddprofiledefinition.MetricsConfig{
+			{
+				Table: ddprofiledefinition.SymbolConfig{
+					OID:  "1.3.6.1.2.1.2.2",
+					Name: "ifTable",
+				},
+				Symbols: []ddprofiledefinition.SymbolConfig{
+					{OID: "1.3.6.1.2.1.2.2.1.10", Name: "ifInOctets"},
+					{OID: "1.3.6.1.2.1.2.2.1.16", Name: "ifOutOctets"},
+				},
+				MetricTags: []ddprofiledefinition.MetricTagConfig{
+					{Tag: "row", IndexTransform: []ddprofiledefinition.MetricIndexTransform{{Start: 0, End: 0}}},
+				},
+			},
+		},
+	})
+	writeTableBase(t, filepath.Join(tmp, "_base2.yaml"), "1.3.6.1.4.1.999.2", "ifTable", "1.3.6.1.4.1.999.2.1.10", "ifInOctets", "base2")
+	writeYAML(t, filepath.Join(tmp, "device.yaml"), ddprofiledefinition.ProfileDefinition{
+		Extends: []string{"_base1.yaml", "_base2.yaml"},
+	})
+
+	prof, err := loadProfile(filepath.Join(tmp, "device.yaml"), multipath.New(tmp))
+	require.NoError(t, err)
+	require.Len(t, prof.Definition.Metrics, 1)
+	require.Len(t, prof.Definition.Metrics[0].Symbols, 1)
+
+	assert.Equal(t, "1.3.6.1.4.1.999.2", prof.Definition.Metrics[0].Table.OID)
+	assert.Equal(t, "ifTable", prof.Definition.Metrics[0].Table.Name)
+	assert.Equal(t, "ifInOctets", prof.Definition.Metrics[0].Symbols[0].Name)
+	assert.Equal(t, "1.3.6.1.4.1.999.2.1.10", prof.Definition.Metrics[0].Symbols[0].OID)
+}
+
 func TestProfile_MultipleExtends_TableSymbolsPreserveSameOIDDifferentNames(t *testing.T) {
 	tmp := t.TempDir()
 

@@ -153,19 +153,19 @@ func (p *Profile) merge(base *Profile) {
 func (p *Profile) mergeMetrics(base *Profile) {
 	seenScalars := make(map[scalarMetricKey]bool)
 	seenColumns := make(map[columnMetricKey]bool)
+	seenTableOIDs := make(map[string]string)
 
 	for _, m := range p.Definition.Metrics {
 		switch {
 		case m.IsScalar():
 			seenScalars[scalarMetricKey{name: m.Symbol.Name, oid: m.Symbol.OID}] = true
 		case m.IsColumn():
+			seenTableOIDs[columnMetricTableIdentity(m.Table)] = m.Table.OID
 			for _, sym := range m.Symbols {
 				seenColumns[columnMetricSymbolKey(m.Table, sym)] = true
 			}
 		}
 	}
-
-	baseColumns := make(map[columnMetricKey]bool)
 
 	for _, bm := range base.Definition.Metrics {
 		switch {
@@ -176,24 +176,25 @@ func (p *Profile) mergeMetrics(base *Profile) {
 				seenScalars[key] = true
 			}
 		case bm.IsColumn():
+			tableID := columnMetricTableIdentity(bm.Table)
+			if tableOID, ok := seenTableOIDs[tableID]; ok && tableOID != bm.Table.OID {
+				continue
+			}
+
 			symbols := make([]ddprofiledefinition.SymbolConfig, 0, len(bm.Symbols))
 			for _, sym := range bm.Symbols {
 				key := columnMetricSymbolKey(bm.Table, sym)
 				if seenColumns[key] {
 					continue
 				}
-				baseColumns[key] = true
 				symbols = append(symbols, sym)
 			}
 			bm.Symbols = symbols
 			if len(bm.Symbols) > 0 {
 				p.Definition.Metrics = append(p.Definition.Metrics, bm)
+				seenTableOIDs[tableID] = bm.Table.OID
 			}
 		}
-	}
-
-	for key := range baseColumns {
-		seenColumns[key] = true
 	}
 
 	seenVmetrics := make(map[string]bool)

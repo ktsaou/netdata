@@ -221,7 +221,7 @@ The final profile is the **merged result** of all inherited profiles plus the co
 Metric override identity depends on metric type:
 
 - **Scalar metrics** use `symbol.name + symbol.OID`. This preserves same-name scalar fallback definitions that try alternative OIDs.
-- **Table metrics** use logical table identity (`table.name` when set, otherwise `table.OID`) + `symbol.name`. If two inherited profiles define the same table metric name, the later profile wins even when the table or symbol OID differs. Different metric names can still read from the same column OID when separate transformations are needed.
+- **Table metrics** use logical table identity (`table.name` when set, otherwise `table.OID`) + `symbol.name`. If two inherited profiles define the same table metric name, the later profile wins even when the table or symbol OID differs. If the same logical table name is inherited with a different table OID, the later table definition replaces the earlier table definition; symbols from the earlier table OID are not merged into the later table. Different metric names can still read from the same column OID when separate transformations are needed.
 
 **Common base profiles**
 
