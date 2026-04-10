@@ -93,11 +93,7 @@ func (p *tableRowProcessor) processSingleCrossTableTag(row *tableRowData, tagCfg
 func (p *tableRowProcessor) processSingleIndexTag(row *tableRowData, tagCfg ddprofiledefinition.MetricTagConfig) {
 	tagName, indexValue, err := p.processIndexTag(tagCfg, row.index)
 	if err != nil {
-		if tagCfg.Index != 0 {
-			p.log.Debugf("Cannot extract position %d from index %s: %v", tagCfg.Index, row.index, err)
-		} else {
-			p.log.Debugf("Cannot process transformed index tag %s from index %s: %v", metricTagDisplayName(tagCfg), row.index, err)
-		}
+		p.log.Debugf("Cannot process index tag %s from index %s: %v", metricTagDisplayName(tagCfg), row.index, err)
 		return
 	}
 
