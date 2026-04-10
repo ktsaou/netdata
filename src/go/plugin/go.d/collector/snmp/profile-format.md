@@ -2028,9 +2028,16 @@ Profiles can stamp the value kind in two equivalent ways:
 
 ### Parsing vendor expiry dates
 
-The value-processor format mechanism handles licensing expiry dates directly,
-so they are decoded fresh from each poll's PDU rather than being read from a
-cached tag (which would risk staleness within the SNMP table cache window).
+The value-processor format mechanism handles licensing expiry dates directly
+when the expiry is carried in the symbol value itself. On each poll, the table
+collector re-fetches metric/value columns even on table-cache hits, so the
+expiry value is decoded from the current poll's PDU instead of being rebuilt
+from a same-table cached tag.
+
+This does **not** disable the generic SNMP table cache for the surrounding
+table. Same-table `metric_tags` can still come from cached row metadata on
+cache hits. For live licensing state, prefer symbol-based severity and
+timestamp values over same-table text tags whenever the device exposes both.
 Three options are available:
 
 - **No format** — for vendors that publish expiry as a plain integer unix
@@ -2062,8 +2069,8 @@ timestamp. The pipeline drops well-known "no expiry" sentinels such as `0` and
 For the rare case where the date must come from a tag instead of the symbol's
 own value, the `licenseDateFromTag` transform helper is also available — it
 reads the tag, parses it the same way, and rewrites the metric value. Prefer
-the `format:` approach when possible because it avoids any reliance on the
-table cache for expiry data.
+the `format:` approach when possible because it keeps expiry data on the fresh
+metric-value path instead of depending on same-table cached tag metadata.
 
 ### Identity fallbacks
 
