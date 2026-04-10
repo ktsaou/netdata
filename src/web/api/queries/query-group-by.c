@@ -224,3 +224,4 @@ void rrd2rrdr_set_timestamps(RRDR *r) {
                    "QUERY: wrong last timestamp in the query, expected %ld, found %ld",
                    before_wanted, r->t[points_wanted - 1]);
 }
+

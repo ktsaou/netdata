@@ -338,7 +338,7 @@ RRDR *rrd2rrdr(ONEWAYALLOC *owa, QUERY_TARGET *qt) {
 
     // get the final RRDR to send to the caller
     r = rrd2rrdr_group_by_finalize(r_tmp);
-
+    
     // apply cardinality limit if requested
     r = rrd2rrdr_cardinality_limit(r);
 
