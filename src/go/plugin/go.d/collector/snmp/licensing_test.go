@@ -167,6 +167,26 @@ func TestNormalizeBucket_RawStateUsedWhenNoFreshSeverity(t *testing.T) {
 	assert.Equal(t, licenseStateBucketBroken, rows[0].StateBucket)
 }
 
+func TestNormalizeBucket_RawDegradedStateUsedWhenNoFreshSeverity(t *testing.T) {
+	now := time.Date(2026, 4, 9, 12, 0, 0, 0, time.UTC)
+
+	rows := extractLicenseRows(profileWith(
+		ddsnmp.Metric{
+			Name:  licenseSourceMetricName,
+			Value: 0,
+			Tags: map[string]string{
+				tagLicenseID:        "raw-degraded",
+				tagLicenseName:      "Raw Degraded",
+				tagLicenseStateRaw:  "degraded",
+				tagLicenseValueKind: licenseValueKindUsage, // any stamped kind keeps the row
+			},
+		},
+	), now)
+
+	require.Len(t, rows, 1)
+	assert.Equal(t, licenseStateBucketDegraded, rows[0].StateBucket)
+}
+
 func TestNormalizeBucket_ExpiredTimerForcesBroken(t *testing.T) {
 	now := time.Date(2026, 4, 9, 12, 0, 0, 0, time.UTC)
 	pastExpiry := now.Add(-1 * time.Hour).Unix()

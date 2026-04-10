@@ -49,6 +49,7 @@ var (
 		"about to expire",
 		"warning",
 		"degrade",
+		"degraded",
 		"grace",
 		"evaluation",
 		"evaluation_subscription",

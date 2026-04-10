@@ -11,7 +11,7 @@ import (
 	"github.com/netdata/netdata/go/plugins/plugin/go.d/collector/snmp/ddsnmp"
 )
 
-// Licensing pipeline contract — see docs/profile-format.md §"Licensing rows".
+// Licensing pipeline contract — see src/go/plugin/go.d/collector/snmp/profile-format.md §"Licensing rows".
 //
 // Profiles describe each licensing signal as a hidden ("_"-prefixed) metric
 // named "_license_row". The integer value carries a single signal (expiry
