@@ -170,24 +170,7 @@ func (p *tableRowProcessor) processRowMetrics(row *tableRowData, ctx *tableRowPr
 	for _, syms := range ctx.columnOIDs {
 		symbolCount += len(syms)
 	}
-	for _, sym := range ctx.config.Symbols {
-		if sym.ConstantValueOne {
-			symbolCount++
-		}
-	}
 	metrics := make([]ddsnmp.Metric, 0, symbolCount)
-
-	for _, sym := range ctx.config.Symbols {
-		if !sym.ConstantValueOne {
-			continue
-		}
-		metric, err := p.createMetric(sym, gosnmp.SnmpPDU{Type: gosnmp.Gauge32, Value: uint(1)}, row)
-		if err != nil {
-			p.log.Debugf("Error creating metric %s: %v", sym.Name, err)
-			continue
-		}
-		metrics = append(metrics, *metric)
-	}
 
 	for columnOID, syms := range ctx.columnOIDs {
 		pdu, ok := row.pdus[columnOID]
@@ -210,10 +193,6 @@ func (p *tableRowProcessor) processRowMetrics(row *tableRowData, ctx *tableRowPr
 }
 
 func (p *tableRowProcessor) createMetric(sym ddprofiledefinition.SymbolConfig, pdu gosnmp.SnmpPDU, row *tableRowData) (*ddsnmp.Metric, error) {
-	if sym.ConstantValueOne {
-		return buildTableMetric(sym, gosnmp.SnmpPDU{Type: gosnmp.Gauge32, Value: uint(1)}, 1, row.tags, row.staticTags, row.tableName)
-	}
-
 	value, err := p.valProc.processValue(sym, pdu)
 	if err != nil {
 		return nil, fmt.Errorf("error processing value: %w", err)

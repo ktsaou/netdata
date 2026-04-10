@@ -371,29 +371,6 @@ virtual_metrics:
       - { metric: _ifHCOutOctets, table: ifXTable, as: out }
 ```
 
-Hidden table symbols may also use `constant_value_one: true` to emit a row
-presence/helper metric with value `1` without polling a value column. Non-hidden
-constant table symbols are discarded during profile preparation so they do not
-create accidental chart output.
-
-Use this only for hidden row carriers: cases where the useful information is
-the row and its tags, not a numeric SNMP column. The table is still walked for
-the tag columns, but the constant helper itself is not polled.
-
-```yaml
-metrics:
-  - MIB: EXAMPLE-MIB
-    table: { OID: 1.3.6.1.4.1.99999.1, name: exampleStateTable }
-    symbols:
-      - name: _example_row_present
-        constant_value_one: true
-    metric_tags:
-      - tag: example_row_id
-        symbol: { OID: 1.3.6.1.4.1.99999.1.1.2, name: exampleRowID }
-      - tag: example_row_state
-        symbol: { OID: 1.3.6.1.4.1.99999.1.1.3, name: exampleRowState }
-```
-
 #### Scalar symbol fallbacks
 
 You can express “try this OID, otherwise try that OID” by declaring **multiple scalar metrics with the same** `symbol.name`, each pointing to a different OID. At runtime the collector **GETs** all declared scalar OIDs, marks missing ones, and **emits** the metric from whichever OID returns data. Missing OIDs are skipped cleanly.
