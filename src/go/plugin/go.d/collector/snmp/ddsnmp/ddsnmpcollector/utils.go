@@ -4,6 +4,7 @@ package ddsnmpcollector
 
 import (
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"regexp"
 	"strconv"
@@ -16,6 +17,8 @@ import (
 	"github.com/netdata/netdata/go/plugins/plugin/go.d/collector/snmp/ddsnmp"
 	"github.com/netdata/netdata/go/plugins/plugin/go.d/collector/snmp/ddsnmp/ddprofiledefinition"
 )
+
+var errNoTextDateValue = errors.New("text_date: no timestamp value")
 
 func getMetricTypeFromPDUType(pdu gosnmp.SnmpPDU) ddprofiledefinition.ProfileMetricType {
 	switch pdu.Type {
@@ -87,6 +90,9 @@ func convPduToStringf(pdu gosnmp.SnmpPDU, format string) (string, error) {
 		}
 		ts, ok := ddsnmp.ParseTextDate(raw)
 		if !ok {
+			if ddsnmp.IsTextDateNoValue(raw) {
+				return "", errNoTextDateValue
+			}
 			return "", fmt.Errorf("text_date: cannot parse %q", raw)
 		}
 		return strconv.FormatInt(ts, 10), nil

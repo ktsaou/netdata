@@ -88,6 +88,18 @@ func TestLicenseDateFromTagTransform_RejectsSentinels(t *testing.T) {
 	}
 }
 
+func TestIsTextDateNoValue(t *testing.T) {
+	noValues := []string{"", "0", "-1", "never", "perpetual", "permanent", "n/a", "na", "none", "unlimited", "4294967295"}
+	for _, raw := range noValues {
+		assert.True(t, IsTextDateNoValue(raw), "raw=%q", raw)
+	}
+
+	values := []string{"1", "1798675200", "2026-12-31", "not-a-date"}
+	for _, raw := range values {
+		assert.False(t, IsTextDateNoValue(raw), "raw=%q", raw)
+	}
+}
+
 func TestLicenseDateFromTagTransform_NoTagsMapIsNoop(t *testing.T) {
 	m := &Metric{Value: 7}
 	runLicenseTransform(t, `{{- licenseDateFromTag .Metric "x" "expiry_timestamp" -}}`, m)

@@ -420,30 +420,28 @@ var textDateLayouts = []string{
 }
 
 // ParseTextDate accepts integer- and string-encoded SNMP date shapes (epoch
-// seconds, milliseconds, the 0xFFFFFFFF "never" sentinel, and the textual
-// layouts above) and returns the equivalent unix timestamp. It is exported so
-// the value-processor format "text_date" in ddsnmpcollector/utils.go can apply
-// the same parsing rules.
+// seconds, milliseconds, decimal no-value sentinels such as 0 and 4294967295,
+// and the textual layouts above) and returns the equivalent unix timestamp. It
+// is exported so the value-processor format "text_date" in
+// ddsnmpcollector/utils.go can apply the same parsing rules.
 func ParseTextDate(raw string) (int64, bool) {
 	return parseTextDate(raw)
 }
 
+// IsTextDateNoValue reports whether raw is a vendor no-timestamp sentinel
+// accepted by ParseTextDate.
+func IsTextDateNoValue(raw string) bool {
+	return isTextDateNoValue(raw)
+}
+
 func parseTextDate(raw string) (int64, bool) {
 	raw = strings.TrimSpace(raw)
-	if raw == "" {
-		return 0, false
-	}
-	switch strings.ToLower(raw) {
-	case "0", "none", "n/a", "na", "perpetual", "permanent", "never", "unlimited":
+	if isTextDateNoValue(raw) {
 		return 0, false
 	}
 
 	if n, err := strconv.ParseInt(raw, 10, 64); err == nil {
 		switch {
-		case n <= 0:
-			return 0, false
-		case n == 4_294_967_295:
-			return 0, false
 		case n > 1_000_000_000_000:
 			return n / 1000, true
 		default:
@@ -460,4 +458,22 @@ func parseTextDate(raw string) (int64, bool) {
 		}
 	}
 	return 0, false
+}
+
+func isTextDateNoValue(raw string) bool {
+	raw = strings.TrimSpace(raw)
+	if raw == "" {
+		return true
+	}
+
+	switch strings.ToLower(raw) {
+	case "0", "none", "n/a", "na", "perpetual", "permanent", "never", "unlimited":
+		return true
+	}
+
+	if n, err := strconv.ParseInt(raw, 10, 64); err == nil {
+		return n <= 0 || n == 4_294_967_295
+	}
+
+	return false
 }

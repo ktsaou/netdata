@@ -160,6 +160,9 @@ func (sc *scalarCollector) processScalarMetric(cfg ddprofiledefinition.MetricsCo
 
 	value, err := sc.valProc.processValue(cfg.Symbol, pdu)
 	if err != nil {
+		if errors.Is(err, errNoTextDateValue) {
+			return nil, nil
+		}
 		return nil, fmt.Errorf("error processing value for OID %s (%s): %w", cfg.Symbol.Name, cfg.Symbol.OID, err)
 	}
 

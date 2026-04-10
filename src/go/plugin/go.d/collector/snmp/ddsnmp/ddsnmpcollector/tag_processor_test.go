@@ -33,6 +33,22 @@ func TestTableTagProcessor_ProcessTag_Uint32Format(t *testing.T) {
 	assert.Equal(t, "4200000000", ta.tags["remote_as"])
 }
 
+func TestTableTagProcessor_ProcessTag_TextDateNoValueSkipsTag(t *testing.T) {
+	processor := newTableTagProcessor()
+	ta := tagAdder{tags: map[string]string{}}
+
+	err := processor.processTag(ddprofiledefinition.MetricTagConfig{
+		Tag: "license_expiry",
+		Symbol: ddprofiledefinition.SymbolConfigCompat{
+			OID:    "1.3.6.1.4.1.999.1.2",
+			Format: "text_date",
+		},
+	}, createStringPDU("1.3.6.1.4.1.999.1.2.0", "n/a"), ta)
+
+	require.NoError(t, err)
+	assert.Empty(t, ta.tags)
+}
+
 func TestMetricTagDisplayName(t *testing.T) {
 	tests := map[string]struct {
 		cfg  ddprofiledefinition.MetricTagConfig

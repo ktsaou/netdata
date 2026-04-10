@@ -45,6 +45,26 @@ func TestConvPduToStringf_SNMPDateAndTime(t *testing.T) {
 	}
 }
 
+func TestConvPduToStringf_TextDate(t *testing.T) {
+	got, err := convPduToStringf(createStringPDU("1.2.3", "2026-12-31"), "text_date")
+	require.NoError(t, err)
+	assert.EqualValues(t, time.Date(2026, time.December, 31, 0, 0, 0, 0, time.UTC).Unix(), mustParseInt64(t, got))
+}
+
+func TestConvPduToStringf_TextDateNoValue(t *testing.T) {
+	for _, raw := range []string{"", "0", "never", "n/a", "4294967295"} {
+		got, err := convPduToStringf(createStringPDU("1.2.3", raw), "text_date")
+		require.ErrorIs(t, err, errNoTextDateValue, "raw=%q", raw)
+		assert.Empty(t, got, "raw=%q", raw)
+	}
+}
+
+func TestConvPduToStringf_TextDateInvalid(t *testing.T) {
+	_, err := convPduToStringf(createStringPDU("1.2.3", "not-a-date"), "text_date")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), `text_date: cannot parse "not-a-date"`)
+}
+
 func TestConvPduToDateAndTimeUnix_Invalid(t *testing.T) {
 	tests := []struct {
 		name  string

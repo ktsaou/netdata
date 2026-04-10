@@ -165,6 +165,53 @@ func TestScalarCollector_Collect(t *testing.T) {
 			},
 			expectedError: false,
 		},
+		"text_date sentinel skips scalar metric without processing error": {
+			profile: &ddsnmp.Profile{
+				SourceFile: "test-profile.yaml",
+				Definition: &ddprofiledefinition.ProfileDefinition{
+					Metrics: []ddprofiledefinition.MetricsConfig{
+						{
+							Symbol: ddprofiledefinition.SymbolConfig{
+								OID:    "1.3.6.1.4.1.999.1.1.0",
+								Name:   "license.expiry",
+								Format: "text_date",
+							},
+						},
+					},
+				},
+			},
+			setupMock: func(m *snmpmock.MockHandler) {
+				expectSNMPGet(m, []string{"1.3.6.1.4.1.999.1.1.0"}, []gosnmp.SnmpPDU{
+					createStringPDU("1.3.6.1.4.1.999.1.1.0", "never"),
+				})
+			},
+			expectedResult: []ddsnmp.Metric{},
+			expectedError:  false,
+		},
+		"invalid text_date still fails when no scalar metrics are usable": {
+			profile: &ddsnmp.Profile{
+				SourceFile: "test-profile.yaml",
+				Definition: &ddprofiledefinition.ProfileDefinition{
+					Metrics: []ddprofiledefinition.MetricsConfig{
+						{
+							Symbol: ddprofiledefinition.SymbolConfig{
+								OID:    "1.3.6.1.4.1.999.1.1.0",
+								Name:   "license.expiry",
+								Format: "text_date",
+							},
+						},
+					},
+				},
+			},
+			setupMock: func(m *snmpmock.MockHandler) {
+				expectSNMPGet(m, []string{"1.3.6.1.4.1.999.1.1.0"}, []gosnmp.SnmpPDU{
+					createStringPDU("1.3.6.1.4.1.999.1.1.0", "not-a-date"),
+				})
+			},
+			expectedResult: nil,
+			expectedError:  true,
+			errorContains:  `text_date: cannot parse "not-a-date"`,
+		},
 		"OID not found - returns empty metrics": {
 			profile: createTestProfile("test-profile.yaml", []ddprofiledefinition.MetricsConfig{
 				createScalarMetric("1.3.6.1.2.1.1.3.0", "sysUpTime"),

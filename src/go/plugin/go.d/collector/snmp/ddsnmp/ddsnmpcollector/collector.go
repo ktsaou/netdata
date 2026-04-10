@@ -134,7 +134,7 @@ func (c *Collector) Collect() ([]*ddsnmp.ProfileMetrics, error) {
 }
 
 func collectHiddenMetrics(metrics []ddsnmp.Metric) []ddsnmp.Metric {
-	hidden := make([]ddsnmp.Metric, 0, len(metrics))
+	var hidden []ddsnmp.Metric
 	for _, metric := range metrics {
 		if strings.HasPrefix(metric.Name, "_") {
 			hidden = append(hidden, metric)

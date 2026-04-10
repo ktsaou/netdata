@@ -1601,7 +1601,8 @@ Supported formats:
 - `snmp_dateandtime`: decodes SNMPv2-TC `DateAndTime` OCTET STRING values
   into unix timestamps.
 - `text_date`: parses common textual date strings and epoch strings into
-  unix timestamps.
+  unix timestamps. Vendor no-value sentinels such as `0`, `4294967295`,
+  `never`, and `n/a` are treated as missing values.
 - `uint32`: interprets integer values as unsigned 32-bit values.
 
 ```yaml
