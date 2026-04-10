@@ -732,6 +732,7 @@ func TestCollector_Collect_LicensingAggregation(t *testing.T) {
 	require.NoError(t, collr.Init(context.Background()))
 	_ = collr.Check(context.Background())
 
+	start := time.Now().UTC()
 	got := collr.Collect(context.Background())
 	require.NotNil(t, got)
 
@@ -740,8 +741,9 @@ func TestCollector_Collect_LicensingAggregation(t *testing.T) {
 	assert.EqualValues(t, 0, got[metricIDLicenseStateBroken])
 	assert.EqualValues(t, 0, got[metricIDLicenseStateIgnored])
 	assert.EqualValues(t, 95, got[metricIDLicenseUsagePercent])
-	assert.GreaterOrEqual(t, got[metricIDLicenseRemainingTime], int64((48*time.Hour/time.Second)-5))
-	assert.LessOrEqual(t, got[metricIDLicenseRemainingTime], int64(48*time.Hour/time.Second))
+	expectedRemaining := expiry - start.Unix()
+	assert.GreaterOrEqual(t, got[metricIDLicenseRemainingTime], expectedRemaining-30)
+	assert.LessOrEqual(t, got[metricIDLicenseRemainingTime], expectedRemaining)
 	assert.Contains(t, got, "snmp_device_prof_checkpoint_stats_metrics_table")
 }
 
