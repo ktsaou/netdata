@@ -165,9 +165,14 @@ func publicBGPTags(metric ddsnmp.Metric, scope bgpScope) map[string]string {
 	}
 
 	publicTags := make(map[string]string)
-	addTag := func(key string) {
+	addIdentityTag := func(key string) {
 		if value := bgpTagValue(tags, key); value != "" {
 			publicTags[key] = value
+		}
+	}
+	addLabelTag := func(key string) {
+		if value := bgpTagValue(tags, key); value != "" {
+			publicTags["_"+key] = value
 		}
 	}
 
@@ -175,6 +180,11 @@ func publicBGPTags(metric ddsnmp.Metric, scope bgpScope) map[string]string {
 		"routing_instance",
 		"neighbor",
 		"remote_as",
+	} {
+		addIdentityTag(key)
+	}
+
+	for _, key := range []string{
 		"bgp_version",
 		"neighbor_address_type",
 		"local_address",
@@ -185,13 +195,14 @@ func publicBGPTags(metric ddsnmp.Metric, scope bgpScope) map[string]string {
 		"peer_description",
 		"peer_type",
 	} {
-		addTag(key)
+		addLabelTag(key)
 	}
 
 	if scope == bgpScopePeerFamilies {
-		for _, key := range []string{"address_family", "subsequent_address_family", "address_family_name"} {
-			addTag(key)
+		for _, key := range []string{"address_family", "subsequent_address_family"} {
+			addIdentityTag(key)
 		}
+		addLabelTag("address_family_name")
 		ensureBGPFamilyTags(publicTags, metric.Table)
 	}
 
@@ -216,8 +227,8 @@ func ensureBGPFamilyTags(tags map[string]string, table string) {
 			tags["subsequent_address_family"] = "unicast"
 		}
 	}
-	if tags["address_family_name"] == "" && tags["address_family"] != "" && tags["subsequent_address_family"] != "" {
-		tags["address_family_name"] = tags["address_family"] + " " + tags["subsequent_address_family"]
+	if tags["_address_family_name"] == "" && tags["address_family"] != "" && tags["subsequent_address_family"] != "" {
+		tags["_address_family_name"] = tags["address_family"] + " " + tags["subsequent_address_family"]
 	}
 }
 

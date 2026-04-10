@@ -12,6 +12,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/netdata/netdata/go/plugins/plugin/framework/collectorapi"
 	"github.com/netdata/netdata/go/plugins/plugin/go.d/collector/snmp/ddsnmp"
 	"github.com/netdata/netdata/go/plugins/plugin/go.d/collector/snmp/ddsnmp/ddsnmpcollector"
 )
@@ -199,6 +200,50 @@ func TestNormalizeCollectorMetrics_DeviceSummariesUseMergedPeerIdentity(t *testi
 	assert.EqualValues(t, 1, states.MultiValue["established"])
 }
 
+func TestNormalizeCollectorMetrics_BGPPublicInformationalLabelsDoNotAffectIdentity(t *testing.T) {
+	pm := &ddsnmp.ProfileMetrics{Tags: map[string]string{}}
+	metrics := normalizeCollectorMetrics([]*ddsnmp.ProfileMetrics{
+		{
+			Metrics: []ddsnmp.Metric{
+				{
+					Profile:    pm,
+					Name:       "bgpPeerAvailability",
+					IsTable:    true,
+					Table:      "bgpPeerTable",
+					Tags:       map[string]string{"neighbor": "192.0.2.1", "remote_as": "65001", "local_address": "198.51.100.1", "peer_description": "Transit A"},
+					MultiValue: map[string]int64{"admin_enabled": 1, "established": 1},
+				},
+				{
+					Profile:    pm,
+					Name:       "bgpPeerAvailability",
+					IsTable:    true,
+					Table:      "bgpPeerTable",
+					Tags:       map[string]string{"neighbor": "192.0.2.1", "remote_as": "65001", "local_address": "198.51.100.2", "peer_description": "Transit B"},
+					MultiValue: map[string]int64{"admin_enabled": 1, "established": 1},
+				},
+			},
+		},
+	})
+
+	availability := requireMetric(t, metrics, "bgp.peers.availability", map[string]string{
+		"neighbor":  "192.0.2.1",
+		"remote_as": "65001",
+	})
+	assert.Equal(t, "bgp.peers.availability_192.0.2.1_65001", tableMetricKey(*availability))
+	assert.Equal(t, "198.51.100.1", availability.Tags["_local_address"])
+	assert.Equal(t, "Transit A", availability.Tags["_peer_description"])
+	assert.NotContains(t, availability.Tags, "local_address")
+	assert.NotContains(t, availability.Tags, "peer_description")
+
+	var count int
+	for _, metric := range metrics {
+		if metric.Name == "bgp.peers.availability" {
+			count++
+		}
+	}
+	assert.Equal(t, 1, count)
+}
+
 func TestNormalizeCollectorMetrics_HuaweiPeerFamiliesAndCounts(t *testing.T) {
 	pm := &ddsnmp.ProfileMetrics{Tags: map[string]string{}}
 	metrics := normalizeCollectorMetrics([]*ddsnmp.ProfileMetrics{
@@ -252,19 +297,21 @@ func TestNormalizeCollectorMetrics_HuaweiPeerFamiliesAndCounts(t *testing.T) {
 		"routing_instance":          "Public",
 		"neighbor":                  "10.45.2.2",
 		"remote_as":                 "26479",
-		"neighbor_address_type":     "ipv4",
 		"address_family":            "ipv4",
 		"subsequent_address_family": "unicast",
 	})
 	assert.EqualValues(t, 1, state.MultiValue["established"])
+	assert.Equal(t, "ipv4", state.Tags["_neighbor_address_type"])
+	assert.NotContains(t, state.Tags, "neighbor_address_type")
 
 	updates := requireMetric(t, metrics, "bgp.peers.update_traffic", map[string]string{
-		"routing_instance":      "0",
-		"neighbor":              "10.45.2.2",
-		"remote_as":             "26479",
-		"neighbor_address_type": "ipv4",
+		"routing_instance": "0",
+		"neighbor":         "10.45.2.2",
+		"remote_as":        "26479",
 	})
 	assert.Equal(t, map[string]int64{"received": 70063, "sent": 971}, updates.MultiValue)
+	assert.Equal(t, "ipv4", updates.Tags["_neighbor_address_type"])
+	assert.NotContains(t, updates.Tags, "neighbor_address_type")
 	assert.NotContains(t, updates.Tags, "address_family")
 	assert.NotContains(t, updates.Tags, "subsequent_address_family")
 
@@ -299,9 +346,10 @@ func TestNormalizeCollectorMetrics_AlcatelRouteFamilyInference(t *testing.T) {
 		"remote_as":                 "65001",
 		"address_family":            "ipv6",
 		"subsequent_address_family": "unicast",
-		"address_family_name":       "ipv6 unicast",
 	})
 	assert.Equal(t, map[string]int64{"received": 77}, routes.MultiValue)
+	assert.Equal(t, "ipv6 unicast", routes.Tags["_address_family_name"])
+	assert.NotContains(t, routes.Tags, "address_family_name")
 }
 
 func TestNormalizeCollectorMetrics_RouteDimKeepsFirstEquivalentSource(t *testing.T) {
@@ -439,12 +487,13 @@ func TestNormalizeCollectorMetrics_HuaweiTotalMessagesKeepPeerAndPeerFamilyScope
 	})
 
 	peerMessages := requireMetric(t, metrics, "bgp.peers.message_traffic", map[string]string{
-		"routing_instance":      "0",
-		"neighbor":              "10.45.2.2",
-		"remote_as":             "26479",
-		"neighbor_address_type": "ipv4",
+		"routing_instance": "0",
+		"neighbor":         "10.45.2.2",
+		"remote_as":        "26479",
 	})
 	assert.Equal(t, map[string]int64{"received": 200, "sent": 160}, peerMessages.MultiValue)
+	assert.Equal(t, "ipv4", peerMessages.Tags["_neighbor_address_type"])
+	assert.NotContains(t, peerMessages.Tags, "neighbor_address_type")
 	assert.NotContains(t, peerMessages.Tags, "address_family")
 	assert.NotContains(t, peerMessages.Tags, "subsequent_address_family")
 
@@ -452,12 +501,14 @@ func TestNormalizeCollectorMetrics_HuaweiTotalMessagesKeepPeerAndPeerFamilyScope
 		"routing_instance":          "Public",
 		"neighbor":                  "10.45.2.2",
 		"remote_as":                 "26479",
-		"neighbor_address_type":     "ipv4",
 		"address_family":            "ipv4",
 		"subsequent_address_family": "unicast",
-		"address_family_name":       "ipv4 unicast",
 	})
 	assert.Equal(t, map[string]int64{"received": 100, "sent": 80}, peerFamilyMessages.MultiValue)
+	assert.Equal(t, "ipv4", peerFamilyMessages.Tags["_neighbor_address_type"])
+	assert.Equal(t, "ipv4 unicast", peerFamilyMessages.Tags["_address_family_name"])
+	assert.NotContains(t, peerFamilyMessages.Tags, "neighbor_address_type")
+	assert.NotContains(t, peerFamilyMessages.Tags, "address_family_name")
 }
 
 func TestNormalizeCollectorMetrics_AlcatelIPv4AndIPv6AliasesSharePublicSurface(t *testing.T) {
@@ -549,7 +600,7 @@ func TestCollector_Collect_UsesBGPPublicMetricIDs(t *testing.T) {
 						Name:    "bgpPeerAvailability",
 						IsTable: true,
 						Table:   "bgpPeerTable",
-						Tags:    map[string]string{"neighbor": "192.0.2.1", "remote_as": "65001"},
+						Tags:    map[string]string{"neighbor": "192.0.2.1", "remote_as": "65001", "local_address": "198.51.100.1", "peer_description": "Transit A"},
 						MultiValue: map[string]int64{
 							"admin_enabled": 1,
 							"established":   1,
@@ -590,6 +641,9 @@ func TestCollector_Collect_UsesBGPPublicMetricIDs(t *testing.T) {
 	peerChart := collr.Charts().Get("snmp_bgp_peers_availability_192_0_2_1_65001")
 	require.NotNil(t, peerChart)
 	assert.Equal(t, "snmp.bgp.peers.availability", peerChart.Ctx)
+	peerLabels := chartLabels(peerChart)
+	assert.Equal(t, "198.51.100.1", peerLabels["local_address"])
+	assert.Equal(t, "Transit A", peerLabels["peer_description"])
 
 	deviceChart := collr.Charts().Get("snmp_bgp_devices_peer_counts")
 	require.NotNil(t, deviceChart)
@@ -628,6 +682,14 @@ func assertMetricNameAbsent(t *testing.T, metrics []ddsnmp.Metric, name string) 
 			t.Fatalf("unexpected metric %s with tags %v", name, metrics[i].Tags)
 		}
 	}
+}
+
+func chartLabels(chart *collectorapi.Chart) map[string]string {
+	labels := make(map[string]string, len(chart.Labels))
+	for _, label := range chart.Labels {
+		labels[label.Key] = label.Value
+	}
+	return labels
 }
 
 func tagsContained(have, want map[string]string) bool {

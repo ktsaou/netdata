@@ -171,7 +171,11 @@ func (c *Collector) updateBGPPeerCacheEntry(metric ddsnmp.Metric) {
 
 func mergeBGPPeerEntryTags(entry *bgpPeerEntry, tags map[string]string) {
 	for key, value := range tags {
-		if value != "" {
+		if value == "" {
+			continue
+		}
+		key = strings.TrimPrefix(key, "_")
+		if key != "" {
 			entry.tags[key] = value
 		}
 	}
@@ -221,7 +225,7 @@ func bgpPeerEntryKey(scope string, tags map[string]string) string {
 		return ""
 	}
 
-	if tags["neighbor"] == "" {
+	if bgpTagValue(tags, "neighbor") == "" {
 		return ""
 	}
 
@@ -233,11 +237,12 @@ func bgpPeerEntryKey(scope string, tags map[string]string) string {
 	var sb strings.Builder
 	bgpWritePeerKeyPart(&sb, scope)
 	for _, key := range identityTags {
-		if tags[key] == "" {
+		value := bgpTagValue(tags, key)
+		if value == "" {
 			continue
 		}
 		bgpWritePeerKeyPart(&sb, key)
-		bgpWritePeerKeyPart(&sb, tags[key])
+		bgpWritePeerKeyPart(&sb, value)
 	}
 	return sb.String()
 }

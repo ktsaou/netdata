@@ -142,11 +142,11 @@ func TestBGPPeerCacheUsesStableIdentityAndMutableTags(t *testing.T) {
 		Name:    "bgp.peers.availability",
 		IsTable: true,
 		Tags: map[string]string{
-			"routing_instance": "blue",
-			"neighbor":         "198.51.100.1",
-			"remote_as":        "65001",
-			"local_address":    "192.0.2.1",
-			"peer_description": "Transit A",
+			"routing_instance":  "blue",
+			"neighbor":          "198.51.100.1",
+			"remote_as":         "65001",
+			"_local_address":    "192.0.2.1",
+			"_peer_description": "Transit A",
 		},
 		MultiValue: map[string]int64{"admin_enabled": 0},
 	})
@@ -154,11 +154,11 @@ func TestBGPPeerCacheUsesStableIdentityAndMutableTags(t *testing.T) {
 		Name:    "bgp.peers.connection_state",
 		IsTable: true,
 		Tags: map[string]string{
-			"routing_instance": "blue",
-			"neighbor":         "198.51.100.1",
-			"remote_as":        "65001",
-			"local_address":    "192.0.2.2",
-			"peer_description": "Transit B",
+			"routing_instance":  "blue",
+			"neighbor":          "198.51.100.1",
+			"remote_as":         "65001",
+			"_local_address":    "192.0.2.2",
+			"_peer_description": "Transit B",
 		},
 		MultiValue: map[string]int64{"established": 1},
 	})
@@ -183,20 +183,20 @@ func TestFuncBGPPeersHandle(t *testing.T) {
 	coll.resetBGPPeerCache()
 
 	peerTags := map[string]string{
-		"routing_instance": "blue",
-		"neighbor":         "192.0.2.1",
-		"local_address":    "198.51.100.1",
-		"remote_as":        "65001",
-		"peer_description": "Transit Peer",
+		"routing_instance":  "blue",
+		"neighbor":          "192.0.2.1",
+		"_local_address":    "198.51.100.1",
+		"remote_as":         "65001",
+		"_peer_description": "Transit Peer",
 	}
 	familyTags := map[string]string{
 		"routing_instance":          "blue",
 		"neighbor":                  "192.0.2.1",
-		"local_address":             "198.51.100.1",
+		"_local_address":            "198.51.100.1",
 		"remote_as":                 "65001",
 		"address_family":            "ipv4",
 		"subsequent_address_family": "unicast",
-		"address_family_name":       "ipv4 unicast",
+		"_address_family_name":      "ipv4 unicast",
 	}
 
 	for _, metric := range []ddsnmp.Metric{
@@ -235,6 +235,8 @@ func TestFuncBGPPeersHandle(t *testing.T) {
 
 				assert.Equal(t, "peer", rows[0][findBGPPeerColIdx("Scope")])
 				assert.Equal(t, "192.0.2.1", rows[0][findBGPPeerColIdx("Neighbor")])
+				assert.Equal(t, "198.51.100.1", rows[0][findBGPPeerColIdx("Local Address")])
+				assert.Equal(t, "Transit Peer", rows[0][findBGPPeerColIdx("Peer Description")])
 				assert.Equal(t, "enabled", rows[0][findBGPPeerColIdx("Admin Status")])
 				assert.Equal(t, "OPEN Message Error - Bad BGP Identifier", rows[0][findBGPPeerColIdx("Last Error")])
 				assert.Equal(t, "idle", rows[0][findBGPPeerColIdx("Previous State")])
