@@ -80,13 +80,13 @@ func (p *tableRowProcessor) processSingleSameTableTag(row *tableRowData, tagCfg 
 
 	ta := tagAdder{tags: row.tags}
 	if err := p.tagProc.processTag(tagCfg, pdu, ta); err != nil {
-		p.log.Debugf("Error processing tag %s: %v", tagCfg.Tag, err)
+		p.log.Debugf("Error processing tag %s: %v", metricTagDisplayName(tagCfg), err)
 	}
 }
 
 func (p *tableRowProcessor) processSingleCrossTableTag(row *tableRowData, tagCfg ddprofiledefinition.MetricTagConfig, ctx *tableRowProcessingContext) {
 	if err := p.crossTableResolver.resolveCrossTableTag(tagCfg, row.index, ctx.crossTableCtx); err != nil {
-		p.log.Debugf("Error resolving cross-table tag %s: %v", tagCfg.Tag, err)
+		p.log.Debugf("Error resolving cross-table tag %s: %v", metricTagDisplayName(tagCfg), err)
 	}
 }
 
@@ -96,7 +96,7 @@ func (p *tableRowProcessor) processSingleIndexTag(row *tableRowData, tagCfg ddpr
 		if tagCfg.Index != 0 {
 			p.log.Debugf("Cannot extract position %d from index %s: %v", tagCfg.Index, row.index, err)
 		} else {
-			p.log.Debugf("Cannot process transformed index tag %s from index %s: %v", tagCfg.Tag, row.index, err)
+			p.log.Debugf("Cannot process transformed index tag %s from index %s: %v", metricTagDisplayName(tagCfg), row.index, err)
 		}
 		return
 	}
@@ -133,6 +133,19 @@ func (p *tableRowProcessor) processIndexTag(cfg ddprofiledefinition.MetricTagCon
 	}
 
 	return tagName, value, nil
+}
+
+func metricTagDisplayName(cfg ddprofiledefinition.MetricTagConfig) string {
+	switch {
+	case cfg.Tag != "":
+		return cfg.Tag
+	case cfg.Symbol.Name != "":
+		return cfg.Symbol.Name
+	case cfg.Index != 0:
+		return fmt.Sprintf("index%d", cfg.Index)
+	default:
+		return "index"
+	}
 }
 
 // extractPosition extracts a specific position from an index

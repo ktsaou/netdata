@@ -474,6 +474,21 @@ func Test_validateEnrichMetrics(t *testing.T) {
 	}
 }
 
+func Test_validateEnrichMetricTag_MappingErrorUsesReadableFormat(t *testing.T) {
+	tag := MetricTagConfig{
+		Mapping: map[string]string{
+			"1": "up",
+		},
+	}
+
+	err := validateEnrichMetricTag(&tag)
+
+	if assert.Error(t, err) {
+		assert.Contains(t, err.Error(), "map[1:up]")
+		assert.NotContains(t, err.Error(), "%!s")
+	}
+}
+
 func Test_validateEnrichVirtualMetrics(t *testing.T) {
 	baseMetrics := []MetricsConfig{
 		{
