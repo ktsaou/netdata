@@ -199,12 +199,17 @@ func extractLicenseRows(pms []*ddsnmp.ProfileMetrics, now time.Time) []licenseRo
 	// licenseDateFromTag rejecting an unknown date string), where the row was
 	// allocated but no value_kind ever stamped its value. Keeping them would
 	// silently inflate the "ignored" bucket on the device-level chart.
-	rows = slices.DeleteFunc(rows, func(row licenseRow) bool {
-		return !licenseRowHasAnySignal(row)
-	})
+	rows = dropLicenseRowsWithoutSignals(rows)
 
 	for i := range rows {
 		applyVendorLicenseSanityRules(&rows[i])
+	}
+
+	// Vendor sanity normalization can clear the only merged signal on a row
+	// (for example a vendor sentinel that should not be treated as expiry).
+	rows = dropLicenseRowsWithoutSignals(rows)
+
+	for i := range rows {
 		rows[i].StateBucket = normalizeLicenseStateBucket(rows[i], now)
 	}
 
@@ -213,6 +218,12 @@ func extractLicenseRows(pms []*ddsnmp.ProfileMetrics, now time.Time) []licenseRo
 
 func isLicenseSourceMetric(name string) bool {
 	return strings.HasPrefix(name, licenseSourceMetricName)
+}
+
+func dropLicenseRowsWithoutSignals(rows []licenseRow) []licenseRow {
+	return slices.DeleteFunc(rows, func(row licenseRow) bool {
+		return !licenseRowHasAnySignal(row)
+	})
 }
 
 // licenseRowHasAnySignal returns true when at least one merged signal
