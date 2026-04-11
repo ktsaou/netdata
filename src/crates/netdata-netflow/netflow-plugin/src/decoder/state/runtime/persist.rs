@@ -6,6 +6,7 @@ impl FlowDecoders {
         key: &DecoderStateNamespaceKey,
         source: SocketAddr,
     ) -> Result<(), String> {
+        let source = normalize_template_scope_source(source);
         let Some(namespace) = self.decoder_state_namespaces.remove(key) else {
             self.hydrated_namespace_sources
                 .entry(key.clone())

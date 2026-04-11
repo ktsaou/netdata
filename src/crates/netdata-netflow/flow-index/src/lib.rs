@@ -3,8 +3,12 @@ use std::hash::Hasher;
 use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
 
 use hashbrown::HashTable;
+use std::mem::size_of;
+use storage::{FlowStorage, implicit_default_field_value};
 use thiserror::Error;
 use twox_hash::XxHash64;
+
+mod storage;
 
 pub type FieldId = u32;
 pub type FlowId = u32;
@@ -149,6 +153,15 @@ impl FlowSchema {
     pub fn fields(&self) -> &[FieldSpec] {
         &self.fields
     }
+
+    pub fn estimated_heap_bytes(&self) -> usize {
+        self.fields.len() * size_of::<FieldSpec>()
+            + self
+                .fields
+                .iter()
+                .map(|field| field.name.len())
+                .sum::<usize>()
+    }
 }
 
 #[derive(Debug, Error, PartialEq, Eq)]
@@ -173,6 +186,10 @@ pub enum FlowIndexError {
     FlowIdOverflow,
     #[error("text arena overflow")]
     TextArenaOverflow,
+    #[error("sparse flow storage supports at most 255 fields, got {field_count}")]
+    SparseFieldIndexOverflow { field_count: usize },
+    #[error("row storage overflow")]
+    RowStorageOverflow,
     #[error("failed to parse field `{field_name}` as `{kind:?}` from `{value}`")]
     Parse {
         field_name: String,
@@ -250,13 +267,36 @@ where
     schema: FlowSchema,
     field_stores: Box<[FieldStore]>,
     flow_lookup: HashTable<u32>,
-    flow_values: Vec<u32>,
+    flow_storage: FlowStorage,
     hasher: H,
+}
+
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct FlowIndexMemoryBreakdown {
+    pub schema_bytes: usize,
+    pub field_store_bytes: usize,
+    pub flow_lookup_bytes: usize,
+    pub row_storage_bytes: usize,
+}
+
+impl FlowIndexMemoryBreakdown {
+    pub fn total(self) -> usize {
+        self.schema_bytes
+            .saturating_add(self.field_store_bytes)
+            .saturating_add(self.flow_lookup_bytes)
+            .saturating_add(self.row_storage_bytes)
+    }
 }
 
 impl FlowIndex<XxHash64Strategy> {
     pub fn new(fields: impl IntoIterator<Item = FieldSpec>) -> Result<Self, FlowIndexError> {
         Self::with_hasher(fields, XxHash64Strategy)
+    }
+
+    pub fn new_with_implicit_defaults(
+        fields: impl IntoIterator<Item = FieldSpec>,
+    ) -> Result<Self, FlowIndexError> {
+        Self::with_hasher_and_implicit_defaults(fields, XxHash64Strategy)
     }
 }
 
@@ -268,19 +308,49 @@ where
         fields: impl IntoIterator<Item = FieldSpec>,
         hasher: H,
     ) -> Result<Self, FlowIndexError> {
+        Self::build(fields, hasher, false)
+    }
+
+    pub fn with_hasher_and_implicit_defaults(
+        fields: impl IntoIterator<Item = FieldSpec>,
+        hasher: H,
+    ) -> Result<Self, FlowIndexError> {
+        Self::build(fields, hasher, true)
+    }
+
+    fn build(
+        fields: impl IntoIterator<Item = FieldSpec>,
+        hasher: H,
+        implicit_defaults: bool,
+    ) -> Result<Self, FlowIndexError> {
         let schema = FlowSchema::new(fields)?;
-        let field_stores = schema
+        let mut field_stores = schema
             .fields()
             .iter()
             .map(|field| FieldStore::new(field.kind()))
             .collect::<Vec<_>>()
             .into_boxed_slice();
+        let flow_storage = if implicit_defaults {
+            let default_field_ids = schema
+                .fields()
+                .iter()
+                .enumerate()
+                .map(|(field_index, field)| {
+                    field_stores[field_index]
+                        .get_or_insert(implicit_default_field_value(field.kind()), &hasher)
+                })
+                .collect::<Result<Vec<_>, _>>()?
+                .into_boxed_slice();
+            FlowStorage::sparse_with_implicit_defaults(schema.len(), default_field_ids)?
+        } else {
+            FlowStorage::dense(schema.len())
+        };
 
         Ok(Self {
             schema,
             field_stores,
             flow_lookup: HashTable::new(),
-            flow_values: Vec::new(),
+            flow_storage,
             hasher,
         })
     }
@@ -290,11 +360,7 @@ where
     }
 
     pub fn flow_count(&self) -> usize {
-        if self.schema.is_empty() {
-            0
-        } else {
-            self.flow_values.len() / self.schema.len()
-        }
+        self.flow_storage.flow_count()
     }
 
     pub fn get_or_insert_parsed_field_value(
@@ -438,8 +504,7 @@ where
         Ok(self
             .flow_lookup
             .find(hash, |flow_id| {
-                self.flow_slice(*flow_id)
-                    .is_some_and(|ids| ids == field_ids)
+                self.flow_storage.row_matches(*flow_id, field_ids)
             })
             .copied())
     }
@@ -457,38 +522,51 @@ where
 
         let hash = self.hasher.hash_u32_slice(field_ids);
         let flow_id = next_flow_id(self.flow_count())?;
-        self.flow_values.extend_from_slice(field_ids);
+        self.flow_storage.push_row(field_ids)?;
 
-        let flow_values = &self.flow_values;
-        let arity = self.schema.len();
+        let flow_storage = &self.flow_storage;
         let hasher = self.hasher.clone();
         self.flow_lookup
             .insert_unique(hash, flow_id, move |existing_id| {
-                let start = *existing_id as usize * arity;
-                hasher.hash_u32_slice(&flow_values[start..start + arity])
+                flow_storage
+                    .row_hash(*existing_id, &hasher)
+                    .expect("stored flow should hash successfully")
             });
 
         Ok(flow_id)
     }
 
-    pub fn flow_field_ids(&self, flow_id: FlowId) -> Option<&[FieldId]> {
-        self.flow_slice(flow_id)
+    pub fn flow_field_id(&self, flow_id: FlowId, field_index: usize) -> Option<FieldId> {
+        self.flow_storage.field_id(flow_id, field_index)
     }
 
     pub fn flow_fields(&self, flow_id: FlowId) -> Option<Vec<OwnedFieldValue>> {
-        let ids = self.flow_slice(flow_id)?;
-        let mut values = Vec::with_capacity(ids.len());
-        for (index, field_id) in ids.iter().copied().enumerate() {
+        let mut values = Vec::with_capacity(self.schema.len());
+        for index in 0..self.schema.len() {
+            let field_id = self.flow_field_id(flow_id, index)?;
             values.push(self.field_stores[index].owned_value(field_id)?);
         }
         Some(values)
     }
 
-    fn flow_slice(&self, flow_id: FlowId) -> Option<&[u32]> {
-        let arity = self.schema.len();
-        let start = flow_id as usize * arity;
-        let end = start + arity;
-        self.flow_values.get(start..end)
+    pub fn estimated_heap_bytes(&self) -> usize {
+        self.estimated_memory_breakdown().total()
+    }
+
+    pub fn estimated_memory_breakdown(&self) -> FlowIndexMemoryBreakdown {
+        FlowIndexMemoryBreakdown {
+            schema_bytes: self.schema.estimated_heap_bytes(),
+            field_store_bytes: self
+                .field_stores
+                .iter()
+                .map(FieldStore::estimated_heap_bytes)
+                .sum::<usize>(),
+            flow_lookup_bytes: hash_table_allocation_bytes(
+                self.flow_lookup.capacity(),
+                size_of::<u32>(),
+            ),
+            row_storage_bytes: self.flow_storage.estimated_heap_bytes(),
+        }
     }
 }
 
@@ -556,41 +634,45 @@ struct TextEntry {
     len: u32,
 }
 
+const V6_FIELD_ID_TAG: FieldId = 1 << 31;
+
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
-struct PackedIpAddr {
-    family: u8,
-    bytes: [u8; 16],
+enum CanonicalIpAddr {
+    V4(u32),
+    V6([u8; 16]),
 }
 
-impl PackedIpAddr {
+impl CanonicalIpAddr {
     fn from_ip(value: IpAddr) -> Self {
         match value {
-            IpAddr::V4(ip) => {
-                let mut bytes = [0u8; 16];
-                bytes[..4].copy_from_slice(&ip.octets());
-                Self { family: 4, bytes }
-            }
+            IpAddr::V4(ip) => Self::V4(u32::from_be_bytes(ip.octets())),
             IpAddr::V6(ip) => ip
                 .to_ipv4_mapped()
-                .map(IpAddr::V4)
-                .map(Self::from_ip)
-                .unwrap_or_else(|| Self {
-                    family: 6,
-                    bytes: ip.octets(),
-                }),
+                .map(|mapped| Self::V4(u32::from_be_bytes(mapped.octets())))
+                .unwrap_or_else(|| Self::V6(ip.octets())),
         }
     }
 
     fn into_ip(self) -> IpAddr {
-        match self.family {
-            4 => {
-                let mut octets = [0u8; 4];
-                octets.copy_from_slice(&self.bytes[..4]);
-                IpAddr::V4(Ipv4Addr::from(octets))
-            }
-            _ => IpAddr::V6(Ipv6Addr::from(self.bytes)),
+        match self {
+            Self::V4(bits) => IpAddr::V4(Ipv4Addr::from(bits.to_be_bytes())),
+            Self::V6(bytes) => IpAddr::V6(Ipv6Addr::from(bytes)),
         }
     }
+}
+
+fn next_ip_field_id(len: usize, v6: bool) -> Result<FieldId, FlowIndexError> {
+    let raw = u32::try_from(len).map_err(|_| FlowIndexError::FieldIdOverflow)?;
+    if raw >= V6_FIELD_ID_TAG {
+        return Err(FlowIndexError::FieldIdOverflow);
+    }
+    Ok(if v6 { raw | V6_FIELD_ID_TAG } else { raw })
+}
+
+fn decode_ip_field_id(field_id: FieldId) -> (bool, usize) {
+    let is_v6 = (field_id & V6_FIELD_ID_TAG) != 0;
+    let raw = field_id & !V6_FIELD_ID_TAG;
+    (is_v6, raw as usize)
 }
 
 struct TextFieldStore {
@@ -665,6 +747,12 @@ impl TextFieldStore {
     fn owned_value(&self, field_id: FieldId) -> Option<OwnedFieldValue> {
         Some(OwnedFieldValue::Text(self.value_str(field_id)?.into()))
     }
+
+    fn estimated_heap_bytes(&self) -> usize {
+        hash_table_allocation_bytes(self.lookup.capacity(), size_of::<u32>())
+            + self.entries.capacity() * size_of::<TextEntry>()
+            + self.arena.capacity()
+    }
 }
 
 macro_rules! define_numeric_store {
@@ -725,6 +813,11 @@ macro_rules! define_numeric_store {
                     *self.values.get(field_id as usize)?,
                 ))
             }
+
+            fn estimated_heap_bytes(&self) -> usize {
+                hash_table_allocation_bytes(self.lookup.capacity(), size_of::<u32>())
+                    + self.values.capacity() * size_of::<$ty>()
+            }
         }
     };
 }
@@ -735,15 +828,19 @@ define_numeric_store!(U32FieldStore, u32, U32, hash_u32);
 define_numeric_store!(U64FieldStore, u64, U64, hash_u64);
 
 struct IpFieldStore {
-    lookup: HashTable<u32>,
-    values: Vec<PackedIpAddr>,
+    v4_lookup: HashTable<u32>,
+    v4_values: Vec<u32>,
+    v6_lookup: HashTable<u32>,
+    v6_values: Vec<[u8; 16]>,
 }
 
 impl IpFieldStore {
     fn new() -> Self {
         Self {
-            lookup: HashTable::new(),
-            values: Vec::new(),
+            v4_lookup: HashTable::new(),
+            v4_values: Vec::new(),
+            v6_lookup: HashTable::new(),
+            v6_values: Vec::new(),
         }
     }
 
@@ -752,48 +849,100 @@ impl IpFieldStore {
         value: IpAddr,
         hasher: &H,
     ) -> Result<FieldId, FlowIndexError> {
-        let packed = PackedIpAddr::from_ip(value);
-        let hash = hasher.hash_ip_parts(packed.family, &packed.bytes);
-        if let Some(existing_id) = self
-            .lookup
-            .find(hash, |field_id| self.values[*field_id as usize] == packed)
-            .copied()
-        {
-            return Ok(existing_id);
+        match CanonicalIpAddr::from_ip(value) {
+            CanonicalIpAddr::V4(bits) => {
+                let hash = hasher.hash_u32(bits);
+                if let Some(existing_id) = self
+                    .v4_lookup
+                    .find(hash, |field_id| self.v4_values[*field_id as usize] == bits)
+                    .copied()
+                {
+                    return Ok(existing_id);
+                }
+
+                let field_id = next_ip_field_id(self.v4_values.len(), false)?;
+                self.v4_values.push(bits);
+
+                let values = &self.v4_values;
+                let hasher = hasher.clone();
+                self.v4_lookup
+                    .insert_unique(hash, field_id, move |existing_id| {
+                        hasher.hash_u32(values[*existing_id as usize])
+                    });
+
+                Ok(field_id)
+            }
+            CanonicalIpAddr::V6(bytes) => {
+                let hash = hasher.hash_ip_parts(6, &bytes);
+                if let Some(existing_id) = self
+                    .v6_lookup
+                    .find(hash, |field_id| {
+                        let (_, index) = decode_ip_field_id(*field_id);
+                        self.v6_values[index] == bytes
+                    })
+                    .copied()
+                {
+                    return Ok(existing_id);
+                }
+
+                let field_id = next_ip_field_id(self.v6_values.len(), true)?;
+                self.v6_values.push(bytes);
+
+                let values = &self.v6_values;
+                let hasher = hasher.clone();
+                self.v6_lookup
+                    .insert_unique(hash, field_id, move |existing_id| {
+                        let (_, index) = decode_ip_field_id(*existing_id);
+                        hasher.hash_ip_parts(6, &values[index])
+                    });
+
+                Ok(field_id)
+            }
         }
-
-        let field_id = next_field_id(self.values.len())?;
-        self.values.push(packed);
-
-        let values = &self.values;
-        let hasher = hasher.clone();
-        self.lookup
-            .insert_unique(hash, field_id, move |existing_id| {
-                let value = values[*existing_id as usize];
-                hasher.hash_ip_parts(value.family, &value.bytes)
-            });
-
-        Ok(field_id)
     }
 
     fn find<H: HashStrategy>(&self, value: IpAddr, hasher: &H) -> Option<FieldId> {
-        let packed = PackedIpAddr::from_ip(value);
-        let hash = hasher.hash_ip_parts(packed.family, &packed.bytes);
-        self.lookup
-            .find(hash, |field_id| self.values[*field_id as usize] == packed)
-            .copied()
+        match CanonicalIpAddr::from_ip(value) {
+            CanonicalIpAddr::V4(bits) => {
+                let hash = hasher.hash_u32(bits);
+                self.v4_lookup
+                    .find(hash, |field_id| self.v4_values[*field_id as usize] == bits)
+                    .copied()
+            }
+            CanonicalIpAddr::V6(bytes) => {
+                let hash = hasher.hash_ip_parts(6, &bytes);
+                self.v6_lookup
+                    .find(hash, |field_id| {
+                        let (_, index) = decode_ip_field_id(*field_id);
+                        self.v6_values[index] == bytes
+                    })
+                    .copied()
+            }
+        }
     }
 
     fn value(&self, field_id: FieldId) -> Option<FieldValue<'_>> {
-        Some(FieldValue::IpAddr(
-            self.values.get(field_id as usize)?.to_owned().into_ip(),
-        ))
+        Some(FieldValue::IpAddr(self.ip_value(field_id)?.into_ip()))
     }
 
     fn owned_value(&self, field_id: FieldId) -> Option<OwnedFieldValue> {
-        Some(OwnedFieldValue::IpAddr(
-            self.values.get(field_id as usize)?.to_owned().into_ip(),
-        ))
+        Some(OwnedFieldValue::IpAddr(self.ip_value(field_id)?.into_ip()))
+    }
+
+    fn ip_value(&self, field_id: FieldId) -> Option<CanonicalIpAddr> {
+        let (is_v6, index) = decode_ip_field_id(field_id);
+        if is_v6 {
+            self.v6_values.get(index).copied().map(CanonicalIpAddr::V6)
+        } else {
+            self.v4_values.get(index).copied().map(CanonicalIpAddr::V4)
+        }
+    }
+
+    fn estimated_heap_bytes(&self) -> usize {
+        hash_table_allocation_bytes(self.v4_lookup.capacity(), size_of::<u32>())
+            + self.v4_values.capacity() * size_of::<u32>()
+            + hash_table_allocation_bytes(self.v6_lookup.capacity(), size_of::<u32>())
+            + self.v6_values.capacity() * size_of::<[u8; 16]>()
     }
 }
 
@@ -867,6 +1016,21 @@ impl FieldStore {
             Self::IpAddr(store) => store.owned_value(field_id),
         }
     }
+
+    fn estimated_heap_bytes(&self) -> usize {
+        match self {
+            Self::Text(store) => store.estimated_heap_bytes(),
+            Self::U8(store) => store.estimated_heap_bytes(),
+            Self::U16(store) => store.estimated_heap_bytes(),
+            Self::U32(store) => store.estimated_heap_bytes(),
+            Self::U64(store) => store.estimated_heap_bytes(),
+            Self::IpAddr(store) => store.estimated_heap_bytes(),
+        }
+    }
+}
+
+fn hash_table_allocation_bytes(capacity: usize, element_size: usize) -> usize {
+    capacity.saturating_mul(element_size.saturating_add(1))
 }
 
 #[cfg(test)]
@@ -1003,14 +1167,11 @@ mod tests {
 
     #[test]
     fn ipv6_mapped_ipv4_addresses_reuse_ipv4_field_ids() {
-        let mut index = FlowIndex::new([FieldSpec::new("SRC_ADDR", FieldKind::IpAddr)])
-            .expect("index");
+        let mut index =
+            FlowIndex::new([FieldSpec::new("SRC_ADDR", FieldKind::IpAddr)]).expect("index");
 
         let v4 = index
-            .get_or_insert_field_value(
-                0,
-                FieldValue::IpAddr(IpAddr::V4(Ipv4Addr::new(1, 2, 3, 4))),
-            )
+            .get_or_insert_field_value(0, FieldValue::IpAddr(IpAddr::V4(Ipv4Addr::new(1, 2, 3, 4))))
             .expect("v4 field");
         let mapped = index
             .get_or_insert_field_value(
@@ -1095,6 +1256,113 @@ mod tests {
                 .find_flow_by_field_ids(&[src_b, port_443])
                 .expect("find b"),
             Some(flow_b)
+        );
+    }
+
+    #[test]
+    fn implicit_defaults_round_trip_sparse_rows() {
+        let mut index = FlowIndex::new_with_implicit_defaults([
+            FieldSpec::new("FLOW_VERSION", FieldKind::Text),
+            FieldSpec::new("PROTOCOL", FieldKind::U8),
+            FieldSpec::new("EXPORTER_IP", FieldKind::IpAddr),
+            FieldSpec::new("EXPORTER_NAME", FieldKind::Text),
+            FieldSpec::new("OUT_IF", FieldKind::U32),
+        ])
+        .expect("index");
+
+        let flow_id = index
+            .get_or_insert_flow(&[
+                FieldValue::Text("v5"),
+                FieldValue::U8(6),
+                FieldValue::IpAddr(IpAddr::V4(Ipv4Addr::UNSPECIFIED)),
+                FieldValue::Text(""),
+                FieldValue::U32(0),
+            ])
+            .expect("insert sparse flow");
+
+        assert_eq!(
+            index.flow_fields(flow_id),
+            Some(vec![
+                OwnedFieldValue::Text("v5".into()),
+                OwnedFieldValue::U8(6),
+                OwnedFieldValue::IpAddr(IpAddr::V4(Ipv4Addr::UNSPECIFIED)),
+                OwnedFieldValue::Text("".into()),
+                OwnedFieldValue::U32(0),
+            ])
+        );
+        assert_eq!(
+            index
+                .find_flow(&[
+                    FieldValue::Text("v5"),
+                    FieldValue::U8(6),
+                    FieldValue::IpAddr(IpAddr::V4(Ipv4Addr::UNSPECIFIED)),
+                    FieldValue::Text(""),
+                    FieldValue::U32(0),
+                ])
+                .expect("find sparse flow"),
+            Some(flow_id)
+        );
+    }
+
+    #[test]
+    fn implicit_defaults_use_less_heap_for_sparse_rollup_rows() {
+        let schema = [
+            FieldSpec::new("FLOW_VERSION", FieldKind::Text),
+            FieldSpec::new("PROTOCOL", FieldKind::U8),
+            FieldSpec::new("ETYPE", FieldKind::U16),
+            FieldSpec::new("FORWARDING_STATUS", FieldKind::U8),
+            FieldSpec::new("EXPORTER_NAME", FieldKind::Text),
+            FieldSpec::new("EXPORTER_GROUP", FieldKind::Text),
+            FieldSpec::new("EXPORTER_ROLE", FieldKind::Text),
+            FieldSpec::new("EXPORTER_SITE", FieldKind::Text),
+            FieldSpec::new("EXPORTER_REGION", FieldKind::Text),
+            FieldSpec::new("EXPORTER_TENANT", FieldKind::Text),
+            FieldSpec::new("IN_IF_NAME", FieldKind::Text),
+            FieldSpec::new("OUT_IF_NAME", FieldKind::Text),
+            FieldSpec::new("IN_IF_DESCRIPTION", FieldKind::Text),
+            FieldSpec::new("OUT_IF_DESCRIPTION", FieldKind::Text),
+            FieldSpec::new("SRC_NET_NAME", FieldKind::Text),
+            FieldSpec::new("DST_NET_NAME", FieldKind::Text),
+            FieldSpec::new("SRC_COUNTRY", FieldKind::Text),
+            FieldSpec::new("DST_COUNTRY", FieldKind::Text),
+            FieldSpec::new("NEXT_HOP", FieldKind::IpAddr),
+            FieldSpec::new("OUT_IF", FieldKind::U32),
+        ];
+        let mut dense = FlowIndex::new(schema.clone()).expect("dense index");
+        let mut sparse = FlowIndex::new_with_implicit_defaults(schema).expect("sparse index");
+
+        for flow_id in 0..10_000u32 {
+            let values = [
+                FieldValue::Text("v5"),
+                FieldValue::U8(6),
+                FieldValue::U16(2048),
+                FieldValue::U8(0),
+                FieldValue::Text("router-a"),
+                FieldValue::Text(""),
+                FieldValue::Text(""),
+                FieldValue::Text(""),
+                FieldValue::Text(""),
+                FieldValue::Text(""),
+                FieldValue::Text(""),
+                FieldValue::Text(""),
+                FieldValue::Text(""),
+                FieldValue::Text(""),
+                FieldValue::Text(""),
+                FieldValue::Text(""),
+                FieldValue::Text("US"),
+                FieldValue::Text("DE"),
+                FieldValue::IpAddr(IpAddr::V4(Ipv4Addr::UNSPECIFIED)),
+                FieldValue::U32(flow_id),
+            ];
+            dense.get_or_insert_flow(&values).expect("dense flow");
+            sparse.get_or_insert_flow(&values).expect("sparse flow");
+        }
+
+        assert!(
+            sparse.estimated_heap_bytes() + 200_000 < dense.estimated_heap_bytes(),
+            "expected sparse defaults to materially reduce row heap: dense={} sparse={}",
+            dense.estimated_heap_bytes(),
+            sparse.estimated_heap_bytes(),
         );
     }
 

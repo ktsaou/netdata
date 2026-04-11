@@ -8,15 +8,15 @@ pub(crate) fn materialize_rollup_fields(
     index: &FlowIndex,
     flow_id: IndexedFlowId,
 ) -> Option<FlowFields> {
-    let field_ids = index.flow_field_ids(flow_id)?;
     let mut fields = FlowFields::new();
     let mut exporter_ip_present = false;
     let mut next_hop_present = false;
     let mut exporter_ip = IpAddr::V4(Ipv4Addr::UNSPECIFIED);
     let mut next_hop = IpAddr::V4(Ipv4Addr::UNSPECIFIED);
 
-    for (field_index, field_id) in field_ids.iter().copied().enumerate() {
-        let name = ROLLUP_FIELD_DEFS.get(field_index)?.name;
+    for (field_index, def) in ROLLUP_FIELD_DEFS.iter().enumerate() {
+        let field_id = index.flow_field_id(flow_id, field_index)?;
+        let name = def.name;
         let value = index.field_value(field_index, field_id)?;
         match name {
             INTERNAL_EXPORTER_IP_PRESENT => {
@@ -64,7 +64,7 @@ pub(crate) fn materialize_rollup_fields(
         },
     );
     for &(field, internal_field) in ROLLUP_PRESENCE_FIELDS {
-        let present = rollup_field_value(index, field_ids, internal_field)
+        let present = rollup_field_value(index, flow_id, internal_field)
             .is_some_and(|value| matches!(value, IndexFieldValue::U8(1)));
         if !present {
             fields.insert(field, String::new());
@@ -76,11 +76,11 @@ pub(crate) fn materialize_rollup_fields(
 
 pub(crate) fn rollup_field_value<'a>(
     index: &'a FlowIndex,
-    field_ids: &[u32],
+    flow_id: IndexedFlowId,
     field: &str,
 ) -> Option<IndexFieldValue<'a>> {
     let field_index = rollup_field_index(field)?;
-    let field_id = *field_ids.get(field_index)?;
+    let field_id = index.flow_field_id(flow_id, field_index)?;
     index.field_value(field_index, field_id)
 }
 

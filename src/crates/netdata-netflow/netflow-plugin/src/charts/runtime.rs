@@ -1,4 +1,5 @@
 use super::*;
+use std::fs;
 
 #[derive(Clone)]
 pub(crate) struct NetflowCharts {
@@ -11,6 +12,10 @@ pub(crate) struct NetflowCharts {
     open_tiers: ChartHandle<OpenTierMetrics>,
     journal_io_ops: ChartHandle<JournalIoOpsMetrics>,
     journal_io_bytes: ChartHandle<JournalIoBytesMetrics>,
+    decoder_scopes: ChartHandle<DecoderScopeMetrics>,
+    memory_resident_bytes: ChartHandle<MemoryResidentBytesMetrics>,
+    memory_accounted_bytes: ChartHandle<MemoryAccountedBytesMetrics>,
+    memory_tier_index_bytes: ChartHandle<MemoryTierIndexBytesMetrics>,
 }
 
 impl NetflowCharts {
@@ -37,6 +42,20 @@ impl NetflowCharts {
                 .register_chart(JournalIoOpsMetrics::default(), Duration::from_secs(1)),
             journal_io_bytes: runtime
                 .register_chart(JournalIoBytesMetrics::default(), Duration::from_secs(1)),
+            decoder_scopes: runtime
+                .register_chart(DecoderScopeMetrics::default(), Duration::from_secs(1)),
+            memory_resident_bytes: runtime.register_chart(
+                MemoryResidentBytesMetrics::default(),
+                Duration::from_secs(1),
+            ),
+            memory_accounted_bytes: runtime.register_chart(
+                MemoryAccountedBytesMetrics::default(),
+                Duration::from_secs(1),
+            ),
+            memory_tier_index_bytes: runtime.register_chart(
+                MemoryTierIndexBytesMetrics::default(),
+                Duration::from_secs(1),
+            ),
         }
     }
 
@@ -44,21 +63,31 @@ impl NetflowCharts {
         self,
         metrics: Arc<IngestMetrics>,
         open_tiers: Arc<RwLock<OpenTierState>>,
+        tier_flow_indexes: Arc<RwLock<TierFlowIndexStore>>,
+        facet_runtime: Arc<FacetRuntime>,
         shutdown: CancellationToken,
     ) -> JoinHandle<()> {
         tokio::spawn(async move {
             let mut interval = tokio::time::interval(Duration::from_secs(1));
-            let mut open_tier_counts = (0, 0, 0);
+            let mut open_tier_sample = OpenTierSamplerState::default();
+            let mut tier_index_sample = TierIndexSamplerState::default();
             interval.set_missed_tick_behavior(MissedTickBehavior::Skip);
 
             loop {
                 tokio::select! {
                     _ = shutdown.cancelled() => break,
                     _ = interval.tick() => {
-                        open_tier_counts =
-                            sample_open_tier_counts(open_tiers.as_ref(), open_tier_counts);
-                        let snapshot =
-                            NetflowChartsSnapshot::collect(metrics.as_ref(), open_tier_counts);
+                        open_tier_sample = sample_open_tier_state(open_tiers.as_ref(), open_tier_sample);
+                        tier_index_sample =
+                            sample_tier_index_state(tier_flow_indexes.as_ref(), tier_index_sample);
+                        let snapshot = NetflowChartsSnapshot::collect(
+                            metrics.as_ref(),
+                            open_tier_sample.counts,
+                            open_tier_sample.bytes,
+                            tier_index_sample,
+                            facet_runtime.estimated_memory_breakdown(),
+                            current_process_memory(),
+                        );
                         self.apply_snapshot(snapshot);
                     }
                 }
@@ -84,18 +113,41 @@ impl NetflowCharts {
             .update(|chart| *chart = snapshot.journal_io_ops);
         self.journal_io_bytes
             .update(|chart| *chart = snapshot.journal_io_bytes);
+        self.decoder_scopes
+            .update(|chart| *chart = snapshot.decoder_scopes);
+        self.memory_resident_bytes
+            .update(|chart| *chart = snapshot.memory_resident_bytes);
+        self.memory_accounted_bytes
+            .update(|chart| *chart = snapshot.memory_accounted_bytes);
+        self.memory_tier_index_bytes
+            .update(|chart| *chart = snapshot.memory_tier_index_bytes);
     }
 }
 
-pub(super) fn try_sample_open_tier_counts(
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub(super) struct OpenTierSamplerState {
+    pub(super) counts: (u64, u64, u64),
+    pub(super) bytes: u64,
+}
+
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub(super) struct TierIndexSamplerState {
+    pub(super) bytes: u64,
+    pub(super) breakdown: crate::tiering::TierFlowIndexMemoryBreakdown,
+}
+
+pub(super) fn try_sample_open_tier_state(
     open_tiers: &RwLock<OpenTierState>,
-) -> Option<(u64, u64, u64)> {
+) -> Option<OpenTierSamplerState> {
     match open_tiers.try_read() {
-        Ok(guard) => Some((
-            guard.minute_1.len() as u64,
-            guard.minute_5.len() as u64,
-            guard.hour_1.len() as u64,
-        )),
+        Ok(guard) => Some(OpenTierSamplerState {
+            counts: (
+                guard.minute_1.len() as u64,
+                guard.minute_5.len() as u64,
+                guard.hour_1.len() as u64,
+            ),
+            bytes: guard.estimated_heap_bytes() as u64,
+        }),
         Err(std::sync::TryLockError::WouldBlock) => None,
         Err(std::sync::TryLockError::Poisoned(poisoned)) => {
             static OPEN_TIERS_POISON_WARNED: std::sync::Once = std::sync::Once::new();
@@ -109,21 +161,72 @@ pub(super) fn try_sample_open_tier_counts(
             });
 
             let guard = poisoned.into_inner();
-            let counts = (
-                guard.minute_1.len() as u64,
-                guard.minute_5.len() as u64,
-                guard.hour_1.len() as u64,
-            );
+            let sample = OpenTierSamplerState {
+                counts: (
+                    guard.minute_1.len() as u64,
+                    guard.minute_5.len() as u64,
+                    guard.hour_1.len() as u64,
+                ),
+                bytes: guard.estimated_heap_bytes() as u64,
+            };
             drop(guard);
             open_tiers.clear_poison();
-            Some(counts)
+            Some(sample)
         }
     }
 }
 
-pub(super) fn sample_open_tier_counts(
+pub(super) fn sample_open_tier_state(
     open_tiers: &RwLock<OpenTierState>,
-    previous: (u64, u64, u64),
-) -> (u64, u64, u64) {
-    try_sample_open_tier_counts(open_tiers).unwrap_or(previous)
+    previous: OpenTierSamplerState,
+) -> OpenTierSamplerState {
+    try_sample_open_tier_state(open_tiers).unwrap_or(previous)
+}
+
+pub(super) fn sample_tier_index_state(
+    tier_flow_indexes: &RwLock<TierFlowIndexStore>,
+    previous: TierIndexSamplerState,
+) -> TierIndexSamplerState {
+    match tier_flow_indexes.try_read() {
+        Ok(guard) => TierIndexSamplerState {
+            bytes: guard.estimated_heap_bytes() as u64,
+            breakdown: guard.estimated_memory_breakdown(),
+        },
+        Err(std::sync::TryLockError::WouldBlock) => previous,
+        Err(std::sync::TryLockError::Poisoned(poisoned)) => {
+            let guard = poisoned.into_inner();
+            let sample = TierIndexSamplerState {
+                bytes: guard.estimated_heap_bytes() as u64,
+                breakdown: guard.estimated_memory_breakdown(),
+            };
+            drop(guard);
+            tier_flow_indexes.clear_poison();
+            sample
+        }
+    }
+}
+
+fn current_process_memory() -> ProcessMemorySample {
+    let Ok(status) = fs::read_to_string("/proc/self/status") else {
+        return ProcessMemorySample::default();
+    };
+    let mut sample = ProcessMemorySample::default();
+
+    for line in status.lines() {
+        if let Some(value) = line.strip_prefix("VmRSS:") {
+            sample.rss_bytes = parse_status_kib(value);
+        } else if let Some(value) = line.strip_prefix("VmHWM:") {
+            sample.hwm_bytes = parse_status_kib(value);
+        }
+    }
+
+    sample
+}
+
+fn parse_status_kib(raw: &str) -> u64 {
+    raw.split_whitespace()
+        .next()
+        .and_then(|value| value.parse::<u64>().ok())
+        .unwrap_or(0)
+        .saturating_mul(1024)
 }

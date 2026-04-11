@@ -92,7 +92,7 @@ pub(crate) fn decode_netflow(
         Vec::new()
     };
 
-    match parser.parse_from_source(source, payload) {
+    match parser.parse_from_source(normalize_template_scope_source(source), payload) {
         Ok(packets) => {
             batch.stats.parsed_packets = packets.len() as u64;
             for packet in packets {

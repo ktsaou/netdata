@@ -1,5 +1,6 @@
+use crate::facet_runtime::{FacetMemoryBreakdown, FacetRuntime};
 use crate::ingest::IngestMetrics;
-use crate::tiering::OpenTierState;
+use crate::tiering::{OpenTierState, TierFlowIndexStore};
 use rt::{ChartHandle, NetdataChart, StdPluginRuntime};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};

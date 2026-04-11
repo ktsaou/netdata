@@ -1,5 +1,6 @@
 use crate::flow::{FlowFields, FlowRecord};
 use netdata_flow_index::FlowId as IndexedFlowId;
+use std::mem::size_of;
 use std::time::Duration;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -84,6 +85,14 @@ pub(crate) struct OpenTierState {
     pub(crate) minute_1: Vec<OpenTierRow>,
     pub(crate) minute_5: Vec<OpenTierRow>,
     pub(crate) hour_1: Vec<OpenTierRow>,
+}
+
+impl OpenTierState {
+    pub(crate) fn estimated_heap_bytes(&self) -> usize {
+        self.minute_1.capacity() * size_of::<OpenTierRow>()
+            + self.minute_5.capacity() * size_of::<OpenTierRow>()
+            + self.hour_1.capacity() * size_of::<OpenTierRow>()
+    }
 }
 
 fn parse_u64(value: Option<&String>) -> u64 {

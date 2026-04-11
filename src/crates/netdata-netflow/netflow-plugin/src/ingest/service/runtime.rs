@@ -79,6 +79,8 @@ impl IngestService {
         let batch = self
             .decoders
             .decode_udp_payload_at(source, payload, receive_time_usec);
+        self.metrics
+            .update_decoder_scope_snapshot(self.decoders.decoder_scope_snapshot());
         self.metrics.apply_decode_stats(&batch.stats);
 
         for flow in batch.flows {
@@ -186,5 +188,20 @@ impl IngestService {
             tracing::warn!("facet runtime persist failed: {}", err);
         }
         0
+    }
+
+    #[cfg(test)]
+    pub(crate) fn handle_received_packet_for_test(
+        &mut self,
+        source: std::net::SocketAddr,
+        payload: &[u8],
+        entries_since_sync: usize,
+    ) -> usize {
+        self.handle_received_packet(source, payload, entries_since_sync)
+    }
+
+    #[cfg(test)]
+    pub(crate) fn finish_shutdown_for_test(&mut self, entries_since_sync: usize) {
+        self.finish_shutdown(entries_since_sync);
     }
 }

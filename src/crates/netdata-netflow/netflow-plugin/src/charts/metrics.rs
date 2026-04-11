@@ -173,3 +173,93 @@ pub(super) struct JournalIoBytesMetrics {
     #[schemars(extend("x-dimension-algorithm" = "incremental"))]
     pub(super) decoder_state_persist_bytes: u64,
 }
+
+#[derive(JsonSchema, NetdataChart, Default, Clone, PartialEq, Serialize, Deserialize, Debug)]
+#[schemars(
+    extend("x-chart-id" = "netflow.decoder_scopes"),
+    extend("x-chart-title" = "Netflow Decoder Scope Counts"),
+    extend("x-chart-units" = "scopes"),
+    extend("x-chart-type" = "line"),
+    extend("x-chart-family" = "netflow"),
+    extend("x-chart-context" = "netdata.netflow.decoder_scopes"),
+)]
+pub(super) struct DecoderScopeMetrics {
+    #[schemars(extend("x-dimension-algorithm" = "absolute"))]
+    pub(super) v9_sources: u64,
+    #[schemars(extend("x-dimension-algorithm" = "absolute"))]
+    pub(super) ipfix_sources: u64,
+    #[schemars(extend("x-dimension-algorithm" = "absolute"))]
+    pub(super) legacy_sources: u64,
+    #[schemars(extend("x-dimension-algorithm" = "absolute"))]
+    pub(super) namespaces: u64,
+    #[schemars(extend("x-dimension-algorithm" = "absolute"))]
+    pub(super) hydrated_sources: u64,
+}
+
+#[derive(JsonSchema, NetdataChart, Default, Clone, PartialEq, Serialize, Deserialize, Debug)]
+#[schemars(
+    extend("x-chart-id" = "netflow.memory_resident_bytes"),
+    extend("x-chart-title" = "Netflow Process Memory"),
+    extend("x-chart-units" = "bytes"),
+    extend("x-chart-type" = "line"),
+    extend("x-chart-family" = "netflow"),
+    extend("x-chart-context" = "netdata.netflow.memory_resident_bytes"),
+)]
+pub(super) struct MemoryResidentBytesMetrics {
+    #[schemars(extend("x-dimension-algorithm" = "absolute"))]
+    pub(super) rss: u64,
+    #[schemars(extend("x-dimension-algorithm" = "absolute"))]
+    pub(super) hwm: u64,
+}
+
+#[derive(JsonSchema, NetdataChart, Default, Clone, PartialEq, Serialize, Deserialize, Debug)]
+#[schemars(
+    extend("x-chart-id" = "netflow.memory_accounted_bytes"),
+    extend("x-chart-title" = "Netflow Accounted Memory"),
+    extend("x-chart-units" = "bytes"),
+    extend("x-chart-type" = "stacked"),
+    extend("x-chart-family" = "netflow"),
+    extend("x-chart-context" = "netdata.netflow.memory_accounted_bytes"),
+)]
+pub(super) struct MemoryAccountedBytesMetrics {
+    #[schemars(extend("x-dimension-algorithm" = "absolute"))]
+    pub(super) facet_archived: u64,
+    #[schemars(extend("x-dimension-algorithm" = "absolute"))]
+    pub(super) facet_active: u64,
+    #[schemars(extend("x-dimension-algorithm" = "absolute"))]
+    pub(super) facet_active_contributions: u64,
+    #[schemars(extend("x-dimension-algorithm" = "absolute"))]
+    pub(super) facet_published: u64,
+    #[schemars(extend("x-dimension-algorithm" = "absolute"))]
+    pub(super) facet_archived_paths: u64,
+    #[schemars(extend("x-dimension-algorithm" = "absolute"))]
+    pub(super) tier_indexes: u64,
+    #[schemars(extend("x-dimension-algorithm" = "absolute"))]
+    pub(super) open_tiers: u64,
+    #[schemars(extend("x-dimension-algorithm" = "absolute"))]
+    pub(super) unaccounted: u64,
+}
+
+#[derive(JsonSchema, NetdataChart, Default, Clone, PartialEq, Serialize, Deserialize, Debug)]
+#[schemars(
+    extend("x-chart-id" = "netflow.memory_tier_index_bytes"),
+    extend("x-chart-title" = "Netflow Tier Index Memory Breakdown"),
+    extend("x-chart-units" = "bytes"),
+    extend("x-chart-type" = "stacked"),
+    extend("x-chart-family" = "netflow"),
+    extend("x-chart-context" = "netdata.netflow.memory_tier_index_bytes"),
+)]
+pub(super) struct MemoryTierIndexBytesMetrics {
+    #[schemars(extend("x-dimension-algorithm" = "absolute"))]
+    pub(super) row_storage: u64,
+    #[schemars(extend("x-dimension-algorithm" = "absolute"))]
+    pub(super) field_stores: u64,
+    #[schemars(extend("x-dimension-algorithm" = "absolute"))]
+    pub(super) flow_lookup: u64,
+    #[schemars(extend("x-dimension-algorithm" = "absolute"))]
+    pub(super) schema: u64,
+    #[schemars(extend("x-dimension-algorithm" = "absolute"))]
+    pub(super) index_keys: u64,
+    #[schemars(extend("x-dimension-algorithm" = "absolute"))]
+    pub(super) scratch_field_ids: u64,
+}

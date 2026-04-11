@@ -1,12 +1,11 @@
+mod contribution;
 mod sidecar;
 mod store;
 
 use crate::facet_catalog::{FACET_ALLOWED_OPTIONS, FACET_FIELD_SPECS, facet_field_spec};
-use crate::flow::FlowFields;
-use crate::presentation;
 use crate::query::{
     FACET_CACHE_JOURNAL_WINDOW_SIZE, FACET_VALUE_LIMIT, accumulate_simple_closed_file_facet_values,
-    accumulate_targeted_facet_values, facet_field_requires_protocol_scan, split_payload_bytes,
+    accumulate_targeted_facet_values, facet_field_requires_protocol_scan,
     virtual_flow_field_dependencies,
 };
 use anyhow::{Context, Result};
@@ -15,21 +14,24 @@ use journal_registry::FileInfo;
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, BTreeSet};
 use std::fs;
+use std::mem::size_of;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex, RwLock};
 use tokio::sync::Notify;
 
+pub(crate) use contribution::{
+    FacetFileContribution, facet_contribution_from_encoded_fields,
+    facet_contribution_from_flow_fields,
+};
 use sidecar::{delete_sidecar_files, search_sidecar, write_sidecar_files};
 use store::{FacetStore, PersistedFacetStore};
 
-const FACET_STATE_VERSION: u32 = 3;
+const FACET_STATE_VERSION: u32 = 4;
 const FACET_STATE_FILE_NAME: &str = "facet-state.bin";
 const FACET_AUTOCOMPLETE_LIMIT: usize = 100;
 
-pub(crate) type FacetFileContribution = BTreeMap<String, BTreeSet<String>>;
-
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub(crate) struct FacetPublishedField {
     pub(crate) total_values: usize,
     pub(crate) autocomplete: bool,
@@ -41,20 +43,30 @@ pub(crate) struct FacetPublishedSnapshot {
     pub(crate) fields: BTreeMap<String, FacetPublishedField>,
 }
 
+#[derive(Debug, Clone, Copy, Default)]
+pub(crate) struct FacetMemoryBreakdown {
+    pub(crate) archived_bytes: u64,
+    pub(crate) active_bytes: u64,
+    pub(crate) active_contributions_bytes: u64,
+    pub(crate) published_bytes: u64,
+    pub(crate) archived_path_bytes: u64,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 struct PersistedFacetState {
     version: u32,
     indexed_archived_paths: BTreeSet<String>,
     archived_fields: BTreeMap<String, PersistedFacetStore>,
-    fields: BTreeMap<String, PersistedFacetStore>,
+    published: BTreeMap<String, FacetPublishedField>,
 }
 
 #[derive(Debug, Clone)]
 struct FacetState {
     indexed_archived_paths: BTreeSet<String>,
     archived_fields: BTreeMap<String, FacetStore>,
-    fields: BTreeMap<String, FacetStore>,
+    active_fields: BTreeMap<String, FacetStore>,
     active_contributions: BTreeMap<String, FacetFileContribution>,
+    published: FacetPublishedSnapshot,
     dirty: bool,
     rebuild_archived: bool,
 }
@@ -83,7 +95,7 @@ impl FacetRuntime {
         let state = loaded
             .map(FacetState::from_persisted)
             .unwrap_or_else(FacetState::new);
-        let snapshot = Arc::new(RwLock::new(Arc::new(snapshot_from_state(&state))));
+        let snapshot = Arc::new(RwLock::new(Arc::new(state.published.clone())));
 
         Self {
             state: Mutex::new(state),
@@ -103,6 +115,28 @@ impl FacetRuntime {
             .read()
             .map(|guard| Arc::clone(&guard))
             .unwrap_or_else(|_| Arc::new(FacetPublishedSnapshot::default()))
+    }
+
+    pub(crate) fn estimated_memory_breakdown(&self) -> FacetMemoryBreakdown {
+        let Ok(state) = self.state.lock() else {
+            return FacetMemoryBreakdown::default();
+        };
+
+        FacetMemoryBreakdown {
+            archived_bytes: estimate_store_map_bytes(&state.archived_fields) as u64,
+            active_bytes: estimate_store_map_bytes(&state.active_fields) as u64,
+            active_contributions_bytes: state
+                .active_contributions
+                .iter()
+                .map(|(path, contribution)| path.capacity() + contribution.estimated_heap_bytes())
+                .sum::<usize>() as u64,
+            published_bytes: estimate_published_snapshot_bytes(&state.published) as u64,
+            archived_path_bytes: state
+                .indexed_archived_paths
+                .iter()
+                .map(|path| path.capacity())
+                .sum::<usize>() as u64,
+        }
     }
 
     pub(crate) fn build_reconcile_plan(&self, registry_files: &[FileInfo]) -> FacetReconcilePlan {
@@ -203,7 +237,8 @@ impl FacetRuntime {
             state.active_contributions.insert(path, contribution);
             state.dirty = true;
         }
-        rebuild_combined_fields(&mut state);
+        rebuild_active_fields(&mut state);
+        rebuild_published_fields(&mut state);
         state.rebuild_archived = false;
 
         publish_locked(&self.snapshot, &state);
@@ -226,15 +261,9 @@ impl FacetRuntime {
             .state
             .lock()
             .map_err(|_| anyhow::anyhow!("facet runtime lock poisoned"))?;
-        let changed = merge_global_contribution(&mut state.fields, &contribution);
-        let entry = state
-            .active_contributions
-            .entry(path_str.to_string())
-            .or_default();
-        merge_file_contribution(entry, contribution);
+        let changed = apply_active_contribution(&mut state, path_str, contribution);
         state.dirty = true;
         if changed {
-            state.dirty = true;
             publish_locked(&self.snapshot, &state);
         }
 
@@ -255,9 +284,12 @@ impl FacetRuntime {
             .or_else(|| state.active_contributions.remove(&active_path_str));
         if let Some(contribution) = contribution {
             merge_global_contribution(&mut state.archived_fields, &contribution);
+            rebuild_active_fields(&mut state);
+            rebuild_published_fields(&mut state);
             write_sidecar_files(archived_path, &contribution)?;
             state.indexed_archived_paths.insert(archived_path_str);
             state.dirty = true;
+            publish_locked(&self.snapshot, &state);
             persist_state_locked(&self.state_path, &mut state)?;
         }
 
@@ -287,7 +319,8 @@ impl FacetRuntime {
 
         if changed {
             if !state.rebuild_archived {
-                rebuild_combined_fields(&mut state);
+                rebuild_active_fields(&mut state);
+                rebuild_published_fields(&mut state);
                 publish_locked(&self.snapshot, &state);
             }
             state.dirty = true;
@@ -308,29 +341,31 @@ impl FacetRuntime {
                 .state
                 .lock()
                 .map_err(|_| anyhow::anyhow!("facet runtime lock poisoned"))?;
-            let Some(store) = state.fields.get(normalized.as_str()) else {
+            let Some(published) = state.published.fields.get(normalized.as_str()) else {
                 return Ok(Vec::new());
             };
-            let promoted = spec.supports_autocomplete && store.len() > FACET_VALUE_LIMIT;
-            let active_matches = collect_active_prefix_matches(
-                &state.active_contributions,
-                normalized.as_str(),
-                term,
-                FACET_AUTOCOMPLETE_LIMIT,
-            );
+            let active_matches = state
+                .active_fields
+                .get(normalized.as_str())
+                .map(|store| store.prefix_matches(term, FACET_AUTOCOMPLETE_LIMIT))
+                .unwrap_or_default();
+            let archived_matches = if !spec.uses_sidecar || !published.autocomplete {
+                state
+                    .archived_fields
+                    .get(normalized.as_str())
+                    .map(|store| store.prefix_matches(term, FACET_AUTOCOMPLETE_LIMIT))
+                    .unwrap_or_default()
+            } else {
+                Vec::new()
+            };
             let archived_paths = state
                 .indexed_archived_paths
                 .iter()
                 .cloned()
                 .collect::<Vec<_>>();
-            let in_memory = if !spec.uses_sidecar || !promoted {
-                store.prefix_matches(term, FACET_AUTOCOMPLETE_LIMIT)
-            } else {
-                Vec::new()
-            };
             (
-                promoted,
-                merge_autocomplete_values(active_matches, in_memory),
+                published.autocomplete,
+                merge_autocomplete_values(active_matches, archived_matches),
                 archived_paths,
             )
         };
@@ -371,10 +406,13 @@ impl FacetRuntime {
 
 impl FacetState {
     fn new() -> Self {
+        let archived_fields = empty_field_stores();
+        let active_fields = empty_field_stores();
         Self {
             indexed_archived_paths: BTreeSet::new(),
-            archived_fields: empty_field_stores(),
-            fields: empty_field_stores(),
+            published: published_snapshot_from_field_stores(&archived_fields, &active_fields),
+            archived_fields,
+            active_fields,
             active_contributions: BTreeMap::new(),
             dirty: false,
             rebuild_archived: false,
@@ -392,63 +430,24 @@ impl FacetState {
             }
         }
 
-        let mut fields = empty_field_stores();
-        for spec in FACET_FIELD_SPECS.iter() {
-            if let Some(saved) = persisted.fields.get(spec.name) {
-                fields.insert(
-                    spec.name.to_string(),
-                    FacetStore::from_persisted(spec.kind, saved.clone()),
-                );
-            }
-        }
+        let active_fields = empty_field_stores();
 
         Self {
             indexed_archived_paths: persisted.indexed_archived_paths,
+            published: if persisted.published.is_empty() {
+                published_snapshot_from_field_stores(&archived_fields, &active_fields)
+            } else {
+                FacetPublishedSnapshot {
+                    fields: persisted.published,
+                }
+            },
             archived_fields,
-            fields,
+            active_fields,
             active_contributions: BTreeMap::new(),
             dirty: false,
             rebuild_archived: false,
         }
     }
-}
-
-pub(crate) fn facet_contribution_from_flow_fields(fields: &FlowFields) -> FacetFileContribution {
-    let mut stored = BTreeMap::new();
-
-    for (field, value) in fields {
-        if is_relevant_facet_capture_field(field) && !value.is_empty() {
-            stored.insert((*field).to_string(), value.clone());
-        }
-    }
-
-    facet_contribution_from_stored_values(&stored)
-}
-
-pub(crate) fn facet_contribution_from_encoded_fields<'a, I>(fields: I) -> FacetFileContribution
-where
-    I: IntoIterator<Item = &'a [u8]>,
-{
-    let mut stored = BTreeMap::new();
-
-    for payload in fields {
-        let Some((key_bytes, value_bytes)) = split_payload_bytes(payload) else {
-            continue;
-        };
-        let Ok(field) = std::str::from_utf8(key_bytes) else {
-            continue;
-        };
-        if !is_relevant_facet_capture_field(field) {
-            continue;
-        }
-        let value = crate::query::payload_value(value_bytes);
-        if value.is_empty() {
-            continue;
-        }
-        stored.insert(field.to_string(), value.into_owned());
-    }
-
-    facet_contribution_from_stored_values(&stored)
 }
 
 pub(crate) fn scan_registry_file_contribution(
@@ -506,58 +505,7 @@ pub(crate) fn scan_registry_file_contribution(
             )
         })?;
     }
-    Ok(values)
-}
-
-fn facet_contribution_from_stored_values(
-    stored_values: &BTreeMap<String, String>,
-) -> FacetFileContribution {
-    let mut contribution: FacetFileContribution = BTreeMap::new();
-
-    for field in FACET_ALLOWED_OPTIONS.iter() {
-        match field.as_str() {
-            "ICMPV4" => {
-                if let Some(value) = presentation::icmp_virtual_value(
-                    "ICMPV4",
-                    stored_values.get("PROTOCOL").map(String::as_str),
-                    stored_values.get("ICMPV4_TYPE").map(String::as_str),
-                    stored_values.get("ICMPV4_CODE").map(String::as_str),
-                ) {
-                    contribution.entry(field.clone()).or_default().insert(value);
-                }
-            }
-            "ICMPV6" => {
-                if let Some(value) = presentation::icmp_virtual_value(
-                    "ICMPV6",
-                    stored_values.get("PROTOCOL").map(String::as_str),
-                    stored_values.get("ICMPV6_TYPE").map(String::as_str),
-                    stored_values.get("ICMPV6_CODE").map(String::as_str),
-                ) {
-                    contribution.entry(field.clone()).or_default().insert(value);
-                }
-            }
-            _ => {
-                if let Some(value) = stored_values.get(field)
-                    && !value.is_empty()
-                {
-                    contribution
-                        .entry(field.clone())
-                        .or_default()
-                        .insert(value.clone());
-                }
-            }
-        }
-    }
-
-    contribution
-}
-
-fn is_relevant_facet_capture_field(field: &str) -> bool {
-    FACET_ALLOWED_OPTIONS.iter().any(|allowed| allowed == field)
-        || matches!(
-            field,
-            "PROTOCOL" | "ICMPV4_TYPE" | "ICMPV4_CODE" | "ICMPV6_TYPE" | "ICMPV6_CODE"
-        )
+    Ok(FacetFileContribution::from_scanned_values(values))
 }
 
 fn empty_field_stores() -> BTreeMap<String, FacetStore> {
@@ -572,46 +520,47 @@ fn merge_global_contribution(
     contribution: &FacetFileContribution,
 ) -> bool {
     let mut changed = false;
-    for (field, values) in contribution {
-        let Some(spec) = facet_field_spec(field) else {
-            continue;
-        };
-        let store = fields
-            .entry(spec.name.to_string())
-            .or_insert_with(|| FacetStore::new(spec.kind));
-        for value in values {
-            changed |= store.insert_raw(value);
+    for (field, store) in contribution.iter() {
+        match fields.entry(field.to_string()) {
+            std::collections::btree_map::Entry::Occupied(mut entry) => {
+                changed |= entry.get_mut().merge_from(store);
+            }
+            std::collections::btree_map::Entry::Vacant(entry) => {
+                entry.insert(store.clone());
+                changed = true;
+            }
         }
     }
     changed
 }
 
-fn merge_file_contribution(target: &mut FacetFileContribution, source: FacetFileContribution) {
-    for (field, values) in source {
-        target.entry(field).or_default().extend(values);
-    }
-}
-
-fn rebuild_combined_fields(state: &mut FacetState) {
-    state.fields = state.archived_fields.clone();
+fn rebuild_active_fields(state: &mut FacetState) {
+    state.active_fields = empty_field_stores();
     for contribution in state.active_contributions.values() {
-        merge_global_contribution(&mut state.fields, contribution);
+        merge_global_contribution(&mut state.active_fields, contribution);
     }
 }
 
-fn snapshot_from_state(state: &FacetState) -> FacetPublishedSnapshot {
+fn published_snapshot_from_field_stores(
+    archived_fields: &BTreeMap<String, FacetStore>,
+    active_fields: &BTreeMap<String, FacetStore>,
+) -> FacetPublishedSnapshot {
     let mut fields = BTreeMap::new();
 
     for spec in FACET_FIELD_SPECS.iter() {
-        let Some(store) = state.fields.get(spec.name) else {
-            continue;
-        };
-        let total_values = store.len();
+        let mut combined = archived_fields
+            .get(spec.name)
+            .cloned()
+            .unwrap_or_else(|| FacetStore::new(spec.kind));
+        if let Some(active_store) = active_fields.get(spec.name) {
+            let _ = combined.merge_from(active_store);
+        }
+        let total_values = combined.len();
         let autocomplete = spec.supports_autocomplete && total_values > FACET_VALUE_LIMIT;
         let values = if autocomplete {
             Vec::new()
         } else {
-            store.collect_strings(None)
+            combined.collect_strings(None)
         };
         fields.insert(
             spec.name.to_string(),
@@ -626,8 +575,85 @@ fn snapshot_from_state(state: &FacetState) -> FacetPublishedSnapshot {
     FacetPublishedSnapshot { fields }
 }
 
+fn rebuild_published_fields(state: &mut FacetState) {
+    state.published =
+        published_snapshot_from_field_stores(&state.archived_fields, &state.active_fields);
+}
+
+fn apply_new_active_value_to_published(
+    published: &mut FacetPublishedSnapshot,
+    field: &str,
+    value: &str,
+) {
+    let Some(spec) = facet_field_spec(field) else {
+        return;
+    };
+    let entry = published
+        .fields
+        .entry(spec.name.to_string())
+        .or_insert_with(FacetPublishedField::default);
+
+    entry.total_values = entry.total_values.saturating_add(1);
+    if spec.supports_autocomplete && entry.total_values > FACET_VALUE_LIMIT {
+        entry.autocomplete = true;
+        entry.values.clear();
+        return;
+    }
+
+    entry.values.push(value.to_string());
+    entry.values.sort_unstable();
+}
+
+fn apply_active_contribution(
+    state: &mut FacetState,
+    path_str: &str,
+    contribution: FacetFileContribution,
+) -> bool {
+    let entry = state
+        .active_contributions
+        .entry(path_str.to_string())
+        .or_default();
+    let mut changed = false;
+
+    for (field, store) in contribution.iter() {
+        let Some(spec) = facet_field_spec(field) else {
+            continue;
+        };
+
+        let active_store = state
+            .active_fields
+            .entry(spec.name.to_string())
+            .or_insert_with(|| FacetStore::new(spec.kind));
+        for value in store.collect_strings(None) {
+            if entry
+                .field(field)
+                .is_some_and(|existing| existing.contains_raw(&value))
+            {
+                continue;
+            }
+
+            entry.insert_raw(field, &value);
+            if !active_store.insert_raw(&value) {
+                continue;
+            }
+            if state
+                .archived_fields
+                .get(spec.name)
+                .is_some_and(|archived| archived.contains_raw(&value))
+            {
+                continue;
+            }
+
+            apply_new_active_value_to_published(&mut state.published, spec.name, &value);
+            changed = true;
+        }
+    }
+
+    changed
+}
+
 fn publish_locked(snapshot: &Arc<RwLock<Arc<FacetPublishedSnapshot>>>, state: &FacetState) {
-    let published = Arc::new(snapshot_from_state(state));
+    let published = Arc::new(state.published.clone());
     if let Ok(mut guard) = snapshot.write() {
         *guard = published;
     }
@@ -656,12 +682,7 @@ fn persist_state_locked(state_path: &Path, state: &mut FacetState) -> Result<()>
             .filter(|(_, store)| store.len() > 0)
             .map(|(field, store)| (field.clone(), store.persist()))
             .collect(),
-        fields: state
-            .fields
-            .iter()
-            .filter(|(_, store)| store.len() > 0)
-            .map(|(field, store)| (field.clone(), store.persist()))
-            .collect(),
+        published: state.published.fields.clone(),
     };
     let payload = bincode::serialize(&persisted).context("failed to serialize facet state")?;
     let tmp_path = state_path.with_extension("bin.tmp");
@@ -680,6 +701,29 @@ fn persist_state_locked(state_path: &Path, state: &mut FacetState) -> Result<()>
     })?;
     state.dirty = false;
     Ok(())
+}
+
+fn estimate_store_map_bytes(fields: &BTreeMap<String, FacetStore>) -> usize {
+    fields
+        .iter()
+        .map(|(field, store)| field.capacity() + size_of::<String>() + store.estimated_heap_bytes())
+        .sum()
+}
+
+fn estimate_published_snapshot_bytes(snapshot: &FacetPublishedSnapshot) -> usize {
+    snapshot
+        .fields
+        .iter()
+        .map(|(field, published)| {
+            field.capacity()
+                + size_of::<String>()
+                + published
+                    .values
+                    .iter()
+                    .map(|value| value.capacity() + size_of::<String>())
+                    .sum::<usize>()
+        })
+        .sum()
 }
 
 fn load_persisted_state(state_path: &Path) -> Option<PersistedFacetState> {
@@ -718,29 +762,6 @@ fn load_persisted_state(state_path: &Path) -> Option<PersistedFacetState> {
     Some(persisted)
 }
 
-fn collect_active_prefix_matches(
-    active: &BTreeMap<String, FacetFileContribution>,
-    field: &str,
-    term: &str,
-    limit: usize,
-) -> Vec<String> {
-    let mut out = BTreeSet::new();
-    for contribution in active.values() {
-        let Some(values) = contribution.get(field) else {
-            continue;
-        };
-        for value in values {
-            if value.starts_with(term) {
-                out.insert(value.clone());
-                if out.len() >= limit {
-                    return out.into_iter().collect();
-                }
-            }
-        }
-    }
-    out.into_iter().collect()
-}
-
 fn merge_autocomplete_values(left: Vec<String>, right: Vec<String>) -> Vec<String> {
     let mut merged = left.into_iter().collect::<BTreeSet<_>>();
     merged.extend(right);
@@ -752,6 +773,7 @@ fn merge_autocomplete_values(left: Vec<String>, right: Vec<String>) -> Vec<Strin
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::flow::FlowFields;
 
     fn fields_with_protocol(protocol: &str) -> FlowFields {
         let mut fields = FlowFields::new();

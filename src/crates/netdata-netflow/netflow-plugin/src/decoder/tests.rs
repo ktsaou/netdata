@@ -2774,7 +2774,31 @@ fn persisted_decoder_state_keeps_latest_effective_template_only() {
 }
 
 #[test]
-fn persisted_decoder_state_rehydrates_loaded_namespace_for_new_source_socket() {
+fn v9_parser_scope_reuses_templates_across_source_port_churn() {
+    let source = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 2055);
+    let alternate_source = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 9999);
+    let template = synthetic_v9_datalink_template_packet(256, 42, 96);
+    let data = synthetic_v9_datalink_data_packet(256, 42, 582, 0, &synthetic_vlan_ipv4_udp_frame());
+
+    let mut decoders = FlowDecoders::new();
+    let _ = decoders.decode_udp_payload(source, &template);
+    let decoded = decoders.decode_udp_payload(alternate_source, &data);
+
+    assert_eq!(
+        decoders.netflow.v9_source_count(),
+        1,
+        "source-port churn from one exporter IP must not create new parser scopes"
+    );
+    assert_eq!(
+        decoded.flows.len(),
+        1,
+        "alternate source port should reuse the template"
+    );
+    assert_eq!(decoded.flows[0].record.exporter_port, 9999);
+}
+
+#[test]
+fn persisted_decoder_state_reuses_loaded_namespace_for_new_source_port() {
     let source = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 2055);
     let alternate_source = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 9999);
     let template = synthetic_v9_datalink_template_packet(256, 42, 96);
@@ -2794,18 +2818,15 @@ fn persisted_decoder_state_rehydrates_loaded_namespace_for_new_source_socket() {
         .import_decoder_state_namespace(key.clone(), source, &persisted)
         .expect("failed to restore decoder namespace state");
     assert!(
-        restored.decoder_state_source_needs_hydration(&key, alternate_source),
-        "a new source socket should require template hydration"
+        !restored.decoder_state_source_needs_hydration(&key, alternate_source),
+        "a source-port change on the same exporter IP must reuse the loaded namespace"
     );
 
-    restored
-        .hydrate_loaded_decoder_state_namespace(&key, alternate_source)
-        .expect("failed to hydrate decoder namespace for alternate source");
     let decoded = restored.decode_udp_payload(alternate_source, &data);
     assert_eq!(
         decoded.flows.len(),
         1,
-        "alternate source should decode after hydration"
+        "alternate source port should decode without extra hydration"
     );
     let flow = decoded.flows[0].record.to_fields();
     assert_eq!(flow.get("IN_IF").map(String::as_str), Some("582"));

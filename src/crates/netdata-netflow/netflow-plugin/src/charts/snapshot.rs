@@ -11,10 +11,35 @@ pub(super) struct NetflowChartsSnapshot {
     pub(super) open_tiers: OpenTierMetrics,
     pub(super) journal_io_ops: JournalIoOpsMetrics,
     pub(super) journal_io_bytes: JournalIoBytesMetrics,
+    pub(super) decoder_scopes: DecoderScopeMetrics,
+    pub(super) memory_resident_bytes: MemoryResidentBytesMetrics,
+    pub(super) memory_accounted_bytes: MemoryAccountedBytesMetrics,
+    pub(super) memory_tier_index_bytes: MemoryTierIndexBytesMetrics,
+}
+
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub(super) struct ProcessMemorySample {
+    pub(super) rss_bytes: u64,
+    pub(super) hwm_bytes: u64,
 }
 
 impl NetflowChartsSnapshot {
-    pub(super) fn collect(metrics: &IngestMetrics, open_tier_counts: (u64, u64, u64)) -> Self {
+    pub(super) fn collect(
+        metrics: &IngestMetrics,
+        open_tier_counts: (u64, u64, u64),
+        open_tier_bytes: u64,
+        tier_index: TierIndexSamplerState,
+        facet_breakdown: FacetMemoryBreakdown,
+        process_memory: ProcessMemorySample,
+    ) -> Self {
+        let accounted_total = facet_breakdown
+            .archived_bytes
+            .saturating_add(facet_breakdown.active_bytes)
+            .saturating_add(facet_breakdown.active_contributions_bytes)
+            .saturating_add(facet_breakdown.published_bytes)
+            .saturating_add(facet_breakdown.archived_path_bytes)
+            .saturating_add(tier_index.bytes)
+            .saturating_add(open_tier_bytes);
         Self {
             input_packets: InputPacketsMetrics {
                 udp_received: metrics.udp_packets_received.load(Ordering::Relaxed),
@@ -74,6 +99,35 @@ impl NetflowChartsSnapshot {
                 decoder_state_persist_bytes: metrics
                     .decoder_state_persist_bytes
                     .load(Ordering::Relaxed),
+            },
+            decoder_scopes: DecoderScopeMetrics {
+                v9_sources: metrics.decoder_v9_sources.load(Ordering::Relaxed),
+                ipfix_sources: metrics.decoder_ipfix_sources.load(Ordering::Relaxed),
+                legacy_sources: metrics.decoder_legacy_sources.load(Ordering::Relaxed),
+                namespaces: metrics.decoder_namespaces.load(Ordering::Relaxed),
+                hydrated_sources: metrics.decoder_hydrated_sources.load(Ordering::Relaxed),
+            },
+            memory_resident_bytes: MemoryResidentBytesMetrics {
+                rss: process_memory.rss_bytes,
+                hwm: process_memory.hwm_bytes,
+            },
+            memory_accounted_bytes: MemoryAccountedBytesMetrics {
+                facet_archived: facet_breakdown.archived_bytes,
+                facet_active: facet_breakdown.active_bytes,
+                facet_active_contributions: facet_breakdown.active_contributions_bytes,
+                facet_published: facet_breakdown.published_bytes,
+                facet_archived_paths: facet_breakdown.archived_path_bytes,
+                tier_indexes: tier_index.bytes,
+                open_tiers: open_tier_bytes,
+                unaccounted: process_memory.rss_bytes.saturating_sub(accounted_total),
+            },
+            memory_tier_index_bytes: MemoryTierIndexBytesMetrics {
+                row_storage: tier_index.breakdown.row_storage_bytes as u64,
+                field_stores: tier_index.breakdown.field_store_bytes as u64,
+                flow_lookup: tier_index.breakdown.flow_lookup_bytes as u64,
+                schema: tier_index.breakdown.schema_bytes as u64,
+                index_keys: tier_index.breakdown.index_keys_bytes as u64,
+                scratch_field_ids: tier_index.breakdown.scratch_field_ids_bytes as u64,
             },
         }
     }

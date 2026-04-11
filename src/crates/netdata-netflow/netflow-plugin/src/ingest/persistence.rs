@@ -91,22 +91,23 @@ impl IngestService {
         source: std::net::SocketAddr,
         payload: &[u8],
     ) {
+        let parser_source = normalize_template_scope_source(source);
         let Some(key) = FlowDecoders::decoder_state_namespace_key(source, payload) else {
             return;
         };
 
         if !self.decoders.is_decoder_state_namespace_loaded(&key) {
             self.decoders
-                .mark_decoder_state_namespace_absent(key, source);
+                .mark_decoder_state_namespace_absent(key, parser_source);
             return;
         }
 
         if self
             .decoders
-            .decoder_state_source_needs_hydration(&key, source)
+            .decoder_state_source_needs_hydration(&key, parser_source)
             && let Err(err) = self
                 .decoders
-                .hydrate_loaded_decoder_state_namespace(&key, source)
+                .hydrate_loaded_decoder_state_namespace(&key, parser_source)
         {
             tracing::warn!(
                 "failed to hydrate netflow decoder state namespace {} for {}: {}",

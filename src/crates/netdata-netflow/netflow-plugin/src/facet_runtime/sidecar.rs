@@ -3,7 +3,6 @@ use crate::facet_catalog::FACET_FIELD_SPECS;
 use anyhow::{Context, Result};
 use fst::{Automaton, IntoStreamer, Set, SetBuilder, Streamer, automaton::Str};
 use memmap2::Mmap;
-use std::collections::BTreeSet;
 use std::fs::{self, File};
 use std::io::BufWriter;
 use std::path::{Path, PathBuf};
@@ -13,7 +12,10 @@ pub(crate) fn write_sidecar_files(
     contribution: &FacetFileContribution,
 ) -> Result<()> {
     for spec in FACET_FIELD_SPECS.iter().filter(|spec| spec.uses_sidecar) {
-        let values = contribution.get(spec.name).cloned().unwrap_or_default();
+        let values = contribution
+            .field(spec.name)
+            .map(|store| store.collect_strings(None))
+            .unwrap_or_default();
         write_field_sidecar(journal_path, spec.name, &values)?;
     }
 
@@ -67,7 +69,7 @@ pub(crate) fn search_sidecar(
     Ok(out)
 }
 
-fn write_field_sidecar(journal_path: &Path, field: &str, values: &BTreeSet<String>) -> Result<()> {
+fn write_field_sidecar(journal_path: &Path, field: &str, values: &[String]) -> Result<()> {
     let sidecar = sidecar_path(journal_path, field);
     if values.is_empty() {
         let _ = fs::remove_file(&sidecar);
@@ -86,8 +88,11 @@ fn write_field_sidecar(journal_path: &Path, field: &str, values: &BTreeSet<Strin
         })?);
     let mut builder =
         SetBuilder::new(writer).with_context(|| format!("failed to init fst for {}", field))?;
+    let mut sorted_values = values.to_vec();
+    sorted_values.sort_unstable();
+    sorted_values.dedup();
 
-    for value in values {
+    for value in &sorted_values {
         builder.insert(value).with_context(|| {
             format!("failed to add `{value}` to sidecar {}", tmp_path.display())
         })?;

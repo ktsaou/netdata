@@ -4,6 +4,7 @@ use hashbrown::HashTable;
 use roaring::RoaringTreemap;
 use serde::{Deserialize, Serialize};
 use std::hash::Hasher;
+use std::mem::size_of;
 use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
 use twox_hash::XxHash64;
 
@@ -122,6 +123,32 @@ impl FacetStore {
         }
     }
 
+    pub(super) fn contains_raw(&self, raw: &str) -> bool {
+        match self {
+            Self::Text(store) => store.contains(raw),
+            Self::DenseU8(store) => raw
+                .parse::<u8>()
+                .ok()
+                .is_some_and(|value| store.contains(value as usize)),
+            Self::DenseU16(store) => raw
+                .parse::<u16>()
+                .ok()
+                .is_some_and(|value| store.contains(value as usize)),
+            Self::SparseU32(store) => raw
+                .parse::<u32>()
+                .ok()
+                .is_some_and(|value| store.contains(value as u64)),
+            Self::SparseU64(store) => raw
+                .parse::<u64>()
+                .ok()
+                .is_some_and(|value| store.contains(value)),
+            Self::IpAddr(store) => raw
+                .parse::<IpAddr>()
+                .ok()
+                .is_some_and(|value| store.contains(PackedIpAddr::from_ip(value))),
+        }
+    }
+
     pub(super) fn len(&self) -> usize {
         match self {
             Self::Text(store) => store.len(),
@@ -168,16 +195,43 @@ impl FacetStore {
                 PersistedFacetStore::SparseU32(store.iter().map(|value| value as u32).collect())
             }
             Self::SparseU64(store) => PersistedFacetStore::SparseU64(store.iter().collect()),
-            Self::IpAddr(store) => PersistedFacetStore::IpAddr(
-                store
-                    .values
-                    .iter()
-                    .map(|value| PersistedPackedIpAddr {
-                        family: value.family,
-                        bytes: value.bytes,
-                    })
-                    .collect(),
-            ),
+            Self::IpAddr(store) => PersistedFacetStore::IpAddr(store.persisted_values()),
+        }
+    }
+
+    pub(super) fn merge_from(&mut self, other: &FacetStore) -> bool {
+        match (self, other) {
+            (Self::Text(dst), Self::Text(src)) => dst.merge_from(src),
+            (Self::DenseU8(dst), Self::DenseU8(src)) => dst.merge_from(src),
+            (Self::DenseU16(dst), Self::DenseU16(src)) => dst.merge_from(src),
+            (Self::SparseU32(dst), Self::SparseU32(src)) => {
+                let mut changed = false;
+                for value in src.iter() {
+                    changed |= dst.insert(value);
+                }
+                changed
+            }
+            (Self::SparseU64(dst), Self::SparseU64(src)) => {
+                let mut changed = false;
+                for value in src.iter() {
+                    changed |= dst.insert(value);
+                }
+                changed
+            }
+            (Self::IpAddr(dst), Self::IpAddr(src)) => dst.merge_from(src),
+            _ => false,
+        }
+    }
+
+    pub(super) fn estimated_heap_bytes(&self) -> usize {
+        match self {
+            Self::Text(store) => store.estimated_heap_bytes(),
+            Self::DenseU8(store) => store.estimated_heap_bytes(),
+            Self::DenseU16(store) => store.estimated_heap_bytes(),
+            Self::SparseU32(store) | Self::SparseU64(store) => {
+                store.len() as usize * size_of::<u64>()
+            }
+            Self::IpAddr(store) => store.estimated_heap_bytes(),
         }
     }
 }
@@ -213,6 +267,10 @@ impl<const N: usize> DenseBitSet<N> {
         self.bits.iter_ones()
     }
 
+    fn contains(&self, value: usize) -> bool {
+        value < N && self.bits[value]
+    }
+
     fn collect_strings(&self, limit: Option<usize>) -> Vec<String> {
         let mut values = Vec::new();
         for value in self.iter_indices() {
@@ -238,6 +296,18 @@ impl<const N: usize> DenseBitSet<N> {
             }
         }
         values
+    }
+
+    fn merge_from(&mut self, other: &Self) -> bool {
+        let mut changed = false;
+        for value in other.iter_indices() {
+            changed |= self.insert(value);
+        }
+        changed
+    }
+
+    fn estimated_heap_bytes(&self) -> usize {
+        self.bits.as_raw_slice().len() * size_of::<usize>()
     }
 }
 
@@ -293,6 +363,13 @@ impl TextValueStore {
         true
     }
 
+    fn contains(&self, value: &str) -> bool {
+        let hash = hash_bytes(value.as_bytes());
+        self.lookup
+            .find(hash, |field_id| self.value_str(*field_id) == Some(value))
+            .is_some()
+    }
+
     fn value_str(&self, field_id: u32) -> Option<&str> {
         let entry = self.entries.get(field_id as usize)?;
         let start = entry.offset as usize;
@@ -325,6 +402,23 @@ impl TextValueStore {
         values.truncate(limit);
         values
     }
+
+    fn merge_from(&mut self, other: &Self) -> bool {
+        let mut changed = false;
+        for field_id in 0..other.entries.len() {
+            let Some(value) = other.value_str(field_id as u32) else {
+                continue;
+            };
+            changed |= self.insert(value);
+        }
+        changed
+    }
+
+    fn estimated_heap_bytes(&self) -> usize {
+        hash_table_allocation_bytes(self.lookup.capacity(), size_of::<u32>())
+            + self.entries.capacity() * size_of::<TextEntry>()
+            + self.arena.capacity()
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -347,23 +441,13 @@ impl PackedIpAddr {
             },
         }
     }
-
-    fn into_ip(self) -> IpAddr {
-        match self.family {
-            4 => {
-                let mut octets = [0u8; 4];
-                octets.copy_from_slice(&self.bytes[..4]);
-                IpAddr::V4(Ipv4Addr::from(octets))
-            }
-            _ => IpAddr::V6(Ipv6Addr::from(self.bytes)),
-        }
-    }
 }
 
 #[derive(Debug, Clone, Default)]
 pub(super) struct IpValueStore {
-    lookup: HashTable<u32>,
-    values: Vec<PackedIpAddr>,
+    v4_values: RoaringTreemap,
+    v6_lookup: HashTable<u32>,
+    v6_values: Vec<[u8; 16]>,
 }
 
 impl IpValueStore {
@@ -372,35 +456,61 @@ impl IpValueStore {
     }
 
     fn len(&self) -> usize {
-        self.values.len()
+        self.v4_values.len() as usize + self.v6_values.len()
     }
 
     fn insert(&mut self, value: PackedIpAddr) -> bool {
+        if value.family == 4 {
+            return self.v4_values.insert(packed_ipv4_bits(value) as u64);
+        }
+
         let hash = hash_ip(value);
         if self
-            .lookup
-            .find(hash, |field_id| self.values[*field_id as usize] == value)
+            .v6_lookup
+            .find(hash, |field_id| {
+                self.v6_values[*field_id as usize] == value.bytes
+            })
             .is_some()
         {
             return false;
         }
 
-        let field_id = self.values.len() as u32;
-        self.values.push(value);
-        let values = &self.values;
-        self.lookup
+        let field_id = self.v6_values.len() as u32;
+        self.v6_values.push(value.bytes);
+        let values = &self.v6_values;
+        self.v6_lookup
             .insert_unique(hash, field_id, move |existing_id| {
-                hash_ip(values[*existing_id as usize])
+                hash_ip(PackedIpAddr {
+                    family: 6,
+                    bytes: values[*existing_id as usize],
+                })
             });
         true
     }
 
+    fn contains(&self, value: PackedIpAddr) -> bool {
+        if value.family == 4 {
+            return self.v4_values.contains(packed_ipv4_bits(value) as u64);
+        }
+        let hash = hash_ip(value);
+        self.v6_lookup
+            .find(hash, |field_id| {
+                self.v6_values[*field_id as usize] == value.bytes
+            })
+            .is_some()
+    }
+
     fn collect_strings(&self, limit: Option<usize>) -> Vec<String> {
         let mut values = self
-            .values
+            .v4_values
             .iter()
-            .map(|value| value.into_ip().to_string())
+            .map(|value| IpAddr::V4(Ipv4Addr::from((value as u32).to_be_bytes())).to_string())
             .collect::<Vec<_>>();
+        values.extend(
+            self.v6_values
+                .iter()
+                .map(|value| IpAddr::V6(Ipv6Addr::from(*value)).to_string()),
+        );
         values.sort_unstable();
         if let Some(limit) = limit {
             values.truncate(limit);
@@ -410,8 +520,14 @@ impl IpValueStore {
 
     fn prefix_matches(&self, prefix: &str, limit: usize) -> Vec<String> {
         let mut values = Vec::new();
-        for value in &self.values {
-            let rendered = value.into_ip().to_string();
+        for value in self.v4_values.iter() {
+            let rendered = IpAddr::V4(Ipv4Addr::from((value as u32).to_be_bytes())).to_string();
+            if rendered.starts_with(prefix) {
+                values.push(rendered);
+            }
+        }
+        for value in &self.v6_values {
+            let rendered = IpAddr::V6(Ipv6Addr::from(*value)).to_string();
             if rendered.starts_with(prefix) {
                 values.push(rendered);
             }
@@ -420,6 +536,52 @@ impl IpValueStore {
         values.truncate(limit);
         values
     }
+
+    fn merge_from(&mut self, other: &Self) -> bool {
+        let mut changed = false;
+        for value in other.v4_values.iter() {
+            changed |= self.v4_values.insert(value);
+        }
+        for value in &other.v6_values {
+            changed |= self.insert(PackedIpAddr {
+                family: 6,
+                bytes: *value,
+            });
+        }
+        changed
+    }
+
+    fn estimated_heap_bytes(&self) -> usize {
+        self.v4_values.len() as usize * size_of::<u32>()
+            + hash_table_allocation_bytes(self.v6_lookup.capacity(), size_of::<u32>())
+            + self.v6_values.capacity() * size_of::<[u8; 16]>()
+    }
+
+    fn persisted_values(&self) -> Vec<PersistedPackedIpAddr> {
+        let mut values = self
+            .v4_values
+            .iter()
+            .map(|value| {
+                let mut bytes = [0u8; 16];
+                bytes[..4].copy_from_slice(&(value as u32).to_be_bytes());
+                PersistedPackedIpAddr { family: 4, bytes }
+            })
+            .collect::<Vec<_>>();
+        values.extend(self.v6_values.iter().map(|value| PersistedPackedIpAddr {
+            family: 6,
+            bytes: *value,
+        }));
+        values
+    }
+}
+
+fn packed_ipv4_bits(value: PackedIpAddr) -> u32 {
+    u32::from_be_bytes([
+        value.bytes[0],
+        value.bytes[1],
+        value.bytes[2],
+        value.bytes[3],
+    ])
 }
 
 fn collect_roaring_strings(bitmap: &RoaringTreemap, limit: Option<usize>) -> Vec<String> {
@@ -460,4 +622,8 @@ fn hash_ip(value: PackedIpAddr) -> u64 {
     hasher.write_u8(value.family);
     hasher.write(&value.bytes);
     hasher.finish()
+}
+
+fn hash_table_allocation_bytes(capacity: usize, element_size: usize) -> usize {
+    capacity.saturating_mul(element_size.saturating_add(1))
 }

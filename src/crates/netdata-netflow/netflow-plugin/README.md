@@ -249,6 +249,31 @@ journal:
 query-time accumulator cardinality. When limits are hit, overflow is reported
 via response stats/facet metadata instead of growing unbounded memory.
 
+The plugin also exposes internal memory charts to help diagnose resident growth
+in production:
+
+- `netflow.memory_resident_bytes`
+  - `rss`, `hwm`
+- `netflow.memory_accounted_bytes`
+  - facet runtime archived/active/contribution/published/path buckets
+  - materialized tier indexes
+  - open tier rows
+  - unaccounted process RSS remainder
+- `netflow.memory_tier_index_bytes`
+  - tier row storage
+  - tier field dictionaries
+  - tier lookup tables
+  - tier schema/index metadata
+- `netflow.decoder_scopes`
+  - NetFlow v9 parser scopes
+  - IPFIX parser scopes
+  - legacy parser scopes
+  - persisted decoder namespaces
+  - hydrated namespace-source mappings
+
+These charts are intended for debugging memory explosions under high-cardinality
+traffic, not for billing or hard enforcement decisions.
+
 `journal.tiers` optionally allows per-tier retention overrides for:
 
 - `raw`

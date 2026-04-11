@@ -89,6 +89,20 @@ const DECODER_STATE_HEADER_LEN: usize = 4 + 4 + 8 + 8;
 
 pub(crate) use crate::flow::*;
 
+pub(crate) fn normalize_template_scope_source(source: SocketAddr) -> SocketAddr {
+    // Parser/template scope should follow exporter identity, not ephemeral UDP source ports.
+    SocketAddr::new(source.ip(), 0)
+}
+
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub(crate) struct DecoderScopeSnapshot {
+    pub(crate) v9_sources: u64,
+    pub(crate) ipfix_sources: u64,
+    pub(crate) legacy_sources: u64,
+    pub(crate) namespaces: u64,
+    pub(crate) hydrated_sources: u64,
+}
+
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
 pub(crate) struct DecodeStats {
     pub(crate) parse_attempts: u64,

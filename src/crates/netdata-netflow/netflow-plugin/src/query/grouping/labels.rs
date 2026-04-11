@@ -36,14 +36,10 @@ pub(crate) fn labels_for_compact_flow(
     group_by: &[String],
     flow_id: IndexedFlowId,
 ) -> Result<BTreeMap<String, String>> {
-    let field_ids = index
-        .flow_field_ids(flow_id)
-        .context("missing compact flow field ids for grouped query result")?;
     let mut labels = BTreeMap::new();
     for (field_index, field_name) in group_by.iter().enumerate() {
-        let field_id = field_ids
-            .get(field_index)
-            .copied()
+        let field_id = index
+            .flow_field_id(flow_id, field_index)
             .context("missing compact flow field id for grouped query result")?;
         let value = index
             .field_value(field_index, field_id)

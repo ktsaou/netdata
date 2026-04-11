@@ -56,7 +56,7 @@ impl FlowDecoders {
         if let Some(key) = template_state_changed {
             let hydrated = self.hydrated_namespace_sources.entry(key).or_default();
             hydrated.clear();
-            hydrated.insert(source);
+            hydrated.insert(normalize_template_scope_source(source));
         }
 
         self.stats.merge(&batch.stats);

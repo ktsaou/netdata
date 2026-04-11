@@ -1,6 +1,7 @@
 use crate::decoder::{
-    DecapsulationMode as DecoderDecapsulationMode, DecodeStats, DecoderStateNamespaceKey,
-    FlowDecoders, TimestampSource as DecoderTimestampSource,
+    DecapsulationMode as DecoderDecapsulationMode, DecodeStats, DecoderScopeSnapshot,
+    DecoderStateNamespaceKey, FlowDecoders, TimestampSource as DecoderTimestampSource,
+    normalize_template_scope_source,
 };
 use crate::enrichment::FlowEnricher;
 use crate::network_sources::NetworkSourcesRuntime;

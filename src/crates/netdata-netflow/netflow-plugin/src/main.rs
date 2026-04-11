@@ -8,6 +8,8 @@ mod facet_catalog;
 mod facet_runtime;
 mod flow;
 mod ingest;
+#[cfg(test)]
+mod memory_tests;
 mod network_sources;
 mod plugin_config;
 mod presentation;
@@ -103,6 +105,8 @@ async fn main() {
     let _charts_task = charts::NetflowCharts::new(&mut runtime).spawn_sampler(
         Arc::clone(&metrics),
         Arc::clone(&open_tiers),
+        Arc::clone(&tier_flow_indexes),
+        Arc::clone(&facet_runtime),
         shutdown.clone(),
     );
 

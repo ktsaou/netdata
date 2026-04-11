@@ -34,6 +34,11 @@ pub(crate) struct IngestMetrics {
     pub(crate) decoder_state_persist_bytes: AtomicU64,
     pub(crate) decoder_state_write_errors: AtomicU64,
     pub(crate) decoder_state_move_errors: AtomicU64,
+    pub(crate) decoder_v9_sources: AtomicU64,
+    pub(crate) decoder_ipfix_sources: AtomicU64,
+    pub(crate) decoder_legacy_sources: AtomicU64,
+    pub(crate) decoder_namespaces: AtomicU64,
+    pub(crate) decoder_hydrated_sources: AtomicU64,
     pub(crate) bioris_refresh_success: AtomicU64,
     pub(crate) bioris_refresh_errors: AtomicU64,
     pub(crate) bioris_dump_success: AtomicU64,
@@ -64,6 +69,19 @@ impl IngestMetrics {
             .fetch_add(stats.ipfix_packets, Ordering::Relaxed);
         self.sflow_datagrams
             .fetch_add(stats.sflow_datagrams, Ordering::Relaxed);
+    }
+
+    pub(crate) fn update_decoder_scope_snapshot(&self, snapshot: DecoderScopeSnapshot) {
+        self.decoder_v9_sources
+            .store(snapshot.v9_sources, Ordering::Relaxed);
+        self.decoder_ipfix_sources
+            .store(snapshot.ipfix_sources, Ordering::Relaxed);
+        self.decoder_legacy_sources
+            .store(snapshot.legacy_sources, Ordering::Relaxed);
+        self.decoder_namespaces
+            .store(snapshot.namespaces, Ordering::Relaxed);
+        self.decoder_hydrated_sources
+            .store(snapshot.hydrated_sources, Ordering::Relaxed);
     }
 
     pub(crate) fn snapshot(&self) -> HashMap<String, u64> {
@@ -195,6 +213,26 @@ impl IngestMetrics {
         stats.insert(
             "decoder_state_move_errors".to_string(),
             self.decoder_state_move_errors.load(Ordering::Relaxed),
+        );
+        stats.insert(
+            "decoder_v9_sources".to_string(),
+            self.decoder_v9_sources.load(Ordering::Relaxed),
+        );
+        stats.insert(
+            "decoder_ipfix_sources".to_string(),
+            self.decoder_ipfix_sources.load(Ordering::Relaxed),
+        );
+        stats.insert(
+            "decoder_legacy_sources".to_string(),
+            self.decoder_legacy_sources.load(Ordering::Relaxed),
+        );
+        stats.insert(
+            "decoder_namespaces".to_string(),
+            self.decoder_namespaces.load(Ordering::Relaxed),
+        );
+        stats.insert(
+            "decoder_hydrated_sources".to_string(),
+            self.decoder_hydrated_sources.load(Ordering::Relaxed),
         );
         stats.insert(
             "bioris_refresh_success".to_string(),

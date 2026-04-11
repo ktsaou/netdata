@@ -1,6 +1,20 @@
 use super::*;
 
 impl FlowDecoders {
+    pub(crate) fn decoder_scope_snapshot(&self) -> DecoderScopeSnapshot {
+        DecoderScopeSnapshot {
+            v9_sources: self.netflow.v9_source_count() as u64,
+            ipfix_sources: self.netflow.ipfix_source_count() as u64,
+            legacy_sources: self.netflow.legacy_source_count() as u64,
+            namespaces: self.decoder_state_namespaces.len() as u64,
+            hydrated_sources: self
+                .hydrated_namespace_sources
+                .values()
+                .map(std::collections::HashSet::len)
+                .sum::<usize>() as u64,
+        }
+    }
+
     pub(crate) fn decoder_state_namespace_key(
         source: SocketAddr,
         payload: &[u8],
@@ -29,6 +43,7 @@ impl FlowDecoders {
         key: &DecoderStateNamespaceKey,
         source: SocketAddr,
     ) -> bool {
+        let source = normalize_template_scope_source(source);
         !self
             .hydrated_namespace_sources
             .get(key)
@@ -40,6 +55,7 @@ impl FlowDecoders {
         key: DecoderStateNamespaceKey,
         source: SocketAddr,
     ) {
+        let source = normalize_template_scope_source(source);
         self.loaded_decoder_namespaces.insert(key.clone());
         self.decoder_state_namespaces
             .entry(key.clone())

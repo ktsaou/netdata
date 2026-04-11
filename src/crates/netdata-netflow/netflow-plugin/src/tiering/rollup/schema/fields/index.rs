@@ -1,7 +1,7 @@
 use super::*;
 
 pub(crate) fn build_rollup_flow_index() -> Result<FlowIndex, FlowIndexError> {
-    FlowIndex::new(
+    FlowIndex::new_with_implicit_defaults(
         ROLLUP_FIELD_DEFS
             .iter()
             .map(|field| IndexFieldSpec::new(field.name, field.kind)),
