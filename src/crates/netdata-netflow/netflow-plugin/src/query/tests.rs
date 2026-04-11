@@ -343,6 +343,17 @@ fn request_deserialization_defaults_missing_view_group_by_sort_by_and_top_n() {
         "unexpected error: {invalid_group_by}"
     );
 
+    let removed_timestamp_group_by = serde_json::from_str::<FlowsRequest>(
+        r#"{"view":"table-sankey","group_by":["FLOW_END_USEC"],"sort_by":"bytes","top_n":"25"}"#,
+    )
+    .expect_err("removed internal timestamp fields should not be groupable");
+    assert!(
+        removed_timestamp_group_by
+            .to_string()
+            .contains("unsupported group_by field `FLOW_END_USEC`"),
+        "unexpected error: {removed_timestamp_group_by}"
+    );
+
     let invalid_top_n = serde_json::from_str::<FlowsRequest>(
         r#"{"view":"table-sankey","group_by":["PROTOCOL"],"sort_by":"bytes","top_n":"42"}"#,
     )
@@ -388,6 +399,27 @@ fn request_deserialization_accepts_scalar_and_array_selections() {
     assert_eq!(
         scalar.selections.get("DST_PORT"),
         Some(&vec!["443".to_string(), "8443".to_string()])
+    );
+}
+
+#[test]
+fn request_deserialization_rejects_removed_internal_timestamp_selection_field() {
+    let error = serde_json::from_str::<FlowsRequest>(
+        r#"{
+                "view":"table-sankey",
+                "group_by":["PROTOCOL"],
+                "sort_by":"bytes",
+                "top_n":"25",
+                "selections":{"FLOW_END_USEC":"90000000"}
+            }"#,
+    )
+    .expect_err("removed internal timestamp field should not be selectable");
+
+    assert!(
+        error
+            .to_string()
+            .contains("unsupported selection field `FLOW_END_USEC`"),
+        "unexpected error: {error}"
     );
 }
 
@@ -506,6 +538,25 @@ fn request_deserialization_supports_autocomplete_mode() {
         Some("SRC_ADDR")
     );
     assert_eq!(request.normalized_autocomplete_term(), "10.0.");
+}
+
+#[test]
+fn request_deserialization_rejects_removed_internal_timestamp_autocomplete_field() {
+    let error = serde_json::from_str::<FlowsRequest>(
+        r#"{
+            "mode":"autocomplete",
+            "field":"flow_end_usec",
+            "term":"9"
+        }"#,
+    )
+    .expect_err("removed internal timestamp field should not be autocompletable");
+
+    assert!(
+        error
+            .to_string()
+            .contains("unsupported autocomplete field `FLOW_END_USEC`"),
+        "unexpected error: {error}"
+    );
 }
 
 #[test]

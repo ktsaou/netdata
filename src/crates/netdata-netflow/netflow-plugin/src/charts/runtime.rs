@@ -1,6 +1,7 @@
 use super::*;
 use crate::memory_allocator::current_allocator_memory;
 use std::fs;
+use tokio::io::{AsyncRead, AsyncWrite};
 
 #[derive(Clone)]
 pub(crate) struct NetflowCharts {
@@ -15,13 +16,18 @@ pub(crate) struct NetflowCharts {
     journal_io_bytes: ChartHandle<JournalIoBytesMetrics>,
     decoder_scopes: ChartHandle<DecoderScopeMetrics>,
     memory_resident_bytes: ChartHandle<MemoryResidentBytesMetrics>,
+    memory_resident_mapping_bytes: ChartHandle<MemoryResidentMappingBytesMetrics>,
     memory_allocator_bytes: ChartHandle<MemoryAllocatorBytesMetrics>,
     memory_accounted_bytes: ChartHandle<MemoryAccountedBytesMetrics>,
     memory_tier_index_bytes: ChartHandle<MemoryTierIndexBytesMetrics>,
 }
 
 impl NetflowCharts {
-    pub(crate) fn new(runtime: &mut StdPluginRuntime) -> Self {
+    pub(crate) fn new<R, W>(runtime: &mut rt::PluginRuntime<R, W>) -> Self
+    where
+        R: AsyncRead + Unpin + Send + 'static,
+        W: AsyncWrite + Unpin + Send + 'static,
+    {
         Self {
             input_packets: runtime
                 .register_chart(InputPacketsMetrics::default(), Duration::from_secs(1)),
@@ -50,6 +56,10 @@ impl NetflowCharts {
                 MemoryResidentBytesMetrics::default(),
                 Duration::from_secs(1),
             ),
+            memory_resident_mapping_bytes: runtime.register_chart(
+                MemoryResidentMappingBytesMetrics::default(),
+                Duration::from_secs(1),
+            ),
             memory_allocator_bytes: runtime.register_chart(
                 MemoryAllocatorBytesMetrics::default(),
                 Duration::from_secs(1),
@@ -71,6 +81,7 @@ impl NetflowCharts {
         open_tiers: Arc<RwLock<OpenTierState>>,
         tier_flow_indexes: Arc<RwLock<TierFlowIndexStore>>,
         facet_runtime: Arc<FacetRuntime>,
+        resident_mapping_paths: ProcessResidentMappingPaths,
         shutdown: CancellationToken,
     ) -> JoinHandle<()> {
         tokio::spawn(async move {
@@ -92,7 +103,7 @@ impl NetflowCharts {
                             open_tier_sample.bytes,
                             tier_index_sample,
                             facet_runtime.estimated_memory_breakdown(),
-                            current_process_memory(),
+                            current_process_memory(&resident_mapping_paths),
                         );
                         self.apply_snapshot(snapshot);
                     }
@@ -123,6 +134,8 @@ impl NetflowCharts {
             .update(|chart| *chart = snapshot.decoder_scopes);
         self.memory_resident_bytes
             .update(|chart| *chart = snapshot.memory_resident_bytes);
+        self.memory_resident_mapping_bytes
+            .update(|chart| *chart = snapshot.memory_resident_mapping_bytes);
         self.memory_allocator_bytes
             .update(|chart| *chart = snapshot.memory_allocator_bytes);
         self.memory_accounted_bytes
@@ -214,7 +227,9 @@ pub(super) fn sample_tier_index_state(
     }
 }
 
-fn current_process_memory() -> ProcessMemorySample {
+fn current_process_memory(
+    resident_mapping_paths: &ProcessResidentMappingPaths,
+) -> ProcessMemorySample {
     let Ok(status) = fs::read_to_string("/proc/self/status") else {
         return ProcessMemorySample::default();
     };
@@ -234,6 +249,15 @@ fn current_process_memory() -> ProcessMemorySample {
         }
     }
 
+    if let Ok(smaps_rollup) = fs::read_to_string("/proc/self/smaps_rollup") {
+        for line in smaps_rollup.lines() {
+            if let Some(value) = line.strip_prefix("AnonHugePages:") {
+                sample.anon_huge_pages_bytes = parse_status_kib(value);
+            }
+        }
+    }
+
+    sample.resident_mappings = sample_process_resident_mapping_breakdown(resident_mapping_paths);
     sample.allocator = current_allocator_memory();
     sample
 }

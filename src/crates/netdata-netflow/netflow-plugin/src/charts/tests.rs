@@ -24,6 +24,13 @@ fn chart_metadata_uses_honest_contexts_and_units() {
     assert_eq!(resident.context, "netdata.netflow.memory_resident_bytes");
     assert_eq!(resident.units, "bytes");
 
+    let resident_mapping = MemoryResidentMappingBytesMetrics::chart_metadata();
+    assert_eq!(
+        resident_mapping.context,
+        "netdata.netflow.memory_resident_mapping_bytes"
+    );
+    assert_eq!(resident_mapping.units, "bytes");
+
     let allocator = MemoryAllocatorBytesMetrics::chart_metadata();
     assert_eq!(allocator.context, "netdata.netflow.memory_allocator_bytes");
     assert_eq!(allocator.units, "bytes");
@@ -95,6 +102,19 @@ fn snapshot_collects_current_metric_totals_and_open_rows() {
             rss_anon_bytes: 3_000,
             rss_file_bytes: 4_000,
             rss_shmem_bytes: 5_000,
+            anon_huge_pages_bytes: 6_000,
+            resident_mappings: ProcessResidentMappingBreakdown {
+                heap_bytes: 700,
+                anon_other_bytes: 800,
+                journal_raw_bytes: 900,
+                journal_1m_bytes: 1_000,
+                journal_5m_bytes: 1_100,
+                journal_1h_bytes: 1_200,
+                geoip_asn_bytes: 1_250,
+                geoip_geo_bytes: 1_275,
+                other_file_bytes: 1_300,
+                shmem_bytes: 1_400,
+            },
             allocator: AllocatorMemorySample {
                 heap_in_use_bytes: 111,
                 heap_free_bytes: 222,
@@ -129,6 +149,17 @@ fn snapshot_collects_current_metric_totals_and_open_rows() {
     assert_eq!(snapshot.memory_resident_bytes.rss_anon, 3_000);
     assert_eq!(snapshot.memory_resident_bytes.rss_file, 4_000);
     assert_eq!(snapshot.memory_resident_bytes.rss_shmem, 5_000);
+    assert_eq!(snapshot.memory_resident_bytes.anon_huge_pages, 6_000);
+    assert_eq!(snapshot.memory_resident_mapping_bytes.heap, 700);
+    assert_eq!(snapshot.memory_resident_mapping_bytes.anon_other, 800);
+    assert_eq!(snapshot.memory_resident_mapping_bytes.journal_raw, 900);
+    assert_eq!(snapshot.memory_resident_mapping_bytes.journal_1m, 1_000);
+    assert_eq!(snapshot.memory_resident_mapping_bytes.journal_5m, 1_100);
+    assert_eq!(snapshot.memory_resident_mapping_bytes.journal_1h, 1_200);
+    assert_eq!(snapshot.memory_resident_mapping_bytes.geoip_asn, 1_250);
+    assert_eq!(snapshot.memory_resident_mapping_bytes.geoip_geo, 1_275);
+    assert_eq!(snapshot.memory_resident_mapping_bytes.other_file, 1_300);
+    assert_eq!(snapshot.memory_resident_mapping_bytes.shmem, 1_400);
     assert_eq!(snapshot.memory_allocator_bytes.heap_in_use, 111);
     assert_eq!(snapshot.memory_allocator_bytes.heap_free, 222);
     assert_eq!(snapshot.memory_allocator_bytes.heap_arena, 333);
@@ -137,6 +168,8 @@ fn snapshot_collects_current_metric_totals_and_open_rows() {
     assert_eq!(snapshot.memory_accounted_bytes.facet_archived, 10);
     assert_eq!(snapshot.memory_accounted_bytes.open_tiers, 1234);
     assert_eq!(snapshot.memory_accounted_bytes.tier_indexes, 5678);
+    assert_eq!(snapshot.memory_accounted_bytes.geoip_asn, 1_250);
+    assert_eq!(snapshot.memory_accounted_bytes.geoip_geo, 1_275);
     assert_eq!(snapshot.memory_tier_index_bytes.index_keys, 100);
     assert_eq!(snapshot.memory_tier_index_bytes.schema, 200);
     assert_eq!(snapshot.memory_tier_index_bytes.field_stores, 300);
@@ -145,7 +178,7 @@ fn snapshot_collects_current_metric_totals_and_open_rows() {
     assert_eq!(snapshot.memory_tier_index_bytes.scratch_field_ids, 600);
     assert_eq!(
         snapshot.memory_accounted_bytes.unaccounted,
-        10_000 - (10 + 20 + 30 + 40 + 50 + 1234 + 5678)
+        10_000 - (10 + 20 + 30 + 40 + 50 + 1234 + 5678 + 1_250 + 1_275)
     );
 }
 

@@ -14,8 +14,8 @@ pub(crate) struct AllocatorTrimResult {
 }
 
 const DEFAULT_TRIM_THRESHOLD_BYTES: u64 = 64 * 1024 * 1024;
-#[cfg(test)]
 const PR_SET_THP_DISABLE: libc::c_int = 41;
+const NETFLOW_GLIBC_ARENA_MAX: libc::c_int = 1;
 
 pub(crate) fn current_allocator_memory() -> AllocatorMemorySample {
     #[cfg(all(target_os = "linux", target_env = "gnu"))]
@@ -60,7 +60,22 @@ pub(crate) fn trim_allocator_if_worthwhile() -> Option<AllocatorTrimResult> {
     }
 }
 
-#[cfg(test)]
+pub(crate) fn limit_glibc_arenas_for_process() -> Option<libc::c_int> {
+    #[cfg(all(target_os = "linux", target_env = "gnu"))]
+    unsafe {
+        if libc::mallopt(libc::M_ARENA_MAX, NETFLOW_GLIBC_ARENA_MAX) == 1 {
+            return Some(NETFLOW_GLIBC_ARENA_MAX);
+        }
+
+        return None;
+    }
+
+    #[cfg(not(all(target_os = "linux", target_env = "gnu")))]
+    {
+        None
+    }
+}
+
 pub(crate) fn disable_transparent_huge_pages_for_process() -> bool {
     #[cfg(target_os = "linux")]
     unsafe {

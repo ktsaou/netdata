@@ -88,7 +88,15 @@ pub(crate) fn facet_field_enabled(field: &str) -> bool {
 
 fn facet_field_spec_for_name(field: &'static str) -> Option<FacetFieldSpec> {
     let kind = match field {
-        "BYTES" | "PACKETS" | "FLOWS" | "RAW_BYTES" | "RAW_PACKETS" | "SAMPLING_RATE" => {
+        "BYTES"
+        | "PACKETS"
+        | "FLOWS"
+        | "RAW_BYTES"
+        | "RAW_PACKETS"
+        | "SAMPLING_RATE"
+        | "FLOW_START_USEC"
+        | "FLOW_END_USEC"
+        | "OBSERVATION_TIME_MILLIS" => {
             return None;
         }
         "SRC_GEO_LATITUDE" | "DST_GEO_LATITUDE" | "SRC_GEO_LONGITUDE" | "DST_GEO_LONGITUDE" => {
@@ -105,11 +113,7 @@ fn facet_field_spec_for_name(field: &'static str) -> Option<FacetFieldSpec> {
         | "IN_IF_BOUNDARY" | "OUT_IF_BOUNDARY" | "IPTTL" | "IPTOS" | "TCP_FLAGS"
         | "ICMPV4_TYPE" | "ICMPV4_CODE" | "ICMPV6_TYPE" | "ICMPV6_CODE" => FacetValueKind::DenseU8,
         "SRC_AS" | "DST_AS" | "IN_IF" | "OUT_IF" | "IPV6_FLOW_LABEL" => FacetValueKind::SparseU32,
-        "FLOW_START_USEC"
-        | "FLOW_END_USEC"
-        | "OBSERVATION_TIME_MILLIS"
-        | "IN_IF_SPEED"
-        | "OUT_IF_SPEED" => FacetValueKind::SparseU64,
+        "IN_IF_SPEED" | "OUT_IF_SPEED" => FacetValueKind::SparseU64,
         _ => FacetValueKind::Text,
     };
 
@@ -143,5 +147,12 @@ mod tests {
     #[test]
     fn facet_field_spec_rejects_unknown_fields() {
         assert!(facet_field_spec(" definitely_not_a_facet ").is_none());
+    }
+
+    #[test]
+    fn facet_field_spec_rejects_internal_timestamp_fields() {
+        assert!(facet_field_spec("FLOW_START_USEC").is_none());
+        assert!(facet_field_spec("FLOW_END_USEC").is_none());
+        assert!(facet_field_spec("OBSERVATION_TIME_MILLIS").is_none());
     }
 }

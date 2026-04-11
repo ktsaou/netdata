@@ -216,6 +216,40 @@ pub(super) struct MemoryResidentBytesMetrics {
     pub(super) rss_file: u64,
     #[schemars(extend("x-dimension-algorithm" = "absolute"))]
     pub(super) rss_shmem: u64,
+    #[schemars(extend("x-dimension-algorithm" = "absolute"))]
+    pub(super) anon_huge_pages: u64,
+}
+
+#[derive(JsonSchema, NetdataChart, Default, Clone, PartialEq, Serialize, Deserialize, Debug)]
+#[schemars(
+    extend("x-chart-id" = "netflow.memory_resident_mapping_bytes"),
+    extend("x-chart-title" = "Netflow Resident Mapping Breakdown"),
+    extend("x-chart-units" = "bytes"),
+    extend("x-chart-type" = "stacked"),
+    extend("x-chart-family" = "netflow"),
+    extend("x-chart-context" = "netdata.netflow.memory_resident_mapping_bytes"),
+)]
+pub(super) struct MemoryResidentMappingBytesMetrics {
+    #[schemars(extend("x-dimension-algorithm" = "absolute"))]
+    pub(super) heap: u64,
+    #[schemars(extend("x-dimension-algorithm" = "absolute"))]
+    pub(super) anon_other: u64,
+    #[schemars(extend("x-dimension-algorithm" = "absolute"))]
+    pub(super) journal_raw: u64,
+    #[schemars(extend("x-dimension-algorithm" = "absolute"))]
+    pub(super) journal_1m: u64,
+    #[schemars(extend("x-dimension-algorithm" = "absolute"))]
+    pub(super) journal_5m: u64,
+    #[schemars(extend("x-dimension-algorithm" = "absolute"))]
+    pub(super) journal_1h: u64,
+    #[schemars(extend("x-dimension-algorithm" = "absolute"))]
+    pub(super) geoip_asn: u64,
+    #[schemars(extend("x-dimension-algorithm" = "absolute"))]
+    pub(super) geoip_geo: u64,
+    #[schemars(extend("x-dimension-algorithm" = "absolute"))]
+    pub(super) other_file: u64,
+    #[schemars(extend("x-dimension-algorithm" = "absolute"))]
+    pub(super) shmem: u64,
 }
 
 #[derive(JsonSchema, NetdataChart, Default, Clone, PartialEq, Serialize, Deserialize, Debug)]
@@ -264,6 +298,10 @@ pub(super) struct MemoryAccountedBytesMetrics {
     pub(super) tier_indexes: u64,
     #[schemars(extend("x-dimension-algorithm" = "absolute"))]
     pub(super) open_tiers: u64,
+    #[schemars(extend("x-dimension-algorithm" = "absolute"))]
+    pub(super) geoip_asn: u64,
+    #[schemars(extend("x-dimension-algorithm" = "absolute"))]
+    pub(super) geoip_geo: u64,
     #[schemars(extend("x-dimension-algorithm" = "absolute"))]
     pub(super) unaccounted: u64,
 }

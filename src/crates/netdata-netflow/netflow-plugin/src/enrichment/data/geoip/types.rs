@@ -1,12 +1,14 @@
 use super::*;
 
+pub(crate) type GeoIpDatabaseReader = Reader<Mmap>;
+
 #[derive(Debug)]
 pub(crate) struct GeoIpResolver {
     pub(crate) asn_paths: Vec<String>,
     pub(crate) geo_paths: Vec<String>,
     pub(crate) optional: bool,
-    pub(crate) asn_databases: Vec<Reader<Vec<u8>>>,
-    pub(crate) geo_databases: Vec<Reader<Vec<u8>>>,
+    pub(crate) asn_databases: Vec<GeoIpDatabaseReader>,
+    pub(crate) geo_databases: Vec<GeoIpDatabaseReader>,
     pub(crate) signature: GeoIpDatabasesSignature,
     pub(crate) last_reload_check: Instant,
 }

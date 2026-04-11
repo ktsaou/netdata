@@ -28,6 +28,7 @@ pub struct FileIndexCacheBuilder {
     memory_capacity: Option<usize>,
     disk_capacity: Option<usize>,
     block_size: Option<usize>,
+    enable_disk_cache: bool,
 }
 
 impl FileIndexCacheBuilder {
@@ -44,6 +45,7 @@ impl FileIndexCacheBuilder {
             memory_capacity: None,
             disk_capacity: None,
             block_size: None,
+            enable_disk_cache: true,
         }
     }
 
@@ -71,22 +73,38 @@ impl FileIndexCacheBuilder {
         self
     }
 
+    /// Disables the disk-backed cache and keeps indexes in memory only.
+    pub fn without_disk_cache(mut self) -> Self {
+        self.enable_disk_cache = false;
+        self
+    }
+
     /// Builds the FileIndexCache with the configured settings.
     pub async fn build(self) -> Result<FileIndexCache> {
+        use foyer::HybridCacheBuilder;
+
+        let memory_capacity = self.memory_capacity.unwrap_or(128);
+        let memory = HybridCacheBuilder::new()
+            .with_name("file-index-cache")
+            .with_policy(foyer::HybridCachePolicy::WriteOnInsertion)
+            .memory(memory_capacity)
+            .with_shards(4);
+
+        if !self.enable_disk_cache {
+            return memory.storage().build().await.map_err(Into::into);
+        }
+
         use foyer::{
-            BlockEngineBuilder, DeviceBuilder, FsDeviceBuilder, HybridCacheBuilder,
-            IoEngineBuilder, PsyncIoEngineBuilder,
+            BlockEngineBuilder, DeviceBuilder, FsDeviceBuilder, IoEngineBuilder,
+            PsyncIoEngineBuilder,
         };
 
-        // Compute defaults
         let cache_path = self
             .cache_path
             .unwrap_or_else(|| std::env::temp_dir().join("journal-engine-cache"));
-        let memory_capacity = self.memory_capacity.unwrap_or(128);
         let disk_capacity = self.disk_capacity.unwrap_or(16 * 1024 * 1024);
         let block_size = self.block_size.unwrap_or(4 * 1024 * 1024);
 
-        // Ensure cache directory exists
         std::fs::create_dir_all(&cache_path).map_err(|e| {
             EngineError::Io(std::io::Error::other(format!(
                 "Failed to create cache directory: {}",
@@ -94,12 +112,7 @@ impl FileIndexCacheBuilder {
             )))
         })?;
 
-        // Build Foyer hybrid cache
-        let cache = HybridCacheBuilder::new()
-            .with_name("file-index-cache")
-            .with_policy(foyer::HybridCachePolicy::WriteOnInsertion)
-            .memory(memory_capacity)
-            .with_shards(4)
+        let cache = memory
             .storage()
             .with_io_engine(PsyncIoEngineBuilder::new().build().await?)
             .with_engine_config(
@@ -120,6 +133,35 @@ impl FileIndexCacheBuilder {
 impl Default for FileIndexCacheBuilder {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use tempfile::tempdir;
+
+    #[tokio::test(flavor = "current_thread")]
+    async fn build_without_disk_cache_does_not_create_disk_cache_files() {
+        let tmp = tempdir().expect("tempdir");
+        let cache_path = tmp.path().join("foyer-cache");
+        let cache = FileIndexCacheBuilder::new()
+            .with_cache_path(&cache_path)
+            .with_memory_capacity(4)
+            .without_disk_cache()
+            .build()
+            .await
+            .expect("build in-memory file index cache");
+
+        cache
+            .close()
+            .await
+            .expect("close in-memory file index cache");
+        assert!(
+            !cache_path.exists(),
+            "expected memory-only file index cache to avoid creating {}",
+            cache_path.display()
+        );
     }
 }
 
@@ -230,15 +272,12 @@ pub async fn batch_compute_file_indexes(
     // The cancellation token is cloned into the blocking task so that cancellation
     // is visible to the per-file check.
     let cancellation_for_blocking = cancellation.clone();
-    let compute_threads = keys_to_compute
-        .len()
-        .max(1)
-        .min(
-            std::thread::available_parallelism()
-                .map(|value| value.get())
-                .unwrap_or(1)
-                .min(MAX_BATCH_INDEX_THREADS),
-        );
+    let compute_threads = keys_to_compute.len().max(1).min(
+        std::thread::available_parallelism()
+            .map(|value| value.get())
+            .unwrap_or(1)
+            .min(MAX_BATCH_INDEX_THREADS),
+    );
 
     let compute_task = tokio::task::spawn_blocking(move || {
         use rayon::prelude::*;
@@ -261,8 +300,7 @@ pub async fn batch_compute_file_indexes(
             keys_to_compute
                 .into_par_iter()
                 .map(|key| {
-                    if cancellation_for_blocking.is_cancelled()
-                        || cancelled.load(Ordering::Relaxed)
+                    if cancellation_for_blocking.is_cancelled() || cancelled.load(Ordering::Relaxed)
                     {
                         cancelled.store(true, Ordering::Relaxed);
                         return (key, Err(EngineError::Cancelled));
@@ -278,7 +316,9 @@ pub async fn batch_compute_file_indexes(
                         )
                         .map_err(|e| e.into());
 
-                    if result.is_ok() && let Some(ref counter) = progress_counter {
+                    if result.is_ok()
+                        && let Some(ref counter) = progress_counter
+                    {
                         counter.fetch_add(1, Ordering::Relaxed);
                     }
 

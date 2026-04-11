@@ -254,10 +254,27 @@ in production:
 
 - `netflow.memory_resident_bytes`
   - `rss`, `hwm`
+  - `rss_anon`, `rss_file`, `rss_shmem`, `anon_huge_pages`
+- `netflow.memory_resident_mapping_bytes`
+  - resident heap bytes
+  - anonymous non-heap mappings
+  - raw journal mmap bytes
+  - `1m` journal mmap bytes
+  - `5m` journal mmap bytes
+  - `1h` journal mmap bytes
+  - GeoIP ASN MMDB resident bytes
+  - GeoIP geo/country MMDB resident bytes
+  - other file-backed mappings
+  - shmem mappings
+- `netflow.memory_allocator_bytes`
+  - `heap_in_use`, `heap_free`, `heap_arena`
+  - `mmap_in_use`, `releasable`
 - `netflow.memory_accounted_bytes`
   - facet runtime archived/active/contribution/published/path buckets
   - materialized tier indexes
   - open tier rows
+  - GeoIP ASN MMDB resident bytes
+  - GeoIP geo/country MMDB resident bytes
   - unaccounted process RSS remainder
 - `netflow.memory_tier_index_bytes`
   - tier row storage

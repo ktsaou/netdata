@@ -13,6 +13,7 @@ path = "src/main.rs"
 
 [dependencies]
 anyhow = { workspace = true }
+allocative = { workspace = true }
 async-trait = { workspace = true }
 bincode = { workspace = true }
 bitflags = { workspace = true }
@@ -38,14 +39,14 @@ jaq-core = "1.2.0"
 jaq-interpret = "1.2.0"
 jaq-std = "1.5.0"
 jaq-syn = "1.6.0"
-maxminddb = "0.25.0"
+maxminddb = { version = "0.25.0", features = ["mmap"] }
 memchr = { workspace = true }
 memmap2 = { workspace = true }
 netflow_parser = "0.9.0"
 netgauze-bgp-pkt = "0.9.0"
 netgauze-bmp-pkt = { version = "0.9.0", features = ["codec"] }
 notify = { workspace = true }
-roaring = { workspace = true }
+roaring = { workspace = true, features = ["allocative"] }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
 serde_yaml = { workspace = true }

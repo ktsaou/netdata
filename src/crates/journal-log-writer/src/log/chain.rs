@@ -1,9 +1,9 @@
 use crate::error::{Result, WriterError};
 use crate::log::RetentionPolicy;
 use journal_common::Microseconds;
+use journal_core::JournalFile;
 use journal_core::collections::HashMap;
 use journal_core::file::Mmap;
-use journal_core::JournalFile;
 use journal_registry::repository;
 use journal_registry::repository::File;
 use std::path::PathBuf;
@@ -215,12 +215,14 @@ impl OwnedChain {
         info!("deleting {}", file.path());
 
         let file_size = self.file_sizes.get(&file).copied().unwrap_or(0);
+        let mut report_deleted = true;
 
         // Remove from filesystem
         match std::fs::remove_file(file.path()) {
             Ok(()) => {}
             Err(err) if err.kind() == std::io::ErrorKind::NotFound => {
                 info!("journal file {:?} was already removed", file.path());
+                report_deleted = false;
             }
             Err(err) => {
                 error!("failed to remove journal file {:?}: {}", file.path(), err);
@@ -231,7 +233,7 @@ impl OwnedChain {
 
         self.file_sizes.remove(&file);
         self.total_size = self.total_size.saturating_sub(file_size);
-        Ok(Some(file))
+        Ok(report_deleted.then_some(file))
     }
 
     /// Remove files older than the specified cutoff time
@@ -244,19 +246,32 @@ impl OwnedChain {
             .get()
             .saturating_sub(max_entry_age.as_micros() as u64);
         let mut deleted_files = Vec::new();
+        let mut failed_files = Vec::new();
 
         for file in self.inner.drain(cutoff_time) {
             info!("deleting {}", file.path());
             let file_size = self.file_sizes.get(&file).copied().unwrap_or(0);
 
-            if let Err(e) = std::fs::remove_file(file.path()) {
-                error!("failed to remove journal file {:?}: {}", file.path(), e);
-                continue;
+            match std::fs::remove_file(file.path()) {
+                Ok(()) => {
+                    deleted_files.push(file.clone());
+                    self.file_sizes.remove(&file);
+                    self.total_size = self.total_size.saturating_sub(file_size);
+                }
+                Err(err) if err.kind() == std::io::ErrorKind::NotFound => {
+                    info!("journal file {:?} was already removed", file.path());
+                    self.file_sizes.remove(&file);
+                    self.total_size = self.total_size.saturating_sub(file_size);
+                }
+                Err(err) => {
+                    error!("failed to remove journal file {:?}: {}", file.path(), err);
+                    failed_files.push(file);
+                }
             }
+        }
 
-            deleted_files.push(file.clone());
-            self.file_sizes.remove(&file);
-            self.total_size = self.total_size.saturating_sub(file_size);
+        for file in failed_files {
+            self.inner.insert_file(file);
         }
 
         Ok(deleted_files)

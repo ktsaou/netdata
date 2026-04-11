@@ -6,7 +6,9 @@ use crate::query::{payload_value, split_payload_bytes};
 use std::collections::{BTreeMap, BTreeSet};
 use std::mem::size_of;
 
-#[derive(Debug, Clone, Default)]
+const BTREE_ENTRY_OVERHEAD_BYTES: usize = size_of::<usize>() * 4;
+
+#[derive(Debug, Clone, Default, allocative::Allocative)]
 pub(crate) struct FacetFileContribution {
     fields: BTreeMap<&'static str, FacetStore>,
 }
@@ -52,7 +54,8 @@ impl FacetFileContribution {
     }
 
     pub(super) fn estimated_heap_bytes(&self) -> usize {
-        self.fields.len() * (size_of::<&'static str>() + size_of::<FacetStore>())
+        self.fields.len()
+            * (size_of::<&'static str>() + size_of::<FacetStore>() + BTREE_ENTRY_OVERHEAD_BYTES)
             + self
                 .fields
                 .values()

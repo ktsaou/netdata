@@ -26,7 +26,7 @@ fn warn_unexpected_geoip_lookup_error(
 }
 
 fn lookup_geoip_record<T>(
-    db: &Reader<Vec<u8>>,
+    db: &GeoIpDatabaseReader,
     address: IpAddr,
     database_kind: &'static str,
 ) -> Option<T>

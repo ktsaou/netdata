@@ -1,9 +1,15 @@
-use super::{facet_runtime, ingest, plugin_config, query, tiering};
+use super::{charts, facet_runtime, ingest, plugin_config, query, tiering};
 use bytesize::ByteSize;
+use rt::PluginRuntime;
 use std::env;
 use std::fs;
+use std::future::Future;
 use std::path::{Path, PathBuf};
+use std::pin::Pin;
 use std::sync::Arc;
+use tokio::io::{AsyncReadExt, DuplexStream};
+use tokio::task::JoinHandle;
+use tokio_util::sync::CancellationToken;
 
 const DEFAULT_PROFILE_BASE_DIR: &str = "/var/cache/netdata/flows";
 const PROFILE_DIR_ENV: &str = "NETFLOW_PROFILE_BASE_DIR";
@@ -14,11 +20,14 @@ const PROFILE_DISABLE_THP_ENV: &str = "NETFLOW_PROFILE_DISABLE_THP";
 const DEFAULT_PROFILE_WORKER_THREADS: usize = 4;
 const DEFAULT_PROFILE_BLOCKING_THREADS: usize = 8;
 const DEFAULT_PROFILE_SETTLE_SECS: u64 = 12;
+const PROFILE_RUNTIME_IO_CAPACITY_BYTES: usize = 1024 * 1024;
+const PROFILE_RUNTIME_SETTLE_MILLIS: u64 = 1500;
 
 #[derive(Debug, Clone, Copy, Default)]
 struct ProcessMemorySnapshot {
     rss_bytes: u64,
     hwm_bytes: u64,
+    anon_huge_pages_bytes: u64,
     thread_count: usize,
     allocator: crate::memory_allocator::AllocatorMemorySample,
 }
@@ -34,6 +43,15 @@ struct StartupMemoryReport {
     phases: Vec<StartupMemoryPhase>,
     facet_breakdown: crate::facet_runtime::FacetMemoryBreakdown,
     journal_files: usize,
+}
+
+struct ProfilePluginRuntime {
+    runtime: Option<PluginRuntime<DuplexStream, DuplexStream>>,
+    runtime_future: Option<Pin<Box<dyn Future<Output = netdata_plugin_error::Result<()>>>>>,
+    output_drain_task: JoinHandle<anyhow::Result<u64>>,
+    charts_task: JoinHandle<()>,
+    charts_shutdown: CancellationToken,
+    input_guard: Option<DuplexStream>,
 }
 
 #[tokio::test(flavor = "current_thread")]
@@ -99,10 +117,11 @@ fn print_report(
         .unwrap_or_default();
     for phase in &report.phases {
         eprintln!(
-            "phase={} rss={} hwm={} threads={} heap_in_use={} heap_free={} heap_arena={} mmap_in_use={} delta_rss={}",
+            "phase={} rss={} hwm={} anon_huge_pages={} threads={} heap_in_use={} heap_free={} heap_arena={} mmap_in_use={} delta_rss={}",
             phase.name,
             phase.snapshot.rss_bytes,
             phase.snapshot.hwm_bytes,
+            phase.snapshot.anon_huge_pages_bytes,
             phase.snapshot.thread_count,
             phase.snapshot.allocator.heap_in_use_bytes,
             phase.snapshot.allocator.heap_free_bytes,
@@ -163,6 +182,7 @@ async fn profile_live_startup_memory() -> anyhow::Result<StartupMemoryReport> {
 
     let (query_service, _notify_rx) =
         query::FlowQueryService::new_with_facet_runtime(&cfg, Arc::clone(&facet_runtime)).await?;
+    let query_service = Arc::new(query_service);
     phases.push(StartupMemoryPhase {
         name: "query_service_new",
         snapshot: current_process_memory()?,
@@ -176,12 +196,14 @@ async fn profile_live_startup_memory() -> anyhow::Result<StartupMemoryReport> {
 
     let metrics = Arc::new(ingest::IngestMetrics::default());
     let open_tiers = Arc::new(std::sync::RwLock::new(tiering::OpenTierState::default()));
-    let tier_flow_indexes = Arc::new(std::sync::RwLock::new(tiering::TierFlowIndexStore::default()));
+    let tier_flow_indexes = Arc::new(std::sync::RwLock::new(
+        tiering::TierFlowIndexStore::default(),
+    ));
     let mut ingest_service = ingest::IngestService::new_with_facet_runtime(
         cfg.clone(),
-        metrics,
-        open_tiers,
-        tier_flow_indexes,
+        Arc::clone(&metrics),
+        Arc::clone(&open_tiers),
+        Arc::clone(&tier_flow_indexes),
         Arc::clone(&facet_runtime),
     )?;
     phases.push(StartupMemoryPhase {
@@ -189,7 +211,9 @@ async fn profile_live_startup_memory() -> anyhow::Result<StartupMemoryReport> {
         snapshot: current_process_memory()?,
     });
 
-    ingest_service.rebuild_materialized_from_raw_for_test().await?;
+    ingest_service
+        .rebuild_materialized_from_raw_for_test()
+        .await?;
     phases.push(StartupMemoryPhase {
         name: "rebuild_materialized_from_raw",
         snapshot: current_process_memory()?,
@@ -209,6 +233,36 @@ async fn profile_live_startup_memory() -> anyhow::Result<StartupMemoryReport> {
             snapshot: current_process_memory()?,
         });
     }
+
+    let mut plugin_runtime = ProfilePluginRuntime::new(
+        &cfg,
+        Arc::clone(&metrics),
+        Arc::clone(&query_service),
+        Arc::clone(&open_tiers),
+        Arc::clone(&tier_flow_indexes),
+        Arc::clone(&facet_runtime),
+    )?;
+    phases.push(StartupMemoryPhase {
+        name: "plugin_runtime_configured",
+        snapshot: current_process_memory()?,
+    });
+
+    plugin_runtime.start()?;
+    plugin_runtime
+        .run_for(std::time::Duration::from_millis(
+            PROFILE_RUNTIME_SETTLE_MILLIS,
+        ))
+        .await?;
+    phases.push(StartupMemoryPhase {
+        name: "plugin_runtime_started",
+        snapshot: current_process_memory()?,
+    });
+
+    plugin_runtime.shutdown().await?;
+    phases.push(StartupMemoryPhase {
+        name: "plugin_runtime_shutdown",
+        snapshot: current_process_memory()?,
+    });
 
     let facet_breakdown = facet_runtime.estimated_memory_breakdown();
     Ok(StartupMemoryReport {
@@ -239,6 +293,7 @@ fn profile_base_dir() -> PathBuf {
 
 fn current_process_memory() -> anyhow::Result<ProcessMemorySnapshot> {
     let status = fs::read_to_string("/proc/self/status")?;
+    let smaps_rollup = fs::read_to_string("/proc/self/smaps_rollup").ok();
     let mut snapshot = ProcessMemorySnapshot::default();
 
     for line in status.lines() {
@@ -246,6 +301,14 @@ fn current_process_memory() -> anyhow::Result<ProcessMemorySnapshot> {
             snapshot.rss_bytes = parse_status_kib(value)?;
         } else if let Some(value) = line.strip_prefix("VmHWM:") {
             snapshot.hwm_bytes = parse_status_kib(value)?;
+        }
+    }
+
+    if let Some(smaps_rollup) = smaps_rollup {
+        for line in smaps_rollup.lines() {
+            if let Some(value) = line.strip_prefix("AnonHugePages:") {
+                snapshot.anon_huge_pages_bytes = parse_status_kib(value)?;
+            }
         }
     }
 
@@ -316,4 +379,123 @@ fn journal_file_count(path: &Path) -> usize {
     }
 
     count(path)
+}
+
+impl ProfilePluginRuntime {
+    fn new(
+        cfg: &plugin_config::PluginConfig,
+        metrics: Arc<ingest::IngestMetrics>,
+        query_service: Arc<query::FlowQueryService>,
+        open_tiers: Arc<std::sync::RwLock<tiering::OpenTierState>>,
+        tier_flow_indexes: Arc<std::sync::RwLock<tiering::TierFlowIndexStore>>,
+        facet_runtime: Arc<facet_runtime::FacetRuntime>,
+    ) -> anyhow::Result<Self> {
+        let (runtime_reader, input_guard) = tokio::io::duplex(PROFILE_RUNTIME_IO_CAPACITY_BYTES);
+        let (runtime_writer, output_reader) = tokio::io::duplex(PROFILE_RUNTIME_IO_CAPACITY_BYTES);
+        let output_drain_task =
+            tokio::spawn(async move { drain_runtime_output(output_reader).await });
+
+        let mut runtime = PluginRuntime::with_streams(
+            "netflow-plugin-startup-profile",
+            runtime_reader,
+            runtime_writer,
+        );
+        runtime.register_handler(crate::NetflowFlowsHandler::new(
+            Arc::clone(&metrics),
+            query_service,
+        ));
+
+        let resident_mapping_paths = charts::ProcessResidentMappingPaths::new(
+            &cfg.journal.raw_tier_dir(),
+            &cfg.journal.minute_1_tier_dir(),
+            &cfg.journal.minute_5_tier_dir(),
+            &cfg.journal.hour_1_tier_dir(),
+            &cfg.enrichment.geoip.asn_database,
+            &cfg.enrichment.geoip.geo_database,
+        );
+        let charts_shutdown = CancellationToken::new();
+        let charts_task = charts::NetflowCharts::new(&mut runtime).spawn_sampler(
+            metrics,
+            open_tiers,
+            tier_flow_indexes,
+            facet_runtime,
+            resident_mapping_paths,
+            charts_shutdown.clone(),
+        );
+
+        Ok(Self {
+            runtime: Some(runtime),
+            runtime_future: None,
+            output_drain_task,
+            charts_task,
+            charts_shutdown,
+            input_guard: Some(input_guard),
+        })
+    }
+
+    fn start(&mut self) -> anyhow::Result<()> {
+        let runtime = self
+            .runtime
+            .take()
+            .ok_or_else(|| anyhow::anyhow!("plugin runtime already started"))?;
+        self.runtime_future = Some(Box::pin(runtime.run()));
+        Ok(())
+    }
+
+    async fn run_for(&mut self, duration: std::time::Duration) -> anyhow::Result<()> {
+        let runtime_future = self
+            .runtime_future
+            .as_mut()
+            .ok_or_else(|| anyhow::anyhow!("plugin runtime not started"))?;
+
+        tokio::select! {
+            result = runtime_future.as_mut() => {
+                match result {
+                    Ok(()) => Err(anyhow::anyhow!("plugin runtime exited before the profiling window ended")),
+                    Err(err) => Err(anyhow::anyhow!("plugin runtime failed before the profiling window ended: {err:#}")),
+                }
+            }
+            _ = tokio::time::sleep(duration) => Ok(()),
+        }
+    }
+
+    async fn shutdown(mut self) -> anyhow::Result<()> {
+        self.charts_shutdown.cancel();
+        drop(self.input_guard.take());
+
+        self.charts_task
+            .await
+            .map_err(|err| anyhow::anyhow!("charts sampler join failed: {err}"))?;
+
+        if let Some(mut runtime_future) = self.runtime_future.take() {
+            match runtime_future.as_mut().await {
+                Ok(()) => {}
+                Err(err) => {
+                    return Err(anyhow::anyhow!("plugin runtime failed: {err:#}"));
+                }
+            }
+        }
+
+        match self.output_drain_task.await {
+            Ok(Ok(_bytes)) => Ok(()),
+            Ok(Err(err)) => Err(err),
+            Err(err) if err.is_cancelled() => Ok(()),
+            Err(err) => Err(anyhow::anyhow!("runtime output drain join failed: {err}")),
+        }
+    }
+}
+
+async fn drain_runtime_output(mut reader: DuplexStream) -> anyhow::Result<u64> {
+    let mut total_bytes = 0u64;
+    let mut buffer = [0u8; 8192];
+
+    loop {
+        let bytes_read = reader.read(&mut buffer).await?;
+        if bytes_read == 0 {
+            break;
+        }
+        total_bytes = total_bytes.saturating_add(bytes_read as u64);
+    }
+
+    Ok(total_bytes)
 }

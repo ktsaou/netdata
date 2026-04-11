@@ -1,4 +1,5 @@
 use crate::facet_catalog::FacetValueKind;
+use allocative::{Allocative, Key, Visitor};
 use bitvec::prelude::*;
 use hashbrown::HashTable;
 use roaring::RoaringTreemap;
@@ -8,7 +9,7 @@ use std::mem::size_of;
 use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
 use twox_hash::XxHash64;
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, allocative::Allocative)]
 pub(super) enum PersistedFacetStore {
     Text(Vec<String>),
     DenseU8(Vec<u8>),
@@ -18,7 +19,7 @@ pub(super) enum PersistedFacetStore {
     IpAddr(Vec<PersistedPackedIpAddr>),
 }
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, allocative::Allocative)]
 pub(super) struct PersistedPackedIpAddr {
     family: u8,
     bytes: [u8; 16],
@@ -228,9 +229,7 @@ impl FacetStore {
             Self::Text(store) => store.estimated_heap_bytes(),
             Self::DenseU8(store) => store.estimated_heap_bytes(),
             Self::DenseU16(store) => store.estimated_heap_bytes(),
-            Self::SparseU32(store) | Self::SparseU64(store) => {
-                store.len() as usize * size_of::<u64>()
-            }
+            Self::SparseU32(store) | Self::SparseU64(store) => store.serialized_size(),
             Self::IpAddr(store) => store.estimated_heap_bytes(),
         }
     }
@@ -245,13 +244,19 @@ pub(super) struct DenseBitSet<const N: usize> {
 impl<const N: usize> DenseBitSet<N> {
     fn new() -> Self {
         Self {
-            bits: bitvec![usize, Lsb0; 0; N],
+            bits: BitVec::new(),
             len: 0,
         }
     }
 
     fn insert(&mut self, value: usize) -> bool {
-        if value >= N || self.bits[value] {
+        if value >= N {
+            return false;
+        }
+        if self.bits.is_empty() {
+            self.bits.resize(N, false);
+        }
+        if self.bits[value] {
             return false;
         }
         self.bits.set(value, true);
@@ -268,7 +273,7 @@ impl<const N: usize> DenseBitSet<N> {
     }
 
     fn contains(&self, value: usize) -> bool {
-        value < N && self.bits[value]
+        value < self.bits.len() && self.bits[value]
     }
 
     fn collect_strings(&self, limit: Option<usize>) -> Vec<String> {
@@ -311,7 +316,7 @@ impl<const N: usize> DenseBitSet<N> {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, allocative::Allocative)]
 struct TextEntry {
     offset: u32,
     len: u32,
@@ -415,13 +420,13 @@ impl TextValueStore {
     }
 
     fn estimated_heap_bytes(&self) -> usize {
-        hash_table_allocation_bytes(self.lookup.capacity(), size_of::<u32>())
+        self.lookup.allocation_size()
             + self.entries.capacity() * size_of::<TextEntry>()
             + self.arena.capacity()
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, allocative::Allocative)]
 pub(super) struct PackedIpAddr {
     family: u8,
     bytes: [u8; 16],
@@ -552,8 +557,8 @@ impl IpValueStore {
     }
 
     fn estimated_heap_bytes(&self) -> usize {
-        self.v4_values.len() as usize * size_of::<u32>()
-            + hash_table_allocation_bytes(self.v6_lookup.capacity(), size_of::<u32>())
+        self.v4_values.serialized_size()
+            + self.v6_lookup.allocation_size()
             + self.v6_values.capacity() * size_of::<[u8; 16]>()
     }
 
@@ -624,6 +629,89 @@ fn hash_ip(value: PackedIpAddr) -> u64 {
     hasher.finish()
 }
 
-fn hash_table_allocation_bytes(capacity: usize, element_size: usize) -> usize {
-    capacity.saturating_mul(element_size.saturating_add(1))
+impl Allocative for FacetStore {
+    fn visit<'a, 'b: 'a>(&self, visitor: &'a mut Visitor<'b>) {
+        let mut visitor = visitor.enter_self(self);
+        match self {
+            Self::Text(store) => visitor.visit_field(Key::new("text"), store),
+            Self::DenseU8(store) => visitor.visit_field(Key::new("dense_u8"), store),
+            Self::DenseU16(store) => visitor.visit_field(Key::new("dense_u16"), store),
+            Self::SparseU32(store) => visitor.visit_field_with(
+                Key::new("sparse_u32"),
+                size_of::<RoaringTreemap>(),
+                |visitor| visit_roaring_treemap(store, visitor),
+            ),
+            Self::SparseU64(store) => visitor.visit_field_with(
+                Key::new("sparse_u64"),
+                size_of::<RoaringTreemap>(),
+                |visitor| visit_roaring_treemap(store, visitor),
+            ),
+            Self::IpAddr(store) => visitor.visit_field(Key::new("ip_addr"), store),
+        }
+        visitor.exit();
+    }
+}
+
+impl<const N: usize> Allocative for DenseBitSet<N> {
+    fn visit<'a, 'b: 'a>(&self, visitor: &'a mut Visitor<'b>) {
+        let mut visitor = visitor.enter_self_sized::<Self>();
+        visitor.visit_simple(Key::new("bits"), dense_bitset_capacity_bytes(self));
+        visitor.visit_simple(
+            Key::new("unused_bits"),
+            dense_bitset_unused_capacity_bytes(self),
+        );
+        visitor.exit();
+    }
+}
+
+impl Allocative for TextValueStore {
+    fn visit<'a, 'b: 'a>(&self, visitor: &'a mut Visitor<'b>) {
+        let mut visitor = visitor.enter_self_sized::<Self>();
+        visitor.visit_simple(Key::new("lookup"), self.lookup.allocation_size());
+        visitor.visit_field(Key::new("entries"), &self.entries);
+        visitor.visit_field(Key::new("arena"), &self.arena);
+        visitor.exit();
+    }
+}
+
+impl Allocative for IpValueStore {
+    fn visit<'a, 'b: 'a>(&self, visitor: &'a mut Visitor<'b>) {
+        let mut visitor = visitor.enter_self_sized::<Self>();
+        visitor.visit_field_with(
+            Key::new("v4_values"),
+            size_of::<RoaringTreemap>(),
+            |visitor| {
+                visit_roaring_treemap(&self.v4_values, visitor);
+            },
+        );
+        visitor.visit_simple(Key::new("v6_lookup"), self.v6_lookup.allocation_size());
+        visitor.visit_field(Key::new("v6_values"), &self.v6_values);
+        visitor.exit();
+    }
+}
+
+fn dense_bitset_capacity_bytes<const N: usize>(store: &DenseBitSet<N>) -> usize {
+    store
+        .bits
+        .capacity()
+        .div_ceil(usize::BITS as usize)
+        .saturating_mul(size_of::<usize>())
+}
+
+fn dense_bitset_unused_capacity_bytes<const N: usize>(store: &DenseBitSet<N>) -> usize {
+    store
+        .bits
+        .capacity()
+        .saturating_sub(store.bits.len())
+        .div_ceil(usize::BITS as usize)
+        .saturating_mul(size_of::<usize>())
+}
+
+fn visit_roaring_treemap<'a, 'b: 'a>(store: &RoaringTreemap, visitor: &'a mut Visitor<'b>) {
+    let mut visitor = visitor.enter_self(store);
+    for (partition, bitmap) in store.bitmaps() {
+        visitor.visit_field(Key::new("partition"), &partition);
+        visitor.visit_field(Key::new("bitmap"), bitmap);
+    }
+    visitor.exit();
 }

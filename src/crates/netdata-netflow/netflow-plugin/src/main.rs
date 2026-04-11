@@ -11,8 +11,6 @@ mod ingest;
 mod memory_allocator;
 #[cfg(test)]
 mod memory_tests;
-#[cfg(test)]
-mod startup_memory_tests;
 mod network_sources;
 mod plugin_config;
 mod presentation;
@@ -20,6 +18,8 @@ mod query;
 #[cfg(test)]
 mod rollup;
 mod routing;
+#[cfg(test)]
+mod startup_memory_tests;
 mod tiering;
 
 pub(crate) use api::NetflowFlowsHandler;
@@ -44,8 +44,30 @@ fn main() {
         std::process::exit(1);
     }
 
+    #[cfg(all(target_os = "linux", target_env = "gnu"))]
+    let glibc_arena_max = memory_allocator::limit_glibc_arenas_for_process();
+
     println!("TRUST_DURATIONS 1");
     rt::init_tracing();
+
+    #[cfg(all(target_os = "linux", target_env = "gnu"))]
+    match glibc_arena_max {
+        Some(arena_max) => {
+            tracing::info!(arena_max, "capped glibc malloc arenas for netflow process");
+        }
+        None => {
+            tracing::warn!("failed to cap glibc malloc arenas for netflow process");
+        }
+    }
+
+    #[cfg(target_os = "linux")]
+    {
+        if memory_allocator::disable_transparent_huge_pages_for_process() {
+            tracing::info!("disabled transparent huge pages for netflow process");
+        } else {
+            tracing::warn!("failed to disable transparent huge pages for netflow process");
+        }
+    }
 
     let worker_threads = runtime_worker_threads();
     let max_blocking_threads = runtime_blocking_threads(worker_threads);
@@ -135,11 +157,20 @@ async fn async_main() -> i32 {
         Arc::clone(&metrics),
         Arc::clone(&query_service),
     ));
+    let resident_mapping_paths = charts::ProcessResidentMappingPaths::new(
+        &config.journal.raw_tier_dir(),
+        &config.journal.minute_1_tier_dir(),
+        &config.journal.minute_5_tier_dir(),
+        &config.journal.hour_1_tier_dir(),
+        &config.enrichment.geoip.asn_database,
+        &config.enrichment.geoip.geo_database,
+    );
     let _charts_task = charts::NetflowCharts::new(&mut runtime).spawn_sampler(
         Arc::clone(&metrics),
         Arc::clone(&open_tiers),
         Arc::clone(&tier_flow_indexes),
         Arc::clone(&facet_runtime),
+        resident_mapping_paths,
         shutdown.clone(),
     );
 

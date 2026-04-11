@@ -14,6 +14,7 @@ pub(super) struct NetflowChartsSnapshot {
     pub(super) journal_io_bytes: JournalIoBytesMetrics,
     pub(super) decoder_scopes: DecoderScopeMetrics,
     pub(super) memory_resident_bytes: MemoryResidentBytesMetrics,
+    pub(super) memory_resident_mapping_bytes: MemoryResidentMappingBytesMetrics,
     pub(super) memory_allocator_bytes: MemoryAllocatorBytesMetrics,
     pub(super) memory_accounted_bytes: MemoryAccountedBytesMetrics,
     pub(super) memory_tier_index_bytes: MemoryTierIndexBytesMetrics,
@@ -26,6 +27,8 @@ pub(super) struct ProcessMemorySample {
     pub(super) rss_anon_bytes: u64,
     pub(super) rss_file_bytes: u64,
     pub(super) rss_shmem_bytes: u64,
+    pub(super) anon_huge_pages_bytes: u64,
+    pub(super) resident_mappings: ProcessResidentMappingBreakdown,
     pub(super) allocator: AllocatorMemorySample,
 }
 
@@ -45,7 +48,9 @@ impl NetflowChartsSnapshot {
             .saturating_add(facet_breakdown.published_bytes)
             .saturating_add(facet_breakdown.archived_path_bytes)
             .saturating_add(tier_index.bytes)
-            .saturating_add(open_tier_bytes);
+            .saturating_add(open_tier_bytes)
+            .saturating_add(process_memory.resident_mappings.geoip_asn_bytes)
+            .saturating_add(process_memory.resident_mappings.geoip_geo_bytes);
         Self {
             input_packets: InputPacketsMetrics {
                 udp_received: metrics.udp_packets_received.load(Ordering::Relaxed),
@@ -119,6 +124,19 @@ impl NetflowChartsSnapshot {
                 rss_anon: process_memory.rss_anon_bytes,
                 rss_file: process_memory.rss_file_bytes,
                 rss_shmem: process_memory.rss_shmem_bytes,
+                anon_huge_pages: process_memory.anon_huge_pages_bytes,
+            },
+            memory_resident_mapping_bytes: MemoryResidentMappingBytesMetrics {
+                heap: process_memory.resident_mappings.heap_bytes,
+                anon_other: process_memory.resident_mappings.anon_other_bytes,
+                journal_raw: process_memory.resident_mappings.journal_raw_bytes,
+                journal_1m: process_memory.resident_mappings.journal_1m_bytes,
+                journal_5m: process_memory.resident_mappings.journal_5m_bytes,
+                journal_1h: process_memory.resident_mappings.journal_1h_bytes,
+                geoip_asn: process_memory.resident_mappings.geoip_asn_bytes,
+                geoip_geo: process_memory.resident_mappings.geoip_geo_bytes,
+                other_file: process_memory.resident_mappings.other_file_bytes,
+                shmem: process_memory.resident_mappings.shmem_bytes,
             },
             memory_allocator_bytes: MemoryAllocatorBytesMetrics {
                 heap_in_use: process_memory.allocator.heap_in_use_bytes,
@@ -135,6 +153,8 @@ impl NetflowChartsSnapshot {
                 facet_archived_paths: facet_breakdown.archived_path_bytes,
                 tier_indexes: tier_index.bytes,
                 open_tiers: open_tier_bytes,
+                geoip_asn: process_memory.resident_mappings.geoip_asn_bytes,
+                geoip_geo: process_memory.resident_mappings.geoip_geo_bytes,
                 unaccounted: process_memory.rss_bytes.saturating_sub(accounted_total),
             },
             memory_tier_index_bytes: MemoryTierIndexBytesMetrics {

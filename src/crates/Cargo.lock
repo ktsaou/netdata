@@ -2134,6 +2134,7 @@ dependencies = [
  "ipnetwork",
  "log",
  "memchr",
+ "memmap2",
  "serde",
 ]
 
@@ -2301,6 +2302,7 @@ dependencies = [
 name = "netflow-plugin"
 version = "0.1.3"
 dependencies = [
+ "allocative",
  "anyhow",
  "async-trait",
  "bincode",

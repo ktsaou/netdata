@@ -67,6 +67,12 @@ pub(crate) fn supported_flow_field_names() -> impl Iterator<Item = &'static str>
                 "SRC_GEO_LATITUDE" | "DST_GEO_LATITUDE" | "SRC_GEO_LONGITUDE" | "DST_GEO_LONGITUDE"
             )
         })
+        .filter(|field| {
+            !matches!(
+                *field,
+                "FLOW_START_USEC" | "FLOW_END_USEC" | "OBSERVATION_TIME_MILLIS"
+            )
+        })
         .filter(|field| !matches!(*field, "SAMPLING_RATE" | "RAW_BYTES" | "RAW_PACKETS"))
         .chain(VIRTUAL_FLOW_FIELDS.iter().copied())
 }
