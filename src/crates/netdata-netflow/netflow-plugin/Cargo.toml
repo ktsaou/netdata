@@ -30,6 +30,7 @@ journal-registry = { workspace = true }
 humantime = { workspace = true }
 humantime-serde = { workspace = true }
 hashbrown = { workspace = true }
+libc = { workspace = true }
 ipnet = { workspace = true }
 ipnet-trie = { workspace = true }
 itoa = { workspace = true }

@@ -1,4 +1,5 @@
 use super::*;
+use crate::memory_allocator::trim_allocator_if_worthwhile;
 
 pub(crate) struct FlowQueryService {
     pub(super) registry: Registry,
@@ -97,7 +98,19 @@ impl FlowQueryService {
         .context("facet initialization task join failed")??;
 
         self.facet_runtime
-            .apply_reconcile_plan(plan, archived_scans, active_scans)
+            .apply_reconcile_plan(plan, archived_scans, active_scans)?;
+
+        if let Some(trimmed) = trim_allocator_if_worthwhile() {
+            tracing::info!(
+                before_heap_free = trimmed.before.heap_free_bytes,
+                after_heap_free = trimmed.after.heap_free_bytes,
+                before_heap_arena = trimmed.before.heap_arena_bytes,
+                after_heap_arena = trimmed.after.heap_arena_bytes,
+                "trimmed glibc heap after netflow facet reconciliation"
+            );
+        }
+
+        Ok(())
     }
 }
 

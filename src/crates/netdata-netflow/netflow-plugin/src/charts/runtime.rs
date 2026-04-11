@@ -1,4 +1,5 @@
 use super::*;
+use crate::memory_allocator::current_allocator_memory;
 use std::fs;
 
 #[derive(Clone)]
@@ -14,6 +15,7 @@ pub(crate) struct NetflowCharts {
     journal_io_bytes: ChartHandle<JournalIoBytesMetrics>,
     decoder_scopes: ChartHandle<DecoderScopeMetrics>,
     memory_resident_bytes: ChartHandle<MemoryResidentBytesMetrics>,
+    memory_allocator_bytes: ChartHandle<MemoryAllocatorBytesMetrics>,
     memory_accounted_bytes: ChartHandle<MemoryAccountedBytesMetrics>,
     memory_tier_index_bytes: ChartHandle<MemoryTierIndexBytesMetrics>,
 }
@@ -46,6 +48,10 @@ impl NetflowCharts {
                 .register_chart(DecoderScopeMetrics::default(), Duration::from_secs(1)),
             memory_resident_bytes: runtime.register_chart(
                 MemoryResidentBytesMetrics::default(),
+                Duration::from_secs(1),
+            ),
+            memory_allocator_bytes: runtime.register_chart(
+                MemoryAllocatorBytesMetrics::default(),
                 Duration::from_secs(1),
             ),
             memory_accounted_bytes: runtime.register_chart(
@@ -117,6 +123,8 @@ impl NetflowCharts {
             .update(|chart| *chart = snapshot.decoder_scopes);
         self.memory_resident_bytes
             .update(|chart| *chart = snapshot.memory_resident_bytes);
+        self.memory_allocator_bytes
+            .update(|chart| *chart = snapshot.memory_allocator_bytes);
         self.memory_accounted_bytes
             .update(|chart| *chart = snapshot.memory_accounted_bytes);
         self.memory_tier_index_bytes
@@ -217,9 +225,16 @@ fn current_process_memory() -> ProcessMemorySample {
             sample.rss_bytes = parse_status_kib(value);
         } else if let Some(value) = line.strip_prefix("VmHWM:") {
             sample.hwm_bytes = parse_status_kib(value);
+        } else if let Some(value) = line.strip_prefix("RssAnon:") {
+            sample.rss_anon_bytes = parse_status_kib(value);
+        } else if let Some(value) = line.strip_prefix("RssFile:") {
+            sample.rss_file_bytes = parse_status_kib(value);
+        } else if let Some(value) = line.strip_prefix("RssShmem:") {
+            sample.rss_shmem_bytes = parse_status_kib(value);
         }
     }
 
+    sample.allocator = current_allocator_memory();
     sample
 }
 

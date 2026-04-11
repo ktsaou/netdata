@@ -1,5 +1,6 @@
 use super::*;
 use crate::facet_runtime::FacetMemoryBreakdown;
+use crate::memory_allocator::AllocatorMemorySample;
 use crate::tiering::{FlowMetrics, OpenTierRow, TierFlowRef};
 
 #[test]
@@ -22,6 +23,10 @@ fn chart_metadata_uses_honest_contexts_and_units() {
     let resident = MemoryResidentBytesMetrics::chart_metadata();
     assert_eq!(resident.context, "netdata.netflow.memory_resident_bytes");
     assert_eq!(resident.units, "bytes");
+
+    let allocator = MemoryAllocatorBytesMetrics::chart_metadata();
+    assert_eq!(allocator.context, "netdata.netflow.memory_allocator_bytes");
+    assert_eq!(allocator.units, "bytes");
 
     let accounted = MemoryAccountedBytesMetrics::chart_metadata();
     assert_eq!(accounted.context, "netdata.netflow.memory_accounted_bytes");
@@ -87,6 +92,16 @@ fn snapshot_collects_current_metric_totals_and_open_rows() {
         ProcessMemorySample {
             rss_bytes: 10_000,
             hwm_bytes: 20_000,
+            rss_anon_bytes: 3_000,
+            rss_file_bytes: 4_000,
+            rss_shmem_bytes: 5_000,
+            allocator: AllocatorMemorySample {
+                heap_in_use_bytes: 111,
+                heap_free_bytes: 222,
+                heap_arena_bytes: 333,
+                mmap_in_use_bytes: 444,
+                releasable_bytes: 555,
+            },
         },
     );
     assert_eq!(snapshot.input_packets.udp_received, 11);
@@ -111,6 +126,14 @@ fn snapshot_collects_current_metric_totals_and_open_rows() {
     assert_eq!(snapshot.open_tiers.hour_1, 0);
     assert_eq!(snapshot.memory_resident_bytes.rss, 10_000);
     assert_eq!(snapshot.memory_resident_bytes.hwm, 20_000);
+    assert_eq!(snapshot.memory_resident_bytes.rss_anon, 3_000);
+    assert_eq!(snapshot.memory_resident_bytes.rss_file, 4_000);
+    assert_eq!(snapshot.memory_resident_bytes.rss_shmem, 5_000);
+    assert_eq!(snapshot.memory_allocator_bytes.heap_in_use, 111);
+    assert_eq!(snapshot.memory_allocator_bytes.heap_free, 222);
+    assert_eq!(snapshot.memory_allocator_bytes.heap_arena, 333);
+    assert_eq!(snapshot.memory_allocator_bytes.mmap_in_use, 444);
+    assert_eq!(snapshot.memory_allocator_bytes.releasable, 555);
     assert_eq!(snapshot.memory_accounted_bytes.facet_archived, 10);
     assert_eq!(snapshot.memory_accounted_bytes.open_tiers, 1234);
     assert_eq!(snapshot.memory_accounted_bytes.tier_indexes, 5678);

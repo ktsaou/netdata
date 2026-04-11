@@ -210,6 +210,34 @@ pub(super) struct MemoryResidentBytesMetrics {
     pub(super) rss: u64,
     #[schemars(extend("x-dimension-algorithm" = "absolute"))]
     pub(super) hwm: u64,
+    #[schemars(extend("x-dimension-algorithm" = "absolute"))]
+    pub(super) rss_anon: u64,
+    #[schemars(extend("x-dimension-algorithm" = "absolute"))]
+    pub(super) rss_file: u64,
+    #[schemars(extend("x-dimension-algorithm" = "absolute"))]
+    pub(super) rss_shmem: u64,
+}
+
+#[derive(JsonSchema, NetdataChart, Default, Clone, PartialEq, Serialize, Deserialize, Debug)]
+#[schemars(
+    extend("x-chart-id" = "netflow.memory_allocator_bytes"),
+    extend("x-chart-title" = "Netflow Allocator Memory"),
+    extend("x-chart-units" = "bytes"),
+    extend("x-chart-type" = "line"),
+    extend("x-chart-family" = "netflow"),
+    extend("x-chart-context" = "netdata.netflow.memory_allocator_bytes"),
+)]
+pub(super) struct MemoryAllocatorBytesMetrics {
+    #[schemars(extend("x-dimension-algorithm" = "absolute"))]
+    pub(super) heap_in_use: u64,
+    #[schemars(extend("x-dimension-algorithm" = "absolute"))]
+    pub(super) heap_free: u64,
+    #[schemars(extend("x-dimension-algorithm" = "absolute"))]
+    pub(super) heap_arena: u64,
+    #[schemars(extend("x-dimension-algorithm" = "absolute"))]
+    pub(super) mmap_in_use: u64,
+    #[schemars(extend("x-dimension-algorithm" = "absolute"))]
+    pub(super) releasable: u64,
 }
 
 #[derive(JsonSchema, NetdataChart, Default, Clone, PartialEq, Serialize, Deserialize, Debug)]

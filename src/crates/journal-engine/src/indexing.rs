@@ -16,6 +16,8 @@ use std::sync::atomic::AtomicUsize;
 use tokio_util::sync::CancellationToken;
 use tracing::{error, trace};
 
+const MAX_BATCH_INDEX_THREADS: usize = 4;
+
 // ============================================================================
 // File Index Cache Builder
 // ============================================================================
@@ -228,6 +230,15 @@ pub async fn batch_compute_file_indexes(
     // The cancellation token is cloned into the blocking task so that cancellation
     // is visible to the per-file check.
     let cancellation_for_blocking = cancellation.clone();
+    let compute_threads = keys_to_compute
+        .len()
+        .max(1)
+        .min(
+            std::thread::available_parallelism()
+                .map(|value| value.get())
+                .unwrap_or(1)
+                .min(MAX_BATCH_INDEX_THREADS),
+        );
 
     let compute_task = tokio::task::spawn_blocking(move || {
         use rayon::prelude::*;
@@ -236,40 +247,52 @@ pub async fn batch_compute_file_indexes(
 
         let cancelled = Arc::new(AtomicBool::new(false));
 
-        keys_to_compute
-            .into_par_iter()
-            .map(|key| {
-                // Check cancellation before processing
-                if cancellation_for_blocking.is_cancelled() || cancelled.load(Ordering::Relaxed) {
-                    cancelled.store(true, Ordering::Relaxed);
-                    return (key, Err(EngineError::Cancelled));
-                }
+        let thread_pool = rayon::ThreadPoolBuilder::new()
+            .num_threads(compute_threads)
+            .build()
+            .map_err(|err| {
+                EngineError::Io(std::io::Error::other(format!(
+                    "failed to build rayon index pool: {}",
+                    err
+                )))
+            })?;
 
-                let mut file_indexer = FileIndexer::new(indexing_limits);
-                let result = file_indexer
-                    .index(
-                        &key.file,
-                        key.source_timestamp_field.as_ref(),
-                        key.facets.as_slice(),
-                        bucket_duration,
-                    )
-                    .map_err(|e| e.into());
+        Ok::<_, EngineError>(thread_pool.install(|| {
+            keys_to_compute
+                .into_par_iter()
+                .map(|key| {
+                    if cancellation_for_blocking.is_cancelled()
+                        || cancelled.load(Ordering::Relaxed)
+                    {
+                        cancelled.store(true, Ordering::Relaxed);
+                        return (key, Err(EngineError::Cancelled));
+                    }
 
-                if result.is_ok() {
-                    if let Some(ref counter) = progress_counter {
+                    let mut file_indexer = FileIndexer::new(indexing_limits);
+                    let result = file_indexer
+                        .index(
+                            &key.file,
+                            key.source_timestamp_field.as_ref(),
+                            key.facets.as_slice(),
+                            bucket_duration,
+                        )
+                        .map_err(|e| e.into());
+
+                    if result.is_ok() && let Some(ref counter) = progress_counter {
                         counter.fetch_add(1, Ordering::Relaxed);
                     }
-                }
 
-                (key, result)
-            })
-            .collect::<Vec<(FileIndexKey, Result<FileIndex>)>>()
+                    (key, result)
+                })
+                .collect::<Vec<(FileIndexKey, Result<FileIndex>)>>()
+        }))
     });
 
     let computed_results = tokio::select! {
         result = compute_task => {
             match result {
-                Ok(results) => results,
+                Ok(Ok(results)) => results,
+                Ok(Err(err)) => return Err(err),
                 Err(e) => {
                     return Err(EngineError::Io(std::io::Error::new(
                         std::io::ErrorKind::Other,

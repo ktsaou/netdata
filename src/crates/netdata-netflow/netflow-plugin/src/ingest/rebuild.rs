@@ -1,4 +1,5 @@
 use super::*;
+use crate::memory_allocator::trim_allocator_if_worthwhile;
 
 impl IngestService {
     /// Query the most recent `_SOURCE_REALTIME_TIMESTAMP` from a tier's journal
@@ -86,101 +87,118 @@ impl IngestService {
             return Ok(());
         }
 
-        let cache_dir = self.cfg.journal.base_dir().join(".rebuild-index-cache");
-        let cache = FileIndexCacheBuilder::new()
-            .with_cache_path(cache_dir)
-            .with_memory_capacity(REBUILD_CACHE_MEMORY_CAPACITY)
-            .with_disk_capacity(REBUILD_CACHE_DISK_CAPACITY)
-            .with_block_size(REBUILD_CACHE_BLOCK_SIZE)
-            .build()
-            .await
-            .context("failed to initialize rebuild index cache")?;
+        {
+            let cache_dir = self.cfg.journal.base_dir().join(".rebuild-index-cache");
+            let cache = FileIndexCacheBuilder::new()
+                .with_cache_path(cache_dir)
+                .with_memory_capacity(REBUILD_CACHE_MEMORY_CAPACITY)
+                .with_disk_capacity(REBUILD_CACHE_DISK_CAPACITY)
+                .with_block_size(REBUILD_CACHE_BLOCK_SIZE)
+                .build()
+                .await
+                .context("failed to initialize rebuild index cache")?;
 
-        // Find per-tier cutoffs to avoid duplicating already-flushed data.
-        let mut tier_cutoffs = HashMap::new();
-        for tier in MATERIALIZED_TIERS {
-            let tier_dir = self.cfg.journal.tier_dir(tier);
-            if let Some(ts) = Self::find_last_tier_timestamp(&tier_dir, &cache).await {
-                tracing::info!(
-                    "tier {:?}: last flushed timestamp {} — skipping rebuild before it",
-                    tier,
-                    ts
-                );
-                tier_cutoffs.insert(tier, ts);
-            }
-        }
-
-        let source_timestamp_field = FieldName::new_unchecked("_SOURCE_REALTIME_TIMESTAMP");
-        let facets = Facets::new(&["_SOURCE_REALTIME_TIMESTAMP".to_string()]);
-        let keys: Vec<FileIndexKey> = files
-            .iter()
-            .map(|file_info| {
-                FileIndexKey::new(
-                    &file_info.file,
-                    &facets,
-                    Some(source_timestamp_field.clone()),
-                )
-            })
-            .collect();
-
-        let time_range =
-            QueryTimeRange::new(after, before).context("invalid rebuild raw time range")?;
-
-        let indexing_cancellation = CancellationToken::new();
-        let indexed_files = tokio::select! {
-            result = batch_compute_file_indexes(
-                &cache,
-                &registry,
-                keys,
-                &time_range,
-                indexing_cancellation.clone(),
-                IndexingLimits::default(),
-                None,
-            ) => result.context("failed to build raw indexes for tier rebuild"),
-            _ = tokio::time::sleep(Duration::from_secs(REBUILD_TIMEOUT_SECONDS)) => {
-                indexing_cancellation.cancel();
-                Err(anyhow!(
-                    "timed out building raw indexes for tier rebuild after {}s",
-                    REBUILD_TIMEOUT_SECONDS
-                ))
-            }
-        }?;
-        let file_indexes: Vec<_> = indexed_files.into_iter().map(|(_, idx)| idx).collect();
-
-        if file_indexes.is_empty() {
-            self.refresh_open_tier_state(now);
-            return Ok(());
-        }
-
-        let after_usec = (after as u64).saturating_mul(1_000_000);
-        let before_usec = (before as u64).saturating_mul(1_000_000);
-        let anchor_usec = before_usec.saturating_sub(1);
-
-        let entries = LogQuery::new(
-            &file_indexes,
-            Anchor::Timestamp(Microseconds(anchor_usec)),
-            Direction::Backward,
-        )
-        .with_after_usec(after_usec)
-        .with_before_usec(before_usec)
-        .execute()
-        .context("failed to query raw flows for tier rebuild")?;
-
-        for entry in entries {
-            let mut fields = crate::flow::FlowFields::new();
-            for pair in entry.fields {
-                let name = pair.field();
-                if let Some(interned) = crate::decoder::intern_field_name(name) {
-                    fields.insert(interned, pair.value().to_string());
+            let mut tier_cutoffs = HashMap::new();
+            for tier in MATERIALIZED_TIERS {
+                let tier_dir = self.cfg.journal.tier_dir(tier);
+                if let Some(ts) = Self::find_last_tier_timestamp(&tier_dir, &cache).await {
+                    tracing::info!(
+                        "tier {:?}: last flushed timestamp {} — skipping rebuild before it",
+                        tier,
+                        ts
+                    );
+                    tier_cutoffs.insert(tier, ts);
                 }
             }
 
-            self.observe_tiers_with_cutoffs(entry.timestamp, &fields, &tier_cutoffs);
+            let source_timestamp_field = FieldName::new_unchecked("_SOURCE_REALTIME_TIMESTAMP");
+            let facets = Facets::new(&["_SOURCE_REALTIME_TIMESTAMP".to_string()]);
+            let keys: Vec<FileIndexKey> = files
+                .iter()
+                .map(|file_info| {
+                    FileIndexKey::new(
+                        &file_info.file,
+                        &facets,
+                        Some(source_timestamp_field.clone()),
+                    )
+                })
+                .collect();
+
+            let time_range =
+                QueryTimeRange::new(after, before).context("invalid rebuild raw time range")?;
+
+            let indexing_cancellation = CancellationToken::new();
+            let indexed_files = tokio::select! {
+                result = batch_compute_file_indexes(
+                    &cache,
+                    &registry,
+                    keys,
+                    &time_range,
+                    indexing_cancellation.clone(),
+                    IndexingLimits::default(),
+                    None,
+                ) => result.context("failed to build raw indexes for tier rebuild"),
+                _ = tokio::time::sleep(Duration::from_secs(REBUILD_TIMEOUT_SECONDS)) => {
+                    indexing_cancellation.cancel();
+                    Err(anyhow!(
+                        "timed out building raw indexes for tier rebuild after {}s",
+                        REBUILD_TIMEOUT_SECONDS
+                    ))
+                }
+            }?;
+            let file_indexes: Vec<_> = indexed_files.into_iter().map(|(_, idx)| idx).collect();
+
+            if file_indexes.is_empty() {
+                self.refresh_open_tier_state(now);
+                return Ok(());
+            }
+
+            let after_usec = (after as u64).saturating_mul(1_000_000);
+            let before_usec = (before as u64).saturating_mul(1_000_000);
+            let anchor_usec = before_usec.saturating_sub(1);
+
+            let entries = LogQuery::new(
+                &file_indexes,
+                Anchor::Timestamp(Microseconds(anchor_usec)),
+                Direction::Backward,
+            )
+            .with_after_usec(after_usec)
+            .with_before_usec(before_usec)
+            .execute()
+            .context("failed to query raw flows for tier rebuild")?;
+
+            for entry in entries {
+                let mut fields = crate::flow::FlowFields::new();
+                for pair in entry.fields {
+                    let name = pair.field();
+                    if let Some(interned) = crate::decoder::intern_field_name(name) {
+                        fields.insert(interned, pair.value().to_string());
+                    }
+                }
+
+                self.observe_tiers_with_cutoffs(entry.timestamp, &fields, &tier_cutoffs);
+            }
         }
 
         self.flush_closed_tiers(now)?;
         self.prune_unused_tier_flow_indexes();
         self.refresh_open_tier_state(now);
+
+        if let Some(trimmed) = trim_allocator_if_worthwhile() {
+            tracing::info!(
+                before_heap_free = trimmed.before.heap_free_bytes,
+                after_heap_free = trimmed.after.heap_free_bytes,
+                before_heap_arena = trimmed.before.heap_arena_bytes,
+                after_heap_arena = trimmed.after.heap_arena_bytes,
+                "trimmed glibc heap after raw rebuild"
+            );
+        }
+
         Ok(())
+    }
+
+    #[cfg(test)]
+    pub(crate) async fn rebuild_materialized_from_raw_for_test(&mut self) -> Result<()> {
+        self.rebuild_materialized_from_raw().await
     }
 }

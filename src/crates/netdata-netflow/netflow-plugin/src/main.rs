@@ -8,8 +8,11 @@ mod facet_catalog;
 mod facet_runtime;
 mod flow;
 mod ingest;
+mod memory_allocator;
 #[cfg(test)]
 mod memory_tests;
+#[cfg(test)]
+mod startup_memory_tests;
 mod network_sources;
 mod plugin_config;
 mod presentation;
@@ -32,8 +35,10 @@ use std::sync::{Arc, RwLock};
 use std::time::Duration;
 use tokio_util::sync::CancellationToken;
 
-#[tokio::main]
-async fn main() {
+const MAX_RUNTIME_WORKER_THREADS: usize = 4;
+const MIN_RUNTIME_BLOCKING_THREADS: usize = 8;
+
+fn main() {
     if let Err(err) = journal_core::install_sigbus_handler() {
         eprintln!("failed to install SIGBUS handler: {}", err);
         std::process::exit(1);
@@ -42,11 +47,39 @@ async fn main() {
     println!("TRUST_DURATIONS 1");
     rt::init_tracing();
 
+    let worker_threads = runtime_worker_threads();
+    let max_blocking_threads = runtime_blocking_threads(worker_threads);
+    tracing::info!(
+        worker_threads,
+        max_blocking_threads,
+        "configured netflow tokio runtime"
+    );
+
+    let runtime = match tokio::runtime::Builder::new_multi_thread()
+        .enable_all()
+        .worker_threads(worker_threads)
+        .max_blocking_threads(max_blocking_threads)
+        .build()
+    {
+        Ok(runtime) => runtime,
+        Err(err) => {
+            eprintln!("failed to build tokio runtime: {}", err);
+            std::process::exit(1);
+        }
+    };
+
+    let exit_code = runtime.block_on(async_main());
+    if exit_code != 0 {
+        std::process::exit(exit_code);
+    }
+}
+
+async fn async_main() -> i32 {
     let config = match plugin_config::PluginConfig::new() {
         Ok(cfg) => cfg,
         Err(err) => {
             tracing::error!("failed to load configuration: {err:#}");
-            std::process::exit(1);
+            return 1;
         }
     };
 
@@ -57,7 +90,7 @@ async fn main() {
             let _ = stdout.write_all(b"DISABLE\n");
             let _ = stdout.flush();
         }
-        return;
+        return 0;
     }
 
     let shutdown = CancellationToken::new();
@@ -72,13 +105,13 @@ async fn main() {
             Ok(service) => service,
             Err(err) => {
                 tracing::error!("failed to initialize query service: {err:#}");
-                std::process::exit(1);
+                return 1;
             }
         };
     let query_service = Arc::new(query_service);
     if let Err(err) = query_service.initialize_facets().await {
         tracing::error!("failed to initialize facet runtime: {err:#}");
-        std::process::exit(1);
+        return 1;
     }
 
     let ingest_service = match ingest::IngestService::new_with_facet_runtime(
@@ -91,7 +124,7 @@ async fn main() {
         Ok(service) => service,
         Err(err) => {
             tracing::error!("failed to initialize ingestion service: {err:#}");
-            std::process::exit(1);
+            return 1;
         }
     };
     let routing_runtime = ingest_service.routing_runtime();
@@ -290,9 +323,18 @@ async fn main() {
         }
     }
 
-    if exit_code != 0 {
-        std::process::exit(exit_code);
-    }
+    exit_code
+}
+
+fn runtime_worker_threads() -> usize {
+    std::thread::available_parallelism()
+        .map(|value| value.get())
+        .unwrap_or(1)
+        .clamp(1, MAX_RUNTIME_WORKER_THREADS)
+}
+
+fn runtime_blocking_threads(worker_threads: usize) -> usize {
+    MIN_RUNTIME_BLOCKING_THREADS.max(worker_threads)
 }
 
 #[cfg(test)]

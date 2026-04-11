@@ -2328,6 +2328,7 @@ dependencies = [
  "journal-index",
  "journal-log-writer",
  "journal-registry",
+ "libc",
  "maxminddb",
  "memchr",
  "memmap2",

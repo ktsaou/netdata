@@ -1,4 +1,5 @@
 use super::*;
+use crate::memory_allocator::AllocatorMemorySample;
 
 #[derive(Debug, Clone, PartialEq)]
 pub(super) struct NetflowChartsSnapshot {
@@ -13,6 +14,7 @@ pub(super) struct NetflowChartsSnapshot {
     pub(super) journal_io_bytes: JournalIoBytesMetrics,
     pub(super) decoder_scopes: DecoderScopeMetrics,
     pub(super) memory_resident_bytes: MemoryResidentBytesMetrics,
+    pub(super) memory_allocator_bytes: MemoryAllocatorBytesMetrics,
     pub(super) memory_accounted_bytes: MemoryAccountedBytesMetrics,
     pub(super) memory_tier_index_bytes: MemoryTierIndexBytesMetrics,
 }
@@ -21,6 +23,10 @@ pub(super) struct NetflowChartsSnapshot {
 pub(super) struct ProcessMemorySample {
     pub(super) rss_bytes: u64,
     pub(super) hwm_bytes: u64,
+    pub(super) rss_anon_bytes: u64,
+    pub(super) rss_file_bytes: u64,
+    pub(super) rss_shmem_bytes: u64,
+    pub(super) allocator: AllocatorMemorySample,
 }
 
 impl NetflowChartsSnapshot {
@@ -110,6 +116,16 @@ impl NetflowChartsSnapshot {
             memory_resident_bytes: MemoryResidentBytesMetrics {
                 rss: process_memory.rss_bytes,
                 hwm: process_memory.hwm_bytes,
+                rss_anon: process_memory.rss_anon_bytes,
+                rss_file: process_memory.rss_file_bytes,
+                rss_shmem: process_memory.rss_shmem_bytes,
+            },
+            memory_allocator_bytes: MemoryAllocatorBytesMetrics {
+                heap_in_use: process_memory.allocator.heap_in_use_bytes,
+                heap_free: process_memory.allocator.heap_free_bytes,
+                heap_arena: process_memory.allocator.heap_arena_bytes,
+                mmap_in_use: process_memory.allocator.mmap_in_use_bytes,
+                releasable: process_memory.allocator.releasable_bytes,
             },
             memory_accounted_bytes: MemoryAccountedBytesMetrics {
                 facet_archived: facet_breakdown.archived_bytes,
