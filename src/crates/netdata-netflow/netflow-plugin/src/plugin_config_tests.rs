@@ -75,10 +75,7 @@ fn validate_rejects_network_source_verify_false() {
     );
 
     let err = cfg.validate().expect_err("expected validation error");
-    assert!(
-        err.to_string()
-            .contains("tls.verify must remain true")
-    );
+    assert!(err.to_string().contains("tls.verify must remain true"));
 }
 
 #[test]
@@ -99,10 +96,7 @@ fn validate_rejects_network_source_skip_verify() {
     );
 
     let err = cfg.validate().expect_err("expected validation error");
-    assert!(
-        err.to_string()
-            .contains("tls.skip_verify is not supported")
-    );
+    assert!(err.to_string().contains("tls.skip_verify is not supported"));
 }
 
 #[test]
@@ -209,6 +203,24 @@ fn validate_rejects_zero_query_facet_max_values_per_field() {
 fn plugin_enabled_defaults_to_true() {
     let cfg = PluginConfig::default();
     assert!(cfg.enabled);
+}
+
+#[test]
+fn deserialized_empty_enrichment_section_keeps_provider_defaults() {
+    let cfg: EnrichmentConfig = serde_yaml::from_str("{}").expect("parse enrichment config");
+
+    assert_eq!(
+        cfg.asn_providers,
+        vec![
+            AsnProviderConfig::Flow,
+            AsnProviderConfig::Routing,
+            AsnProviderConfig::Geoip,
+        ]
+    );
+    assert_eq!(
+        cfg.net_providers,
+        vec![NetProviderConfig::Flow, NetProviderConfig::Routing]
+    );
 }
 
 #[test]

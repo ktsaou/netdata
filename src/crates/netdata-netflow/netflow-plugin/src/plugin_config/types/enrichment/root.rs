@@ -68,8 +68,12 @@ impl Default for EnrichmentConfig {
             exporter_classifiers: Vec::new(),
             interface_classifiers: Vec::new(),
             classifier_cache_duration: default_classifier_cache_duration(),
-            asn_providers: default_asn_providers(),
-            net_providers: default_net_providers(),
+            // Keep the struct default truly empty so callers can use
+            // `EnrichmentConfig::default()` as "enrichment disabled".
+            // Serde field defaults still populate provider order when the
+            // config is deserialized from YAML without explicit lists.
+            asn_providers: Vec::new(),
+            net_providers: Vec::new(),
             routing_static: StaticRoutingConfig::default(),
             routing_dynamic: RoutingDynamicConfig::default(),
         }

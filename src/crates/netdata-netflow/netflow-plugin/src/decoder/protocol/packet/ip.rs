@@ -19,6 +19,7 @@ pub(crate) fn parse_ipv4_packet(
         return None;
     }
     let captured_length = total_length.min(data.len());
+    let wire_length = total_length as u64;
     let fragment_id = u16::from_be_bytes([data[4], data[5]]);
     let fragment_offset = u16::from_be_bytes([data[6], data[7]]) & 0x1fff;
     let proto = data[9];
@@ -41,7 +42,7 @@ pub(crate) fn parse_ipv4_packet(
         let inner_l3_length =
             parse_transport(proto, &data[ihl..payload_end], fields, decapsulation_mode);
         if decapsulation_mode.is_none() {
-            return Some(captured_length as u64);
+            return Some(wire_length);
         }
         return if inner_l3_length > 0 {
             Some(inner_l3_length)
@@ -51,7 +52,7 @@ pub(crate) fn parse_ipv4_packet(
     }
 
     if decapsulation_mode.is_none() {
-        Some(captured_length as u64)
+        Some(wire_length)
     } else {
         None
     }
@@ -67,6 +68,7 @@ pub(crate) fn parse_ipv6_packet(
     }
 
     let payload_length = u16::from_be_bytes([data[4], data[5]]) as usize;
+    let wire_length = 40_u64.saturating_add(payload_length as u64);
     let next_header = data[6];
     let hop_limit = data[7];
     let mut src_bytes = [0_u8; 16];
@@ -96,7 +98,7 @@ pub(crate) fn parse_ipv6_packet(
         decapsulation_mode,
     );
     if decapsulation_mode.is_none() {
-        Some(payload_end as u64)
+        Some(wire_length)
     } else if inner_l3_length > 0 {
         Some(inner_l3_length)
     } else {
@@ -141,7 +143,7 @@ mod tests {
     }
 
     #[test]
-    fn ipv4_parse_clamps_accounted_length_to_captured_bytes() {
+    fn ipv4_parse_uses_header_declared_length_when_capture_is_truncated() {
         let mut packet = vec![0_u8; 22];
         packet[0] = 0x45;
         packet[2] = 0;
@@ -154,7 +156,7 @@ mod tests {
         let mut fields = FlowFields::default();
         let len = parse_ipv4_packet(&packet, &mut fields, DecapsulationMode::None);
 
-        assert_eq!(len, Some(packet.len() as u64));
+        assert_eq!(len, Some(40));
         assert!(!fields.contains_key("SRC_PORT"));
         assert!(!fields.contains_key("DST_PORT"));
     }
@@ -180,7 +182,7 @@ mod tests {
     }
 
     #[test]
-    fn ipv6_parse_clamps_accounted_length_to_captured_bytes() {
+    fn ipv6_parse_uses_header_declared_length_when_capture_is_truncated() {
         let mut packet = vec![0_u8; 42];
         packet[0] = 0x60;
         packet[4] = 0;
@@ -196,7 +198,7 @@ mod tests {
         let mut fields = FlowFields::default();
         let len = parse_ipv6_packet(&packet, &mut fields, DecapsulationMode::None);
 
-        assert_eq!(len, Some(packet.len() as u64));
+        assert_eq!(len, Some(56));
         assert!(!fields.contains_key("SRC_PORT"));
         assert!(!fields.contains_key("DST_PORT"));
     }

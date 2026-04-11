@@ -19,6 +19,7 @@ pub(crate) fn parse_ipv4_packet_record(
         return None;
     }
     let captured_length = total_length.min(data.len());
+    let wire_length = total_length as u64;
     let fragment_id = u16::from_be_bytes([data[4], data[5]]);
     let fragment_offset = u16::from_be_bytes([data[6], data[7]]) & 0x1fff;
     let proto = data[9];
@@ -40,7 +41,7 @@ pub(crate) fn parse_ipv4_packet_record(
         let inner_l3_length =
             parse_transport_record(proto, &data[ihl..captured_length], rec, decapsulation_mode);
         if decapsulation_mode.is_none() {
-            return Some(captured_length as u64);
+            return Some(wire_length);
         }
         return if inner_l3_length > 0 {
             Some(inner_l3_length)
@@ -50,7 +51,7 @@ pub(crate) fn parse_ipv4_packet_record(
     }
 
     if decapsulation_mode.is_none() {
-        Some(captured_length as u64)
+        Some(wire_length)
     } else {
         None
     }
@@ -66,6 +67,7 @@ pub(crate) fn parse_ipv6_packet_record(
     }
 
     let payload_length = u16::from_be_bytes([data[4], data[5]]) as usize;
+    let wire_length = 40_u64.saturating_add(payload_length as u64);
     let captured_length = data.len().min(40_usize.saturating_add(payload_length));
     let next_header = data[6];
     let hop_limit = data[7];
@@ -95,7 +97,7 @@ pub(crate) fn parse_ipv6_packet_record(
         decapsulation_mode,
     );
     if decapsulation_mode.is_none() {
-        Some(captured_length as u64)
+        Some(wire_length)
     } else if inner_l3_length > 0 {
         Some(inner_l3_length)
     } else {
@@ -140,7 +142,7 @@ mod tests {
     }
 
     #[test]
-    fn ipv4_record_clamps_accounted_length_to_captured_bytes() {
+    fn ipv4_record_uses_header_declared_length_when_capture_is_truncated() {
         let mut packet = vec![0_u8; 22];
         packet[0] = 0x45;
         packet[2] = 0;
@@ -153,7 +155,7 @@ mod tests {
         let mut rec = FlowRecord::default();
         let len = parse_ipv4_packet_record(&packet, &mut rec, DecapsulationMode::None);
 
-        assert_eq!(len, Some(packet.len() as u64));
+        assert_eq!(len, Some(40));
         assert_eq!(rec.src_port, 0);
         assert_eq!(rec.dst_port, 0);
     }
@@ -179,7 +181,7 @@ mod tests {
     }
 
     #[test]
-    fn ipv6_record_clamps_accounted_length_to_captured_bytes() {
+    fn ipv6_record_uses_header_declared_length_when_capture_is_truncated() {
         let mut packet = vec![0_u8; 42];
         packet[0] = 0x60;
         packet[4] = 0;
@@ -195,7 +197,7 @@ mod tests {
         let mut rec = FlowRecord::default();
         let len = parse_ipv6_packet_record(&packet, &mut rec, DecapsulationMode::None);
 
-        assert_eq!(len, Some(packet.len() as u64));
+        assert_eq!(len, Some(56));
         assert_eq!(rec.src_port, 0);
         assert_eq!(rec.dst_port, 0);
     }
