@@ -8,6 +8,14 @@
 - Ci(go-tests): add "go fix" check to workflow ([#22172](https://github.com/netdata/netdata/issues/22172))
 - Feat(go.d/snmp): add SNMPv3 context name support ([#22175](https://github.com/netdata/netdata/issues/22175))
 - Regenerate integrations docs ([#22176](https://github.com/netdata/netdata/issues/22176))
+- Improve journal file handling and logging in DBENGINE ([#22152](https://github.com/netdata/netdata/issues/22152))
+- Go.d/snmp: extend profile engine contract ([#22177](https://github.com/netdata/netdata/issues/22177))
+- Fix(go.d/snmp): fix retries serialization and bulk walk disable ([#22179](https://github.com/netdata/netdata/issues/22179))
+- Feat(go.d/snmp): add `ping_only` option ([#22180](https://github.com/netdata/netdata/issues/22180))
+- Fix(go.d): reduce transient 503 errors on dyncfg enable/disable ([#22183](https://github.com/netdata/netdata/issues/22183))
+- Refactor(queries): split query engine into smaller files ([#22187](https://github.com/netdata/netdata/issues/22187))
+- Go.d/snmp: add reusable profile engine helpers ([#22181](https://github.com/netdata/netdata/issues/22181))
+- Refactor(go.d): share ping probing between ping and snmp ([#22189](https://github.com/netdata/netdata/issues/22189))
 
 ## [2.10.0] - 2026-04-09
 
