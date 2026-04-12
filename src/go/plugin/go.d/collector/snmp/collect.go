@@ -241,7 +241,7 @@ func (c *Collector) initAndConnectSNMPClient() (gosnmp.Handler, error) {
 		return snmpClient, nil
 	}
 
-	if c.Config.Options.MaxRepetitions == 0 {
+	if c.Options.MaxRepetitions == 0 {
 		c.disableBulkWalk = true
 		return snmpClient, nil
 	}
@@ -273,8 +273,8 @@ func (c *Collector) adjustMaxRepetitions(snmpClient gosnmp.Handler) (bool, error
 		return false, nil
 	}
 
-	orig := c.Config.Options.MaxRepetitions
-	maxReps := c.Config.Options.MaxRepetitions
+	orig := c.Options.MaxRepetitions
+	maxReps := c.Options.MaxRepetitions
 	attempts := 0
 	const maxAttempts = 20 // Prevent infinite loops
 
