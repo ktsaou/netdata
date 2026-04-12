@@ -75,25 +75,25 @@ metrics:
         name: pethPsePortInvalidSignatureCounter
         chart_meta:
           description: Count of invalid signature detection events
-          family: 'Hardware/PoE/Port/Faults/InvalidSignature'
+          family: 'Hardware/PoE/Port/Faults'
           unit: "{fault}/s"
       - OID: 1.3.6.1.2.1.105.1.1.1.1.8
         name: pethPsePortMPSAbsentCounter
         chart_meta:
           description: Count of MPS absent detection events (powered device disconnected)
-          family: 'Hardware/PoE/Port/Faults/MPSAbsent'
+          family: 'Hardware/PoE/Port/Faults'
           unit: "{fault}/s"
       - OID: 1.3.6.1.2.1.105.1.1.1.1.13
         name: pethPsePortOverLoadCounter
         chart_meta:
           description: Count of overload condition detection events
-          family: 'Hardware/PoE/Port/Faults/Overload'
+          family: 'Hardware/PoE/Port/Faults'
           unit: "{fault}/s"
       - OID: 1.3.6.1.2.1.105.1.1.1.1.12
         name: pethPsePortPowerDeniedCounter
         chart_meta:
           description: Count of power denied events (insufficient budget)
-          family: 'Hardware/PoE/Port/Faults/PowerDenied'
+          family: 'Hardware/PoE/Port/Faults'
           unit: "{fault}/s"
     metric_tags:
       - tag: pse_port_group
@@ -119,25 +119,25 @@ metrics:
         name: cpeExtPsePortPwrAllocated
         chart_meta:
           description: Power allocated to the port
-          family: 'Hardware/PoE/Port/Power/Allocated'
+          family: 'Hardware/PoE/Port/Power'
           unit: "mW"
       - OID: 1.3.6.1.4.1.9.9.402.1.2.1.1.8
         name: cpeExtPsePortPwrAvailable
         chart_meta:
           description: Power available for the port to deliver
-          family: 'Hardware/PoE/Port/Power/Available'
+          family: 'Hardware/PoE/Port/Power'
           unit: "mW"
       - OID: 1.3.6.1.4.1.9.9.402.1.2.1.1.9
         name: cpeExtPsePortPwrConsumption
         chart_meta:
           description: Current power drawn by the powered device
-          family: 'Hardware/PoE/Port/Power/Consumption'
+          family: 'Hardware/PoE/Port/Power'
           unit: "mW"
       - OID: 1.3.6.1.4.1.9.9.402.1.2.1.1.10
         name: cpeExtPsePortMaxPwrDrawn
         chart_meta:
           description: Maximum power drawn by the powered device since connection
-          family: 'Hardware/PoE/Port/Power/MaxDrawn'
+          family: 'Hardware/PoE/Port/Power'
           unit: "mW"
     metric_tags:
       - tag: pse_port_group
