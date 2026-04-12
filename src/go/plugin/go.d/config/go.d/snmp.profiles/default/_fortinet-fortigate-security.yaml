@@ -1,0 +1,216 @@
+# Security telemetry for Fortinet FortiGate devices
+# IPS intrusion stats, antivirus stats, webfilter stats — all per VDOM
+
+metrics:
+  ### IPS intrusion statistics (per VDOM)
+  - MIB: FORTINET-FORTIGATE-MIB
+    table:
+      OID: 1.3.6.1.4.1.12356.101.9.2.1
+      name: fgIpsStatsTable
+    symbols:
+      - OID: 1.3.6.1.4.1.12356.101.9.2.1.1.1
+        name: fgIpsIntrusionsDetected
+        chart_meta:
+          description: Total intrusions detected since start-up
+          family: 'Security/IPS/Events/Detected'
+          unit: "{event}/s"
+      - OID: 1.3.6.1.4.1.12356.101.9.2.1.1.2
+        name: fgIpsIntrusionsBlocked
+        chart_meta:
+          description: Total intrusions blocked since start-up
+          family: 'Security/IPS/Events/Blocked'
+          unit: "{event}/s"
+      - OID: 1.3.6.1.4.1.12356.101.9.2.1.1.3
+        name: fgIpsCritSevDetections
+        chart_meta:
+          description: Critical severity intrusion detections since start-up
+          family: 'Security/IPS/Severity/Critical'
+          unit: "{event}/s"
+      - OID: 1.3.6.1.4.1.12356.101.9.2.1.1.4
+        name: fgIpsHighSevDetections
+        chart_meta:
+          description: High severity intrusion detections since start-up
+          family: 'Security/IPS/Severity/High'
+          unit: "{event}/s"
+      - OID: 1.3.6.1.4.1.12356.101.9.2.1.1.5
+        name: fgIpsMedSevDetections
+        chart_meta:
+          description: Medium severity intrusion detections since start-up
+          family: 'Security/IPS/Severity/Medium'
+          unit: "{event}/s"
+      - OID: 1.3.6.1.4.1.12356.101.9.2.1.1.6
+        name: fgIpsLowSevDetections
+        chart_meta:
+          description: Low severity intrusion detections since start-up
+          family: 'Security/IPS/Severity/Low'
+          unit: "{event}/s"
+      - OID: 1.3.6.1.4.1.12356.101.9.2.1.1.7
+        name: fgIpsInfoSevDetections
+        chart_meta:
+          description: Informational severity intrusion detections since start-up
+          family: 'Security/IPS/Severity/Info'
+          unit: "{event}/s"
+      - OID: 1.3.6.1.4.1.12356.101.9.2.1.1.8
+        name: fgIpsSignatureDetections
+        chart_meta:
+          description: Signature-based intrusion detections since start-up
+          family: 'Security/IPS/Method/Signature'
+          unit: "{event}/s"
+      - OID: 1.3.6.1.4.1.12356.101.9.2.1.1.9
+        name: fgIpsAnomalyDetections
+        chart_meta:
+          description: Anomaly-based intrusion detections since start-up
+          family: 'Security/IPS/Method/Anomaly'
+          unit: "{event}/s"
+    metric_tags:
+      - tag: vdom_index
+        index: 1
+      - tag: _vdom_name
+        table: fgVdTable
+        symbol:
+          OID: 1.3.6.1.4.1.12356.101.3.2.1.1.2
+          name: fgVdEntName
+
+  ### Antivirus statistics (per VDOM)
+  - MIB: FORTINET-FORTIGATE-MIB
+    table:
+      OID: 1.3.6.1.4.1.12356.101.8.2.1
+      name: fgAvStatsTable
+    symbols:
+      - OID: 1.3.6.1.4.1.12356.101.8.2.1.1.1
+        name: fgAvVirusDetected
+        chart_meta:
+          description: Total virus transmissions detected since start-up
+          family: 'Security/Antivirus/Total/Detected'
+          unit: "{virus}/s"
+      - OID: 1.3.6.1.4.1.12356.101.8.2.1.1.2
+        name: fgAvVirusBlocked
+        chart_meta:
+          description: Total virus transmissions blocked since start-up
+          family: 'Security/Antivirus/Total/Blocked'
+          unit: "{virus}/s"
+      - OID: 1.3.6.1.4.1.12356.101.8.2.1.1.3
+        name: fgAvHTTPVirusDetected
+        chart_meta:
+          description: HTTP virus transmissions detected since start-up
+          family: 'Security/Antivirus/HTTP/Detected'
+          unit: "{virus}/s"
+      - OID: 1.3.6.1.4.1.12356.101.8.2.1.1.4
+        name: fgAvHTTPVirusBlocked
+        chart_meta:
+          description: HTTP virus transmissions blocked since start-up
+          family: 'Security/Antivirus/HTTP/Blocked'
+          unit: "{virus}/s"
+      - OID: 1.3.6.1.4.1.12356.101.8.2.1.1.5
+        name: fgAvSMTPVirusDetected
+        chart_meta:
+          description: SMTP virus transmissions detected since start-up
+          family: 'Security/Antivirus/SMTP/Detected'
+          unit: "{virus}/s"
+      - OID: 1.3.6.1.4.1.12356.101.8.2.1.1.6
+        name: fgAvSMTPVirusBlocked
+        chart_meta:
+          description: SMTP virus transmissions blocked since start-up
+          family: 'Security/Antivirus/SMTP/Blocked'
+          unit: "{virus}/s"
+      - OID: 1.3.6.1.4.1.12356.101.8.2.1.1.7
+        name: fgAvPOP3VirusDetected
+        chart_meta:
+          description: POP3 virus transmissions detected since start-up
+          family: 'Security/Antivirus/POP3/Detected'
+          unit: "{virus}/s"
+      - OID: 1.3.6.1.4.1.12356.101.8.2.1.1.8
+        name: fgAvPOP3VirusBlocked
+        chart_meta:
+          description: POP3 virus transmissions blocked since start-up
+          family: 'Security/Antivirus/POP3/Blocked'
+          unit: "{virus}/s"
+      - OID: 1.3.6.1.4.1.12356.101.8.2.1.1.9
+        name: fgAvIMAPVirusDetected
+        chart_meta:
+          description: IMAP virus transmissions detected since start-up
+          family: 'Security/Antivirus/IMAP/Detected'
+          unit: "{virus}/s"
+      - OID: 1.3.6.1.4.1.12356.101.8.2.1.1.10
+        name: fgAvIMAPVirusBlocked
+        chart_meta:
+          description: IMAP virus transmissions blocked since start-up
+          family: 'Security/Antivirus/IMAP/Blocked'
+          unit: "{virus}/s"
+      - OID: 1.3.6.1.4.1.12356.101.8.2.1.1.11
+        name: fgAvFTPVirusDetected
+        chart_meta:
+          description: FTP virus transmissions detected since start-up
+          family: 'Security/Antivirus/FTP/Detected'
+          unit: "{virus}/s"
+      - OID: 1.3.6.1.4.1.12356.101.8.2.1.1.12
+        name: fgAvFTPVirusBlocked
+        chart_meta:
+          description: FTP virus transmissions blocked since start-up
+          family: 'Security/Antivirus/FTP/Blocked'
+          unit: "{virus}/s"
+    metric_tags:
+      - tag: vdom_index
+        index: 1
+      - tag: _vdom_name
+        table: fgVdTable
+        symbol:
+          OID: 1.3.6.1.4.1.12356.101.3.2.1.1.2
+          name: fgVdEntName
+
+  ### Webfilter statistics (per VDOM)
+  - MIB: FORTINET-FORTIGATE-MIB
+    table:
+      OID: 1.3.6.1.4.1.12356.101.10.1.2.1
+      name: fgWebfilterStatsTable
+    symbols:
+      - OID: 1.3.6.1.4.1.12356.101.10.1.2.1.1.1
+        name: fgWfHTTPBlocked
+        chart_meta:
+          description: HTTP sessions blocked by web filter since start-up
+          family: 'Security/Webfilter/HTTP/SessionBlocked'
+          unit: "{session}/s"
+      - OID: 1.3.6.1.4.1.12356.101.10.1.2.1.1.2
+        name: fgWfHTTPSBlocked
+        chart_meta:
+          description: HTTPS sessions blocked by web filter since start-up
+          family: 'Security/Webfilter/HTTPS/SessionBlocked'
+          unit: "{session}/s"
+      - OID: 1.3.6.1.4.1.12356.101.10.1.2.1.1.3
+        name: fgWfHTTPURLBlocked
+        chart_meta:
+          description: HTTP URLs blocked by web filter since start-up
+          family: 'Security/Webfilter/HTTP/URLBlocked'
+          unit: "{url}/s"
+      - OID: 1.3.6.1.4.1.12356.101.10.1.2.1.1.4
+        name: fgWfHTTPSURLBlocked
+        chart_meta:
+          description: HTTPS URLs blocked by web filter since start-up
+          family: 'Security/Webfilter/HTTPS/URLBlocked'
+          unit: "{url}/s"
+      - OID: 1.3.6.1.4.1.12356.101.10.1.2.1.1.5
+        name: fgWfActiveXBlocked
+        chart_meta:
+          description: ActiveX downloads blocked by web filter since start-up
+          family: 'Security/Webfilter/Content/ActiveXBlocked'
+          unit: "{block}/s"
+      - OID: 1.3.6.1.4.1.12356.101.10.1.2.1.1.6
+        name: fgWfCookieBlocked
+        chart_meta:
+          description: HTTP cookies blocked by web filter since start-up
+          family: 'Security/Webfilter/Content/CookieBlocked'
+          unit: "{block}/s"
+      - OID: 1.3.6.1.4.1.12356.101.10.1.2.1.1.7
+        name: fgWfAppletBlocked
+        chart_meta:
+          description: Applets blocked by web filter since start-up
+          family: 'Security/Webfilter/Content/AppletBlocked'
+          unit: "{block}/s"
+    metric_tags:
+      - tag: vdom_index
+        index: 1
+      - tag: _vdom_name
+        table: fgVdTable
+        symbol:
+          OID: 1.3.6.1.4.1.12356.101.3.2.1.1.2
+          name: fgVdEntName
