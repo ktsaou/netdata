@@ -221,4 +221,33 @@ impl IngestService {
     ) -> bool {
         self.ingest_decoded_record(receive_time_usec, record)
     }
+
+    #[cfg(test)]
+    pub(crate) fn handle_decoded_record_for_test(
+        &mut self,
+        receive_time_usec: u64,
+        record: &crate::flow::FlowRecord,
+        mut entries_since_sync: usize,
+    ) -> usize {
+        if self.ingest_decoded_record(receive_time_usec, record) {
+            entries_since_sync += 1;
+        }
+
+        if let Err(err) = self.flush_closed_tiers(now_usec()) {
+            tracing::warn!("tier flush failed: {}", err);
+        }
+        self.prune_unused_tier_flow_indexes();
+        self.refresh_open_tier_state(now_usec());
+
+        if entries_since_sync >= self.cfg.listener.sync_every_entries {
+            return self.sync_if_needed(entries_since_sync);
+        }
+
+        entries_since_sync
+    }
+
+    #[cfg(test)]
+    pub(crate) fn handle_sync_tick_for_test(&mut self, entries_since_sync: usize) -> usize {
+        self.handle_sync_tick(entries_since_sync)
+    }
 }

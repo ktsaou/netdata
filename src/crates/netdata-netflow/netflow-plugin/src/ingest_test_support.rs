@@ -41,6 +41,41 @@ pub(super) fn new_benchmark_ingest_service(
     (tmp, service)
 }
 
+pub(super) fn new_disk_benchmark_ingest_service(
+    decapsulation_mode: ConfigDecapsulationMode,
+) -> (TempDir, IngestService) {
+    let base = std::env::current_dir()
+        .expect("resolve current dir")
+        .join("src/crates/target/netflow-resource-bench");
+    std::fs::create_dir_all(&base)
+        .unwrap_or_else(|e| panic!("create disk benchmark root {}: {e}", base.display()));
+
+    let tmp = tempfile::Builder::new()
+        .prefix("resource-bench-")
+        .tempdir_in(&base)
+        .unwrap_or_else(|e| panic!("create disk benchmark temp dir {}: {e}", base.display()));
+    let mut cfg = PluginConfig::default();
+    cfg.journal.journal_dir = tmp.path().join("flows").to_string_lossy().to_string();
+    cfg.protocols.decapsulation_mode = decapsulation_mode;
+    cfg.listener.sync_every_entries = usize::MAX;
+    cfg.listener.sync_interval = Duration::from_secs(60 * 60);
+
+    for dir in cfg.journal.all_tier_dirs() {
+        std::fs::create_dir_all(&dir)
+            .unwrap_or_else(|e| panic!("create tier directory {}: {e}", dir.display()));
+    }
+
+    let service = IngestService::new(
+        cfg,
+        Arc::new(IngestMetrics::default()),
+        Arc::new(RwLock::new(OpenTierState::default())),
+        Arc::new(RwLock::new(TierFlowIndexStore::default())),
+    )
+    .expect("create disk-backed ingest benchmark service");
+
+    (tmp, service)
+}
+
 pub(super) fn new_test_ingest_service_in_dir(
     base_dir: &Path,
     decapsulation_mode: ConfigDecapsulationMode,

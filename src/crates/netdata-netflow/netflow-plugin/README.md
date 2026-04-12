@@ -305,6 +305,65 @@ If a tier override is omitted, that tier inherits top-level journal retention
 To make a tier time-only, set `size_of_journal_files: null`.
 To make a tier size-only, set `duration_of_journal_files: null`.
 
+## Performance benchmarking
+
+The plugin now ships manual ingestion benchmarks for both throughput ceilings
+and paced resource-envelope measurements:
+
+- `cargo test -p netflow-plugin --manifest-path src/crates/Cargo.toml --release bench_ingestion_protocol_matrix -- --ignored --nocapture`
+- `cargo test -p netflow-plugin --manifest-path src/crates/Cargo.toml --release bench_ingestion_cardinality_matrix -- --ignored --nocapture`
+- `cargo test -p netflow-plugin --manifest-path src/crates/Cargo.toml --release ingest::resource_bench_tests::bench_resource_envelope_matrix -- --ignored --nocapture`
+
+The resource-envelope benchmark is intentionally explicit about its scope:
+
+- it measures the real ingest hot path after decode
+- it uses mixed flow records derived from shipped NetFlow/IPFIX/sFlow fixtures
+- it uses disk-backed journals under `src/crates/target/netflow-resource-bench`
+- it reports achieved flows/s, CPU utilization, peak/final RSS, and actual disk
+  write throughput from `/proc/self/io`
+
+Reference measurements on this workstation:
+
+- CPU: `12th Gen Intel(R) Core(TM) i9-12900K`
+- storage: ext4 on `Seagate FireCuda 530`
+- benchmark methodology: release mode, `5s` warmup, `15s` measurement window,
+  disk-backed journals, post-decode mixed-flow ingest
+
+Low-cardinality mixed profile (`record_pool_size=256`):
+
+- offered `5k flows/s`: achieved `5000`, CPU `80.0%` of one core, peak RSS
+  `283.36 MiB`, write `26453 KiB/s`
+- offered `10k flows/s`: achieved `6187`, CPU `98.8%`, peak RSS `345.93 MiB`,
+  write `35996 KiB/s`
+- offered `20k flows/s`: achieved `6305`, CPU `98.6%`, peak RSS `345.93 MiB`,
+  write `32194 KiB/s`
+- offered `30k flows/s`: achieved `6183`, CPU `96.9%`, peak RSS `333.27 MiB`,
+  write `31989 KiB/s`
+
+High-cardinality mixed profile (`record_pool_size=4096`):
+
+- offered `5k flows/s`: achieved `5000`, CPU `83.5%` of one core, peak RSS
+  `380.39 MiB`, write `24571 KiB/s`
+- offered `10k flows/s`: achieved `5843`, CPU `97.5%`, peak RSS `404.55 MiB`,
+  write `31394 KiB/s`
+- offered `20k flows/s`: achieved `5814`, CPU `96.6%`, peak RSS `403.82 MiB`,
+  write `35888 KiB/s`
+- offered `30k flows/s`: achieved `5937`, CPU `98.0%`, peak RSS `410.14 MiB`,
+  write `33189 KiB/s`
+
+Interpretation:
+
+- `5k flows/s` is sustainable on this host for both profiles with headroom left
+  on one core
+- on this host the post-decode ingest path saturates one core around
+  `5.8k - 6.3k flows/s`
+- higher field variability/cardinality mainly raises steady memory usage, not
+  the one-core throughput ceiling
+- disk reads stay near zero in this benchmark because it isolates append-only
+  ingest, not query/rebuild workloads
+- these numbers are host-specific and should be treated as a reference point,
+  not as a universal guarantee
+
 ## plugins.d protocol
 
 When stdout is not a TTY (normal `plugins.d` runtime), `netflow-plugin` emits
