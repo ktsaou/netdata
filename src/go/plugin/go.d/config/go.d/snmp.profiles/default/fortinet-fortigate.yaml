@@ -136,8 +136,8 @@ metrics:
           family: 'System/Processor/Usage/Total'
           unit: "%"
       # Hidden inputs for combined processor usage breakdown chart
-      - { OID: 1.3.6.1.4.1.12356.101.4.4.2.1.10, name: _fgProcessorSysUsage }
-      - { OID: 1.3.6.1.4.1.12356.101.4.4.2.1.9, name: _fgProcessorUserUsage }
+      - {OID: 1.3.6.1.4.1.12356.101.4.4.2.1.10, name: _fgProcessorSysUsage}
+      - {OID: 1.3.6.1.4.1.12356.101.4.4.2.1.9, name: _fgProcessorUserUsage}
       # The processor's CPU usage (percentage), which is a 5-second average.
       - OID: 1.3.6.1.4.1.12356.101.4.4.2.1.3
         name: fgProcessorUsage5sec
@@ -436,10 +436,10 @@ virtual_metrics:
   ### Session rate trend — combined 1/10/30/60 min averages per IP version
   - name: fgSysSesRateTrend
     sources:
-      - { metric: _fgSysSesRate1, as: 1m }
-      - { metric: _fgSysSesRate10, as: 10m }
-      - { metric: _fgSysSesRate30, as: 30m }
-      - { metric: _fgSysSesRate60, as: 60m }
+      - {metric: _fgSysSesRate1, as: 1m}
+      - {metric: _fgSysSesRate10, as: 10m}
+      - {metric: _fgSysSesRate30, as: 30m}
+      - {metric: _fgSysSesRate60, as: 60m}
     chart_meta:
       description: Session setup rate trend (IPv4)
       family: 'Security/Session/Rate/Trend'
@@ -447,10 +447,10 @@ virtual_metrics:
 
   - name: fgSysSes6RateTrend
     sources:
-      - { metric: _fgSysSes6Rate1, as: 1m }
-      - { metric: _fgSysSes6Rate10, as: 10m }
-      - { metric: _fgSysSes6Rate30, as: 30m }
-      - { metric: _fgSysSes6Rate60, as: 60m }
+      - {metric: _fgSysSes6Rate1, as: 1m}
+      - {metric: _fgSysSes6Rate10, as: 10m}
+      - {metric: _fgSysSes6Rate30, as: 30m}
+      - {metric: _fgSysSes6Rate60, as: 60m}
     chart_meta:
       description: Session setup rate trend (IPv6)
       family: 'Security/Session/IPv6/Rate/Trend'
@@ -461,8 +461,8 @@ virtual_metrics:
     per_row: true
     group_by: ["processor_index"]
     sources:
-      - { metric: _fgProcessorUserUsage, table: fgProcessorTable, as: user }
-      - { metric: _fgProcessorSysUsage, table: fgProcessorTable, as: system }
+      - {metric: _fgProcessorUserUsage, table: fgProcessorTable, as: user}
+      - {metric: _fgProcessorSysUsage, table: fgProcessorTable, as: system}
     chart_meta:
       description: Processor CPU usage breakdown by user and system space
       family: 'System/Processor/Usage/Breakdown'
