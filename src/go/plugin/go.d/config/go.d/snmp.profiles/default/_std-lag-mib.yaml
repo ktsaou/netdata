@@ -1,0 +1,70 @@
+# IEEE 802.3ad Link Aggregation (LACP) metrics.
+# MIB: IEEE8023-LAG-MIB
+# Cross-vendor reusable — not Cisco-specific.
+
+metrics:
+  # Per-member-port LACP protocol statistics
+  - MIB: IEEE8023-LAG-MIB
+    table:
+      OID: 1.2.840.10006.300.43.1.2.2
+      name: dot3adAggPortStatsTable
+    symbols:
+      - OID: 1.2.840.10006.300.43.1.2.2.1.1
+        name: dot3adAggPortStatsLACPDUsRx
+        chart_meta:
+          description: Number of valid LACPDUs received on this port
+          family: 'Network/LAG/Port/PDU/Rx'
+          unit: "{pdu}/s"
+      - OID: 1.2.840.10006.300.43.1.2.2.1.2
+        name: dot3adAggPortStatsLACPDUsTx
+        chart_meta:
+          description: Number of LACPDUs transmitted on this port
+          family: 'Network/LAG/Port/PDU/Tx'
+          unit: "{pdu}/s"
+      - OID: 1.2.840.10006.300.43.1.2.2.1.5
+        name: dot3adAggPortStatsIllegalRx
+        chart_meta:
+          description: Number of frames received that carry the Slow Protocols Ethertype but are not valid
+          family: 'Network/LAG/Port/Errors/IllegalRx'
+          unit: "{frame}/s"
+    metric_tags:
+      - tag: lag_port_index
+        index: 1
+      - tag: interface
+        table: ifXTable
+        MIB: IF-MIB
+        symbol:
+          OID: 1.3.6.1.2.1.31.1.1.1.1
+          name: ifName
+
+  # Per-member-port LACP operational state (actor side)
+  - MIB: IEEE8023-LAG-MIB
+    table:
+      OID: 1.2.840.10006.300.43.1.2.1
+      name: dot3adAggPortTable
+    symbols:
+      - OID: 1.2.840.10006.300.43.1.2.1.1.21
+        name: dot3adAggPortActorOperState
+        chart_meta:
+          description: "LACP actor operational state bit-field (lacp_activity|timeout|aggregation|sync|collecting|distributing|defaulted|expired)"
+          family: 'Network/LAG/Port/Actor/State'
+          unit: "{state}"
+      - OID: 1.2.840.10006.300.43.1.2.1.1.4
+        name: dot3adAggPortPartnerOperState
+        chart_meta:
+          description: "LACP partner operational state bit-field"
+          family: 'Network/LAG/Port/Partner/State'
+          unit: "{state}"
+    metric_tags:
+      - tag: lag_port_index
+        index: 1
+      - tag: interface
+        table: ifXTable
+        MIB: IF-MIB
+        symbol:
+          OID: 1.3.6.1.2.1.31.1.1.1.1
+          name: ifName
+      - tag: _lag_agg_id
+        symbol:
+          OID: 1.2.840.10006.300.43.1.2.1.1.13
+          name: dot3adAggPortSelectedAggID
