@@ -160,29 +160,6 @@ impl<'a> LogQuery<'a> {
         self
     }
 
-    /// Restrict extracted output fields to a specific set.
-    ///
-    /// This does not affect query matching/filtering; it only controls which
-    /// fields are materialized in returned `LogEntryData`.
-    pub fn with_output_fields<I, S>(mut self, fields: I) -> Self
-    where
-        I: IntoIterator<Item = S>,
-        S: Into<String>,
-    {
-        self.output_fields = None;
-        let mut output_fields = HashSet::new();
-        for field in fields {
-            let field = field.into();
-            if !field.is_empty() {
-                output_fields.insert(field);
-            }
-        }
-        if !output_fields.is_empty() {
-            self.output_fields = Some(output_fields);
-        }
-        self
-    }
-
     /// Execute the query and return log entries.
     ///
     /// This consumes the builder and returns a vector of log entries sorted by timestamp
@@ -238,35 +215,6 @@ impl<'a> LogQuery<'a> {
 
         let data = extract_entry_data(&log_entry_ids, output_fields.as_ref())?;
         Ok((data, new_state))
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn with_output_fields_empty_input_clears_existing_projection() {
-        let indexes: [FileIndex; 0] = [];
-
-        let query = LogQuery::new(&indexes, Anchor::Head, Direction::Forward)
-            .with_output_fields(["MESSAGE"])
-            .with_output_fields(std::iter::empty::<&str>());
-
-        assert!(query.output_fields.is_none());
-    }
-
-    #[test]
-    fn with_output_fields_keeps_only_non_empty_fields() {
-        let indexes: [FileIndex; 0] = [];
-
-        let query = LogQuery::new(&indexes, Anchor::Head, Direction::Forward)
-            .with_output_fields(["", "MESSAGE", "_PID"]);
-
-        let fields = query.output_fields.expect("output fields should be set");
-        assert_eq!(fields.len(), 2);
-        assert!(fields.contains("MESSAGE"));
-        assert!(fields.contains("_PID"));
     }
 }
 

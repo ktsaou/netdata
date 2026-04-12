@@ -473,6 +473,50 @@ pub trait FunctionHandler: Send + Sync + 'static {
         request: Self::Request,
     ) -> Result<Self::Response>;
 
+    /// Parse the incoming request for this handler.
+    ///
+    /// Handlers can override this to support compatibility request shapes
+    /// while keeping the runtime itself protocol-agnostic.
+    fn parse_request(
+        &self,
+        function_call: &FunctionCall,
+    ) -> std::result::Result<Self::Request, FunctionResult> {
+        let transaction = function_call.transaction.clone();
+        match &function_call.payload {
+            Some(bytes) => match serde_json::from_slice(bytes) {
+                Ok(request) => Ok(request),
+                Err(e) => {
+                    error!("failed to deserialize request payload: {}", e);
+                    Err(FunctionResult {
+                        transaction,
+                        status: 400,
+                        expires: 0,
+                        format: "text/plain".to_string(),
+                        payload: format!("Invalid request: {}", e).as_bytes().to_vec(),
+                    })
+                }
+            },
+            None => match serde_json::from_slice(b"{}") {
+                Ok(request) => Ok(request),
+                Err(e) => {
+                    let payload = serde_json::to_vec(&json!({
+                        "error": "Request payload is empty",
+                    }))
+                    .expect("serializing a json value to work");
+
+                    error!("failed to deserialize empty payload: {}", e);
+                    Err(FunctionResult {
+                        transaction,
+                        status: 400,
+                        expires: 0,
+                        format: "text/plain".to_string(),
+                        payload,
+                    })
+                }
+            },
+        }
+    }
+
     /// Provide the function's declaration metadata.
     ///
     /// Returns a [`FunctionDeclaration`] that describes this function to Netdata,
@@ -518,38 +562,9 @@ impl<H: FunctionHandler> RawFunctionHandler for HandlerAdapter<H> {
     async fn handle_raw(&self, ctx: Arc<FunctionContext>) -> FunctionResult {
         let transaction = ctx.function_call.transaction.clone();
 
-        // Deserialize the request payload
-        let payload: H::Request = match &ctx.function_call.payload {
-            Some(bytes) => match serde_json::from_slice(bytes) {
-                Ok(p) => p,
-                Err(e) => {
-                    error!("failed to deserialize request payload: {}", e);
-                    return FunctionResult {
-                        transaction,
-                        status: 400,
-                        expires: 0,
-                        format: "text/plain".to_string(),
-                        payload: format!("Invalid request: {}", e).as_bytes().to_vec(),
-                    };
-                }
-            },
-            None => match serde_json::from_slice(b"{}") {
-                Ok(p) => p,
-                Err(e) => {
-                    let payload =
-                        serde_json::to_vec(&json!({ "error": "Request payload is empty", }))
-                            .expect("serializing a json value to work");
-
-                    error!("failed to deserialize empty payload: {}", e);
-                    return FunctionResult {
-                        transaction,
-                        status: 400,
-                        expires: 0,
-                        format: "text/plain".to_string(),
-                        payload,
-                    };
-                }
-            },
+        let payload: H::Request = match self.handler.parse_request(&ctx.function_call) {
+            Ok(payload) => payload,
+            Err(result) => return result,
         };
 
         // Build the function call context
@@ -1175,37 +1190,6 @@ impl<R: AsyncRead + Unpin + Send, W: AsyncWrite + Unpin + Send> PluginRuntime<R,
                 }
             }
 
-            // convert GET key:value args to JSON payload for flows:netflow
-            if function_call.name.starts_with("flows:") && function_call.payload.is_none() {
-                if !function_call.args.is_empty() {
-                    let numeric_fields: &[&str] = &["after", "before", "last"];
-                    let mut map = serde_json::Map::new();
-                    for arg in &function_call.args {
-                        if let Some((key, value)) = arg.split_once(':') {
-                            let json_value = if numeric_fields.contains(&key) {
-                                value.parse::<u64>().map_or_else(
-                                    |_| serde_json::json!(value),
-                                    |n| serde_json::json!(n),
-                                )
-                            } else {
-                                serde_json::json!(value)
-                            };
-                            map.insert(key.to_string(), json_value);
-                        }
-                    }
-                    if !map.is_empty() {
-                        let json = serde_json::Value::Object(map);
-                        match serde_json::to_vec(&json) {
-                            Ok(bytes) => {
-                                function_call.payload = Some(bytes);
-                            }
-                            Err(e) => {
-                                error!("failed to serialize flows payload to JSON: {}", e);
-                            }
-                        }
-                    }
-                }
-            }
         }
 
         // Get handler

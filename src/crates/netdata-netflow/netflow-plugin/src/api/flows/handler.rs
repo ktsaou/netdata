@@ -2,8 +2,9 @@ use crate::{ingest, query};
 use async_trait::async_trait;
 use chrono::Utc;
 use netdata_plugin_error::{NetdataPluginError, Result};
-use netdata_plugin_protocol::{FunctionDeclaration, HttpAccess};
+use netdata_plugin_protocol::{FunctionCall, FunctionDeclaration, FunctionResult, HttpAccess};
 use rt::{FunctionCallContext, FunctionHandler};
+use serde_json::{Map, Value};
 use std::sync::Arc;
 use tokio::task;
 
@@ -172,6 +173,57 @@ impl NetflowFlowsHandler {
     }
 }
 
+fn parse_flows_request(function_call: &FunctionCall) -> std::result::Result<query::FlowsRequest, FunctionResult> {
+    let request_value = if function_call.payload.is_some() {
+        payload_to_value(function_call)?
+    } else if function_call.args.is_empty() {
+        Value::Object(Map::new())
+    } else {
+        args_to_value(function_call)
+    };
+
+    serde_json::from_value(request_value).map_err(|err| invalid_request(function_call, err))
+}
+
+fn payload_to_value(function_call: &FunctionCall) -> std::result::Result<Value, FunctionResult> {
+    let payload = function_call
+        .payload
+        .as_deref()
+        .expect("payload_to_value requires payload");
+    serde_json::from_slice(payload).map_err(|err| invalid_request(function_call, err))
+}
+
+fn args_to_value(function_call: &FunctionCall) -> Value {
+    let numeric_fields: &[&str] = &["after", "before", "last"];
+    let mut map = Map::new();
+
+    for arg in &function_call.args {
+        if let Some((key, value)) = arg.split_once(':') {
+            let json_value = if numeric_fields.contains(&key) {
+                value.parse::<u64>().map_or_else(
+                    |_| serde_json::json!(value),
+                    |number| serde_json::json!(number),
+                )
+            } else {
+                serde_json::json!(value)
+            };
+            map.insert(key.to_string(), json_value);
+        }
+    }
+
+    Value::Object(map)
+}
+
+fn invalid_request(function_call: &FunctionCall, err: impl std::fmt::Display) -> FunctionResult {
+    FunctionResult {
+        transaction: function_call.transaction.clone(),
+        status: 400,
+        expires: 0,
+        format: "text/plain".to_string(),
+        payload: format!("Invalid request: {}", err).into_bytes(),
+    }
+}
+
 #[async_trait]
 impl FunctionHandler for NetflowFlowsHandler {
     type Request = query::FlowsRequest;
@@ -193,6 +245,13 @@ impl FunctionHandler for NetflowFlowsHandler {
         self.handle_request_with_execution(execution, request).await
     }
 
+    fn parse_request(
+        &self,
+        function_call: &FunctionCall,
+    ) -> std::result::Result<Self::Request, FunctionResult> {
+        parse_flows_request(function_call)
+    }
+
     fn declaration(&self) -> FunctionDeclaration {
         let mut func_decl =
             FunctionDeclaration::new("flows:netflow", "NetFlow/IPFIX/sFlow flow analysis data");
@@ -203,5 +262,71 @@ impl FunctionHandler for NetflowFlowsHandler {
         func_decl.timeout = 30;
         func_decl.version = Some(FLOWS_FUNCTION_VERSION);
         func_decl
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn test_call(args: &[&str], payload: Option<&str>) -> FunctionCall {
+        FunctionCall {
+            transaction: "tx".to_string(),
+            timeout: 30,
+            name: "flows:netflow".to_string(),
+            args: args.iter().map(|value| (*value).to_string()).collect(),
+            access: None,
+            source: None,
+            payload: payload.map(|value| value.as_bytes().to_vec()),
+        }
+    }
+
+    #[test]
+    fn parse_request_supports_get_style_flow_args_without_payload() {
+        let request = parse_flows_request(&test_call(
+            &[
+                "after:1",
+                "before:3600",
+                "group_by:SRC_ADDR,DST_ADDR",
+                "top_n:50",
+                "sort_by:packets",
+            ],
+            None,
+        ))
+        .expect("parse request from GET args");
+
+        assert_eq!(request.after, Some(1));
+        assert_eq!(request.before, Some(3600));
+        assert_eq!(
+            request.group_by,
+            vec!["SRC_ADDR".to_string(), "DST_ADDR".to_string()]
+        );
+        assert_eq!(request.top_n, query::TopN::N50);
+        assert_eq!(request.sort_by, query::SortBy::Packets);
+    }
+
+    #[test]
+    fn parse_request_prefers_payload_when_present() {
+        let request = parse_flows_request(&test_call(
+            &["after:1", "group_by:SRC_ADDR,DST_ADDR"],
+            Some(r#"{"after":7,"group_by":["PROTOCOL"],"top_n":"100"}"#),
+        ))
+        .expect("parse request from payload");
+
+        assert_eq!(request.after, Some(7));
+        assert_eq!(request.group_by, vec!["PROTOCOL".to_string()]);
+        assert_eq!(request.top_n, query::TopN::N100);
+    }
+
+    #[test]
+    fn parse_request_reports_invalid_payload_as_bad_request() {
+        let result = parse_flows_request(&test_call(&[], Some("{")));
+        let err = result.expect_err("invalid payload should fail");
+
+        assert_eq!(err.status, 400);
+        assert!(
+            String::from_utf8_lossy(&err.payload).contains("Invalid request:"),
+            "expected invalid request error payload"
+        );
     }
 }
