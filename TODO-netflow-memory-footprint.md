@@ -383,6 +383,30 @@ The codebase already contains the pieces needed to build a reproducible stress/p
     - keep the PR reviewable
     - keep shared crates generic
     - ensure the later performance-testing work is built on the code we actually intend to upstream
+  - Implemented on `2026-04-12`:
+    - moved the `flows:*` GET-argument compatibility shim out of shared [`src/crates/netdata-plugin/rt/src/lib.rs`](/home/costa/src/PRs/topology-netflow-22111/src/crates/netdata-plugin/rt/src/lib.rs) and into netflow-local request parsing in [`src/crates/netdata-netflow/netflow-plugin/src/api/flows/handler.rs`](/home/costa/src/PRs/topology-netflow-22111/src/crates/netdata-netflow/netflow-plugin/src/api/flows/handler.rs)
+    - removed unused shared `journal-engine` API surface `LogQuery::with_output_fields()` from [`src/crates/journal-engine/src/logs/query.rs`](/home/costa/src/PRs/topology-netflow-22111/src/crates/journal-engine/src/logs/query.rs)
+    - removed the duplicated zero-offset iterator hardening and test from the out-of-path [`src/crates/jf/journal_file/src/file.rs`](/home/costa/src/PRs/topology-netflow-22111/src/crates/jf/journal_file/src/file.rs)
+  - Verification on `2026-04-12`:
+    - `cargo test -p rt --manifest-path src/crates/Cargo.toml` passed
+    - `cargo test -p journal-engine --manifest-path src/crates/Cargo.toml` passed
+    - `cargo test -p journal-core --manifest-path src/crates/Cargo.toml` passed
+    - `cargo test -p journal-log-writer --manifest-path src/crates/Cargo.toml` passed
+    - `cargo test -p netflow-plugin --manifest-path src/crates/Cargo.toml` passed with `388 passed, 0 failed, 14 ignored`
+    - standalone duplicate crate check:
+      - `cargo test --manifest-path src/crates/jf/journal_file/Cargo.toml writer::tests::test_write_and_read_journal_entries -- --nocapture`
+      - failed both on the cleanup worktree and on baseline checkpoint commit `973f200dd5`
+      - panic is in [`src/crates/jf/journal_file/src/writer.rs`](/home/costa/src/PRs/topology-netflow-22111/src/crates/jf/journal_file/src/writer.rs) at line `637`, not in the reverted iterator code
+      - implication: this `jf` failure is pre-existing noise for the duplicated crate, not a regression introduced by the cleanup
+- Decision made autonomously on `2026-04-12` for the first ingestion-performance pass:
+  - implement the benchmark as ignored `cargo test` harnesses inside `netflow-plugin`, not as Criterion benches yet
+  - Evidence:
+    - the repo already uses ignored profiling tests for startup, memory, and query profiling
+    - the existing ingest throughput harness was already in [`src/crates/netdata-netflow/netflow-plugin/src/ingest_tests.rs`](/home/costa/src/PRs/topology-netflow-22111/src/crates/netdata-netflow/netflow-plugin/src/ingest_tests.rs)
+    - nearby flow-parser projects such as the mirrored NetGauze parser benchmark by protocol and packet shape, which this implementation now mirrors operationally without introducing new bench dependencies
+  - Implication:
+    - the first pass is easy to run in CI-like environments with `cargo test --release ... --ignored --nocapture`
+    - if we later need statistical benchmarking or regression thresholds, we can still add Criterion on top of the same scenarios
 - Decision made by Costa on `2026-04-11`: proceed autonomously with diagnosis and optimization of the remaining live memory footprint until the dominant owners are concretely attributed and reduced.
 - Decision pending on `2026-04-11`: whether to change the shared journal window-manager logic in [`src/crates/journal-core/src/file/mmap.rs`](/home/costa/src/PRs/topology-netflow-22111/src/crates/journal-core/src/file/mmap.rs) as part of the netflow memory work.
   - Context:
@@ -469,11 +493,46 @@ The codebase already contains the pieces needed to build a reproducible stress/p
   - unnecessary shared changes
   - risky shared changes
   - shared changes that are justified and should remain
+- Cleanup implementation for the clearly unnecessary shared changes before performance work:
+  - keep shared runtime generic by moving netflow request translation into the netflow handler
+  - remove unused shared `journal-engine` builder surface that has no netflow production caller
+  - revert duplicated `jf`-crate changes that are outside the netflow path
+  - rerun the affected shared and plugin test suites before any performance work begins
 - After the shared-component review, design a performance test strategy for flow ingestion:
   - synthetic benchmark coverage for NetFlow, sFlow, and IPFIX
   - real fixture replay coverage where available
   - throughput and memory measurement dimensions
   - cardinality and field-variability scenarios
+- Implemented on `2026-04-12`:
+  - split ingest test support out of oversized [`src/crates/netdata-netflow/netflow-plugin/src/ingest_tests.rs`](/home/costa/src/PRs/topology-netflow-22111/src/crates/netdata-netflow/netflow-plugin/src/ingest_tests.rs) into dedicated support and benchmark modules
+  - added protocol-specific release benchmarks in [`src/crates/netdata-netflow/netflow-plugin/src/ingest_bench_tests.rs`](/home/costa/src/PRs/topology-netflow-22111/src/crates/netdata-netflow/netflow-plugin/src/ingest_bench_tests.rs):
+    - NetFlow v5
+    - NetFlow v9
+    - IPFIX
+    - sFlow
+  - added a second benchmark matrix for post-decode ingest sensitivity to field variability/cardinality:
+    - low-cardinality
+    - medium-cardinality (`256` buckets)
+    - high-cardinality (`50,000` unique buckets)
+  - extracted a single-record ingest helper from [`src/crates/netdata-netflow/netflow-plugin/src/ingest/service/runtime.rs`](/home/costa/src/PRs/topology-netflow-22111/src/crates/netdata-netflow/netflow-plugin/src/ingest/service/runtime.rs) so the benchmark exercises the same raw-write/facet/tier path as the production packet handler
+- Verified on `2026-04-12`:
+  - `cargo test -p netflow-plugin --manifest-path src/crates/Cargo.toml` passed with `388 passed, 0 failed, 15 ignored`
+  - `cargo test -p netflow-plugin --manifest-path src/crates/Cargo.toml --release bench_ingestion_protocol_matrix -- --ignored --nocapture` passed
+  - `cargo test -p netflow-plugin --manifest-path src/crates/Cargo.toml --release bench_ingestion_cardinality_matrix -- --ignored --nocapture` passed
+- First measured throughput on this workstation with the current release harness:
+  - protocol matrix:
+    - NetFlow v5 full ingest: about `49.6k flows/s`
+    - NetFlow v9 full ingest: about `47.6k flows/s`
+    - IPFIX full ingest: about `62.7k flows/s`
+    - sFlow full ingest: about `45.7k flows/s`
+    - decode-only throughput is much higher (`0.75M - 5.2M flows/s` depending on protocol), so the dominant steady-state cost is post-decode ingest, not wire parsing
+  - post-decode cardinality matrix:
+    - low-cardinality: about `53.4k flows/s`
+    - medium-cardinality (`256` buckets): about `47.6k flows/s`
+    - high-cardinality (`50,000` unique buckets): about `29.3k flows/s`
+  - operational implication:
+    - with the current single-threaded ingest path on this host, a reasonable expectation is roughly `45k - 63k flows/s` on warmed real fixtures at low-to-medium cardinality
+    - high-cardinality post-decode ingest drops to about `29k flows/s`, which is the more realistic planning number when users have highly variable endpoint/exporter/interface dimensions
 - Re-run the full affected test suites after each memory change:
   - `cargo test -p journal-core -p journal-log-writer -p journal-engine -p netflow-plugin`
 - Improve facet runtime accounting first, because it is now a proven blind spot:

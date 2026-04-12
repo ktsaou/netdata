@@ -66,5 +66,11 @@ fn tier_timestamp_lookup_query_end(now_usec: u64) -> u32 {
 }
 
 #[cfg(test)]
+#[path = "ingest_test_support.rs"]
+mod test_support;
+#[cfg(test)]
+#[path = "ingest_bench_tests.rs"]
+mod bench_tests;
+#[cfg(test)]
 #[path = "ingest_tests.rs"]
 mod tests;

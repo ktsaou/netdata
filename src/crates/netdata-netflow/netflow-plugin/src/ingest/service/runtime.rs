@@ -84,41 +84,9 @@ impl IngestService {
         self.metrics.apply_decode_stats(&batch.stats);
 
         for flow in batch.flows {
-            let timestamps = EntryTimestamps::default()
-                .with_source_realtime_usec(receive_time_usec)
-                .with_entry_realtime_usec(receive_time_usec);
-
-            if let Err(err) = self.encode_buf.encode_record_and_write(
-                &flow.record,
-                &mut self.raw_journal,
-                timestamps,
-            ) {
-                self.metrics
-                    .journal_write_errors
-                    .fetch_add(1, Ordering::Relaxed);
-                tracing::warn!("journal write failed: {}", err);
-                continue;
+            if self.ingest_decoded_record(receive_time_usec, &flow.record) {
+                entries_since_sync += 1;
             }
-
-            if let Some(active_file) = self.raw_journal.active_file() {
-                let contribution = self.encode_buf.facet_contribution();
-                if let Err(err) = self
-                    .facet_runtime
-                    .observe_active_contribution(Path::new(active_file.path()), contribution)
-                {
-                    tracing::warn!("facet runtime raw write update failed: {}", err);
-                }
-            }
-
-            self.metrics
-                .journal_entries_written
-                .fetch_add(1, Ordering::Relaxed);
-            self.metrics
-                .raw_journal_logical_bytes
-                .fetch_add(self.encode_buf.encoded_len(), Ordering::Relaxed);
-            entries_since_sync += 1;
-
-            self.observe_tiers_record(receive_time_usec, &flow.record);
         }
 
         if let Err(err) = self.flush_closed_tiers(now_usec()) {
@@ -132,6 +100,46 @@ impl IngestService {
         }
 
         entries_since_sync
+    }
+
+    fn ingest_decoded_record(
+        &mut self,
+        receive_time_usec: u64,
+        record: &crate::flow::FlowRecord,
+    ) -> bool {
+        let timestamps = EntryTimestamps::default()
+            .with_source_realtime_usec(receive_time_usec)
+            .with_entry_realtime_usec(receive_time_usec);
+
+        if let Err(err) = self
+            .encode_buf
+            .encode_record_and_write(record, &mut self.raw_journal, timestamps)
+        {
+            self.metrics
+                .journal_write_errors
+                .fetch_add(1, Ordering::Relaxed);
+            tracing::warn!("journal write failed: {}", err);
+            return false;
+        }
+
+        if let Some(active_file) = self.raw_journal.active_file() {
+            let contribution = self.encode_buf.facet_contribution();
+            if let Err(err) = self
+                .facet_runtime
+                .observe_active_contribution(Path::new(active_file.path()), contribution)
+            {
+                tracing::warn!("facet runtime raw write update failed: {}", err);
+            }
+        }
+
+        self.metrics
+            .journal_entries_written
+            .fetch_add(1, Ordering::Relaxed);
+        self.metrics
+            .raw_journal_logical_bytes
+            .fetch_add(self.encode_buf.encoded_len(), Ordering::Relaxed);
+        self.observe_tiers_record(receive_time_usec, record);
+        true
     }
 
     fn finish_shutdown(&mut self, entries_since_sync: usize) {
@@ -203,5 +211,14 @@ impl IngestService {
     #[cfg(test)]
     pub(crate) fn finish_shutdown_for_test(&mut self, entries_since_sync: usize) {
         self.finish_shutdown(entries_since_sync);
+    }
+
+    #[cfg(test)]
+    pub(crate) fn ingest_decoded_record_for_test(
+        &mut self,
+        receive_time_usec: u64,
+        record: &crate::flow::FlowRecord,
+    ) -> bool {
+        self.ingest_decoded_record(receive_time_usec, record)
     }
 }
