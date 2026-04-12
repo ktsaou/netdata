@@ -242,9 +242,6 @@ protocols:
   timestamp_source: input
 journal:
   journal_dir: flows
-  size_of_journal_file: 256MB
-  duration_of_journal_file: 1h
-  number_of_journal_files: 64
   size_of_journal_files: 10GB
   duration_of_journal_files: 7d
   query_1m_max_window: 6h
@@ -260,9 +257,8 @@ journal:
 #[test]
 fn journal_tier_retention_inherits_global_defaults_when_no_overrides_exist() {
     let mut cfg = PluginConfig::default();
-    cfg.journal.number_of_journal_files = 111;
-    cfg.journal.size_of_journal_files = ByteSize::gb(11);
-    cfg.journal.duration_of_journal_files = Duration::from_secs(11 * 24 * 60 * 60);
+    cfg.journal.size_of_journal_files = Some(ByteSize::gb(11));
+    cfg.journal.duration_of_journal_files = Some(Duration::from_secs(11 * 24 * 60 * 60));
 
     let raw = cfg.journal.retention_for_tier(TierKind::Raw);
     let minute_1 = cfg.journal.retention_for_tier(TierKind::Minute1);
@@ -270,13 +266,12 @@ fn journal_tier_retention_inherits_global_defaults_when_no_overrides_exist() {
     let hour_1 = cfg.journal.retention_for_tier(TierKind::Hour1);
 
     for retention in [raw, minute_1, minute_5, hour_1] {
-        assert_eq!(retention.number_of_journal_files, 111);
         assert_eq!(
-            retention.size_of_journal_files.as_u64(),
+            retention.size_of_journal_files.unwrap().as_u64(),
             ByteSize::gb(11).as_u64()
         );
         assert_eq!(
-            retention.duration_of_journal_files,
+            retention.duration_of_journal_files.unwrap(),
             Duration::from_secs(11 * 24 * 60 * 60)
         );
     }
@@ -285,33 +280,117 @@ fn journal_tier_retention_inherits_global_defaults_when_no_overrides_exist() {
 #[test]
 fn journal_tier_retention_uses_tier_override_when_present() {
     let mut cfg = PluginConfig::default();
-    cfg.journal.number_of_journal_files = 111;
-    cfg.journal.size_of_journal_files = ByteSize::gb(11);
-    cfg.journal.duration_of_journal_files = Duration::from_secs(11 * 24 * 60 * 60);
+    cfg.journal.size_of_journal_files = Some(ByteSize::gb(11));
+    cfg.journal.duration_of_journal_files = Some(Duration::from_secs(11 * 24 * 60 * 60));
     cfg.journal.tiers.raw = Some(JournalTierRetentionConfig {
-        number_of_journal_files: 7,
-        size_of_journal_files: ByteSize::gb(2),
-        duration_of_journal_files: Duration::from_secs(2 * 24 * 60 * 60),
+        size_of_journal_files: RetentionLimitOverride::Value(ByteSize::gb(2)),
+        duration_of_journal_files: RetentionLimitOverride::Value(Duration::from_secs(
+            2 * 24 * 60 * 60,
+        )),
     });
 
     let raw = cfg.journal.retention_for_tier(TierKind::Raw);
-    assert_eq!(raw.number_of_journal_files, 7);
-    assert_eq!(raw.size_of_journal_files.as_u64(), ByteSize::gb(2).as_u64());
     assert_eq!(
-        raw.duration_of_journal_files,
+        raw.size_of_journal_files.unwrap().as_u64(),
+        ByteSize::gb(2).as_u64()
+    );
+    assert_eq!(
+        raw.duration_of_journal_files.unwrap(),
         Duration::from_secs(2 * 24 * 60 * 60)
     );
 
     let minute_1 = cfg.journal.retention_for_tier(TierKind::Minute1);
-    assert_eq!(minute_1.number_of_journal_files, 111);
     assert_eq!(
-        minute_1.size_of_journal_files.as_u64(),
+        minute_1.size_of_journal_files.unwrap().as_u64(),
         ByteSize::gb(11).as_u64()
     );
     assert_eq!(
-        minute_1.duration_of_journal_files,
+        minute_1.duration_of_journal_files.unwrap(),
         Duration::from_secs(11 * 24 * 60 * 60)
     );
+}
+
+#[test]
+fn journal_rotation_size_derives_from_tier_size_budget() {
+    let mut cfg = PluginConfig::default();
+    cfg.journal.size_of_journal_files = Some(ByteSize::gb(1));
+
+    assert_eq!(
+        cfg.journal.rotation_size_for_tier(TierKind::Raw),
+        ByteSize::mb(50).as_u64()
+    );
+
+    cfg.journal.size_of_journal_files = Some(ByteSize::gb(4));
+    assert_eq!(
+        cfg.journal.rotation_size_for_tier(TierKind::Raw),
+        ByteSize::mb(200).as_u64()
+    );
+
+    cfg.journal.size_of_journal_files = Some(ByteSize::gb(10));
+    assert_eq!(
+        cfg.journal.rotation_size_for_tier(TierKind::Raw),
+        ByteSize::mb(200).as_u64()
+    );
+}
+
+#[test]
+fn journal_rotation_size_uses_100mb_for_time_only_retention() {
+    let mut cfg = PluginConfig::default();
+    cfg.journal.size_of_journal_files = None;
+    cfg.journal.duration_of_journal_files = Some(Duration::from_secs(7 * 24 * 60 * 60));
+
+    assert_eq!(
+        cfg.journal.rotation_size_for_tier(TierKind::Raw),
+        ByteSize::mb(100).as_u64()
+    );
+}
+
+#[test]
+fn journal_validation_rejects_tier_size_below_100mb() {
+    let mut cfg = PluginConfig::default();
+    cfg.journal.size_of_journal_files = Some(ByteSize::mb(99));
+
+    let err = cfg.validate().expect_err("expected validation error");
+    assert!(
+        err.to_string()
+            .contains("journal.tiers.raw.size_of_journal_files must be at least 100MB")
+    );
+}
+
+#[test]
+fn journal_validation_allows_time_only_retention_when_size_is_disabled() {
+    let mut cfg = PluginConfig::default();
+    cfg.journal.size_of_journal_files = None;
+    cfg.journal.duration_of_journal_files = Some(Duration::from_secs(7 * 24 * 60 * 60));
+
+    cfg.validate().expect("time-only retention should be valid");
+}
+
+#[test]
+fn journal_tier_retention_null_override_disables_inherited_size_limit() {
+    let yaml = r#"
+journal_dir: flows
+size_of_journal_files: 10GB
+duration_of_journal_files: 7d
+query_1m_max_window: 6h
+query_5m_max_window: 24h
+query_max_groups: 50000
+query_facet_max_values_per_field: 5000
+tiers:
+  raw:
+    size_of_journal_files: null
+"#;
+
+    let cfg: JournalConfig = serde_yaml::from_str(yaml).expect("journal config should parse");
+    let raw = cfg.retention_for_tier(TierKind::Raw);
+    let minute_1 = cfg.retention_for_tier(TierKind::Minute1);
+
+    assert_eq!(raw.size_of_journal_files, None);
+    assert_eq!(
+        raw.duration_of_journal_files,
+        Some(Duration::from_secs(7 * 24 * 60 * 60))
+    );
+    assert_eq!(minute_1.size_of_journal_files, Some(ByteSize::gb(10)));
 }
 
 #[test]

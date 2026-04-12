@@ -1,4 +1,5 @@
 use super::{decoder, facet_runtime, ingest, plugin_config, tiering};
+use crate::plugin_config::RetentionLimitOverride;
 use bytesize::ByteSize;
 use netflow_parser::protocol::ProtocolTypes;
 use netflow_parser::static_versions::v5::{FlowSet, Header, V5};
@@ -241,29 +242,23 @@ fn start_ingest_fixture() -> anyhow::Result<(
     cfg.listener.listen = "127.0.0.1:0".to_string();
     cfg.listener.sync_interval = Duration::from_millis(50);
     cfg.listener.sync_every_entries = 256;
-    cfg.journal.size_of_journal_file = ByteSize::kb(32);
-    cfg.journal.number_of_journal_files = 16;
-    cfg.journal.size_of_journal_files = ByteSize::mb(64);
-    cfg.journal.duration_of_journal_files = Duration::from_secs(10 * 60);
+    cfg.journal.size_of_journal_files = Some(ByteSize::mb(128));
+    cfg.journal.duration_of_journal_files = Some(Duration::from_secs(10 * 60));
     cfg.journal.tiers.raw = Some(plugin_config::JournalTierRetentionConfig {
-        number_of_journal_files: 16,
-        size_of_journal_files: ByteSize::mb(64),
-        duration_of_journal_files: Duration::from_secs(10 * 60),
+        size_of_journal_files: RetentionLimitOverride::Value(ByteSize::mb(128)),
+        duration_of_journal_files: RetentionLimitOverride::Value(Duration::from_secs(10 * 60)),
     });
     cfg.journal.tiers.minute_1 = Some(plugin_config::JournalTierRetentionConfig {
-        number_of_journal_files: 8,
-        size_of_journal_files: ByteSize::mb(32),
-        duration_of_journal_files: Duration::from_secs(10 * 60),
+        size_of_journal_files: RetentionLimitOverride::Value(ByteSize::mb(128)),
+        duration_of_journal_files: RetentionLimitOverride::Value(Duration::from_secs(10 * 60)),
     });
     cfg.journal.tiers.minute_5 = Some(plugin_config::JournalTierRetentionConfig {
-        number_of_journal_files: 8,
-        size_of_journal_files: ByteSize::mb(32),
-        duration_of_journal_files: Duration::from_secs(10 * 60),
+        size_of_journal_files: RetentionLimitOverride::Value(ByteSize::mb(128)),
+        duration_of_journal_files: RetentionLimitOverride::Value(Duration::from_secs(10 * 60)),
     });
     cfg.journal.tiers.hour_1 = Some(plugin_config::JournalTierRetentionConfig {
-        number_of_journal_files: 8,
-        size_of_journal_files: ByteSize::mb(32),
-        duration_of_journal_files: Duration::from_secs(10 * 60),
+        size_of_journal_files: RetentionLimitOverride::Value(ByteSize::mb(128)),
+        duration_of_journal_files: RetentionLimitOverride::Value(Duration::from_secs(10 * 60)),
     });
 
     let metrics = Arc::new(ingest::IngestMetrics::default());

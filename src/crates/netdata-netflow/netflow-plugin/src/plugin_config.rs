@@ -15,6 +15,7 @@ mod runtime;
 mod types;
 mod validation;
 
+pub(crate) use defaults::RetentionLimitOverride;
 use defaults::*;
 pub(crate) use types::*;
 

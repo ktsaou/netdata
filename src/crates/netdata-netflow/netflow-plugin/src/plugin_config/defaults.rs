@@ -88,10 +88,6 @@ pub(super) fn default_plugin_enabled() -> bool {
     true
 }
 
-pub(super) fn default_retention_number_of_journal_files() -> usize {
-    64
-}
-
 pub(super) fn default_retention_size_of_journal_files() -> ByteSize {
     ByteSize::gb(10)
 }
@@ -99,6 +95,158 @@ pub(super) fn default_retention_size_of_journal_files() -> ByteSize {
 pub(super) fn default_retention_duration_of_journal_files() -> Duration {
     Duration::from_secs(7 * 24 * 60 * 60)
 }
+
+pub(super) fn default_retention_size_of_journal_files_opt() -> Option<ByteSize> {
+    Some(default_retention_size_of_journal_files())
+}
+
+pub(super) fn default_retention_duration_of_journal_files_opt() -> Option<Duration> {
+    Some(default_retention_duration_of_journal_files())
+}
+
+pub(super) fn default_rotation_duration_of_journal_file() -> Duration {
+    Duration::from_secs(60 * 60)
+}
+
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub(crate) enum RetentionLimitOverride<T> {
+    #[default]
+    Inherit,
+    Disabled,
+    Value(T),
+}
+
+impl<T: Copy> RetentionLimitOverride<T> {
+    pub(crate) fn resolve(self, inherited: Option<T>) -> Option<T> {
+        match self {
+            Self::Inherit => inherited,
+            Self::Disabled => None,
+            Self::Value(value) => Some(value),
+        }
+    }
+
+    pub(crate) fn is_inherit(&self) -> bool {
+        matches!(self, Self::Inherit)
+    }
+}
+
+pub(super) fn deserialize_opt_bytesize<'de, D>(
+    deserializer: D,
+) -> Result<Option<ByteSize>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    let value = Option::<String>::deserialize(deserializer)?;
+    match value {
+        Some(value) => value.parse().map(Some).map_err(de::Error::custom),
+        None => Ok(None),
+    }
+}
+
+pub(super) fn deserialize_opt_duration<'de, D>(
+    deserializer: D,
+) -> Result<Option<Duration>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    let value = Option::<String>::deserialize(deserializer)?;
+    match value {
+        Some(value) => humantime::parse_duration(&value)
+            .map(Some)
+            .map_err(de::Error::custom),
+        None => Ok(None),
+    }
+}
+
+pub(super) fn serialize_opt_bytesize<S>(
+    value: &Option<ByteSize>,
+    serializer: S,
+) -> Result<S::Ok, S::Error>
+where
+    S: serde::Serializer,
+{
+    match value {
+        Some(value) => serializer.serialize_some(&value.to_string()),
+        None => serializer.serialize_none(),
+    }
+}
+
+pub(super) fn serialize_opt_duration<S>(
+    value: &Option<Duration>,
+    serializer: S,
+) -> Result<S::Ok, S::Error>
+where
+    S: serde::Serializer,
+{
+    match value {
+        Some(value) => serializer.serialize_some(&humantime::format_duration(*value).to_string()),
+        None => serializer.serialize_none(),
+    }
+}
+
+pub(super) fn deserialize_retention_override_bytesize<'de, D>(
+    deserializer: D,
+) -> Result<RetentionLimitOverride<ByteSize>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    let value = Option::<String>::deserialize(deserializer)?;
+    match value {
+        Some(value) => value
+            .parse()
+            .map(RetentionLimitOverride::Value)
+            .map_err(de::Error::custom),
+        None => Ok(RetentionLimitOverride::Disabled),
+    }
+}
+
+pub(super) fn deserialize_retention_override_duration<'de, D>(
+    deserializer: D,
+) -> Result<RetentionLimitOverride<Duration>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    let value = Option::<String>::deserialize(deserializer)?;
+    match value {
+        Some(value) => humantime::parse_duration(&value)
+            .map(RetentionLimitOverride::Value)
+            .map_err(de::Error::custom),
+        None => Ok(RetentionLimitOverride::Disabled),
+    }
+}
+
+pub(super) fn serialize_retention_override_bytesize<S>(
+    value: &RetentionLimitOverride<ByteSize>,
+    serializer: S,
+) -> Result<S::Ok, S::Error>
+where
+    S: serde::Serializer,
+{
+    match value {
+        RetentionLimitOverride::Inherit | RetentionLimitOverride::Disabled => {
+            serializer.serialize_none()
+        }
+        RetentionLimitOverride::Value(value) => serializer.serialize_some(&value.to_string()),
+    }
+}
+
+pub(super) fn serialize_retention_override_duration<S>(
+    value: &RetentionLimitOverride<Duration>,
+    serializer: S,
+) -> Result<S::Ok, S::Error>
+where
+    S: serde::Serializer,
+{
+    match value {
+        RetentionLimitOverride::Inherit | RetentionLimitOverride::Disabled => {
+            serializer.serialize_none()
+        }
+        RetentionLimitOverride::Value(value) => {
+            serializer.serialize_some(&humantime::format_duration(*value).to_string())
+        }
+    }
+}
+
 pub(super) fn deserialize_interface_boundary<'de, D>(deserializer: D) -> Result<u8, D::Error>
 where
     D: serde::Deserializer<'de>,

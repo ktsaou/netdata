@@ -1,5 +1,11 @@
 use super::*;
 
+const MIN_TIER_RETENTION_SIZE_BYTES: u64 = 100_000_000;
+const MIN_ROTATION_SIZE_BYTES: u64 = 5_000_000;
+const DEFAULT_TIME_ONLY_ROTATION_SIZE_BYTES: u64 = 100_000_000;
+const MAX_ROTATION_SIZE_BYTES: u64 = 200_000_000;
+const ROTATION_SIZE_DIVISOR: u64 = 20;
+
 #[derive(Debug, Parser, Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub(crate) struct JournalConfig {
@@ -7,42 +13,28 @@ pub(crate) struct JournalConfig {
     pub(crate) journal_dir: String,
 
     #[arg(
-        long = "netflow-rotation-size-of-journal-file",
-        default_value = "256MB",
-        value_parser = parse_bytesize
-    )]
-    #[serde(with = "bytesize_serde")]
-    pub(crate) size_of_journal_file: ByteSize,
-
-    #[arg(
-        long = "netflow-rotation-duration-of-journal-file",
-        default_value = "1h",
-        value_parser = parse_duration
-    )]
-    #[serde(with = "humantime_serde")]
-    pub(crate) duration_of_journal_file: Duration,
-
-    #[arg(
-        long = "netflow-retention-number-of-journal-files",
-        default_value_t = 64
-    )]
-    pub(crate) number_of_journal_files: usize,
-
-    #[arg(
         long = "netflow-retention-size-of-journal-files",
         default_value = "10GB",
         value_parser = parse_bytesize
     )]
-    #[serde(with = "bytesize_serde")]
-    pub(crate) size_of_journal_files: ByteSize,
+    #[serde(
+        default = "default_retention_size_of_journal_files_opt",
+        deserialize_with = "deserialize_opt_bytesize",
+        serialize_with = "serialize_opt_bytesize"
+    )]
+    pub(crate) size_of_journal_files: Option<ByteSize>,
 
     #[arg(
         long = "netflow-retention-duration-of-journal-files",
         default_value = "7d",
         value_parser = parse_duration
     )]
-    #[serde(with = "humantime_serde")]
-    pub(crate) duration_of_journal_files: Duration,
+    #[serde(
+        default = "default_retention_duration_of_journal_files_opt",
+        deserialize_with = "deserialize_opt_duration",
+        serialize_with = "serialize_opt_duration"
+    )]
+    pub(crate) duration_of_journal_files: Option<Duration>,
 
     #[arg(skip)]
     #[serde(default)]
@@ -79,32 +71,35 @@ pub(crate) struct JournalConfig {
     pub(crate) query_facet_max_values_per_field: usize,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub(crate) struct JournalTierRetentionConfig {
-    #[serde(default = "default_retention_number_of_journal_files")]
-    pub(crate) number_of_journal_files: usize,
+    #[serde(
+        default,
+        deserialize_with = "deserialize_retention_override_bytesize",
+        serialize_with = "serialize_retention_override_bytesize",
+        skip_serializing_if = "RetentionLimitOverride::is_inherit"
+    )]
+    pub(crate) size_of_journal_files: RetentionLimitOverride<ByteSize>,
 
     #[serde(
-        default = "default_retention_size_of_journal_files",
-        with = "bytesize_serde"
+        default,
+        deserialize_with = "deserialize_retention_override_duration",
+        serialize_with = "serialize_retention_override_duration",
+        skip_serializing_if = "RetentionLimitOverride::is_inherit"
     )]
-    pub(crate) size_of_journal_files: ByteSize,
-
-    #[serde(
-        default = "default_retention_duration_of_journal_files",
-        with = "humantime_serde"
-    )]
-    pub(crate) duration_of_journal_files: Duration,
+    pub(crate) duration_of_journal_files: RetentionLimitOverride<Duration>,
 }
 
-impl Default for JournalTierRetentionConfig {
-    fn default() -> Self {
-        Self {
-            number_of_journal_files: default_retention_number_of_journal_files(),
-            size_of_journal_files: default_retention_size_of_journal_files(),
-            duration_of_journal_files: default_retention_duration_of_journal_files(),
-        }
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub(crate) struct ResolvedJournalTierRetention {
+    pub(crate) size_of_journal_files: Option<ByteSize>,
+    pub(crate) duration_of_journal_files: Option<Duration>,
+}
+
+impl ResolvedJournalTierRetention {
+    pub(crate) fn has_limits(&self) -> bool {
+        self.size_of_journal_files.is_some() || self.duration_of_journal_files.is_some()
     }
 }
 
@@ -139,11 +134,8 @@ impl Default for JournalConfig {
     fn default() -> Self {
         Self {
             journal_dir: "flows".to_string(),
-            size_of_journal_file: ByteSize::mb(256),
-            duration_of_journal_file: Duration::from_secs(60 * 60),
-            number_of_journal_files: default_retention_number_of_journal_files(),
-            size_of_journal_files: default_retention_size_of_journal_files(),
-            duration_of_journal_files: default_retention_duration_of_journal_files(),
+            size_of_journal_files: default_retention_size_of_journal_files_opt(),
+            duration_of_journal_files: default_retention_duration_of_journal_files_opt(),
             tiers: JournalTierRetentionOverrides::default(),
             query_1m_max_window: Duration::from_secs(6 * 60 * 60),
             query_5m_max_window: Duration::from_secs(24 * 60 * 60),
@@ -187,19 +179,45 @@ impl JournalConfig {
         ]
     }
 
-    pub(crate) fn default_retention(&self) -> JournalTierRetentionConfig {
-        JournalTierRetentionConfig {
-            number_of_journal_files: self.number_of_journal_files,
+    pub(crate) fn default_retention(&self) -> ResolvedJournalTierRetention {
+        ResolvedJournalTierRetention {
             size_of_journal_files: self.size_of_journal_files,
             duration_of_journal_files: self.duration_of_journal_files,
         }
     }
 
-    pub(crate) fn retention_for_tier(&self, tier: TierKind) -> JournalTierRetentionConfig {
-        self.tiers
-            .get(tier)
-            .cloned()
-            .unwrap_or_else(|| self.default_retention())
+    pub(crate) fn retention_for_tier(&self, tier: TierKind) -> ResolvedJournalTierRetention {
+        let defaults = self.default_retention();
+        let Some(overrides) = self.tiers.get(tier) else {
+            return defaults;
+        };
+
+        ResolvedJournalTierRetention {
+            size_of_journal_files: overrides
+                .size_of_journal_files
+                .resolve(defaults.size_of_journal_files),
+            duration_of_journal_files: overrides
+                .duration_of_journal_files
+                .resolve(defaults.duration_of_journal_files),
+        }
+    }
+
+    pub(crate) fn rotation_size_for_tier(&self, tier: TierKind) -> u64 {
+        match self.retention_for_tier(tier).size_of_journal_files {
+            Some(size_of_journal_files) => size_of_journal_files
+                .as_u64()
+                .saturating_div(ROTATION_SIZE_DIVISOR)
+                .clamp(MIN_ROTATION_SIZE_BYTES, MAX_ROTATION_SIZE_BYTES),
+            None => DEFAULT_TIME_ONLY_ROTATION_SIZE_BYTES,
+        }
+    }
+
+    pub(crate) fn rotation_duration_of_journal_file(&self) -> Duration {
+        default_rotation_duration_of_journal_file()
+    }
+
+    pub(crate) fn minimum_retention_size_of_journal_files(&self) -> u64 {
+        MIN_TIER_RETENTION_SIZE_BYTES
     }
 
     pub(crate) fn decoder_state_dir(&self) -> PathBuf {

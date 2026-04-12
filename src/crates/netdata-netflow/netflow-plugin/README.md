@@ -217,26 +217,19 @@ protocols:
 
 journal:
   journal_dir: flows
-  size_of_journal_file: 256MB
-  duration_of_journal_file: 1h
-  number_of_journal_files: 64
   size_of_journal_files: 10GB
   duration_of_journal_files: 7d
   tiers:
     raw:
-      number_of_journal_files: 256
       size_of_journal_files: 200GB
       duration_of_journal_files: 24h
     minute_1:
-      number_of_journal_files: 192
       size_of_journal_files: 40GB
       duration_of_journal_files: 14d
     minute_5:
-      number_of_journal_files: 288
       size_of_journal_files: 30GB
       duration_of_journal_files: 30d
     hour_1:
-      number_of_journal_files: 720
       size_of_journal_files: 20GB
       duration_of_journal_files: 365d
   query_1m_max_window: 6h
@@ -248,6 +241,14 @@ journal:
 `query_max_groups` and `query_facet_max_values_per_field` are guardrails for
 query-time accumulator cardinality. When limits are hit, overflow is reported
 via response stats/facet metadata instead of growing unbounded memory.
+
+Journal rotation size is not user-configured. The plugin derives it per tier:
+
+- if `size_of_journal_files` is set, rotation size is `clamp(size / 20, 5MB, 200MB)`
+- `size_of_journal_files` must be at least `100MB`
+- if `size_of_journal_files` is omitted or explicitly set to `null`, the plugin
+  uses a fixed internal rotation size of `100MB`
+- the internal time-based rotation cadence remains `1h`
 
 The plugin also exposes internal memory charts to help diagnose resident growth
 in production:
@@ -299,7 +300,10 @@ traffic, not for billing or hard enforcement decisions.
 - `hour_1` (aliases: `1h`, `hour-1`, `hour1`)
 
 If a tier override is omitted, that tier inherits top-level journal retention
-(`number_of_journal_files`, `size_of_journal_files`, `duration_of_journal_files`).
+(`size_of_journal_files`, `duration_of_journal_files`).
+
+To make a tier time-only, set `size_of_journal_files: null`.
+To make a tier size-only, set `duration_of_journal_files: null`.
 
 ## plugins.d protocol
 

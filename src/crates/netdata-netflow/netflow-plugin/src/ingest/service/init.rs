@@ -33,13 +33,18 @@ impl IngestService {
                 source: Source::System,
             };
             let rotation_policy = RotationPolicy::default()
-                .with_size_of_journal_file(cfg.journal.size_of_journal_file.as_u64())
-                .with_duration_of_journal_file(cfg.journal.duration_of_journal_file);
+                .with_size_of_journal_file(cfg.journal.rotation_size_for_tier(tier))
+                .with_duration_of_journal_file(cfg.journal.rotation_duration_of_journal_file());
             let retention = cfg.journal.retention_for_tier(tier);
-            let retention_policy = RetentionPolicy::default()
-                .with_number_of_journal_files(retention.number_of_journal_files)
-                .with_size_of_journal_files(retention.size_of_journal_files.as_u64())
-                .with_duration_of_journal_files(retention.duration_of_journal_files);
+            let mut retention_policy = RetentionPolicy::default();
+            if let Some(size_of_journal_files) = retention.size_of_journal_files {
+                retention_policy =
+                    retention_policy.with_size_of_journal_files(size_of_journal_files.as_u64());
+            }
+            if let Some(duration_of_journal_files) = retention.duration_of_journal_files {
+                retention_policy =
+                    retention_policy.with_duration_of_journal_files(duration_of_journal_files);
+            }
             Config::new(origin, rotation_policy, retention_policy)
         };
         let raw_journal =

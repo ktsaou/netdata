@@ -1,4 +1,5 @@
-use crate::plugin_config::{JournalTierRetentionConfig, PluginConfig};
+use crate::plugin_config::{PluginConfig, ResolvedJournalTierRetention};
+use crate::tiering::TierKind;
 use anyhow::Result;
 
 pub(super) fn validate_journal(cfg: &PluginConfig) -> Result<()> {
@@ -18,32 +19,48 @@ pub(super) fn validate_journal(cfg: &PluginConfig) -> Result<()> {
         anyhow::bail!("journal.query_facet_max_values_per_field must be greater than 0");
     }
 
-    let default_retention = cfg.journal.default_retention();
-    validate_retention("journal", &default_retention)?;
-    if let Some(raw) = &cfg.journal.tiers.raw {
-        validate_retention("journal.tiers.raw", raw)?;
-    }
-    if let Some(minute_1) = &cfg.journal.tiers.minute_1 {
-        validate_retention("journal.tiers.minute_1", minute_1)?;
-    }
-    if let Some(minute_5) = &cfg.journal.tiers.minute_5 {
-        validate_retention("journal.tiers.minute_5", minute_5)?;
-    }
-    if let Some(hour_1) = &cfg.journal.tiers.hour_1 {
-        validate_retention("journal.tiers.hour_1", hour_1)?;
+    for (scope, tier) in [
+        ("journal.tiers.raw", TierKind::Raw),
+        ("journal.tiers.minute_1", TierKind::Minute1),
+        ("journal.tiers.minute_5", TierKind::Minute5),
+        ("journal.tiers.hour_1", TierKind::Hour1),
+    ] {
+        validate_retention(
+            scope,
+            &cfg.journal.retention_for_tier(tier),
+            cfg.journal.minimum_retention_size_of_journal_files(),
+        )?;
     }
 
     Ok(())
 }
 
-fn validate_retention(scope: &str, retention: &JournalTierRetentionConfig) -> Result<()> {
-    if retention.number_of_journal_files == 0 {
-        anyhow::bail!("{scope}.number_of_journal_files must be greater than 0");
+fn validate_retention(
+    scope: &str,
+    retention: &ResolvedJournalTierRetention,
+    minimum_size_bytes: u64,
+) -> Result<()> {
+    if !retention.has_limits() {
+        anyhow::bail!(
+            "{scope} must define at least one of size_of_journal_files or duration_of_journal_files"
+        );
     }
-    if retention.size_of_journal_files.as_u64() == 0 {
-        anyhow::bail!("{scope}.size_of_journal_files must be greater than 0");
+
+    if let Some(size_of_journal_files) = retention.size_of_journal_files {
+        if size_of_journal_files.as_u64() == 0 {
+            anyhow::bail!("{scope}.size_of_journal_files must be greater than 0");
+        }
+        if size_of_journal_files.as_u64() < minimum_size_bytes {
+            anyhow::bail!(
+                "{scope}.size_of_journal_files must be at least {}MB",
+                minimum_size_bytes / 1_000_000
+            );
+        }
     }
-    if retention.duration_of_journal_files.is_zero() {
+
+    if let Some(duration_of_journal_files) = retention.duration_of_journal_files
+        && duration_of_journal_files.is_zero()
+    {
         anyhow::bail!("{scope}.duration_of_journal_files must be greater than 0");
     }
     Ok(())

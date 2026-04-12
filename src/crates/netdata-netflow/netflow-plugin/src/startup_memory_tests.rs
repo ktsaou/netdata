@@ -278,10 +278,8 @@ fn profile_config(base_dir: &Path) -> plugin_config::PluginConfig {
     cfg.listener.listen = "127.0.0.1:0".to_string();
     cfg.listener.sync_every_entries = 1024;
     cfg.listener.sync_interval = std::time::Duration::from_secs(1);
-    cfg.journal.size_of_journal_file = ByteSize::mb(256);
-    cfg.journal.number_of_journal_files = 64;
-    cfg.journal.size_of_journal_files = ByteSize::gb(10);
-    cfg.journal.duration_of_journal_files = std::time::Duration::from_secs(7 * 24 * 60 * 60);
+    cfg.journal.size_of_journal_files = Some(ByteSize::gb(10));
+    cfg.journal.duration_of_journal_files = Some(std::time::Duration::from_secs(7 * 24 * 60 * 60));
     cfg
 }
 

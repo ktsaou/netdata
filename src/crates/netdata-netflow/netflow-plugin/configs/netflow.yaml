@@ -36,12 +36,13 @@ journal:
   # With the default Netdata cache dir this becomes /var/cache/netdata/flows.
   journal_dir: flows
 
-  # Journal file rotation.
-  size_of_journal_file: 256MB
-  duration_of_journal_file: 1h
-
-  # Journal retention limits (applied on each tier writer).
-  number_of_journal_files: 64
+  # Journal retention limits (applied independently on each tier writer).
+  #
+  # Internal rotation size is derived from size_of_journal_files:
+  # - clamp(size_of_journal_files / 20, 5MB, 200MB)
+  # - minimum supported size_of_journal_files is 100MB
+  # If size_of_journal_files is omitted/null, the plugin uses a fixed 100MB
+  # internal rotation size and retention is controlled only by duration.
   size_of_journal_files: 10GB
   duration_of_journal_files: 7d
 
@@ -49,19 +50,15 @@ journal:
   # If omitted, each tier inherits the retention values above.
   tiers:
     raw:
-      number_of_journal_files: 64
       size_of_journal_files: 10GB
       duration_of_journal_files: 7d
     minute_1:
-      number_of_journal_files: 64
       size_of_journal_files: 10GB
       duration_of_journal_files: 7d
     minute_5:
-      number_of_journal_files: 64
       size_of_journal_files: 10GB
       duration_of_journal_files: 7d
     hour_1:
-      number_of_journal_files: 64
       size_of_journal_files: 10GB
       duration_of_journal_files: 7d
 
