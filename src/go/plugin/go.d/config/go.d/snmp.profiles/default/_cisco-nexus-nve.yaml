@@ -164,10 +164,9 @@ virtual_metrics:
       family: 'Network/VXLAN/VNI/Traffic/Multicast'
       unit: "bit/s"
 
-  # Per-peer unicast traffic
+  # Per-peer unicast traffic (one chart per peer row — full index differentiates peers)
   - name: cnvoNvoPeerUnicastTraffic
     per_row: true
-    group_by: ["nve_instance"]
     sources:
       - { metric: _cnvoNvoPeerInUnicastBytes, table: cnvoNvoPeerStatsTable, as: in }
       - { metric: _cnvoNvoPeerOutUnicastBytes, table: cnvoNvoPeerStatsTable, as: out }
@@ -179,7 +178,6 @@ virtual_metrics:
   # Per-peer unicast packets
   - name: cnvoNvoPeerUnicastPackets
     per_row: true
-    group_by: ["nve_instance"]
     sources:
       - { metric: _cnvoNvoPeerInUnicastPackets, table: cnvoNvoPeerStatsTable, as: in }
       - { metric: _cnvoNvoPeerOutUnicastPackets, table: cnvoNvoPeerStatsTable, as: out }
