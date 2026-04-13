@@ -47,6 +47,7 @@ Important:
 - source installs from a Git checkout do not carry the packaged stock MMDBs
 - packaged builds stage the stock payload from CI/release tooling
 - local/source installs should run the downloader if they want a local cache copy
+- 32-bit packaged builds still ship the staged stock payload, but do not build or install the downloader binary
 
 ## Config lookup
 

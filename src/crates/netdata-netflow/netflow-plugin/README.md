@@ -42,6 +42,7 @@ Important:
 - packaged installs ship the stock MMDB payload
 - source installs from a Git checkout do not include the generated stock MMDBs by default
 - local/source installs should run `topology-ip-intel-downloader` if they want a local cache copy
+- packaged 32-bit installs still ship the stock MMDB payload, but do not include `topology-ip-intel-downloader`
 
 ### `protocols.decapsulation_mode`
 

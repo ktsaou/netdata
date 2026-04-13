@@ -212,9 +212,9 @@ pub(super) fn build_cardinality_record_batches(
 }
 
 fn mutate_record_for_cardinality(record: &mut crate::flow::FlowRecord, bucket: u64) {
-    record.exporter_ip = Some(mutate_ip(record.exporter_ip, bucket, 11));
-    record.src_addr = Some(mutate_ip(record.src_addr, bucket, 31));
-    record.dst_addr = Some(mutate_ip(record.dst_addr, bucket, 73));
+    record.exporter_ip = Some(mutate_ip(record.exporter_ip, bucket, IpVariant::Exporter));
+    record.src_addr = Some(mutate_ip(record.src_addr, bucket, IpVariant::Source));
+    record.dst_addr = Some(mutate_ip(record.dst_addr, bucket, IpVariant::Destination));
     record.src_port = mutate_port(bucket, 10_000);
     record.dst_port = mutate_port(bucket.wrapping_mul(7), 20_000);
     record.in_if = (bucket % 4096) as u32;
@@ -226,10 +226,31 @@ fn mutate_record_for_cardinality(record: &mut crate::flow::FlowRecord, bucket: u
     record.dst_as_name = format!("dst-as-{bucket}");
 }
 
-fn mutate_ip(original: Option<IpAddr>, bucket: u64, salt: u8) -> IpAddr {
+#[derive(Copy, Clone)]
+enum IpVariant {
+    Exporter,
+    Source,
+    Destination,
+}
+
+impl IpVariant {
+    fn v4_prefix(self) -> u8 {
+        match self {
+            Self::Exporter => 11,
+            Self::Source => 31,
+            Self::Destination => 73,
+        }
+    }
+
+    fn v6_segment(self) -> u16 {
+        self.v4_prefix() as u16
+    }
+}
+
+fn mutate_ip(original: Option<IpAddr>, bucket: u64, variant: IpVariant) -> IpAddr {
     match original.unwrap_or(IpAddr::V4(Ipv4Addr::LOCALHOST)) {
         IpAddr::V4(_) => IpAddr::V4(Ipv4Addr::new(
-            10 + (salt % 10),
+            10 + (variant.v4_prefix() % 10),
             ((bucket >> 16) & 0xff) as u8,
             ((bucket >> 8) & 0xff) as u8,
             (bucket & 0xff) as u8,
@@ -237,12 +258,12 @@ fn mutate_ip(original: Option<IpAddr>, bucket: u64, salt: u8) -> IpAddr {
         IpAddr::V6(_) => IpAddr::V6(Ipv6Addr::new(
             0x2001,
             0xdb8,
-            salt as u16,
+            variant.v6_segment(),
             ((bucket >> 32) & 0xffff) as u16,
             ((bucket >> 16) & 0xffff) as u16,
             (bucket & 0xffff) as u16,
             0,
-            salt as u16,
+            variant.v6_segment(),
         )),
     }
 }

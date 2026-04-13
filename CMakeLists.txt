@@ -3473,19 +3473,25 @@ if(ENABLE_PLUGIN_NETFLOW)
         set(TOPOLOGY_IP_INTEL_DOWNLOADER_BIN topology-ip-intel-downloader)
     endif()
 
-    add_go_target(topology-ip-intel-downloader-target ${TOPOLOGY_IP_INTEL_DOWNLOADER_BIN} src/go tools/topology-ip-intel-downloader)
-    install(PROGRAMS
-            ${CMAKE_BINARY_DIR}/${TOPOLOGY_IP_INTEL_DOWNLOADER_BIN}
-            COMPONENT plugin-netflow
-            DESTINATION "${BINDIR}")
-    install(CODE "file(REMOVE \"\$ENV{DESTDIR}\${CMAKE_INSTALL_PREFIX}/usr/libexec/netdata/plugins.d/topology-ip-intel-downloader\")"
-            COMPONENT plugin-netflow)
-    install(CODE "file(REMOVE \"\$ENV{DESTDIR}\${CMAKE_INSTALL_PREFIX}/usr/libexec/netdata/plugins.d/topology-ip-intel-downloader.plugin\")"
-            COMPONENT plugin-netflow)
-    install(CODE "file(REMOVE \"\$ENV{DESTDIR}\${CMAKE_INSTALL_PREFIX}/usr/libexec/netdata/plugins.d/topology-ip-intel-downloader.exe\")"
-            COMPONENT plugin-netflow)
-    install(CODE "file(REMOVE \"\$ENV{DESTDIR}\${CMAKE_INSTALL_PREFIX}/usr/libexec/netdata/plugins.d/topology-ip-intel-downloader.plugin.exe\")"
-            COMPONENT plugin-netflow)
+    if(CMAKE_SIZEOF_VOID_P LESS 8)
+        message(STATUS
+                "plugin-netflow: skipping topology-ip-intel-downloader binary on 32-bit targets; "
+                "stock topology-ip-intel payload installation remains enabled")
+    else()
+        add_go_target(topology-ip-intel-downloader-target ${TOPOLOGY_IP_INTEL_DOWNLOADER_BIN} src/go tools/topology-ip-intel-downloader)
+        install(PROGRAMS
+                ${CMAKE_BINARY_DIR}/${TOPOLOGY_IP_INTEL_DOWNLOADER_BIN}
+                COMPONENT plugin-netflow
+                DESTINATION "${BINDIR}")
+        install(CODE "file(REMOVE \"\$ENV{DESTDIR}\${CMAKE_INSTALL_PREFIX}/usr/libexec/netdata/plugins.d/topology-ip-intel-downloader\")"
+                COMPONENT plugin-netflow)
+        install(CODE "file(REMOVE \"\$ENV{DESTDIR}\${CMAKE_INSTALL_PREFIX}/usr/libexec/netdata/plugins.d/topology-ip-intel-downloader.plugin\")"
+                COMPONENT plugin-netflow)
+        install(CODE "file(REMOVE \"\$ENV{DESTDIR}\${CMAKE_INSTALL_PREFIX}/usr/libexec/netdata/plugins.d/topology-ip-intel-downloader.exe\")"
+                COMPONENT plugin-netflow)
+        install(CODE "file(REMOVE \"\$ENV{DESTDIR}\${CMAKE_INSTALL_PREFIX}/usr/libexec/netdata/plugins.d/topology-ip-intel-downloader.plugin.exe\")"
+                COMPONENT plugin-netflow)
+    endif()
 
     install(FILES src/go/tools/topology-ip-intel-downloader/configs/topology-ip-intel.yaml
             COMPONENT plugin-netflow
