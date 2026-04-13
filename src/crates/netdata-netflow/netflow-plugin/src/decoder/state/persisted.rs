@@ -1,9 +1,14 @@
 use super::*;
 
+pub(crate) const MAX_DECODER_STATE_PAYLOAD_LEN: usize = 8 * 1024 * 1024;
+pub(crate) const MAX_DECODER_STATE_FILE_LEN: usize =
+    DECODER_STATE_HEADER_LEN + MAX_DECODER_STATE_PAYLOAD_LEN;
+
 pub(crate) fn decoder_state_bincode_options() -> impl Options {
     bincode::DefaultOptions::new()
         .with_fixint_encoding()
         .with_little_endian()
+        .with_limit(MAX_DECODER_STATE_PAYLOAD_LEN as u64)
 }
 
 pub(crate) fn xxhash64(data: &[u8]) -> u64 {
@@ -52,6 +57,13 @@ pub(crate) fn decode_persisted_namespace_file(
     let payload_len = u64::from_le_bytes(data[16..24].try_into().unwrap());
     let payload_len = usize::try_from(payload_len)
         .map_err(|_| "decoder namespace payload length overflows usize".to_string())?;
+    if payload_len > MAX_DECODER_STATE_PAYLOAD_LEN {
+        return Err(format!(
+            "decoder namespace payload exceeds limit (max {} bytes, got {})",
+            MAX_DECODER_STATE_PAYLOAD_LEN,
+            payload_len
+        ));
+    }
     let payload = &data[DECODER_STATE_HEADER_LEN..];
     if payload.len() != payload_len {
         return Err(format!(

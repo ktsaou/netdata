@@ -141,6 +141,27 @@ impl IngestService {
         paths.sort();
 
         for path in paths {
+            let file_len = match fs::metadata(&path) {
+                Ok(metadata) => metadata.len(),
+                Err(err) => {
+                    tracing::warn!(
+                        "failed to stat netflow decoder state namespace {}: {}",
+                        path.display(),
+                        err
+                    );
+                    continue;
+                }
+            };
+            if file_len > crate::decoder::MAX_DECODER_STATE_FILE_LEN as u64 {
+                tracing::warn!(
+                    "skipping oversized netflow decoder state namespace {} (max {} bytes, got {})",
+                    path.display(),
+                    crate::decoder::MAX_DECODER_STATE_FILE_LEN,
+                    file_len
+                );
+                continue;
+            }
+
             match fs::read(&path) {
                 Ok(data) => {
                     if let Err(err) = decoders.preload_decoder_state_namespace(&data) {

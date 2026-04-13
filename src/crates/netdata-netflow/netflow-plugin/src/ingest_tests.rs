@@ -240,6 +240,25 @@ fn ingest_service_persist_decoder_state_skips_clean_namespaces() {
 }
 
 #[test]
+fn ingest_service_preload_decoder_state_skips_oversized_namespace_file() {
+    let tmp = tempfile::tempdir().expect("create temp dir");
+    let service = new_test_ingest_service_in_dir(tmp.path(), ConfigDecapsulationMode::None);
+    let decoder_state_dir = service.decoder_state_dir.clone();
+    drop(service);
+
+    let path = decoder_state_dir.join("oversized_decoder_state.bin");
+    let persisted = vec![0_u8; crate::decoder::MAX_DECODER_STATE_FILE_LEN + 1];
+    std::fs::write(&path, &persisted)
+        .unwrap_or_else(|e| panic!("write oversized decoder state {}: {e}", path.display()));
+
+    let reloaded = new_test_ingest_service_in_dir(tmp.path(), ConfigDecapsulationMode::None);
+    assert!(
+        reloaded.decoders.decoder_state_namespace_keys().is_empty(),
+        "oversized decoder-state file should be skipped during preload"
+    );
+}
+
+#[test]
 fn tier_timestamp_lookup_query_end_stays_within_query_time_range_limits() {
     let end = super::tier_timestamp_lookup_query_end(u64::MAX);
     let range = QueryTimeRange::new(0, end).expect("bounded rebuild query time range");

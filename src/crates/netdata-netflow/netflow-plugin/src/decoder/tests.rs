@@ -2,11 +2,11 @@ use super::{
     CANONICAL_FLOW_DEFAULTS, DECODER_STATE_HEADER_LEN, DECODER_STATE_MAGIC,
     DECODER_STATE_SCHEMA_VERSION, DIRECTION_EGRESS, DIRECTION_INGRESS, DecapsulationMode,
     DecodeStats, DecodedFlow, DecoderStateNamespace, ETYPE_IPV4, ETYPE_IPV6, FlowDecoders,
-    FlowFields, FlowRecord, SamplingState, TimestampSource, append_mpls_label, append_unique_flows,
-    apply_icmp_port_fallback, apply_v9_special_mappings, decode_persisted_namespace_file,
-    decode_v9_special_from_raw_payload, default_exporter_name, field_tracks_presence,
-    finalize_canonical_flow_fields, normalize_direction_value,
-    observe_v9_templates_from_raw_payload, to_field_token, xxhash64,
+    FlowFields, FlowRecord, MAX_DECODER_STATE_PAYLOAD_LEN, SamplingState, TimestampSource,
+    append_mpls_label, append_unique_flows, apply_icmp_port_fallback,
+    apply_v9_special_mappings, decode_persisted_namespace_file, decode_v9_special_from_raw_payload,
+    default_exporter_name, field_tracks_presence, finalize_canonical_flow_fields,
+    normalize_direction_value, observe_v9_templates_from_raw_payload, to_field_token, xxhash64,
 };
 use etherparse::{NetSlice, SlicedPacket, TransportSlice};
 use netflow_parser::variable_versions::v9_lookup::V9Field;
@@ -2962,6 +2962,23 @@ fn persisted_decoder_state_rejects_payload_length_that_overflows_usize() {
     let err = decode_persisted_namespace_file(&persisted)
         .expect_err("expected payload length usize overflow failure");
     assert!(err.contains("payload length overflows usize"));
+}
+
+#[test]
+fn persisted_decoder_state_rejects_payload_length_above_limit() {
+    let payload = vec![0_u8; MAX_DECODER_STATE_PAYLOAD_LEN + 1];
+    let payload_hash = xxhash64(&payload);
+
+    let mut oversized = Vec::with_capacity(DECODER_STATE_HEADER_LEN + payload.len());
+    oversized.extend_from_slice(DECODER_STATE_MAGIC);
+    oversized.extend_from_slice(&DECODER_STATE_SCHEMA_VERSION.to_le_bytes());
+    oversized.extend_from_slice(&payload_hash.to_le_bytes());
+    oversized.extend_from_slice(&(payload.len() as u64).to_le_bytes());
+    oversized.extend_from_slice(&payload);
+
+    let err = decode_persisted_namespace_file(&oversized)
+        .expect_err("expected oversized decoder-state payload to be rejected");
+    assert!(err.contains("payload exceeds limit"));
 }
 
 #[test]
