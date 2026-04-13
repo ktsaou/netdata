@@ -557,7 +557,7 @@ func TestCollector_CollectPingOnlyUsesTrackingProbing(t *testing.T) {
 	assert.Equal(t, "collect", calls[1].ctx.Value(collectKey{}))
 }
 
-func TestCollector_CollectMixedModeAllowsNilContext(t *testing.T) {
+func TestCollector_CollectMixedModeCollectsSNMPAndPingMetrics(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
