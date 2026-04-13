@@ -56,11 +56,11 @@ metrics:
           unit: "{packet}/s"
       - OID: 1.3.6.1.4.1.12356.101.13.2.1.1.8
         name: fgHaStatsByteCount
-        chart_meta:
-          description: Bytes processed by the HA cluster member
-          family: 'System/HA/Node/Traffic/Traffic'
-          unit: "bit/s"
         scale_factor: 8
+        chart_meta:
+          description: Network bandwidth processed by the HA cluster member
+          family: 'System/HA/Node/Traffic/Bandwidth'
+          unit: "bit/s"
       - OID: 1.3.6.1.4.1.12356.101.13.2.1.1.9
         name: fgHaStatsIdsCount
         chart_meta:
