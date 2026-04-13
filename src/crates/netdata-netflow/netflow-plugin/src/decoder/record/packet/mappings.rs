@@ -33,12 +33,12 @@ pub(crate) fn append_mpls_label_record(rec: &mut FlowRecord, value: &str) {
     if label == 0 {
         return;
     }
-    if rec.mpls_labels.is_empty() {
-        rec.mpls_labels = label.to_string();
-    } else {
+    let mut label_buf = itoa::Buffer::new();
+    let rendered = label_buf.format(label);
+    if !rec.mpls_labels.is_empty() {
         rec.mpls_labels.push(',');
-        rec.mpls_labels.push_str(&label.to_string());
     }
+    rec.mpls_labels.push_str(rendered);
 }
 
 pub(crate) fn apply_v9_special_mappings_record(rec: &mut FlowRecord, field: V9Field, value: &str) {
@@ -109,6 +109,30 @@ pub(crate) fn apply_v9_special_mappings_record(rec: &mut FlowRecord, field: V9Fi
             append_mpls_label_record(rec, value);
         }
         _ => {}
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn append_mpls_label_record_formats_multiple_labels_without_dropping_existing_ones() {
+        let mut record = FlowRecord::default();
+
+        append_mpls_label_record(&mut record, "0x0004e250");
+        append_mpls_label_record(&mut record, "0x00800020");
+
+        assert_eq!(record.mpls_labels, "20005,524290");
+    }
+
+    #[test]
+    fn append_mpls_label_record_ignores_zero_label_values() {
+        let mut record = FlowRecord::default();
+
+        append_mpls_label_record(&mut record, "0");
+
+        assert!(record.mpls_labels.is_empty());
     }
 }
 
