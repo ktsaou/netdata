@@ -144,6 +144,6 @@ metrics:
       OID: 1.3.6.1.2.1.17.2.5.0
       name: dot1dStpTopChanges
       chart_meta:
-        description: Total number of STP topology changes detected since last reboot
+        description: Rate of STP topology changes detected
         family: 'Network/Bridge/STP/TopologyChange'
         unit: "{change}/s"
