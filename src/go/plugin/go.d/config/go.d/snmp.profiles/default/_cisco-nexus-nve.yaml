@@ -100,14 +100,26 @@ metrics:
       OID: 1.3.6.1.4.1.9.9.820.1.1.4
       name: cnvoVNetStatsTable
     symbols:
-      - { OID: 1.3.6.1.4.1.9.9.820.1.1.4.1.5, name: _cnvoVNetInUnicastPackets }
-      - { OID: 1.3.6.1.4.1.9.9.820.1.1.4.1.1, name: _cnvoVNetOutUnicastPackets }
-      - { OID: 1.3.6.1.4.1.9.9.820.1.1.4.1.6, name: _cnvoVNetInUnicastBytes, scale_factor: 8 }
-      - { OID: 1.3.6.1.4.1.9.9.820.1.1.4.1.2, name: _cnvoVNetOutUnicastBytes, scale_factor: 8 }
-      - { OID: 1.3.6.1.4.1.9.9.820.1.1.4.1.7, name: _cnvoVNetInMulticastPackets }
-      - { OID: 1.3.6.1.4.1.9.9.820.1.1.4.1.3, name: _cnvoVNetOutMulticastPackets }
-      - { OID: 1.3.6.1.4.1.9.9.820.1.1.4.1.8, name: _cnvoVNetInMulticastBytes, scale_factor: 8 }
-      - { OID: 1.3.6.1.4.1.9.9.820.1.1.4.1.4, name: _cnvoVNetOutMulticastBytes, scale_factor: 8 }
+      - OID: 1.3.6.1.4.1.9.9.820.1.1.4.1.5
+        name: _cnvoVNetInUnicastPackets
+      - OID: 1.3.6.1.4.1.9.9.820.1.1.4.1.1
+        name: _cnvoVNetOutUnicastPackets
+      - OID: 1.3.6.1.4.1.9.9.820.1.1.4.1.6
+        name: _cnvoVNetInUnicastBytes
+        scale_factor: 8
+      - OID: 1.3.6.1.4.1.9.9.820.1.1.4.1.2
+        name: _cnvoVNetOutUnicastBytes
+        scale_factor: 8
+      - OID: 1.3.6.1.4.1.9.9.820.1.1.4.1.7
+        name: _cnvoVNetInMulticastPackets
+      - OID: 1.3.6.1.4.1.9.9.820.1.1.4.1.3
+        name: _cnvoVNetOutMulticastPackets
+      - OID: 1.3.6.1.4.1.9.9.820.1.1.4.1.8
+        name: _cnvoVNetInMulticastBytes
+        scale_factor: 8
+      - OID: 1.3.6.1.4.1.9.9.820.1.1.4.1.4
+        name: _cnvoVNetOutMulticastBytes
+        scale_factor: 8
     metric_tags:
       - tag: nve_instance
         index: 1
@@ -121,14 +133,26 @@ metrics:
       OID: 1.3.6.1.4.1.9.9.820.1.1.5
       name: cnvoNvoPeerStatsTable
     symbols:
-      - { OID: 1.3.6.1.4.1.9.9.820.1.1.5.1.5, name: _cnvoNvoPeerInUnicastPackets }
-      - { OID: 1.3.6.1.4.1.9.9.820.1.1.5.1.1, name: _cnvoNvoPeerOutUnicastPackets }
-      - { OID: 1.3.6.1.4.1.9.9.820.1.1.5.1.6, name: _cnvoNvoPeerInUnicastBytes, scale_factor: 8 }
-      - { OID: 1.3.6.1.4.1.9.9.820.1.1.5.1.2, name: _cnvoNvoPeerOutUnicastBytes, scale_factor: 8 }
-      - { OID: 1.3.6.1.4.1.9.9.820.1.1.5.1.7, name: _cnvoNvoPeerInMulticastPackets }
-      - { OID: 1.3.6.1.4.1.9.9.820.1.1.5.1.3, name: _cnvoNvoPeerOutMulticastPackets }
-      - { OID: 1.3.6.1.4.1.9.9.820.1.1.5.1.8, name: _cnvoNvoPeerInMulticastBytes, scale_factor: 8 }
-      - { OID: 1.3.6.1.4.1.9.9.820.1.1.5.1.4, name: _cnvoNvoPeerOutMulticastBytes, scale_factor: 8 }
+      - OID: 1.3.6.1.4.1.9.9.820.1.1.5.1.5
+        name: _cnvoNvoPeerInUnicastPackets
+      - OID: 1.3.6.1.4.1.9.9.820.1.1.5.1.1
+        name: _cnvoNvoPeerOutUnicastPackets
+      - OID: 1.3.6.1.4.1.9.9.820.1.1.5.1.6
+        name: _cnvoNvoPeerInUnicastBytes
+        scale_factor: 8
+      - OID: 1.3.6.1.4.1.9.9.820.1.1.5.1.2
+        name: _cnvoNvoPeerOutUnicastBytes
+        scale_factor: 8
+      - OID: 1.3.6.1.4.1.9.9.820.1.1.5.1.7
+        name: _cnvoNvoPeerInMulticastPackets
+      - OID: 1.3.6.1.4.1.9.9.820.1.1.5.1.3
+        name: _cnvoNvoPeerOutMulticastPackets
+      - OID: 1.3.6.1.4.1.9.9.820.1.1.5.1.8
+        name: _cnvoNvoPeerInMulticastBytes
+        scale_factor: 8
+      - OID: 1.3.6.1.4.1.9.9.820.1.1.5.1.4
+        name: _cnvoNvoPeerOutMulticastBytes
+        scale_factor: 8
     metric_tags:
       - tag: nve_instance
         index: 1
@@ -143,8 +167,12 @@ virtual_metrics:
     per_row: true
     group_by: ["nve_instance", "vni"]
     sources:
-      - { metric: _cnvoVNetInUnicastBytes, table: cnvoVNetStatsTable, as: in }
-      - { metric: _cnvoVNetOutUnicastBytes, table: cnvoVNetStatsTable, as: out }
+      - metric: _cnvoVNetInUnicastBytes
+        table: cnvoVNetStatsTable
+        as: in
+      - metric: _cnvoVNetOutUnicastBytes
+        table: cnvoVNetStatsTable
+        as: out
     chart_meta:
       description: VXLAN VNI unicast traffic
       family: 'Network/VXLAN/VNI/Traffic/Unicast'
@@ -155,8 +183,12 @@ virtual_metrics:
     per_row: true
     group_by: ["nve_instance", "vni"]
     sources:
-      - { metric: _cnvoVNetInUnicastPackets, table: cnvoVNetStatsTable, as: in }
-      - { metric: _cnvoVNetOutUnicastPackets, table: cnvoVNetStatsTable, as: out }
+      - metric: _cnvoVNetInUnicastPackets
+        table: cnvoVNetStatsTable
+        as: in
+      - metric: _cnvoVNetOutUnicastPackets
+        table: cnvoVNetStatsTable
+        as: out
     chart_meta:
       description: VXLAN VNI unicast packets
       family: 'Network/VXLAN/VNI/Packets/Unicast'
@@ -167,8 +199,12 @@ virtual_metrics:
     per_row: true
     group_by: ["nve_instance", "vni"]
     sources:
-      - { metric: _cnvoVNetInMulticastBytes, table: cnvoVNetStatsTable, as: in }
-      - { metric: _cnvoVNetOutMulticastBytes, table: cnvoVNetStatsTable, as: out }
+      - metric: _cnvoVNetInMulticastBytes
+        table: cnvoVNetStatsTable
+        as: in
+      - metric: _cnvoVNetOutMulticastBytes
+        table: cnvoVNetStatsTable
+        as: out
     chart_meta:
       description: VXLAN VNI multicast traffic (BUM replication)
       family: 'Network/VXLAN/VNI/Traffic/Multicast'
@@ -178,8 +214,12 @@ virtual_metrics:
   - name: cnvoNvoPeerUnicastTraffic
     per_row: true
     sources:
-      - { metric: _cnvoNvoPeerInUnicastBytes, table: cnvoNvoPeerStatsTable, as: in }
-      - { metric: _cnvoNvoPeerOutUnicastBytes, table: cnvoNvoPeerStatsTable, as: out }
+      - metric: _cnvoNvoPeerInUnicastBytes
+        table: cnvoNvoPeerStatsTable
+        as: in
+      - metric: _cnvoNvoPeerOutUnicastBytes
+        table: cnvoNvoPeerStatsTable
+        as: out
     chart_meta:
       description: VXLAN per-peer unicast traffic
       family: 'Network/VXLAN/Peer/Traffic/Unicast'
@@ -189,8 +229,12 @@ virtual_metrics:
   - name: cnvoNvoPeerUnicastPackets
     per_row: true
     sources:
-      - { metric: _cnvoNvoPeerInUnicastPackets, table: cnvoNvoPeerStatsTable, as: in }
-      - { metric: _cnvoNvoPeerOutUnicastPackets, table: cnvoNvoPeerStatsTable, as: out }
+      - metric: _cnvoNvoPeerInUnicastPackets
+        table: cnvoNvoPeerStatsTable
+        as: in
+      - metric: _cnvoNvoPeerOutUnicastPackets
+        table: cnvoNvoPeerStatsTable
+        as: out
     chart_meta:
       description: VXLAN per-peer unicast packets
       family: 'Network/VXLAN/Peer/Packets/Unicast'
