@@ -418,12 +418,12 @@ impl<M: MemoryMap> JournalFile<M> {
     where
         T: JournalObject<&'a [u8]>,
     {
-        validate_offset_alignment(offset)?;
-
         let journal_header = self.journal_header_ref();
         let is_compact = journal_header.has_incompatible_flag(HeaderIncompatibleFlags::Compact);
         let header_size = journal_header.header_size;
         let arena_end = header_size + journal_header.arena_size;
+
+        validate_offset_alignment(offset)?;
 
         // Objects cannot be located in the file header
         if offset.get() < header_size {
@@ -917,18 +917,18 @@ impl<M: MemoryMapMut> JournalFile<M> {
                     if header.type_ != type_ as u8 {
                         return Err(JournalError::InvalidObjectType);
                     }
-                    let size = header.validated_size()?;
+                    let size_needed = header.validated_size()?;
 
                     // Validate that the object doesn't exceed the journal's arena bounds
                     let end_offset = offset
                         .get()
-                        .checked_add(size)
+                        .checked_add(size_needed)
                         .ok_or(JournalError::ObjectExceedsFileBounds)?;
                     if end_offset > arena_end {
                         return Err(JournalError::ObjectExceedsFileBounds);
                     }
 
-                    size
+                    size_needed
                 }
             };
 

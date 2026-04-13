@@ -97,10 +97,7 @@ pub(super) fn load_scenario_payloads(scenario: &ProtocolScenario) -> Vec<UdpPayl
     payloads
 }
 
-pub(super) fn warm_protocol_templates(
-    service: &mut IngestService,
-    scenario: &ProtocolScenario,
-) {
+pub(super) fn warm_protocol_templates(service: &mut IngestService, scenario: &ProtocolScenario) {
     let base = fixture_dir();
     for file in scenario.template_files {
         for payload in extract_udp_payloads(&base.join(file)) {
@@ -150,6 +147,30 @@ pub(super) fn collect_decoded_flows(scenario: &ProtocolScenario) -> Vec<DecodedF
     collect_decoded_flows_for_scenario(scenario, &data_payloads)
 }
 
+pub(super) fn collect_decoded_record_batches(
+    scenario: &ProtocolScenario,
+) -> Vec<Vec<crate::flow::FlowRecord>> {
+    let data_payloads = load_scenario_payloads(scenario);
+    let (_tmp, mut service) = new_benchmark_ingest_service(ConfigDecapsulationMode::None);
+    warm_protocol_templates(&mut service, scenario);
+    let mut batches = Vec::new();
+    for payload in &data_payloads {
+        let batch = service
+            .decoders
+            .decode_udp_payload(payload.source, &payload.data);
+        if batch.flows.is_empty() {
+            continue;
+        }
+        batches.push(batch.flows.into_iter().map(|flow| flow.record).collect());
+    }
+    assert!(
+        !batches.is_empty(),
+        "scenario {} did not produce any decoded flow batches",
+        scenario.name
+    );
+    batches
+}
+
 pub(super) fn build_cardinality_records(
     decoded: &[DecodedFlow],
     total_flows: usize,
@@ -162,6 +183,32 @@ pub(super) fn build_cardinality_records(
         records.push(record);
     }
     records
+}
+
+pub(super) fn build_cardinality_record_batches(
+    source_batches: &[Vec<crate::flow::FlowRecord>],
+    total_flows: usize,
+    mode: CardinalityMode,
+) -> Vec<Vec<crate::flow::FlowRecord>> {
+    let mut batches = Vec::new();
+    let mut ordinal = 0_usize;
+
+    while ordinal < total_flows {
+        let template = &source_batches[batches.len() % source_batches.len()];
+        let batch_len = template.len().min(total_flows - ordinal);
+        let mut batch = Vec::with_capacity(batch_len);
+
+        for record in template.iter().take(batch_len) {
+            let mut record = record.clone();
+            mutate_record_for_cardinality(&mut record, mode.bucket(ordinal as u64));
+            batch.push(record);
+            ordinal += 1;
+        }
+
+        batches.push(batch);
+    }
+
+    batches
 }
 
 fn mutate_record_for_cardinality(record: &mut crate::flow::FlowRecord, bucket: u64) {

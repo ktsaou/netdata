@@ -83,24 +83,19 @@ impl IngestService {
             }
 
             for row in rows {
-                let Some(mut fields) = tier_flow_indexes.materialize_fields(row.flow_ref) else {
-                    tracing::warn!(
-                        "failed to materialize tier flow {:?} for {:?}",
-                        row.flow_ref,
-                        tier
-                    );
+                let Some(contribution) =
+                    tier_flow_indexes.emit_row(row.flow_ref, row.metrics, &mut self.encode_buf)
+                else {
+                    tracing::warn!("failed to emit tier flow {:?} for {:?}", row.flow_ref, tier);
                     continue;
                 };
-                row.metrics.write_fields(&mut fields);
-                self.encode_buf.encode(&fields);
                 let logical_bytes = self.encode_buf.encoded_len();
-                let refs = self.encode_buf.field_slices();
                 let timestamps = EntryTimestamps::default()
                     .with_source_realtime_usec(row.timestamp_usec)
                     .with_entry_realtime_usec(row.timestamp_usec);
                 let write_result = {
                     let writer = self.tier_writers.get_mut(tier);
-                    writer.write_entry_with_timestamps(&refs, timestamps)
+                    self.encode_buf.write_encoded(writer, timestamps)
                 };
                 if let Err(err) = write_result {
                     self.metrics
@@ -110,17 +105,11 @@ impl IngestService {
                     continue;
                 }
                 if let Some(active_file) = self.tier_writers.get_mut(tier).active_file() {
-                    let contribution =
-                        crate::facet_runtime::facet_contribution_from_flow_fields(&fields);
                     if let Err(err) = self
                         .facet_runtime
-                        .observe_active_contribution(Path::new(active_file.path()), contribution)
+                        .observe_active_contribution(Path::new(active_file.path()), &contribution)
                     {
-                        tracing::warn!(
-                            "facet runtime tier {:?} write update failed: {}",
-                            tier,
-                            err
-                        );
+                        tracing::warn!("facet runtime tier {:?} write update failed: {}", tier, err);
                     }
                 }
                 self.metrics

@@ -2,7 +2,11 @@ mod contribution;
 mod sidecar;
 mod store;
 
-use crate::facet_catalog::{FACET_ALLOWED_OPTIONS, FACET_FIELD_SPECS, facet_field_spec};
+use crate::facet_catalog::{
+    FACET_ALLOWED_OPTIONS, FACET_FIELD_SPECS, FacetFieldSpec, facet_field_spec,
+    facet_field_spec_static,
+};
+use crate::flow::FlowRecord;
 use crate::query::{
     FACET_CACHE_JOURNAL_WINDOW_SIZE, FACET_VALUE_LIMIT, accumulate_simple_closed_file_facet_values,
     accumulate_targeted_facet_values, facet_field_requires_protocol_scan,
@@ -22,25 +26,25 @@ use std::sync::{Arc, Mutex, RwLock};
 use tokio::sync::Notify;
 
 pub(crate) use contribution::{
-    FacetFileContribution, facet_contribution_from_encoded_fields,
+    FacetFileContribution, FacetValueSink, append_record_facet_values,
     facet_contribution_from_flow_fields,
 };
 use sidecar::{delete_sidecar_files, search_sidecar, write_sidecar_files};
-use store::{FacetStore, PersistedFacetStore};
+use store::{FacetStore, FacetStoreValueRef, PersistedFacetStore};
 
 const FACET_STATE_VERSION: u32 = 4;
 const FACET_STATE_FILE_NAME: &str = "facet-state.bin";
 const FACET_AUTOCOMPLETE_LIMIT: usize = 100;
 const BTREE_ENTRY_OVERHEAD_BYTES: usize = size_of::<usize>() * 4;
 
-#[derive(Debug, Clone, Default, Serialize, Deserialize, allocative::Allocative)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize, allocative::Allocative)]
 pub(crate) struct FacetPublishedField {
     pub(crate) total_values: usize,
     pub(crate) autocomplete: bool,
     pub(crate) values: Vec<String>,
 }
 
-#[derive(Debug, Clone, Default, allocative::Allocative)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, allocative::Allocative)]
 pub(crate) struct FacetPublishedSnapshot {
     pub(crate) fields: BTreeMap<String, FacetPublishedField>,
 }
@@ -246,7 +250,7 @@ impl FacetRuntime {
     pub(crate) fn observe_active_contribution(
         &self,
         path: &Path,
-        contribution: FacetFileContribution,
+        contribution: &FacetFileContribution,
     ) -> Result<()> {
         let Some(path_str) = path.to_str() else {
             return Ok(());
@@ -257,6 +261,29 @@ impl FacetRuntime {
             .lock()
             .map_err(|_| anyhow::anyhow!("facet runtime lock poisoned"))?;
         let changed = apply_active_contribution(&mut state, path_str, contribution);
+        state.dirty = true;
+        if changed {
+            publish_locked(&self.snapshot, &state);
+        }
+
+        Ok(())
+    }
+
+    pub(crate) fn observe_active_record(&self, path: &Path, record: &FlowRecord) -> Result<()> {
+        let Some(path_str) = path.to_str() else {
+            return Ok(());
+        };
+
+        let mut state = self
+            .state
+            .lock()
+            .map_err(|_| anyhow::anyhow!("facet runtime lock poisoned"))?;
+        ensure_active_contribution_entry(&mut state, path_str);
+        let changed = {
+            let mut sink = ActiveContributionSink::new(&mut state, path_str);
+            append_record_facet_values(&mut sink, record);
+            sink.changed
+        };
         state.dirty = true;
         if changed {
             publish_locked(&self.snapshot, &state);
@@ -575,12 +602,9 @@ fn rebuild_published_fields(state: &mut FacetState) {
 
 fn apply_new_active_value_to_published(
     published: &mut FacetPublishedSnapshot,
-    field: &str,
-    value: &str,
+    spec: FacetFieldSpec,
+    value: FacetStoreValueRef<'_>,
 ) {
-    let Some(spec) = facet_field_spec(field) else {
-        return;
-    };
     let entry = published
         .fields
         .entry(spec.name.to_string())
@@ -593,59 +617,169 @@ fn apply_new_active_value_to_published(
         return;
     }
 
-    entry.values.push(value.to_string());
-    entry.values.sort_unstable();
+    let rendered = value.render();
+    if let Err(index) = entry.values.binary_search(&rendered) {
+        entry.values.insert(index, rendered);
+    }
 }
 
 fn apply_active_contribution(
     state: &mut FacetState,
     path_str: &str,
-    contribution: FacetFileContribution,
+    contribution: &FacetFileContribution,
 ) -> bool {
     let mut changed = false;
+    ensure_active_contribution_entry(state, path_str);
 
     for (field, store) in contribution.iter() {
-        let Some(spec) = facet_field_spec(field) else {
-            continue;
-        };
-        for value in store.collect_strings(None) {
-            if state
-                .active_contributions
-                .get(path_str)
-                .and_then(|entry| entry.field(field))
-                .is_some_and(|existing| existing.contains_raw(&value))
-            {
-                continue;
-            }
-            let exists_elsewhere = active_value_exists_elsewhere(
-                &state.active_contributions,
-                path_str,
-                spec.name,
-                &value,
-            );
-
-            state
-                .active_contributions
-                .entry(path_str.to_string())
-                .or_default()
-                .insert_raw(field, &value);
-            if state
-                .archived_fields
-                .get(spec.name)
-                .is_some_and(|archived| archived.contains_raw(&value))
-            {
-                continue;
-            }
-            if exists_elsewhere {
-                continue;
-            }
-
-            apply_new_active_value_to_published(&mut state.published, spec.name, &value);
-            changed = true;
-        }
+        store.visit_values(|value| {
+            changed |= apply_active_value(state, path_str, field, value);
+        });
     }
 
     changed
+}
+
+fn ensure_active_contribution_entry(state: &mut FacetState, path_str: &str) {
+    if !state.active_contributions.contains_key(path_str) {
+        state
+            .active_contributions
+            .insert(path_str.to_string(), FacetFileContribution::default());
+    }
+}
+
+fn apply_active_value(
+    state: &mut FacetState,
+    path_str: &str,
+    field: &'static str,
+    value: FacetStoreValueRef<'_>,
+) -> bool {
+    let Some(spec) = facet_field_spec_static(field) else {
+        return false;
+    };
+
+    if state
+        .active_contributions
+        .get(path_str)
+        .and_then(|entry| entry.field(field))
+        .is_some_and(|existing| existing.contains_value_ref(value))
+    {
+        return false;
+    }
+    let exists_elsewhere = state.active_contributions.len() > 1
+        && active_value_exists_elsewhere(&state.active_contributions, path_str, field, value);
+
+    let inserted = state
+        .active_contributions
+        .get_mut(path_str)
+        .expect("active contribution entry should exist")
+        .insert_value_spec(spec, value);
+    if !inserted {
+        return false;
+    }
+    if state
+        .archived_fields
+        .get(field)
+        .is_some_and(|archived| archived.contains_value_ref(value))
+    {
+        return false;
+    }
+    if exists_elsewhere {
+        return false;
+    }
+
+    apply_new_active_value_to_published(&mut state.published, spec, value);
+    true
+}
+
+struct ActiveContributionSink<'a> {
+    state: &'a mut FacetState,
+    path_str: &'a str,
+    changed: bool,
+}
+
+impl<'a> ActiveContributionSink<'a> {
+    fn new(state: &'a mut FacetState, path_str: &'a str) -> Self {
+        Self {
+            state,
+            path_str,
+            changed: false,
+        }
+    }
+}
+
+impl FacetValueSink for ActiveContributionSink<'_> {
+    fn insert_text_static(&mut self, field: &'static str, value: &str) {
+        if value.is_empty() {
+            return;
+        }
+        self.changed |= apply_active_value(
+            self.state,
+            self.path_str,
+            field,
+            FacetStoreValueRef::Text(value),
+        );
+    }
+
+    fn insert_u8_static(&mut self, field: &'static str, value: u8) {
+        if value == 0 {
+            return;
+        }
+        self.changed |= apply_active_value(
+            self.state,
+            self.path_str,
+            field,
+            FacetStoreValueRef::U8(value),
+        );
+    }
+
+    fn insert_u16_static(&mut self, field: &'static str, value: u16) {
+        if value == 0 {
+            return;
+        }
+        self.changed |= apply_active_value(
+            self.state,
+            self.path_str,
+            field,
+            FacetStoreValueRef::U16(value),
+        );
+    }
+
+    fn insert_u32_static(&mut self, field: &'static str, value: u32) {
+        if value == 0 {
+            return;
+        }
+        self.changed |= apply_active_value(
+            self.state,
+            self.path_str,
+            field,
+            FacetStoreValueRef::U32(value),
+        );
+    }
+
+    fn insert_u64_static(&mut self, field: &'static str, value: u64) {
+        if value == 0 {
+            return;
+        }
+        self.changed |= apply_active_value(
+            self.state,
+            self.path_str,
+            field,
+            FacetStoreValueRef::U64(value),
+        );
+    }
+
+    fn insert_ip_static(&mut self, field: &'static str, value: Option<std::net::IpAddr>) {
+        let Some(value) = value else {
+            return;
+        };
+        self.changed |= apply_active_value(
+            self.state,
+            self.path_str,
+            field,
+            FacetStoreValueRef::IpAddr(store::PackedIpAddr::from_ip(value)),
+        );
+    }
 }
 
 fn publish_locked(snapshot: &Arc<RwLock<Arc<FacetPublishedSnapshot>>>, state: &FacetState) {
@@ -737,13 +871,13 @@ fn active_value_exists_elsewhere(
     active_contributions: &BTreeMap<String, FacetFileContribution>,
     current_path: &str,
     field: &str,
-    value: &str,
+    value: FacetStoreValueRef<'_>,
 ) -> bool {
     active_contributions
         .iter()
         .filter(|(path, _)| path.as_str() != current_path)
         .filter_map(|(_, contribution)| contribution.field(field))
-        .any(|store| store.contains_raw(value))
+        .any(|store| store.contains_value_ref(value))
 }
 
 fn estimate_active_contribution_map_bytes(
@@ -854,15 +988,13 @@ mod tests {
         let tmp = tempfile::tempdir().expect("create temp dir");
         let runtime = FacetRuntime::new(tmp.path());
         let retained = facet_contribution_from_flow_fields(&fields_with_protocol("17"));
+        let first = facet_contribution_from_flow_fields(&fields_with_protocol("6"));
 
         runtime
-            .observe_active_contribution(
-                Path::new("/tmp/flows-a.journal"),
-                facet_contribution_from_flow_fields(&fields_with_protocol("6")),
-            )
+            .observe_active_contribution(Path::new("/tmp/flows-a.journal"), &first)
             .expect("observe first contribution");
         runtime
-            .observe_active_contribution(Path::new("/tmp/flows-b.journal"), retained.clone())
+            .observe_active_contribution(Path::new("/tmp/flows-b.journal"), &retained)
             .expect("observe second contribution");
         runtime
             .observe_rotation(
@@ -902,12 +1034,10 @@ mod tests {
         let mut fields = fields_with_protocol("6");
         fields.insert("SRC_ADDR", "192.0.2.10".to_string());
         fields.insert("SRC_AS_NAME", "AS15169 GOOGLE".to_string());
+        let contribution = facet_contribution_from_flow_fields(&fields);
 
         runtime
-            .observe_active_contribution(
-                Path::new("/tmp/flows-a.journal"),
-                facet_contribution_from_flow_fields(&fields),
-            )
+            .observe_active_contribution(Path::new("/tmp/flows-a.journal"), &contribution)
             .expect("observe active contribution");
         runtime.persist_if_dirty().expect("persist runtime");
 
@@ -949,11 +1079,9 @@ mod tests {
         for value in 0..120 {
             let mut fields = FlowFields::new();
             fields.insert("SRC_AS_NAME", format!("AS{value:03} EXAMPLE"));
+            let contribution = facet_contribution_from_flow_fields(&fields);
             runtime
-                .observe_active_contribution(
-                    archived_path,
-                    facet_contribution_from_flow_fields(&fields),
-                )
+                .observe_active_contribution(archived_path, &contribution)
                 .expect("observe contribution");
         }
 
@@ -969,6 +1097,59 @@ mod tests {
             results.iter().any(|value| value == "AS110 EXAMPLE"),
             "expected promoted sidecar autocomplete to return archived values"
         );
+    }
+
+    #[test]
+    fn incremental_active_updates_match_full_published_rebuild() {
+        let mut state = FacetState::new();
+
+        let mut first = FlowFields::new();
+        first.insert("PROTOCOL", "17".to_string());
+        first.insert("IN_IF", "10".to_string());
+        first.insert("SRC_ADDR", "192.0.2.10".to_string());
+        first.insert("SRC_AS_NAME", "AS15169 GOOGLE".to_string());
+
+        let mut second = FlowFields::new();
+        second.insert("PROTOCOL", "6".to_string());
+        second.insert("IN_IF", "20".to_string());
+        second.insert("SRC_ADDR", "2001:db8::1".to_string());
+        second.insert("SRC_AS_NAME", "AS64512 EXAMPLE".to_string());
+
+        assert!(apply_active_contribution(
+            &mut state,
+            "/tmp/a.journal",
+            &facet_contribution_from_flow_fields(&first),
+        ));
+        assert!(apply_active_contribution(
+            &mut state,
+            "/tmp/b.journal",
+            &facet_contribution_from_flow_fields(&second),
+        ));
+
+        let rebuilt = published_snapshot_from_archived_and_active_contributions(
+            &state.archived_fields,
+            &state.active_contributions,
+        );
+
+        for field in ["PROTOCOL", "IN_IF", "SRC_ADDR", "SRC_AS_NAME"] {
+            let incremental = state
+                .published
+                .fields
+                .get(field)
+                .expect("incremental published field");
+            let rebuilt_field = rebuilt.fields.get(field).expect("rebuilt published field");
+
+            assert_eq!(incremental.total_values, rebuilt_field.total_values);
+            assert_eq!(incremental.autocomplete, rebuilt_field.autocomplete);
+            assert_eq!(
+                incremental.values.iter().cloned().collect::<BTreeSet<_>>(),
+                rebuilt_field
+                    .values
+                    .iter()
+                    .cloned()
+                    .collect::<BTreeSet<_>>(),
+            );
+        }
     }
 
     #[test]

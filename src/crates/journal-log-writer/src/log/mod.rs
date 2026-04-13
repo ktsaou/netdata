@@ -5,6 +5,7 @@ mod config;
 pub use config::{Config, RetentionPolicy, RotationPolicy};
 
 use crate::{Result, WriterError};
+use itoa::Buffer as ItoaBuffer;
 use journal_common::{Microseconds, RealtimeClock, load_boot_id, load_machine_id, monotonic_now};
 use journal_core::field_map::{
     FieldMap, REMAPPING_MARKER, extract_field_name, is_systemd_compatible,
@@ -17,6 +18,9 @@ use std::sync::Arc;
 
 #[allow(unused_imports)]
 use tracing::{debug, error, info, instrument, span, warn};
+
+const STACK_ENTRY_REF_LIMIT: usize = 128;
+const SOURCE_REALTIME_PREFIX: &[u8] = b"_SOURCE_REALTIME_TIMESTAMP=";
 
 fn create_chain(path: &Path) -> Result<OwnedChain> {
     let machine_id = load_machine_id()
@@ -178,6 +182,8 @@ pub struct Log {
     clock: RealtimeClock,
     last_monotonic_usec: u64,
     lifecycle_observer: Option<Arc<dyn LogLifecycleObserver>>,
+    boot_id_field: Vec<u8>,
+    source_realtime_field: Vec<u8>,
 }
 
 #[derive(Debug, Clone)]
@@ -283,6 +289,8 @@ impl Log {
             clock,
             last_monotonic_usec,
             lifecycle_observer: None,
+            boot_id_field: format!("_BOOT_ID={}", boot_id.as_simple()).into_bytes(),
+            source_realtime_field: Vec::with_capacity(SOURCE_REALTIME_PREFIX.len() + 20),
         })
     }
 
@@ -329,8 +337,10 @@ impl Log {
             self.remapping_registry.clear();
         }
 
-        // Collect new incompatible field names that need remapping
+        // Collect new incompatible field names that need remapping and track whether
+        // the current entry needs any field-name transformation at all.
         let mut new_mappings: Vec<(Vec<u8>, String)> = Vec::new();
+        let mut remapped_item_count = 0usize;
 
         for item in items {
             if let Some(field_name) = extract_field_name(item) {
@@ -338,6 +348,8 @@ impl Log {
                 if is_systemd_compatible(field_name) {
                     continue;
                 }
+
+                remapped_item_count += 1;
 
                 // Skip if already in registry
                 if self.remapping_registry.contains_otel_name(field_name) {
@@ -361,56 +373,130 @@ impl Log {
             }
         }
 
-        // Inject _BOOT_ID field - this is required for journalctl boot filtering to work
-        let boot_id_field = format!("_BOOT_ID={}", self.boot_id.as_simple());
-
-        // Transform items to use remapped field names, prepending _BOOT_ID
-        let mut transformed_items: Vec<Vec<u8>> = Vec::with_capacity(items.len() + 2);
-        let mut items_refs: Vec<&[u8]> = Vec::with_capacity(items.len() + 2);
-
-        // Prepend _BOOT_ID field first
-        transformed_items.push(boot_id_field.into_bytes());
-
-        // Add _SOURCE_REALTIME_TIMESTAMP if provided
-        if let Some(timestamp_usec) = timestamps.source_realtime_usec {
-            let source_timestamp_field = format!("_SOURCE_REALTIME_TIMESTAMP={}", timestamp_usec);
-            transformed_items.push(source_timestamp_field.into_bytes());
-        }
-
-        for item in items {
-            if let Some(field_name) = extract_field_name(item) {
-                if let Some(remapped_name) = self.remapping_registry.get_systemd_name(field_name) {
-                    // Need to remap: create new item with remapped field name
-                    let equals_pos = item.iter().position(|&b| b == b'=').unwrap();
-                    let value = &item[equals_pos..]; // includes '='
-                    let mut new_item = Vec::with_capacity(remapped_name.len() + value.len());
-                    new_item.extend_from_slice(remapped_name.as_bytes());
-                    new_item.extend_from_slice(value);
-                    transformed_items.push(new_item);
-                } else {
-                    // No remapping needed, use original
-                    transformed_items.push(item.to_vec());
-                }
-            } else {
-                // No field name (shouldn't happen with valid items)
-                transformed_items.push(item.to_vec());
-            }
-        }
-
-        // Build references for the underlying write
-        for item in &transformed_items {
-            items_refs.push(item.as_slice());
-        }
-
         let (realtime, monotonic) = self.capture_dual_timestamp(Some(&timestamps))?;
 
-        let active_file = self.active_file.as_mut().unwrap();
-        active_file.write_entry(&items_refs, realtime, monotonic)?;
+        if remapped_item_count == 0 {
+            self.write_entry_without_remapping(
+                items,
+                timestamps.source_realtime_usec,
+                realtime,
+                monotonic,
+            )?;
+        } else {
+            self.write_entry_with_remapping(
+                items,
+                timestamps.source_realtime_usec,
+                realtime,
+                monotonic,
+                remapped_item_count,
+            )?;
+        }
 
+        let active_file = self.active_file.as_ref().unwrap();
         self.rotation_state.update(&active_file.writer);
         self.current_seqnum += 1;
 
         Ok(())
+    }
+
+    fn write_entry_without_remapping(
+        &mut self,
+        items: &[&[u8]],
+        source_realtime_usec: Option<u64>,
+        realtime: u64,
+        monotonic: u64,
+    ) -> Result<()> {
+        let source_field = if let Some(timestamp_usec) = source_realtime_usec {
+            self.prepare_source_realtime_field(timestamp_usec);
+            Some(self.source_realtime_field.as_slice())
+        } else {
+            None
+        };
+
+        let total_items = items.len() + 1 + usize::from(source_field.is_some());
+        if total_items <= STACK_ENTRY_REF_LIMIT {
+            let mut refs = [&[] as &[u8]; STACK_ENTRY_REF_LIMIT];
+            let mut len = 0usize;
+            refs[len] = self.boot_id_field.as_slice();
+            len += 1;
+            if let Some(source_field) = source_field {
+                refs[len] = source_field;
+                len += 1;
+            }
+            for item in items {
+                refs[len] = item;
+                len += 1;
+            }
+            self.active_file
+                .as_mut()
+                .unwrap()
+                .write_entry(&refs[..len], realtime, monotonic)?;
+        } else {
+            let mut refs = Vec::with_capacity(total_items);
+            refs.push(self.boot_id_field.as_slice());
+            if let Some(source_field) = source_field {
+                refs.push(source_field);
+            }
+            refs.extend(items.iter().copied());
+            self.active_file
+                .as_mut()
+                .unwrap()
+                .write_entry(&refs, realtime, monotonic)?;
+        }
+
+        Ok(())
+    }
+
+    fn write_entry_with_remapping(
+        &mut self,
+        items: &[&[u8]],
+        source_realtime_usec: Option<u64>,
+        realtime: u64,
+        monotonic: u64,
+        _remapped_item_count: usize,
+    ) -> Result<()> {
+        let mut transformed_items: Vec<Vec<u8>> =
+            Vec::with_capacity(items.len() + 1 + usize::from(source_realtime_usec.is_some()));
+        transformed_items.push(self.boot_id_field.clone());
+        if let Some(timestamp_usec) = source_realtime_usec {
+            self.prepare_source_realtime_field(timestamp_usec);
+            transformed_items.push(self.source_realtime_field.clone());
+        }
+
+        for item in items {
+            if let Some(field_name) = extract_field_name(item)
+                && let Some(remapped_name) = self.remapping_registry.get_systemd_name(field_name)
+            {
+                let equals_pos = item.iter().position(|&b| b == b'=').unwrap();
+                let value = &item[equals_pos..];
+                let mut new_item = Vec::with_capacity(remapped_name.len() + value.len());
+                new_item.extend_from_slice(remapped_name.as_bytes());
+                new_item.extend_from_slice(value);
+                transformed_items.push(new_item);
+            } else {
+                transformed_items.push(item.to_vec());
+            }
+        }
+
+        let items_refs: Vec<&[u8]> = transformed_items
+            .iter()
+            .map(|item| item.as_slice())
+            .collect();
+        self.active_file
+            .as_mut()
+            .unwrap()
+            .write_entry(&items_refs, realtime, monotonic)?;
+
+        Ok(())
+    }
+
+    fn prepare_source_realtime_field(&mut self, timestamp_usec: u64) {
+        self.source_realtime_field.clear();
+        self.source_realtime_field
+            .extend_from_slice(SOURCE_REALTIME_PREFIX);
+        let mut buffer = ItoaBuffer::new();
+        self.source_realtime_field
+            .extend_from_slice(buffer.format(timestamp_usec).as_bytes());
     }
 
     /// Writes a remapping entry containing field name mappings.

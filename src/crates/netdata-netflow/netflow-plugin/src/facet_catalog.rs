@@ -82,6 +82,15 @@ pub(crate) fn facet_field_spec(field: &str) -> Option<&'static FacetFieldSpec> {
     facet_field_spec_lookup(field.trim())
 }
 
+#[inline]
+pub(crate) fn facet_field_spec_static(field: &'static str) -> Option<FacetFieldSpec> {
+    facet_field_spec_for_name(field).or_else(|| match field {
+        "ICMPV4" => Some(VIRTUAL_FACET_FIELDS[0]),
+        "ICMPV6" => Some(VIRTUAL_FACET_FIELDS[1]),
+        _ => None,
+    })
+}
+
 pub(crate) fn facet_field_enabled(field: &str) -> bool {
     facet_field_spec(field).is_some()
 }

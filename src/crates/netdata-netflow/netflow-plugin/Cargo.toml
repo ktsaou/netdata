@@ -63,6 +63,7 @@ socket2 = "0.5.8"
 tonic = { workspace = true, features = ["transport", "tls-native-roots"] }
 tonic-prost = "0.14"
 prost = "0.14"
+rustc-hash = { workspace = true }
 netdata-flow-index = { path = "../flow-index" }
 fst = "0.4.7"
 

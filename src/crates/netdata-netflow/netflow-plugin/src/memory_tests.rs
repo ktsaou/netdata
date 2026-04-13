@@ -489,7 +489,7 @@ fn profile_facet_runtime_memory(
 
         let fields = synthetic_facet_fields(flow_id);
         let contribution = facet_runtime::facet_contribution_from_flow_fields(&fields);
-        facet_runtime.observe_active_contribution(&active_path, contribution)?;
+        facet_runtime.observe_active_contribution(&active_path, &contribution)?;
     }
 
     facet_runtime.persist_if_dirty()?;

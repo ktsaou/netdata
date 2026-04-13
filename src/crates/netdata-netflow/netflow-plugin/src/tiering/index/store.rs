@@ -1,14 +1,17 @@
 use super::super::model::TierFlowRef;
 use super::super::rollup::{
-    HOUR_BUCKET_USEC, bucket_start_usec, build_rollup_flow_index, materialize_rollup_fields,
-    push_rollup_field_ids,
+    HOUR_BUCKET_USEC, bucket_start_usec, build_rollup_flow_index, emit_rollup_row,
+    materialize_rollup_fields, push_rollup_field_ids,
 };
 #[cfg(test)]
 use super::super::rollup::{
     INTERNAL_DIRECTION_PRESENT, INTERNAL_EXPORTER_IP_PRESENT, INTERNAL_NEXT_HOP_PRESENT,
     compact_index_value_to_string, direction_from_u8, rollup_field_value, rollup_presence_field,
 };
+use crate::facet_runtime::FacetFileContribution;
 use crate::flow::{FlowFields, FlowRecord};
+use crate::ingest::JournalEncodeBuffer;
+use crate::tiering::FlowMetrics;
 use anyhow::{Context, Result, anyhow};
 #[cfg(test)]
 use netdata_flow_index::FieldValue as IndexFieldValue;
@@ -76,14 +79,18 @@ impl TierFlowIndexStore {
         push_rollup_field_ids(index, record, &mut self.scratch_field_ids)
             .context("failed to intern tier flow dimensions")?;
 
+        let field_ids_hash = index
+            .hash_field_ids(&self.scratch_field_ids)
+            .context("failed to hash tier flow dimensions")?;
+
         let flow_id = if let Some(existing) = index
-            .find_flow_by_field_ids(&self.scratch_field_ids)
+            .find_flow_by_field_ids_hashed(&self.scratch_field_ids, field_ids_hash)
             .context("failed to find tier flow dimensions")?
         {
             existing
         } else {
             index
-                .insert_flow_by_field_ids(&self.scratch_field_ids)
+                .insert_flow_by_field_ids_hashed(&self.scratch_field_ids, field_ids_hash)
                 .context("failed to insert tier flow dimensions")?
         };
 
@@ -96,6 +103,21 @@ impl TierFlowIndexStore {
     pub(crate) fn materialize_fields(&self, flow_ref: TierFlowRef) -> Option<FlowFields> {
         let index = self.indexes.get(&flow_ref.hour_start_usec)?;
         materialize_rollup_fields(index, flow_ref.flow_id)
+    }
+
+    pub(crate) fn emit_row(
+        &self,
+        flow_ref: TierFlowRef,
+        metrics: FlowMetrics,
+        encode_buf: &mut JournalEncodeBuffer,
+    ) -> Option<FacetFileContribution> {
+        let index = self.indexes.get(&flow_ref.hour_start_usec)?;
+        emit_rollup_row(index, flow_ref.flow_id, metrics, encode_buf)
+    }
+
+    #[cfg(test)]
+    pub(crate) fn index_for_test(&self, flow_ref: TierFlowRef) -> Option<&FlowIndex> {
+        self.indexes.get(&flow_ref.hour_start_usec)
     }
 
     #[cfg(test)]

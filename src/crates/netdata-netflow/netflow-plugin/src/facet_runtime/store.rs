@@ -35,6 +35,29 @@ pub(super) enum FacetStore {
     IpAddr(IpValueStore),
 }
 
+#[derive(Debug, Clone, Copy)]
+pub(super) enum FacetStoreValueRef<'a> {
+    Text(&'a str),
+    U8(u8),
+    U16(u16),
+    U32(u32),
+    U64(u64),
+    IpAddr(PackedIpAddr),
+}
+
+impl FacetStoreValueRef<'_> {
+    pub(super) fn render(self) -> String {
+        match self {
+            Self::Text(value) => value.to_string(),
+            Self::U8(value) => value.to_string(),
+            Self::U16(value) => value.to_string(),
+            Self::U32(value) => value.to_string(),
+            Self::U64(value) => value.to_string(),
+            Self::IpAddr(value) => value.render(),
+        }
+    }
+}
+
 impl FacetStore {
     pub(super) fn new(kind: FacetValueKind) -> Self {
         match kind {
@@ -124,29 +147,73 @@ impl FacetStore {
         }
     }
 
-    pub(super) fn contains_raw(&self, raw: &str) -> bool {
+    pub(super) fn insert_text(&mut self, value: &str) -> bool {
         match self {
-            Self::Text(store) => store.contains(raw),
-            Self::DenseU8(store) => raw
-                .parse::<u8>()
-                .ok()
-                .is_some_and(|value| store.contains(value as usize)),
-            Self::DenseU16(store) => raw
-                .parse::<u16>()
-                .ok()
-                .is_some_and(|value| store.contains(value as usize)),
-            Self::SparseU32(store) => raw
-                .parse::<u32>()
-                .ok()
-                .is_some_and(|value| store.contains(value as u64)),
-            Self::SparseU64(store) => raw
-                .parse::<u64>()
-                .ok()
-                .is_some_and(|value| store.contains(value)),
-            Self::IpAddr(store) => raw
-                .parse::<IpAddr>()
-                .ok()
-                .is_some_and(|value| store.contains(PackedIpAddr::from_ip(value))),
+            Self::Text(store) => store.insert(value),
+            _ => false,
+        }
+    }
+
+    pub(super) fn insert_u8(&mut self, value: u8) -> bool {
+        match self {
+            Self::DenseU8(store) => store.insert(value as usize),
+            _ => false,
+        }
+    }
+
+    pub(super) fn insert_u16(&mut self, value: u16) -> bool {
+        match self {
+            Self::DenseU16(store) => store.insert(value as usize),
+            _ => false,
+        }
+    }
+
+    pub(super) fn insert_u32(&mut self, value: u32) -> bool {
+        match self {
+            Self::SparseU32(store) => store.insert(value as u64),
+            _ => false,
+        }
+    }
+
+    pub(super) fn insert_u64(&mut self, value: u64) -> bool {
+        match self {
+            Self::SparseU64(store) => store.insert(value),
+            _ => false,
+        }
+    }
+
+    pub(super) fn insert_ip_addr(&mut self, value: IpAddr) -> bool {
+        match self {
+            Self::IpAddr(store) => store.insert(PackedIpAddr::from_ip(value)),
+            _ => false,
+        }
+    }
+
+    pub(super) fn insert_value_ref(&mut self, value: FacetStoreValueRef<'_>) -> bool {
+        match (self, value) {
+            (Self::Text(store), FacetStoreValueRef::Text(value)) => store.insert(value),
+            (Self::DenseU8(store), FacetStoreValueRef::U8(value)) => store.insert(value as usize),
+            (Self::DenseU16(store), FacetStoreValueRef::U16(value)) => store.insert(value as usize),
+            (Self::SparseU32(store), FacetStoreValueRef::U32(value)) => store.insert(value as u64),
+            (Self::SparseU64(store), FacetStoreValueRef::U64(value)) => store.insert(value),
+            (Self::IpAddr(store), FacetStoreValueRef::IpAddr(value)) => store.insert(value),
+            _ => false,
+        }
+    }
+
+    pub(super) fn contains_value_ref(&self, value: FacetStoreValueRef<'_>) -> bool {
+        match (self, value) {
+            (Self::Text(store), FacetStoreValueRef::Text(value)) => store.contains(value),
+            (Self::DenseU8(store), FacetStoreValueRef::U8(value)) => store.contains(value as usize),
+            (Self::DenseU16(store), FacetStoreValueRef::U16(value)) => {
+                store.contains(value as usize)
+            }
+            (Self::SparseU32(store), FacetStoreValueRef::U32(value)) => {
+                store.contains(value as u64)
+            }
+            (Self::SparseU64(store), FacetStoreValueRef::U64(value)) => store.contains(value),
+            (Self::IpAddr(store), FacetStoreValueRef::IpAddr(value)) => store.contains(value),
+            _ => false,
         }
     }
 
@@ -169,6 +236,37 @@ impl FacetStore {
             Self::SparseU32(store) => collect_roaring_strings(store, limit),
             Self::SparseU64(store) => collect_roaring_strings(store, limit),
             Self::IpAddr(store) => store.collect_strings(limit),
+        }
+    }
+
+    pub(super) fn visit_values<'a>(&'a self, mut visitor: impl FnMut(FacetStoreValueRef<'a>)) {
+        match self {
+            Self::Text(store) => {
+                store.visit_values(|value| visitor(FacetStoreValueRef::Text(value)))
+            }
+            Self::DenseU8(store) => {
+                for value in store.iter_indices() {
+                    visitor(FacetStoreValueRef::U8(value as u8));
+                }
+            }
+            Self::DenseU16(store) => {
+                for value in store.iter_indices() {
+                    visitor(FacetStoreValueRef::U16(value as u16));
+                }
+            }
+            Self::SparseU32(store) => {
+                for value in store.iter() {
+                    visitor(FacetStoreValueRef::U32(value as u32));
+                }
+            }
+            Self::SparseU64(store) => {
+                for value in store.iter() {
+                    visitor(FacetStoreValueRef::U64(value));
+                }
+            }
+            Self::IpAddr(store) => {
+                store.visit_values(|value| visitor(FacetStoreValueRef::IpAddr(value)))
+            }
         }
     }
 
@@ -393,6 +491,15 @@ impl TextValueStore {
         values
     }
 
+    fn visit_values<'a>(&'a self, mut visitor: impl FnMut(&'a str)) {
+        for field_id in 0..self.entries.len() {
+            let Some(value) = self.value_str(field_id as u32) else {
+                continue;
+            };
+            visitor(value);
+        }
+    }
+
     fn prefix_matches(&self, prefix: &str, limit: usize) -> Vec<String> {
         let mut values = Vec::new();
         for field_id in 0..self.entries.len() {
@@ -433,7 +540,7 @@ pub(super) struct PackedIpAddr {
 }
 
 impl PackedIpAddr {
-    fn from_ip(value: IpAddr) -> Self {
+    pub(super) fn from_ip(value: IpAddr) -> Self {
         match value {
             IpAddr::V4(ip) => {
                 let mut bytes = [0u8; 16];
@@ -445,6 +552,21 @@ impl PackedIpAddr {
                 bytes: ip.octets(),
             },
         }
+    }
+
+    fn to_ip(self) -> IpAddr {
+        match self.family {
+            4 => {
+                let mut octets = [0u8; 4];
+                octets.copy_from_slice(&self.bytes[..4]);
+                IpAddr::V4(Ipv4Addr::from(octets))
+            }
+            _ => IpAddr::V6(Ipv6Addr::from(self.bytes)),
+        }
+    }
+
+    fn render(self) -> String {
+        self.to_ip().to_string()
     }
 }
 
@@ -578,6 +700,27 @@ impl IpValueStore {
         }));
         values
     }
+
+    fn visit_values(&self, mut visitor: impl FnMut(PackedIpAddr)) {
+        for value in self.v4_values.iter() {
+            visitor(PackedIpAddr {
+                family: 4,
+                bytes: ipv4_treemap_bytes(value as u32),
+            });
+        }
+        for value in &self.v6_values {
+            visitor(PackedIpAddr {
+                family: 6,
+                bytes: *value,
+            });
+        }
+    }
+}
+
+fn ipv4_treemap_bytes(value: u32) -> [u8; 16] {
+    let mut bytes = [0u8; 16];
+    bytes[..4].copy_from_slice(&value.to_be_bytes());
+    bytes
 }
 
 fn packed_ipv4_bits(value: PackedIpAddr) -> u32 {

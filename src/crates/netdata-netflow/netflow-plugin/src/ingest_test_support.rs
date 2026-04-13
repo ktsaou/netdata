@@ -44,16 +44,7 @@ pub(super) fn new_benchmark_ingest_service(
 pub(super) fn new_disk_benchmark_ingest_service(
     decapsulation_mode: ConfigDecapsulationMode,
 ) -> (TempDir, IngestService) {
-    let base = std::env::current_dir()
-        .expect("resolve current dir")
-        .join("src/crates/target/netflow-resource-bench");
-    std::fs::create_dir_all(&base)
-        .unwrap_or_else(|e| panic!("create disk benchmark root {}: {e}", base.display()));
-
-    let tmp = tempfile::Builder::new()
-        .prefix("resource-bench-")
-        .tempdir_in(&base)
-        .unwrap_or_else(|e| panic!("create disk benchmark temp dir {}: {e}", base.display()));
+    let tmp = new_disk_benchmark_tempdir("resource-bench-");
     let mut cfg = PluginConfig::default();
     cfg.journal.journal_dir = tmp.path().join("flows").to_string_lossy().to_string();
     cfg.protocols.decapsulation_mode = decapsulation_mode;
@@ -74,6 +65,43 @@ pub(super) fn new_disk_benchmark_ingest_service(
     .expect("create disk-backed ingest benchmark service");
 
     (tmp, service)
+}
+
+pub(super) fn new_disk_benchmark_raw_log() -> (TempDir, Log) {
+    let tmp = new_disk_benchmark_tempdir("resource-bench-raw-");
+    let mut cfg = PluginConfig::default();
+    cfg.journal.journal_dir = tmp.path().join("flows").to_string_lossy().to_string();
+
+    let raw_dir = cfg.journal.raw_tier_dir();
+    std::fs::create_dir_all(&raw_dir)
+        .unwrap_or_else(|e| panic!("create raw tier directory {}: {e}", raw_dir.display()));
+
+    let machine_id = load_machine_id().expect("load machine id for raw benchmark log");
+    let origin = Origin {
+        machine_id: Some(machine_id),
+        namespace: None,
+        source: Source::System,
+    };
+    let rotation_policy = RotationPolicy::default()
+        .with_size_of_journal_file(cfg.journal.rotation_size_for_tier(TierKind::Raw))
+        .with_duration_of_journal_file(cfg.journal.rotation_duration_of_journal_file());
+    let retention = cfg.journal.retention_for_tier(TierKind::Raw);
+    let mut retention_policy = RetentionPolicy::default();
+    if let Some(size_of_journal_files) = retention.size_of_journal_files {
+        retention_policy = retention_policy.with_size_of_journal_files(size_of_journal_files.as_u64());
+    }
+    if let Some(duration_of_journal_files) = retention.duration_of_journal_files {
+        retention_policy =
+            retention_policy.with_duration_of_journal_files(duration_of_journal_files);
+    }
+
+    let log = Log::new(
+        &raw_dir,
+        Config::new(origin, rotation_policy, retention_policy),
+    )
+    .unwrap_or_else(|e| panic!("create raw benchmark log in {}: {e}", raw_dir.display()));
+
+    (tmp, log)
 }
 
 pub(super) fn new_test_ingest_service_in_dir(
@@ -186,4 +214,17 @@ pub(super) fn extract_udp_payloads(path: &Path) -> Vec<UdpPayload> {
         }
     }
     payloads
+}
+
+fn new_disk_benchmark_tempdir(prefix: &str) -> TempDir {
+    let base = std::env::current_dir()
+        .expect("resolve current dir")
+        .join("src/crates/target/netflow-resource-bench");
+    std::fs::create_dir_all(&base)
+        .unwrap_or_else(|e| panic!("create disk benchmark root {}: {e}", base.display()));
+
+    tempfile::Builder::new()
+        .prefix(prefix)
+        .tempdir_in(&base)
+        .unwrap_or_else(|e| panic!("create disk benchmark temp dir {}: {e}", base.display()))
 }

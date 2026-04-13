@@ -11,16 +11,64 @@ use crate::file::{
     hash::jenkins_hash64, journal_hash_data,
 };
 use rand::{Rng, seq::IndexedRandom};
+use rustc_hash::{FxHashMap, FxHasher};
+use std::hash::Hasher;
 use std::num::{NonZeroU64, NonZeroUsize};
 use std::path::Path;
 use zerocopy::{FromBytes, IntoBytes};
 
 const OBJECT_ALIGNMENT: u64 = 8;
+const RECENT_DATA_CACHE_SLOTS: usize = 4096;
+const RECENT_DATA_CACHE_MAX_PAYLOAD_LEN: usize = 256;
 
 #[derive(Debug, Clone, Copy)]
 struct EntryItem {
     offset: NonZeroU64,
     hash: u64,
+}
+
+#[derive(Debug, Clone)]
+struct RecentDataCacheEntry {
+    payload: Box<[u8]>,
+    item: EntryItem,
+}
+
+#[derive(Debug)]
+struct RecentDataCache {
+    entries: Box<[Option<RecentDataCacheEntry>]>,
+}
+
+impl RecentDataCache {
+    fn new() -> Self {
+        debug_assert!(RECENT_DATA_CACHE_SLOTS.is_power_of_two());
+        let entries = std::iter::repeat_with(|| None)
+            .take(RECENT_DATA_CACHE_SLOTS)
+            .collect::<Vec<_>>()
+            .into_boxed_slice();
+        Self { entries }
+    }
+
+    fn get(&self, payload: &[u8]) -> Option<EntryItem> {
+        let entry = self.entries[self.slot(payload)].as_ref()?;
+        (entry.payload.as_ref() == payload).then_some(entry.item)
+    }
+
+    fn insert(&mut self, payload: &[u8], item: EntryItem) {
+        if payload.len() > RECENT_DATA_CACHE_MAX_PAYLOAD_LEN {
+            return;
+        }
+
+        self.entries[self.slot(payload)] = Some(RecentDataCacheEntry {
+            payload: payload.to_vec().into_boxed_slice(),
+            item,
+        });
+    }
+
+    fn slot(&self, payload: &[u8]) -> usize {
+        let mut hasher = FxHasher::default();
+        hasher.write(payload);
+        (hasher.finish() as usize) & (self.entries.len() - 1)
+    }
 }
 
 pub struct JournalWriter {
@@ -29,6 +77,8 @@ pub struct JournalWriter {
     next_seqnum: u64,
     num_written_objects: u64,
     entry_items: Vec<EntryItem>,
+    field_cache: FxHashMap<Box<[u8]>, NonZeroU64>,
+    recent_data_cache: RecentDataCache,
     first_entry_monotonic: Option<u64>,
     boot_id: uuid::Uuid,
 }
@@ -80,6 +130,8 @@ impl JournalWriter {
             next_seqnum,
             num_written_objects: 0,
             entry_items: Vec::with_capacity(128),
+            field_cache: FxHashMap::default(),
+            recent_data_cache: RecentDataCache::new(),
             first_entry_monotonic: None,
             boot_id,
         })
@@ -106,13 +158,7 @@ impl JournalWriter {
         {
             self.entry_items.clear();
             for payload in items {
-                let offset = self.add_data(journal_file, payload)?;
-                let hash = {
-                    let data_guard = journal_file.data_ref(offset)?;
-                    data_guard.hash()
-                };
-
-                let entry_item = EntryItem { offset, hash };
+                let entry_item = self.add_data(journal_file, payload)?;
                 self.entry_items.push(entry_item);
 
                 // Per journal file format spec: xor_hash always uses Jenkins lookup3,
@@ -203,11 +249,22 @@ impl JournalWriter {
         &mut self,
         journal_file: &mut JournalFile<MmapMut>,
         payload: &[u8],
-    ) -> Result<NonZeroU64> {
+    ) -> Result<EntryItem> {
+        if let Some(entry_item) = self.recent_data_cache.get(payload) {
+            return Ok(entry_item);
+        }
+
         let hash = journal_file.hash(payload);
 
         match journal_file.find_data_offset(hash, payload)? {
-            Some(data_offset) => Ok(data_offset),
+            Some(data_offset) => {
+                let entry_item = EntryItem {
+                    offset: data_offset,
+                    hash,
+                };
+                self.recent_data_cache.insert(payload, entry_item);
+                Ok(entry_item)
+            }
             None => {
                 // We will have to write the new data object at the current
                 // tail offset
@@ -245,10 +302,15 @@ impl JournalWriter {
                     {
                         let mut field_guard = journal_file.field_mut(field_offset, None)?;
                         field_guard.header.head_data_offset = Some(data_offset);
-                    };
+                    }
                 }
 
-                Ok(data_offset)
+                let entry_item = EntryItem {
+                    offset: data_offset,
+                    hash,
+                };
+                self.recent_data_cache.insert(payload, entry_item);
+                Ok(entry_item)
             }
         }
     }
@@ -258,10 +320,18 @@ impl JournalWriter {
         journal_file: &mut JournalFile<MmapMut>,
         payload: &[u8],
     ) -> Result<NonZeroU64> {
+        if let Some(&field_offset) = self.field_cache.get(payload) {
+            return Ok(field_offset);
+        }
+
         let hash = journal_file.hash(payload);
 
         match journal_file.find_field_offset(hash, payload)? {
-            Some(field_offset) => Ok(field_offset),
+            Some(field_offset) => {
+                self.field_cache
+                    .insert(payload.to_vec().into_boxed_slice(), field_offset);
+                Ok(field_offset)
+            }
             None => {
                 // We will have to write the new field object at the current
                 // tail offset
@@ -278,6 +348,9 @@ impl JournalWriter {
 
                 // Update hash table
                 journal_file.field_hash_table_set_tail_offset(hash, field_offset)?;
+
+                self.field_cache
+                    .insert(payload.to_vec().into_boxed_slice(), field_offset);
 
                 // Return the offset where we wrote the newly added data object
                 Ok(field_offset)
@@ -477,5 +550,40 @@ impl JournalWriter {
         }
 
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{EntryItem, RECENT_DATA_CACHE_MAX_PAYLOAD_LEN, RecentDataCache};
+    use std::num::NonZeroU64;
+
+    #[test]
+    fn recent_data_cache_hits_exact_payloads() {
+        let mut cache = RecentDataCache::new();
+        let item = EntryItem {
+            offset: NonZeroU64::new(8).unwrap(),
+            hash: 42,
+        };
+
+        cache.insert(b"FOO=bar", item);
+
+        assert_eq!(cache.get(b"FOO=bar").unwrap().offset, item.offset);
+        assert_eq!(cache.get(b"FOO=bar").unwrap().hash, item.hash);
+        assert!(cache.get(b"FOO=baz").is_none());
+    }
+
+    #[test]
+    fn recent_data_cache_skips_oversized_payloads() {
+        let mut cache = RecentDataCache::new();
+        let item = EntryItem {
+            offset: NonZeroU64::new(16).unwrap(),
+            hash: 7,
+        };
+        let oversized = vec![b'x'; RECENT_DATA_CACHE_MAX_PAYLOAD_LEN + 1];
+
+        cache.insert(&oversized, item);
+
+        assert!(cache.get(&oversized).is_none());
     }
 }

@@ -32,7 +32,7 @@ use tokio::net::UdpSocket;
 use tokio::time::MissedTickBehavior;
 use tokio_util::sync::CancellationToken;
 
-use encode::JournalEncodeBuffer;
+pub(crate) use encode::JournalEncodeBuffer;
 
 const REBUILD_WINDOW_SECONDS: u32 = 60 * 60;
 const REBUILD_TIMEOUT_SECONDS: u64 = 30;

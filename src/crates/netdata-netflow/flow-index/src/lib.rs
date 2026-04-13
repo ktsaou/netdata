@@ -463,11 +463,12 @@ where
             field_ids.push(self.get_or_insert_field_value(index, value)?);
         }
 
-        if let Some(existing_id) = self.find_flow_by_field_ids(&field_ids)? {
+        let hash = self.hash_field_ids(&field_ids)?;
+        if let Some(existing_id) = self.find_flow_by_field_ids_hashed(&field_ids, hash)? {
             return Ok(existing_id);
         }
 
-        self.insert_flow_by_field_ids(&field_ids)
+        self.insert_flow_by_field_ids_hashed(&field_ids, hash)
     }
 
     pub fn find_flow(&self, values: &[FieldValue<'_>]) -> Result<Option<FlowId>, FlowIndexError> {
@@ -493,6 +494,15 @@ where
         &self,
         field_ids: &[FieldId],
     ) -> Result<Option<FlowId>, FlowIndexError> {
+        let hash = self.hash_field_ids(field_ids)?;
+        self.find_flow_by_field_ids_hashed(field_ids, hash)
+    }
+
+    pub fn find_flow_by_field_ids_hashed(
+        &self,
+        field_ids: &[FieldId],
+        hash: u64,
+    ) -> Result<Option<FlowId>, FlowIndexError> {
         if field_ids.len() != self.schema.len() {
             return Err(FlowIndexError::FieldCountMismatch {
                 expected: self.schema.len(),
@@ -500,7 +510,6 @@ where
             });
         }
 
-        let hash = self.hasher.hash_u32_slice(field_ids);
         Ok(self
             .flow_lookup
             .find(hash, |flow_id| {
@@ -513,6 +522,15 @@ where
         &mut self,
         field_ids: &[FieldId],
     ) -> Result<FlowId, FlowIndexError> {
+        let hash = self.hash_field_ids(field_ids)?;
+        self.insert_flow_by_field_ids_hashed(field_ids, hash)
+    }
+
+    pub fn insert_flow_by_field_ids_hashed(
+        &mut self,
+        field_ids: &[FieldId],
+        hash: u64,
+    ) -> Result<FlowId, FlowIndexError> {
         if field_ids.len() != self.schema.len() {
             return Err(FlowIndexError::FieldCountMismatch {
                 expected: self.schema.len(),
@@ -520,7 +538,6 @@ where
             });
         }
 
-        let hash = self.hasher.hash_u32_slice(field_ids);
         let flow_id = next_flow_id(self.flow_count())?;
         self.flow_storage.push_row(field_ids)?;
 
@@ -534,6 +551,17 @@ where
             });
 
         Ok(flow_id)
+    }
+
+    pub fn hash_field_ids(&self, field_ids: &[FieldId]) -> Result<u64, FlowIndexError> {
+        if field_ids.len() != self.schema.len() {
+            return Err(FlowIndexError::FieldCountMismatch {
+                expected: self.schema.len(),
+                actual: field_ids.len(),
+            });
+        }
+
+        Ok(self.hasher.hash_u32_slice(field_ids))
     }
 
     pub fn flow_field_id(&self, flow_id: FlowId, field_index: usize) -> Option<FieldId> {

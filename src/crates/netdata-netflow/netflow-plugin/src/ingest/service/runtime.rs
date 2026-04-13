@@ -47,11 +47,7 @@ impl IngestService {
     fn handle_sync_tick(&mut self, entries_since_sync: usize) -> usize {
         let now = now_usec();
         self.decoders.refresh_enrichment_state();
-        if let Err(err) = self.flush_closed_tiers(now) {
-            tracing::warn!("tier flush failed: {}", err);
-        }
-        self.prune_unused_tier_flow_indexes();
-        self.refresh_open_tier_state(now);
+        self.run_tier_maintenance(now);
         let entries_since_sync = self.sync_if_needed(entries_since_sync);
         self.persist_decoder_state_if_due(now);
         entries_since_sync
@@ -89,17 +85,8 @@ impl IngestService {
             }
         }
 
-        if let Err(err) = self.flush_closed_tiers(now_usec()) {
-            tracing::warn!("tier flush failed: {}", err);
-        }
-        self.prune_unused_tier_flow_indexes();
-        self.refresh_open_tier_state(now_usec());
-
-        if entries_since_sync >= self.cfg.listener.sync_every_entries {
-            return self.sync_if_needed(entries_since_sync);
-        }
-
-        entries_since_sync
+        self.run_tier_maintenance(now_usec());
+        self.sync_if_threshold_reached(entries_since_sync)
     }
 
     fn ingest_decoded_record(
@@ -107,30 +94,57 @@ impl IngestService {
         receive_time_usec: u64,
         record: &crate::flow::FlowRecord,
     ) -> bool {
+        self.ingest_decoded_record_internal(receive_time_usec, record, true)
+    }
+
+    fn ingest_decoded_record_internal(
+        &mut self,
+        receive_time_usec: u64,
+        record: &crate::flow::FlowRecord,
+        observe_tiers: bool,
+    ) -> bool {
+        let Ok(active_path) = self.write_raw_record_internal(receive_time_usec, record) else {
+            return false;
+        };
+
+        if let Some(active_path) = active_path
+            && let Err(err) = self
+                .facet_runtime
+                .observe_active_record(Path::new(&active_path), record)
+        {
+            tracing::warn!("facet runtime raw write update failed: {}", err);
+        }
+
+        if observe_tiers {
+            self.observe_tiers_record(receive_time_usec, record);
+        }
+        true
+    }
+
+    fn write_raw_record_internal(
+        &mut self,
+        receive_time_usec: u64,
+        record: &crate::flow::FlowRecord,
+    ) -> std::result::Result<Option<String>, ()> {
         let timestamps = EntryTimestamps::default()
             .with_source_realtime_usec(receive_time_usec)
             .with_entry_realtime_usec(receive_time_usec);
 
-        if let Err(err) = self
-            .encode_buf
-            .encode_record_and_write(record, &mut self.raw_journal, timestamps)
+        if let Err(err) =
+            self.encode_buf
+                .encode_record_and_write(record, &mut self.raw_journal, timestamps)
         {
             self.metrics
                 .journal_write_errors
                 .fetch_add(1, Ordering::Relaxed);
             tracing::warn!("journal write failed: {}", err);
-            return false;
+            return Err(());
         }
 
-        if let Some(active_file) = self.raw_journal.active_file() {
-            let contribution = self.encode_buf.facet_contribution();
-            if let Err(err) = self
-                .facet_runtime
-                .observe_active_contribution(Path::new(active_file.path()), contribution)
-            {
-                tracing::warn!("facet runtime raw write update failed: {}", err);
-            }
-        }
+        let active_path = self
+            .raw_journal
+            .active_file()
+            .map(|active_file| active_file.path().to_string());
 
         self.metrics
             .journal_entries_written
@@ -138,19 +152,31 @@ impl IngestService {
         self.metrics
             .raw_journal_logical_bytes
             .fetch_add(self.encode_buf.encoded_len(), Ordering::Relaxed);
-        self.observe_tiers_record(receive_time_usec, record);
-        true
+
+        Ok(active_path)
     }
 
     fn finish_shutdown(&mut self, entries_since_sync: usize) {
-        if let Err(err) = self.flush_closed_tiers(now_usec()) {
-            tracing::warn!("tier flush failed during shutdown: {}", err);
-        }
-        self.prune_unused_tier_flow_indexes();
-        self.refresh_open_tier_state(now_usec());
+        self.run_tier_maintenance(now_usec());
         let _ = self.sync_if_needed(entries_since_sync);
         let _ = self.sync_all_tiers();
         self.persist_decoder_state();
+    }
+
+    fn run_tier_maintenance(&mut self, now_usec: u64) {
+        if let Err(err) = self.flush_closed_tiers(now_usec) {
+            tracing::warn!("tier flush failed: {}", err);
+        }
+        self.prune_unused_tier_flow_indexes();
+        self.refresh_open_tier_state(now_usec);
+    }
+
+    fn sync_if_threshold_reached(&mut self, entries_since_sync: usize) -> usize {
+        if entries_since_sync >= self.cfg.listener.sync_every_entries {
+            return self.sync_if_needed(entries_since_sync);
+        }
+
+        entries_since_sync
     }
 
     fn sync_if_needed(&mut self, entries_since_sync: usize) -> usize {
@@ -223,31 +249,61 @@ impl IngestService {
     }
 
     #[cfg(test)]
-    pub(crate) fn handle_decoded_record_for_test(
+    pub(crate) fn handle_decoded_batch_for_test(
         &mut self,
         receive_time_usec: u64,
-        record: &crate::flow::FlowRecord,
-        mut entries_since_sync: usize,
+        records: &[crate::flow::FlowRecord],
+        initial_entries_since_sync: usize,
     ) -> usize {
-        if self.ingest_decoded_record(receive_time_usec, record) {
-            entries_since_sync += 1;
-        }
+        self.handle_decoded_batch_with_options_for_test(
+            receive_time_usec,
+            records,
+            initial_entries_since_sync,
+            true,
+            true,
+        )
+    }
 
-        if let Err(err) = self.flush_closed_tiers(now_usec()) {
-            tracing::warn!("tier flush failed: {}", err);
-        }
-        self.prune_unused_tier_flow_indexes();
-        self.refresh_open_tier_state(now_usec());
-
-        if entries_since_sync >= self.cfg.listener.sync_every_entries {
-            return self.sync_if_needed(entries_since_sync);
-        }
-
-        entries_since_sync
+    #[cfg(test)]
+    pub(crate) fn handle_decoded_batch_raw_only_for_test(
+        &mut self,
+        receive_time_usec: u64,
+        records: &[crate::flow::FlowRecord],
+        initial_entries_since_sync: usize,
+    ) -> usize {
+        self.handle_decoded_batch_with_options_for_test(
+            receive_time_usec,
+            records,
+            initial_entries_since_sync,
+            false,
+            false,
+        )
     }
 
     #[cfg(test)]
     pub(crate) fn handle_sync_tick_for_test(&mut self, entries_since_sync: usize) -> usize {
         self.handle_sync_tick(entries_since_sync)
+    }
+
+    #[cfg(test)]
+    fn handle_decoded_batch_with_options_for_test(
+        &mut self,
+        receive_time_usec: u64,
+        records: &[crate::flow::FlowRecord],
+        mut entries_since_sync: usize,
+        observe_tiers: bool,
+        run_tier_maintenance: bool,
+    ) -> usize {
+        for record in records {
+            if self.ingest_decoded_record_internal(receive_time_usec, record, observe_tiers) {
+                entries_since_sync += 1;
+            }
+        }
+
+        if run_tier_maintenance {
+            self.run_tier_maintenance(now_usec());
+        }
+
+        self.sync_if_threshold_reached(entries_since_sync)
     }
 }

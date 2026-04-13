@@ -17,6 +17,7 @@ pub(super) struct ProcSnapshot {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub(super) struct ResourceEnvelopeReport {
     pub(super) methodology: String,
+    pub(super) layer: String,
     pub(super) profile: String,
     pub(super) requested_flows_per_sec: u64,
     pub(super) achieved_flows_per_sec: f64,
@@ -69,6 +70,7 @@ pub(super) fn cpu_percent_of_one_core(
 
 pub(super) fn print_resource_report(report: &ResourceEnvelopeReport) {
     eprintln!();
+    eprintln!("Layer:                  {}", report.layer);
     eprintln!("Profile:                {}", report.profile);
     eprintln!(
         "  offered load:         {} flows/s",
