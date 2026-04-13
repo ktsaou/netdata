@@ -311,7 +311,7 @@ mod tests {
             .expect("restore directory permissions");
 
         match delete_result {
-            Ok(Some(_)) => return,
+            Ok(Some(_)) => panic!("expected deletion to fail, but the oldest file was removed"),
             Ok(None) => panic!("expected the oldest file to be selected for deletion"),
             Err(err) => assert!(matches!(err, WriterError::Io(_))),
         }

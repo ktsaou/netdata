@@ -286,6 +286,9 @@ pub async fn batch_compute_file_indexes(
 
         let cancelled = Arc::new(AtomicBool::new(false));
 
+        // Build a bounded local pool per call instead of using Rayon’s global pool.
+        // The global pool previously stayed alive after rebuild/indexing and kept a
+        // full worker set plus allocator arenas resident in the plugin process.
         let thread_pool = rayon::ThreadPoolBuilder::new()
             .num_threads(compute_threads)
             .build()

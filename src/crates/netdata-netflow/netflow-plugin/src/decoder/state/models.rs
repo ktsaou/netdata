@@ -98,13 +98,9 @@ impl DecoderStateNamespace {
             sampling_rate,
         };
         self.sampling_rates
-            .insert((version, sampler_id), row)
+            .insert((version, sampler_id), row.clone())
             .as_ref()
-            != Some(&PersistedSamplingRate {
-                version,
-                sampler_id,
-                sampling_rate,
-            })
+            != Some(&row)
     }
 
     pub(crate) fn set_v9_template(
