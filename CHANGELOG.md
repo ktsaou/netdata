@@ -16,6 +16,7 @@
 - Refactor(queries): split query engine into smaller files ([#22187](https://github.com/netdata/netdata/issues/22187))
 - Go.d/snmp: add reusable profile engine helpers ([#22181](https://github.com/netdata/netdata/issues/22181))
 - Refactor(go.d): share ping probing between ping and snmp ([#22189](https://github.com/netdata/netdata/issues/22189))
+- Regenerate integrations docs ([#22182](https://github.com/netdata/netdata/issues/22182))
 
 ## [2.10.0] - 2026-04-09
 
