@@ -81,11 +81,6 @@ metrics:
           OID: 1.3.6.1.4.1.9.9.807.1.2.1.1.5
           name: cVpcSystemOperMacAddress
           format: mac_address
-      - tag: _vpc_peer_link_ifindex
-        table: cVpcStatusPeerLinkTable
-        symbol:
-          OID: 1.3.6.1.4.1.9.9.807.1.4.1.1.2
-          name: cVpcStatusPeerLinkIfIndex
 
   # ---- vPC peer-keepalive statistics (per domain) ----
   - MIB: CISCO-VPC-MIB
