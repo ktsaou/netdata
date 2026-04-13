@@ -16,7 +16,7 @@ metrics:
       - OID: 1.3.6.1.4.1.9.9.221.1.1.1.1.10
         name: cempMemPoolLowestFree
         chart_meta:
-          description: Lowest amount of free memory observed since last clear (water mark)
+          description: Lowest amount of free memory observed since last clear (watermark)
           family: 'System/Memory/Enhanced/LowestFree'
           unit: "By"
     metric_tags:
