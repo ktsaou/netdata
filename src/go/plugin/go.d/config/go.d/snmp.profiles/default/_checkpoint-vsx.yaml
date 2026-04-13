@@ -120,43 +120,43 @@ metrics:
       - OID: 1.3.6.1.4.1.2620.1.16.23.1.1.7
         name: vsxCountersAcceptedTotal
         chart_meta:
-          description: "Virtual system total accepted packets"
+          description: "Virtual system accepted packets per second"
           family: 'Security/VSX/VS/Packet/Accepted'
           unit: "{packet}/s"
       - OID: 1.3.6.1.4.1.2620.1.16.23.1.1.6
         name: vsxCountersDroppedTotal
         chart_meta:
-          description: "Virtual system total dropped packets"
+          description: "Virtual system dropped packets per second"
           family: 'Security/VSX/VS/Packet/Dropped'
           unit: "{packet}/s"
       - OID: 1.3.6.1.4.1.2620.1.16.23.1.1.8
         name: vsxCountersRejectedTotal
         chart_meta:
-          description: "Virtual system total rejected packets"
+          description: "Virtual system rejected packets per second"
           family: 'Security/VSX/VS/Packet/Rejected'
           unit: "{packet}/s"
       - OID: 1.3.6.1.4.1.2620.1.16.23.1.1.12
         name: vsxCountersLoggedTotal
         chart_meta:
-          description: "Virtual system total logged packets"
+          description: "Virtual system logged packets per second"
           family: 'Security/VSX/VS/Packet/Logged'
           unit: "{packet}/s"
       - OID: 1.3.6.1.4.1.2620.1.16.23.1.1.9
         name: vsxCountersBytesAcceptedTotal
         chart_meta:
-          description: "Virtual system total accepted bytes"
+          description: "Virtual system accepted bytes per second"
           family: 'Security/VSX/VS/Traffic/Accepted'
           unit: "By/s"
       - OID: 1.3.6.1.4.1.2620.1.16.23.1.1.10
         name: vsxCountersBytesDroppedTotal
         chart_meta:
-          description: "Virtual system total dropped bytes"
+          description: "Virtual system dropped bytes per second"
           family: 'Security/VSX/VS/Traffic/Dropped'
           unit: "By/s"
       - OID: 1.3.6.1.4.1.2620.1.16.23.1.1.11
         name: vsxCountersBytesRejectedTotal
         chart_meta:
-          description: "Virtual system total rejected bytes"
+          description: "Virtual system rejected bytes per second"
           family: 'Security/VSX/VS/Traffic/Rejected'
           unit: "By/s"
     metric_tags:
