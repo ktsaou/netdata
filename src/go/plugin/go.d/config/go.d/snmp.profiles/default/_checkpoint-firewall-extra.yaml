@@ -49,7 +49,7 @@ metrics:
       OID: 1.3.6.1.4.1.2620.1.1.26.2.1.0
       name: fwKmemSystemPhysicalMem
       chart_meta:
-        description: "Firewall kernel physical memory available"
+        description: "Firewall kernel total system physical memory"
         family: 'Security/Firewall/KernelMemory/Physical'
         unit: "By"
   - MIB: CHECKPOINT-MIB
