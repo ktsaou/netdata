@@ -51,6 +51,8 @@ metrics:
           name: cotvOverlayVpnName
 
   # ---- OTV adjacency database (per overlay + adjacent peer) ----
+  # Index: (cotvOverlayNumber, cotvAdjacentDevAddrType, cotvAdjacentDevAddr)
+  # Same InetAddress index encoding as NVE. IPv4-only transform (start:3 end:6).
   - MIB: CISCO-OTV-MIB
     table:
       OID: 1.3.6.1.4.1.9.9.810.1.3.1

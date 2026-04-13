@@ -73,7 +73,9 @@ metrics:
   # Index: (cnvoNvoInstanceId, cnvoPeerIpAddrType, cnvoPeerIpAddr)
   # InetAddress index encoding: addrType.addrLen.byte0.byte1...
   # For IPv4 10.0.0.2: full suffix is .1.1.4.10.0.0.2
-  #   pos 0=instanceId, 1=addrType, 2=addrLen, 3+=IP bytes
+  #   pos 0=instanceId, 1=addrType, 2=addrLen, 3-6=IPv4 bytes
+  # NOTE: index_transform start:3 end:6 covers IPv4 only. Datacenter VXLAN underlay
+  # is virtually always IPv4. IPv6 support needs engine "keep to end" capability.
   - MIB: CISCO-NETWORK-VIRTUALIZATION-OVERLAY-MIB
     table:
       OID: 1.3.6.1.4.1.9.9.820.1.1.3
@@ -136,6 +138,7 @@ metrics:
 
   # ---- Per-peer traffic statistics ----
   # Index: (cnvoNvoInstanceId, cnvoPeerIpAddrType, cnvoPeerIpAddr)
+  # Same IPv4-only index_transform limitation as cnvoPeerTable above.
   - MIB: CISCO-NETWORK-VIRTUALIZATION-OVERLAY-MIB
     table:
       OID: 1.3.6.1.4.1.9.9.820.1.1.5
