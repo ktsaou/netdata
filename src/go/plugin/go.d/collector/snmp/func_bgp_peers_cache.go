@@ -187,13 +187,11 @@ func (c *bgpPeerCache) updateEntry(metric ddsnmp.Metric) {
 }
 
 func mergeBGPPeerEntryTags(entry *bgpPeerEntry, tags map[string]string) {
-	unprefixed := make(map[string]struct{}, len(tags))
 	for key, value := range tags {
 		if value == "" || strings.HasPrefix(key, "_") {
 			continue
 		}
 		entry.tags[key] = value
-		unprefixed[key] = struct{}{}
 	}
 
 	for key, value := range tags {
@@ -204,7 +202,7 @@ func mergeBGPPeerEntryTags(entry *bgpPeerEntry, tags map[string]string) {
 		if normalizedKey == "" {
 			continue
 		}
-		if _, ok := unprefixed[normalizedKey]; ok {
+		if tags[normalizedKey] != "" {
 			continue
 		}
 		entry.tags[normalizedKey] = value

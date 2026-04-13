@@ -163,14 +163,14 @@ func TestCollector_Collect_CiscoBgpPeer3Profile(t *testing.T) {
 						{
 							Tag:   "neighbor_address_type",
 							Index: 2,
-							Mapping: map[string]string{
+							Mapping: ddprofiledefinition.NewExactMapping(map[string]string{
 								"0":  "unknown",
 								"1":  "ipv4",
 								"2":  "ipv6",
 								"3":  "ipv4z",
 								"4":  "ipv6z",
 								"16": "dns",
-							},
+							}),
 						},
 						{
 							Tag: "neighbor",

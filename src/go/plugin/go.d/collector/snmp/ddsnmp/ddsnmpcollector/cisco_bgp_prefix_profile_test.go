@@ -138,14 +138,14 @@ func TestCollector_Collect_CiscoBgpPeer2PrefixProfile(t *testing.T) {
 						{
 							Tag:   "neighbor_address_type",
 							Index: 1,
-							Mapping: map[string]string{
+							Mapping: ddprofiledefinition.NewExactMapping(map[string]string{
 								"0":  "unknown",
 								"1":  "ipv4",
 								"2":  "ipv6",
 								"3":  "ipv4z",
 								"4":  "ipv6z",
 								"16": "dns",
-							},
+							}),
 						},
 						{
 							Tag: "neighbor",
@@ -166,9 +166,9 @@ func TestCollector_Collect_CiscoBgpPeer2PrefixProfile(t *testing.T) {
 								Name:                 "cbgpPeer2AddrFamilyAfiIndex",
 								ExtractValueCompiled: mustCompileRegex(`^(?:\d+\.)+(\d+)\.\d+$`),
 							},
-							Mapping: map[string]string{
+							Mapping: ddprofiledefinition.NewExactMapping(map[string]string{
 								"1": "ipv4",
-							},
+							}),
 						},
 						{
 							Tag: "subsequent_address_family",
@@ -176,9 +176,9 @@ func TestCollector_Collect_CiscoBgpPeer2PrefixProfile(t *testing.T) {
 								Name:                 "cbgpPeer2AddrFamilySafiIndex",
 								ExtractValueCompiled: mustCompileRegex(`^(?:\d+\.)+\d+\.(\d+)$`),
 							},
-							Mapping: map[string]string{
+							Mapping: ddprofiledefinition.NewExactMapping(map[string]string{
 								"128": "vpn",
-							},
+							}),
 						},
 						{
 							Tag:   "address_family_name",

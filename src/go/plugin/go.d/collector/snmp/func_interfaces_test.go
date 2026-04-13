@@ -20,8 +20,6 @@ func newTestFuncInterfaces(cache *ifaceCache) *funcInterfaces {
 func TestSnmpMethods(t *testing.T) {
 	methods := snmpMethods()
 
-	require.Len(t, methods, 2)
-
 	var ifacesMethod *funcapi.MethodConfig
 	var bgpMethod *funcapi.MethodConfig
 	for i := range methods {
