@@ -71,6 +71,9 @@ metrics:
 
   # ---- NVE peer table (one row per NVE instance + remote VTEP) ----
   # Index: (cnvoNvoInstanceId, cnvoPeerIpAddrType, cnvoPeerIpAddr)
+  # InetAddress index encoding: addrType.addrLen.byte0.byte1...
+  # For IPv4 10.0.0.2: full suffix is .1.1.4.10.0.0.2
+  #   pos 0=instanceId, 1=addrType, 2=addrLen, 3+=IP bytes
   - MIB: CISCO-NETWORK-VIRTUALIZATION-OVERLAY-MIB
     table:
       OID: 1.3.6.1.4.1.9.9.820.1.1.3
@@ -89,10 +92,15 @@ metrics:
     metric_tags:
       - tag: nve_instance
         index: 1
-      - tag: nve_peer_addr_type
+      - tag: _nve_peer_addr_type
         index: 2
       - tag: nve_peer_addr
-        index: 3
+        symbol:
+          name: peerAddrFromIndex
+          format: ip_address
+        index_transform:
+          - start: 3
+            end: 6
 
   # ---- Per-VNI traffic statistics ----
   - MIB: CISCO-NETWORK-VIRTUALIZATION-OVERLAY-MIB
@@ -156,10 +164,15 @@ metrics:
     metric_tags:
       - tag: nve_instance
         index: 1
-      - tag: nve_peer_addr_type
+      - tag: _nve_peer_addr_type
         index: 2
       - tag: nve_peer_addr
-        index: 3
+        symbol:
+          name: peerStatsAddrFromIndex
+          format: ip_address
+        index_transform:
+          - start: 3
+            end: 6
 
 virtual_metrics:
   # Per-VNI unicast traffic
