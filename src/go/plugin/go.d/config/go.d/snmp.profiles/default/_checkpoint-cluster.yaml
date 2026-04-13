@@ -54,7 +54,6 @@ metrics:
         unit: "{status}"
       mapping:
         OK: 1
-        ok: 1
         initializing: 2
 
   # HA work mode (displaystring: HA, Load Sharing, ...)

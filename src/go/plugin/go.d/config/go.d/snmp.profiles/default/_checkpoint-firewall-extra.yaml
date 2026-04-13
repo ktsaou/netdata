@@ -24,8 +24,9 @@ metrics:
         unit: "{packet}/s"
 
   # SIC trust state — gateway-to-management authentication
-  # Values from CHECKPOINT-MIB: "Trust established", "Initialized but Trust was not established",
-  # "Not Initialized", "Error", "Unknown"
+  # CHECKPOINT-MIB describes: Not initialized(0), Initialized but not established(1),
+  # Established(2), Error(3), Unknown(4). The OID is displaystring; devices return
+  # the numeric code as a string.
   - MIB: CHECKPOINT-MIB
     symbol:
       OID: 1.3.6.1.4.1.2620.1.1.12.0
@@ -35,11 +36,11 @@ metrics:
         family: 'Security/Firewall/SIC/Trust'
         unit: "{status}"
       mapping:
-        Trust established: 1
-        Initialized but Trust was not established: 2
-        Not Initialized: 3
-        Error: 4
-        Unknown: 5
+        0: not_initialized
+        1: init_not_established
+        2: trust_established
+        3: error
+        4: unknown
 
   # Firewall kernel memory pool (fwKmem) — distinct from OS-level memory
   - MIB: CHECKPOINT-MIB
