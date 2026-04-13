@@ -11,7 +11,7 @@ metrics:
       # fgHwSensorEntValue is DisplayString — extract numeric part before transform
       - OID: 1.3.6.1.4.1.12356.101.4.3.2.1.3
         name: fgHwSensorEntValue
-        extract_value: '([\d.]+)'
+        extract_value: '(\d+)'
         chart_meta:
           description: Hardware sensor reading
           family: 'Hardware/Sensor'

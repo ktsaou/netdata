@@ -24,14 +24,14 @@ metrics:
           description: Average latency of SD-WAN health-check link within last 30 probes
           family: 'Network/SD-WAN/Link/Latency'
           unit: "ms"
-        extract_value: '([\d.]+)'
+        extract_value: '(\d+)'
       - OID: 1.3.6.1.4.1.12356.101.4.9.2.1.6
         name: fgVWLHealthCheckLinkJitter
         chart_meta:
           description: Average jitter of SD-WAN health-check link within last 30 probes
           family: 'Network/SD-WAN/Link/Jitter'
           unit: "ms"
-        extract_value: '([\d.]+)'
+        extract_value: '(\d+)'
       - OID: 1.3.6.1.4.1.12356.101.4.9.2.1.7
         name: fgVWLHealthCheckLinkPacketSend
         chart_meta:
@@ -50,7 +50,7 @@ metrics:
           description: Packet loss percentage of SD-WAN health-check link within last 30 probes
           family: 'Network/SD-WAN/Link/PacketLoss'
           unit: "%"
-        extract_value: '([\d.]+)'
+        extract_value: '(\d+)'
     metric_tags:
       - tag: sdwan_healthcheck
         symbol:
@@ -86,14 +86,14 @@ metrics:
           description: Average latency of link monitor probe
           family: 'Network/LinkMonitor/Latency'
           unit: "ms"
-        extract_value: '([\d.]+)'
+        extract_value: '(\d+)'
       - OID: 1.3.6.1.4.1.12356.101.4.8.2.1.5
         name: fgLinkMonitorJitter
         chart_meta:
           description: Average jitter of link monitor probe
           family: 'Network/LinkMonitor/Jitter'
           unit: "ms"
-        extract_value: '([\d.]+)'
+        extract_value: '(\d+)'
       - OID: 1.3.6.1.4.1.12356.101.4.8.2.1.6
         name: fgLinkMonitorPacketSend
         chart_meta:
@@ -112,7 +112,7 @@ metrics:
           description: Packet loss percentage of link monitor probe
           family: 'Network/LinkMonitor/PacketLoss'
           unit: "%"
-        extract_value: '([\d.]+)'
+        extract_value: '(\d+)'
     metric_tags:
       - tag: link_monitor
         symbol:
