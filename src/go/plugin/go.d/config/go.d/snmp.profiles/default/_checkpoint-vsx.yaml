@@ -32,7 +32,7 @@ metrics:
         family: 'Security/VSX/Capacity/Installed'
         unit: "{vs}"
 
-  # Per-VS status table — defines vsxStatusTable so cross-table tags work
+  # Per-VS status table — per-virtual-system resource weight and metadata
   - MIB: CHECKPOINT-MIB
     table:
       OID: 1.3.6.1.4.1.2620.1.16.22.1

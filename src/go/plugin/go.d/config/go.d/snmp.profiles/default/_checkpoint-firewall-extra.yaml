@@ -9,7 +9,7 @@ metrics:
       OID: 1.3.6.1.4.1.2620.1.1.7.0
       name: fwLogged
       chart_meta:
-        description: "Number of logged packets"
+        description: "Logged packets per second"
         family: 'Security/Firewall/Packet/Logged'
         unit: "{packet}/s"
 
@@ -19,7 +19,7 @@ metrics:
       OID: 1.3.6.1.4.1.2620.1.1.25.26.0
       name: fwFullyUtilizedDrops
       chart_meta:
-        description: "Packets dropped due to fully utilized firewall instance"
+        description: "Packets dropped per second due to fully utilized firewall instance"
         family: 'Security/Firewall/Packet/OverloadDropped'
         unit: "{packet}/s"
 
@@ -84,7 +84,7 @@ metrics:
       OID: 1.3.6.1.4.1.2620.1.1.26.2.15.0
       name: fwKmemFailedAlloc
       chart_meta:
-        description: "Firewall kernel memory allocation failures"
+        description: "Firewall kernel memory allocation failures per second"
         family: 'Security/Firewall/KernelMemory/FailedAlloc'
         unit: "{failure}/s"
 
@@ -112,6 +112,6 @@ metrics:
       OID: 1.3.6.1.4.1.2620.1.1.26.1.21.0
       name: fwHmemFailedAlloc
       chart_meta:
-        description: "Firewall heap memory allocation failures"
+        description: "Firewall heap memory allocation failures per second"
         family: 'Security/Firewall/HeapMemory/FailedAlloc'
         unit: "{failure}/s"

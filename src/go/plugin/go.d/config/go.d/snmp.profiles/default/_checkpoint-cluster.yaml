@@ -1,6 +1,6 @@
 # Check Point HA / ClusterXL monitoring (CHECKPOINT-MIB)
-# Cluster member state, blocking state, work mode, status code,
-# and the HA problem diagnostic table.
+# Cluster member state, status code,
+# started flag, and the HA problem diagnostic table.
 
 metrics:
   # HA installed flag (0 = not installed, non-zero = installed)
