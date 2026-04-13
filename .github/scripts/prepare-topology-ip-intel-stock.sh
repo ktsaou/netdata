@@ -6,6 +6,7 @@ RED='\033[0;31m'
 YELLOW='\033[1;33m'
 GRAY='\033[0;90m'
 NC='\033[0m'
+TOPOLOGY_IP_INTEL_STOCK_TMPDIR=""
 
 run() {
   printf >&2 "${GRAY}%s >${NC} " "$(pwd)"
@@ -25,6 +26,14 @@ run() {
     return "${exit_code}"
   fi
 }
+
+cleanup_topology_ip_intel_stock_tmpdir() {
+  if [ -n "${TOPOLOGY_IP_INTEL_STOCK_TMPDIR:-}" ]; then
+    rm -rf -- "${TOPOLOGY_IP_INTEL_STOCK_TMPDIR}"
+  fi
+}
+
+trap cleanup_topology_ip_intel_stock_tmpdir EXIT
 
 usage() {
   cat <<'EOF'
@@ -91,7 +100,7 @@ run rm -f \
 prepare_synthetic() {
   local tmpdir
   tmpdir="$(mktemp -d)"
-  trap 'rm -rf -- "$tmpdir"' EXIT
+  TOPOLOGY_IP_INTEL_STOCK_TMPDIR="${tmpdir}"
 
   run tee "${tmpdir}/asn.csv" >/dev/null <<'EOF'
 1.1.1.0,1.1.1.255,13335,"Cloudflare, Inc."

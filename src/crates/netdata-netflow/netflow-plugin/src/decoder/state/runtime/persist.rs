@@ -7,7 +7,7 @@ impl FlowDecoders {
         source: SocketAddr,
     ) -> Result<(), String> {
         let source = normalize_template_scope_source(source);
-        let Some(namespace) = self.decoder_state_namespaces.remove(key) else {
+        let Some(namespace) = self.decoder_state_namespaces.get(key).cloned() else {
             self.hydrated_namespace_sources
                 .entry(key.clone())
                 .or_default()
@@ -15,10 +15,13 @@ impl FlowDecoders {
             return Ok(());
         };
 
+        // Validate replay into a fresh parser first so restore failures do not
+        // partially mutate the live parser or sampling state.
+        let mut validation_parser = AutoScopedParser::new();
+        Self::replay_namespace_packets_into(&mut validation_parser, key, &namespace, source)?;
+
+        self.replay_namespace_packets(key, &namespace, source)?;
         self.sampling.apply_decoder_state_namespace(key, &namespace);
-        let replay_result = self.replay_namespace_packets(key, &namespace, source);
-        self.decoder_state_namespaces.insert(key.clone(), namespace);
-        replay_result?;
         self.hydrated_namespace_sources
             .entry(key.clone())
             .or_default()
@@ -90,18 +93,25 @@ impl FlowDecoders {
         namespace: &DecoderStateNamespace,
         source: SocketAddr,
     ) -> Result<(), String> {
+        Self::replay_namespace_packets_into(&mut self.netflow, key, namespace, source)
+    }
+
+    fn replay_namespace_packets_into(
+        parser: &mut AutoScopedParser,
+        key: &DecoderStateNamespaceKey,
+        namespace: &DecoderStateNamespace,
+        source: SocketAddr,
+    ) -> Result<(), String> {
         for (packet_index, packet) in build_namespace_restore_packets(key, namespace)?
             .into_iter()
             .enumerate()
         {
-            self.netflow
-                .parse_from_source(source, &packet)
-                .map_err(|err| {
-                    format!(
-                        "failed to replay persisted namespace packet {} for {} / {} from {}: {}",
-                        packet_index, key.exporter_ip, key.observation_domain_id, source, err
-                    )
-                })?;
+            parser.parse_from_source(source, &packet).map_err(|err| {
+                format!(
+                    "failed to replay persisted namespace packet {} for {} / {} from {}: {}",
+                    packet_index, key.exporter_ip, key.observation_domain_id, source, err
+                )
+            })?;
         }
         Ok(())
     }

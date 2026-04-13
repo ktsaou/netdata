@@ -133,19 +133,18 @@ pub(crate) fn flows_required_params(
 }
 
 fn ordered_group_by_options(group_by: &[String]) -> Vec<String> {
-    let mut ordered = Vec::with_capacity(query::supported_group_by_fields().len());
+    let supported = query::supported_group_by_fields();
+    let mut ordered = Vec::with_capacity(supported.len());
 
     for selected in group_by {
-        if query::supported_group_by_fields()
-            .iter()
-            .any(|field| field == selected)
+        if supported.iter().any(|field| field == selected)
             && !ordered.iter().any(|field| field == selected)
         {
             ordered.push(selected.clone());
         }
     }
 
-    for field in query::supported_group_by_fields() {
+    for field in supported {
         if !ordered.iter().any(|selected| selected == field) {
             ordered.push(field.clone());
         }

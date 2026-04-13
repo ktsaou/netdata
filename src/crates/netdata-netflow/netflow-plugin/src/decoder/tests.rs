@@ -2910,8 +2910,8 @@ fn ipfix_v9_restore_packet_keeps_options_template_descriptor_lengths() {
     assert_eq!(u16::from_be_bytes([packet[0], packet[1]]), 10);
     assert_eq!(u16::from_be_bytes([packet[16], packet[17]]), 1);
     assert_eq!(u16::from_be_bytes([packet[20], packet[21]]), 256);
-    assert_eq!(u16::from_be_bytes([packet[22], packet[23]]), 4);
-    assert_eq!(u16::from_be_bytes([packet[24], packet[25]]), 8);
+    assert_eq!(u16::from_be_bytes([packet[22], packet[23]]), 1);
+    assert_eq!(u16::from_be_bytes([packet[24], packet[25]]), 10);
     assert_eq!(u16::from_be_bytes([packet[28], packet[29]]), 1);
     assert_eq!(u16::from_be_bytes([packet[32], packet[33]]), 8);
     assert_eq!(u16::from_be_bytes([packet[36], packet[37]]), 2);

@@ -125,8 +125,8 @@ pub(super) fn build_ipfix_restore_packet(
                     .values()
                     .map(|template| NetflowV9OptionsTemplate {
                         template_id: template.template_id,
-                        options_scope_length: (template.scope_fields.len() * 4) as u16,
-                        options_length: (template.option_fields.len() * 4) as u16,
+                        options_scope_length: sum_v9_field_lengths(&template.scope_fields),
+                        options_length: sum_v9_field_lengths(&template.option_fields),
                         scope_fields: template
                             .scope_fields
                             .iter()
