@@ -311,7 +311,7 @@ metrics:
       chart_meta:
         description: "Peak number of connections"
         family: 'System/Activity/Connection/Peak'
-        unit: "{connection}/s"
+        unit: "{connection}"
     # CPU global scalars (not per-core — complements multiProcTable)
   - MIB: CHECKPOINT-MIB
     metric_type: gauge
