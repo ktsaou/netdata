@@ -196,8 +196,18 @@ func stripQuotes(s string) string {
 }
 
 func stripEnumSuffix(s string) string {
-	if i := strings.Index(s, "("); i >= 0 {
-		return strings.TrimSpace(s[:i])
+	s = strings.TrimSpace(s)
+	if _, err := strconv.ParseInt(s, 10, 64); err == nil {
+		return s
+	}
+
+	if close := strings.LastIndex(s, ")"); close == len(s)-1 {
+		if open := strings.LastIndex(s[:close], "("); open >= 0 {
+			candidate := strings.TrimSpace(s[open+1 : close])
+			if _, err := strconv.ParseInt(candidate, 10, 64); err == nil {
+				return candidate
+			}
+		}
 	}
 	return s
 }
@@ -233,4 +243,25 @@ func expectSNMPGetFromFixture(mockHandler *snmpmock.MockHandler, fixture *snmpFi
 	}
 
 	expectSNMPGet(mockHandler, oids, pdus)
+}
+
+func TestParseSNMPWalkLine_IntegerEnumValue(t *testing.T) {
+	pdu, ok, err := parseSNMPWalkLine(".1.3.6.1.2.1.2.2.1.8.1 = INTEGER: up(1)")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !ok {
+		t.Fatal("expected fixture line to parse")
+	}
+	if pdu.Type != gosnmp.Integer {
+		t.Fatalf("unexpected PDU type: %v", pdu.Type)
+	}
+
+	value, ok := pdu.Value.(int)
+	if !ok {
+		t.Fatalf("unexpected value type %T", pdu.Value)
+	}
+	if value != 1 {
+		t.Fatalf("unexpected parsed value: got %d, want 1", value)
+	}
 }
