@@ -46,6 +46,8 @@ pub(crate) use state::*;
 const ETYPE_IPV4: &str = "2048";
 const ETYPE_IPV6: &str = "34525";
 const ETYPE_VLAN: u16 = 0x8100;
+const ETYPE_VLAN_QINQ: u16 = 0x88a8;
+const ETYPE_VLAN_QINQ_LEGACY: u16 = 0x9100;
 const ETYPE_MPLS_UNICAST: u16 = 0x8847;
 const IPFIX_SET_ID_TEMPLATE: u16 = 2;
 const IPFIX_FIELD_INPUT_SNMP: u16 = 10;
@@ -89,9 +91,23 @@ const DECODER_STATE_HEADER_LEN: usize = 4 + 4 + 8 + 8;
 
 pub(crate) use crate::flow::*;
 
+pub(crate) fn canonicalize_ip_addr(ip: IpAddr) -> IpAddr {
+    match ip {
+        IpAddr::V4(_) => ip,
+        IpAddr::V6(ipv6) => ipv6
+            .to_ipv4_mapped()
+            .map(IpAddr::V4)
+            .unwrap_or(IpAddr::V6(ipv6)),
+    }
+}
+
 pub(crate) fn normalize_template_scope_source(source: SocketAddr) -> SocketAddr {
     // Parser/template scope should follow exporter identity, not ephemeral UDP source ports.
-    SocketAddr::new(source.ip(), 0)
+    SocketAddr::new(canonicalize_ip_addr(source.ip()), 0)
+}
+
+pub(crate) fn is_vlan_ethertype(etype: u16) -> bool {
+    matches!(etype, ETYPE_VLAN | ETYPE_VLAN_QINQ | ETYPE_VLAN_QINQ_LEGACY)
 }
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]

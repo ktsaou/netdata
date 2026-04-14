@@ -26,6 +26,17 @@ fn proto_ip_conversion_handles_ipv4_and_ipv6() {
 }
 
 #[test]
+fn proto_ip_conversion_rejects_unspecified_version() {
+    let ip = ProtoIp {
+        higher: 0,
+        lower: 0,
+        version: ProtoIpVersion::Unspecified as i32,
+    };
+
+    assert_eq!(proto_ip_to_ip_addr(ip), None);
+}
+
+#[test]
 fn route_to_update_flattens_set_path_segments_like_akvorado() {
     let route = Route {
         pfx: Some(ProtoPrefix {

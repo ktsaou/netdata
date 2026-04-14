@@ -108,8 +108,9 @@ set(STOCK_DATA_DEST "usr/share/netdata")
 set(STOCK_DATA_DIR "${NETDATA_RUNTIME_PREFIX}/${STOCK_DATA_DEST}")
 set(VARLIB_DIR "${NETDATA_RUNTIME_PREFIX}/var/lib/netdata")
 set(NETDATA_BIN_DIR "${NETDATA_RUNTIME_PREFIX}/${BINDIR}")
-set(NETDATA_TOPOLOGY_IP_INTEL_STOCK_DIR ""
-    CACHE PATH "Staged topology IP intelligence stock payload for package builds")
+if(NOT DEFINED NETDATA_TOPOLOGY_IP_INTEL_STOCK_DIR)
+  set(NETDATA_TOPOLOGY_IP_INTEL_STOCK_DIR "")
+endif()
 
 # A non-default value is only used when building Debian packages (/var/lib/netdata/www)
 if(NOT DEFINED WEB_DIR)

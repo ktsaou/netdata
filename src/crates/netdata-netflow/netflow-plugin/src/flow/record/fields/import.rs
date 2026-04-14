@@ -171,6 +171,12 @@ impl FlowRecord {
         if field_present_in_map(fields, "OUT_IF_BOUNDARY") {
             record.presence.insert(FlowPresence::OUT_IF_BOUNDARY);
         }
+        if field_present_in_map(fields, "SRC_PORT") {
+            record.presence.insert(FlowPresence::SRC_PORT);
+        }
+        if field_present_in_map(fields, "DST_PORT") {
+            record.presence.insert(FlowPresence::DST_PORT);
+        }
         if field_present_in_map(fields, "SRC_VLAN") {
             record.presence.insert(FlowPresence::SRC_VLAN);
         }

@@ -41,8 +41,8 @@ pub(crate) fn append_v5_records(
         rec.dst_prefix = Some(IpAddr::V4(ipv4_prefix_addr(flow.dst_addr, flow.dst_mask)));
         rec.src_mask = flow.src_mask;
         rec.dst_mask = flow.dst_mask;
-        rec.src_port = flow.src_port;
-        rec.dst_port = flow.dst_port;
+        rec.set_src_port(flow.src_port);
+        rec.set_dst_port(flow.dst_port);
         rec.protocol = flow.protocol_number;
         rec.src_as = flow.src_as as u32;
         rec.dst_as = flow.dst_as as u32;
@@ -107,8 +107,8 @@ pub(crate) fn append_v7_records(
         rec.dst_prefix = Some(IpAddr::V4(ipv4_prefix_addr(flow.dst_addr, flow.dst_mask)));
         rec.src_mask = flow.src_mask;
         rec.dst_mask = flow.dst_mask;
-        rec.src_port = flow.src_port;
-        rec.dst_port = flow.dst_port;
+        rec.set_src_port(flow.src_port);
+        rec.set_dst_port(flow.dst_port);
         rec.protocol = flow.protocol_number;
         rec.src_as = flow.src_as as u32;
         rec.dst_as = flow.dst_as as u32;

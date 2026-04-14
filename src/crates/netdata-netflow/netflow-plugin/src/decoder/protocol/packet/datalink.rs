@@ -16,7 +16,7 @@ pub(crate) fn parse_datalink_frame_section(
     let mut etype = u16::from_be_bytes([data[12], data[13]]);
     let mut cursor = &data[14..];
 
-    while etype == ETYPE_VLAN {
+    while is_vlan_ethertype(etype) {
         if cursor.len() < 4 {
             return None;
         }
@@ -42,7 +42,7 @@ pub(crate) fn parse_datalink_frame_section(
             if label > 0 {
                 labels.push(label.to_string());
             }
-            if bottom == 1 || label <= 15 {
+            if bottom == 1 {
                 if cursor.is_empty() {
                     return None;
                 }
@@ -74,4 +74,34 @@ pub(crate) fn mac_to_string(bytes: &[u8]) -> String {
         "{:02x}:{:02x}:{:02x}:{:02x}:{:02x}:{:02x}",
         bytes[0], bytes[1], bytes[2], bytes[3], bytes[4], bytes[5]
     )
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn qinq_datalink_frame_keeps_inner_ip_payload() {
+        let mut frame = vec![0_u8; 14 + 4 + 4 + 20];
+        frame[12] = 0x88;
+        frame[13] = 0xa8;
+        frame[16] = 0x81;
+        frame[17] = 0x00;
+        frame[20] = 0x08;
+        frame[21] = 0x00;
+        frame[22] = 0x45;
+        frame[24] = 0;
+        frame[25] = 20;
+        frame[30] = 64;
+        frame[31] = 17;
+        frame[34..38].copy_from_slice(&[10, 0, 0, 1]);
+        frame[38..42].copy_from_slice(&[10, 0, 0, 2]);
+
+        let mut fields = FlowFields::default();
+        let parsed = parse_datalink_frame_section(&frame, &mut fields, DecapsulationMode::None);
+
+        assert_eq!(parsed, Some(20));
+        assert_eq!(fields.get("SRC_ADDR").map(String::as_str), Some("10.0.0.1"));
+        assert_eq!(fields.get("DST_ADDR").map(String::as_str), Some("10.0.0.2"));
+    }
 }

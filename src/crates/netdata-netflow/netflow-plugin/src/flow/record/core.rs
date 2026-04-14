@@ -30,6 +30,8 @@ bitflags! {
         const ICMPV4_CODE = 1 << 13;
         const ICMPV6_TYPE = 1 << 14;
         const ICMPV6_CODE = 1 << 15;
+        const SRC_PORT = 1 << 16;
+        const DST_PORT = 1 << 17;
     }
 }
 

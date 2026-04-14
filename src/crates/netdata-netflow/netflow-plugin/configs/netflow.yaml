@@ -46,22 +46,6 @@ journal:
   size_of_journal_files: 10GB
   duration_of_journal_files: 7d
 
-  # Optional per-tier retention overrides.
-  # If omitted, each tier inherits the retention values above.
-  tiers:
-    raw:
-      size_of_journal_files: 10GB
-      duration_of_journal_files: 7d
-    minute_1:
-      size_of_journal_files: 10GB
-      duration_of_journal_files: 7d
-    minute_5:
-      size_of_journal_files: 10GB
-      duration_of_journal_files: 7d
-    hour_1:
-      size_of_journal_files: 10GB
-      duration_of_journal_files: 7d
-
   # Query tier selection guardrails.
   query_1m_max_window: 6h
   query_5m_max_window: 24h

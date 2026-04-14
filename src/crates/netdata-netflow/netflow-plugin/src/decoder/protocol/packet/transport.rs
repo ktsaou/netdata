@@ -1,28 +1,14 @@
 use super::super::*;
 use super::{parse_datalink_frame_section, parse_ipv4_packet, parse_ipv6_packet};
-use crate::decoder::vxlan_inner_payload;
+use crate::decoder::{srv6_inner_payload, vxlan_inner_payload};
 
 pub(crate) fn parse_srv6_inner(proto: u8, data: &[u8], fields: &mut FlowFields) -> Option<u64> {
-    let mut next = proto;
-    let mut cursor = data;
+    let (next, cursor) = srv6_inner_payload(proto, data)?;
 
-    loop {
-        match next {
-            4 => return parse_ipv4_packet(cursor, fields, DecapsulationMode::None),
-            41 => return parse_ipv6_packet(cursor, fields, DecapsulationMode::None),
-            43 => {
-                if cursor.len() < 8 || cursor[2] != 4 {
-                    return None;
-                }
-                let skip = 8_usize.saturating_add((cursor[1] as usize).saturating_mul(8));
-                if cursor.len() < skip {
-                    return None;
-                }
-                next = cursor[0];
-                cursor = &cursor[skip..];
-            }
-            _ => return None,
-        }
+    match next {
+        4 => parse_ipv4_packet(cursor, fields, DecapsulationMode::None),
+        41 => parse_ipv6_packet(cursor, fields, DecapsulationMode::None),
+        _ => None,
     }
 }
 

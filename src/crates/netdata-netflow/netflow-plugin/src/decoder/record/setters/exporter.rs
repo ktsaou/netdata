@@ -5,7 +5,7 @@ pub(super) fn set_record_exporter_field(rec: &mut FlowRecord, key: &str, value: 
         "FLOW_VERSION" => true,
         "EXPORTER_IP" => {
             if let Ok(ip) = value.parse::<IpAddr>() {
-                rec.exporter_ip = Some(ip);
+                rec.exporter_ip = Some(canonicalize_ip_addr(ip));
             }
             true
         }

@@ -29,7 +29,7 @@ pub(crate) fn observe_v9_templates_from_raw_payload(
         return false;
     }
 
-    let exporter_ip = source.ip();
+    let exporter_ip = canonicalize_ip_addr(source.ip());
     let observation_domain_id =
         u32::from_be_bytes([payload[16], payload[17], payload[18], payload[19]]);
     let mut offset = 20_usize;

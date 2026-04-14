@@ -10,7 +10,7 @@ pub(crate) fn append_ipfix_records(
     input_realtime_usec: u64,
 ) {
     let export_usec = unix_timestamp_to_usec(packet.header.export_time as u64, 0);
-    let exporter_ip = source.ip();
+    let exporter_ip = canonicalize_ip_addr(source.ip());
     let observation_domain_id = packet.header.observation_domain_id;
     let version = 10_u16;
 
@@ -20,7 +20,6 @@ pub(crate) fn append_ipfix_records(
                 for record in data.fields {
                     let mut rec = base_record("ipfix", source);
                     let mut state = IPFixRecordBuildState::default();
-                    let need_decap = !decapsulation_mode.is_none();
 
                     for (field, value) in record {
                         apply_ipfix_record_field(
@@ -40,7 +39,6 @@ pub(crate) fn append_ipfix_records(
                         version,
                         observation_domain_id,
                         sampling,
-                        need_decap,
                         export_usec,
                         timestamp_source,
                         input_realtime_usec,

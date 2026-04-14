@@ -21,7 +21,7 @@ impl FlowDecoders {
     ) -> Option<DecoderStateNamespaceKey> {
         let (_version, observation_domain_id) = template_scope(payload)?;
         Some(DecoderStateNamespaceKey {
-            exporter_ip: source.ip().to_string(),
+            exporter_ip: canonicalize_ip_addr(source.ip()).to_string(),
             observation_domain_id,
         })
     }

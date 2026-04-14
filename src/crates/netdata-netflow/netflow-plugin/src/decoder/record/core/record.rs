@@ -1,11 +1,11 @@
-use crate::decoder::{FlowPresence, FlowRecord, default_exporter_name};
+use crate::decoder::{FlowPresence, FlowRecord, canonicalize_ip_addr, default_exporter_name};
 use std::net::SocketAddr;
 
 /// Create a base FlowRecord with exporter identity populated.
 pub(crate) fn base_record(version: &'static str, source: SocketAddr) -> FlowRecord {
     FlowRecord {
         flow_version: version,
-        exporter_ip: Some(source.ip()),
+        exporter_ip: Some(canonicalize_ip_addr(source.ip())),
         exporter_port: source.port(),
         ..Default::default()
     }
@@ -50,7 +50,7 @@ pub(crate) fn finalize_record(rec: &mut FlowRecord) {
 /// ICMP type+code value, extract the individual type/code fields from it.
 /// Mirrors the original apply_icmp_port_fallback for FlowFields.
 pub(crate) fn apply_icmp_port_fallback_record(rec: &mut FlowRecord) {
-    if rec.src_port != 0 || rec.dst_port == 0 {
+    if (rec.has_src_port() && rec.src_port != 0) || !rec.has_dst_port() {
         return;
     }
 

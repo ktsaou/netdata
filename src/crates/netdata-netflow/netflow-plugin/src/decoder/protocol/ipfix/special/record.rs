@@ -29,7 +29,10 @@ pub(crate) fn decode_ipfix_special_record(
                 && raw_value.len() == 2
                 && ((raw_value[0] & 0xfc) >> 2) == 0x02
             {
-                let status = if decode_akvorado_unsigned(raw_value) & 0x03ff == 0 {
+                let Some(value) = decode_akvorado_unsigned(raw_value) else {
+                    continue;
+                };
+                let status = if value & 0x03ff == 0 {
                     "64"
                 } else {
                     "128"
@@ -41,31 +44,41 @@ pub(crate) fn decode_ipfix_special_record(
 
         match template_field.field_type {
             IPFIX_FIELD_OCTET_DELTA_COUNT => {
-                fields.insert("BYTES", decode_akvorado_unsigned(raw_value).to_string());
+                if let Some(value) = decode_akvorado_unsigned(raw_value) {
+                    fields.insert("BYTES", value.to_string());
+                }
             }
             IPFIX_FIELD_PACKET_DELTA_COUNT => {
-                fields.insert("PACKETS", decode_akvorado_unsigned(raw_value).to_string());
+                if let Some(value) = decode_akvorado_unsigned(raw_value) {
+                    fields.insert("PACKETS", value.to_string());
+                }
             }
             IPFIX_FIELD_PROTOCOL_IDENTIFIER => {
-                fields.insert("PROTOCOL", decode_akvorado_unsigned(raw_value).to_string());
+                if let Some(value) = decode_akvorado_unsigned(raw_value) {
+                    fields.insert("PROTOCOL", value.to_string());
+                }
             }
             IPFIX_FIELD_SAMPLER_ID | IPFIX_FIELD_SELECTOR_ID => {
-                sampler_id = Some(decode_akvorado_unsigned(raw_value));
+                sampler_id = decode_akvorado_unsigned(raw_value);
             }
             IPFIX_FIELD_SAMPLING_INTERVAL | IPFIX_FIELD_SAMPLER_RANDOM_INTERVAL => {
-                observed_sampling_rate = Some(decode_akvorado_unsigned(raw_value));
+                observed_sampling_rate = decode_akvorado_unsigned(raw_value);
             }
             IPFIX_FIELD_SAMPLING_PACKET_INTERVAL => {
-                sampling_packet_interval = Some(decode_akvorado_unsigned(raw_value));
+                sampling_packet_interval = decode_akvorado_unsigned(raw_value);
             }
             IPFIX_FIELD_SAMPLING_PACKET_SPACE => {
-                sampling_packet_space = Some(decode_akvorado_unsigned(raw_value));
+                sampling_packet_space = decode_akvorado_unsigned(raw_value);
             }
             IPFIX_FIELD_SOURCE_TRANSPORT_PORT => {
-                fields.insert("SRC_PORT", decode_akvorado_unsigned(raw_value).to_string());
+                if let Some(value) = decode_akvorado_unsigned(raw_value) {
+                    fields.insert("SRC_PORT", value.to_string());
+                }
             }
             IPFIX_FIELD_DESTINATION_TRANSPORT_PORT => {
-                fields.insert("DST_PORT", decode_akvorado_unsigned(raw_value).to_string());
+                if let Some(value) = decode_akvorado_unsigned(raw_value) {
+                    fields.insert("DST_PORT", value.to_string());
+                }
             }
             IPFIX_FIELD_SOURCE_IPV4_ADDRESS | IPFIX_FIELD_SOURCE_IPV6_ADDRESS => {
                 if let Some(ip) = parse_ip_value(raw_value) {
@@ -82,51 +95,59 @@ pub(crate) fn decode_ipfix_special_record(
                 }
             }
             IPFIX_FIELD_IP_VERSION => {
-                if let Some(etype) =
-                    etype_from_ip_version(&decode_akvorado_unsigned(raw_value).to_string())
+                if let Some(etype) = decode_akvorado_unsigned(raw_value)
+                    .map(|value| value.to_string())
+                    .and_then(|value| etype_from_ip_version(&value).map(str::to_string))
                 {
-                    fields.insert("ETYPE", etype.to_string());
+                    fields.insert("ETYPE", etype);
                 }
             }
             IPFIX_FIELD_INPUT_SNMP => {
-                fields.insert("IN_IF", decode_akvorado_unsigned(raw_value).to_string());
+                if let Some(value) = decode_akvorado_unsigned(raw_value) {
+                    fields.insert("IN_IF", value.to_string());
+                }
             }
             IPFIX_FIELD_OUTPUT_SNMP => {
-                fields.insert("OUT_IF", decode_akvorado_unsigned(raw_value).to_string());
+                if let Some(value) = decode_akvorado_unsigned(raw_value) {
+                    fields.insert("OUT_IF", value.to_string());
+                }
             }
             IPFIX_FIELD_DIRECTION => {
-                fields.insert("DIRECTION", decode_akvorado_unsigned(raw_value).to_string());
+                if let Some(value) = decode_akvorado_unsigned(raw_value) {
+                    fields.insert("DIRECTION", value.to_string());
+                }
             }
             IPFIX_FIELD_FORWARDING_STATUS => {
-                fields.insert(
-                    "FORWARDING_STATUS",
-                    decode_akvorado_unsigned(raw_value).to_string(),
-                );
+                if let Some(value) = decode_akvorado_unsigned(raw_value) {
+                    fields.insert("FORWARDING_STATUS", value.to_string());
+                }
             }
             IPFIX_FIELD_FLOW_START_MILLISECONDS => {
-                let value = decode_akvorado_unsigned(raw_value);
-                flow_start_usec = Some(value.saturating_mul(USEC_PER_MILLISECOND));
-                fields.insert(
-                    "FLOW_START_USEC",
-                    value.saturating_mul(USEC_PER_MILLISECOND).to_string(),
-                );
+                if let Some(value) = decode_akvorado_unsigned(raw_value) {
+                    flow_start_usec = Some(value.saturating_mul(USEC_PER_MILLISECOND));
+                    fields.insert(
+                        "FLOW_START_USEC",
+                        value.saturating_mul(USEC_PER_MILLISECOND).to_string(),
+                    );
+                }
             }
             IPFIX_FIELD_FLOW_END_MILLISECONDS => {
-                fields.insert(
-                    "FLOW_END_USEC",
-                    decode_akvorado_unsigned(raw_value)
-                        .saturating_mul(USEC_PER_MILLISECOND)
-                        .to_string(),
-                );
+                if let Some(value) = decode_akvorado_unsigned(raw_value) {
+                    fields.insert(
+                        "FLOW_END_USEC",
+                        value.saturating_mul(USEC_PER_MILLISECOND).to_string(),
+                    );
+                }
             }
             IPFIX_FIELD_MINIMUM_TTL | IPFIX_FIELD_MAXIMUM_TTL => {
-                fields
-                    .entry("IPTTL")
-                    .or_insert_with(|| decode_akvorado_unsigned(raw_value).to_string());
+                if let Some(value) = decode_akvorado_unsigned(raw_value) {
+                    fields.entry("IPTTL").or_insert_with(|| value.to_string());
+                }
             }
             field_type if is_ipfix_mpls_label_field(field_type) => {
-                let label = decode_akvorado_unsigned(raw_value) >> 4;
-                if label > 0 {
+                if let Some(label) = decode_akvorado_unsigned(raw_value).map(|value| value >> 4)
+                    && label > 0
+                {
                     append_mpls_label_value(&mut fields, label);
                     has_mpls_labels = true;
                 }

@@ -81,6 +81,8 @@ impl FlowRecord {
             OUT_IF_BOUNDARY,
             0
         ),
+        (has_src_port, set_src_port, clear_src_port, src_port: u16, SRC_PORT, 0),
+        (has_dst_port, set_dst_port, clear_dst_port, dst_port: u16, DST_PORT, 0),
         (has_src_vlan, set_src_vlan, clear_src_vlan, src_vlan: u16, SRC_VLAN, 0),
         (has_dst_vlan, set_dst_vlan, clear_dst_vlan, dst_vlan: u16, DST_VLAN, 0),
         (has_iptos, set_iptos, clear_iptos, iptos: u8, IPTOS, 0),

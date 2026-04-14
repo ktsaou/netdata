@@ -17,7 +17,7 @@ pub(crate) fn decode_ipfix_special_from_raw_payload(
 
     let export_time = u32::from_be_bytes([payload[4], payload[5], payload[6], payload[7]]) as u64;
     let packet_realtime_usec = Some(unix_timestamp_to_usec(export_time, 0));
-    let exporter_ip = source.ip();
+    let exporter_ip = canonicalize_ip_addr(source.ip());
     let observation_domain_id =
         u32::from_be_bytes([payload[12], payload[13], payload[14], payload[15]]);
     let packet_length = u16::from_be_bytes([payload[2], payload[3]]) as usize;

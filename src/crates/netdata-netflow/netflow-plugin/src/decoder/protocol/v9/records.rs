@@ -10,7 +10,7 @@ pub(crate) fn append_v9_records(
     input_realtime_usec: u64,
 ) {
     let export_usec = unix_timestamp_to_usec(packet.header.unix_secs as u64, 0);
-    let exporter_ip = source.ip();
+    let exporter_ip = canonicalize_ip_addr(source.ip());
     let observation_domain_id = packet.header.source_id;
     let version = 9_u16;
     let system_init_usec = netflow_v9_system_init_usec(
@@ -38,10 +38,10 @@ pub(crate) fn append_v9_records(
                             V9Field::SamplingInterval | V9Field::FlowSamplerRandomInterval => {
                                 observed_sampling_rate = value_str.parse::<u64>().ok();
                             }
-                            V9Field::FirstSwitched => {
+                            V9Field::FirstSwitched | V9Field::FlowStartMilliseconds => {
                                 first_switched_millis = value_str.parse::<u64>().ok();
                             }
-                            V9Field::LastSwitched => {
+                            V9Field::LastSwitched | V9Field::FlowEndMilliseconds => {
                                 last_switched_millis = value_str.parse::<u64>().ok();
                             }
                             _ => {}

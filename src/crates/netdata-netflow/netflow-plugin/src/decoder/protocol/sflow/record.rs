@@ -73,8 +73,8 @@ pub(crate) fn build_sflow_flow(
                 }
                 rec.src_addr = Some(IpAddr::V4(sampled.src_ip));
                 rec.dst_addr = Some(IpAddr::V4(sampled.dst_ip));
-                rec.src_port = sampled.src_port as u16;
-                rec.dst_port = sampled.dst_port as u16;
+                rec.set_src_port(sampled.src_port as u16);
+                rec.set_dst_port(sampled.dst_port as u16);
                 rec.protocol = sampled.protocol as u8;
                 rec.set_etype(2048);
                 rec.set_iptos(sampled.tos as u8);
@@ -86,8 +86,8 @@ pub(crate) fn build_sflow_flow(
                 }
                 rec.src_addr = Some(IpAddr::V6(sampled.src_ip));
                 rec.dst_addr = Some(IpAddr::V6(sampled.dst_ip));
-                rec.src_port = sampled.src_port as u16;
-                rec.dst_port = sampled.dst_port as u16;
+                rec.set_src_port(sampled.src_port as u16);
+                rec.set_dst_port(sampled.dst_port as u16);
                 rec.protocol = sampled.protocol as u8;
                 rec.set_etype(34525);
                 rec.set_iptos(sampled.priority as u8);

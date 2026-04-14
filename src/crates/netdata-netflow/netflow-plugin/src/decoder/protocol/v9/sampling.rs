@@ -16,7 +16,7 @@ pub(crate) fn observe_v9_sampling_from_raw_payload(
         return false;
     }
 
-    let exporter_ip = source.ip();
+    let exporter_ip = canonicalize_ip_addr(source.ip());
     let observation_domain_id =
         u32::from_be_bytes([payload[16], payload[17], payload[18], payload[19]]);
     let mut offset = 20_usize;
@@ -192,9 +192,16 @@ pub(crate) fn observe_v9_sampling_data(
             record = &record[field.field_length..];
 
             match field.field_type {
-                48 => sampler_id = decode_akvorado_unsigned(raw),
+                48 => {
+                    let Some(parsed) = decode_akvorado_unsigned(raw) else {
+                        continue;
+                    };
+                    sampler_id = parsed;
+                }
                 34 | 50 => {
-                    let parsed = decode_akvorado_unsigned(raw);
+                    let Some(parsed) = decode_akvorado_unsigned(raw) else {
+                        continue;
+                    };
                     if parsed > 0 {
                         rate = parsed;
                     }

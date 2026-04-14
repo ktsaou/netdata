@@ -12,8 +12,9 @@ message IP {
     uint64 higher = 1;
     uint64 lower = 2;
     enum Version {
-        IPv4 = 0;
-        IPv6 = 1;
+        VERSION_UNSPECIFIED = 0;
+        IPv4 = 1;
+        IPv6 = 2;
     }
     Version version = 3;
 }

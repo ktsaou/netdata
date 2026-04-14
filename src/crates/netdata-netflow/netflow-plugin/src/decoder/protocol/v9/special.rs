@@ -19,7 +19,7 @@ pub(crate) fn decode_v9_special_from_raw_payload(
         u32::from_be_bytes([payload[4], payload[5], payload[6], payload[7]]) as u64;
     let export_time = u32::from_be_bytes([payload[8], payload[9], payload[10], payload[11]]) as u64;
     let packet_realtime_usec = Some(unix_timestamp_to_usec(export_time, 0));
-    let exporter_ip = source.ip();
+    let exporter_ip = canonicalize_ip_addr(source.ip());
     let observation_domain_id =
         u32::from_be_bytes([payload[16], payload[17], payload[18], payload[19]]);
     let mut offset = 20_usize;
@@ -132,7 +132,7 @@ pub(crate) fn decode_v9_special_record(
             continue;
         }
 
-        let value = match field {
+        let Some(value) = (match field {
             V9Field::Ipv4SrcAddr
             | V9Field::Ipv4DstAddr
             | V9Field::Ipv4NextHop
@@ -146,12 +146,19 @@ pub(crate) fn decode_v9_special_record(
             | V9Field::PostNATSourceIPv4Address
             | V9Field::PostNATDestinationIPv4Address
             | V9Field::PostNATSourceIpv6Address
-            | V9Field::PostNATDestinationIpv6Address => parse_ip_value(raw_value)
-                .unwrap_or_else(|| decode_akvorado_unsigned(raw_value).to_string()),
-            V9Field::InSrcMac | V9Field::OutSrcMac | V9Field::InDstMac | V9Field::OutDstMac => {
-                mac_to_string(raw_value)
+            | V9Field::PostNATDestinationIpv6Address => {
+                if let Some(parsed_ip) = parse_ip_value(raw_value) {
+                    Some(parsed_ip)
+                } else {
+                    decode_akvorado_unsigned(raw_value).map(|value| value.to_string())
+                }
             }
-            _ => decode_akvorado_unsigned(raw_value).to_string(),
+            V9Field::InSrcMac | V9Field::OutSrcMac | V9Field::InDstMac | V9Field::OutDstMac => {
+                Some(mac_to_string(raw_value))
+            }
+            _ => decode_akvorado_unsigned(raw_value).map(|value| value.to_string()),
+        }) else {
+            continue;
         };
 
         apply_v9_special_mappings(&mut fields, field, &value);

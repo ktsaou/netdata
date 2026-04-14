@@ -29,13 +29,9 @@ ${BUILD_DIR}
 -G
 Ninja"
 
-add_cmake_arg() {
-    CMAKE_ARGS="${CMAKE_ARGS}
-${1}"
-}
-
 add_cmake_option() {
-    add_cmake_arg "-D${1}=${2}"
+    CMAKE_ARGS="${CMAKE_ARGS}
+-D${1}=${2}"
 }
 
 run_cmake() {

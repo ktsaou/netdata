@@ -160,6 +160,19 @@ impl<'a> LogQuery<'a> {
         self
     }
 
+    /// Limit returned field-value pairs to the requested field names.
+    ///
+    /// Field names may be specified using either their OTEL names or the raw
+    /// systemd names present on disk.
+    pub fn with_output_fields<I, S>(mut self, fields: I) -> Self
+    where
+        I: IntoIterator<Item = S>,
+        S: Into<String>,
+    {
+        self.output_fields = Some(fields.into_iter().map(Into::into).collect());
+        self
+    }
+
     /// Execute the query and return log entries.
     ///
     /// This consumes the builder and returns a vector of log entries sorted by timestamp

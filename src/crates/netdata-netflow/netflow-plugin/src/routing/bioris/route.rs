@@ -101,5 +101,6 @@ pub(super) fn proto_ip_to_ip_addr(ip: ProtoIp) -> Option<IpAddr> {
             bytes[8..].copy_from_slice(&ip.lower.to_be_bytes());
             Some(IpAddr::V6(Ipv6Addr::from(bytes)))
         }
+        _ => None,
     }
 }

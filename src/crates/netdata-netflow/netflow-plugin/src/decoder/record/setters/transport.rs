@@ -3,11 +3,11 @@ use super::*;
 pub(super) fn set_record_transport_field(rec: &mut FlowRecord, key: &str, value: &str) -> bool {
     match key {
         "SRC_PORT" => {
-            rec.src_port = value.parse().unwrap_or(0);
+            rec.set_src_port(value.parse().unwrap_or(0));
             true
         }
         "DST_PORT" => {
-            rec.dst_port = value.parse().unwrap_or(0);
+            rec.set_dst_port(value.parse().unwrap_or(0));
             true
         }
         "FLOW_START_USEC" => {

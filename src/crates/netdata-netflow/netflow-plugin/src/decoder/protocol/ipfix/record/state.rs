@@ -4,6 +4,7 @@ use super::*;
 pub(crate) struct IPFixRecordBuildState {
     pub(crate) reverse_overrides: FlowFields,
     pub(crate) reverse_present: bool,
+    pub(crate) decap_required: bool,
     pub(crate) decap_ok: bool,
     pub(crate) sampler_id: Option<u64>,
     pub(crate) observed_sampling_rate: Option<u64>,
@@ -24,6 +25,8 @@ pub(crate) struct IPFixRecordBuildState {
     pub(crate) flow_end_sysuptime_millis: Option<u64>,
     pub(crate) reverse_flow_start_usec: Option<u64>,
     pub(crate) reverse_flow_end_usec: Option<u64>,
+    pub(crate) reverse_flow_start_sysuptime_millis: Option<u64>,
+    pub(crate) reverse_flow_end_sysuptime_millis: Option<u64>,
 }
 
 impl IPFixRecordBuildState {
@@ -62,6 +65,30 @@ impl IPFixRecordBuildState {
     }
 
     pub(crate) fn apply_reverse_time_overrides(&mut self) {
+        if self.reverse_flow_start_usec.is_none()
+            && let (Some(system_init_millis), Some(uptime_millis)) = (
+                self.system_init_millis,
+                self.reverse_flow_start_sysuptime_millis,
+            )
+        {
+            self.reverse_flow_start_usec = Some(
+                system_init_millis
+                    .saturating_mul(USEC_PER_MILLISECOND)
+                    .saturating_add(uptime_millis.saturating_mul(USEC_PER_MILLISECOND)),
+            );
+        }
+        if self.reverse_flow_end_usec.is_none()
+            && let (Some(system_init_millis), Some(uptime_millis)) = (
+                self.system_init_millis,
+                self.reverse_flow_end_sysuptime_millis,
+            )
+        {
+            self.reverse_flow_end_usec = Some(
+                system_init_millis
+                    .saturating_mul(USEC_PER_MILLISECOND)
+                    .saturating_add(uptime_millis.saturating_mul(USEC_PER_MILLISECOND)),
+            );
+        }
         if let Some(start_usec) = self.reverse_flow_start_usec {
             self.reverse_overrides
                 .insert("FLOW_START_USEC", start_usec.to_string());
@@ -79,6 +106,18 @@ pub(super) fn track_reverse_ipfix_time(
     value: &FieldValue,
     export_usec: u64,
 ) {
+    match reverse_field {
+        ReverseInformationElement::ReverseFlowStartSysUpTime => {
+            state.reverse_flow_start_sysuptime_millis = field_value_unsigned(value);
+            return;
+        }
+        ReverseInformationElement::ReverseFlowEndSysUpTime => {
+            state.reverse_flow_end_sysuptime_millis = field_value_unsigned(value);
+            return;
+        }
+        _ => {}
+    }
+
     let Some(usec) = reverse_ipfix_timestamp_to_usec(
         reverse_field,
         value,
@@ -177,5 +216,29 @@ pub(super) fn observe_ipfix_record_value(
             state.flow_end_sysuptime_millis = field_value_unsigned(value);
         }
         _ => {}
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn reverse_sysuptime_waits_for_system_init_time() {
+        let mut state = IPFixRecordBuildState::default();
+
+        track_reverse_ipfix_time(
+            &mut state,
+            &ReverseInformationElement::ReverseFlowStartSysUpTime,
+            &FieldValue::DataNumber(DataNumber::U32(42)),
+            0,
+        );
+        state.system_init_millis = Some(1_000);
+        state.apply_reverse_time_overrides();
+
+        assert_eq!(
+            state.reverse_overrides.get("FLOW_START_USEC").map(String::as_str),
+            Some("1042000")
+        );
     }
 }

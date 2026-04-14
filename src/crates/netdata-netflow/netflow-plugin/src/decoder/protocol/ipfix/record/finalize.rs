@@ -47,7 +47,6 @@ pub(crate) fn finalize_ipfix_record(
     version: u16,
     observation_domain_id: u32,
     sampling: &mut SamplingState,
-    need_decap: bool,
     export_usec: u64,
     timestamp_source: TimestampSource,
     input_realtime_usec: u64,
@@ -66,7 +65,7 @@ pub(crate) fn finalize_ipfix_record(
     if looks_like_sampling_option_record_from_rec(&rec, state.observed_sampling_rate) {
         return None;
     }
-    if need_decap && !state.decap_ok {
+    if state.decap_required && !state.decap_ok {
         return None;
     }
 
@@ -153,5 +152,50 @@ mod tests {
             FlowFields::from([("PACKETS", "0".to_string()), ("BYTES", "0".to_string())]);
 
         assert!(build_reverse_ipfix_flow(&forward, &overrides, None).is_none());
+    }
+
+    #[test]
+    fn finalize_ipfix_record_allows_non_datalink_records_in_decap_mode() {
+        let rec = forward_record();
+        let mut sampling = SamplingState::default();
+
+        let decoded = finalize_ipfix_record(
+            rec,
+            IPFixRecordBuildState::default(),
+            IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)),
+            10,
+            42,
+            &mut sampling,
+            0,
+            TimestampSource::Input,
+            123,
+        );
+
+        assert!(decoded.is_some());
+    }
+
+    #[test]
+    fn finalize_ipfix_record_drops_failed_datalink_decap_records() {
+        let rec = forward_record();
+        let mut sampling = SamplingState::default();
+        let state = IPFixRecordBuildState {
+            decap_required: true,
+            decap_ok: false,
+            ..Default::default()
+        };
+
+        let decoded = finalize_ipfix_record(
+            rec,
+            state,
+            IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)),
+            10,
+            42,
+            &mut sampling,
+            0,
+            TimestampSource::Input,
+            123,
+        );
+
+        assert!(decoded.is_none());
     }
 }

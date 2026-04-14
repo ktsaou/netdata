@@ -466,14 +466,14 @@ advanced correlations and fast root cause analysis, native horizontal scalabilit
 	%else
 	-DENABLE_PLUGIN_SYSTEMD_UNITS=Off \
 	%endif
-		%if 0%{_have_rust}
-		-DENABLE_PLUGIN_NETFLOW=On \
-		%if 0%{?_have_topology_ip_intel_stock}
-		-DNETDATA_TOPOLOGY_IP_INTEL_STOCK_DIR=%{_topology_ip_intel_stock_dir} \
-		%endif
-		%else
-		-DENABLE_PLUGIN_NETFLOW=Off \
-		%endif
+	%if 0%{_have_rust}
+	-DENABLE_PLUGIN_NETFLOW=On \
+	%if 0%{?_have_topology_ip_intel_stock}
+	-DNETDATA_TOPOLOGY_IP_INTEL_STOCK_DIR=%{_topology_ip_intel_stock_dir} \
+	%endif
+	%else
+	-DENABLE_PLUGIN_NETFLOW=Off \
+	%endif
 	%if 0%{_have_rust}
 	-DENABLE_PLUGIN_OTEL=On \
 	%else

@@ -75,6 +75,13 @@ if [ -z "${MODE}" ] || [ -z "${OUTPUT_DIR}" ]; then
   exit 1
 fi
 
+case "${OUTPUT_DIR}" in
+  /*) ;;
+  *)
+    OUTPUT_DIR="$(pwd)/${OUTPUT_DIR}"
+    ;;
+esac
+
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd -- "${SCRIPT_DIR}/../.." && pwd)"
 DOWNLOADER_DIR="${REPO_ROOT}/src/go"
