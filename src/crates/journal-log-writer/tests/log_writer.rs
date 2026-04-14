@@ -720,7 +720,7 @@ fn test_lifecycle_observer_reports_rotation_and_retention_deletion() {
 }
 
 #[test]
-fn test_lifecycle_observer_skips_missing_retention_deletions() {
+fn test_lifecycle_observer_reports_missing_retention_deletions() {
     let dir = tempfile::tempdir().expect("create temp dir");
     let config = Config::new(
         Origin {
@@ -761,9 +761,9 @@ fn test_lifecycle_observer_skips_missing_retention_deletions() {
         .collect::<Vec<_>>();
 
     assert!(
-        !retained
+        retained
             .iter()
             .any(|file| Path::new(file.path()) == archived_path),
-        "missing files must not be reported as successful retention deletions"
+        "files removed from chain/accounting must still be reported for retention follow-up"
     );
 }

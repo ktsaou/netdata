@@ -215,14 +215,12 @@ impl OwnedChain {
         info!("deleting {}", file.path());
 
         let file_size = self.file_sizes.get(&file).copied().unwrap_or(0);
-        let mut report_deleted = true;
 
         // Remove from filesystem
         match std::fs::remove_file(file.path()) {
             Ok(()) => {}
             Err(err) if err.kind() == std::io::ErrorKind::NotFound => {
                 info!("journal file {:?} was already removed", file.path());
-                report_deleted = false;
             }
             Err(err) => {
                 error!("failed to remove journal file {:?}: {}", file.path(), err);
@@ -233,7 +231,7 @@ impl OwnedChain {
 
         self.file_sizes.remove(&file);
         self.total_size = self.total_size.saturating_sub(file_size);
-        Ok(report_deleted.then_some(file))
+        Ok(Some(file))
     }
 
     /// Remove files older than the specified cutoff time
@@ -260,6 +258,7 @@ impl OwnedChain {
                 }
                 Err(err) if err.kind() == std::io::ErrorKind::NotFound => {
                     info!("journal file {:?} was already removed", file.path());
+                    deleted_files.push(file.clone());
                     self.file_sizes.remove(&file);
                     self.total_size = self.total_size.saturating_sub(file_size);
                 }
