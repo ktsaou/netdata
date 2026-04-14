@@ -80,6 +80,30 @@ func TestAggregateLicenseRows_StateBucketCounts(t *testing.T) {
 	assert.EqualValues(t, 0, agg.stateIgnored)
 }
 
+func TestAggregateLicenseRows_IgnoredRowsDoNotDriveSignalAggregation(t *testing.T) {
+	now := time.Date(2026, 4, 9, 12, 0, 0, 0, time.UTC)
+	ignoredExpiry := now.Add(1 * time.Hour).Unix()
+	healthyExpiry := now.Add(24 * time.Hour).Unix()
+
+	rows := extractLicenseRows(profileWith(
+		signal("ignored", "Ignored", licenseValueKindExpiryTimestamp, ignoredExpiry,
+			map[string]string{tagLicenseStateRaw: "not applicable"}),
+		signal("ignored", "Ignored", licenseValueKindUsagePercent, 99,
+			map[string]string{tagLicenseStateRaw: "not applicable"}),
+		signal("healthy", "Healthy", licenseValueKindExpiryTimestamp, healthyExpiry),
+		signal("healthy", "Healthy", licenseValueKindUsagePercent, 60),
+	), now)
+
+	agg := aggregateLicenseRows(rows, now)
+	assert.True(t, agg.hasRemainingTime)
+	assert.Equal(t, healthyExpiry-now.Unix(), agg.remainingTime)
+	assert.True(t, agg.hasUsagePercent)
+	assert.EqualValues(t, 60, agg.usagePercent)
+	assert.True(t, agg.hasStateCounts)
+	assert.EqualValues(t, 1, agg.stateHealthy)
+	assert.EqualValues(t, 1, agg.stateIgnored)
+}
+
 func TestAggregateLicenseRows_WriteToOmitsAbsentSignals(t *testing.T) {
 	now := time.Date(2026, 4, 9, 12, 0, 0, 0, time.UTC)
 	rows := extractLicenseRows(profileWith(

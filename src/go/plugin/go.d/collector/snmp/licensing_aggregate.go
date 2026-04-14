@@ -29,6 +29,25 @@ func aggregateLicenseRows(rows []licenseRow, now time.Time) licenseAggregate {
 	var agg licenseAggregate
 
 	for _, row := range rows {
+		switch row.StateBucket {
+		case licenseStateBucketHealthy:
+			agg.stateHealthy++
+			agg.hasStateCounts = true
+		case licenseStateBucketDegraded:
+			agg.stateDegraded++
+			agg.hasStateCounts = true
+		case licenseStateBucketBroken:
+			agg.stateBroken++
+			agg.hasStateCounts = true
+		case licenseStateBucketIgnored:
+			agg.stateIgnored++
+			agg.hasStateCounts = true
+		}
+
+		if row.StateBucket == licenseStateBucketIgnored {
+			continue
+		}
+
 		if row.HasExpiry && !row.IsPerpetual {
 			agg.setMin(row.ExpiryTS-now.Unix(), &agg.remainingTime, &agg.hasRemainingTime)
 		}
@@ -47,20 +66,6 @@ func aggregateLicenseRows(rows []licenseRow, now time.Time) licenseAggregate {
 				agg.usagePercent = pct
 				agg.hasUsagePercent = true
 			}
-		}
-		switch row.StateBucket {
-		case licenseStateBucketHealthy:
-			agg.stateHealthy++
-			agg.hasStateCounts = true
-		case licenseStateBucketDegraded:
-			agg.stateDegraded++
-			agg.hasStateCounts = true
-		case licenseStateBucketBroken:
-			agg.stateBroken++
-			agg.hasStateCounts = true
-		case licenseStateBucketIgnored:
-			agg.stateIgnored++
-			agg.hasStateCounts = true
 		}
 	}
 
