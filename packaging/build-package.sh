@@ -35,14 +35,16 @@ add_cmake_option() {
 }
 
 run_cmake() {
-    set --
-    while IFS= read -r arg; do
-        [ -n "${arg}" ] || continue
-        set -- "$@" "${arg}"
-    done <<EOF
+    (
+        set --
+        while IFS= read -r arg; do
+            [ -n "${arg}" ] || continue
+            set -- "$@" "${arg}"
+        done <<EOF
 ${CMAKE_ARGS}
 EOF
-    cmake "$@"
+        cmake "$@"
+    )
 }
 
 add_cmake_option CMAKE_BUILD_TYPE RelWithDebInfo
