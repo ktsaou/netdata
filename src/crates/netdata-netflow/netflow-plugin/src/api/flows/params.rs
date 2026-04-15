@@ -2,22 +2,20 @@ use crate::{presentation, query};
 
 use super::model::{RequiredParam, RequiredParamOption};
 
-fn flows_accepted_params() -> Vec<String> {
-    vec![
-        "mode".to_string(),
-        "view".to_string(),
-        "after".to_string(),
-        "before".to_string(),
-        "query".to_string(),
-        "term".to_string(),
-        "field".to_string(),
-        "selections".to_string(),
-        "facets".to_string(),
-        "group_by".to_string(),
-        "sort_by".to_string(),
-        "top_n".to_string(),
-    ]
-}
+const FLOWS_ACCEPTED_PARAMS: &[&str] = &[
+    "mode",
+    "view",
+    "after",
+    "before",
+    "query",
+    "term",
+    "field",
+    "selections",
+    "facets",
+    "group_by",
+    "sort_by",
+    "top_n",
+];
 
 pub(crate) fn flows_required_params(
     view: &str,
@@ -153,6 +151,6 @@ fn ordered_group_by_options(group_by: &[String]) -> Vec<String> {
     ordered
 }
 
-pub(super) fn accepted_params() -> Vec<String> {
-    flows_accepted_params()
+pub(super) fn accepted_params() -> &'static [&'static str] {
+    FLOWS_ACCEPTED_PARAMS
 }

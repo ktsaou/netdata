@@ -86,7 +86,7 @@ pub(crate) struct FlowsResponse {
     pub(crate) data: FlowsData,
     pub(crate) has_history: bool,
     pub(crate) update_every: u32,
-    pub(crate) accepted_params: Vec<String>,
+    pub(crate) accepted_params: &'static [&'static str],
     pub(crate) required_params: Vec<RequiredParam>,
     pub(crate) help: String,
 }
@@ -101,7 +101,7 @@ pub(crate) struct FlowMetricsResponse {
     pub(crate) data: FlowMetricsData,
     pub(crate) has_history: bool,
     pub(crate) update_every: u32,
-    pub(crate) accepted_params: Vec<String>,
+    pub(crate) accepted_params: &'static [&'static str],
     pub(crate) required_params: Vec<RequiredParam>,
     pub(crate) help: String,
 }
@@ -116,7 +116,7 @@ pub(crate) struct FlowAutocompleteResponse {
     pub(crate) data: FlowAutocompleteData,
     pub(crate) has_history: bool,
     pub(crate) update_every: u32,
-    pub(crate) accepted_params: Vec<String>,
+    pub(crate) accepted_params: &'static [&'static str],
     pub(crate) required_params: Vec<RequiredParam>,
     pub(crate) help: String,
 }

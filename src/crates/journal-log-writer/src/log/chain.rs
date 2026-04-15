@@ -252,15 +252,15 @@ impl OwnedChain {
 
             match std::fs::remove_file(file.path()) {
                 Ok(()) => {
-                    deleted_files.push(file.clone());
                     self.file_sizes.remove(&file);
                     self.total_size = self.total_size.saturating_sub(file_size);
+                    deleted_files.push(file);
                 }
                 Err(err) if err.kind() == std::io::ErrorKind::NotFound => {
                     info!("journal file {:?} was already removed", file.path());
-                    deleted_files.push(file.clone());
                     self.file_sizes.remove(&file);
                     self.total_size = self.total_size.saturating_sub(file_size);
+                    deleted_files.push(file);
                 }
                 Err(err) => {
                     error!("failed to remove journal file {:?}: {}", file.path(), err);

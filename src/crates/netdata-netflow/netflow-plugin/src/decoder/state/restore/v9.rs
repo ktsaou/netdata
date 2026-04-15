@@ -49,6 +49,9 @@ pub(super) fn build_v9_restore_packet(
                     .values()
                     .map(|template| NetflowV9OptionsTemplate {
                         template_id: template.template_id,
+                        // RFC 3954 section 6.1 defines these as byte lengths
+                        // of the field-definition descriptors in the Options
+                        // Template Record, not the later data-record values.
                         options_scope_length: (template.scope_fields.len() * 4) as u16,
                         options_length: (template.option_fields.len() * 4) as u16,
                         scope_fields: template
