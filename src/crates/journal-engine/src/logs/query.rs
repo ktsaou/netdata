@@ -504,6 +504,16 @@ fn merge_log_entries(
     result
 }
 
+fn is_projected(
+    raw_field_name: &str,
+    output_field_name: &str,
+    output_fields: Option<&HashSet<String>>,
+) -> bool {
+    output_fields.map_or(true, |projected| {
+        projected.contains(raw_field_name) || projected.contains(output_field_name)
+    })
+}
+
 /// Raw field data extracted from a journal entry.
 ///
 /// This is an intermediate representation between a `LogEntryId` (which only contains
@@ -602,11 +612,12 @@ fn extract_entry_data(
 
                 if let Some(mut pair) = FieldValuePair::parse(&payload_str) {
                     let raw_field_name = pair.field();
-                    let raw_projection_match =
-                        output_fields.is_some_and(|projected| projected.contains(raw_field_name));
+                    let otel_field_name = reverse_map.get(raw_field_name).map(String::as_str);
+                    let output_field_name = otel_field_name.unwrap_or(raw_field_name);
+                    let projected = is_projected(raw_field_name, output_field_name, output_fields);
 
                     // Reverse-map systemd field name back to OTEL name if needed
-                    if let Some(otel_name) = reverse_map.get(raw_field_name) {
+                    if let Some(otel_name) = otel_field_name {
                         pair = FieldValuePair::new_unchecked(
                             FieldName::new_unchecked(otel_name),
                             pair.value().to_string(),
@@ -615,9 +626,7 @@ fn extract_entry_data(
 
                     // Accept projection filters expressed with either OTEL field names (preferred)
                     // or the raw systemd names present on disk.
-                    if output_fields.map_or(true, |projected| {
-                        raw_projection_match || projected.contains(pair.field())
-                    }) {
+                    if projected {
                         fields.push(pair);
                     }
                 }
@@ -636,4 +645,51 @@ fn extract_entry_data(
 
     // Filter out None entries (remapping entries are skipped and left as None)
     Ok(result.into_iter().flatten().collect())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn projected_fields(fields: &[&str]) -> HashSet<String> {
+        fields.iter().map(|field| (*field).to_string()).collect()
+    }
+
+    #[test]
+    fn projection_accepts_raw_systemd_field_name() {
+        let projected = projected_fields(&["_SYSTEMD_UNIT"]);
+
+        assert!(is_projected(
+            "_SYSTEMD_UNIT",
+            "systemd.unit",
+            Some(&projected)
+        ));
+    }
+
+    #[test]
+    fn projection_accepts_remapped_otel_field_name() {
+        let projected = projected_fields(&["service.name"]);
+
+        assert!(is_projected(
+            "ND_SD_DFB2E175D0B14B66",
+            "service.name",
+            Some(&projected)
+        ));
+    }
+
+    #[test]
+    fn projection_rejects_unmatched_field_names() {
+        let projected = projected_fields(&["service.name"]);
+
+        assert!(!is_projected(
+            "_SYSTEMD_UNIT",
+            "systemd.unit",
+            Some(&projected)
+        ));
+    }
+
+    #[test]
+    fn projection_accepts_all_fields_without_projection_filter() {
+        assert!(is_projected("_SYSTEMD_UNIT", "systemd.unit", None));
+    }
 }

@@ -578,13 +578,17 @@ impl Log {
         }
 
         // Respect retention policy
-        let deleted_files = self.chain.retain(&self.config.retention_policy)?;
+        let retention = self.chain.retain(&self.config.retention_policy);
+        let deleted_files = retention.deleted_files;
         if !deleted_files.is_empty()
             && let Some(observer) = &self.lifecycle_observer
         {
             observer.on_event(&LogLifecycleEvent::RetainedDeleted {
                 files: deleted_files,
             });
+        }
+        if let Some(error) = retention.error {
+            return Err(error);
         }
 
         // Create new file (either initial or rotated)
