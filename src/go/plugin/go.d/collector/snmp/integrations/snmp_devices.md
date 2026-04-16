@@ -142,7 +142,10 @@ Before configuring the collector:
 
 #### Options
 
-The following options can be defined globally: update_every, autodetection_retry.
+The following options can be defined globally: `update_every`, `autodetection_retry`.
+
+There is no module-wide `topology:` block in `snmp.conf`.
+SNMP topology discovery is handled by the separate `snmp_topology` collector using devices registered by SNMP jobs.
 
 
 <details open><summary>Config options</summary>
@@ -558,6 +561,3 @@ Table metrics are usually the slowest and often determine the total collection t
 1. Do logs show “skipping data collection”?  
 2. Does *Internal → Stats* show collection time > `update_every`?  
 3. Increase `update_every` until skips disappear.
-
-
-
