@@ -88,6 +88,7 @@ type PresentationActorType struct {
 	ColorSlot       string                       `json:"color_slot"`
 	Opacity         float64                      `json:"opacity,omitempty"`
 	Border          bool                         `json:"border"`
+	Role            string                       `json:"role,omitempty"`
 	SizeByLinks     bool                         `json:"size_by_links,omitempty"`
 	ShowPortBullets bool                         `json:"show_port_bullets,omitempty"`
 	IconSVG         string                       `json:"icon_svg,omitempty"`

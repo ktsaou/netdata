@@ -282,6 +282,7 @@
         "color_slot": { "type": "string" },
         "opacity": { "type": "number", "minimum": 0, "maximum": 1 },
         "border": { "type": "boolean" },
+        "role": { "type": "string", "enum": ["actor", "endpoint"] },
         "size_by_links": { "type": "boolean" },
         "show_port_bullets": { "type": "boolean" },
         "icon_svg": { "type": "string" },
