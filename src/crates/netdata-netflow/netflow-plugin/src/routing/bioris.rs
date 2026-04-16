@@ -10,13 +10,13 @@ use tonic::transport::{Channel, ClientTlsConfig, Endpoint};
 pub(crate) mod proto {
     pub(crate) mod bio {
         pub(crate) mod net {
-            tonic::include_proto!("bio.net");
+            include!("proto/bio.net.rs");
         }
         pub(crate) mod route {
-            tonic::include_proto!("bio.route");
+            include!("proto/bio.route.rs");
         }
         pub(crate) mod ris {
-            tonic::include_proto!("bio.ris");
+            include!("proto/bio.ris.rs");
         }
     }
 }

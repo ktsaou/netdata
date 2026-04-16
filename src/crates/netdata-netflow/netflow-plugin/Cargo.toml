@@ -71,13 +71,11 @@ rt = { workspace = true }
 netdata-plugin-error = { workspace = true }
 netdata-plugin-protocol = { workspace = true }
 
-[build-dependencies]
-tonic-prost-build = { workspace = true }
-protoc-bin-vendored = { workspace = true }
-
 [dev-dependencies]
 etherparse = { workspace = true }
 pcap-file = { workspace = true }
 proptest = { workspace = true }
+protoc-bin-vendored = { workspace = true }
 tempfile = { workspace = true }
+tonic-prost-build = { workspace = true }
 uuid = { workspace = true }
