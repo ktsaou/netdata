@@ -5,6 +5,7 @@ mod charts;
 mod decoder;
 mod enrichment;
 mod facet_catalog;
+#[allow(dead_code)]
 mod flow_index;
 mod facet_runtime;
 mod flow;
