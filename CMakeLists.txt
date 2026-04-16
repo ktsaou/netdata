@@ -3464,7 +3464,7 @@ if(ENABLE_PLUGIN_NETFLOW)
                       RUNTIME DESTINATION usr/libexec/netdata/plugins.d
                       COMPONENT plugin-netflow)
 
-    install(FILES src/crates/netdata-netflow/netflow-plugin/configs/netflow.yaml
+    install(FILES src/crates/netflow-plugin/configs/netflow.yaml
             COMPONENT plugin-netflow
             DESTINATION usr/lib/netdata/conf.d)
 

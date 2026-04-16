@@ -29,7 +29,7 @@ members = [
     "netdata-otel/flatten_otel",
 
     # Netdata NetFlow workspace members
-    "netdata-netflow/netflow-plugin",
+    "netflow-plugin",
 
     # Plugin IPC library
     "netipc",
