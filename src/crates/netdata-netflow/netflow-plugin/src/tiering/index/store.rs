@@ -14,8 +14,8 @@ use crate::ingest::JournalEncodeBuffer;
 use crate::tiering::FlowMetrics;
 use anyhow::{Context, Result, anyhow};
 #[cfg(test)]
-use netdata_flow_index::FieldValue as IndexFieldValue;
-use netdata_flow_index::{FlowIndex, FlowIndexMemoryBreakdown};
+use crate::flow_index::FieldValue as IndexFieldValue;
+use crate::flow_index::{FlowIndex, FlowIndexMemoryBreakdown};
 use std::collections::{BTreeMap, BTreeSet};
 use std::mem::size_of;
 

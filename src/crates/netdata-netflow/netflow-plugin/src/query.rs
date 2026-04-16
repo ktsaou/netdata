@@ -13,7 +13,7 @@ use journal_core::{
     Direction as JournalDirection, JournalCursor, JournalFile, JournalReader, Location,
 };
 use journal_registry::{FileInfo, Monitor, Registry, repository::File as RegistryFile};
-use netdata_flow_index::{
+use crate::flow_index::{
     FieldKind as IndexFieldKind, FieldSpec as IndexFieldSpec, FieldValue as IndexFieldValue,
     FlowId as IndexedFlowId, FlowIndex,
 };

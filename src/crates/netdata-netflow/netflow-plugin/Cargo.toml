@@ -64,7 +64,7 @@ tonic = { workspace = true, features = ["transport", "tls-native-roots"] }
 tonic-prost = { workspace = true }
 prost = { workspace = true }
 rustc-hash = { workspace = true }
-netdata-flow-index = { workspace = true }
+thiserror = { workspace = true }
 fst = { workspace = true }
 
 rt = { workspace = true }
@@ -78,5 +78,6 @@ protoc-bin-vendored = { workspace = true }
 [dev-dependencies]
 etherparse = { workspace = true }
 pcap-file = { workspace = true }
+proptest = { workspace = true }
 tempfile = { workspace = true }
 uuid = { workspace = true }

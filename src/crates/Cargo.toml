@@ -29,7 +29,6 @@ members = [
     "netdata-otel/flatten_otel",
 
     # Netdata NetFlow workspace members
-    "netdata-netflow/flow-index",
     "netdata-netflow/netflow-plugin",
 
     # Plugin IPC library
@@ -184,9 +183,6 @@ otel-signal-viewer-plugin = { path = "netdata-log-viewer/otel-signal-viewer-plug
 # Netdata OTEL crates
 otel-plugin = { path = "netdata-otel/otel-plugin" }
 flatten_otel = { path = "netdata-otel/flatten_otel" }
-
-# Netdata NetFlow crates
-netdata-flow-index = { path = "netdata-netflow/flow-index" }
 
 tempfile = { version = "3" }
 

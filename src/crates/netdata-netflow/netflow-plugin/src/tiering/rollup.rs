@@ -1,5 +1,5 @@
 use crate::flow::{FlowDirection, FlowFields, FlowRecord};
-use netdata_flow_index::{
+use crate::flow_index::{
     FieldKind as IndexFieldKind, FieldSpec as IndexFieldSpec, FieldValue as IndexFieldValue,
     FlowId as IndexedFlowId, FlowIndex, FlowIndexError,
 };

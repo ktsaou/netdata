@@ -1,5 +1,5 @@
 use crate::flow::{FlowFields, FlowRecord};
-use netdata_flow_index::FlowId as IndexedFlowId;
+use crate::flow_index::FlowId as IndexedFlowId;
 use std::mem::size_of;
 use std::time::Duration;
 

@@ -2,7 +2,7 @@ use std::hash::Hasher;
 use std::mem::size_of;
 use std::net::{IpAddr, Ipv4Addr};
 
-use crate::{FieldId, FieldValue, FlowId, FlowIndexError, HashStrategy};
+use super::{FieldId, FieldValue, FlowId, FlowIndexError, HashStrategy};
 
 pub(super) enum FlowStorage {
     Dense(DenseFlowStorage),
@@ -67,14 +67,14 @@ impl FlowStorage {
     }
 }
 
-pub(super) fn implicit_default_field_value(kind: crate::FieldKind) -> FieldValue<'static> {
+pub(super) fn implicit_default_field_value(kind: super::FieldKind) -> FieldValue<'static> {
     match kind {
-        crate::FieldKind::Text => FieldValue::Text(""),
-        crate::FieldKind::U8 => FieldValue::U8(0),
-        crate::FieldKind::U16 => FieldValue::U16(0),
-        crate::FieldKind::U32 => FieldValue::U32(0),
-        crate::FieldKind::U64 => FieldValue::U64(0),
-        crate::FieldKind::IpAddr => FieldValue::IpAddr(IpAddr::V4(Ipv4Addr::UNSPECIFIED)),
+        super::FieldKind::Text => FieldValue::Text(""),
+        super::FieldKind::U8 => FieldValue::U8(0),
+        super::FieldKind::U16 => FieldValue::U16(0),
+        super::FieldKind::U32 => FieldValue::U32(0),
+        super::FieldKind::U64 => FieldValue::U64(0),
+        super::FieldKind::IpAddr => FieldValue::IpAddr(IpAddr::V4(Ipv4Addr::UNSPECIFIED)),
     }
 }
 

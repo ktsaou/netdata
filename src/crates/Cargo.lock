@@ -2234,17 +2234,6 @@ dependencies = [
  "getrandom 0.2.17",
 ]
 
-[[package]]
-name = "netdata-flow-index"
-version = "0.1.3"
-dependencies = [
- "hashbrown 0.15.5",
- "proptest",
- "thiserror 2.0.18",
- "twox-hash",
-]
-
-[[package]]
 name = "netdata-plugin-charts-derive"
 version = "0.1.3"
 dependencies = [
@@ -2335,7 +2324,6 @@ dependencies = [
  "maxminddb",
  "memchr",
  "memmap2",
- "netdata-flow-index",
  "netdata-plugin-error",
  "netdata-plugin-protocol",
  "netflow_parser",
@@ -2344,6 +2332,7 @@ dependencies = [
  "notify",
  "pcap-file",
  "prost 0.14.3",
+ "proptest",
  "protoc-bin-vendored",
  "regex",
  "reqwest",
@@ -2357,6 +2346,7 @@ dependencies = [
  "sflow-parser",
  "socket2 0.5.10",
  "tempfile",
+ "thiserror 2.0.18",
  "tokio",
  "tokio-stream",
  "tokio-util",
