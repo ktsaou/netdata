@@ -53,6 +53,7 @@ impl FacetFileContribution {
         contribution
     }
 
+    #[allow(dead_code)]
     pub(super) fn insert_raw(&mut self, field: &'static str, value: &str) {
         let Some(spec) = facet_field_spec(field) else {
             return;
@@ -66,6 +67,7 @@ impl FacetFileContribution {
             .or_insert_with(|| FacetStore::new(spec.kind))
     }
 
+    #[allow(dead_code)]
     fn insert_raw_spec(&mut self, spec: FacetFieldSpec, value: &str) {
         let store = self.store_for_spec(spec);
         let _ = store.insert_raw(value);
@@ -211,6 +213,7 @@ impl FacetValueSink for FacetFileContribution {
     }
 }
 
+#[allow(dead_code)]
 pub(crate) fn facet_contribution_from_flow_fields(fields: &FlowFields) -> FacetFileContribution {
     let mut contribution = FacetFileContribution::default();
     let protocol = fields.get("PROTOCOL").map(String::as_str);
@@ -241,6 +244,7 @@ pub(crate) fn facet_contribution_from_flow_fields(fields: &FlowFields) -> FacetF
     contribution
 }
 
+#[allow(dead_code)]
 pub(crate) fn facet_contribution_from_record(record: &FlowRecord) -> FacetFileContribution {
     let mut contribution = FacetFileContribution::default();
     append_record_facet_values(&mut contribution, record);
@@ -256,6 +260,7 @@ pub(crate) fn append_record_facet_values(sink: &mut impl FacetValueSink, record:
     append_record_virtual_icmp_fields(sink, record);
 }
 
+#[allow(dead_code)]
 pub(crate) fn facet_contribution_from_encoded_fields<'a, I>(fields: I) -> FacetFileContribution
 where
     I: IntoIterator<Item = &'a [u8]>,

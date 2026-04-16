@@ -38,6 +38,7 @@ impl JournalEncodeBuffer {
         journal.write_entry_with_timestamps(&slices[..n], timestamps)
     }
 
+    #[allow(dead_code)]
     pub(crate) fn encode(&mut self, fields: &crate::flow::FlowFields) {
         self.clear();
 

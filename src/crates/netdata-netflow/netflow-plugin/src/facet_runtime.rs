@@ -25,6 +25,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex, RwLock};
 use tokio::sync::Notify;
 
+#[allow(unused_imports)]
 pub(crate) use contribution::{
     FacetFileContribution, FacetValueSink, append_record_facet_values,
     facet_contribution_from_flow_fields,

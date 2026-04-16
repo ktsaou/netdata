@@ -10,6 +10,7 @@ pub(crate) struct FlowQueryService {
 }
 
 impl FlowQueryService {
+    #[allow(dead_code)]
     pub(crate) async fn new(cfg: &PluginConfig) -> Result<(Self, UnboundedReceiver<Event>)> {
         let facet_runtime = Arc::new(crate::facet_runtime::FacetRuntime::new(
             &cfg.journal.base_dir(),

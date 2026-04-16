@@ -1,3 +1,4 @@
+#[allow(unused_imports)]
 use super::super::*;
 use crate::facet_catalog::facet_field_enabled;
 
@@ -27,6 +28,7 @@ pub(crate) fn build_facets(
     )
 }
 
+#[allow(dead_code)]
 pub(crate) fn facet_field_allowed(field: &str) -> bool {
     facet_field_enabled(field)
 }

@@ -28,6 +28,7 @@ impl NetflowFlowsHandler {
         Self { metrics, query }
     }
 
+    #[allow(dead_code)]
     pub(crate) async fn handle_request(
         &self,
         request: query::FlowsRequest,

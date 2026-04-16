@@ -1,6 +1,7 @@
 use super::*;
 
 impl FlowQueryService {
+    #[allow(dead_code)]
     pub(crate) async fn query_flow_metrics(
         &self,
         request: &FlowsRequest,

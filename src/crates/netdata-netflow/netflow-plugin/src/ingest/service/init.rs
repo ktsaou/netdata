@@ -2,6 +2,7 @@ use super::super::*;
 use super::{FacetLifecycleObserver, IngestService, MaterializedTierWriters};
 
 impl IngestService {
+    #[allow(dead_code)]
     pub(crate) fn new(
         cfg: PluginConfig,
         metrics: Arc<IngestMetrics>,

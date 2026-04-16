@@ -4,6 +4,7 @@ use super::schema::{
 };
 use super::*;
 
+#[allow(dead_code)]
 pub(crate) fn materialize_rollup_fields(
     index: &FlowIndex,
     flow_id: IndexedFlowId,
@@ -84,6 +85,7 @@ pub(crate) fn rollup_field_value<'a>(
     index.field_value(field_index, field_id)
 }
 
+#[allow(dead_code)]
 pub(crate) fn compact_index_value_to_string(value: IndexFieldValue<'_>) -> String {
     match value {
         IndexFieldValue::Text(text) => text.to_string(),

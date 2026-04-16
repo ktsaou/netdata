@@ -1,6 +1,7 @@
 use super::*;
 
 impl FlowQueryService {
+    #[allow(dead_code)]
     pub(crate) async fn query_flows(&self, request: &FlowsRequest) -> Result<FlowQueryOutput> {
         self.query_flows_blocking(request, None)
     }

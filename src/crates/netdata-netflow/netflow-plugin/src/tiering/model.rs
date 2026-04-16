@@ -60,6 +60,7 @@ impl FlowMetrics {
         self.packets = self.packets.saturating_add(other.packets);
     }
 
+    #[allow(dead_code)]
     pub(crate) fn write_fields(self, fields: &mut FlowFields) {
         fields.insert("BYTES", self.bytes.to_string());
         fields.insert("PACKETS", self.packets.to_string());

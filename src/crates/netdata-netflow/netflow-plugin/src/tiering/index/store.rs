@@ -100,6 +100,7 @@ impl TierFlowIndexStore {
         })
     }
 
+    #[allow(dead_code)]
     pub(crate) fn materialize_fields(&self, flow_ref: TierFlowRef) -> Option<FlowFields> {
         let index = self.indexes.get(&flow_ref.hour_start_usec)?;
         materialize_rollup_fields(index, flow_ref.flow_id)
