@@ -3,9 +3,12 @@ use crate::protocol;
 use std::ffi::OsString;
 use std::os::unix::ffi::OsStringExt;
 use std::path::PathBuf;
+use std::sync::mpsc;
 use std::thread;
+use std::time::Duration;
 
 const TEST_RUN_DIR: &str = "/tmp/nipc_shm_rust_test";
+const SERVER_READY_TIMEOUT: Duration = Duration::from_secs(2);
 
 fn ensure_run_dir() {
     let _ = std::fs::create_dir_all(TEST_RUN_DIR);
@@ -14,6 +17,14 @@ fn ensure_run_dir() {
 fn cleanup_shm(service: &str, session_id: u64) {
     let path = format!("{TEST_RUN_DIR}/{service}-{session_id:016x}.ipcshm");
     let _ = std::fs::remove_file(&path);
+}
+
+fn wait_for_server_ready(rx: &mpsc::Receiver<u64>, service: &str, session_id: u64) -> u64 {
+    rx.recv_timeout(SERVER_READY_TIMEOUT).unwrap_or_else(|err| {
+        panic!(
+            "timed out waiting for server readiness for service={service} sid={session_id}: {err}"
+        )
+    })
 }
 
 /// Build a complete message (outer header + payload) for SHM.
@@ -43,10 +54,12 @@ fn test_direct_roundtrip() {
     let sid: u64 = 1;
     cleanup_shm(svc, sid);
 
+    let (ready_tx, ready_rx) = mpsc::channel();
     let svc_clone = svc.to_string();
     let server_thread = thread::spawn(move || {
         let mut ctx = ShmContext::server_create(TEST_RUN_DIR, &svc_clone, sid, 4096, 4096)
             .expect("server create");
+        ready_tx.send(sid).expect("server ready signal");
 
         // Receive request
         let mut buf = vec![0u8; 65536];
@@ -62,9 +75,8 @@ fn test_direct_roundtrip() {
         ctx.destroy();
     });
 
-    // Wait for server to create region
-    thread::sleep(std::time::Duration::from_millis(50));
-
+    let ready_sid = wait_for_server_ready(&ready_rx, svc, sid);
+    assert_eq!(ready_sid, sid, "unexpected server ready sid");
     let mut client = ShmContext::client_attach(TEST_RUN_DIR, svc, sid).expect("client attach");
 
     let payload = vec![0xCA, 0xFE, 0xBA, 0xBE];
@@ -98,10 +110,12 @@ fn test_multiple_roundtrips() {
     let sid: u64 = 2;
     cleanup_shm(svc, sid);
 
+    let (ready_tx, ready_rx) = mpsc::channel();
     let svc_clone = svc.to_string();
     let server_thread = thread::spawn(move || {
         let mut ctx = ShmContext::server_create(TEST_RUN_DIR, &svc_clone, sid, 4096, 4096)
             .expect("server create");
+        ready_tx.send(sid).expect("server ready signal");
 
         let mut buf = vec![0u8; 65536];
         for _ in 0..10 {
@@ -115,7 +129,8 @@ fn test_multiple_roundtrips() {
         ctx.destroy();
     });
 
-    thread::sleep(std::time::Duration::from_millis(50));
+    let ready_sid = wait_for_server_ready(&ready_rx, svc, sid);
+    assert_eq!(ready_sid, sid, "unexpected server ready sid");
     let mut client = ShmContext::client_attach(TEST_RUN_DIR, svc, sid).expect("client attach");
 
     let mut resp_buf = vec![0u8; 65536];
@@ -168,10 +183,12 @@ fn test_large_message() {
     let sid: u64 = 4;
     cleanup_shm(svc, sid);
 
+    let (ready_tx, ready_rx) = mpsc::channel();
     let svc_clone = svc.to_string();
     let server_thread = thread::spawn(move || {
         let mut ctx = ShmContext::server_create(TEST_RUN_DIR, &svc_clone, sid, 65536, 65536)
             .expect("server create");
+        ready_tx.send(sid).expect("server ready signal");
         let mut buf = vec![0u8; 65536];
         let mlen = ctx.receive(&mut buf, 5000).expect("server receive");
         let msg = &buf[..mlen];
@@ -182,7 +199,8 @@ fn test_large_message() {
         ctx.destroy();
     });
 
-    thread::sleep(std::time::Duration::from_millis(50));
+    let ready_sid = wait_for_server_ready(&ready_rx, svc, sid);
+    assert_eq!(ready_sid, sid, "unexpected server ready sid");
     let mut client = ShmContext::client_attach(TEST_RUN_DIR, svc, sid).expect("client attach");
 
     // 60000 bytes of payload
@@ -358,15 +376,18 @@ fn test_shm_multi_client() {
     }
 
     let svc_name = svc.to_string();
+    let (ready_tx, ready_rx) = mpsc::channel();
 
     // Spawn 3 server threads, one per session
     let server_handles: Vec<_> = session_ids
         .iter()
         .map(|&sid| {
             let svc_clone = svc_name.clone();
+            let ready_tx = ready_tx.clone();
             thread::spawn(move || {
                 let mut ctx = ShmContext::server_create(TEST_RUN_DIR, &svc_clone, sid, 4096, 4096)
                     .expect(&format!("server create sid={sid}"));
+                ready_tx.send(sid).expect("server ready signal");
 
                 // Receive request
                 let mut buf = vec![0u8; 8192];
@@ -390,8 +411,14 @@ fn test_shm_multi_client() {
         })
         .collect();
 
-    // Let servers initialize
-    thread::sleep(std::time::Duration::from_millis(100));
+    drop(ready_tx);
+    for &sid in &session_ids {
+        let ready_sid = wait_for_server_ready(&ready_rx, svc, sid);
+        assert!(
+            session_ids.contains(&ready_sid),
+            "unexpected server ready sid={ready_sid}"
+        );
+    }
 
     // Attach 3 clients, send unique payloads, verify isolation
     let client_handles: Vec<_> = session_ids
