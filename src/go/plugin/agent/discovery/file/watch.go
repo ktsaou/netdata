@@ -27,26 +27,13 @@ type (
 		refreshEvery time.Duration
 		eventSettle  time.Duration
 	}
-	cache     map[string]fileState
-	fileState struct {
-		modTime time.Time
-		size    int64
-	}
+	cache map[string]time.Time
 )
 
-func (c cache) lookup(path string) (fileState, bool) { v, ok := c[path]; return v, ok }
+func (c cache) lookup(path string) (time.Time, bool) { v, ok := c[path]; return v, ok }
 func (c cache) has(path string) bool                 { _, ok := c.lookup(path); return ok }
 func (c cache) remove(path string)                   { delete(c, path) }
-func (c cache) put(path string, fi os.FileInfo) {
-	c[path] = fileState{
-		modTime: fi.ModTime(),
-		size:    fi.Size(),
-	}
-}
-
-func (s fileState) sameFile(fi os.FileInfo) bool {
-	return s.modTime.Equal(fi.ModTime()) && s.size == fi.Size()
-}
+func (c cache) put(path string, modTime time.Time)   { c[path] = modTime }
 
 func NewWatcher(reg confgroup.Registry, paths []string) *Watcher {
 	d := &Watcher{
@@ -150,10 +137,10 @@ func (w *Watcher) refresh(ctx context.Context, in chan<- []*confgroup.Group) {
 		}
 
 		seen[file] = true
-		if v, ok := w.cache.lookup(file); ok && v.sameFile(fi) {
+		if v, ok := w.cache.lookup(file); ok && v.Equal(fi.ModTime()) {
 			continue
 		}
-		w.cache.put(file, fi)
+		w.cache.put(file, fi.ModTime())
 
 		if group, err := parse(w.reg, file); err != nil {
 			w.Warningf("parse '%s': %v", file, err)

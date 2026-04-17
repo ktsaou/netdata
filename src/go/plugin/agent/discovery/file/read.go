@@ -17,7 +17,6 @@ type (
 	staticConfig struct {
 		confgroup.Default `yaml:",inline"`
 		Jobs              []confgroup.Config `yaml:"jobs"`
-		ModuleDefaults    confgroup.Config   `yaml:",inline"`
 	}
 	sdConfig []confgroup.Config
 )
