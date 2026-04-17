@@ -19,11 +19,9 @@ fn cleanup_shm(service: &str, session_id: u64) {
     let _ = std::fs::remove_file(&path);
 }
 
-fn wait_for_server_ready(rx: &mpsc::Receiver<u64>, service: &str, session_id: u64) -> u64 {
+fn wait_for_server_ready(rx: &mpsc::Receiver<u64>, service: &str) -> u64 {
     rx.recv_timeout(SERVER_READY_TIMEOUT).unwrap_or_else(|err| {
-        panic!(
-            "timed out waiting for server readiness for service={service} sid={session_id}: {err}"
-        )
+        panic!("timed out waiting for server readiness for service={service}: {err}")
     })
 }
 
@@ -75,7 +73,7 @@ fn test_direct_roundtrip() {
         ctx.destroy();
     });
 
-    let ready_sid = wait_for_server_ready(&ready_rx, svc, sid);
+    let ready_sid = wait_for_server_ready(&ready_rx, svc);
     assert_eq!(ready_sid, sid, "unexpected server ready sid");
     let mut client = ShmContext::client_attach(TEST_RUN_DIR, svc, sid).expect("client attach");
 
@@ -129,7 +127,7 @@ fn test_multiple_roundtrips() {
         ctx.destroy();
     });
 
-    let ready_sid = wait_for_server_ready(&ready_rx, svc, sid);
+    let ready_sid = wait_for_server_ready(&ready_rx, svc);
     assert_eq!(ready_sid, sid, "unexpected server ready sid");
     let mut client = ShmContext::client_attach(TEST_RUN_DIR, svc, sid).expect("client attach");
 
@@ -199,7 +197,7 @@ fn test_large_message() {
         ctx.destroy();
     });
 
-    let ready_sid = wait_for_server_ready(&ready_rx, svc, sid);
+    let ready_sid = wait_for_server_ready(&ready_rx, svc);
     assert_eq!(ready_sid, sid, "unexpected server ready sid");
     let mut client = ShmContext::client_attach(TEST_RUN_DIR, svc, sid).expect("client attach");
 
@@ -412,8 +410,8 @@ fn test_shm_multi_client() {
         .collect();
 
     drop(ready_tx);
-    for &sid in &session_ids {
-        let ready_sid = wait_for_server_ready(&ready_rx, svc, sid);
+    for _ in &session_ids {
+        let ready_sid = wait_for_server_ready(&ready_rx, svc);
         assert!(
             session_ids.contains(&ready_sid),
             "unexpected server ready sid={ready_sid}"
