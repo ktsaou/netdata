@@ -350,25 +350,33 @@ impl<'a> CgroupsBuilder<'a> {
             return Err(NipcError::Overflow);
         }
 
+        let item_start = checked_u32(item_start)?;
+        let item_size = checked_u32(item_size)?;
+        let name_offset = checked_u32(CGROUPS_ITEM_HDR_SIZE)?;
+        let name_len = checked_u32(name.len())?;
+        let path_offset = CGROUPS_ITEM_HDR_SIZE
+            .checked_add(name.len())
+            .and_then(|v| v.checked_add(1))
+            .ok_or(NipcError::Overflow)?;
+        let path_offset = checked_u32(path_offset)?;
+        let path_len = checked_u32(path.len())?;
+
         // Zero alignment padding
-        if item_start > self.data_offset {
-            self.buf[self.data_offset..item_start].fill(0);
+        if item_start as usize > self.data_offset {
+            self.buf[self.data_offset..item_start as usize].fill(0);
         }
 
-        let name_offset = CGROUPS_ITEM_HDR_SIZE as u32;
-        let path_offset = CGROUPS_ITEM_HDR_SIZE as u32 + name.len() as u32 + 1;
-
         // Write item header
-        let p = item_start;
+        let p = item_start as usize;
         self.buf[p..p + 2].copy_from_slice(&1u16.to_ne_bytes()); // layout_version
         self.buf[p + 2..p + 4].copy_from_slice(&0u16.to_ne_bytes()); // flags
         self.buf[p + 4..p + 8].copy_from_slice(&hash.to_ne_bytes());
         self.buf[p + 8..p + 12].copy_from_slice(&options.to_ne_bytes());
         self.buf[p + 12..p + 16].copy_from_slice(&enabled.to_ne_bytes());
         self.buf[p + 16..p + 20].copy_from_slice(&name_offset.to_ne_bytes());
-        self.buf[p + 20..p + 24].copy_from_slice(&(name.len() as u32).to_ne_bytes());
+        self.buf[p + 20..p + 24].copy_from_slice(&name_len.to_ne_bytes());
         self.buf[p + 24..p + 28].copy_from_slice(&path_offset.to_ne_bytes());
-        self.buf[p + 28..p + 32].copy_from_slice(&(path.len() as u32).to_ne_bytes());
+        self.buf[p + 28..p + 32].copy_from_slice(&path_len.to_ne_bytes());
 
         // Write strings with NUL terminators
         let name_start = p + name_offset as usize;
@@ -381,10 +389,10 @@ impl<'a> CgroupsBuilder<'a> {
 
         // Write directory entry (absolute offset stored temporarily)
         let dir_entry = CGROUPS_RESP_HDR_SIZE + self.item_count as usize * CGROUPS_DIR_ENTRY_SIZE;
-        self.buf[dir_entry..dir_entry + 4].copy_from_slice(&(item_start as u32).to_ne_bytes());
-        self.buf[dir_entry + 4..dir_entry + 8].copy_from_slice(&(item_size as u32).to_ne_bytes());
+        self.buf[dir_entry..dir_entry + 4].copy_from_slice(&item_start.to_ne_bytes());
+        self.buf[dir_entry + 4..dir_entry + 8].copy_from_slice(&item_size.to_ne_bytes());
 
-        self.data_offset = item_start + item_size;
+        self.data_offset = p + item_size as usize;
         self.item_count += 1;
         Ok(())
     }
@@ -459,6 +467,10 @@ pub fn estimate_cgroups_max_items(buf_size: usize) -> u32 {
     ((buf_size - CGROUPS_RESP_HDR_SIZE) / (CGROUPS_DIR_ENTRY_SIZE + min_aligned_item)) as u32
 }
 
+fn checked_u32(value: usize) -> Result<u32, NipcError> {
+    u32::try_from(value).map_err(|_| NipcError::Overflow)
+}
+
 /// CGROUPS_SNAPSHOT dispatch: decode request, build response via handler.
 pub fn dispatch_cgroups_snapshot<F>(
     req: &[u8],
@@ -494,6 +506,17 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn checked_u32_rejects_oversized_values() {
+        assert_eq!(checked_u32(u32::MAX as usize).unwrap(), u32::MAX);
+        if usize::BITS > 32 {
+            assert_eq!(
+                checked_u32((u32::MAX as usize) + 1).unwrap_err(),
+                NipcError::Overflow
+            );
+        }
+    }
 
     #[test]
     fn cgroups_item_overlapping_regions() {
