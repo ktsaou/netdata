@@ -83,6 +83,6 @@ typedef struct ebpf_systemd_args {
 void ebpf_create_charts_on_systemd(ebpf_systemd_args_t *chart);
 void ebpf_cgroup_integration(void *ptr);
 void ebpf_cgroup_cache_cleanup(void);
-extern int send_cgroup_chart;
+extern _Atomic int send_cgroup_chart;
 
 #endif /* NETDATA_EBPF_CGROUP_H */

@@ -7,7 +7,7 @@
 #include "libbpf_api/ebpf_library.h"
 
 ebpf_cgroup_target_t *ebpf_cgroup_pids = NULL;
-int send_cgroup_chart = 0;
+_Atomic int send_cgroup_chart = 0;
 
 #ifdef OS_LINUX
 static nipc_cgroups_cache_t ebpf_cgroup_cache;
@@ -347,9 +347,11 @@ static void ebpf_parse_cgroup_netipc_data(void)
     uint64_t generation = ebpf_cgroup_cache.generation;
     uint32_t enabled_count = 0;
 
-    // update global flags for other ebpf modules
-    ebpf_cgroup_systemd_enabled = (int)ebpf_cgroup_cache.systemd_enabled;
-    ebpf_cgroup_integration_active = (count > 0) ? 1 : 0;
+    // Publish the latest cgroup state before collectors read the lock-free flags.
+    int systemd_enabled = (int)ebpf_cgroup_cache.systemd_enabled;
+    int integration_active = (count > 0) ? 1 : 0;
+    ebpf_cgroup_systemd_enabled_set(systemd_enabled);
+    ebpf_cgroup_integration_active_set(integration_active);
 
     for (uint32_t i = 0; i < count; i++) {
         const nipc_cgroups_cache_item_t *item = &ebpf_cgroup_cache.items[i];
@@ -372,8 +374,8 @@ static void ebpf_parse_cgroup_netipc_data(void)
         netdata_mutex_unlock(&mutex_cgroup_shm);
 
         if (last_count != 0 ||
-            previous_integration_active != ebpf_cgroup_integration_active ||
-            previous_systemd_enabled != ebpf_cgroup_systemd_enabled) {
+            previous_integration_active != integration_active ||
+            previous_systemd_enabled != systemd_enabled) {
             collector_info(
                 "EBPF CGROUP: empty netipc snapshot generation=%llu items=%u enabled=%u preserved_targets=%zu "
                 "preserved_pids=%zu integration_active=%d systemd_enabled=%d refresh_failures=%d",
@@ -382,8 +384,8 @@ static void ebpf_parse_cgroup_netipc_data(void)
                 enabled_count,
                 preserved_targets,
                 preserved_pids,
-                ebpf_cgroup_integration_active,
-                ebpf_cgroup_systemd_enabled,
+                integration_active,
+                systemd_enabled,
                 refresh_fail_count);
         }
 
@@ -391,8 +393,8 @@ static void ebpf_parse_cgroup_netipc_data(void)
         previous_enabled_count = enabled_count;
         previous_imported_targets = preserved_targets;
         previous_total_pids = preserved_pids;
-        previous_integration_active = ebpf_cgroup_integration_active;
-        previous_systemd_enabled = ebpf_cgroup_systemd_enabled;
+        previous_integration_active = integration_active;
+        previous_systemd_enabled = systemd_enabled;
         return;
     }
 
@@ -411,7 +413,8 @@ static void ebpf_parse_cgroup_netipc_data(void)
     size_t imported_targets = ebpf_count_cgroup_targets_unsafe();
     size_t total_pids = ebpf_count_cgroup_pids_unsafe();
 
-    send_cgroup_chart = previous_count != count;
+    int chart_refresh_needed = previous_count != count;
+    ebpf_send_cgroup_chart_set(chart_refresh_needed);
     previous_count = count;
     netdata_mutex_unlock(&mutex_cgroup_shm);
 
@@ -419,8 +422,8 @@ static void ebpf_parse_cgroup_netipc_data(void)
         previous_enabled_count != enabled_count ||
         previous_imported_targets != imported_targets ||
         previous_total_pids != total_pids ||
-        previous_integration_active != ebpf_cgroup_integration_active ||
-        previous_systemd_enabled != ebpf_cgroup_systemd_enabled ||
+        previous_integration_active != integration_active ||
+        previous_systemd_enabled != systemd_enabled ||
         enabled_count == 0 || imported_targets == 0 || total_pids == 0) {
         collector_info(
             "EBPF CGROUP: netipc snapshot generation=%llu items=%u enabled=%u imported_targets=%zu total_pids=%zu "
@@ -430,17 +433,17 @@ static void ebpf_parse_cgroup_netipc_data(void)
             enabled_count,
             imported_targets,
             total_pids,
-            send_cgroup_chart,
-            ebpf_cgroup_integration_active,
-            ebpf_cgroup_systemd_enabled,
+            chart_refresh_needed,
+            integration_active,
+            systemd_enabled,
             refresh_fail_count);
     }
 
     previous_enabled_count = enabled_count;
     previous_imported_targets = imported_targets;
     previous_total_pids = total_pids;
-    previous_integration_active = ebpf_cgroup_integration_active;
-    previous_systemd_enabled = ebpf_cgroup_systemd_enabled;
+    previous_integration_active = integration_active;
+    previous_systemd_enabled = systemd_enabled;
 #endif
 }
 

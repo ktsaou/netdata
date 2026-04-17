@@ -932,7 +932,7 @@ void ebpf_read_fd_thread(void *ptr)
             break;
         }
 
-        if (cgroups && ebpf_cgroup_integration_active)
+        if (cgroups && ebpf_cgroup_integration_active_get())
             ebpf_update_fd_cgroup();
 
         if (sem_post(shm_mutex_ebpf_integration)) {
@@ -1351,8 +1351,8 @@ static void ebpf_fd_send_cgroup_data(ebpf_module_t *em)
         return;
     }
 
-    if (ebpf_cgroup_systemd_enabled) {
-        if (send_cgroup_chart) {
+    if (ebpf_cgroup_systemd_enabled_get()) {
+        if (ebpf_send_cgroup_chart_get()) {
             ebpf_create_systemd_fd_charts(em);
         }
 
@@ -1430,7 +1430,7 @@ static void fd_collector(ebpf_module_t *em)
             break;
         }
 
-        if (cgroups && ebpf_cgroup_integration_active)
+        if (cgroups && ebpf_cgroup_integration_active_get())
             ebpf_fd_send_cgroup_data(em);
 
         netdata_mutex_unlock(&lock);

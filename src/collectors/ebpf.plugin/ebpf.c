@@ -853,8 +853,8 @@ ebpf_sync_syscalls_t local_syscalls[] = {
      .sync_maps = NULL}};
 
 // cgroup integration via netipc
-int ebpf_cgroup_systemd_enabled = 0;
-int ebpf_cgroup_integration_active = 0;
+_Atomic int ebpf_cgroup_systemd_enabled = 0;
+_Atomic int ebpf_cgroup_integration_active = 0;
 netdata_mutex_t mutex_cgroup_shm;
 
 //Network viewer

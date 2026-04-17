@@ -2037,7 +2037,7 @@ void ebpf_read_socket_thread(void *ptr)
             break;
         }
 
-        if (cgroups && ebpf_cgroup_integration_active)
+        if (cgroups && ebpf_cgroup_integration_active_get())
             ebpf_update_socket_cgroup();
 
         if (sem_post(shm_mutex_ebpf_integration)) {
@@ -2792,8 +2792,8 @@ static void ebpf_socket_send_cgroup_data(int update_every)
         return;
     }
 
-    if (ebpf_cgroup_systemd_enabled) {
-        if (send_cgroup_chart) {
+    if (ebpf_cgroup_systemd_enabled_get()) {
+        if (ebpf_send_cgroup_chart_get()) {
             ebpf_create_systemd_socket_charts(update_every);
         }
         ebpf_send_systemd_socket_charts();
@@ -2882,7 +2882,7 @@ static void socket_collector(ebpf_module_t *em)
             break;
         }
 
-        if (cgroups && ebpf_cgroup_integration_active)
+        if (cgroups && ebpf_cgroup_integration_active_get())
             ebpf_socket_send_cgroup_data(update_every);
 
         fflush(stdout);
