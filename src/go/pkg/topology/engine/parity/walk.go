@@ -191,12 +191,9 @@ func (d WalkDataset) SortedOIDs() []string {
 func compareOID(a, b string) int {
 	partsA := strings.Split(a, ".")
 	partsB := strings.Split(b, ".")
-	limit := len(partsA)
-	if len(partsB) < limit {
-		limit = len(partsB)
-	}
+	limit := min(len(partsB), len(partsA))
 
-	for i := 0; i < limit; i++ {
+	for i := range limit {
 		if partsA[i] == partsB[i] {
 			continue
 		}

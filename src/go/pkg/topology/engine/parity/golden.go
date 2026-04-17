@@ -220,10 +220,7 @@ func countGoldenBidirectionalPairs(adjacencies []GoldenAdjacency) int {
 			continue
 		}
 
-		canonical := forward
-		if reverse < canonical {
-			canonical = reverse
-		}
+		canonical := min(reverse, forward)
 		if _, done := counted[canonical]; done {
 			continue
 		}

@@ -47,7 +47,7 @@ func setToCSV(in map[string]struct{}) string {
 
 func csvToTopologySet(value string) map[string]struct{} {
 	out := make(map[string]struct{})
-	for _, token := range strings.Split(strings.TrimSpace(value), ",") {
+	for token := range strings.SplitSeq(strings.TrimSpace(value), ",") {
 		token = strings.TrimSpace(strings.ToLower(token))
 		if token == "" {
 			continue

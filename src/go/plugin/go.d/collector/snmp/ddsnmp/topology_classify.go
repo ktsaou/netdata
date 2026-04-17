@@ -3,6 +3,7 @@
 package ddsnmp
 
 import (
+	"slices"
 	"strings"
 
 	"github.com/netdata/netdata/go/plugins/plugin/go.d/collector/snmp/ddsnmp/ddprofiledefinition"
@@ -100,12 +101,7 @@ func MetricTagConfigContainsTopologyData(tag *ddprofiledefinition.MetricTagConfi
 		tag.Column.Name,
 		tag.Column.OID,
 	}
-	for _, value := range values {
-		if LooksLikeTopologyIdentifier(value) {
-			return true
-		}
-	}
-	return false
+	return slices.ContainsFunc(values, LooksLikeTopologyIdentifier)
 }
 
 func MetadataFieldContainsTopologyData(name string, field *ddprofiledefinition.MetadataField) bool {

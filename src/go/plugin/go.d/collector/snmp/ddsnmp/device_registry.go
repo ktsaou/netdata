@@ -2,6 +2,8 @@
 
 package ddsnmp
 
+import "maps"
+
 import "sync"
 
 // DeviceConnectionInfo holds SNMP connection parameters for a device.
@@ -59,9 +61,7 @@ func (r *deviceRegistry) Register(key string, info DeviceConnectionInfo) {
 	}
 	if info.VnodeLabels != nil {
 		dev.VnodeLabels = make(map[string]string, len(info.VnodeLabels))
-		for k, v := range info.VnodeLabels {
-			dev.VnodeLabels[k] = v
-		}
+		maps.Copy(dev.VnodeLabels, info.VnodeLabels)
 	}
 	r.mu.Lock()
 	r.devices[key] = dev
@@ -89,9 +89,7 @@ func (r *deviceRegistry) Devices() []DeviceConnectionInfo {
 		}
 		if info.VnodeLabels != nil {
 			dev.VnodeLabels = make(map[string]string, len(info.VnodeLabels))
-			for k, v := range info.VnodeLabels {
-				dev.VnodeLabels[k] = v
-			}
+			maps.Copy(dev.VnodeLabels, info.VnodeLabels)
 		}
 		devices = append(devices, dev)
 	}

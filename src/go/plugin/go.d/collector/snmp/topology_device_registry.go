@@ -4,6 +4,7 @@ package snmp
 
 import (
 	"fmt"
+	"maps"
 
 	"github.com/netdata/netdata/go/plugins/plugin/go.d/collector/snmp/ddsnmp"
 	"github.com/netdata/netdata/go/plugins/plugin/go.d/pkg/snmputils"
@@ -28,9 +29,7 @@ func (c *Collector) vnodeGUID() string {
 func (c *Collector) vnodeLabels() map[string]string {
 	if c.vnode != nil && len(c.vnode.Labels) > 0 {
 		cp := make(map[string]string, len(c.vnode.Labels))
-		for k, v := range c.vnode.Labels {
-			cp[k] = v
-		}
+		maps.Copy(cp, c.vnode.Labels)
 		return cp
 	}
 	return nil

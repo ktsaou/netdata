@@ -35,7 +35,7 @@ type Actor struct {
 }
 
 type LinkEndpoint struct {
-	Match      Match          `json:"match,omitempty"`
+	Match      Match          `json:"match"`
 	Attributes map[string]any `json:"attributes,omitempty"`
 }
 
@@ -147,8 +147,8 @@ type Flow struct {
 	Timestamp   time.Time      `json:"timestamp"`
 	DurationSec int            `json:"duration_sec,omitempty"`
 	Exporter    *FlowExporter  `json:"exporter,omitempty"`
-	Src         LinkEndpoint   `json:"src,omitempty"`
-	Dst         LinkEndpoint   `json:"dst,omitempty"`
+	Src         LinkEndpoint   `json:"src"`
+	Dst         LinkEndpoint   `json:"dst"`
 	Key         map[string]any `json:"key,omitempty"`
 	Metrics     map[string]any `json:"metrics,omitempty"`
 }

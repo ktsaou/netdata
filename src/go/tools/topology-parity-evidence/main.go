@@ -18,6 +18,7 @@ import (
 	"path"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -2570,10 +2571,8 @@ func detectProtocolScope(methodName, sourceFile, material string) string {
 
 	scopes := make([]string, 0, 4)
 	add := func(scope string) {
-		for _, existing := range scopes {
-			if existing == scope {
-				return
-			}
+		if slices.Contains(scopes, scope) {
+			return
 		}
 		scopes = append(scopes, scope)
 	}

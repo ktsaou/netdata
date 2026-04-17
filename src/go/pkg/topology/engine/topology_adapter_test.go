@@ -4,6 +4,7 @@ package engine
 
 import (
 	"net/netip"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -2897,11 +2898,8 @@ func findFDBLinksByEndpointMAC(links []topology.Link, mac string) []topology.Lin
 		if link.Protocol != "fdb" {
 			continue
 		}
-		for _, candidate := range link.Dst.Match.MacAddresses {
-			if candidate == mac {
-				out = append(out, link)
-				break
-			}
+		if slices.Contains(link.Dst.Match.MacAddresses, mac) {
+			out = append(out, link)
 		}
 	}
 	return out
@@ -2913,11 +2911,8 @@ func findFDBLinksByEndpointIP(links []topology.Link, ip string) []topology.Link 
 		if link.Protocol != "fdb" {
 			continue
 		}
-		for _, candidate := range link.Dst.Match.IPAddresses {
-			if candidate == ip {
-				out = append(out, link)
-				break
-			}
+		if slices.Contains(link.Dst.Match.IPAddresses, ip) {
+			out = append(out, link)
 		}
 	}
 	return out
@@ -2982,10 +2977,8 @@ func findActorBySysName(actors []topology.Actor, sysName string) *topology.Actor
 
 func findActorByMAC(actors []topology.Actor, mac string) *topology.Actor {
 	for i := range actors {
-		for _, candidate := range actors[i].Match.MacAddresses {
-			if candidate == mac {
-				return &actors[i]
-			}
+		if slices.Contains(actors[i].Match.MacAddresses, mac) {
+			return &actors[i]
 		}
 	}
 	return nil
@@ -2993,10 +2986,8 @@ func findActorByMAC(actors []topology.Actor, mac string) *topology.Actor {
 
 func findActorByIP(actors []topology.Actor, ip string) *topology.Actor {
 	for i := range actors {
-		for _, candidate := range actors[i].Match.IPAddresses {
-			if candidate == ip {
-				return &actors[i]
-			}
+		if slices.Contains(actors[i].Match.IPAddresses, ip) {
+			return &actors[i]
 		}
 	}
 	return nil

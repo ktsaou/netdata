@@ -18,8 +18,7 @@ func TestAccumulator_Run_FlushesPendingGroupsWhenDiscoverersExit(t *testing.T) {
 		newMockDiscoverer("", newMockTargetGroup("test", "mock1")),
 	}
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := t.Context()
 
 	updates := make(chan []model.TargetGroup)
 	done := make(chan struct{})

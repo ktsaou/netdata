@@ -4,6 +4,7 @@ package snmptopology
 
 import (
 	"fmt"
+	"slices"
 	"strings"
 )
 
@@ -95,10 +96,8 @@ func topologyActorHasIP(actor topologyActor, ip string) bool {
 	if ip == "" {
 		return false
 	}
-	for _, candidate := range normalizedMatchIPs(actor.Match) {
-		if candidate == ip {
-			return true
-		}
+	if slices.Contains(normalizedMatchIPs(actor.Match), ip) {
+		return true
 	}
 	if ip == normalizeIPAddress(topologyMetricValueString(actor.Attributes, "management_ip")) {
 		return true

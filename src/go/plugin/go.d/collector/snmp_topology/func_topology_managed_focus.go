@@ -69,7 +69,7 @@ func splitTopologyManagedFocusValues(values []string) []string {
 
 	out := make([]string, 0, len(values))
 	for _, raw := range values {
-		for _, token := range strings.Split(raw, ",") {
+		for token := range strings.SplitSeq(raw, ",") {
 			token = strings.TrimSpace(token)
 			if token == "" {
 				continue

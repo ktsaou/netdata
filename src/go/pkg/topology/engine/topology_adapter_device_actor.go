@@ -39,8 +39,8 @@ func buildDeviceActorMatch(dev Device, reporterAliases []string) topology.Match 
 		if alias == "" {
 			continue
 		}
-		if strings.HasPrefix(alias, "mac:") {
-			if mac := normalizeMAC(strings.TrimPrefix(alias, "mac:")); mac != "" {
+		if after, ok := strings.CutPrefix(alias, "mac:"); ok {
+			if mac := normalizeMAC(after); mac != "" {
 				macSet[mac] = struct{}{}
 			}
 			continue

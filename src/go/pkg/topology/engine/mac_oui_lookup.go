@@ -33,7 +33,7 @@ func loadTopologyOUIVendorsIndex() topologyOUIVendorIndex {
 
 func buildTopologyOUIVendorIndex(tsv string) topologyOUIVendorIndex {
 	byPrefixLen := make(map[int]map[string]string)
-	for _, line := range strings.Split(tsv, "\n") {
+	for line := range strings.SplitSeq(tsv, "\n") {
 		line = strings.TrimSpace(line)
 		if line == "" || strings.HasPrefix(line, "#") {
 			continue

@@ -3,6 +3,7 @@
 package engine
 
 import (
+	"maps"
 	"net/netip"
 	"sort"
 	"strings"
@@ -46,9 +47,7 @@ func mergeEnrichmentAccumulator(target, source *enrichmentAccumulator) {
 	if target.MAC == "" {
 		target.MAC = source.MAC
 	}
-	for key, addr := range source.IPs {
-		target.IPs[key] = addr
-	}
+	maps.Copy(target.IPs, source.IPs)
 	for key := range source.Protocols {
 		target.Protocols[key] = struct{}{}
 	}
@@ -173,9 +172,7 @@ func reconcileDeviceIdentityAliases(
 			merged[normalized.String()] = normalized
 		}
 		before := len(merged)
-		for key, addr := range aliasIPs {
-			merged[key] = addr
-		}
+		maps.Copy(merged, aliasIPs)
 		added := len(merged) - before
 		if added <= 0 {
 			continue

@@ -3,6 +3,7 @@
 package snmptopology
 
 import (
+	"maps"
 	"strings"
 
 	"github.com/netdata/netdata/go/plugins/plugin/go.d/collector/snmp/ddsnmp"
@@ -41,9 +42,7 @@ func withTopologyVLANContextTags(tags map[string]string, vlanID, vlanName string
 	}
 
 	merged := make(map[string]string, len(tags)+2)
-	for key, value := range tags {
-		merged[key] = value
-	}
+	maps.Copy(merged, tags)
 	merged[tagTopologyContextVLANID] = strings.TrimSpace(vlanID)
 	if v := strings.TrimSpace(vlanName); v != "" {
 		merged[tagTopologyContextVLANName] = v

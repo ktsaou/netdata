@@ -3,6 +3,7 @@
 package snmptopology
 
 import (
+	"slices"
 	"sort"
 	"strings"
 	"testing"
@@ -947,7 +948,7 @@ func TestTopologyCache_SnapshotDeterministicEndpointIPSelection(t *testing.T) {
 	})
 
 	expectedIPs := []string{"10.20.4.205", "10.20.4.60"}
-	for i := 0; i < 25; i++ {
+	for range 25 {
 		cache.mu.RLock()
 		data, ok := cache.snapshot()
 		cache.mu.RUnlock()
@@ -1525,10 +1526,8 @@ func findLinkByProtocol(snapshot topologyData, protocol string) *topologyLink {
 
 func findActorByMAC(snapshot topologyData, mac string) *topologyActor {
 	for i := range snapshot.Actors {
-		for _, m := range snapshot.Actors[i].Match.MacAddresses {
-			if m == mac {
-				return &snapshot.Actors[i]
-			}
+		if slices.Contains(snapshot.Actors[i].Match.MacAddresses, mac) {
+			return &snapshot.Actors[i]
 		}
 	}
 	return nil
@@ -1545,12 +1544,7 @@ func countDeviceActors(snapshot topologyData) int {
 }
 
 func containsString(values []string, target string) bool {
-	for _, value := range values {
-		if value == target {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(values, target)
 }
 
 func linkHasRawAddressMetric(link topologyLink, raw string) bool {
