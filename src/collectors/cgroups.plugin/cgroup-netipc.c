@@ -39,13 +39,15 @@ static bool cgroups_snapshot_handler(void *user __maybe_unused,
     static uint64_t generation = 0;
     static uint64_t last_logged_zero_generation = 0;
     static uint64_t last_logged_truncated_generation = 0;
+    uint64_t snapshot_generation;
     char name_buf[256];
     char path_buf[FILENAME_MAX + 1];
 
     netdata_mutex_lock(&cgroup_root_mutex);
 
     // set snapshot header — systemd is always enabled in this codebase
-    nipc_cgroups_builder_set_header(builder, CONFIG_BOOLEAN_YES, ++generation);
+    snapshot_generation = ++generation;
+    nipc_cgroups_builder_set_header(builder, CONFIG_BOOLEAN_YES, snapshot_generation);
 
     struct cgroup *cg;
     int count;
@@ -90,17 +92,32 @@ static bool cgroups_snapshot_handler(void *user __maybe_unused,
 
     netdata_mutex_unlock(&cgroup_root_mutex);
 
-    if (count == 0 && last_logged_zero_generation != generation) {
-        last_logged_zero_generation = generation;
-        collector_info("CGROUP: netipc snapshot generation=%llu returned zero items",
-                       (unsigned long long)generation);
+    bool log_zero_generation = false;
+    bool log_truncated_generation = false;
+
+    netdata_mutex_lock(&cgroup_root_mutex);
+
+    if (count == 0 && last_logged_zero_generation != snapshot_generation) {
+        last_logged_zero_generation = snapshot_generation;
+        log_zero_generation = true;
     }
 
-    if (truncated && last_logged_truncated_generation != generation) {
-        last_logged_truncated_generation = generation;
+    if (truncated && last_logged_truncated_generation != snapshot_generation) {
+        last_logged_truncated_generation = snapshot_generation;
+        log_truncated_generation = true;
+    }
+
+    netdata_mutex_unlock(&cgroup_root_mutex);
+
+    if (log_zero_generation) {
+        collector_info("CGROUP: netipc snapshot generation=%llu returned zero items",
+                       (unsigned long long)snapshot_generation);
+    }
+
+    if (log_truncated_generation) {
         collector_error(
             "CGROUP: netipc snapshot generation=%llu truncated after %d items (%d enabled) due to response size limits",
-            (unsigned long long)generation,
+            (unsigned long long)snapshot_generation,
             count,
             enabled_count);
     }
