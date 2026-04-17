@@ -5,14 +5,21 @@ package funcapi
 // MethodConfig describes a function method provided by a module.
 type MethodConfig struct {
 	ID             string        // Method ID (e.g., "top-queries")
+	// FIXME: funcctl currently honors aliases only for module/static methods.
+	// Job method registration still publishes only the canonical module:method name.
 	Aliases        []string      // Additional function names to register for this method
 	Name           string        // Display name (e.g., "Top Queries")
 	UpdateEvery    int           // Default UI refresh interval
 	Help           string        // Description for UI
 	RequireCloud   bool          // Indicates whether the method requires cloud connection
 	ResponseType   string        // Response schema type; empty defaults to "table" when dispatched
+	// FIXME: AgentWide currently removes __job from the public API, but funcctl still
+	// dispatches through the first running job for the module instead of a true
+	// agent-level execution path.
 	AgentWide      bool          // Method is agent-wide (does not require __job selector)
 	RequiredParams []ParamConfig // Required parameters for this method (including __sort if used)
+	// FIXME: Presentation is intentionally untyped here, while the shared UI schema
+	// currently defines only topology-specific presentation payloads.
 	presentation   any
 }
 

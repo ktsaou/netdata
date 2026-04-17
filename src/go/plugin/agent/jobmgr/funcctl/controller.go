@@ -224,6 +224,8 @@ func (c *Controller) registerJobMethods(job collectorapi.RuntimeJob, methods []f
 			continue
 		}
 
+		// FIXME: job methods currently ignore method.Aliases and publish only the
+		// canonical module:method name. Static/module methods use methodFunctionNames().
 		funcName := fmt.Sprintf("%s:%s", job.ModuleName(), method.ID)
 		c.fnReg.Register(funcName, c.makeJobMethodFuncHandler(job.ModuleName(), job.Name(), method.ID))
 
@@ -265,6 +267,8 @@ func (c *Controller) unregisterJobMethods(job collectorapi.RuntimeJob) {
 			continue
 		}
 
+		// FIXME: keep this in sync with registerJobMethods() if job-method alias
+		// support is added later; today only the canonical name is removed here.
 		funcName := fmt.Sprintf("%s:%s", job.ModuleName(), method.ID)
 		c.fnReg.Unregister(funcName)
 		if c.api != nil {

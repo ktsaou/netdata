@@ -124,6 +124,9 @@ func (c *Controller) makeMethodFuncHandler(moduleName, methodID string) func(fun
 			return
 		}
 
+		// FIXME: AgentWide currently means "omit __job from the public API" rather
+		// than "dispatch without a job"; we still route through the first running
+		// job for the module.
 		jobName := jobs[0]
 		var resolvedJob funcapi.ResolvedParam
 		if includeJobParam {
