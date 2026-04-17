@@ -1328,10 +1328,19 @@ fn test_cleanup_stale_unlinks_dangling_symlink() {
     let target = path.with_extension("missing-target");
     let _ = std::fs::remove_file(&target);
     std::os::unix::fs::symlink(&target, &path).expect("create dangling symlink");
+    assert!(
+        std::fs::symlink_metadata(&path)
+            .map(|meta| meta.file_type().is_symlink())
+            .unwrap_or(false),
+        "dangling symlink test entry should exist before cleanup"
+    );
 
     cleanup_stale(TEST_RUN_DIR, svc);
 
-    assert!(!path.exists(), "dangling symlink entry should be removed");
+    assert!(
+        std::fs::symlink_metadata(&path).is_err(),
+        "dangling symlink entry should be removed"
+    );
 }
 
 #[test]
