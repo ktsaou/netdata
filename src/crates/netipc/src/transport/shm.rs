@@ -760,10 +760,10 @@ pub fn cleanup_stale(run_dir: &str, service_name: &str) {
         // Open read-only to inspect the header
         let fd = unsafe { libc::open(c_path.as_ptr(), libc::O_RDONLY) };
         if fd < 0 {
-            // Only unlink if ENOENT-like (race) or clearly stale.
-            // Don't unlink on EACCES/EPERM — that's a permission issue, not staleness.
-            let e = errno();
-            if e != libc::EACCES && e != libc::EPERM {
+            // The entry vanished after readdir() (for example, a dangling symlink
+            // target disappeared) — remove the stale directory entry. Any other
+            // open failure is ambiguous, so leave the entry alone.
+            if should_unlink_cleanup_open_failure(errno()) {
                 unsafe { libc::unlink(c_path.as_ptr()) };
             }
             continue;
@@ -966,6 +966,18 @@ enum StaleResult {
     Invalid,
 }
 
+fn should_unlink_cleanup_open_failure(err: i32) -> bool {
+    err == libc::ENOENT
+}
+
+fn classify_stale_open_failure(err: i32) -> StaleResult {
+    if err == libc::ENOENT {
+        StaleResult::NotExist
+    } else {
+        StaleResult::Invalid
+    }
+}
+
 #[allow(dead_code)]
 fn check_shm_stale(path: &Path) -> StaleResult {
     let c_path = match path_to_cstring(path) {
@@ -985,11 +997,7 @@ fn check_shm_stale(path: &Path) -> StaleResult {
 
     let fd = unsafe { libc::open(c_path.as_ptr(), libc::O_RDONLY) };
     if fd < 0 {
-        let e = errno();
-        if e != libc::EACCES && e != libc::EPERM {
-            unsafe { libc::unlink(c_path.as_ptr()) };
-        }
-        return StaleResult::Invalid;
+        return classify_stale_open_failure(errno());
     }
 
     let map = unsafe {

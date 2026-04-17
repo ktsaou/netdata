@@ -1139,6 +1139,33 @@ fn test_check_shm_stale_invalid_cstring_returns_not_exist() {
 }
 
 #[test]
+fn test_stale_open_failure_policies_are_conservative() {
+    assert!(should_unlink_cleanup_open_failure(libc::ENOENT));
+    assert!(!should_unlink_cleanup_open_failure(libc::EACCES));
+    assert!(!should_unlink_cleanup_open_failure(libc::EPERM));
+    assert!(!should_unlink_cleanup_open_failure(libc::EMFILE));
+    assert!(!should_unlink_cleanup_open_failure(libc::ENFILE));
+    assert!(!should_unlink_cleanup_open_failure(libc::ELOOP));
+
+    assert!(matches!(
+        classify_stale_open_failure(libc::ENOENT),
+        StaleResult::NotExist
+    ));
+    assert!(matches!(
+        classify_stale_open_failure(libc::EACCES),
+        StaleResult::Invalid
+    ));
+    assert!(matches!(
+        classify_stale_open_failure(libc::EMFILE),
+        StaleResult::Invalid
+    ));
+    assert!(matches!(
+        classify_stale_open_failure(libc::ELOOP),
+        StaleResult::Invalid
+    ));
+}
+
+#[test]
 fn test_cleanup_stale_missing_run_dir_is_noop() {
     cleanup_stale("/tmp/nipc_shm_rust_missing_dir", "rs_shm_missing");
 }
@@ -1368,6 +1395,35 @@ fn test_cleanup_stale_unlinks_dangling_symlink() {
         std::fs::symlink_metadata(&path).is_err(),
         "dangling symlink entry should be removed"
     );
+}
+
+#[test]
+fn test_cleanup_stale_preserves_self_referential_symlink_open_failure() {
+    ensure_run_dir();
+    let svc = "rs_shm_cleanup_self_symlink";
+    let sid: u64 = 7061;
+    cleanup_shm(svc, sid);
+
+    let path = build_shm_path(TEST_RUN_DIR, svc, sid).expect("path");
+    let _ = std::fs::remove_file(&path);
+    std::os::unix::fs::symlink(&path, &path).expect("create self symlink");
+    assert!(
+        std::fs::symlink_metadata(&path)
+            .map(|meta| meta.file_type().is_symlink())
+            .unwrap_or(false),
+        "self-referential symlink test entry should exist before cleanup"
+    );
+
+    cleanup_stale(TEST_RUN_DIR, svc);
+
+    assert!(
+        std::fs::symlink_metadata(&path)
+            .map(|meta| meta.file_type().is_symlink())
+            .unwrap_or(false),
+        "ambiguous open failures must not delete the entry"
+    );
+
+    std::fs::remove_file(&path).expect("remove self symlink");
 }
 
 #[test]
