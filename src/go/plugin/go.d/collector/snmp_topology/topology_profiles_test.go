@@ -10,7 +10,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestFindProfiles_UsesDeclarativeTopologyExtensionsForCisco(t *testing.T) {
+func TestFindProfiles_UsesDeclarativeTopologyExtensions(t *testing.T) {
 	t.Parallel()
 
 	tests := []struct {
@@ -45,6 +45,22 @@ func TestFindProfiles_UsesDeclarativeTopologyExtensionsForCisco(t *testing.T) {
 			name:        "Juniper",
 			sysObjectID: "1.3.6.1.4.1.2636.1.1.1.2.39",
 			sysDescr:    "Juniper SRX240B gsm-fw",
+			extensions:  []string{topologyLldpProfileName, fdbArpProfileName, qBridgeProfileName, stpProfileName},
+		},
+		{
+			name:        "MikroTik",
+			sysObjectID: "1.3.6.1.4.1.14988.1",
+			sysDescr:    "RouterOS CRS326-24G-2S+",
+			extensions:  []string{topologyLldpProfileName, fdbArpProfileName, qBridgeProfileName, stpProfileName},
+		},
+		{
+			name:        "Zyxel",
+			sysObjectID: "1.3.6.1.4.1.890.1.15",
+			extensions:  []string{topologyLldpProfileName, fdbArpProfileName, qBridgeProfileName, stpProfileName},
+		},
+		{
+			name:        "D-Link",
+			sysObjectID: "1.3.6.1.4.1.171.10.137.1.1",
 			extensions:  []string{topologyLldpProfileName, fdbArpProfileName, qBridgeProfileName, stpProfileName},
 		},
 	}
