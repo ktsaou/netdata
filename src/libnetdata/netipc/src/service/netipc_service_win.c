@@ -779,9 +779,20 @@ static void server_handle_session(nipc_managed_server_t *server,
             payload = recv_buf + NIPC_HEADER_LEN;
             payload_len = msg_len - NIPC_HEADER_LEN;
         } else {
-            /* Named Pipe path: block in ReadFile-driven receive for steady-
-             * state performance. Stop/drain uses CancelSynchronousIo() on the
-             * owning session thread to break this wait during shutdown. */
+            /* Named Pipe path: wait for readability first, then receive.
+             * This mirrors the Go/Rust Windows server loops and avoids
+             * relying on a blocking ReadFile wake-up for each ping-pong
+             * request. */
+            bool readable = false;
+            nipc_np_error_t werr = nipc_np_wait_readable(
+                session, SERVER_POLL_TIMEOUT_MS, &readable);
+            if (werr == NIPC_NP_ERR_DISCONNECTED)
+                break;
+            if (werr != NIPC_NP_OK)
+                break;
+            if (!readable)
+                continue;
+
             nipc_np_error_t uerr = nipc_np_receive(
                 session, recv_buf, recv_size,
                 &hdr, &payload, &payload_len);
