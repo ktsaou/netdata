@@ -93,6 +93,7 @@ mod ffi {
         pub fn CloseHandle(hObject: HANDLE) -> BOOL;
 
         pub fn GetLastError() -> DWORD;
+        pub fn GetTickCount64() -> u64;
         pub fn PeekNamedPipe(
             hNamedPipe: HANDLE,
             lpBuffer: LPVOID,
@@ -555,7 +556,7 @@ impl NpSession {
             return Err(NpError::BadParam("session closed".into()));
         }
 
-        let start = std::time::Instant::now();
+        let deadline = unsafe { ffi::GetTickCount64() }.saturating_add(timeout_ms as u64);
         let mut yielded = false;
         loop {
             let mut available: u32 = 0;
@@ -580,7 +581,7 @@ impl NpSession {
                 return Ok(true);
             }
 
-            if start.elapsed() >= std::time::Duration::from_millis(timeout_ms as u64) {
+            if unsafe { ffi::GetTickCount64() } >= deadline {
                 return Ok(false);
             }
 
@@ -613,7 +614,7 @@ impl NpSession {
                         return Ok(true);
                     }
 
-                    if start.elapsed() >= std::time::Duration::from_millis(timeout_ms as u64) {
+                    if unsafe { ffi::GetTickCount64() } >= deadline {
                         return Ok(false);
                     }
                 }
