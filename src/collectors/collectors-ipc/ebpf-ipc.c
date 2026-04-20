@@ -60,22 +60,18 @@ static bool ebpf_find_pid_shm_del_unsafe(uint32_t pid, enum ebpf_pids_index shm_
     return false;
 }
 
-// Returns the slot index for pid and sets *created to true when a new slot was
-// allocated. A fresh slot is memset to zero so callers never inherit stale bits
-// or counters from a prior PID that used the same index (prevents the compaction
-// stale-tail and PID-reuse contamination paths).
-static uint32_t ebpf_find_or_create_index_pid(uint32_t pid, bool *created)
+// Returns the slot index for pid, allocating a new slot if needed. A fresh
+// slot is memset to zero so callers never inherit stale bits or counters from
+// a prior PID that used the same index (prevents the compaction stale-tail
+// and PID-reuse contamination paths).
+static uint32_t ebpf_find_or_create_index_pid(uint32_t pid)
 {
     uint32_t idx;
-    if (ebpf_shm_find_index_unsafe(pid, &idx)) {
-        *created = false;
+    if (ebpf_shm_find_index_unsafe(pid, &idx))
         return idx;
-    }
 
-    if (ebpf_stat_values.current >= ebpf_stat_values.total) {
-        *created = false;
+    if (ebpf_stat_values.current >= ebpf_stat_values.total)
         return UINT32_MAX;
-    }
 
     Pvoid_t *Pvalue = JudyLIns(&ebpf_ipc_JudyL, (Word_t)pid, PJE0);
     internal_fatal(!Pvalue || Pvalue == PJERR, "EBPF: pid judy index");
@@ -84,7 +80,6 @@ static uint32_t ebpf_find_or_create_index_pid(uint32_t pid, bool *created)
     *Pvalue = IDX_TO_JVALUE(new_idx);
 
     memset(&integration_shm[new_idx], 0, sizeof(integration_shm[new_idx]));
-    *created = true;
 
     return new_idx;
 }
@@ -102,8 +97,7 @@ netdata_ebpf_pid_stats_t *netdata_ebpf_get_shm_pointer_unsafe(uint32_t pid, enum
     if (!integration_shm || ebpf_stat_values.current >= ebpf_stat_values.total)
         return NULL;
 
-    bool created;
-    uint32_t shm_idx = ebpf_find_or_create_index_pid(pid, &created);
+    uint32_t shm_idx = ebpf_find_or_create_index_pid(pid);
     if (shm_idx == UINT32_MAX || shm_idx >= ebpf_stat_values.total)
         return NULL;
 
@@ -180,6 +174,10 @@ void netdata_integration_cleanup_shm()
         close(shm_fd_ebpf_integration);
         shm_fd_ebpf_integration = -1;
     }
+
+    // Drop the POSIX shm object so a subsequent plugin run starts from a
+    // fresh region instead of inheriting the previous run's bytes.
+    (void)shm_unlink(NETDATA_EBPF_INTEGRATION_NAME);
 }
 
 int netdata_integration_initialize_shm(size_t pids)
@@ -210,6 +208,11 @@ int netdata_integration_initialize_shm(size_t pids)
         integration_shm = NULL;
         goto end_shm;
     }
+
+    // Wipe any bytes left over from a prior plugin run — shm_open with
+    // O_CREAT on an existing object does not truncate, and ftruncate to the
+    // current size is a no-op.
+    memset(integration_shm, 0, length);
 
     shm_mutex_ebpf_integration = sem_open(
         NETDATA_EBPF_SHM_INTEGRATION_NAME, O_CREAT, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH, 1);
