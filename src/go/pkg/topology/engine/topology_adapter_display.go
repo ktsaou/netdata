@@ -67,15 +67,13 @@ func applyTopologyDisplayNames(actors []topology.Actor, links []topology.Link, l
 		if src.name == "" {
 			src = topologyDisplayName{name: "[unset]", source: "fallback"}
 		}
-		topologySetEndpointDisplay(&links[i].Src, src)
-		srcPortName := topologySetEndpointCanonicalPortName(&links[i].Src)
+		srcPortName := topologySetEndpointDisplayAndCanonicalPortName(&links[i].Src, src)
 
 		dst := topologyEndpointDisplayName(links[i].Dst, displayByMatchKey, &resolver)
 		if dst.name == "" {
 			dst = topologyDisplayName{name: "[unset]", source: "fallback"}
 		}
-		topologySetEndpointDisplay(&links[i].Dst, dst)
-		dstPortName := topologySetEndpointCanonicalPortName(&links[i].Dst)
+		dstPortName := topologySetEndpointDisplayAndCanonicalPortName(&links[i].Dst, dst)
 
 		linkName := topologyCanonicalLinkName(src.name, srcPortName, dst.name, dstPortName)
 		if links[i].Metrics == nil {
@@ -112,9 +110,9 @@ func topologySetActorDisplay(actor *topology.Actor, display topologyDisplayName)
 	actor.Attributes = pruneTopologyAttributes(attrs)
 }
 
-func topologySetEndpointDisplay(endpoint *topology.LinkEndpoint, display topologyDisplayName) {
+func topologySetEndpointDisplayAndCanonicalPortName(endpoint *topology.LinkEndpoint, display topologyDisplayName) string {
 	if endpoint == nil {
-		return
+		return ""
 	}
 	attrs := cloneAnyMap(endpoint.Attributes)
 	if attrs == nil {
@@ -123,17 +121,6 @@ func topologySetEndpointDisplay(endpoint *topology.LinkEndpoint, display topolog
 	attrs["display_name"] = display.name
 	if display.source != "" {
 		attrs["display_source"] = display.source
-	}
-	endpoint.Attributes = pruneTopologyAttributes(attrs)
-}
-
-func topologySetEndpointCanonicalPortName(endpoint *topology.LinkEndpoint) string {
-	if endpoint == nil {
-		return ""
-	}
-	attrs := cloneAnyMap(endpoint.Attributes)
-	if attrs == nil {
-		attrs = make(map[string]any)
 	}
 	name := topologyCanonicalPortName(attrs)
 	attrs["port_name"] = name

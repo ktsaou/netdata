@@ -10,6 +10,21 @@ import (
 	"github.com/netdata/netdata/go/plugins/pkg/topology"
 )
 
+type topologyMatchLookup struct {
+	canonical    string
+	identityKeys []string
+}
+
+type topologyActorSortEntry struct {
+	actor topology.Actor
+	key   string
+}
+
+type topologyLinkSortEntry struct {
+	link topology.Link
+	key  string
+}
+
 func canonicalTopologyMatchKey(match topology.Match) string {
 	if key := canonicalTopologyPrimaryMACKey(match); key != "" {
 		return "mac:" + key
@@ -43,9 +58,12 @@ func assignTopologyActorIDsAndLinkEndpoints(actors []topology.Actor, links []top
 	usedActorIDs := make(map[string]int, len(actors))
 	actorIDByCanonicalMatch := make(map[string]string, len(actors))
 	actorIDByIdentityKey := make(map[string]string, len(actors)*4)
+	actorLookups := make([]topologyMatchLookup, len(actors))
 
 	for i := range actors {
-		baseID := canonicalTopologyMatchKey(actors[i].Match)
+		actorLookups[i] = newTopologyMatchLookup(actors[i].Match)
+
+		baseID := actorLookups[i].canonical
 		if baseID == "" {
 			actorType := strings.ToLower(strings.TrimSpace(actors[i].ActorType))
 			if actorType == "" {
@@ -57,12 +75,12 @@ func assignTopologyActorIDsAndLinkEndpoints(actors []topology.Actor, links []top
 		actorID := responseScopedActorID(baseID, usedActorIDs)
 		actors[i].ActorID = actorID
 
-		if canonical := canonicalTopologyMatchKey(actors[i].Match); canonical != "" {
-			if _, exists := actorIDByCanonicalMatch[canonical]; !exists {
-				actorIDByCanonicalMatch[canonical] = actorID
+		if actorLookups[i].canonical != "" {
+			if _, exists := actorIDByCanonicalMatch[actorLookups[i].canonical]; !exists {
+				actorIDByCanonicalMatch[actorLookups[i].canonical] = actorID
 			}
 		}
-		for _, key := range topologyMatchIdentityKeys(actors[i].Match) {
+		for _, key := range actorLookups[i].identityKeys {
 			if _, exists := actorIDByIdentityKey[key]; !exists {
 				actorIDByIdentityKey[key] = actorID
 			}
@@ -70,8 +88,17 @@ func assignTopologyActorIDsAndLinkEndpoints(actors []topology.Actor, links []top
 	}
 
 	for i := range links {
-		links[i].SrcActorID = resolveTopologyEndpointActorID(links[i].Src.Match, actorIDByCanonicalMatch, actorIDByIdentityKey)
-		links[i].DstActorID = resolveTopologyEndpointActorID(links[i].Dst.Match, actorIDByCanonicalMatch, actorIDByIdentityKey)
+		srcLookup := newTopologyMatchLookup(links[i].Src.Match)
+		dstLookup := newTopologyMatchLookup(links[i].Dst.Match)
+		links[i].SrcActorID = resolveTopologyEndpointActorID(srcLookup, actorIDByCanonicalMatch, actorIDByIdentityKey)
+		links[i].DstActorID = resolveTopologyEndpointActorID(dstLookup, actorIDByCanonicalMatch, actorIDByIdentityKey)
+	}
+}
+
+func newTopologyMatchLookup(match topology.Match) topologyMatchLookup {
+	return topologyMatchLookup{
+		canonical:    canonicalTopologyMatchKey(match),
+		identityKeys: topologyMatchIdentityKeys(match),
 	}
 }
 
@@ -90,13 +117,13 @@ func responseScopedActorID(base string, used map[string]int) string {
 	return fmt.Sprintf("%s#%d", base, count)
 }
 
-func resolveTopologyEndpointActorID(match topology.Match, byCanonicalMatch map[string]string, byIdentityKey map[string]string) string {
-	if canonical := canonicalTopologyMatchKey(match); canonical != "" {
-		if actorID := strings.TrimSpace(byCanonicalMatch[canonical]); actorID != "" {
+func resolveTopologyEndpointActorID(lookup topologyMatchLookup, byCanonicalMatch map[string]string, byIdentityKey map[string]string) string {
+	if lookup.canonical != "" {
+		if actorID := strings.TrimSpace(byCanonicalMatch[lookup.canonical]); actorID != "" {
 			return actorID
 		}
 	}
-	for _, key := range topologyMatchIdentityKeys(match) {
+	for _, key := range lookup.identityKeys {
 		if actorID := strings.TrimSpace(byIdentityKey[key]); actorID != "" {
 			return actorID
 		}
@@ -257,6 +284,15 @@ func topologyLinkSortKey(link topology.Link) string {
 	}, keySep)
 }
 
+func topologyActorSortKey(actor topology.Actor) string {
+	return strings.Join([]string{
+		actor.ActorType,
+		canonicalTopologyMatchKey(actor.Match),
+		actor.Source,
+		actor.Layer,
+	}, keySep)
+}
+
 func topologyAttrKey(attrs map[string]any, key string) string {
 	if len(attrs) == 0 {
 		return ""
@@ -269,25 +305,45 @@ func topologyAttrKey(attrs map[string]any, key string) string {
 }
 
 func sortTopologyActors(actors []topology.Actor) {
-	sort.SliceStable(actors, func(i, j int) bool {
-		a, b := actors[i], actors[j]
-		if a.ActorType != b.ActorType {
-			return a.ActorType < b.ActorType
+	if len(actors) < 2 {
+		return
+	}
+
+	entries := make([]topologyActorSortEntry, len(actors))
+	for i := range actors {
+		entries[i] = topologyActorSortEntry{
+			actor: actors[i],
+			key:   topologyActorSortKey(actors[i]),
 		}
-		ak := canonicalTopologyMatchKey(a.Match)
-		bk := canonicalTopologyMatchKey(b.Match)
-		if ak != bk {
-			return ak < bk
-		}
-		if a.Source != b.Source {
-			return a.Source < b.Source
-		}
-		return a.Layer < b.Layer
+	}
+
+	sort.SliceStable(entries, func(i, j int) bool {
+		return entries[i].key < entries[j].key
 	})
+
+	for i := range entries {
+		actors[i] = entries[i].actor
+	}
 }
 
 func sortTopologyLinks(links []topology.Link) {
-	sort.SliceStable(links, func(i, j int) bool {
-		return topologyLinkSortKey(links[i]) < topologyLinkSortKey(links[j])
+	if len(links) < 2 {
+		return
+	}
+
+	entries := make([]topologyLinkSortEntry, len(links))
+	for i := range links {
+		entries[i] = topologyLinkSortEntry{
+			link: links[i],
+			key:  topologyLinkSortKey(links[i]),
+		}
+	}
+
+	sort.SliceStable(entries, func(i, j int) bool {
+		return entries[i].key < entries[j].key
 	})
+
+	for i := range entries {
+		links[i] = entries[i].link
+	}
 }

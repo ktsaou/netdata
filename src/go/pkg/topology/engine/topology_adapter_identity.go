@@ -10,6 +10,16 @@ import (
 	"github.com/netdata/netdata/go/plugins/pkg/topology"
 )
 
+var interfaceNameLookupSanitizer = strings.NewReplacer(
+	" ", "",
+	"-", "",
+	"_", "",
+	".", "",
+	"\t", "",
+	"\n", "",
+	"\r", "",
+)
+
 func deviceIfNameKey(deviceID, ifName string) string {
 	return strings.TrimSpace(deviceID) + keySep + strings.ToLower(strings.TrimSpace(ifName))
 }
@@ -42,8 +52,7 @@ func normalizeInterfaceNameForLookup(value string) string {
 	if value == "" {
 		return ""
 	}
-	replacer := strings.NewReplacer(" ", "", "-", "", "_", "", ".", "", "\t", "", "\n", "", "\r", "")
-	return replacer.Replace(value)
+	return interfaceNameLookupSanitizer.Replace(value)
 }
 
 func resolveIfIndexByPortName(deviceID, port string, ifIndexByDeviceName map[string]int) int {
