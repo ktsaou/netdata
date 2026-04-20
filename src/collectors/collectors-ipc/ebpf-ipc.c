@@ -60,20 +60,31 @@ static bool ebpf_find_pid_shm_del_unsafe(uint32_t pid, enum ebpf_pids_index shm_
     return false;
 }
 
-static uint32_t ebpf_find_or_create_index_pid(uint32_t pid)
+// Returns the slot index for pid and sets *created to true when a new slot was
+// allocated. A fresh slot is memset to zero so callers never inherit stale bits
+// or counters from a prior PID that used the same index (prevents the compaction
+// stale-tail and PID-reuse contamination paths).
+static uint32_t ebpf_find_or_create_index_pid(uint32_t pid, bool *created)
 {
     uint32_t idx;
-    if (ebpf_shm_find_index_unsafe(pid, &idx))
+    if (ebpf_shm_find_index_unsafe(pid, &idx)) {
+        *created = false;
         return idx;
+    }
 
-    if (ebpf_stat_values.current >= ebpf_stat_values.total)
+    if (ebpf_stat_values.current >= ebpf_stat_values.total) {
+        *created = false;
         return UINT32_MAX;
+    }
 
     Pvoid_t *Pvalue = JudyLIns(&ebpf_ipc_JudyL, (Word_t)pid, PJE0);
     internal_fatal(!Pvalue || Pvalue == PJERR, "EBPF: pid judy index");
 
     uint32_t new_idx = ebpf_stat_values.current++;
     *Pvalue = IDX_TO_JVALUE(new_idx);
+
+    memset(&integration_shm[new_idx], 0, sizeof(integration_shm[new_idx]));
+    *created = true;
 
     return new_idx;
 }
@@ -91,7 +102,8 @@ netdata_ebpf_pid_stats_t *netdata_ebpf_get_shm_pointer_unsafe(uint32_t pid, enum
     if (!integration_shm || ebpf_stat_values.current >= ebpf_stat_values.total)
         return NULL;
 
-    uint32_t shm_idx = ebpf_find_or_create_index_pid(pid);
+    bool created;
+    uint32_t shm_idx = ebpf_find_or_create_index_pid(pid, &created);
     if (shm_idx == UINT32_MAX || shm_idx >= ebpf_stat_values.total)
         return NULL;
 
@@ -100,6 +112,52 @@ netdata_ebpf_pid_stats_t *netdata_ebpf_get_shm_pointer_unsafe(uint32_t pid, enum
     ptr->threads |= (1UL << (idx << 1));
 
     return ptr;
+}
+
+// Read-only lookup: returns the existing slot for pid or NULL. Does not
+// allocate, does not set any bit. Aggregation paths that iterate PID lists
+// from /proc or cgroup snapshots MUST use this variant, otherwise every live
+// PID acquires module bits for modules that may never observe it in their own
+// BPF map and the bits can never be cleared — the shm pool then fills
+// monotonically.
+netdata_ebpf_pid_stats_t *netdata_ebpf_lookup_shm_pointer_unsafe(uint32_t pid)
+{
+    if (!integration_shm)
+        return NULL;
+
+    uint32_t shm_idx;
+    if (!ebpf_shm_find_index_unsafe(pid, &shm_idx))
+        return NULL;
+
+    if (shm_idx >= ebpf_stat_values.current)
+        return NULL;
+
+    return &integration_shm[shm_idx];
+}
+
+// Module teardown helper: clear this module's bit across every slot that has
+// it set. For slots that become empty the existing del path compacts in place,
+// which swaps the last slot into the freed index — so we do not advance i when
+// the current counter drops.
+void netdata_ebpf_sweep_shm_for_module_unsafe(enum ebpf_pids_index idx)
+{
+    if (!integration_shm)
+        return;
+
+    const uint32_t mask = (1U << (idx << 1));
+    uint32_t i = 0;
+    while (i < ebpf_stat_values.current) {
+        netdata_ebpf_pid_stats_t *ptr = &integration_shm[i];
+        if (!(ptr->threads & mask)) {
+            i++;
+            continue;
+        }
+
+        uint32_t before = ebpf_stat_values.current;
+        (void)ebpf_find_pid_shm_del_unsafe(ptr->pid, idx);
+        if (ebpf_stat_values.current >= before)
+            i++;
+    }
 }
 
 void netdata_integration_cleanup_shm()
