@@ -1905,9 +1905,15 @@ static void ebpf_update_array_vectors(ebpf_module_t *em)
             else {
                 netdata_ebpf_reset_shm_pointer_unsafe(fd, key.pid, NETDATA_EBPF_PIDS_SOCKET_IDX);
                 memset(curr, 0, sizeof(*curr));
-                bpf_map_delete_elem(fd, &key);
             }
         }
+        // The socket map is keyed by a tuple (not by pid), so the generic
+        // reset_shm_pointer_unsafe() deliberately skips bpf_map_delete_elem()
+        // for SOCKET_IDX. Delete the stale socket here regardless of whether
+        // we had a shm slot, otherwise a full shm pool would strand dead
+        // socket entries in the kernel map and we'd re-iterate them forever.
+        if (deleted)
+            bpf_map_delete_elem(fd, &key);
         memset(values, 0, length);
         memcpy(&key, &next_key, sizeof(key));
     }

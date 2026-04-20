@@ -94,9 +94,13 @@ bool netdata_ebpf_reset_shm_pointer_unsafe(int fd, uint32_t pid, enum ebpf_pids_
 
 netdata_ebpf_pid_stats_t *netdata_ebpf_get_shm_pointer_unsafe(uint32_t pid, enum ebpf_pids_index idx)
 {
-    if (!integration_shm || ebpf_stat_values.current >= ebpf_stat_values.total)
+    if (!integration_shm)
         return NULL;
 
+    // Do NOT short-circuit on a full pool here: an already-tracked PID
+    // must still be reachable so its module bits can be updated or
+    // cleared. ebpf_find_or_create_index_pid() returns the existing slot
+    // regardless of pool saturation and only rejects *new* allocations.
     uint32_t shm_idx = ebpf_find_or_create_index_pid(pid);
     if (shm_idx == UINT32_MAX || shm_idx >= ebpf_stat_values.total)
         return NULL;
@@ -175,9 +179,14 @@ void netdata_integration_cleanup_shm()
         shm_fd_ebpf_integration = -1;
     }
 
-    // Drop the POSIX shm object so a subsequent plugin run starts from a
-    // fresh region instead of inheriting the previous run's bytes.
+    // Drop the POSIX shm object and the named semaphore so a subsequent
+    // plugin run starts from a fresh region and a freshly-initialised
+    // semaphore. Without the sem_unlink, a crashed previous instance can
+    // leave the semaphore at 0 and the next run will spin on
+    // sem_timedwait timeouts (sem_open(O_CREAT) ignores the initial value
+    // when the named semaphore already exists).
     (void)shm_unlink(NETDATA_EBPF_INTEGRATION_NAME);
+    (void)sem_unlink(NETDATA_EBPF_SHM_INTEGRATION_NAME);
 }
 
 int netdata_integration_initialize_shm(size_t pids)
@@ -214,6 +223,10 @@ int netdata_integration_initialize_shm(size_t pids)
     // current size is a no-op.
     memset(integration_shm, 0, length);
 
+    // Drop any leftover named semaphore from a previous (possibly crashed)
+    // run so sem_open honours the initial value below instead of reusing
+    // whatever state the previous instance left it in.
+    (void)sem_unlink(NETDATA_EBPF_SHM_INTEGRATION_NAME);
     shm_mutex_ebpf_integration = sem_open(
         NETDATA_EBPF_SHM_INTEGRATION_NAME, O_CREAT, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH, 1);
     if (shm_mutex_ebpf_integration != SEM_FAILED) {
