@@ -40,6 +40,12 @@
 - Chore(go/snmp/topology): add MAC OUI vendor lookup table ([#22215](https://github.com/netdata/netdata/issues/22215))
 - Feat(topology): add role field to presentation actor types ([#22217](https://github.com/netdata/netdata/issues/22217))
 - Fix complilation / enforce size check ([#22216](https://github.com/netdata/netdata/issues/22216))
+- Properly sync our CI with the versions of Alpine we officially support. ([#22211](https://github.com/netdata/netdata/issues/22211))
+- Docs(mcp): add Claude Code one-liner setup to Cloud MCP page ([#22220](https://github.com/netdata/netdata/issues/22220))
+- Build(deps): bump github.com/jackc/pgx/v5 from 5.9.1 to 5.9.2 in /src/go ([#22226](https://github.com/netdata/netdata/issues/22226))
+- Build(deps): bump github.com/Azure/azure-sdk-for-go/sdk/azcore from 1.21.0 to 1.21.1 in /src/go ([#22230](https://github.com/netdata/netdata/issues/22230))
+- Fix(go.d/snmp): use snmpEngineTime as primary uptime source ([#22231](https://github.com/netdata/netdata/issues/22231))
+- Improve UUID handling in SQLite functions and error reporting ([#22233](https://github.com/netdata/netdata/issues/22233))
 
 ## [2.10.0] - 2026-04-09
 
