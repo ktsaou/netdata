@@ -962,7 +962,7 @@ static void ebpf_process_exit(void *pptr)
 
     if (!process_safe_clean) {
         netdata_mutex_lock(&ebpf_exit_cleanup);
-        em->enabled = NETDATA_THREAD_EBPF_STOPPED;
+        ebpf_module_enabled_set(em, NETDATA_THREAD_EBPF_STOPPED);
         netdata_mutex_unlock(&ebpf_exit_cleanup);
         return;
     }
@@ -971,7 +971,7 @@ static void ebpf_process_exit(void *pptr)
     collect_pids &= ~(1 << EBPF_MODULE_PROCESS_IDX);
     netdata_mutex_unlock(&lock);
 
-    if (em->enabled == NETDATA_THREAD_EBPF_FUNCTION_RUNNING && !ebpf_plugin_stop()) {
+    if (ebpf_module_enabled_get(em) == NETDATA_THREAD_EBPF_FUNCTION_RUNNING && !ebpf_plugin_stop()) {
         netdata_mutex_lock(&lock);
         if (em->cgroup_charts) {
             ebpf_obsolete_process_cgroup_charts(em);
@@ -998,7 +998,7 @@ static void ebpf_process_exit(void *pptr)
 
     netdata_mutex_lock(&ebpf_exit_cleanup);
     process_pid_fd = -1;
-    em->enabled = NETDATA_THREAD_EBPF_STOPPED;
+    ebpf_module_enabled_set(em, NETDATA_THREAD_EBPF_STOPPED);
     netdata_mutex_unlock(&ebpf_exit_cleanup);
 }
 
@@ -1795,7 +1795,8 @@ void ebpf_process_thread(void *ptr)
     CLEANUP_FUNCTION_REGISTER(ebpf_process_exit) cleanup_ptr = em;
 
     if (!ebpf_module_thread_has_valid_state(em)) {
-        em->enabled = em->global_charts = em->apps_charts = em->cgroup_charts = NETDATA_THREAD_EBPF_STOPPING;
+        em->global_charts = em->apps_charts = em->cgroup_charts = NETDATA_THREAD_EBPF_STOPPING;
+        ebpf_module_enabled_set(em, NETDATA_THREAD_EBPF_STOPPING);
         netdata_mutex_lock(&ebpf_exit_cleanup);
         ebpf_update_disabled_plugin_stats(em);
         netdata_mutex_unlock(&ebpf_exit_cleanup);
@@ -1806,7 +1807,8 @@ void ebpf_process_thread(void *ptr)
 
     netdata_mutex_lock(&ebpf_exit_cleanup);
     if (ebpf_process_enable_tracepoints()) {
-        em->enabled = em->global_charts = em->apps_charts = em->cgroup_charts = NETDATA_THREAD_EBPF_STOPPING;
+        em->global_charts = em->apps_charts = em->cgroup_charts = NETDATA_THREAD_EBPF_STOPPING;
+        ebpf_module_enabled_set(em, NETDATA_THREAD_EBPF_STOPPING);
     }
     netdata_mutex_unlock(&ebpf_exit_cleanup);
 
@@ -1816,7 +1818,8 @@ void ebpf_process_thread(void *ptr)
 
     set_local_pointers();
     if (ebpf_process_load_bpf(em)) {
-        em->enabled = em->global_charts = em->apps_charts = em->cgroup_charts = NETDATA_THREAD_EBPF_STOPPING;
+        em->global_charts = em->apps_charts = em->cgroup_charts = NETDATA_THREAD_EBPF_STOPPING;
+        ebpf_module_enabled_set(em, NETDATA_THREAD_EBPF_STOPPING);
     }
 
     int algorithms[NETDATA_KEY_PUBLISH_PROCESS_END] = {
