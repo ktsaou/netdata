@@ -441,18 +441,20 @@ void rrdcalc_unlink_and_delete(RRDHOST *host, RRDCALC *rc, bool having_ll_wrlock
 // RRDCALC cleanup API functions
 
 void rrdcalc_unlink_and_delete_all_rrdset_alerts(RRDSET *st) {
-    RRDCALC *rc, *last = NULL;
-    rw_spinlock_write_lock(&st->alerts.spinlock);
-    while((rc = st->alerts.base)) {
-        if(last == rc) {
-            netdata_log_error("RRDCALC: malformed list of alerts linked to chart - cannot cleanup - giving up.");
-            break;
-        }
-        last = rc;
+    RRDHOST *host = st->rrdhost;
+    RRDCALC *rc;
 
-        rrdcalc_unlink_and_delete(st->rrdhost, rc, true);
+    // Keep the removal snapshot under the alert dictionary write traversal lock,
+    // so it cannot race with concurrent health-thread updates of rc->value.
+    foreach_rrdcalc_in_rrdhost_write(host, rc) {
+        if(rc->rrdset != st)
+            continue;
+
+        rw_spinlock_write_lock(&st->alerts.spinlock);
+        rrdcalc_unlink_and_delete(host, rc, true);
+        rw_spinlock_write_unlock(&st->alerts.spinlock);
     }
-    rw_spinlock_write_unlock(&st->alerts.spinlock);
+    foreach_rrdcalc_in_rrdhost_done(rc);
 }
 
 void rrdcalc_delete_all(RRDHOST *host) {
