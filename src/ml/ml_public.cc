@@ -87,6 +87,10 @@ void ml_host_stop(RRDHOST *rh) {
     // reset host stats
     host->mls = ml_machine_learning_stats_t();
 
+    // Chart deletion can hold the dictionary writer across lengthy cleanup.
+    // Do not carry host->mutex into the traversal below.
+    netdata_mutex_unlock(&host->mutex);
+
     // reset charts/dims
     void *rsp = NULL;
     rrdset_foreach_read(rsp, host->rh) {
@@ -123,8 +127,6 @@ void ml_host_stop(RRDHOST *rh) {
         rrddim_foreach_done(rdp);
     }
     rrdset_foreach_done(rsp);
-
-    netdata_mutex_unlock(&host->mutex);
 }
 
 void ml_host_get_info(RRDHOST *rh, BUFFER *wb)
