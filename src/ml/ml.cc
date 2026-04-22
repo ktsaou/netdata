@@ -1010,11 +1010,11 @@ ml_host_detect_once(ml_host_t *host)
 {
     worker_is_busy(WORKER_JOB_DETECTION_COLLECT_STATS);
 
-    host->mls = {};
     ml_machine_learning_stats_t mls_copy = {};
 
     if (host->ml_running) {
         netdata_mutex_lock(&host->mutex);
+        host->mls = {};
 
         /*
          * prediction/detection stats
