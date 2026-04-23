@@ -274,6 +274,13 @@ void web_client_request_done(struct web_client *w) {
     web_client_disable_tracking_required(w);
     web_client_disable_keepalive(w);
 
+    // Clear URL-derived flags between requests. PATH_IS_MCP is re-set
+    // during the next URL decode; clearing it here makes sure a keepalive
+    // connection cannot carry the previous request's classification into
+    // a new request that fails before URL decoding runs (e.g., malformed
+    // request line, unsupported method).
+    web_client_flag_clear(w, WEB_CLIENT_FLAG_PATH_IS_MCP);
+
     w->header_parse_tries = 0;
     w->header_parse_last_size = 0;
 
@@ -889,27 +896,26 @@ void web_client_build_http_header(struct web_client *w) {
     }
 
     if(w->mode == HTTP_REQUEST_MODE_OPTIONS) {
-        if(is_mcp_path) {
-            // MCP needs extra request headers (mcp-protocol-version,
-            // mcp-session-id, last-event-id for SSE resumption,
-            // authorization for bearer tokens). Methods stay GET/POST —
-            // the current handlers do not implement DELETE session
-            // teardown, so advertising it in the preflight would let
-            // clients past preflight only to get a 405. Add DELETE here
-            // when the handlers learn to honour it.
+        // Methods, max-age, and the base header allowlist are identical
+        // for every OPTIONS preflight. MCP preflights append the extra
+        // request headers the SDK uses: mcp-protocol-version,
+        // mcp-session-id, last-event-id (SSE resumption), authorization
+        // (bearer tokens). DELETE is *not* advertised — the MCP handlers
+        // currently return 405 for it, and advertising it would let the
+        // preflight succeed only for the real request to fail. Add DELETE
+        // here when the handlers learn session teardown.
+        buffer_strcat(w->response.header_output,
+                "Access-Control-Allow-Methods: GET, POST, OPTIONS\r\n"
+                        "Access-Control-Allow-Headers: accept, x-requested-with, origin, content-type, cookie, pragma, cache-control, x-auth-token, x-netdata-auth, x-transaction-id");
+
+        if(is_mcp_path)
             buffer_strcat(w->response.header_output,
-                    "Access-Control-Allow-Methods: GET, POST, OPTIONS\r\n"
-                            "Access-Control-Allow-Headers: accept, x-requested-with, origin, content-type, cookie, pragma, cache-control, x-auth-token, x-netdata-auth, x-transaction-id, authorization, mcp-protocol-version, mcp-session-id, last-event-id\r\n"
-                            "Access-Control-Max-Age: 1209600\r\n" // 86400 * 14
-            );
-        }
-        else {
-            buffer_strcat(w->response.header_output,
-                    "Access-Control-Allow-Methods: GET, POST, OPTIONS\r\n"
-                            "Access-Control-Allow-Headers: accept, x-requested-with, origin, content-type, cookie, pragma, cache-control, x-auth-token, x-netdata-auth, x-transaction-id\r\n"
-                            "Access-Control-Max-Age: 1209600\r\n" // 86400 * 14
-            );
-        }
+                          ", authorization, mcp-protocol-version, mcp-session-id, last-event-id");
+
+        buffer_strcat(w->response.header_output,
+                      "\r\n"
+                              "Access-Control-Max-Age: 1209600\r\n" // 86400 * 14
+        );
     }
     else {
         buffer_sprintf(w->response.header_output,
@@ -1888,11 +1894,11 @@ void web_client_decode_path_and_query_string(struct web_client *w, const char *p
         // header builder, including for OPTIONS preflights which bypass
         // the dispatcher. Matching requires a path-segment boundary so a
         // hypothetical /mcpfoo does not leak through.
-        const char *p = buffer_tostring(w->url_path_decoded);
-        size_t plen = buffer_strlen(w->url_path_decoded);
-        if(plen >= 4
-           && (memcmp(p, "/mcp", 4) == 0 || memcmp(p, "/sse", 4) == 0)
-           && (plen == 4 || p[4] == '/'))
+        const char *decoded_path = buffer_tostring(w->url_path_decoded);
+        size_t decoded_path_len = buffer_strlen(w->url_path_decoded);
+        if(decoded_path_len >= 4
+           && (memcmp(decoded_path, "/mcp", 4) == 0 || memcmp(decoded_path, "/sse", 4) == 0)
+           && (decoded_path_len == 4 || decoded_path[4] == '/'))
             web_client_flag_set(w, WEB_CLIENT_FLAG_PATH_IS_MCP);
     }
 }
