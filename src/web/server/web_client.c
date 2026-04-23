@@ -862,11 +862,17 @@ void web_client_build_http_header(struct web_client *w) {
 
     // MCP-specific CORS: scoped to MCP transport endpoints only so the
     // broader CORS posture for non-MCP endpoints is not widened
-    // unnecessarily. See PR #22258 review feedback.
+    // unnecessarily.
     //
     // Netdata exposes two MCP transports:
     //   /mcp  — Streamable HTTP (+ SSE via Accept negotiation)
     //   /sse  — legacy SSE-only MCP endpoint
+    //
+    // url_path_decoded is the decoded path only — the query string is
+    // parsed into w->url_query_string_decoded — so the prefix test is
+    // "exactly /mcp or /sse, or /mcp/... / /sse/...". A matching path
+    // segment boundary is required to prevent a hypothetical /mcpfoo
+    // from slipping through.
     const char *url_path = buffer_tostring(w->url_path_decoded);
     size_t url_path_len = buffer_strlen(w->url_path_decoded);
     bool is_mcp_path = false;
@@ -874,8 +880,7 @@ void web_client_build_http_header(struct web_client *w) {
         bool has_mcp_prefix =
             memcmp(url_path, "/mcp", 4) == 0 || memcmp(url_path, "/sse", 4) == 0;
         if(has_mcp_prefix)
-            is_mcp_path =
-                (url_path_len == 4 || url_path[4] == '/' || url_path[4] == '?');
+            is_mcp_path = (url_path_len == 4 || url_path[4] == '/');
     }
 
     if(is_mcp_path && w->mode != HTTP_REQUEST_MODE_OPTIONS)
@@ -903,13 +908,15 @@ void web_client_build_http_header(struct web_client *w) {
 
     if(w->mode == HTTP_REQUEST_MODE_OPTIONS) {
         if(is_mcp_path) {
-            // MCP Streamable HTTP needs DELETE (session teardown) and
-            // extra request headers (mcp-protocol-version, mcp-session-id,
-            // last-event-id for SSE resumption, authorization for bearer
-            // tokens). Scoped to /mcp so non-MCP endpoints retain the
-            // narrower allowlist.
+            // MCP needs extra request headers (mcp-protocol-version,
+            // mcp-session-id, last-event-id for SSE resumption,
+            // authorization for bearer tokens). Methods stay GET/POST —
+            // the current handlers do not implement DELETE session
+            // teardown, so advertising it in the preflight would let
+            // clients past preflight only to get a 405. Add DELETE here
+            // when the handlers learn to honour it.
             buffer_strcat(w->response.header_output,
-                    "Access-Control-Allow-Methods: GET, POST, DELETE, OPTIONS\r\n"
+                    "Access-Control-Allow-Methods: GET, POST, OPTIONS\r\n"
                             "Access-Control-Allow-Headers: accept, x-requested-with, origin, content-type, cookie, pragma, cache-control, x-auth-token, x-netdata-auth, x-transaction-id, authorization, mcp-protocol-version, mcp-session-id, last-event-id\r\n"
                             "Access-Control-Max-Age: 1209600\r\n" // 86400 * 14
             );
