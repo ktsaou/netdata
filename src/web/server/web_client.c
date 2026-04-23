@@ -849,7 +849,6 @@ void web_client_build_http_header(struct web_client *w) {
                        "Server: Netdata Embedded HTTP Server %s\r\n"
                        "Access-Control-Allow-Origin: %s\r\n"
                        "Access-Control-Allow-Credentials: true\r\n"
-                       "Access-Control-Expose-Headers: Mcp-Session-Id\r\n"
                        "Date: %s\r\n",
                        w->response.code,
                        code_msg,
@@ -860,6 +859,20 @@ void web_client_build_http_header(struct web_client *w) {
 
         http_header_content_type(w->response.header_output, w->response.data->content_type);
     }
+
+    // MCP-specific CORS: scoped to /mcp* paths only so the broader CORS
+    // posture for non-MCP endpoints is not widened unnecessarily. See PR
+    // #22258 review feedback.
+    const char *url_path = buffer_tostring(w->url_path_decoded);
+    size_t url_path_len = buffer_strlen(w->url_path_decoded);
+    bool is_mcp_path =
+        url_path_len >= 4
+        && memcmp(url_path, "/mcp", 4) == 0
+        && (url_path_len == 4 || url_path[4] == '/' || url_path[4] == '?');
+
+    if(is_mcp_path && w->mode != HTTP_REQUEST_MODE_OPTIONS)
+        buffer_strcat(w->response.header_output,
+                      "Access-Control-Expose-Headers: Mcp-Session-Id\r\n");
 
     if(unlikely(web_x_frame_options))
         buffer_sprintf(w->response.header_output, "X-Frame-Options: %s\r\n", web_x_frame_options);
@@ -881,11 +894,25 @@ void web_client_build_http_header(struct web_client *w) {
     }
 
     if(w->mode == HTTP_REQUEST_MODE_OPTIONS) {
-        buffer_strcat(w->response.header_output,
-                "Access-Control-Allow-Methods: GET, POST, DELETE, OPTIONS\r\n"
-                        "Access-Control-Allow-Headers: accept, x-requested-with, origin, content-type, cookie, pragma, cache-control, x-auth-token, x-netdata-auth, x-transaction-id, authorization, mcp-protocol-version, mcp-session-id, last-event-id\r\n"
-                        "Access-Control-Max-Age: 1209600\r\n" // 86400 * 14
-        );
+        if(is_mcp_path) {
+            // MCP Streamable HTTP needs DELETE (session teardown) and
+            // extra request headers (mcp-protocol-version, mcp-session-id,
+            // last-event-id for SSE resumption, authorization for bearer
+            // tokens). Scoped to /mcp so non-MCP endpoints retain the
+            // narrower allowlist.
+            buffer_strcat(w->response.header_output,
+                    "Access-Control-Allow-Methods: GET, POST, DELETE, OPTIONS\r\n"
+                            "Access-Control-Allow-Headers: accept, x-requested-with, origin, content-type, cookie, pragma, cache-control, x-auth-token, x-netdata-auth, x-transaction-id, authorization, mcp-protocol-version, mcp-session-id, last-event-id\r\n"
+                            "Access-Control-Max-Age: 1209600\r\n" // 86400 * 14
+            );
+        }
+        else {
+            buffer_strcat(w->response.header_output,
+                    "Access-Control-Allow-Methods: GET, POST, OPTIONS\r\n"
+                            "Access-Control-Allow-Headers: accept, x-requested-with, origin, content-type, cookie, pragma, cache-control, x-auth-token, x-netdata-auth, x-transaction-id\r\n"
+                            "Access-Control-Max-Age: 1209600\r\n" // 86400 * 14
+            );
+        }
     }
     else {
         buffer_sprintf(w->response.header_output,
