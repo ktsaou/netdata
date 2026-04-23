@@ -860,15 +860,23 @@ void web_client_build_http_header(struct web_client *w) {
         http_header_content_type(w->response.header_output, w->response.data->content_type);
     }
 
-    // MCP-specific CORS: scoped to /mcp* paths only so the broader CORS
-    // posture for non-MCP endpoints is not widened unnecessarily. See PR
-    // #22258 review feedback.
+    // MCP-specific CORS: scoped to MCP transport endpoints only so the
+    // broader CORS posture for non-MCP endpoints is not widened
+    // unnecessarily. See PR #22258 review feedback.
+    //
+    // Netdata exposes two MCP transports:
+    //   /mcp  — Streamable HTTP (+ SSE via Accept negotiation)
+    //   /sse  — legacy SSE-only MCP endpoint
     const char *url_path = buffer_tostring(w->url_path_decoded);
     size_t url_path_len = buffer_strlen(w->url_path_decoded);
-    bool is_mcp_path =
-        url_path_len >= 4
-        && memcmp(url_path, "/mcp", 4) == 0
-        && (url_path_len == 4 || url_path[4] == '/' || url_path[4] == '?');
+    bool is_mcp_path = false;
+    if(url_path_len >= 4) {
+        bool has_mcp_prefix =
+            memcmp(url_path, "/mcp", 4) == 0 || memcmp(url_path, "/sse", 4) == 0;
+        if(has_mcp_prefix)
+            is_mcp_path =
+                (url_path_len == 4 || url_path[4] == '/' || url_path[4] == '?');
+    }
 
     if(is_mcp_path && w->mode != HTTP_REQUEST_MODE_OPTIONS)
         buffer_strcat(w->response.header_output,
