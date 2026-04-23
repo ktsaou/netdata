@@ -636,7 +636,6 @@ For detailed configuration instructions for specific AI clients, see:
 - [Cursor](/docs/netdata-ai/mcp/mcp-clients/cursor.md) - AI-powered code editor
 - [Visual Studio Code](/docs/netdata-ai/mcp/mcp-clients/vs-code.md) - VS Code with MCP support
 - [JetBrains IDEs](/docs/netdata-ai/mcp/mcp-clients/jetbrains-ides.md) - IntelliJ, PyCharm, WebStorm, etc.
-- [Netdata Web Client](/docs/netdata-ai/mcp/mcp-clients/netdata-web-client.md) - Built-in web-based AI chat
 
 **DevOps Copilots:**
 - [Claude Code](/docs/netdata-ai/mcp/mcp-clients/claude-code.md) - Anthropic's CLI for Claude
