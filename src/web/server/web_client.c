@@ -849,6 +849,7 @@ void web_client_build_http_header(struct web_client *w) {
                        "Server: Netdata Embedded HTTP Server %s\r\n"
                        "Access-Control-Allow-Origin: %s\r\n"
                        "Access-Control-Allow-Credentials: true\r\n"
+                       "Access-Control-Expose-Headers: Mcp-Session-Id\r\n"
                        "Date: %s\r\n",
                        w->response.code,
                        code_msg,
@@ -883,7 +884,6 @@ void web_client_build_http_header(struct web_client *w) {
         buffer_strcat(w->response.header_output,
                 "Access-Control-Allow-Methods: GET, POST, DELETE, OPTIONS\r\n"
                         "Access-Control-Allow-Headers: accept, x-requested-with, origin, content-type, cookie, pragma, cache-control, x-auth-token, x-netdata-auth, x-transaction-id, authorization, mcp-protocol-version, mcp-session-id, last-event-id\r\n"
-                        "Access-Control-Expose-Headers: Mcp-Session-Id\r\n"
                         "Access-Control-Max-Age: 1209600\r\n" // 86400 * 14
         );
     }
