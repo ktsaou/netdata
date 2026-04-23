@@ -860,28 +860,10 @@ void web_client_build_http_header(struct web_client *w) {
         http_header_content_type(w->response.header_output, w->response.data->content_type);
     }
 
-    // MCP-specific CORS: scoped to MCP transport endpoints only so the
-    // broader CORS posture for non-MCP endpoints is not widened
-    // unnecessarily.
-    //
-    // Netdata exposes two MCP transports:
-    //   /mcp  — Streamable HTTP (+ SSE via Accept negotiation)
-    //   /sse  — legacy SSE-only MCP endpoint
-    //
-    // url_path_decoded is the decoded path only — the query string is
-    // parsed into w->url_query_string_decoded — so the prefix test is
-    // "exactly /mcp or /sse, or /mcp/... / /sse/...". A matching path
-    // segment boundary is required to prevent a hypothetical /mcpfoo
-    // from slipping through.
-    const char *url_path = buffer_tostring(w->url_path_decoded);
-    size_t url_path_len = buffer_strlen(w->url_path_decoded);
-    bool is_mcp_path = false;
-    if(url_path_len >= 4) {
-        bool has_mcp_prefix =
-            memcmp(url_path, "/mcp", 4) == 0 || memcmp(url_path, "/sse", 4) == 0;
-        if(has_mcp_prefix)
-            is_mcp_path = (url_path_len == 4 || url_path[4] == '/');
-    }
+    // MCP-specific CORS: widen the allowlist + advertise exposed
+    // headers only for MCP transport endpoints (/mcp, /sse). The flag
+    // is set once during URL decoding; see WEB_CLIENT_FLAG_PATH_IS_MCP.
+    bool is_mcp_path = web_client_flag_check(w, WEB_CLIENT_FLAG_PATH_IS_MCP);
 
     if(is_mcp_path && w->mode != HTTP_REQUEST_MODE_OPTIONS)
         buffer_strcat(w->response.header_output,
@@ -1865,6 +1847,11 @@ void web_client_decode_path_and_query_string(struct web_client *w, const char *p
         // do not overwrite this if it is already filled
         buffer_strcat(w->url_as_received, path_and_query_string);
 
+    // PATH_IS_MCP is a function of the URL alone; clear and re-derive on
+    // every decode so keepalived connections reusing the same web_client
+    // for a different URL see a fresh value.
+    web_client_flag_clear(w, WEB_CLIENT_FLAG_PATH_IS_MCP);
+
     if(w->mode == HTTP_REQUEST_MODE_STREAM) {
         // in stream mode, there is no path
 
@@ -1893,6 +1880,20 @@ void web_client_decode_path_and_query_string(struct web_client *w, const char *p
             buffer_strcat(w->url_query_string_decoded, "");
             buffer_strcat(w->url_path_decoded, buffer);
         }
+
+        // Classify path: set PATH_IS_MCP when the URL addresses one of
+        // Netdata's MCP transport endpoints (/mcp or /sse, and their
+        // subpaths). Done here — at URL-decoding time — so the flag is
+        // available later both to the URL dispatcher and to the response
+        // header builder, including for OPTIONS preflights which bypass
+        // the dispatcher. Matching requires a path-segment boundary so a
+        // hypothetical /mcpfoo does not leak through.
+        const char *p = buffer_tostring(w->url_path_decoded);
+        size_t plen = buffer_strlen(w->url_path_decoded);
+        if(plen >= 4
+           && (memcmp(p, "/mcp", 4) == 0 || memcmp(p, "/sse", 4) == 0)
+           && (plen == 4 || p[4] == '/'))
+            web_client_flag_set(w, WEB_CLIENT_FLAG_PATH_IS_MCP);
     }
 }
 
