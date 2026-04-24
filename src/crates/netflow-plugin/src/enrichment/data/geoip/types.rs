@@ -1,6 +1,6 @@
 use super::*;
 
-pub(crate) type GeoIpDatabaseReader = Reader<Mmap>;
+pub(crate) type GeoIpDatabaseReader = Reader<Vec<u8>>;
 
 #[derive(Debug)]
 pub(crate) struct GeoIpResolver {

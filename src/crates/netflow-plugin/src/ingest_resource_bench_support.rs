@@ -116,7 +116,10 @@ pub(super) fn parse_child_report(output: &std::process::Output) -> ResourceEnvel
     let combined = format!("{stdout}\n{stderr}");
     let json = combined
         .lines()
-        .find_map(|line| line.split_once("RESOURCE_BENCH_RESULT:").map(|(_, json)| json))
+        .find_map(|line| {
+            line.split_once("RESOURCE_BENCH_RESULT:")
+                .map(|(_, json)| json)
+        })
         .unwrap_or_else(|| panic!("resource bench child did not emit result\n{combined}"));
     serde_json::from_str(json)
         .unwrap_or_else(|err| panic!("parse resource bench result JSON: {err}\n{combined}"))

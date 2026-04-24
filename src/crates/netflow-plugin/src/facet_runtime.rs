@@ -12,18 +12,19 @@ use crate::query::{
     accumulate_targeted_facet_values, facet_field_requires_protocol_scan,
     virtual_flow_field_dependencies,
 };
-use anyhow::{Context, Result};
+use anyhow::{Context, Result, bail};
 use journal_core::file::JournalFileMap;
 use journal_registry::FileInfo;
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, BTreeSet};
 use std::fs;
-use std::io::BufReader;
+use std::hash::Hasher;
 use std::mem::size_of;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex, RwLock};
 use tokio::sync::Notify;
+use twox_hash::XxHash64;
 
 #[allow(unused_imports)]
 pub(crate) use contribution::{
@@ -33,8 +34,12 @@ pub(crate) use contribution::{
 use sidecar::{delete_sidecar_files, search_sidecar, write_sidecar_files};
 use store::{FacetStore, FacetStoreValueRef, PersistedFacetStore};
 
-const FACET_STATE_VERSION: u32 = 4;
+const FACET_STATE_VERSION: u32 = 5;
 const FACET_STATE_FILE_NAME: &str = "facet-state.bin";
+const FACET_STATE_MAGIC: &[u8; 4] = b"NFFS";
+const FACET_STATE_SCHEMA_VERSION: u32 = 1;
+const FACET_STATE_HEADER_LEN: usize = 4 + 4 + 8 + 8;
+const MAX_FACET_STATE_PAYLOAD_LEN: usize = 128 * 1024 * 1024;
 const FACET_AUTOCOMPLETE_LIMIT: usize = 100;
 const BTREE_ENTRY_OVERHEAD_BYTES: usize = size_of::<usize>() * 4;
 
@@ -815,7 +820,8 @@ fn persist_state_locked(state_path: &Path, state: &mut FacetState) -> Result<()>
             .collect(),
         published: state.published.fields.clone(),
     };
-    let payload = bincode::serialize(&persisted).context("failed to serialize facet state")?;
+    let payload =
+        encode_persisted_facet_state(&persisted).context("failed to serialize facet state")?;
     let tmp_path = state_path.with_extension("bin.tmp");
     fs::write(&tmp_path, &payload).with_context(|| {
         format!(
@@ -832,6 +838,33 @@ fn persist_state_locked(state_path: &Path, state: &mut FacetState) -> Result<()>
     })?;
     state.dirty = false;
     Ok(())
+}
+
+fn facet_state_xxhash64(data: &[u8]) -> u64 {
+    let mut hasher = XxHash64::default();
+    hasher.write(data);
+    hasher.finish()
+}
+
+fn encode_persisted_facet_state(persisted: &PersistedFacetState) -> Result<Vec<u8>> {
+    let payload = rmp_serde::to_vec_named(persisted)?;
+    if payload.len() > MAX_FACET_STATE_PAYLOAD_LEN {
+        bail!(
+            "facet state payload exceeds limit (max {} bytes, got {})",
+            MAX_FACET_STATE_PAYLOAD_LEN,
+            payload.len()
+        );
+    }
+
+    let payload_hash = facet_state_xxhash64(&payload);
+    let payload_len = payload.len() as u64;
+    let mut out = Vec::with_capacity(FACET_STATE_HEADER_LEN + payload.len());
+    out.extend_from_slice(FACET_STATE_MAGIC);
+    out.extend_from_slice(&FACET_STATE_SCHEMA_VERSION.to_le_bytes());
+    out.extend_from_slice(&payload_hash.to_le_bytes());
+    out.extend_from_slice(&payload_len.to_le_bytes());
+    out.extend_from_slice(&payload);
+    Ok(out)
 }
 
 fn estimate_store_map_bytes(fields: &BTreeMap<String, FacetStore>) -> usize {
@@ -928,8 +961,8 @@ fn btree_container_overhead_bytes(len: usize) -> usize {
 }
 
 fn load_persisted_state(state_path: &Path) -> Option<PersistedFacetState> {
-    let file = match fs::File::open(state_path) {
-        Ok(file) => file,
+    let data = match fs::read(state_path) {
+        Ok(data) => data,
         Err(err) if err.kind() == std::io::ErrorKind::NotFound => return None,
         Err(err) => {
             tracing::warn!(
@@ -940,8 +973,7 @@ fn load_persisted_state(state_path: &Path) -> Option<PersistedFacetState> {
             return None;
         }
     };
-    let persisted = match bincode::deserialize_from::<_, PersistedFacetState>(BufReader::new(file))
-    {
+    let persisted = match decode_persisted_facet_state(&data) {
         Ok(persisted) => persisted,
         Err(err) => {
             tracing::warn!(
@@ -962,6 +994,56 @@ fn load_persisted_state(state_path: &Path) -> Option<PersistedFacetState> {
         return None;
     }
     Some(persisted)
+}
+
+fn decode_persisted_facet_state(data: &[u8]) -> Result<PersistedFacetState> {
+    if data.len() < FACET_STATE_HEADER_LEN {
+        bail!("truncated netflow facet state header");
+    }
+    if &data[..4] != FACET_STATE_MAGIC {
+        bail!("invalid netflow facet state magic");
+    }
+
+    let version = u32::from_le_bytes(data[4..8].try_into().unwrap());
+    if version != FACET_STATE_SCHEMA_VERSION {
+        bail!(
+            "unsupported netflow facet state schema version {} (expected {})",
+            version,
+            FACET_STATE_SCHEMA_VERSION
+        );
+    }
+
+    let expected_hash = u64::from_le_bytes(data[8..16].try_into().unwrap());
+    let payload_len = u64::from_le_bytes(data[16..24].try_into().unwrap());
+    let payload_len = usize::try_from(payload_len)
+        .context("netflow facet state payload length overflows usize")?;
+    if payload_len > MAX_FACET_STATE_PAYLOAD_LEN {
+        bail!(
+            "netflow facet state payload exceeds limit (max {} bytes, got {})",
+            MAX_FACET_STATE_PAYLOAD_LEN,
+            payload_len
+        );
+    }
+
+    let payload = &data[FACET_STATE_HEADER_LEN..];
+    if payload.len() != payload_len {
+        bail!(
+            "netflow facet state payload length mismatch (header {}, actual {})",
+            payload_len,
+            payload.len()
+        );
+    }
+
+    let actual_hash = facet_state_xxhash64(payload);
+    if actual_hash != expected_hash {
+        bail!(
+            "netflow facet state payload hash mismatch (expected {}, got {})",
+            expected_hash,
+            actual_hash
+        );
+    }
+
+    rmp_serde::from_slice(payload).context("failed to decode netflow facet state payload")
 }
 
 fn merge_autocomplete_values(left: Vec<String>, right: Vec<String>) -> Vec<String> {

@@ -1,4 +1,8 @@
 use crate::flow::canonical_flow_field_names;
+use crate::flow_index::{
+    FieldKind as IndexFieldKind, FieldSpec as IndexFieldSpec, FieldValue as IndexFieldValue,
+    FlowId as IndexedFlowId, FlowIndex,
+};
 use crate::plugin_config::PluginConfig;
 use crate::presentation;
 use crate::tiering::TierKind;
@@ -13,10 +17,6 @@ use journal_core::{
     Direction as JournalDirection, JournalCursor, JournalFile, JournalReader, Location,
 };
 use journal_registry::{FileInfo, Monitor, Registry, repository::File as RegistryFile};
-use crate::flow_index::{
-    FieldKind as IndexFieldKind, FieldSpec as IndexFieldSpec, FieldValue as IndexFieldValue,
-    FlowId as IndexedFlowId, FlowIndex,
-};
 use notify::Event;
 use regex::Regex;
 use serde::de::Error as _;

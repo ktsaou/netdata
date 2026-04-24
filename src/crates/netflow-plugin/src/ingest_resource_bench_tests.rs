@@ -177,7 +177,10 @@ fn run_resource_envelope_case(
             },
         )
         .env(RATE_ENV, flows_per_sec.to_string())
-        .env(WARMUP_ENV, env_u64(WARMUP_ENV, DEFAULT_WARMUP_SECS).to_string())
+        .env(
+            WARMUP_ENV,
+            env_u64(WARMUP_ENV, DEFAULT_WARMUP_SECS).to_string(),
+        )
         .env(
             MEASURE_ENV,
             env_u64(MEASURE_ENV, DEFAULT_MEASURE_SECS).to_string(),
@@ -211,12 +214,9 @@ fn run_resource_envelope_child() -> ResourceEnvelopeReport {
     let warmup_secs = env_u64(WARMUP_ENV, DEFAULT_WARMUP_SECS);
     let measurement_secs = env_u64(MEASURE_ENV, DEFAULT_MEASURE_SECS);
     match layer {
-        ResourceLayer::WriterOnly => run_writer_only_resource_envelope(
-            profile,
-            flows_per_sec,
-            warmup_secs,
-            measurement_secs,
-        ),
+        ResourceLayer::WriterOnly => {
+            run_writer_only_resource_envelope(profile, flows_per_sec, warmup_secs, measurement_secs)
+        }
         ResourceLayer::RawOnly | ResourceLayer::Minute1Only | ResourceLayer::AllTiersBatched => {
             run_plugin_resource_envelope(
                 layer,
@@ -270,8 +270,8 @@ fn run_writer_only_resource_envelope(
     log.sync().expect("sync isolated writer benchmark log");
 
     ResourceEnvelopeReport {
-        methodology:
-            "paced mixed-flow raw journal benchmark with a single disk-backed writer".to_string(),
+        methodology: "paced mixed-flow raw journal benchmark with a single disk-backed writer"
+            .to_string(),
         layer: ResourceLayer::WriterOnly.label().to_string(),
         profile: profile.label().to_string(),
         requested_flows_per_sec: flows_per_sec,
@@ -281,9 +281,7 @@ fn run_writer_only_resource_envelope(
             / elapsed.as_secs_f64(),
         logical_entries_per_sec: measurement_result.logical_entries_written as f64
             / elapsed.as_secs_f64(),
-        read_bytes_per_sec: proc_after
-            .read_bytes
-            .saturating_sub(proc_before.read_bytes) as f64
+        read_bytes_per_sec: proc_after.read_bytes.saturating_sub(proc_before.read_bytes) as f64
             / elapsed.as_secs_f64(),
         write_bytes_per_sec: proc_after
             .write_bytes
@@ -340,14 +338,26 @@ fn run_plugin_resource_envelope(
     service.finish_shutdown_for_test(measurement_result.entries_since_sync);
 
     let logical_bytes = match layer {
-        ResourceLayer::RawOnly => counter_delta(&metrics_before, &metrics_after, "raw_journal_logical_bytes"),
-        ResourceLayer::Minute1Only => counter_delta(&metrics_before, &metrics_after, "raw_journal_logical_bytes")
-            .saturating_add(counter_delta(&metrics_before, &metrics_after, "minute_1_logical_bytes")),
-        ResourceLayer::AllTiersBatched => total_logical_bytes_delta(&metrics_before, &metrics_after),
+        ResourceLayer::RawOnly => {
+            counter_delta(&metrics_before, &metrics_after, "raw_journal_logical_bytes")
+        }
+        ResourceLayer::Minute1Only => {
+            counter_delta(&metrics_before, &metrics_after, "raw_journal_logical_bytes")
+                .saturating_add(counter_delta(
+                    &metrics_before,
+                    &metrics_after,
+                    "minute_1_logical_bytes",
+                ))
+        }
+        ResourceLayer::AllTiersBatched => {
+            total_logical_bytes_delta(&metrics_before, &metrics_after)
+        }
         ResourceLayer::WriterOnly => 0,
     };
     let entries_written = match layer {
-        ResourceLayer::RawOnly => counter_delta(&metrics_before, &metrics_after, "journal_entries_written"),
+        ResourceLayer::RawOnly => {
+            counter_delta(&metrics_before, &metrics_after, "journal_entries_written")
+        }
         ResourceLayer::Minute1Only | ResourceLayer::AllTiersBatched => {
             total_entries_written_delta(&metrics_before, &metrics_after)
         }
@@ -355,8 +365,8 @@ fn run_plugin_resource_envelope(
     };
 
     ResourceEnvelopeReport {
-        methodology:
-            "post-decode paced mixed-flow ingest benchmark with disk-backed journals".to_string(),
+        methodology: "post-decode paced mixed-flow ingest benchmark with disk-backed journals"
+            .to_string(),
         layer: layer.label().to_string(),
         profile: profile.label().to_string(),
         requested_flows_per_sec: flows_per_sec,
@@ -364,9 +374,7 @@ fn run_plugin_resource_envelope(
         cpu_percent_of_one_core: cpu_percent_of_one_core(proc_before, proc_after, elapsed),
         logical_write_bytes_per_sec: logical_bytes as f64 / elapsed.as_secs_f64(),
         logical_entries_per_sec: entries_written as f64 / elapsed.as_secs_f64(),
-        read_bytes_per_sec: proc_after
-            .read_bytes
-            .saturating_sub(proc_before.read_bytes) as f64
+        read_bytes_per_sec: proc_after.read_bytes.saturating_sub(proc_before.read_bytes) as f64
             / elapsed.as_secs_f64(),
         write_bytes_per_sec: proc_after
             .write_bytes
@@ -388,8 +396,12 @@ fn run_plugin_resource_envelope(
 
 fn configure_service_for_layer(service: &mut IngestService, layer: ResourceLayer) {
     if matches!(layer, ResourceLayer::Minute1Only) {
-        service.tier_accumulators.remove(&crate::tiering::TierKind::Minute5);
-        service.tier_accumulators.remove(&crate::tiering::TierKind::Hour1);
+        service
+            .tier_accumulators
+            .remove(&crate::tiering::TierKind::Minute5);
+        service
+            .tier_accumulators
+            .remove(&crate::tiering::TierKind::Hour1);
     }
 }
 
@@ -561,8 +573,11 @@ fn total_entries_written_delta(
     before: &std::collections::HashMap<String, u64>,
     after: &std::collections::HashMap<String, u64>,
 ) -> u64 {
-    counter_delta(before, after, "journal_entries_written")
-        .saturating_add(counter_delta(before, after, "tier_entries_written"))
+    counter_delta(before, after, "journal_entries_written").saturating_add(counter_delta(
+        before,
+        after,
+        "tier_entries_written",
+    ))
 }
 
 fn total_logical_bytes_delta(

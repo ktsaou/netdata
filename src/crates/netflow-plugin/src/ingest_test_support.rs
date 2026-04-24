@@ -88,7 +88,8 @@ pub(super) fn new_disk_benchmark_raw_log() -> (TempDir, Log) {
     let retention = cfg.journal.retention_for_tier(TierKind::Raw);
     let mut retention_policy = RetentionPolicy::default();
     if let Some(size_of_journal_files) = retention.size_of_journal_files {
-        retention_policy = retention_policy.with_size_of_journal_files(size_of_journal_files.as_u64());
+        retention_policy =
+            retention_policy.with_size_of_journal_files(size_of_journal_files.as_u64());
     }
     if let Some(duration_of_journal_files) = retention.duration_of_journal_files {
         retention_policy =
@@ -153,7 +154,12 @@ fn decode_pcap_flows(path: &Path, service: &mut IngestService) -> Vec<crate::dec
         if let Some((source, payload)) = extract_udp_payload(packet.data.as_ref()) {
             service.prepare_decoder_state_namespace(source, payload);
             let decoded = service.decoders.decode_udp_payload(source, payload);
-            flows.extend(decoded.flows.into_iter().map(|flow| flow.record.to_fields()));
+            flows.extend(
+                decoded
+                    .flows
+                    .into_iter()
+                    .map(|flow| flow.record.to_fields()),
+            );
         }
     }
     flows

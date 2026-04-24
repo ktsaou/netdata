@@ -1,9 +1,9 @@
-use super::test_support::{UdpPayload, new_benchmark_ingest_service};
 use super::bench_support::{
     CARDINALITY_SOURCE_SCENARIO, CardinalityMode, PROTOCOL_SCENARIOS, ProtocolScenario,
     build_cardinality_records, collect_decoded_flows, collect_decoded_flows_for_scenario,
     count_flows_per_round, load_scenario_payloads, total_payload_bytes, warm_protocol_templates,
 };
+use super::test_support::{UdpPayload, new_benchmark_ingest_service};
 use crate::decoder::DecodedFlow;
 use crate::plugin_config::DecapsulationMode as ConfigDecapsulationMode;
 use std::time::Instant;
@@ -188,9 +188,11 @@ fn benchmark_protocol_decode_only(
     for _ in 0..rounds {
         for payload in data_payloads {
             let receive_time_usec = super::now_usec();
-            let batch = service
-                .decoders
-                .decode_udp_payload_at(payload.source, &payload.data, receive_time_usec);
+            let batch = service.decoders.decode_udp_payload_at(
+                payload.source,
+                &payload.data,
+                receive_time_usec,
+            );
             flows += batch.flows.len();
         }
     }
@@ -216,10 +218,9 @@ fn benchmark_protocol_post_decode(
 
     for _ in 0..rounds {
         for flow in &decoded {
-            if service.ingest_decoded_record_for_test(
-                CARDINALITY_BENCH_RECEIVE_TIME_USEC,
-                &flow.record,
-            ) {
+            if service
+                .ingest_decoded_record_for_test(CARDINALITY_BENCH_RECEIVE_TIME_USEC, &flow.record)
+            {
                 entries_since_sync += 1;
             }
         }

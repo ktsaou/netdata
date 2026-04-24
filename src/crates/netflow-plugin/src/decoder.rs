@@ -1,5 +1,4 @@
 use crate::enrichment::FlowEnricher;
-use bincode::Options;
 use netflow_parser::NetflowPacket;
 use netflow_parser::scoped_parser::AutoScopedParser;
 use netflow_parser::static_versions::{v5::V5, v7::V7};
@@ -85,7 +84,7 @@ const SFLOW_INTERFACE_LOCAL: u32 = 0x3fff_ffff;
 const SFLOW_INTERFACE_FORMAT_INDEX: u32 = 0;
 const SFLOW_INTERFACE_FORMAT_DISCARD: u32 = 1;
 const VXLAN_UDP_PORT: u16 = 4789;
-const DECODER_STATE_SCHEMA_VERSION: u32 = 2;
+const DECODER_STATE_SCHEMA_VERSION: u32 = 3;
 const DECODER_STATE_MAGIC: &[u8; 4] = b"NDFS";
 const DECODER_STATE_HEADER_LEN: usize = 4 + 4 + 8 + 8;
 

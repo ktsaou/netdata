@@ -3,10 +3,10 @@ use super::{
     DECODER_STATE_SCHEMA_VERSION, DIRECTION_EGRESS, DIRECTION_INGRESS, DecapsulationMode,
     DecodeStats, DecodedFlow, DecoderStateNamespace, ETYPE_IPV4, ETYPE_IPV6, FlowDecoders,
     FlowFields, FlowRecord, MAX_DECODER_STATE_PAYLOAD_LEN, SamplingState, TimestampSource,
-    append_mpls_label, append_unique_flows, apply_icmp_port_fallback,
-    apply_v9_special_mappings, decode_persisted_namespace_file, decode_v9_special_from_raw_payload,
-    default_exporter_name, field_tracks_presence, finalize_canonical_flow_fields,
-    normalize_direction_value, observe_v9_templates_from_raw_payload, to_field_token, xxhash64,
+    append_mpls_label, append_unique_flows, apply_icmp_port_fallback, apply_v9_special_mappings,
+    decode_persisted_namespace_file, decode_v9_special_from_raw_payload, default_exporter_name,
+    field_tracks_presence, finalize_canonical_flow_fields, normalize_direction_value,
+    observe_v9_templates_from_raw_payload, to_field_token, xxhash64,
 };
 use etherparse::{NetSlice, SlicedPacket, TransportSlice};
 use netflow_parser::variable_versions::v9_lookup::V9Field;

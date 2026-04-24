@@ -1,6 +1,8 @@
 use crate::plugin_config::{NetworkAttributesValue, PluginConfig, RemoteNetworkSourceTlsConfig};
 use anyhow::{Context, Result};
-use jaq_interpret::ParseCtx;
+use jaq_core::load::{Arena, File, Loader};
+use jaq_core::{Compiler, data};
+use jaq_json::Val as JaqVal;
 use std::net::SocketAddr;
 use std::time::Duration;
 
@@ -154,38 +156,40 @@ fn validate_network_source_transform(source_name: &str, transform: &str) -> Resu
     } else {
         transform.trim()
     };
-    let tokens = jaq_syn::Lexer::new(normalized).lex().map_err(|errs| {
+    compile_jaq_transform(normalized).map_err(|err| {
         anyhow::anyhow!(
-            "enrichment.network_sources.{source_name}.transform lex error: {:?}",
-            errs
+            "enrichment.network_sources.{source_name}.transform compile error: {}",
+            err
         )
     })?;
-    let main = jaq_syn::Parser::new(&tokens)
-        .parse(|parser| parser.module(|module| module.term()))
-        .map_err(|errs| {
-            anyhow::anyhow!(
-                "enrichment.network_sources.{source_name}.transform parse error: {:?}",
-                errs
-            )
-        })?
-        .conv(normalized);
-    let mut ctx = ParseCtx::new(Vec::new());
-    ctx.insert_natives(jaq_core::core());
-    ctx.insert_defs(jaq_std::std());
-    let _compiled = ctx.compile(main);
-    if !ctx.errs.is_empty() {
-        let errors = ctx
-            .errs
-            .into_iter()
-            .map(|err| err.0.to_string())
-            .collect::<Vec<_>>()
-            .join("; ");
-        anyhow::bail!(
-            "enrichment.network_sources.{source_name}.transform compile error: {}",
-            errors
-        );
-    }
     Ok(())
+}
+
+fn compile_jaq_transform(
+    transform: &str,
+) -> Result<jaq_core::Filter<jaq_core::data::JustLut<JaqVal>>> {
+    let defs = jaq_core::defs()
+        .chain(jaq_std::defs())
+        .chain(jaq_json::defs());
+    let funs = jaq_core::funs()
+        .chain(jaq_std::funs())
+        .chain(jaq_json::funs());
+    let loader = Loader::new(defs);
+    let arena = Arena::default();
+    let modules = loader
+        .load(
+            &arena,
+            File {
+                code: transform,
+                path: (),
+            },
+        )
+        .map_err(|errs| anyhow::anyhow!("parse error: {:?}", errs))?;
+
+    Compiler::<_, data::JustLut<JaqVal>>::default()
+        .with_funs(funs)
+        .compile(modules)
+        .map_err(|errs| anyhow::anyhow!("{:?}", errs))
 }
 
 fn validate_network_source_tls(

@@ -4,13 +4,6 @@ pub(crate) const MAX_DECODER_STATE_PAYLOAD_LEN: usize = 8 * 1024 * 1024;
 pub(crate) const MAX_DECODER_STATE_FILE_LEN: usize =
     DECODER_STATE_HEADER_LEN + MAX_DECODER_STATE_PAYLOAD_LEN;
 
-pub(crate) fn decoder_state_bincode_options() -> impl Options {
-    bincode::DefaultOptions::new()
-        .with_fixint_encoding()
-        .with_little_endian()
-        .with_limit(MAX_DECODER_STATE_PAYLOAD_LEN as u64)
-}
-
 pub(crate) fn xxhash64(data: &[u8]) -> u64 {
     let mut hasher = XxHash64::default();
     hasher.write(data);
@@ -20,9 +13,15 @@ pub(crate) fn xxhash64(data: &[u8]) -> u64 {
 pub(crate) fn encode_persisted_namespace_file(
     file: &PersistedDecoderNamespaceFile,
 ) -> Result<Vec<u8>, String> {
-    let payload = decoder_state_bincode_options()
-        .serialize(file)
+    let payload = rmp_serde::to_vec_named(file)
         .map_err(|err| format!("failed to encode decoder namespace state: {err}"))?;
+    if payload.len() > MAX_DECODER_STATE_PAYLOAD_LEN {
+        return Err(format!(
+            "decoder namespace payload exceeds limit (max {} bytes, got {})",
+            MAX_DECODER_STATE_PAYLOAD_LEN,
+            payload.len()
+        ));
+    }
     let payload_hash = xxhash64(&payload);
     let payload_len = payload.len() as u64;
 
@@ -60,8 +59,7 @@ pub(crate) fn decode_persisted_namespace_file(
     if payload_len > MAX_DECODER_STATE_PAYLOAD_LEN {
         return Err(format!(
             "decoder namespace payload exceeds limit (max {} bytes, got {})",
-            MAX_DECODER_STATE_PAYLOAD_LEN,
-            payload_len
+            MAX_DECODER_STATE_PAYLOAD_LEN, payload_len
         ));
     }
     let payload = &data[DECODER_STATE_HEADER_LEN..];
@@ -81,7 +79,6 @@ pub(crate) fn decode_persisted_namespace_file(
         ));
     }
 
-    decoder_state_bincode_options()
-        .deserialize(payload)
+    rmp_serde::from_slice(payload)
         .map_err(|err| format!("failed to decode decoder namespace state: {err}"))
 }

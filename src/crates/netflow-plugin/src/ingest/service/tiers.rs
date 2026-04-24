@@ -109,7 +109,11 @@ impl IngestService {
                         .facet_runtime
                         .observe_active_contribution(Path::new(active_file.path()), &contribution)
                     {
-                        tracing::warn!("facet runtime tier {:?} write update failed: {}", tier, err);
+                        tracing::warn!(
+                            "facet runtime tier {:?} write update failed: {}",
+                            tier,
+                            err
+                        );
                     }
                 }
                 self.metrics

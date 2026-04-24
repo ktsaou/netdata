@@ -32,11 +32,7 @@ pub(crate) fn decode_ipfix_special_record(
                 let Some(value) = decode_akvorado_unsigned(raw_value) else {
                     continue;
                 };
-                let status = if value & 0x03ff == 0 {
-                    "64"
-                } else {
-                    "128"
-                };
+                let status = if value & 0x03ff == 0 { "64" } else { "128" };
                 fields.insert("FORWARDING_STATUS", status.to_string());
             }
             continue;

@@ -7,7 +7,7 @@ pub(crate) fn load_geoip_readers(
 ) -> Result<Vec<GeoIpDatabaseReader>> {
     let mut readers = Vec::new();
     for path in paths {
-        match Reader::open_mmap(path) {
+        match Reader::open_readfile(path) {
             Ok(reader) => readers.push(reader),
             Err(err) if optional => {
                 tracing::warn!(

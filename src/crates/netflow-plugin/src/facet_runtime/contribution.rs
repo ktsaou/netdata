@@ -560,5 +560,4 @@ mod tests {
             contribution_strings(&encoded)
         );
     }
-
 }

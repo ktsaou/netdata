@@ -237,7 +237,10 @@ mod tests {
         state.apply_reverse_time_overrides();
 
         assert_eq!(
-            state.reverse_overrides.get("FLOW_START_USEC").map(String::as_str),
+            state
+                .reverse_overrides
+                .get("FLOW_START_USEC")
+                .map(String::as_str),
             Some("1042000")
         );
     }

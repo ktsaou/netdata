@@ -39,8 +39,15 @@ pub(super) struct SourceRecordState {
     pub(super) by_source: Arc<RwLock<BTreeMap<String, Vec<NetworkSourceRecord>>>>,
 }
 
-#[derive(Debug, Clone)]
 pub(super) struct CompiledTransform {
     pub(super) expression: String,
-    pub(super) filter: Filter,
+    pub(super) filter: jaq_core::Filter<jaq_core::data::JustLut<jaq_json::Val>>,
+}
+
+impl std::fmt::Debug for CompiledTransform {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("CompiledTransform")
+            .field("expression", &self.expression)
+            .finish_non_exhaustive()
+    }
 }

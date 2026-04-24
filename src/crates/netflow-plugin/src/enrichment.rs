@@ -12,7 +12,7 @@ use crate::routing::DynamicRoutingRuntime;
 use crate::routing::{DynamicRoutingPeerKey, DynamicRoutingUpdate};
 use anyhow::{Context, Result};
 use ipnet::IpNet;
-use maxminddb::{Mmap, Reader};
+use maxminddb::Reader;
 use regex::Regex;
 use serde::Deserialize;
 use std::collections::{BTreeMap, HashMap};

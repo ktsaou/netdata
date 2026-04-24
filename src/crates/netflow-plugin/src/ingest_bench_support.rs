@@ -101,7 +101,9 @@ pub(super) fn warm_protocol_templates(service: &mut IngestService, scenario: &Pr
     let base = fixture_dir();
     for file in scenario.template_files {
         for payload in extract_udp_payloads(&base.join(file)) {
-            service.decoders.decode_udp_payload(payload.source, &payload.data);
+            service
+                .decoders
+                .decode_udp_payload(payload.source, &payload.data);
         }
     }
 }

@@ -207,7 +207,7 @@ fn plugin_enabled_defaults_to_true() {
 
 #[test]
 fn deserialized_empty_enrichment_section_keeps_provider_defaults() {
-    let cfg: EnrichmentConfig = serde_yaml::from_str("{}").expect("parse enrichment config");
+    let cfg: EnrichmentConfig = serde_yaml_ng::from_str("{}").expect("parse enrichment config");
 
     assert_eq!(
         cfg.asn_providers,
@@ -250,7 +250,7 @@ journal:
   query_facet_max_values_per_field: 5000
 "#;
 
-    let cfg: PluginConfig = serde_yaml::from_str(yaml).expect("yaml should parse");
+    let cfg: PluginConfig = serde_yaml_ng::from_str(yaml).expect("yaml should parse");
     assert!(!cfg.enabled);
 }
 
@@ -381,7 +381,7 @@ tiers:
     size_of_journal_files: null
 "#;
 
-    let cfg: JournalConfig = serde_yaml::from_str(yaml).expect("journal config should parse");
+    let cfg: JournalConfig = serde_yaml_ng::from_str(yaml).expect("journal config should parse");
     let raw = cfg.retention_for_tier(TierKind::Raw);
     let minute_1 = cfg.retention_for_tier(TierKind::Minute1);
 

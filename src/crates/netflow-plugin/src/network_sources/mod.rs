@@ -14,7 +14,6 @@ use crate::enrichment::NetworkAttributes;
 use crate::plugin_config::{RemoteNetworkSourceConfig, RemoteNetworkSourceTlsConfig};
 use anyhow::{Context, Result};
 use ipnet::IpNet;
-use jaq_interpret::{Ctx, Filter, FilterT, ParseCtx, RcIter, Val};
 use reqwest::{Certificate, Client, Identity, Method};
 use serde::Deserialize;
 use serde_json::Value;

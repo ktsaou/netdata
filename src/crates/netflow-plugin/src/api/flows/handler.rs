@@ -174,7 +174,9 @@ impl NetflowFlowsHandler {
     }
 }
 
-fn parse_flows_request(function_call: &FunctionCall) -> std::result::Result<query::FlowsRequest, FunctionResult> {
+fn parse_flows_request(
+    function_call: &FunctionCall,
+) -> std::result::Result<query::FlowsRequest, FunctionResult> {
     let request_value = if function_call.payload.is_some() {
         payload_to_value(function_call)?
     } else if function_call.args.is_empty() {

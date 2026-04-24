@@ -10,12 +10,12 @@ use super::super::rollup::{
 };
 use crate::facet_runtime::FacetFileContribution;
 use crate::flow::{FlowFields, FlowRecord};
-use crate::ingest::JournalEncodeBuffer;
-use crate::tiering::FlowMetrics;
-use anyhow::{Context, Result, anyhow};
 #[cfg(test)]
 use crate::flow_index::FieldValue as IndexFieldValue;
 use crate::flow_index::{FlowIndex, FlowIndexMemoryBreakdown};
+use crate::ingest::JournalEncodeBuffer;
+use crate::tiering::FlowMetrics;
+use anyhow::{Context, Result, anyhow};
 use std::collections::{BTreeMap, BTreeSet};
 use std::mem::size_of;
 

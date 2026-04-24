@@ -5,14 +5,14 @@ use crate::flow_index::{
 };
 use std::net::{IpAddr, Ipv4Addr};
 
-mod encode;
 mod emit;
+mod encode;
 mod materialize;
 mod schema;
 
+pub(crate) use emit::emit_rollup_row;
 #[allow(unused_imports)]
 pub(crate) use encode::push_rollup_field_ids;
-pub(crate) use emit::emit_rollup_row;
 #[cfg(test)]
 pub(crate) use materialize::dimensions_for_rollup;
 #[allow(unused_imports)]

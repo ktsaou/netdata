@@ -104,7 +104,10 @@ impl JournalEncodeBuffer {
 
     #[cfg(test)]
     pub(crate) fn debug_field_slices(&self) -> Vec<&[u8]> {
-        self.refs.iter().map(|range| &self.data[range.clone()]).collect()
+        self.refs
+            .iter()
+            .map(|range| &self.data[range.clone()])
+            .collect()
     }
 
     fn push_number(&mut self, name: &str, value: u64) {

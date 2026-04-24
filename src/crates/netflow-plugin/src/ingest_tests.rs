@@ -1,7 +1,7 @@
-use super::*;
 use super::test_support::{
     decode_fixture_sequence, find_flow, new_test_ingest_service, new_test_ingest_service_in_dir,
 };
+use super::*;
 use crate::plugin_config::DecapsulationMode as ConfigDecapsulationMode;
 
 #[test]
