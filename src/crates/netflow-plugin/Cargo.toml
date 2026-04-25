@@ -17,7 +17,7 @@ allocative = { workspace = true }
 async-trait = { workspace = true }
 bitflags = { workspace = true }
 bitvec = { workspace = true }
-bytesize = { version = "2.3.1", features = ["serde"] }
+bytesize = { workspace = true }
 chrono = { workspace = true }
 clap = { workspace = true, features = ["derive"] }
 journal-common = { workspace = true }
