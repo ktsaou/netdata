@@ -9,6 +9,7 @@ mod types;
 
 pub(crate) use runtime::{NetworkSourceRecord, NetworkSourcesRuntime};
 pub(crate) use service::run_network_sources_refresher;
+pub(crate) use transform::compile_jaq_filter;
 
 use crate::enrichment::NetworkAttributes;
 use crate::plugin_config::{RemoteNetworkSourceConfig, RemoteNetworkSourceTlsConfig};

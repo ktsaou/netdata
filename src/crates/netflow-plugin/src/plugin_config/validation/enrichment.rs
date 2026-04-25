@@ -1,8 +1,6 @@
+use crate::network_sources::compile_jaq_filter;
 use crate::plugin_config::{NetworkAttributesValue, PluginConfig, RemoteNetworkSourceTlsConfig};
 use anyhow::{Context, Result};
-use jaq_core::load::{Arena, File, Loader};
-use jaq_core::{Compiler, data};
-use jaq_json::Val as JaqVal;
 use std::net::SocketAddr;
 use std::time::Duration;
 
@@ -156,40 +154,13 @@ fn validate_network_source_transform(source_name: &str, transform: &str) -> Resu
     } else {
         transform.trim()
     };
-    compile_jaq_transform(normalized).map_err(|err| {
+    compile_jaq_filter(normalized).map_err(|err| {
         anyhow::anyhow!(
             "enrichment.network_sources.{source_name}.transform compile error: {}",
             err
         )
     })?;
     Ok(())
-}
-
-fn compile_jaq_transform(
-    transform: &str,
-) -> Result<jaq_core::Filter<jaq_core::data::JustLut<JaqVal>>> {
-    let defs = jaq_core::defs()
-        .chain(jaq_std::defs())
-        .chain(jaq_json::defs());
-    let funs = jaq_core::funs()
-        .chain(jaq_std::funs())
-        .chain(jaq_json::funs());
-    let loader = Loader::new(defs);
-    let arena = Arena::default();
-    let modules = loader
-        .load(
-            &arena,
-            File {
-                code: transform,
-                path: (),
-            },
-        )
-        .map_err(|errs| anyhow::anyhow!("parse error: {:?}", errs))?;
-
-    Compiler::<_, data::JustLut<JaqVal>>::default()
-        .with_funs(funs)
-        .compile(modules)
-        .map_err(|errs| anyhow::anyhow!("{:?}", errs))
 }
 
 fn validate_network_source_tls(

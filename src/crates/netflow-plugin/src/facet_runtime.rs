@@ -40,6 +40,7 @@ const FACET_STATE_MAGIC: &[u8; 4] = b"NFFS";
 const FACET_STATE_SCHEMA_VERSION: u32 = 1;
 const FACET_STATE_HEADER_LEN: usize = 4 + 4 + 8 + 8;
 const MAX_FACET_STATE_PAYLOAD_LEN: usize = 128 * 1024 * 1024;
+const MAX_FACET_STATE_FILE_LEN: usize = FACET_STATE_HEADER_LEN + MAX_FACET_STATE_PAYLOAD_LEN;
 const FACET_AUTOCOMPLETE_LIMIT: usize = 100;
 const BTREE_ENTRY_OVERHEAD_BYTES: usize = size_of::<usize>() * 4;
 
@@ -961,6 +962,27 @@ fn btree_container_overhead_bytes(len: usize) -> usize {
 }
 
 fn load_persisted_state(state_path: &Path) -> Option<PersistedFacetState> {
+    let file_len = match fs::metadata(state_path) {
+        Ok(metadata) => metadata.len(),
+        Err(err) if err.kind() == std::io::ErrorKind::NotFound => return None,
+        Err(err) => {
+            tracing::warn!(
+                "failed to stat persisted netflow facet state {}: {}",
+                state_path.display(),
+                err
+            );
+            return None;
+        }
+    };
+    if file_len > MAX_FACET_STATE_FILE_LEN as u64 {
+        tracing::warn!(
+            "skipping oversized persisted netflow facet state {} (max {} bytes, got {})",
+            state_path.display(),
+            MAX_FACET_STATE_FILE_LEN,
+            file_len
+        );
+        return None;
+    }
     let data = match fs::read(state_path) {
         Ok(data) => data,
         Err(err) if err.kind() == std::io::ErrorKind::NotFound => return None,
@@ -1233,6 +1255,29 @@ mod tests {
                     .collect::<BTreeSet<_>>(),
             );
         }
+    }
+
+    #[test]
+    fn load_persisted_state_skips_oversized_file_without_full_read() {
+        let tmp = tempfile::tempdir().expect("create temp dir");
+        let state_path = tmp.path().join(FACET_STATE_FILE_NAME);
+        // Use a sparse file so we exceed the cap without actually writing 128MiB.
+        let oversized = (MAX_FACET_STATE_FILE_LEN as u64).saturating_add(1);
+        let file = std::fs::File::create(&state_path).expect("create state file");
+        file.set_len(oversized).expect("extend state file");
+        drop(file);
+
+        let metadata = std::fs::metadata(&state_path).expect("stat state file");
+        assert!(
+            metadata.len() > MAX_FACET_STATE_FILE_LEN as u64,
+            "test setup must produce an oversized file"
+        );
+
+        let loaded = load_persisted_state(&state_path);
+        assert!(
+            loaded.is_none(),
+            "oversized facet state file must be skipped, not loaded"
+        );
     }
 
     #[test]
