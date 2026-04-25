@@ -111,7 +111,7 @@ impl PluginConfig {
     fn from_yaml_file(path: &Path) -> Result<Self> {
         let content = fs::read_to_string(path)
             .with_context(|| format!("failed to read {}", path.display()))?;
-        let cfg = serde_yaml_ng::from_str::<Self>(&content)
+        let cfg = serde_yaml::from_str::<Self>(&content)
             .with_context(|| format!("failed to parse {}", path.display()))?;
         Ok(cfg)
     }
