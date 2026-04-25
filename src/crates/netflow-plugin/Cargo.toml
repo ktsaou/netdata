@@ -28,20 +28,20 @@ journal-log-writer = { workspace = true }
 journal-registry = { workspace = true }
 humantime = { workspace = true }
 humantime-serde = { workspace = true }
-hashbrown = "0.17.0"
+hashbrown = { workspace = true }
 libc = { workspace = true }
 ipnet = { workspace = true }
 ipnet-trie = { workspace = true }
 itoa = { workspace = true }
-jaq-core = "3.0.0"
-jaq-json = { version = "2.0.0", features = ["serde"] }
-jaq-std = "3.0.0"
-maxminddb = "0.27.3"
+jaq-core = { workspace = true }
+jaq-json = { workspace = true, features = ["serde"] }
+jaq-std = { workspace = true }
+maxminddb = { workspace = true }
 memchr = { workspace = true }
 memmap2 = { workspace = true }
 netflow_parser = { workspace = true }
-netgauze-bgp-pkt = "0.11.0"
-netgauze-bmp-pkt = { version = "0.11.0", features = ["codec"] }
+netgauze-bgp-pkt = { workspace = true }
+netgauze-bmp-pkt = { workspace = true, features = ["codec"] }
 notify = { workspace = true }
 roaring = { workspace = true, features = ["allocative"] }
 serde = { workspace = true, features = ["derive"] }
@@ -54,23 +54,23 @@ tokio-util = { workspace = true }
 tracing = { workspace = true }
 regex = { workspace = true }
 twox-hash = { workspace = true, features = ["xxhash64"] }
-reqwest = { version = "0.13.2", default-features = false, features = ["json", "rustls"] }
+reqwest = { workspace = true, features = ["json", "rustls"] }
 schemars = { workspace = true }
-socket2 = "0.6.3"
+socket2 = { workspace = true }
 tonic = { workspace = true, features = ["transport", "tls-native-roots"] }
 tonic-prost = { workspace = true }
 prost = { workspace = true }
 rustc-hash = { workspace = true }
 thiserror = { workspace = true }
 fst = { workspace = true }
-rmp-serde = "1.3.1"
+rmp-serde = { workspace = true }
 
 rt = { workspace = true }
 netdata-plugin-error = { workspace = true }
 netdata-plugin-protocol = { workspace = true }
 
 [dev-dependencies]
-etherparse = "0.20.1"
+etherparse = { workspace = true }
 pcap-file = { workspace = true }
 proptest = { workspace = true }
 protoc-bin-vendored = { workspace = true }
