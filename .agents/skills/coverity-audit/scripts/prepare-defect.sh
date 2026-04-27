@@ -38,6 +38,13 @@ SCOPE="${2:-outstanding}"
 
 cov_require_numeric_cid "${CID}"
 
+# Scope is used as a path component (.../triage/<scope>/cid-N/...). Reject
+# anything that could path-escape; allow only simple lowercase identifiers.
+if [[ ! "${SCOPE}" =~ ^[a-z][a-z0-9_-]*$ ]]; then
+    echo -e "${COV_RED}[ERROR]${COV_NC} scope must match ^[a-z][a-z0-9_-]*\$ (got: '${SCOPE}')" >&2
+    exit 1
+fi
+
 ROOT="$(cov_repo_root)"
 AUDIT="$(cov_audit_dir)"
 

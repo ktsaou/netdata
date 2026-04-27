@@ -29,6 +29,19 @@ failed=0
 
 while IFS=$'\t' read -r cid defect_instance_id; do
     i=$((i + 1))
+    # cid comes from the input JSON (Coverity-supplied) and lands in the
+    # output filename. Validate numeric before path construction so a
+    # corrupted/manipulated INPUT cannot write outside OUT_DIR.
+    if [[ ! "${cid}" =~ ^[1-9][0-9]*$ ]]; then
+        failed=$((failed + 1))
+        echo -e "${COV_RED}[${i}/${TOTAL}] non-numeric cid in input: '${cid}' -- skipping${COV_NC}" >&2
+        continue
+    fi
+    if [[ ! "${defect_instance_id}" =~ ^[1-9][0-9]*$ ]]; then
+        failed=$((failed + 1))
+        echo -e "${COV_RED}[${i}/${TOTAL}] cid=${cid} non-numeric defectInstanceId: '${defect_instance_id}' -- skipping${COV_NC}" >&2
+        continue
+    fi
     out_file="${OUT_DIR}/cid-${cid}.json"
     if [[ -s "${out_file}" ]]; then
         skipped=$((skipped + 1))

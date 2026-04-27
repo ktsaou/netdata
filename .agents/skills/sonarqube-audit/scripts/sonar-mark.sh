@@ -112,7 +112,10 @@ confirm_family() {
     echo -en "${SQ_YELLOW}Proceed? [y/N] ${SQ_NC}" >&2
     local ans
     read -r ans
-    [[ "${ans,,}" == "y" || "${ans,,}" == "yes" ]]
+    # Lowercase via tr -- bash 4+ has ${var,,} but macOS ships bash 3.2.
+    local ans_lc
+    ans_lc=$(printf '%s' "${ans}" | tr '[:upper:]' '[:lower:]')
+    [[ "${ans_lc}" == "y" || "${ans_lc}" == "yes" ]]
 }
 
 family_fp() {
