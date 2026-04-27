@@ -84,26 +84,59 @@ hotspot_change_status() {
     echo -e "${SQ_GREEN}[OK]${SQ_NC} hotspot ${key} -> REVIEWED/${resolution}" >&2
 }
 
+_url_encode() {
+    # Minimal URL-encoder for Sonar rule IDs like "c:S2245" -> "c%3AS2245".
+    # Avoids relying on python3 -c "import urllib..." for one tiny call.
+    local s="$1" out="" i ch
+    for (( i=0; i<${#s}; i++ )); do
+        ch="${s:$i:1}"
+        case "${ch}" in
+            [a-zA-Z0-9._~-]) out+="${ch}" ;;
+            *) out+="$(printf '%%%02X' "'${ch}")" ;;
+        esac
+    done
+    printf '%s' "${out}"
+}
+
 list_open_issues_for_rule() {
-    local rule="$1"
-    curl --fail --silent --show-error \
-        -u "${SONAR_TOKEN}:" \
-        "${SONAR_HOST_URL}/api/issues/search?componentKeys=${SONAR_PROJECT}&rules=${rule}&resolved=false&ps=500" \
-        | python3 -c 'import json, sys; [print(i["key"]) for i in json.load(sys.stdin)["issues"]]'
+    # Paginated. Sonar caps page size at 500; without paging we'd silently
+    # drop everything past the first page on rules with >500 open issues.
+    local rule="$1" rule_enc
+    rule_enc="$(_url_encode "${rule}")"
+    local page=1 total fetched=0
+    while :; do
+        local resp
+        resp="$(curl --fail --silent --show-error -u "${SONAR_TOKEN}:" \
+            "${SONAR_HOST_URL}/api/issues/search?componentKeys=${SONAR_PROJECT}&rules=${rule_enc}&resolved=false&ps=500&p=${page}")"
+        jq -r '.issues[].key' <<< "${resp}"
+        total=$(jq -r '.paging.total' <<< "${resp}")
+        local in_page
+        in_page=$(jq -r '.issues | length' <<< "${resp}")
+        fetched=$(( fetched + in_page ))
+        (( fetched >= total || in_page == 0 )) && break
+        page=$(( page + 1 ))
+    done
 }
 
 list_open_hotspots_for_rule() {
+    # Sonar's hotspot search does not accept a rule filter -- we have to
+    # fetch all TO_REVIEW hotspots and filter client-side. Pass the rule via
+    # jq's --arg so values containing colons / quotes / shell metacharacters
+    # cannot inject into the filter.
     local rule="$1"
-    curl --fail --silent --show-error \
-        -u "${SONAR_TOKEN}:" \
-        "${SONAR_HOST_URL}/api/hotspots/search?projectKey=${SONAR_PROJECT}&status=TO_REVIEW&ps=500" \
-        | python3 -c "
-import json, sys
-rule = '${rule}'
-for h in json.load(sys.stdin).get('hotspots', []):
-    if h['ruleKey'] == rule:
-        print(h['key'])
-"
+    local page=1 total fetched=0
+    while :; do
+        local resp
+        resp="$(curl --fail --silent --show-error -u "${SONAR_TOKEN}:" \
+            "${SONAR_HOST_URL}/api/hotspots/search?projectKey=${SONAR_PROJECT}&status=TO_REVIEW&ps=500&p=${page}")"
+        jq -r --arg rule "${rule}" '.hotspots[] | select(.ruleKey == $rule) | .key' <<< "${resp}"
+        total=$(jq -r '.paging.total' <<< "${resp}")
+        local in_page
+        in_page=$(jq -r '.hotspots | length' <<< "${resp}")
+        fetched=$(( fetched + in_page ))
+        (( fetched >= total || in_page == 0 )) && break
+        page=$(( page + 1 ))
+    done
 }
 
 confirm_family() {

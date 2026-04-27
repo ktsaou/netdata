@@ -4,10 +4,16 @@
 
 set -euo pipefail
 
+# Color vars are used by sourcing scripts; shellcheck cannot see that.
+# shellcheck disable=SC2034
 GH_RED='\033[0;31m'
+# shellcheck disable=SC2034
 GH_GREEN='\033[0;32m'
+# shellcheck disable=SC2034
 GH_YELLOW='\033[1;33m'
+# shellcheck disable=SC2034
 GH_GRAY='\033[0;90m'
+# shellcheck disable=SC2034
 GH_NC='\033[0m'
 
 gh_repo_root() {
@@ -17,12 +23,16 @@ gh_repo_root() {
 
 gh_repo_slug() {
     # Owner/repo of the upstream remote (or origin if no upstream).
+    # Uses bash parameter expansion so repo names containing dots
+    # (e.g. "my.repo", "kubernetes-sigs/cluster-api-provider-aws.git") parse
+    # correctly. The previous regex `[^/.]+` truncated names with dots.
     local root url
     root="$(gh_repo_root)"
     url="$(git -C "${root}" config --get remote.upstream.url 2>/dev/null \
          || git -C "${root}" config --get remote.origin.url)"
-    # Normalise SSH and HTTPS forms to "owner/repo".
-    sed -E 's|^.*github\.com[:/]([^/]+/[^/.]+)(\.git)?$|\1|' <<< "${url}"
+    url="${url%.git}"               # strip trailing .git, if any
+    url="${url#*github.com[:/]}"    # strip everything up to and including github.com:/
+    echo "${url}"
 }
 
 gh_audit_dir() {

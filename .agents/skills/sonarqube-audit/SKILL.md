@@ -125,10 +125,13 @@ Family mode prints all matched keys and prompts before acting unless
 ### Step 4 — dry runs
 
 ```
-SONAR_MARK_DRY_RUN=1 bash .agents/skills/sonarqube-audit/scripts/sonar-mark.sh fp KEY "Comment"
+SONAR_DRY_RUN=1 bash .agents/skills/sonarqube-audit/scripts/sonar-mark.sh fp KEY "Comment"
 ```
 
-Prints the curl command (token masked) without executing.
+In dry-run mode, **write** API calls (mark issues, change hotspot status,
+add comments) are printed but not executed. **Read** API calls (issue
+search, hotspot search used to enumerate findings in family mode) still
+run -- otherwise family mode could not show what it would have acted on.
 
 ## What this skill does NOT do
 
@@ -173,5 +176,5 @@ under `.local/audits/sonarqube/`.
   status/project), so the family-mode helper does it in Python.
 - An issue may be transitioned only between certain states; if you get
   "Cannot do transition from STATUS X to Y", it's already past that state.
-- `SONAR_MARK_DRY_RUN=1` is the right knob when iterating on comments
+- `SONAR_DRY_RUN=1` is the right knob when iterating on comments
   before committing to a bulk operation.

@@ -5,10 +5,16 @@
 set -euo pipefail
 
 # ANSI colors for transparent output (per the project's run() pattern).
+# These are referenced by sourcing scripts; shellcheck cannot see that.
+# shellcheck disable=SC2034
 COV_RED='\033[0;31m'
+# shellcheck disable=SC2034
 COV_GREEN='\033[0;32m'
+# shellcheck disable=SC2034
 COV_YELLOW='\033[1;33m'
+# shellcheck disable=SC2034
 COV_GRAY='\033[0;90m'
+# shellcheck disable=SC2034
 COV_NC='\033[0m'
 
 # Locate the repo root by walking up from the script directory.
@@ -34,8 +40,10 @@ cov_load_env() {
         echo -e "${COV_RED}[ERROR]${COV_NC} Missing ${env}. See SKILL.md for the .env template." >&2
         return 1
     fi
+    set -a
     # shellcheck disable=SC1090
-    set -a; source "${env}"; set +a
+    source "${env}"
+    set +a
 
     : "${COVERITY_COOKIE:?COVERITY_COOKIE is empty in .env — paste a fresh cookie from the browser}"
     : "${COVERITY_PROJECT_ID:?COVERITY_PROJECT_ID is empty in .env}"
@@ -67,10 +75,23 @@ cov_audit_dir() {
 # Reject non-ASCII bytes in a string. Coverity's edge (Cloudflare) rejects
 # em-dashes and smart quotes with a 403 challenge; far better to fail before
 # the network round-trip than to debug a Cloudflare block.
+#
+# `tr -d '\000-\177'` deletes ALL ASCII bytes; anything left is non-ASCII.
+# This is portable across GNU and BSD/macOS (unlike `grep -P`, which is GNU-only).
 cov_require_ascii() {
     local s="$1"
-    if LC_ALL=C grep -qP '[^\x00-\x7F]' <<< "${s}"; then
+    if LC_ALL=C printf '%s' "${s}" | LC_ALL=C tr -d '\000-\177' | grep -q .; then
         echo -e "${COV_RED}[ERROR]${COV_NC} Comment contains non-ASCII characters. Cloudflare blocks them. Replace em-dashes with '--' and curly quotes with straight quotes." >&2
+        return 1
+    fi
+}
+
+# CID validation: Coverity CIDs are positive integers. Reject anything else
+# before interpolating into jq filters, URLs, or paths.
+cov_require_numeric_cid() {
+    local cid="$1"
+    if [[ ! "${cid}" =~ ^[0-9]+$ ]]; then
+        echo -e "${COV_RED}[ERROR]${COV_NC} CID must be a positive integer, got: '${cid}'" >&2
         return 1
     fi
 }

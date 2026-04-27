@@ -36,6 +36,8 @@ fi
 CID="${1:?usage: $0 [--force] <cid> [<scope>]}"
 SCOPE="${2:-outstanding}"
 
+cov_require_numeric_cid "${CID}"
+
 ROOT="$(cov_repo_root)"
 AUDIT="$(cov_audit_dir)"
 
@@ -58,10 +60,10 @@ fi
 
 mkdir -p "${OUT_DIR}"
 
-# defect-summary.json
+# defect-summary.json -- CID is validated numeric above, --argjson is safe.
 summary="${OUT_DIR}/defect-summary.json"
 if [[ ! -s "${summary}" || "${FORCE}" == "1" ]]; then
-    jq ".[] | select(.cid==${CID})" "${ROW_FILE}" > "${summary}"
+    jq --argjson cid "${CID}" '.[] | select(.cid==$cid)' "${ROW_FILE}" > "${summary}"
     if [[ ! -s "${summary}" ]]; then
         echo -e "${COV_RED}CID ${CID} not found in ${ROW_FILE}. Wrong scope, or table is stale?${COV_NC}" >&2
         rm -f "${summary}"

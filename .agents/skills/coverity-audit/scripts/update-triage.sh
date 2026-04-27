@@ -25,13 +25,22 @@ SEV_ID="${3:?usage}"
 ACT_ID="${4:?usage}"
 COMMENT_FILE="${5:?usage}"
 
+cov_require_numeric_cid "${CID}"
+for v in CLASS_ID SEV_ID ACT_ID; do
+    if [[ ! "${!v}" =~ ^[0-9]+$ ]]; then
+        echo -e "${COV_RED}[ERROR]${COV_NC} ${v} must be a positive integer, got: '${!v}'" >&2
+        exit 1
+    fi
+done
+
 if [[ ! -r "${COMMENT_FILE}" ]]; then
     echo -e "${COV_RED}Comment file not readable: ${COMMENT_FILE}${COV_NC}" >&2
     exit 1
 fi
 
-# ASCII-only check on the comment body.
-if LC_ALL=C grep -qP '[^\x00-\x7F]' "${COMMENT_FILE}"; then
+# ASCII-only check on the comment body. `tr -d '\000-\177'` is portable across
+# GNU and BSD/macOS (`grep -P` is GNU-only).
+if LC_ALL=C tr -d '\000-\177' < "${COMMENT_FILE}" | grep -q .; then
     echo -e "${COV_RED}[ERROR]${COV_NC} ${COMMENT_FILE} contains non-ASCII bytes. Cloudflare will block. Replace em-dashes (--) and smart quotes." >&2
     exit 1
 fi
@@ -60,7 +69,7 @@ payload="$(jq -n \
 
 echo -e "${COV_GRAY}Posting triage update for CID ${CID} (class=${CLASS_ID} sev=${SEV_ID} act=${ACT_ID})...${COV_NC}" >&2
 
-response_file="$(mktemp --tmpdir cov-triage-XXXXXX.json)"
+response_file="$(mktemp "${TMPDIR:-/tmp}/cov-triage-XXXXXX.json")"
 trap 'rm -f "${response_file}"' EXIT
 
 http=$(curl -sS -X POST -o "${response_file}" -w '%{http_code}' \

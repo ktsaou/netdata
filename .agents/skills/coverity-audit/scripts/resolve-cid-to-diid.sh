@@ -24,6 +24,7 @@ source "$(dirname "$0")/_lib.sh"
 cov_load_env
 
 CID="${1:?usage: $0 <cid>}"
+cov_require_numeric_cid "${CID}"
 
 url="$(curl -sS --max-time 30 \
     -H "accept: application/json, text/plain, */*" \

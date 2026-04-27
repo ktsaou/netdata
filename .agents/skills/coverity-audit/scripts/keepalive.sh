@@ -39,7 +39,7 @@ fi
 PING_URL="${COVERITY_HOST}/reports/table.json?projectId=${COVERITY_PROJECT_ID}&viewId=${COVERITY_VIEW_OUTSTANDING}"
 
 ping_once() {
-    local body http rc
+    local body rc
     # Capture both body and HTTP code in one go.
     body="$(curl -sS --max-time 30 \
         -H "accept: application/json, text/plain, */*" \

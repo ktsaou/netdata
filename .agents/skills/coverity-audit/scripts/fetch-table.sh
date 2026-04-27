@@ -69,5 +69,13 @@ for page in $(seq 1 "${PAGES}"); do
 done
 
 combined="${PREFIX}-all.json"
-jq -s '[.[].resultSet.results[]]' "${PREFIX}"-page*.json > "${combined}"
+# Build the explicit page-file list. A glob (`-page*.json`) would pick up
+# stale page files from a previous larger fetch (e.g. running with PAGES=5
+# after a prior run with PAGES=7 would merge 7 pages into "all"). Enumerate
+# only the pages we asked for in this invocation.
+page_files=()
+for page in $(seq 1 "${PAGES}"); do
+    page_files+=("${PREFIX}-page${page}.json")
+done
+jq -s '[.[].resultSet.results[]]' "${page_files[@]}" > "${combined}"
 echo -e "${COV_GREEN}Combined $(jq 'length' "${combined}") defects into ${combined}${COV_NC}" >&2

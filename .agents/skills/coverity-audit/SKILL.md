@@ -360,9 +360,12 @@ After review and (if needed) a fix commit:
 
 ```
 bash .agents/skills/coverity-audit/scripts/finalize-defect.sh \
-    <CID> <VERDICT> <SCOPE> .local/audits/coverity/triage/<scope>/cid-<N>/comment.txt \
+    <CID> <VERDICT> <scope> .local/audits/coverity/triage/<scope>/cid-<N>/comment.txt \
     [<commit-sha>]
 ```
+
+`<scope>` is the same name `prepare-defect.sh` uses (e.g. `outstanding`,
+`dismissed`, `fixed`, `unclassified`).
 
 This:
 - Skips silently for `NEEDS_HUMAN` and `CODE_GONE`.
@@ -370,9 +373,9 @@ This:
 - Appends `Fix commit: <sha>` to the comment when a SHA is given.
 - Posts JSON to `/sourcebrowser/updatedefecttriage.json`.
 
-For phases other than "outstanding" (re-triaging dismissed/fixed/etc.),
-finalize-defect only acts when the new verdict disagrees with the existing
-classification — caller's responsibility to assert that.
+For scopes other than "outstanding" (re-triaging dismissed/fixed/etc.),
+finalize-defect prints a warning -- the caller is asserting that the new
+verdict disagrees with the existing classification. It still applies.
 
 ---
 
