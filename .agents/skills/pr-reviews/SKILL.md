@@ -6,9 +6,39 @@ description: Address pull-request comments and reviews iteratively until the PR 
 # PR review handler skill
 
 This skill iterates a PR through review/comment cycles until there is nothing
-left to address. PRs in this repo get reviews from human developers and from
-multiple AI assistants -- principally `cubic-dev-ai` and `copilot`. Each
-class is handled differently.
+left to address.
+
+## Your role on a PR
+
+When this skill is in use, the agent's job is to **bring the PR into
+merge-ready shape**: solve the original problem the PR was opened for,
+**and** address every legitimate finding the PR has accumulated, from
+every source. Reviewers, linters, and CI all matter. Comments are the
+loudest source but they are not the only source -- you must proactively
+pull findings from every channel that reports on the PR, not wait for
+something to surface as a chat message.
+
+Sources of findings, in priority order:
+
+1. **Human review comments** -- maintainers / devs / community.
+2. **AI bot review comments** -- cubic-dev-ai, copilot, etc.
+3. **SonarCloud PR findings** -- new code-smell / vulnerability /
+   security-hotspot issues introduced by this PR. SonarCloud does NOT
+   post these as inline GitHub review-comments; only a QualityGate
+   summary is posted to GitHub. The actual findings live behind the
+   SonarCloud API and must be pulled explicitly.
+4. **CI failures relevant to this PR** -- shellcheck, codeql, build /
+   test failures caused by the PR's changes.
+5. **Anything else this repo configures** (Codacy, custom workflows, ...).
+
+A finding is "relevant to this PR" if its existence (or its line
+location) is plausibly caused by the PR's diff. CI failures unrelated to
+this PR (a flaky test on an unrelated module, an infra outage) are NOT
+in scope -- note them, surface to the user at the end, do not fix them
+here.
+
+The bar is the project's performance, stability, and long-term
+maintainability. Don't dismiss findings because they look minor.
 
 ## MANDATORY rules
 
@@ -95,7 +125,10 @@ State for each PR is cached under `<repo-root>/.local/audits/pr-reviews/pr-<N>/`
 
 ## Workflow
 
-### 1. Fetch all comments (paranoid)
+The order is: **gather all findings -> address them per-thread / per-finding
+-> check CI for failures the PR caused -> push -> retrigger -> wait -> loop.**
+
+### 1a. Fetch all comments (paranoid)
 
 ```
 bash .agents/skills/pr-reviews/scripts/fetch-all.sh <PR_NUMBER>
@@ -104,7 +137,33 @@ bash .agents/skills/pr-reviews/scripts/fetch-all.sh <PR_NUMBER>
 Tail-prints a `summary.txt` that shows the per-author count and the list of
 open review threads. Use this as the input to the rest of the cycle.
 
-### 2. List open threads
+### 1b. Fetch SonarCloud PR findings
+
+```
+bash .agents/skills/pr-reviews/scripts/fetch-sonar-findings.sh <PR_NUMBER>
+```
+
+SonarCloud findings are NOT delivered as inline GitHub comments -- only a
+QualityGate summary is. The actual issue list lives behind the SonarCloud
+API. This script writes:
+- `.local/audits/pr-reviews/pr-<N>/sonar-issues.json`
+- `.local/audits/pr-reviews/pr-<N>/sonar-hotspots.json`
+- a brief summary to stdout (counts by rule and severity).
+
+Requires the same `.env` config the `sonarqube-audit` skill uses
+(`SONAR_TOKEN`, `SONAR_HOST_URL`, `SONAR_PROJECT`). If `.env` is missing,
+the script prints what's needed and exits.
+
+### 1c. Note the CI signal as a third source
+
+Run `ci-status.sh <PR>` once early to capture which checks are failing
+**right now**. You're looking for failures caused by the current PR
+(typo in a YAML file you added, a script that doesn't pass shellcheck,
+a build that breaks because of the diff). DO NOT fix CI yet -- just note
+the failures as input alongside review comments and Sonar findings. They
+all get addressed in the same iteration so a single push covers them.
+
+### 2. List open threads (and Sonar findings)
 
 ```
 bash .agents/skills/pr-reviews/scripts/list-open-threads.sh <PR_NUMBER>          # full bodies
@@ -156,6 +215,31 @@ they see "agent posted reply, agent resolved" as one motion per thread,
 not "agent dumped 14 replies, then dumped 14 resolves". Bulk operations
 look mechanical and erode trust in the address pass.
 
+### 3b. Address each Sonar finding
+
+For each issue in `sonar-issues.json` and each hotspot in
+`sonar-hotspots.json`:
+
+1. **Read the rule and the message.** What is Sonar claiming?
+2. **Open the file at the line and verify.** Does the claim hold against
+   the current code?
+3. **Search the whole PR diff (and adjacent code) for the same class of
+   issue.** Same rule #10 as for review comments. If Sonar flagged one
+   instance of S131 (case without default), sweep all case statements.
+   If Sonar flagged S2245 (insecure RNG), sweep all `random()` callsites.
+4. **Decide**:
+   - If valid -> fix it AND every similar instance you found in the
+     project where the same reasoning applies (within the diff, plus
+     nearby code in files this PR already touches).
+   - If invalid -> the corresponding `sonarqube-audit` skill provides
+     `sonar-mark.sh fp <KEY> "<reason>"` to mark it False Positive
+     directly in SonarCloud. Comments are ASCII-only (Cloudflare).
+5. **Repeat until `sonar-issues.json` has zero issues that we caused.**
+
+For Sonar there is no "thread reply" -- you address the issue with
+either a code fix or a `sonar-mark.sh` action. There's nothing to
+resolve in GitHub for Sonar findings.
+
 ### 4. Before pushing -- check CI for FAILURES (don't wait)
 
 ```
@@ -197,14 +281,31 @@ have nothing left, so the loop ends naturally on a clean PR.
 
 ### 7. Loop
 
-Go back to step 1. Continue until either:
-- `fetch-all.sh` reports all threads resolved AND both bots have posted a
-  "no new findings" comment after their most recent re-trigger; or
-- `wait-for-activity.sh` times out (30 min). When that happens:
-   - Re-run `ci-status.sh`. If checks are still running, that's normal --
-     surface state to the user and stop.
-   - If there are CI failures, fix them and start a new iteration
-     (commit, ci-check, push, re-trigger, wait).
+Go back to step 1. Continue until ALL of these are true:
+
+- `fetch-all.sh` reports all review threads resolved.
+- `fetch-sonar-findings.sh` reports zero open issues / hotspots that
+  this PR introduced (or the remaining ones are explicitly marked FP /
+  WontFix).
+- The AI bots have posted a "no new findings" or equivalent comment
+  after their most recent re-trigger.
+- `ci-status.sh` reports no failures caused by this PR (failures
+  unrelated to the PR are noted, surfaced to the user, but not fixed).
+
+When `wait-for-activity.sh` times out (30 min):
+- Re-run `ci-status.sh`. If checks are still running, surface to the
+  user and stop -- the PR is in a clean intermediate state.
+- If there are CI failures attributable to the PR, treat them as a new
+  finding and iterate (commit -> ci-check -> push -> retrigger -> wait).
+- If the failures are unrelated, note them in the final report.
+
+### 8. Final report
+
+When the loop ends, summarize for the user:
+- Findings addressed (count by source: review threads, Sonar, CI).
+- Any unrelated CI failures observed but not fixed (with check name + URL).
+- Any human comments that need their attention.
+- Current PR state (mergeable / blocked, decision, head SHA).
 
 ## Commit message hygiene
 

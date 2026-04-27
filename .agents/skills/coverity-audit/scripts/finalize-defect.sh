@@ -42,10 +42,15 @@ COMMIT_SHA="${5:-}"
 cov_require_numeric_cid "${CID}"
 
 # Verdicts that never touch the UI.
+# Anything other than NEEDS_HUMAN / CODE_GONE falls through to the next
+# case statement which decides classification/action; the *) here just
+# documents that explicitly.
 case "${VERDICT}" in
     NEEDS_HUMAN|CODE_GONE)
         echo -e "${COV_YELLOW}Skipping Coverity update for CID ${CID} -- verdict=${VERDICT}.${COV_NC}" >&2
         exit 0
+        ;;
+    *)
         ;;
 esac
 

@@ -68,7 +68,10 @@ sq_require_ascii() {
 # run in dry-run so the caller can see what would be acted on.
 sq_run() {
     local arg
-    printf >&2 '%s' "${SQ_GRAY}> ${SQ_YELLOW}"
+    # Use %b so the literal '\033' inside the color vars is interpreted as
+    # the ESC character. Color vars are constants defined above, so this
+    # is safe with respect to SC2059 (no untrusted format-string content).
+    printf >&2 '%b> %b' "${SQ_GRAY}" "${SQ_YELLOW}"
     for arg in "$@"; do
         if [[ "${arg}" == "${SONAR_TOKEN}:" ]]; then
             printf >&2 '%q ' '<TOKEN>:'
@@ -76,7 +79,7 @@ sq_run() {
             printf >&2 '%q ' "${arg}"
         fi
     done
-    printf >&2 '%s\n' "${SQ_NC}"
+    printf >&2 '%b\n' "${SQ_NC}"
     if [[ "${SONAR_DRY_RUN:-0}" == "1" ]]; then
         return 0
     fi
