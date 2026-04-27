@@ -114,13 +114,21 @@ bash .agents/skills/pr-reviews/scripts/list-open-threads.sh <PR_NUMBER> --short 
 The "short" output is a table: `thread-id | path:line | author`. The full
 form prints every comment in each thread.
 
-### 3. For each open thread
+### 3. For each open thread, ONE AT A TIME
+
+**This is per-thread, not batched.** Do not prepare a list of replies and
+fire them in a loop. Do not post all replies first and resolve all later.
+Walk one thread at a time:
+
+For thread N:
 
 1. **Read the comment carefully.** What is the bot/dev claiming?
 2. **Open the file at the line and verify.** Does the claim hold against
    the current code? Is it valid in context?
 3. **Search the whole PR diff (and adjacent code) for the same class of
-   issue.** Rule #10 -- this is mandatory.
+   issue.** Rule #10 -- this is mandatory. (You only do this sweep once,
+   on the first thread of a class -- subsequent threads in the same
+   class share the same fix.)
 4. **Decide**:
    - If valid -> fix it AND every similar instance you found.
    - If invalid -> understand why the bot got confused. Often a small
@@ -129,13 +137,24 @@ form prints every comment in each thread.
    ```
    bash .agents/skills/pr-reviews/scripts/reply-thread.sh <PR> <comment-id> "<reply>"
    ```
-   (Get `<comment-id>` from `review-threads.json` -> `.[].comments.nodes[0].databaseId`.)
-6. **Resolve the thread.**
+   `<comment-id>` is the `databaseId` of the FIRST comment in the thread
+   (from `review-threads.json` -> `.[].comments.nodes[0].databaseId`).
+6. **Resolve the thread immediately after the reply succeeds.**
    ```
    bash .agents/skills/pr-reviews/scripts/resolve-thread.sh <thread-id>
    ```
-   (Get `<thread-id>` from `review-threads.json` -> `.[].id` -- it's the
-   GraphQL node id, not the numeric REST id.)
+   `<thread-id>` is the GraphQL node id (`review-threads.json` -> `.[].id`,
+   starts with `PRRT_`). Resolving immediately after replying takes the
+   thread out of the "needs attention" view; leaving threads open without
+   resolution accumulates noise.
+
+Then move to thread N+1. Reply-and-resolve, reply-and-resolve. Never
+queue them up.
+
+The reason: the order makes intent visible to humans watching the PR --
+they see "agent posted reply, agent resolved" as one motion per thread,
+not "agent dumped 14 replies, then dumped 14 resolves". Bulk operations
+look mechanical and erode trust in the address pass.
 
 ### 4. Before pushing -- check CI for FAILURES (don't wait)
 
