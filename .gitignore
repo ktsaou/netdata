@@ -1,5 +1,9 @@
 # Secrets
 gcs-credentials.json
+/.env
+
+# Cross-tool AI agent private overrides (per-user, not for sharing)
+**/AGENTS.local.md
 
 .deps
 .libs
