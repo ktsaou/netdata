@@ -283,7 +283,14 @@ HEAD. This guarantees you and the reviewers are synchronized.
 ```
 bash .agents/skills/pr-reviews/scripts/fetch-all.sh <PR_NUMBER>
 bash .agents/skills/pr-reviews/scripts/fetch-sonar-findings.sh <PR_NUMBER>
+bash .agents/skills/pr-reviews/scripts/ci-status.sh <PR_NUMBER>
 ```
+
+The `ci-status.sh` line is the third source: a CI failure that is
+CAUSED by this PR's changes (added a script that doesn't pass
+shellcheck, broke a YAML parse, etc.) is in scope and must be folded
+in. CI failures unrelated to this PR are noted, surfaced to the user
+at the end, but not fixed here.
 
 If `summary.txt` shows any new open thread or `sonar-issues.json` shows
 any new issue you haven't addressed yet, **do NOT push**. Loop back to

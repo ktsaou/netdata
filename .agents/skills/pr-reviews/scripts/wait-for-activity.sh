@@ -28,6 +28,7 @@
 set -euo pipefail
 
 # shellcheck source=./_lib.sh
+# shellcheck disable=SC1091
 source "$(dirname "$0")/_lib.sh"
 pr_require_gh
 
@@ -74,6 +75,8 @@ snapshot() {
     while :; do
         local cursor_args=()
         [[ -n "${cursor}" ]] && cursor_args+=(-F "after=${cursor}")
+        # GraphQL string has $owner/$name/$number/$after as placeholders.
+        # shellcheck disable=SC2016
         graphql_out="$(gh api graphql -F owner="${owner}" -F name="${name}" -F number="${PR}" \
             "${cursor_args[@]}" -f query='
             query($owner:String!, $name:String!, $number:Int!, $after:String) {

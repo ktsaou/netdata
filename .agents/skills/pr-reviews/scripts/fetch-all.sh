@@ -27,6 +27,7 @@
 set -euo pipefail
 
 # shellcheck source=./_lib.sh
+# shellcheck disable=SC1091
 source "$(dirname "$0")/_lib.sh"
 pr_require_gh
 
@@ -123,6 +124,9 @@ while true; do
     if [[ -n "${cursor}" ]]; then
         cursor_args+=(-F "after=${cursor}")
     fi
+    # The single-quoted GraphQL string contains $owner/$name/$number as
+    # GraphQL placeholders, not shell variables; SC2016 is expected here.
+    # shellcheck disable=SC2016
     gh api graphql -F owner="${owner}" -F name="${name}" -F number="${PR}" "${cursor_args[@]}" -f query='
         query($owner:String!, $name:String!, $number:Int!, $after:String) {
             repository(owner:$owner, name:$name) {

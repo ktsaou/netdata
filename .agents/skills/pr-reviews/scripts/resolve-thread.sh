@@ -13,6 +13,7 @@
 set -euo pipefail
 
 # shellcheck source=./_lib.sh
+# shellcheck disable=SC1091
 source "$(dirname "$0")/_lib.sh"
 pr_require_gh
 
@@ -20,13 +21,19 @@ THREAD_ID="${1:?usage: $0 <thread-node-id>}"
 
 # Review-thread node IDs follow the pattern `PRRT_<base64ish>`. Validate
 # the prefix + the body charset so a malformed value can't reach the API.
-# (The mutation works by node ID alone and doesn't need a repo slug, so
-# we don't pr_require_slug here.)
 if [[ ! "${THREAD_ID}" =~ ^PRRT_[A-Za-z0-9_-]+$ ]]; then
     echo -e "${PR_RED}[ERROR]${PR_NC} thread-node-id must look like 'PRRT_...' (got: '${THREAD_ID}')" >&2
     exit 1
 fi
 
+# Fail fast on non-GitHub remotes. The mutation operates by node ID and
+# does not need the slug, but this script is GitHub-only -- making that
+# explicit at entry catches misconfiguration earlier than letting the
+# mutation hit a non-github API.
+pr_require_slug >/dev/null
+
+# The single-quoted GraphQL string has $threadId as a placeholder.
+# shellcheck disable=SC2016
 gh api graphql -F threadId="${THREAD_ID}" -f query='
     mutation($threadId:ID!) {
         resolveReviewThread(input: {threadId: $threadId}) {
