@@ -155,9 +155,17 @@ To make project-wide changes (deactivate a rule or override severity):
 2. Make your edits there
 3. Assign the project to the new profile (`api/qualityprofiles/add_project`)
 
-This is a one-shot operation per language (c, cpp, go, javascript, python,
-shelldre, godre, etc.) — keep a record of decisions in a project-local doc
-under `.local/audits/sonarqube/`.
+This is a one-shot operation per language. SonarCloud language keys are:
+`c`, `cpp`, `go`, `javascript`, `py`, `shell`, `plsql`, `docker`, `css`,
+`ipynb`, `php` (and others depending on the project). Note the rule-id
+namespaces in `api/issues/search` results may differ from the language
+keys -- e.g. shell rules use the `shelldre:` prefix, Go rules can use
+either `go:` or `godre:` depending on which analyzer fired -- so the
+language argument to qualityprofile APIs is the SHORT key (`shell`,
+`go`), not the rule-namespace prefix.
+
+Keep a record of profile decisions in a project-local doc under
+`.local/audits/sonarqube/`.
 
 ## Failure modes — quick diagnosis
 

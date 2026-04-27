@@ -23,6 +23,7 @@ set -euo pipefail
 source "$(dirname "$0")/_lib.sh"
 
 PR="${1:?usage: $0 <pr-number>}"
+pr_require_numeric "${PR}"
 
 ROOT="$(pr_repo_root)"
 ENV="${ROOT}/.env"

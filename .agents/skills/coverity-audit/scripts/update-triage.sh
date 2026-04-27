@@ -27,7 +27,7 @@ COMMENT_FILE="${5:?usage}"
 
 cov_require_numeric_cid "${CID}"
 for v in CLASS_ID SEV_ID ACT_ID; do
-    if [[ ! "${!v}" =~ ^[0-9]+$ ]]; then
+    if [[ ! "${!v}" =~ ^[1-9][0-9]*$ ]]; then
         echo -e "${COV_RED}[ERROR]${COV_NC} ${v} must be a positive integer, got: '${!v}'" >&2
         exit 1
     fi
@@ -45,12 +45,14 @@ if LC_ALL=C tr -d '\000-\177' < "${COMMENT_FILE}" | grep -q .; then
     exit 1
 fi
 
+# cid + project are numeric (validated above); attribute values must be
+# strings per the API.
 payload="$(jq -n \
-    --arg cid "${CID}" \
+    --argjson cid "${CID}" \
     --arg class "${CLASS_ID}" \
     --arg sev "${SEV_ID}" \
     --arg act "${ACT_ID}" \
-    --arg project "${COVERITY_PROJECT_ID}" \
+    --argjson project "${COVERITY_PROJECT_ID}" \
     --rawfile comment "${COMMENT_FILE}" \
     '{
         triageValues: [
@@ -60,9 +62,9 @@ payload="$(jq -n \
             {attributeId: 4, attributeValue: null}
         ],
         comment: $comment,
-        mergedDefectIds: [$cid | tonumber],
+        mergedDefectIds: [$cid],
         ownerId: -1,
-        projectId: ($project | tonumber),
+        projectId: $project,
         triageStoreIds: [],
         type: "apply"
     }')"

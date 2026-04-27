@@ -21,6 +21,11 @@ NUMBER="${1:?usage: $0 <alert_number> <reason> '<comment>'}"
 REASON="${2:?usage}"
 COMMENT="${3:?usage}"
 
+if [[ ! "${NUMBER}" =~ ^[1-9][0-9]*$ ]]; then
+    echo -e "${GH_RED}[ERROR]${GH_NC} alert_number must be a positive integer, got: '${NUMBER}'" >&2
+    exit 1
+fi
+
 case "${REASON}" in
     "false positive"|"won't fix"|"used in tests") ;;
     *)

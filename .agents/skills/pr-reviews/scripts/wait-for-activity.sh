@@ -32,6 +32,7 @@ source "$(dirname "$0")/_lib.sh"
 pr_require_gh
 
 PR="${1:?usage: $0 <pr-number> [<timeout-seconds>] [<poll-interval-seconds>]}"
+pr_require_numeric "${PR}"
 TIMEOUT="${2:-1800}"
 POLL="${3:-30}"
 

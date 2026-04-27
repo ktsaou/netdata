@@ -4,17 +4,23 @@
 
 set -euo pipefail
 
-# Color vars are used by sourcing scripts; shellcheck cannot see that.
+# IMPORTANT: define with $'...' so the variables contain real ESC bytes,
+# not the literal four-character string "\033". This way both `echo -e
+# "${GH_RED}..."` and `printf '%s' "${GH_RED}..."` render correctly --
+# without forcing every printf format string to be the variable itself
+# (which trips shellcheck SC2059) or %b (which adds inconsistency).
+#
+# Color vars are referenced by sourcing scripts; shellcheck cannot see that.
 # shellcheck disable=SC2034
-GH_RED='\033[0;31m'
+GH_RED=$'\033[0;31m'
 # shellcheck disable=SC2034
-GH_GREEN='\033[0;32m'
+GH_GREEN=$'\033[0;32m'
 # shellcheck disable=SC2034
-GH_YELLOW='\033[1;33m'
+GH_YELLOW=$'\033[1;33m'
 # shellcheck disable=SC2034
-GH_GRAY='\033[0;90m'
+GH_GRAY=$'\033[0;90m'
 # shellcheck disable=SC2034
-GH_NC='\033[0m'
+GH_NC=$'\033[0m'
 
 gh_repo_root() {
     # Walk up from this _lib.sh; that's stable regardless of caller layout.

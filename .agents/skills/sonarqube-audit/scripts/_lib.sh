@@ -4,17 +4,23 @@
 
 set -euo pipefail
 
-# Color vars are used by sourcing scripts; shellcheck cannot see that.
+# IMPORTANT: define with $'...' so the variables contain real ESC bytes,
+# not the literal four-character string "\033". This way both `echo -e
+# "${SQ_RED}..."` and `printf '%s' "${SQ_RED}..."` render correctly --
+# without forcing every printf format string to be the variable itself
+# (which trips shellcheck SC2059) or %b (which adds inconsistency).
+#
+# Color vars are referenced by sourcing scripts; shellcheck cannot see that.
 # shellcheck disable=SC2034
-SQ_RED='\033[0;31m'
+SQ_RED=$'\033[0;31m'
 # shellcheck disable=SC2034
-SQ_GREEN='\033[0;32m'
+SQ_GREEN=$'\033[0;32m'
 # shellcheck disable=SC2034
-SQ_YELLOW='\033[1;33m'
+SQ_YELLOW=$'\033[1;33m'
 # shellcheck disable=SC2034
-SQ_GRAY='\033[0;90m'
+SQ_GRAY=$'\033[0;90m'
 # shellcheck disable=SC2034
-SQ_NC='\033[0m'
+SQ_NC=$'\033[0m'
 
 sq_repo_root() {
     git -C "$(dirname "${BASH_SOURCE[0]}")" rev-parse --show-toplevel
@@ -36,7 +42,10 @@ sq_load_env() {
     : "${SONAR_TOKEN:?SONAR_TOKEN is empty in .env}"
     : "${SONAR_HOST_URL:=https://sonarcloud.io}"
     : "${SONAR_PROJECT:?SONAR_PROJECT is empty in .env (e.g. netdata_netdata)}"
-    : "${SONAR_ORG:?SONAR_ORG is empty in .env (e.g. netdata)}"
+    # SONAR_ORG is optional today -- the existing scripts don't pass it to
+    # the API, but qualityprofile management calls (documented in SKILL.md)
+    # require it. Default empty; consumers should fail loudly if they need it.
+    : "${SONAR_ORG:=}"
     export SONAR_TOKEN SONAR_HOST_URL SONAR_PROJECT SONAR_ORG
 }
 
@@ -68,10 +77,9 @@ sq_require_ascii() {
 # run in dry-run so the caller can see what would be acted on.
 sq_run() {
     local arg
-    # Use %b so the literal '\033' inside the color vars is interpreted as
-    # the ESC character. Color vars are constants defined above, so this
-    # is safe with respect to SC2059 (no untrusted format-string content).
-    printf >&2 '%b> %b' "${SQ_GRAY}" "${SQ_YELLOW}"
+    # Color vars contain real ESC bytes (defined with $'...'), so '%s' is
+    # both safe (no SC2059) and correctly renders the colors.
+    printf >&2 '%s> %s' "${SQ_GRAY}" "${SQ_YELLOW}"
     for arg in "$@"; do
         if [[ "${arg}" == "${SONAR_TOKEN}:" ]]; then
             printf >&2 '%q ' '<TOKEN>:'
@@ -79,9 +87,10 @@ sq_run() {
             printf >&2 '%q ' "${arg}"
         fi
     done
-    printf >&2 '%b\n' "${SQ_NC}"
+    printf >&2 '%s\n' "${SQ_NC}"
     if [[ "${SONAR_DRY_RUN:-0}" == "1" ]]; then
         return 0
     fi
     "$@"
 }
+

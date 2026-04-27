@@ -92,6 +92,22 @@ These are non-negotiable. Skipping any of them will cost the user time.
     the rest one at a time. Every round-trip is 30+ minutes of bot
     review latency. **The fix for one issue means a full re-audit of the
     PR for the same class of issue.** Do that before pushing.
+11. **Don't trust linters alone -- smoke-test every fix.** Static
+    analyzers (shellcheck, etc.) verify a property of the code; they
+    don't verify behavior. A "correct per the linter" fix can change
+    runtime behavior in subtle ways (e.g. a printf format-string fix
+    that stops escape-sequence interpretation, breaking colored output
+    that the linter never knew about). After every fix, run the
+    affected script (or the smallest invocation that exercises the
+    change) and verify the output looks right. "Linter green" is not
+    the same as "still works."
+12. **Before every push, spawn a subagent for a holistic PR review.**
+    See Step 4a in the workflow. The orchestrator's context is biased
+    toward the fixes it just made; a clean-context subagent re-reviewing
+    the WHOLE diff is what catches the issues the orchestrator and the
+    AI reviewers missed. Skipping this turns each iteration into a
+    30-minute round-trip to discover issues that could have been found
+    in 2 minutes locally.
 
 ## Author classes -- different handling per class
 
@@ -240,7 +256,61 @@ For Sonar there is no "thread reply" -- you address the issue with
 either a code fix or a `sonar-mark.sh` action. There's nothing to
 resolve in GitHub for Sonar findings.
 
-### 4. Before pushing -- check CI for FAILURES (don't wait)
+### 4a. Before pushing -- MANDATORY holistic PR review via subagent
+
+This is the most important pre-push step. Skipping it is what makes
+review cycles last for hours.
+
+After you have made all the fixes for the current iteration's findings
+but BEFORE running `git push`, spawn a subagent to re-review the WHOLE
+PR diff (not the small change you just made). The orchestrator's
+context is already loaded with the recent fixes; the subagent's clean
+context is what gives an honest second look.
+
+Why this is non-negotiable:
+
+- AI reviewers (cubic-dev-ai, copilot, sonarqube) only surface their
+  top 3-7 findings. The full set of similar issues remains hidden.
+- Each fix can introduce its own new problems (a printf format-string
+  fix that breaks color rendering, a portability fix that drops a
+  feature, an input-validation fix that rejects valid inputs).
+- Without a holistic pre-push review, every iteration takes ~30 min of
+  bot review latency just to discover problems the orchestrator could
+  have spotted in 2 minutes by re-reading the diff.
+
+How to invoke:
+
+Use the orchestrator's Agent / subagent tool (whatever the harness
+provides). Pass the subagent the PR diff (or the list of touched files)
+and ask it to:
+
+- Verify each fix in this iteration solves the original finding without
+  side effects.
+- Sweep the touched files for similar patterns the original findings
+  did not point at, but which the same reasoning would flag.
+- Sweep the touched files for NEW issues the fixes themselves may have
+  introduced (broken behavior, lost features, regressions).
+- Report findings as a flat list -- file:line + class + suggested fix.
+
+Then the orchestrator addresses every finding the subagent returns
+BEFORE push. Loop the subagent if necessary until it returns a clean
+review. Only then proceed to step 4b.
+
+A good subagent prompt template:
+
+> Re-review PR <N> end-to-end. The current diff is on branch <X>; the
+> base is <master|...>. Recent fixes addressed: <list>. For the WHOLE
+> diff (not just the recent fixes), find:
+> 1. Similar patterns to the ones recently fixed that were NOT pointed
+>    at by reviewers but where the same reasoning applies.
+> 2. Issues the recent fixes may have introduced (regressions, broken
+>    behavior, dropped features).
+> 3. Anything in the diff that does not match the project's
+>    conventions (AGENTS.md, sibling files, the rest of the repo).
+> Report a flat list of file:line + class + suggested fix. Be
+> exhaustive; do not stop at 3-7 findings.
+
+### 4b. Before pushing -- check CI for FAILURES (don't wait)
 
 ```
 bash .agents/skills/pr-reviews/scripts/ci-status.sh <PR_NUMBER>

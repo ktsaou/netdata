@@ -78,6 +78,13 @@ Convention:
 - `/.local/audits/coverity/`  - Coverity raw fetches, per-defect details, triage decisions
 - `/.local/audits/sonarqube/` - Sonar finding queues, FP comment templates
 - `/.local/audits/graphql/`   - GitHub Code Scanning fetches and dismissals
+- `/.local/audits/pr-reviews/`- Per-PR comment / review caches
+
+Naming: each skill `<topic>-audit/` writes to `.local/audits/<topic>/`
+(the `-audit` suffix is dropped from the directory name so the URL-style
+path stays short). Skills without the `-audit` suffix keep their full
+name (e.g. `pr-reviews/` writes to `.local/audits/pr-reviews/`). When
+adding a new skill, follow this convention.
 
 Nothing under `/.local/` is committed. Treat the directory as ephemeral
 between users and machines, not as a shared source of truth.

@@ -19,6 +19,7 @@ source "$(dirname "$0")/_lib.sh"
 pr_require_gh
 
 PR="${1:?usage: $0 <pr-number> <comment-id> <body>}"
+pr_require_numeric "${PR}"
 COMMENT_ID="${2:?usage}"
 BODY_ARG="${3:?usage}"
 

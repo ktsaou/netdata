@@ -17,6 +17,7 @@ source "$(dirname "$0")/_lib.sh"
 pr_require_gh
 
 PR="${1:?usage: $0 <pr-number> [--json]}"
+pr_require_numeric "${PR}"
 JSON=0
 [[ "${2:-}" == "--json" ]] && JSON=1
 

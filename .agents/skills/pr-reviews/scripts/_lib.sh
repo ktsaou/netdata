@@ -4,17 +4,23 @@
 
 set -euo pipefail
 
-# Color vars are used by sourcing scripts; shellcheck cannot see that.
+# IMPORTANT: define with $'...' so the variables contain real ESC bytes,
+# not the literal four-character string "\033". This way both `echo -e
+# "${PR_RED}..."` and `printf '%s' "${PR_RED}..."` render correctly --
+# without forcing every printf format string to be the variable itself
+# (which trips shellcheck SC2059) or %b (which adds inconsistency).
+#
+# Color vars are referenced by sourcing scripts; shellcheck cannot see that.
 # shellcheck disable=SC2034
-PR_RED='\033[0;31m'
+PR_RED=$'\033[0;31m'
 # shellcheck disable=SC2034
-PR_GREEN='\033[0;32m'
+PR_GREEN=$'\033[0;32m'
 # shellcheck disable=SC2034
-PR_YELLOW='\033[1;33m'
+PR_YELLOW=$'\033[1;33m'
 # shellcheck disable=SC2034
-PR_GRAY='\033[0;90m'
+PR_GRAY=$'\033[0;90m'
 # shellcheck disable=SC2034
-PR_NC='\033[0m'
+PR_NC=$'\033[0m'
 
 pr_repo_root() {
     git -C "$(dirname "${BASH_SOURCE[0]}")" rev-parse --show-toplevel
@@ -88,4 +94,16 @@ pr_classify_author() {
 # Pretty timestamp in UTC.
 pr_now_utc() {
     date -u +%Y-%m-%dT%H:%M:%SZ
+}
+
+# PR numbers are positive integers (GitHub assigns 1+). Reject anything
+# else before interpolating into REST paths or `gh` arguments. Even though
+# URL interpolation isn't a shell-injection vector, malformed input causes
+# confusing API errors that look like permission/auth issues.
+pr_require_numeric() {
+    local n="$1" name="${2:-PR}"
+    if [[ ! "${n}" =~ ^[1-9][0-9]*$ ]]; then
+        echo -e "${PR_RED}[ERROR]${PR_NC} ${name} must be a positive integer, got: '${n}'" >&2
+        return 1
+    fi
 }

@@ -31,6 +31,7 @@ source "$(dirname "$0")/_lib.sh"
 pr_require_gh
 
 PR="${1:?usage: $0 <pr-number>}"
+pr_require_numeric "${PR}"
 SLUG="$(pr_repo_slug)"
 DIR="$(pr_state_dir "${PR}")"
 

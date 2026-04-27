@@ -12,6 +12,7 @@ set -euo pipefail
 source "$(dirname "$0")/_lib.sh"
 
 PR="${1:?usage: $0 <pr-number> [--short]}"
+pr_require_numeric "${PR}"
 SHORT=0
 [[ "${2:-}" == "--short" ]] && SHORT=1
 

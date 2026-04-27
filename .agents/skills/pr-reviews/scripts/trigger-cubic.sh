@@ -18,6 +18,7 @@ source "$(dirname "$0")/_lib.sh"
 pr_require_gh
 
 PR="${1:?usage: $0 <pr-number> [<extra-message>]}"
+pr_require_numeric "${PR}"
 EXTRA="${2:-please review again}"
 
 SLUG="$(pr_repo_slug)"

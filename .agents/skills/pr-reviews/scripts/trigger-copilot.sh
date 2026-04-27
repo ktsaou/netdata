@@ -15,6 +15,7 @@ source "$(dirname "$0")/_lib.sh"
 pr_require_gh
 
 PR="${1:?usage: $0 <pr-number>}"
+pr_require_numeric "${PR}"
 SLUG="$(pr_repo_slug)"
 
 echo -e "${PR_GRAY}[trigger-copilot] PR ${SLUG}#${PR}: re-add @copilot as reviewer${PR_NC}" >&2

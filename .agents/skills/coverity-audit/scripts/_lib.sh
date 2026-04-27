@@ -5,17 +5,24 @@
 set -euo pipefail
 
 # ANSI colors for transparent output (per the project's run() pattern).
-# These are referenced by sourcing scripts; shellcheck cannot see that.
+#
+# IMPORTANT: define with $'...' so the variables contain real ESC bytes,
+# not the literal four-character string "\033". This way both `echo -e
+# "${COV_RED}..."` and `printf '%s' "${COV_RED}..."` render correctly --
+# without forcing every printf format string to be the variable itself
+# (which trips shellcheck SC2059) or %b (which adds inconsistency).
+#
+# Color vars are referenced by sourcing scripts; shellcheck cannot see that.
 # shellcheck disable=SC2034
-COV_RED='\033[0;31m'
+COV_RED=$'\033[0;31m'
 # shellcheck disable=SC2034
-COV_GREEN='\033[0;32m'
+COV_GREEN=$'\033[0;32m'
 # shellcheck disable=SC2034
-COV_YELLOW='\033[1;33m'
+COV_YELLOW=$'\033[1;33m'
 # shellcheck disable=SC2034
-COV_GRAY='\033[0;90m'
+COV_GRAY=$'\033[0;90m'
 # shellcheck disable=SC2034
-COV_NC='\033[0m'
+COV_NC=$'\033[0m'
 
 # Locate the repo root by walking up from the script directory.
 # This way the scripts work no matter where the user runs them from.
@@ -47,6 +54,10 @@ cov_load_env() {
 
     : "${COVERITY_COOKIE:?COVERITY_COOKIE is empty in .env — paste a fresh cookie from the browser}"
     : "${COVERITY_PROJECT_ID:?COVERITY_PROJECT_ID is empty in .env}"
+    if [[ ! "${COVERITY_PROJECT_ID}" =~ ^[1-9][0-9]*$ ]]; then
+        echo -e "${COV_RED}[ERROR]${COV_NC} COVERITY_PROJECT_ID must be a positive integer, got: '${COVERITY_PROJECT_ID}'" >&2
+        return 1
+    fi
     : "${COVERITY_HOST:=https://scan4.scan.coverity.com}"
     : "${COVERITY_USER_AGENT:=Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.0.0 Safari/537.36}"
     export COVERITY_COOKIE COVERITY_PROJECT_ID COVERITY_HOST COVERITY_USER_AGENT
@@ -86,11 +97,11 @@ cov_require_ascii() {
     fi
 }
 
-# CID validation: Coverity CIDs are positive integers. Reject anything else
-# before interpolating into jq filters, URLs, or paths.
+# CID validation: Coverity CIDs are positive integers (>= 1). Reject anything
+# else before interpolating into jq filters, URLs, or paths.
 cov_require_numeric_cid() {
     local cid="$1"
-    if [[ ! "${cid}" =~ ^[0-9]+$ ]]; then
+    if [[ ! "${cid}" =~ ^[1-9][0-9]*$ ]]; then
         echo -e "${COV_RED}[ERROR]${COV_NC} CID must be a positive integer, got: '${cid}'" >&2
         return 1
     fi
