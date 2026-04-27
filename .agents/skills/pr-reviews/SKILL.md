@@ -1,0 +1,261 @@
+---
+name: pr-reviews
+description: Address pull-request comments and reviews iteratively until the PR is clean — fetch all comments with paranoid pagination, classify by author (AI bot vs human), verify each finding, address it, find similar patterns, reply per-thread, resolve threads, check CI before pushing, retrigger AI reviewers (cubic-dev-ai, copilot), and wait for new feedback. Use when the user says "address PR comments", "look at the reviews on PR N", "deal with the bot comments", "iterate on PR N until clean", or anything mentioning PR comments / reviews / cubic / copilot.
+---
+
+# PR review handler skill
+
+This skill iterates a PR through review/comment cycles until there is nothing
+left to address. PRs in this repo get reviews from human developers and from
+multiple AI assistants -- principally `cubic-dev-ai` and `copilot`. Each
+class is handled differently.
+
+## MANDATORY rules
+
+These are non-negotiable. Skipping any of them will cost the user time.
+
+1. **Pagination paranoia.** Do not stop at round numbers. If a fetch returns
+   exactly 100 / 200 / 300 items, the round count is suspicious -- GitHub
+   pagination defaults to 100, and round-multiples almost always mean there
+   is a next page that the previous client missed. Always re-probe with an
+   explicit `page=N+1` request. `fetch-all.sh` does this automatically.
+2. **Accept all comments and address them all.** No exceptions. No "this is
+   minor, skip it." The bar is: Netdata's performance, stability, and
+   long-term maintainability.
+3. **Verify every comment properly.** No shortcuts. Read the code, follow
+   the trace, confirm the claim. AI bots produce false positives -- judge
+   each one on its merits.
+4. **Reply per-thread, one by one.** No bulk replies. No mechanical "fixed"
+   answers. Each thread gets a substantive reply that explains what you
+   did or why the comment doesn't apply.
+5. **Don't dismiss comments because they look minor.** Even style nits
+   compound. The goal is for the project to thrive.
+6. **Help bots when they're confused.** AI reviewers sometimes flag false
+   positives because the surrounding code is ambiguous. Add a short
+   comment in the source that clarifies the intent -- it helps the next
+   reviewer (human or bot).
+7. **Check CI BEFORE every push, but never WAIT for CI between iterations.**
+   Waiting for CI between bot-review cycles destroys throughput -- a CI
+   run can take 30+ minutes, and during that time the AI reviewers are
+   idle. The right cadence is:
+   - Before each push: run `ci-status.sh`. If there are FAILURES, fix
+     them and bundle into the same push. If checks are still running,
+     that's fine -- ignore them and push anyway. The next push triggers
+     fresh CI on the new code, which is what we actually care about.
+   - After each push: re-trigger the bots, then `wait-for-activity.sh`
+     for new comments (NOT for CI).
+   - If `wait-for-activity.sh` times out (30 min, no new comments):
+     re-check `ci-status.sh`. If checks are still running, that's normal,
+     surface to the user. If there are failures, fix and iterate.
+8. **Re-trigger AI reviewers explicitly.** They do NOT react to thread
+   replies or pushed commits the way humans do.
+   - Copilot: re-add as a requested reviewer (`trigger-copilot.sh`).
+   - cubic-dev-ai: post a new top-level comment mentioning it
+     (`trigger-cubic.sh`).
+9. **Don't loop forever on silent bots.** Some assistants stop responding.
+   That's fine. Use `wait-for-activity.sh` with the 30-min timeout and
+   move on if nothing changes.
+10. **When a bot finds a legit issue, search the WHOLE PR for similar
+    issues.** This is the most expensive rule to ignore. AI reviewers
+    surface their top 3-7 findings, not the full set. If you fix only the
+    ones they pointed at, you'll spend dozens of round-trips discovering
+    the rest one at a time. Every round-trip is 30+ minutes of bot
+    review latency. **The fix for one issue means a full re-audit of the
+    PR for the same class of issue.** Do that before pushing.
+
+## Author classes -- different handling per class
+
+- **AI bots** (`cubic-dev-ai[bot]`, `copilot[bot]` and variants): handle
+  autonomously. Verify the finding, fix or push back with reasoning, reply
+  in-thread, resolve thread.
+- **Informational bots** (`sonarqubecloud[bot]`, `github-actions[bot]`,
+  `netdata-bot[bot]`, `coderabbitai[bot]`): read for signal (e.g. quality
+  gate status). They don't usually require a reply.
+- **Humans** (developers, maintainers, community): consult the user.
+  Maintainer comments matter most -- in this project, we are usually
+  contributors, they are the project owners. Do not respond on the user's
+  behalf without their direction. Surface human comments to the user with
+  a recommendation, then act per their instruction.
+
+## Setup
+
+`gh` CLI authenticated for the repo. Nothing else.
+
+The skill reads `upstream` (or `origin`) from git remotes to derive the
+repo slug. Override with `PR_REPO_SLUG=owner/repo` if working cross-repo.
+
+State for each PR is cached under `<repo-root>/.local/audits/pr-reviews/pr-<N>/`:
+
+- `pr.json` -- top-level PR metadata
+- `issue-comments.json` -- top-level PR comments (REST)
+- `review-comments.json` -- inline review comments (REST)
+- `reviews.json` -- review submissions with body (REST)
+- `review-threads.json` -- per-thread, with `isResolved` (GraphQL)
+- `summary.txt` -- human-readable triage summary
+
+## Workflow
+
+### 1. Fetch all comments (paranoid)
+
+```
+bash .agents/skills/pr-reviews/scripts/fetch-all.sh <PR_NUMBER>
+```
+
+Tail-prints a `summary.txt` that shows the per-author count and the list of
+open review threads. Use this as the input to the rest of the cycle.
+
+### 2. List open threads
+
+```
+bash .agents/skills/pr-reviews/scripts/list-open-threads.sh <PR_NUMBER>          # full bodies
+bash .agents/skills/pr-reviews/scripts/list-open-threads.sh <PR_NUMBER> --short  # one line per thread
+```
+
+The "short" output is a table: `thread-id | path:line | author`. The full
+form prints every comment in each thread.
+
+### 3. For each open thread
+
+1. **Read the comment carefully.** What is the bot/dev claiming?
+2. **Open the file at the line and verify.** Does the claim hold against
+   the current code? Is it valid in context?
+3. **Search the whole PR diff (and adjacent code) for the same class of
+   issue.** Rule #10 -- this is mandatory.
+4. **Decide**:
+   - If valid -> fix it AND every similar instance you found.
+   - If invalid -> understand why the bot got confused. Often a small
+     source comment clarifying the intent will help the next reviewer.
+5. **Reply in the thread.**
+   ```
+   bash .agents/skills/pr-reviews/scripts/reply-thread.sh <PR> <comment-id> "<reply>"
+   ```
+   (Get `<comment-id>` from `review-threads.json` -> `.[].comments.nodes[0].databaseId`.)
+6. **Resolve the thread.**
+   ```
+   bash .agents/skills/pr-reviews/scripts/resolve-thread.sh <thread-id>
+   ```
+   (Get `<thread-id>` from `review-threads.json` -> `.[].id` -- it's the
+   GraphQL node id, not the numeric REST id.)
+
+### 4. Before pushing -- check CI for FAILURES (don't wait)
+
+```
+bash .agents/skills/pr-reviews/scripts/ci-status.sh <PR_NUMBER>
+```
+
+Exit codes:
+- `0` -- all green, safe to push
+- `2` -- runs in progress -- IGNORE this; push anyway. Waiting for CI
+  between iterations destroys throughput. The new push triggers fresh CI
+  on the new code, which is what matters.
+- `3` -- runs failing -- fix the failures and bundle them into the push.
+
+CI failures unrelated to this PR (a flaky test on a different module, an
+infra outage) are NOT in scope for this PR -- note them, surface to the
+user, move on. Do not make drive-by fixes here.
+
+### 5. Push, then re-trigger reviewers
+
+After pushing the fix commit(s):
+
+```
+bash .agents/skills/pr-reviews/scripts/trigger-copilot.sh <PR_NUMBER>
+bash .agents/skills/pr-reviews/scripts/trigger-cubic.sh   <PR_NUMBER>
+```
+
+Copilot re-runs when re-requested as a reviewer. cubic re-reviews when
+mentioned in a new top-level PR comment.
+
+### 6. Wait for new activity
+
+```
+bash .agents/skills/pr-reviews/scripts/wait-for-activity.sh <PR_NUMBER>
+```
+
+Default timeout 30 min, poll every 30 s. Returns 0 on new activity, 124 on
+timeout. Both bots typically post a "no new findings" comment when they
+have nothing left, so the loop ends naturally on a clean PR.
+
+### 7. Loop
+
+Go back to step 1. Continue until either:
+- `fetch-all.sh` reports all threads resolved AND both bots have posted a
+  "no new findings" comment after their most recent re-trigger; or
+- `wait-for-activity.sh` times out (30 min). When that happens:
+   - Re-run `ci-status.sh`. If checks are still running, that's normal --
+     surface state to the user and stop.
+   - If there are CI failures, fix them and start a new iteration
+     (commit, ci-check, push, re-trigger, wait).
+
+## Commit message hygiene
+
+Commit messages on the address-the-comments cycle should describe **the
+change**, not the reviewer or the cycle:
+
+- BAD: "address copilot comments"
+- BAD: "fix bot review feedback"
+- GOOD: "scripts: fix dry-run env var name and printf format-string usage"
+
+Never reference an AI tool by name in commit messages, PR bodies, or
+comments. The work matters; the tool that flagged it does not.
+
+## Replying to bots -- tone
+
+Be substantive but brief. The bot's prompt-text is verbose; your reply
+doesn't have to be. Examples:
+
+- For a valid fix: "Fixed in <sha-or-paragraph>: <one-sentence what changed>."
+- For a false positive: "False positive -- <one-sentence why>: <evidence
+  citation>." Add a code comment if it'll help future reviewers.
+- For a partial fix: "Partial -- fixed the immediate case at <line>, but the
+  related <other-line> is intentional because <reason>."
+
+## Replying to humans -- consult the user
+
+Maintainer / dev / community comments go to the user FIRST. Your message
+should:
+1. Quote the relevant part of their comment.
+2. State your read of what they're asking for.
+3. Propose 1-3 options if it's a design call, or one option if obvious.
+4. Wait for the user's decision.
+
+Then act per their direction. Do not respond to humans on the user's
+behalf without explicit direction.
+
+## Bot directory
+
+| Bot                          | Role                                       | Re-trigger                                       |
+|------------------------------|--------------------------------------------|--------------------------------------------------|
+| `cubic-dev-ai[bot]`          | Line-level code review                     | New PR comment mentioning `@cubic-dev-ai`        |
+| `copilot[bot]`               | Line-level code review                     | Re-add as requested reviewer (`gh pr edit`)      |
+| `sonarqubecloud[bot]`        | Quality-gate status                        | Auto, on each scan run -- read its issue comment |
+| `github-actions[bot]`        | CI status / labels                         | Auto, on each workflow run                        |
+| `netdata-bot[bot]`           | Repo automation (labels, etc.)             | Auto                                              |
+
+If a new AI reviewer appears in the project, classify it by adding to
+`PR_AI_BOT_RE` in `_lib.sh` so the skill recognizes it.
+
+## Failure modes -- quick diagnosis
+
+| Symptom                                                | Likely cause                                                         |
+|--------------------------------------------------------|----------------------------------------------------------------------|
+| `fetch-all.sh` returns suspiciously round counts       | Pagination missed pages. Re-run; fetch-all auto-probes when count is a multiple of 100. |
+| `reply-thread.sh` -> 404                               | Wrong comment id (use `databaseId` from `review-threads.json`, not the GraphQL node id). |
+| `resolve-thread.sh` -> "thread not found"              | Used REST id instead of GraphQL node id.                              |
+| `trigger-copilot.sh` succeeds but no new review        | Reviewer was already requested -- script removes-then-adds to force a fresh run. If still nothing, copilot may be quota-limited; wait. |
+| `trigger-cubic.sh` succeeds but no new review          | cubic ignores comments without an explicit `@cubic-dev-ai` mention. The script always prepends it. |
+| `ci-status.sh` exits 2 (running)                       | CI hasn't finished. Don't push yet -- you'd cancel the runs.          |
+| Bot keeps re-flagging the same line after a fix push   | The bot didn't see the new commit because it wasn't re-triggered.    |
+| `wait-for-activity.sh` 124 timeout                     | Bots are silent -- could be done, could be quota-limited. Check `summary.txt`; if all threads resolved, you're done. |
+
+## MANDATORY -- keep this skill alive
+
+If you (the agent) discover a new pattern, gotcha, working flow, correction,
+or any piece of knowledge while running this skill -- update this `SKILL.md`
+AND commit it BEFORE proceeding. Knowledge that isn't committed is lost.
+
+Examples of things to capture:
+- A new AI reviewer bot that appears in the project (add to the directory + `PR_AI_BOT_RE`)
+- A new common false-positive pattern that warrants a clarifying source comment
+- A new GitHub API quirk (rate limits, undocumented response shapes, pagination edge cases)
+- A retrigger mechanism that changed (e.g. copilot's re-request behavior)

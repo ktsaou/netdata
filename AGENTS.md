@@ -65,6 +65,7 @@ Currently available skills:
 - `.agents/skills/coverity-audit/` - Coverity Scan defect triage
 - `.agents/skills/sonarqube-audit/` - SonarCloud findings triage
 - `.agents/skills/graphql-audit/` - GitHub Code Scanning (CodeQL) triage
+- `.agents/skills/pr-reviews/` - PR comment / review iteration loop
 
 ## Local-only working directory
 
