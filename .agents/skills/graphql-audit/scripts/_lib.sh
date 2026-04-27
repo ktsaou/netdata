@@ -26,9 +26,11 @@ gh_repo_slug() {
 }
 
 gh_audit_dir() {
-    local root
+    local root dir
     root="$(gh_repo_root)"
-    echo "${root}/.local/audits/graphql"
+    dir="${root}/.local/audits/graphql"
+    mkdir -p "${dir}"
+    echo "${dir}"
 }
 
 # Run gh against the GitHub API. Authentication comes from `gh auth status`.

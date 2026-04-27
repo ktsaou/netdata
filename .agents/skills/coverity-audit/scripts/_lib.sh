@@ -53,11 +53,15 @@ cov_load_env() {
 }
 
 # Audit artifacts go under .local/audits/coverity/ at the repo root.
-# .local/ is gitignored — see AGENTS.md for the convention.
+# .local/ is gitignored -- see AGENTS.md for the convention.
+# Creates the directory on first call so callers can redirect output into
+# subpaths without thinking about it.
 cov_audit_dir() {
-    local root
+    local root dir
     root="$(cov_repo_root)"
-    echo "${root}/.local/audits/coverity"
+    dir="${root}/.local/audits/coverity"
+    mkdir -p "${dir}"
+    echo "${dir}"
 }
 
 # Reject non-ASCII bytes in a string. Coverity's edge (Cloudflare) rejects

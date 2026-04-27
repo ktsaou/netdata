@@ -33,9 +33,11 @@ sq_load_env() {
 }
 
 sq_audit_dir() {
-    local root
+    local root dir
     root="$(sq_repo_root)"
-    echo "${root}/.local/audits/sonarqube"
+    dir="${root}/.local/audits/sonarqube"
+    mkdir -p "${dir}"
+    echo "${dir}"
 }
 
 # Cloudflare in front of api.sonarcloud.io rejects non-ASCII bodies.
