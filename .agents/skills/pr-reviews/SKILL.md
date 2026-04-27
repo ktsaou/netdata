@@ -349,6 +349,13 @@ Default timeout 30 min, poll every 30 s. Returns 0 on new activity, 124 on
 timeout. Both bots typically post a "no new findings" comment when they
 have nothing left, so the loop ends naturally on a clean PR.
 
+What counts as "new activity":
+- New issue comment / review comment / review on the PR.
+- New commit pushed to the PR head.
+- A review thread getting resolved or unresolved (often by a bot saying
+  "addressed; resolving" -- without this signal we'd miss thread state
+  flips and time out spuriously).
+
 ### 7. Loop
 
 Go back to step 1. Continue until ALL of these are true:
@@ -386,8 +393,13 @@ change**, not the reviewer or the cycle:
 - BAD: "fix bot review feedback"
 - GOOD: "scripts: fix dry-run env var name and printf format-string usage"
 
-Never reference an AI tool by name in commit messages, PR bodies, or
-comments. The work matters; the tool that flagged it does not.
+Never reference an AI tool by name in commit messages or PR bodies. The
+work matters; the tool that flagged it does not.
+
+(Comments on the PR are an exception when they're operational mentions
+required by the bot itself: `@cubic-dev-ai please review again` is a
+direct trigger for that bot, and the trigger script enforces it. Outside
+operational triggers, the same rule applies to comments.)
 
 ## Replying to bots -- tone
 
@@ -434,7 +446,7 @@ If a new AI reviewer appears in the project, classify it by adding to
 | `resolve-thread.sh` -> "thread not found"              | Used REST id instead of GraphQL node id.                              |
 | `trigger-copilot.sh` succeeds but no new review        | Reviewer was already requested -- script removes-then-adds to force a fresh run. If still nothing, copilot may be quota-limited; wait. |
 | `trigger-cubic.sh` succeeds but no new review          | cubic ignores comments without an explicit `@cubic-dev-ai` mention. The script always prepends it. |
-| `ci-status.sh` exits 2 (running)                       | CI hasn't finished. Don't push yet -- you'd cancel the runs.          |
+| `ci-status.sh` exits 2 (running)                       | CI hasn't finished. Push anyway -- waiting on CI between iterations destroys throughput. The next push triggers a fresh CI run on the new code, which is what matters. (See Step 4b.) |
 | Bot keeps re-flagging the same line after a fix push   | The bot didn't see the new commit because it wasn't re-triggered.    |
 | `wait-for-activity.sh` 124 timeout                     | Bots are silent -- could be done, could be quota-limited. Check `summary.txt`; if all threads resolved, you're done. |
 

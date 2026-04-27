@@ -34,7 +34,7 @@ case "${REASON}" in
         ;;
 esac
 
-slug="$(gh_repo_slug)"
+slug="$(gh_require_slug)"
 echo -e "${GH_GRAY}> Dismissing alert #${NUMBER} on ${slug}: ${REASON}${GH_NC}" >&2
 echo -e "${GH_GRAY}  comment: ${COMMENT}${GH_NC}" >&2
 

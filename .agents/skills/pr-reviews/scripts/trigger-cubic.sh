@@ -21,7 +21,7 @@ PR="${1:?usage: $0 <pr-number> [<extra-message>]}"
 pr_require_numeric "${PR}"
 EXTRA="${2:-please review again}"
 
-SLUG="$(pr_repo_slug)"
+SLUG="$(pr_require_slug)"
 BODY="@cubic-dev-ai ${EXTRA}"
 
 echo -e "${PR_GRAY}[trigger-cubic] PR ${SLUG}#${PR}: ${BODY}${PR_NC}" >&2

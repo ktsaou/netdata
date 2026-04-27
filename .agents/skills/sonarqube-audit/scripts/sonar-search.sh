@@ -2,14 +2,17 @@
 # Search SonarCloud findings for the configured project.
 #
 # Usage:
-#   sonar-search.sh issues   [--rule RULE_ID] [--resolved=false|true] [--ps=500]
-#   sonar-search.sh hotspots [--status=TO_REVIEW|REVIEWED] [--ps=500]
+#   sonar-search.sh issues   [--rule RULE_ID] [--resolved=false|true]
+#   sonar-search.sh hotspots [--status=TO_REVIEW|REVIEWED]
 #   sonar-search.sh summary                                            # rule + count for open issues + hotspots
 #
-# Output: raw JSON (issues / hotspots) to stdout.
+# Output: a single merged JSON object on stdout (.issues / .hotspots is the
+# concatenation of all pages). Always paginated to .paging.total -- a `--ps`
+# arg is no longer accepted because it was a footgun (only the first page
+# was ever returned).
 #
-# This is a READ-ONLY script — it does not mutate Sonar state. Safe to run
-# anytime to inspect what's outstanding.
+# This is a READ-ONLY script -- it does not mutate Sonar state. Safe to
+# run anytime to inspect what's outstanding.
 
 set -euo pipefail
 
@@ -19,50 +22,73 @@ sq_load_env
 
 cmd="${1:-summary}"; shift || true
 
+# Whitelist common URL-param values to avoid raw user input ending up in
+# the URL. Sonar would reject malformed params anyway, but the error
+# messages are confusing -- fail-fast locally instead.
+_validate_resolved() {
+    case "$1" in true|false) ;; *)
+        echo -e "${SQ_RED}[ERROR]${SQ_NC} --resolved must be 'true' or 'false', got: '$1'" >&2
+        return 1 ;;
+    esac
+}
+_validate_status() {
+    case "$1" in TO_REVIEW|REVIEWED) ;; *)
+        echo -e "${SQ_RED}[ERROR]${SQ_NC} --status must be 'TO_REVIEW' or 'REVIEWED', got: '$1'" >&2
+        return 1 ;;
+    esac
+}
+
 case "${cmd}" in
     issues)
         rule=""
         resolved="false"
-        ps="500"
         while [[ $# -gt 0 ]]; do
             case "$1" in
                 --rule) rule="$2"; shift 2 ;;
                 --resolved=*) resolved="${1#*=}"; shift ;;
-                --ps=*) ps="${1#*=}"; shift ;;
                 *) echo "Unknown arg: $1" >&2; exit 2 ;;
             esac
         done
-        url="${SONAR_HOST_URL}/api/issues/search?componentKeys=${SONAR_PROJECT}&resolved=${resolved}&ps=${ps}"
-        [[ -n "${rule}" ]] && url="${url}&rules=${rule}"
-        sq_run curl --fail --silent --show-error -u "${SONAR_TOKEN}:" "${url}"
+        _validate_resolved "${resolved}"
+        path="/api/issues/search?componentKeys=${SONAR_PROJECT}&resolved=${resolved}"
+        # URL-encode the rule id so values containing `:` (always),
+        # spaces, or other reserved chars don't inject extra params.
+        [[ -n "${rule}" ]] && path="${path}&rules=$(sq_url_encode "${rule}")"
+        sq_paginate "${path}" \
+            | jq -s '{paging: .[0].paging, issues: [.[].issues[]]}'
         ;;
 
     hotspots)
         status="TO_REVIEW"
-        ps="500"
         while [[ $# -gt 0 ]]; do
             case "$1" in
                 --status=*) status="${1#*=}"; shift ;;
-                --ps=*) ps="${1#*=}"; shift ;;
                 *) echo "Unknown arg: $1" >&2; exit 2 ;;
             esac
         done
-        url="${SONAR_HOST_URL}/api/hotspots/search?projectKey=${SONAR_PROJECT}&status=${status}&ps=${ps}"
-        sq_run curl --fail --silent --show-error -u "${SONAR_TOKEN}:" "${url}"
+        _validate_status "${status}"
+        path="/api/hotspots/search?projectKey=${SONAR_PROJECT}&status=${status}"
+        sq_paginate "${path}" \
+            | jq -s '{paging: .[0].paging, hotspots: [.[].hotspots[]]}'
         ;;
 
     summary)
         echo "=== Open issues by rule ===" >&2
-        curl --fail --silent --show-error -u "${SONAR_TOKEN}:" \
-            "${SONAR_HOST_URL}/api/issues/search?componentKeys=${SONAR_PROJECT}&resolved=false&ps=500&facets=rules" \
+        # Issue facets are computed server-side and returned on every page;
+        # the first page's facet totals reflect ALL matching issues, so a
+        # single fetch is correct here.
+        sq_run_read curl --fail --silent --show-error -u "${SONAR_TOKEN}:" \
+            "${SONAR_HOST_URL}/api/issues/search?componentKeys=${SONAR_PROJECT}&resolved=false&ps=1&facets=rules" \
             | jq -r '.facets[] | select(.property=="rules") | .values[] | "  \(.val) (\(.count))"' \
             | sort -k2 -t'(' -nr | head -30
 
         echo >&2
         echo "=== Open hotspots by rule ===" >&2
-        curl --fail --silent --show-error -u "${SONAR_TOKEN}:" \
-            "${SONAR_HOST_URL}/api/hotspots/search?projectKey=${SONAR_PROJECT}&status=TO_REVIEW&ps=500" \
-            | jq -r '[.hotspots[] | .ruleKey] | group_by(.) | map({rule: .[0], count: length}) | sort_by(-.count) | .[] | "  \(.rule) (\(.count))"' \
+        # Hotspot search has no facets, so we have to walk every page.
+        sq_paginate "/api/hotspots/search?projectKey=${SONAR_PROJECT}&status=TO_REVIEW" \
+            | jq -s '[.[].hotspots[].ruleKey]
+                     | group_by(.) | map({rule: .[0], count: length})
+                     | sort_by(-.count) | .[] | "  \(.rule) (\(.count))"' -r \
             | head -30
         ;;
 

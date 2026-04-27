@@ -32,7 +32,7 @@ pr_require_gh
 
 PR="${1:?usage: $0 <pr-number>}"
 pr_require_numeric "${PR}"
-SLUG="$(pr_repo_slug)"
+SLUG="$(pr_require_slug)"
 DIR="$(pr_state_dir "${PR}")"
 
 echo -e "${PR_GRAY}[fetch-all] PR ${SLUG}#${PR} -> ${DIR}${PR_NC}" >&2
@@ -49,9 +49,15 @@ fetch_paranoid() {
     # Ask for max page size and let gh follow rel=next.
     local sep
     if [[ "${path}" == *\?* ]]; then sep='&'; else sep='?'; fi
-    gh api --paginate "${path}${sep}per_page=100" > "${out}"
+    # `gh api --paginate` writes the per-page JSON arrays back-to-back
+    # (e.g. `[a,b,c][d,e]`), which is NOT a single valid JSON array. Pipe
+    # through `jq -s 'add'` to slurp the multiple top-level values and
+    # concatenate them into one array. (`gh api --paginate --jq '.[]'`
+    # would emit JSONL but loses the array shape we need for the rest of
+    # the loop.)
+    gh api --paginate "${path}${sep}per_page=100" | jq -s 'add // []' > "${out}"
 
-    # Did gh return a JSON array?
+    # Did we end up with a JSON array?
     if ! jq -e 'type=="array"' "${out}" >/dev/null 2>&1; then
         echo -e "${PR_RED}[fetch-all] ${kind}: response is not a JSON array. Auth? Rate limit?${PR_NC}" >&2
         head -c 200 "${out}" >&2; echo >&2
@@ -113,11 +119,11 @@ trap 'rm -f "${threads_tmp}"' EXIT
 cursor=""
 echo '[]' > "${DIR}/review-threads.json"
 while true; do
-    local_cursor_arg=()
+    cursor_args=()
     if [[ -n "${cursor}" ]]; then
-        local_cursor_arg+=(-F "after=${cursor}")
+        cursor_args+=(-F "after=${cursor}")
     fi
-    gh api graphql -F owner="${owner}" -F name="${name}" -F number="${PR}" "${local_cursor_arg[@]}" -f query='
+    gh api graphql -F owner="${owner}" -F name="${name}" -F number="${PR}" "${cursor_args[@]}" -f query='
         query($owner:String!, $name:String!, $number:Int!, $after:String) {
             repository(owner:$owner, name:$name) {
                 pullRequest(number:$number) {
@@ -129,7 +135,9 @@ while true; do
                             isOutdated
                             path
                             line
-                            comments(first:50) {
+                            comments(first:100) {
+                                pageInfo { hasNextPage endCursor }
+                                totalCount
                                 nodes {
                                     id
                                     databaseId
@@ -151,6 +159,17 @@ while true; do
     # Append to running file
     jq -s '.[0] + .[1]' "${DIR}/review-threads.json" <(printf '%s' "${page_nodes}") > "${DIR}/review-threads.json.merged"
     mv "${DIR}/review-threads.json.merged" "${DIR}/review-threads.json"
+
+    # Warn if any thread on this page has more than 100 comments -- the
+    # inner connection is fetched first:100 only, so the tail is cut.
+    truncated_threads="$(jq -r '
+        [.data.repository.pullRequest.reviewThreads.nodes[]
+         | select(.comments.pageInfo.hasNextPage)
+         | .id] | join(", ")
+    ' "${threads_tmp}")"
+    if [[ -n "${truncated_threads}" ]]; then
+        echo -e "${PR_YELLOW}[fetch-all] review-threads: nested comments truncated (>100) for: ${truncated_threads}${PR_NC}" >&2
+    fi
 
     has_next="$(jq -r '.data.repository.pullRequest.reviewThreads.pageInfo.hasNextPage' "${threads_tmp}")"
     cursor="$(jq -r '.data.repository.pullRequest.reviewThreads.pageInfo.endCursor' "${threads_tmp}")"
@@ -178,7 +197,7 @@ echo -e "${PR_GRAY}[fetch-all] review-threads: ${n_threads} threads total${PR_NC
         "${decision}" "${mergeable}" "${merge_state}"
     echo
     echo "Reviewers requested:"
-    jq -r '(.reviewRequests // [])[] | "  - " + (.login // .name)' "${DIR}/pr.json"
+    jq -r '(.reviewRequests // [])[] | "  - " + (.login // .name // "?")' "${DIR}/pr.json"
     echo
     echo "Counts:"
     printf '  issue-comments  : %d\n' "$(jq 'length' "${DIR}/issue-comments.json")"

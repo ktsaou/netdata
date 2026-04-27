@@ -94,3 +94,95 @@ sq_run() {
     "$@"
 }
 
+# URL-encode a string for inclusion in a Sonar API query parameter.
+# Sonar rule IDs (`c:S2245`, `shelldre:S131`, etc.) contain `:` which must
+# become `%3A`; some rule namespaces also contain other reserved chars.
+# Limitation: emits the codepoint, not UTF-8 bytes, for non-ASCII -- safe
+# for Sonar rule IDs (always ASCII) but do NOT use this for arbitrary
+# user-supplied strings without auditing.
+sq_url_encode() {
+    local s="$1" out="" i ch
+    for (( i=0; i<${#s}; i++ )); do
+        ch="${s:$i:1}"
+        case "${ch}" in
+            [a-zA-Z0-9._~-]) out+="${ch}" ;;
+            *) out+="$(printf '%%%02X' "'${ch}")" ;;
+        esac
+    done
+    printf '%s' "${out}"
+}
+
+# Read-only Sonar API call: prints the masked curl line (transparency)
+# but always executes (dry-run only suppresses WRITE calls). Use this for
+# enumeration calls that drive subsequent decisions (issue/hotspot search).
+sq_run_read() {
+    local arg
+    printf >&2 '%s> %s' "${SQ_GRAY}" "${SQ_YELLOW}"
+    for arg in "$@"; do
+        if [[ "${arg}" == "${SONAR_TOKEN}:" ]]; then
+            printf >&2 '%q ' '<TOKEN>:'
+        else
+            printf >&2 '%q ' "${arg}"
+        fi
+    done
+    printf >&2 '%s\n' "${SQ_NC}"
+    "$@"
+}
+
+# Paginate a Sonar API listing endpoint until paging.total is reached.
+# Emits each page's body to stdout (one JSON value per page); the caller
+# composes them with `jq -s 'reduce .[] as $p (...)'` to sum or merge.
+#
+# Args:
+#   $1 = path with all query params EXCEPT ps and p (e.g.
+#        "/api/issues/search?componentKeys=...&resolved=false")
+#
+# Sonar's max page size is 500; we use it. The function uses sq_run_read
+# so the masked curl is logged but execution is not skipped in dry-run
+# (read-only enumeration should still happen so the caller sees what
+# would be acted on).
+sq_paginate() {
+    local path="$1"
+    local sep
+    if [[ "${path}" == *\?* ]]; then sep='&'; else sep='?'; fi
+    local page=1 total=-1 fetched=0
+    while :; do
+        local resp
+        resp="$(sq_run_read curl --fail --silent --show-error -u "${SONAR_TOKEN}:" \
+            "${SONAR_HOST_URL}${path}${sep}ps=500&p=${page}")"
+
+        # Validate the response is a JSON object with a .paging field --
+        # otherwise we can't decide when to stop and would loop forever
+        # (or terminate prematurely on 0). Bail loudly.
+        if ! jq -e 'type=="object" and has("paging")' >/dev/null 2>&1 <<< "${resp}"; then
+            echo -e "${SQ_RED}[sq_paginate]${SQ_NC} response missing .paging on ${path} page ${page}; first 200 chars:" >&2
+            head -c 200 <<< "${resp}" >&2; echo >&2
+            return 1
+        fi
+
+        printf '%s\n' "${resp}"
+        # Sonar wraps results either under .issues / .hotspots / .components
+        # / .rules / .users; .paging is consistent across endpoints. Reject
+        # any response whose array key we don't recognise so the caller is
+        # forced to add support rather than silently get zero rows.
+        local array_key in_page
+        array_key=$(jq -r '
+            (.issues|values|"issues") //
+            (.hotspots|values|"hotspots") //
+            (.components|values|"components") //
+            (.rules|values|"rules") //
+            (.users|values|"users") //
+            empty
+        ' <<< "${resp}")
+        if [[ -z "${array_key}" ]]; then
+            echo -e "${SQ_RED}[sq_paginate]${SQ_NC} unrecognized payload from ${path}; expected one of issues/hotspots/components/rules/users." >&2
+            return 1
+        fi
+        in_page=$(jq -r --arg k "${array_key}" '.[$k] | length' <<< "${resp}")
+        total=$(jq -r '.paging.total' <<< "${resp}")
+        fetched=$(( fetched + in_page ))
+        (( fetched >= total || in_page == 0 )) && break
+        page=$(( page + 1 ))
+    done
+}
+

@@ -32,13 +32,30 @@ gh_repo_slug() {
     # Uses bash parameter expansion so repo names containing dots
     # (e.g. "my.repo", "kubernetes-sigs/cluster-api-provider-aws.git") parse
     # correctly. The previous regex `[^/.]+` truncated names with dots.
+    # Returns empty for non-github.com remotes (this skill is GitHub-only).
     local root url
     root="$(gh_repo_root)"
     url="$(git -C "${root}" config --get remote.upstream.url 2>/dev/null \
          || git -C "${root}" config --get remote.origin.url)"
+    if [[ "${url}" != *github.com* ]]; then
+        echo ""
+        return
+    fi
     url="${url%.git}"               # strip trailing .git, if any
     url="${url#*github.com[:/]}"    # strip everything up to and including github.com:/
     echo "${url}"
+}
+
+# Resolve and validate the repo slug. Returns "owner/repo" on stdout or
+# exits non-zero if no slug could be derived.
+gh_require_slug() {
+    local slug
+    slug="$(gh_repo_slug)"
+    if [[ -z "${slug}" || "${slug}" != */* ]]; then
+        echo -e "${GH_RED}[ERROR]${GH_NC} could not derive owner/repo from git remotes (got: '${slug}'). Fix the upstream/origin remote URL." >&2
+        return 1
+    fi
+    printf '%s' "${slug}"
 }
 
 gh_audit_dir() {

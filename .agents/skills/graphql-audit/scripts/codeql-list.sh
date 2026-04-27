@@ -33,20 +33,19 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
-slug="$(gh_repo_slug)"
-if [[ -z "${slug}" ]]; then
-    echo -e "${GH_RED}[ERROR]${GH_NC} Could not determine repo slug from git remotes." >&2
-    exit 1
-fi
+slug="$(gh_require_slug)"
 
 # Build the API path.
 path="/repos/${slug}/code-scanning/alerts?state=${state}&per_page=100"
 [[ -n "${severity}" ]] && path="${path}&severity=${severity}"
 [[ -n "${tool}" ]] && path="${path}&tool_name=${tool}"
 
-# gh api auto-paginates with --paginate.
+# `gh api --paginate` writes the per-page JSON arrays back-to-back
+# (e.g. `[a,b,c][d,e]`), which is NOT a single valid JSON array. Pipe
+# through `jq -s 'add'` to slurp the multiple top-level values into one
+# array. Without this, downstream `jq '.[]'` only sees the first page.
 echo -e "${GH_GRAY}> gh api --paginate ${path}${GH_NC}" >&2
-data="$(gh_api api --paginate "${path}")"
+data="$(gh_api api --paginate "${path}" | jq -s 'add // []')"
 
 if (( raw )); then
     printf '%s\n' "${data}"

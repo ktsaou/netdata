@@ -88,7 +88,11 @@ main_line="$(jq -r '
 
 ctx_file="${OUT_DIR}/source-context.c"
 if [[ ! -s "${ctx_file}" || "${FORCE}" == "1" ]]; then
-    if [[ -r "${ROOT}/${repo_file}" ]]; then
+    # An empty/missing displayFile would resolve `${ROOT}/${repo_file}` to
+    # `${ROOT}/`, which IS a readable directory -- the `-r` test below
+    # would pass and `awk ... ${ROOT}/` would crash. Require a non-empty
+    # repo-relative file path AND that the path is a regular file.
+    if [[ -n "${repo_file}" && -f "${ROOT}/${repo_file}" && -r "${ROOT}/${repo_file}" ]]; then
         start=$((main_line - 100))
         (( start < 1 )) && start=1
         end=$((main_line + 50))

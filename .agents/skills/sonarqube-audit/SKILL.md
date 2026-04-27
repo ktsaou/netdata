@@ -173,13 +173,15 @@ Keep a record of profile decisions in a project-local doc under
 |----------------------------------------|-------------------------------------------------------------|
 | HTTP 401 / 403 with HTML body          | Token wrong/expired, or Cloudflare blocking non-ASCII       |
 | Token works for issues but not hotspots| Hotspot endpoints have separate auth checks — token must have `Browse` permission |
-| Family-mode hits ps=500 ceiling        | Use repeated --rule queries with paging (`p=1`, `p=2`)      |
+| Family-mode appears to stop at 500     | Outdated -- `sonar-mark.sh` family-mode now paginates transparently via `sq_paginate`. If you still see truncation, check `sq_paginate`'s array-key recognition list. |
 | `falsepositive` transition rejected    | Issue is not in `OPEN` or `CONFIRMED` state — check current status |
 | Hotspot transition rejected            | Hotspot already in `REVIEWED` state — re-check before retry |
 
 ## Recurring tips
 
-- `api/issues/search` is paged at `ps=500` max. For >500 of a kind, paginate.
+- `api/issues/search` is paged at `ps=500` max. The `sq_paginate` helper
+  in `_lib.sh` walks every page until `paging.total`; use it from any
+  new script instead of re-implementing the loop.
 - Hotspot `ruleKey` filtering is client-side (search only filters by
   status/project), so the family-mode helper does it in Python.
 - An issue may be transitioned only between certain states; if you get

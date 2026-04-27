@@ -5,10 +5,10 @@
 #   ci-status.sh <pr-number>          # human-readable summary
 #   ci-status.sh <pr-number> --json   # raw JSON
 #
-# This is read-only. It is the precondition before any push: if a CI run is
-# in progress or just finished, the existing results are the ones we want to
-# capture before pushing again -- otherwise the next push restarts CI and we
-# lose the prior signal.
+# This is read-only. Use it BEFORE every push to find FAILURES that must
+# be addressed in the same push. Do NOT wait for in-progress checks
+# between iterations -- the next push will trigger a fresh CI run on the
+# new code, which is what matters. See SKILL.md Step 4b for the policy.
 
 set -euo pipefail
 
@@ -21,7 +21,7 @@ pr_require_numeric "${PR}"
 JSON=0
 [[ "${2:-}" == "--json" ]] && JSON=1
 
-SLUG="$(pr_repo_slug)"
+SLUG="$(pr_require_slug)"
 
 # pr view --json statusCheckRollup gives the per-check breakdown.
 data="$(gh pr view "${PR}" --repo "${SLUG}" --json statusCheckRollup,headRefOid,mergeStateStatus)"
@@ -55,7 +55,10 @@ running=$(jq '[.statusCheckRollup[] | select((.status // "")=="IN_PROGRESS" or (
 echo "Total checks: ${total}   Failing: ${fail}   Running: ${running}"
 
 if (( running > 0 )); then
-    echo -e "${PR_YELLOW}WARNING: ${running} check(s) still running. Pushing now will lose those results.${PR_NC}" >&2
+    # Exit 2 is informational, not a "do not push" signal. The next push
+    # will start a fresh CI run on top of the new code -- that's what we
+    # actually want to verify. The skill's policy is to push anyway.
+    echo -e "${PR_GRAY}Note: ${running} check(s) still running; the next push will start a fresh CI run.${PR_NC}" >&2
     exit 2
 fi
 if (( fail > 0 )); then

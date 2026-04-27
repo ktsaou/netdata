@@ -16,74 +16,37 @@
 # Reads SONAR_TOKEN, SONAR_HOST_URL, SONAR_PROJECT from <repo-root>/.env --
 # the same .env entries the sonarqube-audit skill uses. If they're missing,
 # this script prints what's needed and exits 1.
+#
+# Sourcing strategy: this script is part of pr-reviews, but it leans on
+# the sonarqube-audit skill's `_lib.sh` helpers (sq_load_env, sq_paginate)
+# so we get a single paginator + token-masking implementation, rather
+# than duplicating the loop and risking drift.
 
 set -euo pipefail
 
 # shellcheck source=./_lib.sh
 source "$(dirname "$0")/_lib.sh"
 
+# shellcheck disable=SC1091
+source "$(dirname "$0")/../../sonarqube-audit/scripts/_lib.sh"
+
 PR="${1:?usage: $0 <pr-number>}"
 pr_require_numeric "${PR}"
 
-ROOT="$(pr_repo_root)"
-ENV="${ROOT}/.env"
-
-if [[ ! -r "${ENV}" ]]; then
-    echo -e "${PR_RED}[ERROR]${PR_NC} Missing ${ENV}." >&2
-    echo "Add to ${ENV}:" >&2
-    echo "  SONAR_TOKEN='<token from https://sonarcloud.io/account/security>'" >&2
-    echo "  SONAR_HOST_URL=https://sonarcloud.io" >&2
-    echo "  SONAR_PROJECT=<project_key>" >&2
-    exit 1
-fi
-set -a
-# shellcheck disable=SC1090
-source "${ENV}"
-set +a
-: "${SONAR_TOKEN:?SONAR_TOKEN not set in .env -- see sonarqube-audit/SKILL.md}"
-: "${SONAR_HOST_URL:=https://sonarcloud.io}"
-: "${SONAR_PROJECT:?SONAR_PROJECT not set in .env}"
+# sq_load_env reads <repo-root>/.env; same .env the pr-reviews scripts use.
+sq_load_env
 
 DIR="$(pr_state_dir "${PR}")"
 
-# Paginate through Sonar's issue search filtered by pullRequest. ps=500 is
-# the max per page. Stop when paging.total is reached or a page returns 0.
-fetch_paginated() {
-    local kind="$1" path_with_filter="$2" out="$3"
-    local page=1 total=0 fetched=0
-    echo '[]' > "${out}"
-    while :; do
-        local resp
-        resp="$(curl --fail --silent --show-error -u "${SONAR_TOKEN}:" \
-            "${SONAR_HOST_URL}${path_with_filter}&ps=500&p=${page}")"
-        local items
-        items="$(jq ".${kind}" <<< "${resp}")"
-        local in_page
-        in_page="$(jq 'length' <<< "${items}")"
-        total="$(jq -r '.paging.total' <<< "${resp}")"
-        fetched=$(( fetched + in_page ))
-
-        # Append to running file
-        jq -s '.[0] + .[1]' "${out}" <(printf '%s' "${items}") > "${out}.merged"
-        mv "${out}.merged" "${out}"
-
-        echo -e "${PR_GRAY}[fetch-sonar] ${kind}: page ${page} +${in_page} (running ${fetched}/${total})${PR_NC}" >&2
-        (( fetched >= total || in_page == 0 )) && break
-        page=$(( page + 1 ))
-    done
-}
-
 echo -e "${PR_GRAY}[fetch-sonar] PR ${PR} -> ${DIR}${PR_NC}" >&2
 
-# 1) Issues introduced by the PR (resolved=false: still actionable).
-fetch_paginated "issues" \
-    "/api/issues/search?componentKeys=${SONAR_PROJECT}&pullRequest=${PR}&resolved=false" \
-    "${DIR}/sonar-issues.json"
+# Build per-source path. sq_paginate streams one JSON page per line; jq -s
+# slurps them and concatenates the array under each result key.
+sq_paginate "/api/issues/search?componentKeys=${SONAR_PROJECT}&pullRequest=${PR}&resolved=false" \
+    | jq -s '[.[].issues[]]' > "${DIR}/sonar-issues.json"
 
-# 2) Security Hotspots introduced by the PR.
-fetch_paginated "hotspots" \
-    "/api/hotspots/search?projectKey=${SONAR_PROJECT}&pullRequest=${PR}&status=TO_REVIEW" \
-    "${DIR}/sonar-hotspots.json"
+sq_paginate "/api/hotspots/search?projectKey=${SONAR_PROJECT}&pullRequest=${PR}&status=TO_REVIEW" \
+    | jq -s '[.[].hotspots[]]' > "${DIR}/sonar-hotspots.json"
 
 # Summary
 n_issues="$(jq 'length' "${DIR}/sonar-issues.json")"

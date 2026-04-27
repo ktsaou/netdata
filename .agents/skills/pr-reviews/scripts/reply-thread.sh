@@ -29,12 +29,15 @@ else
     BODY="${BODY_ARG}"
 fi
 
-if [[ -z "${BODY// /}" ]]; then
-    echo -e "${PR_RED}[ERROR]${PR_NC} Empty body." >&2
+# Strip ALL whitespace (spaces, tabs, newlines, carriage returns) before
+# the empty-body check; previous version stripped spaces only and would
+# accept a tab-only or newline-only body.
+if [[ -z "${BODY//[[:space:]]/}" ]]; then
+    echo -e "${PR_RED}[ERROR]${PR_NC} Empty body (whitespace-only)." >&2
     exit 2
 fi
 
-SLUG="$(pr_repo_slug)"
+SLUG="$(pr_require_slug)"
 echo -e "${PR_GRAY}[reply-thread] PR ${SLUG}#${PR} reply to comment ${COMMENT_ID}${PR_NC}" >&2
 
 gh api --method POST "/repos/${SLUG}/pulls/${PR}/comments/${COMMENT_ID}/replies" \

@@ -23,6 +23,18 @@ VIEW_ID="${1:?usage: $0 <viewId> <pages> <output-prefix>}"
 PAGES="${2:?usage: $0 <viewId> <pages> <output-prefix>}"
 PREFIX="${3:?usage: $0 <viewId> <pages> <output-prefix>}"
 
+# View IDs and page counts are positive integers. Reject anything else
+# before the loop -- otherwise non-numeric PAGES would make `seq` produce
+# no output, and the final jq merge would block waiting on stdin.
+if [[ ! "${VIEW_ID}" =~ ^[1-9][0-9]*$ ]]; then
+    echo -e "${COV_RED}[ERROR]${COV_NC} viewId must be a positive integer, got: '${VIEW_ID}'" >&2
+    exit 1
+fi
+if [[ ! "${PAGES}" =~ ^[1-9][0-9]*$ ]]; then
+    echo -e "${COV_RED}[ERROR]${COV_NC} pages must be a positive integer, got: '${PAGES}'" >&2
+    exit 1
+fi
+
 mkdir -p "$(dirname "${PREFIX}")"
 
 for page in $(seq 1 "${PAGES}"); do

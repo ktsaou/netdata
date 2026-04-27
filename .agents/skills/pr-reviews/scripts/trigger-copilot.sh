@@ -16,14 +16,14 @@ pr_require_gh
 
 PR="${1:?usage: $0 <pr-number>}"
 pr_require_numeric "${PR}"
-SLUG="$(pr_repo_slug)"
+SLUG="$(pr_require_slug)"
 
 echo -e "${PR_GRAY}[trigger-copilot] PR ${SLUG}#${PR}: re-add @copilot as reviewer${PR_NC}" >&2
 
-# `gh pr edit --add-reviewer` is officially supported and accepts @copilot.
-# It returns a non-zero status if the reviewer is already requested -- which
-# is fine; the side-effect we want (a fresh review run) is triggered by the
-# remove+add, so we do that explicitly to be safe.
+# Force a fresh review run by removing then re-adding the reviewer.
+# `--remove-reviewer @copilot` returns non-zero when copilot is NOT
+# currently a requested reviewer (nothing to remove); we ignore that exit
+# so the subsequent `--add-reviewer` always runs and triggers the review.
 gh pr edit "${PR}" --repo "${SLUG}" --remove-reviewer "@copilot" >/dev/null 2>&1 || true
 gh pr edit "${PR}" --repo "${SLUG}" --add-reviewer "@copilot"
 echo -e "${PR_GREEN}[trigger-copilot] @copilot re-requested.${PR_NC}" >&2

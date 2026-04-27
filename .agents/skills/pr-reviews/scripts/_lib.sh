@@ -29,8 +29,17 @@ pr_repo_root() {
 # Owner/repo of the upstream remote (or origin if no upstream).
 # Override with PR_REPO_SLUG=owner/repo for cross-repo work.
 # Uses bash parameter expansion so repo names containing dots parse correctly.
+# Returns empty if the URL is not a github.com remote (this skill only
+# supports GitHub).
 pr_repo_slug() {
     if [[ -n "${PR_REPO_SLUG:-}" ]]; then
+        # Validate the override too so callers can't smuggle whitespace or
+        # shell metacharacters in via env. Allowed: owner/repo with
+        # alphanumerics, dot, underscore, hyphen.
+        if [[ ! "${PR_REPO_SLUG}" =~ ^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$ ]]; then
+            echo "" >&2
+            return
+        fi
         echo "${PR_REPO_SLUG}"
         return
     fi
@@ -38,6 +47,10 @@ pr_repo_slug() {
     root="$(pr_repo_root)"
     url="$(git -C "${root}" config --get remote.upstream.url 2>/dev/null \
          || git -C "${root}" config --get remote.origin.url)"
+    if [[ "${url}" != *github.com* ]]; then
+        echo ""
+        return
+    fi
     url="${url%.git}"               # strip trailing .git
     url="${url#*github.com[:/]}"    # strip everything up to and including github.com:/
     echo "${url}"
@@ -106,4 +119,17 @@ pr_require_numeric() {
         echo -e "${PR_RED}[ERROR]${PR_NC} ${name} must be a positive integer, got: '${n}'" >&2
         return 1
     fi
+}
+
+# Resolve and validate the repo slug. Returns "owner/repo" on stdout or
+# exits non-zero if no slug could be derived (no remotes configured, or
+# the URL didn't match github.com).
+pr_require_slug() {
+    local slug
+    slug="$(pr_repo_slug)"
+    if [[ -z "${slug}" || "${slug}" != */* ]]; then
+        echo -e "${PR_RED}[ERROR]${PR_NC} could not derive owner/repo from git remotes (got: '${slug}'). This skill only supports github.com remotes; set PR_REPO_SLUG=owner/repo or fix the remote URL." >&2
+        return 1
+    fi
+    printf '%s' "${slug}"
 }
