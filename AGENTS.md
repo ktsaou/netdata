@@ -72,7 +72,9 @@ Currently available skills:
 `/.local/` at the repo root is gitignored and reserved for per-user runtime
 artifacts: audit reports, fetched API data, scratch notes, queue files,
 intermediate triage decisions. Agents writing skill output should default to
-`<repo-root>/.local/audits/<skill-name>/...`.
+`<repo-root>/.local/audits/<topic>/...` -- where `<topic>` is the skill
+name with any trailing `-audit` suffix removed (so `coverity-audit/`
+writes under `coverity/`, `pr-reviews/` writes under `pr-reviews/`).
 
 Convention:
 - `/.local/audits/coverity/`  - Coverity raw fetches, per-defect details, triage decisions

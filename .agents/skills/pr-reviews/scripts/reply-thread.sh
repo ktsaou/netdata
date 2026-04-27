@@ -23,8 +23,15 @@ pr_require_numeric "${PR}"
 COMMENT_ID="${2:?usage}"
 BODY_ARG="${3:?usage}"
 
+pr_require_numeric "${COMMENT_ID}" "comment-id"
+
 if [[ "${BODY_ARG}" == @* ]]; then
-    BODY="$(cat "${BODY_ARG#@}")"
+    body_file="${BODY_ARG#@}"
+    if [[ ! -f "${body_file}" || ! -r "${body_file}" || ! -s "${body_file}" ]]; then
+        echo -e "${PR_RED}[ERROR]${PR_NC} body file not a readable, non-empty regular file: '${body_file}'" >&2
+        exit 1
+    fi
+    BODY="$(cat "${body_file}")"
 else
     BODY="${BODY_ARG}"
 fi

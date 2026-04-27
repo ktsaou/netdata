@@ -36,6 +36,9 @@ pr_require_numeric "${PR}"
 TIMEOUT="${2:-1800}"
 POLL="${3:-30}"
 
+pr_require_numeric "${TIMEOUT}" "timeout-seconds"
+pr_require_numeric "${POLL}"    "poll-interval-seconds"
+
 SLUG="$(pr_require_slug)"
 
 snapshot() {

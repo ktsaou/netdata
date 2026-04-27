@@ -26,14 +26,16 @@ cmd="${1:-summary}"; shift || true
 # the URL. Sonar would reject malformed params anyway, but the error
 # messages are confusing -- fail-fast locally instead.
 _validate_resolved() {
-    case "$1" in true|false) ;; *)
-        echo -e "${SQ_RED}[ERROR]${SQ_NC} --resolved must be 'true' or 'false', got: '$1'" >&2
+    local v="$1"
+    case "${v}" in true|false) ;; *)
+        echo -e "${SQ_RED}[ERROR]${SQ_NC} --resolved must be 'true' or 'false', got: '${v}'" >&2
         return 1 ;;
     esac
 }
 _validate_status() {
-    case "$1" in TO_REVIEW|REVIEWED) ;; *)
-        echo -e "${SQ_RED}[ERROR]${SQ_NC} --status must be 'TO_REVIEW' or 'REVIEWED', got: '$1'" >&2
+    local v="$1"
+    case "${v}" in TO_REVIEW|REVIEWED) ;; *)
+        echo -e "${SQ_RED}[ERROR]${SQ_NC} --status must be 'TO_REVIEW' or 'REVIEWED', got: '${v}'" >&2
         return 1 ;;
     esac
 }
@@ -43,10 +45,18 @@ case "${cmd}" in
         rule=""
         resolved="false"
         while [[ $# -gt 0 ]]; do
-            case "$1" in
-                --rule) rule="$2"; shift 2 ;;
-                --resolved=*) resolved="${1#*=}"; shift ;;
-                *) echo "Unknown arg: $1" >&2; exit 2 ;;
+            arg="$1"
+            case "${arg}" in
+                --rule)
+                    if [[ $# -lt 2 ]]; then
+                        echo -e "${SQ_RED}[ERROR]${SQ_NC} --rule requires a value (e.g. --rule c:S2245)" >&2
+                        exit 2
+                    fi
+                    rule="$2"
+                    shift 2
+                    ;;
+                --resolved=*) resolved="${arg#*=}"; shift ;;
+                *) echo "Unknown arg: ${arg}" >&2; exit 2 ;;
             esac
         done
         _validate_resolved "${resolved}"
@@ -61,9 +71,10 @@ case "${cmd}" in
     hotspots)
         status="TO_REVIEW"
         while [[ $# -gt 0 ]]; do
-            case "$1" in
-                --status=*) status="${1#*=}"; shift ;;
-                *) echo "Unknown arg: $1" >&2; exit 2 ;;
+            arg="$1"
+            case "${arg}" in
+                --status=*) status="${arg#*=}"; shift ;;
+                *) echo "Unknown arg: ${arg}" >&2; exit 2 ;;
             esac
         done
         _validate_status "${status}"

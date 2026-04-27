@@ -71,7 +71,7 @@ esac
 audit="$(cov_audit_dir)"
 impact=""
 for f in "${audit}/raw/outstanding-all.json" "${audit}/raw/all-in-project-all.json"; do
-    if [[ -r "${f}" ]]; then
+    if [[ -f "${f}" && -r "${f}" ]]; then
         impact="$(jq -r --argjson cid "${CID}" '.[] | select(.cid==$cid) | .displayImpact' "${f}" 2>/dev/null || true)"
         [[ -n "${impact}" && "${impact}" != "null" ]] && break
     fi

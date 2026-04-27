@@ -47,7 +47,16 @@ pr_repo_slug() {
     root="$(pr_repo_root)"
     url="$(git -C "${root}" config --get remote.upstream.url 2>/dev/null \
          || git -C "${root}" config --get remote.origin.url)"
-    if [[ "${url}" != *github.com* ]]; then
+    # Match github.com only as a host -- a substring match would accept
+    # `notgithub.com`, `github.com.attacker.example.com`, etc.
+    # Accepted forms (covering all common gh / git remote outputs):
+    #   git@github.com:owner/repo[.git]           (SCP-style ssh)
+    #   ssh://git@github.com/owner/repo[.git]     (URL-style ssh)
+    #   https://github.com/owner/repo[.git]       (anonymous https)
+    #   https://x-access-token:TOK@github.com/... (credentialed https, gh auth)
+    if [[ "${url}" != *@github.com:* \
+       && "${url}" != *://github.com/* \
+       && "${url}" != *@github.com/* ]]; then
         echo ""
         return
     fi

@@ -8,8 +8,8 @@ description: Triage SonarCloud findings (issues, hotspots, code smells, vulnerab
 This skill drives the SonarCloud Web API
 (<https://docs.sonarsource.com/sonarcloud/api/>) to enumerate findings and apply
 triage decisions: False Positive / Won't Fix / Confirmed for issues; Reviewed
-+ Safe/Acknowledged/Fixed for hotspots. Family-mode lets you mark every open
-finding for a rule in one go.
+with one of Safe / Acknowledged / Fixed for hotspots. Family-mode lets
+you mark every open finding for a rule in one go.
 
 The skill operates on the project configured in `.env` (see Setup). Scripts
 auto-detect the repo root and write all artifacts under `<repo-root>/.local/`.

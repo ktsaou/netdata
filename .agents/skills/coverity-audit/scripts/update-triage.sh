@@ -33,7 +33,7 @@ for v in CLASS_ID SEV_ID ACT_ID; do
     fi
 done
 
-if [[ ! -r "${COMMENT_FILE}" ]]; then
+if [[ ! -f "${COMMENT_FILE}" || ! -r "${COMMENT_FILE}" ]]; then
     echo -e "${COV_RED}Comment file not readable: ${COMMENT_FILE}${COV_NC}" >&2
     exit 1
 fi

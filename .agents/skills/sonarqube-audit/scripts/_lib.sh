@@ -30,7 +30,7 @@ sq_load_env() {
     local root env
     root="$(sq_repo_root)"
     env="${root}/.env"
-    if [[ ! -r "${env}" ]]; then
+    if [[ ! -f "${env}" || ! -r "${env}" ]]; then
         echo -e "${SQ_RED}[ERROR]${SQ_NC} Missing ${env}. See SKILL.md for the .env template." >&2
         return 1
     fi

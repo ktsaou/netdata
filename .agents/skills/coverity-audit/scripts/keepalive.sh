@@ -35,6 +35,10 @@ if [[ -z "${COVERITY_VIEW_OUTSTANDING:-}" ]]; then
     echo -e "${COV_RED}[ERROR]${COV_NC} COVERITY_VIEW_OUTSTANDING is not set in .env -- keepalive needs a viewId to ping. See SKILL.md." >&2
     exit 1
 fi
+if [[ ! "${COVERITY_VIEW_OUTSTANDING}" =~ ^[1-9][0-9]*$ ]]; then
+    echo -e "${COV_RED}[ERROR]${COV_NC} COVERITY_VIEW_OUTSTANDING must be a positive integer (got: '${COVERITY_VIEW_OUTSTANDING}')" >&2
+    exit 1
+fi
 
 PING_URL="${COVERITY_HOST}/reports/table.json?projectId=${COVERITY_PROJECT_ID}&viewId=${COVERITY_VIEW_OUTSTANDING}"
 

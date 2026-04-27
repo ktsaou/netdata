@@ -17,6 +17,11 @@ cov_load_env
 INPUT="${1:?usage: $0 <input-defects.json> <output-dir>}"
 OUT_DIR="${2:?usage: $0 <input-defects.json> <output-dir>}"
 
+if [[ ! -f "${INPUT}" || ! -r "${INPUT}" ]]; then
+    echo -e "${COV_RED}[ERROR]${COV_NC} input file not a readable regular file: '${INPUT}'" >&2
+    exit 1
+fi
+
 mkdir -p "${OUT_DIR}"
 
 TOTAL="$(jq 'length' "${INPUT}")"

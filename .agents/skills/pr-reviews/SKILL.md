@@ -108,6 +108,12 @@ These are non-negotiable. Skipping any of them will cost the user time.
     AI reviewers missed. Skipping this turns each iteration into a
     30-minute round-trip to discover issues that could have been found
     in 2 minutes locally.
+13. **Before every push, re-fetch all finding sources one last time.**
+    See Step 4-pre. Reviewers post in parallel; if findings arrive
+    while you're addressing the current batch, they belong in THIS
+    push, not the next one. Without this sync barrier, you and the
+    reviewers stay one round out of sync forever -- the next iteration
+    is always "fixing" issues that no longer apply.
 
 ## Author classes -- different handling per class
 
@@ -172,7 +178,7 @@ the script prints what's needed and exits.
 
 ### 1c. Note the CI signal as a third source
 
-Run `ci-status.sh <PR>` once early to capture which checks are failing
+Run `bash .agents/skills/pr-reviews/scripts/ci-status.sh <PR>` once early to capture which checks are failing
 **right now**. You're looking for failures caused by the current PR
 (typo in a YAML file you added, a script that doesn't pass shellcheck,
 a build that breaks because of the diff). DO NOT fix CI yet -- just note
@@ -255,6 +261,38 @@ For each issue in `sonar-issues.json` and each hotspot in
 For Sonar there is no "thread reply" -- you address the issue with
 either a code fix or a `sonar-mark.sh` action. There's nothing to
 resolve in GitHub for Sonar findings.
+
+### 4-pre. Before pushing -- MANDATORY final-fetch sync barrier
+
+Reviewers run in parallel. Multiple bots and humans can be appending
+findings WHILE you're addressing the current batch. If you push the
+moment your queue is empty, the findings that arrived during this
+iteration get attributed to your fresh commit instead of the previous
+one -- and on the next round you end up "fixing" findings that no
+longer apply because you addressed them implicitly with the next push.
+The result: chronic desync, where your commit and the reviewers'
+findings are always one round apart.
+
+The fix: a sync barrier immediately before push. Re-fetch ALL sources
+(comments, Sonar, CI) one more time. If ANY new finding has arrived
+since you last looked, loop back to step 2 -- address those new
+findings in the SAME upcoming push -- then re-fetch again. Only push
+when a fresh fetch comes back with no new findings against the current
+HEAD. This guarantees you and the reviewers are synchronized.
+
+```
+bash .agents/skills/pr-reviews/scripts/fetch-all.sh <PR_NUMBER>
+bash .agents/skills/pr-reviews/scripts/fetch-sonar-findings.sh <PR_NUMBER>
+```
+
+If `summary.txt` shows any new open thread or `sonar-issues.json` shows
+any new issue you haven't addressed yet, **do NOT push**. Loop back to
+step 2 and address them first. Then re-run the fetch. Only push when
+the fetch is clean.
+
+The same loop applies during the iteration: if you re-fetched while
+addressing the previous batch and saw new findings drop in, fold them
+into the same push rather than dispatching a half-done batch.
 
 ### 4a. Before pushing -- MANDATORY holistic PR review via subagent
 

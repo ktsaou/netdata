@@ -79,9 +79,9 @@ Default output is a count-by-rule summary for **open** alerts:
 
 Filters:
 ```
-codeql-list.sh --state=open --severity=high
-codeql-list.sh --tool=CodeQL --severity=critical
-codeql-list.sh --raw          # full JSON for programmatic use
+bash .agents/skills/graphql-audit/scripts/codeql-list.sh --state=open --severity=high
+bash .agents/skills/graphql-audit/scripts/codeql-list.sh --tool=CodeQL --severity=critical
+bash .agents/skills/graphql-audit/scripts/codeql-list.sh --raw          # full JSON
 ```
 
 ### Step 2 — inspect a single alert
@@ -109,10 +109,11 @@ on a particular header), GitHub does NOT have a REST bulk endpoint. The
 working pattern is:
 
 ```bash
-codeql-list.sh --raw \
+bash .agents/skills/graphql-audit/scripts/codeql-list.sh --raw \
   | jq -r '.[] | select(.rule.id=="cpp/uninitialized-local") | .number' \
   | while read n; do
-        codeql-dismiss.sh "$n" "false positive" "FP: rule firing on a stub model not real code"
+        bash .agents/skills/graphql-audit/scripts/codeql-dismiss.sh \
+            "$n" "false positive" "FP: rule firing on a stub model not real code"
     done
 ```
 

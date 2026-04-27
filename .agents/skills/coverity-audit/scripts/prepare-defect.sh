@@ -52,15 +52,17 @@ OUT_DIR="${AUDIT}/triage/${SCOPE}/cid-${CID}"
 ROW_FILE="${AUDIT}/raw/${SCOPE}-all.json"
 DETAILS_SRC="${AUDIT}/details/${SCOPE}/cid-${CID}.json"
 
-if [[ ! -r "${DETAILS_SRC}" && -r "${AUDIT}/details/cid-${CID}.json" ]]; then
+if [[ ( ! -f "${DETAILS_SRC}" || ! -r "${DETAILS_SRC}" ) \
+   && -f "${AUDIT}/details/cid-${CID}.json" \
+   && -r "${AUDIT}/details/cid-${CID}.json" ]]; then
     DETAILS_SRC="${AUDIT}/details/cid-${CID}.json"
 fi
 
-if [[ ! -r "${ROW_FILE}" ]]; then
+if [[ ! -f "${ROW_FILE}" || ! -r "${ROW_FILE}" ]]; then
     echo -e "${COV_RED}Missing ${ROW_FILE}. Run fetch-table.sh first.${COV_NC}" >&2
     exit 1
 fi
-if [[ ! -r "${DETAILS_SRC}" ]]; then
+if [[ ! -f "${DETAILS_SRC}" || ! -r "${DETAILS_SRC}" ]]; then
     echo -e "${COV_RED}Missing ${DETAILS_SRC}. Run fetch-details.sh first.${COV_NC}" >&2
     exit 1
 fi
@@ -95,11 +97,18 @@ main_line="$(jq -r '
 
 ctx_file="${OUT_DIR}/source-context.c"
 if [[ ! -s "${ctx_file}" || "${FORCE}" == "1" ]]; then
-    # An empty/missing displayFile would resolve `${ROOT}/${repo_file}` to
-    # `${ROOT}/`, which IS a readable directory -- the `-r` test below
-    # would pass and `awk ... ${ROOT}/` would crash. Require a non-empty
-    # repo-relative file path AND that the path is a regular file.
-    if [[ -n "${repo_file}" && -f "${ROOT}/${repo_file}" && -r "${ROOT}/${repo_file}" ]]; then
+    # Validation:
+    # 1. Non-empty: an empty displayFile would resolve `${ROOT}/${repo_file}`
+    #    to `${ROOT}/`, which IS a readable directory.
+    # 2. No `..`: prevent path traversal escaping the repo. Coverity's
+    #    displayFile is its source-tree path; legitimate values never
+    #    contain `..`. Reject anything that does.
+    # 3. Regular file + readable.
+    repo_file_ok=1
+    [[ -z "${repo_file}" ]] && repo_file_ok=0
+    [[ "${repo_file}" == *..* ]] && repo_file_ok=0
+    [[ -f "${ROOT}/${repo_file}" && -r "${ROOT}/${repo_file}" ]] || repo_file_ok=0
+    if (( repo_file_ok )); then
         start=$((main_line - 100))
         (( start < 1 )) && start=1
         end=$((main_line + 50))

@@ -62,14 +62,27 @@ for page in $(seq 1 "${PAGES}"); do
     fi
 
     # Step 2: fetch the now-current page.
+    # Capture exit status of curl explicitly so a transport failure (timeout,
+    # connection reset, DNS) doesn't leave a non-empty partial file behind
+    # that the next run would treat as cached.
     get_http=$(curl -sS -o "${out}" -w '%{http_code}' \
         -H "accept: application/json, text/plain, */*" \
         -H "referer: ${COVERITY_HOST}/" \
         -H "user-agent: ${COVERITY_USER_AGENT}" \
         -b "${COVERITY_COOKIE}" \
-        "${COVERITY_HOST}/reports/table.json?projectId=${COVERITY_PROJECT_ID}&viewId=${VIEW_ID}")
+        "${COVERITY_HOST}/reports/table.json?projectId=${COVERITY_PROJECT_ID}&viewId=${VIEW_ID}" \
+        || echo "000")
     if [[ "${get_http}" != "200" ]]; then
         echo -e "${COV_RED}[page ${page}] GET failed HTTP=${get_http}${COV_NC}" >&2
+        rm -f "${out}"
+        exit 3
+    fi
+    # Validate response is JSON with the expected shape -- a Cloudflare
+    # challenge or a 200-with-HTML-body would otherwise be cached as
+    # 'valid' and confuse subsequent runs.
+    if ! jq -e '.resultSet.results | type == "array"' "${out}" >/dev/null 2>&1; then
+        echo -e "${COV_RED}[page ${page}] response not in expected shape; first 200 chars:${COV_NC}" >&2
+        head -c 200 "${out}" >&2; echo >&2
         rm -f "${out}"
         exit 3
     fi
