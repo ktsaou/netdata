@@ -1,0 +1,73 @@
+#!/usr/bin/env bash
+# Fetch all pages of a Coverity Scan view table.
+#
+# Usage:
+#   fetch-table.sh <viewId> <pages> <output-prefix>
+# Example:
+#   fetch-table.sh 41549 7 .local/audits/coverity/raw/outstanding
+#
+# Coverity's UI uses two steps per page:
+#   1) POST /views/table.json    {projectId, viewId, pageNum}    -- updates server view state
+#   2) GET  /reports/table.json?projectId=X&viewId=Y             -- fetches rows for current state
+#
+# The script combines all pages into <prefix>-all.json (a flat array).
+# Pages already on disk are skipped (idempotent).
+
+set -euo pipefail
+
+# shellcheck source=./_lib.sh
+source "$(dirname "$0")/_lib.sh"
+cov_load_env
+
+VIEW_ID="${1:?usage: $0 <viewId> <pages> <output-prefix>}"
+PAGES="${2:?usage: $0 <viewId> <pages> <output-prefix>}"
+PREFIX="${3:?usage: $0 <viewId> <pages> <output-prefix>}"
+
+mkdir -p "$(dirname "${PREFIX}")"
+
+for page in $(seq 1 "${PAGES}"); do
+    out="${PREFIX}-page${page}.json"
+    if [[ -s "${out}" ]]; then
+        echo -e "${COV_GRAY}[page ${page}/${PAGES}] cached ${out}${COV_NC}" >&2
+        continue
+    fi
+
+    # Step 1: set server-side page state.
+    post_body="{\"projectId\":${COVERITY_PROJECT_ID},\"viewId\":${VIEW_ID},\"pageNum\":${page}}"
+    post_http=$(curl -sS -o /dev/null -w '%{http_code}' -X POST \
+        -H "accept: application/json, text/plain, */*" \
+        -H "content-type: application/json" \
+        -H "origin: ${COVERITY_HOST}" \
+        -H "referer: ${COVERITY_HOST}/" \
+        -H "user-agent: ${COVERITY_USER_AGENT}" \
+        -H "x-xsrf-token: ${COVERITY_XSRF}" \
+        -b "${COVERITY_COOKIE}" \
+        --data-raw "${post_body}" \
+        "${COVERITY_HOST}/views/table.json")
+    if [[ "${post_http}" != "200" ]]; then
+        echo -e "${COV_RED}[page ${page}] POST failed HTTP=${post_http}${COV_NC}" >&2
+        exit 2
+    fi
+
+    # Step 2: fetch the now-current page.
+    get_http=$(curl -sS -o "${out}" -w '%{http_code}' \
+        -H "accept: application/json, text/plain, */*" \
+        -H "referer: ${COVERITY_HOST}/" \
+        -H "user-agent: ${COVERITY_USER_AGENT}" \
+        -b "${COVERITY_COOKIE}" \
+        "${COVERITY_HOST}/reports/table.json?projectId=${COVERITY_PROJECT_ID}&viewId=${VIEW_ID}")
+    if [[ "${get_http}" != "200" ]]; then
+        echo -e "${COV_RED}[page ${page}] GET failed HTTP=${get_http}${COV_NC}" >&2
+        rm -f "${out}"
+        exit 3
+    fi
+
+    count=$(jq '.resultSet.results | length' "${out}")
+    total=$(jq '.resultSet.totalCount' "${out}")
+    echo -e "${COV_GRAY}[page ${page}/${PAGES}] fetched ${count} rows (total=${total})${COV_NC}" >&2
+    sleep 0.3
+done
+
+combined="${PREFIX}-all.json"
+jq -s '[.[].resultSet.results[]]' "${PREFIX}"-page*.json > "${combined}"
+echo -e "${COV_GREEN}Combined $(jq 'length' "${combined}") defects into ${combined}${COV_NC}" >&2
