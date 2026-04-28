@@ -304,13 +304,16 @@ async def connect_with_backoff(uri, bearer_token):
                 return_when=asyncio.FIRST_COMPLETED
             )
             
-            # Cancel the pending task
-            for task in pending:
-                task.cancel()
-                try:
-                    await task
-                except asyncio.CancelledError:
-                    pass
+            if pending:
+                # Drain cancelled children without suppressing cancellation of this coroutine.
+                for task in pending:
+                    task.cancel()
+                results = await asyncio.gather(*pending, return_exceptions=True)
+                for result in results:
+                    if isinstance(result, asyncio.CancelledError):
+                        continue
+                    if isinstance(result, BaseException):
+                        raise result
             
             # Ensure WebSocket is closed
             try:
