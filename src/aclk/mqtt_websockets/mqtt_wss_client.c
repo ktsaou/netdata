@@ -437,10 +437,19 @@ int mqtt_wss_connect(
         return -7;
     }
 
-    if (!(client->ssl_flags & MQTT_WSS_SSL_DONT_CHECK_CERTS) &&
-        !X509_VERIFY_PARAM_set1_host(SSL_get0_param(client->ssl), client->target_host, 0)) {
-        nd_log(NDLS_DAEMON, NDLP_ERR, "Error setting TLS hostname verification host");
-        return -7;
+    if (!(client->ssl_flags & MQTT_WSS_SSL_DONT_CHECK_CERTS)) {
+        // target_host may be either a DNS hostname or an IP literal.
+        // X509_VERIFY_PARAM_set1_ip_asc() parses the string as an IP and
+        // matches against the cert's iPAddress SAN; it returns 0 if the
+        // string is not a valid IP. X509_VERIFY_PARAM_set1_host() matches
+        // against the dNSName SAN. Try the IP path first; if the input is
+        // not an IP literal, fall back to hostname matching.
+        X509_VERIFY_PARAM *param = SSL_get0_param(client->ssl);
+        if (!X509_VERIFY_PARAM_set1_ip_asc(param, client->target_host) &&
+            !X509_VERIFY_PARAM_set1_host(param, client->target_host, 0)) {
+            nd_log(NDLS_DAEMON, NDLP_ERR, "Error setting TLS hostname verification host");
+            return -7;
+        }
     }
 
     result = SSL_connect(client->ssl);
