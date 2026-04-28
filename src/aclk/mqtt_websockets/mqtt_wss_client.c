@@ -438,7 +438,7 @@ int mqtt_wss_connect(
     }
 
     if (!(client->ssl_flags & MQTT_WSS_SSL_DONT_CHECK_CERTS) &&
-        !SSL_set1_host(client->ssl, client->target_host)) {
+        !X509_VERIFY_PARAM_set1_host(SSL_get0_param(client->ssl), client->target_host, 0)) {
         nd_log(NDLS_DAEMON, NDLP_ERR, "Error setting TLS hostname verification host");
         return -7;
     }

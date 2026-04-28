@@ -165,6 +165,12 @@ async def connect_with_backoff(uri, bearer_token):
                     retry_event.clear()
                     
                 except asyncio.CancelledError:
+                    # Cancel the in-flight wait/retry tasks so they don't
+                    # outlive this coroutine, then propagate the cancellation
+                    # so the parent reconnect loop can exit cleanly.
+                    wait_task.cancel()
+                    retry_task.cancel()
+                    retry_event.clear()
                     raise
                     
             print(f"{PROGRAM_NAME}: Connecting to {uri}...", file=sys.stderr)
