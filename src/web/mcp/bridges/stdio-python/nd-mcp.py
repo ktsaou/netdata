@@ -165,7 +165,7 @@ async def connect_with_backoff(uri, bearer_token):
                     retry_event.clear()
                     
                 except asyncio.CancelledError:
-                    pass
+                    raise
                     
             print(f"{PROGRAM_NAME}: Connecting to {uri}...", file=sys.stderr)
 
