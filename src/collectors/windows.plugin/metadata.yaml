@@ -881,6 +881,134 @@ modules:
                 - name: connections
   - meta:
       plugin_name: windows.plugin
+      module_name: PerflibSMB
+      monitored_instance:
+        name: SMB Server Shares
+        link: "https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-smb/"
+        categories:
+          - data-collection.storage
+        icon_filename: "windows.svg"
+      related_resources:
+        integrations:
+          list: []
+      info_provided_to_referring_integrations:
+        description: ""
+      keywords:
+        - windows
+        - microsoft
+        - smb
+        - share
+        - file sharing
+    overview:
+      data_collection:
+        metrics_description: |
+          Monitor SMB server share activity and throughput counters on Windows systems.
+        method_description: |
+          It queries the 'SMB Server Shares' object from Perflib in order to gather the metrics.
+      supported_platforms:
+        include: ["windows"]
+        exclude: []
+      multi_instance: false
+      additional_permissions:
+        description: ""
+      default_behavior:
+        auto_detection:
+          description: |
+            This collector is disabled by default. When enabled, it automatically detects all available SMB share instances and metrics.
+        limits:
+          description: ""
+        performance_impact:
+          description: ""
+    setup:
+      prerequisites:
+        list: []
+      configuration:
+        file:
+          name: "netdata.conf"
+          section_name: "[plugin:windows:PerflibSMB]"
+          description: "The Netdata main configuration file"
+        options:
+          description: ""
+          folding:
+            title: "Config option"
+            enabled: false
+          list:
+            - name: update every
+              description: Data collection frequency.
+              default_value: 1
+              required: false
+        examples:
+          folding:
+            enabled: true
+            title: ""
+          list: []
+    troubleshooting:
+      problems:
+        list: []
+    alerts: []
+    metrics:
+      folding:
+        title: Metrics
+        enabled: false
+      description: ""
+      availability: []
+      scopes:
+        - name: SMB Share
+          description: "These metrics refer to SMB shares."
+          labels:
+            - name: share
+              description: SMB share name as exposed by the Windows SMB Server Shares performance object.
+          metrics:
+            - name: smb.server_shares_current_open_file_count
+              description: Current total count of open files on the SMB share.
+              unit: "files"
+              chart_type: line
+              dimensions:
+                - name: open
+            - name: smb.server_shares_tree_connect_count
+              description: Count of user connections to the SMB share.
+              unit: "connections"
+              chart_type: line
+              dimensions:
+                - name: connections
+            - name: smb.server_shares_received_bytes
+              description: Received bytes on the SMB share.
+              unit: "bytes/s"
+              chart_type: line
+              dimensions:
+                - name: received
+            - name: smb.server_shares_write_requests
+              description: Write requests on the SMB share.
+              unit: "requests/s"
+              chart_type: line
+              dimensions:
+                - name: writes
+            - name: smb.server_shares_read_requests
+              description: Read requests on the SMB share.
+              unit: "requests/s"
+              chart_type: line
+              dimensions:
+                - name: reads
+            - name: smb.server_shares_metadata_requests
+              description: Metadata requests on the SMB share.
+              unit: "requests/s"
+              chart_type: line
+              dimensions:
+                - name: metadata
+            - name: smb.server_shares_sent_bytes
+              description: Sent bytes on the SMB share.
+              unit: "bytes/s"
+              chart_type: line
+              dimensions:
+                - name: sent
+            - name: smb.server_shares_files_opened
+              description: Files opened on the SMB share.
+              unit: "files/s"
+              chart_type: line
+              dimensions:
+                - name: opened
+  - meta:
+      plugin_name: windows.plugin
       module_name: PerflibObjects
       monitored_instance:
         name: Semaphore statistics

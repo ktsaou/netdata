@@ -2068,6 +2068,7 @@ set(WINDOWS_PLUGIN_FILES
         src/collectors/windows.plugin/perflib-thermalzone.c
         src/collectors/windows.plugin/perflib-objects.c
         src/collectors/windows.plugin/perflib-network.c
+        src/collectors/windows.plugin/perflib-smb.c
         src/collectors/windows.plugin/perflib-netframework.c
         src/collectors/windows.plugin/perflib-memory.c
         src/collectors/windows.plugin/perflib-processes.c
@@ -2631,6 +2632,7 @@ if(ENABLE_PLUGIN_DEBUGFS)
             src/collectors/debugfs.plugin/module-zswap.c
             src/collectors/debugfs.plugin/module-devices-powercap.c
             src/collectors/debugfs.plugin/module-libsensors.c
+            src/collectors/debugfs.plugin/module-audit.c
     )
 
     # Add executable for debugfs.plugin
