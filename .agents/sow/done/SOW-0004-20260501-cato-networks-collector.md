@@ -1,0 +1,980 @@
+# SOW-0004 - Cato Networks SASE monitoring collector via GraphQL
+
+## Status
+
+Status: completed
+
+Sub-state: completed 2026-05-02 after third pre-prospect hardening pass. Live Cato tenant validation remains tracked separately in SOW-0005.
+
+## Reopened Hardening Pass - External Review Ideas - 2026-05-02
+
+User approved another same-SOW hardening pass after external reviewers were asked for more ways to improve real-tenant readiness and first-failure diagnostics.
+
+Review evidence:
+
+- Raw external review outputs are preserved under `.local/audits/cato-ai-review-20260502-round3/` for local audit only.
+- Claude, GLM, MiniMax, and Qwen returned review bodies. Kimi exited successfully but produced only the reviewer banner, so it provided no actionable evidence.
+- Verified local code evidence:
+  - `normalize.go` silently ignores unknown `accountMetrics` timeseries labels, which can hide Cato API/schema drift.
+  - The SDK-shaped Mockoon account snapshot adapter rewrites every non-`connected` connectivity status to `disconnected`, so the raw SDK fixture path does not prove `degraded` handling.
+  - Events labels depend on exact snake_case field names and `fmt.Sprint` conversion, so field casing drift can collapse useful event counters into `unknown`, while complex values could become noisy labels.
+  - Marker persistence failures are counted, but marker persistence availability remains reported as available after a write failure.
+  - Cato client error classification covers rate limit/auth/decode/timeout but not DNS/network/TLS/proxy classes that prospects are likely to hit on first setup.
+  - BGP polling is intentionally rolling; large accounts need an operator-visible full-scan estimate so missing fresh BGP state is easier to explain.
+
+Approved implementation scope for this pass:
+
+1. Add low-cardinality diagnostics for unknown `accountMetrics` timeseries labels.
+2. Preserve and assert `degraded` status through the raw SDK fixture path.
+3. Accept expected camelCase event field aliases, reject complex event field values, and report missing/empty event field diagnostics.
+4. Report marker persistence as unavailable after marker write failures while keeping the in-memory marker advanced to avoid duplicate event counting within the same running process.
+5. Add network, TLS, and proxy error classes and tests for real client-path timeout behavior.
+6. Add BGP full-scan progress/window metrics and documentation.
+7. Add targeted tests for the above without changing the public chart catalogue beyond diagnostic metrics.
+
+Reviewer claims explicitly not accepted as blockers:
+
+- SDK double retry is not present with the current collector because Netdata passes its own HTTP client to the SDK, and the SDK only installs its retryable client when no HTTP client is provided.
+- Raw provider error leakage is not supported at the collector boundary checked in this SOW; hard discovery/snapshot returns are sanitized by error class.
+- Missing `bgp.refresh_every` validation is not true; validation already requires at least 60 seconds.
+
+## Reopened Hardening Pass - 2026-05-02
+
+User approved fixing the issues found by the second external review round in the same SOW.
+
+Review evidence:
+
+- Raw external review outputs are preserved under `.local/audits/cato-ai-review-20260502-round2/` for local audit only.
+- Cato's public EventsFeed documentation states `fetchedCount` has a maximum of 3000 events per fetch and the marker returned by one response should be used to fetch the next batch when more events remain. The collector currently calls `eventsFeed` once per collection cycle, so large event queues can silently lag.
+- `events_total` currently labels every event by event type, subtype, severity, and status without a cap. Real tenants can create high-cardinality event dimensions.
+- `entityLookup` pagination has no defensive max-page guard and no multi-page unit test.
+- `metrics.time_frame` is only checked for non-empty value; bad values fail late at runtime.
+- `accountMetrics` and `siteBgpStatus` partial failures increment operation failures, but they do not expose an operator-visible affected-site count.
+- Discovery and snapshot hard errors wrap SDK/vendor errors back to the framework; warn logs are sanitized, but returned errors should also avoid raw provider messages.
+- BGP cached state is not pruned when sites disappear from discovery.
+- Topology tables are built from maps without deterministic row order.
+
+Approved implementation scope:
+
+1. Drain `eventsFeed` across pages within one collection cycle, bounded by a conservative page cap.
+2. Add an event cardinality cap and collapse excess event series into an `other` bucket with a low-cardinality diagnostic.
+3. Add low-cardinality affected-site counters for partial metrics/BGP failures.
+4. Sanitize returned collection errors at the collector boundary while keeping raw errors only for internal classification.
+5. Add discovery max-page guard and multi-page test.
+6. Add marker resume and invalid/deprecated marker behavior tests where feasible with the local SDK test server.
+7. Add `metrics.time_frame` validation in code and schema.
+8. Prune stale BGP state for removed sites.
+9. Sort topology interface/device rows deterministically.
+10. Scrub auth header values from test-server failure logs.
+
+Deliberately not included in this pass:
+
+- Live Cato tenant validation remains SOW-0005.
+- Site include/exclude filters remain out of v1 scope because the implementation decision at lines below explicitly removed them from v1 to preserve full-account visibility.
+- BGP negotiated timers/transport and full BGP-state dimensions are useful follow-up ideas, but they change the chart/topology catalogue more than required for this hardening pass.
+
+## Requirements
+
+### Purpose
+
+Provide Netdata Agent users with first-class observability of their Cato Networks SASE deployment: every Cato site (Socket) and its WAN/LAN/tunnel interfaces should appear in Netdata as a monitored entity, so SREs running Netdata in mixed-vendor environments can correlate Cato connectivity quality with the rest of their infrastructure they already monitor through Netdata.
+
+Purpose statement is the implementation target for this SOW. If the purpose changes, the scope and chart catalogue must be reopened before implementation continues.
+
+### User Request
+
+> "In this branch I want to implement monitoring CATO devices via graphql. First create an SOW and let's do the analysis to understand a) how is this done and b) what other open source solutions exist to mirror them."
+
+Two-step expectation:
+
+1. Land an SOW capturing intent, evidence and analysis.
+2. Use that SOW as the basis for design decisions before any implementation.
+
+No code is to be written until decisions in this SOW are recorded.
+
+### Assistant Understanding
+
+Facts verified during the independent verification pass on 2026-05-01:
+
+- Cato Networks runs a single-vendor SASE platform; customer sites connect to the Cato Cloud through hardware/virtual appliances called "Sockets". "Cato devices" in the user's request refers to those Sockets (sites) and their interfaces, not arbitrary endpoints.
+- The vendor exposes a GraphQL API. Official API reference and vendor examples use GraphQL operations including `entityLookup`, `accountSnapshot`, `accountMetrics`, `eventsFeed`, and `siteBgpStatus`; Centreon and Cato toolbox examples use `POST https://api.catonetworks.com/api/v1/graphql2`. Datadog's setup docs also expose regional API prefixes such as `us1`.
+- Authentication is by API token in the request header `x-api-key`; every collector query needs the account identifier as an argument or SDK client field.
+- Vendor-published rate limiting exists per query, per account. The public Cato article lists numeric limits: general API calls `120/minute`, `accountMetrics` `15/minute`, `entityLookup` `30/minute` (`1500/5 hours`), and `eventsFeed` `100/minute`. The same article currently lists `accountSnapshot` as `1/second (30/minute)`, which is internally inconsistent, so the collector must budget conservatively and treat the exact `accountSnapshot` threshold as vendor-documented but ambiguous.
+- Cato's public `eventsFeed` article states event data is retained for the previous three days, markers can point up to three days back, and a 2025-05-26 vendor comment says no marker or an invalid/deprecated marker now returns a marker pointing to the most recent events. Therefore first-run behavior must bootstrap the marker and must not assume a full three-day replay.
+- Official/vendor tooling verified locally: `github.com/catonetworks/cato-go-sdk` (Go SDK with generated typed clients; Apache-2.0; remote tags through `v0.2.5`; `main` at `94633c4308a0e6f07c94584cb64b8d57303f9631`) and `github.com/catonetworks/cato-toolbox` (Python EventsFeed reference). Other vendor tools must not be cited in implementation evidence until checked locally.
+- Reference open-source integrations exist (mirrored locally under `/opt/baddisk/monitoring/repos/`):
+  - Centreon `centreon-plugins` ships a Perl plugin `network::security::cato::networks::api` with modes `discovery`, `connectivity`, `events`, `query`. It is the closest functional analogue to a Netdata polling collector and uses the queries listed below directly.
+    Path: `centreon/centreon-plugins/src/network/security/cato/networks/api/`
+  - Datadog `integrations-core/cato_networks` ingests audit logs and events only. Its docs use API key/account/region setup for audit logs and an S3 forwarder for events; it does not document real-time metrics collection through GraphQL.
+    Path: `datadog/integrations-core/cato_networks/`
+  - Sumologic ships a cloud-to-cloud "Cato Networks" source for log ingestion.
+    Path: `sumologic/sumologic-documentation/docs/send-data/hosted-collectors/cloud-to-cloud-integration-framework/cato-networks-source.md`
+  - No local mirrored Zenoss `PS.CatoNetworks` source was found; the earlier Zenoss claim is not verified and is removed as implementation evidence.
+- The Netdata `go.d.plugin` tree contains 132 collector directories. Searches found no existing Cato collector, no GraphQL-based go.d collector, and no direct SASE/SD-WAN vendor collector for Cato, Cloudflare Zero Trust, Zscaler, Netskope, Palo Alto Prisma, Fortinet, Cisco SD-WAN, Aryaka, or Versa. This collector breaks new ground in Netdata for both protocol family (GraphQL) and vendor category (SASE).
+
+Inferences (reasoned, not directly stated):
+
+- The closest existing Netdata pattern to mirror is `src/go/plugin/go.d/collector/azure_monitor`: cloud-API polling, periodic discovery of resources, time-series collection per resource. The Cato collector should be a much simpler version of that pattern — one provider, fewer dimensions, predictable schema.
+- Datadog and Sumo Logic focus this integration category on logs/events, while Centreon focuses on operational status and link-quality checks. For Netdata, the correct fit is metric-shaped state, throughput, loss, latency, BGP status, and derived event counters; not raw log/event shipping.
+- The baseline GraphQL surface is `entityLookup`, `accountSnapshot`, `accountMetrics`, and `eventsFeed`, plus `siteBgpStatus` for BGP. `socketPortMetrics` and other schema areas are candidates only if the verified chart catalogue needs fields not available from the baseline queries.
+- The vendor-published per-operation limits and `accountMetrics` bucket model make sub-minute defaults unsafe. Polling should be minute-grain by default, with discovery, BGP, topology, and EventsFeed cadences budgeted separately.
+
+Known remaining unknowns that require implementation-time or tenant-backed validation:
+
+- Real tenant payload shape for optional fields: interface metadata, PoP names, ISP/carrier names, event field names, and BGP peer details.
+- Whether `siteBgpStatus` is efficient enough for large accounts. The API appears site-scoped, so BGP polling must be decoupled and rate-budgeted.
+- Whether the SDK's default retry detector is sufficient. Its current source retries lowercase `ratelimit`, `rate-limit`, and `rate limit` patterns; the vendor article uses capitalized wording in some examples, so the collector should add its own case-insensitive detection.
+- Dashboard behavior for the standalone `topology:cato_networks` function with hub-and-spoke SASE layouts. The shared topology contract exists, but this exact topology shape needs an end-to-end smoke test.
+
+### Acceptance Criteria
+
+Minimum bar for closing this SOW:
+
+- The collector compiles into `go.d.plugin` and passes `go vet` and the standard go.d unit-test pattern (`go test ./...` for the package).
+- A `metadata.yaml`, `config_schema.json`, stock `cato_networks.conf`, `health.d/` alerts, and `README.md` ship together and stay consistent (per project rule on collector consistency).
+- Fixture-backed tests cover `entityLookup`, `accountSnapshot`, batched `accountMetrics`, `eventsFeed` marker handling, BGP status, partial failures, and rate-limit retry behavior.
+- Real-account smoke test against a Cato tenant, or a documented reason the tenant test could not be run, produces non-empty per-site charts for at least connectivity status and one interface throughput dimension.
+- Standalone topology smoke test verifies that `topology:cato_networks` returns valid `src/go/pkg/topology` JSON with presentation metadata.
+- Authentication failure, rate-limit, marker loss, BGP partial failure, and partial-account errors degrade gracefully (do not crash the agent, do not spam logs, do back off).
+- No customer names or customer-specific behavior are introduced by this SOW/collector work (memory: public repo work is vendor-focused).
+- Documentation update path is recorded for `metadata.yaml` -> integrations docs regeneration.
+
+## Analysis
+
+Sources checked:
+
+- `AGENTS.md`, `CLAUDE.md` (project rules, SOW framework)
+- `.agents/sow/SOW.template.md`
+- `.agents/sow/current/SOW-0004-20260501-cato-networks-collector.md` (this SOW)
+- `.agents/sow/` inventory (no overlapping pending/current SOWs found)
+- `.agents/skills/` inventory (only legacy audit/review skills; none match this collector work)
+- `src/go/plugin/go.d/collector/` (132 collector directories; closest patterns: `azure_monitor`, `prometheus`, `dockerhub`)
+- `src/go/plugin/framework/collectorapi/collector.go` (V2 collector contract)
+- `src/go/plugin/go.d/collector/azure_monitor/{collector.go,config.go,metadata.yaml,query_executor.go}` (V2 cloud-API polling pattern, SDK-backed API client, discovery/query split, concurrency limit)
+- `src/go/pkg/topology/types.go`, `src/go/plugin/go.d/collector/snmp_topology/func_topology*.go`, `src/collectors/network-viewer.plugin/network-viewer.c` (topology contract and shipped topology emitters)
+- Centreon `centreon-plugins` mirrored repo: Cato plugin source and Mockoon fixtures (4 modes + custom API client; exact GraphQL queries, exact metric labels, retry pattern, event pagination)
+- Datadog `integrations-core/cato_networks` mirrored repo (manifest and README; confirms logs-only Cato integration surface)
+- Sumo Logic hosted collector documentation mirrored repo (confirms cloud-to-cloud security/audit event ingestion, not live metrics)
+- Official Cato docs (web): API reference, "Understanding Cato API Rate Limiting", "Cato API - EventsFeed (Large Scale Event Monitoring)", "Cato API AccountMetrics"
+- Vendor open-source cloned to `/tmp/`: `cato-go-sdk` and `cato-toolbox`
+
+Current state:
+
+- Branch `cato` is at `6dbeeeb47c` (`Merge remote-tracking branch 'upstream/master'`). Working tree is not clean because this active SOW is currently untracked/modified; no collector implementation files exist yet.
+- No existing Netdata collector polls a vendor cloud GraphQL API. The pattern is novel for go.d.plugin, but vendor SDK use is not novel because `azure_monitor` uses the Azure SDK.
+- Centreon's reference implementation:
+  - Endpoint default `api.catonetworks.com:443/api/v1/graphql2`, header `x-api-key`, configurable hostname (regional prefixes), retry on rate limit (5 attempts, 5s delay).
+  - Query `entityLookup(accountID, type: site, from, search, entityIDs)` — paginated site discovery with native search (default 50 per page).
+  - Query `accountSnapshot(accountID) { sites(siteIDs:[…]) { id, info{ name, description }, connectivityStatus, operationalStatus, lastConnected, connectedSince, popName } }` — current connectivity snapshot.
+  - Query `accountMetrics(accountID, timeFrame, groupInterfaces:true) { from, to, sites { id, interfaces { name, timeseries(labels:[…] buckets:N) { label, units, data } } } }` — bucketed time-series per site/interface.
+  - Available timeseries labels: `bytesUpstreamMax`, `bytesDownstreamMax`, `lostUpstreamPcnt`, `lostDownstreamPcnt`, `packetsDiscardedDownstream`, `packetsDiscardedUpstream`, `jitterUpstream`, `jitterDownstream`, `lastMilePacketLoss`, `lastMileLatency`.
+  - Query `eventsFeed(accountIDs, filters, marker) { marker, fetchedCount, accounts { id, errorString, records(fieldNames:[…]){ time, fieldsMap } } }` — marker-based long-poll for events; vendor 3-day retention.
+- Cato vendor publishes a code-generated Go SDK (`cato-go-sdk`) with typed methods including `AccountMetrics`, `AccountSnapshot`, `EntityLookup`, `EventsFeed`, `Site`, and `SiteBgpStatus`.
+- The Cato SDK schema confirms BGP type coverage (`BGPConnection`, `BgpPeer`, `BgpPeerListPayload`, `BgpTracking`, `SiteBgpStatus`, `BgpDetailedStatus`, `BgpSummaryRoute`). `siteBgpStatus` is documented as Beta in the official API reference, so this surface has higher drift risk than the baseline metric queries.
+- The approved SDK tag `github.com/catonetworks/cato-go-sdk@v0.2.5` declares `go 1.23.1`, compiles in Netdata's `src/go` module, and does not force a Netdata Go directive bump. SDK `main` resolves to pseudo-version `v0.2.6-0.20260423133609-94633c4308a0`, declares `go 1.25.8`, and is not used.
+- Remote tags for `github.com/catonetworks/cato-go-sdk` were verified through `v0.2.5`; no released `v0.2.6` tag was present at verification time on 2026-05-01.
+
+Risks:
+
+- **Rate limits** (user asked for the why; separated by verified evidence vs. design conservatism):
+
+  Verified evidence (from public vendor sources and the Centreon reference implementation):
+
+  - Cato applies rate limits **per query, per account**, with a counter shared across API keys for the same account/query. Source: public Cato support article "Understanding Cato API Rate Limiting".
+  - Cato publishes numeric thresholds. The current public article lists general API calls at `120/minute`, `accountMetrics` at `15/minute`, `entityLookup` at `30/minute (1500/5 hours)`, and `eventsFeed` at `100/minute`. It lists `accountSnapshot` as `1/second (30/minute)`, which is internally inconsistent; use conservative budgeting until a real account verifies behavior.
+  - The vendor's public article states Cato's GitHub examples handle rate limiting by waiting five seconds before retrying. Centreon's plugin detects rate-limit errors and applies longer backoff.
+  - Centreon's reference plugin defaults to **5 retries with 5s back-off** specifically for rate-limit errors, and **1s back-off** for other transient failures. That is the only public, real-deployment retry policy I could find against this API. Source: same `custom/api.pm` lines 106–138.
+  - Cato's `accountMetrics` is bucketed time-series — the API is designed to be queried with a `timeFrame` like `last.PT5M` or `last.PT1H` and N buckets, not as a per-second sampler. Source: official API reference and Centreon fixture.
+  - `eventsFeed` uses a **marker** model intended for periodic polling, with near-real-time updates and 3-day retention. Source: public Cato EventsFeed article.
+
+  What remains uncertain:
+
+  - Payload-size limits, concurrency behavior, response headers, and the exact effective `accountSnapshot` threshold need a real-account smoke test.
+  - Published limits are "guaranteed minimums", not hard ceilings. The collector must still respect them because other account users and integrations share the same per-account/query budget.
+
+  Why this forces a higher `update_every` than Netdata's typical 1s/5s default:
+
+  1. **Per-query counters**: discovery, metrics, event, and BGP calls all consume per-query budget. `accountMetrics` can and should be batched across site IDs; BGP appears site-scoped and can become the limiting query for large accounts.
+  2. **Bucketed metrics**: `accountMetrics` returns N buckets across `timeFrame`. Polling sub-minute pulls the same bucket repeatedly; the collector would produce duplicate samples and waste rate-limit budget.
+  3. **Shared account counter**: any other tool consuming the same Cato account (vendor management UI, third-party integrations, customer scripts) shares the same per-account budget. Aggressive Netdata polling can starve those.
+  4. **Cost of being wrong**: tripping the limit means `accountMetrics` returns the rate-limit error, the collector retries with backoff, and during that window data is missing — so an over-aggressive default produces *worse* observability, not better.
+
+  Mitigations the collector will ship with:
+
+  - Default `update_every: 60`; documented `accountMetrics` `timeFrame: last.PT5M`, `buckets: 5` so a missed poll has fallback data.
+  - Batch `accountMetrics` by site IDs instead of making one metrics call per discovered site.
+  - Decouple BGP polling from metric polling, enforce an operation budget, and spread site-scoped BGP calls across cycles for large accounts.
+  - Centreon-aligned retry policy: detect rate-limit messages case-insensitively, retry up to 5 attempts with a 5s initial backoff capped at 30s.
+  - Track rate-limit retries as an internal Netdata metric so operators can see when they are bumping the ceiling.
+  - Discovery refresh decoupled from collection cadence (default 5 min) so site-list churn does not eat metric-poll budget.
+  - Reject `update_every` values below 60s during config validation because the Cato API is not designed for high-frequency polling.
+
+- **API drift**: GraphQL schemas evolve. Hand-typed query strings can break silently when fields are deprecated. Using `cato-go-sdk` (Decision 2.B) turns many drift cases into compile-time failures, but Beta surfaces such as `siteBgpStatus` may still require runtime fallback.
+- **SDK dependency and build compatibility**: checked 2026-05-01. `github.com/catonetworks/cato-go-sdk@v0.2.5` declares `go 1.23.1`, resolves inside Netdata's `src/go` module, compiles a smoke package using the required methods, and does not force a Netdata Go directive bump. SDK `main` resolves to pseudo-version `v0.2.6-0.20260423133609-94633c4308a0`, declares `go 1.25.8`, forces Netdata's `go.mod` from `go 1.25.7` to `go 1.25.8`, and adds extra HashiCorp/Terraform logging dependencies; do not use SDK `main` for this SOW.
+- **SDK retry behavior**: the SDK retries HTTP 429 and some rate-limit error strings, but the string matching observed in source is case-sensitive. The collector should not rely blindly on SDK defaults; add collector-level case-insensitive classification around GraphQL errors.
+- **EventsFeed marker semantics**: older vendor docs/examples say `marker:""` fetches queued events; the 2025 vendor comment says no marker/invalid marker returns a marker pointing to most recent events. Implementation must follow current behavior: first run bootstraps marker, persistent marker drives incremental reads, and no full backfill guarantee is promised.
+- **BGP scale and Beta status**: BGP is in v1 scope, but `siteBgpStatus` is Beta and appears site-scoped. Large tenants may require slow, rolling BGP polling to stay inside rate limits.
+- **Auth secret handling**: API key is highly sensitive and may grant broad account read access depending on Cato Service API Key permissions. Must be carried through `pkg/web` auth/options without logging in plain text and never leak in error strings.
+- **Multi-region endpoints**: Customers in different Cato regions need different hostnames. Misconfigured endpoint -> 404 with confusing error.
+- **Bucket alignment**: `accountMetrics` returns N buckets across `timeFrame`; mapping those buckets back into Netdata's per-poll model needs care to avoid duplicate or missing samples on each poll.
+- **Schema scope creep**: Cato's GraphQL schema is large. Without a tight chart catalogue, the collector grows into a half-built API explorer. Decision #1 limits v1 to sites, interfaces, events-as-counters, BGP, and standalone topology.
+- **Vendor neutrality**: Public repo rule — no customer names, no customer-specific behavior. Even when the motivation is a specific deployment, the docs/specs/code must read as a generic vendor integration.
+- **Documentation pipeline**: `metadata.yaml` feeds the public integrations site. A poorly-described first version becomes the canonical public face of the integration; needs care.
+- **Topology overlap**: standalone Cato topology can ship through the shared topology function contract. Cross-source overlay with SNMP/network-viewer/NetFlow remains out of scope because the unified overlay roadmap is not shipped on this branch.
+
+## Pre-Implementation Gate
+
+Status: verified-ready-for-implementation
+
+Problem / root-cause model:
+
+- There is no Netdata coverage of Cato Networks SASE today. Netdata users running Cato cannot see site/socket connectivity, link quality, or per-interface throughput in Netdata. The Cato vendor exposes the required monitoring data through its GraphQL API. Adding a `go.d.plugin` collector that polls that API closes the visibility gap.
+
+Evidence reviewed:
+
+- Listed in `## Analysis` above. Centreon's Perl reference and fixtures, official Cato API docs, Cato Go SDK/toolbox source, Datadog/Sumo logs-only integrations, Netdata V2 collector examples, and the topology contract collectively establish enough ground truth to scope implementation.
+- Discrepancies from the earlier analysis were verified and corrected: collector count is 132, the working tree is not clean because the active SOW is untracked/modified, numeric public rate limits are available, `eventsFeed` first-run behavior changed in 2025, Zenoss source was not locally verified, and `accountMetrics` should be batched rather than called once per site.
+
+Affected contracts and surfaces:
+
+- `src/go/plugin/go.d/collector/<module>/` (new directory)
+- `src/go/plugin/go.d/config/go.d/<module>.conf` (stock config)
+- `src/go/plugin/go.d/config/go.d.conf` (module enable list)
+- `src/go/plugin/go.d/collector/init.go` (registry)
+- `src/health/health.d/<module>.conf` (alert definitions, if alerts ship)
+- `src/go/plugin/go.d/collector/<module>/{metadata.yaml,config_schema.json,README.md,integrations/}` (per project rule: must be in sync)
+- Public integrations site (regenerated from `metadata.yaml`)
+- Possibly `src/go/plugin/go.d/pkg/web` if a thin GraphQL POST helper is added (versus duplicated per-collector)
+- `go.mod`/`go.sum` if `cato-go-sdk` is adopted
+
+Existing patterns to reuse:
+
+- `azure_monitor` for: V2 collector layout, discovery+query split, query executor, SDK-backed API client, retry/timeout, and chart-template YAML.
+- `prometheus` collector for: simple HTTP+token client style (header auth, JSON unmarshal).
+- `dockerhub` collector for: minimal API-token pattern with light surface.
+- `pkg/web` `*Client` helper for HTTP timeouts/headers/proxy; matches existing collector idioms.
+- `snmp_topology` for: topology method config, presentation schema, function handler split.
+- Project rule "Collector Consistency Requirements" for the file-set that must ship together.
+
+Risk and blast radius:
+
+- New module isolated under its own directory; build risk is local.
+- Adding a third-party dependency (`cato-go-sdk`) will touch `go.mod`/`go.sum`, requires Go toolchain/dependency review, and may require adaptation if the SDK's `go 1.25.8` declaration is incompatible with this repo's build matrix.
+- No changes to other collectors. No changes to the C side.
+- Only blast radius for users who configure the collector — default `enabled: no` keeps it inert until opted in (matching most go.d collectors that need credentials).
+- Topology function is standalone under `topology:cato_networks`; it does not alter SNMP/network-viewer/NetFlow topology behavior.
+
+Implementation plan:
+
+Finalized at the SOW level in `## Plan`. The implementation must preserve these corrected design points: use V2 `collectorapi.CollectorV2`, use a tagged `cato-go-sdk` release if dependency review passes, batch `accountMetrics`, decouple BGP polling, persist EventsFeed markers, and emit standalone topology only.
+
+Validation plan:
+
+Test fixtures available (verified 2026-05-01):
+
+- **Centreon Mockoon fixture** at `/opt/baddisk/monitoring/repos/centreon/centreon-plugins/tests/network/security/cato/networks/api/cato-api.json` (489 lines) covers `entityLookup` (3 sites + `search` and `entityIDs` filter variants), `accountSnapshot` (full + site-filtered), `accountMetrics` (all 10 timeseries labels we use × 10 buckets, plus a jitter-only variant), and `eventsFeed`. Adapt the response bodies into `testdata/` under the new collector; this is the entityLookup/accountSnapshot/accountMetrics/eventsFeed unit-test base.
+- **`cato-go-sdk/cato_api.graphqls`** (17 663 lines, current schema, cloned to `/tmp/cato-go-sdk` on 2026-05-01) confirms BGP type coverage: `BGPConnection`, `BgpPeer`, `BgpPeerListPayload`, `BgpTracking`, `SiteBgpStatus`, `BgpDetailedStatus`, `BgpSummaryRoute`. Use these typed models to hand-craft BGP fixture responses since Centreon does not exercise BGP.
+- **`cato-go-sdk/archives/`** — 11 historical schema files (Nov 2024 -> Nov 2025) are useful for manual schema-drift review when bumping the SDK; they are not, by themselves, a fixture decoder.
+- **`cato-go-sdk/examples/api-rate-limit/main.go`** — vendor's rate-limit hammering example. Reference for retry/backoff intent, not a production-quality collector pattern.
+- **`cato-go-sdk/examples/get-site-bgp-status/`, `list-acct-snap/`, `entity-lookup-site/`, `list-eventsfeed-index/`, `list-event-feed/`, `site-lookup/`** — query references. The current `list-event-feed` example has an early `return` before its polling loop, so use it as source material only after reading the code path.
+- **`cato-toolbox/eventsfeed/eventsFeed.py`** — vendor Python reference for marker persistence and pagination. Its older empty-marker comments conflict with the 2025 public EventsFeed article update; prefer the current article for first-run semantics.
+
+Test pass plan:
+
+- Unit tests with `httptest.Server` returning canned responses adapted from the Centreon fixture and SDK-typed BGP fixtures, mirroring `azure_monitor/collector_test.go` style.
+- SDK compatibility test: compile against the pinned SDK version and decode canned GraphQL responses through the collector's internal DTOs/interfaces; SDK bumps must include schema diff review.
+- Rate-limit retry test: stub HTTP 429 and GraphQL error payloads with mixed-case rate-limit text; assert retry count, backoff classification, and that the internal retry-counter metric increments.
+- EventsFeed marker tests: first run with no stored marker bootstraps marker without promising backfill; subsequent runs use the stored marker and advance it; invalid/deprecated marker behavior is handled without replay loops.
+- AccountMetrics batching test: multiple discovered sites are queried through batched `siteIDs`, not one API call per site.
+- BGP scheduler test: site-scoped BGP calls are spread across cycles when site count exceeds configured operation budget.
+- Real-tenant smoke test against a user-provided Cato account or vendor sandbox; sanitize and add captured responses to `testdata/` when allowed.
+- Topology snapshot test: build a fixture-driven topology, marshal through `src/go/pkg/topology` types, assert JSON shape against the `snmp_topology` test patterns.
+- Doc-generation pipeline runs cleanly against new `metadata.yaml` (confirm exact build command before close).
+
+Repos cloned for analysis on 2026-05-01: `/tmp/cato-go-sdk`, `/tmp/cato-toolbox`. Not committed; consider mirroring under `/opt/baddisk/monitoring/repos/` for permanence if work continues over multiple sessions.
+
+Artifact impact plan:
+
+- AGENTS.md: likely no update needed; collector falls under existing "Collector Consistency Requirements" rule.
+- Runtime project skills: likely no update needed.
+- Specs: a new spec under `.agents/sow/specs/cato-networks-collector.md` capturing the durable contract (endpoint, queries, mapping to charts) is appropriate at completion.
+- End-user/operator docs: collector `README.md`, regenerated integrations page, stock conf, schema, alerts file — all required by collector-consistency rule.
+- End-user/operator skills: none currently affected; check `.agents/skills/` and `docs/netdata-ai/skills/` at SOW close.
+- SOW lifecycle: keep this single SOW; do not split unless events/log ingestion is added (then events become a separate SOW).
+
+Open decisions:
+
+- None currently pending. Recorded decisions remain below for auditability. New evidence may reopen a decision only if it changes the risk model.
+
+## Implications And Decisions
+
+User decisions recorded 2026-05-01. Each decision section ends with **Decision:** and the chosen option.
+
+### 1) Scope: what data does the collector surface?
+
+Background: the Cato GraphQL API exposes connectivity status, per-interface throughput/loss/jitter timeseries, security/system events, audit logs, configured policies, BGP, XDR stories, SDP user sessions and more. Netdata is a metrics platform; events/logs are a different pipeline.
+
+Options:
+
+- 1.A — **Connectivity + per-interface time-series only** (sites, status, throughput up/down, packet loss %, jitter, last-mile latency/loss). Polled via `entityLookup` + `accountSnapshot` + `accountMetrics`.
+  Pros: matches Netdata's metric model exactly; small surface; no firehose; mirrors what Centreon's `connectivity` mode does.
+  Cons: ignores Cato events that have operational signal (link flaps, security blocks).
+  Risk: low.
+
+- 1.B — **Connectivity + interface metrics + selected events as derived counters** (e.g. count by event_type/sub_type from `eventsFeed`, marker-tracked).
+  Pros: still metric-shaped; captures notable operational events as rate-of-events charts.
+  Cons: marker state needs to persist between collector runs; event-feed retention is 3 days, so first poll after a long downtime can be lossy.
+  Risk: medium — state file/storage convention in go.d collectors needs verification.
+
+- 1.C — **Full SASE coverage** — also surface SDP user sessions, BGP peering, security policy hits.
+  Pros: comprehensive.
+  Cons: large schema surface; more rate-limit pressure; longer build; bigger maintenance cost.
+  Risk: high — unbounded scope.
+
+Recommendation: **1.A** for v1. Raw event/log ingestion (1.B) is rejected for this collector SOW because Netdata metrics collection and log ingestion are different pipelines; create a separate SOW only if the user explicitly requests a Cato log/event ingestion pipeline later.
+
+**Decision: maximum coverage — sites + interfaces + events + BGP**, scoped to what the GraphQL API exposes. Concretely v1 will surface:
+
+- Per-site connectivity status (`accountSnapshot` connectivityStatus / operationalStatus / popName / lastConnected / connectedSince).
+- Per-site, per-interface bucketed metrics (`accountMetrics`): bytesUpstreamMax, bytesDownstreamMax, lostUpstreamPcnt, lostDownstreamPcnt, packetsDiscardedDownstream, packetsDiscardedUpstream, jitterUpstream, jitterDownstream, lastMilePacketLoss, lastMileLatency, plus any vendor-published TimeseriesKey we can map cleanly. Use `groupInterfaces:false` so each physical/logical interface keeps its own series; do not invent LAN/WAN/Tunnel/Bypass/Off-Cloud labels unless verified payload fields expose them.
+- Events feed (`eventsFeed`) shaped as metrics: rate of events per type/sub-type, rate of denied/blocked events, rate per site where event fields expose site identity, marker persisted between collections. Events themselves are NOT logged into Netdata — only their counts/rates as time-series. First run bootstraps a marker and does not promise historical replay.
+- BGP per-site metrics from `siteBgpStatus`: peer/session state where exposed, BFD session state where exposed, route counts from peer/to peer, rejected route counts, and raw/detailed status counters. Session uptime and last state change are not in the verified field set and must not be charted unless a real schema/payload proves them.
+
+Out of scope for v1 (explicitly rejected for this collector SOW unless the user requests separate work later):
+
+- Cato Client (SDP user) sessions.
+- Security policy rule hit counts beyond what comes through `eventsFeed`.
+- XDR stories.
+- Configuration management surfaces (writes are explicitly out of scope; the collector is read-only).
+
+Risk: BGP and full event-counter coverage push schema surface beyond what the Centreon Perl reference uses. `siteBgpStatus` is verified in the SDK/API reference but is Beta, so BGP chart families need runtime fallback and conservative polling.
+
+### 2) Implementation style: hand-written GraphQL or `cato-go-sdk`?
+
+Background: many `go.d.plugin` collectors use raw `pkg/web` HTTP + JSON, but SDK-backed collectors already exist (`azure_monitor` uses Azure SDK packages). Cato publishes a generated Go SDK (`github.com/catonetworks/cato-go-sdk`) with typed bindings.
+
+Options:
+
+- 2.A — **Hand-written GraphQL POST + JSON unmarshal**, matching the go.d.plugin idiom. Use a tiny per-collector helper that wraps `pkg/web.HTTPClient` and posts `{"query":"…","variables":{…}}`.
+  Pros: zero new dependency; consistent style; small attack surface; predictable build.
+  Cons: silent breakage on schema deprecation; we type the response shapes by hand.
+  Risk: low.
+
+- 2.B — **Adopt `cato-go-sdk`**.
+  Pros: typed; schema drift becomes a compile error; vendor maintains it.
+  Cons: large dependency tree; transitive licensing review; SDK bumps need our PR cadence; generated API surface is much larger than the collector needs.
+  Risk: medium — dependency/toolchain compatibility and SDK retry behavior need review.
+
+Recommendation: **2.A**. If the schema turns out to drift faster than tolerable, revisit by introducing a minimal generated-types layer (e.g. genqlient) just for the four queries we use, without taking the full vendor SDK.
+
+**Decision: 2.B — adopt `github.com/catonetworks/cato-go-sdk`.** The wider scope decided in #1 (BGP, full event/interface coverage) makes the typed-bindings safety net worth the new dependency. Schema drift in any of those areas will surface as a build failure rather than a silent runtime regression.
+
+Implementation notes flowing from this:
+
+- Add `github.com/catonetworks/cato-go-sdk` to `go.mod`; pin to a tagged release, not `main`.
+- Latest verified remote tag as of 2026-05-01 is `v0.2.5`; use that tag unless a newer tag is explicitly rechecked and proven compatible. Do not use SDK `main`/pseudo-version.
+- The SDK is auto-generated against `cato_api.graphqls`; before bumping the SDK version, diff the schema and update charts/contexts.
+- Wrap the SDK's HTTP client in `pkg/web` so we get the standard go.d timeout/proxy/TLS-options surface, instead of exposing the SDK's raw `http.Client` to operators.
+- Keep all SDK calls behind a small internal interface so unit tests can stub them with canned responses.
+- Add collector-level case-insensitive rate-limit classification; do not rely only on the SDK's current string matching.
+Verification performed 2026-05-01:
+
+- Temporary Netdata-module copy plus smoke package compiled against `github.com/catonetworks/cato-go-sdk@v0.2.5`.
+- Verified required methods/types compile: `EntityLookup`, `AccountSnapshot`, `AccountMetrics`, `EventsFeed`, `SiteBgpStatus`, `EntityTypeSite`, `TimeseriesMetricTypeBytesUpstreamMax`, `EventFieldNameEventID`, `SiteBgpStatusInput`.
+- Dependency delta in the temp Netdata module for `v0.2.5`: 7 added `go.mod` entries and 14 added `go.sum` entries; no existing dependency upgrades observed in that check.
+- `govulncheck` on the smoke package reported no vulnerabilities.
+- License note: SDK is Apache-2.0. Added runtime deps include MIT-licensed `gqlgen`, `gqlgenc`, `duration`, `gqlparser`, and MPL-2.0 HashiCorp `go-cleanhttp`/`go-retryablehttp`; MPL-2.0 deps need normal repository license review before merge.
+
+### 3) Configuration model: one job multi-account, or one job per account?
+
+Background: Cato API keys are scoped to an account. Multi-tenant Cato customers (MSPs) may have many accounts.
+
+Options:
+
+- 3.A — **One job per account** (each job has one `account_id` + one `api_key`).
+  Pros: simplest; matches go.d.plugin "one job per target" idiom; clear blast radius.
+  Cons: MSP with N accounts needs N job entries.
+
+- 3.B — **One job, list of accounts**.
+  Pros: less config for MSPs.
+  Cons: heterogeneous failure handling; needs per-account error reporting; more complex collect loop.
+
+Recommendation: **3.A**. MSPs can use a config file with N entries; an account fan-out layer is rejected for this collector SOW because it would complicate rate-limit handling and secret scope without changing the go.d runtime's existing multi-job capability.
+
+**Decision: 3.A — one job = one Cato account.** The go.d.plugin runtime already supports running many independent jobs per module (each YAML entry under `jobs:` becomes its own job), so MSPs configure one entry per account. The collector itself stays single-account, single-key — simplest internal model, predictable per-account error handling, and matches every other go.d collector.
+
+### 4) Site discovery: auto-discover or explicit list?
+
+Background: `entityLookup(type: site)` paginates all sites; `accountSnapshot` and `accountMetrics` accept an optional `siteIDs:[…]` filter.
+
+Options:
+
+- 4.A — **Auto-discover all sites, refresh every N minutes**, optionally filter by name (regex) and/or by allowlist/denylist of site IDs. Mirrors `azure_monitor`'s discovery pattern.
+  Pros: zero-config on the customer side; new sites picked up automatically.
+  Cons: large accounts pay rate-limit cost on each refresh.
+
+- 4.B — **Explicit site list** in config; no discovery.
+  Pros: simplest, fewest API calls.
+  Cons: ops burden; new sites are invisible until config edit.
+
+Recommendation: **4.A** with a configurable discovery interval (default 5 min) and optional include/exclude patterns, modelled on `azure_monitor.Discovery`.
+
+**Decision: 4.A — auto-discover.** Default discovery refresh 5 minutes (configurable). Optional include/exclude patterns on site name and on site ID. New sites are picked up automatically, deleted sites are obsoleted from charts after the standard go.d obsoletion grace.
+
+### 5) Topology integration?
+
+Background: the repository already has shared topology contracts and shipped topology emitters for SNMP and network connections. Cato sites/sockets/PoPs are natural topology nodes.
+
+Options:
+
+- 5.A — **Out of scope for this SOW**. Ship metrics only; topology integration is a follow-up SOW.
+- 5.B — **Standalone topology in scope**. Emit `topology:cato_networks` from the same collector using the existing topology function contract.
+- 5.C — **Cross-source overlay in scope**. Blend Cato topology with SNMP/network-viewer/NetFlow topology in one map.
+
+Recommendation after verification: **5.B**. The shared topology function contract already exists, so standalone Cato topology is a bounded collector task. 5.C remains out of scope because cross-source overlay support is not shipped on this branch.
+
+**Decision (revised 2026-05-01): topology IS in scope for v1.** The agent-side topology contract already exists on master. Adding a `topology:cato_networks` function from the same collector is internal plugin wiring. Therefore v1 ships with a standalone topology emitter, and the previously-planned follow-up SOW collapses into this one.
+
+What is verified about the existing contract:
+
+- Stable types in `src/go/pkg/topology/types.go`: `Actor` (node), `Link` (edge), `Presentation*` (self-describing render schema). Each Actor has `ActorID`, `ActorType`, `Layer`, `Source` and free-form `Attributes`/`Tables`. Each Link has `Layer`, `Protocol`, `LinkType`, `Src`/`Dst`, `Metrics`.
+- Function method ID format: `topology:<source>`. The Cato emitter will be `topology:cato_networks`.
+- Dashboard topology responses carry their own `Presentation*` schema. Reference implementation: `src/go/plugin/go.d/collector/snmp_topology/func_topology_*.go` (topology cache + presentation schema + function handler split, scaled down).
+- Already shipped emitters on master: `topology:snmp` (snmp_topology) and `topology:network-connections` (network-viewer.plugin).
+
+What is verified about the limitations:
+
+- **Overlaid rendering (Cato + SNMP + network-viewer on the same map) is NOT shipped.** The unified schema/overlay roadmap is separate from this collector. Until that lands, Cato topology will be a standalone view accessed via `topology:cato_networks`, not blended with other sources.
+- The existing presentation primitives (`PresentationActorType`, `PresentationLinkType`, `PresentationPortType`) cover device-style nodes and physical/logical links well. Cato cloud PoPs are vendor-managed nodes — they fit the Actor model fine but may want a distinct icon/colour slot.
+- Risk: if the dashboard's generic topology renderer makes assumptions specific to SNMP L2 (e.g. peer-to-peer mesh layout) that do not suit hub-and-spoke layouts, we may discover gaps only on first end-to-end test. Mitigation: smoke-test against the dashboard early.
+
+Topology model for v1 (payload fields still need real-tenant validation before locking labels):
+
+- **Nodes**:
+  - Site (Cato Socket) — `id`, `name`, `description`, `connectivityStatus`, `operationalStatus`, geographic location if exposed.
+  - PoP (Cato cloud entry point) — `popName` from `accountSnapshot`; PoPs are vendor-managed cloud nodes, not customer devices.
+  - BGP peer — neighbours configured on a site.
+  - Last-mile ISP (where vendor exposes ISP/carrier name on a WAN interface).
+- **Edges (Links)**:
+  - Site → PoP tunnel (primary + backup PoP per site if exposed; carries throughput, jitter, packet loss from `accountMetrics` in the `Metrics` map).
+  - Site → BGP peer (carries session state, prefix counts in the `Metrics` map).
+  - WAN interface → ISP (last-mile metrics: `lastMilePacketLoss`, `lastMileLatency`).
+  - Site-to-site logical mesh through Cato Cloud — include only if exposed by already-required responses without extra rate-limit cost.
+
+Implementation hooks:
+
+- Topology data lives in the same `cato_networks` collector module — no sibling module — emitted through a separate `funcapi.MethodHandler` (`topology:cato_networks`).
+- The presentation schema ships with each topology response so new actor types ("Cato Site", "Cato PoP", "BGP Peer", "ISP") render without dashboard work.
+- Site/interface/PoP labels on metric charts use the same identifiers as Actor IDs in the topology emitter, so the dashboard can correlate metrics with topology nodes when unified overlay support eventually lands.
+- Topology refresh cadence is decoupled from metric collection cadence (default same as discovery refresh, 5 min) because connectivity status drift is the only fast-moving topology change.
+
+Caveat to flag explicitly: **standalone Cato topology is in scope for v1 and must be smoke-tested; overlaid rendering with SNMP/network-viewer/NetFlow will only work after the unified topology roadmap ships separately.**
+
+### 6) Module name?
+
+Options:
+
+- 6.A — `cato`
+- 6.B — `cato_networks`
+- 6.C — `catonetworks`
+
+Recommendation: **6.B** (`cato_networks`). Mirrors the existing public ecosystem (Datadog, Sumologic, Centreon all use the two-token form), avoids ambiguity with the unrelated word "cato", and follows go.d.plugin's snake_case convention (`azure_monitor`, `dockerhub` etc.).
+
+**Decision: 6.B — `cato_networks`.**
+
+### 7) Polling cadence default?
+
+Background: `accountMetrics` is bucketed time-series; vendor enforces per-query/per-account rate limits. Centreon and official API examples use GraphQL time frames such as `last.PT5M`/`last.PT1H`.
+
+Options:
+
+- 7.A — `update_every: 60` and `accountMetrics(timeFrame:"last.PT5M", buckets:5)` — pull 5x 1-minute buckets per minute, write the latest bucket to charts.
+- 7.B — `update_every: 300` (5 min) with `last.PT5M` buckets:1 — minimal API pressure.
+- 7.C — `update_every: 30` with `last.PT1M` buckets:1 — closer to Netdata's normal cadence; highest rate-limit risk.
+
+Recommendation: **7.A**. Best trade-off: 1-minute granularity, modest API rate, and gives us 4 fallback buckets if a poll skips. Keep `update_every` overridable per job.
+
+**Decision: 7.A — `update_every: 60` default, overridable per job.** Operators with verified rate-limit headroom may push lower; operators with large accounts or shared API usage may push higher. BGP and topology refresh are decoupled from this metric cadence.
+
+### 8) Framework: go.d V2 collector contract
+
+Background (added 2026-05-01 after the user requested the V2 framework): Netdata exposes two related "V2" surfaces in this repo. The wording "go.d.plugin V2 framework" is consistent with the new go.d collector runtime contract, but the ibm.d-style code-generator layer also exists.
+
+Options:
+
+- 8.A — **`framework/collectorapi.CollectorV2`** contract (file: `src/go/plugin/framework/collectorapi/collector.go`).
+  Same plugin binary as today (`go.d.plugin`). Collectors implement `Init/Check/Collect/Cleanup/MetricStore/ChartTemplateYAML`, write metrics into `metrix.CollectorStore`, and emit chart templates instead of imperatively building `Charts`. Already adopted by `azure_monitor`, `mysql`, `powervault`, `ping`, `powerstore`. Registration via `collectorapi.Register(name, Creator{ CreateV2: ... })`.
+  Pros: pure Go, no CGO; same packaging as the rest of go.d; clear precedent for cloud-API collectors via `azure_monitor`.
+  Cons: more boilerplate than the IBM.D code-generated style; chart templates are still hand-authored YAML strings.
+
+- 8.B — **IBM.D-style framework** (file: `src/go/plugin/ibm.d/framework/collector.go` + `metricgen` + `docgen`).
+  YAML-declarative metrics, code-generated typed setters, generated README/metadata.yaml. Lives under `src/go/plugin/ibm.d/`, ships in a different binary (`ibm.d.plugin`), built with `CGO_ENABLED=1`. Currently dedicated to IBM workloads.
+  Pros: AI-assistant-friendly; documentation/metadata always in sync via code-gen; declarative `contexts/contexts.yaml` makes a many-metric collector tractable.
+  Cons: lives in `ibm.d.plugin` which is gated on `ENABLE_PLUGIN_IBM` and uses CGO; using it for Cato either means moving Cato into ibm.d (semantically wrong) or extracting the framework into go.d (out of scope for this SOW). No precedent for non-IBM modules.
+
+Recommendation: **8.A — `collectorapi.CollectorV2` in go.d**. Mirror the `azure_monitor` pattern. It is the right home for a pure-Go cloud-API collector and matches the existing precedent.
+
+**Decision: 8.A — `collectorapi.CollectorV2` in go.d.** Mirror `azure_monitor`'s V2 layout. Pure Go, no CGO, ships in the existing `go.d.plugin` binary.
+
+### 9) Test fixture source
+
+Background: fixture quality determines how much of the collector can be trusted without a live Cato tenant. The mirrored Centreon plugin includes canned Cato API responses. The official Cato Go SDK includes schema files, generated types, and live API examples, but no reusable JSON/API response fixtures.
+
+Options:
+
+- 9.A — **Use only SDK examples and hand-written responses**.
+  Pros: follows vendor SDK shape.
+  Cons: examples require a live account and do not provide canned payloads; higher risk of inventing response details.
+  Risk: medium.
+
+- 9.B — **Use Centreon fixtures as the baseline, then add SDK-schema-derived fixtures for missing surfaces**.
+  Pros: starts from real open-source fixture payloads for `entityLookup`, `accountSnapshot`, `accountMetrics`, and `eventsFeed`; keeps BGP aligned with verified SDK/API types.
+  Cons: Centreon fixtures are partial, not official Cato SDK fixtures, and do not cover BGP or full per-interface payloads.
+  Risk: low to medium.
+
+- 9.C — **Wait for real tenant captures before implementation**.
+  Pros: highest payload confidence.
+  Cons: blocks development on credentials/sandbox access; still needs sanitized fixtures before merge.
+  Risk: medium because delivery stalls.
+
+Recommendation: **9.B**. It gives immediate test coverage without inventing the core API shape, while explicitly marking BGP/per-interface/live-field gaps for later tenant validation.
+
+**Decision: 9.B — Centreon fixture baseline + SDK-schema-derived missing fixtures + optional sanitized tenant captures.** Concretely:
+
+- Use `/opt/baddisk/monitoring/repos/centreon/centreon-plugins/tests/network/security/cato/networks/api/cato-api.json` as the baseline fixture source for `entityLookup`, `accountSnapshot`, `accountMetrics`, and `eventsFeed`.
+- Do not claim the Cato SDK provides API response fixtures. It provides schema/types/examples only.
+- Hand-craft BGP fixtures from verified `cato-go-sdk`/official API types, and mark them as schema-derived until validated against a real tenant.
+- Live tenant or vendor sandbox validation is tracked after close by `.agents/sow/pending/SOW-0005-20260501-cato-networks-live-validation.md`.
+
+## Plan
+
+Implementation:
+
+1. Lock the initial chart catalogue from verified SDK/API fields: site state, per-interface throughput/loss/jitter/last-mile metrics, event-rate counters, BGP peer/session/route counts, and internal collector/rate-limit metrics. Mark optional fields that need live-payload validation.
+2. Bootstrap module under `src/go/plugin/go.d/collector/cato_networks/` mirroring the `azure_monitor` V2 layout: `collector.go`, `config.go`, `init.go`, `collect.go`, `client.go`, `discovery.go`, plus chart-template YAML for V2, `metadata.yaml`, `config_schema.json`, `testdata/`. Stock `cato_networks.conf` under `src/go/plugin/go.d/config/go.d/`; registry update in `src/go/plugin/go.d/config/go.d.conf`.
+3. Add `cato-go-sdk@v0.2.5` to `go.mod` unless a newer tagged release is rechecked and proven compatible. Do not use SDK `main`/pseudo-version. Wrap its HTTP client behind `pkg/web` so timeouts/proxy/TLS options are operator-configurable through the standard surface.
+4. Site discovery (`entityLookup` + `accountSnapshot`) with default 5 min refresh. Include/exclude filters are intentionally not part of v1 because the stated purpose is full-account visibility across every Cato site.
+5. Per-collection metric pulls: batched `accountMetrics` with `siteIDs` and `groupInterfaces:false`, plus `accountSnapshot` for state, plus `eventsFeed` polled with persisted marker.
+6. EventsFeed state: persist marker, bootstrap marker on first run, handle invalid/deprecated marker response, and expose counters/rates only.
+7. BGP metrics: use `siteBgpStatus`, decouple cadence from `update_every`, budget site-scoped calls, and spread calls across cycles for large accounts.
+8. Chart-template YAML: connectivity, throughput up/down, packet loss %, jitter, last-mile latency/loss, discarded packets, BGP peer/session state and prefix counts, event-rate counters, and collector API/retry counters.
+9. Topology emitter (`func_topology.go`) implementing `funcapi.MethodHandler` with method ID `topology:cato_networks`; reuse `src/go/pkg/topology` types; mirror `snmp_topology`'s structure scaled down. Actor types: cato_site, cato_pop, bgp_peer. Link types: cato_tunnel, bgp_session. ISP/last-mile actor links are omitted in v1 because the verified fixtures/SDK coverage used for this SOW did not provide a stable ISP identity field.
+10. Health alerts under `src/health/health.d/cato_networks.conf`: site offline; sustained high packet loss; BGP peer down.
+11. Rate-limit handling: classify HTTP 429 and GraphQL rate-limit errors case-insensitively, apply backoff, expose internal retry/rate-limit counters, and reject `update_every` values below 60s.
+12. Tests: `httptest`-served canned GraphQL responses for each query type; rate-limit retry test; marker persistence test; accountMetrics batching test; BGP budget/scheduler test; partial-failure test (one site errors, others succeed); topology snapshot test verifying actor/link JSON shape against the shared `pkg/topology` types.
+13. Documentation: README, metadata.yaml, regenerate integrations page (confirm exact build command before close).
+14. Real-tenant smoke test against a user-provided Cato account or vendor sandbox; verify both metric charts and the standalone `topology:cato_networks` function in the dashboard. If credentials are unavailable, record this explicitly with fixture-based substitute evidence.
+15. Spec under `.agents/sow/specs/cato-networks-collector.md` capturing the durable contract (endpoint, queries, chart catalogue, topology actor/link types, rate-limit policy, marker semantics).
+
+## Execution Log
+
+### 2026-05-01
+
+- SOW created in `.agents/sow/pending/`.
+- Analysis pass: vendor docs, Centreon Perl plugin (functional reference), Datadog `cato_networks` integration (confirmed logs-only, not API-metrics), Cato Go SDK availability, Netdata `azure_monitor` pattern.
+- Open decisions surfaced; awaiting user input.
+- User recorded decisions: scope = max coverage incl. BGP (1.C+); SDK adoption (2.B); one job per account (3.A); auto-discovery (4.A); topology deferred to follow-up SOW (5.A); module name `cato_networks` (6.B); `update_every: 60` configurable (7.A).
+- User requested go.d V2 framework. Decision #8 added; the user later confirmed `collectorapi.CollectorV2` (option 8.A) before the SOW moved to `current/`.
+- Risks section expanded with detailed rate-limit reasoning (verified evidence vs. design conservatism, why sub-minute cadence is unsafe, mitigations).
+- User confirmed framework choice 8.A.
+- Topology investigation: verified the shared topology contract at `src/go/pkg/topology/types.go` and shipped emitters for `topology:snmp` and `topology:network-connections`. Conclusion: standalone Cato topology is a bounded collector-side feature that must be smoke-tested; overlaid rendering with other topology sources requires the separate unified topology overlay roadmap.
+- Decision #5 revised: topology emission moves into v1 scope; previously-planned follow-up SOW collapses into this one. Caveat documented.
+- SOW ready to move to `current/in-progress`.
+- Cloned `cato-go-sdk` and `cato-toolbox` to `/tmp/` for fixture analysis. Confirmed BGP schema coverage in `cato_api.graphqls`. Identified Centreon Mockoon fixture as the immediately-usable starting point for `testdata/` (entityLookup, accountSnapshot, accountMetrics, eventsFeed). Vendor `examples/api-rate-limit` and `examples/get-bgp-peer` (and 50+ other vendor-published Go examples) provide direct references for rate-limit handling and BGP queries.
+- SOW moved from `pending/` to `current/`.
+- Independent verification pass: corrected stale/incorrect claims about git cleanliness, collector count, public Cato rate-limit thresholds, EventsFeed first-run marker semantics, unverified Zenoss source, SDK dependency risk, SDK retry caveat, BGP Beta status, and `accountMetrics` batching. Replaced user personal-name mentions in this disk artifact with `user`.
+- Fixture-source decision recorded: the Cato SDK has no reusable API response fixtures; use Centreon's mirrored `cato-api.json` as baseline, SDK/API schema-derived BGP fixtures for missing coverage, and sanitized tenant captures if available before close.
+- SDK compatibility decision recorded: `cato-go-sdk@v0.2.5` is technically usable with Netdata; SDK `main` is not acceptable because it bumps the Go directive and adds extra dependencies. `govulncheck` on the smoke package reported no vulnerabilities.
+- User approved proceeding with `cato-go-sdk@v0.2.5` as the pinned SDK dependency for implementation.
+- Implemented `src/go/plugin/go.d/collector/cato_networks/` as a V2 go.d collector using `collectorapi.CollectorV2`, `metrix.CollectorStore`, embedded `charts.yaml`, embedded `config_schema.json`, and the standalone `topology:cato_networks` function handler.
+- Added SDK-backed API client wrapper for `entityLookup`, `accountSnapshot`, `accountMetrics`, `eventsFeed`, and `siteBgpStatus`, with case-insensitive retry classification for HTTP 429/rate-limit/transient errors and retry gauges by query.
+- Added site, interface, BGP peer, event, API retry metrics, plus standalone Cato site/PoP/BGP topology generation.
+- Added events marker persistence under Netdata varlib by default; fixed `Check()` so it does not advance the marker.
+- Added stock config, config schema, metadata, README, and health alerts. Corrected metadata category to the valid `data-collection.networking` and used the existing `network-wired.svg` integration icon.
+- Added `.agents/sow/specs/cato-networks-collector.md` as the durable collector contract.
+- Reopened after close for NIDL compliance correction. User requested fixing the metric organization after review against `docs/NIDL-Framework.md`.
+- NIDL discrepancy to fix:
+  - Families are over-fragmented (`site traffic`, `interface traffic`, `events`, `api` one-chart leaves).
+  - `site_hosts` was grouped under `site status` although it is a site inventory/count metric.
+  - `events_total` is counter-like but chart units said `events` instead of `events/s`.
+  - Discarded-packet chart names and storage used percent semantics while fallback SDK metric fields are raw packet counts; raw counts must not be stored in percent fields.
+- NIDL correction implemented:
+  - Chart families now group by functional entity/surface: `sites`, `interfaces`, `bgp`, and `collector`; no one-chart leaf family remains.
+  - `site_hosts` now belongs to the `sites` family, not to a site status family.
+  - Discarded-packet metrics now use the raw Cato packet-count fields (`packetsDiscardedUpstream`, `packetsDiscardedDownstream`) and are charted as `packets`.
+  - Interface discarded-packet metrics now have their own `interface_discarded_packets` chart.
+  - Stateful event and API retry counters are charted as rates (`events/s`, `retries/s`) with raw counter-backed metric names ending in `_total`.
+- Reopened after close for production-readiness validation and diagnostics correction. The user's risk model is that prospects will run this collector first against devices/accounts Netdata does not own, so local testing must use the best available raw API fixtures and the collector must expose enough failure information to diagnose field problems without a live debugging session.
+- Validation discrepancy to fix:
+  - SOW-0004 identified the Centreon Mockoon Cato fixture as the baseline raw fixture source, but the shipped tests only used in-memory SDK structs.
+  - The tests therefore proved collector normalization against SDK-shaped structs, but did not prove raw GraphQL JSON responses decode through the pinned SDK/client path.
+  - The collector exposed retry counters, but did not expose enough operator-visible health/failure counters to quickly distinguish discovery, snapshot, metrics, events, BGP, marker-write, and no-site failure classes.
+- Production-readiness correction implemented:
+  - Copied the raw Centreon Mockoon fixture into `src/go/plugin/go.d/collector/cato_networks/testdata/centreon-cato-api.mockoon.json` with provenance notes.
+  - Added a schema-shaped raw BGP fixture at `src/go/plugin/go.d/collector/cato_networks/testdata/cato-site-bgp-status.schema-shaped.json` because Centreon does not cover `siteBgpStatus`.
+  - Added `httptest` replay through the pinned SDK/client path for `entityLookup`, `accountSnapshot`, `accountMetrics`, `eventsFeed`, and `siteBgpStatus`.
+  - The raw Centreon fixture needed a test adapter for SDK-generated query aliases and GraphQL ID/status scalar shape. The unmodified Centreon `accountSnapshot` body is for Centreon's hand-written query and does not decode against the SDK-generated aliased query response type.
+  - Added collector health diagnostics: collection success, discovered sites, per-operation success, per-operation failure counters by normalized class, full collection failure counters by normalized class.
+  - Added a health alert for collector collection failure and documented diagnostic-first troubleshooting.
+
+## Validation
+
+Completed on 2026-05-01.
+
+Acceptance criteria evidence:
+
+- Collector compiles and registers through `src/go/plugin/go.d/collector/init.go`.
+- Collector source added under `src/go/plugin/go.d/collector/cato_networks/`.
+- Operator artifacts added and kept in sync:
+  - `src/go/plugin/go.d/collector/cato_networks/metadata.yaml`
+  - `src/go/plugin/go.d/collector/cato_networks/config_schema.json`
+  - `src/go/plugin/go.d/config/go.d/cato_networks.conf`
+  - `src/health/health.d/cato_networks.conf`
+  - `src/go/plugin/go.d/collector/cato_networks/README.md`
+- `src/go/go.mod` pins `github.com/catonetworks/cato-go-sdk v0.2.5`.
+- The standalone topology function is implemented as `topology:cato_networks`; unit tests verify a topology response with source `cato_networks`, non-empty actors, and non-empty links.
+- Real Cato tenant smoke test was not run because no tenant credentials or vendor sandbox are available in this workspace. Fixture-backed and SDK-type-backed unit tests are the substitute validation for this SOW close.
+
+Tests or equivalent validation:
+
+- `cd src/go && go test ./plugin/go.d/collector/cato_networks -count=1` — passed.
+- `cd src/go/plugin/go.d/collector/cato_networks && go test ./... -count=1` — passed.
+- `cd src/go && go vet ./plugin/go.d/collector/cato_networks` — passed.
+- `cd src/go && go test ./plugin/go.d/... -count=1` — passed.
+- After the NIDL correction:
+  - `cd src/go && gofmt -w plugin/go.d/collector/cato_networks/models.go plugin/go.d/collector/cato_networks/client.go plugin/go.d/collector/cato_networks/normalize.go plugin/go.d/collector/cato_networks/write_metrics.go plugin/go.d/collector/cato_networks/collector_test.go` — completed.
+  - `cd src/go && go test ./plugin/go.d/collector/cato_networks -count=1` — passed.
+  - `cd src/go && go vet ./plugin/go.d/collector/cato_networks` — passed.
+  - `cd src/go && go test ./plugin/go.d/... -count=1` — passed.
+  - Stale-name scan found no stale metric IDs for discarded-packet percent metrics or old API retry gauges. Remaining matches are historical SOW text, chart titles, and generic documentation wording.
+- After the production-readiness correction:
+  - `cd src/go && gofmt -w plugin/go.d/collector/cato_networks/collector.go plugin/go.d/collector/cato_networks/collect.go plugin/go.d/collector/cato_networks/collector_test.go plugin/go.d/collector/cato_networks/diagnostics.go plugin/go.d/collector/cato_networks/write_metrics.go` — completed.
+  - `cd src/go && go test ./plugin/go.d/collector/cato_networks -count=1` — passed.
+  - `cd src/go && go vet ./plugin/go.d/collector/cato_networks` — passed.
+  - `cd src/go && go test ./plugin/go.d/... -count=1` — passed.
+  - YAML/JSON parsing passed for metadata, charts, stock config, config schema, the Centreon Mockoon fixture, and the schema-shaped BGP fixture.
+  - Stale-name scan for old discarded-percent/API-retry units remained clean.
+- YAML/JSON parsing passed for:
+  - `src/go/plugin/go.d/collector/cato_networks/metadata.yaml`
+  - `src/go/plugin/go.d/collector/cato_networks/charts.yaml`
+  - `src/go/plugin/go.d/config/go.d/cato_networks.conf`
+  - `src/go/plugin/go.d/collector/cato_networks/config_schema.json`
+- Metadata category validation passed for `data-collection.networking` against `integrations/categories.yaml`.
+- `python3 integrations/check_collector_metadata.py src/go/plugin/go.d/collector/cato_networks/metadata.yaml` could not run because the checker itself fails importing `SINGLE_PATTERN` from `integrations/gen_integrations.py`. This is recorded as a validation-tool failure, not as a metadata parse failure.
+- Unit tests cover collection, chart-template compilation, config validation, retry classification/backoff, retry stats, EventsFeed marker persistence, `Check()` marker non-consumption, partial `accountMetrics` and BGP failures, BGP site rotation, nil SDK status defaults, and topology function response.
+- Unit tests now also cover raw Centreon fixture replay through the SDK/client path, schema-shaped BGP raw response decoding, operation failure diagnostics, and normalized error classification.
+
+Real-use evidence:
+
+- No live Cato tenant credentials or vendor sandbox were available, so live API and dashboard smoke tests were not run.
+- The collector's live-risk areas remain: optional real-tenant payload fields, BGP Beta surface behavior, very large account scale, and dashboard rendering with real Cato hub-and-spoke layouts.
+
+Reviewer findings:
+
+- No external assistant review was run because the user did not request second-opinion agents for this implementation turn, and repo instructions only allow those assistants when explicitly requested.
+- Self-review discrepancies found and fixed before close:
+  - omitted discovery default accidentally meant no rediscovery by default; fixed to 300 seconds.
+  - `Check()` advanced EventsFeed marker; fixed so only `Collect()` advances marker.
+  - nil SDK status values normalized badly; fixed to `unknown`.
+  - Cato interface `"all"` metrics did not populate site charts; fixed.
+  - retry defaults mismatched verified Cato/Centreon 5-second backoff evidence; fixed to `retry.wait_min: 5`.
+  - metadata category was invalid for this branch; fixed to `data-collection.networking`.
+  - metadata icon referenced non-existing `cato.svg`; fixed to existing `network-wired.svg`.
+  - NIDL metric organization was not compliant enough after the first close; fixed by consolidating chart families and correcting counter/rate and discarded-packet count semantics.
+  - raw fixture testing was promised but not implemented; fixed with committed fixture replay through the SDK/client path.
+  - failure visibility was insufficient for prospect first-run debugging; fixed with collector health diagnostics and a collection-failure alert.
+
+Same-failure scan:
+
+- Searched health templates for comma-separated dimension lookups; existing alerts use this syntax, so `cato_networks_site_packet_loss` follows a repo pattern.
+- Searched metadata categories against `integrations/categories.yaml`; the invalid initial category was corrected.
+- Searched existing topology functions; `topology:cato_networks` mirrors the shipped `topology:snmp` function contract.
+- Searched SDK dependency graph with `go mod why`; new direct runtime dependencies are attributable to `cato-go-sdk@v0.2.5` and its generated GraphQL client stack. Extra `go.sum`-only entries are transitive test sums from those dependencies.
+- Searched the Cato collector and spec for stale discarded-percent metric IDs, old API retry gauge IDs, stale event/retry units, and old one-chart family names after the NIDL correction. No stale code/spec metric IDs remained.
+- Searched Cato collector artifacts for the new diagnostic chart/metadata/alert names; charts, metadata, README, tests, and health alert are aligned.
+
+Artifact maintenance gate:
+
+- AGENTS.md: no update needed. The existing collector consistency rules and SOW framework already covered this work; no project-wide workflow changed.
+- Runtime project skills: no update needed. There are no `project-*` runtime skills yet, and no recurring workflow was discovered that belongs in a skill rather than this collector spec.
+- Specs: added `.agents/sow/specs/cato-networks-collector.md` and updated it for the NIDL and diagnostics corrections: discarded packet counts, `events/s`, `retries/s`, fixture requirements, and diagnostic contract.
+- End-user/operator docs: added and updated `src/go/plugin/go.d/collector/cato_networks/README.md`; added metadata/config schema/stock config/health alerts, including collector diagnostics and collection-failure alert. Public integrations docs regeneration is a downstream build step and was not run here.
+- End-user/operator skills: no update needed. This collector does not change `docs/netdata-ai/skills/` or `src/ai-skills/` behavior.
+- SOW lifecycle: SOW status set to `completed`; file will be moved from `current/` to `done/` after this validation record.
+
+Specs update:
+
+- Added `.agents/sow/specs/cato-networks-collector.md` with SDK pin, query contract, cadence, chart catalogue, topology model, operator artifacts, and validation expectations.
+- Updated `.agents/sow/specs/cato-networks-collector.md` after the NIDL correction so it records discarded packet counts and counter-rate chart semantics.
+- Updated `.agents/sow/specs/cato-networks-collector.md` after the production-readiness correction so future changes must keep raw fixture replay and operator diagnostics.
+
+Project skills update:
+
+- No project skill update needed; no matching project runtime skill exists and this SOW did not change assistant workflow.
+
+End-user/operator docs update:
+
+- Added and updated collector README, metadata, config schema, stock config, and health alerts.
+
+End-user/operator skills update:
+
+- No end-user/operator skill update needed.
+
+Lessons:
+
+- Cato SDK `v0.2.5` is the correct released tag for this branch; SDK `main` is not acceptable because it resolves as an unreleased pseudo-version and bumps the Go directive.
+- `Check()` must be treated as read-only for marker-based APIs, otherwise first real collection can lose event data.
+- The public metadata category list in this branch is much narrower than some older/generated category names; validate against `integrations/categories.yaml`.
+- NIDL review must include chart-family structure and unit/algorithm semantics, not only chart names and labels.
+- Raw third-party fixtures may target a different GraphQL query shape than the SDK-generated query. Keep the original raw fixture, but test the exact SDK query response shape that Netdata sends.
+- First-run customer support needs low-cardinality diagnostic labels (`operation`, `error_class`), not raw error strings in metric labels.
+
+Follow-up mapping:
+
+- Live tenant/dashboard validation is not implemented here because credentials are unavailable. This is tracked by `.agents/sow/pending/SOW-0005-20260501-cato-networks-live-validation.md`.
+- ISP/last-mile topology actors are explicitly rejected for v1 because verified fixtures and SDK/API coverage used in this SOW did not provide a stable ISP identity field.
+
+## Outcome
+
+Completed.
+
+Implemented a new `cato_networks` go.d V2 collector for Cato Networks GraphQL monitoring with:
+
+- site discovery and account snapshot collection;
+- site and interface traffic/quality/status charts;
+- NIDL-aligned `sites`, `interfaces`, `bgp`, and `collector` chart families;
+- marker-based event counters;
+- rolling per-site BGP status collection;
+- API retry visibility;
+- collector health and operation-failure diagnostics;
+- standalone `topology:cato_networks` topology output;
+- stock config, config schema, metadata, README, and health alerts;
+- pinned `github.com/catonetworks/cato-go-sdk@v0.2.5`.
+
+Known limitation at close: no live Cato tenant or vendor sandbox was available, so live API payload and dashboard topology smoke testing remains unverified.
+
+## Lessons Extracted
+
+- Do not use SDK `main` or unreleased pseudo-versions for this collector. The approved dependency is the released `v0.2.5` tag.
+- Marker-based collectors must not mutate marker state during `Check()`.
+- Public collector metadata must be validated against the branch-local `integrations/categories.yaml`.
+- Cato BGP collection must remain rolling/throttled because `siteBgpStatus` is site-scoped and vendor-documented as Beta.
+- Counter-like charts must use rate units and raw counter-backed metrics; raw Cato packet counts must not be presented as percentages.
+- Raw fixture replay must exercise the pinned SDK/client path, not only in-memory SDK structs.
+- Diagnostic chart labels must classify failures without exposing raw customer-specific API errors.
+
+## Followup
+
+- Live Cato tenant or vendor sandbox validation is tracked by `.agents/sow/pending/SOW-0005-20260501-cato-networks-live-validation.md` and should run when credentials become available:
+  - verify non-empty connectivity and throughput charts;
+  - verify BGP fields against real payloads;
+  - verify `topology:cato_networks` in the dashboard renderer;
+  - capture sanitized real responses for future fixtures if permitted.
+
+## Reopen - Pre-Prospect Hardening
+
+Date: 2026-05-01.
+
+Reason:
+
+- The user requested improving the same SOW after five read-only external reviews focused on first-run customer risk without live Cato access.
+- The purpose remains unchanged: make the Cato collector fit for first-run prospect testing as much as possible without Netdata-owned Cato devices/accounts.
+
+Reviewed evidence:
+
+- External review outputs in `.local/audits/cato-ai-review-20260501/`.
+- Collector code under `src/go/plugin/go.d/collector/cato_networks/`.
+- SDK source in the local module cache for `github.com/catonetworks/cato-go-sdk@v0.2.5`.
+- Netdata HTTP client implementation in `src/go/pkg/web/client_config.go`.
+
+Verified findings to address in this reopen:
+
+- Unknown non-empty Cato statuses currently normalize to their raw value, while status charts only mark known values. A new vendor status can therefore produce all-zero status dimensions instead of `unknown`.
+- BGP `siteBgpStatus` is decoded by the SDK from `rawStatus` JSON. SDK parse errors are printed to stdout by the SDK and still append an empty result, so the collector needs to filter malformed/empty peers and expose a diagnostic.
+- BGP polling advances refresh/index even when the entire BGP batch fails.
+- Marker persistence can be disabled when no marker file is configured and Netdata varlib is unavailable; this is not visible as a collector metric.
+- Current tests do not exercise real SDK/client-path HTTP status failures, GraphQL `errors[]` responses, empty discovery, marker write failures, or malformed BGP rawStatus responses.
+- Some warning logs include raw provider error strings or account/site identifiers at warn level.
+
+Verified reviewer claims rejected or downgraded:
+
+- The collector is not definitely double-retrying with the SDK retry layer: the SDK only creates its retryable HTTP client when no HTTP client is passed, and this collector passes Netdata's `web.NewHTTPClient` client.
+- Netdata's HTTP client does set `http.Client.Timeout`, dial timeout, and TLS handshake timeout; indefinite hang is not the immediate issue claimed by one review.
+- SDK v0.2.5 BGP incoming/outgoing connection fields are value structs, not pointers, so the claimed nil-pointer panic is not valid for the pinned SDK. The valid risk is malformed `rawStatus` becoming an empty BGP peer.
+
+Implementation plan:
+
+- Add low-cardinality normalization diagnostics and route unknown connectivity, operational, and BGP states to `unknown` rather than all-zero charts.
+- Filter empty BGP peers, count malformed/empty BGP payloads, and do not advance the BGP rotation window on total BGP failure.
+- Add marker persistence visibility metrics.
+- Add SDK/client-path tests for HTTP status failures and GraphQL `errors[]`, plus empty discovery, marker write failure, malformed BGP rawStatus, and config schema JSON parsing.
+- Reduce warning logs to operation, count, and normalized error class; keep raw provider details out of warn-level logs.
+- Update charts, metadata, README, spec, and health artifacts to match any new diagnostics.
+
+Validation plan:
+
+- `cd src/go && gofmt -w plugin/go.d/collector/cato_networks/*.go`
+- `cd src/go && go test ./plugin/go.d/collector/cato_networks -count=1`
+- `cd src/go && go vet ./plugin/go.d/collector/cato_networks`
+- `cd src/go && go test ./plugin/go.d/... -count=1`
+- YAML/JSON parse checks for updated collector artifacts.
+- `.agents/sow/audit.sh`
+
+Hardening implemented:
+
+- Unknown non-empty site connectivity and operational statuses now map to the `unknown` dimensions instead of producing all-zero status charts.
+- Added low-cardinality normalization diagnostics with labels `surface` and `issue`; issue labels do not include raw Cato error strings, account IDs, site names, IPs, or raw status values.
+- Added marker persistence availability metric and health alert so EventsFeed marker persistence failure is visible before or during customer troubleshooting.
+- BGP `siteBgpStatus` empty decoded peers are filtered and counted as normalization issues.
+- BGP rolling polling no longer advances the rolling site window when every BGP request in the current batch fails.
+- Warn-level logs now prefer operation/count/error class and avoid raw provider error strings for accountMetrics, BGP, EventsFeed, and marker write failures.
+- Added SDK/client-path fault tests for HTTP auth failure, HTTP rate limit failure, and GraphQL `errors[]` rate-limit failure.
+- Added tests for empty discovery, unknown status fallback, BGP total failure rotation, empty BGP peer filtering, marker write failure, BGP session exact state matching, and config schema JSON parsing.
+
+Validation completed after hardening:
+
+- `cd src/go && gofmt -w plugin/go.d/collector/cato_networks/collector.go plugin/go.d/collector/cato_networks/collect.go plugin/go.d/collector/cato_networks/collector_test.go plugin/go.d/collector/cato_networks/diagnostics.go plugin/go.d/collector/cato_networks/normalize.go plugin/go.d/collector/cato_networks/write_metrics.go` - completed.
+- `cd src/go && go test ./plugin/go.d/collector/cato_networks -count=1` - passed.
+- `cd src/go && go vet ./plugin/go.d/collector/cato_networks` - passed.
+- `cd src/go && go test ./plugin/go.d/... -count=1` - passed.
+- YAML/JSON parsing passed for metadata, charts, stock config, config schema, Centreon Mockoon fixture, and schema-shaped BGP fixture.
+
+Artifact maintenance after hardening:
+
+- AGENTS.md: no update needed. Existing collector/SOW rules covered the hardening workflow.
+- Runtime project skills: no update needed. No reusable workflow changed.
+- Specs: updated `.agents/sow/specs/cato-networks-collector.md` with marker persistence diagnostics, normalization diagnostics, unknown-status fallback, BGP empty-peer handling, BGP rotation behavior, and expanded validation expectations.
+- End-user/operator docs: updated README, metadata, charts, and health alert to include marker persistence and normalization diagnostics.
+- End-user/operator skills: no update needed; no AI skill artifacts were affected.
+- SOW lifecycle: same SOW reopened by user request, then completed again after validation; file will be moved back to `done/`.
+
+Remaining limitation:
+
+- No live Cato tenant or vendor sandbox was available. SOW-0005 remains the required live validation path before claiming real-world coverage of optional payload fields, BGP scale behavior, or dashboard topology rendering.
+
+## Reopen - Second Pre-Prospect Hardening Completion
+
+Date: 2026-05-02.
+
+Reason:
+
+- The user approved fixing the second external review round's concrete production-readiness findings in this same SOW.
+- The purpose remains unchanged: make the Cato collector fit for first-run prospect testing as much as possible without Netdata-owned Cato devices/accounts.
+
+Implemented:
+
+- `eventsFeed` now drains marker pages within a collection cycle until `fetchedCount` drops below Cato's documented per-fetch maximum, the marker is empty or unchanged, or `events.max_pages_per_cycle` is reached.
+- Events marker advancement is committed only after metrics for the cycle are written, reducing the crash window that could otherwise skip fetched events.
+- Added `events.max_pages_per_cycle` default `10` and `events.max_cardinality` default `50`.
+- Excess event type/subtype/severity/status combinations collapse into an `other` bucket and emit `collector_normalization_issues_total{surface="events",issue="cardinality_limit"}`.
+- Events page cap and stalled marker conditions emit low-cardinality normalization diagnostics.
+- Added `collector_operation_affected_sites_total{operation,error_class}` so partial `accountMetrics` and `siteBgpStatus` failures report how many sites were affected.
+- `accountMetrics` and BGP partial failures now return sanitized partial errors to the collection flow, producing summary warnings while keeping the overall collection alive.
+- Discovery now has a defensive max-page guard and returns a `pagination` error class if the guard is hit.
+- Returned discovery and snapshot errors are sanitized at the collector boundary with operation name and normalized error class, instead of returning raw SDK/vendor error strings.
+- `metrics.time_frame` now validates against Cato's documented `last.P...` and `utc...` TimeFrame shapes in both Go validation and `config_schema.json`.
+- BGP cached state is pruned when a site disappears from current discovery.
+- Topology interface and device table rows are sorted deterministically.
+- Test-server auth failure logging no longer prints header values.
+
+Validation completed after second hardening:
+
+- `cd src/go && gofmt -w src/go/plugin/go.d/collector/cato_networks/*.go` - completed.
+- `cd src/go && go test ./plugin/go.d/collector/cato_networks -count=1` - passed.
+- `cd src/go && go vet ./plugin/go.d/collector/cato_networks` - passed.
+- `cd src/go && go test ./plugin/go.d/... -count=1` - passed.
+- YAML/JSON parsing passed for metadata, charts, stock config, and config schema.
+
+Test coverage added or expanded:
+
+- EventsFeed multi-page drain.
+- Events cardinality collapse into `other`.
+- Persisted marker resume.
+- Events page cap diagnostic.
+- Events stalled-marker diagnostic.
+- Multi-page discovery.
+- Sanitized returned provider error string.
+- Operation affected-site counters for partial metrics/BGP failures.
+- BGP stale-site pruning.
+- Deterministic topology table ordering.
+- Config validation for invalid `metrics.time_frame` and URL schemes.
+
+Artifact maintenance after second hardening:
+
+- AGENTS.md: no update needed. Existing collector/SOW rules covered this work.
+- Runtime project skills: no update needed. No reusable assistant workflow changed.
+- Specs: updated `.agents/sow/specs/cato-networks-collector.md` with EventsFeed page draining, cardinality cap, affected-site diagnostics, stale BGP pruning, and expanded validation expectations.
+- End-user/operator docs: updated README, metadata, config schema, stock config, and charts for the new EventsFeed controls and affected-site diagnostic chart.
+- End-user/operator skills: no update needed; no AI skill artifacts were affected.
+- SOW lifecycle: same SOW reopened by user request, completed again after validation, and will be moved back to `done/`.
+
+Follow-up mapping after second hardening:
+
+- Live Cato tenant or vendor sandbox validation remains tracked by `.agents/sow/pending/SOW-0005-20260501-cato-networks-live-validation.md`.
+- Site include/exclude filters remain intentionally out of v1 scope because the implementation decision in this SOW preserves full-account visibility by default.
+- BGP negotiated timers/transport and full BGP-state dimensions remain rejected for this pass because they expand the chart/topology catalogue and need real-payload validation.
+
+Outcome after second hardening:
+
+- Completed.
+
+## Reopen - Third Pre-Prospect Hardening Completion
+
+Date: 2026-05-02.
+
+Reason:
+
+- The user approved fixing the concrete findings from the third external review round in this same SOW.
+- The purpose remains unchanged: make the Cato collector fit for first-run prospect testing as much as possible without Netdata-owned Cato devices/accounts.
+
+Implemented:
+
+- Added low-cardinality `surface=metrics`, `issue=unknown_timeseries_label` diagnostics when `accountMetrics` returns an unrecognized timeseries label with data.
+- Preserved `degraded` connectivity through the raw Centreon/SDK fixture path instead of mapping every non-`connected` status to `disconnected`.
+- Discovered and fixed a real SDK compatibility issue: `github.com/catonetworks/cato-go-sdk@v0.2.5` rejects `degraded` in its generated `ConnectivityStatus` enum during `accountSnapshot` decode. The collector now falls back to a raw GraphQL `accountSnapshot` decoder for that enum-staleness case while keeping the SDK path for normal operation and the other Cato operations.
+- EventsFeed field extraction now accepts expected snake_case and camelCase event type/subtype keys, rejects complex field values as labels, and emits low-cardinality diagnostics for empty/complex event fields.
+- Marker write failures now report `collector_events_marker_persistence_available=0`. The collector still advances the in-memory marker for the running process to avoid repeated duplicate event counting before restart.
+- Added normalized `network`, `tls`, and `proxy` error classes and tightened HTTP status matching so filesystem paths containing numeric substrings cannot be misclassified as HTTP/auth/rate-limit failures.
+- Added BGP rolling-scan diagnostics: sites per BGP collection, cached BGP sites, and estimated full-scan seconds.
+- Expanded schema-shaped BGP fixture assertions to verify route counts, route limits, and RIB-out counts through the raw SDK/client path.
+- Updated README, metadata, charts, and the collector spec for the new diagnostics and SDK fallback behavior.
+
+Validation completed after third hardening:
+
+- `cd src/go && gofmt -w src/go/plugin/go.d/collector/cato_networks/collector.go src/go/plugin/go.d/collector/cato_networks/collect.go src/go/plugin/go.d/collector/cato_networks/diagnostics.go src/go/plugin/go.d/collector/cato_networks/normalize.go src/go/plugin/go.d/collector/cato_networks/client.go src/go/plugin/go.d/collector/cato_networks/write_metrics.go src/go/plugin/go.d/collector/cato_networks/collector_test.go` - completed.
+- `cd src/go && go test ./plugin/go.d/collector/cato_networks -count=1` - passed.
+- `cd src/go && go vet ./plugin/go.d/collector/cato_networks` - passed.
+- `cd src/go && go test ./plugin/go.d/... -count=1` - passed.
+- YAML parsing passed for `metadata.yaml`, `charts.yaml`, and stock `go.d/cato_networks.conf`.
+- JSON parsing passed for `config_schema.json`.
+- `.agents/sow/audit.sh` passed while the SOW was still `current/in-progress`; final audit will be rerun after moving the completed SOW back to `done/`.
+
+Test coverage added or expanded:
+
+- Unknown `accountMetrics` timeseries labels.
+- Event field aliases, empty fields, and complex field values.
+- Raw Centreon fixture replay preserving degraded connectivity through the client path.
+- Raw BGP schema-shaped fixture assertions for accepted routes, route limits, and RIB-out routes.
+- Marker write failure persistence gauge behavior.
+- BGP rolling-scan progress/window diagnostics.
+- Network/TLS/proxy classification and real HTTP client timeout classification.
+
+Artifact maintenance after third hardening:
+
+- AGENTS.md: no update needed. Existing collector/SOW rules covered this work.
+- Runtime project skills: no update needed. No reusable assistant workflow changed.
+- Specs: updated `.agents/sow/specs/cato-networks-collector.md` with the `accountSnapshot` raw fallback, degraded SDK enum risk, new error classes, new normalization issues, marker persistence behavior, BGP scan diagnostics, and expanded validation expectations.
+- End-user/operator docs: updated README, metadata, and charts for the new diagnostics and troubleshooting guidance.
+- End-user/operator skills: no update needed; no AI skill artifacts were affected.
+- SOW lifecycle: same SOW reopened by user request, completed again after validation, and will be moved back to `done/`.
+
+Follow-up mapping after third hardening:
+
+- Live Cato tenant or vendor sandbox validation remains tracked by `.agents/sow/pending/SOW-0005-20260501-cato-networks-live-validation.md`.
+- Site include/exclude filters remain intentionally out of v1 scope because the implementation decision in this SOW preserves full-account visibility by default.
+- BGP negotiated timers/transport and full BGP-state dimensions remain rejected for this pass because they expand the chart/topology catalogue and need real-payload validation.
+- Account ID as a metric label remains intentionally not added in this pass. A Netdata job monitors one Cato account, and adding account ID to every metric label would increase cardinality and expose account identifiers in chart labels. MSP/multi-account collision behavior should be evaluated during SOW-0005 live validation if multiple Cato accounts are configured on the same Agent.
+
+Outcome after third hardening:
+
+- Completed.

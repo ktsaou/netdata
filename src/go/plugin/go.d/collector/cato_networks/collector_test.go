@@ -1,0 +1,1409 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
+package cato_networks
+
+import (
+	"context"
+	"encoding/json"
+	"errors"
+	"fmt"
+	"io"
+	"net"
+	"net/http"
+	"net/http/httptest"
+	"os"
+	"path/filepath"
+	"strings"
+	"testing"
+	"time"
+
+	catosdk "github.com/catonetworks/cato-go-sdk"
+	catomodels "github.com/catonetworks/cato-go-sdk/models"
+	catoscalars "github.com/catonetworks/cato-go-sdk/scalars"
+	"github.com/stretchr/testify/require"
+
+	"github.com/netdata/netdata/go/plugins/pkg/confopt"
+	"github.com/netdata/netdata/go/plugins/pkg/metrix"
+	"github.com/netdata/netdata/go/plugins/pkg/topology"
+	"github.com/netdata/netdata/go/plugins/plugin/framework/chartengine"
+	"github.com/netdata/netdata/go/plugins/plugin/framework/charttpl"
+)
+
+type fakeAPIClient struct {
+	lookup          *catosdk.EntityLookup
+	lookupPages     map[int64]*catosdk.EntityLookup
+	snapshot        *catosdk.AccountSnapshot
+	metrics         *catosdk.AccountMetrics
+	events          *catosdk.EventsFeed
+	eventsByMarker  map[string]*catosdk.EventsFeed
+	eventMarkers    []string
+	bgp             map[string][]*catosdk.SiteBgpStatusResult
+	metricsErrSites map[string]error
+	bgpErrSites     map[string]error
+}
+
+func (f *fakeAPIClient) LookupSites(_ context.Context, _ string, _ int64, from int64) (*catosdk.EntityLookup, error) {
+	if f.lookupPages != nil {
+		return f.lookupPages[from], nil
+	}
+	return f.lookup, nil
+}
+
+func (f *fakeAPIClient) AccountSnapshot(context.Context, string, []string) (*catosdk.AccountSnapshot, error) {
+	return f.snapshot, nil
+}
+
+func (f *fakeAPIClient) AccountMetrics(_ context.Context, _ string, siteIDs []string, _ string, _ int64, _ bool) (*catosdk.AccountMetrics, error) {
+	if len(siteIDs) > 0 && f.metricsErrSites != nil {
+		if err := f.metricsErrSites[siteIDs[0]]; err != nil {
+			return nil, err
+		}
+	}
+	return f.metrics, nil
+}
+
+func (f *fakeAPIClient) EventsFeed(_ context.Context, _ string, marker *string) (*catosdk.EventsFeed, error) {
+	key := ""
+	if marker != nil {
+		key = *marker
+	}
+	f.eventMarkers = append(f.eventMarkers, key)
+	if f.eventsByMarker != nil {
+		return f.eventsByMarker[key], nil
+	}
+	return f.events, nil
+}
+
+func (f *fakeAPIClient) SiteBgpStatus(_ context.Context, _ string, siteID string) ([]*catosdk.SiteBgpStatusResult, error) {
+	if f.bgpErrSites != nil {
+		if err := f.bgpErrSites[siteID]; err != nil {
+			return nil, err
+		}
+	}
+	return f.bgp[siteID], nil
+}
+
+func TestCollectorCollectsMetricsEventsAndTopology(t *testing.T) {
+	c := New()
+	c.AccountID = "12345"
+	c.APIKey = "secret"
+	c.Events.MarkerFile = filepath.Join(t.TempDir(), "marker")
+	c.client = newFixtureAPIClient()
+	c.now = func() time.Time { return time.Date(2026, 5, 1, 12, 0, 0, 0, time.UTC) }
+
+	require.NoError(t, c.Init(context.Background()))
+
+	cc := mustCycleController(t, c.store)
+	cc.BeginCycle()
+	require.NoError(t, c.Collect(context.Background()))
+	cc.CommitCycleSuccess()
+
+	reader := c.store.Read()
+	requireValue(t, reader, "site_connectivity_connected", metrix.Labels{
+		"site_id":   "1001",
+		"site_name": "Paris Office",
+		"pop_name":  "POP-Paris",
+	}, 1)
+	requireValue(t, reader, "site_connectivity_degraded", metrix.Labels{
+		"site_id":   "1002",
+		"site_name": "Toulouse Office",
+		"pop_name":  "POP-Toulouse",
+	}, 1)
+	requireValue(t, reader, "interface_bytes_upstream_max", metrix.Labels{
+		"site_id":        "1001",
+		"site_name":      "Paris Office",
+		"interface_name": "all",
+	}, 7168)
+	requireValue(t, reader, "site_bytes_upstream_max", metrix.Labels{
+		"site_id":   "1001",
+		"site_name": "Paris Office",
+		"pop_name":  "POP-Paris",
+	}, 7168)
+	requireValue(t, reader, "site_packets_discarded_upstream", metrix.Labels{
+		"site_id":   "1001",
+		"site_name": "Paris Office",
+		"pop_name":  "POP-Paris",
+	}, 2)
+	requireValue(t, reader, "interface_packets_discarded_upstream", metrix.Labels{
+		"site_id":        "1001",
+		"site_name":      "Paris Office",
+		"interface_name": "all",
+	}, 2)
+	requireValue(t, reader, "events_total", metrix.Labels{
+		"event_type":     "Security",
+		"event_sub_type": "Threat Prevention",
+		"severity":       "HIGH",
+		"status":         "Closed",
+	}, 1)
+	requireValue(t, reader, "bgp_session_up", metrix.Labels{
+		"site_id":   "1001",
+		"site_name": "Paris Office",
+		"peer_ip":   "192.0.2.10",
+		"peer_asn":  "64512",
+	}, 1)
+
+	marker, err := os.ReadFile(c.Events.MarkerFile)
+	require.NoError(t, err)
+	require.Equal(t, "marker-2\n", string(marker))
+
+	topo, ok := c.currentTopology()
+	require.True(t, ok)
+	require.Equal(t, topologySource, topo.Source)
+	require.Len(t, topo.Actors, 5)
+	require.Len(t, topo.Links, 3)
+}
+
+func TestCollectorDecodesRawCentreonFixtureThroughSDK(t *testing.T) {
+	server := newRawCatoFixtureServer(t)
+	defer server.Close()
+
+	c := New()
+	c.URL = server.URL
+	c.AccountID = "12345"
+	c.APIKey = "secret"
+	c.Events.MarkerFile = filepath.Join(t.TempDir(), "marker")
+	c.now = func() time.Time { return time.Date(2026, 5, 1, 12, 0, 0, 0, time.UTC) }
+
+	require.NoError(t, c.Init(context.Background()))
+
+	cc := mustCycleController(t, c.store)
+	cc.BeginCycle()
+	require.NoError(t, c.Collect(context.Background()))
+	cc.CommitCycleSuccess()
+
+	reader := c.store.Read()
+	requireValue(t, reader, "collector_collection_success", nil, 1)
+	requireValue(t, reader, "collector_discovered_sites", nil, 3)
+	requireValue(t, reader, "collector_operation_success", metrix.Labels{"operation": operationDiscovery}, 1)
+	requireValue(t, reader, "collector_operation_success", metrix.Labels{"operation": operationSnapshot}, 1)
+	requireValue(t, reader, "collector_operation_success", metrix.Labels{"operation": operationMetrics}, 1)
+	requireValue(t, reader, "collector_operation_success", metrix.Labels{"operation": operationEvents}, 1)
+	requireValue(t, reader, "collector_operation_success", metrix.Labels{"operation": operationBGP}, 1)
+
+	requireValue(t, reader, "site_connectivity_connected", metrix.Labels{
+		"site_id":   "1001",
+		"site_name": "Paris Office",
+		"pop_name":  "POP-Paris",
+	}, 1)
+	requireValue(t, reader, "site_connectivity_disconnected", metrix.Labels{
+		"site_id":   "1002",
+		"site_name": "Toulouse Office",
+		"pop_name":  "POP-Toulouse",
+	}, 1)
+	requireValue(t, reader, "site_connectivity_degraded", metrix.Labels{
+		"site_id":   "1003",
+		"site_name": "Saint Girons Office",
+		"pop_name":  "POP-Ariege",
+	}, 1)
+	requireValue(t, reader, "site_bytes_upstream_max", metrix.Labels{
+		"site_id":   "1001",
+		"site_name": "Paris Office",
+		"pop_name":  "POP-Paris",
+	}, 4684)
+	requireValue(t, reader, "site_packets_discarded_downstream", metrix.Labels{
+		"site_id":   "1001",
+		"site_name": "Paris Office",
+		"pop_name":  "POP-Paris",
+	}, 1)
+	requireValue(t, reader, "events_total", metrix.Labels{
+		"event_type":     "Security",
+		"event_sub_type": "Threat Prevention",
+		"severity":       "HIGH",
+		"status":         "Closed",
+	}, 1)
+	requireValue(t, reader, "events_total", metrix.Labels{
+		"event_type":     "Security",
+		"event_sub_type": "Threat Prevention",
+		"severity":       "HIGH",
+		"status":         "Reopened",
+	}, 1)
+	requireValue(t, reader, "bgp_session_up", metrix.Labels{
+		"site_id":   "1001",
+		"site_name": "Paris Office",
+		"peer_ip":   "192.0.2.10",
+		"peer_asn":  "64512",
+	}, 1)
+	requireValue(t, reader, "bgp_routes", metrix.Labels{
+		"site_id":   "1001",
+		"site_name": "Paris Office",
+		"peer_ip":   "192.0.2.10",
+		"peer_asn":  "64512",
+	}, 12)
+	requireValue(t, reader, "bgp_routes_limit", metrix.Labels{
+		"site_id":   "1001",
+		"site_name": "Paris Office",
+		"peer_ip":   "192.0.2.10",
+		"peer_asn":  "64512",
+	}, 100)
+	requireValue(t, reader, "bgp_rib_out_routes", metrix.Labels{
+		"site_id":   "1001",
+		"site_name": "Paris Office",
+		"peer_ip":   "192.0.2.10",
+		"peer_asn":  "64512",
+	}, 1)
+
+	marker, err := os.ReadFile(c.Events.MarkerFile)
+	require.NoError(t, err)
+	require.Equal(t, "eyJmZXRjaGVkQ291bnQiOjIwfQ==\n", string(marker))
+}
+
+func TestConfigValidation(t *testing.T) {
+	cfg := Config{}
+	cfg.applyDefaults()
+	err := cfg.validate()
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "'account_id' is required")
+	require.Contains(t, err.Error(), "'api_key' is required")
+
+	cfg.AccountID = "12345"
+	cfg.APIKey = "secret"
+	require.NoError(t, cfg.validate())
+	require.Equal(t, defaultEndpoint, cfg.URL)
+	require.Equal(t, defaultUpdateEvery, cfg.UpdateEvery)
+
+	cfg.Metrics.TimeFrame = "garbage"
+	err = cfg.validate()
+	require.ErrorContains(t, err, "'metrics.time_frame'")
+
+	cfg.Metrics.TimeFrame = "utc.2020-02-11/{04:50:15--16:50:15}"
+	require.NoError(t, cfg.validate())
+
+	cfg.URL = "ftp://api.catonetworks.com/api/v1/graphql2"
+	err = cfg.validate()
+	require.ErrorContains(t, err, "'url' scheme")
+}
+
+func TestCheckDoesNotAdvanceEventsMarker(t *testing.T) {
+	c := New()
+	c.AccountID = "12345"
+	c.APIKey = "secret"
+	c.Events.MarkerFile = filepath.Join(t.TempDir(), "marker")
+	c.client = newFixtureAPIClient()
+	c.now = func() time.Time { return time.Date(2026, 5, 1, 12, 0, 0, 0, time.UTC) }
+
+	require.NoError(t, c.Init(context.Background()))
+	require.NoError(t, c.Check(context.Background()))
+
+	require.Empty(t, c.eventMarker)
+	_, err := os.Stat(c.Events.MarkerFile)
+	require.ErrorIs(t, err, os.ErrNotExist)
+}
+
+func TestCollectorDrainsEventsFeedPagesAndCapsCardinality(t *testing.T) {
+	c := New()
+	c.AccountID = "12345"
+	c.APIKey = "secret"
+	c.Metrics.Enabled = "no"
+	c.BGP.Enabled = "no"
+	c.Events.MarkerFile = filepath.Join(t.TempDir(), "marker")
+	c.Events.MaxPagesPerCycle = 5
+	c.Events.MaxCardinality = 3
+	fake := newFixtureAPIClient()
+	fake.eventsByMarker = map[string]*catosdk.EventsFeed{
+		"": eventsFeedPage("marker-1", eventsFeedMaxFetchSize, []map[string]any{
+			{"event_type": "Security", "event_sub_type": "Threat Prevention", "severity": "HIGH", "status": "Closed"},
+			{"event_type": "Connectivity", "event_sub_type": "Tunnel", "severity": "INFO", "status": "Open"},
+		}),
+		"marker-1": eventsFeedPage("marker-2", 1, []map[string]any{
+			{"event_type": "Audit", "event_sub_type": "Admin Login", "severity": "LOW", "status": "Closed"},
+		}),
+	}
+	c.client = fake
+	c.now = func() time.Time { return time.Date(2026, 5, 1, 12, 0, 0, 0, time.UTC) }
+
+	require.NoError(t, c.Init(context.Background()))
+	cc := mustCycleController(t, c.store)
+	cc.BeginCycle()
+	require.NoError(t, c.Collect(context.Background()))
+	cc.CommitCycleSuccess()
+
+	require.Equal(t, []string{"", "marker-1"}, fake.eventMarkers)
+	require.Equal(t, "marker-2", c.eventMarker)
+	data, err := os.ReadFile(c.Events.MarkerFile)
+	require.NoError(t, err)
+	require.Equal(t, "marker-2", strings.TrimSpace(string(data)))
+
+	reader := c.store.Read()
+	requireValue(t, reader, "events_total", metrix.Labels{
+		"event_type":     "Security",
+		"event_sub_type": "Threat Prevention",
+		"severity":       "HIGH",
+		"status":         "Closed",
+	}, 1)
+	requireValue(t, reader, "events_total", metrix.Labels{
+		"event_type":     "Connectivity",
+		"event_sub_type": "Tunnel",
+		"severity":       "INFO",
+		"status":         "Open",
+	}, 1)
+	requireValue(t, reader, "events_total", metrix.Labels{
+		"event_type":     "other",
+		"event_sub_type": "other",
+		"severity":       "other",
+		"status":         "other",
+	}, 1)
+	requireValue(t, reader, "collector_normalization_issues_total", metrix.Labels{
+		"surface": normalizationSurfaceEvents,
+		"issue":   normalizationIssueCardinalityLimit,
+	}, 1)
+}
+
+func TestCollectorReportsUnknownTimeseriesLabels(t *testing.T) {
+	c := New()
+	c.AccountID = "12345"
+	c.APIKey = "secret"
+	c.Events.Enabled = "no"
+	c.BGP.Enabled = "no"
+	c.Events.MarkerFile = filepath.Join(t.TempDir(), "marker")
+	fake := newFixtureAPIClient()
+	iface := fake.metrics.GetAccountMetrics().GetSites()[0].GetInterfaces()[0]
+	iface.Timeseries = append(iface.Timeseries, &catosdk.AccountMetrics_AccountMetrics_Sites_Interfaces_Timeseries{
+		Label: "renamedByVendor",
+		Data:  [][]float64{{1, 42}},
+	})
+	c.client = fake
+	c.now = func() time.Time { return time.Date(2026, 5, 1, 12, 0, 0, 0, time.UTC) }
+
+	require.NoError(t, c.Init(context.Background()))
+	cc := mustCycleController(t, c.store)
+	cc.BeginCycle()
+	require.NoError(t, c.Collect(context.Background()))
+	cc.CommitCycleSuccess()
+
+	reader := c.store.Read()
+	requireValue(t, reader, "collector_normalization_issues_total", metrix.Labels{
+		"surface": normalizationSurfaceMetrics,
+		"issue":   normalizationIssueUnknownTimeseriesLabel,
+	}, 1)
+}
+
+func TestCollectorNormalizesEventFieldAliasesAndReportsBadFields(t *testing.T) {
+	c := New()
+	c.AccountID = "12345"
+	c.APIKey = "secret"
+	c.Metrics.Enabled = "no"
+	c.BGP.Enabled = "no"
+	c.Events.MarkerFile = filepath.Join(t.TempDir(), "marker")
+	fake := newFixtureAPIClient()
+	fake.events = eventsFeedPage("marker-1", 0, []map[string]any{
+		{"eventType": "Security", "eventSubType": "Threat Prevention", "severity": "HIGH", "status": "Closed"},
+		{"event_type": map[string]any{"unexpected": "shape"}, "event_sub_type": "", "severity": nil},
+	})
+	c.client = fake
+	c.now = func() time.Time { return time.Date(2026, 5, 1, 12, 0, 0, 0, time.UTC) }
+
+	require.NoError(t, c.Init(context.Background()))
+	cc := mustCycleController(t, c.store)
+	cc.BeginCycle()
+	require.NoError(t, c.Collect(context.Background()))
+	cc.CommitCycleSuccess()
+
+	reader := c.store.Read()
+	requireValue(t, reader, "events_total", metrix.Labels{
+		"event_type":     "Security",
+		"event_sub_type": "Threat Prevention",
+		"severity":       "HIGH",
+		"status":         "Closed",
+	}, 1)
+	requireValue(t, reader, "events_total", metrix.Labels{
+		"event_type":     "unknown",
+		"event_sub_type": "unknown",
+		"severity":       "unknown",
+		"status":         "unknown",
+	}, 1)
+	requireValue(t, reader, "collector_normalization_issues_total", metrix.Labels{
+		"surface": normalizationSurfaceEvents,
+		"issue":   normalizationIssueComplexEventField,
+	}, 1)
+	requireValue(t, reader, "collector_normalization_issues_total", metrix.Labels{
+		"surface": normalizationSurfaceEvents,
+		"issue":   normalizationIssueEmptyEventSubType,
+	}, 1)
+	requireValue(t, reader, "collector_normalization_issues_total", metrix.Labels{
+		"surface": normalizationSurfaceEvents,
+		"issue":   normalizationIssueEmptyEventSeverity,
+	}, 1)
+	requireValue(t, reader, "collector_normalization_issues_total", metrix.Labels{
+		"surface": normalizationSurfaceEvents,
+		"issue":   normalizationIssueEmptyEventStatus,
+	}, 1)
+}
+
+func TestCollectorUsesPersistedEventsMarker(t *testing.T) {
+	markerFile := filepath.Join(t.TempDir(), "marker")
+	require.NoError(t, os.WriteFile(markerFile, []byte("persisted-marker"), 0o600))
+
+	c := New()
+	c.AccountID = "12345"
+	c.APIKey = "secret"
+	c.Metrics.Enabled = "no"
+	c.BGP.Enabled = "no"
+	c.Events.MarkerFile = markerFile
+	fake := newFixtureAPIClient()
+	fake.eventsByMarker = map[string]*catosdk.EventsFeed{
+		"persisted-marker": eventsFeedPage("next-marker", 0, nil),
+	}
+	c.client = fake
+	c.now = func() time.Time { return time.Date(2026, 5, 1, 12, 0, 0, 0, time.UTC) }
+
+	require.NoError(t, c.Init(context.Background()))
+	cc := mustCycleController(t, c.store)
+	cc.BeginCycle()
+	require.NoError(t, c.Collect(context.Background()))
+	cc.CommitCycleSuccess()
+
+	require.Equal(t, []string{"persisted-marker"}, fake.eventMarkers)
+	require.Equal(t, "next-marker", c.eventMarker)
+}
+
+func TestCollectorReportsEventsPageCap(t *testing.T) {
+	c := New()
+	c.AccountID = "12345"
+	c.APIKey = "secret"
+	c.Metrics.Enabled = "no"
+	c.BGP.Enabled = "no"
+	c.Events.MarkerFile = filepath.Join(t.TempDir(), "marker")
+	c.Events.MaxPagesPerCycle = 1
+	fake := newFixtureAPIClient()
+	fake.eventsByMarker = map[string]*catosdk.EventsFeed{
+		"": eventsFeedPage("marker-1", eventsFeedMaxFetchSize, []map[string]any{
+			{"event_type": "Security"},
+		}),
+	}
+	c.client = fake
+	c.now = func() time.Time { return time.Date(2026, 5, 1, 12, 0, 0, 0, time.UTC) }
+
+	require.NoError(t, c.Init(context.Background()))
+	cc := mustCycleController(t, c.store)
+	cc.BeginCycle()
+	require.NoError(t, c.Collect(context.Background()))
+	cc.CommitCycleSuccess()
+
+	reader := c.store.Read()
+	requireValue(t, reader, "collector_normalization_issues_total", metrix.Labels{
+		"surface": normalizationSurfaceEvents,
+		"issue":   normalizationIssuePageCap,
+	}, 1)
+}
+
+func TestCollectorStopsWhenEventsMarkerDoesNotAdvance(t *testing.T) {
+	c := New()
+	c.AccountID = "12345"
+	c.APIKey = "secret"
+	c.Metrics.Enabled = "no"
+	c.BGP.Enabled = "no"
+	c.Events.MarkerFile = filepath.Join(t.TempDir(), "marker")
+	c.eventMarker = "stalled-marker"
+	fake := newFixtureAPIClient()
+	fake.eventsByMarker = map[string]*catosdk.EventsFeed{
+		"stalled-marker": eventsFeedPage("stalled-marker", eventsFeedMaxFetchSize, []map[string]any{
+			{"event_type": "Security"},
+		}),
+	}
+	c.client = fake
+	c.now = func() time.Time { return time.Date(2026, 5, 1, 12, 0, 0, 0, time.UTC) }
+
+	require.NoError(t, c.Init(context.Background()))
+	c.eventMarker = "stalled-marker"
+	cc := mustCycleController(t, c.store)
+	cc.BeginCycle()
+	require.NoError(t, c.Collect(context.Background()))
+	cc.CommitCycleSuccess()
+
+	require.Equal(t, []string{"stalled-marker"}, fake.eventMarkers)
+	reader := c.store.Read()
+	requireValue(t, reader, "collector_normalization_issues_total", metrix.Labels{
+		"surface": normalizationSurfaceEvents,
+		"issue":   normalizationIssueMarkerStalled,
+	}, 1)
+}
+
+func TestCollectorContinuesOnPartialMetricsAndBGPFailures(t *testing.T) {
+	c := New()
+	c.AccountID = "12345"
+	c.APIKey = "secret"
+	c.Events.Enabled = "no"
+	c.Metrics.MaxSitesPerQuery = 1
+	c.Events.MarkerFile = filepath.Join(t.TempDir(), "marker")
+	fake := newFixtureAPIClient()
+	fake.metricsErrSites = map[string]error{"1002": errors.New("site metrics failed")}
+	fake.bgpErrSites = map[string]error{"1002": errors.New("site bgp failed")}
+	c.client = fake
+	c.now = func() time.Time { return time.Date(2026, 5, 1, 12, 0, 0, 0, time.UTC) }
+
+	require.NoError(t, c.Init(context.Background()))
+	cc := mustCycleController(t, c.store)
+	cc.BeginCycle()
+	require.NoError(t, c.Collect(context.Background()))
+	cc.CommitCycleSuccess()
+
+	reader := c.store.Read()
+	requireValue(t, reader, "site_bytes_upstream_max", metrix.Labels{
+		"site_id":   "1001",
+		"site_name": "Paris Office",
+		"pop_name":  "POP-Paris",
+	}, 7168)
+	requireValue(t, reader, "bgp_session_up", metrix.Labels{
+		"site_id":   "1001",
+		"site_name": "Paris Office",
+		"peer_ip":   "192.0.2.10",
+		"peer_asn":  "64512",
+	}, 1)
+	requireValue(t, reader, "collector_collection_success", nil, 1)
+	requireValue(t, reader, "collector_operation_success", metrix.Labels{"operation": operationMetrics}, 0)
+	requireValue(t, reader, "collector_operation_success", metrix.Labels{"operation": operationBGP}, 0)
+	requireValue(t, reader, "collector_operation_failures_total", metrix.Labels{
+		"operation":   operationMetrics,
+		"error_class": "error",
+	}, 1)
+	requireValue(t, reader, "collector_operation_failures_total", metrix.Labels{
+		"operation":   operationBGP,
+		"error_class": "error",
+	}, 1)
+	requireValue(t, reader, "collector_operation_affected_sites_total", metrix.Labels{
+		"operation":   operationMetrics,
+		"error_class": "error",
+	}, 1)
+	requireValue(t, reader, "collector_operation_affected_sites_total", metrix.Labels{
+		"operation":   operationBGP,
+		"error_class": "error",
+	}, 1)
+}
+
+func TestCollectorMapsUnrecognizedStatusesToUnknown(t *testing.T) {
+	c := New()
+	c.AccountID = "12345"
+	c.APIKey = "secret"
+	c.Metrics.Enabled = "no"
+	c.Events.Enabled = "no"
+	c.BGP.Enabled = "no"
+	c.Events.MarkerFile = filepath.Join(t.TempDir(), "marker")
+	fake := newFixtureAPIClient()
+	fake.snapshot = &catosdk.AccountSnapshot{AccountSnapshot: &catosdk.AccountSnapshot_AccountSnapshot{
+		Sites: []*catosdk.AccountSnapshot_AccountSnapshot_Sites{
+			{
+				ID:                             strPtr("1001"),
+				ConnectivityStatusSiteSnapshot: connectivityPtr("Initializing"),
+				OperationalStatusSiteSnapshot:  operationalPtr("Maintenance"),
+				PopName:                        strPtr("POP-Paris"),
+				InfoSiteSnapshot: &catosdk.AccountSnapshot_AccountSnapshot_Sites_InfoSiteSnapshot{
+					Name: strPtr("Paris Office"),
+				},
+			},
+		},
+	}}
+	c.client = fake
+	c.now = func() time.Time { return time.Date(2026, 5, 1, 12, 0, 0, 0, time.UTC) }
+
+	require.NoError(t, c.Init(context.Background()))
+	cc := mustCycleController(t, c.store)
+	cc.BeginCycle()
+	require.NoError(t, c.Collect(context.Background()))
+	cc.CommitCycleSuccess()
+
+	reader := c.store.Read()
+	requireValue(t, reader, "site_connectivity_unknown", metrix.Labels{
+		"site_id":   "1001",
+		"site_name": "Paris Office",
+		"pop_name":  "POP-Paris",
+	}, 1)
+	requireValue(t, reader, "site_operational_unknown", metrix.Labels{
+		"site_id":   "1001",
+		"site_name": "Paris Office",
+		"pop_name":  "POP-Paris",
+	}, 1)
+	requireValue(t, reader, "collector_normalization_issues_total", metrix.Labels{
+		"surface": normalizationSurfaceSiteConnectivity,
+		"issue":   normalizationIssueUnknownStatus,
+	}, 1)
+	requireValue(t, reader, "collector_normalization_issues_total", metrix.Labels{
+		"surface": normalizationSurfaceSiteOperational,
+		"issue":   normalizationIssueUnknownStatus,
+	}, 1)
+}
+
+func TestCollectorReportsEmptyDiscovery(t *testing.T) {
+	c := New()
+	c.AccountID = "12345"
+	c.APIKey = "secret"
+	c.Events.MarkerFile = filepath.Join(t.TempDir(), "marker")
+	fake := newFixtureAPIClient()
+	total := int64(0)
+	fake.lookup = &catosdk.EntityLookup{EntityLookup: catosdk.EntityLookup_EntityLookup{Total: &total}}
+	c.client = fake
+	c.now = func() time.Time { return time.Date(2026, 5, 1, 12, 0, 0, 0, time.UTC) }
+
+	require.NoError(t, c.Init(context.Background()))
+	cc := mustCycleController(t, c.store)
+	cc.BeginCycle()
+	require.ErrorContains(t, c.Collect(context.Background()), "no Cato sites discovered")
+	cc.CommitCycleSuccess()
+
+	reader := c.store.Read()
+	requireValue(t, reader, "collector_collection_success", nil, 0)
+	requireValue(t, reader, "collector_collection_failures_total", metrix.Labels{"error_class": "empty"}, 1)
+}
+
+func TestCollectorDiscoversMultiplePages(t *testing.T) {
+	c := New()
+	c.AccountID = "12345"
+	c.APIKey = "secret"
+	c.Metrics.Enabled = "no"
+	c.Events.Enabled = "no"
+	c.BGP.Enabled = "no"
+	c.Discovery.PageLimit = 2
+	c.Events.MarkerFile = filepath.Join(t.TempDir(), "marker")
+	fake := newFixtureAPIClient()
+	fake.lookupPages = map[int64]*catosdk.EntityLookup{
+		0: fixtureLookupPage(5, "1001", "1002"),
+		2: fixtureLookupPage(5, "1003", "1004"),
+		4: fixtureLookupPage(5, "1005"),
+	}
+	c.client = fake
+	c.now = func() time.Time { return time.Date(2026, 5, 1, 12, 0, 0, 0, time.UTC) }
+
+	require.NoError(t, c.Init(context.Background()))
+	cc := mustCycleController(t, c.store)
+	cc.BeginCycle()
+	require.NoError(t, c.Collect(context.Background()))
+	cc.CommitCycleSuccess()
+
+	require.Equal(t, []string{"1001", "1002", "1003", "1004", "1005"}, c.discovery.siteIDs)
+	reader := c.store.Read()
+	requireValue(t, reader, "collector_discovered_sites", nil, 5)
+}
+
+func TestCollectorDoesNotAdvanceBGPRotationWhenAllRequestsFail(t *testing.T) {
+	c := New()
+	c.AccountID = "12345"
+	c.APIKey = "secret"
+	c.Metrics.Enabled = "no"
+	c.Events.Enabled = "no"
+	c.BGP.MaxSitesPerCollection = 1
+	c.Events.MarkerFile = filepath.Join(t.TempDir(), "marker")
+	fake := newFixtureAPIClient()
+	fake.bgpErrSites = map[string]error{"1001": errors.New("rate limit exceeded")}
+	c.client = fake
+	now := time.Date(2026, 5, 1, 12, 0, 0, 0, time.UTC)
+	c.now = func() time.Time { return now }
+
+	require.NoError(t, c.Init(context.Background()))
+	cc := mustCycleController(t, c.store)
+	cc.BeginCycle()
+	require.NoError(t, c.Collect(context.Background()))
+	cc.CommitCycleSuccess()
+
+	require.Zero(t, c.bgp.nextIndex)
+	require.True(t, c.bgp.nextRefresh.IsZero())
+	reader := c.store.Read()
+	requireValue(t, reader, "collector_operation_failures_total", metrix.Labels{
+		"operation":   operationBGP,
+		"error_class": "rate_limit",
+	}, 1)
+	requireValue(t, reader, "collector_operation_affected_sites_total", metrix.Labels{
+		"operation":   operationBGP,
+		"error_class": "rate_limit",
+	}, 1)
+}
+
+func TestCollectorFiltersEmptyBGPPeers(t *testing.T) {
+	c := New()
+	c.AccountID = "12345"
+	c.APIKey = "secret"
+	c.Metrics.Enabled = "no"
+	c.Events.Enabled = "no"
+	c.BGP.MaxSitesPerCollection = 1
+	c.Events.MarkerFile = filepath.Join(t.TempDir(), "marker")
+	fake := newFixtureAPIClient()
+	fake.bgp["1001"] = []*catosdk.SiteBgpStatusResult{{}}
+	c.client = fake
+	c.now = func() time.Time { return time.Date(2026, 5, 1, 12, 0, 0, 0, time.UTC) }
+
+	require.NoError(t, c.Init(context.Background()))
+	cc := mustCycleController(t, c.store)
+	cc.BeginCycle()
+	require.NoError(t, c.Collect(context.Background()))
+	cc.CommitCycleSuccess()
+
+	reader := c.store.Read()
+	requireValue(t, reader, "collector_normalization_issues_total", metrix.Labels{
+		"surface": normalizationSurfaceBGP,
+		"issue":   normalizationIssueEmptyPeer,
+	}, 1)
+	_, ok := reader.Value("bgp_session_up", metrix.Labels{
+		"site_id":   "1001",
+		"site_name": "Paris Office",
+		"peer_ip":   "",
+		"peer_asn":  "",
+	})
+	require.False(t, ok)
+}
+
+func TestCollectorReportsMarkerWriteFailure(t *testing.T) {
+	c := New()
+	c.AccountID = "12345"
+	c.APIKey = "secret"
+	c.Metrics.Enabled = "no"
+	c.BGP.Enabled = "no"
+	blockedPath := filepath.Join(t.TempDir(), "not-a-dir")
+	require.NoError(t, os.WriteFile(blockedPath, []byte("blocked"), 0o600))
+	c.Events.MarkerFile = filepath.Join(blockedPath, "marker")
+	c.client = newFixtureAPIClient()
+	c.now = func() time.Time { return time.Date(2026, 5, 1, 12, 0, 0, 0, time.UTC) }
+
+	require.NoError(t, c.Init(context.Background()))
+	cc := mustCycleController(t, c.store)
+	cc.BeginCycle()
+	require.NoError(t, c.Collect(context.Background()))
+	cc.CommitCycleSuccess()
+
+	reader := c.store.Read()
+	require.Equal(t, "marker-2", c.eventMarker)
+	requireValue(t, reader, "collector_events_marker_persistence_available", nil, 0)
+	requireValue(t, reader, "collector_operation_failures_total", metrix.Labels{
+		"operation":   operationEventMarker,
+		"error_class": "error",
+	}, 1)
+}
+
+func TestBGPPollingRotatesAcrossSites(t *testing.T) {
+	c := New()
+	c.AccountID = "12345"
+	c.APIKey = "secret"
+	c.Events.Enabled = "no"
+	c.BGP.RefreshEvery = 60
+	c.BGP.MaxSitesPerCollection = 1
+	c.Events.MarkerFile = filepath.Join(t.TempDir(), "marker")
+	fake := newFixtureAPIClient()
+	fake.bgp["1002"] = []*catosdk.SiteBgpStatusResult{
+		{
+			RemoteIP:   "192.0.2.20",
+			RemoteASN:  "64513",
+			BGPSession: "Established",
+		},
+	}
+	c.client = fake
+	now := time.Date(2026, 5, 1, 12, 0, 0, 0, time.UTC)
+	c.now = func() time.Time { return now }
+
+	require.NoError(t, c.Init(context.Background()))
+	cc := mustCycleController(t, c.store)
+	cc.BeginCycle()
+	require.NoError(t, c.Collect(context.Background()))
+	cc.CommitCycleSuccess()
+	require.Len(t, c.bgp.bySite, 1)
+	require.Contains(t, c.bgp.bySite, "1001")
+
+	now = now.Add(61 * time.Second)
+	cc.BeginCycle()
+	require.NoError(t, c.Collect(context.Background()))
+	cc.CommitCycleSuccess()
+	require.Len(t, c.bgp.bySite, 2)
+	require.Contains(t, c.bgp.bySite, "1002")
+	reader := c.store.Read()
+	requireValue(t, reader, "collector_bgp_sites_per_collection", nil, 1)
+	requireValue(t, reader, "collector_bgp_full_scan_seconds", nil, 120)
+	requireValue(t, reader, "collector_bgp_cached_sites", nil, 2)
+}
+
+func TestPruneBGPStateRemovesMissingSites(t *testing.T) {
+	bySite := map[string][]bgpPeerState{
+		"1001": {{RemoteIP: "192.0.2.10"}},
+		"1002": {{RemoteIP: "192.0.2.20"}},
+	}
+
+	pruneBGPState(bySite, []string{"1002"})
+
+	require.NotContains(t, bySite, "1001")
+	require.Contains(t, bySite, "1002")
+}
+
+func TestTopologyFunctionReturnsCurrentTopology(t *testing.T) {
+	c := New()
+	c.AccountID = "12345"
+	c.APIKey = "secret"
+	c.Events.MarkerFile = filepath.Join(t.TempDir(), "marker")
+	c.client = newFixtureAPIClient()
+	c.now = func() time.Time { return time.Date(2026, 5, 1, 12, 0, 0, 0, time.UTC) }
+
+	require.NoError(t, c.Init(context.Background()))
+	require.NoError(t, c.Check(context.Background()))
+
+	handler := &funcTopology{collector: c}
+	resp := handler.Handle(context.Background(), topologyMethodID, nil)
+
+	require.Equal(t, 200, resp.Status)
+	require.Equal(t, "topology", resp.ResponseType)
+	data, ok := resp.Data.(*topology.Data)
+	require.True(t, ok)
+	require.Equal(t, topologySource, data.Source)
+	require.NotEmpty(t, data.Actors)
+	require.NotEmpty(t, data.Links)
+}
+
+func TestSiteTopologyTablesAreDeterministic(t *testing.T) {
+	site := &siteState{
+		Interfaces: map[string]*interfaceState{
+			"z": {Name: "WAN 2"},
+			"a": {Name: "WAN 1"},
+		},
+		Devices: []deviceState{
+			{ID: "z", Name: "Socket 2"},
+			{ID: "a", Name: "Socket 1"},
+		},
+	}
+
+	tables := siteTopologyTables(site)
+
+	require.Equal(t, "WAN 1", tables["interfaces"][0]["name"])
+	require.Equal(t, "WAN 2", tables["interfaces"][1]["name"])
+	require.Equal(t, "Socket 1", tables["devices"][0]["name"])
+	require.Equal(t, "Socket 2", tables["devices"][1]["name"])
+}
+
+func TestRetryableCatoErrors(t *testing.T) {
+	require.True(t, isRetryableCatoError(errors.New("GraphQL rate limit exceeded")))
+	require.True(t, isRetryableCatoError(errors.New("HTTP 429 Too Many Requests")))
+	require.False(t, isRetryableCatoError(errors.New("invalid API key")))
+	require.False(t, isRetryableCatoError(context.Canceled))
+}
+
+func TestClassifyCatoErrors(t *testing.T) {
+	require.Equal(t, "auth", classifyCatoError(errors.New("HTTP 403 forbidden")))
+	require.Equal(t, "rate_limit", classifyCatoError(errors.New("GraphQL rate limit exceeded")))
+	require.Equal(t, "timeout", classifyCatoError(context.DeadlineExceeded))
+	require.Equal(t, "decode", classifyCatoError(errors.New("json: cannot unmarshal number into Go struct field")))
+	require.Equal(t, "network", classifyCatoError(&net.DNSError{Err: "no such host", Name: "api.invalid"}))
+	require.Equal(t, "tls", classifyCatoError(errors.New("tls: failed to verify certificate: x509: certificate signed by unknown authority")))
+	require.Equal(t, "proxy", classifyCatoError(errors.New("proxyconnect tcp: dial tcp: connection refused")))
+	require.Equal(t, "empty", classifyCatoError(errors.New("no Cato sites discovered")))
+}
+
+func TestSDKClientClassifiesHTTPAndGraphQLErrors(t *testing.T) {
+	tests := map[string]struct {
+		operation     string
+		response      rawCatoResponse
+		wantOperation string
+		wantClass     string
+		wantErr       string
+	}{
+		"auth failure during discovery": {
+			operation:     operationDiscovery,
+			response:      rawCatoResponse{status: http.StatusUnauthorized, body: `{"errors":[{"message":"Unauthorized"}]}`},
+			wantOperation: operationDiscovery,
+			wantClass:     "auth",
+			wantErr:       "site discovery",
+		},
+		"rate limit during metrics": {
+			operation:     operationMetrics,
+			response:      rawCatoResponse{status: http.StatusTooManyRequests, body: `{"errors":[{"message":"rate limit exceeded"}]}`},
+			wantOperation: operationMetrics,
+			wantClass:     "rate_limit",
+		},
+		"graphql rate limit during events": {
+			operation:     operationEvents,
+			response:      rawCatoResponse{status: http.StatusOK, body: `{"errors":[{"message":"rate limit exceeded"}],"data":{"eventsFeed":null}}`},
+			wantOperation: operationEvents,
+			wantClass:     "rate_limit",
+		},
+	}
+
+	for name, tt := range tests {
+		t.Run(name, func(t *testing.T) {
+			server := newRawCatoFixtureServerWithResponses(t, map[string]rawCatoResponse{tt.operation: tt.response})
+			defer server.Close()
+
+			c := New()
+			c.URL = server.URL
+			c.AccountID = "12345"
+			c.APIKey = "secret"
+			c.Retry.Attempts = 1
+			c.Events.MarkerFile = filepath.Join(t.TempDir(), "marker")
+			c.now = func() time.Time { return time.Date(2026, 5, 1, 12, 0, 0, 0, time.UTC) }
+
+			require.NoError(t, c.Init(context.Background()))
+			cc := mustCycleController(t, c.store)
+			cc.BeginCycle()
+			err := c.Collect(context.Background())
+			if tt.wantErr == "" {
+				require.NoError(t, err)
+			} else {
+				require.ErrorContains(t, err, tt.wantErr)
+			}
+			cc.CommitCycleSuccess()
+
+			reader := c.store.Read()
+			requireValue(t, reader, "collector_operation_failures_total", metrix.Labels{
+				"operation":   tt.wantOperation,
+				"error_class": tt.wantClass,
+			}, 1)
+		})
+	}
+}
+
+func TestSDKClientClassifiesHTTPClientTimeout(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(http.ResponseWriter, *http.Request) {
+		time.Sleep(50 * time.Millisecond)
+	}))
+	defer server.Close()
+
+	c := New()
+	c.URL = server.URL
+	c.AccountID = "12345"
+	c.APIKey = "secret"
+	c.Timeout = confopt.Duration(time.Millisecond)
+	c.Retry.Attempts = 1
+	c.Events.MarkerFile = filepath.Join(t.TempDir(), "marker")
+
+	require.NoError(t, c.Init(context.Background()))
+	cc := mustCycleController(t, c.store)
+	cc.BeginCycle()
+	err := c.Collect(context.Background())
+	cc.CommitCycleSuccess()
+
+	require.ErrorContains(t, err, "site discovery failed")
+	require.ErrorContains(t, err, "error_class=timeout")
+	reader := c.store.Read()
+	requireValue(t, reader, "collector_operation_failures_total", metrix.Labels{
+		"operation":   operationDiscovery,
+		"error_class": "timeout",
+	}, 1)
+}
+
+func TestCollectorSanitizesReturnedProviderErrors(t *testing.T) {
+	server := newRawCatoFixtureServerWithResponses(t, map[string]rawCatoResponse{
+		operationDiscovery: {
+			status: http.StatusUnauthorized,
+			body:   `{"errors":[{"message":"Unauthorized secret token leaked by upstream"}]}`,
+		},
+	})
+	defer server.Close()
+
+	c := New()
+	c.URL = server.URL
+	c.AccountID = "12345"
+	c.APIKey = "secret"
+	c.Retry.Attempts = 1
+	c.Events.MarkerFile = filepath.Join(t.TempDir(), "marker")
+
+	require.NoError(t, c.Init(context.Background()))
+	cc := mustCycleController(t, c.store)
+	cc.BeginCycle()
+	err := c.Collect(context.Background())
+	cc.CommitCycleSuccess()
+
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "site discovery failed")
+	require.Contains(t, err.Error(), "error_class=auth")
+	require.NotContains(t, err.Error(), "secret")
+	require.NotContains(t, err.Error(), "Unauthorized")
+}
+
+func TestRetryWaitCapsAtMaximum(t *testing.T) {
+	require.Equal(t, 2*time.Second, retryWait(1*time.Second, 2*time.Second, 4))
+}
+
+func TestBGPSessionUpRequiresExactEstablishedStatus(t *testing.T) {
+	require.True(t, isBGPSessionUp("Established"))
+	require.True(t, isBGPSessionUp("up"))
+	require.False(t, isBGPSessionUp("not_established"))
+	require.False(t, isBGPSessionUp("idle"))
+}
+
+func TestSDKClientRecordsRetryStats(t *testing.T) {
+	client := &sdkAPIClient{
+		retry: RetryConfig{
+			Attempts: 2,
+			WaitMin:  confopt.Duration(time.Millisecond),
+			WaitMax:  confopt.Duration(time.Millisecond),
+		},
+		sleep: func(context.Context, time.Duration) error { return nil },
+	}
+
+	var calls int
+	err := client.withRetry(context.Background(), "accountMetrics", func() error {
+		calls++
+		if calls == 1 {
+			return errors.New("GraphQL Rate Limit Exceeded")
+		}
+		return nil
+	})
+
+	require.NoError(t, err)
+	require.Equal(t, 2, calls)
+	require.Equal(t, int64(1), client.APIStats().Retries["accountMetrics"].RateLimit)
+	require.Zero(t, client.APIStats().Retries["accountMetrics"].Transient)
+}
+
+func TestNormalizeSnapshotDefaultsNilStatusesToUnknown(t *testing.T) {
+	snapshot := &catosdk.AccountSnapshot{AccountSnapshot: &catosdk.AccountSnapshot_AccountSnapshot{
+		Sites: []*catosdk.AccountSnapshot_AccountSnapshot_Sites{
+			{ID: strPtr("1001")},
+		},
+	}}
+
+	sites, order := normalizeSnapshot(snapshot, nil)
+
+	require.Equal(t, []string{"1001"}, order)
+	require.Equal(t, "unknown", sites["1001"].ConnectivityStatus)
+	require.Equal(t, "unknown", sites["1001"].OperationalStatus)
+}
+
+func TestChartTemplateCompiles(t *testing.T) {
+	spec, err := charttpl.DecodeYAML([]byte(chartTemplate))
+	require.NoError(t, err)
+	_, err = chartengine.Compile(spec, 1)
+	require.NoError(t, err)
+}
+
+func TestConfigSchemaParses(t *testing.T) {
+	require.True(t, json.Valid([]byte(configSchema)))
+}
+
+type rawCatoResponse struct {
+	status int
+	body   string
+}
+
+func newRawCatoFixtureServer(t *testing.T) *httptest.Server {
+	t.Helper()
+
+	return newRawCatoFixtureServerWithResponses(t, nil)
+}
+
+func newRawCatoFixtureServerWithResponses(t *testing.T, overrides map[string]rawCatoResponse) *httptest.Server {
+	t.Helper()
+
+	responses := map[string]rawCatoResponse{
+		operationDiscovery: {body: loadSDKCompatibleMockoonResponseBody(t, "entityLookup")},
+		operationSnapshot:  {body: loadSDKCompatibleMockoonResponseBody(t, "accountSnapshot")},
+		operationMetrics:   {body: loadSDKCompatibleMockoonResponseBody(t, "accountMetrics")},
+		operationEvents:    {body: loadSDKCompatibleMockoonResponseBody(t, "eventsFeed")},
+		operationBGP:       {body: loadTestdata(t, "cato-site-bgp-status.schema-shaped.json")},
+	}
+	for operation, response := range overrides {
+		responses[operation] = response
+	}
+
+	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			t.Errorf("unexpected method: %s", r.Method)
+			http.Error(w, "unexpected method", http.StatusMethodNotAllowed)
+			return
+		}
+		if r.Header.Get("x-api-key") != "secret" || r.Header.Get("x-account-id") != "12345" {
+			t.Errorf("unexpected auth headers: x-api-key present=%v x-account-id present=%v", r.Header.Get("x-api-key") != "", r.Header.Get("x-account-id") != "")
+			http.Error(w, "unexpected auth headers", http.StatusUnauthorized)
+			return
+		}
+
+		body, err := io.ReadAll(r.Body)
+		if err != nil {
+			t.Errorf("read request body: %v", err)
+			http.Error(w, "read request body", http.StatusInternalServerError)
+			return
+		}
+		request := string(body)
+
+		var operation string
+		switch {
+		case strings.Contains(request, "siteBgpStatus"):
+			operation = operationBGP
+		case strings.Contains(request, "entityLookup"):
+			operation = operationDiscovery
+		case strings.Contains(request, "accountSnapshot"):
+			operation = operationSnapshot
+		case strings.Contains(request, "accountMetrics"):
+			operation = operationMetrics
+		case strings.Contains(request, "eventsFeed"):
+			operation = operationEvents
+		default:
+			t.Errorf("unexpected Cato GraphQL request: %s", request)
+			http.Error(w, "unexpected request", http.StatusBadRequest)
+			return
+		}
+
+		response := responses[operation]
+		status := response.status
+		if status == 0 {
+			status = http.StatusOK
+		}
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(status)
+		if _, err := w.Write([]byte(response.body)); err != nil {
+			t.Errorf("write response: %v", err)
+		}
+	}))
+}
+
+func loadMockoonResponseBody(t *testing.T, label string) string {
+	t.Helper()
+
+	var env struct {
+		Routes []struct {
+			Responses []struct {
+				Label string `json:"label"`
+				Body  string `json:"body"`
+			} `json:"responses"`
+		} `json:"routes"`
+	}
+	require.NoError(t, json.Unmarshal([]byte(loadTestdata(t, "centreon-cato-api.mockoon.json")), &env))
+	for _, route := range env.Routes {
+		for _, response := range route.Responses {
+			if response.Label == label {
+				return response.Body
+			}
+		}
+	}
+	t.Fatalf("Mockoon response %q not found", label)
+	return ""
+}
+
+func loadSDKCompatibleMockoonResponseBody(t *testing.T, label string) string {
+	t.Helper()
+
+	body := loadMockoonResponseBody(t, label)
+	switch label {
+	case "accountSnapshot":
+		body = adaptAccountSnapshotFixtureForSDK(t, body)
+	case "eventsFeed":
+		body = adaptEventsFeedFixtureForSDK(t, body)
+	}
+	return body
+}
+
+func adaptAccountSnapshotFixtureForSDK(t *testing.T, body string) string {
+	t.Helper()
+
+	var payload map[string]any
+	require.NoError(t, json.Unmarshal([]byte(body), &payload))
+	sites := payload["data"].(map[string]any)["accountSnapshot"].(map[string]any)["sites"].([]any)
+	for _, rawSite := range sites {
+		site := rawSite.(map[string]any)
+		if v, ok := site["connectivityStatus"]; ok {
+			site["connectivityStatusSiteSnapshot"] = strings.ToLower(strings.TrimSpace(fmt.Sprint(v)))
+			delete(site, "connectivityStatus")
+		}
+		if v, ok := site["operationalStatus"]; ok {
+			site["operationalStatusSiteSnapshot"] = strings.ToLower(strings.TrimSpace(fmt.Sprint(v)))
+			delete(site, "operationalStatus")
+		}
+		if v, ok := site["info"]; ok {
+			site["infoSiteSnapshot"] = v
+			delete(site, "info")
+		}
+		delete(site, "operationalStats")
+	}
+	data, err := json.Marshal(payload)
+	require.NoError(t, err)
+	return string(data)
+}
+
+func adaptEventsFeedFixtureForSDK(t *testing.T, body string) string {
+	t.Helper()
+
+	var payload map[string]any
+	require.NoError(t, json.Unmarshal([]byte(body), &payload))
+	accounts := payload["data"].(map[string]any)["eventsFeed"].(map[string]any)["accounts"].([]any)
+	for _, rawAccount := range accounts {
+		account := rawAccount.(map[string]any)
+		if id, ok := account["id"]; ok {
+			account["id"] = fmt.Sprint(id)
+		}
+	}
+	data, err := json.Marshal(payload)
+	require.NoError(t, err)
+	return string(data)
+}
+
+func loadTestdata(t *testing.T, name string) string {
+	t.Helper()
+
+	data, err := os.ReadFile(filepath.Join("testdata", name))
+	require.NoError(t, err)
+	return string(data)
+}
+
+func newFixtureAPIClient() *fakeAPIClient {
+	return &fakeAPIClient{
+		lookup:   fixtureLookup(),
+		snapshot: fixtureSnapshot(),
+		metrics:  fixtureMetrics(),
+		events:   fixtureEvents(),
+		bgp: map[string][]*catosdk.SiteBgpStatusResult{
+			"1001": {
+				{
+					RemoteIP:         "192.0.2.10",
+					RemoteASN:        "64512",
+					LocalIP:          "198.51.100.10",
+					LocalASN:         "65000",
+					BGPSession:       "Established",
+					RoutesCount:      "12",
+					RoutesCountLimit: "100",
+					RIBOut:           []catosdk.RIBOut{{Subnet: "10.0.0.0/8"}},
+				},
+			},
+			"1002": nil,
+		},
+	}
+}
+
+func fixtureLookup() *catosdk.EntityLookup {
+	total := int64(2)
+	siteType := catomodels.EntityTypeSite
+	return &catosdk.EntityLookup{EntityLookup: catosdk.EntityLookup_EntityLookup{
+		Total: &total,
+		Items: []*catosdk.EntityLookup_EntityLookup_Items{
+			{Entity: catosdk.EntityLookup_EntityLookup_Items_Entity{ID: "1001", Name: strPtr("Paris Office"), Type: siteType}},
+			{Entity: catosdk.EntityLookup_EntityLookup_Items_Entity{ID: "1002", Name: strPtr("Toulouse Office"), Type: siteType}},
+		},
+	}}
+}
+
+func fixtureLookupPage(total int64, ids ...string) *catosdk.EntityLookup {
+	siteType := catomodels.EntityTypeSite
+	items := make([]*catosdk.EntityLookup_EntityLookup_Items, 0, len(ids))
+	for _, id := range ids {
+		items = append(items, &catosdk.EntityLookup_EntityLookup_Items{
+			Entity: catosdk.EntityLookup_EntityLookup_Items_Entity{ID: id, Name: strPtr("Site " + id), Type: siteType},
+		})
+	}
+	return &catosdk.EntityLookup{EntityLookup: catosdk.EntityLookup_EntityLookup{
+		Total: &total,
+		Items: items,
+	}}
+}
+
+func fixtureSnapshot() *catosdk.AccountSnapshot {
+	return &catosdk.AccountSnapshot{AccountSnapshot: &catosdk.AccountSnapshot_AccountSnapshot{
+		Sites: []*catosdk.AccountSnapshot_AccountSnapshot_Sites{
+			{
+				ID:                             strPtr("1001"),
+				ConnectivityStatusSiteSnapshot: connectivityPtr("connected"),
+				OperationalStatusSiteSnapshot:  operationalPtr("active"),
+				PopName:                        strPtr("POP-Paris"),
+				HostCount:                      int64Ptr(42),
+				ConnectedSince:                 strPtr("2026-05-01T10:00:00Z"),
+				InfoSiteSnapshot: &catosdk.AccountSnapshot_AccountSnapshot_Sites_InfoSiteSnapshot{
+					Name:        strPtr("Paris Office"),
+					Description: strPtr("Main site"),
+					CountryCode: strPtr("FR"),
+					CountryName: strPtr("France"),
+				},
+				Devices: []*catosdk.AccountSnapshot_AccountSnapshot_Sites_Devices{
+					{
+						ID:        strPtr("dev-1"),
+						Name:      strPtr("Socket 1"),
+						Type:      strPtr("socket"),
+						Connected: boolPtr(true),
+						Interfaces: []*catosdk.AccountSnapshot_AccountSnapshot_Sites_Devices_Interfaces{
+							{
+								ID:             strPtr("wan1"),
+								Name:           strPtr("WAN 1"),
+								Connected:      boolPtr(true),
+								PopName:        strPtr("POP-Paris"),
+								TunnelRemoteIP: strPtr("203.0.113.10"),
+								TunnelUptime:   int64Ptr(3600),
+							},
+						},
+					},
+				},
+			},
+			{
+				ID:                             strPtr("1002"),
+				ConnectivityStatusSiteSnapshot: connectivityPtr("Degraded"),
+				OperationalStatusSiteSnapshot:  operationalPtr("locked"),
+				PopName:                        strPtr("POP-Toulouse"),
+				HostCount:                      int64Ptr(7),
+				InfoSiteSnapshot: &catosdk.AccountSnapshot_AccountSnapshot_Sites_InfoSiteSnapshot{
+					Name: strPtr("Toulouse Office"),
+				},
+			},
+		},
+	}}
+}
+
+func fixtureMetrics() *catosdk.AccountMetrics {
+	return &catosdk.AccountMetrics{AccountMetrics: &catosdk.AccountMetrics_AccountMetrics{
+		Sites: []*catosdk.AccountMetrics_AccountMetrics_Sites{
+			{
+				ID:   strPtr("1001"),
+				Name: strPtr("Paris Office"),
+				Interfaces: []*catosdk.AccountMetrics_AccountMetrics_Sites_Interfaces{
+					{
+						Name: strPtr("all"),
+						Timeseries: []*catosdk.AccountMetrics_AccountMetrics_Sites_Interfaces_Timeseries{
+							{Label: "bytesUpstreamMax", Data: [][]float64{{1, 6008}, {2, 7168}}},
+							{Label: "bytesDownstreamMax", Data: [][]float64{{1, 12008}, {2, 11168}}},
+							{Label: "lostUpstreamPcnt", Data: [][]float64{{1, 0.2}}},
+							{Label: "packetsDiscardedUpstream", Data: [][]float64{{1, 1}, {2, 2}}},
+							{Label: "packetsDiscardedDownstream", Data: [][]float64{{1, 3}, {2, 4}}},
+							{Label: "rtt", Data: [][]float64{{1, 15}}},
+						},
+					},
+				},
+			},
+		},
+	}}
+}
+
+func fixtureEvents() *catosdk.EventsFeed {
+	return &catosdk.EventsFeed{EventsFeed: &catosdk.EventsFeed_EventsFeed{
+		Marker: strPtr("marker-2"),
+		Accounts: []*catosdk.EventsFeed_EventsFeed_Accounts{
+			{
+				ID: strPtr("12345"),
+				Records: []*catosdk.EventsFeed_EventsFeed_Accounts_Records{
+					{FieldsMap: map[string]any{
+						"event_type":     "Security",
+						"event_sub_type": "Threat Prevention",
+						"severity":       "HIGH",
+						"status":         "Closed",
+					}},
+				},
+			},
+		},
+	}}
+}
+
+func eventsFeedPage(marker string, fetchedCount int64, records []map[string]any) *catosdk.EventsFeed {
+	account := &catosdk.EventsFeed_EventsFeed_Accounts{ID: strPtr("12345")}
+	for _, fields := range records {
+		account.Records = append(account.Records, &catosdk.EventsFeed_EventsFeed_Accounts_Records{FieldsMap: fields})
+	}
+	return &catosdk.EventsFeed{EventsFeed: &catosdk.EventsFeed_EventsFeed{
+		Marker:       strPtr(marker),
+		FetchedCount: fetchedCount,
+		Accounts:     []*catosdk.EventsFeed_EventsFeed_Accounts{account},
+	}}
+}
+
+func requireValue(t *testing.T, r metrix.Reader, name string, labels metrix.Labels, want float64) {
+	t.Helper()
+	got, ok := r.Value(name, labels)
+	require.True(t, ok, "missing metric %s labels %#v", name, labels)
+	require.Equal(t, want, got)
+}
+
+func mustCycleController(t *testing.T, s metrix.CollectorStore) metrix.CycleController {
+	t.Helper()
+	managed, ok := metrix.AsCycleManagedStore(s)
+	require.True(t, ok)
+	return managed.CycleController()
+}
+
+func strPtr(v string) *string { return &v }
+
+func boolPtr(v bool) *bool { return &v }
+
+func int64Ptr(v int64) *int64 { return &v }
+
+func connectivityPtr(v string) *catomodels.ConnectivityStatus {
+	status := catomodels.ConnectivityStatus(v)
+	return &status
+}
+
+func operationalPtr(v string) *catoscalars.OperationalStatus {
+	status := catoscalars.OperationalStatus(v)
+	return &status
+}
