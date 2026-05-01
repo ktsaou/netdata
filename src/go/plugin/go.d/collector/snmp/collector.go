@@ -47,7 +47,7 @@ func New() *Collector {
 				Retries:        1,
 				Timeout:        5,
 				Version:        gosnmp.Version2c.String(),
-				MaxOIDs:        60,
+				MaxOIDs:        20,
 				MaxRepetitions: 25,
 			},
 			User: UserConfig{
@@ -191,6 +191,7 @@ func (c *Collector) Cleanup(ctx context.Context) {
 	if c.funcRouter != nil {
 		c.funcRouter.Cleanup(ctx)
 	}
+	ddsnmp.DeviceRegistry.Unregister(c.deviceRegistryKey())
 	if c.snmpClient != nil {
 		_ = c.snmpClient.Close()
 	}
