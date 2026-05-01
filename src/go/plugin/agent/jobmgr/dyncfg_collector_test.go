@@ -816,7 +816,6 @@ func newCollectorTestHandler(mgr *Manager, cb dyncfg.Callbacks[confgroup.Config]
 		WaitKey: func(cfg confgroup.Config) string {
 			return cfg.FullName()
 		},
-		WaitTimeout:             waitDecisionTimeout,
 		Path:                    "/collectors/test/Jobs",
 		EnableFailCode:          200,
 		RemoveStockOnEnableFail: true,
@@ -873,6 +872,10 @@ type collectorSeqTestCallbacks struct {
 
 func (cb *collectorSeqTestCallbacks) ExtractKey(fn dyncfg.Function) (key, name string, ok bool) {
 	return cb.mgr.collectorCallbacks.ExtractKey(fn)
+}
+
+func (cb *collectorSeqTestCallbacks) ValidateJobName(name string) error {
+	return dyncfg.JobNameRuleStrict(name)
 }
 
 func (cb *collectorSeqTestCallbacks) ParseAndValidate(fn dyncfg.Function, _ string) (confgroup.Config, error) {

@@ -10,24 +10,38 @@ import (
 	"fmt"
 	"regexp"
 	"slices"
+	"strconv"
 	"strings"
 )
 
 var validMetadataResources = map[string]map[string]bool{
 	"device": {
-		"name":          true,
-		"description":   true,
-		"sys_object_id": true,
-		"location":      true,
-		"serial_number": true,
-		"vendor":        true,
-		"version":       true,
-		"product_name":  true,
-		"model":         true,
-		"os_name":       true,
-		"os_version":    true,
-		"os_hostname":   true,
-		"type":          true,
+		"name":                        true,
+		"description":                 true,
+		"sys_object_id":               true,
+		"location":                    true,
+		"serial_number":               true,
+		"vendor":                      true,
+		"version":                     true,
+		"software_version":            true,
+		"firmware_version":            true,
+		"hardware_version":            true,
+		"product_name":                true,
+		"model":                       true,
+		"os_name":                     true,
+		"os_version":                  true,
+		"os_hostname":                 true,
+		"category":                    true,
+		"type":                        true,
+		"lldp_loc_chassis_id":         true,
+		"lldp_loc_chassis_id_subtype": true,
+		"lldp_loc_sys_name":           true,
+		"lldp_loc_sys_desc":           true,
+		"lldp_loc_sys_cap_supported":  true,
+		"lldp_loc_sys_cap_enabled":    true,
+		"bridge_base_address":         true,
+		"stp_designated_root":         true,
+		"vtp_version":                 true,
 	},
 	"interface": {
 		"name":         true,
@@ -127,8 +141,7 @@ func validateEnrichMetadata(metadata MetadataConfig) error {
 		} else {
 			res := metadata[resName]
 			for fieldName := range res.Fields {
-				_, isValidField := validMetadataResources[resName][fieldName]
-				if !isValidField {
+				if !isValidMetadataField(resName, fieldName) {
 					errs = append(errs, fmt.Errorf("invalid resource (%s) field: %s", resName, fieldName))
 					continue
 				}
@@ -178,6 +191,11 @@ func validateEnrichSysobjectIDMetadata(entries []SysobjectIDMetadataEntryConfig)
 
 		// Validate metadata fields
 		for fieldName, field := range entry.Metadata {
+			if !isValidMetadataField(MetadataDeviceResource, fieldName) {
+				errs = append(errs, fmt.Errorf("sysobjectid_metadata[%d]: invalid resource (%s) field: %s", i, MetadataDeviceResource, fieldName))
+				continue
+			}
+
 			// Validate the field must have either value or symbol(s)
 			if field.Value == "" && field.Symbol.OID == "" && len(field.Symbols) == 0 {
 				errs = append(errs, fmt.Errorf("sysobjectid_metadata[%d].%s: must have either value or symbol(s)", i, fieldName))
@@ -209,6 +227,15 @@ func validateEnrichSysobjectIDMetadata(entries []SysobjectIDMetadataEntryConfig)
 	return errors.Join(errs...)
 }
 
+func isValidMetadataField(resourceName, fieldName string) bool {
+	fields, ok := validMetadataResources[resourceName]
+	if !ok {
+		return false
+	}
+	_, ok = fields[fieldName]
+	return ok
+}
+
 func validateEnrichMetrics(metrics []MetricsConfig) error {
 	var errs []error
 
@@ -222,6 +249,22 @@ func validateEnrichMetrics(metrics []MetricsConfig) error {
 		}
 		if metricConfig.IsScalar() {
 			errs = append(errs, validateEnrichSymbol(&metricConfig.Symbol, ScalarSymbol))
+			for j := range metricConfig.MetricTags {
+				metricTag := &metricConfig.MetricTags[j]
+				errs = append(errs, validateEnrichMetricTag(metricTag))
+				if metricTag.Table != "" {
+					errs = append(errs, fmt.Errorf("scalar metric_tags do not support `table` lookups (tag=%q, table=%q)", metricTag.Tag, metricTag.Table))
+				}
+				if metricTag.Index != 0 {
+					errs = append(errs, fmt.Errorf("scalar metric_tags do not support `index` lookups (tag=%q, index=%d)", metricTag.Tag, metricTag.Index))
+				}
+				if len(metricTag.IndexTransform) > 0 {
+					errs = append(errs, fmt.Errorf("scalar metric_tags do not support `index_transform` (tag=%q)", metricTag.Tag))
+				}
+				if metricTag.Symbol.OID == "" {
+					errs = append(errs, fmt.Errorf("scalar metric_tags require `symbol.OID` (tag=%q)", metricTag.Tag))
+				}
+			}
 		}
 		if metricConfig.IsColumn() {
 			for j := range metricConfig.Symbols {
@@ -279,6 +322,10 @@ func validateEnrichSymbol(symbol *SymbolConfig, symbolContext SymbolContext) err
 		} else {
 			symbol.MatchPatternCompiled = pattern
 		}
+	}
+	errs = append(errs, validateMapping(symbol.Mapping, symbolContext))
+	if symbol.Mapping.EffectiveMode() == MappingModeBitmask && symbol.Mapping.HasItems() && symbol.ScaleFactor != 0 {
+		errs = append(errs, errors.New("`scale_factor` cannot be used with `mapping.mode: bitmask`"))
 	}
 	if symbolContext != ColumnSymbol && symbol.ConstantValueOne {
 		errs = append(errs, errors.New("`constant_value_one` cannot be used outside of tables"))
@@ -363,7 +410,8 @@ func validateEnrichMetricTag(metricTag *MetricTagConfig) error {
 			errs = append(errs, fmt.Errorf("`tags` mapping must be provided if `match` (`%s`) is defined", metricTag.Match))
 		}
 	}
-	if len(metricTag.Mapping) > 0 && metricTag.Tag == "" && metricTag.Symbol.Name == "" {
+	errs = append(errs, validateMapping(metricTag.Mapping, MetricTagSymbol))
+	if metricTag.Mapping.HasItems() && metricTag.Tag == "" && metricTag.Symbol.Name == "" {
 		errs = append(errs, fmt.Errorf("`tag` or `symbol.name` must be provided if `mapping` (`%v`) is defined", metricTag.Mapping))
 	}
 	for _, transform := range metricTag.IndexTransform {
@@ -387,14 +435,46 @@ func isRawIndexMetricTag(metricTag MetricTagConfig) bool {
 		return metricTag.Symbol.Format != "" ||
 			metricTag.Symbol.ExtractValue != "" ||
 			metricTag.Symbol.MatchPattern != "" ||
-			len(metricTag.Mapping) > 0
+			metricTag.Mapping.HasItems()
 	}
 
 	return len(metricTag.IndexTransform) > 0 ||
 		metricTag.Symbol.Format != "" ||
 		metricTag.Symbol.ExtractValue != "" ||
 		metricTag.Symbol.MatchPattern != "" ||
-		len(metricTag.Mapping) > 0
+		metricTag.Mapping.HasItems()
+}
+
+func validateMapping(mapping MappingConfig, symbolContext SymbolContext) error {
+	if !mapping.HasItems() {
+		if mapping.Mode != "" {
+			return errors.New("`mapping.mode` requires `mapping.items`")
+		}
+		return nil
+	}
+
+	var errs []error
+
+	switch mapping.EffectiveMode() {
+	case MappingModeExact:
+	case MappingModeBitmask:
+		if symbolContext != ScalarSymbol && symbolContext != ColumnSymbol {
+			errs = append(errs, errors.New("`mapping.mode: bitmask` is only supported for scalar/table metric symbols"))
+		}
+		for key, value := range mapping.Items {
+			bit, err := strconv.ParseInt(key, 10, 64)
+			if err != nil || bit < 0 || (bit != 0 && bit&(bit-1) != 0) {
+				errs = append(errs, fmt.Errorf("`mapping.mode: bitmask` requires keys to be 0 or a single power-of-two bit, got %q", key))
+			}
+			if value == "" {
+				errs = append(errs, fmt.Errorf("`mapping.mode: bitmask` requires non-empty values, got empty value for key %q", key))
+			}
+		}
+	default:
+		errs = append(errs, fmt.Errorf("invalid `mapping.mode` %q", mapping.Mode))
+	}
+
+	return errors.Join(errs...)
 }
 
 func validateEnrichVirtualMetrics(metrics []MetricsConfig, vmetrics []VirtualMetricConfig) error {

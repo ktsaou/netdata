@@ -70,6 +70,17 @@ func FindProfiles(sysObjID, sysDescr string, manualProfiles []string) []*Profile
 	return finalize(selected)
 }
 
+// FinalizeProfiles enriches and deduplicates metrics for a given profile list.
+// This mirrors the post-processing performed by FindProfiles.
+func FinalizeProfiles(profiles []*Profile) []*Profile {
+	if len(profiles) == 0 {
+		return nil
+	}
+	enrichProfiles(profiles)
+	deduplicateMetricsAcrossProfiles(profiles)
+	return profiles
+}
+
 type (
 	Profile struct {
 		SourceFile         string                                 `yaml:"-"`
@@ -95,6 +106,36 @@ func (p *Profile) SourceTree() string {
 
 	extensions := formatExtensions(p.extensionHierarchy)
 	return fmt.Sprintf("%s: %s", rootName, extensions)
+}
+
+// HasExtension returns true if the profile extends the given profile name
+// (matches either full filename or filename without extension).
+func (p *Profile) HasExtension(name string) bool {
+	if p == nil {
+		return false
+	}
+	target := stripFileNameExt(name)
+	for _, ext := range p.extensionHierarchy {
+		if extensionHas(ext, target) {
+			return true
+		}
+	}
+	return false
+}
+
+func extensionHas(ext *extensionInfo, target string) bool {
+	if ext == nil {
+		return false
+	}
+	if stripFileNameExt(ext.name) == target || stripFileNameExt(ext.sourceFile) == target {
+		return true
+	}
+	for _, child := range ext.extensions {
+		if extensionHas(child, target) {
+			return true
+		}
+	}
+	return false
 }
 
 func formatExtensions(extensions []*extensionInfo) string {
@@ -343,15 +384,15 @@ func enrichProfiles(profiles []*Profile) {
 			for j := range metric.MetricTags {
 				tagCfg := &metric.MetricTags[j]
 
-				if tagCfg.Mapping != nil {
+				if tagCfg.Mapping.HasItems() {
 					continue
 				}
 
 				switch tagCfg.MappingRef {
 				case "ifType":
-					tagCfg.Mapping = sharedMappings.ifType
+					tagCfg.Mapping = ddprofiledefinition.NewExactMapping(sharedMappings.ifType)
 				case "ifTypeGroup":
-					tagCfg.Mapping = sharedMappings.ifTypeGroup
+					tagCfg.Mapping = ddprofiledefinition.NewExactMapping(sharedMappings.ifTypeGroup)
 				}
 			}
 		}

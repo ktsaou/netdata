@@ -1,6 +1,9 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 package ddsnmpcollector
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 
@@ -184,6 +187,9 @@ func (p *tableRowProcessor) processRowMetrics(row *tableRowData, ctx *tableRowPr
 				p.log.Debugf("Error creating metric %s: %v", sym.Name, err)
 				continue
 			}
+			if metric == nil {
+				continue
+			}
 
 			metrics = append(metrics, *metric)
 		}
@@ -195,6 +201,9 @@ func (p *tableRowProcessor) processRowMetrics(row *tableRowData, ctx *tableRowPr
 func (p *tableRowProcessor) createMetric(sym ddprofiledefinition.SymbolConfig, pdu gosnmp.SnmpPDU, row *tableRowData) (*ddsnmp.Metric, error) {
 	value, err := p.valProc.processValue(sym, pdu)
 	if err != nil {
+		if errors.Is(err, errNoTextDateValue) {
+			return nil, nil
+		}
 		return nil, fmt.Errorf("error processing value: %w", err)
 	}
 
