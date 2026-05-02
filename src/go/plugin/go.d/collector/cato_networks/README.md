@@ -67,6 +67,8 @@ If the failure class is `network`, `tls`, or `proxy`, verify DNS, firewall egres
 
 If the failure class is `decode`, save debug logs and open an issue with the Cato API operation name. This usually means the live API payload differs from the SDK schema or the tested fixtures.
 
+If `entityLookup` fails after an earlier successful discovery, the collector continues with the cached site list and records the operation failure. A first-run `entityLookup` failure still fails the collection because no cached site list exists yet.
+
 If the API reports rate limits:
 
 - increase `update_every`;

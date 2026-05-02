@@ -134,10 +134,10 @@ func classifyCatoError(err error) string {
 	if err == nil {
 		return "none"
 	}
-	if err == context.Canceled {
+	if errors.Is(err, context.Canceled) {
 		return "canceled"
 	}
-	if err == context.DeadlineExceeded {
+	if errors.Is(err, context.DeadlineExceeded) {
 		return "timeout"
 	}
 

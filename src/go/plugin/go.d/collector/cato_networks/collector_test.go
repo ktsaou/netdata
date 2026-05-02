@@ -31,6 +31,7 @@ import (
 
 type fakeAPIClient struct {
 	lookup          *catosdk.EntityLookup
+	lookupErr       error
 	lookupPages     map[int64]*catosdk.EntityLookup
 	snapshot        *catosdk.AccountSnapshot
 	metrics         *catosdk.AccountMetrics
@@ -43,6 +44,9 @@ type fakeAPIClient struct {
 }
 
 func (f *fakeAPIClient) LookupSites(_ context.Context, _ string, _ int64, from int64) (*catosdk.EntityLookup, error) {
+	if f.lookupErr != nil {
+		return nil, f.lookupErr
+	}
 	if f.lookupPages != nil {
 		return f.lookupPages[from], nil
 	}
@@ -673,6 +677,44 @@ func TestCollectorDiscoversMultiplePages(t *testing.T) {
 	requireValue(t, reader, "collector_discovered_sites", nil, 5)
 }
 
+func TestCollectorUsesCachedDiscoveryWhenRefreshFailsAfterBootstrap(t *testing.T) {
+	c := New()
+	c.AccountID = "12345"
+	c.APIKey = "secret"
+	c.Metrics.Enabled = "no"
+	c.Events.Enabled = "no"
+	c.BGP.Enabled = "no"
+	c.Discovery.RefreshEvery = 300
+	c.Events.MarkerFile = filepath.Join(t.TempDir(), "marker")
+	fake := newFixtureAPIClient()
+	c.client = fake
+	now := time.Date(2026, 5, 1, 12, 0, 0, 0, time.UTC)
+	c.now = func() time.Time { return now }
+
+	require.NoError(t, c.Init(context.Background()))
+	cc := mustCycleController(t, c.store)
+	cc.BeginCycle()
+	require.NoError(t, c.Collect(context.Background()))
+	cc.CommitCycleSuccess()
+
+	now = now.Add(301 * time.Second)
+	fake.lookupErr = errors.New("connection refused")
+
+	cc.BeginCycle()
+	require.NoError(t, c.Collect(context.Background()))
+	cc.CommitCycleSuccess()
+
+	require.Equal(t, []string{"1001", "1002"}, c.discovery.siteIDs)
+	require.Equal(t, now, c.discovery.fetchedAt)
+	reader := c.store.Read()
+	requireValue(t, reader, "collector_collection_success", nil, 1)
+	requireValue(t, reader, "collector_operation_success", metrix.Labels{"operation": operationDiscovery}, 0)
+	requireValue(t, reader, "collector_operation_failures_total", metrix.Labels{
+		"operation":   operationDiscovery,
+		"error_class": "network",
+	}, 1)
+}
+
 func TestCollectorDoesNotAdvanceBGPRotationWhenAllRequestsFail(t *testing.T) {
 	c := New()
 	c.AccountID = "12345"
@@ -872,6 +914,8 @@ func TestClassifyCatoErrors(t *testing.T) {
 	require.Equal(t, "auth", classifyCatoError(errors.New("HTTP 403 forbidden")))
 	require.Equal(t, "rate_limit", classifyCatoError(errors.New("GraphQL rate limit exceeded")))
 	require.Equal(t, "timeout", classifyCatoError(context.DeadlineExceeded))
+	require.Equal(t, "canceled", classifyCatoError(fmt.Errorf("wrapped: %w", context.Canceled)))
+	require.Equal(t, "timeout", classifyCatoError(fmt.Errorf("wrapped: %w", context.DeadlineExceeded)))
 	require.Equal(t, "decode", classifyCatoError(errors.New("json: cannot unmarshal number into Go struct field")))
 	require.Equal(t, "network", classifyCatoError(&net.DNSError{Err: "no such host", Name: "api.invalid"}))
 	require.Equal(t, "tls", classifyCatoError(errors.New("tls: failed to verify certificate: x509: certificate signed by unknown authority")))
@@ -939,6 +983,30 @@ func TestSDKClientClassifiesHTTPAndGraphQLErrors(t *testing.T) {
 			}, 1)
 		})
 	}
+}
+
+func TestRawGraphQLAccountSnapshotUsesMethodAccountID(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		require.Equal(t, "argument-account", r.Header.Get("x-account-id"))
+		body, err := io.ReadAll(r.Body)
+		require.NoError(t, err)
+		require.Contains(t, string(body), `"accountID":"argument-account"`)
+		w.Header().Set("Content-Type", "application/json")
+		_, err = w.Write([]byte(`{"data":{"accountSnapshot":{"sites":[{"id":"1001","connectivityStatusSiteSnapshot":"connected"}]}}}`))
+		require.NoError(t, err)
+	}))
+	defer server.Close()
+
+	client := rawGraphQLClient{
+		url:        server.URL,
+		apiKey:     "secret",
+		httpClient: server.Client(),
+	}
+
+	snapshot, err := client.AccountSnapshot(context.Background(), "argument-account", []string{"1001"})
+
+	require.NoError(t, err)
+	require.Len(t, snapshot.GetAccountSnapshot().GetSites(), 1)
 }
 
 func TestSDKClientClassifiesHTTPClientTimeout(t *testing.T) {

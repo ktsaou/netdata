@@ -54,6 +54,8 @@ The collector batches `accountMetrics` calls by `metrics.max_sites_per_query`.
 
 `metrics.time_frame` validation accepts Cato's documented `last.<ISO-8601 duration>` form such as `last.PT5M` and `utc.<short-time-frame-spec>` form such as `utc.2020-02-11/{04:50:15--16:50:15}`.
 
+After initial site discovery succeeds, later discovery refresh failures must fall back to the last-known-good site list instead of failing the full collection. The collector must still record the `entityLookup` operation failure and should respect `discovery.refresh_every` before retrying discovery again to avoid API/log spam. Before any successful discovery exists, discovery failures remain hard collection failures.
+
 BGP collection is decoupled from the main metric cadence and limited by `bgp.max_sites_per_collection`, because `siteBgpStatus` is site-scoped.
 
 The collector exposes the estimated BGP full-scan window in seconds and the current BGP cached-site count so operators can tell whether missing BGP state is expected during a rolling scan.

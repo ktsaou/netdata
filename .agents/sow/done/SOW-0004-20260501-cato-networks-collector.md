@@ -4,7 +4,67 @@
 
 Status: completed
 
-Sub-state: completed 2026-05-02 after third pre-prospect hardening pass. Live Cato tenant validation remains tracked separately in SOW-0005.
+Sub-state: completed 2026-05-02 after PR review comment fixes on PR #22373. Live Cato tenant validation remains tracked separately in SOW-0005.
+
+## Reopen - PR Review Comments - 2026-05-02
+
+Reason:
+
+- PR #22373 received two open `cubic-dev-ai[bot]` review threads after the branch was pushed.
+- The user asked to pull changes and handle PR comments.
+
+Review evidence:
+
+- `.agents/skills/pr-reviews/scripts/fetch-all.sh 22373` initially found two open review threads:
+  - `collect.go`: discovery refresh errors should degrade to cached discovery state after initial bootstrap.
+  - `diagnostics.go`: context cancellation/deadline classification should use `errors.Is`.
+- A pre-push re-fetch found two additional Copilot review threads:
+  - `client.go`: raw `accountSnapshot` fallback should use the method `accountID` argument for the `x-account-id` header.
+  - `testdata/README.md`: fixture provenance should avoid machine-specific absolute paths and point to upstream source.
+- `ci-status.sh 22373` reported no failing checks at fetch time; several checks were still running.
+- Sonar detail fetch could not run because this checkout lacks `.env` with Sonar credentials. GitHub's available Sonar comment reports Quality Gate failure from new-code duplication only.
+
+Implementation scope:
+
+1. Make stale discovery refresh failures fall back to last-known-good discovery after initial bootstrap, while preserving hard failure behavior before any discovery state exists.
+2. Preserve operation failure diagnostics for the failed refresh and avoid retry/log spam by respecting the configured discovery refresh interval after a failed refresh fallback.
+3. Use `errors.Is` for context cancellation/deadline classification.
+4. Use the method account ID in the raw `accountSnapshot` fallback header and test this behavior.
+5. Replace the absolute fixture source path with an upstream repository path, commit SHA, and URL.
+6. Add targeted tests for review findings where executable behavior is affected.
+
+Implemented:
+
+- `refreshDiscovery()` now falls back to the cached site list after an initial successful discovery when a later refresh fails. It still marks the `entityLookup` operation failure and updates the discovery timestamp so retries respect `discovery.refresh_every`.
+- Initial discovery failures still fail collection because there is no cached site list to use.
+- `classifyCatoError()` now uses `errors.Is()` for wrapped `context.Canceled` and `context.DeadlineExceeded`.
+- The raw `accountSnapshot` fallback now sets `x-account-id` from the method argument.
+- The fixture README now records the upstream Centreon repository path, source commit, and GitHub URL instead of a local `/opt/...` path.
+- Added targeted tests for cached discovery fallback, wrapped context error classification, and raw fallback account ID header handling.
+
+Validation completed:
+
+- `cd src/go && go test ./plugin/go.d/collector/cato_networks -count=1` - passed.
+- `cd src/go && go vet ./plugin/go.d/collector/cato_networks` - passed.
+- `cd src/go && go test ./plugin/go.d/... -count=1` - passed.
+
+Artifact maintenance:
+
+- AGENTS.md: no update needed. Existing PR-review and collector rules covered this work.
+- Runtime project skills: no update needed. No reusable assistant workflow changed.
+- Specs: updated `.agents/sow/specs/cato-networks-collector.md` with the cached discovery fallback contract.
+- End-user/operator docs: updated Cato collector README with troubleshooting behavior for `entityLookup` failures after bootstrap.
+- End-user/operator skills: no update needed; no AI skill artifacts were affected.
+- SOW lifecycle: same SOW reopened for PR review comments and completed after validation.
+
+Follow-up mapping:
+
+- Live Cato tenant or vendor sandbox validation remains tracked by `.agents/sow/pending/SOW-0005-20260501-cato-networks-live-validation.md`.
+- Sonar detail fetch remains blocked in this checkout by missing `.env`; GitHub's visible Sonar comment reports only new-code duplication as the Quality Gate failure.
+
+Outcome:
+
+- Completed.
 
 ## Reopened Hardening Pass - External Review Ideas - 2026-05-02
 

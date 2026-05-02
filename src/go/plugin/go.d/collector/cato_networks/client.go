@@ -39,7 +39,6 @@ type sdkAPIClient struct {
 type rawGraphQLClient struct {
 	url        string
 	apiKey     string
-	accountID  string
 	headers    map[string]string
 	httpClient *http.Client
 }
@@ -76,7 +75,6 @@ func newSDKAPIClient(cfg Config, httpClient *http.Client) (apiClient, error) {
 		raw: rawGraphQLClient{
 			url:        cfg.URL,
 			apiKey:     cfg.APIKey,
-			accountID:  cfg.AccountID,
 			headers:    headers,
 			httpClient: httpClient,
 		},
@@ -275,7 +273,7 @@ func (c rawGraphQLClient) AccountSnapshot(ctx context.Context, accountID string,
 	}
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("x-api-key", c.apiKey)
-	req.Header.Set("x-account-id", c.accountID)
+	req.Header.Set("x-account-id", accountID)
 	for key, value := range c.headers {
 		req.Header.Set(key, value)
 	}

@@ -27,12 +27,18 @@ func (c *Collector) refreshDiscovery(ctx context.Context, force bool) error {
 		if from/limit >= maxDiscoveryPages {
 			err := fmt.Errorf("entityLookup pagination exceeded %d pages", maxDiscoveryPages)
 			c.markOperationFailure(operationDiscovery, err)
+			if c.useCachedDiscoveryAfterRefreshFailure(now, force, err) {
+				return nil
+			}
 			return err
 		}
 
 		res, err := c.client.LookupSites(ctx, c.AccountID, limit, from)
 		if err != nil {
 			c.markOperationFailure(operationDiscovery, err)
+			if c.useCachedDiscoveryAfterRefreshFailure(now, force, err) {
+				return nil
+			}
 			return err
 		}
 
@@ -63,6 +69,16 @@ func (c *Collector) refreshDiscovery(ctx context.Context, force bool) error {
 	}
 	c.markOperationSuccess(operationDiscovery)
 	return nil
+}
+
+func (c *Collector) useCachedDiscoveryAfterRefreshFailure(now time.Time, force bool, err error) bool {
+	if force || len(c.discovery.siteIDs) == 0 {
+		return false
+	}
+
+	c.discovery.fetchedAt = now
+	c.Warningf("entityLookup refresh failed; using cached discovery for %d site(s), error_class=%s", len(c.discovery.siteIDs), classifyCatoError(err))
+	return true
 }
 
 func (c *Collector) collectSnapshot(ctx context.Context) (map[string]*siteState, []string, error) {
