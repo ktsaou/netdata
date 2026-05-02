@@ -28,6 +28,10 @@ const (
 	defaultRetryAttempts    = 5
 	defaultEventsMaxPages   = 10
 	defaultEventsMaxSeries  = 50
+	defaultEntitySelector   = "*"
+	defaultMaxSites         = 500
+	defaultMaxIfacesPerSite = 32
+	defaultBGPMaxPeers      = 32
 	maxDiscoveryPages       = 1000
 	eventsFeedMaxFetchSize  = 3000
 )
@@ -50,12 +54,15 @@ type Config struct {
 
 	web.HTTPConfig `yaml:",inline" json:""`
 
-	Discovery DiscoveryConfig `yaml:"discovery,omitempty" json:"discovery,omitempty"`
-	Metrics   MetricsConfig   `yaml:"metrics,omitempty" json:"metrics,omitempty"`
-	Events    EventsConfig    `yaml:"events,omitempty" json:"events,omitempty"`
-	BGP       BGPConfig       `yaml:"bgp,omitempty" json:"bgp,omitempty"`
-	Topology  TopologyConfig  `yaml:"topology,omitempty" json:"topology,omitempty"`
-	Retry     RetryConfig     `yaml:"retry,omitempty" json:"retry,omitempty"`
+	SiteSelector      string          `yaml:"site_selector,omitempty" json:"site_selector,omitempty"`
+	InterfaceSelector string          `yaml:"interface_selector,omitempty" json:"interface_selector,omitempty"`
+	Limits            LimitsConfig    `yaml:"limits,omitempty" json:"limits,omitempty"`
+	Discovery         DiscoveryConfig `yaml:"discovery,omitempty" json:"discovery,omitempty"`
+	Metrics           MetricsConfig   `yaml:"metrics,omitempty" json:"metrics,omitempty"`
+	Events            EventsConfig    `yaml:"events,omitempty" json:"events,omitempty"`
+	BGP               BGPConfig       `yaml:"bgp,omitempty" json:"bgp,omitempty"`
+	Topology          TopologyConfig  `yaml:"topology,omitempty" json:"topology,omitempty"`
+	Retry             RetryConfig     `yaml:"retry,omitempty" json:"retry,omitempty"`
 }
 
 type DiscoveryConfig struct {
@@ -71,6 +78,11 @@ type MetricsConfig struct {
 	MaxSitesPerQuery int              `yaml:"max_sites_per_query,omitempty" json:"max_sites_per_query,omitempty"`
 }
 
+type LimitsConfig struct {
+	MaxSites             *int `yaml:"max_sites,omitempty" json:"max_sites,omitempty"`
+	MaxInterfacesPerSite *int `yaml:"max_interfaces_per_site,omitempty" json:"max_interfaces_per_site,omitempty"`
+}
+
 type EventsConfig struct {
 	Enabled          confopt.AutoBool `yaml:"enabled,omitempty" json:"enabled,omitempty"`
 	MarkerFile       string           `yaml:"marker_file,omitempty" json:"marker_file,omitempty"`
@@ -82,6 +94,8 @@ type BGPConfig struct {
 	Enabled               confopt.AutoBool `yaml:"enabled,omitempty" json:"enabled,omitempty"`
 	RefreshEvery          int              `yaml:"refresh_every,omitempty" json:"refresh_every,omitempty"`
 	MaxSitesPerCollection int              `yaml:"max_sites_per_collection,omitempty" json:"max_sites_per_collection,omitempty"`
+	PeerSelector          string           `yaml:"peer_selector,omitempty" json:"peer_selector,omitempty"`
+	MaxPeersPerSite       *int             `yaml:"max_peers_per_site,omitempty" json:"max_peers_per_site,omitempty"`
 }
 
 type TopologyConfig struct {
@@ -98,13 +112,28 @@ func (c *Config) applyDefaults() {
 	c.AccountID = strings.TrimSpace(c.AccountID)
 	c.APIKey = strings.TrimSpace(c.APIKey)
 	c.URL = strings.TrimSpace(c.URL)
+	c.SiteSelector = strings.TrimSpace(c.SiteSelector)
+	c.InterfaceSelector = strings.TrimSpace(c.InterfaceSelector)
 	c.Metrics.TimeFrame = strings.TrimSpace(c.Metrics.TimeFrame)
+	c.BGP.PeerSelector = strings.TrimSpace(c.BGP.PeerSelector)
 
 	if c.UpdateEvery <= 0 {
 		c.UpdateEvery = defaultUpdateEvery
 	}
 	if c.URL == "" {
 		c.URL = defaultEndpoint
+	}
+	if c.SiteSelector == "" {
+		c.SiteSelector = defaultEntitySelector
+	}
+	if c.InterfaceSelector == "" {
+		c.InterfaceSelector = defaultEntitySelector
+	}
+	if c.Limits.MaxSites == nil {
+		c.Limits.MaxSites = intPtr(defaultMaxSites)
+	}
+	if c.Limits.MaxInterfacesPerSite == nil {
+		c.Limits.MaxInterfacesPerSite = intPtr(defaultMaxIfacesPerSite)
 	}
 	if c.Timeout.Duration() == 0 {
 		c.Timeout = defaultTimeout
@@ -129,6 +158,12 @@ func (c *Config) applyDefaults() {
 	}
 	if c.BGP.MaxSitesPerCollection <= 0 {
 		c.BGP.MaxSitesPerCollection = defaultBGPMaxSites
+	}
+	if c.BGP.PeerSelector == "" {
+		c.BGP.PeerSelector = defaultEntitySelector
+	}
+	if c.BGP.MaxPeersPerSite == nil {
+		c.BGP.MaxPeersPerSite = intPtr(defaultBGPMaxPeers)
 	}
 	if c.Events.MaxPagesPerCycle <= 0 {
 		c.Events.MaxPagesPerCycle = defaultEventsMaxPages
@@ -181,11 +216,20 @@ func (c Config) validate() error {
 	if c.Metrics.MaxSitesPerQuery < 1 || c.Metrics.MaxSitesPerQuery > 1000 {
 		errs = append(errs, errors.New("'metrics.max_sites_per_query' must be between 1 and 1000"))
 	}
+	if c.maxSitesLimit() < 0 || c.maxSitesLimit() > 100000 {
+		errs = append(errs, errors.New("'limits.max_sites' must be between 0 and 100000"))
+	}
+	if c.maxInterfacesPerSiteLimit() < 0 || c.maxInterfacesPerSiteLimit() > 10000 {
+		errs = append(errs, errors.New("'limits.max_interfaces_per_site' must be between 0 and 10000"))
+	}
 	if c.BGP.RefreshEvery < 60 {
 		errs = append(errs, errors.New("'bgp.refresh_every' must be >= 60 seconds"))
 	}
 	if c.BGP.MaxSitesPerCollection < 1 || c.BGP.MaxSitesPerCollection > 1000 {
 		errs = append(errs, errors.New("'bgp.max_sites_per_collection' must be between 1 and 1000"))
+	}
+	if c.bgpMaxPeersPerSiteLimit() < 0 || c.bgpMaxPeersPerSiteLimit() > 10000 {
+		errs = append(errs, errors.New("'bgp.max_peers_per_site' must be between 0 and 10000"))
 	}
 	if c.Events.MaxPagesPerCycle < 1 || c.Events.MaxPagesPerCycle > 100 {
 		errs = append(errs, errors.New("'events.max_pages_per_cycle' must be between 1 and 100"))
@@ -231,6 +275,27 @@ func (c Config) groupInterfaces() *bool {
 	return c.Metrics.GroupInterfaces.ToBool()
 }
 
+func (c Config) maxSitesLimit() int {
+	if c.Limits.MaxSites == nil {
+		return defaultMaxSites
+	}
+	return *c.Limits.MaxSites
+}
+
+func (c Config) maxInterfacesPerSiteLimit() int {
+	if c.Limits.MaxInterfacesPerSite == nil {
+		return defaultMaxIfacesPerSite
+	}
+	return *c.Limits.MaxInterfacesPerSite
+}
+
+func (c Config) bgpMaxPeersPerSiteLimit() int {
+	if c.BGP.MaxPeersPerSite == nil {
+		return defaultBGPMaxPeers
+	}
+	return *c.BGP.MaxPeersPerSite
+}
+
 func isLoopbackHost(host string) bool {
 	host = strings.TrimSpace(host)
 	if strings.EqualFold(host, "localhost") {
@@ -239,3 +304,5 @@ func isLoopbackHost(host string) bool {
 	ip := net.ParseIP(host)
 	return ip != nil && ip.IsLoopback()
 }
+
+func intPtr(v int) *int { return &v }

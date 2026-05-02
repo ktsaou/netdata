@@ -47,6 +47,12 @@ Default cadence:
 - `retry.attempts: 5`
 - `retry.wait_min: 5`
 - `retry.wait_max: 30`
+- `site_selector: "*"`
+- `interface_selector: "*"`
+- `limits.max_sites: 500`
+- `limits.max_interfaces_per_site: 32`
+- `bgp.peer_selector: "*"`
+- `bgp.max_peers_per_site: 32`
 
 The collector must not run at a sub-minute default cadence. Cato publishes per-query, per-account rate limits, and `accountMetrics` is a bucketed time-series API rather than a high-frequency sampler.
 
@@ -57,6 +63,23 @@ Collector-owned HTTP clients must close idle connections during `Cleanup()`.
 The collector batches `accountMetrics` calls by `metrics.max_sites_per_query`.
 
 `metrics.group_interfaces: auto` must pass a nil/unset `groupInterfaces` argument to the SDK/API so Cato applies its default. `enabled` and `disabled` must pass explicit true and false values.
+
+Selectors are applied before caps:
+
+- `site_selector` matches Cato site ID or site name.
+- `interface_selector` matches Cato interface ID or interface name.
+- `bgp.peer_selector` matches BGP peer remote IP or remote ASN.
+
+Selectors use Netdata simple-pattern syntax: space-separated glob terms, with `!` exclusions such as `!lab-* *`. Exclusions win across all identity fields for the entity. If a selector contains only exclusions, the collector treats it as those exclusions plus a final `*` include.
+
+Cardinality caps are deterministic and protect emitted chart instances:
+
+- `limits.max_sites` caps selected sites after `site_selector`.
+- `limits.max_interfaces_per_site` caps selected interfaces per selected site after `interface_selector`.
+- `bgp.max_peers_per_site` caps selected BGP peers per selected site after `bgp.peer_selector`.
+- A cap value of `0` disables that cap.
+
+When a cap is hit, the collector must skip excess entities deterministically, continue collecting selected entities, publish skipped-entity diagnostics, and raise the cardinality-limit health alert. Site/interface/BGP per-entity charts do not synthesize an `other` aggregate because their status, latency, connectivity, and peer-route values are not safely additive. Event cardinality remains different: excess event label combinations collapse into the existing `other` bucket because event counters are additive.
 
 Traffic and quality metrics derived from `accountMetrics` must be emitted only for fields actually returned by Cato. Missing accountMetrics data must leave the corresponding site/interface series absent; it must not be represented as real zero traffic, zero loss, or zero latency.
 
@@ -134,6 +157,9 @@ Collector health scope:
 
 - last collection success status
 - discovered site count
+- selected entity gauges for site, interface, and BGP peer entity classes
+- skipped entity gauges by entity class and reason (`selector` or `limit`)
+- cardinality-limit-hit status by entity class
 - EventsFeed marker persistence availability
 - BGP rolling scan window and cached-site progress
 - last operation success status by operation
@@ -175,10 +201,13 @@ At minimum, operator-visible diagnostics must identify:
 - the normalized failure class
 - how many sites were affected by partial `accountMetrics` and `siteBgpStatus` failures
 - whether accepted payloads contained normalization issues, including unknown statuses, unknown accountMetrics timeseries labels, empty/malformed BGP peers, integer parse issues, empty/complex EventsFeed fields, or EventsFeed account-level errors
+- whether selectors or caps skipped sites, interfaces, or BGP peers
 
 Error messages may be logged, but chart labels must not include raw error strings because those can contain customer-specific details.
 
 Warn-level logs should prefer operation name, count, and normalized class. Raw provider-side error strings should not be emitted at warn level.
+
+Recoverable failures in the collection loop must be warn-level at first observation per failure class and debug-level on repeated cycles until recovery or class change. This includes full collection failure, cached discovery fallback, partial accountMetrics failure, partial BGP failure, EventsFeed failure, EventsFeed account-level errors, and marker write failure.
 
 Unknown non-empty Cato statuses must map to the `unknown` dimension instead of producing all-zero status charts.
 
@@ -191,6 +220,8 @@ EventsFeed field extraction must accept the expected snake_case and camelCase fo
 BGP polling must not advance the rolling site window when every `siteBgpStatus` request in the current BGP batch fails.
 
 Cached BGP state must be pruned when a site disappears from current discovery.
+
+All dynamic V2 chart templates for sites, interfaces, BGP peers, event label combinations, operation labels, normalization issue labels, retry query labels, and collector entity-selection labels must explicitly set `lifecycle.expire_after_cycles: 5`. This is the same as the current V2 default but is part of this collector's truthfulness contract: when a known entity stops appearing, its chart instance must expire after successful cycles instead of looking live forever. This obsoletion requirement is independent of cardinality caps.
 
 ## Topology
 
@@ -226,8 +257,10 @@ Cross-source overlay with SNMP, network-viewer, NetFlow, or other topology sourc
 The following files are part of the collector contract and must stay synchronized:
 
 - `src/go/plugin/go.d/collector/cato_networks/metadata.yaml`
+- `src/go/plugin/go.d/collector/cato_networks/charts.yaml`
 - `src/go/plugin/go.d/collector/cato_networks/config_schema.json`
 - `src/go/plugin/go.d/config/go.d/cato_networks.conf`
+- `src/go/plugin/go.d/README.md`
 - `src/health/health.d/cato_networks.conf`
 - `src/go/plugin/go.d/collector/cato_networks/README.md`
 
@@ -249,6 +282,8 @@ Tests must include:
 - explicit branch coverage for `sdkAPIClient.AccountSnapshot()` falling back to raw GraphQL after SDK enum decode errors
 - a schema-shaped BGP fixture because the available Centreon fixture does not cover `siteBgpStatus`
 - diagnostics assertions for partial operation failures, unknown timeseries labels, marker write failures, BGP scan progress, and event field normalization issues
+- selector and cap tests for sites, interfaces, and BGP peers, including skipped-entity and cardinality-limit diagnostics
+- explicit chart-template lifecycle tests for dynamic V2 chart instances
 - API retry metric assertions covering snapshot counter totals and deltas for `api_rate_limit_retries_total` and `api_transient_retries_total`
 - EventsFeed pagination, page cap, cardinality collapse, marker resume, and stalled-marker tests
 - SDK/client-path failure tests for HTTP status failures, HTTP client timeouts, and GraphQL `errors[]` responses

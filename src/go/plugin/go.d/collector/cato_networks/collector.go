@@ -53,6 +53,12 @@ func New() *Collector {
 					Timeout: defaultTimeout,
 				},
 			},
+			SiteSelector:      defaultEntitySelector,
+			InterfaceSelector: defaultEntitySelector,
+			Limits: LimitsConfig{
+				MaxSites:             intPtr(defaultMaxSites),
+				MaxInterfacesPerSite: intPtr(defaultMaxIfacesPerSite),
+			},
 			Discovery: DiscoveryConfig{
 				RefreshEvery: defaultDiscoveryEvery,
 				PageLimit:    defaultDiscoveryLimit,
@@ -65,6 +71,8 @@ func New() *Collector {
 			BGP: BGPConfig{
 				RefreshEvery:          defaultBGPRefreshEvery,
 				MaxSitesPerCollection: defaultBGPMaxSites,
+				PeerSelector:          defaultEntitySelector,
+				MaxPeersPerSite:       intPtr(defaultBGPMaxPeers),
 			},
 			Retry: RetryConfig{
 				Attempts: defaultRetryAttempts,
@@ -100,6 +108,11 @@ type Collector struct {
 	bgp       bgpState
 	health    collectorHealth
 
+	siteMatcher      *entitySelector
+	interfaceMatcher *entitySelector
+	bgpPeerMatcher   *entitySelector
+	warningStates    map[string]string
+
 	now func() time.Time
 }
 
@@ -113,12 +126,16 @@ type dryRunState struct {
 	discovery discoveryState
 	bgp       bgpState
 	topology  *topology.Data
+	warnings  map[string]string
 }
 
 type discoveryState struct {
-	siteIDs   []string
-	siteNames map[string]string
-	fetchedAt time.Time
+	siteIDs           []string
+	siteNames         map[string]string
+	fetchedAt         time.Time
+	totalSites        int
+	skippedBySelector int
+	skippedByLimit    int
 }
 
 type bgpState struct {
@@ -136,6 +153,7 @@ func (c *Collector) snapshotDryRunState() dryRunState {
 		discovery: cloneDiscoveryState(c.discovery),
 		bgp:       cloneBGPState(c.bgp),
 		topology:  topo,
+		warnings:  cloneStringMap(c.warningStates),
 	}
 }
 
@@ -143,6 +161,7 @@ func (c *Collector) restoreDryRunState(state dryRunState) {
 	c.health = state.health
 	c.discovery = state.discovery
 	c.bgp = state.bgp
+	c.warningStates = state.warnings
 	c.mu.Lock()
 	c.topology = state.topology
 	c.mu.Unlock()
@@ -177,6 +196,9 @@ func (c *Collector) Init(context.Context) error {
 	c.Config.applyDefaults()
 	if err := c.Config.validate(); err != nil {
 		return fmt.Errorf("config validation: %w", err)
+	}
+	if err := c.initEntitySelectors(); err != nil {
+		return err
 	}
 
 	if c.client == nil {
@@ -218,7 +240,9 @@ func (c *Collector) Check(ctx context.Context) error {
 
 func (c *Collector) Collect(ctx context.Context) error {
 	if err := c.collect(ctx, true); err != nil {
-		c.Warningf("collection failed: %v", err)
+		c.warnRecoverable(warningKeyCollection, classifyCatoError(err), "collection failed, error_class=%s: %v", classifyCatoError(err), err)
+	} else {
+		c.clearRecoverableWarning(warningKeyCollection)
 	}
 	return nil
 }
@@ -257,7 +281,7 @@ func (c *Collector) collect(ctx context.Context, write bool) (err error) {
 	if write {
 		defer func() {
 			c.health.CollectionSuccess = err == nil
-			c.health.DiscoveredSites = int64(len(c.discovery.siteIDs))
+			c.updateSiteSelectionHealth()
 			if err != nil {
 				c.markCollectionFailure(err)
 			}
@@ -283,25 +307,38 @@ func (c *Collector) collect(ctx context.Context, write bool) (err error) {
 	if len(sites) == 0 {
 		return errors.New("no Cato sites returned by account snapshot")
 	}
+	c.pruneUnselectedSites(sites, &order)
 
 	if c.metricsEnabled() {
 		if err := c.collectMetrics(ctx, sites); err != nil {
-			c.Warningf("account metrics collection incomplete, error_class=%s", classifyCatoError(err))
+			if write {
+				c.warnRecoverable(warningKeyMetrics, classifyCatoError(err), "account metrics collection incomplete, error_class=%s", classifyCatoError(err))
+			}
+		} else if write {
+			c.clearRecoverableWarning(warningKeyMetrics)
 		}
 	}
 
 	if c.bgpEnabled() {
 		if err := c.collectBGP(ctx, sites, order); err != nil {
-			c.Warningf("BGP status collection incomplete, error_class=%s", classifyCatoError(err))
+			if write {
+				c.warnRecoverable(warningKeyBGP, classifyCatoError(err), "BGP status collection incomplete, error_class=%s", classifyCatoError(err))
+			}
+		} else if write {
+			c.clearRecoverableWarning(warningKeyBGP)
 		}
 	}
+
+	c.applyEntityControls(sites, &order)
 
 	var events eventsCollection
 	if write && c.eventsEnabled() {
 		events, err = c.collectEvents(ctx)
 		if err != nil {
-			c.Warningf("events feed collection incomplete, error_class=%s", classifyCatoError(err))
+			c.warnRecoverable(warningKeyEvents, classifyCatoError(err), "events feed collection incomplete, error_class=%s", classifyCatoError(err))
 		} else {
+			c.clearRecoverableWarning(warningKeyEvents)
+			c.clearRecoverableWarning(warningKeyEventAccountErr)
 			c.health.MarkerPersistenceAvailable = c.markerStoreAvailable
 		}
 	}
@@ -337,12 +374,13 @@ func (c *Collector) commitEventsMarker(ctx context.Context, marker string) {
 		c.markerStoreAvailable = false
 		c.health.MarkerPersistenceAvailable = false
 		c.markOperationFailure(operationEventMarker, err)
-		c.Warningf("events marker write failed, error_class=%s", classifyCatoError(err))
+		c.warnRecoverable(warningKeyEventMarker, classifyCatoError(err), "events marker write failed, error_class=%s", classifyCatoError(err))
 		return
 	}
 	c.markerStoreAvailable = true
 	c.health.MarkerPersistenceAvailable = true
 	c.markOperationSuccess(operationEventMarker)
+	c.clearRecoverableWarning(warningKeyEventMarker)
 }
 
 func (c *Collector) writeEventsMarkerWithRetry(ctx context.Context, marker string) error {
@@ -363,6 +401,17 @@ func (c *Collector) writeEventsMarkerWithRetry(ctx context.Context, marker strin
 		}
 	}
 	return err
+}
+
+func cloneStringMap(src map[string]string) map[string]string {
+	if src == nil {
+		return nil
+	}
+	dst := make(map[string]string, len(src))
+	for k, v := range src {
+		dst[k] = v
+	}
+	return dst
 }
 
 func isRetryableMarkerWriteError(err error) bool {

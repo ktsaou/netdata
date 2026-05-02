@@ -202,6 +202,7 @@ func (c *Collector) writeCollectorHealth() {
 	meter := c.store.Write().SnapshotMeter("")
 	meter.Gauge("collector_collection_success").Observe(boolFloat(c.health.CollectionSuccess))
 	meter.Gauge("collector_discovered_sites").Observe(float64(c.health.DiscoveredSites))
+	writeEntitySelectionHealth(meter, c.health)
 	meter.Gauge("collector_events_marker_persistence_available").Observe(boolFloat(c.health.MarkerPersistenceAvailable))
 	if c.bgpEnabled() {
 		meter.Gauge("collector_bgp_sites_per_collection").Observe(float64(c.health.BGPSitesPerCollection))
@@ -242,6 +243,20 @@ func (c *Collector) writeCollectorHealth() {
 		issues := meter.Vec("surface", "issue").Counter("collector_normalization_issues_total")
 		for _, key := range sortedNormalizationIssueKeys(c.health.NormalizationIssues) {
 			issues.WithLabelValues(key.Surface, key.Issue).ObserveTotal(float64(c.health.NormalizationIssues[key]))
+		}
+	}
+}
+
+func writeEntitySelectionHealth(meter metrix.SnapshotMeter, health collectorHealth) {
+	selected := meter.Vec("entity").Gauge("collector_selected_entities")
+	limitHit := meter.Vec("entity").Gauge("collector_cardinality_limit_hit")
+	skipped := meter.Vec("entity", "reason").Gauge("collector_skipped_entities")
+
+	for _, entity := range []string{selectionEntitySite, selectionEntityInterface, selectionEntityBGPPeer} {
+		selected.WithLabelValues(entity).Observe(float64(health.SelectedEntities[entity]))
+		limitHit.WithLabelValues(entity).Observe(float64(health.CardinalityLimitHits[entity]))
+		for _, reason := range []string{selectionSkipSelector, selectionSkipLimit} {
+			skipped.WithLabelValues(entity, reason).Observe(float64(health.SkippedEntities[entitySkipKey{Entity: entity, Reason: reason}]))
 		}
 	}
 }

@@ -403,16 +403,32 @@ func TestConfigApplyDefaultsNormalizesStringInputs(t *testing.T) {
 	cfg := Config{
 		AccountID: " 12345 ",
 		APIKey:    " secret ",
+		Limits: LimitsConfig{
+			MaxSites:             intPtr(0),
+			MaxInterfacesPerSite: intPtr(0),
+		},
+		BGP: BGPConfig{
+			MaxPeersPerSite: intPtr(0),
+		},
 	}
 	cfg.URL = " https://api.catonetworks.com/api/v1/graphql2 "
+	cfg.SiteSelector = " !lab-* * "
+	cfg.InterfaceSelector = " wan* "
 	cfg.Metrics.TimeFrame = " last.PT5M "
+	cfg.BGP.PeerSelector = " 64512 "
 
 	cfg.applyDefaults()
 
 	require.Equal(t, "12345", cfg.AccountID)
 	require.Equal(t, "secret", cfg.APIKey)
 	require.Equal(t, "https://api.catonetworks.com/api/v1/graphql2", cfg.URL)
+	require.Equal(t, "!lab-* *", cfg.SiteSelector)
+	require.Equal(t, "wan*", cfg.InterfaceSelector)
 	require.Equal(t, "last.PT5M", cfg.Metrics.TimeFrame)
+	require.Equal(t, "64512", cfg.BGP.PeerSelector)
+	require.Zero(t, cfg.maxSitesLimit())
+	require.Zero(t, cfg.maxInterfacesPerSiteLimit())
+	require.Zero(t, cfg.bgpMaxPeersPerSiteLimit())
 	require.NoError(t, cfg.validate())
 }
 
@@ -1006,6 +1022,115 @@ func TestCollectorDiscoversMultiplePages(t *testing.T) {
 	requireValue(t, reader, "collector_discovered_sites", nil, 5)
 }
 
+func TestCollectorAppliesSiteSelectorAndLimit(t *testing.T) {
+	c := New()
+	c.AccountID = "12345"
+	c.APIKey = "secret"
+	c.Metrics.Enabled = "no"
+	c.Events.Enabled = "no"
+	c.BGP.Enabled = "no"
+	c.SiteSelector = "!Toulouse* *"
+	c.Limits.MaxSites = intPtr(1)
+	c.Events.MarkerFile = filepath.Join(t.TempDir(), "marker")
+	fake := newFixtureAPIClient()
+	total := int64(3)
+	siteType := catomodels.EntityTypeSite
+	fake.lookup = &catosdk.EntityLookup{EntityLookup: catosdk.EntityLookup_EntityLookup{
+		Total: &total,
+		Items: []*catosdk.EntityLookup_EntityLookup_Items{
+			{Entity: catosdk.EntityLookup_EntityLookup_Items_Entity{ID: "1001", Name: strPtr("Paris Office"), Type: siteType}},
+			{Entity: catosdk.EntityLookup_EntityLookup_Items_Entity{ID: "1002", Name: strPtr("Toulouse Office"), Type: siteType}},
+			{Entity: catosdk.EntityLookup_EntityLookup_Items_Entity{ID: "1003", Name: strPtr("Madrid Office"), Type: siteType}},
+		},
+	}}
+	c.client = fake
+	c.now = fixedCatoTestNow
+	collectOnce(t, c)
+
+	require.Equal(t, []string{"1001"}, c.discovery.siteIDs)
+	reader := c.store.Read()
+	requireValue(t, reader, "collector_discovered_sites", nil, 3)
+	requireValue(t, reader, "collector_selected_entities", metrix.Labels{"entity": selectionEntitySite}, 1)
+	requireValue(t, reader, "collector_skipped_entities", metrix.Labels{"entity": selectionEntitySite, "reason": selectionSkipSelector}, 1)
+	requireValue(t, reader, "collector_skipped_entities", metrix.Labels{"entity": selectionEntitySite, "reason": selectionSkipLimit}, 1)
+	requireValue(t, reader, "collector_cardinality_limit_hit", metrix.Labels{"entity": selectionEntitySite}, 1)
+	requireValue(t, reader, "site_connectivity_connected", metrix.Labels{
+		"site_id":   "1001",
+		"site_name": "Paris Office",
+		"pop_name":  "POP-Paris",
+	}, 1)
+	requireMetricMissing(t, reader, "site_connectivity_degraded", metrix.Labels{
+		"site_id":   "1002",
+		"site_name": "Toulouse Office",
+		"pop_name":  "POP-Toulouse",
+	})
+}
+
+func TestCollectorAppliesInterfaceAndBGPPeerSelectorsAndLimits(t *testing.T) {
+	c := New()
+	c.AccountID = "12345"
+	c.APIKey = "secret"
+	c.Events.Enabled = "no"
+	c.InterfaceSelector = "wan*"
+	c.Limits.MaxInterfacesPerSite = intPtr(1)
+	c.BGP.MaxPeersPerSite = intPtr(1)
+	c.BGP.MaxSitesPerCollection = 1
+	c.Events.MarkerFile = filepath.Join(t.TempDir(), "marker")
+	fake := newFixtureAPIClient()
+	snapshot := fixtureSnapshot()
+	snapshot.GetAccountSnapshot().GetSites()[0].GetDevices()[0].Interfaces = append(
+		snapshot.GetAccountSnapshot().GetSites()[0].GetDevices()[0].GetInterfaces(),
+		&catosdk.AccountSnapshot_AccountSnapshot_Sites_Devices_Interfaces{
+			ID:        strPtr("wan2"),
+			Name:      strPtr("WAN 2"),
+			Connected: boolPtr(true),
+		},
+	)
+	fake.snapshot = snapshot
+	fake.bgp["1001"] = append(fake.bgp["1001"], &catosdk.SiteBgpStatusResult{
+		RemoteIP:   "192.0.2.11",
+		RemoteASN:  "64513",
+		BGPSession: "Established",
+	})
+	c.client = fake
+	c.now = fixedCatoTestNow
+	collectOnce(t, c)
+
+	reader := c.store.Read()
+	requireValue(t, reader, "collector_selected_entities", metrix.Labels{"entity": selectionEntityInterface}, 1)
+	requireValue(t, reader, "collector_skipped_entities", metrix.Labels{"entity": selectionEntityInterface, "reason": selectionSkipSelector}, 1)
+	requireValue(t, reader, "collector_skipped_entities", metrix.Labels{"entity": selectionEntityInterface, "reason": selectionSkipLimit}, 1)
+	requireValue(t, reader, "collector_cardinality_limit_hit", metrix.Labels{"entity": selectionEntityInterface}, 1)
+	requireValue(t, reader, "interface_connected", metrix.Labels{
+		"site_id":        "1001",
+		"site_name":      "Paris Office",
+		"interface_id":   "wan1",
+		"interface_name": "WAN 1",
+	}, 1)
+	requireMetricMissing(t, reader, "interface_connected", metrix.Labels{
+		"site_id":        "1001",
+		"site_name":      "Paris Office",
+		"interface_id":   "wan2",
+		"interface_name": "WAN 2",
+	})
+
+	requireValue(t, reader, "collector_selected_entities", metrix.Labels{"entity": selectionEntityBGPPeer}, 1)
+	requireValue(t, reader, "collector_skipped_entities", metrix.Labels{"entity": selectionEntityBGPPeer, "reason": selectionSkipLimit}, 1)
+	requireValue(t, reader, "collector_cardinality_limit_hit", metrix.Labels{"entity": selectionEntityBGPPeer}, 1)
+	requireValue(t, reader, "bgp_session_up", metrix.Labels{
+		"site_id":   "1001",
+		"site_name": "Paris Office",
+		"peer_ip":   "192.0.2.10",
+		"peer_asn":  "64512",
+	}, 1)
+	requireMetricMissing(t, reader, "bgp_session_up", metrix.Labels{
+		"site_id":   "1001",
+		"site_name": "Paris Office",
+		"peer_ip":   "192.0.2.11",
+		"peer_asn":  "64513",
+	})
+}
+
 func TestCollectorUsesCachedDiscoveryWhenRefreshFailsAfterBootstrap(t *testing.T) {
 	c := New()
 	c.AccountID = "12345"
@@ -1180,6 +1305,22 @@ func TestCollectorReportsMarkerReadFailureUnavailable(t *testing.T) {
 	reader := c.store.Read()
 	require.Empty(t, c.eventMarker)
 	requireValue(t, reader, "collector_events_marker_persistence_available", nil, 0)
+}
+
+func TestRecoverableWarningGateTracksErrorClass(t *testing.T) {
+	c := New()
+
+	c.warnRecoverable(warningKeyCollection, "network", "network failure")
+	require.Equal(t, "network", c.warningStates[warningKeyCollection])
+
+	c.warnRecoverable(warningKeyCollection, "network", "network failure")
+	require.Equal(t, "network", c.warningStates[warningKeyCollection])
+
+	c.warnRecoverable(warningKeyCollection, "auth", "auth failure")
+	require.Equal(t, "auth", c.warningStates[warningKeyCollection])
+
+	c.clearRecoverableWarning(warningKeyCollection)
+	require.NotContains(t, c.warningStates, warningKeyCollection)
 }
 
 func TestCollectorKeepsLastOperationStatusForSkippedOperations(t *testing.T) {
@@ -1850,6 +1991,21 @@ func TestChartTemplateCompiles(t *testing.T) {
 	require.NoError(t, err)
 	_, err = chartengine.Compile(spec, 1)
 	require.NoError(t, err)
+}
+
+func TestChartTemplateDynamicChartsDeclareLifecycle(t *testing.T) {
+	spec, err := charttpl.DecodeYAML([]byte(chartTemplate))
+	require.NoError(t, err)
+
+	for _, group := range spec.Groups {
+		for _, chart := range group.Charts {
+			if chart.Instances == nil {
+				continue
+			}
+			require.NotNil(t, chart.Lifecycle, "chart %s must declare lifecycle", chart.ID)
+			require.Equal(t, 5, chart.Lifecycle.ExpireAfterCycles, "chart %s lifecycle", chart.ID)
+		}
+	}
 }
 
 func TestConfigSchemaParses(t *testing.T) {

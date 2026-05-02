@@ -51,6 +51,9 @@ type collectorHealth struct {
 	BGPFullScanSeconds         int64
 	BGPCachedSites             int64
 
+	SelectedEntities        map[string]int64
+	SkippedEntities         map[entitySkipKey]int64
+	CardinalityLimitHits    map[string]int64
 	LastOperations          map[string]operationHealth
 	OperationFailures       map[operationFailureKey]int64
 	OperationAffectedSites  map[operationFailureKey]int64
@@ -68,6 +71,11 @@ type operationFailureKey struct {
 	ErrorClass string
 }
 
+type entitySkipKey struct {
+	Entity string
+	Reason string
+}
+
 type normalizationIssueKey struct {
 	Surface string
 	Issue   string
@@ -76,11 +84,14 @@ type normalizationIssueKey struct {
 func (c *Collector) beginHealthCycle() {
 	c.ensureHealth()
 	c.health.CollectionSuccess = false
-	c.health.DiscoveredSites = int64(len(c.discovery.siteIDs))
 	c.health.MarkerPersistenceAvailable = !c.eventsEnabled() || c.markerStoreAvailable
 	c.health.BGPSitesPerCollection = 0
 	c.health.BGPFullScanSeconds = 0
 	c.health.BGPCachedSites = 0
+	c.health.SelectedEntities = make(map[string]int64)
+	c.health.SkippedEntities = make(map[entitySkipKey]int64)
+	c.health.CardinalityLimitHits = make(map[string]int64)
+	c.updateSiteSelectionHealth()
 	// LastOperations is stateful because the chart reports last observed status.
 }
 
@@ -115,7 +126,38 @@ func (c *Collector) markNormalizationIssue(surface, issue string) {
 	c.health.NormalizationIssues[normalizationIssueKey{Surface: surface, Issue: issue}]++
 }
 
+func (c *Collector) markEntitySelection(entity string, selected, skippedSelector, skippedLimit int) {
+	c.ensureHealth()
+	c.health.SelectedEntities[entity] = int64(selected)
+	if skippedSelector > 0 {
+		c.health.SkippedEntities[entitySkipKey{Entity: entity, Reason: selectionSkipSelector}] = int64(skippedSelector)
+	}
+	if skippedLimit > 0 {
+		c.health.SkippedEntities[entitySkipKey{Entity: entity, Reason: selectionSkipLimit}] = int64(skippedLimit)
+		c.health.CardinalityLimitHits[entity] = 1
+	}
+}
+
+func (c *Collector) updateSiteSelectionHealth() {
+	c.ensureHealth()
+	total := c.discovery.totalSites
+	if total == 0 && len(c.discovery.siteIDs) > 0 {
+		total = len(c.discovery.siteIDs) + c.discovery.skippedBySelector + c.discovery.skippedByLimit
+	}
+	c.health.DiscoveredSites = int64(total)
+	c.markEntitySelection(selectionEntitySite, len(c.discovery.siteIDs), c.discovery.skippedBySelector, c.discovery.skippedByLimit)
+}
+
 func (c *Collector) ensureHealth() {
+	if c.health.SelectedEntities == nil {
+		c.health.SelectedEntities = make(map[string]int64)
+	}
+	if c.health.SkippedEntities == nil {
+		c.health.SkippedEntities = make(map[entitySkipKey]int64)
+	}
+	if c.health.CardinalityLimitHits == nil {
+		c.health.CardinalityLimitHits = make(map[string]int64)
+	}
 	if c.health.LastOperations == nil {
 		c.health.LastOperations = make(map[string]operationHealth)
 	}
@@ -135,6 +177,24 @@ func (c *Collector) ensureHealth() {
 
 func cloneCollectorHealth(src collectorHealth) collectorHealth {
 	dst := src
+	if src.SelectedEntities != nil {
+		dst.SelectedEntities = make(map[string]int64, len(src.SelectedEntities))
+		for k, v := range src.SelectedEntities {
+			dst.SelectedEntities[k] = v
+		}
+	}
+	if src.SkippedEntities != nil {
+		dst.SkippedEntities = make(map[entitySkipKey]int64, len(src.SkippedEntities))
+		for k, v := range src.SkippedEntities {
+			dst.SkippedEntities[k] = v
+		}
+	}
+	if src.CardinalityLimitHits != nil {
+		dst.CardinalityLimitHits = make(map[string]int64, len(src.CardinalityLimitHits))
+		for k, v := range src.CardinalityLimitHits {
+			dst.CardinalityLimitHits[k] = v
+		}
+	}
 	if src.LastOperations != nil {
 		dst.LastOperations = make(map[string]operationHealth, len(src.LastOperations))
 		for k, v := range src.LastOperations {

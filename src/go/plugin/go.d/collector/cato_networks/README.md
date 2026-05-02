@@ -27,6 +27,10 @@ The default endpoint is `https://api.catonetworks.com/api/v1/graphql2`. Producti
 Important options:
 
 - `update_every`: collection interval in seconds. Minimum is `60`.
+- `site_selector`: space-separated simple patterns matched against Cato site ID or site name.
+- `interface_selector`: space-separated simple patterns matched against Cato interface ID or interface name.
+- `limits.max_sites`: maximum sites collected after `site_selector` filtering. `0` disables this cap.
+- `limits.max_interfaces_per_site`: maximum interfaces collected per selected site after `interface_selector` filtering. `0` disables this cap.
 - `discovery.refresh_every`: site rediscovery interval in seconds.
 - `metrics.max_sites_per_query`: maximum site IDs sent in one `accountMetrics` query.
 - `metrics.time_frame`: Cato TimeFrame value, such as `last.PT5M` or `utc.2020-02-11/{04:50:15--16:50:15}`.
@@ -35,7 +39,11 @@ Important options:
 - `events.max_pages_per_cycle`: maximum `eventsFeed` marker pages drained in one collection cycle.
 - `events.max_cardinality`: maximum unique event type/subtype/severity/status series before excess events collapse into `other`.
 - `bgp.max_sites_per_collection`: maximum sites queried for BGP status during one BGP refresh.
+- `bgp.peer_selector`: space-separated simple patterns matched against BGP peer remote IP or remote ASN.
+- `bgp.max_peers_per_site`: maximum BGP peers collected per selected site after `bgp.peer_selector` filtering. `0` disables this cap.
 - `bgp.refresh_every`: BGP refresh interval in seconds.
+
+Selectors accept glob-style terms and `!` exclusions. For example, `!lab-* *` collects everything except IDs or names matching `lab-*`; exclusions win across all identity fields for the selected entity type.
 
 ## Permissions
 
@@ -53,6 +61,9 @@ Use the collector health charts first:
 
 - `cato_networks.collector_collection_status`: last collection success.
 - `cato_networks.collector_discovered_sites`: number of discovered Cato sites.
+- `cato_networks.collector_selected_entities`: selected sites, interfaces, and BGP peers after selectors and caps.
+- `cato_networks.collector_skipped_entities`: entities skipped by selector or cap.
+- `cato_networks.collector_cardinality_limit_status`: whether a site, interface, or BGP peer cap was hit.
 - `cato_networks.collector_events_marker_persistence_status`: whether EventsFeed marker persistence is available. A value of `0` means events are enabled but no marker file can be used.
 - `cato_networks.collector_bgp_scan_window`: estimated seconds needed to refresh BGP status for all discovered sites with the current `bgp.max_sites_per_collection` and `bgp.refresh_every`.
 - `cato_networks.collector_bgp_scan_progress`: BGP sites queried per collection and sites with cached BGP state.
@@ -73,9 +84,12 @@ If `entityLookup` fails after an earlier successful discovery, the collector con
 If the API reports rate limits:
 
 - increase `update_every`;
+- narrow `site_selector`, `interface_selector`, or `bgp.peer_selector`;
 - reduce `metrics.max_sites_per_query`;
 - reduce `bgp.max_sites_per_collection`;
 - increase `bgp.refresh_every`.
+
+If `collector_cardinality_limit_status` is `1`, the collector is intentionally skipping some site, interface, or BGP peer entities to protect the Agent and Cloud pipeline from unbounded series growth. Check `collector_skipped_entities` to identify whether the skip reason is `selector` or `limit`, then either narrow selectors or raise the relevant cap if the account has enough API and metric-cardinality headroom.
 
 If events look low or delayed:
 

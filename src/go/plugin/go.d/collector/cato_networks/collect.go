@@ -62,12 +62,17 @@ func (c *Collector) refreshDiscovery(ctx context.Context, force bool) error {
 		}
 	}
 
+	selectedSiteIDs, skippedBySelector, skippedByLimit := c.selectSites(siteIDs, siteNames)
 	c.discovery = discoveryState{
-		siteIDs:   siteIDs,
-		siteNames: siteNames,
-		fetchedAt: now,
+		siteIDs:           selectedSiteIDs,
+		siteNames:         siteNames,
+		fetchedAt:         now,
+		totalSites:        len(siteIDs),
+		skippedBySelector: skippedBySelector,
+		skippedByLimit:    skippedByLimit,
 	}
 	c.markOperationSuccess(operationDiscovery)
+	c.clearRecoverableWarning(warningKeyDiscoveryCache)
 	return nil
 }
 
@@ -77,7 +82,7 @@ func (c *Collector) useCachedDiscoveryAfterRefreshFailure(now time.Time, force b
 	}
 
 	c.discovery.fetchedAt = now
-	c.Warningf("entityLookup refresh failed; using cached discovery for %d site(s), error_class=%s", len(c.discovery.siteIDs), classifyCatoError(err))
+	c.warnRecoverable(warningKeyDiscoveryCache, classifyCatoError(err), "entityLookup refresh failed; using cached discovery for %d site(s), error_class=%s", len(c.discovery.siteIDs), classifyCatoError(err))
 	return true
 }
 
@@ -133,7 +138,7 @@ func (c *Collector) collectMetrics(ctx context.Context, sites map[string]*siteSt
 			errCount++
 			c.markOperationFailure(operationMetrics, err)
 			c.markOperationAffectedSites(operationMetrics, err, len(batch))
-			c.Warningf("accountMetrics batch failed for %d site(s), error_class=%s", len(batch), classifyCatoError(err))
+			c.Debugf("accountMetrics batch failed for %d site(s), error_class=%s", len(batch), classifyCatoError(err))
 			continue
 		}
 		successCount++
@@ -183,7 +188,7 @@ func (c *Collector) collectBGP(ctx context.Context, sites map[string]*siteState,
 			errCount++
 			c.markOperationFailure(operationBGP, err)
 			c.markOperationAffectedSites(operationBGP, err, 1)
-			c.Warningf("siteBgpStatus failed for one site, error_class=%s", classifyCatoError(err))
+			c.Debugf("siteBgpStatus failed for one site, error_class=%s", classifyCatoError(err))
 			continue
 		}
 		successCount++
@@ -295,7 +300,7 @@ func (c *Collector) collectEvents(ctx context.Context) (eventsCollection, error)
 		for _, account := range feed.GetAccounts() {
 			if errString := ptrString(account.GetErrorString()); errString != "" {
 				c.markNormalizationIssue(normalizationSurfaceEvents, normalizationIssueAccountError)
-				c.Warningf("eventsFeed returned an account-level error; skipping account events")
+				c.warnRecoverable(warningKeyEventAccountErr, "account_error", "eventsFeed returned an account-level error; skipping account events")
 				c.Debugf("eventsFeed account-level error metadata: page=%d error_size=%d", page+1, len(errString))
 				err := fmt.Errorf("eventsFeed account error")
 				c.markOperationFailure(operationEvents, err)

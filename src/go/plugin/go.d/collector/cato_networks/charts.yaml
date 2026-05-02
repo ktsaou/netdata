@@ -31,6 +31,8 @@ groups:
         type: line
         instances:
           by_labels: [site_id, site_name, pop_name]
+        lifecycle:
+          expire_after_cycles: 5
         dimensions:
           - selector: site_hosts
             name: hosts
@@ -41,6 +43,8 @@ groups:
         type: line
         instances:
           by_labels: [site_id, site_name, pop_name]
+        lifecycle:
+          expire_after_cycles: 5
         dimensions:
           - selector: site_connectivity_connected
             name: connected
@@ -57,6 +61,8 @@ groups:
         type: line
         instances:
           by_labels: [site_id, site_name, pop_name]
+        lifecycle:
+          expire_after_cycles: 5
         dimensions:
           - selector: site_operational_active
             name: active
@@ -73,6 +79,8 @@ groups:
         type: area
         instances:
           by_labels: [site_id, site_name, pop_name]
+        lifecycle:
+          expire_after_cycles: 5
         dimensions:
           - selector: site_bytes_upstream_max
             name: upstream
@@ -85,6 +93,8 @@ groups:
         type: line
         instances:
           by_labels: [site_id, site_name, pop_name]
+        lifecycle:
+          expire_after_cycles: 5
         dimensions:
           - selector: site_lost_upstream_percent
             name: upstream
@@ -97,6 +107,8 @@ groups:
         type: line
         instances:
           by_labels: [site_id, site_name, pop_name]
+        lifecycle:
+          expire_after_cycles: 5
         dimensions:
           - selector: site_packets_discarded_upstream
             name: upstream
@@ -109,6 +121,8 @@ groups:
         type: line
         instances:
           by_labels: [site_id, site_name, pop_name]
+        lifecycle:
+          expire_after_cycles: 5
         dimensions:
           - selector: site_jitter_upstream_ms
             name: upstream
@@ -121,6 +135,8 @@ groups:
         type: line
         instances:
           by_labels: [site_id, site_name, pop_name]
+        lifecycle:
+          expire_after_cycles: 5
         dimensions:
           - selector: site_rtt_ms
             name: rtt
@@ -133,6 +149,8 @@ groups:
         type: line
         instances:
           by_labels: [site_id, site_name, pop_name]
+        lifecycle:
+          expire_after_cycles: 5
         dimensions:
           - selector: site_last_mile_packet_loss_percent
             name: loss
@@ -157,6 +175,8 @@ groups:
         type: line
         instances:
           by_labels: [site_id, site_name, interface_id, interface_name]
+        lifecycle:
+          expire_after_cycles: 5
         dimensions:
           - selector: interface_connected
             name: connected
@@ -167,6 +187,8 @@ groups:
         type: line
         instances:
           by_labels: [site_id, site_name, interface_id, interface_name]
+        lifecycle:
+          expire_after_cycles: 5
         dimensions:
           - selector: interface_tunnel_uptime_seconds
             name: uptime
@@ -177,6 +199,8 @@ groups:
         type: area
         instances:
           by_labels: [site_id, site_name, interface_id, interface_name]
+        lifecycle:
+          expire_after_cycles: 5
         dimensions:
           - selector: interface_bytes_upstream_max
             name: upstream
@@ -189,6 +213,8 @@ groups:
         type: line
         instances:
           by_labels: [site_id, site_name, interface_id, interface_name]
+        lifecycle:
+          expire_after_cycles: 5
         dimensions:
           - selector: interface_lost_upstream_percent
             name: upstream
@@ -201,6 +227,8 @@ groups:
         type: line
         instances:
           by_labels: [site_id, site_name, interface_id, interface_name]
+        lifecycle:
+          expire_after_cycles: 5
         dimensions:
           - selector: interface_packets_discarded_upstream
             name: upstream
@@ -213,6 +241,8 @@ groups:
         type: line
         instances:
           by_labels: [site_id, site_name, interface_id, interface_name]
+        lifecycle:
+          expire_after_cycles: 5
         dimensions:
           - selector: interface_jitter_upstream_ms
             name: upstream
@@ -225,6 +255,8 @@ groups:
         type: line
         instances:
           by_labels: [site_id, site_name, interface_id, interface_name]
+        lifecycle:
+          expire_after_cycles: 5
         dimensions:
           - selector: interface_rtt_ms
             name: rtt
@@ -243,6 +275,8 @@ groups:
         type: line
         instances:
           by_labels: [site_id, site_name, peer_ip, peer_asn]
+        lifecycle:
+          expire_after_cycles: 5
         dimensions:
           - selector: bgp_session_up
             name: up
@@ -253,6 +287,8 @@ groups:
         type: line
         instances:
           by_labels: [site_id, site_name, peer_ip, peer_asn]
+        lifecycle:
+          expire_after_cycles: 5
         dimensions:
           - selector: bgp_routes
             name: accepted
@@ -267,6 +303,8 @@ groups:
         type: line
         instances:
           by_labels: [site_id, site_name, peer_ip, peer_asn]
+        lifecycle:
+          expire_after_cycles: 5
         dimensions:
           - selector: bgp_routes_limit_exceeded
             name: exceeded
@@ -274,6 +312,9 @@ groups:
     metrics:
       - collector_collection_success
       - collector_discovered_sites
+      - collector_selected_entities
+      - collector_skipped_entities
+      - collector_cardinality_limit_hit
       - collector_events_marker_persistence_available
       - collector_bgp_sites_per_collection
       - collector_bgp_full_scan_seconds
@@ -303,6 +344,42 @@ groups:
         dimensions:
           - selector: collector_discovered_sites
             name: sites
+      - id: collector_selected_entities
+        title: Cato collector selected entities
+        context: collector_selected_entities
+        units: entities
+        type: line
+        instances:
+          by_labels: [entity]
+        lifecycle:
+          expire_after_cycles: 5
+        dimensions:
+          - selector: collector_selected_entities
+            name: selected
+      - id: collector_skipped_entities
+        title: Cato collector skipped entities
+        context: collector_skipped_entities
+        units: entities
+        type: line
+        instances:
+          by_labels: [entity, reason]
+        lifecycle:
+          expire_after_cycles: 5
+        dimensions:
+          - selector: collector_skipped_entities
+            name: skipped
+      - id: collector_cardinality_limit_status
+        title: Cato collector cardinality limit status
+        context: collector_cardinality_limit_status
+        units: status
+        type: line
+        instances:
+          by_labels: [entity]
+        lifecycle:
+          expire_after_cycles: 5
+        dimensions:
+          - selector: collector_cardinality_limit_hit
+            name: hit
       - id: collector_events_marker_persistence_status
         title: Cato collector events marker persistence status
         context: collector_events_marker_persistence_status
@@ -336,6 +413,8 @@ groups:
         type: line
         instances:
           by_labels: [operation]
+        lifecycle:
+          expire_after_cycles: 5
         dimensions:
           - selector: collector_operation_success
             name: successful
@@ -346,6 +425,8 @@ groups:
         type: line
         instances:
           by_labels: [operation, error_class]
+        lifecycle:
+          expire_after_cycles: 5
         dimensions:
           - selector: collector_operation_failures_total
             name: failures
@@ -356,6 +437,8 @@ groups:
         type: line
         instances:
           by_labels: [operation, error_class]
+        lifecycle:
+          expire_after_cycles: 5
         dimensions:
           - selector: collector_operation_affected_sites_total
             name: sites
@@ -366,6 +449,8 @@ groups:
         type: line
         instances:
           by_labels: [error_class]
+        lifecycle:
+          expire_after_cycles: 5
         dimensions:
           - selector: collector_collection_failures_total
             name: failures
@@ -376,6 +461,8 @@ groups:
         type: line
         instances:
           by_labels: [surface, issue]
+        lifecycle:
+          expire_after_cycles: 5
         dimensions:
           - selector: collector_normalization_issues_total
             name: issues
@@ -386,6 +473,8 @@ groups:
         type: line
         instances:
           by_labels: [event_type, event_sub_type, severity, status]
+        lifecycle:
+          expire_after_cycles: 5
         dimensions:
           - selector: events_total
             name: events
@@ -396,6 +485,8 @@ groups:
         type: line
         instances:
           by_labels: [query]
+        lifecycle:
+          expire_after_cycles: 5
         dimensions:
           - selector: api_rate_limit_retries_total
             name: rate_limit

@@ -4,7 +4,7 @@
 
 Status: completed
 
-Sub-state: completed 2026-05-02 after PR #22373 review comments on failed-cycle health visibility, BGP progress freshness between scan windows, and stalled EventsFeed marker double counting. Live Cato tenant validation remains tracked separately in SOW-0005.
+Sub-state: completed 2026-05-02 after collector-writing skill compliance hardening: explicit V2 obsoletion, deterministic cardinality controls, gated recoverable logging, and missing go.d README registry entry. Live Cato tenant validation remains tracked separately in SOW-0005.
 
 ## Reopen - PR Review Comments - Failed-Cycle Health, BGP Progress, and Stalled Event Markers - 2026-05-02
 
@@ -40,6 +40,7 @@ Validation completed:
 - `cd src/go && go test ./plugin/go.d/collector/cato_networks -count=1` - passed.
 - `cd src/go && go vet ./plugin/go.d/collector/cato_networks` - passed.
 - `cd src/go && go test ./plugin/go.d/... -count=1` - passed.
+- `.agents/sow/audit.sh` after moving the SOW back to `done/` - passed.
 
 Artifact maintenance:
 
@@ -2021,5 +2022,116 @@ Follow-up mapping after third hardening:
 - Account ID as a metric label remains intentionally not added in this pass. A Netdata job monitors one Cato account, and adding account ID to every metric label would increase cardinality and expose account identifiers in chart labels. MSP/multi-account collision behavior should be evaluated during SOW-0005 live validation if multiple Cato accounts are configured on the same Agent.
 
 Outcome after third hardening:
+
+- Completed.
+
+## Reopen - Collector Skill Compliance Hardening - 2026-05-02
+
+Reason:
+
+- The user asked whether the Cato collector needed changes after reviewing `/home/costa/src/netdata-ktsaou.git/.agents/skills/project-writing-collectors/SKILL.md`.
+- Local verification found three gaps against that skill:
+  - recoverable collection-loop warnings are emitted per cycle instead of being gated by condition;
+  - high-cardinality site/interface/BGP-peer entities lack explicit selector/cap controls;
+  - the go.d module is wired in `collector/init.go`, `config/go.d.conf`, stock config, and collector README, but is missing from `src/go/plugin/go.d/README.md`.
+- The same verification found that V2 chart lifecycle already supports explicit chart-instance expiry, and the user stated that obsoletion is important and must be added independent of cardinality.
+
+Evidence reviewed:
+
+- Collector skill logging rule: `/home/costa/src/netdata-ktsaou.git/.agents/skills/project-writing-collectors/SKILL.md:104-111`.
+- Collector skill cardinality rule: `/home/costa/src/netdata-ktsaou.git/.agents/skills/project-writing-collectors/SKILL.md:113-121`.
+- Collector skill go.d wiring rule: `/home/costa/src/netdata-ktsaou.git/.agents/skills/project-writing-collectors/SKILL.md:258-259` and `:321`.
+- Current collection-loop warnings: `src/go/plugin/go.d/collector/cato_networks/collector.go:221`, `:289`, `:295`, `:303`, `:340`; `src/go/plugin/go.d/collector/cato_networks/collect.go:80`, `:136`, `:186`, `:298`.
+- Current unbounded dynamic chart instances: `src/go/plugin/go.d/collector/cato_networks/write_metrics.go:27` for sites, `:62` for interfaces, and `:86` for BGP peers.
+- V2 lifecycle support: `src/go/plugin/framework/charttpl/README.md:608-624`; default chart expiry: `src/go/plugin/framework/chartengine/lifecycle_defaults.go:13-19`.
+
+User decision recorded before implementation:
+
+- Decision 1.B: deterministically skip excess entities and alert, instead of failing the whole collector when cardinality caps are exceeded.
+- Implication: the collector remains available under large accounts, but operator-facing diagnostics and alerts must make partial coverage explicit.
+- Obsoletion is a separate requirement: disappeared entities must be obsoleted via V2 chart lifecycle even when no cap is hit.
+
+Implementation scope:
+
+1. Add explicit V2 `lifecycle.expire_after_cycles` to dynamic Cato site, interface, BGP-peer, event, and diagnostic chart templates so missing entities are obsoleted by successful-cycle expiry instead of relying on implicit defaults.
+2. Add selector controls:
+   - `site_selector` using Netdata simple patterns against site name or site ID;
+   - `interface_selector` using Netdata simple patterns against interface name or interface ID;
+   - `bgp.peer_selector` using Netdata simple patterns against remote peer IP or ASN.
+3. Add deterministic caps:
+   - `limits.max_sites`, default `500`, `0` disables the cap;
+   - `limits.max_interfaces_per_site`, default `32`, `0` disables the cap;
+   - `bgp.max_peers_per_site`, default `32`, `0` disables the cap.
+4. Add low-cardinality diagnostics and health alerts for cap hits / selector skips so partial monitoring is visible.
+5. Gate repeated recoverable warning logs by condition and error class; keep per-cycle truth in metrics and use debug logging for repeated detail.
+6. Add the missing Cato row to `src/go/plugin/go.d/README.md`.
+7. Update README, stock config, metadata, config schema, health alerts, and the Cato collector spec to describe selectors, caps, obsoletion, and gated logging behavior.
+8. Add tests for selector filtering, deterministic cap behavior, diagnostics/alerts metrics, explicit lifecycle YAML parsing, and warning-gate behavior where practical.
+
+Validation plan:
+
+- `git diff --check`
+- `cd src/go && go test ./plugin/go.d/collector/cato_networks -count=1`
+- `cd src/go && go vet ./plugin/go.d/collector/cato_networks`
+- `cd src/go && go test ./plugin/go.d/... -count=1`
+- YAML parsing for `charts.yaml`, `metadata.yaml`, and stock `go.d/cato_networks.conf`.
+- JSON parsing for `config_schema.json`.
+- `.agents/sow/audit.sh` before moving the SOW back to `done/`.
+
+Implemented after collector skill compliance hardening:
+
+- Added explicit `lifecycle.expire_after_cycles: 5` to every dynamic Cato V2 chart template: sites, interfaces, BGP peers, event label combinations, API retry query labels, operation labels, normalization issue labels, and the new entity-selection diagnostics.
+- Added cardinality controls:
+  - `site_selector`, matching site ID or site name;
+  - `interface_selector`, matching interface ID or interface name;
+  - `limits.max_sites`, default `500`, `0` disables;
+  - `limits.max_interfaces_per_site`, default `32`, `0` disables;
+  - `bgp.peer_selector`, matching BGP peer remote IP or remote ASN;
+  - `bgp.max_peers_per_site`, default `32`, `0` disables.
+- Implemented selector matching with glob-style terms and `!` exclusions. Exclusions win across all identity fields for an entity, so an excluded site name is not re-included by a catch-all site ID match.
+- Applied selected-site pruning before metrics/BGP/topology processing so unexpected extra sites returned by `accountSnapshot` cannot leak into BGP polling or emitted metrics.
+- Added low-cardinality selector/cap diagnostics:
+  - `collector_selected_entities{entity}`;
+  - `collector_skipped_entities{entity,reason}`;
+  - `collector_cardinality_limit_hit{entity}`.
+- Added `cato_networks_collector_cardinality_limit_hit` health alert.
+- Gated repeated recoverable warning logs by condition and normalized class, while preserving per-cycle truth in collector health metrics and debug logs.
+- Downgraded per-batch/per-site collection-loop detail logs for partial `accountMetrics` and `siteBgpStatus` failures to debug.
+- Added missing `cato_networks` row to `src/go/plugin/go.d/README.md`.
+- Updated README, stock config, metadata, config schema, health alerts, charts, and `.agents/sow/specs/cato-networks-collector.md`.
+
+Validation completed after collector skill compliance hardening:
+
+- `git diff --check` - passed.
+- `jq empty src/go/plugin/go.d/collector/cato_networks/config_schema.json` - passed.
+- `ruby -e 'require "yaml"; ARGV.each { |path| YAML.load_file(path); puts "ok #{path}" }' src/go/plugin/go.d/collector/cato_networks/charts.yaml src/go/plugin/go.d/collector/cato_networks/metadata.yaml src/go/plugin/go.d/config/go.d/cato_networks.conf` - passed.
+- `cd src/go && go test ./plugin/go.d/collector/cato_networks -count=1` - passed.
+- `cd src/go && go vet ./plugin/go.d/collector/cato_networks` - passed.
+- `cd src/go && go test ./plugin/go.d/... -count=1` - passed.
+
+Test coverage added after collector skill compliance hardening:
+
+- Configuration default trimming while preserving explicit `0` cap disables.
+- Site selector plus site cap behavior and diagnostics.
+- Interface selector plus interface cap behavior and diagnostics.
+- BGP peer cap behavior and diagnostics.
+- Recoverable warning-gate state by error class.
+- Explicit lifecycle declaration on every dynamic chart template.
+
+Artifact maintenance after collector skill compliance hardening:
+
+- `AGENTS.md`: no update needed. Existing SOW and collector rules already require SOW tracking, collector consistency, and artifact synchronization.
+- Runtime project skills: no update needed. The collector-writing skill was external to this repository and no reusable project-local workflow changed.
+- Specs: updated `.agents/sow/specs/cato-networks-collector.md` with selectors, caps, skip diagnostics, explicit V2 lifecycle obsoletion, and recoverable warning-gate behavior.
+- End-user/operator docs: updated README, metadata, config schema, stock config, health alerts, charts, and go.d README registry.
+- End-user/operator skills: no update needed. No downstream AI/operator skill artifact changed.
+- SOW lifecycle: reopened completed SOW for collector-writing skill compliance; closing it again after validation. Live Cato tenant validation remains tracked by SOW-0005.
+
+Follow-up mapping after collector skill compliance hardening:
+
+- Live Cato tenant or vendor sandbox validation remains tracked by `.agents/sow/pending/SOW-0005-20260501-cato-networks-live-validation.md`.
+- No new deferred work remains from this hardening pass.
+
+Outcome after collector skill compliance hardening:
 
 - Completed.
