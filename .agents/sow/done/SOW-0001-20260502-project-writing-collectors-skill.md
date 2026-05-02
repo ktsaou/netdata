@@ -2,9 +2,9 @@
 
 ## Status
 
-Status: in-progress
+Status: completed
 
-Sub-state: structure decisions resolved (1A, 2A, 3A, 4A, 5A, 6A, 8B; 7 — manifesto framing, prose, summary DOs/DONTs per topic, 300-500 lines target with no lengthy code examples); first draft of SKILL.md authored for user review at `.agents/skills/project-writing-collectors/SKILL.md` (242 lines); FUNCTION_UI_SCHEMA.json added as required artifact in the consistency-sync set.
+Sub-state: skill shipped (SKILL.md 516 lines after structural rewrite). PR #22386 open against netdata/netdata master with three commits: pre-existing SOW lifecycle update (`64754ad4ea`), first-draft skill preserved as baseline (`9fdf581a86`, 313 lines, routing-and-pointers oriented), structural rewrite (`abe0b77ea2`, +395/-192, mental-model and data-type/domain centered). AGENTS.md skill index entry added in the first-draft commit. SOW close lands in a separate third commit per user-approved split from the rewrite.
 
 ## Requirements
 
@@ -242,15 +242,38 @@ Late addition by user: a function schema JSON file (`src/plugins.d/FUNCTION_UI_S
 
 ## Implications And Decisions
 
-Pending user response to Open Decisions 1-7.
+All open decisions (1-8) resolved 2026-05-02 — see Pre-Implementation Gate "Open decisions" section for the resolved set.
+
+User audit on the first draft prompted a comprehensive rewrite that re-centered the skill on:
+
+- mental model first (research discipline, cross-project comparison, gaps-are-data, obsoletion as a truthfulness principle, IDs as contracts);
+- framework-agnostic best practices ordered by impact;
+- five dashboard-shaping mechanisms (NIDL, SNMP profiles, statsd `synthetic_charts`, OTEL per-metric YAML mappings, Prometheus deterministic exposition);
+- production-quality criteria + 21-item pre-PR checklist;
+- plugin landscape demoted to reference;
+- per-data-type chapter (metrics, logs, live snapshots, topology, netipc enrichment);
+- per-domain common practices (DBs + query Functions, network/SNMP + topology Functions, containers + netipc enrichment, web servers + access-log Functions, flow protocols).
+
+Two corrections during review:
+
+- A comparative claim about Netdata's per-series cost (vs. other monitoring systems) was caught and removed before commit. Such comparisons are out of scope for an in-repo skill whose audience is assistants working on the codebase.
+- Obsoletion was originally bundled under cardinality. Separated: obsoletion is now §1.5 (truthfulness principle, applies at any cardinality) and cardinality bounding is §2.5 (`max_*` + selectors mandatory, with three upstream-data-shape sub-cases).
 
 ## Plan
 
-(Pending Pre-Implementation Gate close.)
+Plan executed:
+
+1. Authored first draft per resolved decisions (1A/2A/3A/4A/5A/6A/8B + 7 manifesto framing). Committed as `9fdf581a86`.
+2. Registered skill in AGENTS.md → Project Skills Index → Runtime input skills (same commit).
+3. User audit identified structural imbalance (over-indexed on entry-points). Restructured into 9 sections, with mental model and best practices leading and the framework reference demoted.
+4. Three parallel research subagents fetched OTEL / statsd / Prometheus mapping references with file:line evidence — grounded the dashboard-shaping section in source rather than prior knowledge.
+5. Domain-pattern verification (mysql `mysqlfunc/top_queries.go`, postgres `func_top_queries.go` / `func_router.go`, snmp_topology `func_topology*.go`, cgroups netipc server, log2journal) confirmed common-practices descriptions before writing.
+6. Two follow-up corrections during user review: removed unfair comparative claim; separated obsoletion from cardinality bounding.
+7. Rewrite committed as `abe0b77ea2`. PR #22386 opened against netdata/netdata master.
 
 ## Execution Log
 
-### 2026-05-02
+### 2026-05-02 — investigation
 
 - Investigation completed via 4 parallel subagents (in-repo doc inventory, plugin landscape, recurring bad-practice patterns, external authoring-guide structures).
 - 25+ canonical docs verified to exist on disk.
@@ -259,18 +282,106 @@ Pending user response to Open Decisions 1-7.
 - 4 external project authoring guides analyzed for structure inspiration.
 - SOW filed; awaiting structure decisions.
 
+### 2026-05-02 — implementation and rewrite
+
+- First draft authored per resolved decisions; 313 lines; committed as `9fdf581a86`.
+- AGENTS.md updated with `project-writing-collectors` entry under Runtime input project skills.
+- User audit identified structural imbalance (skill over-indexed on entry-points, under-indexed on holistic data-collection thinking).
+- Three parallel research subagents fetched OTEL / statsd / Prometheus mapping references — used to ground the §3 dashboard-shaping section in real file:line evidence rather than prior knowledge.
+- Domain-pattern verification (mysql, postgres, snmp_topology, cgroups, log2journal) confirmed common-practices descriptions before writing §7.
+- Rewrite committed as `abe0b77ea2` (516 lines, +395 / -192 vs first draft).
+- User review caught and addressed: (a) a comparative-against-Netdata claim in §1.9 — removed; (b) obsoletion mixed into cardinality bounding — separated, promoted to §1.5 as a truthfulness principle.
+- PR #22386 opened against netdata/netdata master.
+- SOW close lands in a separate third commit per user-approved split.
+
 ## Validation
 
-Pending implementation.
+**Acceptance criteria evidence.** All four routing self-tests from §Acceptance Criteria are satisfied by the rewrite:
+
+1. New go.d module → §5.2 routing-by-task table + §5.3 V1/V2 reality check + ping V2 reference + `how-to-write-a-collector.md` pointer.
+2. New SNMP profile → §3.2 SNMP profiles + `profile-format.md` pointer.
+3. New external C plugin → §5.2 routing + `plugins.d/README.md` + §5.4 internal-C/PLUGINSD section.
+4. New ibm.d module → §5.2 routing + §5.4 ibm.d entry + `ibm.d/AGENTS.md` pointer.
+
+Each of the 12 bad-practice patterns from §Analysis is flagged in the rewrite, distributed across §1 (mental model), §2 (best practices), §3 (dashboard shaping), §4 (production-quality criteria + checklist) — reframed as past-pain context rather than a single audit-checklist column.
+
+**Tests / equivalent validation.** The skill is documentation, not code — validated by content review and routing walkthrough.
+
+**Real-use evidence.** Skill description triggers on the keywords specified in the user's request (collector, plugin, module, NetFlow/sFlow/IPFIX, OTEL, topology, SNMP profile, statsd, Prometheus scraping, Functions). Frontmatter description updated in the rewrite commit to enumerate all five dashboard-shaping mechanisms so discovery covers the full surface.
+
+**Reviewer findings and how handled:**
+
+- Structural imbalance after the first draft → addressed by full rewrite (Execution Log).
+- Unfair comparative claim about Netdata vs. other monitoring systems in §1.9 → removed; reframed in operational-waste terms.
+- Obsoletion conceptually misplaced under cardinality → separated; obsoletion is §1.5 (truthfulness, any cardinality), cardinality bounding is §2.5 (`max_*` + selectors + upstream-data-shape sub-cases).
+- `max_*` + selectors must be coupled, with three upstream-data-shape sub-cases ("Other" bucket / push selector upstream / surface app-side aggregations) → added to §2.5.
+
+**Same-failure search.** Reviewed the rewrite for other comparative claims about Netdata vs. alternatives — only §1.9 had the bad framing. Other sections that mention third-party projects (§1.6 cross-project comparison, §1.7 spec ambiguity, §2.1 testing, §3.5 Prometheus mapping) describe them neutrally as fixture sources or upstream-shape examples.
+
+**Artifact maintenance gate:**
+
+- AGENTS.md → updated (skill index entry under Runtime input project skills; commit `9fdf581a86`).
+- Runtime project skills → created (the new skill is the artifact).
+- Specs → no spec change. Skill is orientation; it does not change collector behavior, public APIs, schemas, alerting semantics, or operational guarantees.
+- End-user / operator docs → none affected. Audience is AI assistants, not end users or operators.
+- End-user / operator skills → none affected. The skill is a runtime input skill; it does not feed into output/reference skills under `docs/netdata-ai/skills/` or `src/ai-skills/`.
+- SOW lifecycle → this commit closes the SOW (status `completed`) and moves it to `.agents/sow/done/`. PR #22386 ends up with three commits (SOW lifecycle update + first-draft skill + rewrite) plus this lifecycle close.
+
+**SOW status / directory consistency.** Status `completed` → file moves to `.agents/sow/done/`.
+
+**Spec update or specific reason no spec update was needed.** Not needed — see Artifact maintenance gate.
+
+**Project skill update or specific reason no skill update was needed.** This SOW *creates* the project skill; AGENTS.md skill index updated.
+
+**End-user/operator docs update or evidence-backed reason none affected.** None affected — see Artifact maintenance gate.
+
+**End-user/operator skill update or evidence-backed reason none affected.** None affected — see Artifact maintenance gate.
+
+**Lessons extracted.** See Lessons Extracted section below.
+
+**Follow-up mapping.** See Followup section below.
 
 ## Outcome
 
-Pending.
+Skill shipped at `.agents/skills/project-writing-collectors/SKILL.md` (516 lines). Indexed in AGENTS.md. PR #22386 open against netdata/netdata master.
+
+Coverage:
+
+- Mental model: 11 numbered principles.
+- Best practices: 10 directives ordered by impact.
+- Dashboard shaping: 6 mechanisms (NIDL, SNMP profiles, statsd `synthetic_charts`, OTEL mappings, Prometheus exposition, chart priorities).
+- Production-quality criteria: 7 + 21-item pre-PR checklist.
+- Plugin landscape: 18 plugin families.
+- Data types: 5 (metrics, logs, live snapshots, topology, netipc enrichment).
+- Common practices: 7 collector domains.
+- Canonical pointers: 30 entries.
 
 ## Lessons Extracted
 
-Pending.
+1. **Comparative claims about Netdata are out of scope for in-repo skills.** A statement framing Netdata's per-series cost as worse than alternatives was both factually wrong (Netdata is more efficient on cardinality, with automated protection built in) and rhetorically inappropriate for an internal skill whose audience is assistants working on the codebase. Future skill content must teach assistants to design well, not position Netdata against other systems — in either direction.
+
+2. **Obsoletion is a truthfulness concern, not a cardinality concern.** The first-draft framing bundled them, which suggests obsoletion is only relevant at high cardinality. The principle applies even at one entity total: when the collector knows an entity is gone, the dashboard must reflect that. Future skill or doc content must keep these separate.
+
+3. **`max_*` and selectors must be coupled.** A cap alone silently truncates the wrong set; selectors alone don't protect against runaway. The skill must teach this as a combined directive, not two independent options.
+
+4. **Where to filter depends on what the application exposes.** Three upstream cases must be distinguished: app exposes everything (collector caps + adds an "Other" aggregation), app supports cherry-picking (push selector upstream), app exposes aggregations natively (surface them as additional charts). Without this guidance assistants default to "cap and drop", which loses information.
+
+5. **Research before describing internal mechanics.** The §3 dashboard-shaping section was grounded in real file:line evidence from the OTEL plugin, statsd plugin, and Prometheus collector — not prior knowledge. This avoided several plausible-sounding but inaccurate claims (e.g. about OTel semantic-convention handling).
+
+6. **Preserve first drafts when a substantial rewrite follows.** Committing the first draft separately let the rewrite stand on its own as a reviewable change (+395 / -192) and made the structural shift visible in history. Future SKILL-level rewrites should follow the same pattern.
+
+7. **The SOW close should land with the work as one commit.** This SOW shipped its work in two commits but was left in `current/` until the user noticed. The AGENTS.md rule ("commit the work, artifact updates, SOW status change, and SOW move together as one commit") exists to prevent exactly this. Future SOWs must close in the same commit as the final piece of work, unless the user explicitly approves a split (as happened here for SOW-0001).
 
 ## Followup
 
-(To be filled at implementation; expected: per-gap-doc follow-up SOWs for vnodes / error handling / labels / logging conventions / netipc cross-link.)
+Per the resolved Open Decision 3A, canonical-doc gaps are handled inline as 1-2 line guidance in the skill rather than companion docs in the skill directory. The skill currently inlines guidance for:
+
+- Vnodes (§1.9, §2.10) → pointer to `src/go/plugin/framework/vnodes/` and `BEST-PRACTICES.md`.
+- Error handling conventions (§2.3) → three-question format directive.
+- Logging conventions (§2.4) → debug/warn/error/info hierarchy directive.
+- Labels (§3 dashboard shaping) → described per ingestion path (NIDL, SNMP, statsd, OTEL, Prometheus).
+- netipc (§2.9, §6.5) → pointer to upstream spec at <https://github.com/netdata/plugin-ipc>.
+
+No follow-up SOWs are required at this time. The skill is live; if assistants miss any inlined topic in practice, the appropriate response is to expand the relevant section in a follow-up commit per the "Maintaining this skill" footer rule, not to author a separate canonical doc.
+
+Maintenance handle: when a new gap is identified (recurring AI bug pattern from real PRs, documentation drift caused by a rename in canonical docs, new collector domain), open a follow-up SOW only if the change is substantial; otherwise update the skill in the same PR that exposed the gap.
