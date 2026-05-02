@@ -217,7 +217,7 @@ func mergeMetrics(metrics *catosdk.AccountMetrics, sites map[string]*siteState) 
 				iface.Name = "all"
 			}
 			if strings.EqualFold(iface.Name, "all") {
-				site.Metrics = iface.Metrics
+				site.Metrics, _ = mergeRawInterfaceTrafficMetrics(site.Metrics, rawIface)
 			}
 			key := interfaceKey(iface.ID, iface.Name)
 			existing := site.Interfaces[key]
@@ -262,15 +262,26 @@ func normalizeMetricsInterface(raw *catosdk.AccountMetrics_AccountMetrics_Sites_
 		iface.TunnelRemoteIP = ptrString(remote.GetIP())
 	}
 
-	iface.Metrics = mergeInterfaceMetrics(iface.Metrics, raw.GetMetrics())
+	var metricIssues []string
+	iface.Metrics, metricIssues = mergeRawInterfaceTrafficMetrics(iface.Metrics, raw)
+	issues = append(issues, metricIssues...)
+
+	return iface, issues
+}
+
+func mergeRawInterfaceTrafficMetrics(base trafficMetrics, raw *catosdk.AccountMetrics_AccountMetrics_Sites_Interfaces) (trafficMetrics, []string) {
+	if raw == nil {
+		return base, nil
+	}
+	var issues []string
+	base = mergeInterfaceMetrics(base, raw.GetMetrics())
 	for _, ts := range raw.GetTimeseries() {
 		value, ok := latestTimeseriesValue(ts.GetData())
-		if !applyTimeseriesMetric(&iface.Metrics, ts.GetLabel(), value, ok) {
+		if !applyTimeseriesMetric(&base, ts.GetLabel(), value, ok) {
 			issues = append(issues, normalizationIssueUnknownTimeseriesLabel)
 		}
 	}
-
-	return iface, issues
+	return base, issues
 }
 
 func mergeSiteMetrics(base trafficMetrics, raw *catosdk.AccountMetrics_AccountMetrics_Sites_Metrics) trafficMetrics {
@@ -371,6 +382,7 @@ func applyTimeseriesMetric(m *trafficMetrics, label string, value float64, ok bo
 
 func normalizeBGP(raw []*catosdk.SiteBgpStatusResult) ([]bgpPeerState, []string) {
 	peers := make([]bgpPeerState, 0, len(raw))
+	peerIndexes := make(map[string]int)
 	var issues []string
 	for _, v := range raw {
 		if v == nil {
@@ -389,7 +401,7 @@ func normalizeBGP(raw []*catosdk.SiteBgpStatusResult) ([]bgpPeerState, []string)
 		if !ok {
 			issues = append(issues, normalizationIssueParseInt)
 		}
-		peers = append(peers, bgpPeerState{
+		peer := bgpPeerState{
 			RemoteIP:                 v.RemoteIP,
 			RemoteASN:                v.RemoteASN,
 			LocalIP:                  v.LocalIP,
@@ -401,9 +413,20 @@ func normalizeBGP(raw []*catosdk.SiteBgpStatusResult) ([]bgpPeerState, []string)
 			RoutesCountLimit:         routesCountLimit,
 			RoutesCountLimitExceeded: v.RoutesCountLimitExceeded,
 			RIBOutRoutes:             int64(len(v.RIBOut)),
-		})
+		}
+		key := bgpPeerKey(peer.RemoteIP, peer.RemoteASN)
+		if idx, ok := peerIndexes[key]; ok {
+			peers[idx] = peer
+			continue
+		}
+		peerIndexes[key] = len(peers)
+		peers = append(peers, peer)
 	}
 	return peers, issues
+}
+
+func bgpPeerKey(remoteIP, remoteASN string) string {
+	return strings.TrimSpace(remoteIP) + "\x00" + strings.TrimSpace(remoteASN)
 }
 
 func isEmptyBGPPeerResult(v *catosdk.SiteBgpStatusResult) bool {

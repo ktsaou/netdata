@@ -839,6 +839,17 @@ func TestNormalizeBGPKeepsPeersWithOnlyConnectionState(t *testing.T) {
 	require.Equal(t, "established", peers[0].IncomingState)
 }
 
+func TestNormalizeBGPDeduplicatesPeerMetricLabels(t *testing.T) {
+	peers, issues := normalizeBGP([]*catosdk.SiteBgpStatusResult{
+		{RemoteIP: "192.0.2.10", RemoteASN: "64512", RoutesCount: "1"},
+		{RemoteIP: "192.0.2.10", RemoteASN: "64512", RoutesCount: "2"},
+	})
+
+	require.Empty(t, issues)
+	require.Len(t, peers, 1)
+	require.Equal(t, int64(2), peers[0].RoutesCount)
+}
+
 func TestCollectorReportsMarkerWriteFailure(t *testing.T) {
 	c := New()
 	c.AccountID = "12345"
@@ -915,6 +926,38 @@ func TestCollectorKeepsLastOperationStatusForSkippedOperations(t *testing.T) {
 	requireValue(t, reader, "collector_operation_success", metrix.Labels{"operation": operationBGP}, 1)
 	requireValue(t, reader, "collector_operation_success", metrix.Labels{"operation": operationSnapshot}, 1)
 	requireValue(t, reader, "collector_operation_success", metrix.Labels{"operation": operationMetrics}, 1)
+}
+
+func TestMergeMetricsMergesAllInterfaceIntoSiteMetrics(t *testing.T) {
+	siteBytesUpstream := float64(100)
+	siteRTT := int64(42)
+	metrics := &catosdk.AccountMetrics{AccountMetrics: &catosdk.AccountMetrics_AccountMetrics{
+		Sites: []*catosdk.AccountMetrics_AccountMetrics_Sites{
+			{
+				ID: strPtr("1001"),
+				Metrics: &catosdk.AccountMetrics_AccountMetrics_Sites_Metrics{
+					BytesUpstream: &siteBytesUpstream,
+					Rtt:           &siteRTT,
+				},
+				Interfaces: []*catosdk.AccountMetrics_AccountMetrics_Sites_Interfaces{
+					{
+						Name: strPtr("all"),
+						Timeseries: []*catosdk.AccountMetrics_AccountMetrics_Sites_Interfaces_Timeseries{
+							{Label: "bytesDownstreamMax", Data: [][]float64{{1, 200}}},
+						},
+					},
+				},
+			},
+		},
+	}}
+	sites := map[string]*siteState{
+		"1001": {ID: "1001", Interfaces: make(map[string]*interfaceState)},
+	}
+
+	require.Empty(t, mergeMetrics(metrics, sites))
+	require.Equal(t, float64(100), sites["1001"].Metrics.BytesUpstreamMax)
+	require.Equal(t, float64(200), sites["1001"].Metrics.BytesDownstreamMax)
+	require.Equal(t, float64(42), sites["1001"].Metrics.RTTMS)
 }
 
 func TestBGPPollingRotatesAcrossSites(t *testing.T) {
@@ -1033,6 +1076,37 @@ func TestBuildTopologyOmitsEmptyBGPPeerIPMatch(t *testing.T) {
 	require.Empty(t, bgpLink.Dst.Match.IPAddresses)
 }
 
+func TestBuildTopologyDeduplicatesBGPPeers(t *testing.T) {
+	site := &siteState{
+		ID:   "1001",
+		Name: "Paris Office",
+		BGPPeers: []bgpPeerState{
+			{RemoteIP: "192.0.2.10", RemoteASN: "64512", BGPSession: "established"},
+			{RemoteIP: "192.0.2.10", RemoteASN: "64512", BGPSession: "established"},
+		},
+	}
+
+	data := buildTopology("12345", map[string]*siteState{site.ID: site}, []string{site.ID}, time.Date(2026, 5, 1, 12, 0, 0, 0, time.UTC))
+
+	actorIDs := make(map[string]bool)
+	var peerActors int
+	for _, actor := range data.Actors {
+		require.False(t, actorIDs[actor.ActorID], "duplicate actor_id %q", actor.ActorID)
+		actorIDs[actor.ActorID] = true
+		if actor.ActorType == actorTypeBGPPeer {
+			peerActors++
+		}
+	}
+	var bgpLinks int
+	for _, link := range data.Links {
+		if link.LinkType == linkTypeBGP {
+			bgpLinks++
+		}
+	}
+	require.Equal(t, 1, peerActors)
+	require.Equal(t, 1, bgpLinks)
+}
+
 func TestSiteTopologyTablesAreDeterministic(t *testing.T) {
 	site := &siteState{
 		Interfaces: map[string]*interfaceState{
@@ -1056,6 +1130,7 @@ func TestSiteTopologyTablesAreDeterministic(t *testing.T) {
 func TestRetryableCatoErrors(t *testing.T) {
 	require.True(t, isRetryableCatoError(context.Background(), errors.New("GraphQL rate limit exceeded")))
 	require.True(t, isRetryableCatoError(context.Background(), errors.New("HTTP 429 Too Many Requests")))
+	require.True(t, isRetryableCatoError(context.Background(), errors.New("HTTP 503 Service Unavailable")))
 	require.True(t, isRetryableCatoError(context.Background(), fmt.Errorf("client timeout: %w", context.DeadlineExceeded)))
 	require.False(t, isRetryableCatoError(context.Background(), errors.New("invalid API key")))
 	require.False(t, isRetryableCatoError(context.Background(), context.Canceled))

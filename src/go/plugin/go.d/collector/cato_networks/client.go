@@ -415,10 +415,20 @@ func isTransientCatoError(err error) bool {
 		return false
 	}
 	msg := strings.ToLower(err.Error())
-	return strings.Contains(msg, "temporarily unavailable") ||
+	return containsHTTPStatusRange(msg, 500, 599) ||
+		strings.Contains(msg, "temporarily unavailable") ||
 		strings.Contains(msg, "connection reset") ||
 		strings.Contains(msg, "connection refused") ||
 		strings.Contains(msg, "i/o timeout") ||
 		strings.Contains(msg, "server misbehaving") ||
 		strings.Contains(msg, "eof")
+}
+
+func containsHTTPStatusRange(msg string, first, last int) bool {
+	for code := first; code <= last; code++ {
+		if containsHTTPStatus(msg, fmt.Sprint(code)) {
+			return true
+		}
+	}
+	return false
 }

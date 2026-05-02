@@ -115,11 +115,16 @@ func buildTopology(accountID string, sites map[string]*siteState, order []string
 			})
 		}
 
+		bgpPeerSeen := make(map[string]bool)
 		for _, peer := range site.BGPPeers {
 			if peer.RemoteIP == "" && peer.RemoteASN == "" {
 				continue
 			}
 			peerActorID := catoBGPPeerActorID(site.ID, peer.RemoteIP, peer.RemoteASN)
+			if bgpPeerSeen[peerActorID] {
+				continue
+			}
+			bgpPeerSeen[peerActorID] = true
 			actors = append(actors, topology.Actor{
 				ActorID:   peerActorID,
 				ActorType: actorTypeBGPPeer,

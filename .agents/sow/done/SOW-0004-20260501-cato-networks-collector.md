@@ -4,7 +4,66 @@
 
 Status: completed
 
-Sub-state: completed 2026-05-02 after PR #22373 review comment on stateful operation-status metrics. Live Cato tenant validation remains tracked separately in SOW-0005.
+Sub-state: completed 2026-05-02 after PR #22373 review comments on metric merges, retryable HTTP 5xx, and BGP topology deduplication. Live Cato tenant validation remains tracked separately in SOW-0005.
+
+## Reopen - PR Review Comments - Metric Merge, HTTP 5xx Retry, and BGP Topology Deduplication - 2026-05-02
+
+Reason:
+
+- After reviewer re-triggering on head `edd1c3617eab88c93b22c00328170465b8a262a2`, three new Copilot review threads opened on PR #22373.
+
+Review evidence:
+
+- `.agents/skills/pr-reviews/scripts/fetch-all.sh 22373` found thread `PRRT_kwDOAKPxd85_FVbx` on `src/go/plugin/go.d/collector/cato_networks/normalize.go:220`.
+- The reviewer reported that an interface named `all` overwrote already-merged site metrics. Local verification found `site.Metrics = iface.Metrics`, which could drop site-only fields when the `all` interface omitted them.
+- `.agents/skills/pr-reviews/scripts/fetch-all.sh 22373` found thread `PRRT_kwDOAKPxd85_FVcO` on `src/go/plugin/go.d/collector/cato_networks/client.go:423`.
+- The reviewer reported that HTTP 5xx errors were not treated as retryable. Local verification found `isTransientCatoError()` handled network strings but not HTTP status `500` through `599`.
+- `.agents/skills/pr-reviews/scripts/fetch-all.sh 22373` found thread `PRRT_kwDOAKPxd85_FVce` on `src/go/plugin/go.d/collector/cato_networks/topology.go:143`.
+- The reviewer reported that repeated BGP peer rows could produce duplicate topology actor IDs and links. Local verification found `buildTopology()` appended every BGP row without deduplicating `catoBGPPeerActorID(site.ID, peer.RemoteIP, peer.RemoteASN)`.
+- Same-class search also found duplicate BGP peers could write repeated BGP metric labels through `write_metrics.go`, so deduplication should happen during BGP normalization and be defensively preserved in topology generation.
+
+Implementation scope:
+
+1. Merge metrics from the `all` interface into existing site metrics without overwriting the whole site metric struct.
+2. Treat HTTP `5xx` responses as transient retryable Cato errors while preserving caller context cancellation behavior.
+3. Deduplicate BGP peers by remote IP and remote ASN during normalization.
+4. Defensively deduplicate BGP topology actors/links by generated peer actor ID.
+5. Add targeted regression tests for all three findings.
+6. Update the Cato collector spec for these contracts.
+
+Implemented:
+
+- `accountMetrics` interface `all` values are now merged into site metrics from raw interface fields instead of replacing the whole site metric struct.
+- HTTP `5xx` response strings are now classified as transient retryable Cato errors, while caller context cancellation/deadline handling remains unchanged.
+- BGP peers are deduplicated by remote IP and remote ASN during normalization so repeated vendor rows do not produce repeated BGP metric label rows.
+- Topology generation also defensively deduplicates BGP peer actor IDs before appending peer actors and links.
+- Added regression tests for `all` interface metric merging, HTTP `503` retry classification, BGP normalization deduplication, and topology BGP peer deduplication.
+- Updated `.agents/sow/specs/cato-networks-collector.md` with the metric merge, HTTP `5xx`, and BGP deduplication contracts.
+
+Validation completed:
+
+- `gofmt -w src/go/plugin/go.d/collector/cato_networks/client.go src/go/plugin/go.d/collector/cato_networks/normalize.go src/go/plugin/go.d/collector/cato_networks/topology.go src/go/plugin/go.d/collector/cato_networks/collector_test.go` - completed.
+- `git diff --check` - passed.
+- `cd src/go && go test ./plugin/go.d/collector/cato_networks -count=1` - passed.
+- `cd src/go && go vet ./plugin/go.d/collector/cato_networks` - passed.
+- `cd src/go && go test ./plugin/go.d/... -count=1` - passed.
+
+Artifact maintenance:
+
+- AGENTS.md: no update needed. Existing PR-review, SOW, collector consistency, and validation rules covered this work.
+- Runtime project skills: no update needed. The PR-review workflow did not change.
+- Specs: updated `.agents/sow/specs/cato-networks-collector.md` with the metric merge, HTTP `5xx`, and BGP deduplication contracts.
+- End-user/operator docs: no update needed. User-facing setup, configuration, and troubleshooting text did not change; this pass corrected implementation behavior under already documented metric/topology/diagnostic surfaces.
+- End-user/operator skills: no update needed; no AI skill artifacts were affected.
+- SOW lifecycle: same SOW reopened for late PR review threads and completed after validation.
+
+Follow-up mapping:
+
+- Live Cato tenant or vendor sandbox validation remains tracked by `.agents/sow/pending/SOW-0005-20260501-cato-networks-live-validation.md`.
+
+Outcome:
+
+- Completed.
 
 ## Reopen - PR Review Comments - Stateful Operation Status - 2026-05-02
 

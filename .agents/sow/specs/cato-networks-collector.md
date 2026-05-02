@@ -50,7 +50,7 @@ Default cadence:
 
 The collector must not run at a sub-minute default cadence. Cato publishes per-query, per-account rate limits, and `accountMetrics` is a bucketed time-series API rather than a high-frequency sampler.
 
-HTTP/client timeouts that wrap `context.DeadlineExceeded` are retryable while the caller context is still active. Caller cancellation or caller deadline expiry must stop retrying immediately.
+HTTP/client timeouts that wrap `context.DeadlineExceeded` and HTTP `5xx` responses are retryable while the caller context is still active. Caller cancellation or caller deadline expiry must stop retrying immediately.
 
 The collector batches `accountMetrics` calls by `metrics.max_sites_per_query`.
 
@@ -61,6 +61,8 @@ After initial site discovery succeeds, later discovery refresh failures must fal
 BGP collection is decoupled from the main metric cadence and limited by `bgp.max_sites_per_collection`, because `siteBgpStatus` is site-scoped.
 
 The collector exposes the estimated BGP full-scan window in seconds and the current BGP cached-site count so operators can tell whether missing BGP state is expected during a rolling scan.
+
+BGP peers are deduplicated by remote IP and remote ASN for each site so duplicate vendor rows do not produce repeated metric labels or duplicate topology actor IDs.
 
 `Check()` must not advance the persisted `eventsFeed` marker. Only `Collect()` may consume events and persist a newer marker.
 
@@ -83,6 +85,8 @@ Site scope:
 - host count
 - traffic: upstream/downstream
 - packet loss, discarded packet counts, jitter, RTT, last-mile latency, last-mile packet loss
+
+An `accountMetrics` interface named `all` augments site-scope metrics. It must not replace already merged site-scope metric values when the `all` interface omits a field.
 
 Interface scope:
 
