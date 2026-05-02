@@ -64,11 +64,13 @@ Traffic and quality metrics derived from `accountMetrics` must be emitted only f
 
 After initial site discovery succeeds, later discovery refresh failures must fall back to the last-known-good site list instead of failing the full collection. The collector must still record the `entityLookup` operation failure and should respect `discovery.refresh_every` before retrying discovery again to avoid API/log spam. Before any successful discovery exists, discovery failures remain hard collection failures.
 
+Runtime hard collection failures must still publish collector-health metrics. `Collect()` must commit `collector_collection_success=0`, the collection failure counter, and any operation failure diagnostics, then return nil to the job runtime so the metrix cycle is not aborted. `Check()` must continue returning hard failures for autodetection.
+
 BGP collection is decoupled from the main metric cadence and limited by `bgp.max_sites_per_collection`, because `siteBgpStatus` is site-scoped.
 
 The collector exposes the estimated BGP full-scan window in seconds and the current BGP cached-site count so operators can tell whether missing BGP state is expected during a rolling scan.
 
-BGP progress health fields must reset at the start of each collection cycle. When BGP is enabled but the current cycle fails before BGP collection runs, the collector must publish zero-valued BGP progress gauges instead of reusing the previous cycle's scan window or cached-site count.
+BGP progress health fields must reset at the start of each collection cycle. When BGP is enabled but the current cycle fails before BGP collection runs, the collector must publish zero-valued BGP progress gauges instead of reusing the previous cycle's scan window or cached-site count. When BGP collection is skipped because the refresh window is not due and cached BGP state is reused, the collector must publish the current rolling-scan parameters and cached-site count instead of zero progress.
 
 BGP peers are deduplicated by remote IP and remote ASN for each site so duplicate vendor rows do not produce repeated metric labels or duplicate topology actor IDs.
 
@@ -76,7 +78,7 @@ BGP peer rows must include at least one stable remote identity field, `remoteIP`
 
 `Check()` must not advance the persisted `eventsFeed` marker and must not publish dry-run operation health, failure counters, normalization issues, discovery cache changes, BGP cache changes, BGP scan cursor changes, or topology changes into later `Collect()` cycles. Only `Collect()` may consume events, persist a newer marker, and publish collector-health metrics.
 
-`Collect()` drains marker-based `eventsFeed` pages until the returned `fetchedCount` is below Cato's documented per-fetch maximum, the marker is empty or unchanged, or `events.max_pages_per_cycle` is reached. The marker is committed only after metrics for the cycle are written.
+`Collect()` drains marker-based `eventsFeed` pages until the returned `fetchedCount` is below Cato's documented per-fetch maximum, the marker is empty or unchanged, or `events.max_pages_per_cycle` is reached. The marker is committed only after metrics for the cycle are written. If Cato returns the same marker that was used for the request, the page is treated as stalled and must not add records to `events_total` or persist the unchanged marker as progress.
 
 An `eventsFeed` account-level `errorString` is a page failure for this collector because each request asks for one account. The collector must report the account-error diagnostic and must not advance the persisted or in-memory marker for that page.
 

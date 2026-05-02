@@ -68,7 +68,7 @@ If the failure class is `network`, `tls`, or `proxy`, verify DNS, firewall egres
 
 If the failure class is `decode`, save debug logs and open an issue with the Cato API operation name. This usually means the live API payload differs from the SDK schema or the tested fixtures.
 
-If `entityLookup` fails after an earlier successful discovery, the collector continues with the cached site list and records the operation failure. A first-run `entityLookup` failure still fails the collection because no cached site list exists yet.
+If `entityLookup` fails after an earlier successful discovery, the collector continues with the cached site list and records the operation failure. A first-run `entityLookup` failure reports collection failure in the collector health charts because no cached site list exists yet.
 
 If the API reports rate limits:
 
@@ -83,6 +83,7 @@ If events look low or delayed:
 - increase `events.max_pages_per_cycle` only if the Cato account has enough `eventsFeed` rate-limit headroom;
 - check for `issue=cardinality_limit`, which means some event combinations were collapsed into `other`.
 - repeated `eventsFeed` records with the same `event_id` or `eventId` are counted once per collection cycle.
+- `issue=marker_stalled` means Cato returned the same marker again; the repeated page is not added to `events_total`.
 
 The collector persists the events marker under Netdata's varlib directory by default. The default path is derived from the account ID, endpoint URL, and vnode so jobs for different Cato endpoints or vnodes do not share marker state. Set `events.marker_file` when a custom marker path is required or when multiple jobs intentionally monitor the same account, endpoint, and vnode independently. If marker persistence is unavailable, event counters can reset across Agent restarts.
 

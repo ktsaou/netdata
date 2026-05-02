@@ -158,6 +158,7 @@ func (c *Collector) collectBGP(ctx context.Context, sites map[string]*siteState,
 	now := c.now()
 	pruneBGPState(c.bgp.bySite, order)
 	if now.Before(c.bgp.nextRefresh) && len(c.bgp.bySite) > 0 {
+		c.updateBGPPollingHealth(len(order), c.bgpSitesPerCollectionLimit(len(order)))
 		mergeBGPState(sites, c.bgp.bySite)
 		return nil
 	}
@@ -166,10 +167,7 @@ func (c *Collector) collectBGP(ctx context.Context, sites map[string]*siteState,
 		c.bgp.bySite = make(map[string][]bgpPeerState)
 	}
 
-	limit := c.BGP.MaxSitesPerCollection
-	if limit > len(order) {
-		limit = len(order)
-	}
+	limit := c.bgpSitesPerCollectionLimit(len(order))
 	if limit == 0 {
 		return nil
 	}
@@ -212,6 +210,17 @@ func (c *Collector) collectBGP(ctx context.Context, sites map[string]*siteState,
 		return fmt.Errorf("%d of %d siteBgpStatus requests failed", errCount, limit)
 	}
 	return nil
+}
+
+func (c *Collector) bgpSitesPerCollectionLimit(siteCount int) int {
+	limit := c.BGP.MaxSitesPerCollection
+	if limit > siteCount {
+		limit = siteCount
+	}
+	if limit < 0 {
+		return 0
+	}
+	return limit
 }
 
 func pruneBGPState(bySite map[string][]bgpPeerState, order []string) {
@@ -274,7 +283,11 @@ func (c *Collector) collectEvents(ctx context.Context) (eventsCollection, error)
 		c.markOperationSuccess(operationEvents)
 
 		feed := res.GetEventsFeed()
-		newMarker := ptrString(feed.GetMarker())
+		newMarker := strings.TrimSpace(ptrString(feed.GetMarker()))
+		if marker != nil && newMarker == *marker {
+			c.markNormalizationIssue(normalizationSurfaceEvents, normalizationIssueMarkerStalled)
+			break
+		}
 		if newMarker != "" {
 			finalMarker = newMarker
 		}
@@ -318,10 +331,6 @@ func (c *Collector) collectEvents(ctx context.Context) (eventsCollection, error)
 		}
 
 		if feed.GetFetchedCount() < eventsFeedMaxFetchSize || newMarker == "" {
-			break
-		}
-		if marker != nil && newMarker == *marker {
-			c.markNormalizationIssue(normalizationSurfaceEvents, normalizationIssueMarkerStalled)
 			break
 		}
 		if page == c.Events.MaxPagesPerCycle-1 {

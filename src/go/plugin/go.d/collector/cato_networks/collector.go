@@ -217,7 +217,10 @@ func (c *Collector) Check(ctx context.Context) error {
 }
 
 func (c *Collector) Collect(ctx context.Context) error {
-	return c.collect(ctx, true)
+	if err := c.collect(ctx, true); err != nil {
+		c.Warningf("collection failed: %v", err)
+	}
+	return nil
 }
 
 func (c *Collector) Cleanup(context.Context) {

@@ -800,10 +800,70 @@ func TestCollectorStopsWhenEventsMarkerDoesNotAdvance(t *testing.T) {
 
 	require.Equal(t, []string{"stalled-marker"}, fake.eventMarkers)
 	reader := c.store.Read()
+	requireMetricMissing(t, reader, "events_total", metrix.Labels{
+		"event_type":     "Security",
+		"event_sub_type": "unknown",
+		"severity":       "unknown",
+		"status":         "unknown",
+	})
 	requireValue(t, reader, "collector_normalization_issues_total", metrix.Labels{
 		"surface": normalizationSurfaceEvents,
 		"issue":   normalizationIssueMarkerStalled,
 	}, 1)
+	_, err := os.Stat(c.Events.MarkerFile)
+	require.ErrorIs(t, err, os.ErrNotExist)
+}
+
+func TestCollectorDoesNotDoubleCountEventsWhenMarkerStalls(t *testing.T) {
+	c := New()
+	c.AccountID = "12345"
+	c.APIKey = "secret"
+	c.Metrics.Enabled = "no"
+	c.BGP.Enabled = "no"
+	c.Events.MarkerFile = filepath.Join(t.TempDir(), "marker")
+	fake := newFixtureAPIClient()
+	record := map[string]any{
+		"event_type":     "Security",
+		"event_sub_type": "Threat Prevention",
+		"severity":       "HIGH",
+		"status":         "Closed",
+	}
+	fake.eventsByMarker = map[string]*catosdk.EventsFeed{
+		"":         eventsFeedPage("marker-1", 1, []map[string]any{record}),
+		"marker-1": eventsFeedPage("marker-1", eventsFeedMaxFetchSize, []map[string]any{record}),
+	}
+	c.client = fake
+	c.now = fixedCatoTestNow
+
+	require.NoError(t, c.Init(context.Background()))
+	cc := mustCycleController(t, c.store)
+	cc.BeginCycle()
+	require.NoError(t, c.Collect(context.Background()))
+	cc.CommitCycleSuccess()
+
+	labels := metrix.Labels{
+		"event_type":     "Security",
+		"event_sub_type": "Threat Prevention",
+		"severity":       "HIGH",
+		"status":         "Closed",
+	}
+	reader := c.store.Read()
+	requireValue(t, reader, "events_total", labels, 1)
+
+	cc.BeginCycle()
+	require.NoError(t, c.Collect(context.Background()))
+	cc.CommitCycleSuccess()
+
+	require.Equal(t, []string{"", "marker-1"}, fake.eventMarkers)
+	reader = c.store.Read()
+	requireValue(t, reader, "events_total", labels, 1)
+	requireValue(t, reader, "collector_normalization_issues_total", metrix.Labels{
+		"surface": normalizationSurfaceEvents,
+		"issue":   normalizationIssueMarkerStalled,
+	}, 1)
+	data, err := os.ReadFile(c.Events.MarkerFile)
+	require.NoError(t, err)
+	require.Equal(t, "marker-1\n", string(data))
 }
 
 func TestCollectorContinuesOnPartialMetricsAndBGPFailures(t *testing.T) {
@@ -914,7 +974,7 @@ func TestCollectorReportsEmptyDiscovery(t *testing.T) {
 	require.NoError(t, c.Init(context.Background()))
 	cc := mustCycleController(t, c.store)
 	cc.BeginCycle()
-	require.ErrorContains(t, c.Collect(context.Background()), "no Cato sites discovered")
+	require.NoError(t, c.Collect(context.Background()))
 	cc.CommitCycleSuccess()
 
 	reader := c.store.Read()
@@ -1158,6 +1218,9 @@ func TestCollectorKeepsLastOperationStatusForSkippedOperations(t *testing.T) {
 	requireValue(t, reader, "collector_operation_success", metrix.Labels{"operation": operationBGP}, 1)
 	requireValue(t, reader, "collector_operation_success", metrix.Labels{"operation": operationSnapshot}, 1)
 	requireValue(t, reader, "collector_operation_success", metrix.Labels{"operation": operationMetrics}, 1)
+	requireValue(t, reader, "collector_bgp_sites_per_collection", nil, 2)
+	requireValue(t, reader, "collector_bgp_full_scan_seconds", nil, 300)
+	requireValue(t, reader, "collector_bgp_cached_sites", nil, 2)
 }
 
 func TestMergeMetricsMergesAllInterfaceIntoSiteMetrics(t *testing.T) {
@@ -1273,8 +1336,15 @@ func TestCollectorResetsBGPHealthWhenCollectionFailsBeforeBGP(t *testing.T) {
 	err := c.Collect(context.Background())
 	cc.CommitCycleSuccess()
 
-	require.ErrorContains(t, err, "account snapshot failed")
+	require.NoError(t, err)
 	reader = c.store.Read()
+	requireValue(t, reader, "collector_collection_success", nil, 0)
+	requireValue(t, reader, "collector_collection_failures_total", metrix.Labels{"error_class": "error"}, 1)
+	requireValue(t, reader, "collector_operation_success", metrix.Labels{"operation": operationSnapshot}, 0)
+	requireValue(t, reader, "collector_operation_failures_total", metrix.Labels{
+		"operation":   operationSnapshot,
+		"error_class": "error",
+	}, 1)
 	requireValue(t, reader, "collector_bgp_sites_per_collection", nil, 0)
 	requireValue(t, reader, "collector_bgp_full_scan_seconds", nil, 0)
 	requireValue(t, reader, "collector_bgp_cached_sites", nil, 0)
@@ -1458,14 +1528,12 @@ func TestSDKClientClassifiesHTTPAndGraphQLErrors(t *testing.T) {
 		response      rawCatoResponse
 		wantOperation string
 		wantClass     string
-		wantErr       string
 	}{
 		"auth failure during discovery": {
 			operation:     operationDiscovery,
 			response:      rawCatoResponse{status: http.StatusUnauthorized, body: `{"errors":[{"message":"Unauthorized"}]}`},
 			wantOperation: operationDiscovery,
 			wantClass:     "auth",
-			wantErr:       "site discovery",
 		},
 		"rate limit during metrics": {
 			operation:     operationMetrics,
@@ -1498,11 +1566,7 @@ func TestSDKClientClassifiesHTTPAndGraphQLErrors(t *testing.T) {
 			cc := mustCycleController(t, c.store)
 			cc.BeginCycle()
 			err := c.Collect(context.Background())
-			if tt.wantErr == "" {
-				require.NoError(t, err)
-			} else {
-				require.ErrorContains(t, err, tt.wantErr)
-			}
+			require.NoError(t, err)
 			cc.CommitCycleSuccess()
 
 			reader := c.store.Read()
@@ -1604,9 +1668,10 @@ func TestSDKClientClassifiesHTTPClientTimeout(t *testing.T) {
 	err := c.Collect(context.Background())
 	cc.CommitCycleSuccess()
 
-	require.ErrorContains(t, err, "site discovery failed")
-	require.ErrorContains(t, err, "error_class=timeout")
+	require.NoError(t, err)
 	reader := c.store.Read()
+	requireValue(t, reader, "collector_collection_success", nil, 0)
+	requireValue(t, reader, "collector_collection_failures_total", metrix.Labels{"error_class": "timeout"}, 1)
 	requireValue(t, reader, "collector_operation_failures_total", metrix.Labels{
 		"operation":   operationDiscovery,
 		"error_class": "timeout",
@@ -1632,7 +1697,7 @@ func TestCollectorSanitizesReturnedProviderErrors(t *testing.T) {
 	require.NoError(t, c.Init(context.Background()))
 	cc := mustCycleController(t, c.store)
 	cc.BeginCycle()
-	err := c.Collect(context.Background())
+	err := c.collect(context.Background(), true)
 	cc.CommitCycleSuccess()
 
 	require.Error(t, err)

@@ -4,7 +4,59 @@
 
 Status: completed
 
-Sub-state: completed 2026-05-02 after PR #22373 review comments on accountSnapshot enum fallback coverage and BGP peer remote identity filtering. Live Cato tenant validation remains tracked separately in SOW-0005.
+Sub-state: completed 2026-05-02 after PR #22373 review comments on failed-cycle health visibility, BGP progress freshness between scan windows, and stalled EventsFeed marker double counting. Live Cato tenant validation remains tracked separately in SOW-0005.
+
+## Reopen - PR Review Comments - Failed-Cycle Health, BGP Progress, and Stalled Event Markers - 2026-05-02
+
+Reason:
+
+- After reviewer re-triggering on head `8109c922138932fb4051d652e86b2f0e5372a0b2`, three new Copilot review threads opened on PR #22373.
+
+Review evidence:
+
+- `.agents/skills/pr-reviews/scripts/fetch-all.sh 22373` found thread `PRRT_kwDOAKPxd85_Fx1A` on `src/go/plugin/go.d/collector/cato_networks/write_metrics.go:202`; local verification found `src/go/plugin/framework/jobruntime/job_v2.go:436-440` aborts the metrix cycle when `Collect()` returns an error, discarding Cato's deferred health writes for hard discovery/snapshot failures.
+- Thread `PRRT_kwDOAKPxd85_Fx1K` on `src/go/plugin/go.d/collector/cato_networks/collect.go:163` reported BGP progress gauges dropping to zero when the BGP refresh window is not due; local verification found `beginHealthCycle()` resets BGP progress fields before `collectBGP()` returns early with cached BGP state.
+- Thread `PRRT_kwDOAKPxd85_Fx1N` on `src/go/plugin/go.d/collector/cato_networks/collect.go:325` reported stalled EventsFeed markers can double-count events; local verification found `collectEvents()` counts the repeated page, returns the unchanged marker, and `events_total` is a stateful counter incremented with `Add()`.
+
+Implementation scope:
+
+1. Ensure hard runtime collection failures publish collector-health metrics instead of returning an error that causes jobruntime to abort the metrix cycle.
+2. Preserve or recompute BGP progress health when using cached BGP data between refresh windows, while still publishing zero progress for cycles that fail before BGP collection.
+3. Stop stalled EventsFeed markers from adding repeated page records to `events_total` and avoid persisting an unchanged marker as progress.
+4. Add regression coverage for failed-cycle health publication, cached BGP progress between refresh windows, and stalled marker no-double-count behavior.
+5. Update the Cato collector spec for the runtime error-publication, BGP cached-progress, and stalled-marker contracts.
+
+Implemented:
+
+- `Collect()` now logs hard runtime collection failures but returns nil after the collector writes health diagnostics, allowing the job runtime to commit the metrix cycle instead of aborting the staged health metrics.
+- BGP cached-refresh skips now recompute and publish the current BGP sites-per-collection, full-scan window, and cached-site count instead of leaving the begin-cycle zero values.
+- `collectEvents()` now detects an unchanged EventsFeed marker before processing the page records, records `marker_stalled`, and does not persist the unchanged marker as progress.
+- Added regression coverage for empty-discovery health publication, accountSnapshot failure health publication, cached BGP progress on skipped BGP refresh windows, stalled-marker no-count behavior, and event counter stability across a stalled marker cycle.
+- Updated `.agents/sow/specs/cato-networks-collector.md` and the collector README to match the runtime health, BGP cached-progress, and marker-stall contracts.
+
+Validation completed:
+
+- `git diff --check` - passed.
+- `cd src/go && go test ./plugin/go.d/collector/cato_networks -count=1` - passed.
+- `cd src/go && go vet ./plugin/go.d/collector/cato_networks` - passed.
+- `cd src/go && go test ./plugin/go.d/... -count=1` - passed.
+
+Artifact maintenance:
+
+- `AGENTS.md`: no update needed. The repo workflow did not change.
+- Runtime project skills: no update needed. The PR-review workflow did not change.
+- Specs: updated `.agents/sow/specs/cato-networks-collector.md` with committed hard-failure health publication, cached BGP progress publication, and stalled-marker no-count behavior.
+- End-user/operator docs: updated `src/go/plugin/go.d/collector/cato_networks/README.md` troubleshooting text for first-run collection failure visibility and `marker_stalled` behavior.
+- End-user/operator skills: no update needed. No downstream AI/operator skill artifact changed.
+- SOW lifecycle: reopened completed SOW for PR review findings; closing it again after validation. Live Cato tenant validation remains tracked by SOW-0005.
+
+Follow-up mapping:
+
+- No new deferred work from this reopen. Live tenant validation remains explicitly tracked by SOW-0005 and is not closed here.
+
+Outcome:
+
+- PR review findings were implemented and validated locally. The PR threads will be replied to and resolved after this commit is pushed so replies can reference the fixing commit.
 
 ## Reopen - PR Review Comments - Snapshot Fallback Coverage and BGP Peer Identity - 2026-05-02
 
