@@ -235,7 +235,9 @@ Output/reference skills may also exist under product documentation or generated 
 
 Runtime input skills:
 
-- None yet under `.agents/skills/project-*/`. The user requested incremental creation instead of bootstrap-generated project skills.
+- `.agents/skills/project-writing-collectors/`
+  Trigger: authoring or modifying any Netdata data-collection plugin or module (Go go.d / ibm.d, Rust crates, internal C plugins, external plugins via PLUGINSD). Read before adding a new collector, modifying an existing one, working on NetFlow/sFlow/IPFIX, OTEL ingestion, topology, SNMP profiles, or interactive Functions.
+  Status: live. Updates that close gaps or fix outdated pointers must ship in the same PR that exposed the issue.
 
 Legacy runtime skills:
 
