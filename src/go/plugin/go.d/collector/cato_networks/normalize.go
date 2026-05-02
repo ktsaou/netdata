@@ -409,6 +409,8 @@ func isEmptyBGPPeerResult(v *catosdk.SiteBgpStatusResult) bool {
 		strings.TrimSpace(v.LocalIP) == "" &&
 		strings.TrimSpace(v.LocalASN) == "" &&
 		strings.TrimSpace(v.BGPSession) == "" &&
+		strings.TrimSpace(v.IncomingConnection.State) == "" &&
+		strings.TrimSpace(v.OutgoingConnection.State) == "" &&
 		strings.TrimSpace(v.RoutesCount) == "" &&
 		strings.TrimSpace(v.RoutesCountLimit) == "" &&
 		len(v.RIBOut) == 0

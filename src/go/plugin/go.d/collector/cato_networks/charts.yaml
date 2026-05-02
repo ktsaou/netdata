@@ -30,7 +30,7 @@ groups:
         units: hosts
         type: line
         instances:
-          by_labels: [site_id, site_name]
+          by_labels: [site_id, site_name, pop_name]
         dimensions:
           - selector: site_hosts
             name: hosts
@@ -40,7 +40,7 @@ groups:
         units: status
         type: line
         instances:
-          by_labels: [site_id, site_name]
+          by_labels: [site_id, site_name, pop_name]
         dimensions:
           - selector: site_connectivity_connected
             name: connected
@@ -56,7 +56,7 @@ groups:
         units: status
         type: line
         instances:
-          by_labels: [site_id, site_name]
+          by_labels: [site_id, site_name, pop_name]
         dimensions:
           - selector: site_operational_active
             name: active
@@ -72,7 +72,7 @@ groups:
         units: bytes
         type: area
         instances:
-          by_labels: [site_id, site_name]
+          by_labels: [site_id, site_name, pop_name]
         dimensions:
           - selector: site_bytes_upstream_max
             name: upstream
@@ -84,7 +84,7 @@ groups:
         units: percentage
         type: line
         instances:
-          by_labels: [site_id, site_name]
+          by_labels: [site_id, site_name, pop_name]
         dimensions:
           - selector: site_lost_upstream_percent
             name: upstream
@@ -96,7 +96,7 @@ groups:
         units: packets
         type: line
         instances:
-          by_labels: [site_id, site_name]
+          by_labels: [site_id, site_name, pop_name]
         dimensions:
           - selector: site_packets_discarded_upstream
             name: upstream
@@ -108,7 +108,7 @@ groups:
         units: milliseconds
         type: line
         instances:
-          by_labels: [site_id, site_name]
+          by_labels: [site_id, site_name, pop_name]
         dimensions:
           - selector: site_jitter_upstream_ms
             name: upstream
@@ -120,7 +120,7 @@ groups:
         units: milliseconds
         type: line
         instances:
-          by_labels: [site_id, site_name]
+          by_labels: [site_id, site_name, pop_name]
         dimensions:
           - selector: site_rtt_ms
             name: rtt
@@ -132,7 +132,7 @@ groups:
         units: percentage
         type: line
         instances:
-          by_labels: [site_id, site_name]
+          by_labels: [site_id, site_name, pop_name]
         dimensions:
           - selector: site_last_mile_packet_loss_percent
             name: loss

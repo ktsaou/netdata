@@ -89,11 +89,8 @@ type Collector struct {
 	markerStore *eventsMarkerStore
 	eventMarker string
 
-	mu          sync.RWMutex
-	sites       map[string]*siteState
-	siteOrder   []string
-	topology    *topology.Data
-	lastUpdated time.Time
+	mu       sync.RWMutex
+	topology *topology.Data
 
 	discovery discoveryState
 	bgp       bgpState
@@ -242,10 +239,7 @@ func (c *Collector) collect(ctx context.Context, write bool) (err error) {
 	}
 
 	c.mu.Lock()
-	c.sites = sites
-	c.siteOrder = append([]string(nil), order...)
 	c.topology = topo
-	c.lastUpdated = now
 	c.mu.Unlock()
 
 	if write {

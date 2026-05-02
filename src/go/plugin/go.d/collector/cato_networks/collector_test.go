@@ -820,6 +820,16 @@ func TestCollectorFiltersEmptyBGPPeers(t *testing.T) {
 	require.False(t, ok)
 }
 
+func TestNormalizeBGPKeepsPeersWithOnlyConnectionState(t *testing.T) {
+	peers, issues := normalizeBGP([]*catosdk.SiteBgpStatusResult{
+		{IncomingConnection: catosdk.IncomingConnection{State: "Established"}},
+	})
+
+	require.Empty(t, issues)
+	require.Len(t, peers, 1)
+	require.Equal(t, "established", peers[0].IncomingState)
+}
+
 func TestCollectorReportsMarkerWriteFailure(t *testing.T) {
 	c := New()
 	c.AccountID = "12345"
@@ -1081,6 +1091,52 @@ func TestRawGraphQLAccountSnapshotUsesMethodAccountID(t *testing.T) {
 
 	require.NoError(t, err)
 	require.Len(t, snapshot.GetAccountSnapshot().GetSites(), 1)
+}
+
+func TestRawGraphQLAccountSnapshotDoesNotOverrideReservedHeaders(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		require.Equal(t, "application/json", r.Header.Get("Content-Type"))
+		require.Equal(t, "secret", r.Header.Get("x-api-key"))
+		require.Equal(t, "argument-account", r.Header.Get("x-account-id"))
+		require.Equal(t, "custom-value", r.Header.Get("x-custom-header"))
+		w.Header().Set("Content-Type", "application/json")
+		_, err := w.Write([]byte(`{"data":{"accountSnapshot":{"sites":[]}}}`))
+		require.NoError(t, err)
+	}))
+	defer server.Close()
+
+	client := rawGraphQLClient{
+		url:        server.URL,
+		apiKey:     "secret",
+		httpClient: server.Client(),
+		headers: map[string]string{
+			"Content-Type":    "text/plain",
+			"x-api-key":       "wrong-key",
+			"X-Account-Id":    "wrong-account",
+			"X-Custom-Header": "custom-value",
+		},
+	}
+
+	_, err := client.AccountSnapshot(context.Background(), "argument-account", nil)
+
+	require.NoError(t, err)
+}
+
+func TestCatoRequestHeadersFiltersReservedHeaders(t *testing.T) {
+	headers := catoRequestHeaders(map[string]string{
+		"Content-Type":    "text/plain",
+		"x-api-key":       "wrong-key",
+		"X-Account-Id":    "wrong-account",
+		"user-agent":      "custom-agent",
+		"X-Custom-Header": "custom-value",
+	})
+
+	require.False(t, hasCatoHeader(headers, "Content-Type"))
+	require.False(t, hasCatoHeader(headers, "x-api-key"))
+	require.False(t, hasCatoHeader(headers, "x-account-id"))
+	require.True(t, hasCatoHeader(headers, "User-Agent"))
+	require.Equal(t, "custom-agent", headers["user-agent"])
+	require.Equal(t, "custom-value", headers["X-Custom-Header"])
 }
 
 func TestSDKClientClassifiesHTTPClientTimeout(t *testing.T) {

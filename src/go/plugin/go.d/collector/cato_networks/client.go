@@ -9,7 +9,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"maps"
 	"net/http"
 	"strings"
 	"sync"
@@ -57,13 +56,7 @@ type apiRetryStats struct {
 }
 
 func newSDKAPIClient(cfg Config, httpClient *http.Client) (apiClient, error) {
-	headers := maps.Clone(cfg.Headers)
-	if headers == nil {
-		headers = make(map[string]string)
-	}
-	if _, ok := headers["User-Agent"]; !ok {
-		headers["User-Agent"] = "Netdata go.d.plugin cato_networks"
-	}
+	headers := catoRequestHeaders(cfg.Headers)
 
 	client, err := catosdk.New(cfg.URL, cfg.APIKey, cfg.AccountID, httpClient, headers)
 	if err != nil {
@@ -82,6 +75,30 @@ func newSDKAPIClient(cfg Config, httpClient *http.Client) (apiClient, error) {
 		sleep: sleepContext,
 		stats: apiStats{Retries: make(map[string]apiRetryStats)},
 	}, nil
+}
+
+func catoRequestHeaders(src map[string]string) map[string]string {
+	headers := make(map[string]string, len(src)+1)
+	for key, value := range src {
+		if isCatoReservedHeader(key) {
+			continue
+		}
+		headers[key] = value
+	}
+	if !hasCatoHeader(headers, "User-Agent") {
+		headers["User-Agent"] = "Netdata go.d.plugin cato_networks"
+	}
+	return headers
+}
+
+func hasCatoHeader(headers map[string]string, key string) bool {
+	want := http.CanonicalHeaderKey(strings.TrimSpace(key))
+	for existing := range headers {
+		if http.CanonicalHeaderKey(strings.TrimSpace(existing)) == want {
+			return true
+		}
+	}
+	return false
 }
 
 func (c *sdkAPIClient) LookupSites(ctx context.Context, accountID string, limit, from int64) (*catosdk.EntityLookup, error) {
@@ -271,12 +288,15 @@ func (c rawGraphQLClient) AccountSnapshot(ctx context.Context, accountID string,
 	if err != nil {
 		return nil, err
 	}
+	for key, value := range c.headers {
+		if isCatoReservedHeader(key) {
+			continue
+		}
+		req.Header.Set(key, value)
+	}
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("x-api-key", c.apiKey)
 	req.Header.Set("x-account-id", accountID)
-	for key, value := range c.headers {
-		req.Header.Set(key, value)
-	}
 
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
@@ -312,6 +332,15 @@ func firstRawGraphQLError(groups ...[]rawGraphQLError) string {
 		}
 	}
 	return ""
+}
+
+func isCatoReservedHeader(key string) bool {
+	switch http.CanonicalHeaderKey(strings.TrimSpace(key)) {
+	case "Content-Type", "X-Api-Key", "X-Account-Id":
+		return true
+	default:
+		return false
+	}
 }
 
 func isAccountSnapshotEnumDecodeError(err error) bool {

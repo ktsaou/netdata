@@ -4,7 +4,67 @@
 
 Status: completed
 
-Sub-state: completed 2026-05-02 after late PR #22373 review comments on topology matches and completed-SOW wording. Live Cato tenant validation remains tracked separately in SOW-0005.
+Sub-state: completed 2026-05-02 after late PR #22373 review comments on BGP normalization, header handling, chart labels, and collector state. Live Cato tenant validation remains tracked separately in SOW-0005.
+
+## Reopen - PR Review Comments - BGP Normalization, Raw Headers, Dead State - 2026-05-02
+
+Reason:
+
+- After reviewer re-triggering, three new `cubic-dev-ai[bot]` review threads opened on PR #22373.
+
+Review evidence:
+
+- `.agents/skills/pr-reviews/scripts/fetch-all.sh 22373` found thread `PRRT_kwDOAKPxd85_E5aB` on `src/go/plugin/go.d/collector/cato_networks/normalize.go:413`.
+- The reviewer reported that empty BGP peer detection ignored incoming/outgoing connection states. Local verification found `isEmptyBGPPeerResult()` checked remote/local identifiers, BGP session, route counts, and RIB-out, but not `IncomingConnection.State` or `OutgoingConnection.State`.
+- `.agents/skills/pr-reviews/scripts/fetch-all.sh 22373` found thread `PRRT_kwDOAKPxd85_E5aC` on `src/go/plugin/go.d/collector/cato_networks/client.go:279`.
+- The reviewer reported that raw `accountSnapshot` fallback custom headers could overwrite reserved `Content-Type`, `x-api-key`, and `x-account-id` headers. Local verification found custom headers were applied after reserved headers.
+- `.agents/skills/pr-reviews/scripts/fetch-all.sh 22373` found thread `PRRT_kwDOAKPxd85_E5aF` on `src/go/plugin/go.d/collector/cato_networks/collector.go:93`.
+- Local verification found `sites`, `siteOrder`, and `lastUpdated` collector state fields were assigned each collection cycle but never read. `topology` is still read by the topology function and must remain.
+- A later pre-push fetch found thread `PRRT_kwDOAKPxd85_E6c7` on `src/go/plugin/go.d/collector/cato_networks/charts.yaml:35`.
+- The reviewer reported that site metrics are emitted with `site_id`, `site_name`, and `pop_name`, while site charts grouped only by `site_id` and `site_name`. Local verification found all site charts omitted `pop_name` from `by_labels`.
+- The same later fetch found thread `PRRT_kwDOAKPxd85_E6dE` on `src/go/plugin/go.d/collector/cato_networks/client.go:67`.
+- The reviewer reported that user-supplied headers are passed to the SDK and raw fallback. Local verification found the raw fallback was already fixed in this local pass, but the SDK client still received reserved headers from `cfg.Headers`.
+- The same later fetch found thread `PRRT_kwDOAKPxd85_E6dH` on `src/go/plugin/go.d/collector/cato_networks/client.go:279`, duplicating the raw fallback reserved-header issue already fixed in this local pass.
+
+Implementation scope:
+
+1. Include incoming/outgoing BGP connection states in empty-peer detection and add a targeted normalization test.
+2. Prevent custom GraphQL headers from overriding reserved request headers in both the SDK client setup and raw fallback path, and add targeted tests.
+3. Align site chart `by_labels` with the emitted site metric label set.
+4. Remove dead collector state fields and assignments while preserving topology locking.
+5. Re-run focused Cato collector validation before pushing.
+
+Implemented:
+
+- `isEmptyBGPPeerResult()` now considers incoming and outgoing connection states before classifying a BGP peer payload as empty.
+- Cato request header construction now drops reserved `Content-Type`, `x-api-key`, and `x-account-id` entries before the SDK client or raw fallback can use them.
+- Raw `accountSnapshot` fallback sets required reserved headers after custom non-reserved headers.
+- Site charts now include `pop_name` in `by_labels`, matching the emitted site metric label set.
+- Removed unused collector state fields `sites`, `siteOrder`, and `lastUpdated`; topology state and locking remain.
+- Added `TestNormalizeBGPKeepsPeersWithOnlyConnectionState`, `TestRawGraphQLAccountSnapshotDoesNotOverrideReservedHeaders`, and `TestCatoRequestHeadersFiltersReservedHeaders`.
+
+Validation completed:
+
+- `cd src/go && go test ./plugin/go.d/collector/cato_networks -count=1` - passed.
+- `cd src/go && go vet ./plugin/go.d/collector/cato_networks` - passed.
+- `cd src/go && go test ./plugin/go.d/... -count=1` - passed.
+
+Artifact maintenance:
+
+- AGENTS.md: no update needed. Existing PR-review, SOW, and collector consistency rules covered this work.
+- Runtime project skills: no update needed. The PR-review workflow did not change.
+- Specs: no update needed. These are internal hardening fixes; public collector behavior and documented contracts are unchanged.
+- End-user/operator docs: no update needed. User-facing collector behavior and documented configuration are unchanged.
+- End-user/operator skills: no update needed; no AI skill artifacts were affected.
+- SOW lifecycle: same SOW reopened for the late PR review comments and completed after validation.
+
+Follow-up mapping:
+
+- Live Cato tenant or vendor sandbox validation remains tracked by `.agents/sow/pending/SOW-0005-20260501-cato-networks-live-validation.md`.
+
+Outcome:
+
+- Completed.
 
 ## Reopen - PR Review Comments - BGP Peer Topology Match and Historical Gate Wording - 2026-05-02
 
