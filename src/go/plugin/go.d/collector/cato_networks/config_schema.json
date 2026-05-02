@@ -78,16 +78,20 @@
             "title": "Collect account metrics",
             "description": "Controls accountMetrics collection.",
             "type": "string",
-            "enum": ["auto", "enabled", "disabled"],
+            "enum": [
+              "auto",
+              "enabled",
+              "disabled"
+            ],
             "default": "auto"
           },
-	          "time_frame": {
-	            "title": "Metrics timeframe",
-	            "description": "Cato TimeFrame string used for accountMetrics, for example last.PT5M or utc.2020-02-11/{04:50:15--16:50:15}.",
-	            "type": "string",
-	            "pattern": "^(last\\.P[A-Z0-9]+|utc\\.\\S+)$",
-	            "default": "last.PT5M"
-	          },
+          "time_frame": {
+            "title": "Metrics timeframe",
+            "description": "Cato TimeFrame string used for accountMetrics, for example last.PT5M or utc.2020-02-11/{04:50:15--16:50:15}.",
+            "type": "string",
+            "pattern": "^(last\\.P[A-Z0-9]+|utc\\.\\S+)$",
+            "default": "last.PT5M"
+          },
           "buckets": {
             "title": "Metrics buckets",
             "description": "Number of accountMetrics buckets requested.",
@@ -100,7 +104,11 @@
             "title": "Group by interfaces",
             "description": "Controls accountMetrics groupInterfaces.",
             "type": "string",
-            "enum": ["auto", "enabled", "disabled"],
+            "enum": [
+              "auto",
+              "enabled",
+              "disabled"
+            ],
             "default": "auto"
           },
           "max_sites_per_query": {
@@ -121,31 +129,35 @@
             "title": "Collect events",
             "description": "Controls marker-based eventsFeed collection.",
             "type": "string",
-            "enum": ["auto", "enabled", "disabled"],
+            "enum": [
+              "auto",
+              "enabled",
+              "disabled"
+            ],
             "default": "auto"
           },
-	          "marker_file": {
-	            "title": "Events marker file",
-	            "description": "Optional explicit file path used to persist the eventsFeed marker.",
-	            "type": "string"
-	          },
-	          "max_pages_per_cycle": {
-	            "title": "Maximum EventsFeed pages per cycle",
-	            "description": "Maximum marker pages drained from eventsFeed during one collection cycle.",
-	            "type": "integer",
-	            "minimum": 1,
-	            "maximum": 100,
-	            "default": 10
-	          },
-	          "max_cardinality": {
-	            "title": "Maximum event series",
-	            "description": "Maximum unique event type/subtype/severity/status series before excess events are collapsed into an other bucket.",
-	            "type": "integer",
-	            "minimum": 1,
-	            "maximum": 10000,
-	            "default": 50
-	          }
-	        }
+          "marker_file": {
+            "title": "Events marker file",
+            "description": "Optional explicit file path used to persist the eventsFeed marker. Set this when multiple jobs intentionally monitor the same account, endpoint, and vnode independently.",
+            "type": "string"
+          },
+          "max_pages_per_cycle": {
+            "title": "Maximum EventsFeed pages per cycle",
+            "description": "Maximum marker pages drained from eventsFeed during one collection cycle.",
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100,
+            "default": 10
+          },
+          "max_cardinality": {
+            "title": "Maximum event series",
+            "description": "Maximum unique event type/subtype/severity/status series before excess events are collapsed into an other bucket.",
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 10000,
+            "default": 50
+          }
+        }
       },
       "bgp": {
         "title": "BGP",
@@ -155,7 +167,11 @@
             "title": "Collect BGP status",
             "description": "Controls siteBgpStatus collection.",
             "type": "string",
-            "enum": ["auto", "enabled", "disabled"],
+            "enum": [
+              "auto",
+              "enabled",
+              "disabled"
+            ],
             "default": "auto"
           },
           "refresh_every": {
@@ -183,7 +199,11 @@
             "title": "Build topology",
             "description": "Controls topology function data generation.",
             "type": "string",
-            "enum": ["auto", "enabled", "disabled"],
+            "enum": [
+              "auto",
+              "enabled",
+              "disabled"
+            ],
             "default": "auto"
           }
         }
@@ -222,7 +242,10 @@
         "type": "string"
       }
     },
-    "required": ["account_id", "api_key"]
+    "required": [
+      "account_id",
+      "api_key"
+    ]
   },
   "uiSchema": {
     "uiOptions": {

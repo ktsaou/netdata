@@ -296,6 +296,21 @@ func TestConfigApplyDefaultsNormalizesStringInputs(t *testing.T) {
 	require.NoError(t, cfg.validate())
 }
 
+func TestDefaultEventsMarkerPathIncludesEndpointAndVnode(t *testing.T) {
+	base := t.TempDir()
+
+	first := defaultEventsMarkerPath(base, "12345", "https://api.catonetworks.com/api/v1/graphql2", "site-a")
+	same := defaultEventsMarkerPath(base, " 12345 ", " https://api.catonetworks.com/api/v1/graphql2 ", " site-a ")
+	differentEndpoint := defaultEventsMarkerPath(base, "12345", "https://api.us1.catonetworks.com/api/v1/graphql2", "site-a")
+	differentVnode := defaultEventsMarkerPath(base, "12345", "https://api.catonetworks.com/api/v1/graphql2", "site-b")
+
+	require.Equal(t, same, first)
+	require.NotEqual(t, differentEndpoint, first)
+	require.NotEqual(t, differentVnode, first)
+	require.Contains(t, first, filepath.Join(base, "cato_networks"))
+	require.Contains(t, filepath.Base(first), ".events.marker")
+}
+
 func TestCheckDoesNotAdvanceEventsMarker(t *testing.T) {
 	c := New()
 	c.AccountID = "12345"

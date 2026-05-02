@@ -139,7 +139,7 @@ modules:
               required: false
               group: Events
             - name: events.marker_file
-              description: Optional explicit file path used to persist the eventsFeed marker.
+              description: Optional explicit file path used to persist the eventsFeed marker. Set this when multiple jobs intentionally monitor the same account, endpoint, and vnode independently.
               default_value: ""
               required: false
               group: Events

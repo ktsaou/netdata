@@ -4,7 +4,70 @@
 
 Status: completed
 
-Sub-state: completed 2026-05-02 after PR #22373 review comment on explicit `infoSiteSnapshot` nil handling. Live Cato tenant validation remains tracked separately in SOW-0005.
+Sub-state: completed 2026-05-02 after PR #22373 review comments on EventsFeed marker identity and formatting consistency. Live Cato tenant validation remains tracked separately in SOW-0005.
+
+## Reopen - PR Review Comments - Marker Identity and Formatting - 2026-05-02
+
+Reason:
+
+- After reviewer re-triggering on head `bff14dea88374d7ef68b28f83572796d07b0bac8`, three new Copilot review threads opened on PR #22373.
+
+Review evidence:
+
+- `.agents/skills/pr-reviews/scripts/fetch-all.sh 22373` found thread `PRRT_kwDOAKPxd85_FHcf` on `src/go/plugin/go.d/collector/cato_networks/marker_store.go:30`.
+- The reviewer reported that the default EventsFeed marker file was derived only from `account_id`, so multiple collector jobs monitoring the same Cato account could share marker state and interfere with marker pagination.
+- Local verification found `newEventsMarkerStore()` hashed only `accountID`; the collector runtime does not expose the job name inside `Collector`, but `Config` does expose normalized `url` and `vnode`, and `events.marker_file` is available for explicit per-job override.
+- `.agents/skills/pr-reviews/scripts/fetch-all.sh 22373` found thread `PRRT_kwDOAKPxd85_FHcm` on `src/health/health.d/cato_networks.conf:15`.
+- Local verification found the first health block used wider indentation than the remaining blocks in the same file.
+- `.agents/skills/pr-reviews/scripts/fetch-all.sh 22373` found thread `PRRT_kwDOAKPxd85_FHcq` on `src/go/plugin/go.d/collector/cato_networks/config_schema.json:90`.
+- Local verification found mixed indentation around nested `config_schema.json` properties.
+
+Implementation scope:
+
+1. Include endpoint URL and vnode in the default EventsFeed marker identity while keeping explicit `events.marker_file` as the escape hatch for duplicate jobs with the same account, endpoint, and vnode.
+2. Add targeted unit coverage for marker identity differences and whitespace normalization.
+3. Align the first Cato health block with existing `health.d` indentation style.
+4. Reformat `config_schema.json` consistently.
+5. Update operator docs/metadata/stock config for the clarified marker-file behavior.
+6. Re-run focused validation before pushing.
+
+Implemented:
+
+- `newEventsMarkerStore()` now derives the default marker path from account ID, endpoint URL, and vnode.
+- Added `defaultEventsMarkerPath()` so the identity logic is testable without mutating global plugin directory state.
+- Added a unit test showing the marker identity changes by endpoint and vnode while trimming surrounding whitespace.
+- Reformatted `config_schema.json` with consistent spaces-only indentation.
+- Aligned the first `health.d/cato_networks.conf` alarm block indentation with the rest of the file.
+- Updated README, metadata, config schema, and stock config comments to explain when `events.marker_file` should be set explicitly.
+
+Validation completed:
+
+- `gofmt -w src/go/plugin/go.d/collector/cato_networks/collector.go src/go/plugin/go.d/collector/cato_networks/marker_store.go src/go/plugin/go.d/collector/cato_networks/collector_test.go` - completed.
+- `git diff --check` - passed.
+- `cd src/go && go test ./plugin/go.d/collector/cato_networks -count=1` - passed.
+- `cd src/go && go vet ./plugin/go.d/collector/cato_networks` - passed.
+- `cd src/go && go test ./plugin/go.d/... -count=1` - passed.
+- `jq empty src/go/plugin/go.d/collector/cato_networks/config_schema.json` - passed.
+- `ruby -e 'require "yaml"; YAML.load_file("src/go/plugin/go.d/collector/cato_networks/metadata.yaml"); YAML.load_file("src/go/plugin/go.d/config/go.d/cato_networks.conf")'` - passed.
+- `rg -n "\t" src/go/plugin/go.d/collector/cato_networks/config_schema.json src/go/plugin/go.d/config/go.d/cato_networks.conf src/health/health.d/cato_networks.conf` - found no tab characters.
+- `src/health/health.d/cato_networks.conf` was not parsed as YAML because Netdata health files use health syntax, not standard YAML; the first block was verified against the same indentation pattern as the later blocks in the file.
+
+Artifact maintenance:
+
+- AGENTS.md: no update needed. Existing PR-review, SOW, collector consistency, and validation rules covered this work.
+- Runtime project skills: no update needed. The PR-review workflow did not change.
+- Specs: no update needed. The marker identity is an internal persistence-path hardening detail; explicit `events.marker_file` remains the public override.
+- End-user/operator docs: updated README, metadata, config schema, and stock config comments to clarify when `events.marker_file` should be set.
+- End-user/operator skills: no update needed; no AI skill artifacts were affected.
+- SOW lifecycle: same SOW reopened for late PR review threads and completed after validation.
+
+Follow-up mapping:
+
+- Live Cato tenant or vendor sandbox validation remains tracked by `.agents/sow/pending/SOW-0005-20260501-cato-networks-live-validation.md`.
+
+Outcome:
+
+- Completed.
 
 ## Reopen - PR Review Comment - Explicit Site Info Nil Handling - 2026-05-02
 

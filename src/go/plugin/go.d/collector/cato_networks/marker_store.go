@@ -17,17 +17,26 @@ type eventsMarkerStore struct {
 	path string
 }
 
-func newEventsMarkerStore(configuredPath, accountID string) *eventsMarkerStore {
+func newEventsMarkerStore(configuredPath, accountID, endpoint, vnode string) *eventsMarkerStore {
 	path := strings.TrimSpace(configuredPath)
 	if path == "" {
 		base := strings.TrimSpace(pluginconfig.VarLibDir())
 		if base == "" {
 			return nil
 		}
-		sum := sha256.Sum256([]byte(accountID))
-		path = filepath.Join(base, "cato_networks", hex.EncodeToString(sum[:])[:16]+".events.marker")
+		path = defaultEventsMarkerPath(base, accountID, endpoint, vnode)
 	}
 	return &eventsMarkerStore{path: path}
+}
+
+func defaultEventsMarkerPath(base, accountID, endpoint, vnode string) string {
+	identity := strings.Join([]string{
+		strings.TrimSpace(accountID),
+		strings.TrimSpace(endpoint),
+		strings.TrimSpace(vnode),
+	}, "\x00")
+	sum := sha256.Sum256([]byte(identity))
+	return filepath.Join(base, "cato_networks", hex.EncodeToString(sum[:])[:16]+".events.marker")
 }
 
 func (s *eventsMarkerStore) read() (string, error) {

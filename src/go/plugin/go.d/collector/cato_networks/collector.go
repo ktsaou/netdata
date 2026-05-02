@@ -132,7 +132,7 @@ func (c *Collector) Init(context.Context) error {
 		c.client = client
 	}
 
-	c.markerStore = newEventsMarkerStore(c.Events.MarkerFile, c.AccountID)
+	c.markerStore = newEventsMarkerStore(c.Events.MarkerFile, c.AccountID, c.URL, c.Vnode)
 	if c.markerStore != nil {
 		marker, err := c.markerStore.read()
 		if err != nil {

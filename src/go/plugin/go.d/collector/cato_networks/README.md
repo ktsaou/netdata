@@ -30,7 +30,7 @@ Important options:
 - `discovery.refresh_every`: site rediscovery interval in seconds.
 - `metrics.max_sites_per_query`: maximum site IDs sent in one `accountMetrics` query.
 - `metrics.time_frame`: Cato TimeFrame value, such as `last.PT5M` or `utc.2020-02-11/{04:50:15--16:50:15}`.
-- `events.marker_file`: optional explicit marker path for `eventsFeed`.
+- `events.marker_file`: optional explicit marker path for `eventsFeed`. Set this when multiple jobs intentionally monitor the same account, endpoint, and vnode independently.
 - `events.max_pages_per_cycle`: maximum `eventsFeed` marker pages drained in one collection cycle.
 - `events.max_cardinality`: maximum unique event type/subtype/severity/status series before excess events collapse into `other`.
 - `bgp.max_sites_per_collection`: maximum sites queried for BGP status during one BGP refresh.
@@ -82,6 +82,6 @@ If events look low or delayed:
 - increase `events.max_pages_per_cycle` only if the Cato account has enough `eventsFeed` rate-limit headroom;
 - check for `issue=cardinality_limit`, which means some event combinations were collapsed into `other`.
 
-The collector persists the events marker under Netdata's varlib directory by default. Set `events.marker_file` when a custom marker path is required. If marker persistence is unavailable, event counters can reset across Agent restarts.
+The collector persists the events marker under Netdata's varlib directory by default. The default path is derived from the account ID, endpoint URL, and vnode so jobs for different Cato endpoints or vnodes do not share marker state. Set `events.marker_file` when a custom marker path is required or when multiple jobs intentionally monitor the same account, endpoint, and vnode independently. If marker persistence is unavailable, event counters can reset across Agent restarts.
 
 BGP is refreshed as a rolling scan. For large accounts, use `cato_networks.collector_bgp_scan_window` to estimate how long a complete BGP refresh takes. Reduce the window by increasing `bgp.max_sites_per_collection` only when the Cato account has enough API rate-limit headroom.
