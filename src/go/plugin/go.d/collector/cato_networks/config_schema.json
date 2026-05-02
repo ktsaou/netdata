@@ -20,7 +20,7 @@
       },
       "url": {
         "title": "Cato API URL",
-        "description": "Cato GraphQL API endpoint.",
+        "description": "Cato GraphQL API endpoint. Production endpoints must use HTTPS; HTTP is accepted only for loopback test endpoints.",
         "type": "string",
         "format": "uri",
         "default": "https://api.catonetworks.com/api/v1/graphql2"
@@ -102,7 +102,7 @@
           },
           "group_interfaces": {
             "title": "Group by interfaces",
-            "description": "Controls accountMetrics groupInterfaces.",
+            "description": "Controls the accountMetrics groupInterfaces argument. auto leaves the argument unset so Cato applies its default; enabled and disabled send explicit true or false.",
             "type": "string",
             "enum": [
               "auto",

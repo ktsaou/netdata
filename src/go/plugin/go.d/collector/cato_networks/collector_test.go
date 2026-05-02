@@ -41,6 +41,31 @@ type fakeAPIClient struct {
 	bgp             map[string][]*catosdk.SiteBgpStatusResult
 	metricsErrSites map[string]error
 	bgpErrSites     map[string]error
+	groupInterfaces []*bool
+}
+
+type flakyMarkerStore struct {
+	readMarker string
+	writeErrs  []error
+	writes     []string
+}
+
+type temporaryMarkerError struct{ error }
+
+func (temporaryMarkerError) Temporary() bool { return true }
+
+func (s *flakyMarkerStore) read() (string, error) {
+	return s.readMarker, nil
+}
+
+func (s *flakyMarkerStore) write(marker string) error {
+	s.writes = append(s.writes, marker)
+	if len(s.writeErrs) == 0 {
+		return nil
+	}
+	err := s.writeErrs[0]
+	s.writeErrs = s.writeErrs[1:]
+	return err
 }
 
 func (f *fakeAPIClient) LookupSites(_ context.Context, _ string, _ int64, from int64) (*catosdk.EntityLookup, error) {
@@ -57,7 +82,13 @@ func (f *fakeAPIClient) AccountSnapshot(context.Context, string, []string) (*cat
 	return f.snapshot, nil
 }
 
-func (f *fakeAPIClient) AccountMetrics(_ context.Context, _ string, siteIDs []string, _ string, _ int64, _ bool) (*catosdk.AccountMetrics, error) {
+func (f *fakeAPIClient) AccountMetrics(_ context.Context, _ string, siteIDs []string, _ string, _ int64, groupInterfaces *bool) (*catosdk.AccountMetrics, error) {
+	if groupInterfaces == nil {
+		f.groupInterfaces = append(f.groupInterfaces, nil)
+	} else {
+		v := *groupInterfaces
+		f.groupInterfaces = append(f.groupInterfaces, &v)
+	}
 	if len(siteIDs) > 0 && f.metricsErrSites != nil {
 		if err := f.metricsErrSites[siteIDs[0]]; err != nil {
 			return nil, err
@@ -277,6 +308,13 @@ func TestConfigValidation(t *testing.T) {
 	cfg.URL = "ftp://api.catonetworks.com/api/v1/graphql2"
 	err = cfg.validate()
 	require.ErrorContains(t, err, "'url' scheme")
+
+	cfg.URL = "http://api.catonetworks.com/api/v1/graphql2"
+	err = cfg.validate()
+	require.ErrorContains(t, err, "'url' scheme")
+
+	cfg.URL = "http://127.0.0.1:8080/api/v1/graphql2"
+	require.NoError(t, cfg.validate())
 }
 
 func TestConfigApplyDefaultsNormalizesStringInputs(t *testing.T) {
@@ -294,6 +332,19 @@ func TestConfigApplyDefaultsNormalizesStringInputs(t *testing.T) {
 	require.Equal(t, "https://api.catonetworks.com/api/v1/graphql2", cfg.URL)
 	require.Equal(t, "last.PT5M", cfg.Metrics.TimeFrame)
 	require.NoError(t, cfg.validate())
+}
+
+func TestGroupInterfacesAutoUsesNilSDKArgument(t *testing.T) {
+	cfg := Config{Metrics: MetricsConfig{GroupInterfaces: confopt.AutoBoolAuto}}
+	require.Nil(t, cfg.groupInterfaces())
+
+	cfg.Metrics.GroupInterfaces = confopt.AutoBoolEnabled
+	require.NotNil(t, cfg.groupInterfaces())
+	require.True(t, *cfg.groupInterfaces())
+
+	cfg.Metrics.GroupInterfaces = confopt.AutoBoolDisabled
+	require.NotNil(t, cfg.groupInterfaces())
+	require.False(t, *cfg.groupInterfaces())
 }
 
 func TestDefaultEventsMarkerPathIncludesEndpointAndVnode(t *testing.T) {
@@ -356,6 +407,22 @@ func TestCheckDoesNotPublishDryRunHealth(t *testing.T) {
 	require.False(t, ok)
 }
 
+func TestCheckDoesNotPopulateBGPCache(t *testing.T) {
+	c := New()
+	c.AccountID = "12345"
+	c.APIKey = "secret"
+	c.Metrics.Enabled = "no"
+	c.Events.Enabled = "no"
+	c.client = newFixtureAPIClient()
+	c.now = fixedCatoTestNow
+
+	require.NoError(t, c.Init(context.Background()))
+	require.NoError(t, c.Check(context.Background()))
+
+	require.Empty(t, c.bgp.bySite)
+	require.True(t, c.bgp.nextRefresh.IsZero())
+}
+
 func TestCollectorDrainsEventsFeedPagesAndCapsCardinality(t *testing.T) {
 	c := New()
 	c.AccountID = "12345"
@@ -408,6 +475,32 @@ func TestCollectorDrainsEventsFeedPagesAndCapsCardinality(t *testing.T) {
 		"surface": normalizationSurfaceEvents,
 		"issue":   normalizationIssueCardinalityLimit,
 	}, 1)
+}
+
+func TestCollectorDeduplicatesEventsByEventID(t *testing.T) {
+	c := New()
+	c.AccountID = "12345"
+	c.APIKey = "secret"
+	c.Metrics.Enabled = "no"
+	c.BGP.Enabled = "no"
+	c.Events.MarkerFile = filepath.Join(t.TempDir(), "marker")
+	fake := newFixtureAPIClient()
+	fake.events = eventsFeedPage("", 0, []map[string]any{
+		{"event_id": "evt-1", "event_type": "Security", "event_sub_type": "Threat Prevention", "severity": "HIGH", "status": "Closed"},
+		{"event_id": "evt-1", "event_type": "Security", "event_sub_type": "Threat Prevention", "severity": "HIGH", "status": "Closed"},
+		{"event_id": "evt-2", "event_type": "Security", "event_sub_type": "Threat Prevention", "severity": "HIGH", "status": "Closed"},
+	})
+	c.client = fake
+	c.now = fixedCatoTestNow
+	collectOnce(t, c)
+
+	reader := c.store.Read()
+	requireValue(t, reader, "events_total", metrix.Labels{
+		"event_type":     "Security",
+		"event_sub_type": "Threat Prevention",
+		"severity":       "HIGH",
+		"status":         "Closed",
+	}, 2)
 }
 
 func TestAddEventCountAggregatesByNormalizedEventKey(t *testing.T) {
@@ -913,6 +1006,23 @@ func TestCollectorReportsMarkerWriteFailure(t *testing.T) {
 	}, 1)
 }
 
+func TestCollectorRetriesMarkerWrite(t *testing.T) {
+	c := New()
+	c.Retry.Attempts = 2
+	c.Retry.WaitMin = confopt.Duration(time.Nanosecond)
+	c.Retry.WaitMax = confopt.Duration(time.Nanosecond)
+	store := &flakyMarkerStore{writeErrs: []error{temporaryMarkerError{errors.New("temporary marker write failure")}}}
+	c.markerStore = store
+	c.markerStoreAvailable = true
+
+	c.commitEventsMarker(context.Background(), "marker-1")
+
+	require.Equal(t, []string{"marker-1", "marker-1"}, store.writes)
+	require.True(t, c.markerStoreAvailable)
+	require.True(t, c.health.MarkerPersistenceAvailable)
+	require.Equal(t, operationHealth{Success: true, ErrorClass: "none"}, c.health.LastOperations[operationEventMarker])
+}
+
 func TestCollectorReportsMarkerReadFailureUnavailable(t *testing.T) {
 	c := New()
 	c.AccountID = "12345"
@@ -1062,7 +1172,10 @@ func TestTopologyFunctionReturnsCurrentTopology(t *testing.T) {
 	c.now = func() time.Time { return time.Date(2026, 5, 1, 12, 0, 0, 0, time.UTC) }
 
 	require.NoError(t, c.Init(context.Background()))
-	require.NoError(t, c.Check(context.Background()))
+	cc := mustCycleController(t, c.store)
+	cc.BeginCycle()
+	require.NoError(t, c.Collect(context.Background()))
+	cc.CommitCycleSuccess()
 
 	handler := &funcTopology{collector: c}
 	resp := handler.Handle(context.Background(), topologyMethodID, nil)

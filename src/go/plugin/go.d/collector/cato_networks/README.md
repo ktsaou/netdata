@@ -22,7 +22,7 @@ jobs:
     api_key: "replace-with-cato-api-key"
 ```
 
-The default endpoint is `https://api.catonetworks.com/api/v1/graphql2`.
+The default endpoint is `https://api.catonetworks.com/api/v1/graphql2`. Production endpoints must use HTTPS because the collector sends the API key in request headers. HTTP is accepted only for loopback test endpoints.
 
 Important options:
 
@@ -30,6 +30,7 @@ Important options:
 - `discovery.refresh_every`: site rediscovery interval in seconds.
 - `metrics.max_sites_per_query`: maximum site IDs sent in one `accountMetrics` query.
 - `metrics.time_frame`: Cato TimeFrame value, such as `last.PT5M` or `utc.2020-02-11/{04:50:15--16:50:15}`.
+- `metrics.group_interfaces`: controls the Cato `groupInterfaces` argument. `auto` leaves the argument unset so Cato applies its default; `enabled` and `disabled` send explicit `true` or `false`.
 - `events.marker_file`: optional explicit marker path for `eventsFeed`. Set this when multiple jobs intentionally monitor the same account, endpoint, and vnode independently.
 - `events.max_pages_per_cycle`: maximum `eventsFeed` marker pages drained in one collection cycle.
 - `events.max_cardinality`: maximum unique event type/subtype/severity/status series before excess events collapse into `other`.
@@ -81,6 +82,7 @@ If events look low or delayed:
 - check `cato_networks.collector_normalization_issues` for `surface=events` and `issue=page_cap`;
 - increase `events.max_pages_per_cycle` only if the Cato account has enough `eventsFeed` rate-limit headroom;
 - check for `issue=cardinality_limit`, which means some event combinations were collapsed into `other`.
+- repeated `eventsFeed` records with the same `event_id` or `eventId` are counted once per collection cycle.
 
 The collector persists the events marker under Netdata's varlib directory by default. The default path is derived from the account ID, endpoint URL, and vnode so jobs for different Cato endpoints or vnodes do not share marker state. Set `events.marker_file` when a custom marker path is required or when multiple jobs intentionally monitor the same account, endpoint, and vnode independently. If marker persistence is unavailable, event counters can reset across Agent restarts.
 

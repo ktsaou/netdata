@@ -5,6 +5,7 @@ package cato_networks
 import (
 	"errors"
 	"fmt"
+	"net"
 	"net/url"
 	"regexp"
 	"strings"
@@ -159,8 +160,8 @@ func (c Config) validate() error {
 		errs = append(errs, errors.New("'url' is required"))
 	} else if u, err := url.Parse(strings.TrimSpace(c.URL)); err != nil || u.Scheme == "" || u.Host == "" {
 		errs = append(errs, errors.New("'url' must be a valid absolute URL"))
-	} else if u.Scheme != "http" && u.Scheme != "https" {
-		errs = append(errs, errors.New("'url' scheme must be http or https"))
+	} else if u.Scheme != "https" && !(u.Scheme == "http" && isLoopbackHost(u.Hostname())) {
+		errs = append(errs, errors.New("'url' scheme must be https unless using a loopback HTTP endpoint"))
 	}
 	if c.UpdateEvery < 60 {
 		errs = append(errs, errors.New("'update_every' must be >= 60 seconds"))
@@ -226,6 +227,15 @@ func (c Config) topologyEnabled() bool {
 	return c.Topology.Enabled.Bool(true)
 }
 
-func (c Config) groupInterfaces() bool {
-	return c.Metrics.GroupInterfaces.Bool(false)
+func (c Config) groupInterfaces() *bool {
+	return c.Metrics.GroupInterfaces.ToBool()
+}
+
+func isLoopbackHost(host string) bool {
+	host = strings.TrimSpace(host)
+	if strings.EqualFold(host, "localhost") {
+		return true
+	}
+	ip := net.ParseIP(host)
+	return ip != nil && ip.IsLoopback()
 }

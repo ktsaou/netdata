@@ -9,7 +9,7 @@ The collector is opt-in and requires:
 - `account_id`
 - `api_key`
 
-The default API endpoint is `https://api.catonetworks.com/api/v1/graphql2`, and operators may override `url` for regional or custom Cato endpoints.
+The default API endpoint is `https://api.catonetworks.com/api/v1/graphql2`, and operators may override `url` for regional or custom Cato endpoints. Production endpoints must use HTTPS because the collector sends the API key in request headers. HTTP is accepted only for loopback test endpoints.
 
 ## Data Sources
 
@@ -52,7 +52,11 @@ The collector must not run at a sub-minute default cadence. Cato publishes per-q
 
 HTTP/client timeouts that wrap `context.DeadlineExceeded` and HTTP `5xx` responses are retryable while the caller context is still active. Caller cancellation or caller deadline expiry must stop retrying immediately.
 
+Collector-owned HTTP clients must close idle connections during `Cleanup()`.
+
 The collector batches `accountMetrics` calls by `metrics.max_sites_per_query`.
+
+`metrics.group_interfaces: auto` must pass a nil/unset `groupInterfaces` argument to the SDK/API so Cato applies its default. `enabled` and `disabled` must pass explicit true and false values.
 
 `metrics.time_frame` validation accepts Cato's documented `last.<ISO-8601 duration>` form such as `last.PT5M` and `utc.<short-time-frame-spec>` form such as `utc.2020-02-11/{04:50:15--16:50:15}`.
 
@@ -64,7 +68,7 @@ The collector exposes the estimated BGP full-scan window in seconds and the curr
 
 BGP peers are deduplicated by remote IP and remote ASN for each site so duplicate vendor rows do not produce repeated metric labels or duplicate topology actor IDs.
 
-`Check()` must not advance the persisted `eventsFeed` marker and must not publish dry-run operation health, failure counters, or normalization issues into later `Collect()` cycles. Only `Collect()` may consume events, persist a newer marker, and publish collector-health metrics.
+`Check()` must not advance the persisted `eventsFeed` marker and must not publish dry-run operation health, failure counters, normalization issues, discovery cache changes, BGP cache changes, BGP scan cursor changes, or topology changes into later `Collect()` cycles. Only `Collect()` may consume events, persist a newer marker, and publish collector-health metrics.
 
 `Collect()` drains marker-based `eventsFeed` pages until the returned `fetchedCount` is below Cato's documented per-fetch maximum, the marker is empty or unchanged, or `events.max_pages_per_cycle` is reached. The marker is committed only after metrics for the cycle are written.
 
@@ -72,7 +76,7 @@ An `eventsFeed` account-level `errorString` is a page failure for this collector
 
 The default marker file path is derived from account ID, endpoint URL, and vnode. Jobs that intentionally monitor the same account, endpoint, and vnode independently must set distinct `events.marker_file` values.
 
-When marker persistence fails, the collector must report marker persistence unavailable. It may still advance the in-memory marker for the running process to avoid repeatedly counting the same EventsFeed page before restart.
+When marker persistence fails with a retryable temporary/timeout error, the collector must retry marker writes with the configured retry attempts/backoff and caller context before reporting marker persistence unavailable. Permanent local filesystem errors must fail fast. It may still advance the in-memory marker for the running process to avoid repeatedly counting the same EventsFeed page before restart.
 
 Marker read failures during initialization must also report marker persistence unavailable until a later marker write succeeds.
 
@@ -109,6 +113,8 @@ Event scope:
 - event series cardinality is capped by `events.max_cardinality`; excess event combinations collapse into `event_type=other`, `event_sub_type=other`, `severity=other`, `status=other`
 
 `events.max_cardinality = N` allows `N` real event series before excess new combinations collapse into `other`.
+
+Repeated `eventsFeed` records with the same `event_id` or `eventId` must be counted once per collection cycle. Records without an event ID are counted normally.
 
 API query scope:
 

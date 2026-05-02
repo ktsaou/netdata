@@ -4,7 +4,67 @@
 
 Status: completed
 
-Sub-state: completed 2026-05-02 after PR #22373 review comments on event cardinality and dry-run health isolation. Live Cato tenant validation remains tracked separately in SOW-0005.
+Sub-state: completed 2026-05-02 after PR #22373 review comments on transport cleanup, secure URLs, marker retry, dry-run state isolation, groupInterfaces auto, and event deduplication. Live Cato tenant validation remains tracked separately in SOW-0005.
+
+## Reopen - PR Review Comments - Transport, Dry-Run State, and Event Robustness - 2026-05-02
+
+Reason:
+
+- After reviewer re-triggering on head `5e7908c7d7401f1453e9d997179bdf6cc86ffcee`, six new Copilot review threads opened on PR #22373.
+
+Review evidence:
+
+- `.agents/skills/pr-reviews/scripts/fetch-all.sh 22373` found thread `PRRT_kwDOAKPxd85_FhFJ` on `src/go/plugin/go.d/collector/cato_networks/collector.go:166`; local verification found `Cleanup()` did not close idle connections for the collector-owned HTTP client.
+- Thread `PRRT_kwDOAKPxd85_FhFc` on `config.go:163` reported cleartext `http://` endpoints were accepted while API keys are sent in headers; local verification found validation allowed both `http` and `https`.
+- Thread `PRRT_kwDOAKPxd85_FhFn` on `collector.go:276` reported marker writes were single-attempt; local verification found `commitEventsMarker()` called `markerStore.write()` once.
+- Thread `PRRT_kwDOAKPxd85_FhF1` on `collect.go:162` reported `Check()` could populate BGP cache and delay first real BGP polling; local verification found `Check()` dry-run state restoration covered health only, not discovery, BGP state, or topology.
+- Thread `PRRT_kwDOAKPxd85_FhGC` on `config.go:230` reported `metrics.group_interfaces=auto` behaved exactly like disabled; local verification found `groupInterfaces()` resolved auto with `Bool(false)` and the SDK call always received a non-nil boolean.
+- Thread `PRRT_kwDOAKPxd85_FhGO` on `collect.go:309` reported repeated EventsFeed records were counted more than once; local verification found no event ID deduplication before `addEventCount()`.
+
+Implementation scope:
+
+1. Track and close collector-owned HTTP idle connections in `Cleanup()`.
+2. Require HTTPS URLs except loopback HTTP endpoints used for local tests/mocks.
+3. Retry retryable temporary/timeout marker writes with the configured retry attempts/backoff and caller context while failing permanent local filesystem errors fast.
+4. Restore dry-run discovery, BGP, topology, and health state after `Check()`.
+5. Pass `nil` for `groupInterfaces` when `metrics.group_interfaces=auto` so Cato/default SDK semantics are preserved.
+6. Deduplicate EventsFeed records by event ID within a collection cycle.
+7. Add focused regression tests and update the Cato collector spec.
+
+Implemented:
+
+- `Collector` now retains the collector-owned HTTP client from `web.NewHTTPClient()` and closes idle connections in `Cleanup()`.
+- `url` validation now requires HTTPS for production endpoints and allows HTTP only for loopback endpoints used by local tests/mocks.
+- Events marker writes now retry retryable temporary/timeout errors with configured retry attempts/backoff and caller context, while permanent filesystem errors fail fast.
+- `Check()` now snapshots and restores health, discovery, BGP state, and topology so dry-run collection cannot leak mutable state into the first real `Collect()`.
+- `metrics.group_interfaces=auto` now passes nil/unset `groupInterfaces` to the SDK/API; enabled/disabled pass explicit true/false.
+- EventsFeed records are deduplicated by `event_id`/`eventId` within one collection cycle. Records without an event ID still count normally.
+- Added regression tests for HTTPS validation, groupInterfaces auto semantics, BGP dry-run isolation, event-ID dedupe, and transient marker-write retry.
+- Updated README, metadata, config schema, stock config, and `.agents/sow/specs/cato-networks-collector.md`.
+
+Validation completed:
+
+- `git diff --check` - passed.
+- `cd src/go && go test ./plugin/go.d/collector/cato_networks -count=1` - passed.
+- `cd src/go && go vet ./plugin/go.d/collector/cato_networks` - passed.
+- `cd src/go && go test ./plugin/go.d/... -count=1` - passed.
+
+Artifact maintenance:
+
+- `AGENTS.md`: no update needed. The repo workflow did not change.
+- Runtime project skills: no update needed. The PR-review workflow did not change.
+- Specs: updated `.agents/sow/specs/cato-networks-collector.md` with HTTPS URL requirements, HTTP cleanup, groupInterfaces auto semantics, stronger `Check()` isolation, retryable marker-write retry, and EventsFeed event-ID dedupe.
+- End-user/operator docs: updated README, metadata, config schema, and stock config to match URL and groupInterfaces behavior.
+- End-user/operator skills: no update needed. No downstream AI/operator skill artifact changed.
+- SOW lifecycle: reopened completed SOW for PR review findings; closing it again after validation. Live Cato tenant validation remains tracked by SOW-0005.
+
+Follow-up mapping:
+
+- No new deferred work from this reopen. Live tenant validation remains explicitly tracked by SOW-0005 and is not closed here.
+
+Outcome:
+
+- PR review findings were implemented and validated locally. The PR threads will be replied to and resolved after this commit is pushed so replies can reference the fixing commit.
 
 ## Reopen - PR Review Comments - Event Cardinality and Check Health Isolation - 2026-05-02
 

@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"os"
 	"strings"
 	"sync"
 	"time"
@@ -83,10 +84,11 @@ type Collector struct {
 
 	store metrix.CollectorStore
 
-	client    apiClient
-	newClient func(Config, *http.Client) (apiClient, error)
+	httpClient *http.Client
+	client     apiClient
+	newClient  func(Config, *http.Client) (apiClient, error)
 
-	markerStore *eventsMarkerStore
+	markerStore eventsMarkerPersistence
 	eventMarker string
 
 	markerStoreAvailable bool
@@ -101,6 +103,18 @@ type Collector struct {
 	now func() time.Time
 }
 
+type eventsMarkerPersistence interface {
+	read() (string, error)
+	write(string) error
+}
+
+type dryRunState struct {
+	health    collectorHealth
+	discovery discoveryState
+	bgp       bgpState
+	topology  *topology.Data
+}
+
 type discoveryState struct {
 	siteIDs   []string
 	siteNames map[string]string
@@ -111,6 +125,50 @@ type bgpState struct {
 	bySite      map[string][]bgpPeerState
 	nextRefresh time.Time
 	nextIndex   int
+}
+
+func (c *Collector) snapshotDryRunState() dryRunState {
+	c.mu.RLock()
+	topo := c.topology
+	c.mu.RUnlock()
+	return dryRunState{
+		health:    cloneCollectorHealth(c.health),
+		discovery: cloneDiscoveryState(c.discovery),
+		bgp:       cloneBGPState(c.bgp),
+		topology:  topo,
+	}
+}
+
+func (c *Collector) restoreDryRunState(state dryRunState) {
+	c.health = state.health
+	c.discovery = state.discovery
+	c.bgp = state.bgp
+	c.mu.Lock()
+	c.topology = state.topology
+	c.mu.Unlock()
+}
+
+func cloneDiscoveryState(src discoveryState) discoveryState {
+	dst := src
+	dst.siteIDs = append([]string(nil), src.siteIDs...)
+	if src.siteNames != nil {
+		dst.siteNames = make(map[string]string, len(src.siteNames))
+		for k, v := range src.siteNames {
+			dst.siteNames[k] = v
+		}
+	}
+	return dst
+}
+
+func cloneBGPState(src bgpState) bgpState {
+	dst := src
+	if src.bySite != nil {
+		dst.bySite = make(map[string][]bgpPeerState, len(src.bySite))
+		for siteID, peers := range src.bySite {
+			dst.bySite[siteID] = append([]bgpPeerState(nil), peers...)
+		}
+	}
+	return dst
 }
 
 func (c *Collector) Configuration() any { return c.Config }
@@ -126,6 +184,7 @@ func (c *Collector) Init(context.Context) error {
 		if err != nil {
 			return fmt.Errorf("init http client: %w", err)
 		}
+		c.httpClient = httpClient
 
 		client, err := c.newClient(c.Config, httpClient)
 		if err != nil {
@@ -162,7 +221,9 @@ func (c *Collector) Collect(ctx context.Context) error {
 }
 
 func (c *Collector) Cleanup(context.Context) {
-	// No collector-owned resources need closing; HTTP transport ownership stays with the plugin framework.
+	if c.httpClient != nil {
+		c.httpClient.CloseIdleConnections()
+	}
 }
 
 func (c *Collector) MetricStore() metrix.CollectorStore { return c.store }
@@ -184,9 +245,9 @@ func (c *Collector) currentTopology() (*topology.Data, bool) {
 
 func (c *Collector) collect(ctx context.Context, write bool) (err error) {
 	if !write {
-		previousHealth := cloneCollectorHealth(c.health)
+		previousState := c.snapshotDryRunState()
 		defer func() {
-			c.health = previousHealth
+			c.restoreDryRunState(previousState)
 		}()
 	}
 	c.beginHealthCycle()
@@ -254,13 +315,13 @@ func (c *Collector) collect(ctx context.Context, write bool) (err error) {
 
 	if write {
 		c.writeMetrics(sites, order, events.counts)
-		c.commitEventsMarker(events.marker)
+		c.commitEventsMarker(ctx, events.marker)
 	}
 
 	return nil
 }
 
-func (c *Collector) commitEventsMarker(marker string) {
+func (c *Collector) commitEventsMarker(ctx context.Context, marker string) {
 	marker = strings.TrimSpace(marker)
 	if marker == "" {
 		return
@@ -269,7 +330,7 @@ func (c *Collector) commitEventsMarker(marker string) {
 	if c.markerStore == nil {
 		return
 	}
-	if err := c.markerStore.write(marker); err != nil {
+	if err := c.writeEventsMarkerWithRetry(ctx, marker); err != nil {
 		c.markerStoreAvailable = false
 		c.health.MarkerPersistenceAvailable = false
 		c.markOperationFailure(operationEventMarker, err)
@@ -279,4 +340,35 @@ func (c *Collector) commitEventsMarker(marker string) {
 	c.markerStoreAvailable = true
 	c.health.MarkerPersistenceAvailable = true
 	c.markOperationSuccess(operationEventMarker)
+}
+
+func (c *Collector) writeEventsMarkerWithRetry(ctx context.Context, marker string) error {
+	attempts := c.Retry.Attempts
+	if attempts <= 0 {
+		attempts = 1
+	}
+	var err error
+	for attempt := 1; attempt <= attempts; attempt++ {
+		if err = c.markerStore.write(marker); err == nil {
+			return nil
+		}
+		if attempt == attempts || !isRetryableMarkerWriteError(err) {
+			return err
+		}
+		if sleepErr := sleepContext(ctx, retryWait(c.Retry.WaitMin.Duration(), c.Retry.WaitMax.Duration(), attempt)); sleepErr != nil {
+			return sleepErr
+		}
+	}
+	return err
+}
+
+func isRetryableMarkerWriteError(err error) bool {
+	if err == nil {
+		return false
+	}
+	if os.IsTimeout(err) {
+		return true
+	}
+	var temporary interface{ Temporary() bool }
+	return errors.As(err, &temporary) && temporary.Temporary()
 }

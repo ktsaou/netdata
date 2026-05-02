@@ -261,6 +261,7 @@ func (c *Collector) collectEvents(ctx context.Context) (eventsCollection, error)
 	}
 
 	counts := make(map[eventKey]int64)
+	seenEventIDs := make(map[string]bool)
 	var finalMarker string
 	var cardinalityLimited bool
 
@@ -288,10 +289,17 @@ func (c *Collector) collectEvents(ctx context.Context) (eventsCollection, error)
 				return eventsCollection{}, err
 			}
 			for _, record := range account.GetRecords() {
-				eventType, typeIssue := eventField(record.GetFieldsMap(), "event_type")
-				eventSubType, subTypeIssue := eventField(record.GetFieldsMap(), "event_sub_type")
-				severity, severityIssue := eventField(record.GetFieldsMap(), "severity")
-				status, statusIssue := eventField(record.GetFieldsMap(), "status")
+				fields := record.GetFieldsMap()
+				if eventID := eventRecordID(fields); eventID != "" {
+					if seenEventIDs[eventID] {
+						continue
+					}
+					seenEventIDs[eventID] = true
+				}
+				eventType, typeIssue := eventField(fields, "event_type")
+				eventSubType, subTypeIssue := eventField(fields, "event_sub_type")
+				severity, severityIssue := eventField(fields, "severity")
+				status, statusIssue := eventField(fields, "status")
 				for _, issue := range []string{typeIssue, subTypeIssue, severityIssue, statusIssue} {
 					if issue != "" {
 						c.markNormalizationIssue(normalizationSurfaceEvents, issue)
@@ -415,8 +423,25 @@ func lookupEventField(fields map[string]any, key string) (any, bool) {
 	return nil, false
 }
 
+func eventRecordID(fields map[string]any) string {
+	v, ok := lookupEventField(fields, "event_id")
+	if !ok || v == nil {
+		return ""
+	}
+	switch value := v.(type) {
+	case string:
+		return strings.TrimSpace(value)
+	case bool, int, int8, int16, int32, int64, uint, uint8, uint16, uint32, uint64, float32, float64:
+		return strings.TrimSpace(fmt.Sprint(value))
+	default:
+		return ""
+	}
+}
+
 func eventFieldCandidates(key string) []string {
 	switch key {
+	case "event_id":
+		return []string{"event_id", "eventId"}
 	case "event_type":
 		return []string{"event_type", "eventType"}
 	case "event_sub_type":

@@ -74,7 +74,7 @@ modules:
               required: false
               group: Collection
             - name: url
-              description: Cato GraphQL API endpoint.
+              description: Cato GraphQL API endpoint. Production endpoints must use HTTPS; HTTP is accepted only for loopback test endpoints.
               default_value: https://api.catonetworks.com/api/v1/graphql2
               required: false
               group: Target
@@ -124,7 +124,7 @@ modules:
               required: false
               group: Metrics
             - name: metrics.group_interfaces
-              description: Controls accountMetrics groupInterfaces. One of auto, enabled, disabled.
+              description: Controls the accountMetrics groupInterfaces argument. auto leaves the argument unset so Cato applies its default; enabled and disabled send explicit true or false.
               default_value: auto
               required: false
               group: Metrics
