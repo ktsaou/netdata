@@ -1185,16 +1185,23 @@ func TestSDKClientRecordsRetryStats(t *testing.T) {
 	require.Zero(t, client.APIStats().Retries["accountMetrics"].Transient)
 }
 
-func TestNormalizeSnapshotDefaultsNilStatusesToUnknown(t *testing.T) {
+func TestNormalizeSnapshotDefaultsNilInfoAndStatuses(t *testing.T) {
 	snapshot := &catosdk.AccountSnapshot{AccountSnapshot: &catosdk.AccountSnapshot_AccountSnapshot{
 		Sites: []*catosdk.AccountSnapshot_AccountSnapshot_Sites{
 			{ID: strPtr("1001")},
 		},
 	}}
 
-	sites, order := normalizeSnapshot(snapshot, nil)
+	sites, order := normalizeSnapshot(snapshot, map[string]string{"1001": "Site One"})
 
 	require.Equal(t, []string{"1001"}, order)
+	require.Equal(t, "Site One", sites["1001"].Name)
+	require.Empty(t, sites["1001"].Description)
+	require.Empty(t, sites["1001"].CountryCode)
+	require.Empty(t, sites["1001"].CountryName)
+	require.Empty(t, sites["1001"].Region)
+	require.Empty(t, sites["1001"].SiteType)
+	require.Empty(t, sites["1001"].ConnectionType)
 	require.Equal(t, "unknown", sites["1001"].ConnectivityStatus)
 	require.Equal(t, "unknown", sites["1001"].OperationalStatus)
 }

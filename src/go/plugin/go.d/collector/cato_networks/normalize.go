@@ -79,27 +79,44 @@ func normalizeSnapshot(snapshot *catosdk.AccountSnapshot, siteNames map[string]s
 			continue
 		}
 
-		info := raw.GetInfoSiteSnapshot()
+		var (
+			infoName    string
+			description string
+			countryCode string
+			countryName string
+			region      string
+			siteType    string
+			connType    string
+		)
+		if info := raw.GetInfoSiteSnapshot(); info != nil {
+			infoName = ptrString(info.GetName())
+			description = ptrString(info.GetDescription())
+			countryCode = ptrString(info.GetCountryCode())
+			countryName = ptrString(info.GetCountryName())
+			region = ptrString(info.GetRegion())
+			if info.GetType() != nil {
+				siteType = fmt.Sprint(*info.GetType())
+			}
+			if info.GetConnType() != nil {
+				connType = fmt.Sprint(*info.GetConnType())
+			}
+		}
 		site := &siteState{
 			ID:                 siteID,
-			Name:               siteDisplayName(siteID, siteNames, ptrString(info.GetName()), ""),
-			Description:        ptrString(info.GetDescription()),
+			Name:               siteDisplayName(siteID, siteNames, infoName, ""),
+			Description:        description,
 			ConnectivityStatus: normalizeStatus(connectivityStatusString(raw.GetConnectivityStatusSiteSnapshot())),
 			OperationalStatus:  normalizeStatus(operationalStatusString(raw.GetOperationalStatusSiteSnapshot())),
 			PopName:            ptrString(raw.GetPopName()),
-			CountryCode:        ptrString(info.GetCountryCode()),
-			CountryName:        ptrString(info.GetCountryName()),
-			Region:             ptrString(info.GetRegion()),
+			CountryCode:        countryCode,
+			CountryName:        countryName,
+			Region:             region,
+			SiteType:           siteType,
+			ConnectionType:     connType,
 			LastConnected:      ptrString(raw.GetLastConnected()),
 			ConnectedSince:     ptrString(raw.GetConnectedSince()),
 			HostCount:          ptrInt64(raw.GetHostCount()),
 			Interfaces:         make(map[string]*interfaceState),
-		}
-		if info.GetType() != nil {
-			site.SiteType = fmt.Sprint(*info.GetType())
-		}
-		if info.GetConnType() != nil {
-			site.ConnectionType = fmt.Sprint(*info.GetConnType())
 		}
 
 		for _, dev := range raw.GetDevices() {

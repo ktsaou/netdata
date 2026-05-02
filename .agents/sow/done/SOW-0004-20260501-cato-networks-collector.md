@@ -4,7 +4,57 @@
 
 Status: completed
 
-Sub-state: completed 2026-05-02 after PR #22373 SonarCloud duplication quality-gate reduction pass. Live Cato tenant validation remains tracked separately in SOW-0005.
+Sub-state: completed 2026-05-02 after PR #22373 review comment on explicit `infoSiteSnapshot` nil handling. Live Cato tenant validation remains tracked separately in SOW-0005.
+
+## Reopen - PR Review Comment - Explicit Site Info Nil Handling - 2026-05-02
+
+Reason:
+
+- After reviewer re-triggering on head `86cc44d6cd77a7255361b4509a8433e07a20e2ec`, one new Copilot review thread opened on PR #22373.
+
+Review evidence:
+
+- `.agents/skills/pr-reviews/scripts/fetch-all.sh 22373` found thread `PRRT_kwDOAKPxd85_FC0n` on `src/go/plugin/go.d/collector/cato_networks/normalize.go:101`.
+- The reviewer reported that `normalizeSnapshot()` could panic when Cato omits `infoSiteSnapshot`.
+- Local verification found the generated `github.com/catonetworks/cato-go-sdk@v0.2.5` getters are nil-receiver safe, so the immediate panic claim is not true for the current SDK. However, the normalization code relied on that generated behavior implicitly, while `normalizeSnapshotInterface()` already handles missing nested info explicitly.
+
+Implementation scope:
+
+1. Make missing site info handling explicit in `normalizeSnapshot()`.
+2. Preserve the existing fallback behavior for site name, metadata, type, and connection type defaults.
+3. Add targeted test assertions for a site without `infoSiteSnapshot`.
+4. Re-run focused Cato collector validation before updating the PR.
+
+Implemented:
+
+- `normalizeSnapshot()` now copies site info fields only when `raw.GetInfoSiteSnapshot()` is non-nil.
+- Missing site info now explicitly produces empty optional metadata fields and still falls back to discovery/site-ID naming.
+- Expanded the nil-info/status normalization test to assert the missing-info defaults.
+
+Validation completed:
+
+- `gofmt -w src/go/plugin/go.d/collector/cato_networks/normalize.go src/go/plugin/go.d/collector/cato_networks/collector_test.go` - completed.
+- `git diff --check` - passed.
+- `cd src/go && go test ./plugin/go.d/collector/cato_networks -count=1` - passed.
+- `cd src/go && go vet ./plugin/go.d/collector/cato_networks` - passed.
+- `cd src/go && go test ./plugin/go.d/... -count=1` - passed.
+
+Artifact maintenance:
+
+- AGENTS.md: no update needed. Existing PR-review, SOW, collector consistency, and validation rules covered this work.
+- Runtime project skills: no update needed. The PR-review workflow did not change.
+- Specs: no update needed. This is defensive normalization hardening with no metric, topology, configuration, or public behavior change beyond avoiding reliance on SDK nil-receiver behavior.
+- End-user/operator docs: no update needed. User-facing collector behavior and documented configuration are unchanged.
+- End-user/operator skills: no update needed; no AI skill artifacts were affected.
+- SOW lifecycle: same SOW reopened for a late PR review thread and completed after validation.
+
+Follow-up mapping:
+
+- Live Cato tenant or vendor sandbox validation remains tracked by `.agents/sow/pending/SOW-0005-20260501-cato-networks-live-validation.md`.
+
+Outcome:
+
+- Completed.
 
 ## Reopen - PR CI - Sonar Duplication Gate - 2026-05-02
 
