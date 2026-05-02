@@ -66,8 +66,6 @@ read_sow_status() {
   ' "$1" 2>/dev/null
 }
 
-<<<<<<< Updated upstream
-=======
 sensitive_scan_files() {
   [ -f ./AGENTS.md ] && printf '%s\n' ./AGENTS.md
   [ -f ./AGENTS.md.pre-sow.bak ] && printf '%s\n' ./AGENTS.md.pre-sow.bak
@@ -160,7 +158,6 @@ scan_sensitive_file() {
   ' "$file" 2>/dev/null
 }
 
->>>>>>> Stashed changes
 # --- Marker check ---
 echo "${BLUE}-- initialization marker --${NC}"
 if [ -f ./AGENTS.md ]; then
@@ -184,18 +181,18 @@ required_sections=(
   "## SOW System"
   "### Roles"
   "### Git Worktrees"
+  "### Sensitive Data In Durable Artifacts"
+  "### Open-Source Reference Evidence"
   "### Pre-Implementation Gate"
-<<<<<<< Updated upstream
-=======
   "### SOW Completion And Commit"
   "### Regressions"
->>>>>>> Stashed changes
   "### Project Skills"
   "### Specs"
   "### Project-specific overrides"
 )
 sections_ok=0
 sections_missing=0
+sensitive_warning_missing=0
 if [ -f ./AGENTS.md ]; then
   for s in "${required_sections[@]}"; do
     if grep -qF "$s" ./AGENTS.md 2>/dev/null; then
@@ -206,8 +203,36 @@ if [ -f ./AGENTS.md ]; then
       sections_missing=$((sections_missing + 1))
     fi
   done
+  if grep -qF "CRITICAL: Never write raw sensitive data to durable artifacts." ./AGENTS.md 2>/dev/null; then
+    echo "  ${GREEN}OK${NC}  CRITICAL sensitive-data warning"
+  else
+    echo "  ${RED}--${NC}  CRITICAL sensitive-data warning (missing)"
+    sensitive_warning_missing=1
+  fi
 else
   echo "  ${GRAY}(AGENTS.md not present; skipping section check)${NC}"
+fi
+echo
+
+# --- All AGENTS.md sensitive-data warnings ---
+echo "${BLUE}-- all AGENTS.md sensitive-data warnings --${NC}"
+agents_warning_missing=0
+agents_warning_checked=0
+while IFS= read -r f; do
+  [ -z "$f" ] && continue
+  if git rev-parse --is-inside-work-tree >/dev/null 2>&1 && git check-ignore -q "$f" 2>/dev/null; then
+    continue
+  fi
+  agents_warning_checked=$((agents_warning_checked + 1))
+  if grep -qF "CRITICAL: Never write raw sensitive data to durable artifacts." "$f" 2>/dev/null; then
+    echo "  ${GREEN}OK${NC}  $f"
+  else
+    echo "  ${RED}--${NC}  $f  (missing CRITICAL sensitive-data warning)"
+    agents_warning_missing=$((agents_warning_missing + 1))
+  fi
+done < <(find . -path ./.git -prune -o -name AGENTS.md -type f -print 2>/dev/null | sort)
+if [ "$agents_warning_checked" -eq 0 ]; then
+  echo "  ${GRAY}(no AGENTS.md files found)${NC}"
 fi
 echo
 
@@ -278,8 +303,6 @@ if [ -f ".agents/sow/SOW.template.md" ]; then
     echo "      ${RED}--${NC}  template missing ## Pre-Implementation Gate"
     sow_template_pre_impl_missing=1
   fi
-<<<<<<< Updated upstream
-=======
   if grep -q "^Sensitive data handling plan:$" ".agents/sow/SOW.template.md" 2>/dev/null && grep -q "^Sensitive data gate:$" ".agents/sow/SOW.template.md" 2>/dev/null; then
     echo "      ${GREEN}OK${NC}  template includes sensitive data gates"
     sow_template_sensitive_gate_missing=0
@@ -301,17 +324,13 @@ if [ -f ".agents/sow/SOW.template.md" ]; then
     echo "      ${RED}--${NC}  template missing completed-status or one-commit close rule"
     sow_template_completion_rule_missing=1
   fi
->>>>>>> Stashed changes
 else
   echo "  ${RED}--${NC}  .agents/sow/SOW.template.md  (missing)"
   framework_missing=$((framework_missing + 1))
   sow_template_pre_impl_missing=1
-<<<<<<< Updated upstream
-=======
   sow_template_sensitive_gate_missing=1
   sow_template_open_source_reference_missing=1
   sow_template_completion_rule_missing=1
->>>>>>> Stashed changes
 fi
 if [ -f ".agents/sow/audit.sh" ]; then
   echo "  ${GREEN}OK${NC}  .agents/sow/audit.sh"
@@ -381,6 +400,7 @@ echo
 echo "${BLUE}-- current SOW pre-implementation gates --${NC}"
 current_sow_pre_impl_missing=0
 current_sow_pre_impl_checked=0
+current_sow_sensitive_gate_missing=0
 if [ -d ".agents/sow/current" ]; then
   while IFS= read -r f; do
     [ -z "$f" ] && continue
@@ -391,6 +411,10 @@ if [ -d ".agents/sow/current" ]; then
       echo "  ${RED}--${NC}  $f  (missing ## Pre-Implementation Gate before implementation continues)"
       current_sow_pre_impl_missing=$((current_sow_pre_impl_missing + 1))
     fi
+    if ! grep -q "^Sensitive data handling plan:$" "$f" 2>/dev/null || ! grep -q "^Sensitive data gate:$" "$f" 2>/dev/null; then
+      echo "      ${RED}--${NC}  missing sensitive data handling plan or validation gate"
+      current_sow_sensitive_gate_missing=$((current_sow_sensitive_gate_missing + 1))
+    fi
   done < <(find ".agents/sow/current" -mindepth 1 -maxdepth 1 -name 'SOW-*.md' -type f 2>/dev/null | sort)
 fi
 if [ "$current_sow_pre_impl_checked" -eq 0 ]; then
@@ -398,8 +422,6 @@ if [ "$current_sow_pre_impl_checked" -eq 0 ]; then
 fi
 echo
 
-<<<<<<< Updated upstream
-=======
 # --- Regression section placement ---
 echo "${BLUE}-- regression section placement --${NC}"
 regression_order_violations=0
@@ -488,7 +510,6 @@ else
 fi
 echo
 
->>>>>>> Stashed changes
 # --- Project skills ---
 echo "${BLUE}-- runtime project skills --${NC}"
 project_skills_ok=0
@@ -604,18 +625,20 @@ skill_classification_warnings=${non_project_skills_unclassified:-0}
 
 sow_status_errors=$((sow_status_mismatch + sow_status_missing))
 pre_impl_errors=$((sow_template_pre_impl_missing + current_sow_pre_impl_missing))
-<<<<<<< Updated upstream
-=======
 sensitive_gate_errors=$((sow_template_sensitive_gate_missing + current_sow_sensitive_gate_missing + sensitive_findings))
 open_source_reference_errors=${sow_template_open_source_reference_missing:-0}
 completion_rule_errors=${sow_template_completion_rule_missing:-0}
 sow_evidence_errors=$((regression_order_violations + mirror_path_violations + open_source_reference_errors + completion_rule_errors))
->>>>>>> Stashed changes
 
-if $initialized && [ "$sections_missing" -eq 0 ] && [ "$bridge_missing" -eq 0 ] && [ "$sow_dir_missing" -eq 0 ] && [ "$empty_sow_dir_missing_keep" -eq 0 ] && [ "$framework_missing" -eq 0 ] && [ "$sow_status_errors" -eq 0 ] && [ "$pre_impl_errors" -eq 0 ] && [ "$todo_untracked_count" -eq 0 ] && [ "$skill_classification_warnings" -eq 0 ]; then
+if [ "$sensitive_findings" -gt 0 ]; then
+  echo "  ${RED}=== CRITICAL: sensitive data patterns found in durable artifacts. Redact before commit. ===${NC}"
+  exit 2
+fi
+
+if $initialized && [ "$sections_missing" -eq 0 ] && [ "$sensitive_warning_missing" -eq 0 ] && [ "$agents_warning_missing" -eq 0 ] && [ "$bridge_missing" -eq 0 ] && [ "$sow_dir_missing" -eq 0 ] && [ "$empty_sow_dir_missing_keep" -eq 0 ] && [ "$framework_missing" -eq 0 ] && [ "$sow_status_errors" -eq 0 ] && [ "$pre_impl_errors" -eq 0 ] && [ "$sensitive_gate_errors" -eq 0 ] && [ "$sow_evidence_errors" -eq 0 ] && [ "$todo_untracked_count" -eq 0 ] && [ "$skill_classification_warnings" -eq 0 ]; then
   echo "  ${GREEN}=== SOW initialization complete and clean. ===${NC}"
   exit 0
-elif $initialized && [ "$sections_missing" -eq 0 ] && [ "$bridge_missing" -eq 0 ] && [ "$sow_dir_missing" -eq 0 ] && [ "$empty_sow_dir_missing_keep" -eq 0 ] && [ "$framework_missing" -eq 0 ] && [ "$sow_status_errors" -eq 0 ] && [ "$pre_impl_errors" -eq 0 ] && [ "$todo_untracked_count" -eq 0 ]; then
+elif $initialized && [ "$sections_missing" -eq 0 ] && [ "$sensitive_warning_missing" -eq 0 ] && [ "$agents_warning_missing" -eq 0 ] && [ "$bridge_missing" -eq 0 ] && [ "$sow_dir_missing" -eq 0 ] && [ "$empty_sow_dir_missing_keep" -eq 0 ] && [ "$framework_missing" -eq 0 ] && [ "$sow_status_errors" -eq 0 ] && [ "$pre_impl_errors" -eq 0 ] && [ "$sensitive_gate_errors" -eq 0 ] && [ "$sow_evidence_errors" -eq 0 ] && [ "$todo_untracked_count" -eq 0 ]; then
   echo "  ${YELLOW}=== SOW initialization structurally complete with skill classification warning(s):${NC}"
   echo "    ${YELLOW}- ${skill_classification_warnings} non-project skill director(y/ies) need classification in AGENTS.md${NC}"
   echo "    ${YELLOW}- Runtime input skills should be renamed/wrapped as .agents/skills/project-*/${NC}"
@@ -624,6 +647,8 @@ elif $initialized && [ "$sections_missing" -eq 0 ] && [ "$bridge_missing" -eq 0 
 elif $initialized; then
   echo "  ${YELLOW}=== SOW marker present but partial state detected:${NC}"
   [ "$sections_missing" -gt 0 ] && echo "    ${YELLOW}- ${sections_missing} canonical AGENTS.md section(s) missing${NC}"
+  [ "$sensitive_warning_missing" -gt 0 ] && echo "    ${YELLOW}- CRITICAL sensitive-data warning missing from AGENTS.md${NC}"
+  [ "$agents_warning_missing" -gt 0 ] && echo "    ${YELLOW}- ${agents_warning_missing} AGENTS.md file(s) missing CRITICAL sensitive-data warning${NC}"
   [ "$bridge_missing" -gt 0 ] && echo "    ${YELLOW}- ${bridge_missing} cross-tool instruction bridge(s) missing${NC}"
   [ "$sow_dir_missing" -gt 0 ] && echo "    ${YELLOW}- ${sow_dir_missing} SOW directory(ies) missing${NC}"
   [ "$empty_sow_dir_missing_keep" -gt 0 ] && echo "    ${YELLOW}- ${empty_sow_dir_missing_keep} empty SOW directory(ies) missing .gitkeep/.keep${NC}"
@@ -632,8 +657,6 @@ elif $initialized; then
   [ "$sow_status_missing" -gt 0 ] && echo "    ${YELLOW}- ${sow_status_missing} SOW file(s) missing Status line${NC}"
   [ "$sow_template_pre_impl_missing" -gt 0 ] && echo "    ${YELLOW}- project-local SOW template missing Pre-Implementation Gate${NC}"
   [ "$current_sow_pre_impl_missing" -gt 0 ] && echo "    ${YELLOW}- ${current_sow_pre_impl_missing} current SOW(s) missing Pre-Implementation Gate${NC}"
-<<<<<<< Updated upstream
-=======
   [ "$sow_template_sensitive_gate_missing" -gt 0 ] && echo "    ${YELLOW}- project-local SOW template missing sensitive data gates${NC}"
   [ "$current_sow_sensitive_gate_missing" -gt 0 ] && echo "    ${YELLOW}- ${current_sow_sensitive_gate_missing} current SOW(s) missing sensitive data handling/gate${NC}"
   [ "$sensitive_findings" -gt 0 ] && echo "    ${YELLOW}- ${sensitive_findings} sensitive-data finding(s) in durable artifacts${NC}"
@@ -641,7 +664,6 @@ elif $initialized; then
   [ "${sow_template_completion_rule_missing:-0}" -gt 0 ] && echo "    ${YELLOW}- project-local SOW template missing completed-status or one-commit close rule${NC}"
   [ "$regression_order_violations" -gt 0 ] && echo "    ${YELLOW}- ${regression_order_violations} SOW file(s) have regression sections before original outcome/lessons/follow-up${NC}"
   [ "$mirror_path_violations" -gt 0 ] && echo "    ${YELLOW}- ${mirror_path_violations} SOW file(s) use /opt/baddisk/monitoring/repos absolute paths instead of owner/repo @ commit citations${NC}"
->>>>>>> Stashed changes
   [ "$todo_untracked_count" -gt 0 ] && echo "    ${YELLOW}- ${todo_untracked_count} untracked orphan TODO file(s) at project root${NC}"
   [ "$skill_classification_warnings" -gt 0 ] && echo "    ${YELLOW}- ${skill_classification_warnings} non-project skill director(y/ies) need classification${NC}"
   echo "  ${YELLOW}    Repair non-destructively using the project-local AGENTS.md and .agents/sow/SOW.template.md.${NC}"

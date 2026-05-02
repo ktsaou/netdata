@@ -62,6 +62,7 @@ Problem / root-cause model:
 Evidence reviewed:
 
 - <Specs, code, docs, tests, logs, traces, prior SOWs, issues, external references.>
+- <For mirrored open-source repositories: cite `owner/repo @ commit` and repository-relative paths; never paste `/opt/baddisk/monitoring/repos/...` absolute paths.>
 
 Affected contracts and surfaces:
 
@@ -75,13 +76,10 @@ Risk and blast radius:
 
 - <Regression, compatibility, performance, security, data loss, migration, rollout, and operational risks.>
 
-<<<<<<< Updated upstream
-=======
 Sensitive data handling plan:
 
 - <Whether the work may expose secrets, credentials, bearer tokens, SNMP communities, community/customer data, personal data, non-private customer-identifying IPs, private endpoints, or proprietary incident details; how evidence will be redacted in SOWs, specs, docs, skills, instructions, and code comments.>
 
->>>>>>> Stashed changes
 Implementation plan:
 
 1. <Ordered chunk with scope, dependencies, and likely files/modules.>
@@ -99,6 +97,10 @@ Artifact impact plan:
 - End-user/operator docs: <expected update or reason likely unaffected>
 - End-user/operator skills: <expected update or reason likely unaffected>
 - SOW lifecycle: <split/merge/status/follow-up/regression handling>
+
+Open-source reference evidence:
+
+- <If local mirrored repositories under `/opt/baddisk/monitoring/repos/` were checked, list each as `owner/repo @ commit` plus repository-relative paths. If none were checked, record why external OSS references were not relevant.>
 
 Open decisions:
 
@@ -140,6 +142,10 @@ Reviewer findings:
 Same-failure scan:
 
 - <search and result>
+
+Sensitive data gate:
+
+- <Confirm durable artifacts contain no raw secrets, credentials, bearer tokens, SNMP communities, community member names, customer names, personal data, non-private customer-identifying IPs, private endpoints, or proprietary incident details; note redactions used.>
 
 Artifact maintenance gate:
 
@@ -185,3 +191,9 @@ Pending.
 ## Followup
 
 None yet.
+
+## Regression Log
+
+None yet.
+
+Append regression entries here only after this SOW was completed or closed and later testing or use found broken behavior. Use a dated `## Regression - YYYY-MM-DD` heading at the end of the file. Never prepend regression content above the original SOW narrative.
