@@ -328,6 +328,8 @@ modules:
               description: Cato site ID.
             - name: site_name
               description: Cato site name.
+            - name: interface_id
+              description: Cato interface ID.
             - name: interface_name
               description: Interface name.
           metrics:

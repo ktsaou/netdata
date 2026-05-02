@@ -309,30 +309,39 @@ func mergeCatoTrafficMetrics(base trafficMetrics, raw catoTrafficMetrics) traffi
 		return base
 	}
 	if raw.GetBytesUpstream() != nil {
+		base.present |= trafficMetricBytesUpstreamMax
 		base.BytesUpstreamMax = *raw.GetBytesUpstream()
 	}
 	if raw.GetBytesDownstream() != nil {
+		base.present |= trafficMetricBytesDownstreamMax
 		base.BytesDownstreamMax = *raw.GetBytesDownstream()
 	}
 	if raw.GetLostUpstreamPcnt() != nil {
+		base.present |= trafficMetricLostUpstreamPercent
 		base.LostUpstreamPercent = *raw.GetLostUpstreamPcnt()
 	}
 	if raw.GetLostDownstreamPcnt() != nil {
+		base.present |= trafficMetricLostDownstreamPercent
 		base.LostDownstreamPercent = *raw.GetLostDownstreamPcnt()
 	}
 	if raw.GetJitterUpstream() != nil {
+		base.present |= trafficMetricJitterUpstreamMS
 		base.JitterUpstreamMS = *raw.GetJitterUpstream()
 	}
 	if raw.GetJitterDownstream() != nil {
+		base.present |= trafficMetricJitterDownstreamMS
 		base.JitterDownstreamMS = *raw.GetJitterDownstream()
 	}
 	if raw.GetPacketsDiscardedUpstream() != nil {
+		base.present |= trafficMetricPacketsDiscardedUpstream
 		base.PacketsDiscardedUpstream = *raw.GetPacketsDiscardedUpstream()
 	}
 	if raw.GetPacketsDiscardedDownstream() != nil {
+		base.present |= trafficMetricPacketsDiscardedDownstream
 		base.PacketsDiscardedDownstream = *raw.GetPacketsDiscardedDownstream()
 	}
 	if raw.GetRtt() != nil {
+		base.present |= trafficMetricRTTMS
 		base.RTTMS = float64(*raw.GetRtt())
 	}
 	return base
@@ -353,26 +362,37 @@ func applyTimeseriesMetric(m *trafficMetrics, label string, value float64, ok bo
 	}
 	switch strings.TrimSpace(label) {
 	case "bytesUpstream", "bytesUpstreamMax":
+		m.present |= trafficMetricBytesUpstreamMax
 		m.BytesUpstreamMax = value
 	case "bytesDownstream", "bytesDownstreamMax":
+		m.present |= trafficMetricBytesDownstreamMax
 		m.BytesDownstreamMax = value
 	case "lostUpstreamPcnt":
+		m.present |= trafficMetricLostUpstreamPercent
 		m.LostUpstreamPercent = value
 	case "lostDownstreamPcnt":
+		m.present |= trafficMetricLostDownstreamPercent
 		m.LostDownstreamPercent = value
 	case "jitterUpstream":
+		m.present |= trafficMetricJitterUpstreamMS
 		m.JitterUpstreamMS = value
 	case "jitterDownstream":
+		m.present |= trafficMetricJitterDownstreamMS
 		m.JitterDownstreamMS = value
 	case "packetsDiscardedUpstream":
+		m.present |= trafficMetricPacketsDiscardedUpstream
 		m.PacketsDiscardedUpstream = value
 	case "packetsDiscardedDownstream":
+		m.present |= trafficMetricPacketsDiscardedDownstream
 		m.PacketsDiscardedDownstream = value
 	case "rtt":
+		m.present |= trafficMetricRTTMS
 		m.RTTMS = value
 	case "lastMileLatency":
+		m.present |= trafficMetricLastMileLatencyMS
 		m.LastMileLatencyMS = value
 	case "lastMilePacketLoss":
+		m.present |= trafficMetricLastMilePacketLossPercent
 		m.LastMilePacketLossPercent = value
 	default:
 		return false

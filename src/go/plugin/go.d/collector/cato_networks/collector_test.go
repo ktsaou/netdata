@@ -159,6 +159,7 @@ func TestCollectorCollectsMetricsEventsAndTopology(t *testing.T) {
 	requireValue(t, reader, "interface_bytes_upstream_max", metrix.Labels{
 		"site_id":        "1001",
 		"site_name":      "Paris Office",
+		"interface_id":   "",
 		"interface_name": "all",
 	}, 7168)
 	requireValue(t, reader, "site_bytes_upstream_max", metrix.Labels{
@@ -174,6 +175,7 @@ func TestCollectorCollectsMetricsEventsAndTopology(t *testing.T) {
 	requireValue(t, reader, "interface_packets_discarded_upstream", metrix.Labels{
 		"site_id":        "1001",
 		"site_name":      "Paris Office",
+		"interface_id":   "",
 		"interface_name": "all",
 	}, 2)
 	requireValue(t, reader, "events_total", metrix.Labels{
@@ -198,6 +200,82 @@ func TestCollectorCollectsMetricsEventsAndTopology(t *testing.T) {
 	require.Equal(t, topologySource, topo.Source)
 	require.Len(t, topo.Actors, 5)
 	require.Len(t, topo.Links, 3)
+}
+
+func TestCollectorOmitsTrafficMetricsWhenAccountMetricsDisabled(t *testing.T) {
+	c := New()
+	c.AccountID = "12345"
+	c.APIKey = "secret"
+	c.Metrics.Enabled = confopt.AutoBoolDisabled
+	c.Events.Enabled = confopt.AutoBoolDisabled
+	c.BGP.Enabled = confopt.AutoBoolDisabled
+	c.client = newFixtureAPIClient()
+	c.now = fixedCatoTestNow
+	collectOnce(t, c)
+
+	reader := c.store.Read()
+	requireValue(t, reader, "site_connectivity_connected", metrix.Labels{
+		"site_id":   "1001",
+		"site_name": "Paris Office",
+		"pop_name":  "POP-Paris",
+	}, 1)
+	requireMetricMissing(t, reader, "site_bytes_upstream_max", metrix.Labels{
+		"site_id":   "1001",
+		"site_name": "Paris Office",
+		"pop_name":  "POP-Paris",
+	})
+	requireMetricMissing(t, reader, "interface_bytes_upstream_max", metrix.Labels{
+		"site_id":        "1001",
+		"site_name":      "Paris Office",
+		"interface_id":   "wan1",
+		"interface_name": "WAN 1",
+	})
+}
+
+func TestWriteMetricsDistinguishesDuplicateInterfaceNames(t *testing.T) {
+	c := New()
+	sites := map[string]*siteState{
+		"1001": {
+			ID:         "1001",
+			Name:       "Paris Office",
+			Interfaces: make(map[string]*interfaceState),
+		},
+	}
+	sites["1001"].Interfaces[interfaceKey("wan1", "WAN")] = &interfaceState{
+		ID:   "wan1",
+		Name: "WAN",
+		Metrics: trafficMetrics{
+			present:          trafficMetricBytesUpstreamMax,
+			BytesUpstreamMax: 100,
+		},
+	}
+	sites["1001"].Interfaces[interfaceKey("wan2", "WAN")] = &interfaceState{
+		ID:   "wan2",
+		Name: "WAN",
+		Metrics: trafficMetrics{
+			present:          trafficMetricBytesUpstreamMax,
+			BytesUpstreamMax: 200,
+		},
+	}
+
+	cc := mustCycleController(t, c.store)
+	cc.BeginCycle()
+	c.writeMetrics(sites, []string{"1001"}, nil)
+	cc.CommitCycleSuccess()
+
+	reader := c.store.Read()
+	requireValue(t, reader, "interface_bytes_upstream_max", metrix.Labels{
+		"site_id":        "1001",
+		"site_name":      "Paris Office",
+		"interface_id":   "wan1",
+		"interface_name": "WAN",
+	}, 100)
+	requireValue(t, reader, "interface_bytes_upstream_max", metrix.Labels{
+		"site_id":        "1001",
+		"site_name":      "Paris Office",
+		"interface_id":   "wan2",
+		"interface_name": "WAN",
+	}, 200)
 }
 
 func TestCollectorDecodesRawCentreonFixtureThroughSDK(t *testing.T) {
@@ -1241,6 +1319,22 @@ func TestTopologyFunctionReturnsCurrentTopology(t *testing.T) {
 	require.NotEmpty(t, data.Links)
 }
 
+func TestTopologyOmitsUnavailableTunnelMetrics(t *testing.T) {
+	data := buildTopology("12345", map[string]*siteState{
+		"1001": {
+			ID:                 "1001",
+			Name:               "Paris Office",
+			ConnectivityStatus: "connected",
+			PopName:            "POP-Paris",
+			Interfaces:         make(map[string]*interfaceState),
+		},
+	}, []string{"1001"}, fixedCatoTestNow())
+
+	require.Len(t, data.Links, 1)
+	require.Equal(t, linkTypeTunnel, data.Links[0].LinkType)
+	require.Empty(t, data.Links[0].Metrics)
+}
+
 func TestTopologyFunctionRequiresJobSelection(t *testing.T) {
 	cfg := catoTopologyMethodConfig()
 
@@ -2002,6 +2096,12 @@ func requireValue(t *testing.T, r metrix.Reader, name string, labels metrix.Labe
 	got, ok := r.Value(name, labels)
 	require.True(t, ok, "missing metric %s labels %#v", name, labels)
 	require.Equal(t, want, got)
+}
+
+func requireMetricMissing(t *testing.T, r metrix.Reader, name string, labels metrix.Labels) {
+	t.Helper()
+	_, ok := r.Value(name, labels)
+	require.False(t, ok, "unexpected metric %s labels %#v", name, labels)
 }
 
 func requireDelta(t *testing.T, r metrix.Reader, name string, labels metrix.Labels, want float64) {

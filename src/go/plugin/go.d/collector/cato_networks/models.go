@@ -54,7 +54,24 @@ type interfaceState struct {
 	Metrics             trafficMetrics
 }
 
+type trafficMetricPresence uint16
+
+const (
+	trafficMetricBytesUpstreamMax trafficMetricPresence = 1 << iota
+	trafficMetricBytesDownstreamMax
+	trafficMetricLostUpstreamPercent
+	trafficMetricLostDownstreamPercent
+	trafficMetricJitterUpstreamMS
+	trafficMetricJitterDownstreamMS
+	trafficMetricPacketsDiscardedUpstream
+	trafficMetricPacketsDiscardedDownstream
+	trafficMetricRTTMS
+	trafficMetricLastMileLatencyMS
+	trafficMetricLastMilePacketLossPercent
+)
+
 type trafficMetrics struct {
+	present                    trafficMetricPresence
 	BytesUpstreamMax           float64
 	BytesDownstreamMax         float64
 	LostUpstreamPercent        float64
@@ -66,6 +83,10 @@ type trafficMetrics struct {
 	RTTMS                      float64
 	LastMileLatencyMS          float64
 	LastMilePacketLossPercent  float64
+}
+
+func (m trafficMetrics) has(metric trafficMetricPresence) bool {
+	return m.present&metric != 0
 }
 
 type bgpPeerState struct {

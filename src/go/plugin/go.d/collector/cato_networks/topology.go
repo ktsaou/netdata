@@ -89,7 +89,7 @@ func buildTopology(accountID string, sites map[string]*siteState, order []string
 				})
 			}
 
-			links = append(links, topology.Link{
+			link := topology.Link{
 				Layer:      topologyLayer,
 				Protocol:   "cato",
 				LinkType:   linkTypeTunnel,
@@ -106,13 +106,11 @@ func buildTopology(accountID string, sites map[string]*siteState, order []string
 					CloudInstanceID: site.PopName,
 				}},
 				LastSeen: &collectedAt,
-				Metrics: map[string]any{
-					"bytes_upstream_max":    site.Metrics.BytesUpstreamMax,
-					"bytes_downstream_max":  site.Metrics.BytesDownstreamMax,
-					"lost_upstream_percent": site.Metrics.LostUpstreamPercent,
-					"rtt_ms":                site.Metrics.RTTMS,
-				},
-			})
+			}
+			if metrics := topologyTrafficMetrics(site.Metrics); len(metrics) > 0 {
+				link.Metrics = metrics
+			}
+			links = append(links, link)
 		}
 
 		bgpPeerSeen := make(map[string]bool)
@@ -214,6 +212,7 @@ func siteTopologyTables(site *siteState) map[string][]map[string]any {
 			continue
 		}
 		tables["interfaces"] = append(tables["interfaces"], map[string]any{
+			"id":                   iface.ID,
 			"name":                 iface.Name,
 			"type":                 iface.Type,
 			"connected":            iface.Connected || iface.LinkUp,
@@ -243,6 +242,23 @@ func siteTopologyTables(site *siteState) map[string][]map[string]any {
 		})
 	}
 	return tables
+}
+
+func topologyTrafficMetrics(metrics trafficMetrics) map[string]any {
+	out := make(map[string]any)
+	if metrics.has(trafficMetricBytesUpstreamMax) {
+		out["bytes_upstream_max"] = metrics.BytesUpstreamMax
+	}
+	if metrics.has(trafficMetricBytesDownstreamMax) {
+		out["bytes_downstream_max"] = metrics.BytesDownstreamMax
+	}
+	if metrics.has(trafficMetricLostUpstreamPercent) {
+		out["lost_upstream_percent"] = metrics.LostUpstreamPercent
+	}
+	if metrics.has(trafficMetricRTTMS) {
+		out["rtt_ms"] = metrics.RTTMS
+	}
+	return out
 }
 
 func catoSiteActorID(siteID string) string {

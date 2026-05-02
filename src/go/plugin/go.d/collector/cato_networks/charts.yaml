@@ -156,7 +156,7 @@ groups:
         units: status
         type: line
         instances:
-          by_labels: [site_id, site_name, interface_name]
+          by_labels: [site_id, site_name, interface_id, interface_name]
         dimensions:
           - selector: interface_connected
             name: connected
@@ -166,7 +166,7 @@ groups:
         units: seconds
         type: line
         instances:
-          by_labels: [site_id, site_name, interface_name]
+          by_labels: [site_id, site_name, interface_id, interface_name]
         dimensions:
           - selector: interface_tunnel_uptime_seconds
             name: uptime
@@ -176,7 +176,7 @@ groups:
         units: bytes
         type: area
         instances:
-          by_labels: [site_id, site_name, interface_name]
+          by_labels: [site_id, site_name, interface_id, interface_name]
         dimensions:
           - selector: interface_bytes_upstream_max
             name: upstream
@@ -188,7 +188,7 @@ groups:
         units: percentage
         type: line
         instances:
-          by_labels: [site_id, site_name, interface_name]
+          by_labels: [site_id, site_name, interface_id, interface_name]
         dimensions:
           - selector: interface_lost_upstream_percent
             name: upstream
@@ -200,7 +200,7 @@ groups:
         units: packets
         type: line
         instances:
-          by_labels: [site_id, site_name, interface_name]
+          by_labels: [site_id, site_name, interface_id, interface_name]
         dimensions:
           - selector: interface_packets_discarded_upstream
             name: upstream
@@ -212,7 +212,7 @@ groups:
         units: milliseconds
         type: line
         instances:
-          by_labels: [site_id, site_name, interface_name]
+          by_labels: [site_id, site_name, interface_id, interface_name]
         dimensions:
           - selector: interface_jitter_upstream_ms
             name: upstream
@@ -224,7 +224,7 @@ groups:
         units: milliseconds
         type: line
         instances:
-          by_labels: [site_id, site_name, interface_name]
+          by_labels: [site_id, site_name, interface_id, interface_name]
         dimensions:
           - selector: interface_rtt_ms
             name: rtt

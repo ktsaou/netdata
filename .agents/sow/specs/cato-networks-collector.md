@@ -58,6 +58,8 @@ The collector batches `accountMetrics` calls by `metrics.max_sites_per_query`.
 
 `metrics.group_interfaces: auto` must pass a nil/unset `groupInterfaces` argument to the SDK/API so Cato applies its default. `enabled` and `disabled` must pass explicit true and false values.
 
+Traffic and quality metrics derived from `accountMetrics` must be emitted only for fields actually returned by Cato. Missing accountMetrics data must leave the corresponding site/interface series absent; it must not be represented as real zero traffic, zero loss, or zero latency.
+
 `metrics.time_frame` validation accepts Cato's documented `last.<ISO-8601 duration>` form such as `last.PT5M` and `utc.<short-time-frame-spec>` form such as `utc.2020-02-11/{04:50:15--16:50:15}`.
 
 After initial site discovery succeeds, later discovery refresh failures must fall back to the last-known-good site list instead of failing the full collection. The collector must still record the `entityLookup` operation failure and should respect `discovery.refresh_every` before retrying discovery again to avoid API/log spam. Before any successful discovery exists, discovery failures remain hard collection failures.
@@ -96,6 +98,7 @@ An `accountMetrics` interface named `all` augments site-scope metrics. It must n
 
 Interface scope:
 
+- label identity includes `interface_id` and `interface_name`; `interface_id` is required in labels to avoid collisions when Cato returns multiple interfaces with the same display name
 - connected status
 - tunnel uptime
 - traffic: upstream/downstream

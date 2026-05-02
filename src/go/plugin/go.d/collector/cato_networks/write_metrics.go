@@ -59,7 +59,7 @@ func (c *Collector) writeMetrics(sites map[string]*siteState, order []string, ev
 		lastMileLoss:    siteLastMileLoss,
 	}
 
-	ifaceVec := c.store.Write().SnapshotMeter("").Vec("site_id", "site_name", "interface_name")
+	ifaceVec := c.store.Write().SnapshotMeter("").Vec("site_id", "site_name", "interface_id", "interface_name")
 	ifaceConnected := ifaceVec.Gauge("interface_connected")
 	ifaceBytesUp := ifaceVec.Gauge("interface_bytes_upstream_max")
 	ifaceBytesDown := ifaceVec.Gauge("interface_bytes_downstream_max")
@@ -111,7 +111,7 @@ func (c *Collector) writeMetrics(sites map[string]*siteState, order []string, ev
 		writeTrafficMetrics(site.Metrics, labels, siteTraffic)
 
 		for _, iface := range site.Interfaces {
-			ifaceLabels := []string{site.ID, site.Name, iface.Name}
+			ifaceLabels := []string{site.ID, site.Name, iface.ID, iface.Name}
 			ifaceConnected.WithLabelValues(ifaceLabels...).Observe(boolFloat(iface.Connected || iface.LinkUp))
 			writeTrafficMetrics(iface.Metrics, ifaceLabels, ifaceTraffic)
 			ifaceTunnelUptime.WithLabelValues(ifaceLabels...).Observe(float64(iface.TunnelUptime))
@@ -140,19 +140,37 @@ func (c *Collector) writeMetrics(sites map[string]*siteState, order []string, ev
 }
 
 func writeTrafficMetrics(m trafficMetrics, labels []string, writers trafficMetricWriters) {
-	writers.bytesUp.WithLabelValues(labels...).Observe(m.BytesUpstreamMax)
-	writers.bytesDown.WithLabelValues(labels...).Observe(m.BytesDownstreamMax)
-	writers.lostUp.WithLabelValues(labels...).Observe(m.LostUpstreamPercent)
-	writers.lostDown.WithLabelValues(labels...).Observe(m.LostDownstreamPercent)
-	writers.jitterUp.WithLabelValues(labels...).Observe(m.JitterUpstreamMS)
-	writers.jitterDown.WithLabelValues(labels...).Observe(m.JitterDownstreamMS)
-	writers.discardUp.WithLabelValues(labels...).Observe(m.PacketsDiscardedUpstream)
-	writers.discardDown.WithLabelValues(labels...).Observe(m.PacketsDiscardedDownstream)
-	writers.rtt.WithLabelValues(labels...).Observe(m.RTTMS)
-	if writers.lastMileLatency != nil {
+	if m.has(trafficMetricBytesUpstreamMax) {
+		writers.bytesUp.WithLabelValues(labels...).Observe(m.BytesUpstreamMax)
+	}
+	if m.has(trafficMetricBytesDownstreamMax) {
+		writers.bytesDown.WithLabelValues(labels...).Observe(m.BytesDownstreamMax)
+	}
+	if m.has(trafficMetricLostUpstreamPercent) {
+		writers.lostUp.WithLabelValues(labels...).Observe(m.LostUpstreamPercent)
+	}
+	if m.has(trafficMetricLostDownstreamPercent) {
+		writers.lostDown.WithLabelValues(labels...).Observe(m.LostDownstreamPercent)
+	}
+	if m.has(trafficMetricJitterUpstreamMS) {
+		writers.jitterUp.WithLabelValues(labels...).Observe(m.JitterUpstreamMS)
+	}
+	if m.has(trafficMetricJitterDownstreamMS) {
+		writers.jitterDown.WithLabelValues(labels...).Observe(m.JitterDownstreamMS)
+	}
+	if m.has(trafficMetricPacketsDiscardedUpstream) {
+		writers.discardUp.WithLabelValues(labels...).Observe(m.PacketsDiscardedUpstream)
+	}
+	if m.has(trafficMetricPacketsDiscardedDownstream) {
+		writers.discardDown.WithLabelValues(labels...).Observe(m.PacketsDiscardedDownstream)
+	}
+	if m.has(trafficMetricRTTMS) {
+		writers.rtt.WithLabelValues(labels...).Observe(m.RTTMS)
+	}
+	if writers.lastMileLatency != nil && m.has(trafficMetricLastMileLatencyMS) {
 		writers.lastMileLatency.WithLabelValues(labels...).Observe(m.LastMileLatencyMS)
 	}
-	if writers.lastMileLoss != nil {
+	if writers.lastMileLoss != nil && m.has(trafficMetricLastMilePacketLossPercent) {
 		writers.lastMileLoss.WithLabelValues(labels...).Observe(m.LastMilePacketLossPercent)
 	}
 }
