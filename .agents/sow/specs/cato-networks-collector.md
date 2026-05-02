@@ -64,6 +64,10 @@ The collector exposes the estimated BGP full-scan window in seconds and the curr
 
 `Collect()` drains marker-based `eventsFeed` pages until the returned `fetchedCount` is below Cato's documented per-fetch maximum, the marker is empty or unchanged, or `events.max_pages_per_cycle` is reached. The marker is committed only after metrics for the cycle are written.
 
+An `eventsFeed` account-level `errorString` is a page failure for this collector because each request asks for one account. The collector must report the account-error diagnostic and must not advance the persisted or in-memory marker for that page.
+
+The default marker file path is derived from account ID, endpoint URL, and vnode. Jobs that intentionally monitor the same account, endpoint, and vnode independently must set distinct `events.marker_file` values.
+
 When marker persistence fails, the collector must report marker persistence unavailable. It may still advance the in-memory marker for the running process to avoid repeatedly counting the same EventsFeed page before restart.
 
 ## Metrics
@@ -168,6 +172,8 @@ The collector exposes standalone topology through the function method:
 ```text
 topology:cato_networks
 ```
+
+The topology method must be job-selectable, not `AgentWide`, so multi-instance Cato jobs can return their own account topology through the normal `__job` function parameter.
 
 Topology source and layer:
 

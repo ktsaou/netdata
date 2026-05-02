@@ -68,7 +68,6 @@ func catoTopologyMethodConfig() funcapi.MethodConfig {
 		Help:         "Cato Networks site, PoP, tunnel, and BGP topology data",
 		RequireCloud: true,
 		ResponseType: "topology",
-		AgentWide:    true,
 	}.WithPresentation(catoTopologyPresentation())
 }
 

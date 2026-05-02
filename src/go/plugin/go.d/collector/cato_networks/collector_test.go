@@ -496,6 +496,43 @@ func TestCollectorUsesPersistedEventsMarker(t *testing.T) {
 	require.Equal(t, "next-marker", c.eventMarker)
 }
 
+func TestCollectorDoesNotAdvanceMarkerOnEventsAccountError(t *testing.T) {
+	markerFile := filepath.Join(t.TempDir(), "marker")
+	require.NoError(t, os.WriteFile(markerFile, []byte("persisted-marker\n"), 0o600))
+
+	c := New()
+	c.AccountID = "12345"
+	c.APIKey = "secret"
+	c.Metrics.Enabled = "no"
+	c.BGP.Enabled = "no"
+	c.Events.MarkerFile = markerFile
+	fake := newFixtureAPIClient()
+	fake.eventsByMarker = map[string]*catosdk.EventsFeed{
+		"persisted-marker": eventsFeedAccountErrorPage("next-marker"),
+	}
+	c.client = fake
+	c.now = fixedCatoTestNow
+	collectOnce(t, c)
+
+	data, err := os.ReadFile(markerFile)
+	require.NoError(t, err)
+	require.Equal(t, []string{"persisted-marker"}, fake.eventMarkers)
+	require.Equal(t, "persisted-marker", c.eventMarker)
+	require.Equal(t, "persisted-marker\n", string(data))
+	reader := c.store.Read()
+	requireValue(t, reader, "collector_operation_success", metrix.Labels{
+		"operation": operationEvents,
+	}, 0)
+	requireValue(t, reader, "collector_operation_failures_total", metrix.Labels{
+		"operation":   operationEvents,
+		"error_class": "error",
+	}, 1)
+	requireValue(t, reader, "collector_normalization_issues_total", metrix.Labels{
+		"surface": normalizationSurfaceEvents,
+		"issue":   normalizationIssueAccountError,
+	}, 1)
+}
+
 func TestCollectorReportsEventsPageCap(t *testing.T) {
 	c := New()
 	c.AccountID = "12345"
@@ -897,6 +934,12 @@ func TestTopologyFunctionReturnsCurrentTopology(t *testing.T) {
 	require.Equal(t, topologySource, data.Source)
 	require.NotEmpty(t, data.Actors)
 	require.NotEmpty(t, data.Links)
+}
+
+func TestTopologyFunctionRequiresJobSelection(t *testing.T) {
+	cfg := catoTopologyMethodConfig()
+
+	require.False(t, cfg.AgentWide)
 }
 
 func TestBuildTopologyOmitsEmptyBGPPeerIPMatch(t *testing.T) {
@@ -1547,6 +1590,16 @@ func eventsFeedPage(marker string, fetchedCount int64, records []map[string]any)
 		Marker:       strPtr(marker),
 		FetchedCount: fetchedCount,
 		Accounts:     []*catosdk.EventsFeed_EventsFeed_Accounts{account},
+	}}
+}
+
+func eventsFeedAccountErrorPage(marker string) *catosdk.EventsFeed {
+	return &catosdk.EventsFeed{EventsFeed: &catosdk.EventsFeed_EventsFeed{
+		Marker:       strPtr(marker),
+		FetchedCount: eventsFeedMaxFetchSize,
+		Accounts: []*catosdk.EventsFeed_EventsFeed_Accounts{
+			{ID: strPtr("12345"), ErrorString: strPtr("account temporarily unavailable")},
+		},
 	}}
 }
 

@@ -4,7 +4,64 @@
 
 Status: completed
 
-Sub-state: completed 2026-05-02 after PR #22373 review comments on EventsFeed marker identity and formatting consistency. Live Cato tenant validation remains tracked separately in SOW-0005.
+Sub-state: completed 2026-05-02 after PR #22373 review comments on topology job selection and EventsFeed account-error marker safety. Live Cato tenant validation remains tracked separately in SOW-0005.
+
+## Reopen - PR Review Comments - Topology Job Selection and Events Account Errors - 2026-05-02
+
+Reason:
+
+- After reviewer re-triggering on head `ab77e808287d05097beef5e24ab745c7aef19ac4`, two new Copilot review threads opened on PR #22373.
+
+Review evidence:
+
+- `.agents/skills/pr-reviews/scripts/fetch-all.sh 22373` found thread `PRRT_kwDOAKPxd85_FKhJ` on `src/go/plugin/go.d/collector/cato_networks/func_topology.go:71`.
+- The reviewer reported that `AgentWide` hides `__job` while function dispatch still routes through the first running job, making additional Cato account topologies inaccessible in multi-instance setups.
+- Local verification found `funcctl` contains a FIXME documenting that `AgentWide` currently means "omit `__job` from the public API" while dispatch still uses the first running job.
+- `.agents/skills/pr-reviews/scripts/fetch-all.sh 22373` found thread `PRRT_kwDOAKPxd85_FKhS` on `src/go/plugin/go.d/collector/cato_networks/collect.go:286`.
+- The reviewer reported that an `eventsFeed` account-level `errorString` should fail the page and not leave the returned marker eligible for commit.
+- Local verification found the collector requested exactly one account, skipped accounts with `errorString`, but still kept the page marker in `finalMarker`, allowing marker commit after metric write.
+
+Implementation scope:
+
+1. Make `topology:cato_networks` job-selectable by removing `AgentWide`.
+2. Treat an EventsFeed account-level error as an EventsFeed operation failure for that cycle.
+3. Preserve the low-cardinality normalization diagnostic for account-level EventsFeed errors.
+4. Prevent persisted and in-memory marker advancement when the EventsFeed account payload reports an error.
+5. Add targeted tests for topology job selection and marker non-advancement.
+6. Update the Cato collector spec for these durable contracts.
+
+Implemented:
+
+- Removed `AgentWide` from the Cato topology method config so the normal `__job` selector remains available for multi-instance Cato jobs.
+- `collectEvents()` now returns a sanitized `eventsFeed account error` when the requested account has `errorString`; this marks the operation as failed and leaves the events marker empty for that cycle.
+- Added `TestTopologyFunctionRequiresJobSelection`.
+- Added `TestCollectorDoesNotAdvanceMarkerOnEventsAccountError`, asserting the old persisted marker remains on disk and in memory while diagnostics are emitted.
+- Updated `.agents/sow/specs/cato-networks-collector.md` with the topology job-selection and EventsFeed account-error marker contracts.
+
+Validation completed:
+
+- `gofmt -w src/go/plugin/go.d/collector/cato_networks/collect.go src/go/plugin/go.d/collector/cato_networks/func_topology.go src/go/plugin/go.d/collector/cato_networks/collector_test.go` - completed.
+- `git diff --check` - passed.
+- `cd src/go && go test ./plugin/go.d/collector/cato_networks -count=1` - passed.
+- `cd src/go && go vet ./plugin/go.d/collector/cato_networks` - passed.
+- `cd src/go && go test ./plugin/go.d/... -count=1` - passed.
+
+Artifact maintenance:
+
+- AGENTS.md: no update needed. Existing PR-review, SOW, collector consistency, and validation rules covered this work.
+- Runtime project skills: no update needed. The PR-review workflow did not change.
+- Specs: updated `.agents/sow/specs/cato-networks-collector.md` with topology job selection and EventsFeed account-error marker-safety contracts.
+- End-user/operator docs: no update needed. Public setup options and troubleshooting text already described EventsFeed account-level errors and marker behavior; this pass tightened internal failure handling and function dispatch visibility.
+- End-user/operator skills: no update needed; no AI skill artifacts were affected.
+- SOW lifecycle: same SOW reopened for late PR review threads and completed after validation.
+
+Follow-up mapping:
+
+- Live Cato tenant or vendor sandbox validation remains tracked by `.agents/sow/pending/SOW-0005-20260501-cato-networks-live-validation.md`.
+
+Outcome:
+
+- Completed.
 
 ## Reopen - PR Review Comments - Marker Identity and Formatting - 2026-05-02
 

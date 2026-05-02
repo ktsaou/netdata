@@ -283,7 +283,9 @@ func (c *Collector) collectEvents(ctx context.Context) (eventsCollection, error)
 				c.markNormalizationIssue(normalizationSurfaceEvents, normalizationIssueAccountError)
 				c.Warningf("eventsFeed returned an account-level error; skipping account events")
 				c.Debugf("eventsFeed account-level error metadata: page=%d error_size=%d", page+1, len(errString))
-				continue
+				err := fmt.Errorf("eventsFeed account error")
+				c.markOperationFailure(operationEvents, err)
+				return eventsCollection{}, err
 			}
 			for _, record := range account.GetRecords() {
 				eventType, typeIssue := eventField(record.GetFieldsMap(), "event_type")
