@@ -369,6 +369,28 @@ func TestCollectorDrainsEventsFeedPagesAndCapsCardinality(t *testing.T) {
 	}, 1)
 }
 
+func TestAddEventCountAggregatesByNormalizedEventKey(t *testing.T) {
+	counts := make(map[eventKey]int64)
+	key := eventKey{
+		EventType:    " Security ",
+		EventSubType: " Threat Prevention ",
+		Severity:     " HIGH ",
+		Status:       " Closed ",
+	}
+
+	require.False(t, addEventCount(counts, key, 10))
+	require.False(t, addEventCount(counts, key, 10))
+
+	require.Equal(t, map[eventKey]int64{
+		{
+			EventType:    "Security",
+			EventSubType: "Threat Prevention",
+			Severity:     "HIGH",
+			Status:       "Closed",
+		}: 2,
+	}, counts)
+}
+
 func TestCollectorReportsUnknownTimeseriesLabels(t *testing.T) {
 	c := New()
 	c.AccountID = "12345"
@@ -898,6 +920,41 @@ func TestTopologyFunctionReturnsCurrentTopology(t *testing.T) {
 	require.Equal(t, topologySource, data.Source)
 	require.NotEmpty(t, data.Actors)
 	require.NotEmpty(t, data.Links)
+}
+
+func TestBuildTopologyOmitsEmptyBGPPeerIPMatch(t *testing.T) {
+	site := &siteState{
+		ID:   "1001",
+		Name: "Paris Office",
+		BGPPeers: []bgpPeerState{
+			{
+				RemoteASN:  "64512",
+				BGPSession: "Established",
+			},
+		},
+	}
+
+	data := buildTopology("12345", map[string]*siteState{site.ID: site}, []string{site.ID}, time.Date(2026, 5, 1, 12, 0, 0, 0, time.UTC))
+
+	var peerActor *topology.Actor
+	for i := range data.Actors {
+		if data.Actors[i].ActorType == actorTypeBGPPeer {
+			peerActor = &data.Actors[i]
+			break
+		}
+	}
+	require.NotNil(t, peerActor)
+	require.Empty(t, peerActor.Match.IPAddresses)
+
+	var bgpLink *topology.Link
+	for i := range data.Links {
+		if data.Links[i].LinkType == linkTypeBGP {
+			bgpLink = &data.Links[i]
+			break
+		}
+	}
+	require.NotNil(t, bgpLink)
+	require.Empty(t, bgpLink.Dst.Match.IPAddresses)
 }
 
 func TestSiteTopologyTablesAreDeterministic(t *testing.T) {

@@ -89,3 +89,10 @@ type eventCount struct {
 	Status       string
 	Count        int64
 }
+
+type eventKey struct {
+	EventType    string
+	EventSubType string
+	Severity     string
+	Status       string
+}

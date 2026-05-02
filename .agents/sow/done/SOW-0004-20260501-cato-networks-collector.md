@@ -4,7 +4,106 @@
 
 Status: completed
 
-Sub-state: completed 2026-05-02 after late PR #22373 review comment fix on config normalization. Live Cato tenant validation remains tracked separately in SOW-0005.
+Sub-state: completed 2026-05-02 after late PR #22373 review comments on topology matches and completed-SOW wording. Live Cato tenant validation remains tracked separately in SOW-0005.
+
+## Reopen - PR Review Comments - BGP Peer Topology Match and Historical Gate Wording - 2026-05-02
+
+Reason:
+
+- A pre-push re-fetch found two additional open `cubic-dev-ai[bot]` review threads after the event-key fix was committed locally.
+
+Review evidence:
+
+- `.agents/skills/pr-reviews/scripts/fetch-all.sh 22373` found thread `PRRT_kwDOAKPxd85_EzVd` on `src/go/plugin/go.d/collector/cato_networks/topology.go:128`.
+- The reviewer reported that BGP peer topology actors should not emit `ip_addresses` with an empty string when `RemoteIP` is empty.
+- Local verification found the actor match and BGP link destination match both used `[]string{peer.RemoteIP}`, so both could emit an empty IP address when a BGP peer has ASN data but no remote IP.
+- `.agents/skills/pr-reviews/scripts/fetch-all.sh 22373` also found thread `PRRT_kwDOAKPxd85_EzVj` on `.agents/sow/done/SOW-0004-20260501-cato-networks-collector.md:1`.
+- The reviewer requested that the completed SOW clarify that the pre-implementation gate is a historical snapshot, not current state.
+
+Implementation scope:
+
+1. Omit BGP peer topology IP-address matches when the remote IP is empty or whitespace.
+2. Cover the actor and link destination match behavior with a unit test.
+3. Add a historical note to the completed SOW pre-implementation gate.
+4. Re-run focused Cato collector validation before updating the local review-fix commit.
+
+Implemented:
+
+- Added `catoBGPPeerMatch()` so BGP peer topology actors and BGP link destinations include `ip_addresses` only when the remote IP is non-empty after trimming.
+- Added `TestBuildTopologyOmitsEmptyBGPPeerIPMatch` for actor and link destination match behavior.
+- Added a historical note to the pre-implementation gate explaining that it records the pre-implementation state from 2026-05-01, not the current completed state.
+
+Validation completed:
+
+- `cd src/go && go test ./plugin/go.d/collector/cato_networks -count=1` - passed.
+- `cd src/go && go vet ./plugin/go.d/collector/cato_networks` - passed.
+- `cd src/go && go test ./plugin/go.d/... -count=1` - passed.
+
+Artifact maintenance:
+
+- AGENTS.md: no update needed. Existing PR-review, SOW, and collector consistency rules covered this work.
+- Runtime project skills: no update needed. The PR-review workflow did not change.
+- Specs: no update needed. Topology output remains semantically the same except invalid empty-IP matches are omitted.
+- End-user/operator docs: no update needed. User-facing collector behavior and documented configuration are unchanged.
+- End-user/operator skills: no update needed; no AI skill artifacts were affected.
+- SOW lifecycle: same SOW reopened for the late PR review comments and completed after validation.
+
+Follow-up mapping:
+
+- Live Cato tenant or vendor sandbox validation remains tracked by `.agents/sow/pending/SOW-0005-20260501-cato-networks-live-validation.md`.
+
+Outcome:
+
+- Completed.
+
+## Reopen - PR Review Comment - Event Aggregation Key - 2026-05-02
+
+Reason:
+
+- After reviewer re-triggering, a new Copilot review thread opened on PR #22373.
+
+Review evidence:
+
+- `.agents/skills/pr-reviews/scripts/fetch-all.sh 22373` found thread `PRRT_kwDOAKPxd85_Ey-6` on `src/go/plugin/go.d/collector/cato_networks/collect.go:265`.
+- The reviewer reported that `collectEvents()` aggregates with `map[eventCount]int64`, while `eventCount` includes the non-key `Count` field.
+- Local verification found the current call path sets `Count` only after aggregation, but the type choice is fragile because future code that sets `Count` before aggregation would split identical event dimensions into distinct map keys.
+
+Implementation scope:
+
+1. Introduce a separate `eventKey` type containing only event dimensions.
+2. Use `map[eventKey]int64` for event aggregation and convert to `eventCount` only at output construction.
+3. Add a targeted unit test for normalized event-key aggregation.
+4. Re-run focused Cato collector validation before pushing.
+
+Implemented:
+
+- Added `eventKey` with only event dimensions.
+- Changed event aggregation to use `map[eventKey]int64`.
+- Kept `eventCount` as the output type that carries the final count.
+- Added `TestAddEventCountAggregatesByNormalizedEventKey`.
+
+Validation completed:
+
+- `cd src/go && go test ./plugin/go.d/collector/cato_networks -count=1` - passed.
+- `cd src/go && go vet ./plugin/go.d/collector/cato_networks` - passed.
+- `cd src/go && go test ./plugin/go.d/... -count=1` - passed.
+
+Artifact maintenance:
+
+- AGENTS.md: no update needed. Existing PR-review, SOW, and collector consistency rules covered this work.
+- Runtime project skills: no update needed. The PR-review workflow did not change.
+- Specs: no update needed. This is an internal aggregation type-safety fix; public collector behavior and metrics are unchanged.
+- End-user/operator docs: no update needed. User-facing collector behavior is unchanged.
+- End-user/operator skills: no update needed; no AI skill artifacts were affected.
+- SOW lifecycle: same SOW reopened for the late PR review comment and completed after validation.
+
+Follow-up mapping:
+
+- Live Cato tenant or vendor sandbox validation remains tracked by `.agents/sow/pending/SOW-0005-20260501-cato-networks-live-validation.md`.
+
+Outcome:
+
+- Completed.
 
 ## Reopen - PR Review Comment - Config Normalization - 2026-05-02
 
@@ -389,6 +488,8 @@ Risks:
 - **Topology overlap**: standalone Cato topology can ship through the shared topology function contract. Cross-source overlay with SNMP/network-viewer/NetFlow remains out of scope because the unified overlay roadmap is not shipped on this branch.
 
 ## Pre-Implementation Gate
+
+Historical note: this gate records the readiness state before implementation began on 2026-05-01. It is preserved in this completed SOW as historical implementation evidence; the current shipped state and later PR-review changes are recorded in the validation and reopen sections above.
 
 Status: verified-ready-for-implementation
 

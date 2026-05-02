@@ -260,7 +260,7 @@ func (c *Collector) collectEvents(ctx context.Context) (eventsCollection, error)
 		marker = &currentMarker
 	}
 
-	counts := make(map[eventCount]int64)
+	counts := make(map[eventKey]int64)
 	var finalMarker string
 	var cardinalityLimited bool
 
@@ -295,7 +295,7 @@ func (c *Collector) collectEvents(ctx context.Context) (eventsCollection, error)
 						c.markNormalizationIssue(normalizationSurfaceEvents, issue)
 					}
 				}
-				key := eventCount{
+				key := eventKey{
 					EventType:    eventType,
 					EventSubType: eventSubType,
 					Severity:     severity,
@@ -328,8 +328,13 @@ func (c *Collector) collectEvents(ctx context.Context) (eventsCollection, error)
 
 	out := make([]eventCount, 0, len(counts))
 	for key, count := range counts {
-		key.Count = count
-		out = append(out, key)
+		out = append(out, eventCount{
+			EventType:    key.EventType,
+			EventSubType: key.EventSubType,
+			Severity:     key.Severity,
+			Status:       key.Status,
+			Count:        count,
+		})
 	}
 	sort.Slice(out, func(i, j int) bool {
 		if out[i].EventType != out[j].EventType {
@@ -347,14 +352,14 @@ func (c *Collector) collectEvents(ctx context.Context) (eventsCollection, error)
 	return eventsCollection{counts: out, marker: finalMarker}, nil
 }
 
-func addEventCount(counts map[eventCount]int64, key eventCount, maxCardinality int) bool {
+func addEventCount(counts map[eventKey]int64, key eventKey, maxCardinality int) bool {
 	key = normalizedEventKey(key)
 	if _, ok := counts[key]; ok {
 		counts[key]++
 		return false
 	}
 
-	other := eventCount{EventType: "other", EventSubType: "other", Severity: "other", Status: "other"}
+	other := eventKey{EventType: "other", EventSubType: "other", Severity: "other", Status: "other"}
 	if maxCardinality <= 1 || len(counts) >= maxCardinality-1 {
 		counts[other]++
 		return true
@@ -364,7 +369,7 @@ func addEventCount(counts map[eventCount]int64, key eventCount, maxCardinality i
 	return false
 }
 
-func normalizedEventKey(key eventCount) eventCount {
+func normalizedEventKey(key eventKey) eventKey {
 	key.EventType = normalizedEventField(key.EventType)
 	key.EventSubType = normalizedEventField(key.EventSubType)
 	key.Severity = normalizedEventField(key.Severity)

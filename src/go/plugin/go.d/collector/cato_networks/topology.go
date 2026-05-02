@@ -5,6 +5,7 @@ package cato_networks
 import (
 	"fmt"
 	"sort"
+	"strings"
 	"time"
 
 	"github.com/netdata/netdata/go/plugins/pkg/topology"
@@ -124,9 +125,7 @@ func buildTopology(accountID string, sites map[string]*siteState, order []string
 				ActorType: actorTypeBGPPeer,
 				Layer:     topologyLayer,
 				Source:    topologySource,
-				Match: topology.Match{
-					IPAddresses: []string{peer.RemoteIP},
-				},
+				Match:     catoBGPPeerMatch(peer.RemoteIP),
 				Attributes: map[string]any{
 					"remote_ip":   peer.RemoteIP,
 					"remote_asn":  peer.RemoteASN,
@@ -153,9 +152,7 @@ func buildTopology(accountID string, sites map[string]*siteState, order []string
 					CloudAccountID:  accountID,
 					CloudInstanceID: site.ID,
 				}},
-				Dst: topology.LinkEndpoint{Match: topology.Match{
-					IPAddresses: []string{peer.RemoteIP},
-				}},
+				Dst:      topology.LinkEndpoint{Match: catoBGPPeerMatch(peer.RemoteIP)},
 				LastSeen: &collectedAt,
 				Metrics: map[string]any{
 					"routes":                    peer.RoutesCount,
@@ -249,6 +246,14 @@ func catoSiteActorID(siteID string) string {
 
 func catoPopActorID(popName string) string {
 	return "cato:pop:" + popName
+}
+
+func catoBGPPeerMatch(remoteIP string) topology.Match {
+	remoteIP = strings.TrimSpace(remoteIP)
+	if remoteIP == "" {
+		return topology.Match{}
+	}
+	return topology.Match{IPAddresses: []string{remoteIP}}
 }
 
 func catoBGPPeerActorID(siteID, remoteIP, remoteASN string) string {
