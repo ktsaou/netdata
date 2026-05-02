@@ -66,6 +66,8 @@ BGP collection is decoupled from the main metric cadence and limited by `bgp.max
 
 The collector exposes the estimated BGP full-scan window in seconds and the current BGP cached-site count so operators can tell whether missing BGP state is expected during a rolling scan.
 
+BGP progress health fields must reset at the start of each collection cycle. When BGP is enabled but the current cycle fails before BGP collection runs, the collector must publish zero-valued BGP progress gauges instead of reusing the previous cycle's scan window or cached-site count.
+
 BGP peers are deduplicated by remote IP and remote ASN for each site so duplicate vendor rows do not produce repeated metric labels or duplicate topology actor IDs.
 
 `Check()` must not advance the persisted `eventsFeed` marker and must not publish dry-run operation health, failure counters, normalization issues, discovery cache changes, BGP cache changes, BGP scan cursor changes, or topology changes into later `Collect()` cycles. Only `Collect()` may consume events, persist a newer marker, and publish collector-health metrics.
@@ -239,6 +241,7 @@ Tests must include:
 - degraded connectivity replay through the raw SDK/client path, including the `accountSnapshot` raw GraphQL fallback when the SDK enum is stale
 - a schema-shaped BGP fixture because the available Centreon fixture does not cover `siteBgpStatus`
 - diagnostics assertions for partial operation failures, unknown timeseries labels, marker write failures, BGP scan progress, and event field normalization issues
+- API retry metric assertions covering snapshot counter totals and deltas for `api_rate_limit_retries_total` and `api_transient_retries_total`
 - EventsFeed pagination, page cap, cardinality collapse, marker resume, and stalled-marker tests
 - SDK/client-path failure tests for HTTP status failures, HTTP client timeouts, and GraphQL `errors[]` responses
 - empty discovery, discovery pagination, marker write failure, unknown status fallback, BGP empty peer, and BGP total-failure rotation tests

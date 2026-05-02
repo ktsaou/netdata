@@ -78,6 +78,9 @@ func (c *Collector) beginHealthCycle() {
 	c.health.CollectionSuccess = false
 	c.health.DiscoveredSites = int64(len(c.discovery.siteIDs))
 	c.health.MarkerPersistenceAvailable = !c.eventsEnabled() || c.markerStoreAvailable
+	c.health.BGPSitesPerCollection = 0
+	c.health.BGPFullScanSeconds = 0
+	c.health.BGPCachedSites = 0
 	// LastOperations is stateful because the chart reports last observed status.
 }
 

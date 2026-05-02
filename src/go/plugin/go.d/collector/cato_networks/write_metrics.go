@@ -185,7 +185,7 @@ func (c *Collector) writeCollectorHealth() {
 	meter.Gauge("collector_collection_success").Observe(boolFloat(c.health.CollectionSuccess))
 	meter.Gauge("collector_discovered_sites").Observe(float64(c.health.DiscoveredSites))
 	meter.Gauge("collector_events_marker_persistence_available").Observe(boolFloat(c.health.MarkerPersistenceAvailable))
-	if c.health.BGPSitesPerCollection > 0 {
+	if c.bgpEnabled() {
 		meter.Gauge("collector_bgp_sites_per_collection").Observe(float64(c.health.BGPSitesPerCollection))
 		meter.Gauge("collector_bgp_full_scan_seconds").Observe(float64(c.health.BGPFullScanSeconds))
 		meter.Gauge("collector_bgp_cached_sites").Observe(float64(c.health.BGPCachedSites))

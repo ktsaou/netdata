@@ -4,7 +4,58 @@
 
 Status: completed
 
-Sub-state: completed 2026-05-02 after PR #22373 review comments on transport cleanup, secure URLs, marker retry, dry-run state isolation, groupInterfaces auto, and event deduplication. Live Cato tenant validation remains tracked separately in SOW-0005.
+Sub-state: completed 2026-05-02 after PR #22373 review comments on API retry metric coverage and BGP progress gauge freshness. Live Cato tenant validation remains tracked separately in SOW-0005.
+
+## Reopen - PR Review Comments - Retry Metrics and BGP Progress Freshness - 2026-05-02
+
+Reason:
+
+- After reviewer re-triggering on head `a347f89cd37e4693b41c5c7c57331f1be8430aa1`, two new Copilot review threads opened on PR #22373.
+
+Review evidence:
+
+- `.agents/skills/pr-reviews/scripts/fetch-all.sh 22373` found thread `PRRT_kwDOAKPxd85_FoYa` on `src/go/plugin/go.d/collector/cato_networks/write_metrics.go:178`; local verification found SDK retry stats were unit-tested, but the metric-writing path for `api_rate_limit_retries_total` and `api_transient_retries_total` had no direct assertions.
+- Thread `PRRT_kwDOAKPxd85_FoYf` on `write_metrics.go:192` reported BGP progress health gauges could remain stale when a later collection fails before `collectBGP()` runs; local verification found `beginHealthCycle()` did not reset BGP progress fields, while the deferred health writer still runs on collection failure.
+
+Implementation scope:
+
+1. Add direct metric-store assertions for API retry metric totals and deltas.
+2. Reset BGP progress health fields at the start of every cycle.
+3. Emit zero-valued BGP progress gauges when BGP is enabled but the current cycle did not reach BGP collection.
+4. Add regression coverage for a collection that fails before BGP after a prior successful BGP cycle.
+5. Update the Cato collector spec if behavior changes.
+
+Implemented:
+
+- Added direct metric-store tests for `api_rate_limit_retries_total` and `api_transient_retries_total`, covering snapshot counter totals and second-cycle deltas.
+- `beginHealthCycle()` now resets BGP progress health fields at the start of every cycle.
+- `writeCollectorHealth()` now emits BGP progress gauges whenever BGP is enabled, including zero values when the current cycle fails before BGP collection runs.
+- Added regression coverage for a collection that first publishes non-zero BGP scan progress, then fails during account snapshot before BGP collection and publishes zero BGP progress for the failed cycle.
+- Updated `.agents/sow/specs/cato-networks-collector.md` with the BGP progress freshness contract and API retry metric validation requirement.
+
+Validation completed:
+
+- `git diff --check` - passed.
+- `cd src/go && go test ./plugin/go.d/collector/cato_networks -count=1` - passed.
+- `cd src/go && go vet ./plugin/go.d/collector/cato_networks` - passed.
+- `cd src/go && go test ./plugin/go.d/... -count=1` - passed.
+
+Artifact maintenance:
+
+- `AGENTS.md`: no update needed. The repo workflow did not change.
+- Runtime project skills: no update needed. The PR-review workflow did not change.
+- Specs: updated `.agents/sow/specs/cato-networks-collector.md` with BGP progress reset/zero-publication behavior and API retry metric validation coverage.
+- End-user/operator docs: no update needed. Public configuration and troubleshooting semantics did not change; this pass corrected metric freshness and test coverage.
+- End-user/operator skills: no update needed. No downstream AI/operator skill artifact changed.
+- SOW lifecycle: reopened completed SOW for PR review findings; closing it again after validation. Live Cato tenant validation remains tracked by SOW-0005.
+
+Follow-up mapping:
+
+- No new deferred work from this reopen. Live tenant validation remains explicitly tracked by SOW-0005 and is not closed here.
+
+Outcome:
+
+- PR review findings were implemented and validated locally. The PR threads will be replied to and resolved after this commit is pushed so replies can reference the fixing commit.
 
 ## Reopen - PR Review Comments - Transport, Dry-Run State, and Event Robustness - 2026-05-02
 

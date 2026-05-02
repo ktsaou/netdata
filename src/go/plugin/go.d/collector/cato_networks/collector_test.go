@@ -34,6 +34,7 @@ type fakeAPIClient struct {
 	lookupErr       error
 	lookupPages     map[int64]*catosdk.EntityLookup
 	snapshot        *catosdk.AccountSnapshot
+	snapshotErr     error
 	metrics         *catosdk.AccountMetrics
 	events          *catosdk.EventsFeed
 	eventsByMarker  map[string]*catosdk.EventsFeed
@@ -79,6 +80,9 @@ func (f *fakeAPIClient) LookupSites(_ context.Context, _ string, _ int64, from i
 }
 
 func (f *fakeAPIClient) AccountSnapshot(context.Context, string, []string) (*catosdk.AccountSnapshot, error) {
+	if f.snapshotErr != nil {
+		return nil, f.snapshotErr
+	}
 	return f.snapshot, nil
 }
 
@@ -1151,6 +1155,54 @@ func TestBGPPollingRotatesAcrossSites(t *testing.T) {
 	requireValue(t, reader, "collector_bgp_cached_sites", nil, 2)
 }
 
+func TestCollectorResetsBGPHealthWhenCollectionFailsBeforeBGP(t *testing.T) {
+	c := New()
+	c.AccountID = "12345"
+	c.APIKey = "secret"
+	c.Metrics.Enabled = "no"
+	c.Events.Enabled = "no"
+	c.BGP.RefreshEvery = 60
+	c.BGP.MaxSitesPerCollection = 1
+	fake := newFixtureAPIClient()
+	fake.bgp["1002"] = []*catosdk.SiteBgpStatusResult{
+		{
+			RemoteIP:   "192.0.2.20",
+			RemoteASN:  "64513",
+			BGPSession: "Established",
+		},
+	}
+	c.client = fake
+	now := time.Date(2026, 5, 1, 12, 0, 0, 0, time.UTC)
+	c.now = func() time.Time { return now }
+
+	require.NoError(t, c.Init(context.Background()))
+	cc := mustCycleController(t, c.store)
+	cc.BeginCycle()
+	require.NoError(t, c.Collect(context.Background()))
+	cc.CommitCycleSuccess()
+
+	now = now.Add(61 * time.Second)
+	cc.BeginCycle()
+	require.NoError(t, c.Collect(context.Background()))
+	cc.CommitCycleSuccess()
+	reader := c.store.Read()
+	requireValue(t, reader, "collector_bgp_sites_per_collection", nil, 1)
+	requireValue(t, reader, "collector_bgp_full_scan_seconds", nil, 120)
+	requireValue(t, reader, "collector_bgp_cached_sites", nil, 2)
+
+	fake.snapshotErr = errors.New("snapshot unavailable")
+	now = now.Add(61 * time.Second)
+	cc.BeginCycle()
+	err := c.Collect(context.Background())
+	cc.CommitCycleSuccess()
+
+	require.ErrorContains(t, err, "account snapshot failed")
+	reader = c.store.Read()
+	requireValue(t, reader, "collector_bgp_sites_per_collection", nil, 0)
+	requireValue(t, reader, "collector_bgp_full_scan_seconds", nil, 0)
+	requireValue(t, reader, "collector_bgp_cached_sites", nil, 0)
+}
+
 func TestPruneBGPStateRemovesMissingSites(t *testing.T) {
 	bySite := map[string][]bgpPeerState{
 		"1001": {{RemoteIP: "192.0.2.10"}},
@@ -1531,6 +1583,34 @@ func TestSDKClientRecordsRetryStats(t *testing.T) {
 	require.Equal(t, 2, calls)
 	require.Equal(t, int64(1), client.APIStats().Retries["accountMetrics"].RateLimit)
 	require.Zero(t, client.APIStats().Retries["accountMetrics"].Transient)
+}
+
+func TestWriteAPIStatsWritesRetryCounterTotalsAndDeltas(t *testing.T) {
+	c := New()
+	cc := mustCycleController(t, c.store)
+	labels := metrix.Labels{"query": operationMetrics}
+
+	cc.BeginCycle()
+	writeAPIStats(c.store, apiStats{Retries: map[string]apiRetryStats{
+		operationMetrics: {RateLimit: 2, Transient: 3},
+	}})
+	cc.CommitCycleSuccess()
+	reader := c.store.Read()
+	requireValue(t, reader, "api_rate_limit_retries_total", labels, 2)
+	requireValue(t, reader, "api_transient_retries_total", labels, 3)
+	requireNoDelta(t, reader, "api_rate_limit_retries_total", labels)
+	requireNoDelta(t, reader, "api_transient_retries_total", labels)
+
+	cc.BeginCycle()
+	writeAPIStats(c.store, apiStats{Retries: map[string]apiRetryStats{
+		operationMetrics: {RateLimit: 5, Transient: 7},
+	}})
+	cc.CommitCycleSuccess()
+	reader = c.store.Read()
+	requireValue(t, reader, "api_rate_limit_retries_total", labels, 5)
+	requireValue(t, reader, "api_transient_retries_total", labels, 7)
+	requireDelta(t, reader, "api_rate_limit_retries_total", labels, 3)
+	requireDelta(t, reader, "api_transient_retries_total", labels, 4)
 }
 
 func TestSDKClientRetriesClientDeadlineExceeded(t *testing.T) {
@@ -1922,6 +2002,19 @@ func requireValue(t *testing.T, r metrix.Reader, name string, labels metrix.Labe
 	got, ok := r.Value(name, labels)
 	require.True(t, ok, "missing metric %s labels %#v", name, labels)
 	require.Equal(t, want, got)
+}
+
+func requireDelta(t *testing.T, r metrix.Reader, name string, labels metrix.Labels, want float64) {
+	t.Helper()
+	got, ok := r.Delta(name, labels)
+	require.True(t, ok, "missing delta for metric %s labels %#v", name, labels)
+	require.Equal(t, want, got)
+}
+
+func requireNoDelta(t *testing.T, r metrix.Reader, name string, labels metrix.Labels) {
+	t.Helper()
+	_, ok := r.Delta(name, labels)
+	require.False(t, ok, "unexpected delta for metric %s labels %#v", name, labels)
 }
 
 func mustCycleController(t *testing.T, s metrix.CollectorStore) metrix.CycleController {
