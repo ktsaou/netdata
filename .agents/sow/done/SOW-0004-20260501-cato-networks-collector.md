@@ -4,7 +4,56 @@
 
 Status: completed
 
-Sub-state: completed 2026-05-02 after PR #22373 review comments on unavailable traffic metrics, topology link metrics, and duplicate interface names. Live Cato tenant validation remains tracked separately in SOW-0005.
+Sub-state: completed 2026-05-02 after PR #22373 review comments on accountSnapshot enum fallback coverage and BGP peer remote identity filtering. Live Cato tenant validation remains tracked separately in SOW-0005.
+
+## Reopen - PR Review Comments - Snapshot Fallback Coverage and BGP Peer Identity - 2026-05-02
+
+Reason:
+
+- After reviewer re-triggering on head `0e7174394ff032cafbcd2f4fcf86d9d3076d6839`, two new Copilot review threads opened on PR #22373.
+
+Review evidence:
+
+- `.agents/skills/pr-reviews/scripts/fetch-all.sh 22373` found thread `PRRT_kwDOAKPxd85_FvMT` on `src/go/plugin/go.d/collector/cato_networks/client.go:118`; local verification found direct raw accountSnapshot tests existed, but no test exercised `sdkAPIClient.AccountSnapshot()` falling back from the SDK decode-error branch to `raw.AccountSnapshot()`.
+- Thread `PRRT_kwDOAKPxd85_FvMZ` on `normalize.go:437` reported BGP rows with connection-state fields but no remote IP/ASN still passed normalization; local verification found `isEmptyBGPPeerResult()` treated incoming/outgoing connection state as enough to keep the row, producing blank `peer_ip`/`peer_asn` labels downstream.
+
+Implementation scope:
+
+1. Add branch coverage for `sdkAPIClient.AccountSnapshot()` enum-drift fallback using a live `httptest` server.
+2. Drop BGP peer rows that lack both remote IP and remote ASN, even if they include connection-state fields.
+3. Count the dropped remote-identity-less BGP rows as `empty_peer` normalization issues.
+4. Update tests and the Cato collector spec for the BGP remote identity requirement.
+
+Implemented:
+
+- Added an `httptest`-backed test that forces the SDK `accountSnapshot` path to hit the enum decode error branch and verifies it calls the raw GraphQL fallback successfully.
+- BGP normalization now drops rows that lack both remote IP and remote ASN, even when they include local or connection-state fields.
+- Dropped remote-identity-less BGP rows are counted as `empty_peer` normalization issues.
+- Updated `.agents/sow/specs/cato-networks-collector.md` with the BGP remote identity requirement and explicit snapshot fallback branch coverage expectation.
+
+Validation completed:
+
+- `git diff --check` - passed.
+- `cd src/go && go test ./plugin/go.d/collector/cato_networks -count=1` - passed.
+- `cd src/go && go vet ./plugin/go.d/collector/cato_networks` - passed.
+- `cd src/go && go test ./plugin/go.d/... -count=1` - passed.
+
+Artifact maintenance:
+
+- `AGENTS.md`: no update needed. The repo workflow did not change.
+- Runtime project skills: no update needed. The PR-review workflow did not change.
+- Specs: updated `.agents/sow/specs/cato-networks-collector.md` with BGP remote identity filtering and snapshot fallback branch coverage expectations.
+- End-user/operator docs: no update needed. Public configuration, chart labels, and troubleshooting text did not change in this pass.
+- End-user/operator skills: no update needed. No downstream AI/operator skill artifact changed.
+- SOW lifecycle: reopened completed SOW for PR review findings; closing it again after validation. Live Cato tenant validation remains tracked by SOW-0005.
+
+Follow-up mapping:
+
+- No new deferred work from this reopen. Live tenant validation remains explicitly tracked by SOW-0005 and is not closed here.
+
+Outcome:
+
+- PR review findings were implemented and validated locally. The PR threads will be replied to and resolved after this commit is pushed so replies can reference the fixing commit.
 
 ## Reopen - PR Review Comments - Traffic Availability and Interface Identity - 2026-05-02
 

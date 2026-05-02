@@ -1045,14 +1045,13 @@ func TestCollectorFiltersEmptyBGPPeers(t *testing.T) {
 	require.False(t, ok)
 }
 
-func TestNormalizeBGPKeepsPeersWithOnlyConnectionState(t *testing.T) {
+func TestNormalizeBGPDropsPeersWithoutRemoteIdentity(t *testing.T) {
 	peers, issues := normalizeBGP([]*catosdk.SiteBgpStatusResult{
 		{IncomingConnection: catosdk.IncomingConnection{State: "Established"}},
 	})
 
-	require.Empty(t, issues)
-	require.Len(t, peers, 1)
-	require.Equal(t, "established", peers[0].IncomingState)
+	require.Equal(t, []string{normalizationIssueEmptyPeer}, issues)
+	require.Empty(t, peers)
 }
 
 func TestNormalizeBGPDeduplicatesPeerMetricLabels(t *testing.T) {
@@ -1641,6 +1640,35 @@ func TestCollectorSanitizesReturnedProviderErrors(t *testing.T) {
 	require.Contains(t, err.Error(), "error_class=auth")
 	require.NotContains(t, err.Error(), "secret")
 	require.NotContains(t, err.Error(), "Unauthorized")
+}
+
+func TestSDKClientAccountSnapshotFallsBackOnEnumDecodeError(t *testing.T) {
+	var calls int
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		calls++
+		w.Header().Set("Content-Type", "application/json")
+		_, err := w.Write([]byte(`{"data":{"accountSnapshot":{"sites":[{"id":"1001","connectivityStatusSiteSnapshot":"degraded","operationalStatusSiteSnapshot":"active"}]}}}`))
+		require.NoError(t, err)
+	}))
+	defer server.Close()
+
+	cfg := Config{
+		AccountID: "12345",
+		APIKey:    "secret",
+		Retry: RetryConfig{
+			Attempts: 1,
+		},
+	}
+	cfg.URL = server.URL
+	client, err := newSDKAPIClient(cfg, server.Client())
+	require.NoError(t, err)
+
+	snapshot, err := client.AccountSnapshot(context.Background(), "12345", []string{"1001"})
+
+	require.NoError(t, err)
+	require.Equal(t, 2, calls)
+	require.Len(t, snapshot.GetAccountSnapshot().GetSites(), 1)
+	require.Equal(t, "degraded", connectivityStatusString(snapshot.GetAccountSnapshot().GetSites()[0].GetConnectivityStatusSiteSnapshot()))
 }
 
 func TestRetryWaitCapsAtMaximum(t *testing.T) {

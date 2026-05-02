@@ -72,6 +72,8 @@ BGP progress health fields must reset at the start of each collection cycle. Whe
 
 BGP peers are deduplicated by remote IP and remote ASN for each site so duplicate vendor rows do not produce repeated metric labels or duplicate topology actor IDs.
 
+BGP peer rows must include at least one stable remote identity field, `remoteIP` or `remoteASN`. Rows that only include local fields or connection-state fields are malformed for Netdata metrics and topology; the collector must drop them and count an `empty_peer` normalization issue.
+
 `Check()` must not advance the persisted `eventsFeed` marker and must not publish dry-run operation health, failure counters, normalization issues, discovery cache changes, BGP cache changes, BGP scan cursor changes, or topology changes into later `Collect()` cycles. Only `Collect()` may consume events, persist a newer marker, and publish collector-health metrics.
 
 `Collect()` drains marker-based `eventsFeed` pages until the returned `fetchedCount` is below Cato's documented per-fetch maximum, the marker is empty or unchanged, or `events.max_pages_per_cycle` is reached. The marker is committed only after metrics for the cycle are written.
@@ -242,6 +244,7 @@ Tests must include:
 - in-memory SDK-typed fixtures for fast normalization and edge-case coverage
 - raw GraphQL fixture replay through the pinned SDK/client path
 - degraded connectivity replay through the raw SDK/client path, including the `accountSnapshot` raw GraphQL fallback when the SDK enum is stale
+- explicit branch coverage for `sdkAPIClient.AccountSnapshot()` falling back to raw GraphQL after SDK enum decode errors
 - a schema-shaped BGP fixture because the available Centreon fixture does not cover `siteBgpStatus`
 - diagnostics assertions for partial operation failures, unknown timeseries labels, marker write failures, BGP scan progress, and event field normalization issues
 - API retry metric assertions covering snapshot counter totals and deltas for `api_rate_limit_retries_total` and `api_transient_retries_total`

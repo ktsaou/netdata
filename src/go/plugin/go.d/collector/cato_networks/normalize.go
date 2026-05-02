@@ -413,6 +413,10 @@ func normalizeBGP(raw []*catosdk.SiteBgpStatusResult) ([]bgpPeerState, []string)
 			issues = append(issues, normalizationIssueEmptyPeer)
 			continue
 		}
+		if !hasBGPPeerRemoteIdentity(v) {
+			issues = append(issues, normalizationIssueEmptyPeer)
+			continue
+		}
 		routesCount, ok := parseInt64(v.RoutesCount)
 		if !ok {
 			issues = append(issues, normalizationIssueParseInt)
@@ -447,6 +451,10 @@ func normalizeBGP(raw []*catosdk.SiteBgpStatusResult) ([]bgpPeerState, []string)
 
 func bgpPeerKey(remoteIP, remoteASN string) string {
 	return strings.TrimSpace(remoteIP) + "\x00" + strings.TrimSpace(remoteASN)
+}
+
+func hasBGPPeerRemoteIdentity(v *catosdk.SiteBgpStatusResult) bool {
+	return strings.TrimSpace(v.RemoteIP) != "" || strings.TrimSpace(v.RemoteASN) != ""
 }
 
 func isEmptyBGPPeerResult(v *catosdk.SiteBgpStatusResult) bool {
