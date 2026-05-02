@@ -2,9 +2,9 @@
 
 ## Status
 
-Status: in-progress
+Status: completed
 
-Sub-state: Troubleshooting/error-handling hardening pass in validation.
+Sub-state: Implementation complete, fixture-backed validation complete, draft PR opened, live PAN-OS validation assigned to the SRE validation process outside this implementation SOW.
 
 ## Requirements
 
@@ -30,7 +30,7 @@ Facts:
 - pango Go SDK (`github.com/PaloAltoNetworks/pango`) is ISC-licensed, official, and used by Elastic Beats `panw` Metricbeat module; its `client.Op(query, vsys, extras, ans)` method runs op commands and returns parsed XML responses. PAN-OS 10.1+ supported.
 - PAN-OS XML API has a documented soft limit of 5 concurrent connections per management plane.
 - PAN-OS 10.2+ introduced ARE (FRR-based internally) which is the default on new firewalls; older estates are still legacy VR. Both must be supported.
-- Reference Go implementation: Elastic Beats `panw` Metricbeat module at `/opt/baddisk/monitoring/repos/elastic/beats/x-pack/metricbeat/module/panw/routing/bgp_peers.go` already does PA BGP via XML API + pango. Elastic fixtures are reference-only and must not be copied into this GPL tree.
+- Reference Go implementation: `elastic/beats @ 19617a623ad9`, `x-pack/metricbeat/module/panw/routing/bgp_peers.go`, already does PA BGP via XML API + pango. Elastic fixtures are reference-only and must not be copied into this GPL tree.
 - Reference auth pattern (non-SDK): Centreon `centreon-plugins/src/network/panos/api/custom/api.pm` — keygen, key cache, 401 auto-retry. pango handles keygen and key reuse, but not automatic unauthorized retry; Netdata's collector must wrap op calls and retry keygen once when pango reports PAN-OS error code 16 (`Unauthorized`) and username/password are configured.
 - Closest go.d.plugin collector patterns: `activemq` (XML parsing + dynamic per-entity charts), `typesense` (API-key header auth), `nginxplus` (multi-endpoint scrape with discovery).
 
@@ -79,8 +79,8 @@ Sources checked:
 - `docs/NIDL-Framework.md` (chart design discipline)
 - `src/go/plugin/go.d/config/go.d/snmp.profiles/default/{palo-alto.yaml, _palo-alto.yaml, palo-alto-cloudgenix.yaml, _std-bgp4-mib.yaml}`
 - `src/go/plugin/go.d/config/go.d/snmp.profiles/metadata/paloalto.yaml`
-- Elastic Beats `panw` module at `/opt/baddisk/monitoring/repos/elastic/beats/x-pack/metricbeat/module/panw/`
-- Centreon `centreon-plugins` at `/opt/baddisk/monitoring/repos/centreon/centreon-plugins/src/network/panos/api/`
+- `elastic/beats @ 19617a623ad9`, `x-pack/metricbeat/module/panw/`
+- `centreon/centreon-plugins @ a4f99c776351`, `src/network/panos/api/`
 - Datadog `palo-alto.yaml` SNMP profile, LibreNMS `panos.yaml`, Prometheus snmp_exporter `panos_fw` block
 - Official PAN-OS docs (XML API request types, Supported MIBs PAN-OS 10.1/11.1, OpenConfig support, REST API scope, NetFlow templates, syslog formats)
 - Official KBs `kA10g000000PNtlCAG` (BGP via SNMP not supported), `kA14u000000CqJjCAK` (BGP traps), `kA14u0000008XQ2CAM` (CLI commands and prefix-counter fields)
@@ -191,6 +191,7 @@ User decisions captured:
 13. **Metricset selection** → **All six metricsets enabled by default, with explicit per-metricset booleans so operators can disable unsupported/noisy areas on specific firewalls.**
 14. **Partial failures** → **Collect enabled metricsets independently. Preserve successful metrics when one metricset fails; include metricset name and XML command context in errors.**
 15. **Cardinality controls** → **Option 1.B approved.** Add default caps high enough for average installations while protecting Netdata from runaway per-entity chart creation: `max_bgp_peers: 512`, `max_bgp_prefix_families_per_peer: 4`, `max_bgp_virtual_routers: 256`, `max_environment_sensors: 512`, `max_licenses: 64`, and `max_ipsec_tunnels: 1024`. Caps must be paired with selectors, must report discovered/monitored/omitted counts where practical, and must not replace stale-chart obsoletion; obsoletion remains independent.
+16. **SOW closure / live-device validation** → **Close this implementation SOW after fixture-backed implementation and draft PR creation.** On 2026-05-02 the user confirmed that live PAN-OS validation is handled by the SRE validation process, not by this implementation SOW. The SOW records the local validation gap honestly, but it is no longer a blocker for SOW closure.
 
 ## Plan
 
@@ -286,10 +287,10 @@ User decisions captured:
   - Added parser/helper tests, URL parser tests, nested PAN-OS error tests, no-BGP cache tests, chart-grace tests, and auth-refresh failure sanitization tests.
   - Updated README, metadata, and spec for diagnostics, connection behavior, no-BGP troubleshooting, and TLS guidance.
 - Mirrored-repo fixture search completed:
-  - Found Elastic Beats PANW Metricbeat legacy BGP fixture at `/opt/baddisk/monitoring/repos/elastic/beats/x-pack/metricbeat/module/panw/_meta/testdata/bgp_peers.xml`.
-  - Found Elastic Beats legacy BGP command and parser at `/opt/baddisk/monitoring/repos/elastic/beats/x-pack/metricbeat/module/panw/routing/bgp_peers.go`.
-  - Found Zabbix dynamic-routing-by-HTTP template using the same legacy BGP XML API command and expected fields at `/opt/baddisk/monitoring/repos/zabbix/community-templates/Network_Devices/Palo_Alto/template_palo_alto_firewall_dynamic_routing_by_http/6.4/template_palo_alto_firewall_dynamic_routing_by_http.yaml`.
-  - Found Centreon PAN-OS XML API fixtures for keygen, HA, environmentals, licenses, system info, and IPsec at `/opt/baddisk/monitoring/repos/centreon/centreon-plugins/tests/network/paloalto/api/mockoon-paloalto-api.json`.
+  - Found Elastic Beats PANW Metricbeat legacy BGP fixture in `elastic/beats @ 19617a623ad9`, `x-pack/metricbeat/module/panw/_meta/testdata/bgp_peers.xml`.
+  - Found Elastic Beats legacy BGP command and parser in `elastic/beats @ 19617a623ad9`, `x-pack/metricbeat/module/panw/routing/bgp_peers.go`.
+  - Found Zabbix dynamic-routing-by-HTTP template using the same legacy BGP XML API command and expected fields in `zabbix/community-templates @ 48feaf2f785d`, `Network_Devices/Palo_Alto/template_palo_alto_firewall_dynamic_routing_by_http/6.4/template_palo_alto_firewall_dynamic_routing_by_http.yaml`.
+  - Found Centreon PAN-OS XML API fixtures for keygen, HA, environmentals, licenses, system info, and IPsec in `centreon/centreon-plugins @ a4f99c776351`, `tests/network/paloalto/api/mockoon-paloalto-api.json`.
   - Did not find any Advanced Routing Engine BGP XML fixture or command evidence in the scoped PAN-OS-related mirror search. The ARE close gate remains open.
 - Legacy BGP fixture hardening implemented after mirror search:
   - Enriched Netdata-owned synthetic fixture `src/go/plugin/go.d/collector/panos/testdata/legacy_bgp_peers.xml` to follow the observed legacy PAN-OS shape where `entry peer` is a peer name and `<peer-address>` carries the actual peer address.
@@ -301,8 +302,8 @@ User decisions captured:
   - PAN-OS XML API request types page confirms `type=keygen` for API keys and `type=op` for operational mode commands; it also lists config, commit, report, log, import, export, user-id, and version request types, validating the explicit read-only metric collector boundary.
   - PAN-OS operational mode API page confirms API callers can run CLI operational commands as XML bodies using `type=op&cmd=<xml-body>`, and points operators to the API Browser for command syntax.
 - Mirror evidence for expanded metricsets:
-  - Centreon commands and fixture shapes exist for system, HA, environment, licenses, and IPsec in `/opt/baddisk/monitoring/repos/centreon/centreon-plugins/src/network/paloalto/api/mode/` and `/opt/baddisk/monitoring/repos/centreon/centreon-plugins/tests/network/paloalto/api/mockoon-paloalto-api.json`.
-  - Elastic PANW command evidence exists for environment components and other system areas under `/opt/baddisk/monitoring/repos/elastic/beats/x-pack/metricbeat/module/panw/system/`.
+  - Centreon commands and fixture shapes exist for system, HA, environment, licenses, and IPsec in `centreon/centreon-plugins @ a4f99c776351`, `src/network/paloalto/api/mode/` and `tests/network/paloalto/api/mockoon-paloalto-api.json`.
+  - Elastic PANW command evidence exists for environment components and other system areas in `elastic/beats @ 19617a623ad9`, `x-pack/metricbeat/module/panw/system/`.
 - Expanded NIDL chart draft:
   - `panos.system.uptime`: global device uptime in seconds.
   - `panos.system.device_certificate_status`: global one-hot certificate status (`valid`, `invalid`).
@@ -365,6 +366,14 @@ User decisions captured:
   - Preserved partial-success behavior: if at least one enabled metricset emits metrics, CollectorV2 `Collect()` logs any partial error but returns success so go.d does not abort the cycle and discard good metrics.
   - Added chart-template schema/semantic compile tests and V2 metrix-store tests for BGP peer/prefix metrics and IPsec tunnel identity including `tunnel_id`.
   - Added `tunnel_id` as a per-IPsec-tunnel chart label and updated README, metadata, spec, and SOW label descriptions.
+- SOW closure decision captured:
+  - User confirmed that live PAN-OS validation is handled by the SRE validation process outside this implementation SOW.
+  - Draft PR #22389 was opened for the implementation.
+  - SOW can close as implementation-complete with fixture-backed validation and the live-device validation gap documented.
+- Closure hygiene after updating to latest `master`:
+  - Replaced local mirror absolute-path evidence with durable `owner/repo @ commit` citations.
+  - `.agents/sow/audit.sh` reports SOW-0004 status/directory consistency and mirror evidence as OK.
+  - `.agents/sow/audit.sh` still reports unrelated AGENTS.md sensitive-data section warnings introduced by the newer SOW framework; those are project-framework hygiene, not PAN-OS collector implementation debt.
 
 ## Validation
 
@@ -412,7 +421,7 @@ Acceptance evidence:
 - pango auth/transport and unauthorized retry: `src/go/plugin/go.d/collector/panos/apiclient.go`, `TestPangoAPIClient_OpRefreshesAPIKeyOnceOnUnauthorized`.
 - pango initialization/key-refresh behavior and error sanitization: `src/go/plugin/go.d/collector/panos/apiclient.go`, `TestPangoAPIClient_OpRefreshesAPIKeyWhenInitializeFindsExpiredKey`, `TestPangoAPIClient_OpResetsInitializationWhenRefreshFails`.
 - Legacy and ARE command-tree probing: `src/go/plugin/go.d/collector/panos/bgp.go`, `TestCollector_Collect_AdvancedBGPFallback`.
-- External legacy BGP shape evidence: Elastic Beats PANW fixture `/opt/baddisk/monitoring/repos/elastic/beats/x-pack/metricbeat/module/panw/_meta/testdata/bgp_peers.xml` and Zabbix dynamic-routing-by-HTTP template `/opt/baddisk/monitoring/repos/zabbix/community-templates/Network_Devices/Palo_Alto/template_palo_alto_firewall_dynamic_routing_by_http/6.4/template_palo_alto_firewall_dynamic_routing_by_http.yaml`.
+- External legacy BGP shape evidence: `elastic/beats @ 19617a623ad9`, `x-pack/metricbeat/module/panw/_meta/testdata/bgp_peers.xml`, and `zabbix/community-templates @ 48feaf2f785d`, `Network_Devices/Palo_Alto/template_palo_alto_firewall_dynamic_routing_by_http/6.4/template_palo_alto_firewall_dynamic_routing_by_http.yaml`.
 - No-BGP cache/reprobe behavior: `src/go/plugin/go.d/collector/panos/bgp.go`, `TestCollector_Collect_NoBGPStateIsCached`.
 - NIDL chart contexts and labels: `src/go/plugin/go.d/collector/panos/charts.go`, `TestCollector_Collect_LegacyBGP`.
 - Stale chart grace behavior: `src/go/plugin/go.d/collector/panos/charts.go`, `TestCollector_Collect_RemovesChartsAfterGraceMisses`.
@@ -428,13 +437,72 @@ Acceptance evidence:
 Not validated locally:
 
 - Live PAN-OS firewall collection. No firewall endpoint or sanitized real ARE/non-BGP XML output was available in this session.
-- External PR reviewer loop. No PR was opened in this session.
+- External PR reviewer loop is not completed in this SOW. Draft PR #22389 exists and remains the review/validation surface.
+
+Real-use evidence:
+
+- No live firewall was available to this implementation session.
+- User confirmed on 2026-05-02 that live PAN-OS validation is handled by the SRE validation process outside this implementation SOW.
+- Draft PR opened: <https://github.com/netdata/netdata/pull/22389>.
+
+Reviewer findings:
+
+- Pre-implementation second-opinion reviews from Claude, GLM, MiniMax, Qwen, and Kimi were run and their consensus hardening items were implemented before closure.
+- GitHub PR reviewer loop is outside this SOW closure and remains attached to PR #22389.
+
+Same-failure scan:
+
+- SNMP profile diff checks stayed clean; the Palo Alto SNMP profile surface was not modified.
+- Collector registry import compile test passed via `go test -count=1 ./plugin/go.d/collector`.
+
+Sensitive data gate:
+
+- Personal-name scan over SOW/spec/collector/config/health artifacts was clean.
+- Durable artifacts do not include raw credentials, API keys, bearer tokens, SNMP communities, customer names, private endpoints, or live customer PAN-OS XML.
+- XML fixtures are Netdata-owned synthetic fixtures; third-party fixture data was used only as shape evidence and not copied verbatim.
+
+Artifact maintenance gate:
+
+- AGENTS.md: no update required for this collector implementation; repository SOW and collector consistency rules already covered the workflow.
+- Runtime project skills: `.agents/skills/project-writing-collectors/SKILL.md` was reviewed; its CollectorV2 requirement was applied to this collector.
+- Specs: `.agents/sow/specs/panos-collector.md` was added and updated for supported metricsets, cardinality controls, obsoletion, and troubleshooting behavior.
+- End-user/operator docs: `src/go/plugin/go.d/collector/panos/README.md`, `metadata.yaml`, `config_schema.json`, stock `panos.conf`, and `src/health/health.d/panos.conf` were added/updated.
+- End-user/operator skills: no Netdata AI output/reference skills were affected by this collector implementation.
+- SOW lifecycle: Status changed to `completed`; file moved from `.agents/sow/current/` to `.agents/sow/done/`; live-device validation is documented as external SRE validation rather than a blocking SOW item.
+
+Specs update:
+
+- `.agents/sow/specs/panos-collector.md` documents the shipped collector contract.
+
+Project skills update:
+
+- No additional project skill update required at SOW close. The existing collector-writing skill already captures the relevant CollectorV2, cardinality, obsoletion, docs, and validation rules.
+
+End-user/operator docs update:
+
+- PAN-OS collector README, metadata, config schema, stock config, and health alerts were added/updated with setup, metricset selection, cardinality, troubleshooting, and alert behavior.
+
+End-user/operator skills update:
+
+- No end-user/operator AI skills were affected.
+
+Lessons:
+
+- See Lessons Extracted below.
+
+Follow-up mapping:
+
+- Live PAN-OS validation: transferred to the SRE validation process by user decision on 2026-05-02; not tracked as an implementation SOW item.
+- Panorama proxy: rejected from this SOW; v1 is direct-to-firewall only.
+- GlobalProtect, certificates, sessions, interfaces, dataplane CPU, arbitrary XML passthrough, config, commit, log, report, import, export, and user-id operations: rejected from this SOW by scope decision; each needs a new user-approved SOW if pursued.
+- BGP loc-rib route counts and diagnostic Netdata functions: rejected from this SOW because polling cost and UI contract were not validated for v1.
+- OpenConfig/gNMI and future PAN-OS BGP4-MIB support: rejected from this SOW as speculative future product work, not implementation debt.
 
 ## Outcome
 
-Implemented locally and validated with focused tests. The collector now covers BGP plus system, HA, environment, licenses, and IPsec using read-only PAN-OS XML API commands.
+Completed and pushed through draft PR #22389. The collector covers BGP plus system, HA, environment, licenses, and IPsec using read-only PAN-OS XML API commands.
 
-Status remains `in-progress` instead of `completed` because final production confidence still needs at least one real/sanitized PAN-OS XML sample for ARE and ideally one live firewall smoke test.
+Local validation is fixture-backed and complete for this implementation SOW. Live PAN-OS validation remains intentionally outside this SOW and is handled by the SRE validation process per user decision on 2026-05-02.
 
 ## Lessons Extracted
 
@@ -444,7 +512,4 @@ Status remains `in-progress` instead of `completed` because final production con
 
 ## Followup
 
-- Before closing this SOW, capture at least one sanitized real ARE BGP XML response or run a VM-Series/live firewall smoke test and add it to validation evidence.
-- Follow-up SOWs to open after v1 ships: PA GlobalProtect metricset, PA certificate inventory metricset, PA sessions metricset, PA interfaces metricset, and PA dataplane CPU metricset where XML API fixture evidence exists and SNMP is not the better surface.
-- Long-term: investigate OpenConfig/gNMI On-Change subscription for BGP/interfaces on PAN-OS 10.1+ as a future enhancement (push-based, near real-time).
-- Long-term: revisit PA BGP4-MIB SNMP support if Palo Alto ships FR #5844 in a future PAN-OS release.
+No implementation follow-up remains in this SOW. Candidate future PAN-OS collector work is intentionally out of scope and requires a new user-approved SOW.
