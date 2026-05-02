@@ -77,7 +77,7 @@ func (c *Collector) beginHealthCycle() {
 	c.ensureHealth()
 	c.health.CollectionSuccess = false
 	c.health.DiscoveredSites = int64(len(c.discovery.siteIDs))
-	c.health.MarkerPersistenceAvailable = !c.eventsEnabled() || c.markerStore != nil
+	c.health.MarkerPersistenceAvailable = !c.eventsEnabled() || c.markerStoreAvailable
 	c.health.LastOperations = make(map[string]operationHealth)
 }
 

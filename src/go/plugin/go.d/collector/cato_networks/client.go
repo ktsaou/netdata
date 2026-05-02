@@ -209,7 +209,7 @@ func (c *sdkAPIClient) withRetry(ctx context.Context, name string, fn func() err
 		if ctx.Err() != nil {
 			return ctx.Err()
 		}
-		if attempt == attempts || !isRetryableCatoError(err) {
+		if attempt == attempts || !isRetryableCatoError(ctx, err) {
 			return fmt.Errorf("%s: %w", name, err)
 		}
 
@@ -381,11 +381,17 @@ func sleepContext(ctx context.Context, d time.Duration) error {
 	}
 }
 
-func isRetryableCatoError(err error) bool {
+func isRetryableCatoError(ctx context.Context, err error) bool {
 	if err == nil {
 		return false
 	}
-	if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+	if errors.Is(err, context.Canceled) {
+		return false
+	}
+	if errors.Is(err, context.DeadlineExceeded) {
+		return ctx == nil || ctx.Err() == nil
+	}
+	if ctx != nil && ctx.Err() != nil {
 		return false
 	}
 

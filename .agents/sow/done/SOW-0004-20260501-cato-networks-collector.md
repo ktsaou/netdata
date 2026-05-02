@@ -4,7 +4,67 @@
 
 Status: completed
 
-Sub-state: completed 2026-05-02 after PR #22373 review comments on topology job selection and EventsFeed account-error marker safety. Live Cato tenant validation remains tracked separately in SOW-0005.
+Sub-state: completed 2026-05-02 after PR #22373 review comments on marker-read diagnostics and client-timeout retries. Live Cato tenant validation remains tracked separately in SOW-0005.
+
+## Reopen - PR Review Comments - Marker Read Diagnostics and Timeout Retries - 2026-05-02
+
+Reason:
+
+- After reviewer re-triggering on head `034455f194d51f8d9c4fc65c3cf77b7e74774fc0`, two new Copilot review threads opened on PR #22373.
+
+Review evidence:
+
+- `.agents/skills/pr-reviews/scripts/fetch-all.sh 22373` found thread `PRRT_kwDOAKPxd85_FNUk` on `src/go/plugin/go.d/collector/cato_networks/diagnostics.go:81`.
+- The reviewer reported that `MarkerPersistenceAvailable` was derived only from `markerStore != nil`, so a configured marker file that failed to read during `Init()` would still report marker persistence as available until a later write failed.
+- Local verification found `Init()` logged marker read failures but did not keep state about marker-store availability. `beginHealthCycle()` reset marker persistence availability from `markerStore != nil`.
+- `.agents/skills/pr-reviews/scripts/fetch-all.sh 22373` found thread `PRRT_kwDOAKPxd85_FNUo` on `src/go/plugin/go.d/collector/cato_networks/client.go:390`.
+- The reviewer reported that `isRetryableCatoError()` returned false for all errors wrapping `context.DeadlineExceeded`, including HTTP/client timeouts that should retry when the caller context is still active.
+- Local verification found `withRetry()` already stops immediately when `ctx.Err() != nil`, so `isRetryableCatoError()` can safely retry deadline-wrapped client errors when the caller context has not expired.
+
+Implementation scope:
+
+1. Track marker-store availability separately from marker-store existence.
+2. Mark marker persistence unavailable after marker read failure until a later marker write succeeds.
+3. Retry `context.DeadlineExceeded`-wrapped client errors only while the caller context remains active.
+4. Preserve immediate stop on caller cancellation or caller deadline expiry.
+5. Add targeted tests for marker read failure reporting and retryable client deadline errors.
+6. Update the Cato collector spec for these contracts.
+
+Implemented:
+
+- Added `markerStoreAvailable` collector state.
+- `Init()` now marks marker persistence unavailable when marker read fails.
+- `beginHealthCycle()`, events collection success, and marker writes now use/update `markerStoreAvailable`.
+- `isRetryableCatoError()` now accepts the caller context, retries deadline-wrapped client errors when `ctx.Err()` is nil, and still rejects caller cancellation/deadline expiry.
+- Added marker-read-failure and client-deadline retry tests.
+- Updated `.agents/sow/specs/cato-networks-collector.md` with marker-read availability and timeout retry contracts.
+
+Validation completed:
+
+- `gofmt -w src/go/plugin/go.d/collector/cato_networks/collector.go src/go/plugin/go.d/collector/cato_networks/diagnostics.go src/go/plugin/go.d/collector/cato_networks/client.go src/go/plugin/go.d/collector/cato_networks/collector_test.go` - completed.
+- `git diff --check` - passed.
+- `cd src/go && go test ./plugin/go.d/collector/cato_networks -count=1` - passed.
+- `cd src/go && go vet ./plugin/go.d/collector/cato_networks` - passed.
+- First `cd src/go && go test ./plugin/go.d/... -count=1` failed in unrelated `collector/tor` with an unexpected local test request; Cato package passed in that run.
+- `cd src/go && go test ./plugin/go.d/collector/tor -count=1` - passed on immediate rerun.
+- Second `cd src/go && go test ./plugin/go.d/... -count=1` - passed.
+
+Artifact maintenance:
+
+- AGENTS.md: no update needed. Existing PR-review, SOW, collector consistency, and validation rules covered this work.
+- Runtime project skills: no update needed. The PR-review workflow did not change.
+- Specs: updated `.agents/sow/specs/cato-networks-collector.md` with marker-read availability and timeout retry contracts.
+- End-user/operator docs: no update needed. User-facing setup options and documented troubleshooting remain unchanged; this pass tightened internal state reporting and retry behavior.
+- End-user/operator skills: no update needed; no AI skill artifacts were affected.
+- SOW lifecycle: same SOW reopened for late PR review threads and completed after validation.
+
+Follow-up mapping:
+
+- Live Cato tenant or vendor sandbox validation remains tracked by `.agents/sow/pending/SOW-0005-20260501-cato-networks-live-validation.md`.
+
+Outcome:
+
+- Completed.
 
 ## Reopen - PR Review Comments - Topology Job Selection and Events Account Errors - 2026-05-02
 

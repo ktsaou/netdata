@@ -89,6 +89,8 @@ type Collector struct {
 	markerStore *eventsMarkerStore
 	eventMarker string
 
+	markerStoreAvailable bool
+
 	mu       sync.RWMutex
 	topology *topology.Data
 
@@ -133,9 +135,11 @@ func (c *Collector) Init(context.Context) error {
 	}
 
 	c.markerStore = newEventsMarkerStore(c.Events.MarkerFile, c.AccountID, c.URL, c.Vnode)
+	c.markerStoreAvailable = c.markerStore != nil
 	if c.markerStore != nil {
 		marker, err := c.markerStore.read()
 		if err != nil {
+			c.markerStoreAvailable = false
 			c.Warningf("events marker read failed, continuing without persisted marker: %v", err)
 		}
 		c.eventMarker = marker
@@ -228,7 +232,7 @@ func (c *Collector) collect(ctx context.Context, write bool) (err error) {
 		if err != nil {
 			c.Warningf("events feed collection incomplete, error_class=%s", classifyCatoError(err))
 		} else {
-			c.health.MarkerPersistenceAvailable = c.markerStore != nil
+			c.health.MarkerPersistenceAvailable = c.markerStoreAvailable
 		}
 	}
 
@@ -260,10 +264,12 @@ func (c *Collector) commitEventsMarker(marker string) {
 		return
 	}
 	if err := c.markerStore.write(marker); err != nil {
+		c.markerStoreAvailable = false
 		c.health.MarkerPersistenceAvailable = false
 		c.markOperationFailure(operationEventMarker, err)
 		c.Warningf("events marker write failed, error_class=%s", classifyCatoError(err))
 		return
 	}
+	c.markerStoreAvailable = true
 	c.health.MarkerPersistenceAvailable = true
 }

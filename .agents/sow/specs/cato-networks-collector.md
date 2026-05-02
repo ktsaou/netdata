@@ -50,6 +50,8 @@ Default cadence:
 
 The collector must not run at a sub-minute default cadence. Cato publishes per-query, per-account rate limits, and `accountMetrics` is a bucketed time-series API rather than a high-frequency sampler.
 
+HTTP/client timeouts that wrap `context.DeadlineExceeded` are retryable while the caller context is still active. Caller cancellation or caller deadline expiry must stop retrying immediately.
+
 The collector batches `accountMetrics` calls by `metrics.max_sites_per_query`.
 
 `metrics.time_frame` validation accepts Cato's documented `last.<ISO-8601 duration>` form such as `last.PT5M` and `utc.<short-time-frame-spec>` form such as `utc.2020-02-11/{04:50:15--16:50:15}`.
@@ -69,6 +71,8 @@ An `eventsFeed` account-level `errorString` is a page failure for this collector
 The default marker file path is derived from account ID, endpoint URL, and vnode. Jobs that intentionally monitor the same account, endpoint, and vnode independently must set distinct `events.marker_file` values.
 
 When marker persistence fails, the collector must report marker persistence unavailable. It may still advance the in-memory marker for the running process to avoid repeatedly counting the same EventsFeed page before restart.
+
+Marker read failures during initialization must also report marker persistence unavailable until a later marker write succeeds.
 
 ## Metrics
 

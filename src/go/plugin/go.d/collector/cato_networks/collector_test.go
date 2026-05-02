@@ -861,6 +861,24 @@ func TestCollectorReportsMarkerWriteFailure(t *testing.T) {
 	}, 1)
 }
 
+func TestCollectorReportsMarkerReadFailureUnavailable(t *testing.T) {
+	c := New()
+	c.AccountID = "12345"
+	c.APIKey = "secret"
+	c.Metrics.Enabled = "no"
+	c.BGP.Enabled = "no"
+	c.Events.MarkerFile = t.TempDir()
+	fake := newFixtureAPIClient()
+	fake.events = eventsFeedPage("", 0, nil)
+	c.client = fake
+	c.now = fixedCatoTestNow
+	collectOnce(t, c)
+
+	reader := c.store.Read()
+	require.Empty(t, c.eventMarker)
+	requireValue(t, reader, "collector_events_marker_persistence_available", nil, 0)
+}
+
 func TestBGPPollingRotatesAcrossSites(t *testing.T) {
 	c := New()
 	c.AccountID = "12345"
@@ -998,10 +1016,15 @@ func TestSiteTopologyTablesAreDeterministic(t *testing.T) {
 }
 
 func TestRetryableCatoErrors(t *testing.T) {
-	require.True(t, isRetryableCatoError(errors.New("GraphQL rate limit exceeded")))
-	require.True(t, isRetryableCatoError(errors.New("HTTP 429 Too Many Requests")))
-	require.False(t, isRetryableCatoError(errors.New("invalid API key")))
-	require.False(t, isRetryableCatoError(context.Canceled))
+	require.True(t, isRetryableCatoError(context.Background(), errors.New("GraphQL rate limit exceeded")))
+	require.True(t, isRetryableCatoError(context.Background(), errors.New("HTTP 429 Too Many Requests")))
+	require.True(t, isRetryableCatoError(context.Background(), fmt.Errorf("client timeout: %w", context.DeadlineExceeded)))
+	require.False(t, isRetryableCatoError(context.Background(), errors.New("invalid API key")))
+	require.False(t, isRetryableCatoError(context.Background(), context.Canceled))
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	require.False(t, isRetryableCatoError(ctx, fmt.Errorf("caller timeout: %w", context.DeadlineExceeded)))
 }
 
 func TestClassifyCatoErrors(t *testing.T) {
@@ -1241,6 +1264,30 @@ func TestSDKClientRecordsRetryStats(t *testing.T) {
 	require.Equal(t, 2, calls)
 	require.Equal(t, int64(1), client.APIStats().Retries["accountMetrics"].RateLimit)
 	require.Zero(t, client.APIStats().Retries["accountMetrics"].Transient)
+}
+
+func TestSDKClientRetriesClientDeadlineExceeded(t *testing.T) {
+	client := &sdkAPIClient{
+		retry: RetryConfig{
+			Attempts: 2,
+			WaitMin:  confopt.Duration(time.Millisecond),
+			WaitMax:  confopt.Duration(time.Millisecond),
+		},
+		sleep: func(context.Context, time.Duration) error { return nil },
+	}
+
+	var calls int
+	err := client.withRetry(context.Background(), "eventsFeed", func() error {
+		calls++
+		if calls == 1 {
+			return fmt.Errorf("http client timeout: %w", context.DeadlineExceeded)
+		}
+		return nil
+	})
+
+	require.NoError(t, err)
+	require.Equal(t, 2, calls)
+	require.Equal(t, int64(1), client.APIStats().Retries["eventsFeed"].Transient)
 }
 
 func TestNormalizeSnapshotDefaultsNilInfoAndStatuses(t *testing.T) {
