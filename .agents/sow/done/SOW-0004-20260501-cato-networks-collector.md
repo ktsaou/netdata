@@ -4,7 +4,60 @@
 
 Status: completed
 
-Sub-state: completed 2026-05-02 after PR #22373 review comments on metric merges, retryable HTTP 5xx, and BGP topology deduplication. Live Cato tenant validation remains tracked separately in SOW-0005.
+Sub-state: completed 2026-05-02 after PR #22373 review comments on event cardinality and dry-run health isolation. Live Cato tenant validation remains tracked separately in SOW-0005.
+
+## Reopen - PR Review Comments - Event Cardinality and Check Health Isolation - 2026-05-02
+
+Reason:
+
+- After reviewer re-triggering on head `b3e66a3963668fadbbad9e8e8a350a9e1298af33`, two new Copilot review threads opened on PR #22373.
+
+Review evidence:
+
+- `.agents/skills/pr-reviews/scripts/fetch-all.sh 22373` found thread `PRRT_kwDOAKPxd85_FcnC` on `src/go/plugin/go.d/collector/cato_networks/collect.go:365`.
+- The reviewer reported that `events.max_cardinality = N` started collapsing at `N-1` real event series. Local verification found `len(counts) >= maxCardinality-1`.
+- `.agents/skills/pr-reviews/scripts/fetch-all.sh 22373` found thread `PRRT_kwDOAKPxd85_FcnJ` on `src/go/plugin/go.d/collector/cato_networks/collector.go:194`.
+- The reviewer reported that `Check()` uses `collect(false)` but still mutates health state through operation and normalization markers. Local verification found `beginHealthCycle()` and all `mark*` calls run before the `write` guard, while only `writeCollectorHealth()` is guarded.
+- Because collector health counters are stateful, dry-run failures could be published on the next real `Collect()` cycle.
+
+Implementation scope:
+
+1. Allow `events.max_cardinality = N` to keep `N` real event series before routing excess series to `other`.
+2. Prevent `Check()` dry-run health mutations from leaking into later real collections.
+3. Add regression tests for the cardinality boundary and dry-run health isolation.
+4. Update the Cato collector spec for these contracts.
+
+Implemented:
+
+- `addEventCount()` now allows `events.max_cardinality = N` to keep `N` real event series before routing excess new combinations to `other`.
+- `Check()` now snapshots collector health before the dry run and restores it afterward, preventing dry-run operation statuses, failure counters, affected-site counters, collection failure counters, and normalization issues from leaking into later `Collect()` output.
+- Added regression tests for the event cardinality boundary and dry-run health isolation.
+- Updated `.agents/sow/specs/cato-networks-collector.md` with the event cardinality and `Check()` health isolation contracts.
+
+Validation completed:
+
+- `gofmt -w src/go/plugin/go.d/collector/cato_networks/collector.go src/go/plugin/go.d/collector/cato_networks/diagnostics.go src/go/plugin/go.d/collector/cato_networks/collect.go src/go/plugin/go.d/collector/cato_networks/collector_test.go` - completed.
+- `git diff --check` - passed.
+- `cd src/go && go test ./plugin/go.d/collector/cato_networks -count=1` - passed.
+- `cd src/go && go vet ./plugin/go.d/collector/cato_networks` - passed.
+- `cd src/go && go test ./plugin/go.d/... -count=1` - passed.
+
+Artifact maintenance:
+
+- AGENTS.md: no update needed. Existing PR-review, SOW, collector consistency, and validation rules covered this work.
+- Runtime project skills: no update needed. The PR-review workflow did not change.
+- Specs: updated `.agents/sow/specs/cato-networks-collector.md` with the event cardinality and `Check()` health isolation contracts.
+- End-user/operator docs: no update needed. User-facing setup and troubleshooting text did not change; this pass corrected implementation behavior under existing event cardinality and dry-run contracts.
+- End-user/operator skills: no update needed; no AI skill artifacts were affected.
+- SOW lifecycle: same SOW reopened for late PR review threads and completed after validation.
+
+Follow-up mapping:
+
+- Live Cato tenant or vendor sandbox validation remains tracked by `.agents/sow/pending/SOW-0005-20260501-cato-networks-live-validation.md`.
+
+Outcome:
+
+- Completed.
 
 ## Reopen - PR Review Comments - Metric Merge, HTTP 5xx Retry, and BGP Topology Deduplication - 2026-05-02
 

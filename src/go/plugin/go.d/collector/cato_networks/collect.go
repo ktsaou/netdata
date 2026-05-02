@@ -362,7 +362,7 @@ func addEventCount(counts map[eventKey]int64, key eventKey, maxCardinality int) 
 	}
 
 	other := eventKey{EventType: "other", EventSubType: "other", Severity: "other", Status: "other"}
-	if maxCardinality <= 1 || len(counts) >= maxCardinality-1 {
+	if len(counts) >= maxCardinality {
 		counts[other]++
 		return true
 	}

@@ -64,7 +64,7 @@ The collector exposes the estimated BGP full-scan window in seconds and the curr
 
 BGP peers are deduplicated by remote IP and remote ASN for each site so duplicate vendor rows do not produce repeated metric labels or duplicate topology actor IDs.
 
-`Check()` must not advance the persisted `eventsFeed` marker. Only `Collect()` may consume events and persist a newer marker.
+`Check()` must not advance the persisted `eventsFeed` marker and must not publish dry-run operation health, failure counters, or normalization issues into later `Collect()` cycles. Only `Collect()` may consume events, persist a newer marker, and publish collector-health metrics.
 
 `Collect()` drains marker-based `eventsFeed` pages until the returned `fetchedCount` is below Cato's documented per-fetch maximum, the marker is empty or unchanged, or `events.max_pages_per_cycle` is reached. The marker is committed only after metrics for the cycle are written.
 
@@ -107,6 +107,8 @@ Event scope:
 
 - stateful `events_total` counter grouped by event type, subtype, severity, and status; charted as `events/s`
 - event series cardinality is capped by `events.max_cardinality`; excess event combinations collapse into `event_type=other`, `event_sub_type=other`, `severity=other`, `status=other`
+
+`events.max_cardinality = N` allows `N` real event series before excess new combinations collapse into `other`.
 
 API query scope:
 

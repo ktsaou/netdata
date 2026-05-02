@@ -130,6 +130,41 @@ func (c *Collector) ensureHealth() {
 	}
 }
 
+func cloneCollectorHealth(src collectorHealth) collectorHealth {
+	dst := src
+	if src.LastOperations != nil {
+		dst.LastOperations = make(map[string]operationHealth, len(src.LastOperations))
+		for k, v := range src.LastOperations {
+			dst.LastOperations[k] = v
+		}
+	}
+	if src.OperationFailures != nil {
+		dst.OperationFailures = make(map[operationFailureKey]int64, len(src.OperationFailures))
+		for k, v := range src.OperationFailures {
+			dst.OperationFailures[k] = v
+		}
+	}
+	if src.OperationAffectedSites != nil {
+		dst.OperationAffectedSites = make(map[operationFailureKey]int64, len(src.OperationAffectedSites))
+		for k, v := range src.OperationAffectedSites {
+			dst.OperationAffectedSites[k] = v
+		}
+	}
+	if src.CollectionFailureTotals != nil {
+		dst.CollectionFailureTotals = make(map[string]int64, len(src.CollectionFailureTotals))
+		for k, v := range src.CollectionFailureTotals {
+			dst.CollectionFailureTotals[k] = v
+		}
+	}
+	if src.NormalizationIssues != nil {
+		dst.NormalizationIssues = make(map[normalizationIssueKey]int64, len(src.NormalizationIssues))
+		for k, v := range src.NormalizationIssues {
+			dst.NormalizationIssues[k] = v
+		}
+	}
+	return dst
+}
+
 func classifyCatoError(err error) string {
 	if err == nil {
 		return "none"

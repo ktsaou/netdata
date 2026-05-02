@@ -327,6 +327,35 @@ func TestCheckDoesNotAdvanceEventsMarker(t *testing.T) {
 	require.ErrorIs(t, err, os.ErrNotExist)
 }
 
+func TestCheckDoesNotPublishDryRunHealth(t *testing.T) {
+	c := New()
+	c.AccountID = "12345"
+	c.APIKey = "secret"
+	c.Events.Enabled = "no"
+	c.BGP.Enabled = "no"
+	c.client = newFixtureAPIClient()
+	c.now = fixedCatoTestNow
+
+	require.NoError(t, c.Init(context.Background()))
+	fake := c.client.(*fakeAPIClient)
+	fake.metricsErrSites = map[string]error{"1001": errors.New("dry-run metrics failed")}
+	require.NoError(t, c.Check(context.Background()))
+
+	fake.metricsErrSites = nil
+	cc := mustCycleController(t, c.store)
+	cc.BeginCycle()
+	require.NoError(t, c.Collect(context.Background()))
+	cc.CommitCycleSuccess()
+
+	reader := c.store.Read()
+	requireValue(t, reader, "collector_operation_success", metrix.Labels{"operation": operationMetrics}, 1)
+	_, ok := reader.Value("collector_operation_failures_total", metrix.Labels{
+		"operation":   operationMetrics,
+		"error_class": "error",
+	})
+	require.False(t, ok)
+}
+
 func TestCollectorDrainsEventsFeedPagesAndCapsCardinality(t *testing.T) {
 	c := New()
 	c.AccountID = "12345"
@@ -335,7 +364,7 @@ func TestCollectorDrainsEventsFeedPagesAndCapsCardinality(t *testing.T) {
 	c.BGP.Enabled = "no"
 	c.Events.MarkerFile = filepath.Join(t.TempDir(), "marker")
 	c.Events.MaxPagesPerCycle = 5
-	c.Events.MaxCardinality = 3
+	c.Events.MaxCardinality = 2
 	fake := newFixtureAPIClient()
 	fake.eventsByMarker = map[string]*catosdk.EventsFeed{
 		"": eventsFeedPage("marker-1", eventsFeedMaxFetchSize, []map[string]any{
@@ -401,6 +430,18 @@ func TestAddEventCountAggregatesByNormalizedEventKey(t *testing.T) {
 			Status:       "Closed",
 		}: 2,
 	}, counts)
+}
+
+func TestAddEventCountAllowsConfiguredRealSeriesBeforeOther(t *testing.T) {
+	counts := make(map[eventKey]int64)
+
+	require.False(t, addEventCount(counts, eventKey{EventType: "first"}, 2))
+	require.False(t, addEventCount(counts, eventKey{EventType: "second"}, 2))
+	require.True(t, addEventCount(counts, eventKey{EventType: "third"}, 2))
+
+	require.Equal(t, int64(1), counts[eventKey{EventType: "first", EventSubType: "unknown", Severity: "unknown", Status: "unknown"}])
+	require.Equal(t, int64(1), counts[eventKey{EventType: "second", EventSubType: "unknown", Severity: "unknown", Status: "unknown"}])
+	require.Equal(t, int64(1), counts[eventKey{EventType: "other", EventSubType: "other", Severity: "other", Status: "other"}])
 }
 
 func TestCollectorReportsUnknownTimeseriesLabels(t *testing.T) {

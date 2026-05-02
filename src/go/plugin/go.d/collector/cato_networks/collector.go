@@ -183,6 +183,12 @@ func (c *Collector) currentTopology() (*topology.Data, bool) {
 }
 
 func (c *Collector) collect(ctx context.Context, write bool) (err error) {
+	if !write {
+		previousHealth := cloneCollectorHealth(c.health)
+		defer func() {
+			c.health = previousHealth
+		}()
+	}
 	c.beginHealthCycle()
 	if write {
 		defer func() {
