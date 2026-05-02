@@ -4,7 +4,26 @@
 
 Status: completed
 
-Sub-state: completed 2026-05-02 after collector-writing skill compliance hardening: explicit V2 obsoletion, deterministic cardinality controls, gated recoverable logging, and missing go.d README registry entry. Live Cato tenant validation remains tracked separately in SOW-0005.
+Sub-state: completed 2026-05-02 after collector-writing skill compliance hardening: explicit V2 obsoletion, deterministic cardinality controls, gated recoverable logging, and missing go.d README registry entry. Live Cato tenant validation is handed off to SREs and is no longer tracked as a repo-local pending SOW.
+
+## SOW-0005 Removal Decision - 2026-05-02
+
+User decision:
+
+- Remove pending SOW-0005.
+- The user will give the Cato trial/PoC setup information to SREs so they can set up live validation and test the collector.
+
+Implications:
+
+- Repo-local SOW tracking no longer owns live Cato tenant setup or execution.
+- Live validation is still required before claiming real-world coverage of optional payload fields, BGP scale behavior, or dashboard topology rendering beyond unit-tested JSON/function behavior.
+- If SRE live validation finds a collector bug, payload discrepancy, documentation issue, or fixture opportunity, open or reopen a SOW with the concrete evidence from that validation.
+
+SOW lifecycle:
+
+- `.agents/sow/pending/SOW-0005-20260501-cato-networks-live-validation.md` is removed by this decision.
+- Earlier historical notes in this SOW that mention SOW-0005 are preserved as past state and are superseded by this section.
+- `.agents/sow/audit.sh` after removal reported pending SOWs empty and SOW status/directory consistency OK. The same audit also reported unrelated project-wide SOW framework hygiene warnings from the latest master pull: missing new AGENTS sensitive-data/reference sections and a historical mirrored-repo absolute path citation in this completed SOW.
 
 ## Reopen - PR Review Comments - Failed-Cycle Health, BGP Progress, and Stalled Event Markers - 2026-05-02
 
@@ -2125,11 +2144,11 @@ Artifact maintenance after collector skill compliance hardening:
 - Specs: updated `.agents/sow/specs/cato-networks-collector.md` with selectors, caps, skip diagnostics, explicit V2 lifecycle obsoletion, and recoverable warning-gate behavior.
 - End-user/operator docs: updated README, metadata, config schema, stock config, health alerts, charts, and go.d README registry.
 - End-user/operator skills: no update needed. No downstream AI/operator skill artifact changed.
-- SOW lifecycle: reopened completed SOW for collector-writing skill compliance; closing it again after validation. Live Cato tenant validation remains tracked by SOW-0005.
+- SOW lifecycle: reopened completed SOW for collector-writing skill compliance; closing it again after validation. Live Cato tenant validation was later handed off to SREs and removed from repo-local pending SOW tracking by user decision on 2026-05-02.
 
 Follow-up mapping after collector skill compliance hardening:
 
-- Live Cato tenant or vendor sandbox validation remains tracked by `.agents/sow/pending/SOW-0005-20260501-cato-networks-live-validation.md`.
+- Live Cato tenant or vendor sandbox validation is handed off to SREs outside repo-local SOW tracking by user decision on 2026-05-02.
 - No new deferred work remains from this hardening pass.
 
 Outcome after collector skill compliance hardening:
