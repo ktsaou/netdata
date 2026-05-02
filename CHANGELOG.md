@@ -100,6 +100,19 @@
 - Feat: add ENABLE_ND_MCP cmake flag to build nd-mcp independently of go.d.plugin ([#22313](https://github.com/netdata/netdata/issues/22313))
 - Fix(journal): improve journal file access error handling and validation ([#22310](https://github.com/netdata/netdata/issues/22310))
 - Fix(jsonwrap): handle potential null keys ([#22326](https://github.com/netdata/netdata/issues/22326))
+- Fix(go.d/adaptecraid): ignore non-Hard-drive entries in PD parse ([#22355](https://github.com/netdata/netdata/issues/22355))
+- Fix based on Coverity and Sonar audits (part 10) ([#22338](https://github.com/netdata/netdata/issues/22338))
+- Fix based on Coverity and Sonar audits (part 8) ([#22336](https://github.com/netdata/netdata/issues/22336))
+- Fix based on Coverity and Sonar audits (part 6) ([#22334](https://github.com/netdata/netdata/issues/22334))
+- Fix based on Coverity and Sonar audits (part 5) ([#22333](https://github.com/netdata/netdata/issues/22333))
+- Fix based on Coverity and Sonar audits (part 4) ([#22332](https://github.com/netdata/netdata/issues/22332))
+- Fix based on Coverity and Sonar audits (part 2) ([#22330](https://github.com/netdata/netdata/issues/22330))
+- Init: add SOW (Statement of Work) system ([#22363](https://github.com/netdata/netdata/issues/22363))
+- Add Linux audit subsystem monitoring ([#22077](https://github.com/netdata/netdata/issues/22077))
+- SMB Protocol (Windows.plugin) ([#22236](https://github.com/netdata/netdata/issues/22236))
+- Snmp profiles: fix Netgear switch topology discovery (LLDP/FDB/STP) ([#22366](https://github.com/netdata/netdata/issues/22366))
+- Remove VLA (variable-length arrays)  (Streaming and Web) ([#22276](https://github.com/netdata/netdata/issues/22276))
+- Fix(cmake): IBM MQ FetchContent check breaks incremental rebuilds ([#22223](https://github.com/netdata/netdata/issues/22223))
 
 ## [2.10.0] - 2026-04-09
 
