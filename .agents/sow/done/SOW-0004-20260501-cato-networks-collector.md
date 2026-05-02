@@ -4,7 +4,62 @@
 
 Status: completed
 
-Sub-state: completed 2026-05-02 after late PR #22373 review comments on BGP normalization, header handling, chart labels, and collector state. Live Cato tenant validation remains tracked separately in SOW-0005.
+Sub-state: completed 2026-05-02 after PR #22373 SonarCloud duplication quality-gate reduction pass. Live Cato tenant validation remains tracked separately in SOW-0005.
+
+## Reopen - PR CI - Sonar Duplication Gate - 2026-05-02
+
+Reason:
+
+- PR #22373 reached a clean review-thread state, but the SonarCloud Code Analysis check failed on head `434aaeb8d25f0ba7a6efe86686c1b01317d8a594`.
+- SonarCloud reported `5.4% Duplication on New Code`; the project quality gate requires at most `3%`.
+
+Evidence:
+
+- GitHub check run `SonarCloud Code Analysis` on head `434aaeb8d25f0ba7a6efe86686c1b01317d8a594` failed with quality-gate output for new-code duplication.
+- Public SonarCloud component measures for PR #22373 identified duplicated new lines in these files:
+  - `src/go/plugin/go.d/collector/cato_networks/collector_test.go`: 158 duplicated new lines out of 1608 new lines, `9.82587064676617%`.
+  - `src/go/plugin/go.d/collector/cato_networks/normalize.go`: 64 duplicated new lines out of 437 new lines, `14.6453%`.
+  - `src/go/plugin/go.d/collector/cato_networks/diagnostics.go`: 23 duplicated new lines out of 209 new lines, `11.0048%`.
+- SonarCloud duplication-detail API showed the `normalize.go` duplication came from the near-identical site/interface traffic metric merge functions.
+- The repo `fetch-sonar-findings.sh` script still requires local Sonar credentials from `.env` for issue/hotspot fetches; the duplication quality-gate evidence above came from public SonarCloud check and measures APIs.
+
+Implementation scope:
+
+1. Replace duplicate site/interface metric merge bodies with one typed helper that preserves SDK getter semantics.
+2. Replace repeated collector-test initialization and single-cycle collection blocks with local test helpers.
+3. Replace repeated diagnostics substring checks with one local helper while preserving error-class ordering.
+4. Re-run focused and broader Go validation before committing.
+
+Implemented:
+
+- Added `mergeCatoTrafficMetrics()` and a narrow `catoTrafficMetrics` interface, then reused it for site and interface metric payloads.
+- Added `fixedCatoTestNow()` and `collectOnce()` test helpers and updated repeated collector tests to use them.
+- Added `containsAny()` for diagnostics classification and kept existing error-class precedence unchanged.
+
+Validation completed:
+
+- `cd src/go && gofmt -w src/go/plugin/go.d/collector/cato_networks/collector_test.go src/go/plugin/go.d/collector/cato_networks/normalize.go src/go/plugin/go.d/collector/cato_networks/diagnostics.go` - completed.
+- `cd src/go && go test ./plugin/go.d/collector/cato_networks -count=1` - passed.
+- `cd src/go && go vet ./plugin/go.d/collector/cato_networks` - passed.
+- `cd src/go && go test ./plugin/go.d/... -count=1` - passed.
+
+Artifact maintenance:
+
+- AGENTS.md: no update needed. Existing PR-review, SOW, collector consistency, and validation rules covered this work.
+- Runtime project skills: no update needed. The PR-review workflow did not change.
+- Specs: no update needed. This is duplication-reduction refactoring with no public collector behavior, metric, topology, configuration, or diagnostic contract change.
+- End-user/operator docs: no update needed. User-facing collector behavior and documented configuration are unchanged.
+- End-user/operator skills: no update needed; no AI skill artifacts were affected.
+- SOW lifecycle: same SOW reopened for a CI quality-gate failure and completed after validation.
+
+Follow-up mapping:
+
+- Live Cato tenant or vendor sandbox validation remains tracked by `.agents/sow/pending/SOW-0005-20260501-cato-networks-live-validation.md`.
+- If SonarCloud still reports duplication above the gate after this commit is scanned, the same SOW should be reopened again and the next public SonarCloud measures result should drive the next reduction pass.
+
+Outcome:
+
+- Completed.
 
 ## Reopen - PR Review Comments - BGP Normalization, Raw Headers, Dead State - 2026-05-02
 

@@ -148,47 +148,25 @@ func classifyCatoError(err error) string {
 
 	msg := strings.ToLower(err.Error())
 	switch {
-	case strings.Contains(msg, "rate limit"),
-		strings.Contains(msg, "rate-limit"),
-		strings.Contains(msg, "ratelimit"),
-		strings.Contains(msg, "too many requests"),
+	case containsAny(msg, "rate limit", "rate-limit", "ratelimit", "too many requests"),
 		containsHTTPStatus(msg, "429"):
 		return "rate_limit"
-	case strings.Contains(msg, "unauthorized"),
-		strings.Contains(msg, "forbidden"),
-		strings.Contains(msg, "invalid api key"),
+	case containsAny(msg, "unauthorized", "forbidden", "invalid api key"),
 		containsHTTPStatus(msg, "401"),
 		containsHTTPStatus(msg, "403"):
 		return "auth"
-	case strings.Contains(msg, "json"),
-		strings.Contains(msg, "decode"),
-		strings.Contains(msg, "unmarshal"):
+	case containsAny(msg, "json", "decode", "unmarshal"):
 		return "decode"
-	case strings.Contains(msg, "deadline"),
-		strings.Contains(msg, "timeout"),
-		strings.Contains(msg, "i/o timeout"):
+	case containsAny(msg, "deadline", "timeout", "i/o timeout"):
 		return "timeout"
-	case strings.Contains(msg, "proxyconnect"),
-		strings.Contains(msg, "proxy error"),
-		strings.Contains(msg, "proxy url"),
-		strings.Contains(msg, "proxy"):
+	case containsAny(msg, "proxyconnect", "proxy error", "proxy url", "proxy"):
 		return "proxy"
-	case strings.Contains(msg, "x509"),
-		strings.Contains(msg, "certificate"),
-		strings.Contains(msg, "tls"),
-		strings.Contains(msg, "handshake"):
+	case containsAny(msg, "x509", "certificate", "tls", "handshake"):
 		return "tls"
-	case strings.Contains(msg, "no such host"),
-		strings.Contains(msg, "connection refused"),
-		strings.Contains(msg, "connection reset"),
-		strings.Contains(msg, "network is unreachable"),
-		strings.Contains(msg, "temporary failure in name resolution"),
-		strings.Contains(msg, "server misbehaving"),
-		strings.Contains(msg, "dial tcp"),
-		strings.Contains(msg, "eof"):
+	case containsAny(msg, "no such host", "connection refused", "connection reset", "network is unreachable",
+		"temporary failure in name resolution", "server misbehaving", "dial tcp", "eof"):
 		return "network"
-	case strings.Contains(msg, "no cato sites"),
-		strings.Contains(msg, "no sites"):
+	case containsAny(msg, "no cato sites", "no sites"):
 		return "empty"
 	case strings.Contains(msg, "pagination"):
 		return "pagination"
@@ -197,6 +175,15 @@ func classifyCatoError(err error) string {
 	default:
 		return "error"
 	}
+}
+
+func containsAny(s string, substrings ...string) bool {
+	for _, substring := range substrings {
+		if strings.Contains(s, substring) {
+			return true
+		}
+	}
+	return false
 }
 
 func containsHTTPStatus(msg, code string) bool {

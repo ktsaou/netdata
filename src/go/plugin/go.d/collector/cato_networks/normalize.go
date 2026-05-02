@@ -257,40 +257,26 @@ func normalizeMetricsInterface(raw *catosdk.AccountMetrics_AccountMetrics_Sites_
 }
 
 func mergeSiteMetrics(base trafficMetrics, raw *catosdk.AccountMetrics_AccountMetrics_Sites_Metrics) trafficMetrics {
-	if raw == nil {
-		return base
-	}
-	if raw.GetBytesUpstream() != nil {
-		base.BytesUpstreamMax = *raw.GetBytesUpstream()
-	}
-	if raw.GetBytesDownstream() != nil {
-		base.BytesDownstreamMax = *raw.GetBytesDownstream()
-	}
-	if raw.GetLostUpstreamPcnt() != nil {
-		base.LostUpstreamPercent = *raw.GetLostUpstreamPcnt()
-	}
-	if raw.GetLostDownstreamPcnt() != nil {
-		base.LostDownstreamPercent = *raw.GetLostDownstreamPcnt()
-	}
-	if raw.GetJitterUpstream() != nil {
-		base.JitterUpstreamMS = *raw.GetJitterUpstream()
-	}
-	if raw.GetJitterDownstream() != nil {
-		base.JitterDownstreamMS = *raw.GetJitterDownstream()
-	}
-	if raw.GetPacketsDiscardedUpstream() != nil {
-		base.PacketsDiscardedUpstream = *raw.GetPacketsDiscardedUpstream()
-	}
-	if raw.GetPacketsDiscardedDownstream() != nil {
-		base.PacketsDiscardedDownstream = *raw.GetPacketsDiscardedDownstream()
-	}
-	if raw.GetRtt() != nil {
-		base.RTTMS = float64(*raw.GetRtt())
-	}
-	return base
+	return mergeCatoTrafficMetrics(base, raw)
 }
 
 func mergeInterfaceMetrics(base trafficMetrics, raw *catosdk.AccountMetrics_AccountMetrics_Sites_Interfaces_Metrics) trafficMetrics {
+	return mergeCatoTrafficMetrics(base, raw)
+}
+
+type catoTrafficMetrics interface {
+	GetBytesUpstream() *float64
+	GetBytesDownstream() *float64
+	GetLostUpstreamPcnt() *float64
+	GetLostDownstreamPcnt() *float64
+	GetJitterUpstream() *float64
+	GetJitterDownstream() *float64
+	GetPacketsDiscardedUpstream() *float64
+	GetPacketsDiscardedDownstream() *float64
+	GetRtt() *int64
+}
+
+func mergeCatoTrafficMetrics(base trafficMetrics, raw catoTrafficMetrics) trafficMetrics {
 	if raw == nil {
 		return base
 	}

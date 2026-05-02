@@ -87,20 +87,28 @@ func (f *fakeAPIClient) SiteBgpStatus(_ context.Context, _ string, siteID string
 	return f.bgp[siteID], nil
 }
 
+func fixedCatoTestNow() time.Time {
+	return time.Date(2026, 5, 1, 12, 0, 0, 0, time.UTC)
+}
+
+func collectOnce(t *testing.T, c *Collector) {
+	t.Helper()
+
+	require.NoError(t, c.Init(context.Background()))
+	cc := mustCycleController(t, c.store)
+	cc.BeginCycle()
+	require.NoError(t, c.Collect(context.Background()))
+	cc.CommitCycleSuccess()
+}
+
 func TestCollectorCollectsMetricsEventsAndTopology(t *testing.T) {
 	c := New()
 	c.AccountID = "12345"
 	c.APIKey = "secret"
 	c.Events.MarkerFile = filepath.Join(t.TempDir(), "marker")
 	c.client = newFixtureAPIClient()
-	c.now = func() time.Time { return time.Date(2026, 5, 1, 12, 0, 0, 0, time.UTC) }
-
-	require.NoError(t, c.Init(context.Background()))
-
-	cc := mustCycleController(t, c.store)
-	cc.BeginCycle()
-	require.NoError(t, c.Collect(context.Background()))
-	cc.CommitCycleSuccess()
+	c.now = fixedCatoTestNow
+	collectOnce(t, c)
 
 	reader := c.store.Read()
 	requireValue(t, reader, "site_connectivity_connected", metrix.Labels{
@@ -166,14 +174,8 @@ func TestCollectorDecodesRawCentreonFixtureThroughSDK(t *testing.T) {
 	c.AccountID = "12345"
 	c.APIKey = "secret"
 	c.Events.MarkerFile = filepath.Join(t.TempDir(), "marker")
-	c.now = func() time.Time { return time.Date(2026, 5, 1, 12, 0, 0, 0, time.UTC) }
-
-	require.NoError(t, c.Init(context.Background()))
-
-	cc := mustCycleController(t, c.store)
-	cc.BeginCycle()
-	require.NoError(t, c.Collect(context.Background()))
-	cc.CommitCycleSuccess()
+	c.now = fixedCatoTestNow
+	collectOnce(t, c)
 
 	reader := c.store.Read()
 	requireValue(t, reader, "collector_collection_success", nil, 1)
@@ -330,13 +332,8 @@ func TestCollectorDrainsEventsFeedPagesAndCapsCardinality(t *testing.T) {
 		}),
 	}
 	c.client = fake
-	c.now = func() time.Time { return time.Date(2026, 5, 1, 12, 0, 0, 0, time.UTC) }
-
-	require.NoError(t, c.Init(context.Background()))
-	cc := mustCycleController(t, c.store)
-	cc.BeginCycle()
-	require.NoError(t, c.Collect(context.Background()))
-	cc.CommitCycleSuccess()
+	c.now = fixedCatoTestNow
+	collectOnce(t, c)
 
 	require.Equal(t, []string{"", "marker-1"}, fake.eventMarkers)
 	require.Equal(t, "marker-2", c.eventMarker)
@@ -405,13 +402,8 @@ func TestCollectorReportsUnknownTimeseriesLabels(t *testing.T) {
 		Data:  [][]float64{{1, 42}},
 	})
 	c.client = fake
-	c.now = func() time.Time { return time.Date(2026, 5, 1, 12, 0, 0, 0, time.UTC) }
-
-	require.NoError(t, c.Init(context.Background()))
-	cc := mustCycleController(t, c.store)
-	cc.BeginCycle()
-	require.NoError(t, c.Collect(context.Background()))
-	cc.CommitCycleSuccess()
+	c.now = fixedCatoTestNow
+	collectOnce(t, c)
 
 	reader := c.store.Read()
 	requireValue(t, reader, "collector_normalization_issues_total", metrix.Labels{
@@ -433,13 +425,8 @@ func TestCollectorNormalizesEventFieldAliasesAndReportsBadFields(t *testing.T) {
 		{"event_type": map[string]any{"unexpected": "shape"}, "event_sub_type": "", "severity": nil},
 	})
 	c.client = fake
-	c.now = func() time.Time { return time.Date(2026, 5, 1, 12, 0, 0, 0, time.UTC) }
-
-	require.NoError(t, c.Init(context.Background()))
-	cc := mustCycleController(t, c.store)
-	cc.BeginCycle()
-	require.NoError(t, c.Collect(context.Background()))
-	cc.CommitCycleSuccess()
+	c.now = fixedCatoTestNow
+	collectOnce(t, c)
 
 	reader := c.store.Read()
 	requireValue(t, reader, "events_total", metrix.Labels{
@@ -487,13 +474,8 @@ func TestCollectorUsesPersistedEventsMarker(t *testing.T) {
 		"persisted-marker": eventsFeedPage("next-marker", 0, nil),
 	}
 	c.client = fake
-	c.now = func() time.Time { return time.Date(2026, 5, 1, 12, 0, 0, 0, time.UTC) }
-
-	require.NoError(t, c.Init(context.Background()))
-	cc := mustCycleController(t, c.store)
-	cc.BeginCycle()
-	require.NoError(t, c.Collect(context.Background()))
-	cc.CommitCycleSuccess()
+	c.now = fixedCatoTestNow
+	collectOnce(t, c)
 
 	require.Equal(t, []string{"persisted-marker"}, fake.eventMarkers)
 	require.Equal(t, "next-marker", c.eventMarker)
@@ -514,13 +496,8 @@ func TestCollectorReportsEventsPageCap(t *testing.T) {
 		}),
 	}
 	c.client = fake
-	c.now = func() time.Time { return time.Date(2026, 5, 1, 12, 0, 0, 0, time.UTC) }
-
-	require.NoError(t, c.Init(context.Background()))
-	cc := mustCycleController(t, c.store)
-	cc.BeginCycle()
-	require.NoError(t, c.Collect(context.Background()))
-	cc.CommitCycleSuccess()
+	c.now = fixedCatoTestNow
+	collectOnce(t, c)
 
 	reader := c.store.Read()
 	requireValue(t, reader, "collector_normalization_issues_total", metrix.Labels{
@@ -572,13 +549,8 @@ func TestCollectorContinuesOnPartialMetricsAndBGPFailures(t *testing.T) {
 	fake.metricsErrSites = map[string]error{"1002": errors.New("site metrics failed")}
 	fake.bgpErrSites = map[string]error{"1002": errors.New("site bgp failed")}
 	c.client = fake
-	c.now = func() time.Time { return time.Date(2026, 5, 1, 12, 0, 0, 0, time.UTC) }
-
-	require.NoError(t, c.Init(context.Background()))
-	cc := mustCycleController(t, c.store)
-	cc.BeginCycle()
-	require.NoError(t, c.Collect(context.Background()))
-	cc.CommitCycleSuccess()
+	c.now = fixedCatoTestNow
+	collectOnce(t, c)
 
 	reader := c.store.Read()
 	requireValue(t, reader, "site_bytes_upstream_max", metrix.Labels{
@@ -636,13 +608,8 @@ func TestCollectorMapsUnrecognizedStatusesToUnknown(t *testing.T) {
 		},
 	}}
 	c.client = fake
-	c.now = func() time.Time { return time.Date(2026, 5, 1, 12, 0, 0, 0, time.UTC) }
-
-	require.NoError(t, c.Init(context.Background()))
-	cc := mustCycleController(t, c.store)
-	cc.BeginCycle()
-	require.NoError(t, c.Collect(context.Background()))
-	cc.CommitCycleSuccess()
+	c.now = fixedCatoTestNow
+	collectOnce(t, c)
 
 	reader := c.store.Read()
 	requireValue(t, reader, "site_connectivity_unknown", metrix.Labels{
@@ -703,13 +670,8 @@ func TestCollectorDiscoversMultiplePages(t *testing.T) {
 		4: fixtureLookupPage(5, "1005"),
 	}
 	c.client = fake
-	c.now = func() time.Time { return time.Date(2026, 5, 1, 12, 0, 0, 0, time.UTC) }
-
-	require.NoError(t, c.Init(context.Background()))
-	cc := mustCycleController(t, c.store)
-	cc.BeginCycle()
-	require.NoError(t, c.Collect(context.Background()))
-	cc.CommitCycleSuccess()
+	c.now = fixedCatoTestNow
+	collectOnce(t, c)
 
 	require.Equal(t, []string{"1001", "1002", "1003", "1004", "1005"}, c.discovery.siteIDs)
 	reader := c.store.Read()
@@ -798,13 +760,8 @@ func TestCollectorFiltersEmptyBGPPeers(t *testing.T) {
 	fake := newFixtureAPIClient()
 	fake.bgp["1001"] = []*catosdk.SiteBgpStatusResult{{}}
 	c.client = fake
-	c.now = func() time.Time { return time.Date(2026, 5, 1, 12, 0, 0, 0, time.UTC) }
-
-	require.NoError(t, c.Init(context.Background()))
-	cc := mustCycleController(t, c.store)
-	cc.BeginCycle()
-	require.NoError(t, c.Collect(context.Background()))
-	cc.CommitCycleSuccess()
+	c.now = fixedCatoTestNow
+	collectOnce(t, c)
 
 	reader := c.store.Read()
 	requireValue(t, reader, "collector_normalization_issues_total", metrix.Labels{
@@ -840,13 +797,8 @@ func TestCollectorReportsMarkerWriteFailure(t *testing.T) {
 	require.NoError(t, os.WriteFile(blockedPath, []byte("blocked"), 0o600))
 	c.Events.MarkerFile = filepath.Join(blockedPath, "marker")
 	c.client = newFixtureAPIClient()
-	c.now = func() time.Time { return time.Date(2026, 5, 1, 12, 0, 0, 0, time.UTC) }
-
-	require.NoError(t, c.Init(context.Background()))
-	cc := mustCycleController(t, c.store)
-	cc.BeginCycle()
-	require.NoError(t, c.Collect(context.Background()))
-	cc.CommitCycleSuccess()
+	c.now = fixedCatoTestNow
+	collectOnce(t, c)
 
 	reader := c.store.Read()
 	require.Equal(t, "marker-2", c.eventMarker)
