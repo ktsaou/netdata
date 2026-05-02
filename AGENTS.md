@@ -102,6 +102,19 @@ Status and directory must agree:
 - `completed` lives in `done/`
 - `closed` lives in `done/`
 
+### SOW Completion And Commit
+
+The successful terminal SOW status is `completed`. `done` is a directory name, not a status value. Never write `Status: done` or `Status: complete`.
+
+When a SOW's work is ready to close:
+
+1. Finish implementation, docs, specs, skills, validation, and follow-up mapping.
+2. Update the SOW to `Status: completed`.
+3. Move the SOW file to `.agents/sow/done/`.
+4. Commit the work, artifact updates, SOW status change, and SOW move together as one commit, unless the user explicitly requested a different commit split.
+
+Do not create a separate commit just to mark or move the SOW. Do not claim a SOW is completed while the implementation and the SOW lifecycle change live in separate uncommitted or separately committed states.
+
 ### One SOW At A Time
 
 Never execute multiple SOWs as one batch.

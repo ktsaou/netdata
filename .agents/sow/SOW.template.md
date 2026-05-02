@@ -4,6 +4,8 @@
 
 Status: open | in-progress | paused | completed | closed
 
+`completed` is the successful terminal status. `done` is a directory name, not a status value. Do not use `Status: done` or `Status: complete`.
+
 Sub-state: <short current truth>
 
 ## Requirements
@@ -73,6 +75,13 @@ Risk and blast radius:
 
 - <Regression, compatibility, performance, security, data loss, migration, rollout, and operational risks.>
 
+<<<<<<< Updated upstream
+=======
+Sensitive data handling plan:
+
+- <Whether the work may expose secrets, credentials, bearer tokens, SNMP communities, community/customer data, personal data, non-private customer-identifying IPs, private endpoints, or proprietary incident details; how evidence will be redacted in SOWs, specs, docs, skills, instructions, and code comments.>
+
+>>>>>>> Stashed changes
 Implementation plan:
 
 1. <Ordered chunk with scope, dependencies, and likely files/modules.>
@@ -139,7 +148,7 @@ Artifact maintenance gate:
 - Specs: <updated .agents/sow/specs/ path or evidence-backed reason no update was needed>
 - End-user/operator docs: <updated docs/runbooks/help paths or evidence-backed reason none were affected>
 - End-user/operator skills: <updated output/reference skill paths or evidence-backed reason none were affected>
-- SOW lifecycle: <status/directory checked; split/merge/follow-up/regression handling recorded>
+- SOW lifecycle: <status/directory checked; if successful close, `Status: completed` and move to `.agents/sow/done/` are committed together with the work in one commit unless user explicitly requested a different split; split/merge/follow-up/regression handling recorded>
 
 Specs update:
 
