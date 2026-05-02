@@ -121,6 +121,8 @@ Collector health scope:
 - full collection failure counters by normalized error class
 - normalization issue counters by surface and normalized issue class
 
+Operation success status is stateful: operations skipped between refresh windows keep their last observed success/failure value until the operation runs again.
+
 Normalized error classes are `auth`, `rate_limit`, `timeout`, `network`, `tls`, `proxy`, `decode`, `graphql`, `empty`, `pagination`, `canceled`, and `error`.
 
 Normalization issue classes are intentionally low-cardinality. They must not include raw Cato error strings, site names, account IDs, IP addresses, or raw status values. Current issue classes include:

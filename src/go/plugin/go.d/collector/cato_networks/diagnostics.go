@@ -78,7 +78,7 @@ func (c *Collector) beginHealthCycle() {
 	c.health.CollectionSuccess = false
 	c.health.DiscoveredSites = int64(len(c.discovery.siteIDs))
 	c.health.MarkerPersistenceAvailable = !c.eventsEnabled() || c.markerStoreAvailable
-	c.health.LastOperations = make(map[string]operationHealth)
+	// LastOperations is stateful because the chart reports last observed status.
 }
 
 func (c *Collector) markOperationSuccess(operation string) {

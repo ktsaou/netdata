@@ -4,7 +4,61 @@
 
 Status: completed
 
-Sub-state: completed 2026-05-02 after PR #22373 review comments on marker-read diagnostics and client-timeout retries. Live Cato tenant validation remains tracked separately in SOW-0005.
+Sub-state: completed 2026-05-02 after PR #22373 review comment on stateful operation-status metrics. Live Cato tenant validation remains tracked separately in SOW-0005.
+
+## Reopen - PR Review Comments - Stateful Operation Status - 2026-05-02
+
+Reason:
+
+- After reviewer re-triggering on head `7fa15f1f83419802d17defb44900bb1430f59b1e`, one new Copilot review thread opened on PR #22373.
+
+Review evidence:
+
+- `.agents/skills/pr-reviews/scripts/fetch-all.sh 22373` found thread `PRRT_kwDOAKPxd85_FRvs` on `src/go/plugin/go.d/collector/cato_networks/write_metrics.go:199`.
+- The reviewer reported that `collector_operation_success` is documented as last operation status, but `beginHealthCycle()` rebuilt `LastOperations` from scratch every cycle.
+- Local verification found `README.md` describes `cato_networks.collector_operation_status` as last status by operation, and `metadata.yaml` describes it as last observed operation status.
+- Local verification found `diagnostics.go` reset `c.health.LastOperations = make(map[string]operationHealth)` at the start of every collection cycle.
+- This meant skipped operations such as `entityLookup` and `siteBgpStatus` could disappear between their refresh windows instead of preserving last-known success/failure state.
+
+Implementation scope:
+
+1. Preserve `LastOperations` across collection cycles.
+2. Keep per-cycle health values that truly are per-cycle, such as collection success and discovered site count, unchanged.
+3. Add a regression test proving skipped operations remain visible after a later collection cycle.
+4. Update the Cato collector spec for the stateful operation-status contract.
+
+Implemented:
+
+- `collector_operation_success` now preserves the last observed status for operations skipped between refresh windows.
+- `beginHealthCycle()` no longer clears `LastOperations`; a code comment records that this map is intentionally stateful.
+- Successful marker writes now mark the local `eventsMarker` operation successful, so stateful operation status does not leave a prior marker-write failure visible after recovery.
+- Added `TestCollectorKeepsLastOperationStatusForSkippedOperations` to prove `entityLookup` and `siteBgpStatus` remain visible after a later cycle skips both refreshes.
+- Updated `.agents/sow/specs/cato-networks-collector.md` with the stateful operation-status contract.
+
+Validation completed:
+
+- `gofmt -w src/go/plugin/go.d/collector/cato_networks/collector.go src/go/plugin/go.d/collector/cato_networks/diagnostics.go src/go/plugin/go.d/collector/cato_networks/collector_test.go` - completed.
+- `git diff --check` - passed.
+- `cd src/go && go test ./plugin/go.d/collector/cato_networks -count=1` - passed.
+- `cd src/go && go vet ./plugin/go.d/collector/cato_networks` - passed.
+- `cd src/go && go test ./plugin/go.d/... -count=1` - passed.
+
+Artifact maintenance:
+
+- AGENTS.md: no update needed. Existing PR-review, SOW, collector consistency, and validation rules covered this work.
+- Runtime project skills: no update needed. The PR-review workflow did not change.
+- Specs: updated `.agents/sow/specs/cato-networks-collector.md` with the stateful operation-status contract.
+- End-user/operator docs: no update needed. Existing README and metadata already described the metric as last/last-observed status; this pass made the implementation match that contract.
+- End-user/operator skills: no update needed; no AI skill artifacts were affected.
+- SOW lifecycle: same SOW reopened for late PR review thread and completed after validation.
+
+Follow-up mapping:
+
+- Live Cato tenant or vendor sandbox validation remains tracked by `.agents/sow/pending/SOW-0005-20260501-cato-networks-live-validation.md`.
+
+Outcome:
+
+- Completed.
 
 ## Reopen - PR Review Comments - Marker Read Diagnostics and Timeout Retries - 2026-05-02
 

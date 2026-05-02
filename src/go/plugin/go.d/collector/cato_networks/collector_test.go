@@ -879,6 +879,44 @@ func TestCollectorReportsMarkerReadFailureUnavailable(t *testing.T) {
 	requireValue(t, reader, "collector_events_marker_persistence_available", nil, 0)
 }
 
+func TestCollectorKeepsLastOperationStatusForSkippedOperations(t *testing.T) {
+	c := New()
+	c.AccountID = "12345"
+	c.APIKey = "secret"
+	c.Events.Enabled = "no"
+	fake := newFixtureAPIClient()
+	c.client = fake
+	now := fixedCatoTestNow()
+	c.now = func() time.Time { return now }
+
+	require.NoError(t, c.Init(context.Background()))
+	cc := mustCycleController(t, c.store)
+	cc.BeginCycle()
+	require.NoError(t, c.Collect(context.Background()))
+	cc.CommitCycleSuccess()
+
+	reader := c.store.Read()
+	requireValue(t, reader, "collector_operation_success", metrix.Labels{"operation": operationDiscovery}, 1)
+	requireValue(t, reader, "collector_operation_success", metrix.Labels{"operation": operationBGP}, 1)
+
+	now = now.Add(time.Second)
+	fake.lookupErr = errors.New("unexpected discovery refresh")
+	fake.bgpErrSites = map[string]error{
+		"1001": errors.New("unexpected bgp refresh"),
+		"1002": errors.New("unexpected bgp refresh"),
+		"1003": errors.New("unexpected bgp refresh"),
+	}
+	cc.BeginCycle()
+	require.NoError(t, c.Collect(context.Background()))
+	cc.CommitCycleSuccess()
+
+	reader = c.store.Read()
+	requireValue(t, reader, "collector_operation_success", metrix.Labels{"operation": operationDiscovery}, 1)
+	requireValue(t, reader, "collector_operation_success", metrix.Labels{"operation": operationBGP}, 1)
+	requireValue(t, reader, "collector_operation_success", metrix.Labels{"operation": operationSnapshot}, 1)
+	requireValue(t, reader, "collector_operation_success", metrix.Labels{"operation": operationMetrics}, 1)
+}
+
 func TestBGPPollingRotatesAcrossSites(t *testing.T) {
 	c := New()
 	c.AccountID = "12345"

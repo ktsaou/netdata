@@ -272,4 +272,5 @@ func (c *Collector) commitEventsMarker(marker string) {
 	}
 	c.markerStoreAvailable = true
 	c.health.MarkerPersistenceAvailable = true
+	c.markOperationSuccess(operationEventMarker)
 }
