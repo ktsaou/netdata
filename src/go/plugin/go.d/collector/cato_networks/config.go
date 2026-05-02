@@ -94,6 +94,11 @@ type RetryConfig struct {
 }
 
 func (c *Config) applyDefaults() {
+	c.AccountID = strings.TrimSpace(c.AccountID)
+	c.APIKey = strings.TrimSpace(c.APIKey)
+	c.URL = strings.TrimSpace(c.URL)
+	c.Metrics.TimeFrame = strings.TrimSpace(c.Metrics.TimeFrame)
+
 	if c.UpdateEvery <= 0 {
 		c.UpdateEvery = defaultUpdateEvery
 	}
@@ -109,7 +114,7 @@ func (c *Config) applyDefaults() {
 	if c.Discovery.PageLimit <= 0 {
 		c.Discovery.PageLimit = defaultDiscoveryLimit
 	}
-	if strings.TrimSpace(c.Metrics.TimeFrame) == "" {
+	if c.Metrics.TimeFrame == "" {
 		c.Metrics.TimeFrame = defaultMetricsTimeFrame
 	}
 	if c.Metrics.Buckets <= 0 {

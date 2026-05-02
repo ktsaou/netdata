@@ -277,6 +277,23 @@ func TestConfigValidation(t *testing.T) {
 	require.ErrorContains(t, err, "'url' scheme")
 }
 
+func TestConfigApplyDefaultsNormalizesStringInputs(t *testing.T) {
+	cfg := Config{
+		AccountID: " 12345 ",
+		APIKey:    " secret ",
+	}
+	cfg.URL = " https://api.catonetworks.com/api/v1/graphql2 "
+	cfg.Metrics.TimeFrame = " last.PT5M "
+
+	cfg.applyDefaults()
+
+	require.Equal(t, "12345", cfg.AccountID)
+	require.Equal(t, "secret", cfg.APIKey)
+	require.Equal(t, "https://api.catonetworks.com/api/v1/graphql2", cfg.URL)
+	require.Equal(t, "last.PT5M", cfg.Metrics.TimeFrame)
+	require.NoError(t, cfg.validate())
+}
+
 func TestCheckDoesNotAdvanceEventsMarker(t *testing.T) {
 	c := New()
 	c.AccountID = "12345"

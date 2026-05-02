@@ -160,7 +160,9 @@ func (c *Collector) Collect(ctx context.Context) error {
 	return c.collect(ctx, true)
 }
 
-func (c *Collector) Cleanup(context.Context) {}
+func (c *Collector) Cleanup(context.Context) {
+	// No collector-owned resources need closing; HTTP transport ownership stays with the plugin framework.
+}
 
 func (c *Collector) MetricStore() metrix.CollectorStore { return c.store }
 

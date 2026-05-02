@@ -9,6 +9,20 @@ import (
 	"github.com/netdata/netdata/go/plugins/pkg/metrix"
 )
 
+type trafficMetricWriters struct {
+	bytesUp         metrix.SnapshotGaugeVec
+	bytesDown       metrix.SnapshotGaugeVec
+	lostUp          metrix.SnapshotGaugeVec
+	lostDown        metrix.SnapshotGaugeVec
+	jitterUp        metrix.SnapshotGaugeVec
+	jitterDown      metrix.SnapshotGaugeVec
+	discardUp       metrix.SnapshotGaugeVec
+	discardDown     metrix.SnapshotGaugeVec
+	rtt             metrix.SnapshotGaugeVec
+	lastMileLatency metrix.SnapshotGaugeVec
+	lastMileLoss    metrix.SnapshotGaugeVec
+}
+
 func (c *Collector) writeMetrics(sites map[string]*siteState, order []string, events []eventCount) {
 	siteVec := c.store.Write().SnapshotMeter("").Vec("site_id", "site_name", "pop_name")
 	siteConnected := siteVec.Gauge("site_connectivity_connected")
@@ -31,6 +45,19 @@ func (c *Collector) writeMetrics(sites map[string]*siteState, order []string, ev
 	siteRTT := siteVec.Gauge("site_rtt_ms")
 	siteLastMileLatency := siteVec.Gauge("site_last_mile_latency_ms")
 	siteLastMileLoss := siteVec.Gauge("site_last_mile_packet_loss_percent")
+	siteTraffic := trafficMetricWriters{
+		bytesUp:         siteBytesUp,
+		bytesDown:       siteBytesDown,
+		lostUp:          siteLostUp,
+		lostDown:        siteLostDown,
+		jitterUp:        siteJitterUp,
+		jitterDown:      siteJitterDown,
+		discardUp:       siteDiscardUp,
+		discardDown:     siteDiscardDown,
+		rtt:             siteRTT,
+		lastMileLatency: siteLastMileLatency,
+		lastMileLoss:    siteLastMileLoss,
+	}
 
 	ifaceVec := c.store.Write().SnapshotMeter("").Vec("site_id", "site_name", "interface_name")
 	ifaceConnected := ifaceVec.Gauge("interface_connected")
@@ -44,6 +71,17 @@ func (c *Collector) writeMetrics(sites map[string]*siteState, order []string, ev
 	ifaceDiscardDown := ifaceVec.Gauge("interface_packets_discarded_downstream")
 	ifaceRTT := ifaceVec.Gauge("interface_rtt_ms")
 	ifaceTunnelUptime := ifaceVec.Gauge("interface_tunnel_uptime_seconds")
+	ifaceTraffic := trafficMetricWriters{
+		bytesUp:     ifaceBytesUp,
+		bytesDown:   ifaceBytesDown,
+		lostUp:      ifaceLostUp,
+		lostDown:    ifaceLostDown,
+		jitterUp:    ifaceJitterUp,
+		jitterDown:  ifaceJitterDown,
+		discardUp:   ifaceDiscardUp,
+		discardDown: ifaceDiscardDown,
+		rtt:         ifaceRTT,
+	}
 
 	bgpVec := c.store.Write().SnapshotMeter("").Vec("site_id", "site_name", "peer_ip", "peer_asn")
 	bgpSessionUp := bgpVec.Gauge("bgp_session_up")
@@ -70,12 +108,12 @@ func (c *Collector) writeMetrics(sites map[string]*siteState, order []string, ev
 		siteLocked.WithLabelValues(labels...).Observe(locked)
 		siteOperationalUnknown.WithLabelValues(labels...).Observe(unknownOperational)
 		siteHosts.WithLabelValues(labels...).Observe(float64(site.HostCount))
-		writeTrafficMetrics(site.Metrics, labels, siteBytesUp, siteBytesDown, siteLostUp, siteLostDown, siteJitterUp, siteJitterDown, siteDiscardUp, siteDiscardDown, siteRTT, siteLastMileLatency, siteLastMileLoss)
+		writeTrafficMetrics(site.Metrics, labels, siteTraffic)
 
 		for _, iface := range site.Interfaces {
 			ifaceLabels := []string{site.ID, site.Name, iface.Name}
 			ifaceConnected.WithLabelValues(ifaceLabels...).Observe(boolFloat(iface.Connected || iface.LinkUp))
-			writeTrafficMetrics(iface.Metrics, ifaceLabels, ifaceBytesUp, ifaceBytesDown, ifaceLostUp, ifaceLostDown, ifaceJitterUp, ifaceJitterDown, ifaceDiscardUp, ifaceDiscardDown, ifaceRTT, nil, nil)
+			writeTrafficMetrics(iface.Metrics, ifaceLabels, ifaceTraffic)
 			ifaceTunnelUptime.WithLabelValues(ifaceLabels...).Observe(float64(iface.TunnelUptime))
 		}
 
@@ -101,35 +139,21 @@ func (c *Collector) writeMetrics(sites map[string]*siteState, order []string, ev
 	}
 }
 
-func writeTrafficMetrics(
-	m trafficMetrics,
-	labels []string,
-	bytesUp metrix.SnapshotGaugeVec,
-	bytesDown metrix.SnapshotGaugeVec,
-	lostUp metrix.SnapshotGaugeVec,
-	lostDown metrix.SnapshotGaugeVec,
-	jitterUp metrix.SnapshotGaugeVec,
-	jitterDown metrix.SnapshotGaugeVec,
-	discardUp metrix.SnapshotGaugeVec,
-	discardDown metrix.SnapshotGaugeVec,
-	rtt metrix.SnapshotGaugeVec,
-	lastMileLatency metrix.SnapshotGaugeVec,
-	lastMileLoss metrix.SnapshotGaugeVec,
-) {
-	bytesUp.WithLabelValues(labels...).Observe(m.BytesUpstreamMax)
-	bytesDown.WithLabelValues(labels...).Observe(m.BytesDownstreamMax)
-	lostUp.WithLabelValues(labels...).Observe(m.LostUpstreamPercent)
-	lostDown.WithLabelValues(labels...).Observe(m.LostDownstreamPercent)
-	jitterUp.WithLabelValues(labels...).Observe(m.JitterUpstreamMS)
-	jitterDown.WithLabelValues(labels...).Observe(m.JitterDownstreamMS)
-	discardUp.WithLabelValues(labels...).Observe(m.PacketsDiscardedUpstream)
-	discardDown.WithLabelValues(labels...).Observe(m.PacketsDiscardedDownstream)
-	rtt.WithLabelValues(labels...).Observe(m.RTTMS)
-	if lastMileLatency != nil {
-		lastMileLatency.WithLabelValues(labels...).Observe(m.LastMileLatencyMS)
+func writeTrafficMetrics(m trafficMetrics, labels []string, writers trafficMetricWriters) {
+	writers.bytesUp.WithLabelValues(labels...).Observe(m.BytesUpstreamMax)
+	writers.bytesDown.WithLabelValues(labels...).Observe(m.BytesDownstreamMax)
+	writers.lostUp.WithLabelValues(labels...).Observe(m.LostUpstreamPercent)
+	writers.lostDown.WithLabelValues(labels...).Observe(m.LostDownstreamPercent)
+	writers.jitterUp.WithLabelValues(labels...).Observe(m.JitterUpstreamMS)
+	writers.jitterDown.WithLabelValues(labels...).Observe(m.JitterDownstreamMS)
+	writers.discardUp.WithLabelValues(labels...).Observe(m.PacketsDiscardedUpstream)
+	writers.discardDown.WithLabelValues(labels...).Observe(m.PacketsDiscardedDownstream)
+	writers.rtt.WithLabelValues(labels...).Observe(m.RTTMS)
+	if writers.lastMileLatency != nil {
+		writers.lastMileLatency.WithLabelValues(labels...).Observe(m.LastMileLatencyMS)
 	}
-	if lastMileLoss != nil {
-		lastMileLoss.WithLabelValues(labels...).Observe(m.LastMilePacketLossPercent)
+	if writers.lastMileLoss != nil {
+		writers.lastMileLoss.WithLabelValues(labels...).Observe(m.LastMilePacketLossPercent)
 	}
 }
 

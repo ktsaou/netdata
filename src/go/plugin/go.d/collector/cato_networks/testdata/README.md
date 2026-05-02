@@ -1,7 +1,7 @@
 # Cato Networks Test Fixtures
 
-`centreon-cato-api.mockoon.json` is copied from the mirrored Centreon plugins
-repository file:
+`centreon-cato-api.mockoon.json` is a compact JSON copy of the mirrored
+Centreon plugins repository file:
 
 ```text
 tests/network/security/cato/networks/api/cato-api.json

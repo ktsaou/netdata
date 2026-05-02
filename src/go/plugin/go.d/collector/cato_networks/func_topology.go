@@ -43,7 +43,9 @@ func (f *funcTopology) Handle(_ context.Context, method string, _ funcapi.Resolv
 	}
 }
 
-func (f *funcTopology) Cleanup(context.Context) {}
+func (f *funcTopology) Cleanup(context.Context) {
+	// Topology handler stores only a collector reference; the collector owns lifecycle state.
+}
 
 func catoMethods() []funcapi.MethodConfig {
 	return []funcapi.MethodConfig{catoTopologyMethodConfig()}
