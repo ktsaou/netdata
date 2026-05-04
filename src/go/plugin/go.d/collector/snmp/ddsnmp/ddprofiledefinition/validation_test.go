@@ -1116,6 +1116,19 @@ func Test_validateEnrichMetricTags(t *testing.T) {
 				},
 			},
 		},
+		"raw index transform to tail": {
+			wantError: false,
+			metrics: []MetricTagConfig{
+				{
+					Tag: "fdb_mac",
+					IndexTransform: []MetricIndexTransform{
+						{
+							Start: 1,
+						},
+					},
+				},
+			},
+		},
 		"raw index transform cannot combine end and drop_right": {
 			wantError: true,
 			metrics: []MetricTagConfig{

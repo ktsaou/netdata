@@ -1230,6 +1230,48 @@ If the current row index is `1.192.0.2.1.1.128`, the collector:
 - formats it as an IP address
 - emits `neighbor="192.0.2.1"`
 
+### Field Accessibility
+
+SNMP profile symbols must only read objects that the source MIB exposes as
+readable columns. Before adding or changing a `symbol.OID`, check the source
+MIB object's `MAX-ACCESS` (SMIv2) or `ACCESS` (SMIv1).
+
+Rules:
+
+- `read-only`, `read-write`, and `read-create` objects can be read as
+  `symbol.OID` values.
+- `not-accessible` objects must not be read as `symbol.OID` values.
+- A `not-accessible` object that is part of a table `INDEX` can be derived from
+  the row OID index using `index` or `index_transform`.
+- Keep SNMP index slicing in the profile YAML; keep format conversion in
+  `symbol.format`.
+
+Examples:
+
+- `Q-BRIDGE-MIB::dot1qTpFdbAddress` is `not-accessible` and is part of the
+  `dot1qTpFdbEntry` index. Derive it from the row index and use
+  `format: mac_address`.
+- `IP-MIB::ipNetToPhysicalIfIndex`,
+  `IP-MIB::ipNetToPhysicalNetAddressType`, and
+  `IP-MIB::ipNetToPhysicalNetAddress` are `not-accessible` index components.
+  Derive them from the row index. The physical MAC value,
+  `ipNetToPhysicalPhysAddress`, is readable and can stay as a column symbol.
+- `LLDP-MIB::lldpLocManAddrSubtype` and `LLDP-MIB::lldpLocManAddr` are
+  `not-accessible` index components. Anchor the row on a readable column such as
+  `lldpLocManAddrLen`, then derive subtype and address from the row index. Use
+  `format: hex` for the address bytes so non-IP management-address subtypes are
+  preserved; topology normalization converts IP-compatible bytes later.
+
+Audit recipe:
+
+```bash
+rg -n -C 4 'OBJECT-TYPE|MAX-ACCESS[[:space:]]+not-accessible|ACCESS[[:space:]]+not-accessible' path/to/MIB
+rg -n 'name:[[:space:]]*(dot1qTpFdbAddress|ipNetToPhysicalIfIndex|ipNetToPhysicalNetAddressType|ipNetToPhysicalNetAddress|lldpLocManAddrSubtype|lldpLocManAddr)\b' src/go/plugin/go.d/config/go.d/snmp.profiles
+```
+
+Any profile hit for a `not-accessible` object is valid only when the tag is
+index-derived and does not declare a `symbol.OID` for that object.
+
 ## Tag Transformation
 
 Tag transformations let you **modify or extract parts of SNMP values** to produce clear, human-readable tags.

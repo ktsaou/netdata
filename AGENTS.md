@@ -41,11 +41,39 @@ Before non-trivial work:
 
 Assistants must not create git worktrees on their own. Create a git worktree only when the user explicitly asks for it or approves it.
 
+### Sensitive Data In Durable Artifacts
+
+SOWs, specs, documentation, project skills, agent instructions, and code comments are commit-ready artifacts. Treat them as public unless a repository-specific policy explicitly says otherwise.
+
+CRITICAL: Never write raw sensitive data to durable artifacts. This includes passwords, API keys, bearer tokens, SNMP communities, private keys, connection strings with embedded credentials, session cookies, community member names, customer names, customer identifiers, personal data, non-private IP addresses that can identify customers, private endpoints, account IDs, and proprietary incident details.
+
+Write only sanitized evidence:
+
+- use placeholders such as `[REDACTED_SECRET]`, `[CUSTOMER]`, `[ACCOUNT]`, `[PRIVATE_ENDPOINT]`;
+- use stable aliases such as `customer-a` only when the real mapping is not stored in the repository;
+- cite file paths, line numbers, command names, schema fields, or error classes instead of copying sensitive values;
+- summarize logs and traces; include only minimal redacted snippets.
+
+If sensitive data is required to continue, stop and ask the user for a secure handling path. If sensitive data is found in a durable artifact, sanitize it before any commit. If sensitive data was already committed, tell the user and do not rewrite history without explicit approval.
+
+### Open-Source Reference Evidence
+
+When SOW evidence comes from local mirrored open-source repositories under `/opt/baddisk/monitoring/repos/`, cite the upstream repository and checked commit instead of the workstation absolute path.
+
+Use:
+
+```text
+owner/repo @ commit
+relative/path/inside/repo:line
+```
+
+Resolve `owner/repo` from the repository remote, record the checked commit, and keep paths relative to the upstream repository root. Never write `/opt/baddisk/monitoring/repos/...` paths into SOW evidence.
+
 ### Pre-Implementation Gate
 
 Implementation must not begin until the active SOW contains a concrete `## Pre-Implementation Gate` section. Before moving a SOW from `pending/open` to `current/in-progress`, or before continuing implementation in an existing current SOW that lacks this section, fill the gate.
 
-The gate must record the problem/root-cause model, evidence reviewed, affected contracts and surfaces, existing patterns to reuse, risk and blast radius, implementation plan, validation plan, artifact impact plan, and open decisions. Generic placeholders such as `TBD`, `N/A`, or "to be checked later" are invalid unless the SOW explains why the item truly does not apply. If the gate exposes an unknown that cannot be resolved by investigation, stop and ask the user before implementation.
+The gate must record the problem/root-cause model, evidence reviewed, affected contracts and surfaces, existing patterns to reuse, risk and blast radius, sensitive data handling plan, implementation plan, validation plan, artifact impact plan, and open decisions. The sensitive data plan must cover SOWs, specs, documentation, project skills, agent instructions, and code comments. Generic placeholders such as `TBD`, `N/A`, or "to be checked later" are invalid unless the SOW explains why the item truly does not apply. If the gate exposes an unknown that cannot be resolved by investigation, stop and ask the user before implementation.
 
 ### When A SOW Is Required
 
@@ -156,14 +184,18 @@ Map every remaining item to implemented, rejected, or tracked.
 
 ### Regressions
 
+A regression is discovered after a SOW was considered completed or closed, later testing or use finds broken behavior, and the original SOW's claimed outcome is no longer true.
+
 When behavior that a completed SOW claimed working stops working:
 
 1. Find the original SOW in `done/`.
 2. Move it back to `current/`.
-3. Mark it `in-progress` with a regression note.
-4. Add a `## Regression` section.
-5. Fix and validate there.
+3. Mark it `in-progress` with a regression note in `## Status`.
+4. Append a new dated `## Regression - YYYY-MM-DD` section at the end of the file, after the original outcome, lessons, and follow-up content.
+5. In that appended section, record what broke, evidence, why previous validation missed it, the repair plan, validation, and updates needed to specs, skills, docs, audits, or follow-up SOWs.
+6. Fix and validate there.
 
+Never prepend regression content above the original SOW narrative. The original requirements, analysis, plan, validation, outcome, lessons, and follow-up must remain readable first.
 Do not create a new SOW for a true regression.
 
 ### Validation Gate
@@ -235,6 +267,9 @@ Output/reference skills may also exist under product documentation or generated 
 
 Runtime input skills:
 
+- `.agents/skills/project-snmp-profiles-authoring/`
+  Trigger: editing SNMP profile YAMLs, topology SNMP profiles, ddsnmp profile parsing, or SNMP profile-format documentation.
+  Purpose: require MIB `MAX-ACCESS` checks and index-derived extraction for `not-accessible` INDEX objects.
 - `.agents/skills/project-writing-collectors/`
   Trigger: authoring or modifying any Netdata data-collection plugin or module (Go go.d / ibm.d, Rust crates, internal C plugins, external plugins via PLUGINSD). Read before adding a new collector, modifying an existing one, working on NetFlow/sFlow/IPFIX, OTEL ingestion, topology, SNMP profiles, or interactive Functions.
   Status: live. Updates that close gaps or fix outdated pointers must ship in the same PR that exposed the issue.

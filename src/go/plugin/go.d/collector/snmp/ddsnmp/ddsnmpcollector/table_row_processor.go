@@ -336,6 +336,8 @@ func (r *crossTableResolver) applyIndexTransform(index string, transforms []ddpr
 				return ""
 			}
 			end = uint(len(parts) - int(transform.DropRight) - 1)
+		} else if transform.Start > 0 && transform.End == 0 {
+			end = uint(len(parts) - 1)
 		}
 
 		if int(start) >= len(parts) || end < start || int(end) >= len(parts) {

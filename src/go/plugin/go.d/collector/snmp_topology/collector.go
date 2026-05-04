@@ -134,8 +134,6 @@ func (c *Collector) Cleanup(context.Context) {
 
 // refreshDeviceTopology collects topology data for a single device into its own cache.
 func (c *Collector) refreshDeviceTopology(key string, dev ddsnmp.DeviceConnectionInfo) {
-	cache := c.getOrCreateDeviceCache(key, dev)
-
 	snmpClient, err := newSNMPClientFromDeviceInfo(c.newSnmpClient, dev)
 	if err != nil {
 		c.Warningf("device '%s': failed to create SNMP client: %v", dev.Hostname, err)
@@ -169,8 +167,10 @@ func (c *Collector) refreshDeviceTopology(key string, dev ddsnmp.DeviceConnectio
 		return
 	}
 
-	// Point c.topologyCache at this device's cache so the ingestion methods work.
-	c.topologyCache = cache
+	// Build the next snapshot off-registry. Function readers keep seeing the
+	// previous complete snapshot until this collection is fully ingested.
+	next := c.newDeviceCollectionCache(dev)
+	c.topologyCache = next
 
 	c.updateTopologyProfileTags(pms)
 	c.ingestTopologyProfileMetrics(pms)
@@ -178,41 +178,29 @@ func (c *Collector) refreshDeviceTopology(key string, dev ddsnmp.DeviceConnectio
 	c.finalizeTopologyCache()
 
 	c.topologyCache = nil
+
+	cache := c.getOrCreateDeviceCache(key)
+	cache.mu.Lock()
+	cache.replaceWith(next)
+	cache.mu.Unlock()
 }
 
-func (c *Collector) getOrCreateDeviceCache(key string, dev ddsnmp.DeviceConnectionInfo) *topologyCache {
+func (c *Collector) getOrCreateDeviceCache(key string) *topologyCache {
 	cache, ok := c.deviceCaches[key]
 	if !ok {
 		cache = newTopologyCache()
 		c.deviceCaches[key] = cache
 		snmpTopologyRegistry.register(cache)
 	}
+	return cache
+}
 
-	// Reset cache for fresh collection cycle.
-	cache.mu.Lock()
+func (c *Collector) newDeviceCollectionCache(dev ddsnmp.DeviceConnectionInfo) *topologyCache {
+	cache := newTopologyCache()
 	cache.updateTime = time.Now()
-	cache.lastUpdate = time.Time{}
 	cache.staleAfter = c.refreshEvery() + time.Duration(c.UpdateEvery*2)*time.Second
 	cache.agentID = dev.Hostname
 	cache.localDevice = buildLocalTopologyDevice(dev)
-	cache.lldpLocPorts = make(map[string]*lldpLocPort)
-	cache.lldpRemotes = make(map[string]*lldpRemote)
-	cache.cdpRemotes = make(map[string]*cdpRemote)
-	cache.ifNamesByIndex = make(map[string]string)
-	cache.ifStatusByIndex = make(map[string]ifStatus)
-	cache.ifIndexByIP = make(map[string]string)
-	cache.ifNetmaskByIP = make(map[string]string)
-	cache.bridgePortToIf = make(map[string]string)
-	cache.fdbEntries = make(map[string]*fdbEntry)
-	cache.fdbIDToVlanID = make(map[string]string)
-	cache.vlanIDToName = make(map[string]string)
-	cache.vtpVersion = ""
-	cache.stpBaseBridgeAddress = ""
-	cache.stpDesignatedRoot = ""
-	cache.stpPorts = make(map[string]*stpPortEntry)
-	cache.arpEntries = make(map[string]*arpEntry)
-	cache.mu.Unlock()
-
 	return cache
 }
 

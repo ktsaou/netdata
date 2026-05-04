@@ -418,7 +418,7 @@ func validateEnrichMetricTag(metricTag *MetricTagConfig) error {
 		if transform.DropRight != 0 && transform.End != 0 {
 			errs = append(errs, fmt.Errorf("transform rule cannot define both end and drop_right. Invalid rule: %#v", transform))
 		}
-		if transform.DropRight == 0 && transform.Start > transform.End {
+		if transform.DropRight == 0 && transform.Start > transform.End && transform.End != 0 {
 			errs = append(errs, fmt.Errorf("transform rule end should be greater than start. Invalid rule: %#v", transform))
 		}
 	}

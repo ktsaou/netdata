@@ -9,6 +9,7 @@ func (c *topologyCache) updateFdbEntry(tags map[string]string) {
 
 	mac := normalizeMAC(firstNonEmpty(tags[tagFdbMac], tags[tagDot1qFdbMac]))
 	if mac == "" {
+		c.fdbRowsDroppedNoMAC++
 		return
 	}
 

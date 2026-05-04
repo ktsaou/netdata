@@ -20,9 +20,10 @@ metrics:
         index: 1
       - tag: dot1q_fdb_mac
         symbol:
-          OID: 1.3.6.1.2.1.17.7.1.2.2.1.1
           name: dot1qTpFdbAddress
-          format: hex
+          format: mac_address
+        index_transform:
+          - start: 1
       - tag: dot1q_fdb_bridge_port
         symbol:
           OID: 1.3.6.1.2.1.17.7.1.2.2.1.2

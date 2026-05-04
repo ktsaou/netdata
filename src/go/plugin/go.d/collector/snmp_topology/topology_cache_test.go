@@ -623,6 +623,60 @@ func TestTopologyCache_Dot1qVLANEnrichment(t *testing.T) {
 	require.Equal(t, "70:49:a2:65:72:cd", obs.FDBEntries[0].MAC)
 }
 
+func TestTopologyCache_Dot1qVLANFallbackUsesFDBIDWhenMapMissing(t *testing.T) {
+	cache := newTopologyCache()
+	cache.updateTime = time.Now()
+	cache.lastUpdate = cache.updateTime
+	cache.agentID = "agent1"
+	cache.localDevice = topologyDevice{
+		ChassisID:     "00:11:22:33:44:55",
+		ChassisIDType: "macAddress",
+		ManagementIP:  "10.0.0.1",
+	}
+
+	cache.updateBridgePortMap(map[string]string{
+		tagBridgeBasePort: "7",
+		tagBridgeIfIndex:  "3",
+	})
+	cache.updateFdbEntry(map[string]string{
+		tagDot1qFdbID:     "100",
+		tagDot1qFdbMac:    "7049a26572cd",
+		tagDot1qFdbPort:   "7",
+		tagDot1qFdbStatus: "learned",
+	})
+
+	obs := cache.buildEngineObservation(cache.localDevice)
+	require.Len(t, obs.FDBEntries, 1)
+	require.Equal(t, "100", obs.FDBEntries[0].VLANID)
+}
+
+func TestTopologyCache_FDBDiagnostics(t *testing.T) {
+	cache := newTopologyCache()
+
+	cache.updateFdbEntry(map[string]string{
+		tagDot1qFdbID:     "100",
+		tagDot1qFdbPort:   "7",
+		tagDot1qFdbStatus: "learned",
+	})
+	require.Equal(t, 1, cache.fdbRowsDroppedNoMAC)
+
+	cache.updateFdbEntry(map[string]string{
+		tagDot1qFdbID:     "100",
+		tagDot1qFdbMac:    "7049a26572cd",
+		tagDot1qFdbPort:   "7",
+		tagDot1qFdbStatus: "learned",
+	})
+	cache.updateFDBDiagnostics()
+	require.Equal(t, 1, cache.fdbRowsUnmappedPort)
+
+	cache.updateBridgePortMap(map[string]string{
+		tagBridgeBasePort: "7",
+		tagBridgeIfIndex:  "3",
+	})
+	cache.updateFDBDiagnostics()
+	require.Equal(t, 0, cache.fdbRowsUnmappedPort)
+}
+
 func TestTopologyCache_VTPVLANNameEnrichment(t *testing.T) {
 	cache := newTopologyCache()
 	cache.updateTime = time.Now()
