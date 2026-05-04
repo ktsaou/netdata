@@ -1246,6 +1246,20 @@ Rules:
 - Keep SNMP index slicing in the profile YAML; keep format conversion in
   `symbol.format`.
 
+The two index extraction mechanisms use different counting bases:
+
+- `index: N` is **1-based**: `index: 1` selects the first index component,
+  `index: 2` the second, and so on. Use this to pick a single component.
+- `index_transform: [{start: M, end: K}]` is **0-based** over the row index
+  parts. `start: 0` is the first component. `end` is inclusive. Setting
+  `end: 0` together with `start: N > 0` slices to the tail (`start: N` to the
+  last index part) - useful for length-prefixed `OCTET STRING` index columns
+  whose width depends on a sibling index component (e.g.
+  `LLDP-MIB::lldpLocManAddr`, `IP-MIB::ipNetToPhysicalNetAddress`).
+
+So `index: 1` and `index_transform: [{start: 0, end: 0}]` both extract the
+first index component.
+
 Examples:
 
 - `Q-BRIDGE-MIB::dot1qTpFdbAddress` is `not-accessible` and is part of the

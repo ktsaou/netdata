@@ -171,13 +171,12 @@ func (c *Collector) refreshDeviceTopology(key string, dev ddsnmp.DeviceConnectio
 	// previous complete snapshot until this collection is fully ingested.
 	next := c.newDeviceCollectionCache(dev)
 	c.topologyCache = next
+	defer func() { c.topologyCache = nil }()
 
 	c.updateTopologyProfileTags(pms)
 	c.ingestTopologyProfileMetrics(pms)
 	c.collectTopologyVTPVLANContexts(dev)
 	c.finalizeTopologyCache()
-
-	c.topologyCache = nil
 
 	cache := c.getOrCreateDeviceCache(key)
 	cache.mu.Lock()
