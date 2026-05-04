@@ -237,6 +237,33 @@ The time range is divided into `points` equal intervals. Each interval is aggreg
 
 ---
 
+### Time resolution: `duration ÷ points = seconds per point`
+
+This is the most common assistant mistake. The number of `points` does NOT mean "give me per-second data". It means "split the duration into N equal buckets". The actual time resolution per point is:
+
+```
+seconds_per_point = abs(duration) ÷ points
+```
+
+**To get per-second data, set `points` equal to the duration in seconds.**
+
+Examples:
+
+| You want | Set `after` | Set `points` | Result |
+|---|---|---|---|
+| Per-second resolution, last 2 minutes | `-120` | `120` | 1 second per point |
+| Per-second resolution, last 5 minutes | `-300` | `300` | 1 second per point |
+| 10-second buckets, last 10 minutes | `-600` | `60` | 10 seconds per point |
+| Per-minute resolution, last hour | `-3600` | `60` | 60 seconds per point |
+
+**Common mistake**: requesting `after: -600, points: 30` and expecting per-second data. Result: 600 ÷ 30 = **20 seconds per point** (heavily aggregated). Per-second data over 10 minutes requires `after: -600, points: 600` (which is at the 500-point cap; either request 8 minutes 20 seconds at 500 points, or accept a slightly coarser resolution).
+
+**Per-second data also requires that the dbengine tier 0 (per-second storage) covers the requested time range.** If the agent's tier 0 retention is shorter than `abs(after)`, the engine auto-selects a coarser tier (per-minute or per-hour). Force tier 0 with `"tier": 0` in the window if you need to assert per-second data is actually available -- the query will fail rather than silently downsample.
+
+**`points: 0` (the default) is NOT "per-second"** -- it requests "all available points", which is whatever the engine returns within its 500-point cap and the storage tier's natural granularity. For a 1-hour query against tier-0 storage, the engine still aggregates because 3600 > 500.
+
+---
+
 ### How the Query Pipeline Works
 
 The query engine is a pipeline with two aggregation stages:

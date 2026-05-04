@@ -59,6 +59,43 @@ agents_query_agent --node "$NODE_UUID" --host "$AGENT_HOST:19999" --machine-guid
 collects (e.g. `system.cpu`, `disk.space`, `nginx.connections`).
 Use these as `scope.contexts` values.
 
+## Time resolution: `duration ÷ points = seconds per point`
+
+The number of `points` is NOT "give me per-second data". It is
+"split the duration into N equal buckets". Actual time
+resolution:
+
+```
+seconds_per_point = abs(after)  ÷  points       (when before = 0)
+seconds_per_point = abs(duration) ÷ points      (when duration is set)
+```
+
+**To get per-second data, set `points` equal to the duration in
+seconds.**
+
+| You want | Set `after` | Set `points` | Result |
+|---|---|---|---|
+| Per-second resolution, last 2 minutes | `-120` | `120` | 1 second per point |
+| Per-second resolution, last 5 minutes | `-300` | `300` | 1 second per point |
+| 10-second buckets, last 10 minutes | `-600` | `60` | 10 seconds per point |
+| Per-minute resolution, last hour | `-3600` | `60` | 60 seconds per point |
+
+**Common mistake**: `after: -600, points: 30` is NOT per-second
+data over 10 minutes -- it is 20-seconds-per-point heavily
+aggregated data. Per-second resolution over 10 minutes requires
+`points: 600` (at the 500-point server cap; reduce duration or
+accept coarser resolution).
+
+**Per-second data also requires dbengine tier 0** (per-second
+storage) covers the requested time range. If tier 0 retention is
+shorter than `abs(after)`, the engine auto-selects a coarser
+tier silently. Force tier 0 with `"tier": 0` in the window to
+fail loudly rather than silently downsample.
+
+**`points: 0` is NOT "per-second"** -- it means "all available
+points within the 500 cap", which the engine still aggregates
+when the duration exceeds 500 seconds.
+
 ## Limits and gotchas
 
 - **`scope.contexts` MUST be set.** Without it, the response
