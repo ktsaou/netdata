@@ -57,8 +57,15 @@ committed file:
 For every reference to a value covered above, use ONE of:
 
 - An env-key placeholder: `${KEY_NAME}` -- the value lives in `.env`
-  (gitignored). Example: `${NETDATA_BEARER_TOKENS_DIR}/<token-uuid>.json`
-  rather than the literal install path.
+  (gitignored). Examples:
+  `${NETDATA_BEARER_TOKENS_DIR}/<token-uuid>.json` rather than the
+  literal install path; `${NETDATA_REPOS_DIR}/learn/ingest.js` and
+  `${NETDATA_REPOS_DIR}/website/content/...` when committed skill
+  content needs to point at sibling Netdata-org repositories the
+  user has cloned locally. Sibling-repo file paths via
+  `${NETDATA_REPOS_DIR}/...` are explicitly allowed in committed
+  skill / SOW / spec content; literal workstation roots
+  (`~/`, `/home/...`) are not.
 - A repo-relative path: `<repo>/src/daemon/status-file.c`,
   `src/web/api/...` -- these describe locations inside this
   repository and are not leaks.
@@ -76,9 +83,10 @@ For every reference to a value covered above, use ONE of:
 ## Required env keys
 
 These keys MUST be defined in `<repo>/.env` (gitignored) for the
-SOW family 2-5 to function. If a SOW or script references one and
-the key is unset, the script must error loudly and exit non-zero.
-Values live ONLY in `.env`; this spec lists names and roles only.
+SOW family from SOW-0002 onward to function. If a SOW or script
+references one and the key is unset, the script must error loudly
+and exit non-zero. Values live ONLY in `.env`; this spec lists
+names and roles only.
 
 | Key | Role |
 |---|---|

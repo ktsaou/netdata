@@ -289,6 +289,9 @@ Runtime input skills:
 - `.agents/skills/project-writing-collectors/`
   Trigger: authoring or modifying any Netdata data-collection plugin or module (Go go.d / ibm.d, Rust crates, internal C plugins, external plugins via PLUGINSD). Read before adding a new collector, modifying an existing one, working on NetFlow/sFlow/IPFIX, OTEL ingestion, topology, SNMP profiles, or interactive Functions.
   Status: live. Updates that close gaps or fix outdated pointers must ship in the same PR that exposed the issue.
+- `.agents/skills/integrations-lifecycle/`
+  Trigger: editing any `metadata.yaml`; modifying `integrations/` generators, schemas, or templates; working with `integrations.js` / `integrations.json` / per-integration `.md` files / `COLLECTORS.md` / `SECRETS.md` / `SERVICE-DISCOVERY.md`; ibm.d module generation (`contexts.yaml` -> `metadata.yaml`); CI workflows `generate-integrations.yml` and `check-markdown.yml`; the five-file collector-consistency rule.
+  Status: live. SKILL.md plus per-domain guides (`pipeline.md`, `schema-reference.md`, `per-type-matrix.md`, `artifacts-and-banners.md`, `ibm-d.md`, `consistency.md`, `in-app-contract.md`, `gotchas.md`) and `recipes/`, `how-tos/` directories.
 
 Legacy runtime skills:
 
