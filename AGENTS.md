@@ -263,6 +263,22 @@ Existing non-`project-*` skills under `.agents/skills/` are preserved as legacy 
 
 Output/reference skills may also exist under product documentation or generated skill directories. Do not rename, shorten, or change their descriptions only to satisfy runtime discovery. Update them when their related public/operator workflow changes.
 
+### Public skill convention (`docs/netdata-ai/skills/`)
+
+End-user-facing AI skills under `docs/netdata-ai/skills/` follow the directory shape `docs/netdata-ai/skills/<skill-name>/SKILL.md`, with optional supporting docs (`<topic>.md`) and an optional `scripts/` subdirectory for helper code. SKILL.md frontmatter has `name` and `description`; the description is the trigger-matching text and must enumerate the phrases users will actually type.
+
+Each public skill is reachable from `.agents/skills/<skill-name>` via a relative symlink (`.agents/skills/<name>` → `../../docs/netdata-ai/skills/<name>`) so local AI assistants reading from `.agents/skills/` see the same skill as end-users. Create the symlink with `ln -srfn`. Verify with `readlink -f .agents/skills/<name>`.
+
+Public-skill scripts must follow the same `_lib.sh` shape as the legacy private skills (`set -euo pipefail`, ANSI colors with real ESC bytes via `$'\033[...]'`, `<prefix>_repo_root` via `git rev-parse --show-toplevel`, `<prefix>_load_env` that sources `<repo>/.env` with `: "${VAR:?}"` validation, `<prefix>_audit_dir` that creates `<repo>/.local/audits/<topic>/`, masked-token `<prefix>_run`/`<prefix>_run_read` wrappers).
+
+Public-skill scripts that touch credentials (cloud tokens, per-agent bearers, claim ids, session cookies) MUST be **token-safe** -- helpers that handle credential bytes are named with a leading underscore (`_skill_*`, internal-only) and return them via bash namerefs into the caller's local variables, NEVER to stdout. Public wrappers (no leading underscore) read credentials from `.env` internally and emit ONLY the response body. Each token-handling lib must ship a `<prefix>_selftest_no_token_leak` function that drives every public wrapper with a sentinel token and asserts the sentinel never appears on captured stdout.
+
+### How-tos catalog rule
+
+Each public skill ships a `how-tos/` subdirectory with `INDEX.md`. The catalog is **live**: every time an AI assistant is asked a concrete question that requires analysis (multiple wrapper calls, jq pipelines, or cross-referencing more than one per-domain guide) and the answer isn't already documented under `how-tos/`, the assistant MUST author a new how-to and add it to `INDEX.md` BEFORE completing the task. This rule is repeated in each skill's `SKILL.md` so future assistants honor it. Skipping it means the next assistant repeats the same analysis from scratch -- an explicit framework violation.
+
+The legacy private skills (`coverity-audit`, `sonarqube-audit`, `graphql-audit`, `pr-reviews`) keep their `.agents/skills/<name>/` location -- they are intentionally private and have no `docs/netdata-ai/skills/` counterpart.
+
 ### Project Skills Index
 
 Runtime input skills:
@@ -288,6 +304,17 @@ Legacy runtime skills:
 - `.agents/skills/pr-reviews/`
   Trigger: PR comment and review iteration work for this repository.
   Status: preserved under legacy name; project-skill alignment is deferred and tracked by `.agents/sow/pending/SOW-0003-20260501-legacy-runtime-skill-alignment.md`.
+
+Public skills (canonical under `docs/netdata-ai/skills/<name>/`; relative symlinks at `.agents/skills/<name>`):
+
+- `docs/netdata-ai/skills/query-netdata-cloud/`
+  Trigger: querying Netdata Cloud REST API -- metrics, logs (systemd-journal), alerts, generic Function calls on a node.
+  Symlink: `.agents/skills/query-netdata-cloud` -> `../../docs/netdata-ai/skills/query-netdata-cloud`.
+  Status: live. SKILL.md plus per-domain guides (`query-metrics.md`, `query-logs.md`, `query-alerts.md`, `query-functions.md`).
+- `docs/netdata-ai/skills/query-netdata-agents/`
+  Trigger: querying Netdata Agents directly on port 19999, including auto-mint of per-agent bearer tokens from a Cloud token.
+  Symlink: `.agents/skills/query-netdata-agents` -> `../../docs/netdata-ai/skills/query-netdata-agents`.
+  Status: live. SKILL.md plus `scripts/_lib.sh` helpers (`agents_resolve_bearer`, `agents_call_function`, `agents_netdata_prefix`).
 
 Output/reference skills:
 
