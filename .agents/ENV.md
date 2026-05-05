@@ -68,6 +68,20 @@ it during a triage session).
 | `SONAR_PROJECT` | projectKey on SonarCloud | For Netdata: `netdata_netdata` | `org_repo` form |
 | `SONAR_TOKEN` | personal access token | https://sonarcloud.io/account/security -> Generate | long opaque token |
 
+### Codacy Cloud (codacy-audit skill)
+
+| Key | Role | Where to find it | Sample format |
+|---|---|---|---|
+| `CODACY_TOKEN` | Account API token (header `api-token: <value>`) | https://app.codacy.com -> top-right avatar -> Account -> API tokens -> "Create API Token" | 20-char opaque string |
+| `CODACY_HOST` | API host. Defaults to `https://api.codacy.com`; set only if Codacy moves the API host. | n/a | URL |
+| `CODACY_PROVIDER` | git provider. Defaults to `gh` (GitHub). | n/a | `gh` |
+| `CODACY_ORG` | Codacy organization (matches the GitHub org). Defaults to `netdata`. | n/a | short string |
+| `CODACY_REPO` | Codacy repository name. Defaults to `netdata`. | n/a | short string |
+
+`CODACY_TOKEN` is required by `pr-issues.sh` and any wrapper that
+calls the v3 API. `analyze-local.sh` does NOT need it (the local
+CLI runs anonymously).
+
 ## Per-skill checklist
 
 Set the keys for whichever skills you plan to use. Skills
@@ -112,6 +126,12 @@ auth` instead.
 - `SONAR_ORG`
 - `SONAR_PROJECT`
 - `SONAR_TOKEN`
+
+### codacy-audit
+
+- `CODACY_TOKEN` (required by `pr-issues.sh`; not by `analyze-local.sh`)
+- `CODACY_HOST` (optional; defaults to `https://api.codacy.com`)
+- `CODACY_PROVIDER` / `CODACY_ORG` / `CODACY_REPO` (optional; default to `gh` / `netdata` / `netdata`)
 
 ### pr-reviews / graphql-audit
 

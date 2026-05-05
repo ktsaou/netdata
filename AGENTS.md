@@ -316,6 +316,9 @@ Legacy runtime skills:
 - `.agents/skills/pr-reviews/`
   Trigger: PR comment and review iteration work for this repository.
   Status: preserved under legacy name; project-skill alignment is deferred and tracked by `.agents/sow/pending/SOW-0003-20260501-legacy-runtime-skill-alignment.md`.
+- `.agents/skills/codacy-audit/`
+  Trigger: Codacy Cloud workflow for this repository -- pre-push local analysis (`codacy-analysis-cli` via docker or local binary) and read-only PR-issue fetching via the v3 API.
+  Status: live. SKILL.md plus `scripts/_lib.sh` (token-safe wrappers + sentinel no-leak self-test), `scripts/analyze-local.sh`, `scripts/pr-issues.sh`, and a live `how-tos/INDEX.md` catalog. Read-only by design; write actions deferred to a future SOW.
 
 Public skills (canonical under `docs/netdata-ai/skills/<name>/`; relative symlinks at `.agents/skills/<name>`):
 
@@ -409,6 +412,7 @@ Currently available skills:
 - `.agents/skills/sonarqube-audit/` - SonarCloud findings triage
 - `.agents/skills/graphql-audit/` - GitHub Code Scanning (CodeQL) triage
 - `.agents/skills/pr-reviews/` - PR comment / review iteration loop
+- `.agents/skills/codacy-audit/` - Codacy Cloud pre-push analysis + PR-issue triage
 
 ### Preservation Notes
 

@@ -96,6 +96,7 @@ names and roles only.
 | `AGENT_EVENTS_HOSTNAME` | network address of the ingestion node -- dual-duty: ssh host (`ssh ${AGENT_EVENTS_HOSTNAME}`) AND direct-HTTP host (`http://${AGENT_EVENTS_HOSTNAME}:19999/...`). Can be a DNS name or an IP literal. NOTE: this is NOT the journalctl namespace (hardcoded to `agent-events`) and NOT the Cloud room name (also hardcoded to `agent-events`). |
 | `AGENT_EVENTS_MACHINE_GUID` | events-ingestion agent machine GUID |
 | `AGENT_EVENTS_NODE_ID` | events-ingestion agent node UUID |
+| `CODACY_TOKEN` | Codacy Cloud Account API token; header form `api-token: <value>` |
 
 Per-user setup is documented at `<repo>/.agents/ENV.md`. The
 committed `<repo>/.env.template` is the starting point for a
