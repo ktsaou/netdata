@@ -120,17 +120,18 @@ host:
 
 ```bash
 ssh "$AGENT_EVENTS_HOSTNAME" \
-  sudo /usr/bin/journalctl --namespace="$AGENT_EVENTS_HOSTNAME" \
+  sudo /usr/bin/journalctl --namespace=agent-events \
     --since '24 hours ago' -o json
 ```
 
 Notes:
+- The ssh host is `${AGENT_EVENTS_HOSTNAME}` (env-keyed; can be
+  an IP or DNS name). The journal namespace is `agent-events`
+  (hardcoded constant, set on the ingestion server's log2journal
+  invocation, NOT a function of the hostname).
 - Raw `journalctl` does NOT support multi-value field filters
   (they are a Netdata-engine feature, not journald). If you
   need AND-of-OR filtering, use transport 1 or 2.
-- The journal namespace name is the value of
-  `${AGENT_EVENTS_HOSTNAME}` (quadruple-duty per the
-  sensitive-data-discipline spec).
 - This path requires sudo + a member of the `systemd-journal`
   group on the ingestion host. Most team members do not have
   this. Use transports 1 or 2 instead.
@@ -138,10 +139,12 @@ Notes:
 ## Default `__logs_sources` value
 
 Always set `__logs_sources` to the agent-events namespace name
-(the value of `${AGENT_EVENTS_HOSTNAME}`):
+(`"agent-events"` -- a hardcoded constant set on the ingestion
+server's log2journal invocation; NOT derived from
+`${AGENT_EVENTS_HOSTNAME}`):
 
 ```json
-{ "__logs_sources": "${AGENT_EVENTS_HOSTNAME}" }
+{ "__logs_sources": "agent-events" }
 ```
 
 Without this, the Function defaults to all-local-logs on the

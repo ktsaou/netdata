@@ -43,7 +43,7 @@ class of `AE_EXIT_CAUSE` values (see below).
   "after":  -86400,
   "before": 0,
   "last":   500,
-  "__logs_sources": "${AGENT_EVENTS_HOSTNAME}",
+  "__logs_sources": "agent-events",
   "selections": {
     "AE_EXIT_CAUSE": [
       "no last status",

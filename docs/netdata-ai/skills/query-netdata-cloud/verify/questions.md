@@ -15,9 +15,8 @@ a new how-to and add it to the index before completing.
 Every question is asked against the same target node:
 
 > Node `costa-desktop` -- a node visible to the user in their
-> Netdata Cloud (in the user's space named in
-> `${AGENT_EVENTS_NC_SPACE}` or any other space the cloud token
-> can read; the harness must locate it).
+> Netdata Cloud (any space the cloud token can read; the
+> harness must locate it).
 
 Resolving `costa-desktop` from a hostname to a `node UUID` is
 itself the first verification (see Q01).

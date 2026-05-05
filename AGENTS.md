@@ -446,7 +446,14 @@ between users and machines, not as a shared source of truth.
 
 `/.env` at the repo root is gitignored and holds per-user secrets and
 endpoint configuration consumed by skill scripts: API tokens, session
-cookies, project keys. Each skill's `SKILL.md` documents the variables it
-needs. Never commit secrets; never hard-code tokens in scripts.
+cookies, project keys. Never commit secrets; never hard-code tokens in scripts.
+
+**Setup**: copy `<repo>/.env.template` to `<repo>/.env` and fill in
+the keys you need.
+
+**Reference**: `<repo>/.agents/ENV.md` is the single canonical guide
+covering every key -- what it is, where to find the value, sample
+format, common mistakes, and which skills require it. When a script
+errors with `<KEY> is empty`, check `.agents/ENV.md` for that key.
 
 Project SOW status: initialized

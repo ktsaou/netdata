@@ -49,7 +49,7 @@ Distinguishing predicates:
   "after":  -86400,
   "before": 0,
   "last":   500,
-  "__logs_sources": "${AGENT_EVENTS_HOSTNAME}",
+  "__logs_sources": "agent-events",
   "selections": {
     "AE_AGENT_HEALTH":  ["crash-first", "crash-loop", "crash-repeated", "crash-entered"],
     "AE_AGENT_VERSION": ["v2.10.0", "v2.10.0-135-nightly", "v2.10.0-130-nightly"]

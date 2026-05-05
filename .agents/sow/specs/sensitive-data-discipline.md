@@ -58,8 +58,8 @@ For every reference to a value covered above, use ONE of:
 
 - An env-key placeholder: `${KEY_NAME}` -- the value lives in `.env`
   (gitignored). Examples:
-  `${NETDATA_BEARER_TOKENS_DIR}/<token-uuid>.json` rather than the
-  literal install path; `${NETDATA_REPOS_DIR}/learn/ingest.js` and
+  `ssh ${AGENT_EVENTS_HOSTNAME}` rather than the literal address;
+  `${NETDATA_REPOS_DIR}/learn/ingest.js` and
   `${NETDATA_REPOS_DIR}/website/content/...` when committed skill
   content needs to point at sibling Netdata-org repositories the
   user has cloned locally. Sibling-repo file paths via
@@ -93,10 +93,13 @@ names and roles only.
 | `NETDATA_CLOUD_TOKEN` | long-lived Cloud REST token |
 | `NETDATA_CLOUD_HOSTNAME` | Cloud REST API host (the operational target scripts call) |
 | `NETDATA_REPOS_DIR` | user's mirror of Netdata-org repos |
-| `AGENT_EVENTS_NC_SPACE` | Cloud space hosting the events node |
-| `AGENT_EVENTS_HOSTNAME` | quadruple-duty: Cloud room name, ssh-able host (`ssh ${AGENT_EVENTS_HOSTNAME}`), direct-HTTP host (`http://${AGENT_EVENTS_HOSTNAME}:19999/...`), and systemd-journal namespace (`journalctl --namespace=${AGENT_EVENTS_HOSTNAME}`). All four roles happen to share the same value today. |
+| `AGENT_EVENTS_HOSTNAME` | network address of the ingestion node -- dual-duty: ssh host (`ssh ${AGENT_EVENTS_HOSTNAME}`) AND direct-HTTP host (`http://${AGENT_EVENTS_HOSTNAME}:19999/...`). Can be a DNS name or an IP literal. NOTE: this is NOT the journalctl namespace (hardcoded to `agent-events`) and NOT the Cloud room name (also hardcoded to `agent-events`). |
 | `AGENT_EVENTS_MACHINE_GUID` | events-ingestion agent machine GUID |
 | `AGENT_EVENTS_NODE_ID` | events-ingestion agent node UUID |
+
+Per-user setup is documented at `<repo>/.agents/ENV.md`. The
+committed `<repo>/.env.template` is the starting point for a
+new contributor's `.env`.
 
 Things that are intentionally NOT env-keyed (and why):
 

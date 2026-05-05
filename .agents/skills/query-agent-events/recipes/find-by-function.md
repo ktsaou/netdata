@@ -39,11 +39,11 @@ If you know the file but not the exact function:
 # get-events.sh doesn't have a --filename flag; use jq to
 # filter, OR construct the payload manually:
 
-payload=$(jq -nc --arg ns "$AGENT_EVENTS_HOSTNAME" '{
+payload=$(jq -nc '{
   "after":  -604800,
   "before": 0,
   "last":   500,
-  "__logs_sources": $ns,
+  "__logs_sources": "agent-events",
   "selections": {
     "AE_FATAL_FILENAME": ["src/database/rrdcontext/rrdcontext-cleanup.c"]
   }

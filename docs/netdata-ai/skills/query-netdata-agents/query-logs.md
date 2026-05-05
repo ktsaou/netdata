@@ -40,7 +40,7 @@ agents_query_agent \
     --host "$AGENT_EVENTS_HOSTNAME:19999" \
     --machine-guid "$AGENT_EVENTS_MACHINE_GUID" \
     POST '/api/v3/function?function=systemd-journal' \
-    "{\"after\":-3600,\"before\":0,\"last\":50,\"direction\":\"backward\",\"__logs_sources\":\"$AGENT_EVENTS_HOSTNAME\"}"
+    '{"after":-3600,"before":0,"last":50,"direction":"backward","__logs_sources":"agent-events"}'
 ```
 
 The wrapper minted/cached the bearer internally; stdout is the

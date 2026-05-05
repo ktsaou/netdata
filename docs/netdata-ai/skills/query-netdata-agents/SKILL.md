@@ -99,7 +99,7 @@ agent-events workflow):
 |---|---|
 | `NETDATA_CLOUD_TOKEN` | Cloud REST token used to mint per-agent bearers |
 | `NETDATA_CLOUD_HOSTNAME` | Cloud REST host |
-| `AGENT_EVENTS_HOSTNAME` | When working with the agent-events node specifically: ssh / curl / journal-namespace string |
+| `AGENT_EVENTS_HOSTNAME` | When working with the agent-events node specifically -- ssh + direct-HTTP host (IP or DNS name). NOT the journal namespace (hardcoded `agent-events`). |
 | `AGENT_EVENTS_NODE_ID` | Target node UUID for direct calls |
 | `AGENT_EVENTS_MACHINE_GUID` | Bearer cache key (one bearer per machine_guid) |
 

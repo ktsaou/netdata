@@ -68,7 +68,7 @@ agents_load_env() {
     root="$(agents_repo_root)"
     env="${root}/.env"
     if [[ ! -f "${env}" || ! -r "${env}" ]]; then
-        echo -e "${AGENTS_RED}[ERROR]${AGENTS_NC} Missing ${env}. See SKILL.md." >&2
+        echo -e "${AGENTS_RED}[ERROR]${AGENTS_NC} Missing ${env}. Copy .env.template to .env and fill it in. See ${root}/.agents/ENV.md." >&2
         return 1
     fi
     set -a
@@ -76,8 +76,8 @@ agents_load_env() {
     source "${env}"
     set +a
 
-    : "${NETDATA_CLOUD_TOKEN:?NETDATA_CLOUD_TOKEN is empty in .env}"
-    : "${NETDATA_CLOUD_HOSTNAME:?NETDATA_CLOUD_HOSTNAME is empty in .env}"
+    : "${NETDATA_CLOUD_TOKEN:?NETDATA_CLOUD_TOKEN is empty -- see <repo>/.agents/ENV.md to set it.}"
+    : "${NETDATA_CLOUD_HOSTNAME:?NETDATA_CLOUD_HOSTNAME is empty -- see <repo>/.agents/ENV.md to set it.}"
     export NETDATA_CLOUD_TOKEN NETDATA_CLOUD_HOSTNAME
 }
 

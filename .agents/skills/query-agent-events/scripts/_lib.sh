@@ -31,13 +31,9 @@ source "$(git rev-parse --show-toplevel)/.agents/skills/query-netdata-agents/scr
 agentevents_load_env() {
     agents_load_env
 
-    : "${AGENT_EVENTS_HOSTNAME:?AGENT_EVENTS_HOSTNAME must be set in <repo>/.env}"
-    : "${AGENT_EVENTS_NODE_ID:?AGENT_EVENTS_NODE_ID must be set in <repo>/.env}"
-    : "${AGENT_EVENTS_MACHINE_GUID:?AGENT_EVENTS_MACHINE_GUID must be set in <repo>/.env}"
-
-    # AGENT_EVENTS_NC_SPACE is informational; not required by the
-    # systemd-journal Function call shape.
-    : "${AGENT_EVENTS_NC_SPACE:=}"
+    : "${AGENT_EVENTS_HOSTNAME:?AGENT_EVENTS_HOSTNAME is empty -- see <repo>/.agents/ENV.md to set it.}"
+    : "${AGENT_EVENTS_NODE_ID:?AGENT_EVENTS_NODE_ID is empty -- see <repo>/.agents/ENV.md to set it.}"
+    : "${AGENT_EVENTS_MACHINE_GUID:?AGENT_EVENTS_MACHINE_GUID is empty -- see <repo>/.agents/ENV.md to set it.}"
 }
 
 # ---------------------------------------------------------------
@@ -51,8 +47,11 @@ agentevents_audit_dir() {
 }
 
 # Journal namespace for selections / __logs_sources.
+# Hardcoded -- the ingestion server's log2journal --namespace
+# is always 'agent-events', regardless of the host's network
+# name (which lives in AGENT_EVENTS_HOSTNAME).
 agentevents_namespace() {
-    printf '%s' "${AGENT_EVENTS_HOSTNAME}"
+    printf '%s' 'agent-events'
 }
 
 # ---------------------------------------------------------------

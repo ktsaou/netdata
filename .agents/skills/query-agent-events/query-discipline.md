@@ -63,7 +63,7 @@ Find recent signal crashes on stable v2.10.x and the latest
   "after":  -86400,
   "before": 0,
   "last":   500,
-  "__logs_sources": "${AGENT_EVENTS_HOSTNAME}",
+  "__logs_sources": "agent-events",
   "selections": {
     "AE_AGENT_HEALTH":  ["crash-first", "crash-loop", "crash-repeated", "crash-entered"],
     "AE_AGENT_VERSION": ["v2.10.0", "v2.10.0-135-nightly", "v2.10.0-130-nightly"]
@@ -86,7 +86,7 @@ function:
   "after":  -86400,
   "before": 0,
   "last":   200,
-  "__logs_sources": "${AGENT_EVENTS_HOSTNAME}",
+  "__logs_sources": "agent-events",
   "selections": {
     "AE_AGENT_HEALTH":  ["crash-first", "crash-loop", "crash-repeated", "crash-entered"]
   },
@@ -106,7 +106,7 @@ on `AE_FATAL_FUNCTION`, prefer that:
   "after":  -86400,
   "before": 0,
   "last":   200,
-  "__logs_sources": "${AGENT_EVENTS_HOSTNAME}",
+  "__logs_sources": "agent-events",
   "selections": {
     "AE_FATAL_FUNCTION": ["rrdcontext_release"]
   }
@@ -124,7 +124,7 @@ Compare crash counts across versions:
   "after":  -86400,
   "before": 0,
   "last":   1,
-  "__logs_sources": "${AGENT_EVENTS_HOSTNAME}",
+  "__logs_sources": "agent-events",
   "selections": {
     "AE_AGENT_HEALTH": ["crash-first", "crash-loop", "crash-repeated", "crash-entered"]
   },
@@ -145,7 +145,7 @@ Looking for a known rare crash signature (1-per-few-days):
   "after":  -604800,
   "before": 0,
   "last":   500,
-  "__logs_sources": "${AGENT_EVENTS_HOSTNAME}",
+  "__logs_sources": "agent-events",
   "selections": {
     "AE_FATAL_SIGNAL_CODE": ["SIGSEGV/SEGV_MAPERR"],
     "AE_FATAL_FUNCTION":    ["specific_function"]
@@ -165,7 +165,7 @@ slice that returns small results regardless of window width.
 {
   "after":  -604800,
   "before": 0,
-  "__logs_sources": "${AGENT_EVENTS_HOSTNAME}",
+  "__logs_sources": "agent-events",
   "query": "SIGSEGV"
 }
 ```
@@ -211,7 +211,7 @@ Use `info=true` to discover what fields and values the agent
 currently exposes:
 
 ```json
-{ "info": true, "__logs_sources": "${AGENT_EVENTS_HOSTNAME}" }
+{ "info": true, "__logs_sources": "agent-events" }
 ```
 
 Or use `last: 1` + a facet to enumerate values:
@@ -219,7 +219,7 @@ Or use `last: 1` + a facet to enumerate values:
 ```json
 {
   "after": -86400, "before": 0, "last": 1,
-  "__logs_sources": "${AGENT_EVENTS_HOSTNAME}",
+  "__logs_sources": "agent-events",
   "facets": ["AE_AGENT_VERSION"]
 }
 ```
@@ -253,7 +253,7 @@ facets.
 
 Before sending any query, verify:
 
-1. `__logs_sources` is set to `"${AGENT_EVENTS_HOSTNAME}"`.
+1. `__logs_sources` is set to `"agent-events"` (the journal namespace -- hardcoded constant, NOT the value of `${AGENT_EVENTS_HOSTNAME}`).
 2. `selections` contains at least ONE always-present field
    (`AE_AGENT_HEALTH`, `AE_EXIT_CAUSE`, `AE_AGENT_VERSION`).
 3. Time window matches the use case (24h default, 7d for rare

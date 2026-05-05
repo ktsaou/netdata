@@ -158,13 +158,13 @@ This skill follows
 |---|---|
 | `NETDATA_CLOUD_TOKEN` | Cloud REST token (long-lived). |
 | `NETDATA_CLOUD_HOSTNAME` | Cloud REST API host. |
-| `AGENT_EVENTS_NC_SPACE` | Cloud space hosting the agent-events node. |
-| `AGENT_EVENTS_HOSTNAME` | Quadruple-duty: Cloud room name, ssh host, direct-HTTP host, journalctl namespace. |
+| `AGENT_EVENTS_HOSTNAME` | Dual-duty: ssh host AND direct-HTTP host of the ingestion node. Can be IP or DNS name. NOT the journalctl namespace (hardcoded `agent-events`); NOT the Cloud room name (also hardcoded `agent-events`). |
 | `AGENT_EVENTS_MACHINE_GUID` | Agent machine GUID for direct-agent transport. |
 | `AGENT_EVENTS_NODE_ID` | Cloud node UUID for cloud-proxy transport. |
 
 All values live in `<repo>/.env` (gitignored). See
-`.agents/sow/specs/sensitive-data-discipline.md`.
+`<repo>/.agents/ENV.md` for setup (where each value comes
+from, sample formats, common mistakes).
 
 ## Related skills
 

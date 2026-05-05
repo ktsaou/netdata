@@ -33,9 +33,9 @@ Working on dbengine page eviction:
     --output /tmp/related-pass1.json
 
 # 2. If pass 1 is sparse, widen to filename.
-payload=$(jq -nc --arg ns "$AGENT_EVENTS_HOSTNAME" '{
+payload=$(jq -nc '{
   "after": -1209600, "before": 0, "last": 200,
-  "__logs_sources": $ns,
+  "__logs_sources": "agent-events",
   "selections": {
     "AE_FATAL_FILENAME": [
       "src/database/engine/cache.c",
@@ -131,7 +131,7 @@ Compare counts. Significant drop -> fix is working.
 - **Old fixes that haven't propagated**: if your fix is in
   v2.10.1 but most of the fleet runs v2.10.0, you'll still
   see the old crashes for weeks.
-- **Recipe scoping**: don't forget to pass the namespace
-  (`$AGENT_EVENTS_HOSTNAME`) when constructing payloads
-  manually -- without `__logs_sources`, the query targets
+- **Recipe scoping**: don't forget to set
+  `"__logs_sources": "agent-events"` when constructing
+  payloads manually -- without it, the query targets
   all-local-logs (huge and unrelated).
