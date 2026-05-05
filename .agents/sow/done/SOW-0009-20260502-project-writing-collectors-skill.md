@@ -1,4 +1,4 @@
-# SOW-0001 - project-writing-collectors skill
+# SOW-0009 - project-writing-collectors skill
 
 ## Status
 
@@ -43,7 +43,7 @@ Facts:
 - ~30 plugins exist across C, Go, Rust, Python, Bash, eBPF.
 - 12 recurring bad-practice patterns identified with file:line evidence (see Analysis).
 - Existing project skills under `.agents/skills/` range from 162 (graphql-audit) to 508 (pr-reviews) lines; average ~330.
-- SOW directories were empty at SOW-creation time; this is SOW-0001 in numbering despite AGENTS.md text mentioning SOW-0003.
+- SOW directories were empty at SOW-creation time; this is SOW-0009 in numbering despite AGENTS.md text mentioning SOW-0003.
 
 Inferences:
 
@@ -370,7 +370,7 @@ Coverage:
 
 6. **Preserve first drafts when a substantial rewrite follows.** Committing the first draft separately let the rewrite stand on its own as a reviewable change (+395 / -192) and made the structural shift visible in history. Future SKILL-level rewrites should follow the same pattern.
 
-7. **The SOW close should land with the work as one commit.** This SOW shipped its work in two commits but was left in `current/` until the user noticed. The AGENTS.md rule ("commit the work, artifact updates, SOW status change, and SOW move together as one commit") exists to prevent exactly this. Future SOWs must close in the same commit as the final piece of work, unless the user explicitly approves a split (as happened here for SOW-0001).
+7. **The SOW close should land with the work as one commit.** This SOW shipped its work in two commits but was left in `current/` until the user noticed. The AGENTS.md rule ("commit the work, artifact updates, SOW status change, and SOW move together as one commit") exists to prevent exactly this. Future SOWs must close in the same commit as the final piece of work, unless the user explicitly approves a split (as happened here for SOW-0009).
 
 ## Followup
 

@@ -113,16 +113,14 @@ done
 records=$(jq -c --arg field "$FIELD" '
     if (type == "object" and has("columns") and has("data")) then
         .columns as $c
+        | ($c | to_entries
+              | map({(.key): (.value.index)})
+              | add) as $idx
         | (.data // [])
         | map(
-            (
-                ($c | to_entries
-                    | map({(.key): (.value.index)})
-                    | add) as $idx
-                | reduce ($c | keys_unsorted)[] as $k ({}; .[$k] = .[$idx[$k]])
-            ) as $obj
-            | $obj
-            | (. + {"__row__": .})
+            . as $row
+            | reduce ($idx | keys_unsorted)[] as $k
+                ({}; .[$k] = $row[$idx[$k]])
           )
     elif (type == "array" and (.[0]? | type == "object")) then
         .

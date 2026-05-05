@@ -83,7 +83,7 @@ Unknowns:
 - AGENTS.md "Project Skills Index" section adds a one-line
   entry for `.agents/skills/mirror-netdata-repos/`.
 - Skill follows the format convention established by
-  SOW-0002.
+  SOW-0010.
 
 ## Analysis
 
@@ -130,7 +130,7 @@ The corollary problem: a local mirror that drifts (stale feature branches, dirty
 
 ### Existing patterns to reuse
 
-- `<name>/SKILL.md` shape from SOW-0002.
+- `<name>/SKILL.md` shape from SOW-0010.
 - `how-tos/INDEX.md` live-catalog rule.
 - Sensitive-data-discipline spec (no workstation paths, env-keyed only).
 
@@ -218,7 +218,7 @@ No user decisions required at this stub stage.
 
 ## Plan
 
-1. **Wait for SOW-0002 to close** so the skill format
+1. **Wait for SOW-0010 to close** so the skill format
    convention is locked.
 2. Read `${NETDATA_REPOS_DIR}/sync-all.sh`.
 3. Walk through one real run on the user's workstation and

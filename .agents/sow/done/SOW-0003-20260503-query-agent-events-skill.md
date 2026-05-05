@@ -76,10 +76,10 @@ Facts:
   1. Cloud-proxied: uses
      `query-netdata-cloud/query-logs.md` and
      `query-netdata-cloud/query-functions.md` (delivered by
-     SOW-0002).
+     SOW-0010).
   2. Direct agent: uses
      `query-netdata-agents/scripts/_lib.sh::agents_call_function`
-     (delivered by SOW-0002), with bearer auto-mint/refresh.
+     (delivered by SOW-0010), with bearer auto-mint/refresh.
   3. journalctl-via-ssh: uses standard ssh + the journalctl
      namespace flag. Destination host comes from `.env`.
 
@@ -99,8 +99,8 @@ Unknowns:
   on every field-name mapping (especially edge cases:
   array indices, deeply-nested paths, omitted-on-graceful-exit
   fields).
-- Whether SOW-0002 ships a Cloud-proxied logs query helper ready
-  to consume (decision 1 of SOW-0002 directly governs this).
+- Whether SOW-0010 ships a Cloud-proxied logs query helper ready
+  to consume (decision 1 of SOW-0010 directly governs this).
 - Whether the journalctl path returns the same field set as the
   Netdata-via-Cloud path; small drift is likely (the journal
   output includes systemd `_*` fields that the Function may
@@ -156,7 +156,7 @@ Sources to consult during stage 2 (already mostly read at stage 1):
 - `<repo>/src/collectors/systemd-journal.plugin/...` (Function
   shape).
 - The output of `query-netdata-agents/scripts/_lib.sh` from
-  SOW-0002 (consumer side).
+  SOW-0010 (consumer side).
 
 Risks:
 
@@ -232,7 +232,7 @@ The skill itself is a private developer skill at `<repo>/.agents/skills/query-ag
 
 ### Existing patterns to reuse
 
-- The `<name>/SKILL.md` directory shape and frontmatter convention from SOW-0002 (proven by `query-netdata-cloud/`, `query-netdata-agents/`, `integrations-lifecycle/`, `learn-site-structure/`).
+- The `<name>/SKILL.md` directory shape and frontmatter convention from SOW-0010 (proven by `query-netdata-cloud/`, `query-netdata-agents/`, `integrations-lifecycle/`, `learn-site-structure/`).
 - The `agents_query_cloud` / `agents_query_agent` / `agents_call_function` helpers in `docs/netdata-ai/skills/query-netdata-agents/scripts/_lib.sh` (token-safe, bearer auto-mint, env-driven).
 - The `recipes/INDEX.md` + `how-tos/INDEX.md` live-catalog pattern.
 - The sensitive-data-discipline spec.
@@ -364,7 +364,7 @@ Holding-pattern decisions to record now (so they are not lost):
 
 No new user decisions required at this stub stage. All
 infrastructure decisions blocking this SOW are recorded in
-SOW-0002 (decisions 1-3). Once SOW-0002 closes, this SOW will
+SOW-0010 (decisions 1-3). Once SOW-0010 closes, this SOW will
 add its own decision list covering:
 
 - The exact `__logs_sources` value or `query=` predicate that
@@ -378,9 +378,9 @@ add its own decision list covering:
 
 ## Plan
 
-1. **Wait for SOW-0002 to close.**
+1. **Wait for SOW-0010 to close.**
 2. Fill in this SOW's Pre-Implementation Gate, Decisions, and
-   Implementation Plan based on the SOW-0002 deliverables.
+   Implementation Plan based on the SOW-0010 deliverables.
 3. Move to `current/` as `Status: in-progress`.
 4. Implement, validate, close.
 

@@ -1,4 +1,4 @@
-# SOW-0002 - Netdata query skills infrastructure
+# SOW-0010 - Netdata query skills infrastructure
 
 ## Status
 
@@ -309,7 +309,7 @@ This SOW seeds the inputs the harness will consume:
   dyncfg, members, rooms, feed.
 
 The harness implementation (run.sh, grader rubric, score
-collation) is SOW-0006's deliverable, not SOW-0002's.
+collation) is SOW-0006's deliverable, not SOW-0010's.
 
 #### Pre-existing acceptance criteria (carry-over)
 
@@ -781,11 +781,11 @@ Pending decisions 1-3. After they are answered:
   cloud refactor, query-netdata-agents new skill).
 - User chose 4-SOW split. The agent-events triage skill moved
   to SOW-0003; documentation-pipeline skills to SOW-0004;
-  mirror-netdata-repos skill to SOW-0005. This SOW (SOW-0002) was
+  mirror-netdata-repos skill to SOW-0005. This SOW (SOW-0010) was
   rescoped to skill infrastructure and renamed to "Netdata
   query skills infrastructure". Old filename
-  `SOW-0002-20260503-agent-events-skill.md` removed; new
-  filename `SOW-0002-20260503-netdata-query-skills-
+  `SOW-0010-20260503-agent-events-skill.md` removed; new
+  filename `SOW-0010-20260503-netdata-query-skills-
   infrastructure.md`.
 - Post-close (2026-05-04): user split the original
   doc-pipeline SOW into documentation (SOW-0004 rescoped to

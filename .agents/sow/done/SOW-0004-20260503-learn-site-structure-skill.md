@@ -82,7 +82,7 @@ Unknowns (to be resolved during stage-2a investigation):
     rendering, broken-link pitfalls, etc.).
 - AGENTS.md "Project Skills Index" section adds a one-line entry
   for `.agents/skills/learn-site-structure/`.
-- Skill follows the format convention established by SOW-0002.
+- Skill follows the format convention established by SOW-0010.
 
 ## Analysis
 
@@ -184,7 +184,7 @@ AGENTS.md. No code changes. The skill must accurately document:
 
 ### Existing patterns to reuse
 
-- The `<name>/SKILL.md` directory shape and frontmatter convention from SOW-0002.
+- The `<name>/SKILL.md` directory shape and frontmatter convention from SOW-0010.
 - The `how-tos/INDEX.md` live catalog rule.
 - The sensitive-data discipline spec
   (`.agents/sow/specs/sensitive-data-discipline.md`):
@@ -271,7 +271,7 @@ Sensitive data handling plan:
   identifiers in any committed file. Every reference uses an
   env-key placeholder (`${KEY_NAME}`) defined in `.env`.
 - Specifically required `.env` keys for this SOW:
-  `NETDATA_REPOS_DIR` (already present from SOW-0002). Public
+  `NETDATA_REPOS_DIR` (already present from SOW-0010). Public
   site hostnames (learn, marketing) are documented as literals
   per the spec; this fork's checkout root is found via
   `git rev-parse --show-toplevel`.
@@ -285,7 +285,7 @@ starts.
 
 ## Plan
 
-1. **Wait for SOW-0002 to close** (already complete).
+1. **Wait for SOW-0010 to close** (already complete).
 2. Stage 2a: investigate the docs sync flow and the website
    generator. Capture evidence in the SOW.
 3. Stage 2b: fill the Pre-Implementation Gate and present

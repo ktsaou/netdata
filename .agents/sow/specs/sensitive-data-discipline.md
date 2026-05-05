@@ -83,7 +83,7 @@ For every reference to a value covered above, use ONE of:
 ## Required env keys
 
 These keys MUST be defined in `<repo>/.env` (gitignored) for the
-SOW family from SOW-0002 onward to function. If a SOW or script
+SOW family from SOW-0010 onward to function. If a SOW or script
 references one and the key is unset, the script must error loudly
 and exit non-zero. Values live ONLY in `.env`; this spec lists
 names and roles only.

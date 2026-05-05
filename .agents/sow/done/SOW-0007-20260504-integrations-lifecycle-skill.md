@@ -38,7 +38,7 @@ integrations docs, not for end users.
 > Follow-up (2026-05-04): "split them please. documentation and
 > integrations are not the same thing"
 >
-> Earlier reminder (preserved verbatim from SOW-0001
+> Earlier reminder (preserved verbatim from SOW-0009
 > Lessons): "If a tunable changes, the schema, the stock conf,
 > the metadata, the alerts, and the README must change in the
 > same commit." This skill must surface that consistency
@@ -119,7 +119,7 @@ Unknowns (to be resolved during stage-2a investigation):
       docs-driven surfaces.
 - AGENTS.md "Project Skills Index" section adds a one-line entry
   for `.agents/skills/integrations-lifecycle/`.
-- Skill follows the format convention established by SOW-0002.
+- Skill follows the format convention established by SOW-0010.
 
 ## Analysis
 
@@ -223,8 +223,8 @@ The skill itself is a private developer skill (`.agents/skills/integrations-life
 
 ### Existing patterns to reuse
 
-- The `<name>/SKILL.md` directory shape and frontmatter convention from SOW-0002 (proven by `query-netdata-cloud/` and `query-netdata-agents/`).
-- The `how-tos/INDEX.md` live catalog rule from SOW-0002 (assistant authors a how-to whenever it had to perform analysis the catalog didn't already cover).
+- The `<name>/SKILL.md` directory shape and frontmatter convention from SOW-0010 (proven by `query-netdata-cloud/` and `query-netdata-agents/`).
+- The `how-tos/INDEX.md` live catalog rule from SOW-0010 (assistant authors a how-to whenever it had to perform analysis the catalog didn't already cover).
 - The sensitive-data discipline spec at `.agents/sow/specs/sensitive-data-discipline.md` (no workstation paths; env-keys for sibling repos).
 - Repo-relative paths for everything in this repo.
 
@@ -267,7 +267,7 @@ The skill validates by walking a real "add-or-update a go.d collector integratio
 - AGENTS.md: add one-line entry under "Project Skills Index" section, in the "Runtime input skills" subsection (or create one), pointing at `.agents/skills/integrations-lifecycle/`.
 - `.agents/skills/integrations-lifecycle/`: new directory and contents.
 - No specs change. No public docs change. No source change.
-- `.env`: no new keys (everything env-keyed is already present from SOW-0002: `NETDATA_REPOS_DIR`).
+- `.env`: no new keys (everything env-keyed is already present from SOW-0010: `NETDATA_REPOS_DIR`).
 
 ### Open decisions
 
@@ -293,7 +293,7 @@ Sensitive data handling plan:
   identifiers in any committed file. Every reference uses an
   env-key placeholder (`${KEY_NAME}`) defined in `.env`.
 - Specifically required `.env` keys for this SOW:
-  `NETDATA_REPOS_DIR` (already present from SOW-0002). Public
+  `NETDATA_REPOS_DIR` (already present from SOW-0010). Public
   site hostnames (learn, marketing) are documented as literals
   per the spec; this fork's checkout root is found via
   `git rev-parse --show-toplevel`.
@@ -307,7 +307,7 @@ starts.
 
 ## Plan
 
-1. **Wait for SOW-0002 to close** (already complete).
+1. **Wait for SOW-0010 to close** (already complete).
 2. Stage 2a: investigate the integrations pipeline end-to-end.
    Capture evidence in the SOW.
 3. Stage 2b: fill the Pre-Implementation Gate and present

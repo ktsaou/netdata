@@ -4,7 +4,7 @@
 
 Status: open
 
-Sub-state: stub. Created 2026-05-03 evening when the user split the verification piece out of SOW-0002 ("the evaluation does not need to be done now"). Depends on SOW-0002 closing first because the harness consumes the seed question lists and how-tos that SOW-0002 lays down.
+Sub-state: stub. Created 2026-05-03 evening when the user split the verification piece out of SOW-0010 ("the evaluation does not need to be done now"). Depends on SOW-0010 closing first because the harness consumes the seed question lists and how-tos that SOW-0010 lays down.
 
 ## Requirements
 
@@ -23,7 +23,7 @@ what it did to find the answer and we should maintain a directory
 with how-tos and an index in SKILL.md to help the model figure
 out its way through it."
 
-The harness validates the two SOW-0002 skills first, then is
+The harness validates the two SOW-0010 skills first, then is
 re-used by SOW-0003 (`query-agent-events`), SOW-0004
 (`learn-site-structure`), SOW-0005 (`mirror-netdata-repos`), and
 SOW-0007 (`integrations-lifecycle`) as their own acceptance gates.
@@ -64,7 +64,7 @@ SOW-0007 (`integrations-lifecycle`) as their own acceptance gates.
 > Follow-up: "The evaluation does not need to be done now. But
 > the live how-tos inventory and everything else must be done."
 > -- so the inventory + token-safety + structural scope stay in
-> SOW-0002; the harness itself (this SOW) is deferred.
+> SOW-0010; the harness itself (this SOW) is deferred.
 
 ### Acceptance Criteria
 
@@ -91,7 +91,7 @@ SOW-0007 (`integrations-lifecycle`) as their own acceptance gates.
   agent run) for a draft how-to and stages it under
   `<skill>/how-tos/<slug>.md` for human review.
 - A self-test mode: the runner can be pointed at any of the
-  four SOW-0002+ skills and produces consistent reports. This
+  four SOW-0010+ skills and produces consistent reports. This
   is what makes it reusable across SOWs.
 - Sensitive-data gate: every committed file passes the
   pre-commit grep from
@@ -103,7 +103,7 @@ SOW-0007 (`integrations-lifecycle`) as their own acceptance gates.
 
 Sources to consult during stage 2:
 
-- `<repo>/.agents/sow/current/SOW-0002-20260503-netdata-query-skills-infrastructure.md`
+- `<repo>/.agents/sow/done/SOW-0010-20260503-netdata-query-skills-infrastructure.md`
   -- the SKILL.md and how-tos format this SOW must validate.
 - the user-global Claude Code config and `claude` CLI invocation patterns (the user
   has documented them in `the user-global Claude Code config (gitignored)` under "Run other
@@ -127,7 +127,7 @@ Risks:
 
 Status: blocked-on-prereq
 
-Depends on SOW-0002 closing (it provides the SKILL.md, the
+Depends on SOW-0010 closing (it provides the SKILL.md, the
 per-domain guides, the `how-tos/INDEX.md`, the
 `verify/questions.md` seed list, and the token-safe wrappers
 that the harness must invoke).
@@ -142,7 +142,7 @@ Sensitive data handling plan:
   hosts, bearer/cloud-token shaped strings, forbidden absolute
   paths). The scrubbed transcript is what gets stored; the
   unscrubbed in-memory copy is dropped.
-- No `.env` keys are required beyond what SOW-0002 already
+- No `.env` keys are required beyond what SOW-0010 already
   defines.
 
 Holding-pattern decisions to record now:
@@ -158,17 +158,17 @@ Holding-pattern decisions to record now:
 ## Implications And Decisions
 
 No new decisions at this stub stage. Will be added when
-SOW-0002 closes and stage 2 begins.
+SOW-0010 closes and stage 2 begins.
 
 ## Plan
 
-1. **Wait for SOW-0002 to close.**
-2. Stage 2a: read SOW-0002 final deliverables (SKILL.md
+1. **Wait for SOW-0010 to close.**
+2. Stage 2a: read SOW-0010 final deliverables (SKILL.md
    structure, how-tos shape, wrappers).
 3. Stage 2b: implement `verify/run.sh` for the cloud skill;
    prove end-to-end on the seed questions.
 4. Stage 2c: parameterize `run.sh` so it can target any of the
-   SOW-0002+ skills.
+   SOW-0010+ skills.
 5. Stage 2d: implement the how-to generation prompt loop.
 6. Stage 2e: implement the transcript scrubber + unit test
    that asserts no token bytes are persisted.
@@ -178,7 +178,7 @@ SOW-0002 closes and stage 2 begins.
 
 ### 2026-05-03
 
-- Created as a stub during the second SOW-0002 scope expansion.
+- Created as a stub during the second SOW-0010 scope expansion.
 
 ## Validation
 
