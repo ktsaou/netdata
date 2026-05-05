@@ -323,13 +323,14 @@ agents_query_cloud() {
 agents_query_agent() {
     local node="" host="" mg="" method="" path="" body=""
     while (( $# > 0 )); do
-        case "$1" in
-            --node) node="$2"; shift 2 ;;
-            --host) host="$2"; shift 2 ;;
-            --machine-guid) mg="$2"; shift 2 ;;
+        local arg="$1"
+        case "$arg" in
+            --node) node="${2-}"; shift 2 ;;
+            --host) host="${2-}"; shift 2 ;;
+            --machine-guid) mg="${2-}"; shift 2 ;;
             --) shift; break ;;
             -*)
-                echo -e "${AGENTS_RED}[ERROR]${AGENTS_NC} Unknown flag: $1" >&2
+                echo -e "${AGENTS_RED}[ERROR]${AGENTS_NC} Unknown flag: $arg" >&2
                 return 1
                 ;;
             *) break ;;
@@ -369,15 +370,16 @@ agents_query_agent() {
 agents_call_function() {
     local via="cloud" node="" mg="" host="" fn="" body='{"info":true}'
     while (( $# > 0 )); do
-        case "$1" in
-            --via) via="$2"; shift 2 ;;
-            --node) node="$2"; shift 2 ;;
-            --machine-guid) mg="$2"; shift 2 ;;
-            --host) host="$2"; shift 2 ;;
-            --function) fn="$2"; shift 2 ;;
-            --body) body="$2"; shift 2 ;;
+        local arg="$1"
+        case "$arg" in
+            --via) via="${2-}"; shift 2 ;;
+            --node) node="${2-}"; shift 2 ;;
+            --machine-guid) mg="${2-}"; shift 2 ;;
+            --host) host="${2-}"; shift 2 ;;
+            --function) fn="${2-}"; shift 2 ;;
+            --body) body="${2-}"; shift 2 ;;
             *)
-                echo -e "${AGENTS_RED}[ERROR]${AGENTS_NC} Unknown arg: $1" >&2
+                echo -e "${AGENTS_RED}[ERROR]${AGENTS_NC} Unknown arg: $arg" >&2
                 return 1
                 ;;
         esac

@@ -34,7 +34,8 @@ EOF
 
 # Map --by alias -> AE_* field name.
 field_for_dim() {
-    case "$1" in
+    local dim="$1"
+    case "$dim" in
         signal)        echo AE_FATAL_SIGNAL_CODE ;;
         fatal_function) echo AE_FATAL_FUNCTION ;;
         fatal_filename) echo AE_FATAL_FILENAME ;;
@@ -52,7 +53,7 @@ field_for_dim() {
         virtualization) echo AE_HOST_VIRTUALIZATION ;;
         chassis_type)  echo AE_HW_CHASSIS_TYPE ;;
         host_cpus)     echo AE_HOST_SYSTEM_CPUS ;;
-        *) echo "Unknown --by '$1'" >&2; exit 2 ;;
+        *) echo "Unknown --by '$dim'" >&2; exit 2 ;;
     esac
 }
 

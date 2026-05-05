@@ -61,6 +61,7 @@ EOF
 for _arg in "$@"; do
     case "$_arg" in
         -h|--help) usage; exit 0 ;;
+        *) ;;  # ignore -- main parser handles all other flags
     esac
 done
 
@@ -104,12 +105,14 @@ cd "$MIRROR_DIR" || { echo "ERROR: cannot cd into NETDATA_REPOS_DIR=$MIRROR_DIR"
 
 # Function to print colored output
 print_status() {
-    echo -e "$1"
+    local msg="$1"
+    echo -e "$msg"
 }
 
 # Function to check if directory is a git repository
 is_git_repo() {
-    [ -d "$1/.git" ]
+    local repo="$1"
+    [ -d "$repo/.git" ]
 }
 
 # Function to get last commit timestamp quickly (using filesystem heuristic)
@@ -446,13 +449,15 @@ print_summary() {
 main() {
     # Parse CLI flags.
     while [ $# -gt 0 ]; do
-        case "$1" in
+        local arg="$1"
+        case "$arg" in
             --repo)
                 if [ $# -lt 2 ]; then
                     echo "ERROR: --repo requires a repository name" >&2
                     exit 2
                 fi
-                SCOPE_REPOS+=("$2")
+                local val="$2"
+                SCOPE_REPOS+=("$val")
                 shift 2
                 ;;
             -h|--help)
@@ -460,7 +465,7 @@ main() {
                 exit 0
                 ;;
             *)
-                echo "ERROR: Unknown option: $1" >&2
+                echo "ERROR: Unknown option: $arg" >&2
                 usage >&2
                 exit 2
                 ;;

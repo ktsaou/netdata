@@ -100,13 +100,14 @@ if [ "$total" -eq 0 ]; then
 fi
 
 field_for_dim() {
-    case "$1" in
+    local dim="$1"
+    case "$dim" in
         tool)     echo '.commitIssue.toolInfo.name' ;;
         pattern)  echo '.commitIssue.patternInfo.id' ;;
         severity) echo '.commitIssue.patternInfo.severityLevel' ;;
         file)     echo '.commitIssue.filePath' ;;
         category) echo '.commitIssue.patternInfo.category' ;;
-        *)        echo "Unknown --by '$1'" >&2; exit 2 ;;
+        *)        echo "Unknown --by '$dim'" >&2; exit 2 ;;
     esac
 }
 
