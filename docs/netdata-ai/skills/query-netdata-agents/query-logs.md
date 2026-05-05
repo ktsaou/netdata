@@ -4,12 +4,17 @@ This guide is part of the [`query-netdata-agents`](./SKILL.md) skill.
 Read [SKILL.md](./SKILL.md#prerequisites) first.
 
 For the body shape (`after`, `before`, `last`, `query`, `facets`,
-`histogram`, `__logs_sources`, etc.) and the response envelope
-(top-level `data` is an array of row arrays; `columns` defines
-positions; `facets` and `histogram` accompany), see
+`histogram`, `__logs_sources`, `selections`, etc.) and the
+response envelope (top-level `data` is an array of row arrays;
+`columns` defines positions; `facets` and `histogram` accompany),
+see
 [../query-netdata-cloud/query-logs.md](../query-netdata-cloud/query-logs.md).
 The body and response are identical between Cloud-proxied and
-direct-agent calls.
+direct-agent calls -- including the multi-value `selections`
+field-filter mechanism (AND across fields, OR across values),
+which makes index-friendly queries possible on large namespaces.
+See the "Multi-value field selections" section in the Cloud doc
+for the exact shape and the structured-filters-first rule.
 
 The agent ships the same three log Functions:
 

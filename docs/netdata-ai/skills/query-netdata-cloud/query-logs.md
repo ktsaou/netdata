@@ -141,6 +141,101 @@ jq '.columns as $c
 
 ---
 
+## Multi-value field selections (AND-of-OR filtering)
+
+The `selections` POST-payload key is a structured field-filter
+mechanism the Netdata `systemd-journal` Function (powered by the
+libnetdata `facets` engine) supports. It is **distinct from raw
+journalctl's `KEY=value` matches**: a single field can carry
+multiple allowed values, and multiple fields are AND'd.
+
+### Shape
+
+`selections` is an object whose keys are journal field names
+and whose values are arrays of allowed values:
+
+```json
+{
+  "selections": {
+    "FIELD1": ["A", "B", "C"],
+    "FIELD2": ["D", "E"]
+  }
+}
+```
+
+Semantics (verified at
+`<repo>/src/libnetdata/facets/logs_query_status.h:386-466`):
+
+- **Between fields: AND.** All listed fields must match.
+- **Between values for the same field: OR.** Any one of the
+  listed values matches.
+
+So the example above is logically:
+
+```
+(FIELD1 in A, B, C) AND (FIELD2 in D, E)
+```
+
+### Why this matters for performance
+
+A namespace can hold tens of thousands to hundreds of thousands
+of records per day. A bare `query` (FTS) scans every record's
+indexed text fields. Structured `selections` matches use the
+facet engine's per-field index, which is dramatically faster
+once the time window is fixed.
+
+**Rule of thumb:** narrow with `selections` first, then refine
+with `query` (FTS) only as a residual narrower over the
+already-sliced subset.
+
+### Reserved keys inside `selections`
+
+- `__logs_sources` (per `LQS_PARAMETER_SOURCE`,
+  `logs_query_status.h:407`) is treated as the source-type
+  filter (e.g. `all-local-namespaces`, `<namespace-name>`).
+  Using it inside `selections` is equivalent to setting the
+  top-level `__logs_sources` parameter.
+- `query` inside `selections` is ignored
+  (`logs_query_status.h:398`); use the top-level `query`.
+
+### Example: structured filter + FTS narrower
+
+```json
+{
+  "after":  -86400,
+  "before": 0,
+  "last":   500,
+  "__logs_sources": "agent-events",
+  "selections": {
+    "AE_AGENT_HEALTH":  ["crash-first", "crash-loop", "crash-repeated", "crash-entered"],
+    "AE_AGENT_VERSION": ["v2.10.0", "v2.10.0-135-nightly"]
+  },
+  "query": "deadlock"
+}
+```
+
+This selects the cross-product of crash-class records on those
+two versions (index-resolved), then FTS-filters the result for
+the substring `deadlock`. Index-friendly even on a
+~200k-records-per-day namespace.
+
+### Anti-pattern (avoid)
+
+```json
+{
+  "after":  -604800,
+  "before": 0,
+  "__logs_sources": "agent-events",
+  "query": "SIGSEGV"
+}
+```
+
+A 7-day FTS over the entire namespace with no structured
+narrowing. Slow and costly on large namespaces. Always pair FTS
+with at least one structured `selections` field.
+
+---
+
 ## Examples
 
 ### Example 1: most recent 50 entries from a specific namespace
