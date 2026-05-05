@@ -100,7 +100,7 @@ elif ! gh auth status >/dev/null 2>&1; then
     GH_REASON="'gh' is not authenticated (run: gh auth login)"
 fi
 
-cd "$MIRROR_DIR"
+cd "$MIRROR_DIR" || { echo "ERROR: cannot cd into NETDATA_REPOS_DIR=$MIRROR_DIR" >&2; exit 2; }
 
 # Function to print colored output
 print_status() {
@@ -171,12 +171,14 @@ has_unpushed_commits() {
         return 1  # No unpushed if directory doesn't exist
     fi
     cd "$repo" || return 1
-    local branch=$(git rev-parse --abbrev-ref HEAD 2>/dev/null)
+    local branch
+    branch=$(git rev-parse --abbrev-ref HEAD 2>/dev/null)
+    local result
     if [ -n "$branch" ] && git rev-parse --verify "origin/$branch" >/dev/null 2>&1; then
-        [ -n "$(git log origin/$branch..HEAD --oneline 2>/dev/null)" ]
-        local result=$?
+        [ -n "$(git log "origin/$branch..HEAD" --oneline 2>/dev/null)" ]
+        result=$?
     else
-        local result=1
+        result=1
     fi
     cd "$MIRROR_DIR" 2>/dev/null || true  # Try to return to script directory
     return $result
@@ -191,9 +193,9 @@ get_uncommitted_details() {
         return
     fi
     cd "$repo" || { echo "cannot access"; return; }
-    local staged=$(git diff --cached --numstat | wc -l)
-    local unstaged=$(git diff --numstat | wc -l)
-    local untracked=$(git ls-files --others --exclude-standard | wc -l)
+    local staged unstaged
+    staged=$(git diff --cached --numstat | wc -l)
+    unstaged=$(git diff --numstat | wc -l)
     cd "$MIRROR_DIR" 2>/dev/null || true  # Try to return to script directory
     
     # Report details - note that untracked files are shown but don't block updates
@@ -211,13 +213,14 @@ update_activity_cache() {
     
     # Safety: Use a unique temp file to avoid conflicts
     local temp_file="$ACTIVITY_CACHE_FILE.tmp.$$"
-    > "$temp_file"
-    
+    : > "$temp_file"
+
     for dir in */; do
         dir="${dir%/}"
         # Only process actual directories that are git repos
         if [ -d "$dir" ] && is_git_repo "$dir"; then
-            local timestamp=$(get_last_activity "$dir")
+            local timestamp
+            timestamp=$(get_last_activity "$dir")
             echo "$timestamp $dir" >> "$temp_file"
         fi
     done
@@ -243,7 +246,8 @@ get_sorted_repos() {
 # Function to get default branch (assumes we're already in the repo directory)
 get_default_branch() {
     # Try to get from remote
-    local default_branch=$(git symbolic-ref refs/remotes/origin/HEAD 2>/dev/null | sed 's@^refs/remotes/origin/@@')
+    local default_branch
+    default_branch=$(git symbolic-ref refs/remotes/origin/HEAD 2>/dev/null | sed 's@^refs/remotes/origin/@@')
     
     # If that fails, try common defaults
     if [ -z "$default_branch" ]; then
@@ -280,7 +284,8 @@ update_repo() {
     
     # Check for uncommitted changes (staged or modified files only)
     if has_uncommitted_changes "$repo"; then
-        local details=$(get_uncommitted_details "$repo")
+        local details
+        details=$(get_uncommitted_details "$repo")
         print_status "  ${YELLOW}⚠️  Skipping - uncommitted changes (${details})${NC}"
         REPOS_WITH_UNCOMMITTED+=("$repo: $details")
         return 1
@@ -289,19 +294,22 @@ update_repo() {
     cd "$repo" || { print_status "  ${RED}✗ Cannot access directory${NC}"; return 1; }
     
     # Check for untracked files (informational only - doesn't block update)
-    local untracked_count=$(git ls-files --others --exclude-standard 2>/dev/null | wc -l)
+    local untracked_count
+    untracked_count=$(git ls-files --others --exclude-standard 2>/dev/null | wc -l)
     if [ "$untracked_count" -gt 0 ]; then
         print_status "  ${CYAN}ℹ️  Note: ${untracked_count} untracked file(s) present${NC}"
     fi
-    
+
     # Get current and default branches
-    local current_branch=$(git rev-parse --abbrev-ref HEAD 2>/dev/null)
-    local default_branch=$(get_default_branch)
-    
+    local current_branch default_branch
+    current_branch=$(git rev-parse --abbrev-ref HEAD 2>/dev/null)
+    default_branch=$(get_default_branch)
+
     # Check for unpushed commits (we're already in the repo directory)
     if [ -n "$current_branch" ] && git rev-parse --verify "origin/$current_branch" >/dev/null 2>&1; then
-        if [ -n "$(git log origin/$current_branch..HEAD --oneline 2>/dev/null)" ]; then
-            local unpushed_count=$(git log origin/${current_branch}..HEAD --oneline 2>/dev/null | wc -l)
+        if [ -n "$(git log "origin/$current_branch..HEAD" --oneline 2>/dev/null)" ]; then
+            local unpushed_count
+            unpushed_count=$(git log "origin/${current_branch}..HEAD" --oneline 2>/dev/null | wc -l)
             print_status "  ${YELLOW}⚠️  Warning: ${unpushed_count} unpushed commit(s) on ${current_branch}${NC}"
             REPOS_WITH_UNPUSHED+=("$repo: $unpushed_count commits on $current_branch")
         fi
@@ -357,7 +365,8 @@ clone_new_repos() {
     
     # Get list of all repos from GitHub
     print_status "Fetching repository list from GitHub..."
-    local repos_list=$(gh repo list "$ORG" --limit 1000 --json name,sshUrl,defaultBranchRef --source --no-archived)
+    local repos_list
+    repos_list=$(gh repo list "$ORG" --limit 1000 --json name,sshUrl,defaultBranchRef --source --no-archived)
     
     echo "$repos_list" | jq -r '.[] | "\(.name) \(.sshUrl) \(.defaultBranchRef.name)"' | while read -r name url default_branch; do
         if [ ! -d "$name" ]; then
@@ -494,7 +503,7 @@ main() {
 
     local total_repos=${#sorted_repos[@]}
 
-    if [ $total_repos -eq 0 ]; then
+    if [ "$total_repos" -eq 0 ]; then
         print_status "No repositories to update."
     else
         print_status "Found ${total_repos} repositories to update.\n"

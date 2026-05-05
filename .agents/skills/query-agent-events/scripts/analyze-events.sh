@@ -78,12 +78,13 @@ done
 
 FIELD="$(field_for_dim "$BY")"
 
-# shellcheck source=_lib.sh
+# shellcheck source=SCRIPTDIR/_lib.sh disable=SC1091
 source "$(cd "$(dirname "$0")" && pwd)/_lib.sh"
 
 # Pick the most recent dump if none given.
 if [ -z "$INPUT" ]; then
     audit_dir="$(agentevents_audit_dir)"
+    # shellcheck disable=SC2012  # ls -1t is fine for *.json under audit_dir; find pipeline is overkill
     INPUT="$(ls -1t "$audit_dir"/*.json 2>/dev/null | head -1 || true)"
     [ -z "$INPUT" ] && {
         echo "No input dump found under $audit_dir; pass --input PATH" >&2

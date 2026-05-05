@@ -107,7 +107,7 @@ done
 # ---------------------------------------------------------------
 # Lib + env.
 
-# shellcheck source=_lib.sh
+# shellcheck source=SCRIPTDIR/_lib.sh disable=SC1091
 source "$(cd "$(dirname "$0")" && pwd)/_lib.sh"
 agentevents_load_env
 
