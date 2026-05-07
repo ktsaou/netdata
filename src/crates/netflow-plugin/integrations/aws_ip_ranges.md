@@ -112,7 +112,7 @@ sudo ./edit-config netflow.yaml
 
 ###### Tag all AWS prefixes by region and service
 
-Sets tenant=amazon, region=<aws-region>, role=<service-name>.
+Sets tenant=amazon, region=`aws-region`, role=`service-name`.
 
 ```yaml
 enrichment:

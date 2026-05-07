@@ -125,7 +125,7 @@ sudo ./edit-config netflow.yaml
 
 ###### phpIPAM with API token
 
-phpIPAM exposes /api/<app>/subnets/. Use the standard transform.
+phpIPAM exposes `/api/<APP>/subnets/`. Replace `<APP>` with your phpIPAM app name. Use the standard transform.
 
 ```yaml
 enrichment:

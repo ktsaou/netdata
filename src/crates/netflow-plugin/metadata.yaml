@@ -1511,7 +1511,7 @@ modules:
             - name: Tag all AWS prefixes by region and service
               folding:
                 enabled: false
-              description: Sets tenant=amazon, region=<aws-region>, role=<service-name>.
+              description: "Sets tenant=amazon, region=`aws-region`, role=`service-name`."
               config: |
                 enrichment:
                   network_sources:
@@ -1655,7 +1655,7 @@ modules:
             - name: Tag all GCP prefixes by service and scope
               folding:
                 enabled: false
-              description: Sets tenant=gcp, role=<service>, region=<scope>.
+              description: "Sets tenant=gcp, role=`service`, region=`scope`."
               config: |
                 enrichment:
                   network_sources:
@@ -2135,7 +2135,7 @@ modules:
             - name: phpIPAM with API token
               folding:
                 enabled: false
-              description: phpIPAM exposes /api/<app>/subnets/. Use the standard transform.
+              description: "phpIPAM exposes `/api/<APP>/subnets/`. Replace `<APP>` with your phpIPAM app name. Use the standard transform."
               config: |
                 enrichment:
                   network_sources:

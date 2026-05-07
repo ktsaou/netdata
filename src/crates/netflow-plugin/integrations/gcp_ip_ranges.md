@@ -104,7 +104,7 @@ sudo ./edit-config netflow.yaml
 
 ###### Tag all GCP prefixes by service and scope
 
-Sets tenant=gcp, role=<service>, region=<scope>.
+Sets tenant=gcp, role=`service`, region=`scope`.
 
 ```yaml
 enrichment:

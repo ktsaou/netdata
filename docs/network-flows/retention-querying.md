@@ -39,7 +39,7 @@ For every query the dashboard sends to the plugin, the planner makes a single de
 2. **A non-empty full-text search → raw tier.** Full-text search runs as a regex against the raw journal payload, which only the raw tier carries.
 3. **Otherwise, pick the coarsest tier that satisfies the time range and bucket-count requirement.**
    - Time-Series view needs at least 100 buckets in the window. So:
-     - <100 minutes → 1-minute tier
+     - under 100 minutes → 1-minute tier
      - 100 minutes to 8h20m → 5-minute tier
      - 8h20m and longer → 1-hour tier
    - Table / Sankey / Maps don't have a bucket-count constraint, but the configured query-window guardrails (`query_1m_max_window` default 6h, `query_5m_max_window` default 24h) skip a tier when the window is too wide.
