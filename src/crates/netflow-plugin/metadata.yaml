@@ -445,7 +445,7 @@ modules:
         name: DB-IP IP Intelligence
         link: https://db-ip.com/
         categories:
-          - flows.ip-intelligence
+          - flows.enrichment-methods
         icon_filename: network-wired.svg
       keywords:
         - geoip
@@ -597,7 +597,7 @@ modules:
         name: MaxMind GeoIP / GeoLite2
         link: https://www.maxmind.com/
         categories:
-          - flows.ip-intelligence
+          - flows.enrichment-methods
         icon_filename: network-wired.svg
       keywords:
         - maxmind
@@ -742,7 +742,7 @@ modules:
         name: IPtoASN
         link: https://iptoasn.com/
         categories:
-          - flows.ip-intelligence
+          - flows.enrichment-methods
         icon_filename: network-wired.svg
       keywords:
         - iptoasn
@@ -866,7 +866,7 @@ modules:
         name: Custom MMDB Database
         link: https://maxmind.github.io/MaxMind-DB/
         categories:
-          - flows.ip-intelligence
+          - flows.enrichment-methods
         icon_filename: network-wired.svg
       keywords:
         - mmdb
@@ -1011,7 +1011,7 @@ modules:
         name: BMP (BGP Monitoring Protocol)
         link: https://www.rfc-editor.org/rfc/rfc7854
         categories:
-          - flows.bgp-routing
+          - flows.enrichment-methods
         icon_filename: network-wired.svg
       keywords:
         - bmp
@@ -1229,7 +1229,7 @@ modules:
         name: bio-rd / RIPE RIS
         link: https://github.com/bio-routing/bio-rd
         categories:
-          - flows.bgp-routing
+          - flows.enrichment-methods
         icon_filename: network-wired.svg
       keywords:
         - bioris
@@ -1412,7 +1412,7 @@ modules:
         name: AWS IP Ranges
         link: https://docs.aws.amazon.com/general/latest/gr/aws-ip-ranges.html
         categories:
-          - flows.network-identity
+          - flows.enrichment-methods
         icon_filename: network-wired.svg
       keywords:
         - aws
@@ -1572,7 +1572,7 @@ modules:
         name: GCP IP Ranges
         link: https://cloud.google.com/compute/docs/faq#find_ip_range
         categories:
-          - flows.network-identity
+          - flows.enrichment-methods
         icon_filename: network-wired.svg
       keywords:
         - gcp
@@ -1692,7 +1692,7 @@ modules:
         name: Azure IP Ranges
         link: https://www.microsoft.com/en-us/download/details.aspx?id=56519
         categories:
-          - flows.network-identity
+          - flows.enrichment-methods
         icon_filename: network-wired.svg
       keywords:
         - azure
@@ -1831,7 +1831,7 @@ modules:
         name: NetBox
         link: https://netboxlabs.com/oss/netbox/
         categories:
-          - flows.network-identity
+          - flows.enrichment-methods
         icon_filename: network-wired.svg
       keywords:
         - netbox
@@ -2007,7 +2007,7 @@ modules:
         name: Generic JSON-over-HTTP IPAM
         link: https://learn.netdata.cloud/docs/network-flows/enrichment/network-identity
         categories:
-          - flows.network-identity
+          - flows.enrichment-methods
         icon_filename: network-wired.svg
       keywords:
         - ipam
