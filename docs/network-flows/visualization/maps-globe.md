@@ -82,13 +82,13 @@ If you see "traffic from China" or "traffic to Russia" coming from your own netw
 
 Your traffic to a SaaS provider may resolve to one country today and another tomorrow because the CDN's routing changed. This is normal CDN behaviour, not a security incident. ASN-based aggregation is more stable for cloud / CDN traffic than country-based — see the [Anti-patterns page](/docs/network-flows/anti-patterns.md) "Geographic firewall of shame".
 
-### Mirroring
+### Bidirectional traffic on the map
 
-Bidirectional conversations show up as two arcs (A→B and B→A). With the default 25 top-N, that means about 12 actual conversations get rendered, not 25. To see one direction only, filter on a specific source or destination.
+Bidirectional traffic between two endpoints produces two separate flow records (one per direction) and renders as two distinct edges (A→B and B→A). The two directions are usually asymmetric in volume — for example, a download is large in one direction and small in the other. To see only one direction, filter on a specific source or destination.
 
 ### Globe vs City Map
 
-The globe and city map use the same data. The globe is purely a different rendering of the same response — useful for visual presentation, less useful for analysis (the 3D projection makes precise reading harder than a 2D map).
+The globe and city map render the same data with the same table beneath. The 2D city map is best for precise comparisons within a continent. The 3D globe is best when distance and great-circle paths matter — transcontinental traffic, undersea cable corridors, intercontinental CDN routing. Pick the one that fits the question.
 
 ## What controls are available
 

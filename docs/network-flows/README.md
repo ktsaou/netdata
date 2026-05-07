@@ -102,7 +102,7 @@ Six visualisations, all driven by the same query engine:
 - **Sankey + Table** — the default. Top-N flows aggregated by 1-10 fields you pick. Best for "who's responsible".
 - **Time-Series** — the same top-N over time. Best for "how does this change".
 - **Country map / state map / city map** — geographic views. Best for "where".
-- **Globe** — a 3D rendering of the city-level data. Visual demo, less useful for analysis.
+- **Globe** — a 3D rendering of the city-level data. Same data and table as the city map; useful when distance and great-circle paths matter (e.g. transcontinental traffic).
 
 A filter ribbon between the visualisation and the table lets you narrow data by any combination of fields. Selections persist in the URL — copy and share to give a colleague exactly your view.
 

@@ -1262,3 +1262,42 @@ Other docs scanned (`docs/network-flows/`) for the patterns
 "clean.*path.*sampling", "aggregate.*blend",
 "blend.*estimate" -- all hits addressed above except the
 F14 / F15 -targeted blocks.
+
+#### F6 -- 2026-05-07 -- Globe view "less useful for analysis"
+
+Costa: "the information is exactly the same with the map.
+There is a table, like in maps. What makes it less useful?
+That is 3d? The opposite I think."
+
+Code reality (per the city-map / globe code path that
+shares the same backend response: see
+`src/crates/netflow-plugin/src/query/request/constants.rs`
+for `CITY_MAP_GROUP_BY_FIELDS` and the absence of any
+"globe" view enum -- the globe re-renders the city-map
+response): same data, same table, just a different
+rendering.
+
+Removed claims:
+
+- README.md line 105 -- "Visual demo, less useful for
+  analysis" replaced with neutral framing that the globe
+  uses the same data + table as the city map and is the
+  better fit when distance / great-circle routes matter.
+- visualization/maps-globe.md "Globe vs City Map"
+  paragraph -- removed the "less useful for analysis"
+  judgement; states the trade-off (2D for in-continent
+  precision; 3D for transcontinental / great-circle).
+
+Also fixed the "Mirroring" subsection on the same page:
+the "25 top-N = 12 conversations" claim is the F2 symmetry
+myth and was inconsistent with bidirectional traffic
+typically being asymmetric. Reworded to state that
+bidirectional traffic produces two separate flow records,
+two distinct edges, with usually-different volumes.
+
+No other doc carries the "less useful for analysis"
+phrasing. Grep clean.
+
+Files touched:
+- docs/network-flows/README.md (line 105)
+- docs/network-flows/visualization/maps-globe.md (lines ~85-91)
