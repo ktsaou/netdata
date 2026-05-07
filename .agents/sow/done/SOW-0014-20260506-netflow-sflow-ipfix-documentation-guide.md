@@ -2,9 +2,9 @@
 
 ## Status
 
-Status: open
+Status: completed
 
-Sub-state: Phase 1.0 (benchmark rerun) + Phase 1.0b (storage footprint benchmark) completed. README and sizing-capacity.md updated with fresh numbers. Documentation rewrite (Phase 1B) authorised by user with explicit directives recorded in Decision 9. Per-page work proceeds with code-as-source-of-truth, audience-aware framing, and strict refusal to inherit unverified claims from the existing thin docs.
+Closed 2026-05-07. All acceptance criteria delivered or explicitly rejected. Phase 1C (AI skills cross-links) was rejected as not mandatory by user decision -- recorded in Validation. Architectural pivot to a top-level `flows` integration_type with 14 cards is recorded as Decision 10. Companion changes shipped in netdata PR #22439, learn PR #2854 (merged), and a deferred cloud-frontend `Update integrations.js` refresh.
 
 ## Requirements
 
@@ -147,6 +147,24 @@ User read parts of the research at `.agents/knowledge/Network Traffic Analysis w
 **Scope confirmed deferred:** topology drilldown (`useFlowsDrilldownData.js`) is dead code — never imported into the topology actor modal — and stays out of documentation until implemented.
 
 **Function permissions verified** at `src/crates/netflow-plugin/src/api/flows/handler.rs:263`: the `flows:netflow` function uses `HttpAccess::SIGNED_ID | SAME_SPACE | SENSITIVE_DATA`. It does NOT include `COMMERCIAL_SPACE`. The agent function is therefore not paid-gated. Any feature gating elsewhere (UI/cloud-frontend) is outside this repository and outside this SOW.
+
+### Decision 10: Promote `flows` to a top-level integration_type with 14 cards -- DECIDED 2026-05-07
+
+User reframed the test for "should X be an integration card?" as "would users ask 'Does Netdata integrate with X?'". This rejected the original architecturally pure framing (one card per protocol decoder under data-collection.networking) in favour of one card per vendor/source users actually shop for.
+
+Sub-decisions:
+
+- **10a Type position:** `flows` is a top-level `integration_type` in `integrations/categories.yaml`, peer of `collector`, `logs`, `exporter`, `notification`, `secretstore`, `authentication`. NOT under `data-collection.networking`. Rationale: flows are a different data model from collector metrics (table-shaped, faceted, time-windowed, journal-backed), the same way logs are -- their integration UX should mirror logs, not collectors.
+- **10b Catalog shape:** four sub-categories under `flows` -- Sources, IP Intelligence, BGP Routing, Network Identity Sources -- containing 14 cards total:
+  - Sources (3): NetFlow, IPFIX, sFlow
+  - IP Intelligence (4): DB-IP IP Intelligence (default), MaxMind GeoIP / GeoLite2, IPtoASN, Custom MMDB Database
+  - BGP Routing (2): BMP (BGP Monitoring Protocol), bio-rd / RIPE RIS
+  - Network Identity Sources (5): AWS IP Ranges, GCP IP Ranges, Azure IP Ranges, NetBox, Generic JSON-over-HTTP IPAM
+- **10c Pipeline plumbing:** `integrations/gen_integrations.py` and `integrations/gen_docs_integrations.py` learn the new type via FLOWS_SOURCES list, FLOWS_RENDER_KEYS, FLOWS_VALIDATOR, `load_flows()`, `render_flows()`, plus a `mode == "flows"` branch in `build_readme_from_integration()`. New `integrations/templates/overview/flows.md` template. New `integrations/schemas/flows.json` ($ref to `collector.json` for now -- can diverge later).
+- **10d Map placement:** `docs/.map/map.yaml` carries a top-level Network Flows section using `integration_placeholder` with `integration_kind: flows`, plus three concept docs (IP Intelligence, BGP Routing, Network Identity).
+- **10e Schema:** `docs/.map/map.schema.json` enum extended to accept `flows` as an integration_kind value alongside the existing kinds.
+- **10f Cross-repo coordination:** companion learn PR (netdata/learn#2854) routes `src/crates/netflow-plugin/integrations/<slug>.md` files into a `flows_entries` DataFrame and splices them over the `flows_integrations` placeholder, mirroring the existing `logs_integrations` handler. cloud-frontend's `data/integrations.js` is auto-generated and committed manually -- a follow-up "Update integrations.js" PR is needed there. www auto-updates daily; no PR required.
+- **10g Skill knowledge capture:** `integrations-lifecycle` skill gains a new per-integration_type Learn-routing matrix in `per-type-matrix.md` and a how-to `adding-new-integration-type.md` enumerating the 8-place checklist for future kinds.
 
 ### Decision 8: Benchmark rerun matrix -- DECIDED 2026-05-06
 
@@ -430,39 +448,143 @@ Outputs (gitignored):
 - `.local/audits/netflow-bench/storage-high.json` — full sample stream for high-cardinality cell
 - `.local/audits/netflow-bench/storage.md` — rendered markdown
 
+### 2026-05-07 (later) - documentation rewrite, branch, and PR opened
+
+- Phase 1B documentation rewrite landed on branch `netflow-plugin-docs-and-bench` over three commits:
+  - `c708101e` -- per-protocol benchmark + storage footprint test
+  - `1455d59f` -- docs: rewrite Network Flows documentation (~25 pages)
+  - `e61c72b7` -- integrations: add netflow-plugin (netflow, ipfix, sflow modules)
+- Architectural pivot per Decision 10: `6d72b5ab` introduced `flows` as top-level integration_type with 14 cards.
+- Draft PR netdata/netdata#22439 opened against master.
+
+### 2026-05-07 (later) - autocomplete bug fix
+
+User reported autocomplete dropdown was useless for AS_NAME searches: typing "Akamai" returned no results because every value is rendered as `AS{n} {Organisation}` and the backend was prefix-matching only.
+
+Investigation traced the bug to `facet_runtime/store.rs::TextValueStore::prefix_matches` and `facet_runtime/sidecar.rs::search_sidecar`, both using `starts_with`. Fix landed on the same branch with three rounds of codex review:
+
+- Round 1: introduced substring matching for text-typed facets, kept prefix for IP/numeric. Codex flagged: async runtime blocking, broader-than-AS_NAME effect, naive substring + no length cap, stale docs.
+- Round 2: per-field policy via `AutocompleteMatchKind { Prefix, Substring }` on `FacetFieldSpec` (so future per-field overrides are possible without per-kind churn), `memchr::memmem::Finder` for substring search, 256-byte term cap, autocomplete moved to `spawn_blocking`, stale docs updated. Codex flagged blocker: term cap applied to all modes, not just autocomplete.
+- Round 3: term cap scoped to `mode == Autocomplete`. Regression test added for non-autocomplete long term. Codex returned "ready to ship for the reviewed autocomplete scope".
+
+Architectural rule recorded by user: "This affects autocomplete only, not regular facets matching. Only autocomplete. Because we want key=value or key in values, to use indexes, not scan." Verified in code: substring path is unreachable from selections/filters; only `mode=autocomplete` calls `FacetRuntime::autocomplete`.
+
+Commit: `b733037a`. 9 new tests, full crate 427 passed.
+
+Follow-ups (recorded in Followup section): case-sensitive matching today (Akamai vs akamai); autocomplete substring on FST sidecars is bounded by limit early-exit but still streams keys for rare/no-hit terms over very large archived vocabularies.
+
+### 2026-05-07 (later) - documentation enhancements
+
+- Screenshots from user (7 GitHub asset URLs) embedded across `summary-sankey.md` (2), `time-series.md` (1), `maps-globe.md` (4). Commit `26f8b978`.
+- Master alphabetical field index added at the bottom of `field-reference.md`. 91 rows. Each row carries: type, per-protocol availability (✓/◐/—), source class (decoder / enrichment / both), tier preservation (raw / all), selectivity (facet, group-by, filter, metric, time, hidden), and the enrichment chain or IE mapping. Subagent built the data set from code (rollup field defs, RAW_ONLY_FIELDS, facet catalog, decoder IE maps).
+- `docs/network-flows/visualization/filters-facets.md` and `docs/network-flows/retention-querying.md` updated to describe the per-field autocomplete policy and the autocomplete-vs-selection distinction.
+
+### 2026-05-07 (later) - schema fix and learn PR
+
+- CI surface: `check-documentation` job rejected the netdata PR because `docs/.map/map.schema.json` enum did not yet include `flows` as an `integration_kind`. Schema extended; commit `2c3ab0fc`. CI then turned green for that job.
+- Learn PR (netdata/learn#2854) opened to teach `ingest/ingest.py` how to (a) categorise files at `src/crates/netflow-plugin/integrations/<slug>.md` into a new `flows_entries` DataFrame, (b) splice them over the `flows_integrations` placeholder. Mirrors the existing logs handler. Verified locally: 65 Network Flows rows are spliced into `ingest/generated_map.yaml` under the four sub-categories; no `flows_integrations` placeholder remains; ingest exits 0. PR merged by user.
+
+### 2026-05-07 (later) - SOW close
+
+- Re-run check on netdata PR #22439 confirmed `check-documentation` passes (after learn merge plus our schema fix).
+- Remaining red CI checks (Codacy, SonarCloud, Build Windows) verified unrelated:
+  - Codacy: 1107 markdownlint findings, 100% style-only (MD013 line-length, MD033 inline HTML, MD045 alt text). Pre-existing baseline; recently merged PR #22432 also "fails" Codacy. Project does not gate on this.
+  - SonarCloud: same pattern, ignored as gate.
+  - Build Windows: `urllib HTTPError 403: rate limit exceeded` during packaging step. GitHub API rate limit, transient/infrastructural; unrelated to this work.
+- User decision 2026-05-07: Phase 1C (AI skills cross-links to learn docs) is not mandatory. Acceptance criterion for Phase 1C is rejected with this reasoning recorded in Validation. SOW moved to `done/`.
+
 ## Validation
 
-Phase 1.0 (benchmark rerun) — completed:
+### Acceptance criteria evidence
 
-- 60 paced cells captured in `.local/audits/netflow-bench/results.jsonl`, all with non-empty `RESOURCE_BENCH_RESULT`. No cell failed.
-- 3B unpaced protocol matrix captured in `.local/audits/netflow-bench/protocol_matrix.txt`. All four scenarios (netflow-v5, netflow-v9, ipfix, sflow) ran cleanly.
-- `NETFLOW_RESOURCE_BENCH_PROTOCOL` env var smoke-tested with all four values (netflow-v9, ipfix, sflow, mixed) before launching the full matrix.
-- README block (`src/crates/netflow-plugin/README.md:309-...`) replaced with fresh data sourced from the JSONL.
-- Sizing/Capacity Planning doc (`docs/network-flows/sizing-capacity.md`) replaced with fresh data and the 20-25k headline.
-- Cardinality semantics (synthetic 256 vs 4096 unique records) and CPU% semantics (single-thread plateau at 98-99%) explicitly documented in both README and Sizing doc.
-- No unrelated docs reference stale numbers. The only file with concrete benchmark numbers is `sizing-capacity.md`; other docs link to it.
+- **metadata.yaml validated**: 14 modules under `plugin_name: netflow-plugin` (3 sources + 4 IP intelligence + 2 BGP routing + 5 network identity). Pipeline runs `gen_integrations.py` + `gen_docs_integrations.py` to exit 0; 14 generated `.md` files under `src/crates/netflow-plugin/integrations/`.
+- **Integrations pipeline**: `flows` rendered correctly under its own type. `integrations.json`, `integrations.js`, `COLLECTORS.md` updated. `integrations.json` carries 14 entries with `integration_type: flows` distributed across 4 sub-categories.
+- **Learn section**: `docs/.map/map.yaml` carries the Network Flows top-level section with `integration_placeholder integration_kind: flows`. Schema (`docs/.map/map.schema.json`) accepts the value. Learn `ingest/ingest.py` (PR #2854, merged) routes the markdown files into `flows_entries` and splices them over the placeholder. Local ingest run produced 65 Network Flows rows with no remaining `flows_integrations` placeholder.
+- **Style guide**: pages are second person, active voice, sentence case. No `:::type` admonitions used; markdown-only by user direction.
+- **Field reference**: 91 fields documented by category plus a master alphabetical index with type, per-protocol availability, source class, tier preservation, selectivity, and enrichment chain per row.
+- **Enrichment docs**: GeoIP / static metadata / sampling / static networks / classifiers / ASN resolution / BMP routing / BioRIS / Network Sources / decapsulation. BMP, BioRIS, Network Sources documented based on unit-tested parsing logic; their runtime I/O paths still lack integration tests (followup).
+- **No mention of untested features**: verified via grep -- no references to topology drilldown, pcap (only as a debugging tool name), eBPF, or threat analytics.
+- **Sizing / Capacity planning**: `docs/network-flows/sizing-capacity.md` sourced from `.local/audits/netflow-bench/results.jsonl` (Phase 1.0) and `.local/audits/netflow-bench/storage-{low,high}.json` (Phase 1.0b). Includes the 20-25k flows/s headline, multi-thread CPU semantics note, write-amplification numbers, dedup ratio.
+- **Visualisation docs**: 5 pages -- `summary-sankey.md`, `time-series.md`, `maps-globe.md`, `filters-facets.md`, `dashboard-cards.md`. Maps and globe consolidated into one page since they share the data path.
+- **Screenshots**: 7 user-provided GitHub asset URLs embedded across the visualisation pages.
 
-Phases 1A-1D — pending. Sizing data is now authoritative; downstream documentation pages can be written/audited against fresh measurements.
+### Reviewer findings (codex)
+
+Three rounds of read-only review over the autocomplete fix. Round 1 surfaced async runtime blocking, broader-than-AS_NAME effect, naive substring, stale docs. Round 2 surfaced a blocker (term cap was global, should be autocomplete-only). Round 3 returned "ready to ship for the reviewed autocomplete scope" with no new blockers.
+
+### Same-failure search
+
+- Other text facets affected by the same prefix-only autocomplete bug: `EXPORTER_NAME`, `IN_IF_DESCRIPTION`, `*_NET_NAME`, `SRC_MAC`, `DST_MAC`, `DST_AS_PATH`, `DST_COMMUNITIES`, country/state/city. Per-field policy fixes them all in the same pass.
+- Other places stale "prefix" or "in-memory" claims about autocomplete: `filters-facets.md:38`, `retention-querying.md:104` -- both updated.
+- Other places where the project might gate substring on autocomplete vs selection: confirmed selections use exact equality (`FacetStore::contains_value_ref`); substring path is unreachable from filtering.
+
+### Artifact maintenance gate
+
+- **AGENTS.md**: no update needed.
+- **Runtime project skills**: `.agents/skills/integrations-lifecycle/` updated -- new `per-type-matrix.md` Learn-routing matrix and `how-tos/adding-new-integration-type.md` 8-place checklist. `INDEX.md` cross-linked.
+- **Specs**: no spec update needed; project is incrementally bootstrapped and netflow-plugin specs were not pre-existing.
+- **End-user / operator docs**: this IS the docs update -- ~25 pages under `docs/network-flows/` plus the netflow-plugin README benchmark refresh.
+- **End-user / operator skills (Phase 1C)**: REJECTED by user 2026-05-07 with reasoning "skills linking to docs is not mandatory". `query-netdata-cloud/query-flows.md` and `query-netdata-agents/query-flows.md` remain at their pre-SOW state. Cross-linking to learn docs can be added in a future skills-maintenance pass without blocking this SOW. NOT tracked as a follow-up SOW because it is not a deferred feature -- it is an explicit scope rejection.
+- **SOW lifecycle**: status moved to `completed`, file moved to `done/`, in the same commit as the autocomplete fix lands on the active PR branch.
+
+### Status / directory consistency
+
+Status: `completed`. Directory: `done/`. Filename unchanged.
+
+### Lessons captured
+
+See `## Lessons Extracted` below.
 
 ## Outcome
 
-Pending.
+Delivered:
+
+- 4 commits on netdata branch `netflow-plugin-docs-and-bench` (PR #22439, draft):
+  - `c708101e` per-protocol benchmark + storage footprint test
+  - `1455d59f` Network Flows documentation rewrite (~25 pages)
+  - `e61c72b7` netflow-plugin metadata.yaml (3 modules) and integration cards
+  - `6d72b5ab` `flows` top-level integration_type with 14 cards
+  - `b733037a` substring autocomplete on text facets (3 codex rounds, 9 new tests, 427 pass)
+  - `2c3ab0fc` `docs/.map` schema accepts `flows`
+  - `26f8b978` screenshots and master field index
+- 1 commit on learn branch `netflow-flows-integrations` (PR #2854, MERGED 2026-05-07):
+  - `de62daaf` ingest: route flows integrations into the Network Flows section
+- Companion website branch `netflow-flows-content` carries content corrections (separate, smaller).
+
+Pending only:
+
+- Re-trigger Build Windows on netdata PR #22439 (transient `urllib` HTTP 403 rate limit, not our code).
+- Mark netdata PR #22439 ready for review when user decides.
+- Cloud-frontend "Update integrations.js" PR -- standard manual sync, not gated by this SOW.
 
 ## Lessons Extracted
 
-Pending.
+- **Code is ground truth, not the existing markdown**: the inherited netflow docs were thin and contained inaccuracies. Re-verifying every claim against `src/crates/netflow-plugin/` paid off -- multiple "well-documented" behaviours (e.g. AS name format, sFlow VLAN provenance, "single-core" benchmark framing) turned out to be wrong or stale.
+- **Doubling/mirroring is foundational, not a footnote**: users cannot reason about ANY aggregate number unless they understand that one router watching ingress + egress doubles every flow. This had to be the first concept on the Overview, not an "advanced" sidebar.
+- **Subagent per feature, master assistant for synthesis**: spawning a read-only subagent per enrichment module / visualisation / source kept the master context clean. The Overview was written last as a natural index of established truths -- not first as a promise the detail pages later contradicted.
+- **Per-field beats per-kind for policy that touches UX**: the autocomplete fix initially used per-kind dispatch (Text vs others). Codex pushed for per-field. The right answer was a `FacetFieldSpec::autocomplete_match` field that defaults from kind but allows future per-field overrides without churn.
+- **Reviewer iterations are non-optional**: codex flagged a real blocker on round 2 (term cap applied to all modes, not just autocomplete). One round of review would have shipped that bug. The project rule "iterate until reviewers cannot find anything else" is load-bearing.
+- **Match the codebase's own conventions over generic style**: substring autocomplete matches what `libnetdata/facets/facets.c:1783` already does for systemd-journal FTS (`SIMPLE_PATTERN_SUBSTRING`). Consistent with the project, not novel.
+- **Separate benchmarks: per-protocol resource envelope vs storage footprint**: a single "resource benchmark" couldn't answer both "what's the ingest cost?" and "what's the on-disk cost?". Splitting them produced two complementary tables and removed a bogus `bytes/flow x time` calculation that ignored journal indexing and dedup.
+- **Architectural pivots happen mid-SOW**: the original plan placed flow integrations under `data-collection.networking` as collector-typed cards. Mid-execution the user reframed the test as "would users ask 'Does Netdata integrate with X?'", which shifted the answer to a top-level `flows` integration_type with 14 cards. Captured as Decision 10 rather than retconning earlier decisions.
 
 ## Followup
 
-Phase 2 SOW (integration tests for runtime I/O paths):
+Open follow-ups, ordered by priority:
 
-- BMP listener: add async/tokio tests for TCP accept loop, framed decode, `apply_update` trie wiring, malformed message error accumulation, retry/shutdown. Test with real BMP speaker, measure performance impact on ingest, validate enrichment correctness.
-- BioRIS: add async tests for gRPC client connection, RIB dump stream processing, retry/backoff cycle. Build local RIS daemon for end-to-end validation. Test `build_endpoint_uri`, `parse_router_ip`.
-- Network Sources: add async tests for HTTP fetch cycle (`fetch_source_once`), service loop (`run_source_loop`), prefix matching integration (`matching_attributes_ascending`), failed HTTP handling (timeouts, non-200, malformed JSON), header forwarding, multi-source merge/re-publish.
-- All three features: add integration tests that wire parsed data → `DynamicRoutingRuntime` trie → flow enrichment lookup, verifying a flow record returns the expected route/network attributes.
-- BMP architectural decision: enrichment-only in netflow-plugin, or separate BGP monitoring plugin with its own DB.
-- Topology drilldown: implement the dead-code hook into the actor modal.
-- Also deferred: health.d/ alerts.
+1. **Cloud-frontend `Update integrations.js`** -- copy the regenerated `integrations.js` from netdata into `cloud-frontend/src/domains/integrations/data/integrations.js` and open the standard sync PR. Not gated by this SOW. Last manual refresh was 2024-10-21; this work won't appear in the dashboard's Integrations modal until that file is updated.
+2. **Phase 2 SOW: integration tests for runtime I/O paths**:
+   - BMP listener: async/tokio tests for TCP accept loop, framed decode, `apply_update` trie wiring, malformed message error accumulation, retry/shutdown. Test with a real BMP speaker, measure ingest impact, validate enrichment correctness.
+   - BioRIS: async tests for gRPC client connection, RIB dump stream, retry/backoff. Build a local RIS daemon for end-to-end validation. Test `build_endpoint_uri`, `parse_router_ip`.
+   - Network Sources: async tests for HTTP fetch cycle, service loop, prefix matching integration, failed HTTP handling, header forwarding, multi-source merge/re-publish.
+   - All three: integration tests that wire parsed data through `DynamicRoutingRuntime` trie into flow enrichment lookup.
+3. **BMP architectural decision**: enrichment-only in netflow-plugin (Akvorado pattern) vs a separate BGP monitoring plugin with its own DB. This is product-level, not a code change.
+4. **Topology drilldown**: the `useFlowsDrilldownData` hook is dead code today. Implement the actor-modal hook when a UX home is decided.
+5. **Autocomplete follow-ups (deferred from autocomplete bug fix)**:
+   - Case-insensitive matching for text facets (today: typing `akamai` will not match `AS20940 Akamai International`). UX call.
+   - Substring scan over very large archived FST sidecars is bounded by `FACET_AUTOCOMPLETE_LIMIT` early-exit but still streams keys for rare/no-hit terms. Token-prefix or n-gram indexing can be added if measurements warrant.
+6. **Health alerts (`health.d/`)**: deferred. The netflow-plugin emits its own self-monitoring metrics (parse errors, decoder latency, ingest queue depth); alerts on those have not yet been authored.
+7. **AI skills cross-links to learn docs**: REJECTED for this SOW (not mandatory per user 2026-05-07). Can be picked up in a future skills-maintenance pass; not tracked as a separate SOW because rejected, not deferred.
 
 ## Regression Log
 
