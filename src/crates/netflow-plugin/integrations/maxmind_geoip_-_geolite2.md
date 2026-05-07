@@ -44,7 +44,7 @@ only the bounded-cardinality columns.
 
 For the cross-cutting concept (resolver poll loop, multi-database composition,
 ASN provider chain, failure-modes table), see
-[IP Intelligence](https://learn.netdata.cloud/docs/network-flows/enrichment/ip-intelligence).
+[IP Intelligence](https://learn.netdata.cloud/docs/network-flows/enrichment).
 
 
 You download the MaxMind MMDB files yourself using `geoipupdate` (MaxMind's
@@ -145,7 +145,7 @@ format.)
 Override the default DB-IP auto-detection by pointing `asn_database` and
 `geo_database` at your MaxMind MMDB files. Both keys take a list -- you can
 chain MaxMind alongside other MMDB sources; see the
-[IP Intelligence](https://learn.netdata.cloud/docs/network-flows/enrichment/ip-intelligence)
+[IP Intelligence](https://learn.netdata.cloud/docs/network-flows/enrichment)
 page for the per-field "last non-empty wins" composition rule.
 
 
@@ -213,7 +213,7 @@ enrichment:
 
 ###### MaxMind ASN + DB-IP geo (mixed)
 
-Use MaxMind for ASN richness and keep the bundled DB-IP geo file. Both lookups run; the multi-DB composition rule is documented on the [IP Intelligence](https://learn.netdata.cloud/docs/network-flows/enrichment/ip-intelligence) page.
+Use MaxMind for ASN richness and keep the bundled DB-IP geo file. Both lookups run; the multi-DB composition rule is documented on the [IP Intelligence](https://learn.netdata.cloud/docs/network-flows/enrichment) page.
 
 <details open><summary>Config</summary>
 
@@ -261,7 +261,7 @@ AS data.
 
 The plugin loads every configured MMDB. If you list both, the per-field
 "last non-empty wins" rule applies (see the
-[IP Intelligence](https://learn.netdata.cloud/docs/network-flows/enrichment/ip-intelligence)
+[IP Intelligence](https://learn.netdata.cloud/docs/network-flows/enrichment)
 concept page). Order matters: list the source whose values you want to win
 **last**.
 

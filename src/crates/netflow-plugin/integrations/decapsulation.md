@@ -77,7 +77,7 @@ IPv6 packet pointed to by next-header 4 or 41.
 For the cross-cutting concept (how decap composes with the rest of the enrichment
 pipeline, the non-tunnel "drop, do not fall back" semantics, and per-source
 dependence on the L2-section path), see
-[Decapsulation](https://learn.netdata.cloud/docs/network-flows/enrichment/decapsulation).
+[Decapsulation](https://learn.netdata.cloud/docs/network-flows/enrichment).
 
 
 Set `protocols.decapsulation_mode` in `netflow.yaml` to `srv6` or `vxlan`. The

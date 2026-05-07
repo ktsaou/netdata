@@ -34,7 +34,7 @@ transforms the response with jq, and labels matching flow prefixes with whatever
 fields you map. NetBox is the authoritative source -- when the same prefix is
 tagged in NetBox and in the static `networks:` block, the static block wins
 (operator override is intentional, see the
-[Network Identity](https://learn.netdata.cloud/docs/network-flows/enrichment/network-identity)
+[Network Identity](https://learn.netdata.cloud/docs/network-flows/enrichment)
 concept page).
 
 Use cases: applying your organisation's data-centre rack labels, tenant names,

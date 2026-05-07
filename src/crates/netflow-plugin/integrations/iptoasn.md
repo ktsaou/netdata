@@ -41,7 +41,7 @@ or coordinates.
 
 For the IP-intelligence mechanism (lookup order, MMDB composition, refresh,
 provider chains), see
-[IP Intelligence](https://learn.netdata.cloud/docs/network-flows/enrichment/ip-intelligence).
+[IP Intelligence](https://learn.netdata.cloud/docs/network-flows/enrichment).
 
 
 The Netdata plugin reads MMDB only (see
@@ -74,7 +74,7 @@ This integration runs as a single instance per Netdata Agent.
 
 Not auto-detected as the default ASN source -- the plugin auto-detects
 DB-IP MMDBs in the cache directory at startup
-(see [IP Intelligence](https://learn.netdata.cloud/docs/network-flows/enrichment/ip-intelligence#configuration)).
+(see [IP Intelligence](https://learn.netdata.cloud/docs/network-flows/enrichment)).
 To use IPtoASN, run the bundled downloader to produce IPtoASN-derived
 MMDBs (the downloader writes to the same cache paths the plugin scans,
 so once present they are picked up automatically on the 30-second
@@ -230,7 +230,7 @@ This is data-source-level, not a plugin issue. If richer AS-name
 coverage matters, layer a MaxMind GeoLite2-ASN MMDB after IPtoASN in
 `asn_database` -- per-field "last database with a non-empty value
 wins" composition (see
-[IP Intelligence](https://learn.netdata.cloud/docs/network-flows/enrichment/ip-intelligence#configuration))
+[IP Intelligence](https://learn.netdata.cloud/docs/network-flows/enrichment))
 means MaxMind names override IPtoASN's empty entries.
 
 

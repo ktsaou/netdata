@@ -601,7 +601,7 @@ modules:
               database tags private ranges so `*_AS_NAME` renders as `AS0 Private IP Address Space`
               with empty country. With third-party MMDBs that lack this tagging, results may vary.
               Declare your internal CIDRs under `enrichment.networks` to override -- see
-              [Static metadata](https://learn.netdata.cloud/docs/network-flows/enrichment/static-metadata).
+              [Static metadata](https://learn.netdata.cloud/docs/network-flows/enrichment).
           - name: Stale databases
             description: |
               The plugin does not alert on staleness. Check file mtime:
@@ -682,7 +682,7 @@ modules:
 
           For the cross-cutting concept (resolver poll loop, multi-database composition,
           ASN provider chain, failure-modes table), see
-          [IP Intelligence](https://learn.netdata.cloud/docs/network-flows/enrichment/ip-intelligence).
+          [IP Intelligence](https://learn.netdata.cloud/docs/network-flows/enrichment).
         method_description: |
           You download the MaxMind MMDB files yourself using `geoipupdate` (MaxMind's
           official downloader, configured with your account ID + license key) or via direct
@@ -765,7 +765,7 @@ modules:
             Override the default DB-IP auto-detection by pointing `asn_database` and
             `geo_database` at your MaxMind MMDB files. Both keys take a list -- you can
             chain MaxMind alongside other MMDB sources; see the
-            [IP Intelligence](https://learn.netdata.cloud/docs/network-flows/enrichment/ip-intelligence)
+            [IP Intelligence](https://learn.netdata.cloud/docs/network-flows/enrichment)
             page for the per-field "last non-empty wins" composition rule.
           folding:
             title: Config options
@@ -815,7 +815,7 @@ modules:
             - name: MaxMind ASN + DB-IP geo (mixed)
               folding:
                 enabled: true
-              description: Use MaxMind for ASN richness and keep the bundled DB-IP geo file. Both lookups run; the multi-DB composition rule is documented on the [IP Intelligence](https://learn.netdata.cloud/docs/network-flows/enrichment/ip-intelligence) page.
+              description: Use MaxMind for ASN richness and keep the bundled DB-IP geo file. Both lookups run; the multi-DB composition rule is documented on the [IP Intelligence](https://learn.netdata.cloud/docs/network-flows/enrichment) page.
               config: |
                 enrichment:
                   geoip:
@@ -851,7 +851,7 @@ modules:
             description: |
               The plugin loads every configured MMDB. If you list both, the per-field
               "last non-empty wins" rule applies (see the
-              [IP Intelligence](https://learn.netdata.cloud/docs/network-flows/enrichment/ip-intelligence)
+              [IP Intelligence](https://learn.netdata.cloud/docs/network-flows/enrichment)
               concept page). Order matters: list the source whose values you want to win
               **last**.
     alerts: []
@@ -917,7 +917,7 @@ modules:
 
           For the IP-intelligence mechanism (lookup order, MMDB composition, refresh,
           provider chains), see
-          [IP Intelligence](https://learn.netdata.cloud/docs/network-flows/enrichment/ip-intelligence).
+          [IP Intelligence](https://learn.netdata.cloud/docs/network-flows/enrichment).
         method_description: |
           The Netdata plugin reads MMDB only (see
           `src/crates/netflow-plugin/src/enrichment/data/geoip/`). IPtoASN ships
@@ -946,7 +946,7 @@ modules:
           description: |
             Not auto-detected as the default ASN source -- the plugin auto-detects
             DB-IP MMDBs in the cache directory at startup
-            (see [IP Intelligence](https://learn.netdata.cloud/docs/network-flows/enrichment/ip-intelligence#configuration)).
+            (see [IP Intelligence](https://learn.netdata.cloud/docs/network-flows/enrichment)).
             To use IPtoASN, run the bundled downloader to produce IPtoASN-derived
             MMDBs (the downloader writes to the same cache paths the plugin scans,
             so once present they are picked up automatically on the 30-second
@@ -1068,7 +1068,7 @@ modules:
               coverage matters, layer a MaxMind GeoLite2-ASN MMDB after IPtoASN in
               `asn_database` -- per-field "last database with a non-empty value
               wins" composition (see
-              [IP Intelligence](https://learn.netdata.cloud/docs/network-flows/enrichment/ip-intelligence#configuration))
+              [IP Intelligence](https://learn.netdata.cloud/docs/network-flows/enrichment))
               means MaxMind names override IPtoASN's empty entries.
           - name: Country empty although IPtoASN was selected
             description: |
@@ -1155,7 +1155,7 @@ modules:
 
           For the full IP-intelligence concept (composition rule, ASN provider chain,
           auto-detect path order, dual-stack handling, hot reload semantics), see
-          [IP Intelligence](https://learn.netdata.cloud/docs/network-flows/enrichment/ip-intelligence).
+          [IP Intelligence](https://learn.netdata.cloud/docs/network-flows/enrichment).
         method_description: |
           You build (or download) the MMDB file with your own tooling, place it on the
           agent host, and point `enrichment.geoip.asn_database` and / or
@@ -1292,7 +1292,7 @@ modules:
               plugin will pick it up; if it was edited byte-by-byte (rare with MMDB
               builders) verify size or mtime actually changed. The reload mechanism
               and its 30-second cadence are documented in
-              [IP Intelligence](https://learn.netdata.cloud/docs/network-flows/enrichment/ip-intelligence).
+              [IP Intelligence](https://learn.netdata.cloud/docs/network-flows/enrichment).
               Operational practice: have your build pipeline write the new MMDB to a
               temp file in the same directory and `rename(2)` it over the live path so
               the swap is atomic.
@@ -2060,7 +2060,7 @@ modules:
           For the cross-cutting concepts (how multiple network sources merge, the lookup
           priority vs static `networks` config, TLS verification rules, the jq engine and
           its expected output schema, fetch loop and retry/backoff), see
-          [Network Identity](https://learn.netdata.cloud/docs/network-flows/enrichment/network-identity).
+          [Network Identity](https://learn.netdata.cloud/docs/network-flows/enrichment).
         method_description: |
           The plugin issues a periodic GET to `https://ip-ranges.amazonaws.com/ip-ranges.json`,
           parses the JSON body, runs the configured jq transform via the
@@ -2108,7 +2108,7 @@ modules:
 
             The expected `transform` output is a stream of objects, each carrying a `prefix`
             (CIDR string) plus any subset of the optional attribute fields. See the
-            cross-cutting [Network Identity](https://learn.netdata.cloud/docs/network-flows/enrichment/network-identity)
+            cross-cutting [Network Identity](https://learn.netdata.cloud/docs/network-flows/enrichment)
             page for the full output schema.
           folding:
             title: Config options
@@ -2331,7 +2331,7 @@ modules:
           For the cross-cutting network-identity behavior (merge order with GeoIP and
           static config, jq output contract, TLS rules, single-page fetch, failure /
           backoff handling), see
-          [Network Identity](https://learn.netdata.cloud/docs/network-flows/enrichment/network-identity).
+          [Network Identity](https://learn.netdata.cloud/docs/network-flows/enrichment).
         method_description: |
           Periodic HTTPS GET against the chosen `gstatic.com` URL. The body is parsed
           as JSON and the configured `transform` (a [jaq](https://github.com/01mf02/jaq)
@@ -2618,7 +2618,7 @@ modules:
 
           For the full network-identity concept (merge order, jq output shape, TLS
           verification, failure modes), see
-          [Network Identity](https://learn.netdata.cloud/docs/network-flows/enrichment/network-identity).
+          [Network Identity](https://learn.netdata.cloud/docs/network-flows/enrichment).
         method_description: |
           Periodic HTTPS GET against the Service Tags JSON, jq transform via the
           [jaq](https://github.com/01mf02/jaq) library, merge into the network-attributes
@@ -2902,7 +2902,7 @@ modules:
           fields you map. NetBox is the authoritative source -- when the same prefix is
           tagged in NetBox and in the static `networks:` block, the static block wins
           (operator override is intentional, see the
-          [Network Identity](https://learn.netdata.cloud/docs/network-flows/enrichment/network-identity)
+          [Network Identity](https://learn.netdata.cloud/docs/network-flows/enrichment)
           concept page).
 
           Use cases: applying your organisation's data-centre rack labels, tenant names,
@@ -3167,7 +3167,7 @@ modules:
       module_name: generic-ipam
       monitored_instance:
         name: Generic JSON-over-HTTP IPAM
-        link: https://learn.netdata.cloud/docs/network-flows/enrichment/network-identity
+        link: https://learn.netdata.cloud/docs/network-flows/enrichment
         categories:
           - flows.enrichment-methods
         icon_filename: network-wired.svg
@@ -3212,7 +3212,7 @@ modules:
 
           For the full network-identity concept (merge order vs GeoIP and static, what
           fields you can populate, why TLS verification cannot be disabled), see
-          [Network Identity](https://learn.netdata.cloud/docs/network-flows/enrichment/network-identity).
+          [Network Identity](https://learn.netdata.cloud/docs/network-flows/enrichment).
         method_description: |
           The plugin issues a periodic HTTP request (GET by default, POST optionally) to
           your configured URL with the headers you specify, parses the response as JSON,
@@ -3966,7 +3966,7 @@ modules:
       module_name: classifiers
       monitored_instance:
         name: Classifiers
-        link: https://learn.netdata.cloud/docs/network-flows/enrichment/classifiers
+        link: https://learn.netdata.cloud/docs/network-flows/enrichment
         categories:
           - flows.enrichment-methods
         icon_filename: network-wired.svg
@@ -3996,7 +3996,7 @@ modules:
       data_collection:
         metrics_description: |
           Classifiers tag exporters and interfaces using small expression-based rules.
-          Where [static metadata](https://learn.netdata.cloud/docs/network-flows/enrichment/static-metadata)
+          Where [static metadata](https://learn.netdata.cloud/docs/network-flows/enrichment)
           forces you to enumerate every exporter and every ifIndex by hand, classifiers
           let you express the network design once -- "anything matching `^edge-` is the
           edge tier", "any interface with `BACKBONE-LUMEN` in its description is on
@@ -4104,7 +4104,7 @@ modules:
               conventions (`edge-...`, `core-...`), management-IP subnets per site,
               SNMP interface descriptions that follow a template (`BACKBONE-<carrier>`,
               `TRANSIT-...`, `IX-...`), or 100Gbps-equals-core conventions. If your
-              fleet has no such pattern, [static metadata](https://learn.netdata.cloud/docs/network-flows/enrichment/static-metadata)
+              fleet has no such pattern, [static metadata](https://learn.netdata.cloud/docs/network-flows/enrichment)
               is the better fit -- it lets you list each exporter and ifIndex by hand.
           - title: Configure interface metadata first if you want interface rules
             description: |
@@ -4472,7 +4472,7 @@ modules:
           For the cross-cutting concept (how decap composes with the rest of the enrichment
           pipeline, the non-tunnel "drop, do not fall back" semantics, and per-source
           dependence on the L2-section path), see
-          [Decapsulation](https://learn.netdata.cloud/docs/network-flows/enrichment/decapsulation).
+          [Decapsulation](https://learn.netdata.cloud/docs/network-flows/enrichment).
         method_description: |
           Set `protocols.decapsulation_mode` in `netflow.yaml` to `srv6` or `vxlan`. The
           plugin then runs the inner-packet parser whenever a flow record carries an L2

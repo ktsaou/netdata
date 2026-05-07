@@ -187,7 +187,7 @@ GeoIP databases have no entry for RFC 1918 / private space. The DB-IP-built ASN
 database tags private ranges so `*_AS_NAME` renders as `AS0 Private IP Address Space`
 with empty country. With third-party MMDBs that lack this tagging, results may vary.
 Declare your internal CIDRs under `enrichment.networks` to override -- see
-[Static metadata](https://learn.netdata.cloud/docs/network-flows/enrichment/static-metadata).
+[Static metadata](https://learn.netdata.cloud/docs/network-flows/enrichment).
 
 
 ### Stale databases

@@ -22,7 +22,7 @@ Module: classifiers
 ## Overview
 
 Classifiers tag exporters and interfaces using small expression-based rules.
-Where [static metadata](https://learn.netdata.cloud/docs/network-flows/enrichment/static-metadata)
+Where [static metadata](https://learn.netdata.cloud/docs/network-flows/enrichment)
 forces you to enumerate every exporter and every ifIndex by hand, classifiers
 let you express the network design once -- "anything matching `^edge-` is the
 edge tier", "any interface with `BACKBONE-LUMEN` in its description is on
@@ -142,7 +142,7 @@ Classifiers shine when there is a pattern to match -- exporter naming
 conventions (`edge-...`, `core-...`), management-IP subnets per site,
 SNMP interface descriptions that follow a template (`BACKBONE-<carrier>`,
 `TRANSIT-...`, `IX-...`), or 100Gbps-equals-core conventions. If your
-fleet has no such pattern, [static metadata](https://learn.netdata.cloud/docs/network-flows/enrichment/static-metadata)
+fleet has no such pattern, [static metadata](https://learn.netdata.cloud/docs/network-flows/enrichment)
 is the better fit -- it lets you list each exporter and ifIndex by hand.
 
 
