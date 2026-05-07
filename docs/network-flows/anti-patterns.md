@@ -20,17 +20,7 @@ Flow data is powerful but easy to misuse. The mistakes below are the ones that c
 
 **How to avoid it.** Always filter by one exporter and one interface (Input Interface OR Output Interface, pick one) when reading absolute volume numbers. Each packet then appears in exactly one record on that interface. To validate: compare to SNMP interface counters on the same interface — values should be close.
 
-## 2. Trusting GeoIP for internal IPs
-
-**The mistake.** You enable GeoIP enrichment. Internal IPs (10.x, 172.16-31.x, 192.168.x) appear in random countries on the geographic map.
-
-**Why it's wrong.** GeoIP databases don't have entries for private IP ranges. Netdata doesn't skip private IPs — it just hands the IP to the database and uses what comes back. With the stock DB-IP database, private ranges are tagged so they render as "AS0 Private IP Address Space" with empty country. With third-party databases, results vary. Some return spurious country data for RFC 1918 addresses.
-
-**What it costs.** Geographic anomalies look like security incidents. Analysts waste time investigating "traffic from China" that's actually traffic to a server in the 10.x.x.x range.
-
-**How to avoid it.** Configure your internal IP ranges as static metadata before relying on geographic analysis. Use the [`networks`](/docs/network-flows/enrichment/static-metadata.md) block to declare each internal CIDR with a name, role, and (optionally) overridden country. The labels you set there override whatever GeoIP returns. Validate by spot-checking known IPs against the map.
-
-## 4. Alerting on absolute volume thresholds
+## 2. Alerting on absolute volume thresholds
 
 **The mistake.** You configure an alert: "page me if any IP sends more than 10 GB in an hour."
 

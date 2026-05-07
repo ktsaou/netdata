@@ -1736,3 +1736,33 @@ renumbers exactly once.
 Files touched:
 - docs/network-flows/anti-patterns.md (removed lines
   ~23-36 plus the section header)
+
+#### F16 -- 2026-05-07 -- remove "Trusting GeoIP for internal IPs" anti-pattern
+
+User: "Geolocation does not position internal IPs on the
+map. ... section must be removed."
+
+Verified against code: `apply_geo_record`
+(`src/crates/netflow-plugin/src/enrichment/data/geoip/decode.rs:40-72`)
+writes `country`, `state`, `city`, `latitude`, `longitude`
+ONLY when the MMDB record carries those fields with
+non-empty values. For private / RFC 1918 IPs, the MMDB
+either has no entry at all OR has an entry tagged with
+`ip_class: "private"` and no country/city/coords -- so
+none of those fields get written. Internal IPs do NOT
+appear on geographic maps.
+
+The "internal IPs in random countries" claim was invented;
+no such behaviour exists. Repair: deleted the entire
+"## Trusting GeoIP for internal IPs" section.
+
+Section numbering renumber will land with F17 once all
+three section removals have completed.
+
+Note: the troubleshooting.md "Internal IPs in random
+countries" subsection (lines 134-138) carries the same
+invented claim and will be addressed under F19.
+
+Files touched:
+- docs/network-flows/anti-patterns.md (removed the
+  section header and body)
