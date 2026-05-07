@@ -213,3 +213,29 @@ between ingest's filesystem walk and `map.yaml`.
 
 If a source file's edit URL doesn't match any `map.yaml` row,
 the file is skipped. No warning -- silent skip.
+
+## Inter-page linking
+
+Markdown links between Learn pages must use the **GitHub-relative
+path with `.md` extension** — NOT the learn.netdata.cloud URL,
+and NOT a bare slug without extension. The ingest pipeline
+rewrites these links to the correct Learn URLs during processing.
+
+**Correct:**
+
+```markdown
+See [Configuration](/docs/network-flows/configuration.md) for details.
+```
+
+**Wrong (will NOT resolve on Learn or GitHub):**
+
+```markdown
+See [Configuration](/network-flows/configuration) for details.
+```
+
+The link path is the repo-relative path to the source `.md` file,
+prefixed with `/docs/`. The ingest pipeline matches it against the
+`map.yaml` tree and rewrites it to the final Learn URL.
+
+This also means links work natively on GitHub — readers browsing
+the source repo can click through to the linked file.

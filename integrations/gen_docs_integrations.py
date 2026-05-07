@@ -27,6 +27,7 @@ def cleanup(only_base_paths=None):
         "src/go/plugin/scripts.d/collector",
         "src/go/plugin/ibm.d/modules",
         "src/crates/netdata-otel",
+        "src/crates/netflow-plugin",
         "src/collectors",
         "src/exporting",
         "integrations/cloud-notifications",

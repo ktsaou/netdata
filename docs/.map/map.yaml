@@ -476,6 +476,93 @@ sidebar:
       - meta:
           label: Shell Scripts
           edit_url: https://github.com/netdata/netdata/edit/master/src/web/api/exporters/shell/README.md
+  # Network Flows
+  - meta:
+      label: Network Flows
+    items:
+      - meta:
+          label: Network Flows Overview
+          edit_url: https://github.com/netdata/netdata/edit/master/docs/network-flows/README.md
+          description: Collect, enrich, and visualize NetFlow, IPFIX, and sFlow data with the Netdata Agent.
+      - meta:
+          label: Quick Start
+          edit_url: https://github.com/netdata/netdata/edit/master/docs/network-flows/quick-start.md
+          description: Get network flow monitoring running in five minutes.
+      - meta:
+          label: Flow Sources
+        items:
+          - meta:
+              label: NetFlow
+              edit_url: https://github.com/netdata/netdata/edit/master/docs/network-flows/sources/netflow.md
+          - meta:
+              label: IPFIX
+              edit_url: https://github.com/netdata/netdata/edit/master/docs/network-flows/sources/ipfix.md
+          - meta:
+              label: sFlow
+              edit_url: https://github.com/netdata/netdata/edit/master/docs/network-flows/sources/sflow.md
+      - meta:
+          label: Configuration
+          edit_url: https://github.com/netdata/netdata/edit/master/docs/network-flows/configuration.md
+          description: Full reference for netflow.yaml configuration options.
+      - meta:
+          label: Enrichment
+        items:
+          - meta:
+              label: GeoIP Enrichment
+              edit_url: https://github.com/netdata/netdata/edit/master/docs/network-flows/enrichment/geoip.md
+          - meta:
+              label: Static Metadata
+              edit_url: https://github.com/netdata/netdata/edit/master/docs/network-flows/enrichment/static-metadata.md
+          - meta:
+              label: Classifiers
+              edit_url: https://github.com/netdata/netdata/edit/master/docs/network-flows/enrichment/classifiers.md
+          - meta:
+              label: ASN Resolution
+              edit_url: https://github.com/netdata/netdata/edit/master/docs/network-flows/enrichment/asn-resolution.md
+          - meta:
+              label: BMP Routing
+              edit_url: https://github.com/netdata/netdata/edit/master/docs/network-flows/enrichment/bmp-routing.md
+          - meta:
+              label: BioRIS
+              edit_url: https://github.com/netdata/netdata/edit/master/docs/network-flows/enrichment/bioris.md
+          - meta:
+              label: Network Sources
+              edit_url: https://github.com/netdata/netdata/edit/master/docs/network-flows/enrichment/network-sources.md
+          - meta:
+              label: Decapsulation
+              edit_url: https://github.com/netdata/netdata/edit/master/docs/network-flows/enrichment/decapsulation.md
+      - meta:
+          label: Field Reference
+          edit_url: https://github.com/netdata/netdata/edit/master/docs/network-flows/field-reference.md
+          description: Complete list of flow fields with per-protocol availability.
+      - meta:
+          label: Visualization
+        items:
+          - meta:
+              label: Summary and Sankey
+              edit_url: https://github.com/netdata/netdata/edit/master/docs/network-flows/visualization/summary-sankey.md
+          - meta:
+              label: Time-Series Charts
+              edit_url: https://github.com/netdata/netdata/edit/master/docs/network-flows/visualization/time-series.md
+          - meta:
+              label: Maps and Globe
+              edit_url: https://github.com/netdata/netdata/edit/master/docs/network-flows/visualization/maps-globe.md
+          - meta:
+              label: Filters and Facets
+              edit_url: https://github.com/netdata/netdata/edit/master/docs/network-flows/visualization/filters-facets.md
+          - meta:
+              label: Dashboard Cards
+              edit_url: https://github.com/netdata/netdata/edit/master/docs/network-flows/visualization/dashboard-cards.md
+      - meta:
+          label: Retention and Querying
+          edit_url: https://github.com/netdata/netdata/edit/master/docs/network-flows/retention-querying.md
+      - meta:
+          label: Sizing and Capacity Planning
+          edit_url: https://github.com/netdata/netdata/edit/master/docs/network-flows/sizing-capacity.md
+          description: Storage estimation, memory guidance, and performance benchmarks.
+      - meta:
+          label: Troubleshooting
+          edit_url: https://github.com/netdata/netdata/edit/master/docs/network-flows/troubleshooting.md
   # Logs
   - meta:
       label: Logs

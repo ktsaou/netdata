@@ -34,6 +34,7 @@ COLLECTOR_SOURCES = [
     (AGENT_REPO, REPO_PATH / 'src' / 'go' / 'plugin' / 'ibm.d' / 'modules', True),
     (AGENT_REPO, REPO_PATH / 'src' / 'go' / 'plugin' / 'ibm.d' / 'modules' / 'websphere', True),
     (AGENT_REPO, REPO_PATH / 'src' / 'crates' / 'netdata-otel', True),
+    (AGENT_REPO, REPO_PATH / 'src' / 'crates' / 'netflow-plugin' / 'metadata.yaml', False),
 ]
 
 DEPLOY_SOURCES = [
@@ -313,7 +314,7 @@ def get_collector_metadata_entries():
                 ret.append((r, item))
         elif d.exists() and d.is_file() and not m:
             if d.match(METADATA_PATTERN):
-                ret.append(d)
+                ret.append((r, d))
 
     return ret
 
