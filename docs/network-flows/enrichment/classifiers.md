@@ -2,7 +2,7 @@
 custom_edit_url: "https://github.com/netdata/netdata/edit/master/docs/network-flows/enrichment/classifiers.md"
 sidebar_label: "Classifiers"
 learn_status: "Published"
-learn_rel_path: "Network Flows/Enrichment"
+learn_rel_path: "Network Flows/Flows Enrichment"
 keywords: ['classifiers', 'akvorado', 'enrichment', 'rules', 'expression']
 endmeta-->
 

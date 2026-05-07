@@ -1615,3 +1615,29 @@ consistently across map.yaml and all sibling frontmatter.
 Files touched:
 - docs/network-flows/enrichment/ip-intelligence.md
   (created from empty)
+
+#### F20 -- 2026-05-07 -- "Enrichment Concepts" -> "Flows Enrichment"
+
+Repair: renamed the section consistently in:
+
+- `docs/.map/map.yaml:499` -- the section label that drives
+  the actual sidebar position on Learn.
+- All seven frontmatter `learn_rel_path:` values in
+  `docs/network-flows/enrichment/*.md` -- prior state was
+  inconsistent (4 files had "Network Flows/Enrichment", 2
+  had "Network Flows/Enrichment Concepts", 1 had the
+  brand-new F11 page). Settled on the canonical
+  "Network Flows/Flows Enrichment" everywhere.
+
+Grep `Enrichment Concepts|enrichment-concepts` across docs/
+and src/crates/netflow-plugin/ -- no remaining references.
+
+Files touched:
+- docs/.map/map.yaml
+- docs/network-flows/enrichment/asn-resolution.md
+- docs/network-flows/enrichment/bgp-routing.md
+- docs/network-flows/enrichment/classifiers.md
+- docs/network-flows/enrichment/decapsulation.md
+- docs/network-flows/enrichment/ip-intelligence.md
+- docs/network-flows/enrichment/network-identity.md
+- docs/network-flows/enrichment/static-metadata.md

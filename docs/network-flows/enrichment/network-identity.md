@@ -2,7 +2,7 @@
 custom_edit_url: "https://github.com/netdata/netdata/edit/master/docs/network-flows/enrichment/network-identity.md"
 sidebar_label: "Network Identity"
 learn_status: "Published"
-learn_rel_path: "Network Flows/Enrichment Concepts"
+learn_rel_path: "Network Flows/Flows Enrichment"
 keywords: ['network identity', 'network sources', 'ipam', 'cmdb', 'cloud ip ranges', 'enrichment', 'concept']
 endmeta-->
 

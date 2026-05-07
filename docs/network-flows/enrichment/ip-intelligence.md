@@ -2,7 +2,7 @@
 custom_edit_url: "https://github.com/netdata/netdata/edit/master/docs/network-flows/enrichment/ip-intelligence.md"
 sidebar_label: "IP Intelligence"
 learn_status: "Published"
-learn_rel_path: "Network Flows/Enrichment Concepts"
+learn_rel_path: "Network Flows/Flows Enrichment"
 keywords: ['geoip', 'asn', 'ip intelligence', 'country', 'city', 'mmdb', 'enrichment']
 endmeta-->
 

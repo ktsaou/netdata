@@ -2,7 +2,7 @@
 custom_edit_url: "https://github.com/netdata/netdata/edit/master/docs/network-flows/enrichment/static-metadata.md"
 sidebar_label: "Static Metadata"
 learn_status: "Published"
-learn_rel_path: "Network Flows/Enrichment"
+learn_rel_path: "Network Flows/Flows Enrichment"
 keywords: ['static metadata', 'enrichment', 'networks', 'exporters', 'interface']
 endmeta-->
 

@@ -496,7 +496,7 @@ sidebar:
           edit_url: https://github.com/netdata/netdata/edit/master/docs/network-flows/configuration.md
           description: Full reference for netflow.yaml configuration options.
       - meta:
-          label: Enrichment Concepts
+          label: Flows Enrichment
         items:
           - meta:
               label: IP Intelligence

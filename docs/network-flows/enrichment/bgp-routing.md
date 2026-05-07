@@ -2,7 +2,7 @@
 custom_edit_url: "https://github.com/netdata/netdata/edit/master/docs/network-flows/enrichment/bgp-routing.md"
 sidebar_label: "BGP Routing"
 learn_status: "Published"
-learn_rel_path: "Network Flows/Enrichment Concepts"
+learn_rel_path: "Network Flows/Flows Enrichment"
 keywords: ['bgp', 'routing', 'bmp', 'bioris', 'enrichment', 'concept']
 endmeta-->
 
