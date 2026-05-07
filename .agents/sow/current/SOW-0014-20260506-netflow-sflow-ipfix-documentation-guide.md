@@ -1336,3 +1336,103 @@ Files touched:
 Grep for "Network Flows tab", "Network Flows menu", "top
 navigation" run after the sweep -- only the corrected
 phrasings remain.
+
+#### F8 -- 2026-05-07 -- per-tier retention only; remove globals
+
+User: "It is very important to be able to size tiers
+independently of each other. There is no one size fits all.
+I know there are globals and overrides per tier, but come
+on. Why double configuration?"
+
+Code investigation: the global `size_of_journal_files` and
+`duration_of_journal_files` on `JournalConfig` were already
+no more than per-tier defaults that flowed through
+`retention_for_tier()` -- runtime semantics were already
+per-tier. The "double configuration" was schema redundancy
+with no underlying behavioural justification.
+
+Refactor (`src/crates/netflow-plugin/src/`):
+
+- `plugin_config/types/journal.rs`: removed
+  `size_of_journal_files` and `duration_of_journal_files` from
+  `JournalConfig`. Replaced
+  `Option<JournalTierRetentionConfig>` per-tier with the
+  struct directly carrying `Option<ByteSize>` /
+  `Option<Duration>` fields. Each tier defaults to
+  `Some(default)` when the YAML omits it; explicit `null`
+  disables the limit on that tier; both Nones is rejected by
+  validation. Removed the now-vestigial
+  `JournalConfig::default_retention()` and simplified
+  `retention_for_tier()` to a single per-tier lookup.
+  Built-in tier defaults stay at uniform 10GB / 7d to
+  preserve current default behaviour.
+- `plugin_config/defaults.rs`: removed the dead
+  `RetentionLimitOverride<T>` enum, its
+  `is_inherit` / `resolve` impl, and the four
+  `(de)serialize_retention_override_*` helpers (no longer
+  reachable). Removed the now-orphan `parse_bytesize`
+  helper that fed the removed clap `value_parser`.
+- `plugin_config.rs`: removed the
+  `pub(crate) use defaults::RetentionLimitOverride;`
+  re-export.
+
+Tests (mechanical updates to the new schema):
+
+- `memory_tests.rs`: collapsed four near-identical per-tier
+  override blocks into one `small_tier` config cloned across
+  the four tiers; replaced
+  `RetentionLimitOverride::Value(...)` with `Some(...)`;
+  dropped the now-dead `RetentionLimitOverride` import.
+- `startup_memory_tests.rs`: dropped the global-retention
+  setters that already matched the built-in defaults.
+- `plugin_config_tests.rs`: rewrote five tests to exercise
+  the new schema only:
+  `journal_tier_retention_uses_built_in_tier_defaults`
+  (was `inherits_global_defaults_when_no_overrides_exist`),
+  `journal_tier_retention_uses_per_tier_values_when_present`,
+  `journal_rotation_size_derives_from_tier_size_budget` (now
+  via `tiers.raw.size_of_journal_files`),
+  `journal_rotation_size_uses_100mb_for_time_only_retention`,
+  `journal_validation_allows_time_only_retention_when_size_is_disabled`,
+  `journal_tier_retention_null_disables_size_limit_for_that_tier_only`
+  (replaces the old "inherited size limit" YAML test).
+  Updated the YAML test fixture at line ~245 to drop the
+  global keys.
+
+Documentation:
+
+- `docs/network-flows/configuration.md`: rewrote the
+  `## journal` section. Single per-tier table only, no
+  "top-level retention" subsection, explicit note that
+  there are no global retention knobs. Updated the
+  production-retention example to a fully-per-tier form.
+- `docs/network-flows/retention-querying.md`: dropped the
+  global-form example; replaced with the per-tier form;
+  cross-link to configuration.md.
+- `docs/network-flows/sizing-capacity.md` (line 101):
+  already says "per-tier"; no change.
+
+Build + tests:
+
+- `cargo build --release` clean (3m02s).
+- `cargo test --release --bin netflow-plugin` -- 427
+  passed; 0 failed; 18 ignored.
+
+Breaking change notice: any existing user config that
+specified `journal.size_of_journal_files` or
+`journal.duration_of_journal_files` at the top level of the
+journal block will now fail to deserialize (strict
+`deny_unknown_fields`). Users migrate by moving those values
+into per-tier `tiers.<tier>.size_of_journal_files` /
+`duration_of_journal_files`. Plugin is recently shipped
+(PR #22439, 2026-05-07); breaking-change risk is low.
+
+Files touched:
+- src/crates/netflow-plugin/src/plugin_config/types/journal.rs
+- src/crates/netflow-plugin/src/plugin_config/defaults.rs
+- src/crates/netflow-plugin/src/plugin_config.rs
+- src/crates/netflow-plugin/src/memory_tests.rs
+- src/crates/netflow-plugin/src/startup_memory_tests.rs
+- src/crates/netflow-plugin/src/plugin_config_tests.rs
+- docs/network-flows/configuration.md
+- docs/network-flows/retention-querying.md

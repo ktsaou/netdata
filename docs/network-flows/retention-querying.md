@@ -71,30 +71,30 @@ If you see the time depth in your dashboard suddenly shrink after you applied a 
 
 ## Default retention and the most common misconfiguration
 
-The default `size_of_journal_files: 10GB` and `duration_of_journal_files: 7d` apply to **every tier independently**. With defaults, all four tiers (raw, 1m, 5m, 1h) are capped at 10GB / 7d.
+Each tier has its own `size_of_journal_files` and `duration_of_journal_files`. The built-in defaults are uniform — `10GB` and `7d` on every tier. That is rarely what you want; the whole point of having rollup tiers is to keep them around longer than raw.
 
-This is rarely what you want. The whole point of having rollup tiers is to keep them around longer than raw. A more useful production profile:
+A more useful production profile:
 
 ```yaml
 journal:
-  size_of_journal_files: 100GB     # top-level inherited by tiers without an override
-  duration_of_journal_files: 7d
   tiers:
     raw:
       size_of_journal_files: 200GB
       duration_of_journal_files: 24h
     minute_1:
+      size_of_journal_files: 20GB
       duration_of_journal_files: 14d
     minute_5:
+      size_of_journal_files: 20GB
       duration_of_journal_files: 30d
     hour_1:
+      size_of_journal_files: 20GB
       duration_of_journal_files: 365d
-      size_of_journal_files: null   # time-only, no size cap on the long tail
 ```
 
 This gives you 24 hours of full-detail forensics, 14 days of 1-minute trends, 30 days of 5-minute snapshots, and a year of hourly aggregates.
 
-See [Sizing and Capacity Planning](/docs/network-flows/sizing-capacity.md) for how to estimate the actual disk footprint per tier from your flow rate.
+See [Configuration](/docs/network-flows/configuration.md#per-tier-retention) for the full schema and [Sizing and Capacity Planning](/docs/network-flows/sizing-capacity.md) for how to estimate the actual disk footprint per tier from your flow rate.
 
 ## How queries work, briefly
 

@@ -118,45 +118,41 @@ This is the section most operators tune. It controls where flow data lives, how 
 ```yaml
 journal:
   journal_dir: flows
-  size_of_journal_files: 10GB
-  duration_of_journal_files: 7d
   query_1m_max_window: 6h
   query_5m_max_window: 24h
   query_max_groups: 50000
   query_facet_max_values_per_field: 5000
   tiers:
-    raw:        { duration_of_journal_files: 24h }
-    minute_1:   { duration_of_journal_files: 14d }
-    minute_5:   { duration_of_journal_files: 30d }
-    hour_1:     { duration_of_journal_files: 365d }
+    raw:      { size_of_journal_files: 50GB, duration_of_journal_files: 24h }
+    minute_1: { size_of_journal_files: 5GB,  duration_of_journal_files: 14d }
+    minute_5: { size_of_journal_files: 5GB,  duration_of_journal_files: 30d }
+    hour_1:   { size_of_journal_files: 5GB,  duration_of_journal_files: 365d }
 ```
 
-### Top-level retention
+### Journal directory
 
 | Key | Default | Notes |
 |---|---|---|
 | `journal_dir` | `flows` | Relative paths resolve under `NETDATA_CACHE_DIR` (typically `/var/cache/netdata/flows`). Absolute paths are used as-is. |
-| `size_of_journal_files` | `10GB` | Disk budget per tier (not total). Minimum `100MB`. Set to `null` to disable size-based retention. |
-| `duration_of_journal_files` | `7d` | Time budget per tier. Set to `null` to disable time-based retention. |
 
-**Important.** The top-level retention applies to **every tier independently** unless you override it per-tier. So with the defaults, all four tiers (raw, 1m, 5m, 1h) share the same 10GB / 7d budget. **This is rarely what you want.** The whole point of having rollup tiers is to keep them around longer than raw. See per-tier overrides below.
+### Per-tier retention
 
-Either limit triggers rotation. With size = 10GB and duration = 7d, the tier expires whichever is hit first.
-
-### Per-tier overrides
+Each tier has its own size and duration budget, configured under `tiers:` only — there are no global retention knobs. Raw and rollup tiers have very different storage and access patterns; they should be sized independently.
 
 ```yaml
 tiers:
-  raw:                          # name in YAML
+  raw:
     size_of_journal_files: 50GB
     duration_of_journal_files: 24h
   minute_1:
+    size_of_journal_files: 5GB
     duration_of_journal_files: 14d
   minute_5:
+    size_of_journal_files: 5GB
     duration_of_journal_files: 30d
   hour_1:
+    size_of_journal_files: 5GB
     duration_of_journal_files: 365d
-    size_of_journal_files: null   # time-only retention for the long tail
 ```
 
 | YAML name | Aliases | On-disk directory |
@@ -168,13 +164,18 @@ tiers:
 
 The on-disk directory names are short (`1m`, `5m`, `1h`); the YAML keys are explicit (`minute_1`, `minute_5`, `hour_1`). Mind the difference if you go look at the disk.
 
-For each per-tier knob (`size_of_journal_files`, `duration_of_journal_files`):
+Per-tier values:
 
-- **Omit the key** to inherit the top-level default.
-- Set to `null` to **disable** that limit on this tier.
-- Set to a value to override.
+| Key | Default per tier | Notes |
+|---|---|---|
+| `size_of_journal_files` | `10GB` | Disk budget for this tier. Minimum `100MB`. Set to `null` to disable size-based retention on this tier. |
+| `duration_of_journal_files` | `7d` | Time budget for this tier. Set to `null` to disable time-based retention on this tier. |
 
-A typical production profile is the example block above: 24 hours of raw, 2 weeks at 1-minute, 30 days at 5-minute, 1 year at 1-hour. This profile keeps detailed forensics within reach while supporting year-over-year capacity trends.
+Either limit triggers rotation. The tier expires whichever is hit first. At least one of the two must be set per tier (validation enforces this).
+
+If you omit a tier entry entirely, that tier uses the built-in defaults (`10GB` / `7d`). If you provide a tier entry but omit one of the two knobs, the omitted knob falls back to its built-in default. Setting either to `null` explicitly disables that limit on that tier.
+
+The example block at the top of this section is a typical production profile: 24 hours of raw, 2 weeks at 1-minute, 30 days at 5-minute, 1 year at 1-hour. Detailed forensics for the last day; long-term trends for the year.
 
 ### Rotation
 
@@ -274,29 +275,29 @@ The plugin reads the inner 5-tuple from `dataLinkFrameSection` records (IPFIX IE
 
 ```yaml
 journal:
-  size_of_journal_files: 100GB
-  duration_of_journal_files: 7d
   tiers:
     raw:
       size_of_journal_files: 200GB
       duration_of_journal_files: 24h
     minute_1:
+      size_of_journal_files: 20GB
       duration_of_journal_files: 14d
     minute_5:
+      size_of_journal_files: 20GB
       duration_of_journal_files: 30d
     hour_1:
+      size_of_journal_files: 20GB
       duration_of_journal_files: 365d
-      size_of_journal_files: null
 ```
 
-The default 10GB / 7d on every tier is too tight for most production deployments. This profile gives you 24 hours of full-detail forensics, 14 days of 1-minute trends, 30 days of 5-minute snapshots, and a year of hourly aggregates. Storage required scales with your flow rate — see [Sizing and Capacity Planning](/docs/network-flows/sizing-capacity.md).
+The built-in defaults (10GB / 7d on every tier) are too tight for most production deployments. This profile gives you 24 hours of full-detail forensics, 14 days of 1-minute trends, 30 days of 5-minute snapshots, and a year of hourly aggregates. Storage required scales with your flow rate — see [Sizing and Capacity Planning](/docs/network-flows/sizing-capacity.md).
 
 ## Things that go wrong
 
-- **The plugin doesn't start.** Check `journalctl -u netdata --since "5 minutes ago" | grep netflow`. The most common cause is a typo in a YAML key (strict mode rejects unknowns).
+- **The plugin doesn't start.** Check `journalctl --namespace netdata --since "5 minutes ago" | grep netflow`. The most common cause is a typo in a YAML key (strict mode rejects unknowns).
 - **Edits don't take effect.** Restart Netdata. There is no DynCfg integration for the plugin's configuration.
 - **CLI flags I added don't do anything.** When running under Netdata, only the YAML is read.
-- **Tiers fill up faster than expected.** All tiers share the top-level retention by default. Set explicit per-tier overrides.
+- **Tiers fill up faster than expected.** Each tier has its own size/duration. Set per-tier values that match how long you actually need each tier.
 - **Queries time out at 30 seconds.** Function calls have a hard 30s timeout in the plugin. If your query is too wide, narrow the time range or add filters that let a higher tier serve it.
 - **`__overflow__` appears in results.** A group-by exceeded `query_max_groups` (default 50 000). Either narrow the filter, reduce the number of group-by fields, or raise the limit.
 

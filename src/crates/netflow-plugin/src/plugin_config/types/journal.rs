@@ -12,30 +12,11 @@ pub(crate) struct JournalConfig {
     #[arg(long = "netflow-journal-dir", default_value = "flows")]
     pub(crate) journal_dir: String,
 
-    #[arg(
-        long = "netflow-retention-size-of-journal-files",
-        default_value = "10GB",
-        value_parser = parse_bytesize
-    )]
-    #[serde(
-        default = "default_retention_size_of_journal_files_opt",
-        deserialize_with = "deserialize_opt_bytesize",
-        serialize_with = "serialize_opt_bytesize"
-    )]
-    pub(crate) size_of_journal_files: Option<ByteSize>,
-
-    #[arg(
-        long = "netflow-retention-duration-of-journal-files",
-        default_value = "7d",
-        value_parser = parse_duration
-    )]
-    #[serde(
-        default = "default_retention_duration_of_journal_files_opt",
-        deserialize_with = "deserialize_opt_duration",
-        serialize_with = "serialize_opt_duration"
-    )]
-    pub(crate) duration_of_journal_files: Option<Duration>,
-
+    /// Per-tier retention. Each tier carries its own size_of_journal_files
+    /// and duration_of_journal_files; both are required (one is enough --
+    /// validation requires at least one positive limit per tier). Tiers
+    /// can be sized independently because raw and rollup tiers have very
+    /// different storage costs and access patterns.
     #[arg(skip)]
     #[serde(default)]
     pub(crate) tiers: JournalTierRetentionOverrides,
@@ -71,24 +52,41 @@ pub(crate) struct JournalConfig {
     pub(crate) query_facet_max_values_per_field: usize,
 }
 
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub(crate) struct JournalTierRetentionConfig {
+    /// Hard size cap. Unset (`null`) disables the size limit; the tier
+    /// is then bounded only by `duration_of_journal_files`. Defaults to
+    /// the tier-default size if the field is omitted.
     #[serde(
-        default,
-        deserialize_with = "deserialize_retention_override_bytesize",
-        serialize_with = "serialize_retention_override_bytesize",
-        skip_serializing_if = "RetentionLimitOverride::is_inherit"
+        default = "default_retention_size_of_journal_files_opt",
+        deserialize_with = "deserialize_opt_bytesize",
+        serialize_with = "serialize_opt_bytesize"
     )]
-    pub(crate) size_of_journal_files: RetentionLimitOverride<ByteSize>,
+    pub(crate) size_of_journal_files: Option<ByteSize>,
 
+    /// Maximum age. Unset (`null`) disables the duration limit; the
+    /// tier is then bounded only by `size_of_journal_files`. Defaults
+    /// to the tier-default duration if the field is omitted.
     #[serde(
-        default,
-        deserialize_with = "deserialize_retention_override_duration",
-        serialize_with = "serialize_retention_override_duration",
-        skip_serializing_if = "RetentionLimitOverride::is_inherit"
+        default = "default_retention_duration_of_journal_files_opt",
+        deserialize_with = "deserialize_opt_duration",
+        serialize_with = "serialize_opt_duration"
     )]
-    pub(crate) duration_of_journal_files: RetentionLimitOverride<Duration>,
+    pub(crate) duration_of_journal_files: Option<Duration>,
+}
+
+impl JournalTierRetentionConfig {
+    pub(crate) fn for_tier(_tier: TierKind) -> Self {
+        // Tier-uniform defaults today (10GB, 7d). The shape is per-tier
+        // so each tier can be tuned independently in user config; the
+        // built-in defaults happen to be uniform across tiers but
+        // nothing in the schema enforces that.
+        Self {
+            size_of_journal_files: default_retention_size_of_journal_files_opt(),
+            duration_of_journal_files: default_retention_duration_of_journal_files_opt(),
+        }
+    }
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
@@ -103,39 +101,79 @@ impl ResolvedJournalTierRetention {
     }
 }
 
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub(crate) struct JournalTierRetentionOverrides {
-    #[serde(default)]
-    pub(crate) raw: Option<JournalTierRetentionConfig>,
+    #[serde(default = "default_raw_tier")]
+    pub(crate) raw: JournalTierRetentionConfig,
 
-    #[serde(default, alias = "1m", alias = "minute-1", alias = "minute1")]
-    pub(crate) minute_1: Option<JournalTierRetentionConfig>,
+    #[serde(
+        default = "default_minute_1_tier",
+        alias = "1m",
+        alias = "minute-1",
+        alias = "minute1"
+    )]
+    pub(crate) minute_1: JournalTierRetentionConfig,
 
-    #[serde(default, alias = "5m", alias = "minute-5", alias = "minute5")]
-    pub(crate) minute_5: Option<JournalTierRetentionConfig>,
+    #[serde(
+        default = "default_minute_5_tier",
+        alias = "5m",
+        alias = "minute-5",
+        alias = "minute5"
+    )]
+    pub(crate) minute_5: JournalTierRetentionConfig,
 
-    #[serde(default, alias = "1h", alias = "hour-1", alias = "hour1")]
-    pub(crate) hour_1: Option<JournalTierRetentionConfig>,
+    #[serde(
+        default = "default_hour_1_tier",
+        alias = "1h",
+        alias = "hour-1",
+        alias = "hour1"
+    )]
+    pub(crate) hour_1: JournalTierRetentionConfig,
+}
+
+impl Default for JournalTierRetentionOverrides {
+    fn default() -> Self {
+        Self {
+            raw: JournalTierRetentionConfig::for_tier(TierKind::Raw),
+            minute_1: JournalTierRetentionConfig::for_tier(TierKind::Minute1),
+            minute_5: JournalTierRetentionConfig::for_tier(TierKind::Minute5),
+            hour_1: JournalTierRetentionConfig::for_tier(TierKind::Hour1),
+        }
+    }
 }
 
 impl JournalTierRetentionOverrides {
-    pub(crate) fn get(&self, tier: TierKind) -> Option<&JournalTierRetentionConfig> {
+    pub(crate) fn get(&self, tier: TierKind) -> &JournalTierRetentionConfig {
         match tier {
-            TierKind::Raw => self.raw.as_ref(),
-            TierKind::Minute1 => self.minute_1.as_ref(),
-            TierKind::Minute5 => self.minute_5.as_ref(),
-            TierKind::Hour1 => self.hour_1.as_ref(),
+            TierKind::Raw => &self.raw,
+            TierKind::Minute1 => &self.minute_1,
+            TierKind::Minute5 => &self.minute_5,
+            TierKind::Hour1 => &self.hour_1,
         }
     }
+}
+
+fn default_raw_tier() -> JournalTierRetentionConfig {
+    JournalTierRetentionConfig::for_tier(TierKind::Raw)
+}
+
+fn default_minute_1_tier() -> JournalTierRetentionConfig {
+    JournalTierRetentionConfig::for_tier(TierKind::Minute1)
+}
+
+fn default_minute_5_tier() -> JournalTierRetentionConfig {
+    JournalTierRetentionConfig::for_tier(TierKind::Minute5)
+}
+
+fn default_hour_1_tier() -> JournalTierRetentionConfig {
+    JournalTierRetentionConfig::for_tier(TierKind::Hour1)
 }
 
 impl Default for JournalConfig {
     fn default() -> Self {
         Self {
             journal_dir: "flows".to_string(),
-            size_of_journal_files: default_retention_size_of_journal_files_opt(),
-            duration_of_journal_files: default_retention_duration_of_journal_files_opt(),
             tiers: JournalTierRetentionOverrides::default(),
             query_1m_max_window: Duration::from_secs(6 * 60 * 60),
             query_5m_max_window: Duration::from_secs(24 * 60 * 60),
@@ -179,26 +217,11 @@ impl JournalConfig {
         ]
     }
 
-    pub(crate) fn default_retention(&self) -> ResolvedJournalTierRetention {
-        ResolvedJournalTierRetention {
-            size_of_journal_files: self.size_of_journal_files,
-            duration_of_journal_files: self.duration_of_journal_files,
-        }
-    }
-
     pub(crate) fn retention_for_tier(&self, tier: TierKind) -> ResolvedJournalTierRetention {
-        let defaults = self.default_retention();
-        let Some(overrides) = self.tiers.get(tier) else {
-            return defaults;
-        };
-
+        let cfg = self.tiers.get(tier);
         ResolvedJournalTierRetention {
-            size_of_journal_files: overrides
-                .size_of_journal_files
-                .resolve(defaults.size_of_journal_files),
-            duration_of_journal_files: overrides
-                .duration_of_journal_files
-                .resolve(defaults.duration_of_journal_files),
+            size_of_journal_files: cfg.size_of_journal_files,
+            duration_of_journal_files: cfg.duration_of_journal_files,
         }
     }
 
