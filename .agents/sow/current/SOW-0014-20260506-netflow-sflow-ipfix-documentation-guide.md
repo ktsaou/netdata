@@ -1843,3 +1843,65 @@ need vendor-doc verification:
 
 Files touched:
 - docs/network-flows/troubleshooting.md
+
+#### F14 -- 2026-05-07 -- validation.md rewrite
+
+User: "I think the entire 'Validation and Data Quality'
+is completely off. It mentions again sampling rates, etc.
+It is like it was written by someone that does not have
+a clue of what netdata is and how the plugin works."
+
+Code-verified facts driving the rewrite:
+
+- **Per-flow sampling-rate multiplication** at decode time:
+  `decoder/record/core/record.rs:24-26`. The user does NOT
+  need to monitor "sampling rate change" or "sampling rate
+  misinterpretation" -- these are not user-side risks.
+- **Template persistence** across plugin restarts:
+  `decoder/protocol/v9/templates.rs:106` and
+  `decoder/protocol/ipfix/templates/data.rs:67`. The user
+  does NOT need to monitor "template loss after collector
+  restart".
+- **UDP buffer overflow alert** already exists at
+  `src/health/health.d/udp_errors.conf:6-19`
+  (`1m_ipv4_udp_receive_buffer_errors`, fires when
+  RcvbufErrors > 10/min). Reframe UDP drops as an existing
+  alert to consume, not a "silent failure" the user must
+  hunt down.
+
+Page rewritten from scratch:
+
+- New opening: states up-front that the plugin handles
+  per-flow scaling, template persistence, and database
+  refresh internally; what's left to validate is
+  exporter-side and configuration drift.
+- New "What you actually need to watch" table with five
+  items (kernel UDP drops -> existing alert; exporter
+  stopped sending; wrong interfaces being exported;
+  exporter sampling but not communicating rate; stale
+  MMDB).
+- Removed the original silent-failure list items
+  "Sampling rate misinterpretation", "Sampling rate
+  change", "Template loss after collector restart" --
+  three items confirmed not user-side risks.
+- Removed the "Internal IP enrichment validation" section
+  (F16 confirmed GeoIP does not position internal IPs).
+- Renamed "Sampling rate sanity check" to "Sampling rate
+  verification" with the bogus uniform-rate framing
+  removed; kept the practical RAW_BYTES vs BYTES
+  comparison recipe (the only useful piece of the old
+  section).
+- Removed the "Template cache health" subsection
+  entirely. (The `template_errors` chart is still in the
+  plugin-side alerting table, but as an exporter-config
+  signal, not a "user must watch in case templates get
+  lost" risk.)
+- Renamed the alerting table from "what to monitor and
+  what alerts to consider" to "Plugin-side signals worth
+  alerting on"; clarified that these are signals the
+  plugin already exposes for the operator to alert on,
+  not "silent failures" the dashboard hides.
+
+Files touched:
+- docs/network-flows/validation.md (full rewrite, kept
+  frontmatter and the surviving sections in place)
