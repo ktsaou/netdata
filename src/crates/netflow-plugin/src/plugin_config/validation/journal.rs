@@ -6,9 +6,6 @@ pub(super) fn validate_journal(cfg: &PluginConfig) -> Result<()> {
     if cfg.journal.query_max_groups == 0 {
         anyhow::bail!("journal.query_max_groups must be greater than 0");
     }
-    if cfg.journal.query_facet_max_values_per_field == 0 {
-        anyhow::bail!("journal.query_facet_max_values_per_field must be greater than 0");
-    }
 
     for (scope, tier) in [
         ("journal.tiers.raw", TierKind::Raw),

@@ -61,12 +61,6 @@ Every filter and selection is preserved in the dashboard URL. Copy the URL and s
 
 A practical note: filters use a structured representation (per-field IN-list) that's easy to encode as a JSON payload but awkward to URL-encode. The dashboard handles this transparently for sharing — but anyone scripting their own queries against the function should use JSON-payload requests to the function, not GET-style args.
 
-## Facet limits
-
-`query_facet_max_values_per_field` (default `5000`) caps how many distinct values a single facet can return per query. Past that, the facet stops accumulating; the response carries an indicator. Useful when you have an extremely high-cardinality field — autocomplete still surfaces the top 100, but the full list is bounded.
-
-You can raise this limit in `netflow.yaml`. Higher values use more memory at query time.
-
 ## Things that go wrong
 
 - **Search for `192.168.1.1` matches unrelated rows.** Regex semantics: each `.` is "any byte". Escape: `192\.168\.1\.1`.

@@ -119,7 +119,6 @@ This is the section most operators tune. It controls where flow data lives, how 
 journal:
   journal_dir: flows
   query_max_groups: 50000
-  query_facet_max_values_per_field: 5000
   tiers:
     raw:      { size_of_journal_files: 50GB, duration_of_journal_files: 24h }
     minute_1: { size_of_journal_files: 5GB,  duration_of_journal_files: 14d }
@@ -183,8 +182,7 @@ Each tier rotates files at `size_of_journal_files / 20`, clamped between 5 MB an
 
 | Key | Default | What it limits |
 |---|---|---|
-| `query_max_groups` | `50000` | Maximum number of distinct groups a single aggregation query can produce. When exceeded, the extra groups are folded into a synthetic `__overflow__` bucket and the response carries a warning. Protects the query worker from memory blow-up on accidentally wide group-by combinations. |
-| `query_facet_max_values_per_field` | `5000` | Maximum number of distinct values surfaced per facet field. The per-tier facet accumulator stops growing past this limit; values beyond it are not returned. |
+| `query_max_groups` | `50000` | Maximum number of distinct group keys a single aggregation query can build. When exceeded, additional groups are folded into a synthetic `__overflow__` bucket and the response carries a warning. Protects the query worker from memory blow-up on accidentally wide group-by combinations. |
 
 The tier the planner uses for a given query is decided automatically from the time window and the query view (Sankey / time-series / map / etc.) — the planner aligns to the coarser tier when the window allows, and falls back to a finer tier for the unaligned head/tail. There are no separate "max window per tier" knobs.
 

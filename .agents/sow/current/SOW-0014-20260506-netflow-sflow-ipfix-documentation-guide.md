@@ -1492,3 +1492,81 @@ Breaking change notice: any user config that set
 will now fail to deserialize (deny_unknown_fields). These
 keys had no effect before, so the migration is to delete
 them; no behavioural change.
+
+#### F10 -- 2026-05-07 -- query_max_groups stays (real); query_facet_max_values_per_field is dead
+
+User: "I don't understand what are these and why are needed
+and what value or protection they provide. Explain"
+
+Code investigation, two opposite outcomes:
+
+`query_max_groups` -- REAL.
+- Read at `query/service.rs:52` and threaded into the
+  `ProjectedGroupAccumulator` via the `max_groups` parameter
+  used at `query/projected/apply.rs:48`.
+- When `grouped_aggregates.grouped_total() < max_groups`
+  is no longer true, the accumulator stops registering new
+  group keys; the row's missing values are then folded into
+  the synthetic `__overflow__` bucket created at
+  `query/grouping/labels.rs:17` /
+  `query/grouping/model/compact.rs:35`.
+- A warning is emitted on the response:
+  `query/timeseries.rs:124` -- "Group accumulator limit
+  reached; additional groups were folded into __overflow__."
+- Purpose: bounds memory growth on accidentally wide
+  group-by combinations (high-cardinality fields like IP
+  addresses, AS-paths, MAC addresses, etc.).
+- Verdict: keep, document properly.
+
+`query_facet_max_values_per_field` -- DEAD.
+- Declared, validated for non-zero in
+  `plugin_config/validation/journal.rs:18`, but the actual
+  facet accumulator at `query/facets/render.rs:19, 27`
+  consumes the hardcoded constant
+  `DEFAULT_FACET_ACCUMULATOR_MAX_VALUES_PER_FIELD = 5_000`
+  from `query/request/constants.rs:17` -- not the config
+  knob. The two coincidentally have the same default value
+  but the config knob is never threaded to the consumer.
+- Verdict: dead schema. Remove.
+
+Repair:
+
+- `plugin_config/types/journal.rs` -- removed
+  `query_facet_max_values_per_field` field; added a doc
+  comment explaining what `query_max_groups` actually does.
+- `plugin_config/defaults.rs` -- removed
+  `default_query_facet_max_values_per_field()` helper.
+- `plugin_config/validation/journal.rs` -- removed the
+  non-zero check for the dead knob.
+- `plugin_config_tests.rs` -- removed
+  `validate_rejects_zero_query_facet_max_values_per_field`
+  test entirely; cleaned the YAML fixtures that mentioned
+  the dead knob.
+- `src/crates/netflow-plugin/configs/netflow.yaml` (stock
+  config) -- rewrote the journal block to use the per-tier
+  retention form and dropped the dead knob; added a clear
+  comment for `query_max_groups`.
+- `src/crates/netflow-plugin/README.md` -- updated the
+  example YAML and the explanatory paragraph; removed the
+  dead-knob mention.
+- `docs/network-flows/configuration.md` (Query guardrails
+  section) -- table now lists only `query_max_groups`;
+  expanded its description to name the `__overflow__`
+  bucket and the warning behaviour.
+- `docs/network-flows/retention-querying.md` (Group-by
+  limit section) -- consolidated to one bullet; named the
+  warning + overflow behaviour.
+- `docs/network-flows/visualization/filters-facets.md` --
+  removed the entire "Facet limits" subsection that
+  documented the dead knob.
+
+Build + tests:
+- `cargo build --release` clean (2m57s).
+- `cargo test --release --bin netflow-plugin` -- 426
+  passed; 0 failed (one test removed -- the dead-knob
+  validation test).
+
+Breaking change notice: any user config that set
+`journal.query_facet_max_values_per_field` will now fail
+to deserialize (deny_unknown_fields). The key had no
+effect before; migration is delete-only.

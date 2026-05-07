@@ -21,19 +21,14 @@ pub(crate) struct JournalConfig {
     #[serde(default)]
     pub(crate) tiers: JournalTierRetentionOverrides,
 
+    /// Caps the number of distinct group keys a single aggregation
+    /// query may build before extra groups are folded into a
+    /// synthetic `__overflow__` bucket. Protects the query worker
+    /// from accidentally wide group-by combinations exhausting
+    /// memory.
     #[arg(long = "netflow-query-max-groups", default_value_t = 50_000)]
     #[serde(default = "default_query_max_groups", alias = "query-max-groups")]
     pub(crate) query_max_groups: usize,
-
-    #[arg(
-        long = "netflow-query-facet-max-values-per-field",
-        default_value_t = 5_000
-    )]
-    #[serde(
-        default = "default_query_facet_max_values_per_field",
-        alias = "query-facet-max-values-per-field"
-    )]
-    pub(crate) query_facet_max_values_per_field: usize,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -160,7 +155,6 @@ impl Default for JournalConfig {
             journal_dir: "flows".to_string(),
             tiers: JournalTierRetentionOverrides::default(),
             query_max_groups: default_query_max_groups(),
-            query_facet_max_values_per_field: default_query_facet_max_values_per_field(),
         }
     }
 }

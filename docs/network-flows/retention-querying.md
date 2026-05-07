@@ -118,14 +118,11 @@ Defaults if you don't specify: time range = last 15 minutes, `group_by = ["SRC_A
 
 The plugin enforces a hard timeout of **30 seconds** per query. If your query is too wide, narrow the time range, add a filter that lets a higher tier serve it, or reduce the group-by depth.
 
-## Group-by limits and overflow
+## Group-by limit and overflow
 
-Two configuration limits guard against pathological queries:
+`query_max_groups` (default `50000`) caps the total number of distinct group keys an aggregation can build. Past this, additional groups are folded into a synthetic `__overflow__` bucket and the response carries a warning. The limit exists to protect the query worker from accidentally wide group-by combinations exhausting memory.
 
-- `query_max_groups` (default `50000`) — total distinct groups in an aggregation. Past this, results overflow into a single `__overflow__` bucket and the response carries a warning.
-- `query_facet_max_values_per_field` (default `5000`) — distinct values returned per facet field.
-
-If you see `__overflow__` rows, your query is too wide for the current limit. Either narrow the filter, drop a high-cardinality `group_by` field, or raise the limit (carefully — the limit exists for memory reasons).
+If you see `__overflow__` rows, the query is too wide for the current limit. Narrow the filter, drop a high-cardinality `group_by` field, or raise the limit (carefully).
 
 ## Full-text search
 

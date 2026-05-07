@@ -67,10 +67,6 @@ pub(super) fn default_query_max_groups() -> usize {
     50_000
 }
 
-pub(super) fn default_query_facet_max_values_per_field() -> usize {
-    5_000
-}
-
 pub(super) fn default_network_source_tls_verify() -> bool {
     true
 }

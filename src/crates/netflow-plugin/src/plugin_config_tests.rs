@@ -188,18 +188,6 @@ fn validate_rejects_zero_query_max_groups() {
 }
 
 #[test]
-fn validate_rejects_zero_query_facet_max_values_per_field() {
-    let mut cfg = PluginConfig::default();
-    cfg.journal.query_facet_max_values_per_field = 0;
-
-    let err = cfg.validate().expect_err("expected validation error");
-    assert!(
-        err.to_string()
-            .contains("journal.query_facet_max_values_per_field must be greater than 0")
-    );
-}
-
-#[test]
 fn plugin_enabled_defaults_to_true() {
     let cfg = PluginConfig::default();
     assert!(cfg.enabled);
@@ -243,7 +231,6 @@ protocols:
 journal:
   journal_dir: flows
   query_max_groups: 50000
-  query_facet_max_values_per_field: 5000
 "#;
 
     let cfg: PluginConfig = serde_yaml::from_str(yaml).expect("yaml should parse");
@@ -370,7 +357,6 @@ fn journal_tier_retention_null_disables_size_limit_for_that_tier_only() {
     let yaml = r#"
 journal_dir: flows
 query_max_groups: 50000
-query_facet_max_values_per_field: 5000
 tiers:
   raw:
     size_of_journal_files: null
