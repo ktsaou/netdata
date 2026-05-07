@@ -50,7 +50,7 @@ func (li *licensingIntegration) collect(c *Collector, mx map[string]int64, pms [
 
 	agg := aggregateLicenseRows(rows, now)
 	if !agg.empty() {
-		c.addLicenseCharts()
+		c.addLicenseCharts(agg)
 	}
 	agg.writeTo(mx)
 }

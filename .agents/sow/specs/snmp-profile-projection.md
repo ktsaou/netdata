@@ -24,6 +24,10 @@ consumers: [topology]
 consumers: [licensing]
 ```
 
+Metadata resource `id_tags` do not carry `consumers` today. They inherit the
+metadata defaults used by charted metrics and topology and are not included in a
+licensing-only projection.
+
 Metric rows under top-level `metrics:` are regular metric rows. They are
 metrics-only.
 
@@ -126,8 +130,8 @@ single scalar signal OID.
 
 `from: <oid>` lets a typed licensing value read a sibling OID directly. For
 table rows, `from` must be a peer column under the same table OID. For scalar
-rows, it must be another scalar in the same profile or explicit scalar group.
-Cross-profile `from` references are invalid.
+rows, schema validation only checks OID syntax and the row's explicit identity
+rules; there is no cross-profile reference path in profile validation.
 
 Supported licensing signal fields are:
 
@@ -258,6 +262,7 @@ Profile validation rejects:
 - licensing rows without state or signals;
 - scalar licensing rows that group multiple scalar signal OIDs without an
   explicit `id`;
+- scalar licensing rows with only literal values and no explicit `id`;
 - repeated licensing signal kinds for the same structural identity;
 - licensing table `from` OIDs outside the row table;
 - underscore-prefixed licensing value names;

@@ -14,14 +14,6 @@ const (
 )
 
 var (
-	licenseCharts = collectorapi.Charts{
-		licenseRemainingTimeChart.Copy(),
-		licenseAuthorizationRemainingTimeChart.Copy(),
-		licenseCertificateRemainingTimeChart.Copy(),
-		licenseGraceRemainingTimeChart.Copy(),
-		licenseUsagePercentChart.Copy(),
-		licenseStateChart.Copy(),
-	}
 	licenseRemainingTimeChart = collectorapi.Chart{
 		ID:       "snmp_device_license_remaining_time",
 		Title:    "License remaining time",
@@ -102,23 +94,41 @@ var (
 	}
 )
 
-func (c *Collector) addLicenseCharts() {
-	if c.Charts().Get(licenseRemainingTimeChart.ID) != nil {
+func (c *Collector) addLicenseCharts(agg licenseAggregate) {
+	if agg.hasRemainingTime {
+		c.addLicenseChart(licenseRemainingTimeChart)
+	}
+	if agg.hasAuthRemaining {
+		c.addLicenseChart(licenseAuthorizationRemainingTimeChart)
+	}
+	if agg.hasCertRemaining {
+		c.addLicenseChart(licenseCertificateRemainingTimeChart)
+	}
+	if agg.hasGraceRemaining {
+		c.addLicenseChart(licenseGraceRemainingTimeChart)
+	}
+	if agg.hasUsagePercent {
+		c.addLicenseChart(licenseUsagePercentChart)
+	}
+	if agg.hasStateCounts {
+		c.addLicenseChart(licenseStateChart)
+	}
+}
+
+func (c *Collector) addLicenseChart(chart collectorapi.Chart) {
+	if c.Charts().Get(chart.ID) != nil {
 		return
 	}
 
-	charts := licenseCharts.Copy()
-
+	ch := chart.Copy()
 	labels := c.chartBaseLabels()
 	labels["component"] = "licensing"
 
-	for _, chart := range *charts {
-		for k, v := range labels {
-			chart.Labels = append(chart.Labels, collectorapi.Label{Key: k, Value: v})
-		}
+	for k, v := range labels {
+		ch.Labels = append(ch.Labels, collectorapi.Label{Key: k, Value: v})
 	}
 
-	if err := c.Charts().Add(*charts...); err != nil {
-		c.Warningf("failed to add license charts: %v", err)
+	if err := c.Charts().Add(ch); err != nil {
+		c.Warningf("failed to add license chart %q: %v", ch.ID, err)
 	}
 }

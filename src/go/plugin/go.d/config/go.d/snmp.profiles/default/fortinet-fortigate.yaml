@@ -70,6 +70,7 @@ metadata:
           # Examples: `5.6.4` from `v5.6.4,build1575,180425 (GA)`
 
 # References:
+# https://docs.fortinet.com/document/fortigate/8.0.0/fortigate-mib-information-overview/293724/fortigate-system-mibs
 # https://mibbrowser.online/mibdb_search.php?mib=FORTINET-FORTIGATE-MIB
 # https://github.com/DanielleHuisman/observium-community-edition/blob/main/mibs/fortinet/FORTINET-FORTIGATE-MIB
 

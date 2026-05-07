@@ -465,7 +465,10 @@ func validateEnrichLicenseRowShape(rowIdx int, row *LicensingConfig) error {
 	}
 	if row.Table.OID == "" && row.ID == "" {
 		sourceOIDs := collectLicenseSignalSourceOIDs(*row)
-		if len(sourceOIDs) > 1 {
+		switch {
+		case len(sourceOIDs) == 0:
+			errs = append(errs, fmt.Errorf("licensing[%d]: scalar rows without a signal source OID require explicit id", rowIdx))
+		case len(sourceOIDs) > 1:
 			errs = append(errs, fmt.Errorf("licensing[%d]: scalar rows with multiple signal source OIDs require explicit id", rowIdx))
 		}
 	}

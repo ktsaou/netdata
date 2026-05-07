@@ -144,9 +144,11 @@ type MetricCountStats struct {
 	Virtual int64
 	// Licensing is the count of typed licensing rows produced.
 	Licensing int64
-	// Tables is the count of unique tables with metrics.
+	// Tables is the count of unique regular metric tables. Typed licensing
+	// rows are counted separately in Licensing.
 	Tables int64
-	// Rows is the total number of table rows across all tables.
+	// Rows is the total number of regular metric table rows. Typed licensing
+	// rows are counted separately in Licensing.
 	Rows int64
 }
 

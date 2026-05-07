@@ -15,6 +15,27 @@ func newTestFuncLicenses(cache *licenseCache) *funcLicenses {
 	return newFuncLicenses(cache)
 }
 
+func TestLicensesMethodConfig_Parameterless(t *testing.T) {
+	tests := map[string]struct {
+		method string
+	}{
+		"licenses method has no required params": {
+			method: licensesMethodID,
+		},
+	}
+
+	for name, tc := range tests {
+		t.Run(name, func(t *testing.T) {
+			cfg := licensesMethodConfig()
+			assert.Empty(t, cfg.RequiredParams)
+
+			params, err := newTestFuncLicenses(newLicenseCache()).MethodParams(context.Background(), tc.method)
+			require.NoError(t, err)
+			assert.Empty(t, params)
+		})
+	}
+}
+
 func TestFuncLicensesHandle(t *testing.T) {
 	cache := newLicenseCache()
 	now := time.Date(2026, time.April, 3, 10, 0, 0, 0, time.UTC)

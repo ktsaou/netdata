@@ -174,12 +174,16 @@ func TestValidateEnrichProfile_Licensing(t *testing.T) {
 						State: LicenseStateConfig{
 							LicenseValueConfig: LicenseValueConfig{
 								Symbol: SymbolConfig{
-									OID:          "1.2.3.0",
-									Name:         "_license_row",
-									Transform:    "{{ .Value }}",
-									ExtractValue: `(\d+)`,
-									MatchPattern: `(\d+)`,
-									MatchValue:   "$1",
+									OID:              "1.2.3.0",
+									Name:             "_license_row",
+									ChartMeta:        ChartMeta{Description: "chart-only"},
+									MetricType:       ProfileMetricTypeGauge,
+									Transform:        "{{ .Value }}",
+									ExtractValue:     `(\d+)`,
+									MatchPattern:     `(\d+)`,
+									MatchValue:       "$1",
+									ScaleFactor:      0.1,
+									ConstantValueOne: true,
 								},
 							},
 						},
@@ -188,10 +192,14 @@ func TestValidateEnrichProfile_Licensing(t *testing.T) {
 			},
 			wantErrContains: []string{
 				`licensing[0].state.symbol: name "_license_row" cannot be underscore-prefixed`,
+				"licensing[0].state.symbol: chart_meta cannot be used in licensing rows",
+				"licensing[0].state.symbol: metric_type cannot be used in licensing rows",
 				"licensing[0].state.symbol: transform cannot be used in licensing rows",
 				"licensing[0].state.symbol: extract_value cannot be used in licensing rows",
 				"licensing[0].state.symbol: match_pattern cannot be used in licensing rows",
 				"licensing[0].state.symbol: match_value cannot be used in licensing rows",
+				"licensing[0].state.symbol: scale_factor cannot be used in licensing rows",
+				"licensing[0].state.symbol: constant_value_one cannot be used in licensing rows",
 			},
 		},
 		"forbids state policy without state source": {
@@ -208,6 +216,18 @@ func TestValidateEnrichProfile_Licensing(t *testing.T) {
 				},
 			},
 			wantErrContains: []string{"licensing[0].state.policy: policy requires state value source"},
+		},
+		"forbids scalar literal-only rows without explicit id": {
+			profile: ProfileDefinition{
+				Licensing: []LicensingConfig{
+					{
+						State: LicenseStateConfig{
+							LicenseValueConfig: LicenseValueConfig{Value: "0"},
+						},
+					},
+				},
+			},
+			wantErrContains: []string{"licensing[0]: scalar rows without a signal source OID require explicit id"},
 		},
 		"forbids timer timestamp and remaining together": {
 			profile: ProfileDefinition{

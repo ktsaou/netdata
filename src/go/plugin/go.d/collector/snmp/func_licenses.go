@@ -20,6 +20,8 @@ func licensesMethodConfig() funcapi.MethodConfig {
 		Name:        "Licenses",
 		UpdateEvery: 10,
 		Help:        "Normalized SNMP licensing rows for the selected device",
+		// Licenses is intentionally parameterless: it returns this job's cached rows.
+		RequiredParams: []funcapi.ParamConfig{},
 	}
 }
 
@@ -38,7 +40,7 @@ func (f *funcLicenses) MethodParams(_ context.Context, method string) ([]funcapi
 	if method != licensesMethodID {
 		return nil, nil
 	}
-	return nil, nil
+	return []funcapi.ParamConfig{}, nil
 }
 
 func (f *funcLicenses) Cleanup(_ context.Context) {}
@@ -172,6 +174,7 @@ func sortLicenseRows(rows []licenseRow) {
 		left := rows[i]
 		right := rows[j]
 
+		// Put actionable rows first; the UI can still default-sort by License.
 		if lp, rp := licenseBucketPriority(left.StateBucket), licenseBucketPriority(right.StateBucket); lp != rp {
 			return lp < rp
 		}

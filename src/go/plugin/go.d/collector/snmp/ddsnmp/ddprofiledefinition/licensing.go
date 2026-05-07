@@ -68,15 +68,13 @@ func IsValidLicenseSentinelPolicy(policy LicenseSentinelPolicy) bool {
 type LicenseStatePolicy string
 
 const (
-	LicenseStatePolicyDefault  LicenseStatePolicy = "default"
-	LicenseStatePolicySophos   LicenseStatePolicy = "sophos"
-	LicenseStatePolicyMikroTik LicenseStatePolicy = "mikrotik"
+	LicenseStatePolicyDefault LicenseStatePolicy = "default"
+	LicenseStatePolicySophos  LicenseStatePolicy = "sophos"
 )
 
 var validLicenseStatePolicies = map[LicenseStatePolicy]struct{}{
-	LicenseStatePolicyDefault:  {},
-	LicenseStatePolicySophos:   {},
-	LicenseStatePolicyMikroTik: {},
+	LicenseStatePolicyDefault: {},
+	LicenseStatePolicySophos:  {},
 }
 
 func IsValidLicenseStatePolicy(policy LicenseStatePolicy) bool {

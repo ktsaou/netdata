@@ -68,7 +68,7 @@ Unknowns:
   - Cisco licensing is represented by dedicated typed licensing mixins, not hidden `_license_row*` blocks in `_cisco-base.yaml`; broad Cisco coverage comes from `cisco.yaml` extending those mixins.
 - Runtime merge identity uses `OriginProfileID` plus table OID plus an INDEX-derived row key for table rows. `OriginProfileID` is the logical profile file that declared the licensing row, including mixin-origin rows after `extends:` merge. It must not use display table names, stripped filenames, root matched profile names, or absolute source paths as structural identity.
 - Eval/trial states do not generate warning/critical alerts by default; they may be exposed as informational function/chart state.
-- Chart/health scoping for licensing uses explicit chart labels or an evidence-backed alternative if chart-label filtering is not available for Netdata health templates.
+- Licensing health alerts are scoped by their SNMP-specific `snmp.license.*` contexts; extra `chart labels: component=licensing` filters are intentionally not used.
 - Workstation-local provenance comments are sanitized before commit, including `bluecoat-proxysg.yaml:47` and path-bearing licensing fixtures under `ddsnmpcollector/testdata/licensing/`.
 - Provenance sanitation explicitly covers:
   - `config/go.d/snmp.profiles/default/bluecoat-proxysg.yaml:47`
@@ -416,19 +416,19 @@ Options:
 
 - A. Keep current broad alert behavior.
   - Pros: no alert rewrite.
-  - Cons: eval/trial/grace can alert too aggressively; templates are not explicitly scoped to licensing chart labels.
-- B. Explicit alert table and chart-label scoping.
+  - Cons: eval/trial/grace can alert too aggressively.
+- B. Explicit alert table scoped by SNMP-specific licensing contexts.
   - Policy: eval/trial -> informational only, no alert; grace -> WARN with delay; degraded -> WARN; broken/expired -> CRIT; usage pressure remains WARN/CRIT by percentage thresholds.
-  - Health templates should target licensing charts with `component=licensing` chart labels if Netdata health supports that filter; otherwise the SOW must record the evidence-backed alternative.
+  - Health templates target `snmp.license.*` contexts directly; additional chart-label filters are redundant for these SNMP-specific contexts.
   - Pros: operator intent is explicit and avoids noisy eval/trial alerts.
   - Cons: requires health-template review and tests.
 - C. No default alerts for WIP licensing.
   - Pros: avoids false positives while the feature matures.
   - Cons: less useful out of the box.
 
-Recommendation: B. Netdata health supports `chart labels:` filters, and licensing charts already attach `component=licensing`; templates should use that scoping. This decision depends on Decision 19 for the eval/trial/grace bucket model.
+Recommendation: B. Licensing contexts are already SNMP-specific, so direct `on: snmp.license.*` health templates are sufficient. This decision depends on Decision 19 for the eval/trial/grace bucket model.
 
-Selected option: B. Explicit alert table and chart-label scoping.
+Selected option: B. Explicit alert table scoped by SNMP-specific licensing contexts. User later confirmed that alert `chart labels: component=licensing` filters are redundant and should not be used.
 
 ### Decision 10 - Catalog projection consumer
 
@@ -680,7 +680,7 @@ Selected option: A with caller-review exception. `snmp:licenses` remains intenti
   - added scalar row identity, sibling-OID decoding, eval/trial/grace bucket model, licensing validation forbid-list, repeated-signal conflict semantics, and Function RequiredParams decisions;
   - fixed decision numbering to use SOW decision ids consistently;
   - recorded workstation-path sanitation and local MIB/TODO hygiene requirements;
-  - tightened Cisco Smart scalar `.0`, sentinel parity, per-chart lazy guards, chart-label scoping, metric-tag projection, Cisco mixin names, unit conversion ownership, and HiddenMetrics preservation facts.
+  - tightened Cisco Smart scalar `.0`, sentinel parity, per-chart lazy guards, SNMP-specific health context scoping, metric-tag projection, Cisco mixin names, unit conversion ownership, and HiddenMetrics preservation facts.
 - Recorded user decision bundle: `2A 3A 4A 5C 6B 7B 8B 9B 10A 11A 12B 13A 14A 15A 17A 18A 19A 20A 21A 22A`.
 - Recorded local MIB handling decision: keep raw MIBs at repo root during implementation, do not commit them, delete them after implementation is verified.
 - Recorded user decision `1B`: licensing structural identity uses `OriginProfileID`, the logical profile file that declared the licensing row, including mixin-origin rows after `extends:` merge.
@@ -750,6 +750,14 @@ Selected option: A with caller-review exception. `snmp:licenses` remains intenti
   - `go test -count=1 ./collector/snmp/ddsnmp/...`;
   - `go test -count=1 ./collector/snmp/...`;
   - `rg '_license_row|_license_value_kind|licenseDateFromTag' config/go.d/snmp.profiles/default` returned no matches.
+- Folded in the final pre-PR review fix batch:
+  - replaced all-at-once licensing chart registration with per-signal-class lazy registration and per-chart idempotent guards;
+  - kept SNMP licensing health alerts scoped by their `snmp.license.*` contexts and added the agreed grace-period warning delay;
+  - verified Fortinet licensing table OIDs against Fortinet's FortiGate system MIB documentation for `fgLicContractTable`, `fgLicVersionTable`, and `fgLicAlContractTable`, and recorded the official documentation URL in the Fortinet profile;
+  - corrected Cisco Smart entitlement `invalidTag(11)` from healthy to broken based on the local `CISCO-SMART-LIC-MIB.my` definition;
+  - removed the dead MikroTik filename/source-gated consumer sanity path because `timer_pre_1971` now drops the sentinel at typed-producer time;
+  - documented licensing stats separation, documented and tested the intentionally parameterless `snmp:licenses` function contract, hardened scalar literal-only licensing row validation, expanded licensing forbid-list tests, and consolidated licensing fixture tests into a map-driven harness;
+  - aligned `.agents/sow/specs/snmp-profile-projection.md` with implemented scalar `from:` validation and metadata `id_tags` projection behavior.
 - Updated durable project artifacts for the typed projection slice:
   - extended `.agents/sow/specs/snmp-profile-projection.md` with the licensing consumer, projection rules, typed delivery, identity rules, and validation guarantees;
   - extended `.agents/skills/project-snmp-profiles-authoring/SKILL.md` with licensing authoring guardrails and the `ProfileMetrics.LicenseRows` delivery rule.
@@ -788,6 +796,11 @@ Tests or equivalent validation:
 - `go test -count=1 ./collector/snmp/ddsnmp/ddsnmpcollector` passed after migrating MikroTik, Check Point, Blue Coat, and Fortinet licensing profiles from hidden `_license_row` metrics to typed `licensing:` rows.
 - `go test -count=1 ./collector/snmp/ddsnmp/... ./collector/snmp` passed after the typed consumer rewrite, typed profile migrations, and licensing documentation updates in this slice.
 - `go test -count=1 ./collector/snmp/... ./collector/snmp_topology/...` passed after the typed consumer rewrite, migrated profile subset, and documentation/health updates.
+- `go test -count=1 ./collector/snmp -run 'TestCollector_AddLicenseCharts|TestLicensesMethodConfig|TestFuncLicenses|TestAggregateLicenseRows|TestNormalizeLicenseStateBucket|TestExtractLicenseRows'` passed after lazy chart registration, parameterless function contract, and typed consumer cleanup.
+- `go test -count=1 ./collector/snmp/ddsnmp/ddprofiledefinition ./collector/snmp/ddsnmp/ddsnmpcollector -run 'TestValidateEnrichProfile_Licensing|TestCollector_Collect_LicensingProfileFixtures|TestCollector_Collect_LicensingProfiles|TestCollector_Collect_Sophos|TestCollector_Collect_MikroTik|TestCollector_Collect_Cisco'` passed after licensing validation hardening and fixture test consolidation.
+- `go test -count=1 ./collector/snmp/ddsnmp/...` passed after the final pre-PR review fix batch.
+- `go test -count=1 ./collector/snmp/...` passed after the final pre-PR review fix batch.
+- `go test -count=1 ./collector/snmp_topology/...` passed after the shared projection/spec cleanup.
 
 Real-use evidence:
 

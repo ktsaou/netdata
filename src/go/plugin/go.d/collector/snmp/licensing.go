@@ -119,14 +119,6 @@ func extractLicenseRows(pms []*ddsnmp.ProfileMetrics, now time.Time) []licenseRo
 	rows = dropLicenseRowsWithoutSignals(rows)
 
 	for i := range rows {
-		applyVendorLicenseSanityRules(&rows[i])
-	}
-
-	// Vendor sanity normalization can clear the only merged signal on a row
-	// (for example a vendor sentinel that should not be treated as expiry).
-	rows = dropLicenseRowsWithoutSignals(rows)
-
-	for i := range rows {
 		rows[i].StateBucket = normalizeLicenseStateBucket(rows[i], now)
 	}
 

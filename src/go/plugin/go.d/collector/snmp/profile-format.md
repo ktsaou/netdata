@@ -2205,6 +2205,9 @@ license pool. A row may be table-backed or scalar-backed:
   SNMP table row.
 - A scalar-backed row omits `table:` and produces one typed license row for the
   scalar values named in the row.
+- Scalar-backed rows that use only literal `value:` fields must declare an
+  explicit stable `id:` because there is no signal OID to use as structural
+  identity.
 
 Each row has:
 
