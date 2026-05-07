@@ -47,17 +47,19 @@ These two facts are not Netdata-specific. They're how flow data works on every c
 
 ### Traffic appears doubled by default
 
-A router exports flow records for both ingress and egress on every monitored interface. A single packet entering interface A and leaving interface B produces two records: one tagged ingress on A, one tagged egress on B.
+A router exports flow records for both ingress and egress on every monitored interface. A single packet entering interface A and leaving interface B produces two records on that router: one tagged ingress on A, one tagged egress on B.
 
 If you sum every flow record without filtering, you see roughly **2× the actual traffic**. With a second router on the same path, **4×**.
 
-To see real numbers: filter by one exporter, one interface, in one direction. The dashboard makes this easy. See the [Anti-patterns page](/docs/network-flows/anti-patterns.md) for the full framing.
+To see real numbers, filter by one exporter and one interface. Each packet then appears in exactly one record on that interface. See the [Anti-patterns page](/docs/network-flows/anti-patterns.md) for the full framing.
 
-### Conversations are mirrored
+### Bidirectional traffic shows both directions
 
-A bidirectional conversation (host A talks to host B, B replies to A) produces at least two flow records — one for each direction. They're real, distinct flows. But on a Sankey diagram, country map, or sorted top-N table without direction filtering, you see both ends of every conversation. That's correct, but it can look like the same traffic appears twice.
+A conversation between host A and host B has packets going both ways: A→B for requests or uploads, B→A for responses or downloads. These are real, separate packets, exported as separate flow records. The Sankey diagram, country map, and sorted top-N tables show both directions when you don't filter by direction.
 
-When you see "traffic from your country to a foreign country" *and* "traffic from that foreign country to your country" of similar volume, you're looking at one conversation, not two.
+Volumes in the two directions are usually asymmetric — for example, a video download produces large B→A flows and small A→B ACKs. So a "host A to host B" entry and a "host B to host A" entry refer to the same conversation but typically have very different byte counts.
+
+This is not duplication; it's correct per-direction accounting.
 
 ## What ships with the plugin
 

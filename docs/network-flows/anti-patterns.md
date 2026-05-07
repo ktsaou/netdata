@@ -18,7 +18,7 @@ Flow data is powerful but easy to misuse. The mistakes below are the ones that c
 
 **What it costs.** You think your link carries 2 Gbps when it really carries 1 Gbps. Capacity decisions based on these numbers are wrong by a factor of 2 or more.
 
-**How to avoid it.** Always filter by one exporter and one direction (Input Interface OR Output Interface, not both) when reading absolute volume numbers. To validate: compare to SNMP interface counters on the same interface — values should be close.
+**How to avoid it.** Always filter by one exporter and one interface (Input Interface OR Output Interface, pick one) when reading absolute volume numbers. Each packet then appears in exactly one record on that interface. To validate: compare to SNMP interface counters on the same interface — values should be close.
 
 ## 2. Ignoring the sampling rate
 

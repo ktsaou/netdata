@@ -33,7 +33,7 @@ Run this once after deployment, then quarterly, plus whenever something looks of
 
 Compare flow-derived bandwidth on a specific interface to the SNMP `ifInOctets` / `ifOutOctets` counter for that same interface. They should be close.
 
-The flow-derived bandwidth: filter the dashboard to one exporter, one input interface (or one output interface — pick a direction), and read the bytes/s rate.
+The flow-derived bandwidth: filter the dashboard to one exporter and one interface (Input Interface OR Output Interface — pick one), and read the bytes/s rate.
 
 The SNMP-derived bandwidth: from your SNMP monitoring (Netdata's snmp.d, your separate SNMP system, or your network team).
 
@@ -52,7 +52,7 @@ The SNMP-derived bandwidth: from your SNMP monitoring (Netdata's snmp.d, your se
 
 If your dashboard's total bandwidth exceeds the **physical link capacity**, you're double-counting. Standard NetFlow / IPFIX configuration produces two flow records per packet (one ingress, one egress). With multiple monitored routers on the same path, even more.
 
-Verify by: filter to one exporter and one interface in one direction (input OR output, not both). Compare to SNMP for that same interface. They should agree within 5-15%. The difference between "all flows summed" and "filtered to one direction" is exactly the doubling factor.
+Verify by: filter to one exporter and one interface (Input Interface OR Output Interface, pick one). Compare to SNMP for that same interface. They should agree within 5-15%. The difference between "all flows summed" and "filtered to one interface" is exactly the doubling factor.
 
 ### 3. Sampling rate sanity check
 

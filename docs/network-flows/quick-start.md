@@ -117,18 +117,20 @@ Routers normally export both ingress and egress flow records on every monitored 
 
 If you look at total bandwidth without filtering, you see roughly **2× the real traffic**. Add a second router on the same path and you see 4×.
 
-**To see real bandwidth on a specific link**, filter to one exporter and one direction:
+**To see real bandwidth on a specific link**, filter to one exporter and one interface:
 
 1. In the filter ribbon: `Exporter Name = <your router>`.
-2. Add: `Input Interface Name = <the interface>` (for incoming) **or** `Output Interface Name = <the interface>` (for outgoing). Pick one. Not both.
+2. Add: `Input Interface Name = <the interface>` **or** `Output Interface Name = <the interface>` — pick one, not both. Each packet then appears in exactly one record on that interface.
 
-That's the actual traffic on that link in that direction.
+That's the actual traffic on that link.
 
-### Conversations look mirrored
+### Bidirectional traffic shows both directions
 
-Each bidirectional conversation produces two flow records — one for the request direction, one for the response. The Sankey, country map, and time-series all show both. When you see traffic between Country X and Country Y *and* traffic between Country Y and Country X of similar volume, that's the same conversation, not two.
+Every conversation has packets going both ways: requests / uploads in one direction, responses / downloads in the other. These are real, separate packets and produce separate flow records. The Sankey, country map, and time-series all show both directions when you don't filter by direction.
 
-This is correct behaviour. To see only one direction of a conversation, filter by `Source ASN` (your network) for outbound or `Destination ASN` for inbound.
+Volumes in the two directions are usually asymmetric — for example, a video download produces large B→A flows and small A→B ACKs. A "Country X to Country Y" entry and a "Country Y to Country X" entry refer to the same conversations but typically have very different byte counts. That's correct per-direction accounting, not duplication.
+
+To see only one direction, filter by `Source ASN` (your network) for outbound or `Destination ASN` (your network) for inbound.
 
 ## Step 4 — Verify it's working
 

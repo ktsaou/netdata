@@ -95,7 +95,7 @@ The order of fields determines the visual flow. Reorder to change which dimensio
 
 ### Doubling
 
-Without filtering, aggregate volume on a single router is roughly 2× the actual traffic — every packet generates two flow records (one ingress, one egress). To see real volume on a specific link, filter to one exporter and one direction (input interface OR output interface, not both). See [Anti-patterns](/docs/network-flows/anti-patterns.md) for the full framing.
+Without filtering, aggregate volume on a single router is roughly 2× the actual traffic — every packet generates two flow records (one ingress, one egress). To see real volume on a specific link, filter to one exporter and one interface (Input Interface OR Output Interface, pick one). Each packet then appears in exactly one record on that interface. See [Anti-patterns](/docs/network-flows/anti-patterns.md) for the full framing.
 
 ### Sharing your view
 

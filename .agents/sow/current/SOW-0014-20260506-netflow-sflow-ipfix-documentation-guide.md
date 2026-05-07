@@ -1113,3 +1113,54 @@ Evidence:
   (`get_dir_make_file_and_recurse`).
 
 Diff: `docs/.map/map.yaml:479-484`.
+
+#### F2 + F3 -- 2026-05-07 -- doubling vs bidirectional symmetry
+
+These two findings address the same paragraphs and are fixed
+together. The "doubling" effect (per-packet ingress+egress on
+one router) was conflated with bidirectional traffic
+symmetry, which is a different concept. Original docs told
+users to (a) look for "similar volume" in opposite directions
+to identify a single conversation, and (b) "filter by one
+exporter, one interface, in one direction" to see real
+volume. Both wrong:
+
+- Bidirectional traffic is typically asymmetric (downloads
+  vs ACKs). "Similar volume" is a wrong heuristic for
+  spotting two halves of the same conversation.
+- "in one direction" added on top of "one interface" is
+  redundant for the doubling fix and misleads readers into
+  expecting another 50% halving from direction filtering.
+
+The doubling fix is just: one exporter + one interface
+(Input Interface OR Output Interface, pick one). Each packet
+crossing that interface produces exactly one record on it.
+
+Mirror-conversation framing rewritten: bidirectional
+conversations produce separate records per direction
+because they really are different packets going each way.
+Volumes are usually asymmetric. Per-direction accounting
+is correct, not duplication.
+
+Files touched:
+- `docs/network-flows/README.md` -- `## Two things to know
+  on day one` paragraphs rewritten.
+- `docs/network-flows/quick-start.md` -- step-3 paragraphs
+  rewritten.
+- `docs/network-flows/visualization/summary-sankey.md:98`
+  -- "in one direction" removed from doubling fix.
+- `docs/network-flows/anti-patterns.md:21` -- same fix in
+  "How to avoid it" line of the doubling anti-pattern.
+- `docs/network-flows/validation.md:36, 55` -- same fix in
+  the SNMP cross-check and doubling sanity-check sections.
+
+Note: F14 / F15 / F16 / F17 will rewrite anti-patterns.md
+and validation.md more comprehensively. The corrections
+above are kept as standalone fixes so the wrong claim is
+gone immediately even if the surrounding sections survive.
+
+Other patterns scanned: searched for "of similar volume",
+"same volume", "symmetric", "in one direction",
+"conversations? (?:are|look|appear)? mirrored". The lines
+above are all hits within `docs/network-flows/`. No other
+files carry the pattern.
