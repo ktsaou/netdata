@@ -20,22 +20,7 @@ Flow data is powerful but easy to misuse. The mistakes below are the ones that c
 
 **How to avoid it.** Always filter by one exporter and one interface (Input Interface OR Output Interface, pick one) when reading absolute volume numbers. Each packet then appears in exactly one record on that interface. To validate: compare to SNMP interface counters on the same interface — values should be close.
 
-## 2. Ignoring the sampling rate
-
-**The mistake.** Your router is configured to sample 1-in-1000 packets. Nobody documented this. The dashboard shows 5 Mbps. You assume that's your traffic.
-
-**Why it's wrong.** With sampling, a flow record represents one observed packet out of every N. Netdata multiplies bytes and packets by the sampling rate at ingestion, so the dashboard numbers are estimates of actual traffic — *if* the multiplication is consistent. When sampling rates differ across exporters in the same query, the aggregate becomes a blend of estimates that is hard to interpret correctly.
-
-**What it costs.** Volume analysis is off by orders of magnitude when the rate isn't documented. Small flows are statistically invisible — at 1-in-1000, a single-packet flow has a 99.9% chance of being missed entirely. Security investigations miss low-volume threats like beaconing and probing.
-
-**How to avoid it.**
-
-- Use a uniform sampling rate across your network, or run unsampled where flow rates allow.
-- For Internet-edge security work, use 1-in-100 or unsampled. Sampling at 1-in-1000 hides small flows.
-- Document sampling rates per exporter and audit them quarterly.
-- Cross-check flow-derived bandwidth against SNMP. If they diverge by more than 30%, investigate before trusting the data.
-
-## 3. Trusting GeoIP for internal IPs
+## 2. Trusting GeoIP for internal IPs
 
 **The mistake.** You enable GeoIP enrichment. Internal IPs (10.x, 172.16-31.x, 192.168.x) appear in random countries on the geographic map.
 

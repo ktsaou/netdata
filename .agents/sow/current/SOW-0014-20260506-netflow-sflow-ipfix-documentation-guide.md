@@ -1704,3 +1704,35 @@ Repair: swept all `journalctl -u netdata` invocations to
 
 Grep `journalctl` after the sweep -- every invocation now
 uses `--namespace netdata`.
+
+#### F15 -- 2026-05-07 -- remove "Ignoring the sampling rate" anti-pattern
+
+User: "How is it possible for users to ignore the sampling
+rate if we calculate the estimated volume at ingestion? You
+invented reasons for it. ... section must be removed."
+
+Verified the per-flow multiplication code path under F4 +
+F5 already; the entire premise of this anti-pattern (that
+mixed rates produce inconsistent multiplication, that users
+must keep rates uniform, that aggregates become "hard to
+interpret") was wrong. The two real concerns it conflated
+are documented elsewhere already:
+
+- "small flows missed at high sampling rates" -- preserved
+  under the Overview's "What sampling does to your numbers"
+  section and inside investigation-playbooks.md "Caveats"
+  for the security playbook.
+- "exporter sends no rate" (NetFlow v7, v5 with rate=0,
+  v9/IPFIX without Sampling Options Template) -- preserved
+  in troubleshooting.md "Bandwidth doesn't match SNMP" and
+  in validation.md.
+
+Repair: deleted the entire "## 2. Ignoring the sampling
+rate" section from `docs/network-flows/anti-patterns.md`.
+Section numbering renumber will land with F17 (the last of
+the three section removals) so that anti-patterns.md
+renumbers exactly once.
+
+Files touched:
+- docs/network-flows/anti-patterns.md (removed lines
+  ~23-36 plus the section header)
