@@ -72,11 +72,11 @@ Globe view, top-N at 500, rotated over the Atlantic. The 3D projection shows US 
 
 ### GeoIP is required
 
-Without a GeoIP database, country / state / city / coordinate fields are empty and the maps are blank. The default install includes a stock DB-IP database — see [GeoIP enrichment](/docs/network-flows/enrichment/ip-intelligence.md). Source builds need the operator to run the downloader once.
+Without a GeoIP database, country / state / city / coordinate fields are empty and the maps are blank. The default install includes a stock DB-IP database — see the [DB-IP integration card](/src/crates/netflow-plugin/integrations/db-ip_ip_intelligence.md) and the [Enrichment Intel Downloader](/docs/network-flows/intel-downloader.md). Source builds need the operator to run the downloader once.
 
 ### Internal IPs in random countries
 
-If you see "traffic from China" or "traffic to Russia" coming from your own network, that's almost always GeoIP misidentifying internal IPs. The fix is to declare your internal CIDRs explicitly under `enrichment.networks` with a country override. See [Static metadata](/docs/network-flows/enrichment/static-metadata.md). Don't trust GeoIP for RFC 1918 / RFC 6598 / link-local addresses.
+If you see "traffic from China" or "traffic to Russia" coming from your own network, that's almost always GeoIP misidentifying internal IPs. The fix is to declare your internal CIDRs explicitly under `enrichment.networks` with a country override. See the [Static Metadata integration card](/src/crates/netflow-plugin/integrations/static_metadata.md). Don't trust GeoIP for RFC 1918 / RFC 6598 / link-local addresses.
 
 ### CDN traffic shifts
 
@@ -108,7 +108,8 @@ The globe and city map render the same data with the same table beneath. The 2D 
 
 ## What's next
 
-- [GeoIP enrichment](/docs/network-flows/enrichment/ip-intelligence.md) — Required for any geographic visualization.
-- [Static metadata](/docs/network-flows/enrichment/static-metadata.md) — Declare your internal networks to override GeoIP for RFC 1918.
+- [Enrichment](/docs/network-flows/enrichment.md) — Order of evaluation and the MMDB shared mechanism that drives geographic visualisation.
+- [DB-IP integration card](/src/crates/netflow-plugin/integrations/db-ip_ip_intelligence.md) — The default GeoIP source that ships with Netdata.
+- [Static Metadata integration card](/src/crates/netflow-plugin/integrations/static_metadata.md) — Declare your internal networks to override GeoIP for RFC 1918.
 - [Filters and Facets](/docs/network-flows/visualization/filters-facets.md) — Narrowing geographic views.
 - [Anti-patterns](/docs/network-flows/anti-patterns.md) — Why "alert on traffic to country X" is fragile.

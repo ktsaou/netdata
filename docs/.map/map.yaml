@@ -496,32 +496,13 @@ sidebar:
           edit_url: https://github.com/netdata/netdata/edit/master/docs/network-flows/configuration.md
           description: Full reference for netflow.yaml configuration options.
       - meta:
-          label: Flows Enrichment
-        items:
-          - meta:
-              label: IP Intelligence
-              edit_url: https://github.com/netdata/netdata/edit/master/docs/network-flows/enrichment/ip-intelligence.md
-              description: How GeoIP and ASN data combine to enrich flow records with country, city, and AS-name labels.
-          - meta:
-              label: BGP Routing
-              edit_url: https://github.com/netdata/netdata/edit/master/docs/network-flows/enrichment/bgp-routing.md
-              description: How live BGP routes (BMP, BioRIS) feed AS path, communities, and next-hop into flow records.
-          - meta:
-              label: Network Identity
-              edit_url: https://github.com/netdata/netdata/edit/master/docs/network-flows/enrichment/network-identity.md
-              description: How external feeds (cloud IP ranges, IPAM systems) label your network prefixes.
-          - meta:
-              label: Static Metadata
-              edit_url: https://github.com/netdata/netdata/edit/master/docs/network-flows/enrichment/static-metadata.md
-          - meta:
-              label: Classifiers
-              edit_url: https://github.com/netdata/netdata/edit/master/docs/network-flows/enrichment/classifiers.md
-          - meta:
-              label: ASN Resolution
-              edit_url: https://github.com/netdata/netdata/edit/master/docs/network-flows/enrichment/asn-resolution.md
-          - meta:
-              label: Decapsulation
-              edit_url: https://github.com/netdata/netdata/edit/master/docs/network-flows/enrichment/decapsulation.md
+          label: Enrichment
+          edit_url: https://github.com/netdata/netdata/edit/master/docs/network-flows/enrichment.md
+          description: Order of evaluation, provider chains, MMDB shared mechanism, and the cross-cutting properties that span every enrichment method.
+      - meta:
+          label: Enrichment Intel Downloader
+          edit_url: https://github.com/netdata/netdata/edit/master/docs/network-flows/intel-downloader.md
+          description: The bundled tool that fetches IP intelligence data sources and writes MMDB files the netflow plugin reads.
       - meta:
           label: Field Reference
           edit_url: https://github.com/netdata/netdata/edit/master/docs/network-flows/field-reference.md

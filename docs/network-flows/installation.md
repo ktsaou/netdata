@@ -77,7 +77,7 @@ sudo ./netdata-installer.sh
 sudo /usr/sbin/topology-ip-intel-downloader
 ```
 
-This populates `/var/cache/netdata/topology-ip-intel/` with the DB-IP-based MMDB files. The plugin auto-detects the cache copy on its next 30-second poll. See [GeoIP enrichment](/docs/network-flows/enrichment/ip-intelligence.md) for details and refresh scheduling.
+This populates `/var/cache/netdata/topology-ip-intel/` with the DB-IP-based MMDB files. The plugin auto-detects the cache copy on its next 30-second poll. See the [Enrichment Intel Downloader page](/docs/network-flows/intel-downloader.md) for the refresh tool and the [DB-IP integration card](/src/crates/netflow-plugin/integrations/db-ip_ip_intelligence.md) for cadence and license details.
 
 ## What gets installed
 

@@ -177,7 +177,7 @@ If the Sankey is empty after 60-90 seconds, work through this:
 You now have flow data flowing in. The natural next steps:
 
 - [Configuration](/docs/network-flows/configuration.md) — Tune retention so older data is preserved (the default 7-day shared retention is rarely enough).
-- [Static metadata](/docs/network-flows/enrichment/static-metadata.md) — Give your routers and your internal networks friendly names and labels. Without this, dashboards show raw IPs.
+- [Static Metadata integration card](/src/crates/netflow-plugin/integrations/static_metadata.md) — Give your routers and your internal networks friendly names and labels. Without this, dashboards show raw IPs.
 - [Investigation Playbooks](/docs/network-flows/investigation-playbooks.md) — Concrete recipes for the questions flow data is good at answering.
 - [Anti-patterns](/docs/network-flows/anti-patterns.md) — Mistakes to avoid as you develop confidence with the data.
 - [Validation and Data Quality](/docs/network-flows/validation.md) — How to confirm your numbers are correct.

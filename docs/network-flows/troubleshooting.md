@@ -140,7 +140,7 @@ If `SRC_AS` / `DST_AS` are zero everywhere despite the exporter sending them, ch
 - `[geoip, ...]` — `geoip` is a terminal short-circuit. The chain stops at `geoip` (it returns 0). Reorder: `[flow, routing, geoip]`.
 - `[]` (empty) — no validation rejects this. Every AS is forced to 0.
 
-See [ASN resolution](/docs/network-flows/enrichment/asn-resolution.md).
+See [Enrichment](/docs/network-flows/enrichment.md) (the asn_providers chain section).
 
 **Decapsulation eating non-tunnel traffic:**
 

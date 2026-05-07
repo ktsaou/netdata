@@ -240,5 +240,5 @@ When the plugin auto-detects MMDBs this way it forces `optional: true` on the ge
   - [IPtoASN](/src/crates/netflow-plugin/integrations/iptoasn.md) — public-domain TSV feed; converted to MMDB by this tool.
   - [MaxMind GeoIP / GeoLite2](/src/crates/netflow-plugin/integrations/maxmind_geoip_-_geolite2.md) — *not* fetched by this tool; use `geoipupdate`.
   - [Custom MMDB Database](/src/crates/netflow-plugin/integrations/custom_mmdb_database.md) — your own MMDB build.
-- The enrichment mechanism that consumes these files: [IP Intelligence](/docs/network-flows/enrichment/ip-intelligence.md).
+- The enrichment mechanism that consumes these files: [Enrichment](/docs/network-flows/enrichment.md) (the MMDB shared mechanism section).
 - The plugin knobs that point at the files: [Configuration › `enrichment.geoip`](/docs/network-flows/configuration.md#enrichment-geoip).

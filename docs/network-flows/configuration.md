@@ -216,16 +216,13 @@ A note on `default_sampling_rate` vs. `override_sampling_rate`: both keys accept
 
 `enrichment.geoip.optional` (default `false`) decides what happens when an MMDB file declared in `asn_database` / `geo_database` is missing at startup: `false` aborts the plugin, `true` logs a warning and continues without that database.
 
-Detailed configuration of each section lives on its own page:
+For the cross-cutting picture — order of evaluation, the `asn_providers` and `net_providers` chains, the MMDB shared mechanism, the static-vs-dynamic composition rules — see the [Enrichment](/docs/network-flows/enrichment.md) page. Per-method configuration details (URLs, refresh cadence, license, vendor commands) live on the integration cards under flows.enrichment-methods:
 
-- [GeoIP](/docs/network-flows/enrichment/ip-intelligence.md)
-- [Static metadata](/docs/network-flows/enrichment/static-metadata.md)
-- [Classifiers](/docs/network-flows/enrichment/classifiers.md)
-- [ASN resolution](/docs/network-flows/enrichment/asn-resolution.md)
-- [BMP routing](/docs/network-flows/enrichment/bgp-routing.md)
-- [BioRIS](/docs/network-flows/enrichment/bgp-routing.md)
-- [Network sources](/docs/network-flows/enrichment/network-identity.md)
-- [Decapsulation](/docs/network-flows/enrichment/decapsulation.md)
+- IP intelligence (MMDB): [DB-IP](/src/crates/netflow-plugin/integrations/db-ip_ip_intelligence.md), [MaxMind GeoIP / GeoLite2](/src/crates/netflow-plugin/integrations/maxmind_geoip_-_geolite2.md), [IPtoASN](/src/crates/netflow-plugin/integrations/iptoasn.md), [Custom MMDB](/src/crates/netflow-plugin/integrations/custom_mmdb_database.md).
+- BGP routing: [BMP](/src/crates/netflow-plugin/integrations/bmp_bgp_monitoring_protocol.md), [bio-rd / RIPE RIS](/src/crates/netflow-plugin/integrations/bio-rd_-_ripe_ris.md).
+- Network sources: [AWS IP Ranges](/src/crates/netflow-plugin/integrations/aws_ip_ranges.md), [Azure IP Ranges](/src/crates/netflow-plugin/integrations/azure_ip_ranges.md), [GCP IP Ranges](/src/crates/netflow-plugin/integrations/gcp_ip_ranges.md), [NetBox](/src/crates/netflow-plugin/integrations/netbox.md), [Generic JSON-over-HTTP IPAM](/src/crates/netflow-plugin/integrations/generic_json-over-http_ipam.md).
+- YAML-defined: [Static Metadata](/src/crates/netflow-plugin/integrations/static_metadata.md), [Classifiers](/src/crates/netflow-plugin/integrations/classifiers.md), [Decapsulation](/src/crates/netflow-plugin/integrations/decapsulation.md).
+- Operational: [Enrichment Intel Downloader](/docs/network-flows/intel-downloader.md) — the bundled refresh tool for MMDB providers.
 
 The enrichment section has no CLI flag — it is YAML-only.
 

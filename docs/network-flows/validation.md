@@ -61,7 +61,7 @@ The plugin multiplies bytes and packets by the sampling rate each flow carries �
 What you DO need to verify, once per exporter, is that the plugin is actually seeing the rate. The dashboard does not surface the per-flow `SAMPLING_RATE` field as a filter, group-by, or facet, so the verification is by **magnitude**, not by reading the rate directly:
 
 - After the plugin has data, compare the dashboard's bytes/s on a known interface to that interface's SNMP `ifInOctets` / `ifOutOctets` rate. If the dashboard reading is roughly the SNMP figure divided by the configured sampling rate (e.g. ~1/1000 of SNMP at 1-in-1000), the plugin saw the rate as `1` and is *not* multiplying. If the dashboard agrees with SNMP within 5-15%, the plugin is honouring the rate.
-- The "sampling but not telling" case happens with NetFlow v7 (no rate field), v5 with rate=0, and v9 / IPFIX exporters that don't send a Sampling Options Template. Fix on the exporter side, or apply `enrichment.override_sampling_rate` per source prefix to substitute a known rate (see [Configuration → enrichment](/docs/network-flows/configuration.md#enrichment) and [Static metadata](/docs/network-flows/enrichment/static-metadata.md)).
+- The "sampling but not telling" case happens with NetFlow v7 (no rate field), v5 with rate=0, and v9 / IPFIX exporters that don't send a Sampling Options Template. Fix on the exporter side, or apply `enrichment.override_sampling_rate` per source prefix to substitute a known rate (see [Configuration → enrichment](/docs/network-flows/configuration.md#enrichment) and the [Static Metadata integration card](/src/crates/netflow-plugin/integrations/static_metadata.md)).
 
 ### 4. Per-exporter health check
 
