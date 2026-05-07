@@ -12,6 +12,10 @@ The Time-Series view plots traffic over time. Same top-N selection as the Sankey
 
 Use it for: anomaly detection, trending, comparing now to last week, capacity planning. Use the Sankey/Table view for: "what's the breakdown right now".
 
+![Time-Series top 25 with table](https://github.com/user-attachments/assets/0bb2637d-632b-4e97-900f-b14155ab0771)
+
+Stacked chart on top, table at the bottom. Each colored band is one of the 25 top groups, summed into time buckets. The table holds the same 25 rows with totals across the whole window.
+
 ## How it works
 
 The view runs the same aggregation as the Sankey + Table:

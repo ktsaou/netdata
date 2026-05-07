@@ -17,6 +17,10 @@ Four geographic views, all driven by the same aggregation engine as the Sankey a
 
 Use these to spot geographic patterns at a glance — unexpected destinations, asymmetric traffic, CDN routing.
 
+![Country map, top 500](https://github.com/user-attachments/assets/f9f09cf2-40c5-4bda-bf56-19b04b6cddf1)
+
+Country map with top-N pushed to 500, so practically every country with traffic shows up. Edge thickness is bandwidth aggregated per country pair.
+
 ## How they work
 
 For each map view, the dashboard:
@@ -51,6 +55,18 @@ If your city map looks empty over a long window, try the country map first to co
 ## Tooltips
 
 Hover over a country, state, city, or arc to see a tooltip. The tooltip shows the same fields as the underlying row — endpoints, byte and packet counts. Click does **not** drill down to a different view; the maps are read-only with respect to navigation. To change perspective (e.g., "show me traffic for this country only"), use the filter ribbon to add a `SRC_COUNTRY` or `DST_COUNTRY` selection.
+
+![State map zoomed over the US, hovering an Attica↔California link](https://github.com/user-attachments/assets/6f124a7c-e12f-453f-8599-59e48bc839e8)
+
+State map with top-N at 500, zoomed over the US. The tooltip on the link between Attica (Greece) and California shows bidirectional traffic — bytes and packets in each direction.
+
+![City map zoomed over Europe](https://github.com/user-attachments/assets/e752e1e3-4f6a-4366-b2e2-6af04d4bc2fe)
+
+City map with top-N at 500, zoomed over Europe. Dozens of European cities appear connected by edges weighted by bandwidth.
+
+![Globe view over the Atlantic, US ↔ EU links](https://github.com/user-attachments/assets/c83a963d-797f-44f8-9ae1-e9aba7e16eec)
+
+Globe view, top-N at 500, rotated over the Atlantic. The 3D projection shows US cities and EU cities at the curvy edges, with arcs (bandwidth-thickness) bridging them.
 
 ## Things to know
 

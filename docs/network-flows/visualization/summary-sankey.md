@@ -12,6 +12,10 @@ The Network Flows tab opens with two views stacked: a Sankey diagram on top, a s
 
 This is your default view. Most investigative workflows start here.
 
+![Sankey top 25 with table, filtered by source IP](https://github.com/user-attachments/assets/314e7195-3fff-4bc7-a01a-0d59ded513d7)
+
+Sankey + table side by side, with a `SRC_ADDR` filter applied. The table at the bottom shows the same 25 rows as the diagram above; clicking a column header re-sorts both. The filter ribbon at the top is how you narrow to one source.
+
 ## What you see by default
 
 When you first open the tab:
@@ -36,6 +40,10 @@ A Sankey diagram has columns of nodes and weighted bands flowing between them.
 With the default 3-column setup (Source ASN → Protocol → Destination ASN), you see the top 25 (Source ASN, Protocol, Destination ASN) tuples by traffic volume. A wide band from `AS65000` to `tcp` to `AS15169` says "AS65000 sent a lot of TCP to AS15169 in this time window".
 
 You can pick **1 to 10 fields** as columns. Order matters — the Sankey draws bands left-to-right in the order you list. There are roughly 84-85 fields available for aggregation; metric fields (`BYTES`, `PACKETS`, sampling rate, timestamps) and the geo coordinates (latitude/longitude) are not selectable here.
+
+![Sankey top 25, table collapsed](https://github.com/user-attachments/assets/c846e80f-b1d1-4330-bb46-162d021604fa)
+
+Same view with the table folded away — useful when you want the Sankey's full vertical real estate. Click the table header to expand it again.
 
 ## Top-N is "top-N grouped tuples"
 
