@@ -71,6 +71,44 @@ these as JSX tags. Note these are **exact-substring** rules;
 near-variants like `< =` (with space) or `<---->` (multi-dash)
 are NOT covered. See `pitfalls-and-gotchas.md`.
 
+### Patterns that the escape battery does NOT cover
+
+- **`<word>` placeholders in prose** (e.g. `<service-name>`,
+  `<scope>`, `<app>`). MDX 3 parses anything that lexically
+  looks like an open tag and then expects a matching close tag.
+  Without one, the build fails with
+  `Expected a closing tag for \`<word>\` ... before the end of \`paragraph\``.
+- **`<` followed by a digit** (e.g. `<100 minutes`,
+  `<5 seconds`). MDX rejects this with
+  `Unexpected character '1' (U+0031) before name, expected a
+  character that can start a name, such as a letter, $, or _`.
+  This pattern is common in lists describing thresholds.
+- **`Type<param>` Rust/C++/Java generic syntax** (e.g.
+  `Vec<u32>`, `HashMap<String, Vec<u8>>`, `unique_ptr<T>`).
+  Same JSX-tag issue.
+
+The safe options, in order of preference:
+
+1. **Wrap in inline code with backticks** -- rule 4
+   preserves inline code, so `\`<service-name>\``,
+   `\`Vec<u32>\``, `\`<APP>\`` all survive intact. This is
+   the standard fix for our Netdata integration content.
+2. **Rephrase the sentence** -- e.g. `< 100 minutes`
+   becomes `under 100 minutes`. Often clearer than the
+   original anyway.
+3. **Backslash-escape the `<`** -- `\<word>`. Works but
+   uglier than backticks. Use only when the `<` must remain
+   visibly a less-than operator, not a placeholder.
+
+These three were exercised in the netflow-plugin docs
+(2026-05-07 ingest preview deploy failure):
+`docs/network-flows/retention-querying.md` had `<100 minutes`,
+fixed by rephrasing; `aws_ip_ranges.md`, `gcp_ip_ranges.md`,
+and `generic_json-over-http_ipam.md` (generated from
+`metadata.yaml`) had `<service-name>`, `<scope>`, `<app>`,
+fixed by wrapping the placeholders in backticks at the
+`metadata.yaml` source.
+
 ## 6. Bare URL angle-bracket links
 
 Converted to markdown links (`ingest.py:1797-1799`):
@@ -124,6 +162,9 @@ The escape rules cover the most common breakage patterns:
 | `< =` (with space) | NOT covered | rule 5 is exact-substring |
 | `<---->` (long arrow) | NOT covered | rule 5 is exact-substring |
 | `<htmltag>` body content | NOT escaped | breaks MDX unless wrapped in code |
+| `<word>` placeholders in prose | NOT escaped | breaks MDX; wrap in backticks or rephrase |
+| `<` + digit (`<100`, `<5s`) | NOT escaped | breaks MDX; rephrase as "under N" or escape |
+| `Vec<u32>`, `HashMap<K,V>` generics | NOT escaped | breaks MDX; wrap in backticks |
 | `<details>` inline summary | fixed | rule 3 |
 | `<details class="x">` | NOT fixed | rule 3 only knows two forms |
 | `}` closing brace alone | NOT escaped | rule 4 only escapes `{` |

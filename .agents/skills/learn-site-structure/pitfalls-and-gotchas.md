@@ -61,6 +61,30 @@ thing.
   `sanitize_page` only as those exact substrings; near-variants
   like `< =`, `<---->`, or `< -` aren't covered.
 
+- **`<word>` placeholders in prose break MDX silently
+  through ingest** -- patterns like `<service-name>`,
+  `<scope>`, `<app>`, `<aws-region>` look like JSX open
+  tags to MDX 3 and demand a closing tag. Build fails with
+  `Expected a closing tag for \`<word>\` ... before the end of
+  \`paragraph\``. The escape battery does NOT touch these.
+  Fix: wrap in backticks (`\`<service-name>\``) or rephrase.
+  Hit 2026-05-07 in netflow-plugin `metadata.yaml`
+  descriptions for AWS / GCP / phpIPAM IPAM sources.
+
+- **`<` immediately followed by a digit** -- patterns like
+  `<100 minutes`, `<5 seconds`, `<10ms` make MDX try to parse
+  a JSX tag and fail with `Unexpected character '1' (U+0031)
+  before name, expected a character that can start a name,
+  such as a letter, $, or _`. Common in threshold descriptions.
+  Fix: rephrase as `under 100 minutes` or `&lt;100 minutes`.
+  Hit 2026-05-07 in
+  `docs/network-flows/retention-querying.md`.
+
+- **Generic-type syntax `Type<Param>`** -- Rust `Vec<u32>`,
+  C++ `unique_ptr<T>`, Java `List<String>`, etc. parse as
+  unbalanced JSX opens. Always wrap in backticks when
+  documenting code types.
+
 - **`meta_yaml: "<url>"` rewrite** -- silently rewrites
   `custom_edit_url` for any file containing `meta_yaml: "..."`,
   even if the author didn't intend it
