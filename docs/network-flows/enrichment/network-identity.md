@@ -123,7 +123,7 @@ Each is configured as a separate integration card. See the per-source card for s
 - **TLS verify cannot be disabled.** Use `tls.ca_file` for internal CAs.
 - **Empty result from the transform** is treated as failure. If your endpoint returns no prefixes (legitimate state for a quiet IPAM), the source backs off as if it errored. Workaround: have the upstream return at least one synthetic prefix.
 - **Authorization header must be in `headers:`**, not in the URL. URLs with embedded credentials (`https://user:pass@host`) are not specially handled.
-- **JSON parse errors are silent in the dashboard.** Watch the Netdata journal (`journalctl -u netdata | grep network_sources`) for warnings.
+- **JSON parse errors are silent in the dashboard.** Watch the Netdata journal (`journalctl --namespace netdata | grep network_sources`) for warnings.
 - **Static config silently wins ties.** When a prefix is defined in both a remote source and `networks:`, the static config's values overwrite the remote ones. This is by design but can surprise operators expecting the remote feed to be authoritative.
 
 ## What's next

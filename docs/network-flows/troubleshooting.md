@@ -17,13 +17,13 @@ The plugin won't come up at all, or starts and immediately exits.
 **Symptoms:**
 - Netdata reports `netflow-plugin` as not running, or restart-looping.
 - Nothing in the Network Flows view.
-- An error in `journalctl -u netdata`.
+- An error in `journalctl --namespace netdata`.
 
 **Likely causes:**
 
 | Cause | What to check |
 |---|---|
-| YAML typo or unknown key | `journalctl -u netdata --since "5 minutes ago" \| grep -E 'failed to load configuration\|netflow'`. The plugin uses strict YAML — any unknown key fails parsing. |
+| YAML typo or unknown key | `journalctl --namespace netdata --since "5 minutes ago" \| grep -E 'failed to load configuration\|netflow'`. The plugin uses strict YAML — any unknown key fails parsing. |
 | Required GeoIP DB missing (`optional: false`) | Same log search. Look for `failed to load database`. Either fix the path or set `optional: true`. |
 | Listen address conflict | Look for `failed to bind`. Another process is on the configured port (default 2055). |
 | Validation error | Look for `must be greater than 0` and similar. The plugin validates the full config at startup. |
@@ -33,7 +33,7 @@ The plugin won't come up at all, or starts and immediately exits.
 
 ```bash
 # Read the failure
-sudo journalctl -u netdata --since "5 minutes ago" | grep -E 'netflow|failed to|error'
+sudo journalctl --namespace netdata --since "5 minutes ago" | grep -E 'netflow|failed to|error'
 
 # Validate the YAML (use an online linter or `yamllint`)
 yamllint /etc/netdata/netflow.yaml
@@ -200,7 +200,7 @@ Default retention is `10GB / 7d` per tier — the same budget applies to all fou
 
 ```bash
 # What's happening
-sudo journalctl -u netdata --since "10 minutes ago" | grep -iE 'netflow|geoip|bmp|bioris|network-sources'
+sudo journalctl --namespace netdata --since "10 minutes ago" | grep -iE 'netflow|geoip|bmp|bioris|network-sources'
 
 # What's arriving on the wire
 sudo tcpdump -i any -nn -c 50 'udp port 2055'
@@ -231,7 +231,7 @@ Collect this before opening a bug report:
 - A sample of `netflow.memory_resident_bytes` if performance-related.
 - A captured pcap (`tcpdump -w` from the agent's interface) reproducing the issue.
 - Sanitised `netflow.yaml` (redact internal IPs, customer names, secrets).
-- Relevant log lines from `journalctl -u netdata`.
+- Relevant log lines from `journalctl --namespace netdata`.
 
 Open issues against [github.com/netdata/netdata](https://github.com/netdata/netdata) with `area/collectors/netflow` in the title.
 

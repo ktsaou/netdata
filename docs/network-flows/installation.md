@@ -97,7 +97,7 @@ This populates `/var/cache/netdata/topology-ip-intel/` with the DB-IP-based MMDB
 After installation and restart:
 
 ```bash
-sudo journalctl -u netdata --since "5 minutes ago" | grep -E 'netflow|listener'
+sudo journalctl --namespace netdata --since "5 minutes ago" | grep -E 'netflow|listener'
 ```
 
 You should see entries indicating that the plugin loaded its config and that the UDP listener bound to its port.

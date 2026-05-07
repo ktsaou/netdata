@@ -159,7 +159,7 @@ If the Sankey is empty after 60-90 seconds, work through this:
 4. **Plugin log lines.**
 
    ```bash
-   sudo journalctl -u netdata --since "5 minutes ago" | grep -i netflow
+   sudo journalctl --namespace netdata --since "5 minutes ago" | grep -i netflow
    ```
 
 ## What's next

@@ -1679,3 +1679,28 @@ Files touched:
 - src/crates/netflow-plugin/integrations/sflow.md
 - src/crates/netflow-plugin/integrations/ipfix.md
 - src/crates/netflow-plugin/integrations/netflow.md
+
+#### F18 -- 2026-05-07 -- journalctl --namespace netdata everywhere
+
+User: "Netdata logs in namespace 'netdata'. Journalctl needs
+`--namespace netdata`."
+
+Background: `-u netdata` selects the systemd UNIT, which
+captures only stdout/stderr the unit emits to the journal.
+The plugin (and the rest of Netdata) actually writes
+structured logs into a journal NAMESPACE called `netdata`.
+Without `--namespace netdata`, users see at most the
+unit-level startup/shutdown messages, not the actual log
+output that helps with debugging.
+
+Repair: swept all `journalctl -u netdata` invocations to
+`journalctl --namespace netdata` in:
+- docs/network-flows/quick-start.md
+- docs/network-flows/troubleshooting.md (5 occurrences)
+- docs/network-flows/installation.md
+- docs/network-flows/enrichment/network-identity.md
+- docs/network-flows/configuration.md (already fixed under
+  F8; no change here)
+
+Grep `journalctl` after the sweep -- every invocation now
+uses `--namespace netdata`.
