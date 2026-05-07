@@ -47,16 +47,15 @@ impl NetflowFlowsHandler {
             // tokio workers handling unrelated traffic.
             let request_for_query = request.clone();
             let query = Arc::clone(&self.query);
-            let query_output = task::spawn_blocking(move || {
-                query.autocomplete_field_values(&request_for_query)
-            })
-            .await
-            .map_err(|err| NetdataPluginError::Other {
-                message: format!("autocomplete task join failed: {err}"),
-            })?
-            .map_err(|err| NetdataPluginError::Other {
-                message: format!("failed to autocomplete facet values: {err:#}"),
-            })?;
+            let query_output =
+                task::spawn_blocking(move || query.autocomplete_field_values(&request_for_query))
+                    .await
+                    .map_err(|err| NetdataPluginError::Other {
+                        message: format!("autocomplete task join failed: {err}"),
+                    })?
+                    .map_err(|err| NetdataPluginError::Other {
+                        message: format!("failed to autocomplete facet values: {err:#}"),
+                    })?;
             let mut stats = self.metrics.snapshot();
             stats.extend(query_output.stats);
 

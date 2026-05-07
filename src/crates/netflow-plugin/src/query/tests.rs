@@ -543,9 +543,7 @@ fn request_deserialization_supports_autocomplete_mode() {
 #[test]
 fn request_deserialization_rejects_oversized_autocomplete_term() {
     let term = "x".repeat(257);
-    let payload = format!(
-        r#"{{"mode":"autocomplete","field":"src_as_name","term":"{term}"}}"#
-    );
+    let payload = format!(r#"{{"mode":"autocomplete","field":"src_as_name","term":"{term}"}}"#);
     let error = serde_json::from_str::<FlowsRequest>(&payload)
         .expect_err("oversized autocomplete term should be rejected");
     assert!(
@@ -559,9 +557,7 @@ fn request_deserialization_accepts_long_term_for_non_autocomplete_mode() {
     // The 256-byte cap is autocomplete-only. Regular flows/timeseries requests
     // may carry an ignored `term` of any length and must not be rejected.
     let term = "x".repeat(1024);
-    let payload = format!(
-        r#"{{"mode":"flows","view":"table-sankey","term":"{term}"}}"#
-    );
+    let payload = format!(r#"{{"mode":"flows","view":"table-sankey","term":"{term}"}}"#);
     let request = serde_json::from_str::<FlowsRequest>(&payload)
         .expect("non-autocomplete request with long term must deserialize");
     assert!(!request.is_autocomplete_mode());
