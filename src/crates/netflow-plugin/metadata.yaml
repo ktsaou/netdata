@@ -439,54 +439,72 @@ modules:
   # =====================================================================
 
   - meta:
-      plugin_name: netflow-plugin
-      module_name: dbip
-      monitored_instance:
-        name: DB-IP IP Intelligence
-        link: https://db-ip.com/
-        categories:
-          - flows.enrichment-methods
-        icon_filename: network-wired.svg
-      keywords:
-        - geoip
-        - asn
-        - dbip
-        - db-ip
-        - mmdb
-        - ip intelligence
-        - flow enrichment
-      related_resources:
-        integrations:
-          list:
-            - plugin_name: netflow-plugin
-              module_name: maxmind
-            - plugin_name: netflow-plugin
-              module_name: iptoasn
-            - plugin_name: netflow-plugin
-              module_name: custom-mmdb
-      info_provided_to_referring_integrations:
-        description: ""
+        plugin_name: netflow-plugin
+        module_name: dbip
+        monitored_instance:
+          name: DB-IP IP Intelligence
+          link: https://db-ip.com/
+          categories:
+            - flows.enrichment-methods
+          icon_filename: network-wired.svg
+        keywords:
+          - geoip
+          - asn
+          - dbip
+          - db-ip
+          - mmdb
+          - ip intelligence
+          - flow enrichment
+        related_resources:
+          integrations:
+            list:
+              - plugin_name: netflow-plugin
+                module_name: maxmind
+              - plugin_name: netflow-plugin
+                module_name: iptoasn
+              - plugin_name: netflow-plugin
+                module_name: custom-mmdb
+        info_provided_to_referring_integrations:
+          description: ""
     overview:
       data_collection:
         metrics_description: |
-          DB-IP is the **default** IP intelligence source for the Netdata netflow plugin. Its
-          MMDB-format databases are bundled with native packages (DEB, RPM) under
-          `/usr/share/netdata/topology-ip-intel/`. Refreshing pulls newer data from
-          `download.db-ip.com` via the bundled `topology-ip-intel-downloader`.
+          DB-IP Lite is the **default** IP intelligence source for the Netdata netflow plugin --
+          when neither `enrichment.geoip.asn_database` nor `enrichment.geoip.geo_database` is
+          configured, the plugin auto-detects the DB-IP-built MMDB files at startup and uses them.
+          Two MMDB files are involved: an ASN database (`topology-ip-asn.mmdb`) and a geographic
+          database (`topology-ip-geo.mmdb`). Native packages (DEB, RPM) ship a stock copy under
+          `/usr/share/netdata/topology-ip-intel/`; the bundled refresh tool fetches updates into
+          `/var/cache/netdata/topology-ip-intel/`.
 
-          Populates `SRC_COUNTRY`, `DST_COUNTRY`, `SRC_GEO_STATE`, `DST_GEO_STATE`,
-          `SRC_GEO_CITY`, `DST_GEO_CITY`, `SRC_GEO_LATITUDE`, `DST_GEO_LATITUDE`,
-          `SRC_GEO_LONGITUDE`, `DST_GEO_LONGITUDE`, plus the AS-number and AS-name fields
-          when included in the resolution chain.
+          DB-IP publishes the Lite databases monthly under a Creative Commons Attribution 4.0
+          International licence (https://db-ip.com/db/lite.php). The MMDB format is the MaxMind
+          binary database; lookups are in-process with no per-flow network call.
 
-          For the full IP-intelligence concept (MMDB format, lookup priority, internal-IP
-          handling, hot reload semantics), see
-          [IP Intelligence](https://learn.netdata.cloud/docs/network-flows/enrichment/ip-intelligence).
+          Populates these flow record fields when a lookup succeeds:
+
+          - From the **geo MMDB**: `SRC_COUNTRY`, `DST_COUNTRY`, `SRC_GEO_STATE`, `DST_GEO_STATE`,
+            `SRC_GEO_CITY`, `DST_GEO_CITY`, `SRC_GEO_LATITUDE`, `DST_GEO_LATITUDE`,
+            `SRC_GEO_LONGITUDE`, `DST_GEO_LONGITUDE`. Country and state survive into all four
+            journal tiers; city, latitude, and longitude are kept only in the raw tier so the
+            rollups stay cardinality-bounded.
+          - From the **ASN MMDB**: `SRC_AS_NAME`, `DST_AS_NAME`. The DB-IP-built ASN database also
+            tags address ranges as private/reserved (RFC 1918, link-local, RFC 6598, etc.); when
+            the resolved AS number is `0` and that flag is set, the plugin renders the AS name as
+            `AS0 Private IP Address Space` instead of `AS0 Unknown ASN`. The AS *number* itself
+            comes from the wider asn_providers chain, not directly from the MMDB.
+
+          For the cross-provider mechanics (lookup pass ordering, the 30-second hot-reload poll,
+          the auto-detect path order, multi-database composition, IPv4/IPv6 handling, the failure
+          modes shared by every MMDB provider), see
+          [IP Intelligence](https://learn.netdata.cloud/docs/network-flows/enrichment).
         method_description: |
-          Files are read on plugin start and reloaded automatically every 30 seconds when
-          their mtime or size changes. Lookups happen in-process; there is no per-flow network
-          call. Auto-detection scans `${NETDATA_CACHE_DIR}/topology-ip-intel/` first, falling
-          back to the stock copy under `${NETDATA_STOCK_DATA_DIR}/topology-ip-intel/`.
+          Files are read on plugin start and reloaded automatically when their mtime or size
+          changes. Auto-detection scans `${NETDATA_CACHE_DIR}/topology-ip-intel/` first
+          (typically `/var/cache/netdata/topology-ip-intel/`), falling back to the stock copy
+          under `${NETDATA_STOCK_DATA_DIR}/topology-ip-intel/` (typically
+          `/usr/share/netdata/topology-ip-intel/`). When databases are auto-detected they are
+          treated as optional, so a missing or unreadable file does not abort plugin startup.
       supported_platforms:
         include:
           - Linux
@@ -506,14 +524,24 @@ modules:
         list:
           - title: DB-IP MMDB files
             description: |
-              Ships with native packages. For source builds, run the bundled downloader once
-              to populate `/var/cache/netdata/topology-ip-intel/`:
+              Native DEB / RPM packages ship the stock DB-IP MMDB files under
+              `/usr/share/netdata/topology-ip-intel/`. For source builds, or to get a fresher copy
+              than the one bundled with the package, run the bundled downloader once to populate
+              `/var/cache/netdata/topology-ip-intel/`:
 
               ```bash
               sudo /usr/sbin/topology-ip-intel-downloader
               ```
 
-              Subsequent refreshes (e.g., monthly cron) re-fetch from db-ip.com.
+              See the [Enrichment Intel Downloader](https://learn.netdata.cloud/docs/network-flows/intel-downloader)
+              page for downloader options and how to schedule periodic refreshes. DB-IP Lite
+              data is published monthly, so a monthly cron of the downloader is the right
+              cadence -- more frequent runs will not produce newer data.
+          - title: Licence acknowledgement
+            description: |
+              DB-IP Lite databases are distributed under the Creative Commons Attribution 4.0
+              International licence (https://db-ip.com/db/lite.php). Attribution is required
+              when redistributing the data or derivative dashboards.
       configuration:
         file:
           name: netflow.yaml
@@ -569,15 +597,25 @@ modules:
         list:
           - name: Internal IPs appearing in random countries
             description: |
-              GeoIP databases have no entry for RFC 1918 / private space. The stock DB-IP
-              build tags private ranges so `*_AS_NAME` renders as "AS0 Private IP Address Space"
-              with empty country. With third-party MMDBs, results may vary. Declare your
-              internal CIDRs under `enrichment.networks` to override -- see
+              GeoIP databases have no entry for RFC 1918 / private space. The DB-IP-built ASN
+              database tags private ranges so `*_AS_NAME` renders as `AS0 Private IP Address Space`
+              with empty country. With third-party MMDBs that lack this tagging, results may vary.
+              Declare your internal CIDRs under `enrichment.networks` to override -- see
               [Static metadata](https://learn.netdata.cloud/docs/network-flows/enrichment/static-metadata).
           - name: Stale databases
             description: |
-              The plugin does not alert on staleness. Check file mtime: `ls -la /var/cache/netdata/topology-ip-intel/`.
-              Schedule a weekly cron of `topology-ip-intel-downloader` to keep data fresh.
+              The plugin does not alert on staleness. Check file mtime:
+              `ls -la /var/cache/netdata/topology-ip-intel/`. DB-IP Lite is published monthly,
+              so a monthly cron of `/usr/sbin/topology-ip-intel-downloader` keeps you on the
+              upstream cadence; running it more often will not produce fresher data.
+          - name: Map renders empty over a long time window
+            description: |
+              `SRC_GEO_CITY`, `DST_GEO_CITY`, `SRC_GEO_LATITUDE`, `DST_GEO_LATITUDE`,
+              `SRC_GEO_LONGITUDE`, and `DST_GEO_LONGITUDE` are stored only in the raw journal
+              tier; the 1-minute, 5-minute, and 1-hour rollups drop them to keep cardinality
+              bounded. A query that auto-falls back to a rollup tier therefore renders an empty
+              city map. Narrow the time range so the query fits the raw tier, or use the
+              country / state map (those survive into rollups).
     alerts: []
     metrics:
       folding:
@@ -589,7 +627,6 @@ modules:
         Network Flows tab and confirming non-empty values for public IPs.
       availability: []
       scopes: []
-
   - meta:
       plugin_name: netflow-plugin
       module_name: maxmind
@@ -607,6 +644,7 @@ modules:
         - asn
         - mmdb
         - ip intelligence
+        - flow enrichment
       related_resources:
         integrations:
           list:
@@ -621,21 +659,43 @@ modules:
     overview:
       data_collection:
         metrics_description: |
-          MaxMind GeoIP2 (commercial) and GeoLite2 (free tier with license key) MMDB databases
-          are read directly by the netflow plugin. The plugin uses any MMDB-format file that
-          exposes the standard schema -- it is not tied to MaxMind specifically, but MaxMind
-          is the canonical source and the format originator.
+          MaxMind is the originator of the MMDB binary format and the canonical commercial
+          source for geo and ASN data. The netflow plugin reads MaxMind MMDB files directly;
+          they are interchangeable with other MMDB providers (DB-IP, custom builds).
 
-          Populates the same `SRC_COUNTRY`, `*_GEO_*`, and AS-name fields as DB-IP. Use this
-          integration when you have a MaxMind license and prefer their data over the bundled
-          DB-IP defaults.
+          Two product lines are supported:
 
-          For the full IP-intelligence concept, see
+          - **GeoLite2** (free): requires a free MaxMind account and a license key; users
+            must accept the GeoLite2 EULA, which includes an attribution requirement. See
+            <https://dev.maxmind.com/geoip/geolite2-free-geolocation-data>.
+          - **GeoIP2** (commercial): paid subscription with the same license-key download
+            mechanism but higher accuracy and more frequent updates. See
+            <https://www.maxmind.com/en/geoip2-databases>.
+
+          Each lookup populates the same flow-record fields as DB-IP: `SRC_COUNTRY`,
+          `DST_COUNTRY`, `SRC_GEO_STATE`, `DST_GEO_STATE`, `SRC_GEO_CITY`, `DST_GEO_CITY`,
+          `SRC_GEO_LATITUDE`, `DST_GEO_LATITUDE`, `SRC_GEO_LONGITUDE`, `DST_GEO_LONGITUDE`,
+          `SRC_AS_NAME`, and `DST_AS_NAME`. Country and state survive into all rollup tiers;
+          city and lat/lon are **raw-tier-only** -- the rollup schema in
+          `src/crates/netflow-plugin/src/tiering/rollup/schema/fields/defs/network.rs` keeps
+          only the bounded-cardinality columns.
+
+          For the cross-cutting concept (resolver poll loop, multi-database composition,
+          ASN provider chain, failure-modes table), see
           [IP Intelligence](https://learn.netdata.cloud/docs/network-flows/enrichment/ip-intelligence).
         method_description: |
-          You download the MaxMind MMDB files yourself (via `geoipupdate` or manual download),
-          then point the plugin at their paths in `netflow.yaml`. The plugin reloads on file
-          change every 30 seconds.
+          You download the MaxMind MMDB files yourself using `geoipupdate` (MaxMind's
+          official downloader, configured with your account ID + license key) or via direct
+          HTTPS download with the same credentials. MaxMind requires authentication for all
+          downloads -- there is no anonymous access. The bundled
+          `topology-ip-intel-downloader` shipped by Netdata does **not** know how to fetch
+          MaxMind databases (it supports DB-IP and IPtoASN only); use `geoipupdate` and
+          schedule it via cron or systemd-timer.
+
+          Once the files are on disk, point `asn_database` and `geo_database` at their
+          paths in `netflow.yaml`. The plugin reloads on file change automatically -- a
+          successful `geoipupdate` run causes the plugin to swap readers within ~30s, no
+          restart needed.
       supported_platforms:
         include:
           - Linux
@@ -645,7 +705,7 @@ modules:
         description: ""
       default_behavior:
         auto_detection:
-          description: "Not auto-detected. You must configure the database paths explicitly."
+          description: "Not auto-detected. The plugin auto-detects the bundled DB-IP files; to use MaxMind you must configure the database paths explicitly. Set `enrichment.geoip.asn_database` and `enrichment.geoip.geo_database` to the MaxMind file paths."
         limits:
           description: ""
         performance_impact:
@@ -653,33 +713,74 @@ modules:
     setup:
       prerequisites:
         list:
-          - title: MaxMind license + downloaded MMDBs
+          - title: MaxMind account and license key
             description: |
-              For GeoLite2 (free): create a MaxMind account, generate a license key, install
-              `geoipupdate`, and configure it to fetch `GeoLite2-City.mmdb` and
-              `GeoLite2-ASN.mmdb`. For GeoIP2 (paid): obtain a subscription and use the same
-              `geoipupdate` mechanism with your paid license key.
+              MaxMind does not allow anonymous downloads. Required for both GeoLite2 (free)
+              and GeoIP2 (paid):
+
+              1. Sign up at <https://www.maxmind.com/en/geolite2/signup> (GeoLite2) or
+                 purchase a GeoIP2 subscription.
+              2. Generate a license key under "Account > Manage License Keys".
+              3. Note your account ID (visible on the same account page).
+          - title: Install and configure geoipupdate
+            description: |
+              `geoipupdate` is MaxMind's official downloader. Install it from your distro
+              (`apt install geoipupdate`, `dnf install GeoIP-update`) or download from
+              <https://github.com/maxmind/geoipupdate/releases>.
+
+              Edit `/etc/GeoIP.conf`:
+
+              ```ini
+              AccountID YOUR_ACCOUNT_ID
+              LicenseKey YOUR_LICENSE_KEY
+              # GeoLite2 (free):
+              EditionIDs GeoLite2-City GeoLite2-ASN
+              # ...or for GeoIP2 (paid):
+              # EditionIDs GeoIP2-City GeoIP2-ISP
+              DatabaseDirectory /usr/share/GeoIP
+              ```
+
+              Run `sudo geoipupdate` to fetch initial files, then schedule it via cron or
+              the bundled `geoipupdate.timer` systemd unit. Recommended cadences match the
+              upstream publish frequency:
+
+              - **GeoLite2 City / Country**: published twice weekly (Tuesday and Friday).
+              - **GeoLite2 ASN**: published every weekday (Mon-Fri).
+              - **GeoIP2 commercial editions**: published "every weekday, Monday through
+                Friday" per <https://www.maxmind.com/en/geoip2-databases>.
+
+              Source: <https://support.maxmind.com/hc/en-us/articles/4408216129947>.
+          - title: Single MMDB per database type (dual-stack)
+            description: |
+              A single MaxMind MMDB file covers both IPv4 and IPv6 in one binary tree --
+              you do **not** need separate IPv4 and IPv6 files. Point `asn_database` at one
+              file and `geo_database` at one file. (The CSV exports MaxMind also publishes
+              are split per family, but the netflow plugin only reads the binary MMDB
+              format.)
       configuration:
         file:
           name: netflow.yaml
         options:
           description: |
-            Override the default DB-IP auto-detection by pointing `asn_database` and `geo_database`
-            at your MaxMind MMDB files.
+            Override the default DB-IP auto-detection by pointing `asn_database` and
+            `geo_database` at your MaxMind MMDB files. Both keys take a list -- you can
+            chain MaxMind alongside other MMDB sources; see the
+            [IP Intelligence](https://learn.netdata.cloud/docs/network-flows/enrichment/ip-intelligence)
+            page for the per-field "last non-empty wins" composition rule.
           folding:
             title: Config options
             enabled: true
           list:
             - name: enrichment.geoip.asn_database
-              description: Paths to MaxMind ASN MMDB files (typically GeoLite2-ASN.mmdb or GeoIP2-ISP.mmdb).
+              description: Paths to MaxMind ASN MMDB files (typically `GeoLite2-ASN.mmdb` for the free tier or `GeoIP2-ISP.mmdb` for the paid tier; the dual-stack file covers IPv4 and IPv6).
               default_value: "[]"
               required: true
             - name: enrichment.geoip.geo_database
-              description: Paths to MaxMind geographic MMDB files (typically GeoLite2-City.mmdb or GeoIP2-City.mmdb).
+              description: Paths to MaxMind geographic MMDB files (typically `GeoLite2-City.mmdb` for the free tier or `GeoIP2-City.mmdb` for the paid tier; the dual-stack file covers IPv4 and IPv6).
               default_value: "[]"
               required: true
             - name: enrichment.geoip.optional
-              description: When true, missing or unreadable MMDBs are warnings, not fatal at startup.
+              description: When true, missing or unreadable MMDBs are warnings, not fatal at startup. Useful while `geoipupdate` is being set up for the first time.
               default_value: "false"
               required: false
         examples:
@@ -690,7 +791,7 @@ modules:
             - name: GeoLite2 (free tier)
               folding:
                 enabled: false
-              description: Standard `geoipupdate` install path. Free tier requires a license key.
+              description: Standard `geoipupdate` install path. Free tier requires a MaxMind account and license key; usage is subject to the GeoLite2 EULA (attribution required).
               config: |
                 enrichment:
                   geoip:
@@ -702,7 +803,7 @@ modules:
             - name: GeoIP2 (paid)
               folding:
                 enabled: true
-              description: Commercial subscription. Higher accuracy, more frequent updates.
+              description: Commercial subscription. Higher accuracy than GeoLite2 and a weekday update cadence on most editions.
               config: |
                 enrichment:
                   geoip:
@@ -711,30 +812,60 @@ modules:
                     geo_database:
                       - /usr/share/GeoIP/GeoIP2-City.mmdb
                     optional: false
+            - name: MaxMind ASN + DB-IP geo (mixed)
+              folding:
+                enabled: true
+              description: Use MaxMind for ASN richness and keep the bundled DB-IP geo file. Both lookups run; the multi-DB composition rule is documented on the [IP Intelligence](https://learn.netdata.cloud/docs/network-flows/enrichment/ip-intelligence) page.
+              config: |
+                enrichment:
+                  geoip:
+                    asn_database:
+                      - /usr/share/GeoIP/GeoLite2-ASN.mmdb
+                    geo_database:
+                      - /var/cache/netdata/topology-ip-intel/topology-ip-geo.mmdb
+                    optional: false
     troubleshooting:
       problems:
         list:
           - name: License key missing or expired
             description: |
-              `geoipupdate` fails silently and the MMDB files become stale. Set up a working
-              `geoipupdate` cron and monitor its exit code.
+              `geoipupdate` fails (often silently from the plugin's perspective) and the
+              MMDB files become stale. Check the `geoipupdate` exit status and its log;
+              regenerate the key under "Account > Manage License Keys" if needed and
+              update `/etc/GeoIP.conf`.
+          - name: GeoLite2 attribution requirement
+            description: |
+              The GeoLite2 EULA requires attribution to MaxMind. If you redistribute
+              dashboards or screenshots that include GeoLite2-derived data, follow the
+              upstream guidance at <https://dev.maxmind.com/geoip/geolite2-free-geolocation-data>.
+              GeoIP2 (commercial) does not have the same attribution requirement.
           - name: Schema differences between GeoLite2 and GeoIP2
             description: |
-              Both share the standard MMDB structure but the `Anonymous IP`, `ISP`, and
-              `Connection Type` databases have GeoIP2-only fields the plugin does not read.
-              Use `City` for geographic enrichment and `ASN` (GeoLite2) or `ISP` (GeoIP2)
-              for AS data.
+              Both share the standard MMDB structure for the fields the plugin reads
+              (country, subdivisions, city, location, autonomous_system_number,
+              autonomous_system_organization). MaxMind's specialty databases (Anonymous IP,
+              Connection Type, Domain) carry GeoIP2-only fields the plugin does not consume.
+              Use `City` for geographic enrichment and `ASN` (GeoLite2) or `ISP` (GeoIP2) for
+              AS data.
+          - name: Mixing MaxMind with the bundled DB-IP files
+            description: |
+              The plugin loads every configured MMDB. If you list both, the per-field
+              "last non-empty wins" rule applies (see the
+              [IP Intelligence](https://learn.netdata.cloud/docs/network-flows/enrichment/ip-intelligence)
+              concept page). Order matters: list the source whose values you want to win
+              **last**.
     alerts: []
     metrics:
       folding:
         title: Metrics
         enabled: false
       description: |
-        Enriches flow records; produces no metrics of its own. Verify on the Network Flows
-        tab via `SRC_COUNTRY`, `DST_COUNTRY`, and `*_AS_NAME` columns.
+        IP intelligence enriches existing flow records; it produces no metrics of its own.
+        Verify enrichment is working by querying `SRC_COUNTRY` / `DST_COUNTRY` and
+        `SRC_AS_NAME` / `DST_AS_NAME` on the Network Flows tab and confirming non-empty
+        values for public IPs.
       availability: []
       scopes: []
-
   - meta:
       plugin_name: netflow-plugin
       module_name: iptoasn
@@ -749,6 +880,8 @@ modules:
         - asn
         - bgp
         - public asn
+        - public domain
+        - pddl
         - ip intelligence
       related_resources:
         integrations:
@@ -764,19 +897,43 @@ modules:
     overview:
       data_collection:
         metrics_description: |
-          [IPtoASN](https://iptoasn.com/) is a free public IP-to-ASN database derived from
-          BGP RIB snapshots. Daily updates, no license required. Use it as a free, open
-          alternative to MaxMind ASN data when license cost or terms matter.
+          [IPtoASN](https://iptoasn.com/) is a free, public-domain feed of IP-to-ASN
+          mappings derived from BGP RIB snapshots. The upstream publishes its dataset
+          under the [Public Domain Dedication and License (PDDL)](https://opendatacommons.org/licenses/pddl/)
+          (see [iptoasn.com](https://iptoasn.com/) -- "Frequently updated, public domain")
+          and rebuilds it hourly, making it the highest-cadence and lowest-friction
+          public ASN source available. Use it as a free, open alternative to MaxMind
+          ASN data when license cost or terms matter.
 
-          IPtoASN provides ASN data only -- no geographic data. Pair with DB-IP, MaxMind,
-          or another geo source for country/city enrichment.
+          IPtoASN's `ip2asn-combined` artifact contains five tab-separated columns:
+          `range_start`, `range_end`, `AS_number`, `country_code`, and `AS_description`
+          (see [iptoasn.com](https://iptoasn.com/) for the format reference and the
+          parser at `src/go/tools/topology-ip-intel-downloader/parse.go:168-237` that
+          consumes both columns 3-5 for ASN data and column 4 for country data). So
+          although IPtoASN is often described as "ASN-only", the feed also carries an
+          ISO 3166 country code per range and the Netdata downloader exposes both as
+          ASN + geo MMDBs. Pair with DB-IP or MaxMind when you also need state, city,
+          or coordinates.
 
-          For the full IP-intelligence concept, see
+          For the IP-intelligence mechanism (lookup order, MMDB composition, refresh,
+          provider chains), see
           [IP Intelligence](https://learn.netdata.cloud/docs/network-flows/enrichment/ip-intelligence).
         method_description: |
-          The bundled `topology-ip-intel-downloader` supports IPtoASN as an ASN provider,
-          fetching the latest TSV and converting it to MMDB format the plugin can read.
-          Configure the downloader to use IPtoASN with `--asn iptoasn:combined`.
+          The Netdata plugin reads MMDB only (see
+          `src/crates/netflow-plugin/src/enrichment/data/geoip/`). IPtoASN ships
+          gzipped TSV (`https://iptoasn.com/data/ip2asn-combined.tsv.gz`, see
+          `src/go/tools/topology-ip-intel-downloader/config.go:173-184`), so the TSV
+          must be converted to MMDB before the plugin can use it.
+
+          Netdata bundles a converter for this exact purpose: the
+          `topology-ip-intel-downloader` Go tool fetches the upstream TSV, parses it
+          (`parse.go:168-237`), and emits MMDB files the plugin auto-detects. This is
+          a separate operator step (cron); the plugin itself does no fetching or
+          conversion. If you prefer not to use the bundled tool, any third-party
+          IPtoASN-to-MMDB converter that produces a standard
+          [MaxMind DB](https://maxmind.github.io/MaxMind-DB/) with `iso_code`,
+          `autonomous_system_number`, and `autonomous_system_organization` fields
+          will also work with the Custom MMDB integration.
       supported_platforms:
         include:
           - Linux
@@ -786,7 +943,14 @@ modules:
         description: ""
       default_behavior:
         auto_detection:
-          description: "Not auto-detected as the default ASN source -- the plugin auto-detects DB-IP. To use IPtoASN as ASN, run the downloader explicitly."
+          description: |
+            Not auto-detected as the default ASN source -- the plugin auto-detects
+            DB-IP MMDBs in the cache directory at startup
+            (see [IP Intelligence](https://learn.netdata.cloud/docs/network-flows/enrichment/ip-intelligence#configuration)).
+            To use IPtoASN, run the bundled downloader to produce IPtoASN-derived
+            MMDBs (the downloader writes to the same cache paths the plugin scans,
+            so once present they are picked up automatically on the 30-second
+            file-signature check).
         limits:
           description: ""
         performance_impact:
@@ -796,8 +960,20 @@ modules:
         list:
           - title: Run the downloader with IPtoASN as ASN source
             description: |
-              IPtoASN is a TSV file. The bundled downloader knows how to fetch and convert
+              The bundled downloader knows how to fetch the upstream TSV and convert
               it to MMDB:
+
+              ```bash
+              sudo /usr/sbin/topology-ip-intel-downloader \
+                --asn iptoasn:combined \
+                --geo iptoasn:combined
+              ```
+
+              `iptoasn:combined` is valid for both `--asn` and `--geo` because the
+              upstream TSV carries both AS data and country (see
+              `src/go/tools/topology-ip-intel-downloader/config.go:177-180`). If you
+              want richer geographic data (state, city, coordinates), pair IPtoASN
+              ASN with DB-IP or MaxMind geo:
 
               ```bash
               sudo /usr/sbin/topology-ip-intel-downloader \
@@ -805,22 +981,34 @@ modules:
                 --geo dbip:city-lite
               ```
 
-              This produces ASN data from IPtoASN and geographic data from DB-IP. Schedule
-              this in cron (daily for ASN; weekly is enough for geo).
+              IPtoASN rebuilds hourly upstream, but a daily cron is sufficient for
+              flow enrichment (ASN ownership rarely changes within a single day).
+              Do not exceed hourly -- you only get a fresh dataset once an hour
+              regardless.
       configuration:
         file:
           name: netflow.yaml
         options:
           description: |
-            Once the downloader has produced MMDB files in the cache directory, the plugin
-            auto-detects them. To pin the path explicitly, set `enrichment.geoip.asn_database`.
+            Once the downloader has produced IPtoASN-derived MMDB files in the cache
+            directory, the plugin auto-detects them. To pin the path explicitly, set
+            `enrichment.geoip.asn_database` (and `geo_database` when you also want
+            the country data IPtoASN provides).
           folding:
             title: Config options
             enabled: true
           list:
             - name: enrichment.geoip.asn_database
-              description: Path to the IPtoASN-derived MMDB. Empty = auto-detect from cache directory.
+              description: Path to the IPtoASN-derived ASN MMDB. Empty = auto-detect from cache directory.
               default_value: "[]"
+              required: false
+            - name: enrichment.geoip.geo_database
+              description: Path to the IPtoASN-derived geo MMDB (country only). Empty = auto-detect; or point at a richer DB-IP / MaxMind geo MMDB for state/city/coordinates.
+              default_value: "[]"
+              required: false
+            - name: enrichment.geoip.optional
+              description: When true, missing or unreadable MMDBs are warnings, not fatal at startup.
+              default_value: "false (true when auto-detected)"
               required: false
         examples:
           folding:
@@ -830,7 +1018,36 @@ modules:
             - name: After running the downloader with IPtoASN
               folding:
                 enabled: false
-              description: Auto-detection picks up the cache copy.
+              description: Auto-detection picks up the cache copy. Both ASN and country come from IPtoASN.
+              config: |
+                enrichment:
+                  geoip:
+                    asn_database: []
+                    geo_database: []
+                    optional: true
+            - name: Explicit IPtoASN paths (ASN + country only)
+              folding:
+                enabled: true
+              description: |
+                Pin the IPtoASN-derived MMDBs explicitly. Country only -- no
+                state/city. Use the DB-IP or MaxMind integration cards for richer
+                geographic enrichment.
+              config: |
+                enrichment:
+                  geoip:
+                    asn_database:
+                      - /var/cache/netdata/topology-ip-intel/topology-ip-asn.mmdb
+                    geo_database:
+                      - /var/cache/netdata/topology-ip-intel/topology-ip-geo.mmdb
+                    optional: false
+            - name: IPtoASN ASN + DB-IP city-lite geo
+              folding:
+                enabled: true
+              description: |
+                Free, fully public-domain ASN combined with DB-IP city-lite for
+                state/city/coordinates. Run the downloader as
+                `topology-ip-intel-downloader --asn iptoasn:combined --geo dbip:city-lite`
+                and let auto-detection handle the rest.
               config: |
                 enrichment:
                   geoip:
@@ -842,23 +1059,48 @@ modules:
         list:
           - name: ASN names not appearing
             description: |
-              IPtoASN's data does not always carry a human-readable ASN organization name.
-              The plugin renders `AS{n}` (without a name) for those records. This is data-source-
-              level, not a plugin issue. Use MaxMind GeoLite2-ASN if you need richer name data.
+              IPtoASN's `AS_description` column is sometimes empty for less-common
+              ASNs (the upstream derives names from RIRs and the chain occasionally
+              has gaps). When that happens the plugin's `effective_as_name` helper
+              renders the AS as `AS{n}` with no organisation
+              (see `src/crates/netflow-plugin/src/enrichment/tests.rs:1959-2011`).
+              This is data-source-level, not a plugin issue. If richer AS-name
+              coverage matters, layer a MaxMind GeoLite2-ASN MMDB after IPtoASN in
+              `asn_database` -- per-field "last database with a non-empty value
+              wins" composition (see
+              [IP Intelligence](https://learn.netdata.cloud/docs/network-flows/enrichment/ip-intelligence#configuration))
+              means MaxMind names override IPtoASN's empty entries.
+          - name: Country empty although IPtoASN was selected
+            description: |
+              IPtoASN's combined TSV publishes country only when it is known; ranges
+              with an unknown country are skipped during conversion (see
+              `src/go/tools/topology-ip-intel-downloader/parse.go:224-227`). Public
+              IPs that the upstream cannot attribute will have an empty
+              `*_COUNTRY`. If you need broader country coverage, point
+              `geo_database` at a DB-IP or MaxMind country MMDB instead -- the
+              plugin reads any combination.
           - name: Outdated ASN attribution
             description: |
-              IPtoASN is rebuilt daily from BGP. Cron the downloader at least daily to keep
-              ASN attribution current with real-world routing changes.
+              IPtoASN rebuilds hourly upstream. A daily cron of the downloader is
+              the recommended cadence for flow enrichment; weekly is too slow
+              because BGP-driven prefix re-assignments will land in the dataset
+              within hours but not in your cache until the next download. The
+              plugin reloads MMDB files in place every 30 seconds when the file
+              signature changes
+              (`src/crates/netflow-plugin/src/enrichment.rs:35` --
+              `GEOIP_RELOAD_CHECK_INTERVAL = Duration::from_secs(30)`), so a fresh
+              file lands without restart.
     alerts: []
     metrics:
       folding:
         title: Metrics
         enabled: false
       description: |
-        Enriches flow records with AS numbers; provides no metrics of its own.
+        Enriches flow records with AS numbers, AS names, and country codes; produces
+        no metrics of its own. Verify on the Network Flows tab via `*_AS_NAME` and
+        `*_COUNTRY` columns.
       availability: []
       scopes: []
-
   - meta:
       plugin_name: netflow-plugin
       module_name: custom-mmdb
@@ -872,7 +1114,9 @@ modules:
         - mmdb
         - custom database
         - bring your own
-        - ipinfo
+        - mmdbwriter
+        - internal asn
+        - internal ipam
         - ip intelligence
       related_resources:
         integrations:
@@ -888,20 +1132,35 @@ modules:
     overview:
       data_collection:
         metrics_description: |
-          The plugin reads any MMDB file that conforms to the standard schema -- this catch-all
-          integration covers IPInfo, custom-built internal MMDBs, vendor-specific feeds, or
-          any provider that publishes MMDB data.
+          The "Custom MMDB Database" entry is the escape hatch for operators who want the
+          netflow plugin to read a MaxMind-format binary database (`.mmdb`) that their own
+          tooling produces -- typical use cases are joining the upstream DB-IP / GeoLite2
+          data with internal AS labels, or producing a CIDR-tagged custom file directly
+          from an internal IPAM. The plugin only requires the file to conform to the
+          [MaxMind DB binary format](https://maxmind.github.io/MaxMind-DB/); whatever
+          fields it exposes are picked up by the same decoder path used for DB-IP and
+          MaxMind.
 
-          The plugin reads `country.iso_code`, `city.names.en`, `subdivisions[].iso_code`,
-          `location.latitude`, `location.longitude`, `autonomous_system_number`, and
-          `autonomous_system_organization`. Vendor-specific extra fields are ignored.
+          The decoder reads `autonomous_system_number`, `autonomous_system_organization`,
+          and (optionally) a string `asn` field from the ASN database, and `country.iso_code`,
+          `subdivisions[].iso_code`, `city.names.en`, `location.latitude`,
+          `location.longitude`, plus the Netdata-specific `netdata.ip_class` flag from the
+          geo database. Any other vendor-specific keys are ignored. See
+          `src/crates/netflow-plugin/src/enrichment/data/geoip/types.rs:28-92` and
+          `src/crates/netflow-plugin/src/enrichment/data/geoip/decode.rs:1-94`.
 
-          For the full IP-intelligence concept, see
+          Note that `*_GEO_CITY`, `*_GEO_LATITUDE`, and `*_GEO_LONGITUDE` are written to
+          the raw journal tier only -- the rollup tiers drop these high-cardinality fields.
+          State and country survive into all four tiers.
+
+          For the full IP-intelligence concept (composition rule, ASN provider chain,
+          auto-detect path order, dual-stack handling, hot reload semantics), see
           [IP Intelligence](https://learn.netdata.cloud/docs/network-flows/enrichment/ip-intelligence).
         method_description: |
-          You produce or download an MMDB file. Place it on the agent host. Point the
-          plugin at it via `netflow.yaml`. The plugin reloads on file change every 30
-          seconds.
+          You build (or download) the MMDB file with your own tooling, place it on the
+          agent host, and point `enrichment.geoip.asn_database` and / or
+          `enrichment.geoip.geo_database` at it in `netflow.yaml`. The plugin reloads on
+          file change automatically (mechanism documented on the IP Intelligence page).
       supported_platforms:
         include:
           - Linux
@@ -919,34 +1178,54 @@ modules:
     setup:
       prerequisites:
         list:
-          - title: A standards-compliant MMDB file
+          - title: Build or obtain a standards-compliant MMDB file
             description: |
-              The MMDB file must use the [standard MMDB schema](https://maxmind.github.io/MaxMind-DB/).
-              Validate with `mmdblookup` from the `libmaxminddb-tools` package before deploying.
+              The file must conform to the
+              [MaxMind DB binary format spec](https://maxmind.github.io/MaxMind-DB/) --
+              a binary search tree over IP prefixes plus a data section of
+              type-length-value records. Validate with `mmdblookup` from the
+              `libmaxminddb-tools` package before deploying:
 
-              Common sources: IPInfo (`ipinfo.io`), custom internal builds via the `mmdbwriter`
-              Go tool, or vendor-specific feeds.
+              ```bash
+              mmdblookup --file your-custom.mmdb --ip 8.8.8.8
+              ```
+
+              Common ways to produce a file:
+
+              - **Go**: [`github.com/maxmind/mmdbwriter`](https://github.com/maxmind/mmdbwriter)
+                -- MaxMind's official Go writer. Lets you start from an upstream MMDB
+                (DB-IP, GeoLite2) and overlay extra records, then write a new file.
+                Pairs well with the read-side library
+                [`github.com/oschwald/maxminddb-golang`](https://github.com/oschwald/maxminddb-golang).
+              - **Perl**: [`MaxMind::DB::Writer`](https://metacpan.org/pod/MaxMind::DB::Writer)
+                -- the original reference writer.
+              - **Python**: community ports such as `mmdb_writer` (PyPI) wrap the same
+                format.
+
+              Whatever fields you encode are read by the plugin only if they match the
+              standard schema names listed in the metrics description above.
       configuration:
         file:
           name: netflow.yaml
         options:
           description: |
-            Point `enrichment.geoip.asn_database` and/or `enrichment.geoip.geo_database` at
-            your MMDB file paths.
+            Point `enrichment.geoip.asn_database` and / or `enrichment.geoip.geo_database`
+            at your custom MMDB file paths. Set `optional: true` while you iterate so a
+            missing or malformed file does not block plugin startup.
           folding:
             title: Config options
             enabled: true
           list:
             - name: enrichment.geoip.asn_database
-              description: List of MMDB paths providing AS data. Multiple files allowed; later entries override on overlap.
+              description: List of MMDB paths providing AS data. Multiple files compose -- per field, the last database returning a non-empty value wins.
               default_value: "[]"
               required: false
             - name: enrichment.geoip.geo_database
-              description: List of MMDB paths providing geographic data.
+              description: List of MMDB paths providing geographic data. Same composition rule as the ASN list.
               default_value: "[]"
               required: false
             - name: enrichment.geoip.optional
-              description: When true, missing files become startup warnings instead of fatal errors.
+              description: When true, missing or unreadable files at startup are tolerated (the resolver starts with no databases). Recommended while testing a custom file.
               default_value: "false"
               required: false
         examples:
@@ -954,22 +1233,10 @@ modules:
             title: Config
             enabled: true
           list:
-            - name: IPInfo MMDB
+            - name: Internal MMDB built with mmdbwriter
               folding:
                 enabled: false
-              description: Using IPInfo's MMDB feed (subscription required).
-              config: |
-                enrichment:
-                  geoip:
-                    asn_database:
-                      - /opt/mmdb/ipinfo-asn.mmdb
-                    geo_database:
-                      - /opt/mmdb/ipinfo-city.mmdb
-                    optional: false
-            - name: Internal custom MMDB
-              folding:
-                enabled: true
-              description: Built in-house with `mmdbwriter`. Combines public BGP data with internal CIDR labels.
+              description: A custom build that combines public BGP data with internal CIDR labels, written atomically into the plugin's lookup directory by the operator's own pipeline.
               config: |
                 enrichment:
                   geoip:
@@ -978,18 +1245,57 @@ modules:
                     geo_database:
                       - /etc/netdata/internal-geo.mmdb
                     optional: false
+            - name: Overlay a custom ASN file on top of the bundled DB-IP geo
+              folding:
+                enabled: true
+              description: Keep DB-IP for geographic data and use a custom MMDB only for AS labels (your IPAM-derived prefixes win because they appear last in the list -- the resolver merges per field, last non-empty wins).
+              config: |
+                enrichment:
+                  geoip:
+                    asn_database:
+                      - /var/cache/netdata/topology-ip-intel/topology-ip-asn.mmdb
+                      - /etc/netdata/internal-asn.mmdb
+                    geo_database:
+                      - /var/cache/netdata/topology-ip-intel/topology-ip-geo.mmdb
+                    optional: true
+            - name: Iterating on a new custom MMDB
+              folding:
+                enabled: true
+              description: While you tune the build pipeline, mark the database optional so an absent or malformed file becomes a startup warning instead of a fatal error.
+              config: |
+                enrichment:
+                  geoip:
+                    asn_database:
+                      - /etc/netdata/wip-asn.mmdb
+                    geo_database: []
+                    optional: true
     troubleshooting:
       problems:
         list:
           - name: Lookups silently return empty
             description: |
-              The MMDB schema is non-standard or the IP types don't match (some custom builds
-              use `string` instead of `array` for ASN). Validate with `mmdblookup -f file.mmdb -i 8.8.8.8`
-              and confirm the standard fields are present.
+              The custom file's schema is non-standard (for example, the ASN is encoded
+              as a string instead of `autonomous_system_number: uint32`, or the country
+              is at a non-standard path). The plugin only reads the standard MaxMind
+              field names listed in the data-collection description. Validate with
+              `mmdblookup --file your-custom.mmdb --ip <known-public-ip>` and confirm the
+              standard fields are present at the expected paths.
           - name: Plugin fails to start with optional=false
             description: |
-              File missing or unreadable at the configured path. Check permissions; the netdata
-              user must be able to read the file.
+              File missing, unreadable, or not a valid MMDB at the configured path.
+              Check permissions (the netdata user must be able to read the file) and
+              re-validate with `mmdblookup`. Set `optional: true` while iterating.
+          - name: Custom file refresh did not take effect
+            description: |
+              The plugin reloads custom databases the same way it reloads stock ones
+              (signature-driven, in place). If the file was rewritten in place the
+              plugin will pick it up; if it was edited byte-by-byte (rare with MMDB
+              builders) verify size or mtime actually changed. The reload mechanism
+              and its 30-second cadence are documented in
+              [IP Intelligence](https://learn.netdata.cloud/docs/network-flows/enrichment/ip-intelligence).
+              Operational practice: have your build pipeline write the new MMDB to a
+              temp file in the same directory and `rename(2)` it over the live path so
+              the swap is atomic.
     alerts: []
     metrics:
       folding:
@@ -999,11 +1305,6 @@ modules:
         Enriches flow records; produces no metrics of its own.
       availability: []
       scopes: []
-
-  # =====================================================================
-  # BGP Routing: live route feeds (BMP, BioRIS) used to enrich flow records
-  # =====================================================================
-
   - meta:
       plugin_name: netflow-plugin
       module_name: bmp
@@ -1020,7 +1321,9 @@ modules:
         - route monitoring
         - cisco
         - juniper
+        - arista
         - frr
+        - nokia
       related_resources:
         integrations:
           list:
@@ -1032,27 +1335,51 @@ modules:
       data_collection:
         metrics_description: |
           BMP (BGP Monitoring Protocol, RFC 7854) lets a router push its BGP route updates
-          to a passive collector. With this integration enabled, Netdata acts as that
-          collector -- it listens for BMP TCP connections from your routers, parses the BGP
-          UPDATE messages, and builds an in-memory routing table that flow enrichment then
-          reads from.
+          to a passive collector. With this integration enabled, Netdata is that collector --
+          it listens for BMP TCP connections from your routers, parses BGP UPDATE messages
+          carried inside RouteMonitoring frames, and builds an in-memory routing trie that
+          flow enrichment then reads from.
 
-          The result: every flow gets accurate AS numbers, AS paths, communities, and
-          next-hop information from your real-time BGP table -- not from a stale GeoIP
-          database or from whatever the exporter happened to send in the flow record.
+          Every flow whose source or destination IP matches a learned prefix gains:
+          `SRC_AS` / `DST_AS` (when the `routing` provider in `asn_providers` reaches BGP
+          data), `SRC_MASK` / `DST_MASK` (when `routing` reaches BGP data in `net_providers`),
+          plus -- for the destination side only -- `NEXT_HOP`, `DST_AS_PATH`,
+          `DST_COMMUNITIES`, and `DST_LARGE_COMMUNITIES` (RFC 8092). Source-side AS path and
+          communities are not surfaced; BGP path attributes are most meaningful for the
+          destination of the traffic. AS *names* (`*_AS_NAME`) come from the GeoIP/ASN MMDB,
+          not from BMP -- BMP gives you accurate AS *numbers* and path/communities.
 
-          For the full BGP-routing concept (shared trie with BioRIS, withdrawal handling,
-          per-vendor caveats, integration test gap), see
-          [BGP Routing](https://learn.netdata.cloud/docs/network-flows/enrichment/bgp-routing).
+          AS path, communities, and large communities are written to the **raw** flow journal
+          only -- the rollup tiers do not carry them. `NEXT_HOP` is carried in both raw and
+          rollup. This matches the field schema at
+          `src/crates/netflow-plugin/src/tiering/rollup/schema/fields/defs/network.rs:18-19`
+          and the journal writer at
+          `src/crates/netflow-plugin/src/flow/record/journal/network.rs:37-39`.
+
+          For the cross-cutting Enrichment concept (provider chains, shared trie with
+          BioRIS, withdrawal handling, restart convergence), see
+          [Enrichment](https://learn.netdata.cloud/docs/network-flows/enrichment).
         method_description: |
-          The plugin runs a TCP listener on `0.0.0.0:10179` (Akvorado convention -- not the
-          IANA-registered port 7854). Routers initiate BMP sessions to it. The plugin
-          processes Initiation, Termination, RouteMonitoring (BGP UPDATE messages), and
-          PeerDownNotification messages. NLRI types: IPv4/IPv6 unicast, MPLS-labelled, VPNv4,
-          VPNv6, EVPN IP-prefix.
+          The plugin runs a TCP listener on `0.0.0.0:10179`. This port is the Akvorado
+          convention -- RFC 7854 does not register a port, and IANA does not assign one
+          for BMP. Each connecting router must first send an Initiation message; the plugin
+          then processes RouteMonitoring (carrying BGP UPDATE), PeerDownNotification, and
+          Termination frames. PeerUp, StatisticsReport, and RouteMirroring frames are
+          accepted but not acted on. Only BMP **version 3** is processed; v1 and v2 frames
+          are silently dropped at
+          `src/crates/netflow-plugin/src/routing/bmp/session/looping.rs:28`.
 
-          BMP and BioRIS share a single in-memory routing trie. Memory grows with the size
-          of the BGP table; a full IPv4+IPv6 feed is roughly 1.2M prefixes per peer.
+          NLRI families parsed: IPv4/IPv6 unicast, IPv4/IPv6 MPLS-labelled, VPNv4, VPNv6,
+          and EVPN IP-prefix routes -- see
+          `src/crates/netflow-plugin/src/routing/bmp/routes/nlri.rs:16-46`.
+
+          BMP and BioRIS share a single in-memory routing trie. A full IPv4+IPv6 BGP table
+          is roughly 1.2M prefixes per peer; each entry stores `Vec<u32>` AS-path,
+          `Vec<u32>` communities, `Vec<(u32,u32,u32)>` large communities, plus a route_key
+          string per path. Expect several hundred MB of resident memory per peer with a full
+          feed. The trie has no time-based eviction -- routes leave only via explicit BGP
+          withdrawal (`MP_UNREACH` or `withdraw_routes`), PeerDown, or session disconnect
+          followed by the `keep` interval expiring (default 5 minutes).
       supported_platforms:
         include:
           - Linux
@@ -1062,7 +1389,7 @@ modules:
         description: ""
       default_behavior:
         auto_detection:
-          description: "Disabled by default. Set enrichment.routing_dynamic.bmp.enabled to true and configure your routers."
+          description: "Disabled by default. Set enrichment.routing_dynamic.bmp.enabled to true and configure your routers to dial in."
         limits:
           description: ""
         performance_impact:
@@ -1072,24 +1399,41 @@ modules:
         list:
           - title: BMP-capable routers
             description: |
-              Modern Cisco IOS-XR, Juniper JunOS, Arista EOS, and FRR all support BMP v3.
-              The plugin parses RFC 7854 BMP v3 specifically. Older versions (v1, v2) are
-              not supported and will fail to parse.
+              Verified vendor support:
+
+              - **Cisco IOS-XR** -- `bmp server N` global block plus `bmp-activate server N`
+                under `router bgp ... neighbor`.
+              - **Cisco IOS-XE 3.12 / 15.4 or later** -- `bmp server N` nested inside
+                `router bgp` with `activate`.
+              - **Juniper JunOS** (BMP support since 13.3, RFC 8671 Adj-RIB-In since 18.3R1)
+                -- `routing-options bmp ...` with one or more named stations.
+              - **Arista EOS** -- `router bgp ... bgp monitoring` with one or more
+                `monitoring station` blocks (active connection).
+              - **Nokia SR OS** (MD-CLI) -- `/configure bmp` plus per-router `bgp monitor`.
+              - **FRR (bgpd)** -- `bmp targets` block under `router bgp`. Note the loadable
+                module: `bgpd` must be started with `-M bmp` or every BMP command silently
+                fails.
+
+              The plugin parses RFC 7854 BMP **version 3** only. Older draft versions (v1,
+              v2) are silently dropped.
           - title: TCP reachability between routers and the agent
             description: |
               Routers initiate the connection -- the plugin is a passive listener. Allow
               inbound TCP on the configured port (default 10179) from each BMP-speaking
-              router to the agent.
+              router to the agent. The plugin does not retry; it waits for the router to
+              reconnect.
           - title: No TLS, no authentication
             description: |
-              The listener accepts plain TCP only. Restrict access at the firewall and on a
-              dedicated management network -- do not expose 10179 to the public internet.
+              The listener accepts plain TCP only. Restrict access at the firewall and use
+              a dedicated management network -- never expose 10179 to the public internet.
+              BMP carries your full routing table; treat it as sensitive.
       configuration:
         file:
           name: netflow.yaml
         options:
           description: |
             All BMP options live under `enrichment.routing_dynamic.bmp` in `netflow.yaml`.
+            See `src/crates/netflow-plugin/src/plugin_config/types/routing.rs:45-86`.
           folding:
             title: Config options
             enabled: true
@@ -1103,7 +1447,7 @@ modules:
               default_value: "0.0.0.0:10179"
               required: false
             - name: keep
-              description: Grace window after a BMP disconnect before purging that session's routes.
+              description: Grace window after a BMP disconnect before purging that session's routes from the trie.
               default_value: "5m"
               required: false
             - name: max_consecutive_decode_errors
@@ -1115,7 +1459,7 @@ modules:
               default_value: "0"
               required: false
             - name: collect_asns
-              description: When false, AS numbers from BMP are forced to 0.
+              description: When false, AS numbers from BMP are forced to 0 before storage.
               default_value: "true"
               required: false
             - name: collect_as_paths
@@ -1123,13 +1467,14 @@ modules:
               default_value: "true"
               required: false
             - name: collect_communities
-              description: When false, communities and large communities are dropped.
+              description: When false, communities and large communities are dropped before storage.
               default_value: "true"
               required: false
             - name: rds
               description: |
-                Whitelist of accepted Route Distinguishers. Empty = accept all.
-                Formats: "0", "ASN:idx", "IPv4:idx", or full text.
+                Whitelist of accepted Route Distinguishers for L3VPN peers. Empty list
+                accepts everything. Formats: numeric `0`, `"ASN:idx"`, `"IPv4:idx"`, or
+                full text RD.
               default_value: "[]"
               required: false
         examples:
@@ -1151,11 +1496,17 @@ modules:
             - name: Cisco IOS-XR router config
               folding:
                 enabled: true
-              description: Vendor-side config to send BMP to Netdata. The bmp server block is global, not under router bgp.
+              description: |
+                Vendor-side config to send BMP to Netdata. The `bmp server` block is
+                global, not under `router bgp`. Each neighbor that should be exported
+                needs `bmp-activate server N`. IOS-XR's default route monitoring is
+                pre-policy (Adj-RIB-In before inbound policy). Set
+                `route-monitoring policy post inbound` if you prefer post-policy.
               config: |
                 bmp server 1
                  host 10.0.0.10 port 10179
                  description "Netdata BMP collector"
+                 update-source Loopback0
                  initial-delay 5
                  stats-reporting-period 60
                  initial-refresh delay 30 spread 2
@@ -1163,10 +1514,30 @@ modules:
                 router bgp 65000
                  neighbor 192.0.2.1
                   bmp-activate server 1
+            - name: Cisco IOS-XE router config
+              folding:
+                enabled: true
+              description: |
+                IOS-XE 3.12 / 15.4 or later. The `bmp server N` block lives inside
+                `router bgp`, unlike IOS-XR.
+              config: |
+                router bgp 65000
+                 bmp server 1
+                  address 10.0.0.10 port-number 10179
+                  description "Netdata BMP collector"
+                  initial-delay 10
+                  stats-reporting-period 60
+                  update-source GigabitEthernet1
+                  activate
+                 exit-bmp-server-mode
+                 !
+                 neighbor 192.0.2.1 bmp-activate all
             - name: Juniper JunOS router config
               folding:
                 enabled: true
-              description: Recommended local-address and statistics-timeout for production.
+              description: |
+                Named station form. JunOS supports both pre-policy (RFC 7854) and
+                post-policy / Adj-RIB-In (RFC 8671, JunOS 18.3R1+).
               config: |
                 set routing-options bmp station netdata station-address 10.0.0.10
                 set routing-options bmp station netdata station-port 10179
@@ -1174,12 +1545,29 @@ modules:
                 set routing-options bmp station netdata local-address 10.0.0.1
                 set routing-options bmp station netdata statistics-timeout 60
                 set routing-options bmp station netdata route-monitoring pre-policy
+                set routing-options bmp station netdata monitor enable
+            - name: Arista EOS router config
+              folding:
+                enabled: true
+              description: |
+                EOS uses `bgp monitoring` plus one or more `monitoring station` blocks
+                inside `router bgp`. Active connection mode is the equivalent of all
+                other vendors (router dials Netdata).
+              config: |
+                router bgp 65000
+                 bgp monitoring
+                 monitoring station netdata
+                  update-source Management1
+                  connection address 10.0.0.10
+                  connection mode active port 10179
+                  export-policy received routes post-policy
+                  export-policy bgp rib bestpaths
             - name: FRR (bgpd) router config
               folding:
                 enabled: true
               description: |
-                Critical -- BMP is a runtime module in FRR. Without "-M bmp" in
-                /etc/frr/daemons (bgpd_options), every BMP command silently fails.
+                Critical -- BMP is a runtime module in FRR. Without `-M bmp` in
+                `/etc/frr/daemons` (`bgpd_options`), every BMP command silently fails.
               config: |
                 # /etc/frr/daemons:
                 #   bgpd_options=" -A 127.0.0.1 -M bmp"
@@ -1190,38 +1578,108 @@ modules:
                   bmp monitor ipv4 unicast pre-policy
                   bmp monitor ipv6 unicast pre-policy
                  exit
+            - name: Nokia SR OS (MD-CLI) router config
+              folding:
+                enabled: true
+              description: Active connection from one or more BGP routing instances to a named station.
+              config: |
+                /configure bmp admin-state enable
+                /configure bmp station "netdata" admin-state enable
+                /configure bmp station "netdata" connection local-address 10.0.0.1
+                /configure bmp station "netdata" connection station-address ip-address 10.0.0.10
+                /configure bmp station "netdata" connection station-address port 10179
+                /configure bmp station "netdata" family ipv4 true
+                /configure bmp station "netdata" family ipv6 true
+                /configure router "Base" bgp monitor admin-state enable
+                /configure router "Base" bgp monitor route-monitoring post-policy true
+                /configure router "Base" bgp monitor station "netdata" { }
+            - name: Drop AS path and communities
+              folding:
+                enabled: true
+              description: |
+                Useful if you only care about the AS number for traffic attribution and
+                want to keep the journal small.
+              config: |
+                enrichment:
+                  routing_dynamic:
+                    bmp:
+                      enabled: true
+                      collect_asns: true
+                      collect_as_paths: false
+                      collect_communities: false
+            - name: Restrict to specific Route Distinguishers
+              folding:
+                enabled: true
+              description: |
+                For L3VPN peers, only accept routes whose RD matches the whitelist.
+                Other peer types are unaffected.
+              config: |
+                enrichment:
+                  routing_dynamic:
+                    bmp:
+                      enabled: true
+                      rds:
+                        - "65000:100"
+                        - "65000:200"
     troubleshooting:
       problems:
         list:
           - name: Listener not receiving BMP sessions
             description: |
-              Check `show bmp` (Cisco) / `show bmp connections` (Juniper) / `show bmp targets` (FRR)
-              to confirm the router has dialed in. The plugin does not initiate -- it listens.
-              Firewall: allow inbound TCP on 10179.
-          - name: Memory growth
+              The plugin is a passive listener -- it never dials. Check the router side:
+              `show bmp` (Cisco), `show bmp connections` / `show bgp monitoring station`
+              (Juniper, Arista), `show bmp targets` (FRR). Confirm the firewall allows
+              inbound TCP on port 10179. For FRR specifically, verify `bgpd` was started
+              with `-M bmp` -- without it, every BMP command is silently accepted but
+              no connection is ever opened.
+          - name: Convergence takes minutes after restart
             description: |
-              A full BGP feed adds ~1.2M prefixes per peer permanently. There is no time-based
-              eviction. Plan capacity accordingly. After a router disconnect, the routes
-              for that session are kept for `keep` (default 5 min) before purging.
+              The trie is not persisted. After a plugin restart, routers re-send
+              Initiation followed by their Adj-RIB-In as RouteMonitoring updates. FRR
+              re-emits everything in seconds. Cisco IOS-XR's `initial-refresh` is
+              configurably spread (defaults to a per-peer delay) so a full re-feed can
+              take minutes. Juniper varies between seconds and minutes depending on
+              station options. Schedule restarts off-peak when BGP attribution matters.
+          - name: Memory growth without bound
+            description: |
+              A full BGP feed adds ~1.2M prefixes per peer permanently -- there is no
+              time-based eviction in the trie. Routes are removed only by explicit BGP
+              withdrawal, PeerDown, or session disconnect followed by the `keep`
+              interval. Plan capacity before connecting full-table peers.
+          - name: AS path inconsistent with the exporter's view
+            description: |
+              The exporter and the BMP-feeding router are usually different boxes with
+              different routing tables. Different vantage points see different AS paths;
+              this is normal. The `routing` provider in the `asn_providers` chain decides
+              which source wins (default order is `flow, routing, geoip` -- exporter first).
+          - name: Empty BGP enrichment after enabling
+            description: |
+              Confirm the router actually established the BMP session (vendor-side `show`
+              command above). Confirm `enrichment.asn_providers` includes `routing` (or
+              the `bmp` alias) -- if `routing` is removed from both `asn_providers` and
+              `net_providers`, the trie is built but never read.
           - name: Integration-test gap
             description: |
-              BMP message parsing has unit tests. The TCP listener path, framed decode loop,
-              trie apply, and per-router cleanup are NOT integration-tested. Validate against
-              your specific router firmware before depending on this for capacity / security
-              decisions.
+              BMP message parsing has unit tests. The TCP listener path, framed decode
+              loop, trie apply, per-peer cleanup, and per-vendor compatibility (Cisco,
+              Juniper, Arista, FRR, Nokia) are NOT integration-tested in this repository.
+              Validate against your specific router firmware before depending on this for
+              capacity / security decisions.
     alerts: []
     metrics:
       folding:
         title: Metrics
         enabled: false
       description: |
-        Enriches flow records with `SRC_AS`, `DST_AS`, `SRC_MASK`, `DST_MASK`, `NEXT_HOP`,
-        `DST_AS_PATH`, `DST_COMMUNITIES`, `DST_LARGE_COMMUNITIES`. Source-side AS path and
-        communities are not surfaced. AS names come from the GeoIP/ASN MMDB, not from BMP.
-        Verify by querying the AS-path columns on the Network Flows tab.
+        Enriches flow records with `SRC_AS` / `DST_AS` (when the `routing` provider in
+        `asn_providers` reaches BGP), `SRC_MASK` / `DST_MASK` (via `net_providers`),
+        `NEXT_HOP`, `DST_AS_PATH`, `DST_COMMUNITIES`, `DST_LARGE_COMMUNITIES`. Source-side
+        AS path and communities are not surfaced. AS *names* come from the GeoIP/ASN MMDB,
+        not from BMP. AS path, communities, and large communities are RAW-tier-only --
+        rollups carry only `NEXT_HOP`. Verify in the Network Flows tab by querying the
+        AS-path and communities columns.
       availability: []
       scopes: []
-
   - meta:
       plugin_name: netflow-plugin
       module_name: bioris
@@ -1238,6 +1696,8 @@ modules:
         - bgp
         - grpc
         - route information service
+        - as path
+        - bgp communities
       related_resources:
         integrations:
           list:
@@ -1249,22 +1709,73 @@ modules:
       data_collection:
         metrics_description: |
           BioRIS lets Netdata consume BGP routing data from a [bio-rd](https://github.com/bio-routing/bio-rd)
-          `cmd/ris/` daemon over gRPC. bio-rd is a Go-based BGP daemon that can peer with
-          [RIPE RIS](https://www.ripe.net/analyse/internet-measurements/routing-information-service-ris)
-          Route Collectors -- or any BGP / BMP source you have access to -- and expose the
-          resulting RIB through a gRPC interface. Netdata is a client of that interface.
+          `cmd/ris/` daemon over gRPC. bio-rd is a Go-based BGP/BMP daemon that you run yourself.
+          You point it at one or more BGP / BMP sources -- your own routers, a [RIPE RIS](https://www.ripe.net/analyse/internet-measurements/routing-information-service-ris)
+          Route Collector you peer with, or any other reachable BGP source -- and it exposes the
+          resulting RIB through a gRPC interface (`RoutingInformationService`). Netdata is a
+          **client** of that interface, not of RIPE NCC directly.
 
-          Use this when you want a third-party view of the BGP routing table (e.g., RIPE
-          RIS's view) without running a BGP session yourself or deploying BMP across your
-          network.
+          Pick this when you want a third-party / external BGP view (e.g. RIPE RIS's view of the
+          public DFZ) without exposing a BMP listener on your agent or running BMP across your
+          network. If your routers can speak BMP straight to Netdata, the `bmp` integration is
+          simpler -- BioRIS makes sense when bio-rd is already part of your routing toolbox or
+          when you want to peer with an external party (RIPE RIS, looking-glass) and re-export
+          to Netdata.
 
-          For the full BGP-routing concept and how BMP and BioRIS share the same trie, see
-          [BGP Routing](https://learn.netdata.cloud/docs/network-flows/enrichment/bgp-routing).
+          BioRIS populates the same flow-record fields as BMP -- both feed a single shared
+          in-memory routing trie. See the BMP integration card for the side-by-side comparison
+          and combined-deployment notes.
         method_description: |
-          The plugin connects to one or more bio-rd `ris` gRPC endpoints. It runs three RPCs:
-          `GetRouters` to discover what's available, `DumpRIB` to do baseline reconciliation,
-          and `ObserveRIB` for incremental updates. Multiple instances are additive (not
-          failover); they all merge into the shared in-memory trie.
+          The plugin connects as a gRPC client to one or more user-provided bio-rd `ris`
+          endpoints (`grpc_addr`) and runs three RPCs against each one
+          (`src/crates/netflow-plugin/src/routing/bioris/runtime/refresh/instance.rs`,
+          `src/crates/netflow-plugin/src/routing/bioris/runtime/observe.rs`):
+
+          1. `GetRouters` -- discover which routers/VRFs the bio-rd instance is exposing.
+          2. `DumpRIB` -- pull a baseline RIB for each (router, AFI/SAFI) tuple. This is the
+             expensive call -- full IPv4+IPv6 feeds run to millions of prefixes.
+          3. `ObserveRIB` -- subscribe to incremental updates so the trie tracks live changes.
+
+          Per refresh cycle (default 30 minutes,
+          `src/crates/netflow-plugin/src/plugin_config/defaults.rs:38`) the plugin re-runs
+          `GetRouters` + `DumpRIB`, then keeps `ObserveRIB` streams open between cycles.
+          Routers that disappear between refreshes have their routes purged via
+          `runtime.clear_peer()` (`runtime/refresh/task.rs:69`).
+
+          Multiple `ris_instances` are **additive**, not failover -- routes from every
+          configured endpoint merge into the same trie
+          (`runtime.rs:30-49`). The trie is also shared with the `bmp` integration, so if
+          both are enabled their routes coexist and lookups pick the best match across both
+          sources.
+
+          Connection is plain gRPC over HTTP/2 by default; set `grpc_secure: true` to use
+          TLS with the system CA bundle (`client.rs:11-15`). There is no client-cert / mTLS
+          and no application auth -- restrict access at the network layer.
+
+          **Fields populated** (same set as BMP, written from
+          `src/crates/netflow-plugin/src/enrichment/apply/write.rs:66-98`):
+
+          | Field | Side | Source |
+          |---|---|---|
+          | `SRC_AS` / `DST_AS` | both | When the `routing` provider in the `asn_providers` chain matches |
+          | `SRC_MASK` / `DST_MASK` | both | Prefix length of the longest-match BGP route |
+          | `NEXT_HOP` | dest only | BGP next-hop attribute from the destination route |
+          | `DST_AS_PATH` | dest only | Full AS path, CSV of ASNs |
+          | `DST_COMMUNITIES` | dest only | Standard BGP communities (CSV of u32) |
+          | `DST_LARGE_COMMUNITIES` | dest only | RFC 8092 large communities |
+
+          Source-side AS path and communities are **not** surfaced; BGP path attributes are
+          most meaningful for the destination of the traffic. AS *names* (`SRC_AS_NAME`,
+          `DST_AS_NAME`) come from the GeoIP/ASN MMDB, not from BGP -- BioRIS gives you
+          accurate AS *numbers* and path/community attributes; the names come from the ASN
+          database integration.
+
+          **Storage tier:** `DST_AS_PATH`, `DST_COMMUNITIES`, and `DST_LARGE_COMMUNITIES`
+          are written only into the raw journal tier
+          (`src/crates/netflow-plugin/src/flow/record/journal/network.rs:37-39`). The
+          1-minute / 5-minute / 1-hour rollup tiers do not carry them
+          (`src/crates/netflow-plugin/src/tiering/rollup/`). Queries that need AS path or
+          community data must run against a window that the raw retention still covers.
       supported_platforms:
         include:
           - Linux
@@ -1278,14 +1789,22 @@ modules:
         limits:
           description: ""
         performance_impact:
-          description: ""
+          description: |
+            A full IPv4+IPv6 BGP feed is roughly 1.2M prefixes per peer (2026 figures).
+            Each prefix entry stores the AS-path `Vec<u32>`, communities `Vec<u32>`, large
+            communities `Vec<(u32,u32,u32)>`, and a per-path `route_key` String. Expect
+            several hundred MB of resident memory **per peer** for a full feed -- multiply
+            by the number of routers exposed by every `ris_instance`. The trie has no
+            time-based eviction; routes are removed only by explicit BGP withdrawal,
+            disappearance of a router from `GetRouters` between refreshes, or plugin
+            shutdown. Plan capacity and watch the agent's RSS.
     setup:
       prerequisites:
         list:
           - title: A running bio-rd 'ris' daemon
             description: |
               bio-rd is a separate project. The plugin only consumes its gRPC interface; it
-              does not bundle bio-rd. You install it yourself:
+              does not bundle bio-rd. You install and operate it yourself:
 
               ```bash
               # Install Go (>=1.20), then:
@@ -1294,23 +1813,30 @@ modules:
               go build -o /usr/local/bin/ris .
               ```
 
-              Configure `ris` to peer with one or more BGP / BMP sources (RIPE RIS Route
-              Collectors, your own peers, etc.). Refer to the bio-rd documentation for the
-              peering setup -- this is bio-rd's configuration, not Netdata's.
+              Configure `ris` to peer with one or more BGP / BMP sources (your own routers,
+              RIPE RIS Route Collectors, looking-glass servers, etc.). Refer to the bio-rd
+              documentation for the peering setup -- this is bio-rd's configuration, not
+              Netdata's.
 
-              Run the daemon with a gRPC port:
+              Run the daemon with a gRPC port (`bio-rd/cmd/ris/main.go` defaults to 4321 if
+              `--grpc_port` is omitted):
               `/usr/local/bin/ris --grpc_port 50051 --config.file /etc/bio-rd.yml`
           - title: Network reachability + no auth
             description: |
-              The gRPC connection is plain HTTP/2 by default (or TLS with system-CA when
-              `grpc_secure: true`). There is no authentication. Restrict access at the
-              firewall, or run bio-rd on the same host as the agent and bind it to localhost.
+              The gRPC connection is plain HTTP/2 by default
+              (`src/crates/netflow-plugin/src/routing/bioris/client.rs:23-31`), or TLS with
+              the system CA bundle when `grpc_secure: true`
+              (`client.rs:11-15`). There is no client-cert / mTLS and no application
+              authentication -- restrict access at the firewall, or run bio-rd on the same
+              host as the agent and bind it to localhost.
       configuration:
         file:
           name: netflow.yaml
         options:
           description: |
-            BioRIS options live under `enrichment.routing_dynamic.bioris`.
+            BioRIS options live under `enrichment.routing_dynamic.bioris` in
+            `netflow.yaml`. The schema is defined in
+            `src/crates/netflow-plugin/src/plugin_config/types/routing.rs:88-156`.
           folding:
             title: Config options
             enabled: true
@@ -1320,21 +1846,24 @@ modules:
               default_value: "false"
               required: false
             - name: timeout
-              description: Connect + per-RPC timeout. Default is aggressive for public RIS over the internet -- raise if you see "deadline exceeded".
+              description: Connect + per-RPC timeout for `GetRouters` and `ObserveRIB` setup. Default is aggressive; raise to 2-5s when reaching a remote bio-rd over the public internet.
               default_value: "200ms"
               required: false
             - name: refresh
-              description: How often to re-dump every router's RIB from scratch.
+              description: Cadence at which the plugin re-runs `GetRouters` + `DumpRIB` for every router. Floored to 10s (`runtime/refresh/task.rs:23`).
               default_value: "30m"
               required: false
             - name: refresh_timeout
-              description: Per-DumpRIB request timeout and per-message stream timeout.
+              description: Per-DumpRIB request timeout and per-message stream timeout for the baseline RIB pull.
               default_value: "10s"
               required: false
             - name: ris_instances
               description: |
-                List of bio-rd endpoints. Each: grpc_addr, grpc_secure, vrf, vrf_id.
-                Multiple instances are additive (not failover) -- routes from all merge.
+                List of bio-rd endpoints. Each entry: `grpc_addr` (`host:port` or full
+                `http(s)://` URI), `grpc_secure` (TLS with system CAs when true), `vrf`
+                (string VRF name to filter on), `vrf_id` (numeric VRF ID, alternative to
+                `vrf`). Multiple instances are additive (not failover) -- routes from every
+                instance merge into the same trie.
               default_value: "[]"
               required: true
         examples:
@@ -1371,40 +1900,106 @@ modules:
                         - grpc_addr: "ris.example.internal:50051"
                           grpc_secure: true
                           vrf: "global"
+            - name: Prefer BGP over the exporter's AS view
+              folding:
+                enabled: true
+              description: |
+                With the default provider chain, an exporter-supplied AS number wins over
+                BGP. If your bio-rd feed is more accurate than what the exporter is
+                stamping into flow records, reorder the chains so `routing` is consulted
+                first.
+              config: |
+                enrichment:
+                  asn_providers: [routing, flow, geoip]
+                  net_providers:  [routing, flow]
+                  routing_dynamic:
+                    bioris:
+                      enabled: true
+                      ris_instances:
+                        - grpc_addr: "127.0.0.1:50051"
+            - name: Combined with BMP into a single trie
+              folding:
+                enabled: true
+              description: |
+                Run BMP from internal routers and BioRIS for an external (RIPE RIS) view.
+                Both populate the same shared trie -- lookups pick the best-matching route
+                across both sources at query time.
+              config: |
+                enrichment:
+                  routing_dynamic:
+                    bmp:
+                      enabled: true
+                      listen: "0.0.0.0:10179"
+                    bioris:
+                      enabled: true
+                      ris_instances:
+                        - grpc_addr: "127.0.0.1:50051"
     troubleshooting:
       problems:
         list:
           - name: Default 200ms timeout too aggressive
             description: |
-              Over the public internet to RIPE RIS, you may need 2-5 seconds. If you see
-              "deadline exceeded" errors in the journal, raise `timeout`.
+              `timeout` covers the gRPC connect plus the `GetRouters` and `ObserveRIB`
+              setup RPCs. Over the public internet to a remote bio-rd, 200ms is often not
+              enough. If you see "deadline exceeded" errors in the journal, raise to 2-5s.
+              `refresh_timeout` is separate and bounds the long-running `DumpRIB` and per-
+              message stream reads (default 10s).
           - name: Initial dump takes minutes for full feeds
             description: |
-              A full IPv4+IPv6 RIB from a route collector is millions of prefixes. The first
-              refresh takes time; subsequent observe streams are incremental.
+              A full IPv4+IPv6 RIB from a route collector is millions of prefixes. The
+              first `DumpRIB` after enabling (or after a plugin restart) takes time -- BGP
+              attribution is incomplete until it finishes. Subsequent `ObserveRIB` streams
+              are incremental.
+          - name: Plugin restart wipes the trie
+            description: |
+              The trie is in-memory only -- restarting the netflow plugin loses every
+              learned BGP route. Convergence over BioRIS depends on the upstream feed; a
+              full DumpRIB from a RIPE RIS Route Collector can take minutes. Schedule
+              restarts off-peak if BGP attribution matters for your workflow.
+          - name: Memory growth without bound
+            description: |
+              The trie has no time-based eviction. Routes are removed only when the
+              upstream BGP source withdraws them, when a router disappears from
+              `GetRouters` between refreshes (`runtime/refresh/task.rs:69` -- the plugin
+              calls `runtime.clear_peer()` for stale peers), or on plugin shutdown. A full
+              feed is several hundred MB of RSS per peer, permanently.
+          - name: AS path / communities missing on older queries
+            description: |
+              `DST_AS_PATH`, `DST_COMMUNITIES`, and `DST_LARGE_COMMUNITIES` only exist in
+              the raw journal tier (`flow/record/journal/network.rs:37-39`). The 1m / 5m /
+              1h rollup tiers do not carry them. Queries that span beyond the raw
+              retention horizon will not return BGP path data.
+          - name: AS path inconsistent with the exporter's view
+            description: |
+              Different vantage points see different BGP paths. If your flow exporter and
+              the BGP source bio-rd is peering with are different boxes with different
+              routing tables, expect divergence. This is normal in BGP, not a bug.
           - name: Integration-test gap
             description: |
-              proto and route conversion are unit-tested. The gRPC client path
-              (connecting, consuming streams, retry/backoff) is NOT integration-tested.
-              Validate against your specific bio-rd setup before relying on this for
-              capacity / security decisions.
+              The `proto`-to-route conversion (`src/crates/netflow-plugin/src/routing/bioris/route.rs`)
+              is unit-tested. The end-to-end gRPC client path -- `connect_bioris_client`,
+              `GetRouters` discovery, `DumpRIB` baseline, `ObserveRIB` stream consumption,
+              retry/backoff, per-router cleanup -- is **not** integration-tested in this
+              repository. The features ship because the parsing layer is solid and the
+              runtime sits on standard tonic + tokio primitives, but compatibility with a
+              specific bio-rd version or upstream BGP source is not validated by tests
+              here. Validate against your bio-rd setup before relying on this for capacity
+              or security decisions.
     alerts: []
     metrics:
       folding:
         title: Metrics
         enabled: false
       description: |
-        Enriches flow records with the same fields as BMP (`SRC_AS`, `DST_AS`, masks,
-        `NEXT_HOP`, `DST_AS_PATH`, `DST_COMMUNITIES`, `DST_LARGE_COMMUNITIES`). Both
-        sources contribute to the same shared trie -- if both are enabled, lookups
-        prefer the best-matching route across both.
+        Enriches flow records with the same fields as BMP: `SRC_AS`, `DST_AS`, `SRC_MASK`,
+        `DST_MASK`, `NEXT_HOP`, `DST_AS_PATH`, `DST_COMMUNITIES`, `DST_LARGE_COMMUNITIES`.
+        Source-side AS path and communities are not surfaced. AS names come from the
+        GeoIP/ASN MMDB, not from BGP. AS path and communities are written only to the raw
+        journal tier; rollup tiers do not carry them. When BMP and BioRIS are both
+        enabled, they contribute to a single shared in-memory trie and lookups pick the
+        best-matching route across both sources.
       availability: []
       scopes: []
-
-  # =====================================================================
-  # Network Identity: external feeds that label your network prefixes
-  # =====================================================================
-
   - meta:
       plugin_name: netflow-plugin
       module_name: aws-ip-ranges
@@ -1422,6 +2017,7 @@ modules:
         - vpc
         - ec2
         - prefix list
+        - service tags
       related_resources:
         integrations:
           list:
@@ -1438,20 +2034,46 @@ modules:
     overview:
       data_collection:
         metrics_description: |
-          AWS publishes a continuously updated JSON file listing every public IP prefix used
-          by AWS services -- per region, per service. This integration fetches that file
-          periodically, transforms it via a jq expression, and uses the result to label flow
-          records destined to / from AWS with `*_NET_TENANT="amazon"` plus a per-region tag.
+          AWS publishes its current public IP allocations as a single JSON document at
+          [`https://ip-ranges.amazonaws.com/ip-ranges.json`](https://ip-ranges.amazonaws.com/ip-ranges.json).
+          The file lists every prefix AWS uses for a published service, tagged with the AWS
+          region and the AWS service that owns the prefix (`AMAZON`, `EC2`, `S3`,
+          `CLOUDFRONT`, `API_GATEWAY`, ...). This integration fetches the file periodically,
+          transforms it via a jq expression, and labels matching flow records with provider,
+          region, and service tags.
 
-          The result: traffic to/from AWS shows up clearly in dashboards as "amazon", with
-          per-region and per-service breakdown if you customize the jq transform.
+          Once configured, traffic to / from AWS shows up in dashboards as `tenant=amazon`
+          with per-region (`region=us-east-1`, `region=eu-central-1`, ...) and per-service
+          (`role=s3`, `role=cloudfront`, ...) breakdown. This is **complementary to GeoIP
+          and ASN enrichment**: instead of a flow being labeled simply `AS16509 Amazon`,
+          it becomes labeled with the specific AWS service and region carrying the
+          traffic -- without parsing AS-name strings.
 
-          For the full network-identity concept (merge order, jq transform, TLS verification),
-          see [Network Identity](https://learn.netdata.cloud/docs/network-flows/enrichment/network-identity).
+          The file is public; no AWS credentials are needed.
+
+          Schema of `ip-ranges.json` (verified against the live document):
+
+          - top-level: `syncToken`, `createDate`, `prefixes`, `ipv6_prefixes`
+          - each entry in `prefixes[]`: `ip_prefix`, `region`, `service`, `network_border_group`
+          - each entry in `ipv6_prefixes[]`: `ipv6_prefix`, `region`, `service`, `network_border_group`
+
+          For the cross-cutting concepts (how multiple network sources merge, the lookup
+          priority vs static `networks` config, TLS verification rules, the jq engine and
+          its expected output schema, fetch loop and retry/backoff), see
+          [Network Identity](https://learn.netdata.cloud/docs/network-flows/enrichment/network-identity).
         method_description: |
           The plugin issues a periodic GET to `https://ip-ranges.amazonaws.com/ip-ranges.json`,
-          parses the JSON body, runs the configured jq transform via the [jaq](https://github.com/01mf02/jaq)
-          library, and merges the resulting prefix-labeled rows into the network-attributes trie.
+          parses the JSON body, runs the configured jq transform via the
+          [jaq](https://github.com/01mf02/jaq) library, and merges the resulting
+          prefix-labeled rows into the network-attributes trie shared by all enrichment
+          sources.
+
+          AWS does not publish a fixed refresh cadence; the file is updated whenever the
+          AWS IP space changes (typically several times per day) and the `syncToken` /
+          `createDate` fields advance on every change. AWS recommends polling no faster
+          than the file actually changes; daily is enough for most flow-attribution use
+          cases. The plugin floors the configured `interval` at 60s
+          (`src/crates/netflow-plugin/src/network_sources/service.rs:73`).
       supported_platforms:
         include:
           - Linux
@@ -1461,7 +2083,7 @@ modules:
         description: ""
       default_behavior:
         auto_detection:
-          description: "Disabled by default. Add an entry under enrichment.network_sources to enable."
+          description: "Disabled by default. Add an entry under `enrichment.network_sources` to enable."
         limits:
           description: ""
         performance_impact:
@@ -1472,32 +2094,57 @@ modules:
           - title: Outbound HTTPS to AWS
             description: |
               The agent host must be able to reach `https://ip-ranges.amazonaws.com/ip-ranges.json`.
-              No AWS credentials needed -- the file is public.
+              No AWS credentials are needed -- the file is public.
       configuration:
         file:
           name: netflow.yaml
         options:
           description: |
-            Add a named entry under `enrichment.network_sources`. The `name` you choose appears
-            in flow records via the `*_NET_TENANT` field (when your jq transform sets it).
+            Add a named entry under `enrichment.network_sources`. The map key (e.g. `aws`)
+            is the source name; it is used in plugin logs but is **not** automatically
+            attached to flow records -- the record labels come entirely from your `transform`
+            output (`tenant`, `region`, `role`, `name`, `site`, `city`, `country`, `state`,
+            `asn`, `asn_name`).
+
+            The expected `transform` output is a stream of objects, each carrying a `prefix`
+            (CIDR string) plus any subset of the optional attribute fields. See the
+            cross-cutting [Network Identity](https://learn.netdata.cloud/docs/network-flows/enrichment/network-identity)
+            page for the full output schema.
           folding:
             title: Config options
             enabled: true
           list:
             - name: url
-              description: AWS publishes the master file at this URL.
+              description: AWS publishes the master file at this URL. Use it as-is unless you mirror it locally for air-gapped environments.
               default_value: "https://ip-ranges.amazonaws.com/ip-ranges.json"
               required: true
             - name: interval
-              description: How often to fetch. AWS updates the file roughly every 15 minutes; daily is enough for most uses.
-              default_value: "60s (loop floor)"
-              required: false
-            - name: timeout
-              description: Per-request timeout.
+              description: |
+                How often to fetch the file. AWS updates the document whenever its IP space
+                changes (often several times per day, sometimes more); daily is enough for
+                most uses. The configured value is floored at 60s.
               default_value: "60s"
               required: false
+            - name: timeout
+              description: Per-request timeout for the HTTPS GET.
+              default_value: "60s"
+              required: false
+            - name: method
+              description: HTTP method. AWS serves the file via GET; leave at the default.
+              default_value: "GET"
+              required: false
+            - name: headers
+              description: |
+                Extra HTTP headers added to the request. Not required for the public AWS
+                URL; only needed if you front the file behind your own authenticated mirror.
+              default_value: "{}"
+              required: false
             - name: transform
-              description: jq expression that converts the AWS response into objects with `prefix` and label fields.
+              description: |
+                jq expression (compiled by jaq) that converts the AWS JSON into a stream
+                of `{prefix, ...}` objects. The default `.` does **not** match the AWS
+                schema -- you must supply a real transform (see examples below) or every
+                fetch fails as "empty result".
               default_value: "."
               required: true
         examples:
@@ -1505,10 +2152,14 @@ modules:
             title: Config
             enabled: true
           list:
-            - name: Tag all AWS prefixes by region and service
+            - name: Tag all AWS prefixes by region and service (IPv4 + IPv6)
               folding:
                 enabled: false
-              description: "Sets tenant=amazon, region=`aws-region`, role=`service-name`."
+              description: |
+                Recommended starting point. Sets `tenant=amazon`, `region=<aws-region>`,
+                `role=<service-name-lowercased>`. Covers both `prefixes[]` and
+                `ipv6_prefixes[]` in one stream so v4 and v6 traffic are tagged
+                consistently.
               config: |
                 enrichment:
                   network_sources:
@@ -1526,7 +2177,9 @@ modules:
             - name: AWS S3 only
               folding:
                 enabled: true
-              description: Filter to a single AWS service for narrower tagging.
+              description: |
+                Filter to a single AWS service for narrower tagging. Useful when you only
+                care about identifying S3 traffic (e.g. egress-cost attribution).
               config: |
                 enrichment:
                   network_sources:
@@ -1542,29 +2195,85 @@ modules:
                             role: "s3",
                             region: .region
                           }
+            - name: Use network_border_group as the site label
+              folding:
+                enabled: true
+              description: |
+                AWS exposes a `network_border_group` field that distinguishes Local Zones
+                / Wavelength Zones from the parent Region. Map it to the `site` attribute
+                if you want that distinction visible in flow dashboards.
+              config: |
+                enrichment:
+                  network_sources:
+                    aws:
+                      url: "https://ip-ranges.amazonaws.com/ip-ranges.json"
+                      interval: 24h
+                      transform: |
+                        (.prefixes + .ipv6_prefixes)[] | {
+                          prefix: (.ip_prefix // .ipv6_prefix),
+                          tenant: "amazon",
+                          region: .region,
+                          site: .network_border_group,
+                          role: (.service | ascii_downcase)
+                        }
     troubleshooting:
       problems:
         list:
+          - name: 'Default `transform: "."` fails with "empty result"'
+            description: |
+              The default `.` returns the raw JSON object, not the per-prefix stream the
+              plugin expects. You **must** supply a transform that yields one object per
+              prefix (with at least a `prefix` field). Use the first example above as your
+              starting template.
+          - name: AWS service name precedence inside one prefix
+            description: |
+              AWS sometimes lists the same `ip_prefix` under multiple `service` entries
+              (e.g. once under `AMAZON` and again under `EC2`). The plugin merges all
+              records into a single prefix trie, and the **last write wins** for a given
+              prefix length. If you want a specific service to take precedence, filter the
+              transform with `select(.service != "AMAZON")` so the broader catch-all
+              entries are dropped.
+          - name: Static `networks:` config silently overrides AWS labels
+            description: |
+              When a prefix is defined in both this source and `enrichment.networks`, the
+              static config wins on every non-empty field. This is by design (operator
+              intent overrides imported data) but can surprise operators who expect the
+              remote feed to be authoritative. See the cross-cutting Network Identity page
+              for the full lookup-priority rules.
           - name: Empty result from the transform is treated as failure
             description: |
-              If the jq filter happens to produce nothing (e.g., AWS responds with no prefixes),
-              the source backs off as if it errored. Check the journal for `network-sources` warnings.
+              If the jq filter happens to produce nothing (bad selector, wrong field name,
+              upstream JSON shape change), the source backs off as if it errored. Check
+              the journal for `network-sources` warnings:
+              `journalctl --namespace netdata | grep network-sources`.
           - name: TLS verification cannot be disabled
             description: |
-              `tls.skip_verify: true` is rejected by validation. Use `tls.ca_file` for
-              custom-CA paths if needed.
+              `tls.skip_verify: true` is rejected by validation
+              (`src/crates/netflow-plugin/src/network_sources/fetch.rs:57`). Use
+              `tls.ca_file` for custom-CA paths if you front AWS behind an internal
+              TLS-terminating proxy with a private CA.
     alerts: []
     metrics:
       folding:
         title: Metrics
         enabled: false
       description: |
-        Tags flow records with `SRC_NET_TENANT`, `*_NET_REGION`, `*_NET_ROLE`, etc. when
-        the source or destination IP matches an AWS prefix. Verify on the Network Flows
-        tab via the `*_NET_*` columns.
+        This integration does not produce metrics. It enriches flow records with the
+        following journal fields when a flow's source or destination IP matches an AWS
+        prefix (verified at
+        `src/crates/netflow-plugin/src/flow/record/journal/network.rs:17-26`):
+
+        - `SRC_NET_NAME` / `DST_NET_NAME`
+        - `SRC_NET_ROLE` / `DST_NET_ROLE`
+        - `SRC_NET_SITE` / `DST_NET_SITE`
+        - `SRC_NET_REGION` / `DST_NET_REGION`
+        - `SRC_NET_TENANT` / `DST_NET_TENANT`
+
+        Plus, when the transform sets them, the country / state / city / ASN overrides
+        documented on the Network Identity page. Verify on the Network Flows tab via the
+        `*_NET_*` columns or by filtering on `tenant=amazon`.
       availability: []
       scopes: []
-
   - meta:
       plugin_name: netflow-plugin
       module_name: gcp-ip-ranges
@@ -1577,9 +2286,13 @@ modules:
       keywords:
         - gcp
         - google cloud
+        - google
         - cloud
         - ip ranges
+        - cloud.json
+        - goog.json
         - prefix list
+        - network identity
       related_resources:
         integrations:
           list:
@@ -1596,15 +2309,42 @@ modules:
     overview:
       data_collection:
         metrics_description: |
-          Google Cloud publishes its public IP prefixes at `https://www.gstatic.com/ipranges/cloud.json`,
-          updated periodically. This integration fetches the file and labels flow records
-          to/from Google Cloud with `*_NET_TENANT="gcp"` plus per-scope and per-service tags.
+          Google publishes its public IP ranges as two static JSON files served from
+          `gstatic.com`. Wire one of them as a `network_source` and the netflow plugin
+          fetches it periodically, transforms each prefix entry through your jq filter,
+          and merges the resulting CIDR-keyed records into the network-attributes trie.
+          Flows whose source or destination IP falls inside a Google-owned prefix are
+          then labeled with `*_NET_TENANT`, `*_NET_REGION`, `*_NET_ROLE`, etc. according
+          to the labels your transform emits.
 
-          For the full network-identity concept, see
+          Two upstream files exist and they are NOT interchangeable:
+
+          - **`https://www.gstatic.com/ipranges/cloud.json`** -- the prefixes used by
+            Google Cloud (Compute Engine, GKE, Cloud Run, Cloud Functions, Cloud SQL,
+            and the rest of Google Cloud Platform). This is what you almost always want
+            for cloud-traffic attribution.
+          - **`https://www.gstatic.com/ipranges/goog.json`** -- the broader Google IP
+            space, including consumer-facing properties (Search, Gmail, YouTube, Google
+            Workspace, Maps, Ads, etc.). It is a strict superset of `cloud.json` but
+            **carries no service or region metadata** -- only the bare CIDRs.
+
+          For the cross-cutting network-identity behavior (merge order with GeoIP and
+          static config, jq output contract, TLS rules, single-page fetch, failure /
+          backoff handling), see
           [Network Identity](https://learn.netdata.cloud/docs/network-flows/enrichment/network-identity).
         method_description: |
-          Periodic HTTPS GET, jq transform, merge into network-attributes trie. Same mechanism
-          as AWS IP Ranges, different URL and JSON shape.
+          Periodic HTTPS GET against the chosen `gstatic.com` URL. The body is parsed
+          as JSON and the configured `transform` (a [jaq](https://github.com/01mf02/jaq)
+          jq-equivalent expression) runs over the parsed value. Each output object is
+          merged into the network-attributes trie keyed on its `prefix` field; remaining
+          fields (`name`, `role`, `site`, `region`, `country`, `state`, `city`, `tenant`,
+          `asn`, `asn_name`) populate the corresponding `*_NET_*` flow-record columns
+          when a flow's IP matches the prefix.
+
+          The upstream files are static JSON snapshots, not pageable APIs -- one fetch
+          per cycle is the whole dataset. Each contains a `syncToken` and a
+          `creationTime` you can inspect to see when Google last regenerated them; the
+          plugin does not use these for conditional fetches today.
       supported_platforms:
         include:
           - Linux
@@ -1618,30 +2358,68 @@ modules:
         limits:
           description: ""
         performance_impact:
-          description: ""
+          description: |
+            One short HTTPS GET per `interval`, plus a jq pass over the response.
+            `cloud.json` is on the order of ~1000 prefix entries and the trie merge
+            is bounded by that count; runtime cost is negligible against typical flow
+            ingest. `goog.json` is similar in size.
     setup:
       prerequisites:
         list:
-          - title: Outbound HTTPS to Google
+          - title: Outbound HTTPS to gstatic.com
             description: |
-              The agent host must be able to reach `https://www.gstatic.com/ipranges/cloud.json`.
-              No GCP credentials needed -- the file is public.
+              The agent host must be able to reach `https://www.gstatic.com/ipranges/cloud.json`
+              (or `goog.json`). The files are public CDN-served static JSON; no Google
+              Cloud project, no service account, no API key, and no IAM permission is
+              required.
+          - title: Pick the right file for your use case
+            description: |
+              - Use `cloud.json` to attribute traffic to/from **Google Cloud Platform**
+                services (Compute Engine VMs, GKE, Cloud Run, Cloud Functions, Cloud
+                SQL, BigQuery API, Pub/Sub, GCS endpoints, etc.). Carries `service` and
+                `scope` (region) per prefix.
+              - Use `goog.json` to also catch **non-cloud Google traffic** (Gmail,
+                YouTube, Google Workspace, Search, Ads, Maps, etc.). It carries no
+                `service` or `scope` -- you only get "this is Google" attribution.
+              - Configure both as separate sources if you want both attributions and
+                a deterministic merge order between them. Within network-identity, more-
+                specific prefixes win at lookup time, so a `cloud.json` match for a
+                Compute Engine prefix will out-rank the broader `goog.json` umbrella.
       configuration:
         file:
           name: netflow.yaml
         options:
           description: |
-            Add a named entry under `enrichment.network_sources`.
+            Add a named entry under `enrichment.network_sources`. The entry name is
+            cosmetic (used in logs and metrics); the labels that end up in flow records
+            come from the fields your `transform` emits.
           folding:
             title: Config options
             enabled: true
           list:
             - name: url
-              description: GCP publishes the master file here.
+              description: |
+                The Google IP-ranges JSON URL. Use `cloud.json` for GCP services or
+                `goog.json` for the broader Google IP space.
               default_value: "https://www.gstatic.com/ipranges/cloud.json"
               required: true
+            - name: interval
+              description: |
+                How often to refetch. Google does not publish a fixed cadence; their
+                documentation states the lists are "published and updated frequently".
+                Daily is plenty for most deployments and avoids hammering the CDN.
+              default_value: "60s (loop floor)"
+              required: false
+            - name: timeout
+              description: Per-request timeout.
+              default_value: "60s"
+              required: false
             - name: transform
-              description: jq expression mapping `prefixes[]` to `prefix` + label objects.
+              description: |
+                jq expression that converts each entry in `prefixes[]` into an object
+                with a `prefix` field (CIDR string) plus any of the optional label
+                fields (`name`, `role`, `site`, `region`, `country`, `state`, `city`,
+                `tenant`, `asn`, `asn_name`). Required.
               default_value: "."
               required: true
         examples:
@@ -1649,42 +2427,146 @@ modules:
             title: Config
             enabled: true
           list:
-            - name: Tag all GCP prefixes by service and scope
+            - name: GCP cloud.json -- tag Google Cloud prefixes by region
               folding:
                 enabled: false
-              description: "Sets tenant=gcp, role=`service`, region=`scope`."
+              description: |
+                Tags every flow whose IP matches a Google Cloud prefix with
+                `*_NET_TENANT="gcp"`, `*_NET_ROLE="google-cloud"`, and
+                `*_NET_REGION` set to the GCP scope (`us-central1`, `europe-west1`,
+                `global`, etc.). Both `ipv4Prefix` and `ipv6Prefix` entries are
+                covered by the `// (slash-or)` fallback.
               config: |
                 enrichment:
                   network_sources:
                     gcp:
                       url: "https://www.gstatic.com/ipranges/cloud.json"
                       interval: 24h
+                      timeout: 60s
                       transform: |
                         .prefixes[] | {
                           prefix: (.ipv4Prefix // .ipv6Prefix),
                           tenant: "gcp",
-                          role: .service,
+                          role: "google-cloud",
                           region: .scope
+                        }
+            - name: GCP cloud.json -- IPv4 only
+              folding:
+                enabled: true
+              description: |
+                Same as above but skips the IPv6 prefixes (some operators only need
+                IPv4 attribution and prefer to keep the trie smaller).
+              config: |
+                enrichment:
+                  network_sources:
+                    gcp-v4:
+                      url: "https://www.gstatic.com/ipranges/cloud.json"
+                      interval: 24h
+                      transform: |
+                        .prefixes[]
+                        | select(.ipv4Prefix)
+                        | {
+                            prefix: .ipv4Prefix,
+                            tenant: "gcp",
+                            role: "google-cloud",
+                            region: .scope
+                          }
+            - name: Tag a single GCP region
+              folding:
+                enabled: true
+              description: |
+                Narrow the source to one region (here `us-central1`) so you can build
+                dashboards that distinguish that region from the rest of GCP.
+              config: |
+                enrichment:
+                  network_sources:
+                    gcp-us-central1:
+                      url: "https://www.gstatic.com/ipranges/cloud.json"
+                      interval: 24h
+                      transform: |
+                        .prefixes[]
+                        | select(.scope == "us-central1")
+                        | {
+                            prefix: (.ipv4Prefix // .ipv6Prefix),
+                            tenant: "gcp",
+                            role: "google-cloud",
+                            region: "us-central1",
+                            site: "us-central1"
+                          }
+            - name: Broader Google IP space (goog.json)
+              folding:
+                enabled: true
+              description: |
+                Use `goog.json` to also attribute traffic to non-Cloud Google services
+                (Gmail, YouTube, Workspace, Search, Ads, Maps). The file has no
+                `service` or `scope` fields, so only `tenant` / `role` are set.
+                Configure this **alongside** `cloud.json` if you want both -- the more
+                specific GCP prefixes from `cloud.json` will still win at lookup time.
+              config: |
+                enrichment:
+                  network_sources:
+                    google-all:
+                      url: "https://www.gstatic.com/ipranges/goog.json"
+                      interval: 24h
+                      transform: |
+                        .prefixes[] | {
+                          prefix: (.ipv4Prefix // .ipv6Prefix),
+                          tenant: "google",
+                          role: "google"
                         }
     troubleshooting:
       problems:
         list:
-          - name: Customer-only ranges
+          - name: cloud.json vs goog.json -- pick the right one
             description: |
-              GCP also publishes a `goog.json` file (broader: includes Google services beyond
-              cloud). Use `cloud.json` for compute IP attribution; `goog.json` if you also
-              want to tag Google's other services.
+              `cloud.json` is the Google Cloud Platform list (Compute Engine, GKE,
+              Cloud Run, Cloud SQL, BigQuery, GCS, etc.) and carries `service` plus
+              `scope` (region) per entry. `goog.json` is the broader Google list
+              (consumer products: Gmail, YouTube, Workspace, Search, Ads, Maps) and
+              carries **only the bare CIDRs** -- no service, no scope, no region.
+              Using `goog.json` as if it were `cloud.json` will give you "this is
+              Google" attribution but no per-region or per-service breakdown. Most
+              operators want `cloud.json`; some configure both as separate sources.
+          - name: No per-service breakdown from cloud.json
+            description: |
+              Today every entry in `cloud.json` reports `service: "Google Cloud"` --
+              the file does not split prefixes by individual GCP service (Compute
+              Engine vs GKE vs Cloud Run, etc.). Region (`scope`) is the dimension
+              you can actually pivot on. Per-service attribution requires a different
+              data source.
+          - name: Empty result from the transform is treated as failure
+            description: |
+              If the jq expression yields zero objects (for example, an over-narrow
+              `select()` that no entry passes), the source backs off as if the fetch
+              had errored. Check the journal for `network-sources` warnings and verify
+              your filter against a saved copy of `cloud.json`.
+          - name: TLS verification cannot be disabled
+            description: |
+              `tls.skip_verify: true` (and `tls.verify: false`) are rejected by
+              validation. `gstatic.com` is publicly trusted so this is rarely an issue
+              for GCP; if you front the URL through an internal proxy with a private
+              CA, supply it via `tls.ca_file`.
+          - name: Update cadence is not contractual
+            description: |
+              Google states the lists are "published and updated frequently" but does
+              not guarantee a fixed cadence. The `syncToken` and `creationTime` keys
+              at the top of each file let you check when Google last regenerated it.
+              Daily polling is a safe default; sub-hourly is unnecessary.
     alerts: []
     metrics:
       folding:
         title: Metrics
         enabled: false
       description: |
-        Tags flow records with `*_NET_TENANT`, `*_NET_REGION`, `*_NET_ROLE`. Verify on the
-        Network Flows tab via the `*_NET_*` columns.
+        Tags flow records with `SRC_NET_TENANT` / `DST_NET_TENANT`,
+        `SRC_NET_REGION` / `DST_NET_REGION`, `SRC_NET_ROLE` / `DST_NET_ROLE`,
+        and any other `*_NET_*` fields your transform emits, when the source or
+        destination IP matches a Google prefix. Verify in the Network Flows tab via
+        the `*_NET_*` columns. Coordinates (`*_GEO_LATITUDE` / `*_GEO_LONGITUDE`)
+        cannot be set from network-identity sources -- use the static `networks`
+        block for those.
       availability: []
       scopes: []
-
   - meta:
       plugin_name: netflow-plugin
       module_name: azure-ip-ranges
@@ -1716,23 +2598,32 @@ modules:
     overview:
       data_collection:
         metrics_description: |
-          Azure publishes "Service Tags" data describing IP ranges per region and per service.
-          The Azure publication mechanism is **less convenient** than AWS / GCP -- the
-          authoritative URL contains a date stamp that changes weekly, so you cannot use
-          a single stable URL.
+          Microsoft publishes Azure's public IP prefixes as **Service Tags JSON files**.
+          A service tag is Microsoft's name for a group of IP prefixes belonging to one
+          Azure service (e.g., `Storage`, `Sql`, `AzureFrontDoor.Backend`); the JSON
+          enumerates every tag together with the prefixes, the platform, and -- for
+          tags that support regional scope -- the Azure region.
 
-          For automated fetching, you have two options:
-          1. Mirror the file in your own infrastructure (a script that resolves the latest
-             URL via the Azure CLI, downloads, and serves at a stable internal URL).
-          2. Skip Azure IP Ranges entirely and rely on GeoIP / ASN data for Azure
-             attribution (Azure ASN is 8075).
+          Microsoft publishes four separate JSON files, one per Azure cloud:
 
-          For the full network-identity concept, see
+          - **Azure Public** -- commercial Azure, the file most users want.
+          - **Azure US Government** -- separate cloud for US public-sector workloads.
+          - **Microsoft Azure operated by 21Vianet** -- the China cloud.
+          - **Azure Germany** -- legacy German cloud.
+
+          This integration tags flow records to/from Azure-hosted services with
+          `*_NET_TENANT="azure"` plus per-region and per-service labels. Use it to
+          identify traffic to Azure SQL, Azure Storage, Azure Front Door, App Service,
+          and the rest -- without maintaining the prefix list yourself.
+
+          For the full network-identity concept (merge order, jq output shape, TLS
+          verification, failure modes), see
           [Network Identity](https://learn.netdata.cloud/docs/network-flows/enrichment/network-identity).
         method_description: |
-          Periodic HTTPS GET against your stable mirror URL, jq transform, merge into
-          network-attributes trie. The plugin does not handle Azure's date-stamped URL
-          rotation -- you provide a stable URL via your own mirror.
+          Periodic HTTPS GET against the Service Tags JSON, jq transform via the
+          [jaq](https://github.com/01mf02/jaq) library, merge into the network-attributes
+          trie. Same mechanism as AWS / GCP IP Ranges -- different URL and JSON shape,
+          plus one important operational caveat documented below.
       supported_platforms:
         include:
           - Linux
@@ -1742,7 +2633,7 @@ modules:
         description: ""
       default_behavior:
         auto_detection:
-          description: "Disabled by default. Set up your own URL mirror, then add an entry under enrichment.network_sources."
+          description: "Disabled by default. Add an entry under enrichment.network_sources to enable."
         limits:
           description: ""
         performance_impact:
@@ -1750,33 +2641,103 @@ modules:
     setup:
       prerequisites:
         list:
-          - title: A stable URL for the Azure Service Tags JSON
+          - title: Azure publishes weekly, but the URL rotates
             description: |
-              Azure's authoritative URL embeds a date stamp that changes weekly. A simple
-              workaround: a cron job that calls
-              `az network list-service-tags --location global -o json` (Azure CLI) and
-              writes the result to a stable path on an internal HTTP server. The plugin then
-              fetches from that stable URL.
-          - title: Outbound HTTPS to your mirror
+              Microsoft updates the Service Tags JSON **weekly** (per
+              <https://learn.microsoft.com/en-us/azure/virtual-network/service-tags-overview#discover-service-tags-by-using-downloadable-json-files>:
+              "These lists are updated and published weekly"), and Microsoft asks you
+              to delay rolling out new prefixes for at least one week after publication
+              ("When new IP addresses are added to service tags, they aren't used in
+              Azure for at least one week").
+
+              The catch: the actual download URL is **not stable**. The download portal
+              at <https://www.microsoft.com/en-us/download/details.aspx?id=56519> serves
+              a `ServiceTags_Public_<YYYYMMDD>.json` filename whose date stamp changes
+              every week. A naive `interval`-based fetch against last week's URL will
+              start 404'ing as soon as a new file is published.
+
+              You have three reasonable options, in increasing order of effort:
+
+              1. **Skip Azure IP Ranges entirely** and rely on GeoIP / ASN data
+                 (Microsoft's main ASN is 8075). Coarse but zero-maintenance.
+              2. **Use a stable redirect** if your environment provides one (some
+                 enterprise mirrors do).
+              3. **Run a small mirror script** -- a cron job that fetches the latest
+                 JSON via the [Service Tag Discovery REST API](https://learn.microsoft.com/en-us/rest/api/virtualnetwork/servicetags/list)
+                 (or `Get-AzNetworkServiceTag` in PowerShell) and writes the result to
+                 a stable path on an internal HTTP server. Point the plugin at that
+                 stable URL.
+
+              Option 3 is what most operators end up with. The Service Tag Discovery
+              API is authoritative and authenticated (Azure subscription with read
+              role); the downloadable JSON is unauthenticated but URL-rotated. Pick
+              whichever fits your operational model.
+          - title: Outbound HTTPS to your mirror (or to Microsoft, if you script the URL discovery)
             description: |
-              No Azure credentials needed by the plugin itself; credentials only matter on
-              the side that does the upstream Azure CLI call.
+              The plugin only needs to reach the configured `url`. Azure credentials
+              are needed only on the side that resolves "what's this week's URL?" --
+              not by the plugin itself.
+          - title: A jq transform that matches the Service Tags schema
+            description: |
+              The Service Tags JSON has a nested shape:
+
+              ```text
+              {
+                "changeNumber": 123,
+                "cloud": "Public",
+                "values": [
+                  {
+                    "name": "Storage.WestUS",
+                    "id":   "Storage.WestUS",
+                    "properties": {
+                      "changeNumber":   456,
+                      "region":         "westus",
+                      "regionId":       30,
+                      "platform":       "Azure",
+                      "systemService":  "AzureStorage",
+                      "addressPrefixes": ["13.105.16.4/30", "20.150.0.0/17", ...],
+                      "networkFeatures": ["API", "NSG"]
+                    }
+                  },
+                  ...
+                ]
+              }
+              ```
+
+              The transform must unwrap `values[]` -> `properties.addressPrefixes[]`
+              and emit one object per prefix. Schema reference (verified against the
+              upstream concept page): `values[].name`, `values[].id`,
+              `values[].properties.region` (region tag, can be empty for
+              cloud-wide tags like the bare `Storage`), `values[].properties.platform`,
+              `values[].properties.systemService` (e.g. `AzureStorage`, `AzureSql`),
+              `values[].properties.addressPrefixes[]` (CIDR strings, IPv4 and IPv6
+              mixed). Top-level `changeNumber` increments on every publication.
       configuration:
         file:
           name: netflow.yaml
         options:
           description: |
-            Add a named entry under `enrichment.network_sources` pointing at your mirror URL.
+            Add a named entry under `enrichment.network_sources` pointing at your
+            stable mirror URL (or, with the limitations above, at this week's
+            `ServiceTags_Public_<date>.json` URL).
           folding:
             title: Config options
             enabled: true
           list:
             - name: url
-              description: Stable URL to your locally-mirrored Azure Service Tags JSON.
+              description: Stable URL to your locally-mirrored Azure Service Tags JSON, or this week's date-stamped Microsoft URL.
               default_value: ""
               required: true
+            - name: interval
+              description: How often to fetch. Microsoft publishes weekly; daily is plenty.
+              default_value: "60s (loop floor)"
+              required: false
+            - name: timeout
+              description: Per-request timeout. Service Tags JSON files are large (tens of MB) -- give it room.
+              default_value: "60s"
+              required: false
             - name: transform
-              description: jq expression mapping the values[] array to per-prefix objects.
+              description: jq expression that maps `values[].properties.addressPrefixes[]` into per-prefix objects.
               default_value: "."
               required: true
         examples:
@@ -1784,52 +2745,124 @@ modules:
             title: Config
             enabled: true
           list:
-            - name: Internal mirror of Azure Service Tags
+            - name: Azure Public via internal mirror -- tag by region and service
               folding:
                 enabled: false
-              description: Tag every Azure prefix with tenant=azure plus region/service.
+              description: |
+                Internal mirror serving the latest Public-cloud Service Tags JSON.
+                Tags every Azure prefix with `tenant=azure`, the region, and the
+                lowercase systemService name as the role.
               config: |
                 enrichment:
                   network_sources:
                     azure:
                       url: "https://internal.example/azure-service-tags.json"
                       interval: 24h
+                      timeout: 60s
                       transform: |
                         .values[]
-                        | .id as $id
-                        | .properties.region as $region
-                        | (.properties.systemService // "") as $service
-                        | .properties.addressPrefixes[]
+                        | .properties as $p
+                        | $p.addressPrefixes[]
                         | {
                             prefix: .,
                             tenant: "azure",
-                            region: ($region // ""),
-                            role: ($service | ascii_downcase)
+                            region: ($p.region // ""),
+                            role:   (($p.systemService // "") | ascii_downcase)
+                          }
+            - name: Azure Storage only
+              folding:
+                enabled: true
+              description: Filter to a single Azure systemService for narrower tagging.
+              config: |
+                enrichment:
+                  network_sources:
+                    azure-storage:
+                      url: "https://internal.example/azure-service-tags.json"
+                      interval: 24h
+                      transform: |
+                        .values[]
+                        | select(.properties.systemService == "AzureStorage")
+                        | .properties as $p
+                        | $p.addressPrefixes[]
+                        | {
+                            prefix: .,
+                            tenant: "azure",
+                            role:   "storage",
+                            region: ($p.region // "")
+                          }
+            - name: Azure US Government cloud
+              folding:
+                enabled: true
+              description: |
+                The US Government cloud is published as a separate JSON file with its
+                own download ID (57063). Same schema as the Public cloud; tag tenant
+                differently so you can tell them apart in dashboards.
+              config: |
+                enrichment:
+                  network_sources:
+                    azure-usgov:
+                      url: "https://internal.example/azure-service-tags-usgov.json"
+                      interval: 24h
+                      transform: |
+                        .values[]
+                        | .properties as $p
+                        | $p.addressPrefixes[]
+                        | {
+                            prefix: .,
+                            tenant: "azure-usgov",
+                            region: ($p.region // ""),
+                            role:   (($p.systemService // "") | ascii_downcase)
                           }
     troubleshooting:
       problems:
         list:
-          - name: Empty results
+          - name: 404 a week after deploy
             description: |
-              The Azure Service Tags JSON has nested structure (`values[].properties.addressPrefixes[]`).
-              If your jq doesn't unwrap correctly, every fetch yields zero rows and the source
-              backs off. Test the jq locally with `jq < azure-service-tags.json`.
+              You configured `url` against `ServiceTags_Public_<date>.json` directly.
+              Microsoft rotates the date stamp weekly, so the URL stops resolving
+              within a week. Move to an internal mirror that resolves the latest URL
+              each cycle, or to the Service Tag Discovery REST API
+              (<https://learn.microsoft.com/en-us/rest/api/virtualnetwork/servicetags/list>)
+              fed into a static file.
+          - name: Empty results from the transform
+            description: |
+              The Service Tags JSON is nested two levels deep
+              (`values[].properties.addressPrefixes[]`). If the jq doesn't unwrap
+              both levels, every fetch yields zero rows and the source backs off as if
+              it errored. Test the jq locally with `jq < azure-service-tags.json` and
+              confirm at least one `{prefix, tenant, ...}` object comes out.
+          - name: Service Tag API data lags the JSON file
+            description: |
+              Per Microsoft's note on the Service Tags overview page, "It takes up to
+              four weeks for new Service Tag data to propagate in the API results
+              across all Azure regions". If you mirror via the REST API, expect newly
+              added tags to appear in the JSON download a few weeks before the API,
+              not the other way around. For prefix tagging this rarely matters; for
+              firewall rules it can.
+          - name: TLS verification cannot be disabled
+            description: |
+              `tls.skip_verify: true` is rejected by validation. Use `tls.ca_file`
+              for custom-CA paths (e.g., on an internal mirror with a private CA).
     alerts: []
     metrics:
       folding:
         title: Metrics
         enabled: false
       description: |
-        Tags flow records to/from Azure with `*_NET_TENANT`, `*_NET_REGION`, `*_NET_ROLE`.
+        Tags flow records with `*_NET_TENANT`, `*_NET_REGION`, `*_NET_ROLE` when the
+        source or destination IP matches an Azure prefix. Verify on the Network Flows
+        tab via the `*_NET_*` columns. Country / state / city overrides
+        (`*_COUNTRY`, `*_GEO_STATE`, `*_GEO_CITY`) are also available if your
+        transform sets them, but Service Tags don't carry country/state/city data --
+        only `region` codes like `westus` or `northeurope`.
       availability: []
       scopes: []
-
   - meta:
       plugin_name: netflow-plugin
       module_name: netbox
       monitored_instance:
         name: NetBox
-        link: https://netboxlabs.com/oss/netbox/
+        link: https://github.com/netbox-community/netbox
         categories:
           - flows.enrichment-methods
         icon_filename: network-wired.svg
@@ -1839,6 +2872,7 @@ modules:
         - dcim
         - source of truth
         - prefix list
+        - network identity
       related_resources:
         integrations:
           list:
@@ -1855,23 +2889,44 @@ modules:
     overview:
       data_collection:
         metrics_description: |
-          [NetBox](https://netboxlabs.com/oss/netbox/) is the most widely deployed open-source
-          IPAM / DCIM. Many networks already curate prefix metadata there -- tenant, site,
-          role, VRF -- and want flow data to inherit those labels automatically rather than
-          duplicating them in `netflow.yaml`.
+          [NetBox](https://github.com/netbox-community/netbox) is the most widely deployed
+          open-source IPAM / DCIM. It is Apache-2.0 licensed and maintained by the
+          netbox-community organization (commercial variants -- NetBox Cloud and NetBox
+          Enterprise -- are offered by NetBox Labs on top of the same upstream code).
+          Operators already curate prefix metadata in NetBox -- tenant, site, role, VRF,
+          description -- and want flow records to inherit those labels automatically rather
+          than maintaining a parallel list in `netflow.yaml`.
 
-          This integration polls NetBox's Prefixes API at a configurable interval, transforms
-          the response with jq, and labels flow records with the prefix metadata.
+          This integration polls NetBox's Prefixes REST API at a configurable interval,
+          transforms the response with jq, and labels matching flow prefixes with whatever
+          fields you map. NetBox is the authoritative source -- when the same prefix is
+          tagged in NetBox and in the static `networks:` block, the static block wins
+          (operator override is intentional, see the
+          [Network Identity](https://learn.netdata.cloud/docs/network-flows/enrichment/network-identity)
+          concept page).
 
-          For the full network-identity concept, see
-          [Network Identity](https://learn.netdata.cloud/docs/network-flows/enrichment/network-identity).
+          Use cases: applying your organisation's data-centre rack labels, tenant names,
+          environment tags (prod / staging / dev), and VRF / site identifiers to flows so
+          dashboards and queries surface "this is the staging tier in fra1" instead of a
+          raw CIDR.
         method_description: |
-          Periodic HTTPS GET to a NetBox API endpoint with a Bearer token in the
-          `Authorization` header. jq transform produces per-prefix objects with the labels
-          you want -- typically `tenant.name`, `site.name`, `role.name`, `description`.
+          Periodic HTTPS GET to `/api/ipam/prefixes/` on your NetBox host. Authentication is
+          a NetBox API token in the `Authorization` header. NetBox supports two token
+          formats:
 
-          NetBox paginates results -- there is **no automatic pagination** in this plugin.
-          For inventories larger than the default page size (50), wrap NetBox with a
+          - **Legacy v1 tokens** (`Authorization: Token <token>`) -- accepted by all NetBox
+            versions, simplest to wire up.
+          - **v2 tokens** (NetBox 4.x, `Authorization: Bearer nbt_<key>.<token>`) -- the
+            prefix `nbt_` and the random key are concatenated with the token via a dot.
+
+          The plugin transports either format -- the value is whatever NetBox issued for the
+          service account.
+
+          The plugin runs the configured `transform` (jaq -- a jq-equivalent) over the
+          parsed JSON body and produces per-prefix objects. NetBox's response is paginated;
+          the plugin does **not** follow `next` links. Pass `?limit=0` (NetBox 4.x default
+          `MAX_PAGE_SIZE` is 1000; setting `0` removes the cap when the server config
+          allows) or an explicit `?limit=N` greater than your prefix count, or expose a
           server-side aggregator that returns the full list at one URL.
       supported_platforms:
         include:
@@ -1882,7 +2937,7 @@ modules:
         description: ""
       default_behavior:
         auto_detection:
-          description: "Disabled by default. Add an entry under enrichment.network_sources with your NetBox URL and API token."
+          description: "Disabled by default. Add an entry under `enrichment.network_sources` with your NetBox URL and API token."
         limits:
           description: ""
         performance_impact:
@@ -1892,76 +2947,135 @@ modules:
         list:
           - title: NetBox API token with read scope on Prefixes
             description: |
-              In NetBox, create or use a service account, generate an API token, scope it
-              read-only to the Prefixes endpoint. The token goes in the `Authorization` header.
-          - title: A bulk endpoint or aggregator
+              In NetBox, create or reuse a service-account user, then generate an API token
+              under "Admin > Users > Tokens". Restrict the token to read-only and (for
+              v4.x) limit the scope to `ipam.view_prefix`. The token value goes in the
+              `Authorization` header.
+
+              The plugin only reads -- never writes -- so a read-only token is sufficient
+              and recommended. Token format depends on the NetBox version:
+
+              - NetBox 3.x or earlier: `Token <40-char-hex>` (legacy).
+              - NetBox 4.x: either legacy `Token <hex>` or new `Bearer nbt_<key>.<token>`
+                (v2 tokens, opt-in).
+          - title: Bulk endpoint (`?limit=0` or aggregator)
             description: |
-              The plugin does not paginate. If your NetBox has more prefixes than fit in the
-              default page (`?limit=50`), either raise `limit` (`?limit=10000`) or expose
-              an internal endpoint that aggregates all pages and serves them at one URL.
+              The plugin fetches a single page. NetBox's default `PAGINATE_COUNT` is 50
+              and `MAX_PAGE_SIZE` is 1000. For inventories above 1000 prefixes, either
+              raise `MAX_PAGE_SIZE` server-side and pass `?limit=0`, or expose an internal
+              aggregator endpoint that walks pagination and returns the full list at one URL.
+          - title: NetBox version-aware field mapping
+            description: |
+              NetBox **4.2** replaced the per-prefix `site` foreign key with a generic
+              `scope` field (a prefix can now be scoped to a region, site group, site, or
+              location -- not just a site). API responses on 4.2+ omit `site` and expose
+              `scope` (read-only) plus `scope_type` / `scope_id`. Adjust your jq accordingly
+              -- on 4.2+ use `(.scope.name // "")`, on 4.1 and earlier use
+              `(.site.name // "")`.
       configuration:
         file:
           name: netflow.yaml
         options:
           description: |
             Add a named entry under `enrichment.network_sources` pointing at your NetBox.
+            The plugin's `RemoteNetworkSourceConfig` schema accepts `url`, `method`,
+            `headers`, `proxy`, `tls`, `timeout`, `interval`, and `transform`. Authentication
+            is configured via the generic `headers:` map -- there is no NetBox-specific
+            auth helper.
           folding:
             title: Config options
             enabled: true
           list:
             - name: url
-              description: NetBox Prefixes API endpoint, with `?limit=` if needed.
+              description: NetBox prefixes API endpoint, including `?limit=` (recommend `?limit=0` on 4.x for full inventory in one shot).
               default_value: ""
               required: true
             - name: headers.Authorization
-              description: NetBox API token, prefixed with "Token ".
+              description: 'NetBox API token. Use `Token <hex>` for legacy v1 or `Bearer nbt_<key>.<token>` for v4.x v2 tokens.'
               default_value: ""
               required: true
             - name: interval
-              description: How often to refresh. NetBox is your source of truth -- 5-15 minutes is typical.
+              description: How often to refresh. NetBox is your source of truth; 5 minutes is typical for IPAMs that change frequently, 1 hour is fine for static inventories.
               default_value: "60s"
               required: false
+            - name: timeout
+              description: HTTP request timeout. Bump to 30-60s if your NetBox returns thousands of prefixes in one shot.
+              default_value: "10s"
+              required: false
             - name: transform
-              description: jq expression mapping `.results[]` (NetBox's response shape) to per-prefix objects.
+              description: jq expression mapping NetBox's `.results[]` to per-prefix objects with `prefix` and any of `name`, `role`, `site`, `region`, `country`, `state`, `city`, `tenant`, `asn`, `asn_name`.
               default_value: "."
               required: true
+            - name: tls.ca_file
+              description: Path to your internal CA bundle when NetBox runs behind internal PKI. Disabling verification is rejected by the validator -- use this instead.
+              default_value: ""
+              required: false
         examples:
           folding:
             title: Config
             enabled: true
           list:
-            - name: NetBox with API token and standard label set
+            - name: NetBox 4.x with v2 token, scope-aware mapping
               folding:
                 enabled: false
-              description: Tags prefixes with tenant, site, role, and the NetBox description.
+              description: |
+                Standard NetBox 4.2+ wiring. Maps tenant, role, the new `scope` field
+                (covers site / region / site-group / location), and the human-readable
+                description. `?limit=0` returns all prefixes in one call when
+                `MAX_PAGE_SIZE` is unset on the NetBox server.
               config: |
                 enrichment:
                   network_sources:
                     netbox:
-                      url: "https://netbox.example.internal/api/ipam/prefixes/?limit=10000"
+                      url: "https://netbox.example.internal/api/ipam/prefixes/?limit=0"
                       headers:
-                        Authorization: "Token abcdef0123456789"
+                        Authorization: "Bearer nbt_AbCdEf0123456789.GhIjKl0123456789"
                       interval: 5m
                       timeout: 30s
                       transform: |
                         .results[] | {
                           prefix: .prefix,
                           tenant: (.tenant.name // ""),
-                          site: (.site.name // ""),
-                          role: (.role.name // ""),
-                          name: .description
+                          role:   (.role.name // ""),
+                          site:   (.scope.name // ""),
+                          name:   (.description // "")
                         }
-            - name: NetBox with mTLS to internal CA
+            - name: NetBox 3.x / 4.0 / 4.1 with legacy site field
               folding:
                 enabled: true
-              description: When NetBox is behind your internal PKI; use tls.ca_file plus client cert.
+              description: |
+                Pre-4.2 NetBox still exposes `site` directly on the Prefix object. Use a
+                legacy `Token` header and read `.site.name` instead of `.scope.name`.
               config: |
                 enrichment:
                   network_sources:
                     netbox:
                       url: "https://netbox.example.internal/api/ipam/prefixes/?limit=10000"
                       headers:
-                        Authorization: "Token abcdef0123456789"
+                        Authorization: "Token abcdef0123456789abcdef0123456789abcdef01"
+                      interval: 15m
+                      transform: |
+                        .results[] | {
+                          prefix: .prefix,
+                          tenant: (.tenant.name // ""),
+                          role:   (.role.name // ""),
+                          site:   (.site.name // ""),
+                          name:   (.description // "")
+                        }
+            - name: NetBox behind internal PKI (mTLS)
+              folding:
+                enabled: true
+              description: |
+                When NetBox is fronted by internal PKI. `tls.verify: false` is rejected at
+                config-load -- supply your CA explicitly and (optionally) a client
+                certificate.
+              config: |
+                enrichment:
+                  network_sources:
+                    netbox:
+                      url: "https://netbox.example.internal/api/ipam/prefixes/?limit=0"
+                      headers:
+                        Authorization: "Token abcdef0123456789abcdef0123456789abcdef01"
                       interval: 5m
                       tls:
                         enable: true
@@ -1972,34 +3086,82 @@ modules:
                         .results[] | {
                           prefix: .prefix,
                           tenant: (.tenant.name // ""),
-                          site: (.site.name // ""),
-                          role: (.role.name // ""),
-                          name: .description
+                          role:   (.role.name // ""),
+                          site:   (.scope.name // ""),
+                          name:   (.description // "")
+                        }
+            - name: VRF-aware mapping (multi-tenant networks)
+              folding:
+                enabled: true
+              description: |
+                When the same RFC1918 prefix appears in multiple VRFs, fold the VRF name
+                into the friendly `name` so dashboards disambiguate. Note: the plugin keys
+                on `prefix` only -- if two rows share a CIDR, the last one wins. Filter the
+                NetBox query (`?vrf_id=N`) to scope the export.
+              config: |
+                enrichment:
+                  network_sources:
+                    netbox-prod-vrf:
+                      url: "https://netbox.example.internal/api/ipam/prefixes/?limit=0&vrf_id=12"
+                      headers:
+                        Authorization: "Token abcdef0123456789abcdef0123456789abcdef01"
+                      interval: 5m
+                      transform: |
+                        .results[] | {
+                          prefix: .prefix,
+                          tenant: (.tenant.name // ""),
+                          role:   (.role.name // ""),
+                          site:   (.scope.name // ""),
+                          name:   ((.vrf.name // "default") + ": " + (.description // ""))
                         }
     troubleshooting:
       problems:
         list:
-          - name: Only first page of results loaded
+          - name: Only first 50 prefixes loaded
             description: |
-              NetBox paginates by default at 50 results. The plugin does not follow `next`
-              links. Use `?limit=10000` (or the actual count) on the URL, or expose an
-              aggregating endpoint server-side.
-          - name: Token missing or wrong scope
+              NetBox's default `PAGINATE_COUNT` is 50 and the plugin does not follow `next`
+              links. Pass `?limit=0` (NetBox 4.x removes the cap when `MAX_PAGE_SIZE` is
+              `0` server-side) or `?limit=N` larger than your inventory. For inventories
+              above the server's `MAX_PAGE_SIZE` (default 1000), expose a server-side
+              aggregator endpoint.
+          - name: 401 / 403 from NetBox
             description: |
-              NetBox returns 403 silently consumed by the plugin's HTTP error path. Watch
-              the journal for `network-sources` warnings; verify with curl:
+              Token missing, expired, or wrong format. Verify with:
               `curl -H "Authorization: Token <tok>" https://netbox/api/ipam/prefixes/`.
+              On NetBox 4.x check whether the token is v1 (`Token <hex>`) or v2
+              (`Bearer nbt_<key>.<token>`) and use the matching header. Watch the journal
+              for `network-sources` warnings -- HTTP errors are silently consumed there.
+          - name: site is empty after upgrade to NetBox 4.2
+            description: |
+              NetBox 4.2 removed `site` from the Prefix model and replaced it with `scope`
+              (a generic foreign key that can reference region / site group / site /
+              location). Update the jq from `(.site.name // "")` to `(.scope.name // "")`.
+              Alternatively, key on `(.scope.name // .site.name // "")` so the same config
+              works across the upgrade boundary.
+          - name: VRF collisions (same CIDR in multiple VRFs)
+            description: |
+              The plugin's network-attributes trie keys on `prefix` only -- there is no VRF
+              dimension on the flow side. If NetBox lists `10.0.0.0/24` in three VRFs, only
+              the last row wins. Filter the export with `?vrf_id=N` per data-plane and run
+              one named source per VRF, or fold the VRF name into the friendly `name` so
+              dashboards disambiguate.
+          - name: Empty result triggers backoff
+            description: |
+              An empty `results` array (legitimate state for a freshly-installed NetBox)
+              is treated as a fetch failure by the cross-cutting source loop and triggers
+              exponential backoff. Add at least one synthetic prefix (e.g. a `RFC1918`
+              container) so the response is never empty.
     alerts: []
     metrics:
       folding:
         title: Metrics
         enabled: false
       description: |
-        Tags flow records with the labels you mapped from NetBox -- typically `*_NET_TENANT`,
-        `*_NET_SITE`, `*_NET_ROLE`, `*_NET_NAME`. Verify on the Network Flows tab.
+        Tags flow records with the labels you mapped from NetBox -- typically
+        `*_NET_TENANT`, `*_NET_SITE`, `*_NET_ROLE`, `*_NET_NAME`. Verify on the Network
+        Flows tab.
       availability: []
       scopes: []
-
   - meta:
       plugin_name: netflow-plugin
       module_name: generic-ipam
@@ -2015,8 +3177,10 @@ modules:
         - infoblox
         - bluecat
         - phpipam
+        - servicenow
         - custom
         - prefix list
+        - network identity
       related_resources:
         integrations:
           list:
@@ -2033,19 +3197,34 @@ modules:
     overview:
       data_collection:
         metrics_description: |
-          The catch-all integration. Any IPAM, CMDB, or service that exposes prefix metadata
-          via an HTTP-fetchable JSON endpoint can plug into Netdata's flow enrichment via this
-          mechanism. Examples: Infoblox WAPI, BlueCat REST API, phpIPAM, internal-built CMDB
-          endpoints, ServiceNow CMDB queries, custom Lambda functions producing JSON.
+          The catch-all integration for any HTTP endpoint that returns JSON describing your
+          network prefixes. The plugin does not care WHO produces the JSON -- it cares about
+          the JSON shape after your `transform` (a jq expression) runs over it. Examples:
+          Infoblox WAPI, BlueCat REST API, phpIPAM, ServiceNow CMDB queries, an internal
+          aggregator, a Lambda function, a static file served from S3, a hand-rolled CMDB.
 
-          You define the URL, the HTTP method, headers (for auth), and a jq transform that
-          converts the response into objects with `prefix` + label fields.
+          This card is also the **reference description** of how all the other Network
+          Identity cards work under the hood. AWS IP Ranges, GCP IP Ranges, Azure IP Ranges
+          and NetBox are all special-cased instances of this same mechanism: each is just
+          a known URL plus a recommended jq `transform`. Read this card to understand the
+          generic shape, then read the per-source cards for the URL and transform that fit
+          that specific provider.
 
-          For the full network-identity concept, see
+          For the full network-identity concept (merge order vs GeoIP and static, what
+          fields you can populate, why TLS verification cannot be disabled), see
           [Network Identity](https://learn.netdata.cloud/docs/network-flows/enrichment/network-identity).
         method_description: |
-          Periodic HTTPS GET (or POST) to a configured URL with optional headers, optional
-          custom CA / mTLS, jq transform of the response, merge into network-attributes trie.
+          The plugin issues a periodic HTTP request (GET by default, POST optionally) to
+          your configured URL with the headers you specify, parses the response as JSON,
+          runs your `transform` jq expression (compiled by the
+          [jaq](https://github.com/01mf02/jaq) library) over the parsed body, and merges
+          the resulting per-prefix rows into the network-attributes trie.
+
+          Source code: the per-source loop is implemented at
+          `src/crates/netflow-plugin/src/network_sources/service.rs`; HTTP fetch at
+          `src/crates/netflow-plugin/src/network_sources/fetch.rs`; the jq output schema
+          is decoded at `src/crates/netflow-plugin/src/network_sources/decode.rs` against
+          the `RemoteRecord` struct at `src/crates/netflow-plugin/src/network_sources/types.rs`.
       supported_platforms:
         include:
           - Linux
@@ -2055,7 +3234,7 @@ modules:
         description: ""
       default_behavior:
         auto_detection:
-          description: "Disabled by default. Add an entry per IPAM source under enrichment.network_sources."
+          description: "Disabled by default. Add a named entry under `enrichment.network_sources` for each IPAM/CMDB/endpoint you want to import."
         limits:
           description: ""
         performance_impact:
@@ -2065,74 +3244,131 @@ modules:
         list:
           - title: An HTTP/HTTPS endpoint returning JSON
             description: |
-              The endpoint must produce a parseable JSON document. The plugin only supports
-              GET and POST. There is no pagination, no cursor following, no OAuth flow --
-              if your IPAM needs those, wrap it in an internal aggregator.
+              The endpoint must respond with a parseable JSON document (the plugin sets
+              `Accept: application/json`). Only GET and POST are accepted as request
+              methods; `fetch.rs` rejects anything else. There is no pagination, no
+              cursor following, no `Link: rel=next` handling -- the fetch is one-shot
+              per cycle. If your IPAM paginates, expose a bulk endpoint or wrap it in a
+              server-side aggregator that returns the full list at one URL.
           - title: Authentication via headers
             description: |
-              The plugin has no built-in auth helpers. Set whatever the API needs -- bearer
-              tokens, basic-auth header, custom API-key headers -- via `headers:`. Store
-              tokens carefully; they're written into the YAML.
+              The plugin has no built-in OAuth flow, basic-auth helper, or token
+              refresh. Whatever the API needs (bearer tokens, API keys, custom header
+              names, basic-auth realms) goes into the `headers:` map. The header map is
+              an arbitrary string-to-string mapping, so any single-shot scheme works.
+              For short-lived tokens, refresh them outside Netdata and reload the
+              plugin config.
+          - title: A POST endpoint must accept an empty body
+            description: |
+              When `method: POST` is configured, the plugin sends the request with the
+              configured headers but **no request body** (`fetch.rs` does not call
+              `.body()`). If your CMDB requires a JSON query body to return prefixes,
+              wrap it server-side with an endpoint that accepts GET (or POST with no
+              body) and returns the full prefix set.
       configuration:
         file:
           name: netflow.yaml
         options:
           description: |
-            Add a named entry under `enrichment.network_sources`. The keys below are the
-            full set of options.
+            Add a named entry under `enrichment.network_sources`. The full set of keys
+            below is the schema accepted by `RemoteNetworkSourceConfig` in
+            `src/crates/netflow-plugin/src/plugin_config/types/enrichment/sources.rs`
+            (with `deny_unknown_fields`, so unknown keys cause a config error).
           folding:
             title: Config options
             enabled: true
           list:
             - name: url
-              description: HTTP/HTTPS endpoint.
+              description: HTTP/HTTPS endpoint. Required (a non-empty URL is enforced by validation).
               default_value: ""
               required: true
             - name: method
-              description: GET or POST.
+              description: HTTP method. Only `GET` and `POST` are accepted; anything else fails validation. Note that `POST` is sent with no request body.
               default_value: "GET"
               required: false
+            - name: headers
+              description: |
+                Map of additional HTTP request headers. Use this for any authentication
+                scheme (`Authorization: Bearer ...`, `token: ...`, custom API-key
+                headers, basic-auth realms encoded explicitly, etc.). Values are
+                passed through verbatim.
+              default_value: "{}"
+              required: false
             - name: interval
-              description: Refresh interval (loop floors at 60s).
+              description: Refresh cadence. The internal scheduler **floors this at 60 seconds** -- shorter values are accepted by validation but the loop ticks at 60s minimum (see `service.rs`). Pick the value that matches how often your IPAM actually changes (5-15 minutes for a curated CMDB; daily for slow-moving prefix lists).
               default_value: "60s"
               required: false
             - name: timeout
-              description: Per-request timeout.
+              description: Per-request timeout. Must be greater than 0.
               default_value: "60s"
               required: false
-            - name: headers
-              description: Map of additional HTTP request headers (e.g., authentication).
-              default_value: "{}"
+            - name: proxy
+              description: Whether to honor the system HTTP/HTTPS proxy environment variables. Set to `false` to bypass the proxy for this source (useful when the IPAM is on the internal network and the proxy is for outbound traffic only).
+              default_value: "true"
               required: false
-            - name: transform
-              description: jq expression converting response to {prefix, name?, role?, site?, region?, country?, state?, city?, tenant?, asn?, asn_name?} stream.
-              default_value: "."
-              required: true
             - name: tls.enable
-              description: Use custom TLS settings (custom CA, mTLS).
+              description: Enables custom TLS settings (custom CA bundle, mTLS client certificate). Must be `true` whenever any of `tls.ca_file`, `tls.cert_file`, `tls.key_file` is set.
+              default_value: "false"
+              required: false
+            - name: tls.verify
+              description: Certificate verification toggle. **Setting this to `false` is rejected by validation** -- network-identity data flows directly into security-relevant enrichment, so MITM-able responses are not allowed. Use `tls.ca_file` to trust internal CAs instead.
+              default_value: "true"
+              required: false
+            - name: tls.skip_verify
+              description: |
+                Legacy alias for the same intent as `tls.verify: false`. **Setting this
+                to `true` is rejected by validation.** Use `tls.ca_file`.
               default_value: "false"
               required: false
             - name: tls.ca_file
-              description: PEM file with the CA bundle.
+              description: PEM file with the CA bundle to trust for this endpoint (instead of, or in addition to, the system roots). The recommended way to talk to an internal IPAM behind your own PKI.
               default_value: ""
               required: false
             - name: tls.cert_file
-              description: PEM file with the client certificate (mTLS).
+              description: PEM file with the client certificate, for mTLS-protected endpoints.
               default_value: ""
               required: false
             - name: tls.key_file
-              description: PEM file with the client private key.
+              description: PEM file with the client private key. Required only when the key is in a separate file from the certificate; if omitted, the cert file is reused. `tls.cert_file` must also be set whenever `tls.key_file` is set.
               default_value: ""
               required: false
+            - name: transform
+              description: |
+                jq expression compiled by [jaq](https://github.com/01mf02/jaq). Receives the entire parsed JSON body once and must produce a **stream of objects**, where each object has at minimum a `prefix` field (a CIDR string -- `IPv4/len` or `IPv6/len`) plus any of the optional attribute fields: `name`, `role`, `site`, `region`, `country`, `state`, `city`, `tenant`, `asn`, `asn_name`. Any field not produced is treated as empty. The transform compiles at startup -- a syntax error fails the config load. An empty stream at runtime is treated as a fetch failure and triggers backoff.
+              default_value: "."
+              required: true
         examples:
           folding:
             title: Config
             enabled: true
           list:
-            - name: phpIPAM with API token
+            - name: Flat list with `{prefix, name, env}`
               folding:
                 enabled: false
-              description: "phpIPAM exposes `/api/<APP>/subnets/`. Replace `<APP>` with your phpIPAM app name. Use the standard transform."
+              description: |
+                The simplest IPAM shape: a top-level array of subnets, each with a CIDR
+                string and a few labels. Maps `env` -> tenant and the `name` -> NET_NAME.
+              config: |
+                enrichment:
+                  network_sources:
+                    custom_ipam:
+                      url: "https://ipam.corp.example/api/v1/prefixes"
+                      headers:
+                        Authorization: "Bearer abcdef0123456789"
+                      interval: 5m
+                      transform: |
+                        .[] | {
+                          prefix: .prefix,
+                          name: .name,
+                          tenant: .env
+                        }
+            - name: phpIPAM with API token
+              folding:
+                enabled: true
+              description: |
+                phpIPAM exposes `/api/<APP>/subnets/`. Replace `<APP>` with your phpIPAM
+                application name. phpIPAM splits the address into a base and a mask --
+                the transform reassembles them into a CIDR string.
               config: |
                 enrichment:
                   network_sources:
@@ -2148,31 +3384,40 @@ modules:
                           tenant: (.custom_tenant // ""),
                           site: (.location.name // "")
                         }
-            - name: Custom internal CMDB (POST with body)
+            - name: Hierarchical CMDB export
               folding:
                 enabled: true
-              description: When your CMDB requires POST with a query body. Define `method` and append the body via headers/url. The plugin's body support is limited -- prefer GET endpoints when possible.
+              description: |
+                A CMDB that returns nested objects -- top-level sites, each with a list
+                of vlans, each with a list of prefixes. Flattens to one row per prefix,
+                inheriting site and role labels from the parent.
               config: |
                 enrichment:
                   network_sources:
                     cmdb:
-                      url: "https://cmdb.example/query/networks"
-                      method: POST
+                      url: "https://cmdb.example/export/networks.json"
                       headers:
-                        Authorization: "Bearer ..."
-                        Content-Type: "application/json"
-                      interval: 30m
+                        Authorization: "Bearer ${CMDB_TOKEN}"
+                      interval: 15m
                       transform: |
-                        .results[] | {
-                          prefix: .cidr,
-                          tenant: .organization,
-                          site: .datacenter,
-                          role: .purpose
-                        }
-            - name: Internal IPAM with mTLS
+                        .sites[] as $site
+                        | $site.vlans[] as $vlan
+                        | $vlan.prefixes[]
+                        | {
+                            prefix: .cidr,
+                            name: .label,
+                            site: $site.name,
+                            region: $site.region,
+                            role: $vlan.role,
+                            tenant: $vlan.tenant
+                          }
+            - name: Internal IPAM behind mTLS
               folding:
                 enabled: true
-              description: When the IPAM is behind your internal PKI.
+              description: |
+                When the IPAM is fronted by your internal PKI and requires a client
+                certificate. `tls.enable: true` activates the custom TLS path; `tls.verify`
+                must remain true (cannot be disabled).
               config: |
                 enrichment:
                   network_sources:
@@ -2190,29 +3435,85 @@ modules:
                           name: .label,
                           tenant: .tenant
                         }
+            - name: Source with the system proxy bypassed
+              folding:
+                enabled: true
+              description: |
+                When the agent host has an outbound HTTP proxy configured but the IPAM
+                lives on the internal network and should be reached directly.
+              config: |
+                enrichment:
+                  network_sources:
+                    internal_ipam:
+                      url: "https://ipam.internal/api/networks"
+                      proxy: false
+                      headers:
+                        Authorization: "Bearer ..."
+                      interval: 5m
+                      transform: |
+                        .[] | { prefix: .cidr, name: .label }
     troubleshooting:
       problems:
         list:
           - name: Endpoint requires pagination
             description: |
-              The plugin does not paginate. Either raise the page size to cover your inventory,
-              or wrap the endpoint with an internal aggregator that returns all results at one URL.
+              The plugin does not paginate. Either raise the page size in the URL to
+              cover your full inventory, or wrap the endpoint with a server-side
+              aggregator that returns all results at one URL. There is no built-in
+              `Link: rel=next` follower.
+          - name: POST endpoint requires a request body
+            description: |
+              The plugin's POST request is sent with no body. If your CMDB requires a
+              JSON query body to return prefixes, wrap it server-side with an endpoint
+              that accepts GET (or accepts POST with no body) and returns the full prefix
+              set.
           - name: TLS verification cannot be disabled
             description: |
-              `tls.skip_verify` and `tls.verify: false` are rejected by validation. Use
-              `tls.ca_file` to trust internal CAs.
+              `tls.verify: false` and `tls.skip_verify: true` are both rejected during
+              configuration validation. Use `tls.ca_file` to trust internal CAs. This is
+              deliberate -- network-identity rows feed enrichment used in security
+              investigations and capacity decisions, where silently accepting MITM-able
+              responses would corrupt every downstream analysis.
           - name: Empty result back-off
             description: |
-              An empty jq result is treated as a fetch failure. If your IPAM legitimately
-              returns no prefixes (quiet state), the source backs off as if it errored.
-              Workaround: have the upstream return at least one synthetic prefix.
+              An empty stream from the jq transform is treated as a fetch failure
+              (`decode_remote_records` returns "empty result"). The source then backs
+              off exponentially -- starting at `interval / 10` (floor 1s), doubling on
+              each consecutive failure, and capped at the regular `interval`. On the
+              next successful non-empty fetch the cadence resets to `interval`. If your
+              IPAM legitimately has no prefixes (a quiet state), have the upstream
+              return at least one synthetic prefix so the source does not back off.
+          - name: Refresh appears slower than configured
+            description: |
+              The fetch loop floors the configured `interval` at 60 seconds. Configuring
+              `interval: 5s` does not produce a 5-second loop -- it produces a 60-second
+              loop. Pick a value at or above 60s that matches how often your IPAM
+              actually changes (5-15 minutes is typical for a curated CMDB).
+          - name: Unknown config keys cause errors
+            description: |
+              The config struct uses `deny_unknown_fields`. Typos like `headres:` or a
+              non-existent option fail config load with a parse error rather than being
+              silently ignored. Check the `enrichment.network_sources.<name>` schema
+              listed under "Config options".
+          - name: JSON parse errors are silent in the dashboard
+            description: |
+              Decode failures (HTTP error, JSON parse error, jq runtime error, schema
+              mismatch on `prefix`) are logged but do not surface in the dashboard.
+              Watch the Netdata journal for warnings:
+              `journalctl --namespace netdata | grep network_sources`.
+          - name: Authorization in URL credentials does not work
+            description: |
+              URLs with embedded credentials (`https://user:pass@host`) are not specially
+              handled. Put the credential in `headers:` instead -- e.g.
+              `headers: { Authorization: "Basic dXNlcjpwYXNz" }` for HTTP basic-auth.
     alerts: []
     metrics:
       folding:
         title: Metrics
         enabled: false
       description: |
-        Tags flow records with whatever labels your jq transform emits. Verify on the
-        Network Flows tab via the `*_NET_*` columns.
+        Tags flow records with whatever labels your jq transform emits -- typically
+        `*_NET_NAME`, `*_NET_TENANT`, `*_NET_SITE`, `*_NET_ROLE`, `*_NET_REGION`. Verify
+        on the Network Flows tab via the `*_NET_*` columns.
       availability: []
       scopes: []
