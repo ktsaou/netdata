@@ -1641,3 +1641,41 @@ Files touched:
 - docs/network-flows/enrichment/ip-intelligence.md
 - docs/network-flows/enrichment/network-identity.md
 - docs/network-flows/enrichment/static-metadata.md
+
+#### F21 -- 2026-05-07 -- "Sources" -> "Flow Protocols"
+
+Repair: renamed the Flow Protocols sub-category in the
+integrations catalog and propagated to integration cards
+and any in-prose references.
+
+- `integrations/categories.yaml:71` -- the `flows.sources`
+  category's user-visible `name:` changed from "Sources" to
+  "Flow Protocols". Description left intact (it already
+  reads "Flow protocols Netdata receives directly from
+  routers, switches, and software exporters", which agrees
+  with the new label).
+- Three integration card frontmatter updates: `sflow.md`,
+  `ipfix.md`, `netflow.md` now declare
+  `learn_rel_path: "Network Flows/Flow Protocols"`.
+- `src/crates/netflow-plugin/metadata.yaml` -- removed three
+  broken self-referencing links pointing at
+  `https://learn.netdata.cloud/docs/network-flows/sources/{netflow,ipfix,sflow}`.
+  These URLs were broken before the rename (no
+  `docs/network-flows/sources/` directory exists in source)
+  and would stay broken under the new label too. Replaced
+  with the surviving "Network Flows Overview" anchor that
+  is real.
+- Re-ran `integrations/gen_integrations.py` and
+  `integrations/gen_docs_integrations.py` -- both exit
+  clean. The three regenerated `.md` cards no longer carry
+  the broken self-link.
+
+Grep `/sources/` and `/Sources/` after the sweep -- no
+remaining references inside flow integrations content.
+
+Files touched:
+- integrations/categories.yaml
+- src/crates/netflow-plugin/metadata.yaml
+- src/crates/netflow-plugin/integrations/sflow.md
+- src/crates/netflow-plugin/integrations/ipfix.md
+- src/crates/netflow-plugin/integrations/netflow.md

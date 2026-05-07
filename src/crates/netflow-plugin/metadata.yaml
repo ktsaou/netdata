@@ -36,8 +36,7 @@ modules:
           Enrichment adds GeoIP country/city/ASN, static metadata, and classifier tags.
 
           For full documentation including vendor configuration examples, sampling caveats, template
-          handling and verification steps, see [NetFlow](https://learn.netdata.cloud/docs/network-flows/sources/netflow)
-          and the [Network Flows Overview](https://learn.netdata.cloud/docs/network-flows/).
+          handling and verification steps, see the [Network Flows Overview](https://learn.netdata.cloud/docs/network-flows/).
         method_description: |
           The plugin listens on a configurable UDP socket for NetFlow datagrams.
           NetFlow v5 and v7 records are decoded directly. NetFlow v9 records are decoded using
@@ -194,8 +193,7 @@ modules:
           as NetFlow plus any additional IEs the exporter provides.
 
           For full documentation including vendor configuration examples (Cisco, Juniper, Arista,
-          ASA NSEL), biflow handling, sampling caveats, and verification steps, see
-          [IPFIX](https://learn.netdata.cloud/docs/network-flows/sources/ipfix) and the
+          ASA NSEL), biflow handling, sampling caveats, and verification steps, see the
           [Network Flows Overview](https://learn.netdata.cloud/docs/network-flows/).
         method_description: |
           The plugin listens on the same UDP socket as NetFlow. IPFIX messages are identified by
@@ -332,8 +330,7 @@ modules:
 
           For full documentation including how sFlow differs fundamentally from NetFlow (packet
           sampling vs aggregated flows), vendor configuration examples (Arista, Juniper, Aruba CX,
-          Ruckus, hsflowd), and the limits of sampled data, see
-          [sFlow](https://learn.netdata.cloud/docs/network-flows/sources/sflow) and the
+          Ruckus, hsflowd), and the limits of sampled data, see the
           [Network Flows Overview](https://learn.netdata.cloud/docs/network-flows/).
         method_description: |
           The plugin listens on the same UDP socket as NetFlow. sFlow datagrams are identified by

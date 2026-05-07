@@ -68,7 +68,7 @@
   description: "Network flow ingestion, enrichment, and routing-data sources for NetFlow / IPFIX / sFlow analysis"
   children:
     - id: flows.sources
-      name: Sources
+      name: Flow Protocols
       description: "Flow protocols Netdata receives directly from routers, switches, and software exporters"
       children: []
     - id: flows.ip-intelligence
