@@ -101,7 +101,7 @@ See [Sizing and Capacity Planning](/docs/network-flows/sizing-capacity.md) for h
 The dashboard sends one of two query modes to the plugin:
 
 - **`flows`** — the normal aggregation request. Returns top-N groups, sums of bytes and packets, optional facet counts.
-- **`autocomplete`** — for the filter ribbon. Returns up to 100 facet values matching a prefix. Cheap; runs against in-memory facet snapshots, not tier files.
+- **`autocomplete`** — for the filter ribbon. Returns up to 100 facet values matching the user's term. Matching policy is per-field: text fields use substring matching, IP and numeric fields use prefix. Term is capped at 256 bytes. Runs against in-memory facet snapshots and on-disk FST sidecars; never scans tier files. Resulting filters apply as exact equality, not substring.
 
 A `flows` query carries:
 

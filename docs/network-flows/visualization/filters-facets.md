@@ -35,11 +35,14 @@ This is a real limitation. Negative match is a known feature gap.
 
 Type into a facet field and the dashboard suggests existing values from your live data. The list:
 
-- Shows up to **100 matching values**, ranked by frequency (most-common-first prefix matches).
-- Runs against an **in-memory facet snapshot** maintained by the plugin — does NOT scan tier files. So autocomplete is fast even on busy collectors.
-- Updates as you type — you can see results narrow with each keystroke.
+- Shows up to **100 matching values**, sorted alphabetically.
+- Matching policy is per-field. Free-form text fields (`SRC_AS_NAME`, `EXPORTER_NAME`, `IN_IF_DESCRIPTION`, MAC addresses, AS paths, BGP communities, country/city/state names) match by **substring**, so typing `Akamai` finds `AS20940 Akamai International`. IPs and short numeric fields (ports, protocols, ASN numbers, interface speeds) match by **prefix**, so typing `10.0.` narrows to that range.
+- Runs against an **in-memory snapshot of the live journal** plus on-disk FST sidecars for promoted high-cardinality fields. Autocomplete never reads the raw flow tiers, and is fast even on busy collectors.
+- The autocomplete `term` is hard-capped at 256 bytes; longer requests are rejected.
 
-For high-cardinality fields, autocomplete is the only practical way to discover values. You won't be able to scroll a list of millions of IP addresses, but you can find the one you're looking for by typing a prefix.
+For high-cardinality fields, autocomplete is the only practical way to discover values. You can't scroll a list of millions of IP addresses, but you can find one by typing what you remember.
+
+**Autocomplete and regular filtering are different paths.** When you select a value from the dropdown, the resulting filter is **exact equality**, not substring. The dropdown only helps you discover values; the filter that gets applied is `key = value` (or `key in [values]`) and uses indexes — never a substring scan over flow data.
 
 ## Full-text search
 
