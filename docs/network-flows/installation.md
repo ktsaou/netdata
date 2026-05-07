@@ -112,12 +112,12 @@ A line for `netflow-plugin` confirms the listener is up.
 
 ## Open Netdata to confirm
 
-Open the Netdata UI in your browser. The **Network Flows** tab should appear in the top navigation. The plugin's operational charts also appear under the standard charts page in the `netflow` family.
+Open the Netdata UI in your browser. Click the **Live** tab in the top navigation; **Network Flows** appears in the Functions list on the right (see [Live tab](/docs/dashboards-and-charts/live-tab.md)). Selecting it opens the Sankey + Table view. The plugin's operational charts also appear under the standard charts page in the `netflow` family.
 
-If the tab doesn't appear, or appears empty:
+If Network Flows doesn't appear under Live, or the view is empty:
 
 - Check that the plugin process is running: `pgrep -fa netflow-plugin`.
-- Check Netdata Cloud SSO: the Network Flows function requires authenticated access to the agent's space.
+- Check Netdata Cloud SSO: Functions require authenticated access to the agent's space.
 - See [Troubleshooting](/docs/network-flows/troubleshooting.md).
 
 ## Configuring flow sources

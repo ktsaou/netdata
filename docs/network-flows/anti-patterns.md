@@ -12,7 +12,7 @@ Flow data is powerful but easy to misuse. The mistakes below are the ones that c
 
 ## 1. Reading aggregate volume without filtering
 
-**The mistake.** You open the Network Flows tab, see a total bandwidth number, and assume it represents your real traffic.
+**The mistake.** You open Network Flows, see a total bandwidth number, and assume it represents your real traffic.
 
 **Why it's wrong.** Routers normally export both ingress and egress flow records on every monitored interface. A single packet entering interface A and leaving interface B produces two records — one tagged ingress on A, one tagged egress on B. With one router and the standard configuration, summing all flow records gives you roughly **2× the actual traffic**. Add a second router on the same path and you see 4×.
 

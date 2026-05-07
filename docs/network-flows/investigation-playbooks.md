@@ -8,7 +8,7 @@ endmeta-->
 
 # Investigation playbooks
 
-Step-by-step recipes for common questions, all using the Netdata Network Flows tab. Each playbook fits in a 5-15 minute investigation window.
+Step-by-step recipes for common questions, all using the Netdata Network Flows view (open the **Live** tab and select **Network Flows**). Each playbook fits in a 5-15 minute investigation window.
 
 ## Playbook 1 — "The link is saturated, who's responsible?"
 
@@ -18,7 +18,7 @@ Step-by-step recipes for common questions, all using the Netdata Network Flows t
 
 **Steps.**
 
-1. **Open the Network Flows tab** with the default view (Sankey + Table). Set the time range to **the last 15 minutes** — recent enough to be live, wide enough to smooth bursts.
+1. **Open Network Flows** with the default view (Sankey + Table). Set the time range to **the last 15 minutes** — recent enough to be live, wide enough to smooth bursts.
 
 2. **Filter to the saturated interface.** In the filter ribbon, set:
    - `Exporter Name` = the router with the saturated link
@@ -60,7 +60,7 @@ Step-by-step recipes for common questions, all using the Netdata Network Flows t
 
 **Steps.**
 
-1. **Open the Network Flows tab** with **the last 24 hours** as the time range.
+1. **Open Network Flows** with **the last 24 hours** as the time range.
 
 2. **Filter by the IP.** In the filter ribbon:
    - For inbound investigation: `Destination IP` = the IP
@@ -106,7 +106,7 @@ Step-by-step recipes for common questions, all using the Netdata Network Flows t
 
 **Steps.**
 
-1. **Open the Network Flows tab** with **the last 30 days** as the time range. (Adjust based on tier-1/5/60 retention. If your retention is shorter, use whatever you have.)
+1. **Open Network Flows** with **the last 30 days** as the time range. (Adjust based on tier-1/5/60 retention. If your retention is shorter, use whatever you have.)
 
 2. **Filter to the WAN interface.** Set `Exporter Name` and `Output Interface Name` (or input — pick one direction). This removes the doubling effect.
 
@@ -138,7 +138,7 @@ Step-by-step recipes for common questions, all using the Netdata Network Flows t
 
 **Steps.**
 
-1. **Open the Network Flows tab** with the time range covering 24 hours before the alert through now.
+1. **Open Network Flows** with the time range covering 24 hours before the alert through now.
 
 2. **Filter by the external IP.** In the filter ribbon: `Destination IP` = the external IP.
 

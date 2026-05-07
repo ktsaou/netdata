@@ -8,7 +8,7 @@ endmeta-->
 
 # Sankey and Table
 
-The Network Flows tab opens with two views stacked: a Sankey diagram on top, a sortable table beneath. Both render the same data, the same top-N aggregation, the same field selection. Selecting fields, filtering, and sorting affects both at once.
+The Network Flows view (open the **Live** tab in the top navigation, then select **Network Flows**) opens with two panels stacked: a Sankey diagram on top, a sortable table beneath. Both render the same data, the same top-N aggregation, the same field selection. Selecting fields, filtering, and sorting affects both at once.
 
 This is your default view. Most investigative workflows start here.
 

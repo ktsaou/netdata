@@ -16,7 +16,7 @@ The plugin won't come up at all, or starts and immediately exits.
 
 **Symptoms:**
 - Netdata reports `netflow-plugin` as not running, or restart-looping.
-- Nothing in the Network Flows tab.
+- Nothing in the Network Flows view.
 - An error in `journalctl -u netdata`.
 
 **Likely causes:**
@@ -44,7 +44,7 @@ sudo systemctl restart netdata
 
 ## The plugin starts, but no flows appear
 
-The plugin is running, but the Network Flows tab is empty.
+The plugin is running, but the Network Flows view is empty.
 
 **First check:** is anything reaching the plugin?
 

@@ -1301,3 +1301,38 @@ phrasing. Grep clean.
 Files touched:
 - docs/network-flows/README.md (line 105)
 - docs/network-flows/visualization/maps-globe.md (lines ~85-91)
+
+#### F7 -- 2026-05-07 -- Network Flows is a Function under the Live tab
+
+Verified terminology against
+`docs/dashboards-and-charts/live-tab.md:3-69`: Netdata's
+official UI vocabulary calls it the **Live tab** in the top
+navigation; it lists Functions; "Network Flows" is one of
+those Functions. There is no top-nav "Network Flows" tab.
+
+Repair scope: every doc reference. Adopted convention:
+
+- Verb form: "Open Network Flows" (drop "tab")
+- Noun reference to the workspace: "the Network Flows
+  view"
+- Setup / installation context: "Click the **Live** tab in
+  the top navigation; **Network Flows** appears in the
+  Functions list" -- mirrors the official Live-tab doc.
+
+Files touched:
+- docs/network-flows/installation.md (lines 113-121) --
+  the original bad sentence and follow-up.
+- docs/network-flows/troubleshooting.md (lines 19, 47).
+- docs/network-flows/investigation-playbooks.md (lines 11,
+  21, 63, 109, 141) -- five "Open the Network Flows tab"
+  occurrences replaced with "Open Network Flows"; lead
+  paragraph at line 11 names the Live tab.
+- docs/network-flows/anti-patterns.md (line 15).
+- docs/network-flows/visualization/dashboard-cards.md
+  (lines 11, 13, 87, 97 -- four occurrences).
+- docs/network-flows/visualization/summary-sankey.md
+  (line 11).
+
+Grep for "Network Flows tab", "Network Flows menu", "top
+navigation" run after the sweep -- only the corrected
+phrasings remain.

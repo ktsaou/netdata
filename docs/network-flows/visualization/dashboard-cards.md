@@ -8,9 +8,9 @@ endmeta-->
 
 # Plugin Health Charts
 
-The netflow plugin publishes its own operational charts under the `netdata.netflow.*` chart context. These appear on the standard Netdata charts page (alongside system metrics like CPU and memory), **not** inside the Network Flows tab. They are how you monitor the plugin itself: is it receiving data, are templates flowing, is memory growing, is disk being written.
+The netflow plugin publishes its own operational charts under the `netdata.netflow.*` chart context. These appear on the standard Netdata charts page (alongside system metrics like CPU and memory), **not** inside the Network Flows view. They are how you monitor the plugin itself: is it receiving data, are templates flowing, is memory growing, is disk being written.
 
-This is also where you look first when something seems wrong — long before opening the Network Flows tab.
+This is also where you look first when something seems wrong — long before opening the Network Flows view.
 
 All charts update every 1 second.
 
@@ -84,7 +84,7 @@ If you need any of these, mention it in an issue — they're not hard to add but
 
 | Symptom | Look at | What it means |
 |---|---|---|
-| Network Flows tab is empty | `netflow.input_packets` `udp_received` | Zero = no datagrams arriving (firewall? wrong port?). Non-zero with `parsed_packets` zero = wrong protocol or all datagrams malformed. |
+| Network Flows view is empty | `netflow.input_packets` `udp_received` | Zero = no datagrams arriving (firewall? wrong port?). Non-zero with `parsed_packets` zero = wrong protocol or all datagrams malformed. |
 | Sudden drop in flows | per-protocol dimensions | Identifies which protocol stopped (helps narrow whether it's a router, a router class, or all routers). |
 | Templates failing | `template_errors` rising | Exporter not sending templates often enough; collector lost cache; cache mismatch after firmware update. |
 | Cache growing without bound | `decoder_scopes` rising over hours | Exporter churn or unstable template IDs. Investigate per-router behaviour. |
@@ -94,7 +94,7 @@ If you need any of these, mention it in an issue — they're not hard to add but
 
 ## Where these are NOT shown
 
-These charts are **not** in the Network Flows tab. Look for them on the standard Netdata charts page, in the family `netflow`. The Network Flows tab itself shows traffic data, not plugin health.
+These charts are **not** in the Network Flows view. Look for them on the standard Netdata charts page, in the family `netflow`. The Network Flows view itself shows traffic data, not plugin health.
 
 ## What's next
 
