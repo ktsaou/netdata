@@ -1766,3 +1766,33 @@ invented claim and will be addressed under F19.
 Files touched:
 - docs/network-flows/anti-patterns.md (removed the
   section header and body)
+
+#### F17 -- 2026-05-07 -- remove "Alerting on absolute volume thresholds"
+
+User: "Netdata does not support alerting of flows yet.
+Remove this section."
+
+Repair: removed the entire "Alerting on absolute volume
+thresholds" section from `docs/network-flows/anti-patterns.md`.
+The section's own footnote already acknowledged this:
+"Netdata's alerting on flow data is in development; for
+now this pattern lives in your monitoring practice, not
+in the plugin." So the section was advice for users to
+apply outside Netdata -- not a Netdata anti-pattern.
+
+Renumbering: with F15, F16, and F17 all deleting sections,
+the anti-patterns.md sections get renumbered in this same
+commit. Final numbering: 1 (doubled aggregate) ... 9
+(comparing flow counts across protocols). Removed three
+old rows from the summary table (Ignored sampling, GeoIP
+for internal IPs, Absolute thresholds). The cross-link
+from time-series.md at line 96 ("Why time-shifted
+comparison beats absolute thresholds") was rewritten to
+point at the still-relevant general anti-patterns set.
+
+Files touched:
+- docs/network-flows/anti-patterns.md (removed section,
+  renumbered remaining sections, dropped 3 summary-table
+  rows)
+- docs/network-flows/visualization/time-series.md
+  (cross-link rewording)

@@ -20,19 +20,7 @@ Flow data is powerful but easy to misuse. The mistakes below are the ones that c
 
 **How to avoid it.** Always filter by one exporter and one interface (Input Interface OR Output Interface, pick one) when reading absolute volume numbers. Each packet then appears in exactly one record on that interface. To validate: compare to SNMP interface counters on the same interface — values should be close.
 
-## 2. Alerting on absolute volume thresholds
-
-**The mistake.** You configure an alert: "page me if any IP sends more than 10 GB in an hour."
-
-**Why it's wrong.** That threshold is a guess. Your backup server legitimately sends 500 GB/hour. An attacker exfiltrating 200 MB/hour is invisible.
-
-**What it costs.** The alert is either constant noise (false positives) or completely silent (false negatives). Either way, alerts get ignored.
-
-**How to avoid it.** Establish baselines first. Compare current traffic to the same time period in previous weeks (Tuesday 10 AM vs the average of the last four Tuesdays at 10 AM). Alert on deviation from the baseline, not on absolute values.
-
-(Netdata's alerting on flow data is in development; for now this pattern lives in your monitoring practice, not in the plugin.)
-
-## 5. Collecting flows but never looking at them
+## 2. Collecting flows but never looking at them
 
 **The mistake.** Flow export is enabled on every router. Storage fills up. Nobody opens the dashboard between incidents.
 
@@ -42,7 +30,7 @@ Flow data is powerful but easy to misuse. The mistakes below are the ones that c
 
 **How to avoid it.** Schedule a weekly 15-minute review. Document what "normal" looks like — top 10 talkers, traffic curve shape, protocol distribution, geographic distribution. Add anything new that appears in the top-10 to a watchlist for investigation. Use [Investigation Playbooks](/docs/network-flows/investigation-playbooks.md) for the recurring questions.
 
-## 6. Confusing flows with sessions
+## 3. Confusing flows with sessions
 
 **The mistake.** You see 50 000 flow records in an hour and report it as "we had 50 000 user sessions".
 
@@ -52,7 +40,7 @@ Flow data is powerful but easy to misuse. The mistakes below are the ones that c
 
 **How to avoid it.** Aggregate by source IP and time window for a session-like view. Use ports and protocols to classify, not to count transactions. If you need real session data, use application logs or APM, not flow records.
 
-## 7. NAT blindness
+## 4. NAT blindness
 
 **The mistake.** You place the collector outside a NAT gateway because mirroring traffic there is easier.
 
@@ -62,7 +50,7 @@ Flow data is powerful but easy to misuse. The mistakes below are the ones that c
 
 **How to avoid it.** Collect inside each NAT boundary, or correlate flow data with NAT translation logs (`iptables NFLOG`, vendor NAT logging) to map external 5-tuples back to internal hosts.
 
-## 8. Geographic firewall of shame
+## 5. Geographic firewall of shame
 
 **The mistake.** You configure an alert: "page security if traffic goes to any country except the home country."
 
@@ -72,7 +60,7 @@ Flow data is powerful but easy to misuse. The mistakes below are the ones that c
 
 **How to avoid it.** Whitelist known cloud and CDN ASNs. Use ASN as the primary signal and country as secondary corroboration. If you must alert on country, alert only on countries you have no business relationship with — and review the whitelist quarterly.
 
-## 9. Treating flow duration as latency
+## 6. Treating flow duration as latency
 
 **The mistake.** You divide flow bytes by flow duration and present that as "speed", or use duration as a proxy for round-trip time.
 
@@ -82,7 +70,7 @@ Flow data is powerful but easy to misuse. The mistakes below are the ones that c
 
 **How to avoid it.** Use SNMP for interface utilisation, ICMP probes for round-trip time, APM tools for application performance. Flow data answers "how much" and "between whom", never "how fast".
 
-## 10. Trying to detect microbursts
+## 7. Trying to detect microbursts
 
 **The mistake.** Users complain about momentary slowness. You look in flow data for the burst.
 
@@ -92,7 +80,7 @@ Flow data is powerful but easy to misuse. The mistakes below are the ones that c
 
 **How to avoid it.** For microburst detection use packet capture, switch microburst counters, or hardware-assisted telemetry. Flow data is for sustained patterns, not millisecond events.
 
-## 11. Reasoning from raw byte counts when sampling is on
+## 8. Reasoning from raw byte counts when sampling is on
 
 **The mistake.** You see `RAW_BYTES = 5000` for a flow and assume 5000 bytes was the actual traffic.
 
@@ -100,7 +88,7 @@ Flow data is powerful but easy to misuse. The mistakes below are the ones that c
 
 **How to avoid it.** Use `BYTES` (auto-scaled per-flow) for normal analysis. Use `RAW_BYTES` only when you specifically need the exporter's literal pre-scaling counts — for example, when comparing the per-flow record to the exporter's own logs.
 
-## 12. Comparing flow counts across protocols
+## 9. Comparing flow counts across protocols
 
 **The mistake.** You report "Arista switches see far more flows than Cisco routers" based on flow counts.
 
@@ -113,9 +101,6 @@ Flow data is powerful but easy to misuse. The mistakes below are the ones that c
 | Mistake | One-line fix |
 |---|---|
 | Doubled aggregate | Filter by one exporter and one interface (Input or Output, pick one) |
-| Ignored sampling | Document and uniform-rate; cross-check SNMP |
-| GeoIP for internal IPs | Configure internal CIDRs in `enrichment.networks` |
-| Absolute thresholds | Baseline first, alert on deviation |
 | Collect-and-ignore | Weekly 15-minute review with documented baselines |
 | Flows ≠ sessions | Aggregate by IP and time window |
 | NAT blindness | Collect inside the NAT boundary |

@@ -93,4 +93,4 @@ The default group-by is `Source ASN → Protocol → Destination ASN`, same as S
 - [Sankey and Table](/docs/network-flows/visualization/summary-sankey.md) — The default view; same aggregation, point-in-time.
 - [Retention and Querying](/docs/network-flows/retention-querying.md) — How tiers map to time ranges.
 - [Filters and Facets](/docs/network-flows/visualization/filters-facets.md) — Narrowing the data.
-- [Anti-patterns](/docs/network-flows/anti-patterns.md) — Why time-shifted comparison beats absolute thresholds.
+- [Anti-patterns](/docs/network-flows/anti-patterns.md) — Common misuses to avoid when reading time-series volume.
