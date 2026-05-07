@@ -1,6 +1,8 @@
 use super::*;
 use crate::memory_allocator::trim_allocator_if_worthwhile;
 
+const REBUILD_SCAN_QUEUE_CAPACITY: usize = 1024;
+
 impl IngestService {
     /// Query the most recent `_SOURCE_REALTIME_TIMESTAMP` from a tier's journal
     /// files. Returns `None` when the tier directory is empty or unreadable.
@@ -121,60 +123,81 @@ impl IngestService {
                     .collect::<Vec<_>>();
                 let rebuild_started = Instant::now();
                 let rebuild_timeout = Duration::from_secs(REBUILD_TIMEOUT_SECONDS);
-                let mut scanned_entries = 0_u64;
+                let (rebuild_tx, mut rebuild_rx) =
+                    tokio::sync::mpsc::channel::<(u64, crate::flow::FlowFields)>(
+                        REBUILD_SCAN_QUEUE_CAPACITY,
+                    );
+                let scan_handle = tokio::task::spawn_blocking(move || -> Result<()> {
+                    let mut scanned_entries = 0_u64;
 
-                scan_journal_files_forward(
-                    &file_paths,
-                    Some(after_usec),
-                    Some(before_usec),
-                    None,
-                    0,
-                    0,
-                    &[],
-                    "raw tier rebuild",
-                    |_file_path, journal, entry_timestamp_usec, data_offsets, decompress_buf| {
-                        scanned_entries = scanned_entries.saturating_add(1);
-                        if scanned_entries.is_multiple_of(1024)
-                            && rebuild_started.elapsed() >= rebuild_timeout
-                        {
-                            return Err(anyhow!(
-                                "timed out scanning raw flows for tier rebuild after {}s",
-                                REBUILD_TIMEOUT_SECONDS
-                            ));
-                        }
+                    scan_journal_files_forward(
+                        &file_paths,
+                        Some(after_usec),
+                        Some(before_usec),
+                        None,
+                        0,
+                        0,
+                        &[],
+                        "raw tier rebuild",
+                        |_file_path, journal, entry_timestamp_usec, data_offsets, decompress_buf| {
+                            scanned_entries = scanned_entries.saturating_add(1);
+                            if rebuild_started.elapsed() >= rebuild_timeout {
+                                return Err(anyhow!(
+                                    "timed out scanning raw flows for tier rebuild after {}s (scanned {} entries)",
+                                    REBUILD_TIMEOUT_SECONDS,
+                                    scanned_entries
+                                ));
+                            }
 
-                        let mut fields = crate::flow::FlowFields::new();
-                        visit_journal_payloads(
-                            journal,
-                            _file_path,
-                            data_offsets,
-                            decompress_buf,
-                            |payload| {
-                                let Some(eq_pos) = payload.iter().position(|&b| b == b'=') else {
-                                    return Ok(());
-                                };
-                                let Ok(name) = std::str::from_utf8(&payload[..eq_pos]) else {
-                                    return Ok(());
-                                };
-                                let Some(interned) = crate::decoder::intern_field_name(name) else {
-                                    return Ok(());
-                                };
-                                let value =
-                                    String::from_utf8_lossy(&payload[eq_pos + 1..]).into_owned();
-                                fields.insert(interned, value);
-                                Ok(())
-                            },
-                        )?;
+                            let mut fields = crate::flow::FlowFields::new();
+                            visit_journal_payloads(
+                                journal,
+                                _file_path,
+                                data_offsets,
+                                decompress_buf,
+                                |payload| {
+                                    let Some(eq_pos) = payload.iter().position(|&b| b == b'=') else {
+                                        return Ok(());
+                                    };
+                                    let Ok(name) = std::str::from_utf8(&payload[..eq_pos]) else {
+                                        return Ok(());
+                                    };
+                                    let Some(interned) = crate::decoder::intern_field_name(name) else {
+                                        return Ok(());
+                                    };
+                                    let value =
+                                        String::from_utf8_lossy(&payload[eq_pos + 1..]).into_owned();
+                                    fields.insert(interned, value);
+                                    Ok(())
+                                },
+                            )?;
 
-                        self.observe_tiers_with_cutoffs(
-                            entry_timestamp_usec,
-                            &fields,
-                            &tier_cutoffs,
-                        );
-                        Ok(true)
-                    },
-                )
-                .context("failed to scan raw flows for tier rebuild")?;
+                            if rebuild_started.elapsed() >= rebuild_timeout {
+                                return Err(anyhow!(
+                                    "timed out scanning raw flows for tier rebuild after {}s (scanned {} entries)",
+                                    REBUILD_TIMEOUT_SECONDS,
+                                    scanned_entries
+                                ));
+                            }
+
+                            rebuild_tx
+                                .blocking_send((entry_timestamp_usec, fields))
+                                .map_err(|_| anyhow!("raw tier rebuild receiver dropped"))?;
+                            Ok(true)
+                        },
+                    )
+                    .context("failed to scan raw flows for tier rebuild")?;
+
+                    Ok(())
+                });
+
+                while let Some((entry_timestamp_usec, fields)) = rebuild_rx.recv().await {
+                    self.observe_tiers_with_cutoffs(entry_timestamp_usec, &fields, &tier_cutoffs);
+                }
+
+                scan_handle
+                    .await
+                    .context("raw tier rebuild scan task join failed")??;
 
                 Ok(())
             }

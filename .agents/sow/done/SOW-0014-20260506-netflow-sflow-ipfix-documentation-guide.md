@@ -2554,6 +2554,13 @@ documentation PRs can be inspected in a browser before release.
   `PluginConfig::parse()` outside Netdata, and commit `f00390e2f5` removed the
   legacy top-level CLI flags while keeping `JournalConfig.tiers` skipped for
   Clap.
+- After commit `6f5805979d` was pushed and 11 threads were replied to and
+  resolved, the PR review watcher detected 2 new open automated review threads
+  on `src/crates/netflow-plugin/src/ingest/rebuild.rs`.
+- The new rebuild findings were valid: `rebuild_materialized_from_raw()` called
+  `scan_journal_files_forward()` directly in the async startup path, while query
+  paths already use `tokio::task::spawn_blocking()` for blocking journal scans;
+  the rebuild timeout was checked only every 1024 scanned entries.
 
 ### Open repair items
 
@@ -2622,6 +2629,10 @@ documentation PRs can be inspected in a browser before release.
   global-retention schema.
 - R8.31: Clarify the visualization overview panel count so the text matches the
   listed UI surfaces.
+- R8.32: Move receive-time raw rebuild journal scanning and decompression off
+  the async startup task so Tokio runtime workers are not blocked.
+- R8.33: Enforce raw rebuild timeout checks for every scanned entry rather than
+  only every 1024 entries.
 
 ### Validation plan
 
@@ -2720,6 +2731,11 @@ documentation PRs can be inspected in a browser before release.
   remains per-tier-only.
 - R8.31: Reworded the visualization overview to list five panel types:
   Sankey, Table, Time-Series, maps, and the 3D globe.
+- R8.32: Moved the blocking raw rebuild journal scan into
+  `tokio::task::spawn_blocking()` and streamed parsed `FlowFields` back to the
+  async ingest task over a bounded channel before observing materialized tiers.
+- R8.33: Changed the rebuild scan timeout guard to check elapsed time on every
+  entry, before and after payload parsing.
 
 ### Code-only review handling
 
@@ -2823,6 +2839,22 @@ Repairs:
   unused `bytesize::ByteSize` import in `startup_memory_tests.rs`.
 - The post-fix wording sweep found no remaining instances of the exact stale
   phrases called out by the second review pass.
+- Third review-iteration fetch after commit `6f5805979d` returned 2 new open
+  automated threads, both in `src/crates/netflow-plugin/src/ingest/rebuild.rs`.
+- `cargo test --manifest-path src/crates/netflow-plugin/Cargo.toml e2e_timestamp_source_first_switched_is_persisted_as_source_timestamp -- --nocapture`
+  passed: 1 test passed, 0 failed. This test exercises the raw rebuild path
+  after deleting materialized tier directories. The only warning was the same
+  pre-existing unused `bytesize::ByteSize` import in `startup_memory_tests.rs`.
+- `cargo test --manifest-path src/crates/netflow-plugin/Cargo.toml plugin_config::tests:: -- --nocapture`
+  passed after the rebuild repair: 27 tests passed, 0 failed. The only warning
+  was the same pre-existing unused `bytesize::ByteSize` import.
+- `cargo fmt --manifest-path src/crates/netflow-plugin/Cargo.toml --check`
+  passed after the rebuild repair.
+- `cargo test --manifest-path src/crates/netflow-plugin/Cargo.toml -- --nocapture`
+  passed after the rebuild repair: 428 tests passed, 18 ignored, and the
+  vendored gRPC proto test passed. The visible lock-poison panic is expected
+  from a recovery test that still passed. The only compiler warning was the
+  same pre-existing unused `bytesize::ByteSize` import.
 
 ### Artifact maintenance gate
 
