@@ -118,4 +118,3 @@ Pick the page that matches your situation:
 - **You have data, you want to find a bandwidth hog or trace an IP** — [Investigation Playbooks](/docs/network-flows/investigation-playbooks.md).
 - **You want to make sure your data is trustworthy** — [Validation and Data Quality](/docs/network-flows/validation.md).
 - **You want to avoid the most common mistakes** — [Anti-patterns](/docs/network-flows/anti-patterns.md).
-- **You want to understand a specific feature in depth** — use the sidebar on the left.
