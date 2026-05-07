@@ -3517,3 +3517,1140 @@ modules:
         on the Network Flows tab via the `*_NET_*` columns.
       availability: []
       scopes: []
+  - meta:
+      plugin_name: netflow-plugin
+      module_name: static-metadata
+      monitored_instance:
+        name: Static Metadata
+        link: https://learn.netdata.cloud/docs/network-flows/enrichment
+        categories:
+          - flows.enrichment-methods
+        icon_filename: network-wired.svg
+      keywords:
+        - static metadata
+        - exporters
+        - interfaces
+        - networks
+        - cidr
+        - sampling rate override
+        - asn override
+        - country override
+        - tenant
+        - site
+        - region
+        - role
+      related_resources:
+        integrations:
+          list:
+            - plugin_name: netflow-plugin
+              module_name: generic-ipam
+            - plugin_name: netflow-plugin
+              module_name: netbox
+            - plugin_name: netflow-plugin
+              module_name: dbip
+      info_provided_to_referring_integrations:
+        description: ""
+    overview:
+      data_collection:
+        metrics_description: |
+          The catch-all integration for **operator-provided labels**: a YAML-defined
+          enrichment source that lives entirely in `netflow.yaml`. Use it when there is
+          no IPAM, no CMDB, and no MMDB to query -- you simply know your own networks,
+          your own routers, and what the interfaces on those routers do, and you want
+          those labels visible on the Network Flows tab.
+
+          Three independent surfaces are configured under this card, each populating a
+          different set of flow-record fields:
+
+          - `enrichment.metadata_static.exporters.<ip-or-cidr>` -- per-exporter labels
+            (matched against the source IP of the UDP datagram) and per-interface labels
+            (matched against the ifIndex from the flow record). Schema in
+            `src/crates/netflow-plugin/src/plugin_config/types/enrichment/metadata.rs:5-52`.
+          - `enrichment.networks.<cidr>` -- labels for arbitrary CIDR blocks (your own
+            corp ranges, customer ranges, public blocks you operate). Matched against the
+            flow's source and destination IPs. Schema in
+            `src/crates/netflow-plugin/src/plugin_config/types/enrichment/networks.rs:5-35`.
+          - `enrichment.override_sampling_rate.<cidr>` -- per-prefix sampling-rate
+            substitution for exporters that do not communicate their rate (e.g. NetFlow
+            v7, which has no sampling field, or a v9 exporter that never sends a Sampling
+            Options Template). Schema in
+            `src/crates/netflow-plugin/src/plugin_config/types/enrichment/sampling.rs:3-8`.
+
+          Fields populated:
+
+          - From `metadata_static.exporters` (per-exporter, lookup at
+            `src/crates/netflow-plugin/src/enrichment/data/static_data.rs:24-35`,
+            applied at `src/crates/netflow-plugin/src/enrichment/apply/metadata.rs:41-46`):
+            `EXPORTER_NAME`, `EXPORTER_GROUP`, `EXPORTER_ROLE`, `EXPORTER_SITE`,
+            `EXPORTER_REGION`, `EXPORTER_TENANT`.
+          - From `metadata_static.exporters.if_indexes` (per-interface, applied at
+            `src/crates/netflow-plugin/src/enrichment/apply/metadata.rs:48-53`):
+            `IN_IF_NAME` / `OUT_IF_NAME`, `IN_IF_DESCRIPTION` / `OUT_IF_DESCRIPTION`,
+            `IN_IF_SPEED` / `OUT_IF_SPEED` (in **bits per second**), `IN_IF_PROVIDER` /
+            `OUT_IF_PROVIDER`, `IN_IF_CONNECTIVITY` / `OUT_IF_CONNECTIVITY`,
+            `IN_IF_BOUNDARY` / `OUT_IF_BOUNDARY` (`1` = external, `2` = internal,
+            `0`/omitted = removed from output).
+          - From `enrichment.networks` (per-CIDR, written at
+            `src/crates/netflow-plugin/src/enrichment/data/network/write.rs:93-125`):
+            `SRC_NET_NAME` / `DST_NET_NAME`, `SRC_NET_ROLE` / `DST_NET_ROLE`,
+            `SRC_NET_SITE` / `DST_NET_SITE`, `SRC_NET_REGION` / `DST_NET_REGION`,
+            `SRC_NET_TENANT` / `DST_NET_TENANT`, plus overrides for the GeoIP-derived
+            `SRC_COUNTRY` / `DST_COUNTRY`, `SRC_GEO_STATE` / `DST_GEO_STATE`,
+            `SRC_GEO_CITY` / `DST_GEO_CITY`, `SRC_GEO_LATITUDE` / `DST_GEO_LATITUDE`,
+            `SRC_GEO_LONGITUDE` / `DST_GEO_LONGITUDE`. Setting `asn:` on a `networks`
+            entry overrides the AS *number* via the same merge path; the AS *name*
+            still comes from the ASN database (see "Composition with dynamic sources"
+            below).
+          - From `override_sampling_rate` (longest-prefix match against the exporter IP,
+            applied at `src/crates/netflow-plugin/src/enrichment/apply/metadata.rs:78-97`):
+            `SAMPLING_RATE` is set unconditionally when an override prefix matches. This
+            is different from `default_sampling_rate`, which only applies when the flow
+            does not already carry a rate.
+
+          For the cross-cutting Enrichment concept (provider chains, merge order rules,
+          how static composes with dynamic sources, the static-blocks-classifiers
+          interaction, and shared failure modes), see
+          [Enrichment](https://learn.netdata.cloud/docs/network-flows/enrichment).
+        method_description: |
+          Edit `netflow.yaml`, restart the plugin, and the YAML-defined data is loaded
+          into the same in-memory tries the GeoIP, IPAM, and BGP enrichment paths read
+          from. There is no network access, no file watching, and no hot reload --
+          changes take effect on the next plugin startup. The exporter trie is built at
+          `src/crates/netflow-plugin/src/enrichment/data/static_data.rs:9-18`; the
+          `networks` trie at
+          `src/crates/netflow-plugin/src/enrichment/data/network/attrs.rs:99-117`.
+      supported_platforms:
+        include:
+          - Linux
+        exclude: []
+      multi_instance: false
+      additional_permissions:
+        description: ""
+      default_behavior:
+        auto_detection:
+          description: "Disabled by default. Add entries under `enrichment.metadata_static`, `enrichment.networks`, and / or `enrichment.override_sampling_rate` to populate it."
+        limits:
+          description: ""
+        performance_impact:
+          description: ""
+    setup:
+      prerequisites:
+        list:
+          - title: An understanding of your own topology
+            description: |
+              You need to know which IP addresses your routers / switches / firewalls
+              export from, the integer ifIndex values they use for each interface, and
+              the CIDR ranges that belong to each of your sites / tenants / roles. None
+              of this is auto-discovered -- this card is the "I will tell you" path.
+              For sources that auto-discover the same data, see Generic IPAM, NetBox,
+              and the cloud IP-range cards.
+          - title: Persistent ifIndex values
+            description: |
+              `if_indexes` keys are the integer ifIndex the router puts in the flow
+              record. Some platforms reassign ifIndex on line-card reseat or stack
+              rebuild. After hardware changes, audit the labels -- a stale ifIndex
+              entry silently no longer applies (the lookup at
+              `src/crates/netflow-plugin/src/enrichment/data/static_data.rs:76-84`
+              falls back to the `default` interface block, or to nothing when
+              `skip_missing_interfaces: true` is set).
+      configuration:
+        file:
+          name: netflow.yaml
+        options:
+          description: |
+            All keys live under `enrichment:` in `netflow.yaml`. The schema enforces
+            `deny_unknown_fields` at every level
+            (`src/crates/netflow-plugin/src/plugin_config/types/enrichment/metadata.rs:4`,
+            `networks.rs:4`, `root.rs:4`), so typos fail config load with a parse error.
+          folding:
+            title: Config options
+            enabled: true
+          list:
+            - name: enrichment.metadata_static.exporters
+              description: |
+                Map keyed by exporter IP or CIDR. Longest-prefix match wins. A `/32`
+                key and a bare IP are equivalent. Each entry holds exporter-level
+                labels (`name`, `group`, `role`, `site`, `region`, `tenant`), an
+                optional `default` interface block, an `if_indexes` map keyed by
+                integer ifIndex, and `skip_missing_interfaces`.
+              default_value: "{}"
+              required: false
+            - name: enrichment.metadata_static.exporters.<key>.if_indexes
+              description: |
+                Map keyed by integer ifIndex (the value the router puts in the flow
+                record). Each entry holds `name`, `description`, `speed` (bits per
+                second), `provider`, `connectivity`, and `boundary`.
+              default_value: "{}"
+              required: false
+            - name: enrichment.metadata_static.exporters.<key>.default
+              description: |
+                Interface block applied to flow records whose ifIndex is not present
+                in `if_indexes`. Same shape as an `if_indexes` entry. Ignored when
+                `skip_missing_interfaces: true` is set.
+              default_value: "{}"
+              required: false
+            - name: enrichment.metadata_static.exporters.<key>.skip_missing_interfaces
+              description: |
+                When `true`, flow records whose ifIndex is not in `if_indexes` get no
+                interface labels at all (not even from `default`). Useful when you only
+                care about a known set of WAN interfaces and want unknown ones to stay
+                blank instead of inheriting a placeholder.
+              default_value: "false"
+              required: false
+            - name: enrichment.metadata_static.exporters.<key>.if_indexes.<n>.boundary
+              description: |
+                Interface boundary marker. Accepts the integers `0` (undefined),
+                `1` (external -- faces the outside world: Internet, peer, transit),
+                `2` (internal -- faces your own infrastructure), or the case-insensitive
+                strings `"undefined"`, `"external"`, `"internal"`
+                (`src/crates/netflow-plugin/src/plugin_config/defaults.rs:152-178`).
+                Any other value fails config load. Filtering for `IN_IF_BOUNDARY=1`
+                cleanly gives you "traffic that arrived from outside".
+              default_value: "0"
+              required: false
+            - name: enrichment.metadata_static.exporters.<key>.if_indexes.<n>.speed
+              description: |
+                Interface speed in **bits per second**. A 1 Gbps interface is
+                `1000000000`, not `1000` and not `1000000`. Operators thinking in
+                megabits get the value wrong by a factor of 1000 to 1000000.
+                A `0` value means "not set" and removes the field from the output
+                (`src/crates/netflow-plugin/src/enrichment/apply/write.rs:116-120,178-181`).
+              default_value: "0"
+              required: false
+            - name: enrichment.networks
+              description: |
+                Map keyed by CIDR. Longest-prefix match contributes the most-specific
+                fields; less-specific containing prefixes contribute their non-empty
+                fields too (merge logic at
+                `src/crates/netflow-plugin/src/enrichment/data/network/attrs.rs:55-96`,
+                walked ascending at
+                `src/crates/netflow-plugin/src/enrichment/apply/resolve.rs:36-66` --
+                same path used by `network_sources`). Each value is either a string
+                (shorthand for `name:`) or a map with `name`, `role`, `site`, `region`,
+                `country`, `state`, `city`, `latitude`, `longitude`, `tenant`, `asn`.
+              default_value: "{}"
+              required: false
+            - name: enrichment.networks.<cidr>.asn
+              description: |
+                Forces the AS *number* for traffic in this prefix, overriding whatever
+                the `asn_providers` chain computed. The AS *name* is still resolved
+                from the ASN MMDB -- there is no `asn_name` config field. See the ASN
+                section of [Enrichment](https://learn.netdata.cloud/docs/network-flows/enrichment).
+              default_value: "0"
+              required: false
+            - name: enrichment.networks.<cidr>.latitude / longitude
+              description: |
+                Per-CIDR coordinate override. Out-of-range values (latitude not in
+                [-90, 90] or longitude not in [-180, 180]) and non-finite values are
+                silently coerced to empty strings -- the field is dropped, no error
+                (`src/crates/netflow-plugin/src/enrichment/data/network/attrs.rs:30-31`).
+                Validate input out of band if your data matters.
+              default_value: "null"
+              required: false
+            - name: enrichment.default_sampling_rate
+              description: |
+                Global fallback applied only when the flow record does not already
+                carry a sampling rate. Either a single integer or a CIDR-keyed map
+                (longest-prefix match against the exporter IP). Logic at
+                `src/crates/netflow-plugin/src/enrichment/apply/metadata.rs:86-96`.
+              default_value: "0"
+              required: false
+            - name: enrichment.override_sampling_rate
+              description: |
+                Per-exporter substitution that **always** wins when its prefix matches
+                the exporter IP, regardless of what the flow record carried. Either a
+                single integer or a CIDR-keyed map. Logic at
+                `src/crates/netflow-plugin/src/enrichment/apply/metadata.rs:78-85`.
+              default_value: "{}"
+              required: false
+        examples:
+          folding:
+            title: Config
+            enabled: true
+          list:
+            - name: Naming exporters and their interfaces
+              folding:
+                enabled: false
+              description: |
+                One edge router and one spine. The `default` block applies to any
+                ifIndex not listed under `if_indexes` -- handy when you only care about
+                a few WAN ports and want everything else to inherit a placeholder.
+              config: |
+                enrichment:
+                  metadata_static:
+                    exporters:
+                      192.0.2.10:                    # bare IP == /32
+                        name: edge-router-1
+                        site: par1
+                        region: eu-west
+                        role: edge
+                        tenant: tenant-a
+                        default:
+                          description: unclassified port
+                        if_indexes:
+                          1:
+                            name: Gi0/0/1
+                            description: uplink to ISP-A
+                            speed: 10000000000        # 10 Gbps in bits per second
+                            provider: isp-a
+                            connectivity: transit
+                            boundary: external
+                          2:
+                            name: Gi0/0/2
+                            description: LAN core
+                            speed: 1000000000
+                            connectivity: lan
+                            boundary: internal
+                      198.51.100.0/24:                # all routers in this subnet
+                        site: dc-fra1
+                        region: eu-central
+                        role: spine
+                        default:
+                          connectivity: lan
+                          boundary: internal
+            - name: Tagging your own networks
+              folding:
+                enabled: true
+              description: |
+                The shorthand form (`203.0.113.0/24: transit-a`) sets only the `name`.
+                The map form takes any subset of the schema fields. Less-specific
+                supernets contribute non-empty fields to more-specific subnets via
+                ascending-prefix-length merge -- declare RFC1918 once at `/8` and
+                a `/24` inherits everything you did not override.
+              config: |
+                enrichment:
+                  networks:
+                    10.0.0.0/8:
+                      name: corp-internal
+                      role: internal
+                      tenant: tenant-a
+                    198.51.100.0/24:                  # a public block you operate
+                      name: customer-acme
+                      role: customer
+                      site: par1
+                      country: FR
+                      city: Paris
+                      latitude: 48.8566
+                      longitude: 2.3522
+                      asn: 64500
+                    203.0.113.0/24: transit-a         # shorthand: name only
+            - name: Skipping interfaces you have not labelled
+              folding:
+                enabled: true
+              description: |
+                With `skip_missing_interfaces: true`, an ifIndex that is not in
+                `if_indexes` produces no interface labels at all -- the `default`
+                block is ignored. Useful when you want clearly-blank values for
+                unmodelled interfaces instead of a placeholder description.
+              config: |
+                enrichment:
+                  metadata_static:
+                    exporters:
+                      192.0.2.10:
+                        name: edge-router-1
+                        skip_missing_interfaces: true
+                        if_indexes:
+                          1:
+                            name: Gi0/0/1
+                            description: uplink to ISP-A
+                            connectivity: transit
+                            boundary: external
+            - name: Sampling rate override for old or silent exporters
+              folding:
+                enabled: true
+              description: |
+                NetFlow v7 has no sampling field; some v9 exporters never send a
+                Sampling Options Template. Without an override, the bytes/packets
+                stored in the journal are exporter-side **sampled** counters with
+                no scaling factor. `override_sampling_rate` always wins;
+                `default_sampling_rate` is the fallback used only when the flow
+                did not carry a rate.
+              config: |
+                enrichment:
+                  default_sampling_rate: 1            # global fallback
+                  override_sampling_rate:
+                    10.1.0.0/16: 1024                 # an old NetFlow v7 stack
+                    192.0.2.10/32: 4096               # one specific exporter
+    troubleshooting:
+      problems:
+        list:
+          - name: A more-specific entry inherits the wrong field from its supernet
+            description: |
+              `enrichment.networks` merges containing prefixes ascending (least
+              specific first) at
+              `src/crates/netflow-plugin/src/enrichment/apply/resolve.rs:36-66`.
+              Leaving a field blank on a `/24` does **not** clear the `/16`'s value
+              for that field -- you must explicitly set the field on the more-specific
+              entry to overwrite. The same merge rule applies to entries from
+              `network_sources`, which interleave at the same prefix lengths.
+          - name: GeoIP returns spurious data for an internal range
+            description: |
+              Until you declare your RFC1918 / RFC6598 / link-local ranges as
+              `enrichment.networks` entries, the GeoIP-derived country / city / coord
+              fields can pick up junk for those addresses. Adding a `networks` entry
+              for the range overrides the GeoIP layer at the merge step.
+          - name: ifIndex changed after a hardware swap
+            description: |
+              `if_indexes` keys are the numeric ifIndex sent in the flow record. A
+              line-card reseat or stack rebuild can renumber the interfaces; the old
+              ifIndex no longer matches and the per-interface block silently no longer
+              applies. Audit after hardware changes.
+          - name: speed shows up wrong by a factor of 1000
+            description: |
+              `speed:` is in **bits per second**. `speed: 1000` means 1 kbps, not
+              1 Mbps. A 1 Gbps interface is `1000000000`. `speed: 0` means "not set"
+              and removes the field from the output.
+          - name: An interface block silently no longer applies
+            description: |
+              When the configured ifIndex is not present in the flow record, the
+              `default` block is used instead -- unless `skip_missing_interfaces: true`
+              is set, in which case no interface labels are written at all
+              (`src/crates/netflow-plugin/src/enrichment/data/static_data.rs:76-84`).
+              If you expected your block to apply but the labels are blank, the
+              router is sending a different ifIndex.
+          - name: Coordinates dropped silently
+            description: |
+              Out-of-range latitude / longitude (`latitude: 91.5`) and non-finite
+              values become empty strings without an error
+              (`src/crates/netflow-plugin/src/enrichment/data/network/attrs.rs:30-31`).
+              The map quietly stops drawing the marker. Validate input externally if
+              the data matters.
+          - name: Static labels block the classifiers
+            description: |
+              When static metadata sets **any** of `group`, `role`, `site`, `region`,
+              `tenant` for an exporter, the `exporter_classifiers` rule chain does not
+              run for that exporter at all
+              (`src/crates/netflow-plugin/src/enrichment/classify.rs:117-119`).
+              The same is true for an interface: any of `provider`, `connectivity`,
+              `boundary` set by static metadata short-circuits
+              `interface_classifiers`
+              (`src/crates/netflow-plugin/src/enrichment/classify.rs:150-154`). If
+              you want classifiers to run on top of static metadata, drop the static
+              fields they are supposed to set.
+          - name: A typo fails config load
+            description: |
+              The schema is `deny_unknown_fields` at every level. A typo such as
+              `ifindexes` (the canonical key is `if_indexes`; aliases `ifindexes`,
+              `if-indexes` are accepted at
+              `src/crates/netflow-plugin/src/plugin_config/types/enrichment/metadata.rs:37`)
+              or a misspelt attribute (`teannt:`) fails plugin start with a YAML parse
+              error rather than being silently ignored.
+          - name: Sampling override looks ignored
+            description: |
+              `override_sampling_rate` always wins when its prefix matches; if the
+              field still looks unset, check that the **exporter IP** -- not the
+              flow's source / destination IP -- falls under the configured prefix
+              (`src/crates/netflow-plugin/src/enrichment/apply/metadata.rs:78-85`).
+              `default_sampling_rate` is only consulted when the flow did not already
+              carry a rate.
+          - name: Changes do not take effect
+            description: |
+              Static metadata is loaded at plugin startup
+              (`src/crates/netflow-plugin/src/enrichment/init.rs:13-14`) and there is
+              no file-change watcher. Restart the plugin (or the agent) after editing
+              `netflow.yaml`.
+    alerts: []
+    metrics:
+      folding:
+        title: Metrics
+        enabled: false
+      description: |
+        Tags flow records with operator-defined labels and (optionally) substitutes
+        the sampling rate; produces no metrics of its own. Verify on the Network
+        Flows tab via the `EXPORTER_*`, `IN_IF_*`, `OUT_IF_*`, `*_NET_*`,
+        `*_COUNTRY`, `*_GEO_*`, and `SAMPLING_RATE` columns.
+      availability: []
+      scopes: []
+  - meta:
+      plugin_name: netflow-plugin
+      module_name: classifiers
+      monitored_instance:
+        name: Classifiers
+        link: https://learn.netdata.cloud/docs/network-flows/enrichment/classifiers
+        categories:
+          - flows.enrichment-methods
+        icon_filename: network-wired.svg
+      keywords:
+        - classifiers
+        - rules
+        - akvorado
+        - expression
+        - exporter
+        - interface
+        - boundary
+        - connectivity
+        - provider
+        - tagging
+      related_resources:
+        integrations:
+          list:
+            - plugin_name: netflow-plugin
+              module_name: static-metadata
+            - plugin_name: netflow-plugin
+              module_name: generic-ipam
+            - plugin_name: netflow-plugin
+              module_name: netbox
+      info_provided_to_referring_integrations:
+        description: ""
+    overview:
+      data_collection:
+        metrics_description: |
+          Classifiers tag exporters and interfaces using small expression-based rules.
+          Where [static metadata](https://learn.netdata.cloud/docs/network-flows/enrichment/static-metadata)
+          forces you to enumerate every exporter and every ifIndex by hand, classifiers
+          let you express the network design once -- "anything matching `^edge-` is the
+          edge tier", "any interface with `BACKBONE-LUMEN` in its description is on
+          Lumen", "any interface at 100Gbps is a core uplink" -- and apply that labelling
+          across the whole flow stream.
+
+          The plugin ships two rule lists, evaluated in YAML order:
+
+          - `enrichment.exporter_classifiers` -- runs once per exporter (cached). Sees the
+            exporter's IP and friendly name, and any classification slots already filled
+            by static metadata or by earlier rules. Can set
+            `EXPORTER_GROUP / ROLE / SITE / REGION / TENANT`. Source:
+            `src/crates/netflow-plugin/src/enrichment/classify.rs:111-140`.
+          - `enrichment.interface_classifiers` -- runs once per `(exporter, interface)`
+            pair, applied **twice per flow record** (once for the input interface, once
+            for the output -- see
+            `src/crates/netflow-plugin/src/enrichment/apply/metadata.rs:108-123`). Sees
+            everything an exporter rule sees plus `Interface.Index / Name / Description /
+            Speed / VLAN`. Can set `IN_IF_PROVIDER / OUT_IF_PROVIDER`,
+            `IN_IF_CONNECTIVITY / OUT_IF_CONNECTIVITY`, `IN_IF_BOUNDARY / OUT_IF_BOUNDARY`
+            (1=external, 2=internal), and override `IN_IF_NAME / DESCRIPTION` /
+            `OUT_IF_NAME / DESCRIPTION`. Source:
+            `src/crates/netflow-plugin/src/enrichment/classify.rs:142-198`.
+
+          The expression language is **Akvorado-compatible for the documented operators
+          and actions**. It is a hand-written Rust parser
+          (`src/crates/netflow-plugin/src/enrichment/classifiers/parse/boolean.rs`),
+          implementing a subset of Akvorado's `expr-lang`-derived grammar. Akvorado rules
+          using only equality, comparison, `in`, `contains`, `startsWith`, `endsWith`,
+          `matches`, `&&`, `||`, `!`, parentheses, and the documented `Classify*` /
+          `Reject` / `Format` actions will work; arithmetic, ternaries, lambdas, and
+          arbitrary `expr-lang` features are not supported.
+
+          Output values written by `Classify*` actions are **lowercased and stripped to
+          ASCII alphanumerics + `.` + `+` + `-`** before they reach the flow record
+          (`src/crates/netflow-plugin/src/enrichment/classifiers/helpers.rs:5-11`). So
+          `ClassifyRegion("EU West")` becomes `euwest`. Use `SetName` / `SetDescription`
+          when you want to preserve case and whitespace -- those write directly without
+          normalisation.
+
+          For the cross-cutting Enrichment concept (where classifiers sit in the merge
+          order vs static metadata, GeoIP, IPAM, BGP routing), see
+          [Enrichment](https://learn.netdata.cloud/docs/network-flows/enrichment).
+        method_description: |
+          Each rule is a single boolean expression; an action with no condition (e.g.
+          `Classify("edge")` at top level) is treated as always-true and always fires.
+          Rules are AND/OR-composed, so the typical shape is `condition && Classify*(...)`.
+          The plugin evaluates the list top to bottom, **first-write-wins per slot**:
+          once `EXPORTER_GROUP` is set, no later rule can change it. Order rules from
+          most-specific to least-specific.
+
+          Two short-circuit rules end the loop early. For exporter rules, the loop stops
+          when `group + role + site + region + tenant` are all non-empty
+          (`is_complete()` at `enrichment/classifiers/runtime/model.rs:47-53`). For
+          interface rules, the loop stops when `connectivity + provider + boundary` are
+          all set (`enrichment/classify.rs:176-181`). `SetName` / `SetDescription` /
+          `Reject` do not contribute to short-circuit.
+
+          A rule that throws at runtime (e.g. comparing a string with `>`) breaks out of
+          the loop for that record and keeps whatever was set so far
+          (`enrichment/classify.rs:130-132`). Use `matches`, `startsWith`, or `contains`
+          on string fields instead of `>` / `<` to avoid this.
+
+          **Akvorado parity**: if `metadata_static` already filled any classification
+          slot for the target, the matching classifier list does **not run** for that
+          target -- operator-provided classification has priority and the rules cannot
+          override it (`enrichment/classify.rs:117-119` for exporters, `:150-154` for
+          interfaces). Don't try to mix static and rule-based labelling on the same
+          exporter or interface; pick one tool per target.
+
+          Results are cached. The exporter cache keys on `ExporterInfo (ip + name)`. The
+          interface cache keys on `(exporter, exporter_classification, interface)` -- so
+          when the exporter's classification changes (for example after you push new
+          static metadata and restart) the interface caches naturally invalidate. The
+          cache TTL is `enrichment.classifier_cache_duration` (default 5 minutes,
+          `src/crates/netflow-plugin/src/plugin_config/defaults.rs:46-48`); it is a
+          last-access TTL so entries live as long as they're queried.
+      supported_platforms:
+        include:
+          - Linux
+        exclude: []
+      multi_instance: false
+      additional_permissions:
+        description: ""
+      default_behavior:
+        auto_detection:
+          description: "Disabled by default. Both rule lists are empty; populate `enrichment.exporter_classifiers` and / or `enrichment.interface_classifiers` to enable."
+        limits:
+          description: ""
+        performance_impact:
+          description: |
+            Rules run at decode time, in the flow-pipeline hot path, so cost matters.
+            The cache absorbs nearly all of it: per (exporter, interface) the rule list
+            evaluates only on cache miss. Tune
+            `enrichment.classifier_cache_duration` upwards (15-60 minutes) for very
+            high-cardinality exporter / interface pools where the default 5 minutes
+            still yields visible misses; tune downwards (30-60 seconds) when iterating
+            on rule changes during a config session.
+    setup:
+      prerequisites:
+        list:
+          - title: Know what to classify
+            description: |
+              Classifiers shine when there is a pattern to match -- exporter naming
+              conventions (`edge-...`, `core-...`), management-IP subnets per site,
+              SNMP interface descriptions that follow a template (`BACKBONE-<carrier>`,
+              `TRANSIT-...`, `IX-...`), or 100Gbps-equals-core conventions. If your
+              fleet has no such pattern, [static metadata](https://learn.netdata.cloud/docs/network-flows/enrichment/static-metadata)
+              is the better fit -- it lets you list each exporter and ifIndex by hand.
+          - title: Configure interface metadata first if you want interface rules
+            description: |
+              The plugin does **not** poll SNMP itself, so `Interface.Name`,
+              `Interface.Description`, and `Interface.Speed` are populated only from
+              `enrichment.metadata_static` (the static-metadata integration card). If
+              you have not configured `interfaces:` under `metadata_static.exporters`,
+              those identifiers will be empty strings / zero, and any rule that
+              matches against them will never fire. `Interface.Index` and
+              `Interface.VLAN` come from the flow record itself and are always available.
+      configuration:
+        file:
+          name: netflow.yaml
+        options:
+          description: |
+            Both lists live under `enrichment:`. Each entry is a free-form string
+            containing a single rule expression. The cache TTL is one global setting.
+          folding:
+            title: Config options
+            enabled: true
+          list:
+            - name: enrichment.exporter_classifiers
+              description: |
+                Ordered list of rules applied per exporter. Each rule is a string
+                expression. Available identifiers: `Exporter.IP`, `Exporter.Name`,
+                `CurrentClassification.Group / .Role / .Site / .Region / .Tenant`.
+                Available actions: `Classify` / `ClassifyGroup`, `ClassifyRole`,
+                `ClassifySite`, `ClassifyRegion`, `ClassifyTenant`, plus the
+                `*Regex(input, pattern, template)` variants of each, plus `Reject()`.
+                Interface-only actions (`ClassifyProvider`, `ClassifyConnectivity`,
+                `ClassifyExternal` / `ClassifyInternal`, `SetName`, `SetDescription`)
+                fail at runtime if used here (`enrichment/classifiers/runtime/eval/action.rs:71-76`).
+              default_value: "[]"
+              required: false
+            - name: enrichment.interface_classifiers
+              description: |
+                Ordered list of rules applied per `(exporter, interface)` pair. Sees
+                everything an exporter rule sees, plus `Interface.Index`,
+                `Interface.Name`, `Interface.Description`, `Interface.Speed` (bits per
+                second), `Interface.VLAN`, and the per-interface
+                `CurrentClassification.Connectivity / .Provider / .Boundary / .Name /
+                .Description`. Available actions: `ClassifyProvider`,
+                `ClassifyConnectivity`, `ClassifyExternal()`, `ClassifyInternal()`,
+                `SetName`, `SetDescription`, `Reject()`, plus the `*Regex` variants of
+                provider / connectivity. Exporter-only `Classify*` actions fail at
+                runtime if used here (`enrichment/classifiers/runtime/eval/action.rs:181-184`).
+              default_value: "[]"
+              required: false
+            - name: enrichment.classifier_cache_duration
+              description: |
+                Last-access TTL for both classifier caches (exporter and interface).
+                Validation rejects values below 1 second
+                (`src/crates/netflow-plugin/src/plugin_config/validation/enrichment.rs:10-12`).
+                The cache prunes opportunistically -- entries idle longer than the TTL
+                are dropped on the next prune pass, capped at one prune every TTL or
+                30 seconds, whichever is smaller (`enrichment/classify.rs:3-18`).
+                Restart the plugin to clear caches outright when you change rules.
+              default_value: "5m"
+              required: false
+        examples:
+          folding:
+            title: Config
+            enabled: true
+          list:
+            - name: Exporter classification by name pattern
+              folding:
+                enabled: false
+              description: |
+                Tag exporters by the prefix of their friendly name -- the simplest and
+                most common pattern. Falls back to a regex capture for the region code
+                when the name encodes one. The final `Reject()` rule drops a test
+                exporter from collection entirely.
+              config: |
+                enrichment:
+                  exporter_classifiers:
+                    # Group by name prefix.
+                    - 'Exporter.Name startsWith "edge-" && Classify("edge")'
+                    - 'Exporter.Name startsWith "core-" && Classify("core")'
+                    - 'Exporter.Name startsWith "agg-"  && Classify("aggregation")'
+
+                    # Site by management-IP subnet.
+                    - 'Exporter.IP startsWith "10.1." && ClassifySite("ny-dc1")'
+                    - 'Exporter.IP startsWith "10.2." && ClassifySite("par-dc1")'
+
+                    # Region from a name suffix like "edge-fra-01" -> "fra".
+                    - 'ClassifyRegionRegex(Exporter.Name, "-([a-z]{2})-[0-9]+$", "$1")'
+
+                    # Drop a lab exporter entirely.
+                    - 'Exporter.IP startsWith "192.0.2." && Reject()'
+            - name: Interface classification from SNMP descriptions
+              folding:
+                enabled: true
+              description: |
+                Encode the boundary, the provider, and the connectivity tier from the
+                interface description that your network team already maintains. The
+                `(?i)` regex flag is the Rust regex inline-case-insensitive prefix.
+              config: |
+                enrichment:
+                  interface_classifiers:
+                    # Provider tag from a description prefix.
+                    - 'Interface.Description startsWith "BACKBONE-LUMEN"  && ClassifyProvider("Lumen")'
+                    - 'Interface.Description startsWith "BACKBONE-COGENT" && ClassifyProvider("Cogent")'
+                    - 'Interface.Description startsWith "BACKBONE-NTT"    && ClassifyProvider("NTT")'
+
+                    # Transit links: external boundary + connectivity tag.
+                    - 'Interface.Description contains "TRANSIT" && ClassifyConnectivity("transit") && ClassifyExternal()'
+
+                    # Peering and IX -- case-insensitive regex.
+                    - 'Interface.Description matches "(?i)^(IX|peering)-.*" && ClassifyConnectivity("peering") && ClassifyExternal()'
+
+                    # Internal customer-facing access ports.
+                    - 'Interface.Description startsWith "CUSTOMER-" && ClassifyConnectivity("customer") && ClassifyInternal()'
+            - name: Boundary inferred from interface speed
+              folding:
+                enabled: true
+              description: |
+                A pragmatic shorthand when descriptions are unreliable but speed is
+                consistent. 100Gbps and faster interfaces are core, 10Gbps are
+                aggregation, 1Gbps and slower are access. `Interface.Speed` is in bits
+                per second -- numeric comparisons are safe.
+              config: |
+                enrichment:
+                  interface_classifiers:
+                    - 'Interface.Speed >= 100000000000 && ClassifyConnectivity("core")'
+                    - 'Interface.Speed >= 10000000000  && ClassifyConnectivity("aggregation")'
+                    - 'Interface.Speed >  0            && ClassifyConnectivity("access")'
+            - name: Combining exporter context with interface rules
+              folding:
+                enabled: true
+              description: |
+                Interface rules see the exporter's already-resolved classification
+                via `CurrentClassification.*`. Use it to scope interface rules to
+                specific tiers -- for example: every interface on an edge exporter
+                without a more-specific match falls back to "external".
+              config: |
+                enrichment:
+                  exporter_classifiers:
+                    - 'Exporter.Name startsWith "edge-" && Classify("edge") && ClassifyRole("border")'
+                    - 'Exporter.Name startsWith "core-" && Classify("core") && ClassifyRole("backbone")'
+                  interface_classifiers:
+                    # Specific provider rules first (most-specific to least-specific).
+                    - 'Interface.Description startsWith "BACKBONE-LUMEN"  && ClassifyProvider("Lumen")'
+                    - 'Interface.Description startsWith "BACKBONE-COGENT" && ClassifyProvider("Cogent")'
+
+                    # Generic transit rule.
+                    - 'Interface.Description contains "TRANSIT" && ClassifyConnectivity("transit") && ClassifyExternal()'
+
+                    # Fallback: any unclassified interface on an edge box is external.
+                    - 'CurrentClassification.Role == "border" && CurrentClassification.Boundary == 0 && ClassifyExternal()'
+            - name: Building values with Format and human-readable names
+              folding:
+                enabled: true
+              description: |
+                `Format(pattern, args...)` mimics Go's `fmt.Sprintf` for `%s`, `%v`,
+                `%d`, `%%` (`enrichment/classifiers/helpers.rs:35-91`). `Classify*`
+                normalises (lowercase + strip non-alphanumeric); `SetName` and
+                `SetDescription` do not, so they preserve the case and spaces of the
+                computed value.
+              config: |
+                enrichment:
+                  exporter_classifiers:
+                    # Tenant computed from name, normalised on write -> "tenant-edge01".
+                    - 'ClassifyTenant(Format("tenant-%s", Exporter.Name))'
+                  interface_classifiers:
+                    # Human-readable name = "<exporter>:if<index>". Preserved verbatim.
+                    - 'SetName(Format("%s:if%d", Exporter.Name, Interface.Index))'
+            - name: Tuning the cache for a large fleet
+              folding:
+                enabled: true
+              description: |
+                The default 5-minute last-access TTL is right for steady-state. Raise
+                it when the (exporter, interface) population is large enough that
+                evicted entries are quickly re-queried (visible CPU on the rule
+                evaluator under the
+                `netflow_enricher.classify_*` traces in production logs). Lower it when
+                actively iterating on rule changes so misses pick up the new rules
+                quickly.
+              config: |
+                enrichment:
+                  classifier_cache_duration: 30m
+                  exporter_classifiers:
+                    - 'Exporter.Name startsWith "edge-" && Classify("edge")'
+                  interface_classifiers:
+                    - 'Interface.Speed >= 100000000000 && ClassifyConnectivity("core")'
+    troubleshooting:
+      problems:
+        list:
+          - name: Plugin fails to start with a parser error
+            description: |
+              A rule failed to parse. The journal log includes the index in the list
+              and a parser context (`unsupported rule term`, `unsupported value
+              expression`, `Reject() does not accept arguments`, etc.). Common causes:
+              missing `&&` between condition and action; an action used in the wrong
+              list (`ClassifyExternal` in an exporter rule); strings written with
+              single quotes (only JSON-style double quotes are accepted -- see
+              `parse_quoted_string` at
+              `src/crates/netflow-plugin/src/enrichment/classifiers/parse/value.rs:139-144`);
+              regex literals that fail to compile (validated at parse time at
+              `parse/boolean.rs:113-117`).
+          - name: Classifier rules never run for an exporter or interface
+            description: |
+              Likely cause: `metadata_static` already set **any** classification field
+              on that target. By design, the matching list is suppressed entirely when
+              the classification is non-empty (`enrichment/classify.rs:117-119` and
+              `:150-154`). Either remove the static-metadata entry for that target, or
+              keep static-metadata as the sole source for it.
+          - name: A value appears differently in the dashboard than in the rule
+            description: |
+              `Classify*` actions normalise output to `[a-z0-9.+-]` only -- so
+              `ClassifyRegion("EU West")` lands as `euwest`, and
+              `Classify("Edge_Tier_1")` lands as `edgetier1`
+              (`enrichment/classifiers/helpers.rs:5-11`). Use `SetName` /
+              `SetDescription` to preserve case and whitespace; those write the value
+              verbatim.
+          - name: First rule always wins, later rules never fire for the same slot
+            description: |
+              First-write-wins is by design and per slot
+              (`enrichment/classifiers/runtime/eval/action.rs:43-46`). Order your
+              rules from most-specific to least-specific. If you want a tiered
+              fallback, use distinct slots (e.g. `Classify` for the broad group and
+              `ClassifyRole` for the tier within that group).
+          - name: A working rule stops matching some time after startup
+            description: |
+              Cached results expire after `classifier_cache_duration` (default 5
+              minutes, last-access). When you change rules, restart the plugin so the
+              caches clear immediately -- otherwise stale cached classifications keep
+              returning until they idle out.
+          - name: A rule with `>` or `<` aborts the rule list
+            description: |
+              Comparing a string-typed identifier with `>` / `<` / `>=` / `<=` raises
+              a runtime error, and the loop breaks out for that record
+              (`enrichment/classify.rs:130-132` and `:172-175`). Subsequent rules in
+              the list are skipped for that record. Use `matches`, `startsWith`,
+              `endsWith`, `contains`, or `==` / `!=` on string fields. Keep `>` / `<`
+              for `Interface.Index`, `Interface.Speed`, and `Interface.VLAN` (the
+              numeric identifiers).
+          - name: ClassifyExternal fires only on one side
+            description: |
+              Interface classifiers run twice per flow record -- once for the input
+              interface, once for the output (`enrichment/apply/metadata.rs:108-123`).
+              Both invocations see the same rule list. If your rule conditions on
+              `Interface.Index == 42` and that ifIndex appears in `IN_IF` of one flow
+              and `OUT_IF` of another, the rule fires correctly in both places. But
+              the `IN_IF_BOUNDARY` / `OUT_IF_BOUNDARY` columns are independent -- a
+              rule firing on the output side of a flow only sets the output side's
+              boundary, and vice versa.
+          - name: Interface fields are empty in the rule even though SNMP is configured
+            description: |
+              The plugin does not poll SNMP -- `Interface.Name`, `Description`, and
+              `Speed` come exclusively from `enrichment.metadata_static.exporters.<ip>.interfaces.<index>`.
+              If you populate them through an external SNMP discovery and write them
+              into `metadata_static`, the rules will see them. Otherwise those fields
+              resolve to empty strings / zero, and any rule that conditions on them
+              never matches.
+          - name: Referencing Interface.* in an exporter rule silently does nothing
+            description: |
+              Field resolution does not error when the wrong context is missing -- it
+              returns the type's zero value (`enrichment/classifiers/runtime/value/field.rs:62-79`).
+              So `Interface.Speed >= 1` written in an `exporter_classifiers` rule
+              resolves to `0 >= 1` (false) on every call. Use
+              `interface_classifiers` for any rule that needs an interface field.
+    alerts: []
+    metrics:
+      folding:
+        title: Metrics
+        enabled: false
+      description: |
+        Tags flow records with `EXPORTER_GROUP / ROLE / SITE / REGION / TENANT` (from
+        exporter rules) and `IN_IF_PROVIDER / OUT_IF_PROVIDER`,
+        `IN_IF_CONNECTIVITY / OUT_IF_CONNECTIVITY`, `IN_IF_BOUNDARY / OUT_IF_BOUNDARY`,
+        `IN_IF_NAME / OUT_IF_NAME`, `IN_IF_DESCRIPTION / OUT_IF_DESCRIPTION` (from
+        interface rules). Verify on the Network Flows tab via those columns. Boundary
+        is `1` for external and `2` for internal
+        (`src/crates/netflow-plugin/src/enrichment/classifiers/runtime/eval/action.rs:169-180`).
+      availability: []
+      scopes: []
+  - meta:
+      plugin_name: netflow-plugin
+      module_name: decapsulation
+      monitored_instance:
+        name: Decapsulation
+        link: https://datatracker.ietf.org/doc/html/rfc7348
+        categories:
+          - flows.enrichment-methods
+        icon_filename: tunnel.svg
+      keywords:
+        - decapsulation
+        - srv6
+        - vxlan
+        - tunnel
+        - overlay
+        - inner packet
+        - dataLinkFrameSection
+        - layer2packetSectionData
+        - ipfix ie 315
+        - netflow v9 ie 104
+        - sampled header
+      related_resources:
+        integrations:
+          list:
+            - plugin_name: netflow-plugin
+              module_name: netflow
+            - plugin_name: netflow-plugin
+              module_name: ipfix
+            - plugin_name: netflow-plugin
+              module_name: sflow
+      info_provided_to_referring_integrations:
+        description: ""
+    overview:
+      data_collection:
+        metrics_description: |
+          Decapsulation rewrites the 5-tuple of a flow record from the **outer** (tunnel)
+          endpoints to the **inner** (real) endpoints when the exporter ships the encapsulated
+          frame bytes alongside the standard fields. Without it, every VM-to-VM conversation
+          on a VXLAN fabric or every inner flow on an SRv6 transit shows up as the same
+          tunnel pair (hypervisor-to-hypervisor or PE-to-PE), which tells you nothing about
+          the actual traffic.
+
+          Two encapsulations are supported, selected globally for the plugin. The mode set is
+          enumerated at `src/crates/netflow-plugin/src/plugin_config/types/protocol.rs:50-57`
+          (`DecapsulationMode::None | Srv6 | Vxlan`); the default is `none`
+          (`src/crates/netflow-plugin/src/plugin_config/types/protocol.rs:24` and `:44`).
+
+          | Mode    | Strips                                           | Surfaces                                         |
+          |---------|--------------------------------------------------|--------------------------------------------------|
+          | `none`  | nothing                                          | the outer-header view (default)                  |
+          | `srv6`  | IPv6 outer + extension headers + SRH (type 4)    | the inner IPv4 (next-header 4) or IPv6 (41)      |
+          | `vxlan` | outer Eth/IP + UDP/4789 + 8-byte VXLAN header    | the inner Ethernet frame, then its L3/L4         |
+
+          The plugin only reaches the decap path when the flow record carries the inner
+          frame bytes in a Layer-2 packet section field. Three transport-level paths feed it:
+
+          - **NetFlow v9 IE 104** -- `Layer2packetSectionData` (RFC 5102 / RFC 7270). Constant
+            at `src/crates/netflow-plugin/src/decoder.rs:80`
+            (`V9_FIELD_LAYER2_PACKET_SECTION_DATA: u16 = 104`); decoded at
+            `src/crates/netflow-plugin/src/decoder/protocol/v9/special.rs:123-132`.
+          - **IPFIX IE 315** -- `dataLinkFrameSection` (RFC 7133). Constant at
+            `src/crates/netflow-plugin/src/decoder.rs:74`
+            (`IPFIX_FIELD_DATALINK_FRAME_SECTION: u16 = 315`); decoded at
+            `src/crates/netflow-plugin/src/decoder/protocol/ipfix/special/record.rs:154-162`.
+          - **sFlow `SampledHeader`** -- always present in header-sampling mode, parsed at
+            `src/crates/netflow-plugin/src/decoder/protocol/sflow/record.rs:44-69`.
+
+          When decap succeeds, the inner 5-tuple replaces the outer one in the resulting
+          journal record: `SRC_ADDR`, `DST_ADDR`, `SRC_PORT`, `DST_PORT`, `PROTOCOL`,
+          `ETYPE`, `IPTOS`, `IPTTL`, `IPV6_FLOW_LABEL`, `TCP_FLAGS`, `IP_FRAGMENT_ID`,
+          `IP_FRAGMENT_OFFSET`, ICMP type/code, MPLS labels (if present), and `BYTES`
+          (set to the inner L3 length so byte counts represent inner payload, not outer
+          overhead). For VXLAN, `SRC_MAC`, `DST_MAC`, `SRC_VLAN`, `DST_VLAN` come from the
+          inner Ethernet frame -- the outer MACs and VLANs are lost. The VXLAN VNI is
+          parsed but not surfaced today; pure VNI-based segmentation is not visible. See
+          the merge points at
+          `src/crates/netflow-plugin/src/decoder/protocol/packet/transport.rs:21-33` (NetFlow
+          v9 / IPFIX special path) and the equivalent record-API path at
+          `src/crates/netflow-plugin/src/decoder/record/packet/parse/transport.rs:14-21`.
+
+          The `vxlan` parser at
+          `src/crates/netflow-plugin/src/decoder/common.rs:3-18` matches **only UDP
+          destination port 4789** (RFC 7348). VXLAN-GPE on 4790 and any vendor-custom port
+          are not recognised. The `srv6` parser at
+          `src/crates/netflow-plugin/src/decoder/common.rs:35-63` walks IPv6 extension
+          headers and the Routing Header type 4 (SRH), then surfaces the inner IPv4 or
+          IPv6 packet pointed to by next-header 4 or 41.
+
+          For the cross-cutting concept (how decap composes with the rest of the enrichment
+          pipeline, the non-tunnel "drop, do not fall back" semantics, and per-source
+          dependence on the L2-section path), see
+          [Decapsulation](https://learn.netdata.cloud/docs/network-flows/enrichment/decapsulation).
+        method_description: |
+          Set `protocols.decapsulation_mode` in `netflow.yaml` to `srv6` or `vxlan`. The
+          plugin then runs the inner-packet parser whenever a flow record carries an L2
+          frame section (NetFlow v9 IE 104 / IPFIX IE 315 / sFlow `SampledHeader`). Plain
+          NetFlow / IPFIX records that do **not** carry an L2 section pass through
+          unchanged regardless of the setting -- so enabling decap will not break a mixed
+          stream where only a subset of exporters ship the frame bytes. Enabling decap is
+          half the work; the exporter must also be configured to ship the inner frame.
+      supported_platforms:
+        include:
+          - Linux
+        exclude: []
+      multi_instance: false
+      additional_permissions:
+        description: ""
+      default_behavior:
+        auto_detection:
+          description: "Disabled by default (`decapsulation_mode: none`). You must opt in by setting the mode explicitly."
+        limits:
+          description: "One mode is active at a time -- the plugin cannot decap VXLAN and SRv6 simultaneously. If your fleet mixes both, choose the one your L2-section-bearing exporters carry exclusively."
+        performance_impact:
+          description: ""
+    setup:
+      prerequisites:
+        list:
+          - title: Confirm your exporter ships the L2 frame section
+            description: |
+              Decapsulation requires the exporter to include the inner frame bytes. Verify
+              before enabling the mode:
+
+              - **NetFlow v9** -- the template must contain field type 104
+                (`Layer2packetSectionData`). Capture a packet with `tcpdump`, decode with
+                Wireshark, and inspect the template.
+              - **IPFIX** -- the template must contain Information Element 315
+                (`dataLinkFrameSection`, RFC 7133). Same verification path.
+              - **sFlow** -- header sampling is the default for sFlow agents and ships the
+                truncated raw packet inside `SampledHeader`. No special configuration is
+                required beyond enabling sFlow.
+
+              Section length matters. VXLAN over Ethernet over IPv4 fits in roughly 96-128
+              bytes of inner-frame capture; SRv6 with a Routing Header type 4 needs more
+              (256 bytes is a safe starting point). Truncated captures fail the inner
+              parser and the flow is dropped (see the failure modes on the concept page).
+          - title: Configure your exporter to emit the L2 section
+            description: |
+              Vendor support varies. The two paths the project has verified upstream are:
+
+              - **Juniper inline-monitoring (IPFIX 315)** on platforms supporting
+                `services { inline-monitoring { ... } }` -- the template includes
+                `datalink-frame-size` and a `maximum-clip-length` controls how much of the
+                frame is captured. Reference recipe in the
+                [Akvorado documentation](https://demo.akvorado.net/docs/operations#ipfix-315).
+              - **sFlow** with header sampling -- supported by Juniper QFX, Arista EOS,
+                Mellanox/NVIDIA, MikroTik, and others. Header sampling is the default for
+                most agents; verify the agent emits `SampledHeader` rather than only
+                `SampledIPv4` / `SampledIPv6` records (the latter do not carry inner
+                bytes).
+
+              **Cisco IOS-XE and IOS-XR Flexible NetFlow have not been verified by the
+              project to emit the Layer-2 frame section** through `collect datalink ...`
+              keys; the upstream Akvorado reference configuration for IOS-XE / NCS / ASR
+              relies on conventional IPv4/IPv6 NetFlow without an L2 section. If your
+              Cisco platform supports the L2 section, validate by inspecting the template
+              and looking for IE 104 (v9) or IE 315 (IPFIX) before deploying decap. Do not
+              copy unverified `collect datalink frame-section` snippets into production.
+      configuration:
+        file:
+          name: netflow.yaml
+        options:
+          description: |
+            Decapsulation has a single configuration knob -- `protocols.decapsulation_mode`
+            -- defined at `src/crates/netflow-plugin/src/plugin_config/types/protocol.rs:21-26`.
+          folding:
+            title: Config options
+            enabled: true
+          list:
+            - name: protocols.decapsulation_mode
+              description: |
+                One of `none` (default), `srv6`, `vxlan`. The mode applies globally; the
+                plugin cannot decode both VXLAN and SRv6 in the same instance. Setting
+                this only affects records that travel through the L2-section path
+                (NetFlow v9 IE 104 / IPFIX IE 315 / sFlow `SampledHeader`); regular flow
+                records are unaffected. When the mode is set and the inner packet does
+                not match the configured tunnel, the record is dropped -- there is no
+                "fall back to outer view".
+              default_value: none
+              required: false
+        examples:
+          folding:
+            title: Config
+            enabled: true
+          list:
+            - name: VXLAN-based VTEP fleet (decode the inner tenant traffic)
+              folding:
+                enabled: false
+              description: |
+                Hypervisors emit sFlow with header sampling on the underlay. Every flow
+                between two VTEP loopbacks decodes to the inner VM-to-VM 5-tuple instead
+                of the underlay tunnel pair.
+              config: |
+                protocols:
+                  decapsulation_mode: vxlan
+            - name: SRv6 transit network (see the inner service traffic)
+              folding:
+                enabled: true
+              description: |
+                Provider-edge routers export IPFIX with IE 315 (`dataLinkFrameSection`)
+                via Juniper inline-monitoring. The plugin walks the IPv6 extension chain,
+                strips the SRH, and surfaces the inner IPv4 or IPv6 5-tuple.
+              config: |
+                protocols:
+                  decapsulation_mode: srv6
+            - name: Default (no decapsulation)
+              folding:
+                enabled: true
+              description: |
+                Outer-header view only. Tunnel endpoints appear as the source and
+                destination of every flow.
+              config: |
+                protocols:
+                  decapsulation_mode: none
+    troubleshooting:
+      problems:
+        list:
+          - name: Decap mode set but tunnels still show outer endpoints
+            description: |
+              The exporter is not shipping the L2 frame section. Plain NetFlow / IPFIX
+              flow records (no IE 104 / IE 315) take the regular path and are unaffected
+              by `decapsulation_mode`. Inspect the template -- look for field type 104
+              on NetFlow v9 or IE 315 on IPFIX. For sFlow, confirm the agent is sending
+              `SampledHeader` records rather than only `SampledIPv4` / `SampledIPv6`.
+              The decode dispatch lives at
+              `src/crates/netflow-plugin/src/decoder/protocol/sflow/record.rs:44-69`.
+          - name: Records disappear after enabling decap
+            description: |
+              When `decapsulation_mode` is set and a record arrives via the L2-section
+              path with a payload that does not match the configured tunnel, the record
+              is **dropped**. There is no fall back to the outer view (intentional --
+              see the merge logic at
+              `src/crates/netflow-plugin/src/decoder/protocol/packet/transport.rs:21-33`).
+              For sFlow with decap on, only `SampledHeader` records are processed;
+              `SampledIPv4`, `SampledIPv6`, `SampledEthernet`, `ExtendedSwitch`,
+              `ExtendedRouter`, `ExtendedGateway` records are skipped. If the same
+              exporter mixes tunnel and non-tunnel traffic on the L2-section path, you
+              will lose the non-tunnel records.
+          - name: VXLAN on a non-default UDP port goes undetected
+            description: |
+              The VXLAN parser matches only UDP destination port 4789
+              (`src/crates/netflow-plugin/src/decoder/common.rs:11`,
+              `VXLAN_UDP_PORT: u16 = 4789`). VXLAN-GPE on 4790 and any
+              vendor-custom port are not recognised and the record is dropped under
+              `decapsulation_mode: vxlan`.
+          - name: Frame section truncated, inner parsing fails
+            description: |
+              The exporter's clip / section size is shorter than the outer headers plus
+              the inner L3/L4 needed to populate the 5-tuple. Increase the section size
+              -- 128 bytes for VXLAN over IPv4, 256 bytes or more for SRv6 with extension
+              headers. On Juniper inline-monitoring, the knob is `maximum-clip-length`.
+          - name: VNI-based segmentation invisible
+            description: |
+              Bytes 4-6 of the VXLAN header (the VNI) are not surfaced to journal
+              fields today. If the inner Ethernet carries a VLAN tag, that VLAN reaches
+              `SRC_VLAN` / `DST_VLAN` and works for segmentation -- pure VNI does not.
+              No workaround inside the plugin; either VLAN-tag the inner traffic or
+              filter at query time using the tunnel-endpoint pair before decap.
+          - name: One mode at a time
+            description: |
+              The plugin cannot decode VXLAN and SRv6 in the same instance. If exporter A
+              ships VXLAN tenant traffic and exporter B ships SRv6 transit traffic, you
+              must choose -- or run two plugin instances on different ports.
+    alerts: []
+    metrics:
+      folding:
+        title: Metrics
+        enabled: false
+      description: |
+        Decapsulation rewrites flow-record fields in place; it produces no metrics of its
+        own. Verify on the Network Flows tab that `SRC_ADDR` / `DST_ADDR` reflect inner
+        endpoints rather than the tunnel pair after enabling the mode.
+      availability: []
+      scopes: []
