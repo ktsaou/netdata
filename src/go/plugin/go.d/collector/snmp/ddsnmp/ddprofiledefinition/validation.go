@@ -478,6 +478,9 @@ func validateEnrichLicenseState(rowIdx int, state *LicenseStateConfig, isTable b
 	if state.Policy != "" && !IsValidLicenseStatePolicy(state.Policy) {
 		errs = append(errs, fmt.Errorf("licensing[%d].state.policy: invalid policy %q", rowIdx, state.Policy))
 	}
+	if state.Policy != "" && !state.LicenseValueConfig.IsSet() {
+		errs = append(errs, fmt.Errorf("licensing[%d].state.policy: policy requires state value source", rowIdx))
+	}
 	errs = append(errs, validateEnrichLicenseValueKind(fmt.Sprintf("licensing[%d].state", rowIdx), &state.LicenseValueConfig, LicenseSignalStateSeverity, isTable))
 	return errors.Join(errs...)
 }
@@ -498,6 +501,12 @@ func validateEnrichLicenseSignals(rowIdx int, signals *LicenseSignalsConfig, isT
 func validateEnrichLicenseTimerSignals(rowIdx int, name string, signals *LicenseTimerSignalsConfig, timestampKind, remainingKind LicenseSignalKind, isTable bool) error {
 	var errs []error
 	basePath := fmt.Sprintf("licensing[%d].signals.%s", rowIdx, name)
+	if signals.LicenseValueConfig.IsSet() && signals.Timestamp.IsSet() {
+		errs = append(errs, fmt.Errorf("%s: inline timestamp and timestamp cannot both be set", basePath))
+	}
+	if (signals.LicenseValueConfig.IsSet() || signals.Timestamp.IsSet()) && signals.Remaining.IsSet() {
+		errs = append(errs, fmt.Errorf("%s: timestamp and remaining cannot both be set", basePath))
+	}
 	errs = append(errs, validateEnrichLicenseValueKind(basePath, &signals.LicenseValueConfig, timestampKind, isTable))
 	errs = append(errs, validateEnrichLicenseValueKind(basePath+".timestamp", &signals.Timestamp, timestampKind, isTable))
 	errs = append(errs, validateEnrichLicenseValueKind(basePath+".remaining", &signals.Remaining, remainingKind, isTable))
@@ -578,6 +587,15 @@ func validateEnrichLicenseSymbol(path string, symbol *SymbolConfig) error {
 	if symbol.Transform != "" {
 		errs = append(errs, fmt.Errorf("%s.symbol: transform cannot be used in licensing rows", path))
 	}
+	if symbol.ExtractValue != "" {
+		errs = append(errs, fmt.Errorf("%s.symbol: extract_value cannot be used in licensing rows", path))
+	}
+	if symbol.MatchPattern != "" {
+		errs = append(errs, fmt.Errorf("%s.symbol: match_pattern cannot be used in licensing rows", path))
+	}
+	if symbol.MatchValue != "" {
+		errs = append(errs, fmt.Errorf("%s.symbol: match_value cannot be used in licensing rows", path))
+	}
 	if symbol.ScaleFactor != 0 {
 		errs = append(errs, fmt.Errorf("%s.symbol: scale_factor cannot be used in licensing rows", path))
 	}
@@ -608,7 +626,7 @@ type licenseSignalValidationKey struct {
 
 func validateLicenseSignalDuplicates(rowIdx int, row *LicensingConfig, seen map[licenseSignalValidationKey]string) error {
 	var errs []error
-	identity := licenseValidationStructuralIdentity(*row)
+	identity := LicenseStructuralIdentity(*row)
 	for _, sig := range collectLicenseSignalValues(*row) {
 		if sig.kind == "" || !sig.value.IsSet() {
 			continue
@@ -630,12 +648,12 @@ func validateLicenseFromReferences(rowIdx int, row *LicensingConfig) error {
 	}
 
 	var errs []error
-	tableOID := trimValidationOID(row.Table.OID)
+	tableOID := TrimLicenseOID(row.Table.OID)
 	for _, ref := range collectLicenseValueReferences(*row) {
 		if ref.value.From == "" {
 			continue
 		}
-		fromOID := trimValidationOID(ref.value.From)
+		fromOID := TrimLicenseOID(ref.value.From)
 		if !oidHasPrefix(fromOID, tableOID) {
 			errs = append(errs, fmt.Errorf("licensing[%d].%s.from: OID %q is outside table %q", rowIdx, ref.path, ref.value.From, row.Table.OID))
 		}
@@ -721,24 +739,11 @@ func licenseRowHasSignalConfigs(row LicensingConfig) bool {
 func collectLicenseSignalSourceOIDs(row LicensingConfig) map[string]struct{} {
 	oids := make(map[string]struct{})
 	for _, sig := range collectLicenseSignalValues(row) {
-		if oid := licenseValueSourceOID(sig.value); oid != "" {
-			oids[trimValidationOID(oid)] = struct{}{}
+		if oid := LicenseValueSourceOID(sig.value); oid != "" {
+			oids[TrimLicenseOID(oid)] = struct{}{}
 		}
 	}
 	return oids
-}
-
-func licenseValueSourceOID(value LicenseValueConfig) string {
-	switch {
-	case value.From != "":
-		return value.From
-	case value.Symbol.OID != "":
-		return value.Symbol.OID
-	case value.OID != "":
-		return value.OID
-	default:
-		return ""
-	}
 }
 
 func licenseValueHasSource(value LicenseValueConfig) bool {
@@ -748,29 +753,6 @@ func licenseValueHasSource(value LicenseValueConfig) bool {
 		value.OID != "" ||
 		value.Index != 0 ||
 		len(value.IndexTransform) > 0
-}
-
-func licenseValidationStructuralIdentity(row LicensingConfig) string {
-	origin := row.OriginProfileID
-	if origin == "" {
-		origin = "<profile>"
-	}
-	if row.Table.OID != "" {
-		return strings.Join([]string{origin, "table", trimValidationOID(row.Table.OID)}, "|")
-	}
-	if row.ID != "" {
-		return strings.Join([]string{origin, "scalar-group", row.ID}, "|")
-	}
-	for _, sig := range collectLicenseSignalValues(row) {
-		if oid := licenseValueSourceOID(sig.value); oid != "" {
-			return strings.Join([]string{origin, "scalar", trimValidationOID(oid)}, "|")
-		}
-	}
-	return strings.Join([]string{origin, "scalar", "<missing-source>"}, "|")
-}
-
-func trimValidationOID(oid string) string {
-	return strings.TrimPrefix(strings.TrimSpace(oid), ".")
 }
 
 func oidHasPrefix(oid, prefix string) bool {

@@ -23,7 +23,7 @@ func (c *Collector) setupProfiles(si *snmputils.SysInfo) []*ddsnmp.Profile {
 	matchedProfiles := resolved.Profiles()
 	c.logMatchedProfiles(matchedProfiles, si.SysObjectID)
 
-	return resolved.ProjectMetricsAndLicensing().Profiles()
+	return resolved.Project(ddsnmp.ConsumerMetrics, ddsnmp.ConsumerLicensing).Profiles()
 }
 
 func (c *Collector) logMatchedProfiles(profiles []*ddsnmp.Profile, sysObjectID string) {

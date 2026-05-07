@@ -231,6 +231,7 @@ Open decisions:
 
 - None. User selected: `2A 3A 4A 5C 6B 7B 8B 9B 10A 11A 12B 13A 14A 15A 17A 18A 19A 20A 21A 22A`, plus profile-origin identity option `1B`.
 - Post-slice review decision: regular SNMP uses an explicit combined metrics+licensing projection, not ad hoc reattachment and not a second collector pass. This keeps single-consumer projections pure while allowing the regular SNMP collector to collect both chart metrics and typed licensing rows in one `ddsnmpcollector` pass.
+- Follow-up projection API decision: use variadic `Project(consumer, consumers...)` for combined projections instead of a one-off `ProjectMetricsAndLicensing()` helper. Existing single-consumer callers stay unchanged, and regular SNMP calls `Project(metrics, licensing)`.
 
 ## Cross-Cutting Resolution Rules
 
@@ -261,7 +262,8 @@ These rules combine the resolved decisions above and prevent implementation drif
            sentinel: [timer_zero_or_negative]
    ```
 
-9. Regular SNMP profile setup uses a combined metrics+licensing projection. `Project(metrics)` remains metrics-only, `Project(licensing)` remains licensing-only, and the SNMP collector uses a named combined projection/view so the typed licensing producer is reachable without a duplicate SNMP pass.
+9. Regular SNMP profile setup uses `Project(metrics, licensing)`. `Project(metrics)` remains metrics-only, `Project(licensing)` remains licensing-only, and the variadic projection keeps the typed licensing producer reachable without a duplicate SNMP pass.
+10. Mixed projections use the public variadic `Project(consumer, consumers...)` API. This keeps the single-consumer API stable while avoiding one-off helpers for every valid consumer combination.
 
 ## Implications And Decisions
 
@@ -681,7 +683,8 @@ Selected option: A with caller-review exception. `snmp:licenses` remains intenti
 - Recorded user decision bundle: `2A 3A 4A 5C 6B 7B 8B 9B 10A 11A 12B 13A 14A 15A 17A 18A 19A 20A 21A 22A`.
 - Recorded local MIB handling decision: keep raw MIBs at repo root during implementation, do not commit them, delete them after implementation is verified.
 - Recorded user decision `1B`: licensing structural identity uses `OriginProfileID`, the logical profile file that declared the licensing row, including mixin-origin rows after `extends:` merge.
-- Recorded post-slice review decision `combined metrics+licensing projection`: regular SNMP profile setup uses a named combined projection so `licensing:` rows are delivered to `ddsnmpcollector` in the same pass as ordinary metrics; single-consumer projections remain pure.
+- Recorded post-slice review decision `combined metrics+licensing projection`: regular SNMP profile setup uses `Project(ConsumerMetrics, ConsumerLicensing)` so `licensing:` rows are delivered to `ddsnmpcollector` in the same pass as ordinary metrics; single-consumer projections remain pure.
+- Recorded user decision `projection API option A`: replace the one-off combined projection helper with variadic `Project(consumer, consumers...)`; regular SNMP will call `Project(ConsumerMetrics, ConsumerLicensing)`.
 - Activated this SOW by moving it from `.agents/sow/pending/` to `.agents/sow/current/` and setting `Status: in-progress`.
 - Phase 1 scaffolding started:
   - replaced the lenient fixture GET helper with `mustExpectSNMPGetFromFixture`, which fails immediately when a test asks for an OID absent from the fixture;
@@ -706,12 +709,22 @@ Selected option: A with caller-review exception. `snmp:licenses` remains intenti
   - table licensing rows carry `OriginProfileID`, table OID, raw row index, structural id, identity/descriptors, state, timer, usage, static tags, and row metric tags;
   - scalar licensing rows support explicit group ids, literal values, sibling `from:` OIDs, text-date formatting, mappings, and sentinel filtering at emit time.
 - Folded in post-slice readiness review fixes before starting the consumer rewrite:
-  - wired regular SNMP setup to an explicit combined metrics+licensing projection so typed `LicenseRows` are reachable in production without a second SNMP pass;
+  - wired regular SNMP setup to `Project(ConsumerMetrics, ConsumerLicensing)` so typed `LicenseRows` are reachable in production without a second SNMP pass;
   - fixed the legacy licensing test helper to clear inherited `Topology` and `Licensing` rows, which removed the extra topology `Version()` calls in Cisco/MikroTik hidden-protocol tests;
   - extended licensing validation for repeated `(structural identity, signal kind)` rows, table `from:` scope, scalar multi-signal grouping, descriptor-only rows, scalar index misuse, underscore-prefixed legacy names, and closed value formats;
   - applied sentinel filtering to usage signals too, not only timer signals;
   - kept licensing table walk failures from poisoning the generic metric `missingOIDs` cache;
   - added `Stats.Metrics.Licensing` so typed licensing rows are counted separately from ordinary metric rows.
+- Replaced the temporary combined-projection helper shape with the resolved variadic `Project(consumer, consumers...)` API; regular SNMP now calls `Project(ConsumerMetrics, ConsumerLicensing)`, while topology and licensing-only callers continue using single-consumer projections.
+- Folded in the follow-up Claude implementation-slice review before starting the consumer rewrite:
+  - accepted and fixed `mergeLicensing` override semantics by making derived `licensing:` rows replace inherited rows with the same pre-collection merge identity;
+  - accepted and fixed the shared `missingOIDs` poisoning risk by removing the empty-walk table-missing cache write; explicit no-such GET responses still mark OIDs missing;
+  - accepted and fixed licensing cross-table tag wiring by building a shared licensing table-name/OID map, walking cross-table dependencies before row processing, and caching dependency metadata;
+  - accepted and fixed the D20 forbid-list gap by rejecting `extract_value`, `match_pattern`, and `match_value` on licensing row value symbols;
+  - accepted and fixed state-policy-without-source validation, timer timestamp/remaining ambiguity, usage sentinel parity, cache-config namespace collisions, and duplicated structural-identity helper logic;
+  - accepted and fixed licensing observability separation by adding `Stats.Timing.Licensing` and `Stats.Errors.Processing.Licensing`;
+  - accepted the stats accounting direction: `Stats.Metrics.Licensing` counts typed license rows, while `Stats.Metrics.Tables` and `Stats.Metrics.Rows` remain ordinary chart-metric table counters;
+  - rejected treating scalar `from:` acceptance as a blocker: scalar rows are the scalar group scope, table `from:` has the strict same-table gate, and cross-profile `from:` has no schema path.
 - Updated durable project artifacts for the typed projection slice:
   - extended `.agents/sow/specs/snmp-profile-projection.md` with the licensing consumer, projection rules, typed delivery, identity rules, and validation guarantees;
   - extended `.agents/skills/project-snmp-profiles-authoring/SKILL.md` with licensing authoring guardrails and the `ProfileMetrics.LicenseRows` delivery rule.
@@ -736,6 +749,12 @@ Tests or equivalent validation:
 - `go test -count=1 ./collector/snmp/ddsnmp/ddsnmpcollector -run TestParseSNMPWalkLine_IntegerEnumValue` passed, compiling `ddsnmpcollector` after shared `ProfileMetrics` changes.
 - `go test -count=1 ./collector/snmp/ddsnmp/ddsnmpcollector -run 'TestCollector_Collect_(Cisco|MikroTik)LicensingProfile'` passed after clearing inherited topology rows from the hidden-protocol licensing profile helper.
 - `go test -count=1 ./collector/snmp/ddsnmp/ddsnmpcollector -run 'TestCollector_Collect_LicenseRows|TestCollector_Collect_PreservesHiddenMetrics|TestCollector_Collect_SeparatesTopologyMetricsFromHiddenMetrics|TestCollector_Collect_StatsSnapshot'` passed after the combined projection, usage-sentinel, and licensing-stats fixes.
+- `go test -count=1 ./collector/snmp/ddsnmp` passed after replacing the one-off combined projection helper with variadic `Project(consumer, consumers...)`.
+- `go test -count=1 ./collector/snmp/ddsnmp/... ./collector/snmp/... ./collector/snmp_topology/...` passed after replacing the one-off combined projection helper with variadic `Project(consumer, consumers...)`.
+- `go test -count=1 ./collector/snmp/ddsnmp/ddprofiledefinition` passed after adding the licensing forbid-list, state-source, and timer-source validation gates.
+- `go test -count=1 ./collector/snmp/ddsnmp` passed after the variadic projection and licensing merge-override fixes.
+- `go test -count=1 ./collector/snmp/ddsnmp/ddsnmpcollector` passed after the cross-table licensing dependency walk, missing-OID, cache-namespace, sentinel-matrix, and licensing stat fixes.
+- `go test -count=1 ./collector/snmp/ddsnmp/... ./collector/snmp/... ./collector/snmp_topology/...` passed after the full post-review fix batch.
 - `go test -count=1 ./collector/snmp/ddsnmp/ddsnmpcollector` passed.
 - `go test -count=1 ./collector/snmp/ddsnmp/...` passed.
 - `go test -count=1 ./collector/snmp/...` passed.
@@ -747,7 +766,11 @@ Real-use evidence:
 
 Reviewer findings:
 
-- Pending implementation.
+- Latest Claude implementation-slice review disposition:
+  - accepted/fixed P0 merge override, missing-OID poisoning, and licensing cross-table dependency wiring before consumer rewrite;
+  - accepted/fixed P1 validation/runtime gaps for forbidden licensing symbol transforms, state policy source, timer source ambiguity, cache namespace, licensing timing/error counters, and structural helper reuse;
+  - accepted/documented separate stats semantics for typed license rows versus ordinary chart-metric table rows;
+  - rejected scalar `from:` as an additional blocker because scalar `from:` is scoped to the scalar licensing row/group by construction, while table `from:` remains explicitly same-table validated.
 
 Same-failure scan:
 

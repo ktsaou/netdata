@@ -108,12 +108,14 @@ type TimingStats struct {
 	Scalar time.Duration
 	// Table is time spent collecting table metrics.
 	Table time.Duration
+	// Licensing is time spent collecting typed licensing rows.
+	Licensing time.Duration
 	// VirtualMetrics is time spent computing derived/aggregated metrics.
 	VirtualMetrics time.Duration
 }
 
 func (s TimingStats) Total() time.Duration {
-	return s.Scalar + s.Table + s.VirtualMetrics
+	return s.Scalar + s.Table + s.Licensing + s.VirtualMetrics
 }
 
 // SNMPOperationStats captures SNMP protocol-level operations.
@@ -162,8 +164,9 @@ type ErrorStats struct {
 	SNMP int64
 	// Processing is the count of value conversion/transform errors.
 	Processing struct {
-		Scalar int64
-		Table  int64
+		Scalar    int64
+		Table     int64
+		Licensing int64
 	}
 	// MissingOIDs is the count of NoSuchObject/NoSuchName responses.
 	MissingOIDs int64

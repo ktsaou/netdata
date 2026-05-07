@@ -317,7 +317,17 @@ func (p *Profile) mergeTopology(base *Profile) error {
 }
 
 func (p *Profile) mergeLicensing(base *Profile) {
-	p.Definition.Licensing = append(p.Definition.Licensing, base.Definition.Licensing...)
+	overridden := make(map[string]bool, len(p.Definition.Licensing))
+	for _, row := range p.Definition.Licensing {
+		overridden[ddprofiledefinition.LicenseMergeIdentity(row)] = true
+	}
+
+	for _, row := range base.Definition.Licensing {
+		if overridden[ddprofiledefinition.LicenseMergeIdentity(row)] {
+			continue
+		}
+		p.Definition.Licensing = append(p.Definition.Licensing, row)
+	}
 }
 
 func indexTopologyMergeConflicts(
@@ -616,7 +626,7 @@ func deduplicateLicensingInProfile(prof *Profile, seenSignals map[string]bool) {
 }
 
 func generateLicenseSignalKeys(row ddprofiledefinition.LicensingConfig) []string {
-	identity := generateLicenseStructuralIdentity(row)
+	identity := ddprofiledefinition.LicenseStructuralIdentity(row)
 	var keys []string
 	add := func(value ddprofiledefinition.LicenseValueConfig) {
 		if value.IsSet() && value.Kind != "" {
@@ -639,56 +649,6 @@ func addLicenseTimerSignalKeys(cfg ddprofiledefinition.LicenseTimerSignalsConfig
 	add(cfg.LicenseValueConfig)
 	add(cfg.Timestamp)
 	add(cfg.Remaining)
-}
-
-func generateLicenseStructuralIdentity(row ddprofiledefinition.LicensingConfig) string {
-	origin := row.OriginProfileID
-	if origin == "" {
-		origin = "<profile>"
-	}
-	if row.Table.OID != "" {
-		return strings.Join([]string{origin, "table", strings.TrimPrefix(row.Table.OID, ".")}, "|")
-	}
-	if row.ID != "" {
-		return strings.Join([]string{origin, "scalar-group", row.ID}, "|")
-	}
-	for _, value := range []ddprofiledefinition.LicenseValueConfig{
-		row.State.LicenseValueConfig,
-		row.Signals.Expiry.LicenseValueConfig,
-		row.Signals.Expiry.Timestamp,
-		row.Signals.Expiry.Remaining,
-		row.Signals.Authorization.LicenseValueConfig,
-		row.Signals.Authorization.Timestamp,
-		row.Signals.Authorization.Remaining,
-		row.Signals.Certificate.LicenseValueConfig,
-		row.Signals.Certificate.Timestamp,
-		row.Signals.Certificate.Remaining,
-		row.Signals.Grace.LicenseValueConfig,
-		row.Signals.Grace.Timestamp,
-		row.Signals.Grace.Remaining,
-		row.Signals.Usage.Used,
-		row.Signals.Usage.Capacity,
-		row.Signals.Usage.Available,
-		row.Signals.Usage.Percent,
-	} {
-		if oid := licenseConfigValueSourceOID(value); oid != "" {
-			return strings.Join([]string{origin, "scalar", strings.TrimPrefix(oid, ".")}, "|")
-		}
-	}
-	return strings.Join([]string{origin, "scalar", "<missing-source>"}, "|")
-}
-
-func licenseConfigValueSourceOID(value ddprofiledefinition.LicenseValueConfig) string {
-	switch {
-	case value.From != "":
-		return value.From
-	case value.Symbol.OID != "":
-		return value.Symbol.OID
-	case value.OID != "":
-		return value.OID
-	default:
-		return ""
-	}
 }
 
 func generateTopologyScalarMetricKey(topo ddprofiledefinition.TopologyConfig) string {

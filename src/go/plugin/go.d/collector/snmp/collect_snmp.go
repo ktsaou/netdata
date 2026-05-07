@@ -115,6 +115,7 @@ func (c *Collector) collectProfileStats(mx map[string]int64, pms []*ddsnmp.Profi
 		px := fmt.Sprintf("snmp_device_prof_%s_stats_", name)
 		mx[px+"timings_scalar"] = pm.Stats.Timing.Scalar.Milliseconds()
 		mx[px+"timings_table"] = pm.Stats.Timing.Table.Milliseconds()
+		mx[px+"timings_licensing"] = pm.Stats.Timing.Licensing.Milliseconds()
 		mx[px+"timings_virtual"] = pm.Stats.Timing.VirtualMetrics.Milliseconds()
 		mx[px+"snmp_get_requests"] = pm.Stats.SNMP.GetRequests
 		mx[px+"snmp_get_oids"] = pm.Stats.SNMP.GetOIDs
@@ -133,6 +134,7 @@ func (c *Collector) collectProfileStats(mx map[string]int64, pms []*ddsnmp.Profi
 		mx[px+"errors_snmp"] = pm.Stats.Errors.SNMP
 		mx[px+"errors_processing_scalar"] = pm.Stats.Errors.Processing.Scalar
 		mx[px+"errors_processing_table"] = pm.Stats.Errors.Processing.Table
+		mx[px+"errors_processing_licensing"] = pm.Stats.Errors.Processing.Licensing
 	}
 }
 

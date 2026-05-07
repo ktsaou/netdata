@@ -204,12 +204,14 @@ func (c *Collector) collectProfile(ps *profileState) (*ddsnmp.ProfileMetrics, er
 	}
 	pm.TopologyMetrics = append(pm.TopologyMetrics, topologyMetrics...)
 
+	now = time.Now()
 	licenseRows, err := c.collectLicenseRows(ps.profile, &pm.Stats)
 	if err != nil {
 		return nil, err
 	}
 	pm.LicenseRows = append(pm.LicenseRows, licenseRows...)
 	pm.Stats.Metrics.Licensing += int64(len(licenseRows))
+	pm.Stats.Timing.Licensing = time.Since(now)
 
 	for i := range pm.Metrics {
 		pm.Metrics[i].Profile = pm

@@ -121,10 +121,10 @@ func TestResolvedProfileSetProject_SeparatesMetricsAndTopology(t *testing.T) {
 	}
 }
 
-func TestResolvedProfileSet_ProjectMetricsAndLicensing(t *testing.T) {
+func TestResolvedProfileSetProject_MetricsAndLicensing(t *testing.T) {
 	resolved := &ResolvedProfileSet{profiles: []*Profile{projectionTestProfile()}}
 
-	profiles := resolved.ProjectMetricsAndLicensing().Profiles()
+	profiles := resolved.Project(ConsumerMetrics, ConsumerLicensing).Profiles()
 
 	require.Len(t, profiles, 1)
 	def := profiles[0].Definition
@@ -142,6 +142,34 @@ func TestResolvedProfileSet_ProjectMetricsAndLicensing(t *testing.T) {
 	assert.Contains(t, def.SysobjectIDMetadata[0].Metadata, "sysobjectid_vendor")
 	assert.Contains(t, def.SysobjectIDMetadata[0].Metadata, "sysobjectid_license_vendor")
 	assert.NotContains(t, def.SysobjectIDMetadata[0].Metadata, "sysobjectid_topology_vendor")
+}
+
+func TestResolvedProfileSetProject_UnscopedMetricTagsPropagateToLicensing(t *testing.T) {
+	resolved := &ResolvedProfileSet{profiles: []*Profile{
+		{
+			SourceFile: "licensing.yaml",
+			Definition: &ddprofiledefinition.ProfileDefinition{
+				MetricTags: []ddprofiledefinition.GlobalMetricTagConfig{
+					{MetricTagConfig: ddprofiledefinition.MetricTagConfig{Tag: "device_model"}},
+				},
+				Licensing: []ddprofiledefinition.LicensingConfig{
+					{
+						ID:              "license",
+						OriginProfileID: "licensing.yaml",
+						Identity: ddprofiledefinition.LicenseIdentityConfig{
+							ID: ddprofiledefinition.LicenseValueConfig{Value: "license"},
+						},
+					},
+				},
+			},
+		},
+	}}
+
+	profiles := resolved.Project(ConsumerLicensing).Profiles()
+
+	require.Len(t, profiles, 1)
+	require.Len(t, profiles[0].Definition.MetricTags, 1)
+	assert.Equal(t, "device_model", profiles[0].Definition.MetricTags[0].Tag)
 }
 
 func TestResolvedProfileSetProject_DoesNotShareMutableProjectionState(t *testing.T) {

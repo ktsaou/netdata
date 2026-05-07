@@ -167,16 +167,19 @@ func TestValidateEnrichProfile_Licensing(t *testing.T) {
 			},
 			wantErrContains: []string{`licensing[0].signals.usage.used.kind: invalid kind "usage_typo"`},
 		},
-		"forbids transform and underscore symbol names": {
+		"forbids transform extraction match and underscore symbol names": {
 			profile: ProfileDefinition{
 				Licensing: []LicensingConfig{
 					{
 						State: LicenseStateConfig{
 							LicenseValueConfig: LicenseValueConfig{
 								Symbol: SymbolConfig{
-									OID:       "1.2.3.0",
-									Name:      "_license_row",
-									Transform: "{{ .Value }}",
+									OID:          "1.2.3.0",
+									Name:         "_license_row",
+									Transform:    "{{ .Value }}",
+									ExtractValue: `(\d+)`,
+									MatchPattern: `(\d+)`,
+									MatchValue:   "$1",
 								},
 							},
 						},
@@ -186,7 +189,57 @@ func TestValidateEnrichProfile_Licensing(t *testing.T) {
 			wantErrContains: []string{
 				`licensing[0].state.symbol: name "_license_row" cannot be underscore-prefixed`,
 				"licensing[0].state.symbol: transform cannot be used in licensing rows",
+				"licensing[0].state.symbol: extract_value cannot be used in licensing rows",
+				"licensing[0].state.symbol: match_pattern cannot be used in licensing rows",
+				"licensing[0].state.symbol: match_value cannot be used in licensing rows",
 			},
+		},
+		"forbids state policy without state source": {
+			profile: ProfileDefinition{
+				Licensing: []LicensingConfig{
+					{
+						State: LicenseStateConfig{Policy: LicenseStatePolicyDefault},
+						Signals: LicenseSignalsConfig{
+							Expiry: LicenseTimerSignalsConfig{
+								LicenseValueConfig: LicenseValueConfig{Symbol: SymbolConfig{OID: "1.2.4.0", Name: "licenseExpiry"}},
+							},
+						},
+					},
+				},
+			},
+			wantErrContains: []string{"licensing[0].state.policy: policy requires state value source"},
+		},
+		"forbids timer timestamp and remaining together": {
+			profile: ProfileDefinition{
+				Licensing: []LicensingConfig{
+					{
+						ID: "scalar-group",
+						Signals: LicenseSignalsConfig{
+							Expiry: LicenseTimerSignalsConfig{
+								Timestamp: LicenseValueConfig{Symbol: SymbolConfig{OID: "1.2.4.0", Name: "licenseExpiry"}},
+								Remaining: LicenseValueConfig{Symbol: SymbolConfig{OID: "1.2.5.0", Name: "licenseExpiryRemaining"}},
+							},
+						},
+					},
+				},
+			},
+			wantErrContains: []string{"licensing[0].signals.expiry: timestamp and remaining cannot both be set"},
+		},
+		"forbids inline timer and remaining together": {
+			profile: ProfileDefinition{
+				Licensing: []LicensingConfig{
+					{
+						ID: "scalar-group",
+						Signals: LicenseSignalsConfig{
+							Expiry: LicenseTimerSignalsConfig{
+								LicenseValueConfig: LicenseValueConfig{Symbol: SymbolConfig{OID: "1.2.4.0", Name: "licenseExpiry"}},
+								Remaining:          LicenseValueConfig{Symbol: SymbolConfig{OID: "1.2.5.0", Name: "licenseExpiryRemaining"}},
+							},
+						},
+					},
+				},
+			},
+			wantErrContains: []string{"licensing[0].signals.expiry: timestamp and remaining cannot both be set"},
 		},
 		"forbids legacy underscore top-level names": {
 			profile: ProfileDefinition{

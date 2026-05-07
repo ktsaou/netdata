@@ -83,28 +83,24 @@ func (r *ResolvedProfileSet) Profiles() []*Profile {
 	return r.profiles
 }
 
-func (r *ResolvedProfileSet) Project(consumer ProfileConsumer) ProjectedView {
+func (r *ResolvedProfileSet) Project(consumer ProfileConsumer, consumers ...ProfileConsumer) ProjectedView {
 	if r == nil || len(r.profiles) == 0 {
 		return ProjectedView{}
+	}
+
+	requested := append([]ProfileConsumer{consumer}, consumers...)
+	if len(requested) > 1 {
+		return r.project(func(prof *Profile) {
+			projectProfileForConsumers(prof, requested)
+		}, func(def *ddprofiledefinition.ProfileDefinition) bool {
+			return profileHasProjectedDataForConsumers(def, requested)
+		})
 	}
 
 	return r.project(func(prof *Profile) {
 		projectProfile(prof, consumer)
 	}, func(def *ddprofiledefinition.ProfileDefinition) bool {
 		return profileHasProjectedData(def, consumer)
-	})
-}
-
-func (r *ResolvedProfileSet) ProjectMetricsAndLicensing() ProjectedView {
-	if r == nil || len(r.profiles) == 0 {
-		return ProjectedView{}
-	}
-
-	consumers := []ProfileConsumer{ConsumerMetrics, ConsumerLicensing}
-	return r.project(func(prof *Profile) {
-		projectProfileForConsumers(prof, consumers)
-	}, func(def *ddprofiledefinition.ProfileDefinition) bool {
-		return profileHasProjectedDataForConsumers(def, consumers)
 	})
 }
 

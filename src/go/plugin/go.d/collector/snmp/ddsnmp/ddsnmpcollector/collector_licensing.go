@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"maps"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -74,6 +75,7 @@ func (c *Collector) collectScalarLicenseRows(configs []ddprofiledefinition.Licen
 
 		row, ok, err := c.buildScalarLicenseRow(cfg, pdus)
 		if err != nil {
+			stats.Errors.Processing.Licensing++
 			errs = append(errs, fmt.Errorf("licensing scalar row %q: %w", licensingConfigDisplayName(cfg), err))
 			continue
 		}
@@ -91,6 +93,8 @@ func (c *Collector) collectScalarLicenseRows(configs []ddprofiledefinition.Licen
 func (c *Collector) collectTableLicenseRows(configs []ddprofiledefinition.LicensingConfig, stats *ddsnmp.CollectionStats) ([]ddsnmp.LicenseRow, error) {
 	var rows []ddsnmp.LicenseRow
 	var errs []error
+	walkedData := make(map[string]map[string]gosnmp.SnmpPDU)
+	tableNameToOID := licensingTableNameToOID(configs)
 
 	for _, cfg := range configs {
 		if cfg.Table.OID == "" {
@@ -109,26 +113,35 @@ func (c *Collector) collectTableLicenseRows(configs []ddprofiledefinition.Licens
 		}
 		stats.TableCache.Misses++
 
-		pdus, err := c.tableCollector.snmpWalk(cfg.Table.OID, stats)
-		if err != nil {
-			stats.Errors.SNMP++
-			errs = append(errs, fmt.Errorf("licensing table %q: %w", licensingConfigDisplayName(cfg), err))
-			continue
+		tableOID := trimOID(cfg.Table.OID)
+		pdus := walkedData[tableOID]
+		if pdus == nil {
+			var err error
+			pdus, err = c.tableCollector.snmpWalk(cfg.Table.OID, stats)
+			if err != nil {
+				stats.Errors.SNMP++
+				errs = append(errs, fmt.Errorf("licensing table %q: %w", licensingConfigDisplayName(cfg), err))
+				continue
+			}
+			if len(pdus) > 0 {
+				stats.SNMP.TablesWalked++
+				walkedData[tableOID] = pdus
+			}
 		}
 		if len(pdus) == 0 {
 			continue
 		}
-		stats.SNMP.TablesWalked++
+
+		if err := c.walkLicenseTableDependencies(metricsCfg, tableNameToOID, walkedData, stats); err != nil {
+			errs = append(errs, fmt.Errorf("licensing table %q dependencies: %w", licensingConfigDisplayName(cfg), err))
+			continue
+		}
 
 		ctx := &tableProcessingContext{
-			config: metricsCfg,
-			pdus:   pdus,
-			walkedData: map[string]map[string]gosnmp.SnmpPDU{
-				trimOID(cfg.Table.OID): pdus,
-			},
-			tableNameToOID: map[string]string{
-				cfg.Table.Name: trimOID(cfg.Table.OID),
-			},
+			config:         metricsCfg,
+			pdus:           pdus,
+			walkedData:     walkedData,
+			tableNameToOID: tableNameToOID,
 		}
 		ctx.columnOIDs = buildColumnOIDs(metricsCfg)
 		ctx.orderedTags = buildOrderedTags(metricsCfg)
@@ -137,6 +150,7 @@ func (c *Collector) collectTableLicenseRows(configs []ddprofiledefinition.Licens
 		for rowIndex, rowPDUs := range ctx.rows {
 			row, ok, err := c.buildTableLicenseRow(cfg, rowIndex, rowPDUs, ctx)
 			if err != nil {
+				stats.Errors.Processing.Licensing++
 				errs = append(errs, fmt.Errorf("licensing table %q row %q: %w", licensingConfigDisplayName(cfg), rowIndex, err))
 				continue
 			}
@@ -153,6 +167,32 @@ func (c *Collector) collectTableLicenseRows(configs []ddprofiledefinition.Licens
 		return nil, errors.Join(errs...)
 	}
 	return rows, nil
+}
+
+func (c *Collector) walkLicenseTableDependencies(
+	cfg ddprofiledefinition.MetricsConfig,
+	tableNameToOID map[string]string,
+	walkedData map[string]map[string]gosnmp.SnmpPDU,
+	stats *ddsnmp.CollectionStats,
+) error {
+	var errs []error
+	for _, depOID := range extractTableDependencies(cfg, tableNameToOID) {
+		depOID = trimOID(depOID)
+		if walkedData[depOID] != nil {
+			continue
+		}
+		pdus, err := c.tableCollector.snmpWalk(depOID, stats)
+		if err != nil {
+			stats.Errors.SNMP++
+			errs = append(errs, fmt.Errorf("table OID %q: %w", depOID, err))
+			continue
+		}
+		if len(pdus) > 0 {
+			stats.SNMP.TablesWalked++
+			walkedData[depOID] = pdus
+		}
+	}
+	return errors.Join(errs...)
 }
 
 func (c *Collector) collectTableLicenseRowsFromCache(cfg ddprofiledefinition.LicensingConfig, metricsCfg ddprofiledefinition.MetricsConfig, stats *ddsnmp.CollectionStats) ([]ddsnmp.LicenseRow, bool, error) {
@@ -614,12 +654,89 @@ func licensingConfigAsMetricsConfig(cfg ddprofiledefinition.LicensingConfig) ddp
 	}
 
 	return ddprofiledefinition.MetricsConfig{
-		MIB:        cfg.MIB,
+		MIB:        licensingMetricsConfigMIB(cfg.MIB),
 		Table:      cfg.Table,
 		Symbols:    symbols,
 		StaticTags: cfg.StaticTags,
 		MetricTags: cfg.MetricTags,
 	}
+}
+
+func licensingMetricsConfigMIB(mib string) string {
+	if mib == "" {
+		return "license"
+	}
+	return "license:" + mib
+}
+
+func licensingTableNameToOID(configs []ddprofiledefinition.LicensingConfig) map[string]string {
+	tableNameToOID := make(map[string]string)
+	crossTableOIDs := make(map[string][]string)
+
+	for _, cfg := range configs {
+		if cfg.Table.Name != "" && cfg.Table.OID != "" {
+			tableNameToOID[cfg.Table.Name] = trimOID(cfg.Table.OID)
+		}
+	}
+
+	for _, cfg := range configs {
+		if cfg.Table.OID == "" {
+			continue
+		}
+		metricsCfg := licensingConfigAsMetricsConfig(cfg)
+		for _, tagCfg := range metricsCfg.MetricTags {
+			if tagCfg.Table == "" || tagCfg.Table == cfg.Table.Name {
+				continue
+			}
+			if _, ok := tableNameToOID[tagCfg.Table]; ok {
+				continue
+			}
+			if tagCfg.Symbol.OID != "" {
+				crossTableOIDs[tagCfg.Table] = append(crossTableOIDs[tagCfg.Table], tagCfg.Symbol.OID)
+			}
+			if tagCfg.LookupSymbol.OID != "" {
+				crossTableOIDs[tagCfg.Table] = append(crossTableOIDs[tagCfg.Table], tagCfg.LookupSymbol.OID)
+			}
+		}
+	}
+
+	for tableName, oids := range crossTableOIDs {
+		if oid := longestCommonOIDPrefix(oids); oid != "" {
+			tableNameToOID[tableName] = oid
+		}
+	}
+
+	return tableNameToOID
+}
+
+func longestCommonOIDPrefix(oids []string) string {
+	if len(oids) == 0 {
+		return ""
+	}
+	slices.Sort(oids)
+	oids = slices.Compact(oids)
+	prefixParts := splitOIDParts(oids[0])
+	for _, oid := range oids[1:] {
+		parts := splitOIDParts(oid)
+		n := min(len(parts), len(prefixParts))
+		i := 0
+		for i < n && prefixParts[i] == parts[i] {
+			i++
+		}
+		prefixParts = prefixParts[:i]
+		if len(prefixParts) == 0 {
+			return ""
+		}
+	}
+	return strings.Join(prefixParts, ".")
+}
+
+func splitOIDParts(oid string) []string {
+	parts := strings.Split(strings.Trim(oid, "."), ".")
+	if len(parts) == 1 && parts[0] == "" {
+		return nil
+	}
+	return parts
 }
 
 func licensingScalarOIDs(cfg ddprofiledefinition.LicensingConfig) []string {

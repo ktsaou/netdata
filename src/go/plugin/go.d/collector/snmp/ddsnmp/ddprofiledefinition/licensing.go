@@ -2,7 +2,10 @@
 
 package ddprofiledefinition
 
-import "slices"
+import (
+	"slices"
+	"strings"
+)
 
 type LicenseSignalKind string
 
@@ -250,4 +253,72 @@ func (c LicenseValueConfig) Clone() LicenseValueConfig {
 		Sentinel:       slices.Clone(c.Sentinel),
 		Kind:           c.Kind,
 	}
+}
+
+type LicenseSignalValueRef struct {
+	Kind  LicenseSignalKind
+	Value LicenseValueConfig
+}
+
+func LicenseSignalValueRefs(row LicensingConfig) []LicenseSignalValueRef {
+	var values []LicenseSignalValueRef
+	add := func(kind LicenseSignalKind, value LicenseValueConfig) {
+		values = append(values, LicenseSignalValueRef{Kind: kind, Value: value})
+	}
+	add(LicenseSignalStateSeverity, row.State.LicenseValueConfig)
+	addLicenseTimerSignalValueRefs(row.Signals.Expiry, LicenseSignalExpiryTimestamp, LicenseSignalExpiryRemaining, add)
+	addLicenseTimerSignalValueRefs(row.Signals.Authorization, LicenseSignalAuthorizationTimestamp, LicenseSignalAuthorizationRemaining, add)
+	addLicenseTimerSignalValueRefs(row.Signals.Certificate, LicenseSignalCertificateTimestamp, LicenseSignalCertificateRemaining, add)
+	addLicenseTimerSignalValueRefs(row.Signals.Grace, LicenseSignalGraceTimestamp, LicenseSignalGraceRemaining, add)
+	add(LicenseSignalUsageUsed, row.Signals.Usage.Used)
+	add(LicenseSignalUsageCapacity, row.Signals.Usage.Capacity)
+	add(LicenseSignalUsageAvailable, row.Signals.Usage.Available)
+	add(LicenseSignalUsagePercent, row.Signals.Usage.Percent)
+	return values
+}
+
+func addLicenseTimerSignalValueRefs(cfg LicenseTimerSignalsConfig, timestampKind, remainingKind LicenseSignalKind, add func(LicenseSignalKind, LicenseValueConfig)) {
+	add(timestampKind, cfg.LicenseValueConfig)
+	add(timestampKind, cfg.Timestamp)
+	add(remainingKind, cfg.Remaining)
+}
+
+func LicenseStructuralIdentity(row LicensingConfig) string {
+	origin := row.OriginProfileID
+	if origin == "" {
+		origin = "<profile>"
+	}
+	return strings.Join([]string{origin, LicenseMergeIdentity(row)}, "|")
+}
+
+func LicenseMergeIdentity(row LicensingConfig) string {
+	if row.Table.OID != "" {
+		return strings.Join([]string{"table", TrimLicenseOID(row.Table.OID)}, "|")
+	}
+	if row.ID != "" {
+		return strings.Join([]string{"scalar-group", row.ID}, "|")
+	}
+	for _, sig := range LicenseSignalValueRefs(row) {
+		if oid := LicenseValueSourceOID(sig.Value); oid != "" {
+			return strings.Join([]string{"scalar", TrimLicenseOID(oid)}, "|")
+		}
+	}
+	return strings.Join([]string{"scalar", "<missing-source>"}, "|")
+}
+
+func LicenseValueSourceOID(value LicenseValueConfig) string {
+	switch {
+	case value.From != "":
+		return value.From
+	case value.Symbol.OID != "":
+		return value.Symbol.OID
+	case value.OID != "":
+		return value.OID
+	default:
+		return ""
+	}
+}
+
+func TrimLicenseOID(oid string) string {
+	return strings.TrimPrefix(strings.TrimSpace(oid), ".")
 }
