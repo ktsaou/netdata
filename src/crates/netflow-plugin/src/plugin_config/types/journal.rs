@@ -21,6 +21,24 @@ pub(crate) struct JournalConfig {
     #[serde(default)]
     pub(crate) tiers: JournalTierRetentionOverrides,
 
+    /// CLI-only compatibility alias for standalone runs. YAML config remains
+    /// per-tier only; this legacy flag applies the same size limit to all tiers.
+    #[arg(
+        long = "netflow-retention-size-of-journal-files",
+        value_parser = parse_bytesize
+    )]
+    #[serde(skip)]
+    pub(crate) cli_retention_size_of_journal_files: Option<ByteSize>,
+
+    /// CLI-only compatibility alias for standalone runs. YAML config remains
+    /// per-tier only; this legacy flag applies the same time limit to all tiers.
+    #[arg(
+        long = "netflow-retention-duration-of-journal-files",
+        value_parser = parse_duration
+    )]
+    #[serde(skip)]
+    pub(crate) cli_retention_duration_of_journal_files: Option<Duration>,
+
     /// Caps the number of distinct group keys a single aggregation
     /// query may build before extra groups are folded into a
     /// synthetic `__overflow__` bucket. Protects the query worker
@@ -154,6 +172,8 @@ impl Default for JournalConfig {
         Self {
             journal_dir: "flows".to_string(),
             tiers: JournalTierRetentionOverrides::default(),
+            cli_retention_size_of_journal_files: None,
+            cli_retention_duration_of_journal_files: None,
             query_max_groups: default_query_max_groups(),
         }
     }
@@ -196,8 +216,12 @@ impl JournalConfig {
     pub(crate) fn retention_for_tier(&self, tier: TierKind) -> ResolvedJournalTierRetention {
         let cfg = self.tiers.get(tier);
         ResolvedJournalTierRetention {
-            size_of_journal_files: cfg.size_of_journal_files,
-            duration_of_journal_files: cfg.duration_of_journal_files,
+            size_of_journal_files: self
+                .cli_retention_size_of_journal_files
+                .or(cfg.size_of_journal_files),
+            duration_of_journal_files: self
+                .cli_retention_duration_of_journal_files
+                .or(cfg.duration_of_journal_files),
         }
     }
 

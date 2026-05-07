@@ -138,7 +138,7 @@ journal:
 
 ### Per-tier retention
 
-Each tier has its own size and duration budget, configured under `tiers:` only — there are no global retention knobs. Raw and rollup tiers have very different storage and access patterns; they should be sized independently.
+Each tier has its own size and duration budget, configured under `tiers:` only — YAML has no global retention knobs. Raw and rollup tiers have very different storage and access patterns; they should be sized independently.
 
 ```yaml
 tiers:
@@ -175,6 +175,12 @@ Per-tier values:
 Either limit triggers rotation. The tier expires whichever is hit first. At least one of the two must be set per tier (validation enforces this).
 
 If you omit a tier entry entirely, that tier uses the built-in defaults (`10GB` / `7d`). If you provide a tier entry but omit one of the two knobs, the omitted knob falls back to its built-in default. Setting either to `null` explicitly disables that limit on that tier.
+
+Standalone CLI runs still accept the legacy uniform retention flags:
+`--netflow-retention-size-of-journal-files` and
+`--netflow-retention-duration-of-journal-files`. They apply the same value to
+all tiers and exist only for standalone/CLI compatibility; production
+configuration should use the per-tier YAML shape above.
 
 The example block at the top of this section is a typical production profile: 24 hours of raw, 2 weeks at 1-minute, 30 days at 5-minute, 1 year at 1-hour. Detailed forensics for the last day; long-term trends for the year.
 

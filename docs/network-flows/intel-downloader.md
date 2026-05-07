@@ -12,6 +12,8 @@ endmeta-->
 
 `topology-ip-intel-downloader` is a small Netdata-supplied tool that keeps the IP intelligence MMDB databases used by the netflow plugin (and the topology subsystem) up to date. It fetches the upstream payloads, normalises them into a fixed Netdata MMDB layout, applies CIDR classification policy, and atomically replaces the files on disk. The netflow plugin's resolver picks up the new files within 30 seconds — no plugin restart required.
 
+Packaged 32-bit installs ship the stock MMDB payload but do not include the downloader binary. Source builds from a Git checkout also do not include the generated stock MMDB payload by default.
+
 The downloader is a separate executable so you can run it on whatever schedule fits your environment without coupling it to the agent's lifecycle.
 
 ## What it does

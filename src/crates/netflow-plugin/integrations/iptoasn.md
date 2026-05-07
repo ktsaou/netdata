@@ -49,11 +49,12 @@ The Netdata plugin reads MMDB only. IPtoASN ships gzipped TSV
 (`https://iptoasn.com/data/ip2asn-combined.tsv.gz`), so the TSV must be
 converted to MMDB before the plugin can use it.
 
-Netdata bundles a converter for this exact purpose: the
+When available, Netdata provides a converter for this exact purpose: the
 `topology-ip-intel-downloader` Go tool fetches the upstream TSV, parses it,
 and emits MMDB files the plugin auto-detects. This is
 a separate operator step (cron); the plugin itself does no fetching or
-conversion. If you prefer not to use the bundled tool, any third-party
+conversion. Packaged 32-bit installs ship the stock MMDB payload but do not include
+the downloader binary. If you prefer not to use the bundled tool, any third-party
 IPtoASN-to-MMDB converter that produces a standard
 [MaxMind DB](https://maxmind.github.io/MaxMind-DB/) with `iso_code`,
 `autonomous_system_number`, and `autonomous_system_organization` fields
@@ -74,7 +75,7 @@ This integration runs as a single instance per Netdata Agent.
 Not auto-detected as the default ASN source -- the plugin auto-detects
 DB-IP MMDBs in the cache directory at startup
 (see [IP Intelligence](https://learn.netdata.cloud/docs/network-flows/enrichment)).
-To use IPtoASN, run the bundled downloader to produce IPtoASN-derived
+To use IPtoASN, run `topology-ip-intel-downloader` when available to produce IPtoASN-derived
 MMDBs (the downloader writes to the same cache paths the plugin scans,
 so once present they are picked up automatically on the 30-second
 file-signature check).
@@ -95,8 +96,8 @@ Lookups are local MMDB reads after the downloader converts the TSV feed. Memory 
 
 #### Run the downloader with IPtoASN as ASN source
 
-The bundled downloader knows how to fetch the upstream TSV and convert
-it to MMDB:
+When available, the downloader knows how to fetch the upstream TSV and convert
+it to MMDB. Packaged 32-bit installs do not include this binary:
 
 ```bash
 sudo /usr/sbin/topology-ip-intel-downloader \

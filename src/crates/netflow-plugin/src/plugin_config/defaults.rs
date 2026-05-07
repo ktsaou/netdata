@@ -15,6 +15,15 @@ pub(super) fn parse_duration(value: &str) -> Result<Duration, String> {
     })
 }
 
+pub(super) fn parse_bytesize(value: &str) -> Result<ByteSize, String> {
+    value.parse().map_err(|e| {
+        format!(
+            "invalid byte size '{}' (examples: '100MB', '10GB'): {}",
+            value, e
+        )
+    })
+}
+
 pub(super) fn default_true() -> bool {
     true
 }

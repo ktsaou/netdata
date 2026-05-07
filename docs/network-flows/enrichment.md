@@ -22,12 +22,12 @@ Every flow record passes through the same pipeline before it is written to the j
 2. **Decapsulation** — when `protocols.decapsulation_mode` is `srv6` or `vxlan` and the exporter ships inner-packet bytes, the inner 5-tuple replaces the outer one. Everything below operates on the inner addresses.
 3. **GeoIP MMDB lookups** — the resolver runs the source and destination IPs against every configured ASN MMDB and every configured geo MMDB. Country, state, city, coordinates, AS number candidate, AS name, and the `ip_class` flag are seeded from the result.
 4. **Static metadata** — `enrichment.metadata_static.exporters` is matched against the exporter's IP (UDP source) and the ifIndex; `enrichment.networks` is matched per-IP, longest-prefix wins. Static `networks` entries can override country, state, city, latitude, longitude, AS number, and the `*_NET_*` labels.
-5. **Dynamic network sources** — every `enrichment.network_sources.<name>` source contributes its CIDR records to the same network-attributes trie. Lookups for the source/destination IP merge those records in.
+5. **Dynamic network sources** — every `enrichment.network_sources.<name>` source contributes CIDR records to the same network-attribute resolution path. Lookups for the source/destination IP merge matching records with static `enrichment.networks` entries.
 6. **Classifiers** — `exporter_classifiers` runs once per exporter; `interface_classifiers` runs twice per record (once for the input interface, once for the output). They write `EXPORTER_*` and `IN_IF_*` / `OUT_IF_*` fields. **Classifiers are skipped entirely when static metadata already set any classification field on the same target.**
 7. **Routing overlay** — the BGP-fed routing trie (BMP and BioRIS contribute to it) is consulted. The `asn_providers` and `net_providers` chains decide whether the AS number and the network mask come from the flow record, from BGP, or from the GeoIP MMDB. BGP-only fields (`NEXT_HOP`, `DST_AS_PATH`, `DST_COMMUNITIES`, `DST_LARGE_COMMUNITIES`) are written from BGP data.
 8. **Journal write** — the resulting record is written to the raw tier; rollup tiers (1 minute, 5 minutes, 1 hour) are computed from it asynchronously.
 
-The enricher runs only when at least one enrichment input is configured. A deployment with no enrichment configured skips this pipeline and writes raw decoded flow fields only.
+The enricher runs when any enrichment feature is configured, including provider-chain settings. A deployment with all enrichment settings disabled writes raw decoded flow fields only.
 
 ## The two provider chains
 
@@ -227,7 +227,7 @@ headers:
   Authorization: "Token abc123"
 ```
 
-`headers` is a free-form map, so any single-shot scheme works. URL-embedded credentials (`https://user:pass@host/...`) are not specially handled — put the auth in `headers`. Short-lived tokens must be refreshed outside Netdata and reloaded into the config.
+`headers` is a free-form map, so any single-shot scheme works. URL-embedded credentials (`https://user:pass@host/...`) are converted to HTTP Basic authentication by the HTTP client, but explicit `Authorization` headers are clearer and avoid storing credentials in URLs. Short-lived tokens must be refreshed outside Netdata and reloaded into the config.
 
 POST is supported but **sent with no body**. POST endpoints that require a request body are not supported.
 

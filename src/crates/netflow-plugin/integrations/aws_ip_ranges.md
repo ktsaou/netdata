@@ -85,7 +85,7 @@ One full AWS prefix document is fetched per refresh. Resource use scales with th
 
 #### Performance Impact
 
-One HTTPS request per refresh interval plus a jq transform over the AWS prefix document. Runtime enrichment cost is a trie lookup per source and destination IP.
+One HTTPS request per refresh interval plus a jq transform over the AWS prefix document. Runtime enrichment does prefix matching for source and destination IPs, and cost scales with the number of loaded network-source records.
 
 ## Setup
 
@@ -126,7 +126,7 @@ page for the full output schema.
 | timeout | Per-request timeout for the HTTPS GET. | 60s | no |
 | method | HTTP method. AWS serves the file via GET; leave at the default. | GET | no |
 | headers | Extra HTTP headers added to the request. Not required for the public AWS URL; only needed if you front the file behind your own authenticated mirror. | {} | no |
-| transform | jq expression (compiled by jaq) that converts the AWS JSON into a stream of `{prefix, ...}` objects. The default `.` does **not** match the AWS schema -- you must supply a real transform (see examples below) or every fetch fails as "empty result". | . | yes |
+| transform | jq expression (compiled by jaq) that converts the AWS JSON into a stream of `{prefix, ...}` objects. The default `.` does **not** match the AWS schema -- you must supply a real transform (see examples below) or fetches fail because output rows cannot be mapped to the required `{prefix, ...}` schema. | . | yes |
 
 
 </details>
@@ -228,7 +228,7 @@ enrichment:
 
 
 
-### Default `transform: "."` fails with "empty result"
+### Default `transform: "."` fails because output rows are missing `prefix`
 
 The default `.` returns the raw JSON object, not the per-prefix stream the
 plugin expects. You **must** supply a transform that yields one object per

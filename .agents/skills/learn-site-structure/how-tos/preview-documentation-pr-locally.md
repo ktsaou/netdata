@@ -38,12 +38,12 @@ checkout because ingest cleans and regenerates `docs/`.
 
    ```bash
    mkdir -p "${SOURCE_COPY}"
-   git -C "${REPO_ROOT}" ls-files -z \
+   git -C "${REPO_ROOT}" ls-files -co --exclude-standard -z \
      | rsync -a --from0 --files-from=- --ignore-missing-args "${REPO_ROOT}/" "${SOURCE_COPY}/"
    ```
 
-   If the PR contains intentional untracked new docs files, copy those
-   explicitly after checking `git status --short`. Do not copy scratch files.
+   This includes tracked files and intentional untracked files that are not
+   ignored by Git, while still excluding ignored build and scratch output.
 
 3. Clone the local Learn checkout into the preview directory:
 

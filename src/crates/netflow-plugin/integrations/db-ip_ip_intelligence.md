@@ -94,7 +94,8 @@ Lookups are local MMDB reads with no per-flow network call. Memory use is mostly
 
 Native DEB / RPM packages ship the stock DB-IP MMDB files under
 `/usr/share/netdata/topology-ip-intel/`. For source builds, or to get a fresher copy
-than the one bundled with the package, run the bundled downloader once to populate
+than the one bundled with the package, run `topology-ip-intel-downloader` once when
+the binary is available (packaged 32-bit installs do not include it) to populate
 `/var/cache/netdata/topology-ip-intel/`:
 
 ```bash
@@ -200,7 +201,8 @@ private addresses do not appear on maps. Declare your internal CIDRs under
 The plugin does not alert on staleness. Check file mtime:
 `ls -la /var/cache/netdata/topology-ip-intel/`. DB-IP Lite is published monthly,
 so a monthly cron of `/usr/sbin/topology-ip-intel-downloader` keeps you on the
-upstream cadence; running it more often will not produce fresher data.
+upstream cadence when the downloader is installed; running it more often will not
+produce fresher data.
 
 
 ### Map renders empty over a long time window

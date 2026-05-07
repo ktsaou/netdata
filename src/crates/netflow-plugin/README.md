@@ -234,6 +234,12 @@ journal:
   query_max_groups: 50000
 ```
 
+Standalone CLI runs still accept the legacy uniform retention flags
+`--netflow-retention-size-of-journal-files` and
+`--netflow-retention-duration-of-journal-files`. They apply the same value to
+all tiers and exist only for standalone/CLI compatibility; YAML configuration is
+per-tier.
+
 `query_max_groups` caps the number of distinct group keys a single
 aggregation query may build before extra groups are folded into a synthetic
 `__overflow__` bucket. The response carries a warning when this happens. The

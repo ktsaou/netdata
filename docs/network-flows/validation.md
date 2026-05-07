@@ -86,6 +86,8 @@ Files older than ~60 days are likely stale. Refresh:
 sudo /usr/sbin/topology-ip-intel-downloader
 ```
 
+Packaged 32-bit installs do not include `topology-ip-intel-downloader`; use the packaged stock MMDB payload there, or refresh the cache from a system that includes the downloader.
+
 The plugin polls the files every 30 seconds — a successful refresh picks up automatically without restart.
 
 To cross-check the on-disk size of each tier:

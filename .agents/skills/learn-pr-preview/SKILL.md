@@ -42,7 +42,7 @@ Create isolated copies:
 
 ```bash
 mkdir -p "${SOURCE_COPY}"
-git -C "${REPO_ROOT}" ls-files -z \
+git -C "${REPO_ROOT}" ls-files -co --exclude-standard -z \
   | rsync -a --from0 --files-from=- --ignore-missing-args "${REPO_ROOT}/" "${SOURCE_COPY}/"
 
 git clone --branch "$(git -C "${LEARN_REPO}" branch --show-current)" \

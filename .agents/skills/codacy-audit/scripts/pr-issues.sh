@@ -74,7 +74,7 @@ echo -e "${CA_GRAY}[pr-issues] fetching issues for PR #${PR} ...${CA_NC}" >&2
 # Wrap raw issues array into an envelope with metadata.
 issues_array="$(codacyaudit_pr_issues "$PR")"
 total="$(printf '%s' "$issues_array" | jq 'length')"
-issues_tmp="$(mktemp)"
+issues_tmp="$(mktemp "${TMPDIR:-/tmp}/codacy-pr-issues-XXXXXX")"
 trap 'rm -f "$issues_tmp"' EXIT
 printf '%s' "$issues_array" > "$issues_tmp"
 

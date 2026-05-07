@@ -181,7 +181,7 @@ See [Sizing and Capacity Planning](/docs/network-flows/sizing-capacity.md) for m
 sudo du -sh /var/cache/netdata/flows/*
 ```
 
-Default retention is `10GB / 7d` per tier — the same budget applies to all four tiers, so total can reach roughly 40 GB plus some. If your config left this default and your collector is busy, expect to hit it. See [Configuration](/docs/network-flows/configuration.md) for per-tier overrides — most production deployments need them.
+Default retention is `10GB / 7d` per tier. The default is applied separately to raw, 1m, 5m, and 1h tiers, so total can reach roughly 40 GB plus some. If your config left this default and your collector is busy, expect to hit the size cap before the time cap. See [Configuration](/docs/network-flows/configuration.md) for per-tier overrides — most production deployments need them.
 
 ## Things that look like bugs but aren't
 

@@ -453,8 +453,9 @@ scripts directly during active development.
    `integrations/integrations.js`, groups integrations by Monitor
    Anything section, and writes `src/collectors/COLLECTORS.md`.
 4. `check-markdown.yml` runs the same generator before Learn
-   ingest on PRs, so a stale or broken generated
-   `COLLECTORS.md` blocks the PR.
+   ingest on PRs, so broken generated `COLLECTORS.md` content
+   (for example, unresolved links) blocks the PR. It does not
+   diff-check that the committed `COLLECTORS.md` file is fresh.
 5. `generate-integrations.yml` runs the same generator after
    metadata changes land on `master` and opens the
    `integrations-regen` PR if committed generated artifacts drift.

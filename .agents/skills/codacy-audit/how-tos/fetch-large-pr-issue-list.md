@@ -17,7 +17,7 @@ argument vector and can exceed the OS limit before `jq` starts.
 Write the JSON array to a temporary file and load it through `jq --slurpfile`:
 
 ```bash
-issues_tmp="$(mktemp)"
+issues_tmp="$(mktemp "${TMPDIR:-/tmp}/codacy-pr-issues-XXXXXX")"
 trap 'rm -f "$issues_tmp"' EXIT
 printf '%s' "$issues_array" > "$issues_tmp"
 

@@ -85,7 +85,7 @@ Resource use scales with the number of NetBox prefixes returned by the URL and t
 
 #### Performance Impact
 
-One HTTP request per refresh interval plus a jq transform over the response. Runtime enrichment cost is a trie lookup per source and destination IP.
+One HTTP request per refresh interval plus a jq transform over the response. Runtime enrichment does prefix matching for source and destination IPs, and cost scales with the number of loaded network-source records.
 
 ## Setup
 
@@ -306,7 +306,8 @@ Token missing, expired, or wrong format. Verify with:
 `curl -H "Authorization: Token <tok>" https://netbox/api/ipam/prefixes/`.
 On NetBox 4.x check whether the token is v1 (`Token <hex>`) or v2
 (`Bearer nbt_<key>.<token>`) and use the matching header. Watch the journal
-for `network-sources` warnings -- HTTP errors are silently consumed there.
+for `network-sources` warnings -- HTTP errors are logged there as
+refresh-failed warnings.
 
 
 ### site is empty after upgrade to NetBox 4.2

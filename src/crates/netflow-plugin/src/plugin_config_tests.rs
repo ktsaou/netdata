@@ -1,4 +1,5 @@
 use super::*;
+use clap::Parser;
 use tempfile::tempdir;
 
 #[test]
@@ -286,6 +287,37 @@ fn journal_tier_retention_uses_per_tier_values_when_present() {
         minute_1.duration_of_journal_files.unwrap(),
         Duration::from_secs(7 * 24 * 60 * 60)
     );
+}
+
+#[test]
+fn journal_cli_retention_aliases_apply_to_all_tiers() {
+    let cfg = PluginConfig::try_parse_from([
+        "netflow-plugin",
+        "--netflow-retention-size-of-journal-files",
+        "20GB",
+        "--netflow-retention-duration-of-journal-files",
+        "2d",
+    ])
+    .expect("CLI config should parse");
+
+    for tier in [
+        TierKind::Raw,
+        TierKind::Minute1,
+        TierKind::Minute5,
+        TierKind::Hour1,
+    ] {
+        let retention = cfg.journal.retention_for_tier(tier);
+        assert_eq!(
+            retention.size_of_journal_files.unwrap().as_u64(),
+            ByteSize::gb(20).as_u64(),
+            "unexpected size retention for {tier:?}"
+        );
+        assert_eq!(
+            retention.duration_of_journal_files.unwrap(),
+            Duration::from_secs(2 * 24 * 60 * 60),
+            "unexpected duration retention for {tier:?}"
+        );
+    }
 }
 
 #[test]

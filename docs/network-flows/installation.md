@@ -73,7 +73,7 @@ cd netdata
 sudo ./netdata-installer.sh
 ```
 
-**Caveat:** source builds do **not** include the stock GeoIP / IP-intelligence database files. The plugin starts fine without them, but country, city, and AS-name fields will be empty until you run the downloader once:
+**Caveat:** source builds do **not** include the stock GeoIP / IP-intelligence database files. Packaged 32-bit installs ship the stock MMDB payload but do not include `topology-ip-intel-downloader`. The plugin starts fine without cache files, but country, city, and AS-name fields will be empty until you run the downloader once on an install that includes it:
 
 ```bash
 sudo /usr/sbin/topology-ip-intel-downloader
@@ -95,7 +95,7 @@ This populates `/var/cache/netdata/topology-ip-intel/` with the DB-IP-based MMDB
 | Path | Purpose |
 |---|---|
 | `/usr/libexec/netdata/plugins.d/netflow-plugin` | The plugin binary (mode 0750, root:netdata) |
-| `/usr/sbin/topology-ip-intel-downloader` | Helper for refreshing the GeoIP / IP-intel MMDBs |
+| `/usr/sbin/topology-ip-intel-downloader` | Helper for refreshing the GeoIP / IP-intel MMDBs; not included in packaged 32-bit installs |
 | `/usr/lib/netdata/conf.d/netflow.yaml` | Stock configuration (read-only reference; copy to `/etc/netdata/netflow.yaml` to customise) |
 | `/usr/lib/netdata/conf.d/topology-ip-intel.yaml` | IP-intel downloader configuration |
 | `/usr/share/netdata/topology-ip-intel/topology-ip-asn.mmdb` | Stock ASN database (DB-IP) |

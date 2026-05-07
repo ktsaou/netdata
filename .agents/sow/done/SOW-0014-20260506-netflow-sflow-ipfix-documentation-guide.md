@@ -2534,6 +2534,26 @@ documentation PRs can be inspected in a browser before release.
 - `python3 ${NETDATA_REPOS_DIR}/learn/ingest/ingest.py --help` failed in the
   system interpreter due to missing `pandas`; the checked-in Learn `venv`
   also lacked required packages such as `GitPython`.
+- After commit `0a3eda6614` was pushed and all prior threads were replied to
+  and resolved, `bash .agents/skills/pr-reviews/scripts/fetch-all.sh 22449`
+  returned 9 new open automated review threads on the new PR head and no open
+  human review threads.
+- The new PR #22449 comments were verified against source evidence:
+  `.github/workflows/check-markdown.yml:54-69` regenerates `COLLECTORS.md`
+  before Learn ingest but does not diff-check the committed file;
+  `src/crates/netflow-plugin/src/enrichment/init.rs:50-64` keeps the enricher
+  enabled for provider-chain-only config; `network_sources/runtime.rs:24-40`
+  scans loaded network-source records linearly; `network_sources/service.rs:91-96`
+  logs HTTP refresh failures as warnings; and `reqwest-0.13.2` converts URL
+  userinfo to HTTP Basic auth during request build.
+- A second fetch during this repair returned 2 additional automated review
+  threads: one on standalone CLI retention flags and one on ambiguous
+  visualization panel count wording.
+- The CLI retention finding was valid for standalone mode:
+  `src/crates/netflow-plugin/src/plugin_config/runtime.rs:7-11` uses
+  `PluginConfig::parse()` outside Netdata, and commit `f00390e2f5` removed the
+  legacy top-level CLI flags while keeping `JournalConfig.tiers` skipped for
+  Clap.
 
 ### Open repair items
 
@@ -2578,6 +2598,30 @@ documentation PRs can be inspected in a browser before release.
   they collect network flow records and enrichment rows say they enrich or
   annotate network flows, instead of describing provider publication
   mechanisms, variables, defaults, or setup settings.
+- R8.21: Correct `integrations-lifecycle` guidance so it says
+  `check-markdown.yml` catches broken generated `COLLECTORS.md` content during
+  Learn ingest, not stale committed artifact drift.
+- R8.22: Update local Learn preview guidance to copy tracked plus untracked
+  non-ignored PR files into the isolated source preview.
+- R8.23: Add the 32-bit packaging caveat anywhere docs tell users to run
+  `topology-ip-intel-downloader`.
+- R8.24: Replace AWS `transform: "."` "empty result" wording with the actual
+  row-mapping/schema failure around the missing required `prefix` field.
+- R8.25: Correct URL-credential docs for remote network sources: URL userinfo
+  becomes HTTP Basic auth, while explicit headers remain recommended.
+- R8.26: Correct enrichment docs so provider-chain-only config is described as
+  enabling the enricher.
+- R8.27: Make the Codacy helper's temporary file pattern portable.
+- R8.28: Correct NetBox/network-source failure and performance wording:
+  refresh failures are warning logs, and runtime cost scales with loaded
+  network-source records instead of claiming trie lookup.
+- R8.29: Sweep same-class wording across generated cards and hand-authored
+  docs so the next review does not rediscover the same problems in adjacent
+  pages.
+- R8.30: Restore standalone CLI retention tuning without reopening the YAML
+  global-retention schema.
+- R8.31: Clarify the visualization overview panel count so the text matches the
+  listed UI surfaces.
 
 ### Validation plan
 
@@ -2644,6 +2688,38 @@ documentation PRs can be inspected in a browser before release.
   `Annotate network flows...`; regenerated per-integration markdown and
   `src/collectors/COLLECTORS.md`; updated the `integrations-lifecycle`
   skill with description-authoring rules.
+- R8.21: Updated `.agents/skills/integrations-lifecycle/pipeline.md` so
+  `check-markdown.yml` is documented as regenerating `COLLECTORS.md` before
+  Learn ingest and catching broken generated content, while artifact drift is
+  left to the integration regeneration workflow.
+- R8.22: Updated `.agents/skills/learn-pr-preview/SKILL.md` and the matching
+  Learn-site how-to to use `git ls-files -co --exclude-standard`, so previews
+  include intentional untracked PR docs without copying ignored build output.
+- R8.23: Added the packaged 32-bit downloader caveat to IPtoASN and DB-IP
+  generated cards plus hand-authored installation, validation, and downloader
+  docs.
+- R8.24: Updated AWS IP Ranges metadata and generated card so the default
+  `transform: "."` failure is described as missing required `prefix` rows, not
+  as empty transform output.
+- R8.25: Updated generic JSON-over-HTTP IPAM metadata/generated docs and the
+  hand-authored enrichment page so URL userinfo is described as HTTP Basic auth
+  conversion, with explicit `Authorization` headers recommended for clarity.
+- R8.26: Updated the hand-authored enrichment page so the enricher is described
+  as running when any enrichment feature is configured, including provider
+  chains.
+- R8.27: Updated `.agents/skills/codacy-audit/scripts/pr-issues.sh` and its
+  how-to to use an explicit portable `mktemp` template.
+- R8.28/R8.29: Updated AWS, Azure, NetBox, and generic HTTP network-source
+  generated cards so runtime enrichment cost is described as prefix matching
+  over loaded records; updated NetBox troubleshooting so HTTP errors are logged
+  as refresh-failed warnings.
+- R8.30: Restored
+  `--netflow-retention-size-of-journal-files` and
+  `--netflow-retention-duration-of-journal-files` as CLI-only compatibility
+  aliases. They apply uniformly to all tiers in standalone mode while YAML
+  remains per-tier-only.
+- R8.31: Reworded the visualization overview to list five panel types:
+  Sankey, Table, Time-Series, maps, and the 3D globe.
 
 ### Code-only review handling
 
@@ -2727,6 +2803,26 @@ Repairs:
   integration icon loaded successfully from `network-wired.svg` with non-zero
   rendered dimensions. Only external analytics requests failed in the browser
   session.
+- Second review-iteration validation after the 9 new automated comments:
+  `python3 integrations/gen_integrations.py`,
+  `python3 integrations/gen_docs_integrations.py`, and
+  `python3 integrations/gen_doc_collector_page.py` passed.
+- `yamllint src/crates/netflow-plugin/metadata.yaml src/crates/netflow-plugin/configs/netflow.yaml`
+  passed.
+- `python3 -c 'import yaml; yaml.safe_load(open("src/crates/netflow-plugin/metadata.yaml"))'`
+  passed.
+- `bash -n .agents/skills/codacy-audit/scripts/pr-issues.sh` passed.
+- `git diff --check` passed.
+- `cargo fmt --manifest-path src/crates/netflow-plugin/Cargo.toml --check`
+  passed.
+- `cargo test --manifest-path src/crates/netflow-plugin/Cargo.toml journal_cli_retention_aliases_apply_to_all_tiers -- --nocapture`
+  passed: 1 test passed, 0 failed. The only warning was the pre-existing unused
+  `bytesize::ByteSize` import in `startup_memory_tests.rs`.
+- `cargo test --manifest-path src/crates/netflow-plugin/Cargo.toml plugin_config::tests:: -- --nocapture`
+  passed: 27 tests passed, 0 failed. The only warning was the same pre-existing
+  unused `bytesize::ByteSize` import in `startup_memory_tests.rs`.
+- The post-fix wording sweep found no remaining instances of the exact stale
+  phrases called out by the second review pass.
 
 ### Artifact maintenance gate
 

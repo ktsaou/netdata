@@ -71,7 +71,7 @@ Resource use scales with response size, transform complexity, refresh interval, 
 
 #### Performance Impact
 
-One HTTP request per refresh interval plus a jq transform over the response. Runtime enrichment cost is a trie lookup per source and destination IP.
+One HTTP request per refresh interval plus a jq transform over the response. Runtime enrichment does prefix matching for source and destination IPs, and cost scales with the number of loaded network-source records.
 
 ## Setup
 
@@ -353,10 +353,11 @@ Watch the Netdata journal for warnings:
 `journalctl --namespace netdata | grep network_sources`.
 
 
-### Authorization in URL credentials does not work
+### Prefer explicit authorization headers over URL credentials
 
-URLs with embedded credentials (`https://user:pass@host`) are not specially
-handled. Put the credential in `headers:` instead -- e.g.
+URLs with embedded credentials (`https://user:pass@host`) are converted to
+HTTP Basic authentication by the HTTP client. Prefer `headers:` for clarity
+and to avoid storing credentials in URLs -- e.g.
 `headers: { Authorization: "Basic dXNlcjpwYXNz" }` for HTTP basic-auth.
 
 

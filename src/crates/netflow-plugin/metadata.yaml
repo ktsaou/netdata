@@ -531,7 +531,8 @@ modules:
             description: |
               Native DEB / RPM packages ship the stock DB-IP MMDB files under
               `/usr/share/netdata/topology-ip-intel/`. For source builds, or to get a fresher copy
-              than the one bundled with the package, run the bundled downloader once to populate
+              than the one bundled with the package, run `topology-ip-intel-downloader` once when
+              the binary is available (packaged 32-bit installs do not include it) to populate
               `/var/cache/netdata/topology-ip-intel/`:
 
               ```bash
@@ -613,7 +614,8 @@ modules:
               The plugin does not alert on staleness. Check file mtime:
               `ls -la /var/cache/netdata/topology-ip-intel/`. DB-IP Lite is published monthly,
               so a monthly cron of `/usr/sbin/topology-ip-intel-downloader` keeps you on the
-              upstream cadence; running it more often will not produce fresher data.
+              upstream cadence when the downloader is installed; running it more often will not
+              produce fresher data.
           - name: Map renders empty over a long time window
             description: |
               `SRC_GEO_CITY`, `DST_GEO_CITY`, `SRC_GEO_LATITUDE`, `DST_GEO_LATITUDE`,
@@ -929,11 +931,12 @@ modules:
           (`https://iptoasn.com/data/ip2asn-combined.tsv.gz`), so the TSV must be
           converted to MMDB before the plugin can use it.
 
-          Netdata bundles a converter for this exact purpose: the
+          When available, Netdata provides a converter for this exact purpose: the
           `topology-ip-intel-downloader` Go tool fetches the upstream TSV, parses it,
           and emits MMDB files the plugin auto-detects. This is
           a separate operator step (cron); the plugin itself does no fetching or
-          conversion. If you prefer not to use the bundled tool, any third-party
+          conversion. Packaged 32-bit installs ship the stock MMDB payload but do not include
+          the downloader binary. If you prefer not to use the bundled tool, any third-party
           IPtoASN-to-MMDB converter that produces a standard
           [MaxMind DB](https://maxmind.github.io/MaxMind-DB/) with `iso_code`,
           `autonomous_system_number`, and `autonomous_system_organization` fields
@@ -951,7 +954,7 @@ modules:
             Not auto-detected as the default ASN source -- the plugin auto-detects
             DB-IP MMDBs in the cache directory at startup
             (see [IP Intelligence](https://learn.netdata.cloud/docs/network-flows/enrichment)).
-            To use IPtoASN, run the bundled downloader to produce IPtoASN-derived
+            To use IPtoASN, run `topology-ip-intel-downloader` when available to produce IPtoASN-derived
             MMDBs (the downloader writes to the same cache paths the plugin scans,
             so once present they are picked up automatically on the 30-second
             file-signature check).
@@ -964,8 +967,8 @@ modules:
         list:
           - title: Run the downloader with IPtoASN as ASN source
             description: |
-              The bundled downloader knows how to fetch the upstream TSV and convert
-              it to MMDB:
+              When available, the downloader knows how to fetch the upstream TSV and convert
+              it to MMDB. Packaged 32-bit installs do not include this binary:
 
               ```bash
               sudo /usr/sbin/topology-ip-intel-downloader \
@@ -2052,7 +2055,7 @@ modules:
         limits:
           description: "One full AWS prefix document is fetched per refresh. Resource use scales with the number of AWS prefixes selected by your transform and the refresh interval."
         performance_impact:
-          description: "One HTTPS request per refresh interval plus a jq transform over the AWS prefix document. Runtime enrichment cost is a trie lookup per source and destination IP."
+          description: "One HTTPS request per refresh interval plus a jq transform over the AWS prefix document. Runtime enrichment does prefix matching for source and destination IPs, and cost scales with the number of loaded network-source records."
     setup:
       prerequisites:
         list:
@@ -2108,8 +2111,8 @@ modules:
               description: |
                 jq expression (compiled by jaq) that converts the AWS JSON into a stream
                 of `{prefix, ...}` objects. The default `.` does **not** match the AWS
-                schema -- you must supply a real transform (see examples below) or every
-                fetch fails as "empty result".
+                schema -- you must supply a real transform (see examples below) or fetches fail
+                because output rows cannot be mapped to the required `{prefix, ...}` schema.
               default_value: "."
               required: true
         examples:
@@ -2184,7 +2187,7 @@ modules:
     troubleshooting:
       problems:
         list:
-          - name: 'Default `transform: "."` fails with "empty result"'
+          - name: 'Default `transform: "."` fails because output rows are missing `prefix`'
             description: |
               The default `.` returns the raw JSON object, not the per-prefix stream the
               plugin expects. You **must** supply a transform that yields one object per
@@ -2602,7 +2605,7 @@ modules:
         limits:
           description: "One full Azure Service Tags document is fetched per refresh. Resource use scales with the number of Azure prefixes selected by your transform and the refresh interval."
         performance_impact:
-          description: "One HTTPS request per refresh interval plus a jq transform over the Azure Service Tags document. Runtime enrichment cost is a trie lookup per source and destination IP."
+          description: "One HTTPS request per refresh interval plus a jq transform over the Azure Service Tags document. Runtime enrichment does prefix matching for source and destination IPs, and cost scales with the number of loaded network-source records."
     setup:
       prerequisites:
         list:
@@ -2907,7 +2910,7 @@ modules:
         limits:
           description: "Resource use scales with the number of NetBox prefixes returned by the URL and transform. Use NetBox filtering when you only need a subset of VRFs, sites, tenants, or roles."
         performance_impact:
-          description: "One HTTP request per refresh interval plus a jq transform over the response. Runtime enrichment cost is a trie lookup per source and destination IP."
+          description: "One HTTP request per refresh interval plus a jq transform over the response. Runtime enrichment does prefix matching for source and destination IPs, and cost scales with the number of loaded network-source records."
     setup:
       prerequisites:
         list:
@@ -3096,7 +3099,8 @@ modules:
               `curl -H "Authorization: Token <tok>" https://netbox/api/ipam/prefixes/`.
               On NetBox 4.x check whether the token is v1 (`Token <hex>`) or v2
               (`Bearer nbt_<key>.<token>`) and use the matching header. Watch the journal
-              for `network-sources` warnings -- HTTP errors are silently consumed there.
+              for `network-sources` warnings -- HTTP errors are logged there as
+              refresh-failed warnings.
           - name: site is empty after upgrade to NetBox 4.2
             description: |
               NetBox 4.2 removed `site` from the Prefix model and replaced it with `scope`
@@ -3202,7 +3206,7 @@ modules:
         limits:
           description: "Resource use scales with response size, transform complexity, refresh interval, and the number of emitted prefixes. Empty transform output is treated as a fetch failure."
         performance_impact:
-          description: "One HTTP request per refresh interval plus a jq transform over the response. Runtime enrichment cost is a trie lookup per source and destination IP."
+          description: "One HTTP request per refresh interval plus a jq transform over the response. Runtime enrichment does prefix matching for source and destination IPs, and cost scales with the number of loaded network-source records."
     setup:
       prerequisites:
         list:
@@ -3462,10 +3466,11 @@ modules:
               mismatch on `prefix`) are logged but do not surface in the dashboard.
               Watch the Netdata journal for warnings:
               `journalctl --namespace netdata | grep network_sources`.
-          - name: Authorization in URL credentials does not work
+          - name: Prefer explicit authorization headers over URL credentials
             description: |
-              URLs with embedded credentials (`https://user:pass@host`) are not specially
-              handled. Put the credential in `headers:` instead -- e.g.
+              URLs with embedded credentials (`https://user:pass@host`) are converted to
+              HTTP Basic authentication by the HTTP client. Prefer `headers:` for clarity
+              and to avoid storing credentials in URLs -- e.g.
               `headers: { Authorization: "Basic dXNlcjpwYXNz" }` for HTTP basic-auth.
     alerts: []
     metrics:

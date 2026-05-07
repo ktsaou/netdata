@@ -72,7 +72,7 @@ One full Azure Service Tags document is fetched per refresh. Resource use scales
 
 #### Performance Impact
 
-One HTTPS request per refresh interval plus a jq transform over the Azure Service Tags document. Runtime enrichment cost is a trie lookup per source and destination IP.
+One HTTPS request per refresh interval plus a jq transform over the Azure Service Tags document. Runtime enrichment does prefix matching for source and destination IPs, and cost scales with the number of loaded network-source records.
 
 ## Setup
 
