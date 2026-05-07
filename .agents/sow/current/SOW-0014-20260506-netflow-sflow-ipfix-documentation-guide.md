@@ -1905,3 +1905,69 @@ Page rewritten from scratch:
 Files touched:
 - docs/network-flows/validation.md (full rewrite, kept
   frontmatter and the surviving sections in place)
+
+#### F13 -- 2026-05-07 -- sizing-capacity.md rewrite as a practical guide
+
+User: "Sizing and Capacity planning is written like an
+academic paper that must prove productivity of the testing
+environment. People want sizing and planning directions.
+This is not an academic paper, not a blog."
+
+User-stated requirements (the seven bullets):
+1. what is the cap of the plugin
+2. how ingestion rate affects storage
+3. raw tier monopolizes storage; needs fast NVMe
+4. journal uses free system memory as page cache; bigger
+   database -> more free RAM
+5. journal is fully indexed; FTS means full scan
+6. 25k flows/s sustained approaches ISP-level capacity
+7. distributed deployment -- one Netdata per router; no
+   central aggregation needed
+
+Plus: remove benchmarks and tests from this page.
+
+Page rewritten from scratch. New shape:
+
+- Opening paragraph: states the design intent (one network
+  per agent). Anchors the 25k flows/s = ISP-level scale
+  immediately.
+- "Plugin throughput cap" -- single-thread post-decode
+  hot path; saturation around 30k high-cardinality, above
+  60k low-cardinality; recommend 25k sustained as the
+  comfortable steady-state. Burst handling.
+- "Distributed deployment is the scaling answer" --
+  Costa's central thesis. One agent per router / per site,
+  federated via Netdata Cloud. Why this beats pushing more
+  through a single collector. Recommended shape for
+  multi-site deployments.
+- "Storage" -> "How ingestion rate maps to disk" -- one
+  table, four rows, derived from the storage-footprint
+  benchmark (~800 bytes/flow on disk). Includes a
+  cardinality caveat. No benchmark methodology.
+- "Storage" -> "Raw tier dominates" -- explicit; rollups
+  are tiny; example per-tier config sized for production
+  use.
+- "Storage" -> "Use fast NVMe for the raw tier" -- direct,
+  no hedging. Mentions that slow storage forces shorter
+  raw-tier retention.
+- "Memory" -- routing trie footprint, page-cache framing,
+  and the existing memory-monitoring chart references.
+- "Querying -- what's fast and what isn't" -- indexed
+  fields are O(log) on selectivity; FTS is full scan of
+  raw tier and forces raw-tier; 30s query timeout
+  implications.
+- "Practical checklist before you deploy" -- seven
+  concrete steps mirroring Costa's seven bullets.
+
+Removed:
+- All "What was measured" / "Detailed measurements" / the
+  per-protocol per-cardinality benchmark tables (Phase 1.0
+  output). Those numbers stay in the netflow-plugin README
+  for engineering reference; they are not customer
+  guidance and were the wrong genre for this page.
+- "Bounding storage for capacity planning" formula derivation
+  (which was already partly invalid because it ignored
+  tier rollover and dedup).
+
+Files touched:
+- docs/network-flows/sizing-capacity.md (full rewrite)
