@@ -67,7 +67,7 @@ Step-by-step recipes for common questions, all using the Netdata Network Flows v
    - For outbound investigation: `Source IP` = the IP
    - For both directions: filter both, separately, in two browser tabs
 
-   IP filtering forces tier 0 (raw retention) — the time depth is bounded by your raw-tier retention. If you need to look further back than that, the data isn't there.
+   IP filtering forces raw tier (raw retention) — the time depth is bounded by your raw-tier retention. If you need to look further back than that, the data isn't there.
 
 3. **Switch to Time-Series view.** This shows when the IP was active. Look for:
    - When did activity start? End?
@@ -94,7 +94,7 @@ Step-by-step recipes for common questions, all using the Netdata Network Flows v
 
 **Caveats.**
 
-- IP filter forces tier 0; older data may not be available.
+- IP filter forces raw tier; older data may not be available.
 - If the IP is internal and you haven't declared it under `enrichment.networks`, GeoIP may misrepresent its country.
 - If the IP is a NAT public address, multiple internal hosts may be hidden behind it. Cross-check with NAT translation logs.
 
@@ -114,7 +114,7 @@ Step-by-step recipes for common questions, all using the Netdata Network Flows v
 
 4. **Identify the trend.** Look at the daily peaks (one curve cycle = one day). The peak should be growing month-over-month. Eyeball the slope.
 
-5. **Identify the growth driver.** Switch back to Sankey + Table, group by `Destination ASN` or `Application` (port). Compare top consumers from the start of the period to the end. New entries that weren't there 30 days ago are growth drivers.
+5. **Identify the growth driver.** Switch back to Sankey + Table, group by `Destination ASN` or `Destination Port` (service). Compare top consumers from the start of the period to the end. New entries that weren't there 30 days ago are growth drivers.
 
 6. **Compute the upgrade need.** Take the current peak (e.g., 80% of 100 Mbps = 80 Mbps), project forward at the observed monthly growth rate (e.g., 10%/month = ~30%/quarter), and find when it crosses 100% (or 70% if you want headroom).
 
@@ -142,7 +142,7 @@ Step-by-step recipes for common questions, all using the Netdata Network Flows v
 
 2. **Filter by the external IP.** In the filter ribbon: `Destination IP` = the external IP.
 
-   This forces tier 0. Time depth is your raw-tier retention.
+   This forces raw tier. Time depth is your raw-tier retention.
 
 3. **Switch to Time-Series view.** When did communication start? Is it ongoing? Did it correlate with the alert time?
 

@@ -69,16 +69,14 @@ This one breaks RSS down by what's mapped. Useful when you want to attribute "th
 
 ## What's NOT in these charts
 
-A few signals that aren't published today:
+These charts do not include:
 
 - **Per-exporter ingest counter.** No per-source rate dimension. Decoder-scope cardinality tells you how many sources, not how busy each one is.
-- **UDP socket drops.** Kernel-level drops (full receive buffer, NIC drops) are not surfaced. Use the OS-level metrics: `cat /proc/net/udp` (column `RcvbufErrors`) or `ss -uam`.
+- **UDP socket drops.** Kernel-level drops (full receive buffer, NIC drops) are not surfaced. Use OS-level signals: `sudo ss -uamn sport = :2055` for per-socket drops, or `grep ^Udp: /proc/net/snmp` for the system-wide `RcvbufErrors` counter.
 - **Template cache hit ratio.** `template_errors` counts misses; there's no corresponding "hits" counter to form a ratio.
 - **GeoIP staleness signal.** No "MMDB last loaded" timestamp or version. The mapping memory dimensions tell you if a database is loaded, not how old it is.
 - **Per-tier query latency.** These charts cover ingest and storage; query-side performance isn't observable.
-- **BioRIS counters.** They're collected internally but not published as chart dimensions today.
-
-If you need any of these, mention it in an issue — they're not hard to add but haven't been needed enough yet.
+- **BioRIS counters.** BioRIS routing-state details are not published as chart dimensions.
 
 ## How to use these charts for diagnosis
 

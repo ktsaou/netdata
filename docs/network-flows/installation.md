@@ -77,7 +77,16 @@ sudo ./netdata-installer.sh
 sudo /usr/sbin/topology-ip-intel-downloader
 ```
 
-This populates `/var/cache/netdata/topology-ip-intel/` with the DB-IP-based MMDB files. The plugin auto-detects the cache copy on its next 30-second poll. See the [Enrichment Intel Downloader page](/docs/network-flows/intel-downloader.md) for the refresh tool and the [DB-IP integration card](/src/crates/netflow-plugin/integrations/db-ip_ip_intelligence.md) for cadence and license details.
+This populates `/var/cache/netdata/topology-ip-intel/` with the DB-IP-based MMDB files. The plugin auto-detects the cache copy on its next 30-second poll. See the [Enrichment Intel Downloader page](/docs/network-flows/intel-downloader.md) for the refresh tool and the [DB-IP integration card](/docs/network-flows/enrichment-methods/db-ip-ip-intelligence) for cadence and license details.
+
+## IP intelligence defaults
+
+| Item | Behaviour |
+|---|---|
+| Native packages | Ship stock DB-IP ASN and Geo MMDB files under `/usr/share/netdata/topology-ip-intel/`. |
+| Source builds | Do not include stock MMDB files; run the downloader once if you want GeoIP / ASN enrichment. |
+| Fresh copies | The downloader writes to `/var/cache/netdata/topology-ip-intel/`, which takes precedence over the stock files. |
+| Refresh schedule | Netdata does not install a timer or cron job for the downloader. Schedule it yourself if freshness matters. |
 
 ## What gets installed
 
@@ -127,9 +136,9 @@ Installing the plugin enables it. To actually see flow data, you need to configu
 That's the next step:
 
 - [Quick Start](/docs/network-flows/quick-start.md) — A 15-minute path to your first flow data.
-- [Sources / NetFlow](/src/crates/netflow-plugin/integrations/netflow.md) — Vendor configurations for NetFlow.
-- [Sources / IPFIX](/src/crates/netflow-plugin/integrations/ipfix.md) — Vendor configurations for IPFIX.
-- [Sources / sFlow](/src/crates/netflow-plugin/integrations/sflow.md) — Vendor configurations for sFlow.
+- [Flow Protocols / NetFlow](/docs/network-flows/flow-protocols/netflow) — Vendor configurations for NetFlow.
+- [Flow Protocols / IPFIX](/docs/network-flows/flow-protocols/ipfix) — Vendor configurations for IPFIX.
+- [Flow Protocols / sFlow](/docs/network-flows/flow-protocols/sflow) — Vendor configurations for sFlow.
 
 ## Uninstall
 

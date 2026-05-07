@@ -34,31 +34,25 @@ The plugin ships two rule lists, evaluated in YAML order:
 - `enrichment.exporter_classifiers` -- runs once per exporter (cached). Sees the
   exporter's IP and friendly name, and any classification slots already filled
   by static metadata or by earlier rules. Can set
-  `EXPORTER_GROUP / ROLE / SITE / REGION / TENANT`. Source:
-  `src/crates/netflow-plugin/src/enrichment/classify.rs:111-140`.
+  `EXPORTER_GROUP / ROLE / SITE / REGION / TENANT`.
 - `enrichment.interface_classifiers` -- runs once per `(exporter, interface)`
   pair, applied **twice per flow record** (once for the input interface, once
-  for the output -- see
-  `src/crates/netflow-plugin/src/enrichment/apply/metadata.rs:108-123`). Sees
+  for the output). Sees
   everything an exporter rule sees plus `Interface.Index / Name / Description /
   Speed / VLAN`. Can set `IN_IF_PROVIDER / OUT_IF_PROVIDER`,
   `IN_IF_CONNECTIVITY / OUT_IF_CONNECTIVITY`, `IN_IF_BOUNDARY / OUT_IF_BOUNDARY`
   (1=external, 2=internal), and override `IN_IF_NAME / DESCRIPTION` /
-  `OUT_IF_NAME / DESCRIPTION`. Source:
-  `src/crates/netflow-plugin/src/enrichment/classify.rs:142-198`.
+  `OUT_IF_NAME / DESCRIPTION`.
 
 The expression language is **Akvorado-compatible for the documented operators
-and actions**. It is a hand-written Rust parser
-(`src/crates/netflow-plugin/src/enrichment/classifiers/parse/boolean.rs`),
-implementing a subset of Akvorado's `expr-lang`-derived grammar. Akvorado rules
+and actions**. It implements a subset of Akvorado's `expr-lang`-derived grammar. Akvorado rules
 using only equality, comparison, `in`, `contains`, `startsWith`, `endsWith`,
 `matches`, `&&`, `||`, `!`, parentheses, and the documented `Classify*` /
 `Reject` / `Format` actions will work; arithmetic, ternaries, lambdas, and
 arbitrary `expr-lang` features are not supported.
 
 Output values written by `Classify*` actions are **lowercased and stripped to
-ASCII alphanumerics + `.` + `+` + `-`** before they reach the flow record
-(`src/crates/netflow-plugin/src/enrichment/classifiers/helpers.rs:5-11`). So
+ASCII alphanumerics + `.` + `+` + `-`** before they reach the flow record. So
 `ClassifyRegion("EU West")` becomes `euwest`. Use `SetName` / `SetDescription`
 when you want to preserve case and whitespace -- those write directly without
 normalisation.
@@ -76,31 +70,27 @@ once `EXPORTER_GROUP` is set, no later rule can change it. Order rules from
 most-specific to least-specific.
 
 Two short-circuit rules end the loop early. For exporter rules, the loop stops
-when `group + role + site + region + tenant` are all non-empty
-(`is_complete()` at `enrichment/classifiers/runtime/model.rs:47-53`). For
+when `group + role + site + region + tenant` are all non-empty. For
 interface rules, the loop stops when `connectivity + provider + boundary` are
-all set (`enrichment/classify.rs:176-181`). `SetName` / `SetDescription` /
+all set. `SetName` / `SetDescription` /
 `Reject` do not contribute to short-circuit.
 
 A rule that throws at runtime (e.g. comparing a string with `>`) breaks out of
-the loop for that record and keeps whatever was set so far
-(`enrichment/classify.rs:130-132`). Use `matches`, `startsWith`, or `contains`
+the loop for that record and keeps whatever was set so far. Use `matches`, `startsWith`, or `contains`
 on string fields instead of `>` / `<` to avoid this.
 
 **Akvorado parity**: if `metadata_static` already filled any classification
 slot for the target, the matching classifier list does **not run** for that
 target -- operator-provided classification has priority and the rules cannot
-override it (`enrichment/classify.rs:117-119` for exporters, `:150-154` for
-interfaces). Don't try to mix static and rule-based labelling on the same
+override it. Don't try to mix static and rule-based labelling on the same
 exporter or interface; pick one tool per target.
 
 Results are cached. The exporter cache keys on `ExporterInfo (ip + name)`. The
 interface cache keys on `(exporter, exporter_classification, interface)` -- so
 when the exporter's classification changes (for example after you push new
 static metadata and restart) the interface caches naturally invalidate. The
-cache TTL is `enrichment.classifier_cache_duration` (default 5 minutes,
-`src/crates/netflow-plugin/src/plugin_config/defaults.rs:46-48`); it is a
-last-access TTL so entries live as long as they're queried.
+cache TTL is `enrichment.classifier_cache_duration` (default 5 minutes). It is
+a last-access TTL so entries live as long as they're queried.
 
 
 This integration is only supported on the following platforms:
@@ -118,7 +108,7 @@ Disabled by default. Both rule lists are empty; populate `enrichment.exporter_cl
 
 #### Limits
 
-The default configuration for this integration does not impose any limits.
+Resource use scales with rule count and the number of distinct exporters and interfaces. The classifier cache limits repeat evaluation for stable exporter/interface inventories.
 
 #### Performance Impact
 
@@ -172,9 +162,9 @@ containing a single rule expression. The cache TTL is one global setting.
 
 | Option | Description | Default | Required |
 |:-----|:------------|:--------|:---------:|
-| enrichment.exporter_classifiers | Ordered list of rules applied per exporter. Each rule is a string expression. Available identifiers: `Exporter.IP`, `Exporter.Name`, `CurrentClassification.Group / .Role / .Site / .Region / .Tenant`. Available actions: `Classify` / `ClassifyGroup`, `ClassifyRole`, `ClassifySite`, `ClassifyRegion`, `ClassifyTenant`, plus the `*Regex(input, pattern, template)` variants of each, plus `Reject()`. Interface-only actions (`ClassifyProvider`, `ClassifyConnectivity`, `ClassifyExternal` / `ClassifyInternal`, `SetName`, `SetDescription`) fail at runtime if used here (`enrichment/classifiers/runtime/eval/action.rs:71-76`). | [] | no |
-| enrichment.interface_classifiers | Ordered list of rules applied per `(exporter, interface)` pair. Sees everything an exporter rule sees, plus `Interface.Index`, `Interface.Name`, `Interface.Description`, `Interface.Speed` (bits per second), `Interface.VLAN`, and the per-interface `CurrentClassification.Connectivity / .Provider / .Boundary / .Name / .Description`. Available actions: `ClassifyProvider`, `ClassifyConnectivity`, `ClassifyExternal()`, `ClassifyInternal()`, `SetName`, `SetDescription`, `Reject()`, plus the `*Regex` variants of provider / connectivity. Exporter-only `Classify*` actions fail at runtime if used here (`enrichment/classifiers/runtime/eval/action.rs:181-184`). | [] | no |
-| enrichment.classifier_cache_duration | Last-access TTL for both classifier caches (exporter and interface). Validation rejects values below 1 second (`src/crates/netflow-plugin/src/plugin_config/validation/enrichment.rs:10-12`). The cache prunes opportunistically -- entries idle longer than the TTL are dropped on the next prune pass, capped at one prune every TTL or 30 seconds, whichever is smaller (`enrichment/classify.rs:3-18`). Restart the plugin to clear caches outright when you change rules. | 5m | no |
+| enrichment.exporter_classifiers | Ordered list of rules applied per exporter. Each rule is a string expression. Available identifiers: `Exporter.IP`, `Exporter.Name`, `CurrentClassification.Group / .Role / .Site / .Region / .Tenant`. Available actions: `Classify` / `ClassifyGroup`, `ClassifyRole`, `ClassifySite`, `ClassifyRegion`, `ClassifyTenant`, plus the `*Regex(input, pattern, template)` variants of each, plus `Reject()`. Interface-only actions (`ClassifyProvider`, `ClassifyConnectivity`, `ClassifyExternal` / `ClassifyInternal`, `SetName`, `SetDescription`) fail at runtime if used here. | [] | no |
+| enrichment.interface_classifiers | Ordered list of rules applied per `(exporter, interface)` pair. Sees everything an exporter rule sees, plus `Interface.Index`, `Interface.Name`, `Interface.Description`, `Interface.Speed` (bits per second), `Interface.VLAN`, and the per-interface `CurrentClassification.Connectivity / .Provider / .Boundary / .Name / .Description`. Available actions: `ClassifyProvider`, `ClassifyConnectivity`, `ClassifyExternal()`, `ClassifyInternal()`, `SetName`, `SetDescription`, `Reject()`, plus the `*Regex` variants of provider / connectivity. Exporter-only `Classify*` actions fail at runtime if used here. | [] | no |
+| enrichment.classifier_cache_duration | Last-access TTL for both classifier caches (exporter and interface). Values below 1 second are rejected. The cache prunes opportunistically -- entries idle longer than the TTL are dropped on the next prune pass, capped at one prune every TTL or 30 seconds, whichever is smaller. Restart the plugin to clear caches outright when you change rules. | 5m | no |
 
 
 </details>
@@ -304,7 +294,7 @@ enrichment:
 ###### Building values with Format and human-readable names
 
 `Format(pattern, args...)` mimics Go's `fmt.Sprintf` for `%s`, `%v`,
-`%d`, `%%` (`enrichment/classifiers/helpers.rs:35-91`). `Classify*`
+`%d`, `%%`. `Classify*`
 normalises (lowercase + strip non-alphanumeric); `SetName` and
 `SetDescription` do not, so they preserve the case and spaces of the
 computed value.
@@ -328,9 +318,7 @@ enrichment:
 
 The default 5-minute last-access TTL is right for steady-state. Raise
 it when the (exporter, interface) population is large enough that
-evicted entries are quickly re-queried (visible CPU on the rule
-evaluator under the
-`netflow_enricher.classify_*` traces in production logs). Lower it when
+evicted entries are quickly re-queried. Lower it when
 actively iterating on rule changes so misses pick up the new rules
 quickly.
 
@@ -357,19 +345,15 @@ and a parser context (`unsupported rule term`, `unsupported value
 expression`, `Reject() does not accept arguments`, etc.). Common causes:
 missing `&&` between condition and action; an action used in the wrong
 list (`ClassifyExternal` in an exporter rule); strings written with
-single quotes (only JSON-style double quotes are accepted -- see
-`parse_quoted_string` at
-`src/crates/netflow-plugin/src/enrichment/classifiers/parse/value.rs:139-144`);
-regex literals that fail to compile (validated at parse time at
-`parse/boolean.rs:113-117`).
+single quotes (only JSON-style double quotes are accepted); regex literals
+that fail to compile.
 
 
 ### Classifier rules never run for an exporter or interface
 
 Likely cause: `metadata_static` already set **any** classification field
 on that target. By design, the matching list is suppressed entirely when
-the classification is non-empty (`enrichment/classify.rs:117-119` and
-`:150-154`). Either remove the static-metadata entry for that target, or
+the classification is non-empty. Either remove the static-metadata entry for that target, or
 keep static-metadata as the sole source for it.
 
 
@@ -377,16 +361,14 @@ keep static-metadata as the sole source for it.
 
 `Classify*` actions normalise output to `[a-z0-9.+-]` only -- so
 `ClassifyRegion("EU West")` lands as `euwest`, and
-`Classify("Edge_Tier_1")` lands as `edgetier1`
-(`enrichment/classifiers/helpers.rs:5-11`). Use `SetName` /
+`Classify("Edge_Tier_1")` lands as `edgetier1`. Use `SetName` /
 `SetDescription` to preserve case and whitespace; those write the value
 verbatim.
 
 
 ### First rule always wins, later rules never fire for the same slot
 
-First-write-wins is by design and per slot
-(`enrichment/classifiers/runtime/eval/action.rs:43-46`). Order your
+First-write-wins is by design and per slot. Order your
 rules from most-specific to least-specific. If you want a tiered
 fallback, use distinct slots (e.g. `Classify` for the broad group and
 `ClassifyRole` for the tier within that group).
@@ -403,8 +385,7 @@ returning until they idle out.
 ### A rule with `>` or `<` aborts the rule list
 
 Comparing a string-typed identifier with `>` / `<` / `>=` / `<=` raises
-a runtime error, and the loop breaks out for that record
-(`enrichment/classify.rs:130-132` and `:172-175`). Subsequent rules in
+a runtime error, and the loop breaks out for that record. Subsequent rules in
 the list are skipped for that record. Use `matches`, `startsWith`,
 `endsWith`, `contains`, or `==` / `!=` on string fields. Keep `>` / `<`
 for `Interface.Index`, `Interface.Speed`, and `Interface.VLAN` (the
@@ -414,8 +395,7 @@ numeric identifiers).
 ### ClassifyExternal fires only on one side
 
 Interface classifiers run twice per flow record -- once for the input
-interface, once for the output (`enrichment/apply/metadata.rs:108-123`).
-Both invocations see the same rule list. If your rule conditions on
+interface, once for the output. Both invocations see the same rule list. If your rule conditions on
 `Interface.Index == 42` and that ifIndex appears in `IN_IF` of one flow
 and `OUT_IF` of another, the rule fires correctly in both places. But
 the `IN_IF_BOUNDARY` / `OUT_IF_BOUNDARY` columns are independent -- a
@@ -436,8 +416,7 @@ never matches.
 ### Referencing Interface.* in an exporter rule silently does nothing
 
 Field resolution does not error when the wrong context is missing -- it
-returns the type's zero value (`enrichment/classifiers/runtime/value/field.rs:62-79`).
-So `Interface.Speed >= 1` written in an `exporter_classifiers` rule
+returns the type's zero value. So `Interface.Speed >= 1` written in an `exporter_classifiers` rule
 resolves to `0 >= 1` (false) on every call. Use
 `interface_classifiers` for any rule that needs an interface field.
 

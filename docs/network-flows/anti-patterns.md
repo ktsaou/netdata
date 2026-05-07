@@ -118,4 +118,4 @@ Flow data is powerful but easy to misuse. The mistakes below are the ones that c
 
 - [Validation and Data Quality](/docs/network-flows/validation.md) — How to confirm your data is trustworthy.
 - [Investigation Playbooks](/docs/network-flows/investigation-playbooks.md) — Step-by-step recipes for common questions.
-- [Sources](/src/crates/netflow-plugin/integrations/netflow.md) — Per-protocol behaviour that drives many of these gotchas.
+- [Flow Protocols](/docs/network-flows/flow-protocols/netflow) — Per-protocol behaviour that drives many of these gotchas.

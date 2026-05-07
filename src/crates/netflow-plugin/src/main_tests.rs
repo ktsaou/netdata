@@ -74,6 +74,23 @@ async fn e2e_ingest_writes_journals_and_query_reads_flows() {
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn e2e_timestamp_source_first_switched_is_persisted_as_source_timestamp() {
+    let (cfg, _metrics, _open_tiers, _tier_flow_indexes, _tmp) =
+        ingest_fixture_with_timestamp_source(
+            "nfv5.pcap",
+            plugin_config::TimestampSource::NetflowFirstSwitched,
+        )
+        .await;
+    let fields = first_raw_journal_fields(&cfg.journal.raw_tier_dir());
+
+    assert_eq!(
+        fields.get("_SOURCE_REALTIME_TIMESTAMP"),
+        fields.get("FLOW_START_USEC"),
+        "expected timestamp_source=netflow_first_switched to persist the decoded flow start as _SOURCE_REALTIME_TIMESTAMP"
+    );
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn e2e_query_service_timeseries_path_returns_chart_data() {
     let (cfg, _metrics, _open_tiers, _tier_flow_indexes, _tmp) = ingest_fixture("nfv5.pcap").await;
     let (query_service, _notify_rx) = query::FlowQueryService::new(&cfg)
@@ -1603,6 +1620,51 @@ fn assert_tier_dir_exists(path: &Path, tier_name: &str) {
     );
 }
 
+fn first_raw_journal_fields(path: &Path) -> HashMap<String, String> {
+    for file_path in journal_files(path) {
+        let repo_file =
+            RepoFile::from_path(&file_path).expect("parse raw journal repository metadata");
+        let journal =
+            JournalFile::<Mmap>::open(&repo_file, 8 * 1024 * 1024).expect("open raw journal file");
+        let mut reader = JournalReader::default();
+        reader.set_location(Location::Head);
+        if !reader
+            .step(&journal, Direction::Forward)
+            .expect("step raw journal reader")
+        {
+            continue;
+        }
+
+        let mut data_offsets = Vec::<NonZeroU64>::new();
+        reader
+            .entry_data_offsets(&journal, &mut data_offsets)
+            .expect("enumerate raw journal data offsets");
+        let mut fields = HashMap::new();
+        let mut decompress_buf = Vec::new();
+        query::visit_journal_payloads(
+            &journal,
+            &file_path,
+            &data_offsets,
+            &mut decompress_buf,
+            |payload| {
+                if let Some(eq_pos) = payload.iter().position(|&b| b == b'=') {
+                    let key = String::from_utf8_lossy(&payload[..eq_pos]).into_owned();
+                    let value = String::from_utf8_lossy(&payload[eq_pos + 1..]).into_owned();
+                    fields.insert(key, value);
+                }
+                Ok(())
+            },
+        )
+        .expect("read raw journal payloads");
+        return fields;
+    }
+
+    panic!(
+        "expected at least one raw journal entry in {}",
+        path.display()
+    );
+}
+
 fn tier_file_count(path: &Path) -> usize {
     fn count_journal_files(path: &Path) -> usize {
         fs::read_dir(path)
@@ -1624,4 +1686,30 @@ fn tier_file_count(path: &Path) -> usize {
     }
 
     count_journal_files(path)
+}
+
+fn journal_files(path: &Path) -> Vec<PathBuf> {
+    fn collect(path: &Path, files: &mut Vec<PathBuf>) {
+        for entry in fs::read_dir(path)
+            .unwrap_or_else(|err| panic!("read journal dir {}: {}", path.display(), err))
+            .filter_map(Result::ok)
+        {
+            let entry_path = entry.path();
+            if entry_path.is_dir() {
+                collect(&entry_path, files);
+            } else if entry_path
+                .extension()
+                .and_then(|ext| ext.to_str())
+                .map(|ext| ext == "journal")
+                .unwrap_or(false)
+            {
+                files.push(entry_path);
+            }
+        }
+    }
+
+    let mut files = Vec::new();
+    collect(path, &mut files);
+    files.sort();
+    files
 }

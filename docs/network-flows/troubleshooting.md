@@ -69,7 +69,7 @@ Open `netflow.input_packets` on the standard Netdata charts page. The dimensions
 
 - `udp_received > 0`, `parsed_packets == 0` — datagrams arriving, none decoding successfully. Wrong protocol on the listener, or all datagrams malformed.
 - `udp_received > 0`, `parsed_packets > 0`, but no per-protocol counter (`netflow_v9`, `ipfix`, etc.) is moving — the protocol you're sending may be disabled in the plugin config. Check `protocols.v9`, `protocols.ipfix`, etc. in `netflow.yaml`.
-- `parse_errors` rising in lockstep with `udp_received` — datagrams aren't valid for the protocols the plugin supports. Capture a sample (`tcpdump -w sample.pcap`) and inspect with Wireshark.
+- `parse_errors` rising in lockstep with `udp_received` — datagrams aren't valid for the protocols the plugin supports. Capture a small UDP sample with `tcpdump -w` and inspect it with Wireshark.
 
 ## Partial data — some flows are dropped
 
@@ -204,8 +204,8 @@ sudo tcpdump -i any -nn -c 50 'udp port 2055'
 sudo ss -unlp | grep 2055
 
 # UDP kernel drops
-sudo ss -uam sport = :2055
-cat /proc/net/udp
+sudo ss -uamn sport = :2055
+grep ^Udp: /proc/net/snmp
 
 # Disk usage by tier
 sudo du -sh /var/cache/netdata/flows/*
@@ -214,7 +214,7 @@ sudo du -sh /var/cache/netdata/flows/*
 top -p $(pgrep -f netflow-plugin)
 
 # Capture a sample for offline analysis
-sudo tcpdump -w /tmp/netflow-sample.pcap -c 200 'udp port 2055'
+sudo tcpdump -w /tmp/netflow-sample.cap -c 200 'udp port 2055'
 ```
 
 ## When to file an issue
@@ -224,7 +224,7 @@ Collect this before opening a bug report:
 - Plugin version (`netdata --version` from the running daemon).
 - A sample of `netflow.input_packets` chart for the failure window — all dimensions visible.
 - A sample of `netflow.memory_resident_bytes` if performance-related.
-- A captured pcap (`tcpdump -w` from the agent's interface) reproducing the issue.
+- A small packet-capture file (`tcpdump -w` from the agent's interface) reproducing the issue.
 - Sanitised `netflow.yaml` (redact internal IPs, customer names, secrets).
 - Relevant log lines from `journalctl --namespace netdata`.
 

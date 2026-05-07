@@ -18,13 +18,13 @@ A small number of failure modes need active monitoring. Most are signalled by Ne
 
 | Failure mode | Detection | Notes |
 |---|---|---|
-| **Kernel-level UDP receive-buffer drops** | The system alert `1m_ipv4_udp_receive_buffer_errors` (`src/health/health.d/udp_errors.conf`) fires when the `RcvbufErrors` rate averages more than **10 errors/second** over a 1-minute window. The dimension is incremental in Netdata, so the numeric threshold is per-second, not per-minute. | OS-wide signal. Ships as `to: silent` by default — change the `to:` field in your alert config to receive notifications. Tune `net.core.rmem_max` (see [Troubleshooting](/docs/network-flows/troubleshooting.md)). |
-| **An exporter stopped sending** | Filter the dashboard to that exporter; rate dropped to zero. The plugin doesn't publish per-exporter ingest counters today. | Manual periodic spot-check or external monitoring. |
+| **Kernel-level UDP receive-buffer drops** | The system alert `1m_ipv4_udp_receive_buffer_errors` fires when the `RcvbufErrors` rate averages more than **10 errors/second** over a 1-minute window. The dimension is incremental in Netdata, so the numeric threshold is per-second, not per-minute. | OS-wide signal. Ships as `to: silent` by default -- change the `to:` field in your alert config to receive notifications. Tune `net.core.rmem_max` (see [Troubleshooting](/docs/network-flows/troubleshooting.md)). |
+| **An exporter stopped sending** | Filter the dashboard to that exporter; rate dropped to zero. Per-exporter ingest counters are not published. | Manual periodic spot-check or external monitoring. |
 | **Wrong set of interfaces being exported** | Cross-check `show flow exporter` (or vendor equivalent) on each router against the interfaces you intended. | Configuration drift over time; audit quarterly. |
 | **An exporter is sampling but not communicating the rate** | The plugin treats those records as unsampled, so volumes are undercounted by the sampling factor. Cross-check against SNMP. | NetFlow v7 has no rate field; v5 sometimes sends `rate=0`; v9 / IPFIX without a Sampling Options Template lose the per-flow rate. See "Sampling rate verification" below. |
 | **Stale GeoIP / ASN database** | No in-process signal. Check file mtimes; refresh on the schedule the provider recommends. | DB-IP and GeoLite2 ship monthly. |
 
-The plugin does not need to monitor sampling-rate changes (each flow record carries its own rate, multiplication is per-flow at decode time — see [What sampling does to your numbers](/docs/network-flows/#what-sampling-does-to-your-numbers)) or template loss (templates are written to the plugin's decoder-state directory, under `journal_dir/decoder-state.d/`, and reloaded automatically across restarts). Those are internal concerns the plugin handles.
+The plugin handles sampling-rate changes per flow record, and it persists decoder templates under `journal_dir/decoder-state.d/` so they reload automatically across restarts. You still need external validation for packet drops, exporter drift, stale enrichment data, and exporters that do not report their sampling rate.
 
 ## The minimum viable validation routine
 
@@ -61,11 +61,11 @@ The plugin multiplies bytes and packets by the sampling rate each flow carries �
 What you DO need to verify, once per exporter, is that the plugin is actually seeing the rate. The dashboard does not surface the per-flow `SAMPLING_RATE` field as a filter, group-by, or facet, so the verification is by **magnitude**, not by reading the rate directly:
 
 - After the plugin has data, compare the dashboard's bytes/s on a known interface to that interface's SNMP `ifInOctets` / `ifOutOctets` rate. If the dashboard reading is roughly the SNMP figure divided by the configured sampling rate (e.g. ~1/1000 of SNMP at 1-in-1000), the plugin saw the rate as `1` and is *not* multiplying. If the dashboard agrees with SNMP within 5-15%, the plugin is honouring the rate.
-- The "sampling but not telling" case happens with NetFlow v7 (no rate field), v5 with rate=0, and v9 / IPFIX exporters that don't send a Sampling Options Template. Fix on the exporter side, or apply `enrichment.override_sampling_rate` per source prefix to substitute a known rate (see [Configuration → enrichment](/docs/network-flows/configuration.md#enrichment) and the [Static Metadata integration card](/src/crates/netflow-plugin/integrations/static_metadata.md)).
+- The "sampling but not telling" case happens with NetFlow v7 (no rate field), v5 with rate=0, and v9 / IPFIX exporters that don't send a Sampling Options Template. Fix on the exporter side, or apply `enrichment.override_sampling_rate` per source prefix to substitute a known rate (see [Configuration → enrichment](/docs/network-flows/configuration.md#enrichment) and the [Static Metadata integration card](/docs/network-flows/enrichment-methods/static-metadata)).
 
 ### 4. Per-exporter health check
 
-The plugin doesn't publish per-exporter ingest counters today. To verify each exporter is sending:
+Per-exporter ingest counters are not published. To verify each exporter is sending:
 
 - Filter the dashboard to one exporter at a time. A healthy edge router during business hours should show non-zero traffic.
 - An exporter that abruptly drops to zero is offline. The plugin won't tell you — your monitoring practice has to.

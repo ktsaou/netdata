@@ -78,11 +78,11 @@ Disabled by default. Add an entry under `enrichment.network_sources` with your N
 
 #### Limits
 
-The default configuration for this integration does not impose any limits.
+Resource use scales with the number of NetBox prefixes returned by the URL and transform. Use NetBox filtering when you only need a subset of VRFs, sites, tenants, or roles.
 
 #### Performance Impact
 
-The default configuration for this integration is not expected to impose a significant performance impact on the system.
+One HTTP request per refresh interval plus a jq transform over the response. Runtime enrichment cost is a trie lookup per source and destination IP.
 
 ## Setup
 
@@ -128,7 +128,7 @@ location -- not just a site). API responses on 4.2+ omit `site` and expose
 #### Options
 
 Add a named entry under `enrichment.network_sources` pointing at your NetBox.
-The plugin's `RemoteNetworkSourceConfig` schema accepts `url`, `method`,
+The network source configuration accepts `url`, `method`,
 `headers`, `proxy`, `tls`, `timeout`, `interval`, and `transform`. Authentication
 is configured via the generic `headers:` map -- there is no NetBox-specific
 auth helper.

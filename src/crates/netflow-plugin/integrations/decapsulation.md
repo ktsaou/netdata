@@ -29,9 +29,7 @@ tunnel pair (hypervisor-to-hypervisor or PE-to-PE), which tells you nothing abou
 the actual traffic.
 
 Two encapsulations are supported, selected globally for the plugin. The mode set is
-enumerated at `src/crates/netflow-plugin/src/plugin_config/types/protocol.rs:50-57`
-(`DecapsulationMode::None | Srv6 | Vxlan`); the default is `none`
-(`src/crates/netflow-plugin/src/plugin_config/types/protocol.rs:24` and `:44`).
+`none`, `srv6`, or `vxlan`; the default is `none`.
 
 | Mode    | Strips                                           | Surfaces                                         |
 |---------|--------------------------------------------------|--------------------------------------------------|
@@ -42,16 +40,9 @@ enumerated at `src/crates/netflow-plugin/src/plugin_config/types/protocol.rs:50-
 The plugin only reaches the decap path when the flow record carries the inner
 frame bytes in a Layer-2 packet section field. Three transport-level paths feed it:
 
-- **NetFlow v9 IE 104** -- `Layer2packetSectionData` (RFC 5102 / RFC 7270). Constant
-  at `src/crates/netflow-plugin/src/decoder.rs:80`
-  (`V9_FIELD_LAYER2_PACKET_SECTION_DATA: u16 = 104`); decoded at
-  `src/crates/netflow-plugin/src/decoder/protocol/v9/special.rs:123-132`.
-- **IPFIX IE 315** -- `dataLinkFrameSection` (RFC 7133). Constant at
-  `src/crates/netflow-plugin/src/decoder.rs:74`
-  (`IPFIX_FIELD_DATALINK_FRAME_SECTION: u16 = 315`); decoded at
-  `src/crates/netflow-plugin/src/decoder/protocol/ipfix/special/record.rs:154-162`.
-- **sFlow `SampledHeader`** -- always present in header-sampling mode, parsed at
-  `src/crates/netflow-plugin/src/decoder/protocol/sflow/record.rs:44-69`.
+- **NetFlow v9 IE 104** -- `Layer2packetSectionData` (RFC 5102 / RFC 7270).
+- **IPFIX IE 315** -- `dataLinkFrameSection` (RFC 7133).
+- **sFlow `SampledHeader`** -- always present in header-sampling mode.
 
 When decap succeeds, the inner 5-tuple replaces the outer one in the resulting
 journal record: `SRC_ADDR`, `DST_ADDR`, `SRC_PORT`, `DST_PORT`, `PROTOCOL`,
@@ -60,19 +51,13 @@ journal record: `SRC_ADDR`, `DST_ADDR`, `SRC_PORT`, `DST_PORT`, `PROTOCOL`,
 (set to the inner L3 length so byte counts represent inner payload, not outer
 overhead). For VXLAN, `SRC_MAC`, `DST_MAC`, `SRC_VLAN`, `DST_VLAN` come from the
 inner Ethernet frame -- the outer MACs and VLANs are lost. The VXLAN VNI is
-parsed but not surfaced today; pure VNI-based segmentation is not visible. See
-the merge points at
-`src/crates/netflow-plugin/src/decoder/protocol/packet/transport.rs:21-33` (NetFlow
-v9 / IPFIX special path) and the equivalent record-API path at
-`src/crates/netflow-plugin/src/decoder/record/packet/parse/transport.rs:14-21`.
+parsed but not exposed as a journal field; pure VNI-based segmentation is
+not visible.
 
-The `vxlan` parser at
-`src/crates/netflow-plugin/src/decoder/common.rs:3-18` matches **only UDP
-destination port 4789** (RFC 7348). VXLAN-GPE on 4790 and any vendor-custom port
-are not recognised. The `srv6` parser at
-`src/crates/netflow-plugin/src/decoder/common.rs:35-63` walks IPv6 extension
-headers and the Routing Header type 4 (SRH), then surfaces the inner IPv4 or
-IPv6 packet pointed to by next-header 4 or 41.
+The `vxlan` parser matches **only UDP destination port 4789** (RFC 7348).
+VXLAN-GPE on 4790 and any vendor-custom port are not recognised. The `srv6`
+parser walks IPv6 extension headers and the Routing Header type 4 (SRH), then
+surfaces the inner IPv4 or IPv6 packet pointed to by next-header 4 or 41.
 
 For the cross-cutting concept (how decap composes with the rest of the enrichment
 pipeline, the non-tunnel "drop, do not fall back" semantics, and per-source
@@ -108,7 +93,7 @@ One mode is active at a time -- the plugin cannot decap VXLAN and SRv6 simultane
 
 #### Performance Impact
 
-The default configuration for this integration is not expected to impose a significant performance impact on the system.
+Decapsulation runs in the flow hot path for records carrying L2 frame sections. It adds protocol parsing work and drops L2-section records that do not match the configured tunnel mode.
 
 ## Setup
 
@@ -137,7 +122,7 @@ parser and the flow is dropped (see the failure modes on the concept page).
 
 #### Configure your exporter to emit the L2 section
 
-Vendor support varies. The two paths the project has verified upstream are:
+Vendor support varies. Recommended exporter paths are:
 
 - **Juniper inline-monitoring (IPFIX 315)** on platforms supporting
   `services { inline-monitoring { ... } }` -- the template includes
@@ -150,13 +135,11 @@ Vendor support varies. The two paths the project has verified upstream are:
   `SampledIPv4` / `SampledIPv6` records (the latter do not carry inner
   bytes).
 
-**Cisco IOS-XE and IOS-XR Flexible NetFlow have not been verified by the
-project to emit the Layer-2 frame section** through `collect datalink ...`
-keys; the upstream Akvorado reference configuration for IOS-XE / NCS / ASR
-relies on conventional IPv4/IPv6 NetFlow without an L2 section. If your
-Cisco platform supports the L2 section, validate by inspecting the template
-and looking for IE 104 (v9) or IE 315 (IPFIX) before deploying decap. Do not
-copy unverified `collect datalink frame-section` snippets into production.
+Cisco IOS-XE and IOS-XR Flexible NetFlow support for Layer-2 frame
+sections is platform-dependent. Before deploying Cisco decapsulation,
+inspect the exported template and look for IE 104 (v9) or IE 315 (IPFIX).
+Do not copy `collect datalink frame-section` snippets into production
+unless the platform template confirms that the L2 section is exported.
 
 
 
@@ -164,8 +147,7 @@ copy unverified `collect datalink frame-section` snippets into production.
 
 #### Options
 
-Decapsulation has a single configuration knob -- `protocols.decapsulation_mode`
--- defined at `src/crates/netflow-plugin/src/plugin_config/types/protocol.rs:21-26`.
+Decapsulation has a single configuration knob -- `protocols.decapsulation_mode`.
 
 
 <details open><summary>Config options</summary>
@@ -248,18 +230,13 @@ flow records (no IE 104 / IE 315) take the regular path and are unaffected
 by `decapsulation_mode`. Inspect the template -- look for field type 104
 on NetFlow v9 or IE 315 on IPFIX. For sFlow, confirm the agent is sending
 `SampledHeader` records rather than only `SampledIPv4` / `SampledIPv6`.
-The decode dispatch lives at
-`src/crates/netflow-plugin/src/decoder/protocol/sflow/record.rs:44-69`.
 
 
 ### Records disappear after enabling decap
 
 When `decapsulation_mode` is set and a record arrives via the L2-section
 path with a payload that does not match the configured tunnel, the record
-is **dropped**. There is no fall back to the outer view (intentional --
-see the merge logic at
-`src/crates/netflow-plugin/src/decoder/protocol/packet/transport.rs:21-33`).
-For sFlow with decap on, only `SampledHeader` records are processed;
+is **dropped**. There is no fall back to the outer view. For sFlow with decap on, only `SampledHeader` records are processed;
 `SampledIPv4`, `SampledIPv6`, `SampledEthernet`, `ExtendedSwitch`,
 `ExtendedRouter`, `ExtendedGateway` records are skipped. If the same
 exporter mixes tunnel and non-tunnel traffic on the L2-section path, you
@@ -268,9 +245,7 @@ will lose the non-tunnel records.
 
 ### VXLAN on a non-default UDP port goes undetected
 
-The VXLAN parser matches only UDP destination port 4789
-(`src/crates/netflow-plugin/src/decoder/common.rs:11`,
-`VXLAN_UDP_PORT: u16 = 4789`). VXLAN-GPE on 4790 and any
+The VXLAN parser matches only UDP destination port 4789. VXLAN-GPE on 4790 and any
 vendor-custom port are not recognised and the record is dropped under
 `decapsulation_mode: vxlan`.
 
@@ -285,8 +260,8 @@ headers. On Juniper inline-monitoring, the knob is `maximum-clip-length`.
 
 ### VNI-based segmentation invisible
 
-Bytes 4-6 of the VXLAN header (the VNI) are not surfaced to journal
-fields today. If the inner Ethernet carries a VLAN tag, that VLAN reaches
+Bytes 4-6 of the VXLAN header (the VNI) are not exposed as journal
+fields. If the inner Ethernet carries a VLAN tag, that VLAN reaches
 `SRC_VLAN` / `DST_VLAN` and works for segmentation -- pure VNI does not.
 No workaround inside the plugin; either VLAN-tag the inner traffic or
 filter at query time using the tunnel-endpoint pair before decap.

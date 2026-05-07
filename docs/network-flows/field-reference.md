@@ -135,7 +135,7 @@ Static-network configuration can override `SRC_MASK` / `DST_MASK` and `SRC_AS` /
 |---|---|---|
 | `FLOW_START_USEC` | uint64 | Microseconds since epoch. From v5/v7 first-switched + sysUptime; from v9 first-switched normalised against system init time; from IPFIX `flowStartMicroseconds` family. Not populated for sFlow. |
 | `FLOW_END_USEC` | uint64 | Microseconds since epoch. Same sources. Not populated for sFlow. |
-| `OBSERVATION_TIME_MILLIS` | uint64 | IPFIX observation time (`observationTimeMilliseconds`). |
+| `OBSERVATION_TIME_MILLIS` | uint64 | NetFlow v9 observation time (`ObservationTimeMilliseconds`, IE 323). IPFIX observation-time fields are not exposed. |
 
 ## Geolocation (enrichment-only)
 
@@ -152,7 +152,7 @@ Static-network configuration can override `SRC_MASK` / `DST_MASK` and `SRC_AS` /
 | `SRC_GEO_LONGITUDE` | string | Decimal longitude. |
 | `DST_GEO_LONGITUDE` | string | Decimal longitude. |
 
-City, latitude, and longitude are **not preserved in the rollup tiers** (1m, 5m, 1h). Aggregating on them forces the query to tier 0 (raw). Country and state survive into rollups.
+City, latitude, and longitude are **not preserved in the rollup tiers** (1m, 5m, 1h). Aggregating on them forces the query to raw tier. Country and state survive into rollups.
 
 ## Network labels (enrichment-only)
 
@@ -202,14 +202,14 @@ The mapped IEs cover the standard set: identity (8/12/27/28, 7/11), counters (1/
 
 Vendor enterprise IEs are recognised only for one Juniper case (PEN 2636 `commonPropertiesId`) used to surface forwarding status. Cisco AVC, Cisco NEL/NSEL NAT events, and similar vendor-private fields are parsed (so the decoder doesn't fail) but their values are not exposed in flow records.
 
-If you need a specific IE mapped, open an issue with sample fixtures.
+If you need a specific IE mapped, open an issue with a sanitized sample export.
 
 ## Filtering and aggregation hints
 
 Some fields are queryable but not aggregatable:
 
 - `BYTES`, `PACKETS`, `FLOWS`, `RAW_BYTES`, `RAW_PACKETS`, `SAMPLING_RATE` — these are sums in tables and sankeys; you cannot filter or group-by them.
-- `FLOW_START_USEC`, `FLOW_END_USEC`, `OBSERVATION_TIME_MILLIS` — timestamps, used by the time-range picker; not used as facets.
+- `FLOW_START_USEC`, `FLOW_END_USEC`, `OBSERVATION_TIME_MILLIS` — timestamps stored on raw records; not used by the dashboard time picker and not used as facets.
 - The four geo-coordinate fields (`SRC_GEO_LATITUDE/LONGITUDE`, `DST_GEO_LATITUDE/LONGITUDE`) are stored but hidden in the table by default and not exposed as facets.
 
 The dashboard also exposes two **virtual facets** that don't exist in the canonical schema:
@@ -221,7 +221,7 @@ Filtering on either of these virtual fields runs against the underlying `*_TYPE`
 
 ## A note on field counts
 
-You may see "89 fields" or "91 fields" in different parts of the codebase. The current canonical list has **91 entries**. The schema has grown over time and not every reference has caught up. The list above is exhaustive for the current release.
+This reference lists the **91 fields** exposed by Network Flows, plus the virtual facets described above.
 
 ## Master index — every field at a glance
 
@@ -232,7 +232,7 @@ Column legend:
 - **v5 / v7 / v9 / IPFIX / sFlow** — `✓` always populated, `◐` only when the exporter sends the relevant IE/record, `—` never.
 - **Source** — `decoder` (filled by parsing the protocol), `enrichment` (filled by post-decode lookups; the wire never carries it), or `both` (decoder may fill, enrichment may overlay/override).
 - **Tiers** — which tiers preserve the field. `all` means raw + 1m + 5m + 1h. `raw` means raw only (dropped at rollup).
-- **Selectivity** — which query roles the field plays. `facet` (autocomplete + filter ribbon), `group-by` (Sankey/timeseries/maps aggregation), `filter` (selections), `metric` (BYTES/PACKETS/FLOWS — sums in tables, not faceted), `time` (used by the time-range picker), `hidden` (queryable but not in the default columns).
+- **Selectivity** — which query roles the field plays. `facet` (autocomplete + filter ribbon), `group-by` (Sankey/timeseries/maps aggregation), `filter` (selections), `metric` (BYTES/PACKETS/FLOWS — sums in tables, not faceted), `hidden` (queryable but not in the default columns).
 - **Notes** — IE numbers / sFlow record types when relevant, plus the enrichment chain for enrichment-derived fields.
 
 | Field | Type | v5 | v7 | v9 | IPFIX | sFlow | Source | Tiers | Selectivity | Notes |
@@ -272,8 +272,8 @@ Column legend:
 | `EXPORTER_SITE` | string | — | — | — | — | — | enrichment | all | facet, group-by, filter | `metadata_static.exporters.<ip>.site`. Classifiers may fill |
 | `EXPORTER_TENANT` | string | — | — | — | — | — | enrichment | all | facet, group-by, filter | `metadata_static.exporters.<ip>.tenant`. Classifiers may fill |
 | `FLOWS` | uint64 | ✓ | ✓ | ✓ | ✓ | ✓ | decoder | all | metric, filter | Always 1 for raw records; sums during rollup aggregation |
-| `FLOW_END_USEC` | uint64 | ✓ | ✓ | ◐ | ◐ | — | decoder | raw | time | v5/v7 from header `sysUpTime` + `LastSwitched`. v9 from `LastSwitched`/`flowEndMilliseconds` normalised against `system_init`. IPFIX from `flowEndMilliseconds` family. Not populated for sFlow |
-| `FLOW_START_USEC` | uint64 | ✓ | ✓ | ◐ | ◐ | — | decoder | raw | time | Same sources as `FLOW_END_USEC`. Not populated for sFlow |
+| `FLOW_END_USEC` | uint64 | ✓ | ✓ | ◐ | ◐ | — | decoder | raw | hidden | v5/v7 from header `sysUpTime` + `LastSwitched`. v9 from `LastSwitched`/`flowEndMilliseconds` normalised against `system_init`. IPFIX from `flowEndMilliseconds` family. Not populated for sFlow |
+| `FLOW_START_USEC` | uint64 | ✓ | ✓ | ◐ | ◐ | — | decoder | raw | hidden | Same sources as `FLOW_END_USEC`. Not populated for sFlow |
 | `FLOW_VERSION` | string | ✓ | ✓ | ✓ | ✓ | ✓ | decoder | all | facet, group-by, filter | One of `v5`, `v7`, `v9`, `ipfix`, `sflow` |
 | `FORWARDING_STATUS` | uint8 | — | — | ◐ | ◐ | ◐ | decoder | all | facet, group-by, filter | v9/IPFIX IE 89; IPFIX also from Juniper PEN 2636 `commonPropertiesId`. sFlow synthesises `128` (dropped) when `output_format` is `discarded` |
 | `ICMPV4_CODE` | uint8 | — | — | ◐ | ◐ | ◐ | decoder | all | facet, group-by, filter | IPFIX IE 177 `IcmpCodeIpv4` + IE 32 low byte. v9 IE 178 `IcmpCodeValue` + IE 32. sFlow from decoded ICMP header |
@@ -294,7 +294,7 @@ Column legend:
 | `IP_FRAGMENT_OFFSET` | uint16 | — | — | ◐ | ◐ | ◐ | decoder | raw | facet, group-by, filter | v9/IPFIX IE 88 `FragmentOffset`. sFlow from parsed IPv4 header |
 | `MPLS_LABELS` | string | — | — | ◐ | ◐ | ◐ | decoder | raw | filter | v9 IE 70-79 `MplsLabel1..10`. IPFIX IE 70 `MplsTopLabelStackSection` + 71-79 `MplsLabelStackSection2..10`. sFlow from MPLS in `SampledHeader`. Comma-separated decimal labels |
 | `NEXT_HOP` | IP | ✓ | ✓ | ◐ | ◐ | ◐ | both | all | facet, group-by, filter | v9 IE 15/18/62/63; IPFIX same. sFlow `ExtendedRouter`/`ExtendedGateway`. Enrichment overlay via `net_providers` chain (default `[flow, routing]`) |
-| `OBSERVATION_TIME_MILLIS` | uint64 | — | — | ◐ | — | — | decoder | raw | time | v9 IE 323 `ObservationTimeMilliseconds`. IPFIX has no canonical mapping in this build |
+| `OBSERVATION_TIME_MILLIS` | uint64 | — | — | ◐ | — | — | decoder | raw | hidden | v9 IE 323 `ObservationTimeMilliseconds`. IPFIX observation-time fields are not exposed |
 | `OUT_IF` | uint32 | ✓ | ✓ | ◐ | ◐ | ◐ | decoder | all | facet, group-by, filter | v9 IE 14 `OutputSnmp`; IPFIX IE 14/253. sFlow flow-sample `output` (single index only; LOCAL→0) |
 | `OUT_IF_BOUNDARY` | uint8 | — | — | — | — | — | enrichment | all | facet, group-by, filter | Same semantics as `IN_IF_BOUNDARY` |
 | `OUT_IF_CONNECTIVITY` | string | — | — | — | — | — | enrichment | all | facet, group-by, filter | Static metadata or interface classifier connectivity tag |

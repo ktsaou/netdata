@@ -8,7 +8,7 @@ endmeta-->
 
 # Configuration
 
-The netflow plugin reads its configuration from `netflow.yaml`. Defaults are sane out of the box; most operators only adjust three things — the listener address, the journal retention, and (rarely) the per-tier overrides. This page documents every option, with its real default and the file that defines it.
+The netflow plugin reads its configuration from `netflow.yaml`. The defaults are good for initial validation; production deployments usually tune the listener address and retention once the observed flow rate is known. This page documents every option, with its real default and the file that defines it.
 
 ## Where the file lives
 
@@ -101,15 +101,17 @@ protocols:
 | `ipfix` | `--netflow-enable-ipfix` | `true` | Boolean. IPFIX. |
 | `sflow` | `--netflow-enable-sflow` | `true` | Boolean. sFlow v5. |
 | `decapsulation_mode` | `--netflow-decapsulation-mode` | `none` | `none`, `srv6`, `vxlan`. Strips outer headers from the data-link section, surfaces the inner 5-tuple. |
-| `timestamp_source` | `--netflow-timestamp-source` | `input` | Where the dashboard's flow timestamps come from. See below. |
+| `timestamp_source` | `--netflow-timestamp-source` | `input` | Which timestamp is stored as `_SOURCE_REALTIME_TIMESTAMP`. See below. |
 
 You must keep at least one protocol enabled or the plugin refuses to start.
 
 ### `timestamp_source` values
 
-- **`input`** (default) — the time the plugin received the datagram. Charts always look "now". This is the safest choice for dashboards.
+- **`input`** (default) — the time the plugin received the datagram.
 - **`netflow_packet`** — the time the exporter put in the NetFlow/IPFIX header.
-- **`netflow_first_switched`** — the time the flow actually started, from the per-record first-switched field. Records arrive with timestamps in the past (up to your active timeout). This gives the most accurate timeline but charts may show data appearing "behind" real time.
+- **`netflow_first_switched`** — the time the flow actually started, from the per-record first-switched field when the exporter provides it.
+
+The Network Flows view still uses journal entry time, which is the time the Netdata Agent received the datagram, for query windows and tier selection. `timestamp_source` controls the stored source timestamp metadata; it does not make the dashboard time picker query by exporter timestamps.
 
 ## `journal`
 
@@ -218,10 +220,10 @@ A note on `default_sampling_rate` vs. `override_sampling_rate`: both keys accept
 
 For the cross-cutting picture — order of evaluation, the `asn_providers` and `net_providers` chains, the MMDB shared mechanism, the static-vs-dynamic composition rules — see the [Enrichment](/docs/network-flows/enrichment.md) page. Per-method configuration details (URLs, refresh cadence, license, vendor commands) live on the integration cards under flows.enrichment-methods:
 
-- IP intelligence (MMDB): [DB-IP](/src/crates/netflow-plugin/integrations/db-ip_ip_intelligence.md), [MaxMind GeoIP / GeoLite2](/src/crates/netflow-plugin/integrations/maxmind_geoip_-_geolite2.md), [IPtoASN](/src/crates/netflow-plugin/integrations/iptoasn.md), [Custom MMDB](/src/crates/netflow-plugin/integrations/custom_mmdb_database.md).
-- BGP routing: [BMP](/src/crates/netflow-plugin/integrations/bmp_bgp_monitoring_protocol.md), [bio-rd / RIPE RIS](/src/crates/netflow-plugin/integrations/bio-rd_-_ripe_ris.md).
-- Network sources: [AWS IP Ranges](/src/crates/netflow-plugin/integrations/aws_ip_ranges.md), [Azure IP Ranges](/src/crates/netflow-plugin/integrations/azure_ip_ranges.md), [GCP IP Ranges](/src/crates/netflow-plugin/integrations/gcp_ip_ranges.md), [NetBox](/src/crates/netflow-plugin/integrations/netbox.md), [Generic JSON-over-HTTP IPAM](/src/crates/netflow-plugin/integrations/generic_json-over-http_ipam.md).
-- YAML-defined: [Static Metadata](/src/crates/netflow-plugin/integrations/static_metadata.md), [Classifiers](/src/crates/netflow-plugin/integrations/classifiers.md), [Decapsulation](/src/crates/netflow-plugin/integrations/decapsulation.md).
+- IP intelligence (MMDB): [DB-IP](/docs/network-flows/enrichment-methods/db-ip-ip-intelligence), [MaxMind GeoIP / GeoLite2](/docs/network-flows/enrichment-methods/maxmind-geoip-geolite2), [IPtoASN](/docs/network-flows/enrichment-methods/iptoasn), [Custom MMDB](/docs/network-flows/enrichment-methods/custom-mmdb-database).
+- BGP routing: [BMP](/docs/network-flows/enrichment-methods/bmp-bgp-monitoring-protocol), [bio-rd / RIPE RIS](/docs/network-flows/enrichment-methods/bio-rd-ripe-ris).
+- Network sources: [AWS IP Ranges](/docs/network-flows/enrichment-methods/aws-ip-ranges), [Azure IP Ranges](/docs/network-flows/enrichment-methods/azure-ip-ranges), [GCP IP Ranges](/docs/network-flows/enrichment-methods/gcp-ip-ranges), [NetBox](/docs/network-flows/enrichment-methods/netbox), [Generic JSON-over-HTTP IPAM](/docs/network-flows/enrichment-methods/generic-json-over-http-ipam).
+- YAML-defined: [Static Metadata](/docs/network-flows/enrichment-methods/static-metadata), [Classifiers](/docs/network-flows/enrichment-methods/classifiers), [Decapsulation](/docs/network-flows/enrichment-methods/decapsulation).
 - Operational: [Enrichment Intel Downloader](/docs/network-flows/intel-downloader.md) — the bundled refresh tool for MMDB providers.
 
 The enrichment section has no CLI flag — it is YAML-only.
@@ -286,7 +288,7 @@ journal:
       duration_of_journal_files: 365d
 ```
 
-The built-in defaults (10GB / 7d on every tier) are too tight for most production deployments. This profile gives you 24 hours of full-detail forensics, 14 days of 1-minute trends, 30 days of 5-minute snapshots, and a year of hourly aggregates. Storage required scales with your flow rate — see [Sizing and Capacity Planning](/docs/network-flows/sizing-capacity.md).
+The built-in defaults (10GB / 7d on every tier) are intended for first validation and small deployments. Most production deployments should size retention from observed flow rate. This profile gives you 24 hours of full-detail forensics, 14 days of 1-minute trends, 30 days of 5-minute snapshots, and a year of hourly aggregates. Storage required scales with your flow rate — see [Sizing and Capacity Planning](/docs/network-flows/sizing-capacity.md).
 
 ## Things that go wrong
 

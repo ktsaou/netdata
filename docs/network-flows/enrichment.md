@@ -21,11 +21,11 @@ Every flow record passes through the same pipeline before it is written to the j
 3. **GeoIP MMDB lookups** — the resolver runs the source and destination IPs against every configured ASN MMDB and every configured geo MMDB. Country, state, city, coordinates, AS number candidate, AS name, and the `ip_class` flag are seeded from the result.
 4. **Static metadata** — `enrichment.metadata_static.exporters` is matched against the exporter's IP (UDP source) and the ifIndex; `enrichment.networks` is matched per-IP, longest-prefix wins. Static `networks` entries can override country, state, city, latitude, longitude, AS number, and the `*_NET_*` labels.
 5. **Dynamic network sources** — every `enrichment.network_sources.<name>` source contributes its CIDR records to the same network-attributes trie. Lookups for the source/destination IP merge those records in.
-6. **Classifiers** — `exporter_classifiers` runs once per exporter; `interface_classifiers` runs twice per record (once for the input interface, once for the output). They write `EXPORTER_*` and `IN_IF_*` / `OUT_IF_*` fields. **Classifiers are skipped entirely when static metadata already set any classification field on the same target** (`src/crates/netflow-plugin/src/enrichment/classify.rs:117-119,150-154`).
+6. **Classifiers** — `exporter_classifiers` runs once per exporter; `interface_classifiers` runs twice per record (once for the input interface, once for the output). They write `EXPORTER_*` and `IN_IF_*` / `OUT_IF_*` fields. **Classifiers are skipped entirely when static metadata already set any classification field on the same target.**
 7. **Routing overlay** — the BGP-fed routing trie (BMP and BioRIS contribute to it) is consulted. The `asn_providers` and `net_providers` chains decide whether the AS number and the network mask come from the flow record, from BGP, or from the GeoIP MMDB. BGP-only fields (`NEXT_HOP`, `DST_AS_PATH`, `DST_COMMUNITIES`, `DST_LARGE_COMMUNITIES`) are written from BGP data.
 8. **Journal write** — the resulting record is written to the raw tier; rollup tiers (1 minute, 5 minutes, 1 hour) are computed from it asynchronously.
 
-The actual code path is `resolve_flow_context` at `src/crates/netflow-plugin/src/enrichment/apply/resolve.rs:5-50`, which composes the lookups and provider-chain calls. The enricher itself is built only when at least one enrichment input is configured (`src/crates/netflow-plugin/src/enrichment/init.rs:50-64`); a deployment with no enrichment configured skips this entire pipeline.
+The enricher runs only when at least one enrichment input is configured. A deployment with no enrichment configured skips this pipeline and writes raw decoded flow fields only.
 
 ## The two provider chains
 
@@ -37,7 +37,7 @@ enrichment:
   net_providers: [flow, routing]            # default
 ```
 
-These defaults live at `src/crates/netflow-plugin/src/plugin_config/types/enrichment/providers.rs:24-34`.
+These are the default provider chains.
 
 ### `asn_providers` — where the AS number comes from
 
@@ -52,18 +52,9 @@ The chain decides where `SRC_AS` and `DST_AS` come from. The AS *name* (`SRC_AS_
 | `routing_except_private` | Same as `routing` with the private filter |
 | `geoip` | **Terminal "use 0" shortcut** — see below |
 
-`bmp` and `bmp-except-private` are accepted as backward-compat aliases for `routing` and `routing_except_private` (`providers.rs:10,12`).
+`bmp` and `bmp-except-private` are accepted as backward-compatible aliases for `routing` and `routing_except_private`.
 
-The `geoip` slot is a **terminal shortcut**, not a real provider. The match arm at `src/crates/netflow-plugin/src/enrichment/resolve.rs:82-85` reads:
-
-```rust
-AsnProviderConfig::Geoip => {
-    // Akvorado parity: GeoIP is a terminal shortcut in provider chain.
-    return 0;
-}
-```
-
-When the chain reaches `geoip`, the AS number is forced to `0` and the chain ends. The MMDB-derived AS number is then re-applied separately, outside the chain. This is Akvorado parity behaviour, not a bug.
+The `geoip` slot is a **terminal shortcut**, not a normal provider. When the chain reaches `geoip`, the AS number is forced to `0` and the chain ends. The MMDB-derived AS number is then applied separately, outside the chain. This is intentional compatibility behaviour, not a bug.
 
 The implication is operational: **putting `geoip` anywhere except last truncates the chain.** With `[geoip, flow, routing]`, every AS resolves to `0` from the chain — only the GeoIP-derived AS makes it through, and `flow` and `routing` never run. This is rarely what you want.
 
@@ -84,18 +75,18 @@ Same idea, smaller menu: the chain produces `SRC_MASK` and `DST_MASK` (and indir
 
 ### AS numbers vs AS names
 
-The two are resolved by completely different code paths and never share the chain.
+The two are resolved by different mechanisms and never share the chain.
 
 - **AS numbers** come from the chain above.
-- **AS names** are always rendered at write time from the resolved AS number plus the ASN MMDB, by `effective_as_name` at `src/crates/netflow-plugin/src/enrichment/data/network/asn.rs:12-26`. The format is `AS{n}` for non-zero ASNs (with `{organisation}` appended when the MMDB has it), `AS0 Unknown ASN` when the resolved AS is zero, and `AS0 Private IP Address Space` when the ASN MMDB tagged the IP as private. There is no static configuration option for AS names.
+- **AS names** are always rendered from the resolved AS number plus the ASN MMDB. The format is `AS{n}` for non-zero ASNs (with `{organisation}` appended when the MMDB has it), `AS0 Unknown ASN` when the resolved AS is zero, and `AS0 Private IP Address Space` when the ASN MMDB tagged the IP as private. There is no static configuration option for AS names.
 
-A static `enrichment.networks.<cidr>.asn` override is applied during the per-IP `NetworkAttributes` merge **before** the chain runs (the merged AS overrides the chain's result at `src/crates/netflow-plugin/src/enrichment/apply/resolve.rs:31-38`). The AS name still goes through the MMDB lookup.
+A static `enrichment.networks.<cidr>.asn` override is applied during the per-IP network-attribute merge **before** the chain runs. The AS name still goes through the MMDB lookup.
 
 ## How attributes compose: GeoIP, network sources, static `networks`
 
-For any source or destination IP, the plugin produces a `NetworkAttributes` struct by merging multiple inputs. The merge primitive at `src/crates/netflow-plugin/src/enrichment/data/network/attrs.rs:55-96` is "non-empty overlay overwrites; empty overlay leaves the field alone" — so the **last input with a non-empty value wins, per field.**
+For any source or destination IP, the plugin produces network attributes by merging multiple inputs. The merge rule is "non-empty overlay overwrites; empty overlay leaves the field alone" — so the **last input with a non-empty value wins, per field.**
 
-The merge order, per IP, is at `src/crates/netflow-plugin/src/enrichment/resolve.rs:18-72`:
+The merge order, per IP, is:
 
 1. **GeoIP base layer** — country, state, city, coordinates, AS number candidate, AS name, `ip_class`.
 2. **All matching prefixes in ascending prefix-length order** (least-specific first, most-specific last). At each prefix length:
@@ -109,11 +100,11 @@ Two consequences worth stating explicitly:
 
 A practical consequence of "merge ascending, non-empty wins": **a more-specific entry that leaves a field blank inherits the supernet's value for that field.** To clear a field on a `/24`, you must set it explicitly to a value, not just leave it out.
 
-Static `networks` can also override `country`, `state`, `city`, `latitude`, `longitude`, and `asn` per CIDR. These compose with the same merge rules — they are simply additional non-empty fields that overwrite the GeoIP base layer when matched. Coordinates (`latitude`, `longitude`) are static-only; network-identity sources cannot set them (`src/crates/netflow-plugin/src/network_sources/types.rs:4-26` has no field for them).
+Static `networks` can also override `country`, `state`, `city`, `latitude`, `longitude`, and `asn` per CIDR. These compose with the same merge rules — they are simply additional non-empty fields that overwrite the GeoIP base layer when matched. Coordinates (`latitude`, `longitude`) are static-only; network-identity sources cannot set them.
 
 ## The MMDB shared mechanism
 
-DB-IP, MaxMind GeoIP / GeoLite2, IPtoASN-converted-to-MMDB, and any custom MMDB build all use the same code path. The configuration:
+DB-IP, MaxMind GeoIP / GeoLite2, IPtoASN-converted-to-MMDB, and any custom MMDB build all use the same MMDB resolver behavior. The configuration:
 
 ```yaml
 enrichment:
@@ -129,34 +120,30 @@ enrichment:
 |---|---|---|
 | `asn_database` | list of paths | One or more ASN MMDB files. Aliases: `asn-database`. |
 | `geo_database` | list of paths | One or more geographic MMDB files. Aliases: `geo-database`, `country-database`. |
-| `optional` | bool, default `false` | When `false`, a missing file at startup aborts the plugin. When `true`, missing or unreadable files are tolerated. Auto-detected files are always treated as `optional: true` (`src/crates/netflow-plugin/src/plugin_config/runtime.rs:60-63`). |
+| `optional` | bool, default `false` | When `false`, a missing file at startup aborts the plugin. When `true`, missing or unreadable files are tolerated. Auto-detected files are always treated as `optional: true`. |
 
 ### Auto-detect path order
 
-When neither `asn_database` nor `geo_database` is configured, the plugin searches in this order at startup (`src/crates/netflow-plugin/src/plugin_config/runtime.rs:23-79`):
+When neither `asn_database` nor `geo_database` is configured, the plugin searches in this order at startup:
 
 1. **`<cache_dir>/topology-ip-intel/`** — where `cache_dir` is the parent of `journal.journal_dir` if that path is absolute, otherwise `NETDATA_CACHE_DIR`. Typically `/var/cache/netdata/topology-ip-intel/`.
 2. **`<stock_data_dir>/topology-ip-intel/`** — typically `/usr/share/netdata/topology-ip-intel/`.
 
-The canonical filenames are `topology-ip-asn.mmdb` and `topology-ip-geo.mmdb`. A stock Netdata install populates the cache directory via the [Intel Downloader](/docs/network-flows/intel-downloader.md), which by default ships DB-IP Lite data.
+The canonical filenames are `topology-ip-asn.mmdb` and `topology-ip-geo.mmdb`. Native packages ship stock DB-IP files under the stock data directory. The [Intel Downloader](/docs/network-flows/intel-downloader.md) writes fresher copies to the cache directory, which takes precedence over stock files. Netdata does not install a downloader timer; schedule one if freshness matters.
 
 ### Composition: last non-empty wins, per field
 
 `asn_database` and `geo_database` are lists. For each lookup, every database in the list runs in order; per output field, the **last** database that produces a **non-empty** value wins. Empty / zero values returned by a later database do not overwrite an earlier match.
 
-This is the same merge primitive as the network attributes merge, applied to the MMDB scan. Implementation is at `src/crates/netflow-plugin/src/enrichment/data/geoip/decode.rs:3-72` (the `apply_geo_record` mutator only writes when the candidate value is non-empty) and `src/crates/netflow-plugin/src/enrichment/data/geoip/resolver.rs:129-147`.
+This is the same merge rule as the network-attributes merge, applied to the MMDB scan.
 
 The practical use is stacking: list a stronger source first for one field and a backup for the rest. For example, layering MaxMind after IPtoASN in `asn_database` recovers AS *names* (which IPtoASN-converted MMDBs often lack) without losing IPtoASN's AS *number* coverage.
 
 ### Signature-watch reload
 
-The resolver checks each configured database's signature (size + mtime) on a fixed interval and re-loads the readers in place when the signature changes (`src/crates/netflow-plugin/src/enrichment.rs:35`):
+The resolver checks each configured database's signature (size + mtime) every 30 seconds and reloads the readers in place when the signature changes.
 
-```rust
-const GEOIP_RELOAD_CHECK_INTERVAL: Duration = Duration::from_secs(30);
-```
-
-Only successful reloads swap the active readers — a transient read error keeps the previous readers serving lookups (`src/crates/netflow-plugin/src/enrichment/data/geoip/resolver.rs:80-122`).
+Only successful reloads swap the active readers — a transient read error keeps the previous readers serving lookups.
 
 This is why MMDB refresh scripts only need to atomically replace the file on disk: the plugin picks up the new file within 30 seconds, no restart needed.
 
@@ -166,11 +153,11 @@ The resolver inspects each MMDB's metadata. An IPv6 lookup against an IPv4-only 
 
 ## Network sources: shared operational properties
 
-`enrichment.network_sources.<name>` is the dynamic counterpart to static `networks`. It is the same code path for AWS IP Ranges, GCP IP Ranges, Azure IP Ranges, NetBox, and any custom JSON-over-HTTP IPAM. The only difference between cards is the upstream URL, the JSON shape, and the jq transform.
+`enrichment.network_sources.<name>` is the dynamic counterpart to static `networks`. AWS IP Ranges, GCP IP Ranges, Azure IP Ranges, NetBox, and custom JSON-over-HTTP IPAM sources share the same operational contract. The only difference between cards is the upstream URL, the JSON shape, and the jq transform.
 
 ### Fetch loop and back-off
 
-Each source runs in its own task. Multiple sources fetch in parallel; within a source, only one fetch is in flight at a time (`src/crates/netflow-plugin/src/network_sources/service.rs:42-115`).
+Each source runs in its own task. Multiple sources fetch in parallel; within a source, only one fetch is in flight at a time.
 
 Per cycle:
 
@@ -180,19 +167,13 @@ Per cycle:
 4. Output is decoded as a stream of `RemoteRecord` objects.
 5. Records are merged into the shared network-attributes trie.
 
-On any failure (HTTP error, JSON parse error, jq runtime error, **empty result**), the source backs off exponentially starting at `interval / 10` (floor 1 second), doubling on each retry, capped at `interval` (`service.rs:73-100`). On success it resets to the configured `interval`.
+On any failure (HTTP error, JSON parse error, jq runtime error, **empty result**), the source backs off exponentially starting at `interval / 10` (floor 1 second), doubling on each retry, capped at `interval`. On success it resets to the configured `interval`.
 
-The 60-second floor at `service.rs:73` rounds up shorter intervals silently:
-
-```rust
-let regular_interval = source.interval.max(Duration::from_secs(60));
-```
-
-So `interval: 5s` is effectively `60s`. There is no signature/etag change detection — the plugin re-parses and re-publishes the entire record set on every successful fetch.
+The scheduler floors dynamic-source intervals at 60 seconds. So `interval: 5s` is effectively `60s`. There is no signature/etag change detection — the plugin re-parses and re-publishes the entire record set on every successful fetch.
 
 ### Expected jq output schema
 
-The `transform` must emit a stream of objects matching the `RemoteRecord` shape (`src/crates/netflow-plugin/src/network_sources/types.rs:4-26`):
+The `transform` must emit a stream of objects with this shape:
 
 ```json
 {
@@ -210,14 +191,14 @@ The `transform` must emit a stream of objects matching the `RemoteRecord` shape 
 }
 ```
 
-- **Required**: `prefix` (CIDR string). Validated at `src/crates/netflow-plugin/src/network_sources/decode.rs:41-44`.
+- **Required**: `prefix` (CIDR string).
 - **Optional**: every other field. Defaults to empty / 0.
 - `asn` accepts an integer (`64500`), a string (`"64500"`), or AS notation (`"AS64500"`).
 - **Coordinates are not settable** — the deserializer has no field for `latitude` / `longitude`. Use static `networks` for coordinates.
 
 The default `transform` is `"."`, which returns the raw JSON object — never a per-prefix stream. **Every real source needs a custom `transform`**; the per-source integration cards each ship a working example.
 
-If the transform produces zero objects on a successful HTTP fetch, the cycle is treated as a failure and triggers backoff (`network_sources/decode.rs:34-36`). This catches silently broken jq but punishes legitimately empty IPAMs.
+If the transform produces zero objects on a successful HTTP fetch, the cycle is treated as a failure and triggers backoff. This catches silently broken jq but punishes legitimately empty IPAMs.
 
 ### Strict YAML validation
 
@@ -225,14 +206,7 @@ Configuration schemas use `deny_unknown_fields` at every level. A typo in `netwo
 
 ### TLS verification cannot be disabled
 
-The validator at `src/crates/netflow-plugin/src/plugin_config/validation/enrichment.rs:183-192` rejects any attempt to disable TLS verification:
-
-```rust
-if !tls.verify { anyhow::bail!("...tls.verify must remain true; ..."); }
-if tls.skip_verify { anyhow::bail!("...tls.skip_verify is not supported..."); }
-```
-
-The HTTP client builder enforces the same rule (`src/crates/netflow-plugin/src/network_sources/fetch.rs:56-61`). Legacy keys are accepted for forward compatibility, but no override exists.
+Configuration validation rejects any attempt to disable TLS verification. Legacy keys are accepted for forward compatibility, but no override exists.
 
 Self-signed or internal CAs must be supplied via `tls.ca_file`. The rationale is deliberate: enrichment data flows directly into security investigations and capacity decisions — silently accepting MITM-able responses would corrupt every downstream analysis.
 
@@ -251,9 +225,9 @@ headers:
   Authorization: "Token abc123"
 ```
 
-`headers` is a free-form `BTreeMap<String, String>` (`src/crates/netflow-plugin/src/plugin_config/types/enrichment/sources.rs:41`), so any single-shot scheme works. URL-embedded credentials (`https://user:pass@host/...`) are not specially handled — put the auth in `headers`. Short-lived tokens must be refreshed outside Netdata and reloaded into the config.
+`headers` is a free-form map, so any single-shot scheme works. URL-embedded credentials (`https://user:pass@host/...`) are not specially handled — put the auth in `headers`. Short-lived tokens must be refreshed outside Netdata and reloaded into the config.
 
-POST is supported but **sent with no body** (`fetch.rs:11-17` — there is no `.body()` call). POST endpoints that require a request body cannot be consumed today.
+POST is supported but **sent with no body**. POST endpoints that require a request body are not supported.
 
 ### Field-level merge across sources sharing prefixes
 
@@ -271,16 +245,9 @@ JSON parse errors are silent in the dashboard — the journal is the place to lo
 
 ## Static metadata short-circuits classifiers
 
-When `metadata_static.exporters` set **any** classification field (`group`, `role`, `site`, `region`, `tenant`) for an exporter, the entire `exporter_classifiers` rule chain is skipped for that exporter (`src/crates/netflow-plugin/src/enrichment/classify.rs:117-119`):
+When `metadata_static.exporters` set **any** classification field (`group`, `role`, `site`, `region`, `tenant`) for an exporter, the entire `exporter_classifiers` rule chain is skipped for that exporter.
 
-```rust
-// Akvorado parity: metadata-provided classification has priority.
-if !classification.is_empty() {
-    return !classification.reject;
-}
-```
-
-The same rule applies to interfaces — any of `provider` / `connectivity` / `boundary` set by static metadata short-circuits `interface_classifiers` for that interface (`classify.rs:150-154`).
+The same rule applies to interfaces — any of `provider` / `connectivity` / `boundary` set by static metadata short-circuits `interface_classifiers` for that interface.
 
 This is "Akvorado parity" by design. The implication: **don't try to mix static and rule-based classification on the same target.** If you set even one field statically, all classifier rules for that target are bypassed. Decide per-target: enumerate it in static metadata, or let the classifier rules find it.
 
@@ -301,20 +268,20 @@ When `protocols.decapsulation_mode` is `srv6` or `vxlan` and the exporter ships 
 - `SRC_ADDR`, `DST_ADDR`, `SRC_PORT`, `DST_PORT`, `PROTOCOL`, `ETYPE`, `IPTOS`, `IPTTL`, `IPV6_FLOW_LABEL`, `TCP_FLAGS`, MPLS labels, ICMP type/code, `BYTES` (inner L3 length).
 - For VXLAN: inner `SRC_MAC` / `DST_MAC` / `SRC_VLAN` / `DST_VLAN`. **Outer MACs and VLANs are lost.**
 
-This means **all downstream enrichment operates on the inner addresses**: GeoIP runs against the inner IPs, network attributes match the inner prefixes, the routing trie is consulted with the inner addresses. The merge points are at `src/crates/netflow-plugin/src/decoder/protocol/packet/transport.rs:21-33` and `src/crates/netflow-plugin/src/decoder/record/packet/parse/transport.rs:14-21`.
+This means **all downstream enrichment operates on the inner addresses**: GeoIP runs against the inner IPs, network attributes match the inner prefixes, and the routing trie is consulted with the inner addresses.
 
 Two important rules:
 
 - **Decap is destructive on non-tunnel traffic.** Records arriving via the L2-section path that are not the configured tunnel are **dropped**, not falled back to outer view. Plain NetFlow / IPFIX flow records that don't go through the L2-section path are unaffected.
-- **VXLAN VNI is parsed but not surfaced.** Bytes 4-6 of the VXLAN header are skipped. Pure VNI-based segmentation is not visible today.
+- **VXLAN VNI is parsed but not surfaced.** Bytes 4-6 of the VXLAN header are skipped. Pure VNI-based segmentation is not visible as a filter or group-by field.
 
 GRE, IP-in-IP, GENEVE, MPLS-over-UDP, and NVGRE are not decoded.
 
-See the [Decapsulation integration card](/src/crates/netflow-plugin/integrations/decapsulation.md) for exporter configuration recipes.
+See the [Decapsulation integration card](/docs/network-flows/enrichment-methods/decapsulation) for exporter configuration recipes.
 
 ## Routing overlay (BMP and BioRIS share the trie)
 
-BMP and BioRIS are separate transports that feed the **same** in-memory routing trie (`src/crates/netflow-plugin/src/routing/runtime.rs:161-199`). A deployment running BMP from internal routers and BioRIS for an external view (RIPE RIS) gets unified enrichment without duplicate trie entries.
+BMP and BioRIS are separate transports that feed the **same** in-memory routing trie. A deployment running BMP from internal routers and BioRIS for an external view (RIPE RIS) gets unified enrichment without duplicate trie entries.
 
 Each prefix entry holds a list of routes keyed by `(peer, route_key)` so multipath BGP and multiple peers contributing the same prefix coexist. Lookups walk the trie longest-prefix-first, then refine within candidates by:
 
@@ -333,11 +300,11 @@ AS *names* still come from the ASN MMDB, not from BGP. BGP gives accurate AS num
 
 | Mechanism | Window | Notes |
 |---|---|---|
-| GeoIP MMDB | **30 seconds** | Signature watch (size + mtime) — `enrichment.rs:35` |
-| Dynamic network sources | per-source `interval`, **floor 60 s** | Independent per source — `service.rs:73` |
+| GeoIP MMDB | **30 seconds** | Signature watch (size + mtime) |
+| Dynamic network sources | per-source `interval`, **floor 60 s** | Independent per source |
 | BMP routing | live | Routers push updates over TCP |
 | BioRIS routing | live | gRPC stream from a bio-rd daemon |
-| Static metadata | **plugin restart** | No hot-reload — `enrichment/init.rs:13-14` |
+| Static metadata | **plugin restart** | No hot-reload |
 | Classifier rules | **plugin restart** | No hot-reload |
 
 ### Restart behaviour
@@ -357,11 +324,11 @@ There is no metric or alert for "your MMDB is too old", "your IPAM hasn't refres
 
 ### Empty enrichment trees disable the enricher
 
-`FlowEnricher::from_config` returns `None` when every static and dynamic input is empty (`src/crates/netflow-plugin/src/enrichment/init.rs:50-64`). No enrichment runs in that mode, and the journal carries no `*_NET_*`, `*_AS_NAME`, `*_COUNTRY`, etc. Useful for verifying that adding config actually opted you in — if fields stay empty after a config change, suspect the enricher never instantiated.
+When every static and dynamic input is empty, no enrichment runs and the journal carries no `*_NET_*`, `*_AS_NAME`, `*_COUNTRY`, etc. Useful for verifying that adding config actually opted you in — if fields stay empty after a config change, suspect the enricher never started because the config did not enable any enrichment source.
 
 ### Field survival into rollup tiers
 
-The journal stores raw records and three rollup tiers (1 minute, 5 minutes, 1 hour). High-cardinality fields are dropped from rollups to keep them tractable. Rollup field set is at `src/crates/netflow-plugin/src/tiering/rollup/schema/fields/defs/network.rs`.
+The journal stores raw records and three rollup tiers (1 minute, 5 minutes, 1 hour). High-cardinality fields are dropped from rollups to keep them tractable.
 
 | Field | Raw | 1 m | 5 m | 1 h | Notes |
 |---|---|---|---|---|---|
@@ -388,14 +355,14 @@ City-level GeoIP is accurate for many public IPs but wrong for VPNs, mobile carr
 
 Two related, easily confused knobs (set under `enrichment` in `netflow.yaml`):
 
-- `default_sampling_rate` — consulted **only** when the flow record did not carry a rate (`src/crates/netflow-plugin/src/enrichment/apply/metadata.rs:86-96`).
-- `override_sampling_rate` — **always** wins when its prefix matches the exporter IP (the source IP of the UDP datagram), regardless of what the flow carried (`apply/metadata.rs:78-85`).
+- `default_sampling_rate` — consulted **only** when the flow record did not carry a rate.
+- `override_sampling_rate` — **always** wins when its prefix matches the exporter IP (the source IP of the UDP datagram), regardless of what the flow carried.
 
 Both accept either an integer (uniform rate) or a CIDR-keyed map. The exporter match key is the same one used by `metadata_static.exporters` lookup — the source IP of the UDP datagram, not a router-internal management ID.
 
-### Integration test gap (BMP / BioRIS)
+### Validate BGP-derived enrichment before relying on it
 
-The runtime path of BMP and BioRIS — TCP listener / gRPC client, framed decode loop, trie apply, per-router cleanup — is not integration-tested in this repository. Parsing layers are well unit-tested; end-to-end against real router firmware or real bio-rd daemons is not exercised. Vendor compatibility (Cisco IOS-XR / IOS-XE, Juniper JunOS, Arista EOS, FRR) is not validated by tests here. Treat configuration changes as production-impacting and validate against your specific gear before relying on BGP-derived data for capacity or security decisions.
+BMP and BioRIS depend on router configuration, export policy, peer identity, and route-refresh behaviour. Treat configuration changes as production-impacting and validate against your specific routers before relying on BGP-derived data for capacity or security decisions.
 
 ## What can go wrong
 
@@ -416,28 +383,28 @@ The runtime path of BMP and BioRIS — TCP listener / gRPC client, framed decode
 These cards carry the per-method specifics — installation steps, refresh cadence, expected upstream schemas, vendor-specific gotchas — that this page deliberately does not duplicate.
 
 **IP intelligence (MMDB)**
-- [DB-IP IP Intelligence](/src/crates/netflow-plugin/integrations/db-ip_ip_intelligence.md) — the default that ships with Netdata
-- [MaxMind GeoIP / GeoLite2](/src/crates/netflow-plugin/integrations/maxmind_geoip_-_geolite2.md) — commercial GeoIP2 or free GeoLite2 with attribution
-- [IPtoASN](/src/crates/netflow-plugin/integrations/iptoasn.md) — public-domain ASN + country, hourly cadence
-- [Custom MMDB Database](/src/crates/netflow-plugin/integrations/custom_mmdb_database.md) — your own MMDB build
+- [DB-IP IP Intelligence](/docs/network-flows/enrichment-methods/db-ip-ip-intelligence) — the default that ships with Netdata
+- [MaxMind GeoIP / GeoLite2](/docs/network-flows/enrichment-methods/maxmind-geoip-geolite2) — commercial GeoIP2 or free GeoLite2 with attribution
+- [IPtoASN](/docs/network-flows/enrichment-methods/iptoasn) — public-domain ASN + country, hourly cadence
+- [Custom MMDB Database](/docs/network-flows/enrichment-methods/custom-mmdb-database) — your own MMDB build
 
 **BGP routing**
-- [BMP (BGP Monitoring Protocol)](/src/crates/netflow-plugin/integrations/bmp_bgp_monitoring_protocol.md) — routers push BGP updates over TCP
-- [bio-rd / RIPE RIS](/src/crates/netflow-plugin/integrations/bio-rd_-_ripe_ris.md) — pull BGP data from a bio-rd `cmd/ris/` daemon over gRPC
+- [BMP (BGP Monitoring Protocol)](/docs/network-flows/enrichment-methods/bmp-bgp-monitoring-protocol) — routers push BGP updates over TCP
+- [bio-rd / RIPE RIS](/docs/network-flows/enrichment-methods/bio-rd-ripe-ris) — pull BGP data from a bio-rd RIS gRPC daemon
 
 **Network identity (cloud IP ranges, IPAM)**
-- [AWS IP Ranges](/src/crates/netflow-plugin/integrations/aws_ip_ranges.md) — public AWS prefix list
-- [GCP IP Ranges](/src/crates/netflow-plugin/integrations/gcp_ip_ranges.md) — public GCP prefix list
-- [Azure IP Ranges](/src/crates/netflow-plugin/integrations/azure_ip_ranges.md) — Azure Service Tags (requires an internal mirror)
-- [NetBox](/src/crates/netflow-plugin/integrations/netbox.md) — open-source IPAM / DCIM
-- [Generic JSON-over-HTTP IPAM](/src/crates/netflow-plugin/integrations/generic_json-over-http_ipam.md) — Infoblox, BlueCat, phpIPAM, custom CMDBs
+- [AWS IP Ranges](/docs/network-flows/enrichment-methods/aws-ip-ranges) — public AWS prefix list
+- [GCP IP Ranges](/docs/network-flows/enrichment-methods/gcp-ip-ranges) — public GCP prefix list
+- [Azure IP Ranges](/docs/network-flows/enrichment-methods/azure-ip-ranges) — Azure Service Tags (requires an internal mirror)
+- [NetBox](/docs/network-flows/enrichment-methods/netbox) — open-source IPAM / DCIM
+- [Generic JSON-over-HTTP IPAM](/docs/network-flows/enrichment-methods/generic-json-over-http-ipam) — Infoblox, BlueCat, phpIPAM, custom CMDBs
 
 **Static and rule-based**
-- [Static Metadata](/src/crates/netflow-plugin/integrations/static_metadata.md) — per-exporter, per-interface, per-CIDR labels
-- [Classifiers](/src/crates/netflow-plugin/integrations/classifiers.md) — Akvorado-compatible expression rules
+- [Static Metadata](/docs/network-flows/enrichment-methods/static-metadata) — per-exporter, per-interface, per-CIDR labels
+- [Classifiers](/docs/network-flows/enrichment-methods/classifiers) — Akvorado-compatible expression rules
 
 **Decapsulation**
-- [Decapsulation](/src/crates/netflow-plugin/integrations/decapsulation.md) — SRv6 and VXLAN inner-packet extraction
+- [Decapsulation](/docs/network-flows/enrichment-methods/decapsulation) — SRv6 and VXLAN inner-packet extraction
 
 ### Related concepts
 

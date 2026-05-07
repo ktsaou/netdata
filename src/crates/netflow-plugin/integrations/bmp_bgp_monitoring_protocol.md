@@ -38,10 +38,7 @@ not from BMP -- BMP gives you accurate AS *numbers* and path/communities.
 
 AS path, communities, and large communities are written to the **raw** flow journal
 only -- the rollup tiers do not carry them. `NEXT_HOP` is carried in both raw and
-rollup. This matches the field schema at
-`src/crates/netflow-plugin/src/tiering/rollup/schema/fields/defs/network.rs:18-19`
-and the journal writer at
-`src/crates/netflow-plugin/src/flow/record/journal/network.rs:37-39`.
+rollup.
 
 For the cross-cutting Enrichment concept (provider chains, shared trie with
 BioRIS, withdrawal handling, restart convergence), see
@@ -54,12 +51,10 @@ for BMP. Each connecting router must first send an Initiation message; the plugi
 then processes RouteMonitoring (carrying BGP UPDATE), PeerDownNotification, and
 Termination frames. PeerUp, StatisticsReport, and RouteMirroring frames are
 accepted but not acted on. Only BMP **version 3** is processed; v1 and v2 frames
-are silently dropped at
-`src/crates/netflow-plugin/src/routing/bmp/session/looping.rs:28`.
+are silently dropped.
 
 NLRI families parsed: IPv4/IPv6 unicast, IPv4/IPv6 MPLS-labelled, VPNv4, VPNv6,
-and EVPN IP-prefix routes -- see
-`src/crates/netflow-plugin/src/routing/bmp/routes/nlri.rs:16-46`.
+and EVPN IP-prefix routes.
 
 BMP and BioRIS share a single in-memory routing trie. A full IPv4+IPv6 BGP table
 is roughly 1.2M prefixes per peer; each entry stores `Vec<u32>` AS-path,
@@ -85,11 +80,11 @@ Disabled by default. Set enrichment.routing_dynamic.bmp.enabled to true and conf
 
 #### Limits
 
-The default configuration for this integration does not impose any limits.
+Memory and CPU scale with the number of BMP sessions, routing tables, prefixes, AS paths, and communities. Full-table router feeds can consume hundreds of MB per peer.
 
 #### Performance Impact
 
-The default configuration for this integration is not expected to impose a significant performance impact on the system.
+Disabled until BMP is configured. Once active, BMP updates maintain an in-memory routing trie used for enrichment, so resource use scales with routing-table size and update rate.
 
 ## Setup
 
@@ -98,7 +93,7 @@ The default configuration for this integration is not expected to impose a signi
 
 #### BMP-capable routers
 
-Verified vendor support:
+Common vendor configuration patterns:
 
 - **Cisco IOS-XR** -- `bmp server N` global block plus `bmp-activate server N`
   under `router bgp ... neighbor`.
@@ -138,7 +133,6 @@ BMP carries your full routing table; treat it as sensitive.
 #### Options
 
 All BMP options live under `enrichment.routing_dynamic.bmp` in `netflow.yaml`.
-See `src/crates/netflow-plugin/src/plugin_config/types/routing.rs:45-86`.
 
 
 <details open><summary>Config options</summary>
@@ -412,13 +406,11 @@ the `bmp` alias) -- if `routing` is removed from both `asn_providers` and
 `net_providers`, the trie is built but never read.
 
 
-### Integration-test gap
+### Validate BGP enrichment after enabling
 
-BMP message parsing has unit tests. The TCP listener path, framed decode
-loop, trie apply, per-peer cleanup, and per-vendor compatibility (Cisco,
-Juniper, Arista, FRR, Nokia) are NOT integration-tested in this repository.
-Validate against your specific router firmware before depending on this for
-capacity / security decisions.
+BGP-derived enrichment depends on router export policy, peer state, and
+route visibility. Validate against your specific router firmware before
+depending on this for capacity or security decisions.
 
 
 

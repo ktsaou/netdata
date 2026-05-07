@@ -31,9 +31,7 @@ ASN data when license cost or terms matter.
 
 IPtoASN's `ip2asn-combined` artifact contains five tab-separated columns:
 `range_start`, `range_end`, `AS_number`, `country_code`, and `AS_description`
-(see [iptoasn.com](https://iptoasn.com/) for the format reference and the
-parser at `src/go/tools/topology-ip-intel-downloader/parse.go:168-237` that
-consumes both columns 3-5 for ASN data and column 4 for country data). So
+(see [iptoasn.com](https://iptoasn.com/) for the format reference). So
 although IPtoASN is often described as "ASN-only", the feed also carries an
 ISO 3166 country code per range and the Netdata downloader exposes both as
 ASN + geo MMDBs. Pair with DB-IP or MaxMind when you also need state, city,
@@ -44,15 +42,13 @@ provider chains), see
 [IP Intelligence](https://learn.netdata.cloud/docs/network-flows/enrichment).
 
 
-The Netdata plugin reads MMDB only (see
-`src/crates/netflow-plugin/src/enrichment/data/geoip/`). IPtoASN ships
-gzipped TSV (`https://iptoasn.com/data/ip2asn-combined.tsv.gz`, see
-`src/go/tools/topology-ip-intel-downloader/config.go:173-184`), so the TSV
-must be converted to MMDB before the plugin can use it.
+The Netdata plugin reads MMDB only. IPtoASN ships gzipped TSV
+(`https://iptoasn.com/data/ip2asn-combined.tsv.gz`), so the TSV must be
+converted to MMDB before the plugin can use it.
 
 Netdata bundles a converter for this exact purpose: the
-`topology-ip-intel-downloader` Go tool fetches the upstream TSV, parses it
-(`parse.go:168-237`), and emits MMDB files the plugin auto-detects. This is
+`topology-ip-intel-downloader` Go tool fetches the upstream TSV, parses it,
+and emits MMDB files the plugin auto-detects. This is
 a separate operator step (cron); the plugin itself does no fetching or
 conversion. If you prefer not to use the bundled tool, any third-party
 IPtoASN-to-MMDB converter that produces a standard
@@ -83,11 +79,11 @@ file-signature check).
 
 #### Limits
 
-The default configuration for this integration does not impose any limits.
+IPtoASN provides AS number and country-level data only. It does not provide city, coordinates, or rich organization names unless you layer another MMDB source.
 
 #### Performance Impact
 
-The default configuration for this integration is not expected to impose a significant performance impact on the system.
+Lookups are local MMDB reads after the downloader converts the TSV feed. Memory use is mostly the mapped database files and the kernel page cache needed to keep active pages hot.
 
 ## Setup
 
@@ -106,8 +102,7 @@ sudo /usr/sbin/topology-ip-intel-downloader \
 ```
 
 `iptoasn:combined` is valid for both `--asn` and `--geo` because the
-upstream TSV carries both AS data and country (see
-`src/go/tools/topology-ip-intel-downloader/config.go:177-180`). If you
+upstream TSV carries both AS data and country. If you
 want richer geographic data (state, city, coordinates), pair IPtoASN
 ASN with DB-IP or MaxMind geo:
 
@@ -223,10 +218,8 @@ enrichment:
 
 IPtoASN's `AS_description` column is sometimes empty for less-common
 ASNs (the upstream derives names from RIRs and the chain occasionally
-has gaps). When that happens the plugin's `effective_as_name` helper
-renders the AS as `AS{n}` with no organisation
-(see `src/crates/netflow-plugin/src/enrichment/tests.rs:1959-2011`).
-This is data-source-level, not a plugin issue. If richer AS-name
+has gaps). When that happens the plugin renders the AS as `AS{n}` with
+no organisation. This is data-source-level, not a plugin issue. If richer AS-name
 coverage matters, layer a MaxMind GeoLite2-ASN MMDB after IPtoASN in
 `asn_database` -- per-field "last database with a non-empty value
 wins" composition (see
@@ -236,9 +229,7 @@ means MaxMind names override IPtoASN's empty entries.
 
 ### Country empty although IPtoASN was selected
 
-IPtoASN's combined TSV publishes country only when it is known; ranges
-with an unknown country are skipped during conversion (see
-`src/go/tools/topology-ip-intel-downloader/parse.go:224-227`). Public
+IPtoASN's combined TSV publishes country only when it is known. Public
 IPs that the upstream cannot attribute will have an empty
 `*_COUNTRY`. If you need broader country coverage, point
 `geo_database` at a DB-IP or MaxMind country MMDB instead -- the
@@ -252,10 +243,7 @@ the recommended cadence for flow enrichment; weekly is too slow
 because BGP-driven prefix re-assignments will land in the dataset
 within hours but not in your cache until the next download. The
 plugin reloads MMDB files in place every 30 seconds when the file
-signature changes
-(`src/crates/netflow-plugin/src/enrichment.rs:35` --
-`GEOIP_RELOAD_CHECK_INTERVAL = Duration::from_secs(30)`), so a fresh
-file lands without restart.
+signature changes, so a fresh file lands without restart.
 
 
 

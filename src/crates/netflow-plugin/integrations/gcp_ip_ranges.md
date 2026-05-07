@@ -56,8 +56,8 @@ when a flow's IP matches the prefix.
 
 The upstream files are static JSON snapshots, not pageable APIs -- one fetch
 per cycle is the whole dataset. Each contains a `syncToken` and a
-`creationTime` you can inspect to see when Google last regenerated them; the
-plugin does not use these for conditional fetches today.
+`creationTime` you can inspect to see when Google last regenerated them.
+The plugin fetches the full document on each refresh cycle.
 
 
 This integration is only supported on the following platforms:
@@ -75,7 +75,7 @@ Disabled by default. Add an entry under enrichment.network_sources to enable.
 
 #### Limits
 
-The default configuration for this integration does not impose any limits.
+One full GCP prefix document is fetched per refresh. Resource use scales with the number of GCP prefixes selected by your transform and the refresh interval.
 
 #### Performance Impact
 

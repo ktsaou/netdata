@@ -8,17 +8,17 @@ endmeta-->
 
 # Enrichment Intel Downloader
 
-`topology-ip-intel-downloader` is a small Netdata-supplied tool that keeps the IP intelligence MMDB databases used by the netflow plugin (and the topology subsystem) up to date. It fetches the upstream payloads, normalises them into a fixed Netdata MMDB layout, applies CIDR classification policy, and atomically replaces the files on disk. The netflow plugin's resolver picks up the new files within 30 seconds — no plugin restart required ([`enrichment.rs:35`](https://github.com/netdata/netdata/blob/master/src/crates/netflow-plugin/src/enrichment.rs#L35)).
+`topology-ip-intel-downloader` is a small Netdata-supplied tool that keeps the IP intelligence MMDB databases used by the netflow plugin (and the topology subsystem) up to date. It fetches the upstream payloads, normalises them into a fixed Netdata MMDB layout, applies CIDR classification policy, and atomically replaces the files on disk. The netflow plugin's resolver picks up the new files within 30 seconds — no plugin restart required.
 
 The downloader is a separate executable so you can run it on whatever schedule fits your environment without coupling it to the agent's lifecycle.
 
 ## What it does
 
-- Fetches the configured ASN and Geo source files (HTTPS, gzip / zip transparently decoded — see [`fetch.go:179-187`](https://github.com/netdata/netdata/blob/master/src/go/tools/topology-ip-intel-downloader/fetch.go#L179-L187)).
-- Parses the upstream format (MMDB or TSV/CSV), keeping the first source per family that covers a given range — first-source-wins on overlap ([`parse.go:60-80`](https://github.com/netdata/netdata/blob/master/src/go/tools/topology-ip-intel-downloader/parse.go#L60-L80), [README.md:74-77](https://github.com/netdata/netdata/blob/master/src/go/tools/topology-ip-intel-downloader/README.md#L74-L77)).
-- Re-emits the data as two Netdata-format MMDB files plus a metadata JSON manifest ([`write.go:142-226`](https://github.com/netdata/netdata/blob/master/src/go/tools/topology-ip-intel-downloader/write.go#L142-L226)).
-- Stamps Netdata classification metadata (`netdata.ip_class`, `netdata.track_individual`) over `localhost_cidrs`, `private_cidrs`, and any operator-defined `interesting_cidrs` so the plugin can identify private/loopback/operator-flagged ranges via a normal MMDB lookup ([`write.go:228-246`](https://github.com/netdata/netdata/blob/master/src/go/tools/topology-ip-intel-downloader/write.go#L228-L246)).
-- Publishes each output atomically via stage-then-`rename(2)` — the resolver never sees a torn file ([`write.go:71-138`](https://github.com/netdata/netdata/blob/master/src/go/tools/topology-ip-intel-downloader/write.go#L71-L138), [`write.go:267-297`](https://github.com/netdata/netdata/blob/master/src/go/tools/topology-ip-intel-downloader/write.go#L267-L297)).
+- Fetches the configured ASN and Geo source files over HTTPS, with gzip / zip transparently decoded.
+- Parses the upstream format (MMDB or TSV/CSV), keeping the first source per family that covers a given range — first-source-wins on overlap.
+- Re-emits the data as two Netdata-format MMDB files plus a metadata JSON manifest.
+- Stamps Netdata classification metadata (`netdata.ip_class`, `netdata.track_individual`) over `localhost_cidrs`, `private_cidrs`, and any operator-defined `interesting_cidrs` so the plugin can identify private/loopback/operator-flagged ranges via a normal MMDB lookup.
+- Publishes each output atomically via stage-then-`rename(2)` — the resolver never sees a torn file.
 
 The output is always the same fixed file set, regardless of which providers fed the run:
 
@@ -29,11 +29,11 @@ The output is always the same fixed file set, regardless of which providers fed 
 └── topology-ip-intel.json   # Manifest: when, from where, how many ranges
 ```
 
-The directory and filenames come from the config defaults at [`config.go:144-148`](https://github.com/netdata/netdata/blob/master/src/go/tools/topology-ip-intel-downloader/config.go#L144-L148) and from the stock [`topology-ip-intel.yaml`](https://github.com/netdata/netdata/blob/master/src/go/tools/topology-ip-intel-downloader/configs/topology-ip-intel.yaml#L24-L29).
+The directory and filenames match the shipped defaults.
 
 ## Supported sources
 
-The tool only knows how to talk to a fixed set of providers — anything else is rejected at validation ([`config.go:171-224`](https://github.com/netdata/netdata/blob/master/src/go/tools/topology-ip-intel-downloader/config.go#L171-L224)):
+The tool only knows how to talk to a fixed set of providers — anything else is rejected at validation:
 
 | Provider:Artifact | Family | Format | Origin |
 |---|---|---|---|
@@ -42,22 +42,22 @@ The tool only knows how to talk to a fixed set of providers — anything else is
 | `dbip:city-lite` | Geo | `mmdb` (default) or `csv` | DB-IP free monthly download page |
 | `iptoasn:combined` | ASN or Geo | `tsv` | `https://iptoasn.com/data/ip2asn-combined.tsv.gz` (direct URL) |
 
-DB-IP artifacts are resolved by scraping the current monthly URL from the DB-IP landing page (`https://db-ip.com/db/download/<artifact>`) — the URL pattern matched is `https://download.db-ip.com/free/dbip-<artifact>-YYYY-MM.<ext>.gz` ([`fetch.go:114-140`](https://github.com/netdata/netdata/blob/master/src/go/tools/topology-ip-intel-downloader/fetch.go#L114-L140)).
+DB-IP artifacts are resolved from the current monthly URL on the DB-IP landing page (`https://db-ip.com/db/download/<artifact>`). The downloaded URL uses the DB-IP free database pattern `https://download.db-ip.com/free/dbip-<artifact>-YYYY-MM.<ext>.gz`.
 
 The IPtoASN TSV feed is converted into the same Netdata MMDB layout as the DB-IP feeds, so consumers don't care which source produced the file.
 
-> **MaxMind GeoIP / GeoLite2 is not supported by this tool.** The downloader has no `license_key` field, no `MAXMIND_LICENSE_KEY` env var, and no MaxMind URL builder. If you want to use MaxMind, run MaxMind's own [`geoipupdate`](/src/crates/netflow-plugin/integrations/maxmind_geoip_-_geolite2.md) and point `enrichment.geoip.asn_database` / `enrichment.geoip.geo_database` at the files it produces.
+> **MaxMind GeoIP / GeoLite2 is not supported by this tool.** The downloader has no `license_key` field, no `MAXMIND_LICENSE_KEY` env var, and no MaxMind URL builder. If you want to use MaxMind, run MaxMind's own [`geoipupdate`](/docs/network-flows/enrichment-methods/maxmind-geoip-geolite2) and point `enrichment.geoip.asn_database` / `enrichment.geoip.geo_database` at the files it produces.
 
-You can still pull *any* MMDB build (including a custom one) into the resolver by configuring `enrichment.geoip.asn_database` / `geo_database` directly — the downloader is one of several producers; the plugin doesn't care who wrote the MMDB. See the [Custom MMDB Database](/src/crates/netflow-plugin/integrations/custom_mmdb_database.md) card.
+You can still pull *any* MMDB build (including a custom one) into the resolver by configuring `enrichment.geoip.asn_database` / `geo_database` directly — the downloader is one of several producers; the plugin doesn't care who wrote the MMDB. See the [Custom MMDB Database](/docs/network-flows/enrichment-methods/custom-mmdb-database) card.
 
 ## Configuration file
 
-The downloader reads YAML config from the first existing file in this order ([`config.go:263-274`](https://github.com/netdata/netdata/blob/master/src/go/tools/topology-ip-intel-downloader/config.go#L263-L274)):
+The downloader reads YAML config from the first existing file in this order:
 
 1. `/etc/netdata/topology-ip-intel.yaml` (operator overrides)
 2. `/usr/lib/netdata/conf.d/topology-ip-intel.yaml` (stock, shipped by the package)
 
-If neither exists, the built-in defaults from [`config.go:127-169`](https://github.com/netdata/netdata/blob/master/src/go/tools/topology-ip-intel-downloader/config.go#L127-L169) are used. Pass `--config /path/to/file.yaml` to force a specific path.
+If neither exists, the built-in defaults are used. Pass `--config /path/to/file.yaml` to force a specific path.
 
 The shipped stock file is:
 
@@ -101,15 +101,15 @@ http:
 
 | Key | Notes |
 |---|---|
-| `sources[]` | Ordered list per family. Each entry needs `family` (`asn` or `geo`), `provider`, `artifact`. `format` is inferred from the provider/artifact when omitted. Optional `url` overrides the built-in URL; optional `path` reads from a local file instead. Earlier entries win on overlap ([`config.go:471-519`](https://github.com/netdata/netdata/blob/master/src/go/tools/topology-ip-intel-downloader/config.go#L471-L519)). |
+| `sources[]` | Ordered list per family. Each entry needs `family` (`asn` or `geo`), `provider`, `artifact`. `format` is inferred from the provider/artifact when omitted. Optional `url` overrides the built-in URL; optional `path` reads from a local file instead. Earlier entries win on overlap. |
 | `output.directory` | Where the MMDB and metadata files land. Must match what the netflow plugin reads (see below). |
-| `output.asn_file` / `output.geo_file` / `output.metadata_file` | File names only — paths are rejected by validation ([`config.go:546-554`](https://github.com/netdata/netdata/blob/master/src/go/tools/topology-ip-intel-downloader/config.go#L546-L554)). |
+| `output.asn_file` / `output.geo_file` / `output.metadata_file` | File names only — paths are rejected by validation. |
 | `policy.localhost_cidrs` / `private_cidrs` | Stamped into both MMDBs as `netdata.ip_class = "localhost"` / `"private"`. |
 | `policy.interesting_cidrs` | Operator-defined public ranges to track individually. Stamped as `netdata.ip_class = "interesting"`. |
 | `http.timeout` | Per-request timeout. Default `2m`. |
 | `http.user_agent` | Sent to upstream providers. Default `netdata-topology-ip-intel-downloader/1.0`. |
 
-CLI flags can override the config without editing the file ([`main.go:25-31`](https://github.com/netdata/netdata/blob/master/src/go/tools/topology-ip-intel-downloader/main.go#L25-L31)):
+CLI flags can override the config without editing the file:
 
 | Flag | Purpose |
 |---|---|
@@ -159,7 +159,7 @@ sudo systemctl enable --now netdata-topology-ip-intel.timer
 
 DB-IP refreshes its free Lite databases monthly; weekly is a safe over-poll that picks up every release within a few days while staying polite to the upstream. IPtoASN refreshes hourly, but downstream consumers rarely need that resolution — daily is plenty if you switch to it.
 
-The packaged binary is installed mode `0750 root:netdata` ([`netdata.spec.in:3286`](https://github.com/netdata/netdata/blob/master/netdata.spec.in#L3286)). Run it as the `netdata` user (or root) so it can write to `/var/cache/netdata/topology-ip-intel/`.
+Run the packaged binary as the `netdata` user (or root) so it can write to `/var/cache/netdata/topology-ip-intel/`.
 
 ## Manual invocation
 
@@ -194,22 +194,22 @@ metadata=/var/cache/netdata/topology-ip-intel/topology-ip-intel.json
 asn_ranges=1234567 geo_ranges=8901234
 ```
 
-The plan is printed *before* any download, so you can verify the effective source list without committing to a fetch ([`main.go:50`](https://github.com/netdata/netdata/blob/master/src/go/tools/topology-ip-intel-downloader/main.go#L50), [`main.go:109-138`](https://github.com/netdata/netdata/blob/master/src/go/tools/topology-ip-intel-downloader/main.go#L109-L138)).
+The plan is printed *before* any download, so you can verify the effective source list without committing to a fetch.
 
 ## Output and atomic replacement
 
 Atomic publication is the contract this tool provides to the netflow plugin's resolver:
 
-1. A staging directory is created inside `output.directory` (`.tmp-topology-ip-intel-stage-*`) and removed on exit ([`write.go:71-75`](https://github.com/netdata/netdata/blob/master/src/go/tools/topology-ip-intel-downloader/write.go#L71-L75)).
+1. A staging directory is created inside `output.directory` (`.tmp-topology-ip-intel-stage-*`) and removed on exit.
 2. The MMDB writer streams into a per-file temp inside that staging directory.
-3. Each finished MMDB is fsync-closed, chmodded `0644`, and `os.Rename`d into its final name ([`write.go:267-297`](https://github.com/netdata/netdata/blob/master/src/go/tools/topology-ip-intel-downloader/write.go#L267-L297)).
+3. Each finished MMDB is fsync-closed, chmodded `0644`, and renamed into its final name.
 4. The metadata JSON is renamed last, so a partially-completed run never updates the manifest.
 
-Because `rename(2)` is atomic on the same filesystem, a reader that opens the file at any moment sees either the old complete file or the new complete file — never a half-written one. The netflow plugin's resolver re-stats and re-opens the MMDBs every 30 seconds (`GEOIP_RELOAD_CHECK_INTERVAL`, [`enrichment.rs:35`](https://github.com/netdata/netdata/blob/master/src/crates/netflow-plugin/src/enrichment.rs#L35)), so a fresh download is live within at most 30 seconds of completion. No plugin restart, no agent restart.
+Because `rename(2)` is atomic on the same filesystem, a reader that opens the file at any moment sees either the old complete file or the new complete file — never a half-written one. The netflow plugin's resolver re-stats and re-opens the MMDBs every 30 seconds, so a fresh download is live within at most 30 seconds of completion. No plugin restart, no agent restart.
 
 ## Failure modes
 
-The tool exits non-zero with a diagnostic on `stderr` for any of these cases ([`main.go:33-62`](https://github.com/netdata/netdata/blob/master/src/go/tools/topology-ip-intel-downloader/main.go#L33-L62)):
+The tool exits non-zero with a diagnostic on `stderr` for any of these cases:
 
 | Failure | Behaviour |
 |---|---|
@@ -224,21 +224,21 @@ If you run the downloader from a systemd timer, the failure is visible via `syst
 
 ## Integration with the netflow plugin's auto-detect
 
-The netflow plugin auto-discovers MMDB files at startup when neither `enrichment.geoip.asn_database` nor `enrichment.geoip.geo_database` is set. The lookup order is ([`runtime.rs:23-58`](https://github.com/netdata/netdata/blob/master/src/crates/netflow-plugin/src/plugin_config/runtime.rs#L23-L58)):
+The netflow plugin auto-discovers MMDB files at startup when neither `enrichment.geoip.asn_database` nor `enrichment.geoip.geo_database` is set. The lookup order is:
 
 1. `<cache_dir>/topology-ip-intel/topology-ip-asn.mmdb` and `topology-ip-geo.mmdb` — the directory the downloader writes to.
 2. `<stock_data_dir>/topology-ip-intel/...` — the package-shipped stock payload (typically `/usr/share/netdata/topology-ip-intel/`), used as fallback when no fresh copy exists yet.
 
-`<cache_dir>` defaults to `/var/cache/netdata`; `<stock_data_dir>` defaults to `/usr/share/netdata` ([`defaults.rs:3-7`](https://github.com/netdata/netdata/blob/master/src/crates/netflow-plugin/src/plugin_config/defaults.rs#L3-L7)). The downloader's default output directory matches the cache path the plugin checks first, so a fresh run automatically supersedes the stock payload.
+`<cache_dir>` defaults to `/var/cache/netdata`; `<stock_data_dir>` defaults to `/usr/share/netdata`. The downloader's default output directory matches the cache path the plugin checks first, so a fresh run automatically supersedes the stock payload.
 
-When the plugin auto-detects MMDBs this way it forces `optional: true` on the geoip stanza ([`runtime.rs:60-63`](https://github.com/netdata/netdata/blob/master/src/crates/netflow-plugin/src/plugin_config/runtime.rs#L60-L63)) — a missing or transiently-unreadable file does not crash the plugin. If you instead set `asn_database` / `geo_database` explicitly in `netflow.yaml`, you control the `optional` flag yourself; see [Configuration](/docs/network-flows/configuration.md#enrichment-geoip).
+When the plugin auto-detects MMDBs this way it forces `optional: true` on the geoip stanza — a missing or transiently-unreadable file does not crash the plugin. If you instead set `asn_database` / `geo_database` explicitly in `netflow.yaml`, you control the `optional` flag yourself; see [Configuration](/docs/network-flows/configuration.md#enrichment).
 
 ## What's next
 
 - Per-provider details (refresh cadence, license, schema, attribution requirements):
-  - [DB-IP IP Intelligence](/src/crates/netflow-plugin/integrations/db-ip_ip_intelligence.md) — the default the downloader fetches.
-  - [IPtoASN](/src/crates/netflow-plugin/integrations/iptoasn.md) — public-domain TSV feed; converted to MMDB by this tool.
-  - [MaxMind GeoIP / GeoLite2](/src/crates/netflow-plugin/integrations/maxmind_geoip_-_geolite2.md) — *not* fetched by this tool; use `geoipupdate`.
-  - [Custom MMDB Database](/src/crates/netflow-plugin/integrations/custom_mmdb_database.md) — your own MMDB build.
+  - [DB-IP IP Intelligence](/docs/network-flows/enrichment-methods/db-ip-ip-intelligence) — the default the downloader fetches.
+  - [IPtoASN](/docs/network-flows/enrichment-methods/iptoasn) — public-domain TSV feed; converted to MMDB by this tool.
+  - [MaxMind GeoIP / GeoLite2](/docs/network-flows/enrichment-methods/maxmind-geoip-geolite2) — *not* fetched by this tool; use `geoipupdate`.
+  - [Custom MMDB Database](/docs/network-flows/enrichment-methods/custom-mmdb-database) — your own MMDB build.
 - The enrichment mechanism that consumes these files: [Enrichment](/docs/network-flows/enrichment.md) (the MMDB shared mechanism section).
-- The plugin knobs that point at the files: [Configuration › `enrichment.geoip`](/docs/network-flows/configuration.md#enrichment-geoip).
+- The plugin knobs that point at the files: [Configuration › `enrichment.geoip`](/docs/network-flows/configuration.md#enrichment).

@@ -38,7 +38,7 @@ traffic -- without parsing AS-name strings.
 
 The file is public; no AWS credentials are needed.
 
-Schema of `ip-ranges.json` (verified against the live document):
+Schema of `ip-ranges.json`:
 
 - top-level: `syncToken`, `createDate`, `prefixes`, `ipv6_prefixes`
 - each entry in `prefixes[]`: `ip_prefix`, `region`, `service`, `network_border_group`
@@ -60,8 +60,7 @@ AWS does not publish a fixed refresh cadence; the file is updated whenever the
 AWS IP space changes (typically several times per day) and the `syncToken` /
 `createDate` fields advance on every change. AWS recommends polling no faster
 than the file actually changes; daily is enough for most flow-attribution use
-cases. The plugin floors the configured `interval` at 60s
-(`src/crates/netflow-plugin/src/network_sources/service.rs:73`).
+cases. The plugin floors the configured `interval` at 60s.
 
 
 This integration is only supported on the following platforms:
@@ -79,11 +78,11 @@ Disabled by default. Add an entry under `enrichment.network_sources` to enable.
 
 #### Limits
 
-The default configuration for this integration does not impose any limits.
+One full AWS prefix document is fetched per refresh. Resource use scales with the number of AWS prefixes selected by your transform and the refresh interval.
 
 #### Performance Impact
 
-The default configuration for this integration is not expected to impose a significant performance impact on the system.
+One HTTPS request per refresh interval plus a jq transform over the AWS prefix document. Runtime enrichment cost is a trie lookup per source and destination IP.
 
 ## Setup
 
@@ -263,10 +262,9 @@ the journal for `network-sources` warnings:
 
 ### TLS verification cannot be disabled
 
-`tls.skip_verify: true` is rejected by validation
-(`src/crates/netflow-plugin/src/network_sources/fetch.rs:57`). Use
-`tls.ca_file` for custom-CA paths if you front AWS behind an internal
-TLS-terminating proxy with a private CA.
+`tls.skip_verify: true` is rejected by validation. Use `tls.ca_file` for
+custom-CA paths if you front AWS behind an internal TLS-terminating proxy
+with a private CA.
 
 
 

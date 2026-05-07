@@ -51,11 +51,11 @@ The plugin starts when enabled in netflow.yaml and listens on the configured UDP
 
 #### Limits
 
-The default configuration for this integration does not impose any limits.
+Operational limits are driven by sustained flows/s, cardinality, retention, storage speed, and enrichment. Plan around 25k sustained flows/s per well-provisioned agent for the full raw + rollup pipeline; use distributed agents for larger deployments.
 
 #### Performance Impact
 
-The default configuration for this integration is not expected to impose a significant performance impact on the system.
+Disabled until exporters send traffic. Once active, CPU and disk I/O scale with flow rate and cardinality; size retention and storage from observed flows/s.
 
 ## Setup
 
@@ -87,8 +87,8 @@ The plugin is configured via `netflow.yaml` in the Netdata configuration directo
 | protocols.v7 | Enable NetFlow v7 decoding. | yes | no |
 | protocols.v9 | Enable NetFlow v9 decoding. | yes | no |
 | journal.journal_dir | Directory for journal files (relative to NETDATA_CACHE_DIR). | flows | no |
-| journal.size_of_journal_files | Maximum total size of all journal files. | 10GB | no |
-| journal.duration_of_journal_files | Maximum age of journal files. | 7d | no |
+| journal.tiers.<tier>.size_of_journal_files | Per-tier hard size cap. Replace `<tier>` with `raw`, `minute_1`, `minute_5`, or `hour_1`. Set to `null` for time-only retention. | 10GB | no |
+| journal.tiers.<tier>.duration_of_journal_files | Per-tier maximum age. Replace `<tier>` with `raw`, `minute_1`, `minute_5`, or `hour_1`. Set to `null` for size-only retention. | 7d | no |
 
 
 </details>
@@ -112,7 +112,7 @@ sudo ./edit-config netflow.yaml
 
 ###### Basic NetFlow v5/v9 collection
 
-Listen on the standard NetFlow port for v5 and v9 records.
+Listen on Netdata's default flow listener port for v5 and v9 records.
 
 ```yaml
 enabled: true
@@ -125,7 +125,7 @@ protocols:
 ```
 ###### NetFlow v9 only with extended retention
 
-Accept only v9 records and keep 30 days of journal data.
+Accept only v9 records, keep one day of raw data, and keep longer rollups.
 
 <details open><summary>Config</summary>
 
@@ -139,8 +139,11 @@ protocols:
   v9: true
 journal:
   journal_dir: flows
-  size_of_journal_files: 50GB
-  duration_of_journal_files: 30d
+  tiers:
+    raw:      { size_of_journal_files: 50GB, duration_of_journal_files: 24h }
+    minute_1: { size_of_journal_files: 10GB, duration_of_journal_files: 14d }
+    minute_5: { size_of_journal_files: 10GB, duration_of_journal_files: 30d }
+    hour_1:   { size_of_journal_files: 10GB, duration_of_journal_files: 365d }
 
 ```
 </details>

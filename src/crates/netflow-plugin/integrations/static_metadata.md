@@ -25,41 +25,34 @@ The catch-all integration for **operator-provided labels**: a YAML-defined
 enrichment source that lives entirely in `netflow.yaml`. Use it when there is
 no IPAM, no CMDB, and no MMDB to query -- you simply know your own networks,
 your own routers, and what the interfaces on those routers do, and you want
-those labels visible on the Network Flows tab.
+those labels visible on the Network Flows view.
 
 Three independent surfaces are configured under this card, each populating a
 different set of flow-record fields:
 
 - `enrichment.metadata_static.exporters.<ip-or-cidr>` -- per-exporter labels
   (matched against the source IP of the UDP datagram) and per-interface labels
-  (matched against the ifIndex from the flow record). Schema in
-  `src/crates/netflow-plugin/src/plugin_config/types/enrichment/metadata.rs:5-52`.
+  (matched against the ifIndex from the flow record).
 - `enrichment.networks.<cidr>` -- labels for arbitrary CIDR blocks (your own
   corp ranges, customer ranges, public blocks you operate). Matched against the
-  flow's source and destination IPs. Schema in
-  `src/crates/netflow-plugin/src/plugin_config/types/enrichment/networks.rs:5-35`.
+  flow's source and destination IPs.
 - `enrichment.override_sampling_rate.<cidr>` -- per-prefix sampling-rate
   substitution for exporters that do not communicate their rate (e.g. NetFlow
   v7, which has no sampling field, or a v9 exporter that never sends a Sampling
-  Options Template). Schema in
-  `src/crates/netflow-plugin/src/plugin_config/types/enrichment/sampling.rs:3-8`.
+  Options Template).
 
 Fields populated:
 
-- From `metadata_static.exporters` (per-exporter, lookup at
-  `src/crates/netflow-plugin/src/enrichment/data/static_data.rs:24-35`,
-  applied at `src/crates/netflow-plugin/src/enrichment/apply/metadata.rs:41-46`):
+- From `metadata_static.exporters` (per-exporter):
   `EXPORTER_NAME`, `EXPORTER_GROUP`, `EXPORTER_ROLE`, `EXPORTER_SITE`,
   `EXPORTER_REGION`, `EXPORTER_TENANT`.
-- From `metadata_static.exporters.if_indexes` (per-interface, applied at
-  `src/crates/netflow-plugin/src/enrichment/apply/metadata.rs:48-53`):
+- From `metadata_static.exporters.if_indexes` (per-interface):
   `IN_IF_NAME` / `OUT_IF_NAME`, `IN_IF_DESCRIPTION` / `OUT_IF_DESCRIPTION`,
   `IN_IF_SPEED` / `OUT_IF_SPEED` (in **bits per second**), `IN_IF_PROVIDER` /
   `OUT_IF_PROVIDER`, `IN_IF_CONNECTIVITY` / `OUT_IF_CONNECTIVITY`,
   `IN_IF_BOUNDARY` / `OUT_IF_BOUNDARY` (`1` = external, `2` = internal,
   `0`/omitted = removed from output).
-- From `enrichment.networks` (per-CIDR, written at
-  `src/crates/netflow-plugin/src/enrichment/data/network/write.rs:93-125`):
+- From `enrichment.networks` (per-CIDR):
   `SRC_NET_NAME` / `DST_NET_NAME`, `SRC_NET_ROLE` / `DST_NET_ROLE`,
   `SRC_NET_SITE` / `DST_NET_SITE`, `SRC_NET_REGION` / `DST_NET_REGION`,
   `SRC_NET_TENANT` / `DST_NET_TENANT`, plus overrides for the GeoIP-derived
@@ -69,8 +62,7 @@ Fields populated:
   entry overrides the AS *number* via the same merge path; the AS *name*
   still comes from the ASN database (see "Composition with dynamic sources"
   below).
-- From `override_sampling_rate` (longest-prefix match against the exporter IP,
-  applied at `src/crates/netflow-plugin/src/enrichment/apply/metadata.rs:78-97`):
+- From `override_sampling_rate` (longest-prefix match against the exporter IP):
   `SAMPLING_RATE` is set unconditionally when an override prefix matches. This
   is different from `default_sampling_rate`, which only applies when the flow
   does not already carry a rate.
@@ -84,10 +76,7 @@ interaction, and shared failure modes), see
 Edit `netflow.yaml`, restart the plugin, and the YAML-defined data is loaded
 into the same in-memory tries the GeoIP, IPAM, and BGP enrichment paths read
 from. There is no network access, no file watching, and no hot reload --
-changes take effect on the next plugin startup. The exporter trie is built at
-`src/crates/netflow-plugin/src/enrichment/data/static_data.rs:9-18`; the
-`networks` trie at
-`src/crates/netflow-plugin/src/enrichment/data/network/attrs.rs:99-117`.
+changes take effect on the next plugin startup.
 
 
 This integration is only supported on the following platforms:
@@ -105,11 +94,11 @@ Disabled by default. Add entries under `enrichment.metadata_static`, `enrichment
 
 #### Limits
 
-The default configuration for this integration does not impose any limits.
+Resource use scales with the number of exporter, interface, network, and sampling-override entries. Keep CIDR ranges and interface maps specific enough to match the routers you actually export.
 
 #### Performance Impact
 
-The default configuration for this integration is not expected to impose a significant performance impact on the system.
+Static lookups are local map/trie lookups during enrichment. Cost is usually small compared with flow decode and journal writes, but very large maps add memory and lookup work.
 
 ## Setup
 
@@ -131,10 +120,8 @@ and the cloud IP-range cards.
 `if_indexes` keys are the integer ifIndex the router puts in the flow
 record. Some platforms reassign ifIndex on line-card reseat or stack
 rebuild. After hardware changes, audit the labels -- a stale ifIndex
-entry silently no longer applies (the lookup at
-`src/crates/netflow-plugin/src/enrichment/data/static_data.rs:76-84`
-falls back to the `default` interface block, or to nothing when
-`skip_missing_interfaces: true` is set).
+entry silently no longer applies. The `default` interface block is used
+instead, or no labels are written when `skip_missing_interfaces: true` is set.
 
 
 
@@ -142,10 +129,8 @@ falls back to the `default` interface block, or to nothing when
 
 #### Options
 
-All keys live under `enrichment:` in `netflow.yaml`. The schema enforces
-`deny_unknown_fields` at every level
-(`src/crates/netflow-plugin/src/plugin_config/types/enrichment/metadata.rs:4`,
-`networks.rs:4`, `root.rs:4`), so typos fail config load with a parse error.
+All keys live under `enrichment:` in `netflow.yaml`. Unknown keys fail config
+load with a parse error.
 
 
 <details open><summary>Config options</summary>
@@ -158,13 +143,13 @@ All keys live under `enrichment:` in `netflow.yaml`. The schema enforces
 | enrichment.metadata_static.exporters.<key>.if_indexes | Map keyed by integer ifIndex (the value the router puts in the flow record). Each entry holds `name`, `description`, `speed` (bits per second), `provider`, `connectivity`, and `boundary`. | {} | no |
 | enrichment.metadata_static.exporters.<key>.default | Interface block applied to flow records whose ifIndex is not present in `if_indexes`. Same shape as an `if_indexes` entry. Ignored when `skip_missing_interfaces: true` is set. | {} | no |
 | enrichment.metadata_static.exporters.<key>.skip_missing_interfaces | When `true`, flow records whose ifIndex is not in `if_indexes` get no interface labels at all (not even from `default`). Useful when you only care about a known set of WAN interfaces and want unknown ones to stay blank instead of inheriting a placeholder. | false | no |
-| enrichment.metadata_static.exporters.<key>.if_indexes.<n>.boundary | Interface boundary marker. Accepts the integers `0` (undefined), `1` (external -- faces the outside world: Internet, peer, transit), `2` (internal -- faces your own infrastructure), or the case-insensitive strings `"undefined"`, `"external"`, `"internal"` (`src/crates/netflow-plugin/src/plugin_config/defaults.rs:152-178`). Any other value fails config load. Filtering for `IN_IF_BOUNDARY=1` cleanly gives you "traffic that arrived from outside". | 0 | no |
-| enrichment.metadata_static.exporters.<key>.if_indexes.<n>.speed | Interface speed in **bits per second**. A 1 Gbps interface is `1000000000`, not `1000` and not `1000000`. Operators thinking in megabits get the value wrong by a factor of 1000 to 1000000. A `0` value means "not set" and removes the field from the output (`src/crates/netflow-plugin/src/enrichment/apply/write.rs:116-120,178-181`). | 0 | no |
-| enrichment.networks | Map keyed by CIDR. Longest-prefix match contributes the most-specific fields; less-specific containing prefixes contribute their non-empty fields too (merge logic at `src/crates/netflow-plugin/src/enrichment/data/network/attrs.rs:55-96`, walked ascending at `src/crates/netflow-plugin/src/enrichment/apply/resolve.rs:36-66` -- same path used by `network_sources`). Each value is either a string (shorthand for `name:`) or a map with `name`, `role`, `site`, `region`, `country`, `state`, `city`, `latitude`, `longitude`, `tenant`, `asn`. | {} | no |
+| enrichment.metadata_static.exporters.<key>.if_indexes.<n>.boundary | Interface boundary marker. Accepts the integers `0` (undefined), `1` (external -- faces the outside world: Internet, peer, transit), `2` (internal -- faces your own infrastructure), or the case-insensitive strings `"undefined"`, `"external"`, `"internal"`. Any other value fails config load. Filtering for `IN_IF_BOUNDARY=1` cleanly gives you "traffic that arrived from outside". | 0 | no |
+| enrichment.metadata_static.exporters.<key>.if_indexes.<n>.speed | Interface speed in **bits per second**. A 1 Gbps interface is `1000000000`, not `1000` and not `1000000`. Operators thinking in megabits get the value wrong by a factor of 1000 to 1000000. A `0` value means "not set" and removes the field from the output. | 0 | no |
+| enrichment.networks | Map keyed by CIDR. Longest-prefix match contributes the most-specific fields; less-specific containing prefixes contribute their non-empty fields too. The same merge rule is used by `network_sources`. Each value is either a string (shorthand for `name:`) or a map with `name`, `role`, `site`, `region`, `country`, `state`, `city`, `latitude`, `longitude`, `tenant`, `asn`. | {} | no |
 | enrichment.networks.<cidr>.asn | Forces the AS *number* for traffic in this prefix, overriding whatever the `asn_providers` chain computed. The AS *name* is still resolved from the ASN MMDB -- there is no `asn_name` config field. See the ASN section of [Enrichment](https://learn.netdata.cloud/docs/network-flows/enrichment). | 0 | no |
-| enrichment.networks.<cidr>.latitude / longitude | Per-CIDR coordinate override. Out-of-range values (latitude not in [-90, 90] or longitude not in [-180, 180]) and non-finite values are silently coerced to empty strings -- the field is dropped, no error (`src/crates/netflow-plugin/src/enrichment/data/network/attrs.rs:30-31`). Validate input out of band if your data matters. | null | no |
-| enrichment.default_sampling_rate | Global fallback applied only when the flow record does not already carry a sampling rate. Either a single integer or a CIDR-keyed map (longest-prefix match against the exporter IP). Logic at `src/crates/netflow-plugin/src/enrichment/apply/metadata.rs:86-96`. | 0 | no |
-| enrichment.override_sampling_rate | Per-exporter substitution that **always** wins when its prefix matches the exporter IP, regardless of what the flow record carried. Either a single integer or a CIDR-keyed map. Logic at `src/crates/netflow-plugin/src/enrichment/apply/metadata.rs:78-85`. | {} | no |
+| enrichment.networks.<cidr>.latitude / longitude | Per-CIDR coordinate override. Out-of-range values (latitude not in [-90, 90] or longitude not in [-180, 180]) and non-finite values are silently coerced to empty strings -- the field is dropped, no error. Validate input out of band if your data matters. | null | no |
+| enrichment.default_sampling_rate | Global fallback applied only when the flow record does not already carry a sampling rate. Either a single integer or a CIDR-keyed map (longest-prefix match against the exporter IP). | 0 | no |
+| enrichment.override_sampling_rate | Per-exporter substitution that **always** wins when its prefix matches the exporter IP, regardless of what the flow record carried. Either a single integer or a CIDR-keyed map. | {} | no |
 
 
 </details>
@@ -313,10 +298,8 @@ enrichment:
 
 ### A more-specific entry inherits the wrong field from its supernet
 
-`enrichment.networks` merges containing prefixes ascending (least
-specific first) at
-`src/crates/netflow-plugin/src/enrichment/apply/resolve.rs:36-66`.
-Leaving a field blank on a `/24` does **not** clear the `/16`'s value
+`enrichment.networks` merges containing prefixes from least-specific to
+most-specific. Leaving a field blank on a `/24` does **not** clear the `/16`'s value
 for that field -- you must explicitly set the field on the more-specific
 entry to overwrite. The same merge rule applies to entries from
 `network_sources`, which interleave at the same prefix lengths.
@@ -349,18 +332,14 @@ and removes the field from the output.
 
 When the configured ifIndex is not present in the flow record, the
 `default` block is used instead -- unless `skip_missing_interfaces: true`
-is set, in which case no interface labels are written at all
-(`src/crates/netflow-plugin/src/enrichment/data/static_data.rs:76-84`).
-If you expected your block to apply but the labels are blank, the
+is set, in which case no interface labels are written at all. If you expected your block to apply but the labels are blank, the
 router is sending a different ifIndex.
 
 
 ### Coordinates dropped silently
 
 Out-of-range latitude / longitude (`latitude: 91.5`) and non-finite
-values become empty strings without an error
-(`src/crates/netflow-plugin/src/enrichment/data/network/attrs.rs:30-31`).
-The map quietly stops drawing the marker. Validate input externally if
+values become empty strings without an error. The map quietly stops drawing the marker. Validate input externally if
 the data matters.
 
 
@@ -368,12 +347,9 @@ the data matters.
 
 When static metadata sets **any** of `group`, `role`, `site`, `region`,
 `tenant` for an exporter, the `exporter_classifiers` rule chain does not
-run for that exporter at all
-(`src/crates/netflow-plugin/src/enrichment/classify.rs:117-119`).
-The same is true for an interface: any of `provider`, `connectivity`,
+run for that exporter at all. The same is true for an interface: any of `provider`, `connectivity`,
 `boundary` set by static metadata short-circuits
-`interface_classifiers`
-(`src/crates/netflow-plugin/src/enrichment/classify.rs:150-154`). If
+`interface_classifiers`. If
 you want classifiers to run on top of static metadata, drop the static
 fields they are supposed to set.
 
@@ -382,9 +358,7 @@ fields they are supposed to set.
 
 The schema is `deny_unknown_fields` at every level. A typo such as
 `ifindexes` (the canonical key is `if_indexes`; aliases `ifindexes`,
-`if-indexes` are accepted at
-`src/crates/netflow-plugin/src/plugin_config/types/enrichment/metadata.rs:37`)
-or a misspelt attribute (`teannt:`) fails plugin start with a YAML parse
+`if-indexes` are accepted) or a misspelt attribute (`teannt:`) fails plugin start with a YAML parse
 error rather than being silently ignored.
 
 
@@ -392,17 +366,15 @@ error rather than being silently ignored.
 
 `override_sampling_rate` always wins when its prefix matches; if the
 field still looks unset, check that the **exporter IP** -- not the
-flow's source / destination IP -- falls under the configured prefix
-(`src/crates/netflow-plugin/src/enrichment/apply/metadata.rs:78-85`).
+flow's source / destination IP -- falls under the configured prefix.
 `default_sampling_rate` is only consulted when the flow did not already
 carry a rate.
 
 
 ### Changes do not take effect
 
-Static metadata is loaded at plugin startup
-(`src/crates/netflow-plugin/src/enrichment/init.rs:13-14`) and there is
-no file-change watcher. Restart the plugin (or the agent) after editing
+Static metadata is loaded at plugin startup and there is no file-change
+watcher. Restart the plugin (or the agent) after editing
 `netflow.yaml`.
 
 

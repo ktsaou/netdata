@@ -48,7 +48,7 @@ The country map and state map can use the rollup tiers. They're cheap over long 
 The city map and the globe **need raw-tier data**. City, latitude, and longitude are dropped from the rollup tiers (1m / 5m / 1h) to keep cardinality manageable. So:
 
 - Country / state map over the last 30 days — fine, uses the 1-hour tier.
-- City map over the last 30 days — likely empty. Tier 0 retention defaults to 7 days (shared budget across all tiers); often less in practice.
+- City map over the last 30 days — likely empty. Raw-tier retention defaults to 7 days (shared budget across all tiers); often less in practice.
 
 If your city map looks empty over a long window, try the country map first to confirm data is arriving, then narrow the time range until the city map fills in.
 
@@ -72,11 +72,7 @@ Globe view, top-N at 500, rotated over the Atlantic. The 3D projection shows US 
 
 ### GeoIP is required
 
-Without a GeoIP database, country / state / city / coordinate fields are empty and the maps are blank. The default install includes a stock DB-IP database — see the [DB-IP integration card](/src/crates/netflow-plugin/integrations/db-ip_ip_intelligence.md) and the [Enrichment Intel Downloader](/docs/network-flows/intel-downloader.md). Source builds need the operator to run the downloader once.
-
-### Internal IPs in random countries
-
-If you see "traffic from China" or "traffic to Russia" coming from your own network, that's almost always GeoIP misidentifying internal IPs. The fix is to declare your internal CIDRs explicitly under `enrichment.networks` with a country override. See the [Static Metadata integration card](/src/crates/netflow-plugin/integrations/static_metadata.md). Don't trust GeoIP for RFC 1918 / RFC 6598 / link-local addresses.
+Without a GeoIP database, country / state / city / coordinate fields are empty and the maps are blank. Native packages include a stock DB-IP database — see the [DB-IP integration card](/docs/network-flows/enrichment-methods/db-ip-ip-intelligence) and the [Enrichment Intel Downloader](/docs/network-flows/intel-downloader.md). Source builds need the operator to run the downloader once.
 
 ### CDN traffic shifts
 
@@ -100,8 +96,7 @@ The globe and city map render the same data with the same table beneath. The 2D 
 
 ## Things that go wrong
 
-- **City map empty.** Time range exceeds tier-0 retention. Narrow the range, or use country/state map for a wider view.
-- **Random countries appearing for internal traffic.** Declare your internal CIDRs in `enrichment.networks`.
+- **City map empty.** Time range exceeds raw-tier retention. Narrow the range, or use country/state map for a wider view.
 - **Ireland or Singapore showing up unexpectedly.** Probably AWS/GCP/Azure shifting CDN routing. ASN-based aggregation is more stable.
 - **A whole country disappears.** Your filter excluded it. Check the filter ribbon.
 - **No data on globe but city map works.** Both should fail or succeed identically — they consume the same response. If they diverge, that's a dashboard bug worth reporting.
@@ -109,7 +104,7 @@ The globe and city map render the same data with the same table beneath. The 2D 
 ## What's next
 
 - [Enrichment](/docs/network-flows/enrichment.md) — Order of evaluation and the MMDB shared mechanism that drives geographic visualisation.
-- [DB-IP integration card](/src/crates/netflow-plugin/integrations/db-ip_ip_intelligence.md) — The default GeoIP source that ships with Netdata.
-- [Static Metadata integration card](/src/crates/netflow-plugin/integrations/static_metadata.md) — Declare your internal networks to override GeoIP for RFC 1918.
+- [DB-IP integration card](/docs/network-flows/enrichment-methods/db-ip-ip-intelligence) — The default GeoIP source that ships with Netdata.
+- [Static Metadata integration card](/docs/network-flows/enrichment-methods/static-metadata) — Declare your internal networks to override GeoIP for RFC 1918.
 - [Filters and Facets](/docs/network-flows/visualization/filters-facets.md) — Narrowing geographic views.
 - [Anti-patterns](/docs/network-flows/anti-patterns.md) — Why "alert on traffic to country X" is fragile.

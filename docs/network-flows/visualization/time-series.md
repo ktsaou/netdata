@@ -45,14 +45,14 @@ The window is **rounded outward** to align with bucket boundaries — your "11:2
 
 The minimum bucket size is **60 seconds**. Zoom in past one minute and the chart silently widens to 60-second buckets. There's no warning — sub-minute jitter just smooths out. For sub-second analysis, flow data is the wrong tool ([microbursts are invisible](/docs/network-flows/anti-patterns.md)).
 
-## What forces tier 0 (raw)
+## What forces raw tier
 
-Some queries can't use the rollup tiers. They drop to tier 0 and inherit raw-tier retention:
+Some queries can't use the rollup tiers. They drop to raw tier and inherit raw-tier retention:
 
 - Filtering or grouping by `SRC_ADDR`, `DST_ADDR`, `SRC_PORT`, `DST_PORT`, or any geo city / latitude / longitude field
 - Any non-empty full-text search
 
-In those cases the 100-bucket rule still applies, but the source tier is tier 0. Time depth is bounded by raw-tier retention (default: shared 10GB / 7d budget across all tiers — almost always less than 7 days for a busy collector).
+In those cases the 100-bucket rule still applies, but the source tier is raw tier. Time depth is bounded by raw-tier retention (default: shared 10GB / 7d budget across all tiers — almost always less than 7 days for a busy collector).
 
 If you've been working at a higher tier and add an IP filter, the time depth on your chart may suddenly shrink — that's the tier switch.
 
@@ -60,7 +60,7 @@ If you've been working at a higher tier and add an IP filter, the time depth on 
 
 Buckets that received no contributing records render as zero. There's no special "missing data" indicator on the chart — the plot is flat at zero in those regions.
 
-That includes the case where the time range crosses the retention boundary of a tier. Tier 0 (raw) holds the most recent data; older fragments fall back to coarser tiers when available, and emptiness when no tier has the span.
+That includes the case where the time range crosses the retention boundary of a tier. Raw-tier (raw) holds the most recent data; older fragments fall back to coarser tiers when available, and emptiness when no tier has the span.
 
 The dashboard's diagnostic side-panels surface tier coverage in the response stats (`query_tier`, `query_files`, etc.), but the chart itself doesn't visually distinguish "no data" from "zero".
 
@@ -84,7 +84,7 @@ The default group-by is `Source AS Name → Protocol → Destination AS Name`, s
 
 - **Bursty flow not in top-N.** Top-N is over the whole window. Narrow the time range or filter to that conversation.
 - **Sub-minute zoom doesn't render finer.** The 60-second floor is hard. For finer detail, use packet capture.
-- **Wide range plus IP filter shows less than expected.** IP filter forced tier 0; raw retention is your bound.
+- **Wide range plus IP filter shows less than expected.** IP filter forced raw tier; raw retention is your bound.
 - **Window appears to extend slightly beyond what you asked.** Bucket alignment rounds outward.
 - **`__overflow__` shows up as the biggest dimension.** Your group-by is producing more distinct tuples than `query_max_groups` (50 000). Narrow the filter or drop a high-cardinality group-by field.
 

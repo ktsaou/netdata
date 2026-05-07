@@ -45,11 +45,8 @@ runs your `transform` jq expression (compiled by the
 [jaq](https://github.com/01mf02/jaq) library) over the parsed body, and merges
 the resulting per-prefix rows into the network-attributes trie.
 
-Source code: the per-source loop is implemented at
-`src/crates/netflow-plugin/src/network_sources/service.rs`; HTTP fetch at
-`src/crates/netflow-plugin/src/network_sources/fetch.rs`; the jq output schema
-is decoded at `src/crates/netflow-plugin/src/network_sources/decode.rs` against
-the `RemoteRecord` struct at `src/crates/netflow-plugin/src/network_sources/types.rs`.
+The same flow applies to every JSON-over-HTTP source; the integration-specific
+part is the URL and the `transform` expression.
 
 
 This integration is only supported on the following platforms:
@@ -67,11 +64,11 @@ Disabled by default. Add a named entry under `enrichment.network_sources` for ea
 
 #### Limits
 
-The default configuration for this integration does not impose any limits.
+Resource use scales with response size, transform complexity, refresh interval, and the number of emitted prefixes. Empty transform output is treated as a fetch failure.
 
 #### Performance Impact
 
-The default configuration for this integration is not expected to impose a significant performance impact on the system.
+One HTTP request per refresh interval plus a jq transform over the response. Runtime enrichment cost is a trie lookup per source and destination IP.
 
 ## Setup
 
@@ -82,7 +79,7 @@ The default configuration for this integration is not expected to impose a signi
 
 The endpoint must respond with a parseable JSON document (the plugin sets
 `Accept: application/json`). Only GET and POST are accepted as request
-methods; `fetch.rs` rejects anything else. There is no pagination, no
+methods. There is no pagination, no
 cursor following, no `Link: rel=next` handling -- the fetch is one-shot
 per cycle. If your IPAM paginates, expose a bulk endpoint or wrap it in a
 server-side aggregator that returns the full list at one URL.
@@ -101,8 +98,7 @@ plugin config.
 #### A POST endpoint must accept an empty body
 
 When `method: POST` is configured, the plugin sends the request with the
-configured headers but **no request body** (`fetch.rs` does not call
-`.body()`). If your CMDB requires a JSON query body to return prefixes,
+configured headers but **no request body**. If your CMDB requires a JSON query body to return prefixes,
 wrap it server-side with an endpoint that accepts GET (or POST with no
 body) and returns the full prefix set.
 
@@ -112,10 +108,8 @@ body) and returns the full prefix set.
 
 #### Options
 
-Add a named entry under `enrichment.network_sources`. The full set of keys
-below is the schema accepted by `RemoteNetworkSourceConfig` in
-`src/crates/netflow-plugin/src/plugin_config/types/enrichment/sources.rs`
-(with `deny_unknown_fields`, so unknown keys cause a config error).
+Add a named entry under `enrichment.network_sources`. Unknown keys cause a
+config error.
 
 
 <details open><summary>Config options</summary>
@@ -127,7 +121,7 @@ below is the schema accepted by `RemoteNetworkSourceConfig` in
 | url | HTTP/HTTPS endpoint. Required (a non-empty URL is enforced by validation). |  | yes |
 | method | HTTP method. Only `GET` and `POST` are accepted; anything else fails validation. Note that `POST` is sent with no request body. | GET | no |
 | headers | Map of additional HTTP request headers. Use this for any authentication scheme (`Authorization: Bearer ...`, `token: ...`, custom API-key headers, basic-auth realms encoded explicitly, etc.). Values are passed through verbatim. | {} | no |
-| interval | Refresh cadence. The internal scheduler **floors this at 60 seconds** -- shorter values are accepted by validation but the loop ticks at 60s minimum (see `service.rs`). Pick the value that matches how often your IPAM actually changes (5-15 minutes for a curated CMDB; daily for slow-moving prefix lists). | 60s | no |
+| interval | Refresh cadence. Values below 60 seconds are accepted, but refreshes still run no faster than once per minute. Pick the value that matches how often your IPAM actually changes (5-15 minutes for a curated CMDB; daily for slow-moving prefix lists). | 60s | no |
 | timeout | Per-request timeout. Must be greater than 0. | 60s | no |
 | proxy | Whether to honor the system HTTP/HTTPS proxy environment variables. Set to `false` to bypass the proxy for this source (useful when the IPAM is on the internal network and the proxy is for outbound traffic only). | true | no |
 | tls.enable | Enables custom TLS settings (custom CA bundle, mTLS client certificate). Must be `true` whenever any of `tls.ca_file`, `tls.cert_file`, `tls.key_file` is set. | false | no |
@@ -223,7 +217,7 @@ enrichment:
     cmdb:
       url: "https://cmdb.example/export/networks.json"
       headers:
-        Authorization: "Bearer ${CMDB_TOKEN}"
+        Authorization: "Bearer <CMDB_TOKEN>"
       interval: 15m
       transform: |
         .sites[] as $site
@@ -323,8 +317,8 @@ responses would corrupt every downstream analysis.
 
 ### Empty result back-off
 
-An empty stream from the jq transform is treated as a fetch failure
-(`decode_remote_records` returns "empty result"). The source then backs
+An empty stream from the jq transform is treated as a fetch failure.
+The source then backs
 off exponentially -- starting at `interval / 10` (floor 1s), doubling on
 each consecutive failure, and capped at the regular `interval`. On the
 next successful non-empty fetch the cadence resets to `interval`. If your

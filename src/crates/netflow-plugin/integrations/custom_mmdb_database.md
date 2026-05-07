@@ -34,9 +34,7 @@ The decoder reads `autonomous_system_number`, `autonomous_system_organization`,
 and (optionally) a string `asn` field from the ASN database, and `country.iso_code`,
 `subdivisions[].iso_code`, `city.names.en`, `location.latitude`,
 `location.longitude`, plus the Netdata-specific `netdata.ip_class` flag from the
-geo database. Any other vendor-specific keys are ignored. See
-`src/crates/netflow-plugin/src/enrichment/data/geoip/types.rs:28-92` and
-`src/crates/netflow-plugin/src/enrichment/data/geoip/decode.rs:1-94`.
+geo database. Any other vendor-specific keys are ignored.
 
 Note that `*_GEO_CITY`, `*_GEO_LATITUDE`, and `*_GEO_LONGITUDE` are written to
 the raw journal tier only -- the rollup tiers drop these high-cardinality fields.
@@ -68,11 +66,11 @@ Not auto-detected. You must configure paths explicitly.
 
 #### Limits
 
-The default configuration for this integration does not impose any limits.
+Coverage, schema quality, and freshness are entirely controlled by the custom MMDB build you provide. Invalid or missing files fail startup unless marked optional.
 
 #### Performance Impact
 
-The default configuration for this integration is not expected to impose a significant performance impact on the system.
+Lookups are local MMDB reads with no per-flow network call. Memory use depends on the size and number of custom databases you configure.
 
 ## Setup
 

@@ -75,11 +75,11 @@ Native packages ship the stock DB-IP MMDB files; the plugin auto-detects them at
 
 #### Limits
 
-The default configuration for this integration does not impose any limits.
+Lookup coverage and freshness depend on the DB-IP Lite files installed on disk. Native packages provide a stock copy; schedule the downloader if you need monthly refreshes.
 
 #### Performance Impact
 
-The default configuration for this integration is not expected to impose a significant performance impact on the system.
+Lookups are local MMDB reads with no per-flow network call. Memory use is mostly the mapped database files and the kernel page cache needed to keep active pages hot.
 
 ## Setup
 
@@ -181,12 +181,13 @@ enrichment:
 
 
 
-### Internal IPs appearing in random countries
+### Private IPs have empty GeoIP fields
 
-GeoIP databases have no entry for RFC 1918 / private space. The DB-IP-built ASN
-database tags private ranges so `*_AS_NAME` renders as `AS0 Private IP Address Space`
-with empty country. With third-party MMDBs that lack this tagging, results may vary.
-Declare your internal CIDRs under `enrichment.networks` to override -- see
+GeoIP databases normally have no country, city, or coordinate entry for RFC 1918 /
+private space. The DB-IP-built ASN database tags private ranges so `*_AS_NAME`
+renders as `AS0 Private IP Address Space`, while geographic fields stay empty and
+private addresses do not appear on maps. Declare your internal CIDRs under
+`enrichment.networks` when you want internal labels -- see
 [Static metadata](https://learn.netdata.cloud/docs/network-flows/enrichment).
 
 

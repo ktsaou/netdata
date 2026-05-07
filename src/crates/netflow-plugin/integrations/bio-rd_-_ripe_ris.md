@@ -22,7 +22,7 @@ Module: bioris
 ## Overview
 
 BioRIS lets Netdata consume BGP routing data from a [bio-rd](https://github.com/bio-routing/bio-rd)
-`cmd/ris/` daemon over gRPC. bio-rd is a Go-based BGP/BMP daemon that you run yourself.
+RIS daemon over gRPC. bio-rd is a Go-based BGP/BMP daemon that you run yourself.
 You point it at one or more BGP / BMP sources -- your own routers, a [RIPE RIS](https://www.ripe.net/analyse/internet-measurements/routing-information-service-ris)
 Route Collector you peer with, or any other reachable BGP source -- and it exposes the
 resulting RIB through a gRPC interface (`RoutingInformationService`). Netdata is a
@@ -41,33 +41,27 @@ and combined-deployment notes.
 
 
 The plugin connects as a gRPC client to one or more user-provided bio-rd `ris`
-endpoints (`grpc_addr`) and runs three RPCs against each one
-(`src/crates/netflow-plugin/src/routing/bioris/runtime/refresh/instance.rs`,
-`src/crates/netflow-plugin/src/routing/bioris/runtime/observe.rs`):
+endpoints (`grpc_addr`) and runs three RPCs against each one:
 
 1. `GetRouters` -- discover which routers/VRFs the bio-rd instance is exposing.
 2. `DumpRIB` -- pull a baseline RIB for each (router, AFI/SAFI) tuple. This is the
    expensive call -- full IPv4+IPv6 feeds run to millions of prefixes.
 3. `ObserveRIB` -- subscribe to incremental updates so the trie tracks live changes.
 
-Per refresh cycle (default 30 minutes,
-`src/crates/netflow-plugin/src/plugin_config/defaults.rs:38`) the plugin re-runs
-`GetRouters` + `DumpRIB`, then keeps `ObserveRIB` streams open between cycles.
-Routers that disappear between refreshes have their routes purged via
-`runtime.clear_peer()` (`runtime/refresh/task.rs:69`).
+Per refresh cycle (default 30 minutes), the plugin re-runs `GetRouters` +
+`DumpRIB`, then keeps `ObserveRIB` streams open between cycles. Routers that
+disappear between refreshes have their routes purged.
 
 Multiple `ris_instances` are **additive**, not failover -- routes from every
-configured endpoint merge into the same trie
-(`runtime.rs:30-49`). The trie is also shared with the `bmp` integration, so if
-both are enabled their routes coexist and lookups pick the best match across both
-sources.
+configured endpoint merge into the same trie. The trie is also shared with the
+`bmp` integration, so if both are enabled their routes coexist and lookups pick
+the best match across both sources.
 
 Connection is plain gRPC over HTTP/2 by default; set `grpc_secure: true` to use
-TLS with the system CA bundle (`client.rs:11-15`). There is no client-cert / mTLS
-and no application auth -- restrict access at the network layer.
+TLS with the system CA bundle. There is no client-cert / mTLS and no application
+auth -- restrict access at the network layer.
 
-**Fields populated** (same set as BMP, written from
-`src/crates/netflow-plugin/src/enrichment/apply/write.rs:66-98`):
+**Fields populated** (same set as BMP):
 
 | Field | Side | Source |
 |---|---|---|
@@ -85,11 +79,9 @@ accurate AS *numbers* and path/community attributes; the names come from the ASN
 database integration.
 
 **Storage tier:** `DST_AS_PATH`, `DST_COMMUNITIES`, and `DST_LARGE_COMMUNITIES`
-are written only into the raw journal tier
-(`src/crates/netflow-plugin/src/flow/record/journal/network.rs:37-39`). The
-1-minute / 5-minute / 1-hour rollup tiers do not carry them
-(`src/crates/netflow-plugin/src/tiering/rollup/`). Queries that need AS path or
-community data must run against a window that the raw retention still covers.
+are written only into the raw journal tier. The 1-minute / 5-minute / 1-hour
+rollup tiers do not carry them. Queries that need AS path or community data
+must run against a window that the raw retention still covers.
 
 
 This integration is only supported on the following platforms:
@@ -107,18 +99,13 @@ Disabled by default. Set enrichment.routing_dynamic.bioris.enabled to true and p
 
 #### Limits
 
-The default configuration for this integration does not impose any limits.
+Memory scales with the number of RIS instances, peers, routing tables, prefixes, AS paths, and communities. Full-table feeds can consume hundreds of MB per peer.
 
 #### Performance Impact
 
-A full IPv4+IPv6 BGP feed is roughly 1.2M prefixes per peer (2026 figures).
-Each prefix entry stores the AS-path `Vec<u32>`, communities `Vec<u32>`, large
-communities `Vec<(u32,u32,u32)>`, and a per-path `route_key` String. Expect
-several hundred MB of resident memory **per peer** for a full feed -- multiply
-by the number of routers exposed by every `ris_instance`. The trie has no
-time-based eviction; routes are removed only by explicit BGP withdrawal,
-disappearance of a router from `GetRouters` between refreshes, or plugin
-shutdown. Plan capacity and watch the agent's RSS.
+Disabled until BioRIS is configured. Once active, Netdata maintains an
+in-memory routing trie for the received RIB and updates. Plan capacity from
+the number of peers and tables you import, and watch the agent's RSS.
 
 
 ## Setup
@@ -143,17 +130,14 @@ RIPE RIS Route Collectors, looking-glass servers, etc.). Refer to the bio-rd
 documentation for the peering setup -- this is bio-rd's configuration, not
 Netdata's.
 
-Run the daemon with a gRPC port (`bio-rd/cmd/ris/main.go` defaults to 4321 if
-`--grpc_port` is omitted):
+Run the daemon with a gRPC port:
 `/usr/local/bin/ris --grpc_port 50051 --config.file /etc/bio-rd.yml`
 
 
 #### Network reachability + no auth
 
-The gRPC connection is plain HTTP/2 by default
-(`src/crates/netflow-plugin/src/routing/bioris/client.rs:23-31`), or TLS with
-the system CA bundle when `grpc_secure: true`
-(`client.rs:11-15`). There is no client-cert / mTLS and no application
+The gRPC connection is plain HTTP/2 by default, or TLS with the system CA
+bundle when `grpc_secure: true`. There is no client-cert / mTLS and no application
 authentication -- restrict access at the firewall, or run bio-rd on the same
 host as the agent and bind it to localhost.
 
@@ -164,8 +148,7 @@ host as the agent and bind it to localhost.
 #### Options
 
 BioRIS options live under `enrichment.routing_dynamic.bioris` in
-`netflow.yaml`. The schema is defined in
-`src/crates/netflow-plugin/src/plugin_config/types/routing.rs:88-156`.
+`netflow.yaml`.
 
 
 <details open><summary>Config options</summary>
@@ -176,7 +159,7 @@ BioRIS options live under `enrichment.routing_dynamic.bioris` in
 |:-----|:------------|:--------|:---------:|
 | enabled | Master switch. | false | no |
 | timeout | Connect + per-RPC timeout for `GetRouters` and `ObserveRIB` setup. Default is aggressive; raise to 2-5s when reaching a remote bio-rd over the public internet. | 200ms | no |
-| refresh | Cadence at which the plugin re-runs `GetRouters` + `DumpRIB` for every router. Floored to 10s (`runtime/refresh/task.rs:23`). | 30m | no |
+| refresh | Cadence at which the plugin re-runs `GetRouters` + `DumpRIB` for every router. Floored to 10s. | 30m | no |
 | refresh_timeout | Per-DumpRIB request timeout and per-message stream timeout for the baseline RIB pull. | 10s | no |
 | ris_instances | List of bio-rd endpoints. Each entry: `grpc_addr` (`host:port` or full `http(s)://` URI), `grpc_secure` (TLS with system CAs when true), `vrf` (string VRF name to filter on), `vrf_id` (numeric VRF ID, alternative to `vrf`). Multiple instances are additive (not failover) -- routes from every instance merge into the same trie. | [] | yes |
 
@@ -314,16 +297,14 @@ restarts off-peak if BGP attribution matters for your workflow.
 
 The trie has no time-based eviction. Routes are removed only when the
 upstream BGP source withdraws them, when a router disappears from
-`GetRouters` between refreshes (`runtime/refresh/task.rs:69` -- the plugin
-calls `runtime.clear_peer()` for stale peers), or on plugin shutdown. A full
-feed is several hundred MB of RSS per peer, permanently.
+`GetRouters` between refreshes, or on plugin shutdown. A full feed is
+several hundred MB of RSS per peer, permanently.
 
 
 ### AS path / communities missing on older queries
 
 `DST_AS_PATH`, `DST_COMMUNITIES`, and `DST_LARGE_COMMUNITIES` only exist in
-the raw journal tier (`flow/record/journal/network.rs:37-39`). The 1m / 5m /
-1h rollup tiers do not carry them. Queries that span beyond the raw
+the raw journal tier. The 1m / 5m / 1h rollup tiers do not carry them. Queries that span beyond the raw
 retention horizon will not return BGP path data.
 
 
@@ -334,17 +315,11 @@ the BGP source bio-rd is peering with are different boxes with different
 routing tables, expect divergence. This is normal in BGP, not a bug.
 
 
-### Integration-test gap
+### Validate BioRIS enrichment after enabling
 
-The `proto`-to-route conversion (`src/crates/netflow-plugin/src/routing/bioris/route.rs`)
-is unit-tested. The end-to-end gRPC client path -- `connect_bioris_client`,
-`GetRouters` discovery, `DumpRIB` baseline, `ObserveRIB` stream consumption,
-retry/backoff, per-router cleanup -- is **not** integration-tested in this
-repository. The features ship because the parsing layer is solid and the
-runtime sits on standard tonic + tokio primitives, but compatibility with a
-specific bio-rd version or upstream BGP source is not validated by tests
-here. Validate against your bio-rd setup before relying on this for capacity
-or security decisions.
+BioRIS-derived enrichment depends on the bio-rd version, upstream BGP source,
+route visibility, and refresh cadence. Validate against your bio-rd setup
+before relying on this for capacity or security decisions.
 
 
 

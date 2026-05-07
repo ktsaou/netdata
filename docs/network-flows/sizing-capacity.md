@@ -20,7 +20,7 @@ If your worst-case sustained flow rate fits in five-digit flows/s, you have head
 
 ## Plugin throughput cap
 
-The post-decode ingest path has a single-thread hot path. On modern x86 silicon (i9-class workstation, FireCuda 530-class NVMe, ext4) this saturates around **~30 000 flows/s on high-cardinality traffic** and **above 60 000 flows/s on low-cardinality traffic**, with full-pipeline (raw + 1m + 5m + 1h tiers) writing.
+The post-decode ingest path has a single-thread hot path. For planning, treat **~25 000 flows/s sustained** as the comfortable ceiling for a well-provisioned single agent running the full pipeline (raw + 1m + 5m + 1h tiers). High-cardinality traffic reaches the ceiling sooner; low-cardinality traffic has more headroom.
 
 Practical guidance:
 
@@ -47,7 +47,7 @@ Storage cost scales linearly with **sustained flows per second** and the **reten
 
 ### How ingestion rate maps to disk
 
-Empirically, with synthetic high-cardinality traffic per protocol at 10 000 flows/s and no enrichment loaded, the storage benchmark records roughly **800 bytes on disk per flow** in the journal. For sustained ingestion this gives you:
+Use **~800 bytes on disk per flow** as the journal sizing estimate for the raw tier. For sustained ingestion this gives you:
 
 | Sustained flows/s | Disk used per day, raw tier |
 |---|---|
@@ -93,7 +93,7 @@ The journal backend uses **free system memory as page cache** — the bigger the
 
 Concrete guidance:
 
-- For the agent process itself, expect **a few hundred MB to ~1 GB of RSS** at typical 5-25k flows/s loads (the bench numbers without enrichment land around 80-250 MiB; enrichment, classifiers, and accumulators add the rest). Routing tries (BMP / BioRIS) can add a few hundred MB per peer for full-table feeds — rough estimate, since per-peer trie size depends on table count and prefix mix.
+- For the agent process itself, expect **a few hundred MB to ~1 GB of RSS** at typical 5-25k flows/s loads. Enrichment, classifiers, accumulators, and routing tries add to the base process footprint. BMP / BioRIS full-table feeds can add a few hundred MB per peer, depending on table count and prefix mix.
 - For the kernel page cache, aim to **leave at least the size of the recently-queried working set free** — practically, plan a few GB of free RAM on a 25k flows/s agent so query I/O lands in cache instead of hitting NVMe each time.
 - Watch `netflow.memory_resident_bytes`, `netflow.memory_resident_mapping_bytes`, and `netflow.memory_accounted_bytes` for the agent's own footprint. Watch the system's overall free memory for the page-cache headroom.
 

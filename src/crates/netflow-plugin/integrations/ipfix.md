@@ -51,11 +51,11 @@ The plugin starts when enabled in netflow.yaml and listens on the configured UDP
 
 #### Limits
 
-The default configuration for this integration does not impose any limits.
+Operational limits are driven by sustained flows/s, template churn, cardinality, retention, storage speed, and enrichment. Plan around 25k sustained flows/s per well-provisioned agent for the full raw + rollup pipeline; use distributed agents for larger deployments.
 
 #### Performance Impact
 
-The default configuration for this integration is not expected to impose a significant performance impact on the system.
+Disabled until exporters send traffic. Once active, CPU and disk I/O scale with flow rate, template volume, and cardinality; size retention and storage from observed flows/s.
 
 ## Setup
 
@@ -86,8 +86,8 @@ Enable IPFIX via the `protocols.ipfix` option.
 | listener.listen | UDP endpoint for IPFIX datagrams. | 0.0.0.0:2055 | no |
 | protocols.ipfix | Enable IPFIX decoding. | yes | no |
 | journal.journal_dir | Directory for journal files (relative to NETDATA_CACHE_DIR). | flows | no |
-| journal.size_of_journal_files | Maximum total size of all journal files. | 10GB | no |
-| journal.duration_of_journal_files | Maximum age of journal files. | 7d | no |
+| journal.tiers.<tier>.size_of_journal_files | Per-tier hard size cap. Replace `<tier>` with `raw`, `minute_1`, `minute_5`, or `hour_1`. Set to `null` for time-only retention. | 10GB | no |
+| journal.tiers.<tier>.duration_of_journal_files | Per-tier maximum age. Replace `<tier>` with `raw`, `minute_1`, `minute_5`, or `hour_1`. Set to `null` for size-only retention. | 7d | no |
 
 
 </details>
@@ -111,7 +111,7 @@ sudo ./edit-config netflow.yaml
 
 ###### IPFIX collection
 
-Listen for IPFIX records on the standard port.
+Listen for IPFIX records on Netdata's default flow listener port.
 
 ```yaml
 enabled: true

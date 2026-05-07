@@ -38,9 +38,8 @@ Each lookup populates the same flow-record fields as DB-IP: `SRC_COUNTRY`,
 `DST_COUNTRY`, `SRC_GEO_STATE`, `DST_GEO_STATE`, `SRC_GEO_CITY`, `DST_GEO_CITY`,
 `SRC_GEO_LATITUDE`, `DST_GEO_LATITUDE`, `SRC_GEO_LONGITUDE`, `DST_GEO_LONGITUDE`,
 `SRC_AS_NAME`, and `DST_AS_NAME`. Country and state survive into all rollup tiers;
-city and lat/lon are **raw-tier-only** -- the rollup schema in
-`src/crates/netflow-plugin/src/tiering/rollup/schema/fields/defs/network.rs` keeps
-only the bounded-cardinality columns.
+city and lat/lon are **raw-tier-only**. Rollup tiers keep only the
+bounded-cardinality geography columns.
 
 For the cross-cutting concept (resolver poll loop, multi-database composition,
 ASN provider chain, failure-modes table), see
@@ -76,11 +75,11 @@ Not auto-detected. The plugin auto-detects the bundled DB-IP files; to use MaxMi
 
 #### Limits
 
-The default configuration for this integration does not impose any limits.
+Lookup coverage, fields, license terms, and refresh cadence depend on the MaxMind database edition you configure. Netdata does not fetch MaxMind databases automatically.
 
 #### Performance Impact
 
-The default configuration for this integration is not expected to impose a significant performance impact on the system.
+Lookups are local MMDB reads with no per-flow network call. Memory use is mostly the mapped database files and the kernel page cache needed to keep active pages hot.
 
 ## Setup
 

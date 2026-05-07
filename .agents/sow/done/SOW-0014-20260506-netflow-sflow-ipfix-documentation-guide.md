@@ -2,9 +2,9 @@
 
 ## Status
 
-Status: in-progress
+Status: completed
 
-Reopened 2026-05-07 after the netlify deploy preview for learn PR #2852 surfaced major content errors that the prior validation pass missed. The closure on 2026-05-07 (Status: completed) was premature: the docs contain multiple statements that contradict the source code, generic flow-monitoring advice imported from research notes that does not apply to Netdata, and several invented behaviours. See the `## Regression - 2026-05-07` section at the end of this file for the full finding list, root cause, and repair plan. The SOW remains in `current/` until every finding is addressed, every page passes a per-page audit subagent against the source code, and every third-party vendor configuration mention is verified against current upstream documentation.
+Reopened 2026-05-07 after the netlify deploy preview for learn PR #2852 surfaced major content errors that the prior validation pass missed. The closure on 2026-05-07 (Status: completed) was premature: the docs contained multiple statements that contradicted the source code, generic flow-monitoring advice imported from research notes that did not apply to Netdata, and several invented behaviours. The regression was repaired and revalidated by 2026-05-08; see the `## Regression - 2026-05-07` section and closeout notes at the end of this file.
 
 ## Requirements
 
@@ -592,7 +592,7 @@ Open follow-ups, ordered by priority:
 
 ### What broke
 
-Costa previewed the learn netlify deploy at
+The user previewed the learn netlify deploy at
 `https://deploy-preview-2852--netdata-docusaurus.netlify.app/`
 and found the documentation contains multiple statements that
 contradict the source code, several invented behaviours that
@@ -1265,7 +1265,7 @@ F14 / F15 -targeted blocks.
 
 #### F6 -- 2026-05-07 -- Globe view "less useful for analysis"
 
-Costa: "the information is exactly the same with the map.
+User: "the information is exactly the same with the map.
 There is a table, like in maps. What makes it less useful?
 That is 3d? The opposite I think."
 
@@ -1460,7 +1460,7 @@ which selects the coarser tier strictly from window /
 bucket-duration alignment math; it does not consult
 `query_1m_max_window` or `query_5m_max_window`.
 
-Verdict: dead config knobs. Costa's "useless
+Verdict: dead config knobs. The user's "useless
 overprotections" assessment was correct.
 
 Repair: removed both fields from the schema and validation,
@@ -1936,7 +1936,7 @@ Page rewritten from scratch. New shape:
   60k low-cardinality; recommend 25k sustained as the
   comfortable steady-state. Burst handling.
 - "Distributed deployment is the scaling answer" --
-  Costa's central thesis. One agent per router / per site,
+  the user's central thesis. One agent per router / per site,
   federated via Netdata Cloud. Why this beats pushing more
   through a single collector. Recommended shape for
   multi-site deployments.
@@ -1957,7 +1957,7 @@ Page rewritten from scratch. New shape:
   raw tier and forces raw-tier; 30s query timeout
   implications.
 - "Practical checklist before you deploy" -- seven
-  concrete steps mirroring Costa's seven bullets.
+  concrete steps mirroring the user's seven bullets.
 
 Removed:
 - All "What was measured" / "Detailed measurements" / the
@@ -2034,3 +2034,469 @@ Files touched:
   sidebar label renamed)
 - docs/.map/map.yaml
 - docs/network-flows/README.md (removed Section index)
+
+#### Current audit -- 2026-05-07 -- metadata.yaml is first-class docs source
+
+The follow-up review treats `src/crates/netflow-plugin/metadata.yaml`
+as a public documentation source, not merely generator plumbing. The
+generated files under `src/crates/netflow-plugin/integrations/*.md`
+carry a `DO NOT EDIT` banner and are downstream of that metadata file,
+so every metadata issue below also reaches Learn / integration-card
+content after regeneration.
+
+Current branch reviewed: `netflow-docs-repair`.
+
+Status of previously suspected issues at the start of this pass:
+
+- **Found during current audit -- timestamp source is computed but not used for live
+  journal timestamps.** `docs/network-flows/configuration.md:104-112`
+  says `timestamp_source` controls dashboard timestamps. The decoder
+  carries `DecodedFlow.source_realtime_usec` at
+  `src/crates/netflow-plugin/src/decoder.rs:149-151`, but live ingest
+  still calls `ingest_decoded_record(receive_time_usec, &flow.record)`
+  at `src/crates/netflow-plugin/src/ingest/service/runtime.rs:82-84`
+  and writes both source and entry realtime from `receive_time_usec` at
+  `runtime.rs:129-131`. This is a code/docs mismatch. Recommended
+  fix: code should thread `flow.source_realtime_usec.unwrap_or(receive_time_usec)`
+  into raw writes and tier observation; docs can then stay conceptually
+  correct.
+- **Found during current audit -- removed top-level retention keys remain in
+  `metadata.yaml` and generated integration docs.** The current code
+  schema has only `JournalConfig { journal_dir, tiers, query_max_groups }`
+  at `src/crates/netflow-plugin/src/plugin_config/types/journal.rs:11-31`;
+  retention is per-tier under `JournalTierRetentionOverrides` at
+  `journal.rs:83-112`. But `metadata.yaml` still documents
+  `journal.size_of_journal_files` / `journal.duration_of_journal_files`
+  at lines 96-102, 246-252, and 383-389, and the NetFlow example still
+  uses top-level `journal.size_of_journal_files` / `duration_of_journal_files`
+  at lines 132-135. Generated `netflow.md`, `ipfix.md`, and `sflow.md`
+  repeat the same invalid options. Because the Rust structs use
+  `#[serde(deny_unknown_fields)]`, this documented YAML now fails
+  config parsing. Fix source in `metadata.yaml`, then regenerate.
+- **Found during current audit -- IPFIX and sFlow metadata still call 2055 the
+  "standard port".** `metadata.yaml:262` says IPFIX listens on the
+  standard port while the example uses `0.0.0.0:2055`; `metadata.yaml:399`
+  says the same for sFlow. Code only proves 2055 is Netdata's default
+  listener at `src/crates/netflow-plugin/src/plugin_config/types/listener.rs:6`.
+  External protocol evidence: IANA registers IPFIX on 4739 and sFlow on
+  6343. Fix wording to "Netdata default listener port" or state that
+  users may choose any UDP listener and must configure exporters to match.
+- **Found during current audit -- invented internal-IP geolocation claim remains in
+  metadata and maps docs.** `metadata.yaml:598-604`,
+  `src/crates/netflow-plugin/integrations/db-ip_ip_intelligence.md:184`,
+  and `docs/network-flows/visualization/maps-globe.md:77-79` still
+  discuss "internal IPs appearing in random countries." Code only writes
+  country/city/state/coordinate fields when the MMDB record has a
+  non-empty value (`src/crates/netflow-plugin/src/enrichment/data/geoip/decode.rs:40-72`).
+  This is the same false premise as F16 and F19, but not fully removed.
+  Fix source in `metadata.yaml` and the maps page, then regenerate.
+- **Found during current audit -- `OBSERVATION_TIME_MILLIS` contradiction remains.**
+  `docs/network-flows/field-reference.md:138` says the field is IPFIX
+  observation time, while the master table at line 297 says IPFIX has no
+  canonical mapping in this build. Code maps only NetFlow v9
+  `ObservationTimeMilliseconds` at
+  `src/crates/netflow-plugin/src/decoder/record/mappings.rs:37`; IPFIX
+  falls through to `_ => None` at `mappings.rs:116`. Fix docs unless
+  product decides to add IPFIX support in code.
+- **Found during current audit -- visualization overview documents unsupported `last`
+  query parameter.** `docs/network-flows/visualization/overview.md:22`
+  lists `after` / `before`, or `last`. The accepted function parameters
+  are enumerated in `src/crates/netflow-plugin/src/api/flows/params.rs:5-18`
+  and do not include `last`. Fix docs unless code intentionally adds
+  a shorthand.
+- **Found during current audit -- "tier 0" terminology remains.** Examples:
+  `docs/network-flows/visualization/time-series.md:48-55`,
+  `docs/network-flows/visualization/maps-globe.md:51,103`,
+  `docs/network-flows/field-reference.md:155`, and
+  `docs/network-flows/investigation-playbooks.md:70,97,145`.
+  Code/config use `raw` (`JournalTierRetentionOverrides.raw` at
+  `journal.rs:86-87`; stock config `journal.tiers.raw`). Fix docs to
+  "raw tier" consistently.
+- **Found during current audit -- pcap references remain while
+  the acceptance criterion still says no pcap anywhere.**
+  `docs/network-flows/troubleshooting.md:72,217,227` still recommend
+  `tcpdump -w`. This may be useful support guidance, but it contradicts
+  the explicit acceptance criterion at line 68. Either remove the public
+  pcap workflow, or update the SOW acceptance criterion to allow packet
+  captures strictly as troubleshooting artifacts.
+
+New findings from the current branch:
+
+- **F23 -- public docs link to source-tree integration markdown paths
+  that Learn will not serve.** Many Network Flows pages link to
+  `/src/crates/netflow-plugin/integrations/*.md`, e.g.
+  `docs/network-flows/quick-start.md:105,180,187-189`,
+  `docs/network-flows/configuration.md:221-224`,
+  `docs/network-flows/enrichment.md:419-440`,
+  `docs/network-flows/installation.md:80,130-132`, and
+  `docs/network-flows/visualization/maps-globe.md:75,79,112-113`.
+  Those are repository source paths, not Learn URLs. The integration
+  cards are generated into the Network Flows integration placeholder and
+  should be linked through their Learn routes, not `/src/...`. Fix all
+  source-path links.
+- **F24 -- `metadata.yaml` still uses stale UI wording "Network Flows
+  tab".** F7 fixed many markdown pages, but metadata still says
+  "Network Flows tab" at lines 153, 627, 865, 1100, 1679, 2273, 2564,
+  3517, 3560, 3959, 4379, and 4653. Generated integration cards repeat
+  the same stale term. Fix metadata to "Network Flows view" or
+  "Live tab > Network Flows" depending on context, then regenerate.
+- **F25 -- old "Sources" label remains in public markdown links.**
+  The catalog label is now "Flow Protocols" in
+  `integrations/categories.yaml:70-72`, but docs still say
+  "Sources / NetFlow" or "Sources" at
+  `docs/network-flows/quick-start.md:105`,
+  `docs/network-flows/installation.md:130-132`, and
+  `docs/network-flows/anti-patterns.md:121`. Fix wording and target URLs.
+- **F26 -- public docs and generated integration cards contain internal
+  code citations.** There are hundreds of `src/crates/...` / `.rs:line`
+  citations in generated integration cards and several in
+  `docs/network-flows/enrichment.md` / `intel-downloader.md`. These are
+  useful audit evidence, but they read as implementation notes in
+  end-user/operator documentation. The SOW can keep code citations; public
+  docs should translate them into operator-facing behavior and only link
+  to code where the user explicitly needs source. Needs a per-page/content
+  decision during repair, but the current state is not fit for polished
+  Learn docs.
+
+Repair ordering recommendation:
+
+1. Fix `metadata.yaml` first for F23/F24 plus the still-open retention,
+   port, and internal-IP findings; regenerate integration pages.
+2. Fix the remaining markdown-only regressions (`timestamp_source`,
+   `OBSERVATION_TIME_MILLIS`, `last`, raw-tier terminology, pcap decision).
+3. Re-run link checks and grep sweeps against both `docs/network-flows/`
+   and generated `src/crates/netflow-plugin/integrations/*.md`.
+4. Run the integration generator and the narrow netflow-plugin tests
+   touched by any code fix.
+
+#### Current audit repair progress -- 2026-05-07
+
+First repair pass completed:
+
+- `src/crates/netflow-plugin/metadata.yaml` now documents per-tier
+  `journal.tiers.<tier>.size_of_journal_files` and
+  `journal.tiers.<tier>.duration_of_journal_files` instead of removed
+  top-level retention keys.
+- The NetFlow extended-retention example now uses `journal.tiers.raw`,
+  `minute_1`, `minute_5`, and `hour_1`.
+- IPFIX and sFlow setup examples now say "Netdata's default flow
+  listener port" instead of "standard port".
+- The DB-IP troubleshooting entry now says private IPs have empty GeoIP
+  fields and do not appear on maps, instead of "internal IPs appearing
+  in random countries".
+- `Network Flows tab` was mechanically replaced with `Network Flows
+  view` in metadata.
+- Regenerated integration pages with `python3 integrations/gen_integrations.py`
+  and `python3 integrations/gen_docs_integrations.py`.
+- Verified the following patterns are gone from `metadata.yaml` and
+  generated integration cards:
+  `journal.size_of_journal_files`,
+  `journal.duration_of_journal_files`,
+  `standard port`,
+  `Internal IPs appearing`,
+  `random countries`,
+  `Network Flows tab`.
+
+Markdown repair pass completed:
+
+- Repointed public docs away from `/src/crates/netflow-plugin/integrations/*.md`
+  source paths to Learn routes under `/docs/network-flows/flow-protocols/...`
+  and `/docs/network-flows/enrichment-methods/...`.
+- Replaced stale "Sources / ..." wording with "Flow Protocols / ...".
+- Removed the unsupported `last` query-parameter claim from
+  `docs/network-flows/visualization/overview.md`; it now says omitted
+  `after` / `before` defaults to the last 15 minutes, matching
+  `src/crates/netflow-plugin/src/query/planner/request.rs:3-15`.
+- Removed the remaining internal-IP/random-country claim from
+  `docs/network-flows/visualization/maps-globe.md`.
+- Replaced remaining `tier 0` / `tier-0` language in Network Flows markdown
+  with `raw tier` / `raw-tier`.
+- Fixed `docs/network-flows/field-reference.md` so
+  `OBSERVATION_TIME_MILLIS` is documented as NetFlow v9-only in this
+  build, and so timestamp fields are not described as dashboard
+  time-picker fields. Code evidence:
+  `src/crates/netflow-plugin/src/decoder/record/mappings.rs:37,116`,
+  `src/crates/netflow-plugin/src/query/request/constants.rs:75-79`,
+  `src/crates/netflow-plugin/src/query/fields/metrics.rs:19-20`.
+- Verified the field-reference master index still has the same 91
+  canonical fields as `src/crates/netflow-plugin/src/flow/schema.rs`.
+
+Follow-up repair after timestamp clarification:
+
+- `timestamp_source` is no longer open. The code now passes the selected
+  decoded source timestamp (`DecodedFlow.source_realtime_usec`) into
+  `_SOURCE_REALTIME_TIMESTAMP` while preserving journal entry realtime as
+  receive/write time. This matches the append-only journal contract and
+  handles out-of-order source timestamps across exporters. Evidence:
+  `src/crates/netflow-plugin/src/ingest/service/runtime.rs:82-139` and
+  `src/crates/netflow-plugin/src/main_tests.rs:76-94`.
+- `docs/network-flows/configuration.md` now states that `timestamp_source`
+  controls stored source timestamp metadata, not dashboard query windows.
+  Query windows and tier selection still use journal entry realtime.
+- The pcap acceptance conflict is no longer open. Public docs now say
+  "packet-capture file" and `tcpdump -w`; they no longer mention pcap by
+  name. This keeps troubleshooting guidance without implying a pcap ingest
+  feature.
+- Validation: `cargo test --manifest-path src/crates/netflow-plugin/Cargo.toml timestamp_source -- --nocapture`
+  passed with 5 tests. A pre-existing warning remains in
+  `src/crates/netflow-plugin/src/startup_memory_tests.rs` for an unused
+  `bytesize::ByteSize` import.
+- Validation: `git diff --check` passed for the SOW, Network Flows docs,
+  metadata, generated integration docs, and touched netflow-plugin Rust
+  files.
+- Validation: grep now finds no stale public-doc occurrences of
+  `journal.size_of_journal_files`, `journal.duration_of_journal_files`,
+  `standard port`, `Network Flows tab`, `Sources /`, `[Sources]`,
+  `tier 0`, `tier-0`, unsupported ``or `last`` wording, IPFIX observation
+  time wording, random-country/internal-IP wording, or pcap wording. The
+  only timestamp-source grep hit is the intentional docs warning that the
+  dashboard time picker does not query by exporter timestamps.
+
+User decision:
+
+- Public Network Flows documentation and generated integration cards are
+  end-user/operator documentation. They must not contain internal source-code
+  citations, internal test-status citations, quality-gate evidence, SOW/review
+  notes, or "current implementation state" wording. They should document
+  supported behavior, operator-visible limits, configuration contracts,
+  troubleshooting signals, and production cautions without exposing internal
+  proof or test gaps. Internal evidence belongs in the SOW, not in Learn docs.
+
+F26 repair completed:
+
+- Removed internal source-code paths, line references, source-test notes,
+  "current implementation state" wording, and test-gap disclosures from
+  `docs/network-flows/*.md` and `src/crates/netflow-plugin/metadata.yaml`.
+- Rewrote those passages into operator-facing behavior: supported enrichment
+  semantics, visible limits, configuration validation, refresh cadence, TLS
+  safety, troubleshooting symptoms, and production cautions.
+- Regenerated the integration cards with
+  `python3 integrations/gen_integrations.py` and
+  `python3 integrations/gen_docs_integrations.py`.
+- Generated integration files still contain `custom_edit_url` and `meta_yaml`
+  entries inside their `<!--startmeta ... endmeta-->` blocks. These are
+  generator metadata, not user-facing page body text.
+
+F26 validation:
+
+- `rg -n 'src/|github\.com/netdata/netdata/(blob|tree)/master/src|\.rs:[0-9]|\.go:[0-9]|unit test|unit-tested|integration-test|integration-tested|integration test|NOT integration|Source code:|defined at|schema is defined|validated at|validation rejects values|production logs|current build|in this build|fixtures|tests here|repository|quality gate|current state|not tested|not validated|test gap|line reference|current implementation|implementation state|codebase|SOW|regression|review pass|internal citation' docs/network-flows src/crates/netflow-plugin/metadata.yaml`
+  returned no matches.
+- The same pattern scan against `src/crates/netflow-plugin/integrations/*.md`
+  while skipping generated `<!--startmeta ... endmeta-->` blocks returned no
+  matches.
+- `python3 -c 'import yaml; yaml.safe_load(open("src/crates/netflow-plugin/metadata.yaml")); print("metadata yaml ok")'`
+  passed.
+- `git diff --check` passed for the SOW, Network Flows docs, metadata,
+  generated integration docs, and touched netflow-plugin Rust files.
+
+F26 residual findings from full-page subagent review:
+
+- The prior regex validation was too narrow. It caught explicit source paths,
+  source line references, test-gap wording, and quality-gate labels, but missed
+  less literal end-user trust issues such as "today", "known feature gap",
+  "verified against", "same code path", implementation type names, and
+  benchmark-provenance phrasing.
+- Read-only subagents reviewed the assigned public pages in full, not only by
+  grep. Scope covered all hand-authored Network Flows markdown pages,
+  `src/crates/netflow-plugin/metadata.yaml`, and all generated integration
+  cards.
+
+Residual docs findings:
+
+- **Visualization current-state / backlog wording.**
+  `docs/network-flows/visualization/dashboard-cards.md:72,79,81` says signals
+  "aren't published today", are "collected internally", and are "not hard to
+  add but haven't been needed enough yet". This is product backlog / internal
+  state wording.
+  `docs/network-flows/visualization/filters-facets.md:32,68` says negative
+  matching is a "known feature gap" and that no good workaround exists "today".
+  These should be rewritten as stable supported/unsupported behavior.
+- **Sizing page benchmark-provenance wording.**
+  `docs/network-flows/sizing-capacity.md:23,50,96` exposes benchmark machine
+  details, synthetic benchmark provenance, and "bench numbers" in public docs.
+  The page should present operator sizing guidance directly; evidence stays in
+  the SOW.
+- **Enrichment / validation developer wording.**
+  `docs/network-flows/enrichment.md:107,156` says multiple inputs use the
+  "same code path"; this is implementation wording.
+  `docs/network-flows/enrichment.md:230,276` uses "today" limitation wording.
+  `docs/network-flows/enrichment.md:393` exposes the source-tree-style
+  `cmd/ris/` path in prose.
+  `docs/network-flows/validation.md:22,68` says the plugin does not publish
+  per-exporter ingest counters "today"; this should be stable limitation
+  wording.
+
+Residual metadata / generated-card findings:
+
+- **Quality-gate / verification wording in generated cards.**
+  `src/crates/netflow-plugin/metadata.yaml:2015` and generated
+  `src/crates/netflow-plugin/integrations/aws_ip_ranges.md:41` say the AWS
+  schema was "verified against the live document".
+  `src/crates/netflow-plugin/metadata.yaml:2666` and generated
+  `src/crates/netflow-plugin/integrations/azure_ip_ranges.md:147` say Azure
+  behavior was "verified against the upstream concept page".
+  These are internal review-evidence statements.
+- **Current implementation-state wording in generated cards.**
+  `src/crates/netflow-plugin/metadata.yaml:2305` and generated
+  `src/crates/netflow-plugin/integrations/gcp_ip_ranges.md:60` say ETags are
+  not used for conditional fetches "today".
+  `src/crates/netflow-plugin/metadata.yaml:4339,4503` and generated
+  `src/crates/netflow-plugin/integrations/decapsulation.md:54,265` say parsed
+  tunnel fields are "not surfaced today".
+- **Internal implementation names in generated cards.**
+  `src/crates/netflow-plugin/metadata.yaml:2939` and generated
+  `src/crates/netflow-plugin/integrations/netbox.md:131` expose
+  `RemoteNetworkSourceConfig`.
+  `src/crates/netflow-plugin/metadata.yaml:3432` and generated
+  `src/crates/netflow-plugin/integrations/generic_json-over-http_ipam.md:321`
+  expose `decode_remote_records`.
+- **Untrusted-feature wording in decapsulation docs.**
+  `src/crates/netflow-plugin/metadata.yaml:4395,4408,4414` and generated
+  `src/crates/netflow-plugin/integrations/decapsulation.md:124,137,143` say
+  "the project has verified", "have not been verified by the project", and
+  "unverified". Operator docs should state recommended/supported vendor
+  configuration patterns without exposing internal validation status.
+
+Repair classification:
+
+- All residual findings are documentation-source fixes. No code behavior change
+  is indicated by this review.
+- Hand-authored markdown findings should be fixed in the corresponding
+  `docs/network-flows/*.md` file.
+- Generated-card findings must be fixed in
+  `src/crates/netflow-plugin/metadata.yaml`, then regenerated with
+  `python3 integrations/gen_integrations.py` and
+  `python3 integrations/gen_docs_integrations.py`. Do not hand-edit generated
+  integration cards.
+- At classification time, F26 remained open until these residual findings were
+  repaired and a broader wording scan was added to validation.
+
+F26 residual repair completed:
+
+- Rewrote hand-authored docs so they state stable supported/unsupported
+  behavior without backlog, "today", implementation, or benchmark-provenance
+  wording.
+- Rewrote `src/crates/netflow-plugin/metadata.yaml` source text to remove
+  quality-gate evidence, implementation type/function names, "today" current
+  state wording, and "verified/unverified by the project" statements.
+- Regenerated generated integration cards with
+  `python3 integrations/gen_integrations.py` and
+  `python3 integrations/gen_docs_integrations.py`.
+- All residual findings above are now repaired. Generated integration files
+  were updated only through `metadata.yaml`.
+
+F26 residual validation:
+
+- Residual-pattern scan returned no matches over hand-authored docs and
+  metadata:
+  `RemoteNetworkSourceConfig|verified against the live document|conditional fetches today|verified against the upstream concept page|decode_remote_records|not surfaced today|fields today|project has verified|not been verified|unverified|not visible today|cannot be consumed today|same code path|cmd/ris/|doesn.t publish per-exporter.*today|aren.t published today|collected internally|not hard to add|known feature gap|no good workaround exists today|bench numbers|synthetic high-cardinality|i9-class|FireCuda`.
+- The same residual-pattern scan over generated
+  `src/crates/netflow-plugin/integrations/*.md` body text, skipping
+  `<!--startmeta ... endmeta-->`, returned no matches.
+- The original stricter internal-citation scan over hand-authored docs,
+  metadata, and generated integration body text also returned no matches.
+- `python3 -c 'import yaml; yaml.safe_load(open("src/crates/netflow-plugin/metadata.yaml")); print("metadata yaml ok")'`
+  passed.
+- `git diff --check` passed for the SOW, Network Flows docs, metadata, and
+  generated integration docs.
+
+Quality review decision:
+
+- User decision 2026-05-07: do not change deployment guidance to avoid
+  double counting at ingestion. The correct deployment guidance is to export
+  all relevant interfaces and all directions. Double counting is a
+  visualization and interpretation guideline: users must understand what they
+  selected and how bidirectional/interface-overlap views should be read.
+
+Quality review repair completed:
+
+- Aligned IP-intelligence install/default behavior across public docs:
+  native packages ship stock DB-IP MMDBs under stock data, source builds do
+  not include stock MMDBs, the downloader writes fresher cache copies, and
+  Netdata does not install a downloader timer or cron job.
+- Reworded retention defaults as suitable for first validation and small
+  deployments, with production retention sized from observed flow rate.
+- Replaced generated default-behavior boilerplate across all Network Flows
+  integration cards so cards no longer claim generic "no limits" or
+  "no significant performance impact".
+- Fixed UDP-drop quick-reference commands to use `ss -uamn` and
+  `/proc/net/snmp`, not `/proc/net/udp` as a drop counter source.
+- Replaced broken `#enrichment-geoip` anchors with `#enrichment`.
+- Replaced literal `${CMDB_TOKEN}` examples with `<CMDB_TOKEN>` placeholders,
+  matching the "headers are passed verbatim" contract.
+- Replaced the non-existent `Application` grouping reference with
+  `Destination Port` / service wording.
+- Preserved all-interfaces/all-directions deployment guidance per the user
+  decision; no ingress-only deployment change was made.
+
+Quality review validation:
+
+- Regenerated integration artifacts with
+  `python3 integrations/gen_integrations.py` and
+  `python3 integrations/gen_docs_integrations.py`.
+- Grep validation returned no matches for:
+  `${CMDB_TOKEN}`, `enrichment-geoip`, `Application`, `cat /proc/net/udp`,
+  stale default-retention wording, `Network Flows tab`, and default-card
+  "does not impose any limits" / "significant performance impact" wording in
+  Network Flows generated cards.
+- Residual internal/current-state wording scans over hand-authored docs,
+  metadata, and generated card body text returned no matches.
+- `python3 -c 'import yaml; yaml.safe_load(open("src/crates/netflow-plugin/metadata.yaml")); print("metadata yaml ok")'`
+  passed.
+- `git diff --check` passed for the SOW, Network Flows docs, metadata, and
+  generated integration docs.
+
+## Regression Closeout - 2026-05-08
+
+Final status: completed.
+
+Closeout evidence:
+
+- Every regression finding F1-F26 has a repair note and validation evidence in
+  this regression log.
+- The final quality review findings were repaired in hand-authored docs,
+  `metadata.yaml`, and regenerated integration cards.
+- `cargo test --manifest-path src/crates/netflow-plugin/Cargo.toml timestamp_source -- --nocapture`
+  passed with 5 tests. A pre-existing warning remains in
+  `src/crates/netflow-plugin/src/startup_memory_tests.rs` for an unused
+  `bytesize::ByteSize` import.
+- `python3 integrations/gen_integrations.py` passed.
+- `python3 integrations/gen_docs_integrations.py` passed.
+- `python3 -c 'import yaml; yaml.safe_load(open("src/crates/netflow-plugin/metadata.yaml")); print("metadata yaml ok")'`
+  passed.
+- Targeted public-doc quality scans over `docs/network-flows/`,
+  `src/crates/netflow-plugin/metadata.yaml`, and generated integration-card
+  body text returned no matches for stale anchors, misleading credential
+  placeholders, stale UI wording, invalid grouping field names, bad UDP-drop
+  commands, internal-current-state wording, source-code citations, or generic
+  default-behavior boilerplate.
+- `git diff --check` passed for the SOW, Network Flows docs, metadata,
+  generated integration docs, and touched netflow-plugin Rust files.
+- `.agents/sow/audit.sh` was run after final move. It reported SOW 14
+  status/directory as consistent in `done/` and failed only on an
+  unrelated pre-existing sensitive-data pattern in
+  `.agents/skills/mirror-netdata-repos/SKILL.md` plus existing TODO-file
+  warnings. None of those are part of this SOW's staged scope.
+
+Artifact maintenance gate for regression close:
+
+- **AGENTS.md**: no update needed; no workflow or project-wide guardrail changed.
+- **Runtime project skills**: no update needed; no new integration-pipeline or
+  Learn-site process behavior was discovered beyond existing skill guidance.
+- **Specs**: no update needed; this was a documentation/metadata repair and did
+  not change the product contract beyond correcting public docs to existing
+  behavior.
+- **End-user/operator docs**: updated Network Flows docs, `metadata.yaml`, and
+  regenerated integration cards.
+- **End-user/operator skills**: no update needed; the user rejected AI-skill
+  cross-linking as not mandatory for this SOW.
+- **SOW lifecycle**: status changed to `completed`; file moved from
+  `.agents/sow/current/` to `.agents/sow/done/` together with the repair
+  commit.
+
+Follow-up mapping:
+
+- The original follow-up list remains tracked above. No new deferred item was
+  introduced by the regression repair. The user explicitly rejected changing
+  deployment guidance to ingress-only; double counting remains a visualization
+  and interpretation guideline, not an ingestion-side avoidance requirement.

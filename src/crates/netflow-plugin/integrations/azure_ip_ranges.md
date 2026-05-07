@@ -65,11 +65,11 @@ Disabled by default. Add an entry under enrichment.network_sources to enable.
 
 #### Limits
 
-The default configuration for this integration does not impose any limits.
+One full Azure Service Tags document is fetched per refresh. Resource use scales with the number of Azure prefixes selected by your transform and the refresh interval.
 
 #### Performance Impact
 
-The default configuration for this integration is not expected to impose a significant performance impact on the system.
+One HTTPS request per refresh interval plus a jq transform over the Azure Service Tags document. Runtime enrichment cost is a trie lookup per source and destination IP.
 
 ## Setup
 
@@ -144,8 +144,8 @@ The Service Tags JSON has a nested shape:
 ```
 
 The transform must unwrap `values[]` -> `properties.addressPrefixes[]`
-and emit one object per prefix. Schema reference (verified against the
-upstream concept page): `values[].name`, `values[].id`,
+and emit one object per prefix. Schema reference: `values[].name`,
+`values[].id`,
 `values[].properties.region` (region tag, can be empty for
 cloud-wide tags like the bare `Storage`), `values[].properties.platform`,
 `values[].properties.systemService` (e.g. `AzureStorage`, `AzureSql`),

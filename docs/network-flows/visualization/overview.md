@@ -19,7 +19,7 @@ The dashboard sends one of two query modes to the plugin:
 
 A `flows` query carries:
 
-- A time range (`after` / `before`, or `last`).
+- A time range (`after` / `before`). If you omit both, the plugin uses the last 15 minutes.
 - A list of `group_by` fields (up to 10).
 - A list of `selections` — per-field IN-lists for filtering.
 - Optional `facets` to enrich the response with per-facet value counts.

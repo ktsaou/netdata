@@ -53,9 +53,9 @@ modules:
         auto_detection:
           description: "The plugin starts when enabled in netflow.yaml and listens on the configured UDP port."
         limits:
-          description: ""
+          description: "Operational limits are driven by sustained flows/s, cardinality, retention, storage speed, and enrichment. Plan around 25k sustained flows/s per well-provisioned agent for the full raw + rollup pipeline; use distributed agents for larger deployments."
         performance_impact:
-          description: ""
+          description: "Disabled until exporters send traffic. Once active, CPU and disk I/O scale with flow rate and cardinality; size retention and storage from observed flows/s."
     setup:
       prerequisites:
         list:
@@ -93,12 +93,12 @@ modules:
               description: Directory for journal files (relative to NETDATA_CACHE_DIR).
               default_value: flows
               required: false
-            - name: journal.size_of_journal_files
-              description: Maximum total size of all journal files.
+            - name: journal.tiers.<tier>.size_of_journal_files
+              description: Per-tier hard size cap. Replace `<tier>` with `raw`, `minute_1`, `minute_5`, or `hour_1`. Set to `null` for time-only retention.
               default_value: "10GB"
               required: false
-            - name: journal.duration_of_journal_files
-              description: Maximum age of journal files.
+            - name: journal.tiers.<tier>.duration_of_journal_files
+              description: Per-tier maximum age. Replace `<tier>` with `raw`, `minute_1`, `minute_5`, or `hour_1`. Set to `null` for size-only retention.
               default_value: "7d"
               required: false
         examples:
@@ -109,7 +109,7 @@ modules:
             - name: Basic NetFlow v5/v9 collection
               folding:
                 enabled: false
-              description: Listen on the standard NetFlow port for v5 and v9 records.
+              description: Listen on Netdata's default flow listener port for v5 and v9 records.
               config: |
                 enabled: true
                 listener:
@@ -120,7 +120,7 @@ modules:
             - name: NetFlow v9 only with extended retention
               folding:
                 enabled: true
-              description: Accept only v9 records and keep 30 days of journal data.
+              description: Accept only v9 records, keep one day of raw data, and keep longer rollups.
               config: |
                 enabled: true
                 listener:
@@ -131,8 +131,11 @@ modules:
                   v9: true
                 journal:
                   journal_dir: flows
-                  size_of_journal_files: 50GB
-                  duration_of_journal_files: 30d
+                  tiers:
+                    raw:      { size_of_journal_files: 50GB, duration_of_journal_files: 24h }
+                    minute_1: { size_of_journal_files: 10GB, duration_of_journal_files: 14d }
+                    minute_5: { size_of_journal_files: 10GB, duration_of_journal_files: 30d }
+                    hour_1:   { size_of_journal_files: 10GB, duration_of_journal_files: 365d }
     troubleshooting:
       problems:
         list:
@@ -150,7 +153,7 @@ modules:
         enabled: false
       description: |
         Network flow data is stored as journal records, not as traditional metrics.
-        Use the "Network Flows" tab in the Netdata dashboard to query and visualize flow data.
+        Use the Network Flows view in the Netdata dashboard to query and visualize flow data.
         For the full list of fields and the per-protocol availability matrix, see the
         [Field Reference](https://learn.netdata.cloud/docs/network-flows/field-reference).
         For visualisation guidance see [Sankey and Table](https://learn.netdata.cloud/docs/network-flows/visualization/summary-sankey),
@@ -210,9 +213,9 @@ modules:
         auto_detection:
           description: "The plugin starts when enabled in netflow.yaml and listens on the configured UDP port."
         limits:
-          description: ""
+          description: "Operational limits are driven by sustained flows/s, template churn, cardinality, retention, storage speed, and enrichment. Plan around 25k sustained flows/s per well-provisioned agent for the full raw + rollup pipeline; use distributed agents for larger deployments."
         performance_impact:
-          description: ""
+          description: "Disabled until exporters send traffic. Once active, CPU and disk I/O scale with flow rate, template volume, and cardinality; size retention and storage from observed flows/s."
     setup:
       prerequisites:
         list:
@@ -243,12 +246,12 @@ modules:
               description: Directory for journal files (relative to NETDATA_CACHE_DIR).
               default_value: flows
               required: false
-            - name: journal.size_of_journal_files
-              description: Maximum total size of all journal files.
+            - name: journal.tiers.<tier>.size_of_journal_files
+              description: Per-tier hard size cap. Replace `<tier>` with `raw`, `minute_1`, `minute_5`, or `hour_1`. Set to `null` for time-only retention.
               default_value: "10GB"
               required: false
-            - name: journal.duration_of_journal_files
-              description: Maximum age of journal files.
+            - name: journal.tiers.<tier>.duration_of_journal_files
+              description: Per-tier maximum age. Replace `<tier>` with `raw`, `minute_1`, `minute_5`, or `hour_1`. Set to `null` for size-only retention.
               default_value: "7d"
               required: false
         examples:
@@ -259,7 +262,7 @@ modules:
             - name: IPFIX collection
               folding:
                 enabled: false
-              description: Listen for IPFIX records on the standard port.
+              description: Listen for IPFIX records on Netdata's default flow listener port.
               config: |
                 enabled: true
                 listener:
@@ -287,7 +290,7 @@ modules:
         enabled: false
       description: |
         Network flow data is stored as journal records, not as traditional metrics.
-        Use the "Network Flows" tab in the Netdata dashboard to query and visualize flow data.
+        Use the Network Flows view in the Netdata dashboard to query and visualize flow data.
         For the full list of fields and the per-protocol availability matrix, see the
         [Field Reference](https://learn.netdata.cloud/docs/network-flows/field-reference).
         IPFIX biflow records are emitted as two separate flow records (forward + reverse).
@@ -347,9 +350,9 @@ modules:
         auto_detection:
           description: "The plugin starts when enabled in netflow.yaml and listens on the configured UDP port."
         limits:
-          description: ""
+          description: "Operational limits are driven by sustained samples/s, sampling rate, cardinality, retention, storage speed, and enrichment. Plan capacity from the received sample rate and the expanded byte/packet estimates."
         performance_impact:
-          description: ""
+          description: "Disabled until sFlow agents send traffic. Once active, CPU and disk I/O scale with received samples/s and cardinality; size retention and storage from observed flow records/s."
     setup:
       prerequisites:
         list:
@@ -380,12 +383,12 @@ modules:
               description: Directory for journal files (relative to NETDATA_CACHE_DIR).
               default_value: flows
               required: false
-            - name: journal.size_of_journal_files
-              description: Maximum total size of all journal files.
+            - name: journal.tiers.<tier>.size_of_journal_files
+              description: Per-tier hard size cap. Replace `<tier>` with `raw`, `minute_1`, `minute_5`, or `hour_1`. Set to `null` for time-only retention.
               default_value: "10GB"
               required: false
-            - name: journal.duration_of_journal_files
-              description: Maximum age of journal files.
+            - name: journal.tiers.<tier>.duration_of_journal_files
+              description: Per-tier maximum age. Replace `<tier>` with `raw`, `minute_1`, `minute_5`, or `hour_1`. Set to `null` for size-only retention.
               default_value: "7d"
               required: false
         examples:
@@ -396,7 +399,7 @@ modules:
             - name: sFlow collection
               folding:
                 enabled: false
-              description: Listen for sFlow v5 datagrams on the standard port.
+              description: Listen for sFlow v5 datagrams on Netdata's default flow listener port.
               config: |
                 enabled: true
                 listener:
@@ -426,7 +429,7 @@ modules:
         enabled: false
       description: |
         Network flow data is stored as journal records, not as traditional metrics.
-        Use the "Network Flows" tab in the Netdata dashboard to query and visualize flow data.
+        Use the Network Flows view in the Netdata dashboard to query and visualize flow data.
         For the full list of fields and the per-protocol availability matrix, see the
         [Field Reference](https://learn.netdata.cloud/docs/network-flows/field-reference).
         sFlow byte counts are statistical estimates (sampled packets multiplied by sampling rate);
@@ -516,9 +519,9 @@ modules:
         auto_detection:
           description: "Native packages ship the stock DB-IP MMDB files; the plugin auto-detects them at startup. No configuration required for the default install."
         limits:
-          description: ""
+          description: "Lookup coverage and freshness depend on the DB-IP Lite files installed on disk. Native packages provide a stock copy; schedule the downloader if you need monthly refreshes."
         performance_impact:
-          description: ""
+          description: "Lookups are local MMDB reads with no per-flow network call. Memory use is mostly the mapped database files and the kernel page cache needed to keep active pages hot."
     setup:
       prerequisites:
         list:
@@ -595,12 +598,13 @@ modules:
     troubleshooting:
       problems:
         list:
-          - name: Internal IPs appearing in random countries
+          - name: Private IPs have empty GeoIP fields
             description: |
-              GeoIP databases have no entry for RFC 1918 / private space. The DB-IP-built ASN
-              database tags private ranges so `*_AS_NAME` renders as `AS0 Private IP Address Space`
-              with empty country. With third-party MMDBs that lack this tagging, results may vary.
-              Declare your internal CIDRs under `enrichment.networks` to override -- see
+              GeoIP databases normally have no country, city, or coordinate entry for RFC 1918 /
+              private space. The DB-IP-built ASN database tags private ranges so `*_AS_NAME`
+              renders as `AS0 Private IP Address Space`, while geographic fields stay empty and
+              private addresses do not appear on maps. Declare your internal CIDRs under
+              `enrichment.networks` when you want internal labels -- see
               [Static metadata](https://learn.netdata.cloud/docs/network-flows/enrichment).
           - name: Stale databases
             description: |
@@ -624,7 +628,7 @@ modules:
       description: |
         IP intelligence enriches existing flow records; it does not produce metrics of its own.
         Verify enrichment is working by querying `SRC_COUNTRY` / `DST_COUNTRY` on the
-        Network Flows tab and confirming non-empty values for public IPs.
+        Network Flows view and confirming non-empty values for public IPs.
       availability: []
       scopes: []
   - meta:
@@ -676,9 +680,8 @@ modules:
           `DST_COUNTRY`, `SRC_GEO_STATE`, `DST_GEO_STATE`, `SRC_GEO_CITY`, `DST_GEO_CITY`,
           `SRC_GEO_LATITUDE`, `DST_GEO_LATITUDE`, `SRC_GEO_LONGITUDE`, `DST_GEO_LONGITUDE`,
           `SRC_AS_NAME`, and `DST_AS_NAME`. Country and state survive into all rollup tiers;
-          city and lat/lon are **raw-tier-only** -- the rollup schema in
-          `src/crates/netflow-plugin/src/tiering/rollup/schema/fields/defs/network.rs` keeps
-          only the bounded-cardinality columns.
+          city and lat/lon are **raw-tier-only**. Rollup tiers keep only the
+          bounded-cardinality geography columns.
 
           For the cross-cutting concept (resolver poll loop, multi-database composition,
           ASN provider chain, failure-modes table), see
@@ -707,9 +710,9 @@ modules:
         auto_detection:
           description: "Not auto-detected. The plugin auto-detects the bundled DB-IP files; to use MaxMind you must configure the database paths explicitly. Set `enrichment.geoip.asn_database` and `enrichment.geoip.geo_database` to the MaxMind file paths."
         limits:
-          description: ""
+          description: "Lookup coverage, fields, license terms, and refresh cadence depend on the MaxMind database edition you configure. Netdata does not fetch MaxMind databases automatically."
         performance_impact:
-          description: ""
+          description: "Lookups are local MMDB reads with no per-flow network call. Memory use is mostly the mapped database files and the kernel page cache needed to keep active pages hot."
     setup:
       prerequisites:
         list:
@@ -862,7 +865,7 @@ modules:
       description: |
         IP intelligence enriches existing flow records; it produces no metrics of its own.
         Verify enrichment is working by querying `SRC_COUNTRY` / `DST_COUNTRY` and
-        `SRC_AS_NAME` / `DST_AS_NAME` on the Network Flows tab and confirming non-empty
+        `SRC_AS_NAME` / `DST_AS_NAME` on the Network Flows view and confirming non-empty
         values for public IPs.
       availability: []
       scopes: []
@@ -907,9 +910,7 @@ modules:
 
           IPtoASN's `ip2asn-combined` artifact contains five tab-separated columns:
           `range_start`, `range_end`, `AS_number`, `country_code`, and `AS_description`
-          (see [iptoasn.com](https://iptoasn.com/) for the format reference and the
-          parser at `src/go/tools/topology-ip-intel-downloader/parse.go:168-237` that
-          consumes both columns 3-5 for ASN data and column 4 for country data). So
+          (see [iptoasn.com](https://iptoasn.com/) for the format reference). So
           although IPtoASN is often described as "ASN-only", the feed also carries an
           ISO 3166 country code per range and the Netdata downloader exposes both as
           ASN + geo MMDBs. Pair with DB-IP or MaxMind when you also need state, city,
@@ -919,15 +920,13 @@ modules:
           provider chains), see
           [IP Intelligence](https://learn.netdata.cloud/docs/network-flows/enrichment).
         method_description: |
-          The Netdata plugin reads MMDB only (see
-          `src/crates/netflow-plugin/src/enrichment/data/geoip/`). IPtoASN ships
-          gzipped TSV (`https://iptoasn.com/data/ip2asn-combined.tsv.gz`, see
-          `src/go/tools/topology-ip-intel-downloader/config.go:173-184`), so the TSV
-          must be converted to MMDB before the plugin can use it.
+          The Netdata plugin reads MMDB only. IPtoASN ships gzipped TSV
+          (`https://iptoasn.com/data/ip2asn-combined.tsv.gz`), so the TSV must be
+          converted to MMDB before the plugin can use it.
 
           Netdata bundles a converter for this exact purpose: the
-          `topology-ip-intel-downloader` Go tool fetches the upstream TSV, parses it
-          (`parse.go:168-237`), and emits MMDB files the plugin auto-detects. This is
+          `topology-ip-intel-downloader` Go tool fetches the upstream TSV, parses it,
+          and emits MMDB files the plugin auto-detects. This is
           a separate operator step (cron); the plugin itself does no fetching or
           conversion. If you prefer not to use the bundled tool, any third-party
           IPtoASN-to-MMDB converter that produces a standard
@@ -952,9 +951,9 @@ modules:
             so once present they are picked up automatically on the 30-second
             file-signature check).
         limits:
-          description: ""
+          description: "IPtoASN provides AS number and country-level data only. It does not provide city, coordinates, or rich organization names unless you layer another MMDB source."
         performance_impact:
-          description: ""
+          description: "Lookups are local MMDB reads after the downloader converts the TSV feed. Memory use is mostly the mapped database files and the kernel page cache needed to keep active pages hot."
     setup:
       prerequisites:
         list:
@@ -970,8 +969,7 @@ modules:
               ```
 
               `iptoasn:combined` is valid for both `--asn` and `--geo` because the
-              upstream TSV carries both AS data and country (see
-              `src/go/tools/topology-ip-intel-downloader/config.go:177-180`). If you
+              upstream TSV carries both AS data and country. If you
               want richer geographic data (state, city, coordinates), pair IPtoASN
               ASN with DB-IP or MaxMind geo:
 
@@ -1061,10 +1059,8 @@ modules:
             description: |
               IPtoASN's `AS_description` column is sometimes empty for less-common
               ASNs (the upstream derives names from RIRs and the chain occasionally
-              has gaps). When that happens the plugin's `effective_as_name` helper
-              renders the AS as `AS{n}` with no organisation
-              (see `src/crates/netflow-plugin/src/enrichment/tests.rs:1959-2011`).
-              This is data-source-level, not a plugin issue. If richer AS-name
+              has gaps). When that happens the plugin renders the AS as `AS{n}` with
+              no organisation. This is data-source-level, not a plugin issue. If richer AS-name
               coverage matters, layer a MaxMind GeoLite2-ASN MMDB after IPtoASN in
               `asn_database` -- per-field "last database with a non-empty value
               wins" composition (see
@@ -1072,9 +1068,7 @@ modules:
               means MaxMind names override IPtoASN's empty entries.
           - name: Country empty although IPtoASN was selected
             description: |
-              IPtoASN's combined TSV publishes country only when it is known; ranges
-              with an unknown country are skipped during conversion (see
-              `src/go/tools/topology-ip-intel-downloader/parse.go:224-227`). Public
+              IPtoASN's combined TSV publishes country only when it is known. Public
               IPs that the upstream cannot attribute will have an empty
               `*_COUNTRY`. If you need broader country coverage, point
               `geo_database` at a DB-IP or MaxMind country MMDB instead -- the
@@ -1086,10 +1080,7 @@ modules:
               because BGP-driven prefix re-assignments will land in the dataset
               within hours but not in your cache until the next download. The
               plugin reloads MMDB files in place every 30 seconds when the file
-              signature changes
-              (`src/crates/netflow-plugin/src/enrichment.rs:35` --
-              `GEOIP_RELOAD_CHECK_INTERVAL = Duration::from_secs(30)`), so a fresh
-              file lands without restart.
+              signature changes, so a fresh file lands without restart.
     alerts: []
     metrics:
       folding:
@@ -1097,7 +1088,7 @@ modules:
         enabled: false
       description: |
         Enriches flow records with AS numbers, AS names, and country codes; produces
-        no metrics of its own. Verify on the Network Flows tab via `*_AS_NAME` and
+        no metrics of its own. Verify on the Network Flows view via `*_AS_NAME` and
         `*_COUNTRY` columns.
       availability: []
       scopes: []
@@ -1145,9 +1136,7 @@ modules:
           and (optionally) a string `asn` field from the ASN database, and `country.iso_code`,
           `subdivisions[].iso_code`, `city.names.en`, `location.latitude`,
           `location.longitude`, plus the Netdata-specific `netdata.ip_class` flag from the
-          geo database. Any other vendor-specific keys are ignored. See
-          `src/crates/netflow-plugin/src/enrichment/data/geoip/types.rs:28-92` and
-          `src/crates/netflow-plugin/src/enrichment/data/geoip/decode.rs:1-94`.
+          geo database. Any other vendor-specific keys are ignored.
 
           Note that `*_GEO_CITY`, `*_GEO_LATITUDE`, and `*_GEO_LONGITUDE` are written to
           the raw journal tier only -- the rollup tiers drop these high-cardinality fields.
@@ -1172,9 +1161,9 @@ modules:
         auto_detection:
           description: "Not auto-detected. You must configure paths explicitly."
         limits:
-          description: ""
+          description: "Coverage, schema quality, and freshness are entirely controlled by the custom MMDB build you provide. Invalid or missing files fail startup unless marked optional."
         performance_impact:
-          description: ""
+          description: "Lookups are local MMDB reads with no per-flow network call. Memory use depends on the size and number of custom databases you configure."
     setup:
       prerequisites:
         list:
@@ -1351,10 +1340,7 @@ modules:
 
           AS path, communities, and large communities are written to the **raw** flow journal
           only -- the rollup tiers do not carry them. `NEXT_HOP` is carried in both raw and
-          rollup. This matches the field schema at
-          `src/crates/netflow-plugin/src/tiering/rollup/schema/fields/defs/network.rs:18-19`
-          and the journal writer at
-          `src/crates/netflow-plugin/src/flow/record/journal/network.rs:37-39`.
+          rollup.
 
           For the cross-cutting Enrichment concept (provider chains, shared trie with
           BioRIS, withdrawal handling, restart convergence), see
@@ -1366,12 +1352,10 @@ modules:
           then processes RouteMonitoring (carrying BGP UPDATE), PeerDownNotification, and
           Termination frames. PeerUp, StatisticsReport, and RouteMirroring frames are
           accepted but not acted on. Only BMP **version 3** is processed; v1 and v2 frames
-          are silently dropped at
-          `src/crates/netflow-plugin/src/routing/bmp/session/looping.rs:28`.
+          are silently dropped.
 
           NLRI families parsed: IPv4/IPv6 unicast, IPv4/IPv6 MPLS-labelled, VPNv4, VPNv6,
-          and EVPN IP-prefix routes -- see
-          `src/crates/netflow-plugin/src/routing/bmp/routes/nlri.rs:16-46`.
+          and EVPN IP-prefix routes.
 
           BMP and BioRIS share a single in-memory routing trie. A full IPv4+IPv6 BGP table
           is roughly 1.2M prefixes per peer; each entry stores `Vec<u32>` AS-path,
@@ -1391,15 +1375,15 @@ modules:
         auto_detection:
           description: "Disabled by default. Set enrichment.routing_dynamic.bmp.enabled to true and configure your routers to dial in."
         limits:
-          description: ""
+          description: "Memory and CPU scale with the number of BMP sessions, routing tables, prefixes, AS paths, and communities. Full-table router feeds can consume hundreds of MB per peer."
         performance_impact:
-          description: ""
+          description: "Disabled until BMP is configured. Once active, BMP updates maintain an in-memory routing trie used for enrichment, so resource use scales with routing-table size and update rate."
     setup:
       prerequisites:
         list:
           - title: BMP-capable routers
             description: |
-              Verified vendor support:
+              Common vendor configuration patterns:
 
               - **Cisco IOS-XR** -- `bmp server N` global block plus `bmp-activate server N`
                 under `router bgp ... neighbor`.
@@ -1433,7 +1417,6 @@ modules:
         options:
           description: |
             All BMP options live under `enrichment.routing_dynamic.bmp` in `netflow.yaml`.
-            See `src/crates/netflow-plugin/src/plugin_config/types/routing.rs:45-86`.
           folding:
             title: Config options
             enabled: true
@@ -1658,13 +1641,11 @@ modules:
               command above). Confirm `enrichment.asn_providers` includes `routing` (or
               the `bmp` alias) -- if `routing` is removed from both `asn_providers` and
               `net_providers`, the trie is built but never read.
-          - name: Integration-test gap
+          - name: Validate BGP enrichment after enabling
             description: |
-              BMP message parsing has unit tests. The TCP listener path, framed decode
-              loop, trie apply, per-peer cleanup, and per-vendor compatibility (Cisco,
-              Juniper, Arista, FRR, Nokia) are NOT integration-tested in this repository.
-              Validate against your specific router firmware before depending on this for
-              capacity / security decisions.
+              BGP-derived enrichment depends on router export policy, peer state, and
+              route visibility. Validate against your specific router firmware before
+              depending on this for capacity or security decisions.
     alerts: []
     metrics:
       folding:
@@ -1676,7 +1657,7 @@ modules:
         `NEXT_HOP`, `DST_AS_PATH`, `DST_COMMUNITIES`, `DST_LARGE_COMMUNITIES`. Source-side
         AS path and communities are not surfaced. AS *names* come from the GeoIP/ASN MMDB,
         not from BMP. AS path, communities, and large communities are RAW-tier-only --
-        rollups carry only `NEXT_HOP`. Verify in the Network Flows tab by querying the
+        rollups carry only `NEXT_HOP`. Verify in the Network Flows view by querying the
         AS-path and communities columns.
       availability: []
       scopes: []
@@ -1709,7 +1690,7 @@ modules:
       data_collection:
         metrics_description: |
           BioRIS lets Netdata consume BGP routing data from a [bio-rd](https://github.com/bio-routing/bio-rd)
-          `cmd/ris/` daemon over gRPC. bio-rd is a Go-based BGP/BMP daemon that you run yourself.
+          RIS daemon over gRPC. bio-rd is a Go-based BGP/BMP daemon that you run yourself.
           You point it at one or more BGP / BMP sources -- your own routers, a [RIPE RIS](https://www.ripe.net/analyse/internet-measurements/routing-information-service-ris)
           Route Collector you peer with, or any other reachable BGP source -- and it exposes the
           resulting RIB through a gRPC interface (`RoutingInformationService`). Netdata is a
@@ -1727,33 +1708,27 @@ modules:
           and combined-deployment notes.
         method_description: |
           The plugin connects as a gRPC client to one or more user-provided bio-rd `ris`
-          endpoints (`grpc_addr`) and runs three RPCs against each one
-          (`src/crates/netflow-plugin/src/routing/bioris/runtime/refresh/instance.rs`,
-          `src/crates/netflow-plugin/src/routing/bioris/runtime/observe.rs`):
+          endpoints (`grpc_addr`) and runs three RPCs against each one:
 
           1. `GetRouters` -- discover which routers/VRFs the bio-rd instance is exposing.
           2. `DumpRIB` -- pull a baseline RIB for each (router, AFI/SAFI) tuple. This is the
              expensive call -- full IPv4+IPv6 feeds run to millions of prefixes.
           3. `ObserveRIB` -- subscribe to incremental updates so the trie tracks live changes.
 
-          Per refresh cycle (default 30 minutes,
-          `src/crates/netflow-plugin/src/plugin_config/defaults.rs:38`) the plugin re-runs
-          `GetRouters` + `DumpRIB`, then keeps `ObserveRIB` streams open between cycles.
-          Routers that disappear between refreshes have their routes purged via
-          `runtime.clear_peer()` (`runtime/refresh/task.rs:69`).
+          Per refresh cycle (default 30 minutes), the plugin re-runs `GetRouters` +
+          `DumpRIB`, then keeps `ObserveRIB` streams open between cycles. Routers that
+          disappear between refreshes have their routes purged.
 
           Multiple `ris_instances` are **additive**, not failover -- routes from every
-          configured endpoint merge into the same trie
-          (`runtime.rs:30-49`). The trie is also shared with the `bmp` integration, so if
-          both are enabled their routes coexist and lookups pick the best match across both
-          sources.
+          configured endpoint merge into the same trie. The trie is also shared with the
+          `bmp` integration, so if both are enabled their routes coexist and lookups pick
+          the best match across both sources.
 
           Connection is plain gRPC over HTTP/2 by default; set `grpc_secure: true` to use
-          TLS with the system CA bundle (`client.rs:11-15`). There is no client-cert / mTLS
-          and no application auth -- restrict access at the network layer.
+          TLS with the system CA bundle. There is no client-cert / mTLS and no application
+          auth -- restrict access at the network layer.
 
-          **Fields populated** (same set as BMP, written from
-          `src/crates/netflow-plugin/src/enrichment/apply/write.rs:66-98`):
+          **Fields populated** (same set as BMP):
 
           | Field | Side | Source |
           |---|---|---|
@@ -1771,11 +1746,9 @@ modules:
           database integration.
 
           **Storage tier:** `DST_AS_PATH`, `DST_COMMUNITIES`, and `DST_LARGE_COMMUNITIES`
-          are written only into the raw journal tier
-          (`src/crates/netflow-plugin/src/flow/record/journal/network.rs:37-39`). The
-          1-minute / 5-minute / 1-hour rollup tiers do not carry them
-          (`src/crates/netflow-plugin/src/tiering/rollup/`). Queries that need AS path or
-          community data must run against a window that the raw retention still covers.
+          are written only into the raw journal tier. The 1-minute / 5-minute / 1-hour
+          rollup tiers do not carry them. Queries that need AS path or community data
+          must run against a window that the raw retention still covers.
       supported_platforms:
         include:
           - Linux
@@ -1787,17 +1760,12 @@ modules:
         auto_detection:
           description: "Disabled by default. Set enrichment.routing_dynamic.bioris.enabled to true and provide at least one ris_instances entry."
         limits:
-          description: ""
+          description: "Memory scales with the number of RIS instances, peers, routing tables, prefixes, AS paths, and communities. Full-table feeds can consume hundreds of MB per peer."
         performance_impact:
           description: |
-            A full IPv4+IPv6 BGP feed is roughly 1.2M prefixes per peer (2026 figures).
-            Each prefix entry stores the AS-path `Vec<u32>`, communities `Vec<u32>`, large
-            communities `Vec<(u32,u32,u32)>`, and a per-path `route_key` String. Expect
-            several hundred MB of resident memory **per peer** for a full feed -- multiply
-            by the number of routers exposed by every `ris_instance`. The trie has no
-            time-based eviction; routes are removed only by explicit BGP withdrawal,
-            disappearance of a router from `GetRouters` between refreshes, or plugin
-            shutdown. Plan capacity and watch the agent's RSS.
+            Disabled until BioRIS is configured. Once active, Netdata maintains an
+            in-memory routing trie for the received RIB and updates. Plan capacity from
+            the number of peers and tables you import, and watch the agent's RSS.
     setup:
       prerequisites:
         list:
@@ -1818,15 +1786,12 @@ modules:
               documentation for the peering setup -- this is bio-rd's configuration, not
               Netdata's.
 
-              Run the daemon with a gRPC port (`bio-rd/cmd/ris/main.go` defaults to 4321 if
-              `--grpc_port` is omitted):
+              Run the daemon with a gRPC port:
               `/usr/local/bin/ris --grpc_port 50051 --config.file /etc/bio-rd.yml`
           - title: Network reachability + no auth
             description: |
-              The gRPC connection is plain HTTP/2 by default
-              (`src/crates/netflow-plugin/src/routing/bioris/client.rs:23-31`), or TLS with
-              the system CA bundle when `grpc_secure: true`
-              (`client.rs:11-15`). There is no client-cert / mTLS and no application
+              The gRPC connection is plain HTTP/2 by default, or TLS with the system CA
+              bundle when `grpc_secure: true`. There is no client-cert / mTLS and no application
               authentication -- restrict access at the firewall, or run bio-rd on the same
               host as the agent and bind it to localhost.
       configuration:
@@ -1835,8 +1800,7 @@ modules:
         options:
           description: |
             BioRIS options live under `enrichment.routing_dynamic.bioris` in
-            `netflow.yaml`. The schema is defined in
-            `src/crates/netflow-plugin/src/plugin_config/types/routing.rs:88-156`.
+            `netflow.yaml`.
           folding:
             title: Config options
             enabled: true
@@ -1850,7 +1814,7 @@ modules:
               default_value: "200ms"
               required: false
             - name: refresh
-              description: Cadence at which the plugin re-runs `GetRouters` + `DumpRIB` for every router. Floored to 10s (`runtime/refresh/task.rs:23`).
+              description: Cadence at which the plugin re-runs `GetRouters` + `DumpRIB` for every router. Floored to 10s.
               default_value: "30m"
               required: false
             - name: refresh_timeout
@@ -1960,31 +1924,23 @@ modules:
             description: |
               The trie has no time-based eviction. Routes are removed only when the
               upstream BGP source withdraws them, when a router disappears from
-              `GetRouters` between refreshes (`runtime/refresh/task.rs:69` -- the plugin
-              calls `runtime.clear_peer()` for stale peers), or on plugin shutdown. A full
-              feed is several hundred MB of RSS per peer, permanently.
+              `GetRouters` between refreshes, or on plugin shutdown. A full feed is
+              several hundred MB of RSS per peer, permanently.
           - name: AS path / communities missing on older queries
             description: |
               `DST_AS_PATH`, `DST_COMMUNITIES`, and `DST_LARGE_COMMUNITIES` only exist in
-              the raw journal tier (`flow/record/journal/network.rs:37-39`). The 1m / 5m /
-              1h rollup tiers do not carry them. Queries that span beyond the raw
+              the raw journal tier. The 1m / 5m / 1h rollup tiers do not carry them. Queries that span beyond the raw
               retention horizon will not return BGP path data.
           - name: AS path inconsistent with the exporter's view
             description: |
               Different vantage points see different BGP paths. If your flow exporter and
               the BGP source bio-rd is peering with are different boxes with different
               routing tables, expect divergence. This is normal in BGP, not a bug.
-          - name: Integration-test gap
+          - name: Validate BioRIS enrichment after enabling
             description: |
-              The `proto`-to-route conversion (`src/crates/netflow-plugin/src/routing/bioris/route.rs`)
-              is unit-tested. The end-to-end gRPC client path -- `connect_bioris_client`,
-              `GetRouters` discovery, `DumpRIB` baseline, `ObserveRIB` stream consumption,
-              retry/backoff, per-router cleanup -- is **not** integration-tested in this
-              repository. The features ship because the parsing layer is solid and the
-              runtime sits on standard tonic + tokio primitives, but compatibility with a
-              specific bio-rd version or upstream BGP source is not validated by tests
-              here. Validate against your bio-rd setup before relying on this for capacity
-              or security decisions.
+              BioRIS-derived enrichment depends on the bio-rd version, upstream BGP source,
+              route visibility, and refresh cadence. Validate against your bio-rd setup
+              before relying on this for capacity or security decisions.
     alerts: []
     metrics:
       folding:
@@ -2051,7 +2007,7 @@ modules:
 
           The file is public; no AWS credentials are needed.
 
-          Schema of `ip-ranges.json` (verified against the live document):
+          Schema of `ip-ranges.json`:
 
           - top-level: `syncToken`, `createDate`, `prefixes`, `ipv6_prefixes`
           - each entry in `prefixes[]`: `ip_prefix`, `region`, `service`, `network_border_group`
@@ -2072,8 +2028,7 @@ modules:
           AWS IP space changes (typically several times per day) and the `syncToken` /
           `createDate` fields advance on every change. AWS recommends polling no faster
           than the file actually changes; daily is enough for most flow-attribution use
-          cases. The plugin floors the configured `interval` at 60s
-          (`src/crates/netflow-plugin/src/network_sources/service.rs:73`).
+          cases. The plugin floors the configured `interval` at 60s.
       supported_platforms:
         include:
           - Linux
@@ -2085,9 +2040,9 @@ modules:
         auto_detection:
           description: "Disabled by default. Add an entry under `enrichment.network_sources` to enable."
         limits:
-          description: ""
+          description: "One full AWS prefix document is fetched per refresh. Resource use scales with the number of AWS prefixes selected by your transform and the refresh interval."
         performance_impact:
-          description: ""
+          description: "One HTTPS request per refresh interval plus a jq transform over the AWS prefix document. Runtime enrichment cost is a trie lookup per source and destination IP."
     setup:
       prerequisites:
         list:
@@ -2248,10 +2203,9 @@ modules:
               `journalctl --namespace netdata | grep network-sources`.
           - name: TLS verification cannot be disabled
             description: |
-              `tls.skip_verify: true` is rejected by validation
-              (`src/crates/netflow-plugin/src/network_sources/fetch.rs:57`). Use
-              `tls.ca_file` for custom-CA paths if you front AWS behind an internal
-              TLS-terminating proxy with a private CA.
+              `tls.skip_verify: true` is rejected by validation. Use `tls.ca_file` for
+              custom-CA paths if you front AWS behind an internal TLS-terminating proxy
+              with a private CA.
     alerts: []
     metrics:
       folding:
@@ -2260,8 +2214,7 @@ modules:
       description: |
         This integration does not produce metrics. It enriches flow records with the
         following journal fields when a flow's source or destination IP matches an AWS
-        prefix (verified at
-        `src/crates/netflow-plugin/src/flow/record/journal/network.rs:17-26`):
+        prefix:
 
         - `SRC_NET_NAME` / `DST_NET_NAME`
         - `SRC_NET_ROLE` / `DST_NET_ROLE`
@@ -2270,7 +2223,7 @@ modules:
         - `SRC_NET_TENANT` / `DST_NET_TENANT`
 
         Plus, when the transform sets them, the country / state / city / ASN overrides
-        documented on the Network Identity page. Verify on the Network Flows tab via the
+        documented on the Network Identity page. Verify on the Network Flows view via the
         `*_NET_*` columns or by filtering on `tenant=amazon`.
       availability: []
       scopes: []
@@ -2343,8 +2296,8 @@ modules:
 
           The upstream files are static JSON snapshots, not pageable APIs -- one fetch
           per cycle is the whole dataset. Each contains a `syncToken` and a
-          `creationTime` you can inspect to see when Google last regenerated them; the
-          plugin does not use these for conditional fetches today.
+          `creationTime` you can inspect to see when Google last regenerated them.
+          The plugin fetches the full document on each refresh cycle.
       supported_platforms:
         include:
           - Linux
@@ -2356,7 +2309,7 @@ modules:
         auto_detection:
           description: "Disabled by default. Add an entry under enrichment.network_sources to enable."
         limits:
-          description: ""
+          description: "One full GCP prefix document is fetched per refresh. Resource use scales with the number of GCP prefixes selected by your transform and the refresh interval."
         performance_impact:
           description: |
             One short HTTPS GET per `interval`, plus a jq pass over the response.
@@ -2561,7 +2514,7 @@ modules:
         Tags flow records with `SRC_NET_TENANT` / `DST_NET_TENANT`,
         `SRC_NET_REGION` / `DST_NET_REGION`, `SRC_NET_ROLE` / `DST_NET_ROLE`,
         and any other `*_NET_*` fields your transform emits, when the source or
-        destination IP matches a Google prefix. Verify in the Network Flows tab via
+        destination IP matches a Google prefix. Verify in the Network Flows view via
         the `*_NET_*` columns. Coordinates (`*_GEO_LATITUDE` / `*_GEO_LONGITUDE`)
         cannot be set from network-identity sources -- use the static `networks`
         block for those.
@@ -2635,9 +2588,9 @@ modules:
         auto_detection:
           description: "Disabled by default. Add an entry under enrichment.network_sources to enable."
         limits:
-          description: ""
+          description: "One full Azure Service Tags document is fetched per refresh. Resource use scales with the number of Azure prefixes selected by your transform and the refresh interval."
         performance_impact:
-          description: ""
+          description: "One HTTPS request per refresh interval plus a jq transform over the Azure Service Tags document. Runtime enrichment cost is a trie lookup per source and destination IP."
     setup:
       prerequisites:
         list:
@@ -2705,8 +2658,8 @@ modules:
               ```
 
               The transform must unwrap `values[]` -> `properties.addressPrefixes[]`
-              and emit one object per prefix. Schema reference (verified against the
-              upstream concept page): `values[].name`, `values[].id`,
+              and emit one object per prefix. Schema reference: `values[].name`,
+              `values[].id`,
               `values[].properties.region` (region tag, can be empty for
               cloud-wide tags like the bare `Storage`), `values[].properties.platform`,
               `values[].properties.systemService` (e.g. `AzureStorage`, `AzureSql`),
@@ -2939,9 +2892,9 @@ modules:
         auto_detection:
           description: "Disabled by default. Add an entry under `enrichment.network_sources` with your NetBox URL and API token."
         limits:
-          description: ""
+          description: "Resource use scales with the number of NetBox prefixes returned by the URL and transform. Use NetBox filtering when you only need a subset of VRFs, sites, tenants, or roles."
         performance_impact:
-          description: ""
+          description: "One HTTP request per refresh interval plus a jq transform over the response. Runtime enrichment cost is a trie lookup per source and destination IP."
     setup:
       prerequisites:
         list:
@@ -2978,7 +2931,7 @@ modules:
         options:
           description: |
             Add a named entry under `enrichment.network_sources` pointing at your NetBox.
-            The plugin's `RemoteNetworkSourceConfig` schema accepts `url`, `method`,
+            The network source configuration accepts `url`, `method`,
             `headers`, `proxy`, `tls`, `timeout`, `interval`, and `transform`. Authentication
             is configured via the generic `headers:` map -- there is no NetBox-specific
             auth helper.
@@ -3220,11 +3173,8 @@ modules:
           [jaq](https://github.com/01mf02/jaq) library) over the parsed body, and merges
           the resulting per-prefix rows into the network-attributes trie.
 
-          Source code: the per-source loop is implemented at
-          `src/crates/netflow-plugin/src/network_sources/service.rs`; HTTP fetch at
-          `src/crates/netflow-plugin/src/network_sources/fetch.rs`; the jq output schema
-          is decoded at `src/crates/netflow-plugin/src/network_sources/decode.rs` against
-          the `RemoteRecord` struct at `src/crates/netflow-plugin/src/network_sources/types.rs`.
+          The same flow applies to every JSON-over-HTTP source; the integration-specific
+          part is the URL and the `transform` expression.
       supported_platforms:
         include:
           - Linux
@@ -3236,9 +3186,9 @@ modules:
         auto_detection:
           description: "Disabled by default. Add a named entry under `enrichment.network_sources` for each IPAM/CMDB/endpoint you want to import."
         limits:
-          description: ""
+          description: "Resource use scales with response size, transform complexity, refresh interval, and the number of emitted prefixes. Empty transform output is treated as a fetch failure."
         performance_impact:
-          description: ""
+          description: "One HTTP request per refresh interval plus a jq transform over the response. Runtime enrichment cost is a trie lookup per source and destination IP."
     setup:
       prerequisites:
         list:
@@ -3246,7 +3196,7 @@ modules:
             description: |
               The endpoint must respond with a parseable JSON document (the plugin sets
               `Accept: application/json`). Only GET and POST are accepted as request
-              methods; `fetch.rs` rejects anything else. There is no pagination, no
+              methods. There is no pagination, no
               cursor following, no `Link: rel=next` handling -- the fetch is one-shot
               per cycle. If your IPAM paginates, expose a bulk endpoint or wrap it in a
               server-side aggregator that returns the full list at one URL.
@@ -3261,8 +3211,7 @@ modules:
           - title: A POST endpoint must accept an empty body
             description: |
               When `method: POST` is configured, the plugin sends the request with the
-              configured headers but **no request body** (`fetch.rs` does not call
-              `.body()`). If your CMDB requires a JSON query body to return prefixes,
+              configured headers but **no request body**. If your CMDB requires a JSON query body to return prefixes,
               wrap it server-side with an endpoint that accepts GET (or POST with no
               body) and returns the full prefix set.
       configuration:
@@ -3270,10 +3219,8 @@ modules:
           name: netflow.yaml
         options:
           description: |
-            Add a named entry under `enrichment.network_sources`. The full set of keys
-            below is the schema accepted by `RemoteNetworkSourceConfig` in
-            `src/crates/netflow-plugin/src/plugin_config/types/enrichment/sources.rs`
-            (with `deny_unknown_fields`, so unknown keys cause a config error).
+            Add a named entry under `enrichment.network_sources`. Unknown keys cause a
+            config error.
           folding:
             title: Config options
             enabled: true
@@ -3295,7 +3242,7 @@ modules:
               default_value: "{}"
               required: false
             - name: interval
-              description: Refresh cadence. The internal scheduler **floors this at 60 seconds** -- shorter values are accepted by validation but the loop ticks at 60s minimum (see `service.rs`). Pick the value that matches how often your IPAM actually changes (5-15 minutes for a curated CMDB; daily for slow-moving prefix lists).
+              description: Refresh cadence. Values below 60 seconds are accepted, but refreshes still run no faster than once per minute. Pick the value that matches how often your IPAM actually changes (5-15 minutes for a curated CMDB; daily for slow-moving prefix lists).
               default_value: "60s"
               required: false
             - name: timeout
@@ -3397,7 +3344,7 @@ modules:
                     cmdb:
                       url: "https://cmdb.example/export/networks.json"
                       headers:
-                        Authorization: "Bearer ${CMDB_TOKEN}"
+                        Authorization: "Bearer <CMDB_TOKEN>"
                       interval: 15m
                       transform: |
                         .sites[] as $site
@@ -3476,8 +3423,8 @@ modules:
               responses would corrupt every downstream analysis.
           - name: Empty result back-off
             description: |
-              An empty stream from the jq transform is treated as a fetch failure
-              (`decode_remote_records` returns "empty result"). The source then backs
+              An empty stream from the jq transform is treated as a fetch failure.
+              The source then backs
               off exponentially -- starting at `interval / 10` (floor 1s), doubling on
               each consecutive failure, and capped at the regular `interval`. On the
               next successful non-empty fetch the cadence resets to `interval`. If your
@@ -3514,7 +3461,7 @@ modules:
       description: |
         Tags flow records with whatever labels your jq transform emits -- typically
         `*_NET_NAME`, `*_NET_TENANT`, `*_NET_SITE`, `*_NET_ROLE`, `*_NET_REGION`. Verify
-        on the Network Flows tab via the `*_NET_*` columns.
+        on the Network Flows view via the `*_NET_*` columns.
       availability: []
       scopes: []
   - meta:
@@ -3557,41 +3504,34 @@ modules:
           enrichment source that lives entirely in `netflow.yaml`. Use it when there is
           no IPAM, no CMDB, and no MMDB to query -- you simply know your own networks,
           your own routers, and what the interfaces on those routers do, and you want
-          those labels visible on the Network Flows tab.
+          those labels visible on the Network Flows view.
 
           Three independent surfaces are configured under this card, each populating a
           different set of flow-record fields:
 
           - `enrichment.metadata_static.exporters.<ip-or-cidr>` -- per-exporter labels
             (matched against the source IP of the UDP datagram) and per-interface labels
-            (matched against the ifIndex from the flow record). Schema in
-            `src/crates/netflow-plugin/src/plugin_config/types/enrichment/metadata.rs:5-52`.
+            (matched against the ifIndex from the flow record).
           - `enrichment.networks.<cidr>` -- labels for arbitrary CIDR blocks (your own
             corp ranges, customer ranges, public blocks you operate). Matched against the
-            flow's source and destination IPs. Schema in
-            `src/crates/netflow-plugin/src/plugin_config/types/enrichment/networks.rs:5-35`.
+            flow's source and destination IPs.
           - `enrichment.override_sampling_rate.<cidr>` -- per-prefix sampling-rate
             substitution for exporters that do not communicate their rate (e.g. NetFlow
             v7, which has no sampling field, or a v9 exporter that never sends a Sampling
-            Options Template). Schema in
-            `src/crates/netflow-plugin/src/plugin_config/types/enrichment/sampling.rs:3-8`.
+            Options Template).
 
           Fields populated:
 
-          - From `metadata_static.exporters` (per-exporter, lookup at
-            `src/crates/netflow-plugin/src/enrichment/data/static_data.rs:24-35`,
-            applied at `src/crates/netflow-plugin/src/enrichment/apply/metadata.rs:41-46`):
+          - From `metadata_static.exporters` (per-exporter):
             `EXPORTER_NAME`, `EXPORTER_GROUP`, `EXPORTER_ROLE`, `EXPORTER_SITE`,
             `EXPORTER_REGION`, `EXPORTER_TENANT`.
-          - From `metadata_static.exporters.if_indexes` (per-interface, applied at
-            `src/crates/netflow-plugin/src/enrichment/apply/metadata.rs:48-53`):
+          - From `metadata_static.exporters.if_indexes` (per-interface):
             `IN_IF_NAME` / `OUT_IF_NAME`, `IN_IF_DESCRIPTION` / `OUT_IF_DESCRIPTION`,
             `IN_IF_SPEED` / `OUT_IF_SPEED` (in **bits per second**), `IN_IF_PROVIDER` /
             `OUT_IF_PROVIDER`, `IN_IF_CONNECTIVITY` / `OUT_IF_CONNECTIVITY`,
             `IN_IF_BOUNDARY` / `OUT_IF_BOUNDARY` (`1` = external, `2` = internal,
             `0`/omitted = removed from output).
-          - From `enrichment.networks` (per-CIDR, written at
-            `src/crates/netflow-plugin/src/enrichment/data/network/write.rs:93-125`):
+          - From `enrichment.networks` (per-CIDR):
             `SRC_NET_NAME` / `DST_NET_NAME`, `SRC_NET_ROLE` / `DST_NET_ROLE`,
             `SRC_NET_SITE` / `DST_NET_SITE`, `SRC_NET_REGION` / `DST_NET_REGION`,
             `SRC_NET_TENANT` / `DST_NET_TENANT`, plus overrides for the GeoIP-derived
@@ -3601,8 +3541,7 @@ modules:
             entry overrides the AS *number* via the same merge path; the AS *name*
             still comes from the ASN database (see "Composition with dynamic sources"
             below).
-          - From `override_sampling_rate` (longest-prefix match against the exporter IP,
-            applied at `src/crates/netflow-plugin/src/enrichment/apply/metadata.rs:78-97`):
+          - From `override_sampling_rate` (longest-prefix match against the exporter IP):
             `SAMPLING_RATE` is set unconditionally when an override prefix matches. This
             is different from `default_sampling_rate`, which only applies when the flow
             does not already carry a rate.
@@ -3615,10 +3554,7 @@ modules:
           Edit `netflow.yaml`, restart the plugin, and the YAML-defined data is loaded
           into the same in-memory tries the GeoIP, IPAM, and BGP enrichment paths read
           from. There is no network access, no file watching, and no hot reload --
-          changes take effect on the next plugin startup. The exporter trie is built at
-          `src/crates/netflow-plugin/src/enrichment/data/static_data.rs:9-18`; the
-          `networks` trie at
-          `src/crates/netflow-plugin/src/enrichment/data/network/attrs.rs:99-117`.
+          changes take effect on the next plugin startup.
       supported_platforms:
         include:
           - Linux
@@ -3630,9 +3566,9 @@ modules:
         auto_detection:
           description: "Disabled by default. Add entries under `enrichment.metadata_static`, `enrichment.networks`, and / or `enrichment.override_sampling_rate` to populate it."
         limits:
-          description: ""
+          description: "Resource use scales with the number of exporter, interface, network, and sampling-override entries. Keep CIDR ranges and interface maps specific enough to match the routers you actually export."
         performance_impact:
-          description: ""
+          description: "Static lookups are local map/trie lookups during enrichment. Cost is usually small compared with flow decode and journal writes, but very large maps add memory and lookup work."
     setup:
       prerequisites:
         list:
@@ -3649,19 +3585,15 @@ modules:
               `if_indexes` keys are the integer ifIndex the router puts in the flow
               record. Some platforms reassign ifIndex on line-card reseat or stack
               rebuild. After hardware changes, audit the labels -- a stale ifIndex
-              entry silently no longer applies (the lookup at
-              `src/crates/netflow-plugin/src/enrichment/data/static_data.rs:76-84`
-              falls back to the `default` interface block, or to nothing when
-              `skip_missing_interfaces: true` is set).
+              entry silently no longer applies. The `default` interface block is used
+              instead, or no labels are written when `skip_missing_interfaces: true` is set.
       configuration:
         file:
           name: netflow.yaml
         options:
           description: |
-            All keys live under `enrichment:` in `netflow.yaml`. The schema enforces
-            `deny_unknown_fields` at every level
-            (`src/crates/netflow-plugin/src/plugin_config/types/enrichment/metadata.rs:4`,
-            `networks.rs:4`, `root.rs:4`), so typos fail config load with a parse error.
+            All keys live under `enrichment:` in `netflow.yaml`. Unknown keys fail config
+            load with a parse error.
           folding:
             title: Config options
             enabled: true
@@ -3702,9 +3634,7 @@ modules:
                 Interface boundary marker. Accepts the integers `0` (undefined),
                 `1` (external -- faces the outside world: Internet, peer, transit),
                 `2` (internal -- faces your own infrastructure), or the case-insensitive
-                strings `"undefined"`, `"external"`, `"internal"`
-                (`src/crates/netflow-plugin/src/plugin_config/defaults.rs:152-178`).
-                Any other value fails config load. Filtering for `IN_IF_BOUNDARY=1`
+                strings `"undefined"`, `"external"`, `"internal"`. Any other value fails config load. Filtering for `IN_IF_BOUNDARY=1`
                 cleanly gives you "traffic that arrived from outside".
               default_value: "0"
               required: false
@@ -3713,19 +3643,14 @@ modules:
                 Interface speed in **bits per second**. A 1 Gbps interface is
                 `1000000000`, not `1000` and not `1000000`. Operators thinking in
                 megabits get the value wrong by a factor of 1000 to 1000000.
-                A `0` value means "not set" and removes the field from the output
-                (`src/crates/netflow-plugin/src/enrichment/apply/write.rs:116-120,178-181`).
+                A `0` value means "not set" and removes the field from the output.
               default_value: "0"
               required: false
             - name: enrichment.networks
               description: |
                 Map keyed by CIDR. Longest-prefix match contributes the most-specific
                 fields; less-specific containing prefixes contribute their non-empty
-                fields too (merge logic at
-                `src/crates/netflow-plugin/src/enrichment/data/network/attrs.rs:55-96`,
-                walked ascending at
-                `src/crates/netflow-plugin/src/enrichment/apply/resolve.rs:36-66` --
-                same path used by `network_sources`). Each value is either a string
+                fields too. The same merge rule is used by `network_sources`. Each value is either a string
                 (shorthand for `name:`) or a map with `name`, `role`, `site`, `region`,
                 `country`, `state`, `city`, `latitude`, `longitude`, `tenant`, `asn`.
               default_value: "{}"
@@ -3742,8 +3667,7 @@ modules:
               description: |
                 Per-CIDR coordinate override. Out-of-range values (latitude not in
                 [-90, 90] or longitude not in [-180, 180]) and non-finite values are
-                silently coerced to empty strings -- the field is dropped, no error
-                (`src/crates/netflow-plugin/src/enrichment/data/network/attrs.rs:30-31`).
+                silently coerced to empty strings -- the field is dropped, no error.
                 Validate input out of band if your data matters.
               default_value: "null"
               required: false
@@ -3751,16 +3675,14 @@ modules:
               description: |
                 Global fallback applied only when the flow record does not already
                 carry a sampling rate. Either a single integer or a CIDR-keyed map
-                (longest-prefix match against the exporter IP). Logic at
-                `src/crates/netflow-plugin/src/enrichment/apply/metadata.rs:86-96`.
+                (longest-prefix match against the exporter IP).
               default_value: "0"
               required: false
             - name: enrichment.override_sampling_rate
               description: |
                 Per-exporter substitution that **always** wins when its prefix matches
                 the exporter IP, regardless of what the flow record carried. Either a
-                single integer or a CIDR-keyed map. Logic at
-                `src/crates/netflow-plugin/src/enrichment/apply/metadata.rs:78-85`.
+                single integer or a CIDR-keyed map.
               default_value: "{}"
               required: false
         examples:
@@ -3876,10 +3798,8 @@ modules:
         list:
           - name: A more-specific entry inherits the wrong field from its supernet
             description: |
-              `enrichment.networks` merges containing prefixes ascending (least
-              specific first) at
-              `src/crates/netflow-plugin/src/enrichment/apply/resolve.rs:36-66`.
-              Leaving a field blank on a `/24` does **not** clear the `/16`'s value
+              `enrichment.networks` merges containing prefixes from least-specific to
+              most-specific. Leaving a field blank on a `/24` does **not** clear the `/16`'s value
               for that field -- you must explicitly set the field on the more-specific
               entry to overwrite. The same merge rule applies to entries from
               `network_sources`, which interleave at the same prefix lengths.
@@ -3904,50 +3824,39 @@ modules:
             description: |
               When the configured ifIndex is not present in the flow record, the
               `default` block is used instead -- unless `skip_missing_interfaces: true`
-              is set, in which case no interface labels are written at all
-              (`src/crates/netflow-plugin/src/enrichment/data/static_data.rs:76-84`).
-              If you expected your block to apply but the labels are blank, the
+              is set, in which case no interface labels are written at all. If you expected your block to apply but the labels are blank, the
               router is sending a different ifIndex.
           - name: Coordinates dropped silently
             description: |
               Out-of-range latitude / longitude (`latitude: 91.5`) and non-finite
-              values become empty strings without an error
-              (`src/crates/netflow-plugin/src/enrichment/data/network/attrs.rs:30-31`).
-              The map quietly stops drawing the marker. Validate input externally if
+              values become empty strings without an error. The map quietly stops drawing the marker. Validate input externally if
               the data matters.
           - name: Static labels block the classifiers
             description: |
               When static metadata sets **any** of `group`, `role`, `site`, `region`,
               `tenant` for an exporter, the `exporter_classifiers` rule chain does not
-              run for that exporter at all
-              (`src/crates/netflow-plugin/src/enrichment/classify.rs:117-119`).
-              The same is true for an interface: any of `provider`, `connectivity`,
+              run for that exporter at all. The same is true for an interface: any of `provider`, `connectivity`,
               `boundary` set by static metadata short-circuits
-              `interface_classifiers`
-              (`src/crates/netflow-plugin/src/enrichment/classify.rs:150-154`). If
+              `interface_classifiers`. If
               you want classifiers to run on top of static metadata, drop the static
               fields they are supposed to set.
           - name: A typo fails config load
             description: |
               The schema is `deny_unknown_fields` at every level. A typo such as
               `ifindexes` (the canonical key is `if_indexes`; aliases `ifindexes`,
-              `if-indexes` are accepted at
-              `src/crates/netflow-plugin/src/plugin_config/types/enrichment/metadata.rs:37`)
-              or a misspelt attribute (`teannt:`) fails plugin start with a YAML parse
+              `if-indexes` are accepted) or a misspelt attribute (`teannt:`) fails plugin start with a YAML parse
               error rather than being silently ignored.
           - name: Sampling override looks ignored
             description: |
               `override_sampling_rate` always wins when its prefix matches; if the
               field still looks unset, check that the **exporter IP** -- not the
-              flow's source / destination IP -- falls under the configured prefix
-              (`src/crates/netflow-plugin/src/enrichment/apply/metadata.rs:78-85`).
+              flow's source / destination IP -- falls under the configured prefix.
               `default_sampling_rate` is only consulted when the flow did not already
               carry a rate.
           - name: Changes do not take effect
             description: |
-              Static metadata is loaded at plugin startup
-              (`src/crates/netflow-plugin/src/enrichment/init.rs:13-14`) and there is
-              no file-change watcher. Restart the plugin (or the agent) after editing
+              Static metadata is loaded at plugin startup and there is no file-change
+              watcher. Restart the plugin (or the agent) after editing
               `netflow.yaml`.
     alerts: []
     metrics:
@@ -4008,31 +3917,25 @@ modules:
           - `enrichment.exporter_classifiers` -- runs once per exporter (cached). Sees the
             exporter's IP and friendly name, and any classification slots already filled
             by static metadata or by earlier rules. Can set
-            `EXPORTER_GROUP / ROLE / SITE / REGION / TENANT`. Source:
-            `src/crates/netflow-plugin/src/enrichment/classify.rs:111-140`.
+            `EXPORTER_GROUP / ROLE / SITE / REGION / TENANT`.
           - `enrichment.interface_classifiers` -- runs once per `(exporter, interface)`
             pair, applied **twice per flow record** (once for the input interface, once
-            for the output -- see
-            `src/crates/netflow-plugin/src/enrichment/apply/metadata.rs:108-123`). Sees
+            for the output). Sees
             everything an exporter rule sees plus `Interface.Index / Name / Description /
             Speed / VLAN`. Can set `IN_IF_PROVIDER / OUT_IF_PROVIDER`,
             `IN_IF_CONNECTIVITY / OUT_IF_CONNECTIVITY`, `IN_IF_BOUNDARY / OUT_IF_BOUNDARY`
             (1=external, 2=internal), and override `IN_IF_NAME / DESCRIPTION` /
-            `OUT_IF_NAME / DESCRIPTION`. Source:
-            `src/crates/netflow-plugin/src/enrichment/classify.rs:142-198`.
+            `OUT_IF_NAME / DESCRIPTION`.
 
           The expression language is **Akvorado-compatible for the documented operators
-          and actions**. It is a hand-written Rust parser
-          (`src/crates/netflow-plugin/src/enrichment/classifiers/parse/boolean.rs`),
-          implementing a subset of Akvorado's `expr-lang`-derived grammar. Akvorado rules
+          and actions**. It implements a subset of Akvorado's `expr-lang`-derived grammar. Akvorado rules
           using only equality, comparison, `in`, `contains`, `startsWith`, `endsWith`,
           `matches`, `&&`, `||`, `!`, parentheses, and the documented `Classify*` /
           `Reject` / `Format` actions will work; arithmetic, ternaries, lambdas, and
           arbitrary `expr-lang` features are not supported.
 
           Output values written by `Classify*` actions are **lowercased and stripped to
-          ASCII alphanumerics + `.` + `+` + `-`** before they reach the flow record
-          (`src/crates/netflow-plugin/src/enrichment/classifiers/helpers.rs:5-11`). So
+          ASCII alphanumerics + `.` + `+` + `-`** before they reach the flow record. So
           `ClassifyRegion("EU West")` becomes `euwest`. Use `SetName` / `SetDescription`
           when you want to preserve case and whitespace -- those write directly without
           normalisation.
@@ -4049,31 +3952,27 @@ modules:
           most-specific to least-specific.
 
           Two short-circuit rules end the loop early. For exporter rules, the loop stops
-          when `group + role + site + region + tenant` are all non-empty
-          (`is_complete()` at `enrichment/classifiers/runtime/model.rs:47-53`). For
+          when `group + role + site + region + tenant` are all non-empty. For
           interface rules, the loop stops when `connectivity + provider + boundary` are
-          all set (`enrichment/classify.rs:176-181`). `SetName` / `SetDescription` /
+          all set. `SetName` / `SetDescription` /
           `Reject` do not contribute to short-circuit.
 
           A rule that throws at runtime (e.g. comparing a string with `>`) breaks out of
-          the loop for that record and keeps whatever was set so far
-          (`enrichment/classify.rs:130-132`). Use `matches`, `startsWith`, or `contains`
+          the loop for that record and keeps whatever was set so far. Use `matches`, `startsWith`, or `contains`
           on string fields instead of `>` / `<` to avoid this.
 
           **Akvorado parity**: if `metadata_static` already filled any classification
           slot for the target, the matching classifier list does **not run** for that
           target -- operator-provided classification has priority and the rules cannot
-          override it (`enrichment/classify.rs:117-119` for exporters, `:150-154` for
-          interfaces). Don't try to mix static and rule-based labelling on the same
+          override it. Don't try to mix static and rule-based labelling on the same
           exporter or interface; pick one tool per target.
 
           Results are cached. The exporter cache keys on `ExporterInfo (ip + name)`. The
           interface cache keys on `(exporter, exporter_classification, interface)` -- so
           when the exporter's classification changes (for example after you push new
           static metadata and restart) the interface caches naturally invalidate. The
-          cache TTL is `enrichment.classifier_cache_duration` (default 5 minutes,
-          `src/crates/netflow-plugin/src/plugin_config/defaults.rs:46-48`); it is a
-          last-access TTL so entries live as long as they're queried.
+          cache TTL is `enrichment.classifier_cache_duration` (default 5 minutes). It is
+          a last-access TTL so entries live as long as they're queried.
       supported_platforms:
         include:
           - Linux
@@ -4085,7 +3984,7 @@ modules:
         auto_detection:
           description: "Disabled by default. Both rule lists are empty; populate `enrichment.exporter_classifiers` and / or `enrichment.interface_classifiers` to enable."
         limits:
-          description: ""
+          description: "Resource use scales with rule count and the number of distinct exporters and interfaces. The classifier cache limits repeat evaluation for stable exporter/interface inventories."
         performance_impact:
           description: |
             Rules run at decode time, in the flow-pipeline hot path, so cost matters.
@@ -4136,7 +4035,7 @@ modules:
                 `*Regex(input, pattern, template)` variants of each, plus `Reject()`.
                 Interface-only actions (`ClassifyProvider`, `ClassifyConnectivity`,
                 `ClassifyExternal` / `ClassifyInternal`, `SetName`, `SetDescription`)
-                fail at runtime if used here (`enrichment/classifiers/runtime/eval/action.rs:71-76`).
+                fail at runtime if used here.
               default_value: "[]"
               required: false
             - name: enrichment.interface_classifiers
@@ -4150,17 +4049,15 @@ modules:
                 `ClassifyConnectivity`, `ClassifyExternal()`, `ClassifyInternal()`,
                 `SetName`, `SetDescription`, `Reject()`, plus the `*Regex` variants of
                 provider / connectivity. Exporter-only `Classify*` actions fail at
-                runtime if used here (`enrichment/classifiers/runtime/eval/action.rs:181-184`).
+                runtime if used here.
               default_value: "[]"
               required: false
             - name: enrichment.classifier_cache_duration
               description: |
                 Last-access TTL for both classifier caches (exporter and interface).
-                Validation rejects values below 1 second
-                (`src/crates/netflow-plugin/src/plugin_config/validation/enrichment.rs:10-12`).
-                The cache prunes opportunistically -- entries idle longer than the TTL
-                are dropped on the next prune pass, capped at one prune every TTL or
-                30 seconds, whichever is smaller (`enrichment/classify.rs:3-18`).
+                Values below 1 second are rejected. The cache prunes opportunistically
+                -- entries idle longer than the TTL are dropped on the next prune pass,
+                capped at one prune every TTL or 30 seconds, whichever is smaller.
                 Restart the plugin to clear caches outright when you change rules.
               default_value: "5m"
               required: false
@@ -4259,7 +4156,7 @@ modules:
                 enabled: true
               description: |
                 `Format(pattern, args...)` mimics Go's `fmt.Sprintf` for `%s`, `%v`,
-                `%d`, `%%` (`enrichment/classifiers/helpers.rs:35-91`). `Classify*`
+                `%d`, `%%`. `Classify*`
                 normalises (lowercase + strip non-alphanumeric); `SetName` and
                 `SetDescription` do not, so they preserve the case and spaces of the
                 computed value.
@@ -4277,9 +4174,7 @@ modules:
               description: |
                 The default 5-minute last-access TTL is right for steady-state. Raise
                 it when the (exporter, interface) population is large enough that
-                evicted entries are quickly re-queried (visible CPU on the rule
-                evaluator under the
-                `netflow_enricher.classify_*` traces in production logs). Lower it when
+                evicted entries are quickly re-queried. Lower it when
                 actively iterating on rule changes so misses pick up the new rules
                 quickly.
               config: |
@@ -4299,30 +4194,24 @@ modules:
               expression`, `Reject() does not accept arguments`, etc.). Common causes:
               missing `&&` between condition and action; an action used in the wrong
               list (`ClassifyExternal` in an exporter rule); strings written with
-              single quotes (only JSON-style double quotes are accepted -- see
-              `parse_quoted_string` at
-              `src/crates/netflow-plugin/src/enrichment/classifiers/parse/value.rs:139-144`);
-              regex literals that fail to compile (validated at parse time at
-              `parse/boolean.rs:113-117`).
+              single quotes (only JSON-style double quotes are accepted); regex literals
+              that fail to compile.
           - name: Classifier rules never run for an exporter or interface
             description: |
               Likely cause: `metadata_static` already set **any** classification field
               on that target. By design, the matching list is suppressed entirely when
-              the classification is non-empty (`enrichment/classify.rs:117-119` and
-              `:150-154`). Either remove the static-metadata entry for that target, or
+              the classification is non-empty. Either remove the static-metadata entry for that target, or
               keep static-metadata as the sole source for it.
           - name: A value appears differently in the dashboard than in the rule
             description: |
               `Classify*` actions normalise output to `[a-z0-9.+-]` only -- so
               `ClassifyRegion("EU West")` lands as `euwest`, and
-              `Classify("Edge_Tier_1")` lands as `edgetier1`
-              (`enrichment/classifiers/helpers.rs:5-11`). Use `SetName` /
+              `Classify("Edge_Tier_1")` lands as `edgetier1`. Use `SetName` /
               `SetDescription` to preserve case and whitespace; those write the value
               verbatim.
           - name: First rule always wins, later rules never fire for the same slot
             description: |
-              First-write-wins is by design and per slot
-              (`enrichment/classifiers/runtime/eval/action.rs:43-46`). Order your
+              First-write-wins is by design and per slot. Order your
               rules from most-specific to least-specific. If you want a tiered
               fallback, use distinct slots (e.g. `Classify` for the broad group and
               `ClassifyRole` for the tier within that group).
@@ -4335,8 +4224,7 @@ modules:
           - name: A rule with `>` or `<` aborts the rule list
             description: |
               Comparing a string-typed identifier with `>` / `<` / `>=` / `<=` raises
-              a runtime error, and the loop breaks out for that record
-              (`enrichment/classify.rs:130-132` and `:172-175`). Subsequent rules in
+              a runtime error, and the loop breaks out for that record. Subsequent rules in
               the list are skipped for that record. Use `matches`, `startsWith`,
               `endsWith`, `contains`, or `==` / `!=` on string fields. Keep `>` / `<`
               for `Interface.Index`, `Interface.Speed`, and `Interface.VLAN` (the
@@ -4344,8 +4232,7 @@ modules:
           - name: ClassifyExternal fires only on one side
             description: |
               Interface classifiers run twice per flow record -- once for the input
-              interface, once for the output (`enrichment/apply/metadata.rs:108-123`).
-              Both invocations see the same rule list. If your rule conditions on
+              interface, once for the output. Both invocations see the same rule list. If your rule conditions on
               `Interface.Index == 42` and that ifIndex appears in `IN_IF` of one flow
               and `OUT_IF` of another, the rule fires correctly in both places. But
               the `IN_IF_BOUNDARY` / `OUT_IF_BOUNDARY` columns are independent -- a
@@ -4362,8 +4249,7 @@ modules:
           - name: Referencing Interface.* in an exporter rule silently does nothing
             description: |
               Field resolution does not error when the wrong context is missing -- it
-              returns the type's zero value (`enrichment/classifiers/runtime/value/field.rs:62-79`).
-              So `Interface.Speed >= 1` written in an `exporter_classifiers` rule
+              returns the type's zero value. So `Interface.Speed >= 1` written in an `exporter_classifiers` rule
               resolves to `0 >= 1` (false) on every call. Use
               `interface_classifiers` for any rule that needs an interface field.
     alerts: []
@@ -4376,9 +4262,8 @@ modules:
         exporter rules) and `IN_IF_PROVIDER / OUT_IF_PROVIDER`,
         `IN_IF_CONNECTIVITY / OUT_IF_CONNECTIVITY`, `IN_IF_BOUNDARY / OUT_IF_BOUNDARY`,
         `IN_IF_NAME / OUT_IF_NAME`, `IN_IF_DESCRIPTION / OUT_IF_DESCRIPTION` (from
-        interface rules). Verify on the Network Flows tab via those columns. Boundary
-        is `1` for external and `2` for internal
-        (`src/crates/netflow-plugin/src/enrichment/classifiers/runtime/eval/action.rs:169-180`).
+        interface rules). Verify on the Network Flows view via those columns. Boundary
+        is `1` for external and `2` for internal.
       availability: []
       scopes: []
   - meta:
@@ -4424,9 +4309,7 @@ modules:
           the actual traffic.
 
           Two encapsulations are supported, selected globally for the plugin. The mode set is
-          enumerated at `src/crates/netflow-plugin/src/plugin_config/types/protocol.rs:50-57`
-          (`DecapsulationMode::None | Srv6 | Vxlan`); the default is `none`
-          (`src/crates/netflow-plugin/src/plugin_config/types/protocol.rs:24` and `:44`).
+          `none`, `srv6`, or `vxlan`; the default is `none`.
 
           | Mode    | Strips                                           | Surfaces                                         |
           |---------|--------------------------------------------------|--------------------------------------------------|
@@ -4437,16 +4320,9 @@ modules:
           The plugin only reaches the decap path when the flow record carries the inner
           frame bytes in a Layer-2 packet section field. Three transport-level paths feed it:
 
-          - **NetFlow v9 IE 104** -- `Layer2packetSectionData` (RFC 5102 / RFC 7270). Constant
-            at `src/crates/netflow-plugin/src/decoder.rs:80`
-            (`V9_FIELD_LAYER2_PACKET_SECTION_DATA: u16 = 104`); decoded at
-            `src/crates/netflow-plugin/src/decoder/protocol/v9/special.rs:123-132`.
-          - **IPFIX IE 315** -- `dataLinkFrameSection` (RFC 7133). Constant at
-            `src/crates/netflow-plugin/src/decoder.rs:74`
-            (`IPFIX_FIELD_DATALINK_FRAME_SECTION: u16 = 315`); decoded at
-            `src/crates/netflow-plugin/src/decoder/protocol/ipfix/special/record.rs:154-162`.
-          - **sFlow `SampledHeader`** -- always present in header-sampling mode, parsed at
-            `src/crates/netflow-plugin/src/decoder/protocol/sflow/record.rs:44-69`.
+          - **NetFlow v9 IE 104** -- `Layer2packetSectionData` (RFC 5102 / RFC 7270).
+          - **IPFIX IE 315** -- `dataLinkFrameSection` (RFC 7133).
+          - **sFlow `SampledHeader`** -- always present in header-sampling mode.
 
           When decap succeeds, the inner 5-tuple replaces the outer one in the resulting
           journal record: `SRC_ADDR`, `DST_ADDR`, `SRC_PORT`, `DST_PORT`, `PROTOCOL`,
@@ -4455,19 +4331,13 @@ modules:
           (set to the inner L3 length so byte counts represent inner payload, not outer
           overhead). For VXLAN, `SRC_MAC`, `DST_MAC`, `SRC_VLAN`, `DST_VLAN` come from the
           inner Ethernet frame -- the outer MACs and VLANs are lost. The VXLAN VNI is
-          parsed but not surfaced today; pure VNI-based segmentation is not visible. See
-          the merge points at
-          `src/crates/netflow-plugin/src/decoder/protocol/packet/transport.rs:21-33` (NetFlow
-          v9 / IPFIX special path) and the equivalent record-API path at
-          `src/crates/netflow-plugin/src/decoder/record/packet/parse/transport.rs:14-21`.
+          parsed but not exposed as a journal field; pure VNI-based segmentation is
+          not visible.
 
-          The `vxlan` parser at
-          `src/crates/netflow-plugin/src/decoder/common.rs:3-18` matches **only UDP
-          destination port 4789** (RFC 7348). VXLAN-GPE on 4790 and any vendor-custom port
-          are not recognised. The `srv6` parser at
-          `src/crates/netflow-plugin/src/decoder/common.rs:35-63` walks IPv6 extension
-          headers and the Routing Header type 4 (SRH), then surfaces the inner IPv4 or
-          IPv6 packet pointed to by next-header 4 or 41.
+          The `vxlan` parser matches **only UDP destination port 4789** (RFC 7348).
+          VXLAN-GPE on 4790 and any vendor-custom port are not recognised. The `srv6`
+          parser walks IPv6 extension headers and the Routing Header type 4 (SRH), then
+          surfaces the inner IPv4 or IPv6 packet pointed to by next-header 4 or 41.
 
           For the cross-cutting concept (how decap composes with the rest of the enrichment
           pipeline, the non-tunnel "drop, do not fall back" semantics, and per-source
@@ -4494,7 +4364,7 @@ modules:
         limits:
           description: "One mode is active at a time -- the plugin cannot decap VXLAN and SRv6 simultaneously. If your fleet mixes both, choose the one your L2-section-bearing exporters carry exclusively."
         performance_impact:
-          description: ""
+          description: "Decapsulation runs in the flow hot path for records carrying L2 frame sections. It adds protocol parsing work and drops L2-section records that do not match the configured tunnel mode."
     setup:
       prerequisites:
         list:
@@ -4518,7 +4388,7 @@ modules:
               parser and the flow is dropped (see the failure modes on the concept page).
           - title: Configure your exporter to emit the L2 section
             description: |
-              Vendor support varies. The two paths the project has verified upstream are:
+              Vendor support varies. Recommended exporter paths are:
 
               - **Juniper inline-monitoring (IPFIX 315)** on platforms supporting
                 `services { inline-monitoring { ... } }` -- the template includes
@@ -4531,20 +4401,17 @@ modules:
                 `SampledIPv4` / `SampledIPv6` records (the latter do not carry inner
                 bytes).
 
-              **Cisco IOS-XE and IOS-XR Flexible NetFlow have not been verified by the
-              project to emit the Layer-2 frame section** through `collect datalink ...`
-              keys; the upstream Akvorado reference configuration for IOS-XE / NCS / ASR
-              relies on conventional IPv4/IPv6 NetFlow without an L2 section. If your
-              Cisco platform supports the L2 section, validate by inspecting the template
-              and looking for IE 104 (v9) or IE 315 (IPFIX) before deploying decap. Do not
-              copy unverified `collect datalink frame-section` snippets into production.
+              Cisco IOS-XE and IOS-XR Flexible NetFlow support for Layer-2 frame
+              sections is platform-dependent. Before deploying Cisco decapsulation,
+              inspect the exported template and look for IE 104 (v9) or IE 315 (IPFIX).
+              Do not copy `collect datalink frame-section` snippets into production
+              unless the platform template confirms that the L2 section is exported.
       configuration:
         file:
           name: netflow.yaml
         options:
           description: |
-            Decapsulation has a single configuration knob -- `protocols.decapsulation_mode`
-            -- defined at `src/crates/netflow-plugin/src/plugin_config/types/protocol.rs:21-26`.
+            Decapsulation has a single configuration knob -- `protocols.decapsulation_mode`.
           folding:
             title: Config options
             enabled: true
@@ -4604,25 +4471,18 @@ modules:
               by `decapsulation_mode`. Inspect the template -- look for field type 104
               on NetFlow v9 or IE 315 on IPFIX. For sFlow, confirm the agent is sending
               `SampledHeader` records rather than only `SampledIPv4` / `SampledIPv6`.
-              The decode dispatch lives at
-              `src/crates/netflow-plugin/src/decoder/protocol/sflow/record.rs:44-69`.
           - name: Records disappear after enabling decap
             description: |
               When `decapsulation_mode` is set and a record arrives via the L2-section
               path with a payload that does not match the configured tunnel, the record
-              is **dropped**. There is no fall back to the outer view (intentional --
-              see the merge logic at
-              `src/crates/netflow-plugin/src/decoder/protocol/packet/transport.rs:21-33`).
-              For sFlow with decap on, only `SampledHeader` records are processed;
+              is **dropped**. There is no fall back to the outer view. For sFlow with decap on, only `SampledHeader` records are processed;
               `SampledIPv4`, `SampledIPv6`, `SampledEthernet`, `ExtendedSwitch`,
               `ExtendedRouter`, `ExtendedGateway` records are skipped. If the same
               exporter mixes tunnel and non-tunnel traffic on the L2-section path, you
               will lose the non-tunnel records.
           - name: VXLAN on a non-default UDP port goes undetected
             description: |
-              The VXLAN parser matches only UDP destination port 4789
-              (`src/crates/netflow-plugin/src/decoder/common.rs:11`,
-              `VXLAN_UDP_PORT: u16 = 4789`). VXLAN-GPE on 4790 and any
+              The VXLAN parser matches only UDP destination port 4789. VXLAN-GPE on 4790 and any
               vendor-custom port are not recognised and the record is dropped under
               `decapsulation_mode: vxlan`.
           - name: Frame section truncated, inner parsing fails
@@ -4633,8 +4493,8 @@ modules:
               headers. On Juniper inline-monitoring, the knob is `maximum-clip-length`.
           - name: VNI-based segmentation invisible
             description: |
-              Bytes 4-6 of the VXLAN header (the VNI) are not surfaced to journal
-              fields today. If the inner Ethernet carries a VLAN tag, that VLAN reaches
+              Bytes 4-6 of the VXLAN header (the VNI) are not exposed as journal
+              fields. If the inner Ethernet carries a VLAN tag, that VLAN reaches
               `SRC_VLAN` / `DST_VLAN` and works for segmentation -- pure VNI does not.
               No workaround inside the plugin; either VLAN-tag the inner traffic or
               filter at query time using the tunnel-endpoint pair before decap.
@@ -4650,7 +4510,7 @@ modules:
         enabled: false
       description: |
         Decapsulation rewrites flow-record fields in place; it produces no metrics of its
-        own. Verify on the Network Flows tab that `SRC_ADDR` / `DST_ADDR` reflect inner
+        own. Verify on the Network Flows view that `SRC_ADDR` / `DST_ADDR` reflect inner
         endpoints rather than the tunnel pair after enabling the mode.
       availability: []
       scopes: []
