@@ -1570,3 +1570,48 @@ Breaking change notice: any user config that set
 `journal.query_facet_max_values_per_field` will now fail
 to deserialize (deny_unknown_fields). The key had no
 effect before; migration is delete-only.
+
+#### F11 -- 2026-05-07 -- empty IP Intelligence page
+
+Investigation: `docs/network-flows/enrichment/ip-intelligence.md`
+was a 0-byte file in master. `git log --all --format=%H` of
+that path shows it has been 0 bytes since the original
+documentation rewrite commit (a073bcf24f). It was meant to
+be the "Enrichment Concepts / IP Intelligence" page but
+got created empty.
+
+Repair: authored the page from scratch, code-grounded
+against:
+
+- `src/crates/netflow-plugin/src/plugin_config/types/enrichment/geoip.rs`
+  (GeoIpConfig: asn_database / geo_database / optional).
+- `src/crates/netflow-plugin/src/plugin_config/runtime.rs:23-64`
+  (auto-detect path: cache_dir/topology-ip-intel/* and
+  stock_data_dir/topology-ip-intel/*; auto-detected files
+  marked optional=true).
+- `src/crates/netflow-plugin/src/enrichment/data/geoip/resolver.rs`
+  (load, refresh-if-needed every 30s on signature change,
+  per-IP lookup composing multiple ASN/geo databases,
+  IPv6-vs-IPv4-database skip).
+- `src/crates/netflow-plugin/src/enrichment.rs:35`
+  (GEOIP_RELOAD_CHECK_INTERVAL = 30s).
+- `src/crates/netflow-plugin/src/enrichment/data/network/asn.rs`
+  (AS-name rendering format).
+
+Page covers: fields populated (with tier-preservation
+notes), configuration schema, auto-detection, refresh
+cadence, lookup order, the four provider integration cards,
+private-IP rendering, IPv6-only/IPv4-only database
+behaviour, staleness drift, geographic-accuracy caveats,
+failure modes table.
+
+Frontmatter `learn_rel_path` set to
+"Network Flows/Enrichment Concepts" to match the bgp-routing
+and network-identity siblings (the source frontmatter is
+informational; the actual sidebar position derives from
+`docs/.map/map.yaml`). F20 will rename the section
+consistently across map.yaml and all sibling frontmatter.
+
+Files touched:
+- docs/network-flows/enrichment/ip-intelligence.md
+  (created from empty)
