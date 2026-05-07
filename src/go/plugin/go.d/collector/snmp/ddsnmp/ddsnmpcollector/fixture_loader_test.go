@@ -234,12 +234,17 @@ func expectSNMPWalkFromFixture(mockHandler *snmpmock.MockHandler, version gosnmp
 	expectSNMPWalk(mockHandler, version, root, pdus)
 }
 
-func expectSNMPGetFromFixture(mockHandler *snmpmock.MockHandler, fixture *snmpFixture, oids []string) {
+func mustExpectSNMPGetFromFixture(t *testing.T, mockHandler *snmpmock.MockHandler, fixture *snmpFixture, oids []string) {
+	t.Helper()
+
 	pdus := make([]gosnmp.SnmpPDU, 0, len(oids))
 	for _, oid := range oids {
-		if pdu, ok := fixture.byOID[trimOID(oid)]; ok {
-			pdus = append(pdus, pdu)
+		trimmed := trimOID(oid)
+		pdu, ok := fixture.byOID[trimmed]
+		if !ok {
+			t.Fatalf("fixture is missing expected GET OID %s", trimmed)
 		}
+		pdus = append(pdus, pdu)
 	}
 
 	expectSNMPGet(mockHandler, oids, pdus)

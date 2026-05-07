@@ -125,6 +125,7 @@ var (
 			{ID: "snmp_device_prof_%s_stats_metrics_scalar", Name: "scalar"},
 			{ID: "snmp_device_prof_%s_stats_metrics_table", Name: "table"},
 			{ID: "snmp_device_prof_%s_stats_metrics_virtual", Name: "virtual"},
+			{ID: "snmp_device_prof_%s_stats_metrics_licensing", Name: "licensing"},
 			{ID: "snmp_device_prof_%s_stats_metrics_tables", Name: "tables"},
 			{ID: "snmp_device_prof_%s_stats_metrics_rows", Name: "rows"},
 		},

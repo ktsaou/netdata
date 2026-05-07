@@ -9,8 +9,9 @@ import "slices"
 type ProfileConsumer string
 
 const (
-	ConsumerMetrics  ProfileConsumer = "metrics"
-	ConsumerTopology ProfileConsumer = "topology"
+	ConsumerMetrics   ProfileConsumer = "metrics"
+	ConsumerTopology  ProfileConsumer = "topology"
+	ConsumerLicensing ProfileConsumer = "licensing"
 )
 
 type ConsumerSet []ProfileConsumer

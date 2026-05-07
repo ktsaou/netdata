@@ -66,7 +66,7 @@ func TestCollector_Collect_CiscoSmartLicensingProfile(t *testing.T) {
 	assert.Empty(t, pm.Metrics)
 	require.Len(t, pm.HiddenMetrics, 7)
 
-	byID := licenseMetricsByIDAndKind(pm.HiddenMetrics)
+	byID := mustLicenseMetricsByIDAndKind(t, pm.HiddenMetrics)
 
 	require.EqualValues(t, 0, byID["smart_registration"]["state_severity"].Value)
 	assert.Equal(t, "Smart Licensing registration", metricTagValue(*byID["smart_registration"]["state_severity"], "_license_name"))
@@ -131,7 +131,7 @@ func TestCollector_Collect_CiscoSmartLicensingProfile_PartialData(t *testing.T) 
 	assert.Empty(t, pm.Metrics)
 	require.Len(t, pm.HiddenMetrics, 4)
 
-	byID := licenseMetricsByIDAndKind(pm.HiddenMetrics)
+	byID := mustLicenseMetricsByIDAndKind(t, pm.HiddenMetrics)
 
 	require.EqualValues(t, 0, byID["smart_registration"]["state_severity"].Value)
 	require.EqualValues(t, 0, byID["smart_authorization_state"]["state_severity"].Value)

@@ -204,6 +204,13 @@ func (c *Collector) collectProfile(ps *profileState) (*ddsnmp.ProfileMetrics, er
 	}
 	pm.TopologyMetrics = append(pm.TopologyMetrics, topologyMetrics...)
 
+	licenseRows, err := c.collectLicenseRows(ps.profile, &pm.Stats)
+	if err != nil {
+		return nil, err
+	}
+	pm.LicenseRows = append(pm.LicenseRows, licenseRows...)
+	pm.Stats.Metrics.Licensing += int64(len(licenseRows))
+
 	for i := range pm.Metrics {
 		pm.Metrics[i].Profile = pm
 	}
@@ -221,6 +228,9 @@ func (c *Collector) updateProfileMetrics(pm *ddsnmp.ProfileMetrics) {
 	for i := range pm.TopologyMetrics {
 		sanitizeMetricMetadata(&pm.TopologyMetrics[i])
 	}
+	for i := range pm.LicenseRows {
+		sanitizeLicenseRow(&pm.LicenseRows[i])
+	}
 }
 
 func sanitizeMetricMetadata(m *ddsnmp.Metric) {
@@ -235,6 +245,23 @@ func sanitizeMetricMetadata(m *ddsnmp.Metric) {
 			continue
 		}
 		m.Tags[k] = metricMetaReplacer.Replace(v)
+	}
+}
+
+func sanitizeLicenseRow(row *ddsnmp.LicenseRow) {
+	row.ID = metricMetaReplacer.Replace(row.ID)
+	row.Name = metricMetaReplacer.Replace(row.Name)
+	row.Feature = metricMetaReplacer.Replace(row.Feature)
+	row.Component = metricMetaReplacer.Replace(row.Component)
+	row.Type = metricMetaReplacer.Replace(row.Type)
+	row.Impact = metricMetaReplacer.Replace(row.Impact)
+	row.State.Raw = metricMetaReplacer.Replace(row.State.Raw)
+	for k, v := range row.Tags {
+		if strings.HasPrefix(k, "rm:") {
+			delete(row.Tags, k)
+			continue
+		}
+		row.Tags[k] = metricMetaReplacer.Replace(v)
 	}
 }
 

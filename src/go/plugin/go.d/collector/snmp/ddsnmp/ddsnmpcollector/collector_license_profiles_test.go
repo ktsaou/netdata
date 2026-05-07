@@ -56,7 +56,7 @@ func TestCollector_Collect_CheckPointLicensingProfile(t *testing.T) {
 	assert.Empty(t, pm.Metrics)
 	require.Len(t, pm.HiddenMetrics, 4)
 
-	row := licenseMetricsByIDAndKind(pm.HiddenMetrics)["17"]
+	row := mustLicenseMetricsByIDAndKind(t, pm.HiddenMetrics)["17"]
 	require.NotNil(t, row)
 	require.EqualValues(t, 100, row["capacity"].Value)
 	require.EqualValues(t, 85, row["usage"].Value)
@@ -92,7 +92,7 @@ func TestCollector_Collect_FortiGateLicensingProfile(t *testing.T) {
 	assert.Empty(t, pm.Metrics)
 	require.Len(t, pm.HiddenMetrics, 3)
 
-	byID := licenseMetricsByIDAndKind(pm.HiddenMetrics)
+	byID := mustLicenseMetricsByIDAndKind(t, pm.HiddenMetrics)
 
 	contract := byID["FortiCare Support"]
 	require.NotNil(t, contract)
@@ -147,7 +147,7 @@ func TestCollector_Collect_MikroTikLicensingProfile(t *testing.T) {
 	assert.Empty(t, pm.Metrics)
 	require.Len(t, pm.HiddenMetrics, 1)
 
-	row := licenseMetricsByIDAndKind(pm.HiddenMetrics)["routeros_upgrade"]
+	row := mustLicenseMetricsByIDAndKind(t, pm.HiddenMetrics)["routeros_upgrade"]
 	require.NotNil(t, row)
 	require.EqualValues(t, time.Date(2030, time.January, 1, 0, 0, 0, 0, time.UTC).Unix(), row["expiry_timestamp"].Value)
 	assert.Equal(t, "RouterOS upgrade entitlement", metricTagValue(*row["expiry_timestamp"], "_license_name"))

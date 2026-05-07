@@ -82,7 +82,7 @@ func TestCollector_Collect_SophosLicensingProfile_PreservesRawStateAndExpiryOnSc
 	assert.Empty(t, pm.Metrics)
 	require.Len(t, pm.HiddenMetrics, 18)
 
-	byID := groupLicenseMetricsByID(pm.HiddenMetrics)
+	byID := mustGroupLicenseMetricsByID(t, pm.HiddenMetrics)
 	require.Len(t, byID, 9)
 
 	expectations := map[string]struct {
@@ -132,7 +132,9 @@ type licenseMetricSignals struct {
 	expiry *ddsnmp.Metric
 }
 
-func groupLicenseMetricsByID(metrics []ddsnmp.Metric) map[string]licenseMetricSignals {
+func mustGroupLicenseMetricsByID(t *testing.T, metrics []ddsnmp.Metric) map[string]licenseMetricSignals {
+	t.Helper()
+
 	byID := make(map[string]licenseMetricSignals, len(metrics))
 	for i := range metrics {
 		id := metrics[i].StaticTags["_license_id"]
@@ -146,8 +148,14 @@ func groupLicenseMetricsByID(metrics []ddsnmp.Metric) map[string]licenseMetricSi
 		signals := byID[id]
 		switch metrics[i].Name {
 		case "_license_row":
+			if signals.state != nil {
+				t.Fatalf("duplicate license state metric for id %q", id)
+			}
 			signals.state = &metrics[i]
 		case "_license_row_expiry":
+			if signals.expiry != nil {
+				t.Fatalf("duplicate license expiry metric for id %q", id)
+			}
 			signals.expiry = &metrics[i]
 		}
 		byID[id] = signals

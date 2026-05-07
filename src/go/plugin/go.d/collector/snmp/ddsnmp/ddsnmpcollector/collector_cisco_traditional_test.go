@@ -73,7 +73,7 @@ func TestCollector_Collect_CiscoTraditionalLicensingProfile(t *testing.T) {
 	assert.Empty(t, pm.Metrics)
 	require.Len(t, pm.HiddenMetrics, 7)
 
-	byID := licenseMetricsByIDAndKind(pm.HiddenMetrics)
+	byID := mustLicenseMetricsByIDAndKind(t, pm.HiddenMetrics)
 
 	subscription := byID["SECURITYK9"]
 	require.NotNil(t, subscription)

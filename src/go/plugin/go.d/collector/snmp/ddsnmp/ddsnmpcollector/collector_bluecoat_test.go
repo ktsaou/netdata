@@ -73,7 +73,7 @@ func TestCollector_Collect_BlueCoatLicensingProfile(t *testing.T) {
 	assert.Empty(t, pm.Metrics)
 	require.Len(t, pm.HiddenMetrics, 5)
 
-	byID := licenseMetricsByIDAndKind(pm.HiddenMetrics)
+	byID := mustLicenseMetricsByIDAndKind(t, pm.HiddenMetrics)
 
 	subscription := byID["1"]
 	require.NotNil(t, subscription)

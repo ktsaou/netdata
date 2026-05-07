@@ -26,6 +26,8 @@ func mustLoadLicensingProfile(t *testing.T, profileName string, keep func(metric
 	profile.Definition.MetricTags = nil
 	profile.Definition.StaticTags = nil
 	profile.Definition.VirtualMetrics = nil
+	profile.Definition.Topology = nil
+	profile.Definition.Licensing = nil
 	profile.Definition.Metrics = slices.DeleteFunc(profile.Definition.Metrics, func(metric ddprofiledefinition.MetricsConfig) bool {
 		return !keep(metric)
 	})
@@ -50,7 +52,9 @@ func licenseMetricID(metric ddsnmp.Metric) string {
 	return metric.Tags["_license_id"]
 }
 
-func licenseMetricsByIDAndKind(metrics []ddsnmp.Metric) map[string]map[string]*ddsnmp.Metric {
+func mustLicenseMetricsByIDAndKind(t *testing.T, metrics []ddsnmp.Metric) map[string]map[string]*ddsnmp.Metric {
+	t.Helper()
+
 	out := make(map[string]map[string]*ddsnmp.Metric)
 	for i := range metrics {
 		metric := &metrics[i]
@@ -64,6 +68,9 @@ func licenseMetricsByIDAndKind(metrics []ddsnmp.Metric) map[string]map[string]*d
 		}
 		if out[id] == nil {
 			out[id] = make(map[string]*ddsnmp.Metric)
+		}
+		if existing := out[id][kind]; existing != nil {
+			t.Fatalf("duplicate license metric for id %q and kind %q: %s and %s", id, kind, existing.Name, metric.Name)
 		}
 		out[id][kind] = metric
 	}

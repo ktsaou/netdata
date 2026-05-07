@@ -12,6 +12,7 @@ type ProfileMetrics struct {
 	Tags            map[string]string
 	Metrics         []Metric
 	TopologyMetrics []Metric
+	LicenseRows     []LicenseRow
 	HiddenMetrics   []Metric
 	Stats           CollectionStats
 }
@@ -37,6 +38,59 @@ type Metric struct {
 type MetaTag struct {
 	Value        string
 	IsExactMatch bool // whether this value is from an exact match context
+}
+
+type LicenseRow struct {
+	OriginProfileID string
+	TableOID        string
+	Table           string
+	RowKey          string
+	StructuralID    string
+
+	ID        string
+	Name      string
+	Feature   string
+	Component string
+	Type      string
+	Impact    string
+
+	IsPerpetual bool
+	IsUnlimited bool
+
+	State         LicenseState
+	Expiry        LicenseTimer
+	Authorization LicenseTimer
+	Certificate   LicenseTimer
+	Grace         LicenseTimer
+	Usage         LicenseUsage
+
+	Tags map[string]string
+}
+
+type LicenseState struct {
+	Has       bool
+	Severity  int64
+	Raw       string
+	Policy    ddprofiledefinition.LicenseStatePolicy
+	SourceOID string
+}
+
+type LicenseTimer struct {
+	Has              bool
+	Timestamp        int64
+	RemainingSeconds int64
+	SourceOID        string
+}
+
+type LicenseUsage struct {
+	HasUsed      bool
+	Used         int64
+	HasCapacity  bool
+	Capacity     int64
+	HasAvailable bool
+	Available    int64
+	HasPercent   bool
+	Percent      int64
 }
 
 // CollectionStats contains statistics for a single profile collection cycle.
@@ -86,6 +140,8 @@ type MetricCountStats struct {
 	Table int64
 	// Virtual is the count of computed/derived metrics.
 	Virtual int64
+	// Licensing is the count of typed licensing rows produced.
+	Licensing int64
 	// Tables is the count of unique tables with metrics.
 	Tables int64
 	// Rows is the total number of table rows across all tables.

@@ -125,6 +125,7 @@ func (c *Collector) collectProfileStats(mx map[string]int64, pms []*ddsnmp.Profi
 		mx[px+"metrics_scalar"] = pm.Stats.Metrics.Scalar
 		mx[px+"metrics_table"] = pm.Stats.Metrics.Table
 		mx[px+"metrics_virtual"] = pm.Stats.Metrics.Virtual
+		mx[px+"metrics_licensing"] = pm.Stats.Metrics.Licensing
 		mx[px+"metrics_tables"] = pm.Stats.Metrics.Tables
 		mx[px+"metrics_rows"] = pm.Stats.Metrics.Rows
 		mx[px+"table_cache_hits"] = pm.Stats.TableCache.Hits

@@ -41,7 +41,7 @@ func TestCollector_Collect_CiscoTraditionalLicensingProfile_Fixture(t *testing.T
 	assert.Empty(t, pm.Metrics)
 	require.Len(t, pm.HiddenMetrics, 6)
 
-	byID := licenseMetricsByIDAndKind(pm.HiddenMetrics)
+	byID := mustLicenseMetricsByIDAndKind(t, pm.HiddenMetrics)
 
 	permanent := byID["ipbasek9"]
 	require.NotNil(t, permanent)
@@ -90,7 +90,7 @@ func TestCollector_Collect_CheckPointLicensingProfile_CommunitySample(t *testing
 	assert.Empty(t, pm.Metrics)
 	require.Len(t, pm.HiddenMetrics, 10)
 
-	byID := licenseMetricsByIDAndKind(pm.HiddenMetrics)
+	byID := mustLicenseMetricsByIDAndKind(t, pm.HiddenMetrics)
 
 	firewall := byID["0"]
 	require.NotNil(t, firewall)
@@ -125,7 +125,7 @@ func TestCollector_Collect_SophosLicensingProfile_Fixture(t *testing.T) {
 	defer ctrl.Finish()
 
 	fixture := mustLoadSNMPFixture(t, "testdata/licensing/sophos-xgs-firewall.snmprec")
-	expectSNMPGetFromFixture(mockHandler, fixture, []string{
+	mustExpectSNMPGetFromFixture(t, mockHandler, fixture, []string{
 		"1.3.6.1.4.1.2604.5.1.5.1.1.0",
 		"1.3.6.1.4.1.2604.5.1.5.1.2.0",
 		"1.3.6.1.4.1.2604.5.1.5.2.1.0",
@@ -137,7 +137,7 @@ func TestCollector_Collect_SophosLicensingProfile_Fixture(t *testing.T) {
 		"1.3.6.1.4.1.2604.5.1.5.5.1.0",
 		"1.3.6.1.4.1.2604.5.1.5.5.2.0",
 	})
-	expectSNMPGetFromFixture(mockHandler, fixture, []string{
+	mustExpectSNMPGetFromFixture(t, mockHandler, fixture, []string{
 		"1.3.6.1.4.1.2604.5.1.5.6.1.0",
 		"1.3.6.1.4.1.2604.5.1.5.6.2.0",
 		"1.3.6.1.4.1.2604.5.1.5.7.1.0",
@@ -168,7 +168,7 @@ func TestCollector_Collect_SophosLicensingProfile_Fixture(t *testing.T) {
 	assert.Empty(t, pm.Metrics)
 	require.Len(t, pm.HiddenMetrics, 18)
 
-	byID := groupLicenseMetricsByID(pm.HiddenMetrics)
+	byID := mustGroupLicenseMetricsByID(t, pm.HiddenMetrics)
 	require.Len(t, byID, 9)
 
 	expectations := map[string]struct {
@@ -211,7 +211,7 @@ func TestCollector_Collect_MikroTikLicensingProfile_Fixture(t *testing.T) {
 	defer ctrl.Finish()
 
 	fixture := mustLoadSNMPFixture(t, "testdata/licensing/mikrotik-router.snmprec")
-	expectSNMPGetFromFixture(mockHandler, fixture, []string{
+	mustExpectSNMPGetFromFixture(t, mockHandler, fixture, []string{
 		"1.3.6.1.4.1.14988.1.1.4.2.0",
 	})
 
@@ -234,7 +234,7 @@ func TestCollector_Collect_MikroTikLicensingProfile_Fixture(t *testing.T) {
 	assert.Empty(t, pm.Metrics)
 	require.Len(t, pm.HiddenMetrics, 1)
 
-	row := licenseMetricsByIDAndKind(pm.HiddenMetrics)["routeros_upgrade"]
+	row := mustLicenseMetricsByIDAndKind(t, pm.HiddenMetrics)["routeros_upgrade"]
 	require.NotNil(t, row)
 	require.EqualValues(t, time.Date(2002, time.September, 21, 13, 53, 32, 300_000_000, time.UTC).Unix(), row["expiry_timestamp"].Value)
 	assert.Equal(t, "RouterOS upgrade entitlement", metricTagValue(*row["expiry_timestamp"], "_license_name"))
@@ -248,16 +248,11 @@ func TestCollector_Collect_CiscoSmartLicensingProfile_Fixture(t *testing.T) {
 	defer ctrl.Finish()
 
 	fixture := mustLoadSNMPFixture(t, "testdata/licensing/cisco-smart-iosxe-c9800.snmprec")
-	expectSNMPGetFromFixture(mockHandler, fixture, []string{
-		"1.3.6.1.4.1.9.9.831.0.6.1",
-		"1.3.6.1.4.1.9.9.831.0.7.2",
-		"1.3.6.1.4.1.9.9.831.0.7.1",
-		"1.3.6.1.4.1.9.9.831.0.6.3",
-		"1.3.6.1.4.1.9.9.831.0.7.4.2",
-	})
 	expectSNMPWalkFromFixture(mockHandler, gosnmp.Version2c, fixture, "1.3.6.1.4.1.9.9.831.0.5.1")
 
-	profile := mustLoadCiscoSmartProfile(t)
+	profile := mustLoadLicensingProfile(t, "cisco", func(metric ddprofiledefinition.MetricsConfig) bool {
+		return strings.TrimPrefix(metric.Table.OID, ".") == "1.3.6.1.4.1.9.9.831.0.5.1"
+	})
 
 	collector := New(Config{
 		SnmpClient:  mockHandler,
@@ -274,7 +269,7 @@ func TestCollector_Collect_CiscoSmartLicensingProfile_Fixture(t *testing.T) {
 	assert.Empty(t, pm.Metrics)
 	require.Len(t, pm.HiddenMetrics, 4)
 
-	byID := licenseMetricsByIDAndKind(pm.HiddenMetrics)
+	byID := mustLicenseMetricsByIDAndKind(t, pm.HiddenMetrics)
 
 	dna := byID["DNA_NWSTACK_E"]
 	require.NotNil(t, dna)

@@ -2,9 +2,9 @@
 
 ## Status
 
-Status: in-progress
+Status: completed
 
-Sub-state: triage complete; live cloud evidence captured; root causes located; reviewed by six external assistants in three iterations; user decisions recorded 2026-05-06; implementation in progress; backend topology filters removed from scope by project-owner decision.
+Sub-state: completed after PR merge. User confirmed fixes merged in commit `cc50307bc6ca180285a0e0cda16d73ab7a42cd86` (`Fix streaming topology graph output (#22432)`) on 2026-05-07.
 
 ## Requirements
 
@@ -514,30 +514,34 @@ PR commit order: split → B → A → D → C → doc → tests → validation.
 - 2026-05-06 — validation so far: focused compiler syntax check of `src/web/api/functions/function-topology-streaming.c` passed using the existing `functions.c` compile flags from `compile_commands.json`. Full `cmake --build build-clion --target netdata -j4` did not reach code compilation because CMake reconfigured and failed while fetching the pre-existing Sentry/crashpad dependency (`mini_chromium` HTTP 400 / expected acknowledgments). This is an environment/dependency fetch failure, not a compiler error from the topology file.
 - 2026-05-06 — after project owner installed the build locally, queried the installed local agent through bearer-protected direct API without printing tokens or durable identifiers. Sanitized runtime summary: `status=200`, `accepted_params=["info"]`, `actors=22`, `links=22`, actor type counts `child=13`, `parent=2`, `stale=1`, `vnode=6`, link type counts `streaming=15`, `virtual=6`, `stale=1`, duplicate actor ids `0`, duplicate link tuples `0`, vnode stale links `0`.
 - 2026-05-06 — project owner decision: do not add tests before first PR publication. Open a draft PR now so online reviewers can inspect the code. Tests remain a known validation gap and this SOW remains in progress until follow-up validation is complete or the project owner explicitly accepts closure without tests.
+- 2026-05-07 — project owner confirmed the PR with fixes was merged as commit `cc50307bc6ca180285a0e0cda16d73ab7a42cd86` (`Fix streaming topology graph output (#22432)`) and requested moving this SOW to `done/`.
 
 ## Validation
 
-Partial, implementation still in progress.
+Completed for SOW close based on merged PR evidence and project-owner acceptance.
 
 - Focused syntax validation passed for `src/web/api/functions/function-topology-streaming.c` using the existing `functions.c` compile command from `compile_commands.json`, replacing the source path and using `-fsyntax-only`.
 - Full local build attempted with `cmake --build build-clion --target netdata -j4`. It failed during CMake reconfigure while fetching the pre-existing Sentry/crashpad dependency (`external/crashpad/third_party/mini_chromium/mini_chromium`, HTTP 400 / expected acknowledgments) before compiling Netdata sources.
 - Same-failure search for removed backend filter identifiers in `function-topology-streaming.c` found no remaining `value_in_csv`, `filter_node_type`, `filter_ingest_status`, `filter_stream_status`, `node_type:`, `ingest_status:`, or `stream_status:` references.
 - Installed-agent runtime validation via direct local Function call: `status=200`; `accepted_params` contains only `info`; graph contains 22 actors and 22 links; actor/link duplicate checks are zero; vnode stale-link check is zero.
-- Tests: deferred by project-owner decision for the first draft PR. This is a known gap for reviewers, not a completed validation item.
+- Merge evidence: `git show --stat --oneline cc50307bc6ca180285a0e0cda16d73ab7a42cd86 --` shows commit `cc50307bc Fix streaming topology graph output (#22432)` with the expected function split, topology function changes, `src/streaming/STREAM_PATH.md`, build manifest updates, and this SOW artifact.
+- Tests: deferred by project-owner decision for the first draft PR and accepted at merge time. This remains a residual test gap but no longer blocks this SOW.
 
 ## Outcome
 
-Pending.
+Completed. PR `#22432` merged as commit `cc50307bc6ca180285a0e0cda16d73ab7a42cd86`, delivering the streaming topology graph fixes, function split, backend filter removal, timestamp column type correction, synthesized upstream parent rendering, and `STREAM_PATH` maintenance documentation.
 
 ## Lessons Extracted
 
-Pending.
+- The streaming topology view must treat stored stream paths as hints, not as complete live topology truth for localhost classification.
+- Backend graph-pruning filters can make topology responses internally inconsistent when the frontend expects to facet over a complete graph.
+- For SOWs that intentionally publish a draft before tests, the residual test gap must be explicit and requires project-owner acceptance before close.
 
 ## Followup
 
-- If the multi-hop / non-localhost classification residual surfaces in real use after this SOW lands, open a follow-up SOW that extends the live-state classification (Decision 1 Option 1) to all hosts (Option 2 in this SOW). **No protocol change is contemplated** — both this SOW and any follow-up are entirely inside the topology function.
-- Add a how-to under `docs/netdata-ai/skills/query-netdata-cloud/how-tos/` describing how to call `topology:streaming` and how to interpret actor types and the streaming-path table.
-- **Open a separate SOW for streaming-path defensive hardening** in `src/streaming/stream-path.c`: (a) clamp incoming JSON array length to `UINT16_MAX` before `callocz` to prevent uint16_t truncation of `host->stream.path.size`/`used`; (b) add scalar range checks for `hops` (int16_t), `start_time_ms` (uint32_t), `shutdown_time_ms` (uint32_t) against negative inputs from a malformed peer at `stream-path.c:313-317`. Pre-existing defensive gap, not introduced by this work.
+- Conditional residual: if the multi-hop / non-localhost classification residual surfaces in real use after this SOW lands, open a follow-up SOW that extends the live-state classification (Decision 1 Option 1) to all hosts (Option 2 in this SOW). No protocol change is contemplated; both this SOW and any follow-up are entirely inside the topology function.
+- Query skill how-to: not required for the merged code path and not blocking this SOW close by project-owner acceptance. Track under future `query-netdata-cloud` skill maintenance if the workflow recurs.
+- Streaming-path defensive hardening: explicitly out of scope for this SOW, pre-existing, and not introduced by the merged fixes. Track as a future hardening SOW only if prioritized.
 
 ## Regression Log
 
