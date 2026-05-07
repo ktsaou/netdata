@@ -12,232 +12,331 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// signal builds one hidden _license_row metric tagged with the given id, name,
-// kind, and value. The merge logic in licensing.go folds repeated calls with
-// the same id into a single licenseRow.
-func signal(id, name, kind string, value int64, extras ...map[string]string) ddsnmp.Metric {
-	tags := map[string]string{
-		tagLicenseID:        id,
-		tagLicenseName:      name,
-		tagLicenseValueKind: kind,
+type typedLicenseRowOption func(*ddsnmp.LicenseRow)
+
+func profileWithRows(rows ...ddsnmp.LicenseRow) []*ddsnmp.ProfileMetrics {
+	return []*ddsnmp.ProfileMetrics{{
+		Source:      "profiles/test-profile.yaml",
+		LicenseRows: rows,
+	}}
+}
+
+func typedLicenseRow(id, name string, opts ...typedLicenseRowOption) ddsnmp.LicenseRow {
+	structuralID := ""
+	if id != "" {
+		structuralID = "test-profile|scalar|" + id
 	}
-	for _, extra := range extras {
-		for k, v := range extra {
-			tags[k] = v
+	row := ddsnmp.LicenseRow{
+		OriginProfileID: "test-profile",
+		StructuralID:    structuralID,
+		ID:              id,
+		Name:            name,
+	}
+	for _, opt := range opts {
+		opt(&row)
+	}
+	return row
+}
+
+func withOriginProfileID(id string) typedLicenseRowOption {
+	return func(row *ddsnmp.LicenseRow) {
+		row.OriginProfileID = id
+	}
+}
+
+func withStructuralID(id string) typedLicenseRowOption {
+	return func(row *ddsnmp.LicenseRow) {
+		row.StructuralID = id
+	}
+}
+
+func withTable(oid, name, rowKey string) typedLicenseRowOption {
+	return func(row *ddsnmp.LicenseRow) {
+		row.TableOID = oid
+		row.Table = name
+		row.RowKey = rowKey
+		if row.StructuralID == "" && row.OriginProfileID != "" && oid != "" && rowKey != "" {
+			row.StructuralID = row.OriginProfileID + "|table|" + oid + "|" + rowKey
 		}
 	}
-	return ddsnmp.Metric{Name: licenseSourceMetricName, Value: value, Tags: tags}
 }
 
-func profileWith(metrics ...ddsnmp.Metric) []*ddsnmp.ProfileMetrics {
-	pm := &ddsnmp.ProfileMetrics{Source: "test.yaml", HiddenMetrics: metrics}
-	for i := range pm.HiddenMetrics {
-		pm.HiddenMetrics[i].Profile = pm
+func withState(severity int64, raw string) typedLicenseRowOption {
+	return func(row *ddsnmp.LicenseRow) {
+		row.State.Has = true
+		row.State.Severity = severity
+		row.State.Raw = raw
 	}
-	return []*ddsnmp.ProfileMetrics{pm}
 }
 
-func TestExtractLicenseRows_MergesSignalsByID(t *testing.T) {
-	now := time.Now().UTC()
+func withRawState(raw string) typedLicenseRowOption {
+	return func(row *ddsnmp.LicenseRow) {
+		row.State.Raw = raw
+	}
+}
+
+func withExpiry(timestamp int64) typedLicenseRowOption {
+	return func(row *ddsnmp.LicenseRow) {
+		row.Expiry.Has = true
+		row.Expiry.Timestamp = timestamp
+	}
+}
+
+func withExpiryRemaining(seconds int64) typedLicenseRowOption {
+	return func(row *ddsnmp.LicenseRow) {
+		row.Expiry.Has = true
+		row.Expiry.RemainingSeconds = seconds
+	}
+}
+
+func withAuthorizationRemaining(seconds int64) typedLicenseRowOption {
+	return func(row *ddsnmp.LicenseRow) {
+		row.Authorization.Has = true
+		row.Authorization.RemainingSeconds = seconds
+	}
+}
+
+func withCertificateRemaining(seconds int64) typedLicenseRowOption {
+	return func(row *ddsnmp.LicenseRow) {
+		row.Certificate.Has = true
+		row.Certificate.RemainingSeconds = seconds
+	}
+}
+
+func withGraceRemaining(seconds int64) typedLicenseRowOption {
+	return func(row *ddsnmp.LicenseRow) {
+		row.Grace.Has = true
+		row.Grace.RemainingSeconds = seconds
+	}
+}
+
+func withExpirySource(source string) typedLicenseRowOption {
+	return func(row *ddsnmp.LicenseRow) {
+		row.Expiry.SourceOID = source
+	}
+}
+
+func withUsage(used int64) typedLicenseRowOption {
+	return func(row *ddsnmp.LicenseRow) {
+		row.Usage.HasUsed = true
+		row.Usage.Used = used
+	}
+}
+
+func withCapacity(capacity int64) typedLicenseRowOption {
+	return func(row *ddsnmp.LicenseRow) {
+		row.Usage.HasCapacity = true
+		row.Usage.Capacity = capacity
+	}
+}
+
+func withAvailable(available int64) typedLicenseRowOption {
+	return func(row *ddsnmp.LicenseRow) {
+		row.Usage.HasAvailable = true
+		row.Usage.Available = available
+	}
+}
+
+func withUsagePercent(percent int64) typedLicenseRowOption {
+	return func(row *ddsnmp.LicenseRow) {
+		row.Usage.HasPercent = true
+		row.Usage.Percent = percent
+	}
+}
+
+func withPerpetual() typedLicenseRowOption {
+	return func(row *ddsnmp.LicenseRow) {
+		row.IsPerpetual = true
+	}
+}
+
+func withUnlimited() typedLicenseRowOption {
+	return func(row *ddsnmp.LicenseRow) {
+		row.IsUnlimited = true
+	}
+}
+
+func TestExtractLicenseRows_FromTypedRows(t *testing.T) {
+	now := time.Date(2026, 4, 9, 12, 0, 0, 0, time.UTC)
 	expiry := now.Add(48 * time.Hour).Unix()
 
-	rows := extractLicenseRows(profileWith(
-		signal("base", "Base Firewall", licenseValueKindStateSeverity, 0),
-		signal("base", "Base Firewall", licenseValueKindExpiryTimestamp, expiry),
-		signal("base", "Base Firewall", licenseValueKindUsage, 75),
-		signal("base", "Base Firewall", licenseValueKindCapacity, 100),
-	), now)
+	tests := map[string]struct {
+		rows   []ddsnmp.LicenseRow
+		assert func(t *testing.T, rows []licenseRow)
+	}{
+		"copies identity descriptors state timer and usage": {
+			rows: []ddsnmp.LicenseRow{
+				typedLicenseRow("base", "Base Firewall",
+					withState(0, "active"),
+					withExpiry(expiry),
+					withUsage(75),
+					withCapacity(100),
+				),
+			},
+			assert: func(t *testing.T, rows []licenseRow) {
+				require.Len(t, rows, 1)
+				row := rows[0]
+				assert.Equal(t, "base", row.ID)
+				assert.Equal(t, "Base Firewall", row.Name)
+				assert.Equal(t, "test-profile", row.Source)
+				assert.True(t, row.HasState)
+				assert.EqualValues(t, 0, row.StateSeverity)
+				assert.True(t, row.HasExpiry)
+				assert.EqualValues(t, expiry, row.ExpiryTS)
+				assert.True(t, row.HasUsage)
+				assert.EqualValues(t, 75, row.Usage)
+				assert.True(t, row.HasCapacity)
+				assert.EqualValues(t, 100, row.Capacity)
+				assert.True(t, row.HasUsagePct)
+				assert.InDelta(t, 75.0, row.UsagePercent, 0.001)
+				assert.Equal(t, licenseStateBucketHealthy, row.StateBucket)
+			},
+		},
+		"derives usage from capacity minus available": {
+			rows: []ddsnmp.LicenseRow{
+				typedLicenseRow("pool", "Connection pool",
+					withCapacity(100),
+					withAvailable(25),
+				),
+			},
+			assert: func(t *testing.T, rows []licenseRow) {
+				require.Len(t, rows, 1)
+				assert.True(t, rows[0].HasUsage)
+				assert.EqualValues(t, 75, rows[0].Usage)
+				assert.True(t, rows[0].HasUsagePct)
+				assert.InDelta(t, 75.0, rows[0].UsagePercent, 0.001)
+			},
+		},
+		"rebases remaining timers on collect time": {
+			rows: []ddsnmp.LicenseRow{
+				typedLicenseRow("auth", "Auth", withAuthorizationRemaining(3600)),
+				typedLicenseRow("cert", "Cert", withCertificateRemaining(7200)),
+				typedLicenseRow("grace", "Grace", withGraceRemaining(1800)),
+				typedLicenseRow("sub", "Sub", withExpiryRemaining(600)),
+			},
+			assert: func(t *testing.T, rows []licenseRow) {
+				require.Len(t, rows, 4)
+				byID := make(map[string]licenseRow, len(rows))
+				for _, row := range rows {
+					byID[row.ID] = row
+				}
+				assert.EqualValues(t, now.Unix()+3600, byID["auth"].AuthorizationExpiry)
+				assert.EqualValues(t, now.Unix()+7200, byID["cert"].CertificateExpiry)
+				assert.EqualValues(t, now.Unix()+1800, byID["grace"].GraceExpiry)
+				assert.EqualValues(t, now.Unix()+600, byID["sub"].ExpiryTS)
+			},
+		},
+		"drops rows without identity or signal": {
+			rows: []ddsnmp.LicenseRow{
+				typedLicenseRow("present", "Present", withState(0, "")),
+				typedLicenseRow("", "No ID", withState(0, "")),
+				typedLicenseRow("stub", "No signal"),
+			},
+			assert: func(t *testing.T, rows []licenseRow) {
+				require.Len(t, rows, 1)
+				assert.Equal(t, "present", rows[0].ID)
+			},
+		},
+		"uses table OID as the internal table identity": {
+			rows: []ddsnmp.LicenseRow{
+				typedLicenseRow("FortiCare", "FortiCare",
+					withTable("1.3.6.1.4.1.12356.101.4.6.3.1", "fgLicContractTable", "1"),
+					withCapacity(100),
+				),
+				typedLicenseRow("FortiCare", "FortiCare",
+					withTable("1.3.6.1.4.1.12356.101.4.6.4.1", "fgLicVersionTable", "1"),
+					withCapacity(200),
+				),
+			},
+			assert: func(t *testing.T, rows []licenseRow) {
+				require.Len(t, rows, 2)
+				assert.NotEqual(t, rows[0].Table, rows[1].Table)
+				caps := []int64{rows[0].Capacity, rows[1].Capacity}
+				assert.Contains(t, caps, int64(100))
+				assert.Contains(t, caps, int64(200))
+			},
+		},
+		"ignores legacy hidden metrics": {
+			rows: nil,
+			assert: func(t *testing.T, _ []licenseRow) {
+				pm := &ddsnmp.ProfileMetrics{
+					Source: "profiles/test-profile.yaml",
+					HiddenMetrics: []ddsnmp.Metric{{
+						Name:  "_license_row",
+						Value: 0,
+						Tags:  map[string]string{"_license_id": "hidden", "_license_value_kind": "state_severity"},
+					}},
+				}
+				assert.Empty(t, extractLicenseRows([]*ddsnmp.ProfileMetrics{pm}, now))
+			},
+		},
+	}
 
-	require.Len(t, rows, 1)
-	row := rows[0]
-	assert.Equal(t, "base", row.ID)
-	assert.Equal(t, "Base Firewall", row.Name)
-	assert.True(t, row.HasState)
-	assert.EqualValues(t, 0, row.StateSeverity)
-	assert.True(t, row.HasExpiry)
-	assert.EqualValues(t, expiry, row.ExpiryTS)
-	assert.True(t, row.HasUsage)
-	assert.EqualValues(t, 75, row.Usage)
-	assert.True(t, row.HasCapacity)
-	assert.EqualValues(t, 100, row.Capacity)
-	assert.True(t, row.HasUsagePct)
-	assert.InDelta(t, 75.0, row.UsagePercent, 0.001)
-	assert.Equal(t, licenseStateBucketHealthy, row.StateBucket)
-}
-
-func TestExtractLicenseRows_DerivesUsageFromCapacityMinusAvailable(t *testing.T) {
-	now := time.Now().UTC()
-	rows := extractLicenseRows(profileWith(
-		signal("pool", "Connection pool", licenseValueKindCapacity, 100),
-		signal("pool", "Connection pool", licenseValueKindAvailable, 25),
-	), now)
-
-	require.Len(t, rows, 1)
-	assert.True(t, rows[0].HasUsage)
-	assert.EqualValues(t, 75, rows[0].Usage)
-	assert.True(t, rows[0].HasUsagePct)
-	assert.InDelta(t, 75.0, rows[0].UsagePercent, 0.001)
-}
-
-func TestExtractLicenseRows_RowsWithDifferentIDsStaySeparate(t *testing.T) {
-	now := time.Now().UTC()
-	rows := extractLicenseRows(profileWith(
-		signal("a", "License A", licenseValueKindStateSeverity, 0),
-		signal("b", "License B", licenseValueKindStateSeverity, 2),
-	), now)
-
-	require.Len(t, rows, 2)
-}
-
-func TestExtractLicenseRows_RemainingKindsAreRebasedOnNow(t *testing.T) {
-	now := time.Date(2026, 4, 9, 12, 0, 0, 0, time.UTC)
-
-	rows := extractLicenseRows(profileWith(
-		signal("a", "Auth", licenseValueKindAuthorizationRemaining, 3600),
-		signal("b", "Cert", licenseValueKindCertificateRemaining, 7200),
-		signal("c", "Grace", licenseValueKindGraceRemaining, 1800),
-		signal("d", "Sub", licenseValueKindExpiryRemaining, 600),
-	), now)
-
-	require.Len(t, rows, 4)
-	for _, row := range rows {
-		switch row.ID {
-		case "a":
-			assert.True(t, row.HasAuthorizationTime)
-			assert.EqualValues(t, now.Unix()+3600, row.AuthorizationExpiry)
-		case "b":
-			assert.True(t, row.HasCertificateTime)
-			assert.EqualValues(t, now.Unix()+7200, row.CertificateExpiry)
-		case "c":
-			assert.True(t, row.HasGraceTime)
-			assert.EqualValues(t, now.Unix()+1800, row.GraceExpiry)
-		case "d":
-			assert.True(t, row.HasExpiry)
-			assert.EqualValues(t, now.Unix()+600, row.ExpiryTS)
-		}
+	for name, tc := range tests {
+		t.Run(name, func(t *testing.T) {
+			rows := extractLicenseRows(profileWithRows(tc.rows...), now)
+			tc.assert(t, rows)
+		})
 	}
 }
 
-func TestNormalizeBucket_FreshSeverityWinsOverCachedRawState(t *testing.T) {
-	// The raw state string is collected as a same-table metric_tag and the
-	// SNMP table cache reuses it on cache hits. Severity comes from a fresh
-	// symbol PDU on every poll. When both are present the fresh severity
-	// must take precedence — otherwise a renewed license would still report
-	// the previous broken/degraded text for up to the cache TTL.
+func TestNormalizeLicenseStateBucket(t *testing.T) {
 	now := time.Date(2026, 4, 9, 12, 0, 0, 0, time.UTC)
 
-	rows := extractLicenseRows(profileWith(
-		// Fresh severity says healthy. Stale raw state still says
-		// "about-to-expire". The fresh signal wins.
-		signal("a", "About", licenseValueKindStateSeverity, 0,
-			map[string]string{tagLicenseStateRaw: "about-to-expire"}),
-		// Fresh severity says healthy. Stale raw state says "invalid".
-		// The fresh signal wins again.
-		signal("b", "Inv", licenseValueKindStateSeverity, 0,
-			map[string]string{tagLicenseStateRaw: "invalid"}),
-	), now)
-
-	require.Len(t, rows, 2)
-	assert.Equal(t, licenseStateBucketHealthy, rows[0].StateBucket)
-	assert.Equal(t, licenseStateBucketHealthy, rows[1].StateBucket)
-}
-
-func TestNormalizeBucket_RawStateUsedWhenNoFreshSeverity(t *testing.T) {
-	// With no _license_value_kind=state_severity, the raw state string is
-	// the only classification signal available — fall back to it.
-	now := time.Date(2026, 4, 9, 12, 0, 0, 0, time.UTC)
-
-	rows := extractLicenseRows(profileWith(
-		// State raw classifies as broken; no other signals exist.
-		ddsnmp.Metric{
-			Name:  licenseSourceMetricName,
-			Value: 0,
-			Tags: map[string]string{
-				tagLicenseID:        "stale",
-				tagLicenseName:      "Stale",
-				tagLicenseStateRaw:  "expired",
-				tagLicenseValueKind: licenseValueKindUsage, // any kind to keep the row
-			},
+	tests := map[string]struct {
+		row  ddsnmp.LicenseRow
+		want licenseStateBucket
+	}{
+		"fresh severity recovers from stale broken raw state": {
+			row:  typedLicenseRow("renewed", "Renewed", withState(0, "expired")),
+			want: licenseStateBucketHealthy,
 		},
-	), now)
-
-	require.Len(t, rows, 1)
-	// Without a fresh severity the cached raw text is still better than
-	// nothing, so the row classifies as broken.
-	assert.Equal(t, licenseStateBucketBroken, rows[0].StateBucket)
-}
-
-func TestNormalizeBucket_RawDegradedStateUsedWhenNoFreshSeverity(t *testing.T) {
-	now := time.Date(2026, 4, 9, 12, 0, 0, 0, time.UTC)
-
-	rows := extractLicenseRows(profileWith(
-		ddsnmp.Metric{
-			Name:  licenseSourceMetricName,
-			Value: 0,
-			Tags: map[string]string{
-				tagLicenseID:        "raw-degraded",
-				tagLicenseName:      "Raw Degraded",
-				tagLicenseStateRaw:  "degraded",
-				tagLicenseValueKind: licenseValueKindUsage, // any stamped kind keeps the row
-			},
+		"ignored raw state suppresses severity zero": {
+			row:  typedLicenseRow("inactive", "Inactive", withState(0, "none")),
+			want: licenseStateBucketIgnored,
 		},
-	), now)
+		"eval raw state becomes informational instead of degraded": {
+			row:  typedLicenseRow("eval", "Evaluation", withState(1, "Evaluation")),
+			want: licenseStateBucketInformational,
+		},
+		"raw broken state is used when no fresh severity exists": {
+			row:  typedLicenseRow("raw-broken", "Raw Broken", withRawState("expired"), withUsage(1)),
+			want: licenseStateBucketBroken,
+		},
+		"raw degraded state is used when no fresh severity exists": {
+			row:  typedLicenseRow("raw-degraded", "Raw Degraded", withRawState("degraded"), withUsage(1)),
+			want: licenseStateBucketDegraded,
+		},
+		"expired timer forces broken over valid raw state": {
+			row:  typedLicenseRow("expired", "Expired", withRawState("valid"), withExpiry(now.Add(-time.Hour).Unix())),
+			want: licenseStateBucketBroken,
+		},
+		"grace timer without expiry is degraded": {
+			row:  typedLicenseRow("grace", "Grace", withGraceRemaining(3600)),
+			want: licenseStateBucketDegraded,
+		},
+		"fully consumed usage is broken": {
+			row:  typedLicenseRow("pool", "Pool", withUsagePercent(100)),
+			want: licenseStateBucketBroken,
+		},
+	}
 
-	require.Len(t, rows, 1)
-	assert.Equal(t, licenseStateBucketDegraded, rows[0].StateBucket)
+	for name, tc := range tests {
+		t.Run(name, func(t *testing.T) {
+			rows := extractLicenseRows(profileWithRows(tc.row), now)
+			require.Len(t, rows, 1)
+			assert.Equal(t, tc.want, rows[0].StateBucket)
+		})
+	}
 }
 
-func TestNormalizeBucket_ExpiredTimerForcesBroken(t *testing.T) {
-	now := time.Date(2026, 4, 9, 12, 0, 0, 0, time.UTC)
-	pastExpiry := now.Add(-1 * time.Hour).Unix()
-
-	rows := extractLicenseRows(profileWith(
-		signal("expired", "Expired", licenseValueKindExpiryTimestamp, pastExpiry,
-			map[string]string{tagLicenseStateRaw: "valid"}),
-	), now)
-
-	require.Len(t, rows, 1)
-	assert.Equal(t, licenseStateBucketBroken, rows[0].StateBucket)
-}
-
-// TestExtractLicenseRows_CheckPointPublicFixtureValues replays the exact
-// vendor strings and Gauge32 expiry values captured from the public Check
-// Point community thread (testdata/licensing/checkpoint-community.snmpwalk):
-//
-//	Firewall          state="Not Entitled" expiry=4294967295 (sentinel)
-//	Application Ctrl  state="Evaluation"  expiry=1619246913 (2021-04-24)
-//	IPS               state="Evaluation"  expiry=1619246941 (2021-04-24)
-//
-// It guards three regressions caught during reviewer iteration:
-//  1. The Check Point state mapping must cover the real on-wire TitleCase
-//     strings (Not Entitled, Evaluation), not only the hyphenated tokens
-//     from the MIB DESCRIPTION block.
-//  2. The 0xFFFFFFFF "never expires" sentinel must be filtered out, not
-//     treated as a real epoch (which would inflate remaining_time by ~80
-//     years and corrupt the device-wide minimum).
-//  3. A past expiry must force broken regardless of vendor severity, so
-//     the device-level alerts trip even when the vendor still reports the
-//     blade as "Evaluation".
 func TestExtractLicenseRows_CheckPointPublicFixtureValues(t *testing.T) {
-	// "now" is well after the fixture's 2021 expiries on purpose: in
-	// production the expiries from this fixture are firmly in the past,
-	// which is exactly the "broken timer overrides severity" path we
-	// want to exercise.
 	now := time.Date(2026, 4, 9, 12, 0, 0, 0, time.UTC)
 
-	rows := extractLicenseRows(profileWith(
-		// "Firewall" → Not Entitled → severity 2; expiry is the sentinel.
-		signal("0", "Firewall", licenseValueKindStateSeverity, 2,
-			map[string]string{tagLicenseStateRaw: "Not Entitled"}),
-		signal("0", "Firewall", licenseValueKindExpiryTimestamp, 4294967295, nil),
-		// "Application Ctrl" → Evaluation → severity 1; expiry in the past.
-		signal("4", "Application Ctrl", licenseValueKindStateSeverity, 1,
-			map[string]string{tagLicenseStateRaw: "Evaluation"}),
-		signal("4", "Application Ctrl", licenseValueKindExpiryTimestamp, 1619246913, nil),
-		// "IPS" → Evaluation → severity 1; expiry in the past.
-		signal("2", "IPS", licenseValueKindStateSeverity, 1,
-			map[string]string{tagLicenseStateRaw: "Evaluation"}),
-		signal("2", "IPS", licenseValueKindExpiryTimestamp, 1619246941, nil),
+	rows := extractLicenseRows(profileWithRows(
+		typedLicenseRow("0", "Firewall", withState(2, "Not Entitled")),
+		typedLicenseRow("4", "Application Ctrl", withState(1, "Evaluation"), withExpiry(1619246913)),
+		typedLicenseRow("2", "IPS", withState(1, "Evaluation"), withExpiry(1619246941)),
 	), now)
 
 	require.Len(t, rows, 3)
@@ -245,17 +344,14 @@ func TestExtractLicenseRows_CheckPointPublicFixtureValues(t *testing.T) {
 	for _, row := range rows {
 		switch row.ID {
 		case "0":
-			// Severity 2 wins; the sentinel expiry is dropped.
-			assert.Equal(t, licenseStateBucketBroken, row.StateBucket, "Not Entitled → broken")
-			assert.False(t, row.HasExpiry, "0xFFFFFFFF sentinel must be dropped")
+			assert.Equal(t, licenseStateBucketBroken, row.StateBucket, "Not Entitled -> broken")
+			assert.False(t, row.HasExpiry)
 		case "4":
-			// Past expiry overrides the vendor's optimistic Evaluation
-			// severity — alerting must trip.
-			assert.Equal(t, licenseStateBucketBroken, row.StateBucket, "expired Evaluation → broken")
+			assert.Equal(t, licenseStateBucketBroken, row.StateBucket, "expired Evaluation -> broken")
 			assert.True(t, row.HasExpiry)
 			assert.EqualValues(t, 1619246913, row.ExpiryTS)
 		case "2":
-			assert.Equal(t, licenseStateBucketBroken, row.StateBucket, "expired Evaluation → broken")
+			assert.Equal(t, licenseStateBucketBroken, row.StateBucket, "expired Evaluation -> broken")
 			assert.True(t, row.HasExpiry)
 			assert.EqualValues(t, 1619246941, row.ExpiryTS)
 		default:
@@ -264,226 +360,9 @@ func TestExtractLicenseRows_CheckPointPublicFixtureValues(t *testing.T) {
 	}
 }
 
-func TestNormalizeBucket_FreshSeverityRecoversFromCachedBrokenState(t *testing.T) {
-	// Concrete cache-staleness regression scenario: a Check Point license
-	// was previously "expired", got renewed on the device, but the next
-	// poll is still inside the table cache TTL. The row therefore carries
-	// the cached "expired" raw state alongside a freshly-collected severity
-	// of 0. The bucket must reflect the renewal, not the cache.
-	now := time.Date(2026, 4, 9, 12, 0, 0, 0, time.UTC)
+func TestLicenseRowUniqueKeyHandlesEmbeddedNULs(t *testing.T) {
+	left := licenseRow{Source: "vendor", Table: "table", ID: "row\x00suffix"}
+	right := licenseRow{Source: "vendor", Table: "table\x00row", ID: "suffix"}
 
-	rows := extractLicenseRows(profileWith(
-		signal("renewed", "Renewed License", licenseValueKindStateSeverity, 0,
-			map[string]string{tagLicenseStateRaw: "expired"}),
-	), now)
-
-	require.Len(t, rows, 1)
-	assert.Equal(t, licenseStateBucketHealthy, rows[0].StateBucket)
-}
-
-func TestExtractLicenseRows_DropsRowsThatProducedNoSignal(t *testing.T) {
-	now := time.Date(2026, 4, 9, 12, 0, 0, 0, time.UTC)
-
-	// Identity tags but no _license_value_kind → no signal merges in.
-	// The row would otherwise show up as "ignored" and inflate device counts.
-	rows := extractLicenseRows(profileWith(ddsnmp.Metric{
-		Name:  licenseSourceMetricName,
-		Value: 1,
-		Tags:  map[string]string{tagLicenseID: "stub", tagLicenseName: "Stub"},
-	}), now)
-
-	assert.Empty(t, rows)
-}
-
-func TestExtractLicenseRows_UnstampedHelperMetricDoesNotPolluteStateRow(t *testing.T) {
-	now := time.Date(2026, 4, 9, 12, 0, 0, 0, time.UTC)
-
-	rows := extractLicenseRows(profileWith(
-		signal("base", "Base Firewall", licenseValueKindStateSeverity, 2,
-			map[string]string{tagLicenseStateRaw: "expired"}),
-		ddsnmp.Metric{
-			Name:  "_license_row_expiry",
-			Value: 2, // scalar anchor value left untouched after parse rejection
-			Tags: map[string]string{
-				tagLicenseID:     "base",
-				tagLicenseName:   "Base Firewall",
-				tagLicenseType:   "subscription",
-				tagLicenseImpact: "state and expiry on the device",
-			},
-		},
-	), now)
-
-	require.Len(t, rows, 1)
-	assert.Equal(t, "base", rows[0].ID)
-	assert.True(t, rows[0].HasState)
-	assert.EqualValues(t, 2, rows[0].StateSeverity)
-	assert.False(t, rows[0].HasExpiry)
-	assert.Equal(t, licenseStateBucketBroken, rows[0].StateBucket)
-}
-
-func TestExtractLicenseRows_DropsMetricsWithoutLicenseID(t *testing.T) {
-	now := time.Date(2026, 4, 9, 12, 0, 0, 0, time.UTC)
-
-	rows := extractLicenseRows(profileWith(
-		// Has identity → kept.
-		signal("present", "Present", licenseValueKindStateSeverity, 0),
-		// Missing _license_id → silently dropped (no safe merge key).
-		ddsnmp.Metric{
-			Name:  licenseSourceMetricName,
-			Value: 0,
-			Tags: map[string]string{
-				tagLicenseName:      "Orphan",
-				tagLicenseValueKind: licenseValueKindStateSeverity,
-			},
-		},
-	), now)
-
-	require.Len(t, rows, 1)
-	assert.Equal(t, "present", rows[0].ID)
-}
-
-func TestExtractLicenseRows_DifferentTablesWithSameIDStaySeparate(t *testing.T) {
-	now := time.Date(2026, 4, 9, 12, 0, 0, 0, time.UTC)
-
-	// Same _license_id ("FortiCare") + same source, different SNMP table —
-	// must NOT merge into one row. This guards the Fortinet bug from the
-	// codex review where contract/version/account tables shared identifiers.
-	pm := &ddsnmp.ProfileMetrics{
-		Source: "vendor.yaml",
-		HiddenMetrics: []ddsnmp.Metric{
-			{
-				Name:  licenseSourceMetricName,
-				Value: 100,
-				Table: "fgLicContractTable",
-				Tags: map[string]string{
-					tagLicenseID:        "FortiCare",
-					tagLicenseValueKind: licenseValueKindCapacity,
-				},
-			},
-			{
-				Name:  licenseSourceMetricName,
-				Value: 200,
-				Table: "fgLicVersionTable",
-				Tags: map[string]string{
-					tagLicenseID:        "FortiCare",
-					tagLicenseValueKind: licenseValueKindCapacity,
-				},
-			},
-		},
-	}
-	for i := range pm.HiddenMetrics {
-		pm.HiddenMetrics[i].Profile = pm
-	}
-
-	rows := extractLicenseRows([]*ddsnmp.ProfileMetrics{pm}, now)
-	require.Len(t, rows, 2)
-	caps := []int64{rows[0].Capacity, rows[1].Capacity}
-	assert.Contains(t, caps, int64(100))
-	assert.Contains(t, caps, int64(200))
-}
-
-func TestExtractLicenseRows_MergeKeyHandlesEmbeddedNULs(t *testing.T) {
-	now := time.Date(2026, 4, 9, 12, 0, 0, 0, time.UTC)
-
-	pm := &ddsnmp.ProfileMetrics{
-		Source: "vendor.yaml",
-		HiddenMetrics: []ddsnmp.Metric{
-			{
-				Name:  licenseSourceMetricName,
-				Value: 100,
-				Table: "tableA",
-				Tags: map[string]string{
-					tagLicenseID:        "row\x00suffix",
-					tagLicenseValueKind: licenseValueKindCapacity,
-				},
-			},
-			{
-				Name:  licenseSourceMetricName,
-				Value: 200,
-				Table: "tableA\x00row",
-				Tags: map[string]string{
-					tagLicenseID:        "suffix",
-					tagLicenseValueKind: licenseValueKindCapacity,
-				},
-			},
-		},
-	}
-	for i := range pm.HiddenMetrics {
-		pm.HiddenMetrics[i].Profile = pm
-	}
-
-	rows := extractLicenseRows([]*ddsnmp.ProfileMetrics{pm}, now)
-	require.Len(t, rows, 2)
-	caps := []int64{rows[0].Capacity, rows[1].Capacity}
-	assert.Contains(t, caps, int64(100))
-	assert.Contains(t, caps, int64(200))
-}
-
-func TestExtractLicenseRows_StaticTagsAreMerged(t *testing.T) {
-	now := time.Date(2026, 4, 9, 12, 0, 0, 0, time.UTC)
-	rows := extractLicenseRows([]*ddsnmp.ProfileMetrics{{
-		Source: "vendor.yaml",
-		HiddenMetrics: []ddsnmp.Metric{{
-			Name:  licenseSourceMetricName,
-			Value: 0,
-			StaticTags: map[string]string{
-				tagLicenseID:        "static",
-				tagLicenseName:      "Static",
-				tagLicenseValueKind: licenseValueKindStateSeverity,
-			},
-		}},
-	}}, now)
-
-	require.Len(t, rows, 1)
-	assert.Equal(t, "static", rows[0].ID)
-	assert.True(t, rows[0].HasState)
-	assert.Equal(t, licenseStateBucketHealthy, rows[0].StateBucket)
-}
-
-func TestApplyVendorLicenseSanityRules_MikroTikIgnoresEpochSentinel(t *testing.T) {
-	row := licenseRow{
-		Source:       mikroTikLicenseSource,
-		ExpirySource: mikroTikUpgradeUntilExpirySource,
-		HasExpiry:    true,
-		// 1970-01-02 → year 1970 < cutoff 1971. The shouldIgnore guard
-		// requires a positive timestamp so the sentinel must be > 0.
-		ExpiryTS: 86400,
-	}
-	applyVendorLicenseSanityRules(&row)
-	assert.False(t, row.HasExpiry, "epoch-like sentinel must be ignored")
-	assert.EqualValues(t, 0, row.ExpiryTS)
-}
-
-func TestApplyVendorLicenseSanityRules_OnlyAppliesToUpgradeUntilSource(t *testing.T) {
-	row := licenseRow{
-		Source:       mikroTikLicenseSource,
-		ExpirySource: "someOtherOID",
-		HasExpiry:    true,
-		ExpiryTS:     86400,
-	}
-	applyVendorLicenseSanityRules(&row)
-	assert.True(t, row.HasExpiry, "non-upgrade-until expiry must be left alone")
-}
-
-func TestApplyVendorLicenseSanityRules_MikroTikKeepsRealExpiry(t *testing.T) {
-	row := licenseRow{
-		Source:       mikroTikLicenseSource,
-		ExpirySource: mikroTikUpgradeUntilExpirySource,
-		HasExpiry:    true,
-		ExpiryTS:     time.Date(2030, 1, 1, 0, 0, 0, 0, time.UTC).Unix(),
-	}
-	applyVendorLicenseSanityRules(&row)
-	assert.True(t, row.HasExpiry, "real future expiry must be preserved")
-	assert.NotZero(t, row.ExpiryTS)
-}
-
-func TestApplyVendorLicenseSanityRules_OnlyAppliesToMikroTik(t *testing.T) {
-	row := licenseRow{
-		Source:       "checkpoint",
-		ExpirySource: mikroTikUpgradeUntilExpirySource,
-		HasExpiry:    true,
-		ExpiryTS:     0,
-	}
-	applyVendorLicenseSanityRules(&row)
-	assert.True(t, row.HasExpiry, "non-MikroTik rows must be left alone")
+	assert.NotEqual(t, licenseRowUniqueKey(left), licenseRowUniqueKey(right))
 }

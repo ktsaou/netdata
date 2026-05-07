@@ -53,10 +53,10 @@ func TestCollector_Collect_CiscoTraditionalLicensingProfile(t *testing.T) {
 		},
 	)
 
-	profile := mustLoadLicensingProfile(t, "cisco", func(metric ddprofiledefinition.MetricsConfig) bool {
-		return strings.TrimPrefix(metric.Table.OID, ".") == "1.3.6.1.4.1.9.9.543.1.2.3.1"
+	profile := mustLoadTypedLicensingProfile(t, "cisco", func(row ddprofiledefinition.LicensingConfig) bool {
+		return strings.TrimPrefix(row.Table.OID, ".") == "1.3.6.1.4.1.9.9.543.1.2.3.1"
 	})
-	require.Len(t, profile.Definition.Metrics, 1)
+	require.Len(t, profile.Definition.Licensing, 1)
 
 	collector := New(Config{
 		SnmpClient:  mockHandler,
@@ -71,31 +71,42 @@ func TestCollector_Collect_CiscoTraditionalLicensingProfile(t *testing.T) {
 
 	pm := results[0]
 	assert.Empty(t, pm.Metrics)
-	require.Len(t, pm.HiddenMetrics, 7)
+	assert.Empty(t, pm.HiddenMetrics)
+	require.Len(t, pm.LicenseRows, 2)
 
-	byID := mustLicenseMetricsByIDAndKind(t, pm.HiddenMetrics)
+	byName := licenseRowsByName(pm.LicenseRows)
 
-	subscription := byID["SECURITYK9"]
-	require.NotNil(t, subscription)
-	require.EqualValues(t, time.Date(2030, time.November, 11, 0, 0, 0, 0, time.UTC).Unix(), subscription["expiry_timestamp"].Value)
-	require.EqualValues(t, 100, subscription["capacity"].Value)
-	require.EqualValues(t, 15, subscription["available"].Value)
-	require.EqualValues(t, 0, subscription["state_severity"].Value)
-	assert.Equal(t, "SECURITYK9", metricTagValue(*subscription["state_severity"], "_license_name"))
-	assert.Equal(t, "paid_subscription", metricTagValue(*subscription["state_severity"], "_license_type"))
-	assert.Equal(t, "in_use", metricTagValue(*subscription["state_severity"], "_license_state_raw"))
-	assert.Equal(t, "Security subscription", metricTagValue(*subscription["state_severity"], "_license_impact"))
+	subscription := byName["SECURITYK9"]
+	require.NotEmpty(t, subscription.ID)
+	assert.Equal(t, "1.1.17", subscription.ID)
+	assert.Equal(t, "1.0", subscription.Feature)
+	assert.Equal(t, "traditional_licensing", subscription.Component)
+	assert.Equal(t, "paid_subscription", subscription.Type)
+	assert.Equal(t, "Security subscription", subscription.Impact)
+	require.True(t, subscription.Expiry.Has)
+	assert.EqualValues(t, time.Date(2030, time.November, 11, 0, 0, 0, 0, time.UTC).Unix(), subscription.Expiry.Timestamp)
+	require.True(t, subscription.Usage.HasCapacity)
+	assert.EqualValues(t, 100, subscription.Usage.Capacity)
+	require.True(t, subscription.Usage.HasAvailable)
+	assert.EqualValues(t, 15, subscription.Usage.Available)
+	require.True(t, subscription.State.Has)
+	assert.EqualValues(t, 0, subscription.State.Severity)
+	assert.Equal(t, "3", subscription.State.Raw)
 
-	grace := byID["APPXK9"]
-	require.NotNil(t, grace)
-	require.EqualValues(t, 10, grace["capacity"].Value)
-	require.EqualValues(t, 0, grace["available"].Value)
-	require.EqualValues(t, 2, grace["state_severity"].Value)
-	assert.Equal(t, "APPXK9", metricTagValue(*grace["state_severity"], "_license_name"))
-	assert.Equal(t, "grace_period", metricTagValue(*grace["state_severity"], "_license_type"))
-	assert.Equal(t, "usage_count_consumed", metricTagValue(*grace["state_severity"], "_license_state_raw"))
-	assert.Equal(t, "Session count exhausted", metricTagValue(*grace["state_severity"], "_license_impact"))
-	assert.NotContains(t, grace, "expiry_timestamp")
+	grace := byName["APPXK9"]
+	require.NotEmpty(t, grace.ID)
+	assert.Equal(t, "1.2.23", grace.ID)
+	assert.Equal(t, "2.1", grace.Feature)
+	assert.Equal(t, "grace_period", grace.Type)
+	assert.Equal(t, "Session count exhausted", grace.Impact)
+	require.True(t, grace.Usage.HasCapacity)
+	assert.EqualValues(t, 10, grace.Usage.Capacity)
+	require.True(t, grace.Usage.HasAvailable)
+	assert.EqualValues(t, 0, grace.Usage.Available)
+	require.True(t, grace.State.Has)
+	assert.EqualValues(t, 2, grace.State.Severity)
+	assert.Equal(t, "6", grace.State.Raw)
+	assert.False(t, grace.Expiry.Has)
 }
 
 type ciscoTraditionalRow struct {
@@ -140,4 +151,12 @@ func expectCiscoTraditionalLicensingWalk(mockHandler *snmpmock.MockHandler, rows
 		"1.3.6.1.4.1.9.9.543.1.2.3.1",
 		pdus,
 	)
+}
+
+func licenseRowsByName(rows []ddsnmp.LicenseRow) map[string]ddsnmp.LicenseRow {
+	out := make(map[string]ddsnmp.LicenseRow, len(rows))
+	for _, row := range rows {
+		out[row.Name] = row
+	}
+	return out
 }

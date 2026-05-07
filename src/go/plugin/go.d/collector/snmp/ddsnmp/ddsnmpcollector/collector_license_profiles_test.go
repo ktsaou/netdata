@@ -27,18 +27,17 @@ func TestCollector_Collect_CheckPointLicensingProfile(t *testing.T) {
 		[]gosnmp.SnmpPDU{
 			createGauge32PDU("1.3.6.1.4.1.2620.1.6.18.1.1.1.17", 17),
 			createGauge32PDU("1.3.6.1.4.1.2620.1.6.18.1.1.2.17", 17),
-			createStringPDU("1.3.6.1.4.1.2620.1.6.18.1.1.3.17", "Application Control"),
-			createStringPDU("1.3.6.1.4.1.2620.1.6.18.1.1.4.17", "about-to-expire"),
-			createGauge32PDU("1.3.6.1.4.1.2620.1.6.18.1.1.5.17", 1775152800),
-			createStringPDU("1.3.6.1.4.1.2620.1.6.18.1.1.6.17", "Threat prevention coverage"),
-			createIntegerPDU("1.3.6.1.4.1.2620.1.6.18.1.1.7.17", 1),
-			createGauge32PDU("1.3.6.1.4.1.2620.1.6.18.1.1.8.17", 100),
-			createGauge32PDU("1.3.6.1.4.1.2620.1.6.18.1.1.9.17", 85),
+			createStringPDU("1.3.6.1.4.1.2620.1.6.18.1.1.4.17", "Application Control"),
+			createStringPDU("1.3.6.1.4.1.2620.1.6.18.1.1.5.17", "about-to-expire"),
+			createGauge32PDU("1.3.6.1.4.1.2620.1.6.18.1.1.6.17", 1775152800),
+			createStringPDU("1.3.6.1.4.1.2620.1.6.18.1.1.7.17", "Threat prevention coverage"),
+			createGauge32PDU("1.3.6.1.4.1.2620.1.6.18.1.1.9.17", 100),
+			createGauge32PDU("1.3.6.1.4.1.2620.1.6.18.1.1.10.17", 85),
 		},
 	)
 
-	profile := mustLoadLicensingProfile(t, "checkpoint", func(metric ddprofiledefinition.MetricsConfig) bool {
-		return strings.TrimPrefix(metric.Table.OID, ".") == "1.3.6.1.4.1.2620.1.6.18.1"
+	profile := mustLoadTypedLicensingProfile(t, "checkpoint", func(row ddprofiledefinition.LicensingConfig) bool {
+		return strings.TrimPrefix(row.Table.OID, ".") == "1.3.6.1.4.1.2620.1.6.18.1"
 	})
 
 	collector := New(Config{
@@ -54,17 +53,22 @@ func TestCollector_Collect_CheckPointLicensingProfile(t *testing.T) {
 
 	pm := results[0]
 	assert.Empty(t, pm.Metrics)
-	require.Len(t, pm.HiddenMetrics, 4)
+	assert.Empty(t, pm.HiddenMetrics)
+	require.Len(t, pm.LicenseRows, 1)
 
-	row := mustLicenseMetricsByIDAndKind(t, pm.HiddenMetrics)["17"]
-	require.NotNil(t, row)
-	require.EqualValues(t, 100, row["capacity"].Value)
-	require.EqualValues(t, 85, row["usage"].Value)
-	require.EqualValues(t, 1, row["state_severity"].Value)
-	require.EqualValues(t, 1775152800, row["expiry_timestamp"].Value)
-	assert.Equal(t, "Application Control", metricTagValue(*row["state_severity"], "_license_name"))
-	assert.Equal(t, "about-to-expire", metricTagValue(*row["state_severity"], "_license_state_raw"))
-	assert.Equal(t, "Threat prevention coverage", metricTagValue(*row["state_severity"], "_license_impact"))
+	row := pm.LicenseRows[0]
+	assert.Equal(t, "17", row.ID)
+	assert.Equal(t, "Application Control", row.Name)
+	assert.Equal(t, "about-to-expire", row.State.Raw)
+	assert.True(t, row.State.Has)
+	assert.EqualValues(t, 1, row.State.Severity)
+	assert.EqualValues(t, 1775152800, row.Expiry.Timestamp)
+	assert.True(t, row.Expiry.Has)
+	assert.Equal(t, "Threat prevention coverage", row.Impact)
+	assert.EqualValues(t, 100, row.Usage.Capacity)
+	assert.True(t, row.Usage.HasCapacity)
+	assert.EqualValues(t, 85, row.Usage.Used)
+	assert.True(t, row.Usage.HasUsed)
 }
 
 func TestCollector_Collect_FortiGateLicensingProfile(t *testing.T) {
@@ -73,8 +77,8 @@ func TestCollector_Collect_FortiGateLicensingProfile(t *testing.T) {
 
 	expectFortiGateLicensingWalks(mockHandler)
 
-	profile := mustLoadLicensingProfile(t, "fortinet-fortigate", func(metric ddprofiledefinition.MetricsConfig) bool {
-		return strings.HasPrefix(strings.TrimPrefix(metric.Table.OID, "."), "1.3.6.1.4.1.12356.101.4.6.3.")
+	profile := mustLoadTypedLicensingProfile(t, "fortinet-fortigate", func(row ddprofiledefinition.LicensingConfig) bool {
+		return strings.HasPrefix(strings.TrimPrefix(row.Table.OID, "."), "1.3.6.1.4.1.12356.101.4.6.3.")
 	})
 
 	collector := New(Config{
@@ -90,29 +94,33 @@ func TestCollector_Collect_FortiGateLicensingProfile(t *testing.T) {
 
 	pm := results[0]
 	assert.Empty(t, pm.Metrics)
-	require.Len(t, pm.HiddenMetrics, 3)
+	assert.Empty(t, pm.HiddenMetrics)
+	require.Len(t, pm.LicenseRows, 3)
 
-	byID := mustLicenseMetricsByIDAndKind(t, pm.HiddenMetrics)
+	byID := make(map[string]ddsnmp.LicenseRow, len(pm.LicenseRows))
+	for _, row := range pm.LicenseRows {
+		byID[row.ID] = row
+	}
 
 	contract := byID["FortiCare Support"]
-	require.NotNil(t, contract)
-	require.EqualValues(t, 1920585600, contract["expiry_timestamp"].Value)
-	assert.Equal(t, "FortiCare Support", metricTagValue(*contract["expiry_timestamp"], "_license_name"))
-	assert.Equal(t, "contract", metricTagValue(*contract["expiry_timestamp"], "_license_type"))
-	assert.Equal(t, "device", metricTagValue(*contract["expiry_timestamp"], "_license_component"))
+	require.NotEmpty(t, contract)
+	require.EqualValues(t, 1920585600, contract.Expiry.Timestamp)
+	assert.Equal(t, "FortiCare Support", contract.Name)
+	assert.Equal(t, "contract", contract.Type)
+	assert.Equal(t, "device", contract.Component)
 
 	service := byID["FortiGuard Antivirus"]
-	require.NotNil(t, service)
-	require.EqualValues(t, 1753491600, service["expiry_timestamp"].Value)
-	assert.Equal(t, "1.00000", metricTagValue(*service["expiry_timestamp"], "_license_feature"))
-	assert.Equal(t, "service", metricTagValue(*service["expiry_timestamp"], "_license_type"))
-	assert.Equal(t, "fortiguard", metricTagValue(*service["expiry_timestamp"], "_license_component"))
+	require.NotEmpty(t, service)
+	require.EqualValues(t, 1753491600, service.Expiry.Timestamp)
+	assert.Equal(t, "1.00000", service.Feature)
+	assert.Equal(t, "service", service.Type)
+	assert.Equal(t, "fortiguard", service.Component)
 
 	accountContract := byID["FortiCare Premium"]
-	require.NotNil(t, accountContract)
-	require.EqualValues(t, 1920585600, accountContract["expiry_timestamp"].Value)
-	assert.Equal(t, "account_contract", metricTagValue(*accountContract["expiry_timestamp"], "_license_type"))
-	assert.Equal(t, "account", metricTagValue(*accountContract["expiry_timestamp"], "_license_component"))
+	require.NotEmpty(t, accountContract)
+	require.EqualValues(t, 1920585600, accountContract.Expiry.Timestamp)
+	assert.Equal(t, "account_contract", accountContract.Type)
+	assert.Equal(t, "account", accountContract.Component)
 }
 
 func TestCollector_Collect_MikroTikLicensingProfile(t *testing.T) {
@@ -128,8 +136,8 @@ func TestCollector_Collect_MikroTikLicensingProfile(t *testing.T) {
 		},
 	)
 
-	profile := mustLoadLicensingProfile(t, "mikrotik-router", func(metric ddprofiledefinition.MetricsConfig) bool {
-		return metric.MIB == "MIKROTIK-MIB" && strings.TrimPrefix(metric.Symbol.OID, ".") == "1.3.6.1.4.1.14988.1.1.4.2.0"
+	profile := mustLoadTypedLicensingProfile(t, "mikrotik-router", func(row ddprofiledefinition.LicensingConfig) bool {
+		return row.ID == "routeros_upgrade"
 	})
 
 	collector := New(Config{
@@ -145,15 +153,17 @@ func TestCollector_Collect_MikroTikLicensingProfile(t *testing.T) {
 
 	pm := results[0]
 	assert.Empty(t, pm.Metrics)
-	require.Len(t, pm.HiddenMetrics, 1)
+	assert.Empty(t, pm.HiddenMetrics)
+	require.Len(t, pm.LicenseRows, 1)
 
-	row := mustLicenseMetricsByIDAndKind(t, pm.HiddenMetrics)["routeros_upgrade"]
-	require.NotNil(t, row)
-	require.EqualValues(t, time.Date(2030, time.January, 1, 0, 0, 0, 0, time.UTC).Unix(), row["expiry_timestamp"].Value)
-	assert.Equal(t, "RouterOS upgrade entitlement", metricTagValue(*row["expiry_timestamp"], "_license_name"))
-	assert.Equal(t, "upgrade_entitlement", metricTagValue(*row["expiry_timestamp"], "_license_type"))
-	assert.Equal(t, "routeros", metricTagValue(*row["expiry_timestamp"], "_license_component"))
-	assert.Equal(t, "mtxrLicUpgrUntil", metricTagValue(*row["expiry_timestamp"], "_license_expiry_source"))
+	row := pm.LicenseRows[0]
+	assert.Equal(t, "routeros_upgrade", row.ID)
+	assert.Equal(t, "RouterOS upgrade entitlement", row.Name)
+	assert.Equal(t, "upgrade_entitlement", row.Type)
+	assert.Equal(t, "routeros", row.Component)
+	assert.True(t, row.Expiry.Has)
+	assert.EqualValues(t, time.Date(2030, time.January, 1, 0, 0, 0, 0, time.UTC).Unix(), row.Expiry.Timestamp)
+	assert.Equal(t, "1.3.6.1.4.1.14988.1.1.4.2.0", row.Expiry.SourceOID)
 }
 
 func expectFortiGateLicensingWalks(mockHandler *snmpmock.MockHandler) {

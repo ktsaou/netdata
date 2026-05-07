@@ -396,6 +396,7 @@ func (c *Collector) populateLicenseState(row *ddsnmp.LicenseRow, cfg ddprofilede
 	if err != nil {
 		return err
 	}
+	raw = licenseStateRawValueByPolicy(raw, cfg.Policy)
 	severity, sourceOID, ok, err := c.licenseNumericValue(cfg.LicenseValueConfig, ctx)
 	if err != nil {
 		return err
@@ -413,6 +414,27 @@ func (c *Collector) populateLicenseState(row *ddsnmp.LicenseRow, cfg ddprofilede
 	}
 
 	return nil
+}
+
+func licenseStateRawValueByPolicy(raw string, policy ddprofiledefinition.LicenseStatePolicy) string {
+	switch policy {
+	case ddprofiledefinition.LicenseStatePolicySophos:
+		switch strings.TrimSpace(raw) {
+		case "0":
+			return "none"
+		case "1":
+			return "trial"
+		case "2":
+			return "not_subscribed"
+		case "3":
+			return "subscribed"
+		case "4":
+			return "expired"
+		case "5":
+			return "deactivated"
+		}
+	}
+	return raw
 }
 
 func (c *Collector) populateLicenseTimer(timer *ddsnmp.LicenseTimer, cfg ddprofiledefinition.LicenseTimerSignalsConfig, ctx licenseValueContext, name string) error {

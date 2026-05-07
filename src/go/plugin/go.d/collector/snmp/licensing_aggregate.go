@@ -19,6 +19,7 @@ type licenseAggregate struct {
 	usagePercent       int64
 	hasUsagePercent    bool
 	stateHealthy       int64
+	stateInformational int64
 	stateDegraded      int64
 	stateBroken        int64
 	stateIgnored       int64
@@ -32,6 +33,9 @@ func aggregateLicenseRows(rows []licenseRow, now time.Time) licenseAggregate {
 		switch row.StateBucket {
 		case licenseStateBucketHealthy:
 			agg.stateHealthy++
+			agg.hasStateCounts = true
+		case licenseStateBucketInformational:
+			agg.stateInformational++
 			agg.hasStateCounts = true
 		case licenseStateBucketDegraded:
 			agg.stateDegraded++
@@ -106,6 +110,7 @@ func (agg licenseAggregate) writeTo(mx map[string]int64) {
 	}
 	if agg.hasStateCounts {
 		mx[metricIDLicenseStateHealthy] = agg.stateHealthy
+		mx[metricIDLicenseStateInformational] = agg.stateInformational
 		mx[metricIDLicenseStateDegraded] = agg.stateDegraded
 		mx[metricIDLicenseStateBroken] = agg.stateBroken
 		mx[metricIDLicenseStateIgnored] = agg.stateIgnored

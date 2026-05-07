@@ -32,13 +32,11 @@ func TestFuncLicensesHandle(t *testing.T) {
 			Impact:       "Feature disabled",
 		},
 		{
-			ID:             "ignored-license",
-			Source:         "vendor",
-			Name:           "Unused License",
-			StateRaw:       "not_subscribed",
-			StateBucket:    licenseStateBucketIgnored,
-			IsPerpetual:    true,
-			OriginalMetric: "_license_row",
+			ID:          "eval-license",
+			Source:      "vendor",
+			Name:        "Evaluation License",
+			StateRaw:    "evaluation",
+			StateBucket: licenseStateBucketInformational,
 		},
 		{
 			ID:           "healthy-license",
@@ -51,22 +49,32 @@ func TestFuncLicensesHandle(t *testing.T) {
 			UsagePercent: 45,
 			HasUsagePct:  true,
 		},
+		{
+			ID:          "ignored-license",
+			Source:      "vendor",
+			Name:        "Unused License",
+			StateRaw:    "not_subscribed",
+			StateBucket: licenseStateBucketIgnored,
+			IsPerpetual: true,
+		},
 	})
 
 	resp := newTestFuncLicenses(cache).Handle(context.Background(), licensesMethodID, nil)
 	require.NotNil(t, resp)
 	assert.Equal(t, 200, resp.Status)
 	require.NotNil(t, resp.Columns)
-	require.Len(t, resp.Data.([][]any), 3)
+	require.Len(t, resp.Data.([][]any), 4)
 	assert.Equal(t, "License", resp.DefaultSortColumn)
 
 	rows := resp.Data.([][]any)
 	assert.Equal(t, "Shared License", rows[0][0])
 	assert.Equal(t, string(licenseStateBucketBroken), rows[0][1])
-	assert.Equal(t, "Unused License", rows[2][0])
-	assert.Equal(t, string(licenseStateBucketIgnored), rows[2][1])
-	assert.Equal(t, "Shared License", rows[1][0])
-	assert.NotEqual(t, rows[0][4], rows[1][4], "hidden row ID should stay unique when display labels collide")
+	assert.Equal(t, "Evaluation License", rows[1][0])
+	assert.Equal(t, string(licenseStateBucketInformational), rows[1][1])
+	assert.Equal(t, "Shared License", rows[2][0])
+	assert.Equal(t, "Unused License", rows[3][0])
+	assert.Equal(t, string(licenseStateBucketIgnored), rows[3][1])
+	assert.NotEqual(t, rows[0][4], rows[2][4], "hidden row ID should stay unique when display labels collide")
 
 	rowOptions, ok := resp.Columns["rowOptions"]
 	require.True(t, ok)

@@ -20,19 +20,29 @@ func TestCollector_Collect_CiscoSmartLicensingProfile(t *testing.T) {
 
 	expectSNMPGet(mockHandler,
 		[]string{
-			"1.3.6.1.4.1.9.9.831.0.6.1",
-			"1.3.6.1.4.1.9.9.831.0.7.2",
-			"1.3.6.1.4.1.9.9.831.0.7.1",
-			"1.3.6.1.4.1.9.9.831.0.6.3",
-			"1.3.6.1.4.1.9.9.831.0.7.4.2",
+			"1.3.6.1.4.1.9.9.831.0.6.1.0",
 		},
 		[]gosnmp.SnmpPDU{
-			createIntegerPDU("1.3.6.1.4.1.9.9.831.0.6.1", 2),
-			createStringPDU("1.3.6.1.4.1.9.9.831.0.7.2", "Out of Compliance"),
-			createGauge32PDU("1.3.6.1.4.1.9.9.831.0.7.1", 1775152800),
-			createGauge32PDU("1.3.6.1.4.1.9.9.831.0.6.3", 1777831200),
-			createGauge32PDU("1.3.6.1.4.1.9.9.831.0.7.4.2", 1773943200),
+			createIntegerPDU("1.3.6.1.4.1.9.9.831.0.6.1.0", 2),
 		},
+	)
+	expectSNMPGet(mockHandler,
+		[]string{
+			"1.3.6.1.4.1.9.9.831.0.7.1.0",
+			"1.3.6.1.4.1.9.9.831.0.7.2.0",
+		},
+		[]gosnmp.SnmpPDU{
+			createGauge32PDU("1.3.6.1.4.1.9.9.831.0.7.1.0", 1775152800),
+			createStringPDU("1.3.6.1.4.1.9.9.831.0.7.2.0", "Out of Compliance"),
+		},
+	)
+	expectSNMPGet(mockHandler,
+		[]string{"1.3.6.1.4.1.9.9.831.0.6.3.0"},
+		[]gosnmp.SnmpPDU{createGauge32PDU("1.3.6.1.4.1.9.9.831.0.6.3.0", 1777831200)},
+	)
+	expectSNMPGet(mockHandler,
+		[]string{"1.3.6.1.4.1.9.9.831.0.7.4.2.0"},
+		[]gosnmp.SnmpPDU{createGauge32PDU("1.3.6.1.4.1.9.9.831.0.7.4.2.0", 1773943200)},
 	)
 
 	expectSNMPWalk(mockHandler,
@@ -49,7 +59,7 @@ func TestCollector_Collect_CiscoSmartLicensingProfile(t *testing.T) {
 	)
 
 	profile := mustLoadCiscoSmartProfile(t)
-	require.True(t, hasMetricTable(profile, "1.3.6.1.4.1.9.9.831.0.5.1"))
+	require.True(t, hasLicensingTable(profile, "1.3.6.1.4.1.9.9.831.0.5.1"))
 
 	collector := New(Config{
 		SnmpClient:  mockHandler,
@@ -64,24 +74,38 @@ func TestCollector_Collect_CiscoSmartLicensingProfile(t *testing.T) {
 
 	pm := results[0]
 	assert.Empty(t, pm.Metrics)
-	require.Len(t, pm.HiddenMetrics, 7)
+	assert.Empty(t, pm.HiddenMetrics)
+	require.Len(t, pm.LicenseRows, 5)
 
-	byID := mustLicenseMetricsByIDAndKind(t, pm.HiddenMetrics)
+	byID := licenseRowsByID(pm.LicenseRows)
 
-	require.EqualValues(t, 0, byID["smart_registration"]["state_severity"].Value)
-	assert.Equal(t, "Smart Licensing registration", metricTagValue(*byID["smart_registration"]["state_severity"], "_license_name"))
+	registration := byID["smart_registration"]
+	require.True(t, registration.State.Has)
+	assert.EqualValues(t, 0, registration.State.Severity)
+	assert.Equal(t, "Smart Licensing registration", registration.Name)
 
-	require.EqualValues(t, 2, byID["smart_authorization_state"]["state_severity"].Value)
-	require.EqualValues(t, 1775152800, byID["smart_authorization_expiry"]["authorization_timestamp"].Value)
-	require.EqualValues(t, 1777831200, byID["smart_id_certificate_expiry"]["certificate_timestamp"].Value)
-	require.EqualValues(t, 1773943200, byID["smart_evaluation_expiry"]["grace_timestamp"].Value)
+	authorization := byID["smart_authorization"]
+	require.True(t, authorization.State.Has)
+	assert.EqualValues(t, 2, authorization.State.Severity)
+	assert.Equal(t, "Out of Compliance", authorization.State.Raw)
+	require.True(t, authorization.Authorization.Has)
+	assert.EqualValues(t, 1775152800, authorization.Authorization.Timestamp)
+
+	certificate := byID["smart_id_certificate"]
+	require.True(t, certificate.Certificate.Has)
+	assert.EqualValues(t, 1777831200, certificate.Certificate.Timestamp)
+
+	evaluation := byID["smart_evaluation_period"]
+	require.True(t, evaluation.Grace.Has)
+	assert.EqualValues(t, 1773943200, evaluation.Grace.Timestamp)
 
 	entitlement := byID["dna_advantage"]
-	require.NotNil(t, entitlement)
-	require.EqualValues(t, 42, entitlement["usage"].Value)
-	require.EqualValues(t, 2, entitlement["state_severity"].Value)
-	assert.Equal(t, "network-advantage", metricTagValue(*entitlement["usage"], "_license_name"))
-	assert.Equal(t, "authorization_expired", metricTagValue(*entitlement["state_severity"], "_license_state_raw"))
+	require.True(t, entitlement.Usage.HasUsed)
+	assert.EqualValues(t, 42, entitlement.Usage.Used)
+	require.True(t, entitlement.State.Has)
+	assert.EqualValues(t, 2, entitlement.State.Severity)
+	assert.Equal(t, "network-advantage", entitlement.Name)
+	assert.Equal(t, "8", entitlement.State.Raw)
 }
 
 func TestCollector_Collect_CiscoSmartLicensingProfile_PartialData(t *testing.T) {
@@ -90,17 +114,23 @@ func TestCollector_Collect_CiscoSmartLicensingProfile_PartialData(t *testing.T) 
 
 	expectSNMPGet(mockHandler,
 		[]string{
-			"1.3.6.1.4.1.9.9.831.0.6.1",
-			"1.3.6.1.4.1.9.9.831.0.7.2",
-			"1.3.6.1.4.1.9.9.831.0.7.1",
-			"1.3.6.1.4.1.9.9.831.0.6.3",
-			"1.3.6.1.4.1.9.9.831.0.7.4.2",
+			"1.3.6.1.4.1.9.9.831.0.6.1.0",
 		},
 		[]gosnmp.SnmpPDU{
-			createIntegerPDU("1.3.6.1.4.1.9.9.831.0.6.1", 2),
-			createStringPDU("1.3.6.1.4.1.9.9.831.0.7.2", "Authorized"),
+			createIntegerPDU("1.3.6.1.4.1.9.9.831.0.6.1.0", 2),
 		},
 	)
+	expectSNMPGet(mockHandler,
+		[]string{
+			"1.3.6.1.4.1.9.9.831.0.7.1.0",
+			"1.3.6.1.4.1.9.9.831.0.7.2.0",
+		},
+		[]gosnmp.SnmpPDU{
+			createStringPDU("1.3.6.1.4.1.9.9.831.0.7.2.0", "Authorized"),
+		},
+	)
+	expectSNMPGet(mockHandler, []string{"1.3.6.1.4.1.9.9.831.0.6.3.0"}, nil)
+	expectSNMPGet(mockHandler, []string{"1.3.6.1.4.1.9.9.831.0.7.4.2.0"}, nil)
 
 	expectSNMPWalk(mockHandler,
 		gosnmp.Version2c,
@@ -129,37 +159,45 @@ func TestCollector_Collect_CiscoSmartLicensingProfile_PartialData(t *testing.T) 
 
 	pm := results[0]
 	assert.Empty(t, pm.Metrics)
-	require.Len(t, pm.HiddenMetrics, 4)
+	assert.Empty(t, pm.HiddenMetrics)
+	require.Len(t, pm.LicenseRows, 3)
 
-	byID := mustLicenseMetricsByIDAndKind(t, pm.HiddenMetrics)
+	byID := licenseRowsByID(pm.LicenseRows)
 
-	require.EqualValues(t, 0, byID["smart_registration"]["state_severity"].Value)
-	require.EqualValues(t, 0, byID["smart_authorization_state"]["state_severity"].Value)
+	require.True(t, byID["smart_registration"].State.Has)
+	assert.EqualValues(t, 0, byID["smart_registration"].State.Severity)
+	require.True(t, byID["smart_authorization"].State.Has)
+	assert.EqualValues(t, 0, byID["smart_authorization"].State.Severity)
 
 	entitlement := byID["dna_essentials"]
-	require.NotNil(t, entitlement)
-	require.EqualValues(t, 7, entitlement["usage"].Value)
-	require.EqualValues(t, 0, entitlement["state_severity"].Value)
-	assert.Equal(t, "authorized", metricTagValue(*entitlement["state_severity"], "_license_state_raw"))
+	require.True(t, entitlement.Usage.HasUsed)
+	assert.EqualValues(t, 7, entitlement.Usage.Used)
+	require.True(t, entitlement.State.Has)
+	assert.EqualValues(t, 0, entitlement.State.Severity)
+	assert.Equal(t, "3", entitlement.State.Raw)
 
-	assert.NotContains(t, byID, "smart_authorization_expiry")
-	assert.NotContains(t, byID, "smart_id_certificate_expiry")
-	assert.NotContains(t, byID, "smart_evaluation_expiry")
+	assert.NotContains(t, byID, "smart_id_certificate")
+	assert.NotContains(t, byID, "smart_evaluation_period")
 }
 
 func mustLoadCiscoSmartProfile(t *testing.T) *ddsnmp.Profile {
 	t.Helper()
 
-	return mustLoadLicensingProfile(t, "cisco", func(metric ddprofiledefinition.MetricsConfig) bool {
+	return mustLoadTypedLicensingProfile(t, "cisco", func(row ddprofiledefinition.LicensingConfig) bool {
 		const prefix = "1.3.6.1.4.1.9.9.831."
 
-		if metric.MIB == "CISCO-SMART-LIC-MIB" {
+		if row.MIB == "CISCO-SMART-LIC-MIB" {
 			return true
 		}
-		if oid := strings.TrimPrefix(metric.Symbol.OID, "."); oid != "" && strings.HasPrefix(oid, prefix) {
+		for _, sig := range ddprofiledefinition.LicenseSignalValueRefs(row) {
+			if oid := strings.TrimPrefix(ddprofiledefinition.LicenseValueSourceOID(sig.Value), "."); oid != "" && strings.HasPrefix(oid, prefix) {
+				return true
+			}
+		}
+		if oid := strings.TrimPrefix(ddprofiledefinition.LicenseValueSourceOID(row.State.LicenseValueConfig), "."); oid != "" && strings.HasPrefix(oid, prefix) {
 			return true
 		}
-		if oid := strings.TrimPrefix(metric.Table.OID, "."); oid != "" && strings.HasPrefix(oid, prefix) {
+		if oid := strings.TrimPrefix(row.Table.OID, "."); oid != "" && strings.HasPrefix(oid, prefix) {
 			return true
 		}
 		return false

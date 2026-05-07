@@ -51,6 +51,11 @@ var (
 		"degrade",
 		"degraded",
 		"grace",
+		"overage",
+		"partial",
+		"unknown",
+	)
+	licenseStateInformationalHints = newLicenseStateHintSet(
 		"evaluation",
 		"evaluation_subscription",
 		"evaluation subscription",
@@ -58,9 +63,6 @@ var (
 		"evaluation period",
 		"eval",
 		"trial",
-		"overage",
-		"partial",
-		"unknown",
 		"initialized",
 		"waiting",
 	)

@@ -11,68 +11,29 @@ import (
 	"github.com/netdata/netdata/go/plugins/plugin/go.d/collector/snmp/ddsnmp"
 )
 
-// Licensing pipeline contract — see src/go/plugin/go.d/collector/snmp/profile-format.md §"Licensing rows".
-//
-// Profiles describe each licensing signal as a hidden ("_"-prefixed) metric
-// named "_license_row". The integer value carries a single signal (expiry
-// epoch, used count, severity, etc). Profiles stamp the "_license_value_kind"
-// tag, usually with the generic setTag transform, so this pipeline knows how
-// to interpret the value. Identifying fields (id, name, component, ...) are set
-// as tags in the profile, using the documented tag-fallback pattern.
-//
-// Rows are grouped by (profile source, SNMP table, _license_id) so a single
-// license can carry both an expiry and a usage signal in separate metrics
-// without colliding with another table that happens to share the same id.
+// Licensing pipeline contract — profiles emit typed licensing rows through
+// ddsnmp.ProfileMetrics.LicenseRows. Hidden metrics remain a generic ddsnmp
+// transport but are not part of the licensing consumer contract.
 
 const (
-	licenseSourceMetricName = "_license_row"
-
-	tagLicenseID                  = "_license_id"
-	tagLicenseName                = "_license_name"
-	tagLicenseFeature             = "_license_feature"
-	tagLicenseComponent           = "_license_component"
-	tagLicenseType                = "_license_type"
-	tagLicenseImpact              = "_license_impact"
-	tagLicenseStateRaw            = "_license_state_raw"
-	tagLicenseUnlimited           = "_license_unlimited"
-	tagLicensePerpetual           = "_license_perpetual"
-	tagLicenseExpirySource        = "_license_expiry_source"
-	tagLicenseAuthorizationSource = "_license_authorization_source"
-	tagLicenseCertificateSource   = "_license_certificate_source"
-	tagLicenseGraceSource         = "_license_grace_source"
-	tagLicenseValueKind           = "_license_value_kind"
-
-	// Value kinds accepted in the profile-stamped "_license_value_kind" tag.
-	licenseValueKindExpiryTimestamp        = "expiry_timestamp"
-	licenseValueKindExpiryRemaining        = "expiry_remaining"
-	licenseValueKindAuthorizationTimestamp = "authorization_timestamp"
-	licenseValueKindAuthorizationRemaining = "authorization_remaining"
-	licenseValueKindCertificateTimestamp   = "certificate_timestamp"
-	licenseValueKindCertificateRemaining   = "certificate_remaining"
-	licenseValueKindGraceTimestamp         = "grace_timestamp"
-	licenseValueKindGraceRemaining         = "grace_remaining"
-	licenseValueKindUsage                  = "usage"
-	licenseValueKindCapacity               = "capacity"
-	licenseValueKindAvailable              = "available"
-	licenseValueKindUsagePercent           = "usage_percent"
-	licenseValueKindStateSeverity          = "state_severity"
-
 	metricIDLicenseRemainingTime              = "snmp_device_license_remaining_time"
 	metricIDLicenseAuthorizationRemainingTime = "snmp_device_license_authorization_remaining_time"
 	metricIDLicenseCertificateRemainingTime   = "snmp_device_license_certificate_remaining_time"
 	metricIDLicenseGraceRemainingTime         = "snmp_device_license_grace_remaining_time"
 	metricIDLicenseUsagePercent               = "snmp_device_license_usage_percent"
 	metricIDLicenseStateHealthy               = "snmp_device_license_state_healthy"
+	metricIDLicenseStateInformational         = "snmp_device_license_state_informational"
 	metricIDLicenseStateDegraded              = "snmp_device_license_state_degraded"
 	metricIDLicenseStateBroken                = "snmp_device_license_state_broken"
 	metricIDLicenseStateIgnored               = "snmp_device_license_state_ignored"
 )
 
 type licenseRow struct {
-	ID     string
-	Source string
-	Table  string
-	Name   string
+	ID           string
+	StructuralID string
+	Source       string
+	Table        string
+	Name         string
 
 	Feature   string
 	Component string
@@ -109,14 +70,6 @@ type licenseRow struct {
 	AuthSource   string
 	CertSource   string
 	GraceSource  string
-
-	OriginalMetric string
-}
-
-type licenseRowMergeKey struct {
-	Source string
-	Table  string
-	ID     string
 }
 
 type licenseCache struct {
@@ -144,61 +97,25 @@ func (c *licenseCache) snapshot() (time.Time, []licenseRow) {
 	return c.lastUpdate, slices.Clone(c.rows)
 }
 
-// extractLicenseRows walks the HiddenMetrics of each profile, groups
-// _license_row signals by (source, table, _license_id), and populates a
-// licenseRow per group. Per-row vendor sanity rules and state-bucket
-// normalization run once per merged row at the end.
-//
-// Metrics that do not declare a _license_id are dropped: there is no safe
-// fallback for grouping, and silently collapsing them would corrupt
-// device-level aggregates.
+// extractLicenseRows converts typed ddsnmp licensing rows into the collector's
+// cached row shape. HiddenMetrics are intentionally ignored here: they remain a
+// generic ddsnmp transport, not a licensing protocol.
 func extractLicenseRows(pms []*ddsnmp.ProfileMetrics, now time.Time) []licenseRow {
 	var rows []licenseRow
-	rowIdx := make(map[licenseRowMergeKey]int)
 
 	for _, pm := range pms {
 		if pm == nil {
 			continue
 		}
-		source := stripFileNameExt(pm.Source)
-
-		for _, metric := range pm.HiddenMetrics {
-			if !isLicenseSourceMetric(metric.Name) {
+		for _, src := range pm.LicenseRows {
+			row, ok := licenseRowFromTyped(pm, src, now)
+			if !ok {
 				continue
 			}
-			tags := mergeLicenseTags(metric)
-			id := strings.TrimSpace(tags[tagLicenseID])
-			if id == "" {
-				// No identity → cannot safely merge or stand alone.
-				continue
-			}
-			// metric.Table differentiates rows that come from different SNMP
-			// tables but happen to share the same _license_id (e.g., Fortinet
-			// fgLicContractTable vs. fgLicVersionTable both keying by
-			// description). Scalars have an empty Table so they continue to
-			// merge across metric definitions, which is what Cisco Smart
-			// Licensing relies on.
-			key := licenseRowMergeKey{
-				Source: source,
-				Table:  metric.Table,
-				ID:     id,
-			}
-
-			idx, seen := rowIdx[key]
-			if !seen {
-				rows = append(rows, newLicenseRow(source, metric.Table, id, metric.Name, tags))
-				idx = len(rows) - 1
-				rowIdx[key] = idx
-			}
-			mergeLicenseSignal(&rows[idx], metric.Value, tags[tagLicenseValueKind], now)
+			rows = append(rows, row)
 		}
 	}
 
-	// Drop rows that produced no merged signal at all. These come from
-	// transforms that failed to parse a vendor format (e.g.,
-	// licenseDateFromTag rejecting an unknown date string), where the row was
-	// allocated but no value_kind ever stamped its value. Keeping them would
-	// silently inflate the "ignored" bucket on the device-level chart.
 	rows = dropLicenseRowsWithoutSignals(rows)
 
 	for i := range rows {
@@ -216,8 +133,93 @@ func extractLicenseRows(pms []*ddsnmp.ProfileMetrics, now time.Time) []licenseRo
 	return rows
 }
 
-func isLicenseSourceMetric(name string) bool {
-	return strings.HasPrefix(name, licenseSourceMetricName)
+func licenseRowFromTyped(pm *ddsnmp.ProfileMetrics, src ddsnmp.LicenseRow, now time.Time) (licenseRow, bool) {
+	row := licenseRow{
+		Source:        licenseRowSource(pm, src),
+		Table:         licenseRowTable(src),
+		ID:            licenseRowID(src),
+		StructuralID:  firstNonBlank(src.StructuralID, src.RowKey, src.ID),
+		Name:          src.Name,
+		Feature:       src.Feature,
+		Component:     src.Component,
+		Type:          src.Type,
+		Impact:        src.Impact,
+		IsUnlimited:   src.IsUnlimited,
+		IsPerpetual:   src.IsPerpetual,
+		StateRaw:      src.State.Raw,
+		StateSeverity: clampLicenseSeverity(src.State.Severity),
+		HasState:      src.State.Has,
+	}
+
+	setLicenseTimer(&row.ExpiryTS, &row.HasExpiry, &row.ExpirySource, src.Expiry, now)
+	setLicenseTimer(&row.AuthorizationExpiry, &row.HasAuthorizationTime, &row.AuthSource, src.Authorization, now)
+	setLicenseTimer(&row.CertificateExpiry, &row.HasCertificateTime, &row.CertSource, src.Certificate, now)
+	setLicenseTimer(&row.GraceExpiry, &row.HasGraceTime, &row.GraceSource, src.Grace, now)
+
+	row.Usage = src.Usage.Used
+	row.HasUsage = src.Usage.HasUsed
+	row.Capacity = src.Usage.Capacity
+	row.HasCapacity = src.Usage.HasCapacity
+	row.Available = src.Usage.Available
+	row.HasAvailable = src.Usage.HasAvailable
+	row.UsagePercent = float64(src.Usage.Percent)
+	row.HasUsagePct = src.Usage.HasPercent
+	deriveLicenseUsage(&row)
+
+	return row, firstNonBlank(row.ID, row.StructuralID) != "" && licenseRowHasAnySignal(row)
+}
+
+func licenseRowSource(pm *ddsnmp.ProfileMetrics, src ddsnmp.LicenseRow) string {
+	if strings.TrimSpace(src.OriginProfileID) != "" {
+		return src.OriginProfileID
+	}
+	if pm == nil {
+		return ""
+	}
+	return pm.Source
+}
+
+func licenseRowTable(src ddsnmp.LicenseRow) string {
+	return firstNonBlank(src.TableOID, src.Table)
+}
+
+func licenseRowID(src ddsnmp.LicenseRow) string {
+	return firstNonBlank(src.ID, src.StructuralID, src.RowKey)
+}
+
+func setLicenseTimer(dst *int64, has *bool, source *string, timer ddsnmp.LicenseTimer, now time.Time) {
+	if !timer.Has {
+		return
+	}
+	if timer.Timestamp != 0 {
+		*dst = timer.Timestamp
+	} else {
+		*dst = now.Unix() + timer.RemainingSeconds
+	}
+	*has = true
+	*source = timer.SourceOID
+}
+
+func clampLicenseSeverity(value int64) int64 {
+	switch {
+	case value < 0:
+		return 0
+	case value > 2:
+		return 2
+	default:
+		return value
+	}
+}
+
+func deriveLicenseUsage(row *licenseRow) {
+	if !row.HasUsage && row.HasCapacity && row.HasAvailable && row.Available >= 0 && row.Available <= row.Capacity {
+		row.Usage = row.Capacity - row.Available
+		row.HasUsage = true
+	}
+	if !row.HasUsagePct && row.HasUsage && row.HasCapacity && row.Capacity > 0 && !row.IsUnlimited {
+		row.UsagePercent = float64(row.Usage) * 100 / float64(row.Capacity)
+		row.HasUsagePct = true
+	}
 }
 
 func dropLicenseRowsWithoutSignals(rows []licenseRow) []licenseRow {
@@ -238,176 +240,6 @@ func licenseRowHasAnySignal(row licenseRow) bool {
 		row.HasCapacity ||
 		row.HasAvailable ||
 		row.HasUsagePct
-}
-
-// newLicenseRow allocates a row populated entirely from the profile-declared
-// tags. Identity (_license_id, _license_name) and any optional descriptive
-// fields must come from YAML — the documented "tag fallback (first non-empty
-// wins)" pattern is the right place to express vendor preference order.
-func newLicenseRow(source, table, id, metricName string, tags map[string]string) licenseRow {
-	return licenseRow{
-		Source:         source,
-		Table:          table,
-		ID:             id,
-		Name:           tags[tagLicenseName],
-		Feature:        tags[tagLicenseFeature],
-		Component:      tags[tagLicenseComponent],
-		Type:           tags[tagLicenseType],
-		Impact:         tags[tagLicenseImpact],
-		StateRaw:       tags[tagLicenseStateRaw],
-		ExpirySource:   tags[tagLicenseExpirySource],
-		AuthSource:     tags[tagLicenseAuthorizationSource],
-		CertSource:     tags[tagLicenseCertificateSource],
-		GraceSource:    tags[tagLicenseGraceSource],
-		OriginalMetric: metricName,
-		IsUnlimited:    parseLicenseBool(tags[tagLicenseUnlimited]),
-		IsPerpetual:    parseLicenseBool(tags[tagLicensePerpetual]),
-	}
-}
-
-// licenseTimestampSentinelMaxUint32 is the 0xFFFFFFFF "never expires"
-// sentinel some vendors emit as a Gauge32. Treating it as a real epoch would
-// give a fake "remaining time = ~80 years" signal that pollutes aggregates,
-// so it is filtered out at the merge boundary for every *_timestamp kind.
-const licenseTimestampSentinelMaxUint32 = int64(4294967295)
-
-// isLicenseTimestampSentinel returns true for values that look like a
-// vendor "no expiry" sentinel rather than a real unix epoch.
-func isLicenseTimestampSentinel(value int64) bool {
-	return value <= 0 || value == licenseTimestampSentinelMaxUint32
-}
-
-// mergeLicenseSignal folds one metric's numeric value into the licenseRow,
-// using the profile-declared value kind to decide which field it belongs to.
-// Signals encountered twice do not overwrite an already-populated field.
-func mergeLicenseSignal(row *licenseRow, value int64, kind string, now time.Time) {
-	switch kind {
-	case licenseValueKindStateSeverity:
-		if row.HasState {
-			return
-		}
-		if value < 0 {
-			value = 0
-		}
-		if value > 2 {
-			value = 2
-		}
-		row.StateSeverity = value
-		row.HasState = true
-
-	case licenseValueKindExpiryTimestamp:
-		if row.HasExpiry || isLicenseTimestampSentinel(value) {
-			return
-		}
-		row.ExpiryTS = value
-		row.HasExpiry = true
-	case licenseValueKindExpiryRemaining:
-		if row.HasExpiry {
-			return
-		}
-		row.ExpiryTS = now.Unix() + value
-		row.HasExpiry = true
-
-	case licenseValueKindAuthorizationTimestamp:
-		if row.HasAuthorizationTime || isLicenseTimestampSentinel(value) {
-			return
-		}
-		row.AuthorizationExpiry = value
-		row.HasAuthorizationTime = true
-	case licenseValueKindAuthorizationRemaining:
-		if row.HasAuthorizationTime {
-			return
-		}
-		row.AuthorizationExpiry = now.Unix() + value
-		row.HasAuthorizationTime = true
-
-	case licenseValueKindCertificateTimestamp:
-		if row.HasCertificateTime || isLicenseTimestampSentinel(value) {
-			return
-		}
-		row.CertificateExpiry = value
-		row.HasCertificateTime = true
-	case licenseValueKindCertificateRemaining:
-		if row.HasCertificateTime {
-			return
-		}
-		row.CertificateExpiry = now.Unix() + value
-		row.HasCertificateTime = true
-
-	case licenseValueKindGraceTimestamp:
-		if row.HasGraceTime || isLicenseTimestampSentinel(value) {
-			return
-		}
-		row.GraceExpiry = value
-		row.HasGraceTime = true
-	case licenseValueKindGraceRemaining:
-		if row.HasGraceTime {
-			return
-		}
-		row.GraceExpiry = now.Unix() + value
-		row.HasGraceTime = true
-
-	case licenseValueKindUsage:
-		if row.HasUsage {
-			return
-		}
-		row.Usage = value
-		row.HasUsage = true
-	case licenseValueKindCapacity:
-		if row.HasCapacity {
-			return
-		}
-		row.Capacity = value
-		row.HasCapacity = true
-	case licenseValueKindAvailable:
-		if row.HasAvailable {
-			return
-		}
-		row.Available = value
-		row.HasAvailable = true
-	case licenseValueKindUsagePercent:
-		if row.HasUsagePct {
-			return
-		}
-		row.UsagePercent = float64(value)
-		row.HasUsagePct = true
-	}
-
-	if !row.HasUsage && row.HasCapacity && row.HasAvailable && row.Available >= 0 && row.Available <= row.Capacity {
-		row.Usage = row.Capacity - row.Available
-		row.HasUsage = true
-	}
-	if !row.HasUsagePct && row.HasUsage && row.HasCapacity && row.Capacity > 0 && !row.IsUnlimited {
-		row.UsagePercent = float64(row.Usage) * 100 / float64(row.Capacity)
-		row.HasUsagePct = true
-	}
-}
-
-func mergeLicenseTags(metric ddsnmp.Metric) map[string]string {
-	switch {
-	case len(metric.StaticTags) == 0:
-		return metric.Tags
-	case len(metric.Tags) == 0:
-		return metric.StaticTags
-	}
-
-	tags := make(map[string]string, len(metric.StaticTags)+len(metric.Tags))
-	for k, v := range metric.StaticTags {
-		tags[k] = v
-	}
-	for k, v := range metric.Tags {
-		tags[k] = v
-	}
-	return tags
-}
-
-func parseLicenseBool(raw string) bool {
-	switch strings.ToLower(strings.TrimSpace(raw)) {
-	case "1", "true", "yes", "y", "enabled", "active", "perpetual", "unlimited":
-		return true
-	default:
-		return false
-	}
 }
 
 func firstNonBlank(values ...string) string {

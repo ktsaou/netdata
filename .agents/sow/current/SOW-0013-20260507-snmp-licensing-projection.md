@@ -65,6 +65,7 @@ Unknowns:
   - Check Point licensing OID mapping follows the `svnLicensing` table from the refreshed `CHECKPOINT-MIB.mib`.
   - Blue Coat derives `appLicenseStatusIndex` from the row index instead of reading the `not-accessible` object as `symbol.OID`.
   - Sophos and MikroTik ignored-state/sentinel behavior is no longer filename-gated.
+  - Cisco licensing is represented by dedicated typed licensing mixins, not hidden `_license_row*` blocks in `_cisco-base.yaml`; broad Cisco coverage comes from `cisco.yaml` extending those mixins.
 - Runtime merge identity uses `OriginProfileID` plus table OID plus an INDEX-derived row key for table rows. `OriginProfileID` is the logical profile file that declared the licensing row, including mixin-origin rows after `extends:` merge. It must not use display table names, stripped filenames, root matched profile names, or absolute source paths as structural identity.
 - Eval/trial states do not generate warning/critical alerts by default; they may be exposed as informational function/chart state.
 - Chart/health scoping for licensing uses explicit chart labels or an evidence-backed alternative if chart-label filtering is not available for Netdata health templates.
@@ -725,6 +726,30 @@ Selected option: A with caller-review exception. `snmp:licenses` remains intenti
   - accepted and fixed licensing observability separation by adding `Stats.Timing.Licensing` and `Stats.Errors.Processing.Licensing`;
   - accepted the stats accounting direction: `Stats.Metrics.Licensing` counts typed license rows, while `Stats.Metrics.Tables` and `Stats.Metrics.Rows` remain ordinary chart-metric table counters;
   - rejected treating scalar `from:` acceptance as a blocker: scalar rows are the scalar group scope, table `from:` has the strict same-table gate, and cross-profile `from:` has no schema path.
+- Started the consumer rewrite slice:
+  - replace `collector/snmp/licensing.go` hidden `_license_row*` / `_license_value_kind` extraction with typed `ProfileMetrics.LicenseRows`;
+  - keep hidden-profile fixture tests only as migration reference, not as the target consumer contract;
+  - update aggregation/state/function tests around typed rows, including ignored/informational/degraded/broken bucket behavior;
+  - migrate vendor profile families only after the typed consumer is working.
+- Recorded Cisco licensing scope refinement:
+  - Cisco licensing remains in dedicated licensing mixin/profile files, not `_cisco-base.yaml`;
+  - current WIP Cisco licensing has two table OIDs (`clmgmtLicenseInfoTable` and `ciscoSlaEntitlementInfoTable`);
+  - unsupported scalar GET OIDs are cached as exact missing OIDs after clean no-data responses;
+  - unsupported table-root walks that return explicit `NoSuchObject` / `NoSuchInstance` should be distinguished from empty tables with zero rows;
+  - user selected broad Cisco coverage: `cisco.yaml` should extend the dedicated Cisco traditional and smart licensing mixins;
+  - broad Cisco licensing coverage is acceptable with a tracked follow-up for carefully scoped explicit table-root no-such caching so unsupported licensing table probes do not remain permanent per-poll cost.
+- Migrated Cisco licensing profiles:
+  - added `_cisco-licensing-traditional.yaml` and `_cisco-licensing-smart.yaml`;
+  - removed hidden Cisco `_license_row*` and `_license_value_kind` profile blocks from `_cisco-base.yaml`;
+  - made `cisco.yaml` extend both dedicated licensing mixins;
+  - Cisco Smart scalar OIDs now use scalar instance suffix `.0`; the Smart entitlement OID remains a table;
+  - Cisco traditional typed rows use the three-component MIB index as the semantic row id, while runtime structural identity remains origin profile + table OID + row key;
+  - treated zero-length SNMP `DateAndTime` values as no-value for licensing timers, matching the Cisco MIB's empty-octet-string not-applicable behavior.
+- Cisco migration validation passed:
+  - `go test -count=1 ./collector/snmp/ddsnmp/ddsnmpcollector -run 'TestCollector_Collect_Cisco|TestCollector_Collect_.*LicensingProfile_Fixture'`;
+  - `go test -count=1 ./collector/snmp/ddsnmp/...`;
+  - `go test -count=1 ./collector/snmp/...`;
+  - `rg '_license_row|_license_value_kind|licenseDateFromTag' config/go.d/snmp.profiles/default` returned no matches.
 - Updated durable project artifacts for the typed projection slice:
   - extended `.agents/sow/specs/snmp-profile-projection.md` with the licensing consumer, projection rules, typed delivery, identity rules, and validation guarantees;
   - extended `.agents/skills/project-snmp-profiles-authoring/SKILL.md` with licensing authoring guardrails and the `ProfileMetrics.LicenseRows` delivery rule.
@@ -759,6 +784,10 @@ Tests or equivalent validation:
 - `go test -count=1 ./collector/snmp/ddsnmp/...` passed.
 - `go test -count=1 ./collector/snmp/...` passed.
 - `go test -count=1 ./collector/snmp_topology/...` passed, covering shared profile projection changes against the topology consumer.
+- `go test -count=1 ./collector/snmp` passed after replacing the licensing consumer's hidden-metric extraction with typed `ProfileMetrics.LicenseRows`, adding the `informational` bucket, and rewriting SNMP collector aggregation/function tests around typed rows.
+- `go test -count=1 ./collector/snmp/ddsnmp/ddsnmpcollector` passed after migrating MikroTik, Check Point, Blue Coat, and Fortinet licensing profiles from hidden `_license_row` metrics to typed `licensing:` rows.
+- `go test -count=1 ./collector/snmp/ddsnmp/... ./collector/snmp` passed after the typed consumer rewrite, typed profile migrations, and licensing documentation updates in this slice.
+- `go test -count=1 ./collector/snmp/... ./collector/snmp_topology/...` passed after the typed consumer rewrite, migrated profile subset, and documentation/health updates.
 
 Real-use evidence:
 

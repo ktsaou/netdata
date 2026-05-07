@@ -16,7 +16,7 @@ import (
 	ddsnmpcollector "github.com/netdata/netdata/go/plugins/plugin/go.d/collector/snmp/ddsnmp/ddsnmpcollector"
 )
 
-func TestCollector_Collect_LicensingAggregation_IgnoresUnstampedNoiseRows(t *testing.T) {
+func TestCollector_Collect_LicensingAggregation_ReadsTypedRowsAndIgnoresHiddenMetrics(t *testing.T) {
 	mockCtl := gomock.NewController(t)
 	defer mockCtl.Finish()
 
@@ -33,31 +33,34 @@ func TestCollector_Collect_LicensingAggregation_IgnoresUnstampedNoiseRows(t *tes
 	collr.newDdSnmpColl = func(ddsnmpcollector.Config) ddCollector {
 		pm := &ddsnmp.ProfileMetrics{
 			Source: "noise-licensing.yaml",
+			LicenseRows: []ddsnmp.LicenseRow{
+				typedLicenseRow("healthy", "Healthy license", withState(0, "active")),
+			},
 			HiddenMetrics: []ddsnmp.Metric{
 				{
-					Name:  licenseSourceMetricName,
+					Name:  "_license_row",
 					Value: 0,
 					Tags: map[string]string{
-						tagLicenseID:        "healthy",
-						tagLicenseName:      "Healthy license",
-						tagLicenseStateRaw:  "active",
-						tagLicenseValueKind: licenseValueKindStateSeverity,
+						"_license_id":         "hidden-healthy",
+						"_license_name":       "Hidden healthy license",
+						"_license_state_raw":  "active",
+						"_license_value_kind": "state_severity",
 					},
 				},
 				{
-					Name:  licenseSourceMetricName,
+					Name:  "_license_row",
 					Value: 123,
 					Tags: map[string]string{
-						tagLicenseID:   "noise",
-						tagLicenseName: "Noise without kind",
+						"_license_id":   "noise",
+						"_license_name": "Noise without kind",
 					},
 				},
 				{
 					Name:  "_license_row_expiry",
 					Value: 999,
 					Tags: map[string]string{
-						tagLicenseID:   "bad-expiry",
-						tagLicenseName: "Bad expiry helper",
+						"_license_id":   "bad-expiry",
+						"_license_name": "Bad expiry helper",
 					},
 				},
 			},
@@ -75,6 +78,7 @@ func TestCollector_Collect_LicensingAggregation_IgnoresUnstampedNoiseRows(t *tes
 	require.NotNil(t, got)
 
 	assert.EqualValues(t, 1, got[metricIDLicenseStateHealthy])
+	assert.EqualValues(t, 0, got[metricIDLicenseStateInformational])
 	assert.EqualValues(t, 0, got[metricIDLicenseStateDegraded])
 	assert.EqualValues(t, 0, got[metricIDLicenseStateBroken])
 	assert.EqualValues(t, 0, got[metricIDLicenseStateIgnored])

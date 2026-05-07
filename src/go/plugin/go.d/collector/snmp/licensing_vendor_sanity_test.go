@@ -51,17 +51,14 @@ func TestShouldIgnoreMikroTikUpgradeUntil_KeepsRealExpiry(t *testing.T) {
 func TestExtractLicenseRows_DropsMikroTikSentinelOnlyRowAfterVendorSanity(t *testing.T) {
 	now := time.Date(2026, time.April, 10, 12, 0, 0, 0, time.UTC)
 	pm := &ddsnmp.ProfileMetrics{
-		Source: "mikrotik-router.yaml",
-		HiddenMetrics: []ddsnmp.Metric{{
-			Name:  licenseSourceMetricName,
-			Value: time.Date(1970, time.January, 2, 0, 0, 0, 0, time.UTC).Unix(),
-			Tags: map[string]string{
-				tagLicenseID:           "routeros_upgrade",
-				tagLicenseName:         "RouterOS upgrade entitlement",
-				tagLicenseValueKind:    licenseValueKindExpiryTimestamp,
-				tagLicenseExpirySource: mikroTikUpgradeUntilExpirySource,
-			},
-		}},
+		Source: "profiles/mikrotik-router.yaml",
+		LicenseRows: []ddsnmp.LicenseRow{typedLicenseRow(
+			"routeros_upgrade",
+			"RouterOS upgrade entitlement",
+			withOriginProfileID(mikroTikLicenseSource),
+			withExpiry(time.Date(1970, time.January, 2, 0, 0, 0, 0, time.UTC).Unix()),
+			withExpirySource(mikroTikUpgradeUntilExpirySource),
+		)},
 	}
 
 	rows := extractLicenseRows([]*ddsnmp.ProfileMetrics{pm}, now)

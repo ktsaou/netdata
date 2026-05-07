@@ -94,6 +94,7 @@ var (
 		SkipGaps: true,
 		Dims: collectorapi.Dims{
 			{ID: metricIDLicenseStateHealthy, Name: string(licenseStateBucketHealthy)},
+			{ID: metricIDLicenseStateInformational, Name: string(licenseStateBucketInformational)},
 			{ID: metricIDLicenseStateDegraded, Name: string(licenseStateBucketDegraded)},
 			{ID: metricIDLicenseStateBroken, Name: string(licenseStateBucketBroken)},
 			{ID: metricIDLicenseStateIgnored, Name: string(licenseStateBucketIgnored)},

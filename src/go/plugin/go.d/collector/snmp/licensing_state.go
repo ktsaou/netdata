@@ -10,18 +10,32 @@ import (
 type licenseStateBucket string
 
 const (
-	licenseStateBucketHealthy  licenseStateBucket = "healthy"
-	licenseStateBucketDegraded licenseStateBucket = "degraded"
-	licenseStateBucketBroken   licenseStateBucket = "broken"
-	licenseStateBucketIgnored  licenseStateBucket = "ignored"
+	licenseStateBucketHealthy       licenseStateBucket = "healthy"
+	licenseStateBucketInformational licenseStateBucket = "informational"
+	licenseStateBucketDegraded      licenseStateBucket = "degraded"
+	licenseStateBucketBroken        licenseStateBucket = "broken"
+	licenseStateBucketIgnored       licenseStateBucket = "ignored"
 )
 
 func normalizeLicenseStateBucket(row licenseRow, now time.Time) licenseStateBucket {
+	rawBucket, hasRawBucket := mapLicenseStateBucket(row.StateRaw)
+	if hasRawBucket && rawBucket == licenseStateBucketIgnored {
+		return licenseStateBucketIgnored
+	}
+
 	// Hard-fail conditions: a broken-timer or fully-consumed pool is broken
 	// regardless of state. These come from FRESH metric values (the table
 	// cache re-fetches symbol PDUs on every poll), so they cannot be stale.
 	if licenseRowHasBrokenTimerOrUsage(row, now) {
 		return licenseStateBucketBroken
+	}
+
+	if row.HasGraceTime {
+		return licenseStateBucketDegraded
+	}
+
+	if hasRawBucket && rawBucket == licenseStateBucketInformational {
+		return licenseStateBucketInformational
 	}
 
 	// Fresh severity wins over the cached raw state string. The raw state
@@ -35,13 +49,10 @@ func normalizeLicenseStateBucket(row licenseRow, now time.Time) licenseStateBuck
 	}
 
 	// No fresh severity → fall back to the raw vendor state classification.
-	if rawBucket, ok := mapLicenseStateBucket(row.StateRaw); ok {
+	if hasRawBucket {
 		return rawBucket
 	}
 
-	if row.HasGraceTime {
-		return licenseStateBucketDegraded
-	}
 	if row.HasExpiry && !row.IsPerpetual {
 		return licenseStateBucketHealthy
 	}
@@ -100,6 +111,9 @@ func mapLicenseStateBucket(raw string) (licenseStateBucket, bool) {
 	}
 	if licenseStateMatchesAny(raw, licenseStateBrokenHints) {
 		return licenseStateBucketBroken, true
+	}
+	if licenseStateMatchesAny(raw, licenseStateInformationalHints) {
+		return licenseStateBucketInformational, true
 	}
 	if licenseStateMatchesAny(raw, licenseStateDegradedHints) {
 		return licenseStateBucketDegraded, true

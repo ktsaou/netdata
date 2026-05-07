@@ -4,7 +4,6 @@ package ddsnmpcollector
 
 import (
 	"strconv"
-	"strings"
 	"testing"
 	"time"
 
@@ -53,10 +52,10 @@ func TestCollector_Collect_BlueCoatLicensingProfile(t *testing.T) {
 		},
 	)
 
-	profile := mustLoadLicensingProfile(t, "bluecoat-proxysg", func(metric ddprofiledefinition.MetricsConfig) bool {
-		return strings.TrimPrefix(metric.Table.OID, ".") == "1.3.6.1.4.1.3417.2.16.1.1.1"
+	profile := mustLoadTypedLicensingProfile(t, "bluecoat-proxysg", func(row ddprofiledefinition.LicensingConfig) bool {
+		return row.ID == "app_license_status"
 	})
-	require.Len(t, profile.Definition.Metrics, 1)
+	require.Len(t, profile.Definition.Licensing, 1)
 
 	collector := New(Config{
 		SnmpClient:  mockHandler,
@@ -71,34 +70,38 @@ func TestCollector_Collect_BlueCoatLicensingProfile(t *testing.T) {
 
 	pm := results[0]
 	assert.Empty(t, pm.Metrics)
-	require.Len(t, pm.HiddenMetrics, 5)
+	assert.Empty(t, pm.HiddenMetrics)
+	require.Len(t, pm.LicenseRows, 3)
 
-	byID := mustLicenseMetricsByIDAndKind(t, pm.HiddenMetrics)
+	byID := make(map[string]ddsnmp.LicenseRow, len(pm.LicenseRows))
+	for _, row := range pm.LicenseRows {
+		byID[row.ID] = row
+	}
 
 	subscription := byID["1"]
-	require.NotNil(t, subscription)
-	require.EqualValues(t, time.Date(2030, time.November, 11, 0, 0, 0, 0, time.UTC).Unix(), subscription["expiry_timestamp"].Value)
-	require.EqualValues(t, 0, subscription["state_severity"].Value)
-	assert.Equal(t, "ProxySG", metricTagValue(*subscription["state_severity"], "_license_name"))
-	assert.Equal(t, "WebFilter", metricTagValue(*subscription["state_severity"], "_license_feature"))
-	assert.Equal(t, "policy-engine", metricTagValue(*subscription["state_severity"], "_license_component"))
-	assert.Equal(t, "subscription", metricTagValue(*subscription["state_severity"], "_license_type"))
-	assert.Equal(t, "active", metricTagValue(*subscription["state_severity"], "_license_state_raw"))
+	require.NotEmpty(t, subscription)
+	require.EqualValues(t, time.Date(2030, time.November, 11, 0, 0, 0, 0, time.UTC).Unix(), subscription.Expiry.Timestamp)
+	require.EqualValues(t, 0, subscription.State.Severity)
+	assert.Equal(t, "ProxySG", subscription.Name)
+	assert.Equal(t, "WebFilter", subscription.Feature)
+	assert.Equal(t, "policy-engine", subscription.Component)
+	assert.Equal(t, "subscription", subscription.Type)
+	assert.Equal(t, "1", subscription.State.Raw)
 
 	expiredDemo := byID["2"]
-	require.NotNil(t, expiredDemo)
-	require.EqualValues(t, time.Date(2026, time.April, 5, 12, 0, 0, 0, time.UTC).Unix(), expiredDemo["expiry_timestamp"].Value)
-	require.EqualValues(t, 2, expiredDemo["state_severity"].Value)
-	assert.Equal(t, "demo", metricTagValue(*expiredDemo["state_severity"], "_license_type"))
-	assert.Equal(t, "expired", metricTagValue(*expiredDemo["state_severity"], "_license_state_raw"))
+	require.NotEmpty(t, expiredDemo)
+	require.EqualValues(t, time.Date(2026, time.April, 5, 12, 0, 0, 0, time.UTC).Unix(), expiredDemo.Expiry.Timestamp)
+	require.EqualValues(t, 2, expiredDemo.State.Severity)
+	assert.Equal(t, "demo", expiredDemo.Type)
+	assert.Equal(t, "2", expiredDemo.State.Raw)
 
 	perpetual := byID["3"]
-	require.NotNil(t, perpetual)
-	require.EqualValues(t, 0, perpetual["state_severity"].Value)
-	assert.Equal(t, "perpetual", metricTagValue(*perpetual["state_severity"], "_license_type"))
-	assert.Equal(t, "true", metricTagValue(*perpetual["state_severity"], "_license_perpetual"))
-	assert.Equal(t, "active", metricTagValue(*perpetual["state_severity"], "_license_state_raw"))
-	assert.NotContains(t, perpetual, "expiry_timestamp")
+	require.NotEmpty(t, perpetual)
+	require.EqualValues(t, 0, perpetual.State.Severity)
+	assert.Equal(t, "perpetual", perpetual.Type)
+	assert.True(t, perpetual.IsPerpetual)
+	assert.Equal(t, "1", perpetual.State.Raw)
+	assert.False(t, perpetual.Expiry.Has)
 }
 
 type blueCoatLicenseRow struct {

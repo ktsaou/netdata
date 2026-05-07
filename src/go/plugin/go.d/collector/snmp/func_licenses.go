@@ -198,15 +198,17 @@ func licenseBucketPriority(bucket licenseStateBucket) int {
 		return 0
 	case licenseStateBucketDegraded:
 		return 1
-	case licenseStateBucketHealthy:
+	case licenseStateBucketInformational:
 		return 2
-	default:
+	case licenseStateBucketHealthy:
 		return 3
+	default:
+		return 4
 	}
 }
 
 func licenseRowUniqueKey(row licenseRow) string {
-	return licenseKeyParts(row.Source, row.Table, row.ID)
+	return licenseKeyParts(row.Source, row.Table, firstNonBlank(row.StructuralID, row.ID))
 }
 
 func licenseKeyParts(parts ...string) string {

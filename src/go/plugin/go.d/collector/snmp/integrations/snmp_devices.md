@@ -28,7 +28,7 @@ This collector discovers and monitors any SNMP-enabled network device.
 - **Automatic vendor/model detection**: Devices are matched to the right profile using selectors such as `sysObjectID` and `sysDescr`.
 - **ICMP ping**: Optional round-trip latency monitoring alongside SNMP, with a `ping_only` mode available.
 - **SNMP v1, v2c, and v3 support**: Fully implemented via the [gosnmp](https://github.com/gosnmp/gosnmp) library.
-- **Shared device-level licensing metrics for supported profiles**: When a profile exposes license telemetry, Netdata emits compact per-device licensing charts for earliest expiry, license-state counts (`healthy`, `degraded`, `broken`, `ignored`), and highest usage pressure. Current branch coverage includes Check Point licensing state and per-blade expiry, Fortinet FortiGate contract/service/account expirations, Cisco traditional licensing end-date/remaining-time/state/usage telemetry, Cisco Smart Licensing authorization, certificate, evaluation, and state telemetry, Sophos Firewall subscription state and per-license expiry telemetry, Blue Coat ProxySG application/feature/component expiry, expire-type, and state telemetry, and basic MikroTik RouterOS upgrade-entitlement telemetry. For MikroTik, epoch-like placeholder `mtxrLicUpgrUntil` values are ignored instead of treated as real expired licenses.
+- **Shared device-level licensing metrics for supported profiles**: When a profile exposes license telemetry, Netdata emits compact per-device licensing charts for earliest expiry, license-state counts (`healthy`, `informational`, `degraded`, `broken`, `ignored`), and highest usage pressure. Current branch coverage includes Check Point licensing state and per-blade expiry, Fortinet FortiGate contract/service/account expirations, Cisco traditional licensing end-date/remaining-time/state/usage telemetry, Cisco Smart Licensing authorization, certificate, evaluation, and state telemetry, Sophos Firewall subscription state and per-license expiry telemetry, Blue Coat ProxySG application/feature/component expiry, expire-type, and state telemetry, and basic MikroTik RouterOS upgrade-entitlement telemetry. For MikroTik, epoch-like placeholder `mtxrLicUpgrUntil` values are ignored instead of treated as real expired licenses.
 - **Interactive licensing drill-down**: The `snmp:licenses` function follows the existing SNMP function pattern and shows normalized licensing rows for the selected SNMP job/device using cached collector data.
 
 
@@ -372,7 +372,7 @@ The following alerts are available:
 | [snmp_license_authorization_expiring](https://github.com/netdata/netdata/blob/master/src/health/health.d/snmp.conf) | snmp.license.authorization_remaining_time | The license authorization timer on this device is close to expiration. |
 | [snmp_license_certificate_expiring](https://github.com/netdata/netdata/blob/master/src/health/health.d/snmp.conf) | snmp.license.certificate_remaining_time | The license certificate timer on this device is close to expiration. |
 | [snmp_license_grace_period_ending](https://github.com/netdata/netdata/blob/master/src/health/health.d/snmp.conf) | snmp.license.grace_remaining_time | The licensing grace or evaluation period on this device is ending or already expired. |
-| [snmp_license_state_warning](https://github.com/netdata/netdata/blob/master/src/health/health.d/snmp.conf) | snmp.license.state | One or more monitored licenses on this device are degraded, in grace, in evaluation, or otherwise in warning state. |
+| [snmp_license_state_warning](https://github.com/netdata/netdata/blob/master/src/health/health.d/snmp.conf) | snmp.license.state | One or more monitored licenses on this device are degraded, in grace, or otherwise in warning state. |
 | [snmp_license_state_critical](https://github.com/netdata/netdata/blob/master/src/health/health.d/snmp.conf) | snmp.license.state | One or more monitored licenses on this device are expired, invalid, unauthorized, or otherwise in critical state. |
 | [snmp_license_usage_high](https://github.com/netdata/netdata/blob/master/src/health/health.d/snmp.conf) | snmp.license.usage_percent | The most constrained monitored license pool on this device is nearing exhaustion. |
 
@@ -393,12 +393,12 @@ Supported licensing profiles also emit a small set of shared **device-level lice
 - `snmp.license.certificate_remaining_time`: earliest remaining time for licensing certificate timers
 - `snmp.license.grace_remaining_time`: earliest remaining time for grace or evaluation timers
 - `snmp.license.usage_percent`: highest license pool pressure across finite usage pools on the device
-- `snmp.license.state`: count of licensing rows on the device by normalized state bucket (`healthy`, `degraded`, `broken`, `ignored`)
+- `snmp.license.state`: count of licensing rows on the device by normalized state bucket (`healthy`, `informational`, `degraded`, `broken`, `ignored`)
 
 The licensing charts are intentionally aggregated to keep one clean device view:
 
 - Netdata reports the **earliest** expiry-related deadline on the device.
-- Netdata reports how many licensing rows are **healthy**, **degraded**, **broken**, and **ignored** on the device.
+- Netdata reports how many licensing rows are **healthy**, **informational**, **degraded**, **broken**, and **ignored** on the device.
 - Netdata reports the **highest** usage pressure across finite license pools on the device.
 
 Licensing support is intentionally conditional:
@@ -439,7 +439,7 @@ Metrics:
 | snmp.license.certificate_remaining_time | remaining_time | seconds |
 | snmp.license.grace_remaining_time | remaining_time | seconds |
 | snmp.license.usage_percent | usage_percent | percentage |
-| snmp.license.state | healthy, degraded, broken, ignored | licenses |
+| snmp.license.state | healthy, informational, degraded, broken, ignored | licenses |
 
 
 
@@ -596,7 +596,7 @@ Normalized licensing rows for the selected SNMP device. Each row represents one 
 |:-------|:-----|:-----|:-----------|:------------|
 | License | string |  |  | Human-readable license row name, or the normalized license identifier when no name exists. |
 | ID | string |  | hidden | Stable row identifier used by the UI to track one normalized licensing row across updates. |
-| Bucket | string |  |  | Normalized health bucket for the row: healthy, degraded, broken, or ignored. |
+| Bucket | string |  |  | Normalized health bucket for the row: healthy, informational, degraded, broken, or ignored. |
 | State | string |  |  | Raw vendor licensing state when the device exposes one. |
 | Component | string |  |  | Normalized component or area associated with the license row. |
 | Type | string |  |  | Normalized license type such as subscription, certificate, authorization, evaluation, or usage pool. |
