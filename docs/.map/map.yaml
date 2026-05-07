@@ -528,6 +528,8 @@ sidebar:
           description: Complete list of flow fields with per-protocol availability.
       - meta:
           label: Visualization
+          edit_url: https://github.com/netdata/netdata/edit/master/docs/network-flows/visualization/overview.md
+          description: How queries work, the controls every panel shares, and where each panel fits.
         items:
           - meta:
               label: Sankey and Table
@@ -545,12 +547,12 @@ sidebar:
               label: Plugin Health Charts
               edit_url: https://github.com/netdata/netdata/edit/master/docs/network-flows/visualization/dashboard-cards.md
       - meta:
-          label: Retention and Querying
+          label: Retention and Tiers
           edit_url: https://github.com/netdata/netdata/edit/master/docs/network-flows/retention-querying.md
       - meta:
           label: Sizing and Capacity Planning
           edit_url: https://github.com/netdata/netdata/edit/master/docs/network-flows/sizing-capacity.md
-          description: Storage estimation, memory guidance, and performance benchmarks.
+          description: Practical scaling guide -- plugin cap, storage, memory, and distributed deployment.
       - meta:
           label: Validation and Data Quality
           edit_url: https://github.com/netdata/netdata/edit/master/docs/network-flows/validation.md

@@ -1971,3 +1971,66 @@ Removed:
 
 Files touched:
 - docs/network-flows/sizing-capacity.md (full rewrite)
+
+#### F12 -- 2026-05-07 -- Retention/Querying restructure; new Visualization Overview
+
+User: "Retention is closer to configuration and querying
+is closer to visualization. ... If you need to put generic
+visualization rules, these should be a generic
+'Visualization/Overview' page, to explain FTS, sharing,
+grouping, etc."
+
+Repair: split the old retention-querying.md into a
+retention-only page and a new visualization-overview page.
+
+New file: `docs/network-flows/visualization/overview.md`
+- "How queries work" -- query modes, parameters, defaults,
+  30s timeout (moved from retention-querying.md).
+- "Group-by limit and overflow" (moved).
+- "Full-text search" (moved + expanded to explain when to
+  use it vs the indexed filter ribbon).
+- "URL sharing" (moved; reframed as part of generic
+  visualization, not its own standalone section).
+- "Filtering" (cross-link to filters-facets.md).
+- "Picking the right view" (cross-link to each panel).
+
+Updated `docs/network-flows/retention-querying.md`:
+- Sidebar label: "Retention and Querying" -> "Retention
+  and Tiers" (matches the new content scope).
+- Removed sections: "How queries work, briefly",
+  "Group-by limit and overflow", "Full-text search",
+  "URL sharing" (all moved to the new visualization/overview).
+- Page intro now points users to Configuration for retention
+  config and to Visualization Overview for query semantics.
+- Renamed remaining mentions of "tier 0" / "tier-0" to
+  "raw tier" / "raw-tier" for consistency.
+
+Updated `docs/.map/map.yaml`:
+- Visualization sub-section root now carries `edit_url:`
+  pointing at visualization/overview.md (so clicking
+  "Visualization" in the sidebar opens the Overview, the
+  same pattern as F1's section-root fix).
+- "Retention and Querying" sidebar label renamed to
+  "Retention and Tiers".
+- "Sizing and Capacity Planning" description updated post
+  F13 (no more benchmarks).
+
+#### F22 -- 2026-05-07 -- remove redundant "Section index" from the Overview
+
+User: "The 'Section index' in the overview page is not
+needed. Learn already shows the index as a side bar."
+
+Repair: removed the entire `## Section index` section from
+`docs/network-flows/README.md`. The Learn sidebar already
+shows the same hierarchy. The "Where to start" section
+above it stays (it's role-based guidance, not a duplicate
+of the sidebar). Updated the "specific feature in depth"
+bullet to point at the sidebar instead of the deleted
+section.
+
+Files touched:
+- docs/network-flows/visualization/overview.md (created)
+- docs/network-flows/retention-querying.md (slimmed,
+  sidebar label renamed)
+- docs/.map/map.yaml
+- docs/network-flows/README.md (removed Section index)
