@@ -85,7 +85,7 @@ Some shapes that work well:
 
 - **Default**: `Source AS Name → Protocol → Destination AS Name`. The "who, on what, to whom" overview. Good first look.
 - **Country flow**: `Source Country → Destination Country`. Cleanest geographic view. Combine with `protocol` for service-level detail.
-- **Per-router slice**: `Exporter Name → Input Interface → Destination AS Name`. Use when you have per-router questions.
+- **Per-router slice**: `Exporter Name → Ingress Interface Name → Destination AS Name`. Use when you have per-router questions.
 - **Service drill-down**: `Destination Port → Source AS Name`. Who's hitting your services.
 - **Internal/external split**: `IN_IF_BOUNDARY → DST_COUNTRY → Destination ASN`. After labelling your boundaries via static metadata.
 
@@ -95,7 +95,7 @@ The order of fields determines the visual flow. Reorder to change which dimensio
 
 ### Doubling
 
-Without filtering, aggregate volume on a router that exports both ingress and egress (a common configuration) is roughly 2× the actual traffic — every packet generates two flow records, one ingress and one egress. To see real volume on a specific link, filter to one exporter and one interface (Input Interface OR Output Interface, pick one). Each packet then appears in exactly one record on that interface. See [Anti-patterns](/docs/network-flows/anti-patterns.md) for the full framing.
+Without filtering, aggregate volume on a router that exports both ingress and egress (a common configuration; vendor best practice is ingress-only) is roughly 2× the actual traffic — every packet generates two flow records, one ingress and one egress. To see real volume on a specific link, filter to one exporter and one interface (`Ingress Interface Name` OR `Egress Interface Name`, pick one). Each packet then appears in exactly one record on that interface. See [Anti-patterns](/docs/network-flows/anti-patterns.md) for the full framing.
 
 ### Sharing your view
 

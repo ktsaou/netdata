@@ -18,13 +18,13 @@ A small number of failure modes need active monitoring. Most are signalled by Ne
 
 | Failure mode | Detection | Notes |
 |---|---|---|
-| **Kernel-level UDP receive-buffer drops** | The system alert `1m_ipv4_udp_receive_buffer_errors` (`src/health/health.d/udp_errors.conf`) fires when `ipv4.udperrors` `RcvbufErrors` averages more than 10/minute. | OS-wide signal. Ships as `to: silent` by default — change the `to:` field in your alert config to receive notifications. Tune `net.core.rmem_max` (see [Troubleshooting](/docs/network-flows/troubleshooting.md)). |
+| **Kernel-level UDP receive-buffer drops** | The system alert `1m_ipv4_udp_receive_buffer_errors` (`src/health/health.d/udp_errors.conf`) fires when the `RcvbufErrors` rate averages more than **10 errors/second** over a 1-minute window. The dimension is incremental in Netdata, so the numeric threshold is per-second, not per-minute. | OS-wide signal. Ships as `to: silent` by default — change the `to:` field in your alert config to receive notifications. Tune `net.core.rmem_max` (see [Troubleshooting](/docs/network-flows/troubleshooting.md)). |
 | **An exporter stopped sending** | Filter the dashboard to that exporter; rate dropped to zero. The plugin doesn't publish per-exporter ingest counters today. | Manual periodic spot-check or external monitoring. |
 | **Wrong set of interfaces being exported** | Cross-check `show flow exporter` (or vendor equivalent) on each router against the interfaces you intended. | Configuration drift over time; audit quarterly. |
 | **An exporter is sampling but not communicating the rate** | The plugin treats those records as unsampled, so volumes are undercounted by the sampling factor. Cross-check against SNMP. | NetFlow v7 has no rate field; v5 sometimes sends `rate=0`; v9 / IPFIX without a Sampling Options Template lose the per-flow rate. See "Sampling rate verification" below. |
 | **Stale GeoIP / ASN database** | No in-process signal. Check file mtimes; refresh on the schedule the provider recommends. | DB-IP and GeoLite2 ship monthly. |
 
-The plugin does not need to monitor sampling-rate changes (each flow record carries its own rate, multiplication is per-flow at decode time — see [What sampling does to your numbers](/docs/network-flows/#what-sampling-does-to-your-numbers)) or template loss (templates persist across restarts via `decoder_state_dir`). Those are internal concerns the plugin handles.
+The plugin does not need to monitor sampling-rate changes (each flow record carries its own rate, multiplication is per-flow at decode time — see [What sampling does to your numbers](/docs/network-flows/#what-sampling-does-to-your-numbers)) or template loss (templates are written to the plugin's decoder-state directory, under `journal_dir/decoder-state.d/`, and reloaded automatically across restarts). Those are internal concerns the plugin handles.
 
 ## The minimum viable validation routine
 
@@ -34,7 +34,7 @@ Run this once after deployment, then quarterly, plus whenever something looks of
 
 Compare flow-derived bandwidth on a specific interface to the SNMP `ifInOctets` / `ifOutOctets` counter for that same interface. They should be close.
 
-The flow-derived bandwidth: filter the dashboard to one exporter and one interface (Input Interface OR Output Interface — pick one), and read the bytes/s rate.
+The flow-derived bandwidth: filter the dashboard to one exporter and one interface (Ingress Interface Name OR Egress Interface Name — pick one), and read the bytes/s rate.
 
 The SNMP-derived bandwidth: from your SNMP monitoring (Netdata's `snmp.d`, your separate SNMP system, or your network team).
 
@@ -42,7 +42,7 @@ The SNMP-derived bandwidth: from your SNMP monitoring (Netdata's `snmp.d`, your 
 
 **Not acceptable: more than 30% gap.** That indicates one of:
 
-- UDP drops at the kernel. Check the alert mentioned above, or run `sudo ss -uam sport = :2055` and inspect the `d<N>` value inside the `skmem:(...)` line (the `sock_drop` counter increments on every dropped datagram).
+- UDP drops at the kernel. Check the alert mentioned above, or run `sudo ss -uamn sport = :2055` and inspect the `d<N>` value inside the `skmem:(...)` line (the `sock_drop` counter increments on every dropped datagram). The `-n` flag keeps the port numeric in the output.
 - Sampling rate not honoured (the exporter is sampling but not communicating the rate). See "Sampling rate verification" below.
 - Wrong interfaces being exported.
 
@@ -50,22 +50,18 @@ The SNMP-derived bandwidth: from your SNMP monitoring (Netdata's `snmp.d`, your 
 
 ### 2. Doubling sanity check
 
-If your dashboard's total bandwidth exceeds the **physical link capacity**, you're double-counting. When both ingress and egress flow exporters are enabled on the same router, each packet is recorded twice. With multiple monitored routers on the same path, even more.
+If your dashboard's total bandwidth exceeds the **physical link capacity**, you're double-counting. When both ingress and egress flow exporters are enabled on the same router — a common but not universal configuration; vendor best practice is ingress-only — each packet is recorded twice. With multiple monitored routers on the same path, even more.
 
-Verify by: filter to one exporter and one interface (Input Interface OR Output Interface, pick one). Each packet then appears in exactly one record on that interface. Compare to SNMP for that same interface; they should agree within 5-15%.
+Verify by: filter to one exporter and one interface (Ingress Interface Name OR Egress Interface Name, pick one). Each packet then appears in exactly one record on that interface. Compare to SNMP for that same interface; they should agree within 5-15%.
 
 ### 3. Sampling rate verification
 
 The plugin multiplies bytes and packets by the sampling rate each flow carries — **per flow, at ingestion**. You don't have to keep rates uniform across exporters; mixed rates are scaled correctly.
 
-What you DO need to verify, once per exporter, is that the plugin is actually seeing the rate:
+What you DO need to verify, once per exporter, is that the plugin is actually seeing the rate. The dashboard does not surface the per-flow `SAMPLING_RATE` field as a filter, group-by, or facet, so the verification is by **magnitude**, not by reading the rate directly:
 
-- Filter the dashboard to that exporter and group by the `Sampling Rate` field.
-- Read the values you see:
-  - A non-`1` rate means the plugin parsed sampling correctly — bytes/packets are scaled.
-  - A rate of `1` on an exporter you know is sampling means the plugin saw no rate. Either the exporter isn't sampling, or it's sampling but not telling the plugin.
-
-The "sampling but not telling" case happens with NetFlow v7 (no rate field), v5 with rate=0, and v9 / IPFIX exporters that don't send a Sampling Options Template. Fix on the exporter side, or override per-prefix using `enrichment.override_sampling_rate` (see [Static metadata](/docs/network-flows/enrichment/static-metadata.md)).
+- After the plugin has data, compare the dashboard's bytes/s on a known interface to that interface's SNMP `ifInOctets` / `ifOutOctets` rate. If the dashboard reading is roughly the SNMP figure divided by the configured sampling rate (e.g. ~1/1000 of SNMP at 1-in-1000), the plugin saw the rate as `1` and is *not* multiplying. If the dashboard agrees with SNMP within 5-15%, the plugin is honouring the rate.
+- The "sampling but not telling" case happens with NetFlow v7 (no rate field), v5 with rate=0, and v9 / IPFIX exporters that don't send a Sampling Options Template. Fix on the exporter side, or apply `enrichment.override_sampling_rate` per source prefix to substitute a known rate (see [Configuration → enrichment](/docs/network-flows/configuration.md#enrichment) and [Static metadata](/docs/network-flows/enrichment/static-metadata.md)).
 
 ### 4. Per-exporter health check
 

@@ -196,7 +196,7 @@ enrichment:
   # default_sampling_rate: { 10.1.0.0/16: 1024 }         # per-prefix form is also valid
   # override_sampling_rate: { 10.1.0.0/16: 1024 }        # per-prefix override map
   default_sampling_rate: ~
-  override_sampling_rate: {}
+  override_sampling_rate: ~
   metadata_static: { exporters: {} }
   geoip: { asn_database: [], geo_database: [], optional: false }
   networks: {}

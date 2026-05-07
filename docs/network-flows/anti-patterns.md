@@ -18,7 +18,7 @@ Flow data is powerful but easy to misuse. The mistakes below are the ones that c
 
 **What it costs.** You think your link carries 2 Gbps when it really carries 1 Gbps. Capacity decisions based on these numbers are wrong by a factor of 2 or more.
 
-**How to avoid it.** Always filter by one exporter and one interface (Input Interface OR Output Interface, pick one) when reading absolute volume numbers. Each packet then appears in exactly one record on that interface. To validate: compare to SNMP interface counters on the same interface — values should be close.
+**How to avoid it.** Always filter by one exporter and one interface (`Ingress Interface Name` OR `Egress Interface Name`, pick one) when reading absolute volume numbers. Each packet then appears in exactly one record on that interface. To validate: compare to SNMP interface counters on the same interface — values should be close.
 
 ## 2. Collecting flows but never looking at them
 
@@ -104,7 +104,7 @@ Flow data is powerful but easy to misuse. The mistakes below are the ones that c
 
 | Mistake | One-line fix |
 |---|---|
-| Doubled aggregate | Filter by one exporter and one interface (Input or Output, pick one) |
+| Doubled aggregate (when ingress + egress are both exported) | Filter by one exporter and one interface (`Ingress Interface Name` or `Egress Interface Name`, pick one) |
 | Collect-and-ignore | Weekly 15-minute review with documented baselines |
 | Flows ≠ sessions | Aggregate by IP and time window |
 | NAT blindness | Collect inside the NAT boundary |

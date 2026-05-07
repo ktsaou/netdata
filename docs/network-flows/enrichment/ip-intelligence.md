@@ -41,8 +41,8 @@ enrichment:
 
 | Key | Type | Notes |
 |---|---|---|
-| `asn_database` | list of paths | One or more ASN MMDB files. Multiple files compose: each lookup tries every database, last match wins per field. |
-| `geo_database` | list of paths | One or more geographic MMDB files. Same composition rule. Aliases: `geo-database`, `country-database`. |
+| `asn_database` | list of paths | One or more ASN MMDB files. Multiple files compose: each lookup runs against every database in order; for ASN fields the last database that returns a match wins. Aliases: `asn-database`. |
+| `geo_database` | list of paths | One or more geographic MMDB files. Same composition rule, with the difference that geo fields are written **only when the matching record has a non-empty value** — so a later database that returns no city does not overwrite an earlier database's city. Aliases: `geo-database`, `country-database`. |
 | `optional` | bool, default `false` | When `true`, missing or unreadable files at startup are tolerated (the resolver starts with no databases). When `false`, a missing file aborts startup. The auto-detected files described below are always treated as `optional: true`. |
 
 If you provide nothing, the plugin auto-detects the MMDB files at startup:
@@ -52,11 +52,11 @@ If you provide nothing, the plugin auto-detects the MMDB files at startup:
 
 A stock Netdata install populates the cache directory with DB-IP MMDB files. See the [DB-IP IP Intelligence](/src/crates/netflow-plugin/integrations/db-ip_ip_intelligence.md) integration card for the installer and refresh schedule.
 
-If you want a different provider, configure `asn_database` / `geo_database` explicitly. The plugin reads MaxMind format (`.mmdb`); GeoLite2 and DB-IP both ship in this format. See:
+If you want a different provider, configure `asn_database` / `geo_database` explicitly. The plugin only reads MMDB (the MaxMind binary database format); DB-IP and MaxMind GeoIP / GeoLite2 ship MMDB directly. Other feeds (such as IPtoASN, which ships as gzipped TSV) require a one-step conversion to MMDB before the plugin can read them — the per-provider integration cards document the conversion. See:
 
-- [DB-IP IP Intelligence](/src/crates/netflow-plugin/integrations/db-ip_ip_intelligence.md) — the default.
-- [MaxMind GeoIP / GeoLite2](/src/crates/netflow-plugin/integrations/maxmind_geoip_-_geolite2.md) — commercial / free with attribution.
-- [IPtoASN](/src/crates/netflow-plugin/integrations/iptoasn.md) — public ASN-only feed.
+- [DB-IP IP Intelligence](/src/crates/netflow-plugin/integrations/db-ip_ip_intelligence.md) — MMDB; the default that ships with Netdata.
+- [MaxMind GeoIP / GeoLite2](/src/crates/netflow-plugin/integrations/maxmind_geoip_-_geolite2.md) — MMDB; commercial GeoIP2 or free GeoLite2 with attribution.
+- [IPtoASN](/src/crates/netflow-plugin/integrations/iptoasn.md) — public-domain TSV feed (ASN + country); convert to MMDB before use.
 - [Custom MMDB Database](/src/crates/netflow-plugin/integrations/custom_mmdb_database.md) — your own MMDB build.
 
 ## Refresh
@@ -73,21 +73,21 @@ Per flow record, per IP (source and destination):
 2. **Geo database scan** — same procedure for the geographic databases. Country, state, city, coordinates updated.
 3. **Result merging** — the resulting attributes feed into the broader [ASN resolution chain](/docs/network-flows/enrichment/asn-resolution.md) (which decides whether to use the MMDB AS number, the flow record's AS number, or BGP-derived data) and the [static metadata / network sources](/docs/network-flows/enrichment/static-metadata.md) overlay (which can override country, AS number, and other fields per CIDR).
 
-The ASN MMDB also populates the AS *name* at the very end of the chain, regardless of which provider gave the AS *number*. So even if your `asn_providers` chain prefers BGP over the MMDB for the number, the friendly name still comes from the ASN database.
+The ASN database is also where the AS *name* string lives. The friendly name is populated from the MMDB regardless of which provider supplied the AS number. Note that in the `asn_providers` chain the `geoip` provider is a terminal "use 0" shortcut — when it is reached, the AS *number* is forced to `0` and the resolver stops; the AS *name* still comes from the MMDB lookup independently. So an `asn_providers` chain ending in `geoip` is effectively "use the flow- or routing-derived AS number, otherwise label as `AS0`".
 
 ## Things to know
 
 ### Private IPs render as `AS0 Private IP Address Space`
 
-The DB-IP-built ASN database tags RFC 1918 / RFC 6598 / link-local ranges with a private flag. The plugin reads that flag and renders the AS name accordingly. Public IPs that the database doesn't recognise render as `AS0 Unknown ASN` instead. This is purely a labelling distinction; both come out as AS number `0`.
+The DB-IP-built ASN database tags address ranges that the upstream builder marked as private. The plugin reads that flag and renders the AS name accordingly. Public IPs that the database doesn't recognise render as `AS0 Unknown ASN` instead. The exact set of ranges marked private (RFC 1918, link-local, RFC 6598, etc.) depends on the database build, not on the plugin. Both labels come out as AS number `0`.
 
 ### IPv6 lookups against an IPv4-only database are skipped
 
-The resolver inspects each database's metadata. An IPv6 lookup against an IPv4-only file is silently skipped (no warning, no error). If you mix IPv4 and IPv6 traffic, configure both an IPv4 ASN/geo file and a separate IPv6 file, or use a database that covers both address families.
+The resolver inspects each database's metadata. An IPv6 lookup against an IPv4-only file is silently skipped (no warning, no error). Most current providers ship a single dual-stack MMDB that covers both address families — DB-IP, MaxMind GeoLite2, and MaxMind GeoIP2 are all dual-stack. You only need a separate IPv4-only / IPv6-only split if you are working with a legacy single-family build.
 
 ### Database staleness drift over weeks
 
-ASN ownership data changes — companies merge, prefixes get reassigned, new ASNs appear. A database older than a quarter or two will start labelling reassigned prefixes with the previous owner. There's no in-process signal for "your MMDB is too old"; refresh on the cadence the provider recommends (DB-IP and GeoLite2 ship monthly).
+ASN ownership data changes — companies merge, prefixes get reassigned, new ASNs appear. A database older than a quarter or two will start labelling reassigned prefixes with the previous owner. There's no in-process signal for "your MMDB is too old"; refresh on the cadence the provider recommends. **DB-IP** ships its Lite databases monthly; **MaxMind GeoLite2** updates City/Country on weekdays (Tuesdays/Fridays in current cadence) and **GeoLite2 ASN daily** since June 2024; **IPtoASN** publishes its TSV hourly. Sample weekly is a safe default for any of them.
 
 ### Geographic accuracy is best-effort
 
@@ -100,7 +100,7 @@ City-level GeoIP is accurate for the public IP space but can be wildly wrong for
 | Plugin won't start: "failed to load enrichment.geoip.\<asn or geo\>_database" | Configured path missing or unreadable; `optional: false` | Set `optional: true`, fix the path, or unset the database to fall back to auto-detect. |
 | Country / city columns empty for everything | No geo database loaded | Check the plugin logs at startup; verify the MMDB file exists and is readable by the netdata user. |
 | `AS0 Unknown ASN` for known public IPs | Stale ASN MMDB; or the configured database doesn't cover that prefix | Refresh the MMDB; or add a database that covers the missing prefix. |
-| AS name shows `AS{n}` with no organisation | The ASN MMDB doesn't have a name string for that AS number | Use a richer ASN MMDB (the GeoLite2 ASN feed has more coverage than the IPtoASN minimal feed). |
+| AS name shows `AS{n}` with no organisation | The ASN MMDB doesn't have a name string for that AS number | Try a different ASN MMDB build, or supply a custom one that includes the missing names. |
 | Map renders empty over a long window | City / lat / lng are raw-tier-only; the query auto-fell-back to a rollup tier | Narrow the time range so the query fits the raw tier, or use the country / state map (those survive into rollups). |
 
 ## What's next

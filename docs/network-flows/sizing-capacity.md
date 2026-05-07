@@ -66,16 +66,18 @@ The raw tier carries every individual flow record. **Rollup tiers (1m, 5m, 1h) a
 
 Set raw-tier retention to match your forensic window — typically **24 hours**. Rollup tiers can keep weeks to a year of history at a small fraction of raw-tier cost.
 
+The example below is sized for an agent at the **upper end of the per-host scaling envelope (25 000 flows/s sustained)** — the raw tier needs about 1.7 TB / day at that rate (see the table above), so the 2 TB raw budget gives a small safety margin to keep the duration limit (24 h) the one that fires first:
+
 ```yaml
 journal:
   tiers:
-    raw:      { size_of_journal_files: 200GB, duration_of_journal_files: 24h }
-    minute_1: { size_of_journal_files: 20GB,  duration_of_journal_files: 14d }
-    minute_5: { size_of_journal_files: 20GB,  duration_of_journal_files: 30d }
-    hour_1:   { size_of_journal_files: 20GB,  duration_of_journal_files: 365d }
+    raw:      { size_of_journal_files: 2TB,  duration_of_journal_files: 24h }
+    minute_1: { size_of_journal_files: 20GB, duration_of_journal_files: 14d }
+    minute_5: { size_of_journal_files: 20GB, duration_of_journal_files: 30d }
+    hour_1:   { size_of_journal_files: 20GB, duration_of_journal_files: 365d }
 ```
 
-Whichever limit (size or duration) is hit first triggers rotation. Sizing for size is the safety net; sizing for duration is the operational target.
+For lighter loads, scale `size_of_journal_files` on the raw tier down proportionally — at 10 000 flows/s ~700 GB / 24 h is enough; at 1 000 flows/s ~70 GB / 24 h is enough. Whichever limit (size or duration) is hit first triggers rotation; size your raw tier so the **duration limit fires first** under normal load and the size cap is a safety net for traffic surges.
 
 ### Use fast NVMe for the raw tier
 

@@ -22,7 +22,7 @@ Step-by-step recipes for common questions, all using the Netdata Network Flows v
 
 2. **Filter to the saturated interface.** In the filter ribbon, set:
    - `Exporter Name` = the router with the saturated link
-   - `Output Interface Name` = the interface name (or `Input Interface Name` if you want incoming traffic)
+   - `Egress Interface Name` = the interface name (or `Ingress Interface Name` if you want incoming traffic)
 
    This eliminates the doubling effect and shows only one direction.
 
@@ -108,7 +108,7 @@ Step-by-step recipes for common questions, all using the Netdata Network Flows v
 
 1. **Open Network Flows** with **the last 30 days** as the time range. (Adjust based on tier-1/5/60 retention. If your retention is shorter, use whatever you have.)
 
-2. **Filter to the WAN interface.** Set `Exporter Name` and `Output Interface Name` (or input — pick one direction). This removes the doubling effect.
+2. **Filter to the WAN interface.** Set `Exporter Name` and `Egress Interface Name` (or `Ingress Interface Name` — pick one direction). This removes the doubling effect.
 
 3. **Switch to Time-Series view.** The chart now shows ~30 days of bandwidth on the link. The bucket size auto-adjusts to roughly 1 hour at this range.
 

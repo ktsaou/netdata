@@ -21,13 +21,27 @@ For the configuration surface (per-tier `size_of_journal_files` and `duration_of
 | 5-minute | 300 s | `flows/5m/` | `minute_5` |
 | 1-hour | 3600 s | `flows/1h/` | `hour_1` |
 
-The raw tier stores every flow record as it arrived. The other three are rollup tiers — they aggregate raw flows into time-bucketed groups by identity (exporter, ASN, country, ports — see below).
+The raw tier stores every flow record as it arrived. The other three are rollup tiers — they aggregate raw flows into time-bucketed groups by identity (exporter, interface, ASN, country/state, network labels, VLAN, next-hop — see below for the full preserved set).
 
 ## What survives the rollup
 
-Rollup tiers (1m, 5m, 1h) deliberately drop a few fields to keep cardinality manageable. **The dropped fields are: `SRC_ADDR`, `DST_ADDR`, `SRC_PORT`, `DST_PORT`, `SRC_GEO_CITY`, `DST_GEO_CITY`, `SRC_GEO_LATITUDE`, `DST_GEO_LATITUDE`, `SRC_GEO_LONGITUDE`, `DST_GEO_LONGITUDE`.**
+Rollup tiers (1m, 5m, 1h) deliberately drop the high-cardinality and protocol-specific fields and keep an aggregate-friendly subset.
 
-Everything else survives — country, state, ASN, AS path, BGP communities, exporter and interface labels, protocol, TCP flags, ToS/DSCP, ICMP type/code, MPLS labels, VLANs, MACs, next-hop, post-NAT addresses, and the bytes/packets sums. So rollups are perfectly fine for most country / ASN / interface / protocol questions, but useless if you need to ask "which IP".
+**Forced to the raw tier** (these fields force any query that uses them to go to the raw tier — see [Field Reference](/docs/network-flows/field-reference.md) for the per-field matrix):
+
+- `SRC_ADDR`, `DST_ADDR`, `SRC_PORT`, `DST_PORT`
+- `SRC_GEO_CITY`, `DST_GEO_CITY`, `SRC_GEO_LATITUDE`, `DST_GEO_LATITUDE`, `SRC_GEO_LONGITUDE`, `DST_GEO_LONGITUDE`
+- All `V9_*` and `IPFIX_*` raw-protocol fields, AS path / BGP community fields, MPLS labels, MAC addresses, NAT / post-NAT addresses, and any other field not in the preserved set below.
+
+**Preserved in rollup tiers** (these queries can use coarser tiers):
+
+- Core: `PROTOCOL`, `DIRECTION`, `ETYPE`, `FORWARDING_STATUS`, `FLOW_VERSION`, `IPTOS`, `TCP_FLAGS`, `ICMPV4_TYPE/CODE`, `ICMPV6_TYPE/CODE`, `SRC_AS` / `DST_AS` (ASN number), `SRC_AS_NAME` / `DST_AS_NAME`.
+- Exporter: `EXPORTER_IP`, `EXPORTER_PORT`, `EXPORTER_NAME`, `EXPORTER_GROUP/ROLE/SITE/REGION/TENANT`.
+- Interface: `IN_IF`, `OUT_IF`, `IN_IF_NAME`/`OUT_IF_NAME`, plus their description / speed / provider / connectivity / boundary variants.
+- Network: `SRC_NET_*` / `DST_NET_*` (name / role / site / region / tenant), `SRC_COUNTRY` / `DST_COUNTRY`, `SRC_GEO_STATE` / `DST_GEO_STATE`, `NEXT_HOP`, `SRC_VLAN` / `DST_VLAN`.
+- Aggregates: bytes / packets / flow-count sums per bucket.
+
+So rollups are fine for most country / state / ASN / interface / VLAN / protocol questions, but useless if you need to ask "which IP", "which port", "which AS path", "which MPLS label", or "where in the city".
 
 This is why filtering or grouping by IP/port/city/lat/lon forces the query to the raw tier — there is no other tier that has those fields.
 
@@ -39,14 +53,15 @@ For every query the dashboard sends to the plugin, the planner makes a single de
 
 **Rules:**
 
-1. **Any IP/port/city/lat/lon filter or group-by → raw tier.** No exception. The rollup tiers don't have those fields.
+1. **Any raw-only field used as a filter or group-by → raw tier.** No exception. See the "Forced to the raw tier" list above. Selecting the city map, full-text search, or filtering on any IP / port / city / lat / lon / AS path / MPLS label / NAT field falls in this category.
 2. **A non-empty full-text search → raw tier.** Full-text search runs as a regex against the raw journal payload, which only the raw tier carries.
-3. **Otherwise, pick the coarsest tier that satisfies the time range and bucket-count requirement.**
-   - Time-Series view needs at least 100 buckets in the window. So:
-     - under 100 minutes → 1-minute tier
-     - 100 minutes to 8h20m → 5-minute tier
-     - 8h20m and longer → 1-hour tier
-   - Table / Sankey / Maps have no bucket-count constraint; tier alignment alone drives the choice.
+3. **Otherwise, pick the coarsest tier that satisfies the time range alignment.**
+   - **Time-Series view** additionally needs at least 100 buckets in the window. The planner walks the tiers from coarsest to finest and picks the first that delivers ≥100 buckets:
+     - ≥ 100 hours of window → 1-hour tier (3600 s buckets)
+     - 8h20m to <100 hours → 5-minute tier (300 s buckets)
+     - 100 minutes to <8h20m → 1-minute tier (60 s buckets)
+     - < 100 minutes → raw tier (Time-Series buckets are still floored at 60 seconds, so very short windows render fewer than 100 buckets)
+   - **Table / Sankey / Map** views have no bucket-count constraint; the planner walks 1-hour → 5-minute → 1-minute by alignment alone, so they can land on a coarser tier than Time-Series for the same window.
 
 When the planner picks a tier and the time range crosses tier-aligned boundaries, the query is **stitched** — head fragment in a finer tier, aligned middle in the chosen tier, tail fragment in a finer tier. You don't see this; the results merge cleanly. It exists so wide windows that don't quite align to one-hour boundaries still work.
 
@@ -56,7 +71,7 @@ The plugin reports the chosen tier in the response stats (`query_tier` = `0`, `1
 
 If you ask for a 30-day window with an IP filter and raw-tier retention is 24 hours, you get an empty response. No error, no banner reading "data has expired" — just an empty result set. The dashboard renders this as "No data".
 
-The reason is a layered fallback in the planner: if a span asks for the raw tier and the files for that span have been rotated out, the planner tries the smaller tiers (1m, 5m, 1h), but those don't have IP fields, so they cannot satisfy a query that filters on IP. Result: the span returns no flows.
+The planner does not fall back to a coarser tier for raw-only queries. When a span requires the raw tier (because the query filters or groups on an IP / port / city / lat / lon / AS path / etc., or runs a full-text search) and that span's raw-tier files have been rotated out, the planner returns no flows for that span. Rollups never carry raw-only fields, so they cannot satisfy the query anyway. Conversely, when a span only needs preserved fields (country, ASN, exporter, interface, protocol…), the planner can fall back from a coarser tier to a finer one if the coarser files have rotated out — finer tiers are supersets of coarser tiers for the preserved fields.
 
 Other spans within the same query that don't need raw data may still return flows. So it's also possible to see partial coverage — half the time range filled, half empty.
 

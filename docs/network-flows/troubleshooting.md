@@ -118,7 +118,7 @@ protocols:
 
 **Volume looks doubled:**
 
-This is the most common report. With one router, traffic appears 2× because every packet generates an ingress record AND an egress record. With two routers on the same path, 4×. Filter to one exporter and one interface (Input Interface OR Output Interface, pick one) to see real volume. See [Anti-patterns](/docs/network-flows/anti-patterns.md).
+This is the most common report. When a router is configured to export both ingress and egress on each monitored interface — a common configuration; vendor best practice is ingress-only — every packet generates an ingress record AND an egress record, so traffic appears 2× on a single such router. With two routers on the same path doing the same thing, 4×. Filter to one exporter and one interface (`Ingress Interface Name` OR `Egress Interface Name`, pick one) to see real volume. See [Anti-patterns](/docs/network-flows/anti-patterns.md).
 
 **Bandwidth doesn't match SNMP:**
 
@@ -181,7 +181,7 @@ Default retention is `10GB / 7d` per tier — the same budget applies to all fou
 
 ## Things that look like bugs but aren't
 
-- **Traffic appears 2×.** Standard ingress + egress monitoring; the same packet is recorded once on entry and once on exit on a single router. Filter to one exporter and one interface (Input or Output, pick one).
+- **Traffic appears 2×.** When the router is configured to export both ingress + egress (common, but not universal — vendor best practice is ingress-only), the same packet is recorded once on entry and once on exit on a single router. Filter to one exporter and one interface (`Ingress Interface Name` or `Egress Interface Name`, pick one).
 - **Bidirectional conversations show twice.** A→B and B→A are real, distinct flows representing different packets going each way. Their volumes are usually asymmetric. Filter by `Source AS Name` (your network) for outbound or `Destination AS Name` (your network) for inbound to see one side.
 - **City map empty over long windows.** City + lat/lon are raw-tier-only. Default raw-tier retention is short. Use the country or state map for long ranges.
 - **`__overflow__` row in results.** Your aggregation produced more groups than `query_max_groups`. Narrow the filter or reduce group-by depth.

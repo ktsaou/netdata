@@ -21,7 +21,7 @@ If the plugin isn't installed yet, follow the [Installation page](/docs/network-
 
 ## Step 1 — Configure your router
 
-Pick the closest match to your platform. The configurations below set sensible defaults: 60-second active timeout (industry best practice), 60-second template refresh (so a collector restart recovers in under a minute), and monitoring on both directions of an interface.
+Pick the closest match to your platform. The configurations below set sensible defaults: 60-second active timeout (industry best practice), a quick template refresh where the platform supports tuning it (so a collector restart recovers in under a minute), and monitoring on the appropriate direction(s) of an interface. softflowd and Arista sFlow do not expose a template-refresh knob; they ship reasonable internal defaults.
 
 ### Cisco IOS / IOS-XE (Flexible NetFlow, v9)
 
@@ -60,6 +60,8 @@ interface GigabitEthernet0/0/1
 ### Juniper JunOS (J-Flow v9)
 
 ```
+set chassis fpc 0 sampling-instance NETDATA
+set forwarding-options sampling instance NETDATA input rate 1000
 set forwarding-options sampling instance NETDATA family inet output flow-server 10.0.0.10 port 2055
 set forwarding-options sampling instance NETDATA family inet output flow-server 10.0.0.10 version9 template ipv4-template
 set services flow-monitoring version9 template ipv4-template flow-active-timeout 60
@@ -68,6 +70,12 @@ set services flow-monitoring version9 template ipv4-template template-refresh-ra
 set interfaces ge-0/0/1 unit 0 family inet sampling input
 set interfaces ge-0/0/1 unit 0 family inet sampling output
 ```
+
+Notes:
+
+- The `set chassis fpc <slot> sampling-instance NETDATA` line is mandatory; without it the sampling instance is defined but never bound to a forwarding card and no flows are produced.
+- `input rate 1000` sets a 1-in-1000 sampling rate. Adjust to match your traffic; the netflow plugin handles per-flow sampling-rate multiplication automatically.
+- Replace `fpc 0`, `ge-0/0/1`, and `1000` with the FPC slot, interface, and sampling rate that match your platform.
 
 ### Arista EOS (sFlow)
 
@@ -92,11 +100,13 @@ For Linux servers, hypervisors, or any host that doesn't natively speak NetFlow:
 sudo softflowd -i eth0 -n 10.0.0.10:2055 -v 9 -t maxlife=60 -t expint=15
 ```
 
+`maxlife` caps a flow's wall-clock lifetime at 60 seconds; `expint` controls how often softflowd scans the flow table for expired entries (it is not a template-refresh knob — softflowd's NetFlow v9 template interval is a compile-time default of 16 packets and is not exposed on the command line).
+
 For more vendors and details, see [Sources / NetFlow](/src/crates/netflow-plugin/integrations/netflow.md), [IPFIX](/src/crates/netflow-plugin/integrations/ipfix.md), and [sFlow](/src/crates/netflow-plugin/integrations/sflow.md).
 
 ## Step 2 — Open the dashboard
 
-In your browser, open the Netdata UI and click the **Network Flows** tab.
+In your browser, open the Netdata UI, click the **Live** tab in the top navigation, and select **Network Flows** from the Functions list.
 
 By default you'll see:
 
@@ -120,7 +130,7 @@ If you look at total bandwidth without filtering, you see roughly **2× the real
 **To see real bandwidth on a specific link**, filter to one exporter and one interface:
 
 1. In the filter ribbon: `Exporter Name = <your router>`.
-2. Add: `Input Interface Name = <the interface>` **or** `Output Interface Name = <the interface>` — pick one, not both. Each packet then appears in exactly one record on that interface.
+2. Add: `Ingress Interface Name = <the interface>` **or** `Egress Interface Name = <the interface>` — pick one, not both. Each packet then appears in exactly one record on that interface.
 
 That's the actual traffic on that link.
 
