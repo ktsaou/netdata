@@ -125,11 +125,8 @@ Step-by-step recipes for common questions, all using the Netdata Network Flows t
 - Trend chart (screenshot or shareable URL)
 - Growth driver: the specific applications / services consuming the new bandwidth
 - Projected saturation date and recommended upgrade timeline
-- Sampling rate of the exporter (so the numbers can be interpreted)
-
 **Caveats.**
 
-- Always note the sampling rate. A change in sampling rate during the analysis window invalidates the trend.
 - A large spike one day shouldn't drive the projection. Use weekly peaks (averaged across same-day-of-week) for stability.
 - If your retention is shorter than 30 days, use what you have but caveat the projection.
 

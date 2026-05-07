@@ -118,15 +118,15 @@ protocols:
 
 **Volume looks doubled:**
 
-This is the most common report. With one router, traffic appears 2× because every packet generates an ingress record AND an egress record. With two routers on the same path, 4×. Filter to one exporter + one direction (input interface OR output interface) to see real volume. See [Anti-patterns](/docs/network-flows/anti-patterns.md).
+This is the most common report. With one router, traffic appears 2× because every packet generates an ingress record AND an egress record. With two routers on the same path, 4×. Filter to one exporter and one interface (Input Interface OR Output Interface, pick one) to see real volume. See [Anti-patterns](/docs/network-flows/anti-patterns.md).
 
 **Bandwidth doesn't match SNMP:**
 
 Several legitimate causes:
 
-- **Doubling**, as above. Filter properly before comparing.
-- **Sampling rate not honoured.** The plugin auto-multiplies bytes by the sampling rate, but if the exporter doesn't carry the rate (NetFlow v7 has no field for it; v5 sometimes sends 0 instead of the actual rate; v9 may not send the Sampling Options Template), the result is undercounted.
-- **Mixed sampling rates across exporters.** If your dashboard aggregates exporters with different rates, the result blends estimates and isn't comparable to any single SNMP measurement.
+- **Doubling**, as above. Filter to one exporter and one interface before comparing.
+- **Comparing aggregates to a single interface counter.** SNMP `ifInOctets` / `ifOutOctets` is per-interface; an unfiltered flow aggregate sums many interfaces. Compare like-with-like by filtering the dashboard to the same exporter and the same interface (Input or Output, pick one).
+- **Sampling rate not honoured by the exporter.** The plugin multiplies each flow's bytes/packets by that flow's own sampling rate. If the exporter doesn't carry the rate (NetFlow v7 has no field for it; v5 sometimes sends 0 instead of the actual rate; v9 / IPFIX without the Sampling Options Template), the plugin treats those records as unsampled and undercounts.
 - **SNMP includes layer-2 traffic** (ARP, STP, LLDP, routing protocols) that flow data filters out. Expect SNMP to be 5-15% higher than flow on a healthy collector. More than that, investigate.
 
 See [Validation and Data Quality](/docs/network-flows/validation.md).

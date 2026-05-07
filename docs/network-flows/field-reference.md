@@ -30,7 +30,7 @@ The four most-used fields. Read these first.
 |---|---|---|
 | `BYTES` | uint64 | Bytes in the flow, **already multiplied by `SAMPLING_RATE`** at ingest. The dashboard's volume numbers come from this. |
 | `PACKETS` | uint64 | Packets in the flow, already multiplied by `SAMPLING_RATE`. |
-| `RAW_BYTES` | uint64 | Bytes the exporter actually reported, before scaling. Use when sampling is uniform across all your exporters and you want exact counts. |
+| `RAW_BYTES` | uint64 | Bytes the exporter literally reported, before per-flow sampling multiplication. Use when you want the unscaled value the exporter sent. |
 | `RAW_PACKETS` | uint64 | Packets the exporter actually reported, before scaling. |
 | `FLOWS` | uint64 | Number of flows aggregated into this record. Always 1 for raw records. |
 | `SAMPLING_RATE` | uint64 | Packets-per-sample reported by the exporter. `1` means unsampled. Used as the multiplier for BYTES and PACKETS. |

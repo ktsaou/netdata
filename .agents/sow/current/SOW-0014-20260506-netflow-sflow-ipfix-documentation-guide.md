@@ -1164,3 +1164,101 @@ Other patterns scanned: searched for "of similar volume",
 "conversations? (?:are|look|appear)? mirrored". The lines
 above are all hits within `docs/network-flows/`. No other
 files carry the pattern.
+
+#### F4 + F5 -- 2026-05-07 -- sampling rate framing (uniform-rate myth)
+
+These two findings are about the same incorrect claim and
+fixed together.
+
+Code evidence -- per-flow multiplication at decode time:
+
+```rust
+// src/crates/netflow-plugin/src/decoder/record/core/record.rs:24-26
+let sampling_rate = rec.sampling_rate.max(1);
+rec.bytes = rec.bytes.saturating_mul(sampling_rate);
+rec.packets = rec.packets.saturating_mul(sampling_rate);
+```
+
+`sampling_rate` is set per-record from the relevant source:
+- `decoder/protocol/legacy.rs:60` -- v5 header rate.
+- `decoder/protocol/v9/records.rs:39, 215` and
+  `decoder/protocol/v9/sampling.rs:215` -- v9 IE on record
+  or Sampling Options Template (namespace-scoped).
+- `decoder/protocol/ipfix/special/record.rs:21, 61, 171`,
+  `ipfix/record/state.rs:10, 38, 168`,
+  `ipfix/record/append.rs:56` -- IPFIX record IE / sampling
+  options.
+- `decoder/protocol/sflow/record.rs:6, 19` -- sFlow per-sample
+  rate.
+- `decoder/protocol/shared/merge/enrich.rs:80` -- merge with
+  static `override_sampling_rate` config.
+
+So mixed sampling rates across exporters / interfaces / time
+are handled correctly: each record scales by its own rate.
+The only failure mode is "exporter is sampling but the rate
+is not communicated" (NetFlow v7 has no field; v5 with
+rate=0; v9 / IPFIX without an attached Sampling Options
+Template). That is a real concern and stays in the docs.
+
+Removed claims:
+
+- README.md lines 91-94 -- "works correctly only if all
+  your exporters use the same sampling rate" and "the
+  clean path: keep sampling rates uniform across your
+  network" -- both false. Rewrote the paragraph to state
+  per-flow multiplication, why the UI does not surface a
+  single rate, and the real statistical-floor caveat
+  (sampling can miss small/short flows regardless of how
+  uniform the rates are).
+- field-reference.md line 33 -- `RAW_BYTES` description
+  said "Use when sampling is uniform across all your
+  exporters". Changed to "Use when you want the unscaled
+  value the exporter sent". Same fix in
+  anti-patterns.md:126 (the prose) and the summary table
+  row at line 150.
+- troubleshooting.md line 129 -- "Mixed sampling rates
+  across exporters... isn't comparable to any single SNMP
+  measurement" replaced with the correct framing:
+  comparing aggregates to a single interface counter is
+  the actual mistake; per-flow multiplication is correct
+  regardless of rate uniformity.
+- validation.md line 11 -- "undocumented sampling rate
+  changes" removed from the silent-failure list intro.
+- validation.md line 116 -- the "Sampling rate change"
+  monitoring-table row removed.
+- investigation-playbooks.md lines 128, 132 -- "Sampling
+  rate of the exporter (so the numbers can be
+  interpreted)" deliverable bullet removed; "A change in
+  sampling rate during the analysis window invalidates
+  the trend" caveat removed.
+- anti-patterns.md line 132 -- "Same goes for
+  sampling-rate differences across exporters" removed
+  from the cross-protocol comparison section. The
+  protocol-counts-not-comparable point stays; the
+  uniformity claim goes.
+
+Items NOT touched in this finding (deferred to F14 / F15
+which will rewrite their containing sections):
+
+- validation.md silent-failure list items #2 ("Sampling
+  rate misinterpretation"), #3 ("Sampling rate change"),
+  #5 ("Template loss after collector restart") -- F14
+  removes them as a block.
+- anti-patterns.md section 2 ("Ignoring the sampling
+  rate") and the summary-table row "Ignored sampling" --
+  F15 removes the entire section.
+
+Files touched:
+- docs/network-flows/README.md (lines 88-96)
+- docs/network-flows/field-reference.md (line 33)
+- docs/network-flows/troubleshooting.md (lines ~120-130)
+- docs/network-flows/validation.md (lines 11, ~116)
+- docs/network-flows/investigation-playbooks.md (lines 128-132)
+- docs/network-flows/anti-patterns.md (lines 132, 140, 150, 126)
+
+Other docs scanned (`docs/network-flows/`) for the patterns
+"uniform.*rate", "same.*sampling.*rate", "rates.*uniform",
+"all.*exporters.*same.*rate", "sampling.*uniform",
+"clean.*path.*sampling", "aggregate.*blend",
+"blend.*estimate" -- all hits addressed above except the
+F14 / F15 -targeted blocks.

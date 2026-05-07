@@ -87,11 +87,13 @@ Flow records land in a four-tier journal: raw + 1-minute + 5-minute + 1-hour rol
 
 ## What sampling does to your numbers
 
-Many routers sample. They export one packet in N — typically 1-in-100 to 1-in-2000. Netdata multiplies bytes and packets by the sampling rate at ingestion, so the numbers you see are estimates of actual traffic.
+Many routers sample. They export one packet in N — typically 1-in-100 to 1-in-2000. Each flow record carries its own sampling rate (in the record itself, in the protocol header, in a Sampling Options Template, or — for sFlow — in the flow sample). At ingestion, Netdata multiplies that record's bytes and packets by **its own rate**, so dashboard numbers are estimates of actual traffic.
 
-This works correctly **only if all your exporters use the same sampling rate**. With mixed rates, the multiplication is per-flow and the aggregate becomes a blend of estimates that's hard to interpret. The clean path: keep sampling rates uniform across your network, or run unsampled where the flow rate allows.
+The multiplication is per-flow, so different exporters and different interfaces can sample at different rates and aggregates remain accurate. The dashboard does not surface the sampling rate as a UI element — with mixed rates a single displayed value would be meaningless, and with uniform rates the operator already knows it.
 
-Sampling at 1-in-1000 also misses small flows. A single-packet flow has a 99.9% chance of not being seen at all. If you need to detect small, rare events (security beaconing, scanning), use unsampled or 1-in-100 on critical exporters.
+Sampling has a real statistical limit, separate from the multiplication. At 1-in-1000, a single-packet flow has roughly a 99.9% chance of not being sampled at all. If you need to catch small, rare events (security beaconing, scanning), pick a lower sampling rate on the exporters that watch that traffic, or run unsampled there.
+
+For the exact pre-multiplication counts the exporter literally reported, see `RAW_BYTES` and `RAW_PACKETS` in the [field reference](/docs/network-flows/field-reference.md).
 
 ## What the dashboard looks like
 

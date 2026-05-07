@@ -8,7 +8,7 @@ endmeta-->
 
 # Validation and Data Quality
 
-Flow data is statistical. It can be wrong in subtle ways that the dashboard cannot detect — silent UDP drops, undocumented sampling rate changes, exporters that stopped sending. This page is the routine you should run when you set up the plugin, when something looks suspicious, and periodically thereafter.
+Flow data is statistical. It can be wrong in subtle ways that the dashboard cannot detect — silent UDP drops, exporters that stopped sending, exporters that started sampling without communicating the rate. This page is the routine you should run when you set up the plugin, when something looks suspicious, and periodically thereafter.
 
 The goal: distinguish "the data is correct" from "the data looks plausible but isn't".
 
@@ -113,7 +113,6 @@ Before relying on geographic analysis, spot-check that internal IPs are properly
 | `decoder_scopes` unbounded growth | `netflow.decoder_scopes` chart | Monotonic growth over hours |
 | Disk full warnings | `netflow.raw_journal_ops` `write_errors` | Any non-zero |
 | SNMP-flow gap | external | More than 30% on a steady-state link |
-| Sampling rate change | router config diff (yours) | Any change to active timeout or sampling |
 
 ## When to file a "data is wrong" investigation
 

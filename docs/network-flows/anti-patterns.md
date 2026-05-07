@@ -123,21 +123,21 @@ Flow data is powerful but easy to misuse. The mistakes below are the ones that c
 
 **Why it's wrong.** `RAW_BYTES` is the unscaled byte count from the exporter. With sampling at 1-in-1000, the actual traffic was approximately 5 000 000 bytes. The scaled value is in `BYTES`.
 
-**How to avoid it.** Use `BYTES` (auto-scaled) for normal analysis. Use `RAW_BYTES` only when sampling is uniform across all exporters and you specifically need exact pre-scaling counts.
+**How to avoid it.** Use `BYTES` (auto-scaled per-flow) for normal analysis. Use `RAW_BYTES` only when you specifically need the exporter's literal pre-scaling counts — for example, when comparing the per-flow record to the exporter's own logs.
 
 ## 12. Comparing flow counts across protocols
 
 **The mistake.** You report "Arista switches see far more flows than Cisco routers" based on flow counts.
 
-**Why it's wrong.** NetFlow aggregates millions of packets into one flow record. sFlow exports individual packet samples — each becomes its own "flow" record. Their counts are not comparable. Same goes for sampling-rate differences across exporters.
+**Why it's wrong.** NetFlow aggregates many packets into one flow record. sFlow exports individual packet samples — each becomes its own "flow" record. Flow record counts mean different things in the two protocols and are not directly comparable.
 
-**How to avoid it.** Aggregate by IP/port/time window before comparing. Compare bytes (after scaling), not flow counts. Document which protocol each exporter speaks.
+**How to avoid it.** Compare bytes (`BYTES`, auto-scaled per-flow at ingest), not flow record counts. Document which protocol each exporter speaks.
 
 ## Summary
 
 | Mistake | One-line fix |
 |---|---|
-| Doubled aggregate | Filter by exporter + interface + direction |
+| Doubled aggregate | Filter by one exporter and one interface (Input or Output, pick one) |
 | Ignored sampling | Document and uniform-rate; cross-check SNMP |
 | GeoIP for internal IPs | Configure internal CIDRs in `enrichment.networks` |
 | Absolute thresholds | Baseline first, alert on deviation |
@@ -147,7 +147,7 @@ Flow data is powerful but easy to misuse. The mistakes below are the ones that c
 | Geographic firewall of shame | Use ASN, whitelist cloud and CDN providers |
 | Duration as latency | Use SNMP/ICMP/APM for latency |
 | Microburst hunting | Use packet capture or hardware telemetry |
-| Raw bytes when sampling | Use `BYTES`, not `RAW_BYTES`, unless rates are uniform |
+| Raw bytes confusion | Use `BYTES` (auto-scaled per-flow); use `RAW_BYTES` only when you need the exporter's literal pre-scaling counts |
 | Cross-protocol flow counts | Use bytes (scaled), not flow counts |
 
 ## What's next
