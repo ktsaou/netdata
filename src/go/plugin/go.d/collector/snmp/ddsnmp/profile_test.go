@@ -177,15 +177,19 @@ func Test_FindProfiles(t *testing.T) {
 func TestDefaultCatalogResolveProject_LoadedCiscoProfileSeparatesConsumers(t *testing.T) {
 	tests := map[string]struct {
 		consumer          ProfileConsumer
+		consumers         []ProfileConsumer
 		wantMetrics       []string
 		wantTopologyKinds []ddprofiledefinition.TopologyKind
+		wantLicensingIDs  []string
 		wantNoMetrics     bool
 		wantNoTopology    bool
+		wantNoLicensing   bool
 	}{
 		"metrics_projection": {
-			consumer:       ConsumerMetrics,
-			wantMetrics:    []string{"systemUptime", "tcpCurrEstab", "cpmCPUTotal5minRev"},
-			wantNoTopology: true,
+			consumer:        ConsumerMetrics,
+			wantMetrics:     []string{"systemUptime", "tcpCurrEstab", "cpmCPUTotal5minRev"},
+			wantNoTopology:  true,
+			wantNoLicensing: true,
 		},
 		"topology_projection": {
 			consumer: ConsumerTopology,
@@ -197,7 +201,35 @@ func TestDefaultCatalogResolveProject_LoadedCiscoProfileSeparatesConsumers(t *te
 				ddprofiledefinition.KindStpPort,
 				ddprofiledefinition.KindVtpVlan,
 			},
-			wantNoMetrics: true,
+			wantNoMetrics:   true,
+			wantNoLicensing: true,
+		},
+		"licensing_projection": {
+			consumer: ConsumerLicensing,
+			wantLicensingIDs: []string{
+				"cisco_traditional_licenses",
+				"smart_registration",
+				"smart_authorization",
+				"smart_id_certificate",
+				"smart_evaluation_period",
+				"smart_entitlements",
+			},
+			wantNoMetrics:  true,
+			wantNoTopology: true,
+		},
+		"metrics_and_licensing_projection": {
+			consumer:    ConsumerMetrics,
+			consumers:   []ProfileConsumer{ConsumerLicensing},
+			wantMetrics: []string{"systemUptime", "tcpCurrEstab", "cpmCPUTotal5minRev"},
+			wantLicensingIDs: []string{
+				"cisco_traditional_licenses",
+				"smart_registration",
+				"smart_authorization",
+				"smart_id_certificate",
+				"smart_evaluation_period",
+				"smart_entitlements",
+			},
+			wantNoTopology: true,
 		},
 	}
 
@@ -206,11 +238,12 @@ func TestDefaultCatalogResolveProject_LoadedCiscoProfileSeparatesConsumers(t *te
 			profiles := DefaultCatalog().Resolve(ResolveRequest{
 				SysObjectID:  "1.3.6.1.4.1.9.1.1",
 				ManualPolicy: ManualProfileFallback,
-			}).Project(tc.consumer).Profiles()
+			}).Project(tc.consumer, tc.consumers...).Profiles()
 			require.NotEmpty(t, profiles)
 
 			metricNames := make(map[string]bool)
 			topologyKinds := make(map[ddprofiledefinition.TopologyKind]bool)
+			licensingIDs := make(map[string]bool)
 
 			for _, prof := range profiles {
 				require.NotNil(t, prof.Definition)
@@ -220,6 +253,9 @@ func TestDefaultCatalogResolveProject_LoadedCiscoProfileSeparatesConsumers(t *te
 				}
 				if tc.wantNoTopology {
 					assert.Empty(t, prof.Definition.Topology, prof.SourceFile)
+				}
+				if tc.wantNoLicensing {
+					assert.Empty(t, prof.Definition.Licensing, prof.SourceFile)
 				}
 
 				for _, metric := range prof.Definition.Metrics {
@@ -233,6 +269,9 @@ func TestDefaultCatalogResolveProject_LoadedCiscoProfileSeparatesConsumers(t *te
 				for _, topo := range prof.Definition.Topology {
 					topologyKinds[topo.Kind] = true
 				}
+				for _, row := range prof.Definition.Licensing {
+					licensingIDs[row.ID] = true
+				}
 			}
 
 			for _, metricName := range tc.wantMetrics {
@@ -240,6 +279,9 @@ func TestDefaultCatalogResolveProject_LoadedCiscoProfileSeparatesConsumers(t *te
 			}
 			for _, kind := range tc.wantTopologyKinds {
 				assert.True(t, topologyKinds[kind], "missing topology kind %q", kind)
+			}
+			for _, id := range tc.wantLicensingIDs {
+				assert.True(t, licensingIDs[id], "missing licensing row %q", id)
 			}
 		})
 	}
