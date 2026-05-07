@@ -17,6 +17,12 @@ import (
 	"github.com/netdata/netdata/go/plugins/plugin/go.d/collector/snmp/ddsnmp/ddprofiledefinition"
 )
 
+const (
+	licenseRowsPartialErrorLogKey = "snmp-licensing-rows-partial-error:"
+	licenseRowsFailedLogKey       = "snmp-licensing-rows-failed:"
+	licenseRowsErrorLogEvery      = time.Hour
+)
+
 type licenseValueContext struct {
 	rowIndex string
 	rowPDUs  map[string]gosnmp.SnmpPDU
@@ -47,7 +53,8 @@ func (c *Collector) collectLicenseRows(prof *ddsnmp.Profile, stats *ddsnmp.Colle
 		return nil, errors.Join(errs...)
 	}
 	if len(errs) > 0 {
-		c.log.Debugf("collecting license rows: %v", errors.Join(errs...))
+		c.log.Limit(licenseRowsPartialErrorLogKey+prof.SourceFile, 1, licenseRowsErrorLogEvery).
+			Warningf("collecting licensing rows for profile %q partially failed: %v", prof.SourceFile, errors.Join(errs...))
 	}
 
 	return rows, nil

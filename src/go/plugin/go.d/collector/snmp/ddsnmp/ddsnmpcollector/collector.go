@@ -207,7 +207,8 @@ func (c *Collector) collectProfile(ps *profileState) (*ddsnmp.ProfileMetrics, er
 	now = time.Now()
 	licenseRows, err := c.collectLicenseRows(ps.profile, &pm.Stats)
 	if err != nil {
-		c.log.Debugf("Error collecting licensing rows for profile %q: %v", ps.profile.SourceFile, err)
+		c.log.Limit(licenseRowsFailedLogKey+ps.profile.SourceFile, 1, licenseRowsErrorLogEvery).
+			Warningf("failed to collect licensing rows for profile %q: %v", ps.profile.SourceFile, err)
 	}
 	pm.LicenseRows = append(pm.LicenseRows, licenseRows...)
 	pm.Stats.Metrics.Licensing += int64(len(licenseRows))
