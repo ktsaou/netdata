@@ -103,7 +103,7 @@ By default you'll see:
 - A Sankey diagram on top, with a sortable table beneath
 - The default time range — last 15 minutes (Netdata's global picker)
 - Top-25 flows by bytes
-- Aggregated as **Source ASN → Protocol → Destination ASN**
+- Aggregated as **Source AS Name → Protocol → Destination AS Name**
 
 Within 60-90 seconds of the router being configured, flow records should start appearing.
 
@@ -113,7 +113,7 @@ Before drawing any conclusion, read this. It's the single biggest source of conf
 
 ### Traffic looks doubled
 
-Routers normally export both ingress and egress flow records on every monitored interface. A packet that enters interface A and leaves interface B produces **two** records — one ingress on A, one egress on B.
+When a router is configured to export both ingress and egress flow records on every monitored interface — a common configuration — a packet that enters interface A and leaves interface B produces **two** records: one ingress on A, one egress on B. Vendor best practice is to export ingress-only to avoid this; if you can't change the exporter, the dashboard view has to compensate.
 
 If you look at total bandwidth without filtering, you see roughly **2× the real traffic**. Add a second router on the same path and you see 4×.
 
@@ -130,7 +130,7 @@ Every conversation has packets going both ways: requests / uploads in one direct
 
 Volumes in the two directions are usually asymmetric — for example, a video download produces large B→A flows and small A→B ACKs. A "Country X to Country Y" entry and a "Country Y to Country X" entry refer to the same conversations but typically have very different byte counts. That's correct per-direction accounting, not duplication.
 
-To see only one direction, filter by `Source ASN` (your network) for outbound or `Destination ASN` (your network) for inbound.
+To see only one direction, filter by `Source AS Name` (your network) for outbound or `Destination AS Name` (your network) for inbound.
 
 ## Step 4 — Verify it's working
 

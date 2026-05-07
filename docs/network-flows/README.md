@@ -45,11 +45,9 @@ If those are your questions, flow data is the wrong tool. You probably need appl
 
 These two facts are not Netdata-specific. They're how flow data works on every collector. Understanding them up-front saves a lot of head-scratching when you first see the dashboard.
 
-### Traffic appears doubled by default
+### Traffic can appear doubled
 
-A router exports flow records for both ingress and egress on every monitored interface. A single packet entering interface A and leaving interface B produces two records on that router: one tagged ingress on A, one tagged egress on B.
-
-If you sum every flow record without filtering, you see roughly **2× the actual traffic**. With a second router on the same path, **4×**.
+When a router exports flow records for both ingress and egress on every monitored interface — a common configuration — a single packet entering interface A and leaving interface B produces two records: one tagged ingress on A, one tagged egress on B. With a second router on the same path doing the same thing, **4×**. Vendor best practice is to enable ingress-only exports to avoid this entirely; if you can't change exporter configuration, the dashboard view still has to compensate.
 
 To see real numbers, filter by one exporter and one interface. Each packet then appears in exactly one record on that interface. See the [Anti-patterns page](/docs/network-flows/anti-patterns.md) for the full framing.
 
@@ -79,11 +77,11 @@ Each flow record is enriched at ingestion with:
 - **Exporter name and labels** — from your static-metadata configuration
 - **Interface name, description, speed, provider, connectivity, boundary** — from your static-metadata configuration
 - **Network labels** for your own CIDRs (name, role, site, region, tenant)
-- **Classifier-derived attributes** for rule-based tagging (Akvorado-compatible expression language)
+- **Classifier-derived attributes** for rule-based tagging (Akvorado-compatible subset of the expression language)
 - **Live BGP attributes** (AS path, communities, next-hop) — from BMP, BioRIS, or static prefix configuration
 - **Decapsulated inner-packet fields** for SRv6 / VXLAN traffic
 
-Flow records land in a four-tier journal: raw + 1-minute + 5-minute + 1-hour rollups, with independent retention per tier. The dashboard auto-picks the best tier for each query.
+Flow records land in a four-tier journal: raw + 1-minute + 5-minute + 1-hour rollups, with independent retention per tier. Rollup tiers drop a few high-cardinality fields (IPs, ports, city/coordinates) to stay compact, so any query that filters or groups by those fields is served from the raw tier; everything else can use a coarser tier. The dashboard auto-picks the best tier for each query.
 
 ## What sampling does to your numbers
 
@@ -106,7 +104,7 @@ Six visualisations, all driven by the same query engine:
 
 A filter ribbon between the visualisation and the table lets you narrow data by any combination of fields. Selections persist in the URL — copy and share to give a colleague exactly your view.
 
-Default settings on first open: last 15 minutes, top-25 flows by bytes, grouped as `Source ASN → Protocol → Destination ASN`.
+Default settings on first open: last 15 minutes, top-25 flows by bytes, grouped as `Source AS Name → Protocol → Destination AS Name`.
 
 Default fields are tuned to surface meaningful traffic at a glance. From there, you adjust the time range, change the aggregation, add filters, and dig in.
 

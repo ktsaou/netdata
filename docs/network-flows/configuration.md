@@ -39,7 +39,7 @@ journal: { ... }            # tier directories, retention, query guardrails
 enrichment: { ... }         # GeoIP, classifiers, ASN, BMP, BioRIS, network sources
 ```
 
-The `listener`, `protocols`, and `journal` sections are flattened — their keys can also appear at the top level (the stock file does this for compatibility). Both forms are accepted.
+The YAML form is strictly nested — every key lives inside its section as shown above. The flat form is only valid for CLI flags (e.g. `--netflow-listen 0.0.0.0:2055`), which the plugin exposes for one-off invocation; the YAML schema rejects unknown top-level keys.
 
 ## `enabled`
 
@@ -176,13 +176,13 @@ The example block at the top of this section is a typical production profile: 24
 
 ### Rotation
 
-Each tier rotates files at `size_of_journal_files / 20`, clamped between 5 MB and 200 MB. Time-based rotation is fixed at one hour per file. You don't configure these directly.
+Each tier rotates files at `size_of_journal_files / 20`, clamped between 5 MB and 200 MB. Time-based rotation is fixed at one hour per file. You don't configure these directly. If `size_of_journal_files` is set to `null` on a tier (size-based retention disabled), the rotation size falls back to 100 MB so files still rotate cleanly.
 
 ### Query guardrails
 
 | Key | Default | What it limits |
 |---|---|---|
-| `query_max_groups` | `50000` | Maximum number of distinct group keys a single aggregation query can build. When exceeded, additional groups are folded into a synthetic `__overflow__` bucket and the response carries a warning. Protects the query worker from memory blow-up on accidentally wide group-by combinations. |
+| `query_max_groups` (alias: `query-max-groups`) | `50000` | Maximum number of distinct group keys a single aggregation query can build. When exceeded, additional groups are folded into a synthetic `__overflow__` bucket and the response carries a warning. Protects the query worker from memory blow-up on accidentally wide group-by combinations. |
 
 The tier the planner uses for a given query is decided automatically from the time window and the query view (Sankey / time-series / map / etc.) — the planner aligns to the coarser tier when the window allows, and falls back to a finer tier for the unaligned head/tail. There are no separate "max window per tier" knobs.
 
@@ -192,12 +192,13 @@ Enrichment is a large topic and lives in dedicated pages. The top-level enable/d
 
 ```yaml
 enrichment:
-  # default_sampling_rate: 1024              # set to override; default is unset (rate=1)
-  # override_sampling_rate: { 10.1.0.0/16: 1024 }  # per-prefix override map
+  # default_sampling_rate: 1024                          # single rate, or per-prefix map
+  # default_sampling_rate: { 10.1.0.0/16: 1024 }         # per-prefix form is also valid
+  # override_sampling_rate: { 10.1.0.0/16: 1024 }        # per-prefix override map
   default_sampling_rate: ~
   override_sampling_rate: {}
   metadata_static: { exporters: {} }
-  geoip: { asn_database: [], geo_database: [] }
+  geoip: { asn_database: [], geo_database: [], optional: false }
   networks: {}
   network_sources: {}
   exporter_classifiers: []
@@ -210,6 +211,10 @@ enrichment:
     bmp: { enabled: false }
     bioris: { enabled: false }
 ```
+
+A note on `default_sampling_rate` vs. `override_sampling_rate`: both keys accept either a single integer (applied to every record from every exporter) or a per-prefix map. The intended split is "default" for `rate=1` records that lack a sampling rate, and "override" for replacing a known-wrong rate; the schema does not enforce that intent — either knob can take either form.
+
+`enrichment.geoip.optional` (default `false`) decides what happens when an MMDB file declared in `asn_database` / `geo_database` is missing at startup: `false` aborts the plugin, `true` logs a warning and continues without that database.
 
 Detailed configuration of each section lives on its own page:
 

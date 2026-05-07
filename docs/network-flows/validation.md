@@ -18,7 +18,7 @@ A small number of failure modes need active monitoring. Most are signalled by Ne
 
 | Failure mode | Detection | Notes |
 |---|---|---|
-| **Kernel-level UDP receive-buffer drops** | The system alert `1m_ipv4_udp_receive_buffer_errors` (`src/health/health.d/udp_errors.conf`) fires when `ipv4.udperrors` `RcvbufErrors` averages more than 10/minute. | OS-wide signal. Tune `net.core.rmem_max` (see [Troubleshooting](/docs/network-flows/troubleshooting.md)). |
+| **Kernel-level UDP receive-buffer drops** | The system alert `1m_ipv4_udp_receive_buffer_errors` (`src/health/health.d/udp_errors.conf`) fires when `ipv4.udperrors` `RcvbufErrors` averages more than 10/minute. | OS-wide signal. Ships as `to: silent` by default — change the `to:` field in your alert config to receive notifications. Tune `net.core.rmem_max` (see [Troubleshooting](/docs/network-flows/troubleshooting.md)). |
 | **An exporter stopped sending** | Filter the dashboard to that exporter; rate dropped to zero. The plugin doesn't publish per-exporter ingest counters today. | Manual periodic spot-check or external monitoring. |
 | **Wrong set of interfaces being exported** | Cross-check `show flow exporter` (or vendor equivalent) on each router against the interfaces you intended. | Configuration drift over time; audit quarterly. |
 | **An exporter is sampling but not communicating the rate** | The plugin treats those records as unsampled, so volumes are undercounted by the sampling factor. Cross-check against SNMP. | NetFlow v7 has no rate field; v5 sometimes sends `rate=0`; v9 / IPFIX without a Sampling Options Template lose the per-flow rate. See "Sampling rate verification" below. |
@@ -42,7 +42,7 @@ The SNMP-derived bandwidth: from your SNMP monitoring (Netdata's `snmp.d`, your 
 
 **Not acceptable: more than 30% gap.** That indicates one of:
 
-- UDP drops at the kernel. Check the alert mentioned above, or run `sudo ss -uam sport = :2055` and inspect the `dRcv` column.
+- UDP drops at the kernel. Check the alert mentioned above, or run `sudo ss -uam sport = :2055` and inspect the `d<N>` value inside the `skmem:(...)` line (the `sock_drop` counter increments on every dropped datagram).
 - Sampling rate not honoured (the exporter is sampling but not communicating the rate). See "Sampling rate verification" below.
 - Wrong interfaces being exported.
 
@@ -50,7 +50,7 @@ The SNMP-derived bandwidth: from your SNMP monitoring (Netdata's `snmp.d`, your 
 
 ### 2. Doubling sanity check
 
-If your dashboard's total bandwidth exceeds the **physical link capacity**, you're double-counting. Standard NetFlow / IPFIX configuration produces two flow records per packet (one ingress, one egress). With multiple monitored routers on the same path, even more.
+If your dashboard's total bandwidth exceeds the **physical link capacity**, you're double-counting. When both ingress and egress flow exporters are enabled on the same router, each packet is recorded twice. With multiple monitored routers on the same path, even more.
 
 Verify by: filter to one exporter and one interface (Input Interface OR Output Interface, pick one). Each packet then appears in exactly one record on that interface. Compare to SNMP for that same interface; they should agree within 5-15%.
 
@@ -60,10 +60,10 @@ The plugin multiplies bytes and packets by the sampling rate each flow carries �
 
 What you DO need to verify, once per exporter, is that the plugin is actually seeing the rate:
 
-- Filter the dashboard to a known flow on that exporter.
-- Look at `RAW_BYTES` and `BYTES`.
-  - If `BYTES > RAW_BYTES`, the plugin multiplied — sampling rate is being honoured.
-  - If `BYTES == RAW_BYTES`, the plugin saw a rate of `1` (no scaling). Either the exporter isn't sampling, or it's sampling but not telling the plugin.
+- Filter the dashboard to that exporter and group by the `Sampling Rate` field.
+- Read the values you see:
+  - A non-`1` rate means the plugin parsed sampling correctly — bytes/packets are scaled.
+  - A rate of `1` on an exporter you know is sampling means the plugin saw no rate. Either the exporter isn't sampling, or it's sampling but not telling the plugin.
 
 The "sampling but not telling" case happens with NetFlow v7 (no rate field), v5 with rate=0, and v9 / IPFIX exporters that don't send a Sampling Options Template. Fix on the exporter side, or override per-prefix using `enrichment.override_sampling_rate` (see [Static metadata](/docs/network-flows/enrichment/static-metadata.md)).
 
@@ -89,6 +89,14 @@ sudo /usr/sbin/topology-ip-intel-downloader
 ```
 
 The plugin polls the files every 30 seconds — a successful refresh picks up automatically without restart.
+
+To cross-check the on-disk size of each tier:
+
+```bash
+sudo du -sh /var/cache/netdata/flows/{raw,1m,5m,1h}
+```
+
+The raw tier dominates. If raw-tier disk usage is approaching the `size_of_journal_files` you set, plan retention vs. capacity (see [Sizing and Capacity Planning](/docs/network-flows/sizing-capacity.md)).
 
 ## Plugin-side signals worth alerting on
 

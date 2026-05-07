@@ -27,7 +27,7 @@ Step-by-step recipes for common questions, all using the Netdata Network Flows v
    This eliminates the doubling effect and shows only one direction.
 
 3. **Change the aggregation to "who's responsible".** Click the group-by selector and change the fields to:
-   - `Source ASN` → `Destination ASN` (for an Internet-edge link)
+   - `Source AS Name` → `Destination AS Name` (for an Internet-edge link)
 
    Or for an internal link:
    - `Source IP` → `Destination IP`

@@ -78,7 +78,7 @@ Same controls as the other views:
 - **Sort by** — bytes or packets (determines what "top" means and what units the chart uses)
 - **Group-by fields** — same as Sankey, 1-10 fields. The chart shows one stacked dimension per surviving top-N group
 
-The default group-by is `Source ASN → Protocol → Destination ASN`, same as Sankey + Table.
+The default group-by is `Source AS Name → Protocol → Destination AS Name`, same as Sankey + Table.
 
 ## Things that go wrong
 

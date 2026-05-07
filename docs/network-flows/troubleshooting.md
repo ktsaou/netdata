@@ -182,7 +182,7 @@ Default retention is `10GB / 7d` per tier — the same budget applies to all fou
 ## Things that look like bugs but aren't
 
 - **Traffic appears 2×.** Standard ingress + egress monitoring; the same packet is recorded once on entry and once on exit on a single router. Filter to one exporter and one interface (Input or Output, pick one).
-- **Bidirectional conversations show twice.** A→B and B→A are real, distinct flows representing different packets going each way. Their volumes are usually asymmetric. Filter by `Source ASN` (your network) for outbound or `Destination ASN` (your network) for inbound to see one side.
+- **Bidirectional conversations show twice.** A→B and B→A are real, distinct flows representing different packets going each way. Their volumes are usually asymmetric. Filter by `Source AS Name` (your network) for outbound or `Destination AS Name` (your network) for inbound to see one side.
 - **City map empty over long windows.** City + lat/lon are raw-tier-only. Default raw-tier retention is short. Use the country or state map for long ranges.
 - **`__overflow__` row in results.** Your aggregation produced more groups than `query_max_groups`. Narrow the filter or reduce group-by depth.
 - **30-second query timeout.** Hard limit. Narrow time range, add filters, or reduce group-by depth.

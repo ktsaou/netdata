@@ -24,10 +24,10 @@ When you first open the tab:
 - **View**: Sankey + Table
 - **Top-N**: 25 (selectable: 25 / 50 / 100 / 200 / 500)
 - **Sort by**: bytes (alternative: packets)
-- **Aggregation fields**: `Source ASN → Protocol → Destination ASN`
+- **Aggregation fields**: `Source AS Name → Protocol → Destination AS Name`
 - **No filters applied** — the dashboard remembers your last selections, so on subsequent visits you'll land on whatever you had open
 
-The Sankey shows the top 25 conversations between Source ASN, Protocol, and Destination ASN, weighted by bytes. The table below shows the same 25 rows, with bytes and packets columns appended.
+The Sankey shows the top 25 conversations between Source AS Name, Protocol, and Destination AS Name, weighted by bytes. The table below shows the same 25 rows, with bytes and packets columns appended. The dashboard groups by AS Name strings (the human-readable form) by default; the bare ASN-number field is also available if you prefer.
 
 ## How to read the Sankey
 
@@ -37,7 +37,7 @@ A Sankey diagram has columns of nodes and weighted bands flowing between them.
 - Each **node** is one distinct value in that column (e.g., one ASN, or one country).
 - Each **band** is one row in the underlying top-N — its width is proportional to the bytes (or packets) for that combination.
 
-With the default 3-column setup (Source ASN → Protocol → Destination ASN), you see the top 25 (Source ASN, Protocol, Destination ASN) tuples by traffic volume. A wide band from `AS65000` to `tcp` to `AS15169` says "AS65000 sent a lot of TCP to AS15169 in this time window".
+With the default 3-column setup (Source AS Name → Protocol → Destination AS Name), you see the top 25 (Source AS Name, Protocol, Destination AS Name) tuples by traffic volume. A wide band from `AS65000 ACME-CORP` to `tcp` to `AS15169 GOOGLE` says "ACME-CORP sent a lot of TCP to GOOGLE in this time window".
 
 You can pick **1 to 10 fields** as columns. Order matters — the Sankey draws bands left-to-right in the order you list. There are roughly 84-85 fields available for aggregation; metric fields (`BYTES`, `PACKETS`, sampling rate, timestamps) and the geo coordinates (latitude/longitude) are not selectable here.
 
@@ -83,10 +83,10 @@ See [Filters and Facets](/docs/network-flows/visualization/filters-facets.md) fo
 
 Some shapes that work well:
 
-- **Default**: `Source ASN → Protocol → Destination ASN`. The "who, on what, to whom" overview. Good first look.
+- **Default**: `Source AS Name → Protocol → Destination AS Name`. The "who, on what, to whom" overview. Good first look.
 - **Country flow**: `Source Country → Destination Country`. Cleanest geographic view. Combine with `protocol` for service-level detail.
-- **Per-router slice**: `Exporter Name → Input Interface → Destination ASN`. Use when you have per-router questions.
-- **Service drill-down**: `Destination Port → Source ASN`. Who's hitting your services.
+- **Per-router slice**: `Exporter Name → Input Interface → Destination AS Name`. Use when you have per-router questions.
+- **Service drill-down**: `Destination Port → Source AS Name`. Who's hitting your services.
 - **Internal/external split**: `IN_IF_BOUNDARY → DST_COUNTRY → Destination ASN`. After labelling your boundaries via static metadata.
 
 The order of fields determines the visual flow. Reorder to change which dimension is "left" and "right" in the Sankey.
@@ -95,7 +95,7 @@ The order of fields determines the visual flow. Reorder to change which dimensio
 
 ### Doubling
 
-Without filtering, aggregate volume on a single router is roughly 2× the actual traffic — every packet generates two flow records (one ingress, one egress). To see real volume on a specific link, filter to one exporter and one interface (Input Interface OR Output Interface, pick one). Each packet then appears in exactly one record on that interface. See [Anti-patterns](/docs/network-flows/anti-patterns.md) for the full framing.
+Without filtering, aggregate volume on a router that exports both ingress and egress (a common configuration) is roughly 2× the actual traffic — every packet generates two flow records, one ingress and one egress. To see real volume on a specific link, filter to one exporter and one interface (Input Interface OR Output Interface, pick one). Each packet then appears in exactly one record on that interface. See [Anti-patterns](/docs/network-flows/anti-patterns.md) for the full framing.
 
 ### Sharing your view
 

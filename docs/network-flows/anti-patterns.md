@@ -14,7 +14,7 @@ Flow data is powerful but easy to misuse. The mistakes below are the ones that c
 
 **The mistake.** You open Network Flows, see a total bandwidth number, and assume it represents your real traffic.
 
-**Why it's wrong.** Routers normally export both ingress and egress flow records on every monitored interface. A single packet entering interface A and leaving interface B produces two records — one tagged ingress on A, one tagged egress on B. With one router and the standard configuration, summing all flow records gives you roughly **2× the actual traffic**. Add a second router on the same path and you see 4×.
+**Why it's wrong.** When a router is configured to export both ingress and egress flow records on every monitored interface — a common configuration, though vendor best practice is ingress-only — a single packet entering interface A and leaving interface B produces two records: one tagged ingress on A, one tagged egress on B. Summing every flow record without filtering then gives you roughly **2× the actual traffic** on a single such router. Add a second router on the same path with the same configuration and you see 4×.
 
 **What it costs.** You think your link carries 2 Gbps when it really carries 1 Gbps. Capacity decisions based on these numbers are wrong by a factor of 2 or more.
 
@@ -86,6 +86,8 @@ Flow data is powerful but easy to misuse. The mistakes below are the ones that c
 
 **Why it's wrong.** `RAW_BYTES` is the unscaled byte count from the exporter. With sampling at 1-in-1000, the actual traffic was approximately 5 000 000 bytes. The scaled value is in `BYTES`.
 
+**What it costs.** A bandwidth estimate that is wrong by the sampling factor — typically 100× to 2000× too low — and capacity or anomaly conclusions drawn from those wrong numbers.
+
 **How to avoid it.** Use `BYTES` (auto-scaled per-flow) for normal analysis. Use `RAW_BYTES` only when you specifically need the exporter's literal pre-scaling counts — for example, when comparing the per-flow record to the exporter's own logs.
 
 ## 9. Comparing flow counts across protocols
@@ -93,6 +95,8 @@ Flow data is powerful but easy to misuse. The mistakes below are the ones that c
 **The mistake.** You report "Arista switches see far more flows than Cisco routers" based on flow counts.
 
 **Why it's wrong.** NetFlow aggregates many packets into one flow record. sFlow exports individual packet samples — each becomes its own "flow" record. Flow record counts mean different things in the two protocols and are not directly comparable.
+
+**What it costs.** False conclusions about which devices "produce more traffic", capacity decisions made on artefact numbers rather than real traffic volume.
 
 **How to avoid it.** Compare bytes (`BYTES`, auto-scaled per-flow at ingest), not flow record counts. Document which protocol each exporter speaks.
 
