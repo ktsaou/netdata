@@ -1436,3 +1436,59 @@ Files touched:
 - src/crates/netflow-plugin/src/plugin_config_tests.rs
 - docs/network-flows/configuration.md
 - docs/network-flows/retention-querying.md
+
+#### F9 -- 2026-05-07 -- query_1m_max_window / query_5m_max_window are dead
+
+User: "What are these and why they are needed? I don't
+understand. Either the query engine is half based, or these
+are useless overprotections that are never needed."
+
+Code investigation: searched
+`src/crates/netflow-plugin/src/` for any consumer outside
+the config struct itself:
+
+- `plugin_config/types/journal.rs` -- declared.
+- `plugin_config/validation/journal.rs:6-13` -- non-zero
+  validation; ordering check.
+- `plugin_config/defaults.rs` -- defaults.
+- `plugin_config_tests.rs` -- two YAML fixtures only.
+
+NO consumer in `query/`, `query/planner/`, or anywhere else
+reads these values. The actual tier auto-pick logic lives in
+`query/planner/spans.rs:plan_query_tier_spans_recursive`,
+which selects the coarser tier strictly from window /
+bucket-duration alignment math; it does not consult
+`query_1m_max_window` or `query_5m_max_window`.
+
+Verdict: dead config knobs. Costa's "useless
+overprotections" assessment was correct.
+
+Repair: removed both fields from the schema and validation,
+plus the two YAML test fixtures, plus the configuration
+table row that documented them. Updated the
+retention-querying explanation of "skip a tier when window
+is too wide" to reflect the actual behaviour: the planner
+picks the coarsest aligned tier without separate config-
+driven window caps.
+
+Files touched:
+- src/crates/netflow-plugin/src/plugin_config/types/journal.rs
+- src/crates/netflow-plugin/src/plugin_config/validation/journal.rs
+- src/crates/netflow-plugin/src/plugin_config_tests.rs
+  (two YAML fixtures cleaned)
+- docs/network-flows/configuration.md (removed two table
+  rows + corresponding code-block lines + the two-line
+  "query-window limits" explanation)
+- docs/network-flows/retention-querying.md (corrected
+  description of tier-pick behaviour)
+
+Build + tests:
+- `cargo build --release` clean (2m59s).
+- `cargo test --release --bin netflow-plugin` -- 427
+  passed; 0 failed; 18 ignored.
+
+Breaking change notice: any user config that set
+`journal.query_1m_max_window` or `journal.query_5m_max_window`
+will now fail to deserialize (deny_unknown_fields). These
+keys had no effect before, so the migration is to delete
+them; no behavioural change.

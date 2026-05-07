@@ -21,22 +21,6 @@ pub(crate) struct JournalConfig {
     #[serde(default)]
     pub(crate) tiers: JournalTierRetentionOverrides,
 
-    #[arg(
-        long = "netflow-query-1m-max-window",
-        default_value = "6h",
-        value_parser = parse_duration
-    )]
-    #[serde(with = "humantime_serde")]
-    pub(crate) query_1m_max_window: Duration,
-
-    #[arg(
-        long = "netflow-query-5m-max-window",
-        default_value = "24h",
-        value_parser = parse_duration
-    )]
-    #[serde(with = "humantime_serde")]
-    pub(crate) query_5m_max_window: Duration,
-
     #[arg(long = "netflow-query-max-groups", default_value_t = 50_000)]
     #[serde(default = "default_query_max_groups", alias = "query-max-groups")]
     pub(crate) query_max_groups: usize,
@@ -175,8 +159,6 @@ impl Default for JournalConfig {
         Self {
             journal_dir: "flows".to_string(),
             tiers: JournalTierRetentionOverrides::default(),
-            query_1m_max_window: Duration::from_secs(6 * 60 * 60),
-            query_5m_max_window: Duration::from_secs(24 * 60 * 60),
             query_max_groups: default_query_max_groups(),
             query_facet_max_values_per_field: default_query_facet_max_values_per_field(),
         }

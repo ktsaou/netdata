@@ -242,8 +242,6 @@ protocols:
   timestamp_source: input
 journal:
   journal_dir: flows
-  query_1m_max_window: 6h
-  query_5m_max_window: 24h
   query_max_groups: 50000
   query_facet_max_values_per_field: 5000
 "#;
@@ -371,8 +369,6 @@ fn journal_validation_allows_time_only_retention_when_size_is_disabled() {
 fn journal_tier_retention_null_disables_size_limit_for_that_tier_only() {
     let yaml = r#"
 journal_dir: flows
-query_1m_max_window: 6h
-query_5m_max_window: 24h
 query_max_groups: 50000
 query_facet_max_values_per_field: 5000
 tiers:

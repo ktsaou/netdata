@@ -42,7 +42,7 @@ For every query the dashboard sends to the plugin, the planner makes a single de
      - under 100 minutes → 1-minute tier
      - 100 minutes to 8h20m → 5-minute tier
      - 8h20m and longer → 1-hour tier
-   - Table / Sankey / Maps don't have a bucket-count constraint, but the configured query-window guardrails (`query_1m_max_window` default 6h, `query_5m_max_window` default 24h) skip a tier when the window is too wide.
+   - Table / Sankey / Maps have no bucket-count constraint; tier alignment alone drives the choice.
 
 When the planner picks a tier and the time range crosses tier-aligned boundaries, the query is **stitched** — head fragment in a finer tier, aligned middle in the chosen tier, tail fragment in a finer tier. You don't see this; the results merge cleanly. It exists so wide windows that don't quite align to one-hour boundaries still work.
 
