@@ -703,270 +703,213 @@ func pingNoReplySample(host string) pinger.Sample {
 }
 
 func TestCollector_Collect_LicensingAggregation(t *testing.T) {
-	mockCtl := gomock.NewController(t)
-	defer mockCtl.Finish()
-
-	mockSNMP := snmpmock.NewMockHandler(mockCtl)
-	setMockClientInitExpect(mockSNMP)
-	setMockClientSysInfoExpect(mockSNMP)
-
-	expiry := time.Now().UTC().Add(48 * time.Hour).Unix()
-
-	collr := New()
-	collr.Config = prepareV2Config()
-	collr.CreateVnode = false
-	collr.Ping.Enabled = false
-	collr.snmpProfiles = []*ddsnmp.Profile{{}}
-	collr.newSnmpClient = func() gosnmp.Handler { return mockSNMP }
-	collr.newDdSnmpColl = func(ddsnmpcollector.Config) ddCollector {
-		pm := &ddsnmp.ProfileMetrics{
-			Source: "checkpoint.yaml",
-			LicenseRows: []ddsnmp.LicenseRow{
-				typedLicenseRow("17", "Application Control",
-					withState(1, "about-to-expire"),
-					withExpiry(expiry),
-					withUsage(95),
-					withCapacity(100),
-				),
+	tests := map[string]struct {
+		source string
+		rows   func(time.Time) []ddsnmp.LicenseRow
+		assert func(*testing.T, map[string]int64, time.Time)
+	}{
+		"checkpoint degraded row with expiry and usage": {
+			source: "checkpoint.yaml",
+			rows: func(now time.Time) []ddsnmp.LicenseRow {
+				expiry := now.Add(48 * time.Hour).Unix()
+				return []ddsnmp.LicenseRow{
+					typedLicenseRow("17", "Application Control",
+						withState(1, "about-to-expire"),
+						withExpiry(expiry),
+						withUsage(95),
+						withCapacity(100),
+					),
+				}
 			},
-		}
-		return &mockDdSnmpCollector{pms: []*ddsnmp.ProfileMetrics{pm}}
+			assert: func(t *testing.T, got map[string]int64, start time.Time) {
+				assert.EqualValues(t, 0, got[metricIDLicenseStateHealthy])
+				assert.EqualValues(t, 0, got[metricIDLicenseStateInformational])
+				assert.EqualValues(t, 1, got[metricIDLicenseStateDegraded])
+				assert.EqualValues(t, 0, got[metricIDLicenseStateBroken])
+				assert.EqualValues(t, 0, got[metricIDLicenseStateIgnored])
+				assert.EqualValues(t, 95, got[metricIDLicenseUsagePercent])
+				expectedRemaining := start.Add(48*time.Hour).Unix() - start.Unix()
+				assert.GreaterOrEqual(t, got[metricIDLicenseRemainingTime], expectedRemaining-30)
+				assert.LessOrEqual(t, got[metricIDLicenseRemainingTime], expectedRemaining)
+				assert.Contains(t, got, "snmp_device_prof_checkpoint_stats_metrics_table")
+			},
+		},
+		"cisco smart partial data": {
+			source: "cisco.yaml",
+			rows: func(now time.Time) []ddsnmp.LicenseRow {
+				authExpiry := now.Add(48 * time.Hour).Unix()
+				certExpiry := now.Add(72 * time.Hour).Unix()
+				return []ddsnmp.LicenseRow{
+					typedLicenseRow("smart_authorization_state", "Smart Licensing authorization state",
+						withState(0, ""),
+					),
+					typedLicenseRow("smart_authorization_expiry", "Smart Licensing authorization",
+						func(row *ddsnmp.LicenseRow) {
+							row.Authorization.Has = true
+							row.Authorization.Timestamp = authExpiry
+							row.Authorization.SourceOID = "ciscoSlaAuthExpireTime"
+						},
+					),
+					typedLicenseRow("smart_id_certificate_expiry", "Smart Licensing ID certificate",
+						func(row *ddsnmp.LicenseRow) {
+							row.Certificate.Has = true
+							row.Certificate.Timestamp = certExpiry
+							row.Certificate.SourceOID = "ciscoSlaNextCertificateExpireTime"
+						},
+					),
+					typedLicenseRow("dna_advantage", "network-advantage",
+						withState(2, "authorization_expired"),
+						withUsage(42),
+					),
+				}
+			},
+			assert: func(t *testing.T, got map[string]int64, _ time.Time) {
+				assert.EqualValues(t, 3, got[metricIDLicenseStateHealthy])
+				assert.EqualValues(t, 0, got[metricIDLicenseStateInformational])
+				assert.EqualValues(t, 0, got[metricIDLicenseStateDegraded])
+				assert.EqualValues(t, 1, got[metricIDLicenseStateBroken])
+				assert.EqualValues(t, 0, got[metricIDLicenseStateIgnored])
+				assert.GreaterOrEqual(t, got[metricIDLicenseAuthorizationRemainingTime], int64((48*time.Hour/time.Second)-5))
+				assert.LessOrEqual(t, got[metricIDLicenseAuthorizationRemainingTime], int64(48*time.Hour/time.Second))
+				assert.GreaterOrEqual(t, got[metricIDLicenseCertificateRemainingTime], int64((72*time.Hour/time.Second)-5))
+				assert.LessOrEqual(t, got[metricIDLicenseCertificateRemainingTime], int64(72*time.Hour/time.Second))
+				assert.NotContains(t, got, metricIDLicenseRemainingTime)
+				assert.NotContains(t, got, metricIDLicenseGraceRemainingTime)
+				assert.NotContains(t, got, metricIDLicenseUsagePercent)
+			},
+		},
+		"cisco traditional usage and grace": {
+			source: "cisco.yaml",
+			rows: func(now time.Time) []ddsnmp.LicenseRow {
+				securityExpiry := now.Add(72 * time.Hour).Unix()
+				return []ddsnmp.LicenseRow{
+					typedLicenseRow("17", "SECURITYK9",
+						withRawState("in_use"),
+						withExpiry(securityExpiry),
+						withCapacity(100),
+						withAvailable(15),
+					),
+					typedLicenseRow("23", "APPXK9",
+						withState(2, "usage_count_consumed"),
+						withGraceRemaining(3600),
+						withCapacity(10),
+						withAvailable(0),
+					),
+				}
+			},
+			assert: func(t *testing.T, got map[string]int64, _ time.Time) {
+				assert.EqualValues(t, 1, got[metricIDLicenseStateHealthy])
+				assert.EqualValues(t, 0, got[metricIDLicenseStateInformational])
+				assert.EqualValues(t, 0, got[metricIDLicenseStateDegraded])
+				assert.EqualValues(t, 1, got[metricIDLicenseStateBroken])
+				assert.EqualValues(t, 0, got[metricIDLicenseStateIgnored])
+				assert.EqualValues(t, 100, got[metricIDLicenseUsagePercent])
+				assert.GreaterOrEqual(t, got[metricIDLicenseRemainingTime], int64((72*time.Hour/time.Second)-5))
+				assert.LessOrEqual(t, got[metricIDLicenseRemainingTime], int64(72*time.Hour/time.Second))
+				assert.GreaterOrEqual(t, got[metricIDLicenseGraceRemainingTime], int64((time.Hour/time.Second)-5))
+				assert.LessOrEqual(t, got[metricIDLicenseGraceRemainingTime], int64(time.Hour/time.Second))
+			},
+		},
+		"mixed rows select worst aggregate signals": {
+			source: "mixed-licensing.yaml",
+			rows: func(now time.Time) []ddsnmp.LicenseRow {
+				perpetualExpiry := now.Add(30 * time.Minute).Unix()
+				earliestRealExpiry := now.Add(6 * time.Hour).Unix()
+				authExpiry := now.Add(30 * time.Hour).Unix()
+				certExpiry := now.Add(20 * time.Hour).Unix()
+				graceExpiry := now.Add(10 * time.Hour).Unix()
+
+				return []ddsnmp.LicenseRow{
+					typedLicenseRow("perpetual", "Perpetual base",
+						withRawState("active"),
+						withExpiry(perpetualExpiry),
+						withUsage(50),
+						withCapacity(100),
+						withPerpetual(),
+					),
+					typedLicenseRow("soonest_expiring", "Threat prevention",
+						withRawState("about-to-expire"),
+						withExpiry(earliestRealExpiry),
+						withUsage(90),
+						withCapacity(100),
+					),
+					typedLicenseRow("auth", "Smart auth",
+						func(row *ddsnmp.LicenseRow) {
+							row.Authorization.Has = true
+							row.Authorization.Timestamp = authExpiry
+							row.Authorization.SourceOID = "auth_timer"
+						},
+					),
+					typedLicenseRow("cert", "Smart cert",
+						func(row *ddsnmp.LicenseRow) {
+							row.Certificate.Has = true
+							row.Certificate.Timestamp = certExpiry
+							row.Certificate.SourceOID = "cert_timer"
+						},
+					),
+					typedLicenseRow("grace", "Eval grace",
+						withRawState("evaluation"),
+						func(row *ddsnmp.LicenseRow) {
+							row.Grace.Has = true
+							row.Grace.Timestamp = graceExpiry
+						},
+					),
+					typedLicenseRow("broken", "Broken feature", withState(2, "")),
+					typedLicenseRow("unlimited", "Unlimited pool", withUsagePercent(100), withUnlimited()),
+				}
+			},
+			assert: func(t *testing.T, got map[string]int64, _ time.Time) {
+				assert.EqualValues(t, 4, got[metricIDLicenseStateHealthy])
+				assert.EqualValues(t, 0, got[metricIDLicenseStateInformational])
+				assert.EqualValues(t, 2, got[metricIDLicenseStateDegraded])
+				assert.EqualValues(t, 1, got[metricIDLicenseStateBroken])
+				assert.EqualValues(t, 0, got[metricIDLicenseStateIgnored])
+				assert.EqualValues(t, 90, got[metricIDLicenseUsagePercent])
+				assert.GreaterOrEqual(t, got[metricIDLicenseRemainingTime], int64((6*time.Hour/time.Second)-5))
+				assert.LessOrEqual(t, got[metricIDLicenseRemainingTime], int64(6*time.Hour/time.Second))
+				assert.GreaterOrEqual(t, got[metricIDLicenseAuthorizationRemainingTime], int64((30*time.Hour/time.Second)-5))
+				assert.LessOrEqual(t, got[metricIDLicenseAuthorizationRemainingTime], int64(30*time.Hour/time.Second))
+				assert.GreaterOrEqual(t, got[metricIDLicenseCertificateRemainingTime], int64((20*time.Hour/time.Second)-5))
+				assert.LessOrEqual(t, got[metricIDLicenseCertificateRemainingTime], int64(20*time.Hour/time.Second))
+				assert.GreaterOrEqual(t, got[metricIDLicenseGraceRemainingTime], int64((10*time.Hour/time.Second)-5))
+				assert.LessOrEqual(t, got[metricIDLicenseGraceRemainingTime], int64(10*time.Hour/time.Second))
+			},
+		},
 	}
 
-	require.NoError(t, collr.Init(context.Background()))
-	_ = collr.Check(context.Background())
+	for name, tc := range tests {
+		t.Run(name, func(t *testing.T) {
+			mockCtl := gomock.NewController(t)
+			defer mockCtl.Finish()
 
-	start := time.Now().UTC()
-	got := collr.Collect(context.Background())
-	require.NotNil(t, got)
+			mockSNMP := snmpmock.NewMockHandler(mockCtl)
+			setMockClientInitExpect(mockSNMP)
+			setMockClientSysInfoExpect(mockSNMP)
 
-	assert.EqualValues(t, 0, got[metricIDLicenseStateHealthy])
-	assert.EqualValues(t, 0, got[metricIDLicenseStateInformational])
-	assert.EqualValues(t, 1, got[metricIDLicenseStateDegraded])
-	assert.EqualValues(t, 0, got[metricIDLicenseStateBroken])
-	assert.EqualValues(t, 0, got[metricIDLicenseStateIgnored])
-	assert.EqualValues(t, 95, got[metricIDLicenseUsagePercent])
-	expectedRemaining := expiry - start.Unix()
-	assert.GreaterOrEqual(t, got[metricIDLicenseRemainingTime], expectedRemaining-30)
-	assert.LessOrEqual(t, got[metricIDLicenseRemainingTime], expectedRemaining)
-	assert.Contains(t, got, "snmp_device_prof_checkpoint_stats_metrics_table")
-}
+			now := time.Now().UTC()
+			collr := New()
+			collr.Config = prepareV2Config()
+			collr.CreateVnode = false
+			collr.Ping.Enabled = false
+			collr.snmpProfiles = []*ddsnmp.Profile{{}}
+			collr.newSnmpClient = func() gosnmp.Handler { return mockSNMP }
+			collr.newDdSnmpColl = func(ddsnmpcollector.Config) ddCollector {
+				pm := &ddsnmp.ProfileMetrics{
+					Source:      tc.source,
+					LicenseRows: tc.rows(now),
+				}
+				return &mockDdSnmpCollector{pms: []*ddsnmp.ProfileMetrics{pm}}
+			}
 
-func TestCollector_Collect_LicensingAggregation_CiscoSmartPartialData(t *testing.T) {
-	mockCtl := gomock.NewController(t)
-	defer mockCtl.Finish()
+			require.NoError(t, collr.Init(context.Background()))
+			_ = collr.Check(context.Background())
 
-	mockSNMP := snmpmock.NewMockHandler(mockCtl)
-	setMockClientInitExpect(mockSNMP)
-	setMockClientSysInfoExpect(mockSNMP)
-
-	authExpiry := time.Now().UTC().Add(48 * time.Hour).Unix()
-	certExpiry := time.Now().UTC().Add(72 * time.Hour).Unix()
-
-	collr := New()
-	collr.Config = prepareV2Config()
-	collr.CreateVnode = false
-	collr.Ping.Enabled = false
-	collr.snmpProfiles = []*ddsnmp.Profile{{}}
-	collr.newSnmpClient = func() gosnmp.Handler { return mockSNMP }
-	collr.newDdSnmpColl = func(ddsnmpcollector.Config) ddCollector {
-		pm := &ddsnmp.ProfileMetrics{
-			Source: "cisco.yaml",
-			LicenseRows: []ddsnmp.LicenseRow{
-				typedLicenseRow("smart_authorization_state", "Smart Licensing authorization state",
-					withState(0, ""),
-				),
-				typedLicenseRow("smart_authorization_expiry", "Smart Licensing authorization",
-					func(row *ddsnmp.LicenseRow) {
-						row.Authorization.Has = true
-						row.Authorization.Timestamp = authExpiry
-						row.Authorization.SourceOID = "ciscoSlaAuthExpireTime"
-					},
-				),
-				typedLicenseRow("smart_id_certificate_expiry", "Smart Licensing ID certificate",
-					func(row *ddsnmp.LicenseRow) {
-						row.Certificate.Has = true
-						row.Certificate.Timestamp = certExpiry
-						row.Certificate.SourceOID = "ciscoSlaNextCertificateExpireTime"
-					},
-				),
-				typedLicenseRow("dna_advantage", "network-advantage",
-					withState(2, "authorization_expired"),
-					withUsage(42),
-				),
-			},
-		}
-		return &mockDdSnmpCollector{pms: []*ddsnmp.ProfileMetrics{pm}}
+			start := time.Now().UTC()
+			got := collr.Collect(context.Background())
+			require.NotNil(t, got)
+			tc.assert(t, got, start)
+		})
 	}
-
-	require.NoError(t, collr.Init(context.Background()))
-	_ = collr.Check(context.Background())
-
-	got := collr.Collect(context.Background())
-	require.NotNil(t, got)
-
-	// 4 logical rows: state (healthy), auth (healthy), cert (healthy), entitlement (broken).
-	assert.EqualValues(t, 3, got[metricIDLicenseStateHealthy])
-	assert.EqualValues(t, 0, got[metricIDLicenseStateInformational])
-	assert.EqualValues(t, 0, got[metricIDLicenseStateDegraded])
-	assert.EqualValues(t, 1, got[metricIDLicenseStateBroken])
-	assert.EqualValues(t, 0, got[metricIDLicenseStateIgnored])
-	assert.GreaterOrEqual(t, got[metricIDLicenseAuthorizationRemainingTime], int64((48*time.Hour/time.Second)-5))
-	assert.LessOrEqual(t, got[metricIDLicenseAuthorizationRemainingTime], int64(48*time.Hour/time.Second))
-	assert.GreaterOrEqual(t, got[metricIDLicenseCertificateRemainingTime], int64((72*time.Hour/time.Second)-5))
-	assert.LessOrEqual(t, got[metricIDLicenseCertificateRemainingTime], int64(72*time.Hour/time.Second))
-	assert.NotContains(t, got, metricIDLicenseRemainingTime)
-	assert.NotContains(t, got, metricIDLicenseGraceRemainingTime)
-	assert.NotContains(t, got, metricIDLicenseUsagePercent)
-}
-
-func TestCollector_Collect_LicensingAggregation_CiscoTraditional(t *testing.T) {
-	mockCtl := gomock.NewController(t)
-	defer mockCtl.Finish()
-
-	mockSNMP := snmpmock.NewMockHandler(mockCtl)
-	setMockClientInitExpect(mockSNMP)
-	setMockClientSysInfoExpect(mockSNMP)
-
-	securityExpiry := time.Now().UTC().Add(72 * time.Hour).Unix()
-
-	collr := New()
-	collr.Config = prepareV2Config()
-	collr.CreateVnode = false
-	collr.Ping.Enabled = false
-	collr.snmpProfiles = []*ddsnmp.Profile{{}}
-	collr.newSnmpClient = func() gosnmp.Handler { return mockSNMP }
-	collr.newDdSnmpColl = func(ddsnmpcollector.Config) ddCollector {
-		pm := &ddsnmp.ProfileMetrics{
-			Source: "cisco.yaml",
-			LicenseRows: []ddsnmp.LicenseRow{
-				typedLicenseRow("17", "SECURITYK9",
-					withRawState("in_use"),
-					withExpiry(securityExpiry),
-					withCapacity(100),
-					withAvailable(15),
-				),
-				typedLicenseRow("23", "APPXK9",
-					withState(2, "usage_count_consumed"),
-					withGraceRemaining(3600),
-					withCapacity(10),
-					withAvailable(0),
-				),
-			},
-		}
-		return &mockDdSnmpCollector{pms: []*ddsnmp.ProfileMetrics{pm}}
-	}
-
-	require.NoError(t, collr.Init(context.Background()))
-	_ = collr.Check(context.Background())
-
-	got := collr.Collect(context.Background())
-	require.NotNil(t, got)
-
-	assert.EqualValues(t, 1, got[metricIDLicenseStateHealthy])
-	assert.EqualValues(t, 0, got[metricIDLicenseStateInformational])
-	assert.EqualValues(t, 0, got[metricIDLicenseStateDegraded])
-	assert.EqualValues(t, 1, got[metricIDLicenseStateBroken])
-	assert.EqualValues(t, 0, got[metricIDLicenseStateIgnored])
-	// APPXK9 is fully consumed (0 available of 10) → 100% usage, wins max.
-	assert.EqualValues(t, 100, got[metricIDLicenseUsagePercent])
-	assert.GreaterOrEqual(t, got[metricIDLicenseRemainingTime], int64((72*time.Hour/time.Second)-5))
-	assert.LessOrEqual(t, got[metricIDLicenseRemainingTime], int64(72*time.Hour/time.Second))
-	assert.GreaterOrEqual(t, got[metricIDLicenseGraceRemainingTime], int64((time.Hour/time.Second)-5))
-	assert.LessOrEqual(t, got[metricIDLicenseGraceRemainingTime], int64(time.Hour/time.Second))
-}
-
-func TestCollector_Collect_LicensingAggregation_SelectsWorstCaseAcrossMixedRows(t *testing.T) {
-	mockCtl := gomock.NewController(t)
-	defer mockCtl.Finish()
-
-	mockSNMP := snmpmock.NewMockHandler(mockCtl)
-	setMockClientInitExpect(mockSNMP)
-	setMockClientSysInfoExpect(mockSNMP)
-
-	now := time.Now().UTC()
-	perpetualExpiry := now.Add(30 * time.Minute).Unix()
-	earliestRealExpiry := now.Add(6 * time.Hour).Unix()
-	authExpiry := now.Add(30 * time.Hour).Unix()
-	certExpiry := now.Add(20 * time.Hour).Unix()
-	graceExpiry := now.Add(10 * time.Hour).Unix()
-
-	collr := New()
-	collr.Config = prepareV2Config()
-	collr.CreateVnode = false
-	collr.Ping.Enabled = false
-	collr.snmpProfiles = []*ddsnmp.Profile{{}}
-	collr.newSnmpClient = func() gosnmp.Handler { return mockSNMP }
-	collr.newDdSnmpColl = func(ddsnmpcollector.Config) ddCollector {
-		pm := &ddsnmp.ProfileMetrics{
-			Source: "mixed-licensing.yaml",
-			LicenseRows: []ddsnmp.LicenseRow{
-				typedLicenseRow("perpetual", "Perpetual base",
-					withRawState("active"),
-					withExpiry(perpetualExpiry),
-					withUsage(50),
-					withCapacity(100),
-					withPerpetual(),
-				),
-				typedLicenseRow("soonest_expiring", "Threat prevention",
-					withRawState("about-to-expire"),
-					withExpiry(earliestRealExpiry),
-					withUsage(90),
-					withCapacity(100),
-				),
-				typedLicenseRow("auth", "Smart auth",
-					func(row *ddsnmp.LicenseRow) {
-						row.Authorization.Has = true
-						row.Authorization.Timestamp = authExpiry
-						row.Authorization.SourceOID = "auth_timer"
-					},
-				),
-				typedLicenseRow("cert", "Smart cert",
-					func(row *ddsnmp.LicenseRow) {
-						row.Certificate.Has = true
-						row.Certificate.Timestamp = certExpiry
-						row.Certificate.SourceOID = "cert_timer"
-					},
-				),
-				typedLicenseRow("grace", "Eval grace",
-					withRawState("evaluation"),
-					func(row *ddsnmp.LicenseRow) {
-						row.Grace.Has = true
-						row.Grace.Timestamp = graceExpiry
-					},
-				),
-				typedLicenseRow("broken", "Broken feature", withState(2, "")),
-				typedLicenseRow("unlimited", "Unlimited pool", withUsagePercent(100), withUnlimited()),
-			},
-		}
-		return &mockDdSnmpCollector{pms: []*ddsnmp.ProfileMetrics{pm}}
-	}
-
-	require.NoError(t, collr.Init(context.Background()))
-	_ = collr.Check(context.Background())
-
-	got := collr.Collect(context.Background())
-	require.NotNil(t, got)
-
-	// 7 rows: perpetual + auth + cert + unlimited = 4 healthy,
-	// soonest (about-to-expire) + grace timer = 2 degraded,
-	// broken = 1 broken.
-	assert.EqualValues(t, 4, got[metricIDLicenseStateHealthy])
-	assert.EqualValues(t, 0, got[metricIDLicenseStateInformational])
-	assert.EqualValues(t, 2, got[metricIDLicenseStateDegraded])
-	assert.EqualValues(t, 1, got[metricIDLicenseStateBroken])
-	assert.EqualValues(t, 0, got[metricIDLicenseStateIgnored])
-	// Soonest-expiring row contributes 90% (unlimited pool skipped).
-	assert.EqualValues(t, 90, got[metricIDLicenseUsagePercent])
-	// Perpetual license must not contribute to the earliest-expiry signal.
-	assert.GreaterOrEqual(t, got[metricIDLicenseRemainingTime], int64((6*time.Hour/time.Second)-5))
-	assert.LessOrEqual(t, got[metricIDLicenseRemainingTime], int64(6*time.Hour/time.Second))
-	assert.GreaterOrEqual(t, got[metricIDLicenseAuthorizationRemainingTime], int64((30*time.Hour/time.Second)-5))
-	assert.LessOrEqual(t, got[metricIDLicenseAuthorizationRemainingTime], int64(30*time.Hour/time.Second))
-	assert.GreaterOrEqual(t, got[metricIDLicenseCertificateRemainingTime], int64((20*time.Hour/time.Second)-5))
-	assert.LessOrEqual(t, got[metricIDLicenseCertificateRemainingTime], int64(20*time.Hour/time.Second))
-	assert.GreaterOrEqual(t, got[metricIDLicenseGraceRemainingTime], int64((10*time.Hour/time.Second)-5))
-	assert.LessOrEqual(t, got[metricIDLicenseGraceRemainingTime], int64(10*time.Hour/time.Second))
 }
 
 type mockDdSnmpCollector struct {

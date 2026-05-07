@@ -16,75 +16,88 @@ import (
 	ddsnmpcollector "github.com/netdata/netdata/go/plugins/plugin/go.d/collector/snmp/ddsnmp/ddsnmpcollector"
 )
 
-func TestCollector_Collect_LicensingAggregation_ReadsTypedRowsAndIgnoresHiddenMetrics(t *testing.T) {
-	mockCtl := gomock.NewController(t)
-	defer mockCtl.Finish()
-
-	mockSNMP := snmpmock.NewMockHandler(mockCtl)
-	setMockClientInitExpect(mockSNMP)
-	setMockClientSysInfoExpect(mockSNMP)
-
-	collr := New()
-	collr.Config = prepareV2Config()
-	collr.CreateVnode = false
-	collr.Ping.Enabled = false
-	collr.snmpProfiles = []*ddsnmp.Profile{{}}
-	collr.newSnmpClient = func() gosnmp.Handler { return mockSNMP }
-	collr.newDdSnmpColl = func(ddsnmpcollector.Config) ddCollector {
-		pm := &ddsnmp.ProfileMetrics{
-			Source: "noise-licensing.yaml",
-			LicenseRows: []ddsnmp.LicenseRow{
-				typedLicenseRow("healthy", "Healthy license", withState(0, "active")),
-			},
-			HiddenMetrics: []ddsnmp.Metric{
-				{
-					Name:  "_license_row",
-					Value: 0,
-					Tags: map[string]string{
-						"_license_id":         "hidden-healthy",
-						"_license_name":       "Hidden healthy license",
-						"_license_state_raw":  "active",
-						"_license_value_kind": "state_severity",
-					},
+func TestCollector_Collect_LicensingAggregation_ReadsTypedRowsAndIgnoresPrivateMetrics(t *testing.T) {
+	tests := map[string]struct {
+		profileMetrics *ddsnmp.ProfileMetrics
+		want           map[string]int64
+	}{
+		"typed rows drive aggregate while private metrics are ignored": {
+			profileMetrics: &ddsnmp.ProfileMetrics{
+				Source: "noise-licensing.yaml",
+				LicenseRows: []ddsnmp.LicenseRow{
+					typedLicenseRow("healthy", "Healthy license", withState(0, "active")),
 				},
-				{
-					Name:  "_license_row",
-					Value: 123,
-					Tags: map[string]string{
-						"_license_id":   "noise",
-						"_license_name": "Noise without kind",
+				HiddenMetrics: []ddsnmp.Metric{
+					{
+						Name:  "_private_metric",
+						Value: 0,
+						Tags: map[string]string{
+							"state": "active",
+						},
 					},
-				},
-				{
-					Name:  "_license_row_expiry",
-					Value: 999,
-					Tags: map[string]string{
-						"_license_id":   "bad-expiry",
-						"_license_name": "Bad expiry helper",
+					{
+						Name:  "_private_metric_total",
+						Value: 123,
+						Tags: map[string]string{
+							"component": "noise",
+						},
+					},
+					{
+						Name:  "_private_helper",
+						Value: 999,
+						Tags: map[string]string{
+							"component": "helper",
+						},
 					},
 				},
 			},
-		}
-		for i := range pm.HiddenMetrics {
-			pm.HiddenMetrics[i].Profile = pm
-		}
-		return &mockDdSnmpCollector{pms: []*ddsnmp.ProfileMetrics{pm}}
+			want: map[string]int64{
+				metricIDLicenseStateHealthy:       1,
+				metricIDLicenseStateInformational: 0,
+				metricIDLicenseStateDegraded:      0,
+				metricIDLicenseStateBroken:        0,
+				metricIDLicenseStateIgnored:       0,
+			},
+		},
 	}
 
-	require.NoError(t, collr.Init(context.Background()))
-	_ = collr.Check(context.Background())
+	for name, tc := range tests {
+		t.Run(name, func(t *testing.T) {
+			mockCtl := gomock.NewController(t)
+			defer mockCtl.Finish()
 
-	got := collr.Collect(context.Background())
-	require.NotNil(t, got)
+			mockSNMP := snmpmock.NewMockHandler(mockCtl)
+			setMockClientInitExpect(mockSNMP)
+			setMockClientSysInfoExpect(mockSNMP)
 
-	assert.EqualValues(t, 1, got[metricIDLicenseStateHealthy])
-	assert.EqualValues(t, 0, got[metricIDLicenseStateInformational])
-	assert.EqualValues(t, 0, got[metricIDLicenseStateDegraded])
-	assert.EqualValues(t, 0, got[metricIDLicenseStateBroken])
-	assert.EqualValues(t, 0, got[metricIDLicenseStateIgnored])
-	assert.NotContains(t, got, metricIDLicenseRemainingTime)
-	assert.NotContains(t, got, metricIDLicenseAuthorizationRemainingTime)
-	assert.NotContains(t, got, metricIDLicenseCertificateRemainingTime)
-	assert.NotContains(t, got, metricIDLicenseGraceRemainingTime)
-	assert.NotContains(t, got, metricIDLicenseUsagePercent)
+			collr := New()
+			collr.Config = prepareV2Config()
+			collr.CreateVnode = false
+			collr.Ping.Enabled = false
+			collr.snmpProfiles = []*ddsnmp.Profile{{}}
+			collr.newSnmpClient = func() gosnmp.Handler { return mockSNMP }
+			collr.newDdSnmpColl = func(ddsnmpcollector.Config) ddCollector {
+				pm := tc.profileMetrics
+				for i := range pm.HiddenMetrics {
+					pm.HiddenMetrics[i].Profile = pm
+				}
+				return &mockDdSnmpCollector{pms: []*ddsnmp.ProfileMetrics{pm}}
+			}
+
+			require.NoError(t, collr.Init(context.Background()))
+			_ = collr.Check(context.Background())
+
+			got := collr.Collect(context.Background())
+			require.NotNil(t, got)
+
+			for id, want := range tc.want {
+				assert.EqualValues(t, want, got[id])
+			}
+			assert.NotContains(t, got, metricIDLicenseRemainingTime)
+			assert.NotContains(t, got, metricIDLicenseAuthorizationRemainingTime)
+			assert.NotContains(t, got, metricIDLicenseCertificateRemainingTime)
+			assert.NotContains(t, got, metricIDLicenseGraceRemainingTime)
+			assert.NotContains(t, got, metricIDLicenseUsagePercent)
+		})
+	}
 }

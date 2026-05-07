@@ -10,16 +10,16 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// runLicenseTransform compiles a transform body and applies it to the given
+// runTransform compiles a transform body and applies it to the given
 // metric. It mirrors the minimal "execute the template against {Metric: m}"
 // contract used by ddsnmpcollector.applyTransform, without crossing package
 // boundaries just for the test.
-func runLicenseTransform(t *testing.T, body string, m *Metric) {
+func runTransform(t *testing.T, body string, m *Metric) {
 	t.Helper()
-	require.NoError(t, executeLicenseTransform(body, m))
+	require.NoError(t, executeTransform(body, m))
 }
 
-func executeLicenseTransform(body string, m *Metric) error {
+func executeTransform(body string, m *Metric) error {
 	tmpl, err := compileTransform(body)
 	if err != nil {
 		return err
@@ -28,30 +28,61 @@ func executeLicenseTransform(body string, m *Metric) error {
 	return tmpl.Execute(&buf, struct{ Metric *Metric }{Metric: m})
 }
 
-func TestSetTagTransform_StampsValueKindOnTagsMap(t *testing.T) {
-	m := &Metric{Value: 42, Tags: map[string]string{}}
-	runLicenseTransform(t, `{{- setTag .Metric "_license_value_kind" "expiry_timestamp" -}}`, m)
+func TestSetTagTransform(t *testing.T) {
+	tests := map[string]struct {
+		metric Metric
+		body   string
+		want   string
+	}{
+		"stamps value on existing tags map": {
+			metric: Metric{Value: 42, Tags: map[string]string{}},
+			body:   `{{- setTag .Metric "custom_kind" "expiry_timestamp" -}}`,
+			want:   "expiry_timestamp",
+		},
+		"allocates tags when nil": {
+			metric: Metric{Value: 1},
+			body:   `{{- setTag .Metric "custom_kind" "state_severity" -}}`,
+			want:   "state_severity",
+		},
+	}
 
-	assert.Equal(t, "expiry_timestamp", m.Tags["_license_value_kind"])
-	assert.EqualValues(t, 42, m.Value)
-}
+	for name, tc := range tests {
+		t.Run(name, func(t *testing.T) {
+			m := tc.metric
+			runTransform(t, tc.body, &m)
 
-func TestSetTagTransform_AllocatesTagsWhenNil(t *testing.T) {
-	m := &Metric{Value: 1}
-	runLicenseTransform(t, `{{- setTag .Metric "_license_value_kind" "state_severity" -}}`, m)
-
-	require.NotNil(t, m.Tags)
-	assert.Equal(t, "state_severity", m.Tags["_license_value_kind"])
+			require.NotNil(t, m.Tags)
+			assert.Equal(t, tc.want, m.Tags["custom_kind"])
+			assert.EqualValues(t, tc.metric.Value, m.Value)
+		})
+	}
 }
 
 func TestIsTextDateNoValue(t *testing.T) {
-	noValues := []string{"", "0", "-1", "never", "perpetual", "permanent", "n/a", "na", "none", "unlimited", "4294967295"}
-	for _, raw := range noValues {
-		assert.True(t, IsTextDateNoValue(raw), "raw=%q", raw)
+	tests := map[string]struct {
+		raw  string
+		want bool
+	}{
+		"empty":           {raw: "", want: true},
+		"zero":            {raw: "0", want: true},
+		"negative one":    {raw: "-1", want: true},
+		"never":           {raw: "never", want: true},
+		"perpetual":       {raw: "perpetual", want: true},
+		"permanent":       {raw: "permanent", want: true},
+		"n/a":             {raw: "n/a", want: true},
+		"na":              {raw: "na", want: true},
+		"none":            {raw: "none", want: true},
+		"unlimited":       {raw: "unlimited", want: true},
+		"uint32 max":      {raw: "4294967295", want: true},
+		"one":             {raw: "1", want: false},
+		"unix timestamp":  {raw: "1798675200", want: false},
+		"text date":       {raw: "2026-12-31", want: false},
+		"invalid nonzero": {raw: "not-a-date", want: false},
 	}
 
-	values := []string{"1", "1798675200", "2026-12-31", "not-a-date"}
-	for _, raw := range values {
-		assert.False(t, IsTextDateNoValue(raw), "raw=%q", raw)
+	for name, tc := range tests {
+		t.Run(name, func(t *testing.T) {
+			assert.Equal(t, tc.want, IsTextDateNoValue(tc.raw))
+		})
 	}
 }

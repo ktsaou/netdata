@@ -273,14 +273,14 @@ func TestProfileMerge_ColumnSymbolsWithSameNameFromBaseArePreserved(t *testing.T
 				{
 					Table: ddprofiledefinition.SymbolConfig{OID: "1.2.3", Name: "tableA"},
 					Symbols: []ddprofiledefinition.SymbolConfig{
-						{OID: "1.2.3.1", Name: "_license_row"},
-						{OID: "1.2.3.2", Name: "_license_row"},
+						{OID: "1.2.3.1", Name: "duplicated.column"},
+						{OID: "1.2.3.2", Name: "duplicated.column"},
 					},
 				},
 				{
 					Table: ddprofiledefinition.SymbolConfig{OID: "1.2.4", Name: "tableB"},
 					Symbols: []ddprofiledefinition.SymbolConfig{
-						{OID: "1.2.4.1", Name: "_license_row"},
+						{OID: "1.2.4.1", Name: "duplicated.column"},
 					},
 				},
 			},

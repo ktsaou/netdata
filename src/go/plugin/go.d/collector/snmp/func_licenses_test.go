@@ -88,102 +88,148 @@ func TestFuncLicensesHandle(t *testing.T) {
 }
 
 func TestFuncLicensesHandle_DefaultSortUsesDisplayedLicenseValue(t *testing.T) {
-	cache := newLicenseCache()
-	cache.store(time.Date(2026, time.April, 3, 10, 0, 0, 0, time.UTC), []licenseRow{
-		{
-			ID:          "Zulu",
-			Source:      "vendor",
-			StateBucket: licenseStateBucketHealthy,
+	tests := map[string]struct {
+		rows      []licenseRow
+		wantOrder []string
+	}{
+		"uses display label before hidden row id": {
+			rows: []licenseRow{
+				{
+					ID:          "Zulu",
+					Source:      "vendor",
+					StateBucket: licenseStateBucketHealthy,
+				},
+				{
+					ID:          "alpha-id",
+					Source:      "vendor",
+					Name:        "Alpha",
+					StateBucket: licenseStateBucketHealthy,
+				},
+			},
+			wantOrder: []string{"Alpha", "Zulu"},
 		},
-		{
-			ID:          "alpha-id",
-			Source:      "vendor",
-			Name:        "Alpha",
-			StateBucket: licenseStateBucketHealthy,
-		},
-	})
+	}
 
-	resp := newTestFuncLicenses(cache).Handle(context.Background(), licensesMethodID, nil)
-	require.NotNil(t, resp)
-	require.Equal(t, 200, resp.Status)
+	for name, tc := range tests {
+		t.Run(name, func(t *testing.T) {
+			cache := newLicenseCache()
+			cache.store(time.Date(2026, time.April, 3, 10, 0, 0, 0, time.UTC), tc.rows)
 
-	rows := resp.Data.([][]any)
-	require.Len(t, rows, 2)
-	assert.Equal(t, "Alpha", rows[0][0])
-	assert.Equal(t, "Zulu", rows[1][0])
+			resp := newTestFuncLicenses(cache).Handle(context.Background(), licensesMethodID, nil)
+			require.NotNil(t, resp)
+			require.Equal(t, 200, resp.Status)
+
+			rows := resp.Data.([][]any)
+			require.Len(t, rows, len(tc.wantOrder))
+			for i, want := range tc.wantOrder {
+				assert.Equal(t, want, rows[i][0])
+			}
+		})
+	}
 }
 
-func TestLicenseRowUniqueKeyEscapesDelimiterContent(t *testing.T) {
-	left := licenseRow{
-		Source: "source|a",
-		Table:  "table",
-		ID:     "id",
-	}
-	right := licenseRow{
-		Source: "source",
-		Table:  "table|id",
-		ID:     "",
+func TestLicenseRowUniqueKey_DistinctRows(t *testing.T) {
+	tests := map[string]struct {
+		left  licenseRow
+		right licenseRow
+	}{
+		"escapes delimiter content": {
+			left: licenseRow{
+				Source: "source|a",
+				Table:  "table",
+				ID:     "id",
+			},
+			right: licenseRow{
+				Source: "source",
+				Table:  "table|id",
+				ID:     "",
+			},
+		},
+		"different tables stay distinct": {
+			left: licenseRow{
+				Source: "fortinet",
+				Table:  "fgLicContractTable",
+				ID:     "FortiCare",
+				Name:   "FortiCare",
+			},
+			right: licenseRow{
+				Source: "fortinet",
+				Table:  "fgLicVersionTable",
+				ID:     "FortiCare",
+				Name:   "FortiCare",
+			},
+		},
 	}
 
-	assert.NotEqual(t, licenseRowUniqueKey(left), licenseRowUniqueKey(right))
-}
-
-func TestLicenseRowUniqueKey_DifferentTablesStayDistinct(t *testing.T) {
-	left := licenseRow{
-		Source: "fortinet",
-		Table:  "fgLicContractTable",
-		ID:     "FortiCare",
-		Name:   "FortiCare",
+	for name, tc := range tests {
+		t.Run(name, func(t *testing.T) {
+			assert.NotEqual(t, licenseRowUniqueKey(tc.left), licenseRowUniqueKey(tc.right))
+		})
 	}
-	right := licenseRow{
-		Source: "fortinet",
-		Table:  "fgLicVersionTable",
-		ID:     "FortiCare",
-		Name:   "FortiCare",
-	}
-
-	assert.NotEqual(t, licenseRowUniqueKey(left), licenseRowUniqueKey(right))
 }
 
 func TestFuncLicensesHandleUnavailable(t *testing.T) {
-	resp := newTestFuncLicenses(newLicenseCache()).Handle(context.Background(), licensesMethodID, nil)
-	require.NotNil(t, resp)
-	assert.Equal(t, 503, resp.Status)
-}
+	tests := map[string]struct {
+		prepare func(cache *licenseCache)
+	}{
+		"before first collect": {},
+		"when no rows were collected": {
+			prepare: func(cache *licenseCache) {
+				cache.store(time.Date(2026, time.April, 3, 10, 0, 0, 0, time.UTC), nil)
+			},
+		},
+	}
 
-func TestFuncLicensesHandleUnavailableWhenNoRowsWereCollected(t *testing.T) {
-	cache := newLicenseCache()
-	cache.store(time.Date(2026, time.April, 3, 10, 0, 0, 0, time.UTC), nil)
+	for name, tc := range tests {
+		t.Run(name, func(t *testing.T) {
+			cache := newLicenseCache()
+			if tc.prepare != nil {
+				tc.prepare(cache)
+			}
 
-	resp := newTestFuncLicenses(cache).Handle(context.Background(), licensesMethodID, nil)
-	require.NotNil(t, resp)
-	assert.Equal(t, 503, resp.Status)
+			resp := newTestFuncLicenses(cache).Handle(context.Background(), licensesMethodID, nil)
+			require.NotNil(t, resp)
+			assert.Equal(t, 503, resp.Status)
+		})
+	}
 }
 
 func TestFuncLicensesRemainingUsesCurrentTime(t *testing.T) {
-	cache := newLicenseCache()
-	lastUpdate := time.Now().UTC().Add(-time.Hour)
-	expiry := time.Now().UTC().Add(time.Hour)
-	cache.store(lastUpdate, []licenseRow{
-		{
-			ID:          "license-1",
-			Name:        "Time Sensitive",
-			StateBucket: licenseStateBucketHealthy,
-			ExpiryTS:    expiry.Unix(),
-			HasExpiry:   true,
+	tests := map[string]struct {
+		lastUpdate time.Time
+		expiry     time.Time
+	}{
+		"uses current time instead of cache update time": {
+			lastUpdate: time.Now().UTC().Add(-time.Hour),
+			expiry:     time.Now().UTC().Add(time.Hour),
 		},
-	})
+	}
 
-	resp := newTestFuncLicenses(cache).Handle(context.Background(), licensesMethodID, nil)
-	require.NotNil(t, resp)
-	require.Equal(t, 200, resp.Status)
+	for name, tc := range tests {
+		t.Run(name, func(t *testing.T) {
+			cache := newLicenseCache()
+			cache.store(tc.lastUpdate, []licenseRow{
+				{
+					ID:          "license-1",
+					Name:        "Time Sensitive",
+					StateBucket: licenseStateBucketHealthy,
+					ExpiryTS:    tc.expiry.Unix(),
+					HasExpiry:   true,
+				},
+			})
 
-	rows := resp.Data.([][]any)
-	require.Len(t, rows, 1)
+			resp := newTestFuncLicenses(cache).Handle(context.Background(), licensesMethodID, nil)
+			require.NotNil(t, resp)
+			require.Equal(t, 200, resp.Status)
 
-	remaining, ok := rows[0][8].(int64)
-	require.True(t, ok)
-	assert.GreaterOrEqual(t, remaining, int64((59*time.Minute)/time.Millisecond))
-	assert.LessOrEqual(t, remaining, int64((61*time.Minute)/time.Millisecond))
-	assert.Less(t, remaining, int64((2*time.Hour)/time.Millisecond))
+			rows := resp.Data.([][]any)
+			require.Len(t, rows, 1)
+
+			remaining, ok := rows[0][8].(int64)
+			require.True(t, ok)
+			assert.GreaterOrEqual(t, remaining, int64((59*time.Minute)/time.Millisecond))
+			assert.LessOrEqual(t, remaining, int64((61*time.Minute)/time.Millisecond))
+			assert.Less(t, remaining, int64((2*time.Hour)/time.Millisecond))
+		})
+	}
 }

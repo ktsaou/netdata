@@ -256,15 +256,15 @@ func TestExtractLicenseRows_FromTypedRows(t *testing.T) {
 				assert.Contains(t, caps, int64(200))
 			},
 		},
-		"ignores legacy hidden metrics": {
+		"ignores private metrics": {
 			rows: nil,
 			assert: func(t *testing.T, _ []licenseRow) {
 				pm := &ddsnmp.ProfileMetrics{
 					Source: "profiles/test-profile.yaml",
 					HiddenMetrics: []ddsnmp.Metric{{
-						Name:  "_license_row",
+						Name:  "_private_metric",
 						Value: 0,
-						Tags:  map[string]string{"_license_id": "hidden", "_license_value_kind": "state_severity"},
+						Tags:  map[string]string{"component": "private"},
 					}},
 				}
 				assert.Empty(t, extractLicenseRows([]*ddsnmp.ProfileMetrics{pm}, now))
@@ -332,37 +332,58 @@ func TestNormalizeLicenseStateBucket(t *testing.T) {
 
 func TestExtractLicenseRows_CheckPointPublicFixtureValues(t *testing.T) {
 	now := time.Date(2026, 4, 9, 12, 0, 0, 0, time.UTC)
+	tests := map[string]struct {
+		rows []ddsnmp.LicenseRow
+	}{
+		"public Check Point sample values": {
+			rows: []ddsnmp.LicenseRow{
+				typedLicenseRow("0", "Firewall", withState(2, "Not Entitled")),
+				typedLicenseRow("4", "Application Ctrl", withState(1, "Evaluation"), withExpiry(1619246913)),
+				typedLicenseRow("2", "IPS", withState(1, "Evaluation"), withExpiry(1619246941)),
+			},
+		},
+	}
 
-	rows := extractLicenseRows(profileWithRows(
-		typedLicenseRow("0", "Firewall", withState(2, "Not Entitled")),
-		typedLicenseRow("4", "Application Ctrl", withState(1, "Evaluation"), withExpiry(1619246913)),
-		typedLicenseRow("2", "IPS", withState(1, "Evaluation"), withExpiry(1619246941)),
-	), now)
+	for name, tc := range tests {
+		t.Run(name, func(t *testing.T) {
+			rows := extractLicenseRows(profileWithRows(tc.rows...), now)
+			require.Len(t, rows, 3)
 
-	require.Len(t, rows, 3)
-
-	for _, row := range rows {
-		switch row.ID {
-		case "0":
-			assert.Equal(t, licenseStateBucketBroken, row.StateBucket, "Not Entitled -> broken")
-			assert.False(t, row.HasExpiry)
-		case "4":
-			assert.Equal(t, licenseStateBucketBroken, row.StateBucket, "expired Evaluation -> broken")
-			assert.True(t, row.HasExpiry)
-			assert.EqualValues(t, 1619246913, row.ExpiryTS)
-		case "2":
-			assert.Equal(t, licenseStateBucketBroken, row.StateBucket, "expired Evaluation -> broken")
-			assert.True(t, row.HasExpiry)
-			assert.EqualValues(t, 1619246941, row.ExpiryTS)
-		default:
-			t.Fatalf("unexpected row id %q", row.ID)
-		}
+			for _, row := range rows {
+				switch row.ID {
+				case "0":
+					assert.Equal(t, licenseStateBucketBroken, row.StateBucket, "Not Entitled -> broken")
+					assert.False(t, row.HasExpiry)
+				case "4":
+					assert.Equal(t, licenseStateBucketBroken, row.StateBucket, "expired Evaluation -> broken")
+					assert.True(t, row.HasExpiry)
+					assert.EqualValues(t, 1619246913, row.ExpiryTS)
+				case "2":
+					assert.Equal(t, licenseStateBucketBroken, row.StateBucket, "expired Evaluation -> broken")
+					assert.True(t, row.HasExpiry)
+					assert.EqualValues(t, 1619246941, row.ExpiryTS)
+				default:
+					t.Fatalf("unexpected row id %q", row.ID)
+				}
+			}
+		})
 	}
 }
 
 func TestLicenseRowUniqueKeyHandlesEmbeddedNULs(t *testing.T) {
-	left := licenseRow{Source: "vendor", Table: "table", ID: "row\x00suffix"}
-	right := licenseRow{Source: "vendor", Table: "table\x00row", ID: "suffix"}
+	tests := map[string]struct {
+		left  licenseRow
+		right licenseRow
+	}{
+		"embedded NULs stay unambiguous": {
+			left:  licenseRow{Source: "vendor", Table: "table", ID: "row\x00suffix"},
+			right: licenseRow{Source: "vendor", Table: "table\x00row", ID: "suffix"},
+		},
+	}
 
-	assert.NotEqual(t, licenseRowUniqueKey(left), licenseRowUniqueKey(right))
+	for name, tc := range tests {
+		t.Run(name, func(t *testing.T) {
+			assert.NotEqual(t, licenseRowUniqueKey(tc.left), licenseRowUniqueKey(tc.right))
+		})
+	}
 }

@@ -78,20 +78,21 @@ func TestAddMetricTagLabels_PrefersUnprefixedTags(t *testing.T) {
 }
 
 func TestLicenseChartsSkipGaps(t *testing.T) {
-	charts := []struct {
-		name string
+	tests := map[string]struct {
 		skip bool
 	}{
-		{name: licenseRemainingTimeChart.ID, skip: licenseRemainingTimeChart.SkipGaps},
-		{name: licenseAuthorizationRemainingTimeChart.ID, skip: licenseAuthorizationRemainingTimeChart.SkipGaps},
-		{name: licenseCertificateRemainingTimeChart.ID, skip: licenseCertificateRemainingTimeChart.SkipGaps},
-		{name: licenseGraceRemainingTimeChart.ID, skip: licenseGraceRemainingTimeChart.SkipGaps},
-		{name: licenseUsagePercentChart.ID, skip: licenseUsagePercentChart.SkipGaps},
-		{name: licenseStateChart.ID, skip: licenseStateChart.SkipGaps},
+		licenseRemainingTimeChart.ID:              {skip: licenseRemainingTimeChart.SkipGaps},
+		licenseAuthorizationRemainingTimeChart.ID: {skip: licenseAuthorizationRemainingTimeChart.SkipGaps},
+		licenseCertificateRemainingTimeChart.ID:   {skip: licenseCertificateRemainingTimeChart.SkipGaps},
+		licenseGraceRemainingTimeChart.ID:         {skip: licenseGraceRemainingTimeChart.SkipGaps},
+		licenseUsagePercentChart.ID:               {skip: licenseUsagePercentChart.SkipGaps},
+		licenseStateChart.ID:                      {skip: licenseStateChart.SkipGaps},
 	}
 
-	for _, tc := range charts {
-		assert.True(t, tc.skip, "chart %s must skip gaps to avoid empty licensing charts", tc.name)
+	for name, tc := range tests {
+		t.Run(name, func(t *testing.T) {
+			assert.True(t, tc.skip, "chart %s must skip gaps to avoid empty licensing charts", name)
+		})
 	}
 }
 

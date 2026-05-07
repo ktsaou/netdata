@@ -19,94 +19,108 @@ import (
 )
 
 func TestCollector_Collect_CiscoTraditionalLicensingProfile(t *testing.T) {
-	ctrl, mockHandler := setupMockHandler(t)
-	defer ctrl.Finish()
+	tests := map[string]struct {
+		rows       []ciscoTraditionalRow
+		assertRows func(*testing.T, []ddsnmp.LicenseRow)
+	}{
+		"subscription and grace rows": {
+			rows: []ciscoTraditionalRow{
+				{
+					entPhysical:   1,
+					storeUsed:     1,
+					index:         17,
+					name:          "SECURITYK9",
+					version:       "1.0",
+					licenseType:   5,
+					remaining:     0,
+					capacity:      100,
+					available:     15,
+					impact:        "Security subscription",
+					status:        3,
+					endDate:       time.Date(2030, time.November, 11, 0, 0, 0, 0, time.UTC),
+					hasEndDatePDU: true,
+				},
+				{
+					entPhysical: 1,
+					storeUsed:   2,
+					index:       23,
+					name:        "APPXK9",
+					version:     "2.1",
+					licenseType: 3,
+					remaining:   7200,
+					capacity:    10,
+					available:   0,
+					impact:      "Session count exhausted",
+					status:      6,
+				},
+			},
+			assertRows: func(t *testing.T, rows []ddsnmp.LicenseRow) {
+				require.Len(t, rows, 2)
+				byName := licenseRowsByName(rows)
 
-	expectCiscoTraditionalLicensingWalk(mockHandler,
-		ciscoTraditionalRow{
-			entPhysical:   1,
-			storeUsed:     1,
-			index:         17,
-			name:          "SECURITYK9",
-			version:       "1.0",
-			licenseType:   5,
-			remaining:     0,
-			capacity:      100,
-			available:     15,
-			impact:        "Security subscription",
-			status:        3,
-			endDate:       time.Date(2030, time.November, 11, 0, 0, 0, 0, time.UTC),
-			hasEndDatePDU: true,
+				subscription := byName["SECURITYK9"]
+				require.NotEmpty(t, subscription.ID)
+				assert.Equal(t, "1.1.17", subscription.ID)
+				assert.Equal(t, "1.0", subscription.Feature)
+				assert.Equal(t, "traditional_licensing", subscription.Component)
+				assert.Equal(t, "paid_subscription", subscription.Type)
+				assert.Equal(t, "Security subscription", subscription.Impact)
+				require.True(t, subscription.Expiry.Has)
+				assert.EqualValues(t, time.Date(2030, time.November, 11, 0, 0, 0, 0, time.UTC).Unix(), subscription.Expiry.Timestamp)
+				require.True(t, subscription.Usage.HasCapacity)
+				assert.EqualValues(t, 100, subscription.Usage.Capacity)
+				require.True(t, subscription.Usage.HasAvailable)
+				assert.EqualValues(t, 15, subscription.Usage.Available)
+				require.True(t, subscription.State.Has)
+				assert.EqualValues(t, 0, subscription.State.Severity)
+				assert.Equal(t, "3", subscription.State.Raw)
+
+				grace := byName["APPXK9"]
+				require.NotEmpty(t, grace.ID)
+				assert.Equal(t, "1.2.23", grace.ID)
+				assert.Equal(t, "2.1", grace.Feature)
+				assert.Equal(t, "grace_period", grace.Type)
+				assert.Equal(t, "Session count exhausted", grace.Impact)
+				require.True(t, grace.Usage.HasCapacity)
+				assert.EqualValues(t, 10, grace.Usage.Capacity)
+				require.True(t, grace.Usage.HasAvailable)
+				assert.EqualValues(t, 0, grace.Usage.Available)
+				require.True(t, grace.State.Has)
+				assert.EqualValues(t, 2, grace.State.Severity)
+				assert.Equal(t, "6", grace.State.Raw)
+				assert.False(t, grace.Expiry.Has)
+			},
 		},
-		ciscoTraditionalRow{
-			entPhysical: 1,
-			storeUsed:   2,
-			index:       23,
-			name:        "APPXK9",
-			version:     "2.1",
-			licenseType: 3,
-			remaining:   7200,
-			capacity:    10,
-			available:   0,
-			impact:      "Session count exhausted",
-			status:      6,
-		},
-	)
+	}
 
-	profile := mustLoadTypedLicensingProfile(t, "cisco", func(row ddprofiledefinition.LicensingConfig) bool {
-		return strings.TrimPrefix(row.Table.OID, ".") == "1.3.6.1.4.1.9.9.543.1.2.3.1"
-	})
-	require.Len(t, profile.Definition.Licensing, 1)
+	for name, tc := range tests {
+		t.Run(name, func(t *testing.T) {
+			ctrl, mockHandler := setupMockHandler(t)
+			defer ctrl.Finish()
 
-	collector := New(Config{
-		SnmpClient:  mockHandler,
-		Profiles:    []*ddsnmp.Profile{profile},
-		Log:         logger.New(),
-		SysObjectID: "",
-	})
+			expectCiscoTraditionalLicensingWalk(mockHandler, tc.rows...)
+			profile := mustLoadTypedLicensingProfile(t, "cisco", func(row ddprofiledefinition.LicensingConfig) bool {
+				return strings.TrimPrefix(row.Table.OID, ".") == "1.3.6.1.4.1.9.9.543.1.2.3.1"
+			})
+			require.Len(t, profile.Definition.Licensing, 1)
 
-	results, err := collector.Collect()
-	require.NoError(t, err)
-	require.Len(t, results, 1)
+			collector := New(Config{
+				SnmpClient:  mockHandler,
+				Profiles:    []*ddsnmp.Profile{profile},
+				Log:         logger.New(),
+				SysObjectID: "",
+			})
 
-	pm := results[0]
-	assert.Empty(t, pm.Metrics)
-	assert.Empty(t, pm.HiddenMetrics)
-	require.Len(t, pm.LicenseRows, 2)
+			results, err := collector.Collect()
+			require.NoError(t, err)
+			require.Len(t, results, 1)
 
-	byName := licenseRowsByName(pm.LicenseRows)
-
-	subscription := byName["SECURITYK9"]
-	require.NotEmpty(t, subscription.ID)
-	assert.Equal(t, "1.1.17", subscription.ID)
-	assert.Equal(t, "1.0", subscription.Feature)
-	assert.Equal(t, "traditional_licensing", subscription.Component)
-	assert.Equal(t, "paid_subscription", subscription.Type)
-	assert.Equal(t, "Security subscription", subscription.Impact)
-	require.True(t, subscription.Expiry.Has)
-	assert.EqualValues(t, time.Date(2030, time.November, 11, 0, 0, 0, 0, time.UTC).Unix(), subscription.Expiry.Timestamp)
-	require.True(t, subscription.Usage.HasCapacity)
-	assert.EqualValues(t, 100, subscription.Usage.Capacity)
-	require.True(t, subscription.Usage.HasAvailable)
-	assert.EqualValues(t, 15, subscription.Usage.Available)
-	require.True(t, subscription.State.Has)
-	assert.EqualValues(t, 0, subscription.State.Severity)
-	assert.Equal(t, "3", subscription.State.Raw)
-
-	grace := byName["APPXK9"]
-	require.NotEmpty(t, grace.ID)
-	assert.Equal(t, "1.2.23", grace.ID)
-	assert.Equal(t, "2.1", grace.Feature)
-	assert.Equal(t, "grace_period", grace.Type)
-	assert.Equal(t, "Session count exhausted", grace.Impact)
-	require.True(t, grace.Usage.HasCapacity)
-	assert.EqualValues(t, 10, grace.Usage.Capacity)
-	require.True(t, grace.Usage.HasAvailable)
-	assert.EqualValues(t, 0, grace.Usage.Available)
-	require.True(t, grace.State.Has)
-	assert.EqualValues(t, 2, grace.State.Severity)
-	assert.Equal(t, "6", grace.State.Raw)
-	assert.False(t, grace.Expiry.Has)
+			pm := results[0]
+			assert.Empty(t, pm.Metrics)
+			assert.Empty(t, pm.HiddenMetrics)
+			tc.assertRows(t, pm.LicenseRows)
+		})
+	}
 }
 
 type ciscoTraditionalRow struct {
