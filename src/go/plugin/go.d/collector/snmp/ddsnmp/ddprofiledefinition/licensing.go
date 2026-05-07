@@ -86,12 +86,12 @@ type LicensingConfig struct {
 	OriginProfileID string       `yaml:"-" json:"-"`
 	ID              string       `yaml:"id,omitempty" json:"id,omitempty"`
 	MIB             string       `yaml:"MIB,omitempty" json:"MIB,omitempty"`
-	Table           SymbolConfig `yaml:"table,omitempty" json:"table,omitempty"`
+	Table           SymbolConfig `yaml:"table,omitempty" json:"table"`
 
-	Identity    LicenseIdentityConfig    `yaml:"identity,omitempty" json:"identity,omitempty"`
-	Descriptors LicenseDescriptorsConfig `yaml:"descriptors,omitempty" json:"descriptors,omitempty"`
-	State       LicenseStateConfig       `yaml:"state,omitempty" json:"state,omitempty"`
-	Signals     LicenseSignalsConfig     `yaml:"signals,omitempty" json:"signals,omitempty"`
+	Identity    LicenseIdentityConfig    `yaml:"identity,omitempty" json:"identity"`
+	Descriptors LicenseDescriptorsConfig `yaml:"descriptors,omitempty" json:"descriptors"`
+	State       LicenseStateConfig       `yaml:"state,omitempty" json:"state"`
+	Signals     LicenseSignalsConfig     `yaml:"signals,omitempty" json:"signals"`
 
 	StaticTags []StaticMetricTagConfig `yaml:"static_tags,omitempty" json:"-"`
 	MetricTags MetricTagConfigList     `yaml:"metric_tags,omitempty" json:"metric_tags,omitempty"`
@@ -113,10 +113,10 @@ func (c LicensingConfig) Clone() LicensingConfig {
 }
 
 type LicenseIdentityConfig struct {
-	ID        LicenseValueConfig `yaml:"id,omitempty" json:"id,omitempty"`
-	Name      LicenseValueConfig `yaml:"name,omitempty" json:"name,omitempty"`
-	Feature   LicenseValueConfig `yaml:"feature,omitempty" json:"feature,omitempty"`
-	Component LicenseValueConfig `yaml:"component,omitempty" json:"component,omitempty"`
+	ID        LicenseValueConfig `yaml:"id,omitempty" json:"id"`
+	Name      LicenseValueConfig `yaml:"name,omitempty" json:"name"`
+	Feature   LicenseValueConfig `yaml:"feature,omitempty" json:"feature"`
+	Component LicenseValueConfig `yaml:"component,omitempty" json:"component"`
 }
 
 func (c LicenseIdentityConfig) Clone() LicenseIdentityConfig {
@@ -129,10 +129,10 @@ func (c LicenseIdentityConfig) Clone() LicenseIdentityConfig {
 }
 
 type LicenseDescriptorsConfig struct {
-	Type      LicenseValueConfig `yaml:"type,omitempty" json:"type,omitempty"`
-	Impact    LicenseValueConfig `yaml:"impact,omitempty" json:"impact,omitempty"`
-	Perpetual LicenseValueConfig `yaml:"perpetual,omitempty" json:"perpetual,omitempty"`
-	Unlimited LicenseValueConfig `yaml:"unlimited,omitempty" json:"unlimited,omitempty"`
+	Type      LicenseValueConfig `yaml:"type,omitempty" json:"type"`
+	Impact    LicenseValueConfig `yaml:"impact,omitempty" json:"impact"`
+	Perpetual LicenseValueConfig `yaml:"perpetual,omitempty" json:"perpetual"`
+	Unlimited LicenseValueConfig `yaml:"unlimited,omitempty" json:"unlimited"`
 }
 
 func (c LicenseDescriptorsConfig) Clone() LicenseDescriptorsConfig {
@@ -157,11 +157,11 @@ func (c LicenseStateConfig) Clone() LicenseStateConfig {
 }
 
 type LicenseSignalsConfig struct {
-	Expiry        LicenseTimerSignalsConfig `yaml:"expiry,omitempty" json:"expiry,omitempty"`
-	Authorization LicenseTimerSignalsConfig `yaml:"authorization,omitempty" json:"authorization,omitempty"`
-	Certificate   LicenseTimerSignalsConfig `yaml:"certificate,omitempty" json:"certificate,omitempty"`
-	Grace         LicenseTimerSignalsConfig `yaml:"grace,omitempty" json:"grace,omitempty"`
-	Usage         LicenseUsageSignalsConfig `yaml:"usage,omitempty" json:"usage,omitempty"`
+	Expiry        LicenseTimerSignalsConfig `yaml:"expiry,omitempty" json:"expiry"`
+	Authorization LicenseTimerSignalsConfig `yaml:"authorization,omitempty" json:"authorization"`
+	Certificate   LicenseTimerSignalsConfig `yaml:"certificate,omitempty" json:"certificate"`
+	Grace         LicenseTimerSignalsConfig `yaml:"grace,omitempty" json:"grace"`
+	Usage         LicenseUsageSignalsConfig `yaml:"usage,omitempty" json:"usage"`
 }
 
 func (c LicenseSignalsConfig) Clone() LicenseSignalsConfig {
@@ -176,8 +176,8 @@ func (c LicenseSignalsConfig) Clone() LicenseSignalsConfig {
 
 type LicenseTimerSignalsConfig struct {
 	LicenseValueConfig `yaml:",inline" json:",inline"`
-	Timestamp          LicenseValueConfig `yaml:"timestamp,omitempty" json:"timestamp,omitempty"`
-	Remaining          LicenseValueConfig `yaml:"remaining,omitempty" json:"remaining,omitempty"`
+	Timestamp          LicenseValueConfig `yaml:"timestamp,omitempty" json:"timestamp"`
+	Remaining          LicenseValueConfig `yaml:"remaining,omitempty" json:"remaining"`
 }
 
 func (c LicenseTimerSignalsConfig) Clone() LicenseTimerSignalsConfig {
@@ -189,10 +189,10 @@ func (c LicenseTimerSignalsConfig) Clone() LicenseTimerSignalsConfig {
 }
 
 type LicenseUsageSignalsConfig struct {
-	Used      LicenseValueConfig `yaml:"used,omitempty" json:"used,omitempty"`
-	Capacity  LicenseValueConfig `yaml:"capacity,omitempty" json:"capacity,omitempty"`
-	Available LicenseValueConfig `yaml:"available,omitempty" json:"available,omitempty"`
-	Percent   LicenseValueConfig `yaml:"percent,omitempty" json:"percent,omitempty"`
+	Used      LicenseValueConfig `yaml:"used,omitempty" json:"used"`
+	Capacity  LicenseValueConfig `yaml:"capacity,omitempty" json:"capacity"`
+	Available LicenseValueConfig `yaml:"available,omitempty" json:"available"`
+	Percent   LicenseValueConfig `yaml:"percent,omitempty" json:"percent"`
 }
 
 func (c LicenseUsageSignalsConfig) Clone() LicenseUsageSignalsConfig {
@@ -211,12 +211,12 @@ type LicenseValueConfig struct {
 	Index          uint                   `yaml:"index,omitempty" json:"index,omitempty"`
 	IndexTransform []MetricIndexTransform `yaml:"index_transform,omitempty" json:"index_transform,omitempty"`
 
-	Symbol SymbolConfig `yaml:"symbol,omitempty" json:"symbol,omitempty"`
+	Symbol SymbolConfig `yaml:"symbol,omitempty" json:"symbol"`
 	OID    string       `yaml:"OID,omitempty" json:"OID,omitempty" jsonschema:"-"`
 	Name   string       `yaml:"name,omitempty" json:"name,omitempty" jsonschema:"-"`
 
 	Format   string                  `yaml:"format,omitempty" json:"format,omitempty"`
-	Mapping  MappingConfig           `yaml:"mapping,omitempty" json:"mapping,omitempty"`
+	Mapping  MappingConfig           `yaml:"mapping,omitempty" json:"mapping"`
 	Sentinel []LicenseSentinelPolicy `yaml:"sentinel,omitempty" json:"sentinel,omitempty"`
 	Kind     LicenseSignalKind       `yaml:"kind,omitempty" json:"kind,omitempty"`
 }

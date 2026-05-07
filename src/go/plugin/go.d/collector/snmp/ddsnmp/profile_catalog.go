@@ -394,12 +394,7 @@ func consumersIncludeAny(consumers ddprofiledefinition.ConsumerSet, requested []
 	if len(consumers) == 0 {
 		return true
 	}
-	for _, consumer := range requested {
-		if consumers.Contains(consumer) {
-			return true
-		}
-	}
-	return false
+	return slices.ContainsFunc(requested, consumers.Contains)
 }
 
 func profileConsumersInclude(consumers []ProfileConsumer, want ProfileConsumer) bool {

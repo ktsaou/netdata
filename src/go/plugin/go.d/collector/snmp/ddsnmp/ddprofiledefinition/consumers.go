@@ -21,12 +21,7 @@ func (s ConsumerSet) Clone() ConsumerSet {
 }
 
 func (s ConsumerSet) Contains(consumer ProfileConsumer) bool {
-	for _, c := range s {
-		if c == consumer {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(s, consumer)
 }
 
 func (s ConsumerSet) IsEmpty() bool {
