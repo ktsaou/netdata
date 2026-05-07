@@ -77,7 +77,7 @@ sudo ./netdata-installer.sh
 sudo /usr/sbin/topology-ip-intel-downloader
 ```
 
-This populates `/var/cache/netdata/topology-ip-intel/` with the DB-IP-based MMDB files. The plugin auto-detects the cache copy on its next 30-second poll. See [GeoIP enrichment](/docs/network-flows/enrichment/geoip.md) for details and refresh scheduling.
+This populates `/var/cache/netdata/topology-ip-intel/` with the DB-IP-based MMDB files. The plugin auto-detects the cache copy on its next 30-second poll. See [GeoIP enrichment](/docs/network-flows/enrichment/ip-intelligence.md) for details and refresh scheduling.
 
 ## What gets installed
 
@@ -127,9 +127,9 @@ Installing the plugin enables it. To actually see flow data, you need to configu
 That's the next step:
 
 - [Quick Start](/docs/network-flows/quick-start.md) — A 15-minute path to your first flow data.
-- [Sources / NetFlow](/docs/network-flows/sources/netflow.md) — Vendor configurations for NetFlow.
-- [Sources / IPFIX](/docs/network-flows/sources/ipfix.md) — Vendor configurations for IPFIX.
-- [Sources / sFlow](/docs/network-flows/sources/sflow.md) — Vendor configurations for sFlow.
+- [Sources / NetFlow](/src/crates/netflow-plugin/integrations/netflow.md) — Vendor configurations for NetFlow.
+- [Sources / IPFIX](/src/crates/netflow-plugin/integrations/ipfix.md) — Vendor configurations for IPFIX.
+- [Sources / sFlow](/src/crates/netflow-plugin/integrations/sflow.md) — Vendor configurations for sFlow.
 
 ## Uninstall
 

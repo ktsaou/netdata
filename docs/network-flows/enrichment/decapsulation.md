@@ -121,6 +121,6 @@ sFlow agents send `SampledHeader` by default. No special configuration needed be
 ## What's next
 
 - [Configuration](/docs/network-flows/configuration.md) — `protocols.decapsulation_mode` setting reference.
-- [Sources / NetFlow](/docs/network-flows/sources/netflow.md) — IE 104 export configuration.
-- [Sources / IPFIX](/docs/network-flows/sources/ipfix.md) — IE 315 export configuration.
-- [Sources / sFlow](/docs/network-flows/sources/sflow.md) — `SampledHeader` semantics.
+- [Sources / NetFlow](/src/crates/netflow-plugin/integrations/netflow.md) — IE 104 export configuration.
+- [Sources / IPFIX](/src/crates/netflow-plugin/integrations/ipfix.md) — IE 315 export configuration.
+- [Sources / sFlow](/src/crates/netflow-plugin/integrations/sflow.md) — `SampledHeader` semantics.

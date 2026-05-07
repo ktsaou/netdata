@@ -22,12 +22,9 @@ violation.
 
 ## Catalog
 
-(empty -- entries grow as assistants encounter
-not-yet-documented questions)
-
 | Topic | Slug | Notes |
 |---|---|---|
-| -- | -- | -- |
+| Adding a new top-level `integration_type` (peer of collector, logs, exporter, etc.) | [adding-new-integration-type](adding-new-integration-type.md) | 8-step recipe: schema, pipeline, templates, categories.yaml, map.yaml, source metadata, downstream repos. Covers what to clone from existing types, the hardcoded-vs-derived `learn_rel_path` distinction, and the `integration_placeholder` mechanism. |
 
 ## How to add a how-to
 

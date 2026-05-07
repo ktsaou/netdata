@@ -218,13 +218,13 @@ enrichment:
 
 Detailed configuration of each section lives on its own page:
 
-- [GeoIP](/docs/network-flows/enrichment/geoip.md)
+- [GeoIP](/docs/network-flows/enrichment/ip-intelligence.md)
 - [Static metadata](/docs/network-flows/enrichment/static-metadata.md)
 - [Classifiers](/docs/network-flows/enrichment/classifiers.md)
 - [ASN resolution](/docs/network-flows/enrichment/asn-resolution.md)
-- [BMP routing](/docs/network-flows/enrichment/bmp-routing.md)
-- [BioRIS](/docs/network-flows/enrichment/bioris.md)
-- [Network sources](/docs/network-flows/enrichment/network-sources.md)
+- [BMP routing](/docs/network-flows/enrichment/bgp-routing.md)
+- [BioRIS](/docs/network-flows/enrichment/bgp-routing.md)
+- [Network sources](/docs/network-flows/enrichment/network-identity.md)
 - [Decapsulation](/docs/network-flows/enrichment/decapsulation.md)
 
 The enrichment section has no CLI flag — it is YAML-only.

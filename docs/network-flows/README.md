@@ -126,19 +126,19 @@ Pick the page that matches your situation:
 
 **Sources**
 
-- [NetFlow](/docs/network-flows/sources/netflow.md) — v5, v7, v9
-- [IPFIX](/docs/network-flows/sources/ipfix.md) — IETF-standardised, biflow-capable
-- [sFlow](/docs/network-flows/sources/sflow.md) — packet-sampling, fundamentally different
+- [NetFlow](/src/crates/netflow-plugin/integrations/netflow.md) — v5, v7, v9
+- [IPFIX](/src/crates/netflow-plugin/integrations/ipfix.md) — IETF-standardised, biflow-capable
+- [sFlow](/src/crates/netflow-plugin/integrations/sflow.md) — packet-sampling, fundamentally different
 
 **Enrichment**
 
-- [GeoIP](/docs/network-flows/enrichment/geoip.md) — Country, city, AS-name lookups
+- [GeoIP](/docs/network-flows/enrichment/ip-intelligence.md) — Country, city, AS-name lookups
 - [Static metadata](/docs/network-flows/enrichment/static-metadata.md) — Naming exporters, interfaces, your networks
 - [Classifiers](/docs/network-flows/enrichment/classifiers.md) — Rule-based tagging
 - [ASN resolution](/docs/network-flows/enrichment/asn-resolution.md) — Where AS numbers and names come from
-- [BMP routing](/docs/network-flows/enrichment/bmp-routing.md) — Live BGP feed for routing attributes
-- [BioRIS](/docs/network-flows/enrichment/bioris.md) — RIPE RIS via gRPC
-- [Network sources](/docs/network-flows/enrichment/network-sources.md) — HTTP-fetched prefix metadata
+- [BMP routing](/docs/network-flows/enrichment/bgp-routing.md) — Live BGP feed for routing attributes
+- [BioRIS](/docs/network-flows/enrichment/bgp-routing.md) — RIPE RIS via gRPC
+- [Network sources](/docs/network-flows/enrichment/network-identity.md) — HTTP-fetched prefix metadata
 - [Decapsulation](/docs/network-flows/enrichment/decapsulation.md) — SRv6 and VXLAN inner-packet extraction
 
 **Reference**

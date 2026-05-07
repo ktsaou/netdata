@@ -114,8 +114,8 @@ If you don't have an ASN MMDB at all, names render as `AS{n}` for non-zero ASNs 
 
 ## What's next
 
-- [GeoIP](/docs/network-flows/enrichment/geoip.md) — How the ASN MMDB gets installed and refreshed.
+- [GeoIP](/docs/network-flows/enrichment/ip-intelligence.md) — How the ASN MMDB gets installed and refreshed.
 - [Static metadata](/docs/network-flows/enrichment/static-metadata.md) — Per-prefix AS overrides and network labels.
-- [BMP routing](/docs/network-flows/enrichment/bmp-routing.md) — Live BGP feed as an AS source for the `routing` provider.
-- [BioRIS](/docs/network-flows/enrichment/bioris.md) — RIPE RIS as an AS source for the `routing` provider.
-- [Network sources](/docs/network-flows/enrichment/network-sources.md) — HTTP-fetched prefix metadata.
+- [BMP routing](/docs/network-flows/enrichment/bgp-routing.md) — Live BGP feed as an AS source for the `routing` provider.
+- [BioRIS](/docs/network-flows/enrichment/bgp-routing.md) — RIPE RIS as an AS source for the `routing` provider.
+- [Network sources](/docs/network-flows/enrichment/network-identity.md) — HTTP-fetched prefix metadata.

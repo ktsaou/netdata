@@ -44,6 +44,39 @@ output filename uses the function slug from the URL stem
 avoid collisions when many integrations share a "Top Queries"
 label.
 
+## Learn section per integration type
+
+Every `integration_type` lands in its **own dedicated section** of `learn.netdata.cloud`. The pages are NOT jumbled together — each type has a unique `integration_kind` placeholder in `docs/.map/map.yaml` and a unique `learn_rel_path` produced by `gen_docs_integrations.py`.
+
+| `integration_type` | `learn_rel_path` value | Source | `map.yaml` placeholder |
+|---|---|---|---|
+| `collector` | `Collecting Metrics/Collectors/<sub-category>` | derived from `meta.monitored_instance.categories[0]` then `replace("Data Collection", "Collecting Metrics/Collectors")` (`gen_docs_integrations.py:199-201`) | `integration_kind: collectors` (under `Collecting Metrics`) |
+| `exporter` | `Exporting Metrics/Connectors` (hardcoded) | `gen_docs_integrations.py:241` | `integration_kind: exporters` (under `Exporting Metrics`) |
+| `agent_notification` | `Alerts & Notifications/Notifications/Agent Dispatched Notifications` (hardcoded suffix on derived path) | derived + `replace("notifications", "Alerts & Notifications/Notifications")` (`gen_docs_integrations.py:259-268`) | `integration_kind: agent_notifications` |
+| `cloud_notification` | `Alerts & Notifications/Notifications/Centralized Cloud Notifications` (hardcoded suffix on derived path) | same pattern (`gen_docs_integrations.py:286-295`) | `integration_kind: cloud_notifications` |
+| `logs` | `Logs` (hardcoded) | derived + `replace("logs", "Logs")` (`gen_docs_integrations.py:313-322`) | `integration_kind: logs` (top-level under root map) |
+| `authentication` | `Netdata Cloud/Authentication & Authorization/Cloud Authentication & Authorization Integrations` (hardcoded suffix) | derived + `replace("authentication", "Netdata Cloud/...")` (`gen_docs_integrations.py:338-347`) | `integration_kind: authentication` (under `Netdata Cloud`) |
+| `secretstore` | `Collecting Metrics/Secrets Management/Secret Stores` (hardcoded) | `gen_docs_integrations.py:365` | `integration_kind: secretstore` (under `Collecting Metrics > Secrets Management`) |
+| `service_discovery` | `Collecting Metrics/Service Discovery` (hardcoded) | `gen_docs_integrations.py:393` | `integration_kind: service_discovery` (under `Collecting Metrics`) |
+| `deploy` | **NOT RENDERED** to Learn | no case in `gen_docs_integrations.py` | no `map.yaml` entry |
+| `categories` / `distros` / `shared` | n/a — meta-types | n/a | n/a |
+
+Two routing styles in the pipeline:
+
+- **Hardcoded** (`exporter`, `secretstore`, `service_discovery`, plus the suffix portion of the `*_notification` / `logs` / `authentication` paths): the Learn section is fixed by the pipeline. Categories declared on the integration are ignored for routing purposes.
+- **Derived from `meta.monitored_instance.categories`** (`collector`) or from `meta.categories` (`agent_notification`, `cloud_notification`, `logs`, `authentication`): the pipeline walks the category tree in `integrations.js` and converts the dotted ID into a `learn_rel_path`. Only `collector` is sub-categorised on Learn (Databases, Networking, Web Servers, etc.); the other "derived" types use their derived path with a fixed prefix.
+
+The mechanism in `map.yaml`: each type has a node like
+
+```yaml
+- type: integration_placeholder
+  integration_kind: <kind>
+```
+
+When Learn ingest runs, every page whose `<!--startmeta-->` block has a `learn_rel_path` matching that section gets attached under the placeholder. Sidebar order under each section is alphabetical by sidebar_label.
+
+`deploy` is the deliberate exception: deploy entries exist in `integrations.js` (consumed by the in-app "Add Nodes" dialog) but `gen_docs_integrations.py` never emits Learn pages for them — there is no per-distro Learn page like `Linux/Ubuntu` rendered from `deploy.yaml`.
+
 ## Single-integration symlink rule
 
 `gen_docs_integrations.py:make_symlinks` (`:527-544`):

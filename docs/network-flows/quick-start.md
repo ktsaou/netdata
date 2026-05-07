@@ -92,7 +92,7 @@ For Linux servers, hypervisors, or any host that doesn't natively speak NetFlow:
 sudo softflowd -i eth0 -n 10.0.0.10:2055 -v 9 -t maxlife=60 -t expint=15
 ```
 
-For more vendors and details, see [Sources / NetFlow](/docs/network-flows/sources/netflow.md), [IPFIX](/docs/network-flows/sources/ipfix.md), and [sFlow](/docs/network-flows/sources/sflow.md).
+For more vendors and details, see [Sources / NetFlow](/src/crates/netflow-plugin/integrations/netflow.md), [IPFIX](/src/crates/netflow-plugin/integrations/ipfix.md), and [sFlow](/src/crates/netflow-plugin/integrations/sflow.md).
 
 ## Step 2 — Open the dashboard
 
@@ -172,6 +172,6 @@ You now have flow data flowing in. The natural next steps:
 
 For more sources or vendors:
 
-- [NetFlow](/docs/network-flows/sources/netflow.md) — More vendor configurations, sampling caveats.
-- [IPFIX](/docs/network-flows/sources/ipfix.md) — When and why to prefer IPFIX over NetFlow v9.
-- [sFlow](/docs/network-flows/sources/sflow.md) — Different protocol, different semantics.
+- [NetFlow](/src/crates/netflow-plugin/integrations/netflow.md) — More vendor configurations, sampling caveats.
+- [IPFIX](/src/crates/netflow-plugin/integrations/ipfix.md) — When and why to prefer IPFIX over NetFlow v9.
+- [sFlow](/src/crates/netflow-plugin/integrations/sflow.md) — Different protocol, different semantics.

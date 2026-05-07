@@ -221,7 +221,7 @@ enrichment:
 
 ## What's next
 
-- [GeoIP](/docs/network-flows/enrichment/geoip.md) — How country / city / coordinates and AS names get resolved.
+- [GeoIP](/docs/network-flows/enrichment/ip-intelligence.md) — How country / city / coordinates and AS names get resolved.
 - [ASN resolution](/docs/network-flows/enrichment/asn-resolution.md) — The provider chain that picks AS numbers.
 - [Classifiers](/docs/network-flows/enrichment/classifiers.md) — Rule-based labelling that runs only when static metadata didn't already classify the exporter or interface.
-- [Network sources](/docs/network-flows/enrichment/network-sources.md) — Fetching `networks`-style data from remote endpoints.
+- [Network sources](/docs/network-flows/enrichment/network-identity.md) — Fetching `networks`-style data from remote endpoints.

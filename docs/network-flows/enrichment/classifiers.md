@@ -178,5 +178,5 @@ enrichment:
 ## What's next
 
 - [Static metadata](/docs/network-flows/enrichment/static-metadata.md) — Declarative labelling that runs before classifiers.
-- [GeoIP](/docs/network-flows/enrichment/geoip.md) — Country / city / AS-name labelling.
+- [GeoIP](/docs/network-flows/enrichment/ip-intelligence.md) — Country / city / AS-name labelling.
 - [ASN resolution](/docs/network-flows/enrichment/asn-resolution.md) — How `SRC_AS` / `DST_AS` get filled in.

@@ -56,7 +56,7 @@ Hover over a country, state, city, or arc to see a tooltip. The tooltip shows th
 
 ### GeoIP is required
 
-Without a GeoIP database, country / state / city / coordinate fields are empty and the maps are blank. The default install includes a stock DB-IP database — see [GeoIP enrichment](/docs/network-flows/enrichment/geoip.md). Source builds need the operator to run the downloader once.
+Without a GeoIP database, country / state / city / coordinate fields are empty and the maps are blank. The default install includes a stock DB-IP database — see [GeoIP enrichment](/docs/network-flows/enrichment/ip-intelligence.md). Source builds need the operator to run the downloader once.
 
 ### Internal IPs in random countries
 
@@ -92,7 +92,7 @@ The globe and city map use the same data. The globe is purely a different render
 
 ## What's next
 
-- [GeoIP enrichment](/docs/network-flows/enrichment/geoip.md) — Required for any geographic visualization.
+- [GeoIP enrichment](/docs/network-flows/enrichment/ip-intelligence.md) — Required for any geographic visualization.
 - [Static metadata](/docs/network-flows/enrichment/static-metadata.md) — Declare your internal networks to override GeoIP for RFC 1918.
 - [Filters and Facets](/docs/network-flows/visualization/filters-facets.md) — Narrowing geographic views.
 - [Anti-patterns](/docs/network-flows/anti-patterns.md) — Why "alert on traffic to country X" is fragile.
