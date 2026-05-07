@@ -111,9 +111,9 @@ licensing:
         OID: 1.3.6.1.4.1.example.1.3
         name: vendorLicenseState
       mapping:
-        1: healthy
-        2: degraded
-        3: broken
+        1: "0"
+        2: "1"
+        3: "2"
     signals:
       expiry:
         timestamp:

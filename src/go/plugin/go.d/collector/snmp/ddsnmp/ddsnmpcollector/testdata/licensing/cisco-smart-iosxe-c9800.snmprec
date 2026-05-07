@@ -1,5 +1,5 @@
 # Extracted from public LibreNMS test data:
-# /opt/baddisk/monitoring/librenms/librenms/tests/snmpsim/iosxe_c9800.snmprec
+# librenms/librenms tests/snmpsim/iosxe_c9800.snmprec
 # This public artifact only covers the entitlement table.
 # It does not include Smart Licensing scalar registration/auth/certificate timers.
 1.3.6.1.4.1.9.9.831.0.5.1.1.2.1|66|55

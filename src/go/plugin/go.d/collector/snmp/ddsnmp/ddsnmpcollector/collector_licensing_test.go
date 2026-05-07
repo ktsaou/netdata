@@ -116,6 +116,158 @@ func TestCollector_Collect_LicenseRowsFromScalarLicensingConfig(t *testing.T) {
 	assert.Equal(t, map[string]string{"license_site": "datacenter-a"}, row.Tags)
 }
 
+func TestCollector_Collect_LicenseRowsBestEffortForRegularMetrics(t *testing.T) {
+	tests := map[string]struct {
+		licensePDU gosnmp.SnmpPDU
+	}{
+		"invalid licensing state does not drop scalar metric": {
+			licensePDU: createStringPDU("1.3.6.1.4.1.99999.7.1.0", "not-a-number"),
+		},
+	}
+
+	for name, tc := range tests {
+		t.Run(name, func(t *testing.T) {
+			ctrl, mockHandler := setupMockHandler(t)
+			defer ctrl.Finish()
+
+			expectSNMPGet(mockHandler,
+				[]string{"1.3.6.1.2.1.1.3.0"},
+				[]gosnmp.SnmpPDU{createTimeTicksPDU("1.3.6.1.2.1.1.3.0", 123456)},
+			)
+			expectSNMPGet(mockHandler,
+				[]string{"1.3.6.1.4.1.99999.7.1.0"},
+				[]gosnmp.SnmpPDU{tc.licensePDU},
+			)
+
+			collector := New(Config{
+				SnmpClient: mockHandler,
+				Profiles: []*ddsnmp.Profile{
+					{
+						SourceFile: "vendor-device.yaml",
+						Definition: &ddprofiledefinition.ProfileDefinition{
+							Metrics: []ddprofiledefinition.MetricsConfig{
+								{
+									Symbol: ddprofiledefinition.SymbolConfig{
+										OID:  "1.3.6.1.2.1.1.3.0",
+										Name: "sysUpTime",
+									},
+								},
+							},
+							Licensing: []ddprofiledefinition.LicensingConfig{
+								{
+									OriginProfileID: "_vendor-licensing.yaml",
+									ID:              "bad-license-row",
+									Identity: ddprofiledefinition.LicenseIdentityConfig{
+										ID: ddprofiledefinition.LicenseValueConfig{Value: "bad-license-row"},
+									},
+									State: ddprofiledefinition.LicenseStateConfig{
+										LicenseValueConfig: ddprofiledefinition.LicenseValueConfig{
+											Symbol: ddprofiledefinition.SymbolConfig{
+												OID:  "1.3.6.1.4.1.99999.7.1.0",
+												Name: "licenseState",
+											},
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+				Log: logger.New(),
+			})
+
+			results, err := collector.Collect()
+			require.NoError(t, err)
+			require.Len(t, results, 1)
+			require.Len(t, results[0].Metrics, 1)
+			assert.Equal(t, "sysUpTime", results[0].Metrics[0].Name)
+			assert.Empty(t, results[0].LicenseRows)
+			assert.EqualValues(t, 1, results[0].Stats.Errors.Processing.Licensing)
+		})
+	}
+}
+
+func TestCollector_Collect_LicenseRowsSkipsKnownMissingScalarOIDs(t *testing.T) {
+	tests := map[string]struct {
+		missingPDU gosnmp.SnmpPDU
+	}{
+		"no such object cached after first licensing poll": {
+			missingPDU: createNoSuchObjectPDU("1.3.6.1.4.1.99999.8.1.0"),
+		},
+	}
+
+	for name, tc := range tests {
+		t.Run(name, func(t *testing.T) {
+			ctrl, mockHandler := setupMockHandler(t)
+			defer ctrl.Finish()
+
+			expectSNMPGet(mockHandler,
+				[]string{"1.3.6.1.2.1.1.3.0"},
+				[]gosnmp.SnmpPDU{createTimeTicksPDU("1.3.6.1.2.1.1.3.0", 123456)},
+			)
+			expectSNMPGet(mockHandler,
+				[]string{"1.3.6.1.4.1.99999.8.1.0"},
+				[]gosnmp.SnmpPDU{tc.missingPDU},
+			)
+			expectSNMPGet(mockHandler,
+				[]string{"1.3.6.1.2.1.1.3.0"},
+				[]gosnmp.SnmpPDU{createTimeTicksPDU("1.3.6.1.2.1.1.3.0", 223456)},
+			)
+
+			collector := New(Config{
+				SnmpClient: mockHandler,
+				Profiles: []*ddsnmp.Profile{
+					{
+						SourceFile: "vendor-device.yaml",
+						Definition: &ddprofiledefinition.ProfileDefinition{
+							Metrics: []ddprofiledefinition.MetricsConfig{
+								{
+									Symbol: ddprofiledefinition.SymbolConfig{
+										OID:  "1.3.6.1.2.1.1.3.0",
+										Name: "sysUpTime",
+									},
+								},
+							},
+							Licensing: []ddprofiledefinition.LicensingConfig{
+								{
+									OriginProfileID: "_vendor-licensing.yaml",
+									ID:              "missing-license-row",
+									Identity: ddprofiledefinition.LicenseIdentityConfig{
+										ID: ddprofiledefinition.LicenseValueConfig{Value: "missing-license-row"},
+									},
+									State: ddprofiledefinition.LicenseStateConfig{
+										LicenseValueConfig: ddprofiledefinition.LicenseValueConfig{
+											Symbol: ddprofiledefinition.SymbolConfig{
+												OID:  "1.3.6.1.4.1.99999.8.1.0",
+												Name: "licenseState",
+											},
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+				Log: logger.New(),
+			})
+
+			first, err := collector.Collect()
+			require.NoError(t, err)
+			require.Len(t, first, 1)
+			assert.Empty(t, first[0].LicenseRows)
+			assert.EqualValues(t, 2, first[0].Stats.SNMP.GetOIDs)
+			assert.EqualValues(t, 1, first[0].Stats.Errors.MissingOIDs)
+
+			second, err := collector.Collect()
+			require.NoError(t, err)
+			require.Len(t, second, 1)
+			assert.Empty(t, second[0].LicenseRows)
+			assert.EqualValues(t, 1, second[0].Stats.SNMP.GetOIDs)
+			assert.EqualValues(t, 1, second[0].Stats.Errors.MissingOIDs)
+		})
+	}
+}
+
 func TestCollector_Collect_LicenseRowsFromTableLicensingConfig(t *testing.T) {
 	ctrl, mockHandler := setupMockHandler(t)
 	defer ctrl.Finish()

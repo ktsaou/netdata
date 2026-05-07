@@ -1,5 +1,5 @@
 # Extracted from public OpenNMS test data:
-# /opt/baddisk/monitoring/opennms/opennms/opennms-services/src/test/resources/org/opennms/netmgt/snmp/cisco-mempool-snmpwalk.properties
+# OpenNMS/opennms opennms-services/src/test/resources/org/opennms/netmgt/snmp/cisco-mempool-snmpwalk.properties
 .1.3.6.1.4.1.9.9.543.1.2.3.1.3.1.1.1 = STRING: "ipbasek9"
 .1.3.6.1.4.1.9.9.543.1.2.3.1.4.1.1.1 = STRING: "1.0"
 .1.3.6.1.4.1.9.9.543.1.2.3.1.5.1.1.1 = INTEGER: 4

@@ -1,5 +1,5 @@
 # Extracted from public Datadog test data:
-# /opt/baddisk/monitoring/datadog/integrations-core/snmp/tests/compose/data/_checkpoint-firewall-cpu-memory.snmprec
+# DataDog/integrations-core snmp/tests/compose/data/_checkpoint-firewall-cpu-memory.snmprec
 # This public artifact includes the Check Point licensing table shape and value types.
 # The string and expiry/quota values look synthetic, so use this fixture for collection/mapping coverage only.
 1.3.6.1.4.1.2620.1.6.18.1.1.1.42214|66|42214

@@ -2,9 +2,9 @@
 
 ## Status
 
-Status: in-progress
+Status: completed
 
-Sub-state: activated 2026-05-07; user decisions 1-22 plus profile-origin identity option 1B resolved; local MIB handling resolved; Phase 1 validation/test scaffolding started.
+Sub-state: implementation completed and final review findings closed on 2026-05-07; ready to move to `.agents/sow/done/`.
 
 ## Requirements
 
@@ -31,9 +31,9 @@ Detailed design source:
 
 Facts:
 
-- The branch implements SNMP licensing by encoding semantic license rows as underscore-prefixed hidden metrics named `_license_row*`.
-- `ddsnmpcollector` generically moves underscore-prefixed metrics into `ProfileMetrics.HiddenMetrics`.
-- The SNMP collector licensing code consumes `pm.HiddenMetrics`, recognizes `_license_row*`, and dispatches by string tag `_license_value_kind`.
+- The original WIP branch implemented SNMP licensing by encoding semantic license rows as underscore-prefixed hidden metrics named `_license_row*`.
+- `ddsnmpcollector` generically moves underscore-prefixed metrics into `ProfileMetrics.HiddenMetrics`; this remains available for unrelated private metrics.
+- The original SNMP collector licensing code consumed `pm.HiddenMetrics`, recognized `_license_row*`, and dispatched by string tag `_license_value_kind`.
 - Recent SNMP topology work replaced the same class of metric-name/HiddenMetrics hack with top-level `topology:` profile rows and typed `ProfileMetrics.TopologyMetrics`.
 - `ProfileMetrics.HiddenMetrics` must remain a generic delivery container for unrelated underscore-prefixed/private metrics; licensing must stop using it as its semantic transport.
 - Downloaded local MIBs are review evidence only and must remain untracked:
@@ -51,7 +51,7 @@ Inferences:
 
 Unknowns:
 
-- No open design decisions remain. Implementation must still verify caller behavior for `snmp:licenses`, exact per-profile Cisco opt-in coverage, and profile fixture coverage as part of the validation-first plan.
+- No open design decisions remain. The only accepted follow-up is unsupported licensing table-root caching for broad Cisco coverage, tracked by `.agents/sow/pending/SOW-0014-20260507-snmp-licensing-unsupported-table-cache.md`.
 
 ### Acceptance Criteria
 
@@ -114,11 +114,11 @@ Sources checked:
 
 Current state:
 
-- Licensing rows are hidden metric helpers instead of first-class profile data.
-- License signal kind is a mutable string tag and is not schema-validated.
-- Multiple profile rows use source-specific hidden tags and transforms as a transport protocol.
-- Several licensing-bearing profiles have concrete correctness issues or suspicious source mappings.
-- Tests often load sliced profile fragments and can miss full profile merge/extends/dedup behavior.
+- Licensing rows are first-class `licensing:` profile data delivered through typed `ProfileMetrics.LicenseRows`.
+- License signal kinds, sentinel policies, state policies, symbol forbid-lists, row identity, and duplicate signals are validated at profile load.
+- The `_license_row*` / `_license_value_kind` hidden-metric protocol is removed from production profile YAML and runtime licensing consumption.
+- Cisco, Check Point, Blue Coat, Fortinet, MikroTik, and Sophos licensing profiles have been migrated to typed rows with MIB-derived corrections recorded in this SOW.
+- Full-profile and fixture-backed tests cover the migrated licensing profile families, while focused unit tests cover schema, projection, aggregation, function, and delivery edge cases.
 
 Risks:
 
@@ -766,7 +766,26 @@ Selected option: A with caller-review exception. `snmp:licenses` remains intenti
 
 Acceptance criteria evidence:
 
-- Pending implementation.
+- Typed schema/projection:
+  - `collector/snmp/ddsnmp/ddprofiledefinition/licensing.go` defines typed licensing config, closed signal kinds, sentinel policies, state policies, clone methods, and source fields.
+  - `collector/snmp/ddsnmp/metric.go` defines `ProfileMetrics.LicenseRows` and typed `LicenseRow`, `LicenseState`, `LicenseTimer`, and `LicenseUsage`.
+  - `collector/snmp/profile_sets.go` uses `Project(ConsumerMetrics, ConsumerLicensing)` so regular SNMP collection gets metrics and licensing in one ddsnmpcollector pass.
+- Hidden protocol removal:
+  - `rg '_license_row|_license_value_kind|licenseDateFromTag' config/go.d/snmp.profiles/default` returned no matches during implementation.
+  - Runtime licensing consumes `pm.LicenseRows`; `HiddenMetrics` remains only as generic underscore/private metric delivery.
+- Profile correctness:
+  - Cisco licensing lives in `_cisco-licensing-traditional.yaml` and `_cisco-licensing-smart.yaml`, with `cisco.yaml` broadly extending both by user decision.
+  - Cisco Smart scalar OIDs use scalar instance `.0`; the entitlement table remains modeled as a table.
+  - Cisco traditional identity derives the three-component MIB index instead of feature-name-only identity.
+  - Blue Coat derives `appLicenseStatusIndex` from the row index.
+  - Check Point licensing follows the refreshed `svnLicensing` table.
+  - MikroTik pre-1971 sentinel filtering happens at typed producer time, not by filename.
+- Final review fixes:
+  - Licensing errors are best-effort relative to regular scalar/table metrics.
+  - Scalar licensing OIDs honor the shared exact missing-OID cache before future GETs.
+  - Workstation-local fixture provenance paths were removed.
+  - Public metadata wording no longer uses PR-specific branch coverage phrasing.
+  - Global integration template edits were reverted to avoid a repo-wide generated-doc inconsistency.
 
 Tests or equivalent validation:
 
@@ -801,10 +820,14 @@ Tests or equivalent validation:
 - `go test -count=1 ./collector/snmp/ddsnmp/...` passed after the final pre-PR review fix batch.
 - `go test -count=1 ./collector/snmp/...` passed after the final pre-PR review fix batch.
 - `go test -count=1 ./collector/snmp_topology/...` passed after the shared projection/spec cleanup.
+- `go test -count=1 ./collector/snmp/ddsnmp/ddsnmpcollector -run 'TestCollector_Collect_LicenseRowsBestEffortForRegularMetrics|TestCollector_Collect_LicenseRowsSkipsKnownMissingScalarOIDs'` passed after the final review runtime fixes.
+- `go test -count=1 ./collector/snmp/ddsnmp/...` passed after the final review runtime and artifact fixes.
+- `go test -count=1 ./collector/snmp/... ./collector/snmp_topology/...` passed after the final review runtime and artifact fixes.
+- `git diff --check master...HEAD` passed during final review.
 
 Real-use evidence:
 
-- Pending implementation.
+- No live SNMP device validation was run in this SOW. Licensing profile behavior is validated through typed collector mocks, public fixture-derived SNMP data, full-profile loading tests, and MIB-derived OID checks. This is acceptable for the WIP/nightly feature because the target devices are not locally available and all changed runtime surfaces are covered by narrow Go suites.
 
 Reviewer findings:
 
@@ -813,59 +836,84 @@ Reviewer findings:
   - accepted/fixed P1 validation/runtime gaps for forbidden licensing symbol transforms, state policy source, timer source ambiguity, cache namespace, licensing timing/error counters, and structural helper reuse;
   - accepted/documented separate stats semantics for typed license rows versus ordinary chart-metric table rows;
   - rejected scalar `from:` as an additional blocker because scalar `from:` is scoped to the scalar licensing row/group by construction, while table `from:` remains explicitly same-table validated.
+- Final GPT-5.5 review disposition:
+  - accepted/fixed licensing errors dropping regular metrics by making typed licensing best-effort in `collectProfile`;
+  - accepted/fixed scalar licensing missing-OID cache bypass by filtering known missing scalar licensing OIDs before future GETs;
+  - accepted/fixed fixture workstation-path leakage by sanitizing licensing fixture headers;
+  - accepted/fixed stale public docs wording in `metadata.yaml`;
+  - accepted/fixed projection spec example severity mappings to use runtime-valid `"0"`, `"1"`, `"2"` values;
+  - accepted/fixed generated-doc/template inconsistency by reverting unrelated global integration template edits;
+  - accepted/tracked Cisco unsupported table-root no-such caching as `.agents/sow/pending/SOW-0014-20260507-snmp-licensing-unsupported-table-cache.md`.
 
 Same-failure scan:
 
-- Pending implementation.
+- Same-failure search for workstation-local provenance paths and PR-specific branch coverage phrasing returned no matches in metadata, licensing fixtures, projection specs, and integration templates.
+- `rg -n "_license_row|_license_value_kind|licenseDateFromTag|tagLicense|licenseValueKind|licenseSourceMetricName|mergeLicenseSignal|mergeLicenseTags|licenseRowMergeKey" collector/snmp config/go.d/snmp.profiles/default` shows only intentional validation-test literals and generic `HiddenMetrics` canary references, not production licensing consumption.
+- `git status --short` was checked; raw MIB files were removed from repo root and the local TODO remained untracked.
 
 Sensitive data gate:
 
-- Pending implementation. Current SOW references local MIB filenames and object names/OIDs only; raw MIBs remain untracked. Close-out must verify the four raw MIB files were deleted from repo root before final commit and that the local TODO was not staged.
+- Durable artifacts contain no raw SNMP communities, SNMPv3 credentials, bearer tokens, customer names, customer hostnames, customer IPs, or raw MIB content.
+- Workstation-local fixture provenance comments were sanitized.
+- The four downloaded raw MIB files were deleted from repo root before close-out.
+- `src/go/plugin/go.d/TODO-snmp-licensing-monitoring-review.md` remains local/untracked and must not be staged.
 
 Artifact maintenance gate:
 
-- AGENTS.md: pending close-out decision.
-- Runtime project skills: pending implementation outcome.
-- Specs: pending implementation outcome.
-- End-user/operator docs: pending implementation outcome.
-- End-user/operator skills: pending implementation outcome.
-- SOW lifecycle: pending/open; must move to current before implementation.
+- AGENTS.md: no update needed; existing SOW, collector, sensitive-data, and follow-up discipline rules already covered this work.
+- Runtime project skills: updated `.agents/skills/project-snmp-profiles-authoring/SKILL.md` with typed licensing authoring rules and table-driven test preference.
+- Specs: updated `.agents/sow/specs/snmp-profile-projection.md` with licensing consumer, projection, typed delivery, identity, validation, and metadata tag behavior.
+- End-user/operator docs: updated `collector/snmp/profile-format.md`, `collector/snmp/metadata.yaml`, `collector/snmp/integrations/snmp_devices.md`, and `src/health/health.d/snmp.conf` as the SNMP licensing feature became user-visible.
+- End-user/operator skills: no update needed; no public Netdata AI skill currently documents SNMP profile licensing authoring or SNMP licensing runtime use.
+- SOW lifecycle: SOW-0013 status set to `completed`; file will move to `.agents/sow/done/` with the implementation and follow-up SOW in the same commit.
 
 Specs update:
 
-- Pending implementation.
+- Updated `.agents/sow/specs/snmp-profile-projection.md`.
 
 Project skills update:
 
-- Pending implementation.
+- Updated `.agents/skills/project-snmp-profiles-authoring/SKILL.md`.
 
 End-user/operator docs update:
 
-- Pending implementation.
+- Updated:
+  - `collector/snmp/profile-format.md`
+  - `collector/snmp/metadata.yaml`
+  - `collector/snmp/integrations/snmp_devices.md`
+  - `src/health/health.d/snmp.conf`
 
 End-user/operator skills update:
 
-- Pending implementation.
+- No update needed; no end-user/operator skill exposes this SNMP licensing schema or function workflow.
 
 Lessons:
 
-- Pending implementation.
+- Hidden-metric side channels become hard to validate as soon as one logical row is reconstructed from several scalar/table fragments. Topology and licensing now share the cleaner pattern: schema-owned typed sections plus typed `ProfileMetrics` outputs.
+- Optional feature telemetry must be best-effort relative to ordinary device metrics; otherwise a WIP optional section can regress established collection.
 
 Follow-up mapping:
 
-- Pending implementation.
+- Implemented in this SOW:
+  - typed licensing projection and consumer rewrite;
+  - profile migrations and MIB-derived corrections;
+  - hidden-protocol removal from production licensing;
+  - validation/test/docs/spec/skill updates;
+  - final review runtime and artifact fixes.
+- Tracked as follow-up:
+  - `.agents/sow/pending/SOW-0014-20260507-snmp-licensing-unsupported-table-cache.md` tracks explicit unsupported licensing table-root no-such caching for broad Cisco coverage.
 
 ## Outcome
 
-Pending.
+Completed. SNMP licensing is now represented by top-level typed `licensing:` profile rows and delivered through `ProfileMetrics.LicenseRows`; the SNMP collector consumes typed rows directly for charts, health inputs, and the `snmp:licenses` function. The old hidden `_license_row*` / `_license_value_kind` protocol is removed from production licensing code and profile YAML.
 
 ## Lessons Extracted
 
-Pending.
+Typed profile projections are the right boundary for non-chart SNMP observations. The collector can still reuse scalar/table collection internals, but row identity, validation, and consumer contracts need to live in schema-owned typed fields, not hidden metric names or string tag protocols.
 
 ## Followup
 
-None yet.
+- `.agents/sow/pending/SOW-0014-20260507-snmp-licensing-unsupported-table-cache.md`
 
 ## Regression Log
 

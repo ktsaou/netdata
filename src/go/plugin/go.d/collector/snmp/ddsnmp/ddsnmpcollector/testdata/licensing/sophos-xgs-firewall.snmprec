@@ -1,5 +1,5 @@
 # Extracted from public Datadog test data:
-# /opt/baddisk/monitoring/datadog/integrations-core/snmp/tests/compose/data/sophos-xgs-firewall.snmprec
+# DataDog/integrations-core snmp/tests/compose/data/sophos-xgs-firewall.snmprec
 # The public expiry strings in this capture are anonymized placeholder text, so
 # this fixture uses explicit no-value sentinels for expiry fields.
 # Use this fixture for collection/mapping coverage only, not for real date parsing trust.

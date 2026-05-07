@@ -62,12 +62,18 @@ func (c *Collector) collectScalarLicenseRows(configs []ddprofiledefinition.Licen
 			continue
 		}
 
-		oids := licensingScalarOIDs(cfg)
+		oids, missingOIDs := c.licensingScalarOIDs(cfg)
+		if len(missingOIDs) > 0 {
+			c.log.Debugf("licensing scalar row %q missing OIDs: %v", licensingConfigDisplayName(cfg), missingOIDs)
+			stats.Errors.MissingOIDs += int64(len(missingOIDs))
+		}
+
 		var pdus map[string]gosnmp.SnmpPDU
 		var err error
 		if len(oids) > 0 {
 			pdus, err = c.scalarCollector.getScalarValues(oids, stats)
 			if err != nil {
+				stats.Errors.SNMP++
 				errs = append(errs, fmt.Errorf("licensing scalar row %q: %w", licensingConfigDisplayName(cfg), err))
 				continue
 			}
@@ -761,19 +767,30 @@ func splitOIDParts(oid string) []string {
 	return parts
 }
 
-func licensingScalarOIDs(cfg ddprofiledefinition.LicensingConfig) []string {
+func (c *Collector) licensingScalarOIDs(cfg ddprofiledefinition.LicensingConfig) ([]string, []string) {
 	oids := make(map[string]struct{})
+	var missingOIDs []string
 	addOID := func(valueCfg ddprofiledefinition.LicenseValueConfig) {
 		sym := licenseValueSymbol(valueCfg)
 		if sym.OID != "" {
-			oids[trimOID(sym.OID)] = struct{}{}
+			oid := trimOID(sym.OID)
+			if c.missingOIDs[oid] {
+				missingOIDs = append(missingOIDs, sym.OID)
+				return
+			}
+			oids[oid] = struct{}{}
 		}
 	}
 
 	forEachLicenseValue(cfg, addOID)
 	for _, tagCfg := range cfg.MetricTags {
 		if tagCfg.Symbol.OID != "" {
-			oids[trimOID(tagCfg.Symbol.OID)] = struct{}{}
+			oid := trimOID(tagCfg.Symbol.OID)
+			if c.missingOIDs[oid] {
+				missingOIDs = append(missingOIDs, tagCfg.Symbol.OID)
+				continue
+			}
+			oids[oid] = struct{}{}
 		}
 	}
 
@@ -781,7 +798,10 @@ func licensingScalarOIDs(cfg ddprofiledefinition.LicensingConfig) []string {
 	for oid := range oids {
 		result = append(result, oid)
 	}
-	return result
+	slices.Sort(result)
+	slices.Sort(missingOIDs)
+	missingOIDs = slices.Compact(missingOIDs)
+	return result, missingOIDs
 }
 
 func forEachLicenseValue(cfg ddprofiledefinition.LicensingConfig, fn func(ddprofiledefinition.LicenseValueConfig)) {

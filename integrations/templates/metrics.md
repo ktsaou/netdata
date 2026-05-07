@@ -6,8 +6,7 @@
 [% endif %]
 Metrics grouped by *scope*.
 
-The scope defines the instance that the metric belongs to.
-An instance is uniquely identified by a set of labels.
+The scope defines the instance that the metric belongs to. An instance is uniquely identified by a set of labels.
 
 [[ entry.metrics.description ]]
 
