@@ -41,8 +41,8 @@ enrichment:
 
 | Key | Type | Notes |
 |---|---|---|
-| `asn_database` | list of paths | One or more ASN MMDB files. Multiple files compose: each lookup runs against every database in order; for ASN fields the last database that returns a match wins. Aliases: `asn-database`. |
-| `geo_database` | list of paths | One or more geographic MMDB files. Same composition rule, with the difference that geo fields are written **only when the matching record has a non-empty value** — so a later database that returns no city does not overwrite an earlier database's city. Aliases: `geo-database`, `country-database`. |
+| `asn_database` | list of paths | One or more ASN MMDB files. Multiple files compose: each lookup runs against every database in order. Per field, the last database that produces a non-empty value wins — empty / zero values returned by a later database do not overwrite an earlier match. Aliases: `asn-database`. |
+| `geo_database` | list of paths | One or more geographic MMDB files. Same composition rule as `asn_database` — per field, the last database with a non-empty value wins. Aliases: `geo-database`, `country-database`. |
 | `optional` | bool, default `false` | When `true`, missing or unreadable files at startup are tolerated (the resolver starts with no databases). When `false`, a missing file aborts startup. The auto-detected files described below are always treated as `optional: true`. |
 
 If you provide nothing, the plugin auto-detects the MMDB files at startup:
@@ -87,7 +87,7 @@ The resolver inspects each database's metadata. An IPv6 lookup against an IPv4-o
 
 ### Database staleness drift over weeks
 
-ASN ownership data changes — companies merge, prefixes get reassigned, new ASNs appear. A database older than a quarter or two will start labelling reassigned prefixes with the previous owner. There's no in-process signal for "your MMDB is too old"; refresh on the cadence the provider recommends. **DB-IP** ships its Lite databases monthly; **MaxMind GeoLite2** updates City/Country on weekdays (Tuesdays/Fridays in current cadence) and **GeoLite2 ASN daily** since June 2024; **IPtoASN** publishes its TSV hourly. Sample weekly is a safe default for any of them.
+ASN ownership data changes — companies merge, prefixes get reassigned, new ASNs appear. A database older than a quarter or two will start labelling reassigned prefixes with the previous owner. There's no in-process signal for "your MMDB is too old"; refresh on the cadence the provider recommends. **DB-IP** ships its Lite databases monthly; **MaxMind GeoLite2** updates City/Country **twice weekly (Tuesday and Friday)** and GeoLite2 ASN every weekday since June 2024; **IPtoASN** publishes its TSV hourly. Sampling weekly is a safe default for any of them.
 
 ### Geographic accuracy is best-effort
 

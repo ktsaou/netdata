@@ -84,8 +84,8 @@ Counters show received traffic but you suspect data loss.
 
 If it's climbing, the exporter is sending data records before their templates. Either:
 
-- The exporter restarted and the plugin's template cache is stale. Wait for the exporter to send the next template (typically every 30-60 seconds, depending on its config), or restart the exporter to force an immediate template refresh.
-- Templates are sent rarely (Cisco's default template refresh is 30 minutes). After a plugin restart, you'll see template errors for that long. **Fix on the router side**: lower the template refresh interval to 60 seconds.
+- The exporter restarted and the plugin's template cache is stale. Wait for the exporter to send the next template (the cadence depends on the exporter's `template-refresh` configuration — vendor defaults vary widely), or restart the exporter to force an immediate template refresh.
+- Templates are sent rarely. Cisco IOS / IOS-XE Flexible NetFlow ships a default `template data timeout` of **600 seconds (10 minutes)**; Juniper and others have their own defaults, often longer. After a plugin restart, you'll see template errors until the next template re-send. **Fix on the router side**: lower the template refresh interval to 60 seconds (the [Quick Start](/docs/network-flows/quick-start.md) configurations show this).
 - The exporter is using template IDs that collide with another exporter's templates. Most common cause: two exporters NATted behind the same public IP. Place the plugin inside the NAT boundary or give each exporter a distinct address.
 
 **UDP kernel drops:**
@@ -93,9 +93,11 @@ If it's climbing, the exporter is sending data records before their templates. E
 The plugin doesn't count these. Check at the OS level:
 
 ```bash
-sudo ss -uam sport = :2055         # check 'd' columns for drops
-cat /proc/net/udp | head -20       # RcvbufErrors column
+sudo ss -uamn sport = :2055        # inspect the d<N> field inside skmem:(...)
+grep ^Udp: /proc/net/snmp          # RcvbufErrors counter (system-wide)
 ```
+
+`/proc/net/udp` lists open sockets without per-socket drop counters; the kernel-wide UDP `RcvbufErrors` total lives under the `Udp:` line of `/proc/net/snmp` (this is what Netdata's own `ipv4.udperrors` chart and the `1m_ipv4_udp_receive_buffer_errors` alert read).
 
 If drops are occurring, the kernel UDP receive buffer is too small for the burst rate. Tune:
 
