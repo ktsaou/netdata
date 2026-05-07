@@ -1796,3 +1796,50 @@ Files touched:
   rows)
 - docs/network-flows/visualization/time-series.md
   (cross-link rewording)
+
+#### F19 -- 2026-05-07 -- troubleshooting.md cumulative cleanup
+
+User: "This page has a mix of all the above issues:
+sampling, geoip, etc."
+
+Repair scope: surgical fixes to the cumulative
+misconceptions on troubleshooting.md after F2-F18 land.
+
+Removed:
+- "Internal IPs in random countries" subsection (lines
+  ~134-138). Same invented claim as F16; same code-verified
+  reason for removal.
+
+Rewrote:
+- "Things that look like bugs but aren't" entries:
+  - "Traffic appears 2x" -- now mentions exporter + interface,
+    not direction (F2/F3 fix in this section too).
+  - "Bidirectional conversations show twice" -- reframed as
+    real distinct flows with usually-asymmetric volumes;
+    pointed at Source ASN / Destination ASN filtering, not
+    "direction" filtering.
+  - Removed the "Internal IPs in odd countries" bullet entirely.
+  - "City map empty over long windows" -- "tier-0" replaced
+    with "raw-tier" for consistency with the field-reference
+    and tier-naming used elsewhere.
+
+Items checked and kept:
+- "Sampling rate not honoured by the exporter" framing is
+  correct (F4/F5 already updated this; the real concern is
+  the exporter not communicating the rate, not "uniform
+  rates required").
+- Doubling references in the SNMP-mismatch table (F2/F3
+  already updated).
+- ASN provider chain debug recipe -- code-anchored at
+  `enrichment/data/network/asn.rs`.
+- Decapsulation destructive-on-non-tunnel framing -- code-
+  anchored at `decoder/protocol/...`.
+
+Items DEFERRED to the per-page audit (R2) because they
+need vendor-doc verification:
+- "Cisco's default template refresh is 30 minutes" --
+  vendor-specific claim; verify against current Cisco
+  IOS-XE / IOS-XR documentation in R2.
+
+Files touched:
+- docs/network-flows/troubleshooting.md

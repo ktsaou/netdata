@@ -131,12 +131,6 @@ Several legitimate causes:
 
 See [Validation and Data Quality](/docs/network-flows/validation.md).
 
-**Internal IPs in random countries:**
-
-GeoIP databases don't have entries for RFC 1918 / private space. The plugin doesn't skip private IPs — it just hands the IP to the database and uses what comes back. For the stock DB-IP build, private ranges are tagged so they render as "AS0 Private IP Address Space" with empty country. For other MMDBs, private ranges may resolve to weird countries.
-
-**Fix:** declare your internal CIDRs under `enrichment.networks` with country / role / name labels. See [Static metadata](/docs/network-flows/enrichment/static-metadata.md).
-
 **AS resolution chain misbehaving:**
 
 If `SRC_AS` / `DST_AS` are zero everywhere despite the exporter sending them, check the `asn_providers` chain:
@@ -187,10 +181,9 @@ Default retention is `10GB / 7d` per tier — the same budget applies to all fou
 
 ## Things that look like bugs but aren't
 
-- **Traffic appears 2×.** Standard ingress + egress monitoring. Filter to one direction.
-- **Bidirectional conversations show twice.** A→B and B→A are real, distinct flows. Filter to one direction or one ASN to see one side.
-- **Internal IPs in odd countries.** GeoIP doesn't know about your private space. Declare it explicitly.
-- **City map empty over long windows.** City + lat/lon are tier-0-only. Default tier-0 retention is short. Use the country map for long ranges.
+- **Traffic appears 2×.** Standard ingress + egress monitoring; the same packet is recorded once on entry and once on exit on a single router. Filter to one exporter and one interface (Input or Output, pick one).
+- **Bidirectional conversations show twice.** A→B and B→A are real, distinct flows representing different packets going each way. Their volumes are usually asymmetric. Filter by `Source ASN` (your network) for outbound or `Destination ASN` (your network) for inbound to see one side.
+- **City map empty over long windows.** City + lat/lon are raw-tier-only. Default raw-tier retention is short. Use the country or state map for long ranges.
 - **`__overflow__` row in results.** Your aggregation produced more groups than `query_max_groups`. Narrow the filter or reduce group-by depth.
 - **30-second query timeout.** Hard limit. Narrow time range, add filters, or reduce group-by depth.
 - **Sampled byte counts not exact.** sFlow is statistical by design; even NetFlow with sampling is an estimate. Cross-check against SNMP for sanity, accept some divergence.
