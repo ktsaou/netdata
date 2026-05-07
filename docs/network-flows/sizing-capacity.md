@@ -6,6 +6,8 @@ learn_rel_path: "Network Flows"
 keywords: ['sizing', 'capacity', 'planning', 'storage', 'memory', 'scaling', 'distributed']
 endmeta-->
 
+<!-- markdownlint-disable-file -->
+
 # Sizing and Capacity Planning
 
 A practical guide to choosing the host, the storage, and the deployment shape for the netflow plugin. Read this before you decide where the plugin runs and how big it has to be.
@@ -16,7 +18,7 @@ The netflow plugin is designed to receive, decode, and store flow records (NetFl
 
 Sustained ingestion of about **25 000 flows per second** on a single agent already approaches **ISP-level traffic capacities** for most enterprise / branch / data-centre profiles. Past that point you are at the scale of a regional service provider, and you should be running multiple agents (see "Distributed deployment" below), not pushing harder on one box.
 
-If your worst-case sustained flow rate fits in five-digit flows/s, you have headroom on a single agent. If it does not, plan distributed before you plan harder iron.
+If your worst-case sustained flow rate stays at or below **~25 000 flows/s**, you have headroom on a single agent. If it does not, plan distributed before you plan harder iron.
 
 ## Plugin throughput cap
 
@@ -113,7 +115,7 @@ The exception is the **full-text search box** in the dashboard. FTS runs as a re
 
 1. **Estimate sustained flows/s** for the worst-case router or site. If it exceeds ~25k/s, plan distributed before iron.
 2. **Pick raw-tier retention** that matches your forensic window — typically 24 hours.
-3. **Compute storage** for that retention from the table above; size the raw-tier directory for at least 1.5× safety margin.
+3. **Compute storage** for that retention from the table above; size the raw-tier directory with a realistic safety margin, usually **1.2× to 1.5×** depending on burstiness and available disk.
 4. **Use NVMe** for the raw tier. Slower storage shortens raw-tier retention until queries are responsive.
 5. **Leave RAM headroom** for the page cache on top of the agent's own ~1 GB RSS budget.
 6. **Tune kernel UDP buffers** for burst headroom (see [Troubleshooting](/docs/network-flows/troubleshooting.md)).

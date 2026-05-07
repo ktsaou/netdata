@@ -6,6 +6,8 @@ learn_rel_path: "Network Flows/Visualization"
 keywords: ['country map', 'state map', 'city map', 'globe', 'visualization']
 endmeta-->
 
+<!-- markdownlint-disable-file -->
+
 # Maps and Globe
 
 Four geographic views, all driven by the same aggregation engine as the Sankey and Time-Series:
@@ -48,7 +50,7 @@ The country map and state map can use the rollup tiers. They're cheap over long 
 The city map and the globe **need raw-tier data**. City, latitude, and longitude are dropped from the rollup tiers (1m / 5m / 1h) to keep cardinality manageable. So:
 
 - Country / state map over the last 30 days — fine, uses the 1-hour tier.
-- City map over the last 30 days — likely empty. Raw-tier retention defaults to 7 days (shared budget across all tiers); often less in practice.
+- City map over the last 30 days — likely empty. Raw-tier retention defaults to its own 10GB / 7d limits; busy collectors often hit the raw-tier size cap before 7 days.
 
 If your city map looks empty over a long window, try the country map first to confirm data is arriving, then narrow the time range until the city map fills in.
 
@@ -72,7 +74,7 @@ Globe view, top-N at 500, rotated over the Atlantic. The 3D projection shows US 
 
 ### GeoIP is required
 
-Without a GeoIP database, country / state / city / coordinate fields are empty and the maps are blank. Native packages include a stock DB-IP database — see the [DB-IP integration card](/docs/network-flows/enrichment-methods/db-ip-ip-intelligence) and the [Enrichment Intel Downloader](/docs/network-flows/intel-downloader.md). Source builds need the operator to run the downloader once.
+Without a GeoIP database, country / state / city / coordinate fields are empty and the maps are blank. Native packages include a stock DB-IP database — see the [DB-IP integration card](/src/crates/netflow-plugin/integrations/db-ip_ip_intelligence.md) and the [Enrichment Intel Downloader](/docs/network-flows/intel-downloader.md). Source builds need the operator to run the downloader once.
 
 ### CDN traffic shifts
 
@@ -104,7 +106,7 @@ The globe and city map render the same data with the same table beneath. The 2D 
 ## What's next
 
 - [Enrichment](/docs/network-flows/enrichment.md) — Order of evaluation and the MMDB shared mechanism that drives geographic visualisation.
-- [DB-IP integration card](/docs/network-flows/enrichment-methods/db-ip-ip-intelligence) — The default GeoIP source that ships with Netdata.
-- [Static Metadata integration card](/docs/network-flows/enrichment-methods/static-metadata) — Declare your internal networks to override GeoIP for RFC 1918.
+- [DB-IP integration card](/src/crates/netflow-plugin/integrations/db-ip_ip_intelligence.md) — The default GeoIP source that ships with Netdata.
+- [Static Metadata integration card](/src/crates/netflow-plugin/integrations/static_metadata.md) — Declare your internal networks to override GeoIP for RFC 1918.
 - [Filters and Facets](/docs/network-flows/visualization/filters-facets.md) — Narrowing geographic views.
 - [Anti-patterns](/docs/network-flows/anti-patterns.md) — Why "alert on traffic to country X" is fragile.

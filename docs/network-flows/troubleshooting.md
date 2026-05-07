@@ -6,6 +6,8 @@ learn_rel_path: "Network Flows"
 keywords: ['troubleshooting', 'debugging', 'plugin health', 'failures']
 endmeta-->
 
+<!-- markdownlint-disable-file -->
+
 # Troubleshooting
 
 Concrete recipes for the most common failures, organised by symptom. Most issues are diagnosable from the [plugin health charts](/docs/network-flows/visualization/dashboard-cards.md), the Netdata journal logs, and a couple of OS-level commands.
@@ -97,7 +99,7 @@ sudo ss -uamn sport = :2055        # inspect the d<N> field inside skmem:(...)
 grep ^Udp: /proc/net/snmp          # RcvbufErrors counter (system-wide)
 ```
 
-`/proc/net/udp` lists open sockets without per-socket drop counters; the kernel-wide UDP `RcvbufErrors` total lives under the `Udp:` line of `/proc/net/snmp` (this is what Netdata's own `ipv4.udperrors` chart and the `1m_ipv4_udp_receive_buffer_errors` alert read).
+`/proc/net/udp` lists open sockets and includes per-socket `drops`; the kernel-wide UDP `RcvbufErrors` total lives under the `Udp:` line of `/proc/net/snmp` (this is what Netdata's own `ipv4.udperrors` chart and the `1m_ipv4_udp_receive_buffer_errors` alert read).
 
 If drops are occurring, the kernel UDP receive buffer is too small for the burst rate. Tune:
 

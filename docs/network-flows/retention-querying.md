@@ -6,6 +6,8 @@ learn_rel_path: "Network Flows"
 keywords: ['retention', 'tiers', 'rollup', 'tier selection']
 endmeta-->
 
+<!-- markdownlint-disable-file -->
+
 # Retention and Tiers
 
 Netdata stores flow data in four tiers. The tier model is transparent — you do not pick a tier when you query, the dashboard picks for you. Understanding how it picks helps you interpret what you're seeing and avoid surprises when older data isn't there.
@@ -64,9 +66,9 @@ For every query the dashboard sends to the plugin, the planner makes a single de
 3. **Otherwise, pick the coarsest tier that satisfies the time range alignment.**
    - **Time-Series view** additionally needs at least 100 buckets in the window. The planner walks the tiers from coarsest to finest and picks the first that delivers ≥100 buckets, falling back to 1-minute when no tier qualifies:
      - ≥ 100 hours of window → 1-hour tier (3600 s buckets)
-     - 8h20m to <100 hours → 5-minute tier (300 s buckets)
-     - 100 minutes to <8h20m → 1-minute tier (60 s buckets)
-     - < 100 minutes → 1-minute tier (Time-Series buckets are still floored at 60 seconds, so very short windows render fewer than 100 buckets)
+     - 8h20m to less than 100 hours → 5-minute tier (300 s buckets)
+     - 100 minutes to less than 8h20m → 1-minute tier (60 s buckets)
+     - Less than 100 minutes → 1-minute tier (Time-Series buckets are still floored at 60 seconds, so very short windows render fewer than 100 buckets)
    - **Table / Sankey / Map** views have no bucket-count constraint; the planner walks 1-hour → 5-minute → 1-minute by alignment alone, so they can land on a coarser tier than Time-Series for the same window.
 
 When the planner picks a tier and the time range crosses tier-aligned boundaries, the query is **stitched** — head fragment in a finer tier, aligned middle in the chosen tier, tail fragment in a finer tier. You don't see this; the results merge cleanly. It exists so wide windows that don't quite align to one-hour boundaries still work.

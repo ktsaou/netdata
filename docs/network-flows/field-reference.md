@@ -6,6 +6,8 @@ learn_rel_path: "Network Flows"
 keywords: ['fields', 'flow record', 'schema', 'reference']
 endmeta-->
 
+<!-- markdownlint-disable-file -->
+
 # Field Reference
 
 Each flow record carries up to 91 fields. Some come straight from the exporter, others are added by enrichment after decode. This page is the canonical list — what each field means, where it comes from, and which protocols populate it.

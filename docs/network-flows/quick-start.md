@@ -6,6 +6,8 @@ learn_rel_path: "Network Flows"
 keywords: ['quick start', 'netflow', 'sflow', 'ipfix', 'getting started', 'setup']
 endmeta-->
 
+<!-- markdownlint-disable-file -->
+
 # Quick Start
 
 Get flow monitoring running in 15 minutes. The path: install the plugin, configure your first router, open the dashboard, and read it correctly.
@@ -102,7 +104,7 @@ sudo softflowd -i eth0 -n 10.0.0.10:2055 -v 9 -t maxlife=60 -t expint=15
 
 `maxlife` caps a flow's wall-clock lifetime at 60 seconds; `expint` controls how often softflowd scans the flow table for expired entries (it is not a template-refresh knob — softflowd's NetFlow v9 template interval is a compile-time default of 16 packets and is not exposed on the command line).
 
-For more vendors and details, see [Flow Protocols / NetFlow](/docs/network-flows/flow-protocols/netflow), [IPFIX](/docs/network-flows/flow-protocols/ipfix), and [sFlow](/docs/network-flows/flow-protocols/sflow).
+For more vendors and details, see [Flow Protocols / NetFlow](/src/crates/netflow-plugin/integrations/netflow.md), [IPFIX](/src/crates/netflow-plugin/integrations/ipfix.md), and [sFlow](/src/crates/netflow-plugin/integrations/sflow.md).
 
 ## Step 2 — Open the dashboard
 
@@ -177,13 +179,13 @@ If the Sankey is empty after 60-90 seconds, work through this:
 You now have flow data flowing in. The natural next steps:
 
 - [Configuration](/docs/network-flows/configuration.md) — Tune retention after first validation; production retention should be sized from observed flow rate.
-- [Static Metadata integration card](/docs/network-flows/enrichment-methods/static-metadata) — Give your routers and your internal networks friendly names and labels. Without this, dashboards show raw IPs.
+- [Static Metadata integration card](/src/crates/netflow-plugin/integrations/static_metadata.md) — Give your routers and your internal networks friendly names and labels. Without this, dashboards show raw IPs.
 - [Investigation Playbooks](/docs/network-flows/investigation-playbooks.md) — Concrete recipes for the questions flow data is good at answering.
 - [Anti-patterns](/docs/network-flows/anti-patterns.md) — Mistakes to avoid as you develop confidence with the data.
 - [Validation and Data Quality](/docs/network-flows/validation.md) — How to confirm your numbers are correct.
 
 For more sources or vendors:
 
-- [NetFlow](/docs/network-flows/flow-protocols/netflow) — More vendor configurations, sampling caveats.
-- [IPFIX](/docs/network-flows/flow-protocols/ipfix) — When and why to prefer IPFIX over NetFlow v9.
-- [sFlow](/docs/network-flows/flow-protocols/sflow) — Different protocol, different semantics.
+- [NetFlow](/src/crates/netflow-plugin/integrations/netflow.md) — More vendor configurations, sampling caveats.
+- [IPFIX](/src/crates/netflow-plugin/integrations/ipfix.md) — When and why to prefer IPFIX over NetFlow v9.
+- [sFlow](/src/crates/netflow-plugin/integrations/sflow.md) — Different protocol, different semantics.

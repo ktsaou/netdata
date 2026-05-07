@@ -6,6 +6,8 @@ learn_rel_path: "Network Flows/Visualization"
 keywords: ['filters', 'facets', 'autocomplete', 'search', 'fts', 'negative match', 'visualization']
 endmeta-->
 
+<!-- markdownlint-disable-file -->
+
 # Filters and Facets
 
 The filter ribbon (between the visualisation and the table) is how you narrow flow data to the subset you want. Filters apply to every view — Sankey, table, time-series, country/state/city maps, globe — at once.

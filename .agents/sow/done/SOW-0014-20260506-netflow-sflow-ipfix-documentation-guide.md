@@ -6,16 +6,18 @@ Status: completed
 
 Reopened 2026-05-07 after the netlify deploy preview for learn PR #2852 surfaced major content errors that the prior validation pass missed. The closure on 2026-05-07 (Status: completed) was premature: the docs contained multiple statements that contradicted the source code, generic flow-monitoring advice imported from research notes that did not apply to Netdata, and several invented behaviours. The regression was repaired and revalidated by 2026-05-08; see the `## Regression - 2026-05-07` section and closeout notes at the end of this file.
 
+Reopened 2026-05-08 after PR #22449 review and CI reported additional issues after the SOW had been marked completed and moved to `done/`. The open items are tracked in `## Regression - 2026-05-08` and include automated review threads, `yamllint`, `check-documentation`, Codacy triage, a code-only review subagent requested by the user, and a new user-requested local Learn preview skill/workflow.
+
 ## Requirements
 
 ### Purpose
 
-Provide DevOps/SREs a complete, authoritative documentation and integration infrastructure for Netdata's network flow analysis. Documentation covers only tested and verified features. Untested features (BMP, BioRIS, Network Sources, Topology drilldown) are deferred to a follow-up SOW after testing/validation. The documentation must include sizing, capacity planning, and optimization guidance so businesses can make informed deployment decisions.
+Provide DevOps/SREs a complete, authoritative documentation and integration infrastructure for Netdata's network flow analysis. Documentation covers the Network Flows feature set that exists in this PR and excludes non-existent behavior such as topology drilldown. The documentation must include sizing, capacity planning, and optimization guidance so businesses can make informed deployment decisions.
 
 ### User Request
 
-Phase 1: Document tested features only. Include sizing/benchmarking/capacity planning.
-Phase 2 (follow-up SOW): Test BMP, BioRIS, Network Sources, Topology drilldown, then document them.
+Phase 1: Document the Network Flows feature set, including sizing/benchmarking/capacity planning and the enrichment integrations exposed through `metadata.yaml`.
+Phase 2 (follow-up SOW): Add or revise documentation only for behavior that is not present in this PR, such as a future topology drilldown if it is implemented.
 
 ### Assistant Understanding
 
@@ -1057,10 +1059,10 @@ Iterate until the auditor returns "no findings".
 
 **Phase R3 -- Final close.**
 
-The SOW reopens with this regression note. The Validation
-section will be appended (not replaced) with the per-finding
-evidence and per-page audit-clean evidence. Status moves
-back to `completed` ONLY when:
+The SOW reopened with this regression note during repair. The Validation
+section was appended (not replaced) with per-finding evidence and per-page
+audit-clean evidence. Status returned to `completed` after all closure
+criteria listed below were satisfied:
 
 - Every F1..F21 has a fix landed and a code citation in the
   log.
@@ -2500,3 +2502,249 @@ Follow-up mapping:
   introduced by the regression repair. The user explicitly rejected changing
   deployment guidance to ingress-only; double counting remains a visualization
   and interpretation guideline, not an ingestion-side avoidance requirement.
+
+## Regression - 2026-05-08
+
+### Trigger
+
+PR #22449 received post-close reviewer and CI feedback after SOW 14 had been
+marked `completed` and moved to `.agents/sow/done/`.
+
+### Purpose
+
+Bring PR #22449 back to merge-ready state for end-user Network Flows
+documentation by addressing all valid review, CI, Codacy, and local Learn
+preview findings. Add a durable, user-triggered skill/workflow for building
+Learn locally with the contents of a documentation PR before merge, so future
+documentation PRs can be inspected in a browser before release.
+
+### Evidence
+
+- `bash .agents/skills/pr-reviews/scripts/fetch-all.sh 22449` returned 9 open
+  automated review threads, with no human review comments in the fetched
+  snapshot.
+- `bash .agents/skills/pr-reviews/scripts/ci-status.sh 22449` reported
+  failures in `yamllint` and `check-documentation`, `ACTION_REQUIRED` from
+  Codacy, 0 Sonar findings, and many still-running build checks.
+- `bash .agents/skills/pr-reviews/scripts/fetch-sonar-findings.sh 22449`
+  returned 0 Sonar issues and 0 hotspots.
+- `bash .agents/skills/codacy-audit/scripts/pr-issues.sh 22449` failed locally
+  before reporting findings because the helper passed a very large JSON array
+  through `jq --argjson`, hitting `Argument list too long`.
+- `python3 ${NETDATA_REPOS_DIR}/learn/ingest/ingest.py --help` failed in the
+  system interpreter due to missing `pandas`; the checked-in Learn `venv`
+  also lacked required packages such as `GitPython`.
+
+### Open repair items
+
+- R8.1: Rewrite the SOW close-gate paragraph at the prior
+  `SOW-0014...md:1060` in historical tense.
+- R8.2: Fix the classifier integration example so the regex matches the
+  documented three-letter region suffix.
+- R8.3: Remove or correct the decapsulation troubleshooting advice that
+  suggests multiple plugin instances despite the documented single-instance
+  model.
+- R8.4: Correct the Fedora/RHEL `geoipupdate` package name.
+- R8.5: Make the static-metadata typo example actually use an unknown key.
+- R8.6: Strengthen `main_tests.rs` so timestamp-source persistence cannot pass
+  when both journal fields are missing.
+- R8.7: Tighten sizing guidance around the ~25k flows/s single-agent planning
+  ceiling.
+- R8.8: Make storage safety-margin guidance internally consistent.
+- R8.9: Correct the UDP troubleshooting note to acknowledge per-socket
+  `drops` in `/proc/net/udp` while keeping `RcvbufErrors` as the system-wide
+  counter.
+- R8.10: Fix or work around the Codacy PR-fetch helper failure, then triage
+  Codacy findings for PR #22449.
+- R8.11: Investigate and fix the CI `yamllint` and `check-documentation`
+  failures.
+- R8.12: Create durable local Learn preview guidance that triggers only when a
+  user explicitly asks to build/inspect Learn from a PR.
+- R8.13: Build or serve Learn locally using PR #22449 contents and record the
+  ingest/build/browser validation result.
+- R8.14: Fix automated review comments about contradictory retention comments
+  and stale shared-budget retention wording.
+- R8.15: Fix the broken decapsulation integration icon found during local Learn
+  browser inspection.
+- R8.16: Verify integration-card source links in hand-authored Network Flows
+  docs are compatible with Learn ingest.
+- R8.17: Restore bounded startup behavior for receive-time raw rebuild scans.
+- R8.18: Reconcile the SOW scope text so the durable record matches the
+  accepted documentation scope.
+- R8.19: Ensure the generated Learn "Monitor anything" page lists Network
+  Flows protocols and enrichment integrations, and update the integration
+  lifecycle skill with that mechanism.
+- R8.20: Normalize Network Flows catalog descriptions so flow-source rows say
+  they collect network flow records and enrichment rows say they enrich or
+  annotate network flows, instead of describing provider publication
+  mechanisms, variables, defaults, or setup settings.
+
+### Validation plan
+
+- Re-fetch all PR comments before push and verify no new review items were
+  missed.
+- Run the narrow docs and Rust validations affected by the fixes.
+- Run local Learn ingest/build or dev-server preview with the local PR checkout
+  as the `netdata` source.
+- Record the local Learn URL, process PID, and cleanup path if a preview server
+  is started.
+- Move this SOW back to `.agents/sow/done/` after PR review items, relevant
+  CI failures, and local Learn preview validation are handled.
+
+### Repair completed
+
+- R8.1: Reworded the prior close-gate paragraph in historical tense.
+- R8.2: Fixed the classifier example regex to match the documented
+  three-letter region suffix.
+- R8.3: Removed the decapsulation advice that implied running multiple plugin
+  instances.
+- R8.4: Replaced `GeoIP-update` with the Fedora/RHEL package name
+  `geoipupdate`.
+- R8.5: Changed the static-metadata typo example to `if_index`, leaving
+  accepted aliases documented separately.
+- R8.6: Strengthened the timestamp-source e2e test so missing raw journal
+  fields cannot pass as `None == None`.
+- R8.7/R8.8: Tightened the sizing page around the ~25k flows/s planning
+  envelope and made the storage safety margin consistently `1.2x to 1.5x`.
+- R8.9: Corrected UDP troubleshooting so `/proc/net/udp` is described as
+  per-socket `drops`, while `/proc/net/snmp` `RcvbufErrors` remains the
+  system-wide signal.
+- R8.10: Fixed the Codacy helper to avoid passing a large issue array through
+  `jq --argjson`; it now uses a temporary JSON file and `--slurpfile`.
+- R8.11: Fixed `yamllint` findings in `metadata.yaml` and `configs/netflow.yaml`;
+  replaced hand-authored Learn links to generated integration pages with source
+  markdown links so Learn ingest rewrites them correctly.
+- R8.12: Added `.agents/skills/learn-pr-preview/SKILL.md`, updated
+  `AGENTS.md`, and added
+  `.agents/skills/learn-site-structure/how-tos/preview-documentation-pr-locally.md`.
+- R8.13: Built an isolated Learn preview from PR #22449 contents, ran ingest,
+  built Docusaurus, served the static build locally, and browser-inspected
+  representative Network Flows pages.
+- R8.14: Reworded the Rust retention comment so optional fields and the
+  resolved-tier validation rule agree; corrected visualization docs that still
+  described raw-tier retention as a shared budget.
+- R8.15: Replaced the missing `tunnel.svg` decapsulation icon with the existing
+  hosted `network-wired.svg` icon and regenerated integration artifacts.
+- R8.16: Verified by local ingest that source docs must link to the source
+  integration markdown files; Learn correlates those links to final routes.
+  Direct final `/docs/network-flows/...` links in source markdown fail
+  `--fail-links-netdata`, so the source integration links were retained.
+- R8.17: Restored the 30-second raw rebuild timeout for the new direct
+  receive-time raw scan path, checking the elapsed time during scan progress.
+- R8.18: Updated the SOW purpose/request wording to match the final accepted
+  scope: document existing Network Flows behavior and exclude non-existent
+  topology drilldown behavior.
+- R8.19: Updated `integrations/gen_doc_collector_page.py` so the top-level
+  `flows` category is grouped as a first-class `Network Flows` section in
+  `src/collectors/COLLECTORS.md`; regenerated the file; updated the
+  `integrations-lifecycle` skill and added a how-to for this generator rule.
+- R8.20: Updated `src/crates/netflow-plugin/metadata.yaml` so generated
+  Network Flows catalog rows use action-oriented user copy:
+  `Collect network flow records...`, `Enrich network flows...`, or
+  `Annotate network flows...`; regenerated per-integration markdown and
+  `src/collectors/COLLECTORS.md`; updated the `integrations-lifecycle`
+  skill with description-authoring rules.
+
+### Code-only review handling
+
+The requested code-only subagent review found timestamp consistency risks. On
+verification, the important false premise was that `timestamp_source` should
+drive dashboard query windows or rollup tier selection. The public contract in
+`docs/network-flows/configuration.md` says the Network Flows view uses journal
+entry receive time for query windows and tier selection; `timestamp_source`
+controls stored source timestamp metadata.
+
+Repairs:
+
+- Kept live materialized tier observation on receive time, matching the public
+  contract and raw journal append-time ordering.
+- Changed rebuild to scan recently received raw entries by journal entry time
+  and replay them into materialized tiers by receive time, instead of querying
+  the raw journal by `_SOURCE_REALTIME_TIMESTAMP`.
+- Changed the rebuild upper bound to include the current second.
+- Extended the timestamp-source e2e test to prove:
+  raw `_SOURCE_REALTIME_TIMESTAMP` equals the decoded flow start timestamp;
+  raw journal entry realtime remains receive/write time;
+  live materialized tiers use the receive-time bucket; and rebuild replays raw
+  entries into the same receive-time bucket.
+
+### Validation evidence
+
+- `cargo test --manifest-path src/crates/netflow-plugin/Cargo.toml timestamp_source -- --nocapture`
+  passed: 5 tests passed, 0 failed. The only warning was the pre-existing
+  unused `bytesize::ByteSize` import in
+  `src/crates/netflow-plugin/src/startup_memory_tests.rs`.
+- `cargo fmt --manifest-path src/crates/netflow-plugin/Cargo.toml --check`
+  passed after formatting.
+- `yamllint src/crates/netflow-plugin/metadata.yaml src/crates/netflow-plugin/configs/netflow.yaml`
+  passed.
+- `python3 integrations/gen_integrations.py` passed.
+- `python3 integrations/gen_docs_integrations.py` passed.
+- `git diff --check` passed.
+- A hosted-icon check over all Network Flows metadata icons passed:
+  `network-wired.svg` returned `200 image/svg+xml`.
+- `python3 integrations/gen_doc_collector_page.py` passed and the generated
+  `src/collectors/COLLECTORS.md` contains a `### Network Flows` section with
+  NetFlow, IPFIX, sFlow, and enrichment integrations.
+- The generated `src/collectors/COLLECTORS.md` Network Flows table now uses
+  catalog-style descriptions such as `Enrich network flows with...`,
+  `Annotate network flows with...`, and `Collect network flow records...`
+  rather than setup, option, or provider-publication wording.
+- Final pre-commit reviewer verification re-fetched PR #22449 and confirmed
+  12 open threads on the old pushed head; every thread was checked against the
+  current local tree and the corresponding fix is present in source/generated
+  files before committing.
+- `git diff --check` passed.
+- `cargo fmt --manifest-path src/crates/netflow-plugin/Cargo.toml --check`
+  passed.
+- `python3 -c 'import yaml; yaml.safe_load(open("src/crates/netflow-plugin/metadata.yaml"))'`
+  passed.
+- `.agents/sow/audit.sh` exited 2 because of pre-existing unrelated repository
+  hygiene findings: a sensitive-pattern warning in
+  `.agents/skills/mirror-netdata-repos/SKILL.md`, the unrelated current
+  SOW-0012 gate warning, non-project skill classification warnings, and
+  existing root TODO files. SOW 14 itself reports status/directory consistency
+  as `completed` in `.agents/sow/done/`.
+- Local Learn ingest from an isolated source copy passed with
+  `--local-repo netdata:<preview-source> --ignore-on-prem-repo --use_plain_https --fail-links-netdata`.
+- Local Learn Docusaurus build passed with Node `22.14.0`, Yarn `1.22.22`,
+  and `NODE_OPTIONS=--max_old_space_size=4096`.
+- Build warnings were not PR-specific Network Flows failures: Docusaurus still
+  reports existing site-wide broken anchors and an existing duplicate
+  `/docs/collecting-metrics/service-discovery` route.
+- Browser inspection returned HTTP 200, expected H1, no 404 page, and no
+  MDX/runtime error for:
+  `/docs/network-flows/`,
+  `/docs/network-flows/retention-and-tiers`,
+  `/docs/network-flows/enrichment-methods/static-metadata`,
+  `/docs/network-flows/flow-protocols/netflow`, and
+  `/docs/network-flows/configuration`.
+- The Static Metadata page rendered placeholders such as
+  `enrichment.metadata_static.exporters.<key>.if_indexes` as readable text, not
+  literal `&lt;key&gt;` and not MDX JSX.
+- Browser inspection of
+  `/docs/network-flows/enrichment-methods/decapsulation` confirmed the
+  integration icon loaded successfully from `network-wired.svg` with non-zero
+  rendered dimensions. Only external analytics requests failed in the browser
+  session.
+
+### Artifact maintenance gate
+
+- **AGENTS.md**: updated to list the new `learn-pr-preview` skill and its
+  explicit trigger.
+- **Runtime project skills**: added `learn-pr-preview`; updated
+  `learn-site-structure` with a local PR preview how-to; updated
+  `codacy-audit` for the large PR issue-list fetch gotcha; updated
+  `integrations-lifecycle` for the generated `COLLECTORS.md` / Monitor
+  Anything Network Flows section mechanism and metadata description-authoring
+  rules.
+- **Specs**: no spec update needed; the code repair preserves the documented
+  timestamp contract rather than changing product behavior.
+- **End-user/operator docs**: updated Network Flows docs, `metadata.yaml`, and
+  regenerated integration cards.
+- **End-user/operator skills**: no update needed; the new workflow is a
+  repo-work skill for agents validating documentation PRs, not an end-user
+  operator skill.
+- **SOW lifecycle**: SOW 14 repair is complete; status is `completed`, and
+  the file is moved back to `.agents/sow/done/` in the same commit as the
+  repair.

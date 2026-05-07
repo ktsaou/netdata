@@ -12,11 +12,11 @@ pub(crate) struct JournalConfig {
     #[arg(long = "netflow-journal-dir", default_value = "flows")]
     pub(crate) journal_dir: String,
 
-    /// Per-tier retention. Each tier carries its own size_of_journal_files
-    /// and duration_of_journal_files; both are required (one is enough --
-    /// validation requires at least one positive limit per tier). Tiers
-    /// can be sized independently because raw and rollup tiers have very
-    /// different storage costs and access patterns.
+    /// Per-tier retention. Each tier carries optional size_of_journal_files
+    /// and duration_of_journal_files limits. Validation requires each
+    /// resolved tier to have at least one positive size or duration limit.
+    /// Tiers can be sized independently because raw and rollup tiers have
+    /// very different storage costs and access patterns.
     #[arg(skip)]
     #[serde(default)]
     pub(crate) tiers: JournalTierRetentionOverrides,

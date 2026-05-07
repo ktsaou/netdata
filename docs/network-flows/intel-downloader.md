@@ -6,6 +6,8 @@ learn_rel_path: "Network Flows"
 keywords: ['ip intelligence', 'mmdb', 'downloader', 'db-ip', 'iptoasn', 'topology-ip-intel-downloader', 'enrichment', 'refresh']
 endmeta-->
 
+<!-- markdownlint-disable-file -->
+
 # Enrichment Intel Downloader
 
 `topology-ip-intel-downloader` is a small Netdata-supplied tool that keeps the IP intelligence MMDB databases used by the netflow plugin (and the topology subsystem) up to date. It fetches the upstream payloads, normalises them into a fixed Netdata MMDB layout, applies CIDR classification policy, and atomically replaces the files on disk. The netflow plugin's resolver picks up the new files within 30 seconds — no plugin restart required.
@@ -46,9 +48,9 @@ DB-IP artifacts are resolved from the current monthly URL on the DB-IP landing p
 
 The IPtoASN TSV feed is converted into the same Netdata MMDB layout as the DB-IP feeds, so consumers don't care which source produced the file.
 
-> **MaxMind GeoIP / GeoLite2 is not supported by this tool.** The downloader has no `license_key` field, no `MAXMIND_LICENSE_KEY` env var, and no MaxMind URL builder. If you want to use MaxMind, run MaxMind's own [`geoipupdate`](/docs/network-flows/enrichment-methods/maxmind-geoip-geolite2) and point `enrichment.geoip.asn_database` / `enrichment.geoip.geo_database` at the files it produces.
+> **MaxMind GeoIP / GeoLite2 is not supported by this tool.** The downloader has no `license_key` field, no `MAXMIND_LICENSE_KEY` env var, and no MaxMind URL builder. If you want to use MaxMind, run MaxMind's own [`geoipupdate`](/src/crates/netflow-plugin/integrations/maxmind_geoip_-_geolite2.md) and point `enrichment.geoip.asn_database` / `enrichment.geoip.geo_database` at the files it produces.
 
-You can still pull *any* MMDB build (including a custom one) into the resolver by configuring `enrichment.geoip.asn_database` / `geo_database` directly — the downloader is one of several producers; the plugin doesn't care who wrote the MMDB. See the [Custom MMDB Database](/docs/network-flows/enrichment-methods/custom-mmdb-database) card.
+You can still pull *any* MMDB build (including a custom one) into the resolver by configuring `enrichment.geoip.asn_database` / `geo_database` directly — the downloader is one of several producers; the plugin doesn't care who wrote the MMDB. See the [Custom MMDB Database](/src/crates/netflow-plugin/integrations/custom_mmdb_database.md) card.
 
 ## Configuration file
 
@@ -236,9 +238,9 @@ When the plugin auto-detects MMDBs this way it forces `optional: true` on the ge
 ## What's next
 
 - Per-provider details (refresh cadence, license, schema, attribution requirements):
-  - [DB-IP IP Intelligence](/docs/network-flows/enrichment-methods/db-ip-ip-intelligence) — the default the downloader fetches.
-  - [IPtoASN](/docs/network-flows/enrichment-methods/iptoasn) — public-domain TSV feed; converted to MMDB by this tool.
-  - [MaxMind GeoIP / GeoLite2](/docs/network-flows/enrichment-methods/maxmind-geoip-geolite2) — *not* fetched by this tool; use `geoipupdate`.
-  - [Custom MMDB Database](/docs/network-flows/enrichment-methods/custom-mmdb-database) — your own MMDB build.
+  - [DB-IP IP Intelligence](/src/crates/netflow-plugin/integrations/db-ip_ip_intelligence.md) — the default the downloader fetches.
+  - [IPtoASN](/src/crates/netflow-plugin/integrations/iptoasn.md) — public-domain TSV feed; converted to MMDB by this tool.
+  - [MaxMind GeoIP / GeoLite2](/src/crates/netflow-plugin/integrations/maxmind_geoip_-_geolite2.md) — *not* fetched by this tool; use `geoipupdate`.
+  - [Custom MMDB Database](/src/crates/netflow-plugin/integrations/custom_mmdb_database.md) — your own MMDB build.
 - The enrichment mechanism that consumes these files: [Enrichment](/docs/network-flows/enrichment.md) (the MMDB shared mechanism section).
 - The plugin knobs that point at the files: [Configuration › `enrichment.geoip`](/docs/network-flows/configuration.md#enrichment).

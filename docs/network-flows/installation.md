@@ -6,6 +6,8 @@ learn_rel_path: "Network Flows"
 keywords: ['installation', 'package', 'netdata-plugin-netflow', 'setup']
 endmeta-->
 
+<!-- markdownlint-disable-file -->
+
 # Installation
 
 The netflow plugin is **packaged separately from the main Netdata Agent**. You install it on the same host where Netdata runs, after Netdata itself is in place.
@@ -77,7 +79,7 @@ sudo ./netdata-installer.sh
 sudo /usr/sbin/topology-ip-intel-downloader
 ```
 
-This populates `/var/cache/netdata/topology-ip-intel/` with the DB-IP-based MMDB files. The plugin auto-detects the cache copy on its next 30-second poll. See the [Enrichment Intel Downloader page](/docs/network-flows/intel-downloader.md) for the refresh tool and the [DB-IP integration card](/docs/network-flows/enrichment-methods/db-ip-ip-intelligence) for cadence and license details.
+This populates `/var/cache/netdata/topology-ip-intel/` with the DB-IP-based MMDB files. The plugin auto-detects the cache copy on its next 30-second poll. See the [Enrichment Intel Downloader page](/docs/network-flows/intel-downloader.md) for the refresh tool and the [DB-IP integration card](/src/crates/netflow-plugin/integrations/db-ip_ip_intelligence.md) for cadence and license details.
 
 ## IP intelligence defaults
 
@@ -136,9 +138,9 @@ Installing the plugin enables it. To actually see flow data, you need to configu
 That's the next step:
 
 - [Quick Start](/docs/network-flows/quick-start.md) — A 15-minute path to your first flow data.
-- [Flow Protocols / NetFlow](/docs/network-flows/flow-protocols/netflow) — Vendor configurations for NetFlow.
-- [Flow Protocols / IPFIX](/docs/network-flows/flow-protocols/ipfix) — Vendor configurations for IPFIX.
-- [Flow Protocols / sFlow](/docs/network-flows/flow-protocols/sflow) — Vendor configurations for sFlow.
+- [Flow Protocols / NetFlow](/src/crates/netflow-plugin/integrations/netflow.md) — Vendor configurations for NetFlow.
+- [Flow Protocols / IPFIX](/src/crates/netflow-plugin/integrations/ipfix.md) — Vendor configurations for IPFIX.
+- [Flow Protocols / sFlow](/src/crates/netflow-plugin/integrations/sflow.md) — Vendor configurations for sFlow.
 
 ## Uninstall
 

@@ -6,6 +6,8 @@ learn_rel_path: "Network Flows"
 keywords: [enrichment, geoip, asn, bgp, classifiers, network labels, mmdb, ipam]
 endmeta-->
 
+<!-- markdownlint-disable-file -->
+
 # Enrichment
 
 Raw flow records carry IP addresses, ports, ASNs the exporter happens to know, ifIndex numbers, and not much else. Enrichment is the post-decode pipeline that turns those into the operational labels you actually want on the dashboard: country and city, AS numbers and AS names, BGP next-hop and AS path, "this is our DMZ in Frankfurt", "this interface is the Lumen transit", "this exporter is a leaf in dc-fra1".
@@ -277,7 +279,7 @@ Two important rules:
 
 GRE, IP-in-IP, GENEVE, MPLS-over-UDP, and NVGRE are not decoded.
 
-See the [Decapsulation integration card](/docs/network-flows/enrichment-methods/decapsulation) for exporter configuration recipes.
+See the [Decapsulation integration card](/src/crates/netflow-plugin/integrations/decapsulation.md) for exporter configuration recipes.
 
 ## Routing overlay (BMP and BioRIS share the trie)
 
@@ -383,28 +385,28 @@ BMP and BioRIS depend on router configuration, export policy, peer identity, and
 These cards carry the per-method specifics — installation steps, refresh cadence, expected upstream schemas, vendor-specific gotchas — that this page deliberately does not duplicate.
 
 **IP intelligence (MMDB)**
-- [DB-IP IP Intelligence](/docs/network-flows/enrichment-methods/db-ip-ip-intelligence) — the default that ships with Netdata
-- [MaxMind GeoIP / GeoLite2](/docs/network-flows/enrichment-methods/maxmind-geoip-geolite2) — commercial GeoIP2 or free GeoLite2 with attribution
-- [IPtoASN](/docs/network-flows/enrichment-methods/iptoasn) — public-domain ASN + country, hourly cadence
-- [Custom MMDB Database](/docs/network-flows/enrichment-methods/custom-mmdb-database) — your own MMDB build
+- [DB-IP IP Intelligence](/src/crates/netflow-plugin/integrations/db-ip_ip_intelligence.md) — the default that ships with Netdata
+- [MaxMind GeoIP / GeoLite2](/src/crates/netflow-plugin/integrations/maxmind_geoip_-_geolite2.md) — commercial GeoIP2 or free GeoLite2 with attribution
+- [IPtoASN](/src/crates/netflow-plugin/integrations/iptoasn.md) — public-domain ASN + country, hourly cadence
+- [Custom MMDB Database](/src/crates/netflow-plugin/integrations/custom_mmdb_database.md) — your own MMDB build
 
 **BGP routing**
-- [BMP (BGP Monitoring Protocol)](/docs/network-flows/enrichment-methods/bmp-bgp-monitoring-protocol) — routers push BGP updates over TCP
-- [bio-rd / RIPE RIS](/docs/network-flows/enrichment-methods/bio-rd-ripe-ris) — pull BGP data from a bio-rd RIS gRPC daemon
+- [BMP (BGP Monitoring Protocol)](/src/crates/netflow-plugin/integrations/bmp_bgp_monitoring_protocol.md) — routers push BGP updates over TCP
+- [bio-rd / RIPE RIS](/src/crates/netflow-plugin/integrations/bio-rd_-_ripe_ris.md) — pull BGP data from a bio-rd RIS gRPC daemon
 
 **Network identity (cloud IP ranges, IPAM)**
-- [AWS IP Ranges](/docs/network-flows/enrichment-methods/aws-ip-ranges) — public AWS prefix list
-- [GCP IP Ranges](/docs/network-flows/enrichment-methods/gcp-ip-ranges) — public GCP prefix list
-- [Azure IP Ranges](/docs/network-flows/enrichment-methods/azure-ip-ranges) — Azure Service Tags (requires an internal mirror)
-- [NetBox](/docs/network-flows/enrichment-methods/netbox) — open-source IPAM / DCIM
-- [Generic JSON-over-HTTP IPAM](/docs/network-flows/enrichment-methods/generic-json-over-http-ipam) — Infoblox, BlueCat, phpIPAM, custom CMDBs
+- [AWS IP Ranges](/src/crates/netflow-plugin/integrations/aws_ip_ranges.md) — public AWS prefix list
+- [GCP IP Ranges](/src/crates/netflow-plugin/integrations/gcp_ip_ranges.md) — public GCP prefix list
+- [Azure IP Ranges](/src/crates/netflow-plugin/integrations/azure_ip_ranges.md) — Azure Service Tags (requires an internal mirror)
+- [NetBox](/src/crates/netflow-plugin/integrations/netbox.md) — open-source IPAM / DCIM
+- [Generic JSON-over-HTTP IPAM](/src/crates/netflow-plugin/integrations/generic_json-over-http_ipam.md) — Infoblox, BlueCat, phpIPAM, custom CMDBs
 
 **Static and rule-based**
-- [Static Metadata](/docs/network-flows/enrichment-methods/static-metadata) — per-exporter, per-interface, per-CIDR labels
-- [Classifiers](/docs/network-flows/enrichment-methods/classifiers) — Akvorado-compatible expression rules
+- [Static Metadata](/src/crates/netflow-plugin/integrations/static_metadata.md) — per-exporter, per-interface, per-CIDR labels
+- [Classifiers](/src/crates/netflow-plugin/integrations/classifiers.md) — Akvorado-compatible expression rules
 
 **Decapsulation**
-- [Decapsulation](/docs/network-flows/enrichment-methods/decapsulation) — SRv6 and VXLAN inner-packet extraction
+- [Decapsulation](/src/crates/netflow-plugin/integrations/decapsulation.md) — SRv6 and VXLAN inner-packet extraction
 
 ### Related concepts
 

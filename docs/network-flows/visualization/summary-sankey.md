@@ -6,6 +6,8 @@ learn_rel_path: "Network Flows/Visualization"
 keywords: ['sankey', 'table', 'top-n', 'aggregation', 'visualization']
 endmeta-->
 
+<!-- markdownlint-disable-file -->
+
 # Sankey and Table
 
 The Network Flows view (open the **Live** tab in the top navigation, then select **Network Flows**) opens with two panels stacked: a Sankey diagram on top, a sortable table beneath. Both render the same data, the same top-N aggregation, the same field selection. Selecting fields, filtering, and sorting affects both at once.

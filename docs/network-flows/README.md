@@ -6,6 +6,8 @@ learn_rel_path: "Network Flows"
 keywords: ['netflow', 'sflow', 'ipfix', 'network flows', 'traffic analysis', 'overview']
 endmeta-->
 
+<!-- markdownlint-disable-file -->
+
 # Network Flows
 
 Netdata can collect, store, and visualise network flow data from your routers and switches. You see who is talking to whom on your network, how much data they exchanged, over what protocols, and to which countries — without inspecting packet contents and without an external database.

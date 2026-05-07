@@ -6,6 +6,8 @@ learn_rel_path: "Network Flows"
 keywords: ['anti-patterns', 'mistakes', 'pitfalls', 'gotchas', 'misuse']
 endmeta-->
 
+<!-- markdownlint-disable-file -->
+
 # Anti-patterns and pitfalls
 
 Flow data is powerful but easy to misuse. The mistakes below are the ones that cause the most lost analyst time and the most wrong conclusions in real deployments. Each entry explains how the mistake happens, what it costs, and how to avoid it.
@@ -118,4 +120,4 @@ Flow data is powerful but easy to misuse. The mistakes below are the ones that c
 
 - [Validation and Data Quality](/docs/network-flows/validation.md) — How to confirm your data is trustworthy.
 - [Investigation Playbooks](/docs/network-flows/investigation-playbooks.md) — Step-by-step recipes for common questions.
-- [Flow Protocols](/docs/network-flows/flow-protocols/netflow) — Per-protocol behaviour that drives many of these gotchas.
+- [Flow Protocols](/src/crates/netflow-plugin/integrations/netflow.md) — Per-protocol behaviour that drives many of these gotchas.

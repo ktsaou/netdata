@@ -45,10 +45,18 @@ journal:
   # internal rotation defaults to 100MB and retention is controlled only
   # by duration.
   tiers:
-    raw:      { size_of_journal_files: 10GB, duration_of_journal_files: 7d }
-    minute_1: { size_of_journal_files: 10GB, duration_of_journal_files: 7d }
-    minute_5: { size_of_journal_files: 10GB, duration_of_journal_files: 7d }
-    hour_1:   { size_of_journal_files: 10GB, duration_of_journal_files: 7d }
+    raw:
+      size_of_journal_files: 10GB
+      duration_of_journal_files: 7d
+    minute_1:
+      size_of_journal_files: 10GB
+      duration_of_journal_files: 7d
+    minute_5:
+      size_of_journal_files: 10GB
+      duration_of_journal_files: 7d
+    hour_1:
+      size_of_journal_files: 10GB
+      duration_of_journal_files: 7d
 
   # Cap on the number of distinct group keys a single aggregation query
   # can build before extra groups are folded into a synthetic

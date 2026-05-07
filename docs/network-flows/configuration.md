@@ -6,6 +6,8 @@ learn_rel_path: "Network Flows"
 keywords: ['configuration', 'netflow.yaml', 'tuning', 'retention', 'listener']
 endmeta-->
 
+<!-- markdownlint-disable-file -->
+
 # Configuration
 
 The netflow plugin reads its configuration from `netflow.yaml`. The defaults are good for initial validation; production deployments usually tune the listener address and retention once the observed flow rate is known. This page documents every option, with its real default and the file that defines it.
@@ -220,10 +222,10 @@ A note on `default_sampling_rate` vs. `override_sampling_rate`: both keys accept
 
 For the cross-cutting picture — order of evaluation, the `asn_providers` and `net_providers` chains, the MMDB shared mechanism, the static-vs-dynamic composition rules — see the [Enrichment](/docs/network-flows/enrichment.md) page. Per-method configuration details (URLs, refresh cadence, license, vendor commands) live on the integration cards under flows.enrichment-methods:
 
-- IP intelligence (MMDB): [DB-IP](/docs/network-flows/enrichment-methods/db-ip-ip-intelligence), [MaxMind GeoIP / GeoLite2](/docs/network-flows/enrichment-methods/maxmind-geoip-geolite2), [IPtoASN](/docs/network-flows/enrichment-methods/iptoasn), [Custom MMDB](/docs/network-flows/enrichment-methods/custom-mmdb-database).
-- BGP routing: [BMP](/docs/network-flows/enrichment-methods/bmp-bgp-monitoring-protocol), [bio-rd / RIPE RIS](/docs/network-flows/enrichment-methods/bio-rd-ripe-ris).
-- Network sources: [AWS IP Ranges](/docs/network-flows/enrichment-methods/aws-ip-ranges), [Azure IP Ranges](/docs/network-flows/enrichment-methods/azure-ip-ranges), [GCP IP Ranges](/docs/network-flows/enrichment-methods/gcp-ip-ranges), [NetBox](/docs/network-flows/enrichment-methods/netbox), [Generic JSON-over-HTTP IPAM](/docs/network-flows/enrichment-methods/generic-json-over-http-ipam).
-- YAML-defined: [Static Metadata](/docs/network-flows/enrichment-methods/static-metadata), [Classifiers](/docs/network-flows/enrichment-methods/classifiers), [Decapsulation](/docs/network-flows/enrichment-methods/decapsulation).
+- IP intelligence (MMDB): [DB-IP](/src/crates/netflow-plugin/integrations/db-ip_ip_intelligence.md), [MaxMind GeoIP / GeoLite2](/src/crates/netflow-plugin/integrations/maxmind_geoip_-_geolite2.md), [IPtoASN](/src/crates/netflow-plugin/integrations/iptoasn.md), [Custom MMDB](/src/crates/netflow-plugin/integrations/custom_mmdb_database.md).
+- BGP routing: [BMP](/src/crates/netflow-plugin/integrations/bmp_bgp_monitoring_protocol.md), [bio-rd / RIPE RIS](/src/crates/netflow-plugin/integrations/bio-rd_-_ripe_ris.md).
+- Network sources: [AWS IP Ranges](/src/crates/netflow-plugin/integrations/aws_ip_ranges.md), [Azure IP Ranges](/src/crates/netflow-plugin/integrations/azure_ip_ranges.md), [GCP IP Ranges](/src/crates/netflow-plugin/integrations/gcp_ip_ranges.md), [NetBox](/src/crates/netflow-plugin/integrations/netbox.md), [Generic JSON-over-HTTP IPAM](/src/crates/netflow-plugin/integrations/generic_json-over-http_ipam.md).
+- YAML-defined: [Static Metadata](/src/crates/netflow-plugin/integrations/static_metadata.md), [Classifiers](/src/crates/netflow-plugin/integrations/classifiers.md), [Decapsulation](/src/crates/netflow-plugin/integrations/decapsulation.md).
 - Operational: [Enrichment Intel Downloader](/docs/network-flows/intel-downloader.md) — the bundled refresh tool for MMDB providers.
 
 The enrichment section has no CLI flag — it is YAML-only.

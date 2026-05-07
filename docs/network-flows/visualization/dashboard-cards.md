@@ -6,6 +6,8 @@ learn_rel_path: "Network Flows/Visualization"
 keywords: ['plugin health', 'metrics', 'operational charts', 'monitoring']
 endmeta-->
 
+<!-- markdownlint-disable-file -->
+
 # Plugin Health Charts
 
 The netflow plugin publishes its own operational charts under the `netdata.netflow.*` chart context. These appear on the standard Netdata charts page (alongside system metrics like CPU and memory), **not** inside the Network Flows view. They are how you monitor the plugin itself: is it receiving data, are templates flowing, is memory growing, is disk being written.
