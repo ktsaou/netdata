@@ -2,9 +2,9 @@
 
 ## Status
 
-Status: completed
+Status: in-progress
 
-Closed 2026-05-07. All acceptance criteria delivered or explicitly rejected. Phase 1C (AI skills cross-links) was rejected as not mandatory by user decision -- recorded in Validation. Architectural pivot to a top-level `flows` integration_type with 14 cards is recorded as Decision 10. Companion changes shipped in netdata PR #22439, learn PR #2854 (merged), and a deferred cloud-frontend `Update integrations.js` refresh.
+Reopened 2026-05-07 after the netlify deploy preview for learn PR #2852 surfaced major content errors that the prior validation pass missed. The closure on 2026-05-07 (Status: completed) was premature: the docs contain multiple statements that contradict the source code, generic flow-monitoring advice imported from research notes that does not apply to Netdata, and several invented behaviours. See the `## Regression - 2026-05-07` section at the end of this file for the full finding list, root cause, and repair plan. The SOW remains in `current/` until every finding is addressed, every page passes a per-page audit subagent against the source code, and every third-party vendor configuration mention is verified against current upstream documentation.
 
 ## Requirements
 
@@ -588,4 +588,485 @@ Open follow-ups, ordered by priority:
 
 ## Regression Log
 
-None yet.
+## Regression - 2026-05-07
+
+### What broke
+
+Costa previewed the learn netlify deploy at
+`https://deploy-preview-2852--netdata-docusaurus.netlify.app/`
+and found the documentation contains multiple statements that
+contradict the source code, several invented behaviours that
+were never verified, and structural choices that read as
+academic / generic flow-monitoring advice rather than as a
+practical guide to Netdata's flow plugin specifically. The
+prior closure on 2026-05-07 claimed every behavioural claim had
+been verified against the code; that claim is false.
+
+### Why previous validation missed it
+
+1. Subagent investigations produced data extracts (fields,
+   tier preservation, IE maps) accurately but did NOT catch
+   behavioural framing claims. Behavioural claims live in
+   absences (no code says "do this") and were imported from
+   the research notes at `.agents/knowledge/Network Traffic
+   Analysis with Flow Data.md` as Netdata-specific without
+   verifying against actual code paths.
+2. Three rounds of codex review focused on the autocomplete
+   code change. None reviewed the documentation prose.
+3. Validation evidence was structural (grep for forbidden
+   topics, count of pages, pipeline exit codes) rather than
+   semantic (every behavioural claim cited to code). The
+   "code is the source of truth" rule from Decision 9 was
+   stated but not enforced per claim.
+4. SOW closure was driven by "all phases done" rather than
+   "all claims true". The completion was premature.
+
+### Findings (verbatim from user, plus code-citation verdict)
+
+These findings must be addressed one at a time, no batching.
+For each: investigate against code, surgical edit, grep the
+rest of the docs for the same pattern, fix every instance.
+Each finding gets its own SOW execution-log entry below with
+file:line and the code citation that proves the fix.
+
+#### F1 -- /docs/network-flows landing page shows tiles not Overview
+
+> this page should be the overview, it appears on click of
+> the "Network Flows" main menu. Instead it shows all
+> integrations as tiles:
+> https://deploy-preview-2852--netdata-docusaurus.netlify.app/docs/network-flows
+
+Need to investigate how learn renders the section root.
+Likely cause: section root has no leaf content, so the auto-
+grid renderer in `learn/ingest/ingest.py:get_dir_make_file_and_recurse`
+generates a category index. Repair: ensure the Overview file
+is the section landing page, not the category-index grid.
+
+#### F2 -- Overview false bidirectional symmetry claim
+
+> > When you see "traffic from your country to a foreign
+> > country" and "traffic from that foreign country to your
+> > country" of similar volume, you're looking at one
+> > conversation, not two.
+>
+> The statement "of similar volume" is wrong. The two
+> directions of traffic are usually not expected to have
+> similar volume. It can be omitted and the phrase must be
+> normalized because it may or may not be bidirectional.
+
+Repair: rephrase the doubling explanation to drop "similar
+volume" framing. The doubling effect is about per-router
+ingress+egress accounting, NOT about traffic symmetry. Same
+underlying conversation can have very different byte counts
+in each direction.
+
+#### F3 -- Overview false "in one direction" advice
+
+> > To see real numbers: filter by one exporter, one
+> > interface, in one direction. The dashboard makes this
+> > easy. See the Anti-patterns page for the full framing.
+>
+> "in one direction" is wrong. Traffic does not double when
+> viewing bidirectional traffic in one interface, because
+> traffic is not usually symmetrical. It needs rephrasing.
+
+Repair: rephrase. The correct framing for "see real numbers"
+is per-exporter + per-interface scope; direction filtering
+is not the doubling fix.
+
+#### F4 -- Sampling rate framing wrong (uniform-rate myth)
+
+> > This works correctly only if all your exporters use the
+> > same sampling rate.
+>
+> No! This is totally wrong. The way netdata does it, is it
+> that it gets the specific sampling each flow has and
+> multiplies the traffic of the specific flow to find its
+> actual. This works even if each router and each interface
+> has its own sampling rate.
+>
+> The "works only if all your routers have the same
+> sampling rate" is a misconception from when we were
+> discussing this:
+>
+> - you: the dashboard must show the sampling rate on any
+>   view
+> - me: this cannot be done reliably when flows with mixed
+>   sampling rates are aggregated on the dashboard, and
+>   netdata does the right thing to no show it, because:
+>   - a) if all your routers have the same sampling, you
+>     know it already
+>   - b) if you have mixed sampling rates, it is technically
+>     impossible to provide a meaningful single sampling
+>     rate for the aggregation
+>   So, netdata multiplies at the source, so that
+>   aggregations are as accurate as possible, even with
+>   mixed sampling rates
+
+Code evidence:
+`src/crates/netflow-plugin/src/decoder/record/core/record.rs:24-26`
+multiplies `bytes` and `packets` by each record's own
+`sampling_rate` at decode time. Mixed sampling rates across
+exporters or interfaces are handled correctly automatically.
+
+Repair: remove the uniform-rate-required framing wherever it
+appears, replace with the correct per-flow-multiplication
+explanation, drop any UI claim about showing a single
+sampling rate (it would be meaningless under mixed rates).
+
+#### F5 -- Sampling rate "clean path" recommendation wrong
+
+> > The clean path: keep sampling rates uniform across your
+> > network, or run unsampled where the flow rate allows
+>
+> No. I never said that. It is not the clean path. People
+> should use the sampling rates according to their use
+> cases. But netdata multiplies at ingestions and does not
+> show sampling rates on the UI.
+
+Repair: remove the "clean path" recommendation. Netdata does
+the right thing regardless of whether sampling is uniform or
+mixed.
+
+#### F6 -- Globe view "less useful for analysis" wrong
+
+> > Globe -- a 3D rendering of the city-level data. Visual
+> > demo, less useful for analysis.
+>
+> "less useful for analysis"? Why? The information is
+> exactly the same with the map. There is a table, like in
+> maps. What makes it less useful? That is 3d? The opposite
+> I think.
+
+Repair: rewrite the globe section to drop the
+"less useful for analysis" judgement. Same data, same table,
+same selectivity; the 3D projection is one of several
+valid presentations.
+
+#### F7 -- Installation tab location wrong
+
+> In installation:
+>
+> > The Network Flows tab should appear in the top
+> > navigation
+>
+> No. The flows functions in in the "Live" top menu
+> currently.
+
+Repair: correct the location to "Live" menu.
+
+#### F8 -- Configuration: tier sizing should be per-tier only
+
+> Retention size should be set per tier, like:
+>
+> tiers:
+>  raw: { size: 10GB, duration: 24h }
+>  etc
+>
+> These globals must be removed:
+>
+>   size_of_journal_files: 10GB
+>   duration_of_journal_files: 7d
+>
+> It is very important to be able to size tiers
+> independently of each other. There is no one size fits
+> all.
+> I know there are globals and overrides per tier, but come
+> on. Why double configuration?
+
+This finding has TWO parts:
+
+1. Documentation: stop documenting the globals; show only
+   per-tier `tiers: { raw: {size, duration}, ... }`.
+2. Code: remove `size_of_journal_files` and
+   `duration_of_journal_files` from the schema.
+
+Code reference today:
+`src/crates/netflow-plugin/src/plugin_config/types/journal.rs:21-37`
+declares both globals AND per-tier overrides. The user wants
+the globals dropped from the configuration schema entirely.
+
+#### F9 -- Configuration: query_1m_max_window / query_5m_max_window unjustified
+
+> About these:
+>
+>   query_1m_max_window: 6h
+>   query_5m_max_window: 24h
+>
+> What are these and why they are needed? I don't
+> understand. Either the query engine is half based, or
+> these are useless overprotections that are never needed.
+
+Repair: investigate purpose in code. If they are real
+protections, document the protection clearly. If they are
+useless, remove them from both code and docs.
+
+#### F10 -- Configuration: query_max_groups / query_facet_max_values_per_field unjustified
+
+> I don't understand what are these and why are needed and
+> what value or protection they provide:
+>
+>   query_max_groups: 50000
+>   query_facet_max_values_per_field: 5000
+>
+> Explain
+
+Repair: same as F9 -- investigate, document the protection
+or remove.
+
+#### F11 -- Empty page: enrichment-concepts/ip-intelligence
+
+> empty page:
+> https://deploy-preview-2852--netdata-docusaurus.netlify.app/docs/network-flows/enrichment-concepts/ip-intelligence
+
+Investigate why the page renders empty. Source file
+`docs/network-flows/enrichment/ip-intelligence.md` exists.
+Likely a generated MDX issue (frontmatter, fence, or special
+char) or an ingest path mismatch.
+
+#### F12 -- Retention and Querying structure wrong; URL sharing irrelevant
+
+> Retention and Querying has a section called "URL
+> sharing"? Really? You find this relevant?
+> If you need to put generic visualization rules, these
+> should be a generic "Visualization/Overview" page, to
+> explain FTS, sharing, grouping, etc. For sure Retention
+> is closer to configuration and querying is closer to
+> visualization.
+
+Repair has THREE parts:
+
+1. Remove the "URL sharing" section from
+   retention-querying.md.
+2. Move retention-side content (tier sizing rules, retention
+   knobs) closer to Configuration.
+3. Move query-time semantics (tier auto-pick rules,
+   query-engine behaviour, FTS, sharing, grouping) into a
+   new Visualization/Overview page.
+
+#### F13 -- Sizing/Capacity Planning wrong genre, wrong content
+
+> Sizing and Capacity planning is written like an academic
+> paper that must prove productivity of the testing
+> environment. People want sizing and planning directions.
+> This is not an academic paper, not a blog.
+>
+> What are the requirements for this page:
+>
+> - what is the cap of the plugin
+> - how ingestion rate affects storage
+> - the raw tier monopolizes storage - do not let it
+>   explode - it will need fast nvme disks to query it.
+> - journal backend uses free system memory as system
+>   caches - the bigger the database, the more free memory
+>   the system would need.
+> - journal is fully indexed, all fields are indexed, but
+>   FTS means full scan.
+> - explain that 25k flows/s sustained approaches ISP level
+>   capacities.
+> - use the distributed nature of netdata. The plugin can
+>   be installed multiple times, in branch offices,
+>   different data centers, etc. And since aggregation
+>   across routers is usually meaningless for flows, users
+>   can appoint 1 netdata per router. There is no need to
+>   push all flows to one central place.
+>
+> So, this page should provide a practical guide for users
+> to scale the plugin, the servers and storage it runs,
+> etc.
+> Remove the benchmarks and tests from this page. The
+> benchmarks were for us, not for the customers.
+
+Repair: rewrite sizing-capacity.md from scratch as a
+practical scaling guide following the seven bullets above.
+Drop all benchmark numbers, drop the "academic paper" framing.
+
+#### F14 -- Validation: invented user-side risks
+
+> In Validation and Data Quality:
+>
+> Risks:
+> - Netdata monitors UDP port overflows and has alerts for
+>   it.
+> - "Sampling rate misinterpretation" how is this a risk
+>   for users? This is bug in netdata if it happens.
+> - "Sampling rate change" how is this a risk for users?
+>   Netdata ensures this will not happen because ingestion
+>   scales on sampling received
+> - "Template loss after collector restart" how is this a
+>   risk for users? Netdata saves templates and reloads
+>   them
+>
+> I think the entire "Validation and Data Quality" is
+> completely off. It mentions again sampling rates, etc.
+> It is like it was written by someone that does not have
+> a clue of what netdata is and how the plugin works.
+
+Code evidence:
+- Templates persist:
+  `src/crates/netflow-plugin/src/decoder/protocol/v9/templates.rs:106`
+  and
+  `src/crates/netflow-plugin/src/decoder/protocol/ipfix/templates/data.rs:67`
+- Sampling multiplied per-flow at decode (see F4).
+
+Repair: rewrite validation.md from scratch. Remove the
+sampling-related "risks", remove template-loss "risk", point
+UDP overflow concern at Netdata's existing alerts.
+
+#### F15 -- Anti-patterns: "Ignoring the sampling rate" is bogus
+
+> Anti-patterns page:
+>
+> > Ignoring the sampling rate
+>
+> How is it possible for users to ignore the sampling rate
+> if we calculate the estimated volume at ingestion? You
+> invented reasons for it: "so the dashboard numbers are
+> estimates of actual traffic -- if the multiplication is
+> consistent"
+>
+> What? How the multiplication cannot be consistent? What
+> are you talking about?
+>
+> "Ignoring the sampling rate" section must be removed.
+
+Repair: remove the entire section.
+
+#### F16 -- Anti-patterns: "GeoIP for internal IPs" is invented
+
+> > "Internal IPs (10.x, 172.16-31.x, 192.168.x) appear in
+> > random countries on the geographic map"
+>
+> What? Where did you find this? Geolocation does not
+> position internal IPs on the map.
+>
+> "Trusting GeoIP for internal IPs" section must be removed.
+
+Repair: remove the entire section. Need to verify in code
+that internal IPs are NOT placed on the map -- if there is
+any path that does, that's a Netdata bug to file separately,
+not a user-side anti-pattern.
+
+#### F17 -- Anti-patterns: "Alerting on absolute volume" doesn't apply
+
+> > "Alerting on absolute volume thresholds"
+>
+> Netdata does not support alerting of flows yet. Remove
+> this section.
+
+Repair: remove the entire section.
+
+#### F18 -- Troubleshooting: wrong journalctl namespace
+
+> Troubleshooting page:
+>
+> Netdata logs in namespace 'netdata'. Journalctl needs
+> `--namespace netdata`.
+
+Repair: every `journalctl` invocation must include
+`--namespace netdata`. Grep all docs.
+
+#### F19 -- Troubleshooting: cumulative misconceptions
+
+> This page has a mix of all the above issues: sampling,
+> geoip, etc.
+
+Repair: this is a per-claim sweep informed by the fixes
+above. Every behavioural claim on the troubleshooting page
+must be cited to code or removed.
+
+#### F20 -- Section title: "Enrichment Concepts" wrong
+
+> "Encrichement Concepts" is a wrong title. "Flows
+> Enrichement" is the right one.
+
+Repair: rename the sub-section "Enrichment Concepts" to
+"Flows Enrichment" everywhere it appears: `docs/.map/map.yaml`,
+in any cross-references in pages, and in any sidebar /
+breadcrumb labels that derive from the map.
+
+#### F21 -- Section title: "Sources" wrong
+
+> "Sources" is too generic. "Flow Protocols" is the right
+> one.
+
+Repair: rename the sub-section "Sources" to "Flow Protocols"
+everywhere: `docs/.map/map.yaml`, plus every cross-reference
+that points at `Sources/NetFlow`, `Sources/IPFIX`,
+`Sources/sFlow` (those individual page labels stay).
+
+### Repair plan
+
+**Phase R1 -- Per-finding fixes, one at a time, no batching.**
+For each finding F1..F21 above:
+
+1. Investigate against code -- read the relevant source
+   files; record file:line evidence in this SOW under the
+   per-finding execution-log entry.
+2. Surgical edit -- minimal diff that fixes only that
+   claim.
+3. Grep the rest of the docs for the same pattern; fix
+   every instance with the same surgical care.
+4. Append a dated execution-log entry naming what changed,
+   why, and the code citation.
+
+No finding is "deferred". Every one gets fixed before the
+SOW can re-close.
+
+**Phase R2 -- Per-page audit subagents.**
+
+After Phase R1 completes, spawn one read-only audit
+subagent per page. Each subagent's brief:
+
+- Read the entire page line by line.
+- For every behavioural / configuration / vendor /
+  protocol claim, verify it against the source code at the
+  cited paths in this repository.
+- For every third-party vendor configuration mention
+  (Cisco IOS-XE / IOS-XR, Juniper JunOS, FRR, Palo Alto,
+  Mikrotik, Zyxel, etc.), verify against the upstream
+  vendor's current documentation by web fetch.
+- Flag every claim that cannot be anchored, every
+  generic-flow-monitoring sentence that contradicts how
+  Netdata actually works, and every vendor command that
+  does not exist or has wrong syntax.
+- Output a structured finding list: claim, location,
+  evidence, severity, suggested fix.
+
+The master assistant synthesises the findings, applies
+surgical fixes, and re-spawns the auditor on the same page.
+Iterate until the auditor returns "no findings".
+
+**Pages in scope for Phase R2:**
+- README.md (Overview)
+- installation.md
+- quick-start.md
+- configuration.md
+- field-reference.md
+- retention-querying.md (post-restructure)
+- sizing-capacity.md (post-rewrite)
+- validation.md (post-rewrite)
+- investigation-playbooks.md
+- anti-patterns.md (post-section-removals)
+- troubleshooting.md
+- 7 enrichment pages: ip-intelligence, asn-resolution, bgp-routing, network-identity, static-metadata, classifiers, decapsulation
+- 5 visualisation pages: summary-sankey, time-series, maps-globe, filters-facets, dashboard-cards
+- 14 generated integration cards under `src/crates/netflow-plugin/integrations/` -- each has its own audit pass against `metadata.yaml` and against the upstream vendor documentation for any setup steps.
+
+**Plus a new visualisation/overview page** (per F12) and possibly a new visualisation/querying page if the F12 split lands as proposed.
+
+**Phase R3 -- Final close.**
+
+The SOW reopens with this regression note. The Validation
+section will be appended (not replaced) with the per-finding
+evidence and per-page audit-clean evidence. Status moves
+back to `completed` ONLY when:
+
+- Every F1..F21 has a fix landed and a code citation in the
+  log.
+- Every page has at least one auditor pass returning no
+  findings.
+- A whole-section codex-style review of the final docs
+  returns no new findings.
+
+Then move file back to `done/`.
