@@ -479,11 +479,9 @@ sidebar:
   # Network Flows
   - meta:
       label: Network Flows
+      edit_url: https://github.com/netdata/netdata/edit/master/docs/network-flows/README.md
+      description: Collect, enrich, and visualize NetFlow, IPFIX, and sFlow data with the Netdata Agent.
     items:
-      - meta:
-          label: Overview
-          edit_url: https://github.com/netdata/netdata/edit/master/docs/network-flows/README.md
-          description: Collect, enrich, and visualize NetFlow, IPFIX, and sFlow data with the Netdata Agent.
       - meta:
           label: Installation
           edit_url: https://github.com/netdata/netdata/edit/master/docs/network-flows/installation.md

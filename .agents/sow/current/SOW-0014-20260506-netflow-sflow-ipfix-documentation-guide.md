@@ -1070,3 +1070,46 @@ back to `completed` ONLY when:
   returns no new findings.
 
 Then move file back to `done/`.
+
+### Repair execution log
+
+#### F1 -- 2026-05-07 -- section landing page rendering
+
+Investigation: Compared `# Network Flows` block in
+`docs/.map/map.yaml` with sections that DO render an Overview
+landing page on Learn (e.g. `Collecting Metrics`,
+`Dashboards and Charts`, `Netdata Cloud`). All those carry
+`edit_url:` directly on the section root meta block. Network
+Flows root carried `label:` only; the README.md was instead
+exposed as a CHILD entry labelled "Overview". With no leaf
+content at the root, learn's
+`get_dir_make_file_and_recurse` (`learn/ingest/ingest.py:2333-2510`)
+auto-generates a category-grid index page at the section
+URL, which is what the netlify preview rendered as tiles.
+
+Fix: hoisted `edit_url:` and `description:` to the Network
+Flows root meta block. Removed the now-redundant child
+"Overview" entry pointing to the same README.
+
+Other similar patterns in MY work: Sub-sections "Enrichment
+Concepts" (line 498) and "Visualization" (line 529) within
+Network Flows also lack root `edit_url`. Decision: leave as
+auto-grid for now -- F1 was specifically about the section
+root URL `/docs/network-flows`, and sub-section grids are an
+accepted pattern across the rest of the project (e.g.
+"Systemd Journal Logs" sub-section under Logs). If a future
+finding flags `/docs/network-flows/flows-enrichment` or
+`/docs/network-flows/flow-protocols` as needing real content,
+revisit then.
+
+Patterns OUTSIDE my work (pre-existing): "Logs" section
+root (line 567 in map.yaml) also lacks root `edit_url`. Out
+of scope -- pre-existing structural choice.
+
+Evidence:
+- Pattern reference: `docs/.map/map.yaml:65-68` (Welcome to Netdata),
+  `docs/.map/map.yaml:96-99` (Collecting Metrics).
+- Renderer: `learn/ingest/ingest.py:2333-2510`
+  (`get_dir_make_file_and_recurse`).
+
+Diff: `docs/.map/map.yaml:479-484`.
