@@ -8,11 +8,13 @@
 
 mod cgroups;
 mod increment;
+mod lookup;
 mod string_reverse;
 
 // Re-export all public symbols from submodules.
 pub use cgroups::*;
 pub use increment::*;
+pub use lookup::*;
 pub use string_reverse::*;
 
 // ---------------------------------------------------------------------------
@@ -50,6 +52,31 @@ pub const CODE_HELLO_ACK: u16 = 2;
 pub const METHOD_INCREMENT: u16 = 1;
 pub const METHOD_CGROUPS_SNAPSHOT: u16 = 2;
 pub const METHOD_STRING_REVERSE: u16 = 3;
+pub const METHOD_CGROUPS_LOOKUP: u16 = 4;
+pub const METHOD_APPS_LOOKUP: u16 = 5;
+
+pub const NIPC_UID_UNSET: u32 = u32::MAX;
+
+pub const ORCHESTRATOR_UNKNOWN: u16 = 0;
+pub const ORCHESTRATOR_SYSTEMD: u16 = 1;
+pub const ORCHESTRATOR_DOCKER: u16 = 2;
+pub const ORCHESTRATOR_K8S: u16 = 3;
+pub const ORCHESTRATOR_KVM: u16 = 4;
+pub const ORCHESTRATOR_LXC: u16 = 5;
+pub const ORCHESTRATOR_PODMAN: u16 = 6;
+pub const ORCHESTRATOR_NSPAWN: u16 = 7;
+
+pub const CGROUP_LOOKUP_KNOWN: u16 = 0;
+pub const CGROUP_LOOKUP_UNKNOWN_RETRY_LATER: u16 = 1;
+pub const CGROUP_LOOKUP_UNKNOWN_PERMANENT: u16 = 2;
+
+pub const PID_LOOKUP_KNOWN: u16 = 0;
+pub const PID_LOOKUP_UNKNOWN: u16 = 1;
+
+pub const APPS_CGROUP_KNOWN: u16 = 0;
+pub const APPS_CGROUP_UNKNOWN_RETRY_LATER: u16 = 1;
+pub const APPS_CGROUP_UNKNOWN_PERMANENT: u16 = 2;
+pub const APPS_CGROUP_HOST_ROOT: u16 = 3;
 
 // Profile bits
 pub const PROFILE_BASELINE: u32 = 0x01;
@@ -1769,6 +1796,66 @@ mod tests {
                         let _ = view.item(i);
                     }
                     // Out-of-bounds must not panic.
+                    let _ = view.item(view.item_count);
+                }
+            }
+
+            #[test]
+            fn decode_cgroups_lookup_request_never_panics(data: Vec<u8>) {
+                let result = CgroupsLookupRequestView::decode(&data);
+                if let Ok(view) = result {
+                    let limit = view.item_count.min(64);
+                    for i in 0..limit {
+                        let _ = view.item(i);
+                    }
+                    let _ = view.item(view.item_count);
+                }
+            }
+
+            #[test]
+            fn decode_cgroups_lookup_response_never_panics(data: Vec<u8>) {
+                let result = CgroupsLookupResponseView::decode(&data);
+                if let Ok(view) = result {
+                    let limit = view.item_count.min(64);
+                    for i in 0..limit {
+                        if let Ok(item) = view.item(i) {
+                            let label_limit = item.label_count.min(64);
+                            for j in 0..label_limit {
+                                let _ = item.label(j.into());
+                            }
+                            let _ = item.label(item.label_count.into());
+                        }
+                    }
+                    let _ = view.item(view.item_count);
+                }
+            }
+
+            #[test]
+            fn decode_apps_lookup_request_never_panics(data: Vec<u8>) {
+                let result = AppsLookupRequestView::decode(&data);
+                if let Ok(view) = result {
+                    let limit = view.item_count.min(64);
+                    for i in 0..limit {
+                        let _ = view.item(i);
+                    }
+                    let _ = view.item(view.item_count);
+                }
+            }
+
+            #[test]
+            fn decode_apps_lookup_response_never_panics(data: Vec<u8>) {
+                let result = AppsLookupResponseView::decode(&data);
+                if let Ok(view) = result {
+                    let limit = view.item_count.min(64);
+                    for i in 0..limit {
+                        if let Ok(item) = view.item(i) {
+                            let label_limit = item.label_count.min(64);
+                            for j in 0..label_limit {
+                                let _ = item.label(j.into());
+                            }
+                            let _ = item.label(item.label_count.into());
+                        }
+                    }
                     let _ = view.item(view.item_count);
                 }
             }

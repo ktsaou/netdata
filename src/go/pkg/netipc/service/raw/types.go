@@ -52,7 +52,25 @@ type StringReverseHandler func(string) (string, bool)
 // SnapshotHandler serves a single CGROUPS_SNAPSHOT service kind.
 type SnapshotHandler func(*protocol.CgroupsRequest, *protocol.CgroupsBuilder) bool
 
+// CgroupsLookupHandler serves a single CGROUPS_LOOKUP service kind.
+type CgroupsLookupHandler func(*protocol.CgroupsLookupRequestView, *protocol.CgroupsLookupBuilder) bool
+
+// AppsLookupHandler serves a single APPS_LOOKUP service kind.
+type AppsLookupHandler func(*protocol.AppsLookupRequestView, *protocol.AppsLookupBuilder) bool
+
 var errHandlerFailed = errors.New("dispatch handler failed")
+
+func lookupMinRequired(hdrSize int, itemCount uint32) (int, error) {
+	if hdrSize < 0 {
+		return 0, protocol.ErrOverflow
+	}
+	dirSize64 := uint64(itemCount) * uint64(protocol.LookupDirEntrySize)
+	min64 := uint64(hdrSize) + dirSize64
+	if min64 > uint64(int(^uint(0)>>1)) {
+		return 0, protocol.ErrOverflow
+	}
+	return int(min64), nil
+}
 
 // DispatchHandler validates/decodes a single service kind request and writes
 // the matching response into responseBuf.
@@ -131,6 +149,76 @@ func SnapshotDispatch(handle SnapshotHandler, maxItems uint32) DispatchHandler {
 		builder := protocol.NewCgroupsBuilder(responseBuf, itemBudget, 0, 0)
 		if !handle(&req, builder) {
 			return 0, errHandlerFailed
+		}
+		n := builder.Finish()
+		if n == 0 {
+			return 0, protocol.ErrOverflow
+		}
+		return n, nil
+	}
+}
+
+// CgroupsLookupDispatch adapts a typed cgroups lookup handler to the raw dispatch shape.
+func CgroupsLookupDispatch(handle CgroupsLookupHandler) DispatchHandler {
+	if handle == nil {
+		return nil
+	}
+	return func(request []byte, responseBuf []byte) (int, error) {
+		req, err := protocol.DecodeCgroupsLookupRequest(request)
+		if err != nil {
+			return 0, err
+		}
+		minRequired, err := lookupMinRequired(protocol.CgroupsLookupRespHdr, req.ItemCount)
+		if err != nil {
+			return 0, err
+		}
+		if len(responseBuf) < minRequired {
+			return 0, protocol.ErrOverflow
+		}
+		builder := protocol.NewCgroupsLookupBuilder(responseBuf, req.ItemCount, 0)
+		if !handle(req, builder) {
+			return 0, errHandlerFailed
+		}
+		if builder.Error() != nil {
+			return 0, builder.Error()
+		}
+		if builder.ItemCount() != req.ItemCount {
+			return 0, protocol.ErrBadItemCount
+		}
+		n := builder.Finish()
+		if n == 0 {
+			return 0, protocol.ErrOverflow
+		}
+		return n, nil
+	}
+}
+
+// AppsLookupDispatch adapts a typed apps lookup handler to the raw dispatch shape.
+func AppsLookupDispatch(handle AppsLookupHandler) DispatchHandler {
+	if handle == nil {
+		return nil
+	}
+	return func(request []byte, responseBuf []byte) (int, error) {
+		req, err := protocol.DecodeAppsLookupRequest(request)
+		if err != nil {
+			return 0, err
+		}
+		minRequired, err := lookupMinRequired(protocol.AppsLookupRespHdr, req.ItemCount)
+		if err != nil {
+			return 0, err
+		}
+		if len(responseBuf) < minRequired {
+			return 0, protocol.ErrOverflow
+		}
+		builder := protocol.NewAppsLookupBuilder(responseBuf, req.ItemCount, 0)
+		if !handle(req, builder) {
+			return 0, errHandlerFailed
+		}
+		if builder.Error() != nil {
+			return 0, builder.Error()
+		}
+		if builder.ItemCount() != req.ItemCount {
+			return 0, protocol.ErrBadItemCount
 		}
 		n := builder.Finish()
 		if n == 0 {

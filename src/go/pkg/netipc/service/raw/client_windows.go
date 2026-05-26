@@ -63,6 +63,16 @@ func NewSnapshotClient(runDir, serviceName string, config windows.ClientConfig) 
 	return newClient(runDir, serviceName, config, protocol.MethodCgroupsSnapshot)
 }
 
+// NewCgroupsLookupClient creates a raw client bound to the cgroups-lookup service kind.
+func NewCgroupsLookupClient(runDir, serviceName string, config windows.ClientConfig) *Client {
+	return newClient(runDir, serviceName, config, protocol.MethodCgroupsLookup)
+}
+
+// NewAppsLookupClient creates a raw client bound to the apps-lookup service kind.
+func NewAppsLookupClient(runDir, serviceName string, config windows.ClientConfig) *Client {
+	return newClient(runDir, serviceName, config, protocol.MethodAppsLookup)
+}
+
 // NewIncrementClient creates a raw client bound to the increment service kind.
 func NewIncrementClient(runDir, serviceName string, config windows.ClientConfig) *Client {
 	return newClient(runDir, serviceName, config, protocol.MethodIncrement)
@@ -179,6 +189,9 @@ func (c *Client) callWithRetry(attempt func() error) error {
 		return protocol.ErrBadLayout
 	}
 
+	// Cap overflow-driven retries: payloads grow by powers of 2, so 8
+	// retries allows ~256x growth from the initial negotiated size.
+	overflowRetries := 0
 	for {
 		prevReq := c.sessionMaxRequestPayloadBytes()
 		prevResp := c.sessionMaxResponsePayloadBytes()
@@ -228,6 +241,14 @@ func (c *Client) callWithRetry(attempt func() error) error {
 			c.sessionMaxResponsePayloadBytes() <= prevResp &&
 			c.config.MaxRequestPayloadBytes <= prevCfgReq &&
 			c.config.MaxResponsePayloadBytes <= prevCfgResp {
+			c.disconnect()
+			c.state = StateBroken
+			c.errorCount++
+			return firstErr
+		}
+
+		overflowRetries++
+		if overflowRetries >= 8 {
 			c.disconnect()
 			c.state = StateBroken
 			c.errorCount++

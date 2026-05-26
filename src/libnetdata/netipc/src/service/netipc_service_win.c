@@ -27,6 +27,8 @@
 #define NIPC_CLIENT_BUF_DEFAULT 65536u
 #define CLIENT_SHM_ATTACH_RETRY_INTERVAL_MS 5u
 #define CLIENT_SHM_ATTACH_RETRY_TIMEOUT_MS 5000u
+#define CLIENT_CALL_RECONNECT_RETRY_INTERVAL_MS 5u
+#define CLIENT_CALL_RECONNECT_RETRIES 20u
 
 enum {
     NIPC_WIN_SERVICE_TEST_FAULT_CLIENT_RESPONSE_BUF_REALLOC_INTERNAL = 1,
@@ -181,6 +183,11 @@ static bool header_payload_len_u32(uint32_t payload_len, uint32_t *msg_len_out)
 
     *msg_len_out = payload_len + NIPC_HEADER_LEN;
     return true;
+}
+
+static bool service_mul_would_overflow(size_t count, size_t size)
+{
+    return size != 0 && count > SIZE_MAX / size;
 }
 
 static void client_note_request_capacity(nipc_client_ctx_t *ctx, uint32_t payload_len)
@@ -394,6 +401,22 @@ static nipc_client_state_t client_try_connect(nipc_client_ctx_t *ctx)
     return NIPC_CLIENT_READY;
 }
 
+static bool client_reconnect_for_call(nipc_client_ctx_t *ctx)
+{
+    for (uint32_t i = 0; i < CLIENT_CALL_RECONNECT_RETRIES; i++) {
+        ctx->state = client_try_connect(ctx);
+        if (ctx->state == NIPC_CLIENT_READY)
+            return true;
+        if (ctx->state == NIPC_CLIENT_AUTH_FAILED ||
+            ctx->state == NIPC_CLIENT_INCOMPATIBLE)
+            return false;
+        if (i + 1u < CLIENT_CALL_RECONNECT_RETRIES)
+            Sleep(CLIENT_CALL_RECONNECT_RETRY_INTERVAL_MS);
+    }
+
+    return false;
+}
+
 /* ------------------------------------------------------------------ */
 /*  Internal: send/receive via the active transport                    */
 /* ------------------------------------------------------------------ */
@@ -578,13 +601,13 @@ static nipc_error_t call_with_retry(nipc_client_ctx_t *ctx,
         if (err != NIPC_ERR_OVERFLOW) {
             client_disconnect(ctx);
             ctx->state = NIPC_CLIENT_BROKEN;
-            ctx->state = client_try_connect(ctx);
-            if (ctx->state != NIPC_CLIENT_READY) {
+            if (!client_reconnect_for_call(ctx)) {
                 ctx->error_count++;
                 return err;
             }
 
             ctx->reconnect_count++;
+            Sleep(CLIENT_CALL_RECONNECT_RETRY_INTERVAL_MS);
             err = attempt(ctx, state);
             if (err == NIPC_OK) {
                 ctx->call_count++;
@@ -599,8 +622,7 @@ static nipc_error_t call_with_retry(nipc_client_ctx_t *ctx,
 
         client_disconnect(ctx);
         ctx->state = NIPC_CLIENT_BROKEN;
-        ctx->state = client_try_connect(ctx);
-        if (ctx->state != NIPC_CLIENT_READY) {
+        if (!client_reconnect_for_call(ctx)) {
             ctx->error_count++;
             return err;
         }
@@ -622,6 +644,7 @@ static nipc_error_t call_with_retry(nipc_client_ctx_t *ctx,
             ctx->error_count++;
             return err;
         }
+        Sleep(CLIENT_CALL_RECONNECT_RETRY_INTERVAL_MS);
     }
 }
 
@@ -632,6 +655,53 @@ static nipc_error_t call_with_retry(nipc_client_ctx_t *ctx,
 typedef struct {
     nipc_cgroups_resp_view_t *view_out;
 } cgroups_call_state_t;
+
+typedef struct {
+    const nipc_str_view_t *paths;
+    uint32_t path_count;
+    nipc_cgroups_lookup_resp_view_t *view_out;
+} cgroups_lookup_call_state_t;
+
+typedef struct {
+    const uint32_t *pids;
+    uint32_t pid_count;
+    nipc_apps_lookup_resp_view_t *view_out;
+} apps_lookup_call_state_t;
+
+static bool cgroups_lookup_request_size(const nipc_str_view_t *paths,
+                                        uint32_t path_count,
+                                        size_t *size_out)
+{
+    if (service_mul_would_overflow((size_t)path_count, NIPC_LOOKUP_DIR_ENTRY_SIZE))
+        return false;
+
+    size_t data = NIPC_CGROUPS_LOOKUP_REQ_HDR_SIZE +
+                  (size_t)path_count * NIPC_LOOKUP_DIR_ENTRY_SIZE;
+    for (uint32_t i = 0; i < path_count; i++) {
+        size_t aligned = nipc_align8(data);
+        if (aligned < data)
+            return false;
+        if (!paths || paths[i].len > SIZE_MAX - aligned - 1u)
+            return false;
+        data = aligned + (size_t)paths[i].len + 1u;
+    }
+    *size_out = data;
+    return true;
+}
+
+static bool apps_lookup_request_size(uint32_t pid_count, size_t *size_out)
+{
+    if (service_mul_would_overflow((size_t)pid_count, NIPC_LOOKUP_DIR_ENTRY_SIZE) ||
+        service_mul_would_overflow((size_t)pid_count, NIPC_APPS_LOOKUP_KEY_SIZE))
+        return false;
+    size_t dir = (size_t)pid_count * NIPC_LOOKUP_DIR_ENTRY_SIZE;
+    size_t keys = (size_t)pid_count * NIPC_APPS_LOOKUP_KEY_SIZE;
+    if (NIPC_APPS_LOOKUP_REQ_HDR_SIZE > SIZE_MAX - dir ||
+        NIPC_APPS_LOOKUP_REQ_HDR_SIZE + dir > SIZE_MAX - keys)
+        return false;
+    *size_out = NIPC_APPS_LOOKUP_REQ_HDR_SIZE + dir + keys;
+    return true;
+}
 
 static nipc_error_t do_cgroups_attempt(nipc_client_ctx_t *ctx, void *state)
 {
@@ -652,6 +722,101 @@ static nipc_error_t do_cgroups_attempt(nipc_client_ctx_t *ctx, void *state)
         return err;
 
     return nipc_cgroups_resp_decode(payload, payload_len, s->view_out);
+}
+
+static nipc_error_t do_cgroups_lookup_attempt(nipc_client_ctx_t *ctx, void *state)
+{
+    cgroups_lookup_call_state_t *s = (cgroups_lookup_call_state_t *)state;
+
+    size_t req_size;
+    if (!cgroups_lookup_request_size(s->paths, s->path_count, &req_size))
+        return NIPC_ERR_OVERFLOW;
+    if (req_size > UINT32_MAX)
+        return NIPC_ERR_OVERFLOW;
+    if (ctx->session.max_request_payload_bytes > 0 &&
+        req_size > ctx->session.max_request_payload_bytes) {
+        client_note_request_capacity(ctx, (uint32_t)req_size);
+        return NIPC_ERR_OVERFLOW;
+    }
+    if (!ensure_buffer(&ctx->send_buf, &ctx->send_buf_size, req_size,
+                       NIPC_WIN_SERVICE_TEST_FAULT_CLIENT_SEND_BUF_REALLOC_INTERNAL))
+        return NIPC_ERR_OVERFLOW;
+
+    size_t req_len = nipc_cgroups_lookup_req_encode(s->paths, s->path_count,
+                                                    ctx->send_buf, ctx->send_buf_size);
+    if (req_len == 0)
+        return NIPC_ERR_BAD_LAYOUT;
+
+    const void *payload;
+    size_t payload_len;
+    nipc_error_t err = do_raw_call(ctx, NIPC_METHOD_CGROUPS_LOOKUP,
+                                   ctx->send_buf, req_len,
+                                   &payload, &payload_len);
+    if (err != NIPC_OK)
+        return err;
+
+    err = nipc_cgroups_lookup_resp_decode(payload, payload_len, s->view_out);
+    if (err != NIPC_OK)
+        return err;
+    if (s->view_out->item_count != s->path_count)
+        return NIPC_ERR_BAD_ITEM_COUNT;
+    for (uint32_t i = 0; i < s->path_count; i++) {
+        nipc_cgroups_lookup_item_view_t item;
+        err = nipc_cgroups_lookup_resp_item(s->view_out, i, &item);
+        if (err != NIPC_OK)
+            return err;
+        if (item.path.len != s->paths[i].len ||
+            memcmp(item.path.ptr, s->paths[i].ptr, item.path.len) != 0)
+            return NIPC_ERR_BAD_LAYOUT;
+    }
+    return NIPC_OK;
+}
+
+static nipc_error_t do_apps_lookup_attempt(nipc_client_ctx_t *ctx, void *state)
+{
+    apps_lookup_call_state_t *s = (apps_lookup_call_state_t *)state;
+
+    size_t req_size;
+    if (!apps_lookup_request_size(s->pid_count, &req_size))
+        return NIPC_ERR_OVERFLOW;
+    if (req_size > UINT32_MAX)
+        return NIPC_ERR_OVERFLOW;
+    if (ctx->session.max_request_payload_bytes > 0 &&
+        req_size > ctx->session.max_request_payload_bytes) {
+        client_note_request_capacity(ctx, (uint32_t)req_size);
+        return NIPC_ERR_OVERFLOW;
+    }
+    if (!ensure_buffer(&ctx->send_buf, &ctx->send_buf_size, req_size,
+                       NIPC_WIN_SERVICE_TEST_FAULT_CLIENT_SEND_BUF_REALLOC_INTERNAL))
+        return NIPC_ERR_OVERFLOW;
+
+    size_t req_len = nipc_apps_lookup_req_encode(s->pids, s->pid_count,
+                                                 ctx->send_buf, ctx->send_buf_size);
+    if (req_len == 0)
+        return NIPC_ERR_BAD_LAYOUT;
+
+    const void *payload;
+    size_t payload_len;
+    nipc_error_t err = do_raw_call(ctx, NIPC_METHOD_APPS_LOOKUP,
+                                   ctx->send_buf, req_len,
+                                   &payload, &payload_len);
+    if (err != NIPC_OK)
+        return err;
+
+    err = nipc_apps_lookup_resp_decode(payload, payload_len, s->view_out);
+    if (err != NIPC_OK)
+        return err;
+    if (s->view_out->item_count != s->pid_count)
+        return NIPC_ERR_BAD_ITEM_COUNT;
+    for (uint32_t i = 0; i < s->pid_count; i++) {
+        nipc_apps_lookup_item_view_t item;
+        err = nipc_apps_lookup_resp_item(s->view_out, i, &item);
+        if (err != NIPC_OK)
+            return err;
+        if (item.pid != s->pids[i])
+            return NIPC_ERR_BAD_LAYOUT;
+    }
+    return NIPC_OK;
 }
 
 /* ------------------------------------------------------------------ */
@@ -757,6 +922,34 @@ nipc_error_t nipc_client_call_cgroups_snapshot(
         .view_out          = view_out,
     };
     return call_with_retry(ctx, do_cgroups_attempt, &state);
+}
+
+nipc_error_t nipc_client_call_cgroups_lookup(
+    nipc_client_ctx_t *ctx,
+    const nipc_str_view_t *paths,
+    uint32_t path_count,
+    nipc_cgroups_lookup_resp_view_t *view_out)
+{
+    cgroups_lookup_call_state_t state = {
+        .paths = paths,
+        .path_count = path_count,
+        .view_out = view_out,
+    };
+    return call_with_retry(ctx, do_cgroups_lookup_attempt, &state);
+}
+
+nipc_error_t nipc_client_call_apps_lookup(
+    nipc_client_ctx_t *ctx,
+    const uint32_t *pids,
+    uint32_t pid_count,
+    nipc_apps_lookup_resp_view_t *view_out)
+{
+    apps_lookup_call_state_t state = {
+        .pids = pids,
+        .pid_count = pid_count,
+        .view_out = view_out,
+    };
+    return call_with_retry(ctx, do_apps_lookup_attempt, &state);
 }
 
 /* ------------------------------------------------------------------ */
@@ -1029,17 +1222,38 @@ static nipc_error_t server_typed_dispatch(void *user,
                                           size_t *response_len_out)
 {
     nipc_managed_server_t *server = (nipc_managed_server_t *)user;
-    nipc_cgroups_service_handler_t *service_handler = &server->service_handler;
     (void)request_hdr;
 
-    if (!service_handler->handle)
+    switch (server->expected_method_code) {
+    case NIPC_METHOD_CGROUPS_SNAPSHOT: {
+        nipc_cgroups_service_handler_t *service_handler = &server->service_handler;
+        if (!service_handler->handle)
+            return NIPC_ERR_HANDLER_FAILED;
+        return nipc_dispatch_cgroups_snapshot(
+            request_payload, request_len,
+            response_buf, response_buf_size, response_len_out,
+            server_snapshot_max_items(response_buf_size, service_handler),
+            service_handler->handle, service_handler->user);
+    }
+    case NIPC_METHOD_CGROUPS_LOOKUP:
+        if (!server->cgroups_lookup_handler.handle)
+            return NIPC_ERR_HANDLER_FAILED;
+        return nipc_dispatch_cgroups_lookup(
+            request_payload, request_len,
+            response_buf, response_buf_size, response_len_out,
+            server->cgroups_lookup_handler.handle,
+            server->cgroups_lookup_handler.user);
+    case NIPC_METHOD_APPS_LOOKUP:
+        if (!server->apps_lookup_handler.handle)
+            return NIPC_ERR_HANDLER_FAILED;
+        return nipc_dispatch_apps_lookup(
+            request_payload, request_len,
+            response_buf, response_buf_size, response_len_out,
+            server->apps_lookup_handler.handle,
+            server->apps_lookup_handler.user);
+    default:
         return NIPC_ERR_HANDLER_FAILED;
-
-    return nipc_dispatch_cgroups_snapshot(
-        request_payload, request_len,
-        response_buf, response_buf_size, response_len_out,
-        server_snapshot_max_items(response_buf_size, service_handler),
-        service_handler->handle, service_handler->user);
+    }
 }
 
 /* ------------------------------------------------------------------ */
@@ -1352,6 +1566,62 @@ nipc_error_t nipc_server_init_typed(nipc_managed_server_t *server,
         return err;
 
     server->service_handler = *service_handler;
+    return NIPC_OK;
+}
+
+nipc_error_t nipc_server_init_cgroups_lookup(
+    nipc_managed_server_t *server,
+    const char *run_dir,
+    const char *service_name,
+    const nipc_server_config_t *config,
+    int worker_count,
+    const nipc_cgroups_lookup_service_handler_t *service_handler)
+{
+    if (!service_handler)
+        return NIPC_ERR_BAD_LAYOUT;
+
+    nipc_np_server_config_t typed_cfg = service_server_config_to_transport(config);
+    if (typed_cfg.max_request_payload_bytes == 0)
+        typed_cfg.max_request_payload_bytes = cgroups_response_payload_default();
+    if (typed_cfg.max_response_payload_bytes == 0)
+        typed_cfg.max_response_payload_bytes = cgroups_response_payload_default();
+
+    nipc_error_t err = server_init_raw(server, run_dir, service_name,
+                                       &typed_cfg, worker_count,
+                                       NIPC_METHOD_CGROUPS_LOOKUP,
+                                       server_typed_dispatch, server);
+    if (err != NIPC_OK)
+        return err;
+
+    server->cgroups_lookup_handler = *service_handler;
+    return NIPC_OK;
+}
+
+nipc_error_t nipc_server_init_apps_lookup(
+    nipc_managed_server_t *server,
+    const char *run_dir,
+    const char *service_name,
+    const nipc_server_config_t *config,
+    int worker_count,
+    const nipc_apps_lookup_service_handler_t *service_handler)
+{
+    if (!service_handler)
+        return NIPC_ERR_BAD_LAYOUT;
+
+    nipc_np_server_config_t typed_cfg = service_server_config_to_transport(config);
+    if (typed_cfg.max_request_payload_bytes == 0)
+        typed_cfg.max_request_payload_bytes = cgroups_response_payload_default();
+    if (typed_cfg.max_response_payload_bytes == 0)
+        typed_cfg.max_response_payload_bytes = cgroups_response_payload_default();
+
+    nipc_error_t err = server_init_raw(server, run_dir, service_name,
+                                       &typed_cfg, worker_count,
+                                       NIPC_METHOD_APPS_LOOKUP,
+                                       server_typed_dispatch, server);
+    if (err != NIPC_OK)
+        return err;
+
+    server->apps_lookup_handler = *service_handler;
     return NIPC_OK;
 }
 

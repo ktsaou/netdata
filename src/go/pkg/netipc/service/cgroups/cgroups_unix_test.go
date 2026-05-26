@@ -201,3 +201,20 @@ func TestClientNotReadyReturnsErrorUnix(t *testing.T) {
 		t.Fatalf("CallSnapshot err = %v, want %v", err, protocol.ErrBadLayout)
 	}
 }
+
+func TestClientStatusAndServerWorkersUnix(t *testing.T) {
+	service := uniqueUnixService("status_workers")
+	cleanupUnix(service)
+
+	client := NewClient(testRunDirUnix, service, testUnixClientConfig())
+	defer client.Close()
+	if status := client.Status(); status.State == 0 && status.ConnectCount != 0 {
+		t.Fatalf("unexpected initial status: %+v", status)
+	}
+
+	server := NewServerWithWorkers(testRunDirUnix, service, testUnixServerConfig(), testUnixHandler(), 2)
+	if server == nil || server.inner == nil {
+		t.Fatal("NewServerWithWorkers returned nil server")
+	}
+	server.Stop()
+}

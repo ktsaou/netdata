@@ -63,6 +63,16 @@ func NewSnapshotClient(runDir, serviceName string, config posix.ClientConfig) *C
 	return newClient(runDir, serviceName, config, protocol.MethodCgroupsSnapshot)
 }
 
+// NewCgroupsLookupClient creates a raw client bound to the cgroups-lookup service kind.
+func NewCgroupsLookupClient(runDir, serviceName string, config posix.ClientConfig) *Client {
+	return newClient(runDir, serviceName, config, protocol.MethodCgroupsLookup)
+}
+
+// NewAppsLookupClient creates a raw client bound to the apps-lookup service kind.
+func NewAppsLookupClient(runDir, serviceName string, config posix.ClientConfig) *Client {
+	return newClient(runDir, serviceName, config, protocol.MethodAppsLookup)
+}
+
 // NewIncrementClient creates a raw client bound to the increment service kind.
 func NewIncrementClient(runDir, serviceName string, config posix.ClientConfig) *Client {
 	return newClient(runDir, serviceName, config, protocol.MethodIncrement)
