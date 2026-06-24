@@ -57,6 +57,14 @@ stock conf example and the documented default value).
   setup prose, overview text, categories, and troubleshooting do not
   trigger touched-collector taxonomy coverage by themselves, although
   the global taxonomy validation still runs.
+- **Go collector DynCfg schema tests** are wired into the normal
+  `src/go` Go test workflow through
+  `src/go/plugin/go.d/collector/init_test.go`. They compile every
+  Go collector `config_schema.json` and enforce that the
+  DynCfg-managed job `name` field is accepted by closed top-level
+  schemas and by schemas whose default-derived payload is otherwise
+  valid. They do NOT cross-check config option names against
+  `metadata.yaml`, stock `.conf`, or runtime `Config` structs.
 - **`integrations/check_collector_metadata.py`** is broken
   (see `gotchas.md` for details). Its imports refer to symbols that no longer
   exist in `gen_integrations.py`. ImportError on first run. NOT invoked from any
