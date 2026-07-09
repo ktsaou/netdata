@@ -19,12 +19,9 @@ the same analysis from scratch.
 
 ## Catalog
 
-(empty -- entries grow as assistants encounter
-not-yet-documented questions)
-
 | Topic | Slug | Notes |
 |---|---|---|
-| -- | -- | -- |
+| Windows memory-corruption signatures | find-windows-memory-corruption-signatures | Corruption-proxy fatal functions, per-OS rate comparison, stack clustering, deployed-version line mapping. |
 
 ## How to add a how-to
 
