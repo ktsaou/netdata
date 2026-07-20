@@ -1154,9 +1154,9 @@ paths:
           schema:
             type: string
             enum:
-              - yes
-              - no
-            default: no
+              - "yes"
+              - "no"
+            default: "no"
         - name: timestamps
           in: query
           description: |
@@ -1165,9 +1165,9 @@ paths:
           schema:
             type: string
             enum:
-              - yes
-              - no
-            default: yes
+              - "yes"
+              - "no"
+            default: "yes"
         - name: names
           in: query
           description: |
@@ -1176,9 +1176,9 @@ paths:
           schema:
             type: string
             enum:
-              - yes
-              - no
-            default: yes
+              - "yes"
+              - "no"
+            default: "yes"
         - name: oldunits
           in: query
           description: |
@@ -1187,9 +1187,9 @@ paths:
           schema:
             type: string
             enum:
-              - yes
-              - no
-            default: yes
+              - "yes"
+              - "no"
+            default: "yes"
         - name: hideunits
           in: query
           description: |
@@ -1198,9 +1198,9 @@ paths:
           schema:
             type: string
             enum:
-              - yes
-              - no
-            default: yes
+              - "yes"
+              - "no"
+            default: "yes"
         - name: server
           in: query
           description: |
@@ -2386,7 +2386,7 @@ paths:
               value: "disk.*"
               summary: All disk-related alerts
             critical_systems:
-              value: "system.* disk.* net.*"
+              value: "system.*|disk.*|net.*"
               summary: System, disk, and network alerts
         - name: contexts
           in: query
@@ -6776,7 +6776,7 @@ paths:
           required: false
           schema:
             type: string
-            enum: [on, off, true, false, yes, no]
+            enum: ["on", "off", "true", "false", "yes", "no"]
           description: |
             **Whether to enable or disable bearer token authentication requirement.**
 
@@ -7830,7 +7830,7 @@ paths:
           required: false
           schema:
             type: string
-            enum: [on, off, true, false, yes, no]
+            enum: ["on", "off", "true", "false", "yes", "no"]
           description: Enable or disable bearer protection
         - name: claim_id
           in: query
