@@ -14,6 +14,7 @@ void unittest_storage_engine_store_metric(
     uint16_t count,
     uint16_t anomaly_count,
     SN_FLAGS flags);
+void unittest_storage_engine_store_flush(STORAGE_COLLECT_HANDLE *sch);
 
 void unittest_storage_engine_query_init(
     STORAGE_ENGINE_BACKEND seb,

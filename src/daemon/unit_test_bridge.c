@@ -15,6 +15,10 @@ NOINLINE void unittest_storage_engine_store_metric(
         sch, point_in_time_ut, n, min_value, max_value, count, anomaly_count, flags);
 }
 
+NOINLINE void unittest_storage_engine_store_flush(STORAGE_COLLECT_HANDLE *sch) {
+    storage_engine_store_flush(sch);
+}
+
 NOINLINE void unittest_storage_engine_query_init(
     STORAGE_ENGINE_BACKEND seb,
     STORAGE_METRIC_HANDLE *smh,
