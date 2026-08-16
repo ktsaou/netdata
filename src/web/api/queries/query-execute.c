@@ -84,14 +84,12 @@ static NETDATA_DOUBLE query_point_total_projection(
             &(point), (now) - (view_update_every), (now));                           \
 } while(0)
 
-#define query_add_point_to_group(r, point, ops, add_flush, now_end_time, source_end_time) do { \
+#define query_add_point_to_group(r, point, ops, add_flush, sample_in_row) do { \
     if(likely(netdata_double_isnumber((point).value))) {                \
         if(likely(fpclassify((point).value) != FP_ZERO))                \
             (ops)->group_points_non_zero++;                             \
                                                                         \
-        time_t _row_start = (now_end_time) - (ops)->view_update_every;  \
-        bool _sample_in_row = (source_end_time) > _row_start &&         \
-                              (source_end_time) <= (now_end_time);       \
+        bool _sample_in_row = (sample_in_row);                          \
                                                                         \
         if(unlikely((point).sp.flags & SN_FLAG_RESET) && _sample_in_row) \
             (ops)->group_value_flags |= RRDR_VALUE_RESET;               \
@@ -403,8 +401,7 @@ NOT_INLINE_HOT void rrd2rrdr_query_execute(RRDR *r, size_t dim_id_in_rrdr, QUERY
                 if(likely(new_point.sp.end_time_s > now_start_time)) { // likely to favor tier0
                     // this db point ends after our now_start time
 
-                    query_add_point_to_group(
-                        r, new_point, ops, add_flush, now_end_time, new_point.sp.end_time_s);
+                    query_add_point_to_group(r, new_point, ops, add_flush, true);
                     new_point.added = true;
                 }
                 else {
@@ -533,7 +530,8 @@ NOT_INLINE_HOT void rrd2rrdr_query_execute(RRDR *r, size_t dim_id_in_rrdr, QUERY
             }
 
             query_add_point_to_group(
-                r, current_point, ops, add_flush, now_end_time, source_end_time);
+                r, current_point, ops, add_flush,
+                source_end_time > now_end_time - ops->view_update_every && source_end_time <= now_end_time);
 
             rrdr_line = rrdr_line_init(r, now_end_time, rrdr_line);
             size_t rrdr_o_v_index = rrdr_line * r->d + dim_id_in_rrdr;
