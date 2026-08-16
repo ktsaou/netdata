@@ -84,6 +84,21 @@ static NETDATA_DOUBLE query_point_total_projection(
             &(point), (now) - (view_update_every), (now));                           \
 } while(0)
 
+// Numeric values are owned by time grouping; row metadata only needs contributor evidence.
+#define query_merge_evidence_to_group(ops, sp) do {                      \
+    (ops)->group_point.count += (sp).count;                              \
+    (ops)->group_point.anomaly_count += (sp).anomaly_count;              \
+    (ops)->group_point.gap_count += (sp).gap_count;                      \
+} while(0)
+
+#define query_merge_point_evidence(point, ops, sample_in_row) do {       \
+    bool _evidence_sample_in_row = (sample_in_row);                      \
+    if((point).tier != 0 || _evidence_sample_in_row)                     \
+        query_merge_evidence_to_group((ops), (point).sp);                \
+    if(!(point).added)                                                   \
+        storage_point_merge_to((ops)->query_point, (point).sp);          \
+} while(0)
+
 #define query_add_point_to_group(r, point, ops, add_flush, sample_in_row) do { \
     if(likely(netdata_double_isnumber((point).value))) {                \
         if(likely(fpclassify((point).value) != FP_ZERO))                \
@@ -96,11 +111,10 @@ static NETDATA_DOUBLE query_point_total_projection(
                                                                         \
         time_grouping_add(r, (point).value, add_flush);                  \
                                                                         \
-        if((point).tier != 0 || _sample_in_row)                          \
-            storage_point_merge_to((ops)->group_point, (point).sp);     \
-        if(!(point).added)                                              \
-            storage_point_merge_to((ops)->query_point, (point).sp);     \
+        query_merge_point_evidence(point, ops, _sample_in_row);         \
     }                                                                   \
+    else if(unlikely(storage_point_is_gap((point).sp)))                 \
+        query_merge_point_evidence(point, ops, sample_in_row);          \
                                                                         \
     (ops)->group_points_added++;                                        \
 } while(0)
@@ -165,7 +179,7 @@ NOT_INLINE_HOT void rrd2rrdr_query_execute(RRDR *r, size_t dim_id_in_rrdr, QUERY
     }
 
     const RRDR_TIME_GROUPING add_flush = r->time_grouping.add_flush;
-    ops->group_point = STORAGE_POINT_UNSET;
+    ops->group_point = (QUERY_ROW_EVIDENCE){ 0 };
     ops->query_point = STORAGE_POINT_UNSET;
 
     RRDR_OPTIONS options = qt->window.options;
@@ -202,6 +216,12 @@ NOT_INLINE_HOT void rrd2rrdr_query_execute(RRDR *r, size_t dim_id_in_rrdr, QUERY
     // The main loop, based on the query granularity we need
     for( ; points_added < points_wanted && query_is_finished_counter <= 10 ;
         now_start_time = now_end_time, now_end_time += ops->view_update_every) {
+
+        // A gap projected before its timestamp still belongs to the row containing that timestamp.
+        if(unlikely(new_point.added && new_point.tier == 0 && storage_point_is_gap(new_point.sp) &&
+                    new_point.sp.end_time_s > now_start_time && new_point.sp.end_time_s <= now_end_time)) {
+            query_merge_evidence_to_group(ops, new_point.sp);
+        }
 
         if(unlikely(query_result_plan_should_switch_plan(ops, now_end_time))) {
             query_planer_next_plan(
@@ -320,7 +340,7 @@ NOT_INLINE_HOT void rrd2rrdr_query_execute(RRDR *r, size_t dim_id_in_rrdr, QUERY
 //                         new_point.id, new_point.start_time, new_point.end_time, now_start_time, now_end_time, after_wanted, before_wanted);
 //
                 // get the right value from the point we got
-                if(likely(!storage_point_is_unset(sp) && !storage_point_is_gap(sp))) {
+                if(likely(storage_point_has_value(sp))) {
 
                     if(unlikely(use_anomaly_bit_as_value))
                         new_point.value = storage_point_anomaly_rate(sp);
@@ -543,6 +563,10 @@ NOT_INLINE_HOT void rrd2rrdr_query_execute(RRDR *r, size_t dim_id_in_rrdr, QUERY
             if(likely(ops->group_points_non_zero))
                 r->od[dim_id_in_rrdr] |= RRDR_DIMENSION_NONZERO;
 
+            // This runs for every result row, so materialize PARTIAL without a hot-path branch.
+            ops->group_value_flags |= (RRDR_VALUE_FLAGS)(
+                ((!!ops->group_point.count) & (!!ops->group_point.gap_count)) * RRDR_VALUE_PARTIAL);
+
             // store the specific point options
             *rrdr_value_options_ptr = ops->group_value_flags;
 
@@ -569,7 +593,7 @@ NOT_INLINE_HOT void rrd2rrdr_query_execute(RRDR *r, size_t dim_id_in_rrdr, QUERY
             ops->group_points_added = 0;
             ops->group_value_flags = RRDR_VALUE_NOTHING;
             ops->group_points_non_zero = 0;
-            ops->group_point = STORAGE_POINT_UNSET;
+            ops->group_point = (QUERY_ROW_EVIDENCE){ 0 };
 
             if(points_added < points_wanted)
                 now_end_time += ops->view_update_every;
@@ -612,7 +636,7 @@ NOT_INLINE_HOT void rrd2rrdr_query_execute(RRDR *r, size_t dim_id_in_rrdr, QUERY
                         storage_point_merge_to(ops->query_point, new_point.sp);
                 }
 
-                storage_point_merge_to(ops->group_point, new_point.sp);
+                query_merge_evidence_to_group(ops, new_point.sp);
             }
 
             if(settle_value) {
