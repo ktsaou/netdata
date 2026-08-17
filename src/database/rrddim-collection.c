@@ -13,8 +13,8 @@ static inline time_t tier_next_point_time_s(RRDDIM *rd, struct rrddim_tier *t, t
 
 #define LAST_COMPLETED_POINT_EXISTS(t) (t->last_completed_point.end_time_s != 0)
 
-ALWAYS_INLINE_HOT
-void store_metric_at_tier_flush_last_completed(RRDDIM *rd __maybe_unused, size_t tier, struct rrddim_tier *t) {
+static ALWAYS_INLINE_HOT void store_metric_at_tier_flush_last_completed_inline(
+    RRDDIM *rd __maybe_unused, size_t tier, struct rrddim_tier *t) {
     // when there is no end_time_s we do not have a saved last_completed_point
     if(!LAST_COMPLETED_POINT_EXISTS(t)) return;
 
@@ -46,11 +46,11 @@ void store_metric_at_tier_flush_last_completed(RRDDIM *rd __maybe_unused, size_t
     storage_point_unset(t->last_completed_point);
 }
 
-ALWAYS_INLINE_HOT
-static void store_metric_at_tier_save_last_completed(RRDDIM *rd, size_t tier, struct rrddim_tier *t, STORAGE_POINT sp) {
-    // make sure the last_completed_point is empty
-    store_metric_at_tier_flush_last_completed(rd, tier, t);
+NOINLINE void store_metric_at_tier_flush_last_completed(RRDDIM *rd, size_t tier, struct rrddim_tier *t) {
+    store_metric_at_tier_flush_last_completed_inline(rd, tier, t);
+}
 
+static ALWAYS_INLINE_HOT void store_metric_at_tier_set_last_completed(struct rrddim_tier *t, STORAGE_POINT sp) {
     // copy the point
     t->last_completed_point = sp;
 
@@ -58,10 +58,29 @@ static void store_metric_at_tier_save_last_completed(RRDDIM *rd, size_t tier, st
     t->last_completed_point.end_time_s = t->next_point_end_time_s;
 }
 
+static ALWAYS_INLINE_HOT void store_metric_at_tier_save_last_completed(
+    RRDDIM *rd, size_t tier, struct rrddim_tier *t, STORAGE_POINT sp) {
+    // make sure the last_completed_point is empty
+    store_metric_at_tier_flush_last_completed_inline(rd, tier, t);
+    store_metric_at_tier_set_last_completed(t, sp);
+}
+
+void store_metric_at_tier_flush_completed_on_frequency_change(RRDDIM *rd, size_t tier, struct rrddim_tier *t) {
+    // Preserve a point that reached the old grid boundary before switching the storage handle.
+    if(t->next_point_end_time_s && t->virtual_point.end_time_s == t->next_point_end_time_s) {
+        store_metric_at_tier_flush_last_completed(rd, tier, t);
+        store_metric_at_tier_set_last_completed(t, t->virtual_point);
+        storage_point_unset(t->virtual_point);
+        t->next_point_end_time_s = 0;
+    }
+
+    store_metric_at_tier_flush_last_completed(rd, tier, t);
+}
+
 ALWAYS_INLINE_HOT
 void store_metric_at_tier(RRDDIM *rd, size_t tier, struct rrddim_tier *t, STORAGE_POINT sp, usec_t now_ut __maybe_unused) {
     if(LAST_COMPLETED_POINT_EXISTS(t) && sp.start_time_s % t->last_completed_point_flush_modulo == 0)
-        store_metric_at_tier_flush_last_completed(rd, tier, t);
+        store_metric_at_tier_flush_last_completed_inline(rd, tier, t);
 
     if (unlikely(!t->next_point_end_time_s))
         t->next_point_end_time_s = tier_next_point_time_s(rd, t, sp.end_time_s);

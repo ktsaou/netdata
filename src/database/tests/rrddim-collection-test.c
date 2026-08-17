@@ -278,6 +278,93 @@ static size_t test_completed_point_persistence(void) {
     return errors;
 }
 
+static size_t test_frequency_change_state(void) {
+    size_t errors = 0;
+    STORAGE_COLLECT_HANDLE sch = { .seb = STORAGE_ENGINE_BACKEND_RRDDIM };
+    struct rrddim_tier tier = { .sch = &sch };
+
+    STORAGE_POINT incomplete = numeric_point(100, 150, 1, 5, 9, 3, 2, 1, SN_FLAG_RESET);
+    storage_point_unset(tier.last_completed_point);
+    tier.virtual_point = incomplete;
+    tier.next_point_end_time_s = 160;
+    captured_store_count = 0;
+    store_metric_at_tier_flush_completed_on_frequency_change(NULL, 1, &tier);
+    TEST_EXPECT(captured_store_count == 0);
+    TEST_EXPECT(tier.virtual_point.start_time_s == incomplete.start_time_s);
+    TEST_EXPECT(tier.virtual_point.end_time_s == incomplete.end_time_s);
+    TEST_EXPECT(tier.virtual_point.min == incomplete.min);
+    TEST_EXPECT(tier.virtual_point.max == incomplete.max);
+    TEST_EXPECT(tier.virtual_point.sum == incomplete.sum);
+    TEST_EXPECT(tier.virtual_point.count == incomplete.count);
+    TEST_EXPECT(tier.virtual_point.gap_count == incomplete.gap_count);
+    TEST_EXPECT(tier.virtual_point.anomaly_count == incomplete.anomaly_count);
+    TEST_EXPECT(tier.virtual_point.flags == incomplete.flags);
+    TEST_EXPECT(tier.next_point_end_time_s == 160);
+
+    STORAGE_POINT pending = numeric_point(40, 100, 3, 3, 3, 1, 0, 0, SN_DEFAULT_FLAGS);
+    STORAGE_POINT crossing = numeric_point(100, 170, 2, 7, 12, 2, 4, 1, SN_FLAG_RESET);
+    tier.last_completed_point = pending;
+    tier.virtual_point = crossing;
+    tier.next_point_end_time_s = 160;
+    captured_store_count = 0;
+    store_metric_at_tier_flush_completed_on_frequency_change(NULL, 1, &tier);
+    TEST_EXPECT(captured_store_count == 1);
+    if(captured_store_count == 1) {
+        TEST_EXPECT(captured_stores[0].point_in_time_ut == 100 * USEC_PER_SEC);
+        TEST_EXPECT(captured_stores[0].n == 3);
+    }
+    TEST_EXPECT(point_is_fully_unset(tier.last_completed_point));
+    TEST_EXPECT(tier.virtual_point.start_time_s == crossing.start_time_s);
+    TEST_EXPECT(tier.virtual_point.end_time_s == crossing.end_time_s);
+    TEST_EXPECT(tier.virtual_point.min == crossing.min);
+    TEST_EXPECT(tier.virtual_point.max == crossing.max);
+    TEST_EXPECT(tier.virtual_point.sum == crossing.sum);
+    TEST_EXPECT(tier.virtual_point.count == crossing.count);
+    TEST_EXPECT(tier.virtual_point.gap_count == crossing.gap_count);
+    TEST_EXPECT(tier.virtual_point.anomaly_count == crossing.anomaly_count);
+    TEST_EXPECT(tier.virtual_point.flags == crossing.flags);
+    TEST_EXPECT(tier.next_point_end_time_s == 160);
+
+    STORAGE_POINT delayed = numeric_point(40, 100, 3, 3, 3, 1, 0, 0, SN_DEFAULT_FLAGS);
+    STORAGE_POINT boundary = numeric_point(100, 160, 4, 6, 10, 2, 3, 1, SN_FLAG_RESET);
+    tier.last_completed_point = delayed;
+    tier.virtual_point = boundary;
+    tier.next_point_end_time_s = 160;
+    captured_store_count = 0;
+    store_metric_at_tier_flush_completed_on_frequency_change(NULL, 1, &tier);
+    TEST_EXPECT(captured_store_count == 2);
+    if(captured_store_count == 2) {
+        TEST_EXPECT(captured_stores[0].point_in_time_ut == 100 * USEC_PER_SEC);
+        TEST_EXPECT(captured_stores[0].n == 3);
+        TEST_EXPECT(captured_stores[1].point_in_time_ut == 160 * USEC_PER_SEC);
+        TEST_EXPECT(captured_stores[1].n == 10);
+        TEST_EXPECT(captured_stores[1].count == 2);
+        TEST_EXPECT(captured_stores[1].anomaly_count == 1);
+        TEST_EXPECT(captured_stores[1].flags == SN_FLAG_RESET);
+    }
+    TEST_EXPECT(point_is_fully_unset(tier.last_completed_point));
+    TEST_EXPECT(point_is_fully_unset(tier.virtual_point));
+    TEST_EXPECT(tier.next_point_end_time_s == 0);
+
+    storage_point_unset(tier.last_completed_point);
+    tier.virtual_point = gap_point(160, 220, INFINITY, 60);
+    tier.next_point_end_time_s = 220;
+    captured_store_count = 0;
+    store_metric_at_tier_flush_completed_on_frequency_change(NULL, 1, &tier);
+    TEST_EXPECT(captured_store_count == 1);
+    if(captured_store_count == 1) {
+        TEST_EXPECT(captured_stores[0].point_in_time_ut == 220 * USEC_PER_SEC);
+        TEST_EXPECT(isnan(captured_stores[0].n));
+        TEST_EXPECT(captured_stores[0].count == 0);
+        TEST_EXPECT(captured_stores[0].flags == SN_FLAG_NONE);
+    }
+    TEST_EXPECT(point_is_fully_unset(tier.last_completed_point));
+    TEST_EXPECT(point_is_fully_unset(tier.virtual_point));
+    TEST_EXPECT(tier.next_point_end_time_s == 0);
+
+    return errors;
+}
+
 static size_t test_one_tier_fast_path(void) {
     size_t errors = 0;
     STORAGE_COLLECT_HANDLE tier0_sch = { .seb = STORAGE_ENGINE_BACKEND_RRDDIM };
@@ -477,6 +564,7 @@ static size_t test_backfill_gap_composition(void) {
 int main(void) {
     size_t errors = 0;
     errors += test_completed_point_persistence();
+    errors += test_frequency_change_state();
     errors += test_one_tier_fast_path();
     errors += test_ordinary_higher_tier_rollup();
 #ifdef ENABLE_DBENGINE
