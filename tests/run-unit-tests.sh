@@ -40,6 +40,27 @@ kickstart_path_unit_test() {
   /bin/sh "$(dirname "$0")/kickstart-path-sanitizer-test.sh"
 }
 
+stream_replication_query_test() {
+  echo "Running stream replication query component test"
+
+  local build_dir="${NETDATA_BUILD_DIR:-./build}"
+  local config_h="${build_dir}/config.h"
+
+  if [[ ! -r "${config_h}" ]]; then
+    echo >&2 "Cannot read CMake configuration: ${config_h}"
+    return 1
+  fi
+
+  if ! grep -Fqx '#define OS_LINUX' "${config_h}" ||
+     ! grep -Fqx '#define ENABLE_DBENGINE' "${config_h}"; then
+    echo "Skipping stream replication query component test (requires Linux with DBENGINE)"
+    return 0
+  fi
+
+  cmake --build "${build_dir}" --target stream-replication-query-test || return 1
+  "${build_dir}"/stream-replication-query-test
+}
+
 spawn_server_unit_tests() {
   # Shared with the macOS CI job, which builds netdata and then runs only this suite.
   bash "$(dirname "$0")/spawn-server-tests.sh"
@@ -75,6 +96,8 @@ system_info_unit_test || exit 1
 system_info_windows_unit_test || exit 1
 
 kickstart_path_unit_test || exit 1
+
+stream_replication_query_test || exit 1
 
 spawn_server_unit_tests || exit 1
 

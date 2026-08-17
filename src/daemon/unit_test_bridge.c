@@ -44,6 +44,11 @@ NOINLINE int unittest_storage_engine_query_is_finished(
     return storage_engine_query_is_finished(seqh);
 }
 
+NOINLINE time_t unittest_storage_engine_align_to_optimal_before(
+    struct storage_engine_query_handle *seqh) {
+    return storage_engine_align_to_optimal_before(seqh);
+}
+
 NOINLINE void unittest_storage_engine_query_finalize(
     struct storage_engine_query_handle *seqh) {
     storage_engine_query_finalize(seqh);

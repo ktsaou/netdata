@@ -28,6 +28,7 @@ void unittest_storage_engine_query_init(
 
 STORAGE_POINT unittest_storage_engine_query_next_metric(struct storage_engine_query_handle *seqh);
 int unittest_storage_engine_query_is_finished(struct storage_engine_query_handle *seqh);
+time_t unittest_storage_engine_align_to_optimal_before(struct storage_engine_query_handle *seqh);
 void unittest_storage_engine_query_finalize(struct storage_engine_query_handle *seqh);
 
 #endif // NETDATA_UNIT_TEST_BRIDGE_H
