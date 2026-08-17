@@ -140,16 +140,29 @@ static size_t pgd_unittest_tier1(void) {
     PGD_EXPECT(sp.count == 0 && sp.gap_count == 60 && sp.anomaly_count == 0);
     PGD_EXPECT(sp.flags == SN_FLAG_NONE);
 
-    pgd_unittest_cursor_reset(&cursor, pg, 2, 65536);
+    pgd_unittest_cursor_reset(&cursor, pg, 2, 64);
     sp.start_time_s = 0;
-    sp.end_time_s = 65536;
+    sp.end_time_s = 64;
     PGD_EXPECT(pgd_unittest_cursor_next(&cursor, 2, &sp));
     PGD_EXPECT(storage_point_is_gap(sp));
-    PGD_EXPECT(sp.start_time_s == 0 && sp.end_time_s == 65536);
+    PGD_EXPECT(sp.start_time_s == 0 && sp.end_time_s == 64);
     PGD_EXPECT(!netdata_double_isnumber(sp.min) && !netdata_double_isnumber(sp.max) &&
                !netdata_double_isnumber(sp.sum));
-    PGD_EXPECT(sp.count == 0 && sp.gap_count == 65536);
+    PGD_EXPECT(sp.count == 0 && sp.gap_count == 64);
     PGD_EXPECT(sp.flags == SN_FLAG_NONE);
+
+    PGD *wrapped_count_pg = pgd_unittest_create(RRDENG_PAGE_TYPE_ARRAY_TIER1, 2);
+    pgd_unittest_append_point(wrapped_count_pg, 65536, 65536, 1, 1, 0, 0, SN_DEFAULT_FLAGS, 0);
+    pgd_unittest_cursor_reset(&cursor, wrapped_count_pg, 0, 65536);
+    sp.start_time_s = 0;
+    sp.end_time_s = 65536;
+    PGD_EXPECT(pgd_unittest_cursor_next(&cursor, 0, &sp));
+    PGD_EXPECT(storage_point_is_complete(sp));
+    PGD_EXPECT(sp.start_time_s == 0 && sp.end_time_s == 65536);
+    PGD_EXPECT(sp.min == 1 && sp.max == 1 && sp.sum == 65536);
+    PGD_EXPECT(sp.count == 65536 && sp.gap_count == 0 && sp.anomaly_count == 0);
+    PGD_EXPECT(sp.flags & SN_FLAG_NOT_ANOMALOUS);
+    pgd_unittest_free(wrapped_count_pg);
 
     pgd_unittest_free(pg);
     return errors;
