@@ -14,6 +14,8 @@ void unittest_storage_engine_store_metric(
     uint16_t count,
     uint16_t anomaly_count,
     SN_FLAGS flags);
+
+void unittest_storage_engine_store_change_collection_frequency(STORAGE_COLLECT_HANDLE *sch, int update_every);
 void unittest_storage_engine_store_flush(STORAGE_COLLECT_HANDLE *sch);
 
 void unittest_storage_engine_query_init(
@@ -26,6 +28,7 @@ void unittest_storage_engine_query_init(
 
 STORAGE_POINT unittest_storage_engine_query_next_metric(struct storage_engine_query_handle *seqh);
 int unittest_storage_engine_query_is_finished(struct storage_engine_query_handle *seqh);
+time_t unittest_storage_engine_align_to_optimal_before(struct storage_engine_query_handle *seqh);
 void unittest_storage_engine_query_finalize(struct storage_engine_query_handle *seqh);
 
 #endif // NETDATA_UNIT_TEST_BRIDGE_H

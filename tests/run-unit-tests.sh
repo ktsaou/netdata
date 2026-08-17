@@ -45,6 +45,27 @@ rrddim_collection_test() {
   "${build_dir}"/rrddim-collection-test
 }
 
+stream_replication_query_test() {
+  echo "Running stream replication query component test"
+
+  local build_dir="${NETDATA_BUILD_DIR:-./build}"
+  local config_h="${build_dir}/config.h"
+
+  if [[ ! -r "${config_h}" ]]; then
+    echo >&2 "Cannot read CMake configuration: ${config_h}"
+    return 1
+  fi
+
+  if ! grep -Fqx '#define OS_LINUX' "${config_h}" ||
+     ! grep -Fqx '#define ENABLE_DBENGINE' "${config_h}"; then
+    echo "Skipping stream replication query component test (requires Linux with DBENGINE)"
+    return 0
+  fi
+
+  cmake --build "${build_dir}" --target stream-replication-query-test || return 1
+  "${build_dir}"/stream-replication-query-test
+}
+
 spawn_server_unit_tests() {
   echo "Running spawn-server unit tests"
 
@@ -65,5 +86,7 @@ install_netdata || exit 1
 c_unit_tests || exit 1
 
 rrddim_collection_test || exit 1
+
+stream_replication_query_test || exit 1
 
 spawn_server_unit_tests || exit 1

@@ -3177,6 +3177,14 @@ if(OS_LINUX)
         target_link_libraries(rrddim-collection-test libnetdata)
 endif()
 
+if(ENABLE_DBENGINE AND OS_LINUX)
+        add_executable(stream-replication-query-test EXCLUDE_FROM_ALL
+                src/streaming/tests/stream-replication-query-test.c)
+        target_compile_options(stream-replication-query-test PRIVATE -ffunction-sections -fdata-sections)
+        target_link_options(stream-replication-query-test PRIVATE -Wl,--no-export-dynamic -Wl,--gc-sections)
+        target_link_libraries(stream-replication-query-test libnetdata)
+endif()
+
 if(OS_LINUX)
         add_executable(http-auth-bearer-test EXCLUDE_FROM_ALL
                 src/web/api/tests/http-auth-bearer-test.c)

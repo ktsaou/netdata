@@ -15,6 +15,11 @@ NOINLINE void unittest_storage_engine_store_metric(
         sch, point_in_time_ut, n, min_value, max_value, count, anomaly_count, flags);
 }
 
+NOINLINE void unittest_storage_engine_store_change_collection_frequency(
+    STORAGE_COLLECT_HANDLE *sch, int update_every) {
+    storage_engine_store_change_collection_frequency(sch, update_every);
+}
+
 NOINLINE void unittest_storage_engine_store_flush(STORAGE_COLLECT_HANDLE *sch) {
     storage_engine_store_flush(sch);
 }
@@ -37,6 +42,11 @@ NOINLINE STORAGE_POINT unittest_storage_engine_query_next_metric(
 NOINLINE int unittest_storage_engine_query_is_finished(
     struct storage_engine_query_handle *seqh) {
     return storage_engine_query_is_finished(seqh);
+}
+
+NOINLINE time_t unittest_storage_engine_align_to_optimal_before(
+    struct storage_engine_query_handle *seqh) {
+    return storage_engine_align_to_optimal_before(seqh);
 }
 
 NOINLINE void unittest_storage_engine_query_finalize(
