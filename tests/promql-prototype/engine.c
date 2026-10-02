@@ -1077,7 +1077,8 @@ static Value call(Context *c, Node *n, int64_t t)
     if (equal(fn, "sort") || equal(fn, "sort_desc")) {
         if (n->args_n != 1)
             error(c, "sort arity");
-        qsort(out.rows.p, out.rows.n, sizeof(Row), equal(fn, "sort") ? ascending : descending);
+        if (out.rows.n > 1)
+            qsort(out.rows.p, out.rows.n, sizeof(Row), equal(fn, "sort") ? ascending : descending);
         return out;
     }
     if (!equal(fn, "abs") && !equal(fn, "clamp_min") && !equal(fn, "clamp_max") && !equal(fn, "round"))
