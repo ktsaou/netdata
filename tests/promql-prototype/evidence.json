@@ -12,7 +12,7 @@
         "failures": {},
         "ownership": "owned result after input destruction; 4 concurrent callers: passed",
         "regression_failures": {},
-        "regression_passed": 22,
+        "regression_passed": 27,
         "risk_failures": {}
       },
       "cpp": {
@@ -21,7 +21,7 @@
         "failures": {},
         "ownership": "owned result after input destruction; 4 concurrent callers: passed",
         "regression_failures": {},
-        "regression_passed": 22,
+        "regression_passed": 27,
         "risk_failures": {}
       },
       "rust": {
@@ -30,7 +30,7 @@
         "failures": {},
         "ownership": "owned result after input destruction; 4 concurrent callers: passed",
         "regression_failures": {},
-        "regression_passed": 22,
+        "regression_passed": 27,
         "risk_failures": {}
       }
     },
@@ -47,7 +47,7 @@
         "failures": {},
         "ownership": "owned result after input destruction; 4 concurrent callers: passed",
         "regression_failures": {},
-        "regression_passed": 22,
+        "regression_passed": 27,
         "risk_failures": {}
       },
       "cpp": {
@@ -56,7 +56,7 @@
         "failures": {},
         "ownership": "owned result after input destruction; 4 concurrent callers: passed",
         "regression_failures": {},
-        "regression_passed": 22,
+        "regression_passed": 27,
         "risk_failures": {}
       },
       "rust": {
@@ -65,7 +65,7 @@
         "failures": {},
         "ownership": "owned result after input destruction; 4 concurrent callers: passed",
         "regression_failures": {},
-        "regression_passed": 22,
+        "regression_passed": 27,
         "risk_failures": {}
       }
     },
@@ -130,50 +130,50 @@
               {
                 "id": "P01",
                 "query": "sum(system_cpu)",
-                "median_ms": 0.06524765980429947,
-                "min_ms": 0.06461016018874943,
-                "max_ms": 0.0656630506273359
+                "median_ms": 0.06701183039695024,
+                "min_ms": 0.06593724014237523,
+                "max_ms": 0.10301564005203545
               },
               {
                 "id": "P02",
                 "query": "sum by(instance)(system_cpu)",
-                "median_ms": 0.0837185001000762,
-                "min_ms": 0.08284190902486444,
-                "max_ms": 0.0840209994930774
+                "median_ms": 0.08606098010204732,
+                "min_ms": 0.08494228008203208,
+                "max_ms": 0.11497613973915577
               },
               {
                 "id": "P03",
                 "query": "sum by(job)(rate(counter_total[5m]))",
-                "median_ms": 0.06521706003695726,
-                "min_ms": 0.06495325011201203,
-                "max_ms": 0.0688659306615591
+                "median_ms": 0.06808083038777113,
+                "min_ms": 0.06570044904947281,
+                "max_ms": 0.09118934045545757
               },
               {
                 "id": "P04",
                 "query": "system_cpu / on(instance) group_left(tier) limits",
-                "median_ms": 0.19519547000527382,
-                "min_ms": 0.1926421991083771,
-                "max_ms": 0.195487670134753
+                "median_ms": 0.24076047004200518,
+                "min_ms": 0.1962438493501395,
+                "max_ms": 0.25775372982025146
               },
               {
                 "id": "P05",
                 "query": "label_join(system_cpu,\"key\",\"/\",\"instance\",\"mode\")",
-                "median_ms": 0.15168742975220084,
-                "min_ms": 0.1499866507947445,
-                "max_ms": 0.15660548931919038
+                "median_ms": 0.19741563010029495,
+                "min_ms": 0.1526290108449757,
+                "max_ms": 0.20071981009095907
               },
               {
                 "id": "P06",
                 "query": "histogram_quantile(0.95,sum by(le)(rate(request_bucket[5m])))",
-                "median_ms": 0.27444581035524607,
-                "min_ms": 0.26962225092574954,
-                "max_ms": 0.2752952103037387
+                "median_ms": 0.33928924007341266,
+                "min_ms": 0.27904554968699813,
+                "max_ms": 0.3561649995390326
               }
             ],
             "process_peak_rss_kib": [
-              20940,
-              20940,
-              20940
+              19172,
+              20068,
+              20068
             ]
           },
           "cpp": {
@@ -181,50 +181,50 @@
               {
                 "id": "P01",
                 "query": "sum(system_cpu)",
-                "median_ms": 0.06639895029366016,
-                "min_ms": 0.06620843894779682,
-                "max_ms": 0.0665585498791188
+                "median_ms": 0.06933911005035043,
+                "min_ms": 0.0677314295899123,
+                "max_ms": 0.08033782010897994
               },
               {
                 "id": "P02",
                 "query": "sum by(instance)(system_cpu)",
-                "median_ms": 0.09754278929904103,
-                "min_ms": 0.09735958999954164,
-                "max_ms": 0.10228035040199757
+                "median_ms": 0.10206724051386118,
+                "min_ms": 0.09850337053649127,
+                "max_ms": 0.10725709958933294
               },
               {
                 "id": "P03",
                 "query": "sum by(job)(rate(counter_total[5m]))",
-                "median_ms": 0.06661624065600336,
-                "min_ms": 0.0663606496527791,
-                "max_ms": 0.07919844007119536
+                "median_ms": 0.06696984055452049,
+                "min_ms": 0.0667226396035403,
+                "max_ms": 0.06789822946302593
               },
               {
                 "id": "P04",
                 "query": "system_cpu / on(instance) group_left(tier) limits",
-                "median_ms": 0.216251399833709,
-                "min_ms": 0.2132235304452479,
-                "max_ms": 0.21686169086024165
+                "median_ms": 0.21653688047081232,
+                "min_ms": 0.21588997915387154,
+                "max_ms": 0.2184510591905564
               },
               {
                 "id": "P05",
                 "query": "label_join(system_cpu,\"key\",\"/\",\"instance\",\"mode\")",
-                "median_ms": 0.13596617034636438,
-                "min_ms": 0.13456328073516488,
-                "max_ms": 0.15013074968010187
+                "median_ms": 0.13749164063483477,
+                "min_ms": 0.13736004009842873,
+                "max_ms": 0.13810193981043994
               },
               {
                 "id": "P06",
                 "query": "histogram_quantile(0.95,sum by(le)(rate(request_bucket[5m])))",
-                "median_ms": 0.28344103950075805,
-                "min_ms": 0.28168125078082085,
-                "max_ms": 0.2850781299639493
+                "median_ms": 0.28811467927880585,
+                "min_ms": 0.2842094108927995,
+                "max_ms": 0.33244249993003905
               }
             ],
             "process_peak_rss_kib": [
-              20940,
-              20940,
-              20940
+              20068,
+              20068,
+              20068
             ]
           },
           "rust": {
@@ -232,50 +232,50 @@
               {
                 "id": "P01",
                 "query": "sum(system_cpu)",
-                "median_ms": 0.09006605017930269,
-                "min_ms": 0.08908455958589911,
-                "max_ms": 0.09088583989068866
+                "median_ms": 0.09185023023746908,
+                "min_ms": 0.09035484050400555,
+                "max_ms": 0.09262421983294189
               },
               {
                 "id": "P02",
                 "query": "sum by(instance)(system_cpu)",
-                "median_ms": 0.12661044020205736,
-                "min_ms": 0.12547235935926437,
-                "max_ms": 0.1283529307693243
+                "median_ms": 0.1288617099635303,
+                "min_ms": 0.1271327305585146,
+                "max_ms": 0.1359841600060463
               },
               {
                 "id": "P03",
                 "query": "sum by(job)(rate(counter_total[5m]))",
-                "median_ms": 0.06749903899617493,
-                "min_ms": 0.06582064903341234,
-                "max_ms": 0.06798894028179348
+                "median_ms": 0.0680603296495974,
+                "min_ms": 0.06722942925989628,
+                "max_ms": 0.07703194976784289
               },
               {
                 "id": "P04",
                 "query": "system_cpu / on(instance) group_left(tier) limits",
-                "median_ms": 0.24898283067159355,
-                "min_ms": 0.2400839002802968,
-                "max_ms": 0.250048809684813
+                "median_ms": 0.2421156596392393,
+                "min_ms": 0.23719110991805792,
+                "max_ms": 0.24253234965726733
               },
               {
                 "id": "P05",
                 "query": "label_join(system_cpu,\"key\",\"/\",\"instance\",\"mode\")",
-                "median_ms": 0.15895106946118176,
-                "min_ms": 0.15876098070293665,
-                "max_ms": 0.1610757503658533
+                "median_ms": 0.16215772950090468,
+                "min_ms": 0.15885026077739894,
+                "max_ms": 0.16915416927076876
               },
               {
                 "id": "P06",
                 "query": "histogram_quantile(0.95,sum by(le)(rate(request_bucket[5m])))",
-                "median_ms": 0.2871574996970594,
-                "min_ms": 0.28407784062437713,
-                "max_ms": 0.29583153896965086
+                "median_ms": 0.28367571998387575,
+                "min_ms": 0.28219661908224225,
+                "max_ms": 0.28453910956159234
               }
             ],
             "process_peak_rss_kib": [
-              20940,
-              20940,
-              20940
+              20068,
+              20068,
+              20068
             ]
           }
         }
@@ -292,50 +292,50 @@
               {
                 "id": "P01",
                 "query": "sum(system_cpu)",
-                "median_ms": 1.136532996315509,
-                "min_ms": 1.1329715489409864,
-                "max_ms": 1.213587902020663
+                "median_ms": 1.1490453034639359,
+                "min_ms": 1.1408363992813975,
+                "max_ms": 1.2722832965664566
               },
               {
                 "id": "P02",
                 "query": "sum by(instance)(system_cpu)",
-                "median_ms": 1.4014548505656421,
-                "min_ms": 1.390357397031039,
-                "max_ms": 1.6354548453819007
+                "median_ms": 1.4215204981155694,
+                "min_ms": 1.3830383482854813,
+                "max_ms": 1.4619071502238512
               },
               {
                 "id": "P03",
                 "query": "sum by(job)(rate(counter_total[5m]))",
-                "median_ms": 1.0392773489002138,
-                "min_ms": 1.0190575034357607,
-                "max_ms": 1.0811749496497214
+                "median_ms": 1.028284354833886,
+                "min_ms": 1.0232608474325389,
+                "max_ms": 1.0385682515334338
               },
               {
                 "id": "P04",
                 "query": "system_cpu / on(instance) group_left(tier) limits",
-                "median_ms": 3.3928912482224405,
-                "min_ms": 3.254040901083499,
-                "max_ms": 3.675789397675544
+                "median_ms": 3.3685470989439636,
+                "min_ms": 3.3306424506008625,
+                "max_ms": 3.4388700500130653
               },
               {
                 "id": "P05",
                 "query": "label_join(system_cpu,\"key\",\"/\",\"instance\",\"mode\")",
-                "median_ms": 2.4509590526577085,
-                "min_ms": 2.4431361467577517,
-                "max_ms": 2.4871778034139425
+                "median_ms": 2.493344497634098,
+                "min_ms": 2.450181351741776,
+                "max_ms": 2.6217513950541615
               },
               {
                 "id": "P06",
                 "query": "histogram_quantile(0.95,sum by(le)(rate(request_bucket[5m])))",
-                "median_ms": 4.599488148232922,
-                "min_ms": 4.596936149755493,
-                "max_ms": 4.609681048896164
+                "median_ms": 5.009898799471557,
+                "min_ms": 4.8081180022563785,
+                "max_ms": 5.071698798565194
               }
             ],
             "process_peak_rss_kib": [
-              97428,
               96984,
-              96960
+              96960,
+              96980
             ]
           },
           "cpp": {
@@ -343,50 +343,50 @@
               {
                 "id": "P01",
                 "query": "sum(system_cpu)",
-                "median_ms": 1.3618931523524225,
-                "min_ms": 1.1630128021351993,
-                "max_ms": 1.440025499323383
+                "median_ms": 1.361518498742953,
+                "min_ms": 1.2026699027046561,
+                "max_ms": 1.3686284539289773
               },
               {
                 "id": "P02",
                 "query": "sum by(instance)(system_cpu)",
-                "median_ms": 1.6367338539566845,
-                "min_ms": 1.5796998515725136,
-                "max_ms": 1.7031118040904403
+                "median_ms": 1.5958510455675423,
+                "min_ms": 1.575282250996679,
+                "max_ms": 1.647415099432692
               },
               {
                 "id": "P03",
                 "query": "sum by(job)(rate(counter_total[5m]))",
-                "median_ms": 1.0781849967315793,
-                "min_ms": 1.0710330971051008,
-                "max_ms": 1.0959333973005414
+                "median_ms": 1.080114848446101,
+                "min_ms": 1.0560780996456742,
+                "max_ms": 1.0966917499899864
               },
               {
                 "id": "P04",
                 "query": "system_cpu / on(instance) group_left(tier) limits",
-                "median_ms": 4.377471999032423,
-                "min_ms": 4.0786130470223725,
-                "max_ms": 4.392110952176154
+                "median_ms": 3.6486832541413605,
+                "min_ms": 3.6204614967573434,
+                "max_ms": 3.81152939517051
               },
               {
                 "id": "P05",
                 "query": "label_join(system_cpu,\"key\",\"/\",\"instance\",\"mode\")",
-                "median_ms": 2.334601554321125,
-                "min_ms": 2.2842244536150247,
-                "max_ms": 2.7867128024809062
+                "median_ms": 2.2407145996112376,
+                "min_ms": 2.2051544510759413,
+                "max_ms": 2.306722552748397
               },
               {
                 "id": "P06",
                 "query": "histogram_quantile(0.95,sum by(le)(rate(request_bucket[5m])))",
-                "median_ms": 5.358632851857692,
-                "min_ms": 4.967431153636426,
-                "max_ms": 5.847275297855958
+                "median_ms": 4.730924102477729,
+                "min_ms": 4.539014300098643,
+                "max_ms": 4.8855838540475816
               }
             ],
             "process_peak_rss_kib": [
-              96692,
-              96708,
-              97132
+              94900,
+              97132,
+              97136
             ]
           },
           "rust": {
@@ -394,50 +394,50 @@
               {
                 "id": "P01",
                 "query": "sum(system_cpu)",
-                "median_ms": 1.5268957999069244,
-                "min_ms": 1.4812402019742876,
-                "max_ms": 1.6466557455714792
+                "median_ms": 1.511980249779299,
+                "min_ms": 1.5093687979970127,
+                "max_ms": 1.5382175450213253
               },
               {
                 "id": "P02",
                 "query": "sum by(instance)(system_cpu)",
-                "median_ms": 2.407489949837327,
-                "min_ms": 2.359061350580305,
-                "max_ms": 2.4164878530427814
+                "median_ms": 2.3816239030566067,
+                "min_ms": 2.3802714014891535,
+                "max_ms": 2.3925783461891115
               },
               {
                 "id": "P03",
                 "query": "sum by(job)(rate(counter_total[5m]))",
-                "median_ms": 1.2713694013655186,
-                "min_ms": 1.2703298998530954,
-                "max_ms": 1.2965382018592209
+                "median_ms": 1.2886796495877206,
+                "min_ms": 1.2765238003339618,
+                "max_ms": 1.3006810506340116
               },
               {
                 "id": "P04",
                 "query": "system_cpu / on(instance) group_left(tier) limits",
-                "median_ms": 4.5051224529743195,
-                "min_ms": 4.377636552089825,
-                "max_ms": 4.5464311027899384
+                "median_ms": 4.5047550520394,
+                "min_ms": 4.3948044534772635,
+                "max_ms": 4.683019052026793
               },
               {
                 "id": "P05",
                 "query": "label_join(system_cpu,\"key\",\"/\",\"instance\",\"mode\")",
-                "median_ms": 2.9732202005106956,
-                "min_ms": 2.9636998020578176,
-                "max_ms": 3.0063145037274808
+                "median_ms": 3.010550152976066,
+                "min_ms": 2.9719189449679106,
+                "max_ms": 3.1281261472031474
               },
               {
                 "id": "P06",
                 "query": "histogram_quantile(0.95,sum by(le)(rate(request_bucket[5m])))",
-                "median_ms": 5.217231501592323,
-                "min_ms": 5.155574047239497,
-                "max_ms": 5.307419749442488
+                "median_ms": 5.7974251511041075,
+                "min_ms": 5.125020298874006,
+                "max_ms": 6.1745924525894225
               }
             ],
             "process_peak_rss_kib": [
-              94404,
-              95252,
-              95300
+              95256,
+              95296,
+              94568
             ]
           }
         }
@@ -451,19 +451,19 @@
     },
     "build": {
       "c": {
-        "compile_seconds": 0.7686813939362764,
-        "archive_bytes": 273652,
-        "host_bytes": 220176,
+        "compile_seconds": 0.7757922440068796,
+        "archive_bytes": 273388,
+        "host_bytes": 219864,
         "host_stripped_debug_bytes": 65248
       },
       "cpp": {
-        "compile_seconds": 4.561065540998243,
+        "compile_seconds": 4.601646600989625,
         "archive_bytes": 4229744,
         "host_bytes": 2154032,
         "host_stripped_debug_bytes": 170088
       },
       "rust": {
-        "compile_seconds": 1.4650443600257859,
+        "compile_seconds": 1.5242207190021873,
         "archive_bytes": 25737804,
         "host_bytes": 7126688,
         "host_stripped_debug_bytes": 1641520
@@ -471,22 +471,22 @@
     }
   },
   "candidate_revisions": {
-    "c": "a1640e2a248d6580d39efc1634560f5f98c2249c",
+    "c": "a1e468dc6dd438d261f3c9e6b7e668b24cea5ca5",
     "cpp": "26840dbdad04edb3c90cc92603fa21f06989995c",
     "rust": "9533e32fabe57494b70c8a9b49f1f7a8ea02cf0c"
   },
   "source_sha256": {
-    "c/engine.c": "f97575e9f6a9d0cf829b6f2abbc6c7b8dfd2399b5ccd07615c997d051dd57ee7",
+    "c/engine.c": "7d71d1434e2a1e2bcf94c9367425dfa786e6a72a90e4be5a8cfe9c489207fe43",
     "cpp/engine.cpp": "ddce821425677f3c5b11934f8869134539cdef115ffbfcb36178f8eb3c1e66e6",
     "rust/engine.rs": "96315ac288ac12ad34586c8e1de4100e7a6907936bf4c78cfff2ca771c349b9b",
     "abi.h": "e62466f5b905ad581781565765d0a5d7d968a1bebeeb1532a0f454a55b1f3635",
     "host.c": "cba349d87558ae35069c52a0fc102a9f98e0963f9e8b4de5aec595141f249a29",
     "regex.c": "3149576a2f3b60a06346ead26a5b3eb8adbe2d6e013df5c21405fe81b5cd8963",
     "ownership.c": "ceb08fbf593c83cc1df3bc8e957051287f1065a27b7544074d1ebb72e60b8d41",
-    "fixtures.py": "2f8ebefd8bb9597a1b594d077cd8a74f77487149ca70ea2ec2ffd6bd3dd2dadb",
+    "fixtures.py": "edae24391ff2c32bab4a2644ebaafbba3306dccbd54191c0fa332d038a57e5db",
     "cases.json": "f731a3f77ec0bcf14efe925cb8100adb5f8ff6a0a9a9c1c808e8d0b118e1c15e",
     "dataset.json": "de4069119a439baf4ebeab19571280e65b2f885eff00b872b732a7fcf410ce7f",
-    "regression.json": "08939e9d4cad84b74a35450891048aec6c2f87701e64885b5de628582aa2454f",
+    "regression.json": "2b9ab1b94e9fbcd8f5f44c0022a4c2960448567069da236abaed1a813a92e9ce",
     "risk.json": "e67cd852613105d7a8c546f4bd4710d7a59c2f05ab435e2edf9d37b3dc1357e4",
     "oracle/main.go": "3831cda6cf56b5a0c4ca4223371d285af09a4d0e63faa72179c7534b3ee20ba3",
     "oracle/go.mod": "dc45232576833774b907e0b9ef13c4e56a6bcc20731f9eb14d91bae2bc30c260",

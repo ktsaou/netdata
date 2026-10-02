@@ -130,5 +130,34 @@
     "query": "trend",
     "time_ms": 660000,
     "lookback_ms": 60000
+  },
+  {
+    "id": "G-sort-empty",
+    "query": "sort(missing_metric)",
+    "time_ms": 600000,
+    "ordered": true
+  },
+  {
+    "id": "G-sort-desc-empty",
+    "query": "sort_desc(missing_metric)",
+    "time_ms": 600000,
+    "ordered": true
+  },
+  {
+    "id": "G-sort-window-empty",
+    "query": "sort(system_cpu)",
+    "time_ms": -1,
+    "ordered": true
+  },
+  {
+    "id": "G-sort-desc-window-empty",
+    "query": "sort_desc(system_cpu)",
+    "time_ms": -1,
+    "ordered": true
+  },
+  {
+    "id": "G-sort-after",
+    "query": "sum(system_cpu)",
+    "time_ms": 600000
   }
 ]

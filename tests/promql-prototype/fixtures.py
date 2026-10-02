@@ -92,6 +92,13 @@ regression_queries = [
 regression = [{"id": f"G{i:03}", "query": q, "time_ms": -30000 if i == 18 else 600000,
                "ordered": i in [11, 12, 13, 14]} for i, q in enumerate(regression_queries, 1)]
 regression.append({"id": "G-lookback", "query": "trend", "time_ms": 660000, "lookback_ms": 60000})
+regression.extend([
+    {"id": "G-sort-empty", "query": "sort(missing_metric)", "time_ms": 600000, "ordered": True},
+    {"id": "G-sort-desc-empty", "query": "sort_desc(missing_metric)", "time_ms": 600000, "ordered": True},
+    {"id": "G-sort-window-empty", "query": "sort(system_cpu)", "time_ms": -1, "ordered": True},
+    {"id": "G-sort-desc-window-empty", "query": "sort_desc(system_cpu)", "time_ms": -1, "ordered": True},
+    {"id": "G-sort-after", "query": "sum(system_cpu)", "time_ms": 600000},
+])
 
 if __name__ == "__main__":
     for name, obj in [("dataset.json", {"series": series}), ("cases.json", cases), ("risk.json", risk), ("regression.json", regression)]:

@@ -7,8 +7,9 @@ query APIs, the independent meta health lifecycle and the Cloud execution split 
 ## What works in the experiment
 
 - **67 common-query cases per candidate:** 65 successful results and two expected cardinality/duplicate-label errors.
-- **22 focused regressions:** string tokens, replacement captures, invalid regex, empty joins, comparison names/values,
-  NaN/Inf handling, sorting, selector matrices, lookback boundaries and negative-time subquery alignment.
+- **27 focused regressions:** string tokens, replacement captures, invalid regex, empty joins, comparison names/values,
+  NaN/Inf handling, sorting including empty windows and following-query recovery, selector matrices, lookback
+  boundaries and negative-time subquery alignment.
 - **10 probes:** numeric `@`, a subquery, cancellation after temporary rows exist, a work budget, injected failure,
   C++ exception/Rust panic containment, malformed input, depth/token limits, and a successful following query.
 - **68 real dbengine replay cases:** the common profile plus a fractional retained-value probe. The isolated fixture
@@ -67,16 +68,16 @@ language speed or production performance. Label matching precedes label copying 
 
 | Query shape | C | C++ | Rust |
 |---|---:|---:|---:|
-| Gauge total | 1.14 | 1.36 | 1.53 |
-| Grouped gauge total | 1.40 | 1.64 | 2.41 |
-| Grouped counter rate | 1.04 | 1.08 | 1.27 |
-| Label join for division | 3.39 | 4.38 | 4.51 |
-| Label construction | 2.45 | 2.34 | 2.97 |
-| Classic histogram percentile | 4.60 | 5.36 | 5.22 |
+| Gauge total | 1.15 | 1.36 | 1.51 |
+| Grouped gauge total | 1.42 | 1.60 | 2.38 |
+| Grouped counter rate | 1.03 | 1.08 | 1.29 |
+| Label join for division | 3.37 | 3.65 | 4.50 |
+| Label construction | 2.49 | 2.24 | 3.01 |
+| Classic histogram percentile | 5.01 | 4.73 | 5.80 |
 
 Observed process peak RSS was roughly 92–95 MiB at that size. It includes the common JSON host/input and launcher
 overhead, so it is not an engine-only allocation measurement. C/C++ were built with GCC 13.3; Rust 1.97.1 was used.
-One compilation with ccache disabled took approximately 0.77s / 4.56s / 1.47s; stripped-debug caller binaries were
+One compilation with ccache disabled took approximately 0.78s / 4.60s / 1.52s; stripped-debug caller binaries were
 64 / 166 / 1,603 KiB. Compiler settings and archive sizes are in the evidence; these are developer artifacts,
 without LTO or a production packaging policy.
 
