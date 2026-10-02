@@ -1186,7 +1186,7 @@ static Value eval_inner(Context *c, Node *n, int64_t t)
     error(c, "invalid node");
     return vector();
 }
-static PPResult emergency = {PP_ERROR, NULL, 0, "allocation failure", 0, NULL};
+static PPResult emergency = {PP_ERROR, NULL, 0, "allocation failure", 0, NULL, 0, 0};
 static Value eval(Context *c, Node *n, int64_t t)
 {
     if (c->depth >= 128)
@@ -1215,6 +1215,7 @@ PPResult *pp_eval(const PPRequest *request)
         request->lookback_ms > 9000000000000000LL || request->time_ms < -9000000000000000LL ||
         request->time_ms > 9000000000000000LL)
         error(c, "invalid request");
+    uint64_t parse_began = pp_monotonic_ns();
     if (strlen(request->query) > 65536)
         error(c, "query length limit");
     Parser p = {.c = c, .p = request->query};
@@ -1222,6 +1223,8 @@ PPResult *pp_eval(const PPRequest *request)
     Node *ast = expr(&p, 0);
     if (p.tok.kind)
         error(c, "unexpected trailing token");
+    uint64_t evaluation_began = pp_monotonic_ns();
+    c->result.parse_ns = parse_began && evaluation_began >= parse_began ? evaluation_began - parse_began : 0;
     Value v = eval(c, ast, request->time_ms);
     if (!v.kind)
         error(c, "string result unsupported");
@@ -1240,6 +1243,8 @@ PPResult *pp_eval(const PPRequest *request)
     c->result.rows = rows;
     c->result.rows_len = v.rows.n;
     c->result.work = c->work;
+    uint64_t finished = pp_monotonic_ns();
+    c->result.evaluation_ns = evaluation_began && finished >= evaluation_began ? finished - evaluation_began : 0;
     return &c->result;
 }
 void pp_free(PPResult *result)
