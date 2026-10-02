@@ -990,7 +990,7 @@ struct Owner {
     std::vector<std::vector<PPLabel> > labels;
     std::vector<PPSeries> view;
 };
-PPResult emergency{PP_ERROR, nullptr, 0, "allocation failure", 0, nullptr};
+PPResult emergency{PP_ERROR, nullptr, 0, "allocation failure", 0, nullptr, 0, 0};
 } // namespace
 extern "C" PPResult *pp_eval(const PPRequest *request)
 {
@@ -1002,8 +1002,11 @@ extern "C" PPResult *pp_eval(const PPRequest *request)
             request->lookback_ms > 9000000000000000LL || request->time_ms < -9000000000000000LL ||
             request->time_ms > 9000000000000000LL)
             throw std::runtime_error("invalid request");
+        uint64_t parse_began = pp_monotonic_ns();
         Parser parser(request->query);
         auto ast = parser.parse();
+        uint64_t evaluation_began = pp_monotonic_ns();
+        owner->result.parse_ns = parse_began && evaluation_began >= parse_began ? evaluation_began - parse_began : 0;
         Evaluator evaluator(*request);
         try {
             Value v = evaluator.eval(*ast, request->time_ms);
@@ -1033,6 +1036,9 @@ extern "C" PPResult *pp_eval(const PPRequest *request)
         }
         owner->result.rows = owner->view.data();
         owner->result.rows_len = owner->view.size();
+        uint64_t finished = pp_monotonic_ns();
+        owner->result.evaluation_ns =
+            evaluation_began && finished >= evaluation_began ? finished - evaluation_began : 0;
     } catch (const std::bad_alloc &) {
         return &emergency;
     } catch (const std::exception &e) {
