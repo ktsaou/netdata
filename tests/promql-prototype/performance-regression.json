@@ -1,0 +1,17 @@
+[
+  {"id": "H-lookback-inside", "query": "trend", "time_ms": 660000, "lookback_ms": 60001},
+  {"id": "H-lookback-outside", "query": "trend", "time_ms": 660000, "lookback_ms": 60000},
+  {"id": "H-offset-time", "query": "trend offset 1m", "time_ms": 660000},
+  {"id": "H-missing-group", "query": "sum by(missing)(system_cpu)", "time_ms": 600000},
+  {"id": "H-without-name", "query": "sum without(__name__,mode)(system_cpu)", "time_ms": 600000},
+  {"id": "H-by-name", "query": "sum by(__name__)(system_cpu)", "time_ms": 600000},
+  {"id": "H-generated-group", "query": "sum by(node)(label_replace(system_cpu,\"node\",\"$1\",\"instance\",\"(.*)\"))", "time_ms": 600000},
+  {"id": "H-empty-sum", "query": "sum(missing_metric)", "time_ms": 600000},
+  {"id": "H-special-count", "query": "count(special)", "time_ms": 600000},
+  {"id": "H-special-sum", "query": "sum(special)", "time_ms": 600000},
+  {"id": "H-special-avg", "query": "avg(special)", "time_ms": 600000},
+  {"id": "H-special-min", "query": "min(special)", "time_ms": 600000},
+  {"id": "H-special-max", "query": "max(special)", "time_ms": 600000},
+  {"id": "H-negative-max", "query": "max(-system_cpu)", "time_ms": 600000},
+  {"id": "H-empty-join", "query": "label_join(vector(1),\"joined\",\"/\",\"missing\",\"missing2\")", "time_ms": 600000}
+]

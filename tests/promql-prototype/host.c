@@ -9,6 +9,34 @@
 #include <string.h>
 #include <time.h>
 #include <sys/resource.h>
+#ifdef PP_HEAP_PROFILE
+#include "heap_profile.h"
+static json_object *heap_json(PPHeapStats s)
+{
+    json_object *out = json_object_new_object();
+#define HEAP_FIELD(name) json_object_object_add(out, #name, json_object_new_uint64(s.name))
+    HEAP_FIELD(allocation_calls);
+    HEAP_FIELD(reallocation_calls);
+    HEAP_FIELD(requested_bytes);
+    HEAP_FIELD(peak_live_bytes);
+    HEAP_FIELD(live_bytes);
+    HEAP_FIELD(tracking_overflows);
+    HEAP_FIELD(untracked_frees);
+#undef HEAP_FIELD
+    return out;
+}
+static void heap_add(PPHeapStats *total, PPHeapStats s)
+{
+    total->allocation_calls += s.allocation_calls;
+    total->reallocation_calls += s.reallocation_calls;
+    total->requested_bytes += s.requested_bytes;
+    total->tracking_overflows += s.tracking_overflows;
+    total->untracked_frees += s.untracked_frees;
+    total->live_bytes += s.live_bytes;
+    if (s.peak_live_bytes > total->peak_live_bytes)
+        total->peak_live_bytes = s.peak_live_bytes;
+}
+#endif
 static void fail(const char *s)
 {
     fprintf(stderr, "prototype host: %s\n", s);
@@ -103,6 +131,13 @@ static double monotime(void)
 {
     struct timespec t;
     clock_gettime(CLOCK_MONOTONIC, &t);
+    return t.tv_sec + t.tv_nsec / 1e9;
+}
+static double cputime(void)
+{
+    struct timespec t;
+    if (clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &t))
+        fail("CPU clock");
     return t.tv_sec + t.tv_nsec / 1e9;
 }
 static json_object *execute(PPRequest *req, int64_t start, int64_t end, int64_t step)
@@ -236,35 +271,72 @@ int main(int argc, char **argv)
             step = integer(v);
             start = integer(field(r, "start_ms"));
             end = integer(field(r, "end_ms"));
+            if (step < 1 || end < start || (end - start) / step > 10000)
+                fail("range bounds");
         }
         /* Benchmark independent evaluations and releases, excluding JSON serialization. */
-        double seconds = 0;
+        double seconds = 0, cpu_seconds = 0;
         double parse_seconds = 0, evaluation_seconds = 0, first_seconds = 0;
         double first_parse_seconds = 0, first_evaluation_seconds = 0;
         json_object *encoded = NULL;
-        if (!step) {
+        uint64_t evaluation_calls = 0;
+#ifdef PP_HEAP_PROFILE
+        PPHeapStats engine_heap = {0};
+#endif
+        {
+            double cpu_began = cputime();
             double began = monotime();
             for (int j = 0; j < repetitions; j++) {
-                cancel.calls = 0;
                 double first_began = j == 0 ? monotime() : 0;
-                PPResult *out = pp_eval(&req);
-                if (!out)
-                    fail("null result");
-                parse_seconds += out->parse_ns / 1e9;
-                evaluation_seconds += out->evaluation_ns / 1e9;
-                if (j == 0) {
-                    first_parse_seconds = out->parse_ns / 1e9;
-                    first_evaluation_seconds = out->evaluation_ns / 1e9;
+                int64_t count = step ? (end - start) / step + 1 : 1;
+                for (int64_t k = 0; k < count; k++) {
+                    if (step)
+                        req.time_ms = start + k * step;
+                    cancel.calls = 0;
+#ifdef PP_HEAP_PROFILE
+                    pp_heap_begin();
+#endif
+                    PPResult *out = pp_eval(&req);
+                    if (!out)
+                        fail("null result");
+                    evaluation_calls++;
+                    parse_seconds += out->parse_ns / 1e9;
+                    evaluation_seconds += out->evaluation_ns / 1e9;
+                    if (j == 0) {
+                        first_parse_seconds += out->parse_ns / 1e9;
+                        first_evaluation_seconds += out->evaluation_ns / 1e9;
+                    }
+                    pp_free(out);
+#ifdef PP_HEAP_PROFILE
+                    heap_add(&engine_heap, pp_heap_end());
+#endif
                 }
-                pp_free(out);
                 if (j == 0)
                     first_seconds = monotime() - first_began;
             }
             seconds = monotime() - began;
+            cpu_seconds = cputime() - cpu_began;
         }
         cancel.calls = 0;
+#ifdef PP_HEAP_PROFILE
+        if (step)
+            pp_heap_begin();
+#endif
+        double host_cpu_began = cputime(), host_began = monotime();
         encoded = execute(&req, start, end, step);
+        double host_seconds = monotime() - host_began, host_cpu_seconds = cputime() - host_cpu_began;
+#ifdef PP_HEAP_PROFILE
+        if (step)
+            json_object_object_add(encoded, "range_host_heap", heap_json(pp_heap_end()));
+        json_object_object_add(encoded, "engine_heap", heap_json(engine_heap));
+#endif
         json_object_object_add(encoded, "seconds", json_object_new_double(seconds));
+        json_object_object_add(encoded, "cpu_seconds", json_object_new_double(cpu_seconds));
+        json_object_object_add(encoded, "evaluation_calls", json_object_new_uint64(evaluation_calls));
+        if (step) {
+            json_object_object_add(encoded, "range_host_seconds", json_object_new_double(host_seconds));
+            json_object_object_add(encoded, "range_host_cpu_seconds", json_object_new_double(host_cpu_seconds));
+        }
         json_object_object_add(encoded, "parse_seconds", json_object_new_double(parse_seconds));
         json_object_object_add(encoded, "evaluation_seconds", json_object_new_double(evaluation_seconds));
         json_object_object_add(encoded, "first_seconds", json_object_new_double(first_seconds));

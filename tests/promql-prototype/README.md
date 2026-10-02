@@ -16,8 +16,9 @@ query APIs, the independent meta health lifecycle and the Cloud execution split 
   exports 26 logical series from Tier 0 acquired UUID handles and retained init/next/finalize cursors. It exposes
   `system.cpu` and `system_cpu` over the same stored points. The fractional value changes from `1.23456789` to
   retained `1.2345679`; every evaluator and Go receive that decoded value.
-- **Owned results and concurrent C callers:** four threads, 50 evaluations each, destroy/scrub input before inspecting
-  returned labels and points, then release results through the owning library.
+- **Owned results and concurrent C callers:** four threads, 50 iterations each, hold two independent results, then
+  destroy/scrub input before inspecting returned labels and points. Selector, matrix, generated-label, aggregation
+  and mixed-label-count outputs are checked; releasing one result must leave the other valid.
 
 All candidates matched the pinned Go reference on types, labels, timestamps and finite values within absolute or
 relative `1e-6`. Nonfinite values are compared by class/sign. Expected errors require the correct error category;
@@ -71,9 +72,10 @@ comparisons with `bool`; `and/or/unless`; `on/ignoring/group_left/group_right`; 
 `label_replace/label_join`; `abs/clamp_min/clamp_max/round/scalar/vector/sort/sort_desc`; positive offsets, numeric
 `@`, subqueries and instant/range results.
 
-## Measurements
+## Original prototype measurements
 
-`evidence.json` preserves source digests, candidate commits, toolchains, fixture hashes, checks and all measurements.
+`evidence.json` is the unchanged step-00 snapshot. It preserves the original source digests, candidate commits,
+toolchains, fixture hashes, checks and measurements. The subsequent Rust experiment is recorded separately below.
 The following representative results use 512 synthetic nodes, 4,096 series and 249,856 samples. Values are median
 milliseconds per parse/evaluate/release over three sequential trials of 20 repetitions. Input loading and JSON
 serialization are excluded; ownership and cleanup are included. These compare these implementations, not abstract
@@ -116,6 +118,134 @@ selector-copy difference was removed; Rust also remained practical and used a wo
 do not select a production language. Full conformance maintenance, memory/failure behavior and supported-platform
 integration still determine that choice.
 
+## Rust performance experiment
+
+`rust-performance.json` records the bounded follow-on experiment: frozen source pins, current source digests,
+build-setting comparisons, five interleaved timing trials, allocation counters, instruction profiles and checks.
+The final comparison remeasures all candidates together on one CPU, at both 32 and 512 synthetic nodes. Each trial
+uses a fresh process containing one workload. Input loading and JSON construction are outside the engine interval;
+parsing, evaluation, owned-result construction and release are inside it. Process CPU time uses the same interval.
+
+The original Rust profile uses `opt-level=2`, `debug-assertions=yes`, `overflow-checks=yes` and `panic=unwind`.
+The selected experimental profile uses `opt-level=3`, `debug-assertions=no`, `overflow-checks=yes`, `codegen-units=1`,
+`lto=thin` and `panic=unwind`. It targets the portable CPU default, without fast-math or host-specific instructions.
+Intermediate profiles isolate disabling debug assertions, increasing optimization, reducing codegen units and
+enabling ThinLTO. These measurements do not select production build flags.
+
+Build-only comparisons initially used CPU 0. All before/after results below instead come from the final comparison
+on CPU 28, including fresh measurements of the frozen Rust O2 and ThinLTO builds. Cross-CPU timing changes are not
+credited as optimization gains. Small timing differences can reflect noise; raw trials and dispersion are retained.
+
+### Confirmed costs and bounded changes
+
+Callgrind instruction attribution identified allocation/free and ordered label-comparison work as substantial
+costs. Profiling is restricted to `pp_eval` and `pp_free`, and runs separately from timing. Before/after instruction
+events with the same original Rust build settings decreased by 15.0% for gauge total, 17.2% for grouped gauge and
+10.6% for the division join. Instruction events are not hardware cycles or elapsed-time percentages.
+
+The Rust changes replace four unnecessary materializations:
+
+- Instant selectors retain the last eligible sample while scanning and ticking every input point.
+- Projection consumes already-owned label maps when their original contents are no longer needed.
+- Ordinary aggregation groups retain values instead of complete label/sample rows, preserving group and sum order.
+- Output labels use flat owned backing vectors, with point buffers moved into the result owner.
+
+Top/bottom-k buffering, BTree ordering, UTF-8/CString validation, cancellation checkpoints, checked arithmetic and
+panic containment remain intact. The C ABI is unchanged; no external Rust dependency or new unsafe block is added.
+The Rust evaluator grows from 1,552 to 1,575 physical lines: 73 insertions and 50 deletions.
+
+### Engine time
+
+These are median milliseconds per parse/evaluate/release on the larger fixture: 4,096 series and 249,856 samples.
+Instant-query trials contain 40 evaluations each. The CPU medians closely track the wall medians.
+
+| Query shape | C O2 | C++ O2 | Frozen Rust O2 | Changed Rust ThinLTO | Change versus C |
+|---|---:|---:|---:|---:|---:|
+| Gauge total | 1.112 | 1.144 | 1.506 | 1.037 | -6.7% |
+| Grouped gauge total | 1.421 | 1.661 | 2.449 | 1.502 | +5.7% |
+| Grouped counter rate | 1.040 | 1.086 | 1.307 | 0.980 | -5.8% |
+| Label join for division | 3.376 | 3.668 | 4.589 | 2.996 | -11.3% |
+| Label construction | 2.470 | 2.205 | 2.933 | 1.975 | -20.0% |
+| Classic histogram percentile | 4.765 | 4.645 | 5.063 | 3.702 | -22.3% |
+
+Equal weighting of these six shapes gives diagnostic geometric means, not a production traffic mix:
+
+| Rust comparison with frozen Rust O2 | 32 nodes | 512 nodes |
+|---|---:|---:|
+| Build settings only, frozen source | 22.2% less time | 19.4% less time |
+| Evaluator changes only, original settings | 23.1% less time | 12.7% less time |
+| Evaluator changes plus ThinLTO settings | 39.7% less time | 31.7% less time |
+
+Changed Rust ThinLTO is faster than the current C++ prototype on all six shapes. On the larger fixture, its slowest
+comparison with C is grouped gauge at +5.7%; other shapes are 5.8–22.3% faster. On the smaller fixture, all six are
+15.9–29.5% faster than C. **C/C++ remain unchanged O2 prototypes and were not subjected to equivalent optimization**;
+these results qualify these implementations rather than establish a language speed ceiling.
+
+### Advancing evaluations and range requests
+
+Alert-style sequences evaluate at 21 advancing timestamps. Range sequences evaluate at 11 timestamps. Each step
+reparses and immediately releases its result; inputs are immutable, without a scheduler, prepared-query cache,
+concurrent ingestion or persisted alert state. The following medians cover one complete sequence, excluding JSON:
+
+| Larger-fixture sequence | C O2, ms | C++ O2, ms | Frozen Rust O2, ms | Changed Rust ThinLTO, ms |
+|---|---:|---:|---:|---:|
+| Grouped gauge threshold, 21 evaluations | 33.825 | 38.692 | 57.438 | 35.748 |
+| Grouped rate threshold, 21 evaluations | 22.117 | 22.667 | 27.388 | 22.578 |
+| Grouped rate, 11 range steps | 12.548 | 13.895 | 18.469 | 13.086 |
+| Division join, 11 range steps | 37.528 | 40.729 | 51.908 | 35.660 |
+
+Separate `range_host_*` measurements include evaluation and retained JSON matrix assembly for one request. They
+exclude final serialization and matrix release. The shared host searches existing output rows linearly by labels;
+its cost can dominate this standalone experiment. For the larger division range, C core time is 37.528 ms and full
+host time is 584.672 ms; changed Rust core time is 35.660 ms and host time is 620.608 ms. Faster engine execution
+therefore does not establish a faster complete response. No range-host optimization is included in this stage.
+
+### Allocation and memory evidence
+
+Heap measurements use a separate, single-threaded Linux/glibc allocation-interposed caller. A fixed nonallocating
+table records successful allocation/reallocation events, requested byte traffic and peak live requested bytes
+between evaluation and release. A focused counter check covers failed realloc preserving the original allocation.
+All measured core calls finish with zero live tracked bytes, zero table overflows and zero untracked frees.
+
+These are larger-fixture peak live requested bytes. They exclude the input fixture, stacks, allocator metadata and
+fragmentation, executable pages and libc's transient internal realloc storage. **They are not engine RSS.**
+
+| Query shape | C O2 | C++ O2 | Frozen Rust | Changed Rust |
+|---|---:|---:|---:|---:|
+| Gauge total | 1,994,259 | 1,201,048 | 736,822 | 687,702 |
+| Grouped gauge total | 2,400,715 | 1,319,264 | 1,120,271 | 687,762 |
+| Grouped counter rate | 1,298,994 | 708,296 | 596,251 | 596,251 |
+| Label join for division | 4,288,632 | 2,467,584 | 1,391,061 | 1,391,061 |
+| Label construction | 2,835,781 | 1,403,948 | 727,029 | 960,281 |
+| Classic histogram percentile | 5,624,076 | 3,223,426 | 2,390,796 | 2,390,796 |
+
+Grouped gauge allocation events decrease from 23,688 to 14,458, with a 38.6% reduction in peak live requested bytes.
+All six Rust shapes use fewer allocation events, though Rust still performs more than C on some shapes. Flat output
+backing arrays increase label-construction peak by 32.1% versus frozen Rust because they overlap live evaluation
+labels; the resulting peak remains below C/C++ in these fixtures. This is a measured trade-off, not a memory win on
+every query. Range-core peaks are the maximum of separately released steps; `range_host_heap` also includes the
+retained JSON matrix and must be considered separately.
+
+### Compatibility and integration implications
+
+- Six compared variants pass 67 common cases, 27 existing regressions, 15 focused selector/group/nonfinite cases,
+  68 cached real Tier 0 replay cases, the expanded concurrent ownership test and all ten controlled probes.
+- Changed Rust preserves frozen Rust's output bits, row order, work counts and controlled-failure messages on the
+  checked corpora. Go comparison retains the original typed/label/timestamp/numeric tolerance gate; existing rate
+  rounding and NaN-payload differences are reported rather than hidden or called bit-exact Go compatibility.
+- Release and existing sanitizer-mode gates pass. C callers and C/C++ cores are ASan/UBSan instrumented; Rust core
+  uses debug assertions rather than sanitizer instrumentation. Valgrind Memcheck reports zero errors for changed
+  Rust under both original and ThinLTO settings, covering ownership, focused cases and controlled probes.
+- The changed Rust caller shrinks from 1,659,864 bytes with original settings to 660,624 bytes with ThinLTO after
+  debug stripping. On one pinned CPU the corresponding compilation observations are 4.22s and 7.27s. Rust's
+  standard runtime is statically included, while the C++ standard library is dynamically linked; executable bytes
+  alone are not a fair comparison of total deployment footprint.
+
+The measured slowdown is substantially removable without changing the supported semantics. Rust is a credible
+candidate for the user's gradual migration objective; production selection still requires the conformance,
+allocator/platform and live-storage qualification described below. This stage does not implement full PromQL,
+production query APIs, the independent meta health engine or a Cloud execution split.
+
 ## Reproduce
 
 Keep these sibling Git worktrees: `netdata`, `netdata-c`, `netdata-cpp`, `netdata-rust`. The three candidate branches
@@ -150,6 +280,26 @@ The Linux fixture uses `/proc/self/cwd` paths to keep checkout paths out of its 
 refused before RRD/storage initialization. Collection/cursors/handles are finalized before dbengine shutdown and host teardown.
 No collector, listener or production daemon is launched. Fixture directories remain for inspection; scripts do
 not delete them. The newest fixture is referenced by `build/latest-fixture.txt`.
+
+For the Rust performance experiment, reuse the oracle and retained fixture above. Run both timing phases with the
+same CPU affinity; the driver chooses the first CPU in its inherited permitted set. It prints commands, installs
+nothing, and writes temporary output under `build/performance/`. Long runs may use the development workstation's
+established transient-job runner with an explicit CPU affinity. Profiling additionally needs existing Valgrind and
+`callgrind_annotate`; heap instrumentation requires Linux/glibc, and affinity requires `taskset`.
+
+```sh
+python3 tests/promql-prototype/performance.py baseline --trials 5
+python3 tests/promql-prototype/performance.py profile --variant rust-baseline
+python3 tests/promql-prototype/performance.py final --trials 5 --selected-profile thin-lto
+python3 tests/promql-prototype/performance.py profile --variant rust-optimized-baseline
+python3 tests/promql-prototype/performance.py verify
+python3 tests/promql-prototype/performance.py memcheck
+python3 tests/promql-prototype/performance.py capture
+```
+
+The driver materializes original candidate source from the pinned commits and reads changed Rust from its sibling
+worktree. `capture` writes `rust-performance.json` independently; `capture_evidence.py` belongs to the original
+prototype pipeline and is not used to overwrite the frozen `evidence.json` during this follow-on experiment.
 
 ## Native histogram risk and completion costs
 
