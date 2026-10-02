@@ -48,6 +48,8 @@ pub struct PPResult {
     error: *const c_char,
     work: u64,
     owner: *mut c_void,
+    parse_ns: u64,
+    evaluation_ns: u64,
 }
 unsafe extern "C" {
     fn pp_match(pattern: *const c_char, subject: *const c_char) -> i32;
@@ -58,6 +60,7 @@ unsafe extern "C" {
         output: *mut *mut c_char,
     ) -> i32;
     fn pp_string_free(s: *mut c_char);
+    fn pp_monotonic_ns() -> u64;
 }
 type R<T> = Result<T, &'static str>;
 type Labels = BTreeMap<String, String>;
@@ -1435,6 +1438,8 @@ fn own(v: Value, time: i64, work: u64) -> R<*mut PPResult> {
         error: ptr::null(),
         work,
         owner: ptr::null_mut(),
+        parse_ns: 0,
+        evaluation_ns: 0,
     };
     let owner = Box::into_raw(Box::new(Owned {
         result,
@@ -1458,6 +1463,8 @@ fn own_error(message: &str, work: u64) -> *mut PPResult {
         error: error.as_ptr(),
         work,
         owner: ptr::null_mut(),
+        parse_ns: 0,
+        evaluation_ns: 0,
     };
     let owner = Box::into_raw(Box::new(Owned {
         result,
@@ -1489,10 +1496,12 @@ pub unsafe extern "C" fn pp_eval(request: *const PPRequest) -> *mut PPResult {
         {
             return Err("invalid request");
         };
+        let parse_began = unsafe { pp_monotonic_ns() };
         let query = unsafe { CStr::from_ptr(req.query) }
             .to_str()
             .map_err(|_| "invalid query UTF-8")?;
         let ast = Parser::new(query)?.parse()?;
+        let evaluation_began = unsafe { pp_monotonic_ns() };
         let mut evaluator = Evaluator {
             req,
             work: 0,
@@ -1510,7 +1519,21 @@ pub unsafe extern "C" fn pp_eval(request: *const PPRequest) -> *mut PPResult {
         if req.inject_failure != 0 {
             return Err("allocation failure (injected)");
         };
-        own(value, req.time_ms, work)
+        let result = own(value, req.time_ms, work)?;
+        let finished = unsafe { pp_monotonic_ns() };
+        unsafe {
+            (*result).parse_ns = if parse_began != 0 {
+                evaluation_began.saturating_sub(parse_began)
+            } else {
+                0
+            };
+            (*result).evaluation_ns = if evaluation_began != 0 {
+                finished.saturating_sub(evaluation_began)
+            } else {
+                0
+            };
+        }
+        Ok(result)
     }));
     match result {
         Ok(Ok(result)) => result,
