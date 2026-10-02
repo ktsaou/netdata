@@ -561,6 +561,10 @@ fn project(ls: &Labels, names: &[String], keep: bool) -> Labels {
         .map(|(k, v)| (k.clone(), v.clone()))
         .collect()
 }
+fn project_owned(mut ls: Labels, names: &[String], keep: bool) -> Labels {
+    ls.retain(|k, _| names.contains(k) == keep && (keep || k.as_str() != "__name__"));
+    ls
+}
 fn unique(v: &Value) -> R<()> {
     let mut seen = BTreeSet::new();
     for r in &v.rows {
@@ -759,6 +763,7 @@ impl<'a> Evaluator<'a> {
                 unsafe { slice::from_raw_parts(s.points, s.points_len) }
             };
             let mut points = Vec::new();
+            let mut last = None;
             for p in ps {
                 self.tick()?;
                 if p.t <= t
@@ -769,15 +774,18 @@ impl<'a> Evaluator<'a> {
                             self.req.lookback_ms
                         }
                 {
-                    points.push(*p);
+                    if n.range == 0 {
+                        last = Some(*p);
+                    } else {
+                        points.push(*p);
+                    }
                 }
             }
-            if points.is_empty() {
-                continue;
-            }
             if n.range == 0 {
-                let v = points.last().unwrap().v;
-                points = vec![PPPoint { t: time, v }];
+                let Some(p) = last else { continue };
+                points = vec![PPPoint { t: time, v: p.v }];
+            } else if points.is_empty() {
+                continue;
             }
             out.rows.push(Row { labels: ls, points });
         }
@@ -877,7 +885,7 @@ impl<'a> Evaluator<'a> {
                 r.labels.remove("__name__");
             }
             if n.cardinality == 0 && n.matching != 0 {
-                r.labels = project(&r.labels, &n.labels, n.matching == 1);
+                r.labels = project_owned(r.labels, &n.labels, n.matching == 1);
             }
             for name in &n.include {
                 let v = label(&other.labels, name);
@@ -906,19 +914,19 @@ impl<'a> Evaluator<'a> {
         }
         let a = self.eval(n.args.last().unwrap(), t)?;
         check(&a, 2)?;
-        let mut groups: BTreeMap<Labels, Vec<Row>> = BTreeMap::new();
-        for r in a.rows {
-            self.tick()?;
-            let ls = if n.grouping == 0 {
-                Labels::new()
-            } else {
-                project(&r.labels, &n.labels, n.grouping == 1)
-            };
-            groups.entry(ls).or_default().push(r);
-        }
         let mut out = Value::vector();
-        for (ls, mut rows) in groups {
-            if top {
+        if top {
+            let mut groups: BTreeMap<Labels, Vec<Row>> = BTreeMap::new();
+            for r in a.rows {
+                self.tick()?;
+                let ls = if n.grouping == 0 {
+                    Labels::new()
+                } else {
+                    project(&r.labels, &n.labels, n.grouping == 1)
+                };
+                groups.entry(ls).or_default().push(r);
+            }
+            for (_, mut rows) in groups {
                 rows.sort_by(|a, b| order(point(a), point(b), n.text == "topk"));
                 let count = if k.is_finite() && k > 0.0 {
                     (k.floor() as usize).min(rows.len())
@@ -926,16 +934,29 @@ impl<'a> Evaluator<'a> {
                     0
                 };
                 out.rows.extend(rows.into_iter().take(count));
-                continue;
             }
+            return Ok(out);
+        }
+        // Keep both checkpoint passes and each group's input order while dropping unused row payloads.
+        let mut groups: BTreeMap<Labels, Vec<f64>> = BTreeMap::new();
+        for r in a.rows {
+            self.tick()?;
+            let value = point(&r);
+            let ls = if n.grouping == 0 {
+                Labels::new()
+            } else {
+                project_owned(r.labels, &n.labels, n.grouping == 1)
+            };
+            groups.entry(ls).or_default().push(value);
+        }
+        for (ls, values) in groups {
             let mut x = if n.text == "sum" || n.text == "avg" {
                 0.0
             } else {
-                point(&rows[0])
+                values[0]
             };
-            for r in &rows {
+            for &v in &values {
                 self.tick()?;
-                let v = point(r);
                 match n.text.as_str() {
                     "sum" | "avg" => x += v,
                     "min" => x = if x.is_nan() { v } else { x.min(v) },
@@ -944,10 +965,10 @@ impl<'a> Evaluator<'a> {
                 }
             }
             if n.text == "avg" {
-                x /= rows.len() as f64;
+                x /= values.len() as f64;
             }
             if n.text == "count" {
-                x = rows.len() as f64;
+                x = values.len() as f64;
             }
             out.rows.push(sample(ls, t, x));
         }
@@ -1386,8 +1407,8 @@ impl<'a> Evaluator<'a> {
 }
 struct Owned {
     result: PPResult,
-    _strings: Vec<Vec<(CString, CString)>>,
-    _labels: Vec<Vec<PPLabel>>,
+    _strings: Vec<(CString, CString)>,
+    _labels: Vec<PPLabel>,
     _points: Vec<Vec<PPPoint>>,
     _rows: Vec<PPSeries>,
     _error: Option<CString>,
@@ -1397,40 +1418,42 @@ fn own(v: Value, time: i64, work: u64) -> R<*mut PPResult> {
     if v.kind == 1 {
         rows.push(sample(Labels::new(), time, v.scalar));
     }
-    let mut strings = Vec::new();
-    let mut points = Vec::new();
+    let label_count = rows
+        .iter()
+        .try_fold(0usize, |total, r| total.checked_add(r.labels.len()))
+        .ok_or("output label count overflow")?;
+    let mut strings = Vec::with_capacity(label_count);
+    let mut points = Vec::with_capacity(rows.len());
+    let mut views = Vec::with_capacity(rows.len());
     for r in rows {
-        let mut ls = Vec::new();
+        views.push(PPSeries {
+            labels: ptr::null(),
+            labels_len: r.labels.len(),
+            points: r.points.as_ptr(),
+            points_len: r.points.len(),
+        });
         for (k, v) in r.labels {
-            ls.push((
+            strings.push((
                 CString::new(k).map_err(|_| "label contains NUL")?,
                 CString::new(v).map_err(|_| "label contains NUL")?,
             ));
         }
-        strings.push(ls);
         points.push(r.points);
     }
-    let labels: Vec<Vec<PPLabel>> = strings
+    let labels: Vec<PPLabel> = strings
         .iter()
-        .map(|ls| {
-            ls.iter()
-                .map(|(k, v)| PPLabel {
-                    name: k.as_ptr(),
-                    value: v.as_ptr(),
-                })
-                .collect()
+        .map(|(k, v)| PPLabel {
+            name: k.as_ptr(),
+            value: v.as_ptr(),
         })
         .collect();
-    let views: Vec<PPSeries> = labels
-        .iter()
-        .zip(&points)
-        .map(|(ls, ps)| PPSeries {
-            labels: ls.as_ptr(),
-            labels_len: ls.len(),
-            points: ps.as_ptr(),
-            points_len: ps.len(),
-        })
-        .collect();
+    // Finish backing storage before constructing C views; moved point buffers retain their addresses.
+    let mut offset = 0;
+    for view in &mut views {
+        let end = offset + view.labels_len;
+        view.labels = labels[offset..end].as_ptr();
+        offset = end;
+    }
     let result = PPResult {
         kind: v.kind,
         rows: views.as_ptr(),
