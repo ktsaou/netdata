@@ -4,6 +4,11 @@ C, C++ and Rust each implement the same practical dashboard/alert query slice ov
 The experiment supplies implementation evidence for a language decision. Full PromQL qualification, production
 query APIs, the independent meta health lifecycle and the Cloud execution split remain later work.
 
+The `experiment/promql-comparison` branch contains all three implementations in this directory: `engine.c`,
+`engine.cpp` and `engine.rs`. They are byte-identical to the reviewed candidate revisions, including optimized Rust.
+Their original histories are merge ancestors, so frozen source pins remain available from a normal full-history
+clone. The shared build and performance tools use the local files; sibling worktrees are optional.
+
 ## What works in the experiment
 
 - **67 common-query cases per candidate:** 65 successful results and two expected cardinality/duplicate-label errors.
@@ -43,11 +48,11 @@ unsupported or unqualified work; these counts are not language or traffic covera
 
 ## Implementations and input contract
 
-| Candidate worktree | Implementation | Main trade-off |
+| Source | Implementation | Main trade-off |
 |---|---|---|
-| `netdata-c` | C11 owned AST, request arena, native hash indexes, explicit error path | Small runtime; manual ownership/control-flow; intermediates live until release |
-| `netdata-cpp` | C++17 owned AST, standard containers, RAII, exception containment | Familiar native integration; allocator accounting and platform behavior need qualification |
-| `netdata-rust` | Owned Rust AST/values, standard collections, private `repr(C)` adapter | Safe internal ownership; unsafe boundary, allocator-abort behavior and packaging need qualification |
+| `engine.c` | C11 owned AST, request arena, native hash indexes, explicit error path | Small runtime; manual ownership/control-flow; intermediates live until release |
+| `engine.cpp` | C++17 owned AST, standard containers, RAII, exception containment | Familiar native integration; allocator accounting and platform behavior need qualification |
+| `engine.rs` | Owned Rust AST/values, standard collections, private `repr(C)` adapter | Safe internal ownership; unsafe boundary, allocator-abort behavior and packaging need qualification |
 
 Each has its own lexer, parser and evaluator. None calls Go or another candidate to evaluate. Rust uses no external
 parser crate, external Rust dependencies or async runtime. Shared components are the C input/result interface,
@@ -76,6 +81,8 @@ comparisons with `bool`; `and/or/unless`; `on/ignoring/group_left/group_right`; 
 
 `evidence.json` is the unchanged step-00 snapshot. It preserves the original source digests, candidate commits,
 toolchains, fixture hashes, checks and measurements. The subsequent Rust experiment is recorded separately below.
+Both tracked evidence files describe the measured revisions before this source-layout consolidation. Their harness
+digests are historical; the engine digests still identify the unchanged sources or their retained baseline commits.
 The following representative results use 512 synthetic nodes, 4,096 series and 249,856 samples. Values are median
 milliseconds per parse/evaluate/release over three sequential trials of 20 repetitions. Input loading and JSON
 serialization are excluded; ownership and cleanup are included. These compare these implementations, not abstract
@@ -248,9 +255,8 @@ production query APIs, the independent meta health engine or a Cloud execution s
 
 ## Reproduce
 
-Keep these sibling Git worktrees: `netdata`, `netdata-c`, `netdata-cpp`, `netdata-rust`. The three candidate branches
-are `experiment/promql-c`, `experiment/promql-cpp`, `experiment/promql-rust`; the harness branch is
-`feature/promql-meta-health`. Run from the harness worktree:
+Check out `experiment/promql-comparison` from the fork and run from its repository root. One checkout contains the
+sources, shared C interface, oracle, fixtures and runners. The following commands build/check the current candidates:
 
 ```sh
 python3 tests/promql-prototype/build.py --oracle
@@ -259,10 +265,18 @@ python3 tests/promql-prototype/build.py --sanitize
 python3 tests/promql-prototype/run.py --sanitize
 python3 tests/promql-prototype/test_compare.py
 python3 tests/promql-prototype/qualification.py
+```
+
+For the isolated retained-storage replay and optional timing runs:
+
+```sh
 python3 tests/promql-prototype/dbengine.py --build
 python3 tests/promql-prototype/benchmark.py
-python3 tests/promql-prototype/capture_evidence.py
 ```
+
+The historical sibling layout (`netdata`, `netdata-c`, `netdata-cpp`, `netdata-rust`) still works when local engine
+files are absent. Its original branches remain `feature/promql-meta-health` and `experiment/promql-{c,cpp,rust}`.
+The consolidated branch always prefers its committed local source files.
 
 Existing tools required: GCC/G++, Rust with unwinding support, Go >=1.26, Python 3, pkg-config, json-c, PCRE2,
 objcopy; CMake/Ninja and Netdata's build dependencies for the native diagnostic. The scripts install nothing.
@@ -297,9 +311,10 @@ python3 tests/promql-prototype/performance.py memcheck
 python3 tests/promql-prototype/performance.py capture
 ```
 
-The driver materializes original candidate source from the pinned commits and reads changed Rust from its sibling
-worktree. `capture` writes `rust-performance.json` independently; `capture_evidence.py` belongs to the original
-prototype pipeline and is not used to overwrite the frozen `evidence.json` during this follow-on experiment.
+The driver materializes original candidate source from the pinned ancestor commits and reads changed Rust from the
+local `engine.rs`. Keep the full branch history for these baseline lookups. `capture` writes `rust-performance.json`
+independently; `capture_evidence.py` belongs to the original prototype pipeline. Neither capture command is needed
+for routine builds/checks; running one intentionally replaces its tracked historical report with the new run.
 
 ## Native histogram risk and completion costs
 

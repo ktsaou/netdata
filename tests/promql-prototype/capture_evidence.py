@@ -6,6 +6,7 @@ from pathlib import Path
 import subprocess
 
 from run import HERE
+from build import candidate_source
 
 def read(path):
     return json.loads(path.read_text())
@@ -26,9 +27,9 @@ def main():
                 "language_matrix": read(HERE / "language-matrix.json"),
                 "candidate_revisions": {}, "source_sha256": {}}
     for lang, suffix in [("c", "c"), ("cpp", "cpp"), ("rust", "rs")]:
-        checkout = repo.parent / f"netdata-{lang}"
+        path = candidate_source(lang)
+        checkout = path.parents[2]
         evidence["candidate_revisions"][lang] = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=checkout, text=True).strip()
-        path = checkout / f"tests/promql-prototype/engine.{suffix}"
         evidence["source_sha256"][f"{lang}/engine.{suffix}"] = hashlib.sha256(path.read_bytes()).hexdigest()
     for name in ["abi.h", "host.c", "regex.c", "runtime.c", "ownership.c", "fixtures.py", "cases.json", "dataset.json", "regression.json", "risk.json", "oracle/main.go", "oracle/main_test.go", "oracle/qualification.go", "oracle/qualification_test.go", "oracle/go.mod", "oracle/go.sum", "build.py", "run.py", "compare.py", "test_compare.py", "benchmark.py", "dbengine.py", "qualification.py", "language-matrix.json", "native-histogram-risk.json"]:
         evidence["source_sha256"][name] = hashlib.sha256((HERE / name).read_bytes()).hexdigest()

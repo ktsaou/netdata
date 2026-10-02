@@ -21,6 +21,17 @@ def run(command, cwd=REPO, env=None):
 def flags(*args):
     return shlex.split(subprocess.check_output(["pkg-config", *args], text=True))
 
+def candidate_source(language):
+    suffix = {"c": "c", "cpp": "cpp", "rust": "rs"}[language]
+    local = HERE / f"engine.{suffix}"
+    if local.is_file():
+        return local
+    checkout = (REPO.parent / f"netdata-{language}").resolve(strict=True)
+    source = checkout / "tests/promql-prototype" / local.name
+    if not (checkout / ".git").is_file() or not source.is_file():
+        raise SystemExit(f"missing {local.name} locally or in candidate worktree")
+    return source
+
 def build(languages, sanitize=False):
     import json
     out = HERE / ("build/sanitize" if sanitize else "build/release")
@@ -31,19 +42,16 @@ def build(languages, sanitize=False):
         run(["gcc", "-std=c11", *options, *flags("--cflags", "json-c", "libpcre2-8"), "-c", HERE / f"{name}.c", "-o", out / f"{name}.o"])
     measurements = {}
     for language in languages:
-        checkout = (REPO.parent / f"netdata-{language}").resolve(strict=True)
-        if not (checkout / ".git").is_file():
-            raise SystemExit(f"candidate must be a Git worktree: {checkout}")
-        source = checkout / "tests/promql-prototype"
+        source = candidate_source(language)
         lib = out / f"lib{language}.a"
         began = time.perf_counter()
         compiler_environment = os.environ.copy()
         compiler_environment["CCACHE_DISABLE"] = "1"
         if language == "rust":
-            run(["rustc", "--edition", "2021", "--crate-name", "promql_rust", "--crate-type", "staticlib", "-C", "opt-level=1" if sanitize else "opt-level=2", "-C", "debuginfo=1", "-C", "panic=unwind", "-C", "debug-assertions=yes", source / "engine.rs", "-o", lib])
+            run(["rustc", "--edition", "2021", "--crate-name", "promql_rust", "--crate-type", "staticlib", "-C", "opt-level=1" if sanitize else "opt-level=2", "-C", "debuginfo=1", "-C", "panic=unwind", "-C", "debug-assertions=yes", source, "-o", lib])
         else:
-            compiler, standard, suffix = ("gcc", "c11", "c") if language == "c" else ("g++", "c++17", "cpp")
-            run([compiler, f"-std={standard}", *options, "-c", source / f"engine.{suffix}", "-o", out / f"{language}.o"], env=compiler_environment)
+            compiler, standard = ("gcc", "c11") if language == "c" else ("g++", "c++17")
+            run([compiler, f"-std={standard}", *options, "-c", source, "-o", out / f"{language}.o"], env=compiler_environment)
             run(["ar", "rcs", lib, out / f"{language}.o"])
         measurements[language] = {"compile_seconds": time.perf_counter() - began, "archive_bytes": lib.stat().st_size}
         links = ["-lstdc++"] if language == "cpp" else []

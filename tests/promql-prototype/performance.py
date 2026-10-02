@@ -14,7 +14,7 @@ import subprocess
 import time
 
 from benchmark import dataset
-from build import flags
+from build import candidate_source, flags
 from compare import compare, numeric_difference_report
 
 HERE = Path(__file__).resolve().parent
@@ -91,12 +91,11 @@ def build(phase, selected=None):
             specifications.append((f"rust-optimized-{name}", "rust", name, True))
     report = {}
     for name, language, profile, current in specifications:
-        checkout = REPO.parent / f"netdata-{language}"
-        if not (checkout / ".git").is_file():
-            raise RuntimeError(f"candidate is not a linked worktree: {checkout.name}")
+        engine = candidate_source(language)
+        checkout = engine.parents[2]
         suffix = {"c": "c", "cpp": "cpp", "rust": "rs"}[language]
         path = f"tests/promql-prototype/engine.{suffix}"
-        source = (checkout / path).read_text() if current else subprocess.check_output(
+        source = engine.read_text() if current else subprocess.check_output(
             ["git", "-C", str(checkout), "show", f"{PINS[language]}:{path}"], text=True)
         snapshot = variants / f"{name}.{suffix}"
         snapshot.write_text(source)
@@ -395,8 +394,7 @@ def capture():
                "heap_profile.h", "test_heap_profile.c", "ownership.c", "performance-regression.json"]
     sizes = {}
     for language in ["c", "cpp", "rust"]:
-        extension = {"c": "c", "cpp": "cpp", "rust": "rs"}[language]
-        source = REPO.parent / f"netdata-{language}" / "tests/promql-prototype" / f"engine.{extension}"
+        source = candidate_source(language)
         sizes[language] = {"lines": len(source.read_text().splitlines()), "bytes": source.stat().st_size,
                            "sha256": digest(source), "commit": subprocess.check_output(
                                ["git", "-C", str(source.parents[2]), "rev-parse", "HEAD"], text=True).strip()}
