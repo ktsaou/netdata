@@ -2,6 +2,7 @@
 """Compare typed results without hiding duplicate labelsets or point/order errors."""
 import json
 import math
+import struct
 import sys
 
 def same_number(a, b):
@@ -53,6 +54,48 @@ def compare(reference, candidate, cases):
         if error:
             failures[ident] = error
     return failures
+
+def numeric_difference_report(reference, candidate, cases):
+    """Report actual binary64 bits after typed tolerance comparison, without changing its acceptance."""
+    refs = {r["id"]: r for r in reference["results"]}
+    got = {r["id"]: r for r in candidate["results"]}
+    report = {"finite_values": 0, "bitwise_differences": [], "nonfinite_values": 0,
+              "skipped_non_equivalent_cases": [],
+              "method": "raw IEEE-754 binary64 output bits before NaN/string normalization; tolerance acceptance unchanged"}
+    for case in cases:
+        ident = case["id"]
+        if ident not in refs or ident not in got or difference(refs[ident], got[ident], case.get("ordered", False)):
+            report["skipped_non_equivalent_cases"].append(ident)
+            continue
+        if refs[ident]["kind"] == 4:
+            continue
+        expected, actual = refs[ident]["rows"], got[ident]["rows"]
+        if not case.get("ordered", False):
+            expected, actual = sorted(expected, key=row_key), sorted(actual, key=row_key)
+        for er, ar in zip(expected, actual):
+            if len(er.get("point_bits", [])) != len(er["points"]) or len(ar.get("point_bits", [])) != len(ar["points"]):
+                raise ValueError(f"missing raw point bits: {ident}")
+            for ep, ap, abits, bbits in zip(er["points"], ar["points"], er["point_bits"], ar["point_bits"]):
+                a, b = float(ep[1]), float(ap[1])
+                for number, raw in [(a, abits), (b, bbits)]:
+                    if len(raw) != 16:
+                        raise ValueError(f"invalid raw point bits: {ident}")
+                    decoded = struct.unpack(">d", bytes.fromhex(raw))[0]
+                    if math.isfinite(number):
+                        valid = raw == struct.pack(">d", number).hex()
+                    else:
+                        valid = same_number(number, decoded)
+                    if not valid:
+                        raise ValueError(f"raw bits disagree with numeric output: {ident}")
+                if not math.isfinite(a) or not math.isfinite(b):
+                    report["nonfinite_values"] += 1
+                else:
+                    report["finite_values"] += 1
+                if abits != bbits:
+                    report["bitwise_differences"].append({"id": ident, "labels": er["labels"],
+                        "time_ms": ep[0], "reference": ep[1], "candidate": ap[1],
+                        "reference_bits": abits, "candidate_bits": bbits})
+    return report
 
 if __name__ == "__main__":
     reference, candidate, cases = (json.load(open(p)) for p in sys.argv[1:])

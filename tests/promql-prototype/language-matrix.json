@@ -1,0 +1,1959 @@
+{
+  "reference": "Prometheus v3.15.0 / 5241a27fe3c6983549fccc32f6e65917408c63cd",
+  "method": "Pinned upstream catalog enumerates every function, aggregation, lexer operator and modifier. Tested means only the frozen float profile; unimplemented/unqualified entries are remaining work, not conformance percentages.",
+  "functions": [
+    {
+      "name": "abs",
+      "arguments": [
+        "vector"
+      ],
+      "return": "vector",
+      "experimental": false,
+      "candidates": {
+        "c": "tested_float_slice",
+        "cpp": "tested_float_slice",
+        "rust": "tested_float_slice"
+      },
+      "notes": "Queries outside the frozen profile remain unqualified",
+      "common_cases": [
+        "B058",
+        "B060"
+      ]
+    },
+    {
+      "name": "absent",
+      "arguments": [
+        "vector"
+      ],
+      "return": "vector",
+      "experimental": false,
+      "candidates": {
+        "c": "tested_float_slice",
+        "cpp": "tested_float_slice",
+        "rust": "tested_float_slice"
+      },
+      "notes": "Queries outside the frozen profile remain unqualified",
+      "common_cases": [
+        "B052",
+        "B053"
+      ]
+    },
+    {
+      "name": "absent_over_time",
+      "arguments": [
+        "matrix"
+      ],
+      "return": "vector",
+      "experimental": false,
+      "candidates": {
+        "c": "tested_float_slice",
+        "cpp": "tested_float_slice",
+        "rust": "tested_float_slice"
+      },
+      "notes": "Queries outside the frozen profile remain unqualified",
+      "common_cases": [
+        "B054"
+      ]
+    },
+    {
+      "name": "acos",
+      "arguments": [
+        "vector"
+      ],
+      "return": "vector",
+      "experimental": false,
+      "candidates": {
+        "c": "unimplemented_or_unqualified",
+        "cpp": "unimplemented_or_unqualified",
+        "rust": "unimplemented_or_unqualified"
+      },
+      "notes": "Queries outside the frozen profile remain unqualified"
+    },
+    {
+      "name": "acosh",
+      "arguments": [
+        "vector"
+      ],
+      "return": "vector",
+      "experimental": false,
+      "candidates": {
+        "c": "unimplemented_or_unqualified",
+        "cpp": "unimplemented_or_unqualified",
+        "rust": "unimplemented_or_unqualified"
+      },
+      "notes": "Queries outside the frozen profile remain unqualified"
+    },
+    {
+      "name": "asin",
+      "arguments": [
+        "vector"
+      ],
+      "return": "vector",
+      "experimental": false,
+      "candidates": {
+        "c": "unimplemented_or_unqualified",
+        "cpp": "unimplemented_or_unqualified",
+        "rust": "unimplemented_or_unqualified"
+      },
+      "notes": "Queries outside the frozen profile remain unqualified"
+    },
+    {
+      "name": "asinh",
+      "arguments": [
+        "vector"
+      ],
+      "return": "vector",
+      "experimental": false,
+      "candidates": {
+        "c": "unimplemented_or_unqualified",
+        "cpp": "unimplemented_or_unqualified",
+        "rust": "unimplemented_or_unqualified"
+      },
+      "notes": "Queries outside the frozen profile remain unqualified"
+    },
+    {
+      "name": "atan",
+      "arguments": [
+        "vector"
+      ],
+      "return": "vector",
+      "experimental": false,
+      "candidates": {
+        "c": "unimplemented_or_unqualified",
+        "cpp": "unimplemented_or_unqualified",
+        "rust": "unimplemented_or_unqualified"
+      },
+      "notes": "Queries outside the frozen profile remain unqualified"
+    },
+    {
+      "name": "atanh",
+      "arguments": [
+        "vector"
+      ],
+      "return": "vector",
+      "experimental": false,
+      "candidates": {
+        "c": "unimplemented_or_unqualified",
+        "cpp": "unimplemented_or_unqualified",
+        "rust": "unimplemented_or_unqualified"
+      },
+      "notes": "Queries outside the frozen profile remain unqualified"
+    },
+    {
+      "name": "avg_over_time",
+      "arguments": [
+        "matrix"
+      ],
+      "return": "vector",
+      "experimental": false,
+      "candidates": {
+        "c": "tested_float_slice",
+        "cpp": "tested_float_slice",
+        "rust": "tested_float_slice"
+      },
+      "notes": "Queries outside the frozen profile remain unqualified",
+      "common_cases": [
+        "B041"
+      ]
+    },
+    {
+      "name": "ceil",
+      "arguments": [
+        "vector"
+      ],
+      "return": "vector",
+      "experimental": false,
+      "candidates": {
+        "c": "unimplemented_or_unqualified",
+        "cpp": "unimplemented_or_unqualified",
+        "rust": "unimplemented_or_unqualified"
+      },
+      "notes": "Queries outside the frozen profile remain unqualified"
+    },
+    {
+      "name": "changes",
+      "arguments": [
+        "matrix"
+      ],
+      "return": "vector",
+      "experimental": false,
+      "candidates": {
+        "c": "tested_float_slice",
+        "cpp": "tested_float_slice",
+        "rust": "tested_float_slice"
+      },
+      "notes": "Queries outside the frozen profile remain unqualified",
+      "common_cases": [
+        "B047"
+      ]
+    },
+    {
+      "name": "clamp",
+      "arguments": [
+        "vector",
+        "scalar",
+        "scalar"
+      ],
+      "return": "vector",
+      "experimental": false,
+      "candidates": {
+        "c": "unimplemented_or_unqualified",
+        "cpp": "unimplemented_or_unqualified",
+        "rust": "unimplemented_or_unqualified"
+      },
+      "notes": "Queries outside the frozen profile remain unqualified"
+    },
+    {
+      "name": "clamp_max",
+      "arguments": [
+        "vector",
+        "scalar"
+      ],
+      "return": "vector",
+      "experimental": false,
+      "candidates": {
+        "c": "tested_float_slice",
+        "cpp": "tested_float_slice",
+        "rust": "tested_float_slice"
+      },
+      "notes": "Queries outside the frozen profile remain unqualified",
+      "common_cases": [
+        "B059"
+      ]
+    },
+    {
+      "name": "clamp_min",
+      "arguments": [
+        "vector",
+        "scalar"
+      ],
+      "return": "vector",
+      "experimental": false,
+      "candidates": {
+        "c": "tested_float_slice",
+        "cpp": "tested_float_slice",
+        "rust": "tested_float_slice"
+      },
+      "notes": "Queries outside the frozen profile remain unqualified",
+      "common_cases": [
+        "B059"
+      ]
+    },
+    {
+      "name": "cos",
+      "arguments": [
+        "vector"
+      ],
+      "return": "vector",
+      "experimental": false,
+      "candidates": {
+        "c": "unimplemented_or_unqualified",
+        "cpp": "unimplemented_or_unqualified",
+        "rust": "unimplemented_or_unqualified"
+      },
+      "notes": "Queries outside the frozen profile remain unqualified"
+    },
+    {
+      "name": "cosh",
+      "arguments": [
+        "vector"
+      ],
+      "return": "vector",
+      "experimental": false,
+      "candidates": {
+        "c": "unimplemented_or_unqualified",
+        "cpp": "unimplemented_or_unqualified",
+        "rust": "unimplemented_or_unqualified"
+      },
+      "notes": "Queries outside the frozen profile remain unqualified"
+    },
+    {
+      "name": "count_over_time",
+      "arguments": [
+        "matrix"
+      ],
+      "return": "vector",
+      "experimental": false,
+      "candidates": {
+        "c": "tested_float_slice",
+        "cpp": "tested_float_slice",
+        "rust": "tested_float_slice"
+      },
+      "notes": "Queries outside the frozen profile remain unqualified",
+      "common_cases": [
+        "B045"
+      ]
+    },
+    {
+      "name": "day_of_month",
+      "arguments": [
+        "vector"
+      ],
+      "return": "vector",
+      "variadic": 1,
+      "experimental": false,
+      "candidates": {
+        "c": "unimplemented_or_unqualified",
+        "cpp": "unimplemented_or_unqualified",
+        "rust": "unimplemented_or_unqualified"
+      },
+      "notes": "Queries outside the frozen profile remain unqualified"
+    },
+    {
+      "name": "day_of_week",
+      "arguments": [
+        "vector"
+      ],
+      "return": "vector",
+      "variadic": 1,
+      "experimental": false,
+      "candidates": {
+        "c": "unimplemented_or_unqualified",
+        "cpp": "unimplemented_or_unqualified",
+        "rust": "unimplemented_or_unqualified"
+      },
+      "notes": "Queries outside the frozen profile remain unqualified"
+    },
+    {
+      "name": "day_of_year",
+      "arguments": [
+        "vector"
+      ],
+      "return": "vector",
+      "variadic": 1,
+      "experimental": false,
+      "candidates": {
+        "c": "unimplemented_or_unqualified",
+        "cpp": "unimplemented_or_unqualified",
+        "rust": "unimplemented_or_unqualified"
+      },
+      "notes": "Queries outside the frozen profile remain unqualified"
+    },
+    {
+      "name": "days_in_month",
+      "arguments": [
+        "vector"
+      ],
+      "return": "vector",
+      "variadic": 1,
+      "experimental": false,
+      "candidates": {
+        "c": "unimplemented_or_unqualified",
+        "cpp": "unimplemented_or_unqualified",
+        "rust": "unimplemented_or_unqualified"
+      },
+      "notes": "Queries outside the frozen profile remain unqualified"
+    },
+    {
+      "name": "deg",
+      "arguments": [
+        "vector"
+      ],
+      "return": "vector",
+      "experimental": false,
+      "candidates": {
+        "c": "unimplemented_or_unqualified",
+        "cpp": "unimplemented_or_unqualified",
+        "rust": "unimplemented_or_unqualified"
+      },
+      "notes": "Queries outside the frozen profile remain unqualified"
+    },
+    {
+      "name": "delta",
+      "arguments": [
+        "matrix"
+      ],
+      "return": "vector",
+      "experimental": false,
+      "candidates": {
+        "c": "tested_float_slice",
+        "cpp": "tested_float_slice",
+        "rust": "tested_float_slice"
+      },
+      "notes": "Queries outside the frozen profile remain unqualified",
+      "common_cases": [
+        "B039"
+      ]
+    },
+    {
+      "name": "deriv",
+      "arguments": [
+        "matrix"
+      ],
+      "return": "vector",
+      "experimental": false,
+      "candidates": {
+        "c": "unimplemented_or_unqualified",
+        "cpp": "unimplemented_or_unqualified",
+        "rust": "unimplemented_or_unqualified"
+      },
+      "notes": "Queries outside the frozen profile remain unqualified"
+    },
+    {
+      "name": "double_exponential_smoothing",
+      "arguments": [
+        "matrix",
+        "scalar",
+        "scalar"
+      ],
+      "return": "vector",
+      "experimental": true,
+      "candidates": {
+        "c": "unimplemented_or_unqualified",
+        "cpp": "unimplemented_or_unqualified",
+        "rust": "unimplemented_or_unqualified"
+      },
+      "notes": "Queries outside the frozen profile remain unqualified"
+    },
+    {
+      "name": "end",
+      "return": "scalar",
+      "experimental": true,
+      "candidates": {
+        "c": "unimplemented_or_unqualified",
+        "cpp": "unimplemented_or_unqualified",
+        "rust": "unimplemented_or_unqualified"
+      },
+      "notes": "Queries outside the frozen profile remain unqualified"
+    },
+    {
+      "name": "exp",
+      "arguments": [
+        "vector"
+      ],
+      "return": "vector",
+      "experimental": false,
+      "candidates": {
+        "c": "unimplemented_or_unqualified",
+        "cpp": "unimplemented_or_unqualified",
+        "rust": "unimplemented_or_unqualified"
+      },
+      "notes": "Queries outside the frozen profile remain unqualified"
+    },
+    {
+      "name": "first_over_time",
+      "arguments": [
+        "matrix"
+      ],
+      "return": "vector",
+      "experimental": false,
+      "candidates": {
+        "c": "unimplemented_or_unqualified",
+        "cpp": "unimplemented_or_unqualified",
+        "rust": "unimplemented_or_unqualified"
+      },
+      "notes": "Queries outside the frozen profile remain unqualified"
+    },
+    {
+      "name": "floor",
+      "arguments": [
+        "vector"
+      ],
+      "return": "vector",
+      "experimental": false,
+      "candidates": {
+        "c": "unimplemented_or_unqualified",
+        "cpp": "unimplemented_or_unqualified",
+        "rust": "unimplemented_or_unqualified"
+      },
+      "notes": "Queries outside the frozen profile remain unqualified"
+    },
+    {
+      "name": "histogram_avg",
+      "arguments": [
+        "vector"
+      ],
+      "return": "vector",
+      "experimental": false,
+      "candidates": {
+        "c": "unimplemented_or_unqualified",
+        "cpp": "unimplemented_or_unqualified",
+        "rust": "unimplemented_or_unqualified"
+      },
+      "notes": "Queries outside the frozen profile remain unqualified"
+    },
+    {
+      "name": "histogram_count",
+      "arguments": [
+        "vector"
+      ],
+      "return": "vector",
+      "experimental": false,
+      "candidates": {
+        "c": "unimplemented_or_unqualified",
+        "cpp": "unimplemented_or_unqualified",
+        "rust": "unimplemented_or_unqualified"
+      },
+      "notes": "Queries outside the frozen profile remain unqualified"
+    },
+    {
+      "name": "histogram_fraction",
+      "arguments": [
+        "scalar",
+        "scalar",
+        "vector"
+      ],
+      "return": "vector",
+      "experimental": false,
+      "candidates": {
+        "c": "unimplemented_or_unqualified",
+        "cpp": "unimplemented_or_unqualified",
+        "rust": "unimplemented_or_unqualified"
+      },
+      "notes": "Queries outside the frozen profile remain unqualified"
+    },
+    {
+      "name": "histogram_quantile",
+      "arguments": [
+        "scalar",
+        "vector"
+      ],
+      "return": "vector",
+      "experimental": false,
+      "candidates": {
+        "c": "tested_float_slice",
+        "cpp": "tested_float_slice",
+        "rust": "tested_float_slice"
+      },
+      "notes": "Classic cumulative buckets tested; native histogram input unsupported",
+      "common_cases": [
+        "B055"
+      ]
+    },
+    {
+      "name": "histogram_quantiles",
+      "arguments": [
+        "vector",
+        "string",
+        "scalar",
+        "scalar"
+      ],
+      "return": "vector",
+      "variadic": 9,
+      "experimental": true,
+      "candidates": {
+        "c": "unimplemented_or_unqualified",
+        "cpp": "unimplemented_or_unqualified",
+        "rust": "unimplemented_or_unqualified"
+      },
+      "notes": "Queries outside the frozen profile remain unqualified"
+    },
+    {
+      "name": "histogram_stddev",
+      "arguments": [
+        "vector"
+      ],
+      "return": "vector",
+      "experimental": false,
+      "candidates": {
+        "c": "unimplemented_or_unqualified",
+        "cpp": "unimplemented_or_unqualified",
+        "rust": "unimplemented_or_unqualified"
+      },
+      "notes": "Queries outside the frozen profile remain unqualified"
+    },
+    {
+      "name": "histogram_stdvar",
+      "arguments": [
+        "vector"
+      ],
+      "return": "vector",
+      "experimental": false,
+      "candidates": {
+        "c": "unimplemented_or_unqualified",
+        "cpp": "unimplemented_or_unqualified",
+        "rust": "unimplemented_or_unqualified"
+      },
+      "notes": "Queries outside the frozen profile remain unqualified"
+    },
+    {
+      "name": "histogram_sum",
+      "arguments": [
+        "vector"
+      ],
+      "return": "vector",
+      "experimental": false,
+      "candidates": {
+        "c": "unimplemented_or_unqualified",
+        "cpp": "unimplemented_or_unqualified",
+        "rust": "unimplemented_or_unqualified"
+      },
+      "notes": "Queries outside the frozen profile remain unqualified"
+    },
+    {
+      "name": "hour",
+      "arguments": [
+        "vector"
+      ],
+      "return": "vector",
+      "variadic": 1,
+      "experimental": false,
+      "candidates": {
+        "c": "unimplemented_or_unqualified",
+        "cpp": "unimplemented_or_unqualified",
+        "rust": "unimplemented_or_unqualified"
+      },
+      "notes": "Queries outside the frozen profile remain unqualified"
+    },
+    {
+      "name": "idelta",
+      "arguments": [
+        "matrix"
+      ],
+      "return": "vector",
+      "experimental": false,
+      "candidates": {
+        "c": "tested_float_slice",
+        "cpp": "tested_float_slice",
+        "rust": "tested_float_slice"
+      },
+      "notes": "Queries outside the frozen profile remain unqualified",
+      "common_cases": [
+        "B040"
+      ]
+    },
+    {
+      "name": "increase",
+      "arguments": [
+        "matrix"
+      ],
+      "return": "vector",
+      "experimental": false,
+      "candidates": {
+        "c": "tested_float_slice",
+        "cpp": "tested_float_slice",
+        "rust": "tested_float_slice"
+      },
+      "notes": "Queries outside the frozen profile remain unqualified",
+      "common_cases": [
+        "B036"
+      ]
+    },
+    {
+      "name": "info",
+      "arguments": [
+        "vector",
+        "vector"
+      ],
+      "return": "vector",
+      "variadic": 1,
+      "experimental": true,
+      "candidates": {
+        "c": "unimplemented_or_unqualified",
+        "cpp": "unimplemented_or_unqualified",
+        "rust": "unimplemented_or_unqualified"
+      },
+      "notes": "Queries outside the frozen profile remain unqualified"
+    },
+    {
+      "name": "irate",
+      "arguments": [
+        "matrix"
+      ],
+      "return": "vector",
+      "experimental": false,
+      "candidates": {
+        "c": "tested_float_slice",
+        "cpp": "tested_float_slice",
+        "rust": "tested_float_slice"
+      },
+      "notes": "Queries outside the frozen profile remain unqualified",
+      "common_cases": [
+        "B038"
+      ]
+    },
+    {
+      "name": "label_join",
+      "arguments": [
+        "vector",
+        "string",
+        "string",
+        "string"
+      ],
+      "return": "vector",
+      "variadic": -1,
+      "experimental": false,
+      "candidates": {
+        "c": "tested_float_slice",
+        "cpp": "tested_float_slice",
+        "rust": "tested_float_slice"
+      },
+      "notes": "Queries outside the frozen profile remain unqualified",
+      "common_cases": [
+        "B057"
+      ]
+    },
+    {
+      "name": "label_replace",
+      "arguments": [
+        "vector",
+        "string",
+        "string",
+        "string",
+        "string"
+      ],
+      "return": "vector",
+      "experimental": false,
+      "candidates": {
+        "c": "tested_float_slice",
+        "cpp": "tested_float_slice",
+        "rust": "tested_float_slice"
+      },
+      "notes": "Shared bounded PCRE2 facility; full RE2 compatibility unsupported",
+      "common_cases": [
+        "B056"
+      ]
+    },
+    {
+      "name": "last_over_time",
+      "arguments": [
+        "matrix"
+      ],
+      "return": "vector",
+      "experimental": false,
+      "candidates": {
+        "c": "tested_float_slice",
+        "cpp": "tested_float_slice",
+        "rust": "tested_float_slice"
+      },
+      "notes": "Queries outside the frozen profile remain unqualified",
+      "common_cases": [
+        "B046"
+      ]
+    },
+    {
+      "name": "ln",
+      "arguments": [
+        "vector"
+      ],
+      "return": "vector",
+      "experimental": false,
+      "candidates": {
+        "c": "unimplemented_or_unqualified",
+        "cpp": "unimplemented_or_unqualified",
+        "rust": "unimplemented_or_unqualified"
+      },
+      "notes": "Queries outside the frozen profile remain unqualified"
+    },
+    {
+      "name": "log10",
+      "arguments": [
+        "vector"
+      ],
+      "return": "vector",
+      "experimental": false,
+      "candidates": {
+        "c": "unimplemented_or_unqualified",
+        "cpp": "unimplemented_or_unqualified",
+        "rust": "unimplemented_or_unqualified"
+      },
+      "notes": "Queries outside the frozen profile remain unqualified"
+    },
+    {
+      "name": "log2",
+      "arguments": [
+        "vector"
+      ],
+      "return": "vector",
+      "experimental": false,
+      "candidates": {
+        "c": "unimplemented_or_unqualified",
+        "cpp": "unimplemented_or_unqualified",
+        "rust": "unimplemented_or_unqualified"
+      },
+      "notes": "Queries outside the frozen profile remain unqualified"
+    },
+    {
+      "name": "mad_over_time",
+      "arguments": [
+        "matrix"
+      ],
+      "return": "vector",
+      "experimental": true,
+      "candidates": {
+        "c": "unimplemented_or_unqualified",
+        "cpp": "unimplemented_or_unqualified",
+        "rust": "unimplemented_or_unqualified"
+      },
+      "notes": "Queries outside the frozen profile remain unqualified"
+    },
+    {
+      "name": "max_of",
+      "arguments": [
+        "scalar",
+        "scalar"
+      ],
+      "return": "scalar",
+      "experimental": true,
+      "candidates": {
+        "c": "unimplemented_or_unqualified",
+        "cpp": "unimplemented_or_unqualified",
+        "rust": "unimplemented_or_unqualified"
+      },
+      "notes": "Queries outside the frozen profile remain unqualified"
+    },
+    {
+      "name": "max_over_time",
+      "arguments": [
+        "matrix"
+      ],
+      "return": "vector",
+      "experimental": false,
+      "candidates": {
+        "c": "tested_float_slice",
+        "cpp": "tested_float_slice",
+        "rust": "tested_float_slice"
+      },
+      "notes": "Queries outside the frozen profile remain unqualified",
+      "common_cases": [
+        "B044"
+      ]
+    },
+    {
+      "name": "min_of",
+      "arguments": [
+        "scalar",
+        "scalar"
+      ],
+      "return": "scalar",
+      "experimental": true,
+      "candidates": {
+        "c": "unimplemented_or_unqualified",
+        "cpp": "unimplemented_or_unqualified",
+        "rust": "unimplemented_or_unqualified"
+      },
+      "notes": "Queries outside the frozen profile remain unqualified"
+    },
+    {
+      "name": "min_over_time",
+      "arguments": [
+        "matrix"
+      ],
+      "return": "vector",
+      "experimental": false,
+      "candidates": {
+        "c": "tested_float_slice",
+        "cpp": "tested_float_slice",
+        "rust": "tested_float_slice"
+      },
+      "notes": "Queries outside the frozen profile remain unqualified",
+      "common_cases": [
+        "B043"
+      ]
+    },
+    {
+      "name": "minute",
+      "arguments": [
+        "vector"
+      ],
+      "return": "vector",
+      "variadic": 1,
+      "experimental": false,
+      "candidates": {
+        "c": "unimplemented_or_unqualified",
+        "cpp": "unimplemented_or_unqualified",
+        "rust": "unimplemented_or_unqualified"
+      },
+      "notes": "Queries outside the frozen profile remain unqualified"
+    },
+    {
+      "name": "month",
+      "arguments": [
+        "vector"
+      ],
+      "return": "vector",
+      "variadic": 1,
+      "experimental": false,
+      "candidates": {
+        "c": "unimplemented_or_unqualified",
+        "cpp": "unimplemented_or_unqualified",
+        "rust": "unimplemented_or_unqualified"
+      },
+      "notes": "Queries outside the frozen profile remain unqualified"
+    },
+    {
+      "name": "pi",
+      "return": "scalar",
+      "experimental": false,
+      "candidates": {
+        "c": "unimplemented_or_unqualified",
+        "cpp": "unimplemented_or_unqualified",
+        "rust": "unimplemented_or_unqualified"
+      },
+      "notes": "Queries outside the frozen profile remain unqualified"
+    },
+    {
+      "name": "predict_linear",
+      "arguments": [
+        "matrix",
+        "scalar"
+      ],
+      "return": "vector",
+      "experimental": false,
+      "candidates": {
+        "c": "unimplemented_or_unqualified",
+        "cpp": "unimplemented_or_unqualified",
+        "rust": "unimplemented_or_unqualified"
+      },
+      "notes": "Queries outside the frozen profile remain unqualified"
+    },
+    {
+      "name": "present_over_time",
+      "arguments": [
+        "matrix"
+      ],
+      "return": "vector",
+      "experimental": false,
+      "candidates": {
+        "c": "unimplemented_or_unqualified",
+        "cpp": "unimplemented_or_unqualified",
+        "rust": "unimplemented_or_unqualified"
+      },
+      "notes": "Queries outside the frozen profile remain unqualified"
+    },
+    {
+      "name": "quantile_over_time",
+      "arguments": [
+        "scalar",
+        "matrix"
+      ],
+      "return": "vector",
+      "experimental": false,
+      "candidates": {
+        "c": "unimplemented_or_unqualified",
+        "cpp": "unimplemented_or_unqualified",
+        "rust": "unimplemented_or_unqualified"
+      },
+      "notes": "Queries outside the frozen profile remain unqualified"
+    },
+    {
+      "name": "rad",
+      "arguments": [
+        "vector"
+      ],
+      "return": "vector",
+      "experimental": false,
+      "candidates": {
+        "c": "unimplemented_or_unqualified",
+        "cpp": "unimplemented_or_unqualified",
+        "rust": "unimplemented_or_unqualified"
+      },
+      "notes": "Queries outside the frozen profile remain unqualified"
+    },
+    {
+      "name": "range",
+      "return": "scalar",
+      "experimental": true,
+      "candidates": {
+        "c": "unimplemented_or_unqualified",
+        "cpp": "unimplemented_or_unqualified",
+        "rust": "unimplemented_or_unqualified"
+      },
+      "notes": "Queries outside the frozen profile remain unqualified"
+    },
+    {
+      "name": "rate",
+      "arguments": [
+        "matrix"
+      ],
+      "return": "vector",
+      "experimental": false,
+      "candidates": {
+        "c": "tested_float_slice",
+        "cpp": "tested_float_slice",
+        "rust": "tested_float_slice"
+      },
+      "notes": "Queries outside the frozen profile remain unqualified",
+      "common_cases": [
+        "B035",
+        "B037",
+        "B049",
+        "B050",
+        "B051"
+      ]
+    },
+    {
+      "name": "resets",
+      "arguments": [
+        "matrix"
+      ],
+      "return": "vector",
+      "experimental": false,
+      "candidates": {
+        "c": "tested_float_slice",
+        "cpp": "tested_float_slice",
+        "rust": "tested_float_slice"
+      },
+      "notes": "Queries outside the frozen profile remain unqualified",
+      "common_cases": [
+        "B048"
+      ]
+    },
+    {
+      "name": "round",
+      "arguments": [
+        "vector",
+        "scalar"
+      ],
+      "return": "vector",
+      "variadic": 1,
+      "experimental": false,
+      "candidates": {
+        "c": "tested_float_slice",
+        "cpp": "tested_float_slice",
+        "rust": "tested_float_slice"
+      },
+      "notes": "Queries outside the frozen profile remain unqualified",
+      "common_cases": [
+        "B061"
+      ]
+    },
+    {
+      "name": "scalar",
+      "arguments": [
+        "vector"
+      ],
+      "return": "scalar",
+      "experimental": false,
+      "candidates": {
+        "c": "tested_float_slice",
+        "cpp": "tested_float_slice",
+        "rust": "tested_float_slice"
+      },
+      "notes": "Queries outside the frozen profile remain unqualified",
+      "common_cases": [
+        "B062"
+      ]
+    },
+    {
+      "name": "sgn",
+      "arguments": [
+        "vector"
+      ],
+      "return": "vector",
+      "experimental": false,
+      "candidates": {
+        "c": "unimplemented_or_unqualified",
+        "cpp": "unimplemented_or_unqualified",
+        "rust": "unimplemented_or_unqualified"
+      },
+      "notes": "Queries outside the frozen profile remain unqualified"
+    },
+    {
+      "name": "sin",
+      "arguments": [
+        "vector"
+      ],
+      "return": "vector",
+      "experimental": false,
+      "candidates": {
+        "c": "unimplemented_or_unqualified",
+        "cpp": "unimplemented_or_unqualified",
+        "rust": "unimplemented_or_unqualified"
+      },
+      "notes": "Queries outside the frozen profile remain unqualified"
+    },
+    {
+      "name": "sinh",
+      "arguments": [
+        "vector"
+      ],
+      "return": "vector",
+      "experimental": false,
+      "candidates": {
+        "c": "unimplemented_or_unqualified",
+        "cpp": "unimplemented_or_unqualified",
+        "rust": "unimplemented_or_unqualified"
+      },
+      "notes": "Queries outside the frozen profile remain unqualified"
+    },
+    {
+      "name": "sort",
+      "arguments": [
+        "vector"
+      ],
+      "return": "vector",
+      "experimental": false,
+      "candidates": {
+        "c": "tested_float_slice",
+        "cpp": "tested_float_slice",
+        "rust": "tested_float_slice"
+      },
+      "notes": "Queries outside the frozen profile remain unqualified",
+      "common_cases": [
+        "B064"
+      ]
+    },
+    {
+      "name": "sort_by_label",
+      "arguments": [
+        "vector",
+        "string"
+      ],
+      "return": "vector",
+      "variadic": -1,
+      "experimental": true,
+      "candidates": {
+        "c": "unimplemented_or_unqualified",
+        "cpp": "unimplemented_or_unqualified",
+        "rust": "unimplemented_or_unqualified"
+      },
+      "notes": "Queries outside the frozen profile remain unqualified"
+    },
+    {
+      "name": "sort_by_label_desc",
+      "arguments": [
+        "vector",
+        "string"
+      ],
+      "return": "vector",
+      "variadic": -1,
+      "experimental": true,
+      "candidates": {
+        "c": "unimplemented_or_unqualified",
+        "cpp": "unimplemented_or_unqualified",
+        "rust": "unimplemented_or_unqualified"
+      },
+      "notes": "Queries outside the frozen profile remain unqualified"
+    },
+    {
+      "name": "sort_desc",
+      "arguments": [
+        "vector"
+      ],
+      "return": "vector",
+      "experimental": false,
+      "candidates": {
+        "c": "tested_float_slice",
+        "cpp": "tested_float_slice",
+        "rust": "tested_float_slice"
+      },
+      "notes": "Queries outside the frozen profile remain unqualified",
+      "common_cases": [
+        "B065"
+      ]
+    },
+    {
+      "name": "sqrt",
+      "arguments": [
+        "vector"
+      ],
+      "return": "vector",
+      "experimental": false,
+      "candidates": {
+        "c": "unimplemented_or_unqualified",
+        "cpp": "unimplemented_or_unqualified",
+        "rust": "unimplemented_or_unqualified"
+      },
+      "notes": "Queries outside the frozen profile remain unqualified"
+    },
+    {
+      "name": "start",
+      "return": "scalar",
+      "experimental": true,
+      "candidates": {
+        "c": "unimplemented_or_unqualified",
+        "cpp": "unimplemented_or_unqualified",
+        "rust": "unimplemented_or_unqualified"
+      },
+      "notes": "Queries outside the frozen profile remain unqualified"
+    },
+    {
+      "name": "start_timestamp",
+      "arguments": [
+        "vector"
+      ],
+      "return": "vector",
+      "experimental": true,
+      "candidates": {
+        "c": "unimplemented_or_unqualified",
+        "cpp": "unimplemented_or_unqualified",
+        "rust": "unimplemented_or_unqualified"
+      },
+      "notes": "Queries outside the frozen profile remain unqualified"
+    },
+    {
+      "name": "stddev_over_time",
+      "arguments": [
+        "matrix"
+      ],
+      "return": "vector",
+      "experimental": false,
+      "candidates": {
+        "c": "unimplemented_or_unqualified",
+        "cpp": "unimplemented_or_unqualified",
+        "rust": "unimplemented_or_unqualified"
+      },
+      "notes": "Queries outside the frozen profile remain unqualified"
+    },
+    {
+      "name": "stdvar_over_time",
+      "arguments": [
+        "matrix"
+      ],
+      "return": "vector",
+      "experimental": false,
+      "candidates": {
+        "c": "unimplemented_or_unqualified",
+        "cpp": "unimplemented_or_unqualified",
+        "rust": "unimplemented_or_unqualified"
+      },
+      "notes": "Queries outside the frozen profile remain unqualified"
+    },
+    {
+      "name": "step",
+      "return": "scalar",
+      "experimental": true,
+      "candidates": {
+        "c": "unimplemented_or_unqualified",
+        "cpp": "unimplemented_or_unqualified",
+        "rust": "unimplemented_or_unqualified"
+      },
+      "notes": "Queries outside the frozen profile remain unqualified"
+    },
+    {
+      "name": "sum_over_time",
+      "arguments": [
+        "matrix"
+      ],
+      "return": "vector",
+      "experimental": false,
+      "candidates": {
+        "c": "tested_float_slice",
+        "cpp": "tested_float_slice",
+        "rust": "tested_float_slice"
+      },
+      "notes": "Queries outside the frozen profile remain unqualified",
+      "common_cases": [
+        "B042"
+      ]
+    },
+    {
+      "name": "tan",
+      "arguments": [
+        "vector"
+      ],
+      "return": "vector",
+      "experimental": false,
+      "candidates": {
+        "c": "unimplemented_or_unqualified",
+        "cpp": "unimplemented_or_unqualified",
+        "rust": "unimplemented_or_unqualified"
+      },
+      "notes": "Queries outside the frozen profile remain unqualified"
+    },
+    {
+      "name": "tanh",
+      "arguments": [
+        "vector"
+      ],
+      "return": "vector",
+      "experimental": false,
+      "candidates": {
+        "c": "unimplemented_or_unqualified",
+        "cpp": "unimplemented_or_unqualified",
+        "rust": "unimplemented_or_unqualified"
+      },
+      "notes": "Queries outside the frozen profile remain unqualified"
+    },
+    {
+      "name": "time",
+      "return": "scalar",
+      "experimental": false,
+      "candidates": {
+        "c": "unimplemented_or_unqualified",
+        "cpp": "unimplemented_or_unqualified",
+        "rust": "unimplemented_or_unqualified"
+      },
+      "notes": "Queries outside the frozen profile remain unqualified"
+    },
+    {
+      "name": "timestamp",
+      "arguments": [
+        "vector"
+      ],
+      "return": "vector",
+      "experimental": false,
+      "candidates": {
+        "c": "unimplemented_or_unqualified",
+        "cpp": "unimplemented_or_unqualified",
+        "rust": "unimplemented_or_unqualified"
+      },
+      "notes": "Queries outside the frozen profile remain unqualified"
+    },
+    {
+      "name": "ts_of_first_over_time",
+      "arguments": [
+        "matrix"
+      ],
+      "return": "vector",
+      "experimental": true,
+      "candidates": {
+        "c": "unimplemented_or_unqualified",
+        "cpp": "unimplemented_or_unqualified",
+        "rust": "unimplemented_or_unqualified"
+      },
+      "notes": "Queries outside the frozen profile remain unqualified"
+    },
+    {
+      "name": "ts_of_last_over_time",
+      "arguments": [
+        "matrix"
+      ],
+      "return": "vector",
+      "experimental": true,
+      "candidates": {
+        "c": "unimplemented_or_unqualified",
+        "cpp": "unimplemented_or_unqualified",
+        "rust": "unimplemented_or_unqualified"
+      },
+      "notes": "Queries outside the frozen profile remain unqualified"
+    },
+    {
+      "name": "ts_of_max_over_time",
+      "arguments": [
+        "matrix"
+      ],
+      "return": "vector",
+      "experimental": true,
+      "candidates": {
+        "c": "unimplemented_or_unqualified",
+        "cpp": "unimplemented_or_unqualified",
+        "rust": "unimplemented_or_unqualified"
+      },
+      "notes": "Queries outside the frozen profile remain unqualified"
+    },
+    {
+      "name": "ts_of_min_over_time",
+      "arguments": [
+        "matrix"
+      ],
+      "return": "vector",
+      "experimental": true,
+      "candidates": {
+        "c": "unimplemented_or_unqualified",
+        "cpp": "unimplemented_or_unqualified",
+        "rust": "unimplemented_or_unqualified"
+      },
+      "notes": "Queries outside the frozen profile remain unqualified"
+    },
+    {
+      "name": "vector",
+      "arguments": [
+        "scalar"
+      ],
+      "return": "vector",
+      "experimental": false,
+      "candidates": {
+        "c": "tested_float_slice",
+        "cpp": "tested_float_slice",
+        "rust": "tested_float_slice"
+      },
+      "notes": "Queries outside the frozen profile remain unqualified",
+      "common_cases": [
+        "B061",
+        "B063"
+      ]
+    },
+    {
+      "name": "year",
+      "arguments": [
+        "vector"
+      ],
+      "return": "vector",
+      "variadic": 1,
+      "experimental": false,
+      "candidates": {
+        "c": "unimplemented_or_unqualified",
+        "cpp": "unimplemented_or_unqualified",
+        "rust": "unimplemented_or_unqualified"
+      },
+      "notes": "Queries outside the frozen profile remain unqualified"
+    }
+  ],
+  "aggregations": [
+    {
+      "name": "avg",
+      "experimental": false,
+      "candidates": {
+        "c": "tested_float_slice",
+        "cpp": "tested_float_slice",
+        "rust": "tested_float_slice"
+      },
+      "notes": "Queries outside the frozen profile remain unqualified",
+      "common_cases": [
+        "B024"
+      ]
+    },
+    {
+      "name": "bottomk",
+      "experimental": false,
+      "candidates": {
+        "c": "tested_float_slice",
+        "cpp": "tested_float_slice",
+        "rust": "tested_float_slice"
+      },
+      "notes": "Queries outside the frozen profile remain unqualified",
+      "common_cases": [
+        "B029"
+      ]
+    },
+    {
+      "name": "count",
+      "experimental": false,
+      "candidates": {
+        "c": "tested_float_slice",
+        "cpp": "tested_float_slice",
+        "rust": "tested_float_slice"
+      },
+      "notes": "Queries outside the frozen profile remain unqualified",
+      "common_cases": [
+        "B027"
+      ]
+    },
+    {
+      "name": "count_values",
+      "experimental": false,
+      "candidates": {
+        "c": "unimplemented_or_unqualified",
+        "cpp": "unimplemented_or_unqualified",
+        "rust": "unimplemented_or_unqualified"
+      },
+      "notes": "Queries outside the frozen profile remain unqualified"
+    },
+    {
+      "name": "group",
+      "experimental": false,
+      "candidates": {
+        "c": "unimplemented_or_unqualified",
+        "cpp": "unimplemented_or_unqualified",
+        "rust": "unimplemented_or_unqualified"
+      },
+      "notes": "Queries outside the frozen profile remain unqualified"
+    },
+    {
+      "name": "limit_ratio",
+      "experimental": true,
+      "candidates": {
+        "c": "unimplemented_or_unqualified",
+        "cpp": "unimplemented_or_unqualified",
+        "rust": "unimplemented_or_unqualified"
+      },
+      "notes": "Queries outside the frozen profile remain unqualified"
+    },
+    {
+      "name": "limitk",
+      "experimental": true,
+      "candidates": {
+        "c": "unimplemented_or_unqualified",
+        "cpp": "unimplemented_or_unqualified",
+        "rust": "unimplemented_or_unqualified"
+      },
+      "notes": "Queries outside the frozen profile remain unqualified"
+    },
+    {
+      "name": "max",
+      "experimental": false,
+      "candidates": {
+        "c": "tested_float_slice",
+        "cpp": "tested_float_slice",
+        "rust": "tested_float_slice"
+      },
+      "notes": "Queries outside the frozen profile remain unqualified",
+      "common_cases": [
+        "B026"
+      ]
+    },
+    {
+      "name": "min",
+      "experimental": false,
+      "candidates": {
+        "c": "tested_float_slice",
+        "cpp": "tested_float_slice",
+        "rust": "tested_float_slice"
+      },
+      "notes": "Queries outside the frozen profile remain unqualified",
+      "common_cases": [
+        "B025"
+      ]
+    },
+    {
+      "name": "quantile",
+      "experimental": false,
+      "candidates": {
+        "c": "unimplemented_or_unqualified",
+        "cpp": "unimplemented_or_unqualified",
+        "rust": "unimplemented_or_unqualified"
+      },
+      "notes": "Queries outside the frozen profile remain unqualified"
+    },
+    {
+      "name": "stddev",
+      "experimental": false,
+      "candidates": {
+        "c": "unimplemented_or_unqualified",
+        "cpp": "unimplemented_or_unqualified",
+        "rust": "unimplemented_or_unqualified"
+      },
+      "notes": "Queries outside the frozen profile remain unqualified"
+    },
+    {
+      "name": "stdvar",
+      "experimental": false,
+      "candidates": {
+        "c": "unimplemented_or_unqualified",
+        "cpp": "unimplemented_or_unqualified",
+        "rust": "unimplemented_or_unqualified"
+      },
+      "notes": "Queries outside the frozen profile remain unqualified"
+    },
+    {
+      "name": "sum",
+      "experimental": false,
+      "candidates": {
+        "c": "tested_float_slice",
+        "cpp": "tested_float_slice",
+        "rust": "tested_float_slice"
+      },
+      "notes": "Queries outside the frozen profile remain unqualified",
+      "common_cases": [
+        "B023",
+        "B030",
+        "B067"
+      ]
+    },
+    {
+      "name": "topk",
+      "experimental": false,
+      "candidates": {
+        "c": "tested_float_slice",
+        "cpp": "tested_float_slice",
+        "rust": "tested_float_slice"
+      },
+      "notes": "Queries outside the frozen profile remain unqualified",
+      "common_cases": [
+        "B028"
+      ]
+    }
+  ],
+  "operators": [
+    {
+      "name": "!=",
+      "candidates": {
+        "c": "tested_float_slice",
+        "cpp": "tested_float_slice",
+        "rust": "tested_float_slice"
+      },
+      "notes": "Queries outside the frozen profile remain unqualified"
+    },
+    {
+      "name": "!~",
+      "candidates": {
+        "c": "tested_float_slice",
+        "cpp": "tested_float_slice",
+        "rust": "tested_float_slice"
+      },
+      "notes": "Shared bounded PCRE2 facility; full RE2 compatibility unsupported"
+    },
+    {
+      "name": "%",
+      "candidates": {
+        "c": "tested_float_slice",
+        "cpp": "tested_float_slice",
+        "rust": "tested_float_slice"
+      },
+      "notes": "Queries outside the frozen profile remain unqualified"
+    },
+    {
+      "name": "*",
+      "candidates": {
+        "c": "tested_float_slice",
+        "cpp": "tested_float_slice",
+        "rust": "tested_float_slice"
+      },
+      "notes": "Queries outside the frozen profile remain unqualified"
+    },
+    {
+      "name": "+",
+      "candidates": {
+        "c": "tested_float_slice",
+        "cpp": "tested_float_slice",
+        "rust": "tested_float_slice"
+      },
+      "notes": "Queries outside the frozen profile remain unqualified"
+    },
+    {
+      "name": "-",
+      "candidates": {
+        "c": "tested_float_slice",
+        "cpp": "tested_float_slice",
+        "rust": "tested_float_slice"
+      },
+      "notes": "Queries outside the frozen profile remain unqualified"
+    },
+    {
+      "name": "/",
+      "candidates": {
+        "c": "tested_float_slice",
+        "cpp": "tested_float_slice",
+        "rust": "tested_float_slice"
+      },
+      "notes": "Queries outside the frozen profile remain unqualified"
+    },
+    {
+      "name": "<",
+      "candidates": {
+        "c": "tested_float_slice",
+        "cpp": "tested_float_slice",
+        "rust": "tested_float_slice"
+      },
+      "notes": "Queries outside the frozen profile remain unqualified"
+    },
+    {
+      "name": "</",
+      "candidates": {
+        "c": "unimplemented_or_unqualified",
+        "cpp": "unimplemented_or_unqualified",
+        "rust": "unimplemented_or_unqualified"
+      },
+      "notes": "Queries outside the frozen profile remain unqualified"
+    },
+    {
+      "name": "<=",
+      "candidates": {
+        "c": "tested_float_slice",
+        "cpp": "tested_float_slice",
+        "rust": "tested_float_slice"
+      },
+      "notes": "Queries outside the frozen profile remain unqualified"
+    },
+    {
+      "name": "==",
+      "candidates": {
+        "c": "tested_float_slice",
+        "cpp": "tested_float_slice",
+        "rust": "tested_float_slice"
+      },
+      "notes": "Queries outside the frozen profile remain unqualified"
+    },
+    {
+      "name": "=~",
+      "candidates": {
+        "c": "tested_float_slice",
+        "cpp": "tested_float_slice",
+        "rust": "tested_float_slice"
+      },
+      "notes": "Shared bounded PCRE2 facility; full RE2 compatibility unsupported"
+    },
+    {
+      "name": ">",
+      "candidates": {
+        "c": "tested_float_slice",
+        "cpp": "tested_float_slice",
+        "rust": "tested_float_slice"
+      },
+      "notes": "Queries outside the frozen profile remain unqualified"
+    },
+    {
+      "name": ">/",
+      "candidates": {
+        "c": "unimplemented_or_unqualified",
+        "cpp": "unimplemented_or_unqualified",
+        "rust": "unimplemented_or_unqualified"
+      },
+      "notes": "Queries outside the frozen profile remain unqualified"
+    },
+    {
+      "name": ">=",
+      "candidates": {
+        "c": "tested_float_slice",
+        "cpp": "tested_float_slice",
+        "rust": "tested_float_slice"
+      },
+      "notes": "Queries outside the frozen profile remain unqualified"
+    },
+    {
+      "name": "@",
+      "candidates": {
+        "c": "bounded_probe",
+        "cpp": "bounded_probe",
+        "rust": "bounded_probe"
+      },
+      "notes": "Numeric @ tested by R068; start/end and full placement rules unqualified"
+    },
+    {
+      "name": "^",
+      "candidates": {
+        "c": "tested_float_slice",
+        "cpp": "tested_float_slice",
+        "rust": "tested_float_slice"
+      },
+      "notes": "Queries outside the frozen profile remain unqualified"
+    },
+    {
+      "name": "and",
+      "candidates": {
+        "c": "tested_float_slice",
+        "cpp": "tested_float_slice",
+        "rust": "tested_float_slice"
+      },
+      "notes": "Queries outside the frozen profile remain unqualified"
+    },
+    {
+      "name": "atan2",
+      "candidates": {
+        "c": "unimplemented_or_unqualified",
+        "cpp": "unimplemented_or_unqualified",
+        "rust": "unimplemented_or_unqualified"
+      },
+      "notes": "Queries outside the frozen profile remain unqualified"
+    },
+    {
+      "name": "or",
+      "candidates": {
+        "c": "tested_float_slice",
+        "cpp": "tested_float_slice",
+        "rust": "tested_float_slice"
+      },
+      "notes": "Queries outside the frozen profile remain unqualified"
+    },
+    {
+      "name": "unless",
+      "candidates": {
+        "c": "tested_float_slice",
+        "cpp": "tested_float_slice",
+        "rust": "tested_float_slice"
+      },
+      "notes": "Queries outside the frozen profile remain unqualified"
+    }
+  ],
+  "modifiers": [
+    {
+      "name": "anchored",
+      "candidates": {
+        "c": "unimplemented_or_unqualified",
+        "cpp": "unimplemented_or_unqualified",
+        "rust": "unimplemented_or_unqualified"
+      },
+      "notes": "Queries outside the frozen profile remain unqualified"
+    },
+    {
+      "name": "bool",
+      "candidates": {
+        "c": "tested_float_slice",
+        "cpp": "tested_float_slice",
+        "rust": "tested_float_slice"
+      },
+      "notes": "Queries outside the frozen profile remain unqualified"
+    },
+    {
+      "name": "by",
+      "candidates": {
+        "c": "tested_float_slice",
+        "cpp": "tested_float_slice",
+        "rust": "tested_float_slice"
+      },
+      "notes": "Queries outside the frozen profile remain unqualified"
+    },
+    {
+      "name": "fill",
+      "candidates": {
+        "c": "unimplemented_or_unqualified",
+        "cpp": "unimplemented_or_unqualified",
+        "rust": "unimplemented_or_unqualified"
+      },
+      "notes": "Queries outside the frozen profile remain unqualified"
+    },
+    {
+      "name": "fill_left",
+      "candidates": {
+        "c": "unimplemented_or_unqualified",
+        "cpp": "unimplemented_or_unqualified",
+        "rust": "unimplemented_or_unqualified"
+      },
+      "notes": "Queries outside the frozen profile remain unqualified"
+    },
+    {
+      "name": "fill_right",
+      "candidates": {
+        "c": "unimplemented_or_unqualified",
+        "cpp": "unimplemented_or_unqualified",
+        "rust": "unimplemented_or_unqualified"
+      },
+      "notes": "Queries outside the frozen profile remain unqualified"
+    },
+    {
+      "name": "group_left",
+      "candidates": {
+        "c": "tested_float_slice",
+        "cpp": "tested_float_slice",
+        "rust": "tested_float_slice"
+      },
+      "notes": "Queries outside the frozen profile remain unqualified"
+    },
+    {
+      "name": "group_right",
+      "candidates": {
+        "c": "tested_float_slice",
+        "cpp": "tested_float_slice",
+        "rust": "tested_float_slice"
+      },
+      "notes": "Queries outside the frozen profile remain unqualified"
+    },
+    {
+      "name": "ignoring",
+      "candidates": {
+        "c": "tested_float_slice",
+        "cpp": "tested_float_slice",
+        "rust": "tested_float_slice"
+      },
+      "notes": "Queries outside the frozen profile remain unqualified"
+    },
+    {
+      "name": "offset",
+      "candidates": {
+        "c": "tested_float_slice",
+        "cpp": "tested_float_slice",
+        "rust": "tested_float_slice"
+      },
+      "notes": "Positive literal offset tested; negative offsets unsupported"
+    },
+    {
+      "name": "on",
+      "candidates": {
+        "c": "tested_float_slice",
+        "cpp": "tested_float_slice",
+        "rust": "tested_float_slice"
+      },
+      "notes": "Queries outside the frozen profile remain unqualified"
+    },
+    {
+      "name": "smoothed",
+      "candidates": {
+        "c": "unimplemented_or_unqualified",
+        "cpp": "unimplemented_or_unqualified",
+        "rust": "unimplemented_or_unqualified"
+      },
+      "notes": "Queries outside the frozen profile remain unqualified"
+    },
+    {
+      "name": "without",
+      "candidates": {
+        "c": "tested_float_slice",
+        "cpp": "tested_float_slice",
+        "rust": "tested_float_slice"
+      },
+      "notes": "Queries outside the frozen profile remain unqualified"
+    }
+  ],
+  "other_surfaces": [
+    {
+      "name": "scalar/vector/matrix floats and arithmetic",
+      "candidates": {
+        "c": "tested_float_slice",
+        "cpp": "tested_float_slice",
+        "rust": "tested_float_slice"
+      },
+      "notes": "67 profile cases, 27 regressions; numerical extremes/compensated reduction unqualified"
+    },
+    {
+      "name": "strings",
+      "candidates": {
+        "c": "partial",
+        "cpp": "partial",
+        "rust": "partial"
+      },
+      "notes": "Function string arguments tested; escaping/top-level string results/type validation incomplete"
+    },
+    {
+      "name": "label selection, vector matching and cardinality",
+      "candidates": {
+        "c": "tested_float_slice",
+        "cpp": "tested_float_slice",
+        "rust": "tested_float_slice"
+      },
+      "notes": "Exact and underscore names, all four matchers, on/ignoring/group_left/right; regex and full label validation unqualified"
+    },
+    {
+      "name": "selectors, lookback, ranges and positive offsets",
+      "candidates": {
+        "c": "tested_float_slice",
+        "cpp": "tested_float_slice",
+        "rust": "tested_float_slice"
+      },
+      "notes": "Both instant and actual range API comparison; stale-marker payloads and tier seams unqualified"
+    },
+    {
+      "name": "subqueries and numeric @",
+      "candidates": {
+        "c": "bounded_probe",
+        "cpp": "bounded_probe",
+        "rust": "bounded_probe"
+      },
+      "notes": "R068/R069 and alignment regressions; full duration/placement grammar unqualified"
+    },
+    {
+      "name": "full identifier/string/numeric/duration grammar",
+      "candidates": {
+        "c": "partial",
+        "cpp": "partial",
+        "rust": "partial"
+      },
+      "notes": "Colon metric identifiers, negative offsets and duration-expression grammar unsupported; full parser/type rules unqualified"
+    },
+    {
+      "name": "native histogram values/operations",
+      "candidates": {
+        "c": "unsupported",
+        "cpp": "unsupported",
+        "rust": "unsupported"
+      },
+      "notes": "Typed upstream reference and native rejection panel in native-histogram-risk.json; no native operation PASS"
+    },
+    {
+      "name": "mixed histogram/float samples and annotations",
+      "candidates": {
+        "c": "unsupported",
+        "cpp": "unsupported",
+        "rust": "unsupported"
+      },
+      "notes": "Float-only ABI; no annotation channel, no mixed-sample handling"
+    },
+    {
+      "name": "experimental syntax/functions",
+      "candidates": {
+        "c": "unimplemented_or_unqualified",
+        "cpp": "unimplemented_or_unqualified",
+        "rust": "unimplemented_or_unqualified"
+      },
+      "notes": "Catalog preserves experimental flags; no opt-in feature qualification"
+    },
+    {
+      "name": "numerical bit compatibility",
+      "candidates": {
+        "c": "reported_not_required",
+        "cpp": "reported_not_required",
+        "rust": "reported_not_required"
+      },
+      "notes": "Actual output bits recorded; numeric 1e-6/class comparison remains the prototype gate"
+    },
+    {
+      "name": "cancellation/limits/error ownership",
+      "candidates": {
+        "c": "bounded_probe",
+        "cpp": "bounded_probe",
+        "rust": "bounded_probe"
+      },
+      "notes": "10 runtime probes and concurrent ownership; hard deadline/sample-memory/OOM/runtime compatibility unqualified"
+    },
+    {
+      "name": "platform and Netdata integration",
+      "candidates": {
+        "c": "unqualified",
+        "cpp": "unqualified",
+        "rust": "unqualified"
+      },
+      "notes": "Linux x86_64 C callers + Tier0 retained fixture only; production APIs, rules, Cloud, replicas and other platforms later"
+    }
+  ]
+}

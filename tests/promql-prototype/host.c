@@ -2,6 +2,7 @@
 #define _POSIX_C_SOURCE 200809L
 #include "abi.h"
 #include <json-c/json.h>
+#include <inttypes.h>
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -53,6 +54,14 @@ static json_object *value(double x)
         snprintf(b, sizeof b, "%.17g", x);
     return json_object_new_string(b);
 }
+static json_object *value_bits(double x)
+{
+    uint64_t bits;
+    char text[17];
+    memcpy(&bits, &x, sizeof bits);
+    snprintf(text, sizeof text, "%016" PRIx64, bits);
+    return json_object_new_string(text);
+}
 static json_object *encode(const PPResult *r)
 {
     json_object *out = json_object_new_object();
@@ -64,7 +73,7 @@ static json_object *encode(const PPResult *r)
     for (size_t i = 0; i < r->rows_len; i++) {
         const PPSeries *s = r->rows + i;
         json_object *row = json_object_new_object(), *labels = json_object_new_object(),
-                    *points = json_object_new_array();
+                    *points = json_object_new_array(), *bits = json_object_new_array();
         for (size_t j = 0; j < s->labels_len; j++)
             json_object_object_add(labels, s->labels[j].name, json_object_new_string(s->labels[j].value));
         for (size_t j = 0; j < s->points_len; j++) {
@@ -72,9 +81,11 @@ static json_object *encode(const PPResult *r)
             json_object_array_add(p, json_object_new_int64(s->points[j].t));
             json_object_array_add(p, value(s->points[j].v));
             json_object_array_add(points, p);
+            json_object_array_add(bits, value_bits(s->points[j].v));
         }
         json_object_object_add(row, "labels", labels);
         json_object_object_add(row, "points", points);
+        json_object_object_add(row, "point_bits", bits);
         json_object_array_add(rows, row);
     }
     json_object_object_add(out, "rows", rows);
@@ -140,11 +151,15 @@ static json_object *execute(PPRequest *req, int64_t start, int64_t end, int64_t 
                 target = json_object_new_object();
                 json_object_object_add(target, "labels", json_object_get(labs));
                 json_object_object_add(target, "points", json_object_new_array());
+                json_object_object_add(target, "point_bits", json_object_new_array());
                 json_object_array_add(rows, target);
             }
             json_object *pts = field(row, "points"), *dest = field(target, "points");
             for (size_t j = 0; j < json_object_array_length(pts); j++)
                 json_object_array_add(dest, json_object_get(json_object_array_get_idx(pts, j)));
+            json_object *bits = field(row, "point_bits"), *dest_bits = field(target, "point_bits");
+            for (size_t j = 0; j < json_object_array_length(bits); j++)
+                json_object_array_add(dest_bits, json_object_get(json_object_array_get_idx(bits, j)));
         }
         json_object_put(encoded);
     }
@@ -224,21 +239,37 @@ int main(int argc, char **argv)
         }
         /* Benchmark independent evaluations and releases, excluding JSON serialization. */
         double seconds = 0;
+        double parse_seconds = 0, evaluation_seconds = 0, first_seconds = 0;
+        double first_parse_seconds = 0, first_evaluation_seconds = 0;
         json_object *encoded = NULL;
         if (!step) {
             double began = monotime();
             for (int j = 0; j < repetitions; j++) {
                 cancel.calls = 0;
+                double first_began = j == 0 ? monotime() : 0;
                 PPResult *out = pp_eval(&req);
                 if (!out)
                     fail("null result");
+                parse_seconds += out->parse_ns / 1e9;
+                evaluation_seconds += out->evaluation_ns / 1e9;
+                if (j == 0) {
+                    first_parse_seconds = out->parse_ns / 1e9;
+                    first_evaluation_seconds = out->evaluation_ns / 1e9;
+                }
                 pp_free(out);
+                if (j == 0)
+                    first_seconds = monotime() - first_began;
             }
             seconds = monotime() - began;
         }
         cancel.calls = 0;
         encoded = execute(&req, start, end, step);
         json_object_object_add(encoded, "seconds", json_object_new_double(seconds));
+        json_object_object_add(encoded, "parse_seconds", json_object_new_double(parse_seconds));
+        json_object_object_add(encoded, "evaluation_seconds", json_object_new_double(evaluation_seconds));
+        json_object_object_add(encoded, "first_seconds", json_object_new_double(first_seconds));
+        json_object_object_add(encoded, "first_parse_seconds", json_object_new_double(first_parse_seconds));
+        json_object_object_add(encoded, "first_evaluation_seconds", json_object_new_double(first_evaluation_seconds));
         json_object_object_add(encoded, "query", json_object_get(q));
         json_object_object_add(encoded, "id", json_object_get(field(r, "id")));
         json_object_array_add(results, encoded);

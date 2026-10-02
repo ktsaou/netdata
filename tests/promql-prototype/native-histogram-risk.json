@@ -1,0 +1,210 @@
+{
+  "reference": {
+    "fixture": {
+      "CounterResetHint": 3,
+      "Schema": 0,
+      "ZeroThreshold": 0,
+      "ZeroCount": 0,
+      "Count": 2,
+      "Sum": 1.5,
+      "PositiveSpans": [
+        {
+          "Offset": 0,
+          "Length": 1
+        }
+      ],
+      "NegativeSpans": null,
+      "PositiveBuckets": [
+        2
+      ],
+      "NegativeBuckets": null,
+      "CustomValues": null
+    },
+    "labels": {
+      "__name__": "native_hist",
+      "case": "hist"
+    },
+    "reference": "Prometheus v3.15.0 / 5241a27fe3c6983549fccc32f6e65917408c63cd",
+    "results": [
+      {
+        "id": "histogram_count",
+        "query": "histogram_count(native_hist)",
+        "kind": 2,
+        "rows": [
+          {
+            "labels": {
+              "case": "hist"
+            },
+            "points": [
+              [
+                600000,
+                "2"
+              ]
+            ],
+            "point_bits": [
+              "4000000000000000"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "histogram_sum",
+        "query": "histogram_sum(native_hist)",
+        "kind": 2,
+        "rows": [
+          {
+            "labels": {
+              "case": "hist"
+            },
+            "points": [
+              [
+                600000,
+                "1.5"
+              ]
+            ],
+            "point_bits": [
+              "3ff8000000000000"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "histogram_avg",
+        "query": "histogram_avg(native_hist)",
+        "kind": 2,
+        "rows": [
+          {
+            "labels": {
+              "case": "hist"
+            },
+            "points": [
+              [
+                600000,
+                "0.75"
+              ]
+            ],
+            "point_bits": [
+              "3fe8000000000000"
+            ]
+          }
+        ]
+      }
+    ],
+    "time_ms": 600000
+  },
+  "common_profile_effect": "none; native histograms are a separate unsupported risk slice",
+  "native_operation_status": "unsupported; no typed native operation or ownership PASS is claimed",
+  "candidates": {
+    "c": {
+      "status": "unsupported",
+      "function_dispatch": [
+        {
+          "id": "histogram_count",
+          "query": "histogram_count(vector(1))",
+          "kind": 4,
+          "error": "unsupported function",
+          "work": 3,
+          "rows": []
+        },
+        {
+          "id": "histogram_sum",
+          "query": "histogram_sum(vector(1))",
+          "kind": 4,
+          "error": "unsupported function",
+          "work": 3,
+          "rows": []
+        },
+        {
+          "id": "histogram_avg",
+          "query": "histogram_avg(vector(1))",
+          "kind": 4,
+          "error": "unsupported function",
+          "work": 3,
+          "rows": []
+        }
+      ],
+      "following_query": "sum(system_cpu) = 20",
+      "typed_input_rejection": {
+        "layer": "shared C host before evaluator entry; PPPoint has no histogram type",
+        "exit": 2,
+        "error": "prototype host: number required"
+      }
+    },
+    "cpp": {
+      "status": "unsupported",
+      "function_dispatch": [
+        {
+          "id": "histogram_count",
+          "query": "histogram_count(vector(1))",
+          "kind": 4,
+          "error": "unsupported function histogram_count",
+          "work": 3,
+          "rows": []
+        },
+        {
+          "id": "histogram_sum",
+          "query": "histogram_sum(vector(1))",
+          "kind": 4,
+          "error": "unsupported function histogram_sum",
+          "work": 3,
+          "rows": []
+        },
+        {
+          "id": "histogram_avg",
+          "query": "histogram_avg(vector(1))",
+          "kind": 4,
+          "error": "unsupported function histogram_avg",
+          "work": 3,
+          "rows": []
+        }
+      ],
+      "following_query": "sum(system_cpu) = 20",
+      "typed_input_rejection": {
+        "layer": "shared C host before evaluator entry; PPPoint has no histogram type",
+        "exit": 2,
+        "error": "prototype host: number required"
+      }
+    },
+    "rust": {
+      "status": "unsupported",
+      "function_dispatch": [
+        {
+          "id": "histogram_count",
+          "query": "histogram_count(vector(1))",
+          "kind": 4,
+          "error": "unsupported function",
+          "work": 3,
+          "rows": []
+        },
+        {
+          "id": "histogram_sum",
+          "query": "histogram_sum(vector(1))",
+          "kind": 4,
+          "error": "unsupported function",
+          "work": 3,
+          "rows": []
+        },
+        {
+          "id": "histogram_avg",
+          "query": "histogram_avg(vector(1))",
+          "kind": 4,
+          "error": "unsupported function",
+          "work": 3,
+          "rows": []
+        }
+      ],
+      "following_query": "sum(system_cpu) = 20",
+      "typed_input_rejection": {
+        "layer": "shared C host before evaluator entry; PPPoint has no histogram type",
+        "exit": 2,
+        "error": "prototype host: number required"
+      }
+    }
+  },
+  "completion_cost_drivers": [
+    "Typed sample ABI and owned bucket/span/custom-bound data",
+    "Native histogram schemas, reset hints, arithmetic and quantile kernels",
+    "Mixed float/histogram selectors, ranges, aggregation and annotations",
+    "Separate approved Netdata retained histogram projection; no mapping is selected here"
+  ]
+}

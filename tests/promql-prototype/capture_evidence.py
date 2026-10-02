@@ -22,13 +22,15 @@ def main():
                 "sanitizers": read(HERE / "build/sanitize/results/summary.json"),
                 "dbengine": {"manifest": read(fixture / "manifest.json"), "replay": read(HERE / "build/release/replay/summary.json")},
                 "measurements": read(HERE / "build/release/benchmark/summary.json"),
+                "native_histogram_risk": read(HERE / "native-histogram-risk.json"),
+                "language_matrix": read(HERE / "language-matrix.json"),
                 "candidate_revisions": {}, "source_sha256": {}}
     for lang, suffix in [("c", "c"), ("cpp", "cpp"), ("rust", "rs")]:
         checkout = repo.parent / f"netdata-{lang}"
         evidence["candidate_revisions"][lang] = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=checkout, text=True).strip()
         path = checkout / f"tests/promql-prototype/engine.{suffix}"
         evidence["source_sha256"][f"{lang}/engine.{suffix}"] = hashlib.sha256(path.read_bytes()).hexdigest()
-    for name in ["abi.h", "host.c", "regex.c", "ownership.c", "fixtures.py", "cases.json", "dataset.json", "regression.json", "risk.json", "oracle/main.go", "oracle/go.mod", "oracle/go.sum"]:
+    for name in ["abi.h", "host.c", "regex.c", "runtime.c", "ownership.c", "fixtures.py", "cases.json", "dataset.json", "regression.json", "risk.json", "oracle/main.go", "oracle/main_test.go", "oracle/qualification.go", "oracle/qualification_test.go", "oracle/go.mod", "oracle/go.sum", "build.py", "run.py", "compare.py", "test_compare.py", "benchmark.py", "dbengine.py", "qualification.py", "language-matrix.json", "native-histogram-risk.json"]:
         evidence["source_sha256"][name] = hashlib.sha256((HERE / name).read_bytes()).hexdigest()
     for name in ["src/daemon/main.c", "src/database/engine/dbengine-unittest.c"]:
         evidence["source_sha256"][name] = hashlib.sha256((repo / name).read_bytes()).hexdigest()

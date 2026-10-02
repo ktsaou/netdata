@@ -8,7 +8,7 @@ from pathlib import Path
 import shlex
 import subprocess
 
-from compare import compare, difference
+from compare import compare, difference, numeric_difference_report
 
 HERE = Path(__file__).resolve().parent
 
@@ -63,12 +63,14 @@ def main():
         got = invoke([host, args.dataset, args.cases], output / f"{language}-baseline.json", environment)
         failures = compare(reference, got, cases)
         evidence = {"profile_passed": len(cases)-len(failures), "profile_total": len(cases), "failures": failures}
+        evidence["numeric_bits"] = {"profile": numeric_difference_report(reference, got, cases)}
         if not args.baseline_only:
             evidence["ownership"] = invoke([HERE / "build" / mode / f"{language}-ownership"], env=environment)
             regression = load(HERE / "regression.json")
             got = invoke([host, args.dataset, HERE / "regression.json"], output / f"{language}-regression.json", environment)
             evidence["regression_failures"] = compare(regression_reference, got, regression)
             evidence["regression_passed"] = len(regression)-len(evidence["regression_failures"])
+            evidence["numeric_bits"]["regressions"] = numeric_difference_report(regression_reference, got, regression)
             got = invoke([host, args.dataset, HERE / "risk.json"], output / f"{language}-risk.json", environment)
             refs = {r["id"]: r for r in risk_reference["results"]}
             evidence["risk_failures"] = {}

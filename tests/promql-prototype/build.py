@@ -27,7 +27,7 @@ def build(languages, sanitize=False):
     out.mkdir(parents=True, exist_ok=True)
     options = ["-g", "-Wall", "-Wextra", "-Werror", "-Wno-misleading-indentation", "-I", str(HERE)]
     options += ["-O1", "-fsanitize=address,undefined", "-fno-omit-frame-pointer"] if sanitize else ["-O2"]
-    for name in ["host", "regex", "ownership"]:
+    for name in ["host", "regex", "ownership", "runtime"]:
         run(["gcc", "-std=c11", *options, *flags("--cflags", "json-c", "libpcre2-8"), "-c", HERE / f"{name}.c", "-o", out / f"{name}.o"])
     measurements = {}
     for language in languages:
@@ -48,7 +48,7 @@ def build(languages, sanitize=False):
         measurements[language] = {"compile_seconds": time.perf_counter() - began, "archive_bytes": lib.stat().st_size}
         links = ["-lstdc++"] if language == "cpp" else []
         for name in ["host", "ownership"]:
-            run(["gcc", *options, out / f"{name}.o", out / "regex.o", lib, *links, *flags("--libs", "json-c", "libpcre2-8"), "-lm", "-ldl", "-pthread", "-o", out / f"{language}-{name}"])
+            run(["gcc", *options, out / f"{name}.o", out / "regex.o", out / "runtime.o", lib, *links, *flags("--libs", "json-c", "libpcre2-8"), "-lm", "-ldl", "-pthread", "-o", out / f"{language}-{name}"])
         measurements[language]["host_bytes"] = (out / f"{language}-host").stat().st_size
         run(["objcopy", "--strip-debug", out / f"{language}-host", out / f"{language}-host-stripped"])
         measurements[language]["host_stripped_debug_bytes"] = (out / f"{language}-host-stripped").stat().st_size

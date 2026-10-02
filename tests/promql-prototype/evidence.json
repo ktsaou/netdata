@@ -10,6 +10,65 @@
         "profile_passed": 67,
         "profile_total": 67,
         "failures": {},
+        "numeric_bits": {
+          "profile": {
+            "finite_values": 133,
+            "bitwise_differences": [],
+            "nonfinite_values": 0,
+            "skipped_non_equivalent_cases": [],
+            "method": "raw IEEE-754 binary64 output bits before NaN/string normalization; tolerance acceptance unchanged"
+          },
+          "regressions": {
+            "finite_values": 23,
+            "bitwise_differences": [
+              {
+                "id": "G009",
+                "labels": {},
+                "time_ms": 600000,
+                "reference": "NaN",
+                "candidate": "NaN",
+                "reference_bits": "7ff8000000000001",
+                "candidate_bits": "7ff8000000000000"
+              },
+              {
+                "id": "G010",
+                "labels": {},
+                "time_ms": 600000,
+                "reference": "NaN",
+                "candidate": "NaN",
+                "reference_bits": "7ff8000000000001",
+                "candidate_bits": "7ff8000000000000"
+              },
+              {
+                "id": "G011",
+                "labels": {
+                  "__name__": "special",
+                  "item": "a"
+                },
+                "time_ms": 600000,
+                "reference": "NaN",
+                "candidate": "NaN",
+                "reference_bits": "7ff8000000000001",
+                "candidate_bits": "7ff8000000000000"
+              },
+              {
+                "id": "G012",
+                "labels": {
+                  "__name__": "special",
+                  "item": "a"
+                },
+                "time_ms": 600000,
+                "reference": "NaN",
+                "candidate": "NaN",
+                "reference_bits": "7ff8000000000001",
+                "candidate_bits": "7ff8000000000000"
+              }
+            ],
+            "nonfinite_values": 12,
+            "skipped_non_equivalent_cases": [],
+            "method": "raw IEEE-754 binary64 output bits before NaN/string normalization; tolerance acceptance unchanged"
+          }
+        },
         "ownership": "owned result after input destruction; 4 concurrent callers: passed",
         "regression_failures": {},
         "regression_passed": 27,
@@ -19,6 +78,65 @@
         "profile_passed": 67,
         "profile_total": 67,
         "failures": {},
+        "numeric_bits": {
+          "profile": {
+            "finite_values": 133,
+            "bitwise_differences": [],
+            "nonfinite_values": 0,
+            "skipped_non_equivalent_cases": [],
+            "method": "raw IEEE-754 binary64 output bits before NaN/string normalization; tolerance acceptance unchanged"
+          },
+          "regressions": {
+            "finite_values": 23,
+            "bitwise_differences": [
+              {
+                "id": "G009",
+                "labels": {},
+                "time_ms": 600000,
+                "reference": "NaN",
+                "candidate": "NaN",
+                "reference_bits": "7ff8000000000001",
+                "candidate_bits": "7ff8000000000000"
+              },
+              {
+                "id": "G010",
+                "labels": {},
+                "time_ms": 600000,
+                "reference": "NaN",
+                "candidate": "NaN",
+                "reference_bits": "7ff8000000000001",
+                "candidate_bits": "7ff8000000000000"
+              },
+              {
+                "id": "G011",
+                "labels": {
+                  "__name__": "special",
+                  "item": "a"
+                },
+                "time_ms": 600000,
+                "reference": "NaN",
+                "candidate": "NaN",
+                "reference_bits": "7ff8000000000001",
+                "candidate_bits": "7ff8000000000000"
+              },
+              {
+                "id": "G012",
+                "labels": {
+                  "__name__": "special",
+                  "item": "a"
+                },
+                "time_ms": 600000,
+                "reference": "NaN",
+                "candidate": "NaN",
+                "reference_bits": "7ff8000000000001",
+                "candidate_bits": "7ff8000000000000"
+              }
+            ],
+            "nonfinite_values": 12,
+            "skipped_non_equivalent_cases": [],
+            "method": "raw IEEE-754 binary64 output bits before NaN/string normalization; tolerance acceptance unchanged"
+          }
+        },
         "ownership": "owned result after input destruction; 4 concurrent callers: passed",
         "regression_failures": {},
         "regression_passed": 27,
@@ -28,6 +146,65 @@
         "profile_passed": 67,
         "profile_total": 67,
         "failures": {},
+        "numeric_bits": {
+          "profile": {
+            "finite_values": 133,
+            "bitwise_differences": [],
+            "nonfinite_values": 0,
+            "skipped_non_equivalent_cases": [],
+            "method": "raw IEEE-754 binary64 output bits before NaN/string normalization; tolerance acceptance unchanged"
+          },
+          "regressions": {
+            "finite_values": 23,
+            "bitwise_differences": [
+              {
+                "id": "G009",
+                "labels": {},
+                "time_ms": 600000,
+                "reference": "NaN",
+                "candidate": "NaN",
+                "reference_bits": "7ff8000000000001",
+                "candidate_bits": "7ff8000000000000"
+              },
+              {
+                "id": "G010",
+                "labels": {},
+                "time_ms": 600000,
+                "reference": "NaN",
+                "candidate": "NaN",
+                "reference_bits": "7ff8000000000001",
+                "candidate_bits": "7ff8000000000000"
+              },
+              {
+                "id": "G011",
+                "labels": {
+                  "__name__": "special",
+                  "item": "a"
+                },
+                "time_ms": 600000,
+                "reference": "NaN",
+                "candidate": "NaN",
+                "reference_bits": "7ff8000000000001",
+                "candidate_bits": "7ff8000000000000"
+              },
+              {
+                "id": "G012",
+                "labels": {
+                  "__name__": "special",
+                  "item": "a"
+                },
+                "time_ms": 600000,
+                "reference": "NaN",
+                "candidate": "NaN",
+                "reference_bits": "7ff8000000000001",
+                "candidate_bits": "7ff8000000000000"
+              }
+            ],
+            "nonfinite_values": 12,
+            "skipped_non_equivalent_cases": [],
+            "method": "raw IEEE-754 binary64 output bits before NaN/string normalization; tolerance acceptance unchanged"
+          }
+        },
         "ownership": "owned result after input destruction; 4 concurrent callers: passed",
         "regression_failures": {},
         "regression_passed": 27,
@@ -45,6 +222,65 @@
         "profile_passed": 67,
         "profile_total": 67,
         "failures": {},
+        "numeric_bits": {
+          "profile": {
+            "finite_values": 133,
+            "bitwise_differences": [],
+            "nonfinite_values": 0,
+            "skipped_non_equivalent_cases": [],
+            "method": "raw IEEE-754 binary64 output bits before NaN/string normalization; tolerance acceptance unchanged"
+          },
+          "regressions": {
+            "finite_values": 23,
+            "bitwise_differences": [
+              {
+                "id": "G009",
+                "labels": {},
+                "time_ms": 600000,
+                "reference": "NaN",
+                "candidate": "NaN",
+                "reference_bits": "7ff8000000000001",
+                "candidate_bits": "7ff8000000000000"
+              },
+              {
+                "id": "G010",
+                "labels": {},
+                "time_ms": 600000,
+                "reference": "NaN",
+                "candidate": "NaN",
+                "reference_bits": "7ff8000000000001",
+                "candidate_bits": "7ff8000000000000"
+              },
+              {
+                "id": "G011",
+                "labels": {
+                  "__name__": "special",
+                  "item": "a"
+                },
+                "time_ms": 600000,
+                "reference": "NaN",
+                "candidate": "NaN",
+                "reference_bits": "7ff8000000000001",
+                "candidate_bits": "7ff8000000000000"
+              },
+              {
+                "id": "G012",
+                "labels": {
+                  "__name__": "special",
+                  "item": "a"
+                },
+                "time_ms": 600000,
+                "reference": "NaN",
+                "candidate": "NaN",
+                "reference_bits": "7ff8000000000001",
+                "candidate_bits": "7ff8000000000000"
+              }
+            ],
+            "nonfinite_values": 12,
+            "skipped_non_equivalent_cases": [],
+            "method": "raw IEEE-754 binary64 output bits before NaN/string normalization; tolerance acceptance unchanged"
+          }
+        },
         "ownership": "owned result after input destruction; 4 concurrent callers: passed",
         "regression_failures": {},
         "regression_passed": 27,
@@ -54,6 +290,65 @@
         "profile_passed": 67,
         "profile_total": 67,
         "failures": {},
+        "numeric_bits": {
+          "profile": {
+            "finite_values": 133,
+            "bitwise_differences": [],
+            "nonfinite_values": 0,
+            "skipped_non_equivalent_cases": [],
+            "method": "raw IEEE-754 binary64 output bits before NaN/string normalization; tolerance acceptance unchanged"
+          },
+          "regressions": {
+            "finite_values": 23,
+            "bitwise_differences": [
+              {
+                "id": "G009",
+                "labels": {},
+                "time_ms": 600000,
+                "reference": "NaN",
+                "candidate": "NaN",
+                "reference_bits": "7ff8000000000001",
+                "candidate_bits": "7ff8000000000000"
+              },
+              {
+                "id": "G010",
+                "labels": {},
+                "time_ms": 600000,
+                "reference": "NaN",
+                "candidate": "NaN",
+                "reference_bits": "7ff8000000000001",
+                "candidate_bits": "7ff8000000000000"
+              },
+              {
+                "id": "G011",
+                "labels": {
+                  "__name__": "special",
+                  "item": "a"
+                },
+                "time_ms": 600000,
+                "reference": "NaN",
+                "candidate": "NaN",
+                "reference_bits": "7ff8000000000001",
+                "candidate_bits": "7ff8000000000000"
+              },
+              {
+                "id": "G012",
+                "labels": {
+                  "__name__": "special",
+                  "item": "a"
+                },
+                "time_ms": 600000,
+                "reference": "NaN",
+                "candidate": "NaN",
+                "reference_bits": "7ff8000000000001",
+                "candidate_bits": "7ff8000000000000"
+              }
+            ],
+            "nonfinite_values": 12,
+            "skipped_non_equivalent_cases": [],
+            "method": "raw IEEE-754 binary64 output bits before NaN/string normalization; tolerance acceptance unchanged"
+          }
+        },
         "ownership": "owned result after input destruction; 4 concurrent callers: passed",
         "regression_failures": {},
         "regression_passed": 27,
@@ -63,6 +358,65 @@
         "profile_passed": 67,
         "profile_total": 67,
         "failures": {},
+        "numeric_bits": {
+          "profile": {
+            "finite_values": 133,
+            "bitwise_differences": [],
+            "nonfinite_values": 0,
+            "skipped_non_equivalent_cases": [],
+            "method": "raw IEEE-754 binary64 output bits before NaN/string normalization; tolerance acceptance unchanged"
+          },
+          "regressions": {
+            "finite_values": 23,
+            "bitwise_differences": [
+              {
+                "id": "G009",
+                "labels": {},
+                "time_ms": 600000,
+                "reference": "NaN",
+                "candidate": "NaN",
+                "reference_bits": "7ff8000000000001",
+                "candidate_bits": "7ff8000000000000"
+              },
+              {
+                "id": "G010",
+                "labels": {},
+                "time_ms": 600000,
+                "reference": "NaN",
+                "candidate": "NaN",
+                "reference_bits": "7ff8000000000001",
+                "candidate_bits": "7ff8000000000000"
+              },
+              {
+                "id": "G011",
+                "labels": {
+                  "__name__": "special",
+                  "item": "a"
+                },
+                "time_ms": 600000,
+                "reference": "NaN",
+                "candidate": "NaN",
+                "reference_bits": "7ff8000000000001",
+                "candidate_bits": "7ff8000000000000"
+              },
+              {
+                "id": "G012",
+                "labels": {
+                  "__name__": "special",
+                  "item": "a"
+                },
+                "time_ms": 600000,
+                "reference": "NaN",
+                "candidate": "NaN",
+                "reference_bits": "7ff8000000000001",
+                "candidate_bits": "7ff8000000000000"
+              }
+            ],
+            "nonfinite_values": 12,
+            "skipped_non_equivalent_cases": [],
+            "method": "raw IEEE-754 binary64 output bits before NaN/string normalization; tolerance acceptance unchanged"
+          }
+        },
         "ownership": "owned result after input destruction; 4 concurrent callers: passed",
         "regression_failures": {},
         "regression_passed": 27,
@@ -94,17 +448,113 @@
         "c": {
           "profile_passed": 68,
           "profile_total": 68,
-          "failures": {}
+          "failures": {},
+          "numeric_bits": {
+            "profile": {
+              "finite_values": 134,
+              "bitwise_differences": [
+                {
+                  "id": "B049",
+                  "labels": {
+                    "case": "gap"
+                  },
+                  "time_ms": 1700000600000,
+                  "reference": "0.59999999999999998",
+                  "candidate": "0.59999999999999987",
+                  "reference_bits": "3fe3333333333333",
+                  "candidate_bits": "3fe3333333333332"
+                },
+                {
+                  "id": "B050",
+                  "labels": {
+                    "case": "zero"
+                  },
+                  "time_ms": 1700000600000,
+                  "reference": "0.40000000000000008",
+                  "candidate": "0.40000000000000002",
+                  "reference_bits": "3fd999999999999b",
+                  "candidate_bits": "3fd999999999999a"
+                }
+              ],
+              "nonfinite_values": 0,
+              "skipped_non_equivalent_cases": [],
+              "method": "raw IEEE-754 binary64 output bits before NaN/string normalization; tolerance acceptance unchanged"
+            }
+          }
         },
         "cpp": {
           "profile_passed": 68,
           "profile_total": 68,
-          "failures": {}
+          "failures": {},
+          "numeric_bits": {
+            "profile": {
+              "finite_values": 134,
+              "bitwise_differences": [
+                {
+                  "id": "B049",
+                  "labels": {
+                    "case": "gap"
+                  },
+                  "time_ms": 1700000600000,
+                  "reference": "0.59999999999999998",
+                  "candidate": "0.59999999999999987",
+                  "reference_bits": "3fe3333333333333",
+                  "candidate_bits": "3fe3333333333332"
+                },
+                {
+                  "id": "B050",
+                  "labels": {
+                    "case": "zero"
+                  },
+                  "time_ms": 1700000600000,
+                  "reference": "0.40000000000000008",
+                  "candidate": "0.40000000000000002",
+                  "reference_bits": "3fd999999999999b",
+                  "candidate_bits": "3fd999999999999a"
+                }
+              ],
+              "nonfinite_values": 0,
+              "skipped_non_equivalent_cases": [],
+              "method": "raw IEEE-754 binary64 output bits before NaN/string normalization; tolerance acceptance unchanged"
+            }
+          }
         },
         "rust": {
           "profile_passed": 68,
           "profile_total": 68,
-          "failures": {}
+          "failures": {},
+          "numeric_bits": {
+            "profile": {
+              "finite_values": 134,
+              "bitwise_differences": [
+                {
+                  "id": "B049",
+                  "labels": {
+                    "case": "gap"
+                  },
+                  "time_ms": 1700000600000,
+                  "reference": "0.59999999999999998",
+                  "candidate": "0.59999999999999987",
+                  "reference_bits": "3fe3333333333333",
+                  "candidate_bits": "3fe3333333333332"
+                },
+                {
+                  "id": "B050",
+                  "labels": {
+                    "case": "zero"
+                  },
+                  "time_ms": 1700000600000,
+                  "reference": "0.40000000000000008",
+                  "candidate": "0.40000000000000002",
+                  "reference_bits": "3fd999999999999b",
+                  "candidate_bits": "3fd999999999999a"
+                }
+              ],
+              "nonfinite_values": 0,
+              "skipped_non_equivalent_cases": [],
+              "method": "raw IEEE-754 binary64 output bits before NaN/string normalization; tolerance acceptance unchanged"
+            }
+          }
         }
       },
       "oracle_annotations": {}
@@ -116,7 +566,7 @@
       "system": "Linux",
       "cpu": "AMD EPYC 7453 28-Core Processor"
     },
-    "method": "3 sequential fresh-process trials; parse/evaluate/release repeated; JSON load and serialization excluded from query timing; RSS includes the C JSON host and input dataset; no Go timing comparison",
+    "method": "3 sequential fresh-process trials; parse/evaluate/release repeated; JSON load and serialization excluded; phases include query preparation+AST parsing and evaluation+owned result views; setup/AST cleanup/release are wall residual; first is first invocation per query in the loaded process, not process startup; RSS includes host+input; no Go timing comparison",
     "scales": {
       "32": {
         "nodes": 32,
@@ -130,50 +580,74 @@
               {
                 "id": "P01",
                 "query": "sum(system_cpu)",
-                "median_ms": 0.06701183039695024,
-                "min_ms": 0.06593724014237523,
-                "max_ms": 0.10301564005203545
+                "median_ms": 0.07005942054092884,
+                "min_ms": 0.06853412953205407,
+                "max_ms": 0.07174109923653305,
+                "parse_median_ms": 0.0009860000000000001,
+                "evaluation_median_ms": 0.06015278999999998,
+                "first_median_ms": 0.13163895346224308,
+                "repeated_median_ms": 0.06933538525393515
               },
               {
                 "id": "P02",
                 "query": "sum by(instance)(system_cpu)",
-                "median_ms": 0.08606098010204732,
-                "min_ms": 0.08494228008203208,
-                "max_ms": 0.11497613973915577
+                "median_ms": 0.09010494919493794,
+                "min_ms": 0.08863596944138408,
+                "max_ms": 0.09140904992818832,
+                "parse_median_ms": 0.0013103900000000003,
+                "evaluation_median_ms": 0.07724792999999999,
+                "first_median_ms": 0.11273904237896204,
+                "repeated_median_ms": 0.08987632199105891
               },
               {
                 "id": "P03",
                 "query": "sum by(job)(rate(counter_total[5m]))",
-                "median_ms": 0.06808083038777113,
-                "min_ms": 0.06570044904947281,
-                "max_ms": 0.09118934045545757
+                "median_ms": 0.06689114030450583,
+                "min_ms": 0.06569575984030962,
+                "max_ms": 0.06697565084323287,
+                "parse_median_ms": 0.0016633800000000003,
+                "evaluation_median_ms": 0.05923716999999998,
+                "first_median_ms": 0.08146895561367273,
+                "repeated_median_ms": 0.06674388964481727
               },
               {
                 "id": "P04",
                 "query": "system_cpu / on(instance) group_left(tier) limits",
-                "median_ms": 0.24076047004200518,
-                "min_ms": 0.1962438493501395,
-                "max_ms": 0.25775372982025146
+                "median_ms": 0.20831977017223835,
+                "min_ms": 0.20249572000466287,
+                "max_ms": 0.21070545073598623,
+                "parse_median_ms": 0.0007253199999999996,
+                "evaluation_median_ms": 0.18694069,
+                "first_median_ms": 0.3012879751622677,
+                "repeated_median_ms": 0.2072545455185452
               },
               {
                 "id": "P05",
                 "query": "label_join(system_cpu,\"key\",\"/\",\"instance\",\"mode\")",
-                "median_ms": 0.19741563010029495,
-                "min_ms": 0.1526290108449757,
-                "max_ms": 0.20071981009095907
+                "median_ms": 0.1598929800093174,
+                "min_ms": 0.1593413797672838,
+                "max_ms": 0.1599664706736803,
+                "parse_median_ms": 0.0009527099999999998,
+                "evaluation_median_ms": 0.14663810000000002,
+                "first_median_ms": 0.17360900528728962,
+                "repeated_median_ms": 0.1598189895351728
               },
               {
                 "id": "P06",
                 "query": "histogram_quantile(0.95,sum by(le)(rate(request_bucket[5m])))",
-                "median_ms": 0.33928924007341266,
-                "min_ms": 0.27904554968699813,
-                "max_ms": 0.3561649995390326
+                "median_ms": 0.2942963596433401,
+                "min_ms": 0.2939202601555735,
+                "max_ms": 0.2964322501793504,
+                "parse_median_ms": 0.00390185,
+                "evaluation_median_ms": 0.26900801,
+                "first_median_ms": 0.4088369896635413,
+                "repeated_median_ms": 0.29313938358253
               }
             ],
             "process_peak_rss_kib": [
-              19172,
-              20068,
-              20068
+              19168,
+              19168,
+              20064
             ]
           },
           "cpp": {
@@ -181,50 +655,74 @@
               {
                 "id": "P01",
                 "query": "sum(system_cpu)",
-                "median_ms": 0.06933911005035043,
-                "min_ms": 0.0677314295899123,
-                "max_ms": 0.08033782010897994
+                "median_ms": 0.06965923006646335,
+                "min_ms": 0.06743304897099733,
+                "max_ms": 0.07032922003418207,
+                "parse_median_ms": 0.0008462199999999998,
+                "evaluation_median_ms": 0.06859615,
+                "first_median_ms": 0.13482896611094475,
+                "repeated_median_ms": 0.06891761534856726
               },
               {
                 "id": "P02",
                 "query": "sum by(instance)(system_cpu)",
-                "median_ms": 0.10206724051386118,
-                "min_ms": 0.09850337053649127,
-                "max_ms": 0.10725709958933294
+                "median_ms": 0.09855409036390483,
+                "min_ms": 0.09801868931390345,
+                "max_ms": 0.10134436073713005,
+                "parse_median_ms": 0.00098145,
+                "evaluation_median_ms": 0.09576367,
+                "first_median_ms": 0.10440999176353216,
+                "repeated_median_ms": 0.09849493984471668
               },
               {
                 "id": "P03",
                 "query": "sum by(job)(rate(counter_total[5m]))",
-                "median_ms": 0.06696984055452049,
-                "min_ms": 0.0667226396035403,
-                "max_ms": 0.06789822946302593
+                "median_ms": 0.06916022975929081,
+                "min_ms": 0.06701934966258705,
+                "max_ms": 0.06957732024602592,
+                "parse_median_ms": 0.0015953999999999999,
+                "evaluation_median_ms": 0.06714190999999997,
+                "first_median_ms": 0.08221995085477829,
+                "repeated_median_ms": 0.06902831338458892
               },
               {
                 "id": "P04",
                 "query": "system_cpu / on(instance) group_left(tier) limits",
-                "median_ms": 0.21653688047081232,
-                "min_ms": 0.21588997915387154,
-                "max_ms": 0.2184510591905564
+                "median_ms": 0.22075596963986754,
+                "min_ms": 0.21702539990656078,
+                "max_ms": 0.24072139989584684,
+                "parse_median_ms": 0.0016187899999999997,
+                "evaluation_median_ms": 0.21392877000000005,
+                "first_median_ms": 0.2988280029967427,
+                "repeated_median_ms": 0.21993726223820087
               },
               {
                 "id": "P05",
                 "query": "label_join(system_cpu,\"key\",\"/\",\"instance\",\"mode\")",
-                "median_ms": 0.13749164063483477,
-                "min_ms": 0.13736004009842873,
-                "max_ms": 0.13810193981043994
+                "median_ms": 0.1394137495663017,
+                "min_ms": 0.13906813925132155,
+                "max_ms": 0.14271351043134928,
+                "parse_median_ms": 0.0018876999999999993,
+                "evaluation_median_ms": 0.13099298999999998,
+                "first_median_ms": 0.17465895507484674,
+                "repeated_median_ms": 0.1390577373894477
               },
               {
                 "id": "P06",
                 "query": "histogram_quantile(0.95,sum by(le)(rate(request_bucket[5m])))",
-                "median_ms": 0.28811467927880585,
-                "min_ms": 0.2842094108927995,
-                "max_ms": 0.33244249993003905
+                "median_ms": 0.29088418930768967,
+                "min_ms": 0.28443454997614026,
+                "max_ms": 0.291756980586797,
+                "parse_median_ms": 0.0026023400000000007,
+                "evaluation_median_ms": 0.2878307900000001,
+                "first_median_ms": 0.3823470324277878,
+                "repeated_median_ms": 0.2896419486426043
               }
             ],
             "process_peak_rss_kib": [
-              20068,
-              20068,
-              20068
+              20064,
+              20064,
+              20064
             ]
           },
           "rust": {
@@ -232,50 +730,74 @@
               {
                 "id": "P01",
                 "query": "sum(system_cpu)",
-                "median_ms": 0.09185023023746908,
-                "min_ms": 0.09035484050400555,
-                "max_ms": 0.09262421983294189
+                "median_ms": 0.09373832028359175,
+                "min_ms": 0.09190184064209461,
+                "max_ms": 0.09414602071046829,
+                "parse_median_ms": 0.0008164899999999999,
+                "evaluation_median_ms": 0.09255144000000007,
+                "first_median_ms": 0.16530801076442003,
+                "repeated_median_ms": 0.09289538403126327
               },
               {
                 "id": "P02",
                 "query": "sum by(instance)(system_cpu)",
-                "median_ms": 0.1288617099635303,
-                "min_ms": 0.1271327305585146,
-                "max_ms": 0.1359841600060463
+                "median_ms": 0.13077680952847004,
+                "min_ms": 0.1291790301911533,
+                "max_ms": 0.13127162004821002,
+                "parse_median_ms": 0.00081511,
+                "evaluation_median_ms": 0.12799334000000007,
+                "first_median_ms": 0.14455802738666534,
+                "repeated_median_ms": 0.13062931159793428
               },
               {
                 "id": "P03",
                 "query": "sum by(job)(rate(counter_total[5m]))",
-                "median_ms": 0.0680603296495974,
-                "min_ms": 0.06722942925989628,
-                "max_ms": 0.07703194976784289
+                "median_ms": 0.06813953048549592,
+                "min_ms": 0.06775513989850879,
+                "max_ms": 0.06878782995045185,
+                "parse_median_ms": 0.0012946099999999999,
+                "evaluation_median_ms": 0.06600439999999998,
+                "first_median_ms": 0.0968490494415164,
+                "repeated_median_ms": 0.06785721287620489
               },
               {
                 "id": "P04",
                 "query": "system_cpu / on(instance) group_left(tier) limits",
-                "median_ms": 0.2421156596392393,
-                "min_ms": 0.23719110991805792,
-                "max_ms": 0.24253234965726733
+                "median_ms": 0.2422349900007248,
+                "min_ms": 0.24058340000919998,
+                "max_ms": 0.24871733970940113,
+                "parse_median_ms": 0.00121345,
+                "evaluation_median_ms": 0.2332797,
+                "first_median_ms": 0.2774170134216547,
+                "repeated_median_ms": 0.24187961602677602
               },
               {
                 "id": "P05",
                 "query": "label_join(system_cpu,\"key\",\"/\",\"instance\",\"mode\")",
-                "median_ms": 0.16215772950090468,
-                "min_ms": 0.15885026077739894,
-                "max_ms": 0.16915416927076876
+                "median_ms": 0.1636858400888741,
+                "min_ms": 0.16188775072805583,
+                "max_ms": 0.16589912003837526,
+                "parse_median_ms": 0.0028869899999999994,
+                "evaluation_median_ms": 0.14331115000000005,
+                "first_median_ms": 0.19879802130162716,
+                "repeated_median_ms": 0.1633311715917756
               },
               {
                 "id": "P06",
                 "query": "histogram_quantile(0.95,sum by(le)(rate(request_bucket[5m])))",
-                "median_ms": 0.28367571998387575,
-                "min_ms": 0.28219661908224225,
-                "max_ms": 0.28453910956159234
+                "median_ms": 0.28272255905903876,
+                "min_ms": 0.28158406959846616,
+                "max_ms": 0.30929793952964246,
+                "parse_median_ms": 0.00182868,
+                "evaluation_median_ms": 0.28041359000000005,
+                "first_median_ms": 0.3749669995158911,
+                "repeated_median_ms": 0.28179079703422205
               }
             ],
             "process_peak_rss_kib": [
-              20068,
-              20068,
-              20068
+              20064,
+              20064,
+              20064
             ]
           }
         }
@@ -292,50 +814,74 @@
               {
                 "id": "P01",
                 "query": "sum(system_cpu)",
-                "median_ms": 1.1490453034639359,
-                "min_ms": 1.1408363992813975,
-                "max_ms": 1.2722832965664566
+                "median_ms": 1.1901626479811966,
+                "min_ms": 1.1737802531570196,
+                "max_ms": 1.230717299040407,
+                "parse_median_ms": 0.006579900000000001,
+                "evaluation_median_ms": 1.0476341999999998,
+                "first_median_ms": 2.6576679665595293,
+                "repeated_median_ms": 1.1069850052559846
               },
               {
                 "id": "P02",
                 "query": "sum by(instance)(system_cpu)",
-                "median_ms": 1.4215204981155694,
-                "min_ms": 1.3830383482854813,
-                "max_ms": 1.4619071502238512
+                "median_ms": 1.4297841466031969,
+                "min_ms": 1.408659847220406,
+                "max_ms": 1.4399510517250746,
+                "parse_median_ms": 0.009852800000000002,
+                "evaluation_median_ms": 1.2595945500000005,
+                "first_median_ms": 1.6472259303554893,
+                "repeated_median_ms": 1.4183398421951814
               },
               {
                 "id": "P03",
                 "query": "sum by(job)(rate(counter_total[5m]))",
-                "median_ms": 1.028284354833886,
-                "min_ms": 1.0232608474325389,
-                "max_ms": 1.0385682515334338
+                "median_ms": 1.0563242540229112,
+                "min_ms": 1.027692499337718,
+                "max_ms": 1.2631200021132827,
+                "parse_median_ms": 0.0015144000000000002,
+                "evaluation_median_ms": 0.9612430999999999,
+                "first_median_ms": 1.2359400279819965,
+                "repeated_median_ms": 1.0353672122092623
               },
               {
                 "id": "P04",
                 "query": "system_cpu / on(instance) group_left(tier) limits",
-                "median_ms": 3.3685470989439636,
-                "min_ms": 3.3306424506008625,
-                "max_ms": 3.4388700500130653
+                "median_ms": 3.3817644987720996,
+                "min_ms": 3.3720780513249338,
+                "max_ms": 3.4142587042879313,
+                "parse_median_ms": 0.000911,
+                "evaluation_median_ms": 3.046579650000001,
+                "first_median_ms": 4.881378961727023,
+                "repeated_median_ms": 3.3207204205131062
               },
               {
                 "id": "P05",
                 "query": "label_join(system_cpu,\"key\",\"/\",\"instance\",\"mode\")",
-                "median_ms": 2.493344497634098,
-                "min_ms": 2.450181351741776,
-                "max_ms": 2.6217513950541615
+                "median_ms": 2.4904478515964,
+                "min_ms": 2.4637510476168245,
+                "max_ms": 2.5129726505838335,
+                "parse_median_ms": 0.0012561,
+                "evaluation_median_ms": 2.3113062999999996,
+                "first_median_ms": 2.6823669904842973,
+                "repeated_median_ms": 2.480346844286511
               },
               {
                 "id": "P06",
                 "query": "histogram_quantile(0.95,sum by(le)(rate(request_bucket[5m])))",
-                "median_ms": 5.009898799471557,
-                "min_ms": 4.8081180022563785,
-                "max_ms": 5.071698798565194
+                "median_ms": 4.6411015500780195,
+                "min_ms": 4.631885600974783,
+                "max_ms": 4.7745604533702135,
+                "parse_median_ms": 0.0021034,
+                "evaluation_median_ms": 4.1034431499999995,
+                "first_median_ms": 6.598925916478038,
+                "repeated_median_ms": 4.547190736047924
               }
             ],
             "process_peak_rss_kib": [
-              96984,
-              96960,
-              96980
+              98384,
+              98744,
+              98368
             ]
           },
           "cpp": {
@@ -343,50 +889,74 @@
               {
                 "id": "P01",
                 "query": "sum(system_cpu)",
-                "median_ms": 1.361518498742953,
-                "min_ms": 1.2026699027046561,
-                "max_ms": 1.3686284539289773
+                "median_ms": 1.1958675982896239,
+                "min_ms": 1.1746887990739197,
+                "max_ms": 1.2214653484988958,
+                "parse_median_ms": 0.0019779999999999997,
+                "evaluation_median_ms": 1.1932061499999997,
+                "first_median_ms": 2.349961083382368,
+                "repeated_median_ms": 1.1351258359163214
               },
               {
                 "id": "P02",
                 "query": "sum by(instance)(system_cpu)",
-                "median_ms": 1.5958510455675423,
-                "min_ms": 1.575282250996679,
-                "max_ms": 1.647415099432692
+                "median_ms": 1.5993622015230358,
+                "min_ms": 1.5682544966693968,
+                "max_ms": 1.6051081474870443,
+                "parse_median_ms": 0.00139545,
+                "evaluation_median_ms": 1.5829437499999996,
+                "first_median_ms": 1.6542361117899418,
+                "repeated_median_ms": 1.5965888436001383
               },
               {
                 "id": "P03",
                 "query": "sum by(job)(rate(counter_total[5m]))",
-                "median_ms": 1.080114848446101,
-                "min_ms": 1.0560780996456742,
-                "max_ms": 1.0966917499899864
+                "median_ms": 1.0773485992103815,
+                "min_ms": 1.061485696118325,
+                "max_ms": 1.1057132971473038,
+                "parse_median_ms": 0.0023756500000000004,
+                "evaluation_median_ms": 1.0743255500000002,
+                "first_median_ms": 1.4435281045734882,
+                "repeated_median_ms": 1.057418682122309
               },
               {
                 "id": "P04",
                 "query": "system_cpu / on(instance) group_left(tier) limits",
-                "median_ms": 3.6486832541413605,
-                "min_ms": 3.6204614967573434,
-                "max_ms": 3.81152939517051
+                "median_ms": 3.543635649839416,
+                "min_ms": 3.4931595029775053,
+                "max_ms": 3.664550103712827,
+                "parse_median_ms": 0.0019055000000000003,
+                "evaluation_median_ms": 3.3812206,
+                "first_median_ms": 5.154157988727093,
+                "repeated_median_ms": 3.4588713162137488
               },
               {
                 "id": "P05",
                 "query": "label_join(system_cpu,\"key\",\"/\",\"instance\",\"mode\")",
-                "median_ms": 2.2407145996112376,
-                "min_ms": 2.2051544510759413,
-                "max_ms": 2.306722552748397
+                "median_ms": 2.2136306506581604,
+                "min_ms": 2.1506702003534883,
+                "max_ms": 2.296323503833264,
+                "parse_median_ms": 0.00217255,
+                "evaluation_median_ms": 2.0263891,
+                "first_median_ms": 2.6137579698115587,
+                "repeated_median_ms": 2.1869155798891655
               },
               {
                 "id": "P06",
                 "query": "histogram_quantile(0.95,sum by(le)(rate(request_bucket[5m])))",
-                "median_ms": 4.730924102477729,
-                "min_ms": 4.539014300098643,
-                "max_ms": 4.8855838540475816
+                "median_ms": 4.831348947482184,
+                "min_ms": 4.520474997116253,
+                "max_ms": 4.945722001139075,
+                "parse_median_ms": 0.0039279,
+                "evaluation_median_ms": 4.82662145,
+                "first_median_ms": 6.170718930661678,
+                "repeated_median_ms": 4.760855790472736
               }
             ],
             "process_peak_rss_kib": [
-              94900,
-              97132,
-              97136
+              97592,
+              98036,
+              98036
             ]
           },
           "rust": {
@@ -394,50 +964,74 @@
               {
                 "id": "P01",
                 "query": "sum(system_cpu)",
-                "median_ms": 1.511980249779299,
-                "min_ms": 1.5093687979970127,
-                "max_ms": 1.5382175450213253
+                "median_ms": 1.529080350883305,
+                "min_ms": 1.4670668519102037,
+                "max_ms": 1.564651500666514,
+                "parse_median_ms": 0.0018944999999999997,
+                "evaluation_median_ms": 1.5265342999999998,
+                "first_median_ms": 2.7235570596531034,
+                "repeated_median_ms": 1.4662131556848947
               },
               {
                 "id": "P02",
                 "query": "sum by(instance)(system_cpu)",
-                "median_ms": 2.3816239030566067,
-                "min_ms": 2.3802714014891535,
-                "max_ms": 2.3925783461891115
+                "median_ms": 2.3726668499875814,
+                "min_ms": 2.3261117516085505,
+                "max_ms": 2.563120302511379,
+                "parse_median_ms": 0.0011484,
+                "evaluation_median_ms": 2.32466815,
+                "first_median_ms": 2.635387936607003,
+                "repeated_median_ms": 2.3588394243760327
               },
               {
                 "id": "P03",
                 "query": "sum by(job)(rate(counter_total[5m]))",
-                "median_ms": 1.2886796495877206,
-                "min_ms": 1.2765238003339618,
-                "max_ms": 1.3006810506340116
+                "median_ms": 1.2752019509207457,
+                "min_ms": 1.2523045996204019,
+                "max_ms": 1.4252041990403086,
+                "parse_median_ms": 0.0025195499999999997,
+                "evaluation_median_ms": 1.2716064,
+                "first_median_ms": 1.6777459532022476,
+                "repeated_median_ms": 1.2540154244848771
               },
               {
                 "id": "P04",
                 "query": "system_cpu / on(instance) group_left(tier) limits",
-                "median_ms": 4.5047550520394,
-                "min_ms": 4.3948044534772635,
-                "max_ms": 4.683019052026793
+                "median_ms": 4.302715801168233,
+                "min_ms": 4.300387849798426,
+                "max_ms": 5.0356197520159185,
+                "parse_median_ms": 0.005794499999999999,
+                "evaluation_median_ms": 4.046898499999999,
+                "first_median_ms": 5.055846995674074,
+                "repeated_median_ms": 4.264049893735271
               },
               {
                 "id": "P05",
                 "query": "label_join(system_cpu,\"key\",\"/\",\"instance\",\"mode\")",
-                "median_ms": 3.010550152976066,
-                "min_ms": 2.9719189449679106,
-                "max_ms": 3.1281261472031474
+                "median_ms": 3.013355005532503,
+                "min_ms": 2.988383249612525,
+                "max_ms": 3.578343353001401,
+                "parse_median_ms": 0.022420300000000004,
+                "evaluation_median_ms": 2.6889062,
+                "first_median_ms": 3.5271800588816404,
+                "repeated_median_ms": 2.9863115816720223
               },
               {
                 "id": "P06",
                 "query": "histogram_quantile(0.95,sum by(le)(rate(request_bucket[5m])))",
-                "median_ms": 5.7974251511041075,
-                "min_ms": 5.125020298874006,
-                "max_ms": 6.1745924525894225
+                "median_ms": 5.900650599505752,
+                "min_ms": 5.572837800718844,
+                "max_ms": 6.549568253103644,
+                "parse_median_ms": 0.0037480499999999993,
+                "evaluation_median_ms": 5.895958,
+                "first_median_ms": 6.877713021822274,
+                "repeated_median_ms": 5.849226261489093
               }
             ],
             "process_peak_rss_kib": [
-              95256,
-              95296,
-              94568
+              96640,
+              95340,
+              96612
             ]
           }
         }
@@ -451,46 +1045,2228 @@
     },
     "build": {
       "c": {
-        "compile_seconds": 0.7757922440068796,
-        "archive_bytes": 273388,
-        "host_bytes": 219864,
-        "host_stripped_debug_bytes": 65248
+        "compile_seconds": 0.7765874660108238,
+        "archive_bytes": 274388,
+        "host_bytes": 226352,
+        "host_stripped_debug_bytes": 65304
       },
       "cpp": {
-        "compile_seconds": 4.601646600989625,
-        "archive_bytes": 4229744,
-        "host_bytes": 2154032,
-        "host_stripped_debug_bytes": 170088
+        "compile_seconds": 4.443233179976232,
+        "archive_bytes": 4231112,
+        "host_bytes": 2160352,
+        "host_stripped_debug_bytes": 170144
       },
       "rust": {
-        "compile_seconds": 1.5242207190021873,
-        "archive_bytes": 25737804,
-        "host_bytes": 7126688,
-        "host_stripped_debug_bytes": 1641520
+        "compile_seconds": 1.5271753979614004,
+        "archive_bytes": 25737604,
+        "host_bytes": 7132384,
+        "host_stripped_debug_bytes": 1641560
       }
     }
   },
+  "native_histogram_risk": {
+    "reference": {
+      "fixture": {
+        "CounterResetHint": 3,
+        "Schema": 0,
+        "ZeroThreshold": 0,
+        "ZeroCount": 0,
+        "Count": 2,
+        "Sum": 1.5,
+        "PositiveSpans": [
+          {
+            "Offset": 0,
+            "Length": 1
+          }
+        ],
+        "NegativeSpans": null,
+        "PositiveBuckets": [
+          2
+        ],
+        "NegativeBuckets": null,
+        "CustomValues": null
+      },
+      "labels": {
+        "__name__": "native_hist",
+        "case": "hist"
+      },
+      "reference": "Prometheus v3.15.0 / 5241a27fe3c6983549fccc32f6e65917408c63cd",
+      "results": [
+        {
+          "id": "histogram_count",
+          "query": "histogram_count(native_hist)",
+          "kind": 2,
+          "rows": [
+            {
+              "labels": {
+                "case": "hist"
+              },
+              "points": [
+                [
+                  600000,
+                  "2"
+                ]
+              ],
+              "point_bits": [
+                "4000000000000000"
+              ]
+            }
+          ]
+        },
+        {
+          "id": "histogram_sum",
+          "query": "histogram_sum(native_hist)",
+          "kind": 2,
+          "rows": [
+            {
+              "labels": {
+                "case": "hist"
+              },
+              "points": [
+                [
+                  600000,
+                  "1.5"
+                ]
+              ],
+              "point_bits": [
+                "3ff8000000000000"
+              ]
+            }
+          ]
+        },
+        {
+          "id": "histogram_avg",
+          "query": "histogram_avg(native_hist)",
+          "kind": 2,
+          "rows": [
+            {
+              "labels": {
+                "case": "hist"
+              },
+              "points": [
+                [
+                  600000,
+                  "0.75"
+                ]
+              ],
+              "point_bits": [
+                "3fe8000000000000"
+              ]
+            }
+          ]
+        }
+      ],
+      "time_ms": 600000
+    },
+    "common_profile_effect": "none; native histograms are a separate unsupported risk slice",
+    "native_operation_status": "unsupported; no typed native operation or ownership PASS is claimed",
+    "candidates": {
+      "c": {
+        "status": "unsupported",
+        "function_dispatch": [
+          {
+            "id": "histogram_count",
+            "query": "histogram_count(vector(1))",
+            "kind": 4,
+            "error": "unsupported function",
+            "work": 3,
+            "rows": []
+          },
+          {
+            "id": "histogram_sum",
+            "query": "histogram_sum(vector(1))",
+            "kind": 4,
+            "error": "unsupported function",
+            "work": 3,
+            "rows": []
+          },
+          {
+            "id": "histogram_avg",
+            "query": "histogram_avg(vector(1))",
+            "kind": 4,
+            "error": "unsupported function",
+            "work": 3,
+            "rows": []
+          }
+        ],
+        "following_query": "sum(system_cpu) = 20",
+        "typed_input_rejection": {
+          "layer": "shared C host before evaluator entry; PPPoint has no histogram type",
+          "exit": 2,
+          "error": "prototype host: number required"
+        }
+      },
+      "cpp": {
+        "status": "unsupported",
+        "function_dispatch": [
+          {
+            "id": "histogram_count",
+            "query": "histogram_count(vector(1))",
+            "kind": 4,
+            "error": "unsupported function histogram_count",
+            "work": 3,
+            "rows": []
+          },
+          {
+            "id": "histogram_sum",
+            "query": "histogram_sum(vector(1))",
+            "kind": 4,
+            "error": "unsupported function histogram_sum",
+            "work": 3,
+            "rows": []
+          },
+          {
+            "id": "histogram_avg",
+            "query": "histogram_avg(vector(1))",
+            "kind": 4,
+            "error": "unsupported function histogram_avg",
+            "work": 3,
+            "rows": []
+          }
+        ],
+        "following_query": "sum(system_cpu) = 20",
+        "typed_input_rejection": {
+          "layer": "shared C host before evaluator entry; PPPoint has no histogram type",
+          "exit": 2,
+          "error": "prototype host: number required"
+        }
+      },
+      "rust": {
+        "status": "unsupported",
+        "function_dispatch": [
+          {
+            "id": "histogram_count",
+            "query": "histogram_count(vector(1))",
+            "kind": 4,
+            "error": "unsupported function",
+            "work": 3,
+            "rows": []
+          },
+          {
+            "id": "histogram_sum",
+            "query": "histogram_sum(vector(1))",
+            "kind": 4,
+            "error": "unsupported function",
+            "work": 3,
+            "rows": []
+          },
+          {
+            "id": "histogram_avg",
+            "query": "histogram_avg(vector(1))",
+            "kind": 4,
+            "error": "unsupported function",
+            "work": 3,
+            "rows": []
+          }
+        ],
+        "following_query": "sum(system_cpu) = 20",
+        "typed_input_rejection": {
+          "layer": "shared C host before evaluator entry; PPPoint has no histogram type",
+          "exit": 2,
+          "error": "prototype host: number required"
+        }
+      }
+    },
+    "completion_cost_drivers": [
+      "Typed sample ABI and owned bucket/span/custom-bound data",
+      "Native histogram schemas, reset hints, arithmetic and quantile kernels",
+      "Mixed float/histogram selectors, ranges, aggregation and annotations",
+      "Separate approved Netdata retained histogram projection; no mapping is selected here"
+    ]
+  },
+  "language_matrix": {
+    "reference": "Prometheus v3.15.0 / 5241a27fe3c6983549fccc32f6e65917408c63cd",
+    "method": "Pinned upstream catalog enumerates every function, aggregation, lexer operator and modifier. Tested means only the frozen float profile; unimplemented/unqualified entries are remaining work, not conformance percentages.",
+    "functions": [
+      {
+        "name": "abs",
+        "arguments": [
+          "vector"
+        ],
+        "return": "vector",
+        "experimental": false,
+        "candidates": {
+          "c": "tested_float_slice",
+          "cpp": "tested_float_slice",
+          "rust": "tested_float_slice"
+        },
+        "notes": "Queries outside the frozen profile remain unqualified",
+        "common_cases": [
+          "B058",
+          "B060"
+        ]
+      },
+      {
+        "name": "absent",
+        "arguments": [
+          "vector"
+        ],
+        "return": "vector",
+        "experimental": false,
+        "candidates": {
+          "c": "tested_float_slice",
+          "cpp": "tested_float_slice",
+          "rust": "tested_float_slice"
+        },
+        "notes": "Queries outside the frozen profile remain unqualified",
+        "common_cases": [
+          "B052",
+          "B053"
+        ]
+      },
+      {
+        "name": "absent_over_time",
+        "arguments": [
+          "matrix"
+        ],
+        "return": "vector",
+        "experimental": false,
+        "candidates": {
+          "c": "tested_float_slice",
+          "cpp": "tested_float_slice",
+          "rust": "tested_float_slice"
+        },
+        "notes": "Queries outside the frozen profile remain unqualified",
+        "common_cases": [
+          "B054"
+        ]
+      },
+      {
+        "name": "acos",
+        "arguments": [
+          "vector"
+        ],
+        "return": "vector",
+        "experimental": false,
+        "candidates": {
+          "c": "unimplemented_or_unqualified",
+          "cpp": "unimplemented_or_unqualified",
+          "rust": "unimplemented_or_unqualified"
+        },
+        "notes": "Queries outside the frozen profile remain unqualified"
+      },
+      {
+        "name": "acosh",
+        "arguments": [
+          "vector"
+        ],
+        "return": "vector",
+        "experimental": false,
+        "candidates": {
+          "c": "unimplemented_or_unqualified",
+          "cpp": "unimplemented_or_unqualified",
+          "rust": "unimplemented_or_unqualified"
+        },
+        "notes": "Queries outside the frozen profile remain unqualified"
+      },
+      {
+        "name": "asin",
+        "arguments": [
+          "vector"
+        ],
+        "return": "vector",
+        "experimental": false,
+        "candidates": {
+          "c": "unimplemented_or_unqualified",
+          "cpp": "unimplemented_or_unqualified",
+          "rust": "unimplemented_or_unqualified"
+        },
+        "notes": "Queries outside the frozen profile remain unqualified"
+      },
+      {
+        "name": "asinh",
+        "arguments": [
+          "vector"
+        ],
+        "return": "vector",
+        "experimental": false,
+        "candidates": {
+          "c": "unimplemented_or_unqualified",
+          "cpp": "unimplemented_or_unqualified",
+          "rust": "unimplemented_or_unqualified"
+        },
+        "notes": "Queries outside the frozen profile remain unqualified"
+      },
+      {
+        "name": "atan",
+        "arguments": [
+          "vector"
+        ],
+        "return": "vector",
+        "experimental": false,
+        "candidates": {
+          "c": "unimplemented_or_unqualified",
+          "cpp": "unimplemented_or_unqualified",
+          "rust": "unimplemented_or_unqualified"
+        },
+        "notes": "Queries outside the frozen profile remain unqualified"
+      },
+      {
+        "name": "atanh",
+        "arguments": [
+          "vector"
+        ],
+        "return": "vector",
+        "experimental": false,
+        "candidates": {
+          "c": "unimplemented_or_unqualified",
+          "cpp": "unimplemented_or_unqualified",
+          "rust": "unimplemented_or_unqualified"
+        },
+        "notes": "Queries outside the frozen profile remain unqualified"
+      },
+      {
+        "name": "avg_over_time",
+        "arguments": [
+          "matrix"
+        ],
+        "return": "vector",
+        "experimental": false,
+        "candidates": {
+          "c": "tested_float_slice",
+          "cpp": "tested_float_slice",
+          "rust": "tested_float_slice"
+        },
+        "notes": "Queries outside the frozen profile remain unqualified",
+        "common_cases": [
+          "B041"
+        ]
+      },
+      {
+        "name": "ceil",
+        "arguments": [
+          "vector"
+        ],
+        "return": "vector",
+        "experimental": false,
+        "candidates": {
+          "c": "unimplemented_or_unqualified",
+          "cpp": "unimplemented_or_unqualified",
+          "rust": "unimplemented_or_unqualified"
+        },
+        "notes": "Queries outside the frozen profile remain unqualified"
+      },
+      {
+        "name": "changes",
+        "arguments": [
+          "matrix"
+        ],
+        "return": "vector",
+        "experimental": false,
+        "candidates": {
+          "c": "tested_float_slice",
+          "cpp": "tested_float_slice",
+          "rust": "tested_float_slice"
+        },
+        "notes": "Queries outside the frozen profile remain unqualified",
+        "common_cases": [
+          "B047"
+        ]
+      },
+      {
+        "name": "clamp",
+        "arguments": [
+          "vector",
+          "scalar",
+          "scalar"
+        ],
+        "return": "vector",
+        "experimental": false,
+        "candidates": {
+          "c": "unimplemented_or_unqualified",
+          "cpp": "unimplemented_or_unqualified",
+          "rust": "unimplemented_or_unqualified"
+        },
+        "notes": "Queries outside the frozen profile remain unqualified"
+      },
+      {
+        "name": "clamp_max",
+        "arguments": [
+          "vector",
+          "scalar"
+        ],
+        "return": "vector",
+        "experimental": false,
+        "candidates": {
+          "c": "tested_float_slice",
+          "cpp": "tested_float_slice",
+          "rust": "tested_float_slice"
+        },
+        "notes": "Queries outside the frozen profile remain unqualified",
+        "common_cases": [
+          "B059"
+        ]
+      },
+      {
+        "name": "clamp_min",
+        "arguments": [
+          "vector",
+          "scalar"
+        ],
+        "return": "vector",
+        "experimental": false,
+        "candidates": {
+          "c": "tested_float_slice",
+          "cpp": "tested_float_slice",
+          "rust": "tested_float_slice"
+        },
+        "notes": "Queries outside the frozen profile remain unqualified",
+        "common_cases": [
+          "B059"
+        ]
+      },
+      {
+        "name": "cos",
+        "arguments": [
+          "vector"
+        ],
+        "return": "vector",
+        "experimental": false,
+        "candidates": {
+          "c": "unimplemented_or_unqualified",
+          "cpp": "unimplemented_or_unqualified",
+          "rust": "unimplemented_or_unqualified"
+        },
+        "notes": "Queries outside the frozen profile remain unqualified"
+      },
+      {
+        "name": "cosh",
+        "arguments": [
+          "vector"
+        ],
+        "return": "vector",
+        "experimental": false,
+        "candidates": {
+          "c": "unimplemented_or_unqualified",
+          "cpp": "unimplemented_or_unqualified",
+          "rust": "unimplemented_or_unqualified"
+        },
+        "notes": "Queries outside the frozen profile remain unqualified"
+      },
+      {
+        "name": "count_over_time",
+        "arguments": [
+          "matrix"
+        ],
+        "return": "vector",
+        "experimental": false,
+        "candidates": {
+          "c": "tested_float_slice",
+          "cpp": "tested_float_slice",
+          "rust": "tested_float_slice"
+        },
+        "notes": "Queries outside the frozen profile remain unqualified",
+        "common_cases": [
+          "B045"
+        ]
+      },
+      {
+        "name": "day_of_month",
+        "arguments": [
+          "vector"
+        ],
+        "return": "vector",
+        "variadic": 1,
+        "experimental": false,
+        "candidates": {
+          "c": "unimplemented_or_unqualified",
+          "cpp": "unimplemented_or_unqualified",
+          "rust": "unimplemented_or_unqualified"
+        },
+        "notes": "Queries outside the frozen profile remain unqualified"
+      },
+      {
+        "name": "day_of_week",
+        "arguments": [
+          "vector"
+        ],
+        "return": "vector",
+        "variadic": 1,
+        "experimental": false,
+        "candidates": {
+          "c": "unimplemented_or_unqualified",
+          "cpp": "unimplemented_or_unqualified",
+          "rust": "unimplemented_or_unqualified"
+        },
+        "notes": "Queries outside the frozen profile remain unqualified"
+      },
+      {
+        "name": "day_of_year",
+        "arguments": [
+          "vector"
+        ],
+        "return": "vector",
+        "variadic": 1,
+        "experimental": false,
+        "candidates": {
+          "c": "unimplemented_or_unqualified",
+          "cpp": "unimplemented_or_unqualified",
+          "rust": "unimplemented_or_unqualified"
+        },
+        "notes": "Queries outside the frozen profile remain unqualified"
+      },
+      {
+        "name": "days_in_month",
+        "arguments": [
+          "vector"
+        ],
+        "return": "vector",
+        "variadic": 1,
+        "experimental": false,
+        "candidates": {
+          "c": "unimplemented_or_unqualified",
+          "cpp": "unimplemented_or_unqualified",
+          "rust": "unimplemented_or_unqualified"
+        },
+        "notes": "Queries outside the frozen profile remain unqualified"
+      },
+      {
+        "name": "deg",
+        "arguments": [
+          "vector"
+        ],
+        "return": "vector",
+        "experimental": false,
+        "candidates": {
+          "c": "unimplemented_or_unqualified",
+          "cpp": "unimplemented_or_unqualified",
+          "rust": "unimplemented_or_unqualified"
+        },
+        "notes": "Queries outside the frozen profile remain unqualified"
+      },
+      {
+        "name": "delta",
+        "arguments": [
+          "matrix"
+        ],
+        "return": "vector",
+        "experimental": false,
+        "candidates": {
+          "c": "tested_float_slice",
+          "cpp": "tested_float_slice",
+          "rust": "tested_float_slice"
+        },
+        "notes": "Queries outside the frozen profile remain unqualified",
+        "common_cases": [
+          "B039"
+        ]
+      },
+      {
+        "name": "deriv",
+        "arguments": [
+          "matrix"
+        ],
+        "return": "vector",
+        "experimental": false,
+        "candidates": {
+          "c": "unimplemented_or_unqualified",
+          "cpp": "unimplemented_or_unqualified",
+          "rust": "unimplemented_or_unqualified"
+        },
+        "notes": "Queries outside the frozen profile remain unqualified"
+      },
+      {
+        "name": "double_exponential_smoothing",
+        "arguments": [
+          "matrix",
+          "scalar",
+          "scalar"
+        ],
+        "return": "vector",
+        "experimental": true,
+        "candidates": {
+          "c": "unimplemented_or_unqualified",
+          "cpp": "unimplemented_or_unqualified",
+          "rust": "unimplemented_or_unqualified"
+        },
+        "notes": "Queries outside the frozen profile remain unqualified"
+      },
+      {
+        "name": "end",
+        "return": "scalar",
+        "experimental": true,
+        "candidates": {
+          "c": "unimplemented_or_unqualified",
+          "cpp": "unimplemented_or_unqualified",
+          "rust": "unimplemented_or_unqualified"
+        },
+        "notes": "Queries outside the frozen profile remain unqualified"
+      },
+      {
+        "name": "exp",
+        "arguments": [
+          "vector"
+        ],
+        "return": "vector",
+        "experimental": false,
+        "candidates": {
+          "c": "unimplemented_or_unqualified",
+          "cpp": "unimplemented_or_unqualified",
+          "rust": "unimplemented_or_unqualified"
+        },
+        "notes": "Queries outside the frozen profile remain unqualified"
+      },
+      {
+        "name": "first_over_time",
+        "arguments": [
+          "matrix"
+        ],
+        "return": "vector",
+        "experimental": false,
+        "candidates": {
+          "c": "unimplemented_or_unqualified",
+          "cpp": "unimplemented_or_unqualified",
+          "rust": "unimplemented_or_unqualified"
+        },
+        "notes": "Queries outside the frozen profile remain unqualified"
+      },
+      {
+        "name": "floor",
+        "arguments": [
+          "vector"
+        ],
+        "return": "vector",
+        "experimental": false,
+        "candidates": {
+          "c": "unimplemented_or_unqualified",
+          "cpp": "unimplemented_or_unqualified",
+          "rust": "unimplemented_or_unqualified"
+        },
+        "notes": "Queries outside the frozen profile remain unqualified"
+      },
+      {
+        "name": "histogram_avg",
+        "arguments": [
+          "vector"
+        ],
+        "return": "vector",
+        "experimental": false,
+        "candidates": {
+          "c": "unimplemented_or_unqualified",
+          "cpp": "unimplemented_or_unqualified",
+          "rust": "unimplemented_or_unqualified"
+        },
+        "notes": "Queries outside the frozen profile remain unqualified"
+      },
+      {
+        "name": "histogram_count",
+        "arguments": [
+          "vector"
+        ],
+        "return": "vector",
+        "experimental": false,
+        "candidates": {
+          "c": "unimplemented_or_unqualified",
+          "cpp": "unimplemented_or_unqualified",
+          "rust": "unimplemented_or_unqualified"
+        },
+        "notes": "Queries outside the frozen profile remain unqualified"
+      },
+      {
+        "name": "histogram_fraction",
+        "arguments": [
+          "scalar",
+          "scalar",
+          "vector"
+        ],
+        "return": "vector",
+        "experimental": false,
+        "candidates": {
+          "c": "unimplemented_or_unqualified",
+          "cpp": "unimplemented_or_unqualified",
+          "rust": "unimplemented_or_unqualified"
+        },
+        "notes": "Queries outside the frozen profile remain unqualified"
+      },
+      {
+        "name": "histogram_quantile",
+        "arguments": [
+          "scalar",
+          "vector"
+        ],
+        "return": "vector",
+        "experimental": false,
+        "candidates": {
+          "c": "tested_float_slice",
+          "cpp": "tested_float_slice",
+          "rust": "tested_float_slice"
+        },
+        "notes": "Classic cumulative buckets tested; native histogram input unsupported",
+        "common_cases": [
+          "B055"
+        ]
+      },
+      {
+        "name": "histogram_quantiles",
+        "arguments": [
+          "vector",
+          "string",
+          "scalar",
+          "scalar"
+        ],
+        "return": "vector",
+        "variadic": 9,
+        "experimental": true,
+        "candidates": {
+          "c": "unimplemented_or_unqualified",
+          "cpp": "unimplemented_or_unqualified",
+          "rust": "unimplemented_or_unqualified"
+        },
+        "notes": "Queries outside the frozen profile remain unqualified"
+      },
+      {
+        "name": "histogram_stddev",
+        "arguments": [
+          "vector"
+        ],
+        "return": "vector",
+        "experimental": false,
+        "candidates": {
+          "c": "unimplemented_or_unqualified",
+          "cpp": "unimplemented_or_unqualified",
+          "rust": "unimplemented_or_unqualified"
+        },
+        "notes": "Queries outside the frozen profile remain unqualified"
+      },
+      {
+        "name": "histogram_stdvar",
+        "arguments": [
+          "vector"
+        ],
+        "return": "vector",
+        "experimental": false,
+        "candidates": {
+          "c": "unimplemented_or_unqualified",
+          "cpp": "unimplemented_or_unqualified",
+          "rust": "unimplemented_or_unqualified"
+        },
+        "notes": "Queries outside the frozen profile remain unqualified"
+      },
+      {
+        "name": "histogram_sum",
+        "arguments": [
+          "vector"
+        ],
+        "return": "vector",
+        "experimental": false,
+        "candidates": {
+          "c": "unimplemented_or_unqualified",
+          "cpp": "unimplemented_or_unqualified",
+          "rust": "unimplemented_or_unqualified"
+        },
+        "notes": "Queries outside the frozen profile remain unqualified"
+      },
+      {
+        "name": "hour",
+        "arguments": [
+          "vector"
+        ],
+        "return": "vector",
+        "variadic": 1,
+        "experimental": false,
+        "candidates": {
+          "c": "unimplemented_or_unqualified",
+          "cpp": "unimplemented_or_unqualified",
+          "rust": "unimplemented_or_unqualified"
+        },
+        "notes": "Queries outside the frozen profile remain unqualified"
+      },
+      {
+        "name": "idelta",
+        "arguments": [
+          "matrix"
+        ],
+        "return": "vector",
+        "experimental": false,
+        "candidates": {
+          "c": "tested_float_slice",
+          "cpp": "tested_float_slice",
+          "rust": "tested_float_slice"
+        },
+        "notes": "Queries outside the frozen profile remain unqualified",
+        "common_cases": [
+          "B040"
+        ]
+      },
+      {
+        "name": "increase",
+        "arguments": [
+          "matrix"
+        ],
+        "return": "vector",
+        "experimental": false,
+        "candidates": {
+          "c": "tested_float_slice",
+          "cpp": "tested_float_slice",
+          "rust": "tested_float_slice"
+        },
+        "notes": "Queries outside the frozen profile remain unqualified",
+        "common_cases": [
+          "B036"
+        ]
+      },
+      {
+        "name": "info",
+        "arguments": [
+          "vector",
+          "vector"
+        ],
+        "return": "vector",
+        "variadic": 1,
+        "experimental": true,
+        "candidates": {
+          "c": "unimplemented_or_unqualified",
+          "cpp": "unimplemented_or_unqualified",
+          "rust": "unimplemented_or_unqualified"
+        },
+        "notes": "Queries outside the frozen profile remain unqualified"
+      },
+      {
+        "name": "irate",
+        "arguments": [
+          "matrix"
+        ],
+        "return": "vector",
+        "experimental": false,
+        "candidates": {
+          "c": "tested_float_slice",
+          "cpp": "tested_float_slice",
+          "rust": "tested_float_slice"
+        },
+        "notes": "Queries outside the frozen profile remain unqualified",
+        "common_cases": [
+          "B038"
+        ]
+      },
+      {
+        "name": "label_join",
+        "arguments": [
+          "vector",
+          "string",
+          "string",
+          "string"
+        ],
+        "return": "vector",
+        "variadic": -1,
+        "experimental": false,
+        "candidates": {
+          "c": "tested_float_slice",
+          "cpp": "tested_float_slice",
+          "rust": "tested_float_slice"
+        },
+        "notes": "Queries outside the frozen profile remain unqualified",
+        "common_cases": [
+          "B057"
+        ]
+      },
+      {
+        "name": "label_replace",
+        "arguments": [
+          "vector",
+          "string",
+          "string",
+          "string",
+          "string"
+        ],
+        "return": "vector",
+        "experimental": false,
+        "candidates": {
+          "c": "tested_float_slice",
+          "cpp": "tested_float_slice",
+          "rust": "tested_float_slice"
+        },
+        "notes": "Shared bounded PCRE2 facility; full RE2 compatibility unsupported",
+        "common_cases": [
+          "B056"
+        ]
+      },
+      {
+        "name": "last_over_time",
+        "arguments": [
+          "matrix"
+        ],
+        "return": "vector",
+        "experimental": false,
+        "candidates": {
+          "c": "tested_float_slice",
+          "cpp": "tested_float_slice",
+          "rust": "tested_float_slice"
+        },
+        "notes": "Queries outside the frozen profile remain unqualified",
+        "common_cases": [
+          "B046"
+        ]
+      },
+      {
+        "name": "ln",
+        "arguments": [
+          "vector"
+        ],
+        "return": "vector",
+        "experimental": false,
+        "candidates": {
+          "c": "unimplemented_or_unqualified",
+          "cpp": "unimplemented_or_unqualified",
+          "rust": "unimplemented_or_unqualified"
+        },
+        "notes": "Queries outside the frozen profile remain unqualified"
+      },
+      {
+        "name": "log10",
+        "arguments": [
+          "vector"
+        ],
+        "return": "vector",
+        "experimental": false,
+        "candidates": {
+          "c": "unimplemented_or_unqualified",
+          "cpp": "unimplemented_or_unqualified",
+          "rust": "unimplemented_or_unqualified"
+        },
+        "notes": "Queries outside the frozen profile remain unqualified"
+      },
+      {
+        "name": "log2",
+        "arguments": [
+          "vector"
+        ],
+        "return": "vector",
+        "experimental": false,
+        "candidates": {
+          "c": "unimplemented_or_unqualified",
+          "cpp": "unimplemented_or_unqualified",
+          "rust": "unimplemented_or_unqualified"
+        },
+        "notes": "Queries outside the frozen profile remain unqualified"
+      },
+      {
+        "name": "mad_over_time",
+        "arguments": [
+          "matrix"
+        ],
+        "return": "vector",
+        "experimental": true,
+        "candidates": {
+          "c": "unimplemented_or_unqualified",
+          "cpp": "unimplemented_or_unqualified",
+          "rust": "unimplemented_or_unqualified"
+        },
+        "notes": "Queries outside the frozen profile remain unqualified"
+      },
+      {
+        "name": "max_of",
+        "arguments": [
+          "scalar",
+          "scalar"
+        ],
+        "return": "scalar",
+        "experimental": true,
+        "candidates": {
+          "c": "unimplemented_or_unqualified",
+          "cpp": "unimplemented_or_unqualified",
+          "rust": "unimplemented_or_unqualified"
+        },
+        "notes": "Queries outside the frozen profile remain unqualified"
+      },
+      {
+        "name": "max_over_time",
+        "arguments": [
+          "matrix"
+        ],
+        "return": "vector",
+        "experimental": false,
+        "candidates": {
+          "c": "tested_float_slice",
+          "cpp": "tested_float_slice",
+          "rust": "tested_float_slice"
+        },
+        "notes": "Queries outside the frozen profile remain unqualified",
+        "common_cases": [
+          "B044"
+        ]
+      },
+      {
+        "name": "min_of",
+        "arguments": [
+          "scalar",
+          "scalar"
+        ],
+        "return": "scalar",
+        "experimental": true,
+        "candidates": {
+          "c": "unimplemented_or_unqualified",
+          "cpp": "unimplemented_or_unqualified",
+          "rust": "unimplemented_or_unqualified"
+        },
+        "notes": "Queries outside the frozen profile remain unqualified"
+      },
+      {
+        "name": "min_over_time",
+        "arguments": [
+          "matrix"
+        ],
+        "return": "vector",
+        "experimental": false,
+        "candidates": {
+          "c": "tested_float_slice",
+          "cpp": "tested_float_slice",
+          "rust": "tested_float_slice"
+        },
+        "notes": "Queries outside the frozen profile remain unqualified",
+        "common_cases": [
+          "B043"
+        ]
+      },
+      {
+        "name": "minute",
+        "arguments": [
+          "vector"
+        ],
+        "return": "vector",
+        "variadic": 1,
+        "experimental": false,
+        "candidates": {
+          "c": "unimplemented_or_unqualified",
+          "cpp": "unimplemented_or_unqualified",
+          "rust": "unimplemented_or_unqualified"
+        },
+        "notes": "Queries outside the frozen profile remain unqualified"
+      },
+      {
+        "name": "month",
+        "arguments": [
+          "vector"
+        ],
+        "return": "vector",
+        "variadic": 1,
+        "experimental": false,
+        "candidates": {
+          "c": "unimplemented_or_unqualified",
+          "cpp": "unimplemented_or_unqualified",
+          "rust": "unimplemented_or_unqualified"
+        },
+        "notes": "Queries outside the frozen profile remain unqualified"
+      },
+      {
+        "name": "pi",
+        "return": "scalar",
+        "experimental": false,
+        "candidates": {
+          "c": "unimplemented_or_unqualified",
+          "cpp": "unimplemented_or_unqualified",
+          "rust": "unimplemented_or_unqualified"
+        },
+        "notes": "Queries outside the frozen profile remain unqualified"
+      },
+      {
+        "name": "predict_linear",
+        "arguments": [
+          "matrix",
+          "scalar"
+        ],
+        "return": "vector",
+        "experimental": false,
+        "candidates": {
+          "c": "unimplemented_or_unqualified",
+          "cpp": "unimplemented_or_unqualified",
+          "rust": "unimplemented_or_unqualified"
+        },
+        "notes": "Queries outside the frozen profile remain unqualified"
+      },
+      {
+        "name": "present_over_time",
+        "arguments": [
+          "matrix"
+        ],
+        "return": "vector",
+        "experimental": false,
+        "candidates": {
+          "c": "unimplemented_or_unqualified",
+          "cpp": "unimplemented_or_unqualified",
+          "rust": "unimplemented_or_unqualified"
+        },
+        "notes": "Queries outside the frozen profile remain unqualified"
+      },
+      {
+        "name": "quantile_over_time",
+        "arguments": [
+          "scalar",
+          "matrix"
+        ],
+        "return": "vector",
+        "experimental": false,
+        "candidates": {
+          "c": "unimplemented_or_unqualified",
+          "cpp": "unimplemented_or_unqualified",
+          "rust": "unimplemented_or_unqualified"
+        },
+        "notes": "Queries outside the frozen profile remain unqualified"
+      },
+      {
+        "name": "rad",
+        "arguments": [
+          "vector"
+        ],
+        "return": "vector",
+        "experimental": false,
+        "candidates": {
+          "c": "unimplemented_or_unqualified",
+          "cpp": "unimplemented_or_unqualified",
+          "rust": "unimplemented_or_unqualified"
+        },
+        "notes": "Queries outside the frozen profile remain unqualified"
+      },
+      {
+        "name": "range",
+        "return": "scalar",
+        "experimental": true,
+        "candidates": {
+          "c": "unimplemented_or_unqualified",
+          "cpp": "unimplemented_or_unqualified",
+          "rust": "unimplemented_or_unqualified"
+        },
+        "notes": "Queries outside the frozen profile remain unqualified"
+      },
+      {
+        "name": "rate",
+        "arguments": [
+          "matrix"
+        ],
+        "return": "vector",
+        "experimental": false,
+        "candidates": {
+          "c": "tested_float_slice",
+          "cpp": "tested_float_slice",
+          "rust": "tested_float_slice"
+        },
+        "notes": "Queries outside the frozen profile remain unqualified",
+        "common_cases": [
+          "B035",
+          "B037",
+          "B049",
+          "B050",
+          "B051"
+        ]
+      },
+      {
+        "name": "resets",
+        "arguments": [
+          "matrix"
+        ],
+        "return": "vector",
+        "experimental": false,
+        "candidates": {
+          "c": "tested_float_slice",
+          "cpp": "tested_float_slice",
+          "rust": "tested_float_slice"
+        },
+        "notes": "Queries outside the frozen profile remain unqualified",
+        "common_cases": [
+          "B048"
+        ]
+      },
+      {
+        "name": "round",
+        "arguments": [
+          "vector",
+          "scalar"
+        ],
+        "return": "vector",
+        "variadic": 1,
+        "experimental": false,
+        "candidates": {
+          "c": "tested_float_slice",
+          "cpp": "tested_float_slice",
+          "rust": "tested_float_slice"
+        },
+        "notes": "Queries outside the frozen profile remain unqualified",
+        "common_cases": [
+          "B061"
+        ]
+      },
+      {
+        "name": "scalar",
+        "arguments": [
+          "vector"
+        ],
+        "return": "scalar",
+        "experimental": false,
+        "candidates": {
+          "c": "tested_float_slice",
+          "cpp": "tested_float_slice",
+          "rust": "tested_float_slice"
+        },
+        "notes": "Queries outside the frozen profile remain unqualified",
+        "common_cases": [
+          "B062"
+        ]
+      },
+      {
+        "name": "sgn",
+        "arguments": [
+          "vector"
+        ],
+        "return": "vector",
+        "experimental": false,
+        "candidates": {
+          "c": "unimplemented_or_unqualified",
+          "cpp": "unimplemented_or_unqualified",
+          "rust": "unimplemented_or_unqualified"
+        },
+        "notes": "Queries outside the frozen profile remain unqualified"
+      },
+      {
+        "name": "sin",
+        "arguments": [
+          "vector"
+        ],
+        "return": "vector",
+        "experimental": false,
+        "candidates": {
+          "c": "unimplemented_or_unqualified",
+          "cpp": "unimplemented_or_unqualified",
+          "rust": "unimplemented_or_unqualified"
+        },
+        "notes": "Queries outside the frozen profile remain unqualified"
+      },
+      {
+        "name": "sinh",
+        "arguments": [
+          "vector"
+        ],
+        "return": "vector",
+        "experimental": false,
+        "candidates": {
+          "c": "unimplemented_or_unqualified",
+          "cpp": "unimplemented_or_unqualified",
+          "rust": "unimplemented_or_unqualified"
+        },
+        "notes": "Queries outside the frozen profile remain unqualified"
+      },
+      {
+        "name": "sort",
+        "arguments": [
+          "vector"
+        ],
+        "return": "vector",
+        "experimental": false,
+        "candidates": {
+          "c": "tested_float_slice",
+          "cpp": "tested_float_slice",
+          "rust": "tested_float_slice"
+        },
+        "notes": "Queries outside the frozen profile remain unqualified",
+        "common_cases": [
+          "B064"
+        ]
+      },
+      {
+        "name": "sort_by_label",
+        "arguments": [
+          "vector",
+          "string"
+        ],
+        "return": "vector",
+        "variadic": -1,
+        "experimental": true,
+        "candidates": {
+          "c": "unimplemented_or_unqualified",
+          "cpp": "unimplemented_or_unqualified",
+          "rust": "unimplemented_or_unqualified"
+        },
+        "notes": "Queries outside the frozen profile remain unqualified"
+      },
+      {
+        "name": "sort_by_label_desc",
+        "arguments": [
+          "vector",
+          "string"
+        ],
+        "return": "vector",
+        "variadic": -1,
+        "experimental": true,
+        "candidates": {
+          "c": "unimplemented_or_unqualified",
+          "cpp": "unimplemented_or_unqualified",
+          "rust": "unimplemented_or_unqualified"
+        },
+        "notes": "Queries outside the frozen profile remain unqualified"
+      },
+      {
+        "name": "sort_desc",
+        "arguments": [
+          "vector"
+        ],
+        "return": "vector",
+        "experimental": false,
+        "candidates": {
+          "c": "tested_float_slice",
+          "cpp": "tested_float_slice",
+          "rust": "tested_float_slice"
+        },
+        "notes": "Queries outside the frozen profile remain unqualified",
+        "common_cases": [
+          "B065"
+        ]
+      },
+      {
+        "name": "sqrt",
+        "arguments": [
+          "vector"
+        ],
+        "return": "vector",
+        "experimental": false,
+        "candidates": {
+          "c": "unimplemented_or_unqualified",
+          "cpp": "unimplemented_or_unqualified",
+          "rust": "unimplemented_or_unqualified"
+        },
+        "notes": "Queries outside the frozen profile remain unqualified"
+      },
+      {
+        "name": "start",
+        "return": "scalar",
+        "experimental": true,
+        "candidates": {
+          "c": "unimplemented_or_unqualified",
+          "cpp": "unimplemented_or_unqualified",
+          "rust": "unimplemented_or_unqualified"
+        },
+        "notes": "Queries outside the frozen profile remain unqualified"
+      },
+      {
+        "name": "start_timestamp",
+        "arguments": [
+          "vector"
+        ],
+        "return": "vector",
+        "experimental": true,
+        "candidates": {
+          "c": "unimplemented_or_unqualified",
+          "cpp": "unimplemented_or_unqualified",
+          "rust": "unimplemented_or_unqualified"
+        },
+        "notes": "Queries outside the frozen profile remain unqualified"
+      },
+      {
+        "name": "stddev_over_time",
+        "arguments": [
+          "matrix"
+        ],
+        "return": "vector",
+        "experimental": false,
+        "candidates": {
+          "c": "unimplemented_or_unqualified",
+          "cpp": "unimplemented_or_unqualified",
+          "rust": "unimplemented_or_unqualified"
+        },
+        "notes": "Queries outside the frozen profile remain unqualified"
+      },
+      {
+        "name": "stdvar_over_time",
+        "arguments": [
+          "matrix"
+        ],
+        "return": "vector",
+        "experimental": false,
+        "candidates": {
+          "c": "unimplemented_or_unqualified",
+          "cpp": "unimplemented_or_unqualified",
+          "rust": "unimplemented_or_unqualified"
+        },
+        "notes": "Queries outside the frozen profile remain unqualified"
+      },
+      {
+        "name": "step",
+        "return": "scalar",
+        "experimental": true,
+        "candidates": {
+          "c": "unimplemented_or_unqualified",
+          "cpp": "unimplemented_or_unqualified",
+          "rust": "unimplemented_or_unqualified"
+        },
+        "notes": "Queries outside the frozen profile remain unqualified"
+      },
+      {
+        "name": "sum_over_time",
+        "arguments": [
+          "matrix"
+        ],
+        "return": "vector",
+        "experimental": false,
+        "candidates": {
+          "c": "tested_float_slice",
+          "cpp": "tested_float_slice",
+          "rust": "tested_float_slice"
+        },
+        "notes": "Queries outside the frozen profile remain unqualified",
+        "common_cases": [
+          "B042"
+        ]
+      },
+      {
+        "name": "tan",
+        "arguments": [
+          "vector"
+        ],
+        "return": "vector",
+        "experimental": false,
+        "candidates": {
+          "c": "unimplemented_or_unqualified",
+          "cpp": "unimplemented_or_unqualified",
+          "rust": "unimplemented_or_unqualified"
+        },
+        "notes": "Queries outside the frozen profile remain unqualified"
+      },
+      {
+        "name": "tanh",
+        "arguments": [
+          "vector"
+        ],
+        "return": "vector",
+        "experimental": false,
+        "candidates": {
+          "c": "unimplemented_or_unqualified",
+          "cpp": "unimplemented_or_unqualified",
+          "rust": "unimplemented_or_unqualified"
+        },
+        "notes": "Queries outside the frozen profile remain unqualified"
+      },
+      {
+        "name": "time",
+        "return": "scalar",
+        "experimental": false,
+        "candidates": {
+          "c": "unimplemented_or_unqualified",
+          "cpp": "unimplemented_or_unqualified",
+          "rust": "unimplemented_or_unqualified"
+        },
+        "notes": "Queries outside the frozen profile remain unqualified"
+      },
+      {
+        "name": "timestamp",
+        "arguments": [
+          "vector"
+        ],
+        "return": "vector",
+        "experimental": false,
+        "candidates": {
+          "c": "unimplemented_or_unqualified",
+          "cpp": "unimplemented_or_unqualified",
+          "rust": "unimplemented_or_unqualified"
+        },
+        "notes": "Queries outside the frozen profile remain unqualified"
+      },
+      {
+        "name": "ts_of_first_over_time",
+        "arguments": [
+          "matrix"
+        ],
+        "return": "vector",
+        "experimental": true,
+        "candidates": {
+          "c": "unimplemented_or_unqualified",
+          "cpp": "unimplemented_or_unqualified",
+          "rust": "unimplemented_or_unqualified"
+        },
+        "notes": "Queries outside the frozen profile remain unqualified"
+      },
+      {
+        "name": "ts_of_last_over_time",
+        "arguments": [
+          "matrix"
+        ],
+        "return": "vector",
+        "experimental": true,
+        "candidates": {
+          "c": "unimplemented_or_unqualified",
+          "cpp": "unimplemented_or_unqualified",
+          "rust": "unimplemented_or_unqualified"
+        },
+        "notes": "Queries outside the frozen profile remain unqualified"
+      },
+      {
+        "name": "ts_of_max_over_time",
+        "arguments": [
+          "matrix"
+        ],
+        "return": "vector",
+        "experimental": true,
+        "candidates": {
+          "c": "unimplemented_or_unqualified",
+          "cpp": "unimplemented_or_unqualified",
+          "rust": "unimplemented_or_unqualified"
+        },
+        "notes": "Queries outside the frozen profile remain unqualified"
+      },
+      {
+        "name": "ts_of_min_over_time",
+        "arguments": [
+          "matrix"
+        ],
+        "return": "vector",
+        "experimental": true,
+        "candidates": {
+          "c": "unimplemented_or_unqualified",
+          "cpp": "unimplemented_or_unqualified",
+          "rust": "unimplemented_or_unqualified"
+        },
+        "notes": "Queries outside the frozen profile remain unqualified"
+      },
+      {
+        "name": "vector",
+        "arguments": [
+          "scalar"
+        ],
+        "return": "vector",
+        "experimental": false,
+        "candidates": {
+          "c": "tested_float_slice",
+          "cpp": "tested_float_slice",
+          "rust": "tested_float_slice"
+        },
+        "notes": "Queries outside the frozen profile remain unqualified",
+        "common_cases": [
+          "B061",
+          "B063"
+        ]
+      },
+      {
+        "name": "year",
+        "arguments": [
+          "vector"
+        ],
+        "return": "vector",
+        "variadic": 1,
+        "experimental": false,
+        "candidates": {
+          "c": "unimplemented_or_unqualified",
+          "cpp": "unimplemented_or_unqualified",
+          "rust": "unimplemented_or_unqualified"
+        },
+        "notes": "Queries outside the frozen profile remain unqualified"
+      }
+    ],
+    "aggregations": [
+      {
+        "name": "avg",
+        "experimental": false,
+        "candidates": {
+          "c": "tested_float_slice",
+          "cpp": "tested_float_slice",
+          "rust": "tested_float_slice"
+        },
+        "notes": "Queries outside the frozen profile remain unqualified",
+        "common_cases": [
+          "B024"
+        ]
+      },
+      {
+        "name": "bottomk",
+        "experimental": false,
+        "candidates": {
+          "c": "tested_float_slice",
+          "cpp": "tested_float_slice",
+          "rust": "tested_float_slice"
+        },
+        "notes": "Queries outside the frozen profile remain unqualified",
+        "common_cases": [
+          "B029"
+        ]
+      },
+      {
+        "name": "count",
+        "experimental": false,
+        "candidates": {
+          "c": "tested_float_slice",
+          "cpp": "tested_float_slice",
+          "rust": "tested_float_slice"
+        },
+        "notes": "Queries outside the frozen profile remain unqualified",
+        "common_cases": [
+          "B027"
+        ]
+      },
+      {
+        "name": "count_values",
+        "experimental": false,
+        "candidates": {
+          "c": "unimplemented_or_unqualified",
+          "cpp": "unimplemented_or_unqualified",
+          "rust": "unimplemented_or_unqualified"
+        },
+        "notes": "Queries outside the frozen profile remain unqualified"
+      },
+      {
+        "name": "group",
+        "experimental": false,
+        "candidates": {
+          "c": "unimplemented_or_unqualified",
+          "cpp": "unimplemented_or_unqualified",
+          "rust": "unimplemented_or_unqualified"
+        },
+        "notes": "Queries outside the frozen profile remain unqualified"
+      },
+      {
+        "name": "limit_ratio",
+        "experimental": true,
+        "candidates": {
+          "c": "unimplemented_or_unqualified",
+          "cpp": "unimplemented_or_unqualified",
+          "rust": "unimplemented_or_unqualified"
+        },
+        "notes": "Queries outside the frozen profile remain unqualified"
+      },
+      {
+        "name": "limitk",
+        "experimental": true,
+        "candidates": {
+          "c": "unimplemented_or_unqualified",
+          "cpp": "unimplemented_or_unqualified",
+          "rust": "unimplemented_or_unqualified"
+        },
+        "notes": "Queries outside the frozen profile remain unqualified"
+      },
+      {
+        "name": "max",
+        "experimental": false,
+        "candidates": {
+          "c": "tested_float_slice",
+          "cpp": "tested_float_slice",
+          "rust": "tested_float_slice"
+        },
+        "notes": "Queries outside the frozen profile remain unqualified",
+        "common_cases": [
+          "B026"
+        ]
+      },
+      {
+        "name": "min",
+        "experimental": false,
+        "candidates": {
+          "c": "tested_float_slice",
+          "cpp": "tested_float_slice",
+          "rust": "tested_float_slice"
+        },
+        "notes": "Queries outside the frozen profile remain unqualified",
+        "common_cases": [
+          "B025"
+        ]
+      },
+      {
+        "name": "quantile",
+        "experimental": false,
+        "candidates": {
+          "c": "unimplemented_or_unqualified",
+          "cpp": "unimplemented_or_unqualified",
+          "rust": "unimplemented_or_unqualified"
+        },
+        "notes": "Queries outside the frozen profile remain unqualified"
+      },
+      {
+        "name": "stddev",
+        "experimental": false,
+        "candidates": {
+          "c": "unimplemented_or_unqualified",
+          "cpp": "unimplemented_or_unqualified",
+          "rust": "unimplemented_or_unqualified"
+        },
+        "notes": "Queries outside the frozen profile remain unqualified"
+      },
+      {
+        "name": "stdvar",
+        "experimental": false,
+        "candidates": {
+          "c": "unimplemented_or_unqualified",
+          "cpp": "unimplemented_or_unqualified",
+          "rust": "unimplemented_or_unqualified"
+        },
+        "notes": "Queries outside the frozen profile remain unqualified"
+      },
+      {
+        "name": "sum",
+        "experimental": false,
+        "candidates": {
+          "c": "tested_float_slice",
+          "cpp": "tested_float_slice",
+          "rust": "tested_float_slice"
+        },
+        "notes": "Queries outside the frozen profile remain unqualified",
+        "common_cases": [
+          "B023",
+          "B030",
+          "B067"
+        ]
+      },
+      {
+        "name": "topk",
+        "experimental": false,
+        "candidates": {
+          "c": "tested_float_slice",
+          "cpp": "tested_float_slice",
+          "rust": "tested_float_slice"
+        },
+        "notes": "Queries outside the frozen profile remain unqualified",
+        "common_cases": [
+          "B028"
+        ]
+      }
+    ],
+    "operators": [
+      {
+        "name": "!=",
+        "candidates": {
+          "c": "tested_float_slice",
+          "cpp": "tested_float_slice",
+          "rust": "tested_float_slice"
+        },
+        "notes": "Queries outside the frozen profile remain unqualified"
+      },
+      {
+        "name": "!~",
+        "candidates": {
+          "c": "tested_float_slice",
+          "cpp": "tested_float_slice",
+          "rust": "tested_float_slice"
+        },
+        "notes": "Shared bounded PCRE2 facility; full RE2 compatibility unsupported"
+      },
+      {
+        "name": "%",
+        "candidates": {
+          "c": "tested_float_slice",
+          "cpp": "tested_float_slice",
+          "rust": "tested_float_slice"
+        },
+        "notes": "Queries outside the frozen profile remain unqualified"
+      },
+      {
+        "name": "*",
+        "candidates": {
+          "c": "tested_float_slice",
+          "cpp": "tested_float_slice",
+          "rust": "tested_float_slice"
+        },
+        "notes": "Queries outside the frozen profile remain unqualified"
+      },
+      {
+        "name": "+",
+        "candidates": {
+          "c": "tested_float_slice",
+          "cpp": "tested_float_slice",
+          "rust": "tested_float_slice"
+        },
+        "notes": "Queries outside the frozen profile remain unqualified"
+      },
+      {
+        "name": "-",
+        "candidates": {
+          "c": "tested_float_slice",
+          "cpp": "tested_float_slice",
+          "rust": "tested_float_slice"
+        },
+        "notes": "Queries outside the frozen profile remain unqualified"
+      },
+      {
+        "name": "/",
+        "candidates": {
+          "c": "tested_float_slice",
+          "cpp": "tested_float_slice",
+          "rust": "tested_float_slice"
+        },
+        "notes": "Queries outside the frozen profile remain unqualified"
+      },
+      {
+        "name": "<",
+        "candidates": {
+          "c": "tested_float_slice",
+          "cpp": "tested_float_slice",
+          "rust": "tested_float_slice"
+        },
+        "notes": "Queries outside the frozen profile remain unqualified"
+      },
+      {
+        "name": "</",
+        "candidates": {
+          "c": "unimplemented_or_unqualified",
+          "cpp": "unimplemented_or_unqualified",
+          "rust": "unimplemented_or_unqualified"
+        },
+        "notes": "Queries outside the frozen profile remain unqualified"
+      },
+      {
+        "name": "<=",
+        "candidates": {
+          "c": "tested_float_slice",
+          "cpp": "tested_float_slice",
+          "rust": "tested_float_slice"
+        },
+        "notes": "Queries outside the frozen profile remain unqualified"
+      },
+      {
+        "name": "==",
+        "candidates": {
+          "c": "tested_float_slice",
+          "cpp": "tested_float_slice",
+          "rust": "tested_float_slice"
+        },
+        "notes": "Queries outside the frozen profile remain unqualified"
+      },
+      {
+        "name": "=~",
+        "candidates": {
+          "c": "tested_float_slice",
+          "cpp": "tested_float_slice",
+          "rust": "tested_float_slice"
+        },
+        "notes": "Shared bounded PCRE2 facility; full RE2 compatibility unsupported"
+      },
+      {
+        "name": ">",
+        "candidates": {
+          "c": "tested_float_slice",
+          "cpp": "tested_float_slice",
+          "rust": "tested_float_slice"
+        },
+        "notes": "Queries outside the frozen profile remain unqualified"
+      },
+      {
+        "name": ">/",
+        "candidates": {
+          "c": "unimplemented_or_unqualified",
+          "cpp": "unimplemented_or_unqualified",
+          "rust": "unimplemented_or_unqualified"
+        },
+        "notes": "Queries outside the frozen profile remain unqualified"
+      },
+      {
+        "name": ">=",
+        "candidates": {
+          "c": "tested_float_slice",
+          "cpp": "tested_float_slice",
+          "rust": "tested_float_slice"
+        },
+        "notes": "Queries outside the frozen profile remain unqualified"
+      },
+      {
+        "name": "@",
+        "candidates": {
+          "c": "bounded_probe",
+          "cpp": "bounded_probe",
+          "rust": "bounded_probe"
+        },
+        "notes": "Numeric @ tested by R068; start/end and full placement rules unqualified"
+      },
+      {
+        "name": "^",
+        "candidates": {
+          "c": "tested_float_slice",
+          "cpp": "tested_float_slice",
+          "rust": "tested_float_slice"
+        },
+        "notes": "Queries outside the frozen profile remain unqualified"
+      },
+      {
+        "name": "and",
+        "candidates": {
+          "c": "tested_float_slice",
+          "cpp": "tested_float_slice",
+          "rust": "tested_float_slice"
+        },
+        "notes": "Queries outside the frozen profile remain unqualified"
+      },
+      {
+        "name": "atan2",
+        "candidates": {
+          "c": "unimplemented_or_unqualified",
+          "cpp": "unimplemented_or_unqualified",
+          "rust": "unimplemented_or_unqualified"
+        },
+        "notes": "Queries outside the frozen profile remain unqualified"
+      },
+      {
+        "name": "or",
+        "candidates": {
+          "c": "tested_float_slice",
+          "cpp": "tested_float_slice",
+          "rust": "tested_float_slice"
+        },
+        "notes": "Queries outside the frozen profile remain unqualified"
+      },
+      {
+        "name": "unless",
+        "candidates": {
+          "c": "tested_float_slice",
+          "cpp": "tested_float_slice",
+          "rust": "tested_float_slice"
+        },
+        "notes": "Queries outside the frozen profile remain unqualified"
+      }
+    ],
+    "modifiers": [
+      {
+        "name": "anchored",
+        "candidates": {
+          "c": "unimplemented_or_unqualified",
+          "cpp": "unimplemented_or_unqualified",
+          "rust": "unimplemented_or_unqualified"
+        },
+        "notes": "Queries outside the frozen profile remain unqualified"
+      },
+      {
+        "name": "bool",
+        "candidates": {
+          "c": "tested_float_slice",
+          "cpp": "tested_float_slice",
+          "rust": "tested_float_slice"
+        },
+        "notes": "Queries outside the frozen profile remain unqualified"
+      },
+      {
+        "name": "by",
+        "candidates": {
+          "c": "tested_float_slice",
+          "cpp": "tested_float_slice",
+          "rust": "tested_float_slice"
+        },
+        "notes": "Queries outside the frozen profile remain unqualified"
+      },
+      {
+        "name": "fill",
+        "candidates": {
+          "c": "unimplemented_or_unqualified",
+          "cpp": "unimplemented_or_unqualified",
+          "rust": "unimplemented_or_unqualified"
+        },
+        "notes": "Queries outside the frozen profile remain unqualified"
+      },
+      {
+        "name": "fill_left",
+        "candidates": {
+          "c": "unimplemented_or_unqualified",
+          "cpp": "unimplemented_or_unqualified",
+          "rust": "unimplemented_or_unqualified"
+        },
+        "notes": "Queries outside the frozen profile remain unqualified"
+      },
+      {
+        "name": "fill_right",
+        "candidates": {
+          "c": "unimplemented_or_unqualified",
+          "cpp": "unimplemented_or_unqualified",
+          "rust": "unimplemented_or_unqualified"
+        },
+        "notes": "Queries outside the frozen profile remain unqualified"
+      },
+      {
+        "name": "group_left",
+        "candidates": {
+          "c": "tested_float_slice",
+          "cpp": "tested_float_slice",
+          "rust": "tested_float_slice"
+        },
+        "notes": "Queries outside the frozen profile remain unqualified"
+      },
+      {
+        "name": "group_right",
+        "candidates": {
+          "c": "tested_float_slice",
+          "cpp": "tested_float_slice",
+          "rust": "tested_float_slice"
+        },
+        "notes": "Queries outside the frozen profile remain unqualified"
+      },
+      {
+        "name": "ignoring",
+        "candidates": {
+          "c": "tested_float_slice",
+          "cpp": "tested_float_slice",
+          "rust": "tested_float_slice"
+        },
+        "notes": "Queries outside the frozen profile remain unqualified"
+      },
+      {
+        "name": "offset",
+        "candidates": {
+          "c": "tested_float_slice",
+          "cpp": "tested_float_slice",
+          "rust": "tested_float_slice"
+        },
+        "notes": "Positive literal offset tested; negative offsets unsupported"
+      },
+      {
+        "name": "on",
+        "candidates": {
+          "c": "tested_float_slice",
+          "cpp": "tested_float_slice",
+          "rust": "tested_float_slice"
+        },
+        "notes": "Queries outside the frozen profile remain unqualified"
+      },
+      {
+        "name": "smoothed",
+        "candidates": {
+          "c": "unimplemented_or_unqualified",
+          "cpp": "unimplemented_or_unqualified",
+          "rust": "unimplemented_or_unqualified"
+        },
+        "notes": "Queries outside the frozen profile remain unqualified"
+      },
+      {
+        "name": "without",
+        "candidates": {
+          "c": "tested_float_slice",
+          "cpp": "tested_float_slice",
+          "rust": "tested_float_slice"
+        },
+        "notes": "Queries outside the frozen profile remain unqualified"
+      }
+    ],
+    "other_surfaces": [
+      {
+        "name": "scalar/vector/matrix floats and arithmetic",
+        "candidates": {
+          "c": "tested_float_slice",
+          "cpp": "tested_float_slice",
+          "rust": "tested_float_slice"
+        },
+        "notes": "67 profile cases, 27 regressions; numerical extremes/compensated reduction unqualified"
+      },
+      {
+        "name": "strings",
+        "candidates": {
+          "c": "partial",
+          "cpp": "partial",
+          "rust": "partial"
+        },
+        "notes": "Function string arguments tested; escaping/top-level string results/type validation incomplete"
+      },
+      {
+        "name": "label selection, vector matching and cardinality",
+        "candidates": {
+          "c": "tested_float_slice",
+          "cpp": "tested_float_slice",
+          "rust": "tested_float_slice"
+        },
+        "notes": "Exact and underscore names, all four matchers, on/ignoring/group_left/right; regex and full label validation unqualified"
+      },
+      {
+        "name": "selectors, lookback, ranges and positive offsets",
+        "candidates": {
+          "c": "tested_float_slice",
+          "cpp": "tested_float_slice",
+          "rust": "tested_float_slice"
+        },
+        "notes": "Both instant and actual range API comparison; stale-marker payloads and tier seams unqualified"
+      },
+      {
+        "name": "subqueries and numeric @",
+        "candidates": {
+          "c": "bounded_probe",
+          "cpp": "bounded_probe",
+          "rust": "bounded_probe"
+        },
+        "notes": "R068/R069 and alignment regressions; full duration/placement grammar unqualified"
+      },
+      {
+        "name": "full identifier/string/numeric/duration grammar",
+        "candidates": {
+          "c": "partial",
+          "cpp": "partial",
+          "rust": "partial"
+        },
+        "notes": "Colon metric identifiers, negative offsets and duration-expression grammar unsupported; full parser/type rules unqualified"
+      },
+      {
+        "name": "native histogram values/operations",
+        "candidates": {
+          "c": "unsupported",
+          "cpp": "unsupported",
+          "rust": "unsupported"
+        },
+        "notes": "Typed upstream reference and native rejection panel in native-histogram-risk.json; no native operation PASS"
+      },
+      {
+        "name": "mixed histogram/float samples and annotations",
+        "candidates": {
+          "c": "unsupported",
+          "cpp": "unsupported",
+          "rust": "unsupported"
+        },
+        "notes": "Float-only ABI; no annotation channel, no mixed-sample handling"
+      },
+      {
+        "name": "experimental syntax/functions",
+        "candidates": {
+          "c": "unimplemented_or_unqualified",
+          "cpp": "unimplemented_or_unqualified",
+          "rust": "unimplemented_or_unqualified"
+        },
+        "notes": "Catalog preserves experimental flags; no opt-in feature qualification"
+      },
+      {
+        "name": "numerical bit compatibility",
+        "candidates": {
+          "c": "reported_not_required",
+          "cpp": "reported_not_required",
+          "rust": "reported_not_required"
+        },
+        "notes": "Actual output bits recorded; numeric 1e-6/class comparison remains the prototype gate"
+      },
+      {
+        "name": "cancellation/limits/error ownership",
+        "candidates": {
+          "c": "bounded_probe",
+          "cpp": "bounded_probe",
+          "rust": "bounded_probe"
+        },
+        "notes": "10 runtime probes and concurrent ownership; hard deadline/sample-memory/OOM/runtime compatibility unqualified"
+      },
+      {
+        "name": "platform and Netdata integration",
+        "candidates": {
+          "c": "unqualified",
+          "cpp": "unqualified",
+          "rust": "unqualified"
+        },
+        "notes": "Linux x86_64 C callers + Tier0 retained fixture only; production APIs, rules, Cloud, replicas and other platforms later"
+      }
+    ]
+  },
   "candidate_revisions": {
-    "c": "a1e468dc6dd438d261f3c9e6b7e668b24cea5ca5",
-    "cpp": "26840dbdad04edb3c90cc92603fa21f06989995c",
-    "rust": "9533e32fabe57494b70c8a9b49f1f7a8ea02cf0c"
+    "c": "21121f3cfb5c7e079e8bc7d8953e71352cb753b1",
+    "cpp": "d584f36ab4194a95fc54fe84f91a16e034efa2ce",
+    "rust": "43a63afcd8b15a90ed126b170e581856359c4c91"
   },
   "source_sha256": {
-    "c/engine.c": "7d71d1434e2a1e2bcf94c9367425dfa786e6a72a90e4be5a8cfe9c489207fe43",
-    "cpp/engine.cpp": "ddce821425677f3c5b11934f8869134539cdef115ffbfcb36178f8eb3c1e66e6",
-    "rust/engine.rs": "96315ac288ac12ad34586c8e1de4100e7a6907936bf4c78cfff2ca771c349b9b",
-    "abi.h": "e62466f5b905ad581781565765d0a5d7d968a1bebeeb1532a0f454a55b1f3635",
-    "host.c": "cba349d87558ae35069c52a0fc102a9f98e0963f9e8b4de5aec595141f249a29",
+    "c/engine.c": "1ace82167fa79b10454b936a8c8c60566a9fb3498445f0116f2a94f5c38b5e87",
+    "cpp/engine.cpp": "a6970de525ad76816a4356a744b9484d2eeea7aad8ad74032e3cfcd39ac0c6cc",
+    "rust/engine.rs": "a7170956683e4725bd510d0a0761c51125e731e31a1db2cd8683c2d4de0eba31",
+    "abi.h": "3a5ebb39ae7f50c0d120c76f63c91fea77347baab74248220b6fba930e78c137",
+    "host.c": "6e1ea32cb1b9707a58e1b3291a4ee8773c790436c297b633d67d2c2f064b5467",
     "regex.c": "3149576a2f3b60a06346ead26a5b3eb8adbe2d6e013df5c21405fe81b5cd8963",
-    "ownership.c": "ceb08fbf593c83cc1df3bc8e957051287f1065a27b7544074d1ebb72e60b8d41",
+    "runtime.c": "a3f69673655d9a3bc08070c16d37dc247cfe6426c9bdba7a4a9d608290322f86",
+    "ownership.c": "229a8709557b6d008ec58c94fce161eb52956e97c448a43b2e88f7ad5e2edee8",
     "fixtures.py": "edae24391ff2c32bab4a2644ebaafbba3306dccbd54191c0fa332d038a57e5db",
     "cases.json": "f731a3f77ec0bcf14efe925cb8100adb5f8ff6a0a9a9c1c808e8d0b118e1c15e",
     "dataset.json": "de4069119a439baf4ebeab19571280e65b2f885eff00b872b732a7fcf410ce7f",
     "regression.json": "2b9ab1b94e9fbcd8f5f44c0022a4c2960448567069da236abaed1a813a92e9ce",
     "risk.json": "e67cd852613105d7a8c546f4bd4710d7a59c2f05ab435e2edf9d37b3dc1357e4",
-    "oracle/main.go": "3831cda6cf56b5a0c4ca4223371d285af09a4d0e63faa72179c7534b3ee20ba3",
+    "oracle/main.go": "eefe28fafde0b95b58016937e8d6c6460a946db7bbca458f4d0c6f54dac5ded7",
+    "oracle/main_test.go": "949cdf007c28420d9c01dbebc1bdbc6e2587d93278c085a185ce687e73997617",
+    "oracle/qualification.go": "c2fa1c0b8d4cb7e6616ced2964d75b9e1de1c1b8ae0d65d57223ce92f74f75eb",
+    "oracle/qualification_test.go": "b5d82718a36b16e02dcfebb1f20d659c2799408f17e468d6d87aee1c30a94ff7",
     "oracle/go.mod": "dc45232576833774b907e0b9ef13c4e56a6bcc20731f9eb14d91bae2bc30c260",
     "oracle/go.sum": "8a7b06eef224cf027118473cbb9792ddaab45e529fdf5c89c938ec2dc151c079",
+    "build.py": "740d3a51766856ba1c0bc81d58840eb2536b85611d2ad43d5aea765ed62a3959",
+    "run.py": "cd82ccfd4681fbf013666956bc2a7709e7f812f1aacc37b092bd2e129261dad6",
+    "compare.py": "9a7ebbab0e9ebdb3487f76e9f8e19bc987d754bff6105a78ceffb68f497c43e2",
+    "test_compare.py": "1ed3af22f78058024493752640f8c000090537f1f14ea379c61528f0d9537e4f",
+    "benchmark.py": "6ffc5196efe20b0785d3ee2665662b46e41562461878d397641a27768d874120",
+    "dbengine.py": "d26cef656a70255f702163d9974d1b6af14559b95c9e5177578886acfda37400",
+    "qualification.py": "e15b882b09e6fd49b37de99c27dfb8673412d554a124bdd92d9940b60adab70d",
+    "language-matrix.json": "2afb4b963f0aca487646483b0b5a5aa0df39dd74247ee9eabf9d9d2a8188822a",
+    "native-histogram-risk.json": "c14539f40cba1959c50645a97e1694ac9e8fa24cf190a9015dafce3e91df63dc",
     "src/daemon/main.c": "13fcef1c2fad0483dfe63f67ae714e4d79430611a843066ebf7d028164cbaa46",
     "src/database/engine/dbengine-unittest.c": "356b0beb50e5a56fe9a88d21d847a35446a19821db69d12fed683f2c0d86d198"
   },

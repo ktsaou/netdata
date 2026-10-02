@@ -39,6 +39,7 @@ type request struct {
 type row struct {
 	Labels map[string]string `json:"labels"`
 	Points [][2]any          `json:"points"`
+	Bits   []string          `json:"point_bits"`
 }
 type result struct {
 	ID       string   `json:"id"`
@@ -165,7 +166,11 @@ func float(b json.RawMessage) float64 {
 	}
 	panic("invalid numeric sample")
 }
-func val(f float64) string { return strconv.FormatFloat(f, 'g', 17, 64) }
+func val(f float64) string  { return strconv.FormatFloat(f, 'g', 17, 64) }
+func bits(f float64) string { return fmt.Sprintf("%016x", math.Float64bits(f)) }
+func singleRow(ls map[string]string, t int64, f float64) row {
+	return row{ls, [][2]any{{t, val(f)}}, []string{bits(f)}}
+}
 func lab(ls labels.Labels) map[string]string {
 	out := map[string]string{}
 	ls.Range(func(l labels.Label) { out[l.Name] = l.Value })
@@ -181,6 +186,9 @@ func read(path string, v any) {
 	}
 }
 func main() {
+	if len(os.Args) == 2 && qualificationCommand(os.Args[1]) {
+		return
+	}
 	if len(os.Args) != 3 {
 		panic("usage: oracle dataset.json requests.json")
 	}
@@ -218,23 +226,25 @@ func main() {
 			switch x := v.Value.(type) {
 			case promql.Scalar:
 				out.Kind = 1
-				out.Rows = append(out.Rows, row{map[string]string{}, [][2]any{{x.T, val(x.V)}}})
+				out.Rows = append(out.Rows, singleRow(map[string]string{}, x.T, x.V))
 			case promql.Vector:
 				out.Kind = 2
 				for _, s := range x {
 					if s.H != nil {
 						panic("native histogram requires separate typed probe")
 					}
-					out.Rows = append(out.Rows, row{lab(s.Metric), [][2]any{{s.T, val(s.F)}}})
+					out.Rows = append(out.Rows, singleRow(lab(s.Metric), s.T, s.F))
 				}
 			case promql.Matrix:
 				out.Kind = 3
 				for _, s := range x {
 					ps := [][2]any{}
+					bs := []string{}
 					for _, p := range s.Floats {
 						ps = append(ps, [2]any{p.T, val(p.F)})
+						bs = append(bs, bits(p.F))
 					}
-					out.Rows = append(out.Rows, row{lab(s.Metric), ps})
+					out.Rows = append(out.Rows, row{lab(s.Metric), ps, bs})
 				}
 			default:
 				out.Kind = 4

@@ -25,6 +25,7 @@ static void *reader(void *unused)
         PPRequest request = {&data, query, 3000, 300000, 100000, NULL, NULL, 0};
         PPResult *result = pp_eval(&request);
         assert(result && result->kind == PP_VECTOR && result->rows_len == 1);
+        assert(result->parse_ns && result->evaluation_ns);
         for (size_t i = 0; i < 2; i++) {
             memset((void *)labels[i].name, 'x', strlen(labels[i].name));
             memset((void *)labels[i].value, 'x', strlen(labels[i].value));

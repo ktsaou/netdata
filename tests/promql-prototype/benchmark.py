@@ -33,7 +33,7 @@ def main():
                'label_join(system_cpu,"key","/","instance","mode")',
                "histogram_quantile(0.95,sum by(le)(rate(request_bucket[5m])))"]
     report = {"machine": {"architecture": platform.machine(), "system": platform.system()},
-              "method": "3 sequential fresh-process trials; parse/evaluate/release repeated; JSON load and serialization excluded from query timing; RSS includes the C JSON host and input dataset; no Go timing comparison",
+              "method": "3 sequential fresh-process trials; parse/evaluate/release repeated; JSON load and serialization excluded; phases include query preparation+AST parsing and evaluation+owned result views; setup/AST cleanup/release are wall residual; first is first invocation per query in the loaded process, not process startup; RSS includes host+input; no Go timing comparison",
               "scales": {}, "toolchains": {}}
     for tool in ["gcc", "g++", "rustc", "go"]:
         report["toolchains"][tool] = subprocess.check_output([tool, "version"] if tool=="go" else [tool, "--version"], text=True).splitlines()[0]
@@ -53,7 +53,7 @@ def main():
         metrics = {"nodes": nodes, "series": len(data["series"]), "samples": sum(len(r["points"]) for r in data["series"]), "repetitions": repetitions,
                    "dataset_sha256": hashlib.sha256(data_path.read_bytes()).hexdigest(), "candidates": {}}
         for language in ["c", "cpp", "rust"]:
-            times, rss = {}, []
+            times, rss, phases, first, repeated = {}, [], {}, {}, {}
             for trial in range(3):
                 result = invoke([HERE / "build/release" / f"{language}-host", data_path, cases_path], scale / f"{language}-{trial}.json")
                 failures = compare(reference, result, cases)
@@ -62,7 +62,19 @@ def main():
                 rss.append(result["maxrss_kb"])
                 for r in result["results"]:
                     times.setdefault(r["id"], []).append(r["seconds"]*1000/repetitions)
-            metrics["candidates"][language] = {"queries": [{"id": c["id"], "query": c["query"], "median_ms": statistics.median(times[c["id"]]), "min_ms": min(times[c["id"]]), "max_ms": max(times[c["id"]])} for c in cases],
+                    parse, evaluate = r["parse_seconds"], r["evaluation_seconds"]
+                    if parse <= 0 or evaluate <= 0 or parse + evaluate > r["seconds"]:
+                        raise RuntimeError(f"invalid phase timings: {language}: {r['id']}")
+                    phases.setdefault(r["id"], {"parse": [], "evaluation": []})
+                    phases[r["id"]]["parse"].append(parse*1000/repetitions)
+                    phases[r["id"]]["evaluation"].append(evaluate*1000/repetitions)
+                    first.setdefault(r["id"], []).append(r["first_seconds"]*1000)
+                    repeated.setdefault(r["id"], []).append((r["seconds"]-r["first_seconds"])*1000/(repetitions-1))
+            metrics["candidates"][language] = {"queries": [{"id": c["id"], "query": c["query"], "median_ms": statistics.median(times[c["id"]]), "min_ms": min(times[c["id"]]), "max_ms": max(times[c["id"]]),
+                "parse_median_ms": statistics.median(phases[c["id"]]["parse"]),
+                "evaluation_median_ms": statistics.median(phases[c["id"]]["evaluation"]),
+                "first_median_ms": statistics.median(first[c["id"]]),
+                "repeated_median_ms": statistics.median(repeated[c["id"]])} for c in cases],
                                                 "process_peak_rss_kib": rss}
         report["scales"][str(nodes)] = metrics
     report["build"] = json.loads((HERE / "build/release/build-metrics.json").read_text())

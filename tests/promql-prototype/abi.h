@@ -40,11 +40,14 @@ typedef struct {
     const char *error;
     uint64_t work;
     void *owner;
+    uint64_t parse_ns, evaluation_ns;
 } PPResult;
 /* Result views are read-only and owned by the engine until pp_free().
  * Allocation fallback errors may be static; pp_free() handles both cases. */
 PPResult *pp_eval(const PPRequest *);
 void pp_free(PPResult *);
+/* Experimental phase timing; zero means unavailable. */
+uint64_t pp_monotonic_ns(void);
 /* Shared regex facility: PCRE2 subset, an experimental compatibility limitation. */
 int pp_match(const char *pattern, const char *subject);
 /* 1: match with allocated output; 0: no match; -1: failure. */
