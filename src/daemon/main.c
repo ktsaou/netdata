@@ -255,6 +255,10 @@ int perflib_processor_unittest(void);
 #endif
 int query_plan_unittest(void);
 int api_v1_allmetrics_json_unittest(void);
+#ifdef ENABLE_DBENGINE
+int promql_prototype_validate_paths(void);
+int promql_prototype_dbengine_export(void);
+#endif
 int exporting_json_connector_unittest(void);
 int exporting_graphite_unittest(void);
 int exporting_opentsdb_http_unittest(void);
@@ -800,6 +804,13 @@ int netdata_main(int argc, char **argv) {
                             return unittest_run_with_rrd(nrpc_catalog_unittest);
                         else if(strcmp(optarg, "mcpfunctionaccesstest") == 0)
                             return unittest_run_with_rrd(mcp_execute_function_access_unittest);
+#ifdef ENABLE_DBENGINE
+                        else if(strcmp(optarg, "promql-dbengine-export") == 0) {
+                            if(promql_prototype_validate_paths())
+                                return 1;
+                            return unittest_run_with_rrd(promql_prototype_dbengine_export);
+                        }
+#endif
                         else if(strncmp(optarg, createdataset_string, strlen(createdataset_string)) == 0) {
                             optarg += strlen(createdataset_string);
                             unsigned history_seconds = strtoul(optarg, NULL, 0);

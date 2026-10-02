@@ -1,0 +1,472 @@
+[
+  {
+    "id": "B001",
+    "query": "{\"system.cpu\",instance=\"a\",mode=\"user\"}",
+    "time_ms": 600000,
+    "ordered": false,
+    "expect_error": false
+  },
+  {
+    "id": "B002",
+    "query": "system_cpu",
+    "time_ms": 600000,
+    "ordered": false,
+    "expect_error": false
+  },
+  {
+    "id": "B003",
+    "query": "system_cpu{mode=\"user\"}",
+    "time_ms": 600000,
+    "ordered": false,
+    "expect_error": false
+  },
+  {
+    "id": "B004",
+    "query": "system_cpu{mode!=\"user\"}",
+    "time_ms": 600000,
+    "ordered": false,
+    "expect_error": false
+  },
+  {
+    "id": "B005",
+    "query": "system_cpu{mode=~\"user|system\"}",
+    "time_ms": 600000,
+    "ordered": false,
+    "expect_error": false
+  },
+  {
+    "id": "B006",
+    "query": "system_cpu{mode!~\"system\"}",
+    "time_ms": 600000,
+    "ordered": false,
+    "expect_error": false
+  },
+  {
+    "id": "B007",
+    "query": "system_cpu{mode=~\"sys\"}",
+    "time_ms": 600000,
+    "ordered": false,
+    "expect_error": false
+  },
+  {
+    "id": "B008",
+    "query": "system_cpu{missing=\"\"}",
+    "time_ms": 600000,
+    "ordered": false,
+    "expect_error": false
+  },
+  {
+    "id": "B009",
+    "query": "{__name__=~\"system[._]cpu\"}",
+    "time_ms": 600000,
+    "ordered": false,
+    "expect_error": false
+  },
+  {
+    "id": "B010",
+    "query": "2 + 3 * 4",
+    "time_ms": 600000,
+    "ordered": false,
+    "expect_error": false
+  },
+  {
+    "id": "B011",
+    "query": "(7 - 3) / 2",
+    "time_ms": 600000,
+    "ordered": false,
+    "expect_error": false
+  },
+  {
+    "id": "B012",
+    "query": "(7 % 4) ^ 2",
+    "time_ms": 600000,
+    "ordered": false,
+    "expect_error": false
+  },
+  {
+    "id": "B013",
+    "query": "system_cpu + 2",
+    "time_ms": 600000,
+    "ordered": false,
+    "expect_error": false
+  },
+  {
+    "id": "B014",
+    "query": "10 - system_cpu",
+    "time_ms": 600000,
+    "ordered": false,
+    "expect_error": false
+  },
+  {
+    "id": "B015",
+    "query": "system_cpu + system_cpu",
+    "time_ms": 600000,
+    "ordered": false,
+    "expect_error": false
+  },
+  {
+    "id": "B016",
+    "query": "system_cpu > 4",
+    "time_ms": 600000,
+    "ordered": false,
+    "expect_error": false
+  },
+  {
+    "id": "B017",
+    "query": "system_cpu <= bool 4",
+    "time_ms": 600000,
+    "ordered": false,
+    "expect_error": false
+  },
+  {
+    "id": "B018",
+    "query": "(system_cpu >= bool 4) + (system_cpu < bool 8)",
+    "time_ms": 600000,
+    "ordered": false,
+    "expect_error": false
+  },
+  {
+    "id": "B019",
+    "query": "(system_cpu == bool 4) + (system_cpu != bool 4)",
+    "time_ms": 600000,
+    "ordered": false,
+    "expect_error": false
+  },
+  {
+    "id": "B020",
+    "query": "system_cpu{mode=\"user\"} and system_cpu{instance=\"a\"}",
+    "time_ms": 600000,
+    "ordered": false,
+    "expect_error": false
+  },
+  {
+    "id": "B021",
+    "query": "system_cpu{mode=\"user\"} or system_cpu{instance=\"a\"}",
+    "time_ms": 600000,
+    "ordered": false,
+    "expect_error": false
+  },
+  {
+    "id": "B022",
+    "query": "system_cpu unless system_cpu{mode=\"system\"}",
+    "time_ms": 600000,
+    "ordered": false,
+    "expect_error": false
+  },
+  {
+    "id": "B023",
+    "query": "sum by(instance)(system_cpu)",
+    "time_ms": 600000,
+    "ordered": false,
+    "expect_error": false
+  },
+  {
+    "id": "B024",
+    "query": "avg without(mode)(system_cpu)",
+    "time_ms": 600000,
+    "ordered": false,
+    "expect_error": false
+  },
+  {
+    "id": "B025",
+    "query": "min(system_cpu)",
+    "time_ms": 600000,
+    "ordered": false,
+    "expect_error": false
+  },
+  {
+    "id": "B026",
+    "query": "max(system_cpu)",
+    "time_ms": 600000,
+    "ordered": false,
+    "expect_error": false
+  },
+  {
+    "id": "B027",
+    "query": "count(system_cpu)",
+    "time_ms": 600000,
+    "ordered": false,
+    "expect_error": false
+  },
+  {
+    "id": "B028",
+    "query": "topk(2,system_cpu)",
+    "time_ms": 600000,
+    "ordered": true,
+    "expect_error": false
+  },
+  {
+    "id": "B029",
+    "query": "bottomk(2,system_cpu)",
+    "time_ms": 600000,
+    "ordered": true,
+    "expect_error": false
+  },
+  {
+    "id": "B030",
+    "query": "sum by(__name__)({__name__=~\"system[._]cpu\"})",
+    "time_ms": 600000,
+    "ordered": false,
+    "expect_error": false
+  },
+  {
+    "id": "B031",
+    "query": "system_cpu / on(instance) group_left(tier) limits",
+    "time_ms": 600000,
+    "ordered": false,
+    "expect_error": false
+  },
+  {
+    "id": "B032",
+    "query": "limits / on(instance) group_right(tier) system_cpu",
+    "time_ms": 600000,
+    "ordered": false,
+    "expect_error": false
+  },
+  {
+    "id": "B033",
+    "query": "system_cpu + ignoring(zone) peer",
+    "time_ms": 600000,
+    "ordered": false,
+    "expect_error": false
+  },
+  {
+    "id": "B034",
+    "query": "system_cpu + on(instance) system_cpu",
+    "time_ms": 600000,
+    "ordered": false,
+    "expect_error": true
+  },
+  {
+    "id": "B035",
+    "query": "rate(counter_total{case=\"linear\"}[5m])",
+    "time_ms": 600000,
+    "ordered": false,
+    "expect_error": false
+  },
+  {
+    "id": "B036",
+    "query": "increase(counter_total{case=\"reset\"}[5m])",
+    "time_ms": 600000,
+    "ordered": false,
+    "expect_error": false
+  },
+  {
+    "id": "B037",
+    "query": "rate(counter_total{case=\"reset\"}[5m])",
+    "time_ms": 600000,
+    "ordered": false,
+    "expect_error": false
+  },
+  {
+    "id": "B038",
+    "query": "irate(counter_total{case=\"last_reset\"}[5m])",
+    "time_ms": 600000,
+    "ordered": false,
+    "expect_error": false
+  },
+  {
+    "id": "B039",
+    "query": "delta(trend[5m])",
+    "time_ms": 600000,
+    "ordered": false,
+    "expect_error": false
+  },
+  {
+    "id": "B040",
+    "query": "idelta(trend[5m])",
+    "time_ms": 600000,
+    "ordered": false,
+    "expect_error": false
+  },
+  {
+    "id": "B041",
+    "query": "avg_over_time(trend[5m])",
+    "time_ms": 600000,
+    "ordered": false,
+    "expect_error": false
+  },
+  {
+    "id": "B042",
+    "query": "sum_over_time(trend[5m])",
+    "time_ms": 600000,
+    "ordered": false,
+    "expect_error": false
+  },
+  {
+    "id": "B043",
+    "query": "min_over_time(trend[5m])",
+    "time_ms": 600000,
+    "ordered": false,
+    "expect_error": false
+  },
+  {
+    "id": "B044",
+    "query": "max_over_time(trend[5m])",
+    "time_ms": 600000,
+    "ordered": false,
+    "expect_error": false
+  },
+  {
+    "id": "B045",
+    "query": "count_over_time(trend[5m])",
+    "time_ms": 600000,
+    "ordered": false,
+    "expect_error": false
+  },
+  {
+    "id": "B046",
+    "query": "last_over_time(trend[5m])",
+    "time_ms": 600000,
+    "ordered": false,
+    "expect_error": false
+  },
+  {
+    "id": "B047",
+    "query": "changes(trend[5m])",
+    "time_ms": 600000,
+    "ordered": false,
+    "expect_error": false
+  },
+  {
+    "id": "B048",
+    "query": "resets(counter_total{case=\"reset\"}[5m])",
+    "time_ms": 600000,
+    "ordered": false,
+    "expect_error": false
+  },
+  {
+    "id": "B049",
+    "query": "rate(counter_total{case=\"gap\"}[5m])",
+    "time_ms": 600000,
+    "ordered": false,
+    "expect_error": false
+  },
+  {
+    "id": "B050",
+    "query": "rate(counter_total{case=\"zero\"}[5m])",
+    "time_ms": 600000,
+    "ordered": false,
+    "expect_error": false
+  },
+  {
+    "id": "B051",
+    "query": "rate(counter_total{case=\"single\"}[5m])",
+    "time_ms": 600000,
+    "ordered": false,
+    "expect_error": false
+  },
+  {
+    "id": "B052",
+    "query": "absent(missing_metric{job=\"ghost\",instance=~\".*\"})",
+    "time_ms": 600000,
+    "ordered": false,
+    "expect_error": false
+  },
+  {
+    "id": "B053",
+    "query": "absent(system_cpu)",
+    "time_ms": 600000,
+    "ordered": false,
+    "expect_error": false
+  },
+  {
+    "id": "B054",
+    "query": "absent_over_time(counter_total{case=\"single\"}[1m] offset 2m)",
+    "time_ms": 600000,
+    "ordered": false,
+    "expect_error": false
+  },
+  {
+    "id": "B055",
+    "query": "histogram_quantile(0.5,latency_bucket)",
+    "time_ms": 600000,
+    "ordered": false,
+    "expect_error": false
+  },
+  {
+    "id": "B056",
+    "query": "label_replace(system_cpu{mode=\"user\"},\"node\",\"$1\",\"instance\",\"(.*)\")",
+    "time_ms": 600000,
+    "ordered": false,
+    "expect_error": false
+  },
+  {
+    "id": "B057",
+    "query": "label_join(system_cpu{instance=\"a\"},\"key\",\"/\",\"instance\",\"mode\")",
+    "time_ms": 600000,
+    "ordered": false,
+    "expect_error": false
+  },
+  {
+    "id": "B058",
+    "query": "abs({__name__=~\"system[._]cpu\"})",
+    "time_ms": 600000,
+    "ordered": false,
+    "expect_error": true
+  },
+  {
+    "id": "B059",
+    "query": "clamp_max(clamp_min(system_cpu,3),7)",
+    "time_ms": 600000,
+    "ordered": false,
+    "expect_error": false
+  },
+  {
+    "id": "B060",
+    "query": "abs(-system_cpu)",
+    "time_ms": 600000,
+    "ordered": false,
+    "expect_error": false
+  },
+  {
+    "id": "B061",
+    "query": "round(vector(-0.5))",
+    "time_ms": 600000,
+    "ordered": false,
+    "expect_error": false
+  },
+  {
+    "id": "B062",
+    "query": "scalar(system_cpu{instance=\"a\",mode=\"user\"})",
+    "time_ms": 600000,
+    "ordered": false,
+    "expect_error": false
+  },
+  {
+    "id": "B063",
+    "query": "vector(3)",
+    "time_ms": 600000,
+    "ordered": false,
+    "expect_error": false
+  },
+  {
+    "id": "B064",
+    "query": "sort(system_cpu)",
+    "time_ms": 600000,
+    "ordered": true,
+    "expect_error": false
+  },
+  {
+    "id": "B065",
+    "query": "sort_desc(system_cpu)",
+    "time_ms": 600000,
+    "ordered": true,
+    "expect_error": false
+  },
+  {
+    "id": "B066",
+    "query": "trend offset 2m",
+    "time_ms": 600000,
+    "ordered": false,
+    "expect_error": false
+  },
+  {
+    "id": "B067",
+    "query": "sum(trend)",
+    "time_ms": 600000,
+    "start_ms": 480000,
+    "end_ms": 600000,
+    "step_ms": 60000
+  }
+]

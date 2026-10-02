@@ -1,0 +1,507 @@
+{
+  "netdata_base": "f8f53c75c4d4ce1a0b43928c737278d447ee776d",
+  "prometheus_reference": "v3.15.0 / 5241a27fe3c6983549fccc32f6e65917408c63cd / module v0.315.0",
+  "common_profile": {
+    "dataset_sha256": "de4069119a439baf4ebeab19571280e65b2f885eff00b872b732a7fcf410ce7f",
+    "cases_sha256": "f731a3f77ec0bcf14efe925cb8100adb5f8ff6a0a9a9c1c808e8d0b118e1c15e",
+    "mode": "release",
+    "candidates": {
+      "c": {
+        "profile_passed": 67,
+        "profile_total": 67,
+        "failures": {},
+        "ownership": "owned result after input destruction; 4 concurrent callers: passed",
+        "regression_failures": {},
+        "regression_passed": 22,
+        "risk_failures": {}
+      },
+      "cpp": {
+        "profile_passed": 67,
+        "profile_total": 67,
+        "failures": {},
+        "ownership": "owned result after input destruction; 4 concurrent callers: passed",
+        "regression_failures": {},
+        "regression_passed": 22,
+        "risk_failures": {}
+      },
+      "rust": {
+        "profile_passed": 67,
+        "profile_total": 67,
+        "failures": {},
+        "ownership": "owned result after input destruction; 4 concurrent callers: passed",
+        "regression_failures": {},
+        "regression_passed": 22,
+        "risk_failures": {}
+      }
+    },
+    "oracle_annotations": {}
+  },
+  "sanitizers": {
+    "dataset_sha256": "de4069119a439baf4ebeab19571280e65b2f885eff00b872b732a7fcf410ce7f",
+    "cases_sha256": "f731a3f77ec0bcf14efe925cb8100adb5f8ff6a0a9a9c1c808e8d0b118e1c15e",
+    "mode": "sanitize",
+    "candidates": {
+      "c": {
+        "profile_passed": 67,
+        "profile_total": 67,
+        "failures": {},
+        "ownership": "owned result after input destruction; 4 concurrent callers: passed",
+        "regression_failures": {},
+        "regression_passed": 22,
+        "risk_failures": {}
+      },
+      "cpp": {
+        "profile_passed": 67,
+        "profile_total": 67,
+        "failures": {},
+        "ownership": "owned result after input destruction; 4 concurrent callers: passed",
+        "regression_failures": {},
+        "regression_passed": 22,
+        "risk_failures": {}
+      },
+      "rust": {
+        "profile_passed": 67,
+        "profile_total": 67,
+        "failures": {},
+        "ownership": "owned result after input destruction; 4 concurrent callers: passed",
+        "regression_failures": {},
+        "regression_passed": 22,
+        "risk_failures": {}
+      }
+    },
+    "oracle_annotations": {}
+  },
+  "dbengine": {
+    "manifest": {
+      "anchor_ms": 1700000000000,
+      "logical_series": 26,
+      "tiers": [
+        0
+      ],
+      "source": "storage engine acquired UUID handle and init/next/finalize cursor",
+      "decode": "end_time_s * 1000, sum / count; gaps omitted; no interpolation",
+      "quantization_probe": {
+        "collected": 1.23456789,
+        "decoded": 1.2345679
+      },
+      "scope": "isolated Tier 0 readback, not restart, tier seams, Agent API or Cloud transport"
+    },
+    "replay": {
+      "dataset_sha256": "1fa7598bb54f1c459e63afe893446af55f24e4580d083efc3c16d8d1677d942c",
+      "cases_sha256": "8d7f0838b7ff165ba384490180cdceb69356fa26ff29efd4402d5c386b673bb3",
+      "mode": "release",
+      "candidates": {
+        "c": {
+          "profile_passed": 68,
+          "profile_total": 68,
+          "failures": {}
+        },
+        "cpp": {
+          "profile_passed": 68,
+          "profile_total": 68,
+          "failures": {}
+        },
+        "rust": {
+          "profile_passed": 68,
+          "profile_total": 68,
+          "failures": {}
+        }
+      },
+      "oracle_annotations": {}
+    }
+  },
+  "measurements": {
+    "machine": {
+      "architecture": "x86_64",
+      "system": "Linux",
+      "cpu": "AMD EPYC 7453 28-Core Processor"
+    },
+    "method": "3 sequential fresh-process trials; parse/evaluate/release repeated; JSON load and serialization excluded from query timing; RSS includes the C JSON host and input dataset; no Go timing comparison",
+    "scales": {
+      "32": {
+        "nodes": 32,
+        "series": 256,
+        "samples": 15616,
+        "repetitions": 100,
+        "dataset_sha256": "19c050fb50fbc9381ffe5944cc3dd27b02601c33af55366c9fbbbd33ed0848c0",
+        "candidates": {
+          "c": {
+            "queries": [
+              {
+                "id": "P01",
+                "query": "sum(system_cpu)",
+                "median_ms": 0.06524765980429947,
+                "min_ms": 0.06461016018874943,
+                "max_ms": 0.0656630506273359
+              },
+              {
+                "id": "P02",
+                "query": "sum by(instance)(system_cpu)",
+                "median_ms": 0.0837185001000762,
+                "min_ms": 0.08284190902486444,
+                "max_ms": 0.0840209994930774
+              },
+              {
+                "id": "P03",
+                "query": "sum by(job)(rate(counter_total[5m]))",
+                "median_ms": 0.06521706003695726,
+                "min_ms": 0.06495325011201203,
+                "max_ms": 0.0688659306615591
+              },
+              {
+                "id": "P04",
+                "query": "system_cpu / on(instance) group_left(tier) limits",
+                "median_ms": 0.19519547000527382,
+                "min_ms": 0.1926421991083771,
+                "max_ms": 0.195487670134753
+              },
+              {
+                "id": "P05",
+                "query": "label_join(system_cpu,\"key\",\"/\",\"instance\",\"mode\")",
+                "median_ms": 0.15168742975220084,
+                "min_ms": 0.1499866507947445,
+                "max_ms": 0.15660548931919038
+              },
+              {
+                "id": "P06",
+                "query": "histogram_quantile(0.95,sum by(le)(rate(request_bucket[5m])))",
+                "median_ms": 0.27444581035524607,
+                "min_ms": 0.26962225092574954,
+                "max_ms": 0.2752952103037387
+              }
+            ],
+            "process_peak_rss_kib": [
+              20940,
+              20940,
+              20940
+            ]
+          },
+          "cpp": {
+            "queries": [
+              {
+                "id": "P01",
+                "query": "sum(system_cpu)",
+                "median_ms": 0.06639895029366016,
+                "min_ms": 0.06620843894779682,
+                "max_ms": 0.0665585498791188
+              },
+              {
+                "id": "P02",
+                "query": "sum by(instance)(system_cpu)",
+                "median_ms": 0.09754278929904103,
+                "min_ms": 0.09735958999954164,
+                "max_ms": 0.10228035040199757
+              },
+              {
+                "id": "P03",
+                "query": "sum by(job)(rate(counter_total[5m]))",
+                "median_ms": 0.06661624065600336,
+                "min_ms": 0.0663606496527791,
+                "max_ms": 0.07919844007119536
+              },
+              {
+                "id": "P04",
+                "query": "system_cpu / on(instance) group_left(tier) limits",
+                "median_ms": 0.216251399833709,
+                "min_ms": 0.2132235304452479,
+                "max_ms": 0.21686169086024165
+              },
+              {
+                "id": "P05",
+                "query": "label_join(system_cpu,\"key\",\"/\",\"instance\",\"mode\")",
+                "median_ms": 0.13596617034636438,
+                "min_ms": 0.13456328073516488,
+                "max_ms": 0.15013074968010187
+              },
+              {
+                "id": "P06",
+                "query": "histogram_quantile(0.95,sum by(le)(rate(request_bucket[5m])))",
+                "median_ms": 0.28344103950075805,
+                "min_ms": 0.28168125078082085,
+                "max_ms": 0.2850781299639493
+              }
+            ],
+            "process_peak_rss_kib": [
+              20940,
+              20940,
+              20940
+            ]
+          },
+          "rust": {
+            "queries": [
+              {
+                "id": "P01",
+                "query": "sum(system_cpu)",
+                "median_ms": 0.09006605017930269,
+                "min_ms": 0.08908455958589911,
+                "max_ms": 0.09088583989068866
+              },
+              {
+                "id": "P02",
+                "query": "sum by(instance)(system_cpu)",
+                "median_ms": 0.12661044020205736,
+                "min_ms": 0.12547235935926437,
+                "max_ms": 0.1283529307693243
+              },
+              {
+                "id": "P03",
+                "query": "sum by(job)(rate(counter_total[5m]))",
+                "median_ms": 0.06749903899617493,
+                "min_ms": 0.06582064903341234,
+                "max_ms": 0.06798894028179348
+              },
+              {
+                "id": "P04",
+                "query": "system_cpu / on(instance) group_left(tier) limits",
+                "median_ms": 0.24898283067159355,
+                "min_ms": 0.2400839002802968,
+                "max_ms": 0.250048809684813
+              },
+              {
+                "id": "P05",
+                "query": "label_join(system_cpu,\"key\",\"/\",\"instance\",\"mode\")",
+                "median_ms": 0.15895106946118176,
+                "min_ms": 0.15876098070293665,
+                "max_ms": 0.1610757503658533
+              },
+              {
+                "id": "P06",
+                "query": "histogram_quantile(0.95,sum by(le)(rate(request_bucket[5m])))",
+                "median_ms": 0.2871574996970594,
+                "min_ms": 0.28407784062437713,
+                "max_ms": 0.29583153896965086
+              }
+            ],
+            "process_peak_rss_kib": [
+              20940,
+              20940,
+              20940
+            ]
+          }
+        }
+      },
+      "512": {
+        "nodes": 512,
+        "series": 4096,
+        "samples": 249856,
+        "repetitions": 20,
+        "dataset_sha256": "ab7d6dafb2c8dca6957210f545ab1bd0650ff3c8a87ffb03fbc9b3f3c4aa308d",
+        "candidates": {
+          "c": {
+            "queries": [
+              {
+                "id": "P01",
+                "query": "sum(system_cpu)",
+                "median_ms": 1.136532996315509,
+                "min_ms": 1.1329715489409864,
+                "max_ms": 1.213587902020663
+              },
+              {
+                "id": "P02",
+                "query": "sum by(instance)(system_cpu)",
+                "median_ms": 1.4014548505656421,
+                "min_ms": 1.390357397031039,
+                "max_ms": 1.6354548453819007
+              },
+              {
+                "id": "P03",
+                "query": "sum by(job)(rate(counter_total[5m]))",
+                "median_ms": 1.0392773489002138,
+                "min_ms": 1.0190575034357607,
+                "max_ms": 1.0811749496497214
+              },
+              {
+                "id": "P04",
+                "query": "system_cpu / on(instance) group_left(tier) limits",
+                "median_ms": 3.3928912482224405,
+                "min_ms": 3.254040901083499,
+                "max_ms": 3.675789397675544
+              },
+              {
+                "id": "P05",
+                "query": "label_join(system_cpu,\"key\",\"/\",\"instance\",\"mode\")",
+                "median_ms": 2.4509590526577085,
+                "min_ms": 2.4431361467577517,
+                "max_ms": 2.4871778034139425
+              },
+              {
+                "id": "P06",
+                "query": "histogram_quantile(0.95,sum by(le)(rate(request_bucket[5m])))",
+                "median_ms": 4.599488148232922,
+                "min_ms": 4.596936149755493,
+                "max_ms": 4.609681048896164
+              }
+            ],
+            "process_peak_rss_kib": [
+              97428,
+              96984,
+              96960
+            ]
+          },
+          "cpp": {
+            "queries": [
+              {
+                "id": "P01",
+                "query": "sum(system_cpu)",
+                "median_ms": 1.3618931523524225,
+                "min_ms": 1.1630128021351993,
+                "max_ms": 1.440025499323383
+              },
+              {
+                "id": "P02",
+                "query": "sum by(instance)(system_cpu)",
+                "median_ms": 1.6367338539566845,
+                "min_ms": 1.5796998515725136,
+                "max_ms": 1.7031118040904403
+              },
+              {
+                "id": "P03",
+                "query": "sum by(job)(rate(counter_total[5m]))",
+                "median_ms": 1.0781849967315793,
+                "min_ms": 1.0710330971051008,
+                "max_ms": 1.0959333973005414
+              },
+              {
+                "id": "P04",
+                "query": "system_cpu / on(instance) group_left(tier) limits",
+                "median_ms": 4.377471999032423,
+                "min_ms": 4.0786130470223725,
+                "max_ms": 4.392110952176154
+              },
+              {
+                "id": "P05",
+                "query": "label_join(system_cpu,\"key\",\"/\",\"instance\",\"mode\")",
+                "median_ms": 2.334601554321125,
+                "min_ms": 2.2842244536150247,
+                "max_ms": 2.7867128024809062
+              },
+              {
+                "id": "P06",
+                "query": "histogram_quantile(0.95,sum by(le)(rate(request_bucket[5m])))",
+                "median_ms": 5.358632851857692,
+                "min_ms": 4.967431153636426,
+                "max_ms": 5.847275297855958
+              }
+            ],
+            "process_peak_rss_kib": [
+              96692,
+              96708,
+              97132
+            ]
+          },
+          "rust": {
+            "queries": [
+              {
+                "id": "P01",
+                "query": "sum(system_cpu)",
+                "median_ms": 1.5268957999069244,
+                "min_ms": 1.4812402019742876,
+                "max_ms": 1.6466557455714792
+              },
+              {
+                "id": "P02",
+                "query": "sum by(instance)(system_cpu)",
+                "median_ms": 2.407489949837327,
+                "min_ms": 2.359061350580305,
+                "max_ms": 2.4164878530427814
+              },
+              {
+                "id": "P03",
+                "query": "sum by(job)(rate(counter_total[5m]))",
+                "median_ms": 1.2713694013655186,
+                "min_ms": 1.2703298998530954,
+                "max_ms": 1.2965382018592209
+              },
+              {
+                "id": "P04",
+                "query": "system_cpu / on(instance) group_left(tier) limits",
+                "median_ms": 4.5051224529743195,
+                "min_ms": 4.377636552089825,
+                "max_ms": 4.5464311027899384
+              },
+              {
+                "id": "P05",
+                "query": "label_join(system_cpu,\"key\",\"/\",\"instance\",\"mode\")",
+                "median_ms": 2.9732202005106956,
+                "min_ms": 2.9636998020578176,
+                "max_ms": 3.0063145037274808
+              },
+              {
+                "id": "P06",
+                "query": "histogram_quantile(0.95,sum by(le)(rate(request_bucket[5m])))",
+                "median_ms": 5.217231501592323,
+                "min_ms": 5.155574047239497,
+                "max_ms": 5.307419749442488
+              }
+            ],
+            "process_peak_rss_kib": [
+              94404,
+              95252,
+              95300
+            ]
+          }
+        }
+      }
+    },
+    "toolchains": {
+      "gcc": "gcc (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0",
+      "g++": "g++ (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0",
+      "rustc": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
+      "go": "go version go1.27.1 linux/amd64"
+    },
+    "build": {
+      "c": {
+        "compile_seconds": 0.7686813939362764,
+        "archive_bytes": 273652,
+        "host_bytes": 220176,
+        "host_stripped_debug_bytes": 65248
+      },
+      "cpp": {
+        "compile_seconds": 4.561065540998243,
+        "archive_bytes": 4229744,
+        "host_bytes": 2154032,
+        "host_stripped_debug_bytes": 170088
+      },
+      "rust": {
+        "compile_seconds": 1.4650443600257859,
+        "archive_bytes": 25737804,
+        "host_bytes": 7126688,
+        "host_stripped_debug_bytes": 1641520
+      }
+    }
+  },
+  "candidate_revisions": {
+    "c": "a1640e2a248d6580d39efc1634560f5f98c2249c",
+    "cpp": "26840dbdad04edb3c90cc92603fa21f06989995c",
+    "rust": "9533e32fabe57494b70c8a9b49f1f7a8ea02cf0c"
+  },
+  "source_sha256": {
+    "c/engine.c": "f97575e9f6a9d0cf829b6f2abbc6c7b8dfd2399b5ccd07615c997d051dd57ee7",
+    "cpp/engine.cpp": "ddce821425677f3c5b11934f8869134539cdef115ffbfcb36178f8eb3c1e66e6",
+    "rust/engine.rs": "96315ac288ac12ad34586c8e1de4100e7a6907936bf4c78cfff2ca771c349b9b",
+    "abi.h": "e62466f5b905ad581781565765d0a5d7d968a1bebeeb1532a0f454a55b1f3635",
+    "host.c": "cba349d87558ae35069c52a0fc102a9f98e0963f9e8b4de5aec595141f249a29",
+    "regex.c": "3149576a2f3b60a06346ead26a5b3eb8adbe2d6e013df5c21405fe81b5cd8963",
+    "ownership.c": "ceb08fbf593c83cc1df3bc8e957051287f1065a27b7544074d1ebb72e60b8d41",
+    "fixtures.py": "2f8ebefd8bb9597a1b594d077cd8a74f77487149ca70ea2ec2ffd6bd3dd2dadb",
+    "cases.json": "f731a3f77ec0bcf14efe925cb8100adb5f8ff6a0a9a9c1c808e8d0b118e1c15e",
+    "dataset.json": "de4069119a439baf4ebeab19571280e65b2f885eff00b872b732a7fcf410ce7f",
+    "regression.json": "08939e9d4cad84b74a35450891048aec6c2f87701e64885b5de628582aa2454f",
+    "risk.json": "e67cd852613105d7a8c546f4bd4710d7a59c2f05ab435e2edf9d37b3dc1357e4",
+    "oracle/main.go": "3831cda6cf56b5a0c4ca4223371d285af09a4d0e63faa72179c7534b3ee20ba3",
+    "oracle/go.mod": "dc45232576833774b907e0b9ef13c4e56a6bcc20731f9eb14d91bae2bc30c260",
+    "oracle/go.sum": "8a7b06eef224cf027118473cbb9792ddaab45e529fdf5c89c938ec2dc151c079",
+    "src/daemon/main.c": "13fcef1c2fad0483dfe63f67ae714e4d79430611a843066ebf7d028164cbaa46",
+    "src/database/engine/dbengine-unittest.c": "356b0beb50e5a56fe9a88d21d847a35446a19821db69d12fed683f2c0d86d198"
+  },
+  "qualification_limits": [
+    "67 common query cases are a scope proxy, not statistical coverage or complete PromQL conformance",
+    "Native histogram samples, annotations, full grammar/functions, stale-marker payloads, numerical extremes and RE2 equivalence remain unqualified",
+    "C/C++ cores and common C caller/regex were ASan/UBSan instrumented; Rust core used debug assertions and the same instrumented C caller, not Rust sanitizer instrumentation",
+    "Rust allocator OOM can abort; injected allocation failure is a controlled error, not an allocator-OOM recovery test",
+    "Standalone work counters do not implement upstream MaxSamples or a hard elapsed-time deadline",
+    "Native snapshot uses Tier 0 and fixed fixture identities; restart, tier seams, live NIDL catalog and replicas remain unqualified",
+    "Only Linux x86_64 tested; no production API/meta-health lifecycle/Cloud split implementation or language selection",
+    "Peak RSS includes JSON input and process/launcher overhead; no engine-only memory ranking"
+  ]
+}

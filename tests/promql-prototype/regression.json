@@ -1,0 +1,134 @@
+[
+  {
+    "id": "G001",
+    "query": "label_join(system_cpu,\"key\",\"-\",\"instance\",\"mode\")",
+    "time_ms": 600000,
+    "ordered": false
+  },
+  {
+    "id": "G002",
+    "query": "label_replace(vector(1),\"dst\",\"$\",\"missing\",\".*\")",
+    "time_ms": 600000,
+    "ordered": false
+  },
+  {
+    "id": "G003",
+    "query": "label_replace(system_cpu{mode=\"user\"},\"node\",\"$01\",\"instance\",\"(.*)\")",
+    "time_ms": 600000,
+    "ordered": false
+  },
+  {
+    "id": "G004",
+    "query": "label_replace(system_cpu{mode=\"user\"},\"node\",\"${1}\",\"instance\",\"(.*)\")",
+    "time_ms": 600000,
+    "ordered": false
+  },
+  {
+    "id": "G005",
+    "query": "label_replace(missing_metric,\"node\",\"x\",\"mode\",\"[\")",
+    "time_ms": 600000,
+    "ordered": false
+  },
+  {
+    "id": "G006",
+    "query": "missing_metric + on(instance) system_cpu",
+    "time_ms": 600000,
+    "ordered": false
+  },
+  {
+    "id": "G007",
+    "query": "system_cpu > on(instance) limits",
+    "time_ms": 600000,
+    "ordered": false
+  },
+  {
+    "id": "G008",
+    "query": "limits > on(instance) group_right system_cpu",
+    "time_ms": 600000,
+    "ordered": false
+  },
+  {
+    "id": "G009",
+    "query": "clamp_min(vector(0/0),1)",
+    "time_ms": 600000,
+    "ordered": false
+  },
+  {
+    "id": "G010",
+    "query": "clamp_max(vector(1),0/0)",
+    "time_ms": 600000,
+    "ordered": false
+  },
+  {
+    "id": "G011",
+    "query": "sort(special)",
+    "time_ms": 600000,
+    "ordered": true
+  },
+  {
+    "id": "G012",
+    "query": "sort_desc(special)",
+    "time_ms": 600000,
+    "ordered": true
+  },
+  {
+    "id": "G013",
+    "query": "topk(2,special)",
+    "time_ms": 600000,
+    "ordered": true
+  },
+  {
+    "id": "G014",
+    "query": "bottomk(2,special)",
+    "time_ms": 600000,
+    "ordered": true
+  },
+  {
+    "id": "G015",
+    "query": "trend[2m]",
+    "time_ms": 600000,
+    "ordered": false
+  },
+  {
+    "id": "G016",
+    "query": "abs(vector(0/0))",
+    "time_ms": 600000,
+    "ordered": false
+  },
+  {
+    "id": "G017",
+    "query": "vector(1/0)",
+    "time_ms": 600000,
+    "ordered": false
+  },
+  {
+    "id": "G018",
+    "query": "sum_over_time((vector(1))[2m:1m])",
+    "time_ms": -30000,
+    "ordered": false
+  },
+  {
+    "id": "G019",
+    "query": "trend[1m:0.1ms]",
+    "time_ms": 600000,
+    "ordered": false
+  },
+  {
+    "id": "G020",
+    "query": "label_replace(vector(1),\"dst\",\"$$\",\"missing\",\".*\")",
+    "time_ms": 600000,
+    "ordered": false
+  },
+  {
+    "id": "G021",
+    "query": "label_replace(vector(1),\"dst\",\"${}\",\"missing\",\".*\")",
+    "time_ms": 600000,
+    "ordered": false
+  },
+  {
+    "id": "G-lookback",
+    "query": "trend",
+    "time_ms": 660000,
+    "lookback_ms": 60000
+  }
+]

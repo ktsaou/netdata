@@ -3,6 +3,7 @@
 #include "database/rrd.h"
 #include "database/rrddim-collection.h"
 #include "daemon/unit_test_bridge.h"
+#include "daemon/config/netdata-conf-directories.h"
 
 #ifdef ENABLE_DBENGINE
 
@@ -485,6 +486,189 @@ static void dbengine_cadence_test_store_point(
     unittest_storage_engine_store_metric(
         rd->tiers[0].sch, (usec_t)end_time_s * USEC_PER_SEC,
         value, value, value, 1, 0, SN_DEFAULT_FLAGS);
+}
+
+// Refuse default runtime paths before the one-shot diagnostic initializes RRD.
+int promql_prototype_validate_paths(void)
+{
+    const char *requested = getenv("PROMQL_PROTOTYPE_FIXTURE_ROOT");
+    char root[PATH_MAX], path[PATH_MAX], marker[PATH_MAX];
+    struct stat st;
+    if (!requested || !realpath(requested, root) || strlen(root) < 20 || stat(root, &st) || st.st_uid != geteuid() ||
+        (st.st_mode & 077) != 0) {
+        fprintf(stderr, "PromQL fixture requires a private owned directory and explicit configuration.\n");
+        return 1;
+    }
+    snprintfz(marker, sizeof(marker) - 1, "%s/.promql-prototype-fixture", root);
+    FILE *fp = fopen(marker, "r");
+    char signature[64] = {0};
+    if (fp) {
+        (void)fgets(signature, sizeof(signature), fp);
+        fclose(fp);
+    }
+    if (strcmp(signature, "isolated-promql-prototype\n")) {
+        fprintf(stderr, "PromQL fixture directory marker missing.\n");
+        return 1;
+    }
+    netdata_conf_section_directories();
+    const char *directories[] = {
+        netdata_configured_cache_dir,
+        netdata_configured_varlib_dir,
+        netdata_configured_log_dir,
+        netdata_configured_user_config_dir};
+    for (size_t i = 0; i < sizeof(directories) / sizeof(*directories); i++) {
+        if (!realpath(directories[i], path) || strncmp(path, root, strlen(root)) || path[strlen(root)] != '/') {
+            fprintf(stderr, "PromQL fixture runtime paths must remain within the private directory.\n");
+            return 1;
+        }
+    }
+    return 0;
+}
+
+// This fixture exposes decoded records, bypassing chart rendering and interpolation.
+int promql_prototype_dbengine_export(void)
+{
+    const time_t anchor = 1700000000;
+    RRDHOST *host = dbengine_rrdhost_find_or_create("648bbd30-f624-4400-ae16-93b84790f4ae");
+    if (!host || !host->db[0].si)
+        return 1;
+    struct Fixture {
+        const char *context, *instance, *zone, *mode, *case_label, *tier, *le;
+        double value;
+        int pattern;
+    } fixtures[] = {
+        {"system.cpu", "a", "east", "user", NULL, NULL, NULL, 2, 0},
+        {"system.cpu", "a", "east", "system", NULL, NULL, NULL, 4, 0},
+        {"system.cpu", "b", "west", "user", NULL, NULL, NULL, 6, 0},
+        {"system.cpu", "b", "west", "system", NULL, NULL, NULL, 8, 0},
+        {"peer", "a", "other", "user", NULL, NULL, NULL, 1, 0},
+        {"peer", "a", "other", "system", NULL, NULL, NULL, 1, 0},
+        {"peer", "b", "other", "user", NULL, NULL, NULL, 1, 0},
+        {"peer", "b", "other", "system", NULL, NULL, NULL, 1, 0},
+        {"limits", "a", "east", NULL, NULL, "gold", NULL, 10, 0},
+        {"limits", "b", "west", NULL, NULL, "silver", NULL, 20, 0},
+        {"trend", NULL, NULL, NULL, "ramp", NULL, NULL, 0, 1},
+        {"counter_total", NULL, NULL, NULL, "linear", NULL, NULL, 0, 2},
+        {"counter_total", NULL, NULL, NULL, "reset", NULL, NULL, 0, 3},
+        {"counter_total", NULL, NULL, NULL, "last_reset", NULL, NULL, 0, 4},
+        {"counter_total", NULL, NULL, NULL, "gap", NULL, NULL, 0, 5},
+        {"counter_total", NULL, NULL, NULL, "zero", NULL, NULL, 0, 6},
+        {"counter_total", NULL, NULL, NULL, "single", NULL, NULL, 0, 7},
+        {"latency_bucket", NULL, NULL, NULL, NULL, NULL, "0.1", 2, 0},
+        {"latency_bucket", NULL, NULL, NULL, NULL, NULL, "0.5", 6, 0},
+        {"latency_bucket", NULL, NULL, NULL, NULL, NULL, "1", 8, 0},
+        {"latency_bucket", NULL, NULL, NULL, NULL, NULL, "+Inf", 10, 0},
+        {"retained_fraction", NULL, NULL, NULL, "fractional", NULL, NULL, 1.23456789, 0},
+    };
+    const size_t count = sizeof(fixtures) / sizeof(*fixtures);
+    RRDDIM *dims[count];
+    memset(dims, 0, sizeof(dims));
+    json_object *root = json_object_new_object(), *series = json_object_new_array();
+    json_object_object_add(root, "series", series);
+    int rc = 0;
+    for (size_t i = 0; i < count; i++) {
+        struct Fixture *f = fixtures + i;
+        char id[32];
+        snprintfz(id, sizeof(id) - 1, "promql-%zu", i);
+        RRDSET *st = rrdset_create(
+            host,
+            "prototype",
+            id,
+            id,
+            "prototype",
+            f->context,
+            "PromQL retained fixture",
+            "value",
+            "unittest",
+            NULL,
+            1,
+            60,
+            RRDSET_TYPE_LINE);
+        RRDDIM *rd = rrddim_add(st, "value", NULL, 1, 1, RRD_ALGORITHM_ABSOLUTE);
+        dims[i] = rd;
+        if (!rd || !rd->tiers[0].sch) {
+            rc = 1;
+            break;
+        }
+        for (int p = 0; p <= 10; p++) {
+            if ((f->pattern == 5 || f->pattern == 6) && p != 8 && p != 10)
+                continue;
+            if (f->pattern == 7 && p != 10)
+                continue;
+            double value = f->value;
+            if (f->pattern == 1)
+                value = p;
+            if (f->pattern == 2)
+                value = 100 + p * 60;
+            if (f->pattern == 3 || f->pattern == 4) {
+                static const double reset[] = {100, 140, 20, 60, 100}, last_reset[] = {100, 160, 220, 280, 20};
+                value = p <= 5 ? 100 + p * 60 : (f->pattern == 3 ? reset[p - 6] : last_reset[p - 6]);
+            }
+            if (f->pattern == 5)
+                value = p == 8 ? 100 : 220;
+            if (f->pattern == 6)
+                value = p == 8 ? 0 : 120;
+            if (f->pattern == 7)
+                value = 42;
+            dbengine_cadence_test_store_point(rd, anchor + p * 60, value);
+        }
+        rrddim_finalize_collection_and_check_retention(rd);
+        STORAGE_ENGINE *eng = host->db[0].eng;
+        STORAGE_METRIC_HANDLE *metric = eng->api.metric_get_by_uuid(host->db[0].si, uuidmap_uuid_ptr(rd->uuid));
+        if (!metric) {
+            rc = 1;
+            break;
+        }
+        struct storage_engine_query_handle q = {0};
+        unittest_storage_engine_query_init(eng->seb, metric, &q, anchor, anchor + 600, STORAGE_PRIORITY_SYNCHRONOUS);
+        json_object *points = json_object_new_array();
+        while (!unittest_storage_engine_query_is_finished(&q)) {
+            STORAGE_POINT sp = unittest_storage_engine_query_next_metric(&q);
+            if (!sp.count || storage_point_is_gap(sp))
+                continue;
+            json_object *point = json_object_new_array();
+            json_object_array_add(point, json_object_new_int64((int64_t)sp.end_time_s * 1000));
+            json_object_array_add(point, json_object_new_double((double)sp.sum / sp.count));
+            json_object_array_add(points, point);
+        }
+        unittest_storage_engine_query_finalize(&q);
+        eng->api.metric_release(metric);
+        char alias[128];
+        snprintfz(alias, sizeof(alias) - 1, "%s", f->context);
+        for (char *p = alias; *p; p++)
+            if (*p == '.')
+                *p = '_';
+        for (int name = 0; name < (strcmp(alias, f->context) ? 2 : 1); name++) {
+            json_object *row = json_object_new_object(), *labels = json_object_new_object();
+            json_object_object_add(labels, "__name__", json_object_new_string(name ? alias : f->context));
+            const char *keys[] = {"instance", "zone", "mode", "case", "tier", "le"};
+            const char *values[] = {f->instance, f->zone, f->mode, f->case_label, f->tier, f->le};
+            for (size_t l = 0; l < 6; l++)
+                if (values[l])
+                    json_object_object_add(labels, keys[l], json_object_new_string(values[l]));
+            if (f->instance || f->le)
+                json_object_object_add(labels, "job", json_object_new_string("web"));
+            json_object_object_add(row, "labels", labels);
+            json_object_object_add(row, "points", json_object_get(points));
+            json_object_array_add(series, row);
+        }
+        json_object_put(points);
+    }
+    for (size_t i = 0; i < count; i++)
+        if (dims[i])
+            rrddim_finalize_collection_and_check_retention(dims[i]);
+    struct rrdengine_instance *ctx = (struct rrdengine_instance *)host->db[0].si;
+    rrdeng_quiesce(ctx);
+    rrdeng_exit(ctx);
+    host->db[0].si = NULL;
+    dbengine_shutdown();
+    rrd_wrlock();
+    rrdhost_free___while_having_rrd_wrlock(host);
+    rrd_wrunlock();
+    if (!rc)
+        puts(json_object_to_json_string_ext(root, JSON_C_TO_STRING_PLAIN));
+    json_object_put(root);
+    return rc;
 }
 
 static size_t dbengine_cadence_test_query_points(
