@@ -1,0 +1,61 @@
+{
+  "schema_version": 1,
+  "status": "conformance_foundation",
+  "reference": {
+    "release": "Prometheus v3.15.0",
+    "module": "github.com/prometheus/prometheus@v0.315.0",
+    "commit": "5241a27fe3c6983549fccc32f6e65917408c63cd",
+    "source_manifest": "upstream-sources.json",
+    "language_catalog": "language-catalog.json"
+  },
+  "language_target": {
+    "server-default": "Complete stable grammar, types, functions, aggregations, matching and time semantics; duration expressions enabled as in the server.",
+    "upstream-tests": "Separate upstream builtin-test profile, including its explicit experimental parser and engine options.",
+    "qualification": "Required features and expressions cannot be skipped or counted as passes when unsupported. A finite corpus is evidence, not proof for all possible inputs."
+  },
+  "numerical_contract": {
+    "algorithms": "Use upstream algorithms and operation order.",
+    "structure": "Exact value kind, byte labels and strings, timestamps, sample types, series membership, error attribution and warning/info sets.",
+    "ordering": "Preserve captured traversal; require order explicitly for order-sensitive cases.",
+    "numeric_fields": "Pinned util/almost.Equal with epsilon 1e-6, including its near-zero and NaN rules. Histogram bucket boundaries are exact; equivalent zero-bucket packing follows Compact(0).",
+    "discrete_results": "Case authors must set exact_numeric for boolean or other discrete output checks. Test complete threshold, matching and ranking expressions.",
+    "raw_bits": "Report every paired binary64 difference even when accepted numerically; strict-bits is a separate diagnostic gate.",
+    "stale_marker": "7ff0000000000002, distinct from ordinary NaN."
+  },
+  "fixtures": {
+    "times": "Signed int64 milliseconds; explicit instant/range context, lookback and subquery step.",
+    "bytes": "Base64 JSON fields for label names/values, string values, query_bytes and diagnostic messages.",
+    "numbers": "Sixteen hexadecimal digits encode binary64 bits; no JSON-number conversion.",
+    "inputs": "Ordered series and strictly increasing mixed float/integer-histogram/float-histogram sample timelines, with optional start timestamps.",
+    "outputs": "Scalar, string, vector, matrix or error; complete float histograms, rows and diagnostics captured before query Close.",
+    "boundary": "Internal test interchange only. Production ABI, API and Cloud transport are separate contracts."
+  },
+  "mandatory_corpora": {
+    "upstream_evaluation": {
+      "files": 21,
+      "eval_commands": 2239,
+      "profile": "upstream-tests",
+      "current_status": "Source inventory; complete typed DSL capture and Rust execution are required in the typed-core stage."
+    },
+    "upstream_parser": {
+      "sources": ["promql/parser/parse_test.go", "promql/parser/lex_test.go"],
+      "current_status": "Source inventory; computed inputs and structured expectations must be imported in the typed-core stage."
+    },
+    "sre": {
+      "source_slots": 790,
+      "rendered_requests": 1110,
+      "hcl_expansions": {"production": 147, "staging": 140, "testing": 140},
+      "slo_recordings": 608,
+      "slo_alerts": 72,
+      "current_status": "Pinned private source closure and reference parsing. Controlled-input Rust evaluation of every expression, recording dependencies and issue 6028 shapes remains required."
+    }
+  },
+  "remaining_stages": [
+    "Complete modular typed Rust expression core and C interface",
+    "NIDL/dbengine adapter and Agent/Parent APIs",
+    "Go Cloud distributed query contract and implementation",
+    "Independent rules, lifecycle/templates and Netdata alert integration",
+    "Platform, failure, performance and operational qualification"
+  ],
+  "excluded": ["Alertmanager"]
+}
