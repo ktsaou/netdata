@@ -1,0 +1,943 @@
+{
+  "aggregations": [
+    {
+      "experimental": false,
+      "name": "avg"
+    },
+    {
+      "experimental": false,
+      "name": "bottomk"
+    },
+    {
+      "experimental": false,
+      "name": "count"
+    },
+    {
+      "experimental": false,
+      "name": "count_values"
+    },
+    {
+      "experimental": false,
+      "name": "group"
+    },
+    {
+      "experimental": true,
+      "name": "limit_ratio"
+    },
+    {
+      "experimental": true,
+      "name": "limitk"
+    },
+    {
+      "experimental": false,
+      "name": "max"
+    },
+    {
+      "experimental": false,
+      "name": "min"
+    },
+    {
+      "experimental": false,
+      "name": "quantile"
+    },
+    {
+      "experimental": false,
+      "name": "stddev"
+    },
+    {
+      "experimental": false,
+      "name": "stdvar"
+    },
+    {
+      "experimental": false,
+      "name": "sum"
+    },
+    {
+      "experimental": false,
+      "name": "topk"
+    }
+  ],
+  "commit": "5241a27fe3c6983549fccc32f6e65917408c63cd",
+  "functions": [
+    {
+      "arguments": [
+        "vector"
+      ],
+      "experimental": false,
+      "name": "abs",
+      "return": "vector",
+      "variadic": 0
+    },
+    {
+      "arguments": [
+        "vector"
+      ],
+      "experimental": false,
+      "name": "absent",
+      "return": "vector",
+      "variadic": 0
+    },
+    {
+      "arguments": [
+        "matrix"
+      ],
+      "experimental": false,
+      "name": "absent_over_time",
+      "return": "vector",
+      "variadic": 0
+    },
+    {
+      "arguments": [
+        "vector"
+      ],
+      "experimental": false,
+      "name": "acos",
+      "return": "vector",
+      "variadic": 0
+    },
+    {
+      "arguments": [
+        "vector"
+      ],
+      "experimental": false,
+      "name": "acosh",
+      "return": "vector",
+      "variadic": 0
+    },
+    {
+      "arguments": [
+        "vector"
+      ],
+      "experimental": false,
+      "name": "asin",
+      "return": "vector",
+      "variadic": 0
+    },
+    {
+      "arguments": [
+        "vector"
+      ],
+      "experimental": false,
+      "name": "asinh",
+      "return": "vector",
+      "variadic": 0
+    },
+    {
+      "arguments": [
+        "vector"
+      ],
+      "experimental": false,
+      "name": "atan",
+      "return": "vector",
+      "variadic": 0
+    },
+    {
+      "arguments": [
+        "vector"
+      ],
+      "experimental": false,
+      "name": "atanh",
+      "return": "vector",
+      "variadic": 0
+    },
+    {
+      "arguments": [
+        "matrix"
+      ],
+      "experimental": false,
+      "name": "avg_over_time",
+      "return": "vector",
+      "variadic": 0
+    },
+    {
+      "arguments": [
+        "vector"
+      ],
+      "experimental": false,
+      "name": "ceil",
+      "return": "vector",
+      "variadic": 0
+    },
+    {
+      "arguments": [
+        "matrix"
+      ],
+      "experimental": false,
+      "name": "changes",
+      "return": "vector",
+      "variadic": 0
+    },
+    {
+      "arguments": [
+        "vector",
+        "scalar",
+        "scalar"
+      ],
+      "experimental": false,
+      "name": "clamp",
+      "return": "vector",
+      "variadic": 0
+    },
+    {
+      "arguments": [
+        "vector",
+        "scalar"
+      ],
+      "experimental": false,
+      "name": "clamp_max",
+      "return": "vector",
+      "variadic": 0
+    },
+    {
+      "arguments": [
+        "vector",
+        "scalar"
+      ],
+      "experimental": false,
+      "name": "clamp_min",
+      "return": "vector",
+      "variadic": 0
+    },
+    {
+      "arguments": [
+        "vector"
+      ],
+      "experimental": false,
+      "name": "cos",
+      "return": "vector",
+      "variadic": 0
+    },
+    {
+      "arguments": [
+        "vector"
+      ],
+      "experimental": false,
+      "name": "cosh",
+      "return": "vector",
+      "variadic": 0
+    },
+    {
+      "arguments": [
+        "matrix"
+      ],
+      "experimental": false,
+      "name": "count_over_time",
+      "return": "vector",
+      "variadic": 0
+    },
+    {
+      "arguments": [
+        "vector"
+      ],
+      "experimental": false,
+      "name": "day_of_month",
+      "return": "vector",
+      "variadic": 1
+    },
+    {
+      "arguments": [
+        "vector"
+      ],
+      "experimental": false,
+      "name": "day_of_week",
+      "return": "vector",
+      "variadic": 1
+    },
+    {
+      "arguments": [
+        "vector"
+      ],
+      "experimental": false,
+      "name": "day_of_year",
+      "return": "vector",
+      "variadic": 1
+    },
+    {
+      "arguments": [
+        "vector"
+      ],
+      "experimental": false,
+      "name": "days_in_month",
+      "return": "vector",
+      "variadic": 1
+    },
+    {
+      "arguments": [
+        "vector"
+      ],
+      "experimental": false,
+      "name": "deg",
+      "return": "vector",
+      "variadic": 0
+    },
+    {
+      "arguments": [
+        "matrix"
+      ],
+      "experimental": false,
+      "name": "delta",
+      "return": "vector",
+      "variadic": 0
+    },
+    {
+      "arguments": [
+        "matrix"
+      ],
+      "experimental": false,
+      "name": "deriv",
+      "return": "vector",
+      "variadic": 0
+    },
+    {
+      "arguments": [
+        "matrix",
+        "scalar",
+        "scalar"
+      ],
+      "experimental": true,
+      "name": "double_exponential_smoothing",
+      "return": "vector",
+      "variadic": 0
+    },
+    {
+      "arguments": [],
+      "experimental": true,
+      "name": "end",
+      "return": "scalar",
+      "variadic": 0
+    },
+    {
+      "arguments": [
+        "vector"
+      ],
+      "experimental": false,
+      "name": "exp",
+      "return": "vector",
+      "variadic": 0
+    },
+    {
+      "arguments": [
+        "matrix"
+      ],
+      "experimental": false,
+      "name": "first_over_time",
+      "return": "vector",
+      "variadic": 0
+    },
+    {
+      "arguments": [
+        "vector"
+      ],
+      "experimental": false,
+      "name": "floor",
+      "return": "vector",
+      "variadic": 0
+    },
+    {
+      "arguments": [
+        "vector"
+      ],
+      "experimental": false,
+      "name": "histogram_avg",
+      "return": "vector",
+      "variadic": 0
+    },
+    {
+      "arguments": [
+        "vector"
+      ],
+      "experimental": false,
+      "name": "histogram_count",
+      "return": "vector",
+      "variadic": 0
+    },
+    {
+      "arguments": [
+        "scalar",
+        "scalar",
+        "vector"
+      ],
+      "experimental": false,
+      "name": "histogram_fraction",
+      "return": "vector",
+      "variadic": 0
+    },
+    {
+      "arguments": [
+        "scalar",
+        "vector"
+      ],
+      "experimental": false,
+      "name": "histogram_quantile",
+      "return": "vector",
+      "variadic": 0
+    },
+    {
+      "arguments": [
+        "vector",
+        "string",
+        "scalar",
+        "scalar"
+      ],
+      "experimental": true,
+      "name": "histogram_quantiles",
+      "return": "vector",
+      "variadic": 9
+    },
+    {
+      "arguments": [
+        "vector"
+      ],
+      "experimental": false,
+      "name": "histogram_stddev",
+      "return": "vector",
+      "variadic": 0
+    },
+    {
+      "arguments": [
+        "vector"
+      ],
+      "experimental": false,
+      "name": "histogram_stdvar",
+      "return": "vector",
+      "variadic": 0
+    },
+    {
+      "arguments": [
+        "vector"
+      ],
+      "experimental": false,
+      "name": "histogram_sum",
+      "return": "vector",
+      "variadic": 0
+    },
+    {
+      "arguments": [
+        "vector"
+      ],
+      "experimental": false,
+      "name": "hour",
+      "return": "vector",
+      "variadic": 1
+    },
+    {
+      "arguments": [
+        "matrix"
+      ],
+      "experimental": false,
+      "name": "idelta",
+      "return": "vector",
+      "variadic": 0
+    },
+    {
+      "arguments": [
+        "matrix"
+      ],
+      "experimental": false,
+      "name": "increase",
+      "return": "vector",
+      "variadic": 0
+    },
+    {
+      "arguments": [
+        "vector",
+        "vector"
+      ],
+      "experimental": true,
+      "name": "info",
+      "return": "vector",
+      "variadic": 1
+    },
+    {
+      "arguments": [
+        "matrix"
+      ],
+      "experimental": false,
+      "name": "irate",
+      "return": "vector",
+      "variadic": 0
+    },
+    {
+      "arguments": [
+        "vector",
+        "string",
+        "string",
+        "string"
+      ],
+      "experimental": false,
+      "name": "label_join",
+      "return": "vector",
+      "variadic": -1
+    },
+    {
+      "arguments": [
+        "vector",
+        "string",
+        "string",
+        "string",
+        "string"
+      ],
+      "experimental": false,
+      "name": "label_replace",
+      "return": "vector",
+      "variadic": 0
+    },
+    {
+      "arguments": [
+        "matrix"
+      ],
+      "experimental": false,
+      "name": "last_over_time",
+      "return": "vector",
+      "variadic": 0
+    },
+    {
+      "arguments": [
+        "vector"
+      ],
+      "experimental": false,
+      "name": "ln",
+      "return": "vector",
+      "variadic": 0
+    },
+    {
+      "arguments": [
+        "vector"
+      ],
+      "experimental": false,
+      "name": "log10",
+      "return": "vector",
+      "variadic": 0
+    },
+    {
+      "arguments": [
+        "vector"
+      ],
+      "experimental": false,
+      "name": "log2",
+      "return": "vector",
+      "variadic": 0
+    },
+    {
+      "arguments": [
+        "matrix"
+      ],
+      "experimental": true,
+      "name": "mad_over_time",
+      "return": "vector",
+      "variadic": 0
+    },
+    {
+      "arguments": [
+        "scalar",
+        "scalar"
+      ],
+      "experimental": true,
+      "name": "max_of",
+      "return": "scalar",
+      "variadic": 0
+    },
+    {
+      "arguments": [
+        "matrix"
+      ],
+      "experimental": false,
+      "name": "max_over_time",
+      "return": "vector",
+      "variadic": 0
+    },
+    {
+      "arguments": [
+        "scalar",
+        "scalar"
+      ],
+      "experimental": true,
+      "name": "min_of",
+      "return": "scalar",
+      "variadic": 0
+    },
+    {
+      "arguments": [
+        "matrix"
+      ],
+      "experimental": false,
+      "name": "min_over_time",
+      "return": "vector",
+      "variadic": 0
+    },
+    {
+      "arguments": [
+        "vector"
+      ],
+      "experimental": false,
+      "name": "minute",
+      "return": "vector",
+      "variadic": 1
+    },
+    {
+      "arguments": [
+        "vector"
+      ],
+      "experimental": false,
+      "name": "month",
+      "return": "vector",
+      "variadic": 1
+    },
+    {
+      "arguments": [],
+      "experimental": false,
+      "name": "pi",
+      "return": "scalar",
+      "variadic": 0
+    },
+    {
+      "arguments": [
+        "matrix",
+        "scalar"
+      ],
+      "experimental": false,
+      "name": "predict_linear",
+      "return": "vector",
+      "variadic": 0
+    },
+    {
+      "arguments": [
+        "matrix"
+      ],
+      "experimental": false,
+      "name": "present_over_time",
+      "return": "vector",
+      "variadic": 0
+    },
+    {
+      "arguments": [
+        "scalar",
+        "matrix"
+      ],
+      "experimental": false,
+      "name": "quantile_over_time",
+      "return": "vector",
+      "variadic": 0
+    },
+    {
+      "arguments": [
+        "vector"
+      ],
+      "experimental": false,
+      "name": "rad",
+      "return": "vector",
+      "variadic": 0
+    },
+    {
+      "arguments": [],
+      "experimental": true,
+      "name": "range",
+      "return": "scalar",
+      "variadic": 0
+    },
+    {
+      "arguments": [
+        "matrix"
+      ],
+      "experimental": false,
+      "name": "rate",
+      "return": "vector",
+      "variadic": 0
+    },
+    {
+      "arguments": [
+        "matrix"
+      ],
+      "experimental": false,
+      "name": "resets",
+      "return": "vector",
+      "variadic": 0
+    },
+    {
+      "arguments": [
+        "vector",
+        "scalar"
+      ],
+      "experimental": false,
+      "name": "round",
+      "return": "vector",
+      "variadic": 1
+    },
+    {
+      "arguments": [
+        "vector"
+      ],
+      "experimental": false,
+      "name": "scalar",
+      "return": "scalar",
+      "variadic": 0
+    },
+    {
+      "arguments": [
+        "vector"
+      ],
+      "experimental": false,
+      "name": "sgn",
+      "return": "vector",
+      "variadic": 0
+    },
+    {
+      "arguments": [
+        "vector"
+      ],
+      "experimental": false,
+      "name": "sin",
+      "return": "vector",
+      "variadic": 0
+    },
+    {
+      "arguments": [
+        "vector"
+      ],
+      "experimental": false,
+      "name": "sinh",
+      "return": "vector",
+      "variadic": 0
+    },
+    {
+      "arguments": [
+        "vector"
+      ],
+      "experimental": false,
+      "name": "sort",
+      "return": "vector",
+      "variadic": 0
+    },
+    {
+      "arguments": [
+        "vector",
+        "string"
+      ],
+      "experimental": true,
+      "name": "sort_by_label",
+      "return": "vector",
+      "variadic": -1
+    },
+    {
+      "arguments": [
+        "vector",
+        "string"
+      ],
+      "experimental": true,
+      "name": "sort_by_label_desc",
+      "return": "vector",
+      "variadic": -1
+    },
+    {
+      "arguments": [
+        "vector"
+      ],
+      "experimental": false,
+      "name": "sort_desc",
+      "return": "vector",
+      "variadic": 0
+    },
+    {
+      "arguments": [
+        "vector"
+      ],
+      "experimental": false,
+      "name": "sqrt",
+      "return": "vector",
+      "variadic": 0
+    },
+    {
+      "arguments": [],
+      "experimental": true,
+      "name": "start",
+      "return": "scalar",
+      "variadic": 0
+    },
+    {
+      "arguments": [
+        "vector"
+      ],
+      "experimental": true,
+      "name": "start_timestamp",
+      "return": "vector",
+      "variadic": 0
+    },
+    {
+      "arguments": [
+        "matrix"
+      ],
+      "experimental": false,
+      "name": "stddev_over_time",
+      "return": "vector",
+      "variadic": 0
+    },
+    {
+      "arguments": [
+        "matrix"
+      ],
+      "experimental": false,
+      "name": "stdvar_over_time",
+      "return": "vector",
+      "variadic": 0
+    },
+    {
+      "arguments": [],
+      "experimental": true,
+      "name": "step",
+      "return": "scalar",
+      "variadic": 0
+    },
+    {
+      "arguments": [
+        "matrix"
+      ],
+      "experimental": false,
+      "name": "sum_over_time",
+      "return": "vector",
+      "variadic": 0
+    },
+    {
+      "arguments": [
+        "vector"
+      ],
+      "experimental": false,
+      "name": "tan",
+      "return": "vector",
+      "variadic": 0
+    },
+    {
+      "arguments": [
+        "vector"
+      ],
+      "experimental": false,
+      "name": "tanh",
+      "return": "vector",
+      "variadic": 0
+    },
+    {
+      "arguments": [],
+      "experimental": false,
+      "name": "time",
+      "return": "scalar",
+      "variadic": 0
+    },
+    {
+      "arguments": [
+        "vector"
+      ],
+      "experimental": false,
+      "name": "timestamp",
+      "return": "vector",
+      "variadic": 0
+    },
+    {
+      "arguments": [
+        "matrix"
+      ],
+      "experimental": true,
+      "name": "ts_of_first_over_time",
+      "return": "vector",
+      "variadic": 0
+    },
+    {
+      "arguments": [
+        "matrix"
+      ],
+      "experimental": true,
+      "name": "ts_of_last_over_time",
+      "return": "vector",
+      "variadic": 0
+    },
+    {
+      "arguments": [
+        "matrix"
+      ],
+      "experimental": true,
+      "name": "ts_of_max_over_time",
+      "return": "vector",
+      "variadic": 0
+    },
+    {
+      "arguments": [
+        "matrix"
+      ],
+      "experimental": true,
+      "name": "ts_of_min_over_time",
+      "return": "vector",
+      "variadic": 0
+    },
+    {
+      "arguments": [
+        "scalar"
+      ],
+      "experimental": false,
+      "name": "vector",
+      "return": "vector",
+      "variadic": 0
+    },
+    {
+      "arguments": [
+        "vector"
+      ],
+      "experimental": false,
+      "name": "year",
+      "return": "vector",
+      "variadic": 1
+    }
+  ],
+  "go_arch": "amd64",
+  "go_os": "linux",
+  "go_version": "go1.27.1",
+  "operators": [
+    "!=",
+    "!~",
+    "%",
+    "*",
+    "+",
+    "-",
+    "/",
+    "<",
+    "</",
+    "<=",
+    "==",
+    "=~",
+    ">",
+    ">/",
+    ">=",
+    "@",
+    "^",
+    "and",
+    "atan2",
+    "or",
+    "unless"
+  ],
+  "profiles": {
+    "server-default": {
+      "at_modifier": true,
+      "delayed_name_removal": false,
+      "negative_offset": true,
+      "parser": {
+        "EnableExperimentalFunctions": false,
+        "ExperimentalDurationExpr": true,
+        "EnableExtendedRangeSelectors": false,
+        "EnableBinopFillModifiers": false
+      },
+      "start_timestamps": false
+    },
+    "upstream-tests": {
+      "at_modifier": true,
+      "delayed_name_removal": true,
+      "negative_offset": true,
+      "parser": {
+        "EnableExperimentalFunctions": true,
+        "ExperimentalDurationExpr": true,
+        "EnableExtendedRangeSelectors": true,
+        "EnableBinopFillModifiers": true
+      },
+      "start_timestamps": true
+    }
+  },
+  "reference": "github.com/prometheus/prometheus@v0.315.0",
+  "schema_version": 1,
+  "unicode_version": "17.0.0"
+}
