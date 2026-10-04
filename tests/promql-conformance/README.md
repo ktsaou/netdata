@@ -164,12 +164,24 @@ The checked toolchain is Rust 1.97.1; the MSRV itself has not been built here.
 ```sh
 python3 tests/promql-conformance/build_frontend.py
 python3 tests/promql-conformance/frontend.py --capture "${PROMQL_CAPTURE_DIR:?}"
+python3 tests/promql-conformance/literals.py
 ```
 
 The builder uses offline, locked Cargo operations and the ignored `.tmp/core-target` output directory.
 The driver verifies the reference fixture digest and compares all lexer items, byte positions and diagnostic bytes.
-The current candidate passes **157/157 lexer cases** and **7/7 captured string literal values**. Three focused Rust
-tests also cover invalid literals, non-UTF-8/NUL escapes and raw CR/newline preservation.
+The current candidate passes **157/157 lexer cases** and **7/7 captured string literal values**. Four focused Rust
+tests also cover invalid literals, non-UTF-8/NUL escapes, raw CR/newline preservation and Go `%#U` escape diagnostics.
+
+`literal-cases.json` contains 32 independently captured pinned Go parser results. `literals.py` compares exact
+number bits, error bytes and conversion to nanoseconds against the Rust helpers. Integer-first octal/hex parsing,
+decimal underflow/overflow, NaN payloads and split integer/fractional duration seconds all pass. Out-of-range
+float-to-int conversion matches the pinned Go/amd64 behavior; this is not a universal Go-language guarantee.
+`capture/literal_cases.go` regenerates these results from JSON `{id,input}` requests on stdin when run from the
+locked oracle module with its existing module cache and downloads disabled. These targeted helper cases do not
+qualify complete parsing or evaluation.
+
+The typed AST uses flat arena references and cached structural types/spans. Its 90 function signatures come from
+the independent language catalog. Parser construction and ordered validation still require implementation and tests.
 
 - Tokens borrow their original input spans; error items own their message bytes. UTF-8 failure consumes one byte,
   and quoted strings distinguish byte escapes from Unicode escapes.

@@ -1,7 +1,10 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+pub mod ast;
+pub mod functions;
 pub mod lexer;
 pub mod literal;
+pub mod number;
 mod quote;
 pub mod token;
 mod unicode;

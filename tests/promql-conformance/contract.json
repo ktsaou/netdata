@@ -80,9 +80,11 @@
     "crate": "src/crates/promql-engine",
     "lexer_cases_passed": 157,
     "captured_string_literals_passed": 7,
+    "targeted_literal_cases_passed": 32,
+    "literal_conversion_architecture": "Pinned Go 1.27.1 amd64; other platforms remain unqualified.",
     "reference_go": "go1.27.1",
     "reference_unicode": "17.0.0",
-    "status": "Owned byte lexer and string decoder pass captured cases. Parser, validator, regex and evaluation remain required."
+    "status": "Owned byte lexer, string decoder and targeted numeric/duration helpers pass captured cases. Flat typed AST/signature model added; parser, validator, regex and evaluation remain required."
   },
   "remaining_stages": [
     "Complete modular typed Rust expression core and C interface",

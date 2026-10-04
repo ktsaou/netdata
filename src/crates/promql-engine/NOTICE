@@ -2,12 +2,18 @@ This standalone expression engine is distributed under GPL-3.0-or-later.
 
 Frontend lexer algorithms are derived from prometheus/prometheus, commit
 5241a27fe3c6983549fccc32f6e65917408c63cd (Prometheus v3.15.0),
-promql/parser/lex.go, generated_parser.y.go and util/strutil/quote.go.
+promql/parser/lex.go, generated_parser.y.go, ast.go, functions.go, parse.go
+and util/strutil/quote.go.
 Copyright The Prometheus Authors. Licensed under Apache-2.0;
 see LICENSE-APACHE-2.0.
 
+Integer duration parsing is derived from prometheus/common v0.71.0,
+model/time.go. Copyright 2013 The Prometheus Authors. Licensed under
+Apache-2.0; see LICENSE-APACHE-2.0.
+
 Go-compatible diagnostic quoting and printability are derived from Go 1.27.1,
-strconv/quote.go, fmt/format.go and strconv.IsPrint, using Unicode 17.0.0.
+strconv/quote.go, fmt/format.go, time.Duration.Seconds and strconv.IsPrint,
+using Unicode 17.0.0.
 Copyright 2009 The Go Authors. Licensed under the Go BSD license;
 see LICENSE-GO-BSD.
 
