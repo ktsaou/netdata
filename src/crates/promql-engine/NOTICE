@@ -20,3 +20,25 @@ see LICENSE-GO-BSD.
 The byte literal decoder also derives from the historical Go strconv code
 adapted in Prometheus util/strutil/quote.go. Its retained 2009 Go copyright,
 conditions and disclaimer follow the current Go notice in LICENSE-GO-BSD.
+
+The owned regex syntax, canonical rendering, simplification and metadata program
+derive from grafana/regexp f7b3be9d18538c56fb03caa6088db55404e784e8,
+syntax/parse.go, regexp.go, compile.go, simplify.go and perl_groups.go;
+the standard-syntax profile derives from the corresponding Go 1.27.1 sources.
+One-pass eligibility and prefix handling derive from the Grafana module's
+onepass.go. Copyright 2011, 2013, 2014 The Go Authors. All rights reserved.
+Licensed under the Go BSD license; see LICENSE-GO-BSD.
+
+Selector optimization behavior derives from the pinned Prometheus
+model/labels/regexp.go. Copyright The Prometheus Authors. Licensed under
+Apache-2.0; see LICENSE-APACHE-2.0.
+
+Unicode property, simple-fold and lowercase tables derive from Go 1.27.1
+unicode, using Unicode 17.0.0. NFKD tables and stream-safe decomposition behavior
+derive from golang.org/x/text v0.41.0, unicode/norm, with Unicode 17.0.0.
+Copyright 2009, 2011 The Go Authors. All rights reserved. Licensed under the
+Go BSD license; see LICENSE-GO-BSD.
+
+Regex execution uses regex-automata 0.4.16's Thompson Builder and PikeVM;
+UTF-8 range encoding uses regex-syntax 0.8.11. Both dependencies are licensed
+under MIT OR Apache-2.0 and retain their notices in their Cargo source packages.

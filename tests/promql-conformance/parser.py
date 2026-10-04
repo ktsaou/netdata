@@ -68,7 +68,9 @@ def qualify(capture_directory):
         if diff:
             failures.append({"id": case["id"], "input": case["input"], "difference": diff})
     report = {"parser_cases": len(expected_ids), "exact_passed": len(expected_ids)-len(failures),
-              "failed": len(failures), "status": "Incomplete: owned Go regex frontend and remaining parser differences are required.",
+              "failed": len(failures),
+              "status": ("Captured expression table matches; complete regex/profile/evaluator gates remain required."
+                         if not failures else "Incomplete: every captured AST/error mismatch remains required."),
               "failures": failures}
     private = HERE / ".tmp/parser-differences.json"
     private.write_text(json.dumps(report, indent=2)+"\n")

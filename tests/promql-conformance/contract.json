@@ -47,7 +47,7 @@
         "promql/parser/parse_test.go",
         "promql/parser/lex_test.go"
       ],
-      "current_status": "Computed lexer and expression-table capture with original assertions. All 157 Rust lexer cases and seven captured string values pass. The own parser/validator matches 350 of all 356 executed AST/error cases; six required regex cases fail. Complete frontend and parser helper/profile surfaces remain required.",
+      "current_status": "Computed lexer and expression-table capture with original assertions. All 157 Rust lexer cases, seven captured string values and 356 complete AST/ordered-error cases pass. Another 784 public parser/profile cases pass. Finite checks do not establish arbitrary-input parity; remaining helper/source surfaces and execution gates remain required.",
       "lexer_cases": 157,
       "expression_cases": 356,
       "lexer_declared_failures": 52,
@@ -82,12 +82,13 @@
     "captured_string_literals_passed": 7,
     "targeted_literal_cases_passed": 32,
     "expression_cases_executed": 356,
-    "expression_cases_exact_passed": 350,
+    "expression_cases_exact_passed": 356,
     "additional_parser_profile_cases_exact_passed": 784,
     "literal_conversion_architecture": "Pinned Go 1.27.1 amd64; other platforms remain unqualified.",
     "reference_go": "go1.27.1",
     "reference_unicode": "17.0.0",
-    "status": "Owned byte lexer, literal helpers, flat typed AST, Pratt parser and ordered validator implemented. Lexer/literal cases pass; parser matches 350 of 356 executed cases. Regex frontend, complete profile/helper qualification and evaluation remain required."
+    "status": "Owned byte lexer/literals, flat typed AST, explicit-stack Pratt parser, ordered validator and owned Go-compatible regex frontend implemented. Captured frontend/profile/regex comparisons pass; remaining helper/source and evaluator/runtime gates remain required.",
+    "regex_cases_exact_passed": 21320
   },
   "remaining_stages": [
     "Complete modular typed Rust expression core and C interface",
@@ -98,5 +99,29 @@
   ],
   "excluded": [
     "Alertmanager"
-  ]
+  ],
+  "regex_qualification": {
+    "reference_regexp_commit": "f7b3be9d18538c56fb03caa6088db55404e784e8",
+    "reference_go": "go1.27.1",
+    "reference_unicode": "17.0.0",
+    "tool": "regex_capture.py",
+    "comparison_tool": "regex_cases.py",
+    "source_files": {
+      "grafana": 33,
+      "prometheus": 1654
+    },
+    "exact_cases": 21320,
+    "modes": {
+      "syntax": 478,
+      "standard-syntax": 478,
+      "compile": 40,
+      "program": 237,
+      "find": 4505,
+      "label_replace": 4348,
+      "selector": 11188,
+      "normalize": 46
+    },
+    "backend": "Owned flat Go program to iterative regex-automata 0.4.16 Thompson Builder/PikeVM; regex-syntax 0.8.11 UTF-8 range encoding. No backend grammar or recursive HIR compiler.",
+    "status": "Finite source-bound byte/metadata/capture/replacement and selector qualification. RE2/Fowler/exhaustive and remaining helper suites are outside current evidence; full PromQL evaluation remains required. Performance is unmeasured."
+  }
 }

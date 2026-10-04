@@ -13,6 +13,8 @@ autobins = false
 fixtures = ["dep:serde_json"]
 
 [dependencies]
+regex-automata = "=0.4.16"
+regex-syntax = "=0.8.11"
 serde_json = { version = "=1.0.151", optional = true }
 
 [lib]

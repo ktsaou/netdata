@@ -7,6 +7,7 @@ pub mod literal;
 pub mod number;
 pub mod parser;
 mod quote;
+pub mod regex;
 pub mod token;
 mod unicode;
 pub mod validate;
