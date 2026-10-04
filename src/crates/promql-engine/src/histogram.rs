@@ -438,6 +438,34 @@ mod tests {
     use super::*;
 
     #[test]
+    fn reduction_keeps_arrays_attached_when_an_invalid_schema_panics() {
+        let mut value = FloatHistogram {
+            schema: i32::MAX,
+            positive_spans: Some(vec![Span {
+                offset: 0,
+                length: 1,
+            }]),
+            positive_buckets: Some(vec![3.0]),
+            ..FloatHistogram::default()
+        };
+        let result =
+            std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| value.reduce_resolution(-1)));
+        assert!(result.is_err());
+        assert_eq!(value.schema, i32::MAX);
+        assert_eq!(
+            value.positive_spans.as_deref(),
+            Some(
+                [Span {
+                    offset: 0,
+                    length: 1
+                }]
+                .as_slice()
+            )
+        );
+        assert_eq!(value.positive_buckets.as_deref(), Some([3.0].as_slice()));
+    }
+
+    #[test]
     fn owned_copy_keeps_mutable_arrays_independent_and_shares_immutable_bounds() {
         let mut source = FloatHistogram {
             schema: CUSTOM_BUCKETS_SCHEMA,
