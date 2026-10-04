@@ -6,7 +6,7 @@ pub mod lexer;
 pub mod literal;
 pub mod number;
 pub mod parser;
-mod quote;
+pub(crate) mod quote;
 pub mod regex;
 pub mod token;
 mod unicode;
