@@ -493,11 +493,12 @@ python3 tests/promql-conformance/classic_capture.py --mod-cache "${PROMQL_GO_MOD
 python3 tests/promql-conformance/classic.py --capture "${PROMQL_CLASSIC_CAPTURE_DIR:?}"
 ```
 
-The gate contains 4,176 comparisons: 1,676 bucket-operation steps and 2,602 near-equality outcomes. Candidate
+The gate contains 4,176 cases: 1,574 bucket sequences and 2,602 near-equality outcomes. The bucket sequences
+execute 1,676 operation steps, giving 4,278 operation/outcome checks in total. Candidate
 snapshots, panic classifications, all five quantile metadata fields and composed booleans compare exactly;
 scalar values use the pinned numerical contract, with every bit difference reported separately. Original
 quantile values also satisfy their narrower relative-epsilon assertions. Both release profiles pass the
-4,176 comparisons, with four NaN-only candidate bit differences and three finite declaration-versus-Go
+4,176 cases, with four NaN-only candidate bit differences and three finite declaration-versus-Go
 differences. Every finite candidate value matches Go's bits; strict-bit mode rejects the four NaN diagnostics.
 Complete grouped expressions,
 diagnostic formatting, storage replay and C accounting remain later qualification gates.
