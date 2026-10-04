@@ -51,6 +51,10 @@ func main() {
 		{Test: "TestReverseFloatBucketIterator", File: "float_histogram_test.go", Mode: "float-iterator-set", Cases: 1, Variable: "h"},
 		{Test: "TestFloatHistogramDetectReset", File: "float_histogram_test.go", Mode: "float-detect-reset", Cases: 42},
 		{Test: "TestCustomBucketBoundsMatch", File: "generic_test.go", Mode: "custom-bounds-match", Cases: 8, Variable: "tests"},
+		{Test: "TestFloatHistogramAdd", File: "float_histogram_test.go", Mode: "float-arithmetic-set", Cases: 24},
+		{Test: "TestKahanAddWithCompHistogram", File: "float_histogram_test.go", Mode: "float-arithmetic-set", Cases: 6},
+		{Test: "TestFloatHistogramSub", File: "float_histogram_test.go", Mode: "float-arithmetic-set", Cases: 6},
+		{Test: "TestFloatHistogramKahanCompactSpanMerge", File: "float_histogram_test.go", Mode: "float-kahan-compact", Cases: 1, Variable: "c"},
 	}
 	for i := range tables {
 		row := &tables[i]
@@ -86,7 +90,7 @@ func main() {
 				}
 				identifier, ok := assignment.Lhs[0].(*ast.Ident)
 				if ok && identifier.Name == row.Variable {
-					if row.Variable == "h" {
+					if row.Variable == "h" || row.Variable == "c" {
 						end = assignment.End()
 						row.CaseLines = append(row.CaseLines, files.Position(statement.Pos()).Line)
 						break
@@ -94,8 +98,9 @@ func main() {
 					cases, _ = assignment.Rhs[0].(*ast.CompositeLit)
 				}
 			}
-			if !end.IsValid() || (row.Variable != "h" && (cases == nil || len(cases.Elts) != row.Cases)) ||
-				(row.Variable == "h" && (row.Cases != 1 || len(row.CaseLines) != 1)) {
+			singleton := row.Variable == "h" || row.Variable == "c"
+			if !end.IsValid() || (!singleton && (cases == nil || len(cases.Elts) != row.Cases)) ||
+				(singleton && (row.Cases != 1 || len(row.CaseLines) != 1)) {
 				panic(fmt.Sprintf("changed source table: %s", row.Test))
 			}
 			startOffset := files.Position(function.Body.Lbrace).Offset + 1

@@ -1,10 +1,12 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Sparse layout algorithms derive from Prometheus model/histogram; see NOTICE.
 use crate::histogram::Span;
+use crate::numerical::compensated_add;
 use std::fmt;
 
 #[derive(Debug, Eq, PartialEq)]
 pub enum HistogramError {
+    IncompatibleSchema,
     CustomSource,
     CustomTarget,
     NonReducing { origin: i32, target: i32 },
@@ -17,7 +19,10 @@ impl HistogramError {
     pub fn is_data_error(&self) -> bool {
         matches!(
             self,
-            Self::NegativeOffset { .. } | Self::TooFewBuckets { .. } | Self::TooManyBuckets { .. }
+            Self::IncompatibleSchema
+                | Self::NegativeOffset { .. }
+                | Self::TooFewBuckets { .. }
+                | Self::TooManyBuckets { .. }
         )
     }
 }
@@ -25,6 +30,9 @@ impl HistogramError {
 impl fmt::Display for HistogramError {
     fn fmt(&self, out: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            Self::IncompatibleSchema => out.write_str(
+                "cannot apply this operation on histograms with a mix of exponential and custom bucket schemas",
+            ),
             Self::CustomSource => {
                 out.write_str("cannot reduce resolution when there are custom buckets")
             }
@@ -250,9 +258,26 @@ pub(crate) fn compact_float(
     spans: &mut Option<Vec<Span>>,
     max_empty: isize,
 ) {
+    compact_float_pair(buckets, spans, None, max_empty);
+}
+
+pub(crate) fn compact_float_pair(
+    buckets: &mut Option<Vec<f64>>,
+    spans: &mut Option<Vec<Span>>,
+    correction: Option<&mut Option<Vec<f64>>>,
+    max_empty: isize,
+) {
     let (mut absent_buckets, mut absent_spans) = (Vec::new(), Vec::new());
     let buckets = buckets.as_mut().unwrap_or(&mut absent_buckets);
     let spans = spans.as_mut().unwrap_or(&mut absent_spans);
+    let mut correction = correction.and_then(Option::as_mut);
+    if let Some(values) = correction.as_ref() {
+        assert_eq!(
+            buckets.len(),
+            values.len(),
+            "compensation bucket layout mismatch"
+        );
+    }
     if !buckets.contains(&0.0)
         && spans
             .iter()
@@ -289,17 +314,27 @@ pub(crate) fn compact_float(
     span_index = 0;
     if spans.is_empty() {
         buckets.clear();
+        if let Some(values) = correction {
+            values.clear();
+        }
         return;
     }
     while bucket < buckets.len() && span_index < spans.len() {
         let mut empty = 0usize;
         let mut value = buckets[bucket];
-        while (empty as u32).wrapping_add(position) < spans[span_index].length && value == 0.0 {
+        let mut compensation = correction.as_ref().map_or(0.0, |values| values[bucket]);
+        while (empty as u32).wrapping_add(position) < spans[span_index].length
+            && value == 0.0
+            && compensation == 0.0
+        {
             empty += 1;
             if empty + bucket >= buckets.len() {
                 break;
             }
             value = buckets[empty + bucket];
+            compensation = correction
+                .as_ref()
+                .map_or(0.0, |values| values[empty + bucket]);
         }
         if empty > 0 {
             if position > 0
@@ -311,6 +346,9 @@ pub(crate) fn compact_float(
                 continue;
             }
             remove_range(buckets, bucket, empty);
+            if let Some(values) = correction.as_mut() {
+                remove_range(values, bucket, empty);
+            }
             if position == 0 {
                 if empty == spans[span_index].length as usize {
                     let offset = spans[span_index].offset;
@@ -373,6 +411,170 @@ pub(crate) fn compact_float(
         buckets.resize(old_len + offset, 0.0);
         buckets.copy_within(bucket..old_len, bucket + offset);
         buckets[bucket..bucket + offset].fill(0.0);
+        if let Some(values) = correction.as_mut() {
+            let old_len = values.len();
+            values.resize(old_len + offset, 0.0);
+            values.copy_within(bucket..old_len, bucket + offset);
+            values[bucket..bucket + offset].fill(0.0);
+        }
         bucket += offset + span.length as usize;
+    }
+}
+
+fn reduce_kahan_layout(
+    spans: &mut impl ReductionBuffer<Span>,
+    buckets: &mut impl ReductionBuffer<f64>,
+    correction: &mut impl ReductionBuffer<f64>,
+    origin: i32,
+    target: i32,
+) -> (usize, usize) {
+    let (mut written_spans, mut written_buckets) = (0, 0);
+    let (mut index, mut last_target): (i32, i32) = (0, 0);
+    let mut read_bucket = 0;
+    for n in 0..spans.source_len() {
+        let span = spans.source(n);
+        index = index.wrapping_add(span.offset);
+        for _ in 0..span.length {
+            let target = target_index(index, origin, target);
+            if written_spans == 0 {
+                spans.write(
+                    0,
+                    Span {
+                        offset: target,
+                        length: 1,
+                    },
+                );
+                buckets.write(0, buckets.source(read_bucket));
+                last_target = target;
+                correction.write(0, correction.source(read_bucket));
+                written_spans = 1;
+                written_buckets = 1;
+            } else if last_target == target {
+                let last = written_buckets - 1;
+                let (sum, comp) = compensated_add(
+                    buckets.source(read_bucket),
+                    buckets.target(last),
+                    correction.target(last),
+                );
+                buckets.write(last, sum);
+                correction.write(last, comp);
+                let (sum, comp) = compensated_add(
+                    correction.source(read_bucket),
+                    buckets.target(last),
+                    correction.target(last),
+                );
+                buckets.write(last, sum);
+                correction.write(last, comp);
+            } else if last_target.wrapping_add(1) == target {
+                let last = written_spans - 1;
+                let mut span = spans.target(last);
+                span.length = span.length.wrapping_add(1);
+                spans.write(last, span);
+                last_target = last_target.wrapping_add(1);
+                buckets.write(written_buckets, buckets.source(read_bucket));
+                correction.write(written_buckets, correction.source(read_bucket));
+                written_buckets += 1;
+            } else if last_target.wrapping_add(1) < target {
+                spans.write(
+                    written_spans,
+                    Span {
+                        offset: target.wrapping_sub(last_target).wrapping_sub(1),
+                        length: 1,
+                    },
+                );
+                written_spans += 1;
+                last_target = target;
+                buckets.write(written_buckets, buckets.source(read_bucket));
+                correction.write(written_buckets, correction.source(read_bucket));
+                written_buckets += 1;
+            }
+            index = index.wrapping_add(1);
+            read_bucket += 1;
+        }
+    }
+    (written_spans, written_buckets)
+}
+
+pub(crate) fn reduce_kahan_in_place(
+    spans: &mut Option<Vec<Span>>,
+    buckets: &mut Option<Vec<f64>>,
+    correction: &mut Option<Vec<f64>>,
+    origin: i32,
+    target: i32,
+) {
+    let (span_count, bucket_count) = reduce_kahan_layout(
+        &mut Reused(spans.as_deref_mut().unwrap_or(&mut [])),
+        &mut Reused(buckets.as_deref_mut().unwrap_or(&mut [])),
+        &mut Reused(correction.as_deref_mut().unwrap_or(&mut [])),
+        origin,
+        target,
+    );
+    if let Some(values) = spans {
+        values.truncate(span_count);
+    }
+    if let Some(values) = buckets {
+        values.truncate(bucket_count);
+    }
+    if let Some(values) = correction {
+        values.truncate(bucket_count);
+    }
+}
+
+struct ZeroCopied {
+    source_len: usize,
+    target: Option<Vec<f64>>,
+}
+
+impl ReductionBuffer<f64> for ZeroCopied {
+    fn source_len(&self) -> usize {
+        self.source_len
+    }
+    fn source(&self, index: usize) -> f64 {
+        assert!(index < self.source_len);
+        0.0
+    }
+    fn target(&self, index: usize) -> f64 {
+        self.target.as_ref().unwrap()[index]
+    }
+    fn write(&mut self, index: usize, value: f64) {
+        let target = self.target.get_or_insert_default();
+        if index == target.len() {
+            target.push(value);
+        } else {
+            target[index] = value;
+        }
+    }
+}
+
+pub(crate) struct ReducedKahan {
+    pub spans: Option<Vec<Span>>,
+    pub buckets: Option<Vec<f64>>,
+    pub compensation: Option<Vec<f64>>,
+}
+
+pub(crate) fn reduce_kahan_copy(
+    spans: Option<&[Span]>,
+    buckets: Option<&[f64]>,
+    origin: i32,
+    target: i32,
+) -> ReducedKahan {
+    let mut spans = Copied {
+        source: spans.unwrap_or(&[]),
+        target: None,
+    };
+    let mut buckets = Copied {
+        source: buckets.unwrap_or(&[]),
+        target: None,
+    };
+    // Read the upstream zero correction virtually instead of allocating its unreduced array.
+    let mut correction = ZeroCopied {
+        source_len: buckets.source.len(),
+        target: None,
+    };
+    reduce_kahan_layout(&mut spans, &mut buckets, &mut correction, origin, target);
+    ReducedKahan {
+        spans: spans.target,
+        buckets: buckets.target,
+        compensation: correction.target,
     }
 }

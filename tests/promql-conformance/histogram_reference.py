@@ -28,6 +28,10 @@ TABLES = [
     ("TestReverseFloatBucketIterator", "float-iterator-set", 1),
     ("TestFloatHistogramDetectReset", "float-detect-reset", 42),
     ("TestCustomBucketBoundsMatch", "custom-bounds-match", 8),
+    ("TestFloatHistogramAdd", "float-arithmetic-set", 24),
+    ("TestKahanAddWithCompHistogram", "float-arithmetic-set", 6),
+    ("TestFloatHistogramSub", "float-arithmetic-set", 6),
+    ("TestFloatHistogramKahanCompactSpanMerge", "float-kahan-compact", 1),
 ]
 
 
@@ -167,6 +171,18 @@ def iterator_result(value, routes):
             bucket(value)
 
 
+def arithmetic_checkpoint(value):
+    fields(value, ("result", "receiver_after", "argument_after", "compensation_after",
+                   "counter_reset_collision", "nhcb_bounds_reconciled", "error", "histogram_error"))
+    for key in ("result", "receiver_after", "argument_after", "compensation_after"):
+        if value[key] is not None or key in {"receiver_after", "argument_after"}:
+            histogram(value[key], False)
+    if (type(value["error"]) is not str
+            or any(type(value[key]) is not bool for key in
+                   ("counter_reset_collision", "nhcb_bounds_reconciled", "histogram_error"))):
+        raise ValueError("invalid histogram arithmetic outcome")
+
+
 def compare_declared(case, failures, bit_differences):
     declared, actual = case["declared"], case["actual"]
     if declared is None:
@@ -175,6 +191,15 @@ def compare_declared(case, failures, bit_differences):
         # Original error assertions do not specify the post-failure receiver.
         declared = {key: declared[key] for key in ("error", "histogram_error")}
         actual = {key: actual[key] for key in declared}
+    elif case["mode"] == "float-arithmetic-set":
+        actual = {"operations": [{"error": result["raw"]["error"], "final": result["final"],
+                    "flags": None if expectation["flags"] is None else
+                    {key: result["raw"][key] for key in ("counter_reset_collision", "nhcb_bounds_reconciled")}}
+                    for result, expectation in zip(actual["operations"], declared["operations"])]}
+    elif case["mode"] == "float-kahan-compact":
+        actual = {"positive_spans": actual["input_after"]["positive_spans"],
+                  "positive_buckets": actual["input_after"]["positive_buckets"],
+                  "compensation_positive_buckets": actual["compensation_after"]["positive_buckets"]}
     compare_value(declared, actual, case["id"], "declared", failures, bit_differences, exact_numeric=True)
 
 
@@ -183,7 +208,68 @@ def validate_case(case):
     if type(case["id"]) is not str or not case["id"]:
         raise ValueError("invalid histogram kernel identity")
     mode, request, actual = case["mode"], case["request"], case["actual"]
-    if mode in {"compensated-add", "compensated-sub"}:
+    if mode == "float-arithmetic-set":
+        fields(request, ("operations",))
+        fields(actual, ("operations",))
+        if (type(request["operations"]) is not list or not request["operations"]
+                or type(actual["operations"]) is not list
+                or len(actual["operations"]) != len(request["operations"])):
+            raise ValueError("incomplete arithmetic operation inventory")
+        for operation, result in zip(request["operations"], actual["operations"]):
+            fields(operation, ("operation", "left", "right", "compensation", "compact"))
+            if operation["operation"] not in {"add", "sub", "kahan"} or type(operation["compact"]) is not bool:
+                raise ValueError("invalid histogram arithmetic operation")
+            for key in ("left", "right", "compensation"):
+                if operation[key] is not None or key != "compensation":
+                    histogram(operation[key], False)
+            fields(result, ("raw", "fold", "final"))
+            arithmetic_checkpoint(result["raw"])
+            needs_fold = operation["operation"] == "kahan" and result["raw"]["result"] is not None
+            if (result["fold"] is not None) != needs_fold:
+                raise ValueError("missing or unexpected compensation folding")
+            if result["fold"] is not None:
+                if operation["operation"] != "kahan":
+                    raise ValueError("unexpected compensation folding")
+                arithmetic_checkpoint(result["fold"])
+            final_source = result["fold"] if needs_fold else result["raw"]
+            if (result["final"] is not None) != (operation["compact"] and final_source["result"] is not None):
+                raise ValueError("missing or unexpected final compaction")
+            if result["final"] is not None:
+                if not operation["compact"]:
+                    raise ValueError("unexpected final compaction")
+                histogram(result["final"], False)
+        if case["declared"] is not None:
+            fields(case["declared"], ("operations",))
+            declarations = case["declared"]["operations"]
+            if type(declarations) is not list or len(declarations) != len(request["operations"]):
+                raise ValueError("incomplete arithmetic declared assertions")
+            for expectation in declarations:
+                fields(expectation, ("error", "flags", "final"))
+                if type(expectation["error"]) is not str:
+                    raise ValueError("invalid arithmetic declared error")
+                if expectation["flags"] is not None:
+                    fields(expectation["flags"], ("counter_reset_collision", "nhcb_bounds_reconciled"))
+                    if any(type(value) is not bool for value in expectation["flags"].values()):
+                        raise ValueError("invalid arithmetic declared flags")
+                if expectation["final"] is not None:
+                    histogram(expectation["final"], False)
+    elif mode == "float-kahan-compact":
+        fields(request, ("input", "compensation", "max_empty"))
+        integer(request["max_empty"], -(1 << 31), (1 << 31) - 1)
+        fields(actual, ("input_after", "compensation_after"))
+        for key in ("input", "compensation"):
+            histogram(request[key], False)
+        for value in actual.values():
+            histogram(value, False)
+        if case["declared"] is not None:
+            fields(case["declared"], ("positive_spans", "positive_buckets", "compensation_positive_buckets"))
+            spans(case["declared"]["positive_spans"])
+            for key in ("positive_buckets", "compensation_positive_buckets"):
+                if type(case["declared"][key]) is not list:
+                    raise ValueError("invalid paired-compaction declared buckets")
+                for value in case["declared"][key]:
+                    number(value)
+    elif mode in {"compensated-add", "compensated-sub"}:
         fields(request, ("sum", "increment", "compensation"))
         fields(actual, ("sum", "compensation"))
         for value in [*request.values(), *actual.values()]:
@@ -352,6 +438,14 @@ def supplemental_ids():
         result[f"supplement:reset:{shape}"] = "float-detect-reset"
     for shape in range(22):
         result[f"supplement:zero-threshold:{shape}"] = "float-zero-threshold"
+    for left in (0, 1, 2, 3, 4, 255):
+        for right in (0, 1, 2, 3, 4, 255):
+            result[f"supplement:arithmetic-hints:{left}:{right}"] = "float-arithmetic-set"
+    for shape in range(20):
+        result[f"supplement:arithmetic-shape:{shape}"] = "float-arithmetic-set"
+    for shape in range(8):
+        for max_empty in (-1, 0, 2):
+            result[f"supplement:kahan-compact:{shape}:{max_empty}"] = "float-kahan-compact"
     return result
 
 
@@ -378,7 +472,7 @@ def validate_cases(data, tables, ledger=None):
     for table, (test, mode, count) in zip(tables, TABLES):
         fields(table, ("test", "file", "mode", "cases", "line", "case_lines", "source_sha256", "prefix", "variable", "case_keys"))
         file = ("generic_test.go" if test in {"TestGetBoundExponential", "TestCustomBucketBoundsMatch"} else
-                "float_histogram_test.go" if test.startswith("TestFloat") or mode == "float-iterator-set" else "histogram_test.go")
+                "float_histogram_test.go" if test.startswith("TestFloat") or mode in {"float-iterator-set", "float-arithmetic-set"} else "histogram_test.go")
         if (table["test"] != test or table["file"] != file or table["mode"] != mode
                 or type(table["cases"]) is not int or table["cases"] != count
                 or type(table["prefix"]) is not str or not table["prefix"].strip()
@@ -399,7 +493,8 @@ def validate_cases(data, tables, ledger=None):
         else:
             variable = ("scenarios" if test == "TestGetBoundExponential" else
                         "tests" if test == "TestCustomBucketBoundsMatch" else
-                        "h" if test == "TestReverseFloatBucketIterator" else "cases")
+                        "h" if test == "TestReverseFloatBucketIterator" else
+                        "c" if test == "TestFloatHistogramKahanCompactSpanMerge" else "cases")
             if table["variable"] != variable or table["case_keys"] is not None:
                 raise ValueError("changed histogram source table kind")
             for i in range(count):

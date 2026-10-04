@@ -3,7 +3,8 @@
 use std::io::{self, BufRead, Write};
 
 use netdata_promql_engine::histogram::{
-    Bucket, FloatHistogram, IntegerHistogram, Span, bucket_bound, custom_bounds_match,
+    Bucket, FloatHistogram, HistogramArithmetic, HistogramError, IntegerHistogram, Span,
+    bucket_bound, custom_bounds_match,
 };
 use netdata_promql_engine::numerical::{compensated_add, compensated_sub};
 use serde_json::{Value, json};
@@ -211,6 +212,79 @@ fn iterator_result(request: &Value, borrowed: bool) -> Result<Value, Error> {
     }
 }
 
+fn arithmetic_checkpoint(
+    result: Option<&FloatHistogram>,
+    receiver: &FloatHistogram,
+    argument: &FloatHistogram,
+    correction: Option<&FloatHistogram>,
+    outcome: &Result<HistogramArithmetic, HistogramError>,
+) -> Value {
+    let flags = outcome.as_ref().copied().unwrap_or_default();
+    json!({"result": result.map(encoded_float), "receiver_after": encoded_float(receiver),
+        "argument_after": encoded_float(argument), "compensation_after": correction.map(encoded_float),
+        "counter_reset_collision": flags.counter_reset_collision,
+        "nhcb_bounds_reconciled": flags.nhcb_bounds_reconciled,
+        "error": outcome.as_ref().err().map_or_else(String::new, ToString::to_string),
+        "histogram_error": outcome.as_ref().err().is_some_and(|error| error.is_data_error())})
+}
+
+fn arithmetic_result(operation: &Value) -> Result<Value, Error> {
+    let mut left = float(&operation["left"])?;
+    let right = float(&operation["right"])?;
+    let supplied = !operation["compensation"].is_null();
+    let mut correction = if supplied {
+        Some(float(&operation["compensation"])?)
+    } else {
+        None
+    };
+    let kind = operation["operation"]
+        .as_str()
+        .ok_or("invalid arithmetic operation")?;
+    let outcome = match kind {
+        "add" => left.add(right.as_ref()),
+        "sub" => left.sub(right.as_ref()),
+        "kahan" => left.kahan_add(right.as_ref(), &mut correction),
+        _ => return Err("unknown arithmetic operation".into()),
+    };
+    let result = if outcome.is_err() {
+        None
+    } else if kind == "kahan" {
+        correction.as_ref()
+    } else {
+        Some(&left)
+    };
+    let raw = arithmetic_checkpoint(
+        result,
+        &left,
+        &right,
+        if supplied { correction.as_ref() } else { None },
+        &outcome,
+    );
+    let mut fold = Value::Null;
+    let mut succeeded = outcome.is_ok();
+    if kind == "kahan" && outcome.is_ok() {
+        let outcome = left.add(correction.as_ref().ok_or("missing correction")?.as_ref());
+        succeeded = outcome.is_ok();
+        fold = arithmetic_checkpoint(
+            outcome.is_ok().then_some(&left),
+            &left,
+            &right,
+            None,
+            &outcome,
+        );
+    }
+    let mut final_value = Value::Null;
+    if operation["compact"]
+        .as_bool()
+        .ok_or("invalid compaction flag")?
+        && succeeded
+    {
+        left.compact(0);
+        final_value = encoded_float(&left);
+    }
+    Ok(json!({"raw": raw, "fold": fold, "final": final_value}))
+}
+
 fn result(input: &Value) -> Result<Value, Error> {
     let id = input["id"]
         .as_str()
@@ -222,6 +296,20 @@ fn result(input: &Value) -> Result<Value, Error> {
         .as_bool()
         .ok_or("missing borrowed-mode flag")?;
     let actual = match mode {
+        "float-arithmetic-set" => json!({"operations": request["operations"].as_array()
+            .ok_or("invalid arithmetic inventory")?.iter().map(arithmetic_result).collect::<Result<Vec<_>, _>>()?}),
+        "float-kahan-compact" => {
+            let mut value = float(&request["input"])?;
+            let mut correction = float(&request["compensation"])?;
+            value.kahan_compact(
+                request["max_empty"]
+                    .as_i64()
+                    .ok_or("invalid max_empty")?
+                    .try_into()?,
+                &mut correction,
+            );
+            json!({"input_after": encoded_float(&value), "compensation_after": encoded_float(&correction)})
+        }
         "custom-bounds-match" => {
             let left = array(&request["left"], number)?;
             let right = array(&request["right"], number)?;
