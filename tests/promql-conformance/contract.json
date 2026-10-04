@@ -33,18 +33,27 @@
   "mandatory_corpora": {
     "upstream_evaluation": {
       "files": 21,
-      "eval_commands": 2239,
+      "eval_commands": 2242,
       "profile": "upstream-tests",
-      "current_status": "Source inventory; complete typed DSL capture and Rust execution are required in the typed-core stage."
+      "current_status": "Source inventory; complete typed DSL capture and Rust execution are required in the typed-core stage.",
+      "ordinary_eval_commands": 2239,
+      "negative_eval_commands": 3
     },
     "upstream_parser": {
-      "sources": ["promql/parser/parse_test.go", "promql/parser/lex_test.go"],
+      "sources": [
+        "promql/parser/parse_test.go",
+        "promql/parser/lex_test.go"
+      ],
       "current_status": "Source inventory; computed inputs and structured expectations must be imported in the typed-core stage."
     },
     "sre": {
       "source_slots": 790,
       "rendered_requests": 1110,
-      "hcl_expansions": {"production": 147, "staging": 140, "testing": 140},
+      "hcl_expansions": {
+        "production": 147,
+        "staging": 140,
+        "testing": 140
+      },
       "slo_recordings": 608,
       "slo_alerts": 72,
       "current_status": "Pinned private source closure and reference parsing. Controlled-input Rust evaluation of every expression, recording dependencies and issue 6028 shapes remains required."
@@ -57,5 +66,7 @@
     "Independent rules, lifecycle/templates and Netdata alert integration",
     "Platform, failure, performance and operational qualification"
   ],
-  "excluded": ["Alertmanager"]
+  "excluded": [
+    "Alertmanager"
+  ]
 }

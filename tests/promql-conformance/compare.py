@@ -45,8 +45,25 @@ def byte_value(value):
     return base64.b64decode(value, validate=True)
 
 
+def record(value, name):
+    if not isinstance(value, dict):
+        raise ValueError(name + " must be an object")
+    return value
+
+
+def array(value, name, nullable=False):
+    if nullable and value is None:
+        return []
+    if not isinstance(value, list):
+        raise ValueError(name + " must be an array")
+    return value
+
+
 def labels(row):
-    ls = [(byte_value(l["name"]), byte_value(l["value"])) for l in row["labels"]]
+    ls = []
+    for label in array(record(row, "row")["labels"], "labels"):
+        record(label, "label")
+        ls.append((byte_value(label["name"]), byte_value(label["value"])))
     if any(not name for name, _ in ls) or len({name for name, _ in ls}) != len(ls):
         raise ValueError("empty or duplicate label name")
     return tuple(sorted(ls))
@@ -68,46 +85,52 @@ def histogram_buckets(histogram, side):
 
 
 def checked_results(document):
+    record(document, "result document")
     if type(document.get("schema_version")) is not int or document["schema_version"] != 1:
         raise ValueError("unsupported result schema")
     if not isinstance(document.get("results"), list):
         raise ValueError("results must be a list")
     out = {}
     for result in document["results"]:
+        record(result, "result")
         ident = result["id"]
         if not isinstance(ident, str) or not ident or ident in out:
             raise ValueError("empty or duplicate result id")
         if result["kind"] not in {"scalar", "string", "vector", "matrix", "error"}:
             raise ValueError("unknown result kind")
         for field in ["warnings", "infos"]:
-            messages = [byte_value(value) for value in result[field]]
+            messages = [byte_value(value) for value in array(result[field], field)]
             if len(messages) != len(set(messages)):
                 raise ValueError("duplicate diagnostic")
-        keys = [labels(row) for row in result["rows"]]
+        keys = [labels(row) for row in array(result["rows"], "rows")]
         if len(keys) != len(set(keys)):
             raise ValueError("duplicate output labelset")
         if result["kind"] == "error":
             if result["rows"] or not result.get("error"):
                 raise ValueError("malformed error result")
-            error = result["error"]
-            if error["phase"] not in {"request", "construction", "execution"} or not error["type"]:
+            error = record(result["error"], "error")
+            if (error["phase"] not in {"request", "construction", "execution"}
+                    or not isinstance(error["type"], str) or not error["type"]):
                 raise ValueError("invalid error attribution")
             byte_value(error["message"])
-            for parsed in error.get("parse_errors", []):
+            for parsed in array(error.get("parse_errors", []), "parse errors"):
+                record(parsed, "parse error")
                 for key in ["start", "end", "line_offset"]:
                     if type(parsed[key]) is not int:
                         raise ValueError("invalid parser position")
                 byte_value(parsed["message"])
-        elif result.get("error"):
+        elif result.get("error") is not None:
             raise ValueError("successful result contains error")
         elif result["kind"] in {"scalar", "string"}:
             if len(result["rows"]) != 1 or keys[0] or len(result["rows"][0]["points"]) != 1:
                 raise ValueError("malformed scalar/string result")
         for row in result["rows"]:
+            array(row["points"], "points")
             if not row["points"] or (result["kind"] == "vector" and len(row["points"]) != 1):
                 raise ValueError("empty row or invalid vector point count")
             previous = None
             for point in row["points"]:
+                record(point, "point")
                 timestamp = point["time_ms"]
                 if type(timestamp) is not int or not -(1 << 63) <= timestamp < (1 << 63):
                     raise ValueError("invalid sample timestamp")
@@ -127,23 +150,25 @@ def checked_results(document):
                 elif kind == "string":
                     byte_value(point.get("string", ""))
                 elif kind == "float_histogram":
-                    histogram = point["float_histogram"]
+                    histogram = record(point["float_histogram"], "float histogram")
                     if type(histogram["schema"]) is not int or not -(1 << 31) <= histogram["schema"] < (1 << 31):
                         raise ValueError("invalid histogram schema")
                     if type(histogram["reset_hint"]) is not int or not 0 <= histogram["reset_hint"] <= 3:
                         raise ValueError("invalid histogram reset hint")
                     for side in ["positive", "negative"]:
-                        spans = histogram[side + "_spans"] or []
+                        spans = array(histogram[side + "_spans"], side + " spans", nullable=True)
+                        buckets = array(histogram[side + "_buckets"], side + " buckets", nullable=True)
                         for span in spans:
+                            record(span, "span")
                             if (type(span["Offset"]) is not int or not -(1 << 31) <= span["Offset"] < (1 << 31)
                                     or type(span["Length"]) is not int or not 0 <= span["Length"] < (1 << 32)):
                                 raise ValueError("invalid histogram span")
-                        if sum(span["Length"] for span in spans) != len(histogram[side + "_buckets"] or []):
+                        if sum(span["Length"] for span in spans) != len(buckets):
                             raise ValueError("histogram spans and buckets disagree")
                     for name in ["zero_threshold", "zero_count", "count", "sum"]:
                         bits(histogram[name])
                     for name in ["positive_buckets", "negative_buckets", "custom_values"]:
-                        for value in histogram[name] or []:
+                        for value in array(histogram[name], name, nullable=True):
                             bits(value)
                 else:
                     raise ValueError("invalid result sample kind")
@@ -165,9 +190,12 @@ def difference(expected, actual, ordered=False, exact_numeric=False):
             failures.append(path)
 
     def numeric(path, left, right):
-        if bits(left)[0] != bits(right)[0]:
+        left_bits, a = bits(left)
+        right_bits, b = bits(right)
+        if left_bits != right_bits:
             bit_differences.append({"path": path, "reference": left, "candidate": right})
-        if (exact_numeric and bits(left)[1] != bits(right)[1]) or not same_number(left, right):
+        unequal_exact = a != b and not (math.isnan(a) and math.isnan(b))
+        if (exact_numeric and unequal_exact) or not same_number(left, right):
             failures.append(path)
 
     def boundary(path, left, right):
@@ -196,7 +224,12 @@ def difference(expected, actual, ordered=False, exact_numeric=False):
         if ar is None:
             continue
         exact(f"row[{row_index}].point count", len(er["points"]), len(ar["points"]))
-        for index, (ep, ap) in enumerate(zip(er["points"], ar["points"])):
+        exact(f"row[{row_index}].timestamps", [p["time_ms"] for p in er["points"]], [p["time_ms"] for p in ar["points"]])
+        actual_by_time = {p["time_ms"]: p for p in ar["points"]}
+        for index, ep in enumerate(er["points"]):
+            ap = actual_by_time.get(ep["time_ms"])
+            if ap is None:
+                continue
             path = f"row[{row_index}].point[{index}]"
             exact(path + ".time_ms", ep["time_ms"], ap["time_ms"])
             exact(path + ".start_time_ms", ep.get("start_time_ms", 0), ap.get("start_time_ms", 0))
@@ -222,7 +255,7 @@ def difference(expected, actual, ordered=False, exact_numeric=False):
                     e, a = histogram_buckets(eh, side), histogram_buckets(ah, side)
                     active = lambda buckets: [i for i, value in buckets.items() if bits(value)[1] != 0]
                     exact(path + ".histogram." + side + ".indices", active(e), active(a))
-                    for j in e.keys() & a.keys():
+                    for j in sorted(e.keys() & a.keys()):
                         numeric(f"{path}.histogram.{side}_bucket[{j}]", e[j], a[j])
     return failures, bit_differences
 
@@ -232,6 +265,7 @@ def compare(reference, candidate, cases):
     if not isinstance(cases, list) or not cases:
         raise ValueError("required case list must be nonempty")
     for case in cases:
+        record(case, "required case")
         if not isinstance(case.get("id"), str) or not case["id"]:
             raise ValueError("invalid required case id")
         for flag in ["ordered", "exact_numeric"]:

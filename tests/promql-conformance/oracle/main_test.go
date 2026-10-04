@@ -158,6 +158,13 @@ func TestThresholdAndBoolAreExact(t *testing.T) {
 	}
 	assertFloat(t, evaluate(d, instant("m >= bool 0.6", 0)), 0)
 }
+func TestRateOperationOrderThresholdRegression(t *testing.T) {
+	// The retained B049 fixture exercises extrapolation where operation order changes one bit.
+	d := fixture("counter_total", floatPoint(480000, 100), floatPoint(600000, 220))
+	assertFloat(t, evaluate(d, instant("rate(counter_total[5m])", 600000)), 0.6)
+	assertFloat(t, evaluate(d, instant("rate(counter_total[5m]) >= 0.6", 600000)), 0.6)
+	assertFloat(t, evaluate(d, instant("rate(counter_total[5m]) >= bool 0.6", 600000)), 1)
+}
 func TestRejectsAmbiguousInput(t *testing.T) {
 	d := fixture("m", floatPoint(1, 1), floatPoint(1, 2))
 	if d.validate() == nil {

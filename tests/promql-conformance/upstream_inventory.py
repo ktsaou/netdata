@@ -20,8 +20,11 @@ def inventory(root):
         text = raw.decode()
         sources.append({"path": path.relative_to(root).as_posix(), "sha256": hashlib.sha256(raw).hexdigest(),
             "physical_lines": len(text.splitlines()),
-            "eval_commands": len(re.findall(r"^eval(?:\s|$)", text, re.M)), "profile": "upstream-tests"})
-    if len(sources) != 21 or sum(s["eval_commands"] for s in sources) != 2239:
+            "eval_commands": len(re.findall(r"^eval(?:_[a-z]+)?(?:\s|$)", text, re.M)),
+            "ordinary_eval_commands": len(re.findall(r"^eval(?:\s|$)", text, re.M)),
+            "negative_eval_commands": len(re.findall(r"^eval_fail(?:\s|$)", text, re.M)),
+            "profile": "upstream-tests"})
+    if len(sources) != 21 or sum(s["eval_commands"] for s in sources) != 2242:
         raise ValueError("upstream corpus differs from the reviewed v3.15 snapshot")
     parser_sources = []
     for name in ["parse_test.go", "lex_test.go"]:
@@ -31,6 +34,8 @@ def inventory(root):
     result = {"schema_version": 1, "reference": "prometheus/prometheus", "commit": REFERENCE,
         "evaluation_sources": sources, "parser_sources": parser_sources,
         "summary": {"files": len(sources), "eval_commands": sum(s["eval_commands"] for s in sources),
+                    "ordinary_eval_commands": sum(s["ordinary_eval_commands"] for s in sources),
+                    "negative_eval_commands": sum(s["negative_eval_commands"] for s in sources),
                     "physical_lines": sum(s["physical_lines"] for s in sources)},
         "qualification": "Inventory only. This does not execute or qualify the Rust engine."}
     expected = json.loads((HERE / "upstream-sources.json").read_text())
