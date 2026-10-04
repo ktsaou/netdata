@@ -83,6 +83,7 @@
     "targeted_literal_cases_passed": 32,
     "expression_cases_executed": 356,
     "expression_cases_exact_passed": 350,
+    "additional_parser_profile_cases_exact_passed": 640,
     "literal_conversion_architecture": "Pinned Go 1.27.1 amd64; other platforms remain unqualified.",
     "reference_go": "go1.27.1",
     "reference_unicode": "17.0.0",

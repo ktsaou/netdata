@@ -55,8 +55,9 @@ enum Frame<'a> {
         callee: Callee<'a>,
         arguments: Vec<NodeId>,
         mode: Mode,
-        last_comma: Option<Span>,
     },
+    DurationFirst(Callee<'a>),
+    DurationSecond(Callee<'a>, NodeId),
     Range {
         left: NodeId,
         opening: Item<'a>,
@@ -95,7 +96,6 @@ where
         lexer: Lexer::new(input),
         lookahead: None,
         terminal: false,
-        recovery_shifts: 0,
         last_closing: 0,
         arena: Arena::default(),
         errors: Vec::new(),
@@ -110,7 +110,6 @@ struct Parser<'a, C> {
     lexer: Lexer<'a>,
     lookahead: Option<Item<'a>>,
     terminal: bool,
-    recovery_shifts: u8,
     last_closing: usize,
     arena: Arena,
     errors: Vec<ParseError>,
@@ -179,11 +178,7 @@ where
 
     fn take(&mut self) -> Item<'a> {
         self.peek();
-        let item = self.lookahead.take().unwrap();
-        if !matches!(item.kind, EOF | ERROR) {
-            self.recovery_shifts = self.recovery_shifts.saturating_sub(1);
-        }
-        item
+        self.lookahead.take().unwrap()
     }
 
     fn accept(&mut self, kind: TokenKind) -> Option<Item<'a>> {
@@ -195,9 +190,6 @@ where
         if item.kind == ERROR {
             return;
         }
-        if self.recovery_shifts > 0 {
-            return;
-        }
         let mut message = format!("unexpected {}", description(&item));
         if !context.is_empty() {
             message.push_str(&format!(" in {context}"));
@@ -206,7 +198,6 @@ where
             message.push_str(&format!(", expected {expected}"));
         }
         self.error(item.span, message);
-        self.recovery_shifts = 3;
     }
 
     fn expect(&mut self, kind: TokenKind, context: &str, expected: &str) -> Option<Item<'a>> {
@@ -392,7 +383,10 @@ where
     }
 
     fn grouping(&mut self) -> Option<Vec<Vec<u8>>> {
-        self.expect(LEFT_PAREN, "grouping opts", "\"(\"")?;
+        if self.expect(LEFT_PAREN, "grouping opts", "\"(\"").is_none() {
+            self.recover_to(&[EOF, ERROR]);
+            return None;
+        }
         let mut labels = Vec::new();
         if self.accept(RIGHT_PAREN).is_some() {
             return Some(labels);
@@ -429,7 +423,16 @@ where
                 return Some(labels);
             } else {
                 self.unexpected("grouping opts", "\",\" or \")\"");
-                return Some(labels);
+                if !self.recover_to(&[COMMA, RIGHT_PAREN]) {
+                    return Some(labels);
+                }
+                if self.accept(RIGHT_PAREN).is_some() {
+                    return Some(labels);
+                }
+                self.take();
+                if self.accept(RIGHT_PAREN).is_some() {
+                    return Some(labels);
+                }
             }
         }
     }
@@ -1018,19 +1021,12 @@ where
                 Some(Frame::Offset(_)) => {
                     self.unexpected("offset", "number, duration, step(), or range()")
                 }
+                Some(Frame::Arguments {
+                    callee: Callee::Aggregate { .. },
+                    ..
+                }) => self.unexpected("aggregation", ""),
                 _ => self.unexpected("", ""),
             }
-        }
-        if self.peek().kind == ERROR
-            && let Some(comma) = frames.iter().rev().find_map(|frame| {
-                if let Frame::Arguments { last_comma, .. } = frame {
-                    *last_comma
-                } else {
-                    None
-                }
-            })
-        {
-            self.error(comma, "trailing commas not allowed in function call args");
         }
         let Some(index) = recovery else {
             return false;
@@ -1050,6 +1046,31 @@ where
             _ => unreachable!(),
         }
         true
+    }
+
+    fn recover_duration_call(
+        &mut self,
+        frames: &mut Vec<Frame<'a>>,
+        values: &mut Vec<NodeId>,
+    ) -> bool {
+        let offset = matches!(
+            frames.iter().rev().find(|frame| matches!(
+                frame,
+                Frame::Range { .. }
+                    | Frame::RangeStep { .. }
+                    | Frame::Offset(_)
+                    | Frame::Arguments {
+                        callee: Callee::Aggregate { .. },
+                        ..
+                    }
+            )),
+            Some(Frame::Offset(_))
+        );
+        let recovered = self.recover_prefix(frames, values, false);
+        if recovered && offset && self.recover_to(&[RIGHT_PAREN, EOF, ERROR]) {
+            self.accept(RIGHT_PAREN);
+        }
+        recovered
     }
 
     fn run(mut self) -> ParseOutput {
@@ -1086,10 +1107,17 @@ where
                         ADD | SUB => {
                             self.take();
                             let wrapped = mode == Mode::Offset && self.peek().kind == LEFT_PAREN;
-                            frames.push(Frame::Unary(item, mode, wrapped));
+                            let chained = mode.is_offset() && matches!(self.peek().kind, ADD | SUB);
+                            frames.push(Frame::Unary(
+                                item,
+                                if chained { Mode::Duration } else { mode },
+                                wrapped,
+                            ));
                             frames.push(Frame::Parse(
                                 6,
-                                if mode == Mode::Offset {
+                                if chained {
+                                    Mode::Duration
+                                } else if mode == Mode::Offset {
                                     Mode::OffsetUnary
                                 } else {
                                     mode
@@ -1160,7 +1188,6 @@ where
                                         callee,
                                         arguments: Vec::new(),
                                         mode,
-                                        last_comma: None,
                                     });
                                     frames.push(Frame::Parse(0, mode));
                                 }
@@ -1181,15 +1208,21 @@ where
                                 continue;
                             }
                             let callee = Callee::Duration(item, mode);
-                            if let Some(close) = self.accept(RIGHT_PAREN) {
-                                values.push(self.finish_call(callee, Vec::new(), close.span.end));
+                            if let Callee::Duration(ref item, _) = callee
+                                && matches!(item.kind, STEP | RANGE)
+                            {
+                                if let Some(close) = self.accept(RIGHT_PAREN) {
+                                    values.push(self.finish_call(
+                                        callee,
+                                        Vec::new(),
+                                        close.span.end,
+                                    ));
+                                } else if !self.recover_duration_call(&mut frames, &mut values) {
+                                    failed = true;
+                                    break;
+                                }
                             } else {
-                                frames.push(Frame::Arguments {
-                                    callee,
-                                    arguments: Vec::new(),
-                                    mode: Mode::Duration,
-                                    last_comma: None,
-                                });
+                                frames.push(Frame::DurationFirst(callee));
                                 frames.push(Frame::Parse(0, Mode::Duration));
                             }
                         }
@@ -1343,7 +1376,6 @@ where
                     callee,
                     mut arguments,
                     mode,
-                    last_comma: _,
                 } => {
                     arguments.push(values.pop().unwrap());
                     if let Some(comma) = self.accept(COMMA) {
@@ -1354,11 +1386,34 @@ where
                             );
                             values.push(self.finish_call(callee, arguments, close.span.end));
                         } else {
+                            let mut last_comma = comma.span;
+                            loop {
+                                let next = self.peek().kind;
+                                if next == NUMBER
+                                    || next == DURATION
+                                    || next == STRING
+                                    || next == LEFT_PAREN
+                                    || next == LEFT_BRACE
+                                    || next == ADD
+                                    || next == SUB
+                                    || next.is_metric_identifier()
+                                {
+                                    break;
+                                }
+                                self.error(
+                                    last_comma,
+                                    "trailing commas not allowed in function call args",
+                                );
+                                if let Some(comma) = self.accept(COMMA) {
+                                    last_comma = comma.span;
+                                } else {
+                                    break;
+                                }
+                            }
                             frames.push(Frame::Arguments {
                                 callee,
                                 arguments,
                                 mode,
-                                last_comma: Some(comma.span),
                             });
                             frames.push(Frame::Parse(0, mode));
                         }
@@ -1366,6 +1421,25 @@ where
                         values.push(self.finish_call(callee, arguments, close.span.end));
                     } else {
                         self.unexpected("", "");
+                        failed = true;
+                        break;
+                    }
+                }
+                Frame::DurationFirst(callee) => {
+                    let first = values.pop().unwrap();
+                    if self.accept(COMMA).is_some() {
+                        frames.push(Frame::DurationSecond(callee, first));
+                        frames.push(Frame::Parse(0, Mode::Duration));
+                    } else if !self.recover_duration_call(&mut frames, &mut values) {
+                        failed = true;
+                        break;
+                    }
+                }
+                Frame::DurationSecond(callee, first) => {
+                    let second = values.pop().unwrap();
+                    if let Some(close) = self.accept(RIGHT_PAREN) {
+                        values.push(self.finish_call(callee, vec![first, second], close.span.end));
+                    } else if !self.recover_duration_call(&mut frames, &mut values) {
                         failed = true;
                         break;
                     }

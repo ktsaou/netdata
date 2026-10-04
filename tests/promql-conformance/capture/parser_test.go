@@ -3,6 +3,7 @@
 package parser
 
 import (
+	"crypto/sha256"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -13,6 +14,50 @@ import (
 	"testing"
 	"unicode"
 )
+
+func TestNetdataCaptureParserCases(t *testing.T) {
+	path := os.Getenv("NETDATA_PROMQL_CAPTURE_PARSER_CASES")
+	if path == "" {
+		t.Skip("additional parser capture not requested")
+	}
+	raw, err := os.ReadFile(os.Getenv("NETDATA_PROMQL_PARSER_REQUESTS"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var inputs []string
+	if err := json.Unmarshal(raw, &inputs); err != nil {
+		t.Fatal(err)
+	}
+	cases := []map[string]any{}
+	for flags := 0; flags < 16; flags++ {
+		options := Options{EnableExperimentalFunctions: flags&1 != 0,
+			EnableBinopFillModifiers: flags&2 != 0, EnableExtendedRangeSelectors: flags&4 != 0,
+			ExperimentalDurationExpr: flags&8 != 0}
+		parser := NewParser(options)
+		for i, input := range inputs {
+			expr, err := parser.ParseExpr(input)
+			cases = append(cases, map[string]any{"id": fmt.Sprintf("additional:%02d:%03d", flags, i),
+				"input": []byte(input), "flags": flags, "parser_options": options,
+				"ast": netdataAST(expr), "errors": netdataErrors(err, input)})
+		}
+	}
+	output := map[string]any{"schema_version": 1, "commit": "5241a27fe3c6983549fccc32f6e65917408c63cd",
+		"go_version": runtime.Version(), "go_arch": runtime.GOARCH, "unicode_version": unicode.Version,
+		"requests_sha256": fmt.Sprintf("%x", sha256.Sum256(raw)), "cases": cases}
+	file, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o600)
+	if err != nil {
+		t.Fatal(err)
+	}
+	encoder := json.NewEncoder(file)
+	encoder.SetIndent("", "  ")
+	if err := encoder.Encode(output); err != nil {
+		file.Close()
+		t.Fatal(err)
+	}
+	if err := file.Close(); err != nil {
+		t.Fatal(err)
+	}
+}
 
 type netdataToken struct {
 	Type     int    `json:"type"`
