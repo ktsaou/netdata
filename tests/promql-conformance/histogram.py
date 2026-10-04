@@ -43,6 +43,13 @@ def compare_results(expected, output, exact_bits_ids=()):
             "cases": len(expected), "failures": failures, "bit_differences": bit_differences}
 
 
+def compare_kernels(inputs, expected, output):
+    exact_bits_ids = {row["id"] for row in inputs
+                     if row["mode"] in {"exponential-bound", "exponential-bound-table",
+                                        "float-equality-pair", "float-overflow"}}
+    return compare_results(expected, output, exact_bits_ids)
+
+
 def compare(capture, binary=None):
     data, counts = load(capture)
     binary = Path(binary).resolve(strict=True) if binary else build().with_name("promql-kernel-fixture")
@@ -56,9 +63,7 @@ def compare(capture, binary=None):
     (task / "candidate.stderr").write_text(result.stderr)
     if result.returncode:
         raise SystemExit(f"kernel candidate failed ({result.returncode}); evidence: {task}")
-    exact_bits_ids = {row["id"] for row in inputs
-                         if row["mode"] in {"exponential-bound", "exponential-bound-table"}}
-    report = compare_results(expected, [json.loads(line) for line in result.stdout.splitlines()], exact_bits_ids)
+    report = compare_kernels(inputs, expected, [json.loads(line) for line in result.stdout.splitlines()])
     report["source_counts"] = counts
     report["declared_bit_differences"] = []
     declared_failures = []

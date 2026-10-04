@@ -2,7 +2,7 @@
 import copy
 import unittest
 
-from histogram import compare_results
+from histogram import compare_kernels, compare_results, requests
 from histogram_reference import COMMIT, input_ledger, validate_cases
 
 
@@ -184,6 +184,23 @@ class HistogramReferenceTests(unittest.TestCase):
                 compare_results(expected, output)
         report = compare_results(expected, [{"id": "case", "actual": {"positive_spans": []}}])
         self.assertFalse(report["semantic_pass"])
+
+    def test_read_only_operand_bit_changes_fail_even_when_booleans_are_unchanged(self):
+        for identity, field in (("TestFloatHistogramEquals:000", "left_after"),
+                                ("supplement:overflow:1:1", "input_after")):
+            with self.subTest(identity=identity):
+                case = next(case for case in self.document["cases"] if case["id"] == identity)
+                inputs, expected = requests({"cases": [case]})
+                output = [{"id": key, "actual": copy.deepcopy(value)} for key, value in expected.items()]
+                self.assertTrue(compare_kernels(inputs, expected, output)["semantic_pass"])
+                original = output[0]["actual"][field]["count"]
+                output[0]["actual"][field]["count"] = f"{int(original, 16) + 1:016x}"
+                self.assertFalse(compare_kernels(inputs, expected, output)["semantic_pass"])
+                document = copy.deepcopy(self.document)
+                captured = next(case for case in document["cases"] if case["id"] == identity)
+                captured["actual"][field]["count"] = output[0]["actual"][field]["count"]
+                with self.assertRaises(ValueError):
+                    validate_cases(document, self.ledger["tables"])
 
 
 if __name__ == "__main__":
