@@ -16,9 +16,9 @@ def build():
     directory(output)
     env = os.environ.copy()
     env.update(CARGO_NET_OFFLINE="true", CARGO_TARGET_DIR=str(output / "core-target"))
-    command = ["cargo", "build", "--offline", "--locked", "-j", "4", "--release"]
+    command = ["cargo", "build", "--offline", "--locked", "--features", "fixtures", "-j", "4", "--release"]
     run(command, crate, env)
-    run(["cargo", "test", "--offline", "--locked", "-j", "4", "--release"], crate, env)
+    run(["cargo", "test", "--offline", "--locked", "--features", "fixtures", "-j", "4", "--release"], crate, env)
     return output / "core-target/release/promql-frontend-fixture"
 
 

@@ -1,8 +1,8 @@
 This standalone expression engine is distributed under GPL-3.0-or-later.
 
-Frontend lexer algorithms are derived from prometheus/prometheus, commit
+Frontend lexer, parser and ordered validation algorithms are derived from prometheus/prometheus, commit
 5241a27fe3c6983549fccc32f6e65917408c63cd (Prometheus v3.15.0),
-promql/parser/lex.go, generated_parser.y.go, ast.go, functions.go, parse.go
+promql/parser/lex.go, generated_parser.y, generated_parser.y.go, ast.go, functions.go, parse.go
 and util/strutil/quote.go.
 Copyright The Prometheus Authors. Licensed under Apache-2.0;
 see LICENSE-APACHE-2.0.

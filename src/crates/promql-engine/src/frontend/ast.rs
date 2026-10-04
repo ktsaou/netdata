@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Derived from pinned Prometheus promql/parser/ast.go; see NOTICE.
-use super::{Span, functions::Function, token::TokenKind};
+use super::{Span, functions::Function, token as token_types};
+use std::sync::Arc;
+use token_types::TokenKind;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum ValueType {
@@ -51,6 +53,30 @@ pub struct Matcher {
     pub kind: MatchType,
     pub name: Vec<u8>,
     pub value: Vec<u8>,
+    pub compiled: Option<Arc<dyn CompiledMatcher>>,
+}
+
+pub trait CompiledMatcher: std::fmt::Debug + Send + Sync {
+    fn matches(&self, value: &[u8]) -> bool;
+}
+
+impl Matcher {
+    pub fn matches(&self, value: &[u8]) -> bool {
+        match self.kind {
+            MatchType::Equal => self.value == value,
+            MatchType::NotEqual => self.value != value,
+            MatchType::Regex => self
+                .compiled
+                .as_ref()
+                .expect("validated regexp matcher")
+                .matches(value),
+            MatchType::NotRegex => !self
+                .compiled
+                .as_ref()
+                .expect("validated regexp matcher")
+                .matches(value),
+        }
+    }
 }
 
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
@@ -86,7 +112,7 @@ pub struct SelectorModifiers {
 pub struct VectorSelector {
     pub name: Vec<u8>,
     pub modifiers: SelectorModifiers,
-    pub matchers: Vec<Matcher>,
+    pub matchers: Vec<Option<Matcher>>,
     pub skip_histogram_buckets: bool,
     pub bypass_empty_matcher_check: bool,
     pub anchored: bool,

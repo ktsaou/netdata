@@ -103,6 +103,182 @@ pub enum TokenKind {
 }
 
 impl TokenKind {
+    pub const fn precedence(self) -> Option<u8> {
+        match self {
+            Self::LOR => Some(1),
+            Self::LAND | Self::LUNLESS => Some(2),
+            Self::EQLC
+            | Self::GTE
+            | Self::GTR
+            | Self::LSS
+            | Self::LTE
+            | Self::NEQ
+            | Self::TRIM_UPPER
+            | Self::TRIM_LOWER => Some(3),
+            Self::ADD | Self::SUB => Some(4),
+            Self::MUL | Self::DIV | Self::MOD | Self::ATAN2 => Some(5),
+            Self::POW => Some(6),
+            _ => None,
+        }
+    }
+
+    pub const fn is_operator(self) -> bool {
+        (self as u32) > 57382 && (self as u32) < 57404
+    }
+    pub const fn is_aggregator(self) -> bool {
+        (self as u32) > 57405 && (self as u32) < 57420
+    }
+    pub const fn is_keyword(self) -> bool {
+        (self as u32) > 57421 && (self as u32) < 57435
+    }
+    pub const fn is_comparison(self) -> bool {
+        matches!(
+            self,
+            Self::EQLC | Self::NEQ | Self::LTE | Self::LSS | Self::GTE | Self::GTR
+        )
+    }
+    pub const fn is_set(self) -> bool {
+        matches!(self, Self::LAND | Self::LOR | Self::LUNLESS)
+    }
+    pub const fn takes_parameter(self) -> bool {
+        matches!(
+            self,
+            Self::TOPK
+                | Self::BOTTOMK
+                | Self::COUNT_VALUES
+                | Self::QUANTILE
+                | Self::LIMITK
+                | Self::LIMIT_RATIO
+        )
+    }
+    pub const fn is_experimental_aggregator(self) -> bool {
+        matches!(self, Self::LIMITK | Self::LIMIT_RATIO)
+    }
+    pub const fn is_metric_identifier(self) -> bool {
+        self.is_aggregator()
+            || matches!(
+                self,
+                Self::BY
+                    | Self::FILL
+                    | Self::FILL_LEFT
+                    | Self::FILL_RIGHT
+                    | Self::IDENTIFIER
+                    | Self::LAND
+                    | Self::LOR
+                    | Self::LUNLESS
+                    | Self::METRIC_IDENTIFIER
+                    | Self::OFFSET
+                    | Self::WITHOUT
+                    | Self::START
+                    | Self::END
+                    | Self::STEP
+                    | Self::RANGE
+                    | Self::ANCHORED
+                    | Self::SMOOTHED
+                    | Self::MAX_OF
+                    | Self::MIN_OF
+            )
+    }
+    pub const fn is_grouping_label(self) -> bool {
+        self.is_metric_identifier()
+            || matches!(
+                self,
+                Self::BOOL
+                    | Self::GROUP_LEFT
+                    | Self::GROUP_RIGHT
+                    | Self::IGNORING
+                    | Self::ON
+                    | Self::ATAN2
+            )
+    }
+    pub const fn is_function_identifier(self) -> bool {
+        matches!(
+            self,
+            Self::IDENTIFIER
+                | Self::START
+                | Self::END
+                | Self::STEP
+                | Self::RANGE
+                | Self::MAX_OF
+                | Self::MIN_OF
+        )
+    }
+
+    pub const fn text(self) -> Option<&'static str> {
+        match self {
+            Self::OPEN_HIST => Some("{{"),
+            Self::CLOSE_HIST => Some("}}"),
+            Self::LEFT_PAREN => Some("("),
+            Self::RIGHT_PAREN => Some(")"),
+            Self::LEFT_BRACE => Some("{"),
+            Self::RIGHT_BRACE => Some("}"),
+            Self::LEFT_BRACKET => Some("["),
+            Self::RIGHT_BRACKET => Some("]"),
+            Self::COMMA => Some(","),
+            Self::EQL => Some("="),
+            Self::COLON => Some(":"),
+            Self::SEMICOLON => Some(";"),
+            Self::BLANK => Some("_"),
+            Self::TIMES => Some("x"),
+            Self::SPACE => Some("<space>"),
+            Self::SUB => Some("-"),
+            Self::ADD => Some("+"),
+            Self::MUL => Some("*"),
+            Self::MOD => Some("%"),
+            Self::DIV => Some("/"),
+            Self::EQLC => Some("=="),
+            Self::NEQ => Some("!="),
+            Self::LTE => Some("<="),
+            Self::LSS => Some("<"),
+            Self::GTE => Some(">="),
+            Self::GTR => Some(">"),
+            Self::TRIM_UPPER => Some("</"),
+            Self::TRIM_LOWER => Some(">/"),
+            Self::EQL_REGEX => Some("=~"),
+            Self::NEQ_REGEX => Some("!~"),
+            Self::POW => Some("^"),
+            Self::AT => Some("@"),
+            Self::ATAN2 => Some("atan2"),
+            Self::LAND => Some("and"),
+            Self::LOR => Some("or"),
+            Self::LUNLESS => Some("unless"),
+            Self::SUM => Some("sum"),
+            Self::AVG => Some("avg"),
+            Self::COUNT => Some("count"),
+            Self::MIN => Some("min"),
+            Self::MAX => Some("max"),
+            Self::GROUP => Some("group"),
+            Self::STDDEV => Some("stddev"),
+            Self::STDVAR => Some("stdvar"),
+            Self::TOPK => Some("topk"),
+            Self::BOTTOMK => Some("bottomk"),
+            Self::COUNT_VALUES => Some("count_values"),
+            Self::QUANTILE => Some("quantile"),
+            Self::LIMITK => Some("limitk"),
+            Self::LIMIT_RATIO => Some("limit_ratio"),
+            Self::OFFSET => Some("offset"),
+            Self::SMOOTHED => Some("smoothed"),
+            Self::ANCHORED => Some("anchored"),
+            Self::BY => Some("by"),
+            Self::WITHOUT => Some("without"),
+            Self::ON => Some("on"),
+            Self::IGNORING => Some("ignoring"),
+            Self::GROUP_LEFT => Some("group_left"),
+            Self::GROUP_RIGHT => Some("group_right"),
+            Self::FILL => Some("fill"),
+            Self::FILL_LEFT => Some("fill_left"),
+            Self::FILL_RIGHT => Some("fill_right"),
+            Self::BOOL => Some("bool"),
+            Self::START => Some("start"),
+            Self::END => Some("end"),
+            Self::STEP => Some("step"),
+            Self::RANGE => Some("range"),
+            Self::MAX_OF => Some("max_of"),
+            Self::MIN_OF => Some("min_of"),
+            _ => None,
+        }
+    }
+
     pub const fn name(self) -> &'static str {
         match self {
             Self::EQL => "EQL",

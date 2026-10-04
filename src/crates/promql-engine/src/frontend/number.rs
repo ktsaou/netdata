@@ -237,7 +237,7 @@ pub fn duration_out_of_range(seconds: f64) -> bool {
         || seconds < -((1u64 << 63) as f64) / 1_000_000_000.0
 }
 
-/// Go's signed conversion returns MinInt64 for a nonrepresentable value.
+/// Pinned Go/amd64 conversion returns MinInt64 for a nonrepresentable value.
 pub fn go_i64(value: f64) -> i64 {
     if !value.is_finite() || !(-((1u64 << 63) as f64)..(1u64 << 63) as f64).contains(&value) {
         i64::MIN

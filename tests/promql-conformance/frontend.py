@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Compare every captured frontend case against the owned Rust implementation."""
+"""Compare captured lexer and string-value cases against the owned Rust implementation."""
 import argparse
 import base64
 import hashlib
@@ -69,7 +69,9 @@ def qualify(capture_directory):
             failed.append({"id": ident, "expected": expected, "actual": actual[ident]})
     report = {"commit": frontend["commit"], "lexer_cases": len(cases), "lexer_passed": len(cases)-lexer_failures,
               "string_literal_cases": len(literals), "string_literals_passed": len(literals)-(len(failed)-lexer_failures),
-              "parser_cases": 356, "parser_status": "Not implemented or executed.", "failed": failed}
+              "parser_cases": len(frontend["expressions"]),
+              "parser_status": "Execute parser.py separately; this driver qualifies lexer and string values.",
+              "failed": failed}
     print(json.dumps(report, default=lambda b: {"bytes_hex": b.hex()}))
     if failed:
         raise SystemExit(1)
