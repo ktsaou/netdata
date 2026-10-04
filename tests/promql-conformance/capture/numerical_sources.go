@@ -26,7 +26,8 @@ func main() {
 	}
 	definitions := map[string]any{}
 	wanted := map[string]bool{}
-	for _, name := range []string{"vf", "frexp", "vffrexpSC", "frexpSC", "vffrexpBC", "frexpBC", "log", "log2", "vflogSC", "logSC", "sqrt", "vfsqrtSC", "sqrtSC", "TestFrexp", "TestLog", "TestLog2", "TestSqrt", "tolerance", "veryclose", "alike"} {
+	for _, name := range []string{"vf", "frexp", "vffrexpSC", "frexpSC", "vffrexpBC", "frexpBC", "log", "log2", "vflogSC", "logSC", "sqrt", "vfsqrtSC", "sqrtSC", "TestFrexp", "TestLog", "TestLog2", "TestSqrt", "tolerance", "veryclose", "alike",
+		"exp2", "vfexp2SC", "exp2SC", "TestExp2", "testExp2", "close", "vfldexpSC", "ldexpSC", "vfldexpBC", "ldexpBC", "TestLdexp"} {
 		wanted[name] = true
 	}
 	record := func(name string, declaration ast.Node) {

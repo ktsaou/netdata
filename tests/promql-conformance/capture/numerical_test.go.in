@@ -27,6 +27,8 @@ func netdataNumericalResult(mode string, input float64) any {
 		return netdataNumericalBits(math.Log2(input))
 	case "math-sqrt":
 		return netdataNumericalBits(math.Sqrt(input))
+	case "math-exp2":
+		return netdataNumericalBits(math.Exp2(input))
 	case "math-set":
 		return map[string]any{"frexp": netdataNumericalResult("math-frexp", input),
 			"log": netdataNumericalResult("math-log", input), "log2": netdataNumericalResult("math-log2", input),
@@ -47,7 +49,8 @@ func TestNetdataCaptureNumerical(t *testing.T) {
 	for _, assertion := range []struct {
 		name string
 		run  func(*testing.T)
-	}{{"TestFrexp", TestFrexp}, {"TestLog", TestLog}, {"TestLog2", TestLog2}, {"TestSqrt", TestSqrt}} {
+	}{{"TestFrexp", TestFrexp}, {"TestLog", TestLog}, {"TestLog2", TestLog2}, {"TestSqrt", TestSqrt},
+		{"TestExp2", TestExp2}, {"TestLdexp", TestLdexp}} {
 		t.Run(assertion.name, assertion.run)
 	}
 	if t.Failed() {
@@ -62,6 +65,15 @@ func TestNetdataCaptureNumerical(t *testing.T) {
 		cases = append(cases, map[string]any{"id": id, "mode": mode,
 			"request": map[string]any{"input": netdataNumericalBits(input)},
 			"actual":  netdataNumericalResult(mode, input), "declared": declared})
+	}
+	recordLdexp := func(id string, input float64, exponent int, expected any, comparison string) {
+		var declared any
+		if expected != nil {
+			declared = map[string]any{"value": expected, "comparison": comparison}
+		}
+		cases = append(cases, map[string]any{"id": id, "mode": "math-ldexp",
+			"request": map[string]any{"input": netdataNumericalBits(input), "exponent": exponent},
+			"actual":  netdataNumericalBits(math.Ldexp(input, exponent)), "declared": declared})
 	}
 	for i, input := range vf {
 		record(fmt.Sprintf("TestFrexp:vf:%03d", i), "math-frexp", input,
@@ -116,6 +128,74 @@ func TestNetdataCaptureNumerical(t *testing.T) {
 		0x7ff8000000000001, 0xfff8000000000001, 0x7ff0000000000002, 0xfff0000000000002,
 		0x8000000000000001, 0xffefffffffffffff, 0xbff0000000000000, 0x0010000000000001} {
 		record(fmt.Sprintf("supplement:special:%d", index), "math-set", math.Float64frombits(bits), nil, "")
+	}
+	for i, input := range vf {
+		record(fmt.Sprintf("TestExp2:vf:%03d", i), "math-exp2", input, netdataNumericalBits(exp2[i]), "close")
+		recordLdexp(fmt.Sprintf("TestLdexp:vf:%03d", i), frexp[i].f, frexp[i].i, netdataNumericalBits(input), "veryclose")
+	}
+	for i, input := range vfexp2SC {
+		record(fmt.Sprintf("TestExp2:sc:%03d", i), "math-exp2", input, netdataNumericalBits(exp2SC[i]), "alike")
+	}
+	for exponent := -1074; exponent < 1024; exponent++ {
+		record(fmt.Sprintf("TestExp2:power:%d", exponent), "math-exp2", float64(exponent),
+			netdataNumericalBits(math.Ldexp(1, exponent)), "exact")
+		for center, input := range []float64{float64(exponent), float64(exponent) + 0.5} {
+			for direction, neighbor := range []float64{math.Nextafter(input, math.Inf(-1)), input, math.Nextafter(input, math.Inf(1))} {
+				record(fmt.Sprintf("supplement:exp2:reduction:%d:%d:%d", exponent, center, direction), "math-exp2", neighbor, nil, "")
+			}
+		}
+	}
+	for i, input := range frexpSC {
+		recordLdexp(fmt.Sprintf("TestLdexp:frexp-sc:%03d", i), input.f, input.i, netdataNumericalBits(vffrexpSC[i]), "alike")
+	}
+	for i, input := range vfldexpSC {
+		recordLdexp(fmt.Sprintf("TestLdexp:sc:%03d", i), input.f, input.i, netdataNumericalBits(ldexpSC[i]), "alike")
+	}
+	for i, input := range frexpBC {
+		recordLdexp(fmt.Sprintf("TestLdexp:frexp-bc:%03d", i), input.f, input.i, netdataNumericalBits(vffrexpBC[i]), "alike")
+	}
+	for i, input := range vfldexpBC {
+		recordLdexp(fmt.Sprintf("TestLdexp:bc:%03d", i), input.f, input.i, netdataNumericalBits(ldexpBC[i]), "alike")
+	}
+	for index, bits := range []uint64{0, 1 << 63, 0x7ff0000000000000, 0xfff0000000000000,
+		0x7ff8000000000001, 0xfff8000000000001, 0x7ff0000000000002, 0xfff0000000000002,
+		0x7ff8000000000042, 0xfff8000000000027, 1, 0x8000000000000001,
+		0x000fffffffffffff, 0x800fffffffffffff, 0x0010000000000000, 0x8010000000000000,
+		0x7fefffffffffffff, 0xffefffffffffffff} {
+		record(fmt.Sprintf("supplement:exp2:special:%d", index), "math-exp2", math.Float64frombits(bits), nil, "")
+	}
+	for center, input := range []float64{-1075, -1074, 1024} {
+		for direction, neighbor := range []float64{math.Nextafter(input, math.Inf(-1)), input, math.Nextafter(input, math.Inf(1))} {
+			record(fmt.Sprintf("supplement:exp2:cutoff:%d:%d", center, direction), "math-exp2", neighbor, nil, "")
+		}
+	}
+	const maxInt = int(^uint(0) >> 1)
+	const minInt = -maxInt - 1
+	for fractionIndex, bits := range []uint64{0, 1 << 63, 0x7ff0000000000000, 0xfff0000000000000,
+		0x7ff8000000000001, 0xfff8000000000001, 0x7ff0000000000002, 0xfff0000000000002,
+		1, 0x8000000000000001, 2, 0x8000000000000002, 0x000fffffffffffff, 0x800fffffffffffff,
+		0x0010000000000000, 0x8010000000000000, 0x0010000000000001, 0x8010000000000001,
+		0x3fe0000000000000, 0xbfe0000000000000, 0x3fe0000000000001, 0xbfe0000000000001,
+		0x3ff0000000000000, 0xbff0000000000000, 0x3ff0000000000001, 0xbff0000000000001,
+		0x3fefffffffffffff, 0xbfefffffffffffff, 0x7fefffffffffffff, 0xffefffffffffffff,
+		0x4000000000000000, 0xc000000000000000, 0x3ff8000000000000, 0xbff8000000000000,
+		0x400c000000000000, 0xc00c000000000000} {
+		input := math.Float64frombits(bits)
+		for exponentIndex, exponent := range []int{-2098, -2097, -1076, -1075, -1074, -1073, -1023, -1022, -1021,
+			-54, -53, -52, -51, -1, 0, 1, 51, 52, 53, 54, 1022, 1023, 1024, 1073, 1074, 1075, 1076, 2097, 2098,
+			-(1 << 56), 1 << 56, minInt, minInt + 1, minInt + 52, minInt + 1023, maxInt - 1023, maxInt - 52, maxInt - 1, maxInt} {
+			recordLdexp(fmt.Sprintf("supplement:ldexp:matrix:%d:%d", fractionIndex, exponentIndex), input, exponent, nil, "")
+		}
+		if fractionIndex < 8 {
+			continue
+		}
+		_, exponent := math.Frexp(input)
+		for edge, target := range []int{-1075, -1022, 1023} {
+			for direction := 0; direction < 3; direction++ {
+				recordLdexp(fmt.Sprintf("supplement:ldexp:transition:%d:%d:%d", fractionIndex, edge, direction),
+					input, target-(exponent-1)+direction-1, nil, "")
+			}
+		}
 	}
 	raw, err = json.MarshalIndent(map[string]any{"schema_version": 1, "go_version": runtime.Version(),
 		"go_os": runtime.GOOS, "go_arch": runtime.GOARCH, "original_assertions_passed": true, "cases": cases}, "", "  ")

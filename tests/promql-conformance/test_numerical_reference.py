@@ -3,7 +3,7 @@ import copy
 import unittest
 
 from histogram import compare_results
-from numerical_reference import input_ledger, validate_cases
+from numerical_reference import assertion_matches, input_ledger, validate_cases
 
 
 class NumericalReferenceTests(unittest.TestCase):
@@ -17,13 +17,14 @@ class NumericalReferenceTests(unittest.TestCase):
             row = copy.deepcopy(binding)
             row["actual"] = (copy.deepcopy(row["declared"]["value"]) if row["declared"] is not None else
                              {"frexp": {"fraction": "0000000000000000", "exponent": 0},
-                              "log": "0000000000000000", "log2": "0000000000000000", "sqrt": "0000000000000000"})
+                              "log": "0000000000000000", "log2": "0000000000000000", "sqrt": "0000000000000000"}
+                             if row["mode"] == "math-set" else "0000000000000000")
             cls.document["cases"].append(row)
 
     def test_complete_source_and_primitive_inventory(self):
         self.assertEqual(validate_cases(self.document, self.ledger),
-                         {"original_cases": 2174, "supplemental_cases": 7839, "total": 10013,
-                          "primitive_invocations": 33530})
+                         {"original_cases": 4336, "supplemental_cases": 22110, "total": 26446,
+                          "primitive_invocations": 49963})
 
     def test_computed_input_and_declaration_mutations_are_rejected(self):
         for identity, mutation in (
@@ -31,6 +32,8 @@ class NumericalReferenceTests(unittest.TestCase):
             ("TestSqrt:sc:002", lambda row: row["request"].update(input="0000000000000000")),
             ("supplement:bound:0:1", lambda row: row["request"].update(input="0000000000000000")),
             ("TestLog:vf:000", lambda row: row["declared"].update(comparison="veryclose")),
+            ("TestExp2:power:-1074", lambda row: row["request"].update(input="c090c40000000000")),
+            ("TestLdexp:sc:011", lambda row: row["request"].update(exponent=1)),
         ):
             with self.subTest(identity=identity):
                 data = copy.deepcopy(self.document)
@@ -41,7 +44,9 @@ class NumericalReferenceTests(unittest.TestCase):
     def test_original_assertions_reject_wrong_numbers_exponents_and_zero_sign(self):
         for identity, actual in (("TestLog:constant", "0000000000000000"),
                                  ("TestSqrt:sc:002", "0000000000000000"),
-                                 ("TestFrexp:bc:000", {"fraction": "3fe0000000000000", "exponent": -1022})):
+                                 ("TestFrexp:bc:000", {"fraction": "3fe0000000000000", "exponent": -1022}),
+                                 ("TestExp2:power:0", "4000000000000000"),
+                                 ("TestLdexp:bc:005", "0000000000000000")):
             with self.subTest(identity=identity):
                 data = copy.deepcopy(self.document)
                 next(row for row in data["cases"] if row["id"] == identity)["actual"] = actual
@@ -62,11 +67,26 @@ class NumericalReferenceTests(unittest.TestCase):
                     validate_cases(data, self.ledger)
 
     def test_exact_power_result_cannot_pass_numeric_tolerance(self):
-        identity = "TestLog2:power:-1074"
-        expected = {identity: "c090c80000000000"}
-        changed = [{"id": identity, "actual": "c090c80000000001"}]
-        self.assertTrue(compare_results(expected, changed)["semantic_pass"])
-        self.assertFalse(compare_results(expected, changed, {identity})["semantic_pass"])
+        for identity, expected, changed in (("TestLog2:power:-1074", "c090c80000000000", "c090c80000000001"),
+                                            ("TestExp2:power:0", "3ff0000000000000", "3ff0000000000001")):
+            with self.subTest(identity=identity):
+                candidate = [{"id": identity, "actual": changed}]
+                self.assertTrue(compare_results({identity: expected}, candidate)["semantic_pass"])
+                self.assertFalse(compare_results({identity: expected}, candidate, {identity})["semantic_pass"])
+
+    def test_ldexp_exponent_cannot_be_float_boolean_or_outside_machine_int(self):
+        identity = "TestLdexp:vf:000"
+        for exponent in (1.0, True, -(1 << 63) - 1, 1 << 63):
+            with self.subTest(exponent=exponent):
+                data, ledger = copy.deepcopy(self.document), copy.deepcopy(self.ledger)
+                for rows in (data["cases"], ledger["cases"]):
+                    next(row for row in rows if row["id"] == identity)["request"]["exponent"] = exponent
+                with self.assertRaises(ValueError):
+                    validate_cases(data, ledger)
+
+    def test_close_keeps_its_original_tolerance_separate_from_veryclose(self):
+        self.assertTrue(assertion_matches("3ff0000000000000", "3ff0000000000010", "close"))
+        self.assertFalse(assertion_matches("3ff0000000000000", "3ff0000000000010", "veryclose"))
 
 
 if __name__ == "__main__":

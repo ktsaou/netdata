@@ -27,7 +27,8 @@ def compare(capture, binary=None):
     (task / "candidate.stderr").write_text(result.stderr)
     if result.returncode:
         raise SystemExit(f"numerical candidate failed ({result.returncode}); evidence: {task}")
-    exact = {row["id"] for row in inputs if row["mode"] == "math-frexp" or row["id"].startswith("TestLog2:power:")}
+    exact = {row["id"] for row in inputs if row["mode"] == "math-frexp"
+             or row["id"].startswith(("TestLog2:power:", "TestExp2:power:"))}
     report = compare_results(expected, [json.loads(line) for line in result.stdout.splitlines()], exact)
     report["source_counts"] = counts
     report["declared_bit_differences"] = []
