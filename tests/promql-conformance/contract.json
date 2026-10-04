@@ -130,10 +130,10 @@
     "comparison_tool": "histogram.py",
     "input_ledger": "histogram-original-inputs.json",
     "source_files": 1654,
-    "original_histogram_tests": 23,
-    "original_table_cases": 197,
-    "supplemental_cases": 5778,
-    "owned_and_borrowed_comparisons": 6228,
+    "original_histogram_tests": 25,
+    "original_table_cases": 238,
+    "supplemental_cases": 5843,
+    "owned_and_borrowed_comparisons": 6440,
     "semantic_pass": true,
     "reported_numeric_bit_differences_by_profile": {"release": 10, "release-min": 1},
     "bit_difference_kind": "NaN sign in compensated subtraction; strict-bits diagnostic fails.",
@@ -152,9 +152,15 @@
     "original_arithmetic_invocations": 114,
     "supplemental_arithmetic_invocations": 168,
     "paired_compaction_cases": 25,
+    "original_equality_pairs": 41,
+    "supplemental_equality_pairs": 30,
+    "overflow_cases": 35,
+    "equality_capture": "Whole procedural source bodies, including integer-to-float conversion; observations follow original assertions. Both directional booleans and complete operand states are retained.",
+    "equality_retention": "Borrowed payloads, bitwise data comparison, numeric threshold/custom-bound comparison, wrapping empty-span folds; constant auxiliary memory.",
+    "paired_compaction_boundary": "Standalone fixtures use independent spans; Go shared receiver/correction backing storage in a direct arithmetic-to-compaction lifecycle remains unqualified. Normal KahanAdd resynchronizes spans before returning; Rust mutable arrays are owned independently.",
     "arithmetic_capture": "Operands frozen after source Copy for original fixtures; raw, folded and compacted results retained separately. Source assertion scope is preserved.",
     "arithmetic_retention": "Borrowed right operand; reusable accumulator buffers; reduced schema output; virtual zero correction; target arrays for custom-bound reconciliation. No raw history container.",
     "iterator_retention": "Borrowed payload; constant-sized state; consuming start-threshold loop; no traversal output array.",
-    "status": "Owned/borrowed per-sample payloads, Copy/CopyTo, Mul/Div, integer conversion, compensated summation, ordinary/paired compaction, schema copying/reduction, bucket boundaries, bucket traversal, custom-bound equality, zero-threshold scans, counter reset detection and Add/Sub/KahanAdd implemented and finitely compared. No complete histogram, evaluator, C boundary, runtime accounting or paged-provider claim."
+    "status": "Owned/borrowed per-sample payloads, Copy/CopyTo, Mul/Div, integer conversion, compensated summation, ordinary/paired compaction, schema copying/reduction, bucket boundaries, bucket traversal, custom-bound equality, zero-threshold scans, counter reset detection, Add/Sub/KahanAdd, data equality and overflow scans implemented and finitely compared. No complete histogram, evaluator, C boundary, runtime accounting or paged-provider claim."
   }
 }

@@ -17,7 +17,15 @@ class HistogramReferenceTests(unittest.TestCase):
                         "go_os": "linux", "go_arch": "amd64", "original_assertions_passed": True, "cases": []}
         for binding in cls.ledger["cases"]:
             case = copy.deepcopy(binding)
-            if case["mode"] == "float-arithmetic-set":
+            if case["mode"] == "float-equality-pair":
+                case["actual"] = {"forward": False, "reverse": False,
+                                  "left_after": copy.deepcopy(case["request"]["left"]),
+                                  "right_after": copy.deepcopy(case["request"]["right"])}
+                if case["declared"] is not None:
+                    case["actual"].update(case["declared"])
+            elif case["mode"] == "float-overflow":
+                case["actual"] = {"overflow": False, "input_after": copy.deepcopy(case["request"]["input"])}
+            elif case["mode"] == "float-arithmetic-set":
                 results = []
                 for index, operation in enumerate(case["request"]["operations"]):
                     expectation = (case["declared"]["operations"][index] if case["declared"] is not None else
@@ -74,7 +82,7 @@ class HistogramReferenceTests(unittest.TestCase):
 
     def test_complete_decoder_roster(self):
         self.assertEqual(validate_cases(self.document, self.ledger["tables"]),
-                         {"original_table_cases": 197, "supplemental_cases": 5778, "total": 5975})
+                         {"original_table_cases": 238, "supplemental_cases": 5843, "total": 6081})
 
     def test_valid_but_rebound_inputs_are_rejected(self):
         mutations = [
@@ -98,6 +106,9 @@ class HistogramReferenceTests(unittest.TestCase):
             ("TestFloatHistogramAdd:000", lambda case: case["request"]["operations"][0].update(operation="sub")),
             ("TestKahanAddWithCompHistogram:000", lambda case: case["request"]["operations"][0].update(compensation=None)),
             ("TestFloatHistogramKahanCompactSpanMerge:000", lambda case: case["request"].update(max_empty=0)),
+            ("TestFloatHistogramEquals:000", lambda case: case["request"]["left"].update(count="0000000000000000")),
+            ("supplement:equality:28", lambda case: case["request"]["left"]["positive_spans"][0].update(Offset=0)),
+            ("supplement:overflow:5:3", lambda case: case["request"]["input"].update(custom_values=None)),
         ]
         for identity, mutate in mutations:
             with self.subTest(identity=identity):

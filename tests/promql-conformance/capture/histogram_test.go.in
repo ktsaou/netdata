@@ -11,6 +11,7 @@ import (
 	"runtime"
 	"testing"
 
+	"github.com/prometheus/prometheus/model/value"
 	"github.com/prometheus/prometheus/util/kahansum"
 	"github.com/stretchr/testify/require"
 )
@@ -70,6 +71,17 @@ func netdataRecord(cases *[]map[string]any, id, mode string, request, actual, de
 	*cases = append(*cases, map[string]any{"id": id, "mode": mode,
 		"request": netdataFrozen(request), "actual": netdataFrozen(actual),
 		"declared": netdataFrozen(declared)})
+}
+
+func netdataEqualityRecord(cases *[]map[string]any, id string, left, right *FloatHistogram, expected any) {
+	request := netdataFrozen(map[string]any{"left": netdataFloat(left), "right": netdataFloat(right)})
+	forward, reverse := left.Equals(right), right.Equals(left)
+	var declared any
+	if expected != nil {
+		declared = map[string]any{"forward": expected, "reverse": expected}
+	}
+	netdataRecord(cases, id, "float-equality-pair", request, map[string]any{"forward": forward, "reverse": reverse,
+		"left_after": netdataFloat(left), "right_after": netdataFloat(right)}, declared)
 }
 
 func netdataReductionResult(input *FloatHistogram, err error) any {
@@ -882,6 +894,115 @@ func netdataSupplemental(cases *[]map[string]any) {
 	}
 }
 
+func netdataEqualitySupplemental(cases *[]map[string]any) {
+	nan := math.Float64frombits(0x7ff8000000000001)
+	negativeZero := math.Float64frombits(1 << 63)
+	for shape := 0; shape < 30; shape++ {
+		left := &FloatHistogram{Schema: 0, Count: 3, Sum: 5, ZeroThreshold: 0.01, ZeroCount: 1,
+			PositiveSpans: []Span{{-1, 2}}, PositiveBuckets: []float64{1, 1},
+			NegativeSpans: []Span{{0, 1}}, NegativeBuckets: []float64{1}}
+		right := left.Copy()
+		switch shape {
+		case 1:
+			left.CounterResetHint, right.CounterResetHint = CounterReset, CounterResetHint(255)
+		case 2:
+			right.Schema = 1
+		case 3:
+			left.Count, right.Count = 0, negativeZero
+		case 4:
+			left.Sum, right.Sum = 0, negativeZero
+		case 5:
+			left.ZeroCount, right.ZeroCount = 0, negativeZero
+		case 6:
+			left.PositiveBuckets[0], right.PositiveBuckets[0] = 0, negativeZero
+		case 7:
+			left.NegativeBuckets[0], right.NegativeBuckets[0] = 0, negativeZero
+		case 8:
+			left.ZeroThreshold, right.ZeroThreshold = 0, negativeZero
+		case 9:
+			left.Count, right.Count = nan, nan
+		case 10:
+			left.Count, right.Count = nan, math.Float64frombits(0x7ff8000000000002)
+		case 11:
+			left.Sum, right.Sum = math.Float64frombits(value.StaleNaN), nan
+		case 12:
+			left.Sum, right.Sum = nan, nan
+		case 13:
+			left.ZeroCount, right.ZeroCount = nan, nan
+		case 14:
+			left.ZeroCount, right.ZeroCount = nan, math.Float64frombits(0xfff8000000000001)
+		case 15:
+			left.PositiveBuckets[0], right.PositiveBuckets[0] = nan, nan
+		case 16:
+			left.PositiveBuckets[0], right.PositiveBuckets[0] = nan, math.Float64frombits(0xfff8000000000001)
+		case 17:
+			left.NegativeBuckets[0], right.NegativeBuckets[0] = nan, nan
+		case 18:
+			left.ZeroThreshold, right.ZeroThreshold = nan, nan
+		case 19, 20, 21:
+			left.Schema, right.Schema = CustomBucketsSchema, CustomBucketsSchema
+			if shape == 19 {
+				left.CustomValues, right.CustomValues = []float64{nan}, []float64{nan}
+			} else if shape == 20 {
+				left.CustomValues, right.CustomValues = []float64{0}, []float64{negativeZero}
+			} else {
+				left.CustomValues, right.CustomValues = nil, []float64{}
+			}
+		case 22:
+			left.CustomValues, right.CustomValues = []float64{math.Inf(1)}, []float64{nan, 1}
+		case 23:
+			left.Schema, right.Schema = CustomBucketsSchema, CustomBucketsSchema
+			left.ZeroCount, right.ZeroCount = 0, negativeZero
+		case 24:
+			left.Schema, right.Schema = CustomBucketsSchema, CustomBucketsSchema
+			right.NegativeBuckets[0] = 2
+		case 25:
+			left.PositiveSpans = []Span{{-2, 0}, {1, 0}, {0, 2}}
+			right.NegativeSpans = []Span{{2, 0}, {-3, 0}, {1, 1}}
+		case 26:
+			left.PositiveSpans = append(left.PositiveSpans, Span{Offset: 7}, Span{Offset: -2})
+			right.NegativeSpans = append(right.NegativeSpans, Span{Offset: -100})
+		case 27:
+			right.PositiveSpans = []Span{{-1, 1}, {0, 1}}
+		case 28:
+			left.PositiveSpans = []Span{{math.MaxInt32, 0}, {1, 2}}
+			right.PositiveSpans = []Span{{math.MinInt32, 2}}
+		case 29:
+			left.PositiveSpans, right.PositiveSpans = []Span{{7, 0}, {-2, 0}}, nil
+			left.NegativeSpans, right.NegativeSpans = nil, []Span{}
+			left.PositiveBuckets, right.PositiveBuckets = nil, []float64{}
+			left.NegativeBuckets, right.NegativeBuckets = []float64{}, nil
+		}
+		netdataEqualityRecord(cases, fmt.Sprintf("supplement:equality:%d", shape), left, right, nil)
+	}
+	values := []float64{0, 1, nan, math.Inf(1), math.Inf(-1)}
+	for field := 0; field < 7; field++ {
+		for index, number := range values {
+			h := &FloatHistogram{}
+			switch field {
+			case 0:
+				h.ZeroCount = number
+			case 1:
+				h.Count = number
+			case 2:
+				h.Sum = number
+			case 3:
+				h.PositiveBuckets = []float64{0, number, 1}
+			case 4:
+				h.NegativeBuckets = []float64{1, number, 0}
+			case 5:
+				h.CustomValues = []float64{0, number, 1}
+			case 6:
+				h.ZeroThreshold = number
+			}
+			request := netdataFrozen(map[string]any{"input": netdataFloat(h)})
+			overflow := h.HasOverflow()
+			netdataRecord(cases, fmt.Sprintf("supplement:overflow:%d:%d", field, index), "float-overflow", request,
+				map[string]any{"overflow": overflow, "input_after": netdataFloat(h)}, nil)
+		}
+	}
+}
+
 func TestNetdataCaptureHistogram(t *testing.T) {
 	destination := os.Getenv("NETDATA_HISTOGRAM_CAPTURE")
 	if destination == "" {
@@ -910,6 +1031,7 @@ func TestNetdataCaptureHistogram(t *testing.T) {
 	netdataZeroSupplemental(&cases)
 	netdataCounterSupplemental(&cases)
 	netdataArithmeticSupplemental(&cases)
+	netdataEqualitySupplemental(&cases)
 	raw, err := json.MarshalIndent(map[string]any{"schema_version": 1,
 		"commit": "5241a27fe3c6983549fccc32f6e65917408c63cd", "go_version": runtime.Version(),
 		"go_os": runtime.GOOS, "go_arch": runtime.GOARCH,

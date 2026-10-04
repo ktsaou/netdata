@@ -278,7 +278,7 @@ query evaluation. Nil and empty arrays, reset hints, integer deltas and raw floa
 
 The kernels implement schema-aware Copy/CopyTo, multiplication/division, integer-to-float conversion, compensated
 summation, sparse compaction, schema copy/reduction, bucket boundaries, borrowed bucket traversal, custom-bound
-matching, counter reset detection and Add/Sub/KahanAdd. Reduction reuses the current payload's buffers; borrowed schema copying
+matching, counter reset detection, Add/Sub/KahanAdd, data equality and overflow scans. Reduction reuses the current payload's buffers; borrowed schema copying
 constructs only the reduced result. Boundaries use all 511 compiled Go constants
 and the Go scaling operation order, including subnormal rounding and the last finite bucket. Capture and compare
 with the existing toolchains:
@@ -288,8 +288,8 @@ python3 tests/promql-conformance/histogram_capture.py --mod-cache "${PROMQL_GO_M
 python3 tests/promql-conformance/histogram.py --capture "${PROMQL_HISTOGRAM_CAPTURE_DIR:?}"
 ```
 
-All twenty-three original histogram tests run first. Exact Go-AST declaration spans supply 197 source fixtures,
-including the dedicated reverse-iterator and paired-compaction setups. The 5,778 separately attributed supplemental cases cover special
+All twenty-five original histogram tests run first. Exact Go-AST declaration spans and procedural bodies supply 238 source fixtures,
+including the dedicated reverse-iterator and paired-compaction setups. The 5,843 separately attributed supplemental cases cover special
 factors, hints, high integer counts, compensation,
 nil/empty layouts, partial reduction failures and every compiled bound fraction at ten critical exponents.
 Map cases use source-bound keys rather than iteration order.
@@ -314,10 +314,19 @@ expected layouts never substitute for raw results. Supplementary arithmetic adds
 of normal/unknown reset hints, nil/empty buffers, signed zeros, special values, custom-bound intersections and
 cancellation with nonzero corrections. Twenty-five paired-compaction cases check both count arrays; correction
 span headers retain the state produced by the source helper.
+These standalone paired-compaction fixtures use independent span arrays. Go's internal compensation spans can
+share receiver backing storage; direct arithmetic followed by paired compaction does not qualify that alias lifecycle.
+Normal KahanAdd resynchronizes compensation spans before returning; Rust mutable buffers remain independently owned.
 The right operand stays borrowed. Schema conversion constructs reduced buffers, and its initial zero correction
 is read virtually. Sparse insertion and paired compaction reuse accumulator capacity; custom reconciliation builds
 target main/correction arrays. These are current payloads and operator state, not retained raw history. Buffer
 tests verify reuse and lifetime after the borrowed operand is released. No total-memory or accounting claim follows.
+
+Equality capture preserves the complete sequential bodies of both upstream equality tests, including integer-to-float
+conversion and assertions before each observation. All 41 original pairs and 30 additional pairs run in both directions.
+Counts, sums and bucket data use bit equality; thresholds and custom bounds use numeric equality. Empty spans fold with
+wrapping offsets, while adjacent nonempty spans remain distinct. Thirty-five overflow witnesses distinguish infinities
+in watched fields from NaNs and the ignored zero threshold. Both helpers borrow the payload and use constant auxiliary memory.
 
 The complete 1,654-file source facade stays unchanged. The public Go-derived input ledger binds every request,
 declared expectation, source prefix/position and the source-manifest digest independently of the capture directory.
@@ -330,7 +339,7 @@ The immutable Rust table can be regenerated with `histogram_bounds.py --capture 
 shared mathematical constants, while the boundary algorithm is independently compared with executed Go outcomes.
 Boundary results use exact bit comparison, so underflow-to-zero cannot pass the ordinary numeric tolerance.
 
-The current comparison passes **6,228 semantic fixture comparisons** in both release profiles, including owned and borrowed
+The current comparison passes **6,440 semantic fixture comparisons** in both release profiles, including owned and borrowed
 retention paths. Compensated subtraction reports **ten NaN-sign bit differences in release and one in release-min**
 on the qualified Rust/Go amd64 toolchains;
 `--strict-bits` fails this separate diagnostic gate. There are also three signed-zero differences between Go's
