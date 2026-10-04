@@ -4,7 +4,8 @@ use std::io::{self, BufRead, Write};
 
 use netdata_promql_engine::histogram::{
     Bucket, FloatHistogram, HistogramArithmetic, HistogramError, IntegerHistogram, Span,
-    bucket_bound, custom_bounds_match, histogram_fraction, histogram_quantile,
+    bucket_bound, custom_bounds_match, histogram_avg, histogram_count, histogram_fraction,
+    histogram_quantile, histogram_stddev, histogram_stdvar, histogram_sum,
 };
 use netdata_promql_engine::numerical::{
     compensated_add, compensated_sub, exp2, frexp, ldexp, log, log2, sqrt,
@@ -376,6 +377,25 @@ fn result(input: &Value) -> Result<Value, Error> {
             json!(format!("{:016x}", fraction.to_bits()))
         }
         "float-trim" => trim_result(request)?,
+        "histogram-count" | "histogram-sum" | "histogram-avg" | "histogram-stdvar"
+        | "histogram-stddev" => {
+            let h = float(&request["input"])?;
+            let value = match mode {
+                "histogram-count" => histogram_count(h.as_ref()),
+                "histogram-sum" => histogram_sum(h.as_ref()),
+                "histogram-avg" => histogram_avg(h.as_ref()),
+                "histogram-stdvar" => histogram_stdvar(h.as_ref()),
+                "histogram-stddev" => histogram_stddev(h.as_ref()),
+                _ => unreachable!(),
+            };
+            let reciprocal = 1.0 / value;
+            json!({"value": format!("{:016x}", value.to_bits()), "input_after": encoded_float(&h),
+                "annotations": Value::Null, "reciprocal": format!("{:016x}", reciprocal.to_bits()),
+                "negative_reciprocal_infinite": reciprocal == f64::NEG_INFINITY,
+                "positive_reciprocal_infinite": reciprocal == f64::INFINITY,
+                "less_than_positive_infinity": value < f64::INFINITY,
+                "greater_than_compensation_threshold": value > 1_666_666_666_666_668.0})
+        }
         "histogram-fraction" | "histogram-quantile" => {
             let histogram = float(&request["input"])?;
             let result = if mode == "histogram-fraction" {

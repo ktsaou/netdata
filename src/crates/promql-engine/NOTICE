@@ -13,6 +13,7 @@ Compensated summation derives from util/kahansum/kahansum.go.
 Native fraction/quantile interpolation derives from promql/quantile.go;
 their diagnostic identities/formatting derive from util/annotations/annotations.go
 and promql/parser/posrange/posrange.go.
+Native histogram statistic algorithms derive from promql/functions.go.
 Copyright The Prometheus Authors. Licensed under Apache-2.0;
 see LICENSE-APACHE-2.0.
 
