@@ -189,9 +189,10 @@ stacks. `parser.py` executes all 356 captured expression cases and compares comp
 bytes/positions. **350/356 match exactly**, including the 41,001-node AST and 10,999-error case. The six remaining
 cases require the unfinished Go-compatible regex compiler; they fail explicitly and remain mandatory. The parser
 driver returns failure until every captured expression matches, and writes differences to ignored `.tmp/`.
-The committed `parser-cases.json` adds **640/640 exact public regression/profile cases**, captured independently
+The committed `parser-cases.json` adds **784/784 exact public regression/profile cases**, captured independently
 from Go for all sixteen parser-option combinations. They cover trailing argument commas, malformed grouping,
-fixed-arity duration calls, recovery diagnostics, chained offset signs and experimental gates. Regenerate with
+fixed-arity duration calls, repeated commas, surviving parentheses after recovery, chained offset signs and
+experimental gates. Regenerate with
 `parser_cases.py --mod-cache "${PROMQL_MODULE_CACHE:?}"`; the capture verifies every source file before and after
 execution and leaves the reference module cache unchanged. These finite cases do not prove arbitrary-input parity.
 

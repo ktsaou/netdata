@@ -38,5 +38,14 @@
   "info(foo)",
   "sort_by_label(foo,\"job\")",
   "double_exponential_smoothing(foo[5m],0.1,0.2)",
-  "sum by (\"\") (foo)"
+  "sum by (\"\") (foo)",
+  "abs(foo,,)",
+  "sum(foo,,)",
+  "abs(foo,,,)",
+  "(foo offset min_of(1))",
+  "foo offset (min_of(1))",
+  "foo offset min_of(1,max_of(2))",
+  "foo offset min_of(step(1),2)",
+  "(foo offset min_of(1,max_of(2)))",
+  "foo offset (min_of(1,max_of(2)))"
 ]

@@ -96,6 +96,7 @@ where
         lexer: Lexer::new(input),
         lookahead: None,
         terminal: false,
+        recovery_shifts: 0,
         last_closing: 0,
         arena: Arena::default(),
         errors: Vec::new(),
@@ -110,6 +111,7 @@ struct Parser<'a, C> {
     lexer: Lexer<'a>,
     lookahead: Option<Item<'a>>,
     terminal: bool,
+    recovery_shifts: u8,
     last_closing: usize,
     arena: Arena,
     errors: Vec<ParseError>,
@@ -178,7 +180,11 @@ where
 
     fn take(&mut self) -> Item<'a> {
         self.peek();
-        self.lookahead.take().unwrap()
+        let item = self.lookahead.take().unwrap();
+        if !matches!(item.kind, EOF | ERROR) {
+            self.recovery_shifts = self.recovery_shifts.saturating_sub(1);
+        }
+        item
     }
 
     fn accept(&mut self, kind: TokenKind) -> Option<Item<'a>> {
@@ -1031,6 +1037,7 @@ where
         let Some(index) = recovery else {
             return false;
         };
+        self.recovery_shifts = 3;
         frames.truncate(index + 1);
         match frames.pop().unwrap() {
             Frame::Range { left, .. } | Frame::RangeStep { left, .. } => {
@@ -1046,31 +1053,6 @@ where
             _ => unreachable!(),
         }
         true
-    }
-
-    fn recover_duration_call(
-        &mut self,
-        frames: &mut Vec<Frame<'a>>,
-        values: &mut Vec<NodeId>,
-    ) -> bool {
-        let offset = matches!(
-            frames.iter().rev().find(|frame| matches!(
-                frame,
-                Frame::Range { .. }
-                    | Frame::RangeStep { .. }
-                    | Frame::Offset(_)
-                    | Frame::Arguments {
-                        callee: Callee::Aggregate { .. },
-                        ..
-                    }
-            )),
-            Some(Frame::Offset(_))
-        );
-        let recovered = self.recover_prefix(frames, values, false);
-        if recovered && offset && self.recover_to(&[RIGHT_PAREN, EOF, ERROR]) {
-            self.accept(RIGHT_PAREN);
-        }
-        recovered
     }
 
     fn run(mut self) -> ParseOutput {
@@ -1217,7 +1199,7 @@ where
                                         Vec::new(),
                                         close.span.end,
                                     ));
-                                } else if !self.recover_duration_call(&mut frames, &mut values) {
+                                } else if !self.recover_prefix(&mut frames, &mut values, false) {
                                     failed = true;
                                     break;
                                 }
@@ -1410,6 +1392,10 @@ where
                                     break;
                                 }
                             }
+                            if let Some(close) = self.accept(RIGHT_PAREN) {
+                                values.push(self.finish_call(callee, arguments, close.span.end));
+                                continue;
+                            }
                             frames.push(Frame::Arguments {
                                 callee,
                                 arguments,
@@ -1430,7 +1416,7 @@ where
                     if self.accept(COMMA).is_some() {
                         frames.push(Frame::DurationSecond(callee, first));
                         frames.push(Frame::Parse(0, Mode::Duration));
-                    } else if !self.recover_duration_call(&mut frames, &mut values) {
+                    } else if !self.recover_prefix(&mut frames, &mut values, false) {
                         failed = true;
                         break;
                     }
@@ -1439,7 +1425,7 @@ where
                     let second = values.pop().unwrap();
                     if let Some(close) = self.accept(RIGHT_PAREN) {
                         values.push(self.finish_call(callee, vec![first, second], close.span.end));
-                    } else if !self.recover_duration_call(&mut frames, &mut values) {
+                    } else if !self.recover_prefix(&mut frames, &mut values, false) {
                         failed = true;
                         break;
                     }
@@ -1477,7 +1463,11 @@ where
         }
         let root = if failed { None } else { values.pop() };
         if root.is_some() && !matches!(self.peek().kind, EOF | ERROR) {
-            self.unexpected("", "");
+            if self.recovery_shifts == 3 {
+                self.recover_to(&[EOF, ERROR]);
+            } else {
+                self.unexpected("", "");
+            }
         }
         ParseOutput {
             arena: self.arena,
