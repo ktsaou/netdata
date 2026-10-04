@@ -143,6 +143,19 @@ class ClassicReferenceTests(unittest.TestCase):
             else: result["quantile"]["min_bound"] = encoded(0.0)
             with self.assertRaises(ValueError): validate_outcome(row["mode"], row["request"], candidate)
 
+    def test_forced_extrema_cannot_be_nan_or_invented_bounds(self):
+        row = copy.deepcopy(self.rows["supplement:bucket:011:q:08"])
+        result = row["actual"]["steps"][0]["result"]
+        result["quantile"] = {"forced_monotonicity": True, "fixed_precision": False,
+                              "min_bound": encoded(2.0), "max_bound": encoded(math.inf),
+                              "max_decrease": encoded(7.0)}
+        validate_outcome(row["mode"], row["request"], row["actual"])
+        for key in ("min_bound", "max_bound"):
+            for value in ("7ff8000000000001", "7ff0000000000001", encoded(154.0)):
+                candidate = copy.deepcopy(row["actual"])
+                candidate["steps"][0]["result"]["quantile"][key] = value
+                with self.assertRaises(ValueError): validate_outcome(row["mode"], row["request"], candidate)
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -126,8 +126,13 @@ def validate_outcome(mode, request, actual):
             elif not details["forced_monotonicity"]:
                 if (details["min_bound"], details["max_bound"], details["max_decrease"]) != (encoded(math.inf), encoded(-math.inf), encoded(0.0)):
                     raise ValueError("uncorrected classic quantile changed diagnostic sentinels")
-            elif not bits(details["max_decrease"])[1] > 0:
-                raise ValueError("forced classic quantile lacks a positive decrease")
+            else:
+                if not bits(details["max_decrease"])[1] > 0:
+                    raise ValueError("forced classic quantile lacks a positive decrease")
+                for key, sentinel in (("min_bound", math.inf), ("max_bound", -math.inf)):
+                    if (math.isnan(bits(details[key])[1])
+                            or details[key] not in bounds | {encoded(sentinel)}):
+                        raise ValueError("forced classic quantile invented a diagnostic bound")
             if early and step["input_after"] != previous:
                 raise ValueError("special quantile mutated classic input")
         elif result["quantile"] is not None:
