@@ -19,7 +19,8 @@ directory identify upstream source; they are not credentials or private identiti
   name removal and start-timestamp evaluation. Optional syntax remains attributable to this profile.
 - `language-catalog.json`: the pinned function signatures, 90 functions (73 stable, 17 experimental), 14 aggregations
   and profile options. This is an inventory, not a list of implemented Rust features.
-- `upstream-sources.json`: digests for all 21 evaluation DSL files (2,239 `eval` commands, 12,023 physical lines)
+- `upstream-sources.json`: digests for all 21 evaluation DSL files (2,242 commands: 2,239 `eval` and three `eval_fail`;
+  12,023 physical lines)
   and the parser/lexer fixture sources. `upstream_inventory.py` rejects any digest change.
 - `contract.json`: the versioned target, required corpora, numerical contract and remaining stages.
 

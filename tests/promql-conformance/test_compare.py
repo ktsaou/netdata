@@ -42,6 +42,14 @@ class ComparisonTests(unittest.TestCase):
         self.assertFalse(compare(result(1), result(math.nextafter(1, 2)),
                                  [{"id": "threshold", "exact_numeric": True}])["semantic_pass"])
 
+    def test_exact_numeric_preserves_upstream_nan_equivalence(self):
+        reference, actual = result(math.nan), result(math.nan)
+        cases = [{"id": "threshold", "exact_numeric": True}]
+        self.assertTrue(compare(reference, actual, cases)["semantic_pass"])
+        actual["results"][0]["rows"][0]["points"][0]["float"] = "7ff8000000000001"
+        self.assertTrue(compare(reference, actual, cases)["semantic_pass"])
+        self.assertFalse(compare(result(math.nan), result(1), cases)["semantic_pass"])
+
     def test_near_zero_nan_stale_and_infinity_follow_upstream(self):
         self.assertFalse(same_number(raw(0), raw(1e-9)))
         self.assertTrue(same_number(raw(-0.0), raw(0.0)))
@@ -124,6 +132,12 @@ class ComparisonTests(unittest.TestCase):
         report = compare(reference, actual, self.cases)
         self.assertTrue(report["semantic_pass"])
         self.assertEqual(len(report["bitwise_differences"]), 1)
+        for key, value in {"negative_spans": {}, "negative_buckets": "", "custom_values": False}.items():
+            with self.subTest(invalid_collection=key):
+                actual = deepcopy(reference)
+                actual["results"][0]["rows"][0]["points"][0]["float_histogram"][key] = value
+                with self.assertRaises(ValueError):
+                    compare(reference, actual, self.cases)
 
     def test_errors_retain_attribution_and_parser_positions(self):
         reference = result()
@@ -150,6 +164,31 @@ class ComparisonTests(unittest.TestCase):
                     compare(result(), actual, self.cases)
         with self.assertRaises(ValueError):
             compare({"schema_version": 1, "results": []}, {"schema_version": 1, "results": []}, [])
+
+    def test_wrong_empty_container_types_cannot_pass(self):
+        reference = result()
+        reference["results"][0]["rows"] = []
+        for field, value in {"rows": {}, "warnings": "", "infos": {}}.items():
+            with self.subTest(field=field):
+                actual = deepcopy(reference)
+                actual["results"][0][field] = value
+                with self.assertRaises(ValueError):
+                    compare(reference, actual, self.cases)
+        reference = result()
+        reference["results"][0]["rows"][0]["labels"] = []
+        actual = deepcopy(reference)
+        actual["results"][0]["rows"][0]["labels"] = {}
+        with self.assertRaises(ValueError):
+            compare(reference, actual, self.cases)
+
+    def test_missing_matrix_point_does_not_hide_same_time_bit_difference(self):
+        reference, actual = result(), result(math.nextafter(0.6, 0))
+        reference["results"][0]["kind"] = actual["results"][0]["kind"] = "matrix"
+        reference["results"][0]["rows"][0]["points"].insert(0, {"time_ms": 0, "kind": "float", "float": raw(0)})
+        report = compare(reference, actual, self.cases)
+        self.assertFalse(report["semantic_pass"])
+        self.assertIn({"id": "threshold", "path": "row[0].point[1].float", "reference": raw(0.6),
+                       "candidate": raw(math.nextafter(0.6, 0))}, report["bitwise_differences"])
 
     def test_bit_differences_survive_missing_or_reordered_series(self):
         reference, actual = result(), result(math.nextafter(0.6, 0))

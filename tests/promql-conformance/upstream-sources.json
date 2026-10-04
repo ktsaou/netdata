@@ -8,147 +8,189 @@
       "sha256": "6361d9092a8b31c04f59b4e4d5e70fa3aeba5c4b068505e2fec41252a2502b88",
       "physical_lines": 967,
       "eval_commands": 160,
-      "profile": "upstream-tests"
+      "profile": "upstream-tests",
+      "ordinary_eval_commands": 160,
+      "negative_eval_commands": 0
     },
     {
       "path": "promql/promqltest/testdata/at_modifier.test",
       "sha256": "40640c64b8159cb052518d4022935ee25357ee04aebedea519d03a505244395d",
       "physical_lines": 336,
       "eval_commands": 78,
-      "profile": "upstream-tests"
+      "profile": "upstream-tests",
+      "ordinary_eval_commands": 78,
+      "negative_eval_commands": 0
     },
     {
       "path": "promql/promqltest/testdata/collision.test",
       "sha256": "7d477979b45192d1aa2ba7bc1928e16c69fe8c84babe74e010f2cbc4f4b2c412",
       "physical_lines": 23,
       "eval_commands": 2,
-      "profile": "upstream-tests"
+      "profile": "upstream-tests",
+      "ordinary_eval_commands": 2,
+      "negative_eval_commands": 0
     },
     {
       "path": "promql/promqltest/testdata/duration_expression.test",
       "sha256": "b3b177b6792c4a28ee57c605a9fba3c05b4c1e1b81a3bf34014b240cfe550163",
       "physical_lines": 251,
       "eval_commands": 59,
-      "profile": "upstream-tests"
+      "profile": "upstream-tests",
+      "ordinary_eval_commands": 59,
+      "negative_eval_commands": 0
     },
     {
       "path": "promql/promqltest/testdata/extended_vectors.test",
       "sha256": "03b8988ed88c5f839e8662efaaf18529743f3ddec4ade047776b7436983fa285",
       "physical_lines": 817,
       "eval_commands": 174,
-      "profile": "upstream-tests"
+      "profile": "upstream-tests",
+      "ordinary_eval_commands": 174,
+      "negative_eval_commands": 0
     },
     {
       "path": "promql/promqltest/testdata/fill-modifier.test",
       "sha256": "8de100df12a014f5259c17289187cf24b634d90e82a3d3de0560f1ed780d3a75",
       "physical_lines": 398,
       "eval_commands": 46,
-      "profile": "upstream-tests"
+      "profile": "upstream-tests",
+      "ordinary_eval_commands": 46,
+      "negative_eval_commands": 0
     },
     {
       "path": "promql/promqltest/testdata/functions.test",
       "sha256": "04b1655168755367f99342c408e55f1c3ae070a9a1625deab85ad76e08240918",
       "physical_lines": 2300,
-      "eval_commands": 436,
-      "profile": "upstream-tests"
+      "eval_commands": 438,
+      "profile": "upstream-tests",
+      "ordinary_eval_commands": 436,
+      "negative_eval_commands": 2
     },
     {
       "path": "promql/promqltest/testdata/histograms.test",
       "sha256": "f8f151194d9e254ca5c4f229555c6905613d7a6f49d375c81d5d790eb81d8aab",
       "physical_lines": 1236,
       "eval_commands": 185,
-      "profile": "upstream-tests"
+      "profile": "upstream-tests",
+      "ordinary_eval_commands": 185,
+      "negative_eval_commands": 0
     },
     {
       "path": "promql/promqltest/testdata/info.test",
       "sha256": "ab32b65482396ad455f7225b6f31ffeaee582fd646db05edc508b1d8b21362ed",
       "physical_lines": 497,
       "eval_commands": 70,
-      "profile": "upstream-tests"
+      "profile": "upstream-tests",
+      "ordinary_eval_commands": 70,
+      "negative_eval_commands": 0
     },
     {
       "path": "promql/promqltest/testdata/limit.test",
       "sha256": "0cfb243dc626f9253523820d3bc871a9712d88a66c9936acbb99ec52f109d338",
       "physical_lines": 174,
       "eval_commands": 37,
-      "profile": "upstream-tests"
+      "profile": "upstream-tests",
+      "ordinary_eval_commands": 37,
+      "negative_eval_commands": 0
     },
     {
       "path": "promql/promqltest/testdata/literals.test",
       "sha256": "0561b22f1d0c89bb8495174f9f4faf9a05b70cc4170454671c26d3e70d84110c",
       "physical_lines": 74,
       "eval_commands": 25,
-      "profile": "upstream-tests"
+      "profile": "upstream-tests",
+      "ordinary_eval_commands": 25,
+      "negative_eval_commands": 0
     },
     {
       "path": "promql/promqltest/testdata/name_label_dropping.test",
       "sha256": "8149d92f071f057c7484a8e8409d52bf639a79cb1bfba3ecb7a6a0006e6095c2",
       "physical_lines": 142,
       "eval_commands": 30,
-      "profile": "upstream-tests"
+      "profile": "upstream-tests",
+      "ordinary_eval_commands": 30,
+      "negative_eval_commands": 0
     },
     {
       "path": "promql/promqltest/testdata/native_histograms.test",
       "sha256": "ebede14fc7e0bc219145c198cdc371832cc796d89582da5f311e605230c88bd1",
       "physical_lines": 2536,
       "eval_commands": 522,
-      "profile": "upstream-tests"
+      "profile": "upstream-tests",
+      "ordinary_eval_commands": 522,
+      "negative_eval_commands": 0
     },
     {
       "path": "promql/promqltest/testdata/operators.test",
       "sha256": "5caf8c4c26e3e492ea98fabc4f32622269e13ad7601a51434e2b029ca9482685",
       "physical_lines": 1030,
-      "eval_commands": 213,
-      "profile": "upstream-tests"
+      "eval_commands": 214,
+      "profile": "upstream-tests",
+      "ordinary_eval_commands": 213,
+      "negative_eval_commands": 1
     },
     {
       "path": "promql/promqltest/testdata/range_queries.test",
       "sha256": "b0db3dea23968f7efa755dd6bf52265419696107403434f6d93cf7df8a8abc8d",
       "physical_lines": 122,
       "eval_commands": 18,
-      "profile": "upstream-tests"
+      "profile": "upstream-tests",
+      "ordinary_eval_commands": 18,
+      "negative_eval_commands": 0
     },
     {
       "path": "promql/promqltest/testdata/selectors.test",
       "sha256": "70a827b6cb133d95d139d7f0433db742f1f310d5bc1dd5e4b138031970ebc43c",
       "physical_lines": 207,
       "eval_commands": 31,
-      "profile": "upstream-tests"
+      "profile": "upstream-tests",
+      "ordinary_eval_commands": 31,
+      "negative_eval_commands": 0
     },
     {
       "path": "promql/promqltest/testdata/staleness.test",
       "sha256": "178a655095f05f2ffb9f08f677dcd40f2a34e578099b3d3127ea486a9981f736",
       "physical_lines": 58,
       "eval_commands": 17,
-      "profile": "upstream-tests"
+      "profile": "upstream-tests",
+      "ordinary_eval_commands": 17,
+      "negative_eval_commands": 0
     },
     {
       "path": "promql/promqltest/testdata/start_timestamps.test",
       "sha256": "af59b68b470cf95b45c8ad09910e2c4d0dcb2c7000ac9f93fe96d6e7c2603006",
       "physical_lines": 313,
       "eval_commands": 25,
-      "profile": "upstream-tests"
+      "profile": "upstream-tests",
+      "ordinary_eval_commands": 25,
+      "negative_eval_commands": 0
     },
     {
       "path": "promql/promqltest/testdata/subquery.test",
       "sha256": "37c4534e7a98e4fe7fdd0e273e9bbf8c59c2fb7b0363c4b4b4af6fcf756f62a6",
       "physical_lines": 161,
       "eval_commands": 34,
-      "profile": "upstream-tests"
+      "profile": "upstream-tests",
+      "ordinary_eval_commands": 34,
+      "negative_eval_commands": 0
     },
     {
       "path": "promql/promqltest/testdata/trig_functions.test",
       "sha256": "d9cba332e8b6294276e7fbdeb5bbfb715e11bad6ec6aa568fe01aa82ed802a8f",
       "physical_lines": 101,
       "eval_commands": 19,
-      "profile": "upstream-tests"
+      "profile": "upstream-tests",
+      "ordinary_eval_commands": 19,
+      "negative_eval_commands": 0
     },
     {
       "path": "promql/promqltest/testdata/type_and_unit.test",
       "sha256": "23f604731f005563f9c7219c913eb65008f366fbe6999d64e1d9a22614e21426",
       "physical_lines": 280,
       "eval_commands": 58,
-      "profile": "upstream-tests"
+      "profile": "upstream-tests",
+      "ordinary_eval_commands": 58,
+      "negative_eval_commands": 0
     }
   ],
   "parser_sources": [
@@ -165,8 +207,10 @@
   ],
   "summary": {
     "files": 21,
-    "eval_commands": 2239,
-    "physical_lines": 12023
+    "eval_commands": 2242,
+    "physical_lines": 12023,
+    "ordinary_eval_commands": 2239,
+    "negative_eval_commands": 3
   },
   "qualification": "Inventory only. This does not execute or qualify the Rust engine."
 }
