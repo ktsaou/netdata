@@ -17,7 +17,30 @@ class HistogramReferenceTests(unittest.TestCase):
                         "go_os": "linux", "go_arch": "amd64", "original_assertions_passed": True, "cases": []}
         for binding in cls.ledger["cases"]:
             case = copy.deepcopy(binding)
-            if case["declared"] is not None:
+            if case["mode"] == "float-arithmetic-set":
+                results = []
+                for index, operation in enumerate(case["request"]["operations"]):
+                    expectation = (case["declared"]["operations"][index] if case["declared"] is not None else
+                                   {"error": "", "flags": None, "final": copy.deepcopy(operation["left"])})
+                    raw = {"result": None if expectation["error"] else copy.deepcopy(operation["left"]),
+                        "receiver_after": copy.deepcopy(operation["left"]), "argument_after": copy.deepcopy(operation["right"]),
+                        "compensation_after": copy.deepcopy(operation["compensation"]), "error": expectation["error"],
+                        "histogram_error": bool(expectation["error"]), "counter_reset_collision": False,
+                        "nhcb_bounds_reconciled": False}
+                    if expectation["flags"] is not None:
+                        raw.update(expectation["flags"])
+                    fold = copy.deepcopy(raw) if operation["operation"] == "kahan" and raw["result"] is not None else None
+                    final = copy.deepcopy(expectation["final"]) if operation["compact"] and raw["result"] is not None else None
+                    results.append({"raw": raw, "fold": fold, "final": final})
+                case["actual"] = {"operations": results}
+            elif case["mode"] == "float-kahan-compact":
+                case["actual"] = {"input_after": copy.deepcopy(case["request"]["input"]),
+                                  "compensation_after": copy.deepcopy(case["request"]["compensation"])}
+                if case["declared"] is not None:
+                    for key in ("positive_spans", "positive_buckets"):
+                        case["actual"]["input_after"][key] = copy.deepcopy(case["declared"][key])
+                    case["actual"]["compensation_after"]["positive_buckets"] = copy.deepcopy(case["declared"]["compensation_positive_buckets"])
+            elif case["declared"] is not None:
                 case["actual"] = copy.deepcopy(case["declared"])
             elif case["mode"] in {"compensated-add", "compensated-sub"}:
                 case["actual"] = {"sum": "0000000000000000", "compensation": "0000000000000000"}
@@ -51,7 +74,7 @@ class HistogramReferenceTests(unittest.TestCase):
 
     def test_complete_decoder_roster(self):
         self.assertEqual(validate_cases(self.document, self.ledger["tables"]),
-                         {"original_table_cases": 160, "supplemental_cases": 5698, "total": 5858})
+                         {"original_table_cases": 197, "supplemental_cases": 5778, "total": 5975})
 
     def test_valid_but_rebound_inputs_are_rejected(self):
         mutations = [
@@ -72,6 +95,9 @@ class HistogramReferenceTests(unittest.TestCase):
             ("TestFloatHistogramDetectReset:000", lambda case: case["request"]["current"].update(reset_hint=1)),
             ("TestCustomBucketBoundsMatch:000", lambda case: case["request"].update(left=[])),
             ("supplement:zero-threshold:15", lambda case: case["request"]["compensation"].update(zero_count="0000000000000000")),
+            ("TestFloatHistogramAdd:000", lambda case: case["request"]["operations"][0].update(operation="sub")),
+            ("TestKahanAddWithCompHistogram:000", lambda case: case["request"]["operations"][0].update(compensation=None)),
+            ("TestFloatHistogramKahanCompactSpanMerge:000", lambda case: case["request"].update(max_empty=0)),
         ]
         for identity, mutate in mutations:
             with self.subTest(identity=identity):

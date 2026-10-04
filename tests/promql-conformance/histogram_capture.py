@@ -23,7 +23,7 @@ HOOK = "model/histogram/netdata_capture_test.go"
 def helper(table, index):
     mode = table["mode"]
     body = [f'func netdataTable{index}(t *testing.T, output *[]map[string]any) {{', table["prefix"]]
-    singleton = table["variable"] == "h"
+    singleton = table["variable"] in {"h", "c"}
     if singleton:
         body += [f'id := "{table["test"]}:000"']
     elif table["case_keys"] is not None:
@@ -111,6 +111,37 @@ def helper(table, index):
                  'declared := map[string]any{"forward": c.want, "reverse": c.want}',
                  'actual := map[string]any{"forward": CustomBucketBoundsMatch(c.c1, c.c2), "reverse": CustomBucketBoundsMatch(c.c2, c.c1)}',
                  'netdataRecord(output, id, "custom-bounds-match", request, actual, declared)']
+    elif mode == "float-arithmetic-set":
+        test = table["test"]
+        expected = 'c.expectedSum' if test == "TestKahanAddWithCompHistogram" else 'c.expected'
+        body += ['requests, actuals, declarations := []any{}, []any{}, []any{}',
+                 'capture := func(operation string, left, right, correction, expected *FloatHistogram) {',
+                 'request, actual := netdataArithmeticPair(operation, left, right, correction, expected != nil)',
+                 'var final any', 'if expected != nil { final = netdataFloat(expected.Copy().Compact(0)) }',
+                 'var flags any', 'if operation != "sub" || expected != nil {',
+                 'flags = map[string]any{"counter_reset_collision": c.expCounterResetCollision, "nhcb_bounds_reconciled": c.expNHCBBoundsReconciled}', '}',
+                 'requests = append(requests, request)', 'actuals = append(actuals, actual)',
+                 'declarations = append(declarations, netdataFrozen(map[string]any{"error": c.expErrMsg, "flags": flags, "final": final}))', '}']
+        if test == "TestFloatHistogramAdd":
+            body += [f'capture("{operation}", {left}, {right}, nil, {expected})'
+                     for operation, left, right in (("add", "c.in1", "c.in2"), ("add", "c.in2", "c.in1"),
+                                                   ("kahan", "c.in1", "c.in2"), ("kahan", "c.in2", "c.in1"))]
+        elif test == "TestKahanAddWithCompHistogram":
+            body += ['capture("kahan", c.in1, c.in2, c.comp, c.expectedSum)']
+        elif test == "TestFloatHistogramSub":
+            body += ['capture("sub", c.in1, c.in2, nil, c.expected)', 'var negative *FloatHistogram',
+                     'if c.expected != nil { negative = c.expected.Copy().Mul(-1); negative.CounterResetHint = c.expected.CounterResetHint }',
+                     'capture("sub", c.in2, c.in1, nil, negative)']
+        else:
+            raise ValueError("unknown histogram arithmetic source table")
+        body += ['netdataRecord(output, id, "float-arithmetic-set", map[string]any{"operations": requests},',
+                 'map[string]any{"operations": actuals}, map[string]any{"operations": declarations})']
+    elif mode == "float-kahan-compact":
+        body += ['request := netdataFrozen(map[string]any{"input": netdataFloat(h), "compensation": netdataFloat(c), "max_empty": 3})',
+                 'declared := map[string]any{"positive_spans": []Span{{0, 5}},',
+                 '"positive_buckets": netdataNumbers([]float64{1, 0, 2, 0, 3}), "compensation_positive_buckets": netdataNumbers([]float64{0.1, 0, 0.2, 0, 0.3})}',
+                 'h, c = h.kahanCompact(3, c)',
+                 'netdataRecord(output, id, "float-kahan-compact", request, map[string]any{"input_after": netdataFloat(h), "compensation_after": netdataFloat(c)}, declared)']
     else:
         raise ValueError("unknown source histogram table")
     body += ['}'] if singleton else ['}', '}']
@@ -160,7 +191,7 @@ def capture(mod_cache, write_input_ledger=False):
     if result.returncode:
         raise SystemExit(f"histogram table extraction failed ({result.returncode}): {result.stderr}")
     tables = json.loads(result.stdout)
-    if len(tables) != 19 or sum(row["cases"] for row in tables) != 160:
+    if len(tables) != 23 or sum(row["cases"] for row in tables) != 197:
         raise ValueError("changed histogram table coverage")
     for table in tables:
         raw = (source / "model/histogram" / table["file"]).read_bytes()

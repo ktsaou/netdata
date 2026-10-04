@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Histogram value operations derive from the pinned Prometheus model; see NOTICE.
+pub use crate::histogram_arithmetic::HistogramArithmetic;
 pub use crate::histogram_bounds::bucket_bound;
 pub use crate::histogram_counter::{ZeroCount, custom_bounds_match};
 pub use crate::histogram_iterator::{
