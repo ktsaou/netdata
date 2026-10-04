@@ -80,16 +80,20 @@ func netdataReductionResult(input *FloatHistogram, err error) any {
 	return map[string]any{"result": netdataFloat(input), "error": message, "histogram_error": errors.As(err, &Error{})}
 }
 
+func netdataBucket(bucket Bucket[float64]) any {
+	return map[string]any{"lower": fmt.Sprintf("%016x", math.Float64bits(bucket.Lower)),
+		"upper": fmt.Sprintf("%016x", math.Float64bits(bucket.Upper)),
+		"count": fmt.Sprintf("%016x", math.Float64bits(bucket.Count)), "index": bucket.Index,
+		"lower_inclusive": bucket.LowerInclusive, "upper_inclusive": bucket.UpperInclusive}
+}
+
 func netdataBuckets(input []Bucket[float64]) any {
 	if input == nil {
 		return nil
 	}
-	output := make([]map[string]any, len(input))
+	output := make([]any, len(input))
 	for i, bucket := range input {
-		output[i] = map[string]any{"lower": fmt.Sprintf("%016x", math.Float64bits(bucket.Lower)),
-			"upper": fmt.Sprintf("%016x", math.Float64bits(bucket.Upper)),
-			"count": fmt.Sprintf("%016x", math.Float64bits(bucket.Count)), "index": bucket.Index,
-			"lower_inclusive": bucket.LowerInclusive, "upper_inclusive": bucket.UpperInclusive}
+		output[i] = netdataBucket(bucket)
 	}
 	return output
 }
@@ -319,6 +323,38 @@ func netdataBoundSupplemental(cases *[]map[string]any) {
 	netdataRecord(cases, "supplement:exponential-bound-table", "exponential-bound-table", map[string]any{}, constants, nil)
 }
 
+func netdataZeroResult(h *FloatHistogram) (output map[string]any) {
+	output = map[string]any{"bucket": nil, "panic": ""}
+	defer func() {
+		if failure := recover(); failure != nil {
+			output["panic"] = fmt.Sprint(failure)
+		}
+	}()
+	output["bucket"] = netdataBucket(h.ZeroBucket())
+	return output
+}
+
+func netdataZeroSupplemental(cases *[]map[string]any) {
+	for shape := 0; shape < 6; shape++ {
+		h := &FloatHistogram{}
+		switch shape {
+		case 1:
+			h.ZeroThreshold, h.ZeroCount = math.Copysign(0, -1), math.Copysign(0, -1)
+		case 2:
+			h.ZeroThreshold, h.ZeroCount = math.NaN(), math.Inf(1)
+		case 3:
+			h.ZeroThreshold, h.ZeroCount = 0.01, -1
+		case 4, 5:
+			h.Schema = CustomBucketsSchema
+			if shape == 5 {
+				h.ZeroCount = 1
+			}
+		}
+		netdataRecord(cases, fmt.Sprintf("supplement:zero-bucket:%d", shape), "float-zero-bucket",
+			map[string]any{"input": netdataFloat(h)}, netdataZeroResult(h), nil)
+	}
+}
+
 func netdataIteratorSupplemental(cases *[]map[string]any) {
 	for shape := 0; shape < 12; shape++ {
 		h := &FloatHistogram{Schema: 0, ZeroThreshold: 0.01}
@@ -375,9 +411,10 @@ func netdataIteratorSupplemental(cases *[]map[string]any) {
 				netdataIteratorResult(h, routes, start, target), nil)
 		}
 	}
-	for shape := 0; shape < 5; shape++ {
+	for shape := 0; shape < 7; shape++ {
 		h := &FloatHistogram{Schema: 0}
 		target := int32(0)
+		routes := []string{"low-positive"}
 		switch shape {
 		case 0:
 			h.Schema = CustomBucketsSchema
@@ -393,8 +430,14 @@ func netdataIteratorSupplemental(cases *[]map[string]any) {
 				offset = -1
 			}
 			h.PositiveSpans, h.PositiveBuckets = []Span{{offset, 1}}, []float64{1}
+		case 5, 6:
+			h.Schema, target, h.ZeroCount = CustomBucketsSchema, CustomBucketsSchema, 1
+			if shape == 5 {
+				routes = []string{"all"}
+			} else {
+				routes = []string{"all-reverse"}
+			}
 		}
-		routes := []string{"low-positive"}
 		request := netdataFrozen(map[string]any{"input": netdataFloat(h), "routes": routes,
 			"start": fmt.Sprintf("%016x", math.Float64bits(0)), "target_schema": target})
 		netdataRecord(cases, fmt.Sprintf("supplement:iterator-panic:%d", shape), "float-iterator-set", request,
@@ -486,6 +529,7 @@ func TestNetdataCaptureHistogram(t *testing.T) {
 	netdataLayoutSupplemental(&cases)
 	netdataBoundSupplemental(&cases)
 	netdataIteratorSupplemental(&cases)
+	netdataZeroSupplemental(&cases)
 	raw, err := json.MarshalIndent(map[string]any{"schema_version": 1,
 		"commit": "5241a27fe3c6983549fccc32f6e65917408c63cd", "go_version": runtime.Version(),
 		"go_os": runtime.GOOS, "go_arch": runtime.GOARCH,

@@ -264,6 +264,9 @@ impl<'a> FloatHistogramRef<'a> {
     }
 
     pub fn zero_bucket(self) -> Bucket {
+        if self.schema == CUSTOM_BUCKETS_SCHEMA {
+            panic!("histograms with custom buckets have no zero bucket");
+        }
         Bucket {
             lower: -self.zero_threshold,
             upper: self.zero_threshold,

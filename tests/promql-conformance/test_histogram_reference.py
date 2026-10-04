@@ -31,6 +31,9 @@ class HistogramReferenceTests(unittest.TestCase):
                 case["actual"] = [["3fe0000000000000"] * (1 << schema) for schema in range(9)]
             elif case["mode"] == "float-iterator-set":
                 case["actual"] = {"buckets": {route: None for route in case["request"]["routes"]}, "panic": ""}
+            elif case["mode"] == "float-zero-bucket":
+                case["actual"] = {"bucket": {"lower": "0000000000000000", "upper": "0000000000000000",
+                    "count": "0000000000000000", "index": 0, "lower_inclusive": True, "upper_inclusive": True}, "panic": ""}
             else:
                 case["actual"] = copy.deepcopy(empty_float)
             if case["mode"] == "float-reduce-resolution" and case["actual"]["result"] is None:
@@ -39,7 +42,7 @@ class HistogramReferenceTests(unittest.TestCase):
 
     def test_complete_decoder_roster(self):
         self.assertEqual(validate_cases(self.document, self.ledger["tables"]),
-                         {"original_table_cases": 110, "supplemental_cases": 5626, "total": 5736})
+                         {"original_table_cases": 110, "supplemental_cases": 5634, "total": 5744})
 
     def test_valid_but_rebound_inputs_are_rejected(self):
         mutations = [
