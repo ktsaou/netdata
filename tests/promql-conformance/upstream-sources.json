@@ -160,9 +160,9 @@
       "path": "promql/promqltest/testdata/start_timestamps.test",
       "sha256": "af59b68b470cf95b45c8ad09910e2c4d0dcb2c7000ac9f93fe96d6e7c2603006",
       "physical_lines": 313,
-      "eval_commands": 25,
+      "eval_commands": 26,
       "profile": "upstream-tests",
-      "ordinary_eval_commands": 25,
+      "ordinary_eval_commands": 26,
       "negative_eval_commands": 0
     },
     {
@@ -207,9 +207,9 @@
   ],
   "summary": {
     "files": 21,
-    "eval_commands": 2242,
+    "eval_commands": 2243,
     "physical_lines": 12023,
-    "ordinary_eval_commands": 2239,
+    "ordinary_eval_commands": 2240,
     "negative_eval_commands": 3
   },
   "qualification": "Inventory only. This does not execute or qualify the Rust engine."

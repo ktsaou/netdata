@@ -4,7 +4,6 @@ package main
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"log/slog"
@@ -18,6 +17,7 @@ import (
 	"github.com/prometheus/prometheus/promql"
 	"github.com/prometheus/prometheus/promql/parser"
 	"github.com/prometheus/prometheus/util/almost"
+	"netdata-promql-conformance-oracle/codec"
 )
 
 func parserOptions(profile string) (parser.Options, error) {
@@ -47,61 +47,11 @@ func newEngine(profile string, subqueryStep int64) (*promql.Engine, error) {
 		UseStartTimestamps: profile == "upstream-tests", NoStepSubqueryIntervalFn: func(int64) int64 { return subqueryStep },
 		Parser: parser.NewParser(options)}), nil
 }
-func encodeError(phase string, err error) *failure {
-	out := &failure{Phase: phase, Type: fmt.Sprintf("%T", err), Message: []byte(err.Error())}
-	var parsed parser.ParseErrors
-	if errors.As(err, &parsed) {
-		for _, e := range parsed {
-			out.ParseErrors = append(out.ParseErrors, parseFailure{int(e.PositionRange.Start), int(e.PositionRange.End), e.LineOffset, []byte(e.Err.Error())})
-		}
-	}
-	return out
-}
-func encodeResult(id, query string, v *promql.Result) result {
-	warnings, infos := v.Warnings.AsStrings(query, 0, 0)
-	out := result{ID: id, Rows: []series{}, Warnings: byteMessages(warnings), Infos: byteMessages(infos)}
-	if v.Err != nil {
-		out.Kind = "error"
-		out.Error = encodeError("execution", v.Err)
-		return out
-	}
-	switch x := v.Value.(type) {
-	case promql.Scalar:
-		out.Kind = "scalar"
-		out.Rows = append(out.Rows, series{labelset{}, []point{floatPoint(x.T, x.V)}})
-	case promql.String:
-		out.Kind = "string"
-		out.Rows = append(out.Rows, series{labelset{}, []point{{Time: x.T, Kind: "string", String: []byte(x.V)}}})
-	case promql.Vector:
-		out.Kind = "vector"
-		for _, s := range x {
-			p := floatPoint(s.T, s.F)
-			if s.H != nil {
-				p = point{Time: s.T, Kind: "float_histogram", FloatHistogram: encodeFloatHistogram(s.H)}
-			}
-			out.Rows = append(out.Rows, series{encodeLabels(s.Metric), []point{p}})
-		}
-	case promql.Matrix:
-		out.Kind = "matrix"
-		for _, s := range x {
-			points := []point{}
-			for _, p := range s.Floats {
-				points = append(points, floatPoint(p.T, p.F))
-			}
-			for _, p := range s.Histograms {
-				points = append(points, point{Time: p.T, Kind: "float_histogram", FloatHistogram: encodeFloatHistogram(p.H)})
-			}
-			sort.Slice(points, func(i, j int) bool { return points[i].Time < points[j].Time })
-			out.Rows = append(out.Rows, series{encodeLabels(s.Metric), points})
-		}
-	default:
-		panic(fmt.Sprintf("unhandled upstream value %T", x))
-	}
-	return out
-}
+func encodeError(phase string, err error) *failure           { return codec.Error(phase, err) }
+func encodeResult(id, query string, v *promql.Result) result { return codec.Result(id, query, v) }
 func evaluate(d dataset, r request) result {
 	out := result{ID: r.ID, Kind: "error", Rows: []series{}, Warnings: [][]byte{}, Infos: [][]byte{}}
-	query, err := r.text()
+	query, err := r.Text()
 	if err != nil {
 		out.Error = encodeError("request", err)
 		return out
@@ -153,7 +103,7 @@ type analysis struct {
 
 func analyze(r request) analysis {
 	out := analysis{ID: r.ID, Functions: []string{}, Aggregations: []string{}, Operators: []string{}}
-	query, err := r.text()
+	query, err := r.Text()
 	if err != nil {
 		out.Error = encodeError("request", err)
 		return out
@@ -259,7 +209,7 @@ func run(args []string) error {
 		}
 		out := make([]bool, len(pairs))
 		for i, pair := range pairs {
-			out[i] = almost.Equal(pair[0].value(), pair[1].value(), 1e-6)
+			out[i] = almost.Equal(pair[0].Value(), pair[1].Value(), 1e-6)
 		}
 		return json.NewEncoder(os.Stdout).Encode(out)
 	}
@@ -270,7 +220,7 @@ func run(args []string) error {
 		}
 		out := make([]*floatHistogram, len(inputs))
 		for i, h := range inputs {
-			out[i] = encodeFloatHistogram(h.decode().Compact(0))
+			out[i] = encodeFloatHistogram(h.Decode().Compact(0))
 		}
 		return json.NewEncoder(os.Stdout).Encode(out)
 	}
@@ -296,7 +246,7 @@ func run(args []string) error {
 	if err := readJSON(args[0], &data); err != nil {
 		return err
 	}
-	if err := data.validate(); err != nil {
+	if err := data.Validate(); err != nil {
 		return err
 	}
 	if err := readJSON(args[1], &requests); err != nil {

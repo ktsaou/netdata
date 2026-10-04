@@ -30,12 +30,12 @@ def build(mod_cache, test=True):
     directory(output)
     env = os.environ.copy()
     env.update(GOMODCACHE=str(directory(mod_cache)), GOCACHE=str(output / "go-build"),
-               GOPROXY="off", GOSUMDB="off", GOTOOLCHAIN="local", GOFLAGS="-mod=readonly")
+               GOPROXY="off", GOSUMDB="off", GOTOOLCHAIN="local", GOWORK="off", GOFLAGS="-mod=readonly")
     oracle = HERE / "oracle"
     run(["go", "mod", "verify"], oracle, env)
     run(["go", "build", "-p", "4", "-o", output / "oracle", "."], oracle, env)
     if test:
-        run(["go", "test", "-p", "4", "-count=1", "."], oracle, env)
+        run(["go", "test", "-p", "4", "-count=1", "./..."], oracle, env)
     return output / "oracle"
 
 
