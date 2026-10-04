@@ -76,6 +76,14 @@
     "future_policy": "Device-adaptive enforcement remains a later runtime/integration design; no fixed profile or adaptive formula selected.",
     "status": "Approved design; core runtime implementation remains required."
   },
+  "rust_frontend": {
+    "crate": "src/crates/promql-engine",
+    "lexer_cases_passed": 157,
+    "captured_string_literals_passed": 7,
+    "reference_go": "go1.27.1",
+    "reference_unicode": "17.0.0",
+    "status": "Owned byte lexer and string decoder pass captured cases. Parser, validator, regex and evaluation remain required."
+  },
   "remaining_stages": [
     "Complete modular typed Rust expression core and C interface",
     "NIDL/dbengine adapter and Agent/Parent APIs",

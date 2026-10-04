@@ -155,6 +155,34 @@ this test adapter for these fixtures; arbitrary TSDB iterator behavior remains o
 Materialized input snapshots and owned reference results are **test adapters**. They do not change the approved Rust
 execution architecture: bounded raw pages, sufficient operator state, exact replay and incremental output.
 
+## Owned Rust frontend
+
+`src/crates/promql-engine` is a standalone Cargo workspace, edition 2024 with an MSRV declaration of 1.91.
+It is outside the Agent/plugin default build and initially depends only on the Rust standard library.
+The checked toolchain is Rust 1.97.1; the MSRV itself has not been built here.
+
+```sh
+python3 tests/promql-conformance/build_frontend.py
+python3 tests/promql-conformance/frontend.py --capture "${PROMQL_CAPTURE_DIR:?}"
+```
+
+The builder uses offline, locked Cargo operations and the ignored `.tmp/core-target` output directory.
+The driver verifies the reference fixture digest and compares all lexer items, byte positions and diagnostic bytes.
+The current candidate passes **157/157 lexer cases** and **7/7 captured string literal values**. Three focused Rust
+tests also cover invalid literals, non-UTF-8/NUL escapes and raw CR/newline preservation.
+
+- Tokens borrow their original input spans; error items own their message bytes. UTF-8 failure consumes one byte,
+  and quoted strings distinguish byte escapes from Unicode escapes.
+- Go diagnostic printability uses a generated Unicode 17.0.0 table from Go 1.27.1 `strconv.IsPrint`.
+  `capture/go_tables.go` regenerates the range data without dependency downloads. Source notices accompany the crate.
+- Both release and release-min retain unwind support. The crate rejects `panic=abort` builds; this prevents inheriting
+  the plugin workspace's abort profile. A C panic boundary still requires implementation and qualification.
+- Expression consumers stop on the first lexer error. Raw-string EOF is terminal in Rust, avoiding the reference
+  scanner's repeating error state; the first error and all captured finite streams match.
+
+The parser, typed validator, regex frontend, evaluator, C interface and runtime accounting are still being implemented.
+The frontend driver reports unimplemented parser status explicitly; lexer/literal matches cannot establish query compatibility.
+
 Set `exact_numeric` for boolean/discrete result cases. Always test the complete filtered/bool expression around a
 threshold, alongside its numerical intermediate. The preserved prototype rate regression demonstrates why a
 one-bit numerical difference can change whether an alert returns a series. Numeric tolerance never excuses that

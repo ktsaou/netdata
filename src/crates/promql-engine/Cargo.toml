@@ -1,0 +1,26 @@
+[package]
+name = "netdata-promql-engine"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.91"
+license = "GPL-3.0-or-later"
+publish = false
+
+[workspace]
+
+[lib]
+path = "src/lib.rs"
+
+[[bin]]
+name = "promql-frontend-fixture"
+path = "src/bin/frontend_fixture.rs"
+
+[profile.release]
+panic = "unwind"
+
+[profile.release-min]
+inherits = "release"
+opt-level = "z"
+lto = true
+codegen-units = 1
+panic = "unwind"
