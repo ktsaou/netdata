@@ -7,6 +7,12 @@ and util/strutil/quote.go.
 Copyright The Prometheus Authors. Licensed under Apache-2.0;
 see LICENSE-APACHE-2.0.
 
+Histogram value copy, conversion and arithmetic algorithms derive from the same
+Prometheus commit, model/histogram/histogram.go and float_histogram.go.
+Compensated summation derives from util/kahansum/kahansum.go.
+Copyright The Prometheus Authors. Licensed under Apache-2.0;
+see LICENSE-APACHE-2.0.
+
 Integer duration parsing is derived from prometheus/common v0.71.0,
 model/time.go. Copyright 2013 The Prometheus Authors. Licensed under
 Apache-2.0; see LICENSE-APACHE-2.0.
