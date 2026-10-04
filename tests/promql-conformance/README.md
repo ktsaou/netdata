@@ -537,7 +537,79 @@ It fails on unknown interpolation/directives or changed closure counts. Loader/g
 the selected module disables default chart rules. External chart contents and manually installed live rules are not
 certified by this source snapshot.
 
+## Paged Rust expression checks
+
+`query.py` executes every variant in a verified builtin evaluation capture. It verifies the complete reference
+source and hook roster, original assertion/replay status, toolchain profile, expression identities, dataset hashes
+and effective query settings before running the candidate. It reuses `compare.py` for complete result comparison.
+
+```sh
+python3 tests/promql-conformance/query.py \
+  --capture "${PROMQL_EVALUATION_CAPTURE_DIR:?}" \
+  --upstream "${PROMQL_UPSTREAM_DIR:?}" \
+  --oracle tests/promql-conformance/.tmp/oracle \
+  --binary tests/promql-conformance/.tmp/core-target/release/promql-query-fixture \
+  --page-size 1024
+```
+
+The binary's test adapter retains one immutable fixture snapshot at a time, outside query-owned state. Cursors
+borrow bounded slices; the evaluator retains descriptors and sufficient operator state, then replays pages.
+This materialized test input does not represent the future dbengine adapter. The fixture collector independently
+owns the complete output. Byte fields cross the Rust transport as hex and the Go wire as base64; numeric fields
+retain binary64 hex, native histogram layout and start timestamps. Shared histogram codecs have one test owner.
+
+Every captured identity receives a pass, fail or open disposition. An explicit unsupported engine path is open;
+it cannot match an expected upstream error or satisfy the full gate. The command exits unsuccessfully while any
+required expression remains open or mismatched. Both semantic and strict bitwise status are retained, with every
+paired bit difference reported. Intermediate partial expression counts do not certify complete language support.
+
+Each variant also receives a numeric contract from the pinned Go AST, independently of candidate parsing and
+results. Boolean, count and value-preserving discrete expressions receive exact numeric comparison; general
+numeric results retain the agreed upstream tolerance. Missing classification fails the comparison. The retained
+corpus has 2,380 variants classified for exact numeric comparison. A near-1 boolean mutation is rejected.
+
+The full run after the scalar/histogram correction and scalar range support matches 3,810 of 21,442 variants,
+with zero completed semantic failures and 17,632 open variants at page sizes 17 and 1024. Its 24 paired bit
+differences are NaN payload/sign differences from
+one original aggregation case. Further implementation and replay remain required. Separate fresh Go checks match
+192 typed reducer, start-timestamp and fixed-`@` executions exactly across page sizes 1, 17 and 1024.
+
 ## Remaining qualification
+
+The productive Rust path connects the owned frontend to typed page cursors, float rate/increase/delta,
+count/present/first/last/min/max over time, timestamp extrema/endpoints, changes/resets, scalar/vector arithmetic
+and comparisons, and float sum/avg/count/min/max/group. Evaluation uses explicit frames,
+whole-query label/group descriptors and replay; raw histories and complete raw instant vectors are not retained.
+Output uses synchronous provisional chunks followed by commit/abort, with a separately owned collector. Stable
+series identities retain legitimate duplicate projected labelsets and merge disjoint rows at cleanup owners.
+The optional collector materializes the complete output and can grow with it, including raw selector results;
+use the chunk interface to stream large outputs. Reported execution/collection methods retain counters on failures
+as well as successes; the convenience `Result` methods return counters only on success.
+Logical source diagnostics are shared immutable owned results. Replay does not multiply occurrences; fixed safe
+range calls emit diagnostics once while retaining every output step. Default duplicate failures discard unfinished
+subtree diagnostics, while delayed output-cleanup failures retain completed root diagnostics.
+
+The Rust unit suite covers generated 100,000-point histories, page sizes 1/17/1024, the complete grouped-rate
+threshold path, empty-value grouping, intermediate duplicate errors, source-child error precedence, fractional
+duration threshold bits, source grouping-hash byte collisions, query-wide group order, panic/cancellation/sink
+abort cleanup, retained output, shared compiled plans and resource-owner transfers. Query-held page observations
+count unions of aliased byte ranges, including a returned page discarded after cancellation. `samples_fetched`
+counts points received in accepted pages; operator work is a separate counter. Original provider/page snapshots
+are validated before observation wrappers rewrite them. Owned histogram payloads expose immutable views and keep
+their allocation lease attached. These finite cases do not certify the complete language or C integration.
+
+Runtime accounting remains unfinished: control-object allocations, frontend compilation temporaries, regex
+dependency estimates, histogram mutation high-water instrumentation and general provider-internal transient peaks
+are not fully instrumented. Reported buffer capacities and exposed page ranges must not be read as exact total
+query allocation or RSS. Provider callbacks return resource snapshots on every outcome; normal ownership transfers
+are reconciled together. Unwinding skips additional provider callbacks, so a newly allocated panicking callback may
+have an unobserved peak. No configured resource or concurrency admission limit is enabled.
+
+The pinned reference has an unresolved ordering contract: intermediate multi-step results assembled by Go maps
+can change a parent reduction and boolean outcome across identical requests. The source of this behavior is
+promql/engine.go:1620, before final public result sorting. Selection and ordinary range-function series order remain
+source-defined. A user decision on upstream-unspecified ordering is pending; affected multi-step binary paths
+explicitly return unsupported while the contract is unresolved. No numerical-contract relaxation is assumed.
 
 The foundation represents the full value model and records required inputs. The following remain mandatory in the
 typed Rust core stage:

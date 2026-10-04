@@ -44,23 +44,8 @@ impl NativeHistogramInfo {
 
     pub fn formatted_message(self, metric_name: &[u8], query: &[u8], start: isize) -> String {
         let mut result = self.raw_message(metric_name);
-        if query.is_empty() {
-            return result;
-        }
-        if start < 0 || start as usize > query.len() {
-            result.push_str(" (invalid position)");
-            return result;
-        }
-        let start = start as usize;
-        let mut line = 1;
-        let mut column = start + 1;
-        for (index, &byte) in query[..start].iter().enumerate() {
-            if byte == b'\n' {
-                line += 1;
-                column = start - index;
-            }
-        }
-        result.push_str(&format!(" ({line}:{column})"));
+        crate::annotations::write_position_suffix(query, start, &mut result)
+            .expect("string writer");
         result
     }
 }

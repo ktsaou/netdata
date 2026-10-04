@@ -25,25 +25,30 @@ pub(super) fn decode_rune(bytes: &[u8]) -> (i32, usize) {
     (0xfffd, 1)
 }
 
-fn escaped(r: u32, delimiter: char) -> String {
+fn write_escaped(r: u32, delimiter: char, out: &mut impl std::fmt::Write) -> std::fmt::Result {
     if r == delimiter as u32 || r == b'\\' as u32 {
-        return format!("\\{}", char::from_u32(r).unwrap());
+        return write!(out, "\\{}", char::from_u32(r).unwrap());
     }
     if is_print(r) {
-        return char::from_u32(r).unwrap().to_string();
+        return out.write_char(char::from_u32(r).unwrap());
     }
     match r {
-        7 => "\\a".into(),
-        8 => "\\b".into(),
-        12 => "\\f".into(),
-        10 => "\\n".into(),
-        13 => "\\r".into(),
-        9 => "\\t".into(),
-        11 => "\\v".into(),
-        0..=31 | 0x7f => format!("\\x{r:02x}"),
-        0..=0xffff => format!("\\u{r:04x}"),
-        _ => format!("\\U{r:08x}"),
+        7 => out.write_str("\\a"),
+        8 => out.write_str("\\b"),
+        12 => out.write_str("\\f"),
+        10 => out.write_str("\\n"),
+        13 => out.write_str("\\r"),
+        9 => out.write_str("\\t"),
+        11 => out.write_str("\\v"),
+        0..=31 | 0x7f => write!(out, "\\x{r:02x}"),
+        0..=0xffff => write!(out, "\\u{r:04x}"),
+        _ => write!(out, "\\U{r:08x}"),
     }
+}
+fn escaped(r: u32, delimiter: char) -> String {
+    let mut out = String::new();
+    write_escaped(r, delimiter, &mut out).expect("string writer");
+    out
 }
 
 pub(super) fn rune(r: i32) -> String {
@@ -59,17 +64,21 @@ pub(super) fn unicode_rune(r: i32) -> String {
     }
 }
 
-pub(crate) fn bytes(mut bytes: &[u8]) -> String {
-    let mut out = String::from("\"");
+pub(crate) fn write_bytes(mut bytes: &[u8], out: &mut impl std::fmt::Write) -> std::fmt::Result {
+    out.write_char('"')?;
     while !bytes.is_empty() {
         let (r, width) = decode_rune(bytes);
         if r == 0xfffd && width == 1 {
-            out.push_str(&format!("\\x{:02x}", bytes[0]));
+            write!(out, "\\x{:02x}", bytes[0])?;
         } else {
-            out.push_str(&escaped(r as u32, '"'));
+            write_escaped(r as u32, '"', out)?;
         }
         bytes = &bytes[width..];
     }
-    out.push('"');
+    out.write_char('"')
+}
+pub(crate) fn bytes(bytes: &[u8]) -> String {
+    let mut out = String::new();
+    write_bytes(bytes, &mut out).expect("string writer");
     out
 }
