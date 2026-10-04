@@ -4,7 +4,8 @@ pub use crate::histogram_arithmetic::HistogramArithmetic;
 pub use crate::histogram_bounds::bucket_bound;
 pub use crate::histogram_counter::{ZeroCount, custom_bounds_match};
 pub use crate::histogram_functions::{
-    HistogramFunctionResult, NativeHistogramInfo, histogram_fraction, histogram_quantile,
+    HistogramFunctionResult, NativeHistogramInfo, histogram_avg, histogram_count,
+    histogram_fraction, histogram_quantile, histogram_stddev, histogram_stdvar, histogram_sum,
 };
 pub use crate::histogram_iterator::{
     AllFloatBucketIterator, Bucket, FloatBucketIterator, ReverseFloatBucketIterator,

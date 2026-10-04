@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-// Native fraction and quantile algorithms derive from Prometheus promql/quantile.go; see NOTICE.
+// Native histogram kernels derive from Prometheus promql/{quantile,functions}.go; see NOTICE.
 use crate::frontend::quote;
 use crate::histogram::{AllFloatBucketIterator, Bucket, CUSTOM_BUCKETS_SCHEMA, FloatHistogramRef};
-use crate::numerical::{exp2, log2};
+use crate::numerical::{compensated_add, exp2, log2, sqrt};
 
 const NAN: f64 = f64::from_bits(0x7ff8_0000_0000_0001);
 
@@ -241,6 +241,47 @@ pub fn histogram_fraction(
     }
 }
 
+pub fn histogram_count(h: FloatHistogramRef<'_>) -> f64 {
+    h.count
+}
+
+pub fn histogram_sum(h: FloatHistogramRef<'_>) -> f64 {
+    h.sum
+}
+
+pub fn histogram_avg(h: FloatHistogramRef<'_>) -> f64 {
+    h.sum / h.count
+}
+
+pub fn histogram_stdvar(h: FloatHistogramRef<'_>) -> f64 {
+    let mean = h.sum / h.count;
+    let (mut variance, mut compensation) = (0.0, 0.0);
+    let mut iterator = AllFloatBucketIterator::new(h, false);
+    while iterator.advance() {
+        let bucket = iterator.at();
+        if bucket.count == 0.0 {
+            continue;
+        }
+        let value = if h.schema == CUSTOM_BUCKETS_SCHEMA {
+            (bucket.upper + bucket.lower) / 2.0
+        } else if bucket.lower <= 0.0 && bucket.upper >= 0.0 {
+            0.0
+        } else {
+            let value = sqrt(bucket.upper * bucket.lower);
+            if bucket.upper < 0.0 { -value } else { value }
+        };
+        let delta = value - mean;
+        // Squaring delta first can overflow a finite upstream contribution.
+        (variance, compensation) =
+            compensated_add((bucket.count * delta) * delta, variance, compensation);
+    }
+    (variance + compensation) / h.count
+}
+
+pub fn histogram_stddev(h: FloatHistogramRef<'_>) -> f64 {
+    sqrt(histogram_stdvar(h))
+}
+
 fn adjust_zero_bounds(bucket: &mut Bucket, histogram: FloatHistogramRef<'_>) {
     let negative = histogram.negative_buckets.unwrap_or(&[]);
     let positive = histogram.positive_buckets.unwrap_or(&[]);
@@ -289,6 +330,8 @@ mod tests {
                 let result = histogram_fraction(9_998.5, 89_998.5, h.as_ref());
                 assert_eq!(result.value, 0.8);
                 assert_eq!(result.info, None);
+                assert_eq!(histogram_stdvar(h.as_ref()), f64::INFINITY);
+                assert_eq!(histogram_stddev(h.as_ref()), f64::INFINITY);
                 assert_eq!(
                     storage,
                     (

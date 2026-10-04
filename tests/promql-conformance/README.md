@@ -443,6 +443,34 @@ results and their 40 reciprocals; all discrete outcomes match. Strict-bit mode f
 Twenty-four original DSL declaration-versus-Go differences remain separately reported and satisfy the original
 `almost.Equal` assertions. These helper gates do not establish complete Rust expression evaluation.
 
+## Native histogram statistics
+
+Count, Sum, Avg, StdVar and StdDev follow pinned `promql/functions.go:2044–2125`. Count and Sum return the
+unchanged fields; Avg divides Sum by Count without a zero-count guard. Variance borrows the ascending bucket
+iterator and retains only scalar state. It skips empty buckets, preserves custom midpoint overflow and
+left-associated Count-times-delta-times-delta, and finalizes compensated addition before dividing by Count.
+StdDev uses the qualified square root. These kernels allocate no bucket or result vector and emit no diagnostic.
+The existing 100,000-bucket, 128KiB-stack test also checks both variance scans and retained caller buffers.
+
+An additive test hook executes the three complete original DSL files unchanged, then observes the registered
+function inputs while replaying each complete original expression. It preserves ancestor-dependent stats decoding
+and selector modifiers; AST argument spans can omit `smoothed` and are retained only as diagnostic source slices.
+The hook freezes payloads before query closure and restores function dispatch after each command. Eight source
+owners and all 1,654 original files are bound independently. The ledger contains 135 root commands, 145 expanded
+native inputs and 1,125 supplemental calls. Four float arguments are ignored by the original caller; two original
+commands remain empty. Nested Count calls retain their outer expression assertions in the later evaluator gate.
+
+```sh
+python3 tests/promql-conformance/histogram_statistics_capture.py --mod-cache "${PROMQL_GO_MOD_CACHE:?}"
+python3 tests/promql-conformance/histogram_statistics.py --capture "${PROMQL_HISTOGRAM_STATISTICS_CAPTURE_DIR:?}"
+```
+
+Both release profiles pass all 1,270 comparisons, including exact input snapshots, nil helper diagnostics and
+reciprocal/threshold outcomes. Each reports eight NaN-only numeric bit differences; strict-bit mode fails those
+diagnostics. Fourteen original declaration-versus-Go differences are reported separately and satisfy the pinned
+assertions. Overflow and compensation consumers distinguish reordered arithmetic that changes a comparison.
+Float omission, name removal, inherited warnings and full expression outcomes still require the Rust evaluator.
+
 ## Required SRE expression sources
 
 The source-pinned extractor reads Git objects without changing the repository mirrors:
