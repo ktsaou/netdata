@@ -406,8 +406,40 @@ first reproduced a boolean failure despite numerical tolerance passing. Local Na
 the actual pinned Go accumulation/midpoint behavior; the composed owned/borrowed equality gate passes.
 Eleven declared-versus-Go numeric differences (one fraction and ten Counts) remain separate and satisfy
 the original assertion scope.
-Copy-source snapshots and immutable metadata use exact bits. Native `histogram_fraction`/`histogram_quantile`,
-complete expressions, C/accounting and broader platform qualification remain unfinished.
+Copy-source snapshots and immutable metadata use exact bits. Complete expressions, C/accounting and broader
+platform qualification remain unfinished.
+
+## Native histogram fraction and quantile helpers
+
+`HistogramFraction` and `HistogramQuantile` follow pinned `promql/quantile.go:225–516`. Each numeric scan borrows
+the histogram, retains one bucket plus iterator/rank state, and returns one scalar plus an optional typed info
+identity. It does not copy or compact input buckets. This preserves custom infinite-bound early returns,
+slice-length zero-side checks and the quantile NaN continuation's final-bucket overwrite. Diagnostic formatting
+uses the qualified Go byte quoting and original query byte positions; numeric scans allocate no message strings.
+A 100,000-bucket custom histogram test exercises forward/reverse scans on a 128KiB caller stack and checks
+the caller's retained buffers and values.
+
+Two additive test hooks execute untouched original QT and complete native-histogram DSL assertions first.
+The input ledger binds 171 QT fractions, 118 expanded DSL fractions and 69 expanded DSL quantiles, plus 7,253
+supplemental calls: 7,611 comparisons per build profile. DSL arguments are their original AST byte slices,
+evaluated by Go at the original query time; derived histogram inputs freeze before the argument query closes.
+All 1,654 reference sources are verified unchanged. Prior histogram, trimming and numerical ledgers remain intact.
+QT declarations retain their computed trim-count cross-check rather than inventing literal fractions.
+
+Candidate values use the pinned numeric tolerance. Complete borrowed input snapshots, info identities,
+severity, raw/formatted bytes and reciprocal infinity classifications compare exactly. The eight original literal
+info declarations and two `no_info` commands are also checked against the captured helper info sets. Full
+expression invalid-quantile warnings and global diagnostic deduplication remain caller behavior outside this gate.
+
+```sh
+python3 tests/promql-conformance/histogram_functions_capture.py --mod-cache "${PROMQL_GO_MOD_CACHE:?}"
+python3 tests/promql-conformance/histogram_functions.py --capture "${PROMQL_HISTOGRAM_FUNCTIONS_CAPTURE_DIR:?}"
+```
+
+Both release profiles pass all 7,611 comparisons. Each reports 80 numeric bit diagnostics, consisting of 40 NaN
+results and their 40 reciprocals; all discrete outcomes match. Strict-bit mode fails those reported diagnostics.
+Twenty-four original DSL declaration-versus-Go differences remain separately reported and satisfy the original
+`almost.Equal` assertions. These helper gates do not establish complete Rust expression evaluation.
 
 ## Required SRE expression sources
 

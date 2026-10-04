@@ -12,6 +12,7 @@ mod histogram_bounds;
 mod histogram_bounds_table;
 mod histogram_counter;
 mod histogram_equality;
+mod histogram_functions;
 mod histogram_iterator;
 mod histogram_layout;
 mod histogram_trim;

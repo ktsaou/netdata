@@ -4,7 +4,7 @@ use std::io::{self, BufRead, Write};
 
 use netdata_promql_engine::histogram::{
     Bucket, FloatHistogram, HistogramArithmetic, HistogramError, IntegerHistogram, Span,
-    bucket_bound, custom_bounds_match,
+    bucket_bound, custom_bounds_match, histogram_fraction, histogram_quantile,
 };
 use netdata_promql_engine::numerical::{
     compensated_add, compensated_sub, exp2, frexp, ldexp, log, log2, sqrt,
@@ -19,6 +19,21 @@ fn number(value: &Value) -> Result<f64, Error> {
         return Err("invalid binary64 hex string".into());
     }
     Ok(f64::from_bits(u64::from_str_radix(text, 16)?))
+}
+
+fn decoded_bytes(value: &Value) -> Result<Vec<u8>, Error> {
+    let text = value.as_str().ok_or("expected hex bytes")?;
+    if !text.is_ascii() || !text.len().is_multiple_of(2) {
+        return Err("invalid hex bytes".into());
+    }
+    (0..text.len())
+        .step_by(2)
+        .map(|index| Ok(u8::from_str_radix(&text[index..index + 2], 16)?))
+        .collect()
+}
+
+fn encoded_bytes(value: &[u8]) -> String {
+    value.iter().map(|byte| format!("{byte:02x}")).collect()
 }
 
 fn array<T>(
@@ -361,6 +376,35 @@ fn result(input: &Value) -> Result<Value, Error> {
             json!(format!("{:016x}", fraction.to_bits()))
         }
         "float-trim" => trim_result(request)?,
+        "histogram-fraction" | "histogram-quantile" => {
+            let histogram = float(&request["input"])?;
+            let result = if mode == "histogram-fraction" {
+                histogram_fraction(
+                    number(&request["lower"])?,
+                    number(&request["upper"])?,
+                    histogram.as_ref(),
+                )
+            } else {
+                histogram_quantile(number(&request["quantile"])?, histogram.as_ref())
+            };
+            let metric = decoded_bytes(&request["metric_name"])?;
+            let query = decoded_bytes(&request["query"])?;
+            let start = request["position"]["start"]
+                .as_i64()
+                .ok_or("invalid annotation start")?
+                .try_into()?;
+            request["position"]["end"]
+                .as_i64()
+                .ok_or("invalid annotation end")?;
+            let annotations = result.info.map(|info| json!([{"identity": info.identity(), "severity": "info",
+                "raw": encoded_bytes(info.raw_message(&metric).as_bytes()),
+                "formatted": encoded_bytes(info.formatted_message(&metric, &query, start).as_bytes())}]));
+            let reciprocal = 1.0 / result.value;
+            json!({"value": format!("{:016x}", result.value.to_bits()), "input_after": encoded_float(&histogram),
+                "annotations": annotations, "reciprocal": format!("{:016x}", reciprocal.to_bits()),
+                "negative_reciprocal_infinite": reciprocal == f64::NEG_INFINITY,
+                "positive_reciprocal_infinite": reciprocal == f64::INFINITY})
+        }
         "float-trim-equality" => {
             let trimmed = trim_result(&request["trim"])?;
             let result = float(&trimmed["receiver_after"])?;

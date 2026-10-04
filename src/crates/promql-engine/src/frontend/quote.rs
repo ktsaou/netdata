@@ -59,7 +59,7 @@ pub(super) fn unicode_rune(r: i32) -> String {
     }
 }
 
-pub(super) fn bytes(mut bytes: &[u8]) -> String {
+pub(crate) fn bytes(mut bytes: &[u8]) -> String {
     let mut out = String::from("\"");
     while !bytes.is_empty() {
         let (r, width) = decode_rune(bytes);
