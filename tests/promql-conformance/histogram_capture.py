@@ -22,6 +22,25 @@ HOOK = "model/histogram/netdata_capture_test.go"
 
 def helper(table, index):
     mode = table["mode"]
+    if mode == "float-equality-pair":
+        source = table["prefix"]
+        converted = table["test"] == "TestHistogramEquals"
+        histogram = "Histogram" if converted else "FloatHistogram"
+        closures = [("equals", True), ("notEquals", False)]
+        if converted:
+            closures.append(("notEqualsUntilFloatConv", True))
+        for name, expected in closures:
+            anchor = f'{name} := func(h1, h2 {histogram}) {{'
+            if source.count(anchor) != 1:
+                raise ValueError("changed procedural equality assertion closure")
+            arguments = 'h1f, h2f' if converted else '&h1, &h2'
+            observation = (f'\nnetdataEqualityRecord(output, fmt.Sprintf("{table["test"]}:%03d", checkpoint), '
+                           f'{arguments}, {str(expected).lower()})\ncheckpoint++\n')
+            end = source.index('\n\t}', source.index(anchor) + len(anchor))
+            source = source[:end] + observation + source[end:]
+        return (f'func netdataTable{index}(t *testing.T, output *[]map[string]any) {{\n'
+                f'checkpoint := 0\n{source}\n'
+                f'if checkpoint != {table["cases"]} {{ t.Fatal("changed equality observation count") }}\n}}')
     body = [f'func netdataTable{index}(t *testing.T, output *[]map[string]any) {{', table["prefix"]]
     singleton = table["variable"] in {"h", "c"}
     if singleton:
@@ -191,7 +210,7 @@ def capture(mod_cache, write_input_ledger=False):
     if result.returncode:
         raise SystemExit(f"histogram table extraction failed ({result.returncode}): {result.stderr}")
     tables = json.loads(result.stdout)
-    if len(tables) != 23 or sum(row["cases"] for row in tables) != 197:
+    if len(tables) != 25 or sum(row["cases"] for row in tables) != 238:
         raise ValueError("changed histogram table coverage")
     for table in tables:
         raw = (source / "model/histogram" / table["file"]).read_bytes()

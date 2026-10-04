@@ -55,6 +55,8 @@ func main() {
 		{Test: "TestKahanAddWithCompHistogram", File: "float_histogram_test.go", Mode: "float-arithmetic-set", Cases: 6},
 		{Test: "TestFloatHistogramSub", File: "float_histogram_test.go", Mode: "float-arithmetic-set", Cases: 6},
 		{Test: "TestFloatHistogramKahanCompactSpanMerge", File: "float_histogram_test.go", Mode: "float-kahan-compact", Cases: 1, Variable: "c"},
+		{Test: "TestFloatHistogramEquals", File: "float_histogram_test.go", Mode: "float-equality-pair", Cases: 14, Variable: "equals-checkpoints"},
+		{Test: "TestHistogramEquals", File: "histogram_test.go", Mode: "float-equality-pair", Cases: 27, Variable: "equals-checkpoints"},
 	}
 	for i := range tables {
 		row := &tables[i]
@@ -77,6 +79,31 @@ func main() {
 				continue
 			}
 			found = true
+			if row.Mode == "float-equality-pair" {
+				for _, statement := range function.Body.List {
+					expression, ok := statement.(*ast.ExprStmt)
+					if !ok {
+						continue
+					}
+					call, ok := expression.X.(*ast.CallExpr)
+					if !ok {
+						continue
+					}
+					name, ok := call.Fun.(*ast.Ident)
+					if ok && (name.Name == "equals" || name.Name == "notEquals" || name.Name == "notEqualsUntilFloatConv") {
+						row.CaseLines = append(row.CaseLines, files.Position(statement.Pos()).Line)
+					}
+				}
+				if len(row.CaseLines) != row.Cases {
+					panic(fmt.Sprintf("changed source equality checkpoints: %s", row.Test))
+				}
+				start := files.Position(function.Body.Lbrace).Offset + 1
+				end := files.Position(function.Body.Rbrace).Offset
+				row.Prefix = string(raw[start:end])
+				row.Line = files.Position(function.Pos()).Line
+				row.SourceHash = fmt.Sprintf("%x", sha256.Sum256(raw))
+				break
+			}
 			var cases *ast.CompositeLit
 			var end token.Pos
 			for _, statement := range function.Body.List {

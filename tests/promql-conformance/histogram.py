@@ -11,7 +11,8 @@ from build_frontend import build
 from histogram_reference import compare_declared, compare_value, fields, load
 
 BORROWED = {"float-copy", "float-copy-to", "integer-copy", "integer-copy-to", "integer-to-float", "float-copy-to-schema",
-            "float-iterator-set", "float-zero-bucket", "float-detect-reset", "float-zero-threshold"}
+            "float-iterator-set", "float-zero-bucket", "float-detect-reset", "float-zero-threshold",
+            "float-equality-pair", "float-overflow"}
 
 
 def requests(data):

@@ -11,6 +11,7 @@ mod histogram_arithmetic;
 mod histogram_bounds;
 mod histogram_bounds_table;
 mod histogram_counter;
+mod histogram_equality;
 mod histogram_iterator;
 mod histogram_layout;
 pub mod numerical;

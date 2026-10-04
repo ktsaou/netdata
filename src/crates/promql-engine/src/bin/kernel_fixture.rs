@@ -296,6 +296,29 @@ fn result(input: &Value) -> Result<Value, Error> {
         .as_bool()
         .ok_or("missing borrowed-mode flag")?;
     let actual = match mode {
+        "float-equality-pair" => {
+            let left = float(&request["left"])?;
+            let right = float(&request["right"])?;
+            let (forward, reverse) = if borrowed {
+                (
+                    left.as_ref().equals(right.as_ref()),
+                    right.as_ref().equals(left.as_ref()),
+                )
+            } else {
+                (left.equals(right.as_ref()), right.equals(left.as_ref()))
+            };
+            json!({"forward": forward, "reverse": reverse,
+                "left_after": encoded_float(&left), "right_after": encoded_float(&right)})
+        }
+        "float-overflow" => {
+            let value = float(&request["input"])?;
+            let overflow = if borrowed {
+                value.as_ref().has_overflow()
+            } else {
+                value.has_overflow()
+            };
+            json!({"overflow": overflow, "input_after": encoded_float(&value)})
+        }
         "float-arithmetic-set" => json!({"operations": request["operations"].as_array()
             .ok_or("invalid arithmetic inventory")?.iter().map(arithmetic_result).collect::<Result<Vec<_>, _>>()?}),
         "float-kahan-compact" => {

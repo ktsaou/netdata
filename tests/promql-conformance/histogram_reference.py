@@ -32,6 +32,8 @@ TABLES = [
     ("TestKahanAddWithCompHistogram", "float-arithmetic-set", 6),
     ("TestFloatHistogramSub", "float-arithmetic-set", 6),
     ("TestFloatHistogramKahanCompactSpanMerge", "float-kahan-compact", 1),
+    ("TestFloatHistogramEquals", "float-equality-pair", 14),
+    ("TestHistogramEquals", "float-equality-pair", 27),
 ]
 
 
@@ -200,6 +202,8 @@ def compare_declared(case, failures, bit_differences):
         actual = {"positive_spans": actual["input_after"]["positive_spans"],
                   "positive_buckets": actual["input_after"]["positive_buckets"],
                   "compensation_positive_buckets": actual["compensation_after"]["positive_buckets"]}
+    elif case["mode"] == "float-equality-pair":
+        actual = {key: actual[key] for key in ("forward", "reverse")}
     compare_value(declared, actual, case["id"], "declared", failures, bit_differences, exact_numeric=True)
 
 
@@ -208,7 +212,29 @@ def validate_case(case):
     if type(case["id"]) is not str or not case["id"]:
         raise ValueError("invalid histogram kernel identity")
     mode, request, actual = case["mode"], case["request"], case["actual"]
-    if mode == "float-arithmetic-set":
+    if mode == "float-equality-pair":
+        fields(request, ("left", "right"))
+        for value in request.values():
+            histogram(value, False)
+        fields(actual, ("forward", "reverse", "left_after", "right_after"))
+        if any(type(actual[key]) is not bool for key in ("forward", "reverse")):
+            raise ValueError("invalid histogram equality outcome")
+        for key in ("left_after", "right_after"):
+            histogram(actual[key], False)
+        if case["declared"] is not None:
+            fields(case["declared"], ("forward", "reverse"))
+            if any(type(value) is not bool for value in case["declared"].values()):
+                raise ValueError("invalid histogram equality declaration")
+    elif mode == "float-overflow":
+        fields(request, ("input",))
+        histogram(request["input"], False)
+        fields(actual, ("overflow", "input_after"))
+        if type(actual["overflow"]) is not bool:
+            raise ValueError("invalid histogram overflow outcome")
+        histogram(actual["input_after"], False)
+        if case["declared"] is not None:
+            raise ValueError("invented upstream overflow assertion")
+    elif mode == "float-arithmetic-set":
         fields(request, ("operations",))
         fields(actual, ("operations",))
         if (type(request["operations"]) is not list or not request["operations"]
@@ -446,6 +472,11 @@ def supplemental_ids():
     for shape in range(8):
         for max_empty in (-1, 0, 2):
             result[f"supplement:kahan-compact:{shape}:{max_empty}"] = "float-kahan-compact"
+    for shape in range(30):
+        result[f"supplement:equality:{shape}"] = "float-equality-pair"
+    for field in range(7):
+        for value in range(5):
+            result[f"supplement:overflow:{field}:{value}"] = "float-overflow"
     return result
 
 
@@ -494,7 +525,8 @@ def validate_cases(data, tables, ledger=None):
             variable = ("scenarios" if test == "TestGetBoundExponential" else
                         "tests" if test == "TestCustomBucketBoundsMatch" else
                         "h" if test == "TestReverseFloatBucketIterator" else
-                        "c" if test == "TestFloatHistogramKahanCompactSpanMerge" else "cases")
+                        "c" if test == "TestFloatHistogramKahanCompactSpanMerge" else
+                        "equals-checkpoints" if mode == "float-equality-pair" else "cases")
             if table["variable"] != variable or table["case_keys"] is not None:
                 raise ValueError("changed histogram source table kind")
             for i in range(count):
