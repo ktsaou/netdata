@@ -6,7 +6,9 @@ use netdata_promql_engine::histogram::{
     Bucket, FloatHistogram, HistogramArithmetic, HistogramError, IntegerHistogram, Span,
     bucket_bound, custom_bounds_match,
 };
-use netdata_promql_engine::numerical::{compensated_add, compensated_sub, frexp, log, log2, sqrt};
+use netdata_promql_engine::numerical::{
+    compensated_add, compensated_sub, exp2, frexp, ldexp, log, log2, sqrt,
+};
 use serde_json::{Value, json};
 
 type Error = Box<dyn std::error::Error>;
@@ -371,11 +373,22 @@ fn result(input: &Value) -> Result<Value, Error> {
             let (fraction, exponent) = frexp(number(&request["input"])?);
             json!({"fraction": format!("{:016x}", fraction.to_bits()), "exponent": exponent})
         }
-        "math-log" | "math-log2" | "math-sqrt" => {
+        "math-ldexp" => {
+            let result = ldexp(
+                number(&request["input"])?,
+                request["exponent"]
+                    .as_i64()
+                    .ok_or("invalid Ldexp exponent")?
+                    .try_into()?,
+            );
+            json!(format!("{:016x}", result.to_bits()))
+        }
+        "math-log" | "math-log2" | "math-sqrt" | "math-exp2" => {
             let value = number(&request["input"])?;
             let result = match mode {
                 "math-log" => log(value),
                 "math-log2" => log2(value),
+                "math-exp2" => exp2(value),
                 _ => sqrt(value),
             };
             json!(format!("{:016x}", result.to_bits()))

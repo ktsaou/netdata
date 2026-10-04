@@ -356,17 +356,20 @@ the C boundary, runtime accounting and paged-provider qualification remain requi
 
 ## Numerical prerequisites
 
-Frexp, natural/binary logarithms and public square root are implemented for the pinned Go 1.27.1 linux/amd64
+Frexp, Ldexp, Exp2, natural/binary logarithms and public square root are implemented for the pinned Go 1.27.1 linux/amd64
 profile. Log preserves the actual assembly's subnormal extraction, negative-NaN handling and inclusive half-sqrt-two
 branch. Log2 retains the exact-power shortcut and ordered multiplication/addition. Sqrt uses the same compiler
-primitive as Go's public intrinsic. These operations use constant auxiliary memory.
+primitive as Go's public intrinsic. Exp2 preserves the public generic reduction and polynomial order; Ldexp
+retains signed special values, subnormal scaling and machine-int wrapping. These operations use constant auxiliary memory.
 
-The capture adds one test file through a Go overlay; it never changes installed source files. All four untouched
-original math tests run first, including the generic SqrtGo assertions. Exact AST source definitions and all 113
-math/compiler source hashes are retained and checked. The public input ledger binds 2,174 original and 7,839
-supplemental groups, covering power-of-two neighbors, all 511 compiled histogram-bound neighbors and special values.
-Those groups execute 33,530 public primitive calls. Original declaration comparisons preserve exact, `alike` and
-`veryclose` assertion semantics; candidate comparison uses independently executed public results.
+The capture adds one test file through a Go overlay; it never changes installed source files. All six untouched
+original math tests run first, including the generic SqrtGo and Exp2Go assertions. Thirty-one exact AST source definitions
+and all 113 math/compiler source hashes are retained and checked. The public input ledger binds 4,336 original and
+22,110 supplemental groups, covering power-of-two neighbors, all 511 compiled histogram-bound neighbors, Exp2 reduction
+and cutoff neighbors, Ldexp exponent extremes/subnormal ties, and special values. Those groups execute 49,963 public
+primitive calls. Original declaration comparisons preserve exact, `alike`, `close` and `veryclose` assertion semantics;
+candidate comparison uses independently executed public results. All twenty earlier definitions and 10,013 input
+bindings remain unchanged. Exponents retain full signed integer precision through capture and candidate decoding.
 
 ```sh
 python3 tests/promql-conformance/numerical_capture.py --histogram-capture "${PROMQL_HISTOGRAM_CAPTURE_DIR:?}"
@@ -374,9 +377,10 @@ python3 tests/promql-conformance/numerical.py --capture "${PROMQL_NUMERICAL_CAPT
 ```
 
 Intentional source extensions use `--write-input-ledger`; ordinary capture and comparison never refresh input bindings.
-Current release and release-min comparisons pass all 10,013 groups with zero candidate bit differences.
-Original declaration-versus-Go bit differences remain separate and retain the source assertion's comparison rules. Other numerical
-functions, platform qualification and complete expression evaluation remain required.
+Current release and release-min comparisons pass all 26,446 groups with zero candidate bit differences.
+Three original declaration-versus-Go differences remain separate: two Sqrt NaN payloads and one Exp2 value differing
+by one bit. They satisfy the original assertion rules. Other numerical functions, platform qualification and complete
+expression evaluation remain required.
 
 ## Histogram fractions and in-place trimming
 

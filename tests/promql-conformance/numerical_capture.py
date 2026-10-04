@@ -90,6 +90,15 @@ def capture(histogram_capture, write_input_ledger=False):
             raise ValueError("numerical source bindings changed")
     counts = validate_cases(data, ledger)
     if write_input_ledger:
+        if old_path.exists():
+            old = json.loads(old_path.read_bytes())
+            if any(old[key] != ledger[key] for key in ("source_manifest_sha256", "histogram_source_manifest_sha256", "bounds")):
+                raise ValueError("earlier numerical source or bound bindings changed")
+            if any(ledger["definitions"].get(name) != value for name, value in old["definitions"].items()):
+                raise ValueError("earlier numerical declarations changed")
+            bindings = {row["id"]: row for row in ledger["cases"]}
+            if any(bindings.get(row["id"]) != row for row in old["cases"]):
+                raise ValueError("earlier numerical input bindings changed")
         old_path.write_text(json.dumps(ledger, indent=2) + "\n")
     (task / "sources.json").write_text(json.dumps(manifest, indent=2) + "\n")
     (task / "definitions.json").write_text(json.dumps(definitions, indent=2) + "\n")

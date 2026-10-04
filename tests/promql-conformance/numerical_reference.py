@@ -12,7 +12,9 @@ from numerical_capture import HERE, digest
 
 PROFILE = {"GOVERSION": "go1.27.1", "GOOS": "linux", "GOARCH": "amd64", "GOAMD64": "v1", "GOEXPERIMENT": ""}
 DEFINITIONS = {"vf", "frexp", "vffrexpSC", "frexpSC", "vffrexpBC", "frexpBC", "log", "log2", "vflogSC", "logSC",
-               "sqrt", "vfsqrtSC", "sqrtSC", "TestFrexp", "TestLog", "TestLog2", "TestSqrt", "tolerance", "veryclose", "alike"}
+               "sqrt", "vfsqrtSC", "sqrtSC", "TestFrexp", "TestLog", "TestLog2", "TestSqrt", "tolerance", "veryclose", "alike",
+               "exp2", "vfexp2SC", "exp2SC", "TestExp2", "testExp2", "close", "vfldexpSC", "ldexpSC",
+               "vfldexpBC", "ldexpBC", "TestLdexp"}
 
 
 def input_ledger():
@@ -29,7 +31,7 @@ def result(value, mode):
         result(value["frexp"], "math-frexp")
         for key in ("log", "log2", "sqrt"):
             number(value[key])
-    elif mode in {"math-log", "math-log2", "math-sqrt"}:
+    elif mode in {"math-log", "math-log2", "math-sqrt", "math-exp2", "math-ldexp"}:
         number(value)
     else:
         raise ValueError("invalid numerical kernel mode")
@@ -55,6 +57,31 @@ def roster():
             expected[f"supplement:bound:{bound}:{direction}"] = "math-set"
     for index in range(12):
         expected[f"supplement:special:{index}"] = "math-set"
+    for index in range(10):
+        expected[f"TestExp2:vf:{index:03d}"] = "math-exp2"
+        expected[f"TestLdexp:vf:{index:03d}"] = "math-ldexp"
+    for index in range(8):
+        expected[f"TestExp2:sc:{index:03d}"] = "math-exp2"
+    for label, count in (("frexp-sc", 5), ("sc", 13), ("frexp-bc", 8), ("bc", 10)):
+        for index in range(count):
+            expected[f"TestLdexp:{label}:{index:03d}"] = "math-ldexp"
+    for exponent in range(-1074, 1024):
+        expected[f"TestExp2:power:{exponent}"] = "math-exp2"
+        for center in range(2):
+            for direction in range(3):
+                expected[f"supplement:exp2:reduction:{exponent}:{center}:{direction}"] = "math-exp2"
+    for index in range(18):
+        expected[f"supplement:exp2:special:{index}"] = "math-exp2"
+    for center in range(3):
+        for direction in range(3):
+            expected[f"supplement:exp2:cutoff:{center}:{direction}"] = "math-exp2"
+    for fraction in range(36):
+        for exponent in range(39):
+            expected[f"supplement:ldexp:matrix:{fraction}:{exponent}"] = "math-ldexp"
+        if fraction >= 8:
+            for edge in range(3):
+                for direction in range(3):
+                    expected[f"supplement:ldexp:transition:{fraction}:{edge}:{direction}"] = "math-ldexp"
     return expected
 
 
@@ -70,8 +97,9 @@ def assertion_matches(declared, actual, comparison):
         return True
     if comparison == "exact":
         return False
-    # Original veryclose passes the computed result as tolerance's second argument.
-    return abs(left - right) < abs(4e-16 * right) if right != 0 else abs(left - right) < 4e-16
+    # Original close/veryclose pass the computed result as tolerance's second argument.
+    tolerance = 1e-14 if comparison == "close" else 4e-16
+    return abs(left - right) < abs(tolerance * right) if right != 0 else abs(left - right) < tolerance
 
 
 def validate_cases(data, ledger):
@@ -112,15 +140,17 @@ def validate_cases(data, ledger):
             raise ValueError("duplicate or changed numerical identity")
         if {key: row[key] for key in ("id", "mode", "request", "declared")} != bindings.get(row["id"]):
             raise ValueError("numerical request or declaration changed")
-        fields(row["request"], ("input",))
+        fields(row["request"], ("input", "exponent") if row["mode"] == "math-ldexp" else ("input",))
         number(row["request"]["input"])
+        if row["mode"] == "math-ldexp":
+            integer(row["request"]["exponent"], -(1 << 63), (1 << 63) - 1)
         result(row["actual"], row["mode"])
         supplement = row["id"].startswith("supplement:")
         if (row["declared"] is None) != supplement:
             raise ValueError("missing or invented numerical assertion")
         if not supplement:
             fields(row["declared"], ("comparison", "value"))
-            if row["declared"]["comparison"] not in {"exact", "alike", "veryclose"}:
+            if row["declared"]["comparison"] not in {"exact", "alike", "veryclose", "close"}:
                 raise ValueError("invalid numerical assertion kind")
             result(row["declared"]["value"], row["mode"])
             if not assertion_matches(row["declared"]["value"], row["actual"], row["declared"]["comparison"]):
@@ -128,8 +158,8 @@ def validate_cases(data, ledger):
         seen.add(row["id"])
     if seen != bindings.keys() or seen != expected.keys():
         raise ValueError("numerical ledger is incomplete")
-    return {"original_cases": 2174, "supplemental_cases": 7839, "total": len(expected),
-            "primitive_invocations": 2174 + 7839 * 4}
+    return {"original_cases": 4336, "supplemental_cases": 22110, "total": len(expected),
+            "primitive_invocations": 49963}
 
 
 def load(path):
