@@ -277,17 +277,20 @@ owned histogram copies share immutable custom bounds. These types do not retain 
 query evaluation. Nil and empty arrays, reset hints, integer deltas and raw floating-point bits remain distinct.
 
 The kernels implement schema-aware Copy/CopyTo, multiplication/division, integer-to-float conversion, compensated
-summation, sparse compaction and schema copy/reduction. Reduction reuses the current payload's buffers; borrowed
-schema copying constructs only the reduced result. Capture and compare with the existing toolchains:
+summation, sparse compaction, schema copy/reduction and bucket boundaries. Reduction reuses the current payload's
+buffers; borrowed schema copying constructs only the reduced result. Boundaries use all 511 compiled Go constants
+and the Go scaling operation order, including subnormal rounding and the last finite bucket. Capture and compare
+with the existing toolchains:
 
 ```sh
 python3 tests/promql-conformance/histogram_capture.py --mod-cache "${PROMQL_GO_MOD_CACHE:?}"
 python3 tests/promql-conformance/histogram.py --capture "${PROMQL_HISTOGRAM_CAPTURE_DIR:?}"
 ```
 
-All eleven original histogram tests run first. Exact Go-AST declaration spans supply their 70 table cases;
-390 separately attributed supplemental cases cover special factors, hints, high integer counts, compensation,
-nil/empty layouts and partial reduction failures. Map cases use source-bound keys rather than iteration order.
+All twelve original histogram tests run first. Exact Go-AST declaration spans supply their 85 table cases;
+5,549 separately attributed supplemental cases cover special factors, hints, high integer counts, compensation,
+nil/empty layouts, partial reduction failures and every compiled bound fraction at ten critical exponents.
+Map cases use source-bound keys rather than iteration order.
 The complete 1,654-file source facade stays unchanged. The public Go-derived input ledger binds every request,
 declared expectation, source prefix/position and the source-manifest digest independently of the capture directory.
 Mutation tests reject changed inputs, nil/empty substitutions, duplicate payloads, missing cases and altered origins.
@@ -295,7 +298,11 @@ When intentionally extending source coverage, `histogram_capture.py --write-inpu
 only from verified Go execution. It preserves the pinned source-manifest digest; ordinary capture/comparison never
 refreshes the ledger. Candidate results never supply input bindings or expected values.
 
-The current comparison passes **505 semantic cases** in both release profiles, including owned and borrowed
+The immutable Rust table can be regenerated with `histogram_bounds.py --capture <verified-capture>`; these are
+shared mathematical constants, while the boundary algorithm is independently compared with executed Go outcomes.
+Boundary results use exact bit comparison, so underflow-to-zero cannot pass the ordinary numeric tolerance.
+
+The current comparison passes **5,679 semantic cases** in both release profiles, including owned and borrowed
 retention paths. Compensated subtraction reports **ten NaN-sign bit differences in release and one in release-min**
 on the qualified Rust/Go amd64 toolchains;
 `--strict-bits` fails this separate diagnostic gate. There are also three signed-zero differences between Go's
@@ -305,7 +312,7 @@ results, rather than those declared literals. The report preserves both kinds of
 Rust ownership tests mutate source spans/buckets after copying and use retained values after all provider buffers
 leave scope. Stale markers are checked separately from ordinary NaNs in every sample kind. These checks qualify
 only the implemented value kernels. Copy-to-schema checks preserve the unchanged receiver; failed reduction checks
-include the complete mutated receiver and upstream error classification. Full histogram arithmetic, bounds/iterators,
+include the complete mutated receiver and upstream error classification. Full histogram arithmetic, iterators,
 functions, expression evaluation,
 the C boundary, runtime accounting and paged-provider qualification remain required.
 

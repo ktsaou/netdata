@@ -20,6 +20,7 @@ TABLES = [
     ("TestFloatHistogramCompact", "float-compact", 24),
     ("TestFloatHistogramCopyToSchema", "float-copy-to-schema", 3),
     ("TestFloatHistogramReduceResolution", "float-reduce-resolution", 4),
+    ("TestGetBoundExponential", "exponential-bound", 15),
 ]
 
 
@@ -145,6 +146,22 @@ def validate_case(case):
         fields(actual, ("sum", "compensation"))
         for value in [*request.values(), *actual.values()]:
             number(value)
+    elif mode == "exponential-bound":
+        fields(request, ("index", "schema"))
+        for value in request.values():
+            integer(value, -(1 << 31), (1 << 31) - 1)
+        number(actual)
+        if case["declared"] is not None:
+            number(case["declared"])
+    elif mode == "exponential-bound-table":
+        fields(request, ())
+        if type(actual) is not list or len(actual) != 9:
+            raise ValueError("incomplete exponential bound table")
+        for schema, values in enumerate(actual):
+            if type(values) is not list or len(values) != 1 << schema:
+                raise ValueError("changed exponential bound table layout")
+            for value in values:
+                number(value)
     elif mode in {"float-mul", "float-div", "float-copy", "float-copy-to", "integer-copy",
                   "integer-copy-to", "integer-to-float"}:
         if mode in {"float-mul", "float-div"}:
@@ -205,6 +222,14 @@ def supplemental_ids():
         for max_empty in (-1, 0, 2):
             result[f"supplement:compact:{shape}:{max_empty}"] = "float-compact"
         result[f"supplement:reduce-resolution:{shape}"] = "float-reduce-resolution"
+    for schema in range(9):
+        for fraction in range(1 << schema):
+            for exponent in (-1076, -1075, -1074, -1023, -1022, -1, 0, 1023, 1024, 1025):
+                result[f"supplement:bound:{schema}:{fraction}:{exponent}"] = "exponential-bound"
+    for schema in range(-4, 0):
+        for i in range(12):
+            result[f"supplement:bound-negative:{schema}:{i}"] = "exponential-bound"
+    result["supplement:exponential-bound-table"] = "exponential-bound-table"
     return result
 
 
@@ -230,7 +255,8 @@ def validate_cases(data, tables, ledger=None):
     expected = {}
     for table, (test, mode, count) in zip(tables, TABLES):
         fields(table, ("test", "file", "mode", "cases", "line", "case_lines", "source_sha256", "prefix", "variable", "case_keys"))
-        file = "float_histogram_test.go" if test.startswith("TestFloat") else "histogram_test.go"
+        file = ("generic_test.go" if test == "TestGetBoundExponential" else
+                "float_histogram_test.go" if test.startswith("TestFloat") else "histogram_test.go")
         if (table["test"] != test or table["file"] != file or table["mode"] != mode
                 or type(table["cases"]) is not int or table["cases"] != count
                 or type(table["prefix"]) is not str or not table["prefix"].strip()
@@ -248,7 +274,8 @@ def validate_cases(data, tables, ledger=None):
             for key in table["case_keys"]:
                 expected[f"{test}:{key}"] = mode
         else:
-            if table["variable"] != "cases" or table["case_keys"] is not None:
+            variable = "scenarios" if test == "TestGetBoundExponential" else "cases"
+            if table["variable"] != variable or table["case_keys"] is not None:
                 raise ValueError("changed histogram source table kind")
             for i in range(count):
                 expected[f"{test}:{i:03d}"] = mode

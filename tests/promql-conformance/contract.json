@@ -130,10 +130,10 @@
     "comparison_tool": "histogram.py",
     "input_ledger": "histogram-original-inputs.json",
     "source_files": 1654,
-    "original_histogram_tests": 11,
-    "original_table_cases": 70,
-    "supplemental_cases": 390,
-    "owned_and_borrowed_comparisons": 505,
+    "original_histogram_tests": 12,
+    "original_table_cases": 85,
+    "supplemental_cases": 5549,
+    "owned_and_borrowed_comparisons": 5679,
     "semantic_pass": true,
     "reported_numeric_bit_differences_by_profile": {"release": 10, "release-min": 1},
     "bit_difference_kind": "NaN sign in compensated subtraction; strict-bits diagnostic fails.",
@@ -141,6 +141,8 @@
     "reference_go": "go1.27.1",
     "reference_rust": "1.97.1",
     "reference_platform": "linux/amd64",
-    "status": "Owned/borrowed per-sample payloads, Copy/CopyTo, Mul/Div, integer conversion, compensated summation, compaction and schema copying/reduction implemented and finitely compared. No complete histogram, evaluator, C boundary, runtime accounting or paged-provider claim."
+    "bound_table_constants": 511,
+    "bound_results": "Exact bits, including subnormal underflow and finite/overflow separation.",
+    "status": "Owned/borrowed per-sample payloads, Copy/CopyTo, Mul/Div, integer conversion, compensated summation, compaction, schema copying/reduction and bucket boundaries implemented and finitely compared. No complete histogram, evaluator, C boundary, runtime accounting or paged-provider claim."
   }
 }

@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Histogram value operations derive from the pinned Prometheus model; see NOTICE.
+pub use crate::histogram_bounds::bucket_bound;
 pub use crate::histogram_layout::HistogramError;
 use crate::histogram_layout::{compact_float, reduce_float_copy, reduce_float_in_place};
 use std::sync::Arc;

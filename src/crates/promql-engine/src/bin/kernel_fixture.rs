@@ -2,7 +2,7 @@
 //! Test-only per-sample kernel transport; it is not a storage/evaluation adapter.
 use std::io::{self, BufRead, Write};
 
-use netdata_promql_engine::histogram::{FloatHistogram, IntegerHistogram, Span};
+use netdata_promql_engine::histogram::{FloatHistogram, IntegerHistogram, Span, bucket_bound};
 use netdata_promql_engine::numerical::{compensated_add, compensated_sub};
 use serde_json::{Value, json};
 
@@ -142,6 +142,35 @@ fn result(input: &Value) -> Result<Value, Error> {
         .as_bool()
         .ok_or("missing borrowed-mode flag")?;
     let actual = match mode {
+        "exponential-bound" => {
+            let index = request["index"]
+                .as_i64()
+                .ok_or("invalid bucket index")?
+                .try_into()?;
+            let schema = request["schema"]
+                .as_i64()
+                .ok_or("invalid bucket schema")?
+                .try_into()?;
+            json!(format!(
+                "{:016x}",
+                bucket_bound(index, schema, None).to_bits()
+            ))
+        }
+        "exponential-bound-table" => json!(
+            (0..9)
+                .map(|schema| {
+                    let length = 1_i32 << schema;
+                    (0..length)
+                        .map(|fraction| {
+                            format!(
+                                "{:016x}",
+                                bucket_bound(fraction - length, schema, None).to_bits()
+                            )
+                        })
+                        .collect::<Vec<_>>()
+                })
+                .collect::<Vec<_>>()
+        ),
         "float-compact" => {
             let mut value = float(&request["input"])?;
             value.compact(
