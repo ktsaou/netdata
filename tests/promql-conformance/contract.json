@@ -72,6 +72,7 @@
     "storage": "Typed C cursors; bounded raw pages, chronological operator state and exact replay; reuse dbengine cache.",
     "output": "Synchronous incremental borrowed chunks, provisional until final success; independently owned convenience collector.",
     "accounting": "Current/peak resources, cumulative samples/work, active/peak executions and per-query elapsed time; charges survive until resource release.",
+    "regex_accounting": "Approved option 8.C: retain the qualified matcher. Explicitly estimate opaque backend/selector-table memory; precisely account observable engine-owned buffers and borrowed pages. Disclose hidden regex temporary peaks; totals including estimates are not exact requested bytes or guaranteed bounds.",
     "enforcement": "All engine resource caps disabled for now. Caller cancellation/deadlines remain explicit.",
     "future_policy": "Device-adaptive enforcement remains a later runtime/integration design; no fixed profile or adaptive formula selected.",
     "status": "Approved design; core runtime implementation remains required."
@@ -123,5 +124,23 @@
     },
     "backend": "Owned flat Go program to iterative regex-automata 0.4.16 Thompson Builder/PikeVM; regex-syntax 0.8.11 UTF-8 range encoding. No backend grammar or recursive HIR compiler.",
     "status": "Finite source-bound byte/metadata/capture/replacement and selector qualification. RE2/Fowler/exhaustive and remaining helper suites are outside current evidence; full PromQL evaluation remains required. Performance is unmeasured."
+  },
+  "initial_value_kernels": {
+    "capture_tool": "histogram_capture.py",
+    "comparison_tool": "histogram.py",
+    "input_ledger": "histogram-original-inputs.json",
+    "source_files": 1654,
+    "original_histogram_tests": 8,
+    "original_table_cases": 39,
+    "supplemental_cases": 342,
+    "owned_and_borrowed_comparisons": 407,
+    "semantic_pass": true,
+    "reported_numeric_bit_differences_by_profile": {"release": 10, "release-min": 1},
+    "bit_difference_kind": "NaN sign in compensated subtraction; strict-bits diagnostic fails.",
+    "declared_vs_go_signed_zero_differences": 3,
+    "reference_go": "go1.27.1",
+    "reference_rust": "1.97.1",
+    "reference_platform": "linux/amd64",
+    "status": "Owned/borrowed per-sample payloads, Copy/CopyTo, Mul/Div, integer conversion and compensated summation implemented and finitely compared. No complete histogram, evaluator, C boundary, runtime accounting or paged-provider claim."
   }
 }

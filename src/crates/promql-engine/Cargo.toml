@@ -25,6 +25,11 @@ name = "promql-frontend-fixture"
 path = "src/bin/frontend_fixture.rs"
 required-features = ["fixtures"]
 
+[[bin]]
+name = "promql-kernel-fixture"
+path = "src/bin/kernel_fixture.rs"
+required-features = ["fixtures"]
+
 [profile.release]
 panic = "unwind"
 

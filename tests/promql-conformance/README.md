@@ -264,6 +264,44 @@ the pending PromQL `label_replace` evaluation and label mutation. PikeVM constru
 accelerators; its query performance has not been measured. Go syntax limits and optimizer strategy thresholds are
 preserved as upstream behavior. No engine regex or query resource quota is enabled.
 
+Opaque regex-backend allocations and selector hash-table backing memory will be reported as explicit estimates.
+Observable engine-owned buffers and borrowed storage pages remain subject to precise accounting. Hidden temporary
+regex peaks are not an exact requested-byte measurement; a total containing estimates cannot be a guaranteed bound.
+This approved accounting trade-off retains the qualified matcher. Runtime accounting itself remains unfinished.
+
+## Typed sample and initial histogram kernels
+
+The standalone crate now has owned and borrowed float/integer histogram payloads and timestamped samples.
+Borrowed views carry the provider's page lifetime. Retaining one copies mutable spans/buckets and custom bounds;
+owned histogram copies share immutable custom bounds. These types do not retain a series history or implement
+query evaluation. Nil and empty arrays, reset hints, integer deltas and raw floating-point bits remain distinct.
+
+The initial kernels implement schema-aware Copy/CopyTo, multiplication/division, integer-to-float conversion and
+the pinned compensated summation. Capture and compare with the existing toolchains:
+
+```sh
+python3 tests/promql-conformance/histogram_capture.py --mod-cache "${PROMQL_GO_MOD_CACHE:?}"
+python3 tests/promql-conformance/histogram.py --capture "${PROMQL_HISTOGRAM_CAPTURE_DIR:?}"
+```
+
+All eight original histogram tests run first. Exact Go-AST declaration spans supply their 39 table cases;
+342 separately attributed supplemental cases cover special factors, hints, high integer counts and compensation.
+The complete 1,654-file source facade stays unchanged. The public Go-derived input ledger binds every request,
+declared expectation, source prefix/position and the source-manifest digest independently of the capture directory.
+Mutation tests reject changed inputs, nil/empty substitutions, duplicate payloads, missing cases and altered origins.
+
+The current comparison passes **407 semantic cases** in both release profiles, including owned and borrowed
+retention paths. Compensated subtraction reports **ten NaN-sign bit differences in release and one in release-min**
+on the qualified Rust/Go amd64 toolchains;
+`--strict-bits` fails this separate diagnostic gate. There are also three signed-zero differences between Go's
+declared table literals and actual arithmetic. Candidate comparison uses the actual independently executed Go
+results, rather than those declared literals. The report preserves both kinds of difference.
+
+Rust ownership tests mutate source spans/buckets after copying and use retained values after all provider buffers
+leave scope. Stale markers are checked separately from ordinary NaNs in every sample kind. These checks qualify
+only the implemented value kernels. Full histogram arithmetic, bounds/iterators, functions, expression evaluation,
+the C boundary, runtime accounting and paged-provider qualification remain required.
+
 ## Required SRE expression sources
 
 The source-pinned extractor reads Git objects without changing the repository mirrors:
@@ -315,5 +353,6 @@ typed Rust core stage:
 The typed Rust core stage includes the approved C cursor/ownership interface, synchronous incremental output
 callbacks plus an owned collector, panic containment and resource/concurrency/elapsed-time accounting. Resource
 enforcement is disabled; fixed memory, cardinality, concurrency and default deadline caps are not selected. Future
-enforcement must adapt to the device. Live dbengine, APIs, Go Cloud distribution and independent rule lifecycle are
+enforcement must adapt to the device. Opaque regex memory is explicitly estimated; observable owned/page bytes
+remain precise, and totals containing estimates are not guaranteed bounds. Live dbengine, APIs, Go Cloud distribution and independent rule lifecycle are
 later tracked stages. Alertmanager remains excluded.

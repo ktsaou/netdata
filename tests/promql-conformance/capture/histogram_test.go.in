@@ -1,0 +1,133 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Source declarations inserted below retain their Prometheus Apache-2.0 attribution.
+package histogram
+
+import (
+	"encoding/json"
+	"fmt"
+	"math"
+	"os"
+	"runtime"
+	"testing"
+
+	"github.com/prometheus/prometheus/util/kahansum"
+	"github.com/stretchr/testify/require"
+)
+
+func netdataNumbers(input []float64) any {
+	if input == nil { return nil }
+	output := make([]string, len(input))
+	for i, value := range input { output[i] = fmt.Sprintf("%016x", math.Float64bits(value)) }
+	return output
+}
+
+func netdataFloat(input *FloatHistogram) any {
+	if input == nil { return nil }
+	return map[string]any{
+		"reset_hint": input.CounterResetHint, "schema": input.Schema,
+		"zero_threshold": fmt.Sprintf("%016x", math.Float64bits(input.ZeroThreshold)),
+		"zero_count": fmt.Sprintf("%016x", math.Float64bits(input.ZeroCount)),
+		"count": fmt.Sprintf("%016x", math.Float64bits(input.Count)),
+		"sum": fmt.Sprintf("%016x", math.Float64bits(input.Sum)),
+		"positive_spans": input.PositiveSpans, "negative_spans": input.NegativeSpans,
+		"positive_buckets": netdataNumbers(input.PositiveBuckets),
+		"negative_buckets": netdataNumbers(input.NegativeBuckets),
+		"custom_values": netdataNumbers(input.CustomValues),
+	}
+}
+
+func netdataInteger(input *Histogram) any {
+	if input == nil { return nil }
+	return map[string]any{
+		"reset_hint": input.CounterResetHint, "schema": input.Schema,
+		"zero_threshold": fmt.Sprintf("%016x", math.Float64bits(input.ZeroThreshold)),
+		"zero_count": input.ZeroCount, "count": input.Count,
+		"sum": fmt.Sprintf("%016x", math.Float64bits(input.Sum)),
+		"positive_spans": input.PositiveSpans, "negative_spans": input.NegativeSpans,
+		"positive_buckets": input.PositiveBuckets, "negative_buckets": input.NegativeBuckets,
+		"custom_values": netdataNumbers(input.CustomValues),
+	}
+}
+
+func netdataFrozen(input any) json.RawMessage {
+	raw, err := json.Marshal(input)
+	if err != nil { panic(err) }
+	return raw
+}
+
+func netdataRecord(cases *[]map[string]any, id, mode string, request, actual, declared any) {
+	*cases = append(*cases, map[string]any{"id": id, "mode": mode,
+		"request": netdataFrozen(request), "actual": netdataFrozen(actual),
+		"declared": netdataFrozen(declared)})
+}
+
+func netdataSupplemental(cases *[]map[string]any) {
+	for hint := UnknownCounterReset; hint <= GaugeType; hint++ {
+		for _, schema := range []int32{0, CustomBucketsSchema} {
+			for i, factor := range []float64{0, math.Copysign(0, -1), -1, math.Inf(1), math.Inf(-1), math.NaN()} {
+				for _, mode := range []string{"float-mul", "float-div"} {
+					input := &FloatHistogram{CounterResetHint: hint, Schema: schema,
+						ZeroThreshold: 0.01, ZeroCount: 0, Count: 3, Sum: -1,
+						PositiveSpans: []Span{{0, 2}}, PositiveBuckets: []float64{0, 3},
+						NegativeSpans: []Span{{0, 1}}, NegativeBuckets: []float64{math.Copysign(0, -1)}}
+					if schema == CustomBucketsSchema { input.CustomValues = []float64{1, 2} }
+					request := netdataFrozen(map[string]any{"input": netdataFloat(input),
+						"scalar": fmt.Sprintf("%016x", math.Float64bits(factor))})
+					if mode == "float-mul" { input.Mul(factor) } else { input.Div(factor) }
+					netdataRecord(cases, fmt.Sprintf("supplement:arithmetic:%s:%d:%d:%d", mode, hint, schema, i),
+						mode, request, netdataFloat(input), nil)
+				}
+			}
+		}
+	}
+	for i, deltas := range [][]int64{{1 << 53, 1, 1}, {1 << 53, 1, -(1 << 53)},
+		{math.MaxInt64, -math.MaxInt64, 1}, {-1 << 53, -1, -1}} {
+		input := &Histogram{CounterResetHint: NotCounterReset, Schema: 3,
+			Count: math.MaxUint64, ZeroCount: 1<<53 + 1,
+			PositiveSpans: []Span{{0, uint32(len(deltas))}}, PositiveBuckets: deltas,
+			NegativeSpans: []Span{{-1, uint32(len(deltas))}}, NegativeBuckets: deltas,
+			Sum: math.Float64frombits(0x7ff0000000000002)}
+		request := map[string]any{"input": netdataInteger(input), "destination": nil}
+		netdataRecord(cases, fmt.Sprintf("supplement:integer-to-float:%d", i), "integer-to-float",
+			request, netdataFloat(input.ToFloat(nil)), nil)
+	}
+	values := []float64{0, math.Copysign(0,-1), 1, -1, 1e16, -1e16,
+		math.MaxFloat64, -math.MaxFloat64, math.Inf(1), math.Inf(-1), math.NaN()}
+	for i, sum := range values {
+		for j, increment := range values {
+			for _, mode := range []string{"compensated-add", "compensated-sub"} {
+				compensation := 0.25
+				request := map[string]any{"sum": fmt.Sprintf("%016x", math.Float64bits(sum)),
+					"increment": fmt.Sprintf("%016x", math.Float64bits(increment)),
+					"compensation": fmt.Sprintf("%016x", math.Float64bits(compensation))}
+				var total, correction float64
+				if mode == "compensated-add" { total, correction = kahansum.Inc(increment, sum, compensation)
+				} else { total, correction = kahansum.Dec(increment, sum, compensation) }
+				netdataRecord(cases, fmt.Sprintf("supplement:%s:%d:%d", mode, i, j), mode, request,
+					map[string]any{"sum": fmt.Sprintf("%016x", math.Float64bits(total)),
+						"compensation": fmt.Sprintf("%016x", math.Float64bits(correction))}, nil)
+			}
+		}
+	}
+}
+
+func TestNetdataCaptureHistogram(t *testing.T) {
+	destination := os.Getenv("NETDATA_HISTOGRAM_CAPTURE")
+	if destination == "" { t.Skip("capture path not supplied") }
+	if runtime.Version() != "go1.27.1" { t.Fatal("unexpected Go toolchain") }
+	for _, assertion := range []struct{name string; run func(*testing.T)}{
+/* ORIGINAL_ASSERTIONS */
+	} { t.Run(assertion.name, assertion.run) }
+	if t.Failed() { t.Fatal("original histogram assertions failed") }
+	cases := []map[string]any{}
+/* CAPTURE_CALLS */
+	netdataSupplemental(&cases)
+	raw, err := json.MarshalIndent(map[string]any{"schema_version": 1,
+		"commit": "5241a27fe3c6983549fccc32f6e65917408c63cd", "go_version": runtime.Version(),
+		"go_os": runtime.GOOS, "go_arch": runtime.GOARCH,
+		"original_assertions_passed": true, "cases": cases}, "", "  ")
+	if err != nil { t.Fatal(err) }
+	if err := os.WriteFile(destination, append(raw, '\n'), 0600); err != nil { t.Fatal(err) }
+}
+
+/* CAPTURE_HELPERS */

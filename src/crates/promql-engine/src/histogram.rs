@@ -1,0 +1,470 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Histogram value operations derive from the pinned Prometheus model; see NOTICE.
+use std::sync::Arc;
+
+pub const CUSTOM_BUCKETS_SCHEMA: i32 = -53;
+pub const UNKNOWN_RESET: u8 = 0;
+pub const COUNTER_RESET: u8 = 1;
+pub const NOT_RESET: u8 = 2;
+pub const GAUGE: u8 = 3;
+
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+#[repr(C)]
+pub struct Span {
+    pub offset: i32,
+    pub length: u32,
+}
+
+/// One owned sample payload; it does not retain any series history.
+#[derive(Debug, Default)]
+pub struct FloatHistogram {
+    pub reset_hint: u8,
+    pub schema: i32,
+    pub zero_threshold: f64,
+    pub zero_count: f64,
+    pub count: f64,
+    pub sum: f64,
+    pub positive_spans: Option<Vec<Span>>,
+    pub negative_spans: Option<Vec<Span>>,
+    pub positive_buckets: Option<Vec<f64>>,
+    pub negative_buckets: Option<Vec<f64>>,
+    pub custom_values: Option<Arc<[f64]>>,
+}
+
+/// A cursor's histogram view cannot outlive its borrowed page.
+#[derive(Clone, Copy, Debug)]
+pub struct FloatHistogramRef<'a> {
+    pub reset_hint: u8,
+    pub schema: i32,
+    pub zero_threshold: f64,
+    pub zero_count: f64,
+    pub count: f64,
+    pub sum: f64,
+    pub positive_spans: Option<&'a [Span]>,
+    pub negative_spans: Option<&'a [Span]>,
+    pub positive_buckets: Option<&'a [f64]>,
+    pub negative_buckets: Option<&'a [f64]>,
+    pub custom_values: Option<&'a [f64]>,
+}
+
+#[derive(Debug, Default)]
+pub struct IntegerHistogram {
+    pub reset_hint: u8,
+    pub schema: i32,
+    pub zero_threshold: f64,
+    pub zero_count: u64,
+    pub count: u64,
+    pub sum: f64,
+    pub positive_spans: Option<Vec<Span>>,
+    pub negative_spans: Option<Vec<Span>>,
+    pub positive_buckets: Option<Vec<i64>>,
+    pub negative_buckets: Option<Vec<i64>>,
+    pub custom_values: Option<Arc<[f64]>>,
+}
+
+#[derive(Clone, Copy, Debug)]
+pub struct IntegerHistogramRef<'a> {
+    pub reset_hint: u8,
+    pub schema: i32,
+    pub zero_threshold: f64,
+    pub zero_count: u64,
+    pub count: u64,
+    pub sum: f64,
+    pub positive_spans: Option<&'a [Span]>,
+    pub negative_spans: Option<&'a [Span]>,
+    pub positive_buckets: Option<&'a [i64]>,
+    pub negative_buckets: Option<&'a [i64]>,
+    pub custom_values: Option<&'a [f64]>,
+}
+
+fn overwrite<T: Copy>(destination: &mut Option<Vec<T>>, source: Option<&[T]>) {
+    let source = source.unwrap_or(&[]);
+    if destination.is_none() && source.is_empty() {
+        return;
+    }
+    let destination = destination.get_or_insert_default();
+    destination.clear();
+    destination.extend_from_slice(source);
+}
+
+fn clear_if_present<T>(destination: &mut Option<Vec<T>>) {
+    if let Some(destination) = destination {
+        destination.clear();
+    }
+}
+
+impl FloatHistogram {
+    pub fn as_ref(&self) -> FloatHistogramRef<'_> {
+        FloatHistogramRef {
+            reset_hint: self.reset_hint,
+            schema: self.schema,
+            zero_threshold: self.zero_threshold,
+            zero_count: self.zero_count,
+            count: self.count,
+            sum: self.sum,
+            positive_spans: self.positive_spans.as_deref(),
+            negative_spans: self.negative_spans.as_deref(),
+            positive_buckets: self.positive_buckets.as_deref(),
+            negative_buckets: self.negative_buckets.as_deref(),
+            custom_values: self.custom_values.as_deref(),
+        }
+    }
+
+    pub fn uses_custom_buckets(&self) -> bool {
+        self.schema == CUSTOM_BUCKETS_SCHEMA
+    }
+
+    /// Copy only the fields that upstream uses for this schema.
+    pub fn copy(&self) -> Self {
+        let mut result = Self::default();
+        self.copy_to(&mut result);
+        result
+    }
+
+    pub fn copy_to(&self, destination: &mut Self) {
+        self.as_ref().copy_fields_to(destination);
+        destination.custom_values = if self.uses_custom_buckets() {
+            self.custom_values.clone()
+        } else {
+            None
+        };
+    }
+
+    pub fn mul(&mut self, factor: f64) {
+        self.zero_count *= factor;
+        self.count *= factor;
+        self.sum *= factor;
+        for bucket in self.positive_buckets.iter_mut().flatten() {
+            *bucket *= factor;
+        }
+        for bucket in self.negative_buckets.iter_mut().flatten() {
+            *bucket *= factor;
+        }
+        if factor < 0.0 {
+            self.reset_hint = GAUGE;
+        }
+    }
+
+    pub fn div(&mut self, divisor: f64) {
+        self.zero_count /= divisor;
+        self.count /= divisor;
+        self.sum /= divisor;
+        if divisor == 0.0 {
+            // Upstream drops these allocations and returns before changing the hint.
+            self.positive_spans = None;
+            self.negative_spans = None;
+            self.positive_buckets = None;
+            self.negative_buckets = None;
+            return;
+        }
+        for bucket in self.positive_buckets.iter_mut().flatten() {
+            *bucket /= divisor;
+        }
+        for bucket in self.negative_buckets.iter_mut().flatten() {
+            *bucket /= divisor;
+        }
+        if divisor < 0.0 {
+            self.reset_hint = GAUGE;
+        }
+    }
+}
+
+impl FloatHistogramRef<'_> {
+    fn copy_fields_to(self, destination: &mut FloatHistogram) {
+        destination.reset_hint = self.reset_hint;
+        destination.schema = self.schema;
+        destination.count = self.count;
+        destination.sum = self.sum;
+        if self.schema == CUSTOM_BUCKETS_SCHEMA {
+            destination.zero_threshold = 0.0;
+            destination.zero_count = 0.0;
+            clear_if_present(&mut destination.negative_spans);
+            clear_if_present(&mut destination.negative_buckets);
+        } else {
+            destination.zero_threshold = self.zero_threshold;
+            destination.zero_count = self.zero_count;
+            overwrite(&mut destination.negative_spans, self.negative_spans);
+            overwrite(&mut destination.negative_buckets, self.negative_buckets);
+        }
+        overwrite(&mut destination.positive_spans, self.positive_spans);
+        overwrite(&mut destination.positive_buckets, self.positive_buckets);
+    }
+
+    pub fn copy_to(self, destination: &mut FloatHistogram) {
+        self.copy_fields_to(destination);
+        // Retaining a provider view requires ownership independent of the page.
+        destination.custom_values = if self.schema == CUSTOM_BUCKETS_SCHEMA {
+            self.custom_values.map(Arc::from)
+        } else {
+            None
+        };
+    }
+
+    pub fn to_owned(self) -> FloatHistogram {
+        let mut result = FloatHistogram::default();
+        self.copy_to(&mut result);
+        result
+    }
+}
+
+impl IntegerHistogram {
+    pub fn as_ref(&self) -> IntegerHistogramRef<'_> {
+        IntegerHistogramRef {
+            reset_hint: self.reset_hint,
+            schema: self.schema,
+            zero_threshold: self.zero_threshold,
+            zero_count: self.zero_count,
+            count: self.count,
+            sum: self.sum,
+            positive_spans: self.positive_spans.as_deref(),
+            negative_spans: self.negative_spans.as_deref(),
+            positive_buckets: self.positive_buckets.as_deref(),
+            negative_buckets: self.negative_buckets.as_deref(),
+            custom_values: self.custom_values.as_deref(),
+        }
+    }
+
+    pub fn copy(&self) -> Self {
+        let mut result = Self::default();
+        self.copy_to(&mut result);
+        result
+    }
+
+    pub fn copy_to(&self, destination: &mut Self) {
+        self.as_ref().copy_fields_to(destination);
+        destination.custom_values = if self.schema == CUSTOM_BUCKETS_SCHEMA {
+            self.custom_values.clone()
+        } else {
+            None
+        };
+    }
+
+    pub fn to_float(&self) -> FloatHistogram {
+        let mut result = FloatHistogram::default();
+        self.to_float_into(&mut result);
+        result
+    }
+
+    pub fn to_float_into(&self, destination: &mut FloatHistogram) {
+        self.as_ref().convert_fields_to(destination);
+        destination.custom_values = if self.schema == CUSTOM_BUCKETS_SCHEMA {
+            self.custom_values.clone()
+        } else {
+            None
+        };
+    }
+}
+
+fn decode_deltas(destination: &mut Option<Vec<f64>>, deltas: Option<&[i64]>) {
+    let deltas = deltas.unwrap_or(&[]);
+    if destination.is_none() && deltas.is_empty() {
+        return;
+    }
+    let destination = destination.get_or_insert_default();
+    destination.clear();
+    destination.reserve(deltas.len());
+    let mut current = 0.0;
+    for &delta in deltas {
+        // Convert before adding: integer accumulation changes rounding above 2^53.
+        current += delta as f64;
+        destination.push(current);
+    }
+}
+
+impl IntegerHistogramRef<'_> {
+    fn copy_fields_to(self, destination: &mut IntegerHistogram) {
+        destination.reset_hint = self.reset_hint;
+        destination.schema = self.schema;
+        destination.count = self.count;
+        destination.sum = self.sum;
+        if self.schema == CUSTOM_BUCKETS_SCHEMA {
+            destination.zero_threshold = 0.0;
+            destination.zero_count = 0;
+            clear_if_present(&mut destination.negative_spans);
+            clear_if_present(&mut destination.negative_buckets);
+        } else {
+            destination.zero_threshold = self.zero_threshold;
+            destination.zero_count = self.zero_count;
+            overwrite(&mut destination.negative_spans, self.negative_spans);
+            overwrite(&mut destination.negative_buckets, self.negative_buckets);
+        }
+        overwrite(&mut destination.positive_spans, self.positive_spans);
+        overwrite(&mut destination.positive_buckets, self.positive_buckets);
+    }
+
+    pub fn copy_to(self, destination: &mut IntegerHistogram) {
+        self.copy_fields_to(destination);
+        destination.custom_values = if self.schema == CUSTOM_BUCKETS_SCHEMA {
+            self.custom_values.map(Arc::from)
+        } else {
+            None
+        };
+    }
+
+    pub fn to_owned(self) -> IntegerHistogram {
+        let mut result = IntegerHistogram::default();
+        self.copy_to(&mut result);
+        result
+    }
+
+    fn convert_fields_to(self, destination: &mut FloatHistogram) {
+        destination.reset_hint = self.reset_hint;
+        destination.schema = self.schema;
+        destination.count = self.count as f64;
+        destination.sum = self.sum;
+        if self.schema == CUSTOM_BUCKETS_SCHEMA {
+            destination.zero_threshold = 0.0;
+            destination.zero_count = 0.0;
+            clear_if_present(&mut destination.negative_spans);
+            clear_if_present(&mut destination.negative_buckets);
+        } else {
+            destination.zero_threshold = self.zero_threshold;
+            destination.zero_count = self.zero_count as f64;
+            overwrite(&mut destination.negative_spans, self.negative_spans);
+            decode_deltas(&mut destination.negative_buckets, self.negative_buckets);
+        }
+        overwrite(&mut destination.positive_spans, self.positive_spans);
+        decode_deltas(&mut destination.positive_buckets, self.positive_buckets);
+    }
+
+    pub fn to_float_into(self, destination: &mut FloatHistogram) {
+        self.convert_fields_to(destination);
+        destination.custom_values = if self.schema == CUSTOM_BUCKETS_SCHEMA {
+            self.custom_values.map(Arc::from)
+        } else {
+            None
+        };
+    }
+
+    pub fn to_float(self) -> FloatHistogram {
+        let mut result = FloatHistogram::default();
+        self.to_float_into(&mut result);
+        result
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn owned_copy_keeps_mutable_arrays_independent_and_shares_immutable_bounds() {
+        let mut source = FloatHistogram {
+            schema: CUSTOM_BUCKETS_SCHEMA,
+            sum: 12.0,
+            positive_spans: Some(vec![Span {
+                offset: 0,
+                length: 2,
+            }]),
+            positive_buckets: Some(vec![-0.0, 3.0]),
+            custom_values: Some(Arc::from([1.0, 2.0])),
+            ..FloatHistogram::default()
+        };
+        let copied = source.copy();
+        assert!(Arc::ptr_eq(
+            source.custom_values.as_ref().unwrap(),
+            copied.custom_values.as_ref().unwrap()
+        ));
+        source.sum = 4.0;
+        source.positive_spans.as_mut().unwrap()[0].offset = 2;
+        source.positive_buckets.as_mut().unwrap()[0] = 7.0;
+        assert_eq!(copied.sum, 12.0);
+        assert_eq!(copied.positive_spans.as_ref().unwrap()[0].offset, 0);
+        assert_eq!(
+            copied.positive_buckets.as_ref().unwrap()[0].to_bits(),
+            (-0.0f64).to_bits()
+        );
+
+        let mut source = IntegerHistogram {
+            schema: CUSTOM_BUCKETS_SCHEMA,
+            positive_spans: Some(vec![Span {
+                offset: 0,
+                length: 1,
+            }]),
+            positive_buckets: Some(vec![3]),
+            custom_values: Some(Arc::from([2.0])),
+            ..IntegerHistogram::default()
+        };
+        let copied = source.copy();
+        assert!(Arc::ptr_eq(
+            source.custom_values.as_ref().unwrap(),
+            copied.custom_values.as_ref().unwrap()
+        ));
+        source.positive_spans.as_mut().unwrap()[0].length = 2;
+        source.positive_buckets.as_mut().unwrap()[0] = 7;
+        assert_eq!(copied.positive_spans.as_ref().unwrap()[0].length, 1);
+        assert_eq!(copied.positive_buckets.as_deref(), Some([3].as_slice()));
+    }
+
+    #[test]
+    fn retained_cursor_views_survive_release_of_every_provider_array() {
+        let (copied, integer_copy, converted) = {
+            let positive_spans = vec![Span {
+                offset: 0,
+                length: 2,
+            }];
+            let negative_spans = vec![Span {
+                offset: -1,
+                length: 1,
+            }];
+            let positive = vec![-0.0, 3.0];
+            let negative = vec![2.0];
+            let deltas = vec![3, 1];
+            let negative_deltas = vec![2];
+            let bounds = vec![1.0, 2.0];
+            let float = FloatHistogramRef {
+                reset_hint: GAUGE,
+                schema: CUSTOM_BUCKETS_SCHEMA,
+                zero_threshold: 99.0,
+                zero_count: 12.0,
+                count: 3.0,
+                sum: -0.0,
+                positive_spans: Some(&positive_spans),
+                negative_spans: Some(&negative_spans),
+                positive_buckets: Some(&positive),
+                negative_buckets: Some(&negative),
+                custom_values: Some(&bounds),
+            };
+            let integer = IntegerHistogramRef {
+                reset_hint: NOT_RESET,
+                schema: CUSTOM_BUCKETS_SCHEMA,
+                zero_threshold: 99.0,
+                zero_count: 12,
+                count: 4,
+                sum: -0.0,
+                positive_spans: Some(&positive_spans),
+                negative_spans: Some(&negative_spans),
+                positive_buckets: Some(&deltas),
+                negative_buckets: Some(&negative_deltas),
+                custom_values: Some(&bounds),
+            };
+            (float.to_owned(), integer.to_owned(), integer.to_float())
+        };
+        assert_eq!(
+            copied.positive_buckets.as_ref().unwrap()[0].to_bits(),
+            (-0.0f64).to_bits()
+        );
+        assert_eq!(copied.positive_buckets.as_ref().unwrap()[1], 3.0);
+        assert_eq!(copied.custom_values.as_deref(), Some([1.0, 2.0].as_slice()));
+        assert_eq!(copied.sum.to_bits(), (-0.0f64).to_bits());
+        assert!(copied.negative_spans.is_none() && copied.negative_buckets.is_none());
+        assert_eq!(copied.zero_threshold, 0.0);
+        assert_eq!(
+            integer_copy.positive_buckets.as_deref(),
+            Some([3, 1].as_slice())
+        );
+        assert_eq!(
+            integer_copy.custom_values.as_deref(),
+            Some([1.0, 2.0].as_slice())
+        );
+        assert_eq!(
+            converted.positive_buckets.as_deref(),
+            Some([3.0, 4.0].as_slice())
+        );
+        assert_eq!(
+            converted.custom_values.as_deref(),
+            Some([1.0, 2.0].as_slice())
+        );
+        assert!(converted.negative_buckets.is_none());
+    }
+}

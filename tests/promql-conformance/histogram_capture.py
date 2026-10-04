@@ -1,0 +1,136 @@
+#!/usr/bin/env python3
+"""Capture source-derived histogram kernels in an unchanged pinned Go facade."""
+import argparse
+import hashlib
+import json
+import os
+from pathlib import Path
+import shlex
+import shutil
+import subprocess
+import tempfile
+
+from build import directory, run
+from capture import verify_facade
+from upstream_inventory import inventory
+
+HERE = Path(__file__).resolve().parent
+COMMIT = "5241a27fe3c6983549fccc32f6e65917408c63cd"
+MODULE = "github.com/prometheus/prometheus@v0.315.0"
+HOOK = "model/histogram/netdata_capture_test.go"
+
+
+def helper(table, index):
+    mode = table["mode"]
+    body = [f'func netdataTable{index}(t *testing.T, output *[]map[string]any) {{', table["prefix"],
+            'for i, c := range cases {', f'id := fmt.Sprintf("{table["test"]}:%03d", i)']
+    if mode in {"float-mul", "float-div"}:
+        input_field, factor, operation = (("in", "scale", "Mul") if mode == "float-mul"
+                                          else ("fh", "s", "Div"))
+        body += [f'request := netdataFrozen(map[string]any{{"input": netdataFloat(c.{input_field}),',
+                 f'"scalar": fmt.Sprintf("%016x", math.Float64bits(c.{factor}))}})',
+                 'declared := netdataFrozen(netdataFloat(c.expected))',
+                 f'actual := c.{input_field}.{operation}(c.{factor})',
+                 f'netdataRecord(output, id, "{mode}", request, netdataFloat(actual), declared)']
+    elif mode in {"float-copy", "float-copy-to", "integer-copy", "integer-copy-to"}:
+        encoder, histogram = (("netdataFloat", "FloatHistogram") if mode.startswith("float")
+                              else ("netdataInteger", "Histogram"))
+        body += [f'request := netdataFrozen(map[string]any{{"input": {encoder}(c.orig), "destination": nil}})',
+                 f'declared := netdataFrozen({encoder}(c.expected))']
+        if mode.endswith("-to"):
+            body += [f'actual := &{histogram}{{}}', 'c.orig.CopyTo(actual)']
+        else:
+            body += ['actual := c.orig.Copy()']
+        body += [f'netdataRecord(output, id, "{mode}", request, {encoder}(actual), declared)']
+    elif mode == "integer-to-float":
+        body += ['request := netdataFrozen(map[string]any{"input": netdataInteger(&h),',
+                 '"destination": netdataFloat(c.fh)})', 'actual := h.ToFloat(c.fh)',
+                 'netdataRecord(output, id, "integer-to-float", request, netdataFloat(actual), nil)']
+    else:
+        raise ValueError("unknown source histogram table")
+    body += ['}', '}']
+    return "\n".join(body)
+
+
+def generate_hook(tables):
+    template = (HERE / "capture/histogram_test.go.in").read_text()
+    original = "\n".join(f'{{"{row["test"]}", {row["test"]}}},' for row in tables)
+    calls = "\n".join(f'netdataTable{i}(t, &cases)' for i in range(len(tables)))
+    helpers = "\n\n".join(helper(row, i) for i, row in enumerate(tables))
+    for marker, replacement in (("ORIGINAL_ASSERTIONS", original), ("CAPTURE_CALLS", calls),
+                                ("CAPTURE_HELPERS", helpers)):
+        marker = "/* " + marker + " */"
+        if template.count(marker) != 1:
+            raise ValueError("changed histogram hook marker")
+        template = template.replace(marker, replacement)
+    return template.encode()
+
+
+def capture(mod_cache):
+    cache = directory(mod_cache)
+    source = directory(cache / MODULE)
+    inventory(source)
+    parent = HERE / ".tmp"
+    parent.mkdir(exist_ok=True)
+    directory(parent)
+    task = directory(tempfile.mkdtemp(prefix="histogram-capture-", dir=parent))
+    facade = task / "reference"
+    private_tmp = task / "tmp"
+    private_tmp.mkdir(mode=0o700)
+    env = os.environ.copy()
+    env.update(GOMODCACHE=str(cache), GOCACHE=str(parent / "go-build"), GOPROXY="off", GOSUMDB="off",
+               GOTOOLCHAIN="local", GOWORK="off", GOFLAGS="-mod=readonly",
+               TMPDIR=str(directory(private_tmp)), GOTMPDIR=str(private_tmp))
+    run(["go", "mod", "verify"], HERE / "oracle", env)
+    shutil.copytree(source, facade)
+    directory(facade)
+    for path in [facade, *facade.rglob("*")]:
+        if path.is_dir():
+            path.chmod(path.stat().st_mode | 0o200)
+    manifest = verify_facade(source, facade)
+    command = ["go", "run", HERE / "capture/histogram_tables.go", facade / "model/histogram"]
+    print(f"{HERE / 'oracle'} > {shlex.join(map(str, command))}", flush=True)
+    result = subprocess.run(list(map(str, command)), cwd=HERE / "oracle", env=env,
+                            capture_output=True, text=True, check=False)
+    if result.returncode:
+        raise SystemExit(f"histogram table extraction failed ({result.returncode}): {result.stderr}")
+    tables = json.loads(result.stdout)
+    if len(tables) != 8 or sum(row["cases"] for row in tables) != 39:
+        raise ValueError("changed histogram table coverage")
+    for table in tables:
+        raw = (source / "model/histogram" / table["file"]).read_bytes()
+        if hashlib.sha256(raw).hexdigest() != table["source_sha256"]:
+            raise ValueError("histogram table source attribution changed")
+    hook = generate_hook(tables)
+    destination = facade / HOOK
+    if destination.exists():
+        raise ValueError("histogram hook would replace reference source")
+    destination.write_bytes(hook)
+    env["NETDATA_HISTOGRAM_CAPTURE"] = str(task / "histograms.json")
+    run(["go", "test", "-p", "4", "-count=1", "-timeout", "10m", "-run",
+         "^(TestNetdataCaptureHistogram|TestIsInf)$", "./model/histogram", "./util/kahansum"], facade, env)
+    if verify_facade(source, facade) != manifest or destination.read_bytes() != hook:
+        raise ValueError("histogram source or hook changed during capture")
+    files = {path.relative_to(facade).as_posix() for path in facade.rglob("*") if path.is_file()}
+    if files != manifest.keys() | {HOOK} or any(path.is_symlink() for path in facade.rglob("*")):
+        raise ValueError("unlisted histogram facade source")
+    output = (task / "histograms.json").read_bytes()
+    from histogram_reference import validate_cases
+    counts = validate_cases(json.loads(output), tables)
+    (task / "tables.json").write_text(json.dumps(tables, indent=2) + "\n")
+    (task / "source-manifest.json").write_text(json.dumps(manifest, indent=2) + "\n")
+    metadata = {"schema_version": 1, "commit": COMMIT, "source_files": len(manifest),
+                "hook_sha256": hashlib.sha256(hook).hexdigest(),
+                "generator_sha256": hashlib.sha256((HERE / "capture/histogram_tables.go").read_bytes()).hexdigest(),
+                "template_sha256": hashlib.sha256((HERE / "capture/histogram_test.go.in").read_bytes()).hexdigest(),
+                "tables_sha256": hashlib.sha256((task / "tables.json").read_bytes()).hexdigest(),
+                "output_sha256": hashlib.sha256(output).hexdigest(), "counts": counts}
+    (task / "metadata.json").write_text(json.dumps(metadata, indent=2) + "\n")
+    print(json.dumps({"capture": str(task), "counts": counts}), flush=True)
+    return task
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--mod-cache", required=True, help="existing pinned module cache; downloads disabled")
+    capture(parser.parse_args().mod_cache)

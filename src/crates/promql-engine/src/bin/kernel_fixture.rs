@@ -1,0 +1,233 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+//! Test-only per-sample kernel transport; it is not a storage/evaluation adapter.
+use std::io::{self, BufRead, Write};
+
+use netdata_promql_engine::histogram::{FloatHistogram, IntegerHistogram, Span};
+use netdata_promql_engine::numerical::{compensated_add, compensated_sub};
+use serde_json::{Value, json};
+
+type Error = Box<dyn std::error::Error>;
+
+fn number(value: &Value) -> Result<f64, Error> {
+    let text = value.as_str().ok_or("expected binary64 hex string")?;
+    if text.len() != 16 || !text.bytes().all(|byte| byte.is_ascii_hexdigit()) {
+        return Err("invalid binary64 hex string".into());
+    }
+    Ok(f64::from_bits(u64::from_str_radix(text, 16)?))
+}
+
+fn array<T>(
+    value: &Value,
+    parse: impl Fn(&Value) -> Result<T, Error>,
+) -> Result<Option<Vec<T>>, Error> {
+    if value.is_null() {
+        return Ok(None);
+    }
+    let values = value.as_array().ok_or("expected array or null")?;
+    Ok(Some(values.iter().map(parse).collect::<Result<_, _>>()?))
+}
+
+fn span(value: &Value) -> Result<Span, Error> {
+    Ok(Span {
+        offset: value["Offset"]
+            .as_i64()
+            .ok_or("invalid span offset")?
+            .try_into()?,
+        length: value["Length"]
+            .as_u64()
+            .ok_or("invalid span length")?
+            .try_into()?,
+    })
+}
+
+fn float(value: &Value) -> Result<FloatHistogram, Error> {
+    Ok(FloatHistogram {
+        reset_hint: value["reset_hint"]
+            .as_u64()
+            .ok_or("invalid reset hint")?
+            .try_into()?,
+        schema: value["schema"]
+            .as_i64()
+            .ok_or("invalid schema")?
+            .try_into()?,
+        zero_threshold: number(&value["zero_threshold"])?,
+        zero_count: number(&value["zero_count"])?,
+        count: number(&value["count"])?,
+        sum: number(&value["sum"])?,
+        positive_spans: array(&value["positive_spans"], span)?,
+        negative_spans: array(&value["negative_spans"], span)?,
+        positive_buckets: array(&value["positive_buckets"], number)?,
+        negative_buckets: array(&value["negative_buckets"], number)?,
+        custom_values: array(&value["custom_values"], number)?.map(Into::into),
+    })
+}
+
+fn integer(value: &Value) -> Result<IntegerHistogram, Error> {
+    let bucket = |value: &Value| Ok(value.as_i64().ok_or("invalid integer bucket")?);
+    Ok(IntegerHistogram {
+        reset_hint: value["reset_hint"]
+            .as_u64()
+            .ok_or("invalid reset hint")?
+            .try_into()?,
+        schema: value["schema"]
+            .as_i64()
+            .ok_or("invalid schema")?
+            .try_into()?,
+        zero_threshold: number(&value["zero_threshold"])?,
+        zero_count: value["zero_count"]
+            .as_u64()
+            .ok_or("invalid integer zero count")?,
+        count: value["count"].as_u64().ok_or("invalid integer count")?,
+        sum: number(&value["sum"])?,
+        positive_spans: array(&value["positive_spans"], span)?,
+        negative_spans: array(&value["negative_spans"], span)?,
+        positive_buckets: array(&value["positive_buckets"], bucket)?,
+        negative_buckets: array(&value["negative_buckets"], bucket)?,
+        custom_values: array(&value["custom_values"], number)?.map(Into::into),
+    })
+}
+
+fn encoded_numbers(values: Option<&[f64]>) -> Value {
+    values.map_or(Value::Null, |values| {
+        json!(
+            values
+                .iter()
+                .map(|value| format!("{:016x}", value.to_bits()))
+                .collect::<Vec<_>>()
+        )
+    })
+}
+
+fn encoded_spans(values: Option<&[Span]>) -> Value {
+    values.map_or(Value::Null, |values| {
+        json!(
+            values
+                .iter()
+                .map(|span| json!({"Offset": span.offset, "Length": span.length}))
+                .collect::<Vec<_>>()
+        )
+    })
+}
+
+fn encoded_float(value: &FloatHistogram) -> Value {
+    json!({"reset_hint": value.reset_hint, "schema": value.schema,
+        "zero_threshold": format!("{:016x}", value.zero_threshold.to_bits()),
+        "zero_count": format!("{:016x}", value.zero_count.to_bits()),
+        "count": format!("{:016x}", value.count.to_bits()), "sum": format!("{:016x}", value.sum.to_bits()),
+        "positive_spans": encoded_spans(value.positive_spans.as_deref()),
+        "negative_spans": encoded_spans(value.negative_spans.as_deref()),
+        "positive_buckets": encoded_numbers(value.positive_buckets.as_deref()),
+        "negative_buckets": encoded_numbers(value.negative_buckets.as_deref()),
+        "custom_values": encoded_numbers(value.custom_values.as_deref())})
+}
+
+fn encoded_integer(value: &IntegerHistogram) -> Value {
+    json!({"reset_hint": value.reset_hint, "schema": value.schema,
+        "zero_threshold": format!("{:016x}", value.zero_threshold.to_bits()),
+        "zero_count": value.zero_count, "count": value.count, "sum": format!("{:016x}", value.sum.to_bits()),
+        "positive_spans": encoded_spans(value.positive_spans.as_deref()),
+        "negative_spans": encoded_spans(value.negative_spans.as_deref()),
+        "positive_buckets": value.positive_buckets, "negative_buckets": value.negative_buckets,
+        "custom_values": encoded_numbers(value.custom_values.as_deref())})
+}
+
+fn result(input: &Value) -> Result<Value, Error> {
+    let id = input["id"]
+        .as_str()
+        .filter(|id| !id.is_empty())
+        .ok_or("missing case ID")?;
+    let mode = input["mode"].as_str().ok_or("missing kernel mode")?;
+    let request = &input["request"];
+    let borrowed = input["borrowed"]
+        .as_bool()
+        .ok_or("missing borrowed-mode flag")?;
+    let actual = match mode {
+        "float-mul" | "float-div" => {
+            let mut value = float(&request["input"])?;
+            let factor = number(&request["scalar"])?;
+            if mode == "float-mul" {
+                value.mul(factor);
+            } else {
+                value.div(factor);
+            }
+            encoded_float(&value)
+        }
+        "float-copy" | "float-copy-to" => {
+            let value = float(&request["input"])?;
+            let mut destination = if request["destination"].is_null() {
+                FloatHistogram::default()
+            } else {
+                float(&request["destination"])?
+            };
+            if mode == "float-copy" {
+                destination = if borrowed {
+                    value.as_ref().to_owned()
+                } else {
+                    value.copy()
+                };
+            } else if borrowed {
+                value.as_ref().copy_to(&mut destination);
+            } else {
+                value.copy_to(&mut destination);
+            }
+            encoded_float(&destination)
+        }
+        "integer-copy" | "integer-copy-to" => {
+            let value = integer(&request["input"])?;
+            let mut destination = if request["destination"].is_null() {
+                IntegerHistogram::default()
+            } else {
+                integer(&request["destination"])?
+            };
+            if mode == "integer-copy" {
+                destination = if borrowed {
+                    value.as_ref().to_owned()
+                } else {
+                    value.copy()
+                };
+            } else if borrowed {
+                value.as_ref().copy_to(&mut destination);
+            } else {
+                value.copy_to(&mut destination);
+            }
+            encoded_integer(&destination)
+        }
+        "integer-to-float" => {
+            let value = integer(&request["input"])?;
+            let mut destination = if request["destination"].is_null() {
+                FloatHistogram::default()
+            } else {
+                float(&request["destination"])?
+            };
+            if borrowed {
+                value.as_ref().to_float_into(&mut destination);
+            } else {
+                value.to_float_into(&mut destination);
+            }
+            encoded_float(&destination)
+        }
+        "compensated-add" | "compensated-sub" => {
+            let sum = number(&request["sum"])?;
+            let increment = number(&request["increment"])?;
+            let correction = number(&request["compensation"])?;
+            let (sum, correction) = if mode == "compensated-add" {
+                compensated_add(increment, sum, correction)
+            } else {
+                compensated_sub(increment, sum, correction)
+            };
+            json!({"sum": format!("{:016x}", sum.to_bits()), "compensation": format!("{:016x}", correction.to_bits())})
+        }
+        _ => return Err("unknown kernel mode".into()),
+    };
+    Ok(json!({"id": id, "actual": actual}))
+}
+
+fn main() -> Result<(), Error> {
+    let mut output = io::BufWriter::new(io::stdout().lock());
+    for line in io::stdin().lock().lines() {
+        let input: Value = serde_json::from_str(&line?)?;
+        serde_json::to_writer(&mut output, &result(&input)?)?;
+        writeln!(output)?;
+    }
+    Ok(())
+}
