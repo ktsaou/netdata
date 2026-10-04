@@ -99,6 +99,32 @@ indices are exact after zero-bucket compaction; zero thresholds and custom bound
 Every paired numeric bit difference is reported, including signed zero and NaN payloads. `--strict-bits` makes those
 differences a separate failure gate. It is not the ordinary numeric contract.
 
+## Computed upstream frontend fixtures
+
+Capture the actual upstream lexer and expression-table cases from the verified module cache:
+
+```sh
+python3 tests/promql-conformance/capture.py \
+  --upstream "${PROMQL_UPSTREAM_SOURCE:?}" --mod-cache "${PROMQL_GO_MOD_CACHE:?}"
+```
+
+The capture runs the original upstream assertions for all 157 lexer cases and 356 expression cases. It includes
+52 declared lexer failures, 148 parser failures, nine series-description lexer cases, invalid byte strings,
+recoverable lexer errors and the complete emitted streams. Token numeric codes have a captured semantic-name table.
+This captures the expression table and lexer table; it does not claim every upstream parser helper test is imported.
+
+A private source facade preserves every original module file byte-for-byte, including embedded test data. Only
+an additional test file is added; the module cache stays unchanged. Workspace discovery and downloads are disabled.
+The manifest records all source digests, hook/capture digests and actual counts. Outputs remain in ignored `.tmp/`.
+
+ASTs use flat node tables with node references, preserving all fields and spans without imposing the JSON encoder's
+nesting limit. Strings remain base64 bytes and floats retain raw bits. Repeated parser-error queries reference the
+case input once; error order, messages, positions and line offsets remain explicit. Successful ASTs/token streams
+and all ordered errors are also compared with the computed table's declared expectations.
+
+These are reference fixtures and passing original assertions, not a Rust conformance result. Complete evaluation
+DSL capture, candidate execution and the remaining helper surfaces still require qualification.
+
 Set `exact_numeric` for boolean/discrete result cases. Always test the complete filtered/bool expression around a
 threshold, alongside its numerical intermediate. The preserved prototype rate regression demonstrates why a
 one-bit numerical difference can change whether an alert returns a series. Numeric tolerance never excuses that
@@ -153,5 +179,8 @@ typed Rust core stage:
 - Qualify Go regex syntax, byte/Unicode behavior, capture priority and replacement semantics in the selected Rust
   compatibility frontend over `regex-automata`.
 
-Production typed C ownership/runtime guarantees, live dbengine, APIs, Go Cloud distribution and independent rule
-lifecycle are later tracked stages. Alertmanager remains excluded.
+The typed Rust core stage includes the approved C cursor/ownership interface, synchronous incremental output
+callbacks plus an owned collector, panic containment and resource/concurrency/elapsed-time accounting. Resource
+enforcement is disabled; fixed memory, cardinality, concurrency and default deadline caps are not selected. Future
+enforcement must adapt to the device. Live dbengine, APIs, Go Cloud distribution and independent rule lifecycle are
+later tracked stages. Alertmanager remains excluded.
