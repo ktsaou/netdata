@@ -163,5 +163,25 @@
     "arithmetic_retention": "Borrowed right operand; reusable accumulator buffers; reduced schema output; virtual zero correction; target arrays for custom-bound reconciliation. No raw history container.",
     "iterator_retention": "Borrowed payload; constant-sized state; consuming start-threshold loop; no traversal output array.",
     "status": "Owned/borrowed per-sample payloads, Copy/CopyTo, Mul/Div, integer conversion, compensated summation, ordinary/paired compaction, schema copying/reduction, bucket boundaries, bucket traversal, custom-bound equality, zero-threshold scans, counter reset detection, Add/Sub/KahanAdd, data equality and overflow scans implemented and finitely compared. No complete histogram, evaluator, C boundary, runtime accounting or paged-provider claim."
+  },
+  "numerical_prerequisites": {
+    "capture_tool": "numerical_capture.py",
+    "comparison_tool": "numerical.py",
+    "input_ledger": "numerical-original-inputs.json",
+    "reference_profile": "Go 1.27.1 linux/amd64 GOAMD64=v1, no GOEXPERIMENT; Rust 1.97.1.",
+    "source_files": 113,
+    "original_math_tests": 4,
+    "original_public_cases": 2174,
+    "supplemental_cases": 7839,
+    "fixture_comparisons": 10013,
+    "public_primitive_invocations": 33530,
+    "generic_sqrt_assertions": "Untouched original TestSqrt also executes 17 generic SqrtGo calls; the expression path and candidate comparison use public Sqrt.",
+    "retention": "Constant auxiliary memory; no history, cache, or query-level arrays.",
+    "source_capture": "Additive Go test overlay; installed sources remain unchanged. Exact original AST definitions and complete math/compiler owner hashes bind input/declaration provenance.",
+    "source_algorithms": "Frexp normalizes subnormals; amd64 Log intentionally extracts them directly and includes equality at HSqrt2. Log2 preserves exact powers and compiled inverse Ln2. Public Sqrt uses the compiler primitive.",
+    "reported_numeric_bit_differences_by_profile": {"release": 0, "release-min": 0},
+    "declared_vs_public_go_bit_differences": 2,
+    "declaration_difference_kind": "Original Sqrt negative-input declarations use Go's canonical NaN; public hardware Sqrt returns a negative NaN with a different payload. Original alike assertions accept both; candidate bits match public Go.",
+    "status": "Four primitives finitely compared on the pinned profile; remaining numerical/functions algorithms, platforms and complete expression/C/accounting gates remain required."
   }
 }

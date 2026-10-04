@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Compensated summation derives from Prometheus util/kahansum; see NOTICE.
+pub use crate::numerical_math::{frexp, log, log2, sqrt};
 
 /// Neumaier's compensation preserves upstream's chronological arithmetic order.
 pub fn compensated_add(increment: f64, sum: f64, mut compensation: f64) -> (f64, f64) {

@@ -17,6 +17,11 @@ Histogram exponential-bound scaling derives from Go 1.27.1 math/ldexp.go.
 Copyright 2009 The Go Authors. All rights reserved. Licensed under the
 Go BSD license; see LICENSE-GO-BSD.
 
+Numerical normalization and logarithms derive from Go 1.27.1 math/bits.go,
+frexp.go, log10.go and log_amd64.s. Public square root follows math/sqrt.go's
+compiler primitive. Copyright 2009, 2010 The Go Authors. All rights reserved.
+Licensed under the Go BSD license; see LICENSE-GO-BSD.
+
 Integer duration parsing is derived from prometheus/common v0.71.0,
 model/time.go. Copyright 2013 The Prometheus Authors. Licensed under
 Apache-2.0; see LICENSE-APACHE-2.0.
