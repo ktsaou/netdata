@@ -141,6 +141,59 @@ fn encoded_bucket(bucket: Bucket) -> Value {
         "lower_inclusive": bucket.lower_inclusive, "upper_inclusive": bucket.upper_inclusive})
 }
 
+fn bucket(value: &Value) -> Result<Bucket, Error> {
+    Ok(Bucket {
+        lower: number(&value["lower"])?,
+        upper: number(&value["upper"])?,
+        count: number(&value["count"])?,
+        index: value["index"]
+            .as_i64()
+            .ok_or("invalid bucket index")?
+            .try_into()?,
+        lower_inclusive: value["lower_inclusive"]
+            .as_bool()
+            .ok_or("invalid lower inclusivity")?,
+        upper_inclusive: value["upper_inclusive"]
+            .as_bool()
+            .ok_or("invalid upper inclusivity")?,
+    })
+}
+
+fn trim_result(request: &Value) -> Result<Value, Error> {
+    let mut input = float(&request["input"])?;
+    let copy = request["copy"].as_bool().ok_or("invalid trim copy flag")?;
+    let mut copied = copy.then(|| input.copy());
+    let receiver = copied.as_mut().unwrap_or(&mut input);
+    let threshold = number(&request["threshold"])?;
+    let upper = request["upper_trim"]
+        .as_bool()
+        .ok_or("invalid trim direction")?;
+    let address = std::ptr::from_ref(receiver);
+    let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        std::ptr::eq(address, receiver.trim_buckets(threshold, upper))
+    }));
+    let receiver_after = encoded_float(receiver);
+    let (returned_receiver, panic) = match result {
+        Ok(same) => (same, String::new()),
+        Err(failure) => (
+            false,
+            failure
+                .downcast_ref::<String>()
+                .cloned()
+                .or_else(|| {
+                    failure
+                        .downcast_ref::<&str>()
+                        .map(|value| (*value).to_owned())
+                })
+                .ok_or("non-string trim panic")?,
+        ),
+    };
+    Ok(
+        json!({"receiver_after": receiver_after, "input_after": encoded_float(&input),
+        "returned_receiver": returned_receiver, "panic": panic}),
+    )
+}
+
 fn encoded_iterator(iterator: impl Iterator<Item = Bucket>) -> Value {
     let buckets: Vec<_> = iterator.map(encoded_bucket).collect();
     if buckets.is_empty() {
@@ -296,6 +349,24 @@ fn result(input: &Value) -> Result<Value, Error> {
         .as_bool()
         .ok_or("missing borrowed-mode flag")?;
     let actual = match mode {
+        "bucket-fraction" => {
+            let fraction = bucket(&request["bucket"])?.fraction_below(
+                number(&request["value"])?,
+                request["linear"]
+                    .as_bool()
+                    .ok_or("invalid fraction interpolation")?,
+            );
+            json!(format!("{:016x}", fraction.to_bits()))
+        }
+        "float-trim" => trim_result(request)?,
+        "float-trim-equality" => {
+            let trimmed = trim_result(&request["trim"])?;
+            let result = float(&trimmed["receiver_after"])?;
+            let peer = float(&request["peer"])?;
+            json!({"trim": trimmed, "forward": result.equals(peer.as_ref()), "reverse": peer.equals(result.as_ref()),
+                "borrowed_forward": result.as_ref().equals(peer.as_ref()),
+                "borrowed_reverse": peer.as_ref().equals(result.as_ref()), "peer_after": encoded_float(&peer)})
+        }
         "math-frexp" => {
             let (fraction, exponent) = frexp(number(&request["input"])?);
             json!({"fraction": format!("{:016x}", fraction.to_bits()), "exponent": exponent})

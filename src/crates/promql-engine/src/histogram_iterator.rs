@@ -2,6 +2,7 @@
 // Borrowed bucket traversal derives from the pinned Prometheus model; see NOTICE.
 use crate::histogram::{CUSTOM_BUCKETS_SCHEMA, FloatHistogramRef, Span, bucket_bound};
 use crate::histogram_layout::target_index;
+use crate::numerical::log2;
 
 #[derive(Clone, Copy, Debug, Default)]
 pub struct Bucket {
@@ -11,6 +12,22 @@ pub struct Bucket {
     pub upper_inclusive: bool,
     pub count: f64,
     pub index: i32,
+}
+
+impl Bucket {
+    pub fn fraction_below(self, value: f64, linear: bool) -> f64 {
+        if linear {
+            return (value - self.lower) / (self.upper - self.lower);
+        }
+        let lower = log2(self.lower.abs());
+        let upper = log2(self.upper.abs());
+        let value_log = log2(value.abs());
+        if value > 0.0 {
+            (value_log - lower) / (upper - lower)
+        } else {
+            1.0 - ((value_log - upper) / (lower - upper))
+        }
+    }
 }
 
 #[derive(Clone, Copy)]
@@ -95,8 +112,12 @@ impl<'a> FloatBucketIterator<'a> {
         if target > histogram.schema {
             panic!("cannot merge from schema {} to {target}", histogram.schema);
         }
+        Self::from_layout(Layout::new(histogram, positive), start, target)
+    }
+
+    fn from_layout(layout: Layout<'a>, start: f64, target: i32) -> Self {
         Self {
-            layout: Layout::new(histogram, positive),
+            layout,
             target_schema: target,
             start,
             bound_reached: start == 0.0,
@@ -132,26 +153,10 @@ impl<'a> FloatBucketIterator<'a> {
         }
         let mut span = self.layout.spans[self.span_index];
         if self.layout.schema == self.target_schema {
-            self.current_index = if self.bucket_index == 0 {
-                span.offset
-            } else {
-                self.current_index.wrapping_add(1)
-            };
-            if self.bucket_index >= self.layout.buckets.len() {
+            let Some(position) = self.advance_position(self.layout.buckets.len()) else {
                 return false;
-            }
-            while self.within_span >= span.length {
-                self.within_span = 0;
-                self.span_index += 1;
-                if self.span_index >= self.layout.spans.len() {
-                    return false;
-                }
-                span = self.layout.spans[self.span_index];
-                self.current_index = self.current_index.wrapping_add(span.offset);
-            }
-            self.current_count = self.layout.buckets[self.bucket_index];
-            self.within_span = self.within_span.wrapping_add(1);
-            self.bucket_index += 1;
+            };
+            self.current_count = self.layout.buckets[position];
             return true;
         }
 
@@ -194,6 +199,28 @@ impl<'a> FloatBucketIterator<'a> {
         true
     }
 
+    fn advance_position(&mut self, bucket_count: usize) -> Option<usize> {
+        let mut span = *self.layout.spans.get(self.span_index)?;
+        self.current_index = if self.bucket_index == 0 {
+            span.offset
+        } else {
+            self.current_index.wrapping_add(1)
+        };
+        if self.bucket_index >= bucket_count {
+            return None;
+        }
+        while self.within_span >= span.length {
+            self.within_span = 0;
+            self.span_index += 1;
+            span = *self.layout.spans.get(self.span_index)?;
+            self.current_index = self.current_index.wrapping_add(span.offset);
+        }
+        self.within_span = self.within_span.wrapping_add(1);
+        let position = self.bucket_index;
+        self.bucket_index += 1;
+        Some(position)
+    }
+
     pub fn at(&self) -> Bucket {
         self.layout
             .at(self.target_schema, self.current_index, self.current_count)
@@ -213,6 +240,28 @@ impl Iterator for FloatBucketIterator<'_> {
 
     fn next(&mut self) -> Option<Self::Item> {
         self.advance().then(|| self.at())
+    }
+}
+
+pub(crate) fn visit_float_buckets_mut(
+    schema: i32,
+    positive: bool,
+    spans: &[Span],
+    buckets: &mut [f64],
+    custom_values: Option<&[f64]>,
+    mut visit: impl FnMut(Bucket, &mut f64),
+) {
+    let layout = Layout {
+        schema,
+        positive,
+        spans,
+        buckets: &[],
+        custom_values: if positive { custom_values } else { None },
+    };
+    let mut cursor = FloatBucketIterator::from_layout(layout, 0.0, schema);
+    while let Some(position) = cursor.advance_position(buckets.len()) {
+        let slot = &mut buckets[position];
+        visit(layout.at(schema, cursor.current_index, *slot), slot);
     }
 }
 

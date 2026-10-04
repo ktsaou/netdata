@@ -1,0 +1,94 @@
+// Boundary observations exercise the pinned public operations, without invented declarations.
+func netdataTrimSupplemental(output *[]map[string]any) {
+	negativeZero := math.Float64frombits(0x8000000000000000)
+	nan := math.Float64frombits(0x7ff8000000000042)
+	negativeNan := math.Float64frombits(0xfff8000000000027)
+	small := math.SmallestNonzeroFloat64
+	pairs := [][2]float64{
+		{0, 1}, {-1, 0}, {-4, -2}, {1, 4}, {math.Inf(-1), math.Inf(1)},
+		{math.Inf(-1), -1}, {math.Inf(-1), 1}, {-1, math.Inf(1)}, {negativeZero, 0}, {1, 1},
+		{math.MaxFloat64 / 2, math.MaxFloat64}, {-math.MaxFloat64, -math.MaxFloat64 / 2},
+		{small, 2 * small}, {-2 * small, -small}, {nan, 1}, {1, negativeNan},
+	}
+	values := []float64{math.Inf(-1), -math.MaxFloat64, -4, -1, -small, negativeZero,
+		0, small, 1, 4, math.MaxFloat64, math.Inf(1), nan}
+	for i, bounds := range pairs {
+		for j, value := range values {
+			for k, linear := range []bool{false, true} {
+				b := Bucket[float64]{Lower: bounds[0], Upper: bounds[1], Count: 103, Index: 42,
+					LowerInclusive: true, UpperInclusive: false}
+				request := map[string]any{"bucket": map[string]any{"lower": netdataTrimNumber(b.Lower), "upper": netdataTrimNumber(b.Upper),
+					"count": netdataTrimNumber(b.Count), "index": b.Index, "lower_inclusive": b.LowerInclusive,
+					"upper_inclusive": b.UpperInclusive}, "value": netdataTrimNumber(value), "linear": linear}
+				netdataTrimRecord(output, fmt.Sprintf("supplement:fraction:%03d:%03d:%d", i, j, k), "bucket-fraction",
+					request, netdataTrimNumber(b.FractionBelow(value, linear)), nil)
+			}
+		}
+	}
+	histograms := []*FloatHistogram{
+		{CounterResetHint: GaugeType, Schema: 0, Count: 99, Sum: nan, ZeroThreshold: 0.5, ZeroCount: 3,
+			PositiveSpans: []Span{{0, 0}, {0, 2}, {1, 0}, {2, 2}, {0, 0}}, PositiveBuckets: []float64{0, 7, 0, -2},
+			NegativeSpans: []Span{{1, 2}}, NegativeBuckets: []float64{3, negativeZero}},
+		{Schema: CustomBucketsSchema, Count: 17, Sum: 30, CustomValues: []float64{-1, 1, 4},
+			PositiveSpans: []Span{{0, 4}}, PositiveBuckets: []float64{2, 3, 5, 7}},
+		{Schema: CustomBucketsSchema, Count: 7, Sum: -20, CustomValues: []float64{-4, -2},
+			PositiveSpans: []Span{{0, 1}}, PositiveBuckets: []float64{7}},
+		{Schema: CustomBucketsSchema, Count: 7, Sum: 20, CustomValues: []float64{4},
+			PositiveSpans: []Span{{0, 1}}, PositiveBuckets: []float64{7}},
+		{Schema: CustomBucketsSchema, Count: 7, Sum: 20, CustomValues: []float64{-4},
+			PositiveSpans: []Span{{1, 1}}, PositiveBuckets: []float64{7}},
+		{Schema: 0, Count: 7, Sum: math.Inf(1), PositiveSpans: []Span{{1024, 2}}, PositiveBuckets: []float64{3, 4}},
+		{Schema: 0, Count: 7, Sum: small, PositiveSpans: []Span{{-1073, 2}}, PositiveBuckets: []float64{3, 4}},
+		{Schema: 0, Count: 7, Sum: negativeZero, ZeroThreshold: negativeZero, ZeroCount: 7},
+		{CounterResetHint: CounterReset, Schema: 1, Count: nan, Sum: negativeNan, ZeroThreshold: 0.5, ZeroCount: nan,
+			PositiveSpans: []Span{{0, 5}}, PositiveBuckets: []float64{nan, 2, math.Inf(-1), math.Inf(1), negativeZero},
+			NegativeSpans: []Span{{0, 1}}, NegativeBuckets: []float64{negativeNan}},
+		{Schema: 0, Count: 4, Sum: 42, PositiveSpans: []Span{}, PositiveBuckets: []float64{},
+			NegativeSpans: []Span{{3, 0}}, NegativeBuckets: []float64{}, CustomValues: []float64{nan}},
+		{Schema: CustomBucketsSchema, Count: 5, Sum: 10, ZeroThreshold: 0.5, ZeroCount: 1,
+			CustomValues: []float64{1}, PositiveSpans: []Span{{0, 2}}, PositiveBuckets: []float64{2, 3}},
+		{Schema: 0, Count: 8, Sum: -10, ZeroThreshold: 0.001, ZeroCount: 3,
+			PositiveSpans: []Span{{0, 1}}, PositiveBuckets: []float64{0},
+			NegativeSpans: []Span{{0, 1}}, NegativeBuckets: []float64{5}},
+		{Schema: 0, Count: nan, Sum: nan, ZeroThreshold: 0.5, ZeroCount: 1,
+			PositiveSpans: []Span{{0, 2}}, PositiveBuckets: []float64{nan, negativeNan},
+			NegativeSpans: []Span{{0, 2}}, NegativeBuckets: []float64{negativeNan, nan}},
+		{Schema: 0, Count: nan, Sum: nan, ZeroThreshold: math.Float64frombits(0x7ff8000000000063), ZeroCount: 1,
+			PositiveSpans: []Span{{0, 2}}, PositiveBuckets: []float64{nan, negativeNan},
+			NegativeSpans: []Span{{0, 2}}, NegativeBuckets: []float64{negativeNan, nan}},
+	}
+	thresholds := []float64{math.Inf(-1), -math.MaxFloat64, -8, -4, -2, -1, -small, negativeZero,
+		0, small, 0.25, 0.5, 1, 2, 4, 8, math.MaxFloat64, math.Inf(1), nan}
+	for i, h := range histograms {
+		for j, threshold := range thresholds {
+			for k, upper := range []bool{false, true} {
+				for l, copy := range []bool{false, true} {
+					input := &FloatHistogram{}
+					// Preserve ignored fields and nil/empty slices before testing Copy's own behavior.
+					*input = *h
+					if h.PositiveSpans != nil { input.PositiveSpans = append([]Span{}, h.PositiveSpans...) }
+					if h.NegativeSpans != nil { input.NegativeSpans = append([]Span{}, h.NegativeSpans...) }
+					if h.PositiveBuckets != nil { input.PositiveBuckets = append([]float64{}, h.PositiveBuckets...) }
+					if h.NegativeBuckets != nil { input.NegativeBuckets = append([]float64{}, h.NegativeBuckets...) }
+					netdataTrimApply(output, fmt.Sprintf("supplement:trim:%03d:%03d:%d:%d", i, j, k, l), input, threshold, upper, copy)
+				}
+			}
+		}
+	}
+	// The peer is literal input, independent of either implementation's trimmed output.
+	input := &FloatHistogram{CounterResetHint: CounterReset, Schema: 1, Count: nan, Sum: negativeNan,
+		ZeroThreshold: 0.5, ZeroCount: nan, PositiveSpans: []Span{{0, 5}},
+		PositiveBuckets: []float64{nan, 2, math.Inf(-1), math.Inf(1), negativeZero},
+		NegativeSpans: []Span{{0, 1}}, NegativeBuckets: []float64{negativeNan}}
+	peer := &FloatHistogram{CounterResetHint: CounterReset, Schema: 1, Count: nan, Sum: nan,
+		ZeroThreshold: 0.5, ZeroCount: nan, PositiveSpans: []Span{{0, 4}},
+		PositiveBuckets: []float64{nan, 2, math.Inf(-1), math.Inf(1)},
+		NegativeSpans: []Span{{0, 1}}, NegativeBuckets: []float64{negativeNan}}
+	request := netdataTrimFrozen(map[string]any{"trim": netdataTrimRequest(input, math.Inf(1), true, false),
+		"peer": netdataTrimFloat(peer)})
+	returned := input.TrimBuckets(math.Inf(1), true)
+	forward, reverse := returned.Equals(peer), peer.Equals(returned)
+	netdataTrimRecord(output, "supplement:trim-equality", "float-trim-equality", request,
+		map[string]any{"trim": netdataTrimActual(input, input, returned, ""), "forward": forward, "reverse": reverse,
+			"borrowed_forward": forward, "borrowed_reverse": reverse, "peer_after": netdataTrimFloat(peer)}, nil)
+}
