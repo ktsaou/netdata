@@ -21,6 +21,11 @@ TABLES = [
     ("TestFloatHistogramCopyToSchema", "float-copy-to-schema", 3),
     ("TestFloatHistogramReduceResolution", "float-reduce-resolution", 4),
     ("TestGetBoundExponential", "exponential-bound", 15),
+    ("TestAllFloatBucketIterator", "float-iterator-set", 7),
+    ("TestAllReverseFloatBucketIterator", "float-iterator-set", 9),
+    ("TestFloatBucketIteratorTargetSchema", "float-iterator-set", 6),
+    ("TestFloatCustomBucketsIterators", "float-iterator-set", 2),
+    ("TestReverseFloatBucketIterator", "float-iterator-set", 1),
 ]
 
 
@@ -29,7 +34,7 @@ def fields(value, expected):
         raise ValueError("missing or extra histogram kernel fields")
 
 
-def compare_value(expected, actual, identity, path, failures, bit_differences, exact_numeric=False):
+def compare_value(expected, actual, identity, path, failures, bit_differences, exact_numeric=False, exact_bits=False):
     if type(expected) is not type(actual):
         failures.append({"id": identity, "path": path, "reason": "changed field type or nil/empty distinction"})
         return
@@ -39,20 +44,24 @@ def compare_value(expected, actual, identity, path, failures, bit_differences, e
             return
         for key in expected:
             compare_value(expected[key], actual[key], identity, path + "." + key,
-                          failures, bit_differences, exact_numeric)
+                          failures, bit_differences, exact_numeric, exact_bits)
     elif type(expected) is list:
         if len(expected) != len(actual):
             failures.append({"id": identity, "path": path, "reason": "changed bucket/span length"})
             return
         for i, (left, right) in enumerate(zip(expected, actual)):
-            compare_value(left, right, identity, f"{path}[{i}]", failures, bit_differences, exact_numeric)
+            compare_value(left, right, identity, f"{path}[{i}]", failures, bit_differences, exact_numeric, exact_bits)
     elif type(expected) is str and re.fullmatch(r"[0-9a-f]{16}", expected):
         if re.fullmatch(r"[0-9a-f]{16}", actual) is None:
             raise ValueError("malformed candidate binary64 field")
         if expected != actual:
             bit_differences.append({"id": identity, "path": path, "expected": expected, "actual": actual})
         exact = exact_numeric or path.endswith(".zero_threshold") or ".custom_values[" in path
-        if not (bits(expected)[1] == bits(actual)[1] if exact else same_number(expected, actual)):
+        if exact_bits or path.endswith((".lower", ".upper")):
+            same = expected == actual
+        else:
+            same = bits(expected)[1] == bits(actual)[1] if exact else same_number(expected, actual)
+        if not same:
             if expected != actual:
                 failures.append({"id": identity, "path": path, "reason": "numeric mismatch"})
     elif expected != actual:
@@ -125,6 +134,33 @@ def reduction_result(value, allow_nil=False):
         histogram(value["result"], False)
 
 
+ITERATOR_ROUTES = {"all", "all-reverse", "positive", "negative", "positive-reverse", "negative-reverse",
+                   "low-positive", "low-negative"}
+
+
+def iterator_result(value, routes):
+    fields(value, ("buckets", "panic"))
+    if type(value["panic"]) is not str:
+        raise ValueError("invalid iterator panic")
+    if value["panic"]:
+        if value["buckets"] is not None:
+            raise ValueError("iterator panic retained an incomplete result")
+        return
+    fields(value["buckets"], routes)
+    for buckets in value["buckets"].values():
+        if buckets is None:
+            continue
+        if type(buckets) is not list:
+            raise ValueError("invalid iterator bucket list")
+        for bucket in buckets:
+            fields(bucket, ("lower", "upper", "count", "index", "lower_inclusive", "upper_inclusive"))
+            for key in ("lower", "upper", "count"):
+                number(bucket[key])
+            integer(bucket["index"], -(1 << 31), (1 << 31) - 1)
+            if any(type(bucket[key]) is not bool for key in ("lower_inclusive", "upper_inclusive")):
+                raise ValueError("invalid bucket inclusivity")
+
+
 def compare_declared(case, failures, bit_differences):
     declared, actual = case["declared"], case["actual"]
     if declared is None:
@@ -162,6 +198,18 @@ def validate_case(case):
                 raise ValueError("changed exponential bound table layout")
             for value in values:
                 number(value)
+    elif mode == "float-iterator-set":
+        fields(request, ("input", "routes", "start", "target_schema"))
+        histogram(request["input"], False)
+        number(request["start"])
+        integer(request["target_schema"], -(1 << 31), (1 << 31) - 1)
+        routes = request["routes"]
+        if (type(routes) is not list or not routes or any(type(route) is not str for route in routes)
+                or len(set(routes)) != len(routes) or not set(routes) <= ITERATOR_ROUTES):
+            raise ValueError("invalid iterator route inventory")
+        iterator_result(actual, routes)
+        if case["declared"] is not None:
+            iterator_result(case["declared"], routes)
     elif mode in {"float-mul", "float-div", "float-copy", "float-copy-to", "integer-copy",
                   "integer-copy-to", "integer-to-float"}:
         if mode in {"float-mul", "float-div"}:
@@ -230,6 +278,11 @@ def supplemental_ids():
         for i in range(12):
             result[f"supplement:bound-negative:{schema}:{i}"] = "exponential-bound"
     result["supplement:exponential-bound-table"] = "exponential-bound-table"
+    for shape in range(12):
+        for i in range(6):
+            result[f"supplement:iterator:{shape}:{i}"] = "float-iterator-set"
+    for shape in range(5):
+        result[f"supplement:iterator-panic:{shape}"] = "float-iterator-set"
     return result
 
 
@@ -256,7 +309,7 @@ def validate_cases(data, tables, ledger=None):
     for table, (test, mode, count) in zip(tables, TABLES):
         fields(table, ("test", "file", "mode", "cases", "line", "case_lines", "source_sha256", "prefix", "variable", "case_keys"))
         file = ("generic_test.go" if test == "TestGetBoundExponential" else
-                "float_histogram_test.go" if test.startswith("TestFloat") else "histogram_test.go")
+                "float_histogram_test.go" if test.startswith("TestFloat") or mode == "float-iterator-set" else "histogram_test.go")
         if (table["test"] != test or table["file"] != file or table["mode"] != mode
                 or type(table["cases"]) is not int or table["cases"] != count
                 or type(table["prefix"]) is not str or not table["prefix"].strip()
@@ -266,15 +319,17 @@ def validate_cases(data, tables, ledger=None):
         integer(table["line"], 1, (1 << 31) - 1)
         for line in table["case_lines"]:
             integer(line, table["line"] + 1, (1 << 31) - 1)
-        if test == "TestFloatHistogramReduceResolution":
-            if (table["variable"] != "tcs" or type(table["case_keys"]) is not list
+        if test in {"TestFloatHistogramReduceResolution", "TestFloatBucketIteratorTargetSchema"}:
+            variable = "tcs" if test == "TestFloatHistogramReduceResolution" else "cases"
+            if (table["variable"] != variable or type(table["case_keys"]) is not list
                     or len(table["case_keys"]) != count or any(type(key) is not str or not key for key in table["case_keys"])
                     or len(set(table["case_keys"])) != count):
                 raise ValueError("changed histogram source map keys")
             for key in table["case_keys"]:
                 expected[f"{test}:{key}"] = mode
         else:
-            variable = "scenarios" if test == "TestGetBoundExponential" else "cases"
+            variable = ("scenarios" if test == "TestGetBoundExponential" else
+                        "h" if test == "TestReverseFloatBucketIterator" else "cases")
             if table["variable"] != variable or table["case_keys"] is not None:
                 raise ValueError("changed histogram source table kind")
             for i in range(count):

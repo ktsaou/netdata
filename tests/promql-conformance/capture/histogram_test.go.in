@@ -80,6 +80,134 @@ func netdataReductionResult(input *FloatHistogram, err error) any {
 	return map[string]any{"result": netdataFloat(input), "error": message, "histogram_error": errors.As(err, &Error{})}
 }
 
+func netdataBuckets(input []Bucket[float64]) any {
+	if input == nil {
+		return nil
+	}
+	output := make([]map[string]any, len(input))
+	for i, bucket := range input {
+		output[i] = map[string]any{"lower": fmt.Sprintf("%016x", math.Float64bits(bucket.Lower)),
+			"upper": fmt.Sprintf("%016x", math.Float64bits(bucket.Upper)),
+			"count": fmt.Sprintf("%016x", math.Float64bits(bucket.Count)), "index": bucket.Index,
+			"lower_inclusive": bucket.LowerInclusive, "upper_inclusive": bucket.UpperInclusive}
+	}
+	return output
+}
+
+func netdataCollectBuckets(iterator BucketIterator[float64]) []Bucket[float64] {
+	var buckets []Bucket[float64]
+	for iterator.Next() {
+		buckets = append(buckets, iterator.At())
+	}
+	return buckets
+}
+
+func netdataReverseBuckets(input []Bucket[float64]) []Bucket[float64] {
+	if input == nil {
+		return nil
+	}
+	output := make([]Bucket[float64], len(input))
+	for i, value := range input {
+		output[len(input)-i-1] = value
+	}
+	return output
+}
+
+func netdataIteratorDeclared(input map[string][]Bucket[float64]) any {
+	buckets := map[string]any{}
+	for route, values := range input {
+		buckets[route] = netdataBuckets(values)
+	}
+	return map[string]any{"buckets": buckets, "panic": ""}
+}
+
+func netdataIteratorRoutes() []string {
+	return []string{"all", "all-reverse", "positive", "negative", "positive-reverse", "negative-reverse", "low-positive", "low-negative"}
+}
+
+func netdataIteratorResult(h *FloatHistogram, routes []string, start float64, target int32) (output map[string]any) {
+	output = map[string]any{"buckets": nil, "panic": ""}
+	defer func() {
+		if failure := recover(); failure != nil {
+			output["panic"] = fmt.Sprint(failure)
+		}
+	}()
+	buckets := map[string]any{}
+	for _, route := range routes {
+		var iterator BucketIterator[float64]
+		switch route {
+		case "all":
+			iterator = h.AllBucketIterator()
+		case "all-reverse":
+			iterator = h.AllReverseBucketIterator()
+		case "positive":
+			iterator = h.PositiveBucketIterator()
+		case "negative":
+			iterator = h.NegativeBucketIterator()
+		case "positive-reverse":
+			iterator = h.PositiveReverseBucketIterator()
+		case "negative-reverse":
+			iterator = h.NegativeReverseBucketIterator()
+		case "low-positive":
+			value := h.floatBucketIterator(true, start, target)
+			iterator = &value
+		case "low-negative":
+			value := h.floatBucketIterator(false, start, target)
+			iterator = &value
+		default:
+			panic("unknown iterator route")
+		}
+		buckets[route] = netdataBuckets(netdataCollectBuckets(iterator))
+	}
+	output["buckets"] = buckets
+	return output
+}
+
+// Preserve the original All iterator tests' independently assembled expectations.
+func netdataDeclaredAll(h *FloatHistogram, negative, zero, positive, reverse bool) []Bucket[float64] {
+	var output []Bucket[float64]
+	appendSide := func(isPositive bool) {
+		var iterator BucketIterator[float64]
+		if isPositive {
+			if reverse {
+				iterator = h.PositiveReverseBucketIterator()
+			} else {
+				iterator = h.PositiveBucketIterator()
+			}
+		} else if reverse {
+			iterator = h.NegativeBucketIterator()
+		} else {
+			iterator = h.NegativeReverseBucketIterator()
+		}
+		for iterator.Next() {
+			bucket := iterator.At()
+			if zero {
+				if isPositive && bucket.Lower < h.ZeroThreshold {
+					bucket.Lower = h.ZeroThreshold
+				} else if !isPositive && bucket.Upper > -h.ZeroThreshold {
+					bucket.Upper = -h.ZeroThreshold
+				}
+			}
+			output = append(output, bucket)
+		}
+	}
+	if reverse && positive {
+		appendSide(true)
+	} else if !reverse && negative {
+		appendSide(false)
+	}
+	if zero {
+		output = append(output, Bucket[float64]{Lower: -h.ZeroThreshold, Upper: h.ZeroThreshold,
+			LowerInclusive: true, UpperInclusive: true, Count: h.ZeroCount})
+	}
+	if reverse && negative {
+		appendSide(false)
+	} else if !reverse && positive {
+		appendSide(true)
+	}
+	return output
+}
+
 func netdataLayoutSupplemental(cases *[]map[string]any) {
 	for hint := UnknownCounterReset; hint <= GaugeType; hint++ {
 		for shape := 0; shape < 4; shape++ {
@@ -191,6 +319,89 @@ func netdataBoundSupplemental(cases *[]map[string]any) {
 	netdataRecord(cases, "supplement:exponential-bound-table", "exponential-bound-table", map[string]any{}, constants, nil)
 }
 
+func netdataIteratorSupplemental(cases *[]map[string]any) {
+	for shape := 0; shape < 12; shape++ {
+		h := &FloatHistogram{Schema: 0, ZeroThreshold: 0.01}
+		target := int32(0)
+		routes := netdataIteratorRoutes()
+		switch shape {
+		case 0:
+			h.PositiveSpans, h.PositiveBuckets = []Span{{-2, 6}}, []float64{1, 2, 3, 4, 5, 6}
+		case 1:
+			h.Schema = 1
+			h.PositiveSpans, h.PositiveBuckets = []Span{{0, 5}}, []float64{1, 2, 3, 4, 5}
+		case 2:
+			h.Schema = 1
+			h.PositiveSpans = []Span{{-3, 2}, {1, 0}, {2, 3}, {3, 0}}
+			h.PositiveBuckets = []float64{1, 2, math.Copysign(0, -1), 4, 5}
+		case 3:
+			h.Schema = 1
+			h.PositiveSpans, h.PositiveBuckets = []Span{{0, 5}}, []float64{1e16, 1, -1e16}
+		case 4:
+			h.PositiveSpans, h.PositiveBuckets = []Span{{0, 2}}, []float64{1, 2, 3, 4}
+		case 5:
+			h.ZeroCount = 2
+		case 6:
+			h.ZeroCount = 2
+			h.PositiveSpans, h.PositiveBuckets = []Span{}, []float64{}
+		case 7:
+			h.PositiveSpans = []Span{{-1076, 4}, {2095, 4}}
+			h.PositiveBuckets = []float64{0, math.Copysign(0, -1), 1, 2, 3, 4, math.Inf(1), math.NaN()}
+		case 8:
+			h.Schema, target = CustomBucketsSchema, CustomBucketsSchema
+			h.PositiveSpans, h.PositiveBuckets = []Span{{0, 4}}, []float64{1, math.Copysign(0, -1), 3, 4}
+			h.CustomValues = []float64{-1, 0, 1}
+		case 9:
+			h.ZeroThreshold = 0.6
+			h.PositiveSpans, h.PositiveBuckets = []Span{{0, 2}}, []float64{0, 3}
+		case 10:
+			h.PositiveSpans = []Span{{0, 2}}
+		case 11:
+			h.Schema, target = 8, 8
+			h.PositiveSpans = []Span{{-1024, 2048}}
+			h.PositiveBuckets = make([]float64, 2048)
+			for i := range h.PositiveBuckets {
+				h.PositiveBuckets[i] = 1
+			}
+			routes = []string{"low-positive", "low-negative"}
+		}
+		if shape != 6 && shape != 8 {
+			h.NegativeSpans, h.NegativeBuckets = h.PositiveSpans, h.PositiveBuckets
+		}
+		for i, start := range []float64{math.Copysign(0, -1), 0, 1, 1.5, math.Inf(1), math.NaN()} {
+			request := netdataFrozen(map[string]any{"input": netdataFloat(h), "routes": routes,
+				"start": fmt.Sprintf("%016x", math.Float64bits(start)), "target_schema": target})
+			netdataRecord(cases, fmt.Sprintf("supplement:iterator:%d:%d", shape, i), "float-iterator-set", request,
+				netdataIteratorResult(h, routes, start, target), nil)
+		}
+	}
+	for shape := 0; shape < 5; shape++ {
+		h := &FloatHistogram{Schema: 0}
+		target := int32(0)
+		switch shape {
+		case 0:
+			h.Schema = CustomBucketsSchema
+		case 1:
+			target = CustomBucketsSchema
+		case 2:
+			target = 1
+		case 3, 4:
+			h.Schema, target = CustomBucketsSchema, CustomBucketsSchema
+			h.CustomValues = []float64{-1, 0, 1}
+			offset := int32(4)
+			if shape == 4 {
+				offset = -1
+			}
+			h.PositiveSpans, h.PositiveBuckets = []Span{{offset, 1}}, []float64{1}
+		}
+		routes := []string{"low-positive"}
+		request := netdataFrozen(map[string]any{"input": netdataFloat(h), "routes": routes,
+			"start": fmt.Sprintf("%016x", math.Float64bits(0)), "target_schema": target})
+		netdataRecord(cases, fmt.Sprintf("supplement:iterator-panic:%d", shape), "float-iterator-set", request,
+			netdataIteratorResult(h, routes, 0, target), nil)
+	}
+}
+
 func netdataSupplemental(cases *[]map[string]any) {
 	for hint := UnknownCounterReset; hint <= GaugeType; hint++ {
 		for _, schema := range []int32{0, CustomBucketsSchema} {
@@ -274,6 +485,7 @@ func TestNetdataCaptureHistogram(t *testing.T) {
 	netdataSupplemental(&cases)
 	netdataLayoutSupplemental(&cases)
 	netdataBoundSupplemental(&cases)
+	netdataIteratorSupplemental(&cases)
 	raw, err := json.MarshalIndent(map[string]any{"schema_version": 1,
 		"commit": "5241a27fe3c6983549fccc32f6e65917408c63cd", "go_version": runtime.Version(),
 		"go_os": runtime.GOOS, "go_arch": runtime.GOARCH,

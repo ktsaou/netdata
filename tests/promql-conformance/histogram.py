@@ -10,7 +10,8 @@ from build import directory
 from build_frontend import build
 from histogram_reference import compare_declared, compare_value, fields, load
 
-BORROWED = {"float-copy", "float-copy-to", "integer-copy", "integer-copy-to", "integer-to-float", "float-copy-to-schema"}
+BORROWED = {"float-copy", "float-copy-to", "integer-copy", "integer-copy-to", "integer-to-float", "float-copy-to-schema",
+            "float-iterator-set"}
 
 
 def requests(data):
@@ -25,7 +26,7 @@ def requests(data):
     return inputs, expected
 
 
-def compare_results(expected, output, exact_numeric_ids=()):
+def compare_results(expected, output, exact_bits_ids=()):
     failures, bit_differences, seen = [], [], set()
     if type(output) is not list or len(output) != len(expected):
         raise ValueError("incomplete candidate kernel output")
@@ -36,7 +37,7 @@ def compare_results(expected, output, exact_numeric_ids=()):
             raise ValueError("unknown or duplicate candidate kernel identity")
         seen.add(identity)
         compare_value(expected[identity], result["actual"], identity, "actual", failures, bit_differences,
-                      exact_numeric=identity in exact_numeric_ids)
+                      exact_bits=identity in exact_bits_ids)
     return {"semantic_pass": not failures, "bitwise_pass": not bit_differences and not failures,
             "cases": len(expected), "failures": failures, "bit_differences": bit_differences}
 
@@ -54,9 +55,9 @@ def compare(capture, binary=None):
     (task / "candidate.stderr").write_text(result.stderr)
     if result.returncode:
         raise SystemExit(f"kernel candidate failed ({result.returncode}); evidence: {task}")
-    exact_numeric_ids = {row["id"] for row in inputs
+    exact_bits_ids = {row["id"] for row in inputs
                          if row["mode"] in {"exponential-bound", "exponential-bound-table"}}
-    report = compare_results(expected, [json.loads(line) for line in result.stdout.splitlines()], exact_numeric_ids)
+    report = compare_results(expected, [json.loads(line) for line in result.stdout.splitlines()], exact_bits_ids)
     report["source_counts"] = counts
     report["declared_bit_differences"] = []
     declared_failures = []

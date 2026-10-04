@@ -1,6 +1,9 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Histogram value operations derive from the pinned Prometheus model; see NOTICE.
 pub use crate::histogram_bounds::bucket_bound;
+pub use crate::histogram_iterator::{
+    AllFloatBucketIterator, Bucket, FloatBucketIterator, ReverseFloatBucketIterator,
+};
 pub use crate::histogram_layout::HistogramError;
 use crate::histogram_layout::{compact_float, reduce_float_copy, reduce_float_in_place};
 use std::sync::Arc;
@@ -97,6 +100,27 @@ fn clear_if_present<T>(destination: &mut Option<Vec<T>>) {
 }
 
 impl FloatHistogram {
+    pub fn bucket_iterator(
+        &self,
+        positive: bool,
+        start: f64,
+        target: i32,
+    ) -> FloatBucketIterator<'_> {
+        self.as_ref().bucket_iterator(positive, start, target)
+    }
+
+    pub fn reverse_bucket_iterator(&self, positive: bool) -> ReverseFloatBucketIterator<'_> {
+        self.as_ref().reverse_bucket_iterator(positive)
+    }
+
+    pub fn all_bucket_iterator(&self, reverse: bool) -> AllFloatBucketIterator<'_> {
+        self.as_ref().all_bucket_iterator(reverse)
+    }
+
+    pub fn zero_bucket(&self) -> Bucket {
+        self.as_ref().zero_bucket()
+    }
+
     pub fn as_ref(&self) -> FloatHistogramRef<'_> {
         FloatHistogramRef {
             reset_hint: self.reset_hint,
@@ -221,7 +245,35 @@ impl FloatHistogram {
     }
 }
 
-impl FloatHistogramRef<'_> {
+impl<'a> FloatHistogramRef<'a> {
+    pub fn bucket_iterator(
+        self,
+        positive: bool,
+        start: f64,
+        target: i32,
+    ) -> FloatBucketIterator<'a> {
+        FloatBucketIterator::new(self, positive, start, target)
+    }
+
+    pub fn reverse_bucket_iterator(self, positive: bool) -> ReverseFloatBucketIterator<'a> {
+        ReverseFloatBucketIterator::new(self, positive)
+    }
+
+    pub fn all_bucket_iterator(self, reverse: bool) -> AllFloatBucketIterator<'a> {
+        AllFloatBucketIterator::new(self, reverse)
+    }
+
+    pub fn zero_bucket(self) -> Bucket {
+        Bucket {
+            lower: -self.zero_threshold,
+            upper: self.zero_threshold,
+            lower_inclusive: true,
+            upper_inclusive: true,
+            count: self.zero_count,
+            index: 0,
+        }
+    }
+
     pub fn copy_to_schema(self, target: i32) -> FloatHistogram {
         if target == self.schema {
             return self.to_owned();

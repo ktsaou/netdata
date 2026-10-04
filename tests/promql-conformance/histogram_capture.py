@@ -23,9 +23,12 @@ HOOK = "model/histogram/netdata_capture_test.go"
 def helper(table, index):
     mode = table["mode"]
     body = [f'func netdataTable{index}(t *testing.T, output *[]map[string]any) {{', table["prefix"]]
-    if table["variable"] == "tcs":
+    singleton = table["variable"] == "h"
+    if singleton:
+        body += [f'id := "{table["test"]}:000"']
+    elif table["case_keys"] is not None:
         keys = ", ".join(json.dumps(key) for key in sorted(table["case_keys"]))
-        body += [f'for _, name := range []string{{{keys}}} {{', 'c := tcs[name]',
+        body += [f'for _, name := range []string{{{keys}}} {{', f'c := {table["variable"]}[name]',
                  f'id := "{table["test"]}:" + name']
     else:
         body += [f'for i, c := range {table["variable"]} {{', f'id := fmt.Sprintf("{table["test"]}:%03d", i)']
@@ -70,9 +73,37 @@ def helper(table, index):
                  'declared := fmt.Sprintf("%016x", math.Float64bits(c.want))',
                  'actual := fmt.Sprintf("%016x", math.Float64bits(getBoundExponential(c.idx, c.schema)))',
                  'netdataRecord(output, id, "exponential-bound", request, actual, declared)']
+    elif mode == "float-iterator-set":
+        test = table["test"]
+        start = 'float64(0)'
+        histogram = 'h' if singleton else '&c.h'
+        target = 'h.Schema' if singleton else 'c.h.Schema'
+        if test in {"TestAllFloatBucketIterator", "TestAllReverseFloatBucketIterator"}:
+            reverse = test == "TestAllReverseFloatBucketIterator"
+            route = "all-reverse" if reverse else "all"
+            body += [f'routes := []string{{"{route}"}}',
+                     f'declared := netdataIteratorDeclared(map[string][]Bucket[float64]{{"{route}": netdataDeclaredAll(&c.h, c.includeNeg, c.includeZero, c.includePos, {str(reverse).lower()})}})']
+        elif test == "TestFloatBucketIteratorTargetSchema":
+            target = 'int32(-1)'
+            body += ['routes := []string{"low-positive", "low-negative"}',
+                     'declared := netdataIteratorDeclared(map[string][]Bucket[float64]{"low-positive": c.expPositiveBuckets, "low-negative": c.expNegativeBuckets})']
+        elif test == "TestFloatCustomBucketsIterators":
+            body += ['routes := netdataIteratorRoutes()',
+                     'positive := c.expPositiveBuckets', 'reverse := netdataReverseBuckets(positive)',
+                     'declared := netdataIteratorDeclared(map[string][]Bucket[float64]{"all": positive, "all-reverse": reverse, "positive": positive, "negative": nil, "positive-reverse": reverse, "negative-reverse": nil, "low-positive": positive, "low-negative": nil})']
+        elif test == "TestReverseFloatBucketIterator":
+            body += ['routes := []string{"positive", "positive-reverse", "negative", "negative-reverse"}',
+                     'positive := netdataCollectBuckets(h.PositiveBucketIterator())',
+                     'negative := netdataCollectBuckets(h.NegativeBucketIterator())',
+                     'declared := netdataIteratorDeclared(map[string][]Bucket[float64]{"positive": positive, "positive-reverse": netdataReverseBuckets(positive), "negative": negative, "negative-reverse": netdataReverseBuckets(negative)})']
+        else:
+            raise ValueError("unknown histogram iterator source table")
+        body += [f'request := netdataFrozen(map[string]any{{"input": netdataFloat({histogram}), "routes": routes, "start": fmt.Sprintf("%016x", math.Float64bits({start})), "target_schema": {target}}})',
+                 f'actual := netdataIteratorResult({histogram}, routes, {start}, {target})',
+                 'netdataRecord(output, id, "float-iterator-set", request, actual, declared)']
     else:
         raise ValueError("unknown source histogram table")
-    body += ['}', '}']
+    body += ['}'] if singleton else ['}', '}']
     return "\n".join(body)
 
 
@@ -119,7 +150,7 @@ def capture(mod_cache, write_input_ledger=False):
     if result.returncode:
         raise SystemExit(f"histogram table extraction failed ({result.returncode}): {result.stderr}")
     tables = json.loads(result.stdout)
-    if len(tables) != 12 or sum(row["cases"] for row in tables) != 85:
+    if len(tables) != 17 or sum(row["cases"] for row in tables) != 110:
         raise ValueError("changed histogram table coverage")
     for table in tables:
         raw = (source / "model/histogram" / table["file"]).read_bytes()

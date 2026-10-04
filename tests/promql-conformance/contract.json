@@ -130,10 +130,10 @@
     "comparison_tool": "histogram.py",
     "input_ledger": "histogram-original-inputs.json",
     "source_files": 1654,
-    "original_histogram_tests": 12,
-    "original_table_cases": 85,
-    "supplemental_cases": 5549,
-    "owned_and_borrowed_comparisons": 5679,
+    "original_histogram_tests": 17,
+    "original_table_cases": 110,
+    "supplemental_cases": 5626,
+    "owned_and_borrowed_comparisons": 5883,
     "semantic_pass": true,
     "reported_numeric_bit_differences_by_profile": {"release": 10, "release-min": 1},
     "bit_difference_kind": "NaN sign in compensated subtraction; strict-bits diagnostic fails.",
@@ -143,6 +143,9 @@
     "reference_platform": "linux/amd64",
     "bound_table_constants": 511,
     "bound_results": "Exact bits, including subnormal underflow and finite/overflow separation.",
-    "status": "Owned/borrowed per-sample payloads, Copy/CopyTo, Mul/Div, integer conversion, compensated summation, compaction, schema copying/reduction and bucket boundaries implemented and finitely compared. No complete histogram, evaluator, C boundary, runtime accounting or paged-provider claim."
+    "iterator_fixture_groups": 102,
+    "iterator_go_routes": 593,
+    "iterator_retention": "Borrowed payload; constant-sized state; consuming start-threshold loop; no traversal output array.",
+    "status": "Owned/borrowed per-sample payloads, Copy/CopyTo, Mul/Div, integer conversion, compensated summation, compaction, schema copying/reduction, bucket boundaries and bucket traversal implemented and finitely compared. No complete histogram, evaluator, C boundary, runtime accounting or paged-provider claim."
   }
 }

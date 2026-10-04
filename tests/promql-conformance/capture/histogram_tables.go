@@ -44,6 +44,11 @@ func main() {
 		{Test: "TestFloatHistogramCopyToSchema", File: "float_histogram_test.go", Mode: "float-copy-to-schema", Cases: 3},
 		{Test: "TestFloatHistogramReduceResolution", File: "float_histogram_test.go", Mode: "float-reduce-resolution", Cases: 4, Variable: "tcs"},
 		{Test: "TestGetBoundExponential", File: "generic_test.go", Mode: "exponential-bound", Cases: 15, Variable: "scenarios"},
+		{Test: "TestAllFloatBucketIterator", File: "float_histogram_test.go", Mode: "float-iterator-set", Cases: 7},
+		{Test: "TestAllReverseFloatBucketIterator", File: "float_histogram_test.go", Mode: "float-iterator-set", Cases: 9},
+		{Test: "TestFloatBucketIteratorTargetSchema", File: "float_histogram_test.go", Mode: "float-iterator-set", Cases: 6},
+		{Test: "TestFloatCustomBucketsIterators", File: "float_histogram_test.go", Mode: "float-iterator-set", Cases: 2},
+		{Test: "TestReverseFloatBucketIterator", File: "float_histogram_test.go", Mode: "float-iterator-set", Cases: 1, Variable: "h"},
 	}
 	for i := range tables {
 		row := &tables[i]
@@ -79,19 +84,31 @@ func main() {
 				}
 				identifier, ok := assignment.Lhs[0].(*ast.Ident)
 				if ok && identifier.Name == row.Variable {
+					if row.Variable == "h" {
+						end = assignment.End()
+						row.CaseLines = append(row.CaseLines, files.Position(statement.Pos()).Line)
+						break
+					}
 					cases, _ = assignment.Rhs[0].(*ast.CompositeLit)
 				}
 			}
-			if cases == nil || len(cases.Elts) != row.Cases || !end.IsValid() {
+			if !end.IsValid() || (row.Variable != "h" && (cases == nil || len(cases.Elts) != row.Cases)) ||
+				(row.Variable == "h" && (row.Cases != 1 || len(row.CaseLines) != 1)) {
 				panic(fmt.Sprintf("changed source table: %s", row.Test))
 			}
 			startOffset := files.Position(function.Body.Lbrace).Offset + 1
 			endOffset := files.Position(end).Offset
 			row.Prefix = string(raw[startOffset:endOffset])
 			row.Line = files.Position(function.Pos()).Line
-			for _, element := range cases.Elts {
+			var elements []ast.Expr
+			var isMap bool
+			if cases != nil {
+				elements = cases.Elts
+				_, isMap = cases.Type.(*ast.MapType)
+			}
+			for _, element := range elements {
 				row.CaseLines = append(row.CaseLines, files.Position(element.Pos()).Line)
-				if row.Variable == "tcs" {
+				if isMap {
 					entry, ok := element.(*ast.KeyValueExpr)
 					if !ok {
 						panic("missing map key")

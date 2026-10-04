@@ -277,7 +277,7 @@ owned histogram copies share immutable custom bounds. These types do not retain 
 query evaluation. Nil and empty arrays, reset hints, integer deltas and raw floating-point bits remain distinct.
 
 The kernels implement schema-aware Copy/CopyTo, multiplication/division, integer-to-float conversion, compensated
-summation, sparse compaction, schema copy/reduction and bucket boundaries. Reduction reuses the current payload's
+summation, sparse compaction, schema copy/reduction, bucket boundaries and borrowed bucket traversal. Reduction reuses the current payload's
 buffers; borrowed schema copying constructs only the reduced result. Boundaries use all 511 compiled Go constants
 and the Go scaling operation order, including subnormal rounding and the last finite bucket. Capture and compare
 with the existing toolchains:
@@ -287,10 +287,16 @@ python3 tests/promql-conformance/histogram_capture.py --mod-cache "${PROMQL_GO_M
 python3 tests/promql-conformance/histogram.py --capture "${PROMQL_HISTOGRAM_CAPTURE_DIR:?}"
 ```
 
-All twelve original histogram tests run first. Exact Go-AST declaration spans supply their 85 table cases;
-5,549 separately attributed supplemental cases cover special factors, hints, high integer counts, compensation,
+All seventeen original histogram tests run first. Exact Go-AST declaration spans supply 110 source fixtures,
+including the dedicated reverse-iterator setup. The 5,626 separately attributed supplemental cases cover special factors, hints, high integer counts, compensation,
 nil/empty layouts, partial reduction failures and every compiled bound fraction at ten critical exponents.
 Map cases use source-bound keys rather than iteration order.
+Iterator fixtures compare all returned buckets, indices, bound bits, inclusivity and panic messages across eight
+routes. They cover both directions, schema merging, custom buckets, malformed counts/spans, zero clipping even
+without a populated zero bucket, and start-value filtering after a whole target bucket is merged. The 102 iterator
+fixture groups exercise 593 Go routes; both owned and borrowed Rust entry points are compared. A separate test
+skips 100,000 buckets on a 128 KiB caller stack. Iterators retain constant-sized state and borrow the payload;
+only test transport materializes bucket arrays.
 The complete 1,654-file source facade stays unchanged. The public Go-derived input ledger binds every request,
 declared expectation, source prefix/position and the source-manifest digest independently of the capture directory.
 Mutation tests reject changed inputs, nil/empty substitutions, duplicate payloads, missing cases and altered origins.
@@ -302,7 +308,7 @@ The immutable Rust table can be regenerated with `histogram_bounds.py --capture 
 shared mathematical constants, while the boundary algorithm is independently compared with executed Go outcomes.
 Boundary results use exact bit comparison, so underflow-to-zero cannot pass the ordinary numeric tolerance.
 
-The current comparison passes **5,679 semantic cases** in both release profiles, including owned and borrowed
+The current comparison passes **5,883 semantic cases** in both release profiles, including owned and borrowed
 retention paths. Compensated subtraction reports **ten NaN-sign bit differences in release and one in release-min**
 on the qualified Rust/Go amd64 toolchains;
 `--strict-bits` fails this separate diagnostic gate. There are also three signed-zero differences between Go's
@@ -312,7 +318,7 @@ results, rather than those declared literals. The report preserves both kinds of
 Rust ownership tests mutate source spans/buckets after copying and use retained values after all provider buffers
 leave scope. Stale markers are checked separately from ordinary NaNs in every sample kind. These checks qualify
 only the implemented value kernels. Copy-to-schema checks preserve the unchanged receiver; failed reduction checks
-include the complete mutated receiver and upstream error classification. Full histogram arithmetic, iterators,
+include the complete mutated receiver and upstream error classification. Full histogram arithmetic,
 functions, expression evaluation,
 the C boundary, runtime accounting and paged-provider qualification remain required.
 
