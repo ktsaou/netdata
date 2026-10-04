@@ -33,10 +33,13 @@
   "mandatory_corpora": {
     "upstream_evaluation": {
       "files": 21,
-      "eval_commands": 2242,
+      "eval_commands": 2243,
       "profile": "upstream-tests",
-      "current_status": "Source inventory; complete typed DSL capture and Rust execution are required in the typed-core stage.",
-      "ordinary_eval_commands": 2239,
+      "current_status": "Complete committed-storage capture and original assertions; every generated query replays with exact numerical bits. Rust candidate execution remains required.",
+      "evaluation_variants": 21442,
+      "datasets": 296,
+      "capture_tool": "capture.py",
+      "ordinary_eval_commands": 2240,
       "negative_eval_commands": 3
     },
     "upstream_parser": {

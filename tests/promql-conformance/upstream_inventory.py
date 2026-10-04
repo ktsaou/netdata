@@ -20,11 +20,11 @@ def inventory(root):
         text = raw.decode()
         sources.append({"path": path.relative_to(root).as_posix(), "sha256": hashlib.sha256(raw).hexdigest(),
             "physical_lines": len(text.splitlines()),
-            "eval_commands": len(re.findall(r"^eval(?:_[a-z]+)?(?:\s|$)", text, re.M)),
-            "ordinary_eval_commands": len(re.findall(r"^eval(?:\s|$)", text, re.M)),
-            "negative_eval_commands": len(re.findall(r"^eval_fail(?:\s|$)", text, re.M)),
+            "eval_commands": len(re.findall(r"^[ \t]*eval(?:_[a-z]+)?(?:\s|$)", text, re.M)),
+            "ordinary_eval_commands": len(re.findall(r"^[ \t]*eval(?:\s|$)", text, re.M)),
+            "negative_eval_commands": len(re.findall(r"^[ \t]*eval_fail(?:\s|$)", text, re.M)),
             "profile": "upstream-tests"})
-    if len(sources) != 21 or sum(s["eval_commands"] for s in sources) != 2242:
+    if len(sources) != 21 or sum(s["eval_commands"] for s in sources) != 2243:
         raise ValueError("upstream corpus differs from the reviewed v3.15 snapshot")
     parser_sources = []
     for name in ["parse_test.go", "lex_test.go"]:

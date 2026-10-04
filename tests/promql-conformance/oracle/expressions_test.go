@@ -35,7 +35,7 @@ func TestRequiredSREExpressionShapes(t *testing.T) {
 		points = append(points, floatPoint(now-3600000+i*600000, float64(i)))
 	}
 	d.Series = append(d.Series, series{encodeLabels(labels.FromStrings("__name__", "task_example_failed")), points})
-	if err := d.validate(); err != nil {
+	if err := d.Validate(); err != nil {
 		t.Fatal(err)
 	}
 	tests := []struct {
@@ -55,7 +55,7 @@ func TestRequiredSREExpressionShapes(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			r := evaluate(d, instant(test.query, now))
 			assertFloat(t, r, test.value)
-			ls, err := r.Rows[0].Labels.decode()
+			ls, err := r.Rows[0].Labels.Decode()
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -65,7 +65,7 @@ func TestRequiredSREExpressionShapes(t *testing.T) {
 		})
 	}
 	for i, s := range d.Series {
-		ls, _ := s.Labels.decode()
+		ls, _ := s.Labels.Decode()
 		if ls.Get("__name__") == "backlog" {
 			d.Series[i].Points = append(d.Series[i].Points, floatPoint(now+3600000, 100001))
 		}

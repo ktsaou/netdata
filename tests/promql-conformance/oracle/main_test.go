@@ -25,7 +25,7 @@ func assertFloat(t *testing.T, r result, want float64) {
 	if r.Error != nil || len(r.Rows) != 1 || len(r.Rows[0].Points) != 1 || r.Rows[0].Points[0].Float == nil {
 		t.Fatalf("expected one float: %+v", r)
 	}
-	if got := r.Rows[0].Points[0].Float.value(); math.Float64bits(got) != math.Float64bits(want) {
+	if got := r.Rows[0].Points[0].Float.Value(); math.Float64bits(got) != math.Float64bits(want) {
 		t.Fatalf("got %.17g (%x), want %.17g (%x)", got, math.Float64bits(got), want, math.Float64bits(want))
 	}
 }
@@ -52,11 +52,11 @@ func TestHistogramCopiesAndTypedResults(t *testing.T) {
 		PositiveSpans: []histogram.Span{{Offset: 0, Length: 1}}, PositiveBuckets: []float64{2}}
 	wire := encodeFloatHistogram(h)
 	h.PositiveBuckets[0] = 9
-	if wire.PositiveBuckets[0].value() != 2 {
+	if wire.PositiveBuckets[0].Value() != 2 {
 		t.Fatal("histogram aliases source")
 	}
 	d := fixture("h", point{Time: 600000, Kind: "float_histogram", FloatHistogram: wire})
-	if err := d.validate(); err != nil {
+	if err := d.Validate(); err != nil {
 		t.Fatal(err)
 	}
 	for q, want := range map[string]float64{"histogram_count(h)": 2, "histogram_sum(h)": 1.5, "histogram_avg(h)": 0.75} {
@@ -66,7 +66,7 @@ func TestHistogramCopiesAndTypedResults(t *testing.T) {
 	if r.Kind != "vector" || r.Rows[0].Points[0].Kind != "float_histogram" {
 		t.Fatalf("typed vector lost: %+v", r)
 	}
-	if r.Rows[0].Points[0].FloatHistogram.Count.value() != 2 {
+	if r.Rows[0].Points[0].FloatHistogram.Count.Value() != 2 {
 		t.Fatal("histogram output count")
 	}
 	integer := &histogram.Histogram{Schema: 0, Count: 2, Sum: 1.5, PositiveSpans: []histogram.Span{{Offset: 0, Length: 1}}, PositiveBuckets: []int64{2}}
@@ -93,7 +93,7 @@ func TestMixedTimelineAndStaleness(t *testing.T) {
 	assertFloat(t, r, 1)
 	d = fixture("m", floatPoint(2000, math.Float64frombits(0x7ff8000000000123)))
 	r = evaluate(d, instant("m", 2000))
-	if len(r.Rows) != 1 || !math.IsNaN(r.Rows[0].Points[0].Float.value()) {
+	if len(r.Rows) != 1 || !math.IsNaN(r.Rows[0].Points[0].Float.Value()) {
 		t.Fatal("ordinary NaN treated as stale")
 	}
 }
@@ -141,7 +141,7 @@ func TestSampleTimestampAndRangeContext(t *testing.T) {
 		t.Fatalf("range result: %+v", out)
 	}
 	for i, p := range out.Rows[0].Points {
-		if p.Time != int64(2000+i*1000) || p.Float.value() != 2 {
+		if p.Time != int64(2000+i*1000) || p.Float.Value() != 2 {
 			t.Fatal("range @ start changed with evaluation step")
 		}
 	}
@@ -167,16 +167,16 @@ func TestRateOperationOrderThresholdRegression(t *testing.T) {
 }
 func TestRejectsAmbiguousInput(t *testing.T) {
 	d := fixture("m", floatPoint(1, 1), floatPoint(1, 2))
-	if d.validate() == nil {
+	if d.Validate() == nil {
 		t.Fatal("duplicate timestamp accepted")
 	}
 	d = fixture("m", point{Time: 1, Kind: "float"})
-	if d.validate() == nil {
+	if d.Validate() == nil {
 		t.Fatal("missing numeric payload accepted")
 	}
 	d = fixture("m", floatPoint(1, 1))
 	d.Series = append(d.Series, d.Series[0])
-	if d.validate() == nil {
+	if d.Validate() == nil {
 		t.Fatal("duplicate labelset accepted")
 	}
 	f := binary64(0)
