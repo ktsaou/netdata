@@ -98,6 +98,7 @@ type analysis struct {
 	Functions    []string         `json:"functions"`
 	Aggregations []string         `json:"aggregations"`
 	Operators    []string         `json:"operators"`
+	ExactNumeric bool             `json:"exact_numeric"`
 	Error        *failure         `json:"error,omitempty"`
 }
 
@@ -119,6 +120,7 @@ func analyze(r request) analysis {
 		return out
 	}
 	out.Type = expr.Type()
+	out.ExactNumeric = exactNumeric(expr)
 	fs, as, ops := map[string]bool{}, map[string]bool{}, map[string]bool{}
 	parser.Inspect(expr, func(node parser.Node, _ []parser.Node) error {
 		switch n := node.(type) {

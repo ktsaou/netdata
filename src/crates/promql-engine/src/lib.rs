@@ -1,10 +1,16 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 //! Standalone typed PromQL expression core, qualified against a pinned reference.
-//! Storage, evaluation and the C boundary are implemented separately from this frontend.
+//! Includes bounded typed storage, partial paged evaluation and independently owned output.
+//! Complete expression qualification and the C boundary remain in progress.
 
 #[cfg(panic = "abort")]
 compile_error!("PromQL requires panic=unwind for containment at its C boundary");
 
+pub mod accounting;
+pub mod annotations;
+pub mod evaluator;
+mod evaluator_roster;
+pub mod execution;
 pub mod frontend;
 mod go_sort;
 pub mod histogram;
@@ -18,7 +24,15 @@ mod histogram_functions;
 mod histogram_iterator;
 mod histogram_layout;
 mod histogram_trim;
+mod label_hash;
 pub mod numerical;
 mod numerical_exponential;
 mod numerical_math;
+pub mod range_float;
+mod range_reduce;
+pub mod result;
+pub mod storage;
+mod storage_observed;
+#[cfg(test)]
+mod test_storage;
 pub mod value;

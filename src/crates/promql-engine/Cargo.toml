@@ -30,6 +30,11 @@ name = "promql-kernel-fixture"
 path = "src/bin/kernel_fixture.rs"
 required-features = ["fixtures"]
 
+[[bin]]
+name = "promql-query-fixture"
+path = "src/bin/query_fixture.rs"
+required-features = ["fixtures"]
+
 [profile.release]
 panic = "unwind"
 
