@@ -102,7 +102,7 @@ impl<T: Copy> ReductionBuffer<T> for Copied<'_, T> {
     }
 }
 
-fn target_index(index: i32, origin: i32, target: i32) -> i32 {
+pub(crate) fn target_index(index: i32, origin: i32, target: i32) -> i32 {
     let shift = origin.wrapping_sub(target);
     assert!(shift >= 0, "negative shift amount");
     let index = index.wrapping_sub(1);

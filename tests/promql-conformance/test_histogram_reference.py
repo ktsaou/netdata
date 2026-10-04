@@ -29,6 +29,8 @@ class HistogramReferenceTests(unittest.TestCase):
                 case["actual"] = "0000000000000000"
             elif case["mode"] == "exponential-bound-table":
                 case["actual"] = [["3fe0000000000000"] * (1 << schema) for schema in range(9)]
+            elif case["mode"] == "float-iterator-set":
+                case["actual"] = {"buckets": {route: None for route in case["request"]["routes"]}, "panic": ""}
             else:
                 case["actual"] = copy.deepcopy(empty_float)
             if case["mode"] == "float-reduce-resolution" and case["actual"]["result"] is None:
@@ -37,7 +39,7 @@ class HistogramReferenceTests(unittest.TestCase):
 
     def test_complete_decoder_roster(self):
         self.assertEqual(validate_cases(self.document, self.ledger["tables"]),
-                         {"original_table_cases": 85, "supplemental_cases": 5549, "total": 5634})
+                         {"original_table_cases": 110, "supplemental_cases": 5626, "total": 5736})
 
     def test_valid_but_rebound_inputs_are_rejected(self):
         mutations = [
@@ -52,6 +54,9 @@ class HistogramReferenceTests(unittest.TestCase):
             ("TestFloatHistogramReduceResolution:negative offset", lambda case: case["request"]["input"]["positive_spans"][1].update(Offset=0)),
             ("TestGetBoundExponential:000", lambda case: case["request"].update(index=0)),
             ("supplement:bound:8:255:-1075", lambda case: case["request"].update(schema=7)),
+            ("TestFloatBucketIteratorTargetSchema:regular", lambda case: case["request"].update(target_schema=0)),
+            ("TestFloatCustomBucketsIterators:000", lambda case: case["request"].update(routes=["positive"])),
+            ("supplement:iterator:1:3", lambda case: case["request"].update(start="0000000000000000")),
         ]
         for identity, mutate in mutations:
             with self.subTest(identity=identity):
@@ -111,10 +116,13 @@ class HistogramReferenceTests(unittest.TestCase):
                                                  [{"id": "case", "actual": actual}])["semantic_pass"])
 
     def test_bound_underflow_is_compared_exactly(self):
-        expected = {"bound": "0000000000000001"}
-        output = [{"id": "bound", "actual": "0000000000000000"}]
-        self.assertTrue(compare_results(expected, output)["semantic_pass"])
-        self.assertFalse(compare_results(expected, output, {"bound"})["semantic_pass"])
+        for expected_bits, actual_bits in (("0000000000000001", "0000000000000000"),
+                                           ("0000000000000000", "8000000000000000")):
+            with self.subTest(expected=expected_bits):
+                expected = {"bound": expected_bits}
+                output = [{"id": "bound", "actual": actual_bits}]
+                self.assertTrue(compare_results(expected, output)["semantic_pass"])
+                self.assertFalse(compare_results(expected, output, {"bound"})["semantic_pass"])
 
     def test_complete_candidate_output_is_required(self):
         expected = {"case": {"positive_spans": None}}

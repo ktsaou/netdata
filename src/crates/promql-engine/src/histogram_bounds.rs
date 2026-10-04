@@ -7,8 +7,7 @@ use crate::histogram_bounds_table::EXPONENTIAL_BOUNDS;
 pub fn bucket_bound(index: i32, schema: i32, custom_values: Option<&[f64]>) -> f64 {
     if schema == CUSTOM_BUCKETS_SCHEMA {
         let values = custom_values.unwrap_or(&[]);
-        let length = values.len() as isize;
-        let index = index as isize;
+        let length = values.len() as i32;
         if index > length || index < -1 {
             panic!("index {index} out of bounds for custom bounds of length {length}");
         }
@@ -42,7 +41,7 @@ fn exponential_bound(index: i32, schema: i32) -> f64 {
     let values = EXPONENTIAL_BOUNDS[schema as usize];
     let fraction_index = index & ((1_i32 << schema) - 1);
     let fraction = f64::from_bits(values[fraction_index as usize]);
-    let exponent = ((index as isize) >> schema) + 1;
+    let exponent = ((index as isize) >> schema).wrapping_add(1);
     if fraction == 0.5 && exponent == 1025 {
         return f64::MAX;
     }

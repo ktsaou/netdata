@@ -2,7 +2,9 @@
 //! Test-only per-sample kernel transport; it is not a storage/evaluation adapter.
 use std::io::{self, BufRead, Write};
 
-use netdata_promql_engine::histogram::{FloatHistogram, IntegerHistogram, Span, bucket_bound};
+use netdata_promql_engine::histogram::{
+    Bucket, FloatHistogram, IntegerHistogram, Span, bucket_bound,
+};
 use netdata_promql_engine::numerical::{compensated_add, compensated_sub};
 use serde_json::{Value, json};
 
@@ -131,6 +133,84 @@ fn encoded_integer(value: &IntegerHistogram) -> Value {
         "custom_values": encoded_numbers(value.custom_values.as_deref())})
 }
 
+fn encoded_iterator(iterator: impl Iterator<Item = Bucket>) -> Value {
+    let buckets: Vec<_> = iterator
+        .map(|bucket| {
+            json!({"lower": format!("{:016x}", bucket.lower.to_bits()),
+            "upper": format!("{:016x}", bucket.upper.to_bits()),
+            "count": format!("{:016x}", bucket.count.to_bits()), "index": bucket.index,
+            "lower_inclusive": bucket.lower_inclusive, "upper_inclusive": bucket.upper_inclusive})
+        })
+        .collect();
+    if buckets.is_empty() {
+        Value::Null
+    } else {
+        json!(buckets)
+    }
+}
+
+fn iterator_result(request: &Value, borrowed: bool) -> Result<Value, Error> {
+    let histogram = float(&request["input"])?;
+    let view = histogram.as_ref();
+    let routes = request["routes"]
+        .as_array()
+        .ok_or("invalid iterator routes")?;
+    let start = number(&request["start"])?;
+    let target = request["target_schema"]
+        .as_i64()
+        .ok_or("invalid iterator target schema")?
+        .try_into()?;
+    let result =
+        std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| -> Result<Value, Error> {
+            let mut buckets = serde_json::Map::new();
+            for route in routes {
+                let route = route.as_str().ok_or("invalid iterator route")?;
+                let values = match route {
+                    "all" | "all-reverse" => encoded_iterator(if borrowed {
+                        view.all_bucket_iterator(route == "all-reverse")
+                    } else {
+                        histogram.all_bucket_iterator(route == "all-reverse")
+                    }),
+                    "positive" | "negative" => encoded_iterator(if borrowed {
+                        view.bucket_iterator(route == "positive", 0.0, histogram.schema)
+                    } else {
+                        histogram.bucket_iterator(route == "positive", 0.0, histogram.schema)
+                    }),
+                    "positive-reverse" | "negative-reverse" => encoded_iterator(if borrowed {
+                        view.reverse_bucket_iterator(route == "positive-reverse")
+                    } else {
+                        histogram.reverse_bucket_iterator(route == "positive-reverse")
+                    }),
+                    "low-positive" | "low-negative" => encoded_iterator(if borrowed {
+                        view.bucket_iterator(route == "low-positive", start, target)
+                    } else {
+                        histogram.bucket_iterator(route == "low-positive", start, target)
+                    }),
+                    _ => return Err("unknown iterator route".into()),
+                };
+                if buckets.insert(route.to_owned(), values).is_some() {
+                    return Err("duplicate iterator route".into());
+                }
+            }
+            Ok(Value::Object(buckets))
+        }));
+    match result {
+        Ok(buckets) => Ok(json!({"buckets": buckets?, "panic": ""})),
+        Err(failure) => {
+            let message = failure
+                .downcast_ref::<String>()
+                .cloned()
+                .or_else(|| {
+                    failure
+                        .downcast_ref::<&str>()
+                        .map(|value| (*value).to_owned())
+                })
+                .ok_or("non-string iterator panic")?;
+            Ok(json!({"buckets": null, "panic": message}))
+        }
+    }
+}
+
 fn result(input: &Value) -> Result<Value, Error> {
     let id = input["id"]
         .as_str()
@@ -142,6 +222,7 @@ fn result(input: &Value) -> Result<Value, Error> {
         .as_bool()
         .ok_or("missing borrowed-mode flag")?;
     let actual = match mode {
+        "float-iterator-set" => iterator_result(request, borrowed)?,
         "exponential-bound" => {
             let index = request["index"]
                 .as_i64()
