@@ -101,6 +101,16 @@ def helper(table, index):
         body += [f'request := netdataFrozen(map[string]any{{"input": netdataFloat({histogram}), "routes": routes, "start": fmt.Sprintf("%016x", math.Float64bits({start})), "target_schema": {target}}})',
                  f'actual := netdataIteratorResult({histogram}, routes, {start}, {target})',
                  'netdataRecord(output, id, "float-iterator-set", request, actual, declared)']
+    elif mode == "float-detect-reset":
+        body += ['request := netdataFrozen(map[string]any{"current": netdataFloat(c.current), "previous": netdataFloat(c.previous)})',
+                 'declared := netdataFrozen(map[string]any{"reset": c.resetExpected, "current_after": netdataFloat(c.current), "previous_after": netdataFloat(c.previous)})',
+                 'actual := netdataResetResult(c.current, c.previous)',
+                 'netdataRecord(output, id, "float-detect-reset", request, actual, declared)']
+    elif mode == "custom-bounds-match":
+        body += ['request := map[string]any{"left": netdataNumbers(c.c1), "right": netdataNumbers(c.c2)}',
+                 'declared := map[string]any{"forward": c.want, "reverse": c.want}',
+                 'actual := map[string]any{"forward": CustomBucketBoundsMatch(c.c1, c.c2), "reverse": CustomBucketBoundsMatch(c.c2, c.c1)}',
+                 'netdataRecord(output, id, "custom-bounds-match", request, actual, declared)']
     else:
         raise ValueError("unknown source histogram table")
     body += ['}'] if singleton else ['}', '}']
@@ -150,7 +160,7 @@ def capture(mod_cache, write_input_ledger=False):
     if result.returncode:
         raise SystemExit(f"histogram table extraction failed ({result.returncode}): {result.stderr}")
     tables = json.loads(result.stdout)
-    if len(tables) != 17 or sum(row["cases"] for row in tables) != 110:
+    if len(tables) != 19 or sum(row["cases"] for row in tables) != 160:
         raise ValueError("changed histogram table coverage")
     for table in tables:
         raw = (source / "model/histogram" / table["file"]).read_bytes()

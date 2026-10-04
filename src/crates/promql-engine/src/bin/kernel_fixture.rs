@@ -3,7 +3,7 @@
 use std::io::{self, BufRead, Write};
 
 use netdata_promql_engine::histogram::{
-    Bucket, FloatHistogram, IntegerHistogram, Span, bucket_bound,
+    Bucket, FloatHistogram, IntegerHistogram, Span, bucket_bound, custom_bounds_match,
 };
 use netdata_promql_engine::numerical::{compensated_add, compensated_sub};
 use serde_json::{Value, json};
@@ -222,6 +222,63 @@ fn result(input: &Value) -> Result<Value, Error> {
         .as_bool()
         .ok_or("missing borrowed-mode flag")?;
     let actual = match mode {
+        "custom-bounds-match" => {
+            let left = array(&request["left"], number)?;
+            let right = array(&request["right"], number)?;
+            json!({"forward": custom_bounds_match(left.as_deref(), right.as_deref()),
+                "reverse": custom_bounds_match(right.as_deref(), left.as_deref())})
+        }
+        "float-detect-reset" => {
+            let current = float(&request["current"])?;
+            let previous = float(&request["previous"])?;
+            let reset = if borrowed {
+                current.as_ref().detect_reset(previous.as_ref())
+            } else {
+                current.detect_reset(previous.as_ref())
+            };
+            json!({"reset": reset, "current_after": encoded_float(&current), "previous_after": encoded_float(&previous)})
+        }
+        "float-zero-threshold" => {
+            let value = float(&request["input"])?;
+            let correction = if request["compensation"].is_null() {
+                None
+            } else {
+                Some(float(&request["compensation"])?)
+            };
+            let correction_ref = correction.as_ref().map(FloatHistogram::as_ref);
+            let threshold = number(&request["threshold"])?;
+            let (result, panic) =
+                match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                    if borrowed {
+                        value
+                            .as_ref()
+                            .zero_count_for_threshold(threshold, correction_ref)
+                    } else {
+                        value.zero_count_for_threshold(threshold, correction_ref)
+                    }
+                })) {
+                    Ok(result) => (
+                        json!({"count": format!("{:016x}", result.count.to_bits()),
+                    "threshold": format!("{:016x}", result.threshold.to_bits()),
+                    "compensation": format!("{:016x}", result.compensation.to_bits())}),
+                        String::new(),
+                    ),
+                    Err(failure) => {
+                        let message = failure
+                            .downcast_ref::<String>()
+                            .cloned()
+                            .or_else(|| {
+                                failure
+                                    .downcast_ref::<&str>()
+                                    .map(|value| (*value).to_owned())
+                            })
+                            .ok_or("non-string threshold panic")?;
+                        (Value::Null, message)
+                    }
+                };
+            json!({"result": result, "panic": panic, "input_after": encoded_float(&value),
+                "compensation_after": correction.as_ref().map(encoded_float)})
+        }
         "float-zero-bucket" => {
             let value = float(&request["input"])?;
             match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {

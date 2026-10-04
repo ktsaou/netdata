@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Histogram value operations derive from the pinned Prometheus model; see NOTICE.
 pub use crate::histogram_bounds::bucket_bound;
+pub use crate::histogram_counter::{ZeroCount, custom_bounds_match};
 pub use crate::histogram_iterator::{
     AllFloatBucketIterator, Bucket, FloatBucketIterator, ReverseFloatBucketIterator,
 };
@@ -100,6 +101,19 @@ fn clear_if_present<T>(destination: &mut Option<Vec<T>>) {
 }
 
 impl FloatHistogram {
+    pub fn detect_reset(&self, previous: FloatHistogramRef<'_>) -> bool {
+        self.as_ref().detect_reset(previous)
+    }
+
+    pub fn zero_count_for_threshold(
+        &self,
+        threshold: f64,
+        correction: Option<FloatHistogramRef<'_>>,
+    ) -> ZeroCount {
+        self.as_ref()
+            .zero_count_for_threshold(threshold, correction)
+    }
+
     pub fn bucket_iterator(
         &self,
         positive: bool,
@@ -246,6 +260,18 @@ impl FloatHistogram {
 }
 
 impl<'a> FloatHistogramRef<'a> {
+    pub fn detect_reset(self, previous: FloatHistogramRef<'_>) -> bool {
+        crate::histogram_counter::detect_reset(self, previous)
+    }
+
+    pub fn zero_count_for_threshold(
+        self,
+        threshold: f64,
+        correction: Option<FloatHistogramRef<'_>>,
+    ) -> ZeroCount {
+        crate::histogram_counter::zero_count_for_threshold(self, threshold, correction)
+    }
+
     pub fn bucket_iterator(
         self,
         positive: bool,
