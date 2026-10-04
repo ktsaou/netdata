@@ -34,6 +34,15 @@ class HistogramReferenceTests(unittest.TestCase):
             elif case["mode"] == "float-zero-bucket":
                 case["actual"] = {"bucket": {"lower": "0000000000000000", "upper": "0000000000000000",
                     "count": "0000000000000000", "index": 0, "lower_inclusive": True, "upper_inclusive": True}, "panic": ""}
+            elif case["mode"] == "custom-bounds-match":
+                case["actual"] = {"forward": False, "reverse": False}
+            elif case["mode"] == "float-detect-reset":
+                case["actual"] = {"reset": False, "current_after": copy.deepcopy(case["request"]["current"]),
+                    "previous_after": copy.deepcopy(case["request"]["previous"])}
+            elif case["mode"] == "float-zero-threshold":
+                case["actual"] = {"result": {"count": "0000000000000000", "threshold": "0000000000000000",
+                    "compensation": "0000000000000000"}, "panic": "", "input_after": copy.deepcopy(case["request"]["input"]),
+                    "compensation_after": copy.deepcopy(case["request"]["compensation"])}
             else:
                 case["actual"] = copy.deepcopy(empty_float)
             if case["mode"] == "float-reduce-resolution" and case["actual"]["result"] is None:
@@ -42,7 +51,7 @@ class HistogramReferenceTests(unittest.TestCase):
 
     def test_complete_decoder_roster(self):
         self.assertEqual(validate_cases(self.document, self.ledger["tables"]),
-                         {"original_table_cases": 110, "supplemental_cases": 5634, "total": 5744})
+                         {"original_table_cases": 160, "supplemental_cases": 5696, "total": 5856})
 
     def test_valid_but_rebound_inputs_are_rejected(self):
         mutations = [
@@ -60,6 +69,9 @@ class HistogramReferenceTests(unittest.TestCase):
             ("TestFloatBucketIteratorTargetSchema:regular", lambda case: case["request"].update(target_schema=0)),
             ("TestFloatCustomBucketsIterators:000", lambda case: case["request"].update(routes=["positive"])),
             ("supplement:iterator:1:3", lambda case: case["request"].update(start="0000000000000000")),
+            ("TestFloatHistogramDetectReset:000", lambda case: case["request"]["current"].update(reset_hint=1)),
+            ("TestCustomBucketBoundsMatch:000", lambda case: case["request"].update(left=[])),
+            ("supplement:zero-threshold:15", lambda case: case["request"]["compensation"].update(zero_count="0000000000000000")),
         ]
         for identity, mutate in mutations:
             with self.subTest(identity=identity):

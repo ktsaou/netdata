@@ -26,6 +26,8 @@ TABLES = [
     ("TestFloatBucketIteratorTargetSchema", "float-iterator-set", 6),
     ("TestFloatCustomBucketsIterators", "float-iterator-set", 2),
     ("TestReverseFloatBucketIterator", "float-iterator-set", 1),
+    ("TestFloatHistogramDetectReset", "float-detect-reset", 42),
+    ("TestCustomBucketBoundsMatch", "custom-bounds-match", 8),
 ]
 
 
@@ -57,7 +59,7 @@ def compare_value(expected, actual, identity, path, failures, bit_differences, e
         if expected != actual:
             bit_differences.append({"id": identity, "path": path, "expected": expected, "actual": actual})
         exact = exact_numeric or path.endswith(".zero_threshold") or ".custom_values[" in path
-        if exact_bits or path.endswith((".lower", ".upper")):
+        if exact_bits or path.endswith((".lower", ".upper", ".threshold")):
             same = expected == actual
         else:
             same = bits(expected)[1] == bits(actual)[1] if exact else same_number(expected, actual)
@@ -213,6 +215,47 @@ def validate_case(case):
                 raise ValueError("zero bucket panic retained a result")
         else:
             bucket(actual["bucket"])
+    elif mode == "custom-bounds-match":
+        fields(request, ("left", "right"))
+        for values in request.values():
+            if values is not None:
+                if type(values) is not list:
+                    raise ValueError("invalid custom boundary array")
+                for value in values:
+                    number(value)
+        for value in [actual] + ([] if case["declared"] is None else [case["declared"]]):
+            fields(value, ("forward", "reverse"))
+            if any(type(result) is not bool for result in value.values()):
+                raise ValueError("invalid custom-bound match outcome")
+    elif mode == "float-detect-reset":
+        fields(request, ("current", "previous"))
+        for value in request.values():
+            histogram(value, False)
+        for value in [actual] + ([] if case["declared"] is None else [case["declared"]]):
+            fields(value, ("reset", "current_after", "previous_after"))
+            if type(value["reset"]) is not bool:
+                raise ValueError("invalid histogram reset outcome")
+            histogram(value["current_after"], False)
+            histogram(value["previous_after"], False)
+    elif mode == "float-zero-threshold":
+        fields(request, ("input", "compensation", "threshold"))
+        histogram(request["input"], False)
+        if request["compensation"] is not None:
+            histogram(request["compensation"], False)
+        number(request["threshold"])
+        fields(actual, ("result", "panic", "input_after", "compensation_after"))
+        histogram(actual["input_after"], False)
+        if actual["compensation_after"] is not None:
+            histogram(actual["compensation_after"], False)
+        if type(actual["panic"]) is not str:
+            raise ValueError("invalid threshold panic")
+        if actual["panic"]:
+            if actual["result"] is not None:
+                raise ValueError("threshold panic retained a result")
+        else:
+            fields(actual["result"], ("count", "threshold", "compensation"))
+            for value in actual["result"].values():
+                number(value)
     elif mode == "float-iterator-set":
         fields(request, ("input", "routes", "start", "target_schema"))
         histogram(request["input"], False)
@@ -300,6 +343,15 @@ def supplemental_ids():
         result[f"supplement:iterator-panic:{shape}"] = "float-iterator-set"
     for shape in range(6):
         result[f"supplement:zero-bucket:{shape}"] = "float-zero-bucket"
+    for shape in range(8):
+        result[f"supplement:bounds-match:{shape}"] = "custom-bounds-match"
+    for hint in range(4):
+        for shape in range(4):
+            result[f"supplement:reset-hint:{hint}:{shape}"] = "float-detect-reset"
+    for shape in range(18):
+        result[f"supplement:reset:{shape}"] = "float-detect-reset"
+    for shape in range(20):
+        result[f"supplement:zero-threshold:{shape}"] = "float-zero-threshold"
     return result
 
 
@@ -325,7 +377,7 @@ def validate_cases(data, tables, ledger=None):
     expected = {}
     for table, (test, mode, count) in zip(tables, TABLES):
         fields(table, ("test", "file", "mode", "cases", "line", "case_lines", "source_sha256", "prefix", "variable", "case_keys"))
-        file = ("generic_test.go" if test == "TestGetBoundExponential" else
+        file = ("generic_test.go" if test in {"TestGetBoundExponential", "TestCustomBucketBoundsMatch"} else
                 "float_histogram_test.go" if test.startswith("TestFloat") or mode == "float-iterator-set" else "histogram_test.go")
         if (table["test"] != test or table["file"] != file or table["mode"] != mode
                 or type(table["cases"]) is not int or table["cases"] != count
@@ -346,6 +398,7 @@ def validate_cases(data, tables, ledger=None):
                 expected[f"{test}:{key}"] = mode
         else:
             variable = ("scenarios" if test == "TestGetBoundExponential" else
+                        "tests" if test == "TestCustomBucketBoundsMatch" else
                         "h" if test == "TestReverseFloatBucketIterator" else "cases")
             if table["variable"] != variable or table["case_keys"] is not None:
                 raise ValueError("changed histogram source table kind")

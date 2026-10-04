@@ -49,6 +49,8 @@ func main() {
 		{Test: "TestFloatBucketIteratorTargetSchema", File: "float_histogram_test.go", Mode: "float-iterator-set", Cases: 6},
 		{Test: "TestFloatCustomBucketsIterators", File: "float_histogram_test.go", Mode: "float-iterator-set", Cases: 2},
 		{Test: "TestReverseFloatBucketIterator", File: "float_histogram_test.go", Mode: "float-iterator-set", Cases: 1, Variable: "h"},
+		{Test: "TestFloatHistogramDetectReset", File: "float_histogram_test.go", Mode: "float-detect-reset", Cases: 42},
+		{Test: "TestCustomBucketBoundsMatch", File: "generic_test.go", Mode: "custom-bounds-match", Cases: 8, Variable: "tests"},
 	}
 	for i := range tables {
 		row := &tables[i]

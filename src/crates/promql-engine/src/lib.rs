@@ -9,6 +9,7 @@ pub mod frontend;
 pub mod histogram;
 mod histogram_bounds;
 mod histogram_bounds_table;
+mod histogram_counter;
 mod histogram_iterator;
 mod histogram_layout;
 pub mod numerical;
