@@ -15,8 +15,12 @@ def qualify():
     if reference["architecture"] != "amd64" or reference["go_version"] != "go1.27.1":
         raise ValueError("literal conversion reference targets Go 1.27.1 / amd64")
     requests, expected = [], {}
+    if not reference["cases"] or any(not case["id"] for case in reference["cases"]):
+        raise ValueError("literal reference requires nonempty cases and IDs")
     for case in reference["cases"]:
         ident = case["id"]
+        if ident in expected:
+            raise ValueError("duplicate literal reference ID")
         requests.append(f'{ident}\t{"d" if case["duration"] else "n"}\t1\t'
                         + base64.b64decode(case["input"], validate=True).hex())
         expected[ident] = [("NUMBER_BITS", "0", case["value_bits"]),

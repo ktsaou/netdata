@@ -5,6 +5,10 @@ use std::io::{self, BufRead, Write};
 use netdata_promql_engine::frontend::lexer::Lexer;
 use netdata_promql_engine::frontend::literal::unquote;
 use netdata_promql_engine::frontend::number;
+use netdata_promql_engine::frontend::{ast::ParserOptions, parser};
+
+#[path = "frontend_fixture_output.rs"]
+mod output;
 
 fn decode(text: &str) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
     if !text.is_ascii() || !text.len().is_multiple_of(2) {
@@ -23,12 +27,26 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         let fields: Vec<_> = line.split('\t').collect();
         if fields.len() != 4
             || fields[0].is_empty()
-            || !matches!(fields[1], "q" | "s" | "u" | "n" | "d")
+            || !matches!(fields[1], "q" | "s" | "u" | "n" | "d" | "p")
         {
             return Err("expected ID, query/series mode, fixture token guard and hex input".into());
         }
         let count: usize = fields[2].parse()?;
         let input = decode(fields[3])?;
+        if fields[1] == "p" {
+            let options = ParserOptions {
+                experimental_functions: count & 1 != 0,
+                binop_fill_modifiers: count & 2 != 0,
+                extended_range_selectors: count & 4 != 0,
+                duration_expressions: count & 8 != 0,
+            };
+            let parsed = parser::parse(&input, options, |_| {
+                Err(b"owned Go regex frontend is not implemented".to_vec())
+            });
+            serde_json::to_writer(&mut out, &output::result(fields[0], parsed))?;
+            writeln!(out)?;
+            continue;
+        }
         if matches!(fields[1], "n" | "d") {
             let parsed = if fields[1] == "n" {
                 number::number(&input)

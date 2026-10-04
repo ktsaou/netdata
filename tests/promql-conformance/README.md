@@ -158,13 +158,15 @@ execution architecture: bounded raw pages, sufficient operator state, exact repl
 ## Owned Rust frontend
 
 `src/crates/promql-engine` is a standalone Cargo workspace, edition 2024 with an MSRV declaration of 1.91.
-It is outside the Agent/plugin default build and initially depends only on the Rust standard library.
+It is outside the Agent/plugin default build. The library currently uses only the Rust standard library;
+the optional `fixtures` feature adds `serde_json` for the test binary's AST projection.
 The checked toolchain is Rust 1.97.1; the MSRV itself has not been built here.
 
 ```sh
 python3 tests/promql-conformance/build_frontend.py
 python3 tests/promql-conformance/frontend.py --capture "${PROMQL_CAPTURE_DIR:?}"
 python3 tests/promql-conformance/literals.py
+python3 tests/promql-conformance/parser.py --capture "${PROMQL_CAPTURE_DIR:?}"
 ```
 
 The builder uses offline, locked Cargo operations and the ignored `.tmp/core-target` output directory.
@@ -181,7 +183,11 @@ locked oracle module with its existing module cache and downloads disabled. Thes
 qualify complete parsing or evaluation.
 
 The typed AST uses flat arena references and cached structural types/spans. Its 90 function signatures come from
-the independent language catalog. Parser construction and ordered validation still require implementation and tests.
+the independent language catalog. The owned Pratt parser and ordered typed validator use explicit continuation
+stacks. `parser.py` executes all 356 captured expression cases and compares complete AST fields and ordered error
+bytes/positions. **350/356 match exactly**, including the 41,001-node AST and 10,999-error case. The six remaining
+cases require the unfinished Go-compatible regex compiler; they fail explicitly and remain mandatory. The parser
+driver returns failure until every captured expression matches, and writes differences to ignored `.tmp/`.
 
 - Tokens borrow their original input spans; error items own their message bytes. UTF-8 failure consumes one byte,
   and quoted strings distinguish byte escapes from Unicode escapes.
@@ -192,8 +198,8 @@ the independent language catalog. Parser construction and ordered validation sti
 - Expression consumers stop on the first lexer error. Raw-string EOF is terminal in Rust, avoiding the reference
   scanner's repeating error state; the first error and all captured finite streams match.
 
-The parser, typed validator, regex frontend, evaluator, C interface and runtime accounting are still being implemented.
-The frontend driver reports unimplemented parser status explicitly; lexer/literal matches cannot establish query compatibility.
+The complete frontend gate remains pending. Regex compilation, additional parser profiles, evaluation, the C
+interface and runtime accounting still require qualification; captured parser matches cannot establish query compatibility.
 
 Set `exact_numeric` for boolean/discrete result cases. Always test the complete filtered/bool expression around a
 threshold, alongside its numerical intermediate. The preserved prototype rate regression demonstrates why a
