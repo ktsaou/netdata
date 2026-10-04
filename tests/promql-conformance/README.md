@@ -354,6 +354,30 @@ include the complete mutated receiver and upstream error classification. Remaini
 numerical/functions algorithms, expression evaluation,
 the C boundary, runtime accounting and paged-provider qualification remain required.
 
+## Numerical prerequisites
+
+Frexp, natural/binary logarithms and public square root are implemented for the pinned Go 1.27.1 linux/amd64
+profile. Log preserves the actual assembly's subnormal extraction, negative-NaN handling and inclusive half-sqrt-two
+branch. Log2 retains the exact-power shortcut and ordered multiplication/addition. Sqrt uses the same compiler
+primitive as Go's public intrinsic. These operations use constant auxiliary memory.
+
+The capture adds one test file through a Go overlay; it never changes installed source files. All four untouched
+original math tests run first, including the generic SqrtGo assertions. Exact AST source definitions and all 113
+math/compiler source hashes are retained and checked. The public input ledger binds 2,174 original and 7,839
+supplemental groups, covering power-of-two neighbors, all 511 compiled histogram-bound neighbors and special values.
+Those groups execute 33,530 public primitive calls. Original declaration comparisons preserve exact, `alike` and
+`veryclose` assertion semantics; candidate comparison uses independently executed public results.
+
+```sh
+python3 tests/promql-conformance/numerical_capture.py --histogram-capture "${PROMQL_HISTOGRAM_CAPTURE_DIR:?}"
+python3 tests/promql-conformance/numerical.py --capture "${PROMQL_NUMERICAL_CAPTURE_DIR:?}" --strict-bits
+```
+
+Intentional source extensions use `--write-input-ledger`; ordinary capture and comparison never refresh input bindings.
+Current release and release-min comparisons pass all 10,013 groups with zero candidate bit differences.
+Original declaration-versus-Go bit differences remain separate and retain the source assertion's comparison rules. Other numerical
+functions, platform qualification and complete expression evaluation remain required.
+
 ## Required SRE expression sources
 
 The source-pinned extractor reads Git objects without changing the repository mirrors:

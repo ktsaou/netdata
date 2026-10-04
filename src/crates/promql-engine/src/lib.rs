@@ -15,4 +15,5 @@ mod histogram_equality;
 mod histogram_iterator;
 mod histogram_layout;
 pub mod numerical;
+mod numerical_math;
 pub mod value;

@@ -6,7 +6,7 @@ use netdata_promql_engine::histogram::{
     Bucket, FloatHistogram, HistogramArithmetic, HistogramError, IntegerHistogram, Span,
     bucket_bound, custom_bounds_match,
 };
-use netdata_promql_engine::numerical::{compensated_add, compensated_sub};
+use netdata_promql_engine::numerical::{compensated_add, compensated_sub, frexp, log, log2, sqrt};
 use serde_json::{Value, json};
 
 type Error = Box<dyn std::error::Error>;
@@ -296,6 +296,27 @@ fn result(input: &Value) -> Result<Value, Error> {
         .as_bool()
         .ok_or("missing borrowed-mode flag")?;
     let actual = match mode {
+        "math-frexp" => {
+            let (fraction, exponent) = frexp(number(&request["input"])?);
+            json!({"fraction": format!("{:016x}", fraction.to_bits()), "exponent": exponent})
+        }
+        "math-log" | "math-log2" | "math-sqrt" => {
+            let value = number(&request["input"])?;
+            let result = match mode {
+                "math-log" => log(value),
+                "math-log2" => log2(value),
+                _ => sqrt(value),
+            };
+            json!(format!("{:016x}", result.to_bits()))
+        }
+        "math-set" => {
+            let value = number(&request["input"])?;
+            let (fraction, exponent) = frexp(value);
+            json!({"frexp": {"fraction": format!("{:016x}", fraction.to_bits()), "exponent": exponent},
+                "log": format!("{:016x}", log(value).to_bits()),
+                "log2": format!("{:016x}", log2(value).to_bits()),
+                "sqrt": format!("{:016x}", sqrt(value).to_bits())})
+        }
         "float-equality-pair" => {
             let left = float(&request["left"])?;
             let right = float(&request["right"])?;
