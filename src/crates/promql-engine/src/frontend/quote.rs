@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-// Go-compatible diagnostics, derived from Go 1.27.1 strconv/quote.go.
+// Go-compatible diagnostics, derived from Go 1.27.1 strconv/quote.go and fmt/format.go.
 // Copyright 2009 The Go Authors. See LICENSE-GO-BSD.
 use super::unicode::is_print;
 
@@ -53,7 +53,7 @@ pub(super) fn rune(r: i32) -> String {
 
 pub(super) fn unicode_rune(r: i32) -> String {
     if r >= 0 && is_print(r as u32) {
-        format!("U+{:04X} {}", r, rune(r))
+        format!("U+{:04X} '{}'", r, char::from_u32(r as u32).unwrap())
     } else {
         format!("U+{:04X}", i64::from(r) as u64)
     }

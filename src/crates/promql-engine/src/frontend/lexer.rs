@@ -898,3 +898,25 @@ impl<'a> Iterator for Lexer<'a> {
         self.pending.take()
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn malformed_escapes_use_literal_printable_unicode_diagnostics() {
+        // Pinned Go lex.go uses fmt's %#U, which does not escape printable runes.
+        for (input, expected) in [
+            (&b"\"\\'\""[..], &b"unknown escape sequence U+0027 '''"[..]),
+            (
+                &b"\"\\x\\0\""[..],
+                &b"illegal character U+005C '\\' in escape sequence"[..],
+            ),
+        ] {
+            let first = Lexer::new(input).next().unwrap();
+            assert_eq!(first.kind, ERROR);
+            assert_eq!(first.span.start, 0);
+            assert_eq!(first.value.as_ref(), expected);
+        }
+    }
+}

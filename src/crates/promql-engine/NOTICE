@@ -7,6 +7,10 @@ Copyright The Prometheus Authors. Licensed under Apache-2.0;
 see LICENSE-APACHE-2.0.
 
 Go-compatible diagnostic quoting and printability are derived from Go 1.27.1,
-strconv/quote.go and strconv.IsPrint, using Unicode 17.0.0.
+strconv/quote.go, fmt/format.go and strconv.IsPrint, using Unicode 17.0.0.
 Copyright 2009 The Go Authors. Licensed under the Go BSD license;
 see LICENSE-GO-BSD.
+
+The byte literal decoder also derives from the historical Go strconv code
+adapted in Prometheus util/strutil/quote.go. Its retained 2009 Go copyright,
+conditions and disclaimer follow the current Go notice in LICENSE-GO-BSD.
