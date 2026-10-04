@@ -133,15 +133,15 @@ fn encoded_integer(value: &IntegerHistogram) -> Value {
         "custom_values": encoded_numbers(value.custom_values.as_deref())})
 }
 
+fn encoded_bucket(bucket: Bucket) -> Value {
+    json!({"lower": format!("{:016x}", bucket.lower.to_bits()),
+        "upper": format!("{:016x}", bucket.upper.to_bits()),
+        "count": format!("{:016x}", bucket.count.to_bits()), "index": bucket.index,
+        "lower_inclusive": bucket.lower_inclusive, "upper_inclusive": bucket.upper_inclusive})
+}
+
 fn encoded_iterator(iterator: impl Iterator<Item = Bucket>) -> Value {
-    let buckets: Vec<_> = iterator
-        .map(|bucket| {
-            json!({"lower": format!("{:016x}", bucket.lower.to_bits()),
-            "upper": format!("{:016x}", bucket.upper.to_bits()),
-            "count": format!("{:016x}", bucket.count.to_bits()), "index": bucket.index,
-            "lower_inclusive": bucket.lower_inclusive, "upper_inclusive": bucket.upper_inclusive})
-        })
-        .collect();
+    let buckets: Vec<_> = iterator.map(encoded_bucket).collect();
     if buckets.is_empty() {
         Value::Null
     } else {
@@ -222,6 +222,30 @@ fn result(input: &Value) -> Result<Value, Error> {
         .as_bool()
         .ok_or("missing borrowed-mode flag")?;
     let actual = match mode {
+        "float-zero-bucket" => {
+            let value = float(&request["input"])?;
+            match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                if borrowed {
+                    value.as_ref().zero_bucket()
+                } else {
+                    value.zero_bucket()
+                }
+            })) {
+                Ok(bucket) => json!({"bucket": encoded_bucket(bucket), "panic": ""}),
+                Err(failure) => {
+                    let message = failure
+                        .downcast_ref::<String>()
+                        .cloned()
+                        .or_else(|| {
+                            failure
+                                .downcast_ref::<&str>()
+                                .map(|value| (*value).to_owned())
+                        })
+                        .ok_or("non-string zero-bucket panic")?;
+                    json!({"bucket": null, "panic": message})
+                }
+            }
+        }
         "float-iterator-set" => iterator_result(request, borrowed)?,
         "exponential-bound" => {
             let index = request["index"]

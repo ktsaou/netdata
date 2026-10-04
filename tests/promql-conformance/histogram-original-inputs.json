@@ -93229,6 +93229,176 @@
         "target_schema": -53
       },
       "declared": null
+    },
+    {
+      "id": "supplement:iterator-panic:5",
+      "mode": "float-iterator-set",
+      "request": {
+        "input": {
+          "count": "0000000000000000",
+          "custom_values": null,
+          "negative_buckets": null,
+          "negative_spans": null,
+          "positive_buckets": null,
+          "positive_spans": null,
+          "reset_hint": 0,
+          "schema": -53,
+          "sum": "0000000000000000",
+          "zero_count": "3ff0000000000000",
+          "zero_threshold": "0000000000000000"
+        },
+        "routes": [
+          "all"
+        ],
+        "start": "0000000000000000",
+        "target_schema": -53
+      },
+      "declared": null
+    },
+    {
+      "id": "supplement:iterator-panic:6",
+      "mode": "float-iterator-set",
+      "request": {
+        "input": {
+          "count": "0000000000000000",
+          "custom_values": null,
+          "negative_buckets": null,
+          "negative_spans": null,
+          "positive_buckets": null,
+          "positive_spans": null,
+          "reset_hint": 0,
+          "schema": -53,
+          "sum": "0000000000000000",
+          "zero_count": "3ff0000000000000",
+          "zero_threshold": "0000000000000000"
+        },
+        "routes": [
+          "all-reverse"
+        ],
+        "start": "0000000000000000",
+        "target_schema": -53
+      },
+      "declared": null
+    },
+    {
+      "id": "supplement:zero-bucket:0",
+      "mode": "float-zero-bucket",
+      "request": {
+        "input": {
+          "count": "0000000000000000",
+          "custom_values": null,
+          "negative_buckets": null,
+          "negative_spans": null,
+          "positive_buckets": null,
+          "positive_spans": null,
+          "reset_hint": 0,
+          "schema": 0,
+          "sum": "0000000000000000",
+          "zero_count": "0000000000000000",
+          "zero_threshold": "0000000000000000"
+        }
+      },
+      "declared": null
+    },
+    {
+      "id": "supplement:zero-bucket:1",
+      "mode": "float-zero-bucket",
+      "request": {
+        "input": {
+          "count": "0000000000000000",
+          "custom_values": null,
+          "negative_buckets": null,
+          "negative_spans": null,
+          "positive_buckets": null,
+          "positive_spans": null,
+          "reset_hint": 0,
+          "schema": 0,
+          "sum": "0000000000000000",
+          "zero_count": "8000000000000000",
+          "zero_threshold": "8000000000000000"
+        }
+      },
+      "declared": null
+    },
+    {
+      "id": "supplement:zero-bucket:2",
+      "mode": "float-zero-bucket",
+      "request": {
+        "input": {
+          "count": "0000000000000000",
+          "custom_values": null,
+          "negative_buckets": null,
+          "negative_spans": null,
+          "positive_buckets": null,
+          "positive_spans": null,
+          "reset_hint": 0,
+          "schema": 0,
+          "sum": "0000000000000000",
+          "zero_count": "7ff0000000000000",
+          "zero_threshold": "7ff8000000000001"
+        }
+      },
+      "declared": null
+    },
+    {
+      "id": "supplement:zero-bucket:3",
+      "mode": "float-zero-bucket",
+      "request": {
+        "input": {
+          "count": "0000000000000000",
+          "custom_values": null,
+          "negative_buckets": null,
+          "negative_spans": null,
+          "positive_buckets": null,
+          "positive_spans": null,
+          "reset_hint": 0,
+          "schema": 0,
+          "sum": "0000000000000000",
+          "zero_count": "bff0000000000000",
+          "zero_threshold": "3f847ae147ae147b"
+        }
+      },
+      "declared": null
+    },
+    {
+      "id": "supplement:zero-bucket:4",
+      "mode": "float-zero-bucket",
+      "request": {
+        "input": {
+          "count": "0000000000000000",
+          "custom_values": null,
+          "negative_buckets": null,
+          "negative_spans": null,
+          "positive_buckets": null,
+          "positive_spans": null,
+          "reset_hint": 0,
+          "schema": -53,
+          "sum": "0000000000000000",
+          "zero_count": "0000000000000000",
+          "zero_threshold": "0000000000000000"
+        }
+      },
+      "declared": null
+    },
+    {
+      "id": "supplement:zero-bucket:5",
+      "mode": "float-zero-bucket",
+      "request": {
+        "input": {
+          "count": "0000000000000000",
+          "custom_values": null,
+          "negative_buckets": null,
+          "negative_spans": null,
+          "positive_buckets": null,
+          "positive_spans": null,
+          "reset_hint": 0,
+          "schema": -53,
+          "sum": "0000000000000000",
+          "zero_count": "3ff0000000000000",
+          "zero_threshold": "0000000000000000"
+        }
+      },
+      "declared": null
     }
   ]
 }

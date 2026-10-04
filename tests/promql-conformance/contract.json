@@ -132,8 +132,8 @@
     "source_files": 1654,
     "original_histogram_tests": 17,
     "original_table_cases": 110,
-    "supplemental_cases": 5626,
-    "owned_and_borrowed_comparisons": 5883,
+    "supplemental_cases": 5634,
+    "owned_and_borrowed_comparisons": 5899,
     "semantic_pass": true,
     "reported_numeric_bit_differences_by_profile": {"release": 10, "release-min": 1},
     "bit_difference_kind": "NaN sign in compensated subtraction; strict-bits diagnostic fails.",
@@ -143,8 +143,9 @@
     "reference_platform": "linux/amd64",
     "bound_table_constants": 511,
     "bound_results": "Exact bits, including subnormal underflow and finite/overflow separation.",
-    "iterator_fixture_groups": 102,
-    "iterator_go_routes": 593,
+    "iterator_fixture_groups": 104,
+    "iterator_go_routes": 595,
+    "direct_zero_bucket_cases": 6,
     "iterator_retention": "Borrowed payload; constant-sized state; consuming start-threshold loop; no traversal output array.",
     "status": "Owned/borrowed per-sample payloads, Copy/CopyTo, Mul/Div, integer conversion, compensated summation, compaction, schema copying/reduction, bucket boundaries and bucket traversal implemented and finitely compared. No complete histogram, evaluator, C boundary, runtime accounting or paged-provider claim."
   }

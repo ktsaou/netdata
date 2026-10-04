@@ -138,6 +138,15 @@ ITERATOR_ROUTES = {"all", "all-reverse", "positive", "negative", "positive-rever
                    "low-positive", "low-negative"}
 
 
+def bucket(value):
+    fields(value, ("lower", "upper", "count", "index", "lower_inclusive", "upper_inclusive"))
+    for key in ("lower", "upper", "count"):
+        number(value[key])
+    integer(value["index"], -(1 << 31), (1 << 31) - 1)
+    if any(type(value[key]) is not bool for key in ("lower_inclusive", "upper_inclusive")):
+        raise ValueError("invalid bucket inclusivity")
+
+
 def iterator_result(value, routes):
     fields(value, ("buckets", "panic"))
     if type(value["panic"]) is not str:
@@ -152,13 +161,8 @@ def iterator_result(value, routes):
             continue
         if type(buckets) is not list:
             raise ValueError("invalid iterator bucket list")
-        for bucket in buckets:
-            fields(bucket, ("lower", "upper", "count", "index", "lower_inclusive", "upper_inclusive"))
-            for key in ("lower", "upper", "count"):
-                number(bucket[key])
-            integer(bucket["index"], -(1 << 31), (1 << 31) - 1)
-            if any(type(bucket[key]) is not bool for key in ("lower_inclusive", "upper_inclusive")):
-                raise ValueError("invalid bucket inclusivity")
+        for value in buckets:
+            bucket(value)
 
 
 def compare_declared(case, failures, bit_differences):
@@ -198,6 +202,17 @@ def validate_case(case):
                 raise ValueError("changed exponential bound table layout")
             for value in values:
                 number(value)
+    elif mode == "float-zero-bucket":
+        fields(request, ("input",))
+        histogram(request["input"], False)
+        fields(actual, ("bucket", "panic"))
+        if type(actual["panic"]) is not str:
+            raise ValueError("invalid zero bucket panic")
+        if actual["panic"]:
+            if actual["bucket"] is not None:
+                raise ValueError("zero bucket panic retained a result")
+        else:
+            bucket(actual["bucket"])
     elif mode == "float-iterator-set":
         fields(request, ("input", "routes", "start", "target_schema"))
         histogram(request["input"], False)
@@ -281,8 +296,10 @@ def supplemental_ids():
     for shape in range(12):
         for i in range(6):
             result[f"supplement:iterator:{shape}:{i}"] = "float-iterator-set"
-    for shape in range(5):
+    for shape in range(7):
         result[f"supplement:iterator-panic:{shape}"] = "float-iterator-set"
+    for shape in range(6):
+        result[f"supplement:zero-bucket:{shape}"] = "float-zero-bucket"
     return result
 
 
