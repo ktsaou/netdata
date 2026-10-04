@@ -4,6 +4,7 @@ use std::io::{self, BufRead, Write};
 
 use netdata_promql_engine::frontend::lexer::Lexer;
 use netdata_promql_engine::frontend::literal::unquote;
+use netdata_promql_engine::frontend::number;
 
 fn decode(text: &str) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
     if !text.is_ascii() || !text.len().is_multiple_of(2) {
@@ -20,11 +21,51 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     for line in io::stdin().lock().lines() {
         let line = line?;
         let fields: Vec<_> = line.split('\t').collect();
-        if fields.len() != 4 || fields[0].is_empty() || !matches!(fields[1], "q" | "s" | "u") {
+        if fields.len() != 4
+            || fields[0].is_empty()
+            || !matches!(fields[1], "q" | "s" | "u" | "n" | "d")
+        {
             return Err("expected ID, query/series mode, fixture token guard and hex input".into());
         }
         let count: usize = fields[2].parse()?;
         let input = decode(fields[3])?;
+        if matches!(fields[1], "n" | "d") {
+            let parsed = if fields[1] == "n" {
+                number::number(&input)
+            } else {
+                match number::duration(&input) {
+                    Ok(nanoseconds) => number::Number {
+                        value: number::seconds(nanoseconds),
+                        error: None,
+                    },
+                    Err(error) => number::Number {
+                        value: 0.0,
+                        error: Some(error),
+                    },
+                }
+            };
+            writeln!(
+                out,
+                "{}\tNUMBER_BITS\t0\t{:016x}",
+                fields[0],
+                parsed.value.to_bits()
+            )?;
+            writeln!(
+                out,
+                "{}\tNANOSECONDS\t0\t{}",
+                fields[0],
+                number::nanoseconds(parsed.value)
+            )?;
+            if let Some(error) = parsed.error {
+                write!(out, "{}\tERROR\t0\t", fields[0])?;
+                for byte in error {
+                    write!(out, "{byte:02x}")?;
+                }
+                writeln!(out)?;
+            }
+            writeln!(out, "{}\tEND", fields[0])?;
+            continue;
+        }
         if fields[1] == "u" {
             let value = unquote(&input)?;
             write!(out, "{}\tSTRING_VALUE\t0\t", fields[0])?;
