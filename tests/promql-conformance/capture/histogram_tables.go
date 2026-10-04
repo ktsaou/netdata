@@ -43,6 +43,7 @@ func main() {
 		{Test: "TestFloatHistogramCompact", File: "float_histogram_test.go", Mode: "float-compact", Cases: 24},
 		{Test: "TestFloatHistogramCopyToSchema", File: "float_histogram_test.go", Mode: "float-copy-to-schema", Cases: 3},
 		{Test: "TestFloatHistogramReduceResolution", File: "float_histogram_test.go", Mode: "float-reduce-resolution", Cases: 4, Variable: "tcs"},
+		{Test: "TestGetBoundExponential", File: "generic_test.go", Mode: "exponential-bound", Cases: 15, Variable: "scenarios"},
 	}
 	for i := range tables {
 		row := &tables[i]

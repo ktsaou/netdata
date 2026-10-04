@@ -7,6 +7,8 @@ compile_error!("PromQL requires panic=unwind for containment at its C boundary")
 
 pub mod frontend;
 pub mod histogram;
+mod histogram_bounds;
+mod histogram_bounds_table;
 mod histogram_layout;
 pub mod numerical;
 pub mod value;

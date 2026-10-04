@@ -28,7 +28,7 @@ def helper(table, index):
         body += [f'for _, name := range []string{{{keys}}} {{', 'c := tcs[name]',
                  f'id := "{table["test"]}:" + name']
     else:
-        body += ['for i, c := range cases {', f'id := fmt.Sprintf("{table["test"]}:%03d", i)']
+        body += [f'for i, c := range {table["variable"]} {{', f'id := fmt.Sprintf("{table["test"]}:%03d", i)']
     if mode in {"float-mul", "float-div"}:
         input_field, factor, operation = (("in", "scale", "Mul") if mode == "float-mul"
                                           else ("fh", "s", "Div"))
@@ -65,6 +65,11 @@ def helper(table, index):
                  'declared := netdataFrozen(map[string]any{"result": netdataFloat(c.target), "error": c.errorMsg, "histogram_error": c.errorMsg != ""})',
                  'err := c.origin.ReduceResolution(c.targetSchema)',
                  'netdataRecord(output, id, "float-reduce-resolution", request, netdataReductionResult(c.origin, err), declared)']
+    elif mode == "exponential-bound":
+        body += ['request := map[string]any{"index": c.idx, "schema": c.schema}',
+                 'declared := fmt.Sprintf("%016x", math.Float64bits(c.want))',
+                 'actual := fmt.Sprintf("%016x", math.Float64bits(getBoundExponential(c.idx, c.schema)))',
+                 'netdataRecord(output, id, "exponential-bound", request, actual, declared)']
     else:
         raise ValueError("unknown source histogram table")
     body += ['}', '}']
@@ -114,7 +119,7 @@ def capture(mod_cache, write_input_ledger=False):
     if result.returncode:
         raise SystemExit(f"histogram table extraction failed ({result.returncode}): {result.stderr}")
     tables = json.loads(result.stdout)
-    if len(tables) != 11 or sum(row["cases"] for row in tables) != 70:
+    if len(tables) != 12 or sum(row["cases"] for row in tables) != 85:
         raise ValueError("changed histogram table coverage")
     for table in tables:
         raw = (source / "model/histogram" / table["file"]).read_bytes()

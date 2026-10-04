@@ -25,6 +25,10 @@ class HistogramReferenceTests(unittest.TestCase):
                 case["actual"] = {"result": copy.deepcopy(empty_float), "input_after": copy.deepcopy(case["request"]["input"])}
             elif case["mode"] == "float-reduce-resolution":
                 case["actual"] = {"result": copy.deepcopy(empty_float), "error": "", "histogram_error": False}
+            elif case["mode"] == "exponential-bound":
+                case["actual"] = "0000000000000000"
+            elif case["mode"] == "exponential-bound-table":
+                case["actual"] = [["3fe0000000000000"] * (1 << schema) for schema in range(9)]
             else:
                 case["actual"] = copy.deepcopy(empty_float)
             if case["mode"] == "float-reduce-resolution" and case["actual"]["result"] is None:
@@ -33,7 +37,7 @@ class HistogramReferenceTests(unittest.TestCase):
 
     def test_complete_decoder_roster(self):
         self.assertEqual(validate_cases(self.document, self.ledger["tables"]),
-                         {"original_table_cases": 70, "supplemental_cases": 390, "total": 460})
+                         {"original_table_cases": 85, "supplemental_cases": 5549, "total": 5634})
 
     def test_valid_but_rebound_inputs_are_rejected(self):
         mutations = [
@@ -46,6 +50,8 @@ class HistogramReferenceTests(unittest.TestCase):
             ("TestFloatHistogramCompact:000", lambda case: case["request"].update(max_empty=1)),
             ("TestFloatHistogramCopyToSchema:001", lambda case: case["request"].update(target_schema=-1)),
             ("TestFloatHistogramReduceResolution:negative offset", lambda case: case["request"]["input"]["positive_spans"][1].update(Offset=0)),
+            ("TestGetBoundExponential:000", lambda case: case["request"].update(index=0)),
+            ("supplement:bound:8:255:-1075", lambda case: case["request"].update(schema=7)),
         ]
         for identity, mutate in mutations:
             with self.subTest(identity=identity):
@@ -62,7 +68,7 @@ class HistogramReferenceTests(unittest.TestCase):
             validate_cases(document, self.ledger["tables"])
 
     def test_declarations_and_source_positions_are_bound(self):
-        for mutation in ("prefix", "line", "case_line", "source_sha256"):
+        for mutation in ("prefix", "line", "case_line", "source_sha256", "variable"):
             with self.subTest(mutation=mutation):
                 tables = copy.deepcopy(self.ledger["tables"])
                 if mutation == "prefix":
@@ -71,8 +77,10 @@ class HistogramReferenceTests(unittest.TestCase):
                     tables[0]["line"] += 1
                 elif mutation == "case_line":
                     tables[0]["case_lines"][0] = tables[0]["case_lines"][1]
-                else:
+                elif mutation == "source_sha256":
                     tables[0]["source_sha256"] = "0" * 64
+                else:
+                    tables[-1]["variable"] = "cases"
                 with self.assertRaises(ValueError):
                     validate_cases(self.document, tables)
 
@@ -101,6 +109,12 @@ class HistogramReferenceTests(unittest.TestCase):
             with self.subTest(actual=actual):
                 self.assertFalse(compare_results({"case": {"schema": 0}},
                                                  [{"id": "case", "actual": actual}])["semantic_pass"])
+
+    def test_bound_underflow_is_compared_exactly(self):
+        expected = {"bound": "0000000000000001"}
+        output = [{"id": "bound", "actual": "0000000000000000"}]
+        self.assertTrue(compare_results(expected, output)["semantic_pass"])
+        self.assertFalse(compare_results(expected, output, {"bound"})["semantic_pass"])
 
     def test_complete_candidate_output_is_required(self):
         expected = {"case": {"positive_spans": None}}

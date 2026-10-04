@@ -167,6 +167,30 @@ func netdataLayoutSupplemental(cases *[]map[string]any) {
 	}
 }
 
+func netdataBoundSupplemental(cases *[]map[string]any) {
+	var constants []any
+	for schema, values := range exponentialBounds {
+		constants = append(constants, netdataNumbers(values))
+		for fraction := range values {
+			for _, exponent := range []int32{-1076, -1075, -1074, -1023, -1022, -1, 0, 1023, 1024, 1025} {
+				index := exponent*int32(len(values)) + int32(fraction)
+				request := map[string]any{"index": index, "schema": schema}
+				netdataRecord(cases, fmt.Sprintf("supplement:bound:%d:%d:%d", schema, fraction, exponent), "exponential-bound", request,
+					fmt.Sprintf("%016x", math.Float64bits(getBoundExponential(index, int32(schema)))), nil)
+			}
+		}
+	}
+	for schema := int32(-4); schema < 0; schema++ {
+		indices := []int32{math.MinInt32, -(1074 >> -schema) - 1, -(1074 >> -schema), -(1022 >> -schema) - 1,
+			-(1022 >> -schema), -1, 0, 1, (1024 >> -schema) - 1, (1024 >> -schema), (1024 >> -schema) + 1, math.MaxInt32}
+		for i, index := range indices {
+			netdataRecord(cases, fmt.Sprintf("supplement:bound-negative:%d:%d", schema, i), "exponential-bound",
+				map[string]any{"index": index, "schema": schema}, fmt.Sprintf("%016x", math.Float64bits(getBoundExponential(index, schema))), nil)
+		}
+	}
+	netdataRecord(cases, "supplement:exponential-bound-table", "exponential-bound-table", map[string]any{}, constants, nil)
+}
+
 func netdataSupplemental(cases *[]map[string]any) {
 	for hint := UnknownCounterReset; hint <= GaugeType; hint++ {
 		for _, schema := range []int32{0, CustomBucketsSchema} {
@@ -249,6 +273,7 @@ func TestNetdataCaptureHistogram(t *testing.T) {
 	/* CAPTURE_CALLS */
 	netdataSupplemental(&cases)
 	netdataLayoutSupplemental(&cases)
+	netdataBoundSupplemental(&cases)
 	raw, err := json.MarshalIndent(map[string]any{"schema_version": 1,
 		"commit": "5241a27fe3c6983549fccc32f6e65917408c63cd", "go_version": runtime.Version(),
 		"go_os": runtime.GOOS, "go_arch": runtime.GOARCH,
