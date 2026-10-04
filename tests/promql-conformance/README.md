@@ -378,6 +378,32 @@ Current release and release-min comparisons pass all 10,013 groups with zero can
 Original declaration-versus-Go bit differences remain separate and retain the source assertion's comparison rules. Other numerical
 functions, platform qualification and complete expression evaluation remain required.
 
+## Histogram fractions and in-place trimming
+
+`Bucket.FractionBelow` and `FloatHistogram.TrimBuckets` follow the pinned source, including infinite-bound
+rules, one-sided zero buckets and the unchanged-total fast path. Trimming shares forward traversal's constant
+position state, mutates one existing bucket slot at a time, and compacts the same buffers after traversal.
+A 100,000-bucket ownership test runs with a 128KiB caller stack and verifies retained buffer addresses/capacities.
+
+Separate additive histogram/promql test hooks run all three untouched original tests before instrumented copies.
+The complete AST bodies retain the seven fraction rows, 168 directional trims, zero-count witness, two known
+divergences and two ownership checks. Original declarations preserve absolute `1e-12`, relative `1e-9`, exact
+Count and lifecycle assertion scopes; complete actual layouts/sums/counts are independently captured.
+The public input ledger also binds 1,481 boundary/composition observations, for 1,661 comparisons in each build profile.
+All 1,654 reference sources and prior histogram/numerical input bindings remain unchanged.
+
+```sh
+python3 tests/promql-conformance/trim_capture.py --mod-cache "${PROMQL_GO_MOD_CACHE:?}"
+python3 tests/promql-conformance/trim.py --capture "${PROMQL_TRIM_CAPTURE_DIR:?}"
+```
+
+Both profiles pass all 1,661 comparisons with exact candidate bits. A literal-peer Trim-to-Equals regression
+first reproduced a boolean failure despite numerical tolerance passing. Local NaN destination guards now preserve
+the actual pinned Go accumulation/midpoint behavior; the composed owned/borrowed equality gate passes.
+Eleven declared-versus-Go Count differences remain separate and satisfy the original assertion scope.
+Copy-source snapshots and immutable metadata use exact bits. Native `histogram_fraction`/`histogram_quantile`,
+complete expressions, C/accounting and broader platform qualification remain unfinished.
+
 ## Required SRE expression sources
 
 The source-pinned extractor reads Git objects without changing the repository mirrors:
