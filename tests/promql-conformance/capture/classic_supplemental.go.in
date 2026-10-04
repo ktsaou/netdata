@@ -1,0 +1,68 @@
+func netdataClassicSupplemental() {
+    nan := math.Float64frombits(0x7ff8000000000099)
+    negNan := math.Float64frombits(0xfff8000000000027)
+    stale := math.Float64frombits(value.StaleNaN)
+    small := math.SmallestNonzeroFloat64
+    negativeZero := math.Copysign(0, -1)
+    fixtures := []Buckets{
+        nil, {}, {{math.Inf(1), 1}}, {{1, 0}, {math.Inf(1), 0}}, {{1, 1}, {math.Inf(1), 4}},
+        {{-2, 1}, {0, 2}, {2, 3}, {math.Inf(1), 4}}, {{1, 1}, {1, 1}, {math.Inf(1), 4}},
+        {{0, 1}, {negativeZero, 2}, {math.Inf(1), 3}}, {{negativeZero, 1}, {0, 2}, {math.Inf(1), 3}},
+        {{1, 1}, {math.Inf(1), 2}, {nan, 3}}, {{1, 8}, {2, nan}, {3, 9}, {math.Inf(1), 10}},
+        {{1, 10}, {2, 3}, {3, 5}, {4, 20}, {math.Inf(1), 17}},
+        {{1, 10}, {2, math.Nextafter(10, math.Inf(1))}, {3, 9.99999999999}, {math.Inf(1), 10}},
+        {{1, 1}, {2, math.Inf(1)}, {math.Inf(1), math.Inf(1)}}, {{1, -8}, {2, -3}, {math.Inf(1), -1}},
+        {{1, nan}, {1, negNan}, {math.Inf(1), stale}}, {{1, small}, {2, 2*small}, {math.Inf(1), 3*small}},
+        {{math.MaxFloat64, 1}, {math.MaxFloat64, 2}, {math.Inf(1), 3}},
+        {{1, math.MaxFloat64}, {2, math.Nextafter(math.MaxFloat64, 0)}, {math.Inf(1), math.MaxFloat64}},
+        {{-small, 1}, {small, 2}, {math.Inf(1), 3}}, {{math.Inf(-1), 1}, {-2, 2}, {negativeZero, 3}, {2, 4}, {math.Inf(1), 5}},
+        {{nan, 1}, {negNan, 2}, {stale, 3}}, {{2, 9}, {-2, 3}, {0, 6}}, {{1, 1}, {math.Inf(1), 2}, {math.Inf(1), 3}},
+        {{math.Inf(-1), 1}, {math.Inf(-1), 2}, {math.Inf(1), 3}}, {{2, 0}, {1, 0}},
+        {{math.Float64frombits(0x7ff0000000000042), 1}, {1, 2}, {math.Inf(1), 3}},
+        {{-1, small}, {1, math.MaxFloat64}, {math.Inf(1), math.MaxFloat64}},
+        {{1, negNan}, {1, nan}, {math.Inf(1), 8}},
+        {{1, math.Float64frombits(0x7ff0000000000042)}, {1, nan}, {math.Inf(1), 8}},
+        {{1, nan}, {1, math.Float64frombits(0x7ff0000000000042)}, {math.Inf(1), 8}},
+        {{1, math.Float64frombits(0x7ff0000000000042)}, {1, math.Float64frombits(0xfff0000000000027)}, {math.Inf(1), 8}},
+        {{1, math.Float64frombits(0x7ff0000000000042)}, {1, math.Float64frombits(0x7ff0000000000099)}, {math.Inf(1), 8}},
+        {{1, math.Float64frombits(0x7ff0000000000042)}, {1, 1}, {math.Inf(1), 8}},
+    }
+    copyBuckets := func(input Buckets) Buckets { if input == nil { return nil }; out := make(Buckets, len(input)); copy(out, input); return out }
+    quantiles := []float64{math.Inf(-1), -1, -small, negativeZero, 0, small, .125, .25, .5, .75, .99, 1, math.Nextafter(1, math.Inf(1)), 2, math.Inf(1), nan}
+    bounds := []float64{math.Inf(-1), -4, -2, -small, negativeZero, 0, small, .5, 1, 2, 4, math.Inf(1), nan}
+    for index, buckets := range fixtures {
+        for qindex, q := range quantiles { netdataClassicApply(fmt.Sprintf("supplement:bucket:%03d:q:%02d", index, qindex), copyBuckets(buckets), []map[string]any{netdataClassicQuantile(q)}) }
+        for indexBound, bound := range bounds {
+            netdataClassicApply(fmt.Sprintf("supplement:bucket:%03d:f:%02d:below", index, indexBound), copyBuckets(buckets), []map[string]any{netdataClassicFraction(math.Inf(-1), bound)})
+            netdataClassicApply(fmt.Sprintf("supplement:bucket:%03d:f:%02d:above", index, indexBound), copyBuckets(buckets), []map[string]any{netdataClassicFraction(bound, math.Inf(1))})
+        }
+        netdataClassicApply(fmt.Sprintf("supplement:bucket:%03d:sequence", index), copyBuckets(buckets), []map[string]any{
+            netdataClassicQuantile(.125), netdataClassicQuantile(.25), netdataClassicFraction(0, 1), netdataClassicQuantile(.75)})
+        netdataClassicApply(fmt.Sprintf("supplement:bucket:%03d:reversed", index), copyBuckets(buckets), []map[string]any{netdataClassicFraction(2, 1)})
+    }
+    for _, length := range []int{12, 13, 49, 50, 51, 64, 127, 128, 257} {
+        for pattern := 0; pattern < 6; pattern++ {
+            buckets := make(Buckets, length)
+            for index := range buckets {
+                bound := float64(index)
+                switch pattern {
+                case 1: bound = float64(length-index)
+                case 2: bound = nan; if index%2 == 0 { bound = negNan }
+                case 3:
+                    bound = float64(index%16)
+                    if index%5 == 0 { bound = nan } else if index%4 == 0 { bound = negativeZero }
+                case 4: bound = float64((index+length/3)%length)
+                case 5: bound = float64(index); if index >= length/2 { bound = float64(length-index) }
+                }
+                buckets[index] = Bucket{UpperBound: bound, Count: float64(index+1)}
+            }
+            netdataClassicApply(fmt.Sprintf("supplement:sort:%03d:%d", length, pattern), buckets, []map[string]any{netdataClassicQuantile(.5)})
+        }
+    }
+    numbers := []float64{0, negativeZero, small, -small, math.Float64frombits(0x0010000000000000), -math.Float64frombits(0x0010000000000000),
+        1, -1, math.Nextafter(1, 2), 1.000000000001, math.Inf(1), math.Inf(-1), math.MaxFloat64, math.MaxFloat64/10, nan, negNan, stale, math.Float64frombits(0x7ff8000000000002)}
+    epsilons := []float64{0, negativeZero, 1e-12, 1e-6, .1, -.1, math.Inf(1), nan}
+    for left, a := range numbers { for right, b := range numbers { for index, epsilon := range epsilons {
+        netdataClassicEqual(fmt.Sprintf("supplement:almost:%02d:%02d:%d", left, right, index), a, b, epsilon, nil, nil)
+    } } }
+}

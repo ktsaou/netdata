@@ -3,16 +3,85 @@
 use std::io::{self, BufRead, Write};
 
 use netdata_promql_engine::histogram::{
-    Bucket, FloatHistogram, HistogramArithmetic, HistogramError, IntegerHistogram, Span,
-    bucket_bound, custom_bounds_match, histogram_avg, histogram_count, histogram_fraction,
-    histogram_quantile, histogram_stddev, histogram_stdvar, histogram_sum,
+    Bucket, ClassicBucket, FloatHistogram, HistogramArithmetic, HistogramError, IntegerHistogram,
+    Span, bucket_bound, bucket_fraction, bucket_quantile, custom_bounds_match, histogram_avg,
+    histogram_count, histogram_fraction, histogram_quantile, histogram_stddev, histogram_stdvar,
+    histogram_sum,
 };
 use netdata_promql_engine::numerical::{
-    compensated_add, compensated_sub, exp2, frexp, ldexp, log, log2, sqrt,
+    almost_equal, compensated_add, compensated_sub, exp2, frexp, ldexp, log, log2, sqrt,
 };
 use serde_json::{Value, json};
 
 type Error = Box<dyn std::error::Error>;
+
+fn classic_buckets(input: &Value) -> Result<Option<Vec<ClassicBucket>>, Error> {
+    array(input, |bucket| {
+        Ok(ClassicBucket {
+            upper_bound: number(&bucket["upper_bound"])?,
+            count: number(&bucket["count"])?,
+        })
+    })
+}
+
+fn encoded_classic(input: Option<&[ClassicBucket]>) -> Value {
+    input.map_or(Value::Null, |buckets| {
+        json!(
+            buckets
+                .iter()
+                .map(|bucket| json!({
+                    "upper_bound": format!("{:016x}", bucket.upper_bound.to_bits()),
+                    "count": format!("{:016x}", bucket.count.to_bits()),
+                }))
+                .collect::<Vec<_>>()
+        )
+    })
+}
+
+fn classic_result(request: &Value) -> Result<Value, Error> {
+    let mut input = classic_buckets(&request["buckets"])?;
+    let mut steps = Vec::new();
+    for operation in request["operations"]
+        .as_array()
+        .ok_or("expected classic operations")?
+    {
+        let kind = operation["kind"]
+            .as_str()
+            .ok_or("missing classic operation")?;
+        let mut quantile = None;
+        let (left, right) = if kind == "quantile" {
+            (number(&operation["quantile"])?, 0.0)
+        } else if kind == "fraction" {
+            (number(&operation["lower"])?, number(&operation["upper"])?)
+        } else {
+            return Err("unknown classic operation".into());
+        };
+        let value = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            let buckets = input.as_deref_mut().unwrap_or(&mut []);
+            if kind == "quantile" {
+                let result = bucket_quantile(left, buckets);
+                quantile = Some(json!({"forced_monotonicity": result.forced_monotonicity,
+                    "fixed_precision": result.fixed_precision, "min_bound": format!("{:016x}", result.min_bound.to_bits()),
+                    "max_bound": format!("{:016x}", result.max_bound.to_bits()),
+                    "max_decrease": format!("{:016x}", result.max_decrease.to_bits())}));
+                result.value
+            } else {
+                bucket_fraction(left, right, buckets)
+            }
+        }));
+        let result = value.as_ref().ok().map(|value| {
+            let reciprocal = 1.0 / value;
+            json!({"value": format!("{:016x}", value.to_bits()),
+                "reciprocal": format!("{:016x}", reciprocal.to_bits()),
+                "negative_reciprocal_infinite": reciprocal == f64::NEG_INFINITY,
+                "positive_reciprocal_infinite": reciprocal == f64::INFINITY,
+                "less_than_positive_infinity": *value < f64::INFINITY, "quantile": quantile})
+        });
+        steps.push(json!({"panicked": value.is_err(), "result": result,
+            "input_after": encoded_classic(input.as_deref())}));
+    }
+    Ok(json!({"steps": steps}))
+}
 
 fn number(value: &Value) -> Result<f64, Error> {
     let text = value.as_str().ok_or("expected binary64 hex string")?;
@@ -377,6 +446,12 @@ fn result(input: &Value) -> Result<Value, Error> {
             json!(format!("{:016x}", fraction.to_bits()))
         }
         "float-trim" => trim_result(request)?,
+        "classic-buckets" => classic_result(request)?,
+        "almost-equal" => json!(almost_equal(
+            number(&request["left"])?,
+            number(&request["right"])?,
+            number(&request["epsilon"])?
+        )),
         "histogram-count" | "histogram-sum" | "histogram-avg" | "histogram-stdvar"
         | "histogram-stddev" => {
             let h = float(&request["input"])?;
