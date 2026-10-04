@@ -400,7 +400,8 @@ python3 tests/promql-conformance/trim.py --capture "${PROMQL_TRIM_CAPTURE_DIR:?}
 Both profiles pass all 1,661 comparisons with exact candidate bits. A literal-peer Trim-to-Equals regression
 first reproduced a boolean failure despite numerical tolerance passing. Local NaN destination guards now preserve
 the actual pinned Go accumulation/midpoint behavior; the composed owned/borrowed equality gate passes.
-Eleven declared-versus-Go Count differences remain separate and satisfy the original assertion scope.
+Eleven declared-versus-Go numeric differences (one fraction and ten Counts) remain separate and satisfy
+the original assertion scope.
 Copy-source snapshots and immutable metadata use exact bits. Native `histogram_fraction`/`histogram_quantile`,
 complete expressions, C/accounting and broader platform qualification remain unfinished.
 

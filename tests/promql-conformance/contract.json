@@ -184,7 +184,8 @@
     "read_only_comparison": "Exact copied-source snapshots and immutable receiver metadata, including NaN payloads and signed zeros.",
     "reported_numeric_bit_differences_by_profile": {"release": 0, "release-min": 0},
     "nan_destination_behavior": "Local guards preserve actual pinned Go destinations for Count/Sum accumulation and zero-bucket midpoint/product calculations. A source-independent literal peer previously reproduced a release equality failure; composed owned/borrowed equality now passes.",
-    "declared_vs_go_count_bit_differences": 11,
+    "declared_vs_go_numeric_bit_differences": 11,
+    "declared_vs_go_numeric_bit_differences_by_kind": {"fraction": 1, "trim_count": 10},
     "status": "Bucket fraction, in-place trimming and one bit-sensitive equality composition finitely compared with exact candidate bits. Complete native histogram functions, expressions, C/accounting and platforms remain required."
   },
   "numerical_prerequisites": {
