@@ -44,7 +44,13 @@
         "promql/parser/parse_test.go",
         "promql/parser/lex_test.go"
       ],
-      "current_status": "Source inventory; computed inputs and structured expectations must be imported in the typed-core stage."
+      "current_status": "Computed lexer and expression-table capture with original assertions; no Rust candidate pass. Parser helper surfaces remain separately qualified.",
+      "lexer_cases": 157,
+      "expression_cases": 356,
+      "lexer_declared_failures": 52,
+      "expression_failures": 148,
+      "series_description_lexer_cases": 9,
+      "capture_tool": "capture.py"
     },
     "sre": {
       "source_slots": 790,
@@ -58,6 +64,14 @@
       "slo_alerts": 72,
       "current_status": "Pinned private source closure and reference parsing. Controlled-input Rust evaluation of every expression, recording dependencies and issue 6028 shapes remains required."
     }
+  },
+  "approved_core_runtime": {
+    "storage": "Typed C cursors; bounded raw pages, chronological operator state and exact replay; reuse dbengine cache.",
+    "output": "Synchronous incremental borrowed chunks, provisional until final success; independently owned convenience collector.",
+    "accounting": "Current/peak resources, cumulative samples/work, active/peak executions and per-query elapsed time; charges survive until resource release.",
+    "enforcement": "All engine resource caps disabled for now. Caller cancellation/deadlines remain explicit.",
+    "future_policy": "Device-adaptive enforcement remains a later runtime/integration design; no fixed profile or adaptive formula selected.",
+    "status": "Approved design; core runtime implementation remains required."
   },
   "remaining_stages": [
     "Complete modular typed Rust expression core and C interface",
