@@ -196,22 +196,27 @@ pub(crate) fn reduce_float_in_place(
     origin: i32,
     target: i32,
 ) -> Result<(), HistogramError> {
-    // On failure upstream assigns nil outputs, including after partial writes.
-    let (mut source_spans, mut source_buckets) = (spans.take(), buckets.take());
-    let (span_count, bucket_count) = reduce_float_layout(
-        &mut Reused(source_spans.as_deref_mut().unwrap_or(&mut [])),
-        &mut Reused(source_buckets.as_deref_mut().unwrap_or(&mut [])),
+    // Keep arrays attached during unwinding; only returned errors assign nil outputs.
+    let result = reduce_float_layout(
+        &mut Reused(spans.as_deref_mut().unwrap_or(&mut [])),
+        &mut Reused(buckets.as_deref_mut().unwrap_or(&mut [])),
         origin,
         target,
-    )?;
-    if let Some(values) = &mut source_spans {
+    );
+    let (span_count, bucket_count) = match result {
+        Ok(counts) => counts,
+        Err(error) => {
+            *spans = None;
+            *buckets = None;
+            return Err(error);
+        }
+    };
+    if let Some(values) = spans {
         values.truncate(span_count);
     }
-    if let Some(values) = &mut source_buckets {
+    if let Some(values) = buckets {
         values.truncate(bucket_count);
     }
-    *spans = source_spans;
-    *buckets = source_buckets;
     Ok(())
 }
 
