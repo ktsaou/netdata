@@ -430,6 +430,8 @@ Candidate values use the pinned numeric tolerance. Complete borrowed input snaps
 severity, raw/formatted bytes and reciprocal infinity classifications compare exactly. The eight original literal
 info declarations and two `no_info` commands are also checked against the captured helper info sets. Full
 expression invalid-quantile warnings and global diagnostic deduplication remain caller behavior outside this gate.
+Reference decoding also checks source-owned info messages, the five metric spellings exercised by this finite
+capture and original byte-position suffixes; refreshing an output hash cannot legitimize arbitrary diagnostic bytes.
 
 ```sh
 python3 tests/promql-conformance/histogram_functions_capture.py --mod-cache "${PROMQL_GO_MOD_CACHE:?}"

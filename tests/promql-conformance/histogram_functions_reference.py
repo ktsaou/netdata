@@ -15,6 +15,19 @@ PARSER_OPTIONS = {"EnableExperimentalFunctions": True, "ExperimentalDurationExpr
                   "EnableExtendedRangeSelectors": True, "EnableBinopFillModifiers": True}
 IDENTITIES = {"NativeHistogramQuantileNaNResultInfo", "NativeHistogramQuantileNaNSkewInfo",
               "NativeHistogramFractionNaNsInfo"}
+# annotations.go:164–166,193–218; finite source/supplement metric spellings use Go %q.
+INFO_MESSAGES = {
+    "NativeHistogramQuantileNaNResultInfo": b"PromQL info: input to histogram_quantile has NaN observations, result is NaN",
+    "NativeHistogramQuantileNaNSkewInfo": b"PromQL info: input to histogram_quantile has NaN observations, result is skewed higher",
+    "NativeHistogramFractionNaNsInfo": b"PromQL info: input to histogram_fraction has NaN observations, which are excluded from all fractions",
+}
+METRIC_QUOTES = {
+    b"": b"",
+    b"metric": b'"metric"',
+    b'line\n"\\\x00\xff': b'"line\\n\\"\\\\\\x00\\xff"',
+    "k😀é\u200b".encode(): '"k😀é\\u200b"'.encode(),
+    b"histogram_nan": b'"histogram_nan"',
+}
 
 
 def hex_bytes(value):
@@ -94,7 +107,7 @@ def validate_outcome(request, actual):
         raise ValueError("native helper changed its borrowed input")
     annos = actual["annotations"]
     if annos is not None:
-        if type(annos) is not list or len(annos) > 1:
+        if type(annos) is not list or len(annos) != 1:
             raise ValueError("invalid native helper annotation container")
         for annotation in annos:
             fields(annotation, ("identity", "severity", "raw", "formatted"))
@@ -103,8 +116,25 @@ def validate_outcome(request, actual):
             quantile = "quantile" in request
             if (annotation["identity"] == "NativeHistogramFractionNaNsInfo") == quantile:
                 raise ValueError("native helper annotation belongs to another function")
-            hex_bytes(annotation["raw"])
-            hex_bytes(annotation["formatted"])
+            metric, query = hex_bytes(request["metric_name"]), hex_bytes(request["query"])
+            if metric not in METRIC_QUOTES:
+                raise ValueError("unqualified native helper annotation metric spelling")
+            raw = INFO_MESSAGES[annotation["identity"]]
+            if metric:
+                raw += b" for metric name " + METRIC_QUOTES[metric]
+            if hex_bytes(annotation["raw"]) != raw:
+                raise ValueError("native helper raw annotation differs from its source message")
+            formatted = raw
+            if query:
+                start = request["position"]["start"]
+                if start < 0 or start > len(query):
+                    formatted += b" (invalid position)"
+                else:
+                    prefix = query[:start]
+                    line, column = prefix.count(b"\n") + 1, start - prefix.rfind(b"\n")
+                    formatted += f" ({line}:{column})".encode()
+            if hex_bytes(annotation["formatted"]) != formatted:
+                raise ValueError("native helper formatted annotation differs from its source position")
     reciprocal = bits(actual["reciprocal"])[1]
     for key, expected in (("negative_reciprocal_infinite", reciprocal == -math.inf),
                           ("positive_reciprocal_infinite", reciprocal == math.inf)):

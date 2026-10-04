@@ -178,6 +178,25 @@ class HistogramFunctionReferenceTests(unittest.TestCase):
                 actual["annotations"][0][key] = value
                 self.assertFalse(compare_outcomes([row], [{"id": row["id"], "actual": actual}])["semantic_pass"])
 
+    def test_resealed_supplemental_annotations_must_match_source_bytes_and_positions(self):
+        row = next(row for row in self.documents["promql"]["cases"]
+                   if row["id"] == "supplement:annotation:0:15:0")
+        message = b"PromQL info: input to histogram_quantile has NaN observations, result is skewed higher"
+        actual = scalar_outcome(encoded(1.0), row["request"]["input"],
+                                [{"identity": "NativeHistogramQuantileNaNSkewInfo", "severity": "info",
+                                  "raw": message.hex(), "formatted": (message + b" (invalid position)").hex()}])
+        validate_outcome(row["request"], actual)
+        for key, value in (("raw", "00"), ("formatted", "00"), ("formatted", message.hex()),
+                           ("identity", "NativeHistogramQuantileNaNResultInfo")):
+            with self.subTest(key=key, value=value):
+                changed = copy.deepcopy(actual)
+                changed["annotations"][0][key] = value
+                with self.assertRaises(ValueError):
+                    validate_outcome(row["request"], changed)
+        actual["annotations"] = []
+        with self.assertRaises(ValueError):
+            validate_outcome(row["request"], actual)
+
 
 if __name__ == "__main__":
     unittest.main()
