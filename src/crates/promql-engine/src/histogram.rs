@@ -1,5 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Histogram value operations derive from the pinned Prometheus model; see NOTICE.
+pub use crate::histogram_layout::HistogramError;
+use crate::histogram_layout::{compact_float, reduce_float_copy, reduce_float_in_place};
 use std::sync::Arc;
 
 pub const CUSTOM_BUCKETS_SCHEMA: i32 = -53;
@@ -114,6 +116,55 @@ impl FloatHistogram {
         self.schema == CUSTOM_BUCKETS_SCHEMA
     }
 
+    pub fn compact(&mut self, max_empty_buckets: isize) {
+        compact_float(
+            &mut self.positive_buckets,
+            &mut self.positive_spans,
+            max_empty_buckets,
+        );
+        compact_float(
+            &mut self.negative_buckets,
+            &mut self.negative_spans,
+            max_empty_buckets,
+        );
+    }
+
+    pub fn copy_to_schema(&self, target: i32) -> Self {
+        if target == self.schema {
+            return self.copy();
+        }
+        self.as_ref().copy_to_schema(target)
+    }
+
+    pub fn reduce_resolution(&mut self, target: i32) -> Result<(), HistogramError> {
+        if self.uses_custom_buckets() {
+            return Err(HistogramError::CustomSource);
+        }
+        if target == CUSTOM_BUCKETS_SCHEMA {
+            return Err(HistogramError::CustomTarget);
+        }
+        if target >= self.schema {
+            return Err(HistogramError::NonReducing {
+                origin: self.schema,
+                target,
+            });
+        }
+        reduce_float_in_place(
+            &mut self.positive_spans,
+            &mut self.positive_buckets,
+            self.schema,
+            target,
+        )?;
+        reduce_float_in_place(
+            &mut self.negative_spans,
+            &mut self.negative_buckets,
+            self.schema,
+            target,
+        )?;
+        self.schema = target;
+        Ok(())
+    }
+
     /// Copy only the fields that upstream uses for this schema.
     pub fn copy(&self) -> Self {
         let mut result = Self::default();
@@ -170,6 +221,45 @@ impl FloatHistogram {
 }
 
 impl FloatHistogramRef<'_> {
+    pub fn copy_to_schema(self, target: i32) -> FloatHistogram {
+        if target == self.schema {
+            return self.to_owned();
+        }
+        assert!(
+            self.schema != CUSTOM_BUCKETS_SCHEMA,
+            "cannot reduce resolution to {target} when there are custom buckets"
+        );
+        assert!(
+            target != CUSTOM_BUCKETS_SCHEMA,
+            "cannot reduce resolution to custom buckets schema"
+        );
+        assert!(
+            target <= self.schema,
+            "cannot copy from schema {} to {target}",
+            self.schema
+        );
+        let mut result = FloatHistogram {
+            schema: target,
+            zero_threshold: self.zero_threshold,
+            zero_count: self.zero_count,
+            count: self.count,
+            sum: self.sum,
+            ..FloatHistogram::default()
+        };
+        (result.positive_spans, result.positive_buckets) = reduce_float_copy(
+            self.positive_spans,
+            self.positive_buckets,
+            self.schema,
+            target,
+        );
+        (result.negative_spans, result.negative_buckets) = reduce_float_copy(
+            self.negative_spans,
+            self.negative_buckets,
+            self.schema,
+            target,
+        );
+        result
+    }
     fn copy_fields_to(self, destination: &mut FloatHistogram) {
         destination.reset_hint = self.reset_hint;
         destination.schema = self.schema;

@@ -11,17 +11,20 @@ import (
 	"go/token"
 	"os"
 	"path/filepath"
+	"strconv"
 )
 
 type table struct {
-	Test       string `json:"test"`
-	File       string `json:"file"`
-	Mode       string `json:"mode"`
-	Cases      int    `json:"cases"`
-	Line       int    `json:"line"`
-	CaseLines  []int  `json:"case_lines"`
-	SourceHash string `json:"source_sha256"`
-	Prefix     string `json:"prefix"`
+	Test       string   `json:"test"`
+	File       string   `json:"file"`
+	Mode       string   `json:"mode"`
+	Cases      int      `json:"cases"`
+	Line       int      `json:"line"`
+	CaseLines  []int    `json:"case_lines"`
+	SourceHash string   `json:"source_sha256"`
+	Prefix     string   `json:"prefix"`
+	Variable   string   `json:"variable"`
+	CaseKeys   []string `json:"case_keys"`
 }
 
 func main() {
@@ -37,9 +40,15 @@ func main() {
 		{Test: "TestHistogramCopyTo", File: "histogram_test.go", Mode: "integer-copy-to", Cases: 4},
 		{Test: "TestHistogramToFloat", File: "histogram_test.go", Mode: "integer-to-float", Cases: 3},
 		{Test: "TestCustomBucketsHistogramToFloat", File: "histogram_test.go", Mode: "integer-to-float", Cases: 3},
+		{Test: "TestFloatHistogramCompact", File: "float_histogram_test.go", Mode: "float-compact", Cases: 24},
+		{Test: "TestFloatHistogramCopyToSchema", File: "float_histogram_test.go", Mode: "float-copy-to-schema", Cases: 3},
+		{Test: "TestFloatHistogramReduceResolution", File: "float_histogram_test.go", Mode: "float-reduce-resolution", Cases: 4, Variable: "tcs"},
 	}
 	for i := range tables {
 		row := &tables[i]
+		if row.Variable == "" {
+			row.Variable = "cases"
+		}
 		raw, err := os.ReadFile(filepath.Join(os.Args[1], row.File))
 		if err != nil {
 			panic(err)
@@ -68,7 +77,7 @@ func main() {
 					continue
 				}
 				identifier, ok := assignment.Lhs[0].(*ast.Ident)
-				if ok && identifier.Name == "cases" {
+				if ok && identifier.Name == row.Variable {
 					cases, _ = assignment.Rhs[0].(*ast.CompositeLit)
 				}
 			}
@@ -81,6 +90,21 @@ func main() {
 			row.Line = files.Position(function.Pos()).Line
 			for _, element := range cases.Elts {
 				row.CaseLines = append(row.CaseLines, files.Position(element.Pos()).Line)
+				if row.Variable == "tcs" {
+					entry, ok := element.(*ast.KeyValueExpr)
+					if !ok {
+						panic("missing map key")
+					}
+					key, ok := entry.Key.(*ast.BasicLit)
+					if !ok || key.Kind != token.STRING {
+						panic("non-literal map key")
+					}
+					decoded, err := strconv.Unquote(key.Value)
+					if err != nil {
+						panic(err)
+					}
+					row.CaseKeys = append(row.CaseKeys, decoded)
+				}
 			}
 			row.SourceHash = fmt.Sprintf("%x", sha256.Sum256(raw))
 			break

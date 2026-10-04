@@ -142,6 +142,39 @@ fn result(input: &Value) -> Result<Value, Error> {
         .as_bool()
         .ok_or("missing borrowed-mode flag")?;
     let actual = match mode {
+        "float-compact" => {
+            let mut value = float(&request["input"])?;
+            value.compact(
+                request["max_empty"]
+                    .as_i64()
+                    .ok_or("invalid max_empty")?
+                    .try_into()?,
+            );
+            encoded_float(&value)
+        }
+        "float-copy-to-schema" => {
+            let value = float(&request["input"])?;
+            let target = request["target_schema"]
+                .as_i64()
+                .ok_or("invalid target schema")?
+                .try_into()?;
+            let copied = if borrowed {
+                value.as_ref().copy_to_schema(target)
+            } else {
+                value.copy_to_schema(target)
+            };
+            json!({"result": encoded_float(&copied), "input_after": encoded_float(&value)})
+        }
+        "float-reduce-resolution" => {
+            let mut value = float(&request["input"])?;
+            let target = request["target_schema"]
+                .as_i64()
+                .ok_or("invalid target schema")?
+                .try_into()?;
+            let error = value.reduce_resolution(target).err();
+            json!({"result": encoded_float(&value), "error": error.as_ref().map_or_else(String::new, ToString::to_string),
+                "histogram_error": error.as_ref().is_some_and(|error| error.is_data_error())})
+        }
         "float-mul" | "float-div" => {
             let mut value = float(&request["input"])?;
             let factor = number(&request["scalar"])?;

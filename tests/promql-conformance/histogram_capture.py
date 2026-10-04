@@ -22,8 +22,13 @@ HOOK = "model/histogram/netdata_capture_test.go"
 
 def helper(table, index):
     mode = table["mode"]
-    body = [f'func netdataTable{index}(t *testing.T, output *[]map[string]any) {{', table["prefix"],
-            'for i, c := range cases {', f'id := fmt.Sprintf("{table["test"]}:%03d", i)']
+    body = [f'func netdataTable{index}(t *testing.T, output *[]map[string]any) {{', table["prefix"]]
+    if table["variable"] == "tcs":
+        keys = ", ".join(json.dumps(key) for key in sorted(table["case_keys"]))
+        body += [f'for _, name := range []string{{{keys}}} {{', 'c := tcs[name]',
+                 f'id := "{table["test"]}:" + name']
+    else:
+        body += ['for i, c := range cases {', f'id := fmt.Sprintf("{table["test"]}:%03d", i)']
     if mode in {"float-mul", "float-div"}:
         input_field, factor, operation = (("in", "scale", "Mul") if mode == "float-mul"
                                           else ("fh", "s", "Div"))
@@ -46,6 +51,20 @@ def helper(table, index):
         body += ['request := netdataFrozen(map[string]any{"input": netdataInteger(&h),',
                  '"destination": netdataFloat(c.fh)})', 'actual := h.ToFloat(c.fh)',
                  'netdataRecord(output, id, "integer-to-float", request, netdataFloat(actual), nil)']
+    elif mode == "float-compact":
+        body += ['request := netdataFrozen(map[string]any{"input": netdataFloat(c.in), "max_empty": c.maxEmptyBuckets})',
+                 'declared := netdataFrozen(netdataFloat(c.expected))', 'actual := c.in.Compact(c.maxEmptyBuckets)',
+                 'netdataRecord(output, id, "float-compact", request, netdataFloat(actual), declared)']
+    elif mode == "float-copy-to-schema":
+        body += ['request := netdataFrozen(map[string]any{"input": netdataFloat(c.in), "target_schema": c.targetSchema})',
+                 'declared := netdataFrozen(map[string]any{"result": netdataFloat(c.expected), "input_after": netdataFloat(c.in)})',
+                 'actual := c.in.CopyToSchema(c.targetSchema)',
+                 'netdataRecord(output, id, "float-copy-to-schema", request, map[string]any{"result": netdataFloat(actual), "input_after": netdataFloat(c.in)}, declared)']
+    elif mode == "float-reduce-resolution":
+        body += ['request := netdataFrozen(map[string]any{"input": netdataFloat(c.origin), "target_schema": c.targetSchema})',
+                 'declared := netdataFrozen(map[string]any{"result": netdataFloat(c.target), "error": c.errorMsg, "histogram_error": c.errorMsg != ""})',
+                 'err := c.origin.ReduceResolution(c.targetSchema)',
+                 'netdataRecord(output, id, "float-reduce-resolution", request, netdataReductionResult(c.origin, err), declared)']
     else:
         raise ValueError("unknown source histogram table")
     body += ['}', '}']
@@ -66,7 +85,7 @@ def generate_hook(tables):
     return template.encode()
 
 
-def capture(mod_cache):
+def capture(mod_cache, write_input_ledger=False):
     cache = directory(mod_cache)
     source = directory(cache / MODULE)
     inventory(source)
@@ -95,7 +114,7 @@ def capture(mod_cache):
     if result.returncode:
         raise SystemExit(f"histogram table extraction failed ({result.returncode}): {result.stderr}")
     tables = json.loads(result.stdout)
-    if len(tables) != 8 or sum(row["cases"] for row in tables) != 39:
+    if len(tables) != 11 or sum(row["cases"] for row in tables) != 70:
         raise ValueError("changed histogram table coverage")
     for table in tables:
         raw = (source / "model/histogram" / table["file"]).read_bytes()
@@ -115,8 +134,19 @@ def capture(mod_cache):
     if files != manifest.keys() | {HOOK} or any(path.is_symlink() for path in facade.rglob("*")):
         raise ValueError("unlisted histogram facade source")
     output = (task / "histograms.json").read_bytes()
-    from histogram_reference import validate_cases
-    counts = validate_cases(json.loads(output), tables)
+    from histogram_reference import input_ledger, validate_cases
+    data = json.loads(output)
+    if write_input_ledger:
+        digest = hashlib.sha256(json.dumps(manifest, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
+        if digest != input_ledger()["source_manifest_sha256"]:
+            raise ValueError("source pin changed during input-ledger generation")
+        ledger = {"schema_version": 1, "commit": COMMIT, "module": MODULE,
+                  "source_manifest_sha256": digest, "tables": tables,
+                  "cases": [{key: case[key] for key in ("id", "mode", "request", "declared")} for case in data["cases"]]}
+        counts = validate_cases(data, tables, ledger=ledger)
+        (HERE / "histogram-original-inputs.json").write_text(json.dumps(ledger, indent=2) + "\n")
+    else:
+        counts = validate_cases(data, tables)
     (task / "tables.json").write_text(json.dumps(tables, indent=2) + "\n")
     (task / "source-manifest.json").write_text(json.dumps(manifest, indent=2) + "\n")
     metadata = {"schema_version": 1, "commit": COMMIT, "source_files": len(manifest),
@@ -133,4 +163,6 @@ def capture(mod_cache):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--mod-cache", required=True, help="existing pinned module cache; downloads disabled")
-    capture(parser.parse_args().mod_cache)
+    parser.add_argument("--write-input-ledger", action="store_true", help="explicitly regenerate public input bindings from verified Go execution")
+    args = parser.parse_args()
+    capture(args.mod_cache, args.write_input_ledger)

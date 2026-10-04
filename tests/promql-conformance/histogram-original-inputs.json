@@ -22,7 +22,9 @@
         204
       ],
       "source_sha256": "be82cda969ec155bcba59794e0fbb103b066e1822514445faa888eae4afe975f",
-      "prefix": "\n\tcases := []struct {\n\t\tname     string\n\t\tin       *FloatHistogram\n\t\tscale    float64\n\t\texpected *FloatHistogram\n\t}{\n\t\t{\n\t\t\t\"zero value\",\n\t\t\t&FloatHistogram{},\n\t\t\t3.1415,\n\t\t\t&FloatHistogram{},\n\t\t},\n\t\t{\n\t\t\t\"zero multiplier\",\n\t\t\t&FloatHistogram{\n\t\t\t\tZeroThreshold:   0.01,\n\t\t\t\tZeroCount:       5.5,\n\t\t\t\tCount:           3493.3,\n\t\t\t\tSum:             2349209.324,\n\t\t\t\tPositiveSpans:   []Span{{-2, 1}, {2, 3}},\n\t\t\t\tPositiveBuckets: []float64{1, 3.3, 4.2, 0.1},\n\t\t\t\tNegativeSpans:   []Span{{3, 2}, {3, 2}},\n\t\t\t\tNegativeBuckets: []float64{3.1, 3, 1.234e5, 1000},\n\t\t\t},\n\t\t\t0,\n\t\t\t&FloatHistogram{\n\t\t\t\tZeroThreshold:   0.01,\n\t\t\t\tZeroCount:       0,\n\t\t\t\tCount:           0,\n\t\t\t\tSum:             0,\n\t\t\t\tPositiveSpans:   []Span{{-2, 1}, {2, 3}},\n\t\t\t\tPositiveBuckets: []float64{0, 0, 0, 0},\n\t\t\t\tNegativeSpans:   []Span{{3, 2}, {3, 2}},\n\t\t\t\tNegativeBuckets: []float64{0, 0, 0, 0},\n\t\t\t},\n\t\t},\n\t\t{\n\t\t\t\"no-op\",\n\t\t\t&FloatHistogram{\n\t\t\t\tZeroThreshold:   0.01,\n\t\t\t\tZeroCount:       5.5,\n\t\t\t\tCount:           3493.3,\n\t\t\t\tSum:             2349209.324,\n\t\t\t\tPositiveSpans:   []Span{{-2, 1}, {2, 3}},\n\t\t\t\tPositiveBuckets: []float64{1, 3.3, 4.2, 0.1},\n\t\t\t\tNegativeSpans:   []Span{{3, 2}, {3, 2}},\n\t\t\t\tNegativeBuckets: []float64{3.1, 3, 1.234e5, 1000},\n\t\t\t},\n\t\t\t1,\n\t\t\t&FloatHistogram{\n\t\t\t\tZeroThreshold:   0.01,\n\t\t\t\tZeroCount:       5.5,\n\t\t\t\tCount:           3493.3,\n\t\t\t\tSum:             2349209.324,\n\t\t\t\tPositiveSpans:   []Span{{-2, 1}, {2, 3}},\n\t\t\t\tPositiveBuckets: []float64{1, 3.3, 4.2, 0.1},\n\t\t\t\tNegativeSpans:   []Span{{3, 2}, {3, 2}},\n\t\t\t\tNegativeBuckets: []float64{3.1, 3, 1.234e5, 1000},\n\t\t\t},\n\t\t},\n\t\t{\n\t\t\t\"double\",\n\t\t\t&FloatHistogram{\n\t\t\t\tZeroThreshold:   0.01,\n\t\t\t\tZeroCount:       5.5,\n\t\t\t\tCount:           3493.3,\n\t\t\t\tSum:             2349209.324,\n\t\t\t\tPositiveSpans:   []Span{{-2, 1}, {2, 3}},\n\t\t\t\tPositiveBuckets: []float64{1, 3.3, 4.2, 0.1},\n\t\t\t\tNegativeSpans:   []Span{{3, 2}, {3, 2}},\n\t\t\t\tNegativeBuckets: []float64{3.1, 3, 1.234e5, 1000},\n\t\t\t},\n\t\t\t2,\n\t\t\t&FloatHistogram{\n\t\t\t\tZeroThreshold:   0.01,\n\t\t\t\tZeroCount:       11,\n\t\t\t\tCount:           3493.3 * 2,\n\t\t\t\tSum:             2349209.324 * 2,\n\t\t\t\tPositiveSpans:   []Span{{-2, 1}, {2, 3}},\n\t\t\t\tPositiveBuckets: []float64{2, 6.6, 8.4, 0.2},\n\t\t\t\tNegativeSpans:   []Span{{3, 2}, {3, 2}},\n\t\t\t\tNegativeBuckets: []float64{6.2, 6, 1.234e5 * 2, 2000},\n\t\t\t},\n\t\t},\n\t\t{\n\t\t\t\"triple\",\n\t\t\t&FloatHistogram{\n\t\t\t\tZeroThreshold:   0.01,\n\t\t\t\tZeroCount:       11,\n\t\t\t\tCount:           30,\n\t\t\t\tSum:             23,\n\t\t\t\tPositiveSpans:   []Span{{-2, 2}, {1, 3}},\n\t\t\t\tPositiveBuckets: []float64{1, 0, 3, 4, 7},\n\t\t\t\tNegativeSpans:   []Span{{3, 2}, {3, 2}},\n\t\t\t\tNegativeBuckets: []float64{3, 1, 5, 6},\n\t\t\t},\n\t\t\t3,\n\t\t\t&FloatHistogram{\n\t\t\t\tZeroThreshold:   0.01,\n\t\t\t\tZeroCount:       33,\n\t\t\t\tCount:           90,\n\t\t\t\tSum:             69,\n\t\t\t\tPositiveSpans:   []Span{{-2, 2}, {1, 3}},\n\t\t\t\tPositiveBuckets: []float64{3, 0, 9, 12, 21},\n\t\t\t\tNegativeSpans:   []Span{{3, 2}, {3, 2}},\n\t\t\t\tNegativeBuckets: []float64{9, 3, 15, 18},\n\t\t\t},\n\t\t},\n\t\t{\n\t\t\t\"negation\",\n\t\t\t&FloatHistogram{\n\t\t\t\tZeroThreshold:   0.01,\n\t\t\t\tZeroCount:       11,\n\t\t\t\tCount:           30,\n\t\t\t\tSum:             23,\n\t\t\t\tPositiveSpans:   []Span{{-2, 2}, {1, 3}},\n\t\t\t\tPositiveBuckets: []float64{1, 0, 3, 4, 7},\n\t\t\t\tNegativeSpans:   []Span{{3, 2}, {3, 2}},\n\t\t\t\tNegativeBuckets: []float64{3, 1, 5, 6},\n\t\t\t},\n\t\t\t-1,\n\t\t\t&FloatHistogram{\n\t\t\t\tZeroThreshold:    0.01,\n\t\t\t\tZeroCount:        -11,\n\t\t\t\tCount:            -30,\n\t\t\t\tSum:              -23,\n\t\t\t\tPositiveSpans:    []Span{{-2, 2}, {1, 3}},\n\t\t\t\tPositiveBuckets:  []float64{-1, 0, -3, -4, -7},\n\t\t\t\tNegativeSpans:    []Span{{3, 2}, {3, 2}},\n\t\t\t\tNegativeBuckets:  []float64{-3, -1, -5, -6},\n\t\t\t\tCounterResetHint: GaugeType,\n\t\t\t},\n\t\t},\n\t\t{\n\t\t\t\"negative multiplier\",\n\t\t\t&FloatHistogram{\n\t\t\t\tZeroThreshold:   0.01,\n\t\t\t\tZeroCount:       11,\n\t\t\t\tCount:           30,\n\t\t\t\tSum:             23,\n\t\t\t\tPositiveSpans:   []Span{{-2, 2}, {1, 3}},\n\t\t\t\tPositiveBuckets: []float64{1, 0, 3, 4, 7},\n\t\t\t\tNegativeSpans:   []Span{{3, 2}, {3, 2}},\n\t\t\t\tNegativeBuckets: []float64{3, 1, 5, 6},\n\t\t\t},\n\t\t\t-2,\n\t\t\t&FloatHistogram{\n\t\t\t\tZeroThreshold:    0.01,\n\t\t\t\tZeroCount:        -22,\n\t\t\t\tCount:            -60,\n\t\t\t\tSum:              -46,\n\t\t\t\tPositiveSpans:    []Span{{-2, 2}, {1, 3}},\n\t\t\t\tPositiveBuckets:  []float64{-2, 0, -6, -8, -14},\n\t\t\t\tNegativeSpans:    []Span{{3, 2}, {3, 2}},\n\t\t\t\tNegativeBuckets:  []float64{-6, -2, -10, -12},\n\t\t\t\tCounterResetHint: GaugeType,\n\t\t\t},\n\t\t},\n\t\t{\n\t\t\t\"no-op with custom buckets\",\n\t\t\t&FloatHistogram{\n\t\t\t\tSchema:          CustomBucketsSchema,\n\t\t\t\tCount:           3493.3,\n\t\t\t\tSum:             2349209.324,\n\t\t\t\tPositiveSpans:   []Span{{0, 1}, {2, 3}},\n\t\t\t\tPositiveBuckets: []float64{1, 3.3, 4.2, 0.1},\n\t\t\t\tCustomValues:    []float64{1, 2, 3},\n\t\t\t},\n\t\t\t1,\n\t\t\t&FloatHistogram{\n\t\t\t\tSchema:          CustomBucketsSchema,\n\t\t\t\tCount:           3493.3,\n\t\t\t\tSum:             2349209.324,\n\t\t\t\tPositiveSpans:   []Span{{0, 1}, {2, 3}},\n\t\t\t\tPositiveBuckets: []float64{1, 3.3, 4.2, 0.1},\n\t\t\t\tCustomValues:    []float64{1, 2, 3},\n\t\t\t},\n\t\t},\n\t\t{\n\t\t\t\"triple with custom buckets\",\n\t\t\t&FloatHistogram{\n\t\t\t\tSchema:          CustomBucketsSchema,\n\t\t\t\tCount:           30,\n\t\t\t\tSum:             23,\n\t\t\t\tPositiveSpans:   []Span{{0, 2}, {1, 3}},\n\t\t\t\tPositiveBuckets: []float64{1, 0, 3, 4, 7},\n\t\t\t\tCustomValues:    []float64{1, 2, 3, 4},\n\t\t\t},\n\t\t\t3,\n\t\t\t&FloatHistogram{\n\t\t\t\tSchema:          CustomBucketsSchema,\n\t\t\t\tCount:           90,\n\t\t\t\tSum:             69,\n\t\t\t\tPositiveSpans:   []Span{{0, 2}, {1, 3}},\n\t\t\t\tPositiveBuckets: []float64{3, 0, 9, 12, 21},\n\t\t\t\tCustomValues:    []float64{1, 2, 3, 4},\n\t\t\t},\n\t\t},\n\t}\n\n\t"
+      "prefix": "\n\tcases := []struct {\n\t\tname     string\n\t\tin       *FloatHistogram\n\t\tscale    float64\n\t\texpected *FloatHistogram\n\t}{\n\t\t{\n\t\t\t\"zero value\",\n\t\t\t&FloatHistogram{},\n\t\t\t3.1415,\n\t\t\t&FloatHistogram{},\n\t\t},\n\t\t{\n\t\t\t\"zero multiplier\",\n\t\t\t&FloatHistogram{\n\t\t\t\tZeroThreshold:   0.01,\n\t\t\t\tZeroCount:       5.5,\n\t\t\t\tCount:           3493.3,\n\t\t\t\tSum:             2349209.324,\n\t\t\t\tPositiveSpans:   []Span{{-2, 1}, {2, 3}},\n\t\t\t\tPositiveBuckets: []float64{1, 3.3, 4.2, 0.1},\n\t\t\t\tNegativeSpans:   []Span{{3, 2}, {3, 2}},\n\t\t\t\tNegativeBuckets: []float64{3.1, 3, 1.234e5, 1000},\n\t\t\t},\n\t\t\t0,\n\t\t\t&FloatHistogram{\n\t\t\t\tZeroThreshold:   0.01,\n\t\t\t\tZeroCount:       0,\n\t\t\t\tCount:           0,\n\t\t\t\tSum:             0,\n\t\t\t\tPositiveSpans:   []Span{{-2, 1}, {2, 3}},\n\t\t\t\tPositiveBuckets: []float64{0, 0, 0, 0},\n\t\t\t\tNegativeSpans:   []Span{{3, 2}, {3, 2}},\n\t\t\t\tNegativeBuckets: []float64{0, 0, 0, 0},\n\t\t\t},\n\t\t},\n\t\t{\n\t\t\t\"no-op\",\n\t\t\t&FloatHistogram{\n\t\t\t\tZeroThreshold:   0.01,\n\t\t\t\tZeroCount:       5.5,\n\t\t\t\tCount:           3493.3,\n\t\t\t\tSum:             2349209.324,\n\t\t\t\tPositiveSpans:   []Span{{-2, 1}, {2, 3}},\n\t\t\t\tPositiveBuckets: []float64{1, 3.3, 4.2, 0.1},\n\t\t\t\tNegativeSpans:   []Span{{3, 2}, {3, 2}},\n\t\t\t\tNegativeBuckets: []float64{3.1, 3, 1.234e5, 1000},\n\t\t\t},\n\t\t\t1,\n\t\t\t&FloatHistogram{\n\t\t\t\tZeroThreshold:   0.01,\n\t\t\t\tZeroCount:       5.5,\n\t\t\t\tCount:           3493.3,\n\t\t\t\tSum:             2349209.324,\n\t\t\t\tPositiveSpans:   []Span{{-2, 1}, {2, 3}},\n\t\t\t\tPositiveBuckets: []float64{1, 3.3, 4.2, 0.1},\n\t\t\t\tNegativeSpans:   []Span{{3, 2}, {3, 2}},\n\t\t\t\tNegativeBuckets: []float64{3.1, 3, 1.234e5, 1000},\n\t\t\t},\n\t\t},\n\t\t{\n\t\t\t\"double\",\n\t\t\t&FloatHistogram{\n\t\t\t\tZeroThreshold:   0.01,\n\t\t\t\tZeroCount:       5.5,\n\t\t\t\tCount:           3493.3,\n\t\t\t\tSum:             2349209.324,\n\t\t\t\tPositiveSpans:   []Span{{-2, 1}, {2, 3}},\n\t\t\t\tPositiveBuckets: []float64{1, 3.3, 4.2, 0.1},\n\t\t\t\tNegativeSpans:   []Span{{3, 2}, {3, 2}},\n\t\t\t\tNegativeBuckets: []float64{3.1, 3, 1.234e5, 1000},\n\t\t\t},\n\t\t\t2,\n\t\t\t&FloatHistogram{\n\t\t\t\tZeroThreshold:   0.01,\n\t\t\t\tZeroCount:       11,\n\t\t\t\tCount:           3493.3 * 2,\n\t\t\t\tSum:             2349209.324 * 2,\n\t\t\t\tPositiveSpans:   []Span{{-2, 1}, {2, 3}},\n\t\t\t\tPositiveBuckets: []float64{2, 6.6, 8.4, 0.2},\n\t\t\t\tNegativeSpans:   []Span{{3, 2}, {3, 2}},\n\t\t\t\tNegativeBuckets: []float64{6.2, 6, 1.234e5 * 2, 2000},\n\t\t\t},\n\t\t},\n\t\t{\n\t\t\t\"triple\",\n\t\t\t&FloatHistogram{\n\t\t\t\tZeroThreshold:   0.01,\n\t\t\t\tZeroCount:       11,\n\t\t\t\tCount:           30,\n\t\t\t\tSum:             23,\n\t\t\t\tPositiveSpans:   []Span{{-2, 2}, {1, 3}},\n\t\t\t\tPositiveBuckets: []float64{1, 0, 3, 4, 7},\n\t\t\t\tNegativeSpans:   []Span{{3, 2}, {3, 2}},\n\t\t\t\tNegativeBuckets: []float64{3, 1, 5, 6},\n\t\t\t},\n\t\t\t3,\n\t\t\t&FloatHistogram{\n\t\t\t\tZeroThreshold:   0.01,\n\t\t\t\tZeroCount:       33,\n\t\t\t\tCount:           90,\n\t\t\t\tSum:             69,\n\t\t\t\tPositiveSpans:   []Span{{-2, 2}, {1, 3}},\n\t\t\t\tPositiveBuckets: []float64{3, 0, 9, 12, 21},\n\t\t\t\tNegativeSpans:   []Span{{3, 2}, {3, 2}},\n\t\t\t\tNegativeBuckets: []float64{9, 3, 15, 18},\n\t\t\t},\n\t\t},\n\t\t{\n\t\t\t\"negation\",\n\t\t\t&FloatHistogram{\n\t\t\t\tZeroThreshold:   0.01,\n\t\t\t\tZeroCount:       11,\n\t\t\t\tCount:           30,\n\t\t\t\tSum:             23,\n\t\t\t\tPositiveSpans:   []Span{{-2, 2}, {1, 3}},\n\t\t\t\tPositiveBuckets: []float64{1, 0, 3, 4, 7},\n\t\t\t\tNegativeSpans:   []Span{{3, 2}, {3, 2}},\n\t\t\t\tNegativeBuckets: []float64{3, 1, 5, 6},\n\t\t\t},\n\t\t\t-1,\n\t\t\t&FloatHistogram{\n\t\t\t\tZeroThreshold:    0.01,\n\t\t\t\tZeroCount:        -11,\n\t\t\t\tCount:            -30,\n\t\t\t\tSum:              -23,\n\t\t\t\tPositiveSpans:    []Span{{-2, 2}, {1, 3}},\n\t\t\t\tPositiveBuckets:  []float64{-1, 0, -3, -4, -7},\n\t\t\t\tNegativeSpans:    []Span{{3, 2}, {3, 2}},\n\t\t\t\tNegativeBuckets:  []float64{-3, -1, -5, -6},\n\t\t\t\tCounterResetHint: GaugeType,\n\t\t\t},\n\t\t},\n\t\t{\n\t\t\t\"negative multiplier\",\n\t\t\t&FloatHistogram{\n\t\t\t\tZeroThreshold:   0.01,\n\t\t\t\tZeroCount:       11,\n\t\t\t\tCount:           30,\n\t\t\t\tSum:             23,\n\t\t\t\tPositiveSpans:   []Span{{-2, 2}, {1, 3}},\n\t\t\t\tPositiveBuckets: []float64{1, 0, 3, 4, 7},\n\t\t\t\tNegativeSpans:   []Span{{3, 2}, {3, 2}},\n\t\t\t\tNegativeBuckets: []float64{3, 1, 5, 6},\n\t\t\t},\n\t\t\t-2,\n\t\t\t&FloatHistogram{\n\t\t\t\tZeroThreshold:    0.01,\n\t\t\t\tZeroCount:        -22,\n\t\t\t\tCount:            -60,\n\t\t\t\tSum:              -46,\n\t\t\t\tPositiveSpans:    []Span{{-2, 2}, {1, 3}},\n\t\t\t\tPositiveBuckets:  []float64{-2, 0, -6, -8, -14},\n\t\t\t\tNegativeSpans:    []Span{{3, 2}, {3, 2}},\n\t\t\t\tNegativeBuckets:  []float64{-6, -2, -10, -12},\n\t\t\t\tCounterResetHint: GaugeType,\n\t\t\t},\n\t\t},\n\t\t{\n\t\t\t\"no-op with custom buckets\",\n\t\t\t&FloatHistogram{\n\t\t\t\tSchema:          CustomBucketsSchema,\n\t\t\t\tCount:           3493.3,\n\t\t\t\tSum:             2349209.324,\n\t\t\t\tPositiveSpans:   []Span{{0, 1}, {2, 3}},\n\t\t\t\tPositiveBuckets: []float64{1, 3.3, 4.2, 0.1},\n\t\t\t\tCustomValues:    []float64{1, 2, 3},\n\t\t\t},\n\t\t\t1,\n\t\t\t&FloatHistogram{\n\t\t\t\tSchema:          CustomBucketsSchema,\n\t\t\t\tCount:           3493.3,\n\t\t\t\tSum:             2349209.324,\n\t\t\t\tPositiveSpans:   []Span{{0, 1}, {2, 3}},\n\t\t\t\tPositiveBuckets: []float64{1, 3.3, 4.2, 0.1},\n\t\t\t\tCustomValues:    []float64{1, 2, 3},\n\t\t\t},\n\t\t},\n\t\t{\n\t\t\t\"triple with custom buckets\",\n\t\t\t&FloatHistogram{\n\t\t\t\tSchema:          CustomBucketsSchema,\n\t\t\t\tCount:           30,\n\t\t\t\tSum:             23,\n\t\t\t\tPositiveSpans:   []Span{{0, 2}, {1, 3}},\n\t\t\t\tPositiveBuckets: []float64{1, 0, 3, 4, 7},\n\t\t\t\tCustomValues:    []float64{1, 2, 3, 4},\n\t\t\t},\n\t\t\t3,\n\t\t\t&FloatHistogram{\n\t\t\t\tSchema:          CustomBucketsSchema,\n\t\t\t\tCount:           90,\n\t\t\t\tSum:             69,\n\t\t\t\tPositiveSpans:   []Span{{0, 2}, {1, 3}},\n\t\t\t\tPositiveBuckets: []float64{3, 0, 9, 12, 21},\n\t\t\t\tCustomValues:    []float64{1, 2, 3, 4},\n\t\t\t},\n\t\t},\n\t}\n\n\t",
+      "variable": "cases",
+      "case_keys": null
     },
     {
       "test": "TestFloatHistogramDiv",
@@ -41,7 +43,9 @@
         528
       ],
       "source_sha256": "be82cda969ec155bcba59794e0fbb103b066e1822514445faa888eae4afe975f",
-      "prefix": "\n\tcases := []struct {\n\t\tname     string\n\t\tfh       *FloatHistogram\n\t\ts        float64\n\t\texpected *FloatHistogram\n\t}{\n\t\t{\n\t\t\t\"zero value\",\n\t\t\t&FloatHistogram{},\n\t\t\t3.1415,\n\t\t\t&FloatHistogram{},\n\t\t},\n\t\t{\n\t\t\t\"zero divisor\",\n\t\t\t&FloatHistogram{\n\t\t\t\tZeroThreshold:   0.01,\n\t\t\t\tZeroCount:       5.5,\n\t\t\t\tCount:           3493.3,\n\t\t\t\tSum:             2349209.324,\n\t\t\t\tPositiveSpans:   []Span{{-2, 1}, {2, 3}},\n\t\t\t\tPositiveBuckets: []float64{1, 3.3, 4.2, 0.1},\n\t\t\t\tNegativeSpans:   []Span{{3, 2}, {3, 2}},\n\t\t\t\tNegativeBuckets: []float64{3.1, 3, 1.234e5, 1000},\n\t\t\t},\n\t\t\t0,\n\t\t\t&FloatHistogram{\n\t\t\t\tZeroThreshold: 0.01,\n\t\t\t\tCount:         math.Inf(1),\n\t\t\t\tSum:           math.Inf(1),\n\t\t\t\tZeroCount:     math.Inf(1),\n\t\t\t},\n\t\t},\n\t\t{\n\t\t\t\"no-op\",\n\t\t\t&FloatHistogram{\n\t\t\t\tZeroThreshold:   0.01,\n\t\t\t\tZeroCount:       5.5,\n\t\t\t\tCount:           3493.3,\n\t\t\t\tSum:             2349209.324,\n\t\t\t\tPositiveSpans:   []Span{{-2, 1}, {2, 3}},\n\t\t\t\tPositiveBuckets: []float64{1, 3.3, 4.2, 0.1},\n\t\t\t\tNegativeSpans:   []Span{{3, 2}, {3, 2}},\n\t\t\t\tNegativeBuckets: []float64{3.1, 3, 1.234e5, 1000},\n\t\t\t},\n\t\t\t1,\n\t\t\t&FloatHistogram{\n\t\t\t\tZeroThreshold:   0.01,\n\t\t\t\tZeroCount:       5.5,\n\t\t\t\tCount:           3493.3,\n\t\t\t\tSum:             2349209.324,\n\t\t\t\tPositiveSpans:   []Span{{-2, 1}, {2, 3}},\n\t\t\t\tPositiveBuckets: []float64{1, 3.3, 4.2, 0.1},\n\t\t\t\tNegativeSpans:   []Span{{3, 2}, {3, 2}},\n\t\t\t\tNegativeBuckets: []float64{3.1, 3, 1.234e5, 1000},\n\t\t\t},\n\t\t},\n\t\t{\n\t\t\t\"half\",\n\t\t\t&FloatHistogram{\n\t\t\t\tZeroThreshold:   0.01,\n\t\t\t\tZeroCount:       11,\n\t\t\t\tCount:           30,\n\t\t\t\tSum:             23,\n\t\t\t\tPositiveSpans:   []Span{{-2, 2}, {1, 3}},\n\t\t\t\tPositiveBuckets: []float64{1, 0, 3, 4, 7},\n\t\t\t\tNegativeSpans:   []Span{{3, 2}, {3, 2}},\n\t\t\t\tNegativeBuckets: []float64{3, 1, 5, 6},\n\t\t\t},\n\t\t\t2,\n\t\t\t&FloatHistogram{\n\t\t\t\tZeroThreshold:   0.01,\n\t\t\t\tZeroCount:       5.5,\n\t\t\t\tCount:           15,\n\t\t\t\tSum:             11.5,\n\t\t\t\tPositiveSpans:   []Span{{-2, 2}, {1, 3}},\n\t\t\t\tPositiveBuckets: []float64{0.5, 0, 1.5, 2, 3.5},\n\t\t\t\tNegativeSpans:   []Span{{3, 2}, {3, 2}},\n\t\t\t\tNegativeBuckets: []float64{1.5, 0.5, 2.5, 3},\n\t\t\t},\n\t\t},\n\t\t{\n\t\t\t\"negation\",\n\t\t\t&FloatHistogram{\n\t\t\t\tZeroThreshold:   0.01,\n\t\t\t\tZeroCount:       5.5,\n\t\t\t\tCount:           3493.3,\n\t\t\t\tSum:             2349209.324,\n\t\t\t\tPositiveSpans:   []Span{{-2, 1}, {2, 3}},\n\t\t\t\tPositiveBuckets: []float64{1, 3.3, 4.2, 0.1},\n\t\t\t\tNegativeSpans:   []Span{{3, 2}, {3, 2}},\n\t\t\t\tNegativeBuckets: []float64{3.1, 3, 1.234e5, 1000},\n\t\t\t},\n\t\t\t-1,\n\t\t\t&FloatHistogram{\n\t\t\t\tZeroThreshold:    0.01,\n\t\t\t\tZeroCount:        -5.5,\n\t\t\t\tCount:            -3493.3,\n\t\t\t\tSum:              -2349209.324,\n\t\t\t\tPositiveSpans:    []Span{{-2, 1}, {2, 3}},\n\t\t\t\tPositiveBuckets:  []float64{-1, -3.3, -4.2, -0.1},\n\t\t\t\tNegativeSpans:    []Span{{3, 2}, {3, 2}},\n\t\t\t\tNegativeBuckets:  []float64{-3.1, -3, -1.234e5, -1000},\n\t\t\t\tCounterResetHint: GaugeType,\n\t\t\t},\n\t\t},\n\t\t{\n\t\t\t\"negative half\",\n\t\t\t&FloatHistogram{\n\t\t\t\tZeroThreshold:   0.01,\n\t\t\t\tZeroCount:       11,\n\t\t\t\tCount:           30,\n\t\t\t\tSum:             23,\n\t\t\t\tPositiveSpans:   []Span{{-2, 2}, {1, 3}},\n\t\t\t\tPositiveBuckets: []float64{1, 0, 3, 4, 7},\n\t\t\t\tNegativeSpans:   []Span{{3, 2}, {3, 2}},\n\t\t\t\tNegativeBuckets: []float64{3, 1, 5, 6},\n\t\t\t},\n\t\t\t-2,\n\t\t\t&FloatHistogram{\n\t\t\t\tZeroThreshold:    0.01,\n\t\t\t\tZeroCount:        -5.5,\n\t\t\t\tCount:            -15,\n\t\t\t\tSum:              -11.5,\n\t\t\t\tPositiveSpans:    []Span{{-2, 2}, {1, 3}},\n\t\t\t\tPositiveBuckets:  []float64{-0.5, 0, -1.5, -2, -3.5},\n\t\t\t\tNegativeSpans:    []Span{{3, 2}, {3, 2}},\n\t\t\t\tNegativeBuckets:  []float64{-1.5, -0.5, -2.5, -3},\n\t\t\t\tCounterResetHint: GaugeType,\n\t\t\t},\n\t\t},\n\t\t{\n\t\t\t\"no-op with custom buckets\",\n\t\t\t&FloatHistogram{\n\t\t\t\tSchema:          CustomBucketsSchema,\n\t\t\t\tCount:           3493.3,\n\t\t\t\tSum:             2349209.324,\n\t\t\t\tPositiveSpans:   []Span{{0, 1}, {2, 3}},\n\t\t\t\tPositiveBuckets: []float64{1, 3.3, 4.2, 0.1},\n\t\t\t\tCustomValues:    []float64{1, 2, 3},\n\t\t\t},\n\t\t\t1,\n\t\t\t&FloatHistogram{\n\t\t\t\tSchema:          CustomBucketsSchema,\n\t\t\t\tCount:           3493.3,\n\t\t\t\tSum:             2349209.324,\n\t\t\t\tPositiveSpans:   []Span{{0, 1}, {2, 3}},\n\t\t\t\tPositiveBuckets: []float64{1, 3.3, 4.2, 0.1},\n\t\t\t\tCustomValues:    []float64{1, 2, 3},\n\t\t\t},\n\t\t},\n\t\t{\n\t\t\t\"half with custom buckets\",\n\t\t\t&FloatHistogram{\n\t\t\t\tSchema:          CustomBucketsSchema,\n\t\t\t\tCount:           30,\n\t\t\t\tSum:             23,\n\t\t\t\tPositiveSpans:   []Span{{0, 2}, {1, 3}},\n\t\t\t\tPositiveBuckets: []float64{1, 0, 3, 4, 7},\n\t\t\t\tCustomValues:    []float64{1, 2, 3, 4},\n\t\t\t},\n\t\t\t2,\n\t\t\t&FloatHistogram{\n\t\t\t\tSchema:          CustomBucketsSchema,\n\t\t\t\tCount:           15,\n\t\t\t\tSum:             11.5,\n\t\t\t\tPositiveSpans:   []Span{{0, 2}, {1, 3}},\n\t\t\t\tPositiveBuckets: []float64{0.5, 0, 1.5, 2, 3.5},\n\t\t\t\tCustomValues:    []float64{1, 2, 3, 4},\n\t\t\t},\n\t\t},\n\t}\n\n\t"
+      "prefix": "\n\tcases := []struct {\n\t\tname     string\n\t\tfh       *FloatHistogram\n\t\ts        float64\n\t\texpected *FloatHistogram\n\t}{\n\t\t{\n\t\t\t\"zero value\",\n\t\t\t&FloatHistogram{},\n\t\t\t3.1415,\n\t\t\t&FloatHistogram{},\n\t\t},\n\t\t{\n\t\t\t\"zero divisor\",\n\t\t\t&FloatHistogram{\n\t\t\t\tZeroThreshold:   0.01,\n\t\t\t\tZeroCount:       5.5,\n\t\t\t\tCount:           3493.3,\n\t\t\t\tSum:             2349209.324,\n\t\t\t\tPositiveSpans:   []Span{{-2, 1}, {2, 3}},\n\t\t\t\tPositiveBuckets: []float64{1, 3.3, 4.2, 0.1},\n\t\t\t\tNegativeSpans:   []Span{{3, 2}, {3, 2}},\n\t\t\t\tNegativeBuckets: []float64{3.1, 3, 1.234e5, 1000},\n\t\t\t},\n\t\t\t0,\n\t\t\t&FloatHistogram{\n\t\t\t\tZeroThreshold: 0.01,\n\t\t\t\tCount:         math.Inf(1),\n\t\t\t\tSum:           math.Inf(1),\n\t\t\t\tZeroCount:     math.Inf(1),\n\t\t\t},\n\t\t},\n\t\t{\n\t\t\t\"no-op\",\n\t\t\t&FloatHistogram{\n\t\t\t\tZeroThreshold:   0.01,\n\t\t\t\tZeroCount:       5.5,\n\t\t\t\tCount:           3493.3,\n\t\t\t\tSum:             2349209.324,\n\t\t\t\tPositiveSpans:   []Span{{-2, 1}, {2, 3}},\n\t\t\t\tPositiveBuckets: []float64{1, 3.3, 4.2, 0.1},\n\t\t\t\tNegativeSpans:   []Span{{3, 2}, {3, 2}},\n\t\t\t\tNegativeBuckets: []float64{3.1, 3, 1.234e5, 1000},\n\t\t\t},\n\t\t\t1,\n\t\t\t&FloatHistogram{\n\t\t\t\tZeroThreshold:   0.01,\n\t\t\t\tZeroCount:       5.5,\n\t\t\t\tCount:           3493.3,\n\t\t\t\tSum:             2349209.324,\n\t\t\t\tPositiveSpans:   []Span{{-2, 1}, {2, 3}},\n\t\t\t\tPositiveBuckets: []float64{1, 3.3, 4.2, 0.1},\n\t\t\t\tNegativeSpans:   []Span{{3, 2}, {3, 2}},\n\t\t\t\tNegativeBuckets: []float64{3.1, 3, 1.234e5, 1000},\n\t\t\t},\n\t\t},\n\t\t{\n\t\t\t\"half\",\n\t\t\t&FloatHistogram{\n\t\t\t\tZeroThreshold:   0.01,\n\t\t\t\tZeroCount:       11,\n\t\t\t\tCount:           30,\n\t\t\t\tSum:             23,\n\t\t\t\tPositiveSpans:   []Span{{-2, 2}, {1, 3}},\n\t\t\t\tPositiveBuckets: []float64{1, 0, 3, 4, 7},\n\t\t\t\tNegativeSpans:   []Span{{3, 2}, {3, 2}},\n\t\t\t\tNegativeBuckets: []float64{3, 1, 5, 6},\n\t\t\t},\n\t\t\t2,\n\t\t\t&FloatHistogram{\n\t\t\t\tZeroThreshold:   0.01,\n\t\t\t\tZeroCount:       5.5,\n\t\t\t\tCount:           15,\n\t\t\t\tSum:             11.5,\n\t\t\t\tPositiveSpans:   []Span{{-2, 2}, {1, 3}},\n\t\t\t\tPositiveBuckets: []float64{0.5, 0, 1.5, 2, 3.5},\n\t\t\t\tNegativeSpans:   []Span{{3, 2}, {3, 2}},\n\t\t\t\tNegativeBuckets: []float64{1.5, 0.5, 2.5, 3},\n\t\t\t},\n\t\t},\n\t\t{\n\t\t\t\"negation\",\n\t\t\t&FloatHistogram{\n\t\t\t\tZeroThreshold:   0.01,\n\t\t\t\tZeroCount:       5.5,\n\t\t\t\tCount:           3493.3,\n\t\t\t\tSum:             2349209.324,\n\t\t\t\tPositiveSpans:   []Span{{-2, 1}, {2, 3}},\n\t\t\t\tPositiveBuckets: []float64{1, 3.3, 4.2, 0.1},\n\t\t\t\tNegativeSpans:   []Span{{3, 2}, {3, 2}},\n\t\t\t\tNegativeBuckets: []float64{3.1, 3, 1.234e5, 1000},\n\t\t\t},\n\t\t\t-1,\n\t\t\t&FloatHistogram{\n\t\t\t\tZeroThreshold:    0.01,\n\t\t\t\tZeroCount:        -5.5,\n\t\t\t\tCount:            -3493.3,\n\t\t\t\tSum:              -2349209.324,\n\t\t\t\tPositiveSpans:    []Span{{-2, 1}, {2, 3}},\n\t\t\t\tPositiveBuckets:  []float64{-1, -3.3, -4.2, -0.1},\n\t\t\t\tNegativeSpans:    []Span{{3, 2}, {3, 2}},\n\t\t\t\tNegativeBuckets:  []float64{-3.1, -3, -1.234e5, -1000},\n\t\t\t\tCounterResetHint: GaugeType,\n\t\t\t},\n\t\t},\n\t\t{\n\t\t\t\"negative half\",\n\t\t\t&FloatHistogram{\n\t\t\t\tZeroThreshold:   0.01,\n\t\t\t\tZeroCount:       11,\n\t\t\t\tCount:           30,\n\t\t\t\tSum:             23,\n\t\t\t\tPositiveSpans:   []Span{{-2, 2}, {1, 3}},\n\t\t\t\tPositiveBuckets: []float64{1, 0, 3, 4, 7},\n\t\t\t\tNegativeSpans:   []Span{{3, 2}, {3, 2}},\n\t\t\t\tNegativeBuckets: []float64{3, 1, 5, 6},\n\t\t\t},\n\t\t\t-2,\n\t\t\t&FloatHistogram{\n\t\t\t\tZeroThreshold:    0.01,\n\t\t\t\tZeroCount:        -5.5,\n\t\t\t\tCount:            -15,\n\t\t\t\tSum:              -11.5,\n\t\t\t\tPositiveSpans:    []Span{{-2, 2}, {1, 3}},\n\t\t\t\tPositiveBuckets:  []float64{-0.5, 0, -1.5, -2, -3.5},\n\t\t\t\tNegativeSpans:    []Span{{3, 2}, {3, 2}},\n\t\t\t\tNegativeBuckets:  []float64{-1.5, -0.5, -2.5, -3},\n\t\t\t\tCounterResetHint: GaugeType,\n\t\t\t},\n\t\t},\n\t\t{\n\t\t\t\"no-op with custom buckets\",\n\t\t\t&FloatHistogram{\n\t\t\t\tSchema:          CustomBucketsSchema,\n\t\t\t\tCount:           3493.3,\n\t\t\t\tSum:             2349209.324,\n\t\t\t\tPositiveSpans:   []Span{{0, 1}, {2, 3}},\n\t\t\t\tPositiveBuckets: []float64{1, 3.3, 4.2, 0.1},\n\t\t\t\tCustomValues:    []float64{1, 2, 3},\n\t\t\t},\n\t\t\t1,\n\t\t\t&FloatHistogram{\n\t\t\t\tSchema:          CustomBucketsSchema,\n\t\t\t\tCount:           3493.3,\n\t\t\t\tSum:             2349209.324,\n\t\t\t\tPositiveSpans:   []Span{{0, 1}, {2, 3}},\n\t\t\t\tPositiveBuckets: []float64{1, 3.3, 4.2, 0.1},\n\t\t\t\tCustomValues:    []float64{1, 2, 3},\n\t\t\t},\n\t\t},\n\t\t{\n\t\t\t\"half with custom buckets\",\n\t\t\t&FloatHistogram{\n\t\t\t\tSchema:          CustomBucketsSchema,\n\t\t\t\tCount:           30,\n\t\t\t\tSum:             23,\n\t\t\t\tPositiveSpans:   []Span{{0, 2}, {1, 3}},\n\t\t\t\tPositiveBuckets: []float64{1, 0, 3, 4, 7},\n\t\t\t\tCustomValues:    []float64{1, 2, 3, 4},\n\t\t\t},\n\t\t\t2,\n\t\t\t&FloatHistogram{\n\t\t\t\tSchema:          CustomBucketsSchema,\n\t\t\t\tCount:           15,\n\t\t\t\tSum:             11.5,\n\t\t\t\tPositiveSpans:   []Span{{0, 2}, {1, 3}},\n\t\t\t\tPositiveBuckets: []float64{0.5, 0, 1.5, 2, 3.5},\n\t\t\t\tCustomValues:    []float64{1, 2, 3, 4},\n\t\t\t},\n\t\t},\n\t}\n\n\t",
+      "variable": "cases",
+      "case_keys": null
     },
     {
       "test": "TestFloatHistogramCopy",
@@ -56,7 +60,9 @@
         271
       ],
       "source_sha256": "be82cda969ec155bcba59794e0fbb103b066e1822514445faa888eae4afe975f",
-      "prefix": "\n\tcases := []struct {\n\t\tname     string\n\t\torig     *FloatHistogram\n\t\texpected *FloatHistogram\n\t}{\n\t\t{\n\t\t\tname:     \"without buckets\",\n\t\t\torig:     &FloatHistogram{},\n\t\t\texpected: &FloatHistogram{},\n\t\t},\n\t\t{\n\t\t\tname: \"with buckets\",\n\t\t\torig: &FloatHistogram{\n\t\t\t\tPositiveSpans:   []Span{{-2, 1}},\n\t\t\t\tPositiveBuckets: []float64{1, 3, -3, 42},\n\t\t\t\tNegativeSpans:   []Span{{3, 2}},\n\t\t\t\tNegativeBuckets: []float64{5, 3, 1.234e5, 1000},\n\t\t\t},\n\t\t\texpected: &FloatHistogram{\n\t\t\t\tPositiveSpans:   []Span{{-2, 1}},\n\t\t\t\tPositiveBuckets: []float64{1, 3, -3, 42},\n\t\t\t\tNegativeSpans:   []Span{{3, 2}},\n\t\t\t\tNegativeBuckets: []float64{5, 3, 1.234e5, 1000},\n\t\t\t},\n\t\t},\n\t\t{\n\t\t\tname: \"with empty buckets and non empty capacity\",\n\t\t\torig: &FloatHistogram{\n\t\t\t\tPositiveSpans:   make([]Span, 0, 1),\n\t\t\t\tPositiveBuckets: make([]float64, 0, 1),\n\t\t\t\tNegativeSpans:   make([]Span, 0, 1),\n\t\t\t\tNegativeBuckets: make([]float64, 0, 1),\n\t\t\t},\n\t\t\texpected: &FloatHistogram{},\n\t\t},\n\t\t{\n\t\t\tname: \"with custom buckets\",\n\t\t\torig: &FloatHistogram{\n\t\t\t\tSchema:          CustomBucketsSchema,\n\t\t\t\tPositiveSpans:   []Span{{0, 1}},\n\t\t\t\tPositiveBuckets: []float64{1, 3, -3, 42},\n\t\t\t\tCustomValues:    []float64{1, 2, 3},\n\t\t\t},\n\t\t\texpected: &FloatHistogram{\n\t\t\t\tSchema:          CustomBucketsSchema,\n\t\t\t\tPositiveSpans:   []Span{{0, 1}},\n\t\t\t\tPositiveBuckets: []float64{1, 3, -3, 42},\n\t\t\t\tCustomValues:    []float64{1, 2, 3},\n\t\t\t},\n\t\t},\n\t}\n\n\t"
+      "prefix": "\n\tcases := []struct {\n\t\tname     string\n\t\torig     *FloatHistogram\n\t\texpected *FloatHistogram\n\t}{\n\t\t{\n\t\t\tname:     \"without buckets\",\n\t\t\torig:     &FloatHistogram{},\n\t\t\texpected: &FloatHistogram{},\n\t\t},\n\t\t{\n\t\t\tname: \"with buckets\",\n\t\t\torig: &FloatHistogram{\n\t\t\t\tPositiveSpans:   []Span{{-2, 1}},\n\t\t\t\tPositiveBuckets: []float64{1, 3, -3, 42},\n\t\t\t\tNegativeSpans:   []Span{{3, 2}},\n\t\t\t\tNegativeBuckets: []float64{5, 3, 1.234e5, 1000},\n\t\t\t},\n\t\t\texpected: &FloatHistogram{\n\t\t\t\tPositiveSpans:   []Span{{-2, 1}},\n\t\t\t\tPositiveBuckets: []float64{1, 3, -3, 42},\n\t\t\t\tNegativeSpans:   []Span{{3, 2}},\n\t\t\t\tNegativeBuckets: []float64{5, 3, 1.234e5, 1000},\n\t\t\t},\n\t\t},\n\t\t{\n\t\t\tname: \"with empty buckets and non empty capacity\",\n\t\t\torig: &FloatHistogram{\n\t\t\t\tPositiveSpans:   make([]Span, 0, 1),\n\t\t\t\tPositiveBuckets: make([]float64, 0, 1),\n\t\t\t\tNegativeSpans:   make([]Span, 0, 1),\n\t\t\t\tNegativeBuckets: make([]float64, 0, 1),\n\t\t\t},\n\t\t\texpected: &FloatHistogram{},\n\t\t},\n\t\t{\n\t\t\tname: \"with custom buckets\",\n\t\t\torig: &FloatHistogram{\n\t\t\t\tSchema:          CustomBucketsSchema,\n\t\t\t\tPositiveSpans:   []Span{{0, 1}},\n\t\t\t\tPositiveBuckets: []float64{1, 3, -3, 42},\n\t\t\t\tCustomValues:    []float64{1, 2, 3},\n\t\t\t},\n\t\t\texpected: &FloatHistogram{\n\t\t\t\tSchema:          CustomBucketsSchema,\n\t\t\t\tPositiveSpans:   []Span{{0, 1}},\n\t\t\t\tPositiveBuckets: []float64{1, 3, -3, 42},\n\t\t\t\tCustomValues:    []float64{1, 2, 3},\n\t\t\t},\n\t\t},\n\t}\n\n\t",
+      "variable": "cases",
+      "case_keys": null
     },
     {
       "test": "TestFloatHistogramCopyTo",
@@ -71,7 +77,9 @@
         336
       ],
       "source_sha256": "be82cda969ec155bcba59794e0fbb103b066e1822514445faa888eae4afe975f",
-      "prefix": "\n\tcases := []struct {\n\t\tname     string\n\t\torig     *FloatHistogram\n\t\texpected *FloatHistogram\n\t}{\n\t\t{\n\t\t\tname:     \"without buckets\",\n\t\t\torig:     &FloatHistogram{},\n\t\t\texpected: &FloatHistogram{},\n\t\t},\n\t\t{\n\t\t\tname: \"with buckets\",\n\t\t\torig: &FloatHistogram{\n\t\t\t\tPositiveSpans:   []Span{{-2, 1}},\n\t\t\t\tPositiveBuckets: []float64{1, 3, -3, 42},\n\t\t\t\tNegativeSpans:   []Span{{3, 2}},\n\t\t\t\tNegativeBuckets: []float64{5, 3, 1.234e5, 1000},\n\t\t\t},\n\t\t\texpected: &FloatHistogram{\n\t\t\t\tPositiveSpans:   []Span{{-2, 1}},\n\t\t\t\tPositiveBuckets: []float64{1, 3, -3, 42},\n\t\t\t\tNegativeSpans:   []Span{{3, 2}},\n\t\t\t\tNegativeBuckets: []float64{5, 3, 1.234e5, 1000},\n\t\t\t},\n\t\t},\n\t\t{\n\t\t\tname: \"with empty buckets and non empty capacity\",\n\t\t\torig: &FloatHistogram{\n\t\t\t\tPositiveSpans:   make([]Span, 0, 1),\n\t\t\t\tPositiveBuckets: make([]float64, 0, 1),\n\t\t\t\tNegativeSpans:   make([]Span, 0, 1),\n\t\t\t\tNegativeBuckets: make([]float64, 0, 1),\n\t\t\t},\n\t\t\texpected: &FloatHistogram{},\n\t\t},\n\t\t{\n\t\t\tname: \"with custom buckets\",\n\t\t\torig: &FloatHistogram{\n\t\t\t\tSchema:          CustomBucketsSchema,\n\t\t\t\tPositiveSpans:   []Span{{0, 1}},\n\t\t\t\tPositiveBuckets: []float64{1, 3, -3, 42},\n\t\t\t\tCustomValues:    []float64{1, 2, 3},\n\t\t\t},\n\t\t\texpected: &FloatHistogram{\n\t\t\t\tSchema:          CustomBucketsSchema,\n\t\t\t\tPositiveSpans:   []Span{{0, 1}},\n\t\t\t\tPositiveBuckets: []float64{1, 3, -3, 42},\n\t\t\t\tCustomValues:    []float64{1, 2, 3},\n\t\t\t},\n\t\t},\n\t}\n\n\t"
+      "prefix": "\n\tcases := []struct {\n\t\tname     string\n\t\torig     *FloatHistogram\n\t\texpected *FloatHistogram\n\t}{\n\t\t{\n\t\t\tname:     \"without buckets\",\n\t\t\torig:     &FloatHistogram{},\n\t\t\texpected: &FloatHistogram{},\n\t\t},\n\t\t{\n\t\t\tname: \"with buckets\",\n\t\t\torig: &FloatHistogram{\n\t\t\t\tPositiveSpans:   []Span{{-2, 1}},\n\t\t\t\tPositiveBuckets: []float64{1, 3, -3, 42},\n\t\t\t\tNegativeSpans:   []Span{{3, 2}},\n\t\t\t\tNegativeBuckets: []float64{5, 3, 1.234e5, 1000},\n\t\t\t},\n\t\t\texpected: &FloatHistogram{\n\t\t\t\tPositiveSpans:   []Span{{-2, 1}},\n\t\t\t\tPositiveBuckets: []float64{1, 3, -3, 42},\n\t\t\t\tNegativeSpans:   []Span{{3, 2}},\n\t\t\t\tNegativeBuckets: []float64{5, 3, 1.234e5, 1000},\n\t\t\t},\n\t\t},\n\t\t{\n\t\t\tname: \"with empty buckets and non empty capacity\",\n\t\t\torig: &FloatHistogram{\n\t\t\t\tPositiveSpans:   make([]Span, 0, 1),\n\t\t\t\tPositiveBuckets: make([]float64, 0, 1),\n\t\t\t\tNegativeSpans:   make([]Span, 0, 1),\n\t\t\t\tNegativeBuckets: make([]float64, 0, 1),\n\t\t\t},\n\t\t\texpected: &FloatHistogram{},\n\t\t},\n\t\t{\n\t\t\tname: \"with custom buckets\",\n\t\t\torig: &FloatHistogram{\n\t\t\t\tSchema:          CustomBucketsSchema,\n\t\t\t\tPositiveSpans:   []Span{{0, 1}},\n\t\t\t\tPositiveBuckets: []float64{1, 3, -3, 42},\n\t\t\t\tCustomValues:    []float64{1, 2, 3},\n\t\t\t},\n\t\t\texpected: &FloatHistogram{\n\t\t\t\tSchema:          CustomBucketsSchema,\n\t\t\t\tPositiveSpans:   []Span{{0, 1}},\n\t\t\t\tPositiveBuckets: []float64{1, 3, -3, 42},\n\t\t\t\tCustomValues:    []float64{1, 2, 3},\n\t\t\t},\n\t\t},\n\t}\n\n\t",
+      "variable": "cases",
+      "case_keys": null
     },
     {
       "test": "TestHistogramCopy",
@@ -86,7 +94,9 @@
         932
       ],
       "source_sha256": "a40954d96fe983c3bfd9918b6c9259b77183caabbbee9e46a009312a09a00907",
-      "prefix": "\n\tcases := []struct {\n\t\tname     string\n\t\torig     *Histogram\n\t\texpected *Histogram\n\t}{\n\t\t{\n\t\t\tname:     \"without buckets\",\n\t\t\torig:     &Histogram{},\n\t\t\texpected: &Histogram{},\n\t\t},\n\t\t{\n\t\t\tname: \"with buckets\",\n\t\t\torig: &Histogram{\n\t\t\t\tPositiveSpans:   []Span{{-2, 1}},\n\t\t\t\tPositiveBuckets: []int64{1, 3, -3, 42},\n\t\t\t\tNegativeSpans:   []Span{{3, 2}},\n\t\t\t\tNegativeBuckets: []int64{5, 3, 1.234e5, 1000},\n\t\t\t},\n\t\t\texpected: &Histogram{\n\t\t\t\tPositiveSpans:   []Span{{-2, 1}},\n\t\t\t\tPositiveBuckets: []int64{1, 3, -3, 42},\n\t\t\t\tNegativeSpans:   []Span{{3, 2}},\n\t\t\t\tNegativeBuckets: []int64{5, 3, 1.234e5, 1000},\n\t\t\t},\n\t\t},\n\t\t{\n\t\t\tname: \"with empty buckets and non empty capacity\",\n\t\t\torig: &Histogram{\n\t\t\t\tPositiveSpans:   make([]Span, 0, 1),\n\t\t\t\tPositiveBuckets: make([]int64, 0, 1),\n\t\t\t\tNegativeSpans:   make([]Span, 0, 1),\n\t\t\t\tNegativeBuckets: make([]int64, 0, 1),\n\t\t\t},\n\t\t\texpected: &Histogram{},\n\t\t},\n\t\t{\n\t\t\tname: \"with custom buckets\",\n\t\t\torig: &Histogram{\n\t\t\t\tSchema:          CustomBucketsSchema,\n\t\t\t\tPositiveSpans:   []Span{{-2, 1}},\n\t\t\t\tPositiveBuckets: []int64{1, 3, -3, 42},\n\t\t\t\tCustomValues:    []float64{5, 10, 15},\n\t\t\t},\n\t\t\texpected: &Histogram{\n\t\t\t\tSchema:          CustomBucketsSchema,\n\t\t\t\tPositiveSpans:   []Span{{-2, 1}},\n\t\t\t\tPositiveBuckets: []int64{1, 3, -3, 42},\n\t\t\t\tCustomValues:    []float64{5, 10, 15},\n\t\t\t},\n\t\t},\n\t}\n\n\t"
+      "prefix": "\n\tcases := []struct {\n\t\tname     string\n\t\torig     *Histogram\n\t\texpected *Histogram\n\t}{\n\t\t{\n\t\t\tname:     \"without buckets\",\n\t\t\torig:     &Histogram{},\n\t\t\texpected: &Histogram{},\n\t\t},\n\t\t{\n\t\t\tname: \"with buckets\",\n\t\t\torig: &Histogram{\n\t\t\t\tPositiveSpans:   []Span{{-2, 1}},\n\t\t\t\tPositiveBuckets: []int64{1, 3, -3, 42},\n\t\t\t\tNegativeSpans:   []Span{{3, 2}},\n\t\t\t\tNegativeBuckets: []int64{5, 3, 1.234e5, 1000},\n\t\t\t},\n\t\t\texpected: &Histogram{\n\t\t\t\tPositiveSpans:   []Span{{-2, 1}},\n\t\t\t\tPositiveBuckets: []int64{1, 3, -3, 42},\n\t\t\t\tNegativeSpans:   []Span{{3, 2}},\n\t\t\t\tNegativeBuckets: []int64{5, 3, 1.234e5, 1000},\n\t\t\t},\n\t\t},\n\t\t{\n\t\t\tname: \"with empty buckets and non empty capacity\",\n\t\t\torig: &Histogram{\n\t\t\t\tPositiveSpans:   make([]Span, 0, 1),\n\t\t\t\tPositiveBuckets: make([]int64, 0, 1),\n\t\t\t\tNegativeSpans:   make([]Span, 0, 1),\n\t\t\t\tNegativeBuckets: make([]int64, 0, 1),\n\t\t\t},\n\t\t\texpected: &Histogram{},\n\t\t},\n\t\t{\n\t\t\tname: \"with custom buckets\",\n\t\t\torig: &Histogram{\n\t\t\t\tSchema:          CustomBucketsSchema,\n\t\t\t\tPositiveSpans:   []Span{{-2, 1}},\n\t\t\t\tPositiveBuckets: []int64{1, 3, -3, 42},\n\t\t\t\tCustomValues:    []float64{5, 10, 15},\n\t\t\t},\n\t\t\texpected: &Histogram{\n\t\t\t\tSchema:          CustomBucketsSchema,\n\t\t\t\tPositiveSpans:   []Span{{-2, 1}},\n\t\t\t\tPositiveBuckets: []int64{1, 3, -3, 42},\n\t\t\t\tCustomValues:    []float64{5, 10, 15},\n\t\t\t},\n\t\t},\n\t}\n\n\t",
+      "variable": "cases",
+      "case_keys": null
     },
     {
       "test": "TestHistogramCopyTo",
@@ -101,7 +111,9 @@
         997
       ],
       "source_sha256": "a40954d96fe983c3bfd9918b6c9259b77183caabbbee9e46a009312a09a00907",
-      "prefix": "\n\tcases := []struct {\n\t\tname     string\n\t\torig     *Histogram\n\t\texpected *Histogram\n\t}{\n\t\t{\n\t\t\tname:     \"without buckets\",\n\t\t\torig:     &Histogram{},\n\t\t\texpected: &Histogram{},\n\t\t},\n\t\t{\n\t\t\tname: \"with buckets\",\n\t\t\torig: &Histogram{\n\t\t\t\tPositiveSpans:   []Span{{-2, 1}},\n\t\t\t\tPositiveBuckets: []int64{1, 3, -3, 42},\n\t\t\t\tNegativeSpans:   []Span{{3, 2}},\n\t\t\t\tNegativeBuckets: []int64{5, 3, 1.234e5, 1000},\n\t\t\t},\n\t\t\texpected: &Histogram{\n\t\t\t\tPositiveSpans:   []Span{{-2, 1}},\n\t\t\t\tPositiveBuckets: []int64{1, 3, -3, 42},\n\t\t\t\tNegativeSpans:   []Span{{3, 2}},\n\t\t\t\tNegativeBuckets: []int64{5, 3, 1.234e5, 1000},\n\t\t\t},\n\t\t},\n\t\t{\n\t\t\tname: \"with empty buckets and non empty capacity\",\n\t\t\torig: &Histogram{\n\t\t\t\tPositiveSpans:   make([]Span, 0, 1),\n\t\t\t\tPositiveBuckets: make([]int64, 0, 1),\n\t\t\t\tNegativeSpans:   make([]Span, 0, 1),\n\t\t\t\tNegativeBuckets: make([]int64, 0, 1),\n\t\t\t},\n\t\t\texpected: &Histogram{},\n\t\t},\n\t\t{\n\t\t\tname: \"with custom buckets\",\n\t\t\torig: &Histogram{\n\t\t\t\tSchema:          CustomBucketsSchema,\n\t\t\t\tPositiveSpans:   []Span{{-2, 1}},\n\t\t\t\tPositiveBuckets: []int64{1, 3, -3, 42},\n\t\t\t\tCustomValues:    []float64{5, 10, 15},\n\t\t\t},\n\t\t\texpected: &Histogram{\n\t\t\t\tSchema:          CustomBucketsSchema,\n\t\t\t\tPositiveSpans:   []Span{{-2, 1}},\n\t\t\t\tPositiveBuckets: []int64{1, 3, -3, 42},\n\t\t\t\tCustomValues:    []float64{5, 10, 15},\n\t\t\t},\n\t\t},\n\t}\n\n\t"
+      "prefix": "\n\tcases := []struct {\n\t\tname     string\n\t\torig     *Histogram\n\t\texpected *Histogram\n\t}{\n\t\t{\n\t\t\tname:     \"without buckets\",\n\t\t\torig:     &Histogram{},\n\t\t\texpected: &Histogram{},\n\t\t},\n\t\t{\n\t\t\tname: \"with buckets\",\n\t\t\torig: &Histogram{\n\t\t\t\tPositiveSpans:   []Span{{-2, 1}},\n\t\t\t\tPositiveBuckets: []int64{1, 3, -3, 42},\n\t\t\t\tNegativeSpans:   []Span{{3, 2}},\n\t\t\t\tNegativeBuckets: []int64{5, 3, 1.234e5, 1000},\n\t\t\t},\n\t\t\texpected: &Histogram{\n\t\t\t\tPositiveSpans:   []Span{{-2, 1}},\n\t\t\t\tPositiveBuckets: []int64{1, 3, -3, 42},\n\t\t\t\tNegativeSpans:   []Span{{3, 2}},\n\t\t\t\tNegativeBuckets: []int64{5, 3, 1.234e5, 1000},\n\t\t\t},\n\t\t},\n\t\t{\n\t\t\tname: \"with empty buckets and non empty capacity\",\n\t\t\torig: &Histogram{\n\t\t\t\tPositiveSpans:   make([]Span, 0, 1),\n\t\t\t\tPositiveBuckets: make([]int64, 0, 1),\n\t\t\t\tNegativeSpans:   make([]Span, 0, 1),\n\t\t\t\tNegativeBuckets: make([]int64, 0, 1),\n\t\t\t},\n\t\t\texpected: &Histogram{},\n\t\t},\n\t\t{\n\t\t\tname: \"with custom buckets\",\n\t\t\torig: &Histogram{\n\t\t\t\tSchema:          CustomBucketsSchema,\n\t\t\t\tPositiveSpans:   []Span{{-2, 1}},\n\t\t\t\tPositiveBuckets: []int64{1, 3, -3, 42},\n\t\t\t\tCustomValues:    []float64{5, 10, 15},\n\t\t\t},\n\t\t\texpected: &Histogram{\n\t\t\t\tSchema:          CustomBucketsSchema,\n\t\t\t\tPositiveSpans:   []Span{{-2, 1}},\n\t\t\t\tPositiveBuckets: []int64{1, 3, -3, 42},\n\t\t\t\tCustomValues:    []float64{5, 10, 15},\n\t\t\t},\n\t\t},\n\t}\n\n\t",
+      "variable": "cases",
+      "case_keys": null
     },
     {
       "test": "TestHistogramToFloat",
@@ -115,7 +127,9 @@
         606
       ],
       "source_sha256": "a40954d96fe983c3bfd9918b6c9259b77183caabbbee9e46a009312a09a00907",
-      "prefix": "\n\th := Histogram{\n\t\tSchema:        3,\n\t\tCount:         61,\n\t\tSum:           2.7,\n\t\tZeroThreshold: 0.1,\n\t\tZeroCount:     42,\n\t\tPositiveSpans: []Span{\n\t\t\t{Offset: 0, Length: 4},\n\t\t\t{Offset: 0, Length: 0},\n\t\t\t{Offset: 0, Length: 3},\n\t\t},\n\t\tPositiveBuckets: []int64{1, 2, -2, 1, -1, 0, 0},\n\t\tNegativeSpans: []Span{\n\t\t\t{Offset: 0, Length: 5},\n\t\t\t{Offset: 1, Length: 0},\n\t\t\t{Offset: 0, Length: 1},\n\t\t},\n\t\tNegativeBuckets: []int64{1, 2, -2, 1, -1, 0},\n\t}\n\tcases := []struct {\n\t\tname string\n\t\tfh   *FloatHistogram\n\t}{\n\t\t{name: \"without prior float histogram\"},\n\t\t{name: \"prior float histogram with more buckets\", fh: &FloatHistogram{\n\t\t\tSchema:        2,\n\t\t\tCount:         3,\n\t\t\tSum:           5,\n\t\t\tZeroThreshold: 4,\n\t\t\tZeroCount:     1,\n\t\t\tPositiveSpans: []Span{\n\t\t\t\t{Offset: 1, Length: 2},\n\t\t\t\t{Offset: 1, Length: 2},\n\t\t\t\t{Offset: 1, Length: 2},\n\t\t\t},\n\t\t\tPositiveBuckets: []float64{1, 2, 3, 4, 5, 6, 7, 8, 9},\n\t\t\tNegativeSpans: []Span{\n\t\t\t\t{Offset: 20, Length: 6},\n\t\t\t\t{Offset: 12, Length: 7},\n\t\t\t\t{Offset: 33, Length: 10},\n\t\t\t},\n\t\t\tNegativeBuckets: []float64{1, 2, 3, 4, 5, 6, 7, 8, 9},\n\t\t}},\n\t\t{name: \"prior float histogram with fewer buckets\", fh: &FloatHistogram{\n\t\t\tSchema:        2,\n\t\t\tCount:         3,\n\t\t\tSum:           5,\n\t\t\tZeroThreshold: 4,\n\t\t\tZeroCount:     1,\n\t\t\tPositiveSpans: []Span{\n\t\t\t\t{Offset: 1, Length: 2},\n\t\t\t\t{Offset: 1, Length: 2},\n\t\t\t\t{Offset: 1, Length: 2},\n\t\t\t},\n\t\t\tPositiveBuckets: []float64{1, 2},\n\t\t\tNegativeSpans: []Span{\n\t\t\t\t{Offset: 20, Length: 6},\n\t\t\t\t{Offset: 12, Length: 7},\n\t\t\t\t{Offset: 33, Length: 10},\n\t\t\t},\n\t\t\tNegativeBuckets: []float64{1, 2},\n\t\t}},\n\t}\n\n\t"
+      "prefix": "\n\th := Histogram{\n\t\tSchema:        3,\n\t\tCount:         61,\n\t\tSum:           2.7,\n\t\tZeroThreshold: 0.1,\n\t\tZeroCount:     42,\n\t\tPositiveSpans: []Span{\n\t\t\t{Offset: 0, Length: 4},\n\t\t\t{Offset: 0, Length: 0},\n\t\t\t{Offset: 0, Length: 3},\n\t\t},\n\t\tPositiveBuckets: []int64{1, 2, -2, 1, -1, 0, 0},\n\t\tNegativeSpans: []Span{\n\t\t\t{Offset: 0, Length: 5},\n\t\t\t{Offset: 1, Length: 0},\n\t\t\t{Offset: 0, Length: 1},\n\t\t},\n\t\tNegativeBuckets: []int64{1, 2, -2, 1, -1, 0},\n\t}\n\tcases := []struct {\n\t\tname string\n\t\tfh   *FloatHistogram\n\t}{\n\t\t{name: \"without prior float histogram\"},\n\t\t{name: \"prior float histogram with more buckets\", fh: &FloatHistogram{\n\t\t\tSchema:        2,\n\t\t\tCount:         3,\n\t\t\tSum:           5,\n\t\t\tZeroThreshold: 4,\n\t\t\tZeroCount:     1,\n\t\t\tPositiveSpans: []Span{\n\t\t\t\t{Offset: 1, Length: 2},\n\t\t\t\t{Offset: 1, Length: 2},\n\t\t\t\t{Offset: 1, Length: 2},\n\t\t\t},\n\t\t\tPositiveBuckets: []float64{1, 2, 3, 4, 5, 6, 7, 8, 9},\n\t\t\tNegativeSpans: []Span{\n\t\t\t\t{Offset: 20, Length: 6},\n\t\t\t\t{Offset: 12, Length: 7},\n\t\t\t\t{Offset: 33, Length: 10},\n\t\t\t},\n\t\t\tNegativeBuckets: []float64{1, 2, 3, 4, 5, 6, 7, 8, 9},\n\t\t}},\n\t\t{name: \"prior float histogram with fewer buckets\", fh: &FloatHistogram{\n\t\t\tSchema:        2,\n\t\t\tCount:         3,\n\t\t\tSum:           5,\n\t\t\tZeroThreshold: 4,\n\t\t\tZeroCount:     1,\n\t\t\tPositiveSpans: []Span{\n\t\t\t\t{Offset: 1, Length: 2},\n\t\t\t\t{Offset: 1, Length: 2},\n\t\t\t\t{Offset: 1, Length: 2},\n\t\t\t},\n\t\t\tPositiveBuckets: []float64{1, 2},\n\t\t\tNegativeSpans: []Span{\n\t\t\t\t{Offset: 20, Length: 6},\n\t\t\t\t{Offset: 12, Length: 7},\n\t\t\t\t{Offset: 33, Length: 10},\n\t\t\t},\n\t\t\tNegativeBuckets: []float64{1, 2},\n\t\t}},\n\t}\n\n\t",
+      "variable": "cases",
+      "case_keys": null
     },
     {
       "test": "TestCustomBucketsHistogramToFloat",
@@ -129,7 +143,84 @@
         672
       ],
       "source_sha256": "a40954d96fe983c3bfd9918b6c9259b77183caabbbee9e46a009312a09a00907",
-      "prefix": "\n\th := Histogram{\n\t\tSchema: CustomBucketsSchema,\n\t\tCount:  10,\n\t\tSum:    2.7,\n\t\tPositiveSpans: []Span{\n\t\t\t{Offset: 0, Length: 4},\n\t\t\t{Offset: 0, Length: 0},\n\t\t\t{Offset: 0, Length: 3},\n\t\t},\n\t\tPositiveBuckets: []int64{1, 2, -2, 1, -1, 0, 0},\n\t\tCustomValues:    []float64{5, 10, 20, 50, 100, 500},\n\t}\n\tcases := []struct {\n\t\tname string\n\t\tfh   *FloatHistogram\n\t}{\n\t\t{name: \"without prior float histogram\"},\n\t\t{name: \"prior float histogram with more buckets\", fh: &FloatHistogram{\n\t\t\tSchema:        2,\n\t\t\tCount:         3,\n\t\t\tSum:           5,\n\t\t\tZeroThreshold: 4,\n\t\t\tZeroCount:     1,\n\t\t\tPositiveSpans: []Span{\n\t\t\t\t{Offset: 1, Length: 2},\n\t\t\t\t{Offset: 1, Length: 2},\n\t\t\t\t{Offset: 1, Length: 2},\n\t\t\t},\n\t\t\tPositiveBuckets: []float64{1, 2, 3, 4, 5, 6, 7, 8, 9},\n\t\t\tNegativeSpans: []Span{\n\t\t\t\t{Offset: 20, Length: 6},\n\t\t\t\t{Offset: 12, Length: 7},\n\t\t\t\t{Offset: 33, Length: 10},\n\t\t\t},\n\t\t\tNegativeBuckets: []float64{1, 2, 3, 4, 5, 6, 7, 8, 9},\n\t\t}},\n\t\t{name: \"prior float histogram with fewer buckets\", fh: &FloatHistogram{\n\t\t\tSchema:        2,\n\t\t\tCount:         3,\n\t\t\tSum:           5,\n\t\t\tZeroThreshold: 4,\n\t\t\tZeroCount:     1,\n\t\t\tPositiveSpans: []Span{\n\t\t\t\t{Offset: 1, Length: 2},\n\t\t\t\t{Offset: 1, Length: 2},\n\t\t\t\t{Offset: 1, Length: 2},\n\t\t\t},\n\t\t\tPositiveBuckets: []float64{1, 2},\n\t\t\tNegativeSpans: []Span{\n\t\t\t\t{Offset: 20, Length: 6},\n\t\t\t\t{Offset: 12, Length: 7},\n\t\t\t\t{Offset: 33, Length: 10},\n\t\t\t},\n\t\t\tNegativeBuckets: []float64{1, 2},\n\t\t}},\n\t}\n\n\trequire.NoError(t, h.Validate())\n\t"
+      "prefix": "\n\th := Histogram{\n\t\tSchema: CustomBucketsSchema,\n\t\tCount:  10,\n\t\tSum:    2.7,\n\t\tPositiveSpans: []Span{\n\t\t\t{Offset: 0, Length: 4},\n\t\t\t{Offset: 0, Length: 0},\n\t\t\t{Offset: 0, Length: 3},\n\t\t},\n\t\tPositiveBuckets: []int64{1, 2, -2, 1, -1, 0, 0},\n\t\tCustomValues:    []float64{5, 10, 20, 50, 100, 500},\n\t}\n\tcases := []struct {\n\t\tname string\n\t\tfh   *FloatHistogram\n\t}{\n\t\t{name: \"without prior float histogram\"},\n\t\t{name: \"prior float histogram with more buckets\", fh: &FloatHistogram{\n\t\t\tSchema:        2,\n\t\t\tCount:         3,\n\t\t\tSum:           5,\n\t\t\tZeroThreshold: 4,\n\t\t\tZeroCount:     1,\n\t\t\tPositiveSpans: []Span{\n\t\t\t\t{Offset: 1, Length: 2},\n\t\t\t\t{Offset: 1, Length: 2},\n\t\t\t\t{Offset: 1, Length: 2},\n\t\t\t},\n\t\t\tPositiveBuckets: []float64{1, 2, 3, 4, 5, 6, 7, 8, 9},\n\t\t\tNegativeSpans: []Span{\n\t\t\t\t{Offset: 20, Length: 6},\n\t\t\t\t{Offset: 12, Length: 7},\n\t\t\t\t{Offset: 33, Length: 10},\n\t\t\t},\n\t\t\tNegativeBuckets: []float64{1, 2, 3, 4, 5, 6, 7, 8, 9},\n\t\t}},\n\t\t{name: \"prior float histogram with fewer buckets\", fh: &FloatHistogram{\n\t\t\tSchema:        2,\n\t\t\tCount:         3,\n\t\t\tSum:           5,\n\t\t\tZeroThreshold: 4,\n\t\t\tZeroCount:     1,\n\t\t\tPositiveSpans: []Span{\n\t\t\t\t{Offset: 1, Length: 2},\n\t\t\t\t{Offset: 1, Length: 2},\n\t\t\t\t{Offset: 1, Length: 2},\n\t\t\t},\n\t\t\tPositiveBuckets: []float64{1, 2},\n\t\t\tNegativeSpans: []Span{\n\t\t\t\t{Offset: 20, Length: 6},\n\t\t\t\t{Offset: 12, Length: 7},\n\t\t\t\t{Offset: 33, Length: 10},\n\t\t\t},\n\t\t\tNegativeBuckets: []float64{1, 2},\n\t\t}},\n\t}\n\n\trequire.NoError(t, h.Validate())\n\t",
+      "variable": "cases",
+      "case_keys": null
+    },
+    {
+      "test": "TestFloatHistogramCompact",
+      "file": "float_histogram_test.go",
+      "mode": "float-compact",
+      "cases": 24,
+      "line": 1468,
+      "case_lines": [
+        1475,
+        1481,
+        1497,
+        1513,
+        1529,
+        1541,
+        1557,
+        1573,
+        1588,
+        1604,
+        1620,
+        1636,
+        1648,
+        1660,
+        1672,
+        1688,
+        1704,
+        1720,
+        1736,
+        1752,
+        1768,
+        1784,
+        1800,
+        1816
+      ],
+      "source_sha256": "be82cda969ec155bcba59794e0fbb103b066e1822514445faa888eae4afe975f",
+      "prefix": "\n\tcases := []struct {\n\t\tname            string\n\t\tin              *FloatHistogram\n\t\tmaxEmptyBuckets int\n\t\texpected        *FloatHistogram\n\t}{\n\t\t{\n\t\t\t\"empty histogram\",\n\t\t\t&FloatHistogram{},\n\t\t\t0,\n\t\t\t&FloatHistogram{},\n\t\t},\n\t\t{\n\t\t\t\"nothing should happen\",\n\t\t\t&FloatHistogram{\n\t\t\t\tPositiveSpans:   []Span{{-2, 1}, {2, 3}},\n\t\t\t\tPositiveBuckets: []float64{1, 3.3, 4.2, 0.1},\n\t\t\t\tNegativeSpans:   []Span{{3, 2}, {3, 2}},\n\t\t\t\tNegativeBuckets: []float64{3.1, 3, 1.234e5, 1000},\n\t\t\t},\n\t\t\t0,\n\t\t\t&FloatHistogram{\n\t\t\t\tPositiveSpans:   []Span{{-2, 1}, {2, 3}},\n\t\t\t\tPositiveBuckets: []float64{1, 3.3, 4.2, 0.1},\n\t\t\t\tNegativeSpans:   []Span{{3, 2}, {3, 2}},\n\t\t\t\tNegativeBuckets: []float64{3.1, 3, 1.234e5, 1000},\n\t\t\t},\n\t\t},\n\t\t{\n\t\t\t\"eliminate zero offsets\",\n\t\t\t&FloatHistogram{\n\t\t\t\tPositiveSpans:   []Span{{-2, 1}, {0, 3}, {0, 1}},\n\t\t\t\tPositiveBuckets: []float64{1, 3.3, 4.2, 0.1, 3.3},\n\t\t\t\tNegativeSpans:   []Span{{0, 2}, {0, 2}, {2, 1}, {0, 1}},\n\t\t\t\tNegativeBuckets: []float64{3.1, 3, 1.234e5, 1000, 3, 4},\n\t\t\t},\n\t\t\t0,\n\t\t\t&FloatHistogram{\n\t\t\t\tPositiveSpans:   []Span{{-2, 5}},\n\t\t\t\tPositiveBuckets: []float64{1, 3.3, 4.2, 0.1, 3.3},\n\t\t\t\tNegativeSpans:   []Span{{0, 4}, {2, 2}},\n\t\t\t\tNegativeBuckets: []float64{3.1, 3, 1.234e5, 1000, 3, 4},\n\t\t\t},\n\t\t},\n\t\t{\n\t\t\t\"eliminate zero length\",\n\t\t\t&FloatHistogram{\n\t\t\t\tPositiveSpans:   []Span{{-2, 2}, {2, 0}, {3, 3}},\n\t\t\t\tPositiveBuckets: []float64{1, 3.3, 4.2, 0.1, 3.3},\n\t\t\t\tNegativeSpans:   []Span{{0, 2}, {0, 0}, {2, 0}, {1, 4}},\n\t\t\t\tNegativeBuckets: []float64{3.1, 3, 1.234e5, 1000, 3, 4},\n\t\t\t},\n\t\t\t0,\n\t\t\t&FloatHistogram{\n\t\t\t\tPositiveSpans:   []Span{{-2, 2}, {5, 3}},\n\t\t\t\tPositiveBuckets: []float64{1, 3.3, 4.2, 0.1, 3.3},\n\t\t\t\tNegativeSpans:   []Span{{0, 2}, {3, 4}},\n\t\t\t\tNegativeBuckets: []float64{3.1, 3, 1.234e5, 1000, 3, 4},\n\t\t\t},\n\t\t},\n\t\t{\n\t\t\t\"eliminate multiple zero length spans\",\n\t\t\t&FloatHistogram{\n\t\t\t\tPositiveSpans:   []Span{{-2, 2}, {2, 0}, {2, 0}, {2, 0}, {3, 3}},\n\t\t\t\tPositiveBuckets: []float64{1, 3.3, 4.2, 0.1, 3.3},\n\t\t\t},\n\t\t\t0,\n\t\t\t&FloatHistogram{\n\t\t\t\tPositiveSpans:   []Span{{-2, 2}, {9, 3}},\n\t\t\t\tPositiveBuckets: []float64{1, 3.3, 4.2, 0.1, 3.3},\n\t\t\t},\n\t\t},\n\t\t{\n\t\t\t\"cut empty buckets at start or end\",\n\t\t\t&FloatHistogram{\n\t\t\t\tPositiveSpans:   []Span{{-4, 4}, {5, 3}},\n\t\t\t\tPositiveBuckets: []float64{0, 0, 1, 3.3, 4.2, 0.1, 3.3},\n\t\t\t\tNegativeSpans:   []Span{{0, 2}, {3, 5}},\n\t\t\t\tNegativeBuckets: []float64{3.1, 3, 1.234e5, 1000, 3, 4, 0},\n\t\t\t},\n\t\t\t0,\n\t\t\t&FloatHistogram{\n\t\t\t\tPositiveSpans:   []Span{{-2, 2}, {5, 3}},\n\t\t\t\tPositiveBuckets: []float64{1, 3.3, 4.2, 0.1, 3.3},\n\t\t\t\tNegativeSpans:   []Span{{0, 2}, {3, 4}},\n\t\t\t\tNegativeBuckets: []float64{3.1, 3, 1.234e5, 1000, 3, 4},\n\t\t\t},\n\t\t},\n\t\t{\n\t\t\t\"cut empty buckets at start and end\",\n\t\t\t&FloatHistogram{\n\t\t\t\tPositiveSpans:   []Span{{-4, 4}, {5, 6}},\n\t\t\t\tPositiveBuckets: []float64{0, 0, 1, 3.3, 4.2, 0.1, 3.3, 0, 0, 0},\n\t\t\t\tNegativeSpans:   []Span{{-2, 4}, {3, 5}},\n\t\t\t\tNegativeBuckets: []float64{0, 0, 3.1, 3, 1.234e5, 1000, 3, 4, 0},\n\t\t\t},\n\t\t\t0,\n\t\t\t&FloatHistogram{\n\t\t\t\tPositiveSpans:   []Span{{-2, 2}, {5, 3}},\n\t\t\t\tPositiveBuckets: []float64{1, 3.3, 4.2, 0.1, 3.3},\n\t\t\t\tNegativeSpans:   []Span{{0, 2}, {3, 4}},\n\t\t\t\tNegativeBuckets: []float64{3.1, 3, 1.234e5, 1000, 3, 4},\n\t\t\t},\n\t\t},\n\t\t{\n\t\t\t\"cut empty buckets in the middle\",\n\t\t\t&FloatHistogram{\n\t\t\t\tPositiveSpans:   []Span{{5, 4}},\n\t\t\t\tPositiveBuckets: []float64{1, 3, 0, 2},\n\t\t\t},\n\t\t\t0,\n\t\t\t&FloatHistogram{\n\t\t\t\tPositiveSpans: []Span{\n\t\t\t\t\t{Offset: 5, Length: 2},\n\t\t\t\t\t{Offset: 1, Length: 1},\n\t\t\t\t},\n\t\t\t\tPositiveBuckets: []float64{1, 3, 2},\n\t\t\t},\n\t\t},\n\t\t{\n\t\t\t\"cut empty buckets at start or end of spans, even in the middle\",\n\t\t\t&FloatHistogram{\n\t\t\t\tPositiveSpans:   []Span{{-4, 6}, {3, 6}},\n\t\t\t\tPositiveBuckets: []float64{0, 0, 1, 3.3, 0, 0, 4.2, 0.1, 3.3, 0, 0, 0},\n\t\t\t\tNegativeSpans:   []Span{{0, 2}, {2, 6}},\n\t\t\t\tNegativeBuckets: []float64{3.1, 3, 0, 1.234e5, 1000, 3, 4, 0},\n\t\t\t},\n\t\t\t0,\n\t\t\t&FloatHistogram{\n\t\t\t\tPositiveSpans:   []Span{{-2, 2}, {5, 3}},\n\t\t\t\tPositiveBuckets: []float64{1, 3.3, 4.2, 0.1, 3.3},\n\t\t\t\tNegativeSpans:   []Span{{0, 2}, {3, 4}},\n\t\t\t\tNegativeBuckets: []float64{3.1, 3, 1.234e5, 1000, 3, 4},\n\t\t\t},\n\t\t},\n\t\t{\n\t\t\t\"cut empty buckets at start and end - also merge spans due to maxEmptyBuckets\",\n\t\t\t&FloatHistogram{\n\t\t\t\tPositiveSpans:   []Span{{-4, 4}, {5, 3}},\n\t\t\t\tPositiveBuckets: []float64{0, 0, 1, 3.3, 4.2, 0.1, 3.3},\n\t\t\t\tNegativeSpans:   []Span{{0, 2}, {3, 5}},\n\t\t\t\tNegativeBuckets: []float64{3.1, 3, 1.234e5, 1000, 3, 4, 0},\n\t\t\t},\n\t\t\t10,\n\t\t\t&FloatHistogram{\n\t\t\t\tPositiveSpans:   []Span{{-2, 10}},\n\t\t\t\tPositiveBuckets: []float64{1, 3.3, 0, 0, 0, 0, 0, 4.2, 0.1, 3.3},\n\t\t\t\tNegativeSpans:   []Span{{0, 9}},\n\t\t\t\tNegativeBuckets: []float64{3.1, 3, 0, 0, 0, 1.234e5, 1000, 3, 4},\n\t\t\t},\n\t\t},\n\t\t{\n\t\t\t\"cut empty buckets from the middle of a span\",\n\t\t\t&FloatHistogram{\n\t\t\t\tPositiveSpans:   []Span{{-4, 6}, {3, 3}},\n\t\t\t\tPositiveBuckets: []float64{0, 0, 1, 0, 0, 3.3, 4.2, 0.1, 3.3},\n\t\t\t\tNegativeSpans:   []Span{{0, 2}, {3, 5}},\n\t\t\t\tNegativeBuckets: []float64{3.1, 3, 1.234e5, 1000, 0, 3, 4},\n\t\t\t},\n\t\t\t0,\n\t\t\t&FloatHistogram{\n\t\t\t\tPositiveSpans:   []Span{{-2, 1}, {2, 1}, {3, 3}},\n\t\t\t\tPositiveBuckets: []float64{1, 3.3, 4.2, 0.1, 3.3},\n\t\t\t\tNegativeSpans:   []Span{{0, 2}, {3, 2}, {1, 2}},\n\t\t\t\tNegativeBuckets: []float64{3.1, 3, 1.234e5, 1000, 3, 4},\n\t\t\t},\n\t\t},\n\t\t{\n\t\t\t\"cut out a span containing only empty buckets\",\n\t\t\t&FloatHistogram{\n\t\t\t\tPositiveSpans:   []Span{{-4, 3}, {2, 2}, {3, 4}},\n\t\t\t\tPositiveBuckets: []float64{0, 0, 1, 0, 0, 3.3, 4.2, 0.1, 3.3},\n\t\t\t},\n\t\t\t0,\n\t\t\t&FloatHistogram{\n\t\t\t\tPositiveSpans:   []Span{{-2, 1}, {7, 4}},\n\t\t\t\tPositiveBuckets: []float64{1, 3.3, 4.2, 0.1, 3.3},\n\t\t\t},\n\t\t},\n\t\t{\n\t\t\t\"cut empty buckets from the middle of a span, avoiding none due to maxEmptyBuckets\",\n\t\t\t&FloatHistogram{\n\t\t\t\tPositiveSpans:   []Span{{-2, 4}},\n\t\t\t\tPositiveBuckets: []float64{1, 0, 0, 3.3},\n\t\t\t},\n\t\t\t1,\n\t\t\t&FloatHistogram{\n\t\t\t\tPositiveSpans:   []Span{{-2, 1}, {2, 1}},\n\t\t\t\tPositiveBuckets: []float64{1, 3.3},\n\t\t\t},\n\t\t},\n\t\t{\n\t\t\t\"cut empty buckets and merge spans due to maxEmptyBuckets\",\n\t\t\t&FloatHistogram{\n\t\t\t\tPositiveSpans:   []Span{{-2, 4}, {3, 1}},\n\t\t\t\tPositiveBuckets: []float64{1, 0, 0, 3.3, 4.2},\n\t\t\t},\n\t\t\t1,\n\t\t\t&FloatHistogram{\n\t\t\t\tPositiveSpans:   []Span{{-2, 1}, {2, 1}, {3, 1}},\n\t\t\t\tPositiveBuckets: []float64{1, 3.3, 4.2},\n\t\t\t},\n\t\t},\n\t\t{\n\t\t\t\"cut empty buckets from the middle of a span, avoiding some due to maxEmptyBuckets\",\n\t\t\t&FloatHistogram{\n\t\t\t\tPositiveSpans:   []Span{{-4, 6}, {3, 3}, {10, 2}},\n\t\t\t\tPositiveBuckets: []float64{0, 0, 1, 0, 0, 3.3, 4.2, 0.1, 3.3, 2, 3},\n\t\t\t\tNegativeSpans:   []Span{{0, 2}, {3, 5}},\n\t\t\t\tNegativeBuckets: []float64{3.1, 3, 1.234e5, 1000, 0, 3, 4},\n\t\t\t},\n\t\t\t1,\n\t\t\t&FloatHistogram{\n\t\t\t\tPositiveSpans:   []Span{{-2, 1}, {2, 1}, {3, 3}, {10, 2}},\n\t\t\t\tPositiveBuckets: []float64{1, 3.3, 4.2, 0.1, 3.3, 2, 3},\n\t\t\t\tNegativeSpans:   []Span{{0, 2}, {3, 5}},\n\t\t\t\tNegativeBuckets: []float64{3.1, 3, 1.234e5, 1000, 0, 3, 4},\n\t\t\t},\n\t\t},\n\t\t{\n\t\t\t\"avoiding all cutting of empty buckets from the middle of a chunk due to maxEmptyBuckets\",\n\t\t\t&FloatHistogram{\n\t\t\t\tPositiveSpans:   []Span{{-4, 6}, {3, 3}},\n\t\t\t\tPositiveBuckets: []float64{0, 0, 1, 0, 0, 3.3, 4.2, 0.1, 3.3},\n\t\t\t\tNegativeSpans:   []Span{{0, 2}, {3, 5}},\n\t\t\t\tNegativeBuckets: []float64{3.1, 3, 1.234e5, 1000, 0, 3, 4},\n\t\t\t},\n\t\t\t2,\n\t\t\t&FloatHistogram{\n\t\t\t\tPositiveSpans:   []Span{{-2, 4}, {3, 3}},\n\t\t\t\tPositiveBuckets: []float64{1, 0, 0, 3.3, 4.2, 0.1, 3.3},\n\t\t\t\tNegativeSpans:   []Span{{0, 2}, {3, 5}},\n\t\t\t\tNegativeBuckets: []float64{3.1, 3, 1.234e5, 1000, 0, 3, 4},\n\t\t\t},\n\t\t},\n\t\t{\n\t\t\t\"everything merged into one span due to maxEmptyBuckets\",\n\t\t\t&FloatHistogram{\n\t\t\t\tPositiveSpans:   []Span{{-4, 6}, {3, 3}},\n\t\t\t\tPositiveBuckets: []float64{0, 0, 1, 0, 0, 3.3, 4.2, 0.1, 3.3},\n\t\t\t\tNegativeSpans:   []Span{{0, 2}, {3, 5}},\n\t\t\t\tNegativeBuckets: []float64{3.1, 3, 1.234e5, 1000, 0, 3, 4},\n\t\t\t},\n\t\t\t3,\n\t\t\t&FloatHistogram{\n\t\t\t\tPositiveSpans:   []Span{{-2, 10}},\n\t\t\t\tPositiveBuckets: []float64{1, 0, 0, 3.3, 0, 0, 0, 4.2, 0.1, 3.3},\n\t\t\t\tNegativeSpans:   []Span{{0, 10}},\n\t\t\t\tNegativeBuckets: []float64{3.1, 3, 0, 0, 0, 1.234e5, 1000, 0, 3, 4},\n\t\t\t},\n\t\t},\n\t\t{\n\t\t\t\"more than one span merged in the same pass\",\n\t\t\t&FloatHistogram{\n\t\t\t\tPositiveSpans:   []Span{{-2, 2}, {2, 2}, {2, 2}},\n\t\t\t\tPositiveBuckets: []float64{1, 3.3, 4.2, 0.1, 3.3, 2},\n\t\t\t\tNegativeSpans:   []Span{{0, 1}, {1, 1}, {1, 1}},\n\t\t\t\tNegativeBuckets: []float64{3.1, 1000, 4},\n\t\t\t},\n\t\t\t3,\n\t\t\t&FloatHistogram{\n\t\t\t\tPositiveSpans:   []Span{{-2, 10}},\n\t\t\t\tPositiveBuckets: []float64{1, 3.3, 0, 0, 4.2, 0.1, 0, 0, 3.3, 2},\n\t\t\t\tNegativeSpans:   []Span{{0, 5}},\n\t\t\t\tNegativeBuckets: []float64{3.1, 0, 1000, 0, 4},\n\t\t\t},\n\t\t},\n\t\t{\n\t\t\t\"only empty buckets and maxEmptyBuckets greater zero\",\n\t\t\t&FloatHistogram{\n\t\t\t\tPositiveSpans:   []Span{{-4, 6}, {3, 3}},\n\t\t\t\tPositiveBuckets: []float64{0, 0, 0, 0, 0, 0, 0, 0, 0},\n\t\t\t\tNegativeSpans:   []Span{{0, 7}},\n\t\t\t\tNegativeBuckets: []float64{0, 0, 0, 0, 0, 0, 0},\n\t\t\t},\n\t\t\t3,\n\t\t\t&FloatHistogram{\n\t\t\t\tPositiveSpans:   []Span{},\n\t\t\t\tPositiveBuckets: []float64{},\n\t\t\t\tNegativeSpans:   []Span{},\n\t\t\t\tNegativeBuckets: []float64{},\n\t\t\t},\n\t\t},\n\t\t{\n\t\t\t\"multiple spans of only empty buckets\",\n\t\t\t&FloatHistogram{\n\t\t\t\tPositiveSpans:   []Span{{-10, 2}, {2, 1}, {3, 3}},\n\t\t\t\tPositiveBuckets: []float64{0, 0, 0, 0, 2, 3},\n\t\t\t\tNegativeSpans:   []Span{{-10, 2}, {2, 1}, {3, 3}},\n\t\t\t\tNegativeBuckets: []float64{2, 3, 0, 0, 0, 0},\n\t\t\t},\n\t\t\t0,\n\t\t\t&FloatHistogram{\n\t\t\t\tPositiveSpans:   []Span{{-1, 2}},\n\t\t\t\tPositiveBuckets: []float64{2, 3},\n\t\t\t\tNegativeSpans:   []Span{{-10, 2}},\n\t\t\t\tNegativeBuckets: []float64{2, 3},\n\t\t\t},\n\t\t},\n\t\t{\n\t\t\t\"nothing should happen with custom buckets\",\n\t\t\t&FloatHistogram{\n\t\t\t\tSchema:          CustomBucketsSchema,\n\t\t\t\tPositiveSpans:   []Span{{0, 1}, {2, 3}},\n\t\t\t\tPositiveBuckets: []float64{1, 3.3, 4.2, 0.1},\n\t\t\t\tCustomValues:    []float64{1, 2, 3},\n\t\t\t},\n\t\t\t0,\n\t\t\t&FloatHistogram{\n\t\t\t\tSchema:          CustomBucketsSchema,\n\t\t\t\tPositiveSpans:   []Span{{0, 1}, {2, 3}},\n\t\t\t\tPositiveBuckets: []float64{1, 3.3, 4.2, 0.1},\n\t\t\t\tCustomValues:    []float64{1, 2, 3},\n\t\t\t},\n\t\t},\n\t\t{\n\t\t\t\"eliminate zero offsets with custom buckets\",\n\t\t\t&FloatHistogram{\n\t\t\t\tSchema:          CustomBucketsSchema,\n\t\t\t\tPositiveSpans:   []Span{{0, 1}, {0, 3}, {0, 1}},\n\t\t\t\tPositiveBuckets: []float64{1, 3.3, 4.2, 0.1, 3.3},\n\t\t\t\tCustomValues:    []float64{1, 2, 3, 4},\n\t\t\t},\n\t\t\t0,\n\t\t\t&FloatHistogram{\n\t\t\t\tSchema:          CustomBucketsSchema,\n\t\t\t\tPositiveSpans:   []Span{{0, 5}},\n\t\t\t\tPositiveBuckets: []float64{1, 3.3, 4.2, 0.1, 3.3},\n\t\t\t\tCustomValues:    []float64{1, 2, 3, 4},\n\t\t\t},\n\t\t},\n\t\t{\n\t\t\t\"eliminate multiple zero length spans with custom buckets\",\n\t\t\t&FloatHistogram{\n\t\t\t\tSchema:          CustomBucketsSchema,\n\t\t\t\tPositiveSpans:   []Span{{0, 2}, {2, 0}, {2, 0}, {2, 0}, {3, 3}},\n\t\t\t\tPositiveBuckets: []float64{1, 3.3, 4.2, 0.1, 3.3},\n\t\t\t\tCustomValues:    []float64{1, 2, 3, 4},\n\t\t\t},\n\t\t\t0,\n\t\t\t&FloatHistogram{\n\t\t\t\tSchema:          CustomBucketsSchema,\n\t\t\t\tPositiveSpans:   []Span{{0, 2}, {9, 3}},\n\t\t\t\tPositiveBuckets: []float64{1, 3.3, 4.2, 0.1, 3.3},\n\t\t\t\tCustomValues:    []float64{1, 2, 3, 4},\n\t\t\t},\n\t\t},\n\t\t{\n\t\t\t\"cut empty buckets at start and end with custom buckets\",\n\t\t\t&FloatHistogram{\n\t\t\t\tSchema:          CustomBucketsSchema,\n\t\t\t\tPositiveSpans:   []Span{{0, 4}, {5, 6}},\n\t\t\t\tPositiveBuckets: []float64{0, 0, 1, 3.3, 4.2, 0.1, 3.3, 0, 0, 0},\n\t\t\t\tCustomValues:    []float64{1, 2, 3, 4, 5, 6, 7, 8, 9},\n\t\t\t},\n\t\t\t0,\n\t\t\t&FloatHistogram{\n\t\t\t\tSchema:          CustomBucketsSchema,\n\t\t\t\tPositiveSpans:   []Span{{2, 2}, {5, 3}},\n\t\t\t\tPositiveBuckets: []float64{1, 3.3, 4.2, 0.1, 3.3},\n\t\t\t\tCustomValues:    []float64{1, 2, 3, 4, 5, 6, 7, 8, 9},\n\t\t\t},\n\t\t},\n\t}\n\n\t",
+      "variable": "cases",
+      "case_keys": null
+    },
+    {
+      "test": "TestFloatHistogramCopyToSchema",
+      "file": "float_histogram_test.go",
+      "mode": "float-copy-to-schema",
+      "cases": 3,
+      "line": 3170,
+      "case_lines": [
+        3176,
+        3202,
+        3228
+      ],
+      "source_sha256": "be82cda969ec155bcba59794e0fbb103b066e1822514445faa888eae4afe975f",
+      "prefix": "\n\tcases := []struct {\n\t\tname         string\n\t\ttargetSchema int32\n\t\tin, expected *FloatHistogram\n\t}{\n\t\t{\n\t\t\t\"no schema change\",\n\t\t\t1,\n\t\t\t&FloatHistogram{\n\t\t\t\tZeroThreshold:   0.01,\n\t\t\t\tZeroCount:       11,\n\t\t\t\tCount:           30,\n\t\t\t\tSum:             2.345,\n\t\t\t\tSchema:          1,\n\t\t\t\tPositiveSpans:   []Span{{-4, 3}, {5, 5}},\n\t\t\t\tPositiveBuckets: []float64{1, 0, 0, 3, 2, 2, 3, 4},\n\t\t\t\tNegativeSpans:   []Span{{6, 3}, {6, 4}},\n\t\t\t\tNegativeBuckets: []float64{3, 0.5, 0.5, 2, 3, 2, 4},\n\t\t\t},\n\t\t\t&FloatHistogram{\n\t\t\t\tZeroThreshold:   0.01,\n\t\t\t\tZeroCount:       11,\n\t\t\t\tCount:           30,\n\t\t\t\tSum:             2.345,\n\t\t\t\tSchema:          1,\n\t\t\t\tPositiveSpans:   []Span{{-4, 3}, {5, 5}},\n\t\t\t\tPositiveBuckets: []float64{1, 0, 0, 3, 2, 2, 3, 4},\n\t\t\t\tNegativeSpans:   []Span{{6, 3}, {6, 4}},\n\t\t\t\tNegativeBuckets: []float64{3, 0.5, 0.5, 2, 3, 2, 4},\n\t\t\t},\n\t\t},\n\t\t{\n\t\t\t\"schema change\",\n\t\t\t0,\n\t\t\t&FloatHistogram{\n\t\t\t\tZeroThreshold:   0.01,\n\t\t\t\tZeroCount:       11,\n\t\t\t\tCount:           30,\n\t\t\t\tSum:             2.345,\n\t\t\t\tSchema:          1,\n\t\t\t\tPositiveSpans:   []Span{{-4, 3}, {5, 5}},\n\t\t\t\tPositiveBuckets: []float64{1, 0, 0, 3, 2, 2, 3, 4},\n\t\t\t\tNegativeSpans:   []Span{{6, 3}, {6, 4}},\n\t\t\t\tNegativeBuckets: []float64{3, 0.5, 0.5, 2, 3, 2, 4},\n\t\t\t},\n\t\t\t&FloatHistogram{\n\t\t\t\tZeroThreshold:   0.01,\n\t\t\t\tZeroCount:       11,\n\t\t\t\tCount:           30,\n\t\t\t\tSum:             2.345,\n\t\t\t\tSchema:          0,\n\t\t\t\tPositiveSpans:   []Span{{-2, 2}, {2, 3}},\n\t\t\t\tPositiveBuckets: []float64{1, 0, 3, 4, 7},\n\t\t\t\tNegativeSpans:   []Span{{3, 2}, {3, 2}},\n\t\t\t\tNegativeBuckets: []float64{3, 1, 5, 6},\n\t\t\t},\n\t\t},\n\t\t{\n\t\t\t\"no schema change for custom buckets\",\n\t\t\tCustomBucketsSchema,\n\t\t\t&FloatHistogram{\n\t\t\t\tCount:           30,\n\t\t\t\tSum:             2.345,\n\t\t\t\tSchema:          CustomBucketsSchema,\n\t\t\t\tPositiveSpans:   []Span{{0, 3}, {5, 5}},\n\t\t\t\tPositiveBuckets: []float64{1, 0, 0, 3, 2, 2, 3, 4},\n\t\t\t\tCustomValues:    []float64{1, 2, 3, 4, 5, 6, 7},\n\t\t\t},\n\t\t\t&FloatHistogram{\n\t\t\t\tCount:           30,\n\t\t\t\tSum:             2.345,\n\t\t\t\tSchema:          CustomBucketsSchema,\n\t\t\t\tPositiveSpans:   []Span{{0, 3}, {5, 5}},\n\t\t\t\tPositiveBuckets: []float64{1, 0, 0, 3, 2, 2, 3, 4},\n\t\t\t\tCustomValues:    []float64{1, 2, 3, 4, 5, 6, 7},\n\t\t\t},\n\t\t},\n\t}\n\n\t",
+      "variable": "cases",
+      "case_keys": null
+    },
+    {
+      "test": "TestFloatHistogramReduceResolution",
+      "file": "float_histogram_test.go",
+      "mode": "float-reduce-resolution",
+      "cases": 4,
+      "line": 4599,
+      "case_lines": [
+        4606,
+        4637,
+        4650,
+        4663
+      ],
+      "source_sha256": "be82cda969ec155bcba59794e0fbb103b066e1822514445faa888eae4afe975f",
+      "prefix": "\n\ttcs := map[string]struct {\n\t\torigin       *FloatHistogram\n\t\ttargetSchema int32\n\t\ttarget       *FloatHistogram\n\t\terrorMsg     string\n\t}{\n\t\t\"valid float histogram\": {\n\t\t\torigin: &FloatHistogram{\n\t\t\t\tSchema: 0,\n\t\t\t\tPositiveSpans: []Span{\n\t\t\t\t\t{Offset: -2, Length: 4},\n\t\t\t\t\t{Offset: 0, Length: 0},\n\t\t\t\t\t{Offset: 3, Length: 2},\n\t\t\t\t},\n\t\t\t\tPositiveBuckets: []float64{1, 3, 1, 2, 1, 1},\n\t\t\t\tNegativeSpans: []Span{\n\t\t\t\t\t{Offset: 0, Length: 4},\n\t\t\t\t\t{Offset: 0, Length: 0},\n\t\t\t\t\t{Offset: 3, Length: 2},\n\t\t\t\t},\n\t\t\t\tNegativeBuckets: []float64{1, 3, 1, 2, 1, 1},\n\t\t\t},\n\t\t\ttargetSchema: -1,\n\t\t\ttarget: &FloatHistogram{\n\t\t\t\tSchema: -1,\n\t\t\t\tPositiveSpans: []Span{\n\t\t\t\t\t{Offset: -1, Length: 3},\n\t\t\t\t\t{Offset: 1, Length: 1},\n\t\t\t\t},\n\t\t\t\tPositiveBuckets: []float64{1, 4, 2, 2},\n\t\t\t\tNegativeSpans: []Span{\n\t\t\t\t\t{Offset: 0, Length: 3},\n\t\t\t\t\t{Offset: 1, Length: 1},\n\t\t\t\t},\n\t\t\t\tNegativeBuckets: []float64{1, 4, 2, 2},\n\t\t\t},\n\t\t},\n\t\t\"not enough buckets\": {\n\t\t\torigin: &FloatHistogram{\n\t\t\t\tSchema: 0,\n\t\t\t\tPositiveSpans: []Span{\n\t\t\t\t\t{Offset: -2, Length: 4},\n\t\t\t\t\t{Offset: 0, Length: 0},\n\t\t\t\t\t{Offset: 3, Length: 2},\n\t\t\t\t},\n\t\t\t\tPositiveBuckets: []float64{1, 3, 1, 2, 1},\n\t\t\t},\n\t\t\ttargetSchema: -1,\n\t\t\terrorMsg:     \"have 5 buckets but spans need more: histogram spans specify different number of buckets than provided\",\n\t\t},\n\t\t\"too many buckets\": {\n\t\t\torigin: &FloatHistogram{\n\t\t\t\tSchema: 0,\n\t\t\t\tPositiveSpans: []Span{\n\t\t\t\t\t{Offset: -2, Length: 4},\n\t\t\t\t\t{Offset: 0, Length: 0},\n\t\t\t\t\t{Offset: 3, Length: 2},\n\t\t\t\t},\n\t\t\t\tPositiveBuckets: []float64{1, 3, 1, 2, 1, 1, 5},\n\t\t\t},\n\t\t\ttargetSchema: -1,\n\t\t\terrorMsg:     \"spans need 6 buckets, have 7 buckets: histogram spans specify different number of buckets than provided\",\n\t\t},\n\t\t\"negative offset\": {\n\t\t\torigin: &FloatHistogram{\n\t\t\t\tSchema: 0,\n\t\t\t\tPositiveSpans: []Span{\n\t\t\t\t\t{Offset: -2, Length: 4},\n\t\t\t\t\t{Offset: -1, Length: 0},\n\t\t\t\t\t{Offset: 3, Length: 2},\n\t\t\t\t},\n\t\t\t\tPositiveBuckets: []float64{1, 3, 1, 2, 1, 1},\n\t\t\t},\n\t\t\ttargetSchema: -1,\n\t\t\terrorMsg:     \"span number 2 with offset -1: histogram has a span whose offset is negative\",\n\t\t},\n\t}\n\n\t",
+      "variable": "tcs",
+      "case_keys": [
+        "valid float histogram",
+        "not enough buckets",
+        "too many buckets",
+        "negative offset"
+      ]
     }
   ],
   "cases": [
@@ -2780,6 +2871,2724 @@
         }
       },
       "declared": null
+    },
+    {
+      "id": "TestFloatHistogramCompact:000",
+      "mode": "float-compact",
+      "request": {
+        "input": {
+          "count": "0000000000000000",
+          "custom_values": null,
+          "negative_buckets": null,
+          "negative_spans": null,
+          "positive_buckets": null,
+          "positive_spans": null,
+          "reset_hint": 0,
+          "schema": 0,
+          "sum": "0000000000000000",
+          "zero_count": "0000000000000000",
+          "zero_threshold": "0000000000000000"
+        },
+        "max_empty": 0
+      },
+      "declared": {
+        "count": "0000000000000000",
+        "custom_values": null,
+        "negative_buckets": null,
+        "negative_spans": null,
+        "positive_buckets": null,
+        "positive_spans": null,
+        "reset_hint": 0,
+        "schema": 0,
+        "sum": "0000000000000000",
+        "zero_count": "0000000000000000",
+        "zero_threshold": "0000000000000000"
+      }
+    },
+    {
+      "id": "TestFloatHistogramCompact:001",
+      "mode": "float-compact",
+      "request": {
+        "input": {
+          "count": "0000000000000000",
+          "custom_values": null,
+          "negative_buckets": [
+            "4008cccccccccccd",
+            "4008000000000000",
+            "40fe208000000000",
+            "408f400000000000"
+          ],
+          "negative_spans": [
+            {
+              "Offset": 3,
+              "Length": 2
+            },
+            {
+              "Offset": 3,
+              "Length": 2
+            }
+          ],
+          "positive_buckets": [
+            "3ff0000000000000",
+            "400a666666666666",
+            "4010cccccccccccd",
+            "3fb999999999999a"
+          ],
+          "positive_spans": [
+            {
+              "Offset": -2,
+              "Length": 1
+            },
+            {
+              "Offset": 2,
+              "Length": 3
+            }
+          ],
+          "reset_hint": 0,
+          "schema": 0,
+          "sum": "0000000000000000",
+          "zero_count": "0000000000000000",
+          "zero_threshold": "0000000000000000"
+        },
+        "max_empty": 0
+      },
+      "declared": {
+        "count": "0000000000000000",
+        "custom_values": null,
+        "negative_buckets": [
+          "4008cccccccccccd",
+          "4008000000000000",
+          "40fe208000000000",
+          "408f400000000000"
+        ],
+        "negative_spans": [
+          {
+            "Offset": 3,
+            "Length": 2
+          },
+          {
+            "Offset": 3,
+            "Length": 2
+          }
+        ],
+        "positive_buckets": [
+          "3ff0000000000000",
+          "400a666666666666",
+          "4010cccccccccccd",
+          "3fb999999999999a"
+        ],
+        "positive_spans": [
+          {
+            "Offset": -2,
+            "Length": 1
+          },
+          {
+            "Offset": 2,
+            "Length": 3
+          }
+        ],
+        "reset_hint": 0,
+        "schema": 0,
+        "sum": "0000000000000000",
+        "zero_count": "0000000000000000",
+        "zero_threshold": "0000000000000000"
+      }
+    },
+    {
+      "id": "TestFloatHistogramCompact:002",
+      "mode": "float-compact",
+      "request": {
+        "input": {
+          "count": "0000000000000000",
+          "custom_values": null,
+          "negative_buckets": [
+            "4008cccccccccccd",
+            "4008000000000000",
+            "40fe208000000000",
+            "408f400000000000",
+            "4008000000000000",
+            "4010000000000000"
+          ],
+          "negative_spans": [
+            {
+              "Offset": 0,
+              "Length": 2
+            },
+            {
+              "Offset": 0,
+              "Length": 2
+            },
+            {
+              "Offset": 2,
+              "Length": 1
+            },
+            {
+              "Offset": 0,
+              "Length": 1
+            }
+          ],
+          "positive_buckets": [
+            "3ff0000000000000",
+            "400a666666666666",
+            "4010cccccccccccd",
+            "3fb999999999999a",
+            "400a666666666666"
+          ],
+          "positive_spans": [
+            {
+              "Offset": -2,
+              "Length": 1
+            },
+            {
+              "Offset": 0,
+              "Length": 3
+            },
+            {
+              "Offset": 0,
+              "Length": 1
+            }
+          ],
+          "reset_hint": 0,
+          "schema": 0,
+          "sum": "0000000000000000",
+          "zero_count": "0000000000000000",
+          "zero_threshold": "0000000000000000"
+        },
+        "max_empty": 0
+      },
+      "declared": {
+        "count": "0000000000000000",
+        "custom_values": null,
+        "negative_buckets": [
+          "4008cccccccccccd",
+          "4008000000000000",
+          "40fe208000000000",
+          "408f400000000000",
+          "4008000000000000",
+          "4010000000000000"
+        ],
+        "negative_spans": [
+          {
+            "Offset": 0,
+            "Length": 4
+          },
+          {
+            "Offset": 2,
+            "Length": 2
+          }
+        ],
+        "positive_buckets": [
+          "3ff0000000000000",
+          "400a666666666666",
+          "4010cccccccccccd",
+          "3fb999999999999a",
+          "400a666666666666"
+        ],
+        "positive_spans": [
+          {
+            "Offset": -2,
+            "Length": 5
+          }
+        ],
+        "reset_hint": 0,
+        "schema": 0,
+        "sum": "0000000000000000",
+        "zero_count": "0000000000000000",
+        "zero_threshold": "0000000000000000"
+      }
+    },
+    {
+      "id": "TestFloatHistogramCompact:003",
+      "mode": "float-compact",
+      "request": {
+        "input": {
+          "count": "0000000000000000",
+          "custom_values": null,
+          "negative_buckets": [
+            "4008cccccccccccd",
+            "4008000000000000",
+            "40fe208000000000",
+            "408f400000000000",
+            "4008000000000000",
+            "4010000000000000"
+          ],
+          "negative_spans": [
+            {
+              "Offset": 0,
+              "Length": 2
+            },
+            {
+              "Offset": 0,
+              "Length": 0
+            },
+            {
+              "Offset": 2,
+              "Length": 0
+            },
+            {
+              "Offset": 1,
+              "Length": 4
+            }
+          ],
+          "positive_buckets": [
+            "3ff0000000000000",
+            "400a666666666666",
+            "4010cccccccccccd",
+            "3fb999999999999a",
+            "400a666666666666"
+          ],
+          "positive_spans": [
+            {
+              "Offset": -2,
+              "Length": 2
+            },
+            {
+              "Offset": 2,
+              "Length": 0
+            },
+            {
+              "Offset": 3,
+              "Length": 3
+            }
+          ],
+          "reset_hint": 0,
+          "schema": 0,
+          "sum": "0000000000000000",
+          "zero_count": "0000000000000000",
+          "zero_threshold": "0000000000000000"
+        },
+        "max_empty": 0
+      },
+      "declared": {
+        "count": "0000000000000000",
+        "custom_values": null,
+        "negative_buckets": [
+          "4008cccccccccccd",
+          "4008000000000000",
+          "40fe208000000000",
+          "408f400000000000",
+          "4008000000000000",
+          "4010000000000000"
+        ],
+        "negative_spans": [
+          {
+            "Offset": 0,
+            "Length": 2
+          },
+          {
+            "Offset": 3,
+            "Length": 4
+          }
+        ],
+        "positive_buckets": [
+          "3ff0000000000000",
+          "400a666666666666",
+          "4010cccccccccccd",
+          "3fb999999999999a",
+          "400a666666666666"
+        ],
+        "positive_spans": [
+          {
+            "Offset": -2,
+            "Length": 2
+          },
+          {
+            "Offset": 5,
+            "Length": 3
+          }
+        ],
+        "reset_hint": 0,
+        "schema": 0,
+        "sum": "0000000000000000",
+        "zero_count": "0000000000000000",
+        "zero_threshold": "0000000000000000"
+      }
+    },
+    {
+      "id": "TestFloatHistogramCompact:004",
+      "mode": "float-compact",
+      "request": {
+        "input": {
+          "count": "0000000000000000",
+          "custom_values": null,
+          "negative_buckets": null,
+          "negative_spans": null,
+          "positive_buckets": [
+            "3ff0000000000000",
+            "400a666666666666",
+            "4010cccccccccccd",
+            "3fb999999999999a",
+            "400a666666666666"
+          ],
+          "positive_spans": [
+            {
+              "Offset": -2,
+              "Length": 2
+            },
+            {
+              "Offset": 2,
+              "Length": 0
+            },
+            {
+              "Offset": 2,
+              "Length": 0
+            },
+            {
+              "Offset": 2,
+              "Length": 0
+            },
+            {
+              "Offset": 3,
+              "Length": 3
+            }
+          ],
+          "reset_hint": 0,
+          "schema": 0,
+          "sum": "0000000000000000",
+          "zero_count": "0000000000000000",
+          "zero_threshold": "0000000000000000"
+        },
+        "max_empty": 0
+      },
+      "declared": {
+        "count": "0000000000000000",
+        "custom_values": null,
+        "negative_buckets": null,
+        "negative_spans": null,
+        "positive_buckets": [
+          "3ff0000000000000",
+          "400a666666666666",
+          "4010cccccccccccd",
+          "3fb999999999999a",
+          "400a666666666666"
+        ],
+        "positive_spans": [
+          {
+            "Offset": -2,
+            "Length": 2
+          },
+          {
+            "Offset": 9,
+            "Length": 3
+          }
+        ],
+        "reset_hint": 0,
+        "schema": 0,
+        "sum": "0000000000000000",
+        "zero_count": "0000000000000000",
+        "zero_threshold": "0000000000000000"
+      }
+    },
+    {
+      "id": "TestFloatHistogramCompact:005",
+      "mode": "float-compact",
+      "request": {
+        "input": {
+          "count": "0000000000000000",
+          "custom_values": null,
+          "negative_buckets": [
+            "4008cccccccccccd",
+            "4008000000000000",
+            "40fe208000000000",
+            "408f400000000000",
+            "4008000000000000",
+            "4010000000000000",
+            "0000000000000000"
+          ],
+          "negative_spans": [
+            {
+              "Offset": 0,
+              "Length": 2
+            },
+            {
+              "Offset": 3,
+              "Length": 5
+            }
+          ],
+          "positive_buckets": [
+            "0000000000000000",
+            "0000000000000000",
+            "3ff0000000000000",
+            "400a666666666666",
+            "4010cccccccccccd",
+            "3fb999999999999a",
+            "400a666666666666"
+          ],
+          "positive_spans": [
+            {
+              "Offset": -4,
+              "Length": 4
+            },
+            {
+              "Offset": 5,
+              "Length": 3
+            }
+          ],
+          "reset_hint": 0,
+          "schema": 0,
+          "sum": "0000000000000000",
+          "zero_count": "0000000000000000",
+          "zero_threshold": "0000000000000000"
+        },
+        "max_empty": 0
+      },
+      "declared": {
+        "count": "0000000000000000",
+        "custom_values": null,
+        "negative_buckets": [
+          "4008cccccccccccd",
+          "4008000000000000",
+          "40fe208000000000",
+          "408f400000000000",
+          "4008000000000000",
+          "4010000000000000"
+        ],
+        "negative_spans": [
+          {
+            "Offset": 0,
+            "Length": 2
+          },
+          {
+            "Offset": 3,
+            "Length": 4
+          }
+        ],
+        "positive_buckets": [
+          "3ff0000000000000",
+          "400a666666666666",
+          "4010cccccccccccd",
+          "3fb999999999999a",
+          "400a666666666666"
+        ],
+        "positive_spans": [
+          {
+            "Offset": -2,
+            "Length": 2
+          },
+          {
+            "Offset": 5,
+            "Length": 3
+          }
+        ],
+        "reset_hint": 0,
+        "schema": 0,
+        "sum": "0000000000000000",
+        "zero_count": "0000000000000000",
+        "zero_threshold": "0000000000000000"
+      }
+    },
+    {
+      "id": "TestFloatHistogramCompact:006",
+      "mode": "float-compact",
+      "request": {
+        "input": {
+          "count": "0000000000000000",
+          "custom_values": null,
+          "negative_buckets": [
+            "0000000000000000",
+            "0000000000000000",
+            "4008cccccccccccd",
+            "4008000000000000",
+            "40fe208000000000",
+            "408f400000000000",
+            "4008000000000000",
+            "4010000000000000",
+            "0000000000000000"
+          ],
+          "negative_spans": [
+            {
+              "Offset": -2,
+              "Length": 4
+            },
+            {
+              "Offset": 3,
+              "Length": 5
+            }
+          ],
+          "positive_buckets": [
+            "0000000000000000",
+            "0000000000000000",
+            "3ff0000000000000",
+            "400a666666666666",
+            "4010cccccccccccd",
+            "3fb999999999999a",
+            "400a666666666666",
+            "0000000000000000",
+            "0000000000000000",
+            "0000000000000000"
+          ],
+          "positive_spans": [
+            {
+              "Offset": -4,
+              "Length": 4
+            },
+            {
+              "Offset": 5,
+              "Length": 6
+            }
+          ],
+          "reset_hint": 0,
+          "schema": 0,
+          "sum": "0000000000000000",
+          "zero_count": "0000000000000000",
+          "zero_threshold": "0000000000000000"
+        },
+        "max_empty": 0
+      },
+      "declared": {
+        "count": "0000000000000000",
+        "custom_values": null,
+        "negative_buckets": [
+          "4008cccccccccccd",
+          "4008000000000000",
+          "40fe208000000000",
+          "408f400000000000",
+          "4008000000000000",
+          "4010000000000000"
+        ],
+        "negative_spans": [
+          {
+            "Offset": 0,
+            "Length": 2
+          },
+          {
+            "Offset": 3,
+            "Length": 4
+          }
+        ],
+        "positive_buckets": [
+          "3ff0000000000000",
+          "400a666666666666",
+          "4010cccccccccccd",
+          "3fb999999999999a",
+          "400a666666666666"
+        ],
+        "positive_spans": [
+          {
+            "Offset": -2,
+            "Length": 2
+          },
+          {
+            "Offset": 5,
+            "Length": 3
+          }
+        ],
+        "reset_hint": 0,
+        "schema": 0,
+        "sum": "0000000000000000",
+        "zero_count": "0000000000000000",
+        "zero_threshold": "0000000000000000"
+      }
+    },
+    {
+      "id": "TestFloatHistogramCompact:007",
+      "mode": "float-compact",
+      "request": {
+        "input": {
+          "count": "0000000000000000",
+          "custom_values": null,
+          "negative_buckets": null,
+          "negative_spans": null,
+          "positive_buckets": [
+            "3ff0000000000000",
+            "4008000000000000",
+            "0000000000000000",
+            "4000000000000000"
+          ],
+          "positive_spans": [
+            {
+              "Offset": 5,
+              "Length": 4
+            }
+          ],
+          "reset_hint": 0,
+          "schema": 0,
+          "sum": "0000000000000000",
+          "zero_count": "0000000000000000",
+          "zero_threshold": "0000000000000000"
+        },
+        "max_empty": 0
+      },
+      "declared": {
+        "count": "0000000000000000",
+        "custom_values": null,
+        "negative_buckets": null,
+        "negative_spans": null,
+        "positive_buckets": [
+          "3ff0000000000000",
+          "4008000000000000",
+          "4000000000000000"
+        ],
+        "positive_spans": [
+          {
+            "Offset": 5,
+            "Length": 2
+          },
+          {
+            "Offset": 1,
+            "Length": 1
+          }
+        ],
+        "reset_hint": 0,
+        "schema": 0,
+        "sum": "0000000000000000",
+        "zero_count": "0000000000000000",
+        "zero_threshold": "0000000000000000"
+      }
+    },
+    {
+      "id": "TestFloatHistogramCompact:008",
+      "mode": "float-compact",
+      "request": {
+        "input": {
+          "count": "0000000000000000",
+          "custom_values": null,
+          "negative_buckets": [
+            "4008cccccccccccd",
+            "4008000000000000",
+            "0000000000000000",
+            "40fe208000000000",
+            "408f400000000000",
+            "4008000000000000",
+            "4010000000000000",
+            "0000000000000000"
+          ],
+          "negative_spans": [
+            {
+              "Offset": 0,
+              "Length": 2
+            },
+            {
+              "Offset": 2,
+              "Length": 6
+            }
+          ],
+          "positive_buckets": [
+            "0000000000000000",
+            "0000000000000000",
+            "3ff0000000000000",
+            "400a666666666666",
+            "0000000000000000",
+            "0000000000000000",
+            "4010cccccccccccd",
+            "3fb999999999999a",
+            "400a666666666666",
+            "0000000000000000",
+            "0000000000000000",
+            "0000000000000000"
+          ],
+          "positive_spans": [
+            {
+              "Offset": -4,
+              "Length": 6
+            },
+            {
+              "Offset": 3,
+              "Length": 6
+            }
+          ],
+          "reset_hint": 0,
+          "schema": 0,
+          "sum": "0000000000000000",
+          "zero_count": "0000000000000000",
+          "zero_threshold": "0000000000000000"
+        },
+        "max_empty": 0
+      },
+      "declared": {
+        "count": "0000000000000000",
+        "custom_values": null,
+        "negative_buckets": [
+          "4008cccccccccccd",
+          "4008000000000000",
+          "40fe208000000000",
+          "408f400000000000",
+          "4008000000000000",
+          "4010000000000000"
+        ],
+        "negative_spans": [
+          {
+            "Offset": 0,
+            "Length": 2
+          },
+          {
+            "Offset": 3,
+            "Length": 4
+          }
+        ],
+        "positive_buckets": [
+          "3ff0000000000000",
+          "400a666666666666",
+          "4010cccccccccccd",
+          "3fb999999999999a",
+          "400a666666666666"
+        ],
+        "positive_spans": [
+          {
+            "Offset": -2,
+            "Length": 2
+          },
+          {
+            "Offset": 5,
+            "Length": 3
+          }
+        ],
+        "reset_hint": 0,
+        "schema": 0,
+        "sum": "0000000000000000",
+        "zero_count": "0000000000000000",
+        "zero_threshold": "0000000000000000"
+      }
+    },
+    {
+      "id": "TestFloatHistogramCompact:009",
+      "mode": "float-compact",
+      "request": {
+        "input": {
+          "count": "0000000000000000",
+          "custom_values": null,
+          "negative_buckets": [
+            "4008cccccccccccd",
+            "4008000000000000",
+            "40fe208000000000",
+            "408f400000000000",
+            "4008000000000000",
+            "4010000000000000",
+            "0000000000000000"
+          ],
+          "negative_spans": [
+            {
+              "Offset": 0,
+              "Length": 2
+            },
+            {
+              "Offset": 3,
+              "Length": 5
+            }
+          ],
+          "positive_buckets": [
+            "0000000000000000",
+            "0000000000000000",
+            "3ff0000000000000",
+            "400a666666666666",
+            "4010cccccccccccd",
+            "3fb999999999999a",
+            "400a666666666666"
+          ],
+          "positive_spans": [
+            {
+              "Offset": -4,
+              "Length": 4
+            },
+            {
+              "Offset": 5,
+              "Length": 3
+            }
+          ],
+          "reset_hint": 0,
+          "schema": 0,
+          "sum": "0000000000000000",
+          "zero_count": "0000000000000000",
+          "zero_threshold": "0000000000000000"
+        },
+        "max_empty": 10
+      },
+      "declared": {
+        "count": "0000000000000000",
+        "custom_values": null,
+        "negative_buckets": [
+          "4008cccccccccccd",
+          "4008000000000000",
+          "0000000000000000",
+          "0000000000000000",
+          "0000000000000000",
+          "40fe208000000000",
+          "408f400000000000",
+          "4008000000000000",
+          "4010000000000000"
+        ],
+        "negative_spans": [
+          {
+            "Offset": 0,
+            "Length": 9
+          }
+        ],
+        "positive_buckets": [
+          "3ff0000000000000",
+          "400a666666666666",
+          "0000000000000000",
+          "0000000000000000",
+          "0000000000000000",
+          "0000000000000000",
+          "0000000000000000",
+          "4010cccccccccccd",
+          "3fb999999999999a",
+          "400a666666666666"
+        ],
+        "positive_spans": [
+          {
+            "Offset": -2,
+            "Length": 10
+          }
+        ],
+        "reset_hint": 0,
+        "schema": 0,
+        "sum": "0000000000000000",
+        "zero_count": "0000000000000000",
+        "zero_threshold": "0000000000000000"
+      }
+    },
+    {
+      "id": "TestFloatHistogramCompact:010",
+      "mode": "float-compact",
+      "request": {
+        "input": {
+          "count": "0000000000000000",
+          "custom_values": null,
+          "negative_buckets": [
+            "4008cccccccccccd",
+            "4008000000000000",
+            "40fe208000000000",
+            "408f400000000000",
+            "0000000000000000",
+            "4008000000000000",
+            "4010000000000000"
+          ],
+          "negative_spans": [
+            {
+              "Offset": 0,
+              "Length": 2
+            },
+            {
+              "Offset": 3,
+              "Length": 5
+            }
+          ],
+          "positive_buckets": [
+            "0000000000000000",
+            "0000000000000000",
+            "3ff0000000000000",
+            "0000000000000000",
+            "0000000000000000",
+            "400a666666666666",
+            "4010cccccccccccd",
+            "3fb999999999999a",
+            "400a666666666666"
+          ],
+          "positive_spans": [
+            {
+              "Offset": -4,
+              "Length": 6
+            },
+            {
+              "Offset": 3,
+              "Length": 3
+            }
+          ],
+          "reset_hint": 0,
+          "schema": 0,
+          "sum": "0000000000000000",
+          "zero_count": "0000000000000000",
+          "zero_threshold": "0000000000000000"
+        },
+        "max_empty": 0
+      },
+      "declared": {
+        "count": "0000000000000000",
+        "custom_values": null,
+        "negative_buckets": [
+          "4008cccccccccccd",
+          "4008000000000000",
+          "40fe208000000000",
+          "408f400000000000",
+          "4008000000000000",
+          "4010000000000000"
+        ],
+        "negative_spans": [
+          {
+            "Offset": 0,
+            "Length": 2
+          },
+          {
+            "Offset": 3,
+            "Length": 2
+          },
+          {
+            "Offset": 1,
+            "Length": 2
+          }
+        ],
+        "positive_buckets": [
+          "3ff0000000000000",
+          "400a666666666666",
+          "4010cccccccccccd",
+          "3fb999999999999a",
+          "400a666666666666"
+        ],
+        "positive_spans": [
+          {
+            "Offset": -2,
+            "Length": 1
+          },
+          {
+            "Offset": 2,
+            "Length": 1
+          },
+          {
+            "Offset": 3,
+            "Length": 3
+          }
+        ],
+        "reset_hint": 0,
+        "schema": 0,
+        "sum": "0000000000000000",
+        "zero_count": "0000000000000000",
+        "zero_threshold": "0000000000000000"
+      }
+    },
+    {
+      "id": "TestFloatHistogramCompact:011",
+      "mode": "float-compact",
+      "request": {
+        "input": {
+          "count": "0000000000000000",
+          "custom_values": null,
+          "negative_buckets": null,
+          "negative_spans": null,
+          "positive_buckets": [
+            "0000000000000000",
+            "0000000000000000",
+            "3ff0000000000000",
+            "0000000000000000",
+            "0000000000000000",
+            "400a666666666666",
+            "4010cccccccccccd",
+            "3fb999999999999a",
+            "400a666666666666"
+          ],
+          "positive_spans": [
+            {
+              "Offset": -4,
+              "Length": 3
+            },
+            {
+              "Offset": 2,
+              "Length": 2
+            },
+            {
+              "Offset": 3,
+              "Length": 4
+            }
+          ],
+          "reset_hint": 0,
+          "schema": 0,
+          "sum": "0000000000000000",
+          "zero_count": "0000000000000000",
+          "zero_threshold": "0000000000000000"
+        },
+        "max_empty": 0
+      },
+      "declared": {
+        "count": "0000000000000000",
+        "custom_values": null,
+        "negative_buckets": null,
+        "negative_spans": null,
+        "positive_buckets": [
+          "3ff0000000000000",
+          "400a666666666666",
+          "4010cccccccccccd",
+          "3fb999999999999a",
+          "400a666666666666"
+        ],
+        "positive_spans": [
+          {
+            "Offset": -2,
+            "Length": 1
+          },
+          {
+            "Offset": 7,
+            "Length": 4
+          }
+        ],
+        "reset_hint": 0,
+        "schema": 0,
+        "sum": "0000000000000000",
+        "zero_count": "0000000000000000",
+        "zero_threshold": "0000000000000000"
+      }
+    },
+    {
+      "id": "TestFloatHistogramCompact:012",
+      "mode": "float-compact",
+      "request": {
+        "input": {
+          "count": "0000000000000000",
+          "custom_values": null,
+          "negative_buckets": null,
+          "negative_spans": null,
+          "positive_buckets": [
+            "3ff0000000000000",
+            "0000000000000000",
+            "0000000000000000",
+            "400a666666666666"
+          ],
+          "positive_spans": [
+            {
+              "Offset": -2,
+              "Length": 4
+            }
+          ],
+          "reset_hint": 0,
+          "schema": 0,
+          "sum": "0000000000000000",
+          "zero_count": "0000000000000000",
+          "zero_threshold": "0000000000000000"
+        },
+        "max_empty": 1
+      },
+      "declared": {
+        "count": "0000000000000000",
+        "custom_values": null,
+        "negative_buckets": null,
+        "negative_spans": null,
+        "positive_buckets": [
+          "3ff0000000000000",
+          "400a666666666666"
+        ],
+        "positive_spans": [
+          {
+            "Offset": -2,
+            "Length": 1
+          },
+          {
+            "Offset": 2,
+            "Length": 1
+          }
+        ],
+        "reset_hint": 0,
+        "schema": 0,
+        "sum": "0000000000000000",
+        "zero_count": "0000000000000000",
+        "zero_threshold": "0000000000000000"
+      }
+    },
+    {
+      "id": "TestFloatHistogramCompact:013",
+      "mode": "float-compact",
+      "request": {
+        "input": {
+          "count": "0000000000000000",
+          "custom_values": null,
+          "negative_buckets": null,
+          "negative_spans": null,
+          "positive_buckets": [
+            "3ff0000000000000",
+            "0000000000000000",
+            "0000000000000000",
+            "400a666666666666",
+            "4010cccccccccccd"
+          ],
+          "positive_spans": [
+            {
+              "Offset": -2,
+              "Length": 4
+            },
+            {
+              "Offset": 3,
+              "Length": 1
+            }
+          ],
+          "reset_hint": 0,
+          "schema": 0,
+          "sum": "0000000000000000",
+          "zero_count": "0000000000000000",
+          "zero_threshold": "0000000000000000"
+        },
+        "max_empty": 1
+      },
+      "declared": {
+        "count": "0000000000000000",
+        "custom_values": null,
+        "negative_buckets": null,
+        "negative_spans": null,
+        "positive_buckets": [
+          "3ff0000000000000",
+          "400a666666666666",
+          "4010cccccccccccd"
+        ],
+        "positive_spans": [
+          {
+            "Offset": -2,
+            "Length": 1
+          },
+          {
+            "Offset": 2,
+            "Length": 1
+          },
+          {
+            "Offset": 3,
+            "Length": 1
+          }
+        ],
+        "reset_hint": 0,
+        "schema": 0,
+        "sum": "0000000000000000",
+        "zero_count": "0000000000000000",
+        "zero_threshold": "0000000000000000"
+      }
+    },
+    {
+      "id": "TestFloatHistogramCompact:014",
+      "mode": "float-compact",
+      "request": {
+        "input": {
+          "count": "0000000000000000",
+          "custom_values": null,
+          "negative_buckets": [
+            "4008cccccccccccd",
+            "4008000000000000",
+            "40fe208000000000",
+            "408f400000000000",
+            "0000000000000000",
+            "4008000000000000",
+            "4010000000000000"
+          ],
+          "negative_spans": [
+            {
+              "Offset": 0,
+              "Length": 2
+            },
+            {
+              "Offset": 3,
+              "Length": 5
+            }
+          ],
+          "positive_buckets": [
+            "0000000000000000",
+            "0000000000000000",
+            "3ff0000000000000",
+            "0000000000000000",
+            "0000000000000000",
+            "400a666666666666",
+            "4010cccccccccccd",
+            "3fb999999999999a",
+            "400a666666666666",
+            "4000000000000000",
+            "4008000000000000"
+          ],
+          "positive_spans": [
+            {
+              "Offset": -4,
+              "Length": 6
+            },
+            {
+              "Offset": 3,
+              "Length": 3
+            },
+            {
+              "Offset": 10,
+              "Length": 2
+            }
+          ],
+          "reset_hint": 0,
+          "schema": 0,
+          "sum": "0000000000000000",
+          "zero_count": "0000000000000000",
+          "zero_threshold": "0000000000000000"
+        },
+        "max_empty": 1
+      },
+      "declared": {
+        "count": "0000000000000000",
+        "custom_values": null,
+        "negative_buckets": [
+          "4008cccccccccccd",
+          "4008000000000000",
+          "40fe208000000000",
+          "408f400000000000",
+          "0000000000000000",
+          "4008000000000000",
+          "4010000000000000"
+        ],
+        "negative_spans": [
+          {
+            "Offset": 0,
+            "Length": 2
+          },
+          {
+            "Offset": 3,
+            "Length": 5
+          }
+        ],
+        "positive_buckets": [
+          "3ff0000000000000",
+          "400a666666666666",
+          "4010cccccccccccd",
+          "3fb999999999999a",
+          "400a666666666666",
+          "4000000000000000",
+          "4008000000000000"
+        ],
+        "positive_spans": [
+          {
+            "Offset": -2,
+            "Length": 1
+          },
+          {
+            "Offset": 2,
+            "Length": 1
+          },
+          {
+            "Offset": 3,
+            "Length": 3
+          },
+          {
+            "Offset": 10,
+            "Length": 2
+          }
+        ],
+        "reset_hint": 0,
+        "schema": 0,
+        "sum": "0000000000000000",
+        "zero_count": "0000000000000000",
+        "zero_threshold": "0000000000000000"
+      }
+    },
+    {
+      "id": "TestFloatHistogramCompact:015",
+      "mode": "float-compact",
+      "request": {
+        "input": {
+          "count": "0000000000000000",
+          "custom_values": null,
+          "negative_buckets": [
+            "4008cccccccccccd",
+            "4008000000000000",
+            "40fe208000000000",
+            "408f400000000000",
+            "0000000000000000",
+            "4008000000000000",
+            "4010000000000000"
+          ],
+          "negative_spans": [
+            {
+              "Offset": 0,
+              "Length": 2
+            },
+            {
+              "Offset": 3,
+              "Length": 5
+            }
+          ],
+          "positive_buckets": [
+            "0000000000000000",
+            "0000000000000000",
+            "3ff0000000000000",
+            "0000000000000000",
+            "0000000000000000",
+            "400a666666666666",
+            "4010cccccccccccd",
+            "3fb999999999999a",
+            "400a666666666666"
+          ],
+          "positive_spans": [
+            {
+              "Offset": -4,
+              "Length": 6
+            },
+            {
+              "Offset": 3,
+              "Length": 3
+            }
+          ],
+          "reset_hint": 0,
+          "schema": 0,
+          "sum": "0000000000000000",
+          "zero_count": "0000000000000000",
+          "zero_threshold": "0000000000000000"
+        },
+        "max_empty": 2
+      },
+      "declared": {
+        "count": "0000000000000000",
+        "custom_values": null,
+        "negative_buckets": [
+          "4008cccccccccccd",
+          "4008000000000000",
+          "40fe208000000000",
+          "408f400000000000",
+          "0000000000000000",
+          "4008000000000000",
+          "4010000000000000"
+        ],
+        "negative_spans": [
+          {
+            "Offset": 0,
+            "Length": 2
+          },
+          {
+            "Offset": 3,
+            "Length": 5
+          }
+        ],
+        "positive_buckets": [
+          "3ff0000000000000",
+          "0000000000000000",
+          "0000000000000000",
+          "400a666666666666",
+          "4010cccccccccccd",
+          "3fb999999999999a",
+          "400a666666666666"
+        ],
+        "positive_spans": [
+          {
+            "Offset": -2,
+            "Length": 4
+          },
+          {
+            "Offset": 3,
+            "Length": 3
+          }
+        ],
+        "reset_hint": 0,
+        "schema": 0,
+        "sum": "0000000000000000",
+        "zero_count": "0000000000000000",
+        "zero_threshold": "0000000000000000"
+      }
+    },
+    {
+      "id": "TestFloatHistogramCompact:016",
+      "mode": "float-compact",
+      "request": {
+        "input": {
+          "count": "0000000000000000",
+          "custom_values": null,
+          "negative_buckets": [
+            "4008cccccccccccd",
+            "4008000000000000",
+            "40fe208000000000",
+            "408f400000000000",
+            "0000000000000000",
+            "4008000000000000",
+            "4010000000000000"
+          ],
+          "negative_spans": [
+            {
+              "Offset": 0,
+              "Length": 2
+            },
+            {
+              "Offset": 3,
+              "Length": 5
+            }
+          ],
+          "positive_buckets": [
+            "0000000000000000",
+            "0000000000000000",
+            "3ff0000000000000",
+            "0000000000000000",
+            "0000000000000000",
+            "400a666666666666",
+            "4010cccccccccccd",
+            "3fb999999999999a",
+            "400a666666666666"
+          ],
+          "positive_spans": [
+            {
+              "Offset": -4,
+              "Length": 6
+            },
+            {
+              "Offset": 3,
+              "Length": 3
+            }
+          ],
+          "reset_hint": 0,
+          "schema": 0,
+          "sum": "0000000000000000",
+          "zero_count": "0000000000000000",
+          "zero_threshold": "0000000000000000"
+        },
+        "max_empty": 3
+      },
+      "declared": {
+        "count": "0000000000000000",
+        "custom_values": null,
+        "negative_buckets": [
+          "4008cccccccccccd",
+          "4008000000000000",
+          "0000000000000000",
+          "0000000000000000",
+          "0000000000000000",
+          "40fe208000000000",
+          "408f400000000000",
+          "0000000000000000",
+          "4008000000000000",
+          "4010000000000000"
+        ],
+        "negative_spans": [
+          {
+            "Offset": 0,
+            "Length": 10
+          }
+        ],
+        "positive_buckets": [
+          "3ff0000000000000",
+          "0000000000000000",
+          "0000000000000000",
+          "400a666666666666",
+          "0000000000000000",
+          "0000000000000000",
+          "0000000000000000",
+          "4010cccccccccccd",
+          "3fb999999999999a",
+          "400a666666666666"
+        ],
+        "positive_spans": [
+          {
+            "Offset": -2,
+            "Length": 10
+          }
+        ],
+        "reset_hint": 0,
+        "schema": 0,
+        "sum": "0000000000000000",
+        "zero_count": "0000000000000000",
+        "zero_threshold": "0000000000000000"
+      }
+    },
+    {
+      "id": "TestFloatHistogramCompact:017",
+      "mode": "float-compact",
+      "request": {
+        "input": {
+          "count": "0000000000000000",
+          "custom_values": null,
+          "negative_buckets": [
+            "4008cccccccccccd",
+            "408f400000000000",
+            "4010000000000000"
+          ],
+          "negative_spans": [
+            {
+              "Offset": 0,
+              "Length": 1
+            },
+            {
+              "Offset": 1,
+              "Length": 1
+            },
+            {
+              "Offset": 1,
+              "Length": 1
+            }
+          ],
+          "positive_buckets": [
+            "3ff0000000000000",
+            "400a666666666666",
+            "4010cccccccccccd",
+            "3fb999999999999a",
+            "400a666666666666",
+            "4000000000000000"
+          ],
+          "positive_spans": [
+            {
+              "Offset": -2,
+              "Length": 2
+            },
+            {
+              "Offset": 2,
+              "Length": 2
+            },
+            {
+              "Offset": 2,
+              "Length": 2
+            }
+          ],
+          "reset_hint": 0,
+          "schema": 0,
+          "sum": "0000000000000000",
+          "zero_count": "0000000000000000",
+          "zero_threshold": "0000000000000000"
+        },
+        "max_empty": 3
+      },
+      "declared": {
+        "count": "0000000000000000",
+        "custom_values": null,
+        "negative_buckets": [
+          "4008cccccccccccd",
+          "0000000000000000",
+          "408f400000000000",
+          "0000000000000000",
+          "4010000000000000"
+        ],
+        "negative_spans": [
+          {
+            "Offset": 0,
+            "Length": 5
+          }
+        ],
+        "positive_buckets": [
+          "3ff0000000000000",
+          "400a666666666666",
+          "0000000000000000",
+          "0000000000000000",
+          "4010cccccccccccd",
+          "3fb999999999999a",
+          "0000000000000000",
+          "0000000000000000",
+          "400a666666666666",
+          "4000000000000000"
+        ],
+        "positive_spans": [
+          {
+            "Offset": -2,
+            "Length": 10
+          }
+        ],
+        "reset_hint": 0,
+        "schema": 0,
+        "sum": "0000000000000000",
+        "zero_count": "0000000000000000",
+        "zero_threshold": "0000000000000000"
+      }
+    },
+    {
+      "id": "TestFloatHistogramCompact:018",
+      "mode": "float-compact",
+      "request": {
+        "input": {
+          "count": "0000000000000000",
+          "custom_values": null,
+          "negative_buckets": [
+            "0000000000000000",
+            "0000000000000000",
+            "0000000000000000",
+            "0000000000000000",
+            "0000000000000000",
+            "0000000000000000",
+            "0000000000000000"
+          ],
+          "negative_spans": [
+            {
+              "Offset": 0,
+              "Length": 7
+            }
+          ],
+          "positive_buckets": [
+            "0000000000000000",
+            "0000000000000000",
+            "0000000000000000",
+            "0000000000000000",
+            "0000000000000000",
+            "0000000000000000",
+            "0000000000000000",
+            "0000000000000000",
+            "0000000000000000"
+          ],
+          "positive_spans": [
+            {
+              "Offset": -4,
+              "Length": 6
+            },
+            {
+              "Offset": 3,
+              "Length": 3
+            }
+          ],
+          "reset_hint": 0,
+          "schema": 0,
+          "sum": "0000000000000000",
+          "zero_count": "0000000000000000",
+          "zero_threshold": "0000000000000000"
+        },
+        "max_empty": 3
+      },
+      "declared": {
+        "count": "0000000000000000",
+        "custom_values": null,
+        "negative_buckets": [],
+        "negative_spans": [],
+        "positive_buckets": [],
+        "positive_spans": [],
+        "reset_hint": 0,
+        "schema": 0,
+        "sum": "0000000000000000",
+        "zero_count": "0000000000000000",
+        "zero_threshold": "0000000000000000"
+      }
+    },
+    {
+      "id": "TestFloatHistogramCompact:019",
+      "mode": "float-compact",
+      "request": {
+        "input": {
+          "count": "0000000000000000",
+          "custom_values": null,
+          "negative_buckets": [
+            "4000000000000000",
+            "4008000000000000",
+            "0000000000000000",
+            "0000000000000000",
+            "0000000000000000",
+            "0000000000000000"
+          ],
+          "negative_spans": [
+            {
+              "Offset": -10,
+              "Length": 2
+            },
+            {
+              "Offset": 2,
+              "Length": 1
+            },
+            {
+              "Offset": 3,
+              "Length": 3
+            }
+          ],
+          "positive_buckets": [
+            "0000000000000000",
+            "0000000000000000",
+            "0000000000000000",
+            "0000000000000000",
+            "4000000000000000",
+            "4008000000000000"
+          ],
+          "positive_spans": [
+            {
+              "Offset": -10,
+              "Length": 2
+            },
+            {
+              "Offset": 2,
+              "Length": 1
+            },
+            {
+              "Offset": 3,
+              "Length": 3
+            }
+          ],
+          "reset_hint": 0,
+          "schema": 0,
+          "sum": "0000000000000000",
+          "zero_count": "0000000000000000",
+          "zero_threshold": "0000000000000000"
+        },
+        "max_empty": 0
+      },
+      "declared": {
+        "count": "0000000000000000",
+        "custom_values": null,
+        "negative_buckets": [
+          "4000000000000000",
+          "4008000000000000"
+        ],
+        "negative_spans": [
+          {
+            "Offset": -10,
+            "Length": 2
+          }
+        ],
+        "positive_buckets": [
+          "4000000000000000",
+          "4008000000000000"
+        ],
+        "positive_spans": [
+          {
+            "Offset": -1,
+            "Length": 2
+          }
+        ],
+        "reset_hint": 0,
+        "schema": 0,
+        "sum": "0000000000000000",
+        "zero_count": "0000000000000000",
+        "zero_threshold": "0000000000000000"
+      }
+    },
+    {
+      "id": "TestFloatHistogramCompact:020",
+      "mode": "float-compact",
+      "request": {
+        "input": {
+          "count": "0000000000000000",
+          "custom_values": [
+            "3ff0000000000000",
+            "4000000000000000",
+            "4008000000000000"
+          ],
+          "negative_buckets": null,
+          "negative_spans": null,
+          "positive_buckets": [
+            "3ff0000000000000",
+            "400a666666666666",
+            "4010cccccccccccd",
+            "3fb999999999999a"
+          ],
+          "positive_spans": [
+            {
+              "Offset": 0,
+              "Length": 1
+            },
+            {
+              "Offset": 2,
+              "Length": 3
+            }
+          ],
+          "reset_hint": 0,
+          "schema": -53,
+          "sum": "0000000000000000",
+          "zero_count": "0000000000000000",
+          "zero_threshold": "0000000000000000"
+        },
+        "max_empty": 0
+      },
+      "declared": {
+        "count": "0000000000000000",
+        "custom_values": [
+          "3ff0000000000000",
+          "4000000000000000",
+          "4008000000000000"
+        ],
+        "negative_buckets": null,
+        "negative_spans": null,
+        "positive_buckets": [
+          "3ff0000000000000",
+          "400a666666666666",
+          "4010cccccccccccd",
+          "3fb999999999999a"
+        ],
+        "positive_spans": [
+          {
+            "Offset": 0,
+            "Length": 1
+          },
+          {
+            "Offset": 2,
+            "Length": 3
+          }
+        ],
+        "reset_hint": 0,
+        "schema": -53,
+        "sum": "0000000000000000",
+        "zero_count": "0000000000000000",
+        "zero_threshold": "0000000000000000"
+      }
+    },
+    {
+      "id": "TestFloatHistogramCompact:021",
+      "mode": "float-compact",
+      "request": {
+        "input": {
+          "count": "0000000000000000",
+          "custom_values": [
+            "3ff0000000000000",
+            "4000000000000000",
+            "4008000000000000",
+            "4010000000000000"
+          ],
+          "negative_buckets": null,
+          "negative_spans": null,
+          "positive_buckets": [
+            "3ff0000000000000",
+            "400a666666666666",
+            "4010cccccccccccd",
+            "3fb999999999999a",
+            "400a666666666666"
+          ],
+          "positive_spans": [
+            {
+              "Offset": 0,
+              "Length": 1
+            },
+            {
+              "Offset": 0,
+              "Length": 3
+            },
+            {
+              "Offset": 0,
+              "Length": 1
+            }
+          ],
+          "reset_hint": 0,
+          "schema": -53,
+          "sum": "0000000000000000",
+          "zero_count": "0000000000000000",
+          "zero_threshold": "0000000000000000"
+        },
+        "max_empty": 0
+      },
+      "declared": {
+        "count": "0000000000000000",
+        "custom_values": [
+          "3ff0000000000000",
+          "4000000000000000",
+          "4008000000000000",
+          "4010000000000000"
+        ],
+        "negative_buckets": null,
+        "negative_spans": null,
+        "positive_buckets": [
+          "3ff0000000000000",
+          "400a666666666666",
+          "4010cccccccccccd",
+          "3fb999999999999a",
+          "400a666666666666"
+        ],
+        "positive_spans": [
+          {
+            "Offset": 0,
+            "Length": 5
+          }
+        ],
+        "reset_hint": 0,
+        "schema": -53,
+        "sum": "0000000000000000",
+        "zero_count": "0000000000000000",
+        "zero_threshold": "0000000000000000"
+      }
+    },
+    {
+      "id": "TestFloatHistogramCompact:022",
+      "mode": "float-compact",
+      "request": {
+        "input": {
+          "count": "0000000000000000",
+          "custom_values": [
+            "3ff0000000000000",
+            "4000000000000000",
+            "4008000000000000",
+            "4010000000000000"
+          ],
+          "negative_buckets": null,
+          "negative_spans": null,
+          "positive_buckets": [
+            "3ff0000000000000",
+            "400a666666666666",
+            "4010cccccccccccd",
+            "3fb999999999999a",
+            "400a666666666666"
+          ],
+          "positive_spans": [
+            {
+              "Offset": 0,
+              "Length": 2
+            },
+            {
+              "Offset": 2,
+              "Length": 0
+            },
+            {
+              "Offset": 2,
+              "Length": 0
+            },
+            {
+              "Offset": 2,
+              "Length": 0
+            },
+            {
+              "Offset": 3,
+              "Length": 3
+            }
+          ],
+          "reset_hint": 0,
+          "schema": -53,
+          "sum": "0000000000000000",
+          "zero_count": "0000000000000000",
+          "zero_threshold": "0000000000000000"
+        },
+        "max_empty": 0
+      },
+      "declared": {
+        "count": "0000000000000000",
+        "custom_values": [
+          "3ff0000000000000",
+          "4000000000000000",
+          "4008000000000000",
+          "4010000000000000"
+        ],
+        "negative_buckets": null,
+        "negative_spans": null,
+        "positive_buckets": [
+          "3ff0000000000000",
+          "400a666666666666",
+          "4010cccccccccccd",
+          "3fb999999999999a",
+          "400a666666666666"
+        ],
+        "positive_spans": [
+          {
+            "Offset": 0,
+            "Length": 2
+          },
+          {
+            "Offset": 9,
+            "Length": 3
+          }
+        ],
+        "reset_hint": 0,
+        "schema": -53,
+        "sum": "0000000000000000",
+        "zero_count": "0000000000000000",
+        "zero_threshold": "0000000000000000"
+      }
+    },
+    {
+      "id": "TestFloatHistogramCompact:023",
+      "mode": "float-compact",
+      "request": {
+        "input": {
+          "count": "0000000000000000",
+          "custom_values": [
+            "3ff0000000000000",
+            "4000000000000000",
+            "4008000000000000",
+            "4010000000000000",
+            "4014000000000000",
+            "4018000000000000",
+            "401c000000000000",
+            "4020000000000000",
+            "4022000000000000"
+          ],
+          "negative_buckets": null,
+          "negative_spans": null,
+          "positive_buckets": [
+            "0000000000000000",
+            "0000000000000000",
+            "3ff0000000000000",
+            "400a666666666666",
+            "4010cccccccccccd",
+            "3fb999999999999a",
+            "400a666666666666",
+            "0000000000000000",
+            "0000000000000000",
+            "0000000000000000"
+          ],
+          "positive_spans": [
+            {
+              "Offset": 0,
+              "Length": 4
+            },
+            {
+              "Offset": 5,
+              "Length": 6
+            }
+          ],
+          "reset_hint": 0,
+          "schema": -53,
+          "sum": "0000000000000000",
+          "zero_count": "0000000000000000",
+          "zero_threshold": "0000000000000000"
+        },
+        "max_empty": 0
+      },
+      "declared": {
+        "count": "0000000000000000",
+        "custom_values": [
+          "3ff0000000000000",
+          "4000000000000000",
+          "4008000000000000",
+          "4010000000000000",
+          "4014000000000000",
+          "4018000000000000",
+          "401c000000000000",
+          "4020000000000000",
+          "4022000000000000"
+        ],
+        "negative_buckets": null,
+        "negative_spans": null,
+        "positive_buckets": [
+          "3ff0000000000000",
+          "400a666666666666",
+          "4010cccccccccccd",
+          "3fb999999999999a",
+          "400a666666666666"
+        ],
+        "positive_spans": [
+          {
+            "Offset": 2,
+            "Length": 2
+          },
+          {
+            "Offset": 5,
+            "Length": 3
+          }
+        ],
+        "reset_hint": 0,
+        "schema": -53,
+        "sum": "0000000000000000",
+        "zero_count": "0000000000000000",
+        "zero_threshold": "0000000000000000"
+      }
+    },
+    {
+      "id": "TestFloatHistogramCopyToSchema:000",
+      "mode": "float-copy-to-schema",
+      "request": {
+        "input": {
+          "count": "403e000000000000",
+          "custom_values": null,
+          "negative_buckets": [
+            "4008000000000000",
+            "3fe0000000000000",
+            "3fe0000000000000",
+            "4000000000000000",
+            "4008000000000000",
+            "4000000000000000",
+            "4010000000000000"
+          ],
+          "negative_spans": [
+            {
+              "Offset": 6,
+              "Length": 3
+            },
+            {
+              "Offset": 6,
+              "Length": 4
+            }
+          ],
+          "positive_buckets": [
+            "3ff0000000000000",
+            "0000000000000000",
+            "0000000000000000",
+            "4008000000000000",
+            "4000000000000000",
+            "4000000000000000",
+            "4008000000000000",
+            "4010000000000000"
+          ],
+          "positive_spans": [
+            {
+              "Offset": -4,
+              "Length": 3
+            },
+            {
+              "Offset": 5,
+              "Length": 5
+            }
+          ],
+          "reset_hint": 0,
+          "schema": 1,
+          "sum": "4002c28f5c28f5c3",
+          "zero_count": "4026000000000000",
+          "zero_threshold": "3f847ae147ae147b"
+        },
+        "target_schema": 1
+      },
+      "declared": {
+        "input_after": {
+          "count": "403e000000000000",
+          "custom_values": null,
+          "negative_buckets": [
+            "4008000000000000",
+            "3fe0000000000000",
+            "3fe0000000000000",
+            "4000000000000000",
+            "4008000000000000",
+            "4000000000000000",
+            "4010000000000000"
+          ],
+          "negative_spans": [
+            {
+              "Offset": 6,
+              "Length": 3
+            },
+            {
+              "Offset": 6,
+              "Length": 4
+            }
+          ],
+          "positive_buckets": [
+            "3ff0000000000000",
+            "0000000000000000",
+            "0000000000000000",
+            "4008000000000000",
+            "4000000000000000",
+            "4000000000000000",
+            "4008000000000000",
+            "4010000000000000"
+          ],
+          "positive_spans": [
+            {
+              "Offset": -4,
+              "Length": 3
+            },
+            {
+              "Offset": 5,
+              "Length": 5
+            }
+          ],
+          "reset_hint": 0,
+          "schema": 1,
+          "sum": "4002c28f5c28f5c3",
+          "zero_count": "4026000000000000",
+          "zero_threshold": "3f847ae147ae147b"
+        },
+        "result": {
+          "count": "403e000000000000",
+          "custom_values": null,
+          "negative_buckets": [
+            "4008000000000000",
+            "3fe0000000000000",
+            "3fe0000000000000",
+            "4000000000000000",
+            "4008000000000000",
+            "4000000000000000",
+            "4010000000000000"
+          ],
+          "negative_spans": [
+            {
+              "Offset": 6,
+              "Length": 3
+            },
+            {
+              "Offset": 6,
+              "Length": 4
+            }
+          ],
+          "positive_buckets": [
+            "3ff0000000000000",
+            "0000000000000000",
+            "0000000000000000",
+            "4008000000000000",
+            "4000000000000000",
+            "4000000000000000",
+            "4008000000000000",
+            "4010000000000000"
+          ],
+          "positive_spans": [
+            {
+              "Offset": -4,
+              "Length": 3
+            },
+            {
+              "Offset": 5,
+              "Length": 5
+            }
+          ],
+          "reset_hint": 0,
+          "schema": 1,
+          "sum": "4002c28f5c28f5c3",
+          "zero_count": "4026000000000000",
+          "zero_threshold": "3f847ae147ae147b"
+        }
+      }
+    },
+    {
+      "id": "TestFloatHistogramCopyToSchema:001",
+      "mode": "float-copy-to-schema",
+      "request": {
+        "input": {
+          "count": "403e000000000000",
+          "custom_values": null,
+          "negative_buckets": [
+            "4008000000000000",
+            "3fe0000000000000",
+            "3fe0000000000000",
+            "4000000000000000",
+            "4008000000000000",
+            "4000000000000000",
+            "4010000000000000"
+          ],
+          "negative_spans": [
+            {
+              "Offset": 6,
+              "Length": 3
+            },
+            {
+              "Offset": 6,
+              "Length": 4
+            }
+          ],
+          "positive_buckets": [
+            "3ff0000000000000",
+            "0000000000000000",
+            "0000000000000000",
+            "4008000000000000",
+            "4000000000000000",
+            "4000000000000000",
+            "4008000000000000",
+            "4010000000000000"
+          ],
+          "positive_spans": [
+            {
+              "Offset": -4,
+              "Length": 3
+            },
+            {
+              "Offset": 5,
+              "Length": 5
+            }
+          ],
+          "reset_hint": 0,
+          "schema": 1,
+          "sum": "4002c28f5c28f5c3",
+          "zero_count": "4026000000000000",
+          "zero_threshold": "3f847ae147ae147b"
+        },
+        "target_schema": 0
+      },
+      "declared": {
+        "input_after": {
+          "count": "403e000000000000",
+          "custom_values": null,
+          "negative_buckets": [
+            "4008000000000000",
+            "3fe0000000000000",
+            "3fe0000000000000",
+            "4000000000000000",
+            "4008000000000000",
+            "4000000000000000",
+            "4010000000000000"
+          ],
+          "negative_spans": [
+            {
+              "Offset": 6,
+              "Length": 3
+            },
+            {
+              "Offset": 6,
+              "Length": 4
+            }
+          ],
+          "positive_buckets": [
+            "3ff0000000000000",
+            "0000000000000000",
+            "0000000000000000",
+            "4008000000000000",
+            "4000000000000000",
+            "4000000000000000",
+            "4008000000000000",
+            "4010000000000000"
+          ],
+          "positive_spans": [
+            {
+              "Offset": -4,
+              "Length": 3
+            },
+            {
+              "Offset": 5,
+              "Length": 5
+            }
+          ],
+          "reset_hint": 0,
+          "schema": 1,
+          "sum": "4002c28f5c28f5c3",
+          "zero_count": "4026000000000000",
+          "zero_threshold": "3f847ae147ae147b"
+        },
+        "result": {
+          "count": "403e000000000000",
+          "custom_values": null,
+          "negative_buckets": [
+            "4008000000000000",
+            "3ff0000000000000",
+            "4014000000000000",
+            "4018000000000000"
+          ],
+          "negative_spans": [
+            {
+              "Offset": 3,
+              "Length": 2
+            },
+            {
+              "Offset": 3,
+              "Length": 2
+            }
+          ],
+          "positive_buckets": [
+            "3ff0000000000000",
+            "0000000000000000",
+            "4008000000000000",
+            "4010000000000000",
+            "401c000000000000"
+          ],
+          "positive_spans": [
+            {
+              "Offset": -2,
+              "Length": 2
+            },
+            {
+              "Offset": 2,
+              "Length": 3
+            }
+          ],
+          "reset_hint": 0,
+          "schema": 0,
+          "sum": "4002c28f5c28f5c3",
+          "zero_count": "4026000000000000",
+          "zero_threshold": "3f847ae147ae147b"
+        }
+      }
+    },
+    {
+      "id": "TestFloatHistogramCopyToSchema:002",
+      "mode": "float-copy-to-schema",
+      "request": {
+        "input": {
+          "count": "403e000000000000",
+          "custom_values": [
+            "3ff0000000000000",
+            "4000000000000000",
+            "4008000000000000",
+            "4010000000000000",
+            "4014000000000000",
+            "4018000000000000",
+            "401c000000000000"
+          ],
+          "negative_buckets": null,
+          "negative_spans": null,
+          "positive_buckets": [
+            "3ff0000000000000",
+            "0000000000000000",
+            "0000000000000000",
+            "4008000000000000",
+            "4000000000000000",
+            "4000000000000000",
+            "4008000000000000",
+            "4010000000000000"
+          ],
+          "positive_spans": [
+            {
+              "Offset": 0,
+              "Length": 3
+            },
+            {
+              "Offset": 5,
+              "Length": 5
+            }
+          ],
+          "reset_hint": 0,
+          "schema": -53,
+          "sum": "4002c28f5c28f5c3",
+          "zero_count": "0000000000000000",
+          "zero_threshold": "0000000000000000"
+        },
+        "target_schema": -53
+      },
+      "declared": {
+        "input_after": {
+          "count": "403e000000000000",
+          "custom_values": [
+            "3ff0000000000000",
+            "4000000000000000",
+            "4008000000000000",
+            "4010000000000000",
+            "4014000000000000",
+            "4018000000000000",
+            "401c000000000000"
+          ],
+          "negative_buckets": null,
+          "negative_spans": null,
+          "positive_buckets": [
+            "3ff0000000000000",
+            "0000000000000000",
+            "0000000000000000",
+            "4008000000000000",
+            "4000000000000000",
+            "4000000000000000",
+            "4008000000000000",
+            "4010000000000000"
+          ],
+          "positive_spans": [
+            {
+              "Offset": 0,
+              "Length": 3
+            },
+            {
+              "Offset": 5,
+              "Length": 5
+            }
+          ],
+          "reset_hint": 0,
+          "schema": -53,
+          "sum": "4002c28f5c28f5c3",
+          "zero_count": "0000000000000000",
+          "zero_threshold": "0000000000000000"
+        },
+        "result": {
+          "count": "403e000000000000",
+          "custom_values": [
+            "3ff0000000000000",
+            "4000000000000000",
+            "4008000000000000",
+            "4010000000000000",
+            "4014000000000000",
+            "4018000000000000",
+            "401c000000000000"
+          ],
+          "negative_buckets": null,
+          "negative_spans": null,
+          "positive_buckets": [
+            "3ff0000000000000",
+            "0000000000000000",
+            "0000000000000000",
+            "4008000000000000",
+            "4000000000000000",
+            "4000000000000000",
+            "4008000000000000",
+            "4010000000000000"
+          ],
+          "positive_spans": [
+            {
+              "Offset": 0,
+              "Length": 3
+            },
+            {
+              "Offset": 5,
+              "Length": 5
+            }
+          ],
+          "reset_hint": 0,
+          "schema": -53,
+          "sum": "4002c28f5c28f5c3",
+          "zero_count": "0000000000000000",
+          "zero_threshold": "0000000000000000"
+        }
+      }
+    },
+    {
+      "id": "TestFloatHistogramReduceResolution:negative offset",
+      "mode": "float-reduce-resolution",
+      "request": {
+        "input": {
+          "count": "0000000000000000",
+          "custom_values": null,
+          "negative_buckets": null,
+          "negative_spans": null,
+          "positive_buckets": [
+            "3ff0000000000000",
+            "4008000000000000",
+            "3ff0000000000000",
+            "4000000000000000",
+            "3ff0000000000000",
+            "3ff0000000000000"
+          ],
+          "positive_spans": [
+            {
+              "Offset": -2,
+              "Length": 4
+            },
+            {
+              "Offset": -1,
+              "Length": 0
+            },
+            {
+              "Offset": 3,
+              "Length": 2
+            }
+          ],
+          "reset_hint": 0,
+          "schema": 0,
+          "sum": "0000000000000000",
+          "zero_count": "0000000000000000",
+          "zero_threshold": "0000000000000000"
+        },
+        "target_schema": -1
+      },
+      "declared": {
+        "error": "span number 2 with offset -1: histogram has a span whose offset is negative",
+        "histogram_error": true,
+        "result": null
+      }
+    },
+    {
+      "id": "TestFloatHistogramReduceResolution:not enough buckets",
+      "mode": "float-reduce-resolution",
+      "request": {
+        "input": {
+          "count": "0000000000000000",
+          "custom_values": null,
+          "negative_buckets": null,
+          "negative_spans": null,
+          "positive_buckets": [
+            "3ff0000000000000",
+            "4008000000000000",
+            "3ff0000000000000",
+            "4000000000000000",
+            "3ff0000000000000"
+          ],
+          "positive_spans": [
+            {
+              "Offset": -2,
+              "Length": 4
+            },
+            {
+              "Offset": 0,
+              "Length": 0
+            },
+            {
+              "Offset": 3,
+              "Length": 2
+            }
+          ],
+          "reset_hint": 0,
+          "schema": 0,
+          "sum": "0000000000000000",
+          "zero_count": "0000000000000000",
+          "zero_threshold": "0000000000000000"
+        },
+        "target_schema": -1
+      },
+      "declared": {
+        "error": "have 5 buckets but spans need more: histogram spans specify different number of buckets than provided",
+        "histogram_error": true,
+        "result": null
+      }
+    },
+    {
+      "id": "TestFloatHistogramReduceResolution:too many buckets",
+      "mode": "float-reduce-resolution",
+      "request": {
+        "input": {
+          "count": "0000000000000000",
+          "custom_values": null,
+          "negative_buckets": null,
+          "negative_spans": null,
+          "positive_buckets": [
+            "3ff0000000000000",
+            "4008000000000000",
+            "3ff0000000000000",
+            "4000000000000000",
+            "3ff0000000000000",
+            "3ff0000000000000",
+            "4014000000000000"
+          ],
+          "positive_spans": [
+            {
+              "Offset": -2,
+              "Length": 4
+            },
+            {
+              "Offset": 0,
+              "Length": 0
+            },
+            {
+              "Offset": 3,
+              "Length": 2
+            }
+          ],
+          "reset_hint": 0,
+          "schema": 0,
+          "sum": "0000000000000000",
+          "zero_count": "0000000000000000",
+          "zero_threshold": "0000000000000000"
+        },
+        "target_schema": -1
+      },
+      "declared": {
+        "error": "spans need 6 buckets, have 7 buckets: histogram spans specify different number of buckets than provided",
+        "histogram_error": true,
+        "result": null
+      }
+    },
+    {
+      "id": "TestFloatHistogramReduceResolution:valid float histogram",
+      "mode": "float-reduce-resolution",
+      "request": {
+        "input": {
+          "count": "0000000000000000",
+          "custom_values": null,
+          "negative_buckets": [
+            "3ff0000000000000",
+            "4008000000000000",
+            "3ff0000000000000",
+            "4000000000000000",
+            "3ff0000000000000",
+            "3ff0000000000000"
+          ],
+          "negative_spans": [
+            {
+              "Offset": 0,
+              "Length": 4
+            },
+            {
+              "Offset": 0,
+              "Length": 0
+            },
+            {
+              "Offset": 3,
+              "Length": 2
+            }
+          ],
+          "positive_buckets": [
+            "3ff0000000000000",
+            "4008000000000000",
+            "3ff0000000000000",
+            "4000000000000000",
+            "3ff0000000000000",
+            "3ff0000000000000"
+          ],
+          "positive_spans": [
+            {
+              "Offset": -2,
+              "Length": 4
+            },
+            {
+              "Offset": 0,
+              "Length": 0
+            },
+            {
+              "Offset": 3,
+              "Length": 2
+            }
+          ],
+          "reset_hint": 0,
+          "schema": 0,
+          "sum": "0000000000000000",
+          "zero_count": "0000000000000000",
+          "zero_threshold": "0000000000000000"
+        },
+        "target_schema": -1
+      },
+      "declared": {
+        "error": "",
+        "histogram_error": false,
+        "result": {
+          "count": "0000000000000000",
+          "custom_values": null,
+          "negative_buckets": [
+            "3ff0000000000000",
+            "4010000000000000",
+            "4000000000000000",
+            "4000000000000000"
+          ],
+          "negative_spans": [
+            {
+              "Offset": 0,
+              "Length": 3
+            },
+            {
+              "Offset": 1,
+              "Length": 1
+            }
+          ],
+          "positive_buckets": [
+            "3ff0000000000000",
+            "4010000000000000",
+            "4000000000000000",
+            "4000000000000000"
+          ],
+          "positive_spans": [
+            {
+              "Offset": -1,
+              "Length": 3
+            },
+            {
+              "Offset": 1,
+              "Length": 1
+            }
+          ],
+          "reset_hint": 0,
+          "schema": -1,
+          "sum": "0000000000000000",
+          "zero_count": "0000000000000000",
+          "zero_threshold": "0000000000000000"
+        }
+      }
     },
     {
       "id": "supplement:arithmetic:float-mul:0:0:0",
@@ -8954,6 +11763,1393 @@
         "compensation": "3fd0000000000000",
         "increment": "7ff8000000000001",
         "sum": "7ff8000000000001"
+      },
+      "declared": null
+    },
+    {
+      "id": "supplement:copy-to-schema:0:0",
+      "mode": "float-copy-to-schema",
+      "request": {
+        "input": {
+          "count": "4014000000000000",
+          "custom_values": null,
+          "negative_buckets": null,
+          "negative_spans": null,
+          "positive_buckets": null,
+          "positive_spans": null,
+          "reset_hint": 0,
+          "schema": 1,
+          "sum": "bff0000000000000",
+          "zero_count": "4000000000000000",
+          "zero_threshold": "3f847ae147ae147b"
+        },
+        "target_schema": 0
+      },
+      "declared": null
+    },
+    {
+      "id": "supplement:copy-to-schema:0:1",
+      "mode": "float-copy-to-schema",
+      "request": {
+        "input": {
+          "count": "4014000000000000",
+          "custom_values": null,
+          "negative_buckets": [],
+          "negative_spans": [],
+          "positive_buckets": [],
+          "positive_spans": [],
+          "reset_hint": 0,
+          "schema": 1,
+          "sum": "bff0000000000000",
+          "zero_count": "4000000000000000",
+          "zero_threshold": "3f847ae147ae147b"
+        },
+        "target_schema": 0
+      },
+      "declared": null
+    },
+    {
+      "id": "supplement:copy-to-schema:0:2",
+      "mode": "float-copy-to-schema",
+      "request": {
+        "input": {
+          "count": "4014000000000000",
+          "custom_values": null,
+          "negative_buckets": [
+            "3ff0000000000000",
+            "8000000000000000"
+          ],
+          "negative_spans": [
+            {
+              "Offset": 0,
+              "Length": 2
+            }
+          ],
+          "positive_buckets": [
+            "3ff0000000000000",
+            "4341c37937e08000",
+            "c341c37937e08000",
+            "3ff0000000000000"
+          ],
+          "positive_spans": [
+            {
+              "Offset": -3,
+              "Length": 4
+            }
+          ],
+          "reset_hint": 0,
+          "schema": 1,
+          "sum": "bff0000000000000",
+          "zero_count": "4000000000000000",
+          "zero_threshold": "3f847ae147ae147b"
+        },
+        "target_schema": 0
+      },
+      "declared": null
+    },
+    {
+      "id": "supplement:copy-to-schema:0:3",
+      "mode": "float-copy-to-schema",
+      "request": {
+        "input": {
+          "count": "4014000000000000",
+          "custom_values": [
+            "3ff0000000000000",
+            "4000000000000000"
+          ],
+          "negative_buckets": null,
+          "negative_spans": null,
+          "positive_buckets": [
+            "0000000000000000",
+            "4008000000000000"
+          ],
+          "positive_spans": [
+            {
+              "Offset": 0,
+              "Length": 2
+            }
+          ],
+          "reset_hint": 0,
+          "schema": -53,
+          "sum": "bff0000000000000",
+          "zero_count": "4000000000000000",
+          "zero_threshold": "3f847ae147ae147b"
+        },
+        "target_schema": -53
+      },
+      "declared": null
+    },
+    {
+      "id": "supplement:copy-to-schema:1:0",
+      "mode": "float-copy-to-schema",
+      "request": {
+        "input": {
+          "count": "4014000000000000",
+          "custom_values": null,
+          "negative_buckets": null,
+          "negative_spans": null,
+          "positive_buckets": null,
+          "positive_spans": null,
+          "reset_hint": 1,
+          "schema": 1,
+          "sum": "bff0000000000000",
+          "zero_count": "4000000000000000",
+          "zero_threshold": "3f847ae147ae147b"
+        },
+        "target_schema": 0
+      },
+      "declared": null
+    },
+    {
+      "id": "supplement:copy-to-schema:1:1",
+      "mode": "float-copy-to-schema",
+      "request": {
+        "input": {
+          "count": "4014000000000000",
+          "custom_values": null,
+          "negative_buckets": [],
+          "negative_spans": [],
+          "positive_buckets": [],
+          "positive_spans": [],
+          "reset_hint": 1,
+          "schema": 1,
+          "sum": "bff0000000000000",
+          "zero_count": "4000000000000000",
+          "zero_threshold": "3f847ae147ae147b"
+        },
+        "target_schema": 0
+      },
+      "declared": null
+    },
+    {
+      "id": "supplement:copy-to-schema:1:2",
+      "mode": "float-copy-to-schema",
+      "request": {
+        "input": {
+          "count": "4014000000000000",
+          "custom_values": null,
+          "negative_buckets": [
+            "3ff0000000000000",
+            "8000000000000000"
+          ],
+          "negative_spans": [
+            {
+              "Offset": 0,
+              "Length": 2
+            }
+          ],
+          "positive_buckets": [
+            "3ff0000000000000",
+            "4341c37937e08000",
+            "c341c37937e08000",
+            "3ff0000000000000"
+          ],
+          "positive_spans": [
+            {
+              "Offset": -3,
+              "Length": 4
+            }
+          ],
+          "reset_hint": 1,
+          "schema": 1,
+          "sum": "bff0000000000000",
+          "zero_count": "4000000000000000",
+          "zero_threshold": "3f847ae147ae147b"
+        },
+        "target_schema": 0
+      },
+      "declared": null
+    },
+    {
+      "id": "supplement:copy-to-schema:1:3",
+      "mode": "float-copy-to-schema",
+      "request": {
+        "input": {
+          "count": "4014000000000000",
+          "custom_values": [
+            "3ff0000000000000",
+            "4000000000000000"
+          ],
+          "negative_buckets": null,
+          "negative_spans": null,
+          "positive_buckets": [
+            "0000000000000000",
+            "4008000000000000"
+          ],
+          "positive_spans": [
+            {
+              "Offset": 0,
+              "Length": 2
+            }
+          ],
+          "reset_hint": 1,
+          "schema": -53,
+          "sum": "bff0000000000000",
+          "zero_count": "4000000000000000",
+          "zero_threshold": "3f847ae147ae147b"
+        },
+        "target_schema": -53
+      },
+      "declared": null
+    },
+    {
+      "id": "supplement:copy-to-schema:2:0",
+      "mode": "float-copy-to-schema",
+      "request": {
+        "input": {
+          "count": "4014000000000000",
+          "custom_values": null,
+          "negative_buckets": null,
+          "negative_spans": null,
+          "positive_buckets": null,
+          "positive_spans": null,
+          "reset_hint": 2,
+          "schema": 1,
+          "sum": "bff0000000000000",
+          "zero_count": "4000000000000000",
+          "zero_threshold": "3f847ae147ae147b"
+        },
+        "target_schema": 0
+      },
+      "declared": null
+    },
+    {
+      "id": "supplement:copy-to-schema:2:1",
+      "mode": "float-copy-to-schema",
+      "request": {
+        "input": {
+          "count": "4014000000000000",
+          "custom_values": null,
+          "negative_buckets": [],
+          "negative_spans": [],
+          "positive_buckets": [],
+          "positive_spans": [],
+          "reset_hint": 2,
+          "schema": 1,
+          "sum": "bff0000000000000",
+          "zero_count": "4000000000000000",
+          "zero_threshold": "3f847ae147ae147b"
+        },
+        "target_schema": 0
+      },
+      "declared": null
+    },
+    {
+      "id": "supplement:copy-to-schema:2:2",
+      "mode": "float-copy-to-schema",
+      "request": {
+        "input": {
+          "count": "4014000000000000",
+          "custom_values": null,
+          "negative_buckets": [
+            "3ff0000000000000",
+            "8000000000000000"
+          ],
+          "negative_spans": [
+            {
+              "Offset": 0,
+              "Length": 2
+            }
+          ],
+          "positive_buckets": [
+            "3ff0000000000000",
+            "4341c37937e08000",
+            "c341c37937e08000",
+            "3ff0000000000000"
+          ],
+          "positive_spans": [
+            {
+              "Offset": -3,
+              "Length": 4
+            }
+          ],
+          "reset_hint": 2,
+          "schema": 1,
+          "sum": "bff0000000000000",
+          "zero_count": "4000000000000000",
+          "zero_threshold": "3f847ae147ae147b"
+        },
+        "target_schema": 0
+      },
+      "declared": null
+    },
+    {
+      "id": "supplement:copy-to-schema:2:3",
+      "mode": "float-copy-to-schema",
+      "request": {
+        "input": {
+          "count": "4014000000000000",
+          "custom_values": [
+            "3ff0000000000000",
+            "4000000000000000"
+          ],
+          "negative_buckets": null,
+          "negative_spans": null,
+          "positive_buckets": [
+            "0000000000000000",
+            "4008000000000000"
+          ],
+          "positive_spans": [
+            {
+              "Offset": 0,
+              "Length": 2
+            }
+          ],
+          "reset_hint": 2,
+          "schema": -53,
+          "sum": "bff0000000000000",
+          "zero_count": "4000000000000000",
+          "zero_threshold": "3f847ae147ae147b"
+        },
+        "target_schema": -53
+      },
+      "declared": null
+    },
+    {
+      "id": "supplement:copy-to-schema:3:0",
+      "mode": "float-copy-to-schema",
+      "request": {
+        "input": {
+          "count": "4014000000000000",
+          "custom_values": null,
+          "negative_buckets": null,
+          "negative_spans": null,
+          "positive_buckets": null,
+          "positive_spans": null,
+          "reset_hint": 3,
+          "schema": 1,
+          "sum": "bff0000000000000",
+          "zero_count": "4000000000000000",
+          "zero_threshold": "3f847ae147ae147b"
+        },
+        "target_schema": 0
+      },
+      "declared": null
+    },
+    {
+      "id": "supplement:copy-to-schema:3:1",
+      "mode": "float-copy-to-schema",
+      "request": {
+        "input": {
+          "count": "4014000000000000",
+          "custom_values": null,
+          "negative_buckets": [],
+          "negative_spans": [],
+          "positive_buckets": [],
+          "positive_spans": [],
+          "reset_hint": 3,
+          "schema": 1,
+          "sum": "bff0000000000000",
+          "zero_count": "4000000000000000",
+          "zero_threshold": "3f847ae147ae147b"
+        },
+        "target_schema": 0
+      },
+      "declared": null
+    },
+    {
+      "id": "supplement:copy-to-schema:3:2",
+      "mode": "float-copy-to-schema",
+      "request": {
+        "input": {
+          "count": "4014000000000000",
+          "custom_values": null,
+          "negative_buckets": [
+            "3ff0000000000000",
+            "8000000000000000"
+          ],
+          "negative_spans": [
+            {
+              "Offset": 0,
+              "Length": 2
+            }
+          ],
+          "positive_buckets": [
+            "3ff0000000000000",
+            "4341c37937e08000",
+            "c341c37937e08000",
+            "3ff0000000000000"
+          ],
+          "positive_spans": [
+            {
+              "Offset": -3,
+              "Length": 4
+            }
+          ],
+          "reset_hint": 3,
+          "schema": 1,
+          "sum": "bff0000000000000",
+          "zero_count": "4000000000000000",
+          "zero_threshold": "3f847ae147ae147b"
+        },
+        "target_schema": 0
+      },
+      "declared": null
+    },
+    {
+      "id": "supplement:copy-to-schema:3:3",
+      "mode": "float-copy-to-schema",
+      "request": {
+        "input": {
+          "count": "4014000000000000",
+          "custom_values": [
+            "3ff0000000000000",
+            "4000000000000000"
+          ],
+          "negative_buckets": null,
+          "negative_spans": null,
+          "positive_buckets": [
+            "0000000000000000",
+            "4008000000000000"
+          ],
+          "positive_spans": [
+            {
+              "Offset": 0,
+              "Length": 2
+            }
+          ],
+          "reset_hint": 3,
+          "schema": -53,
+          "sum": "bff0000000000000",
+          "zero_count": "4000000000000000",
+          "zero_threshold": "3f847ae147ae147b"
+        },
+        "target_schema": -53
+      },
+      "declared": null
+    },
+    {
+      "id": "supplement:compact:0:-1",
+      "mode": "float-compact",
+      "request": {
+        "input": {
+          "count": "4008000000000000",
+          "custom_values": null,
+          "negative_buckets": null,
+          "negative_spans": null,
+          "positive_buckets": null,
+          "positive_spans": null,
+          "reset_hint": 3,
+          "schema": 0,
+          "sum": "bff0000000000000",
+          "zero_count": "3ff0000000000000",
+          "zero_threshold": "3f847ae147ae147b"
+        },
+        "max_empty": -1
+      },
+      "declared": null
+    },
+    {
+      "id": "supplement:compact:0:0",
+      "mode": "float-compact",
+      "request": {
+        "input": {
+          "count": "4008000000000000",
+          "custom_values": null,
+          "negative_buckets": null,
+          "negative_spans": null,
+          "positive_buckets": null,
+          "positive_spans": null,
+          "reset_hint": 3,
+          "schema": 0,
+          "sum": "bff0000000000000",
+          "zero_count": "3ff0000000000000",
+          "zero_threshold": "3f847ae147ae147b"
+        },
+        "max_empty": 0
+      },
+      "declared": null
+    },
+    {
+      "id": "supplement:compact:0:2",
+      "mode": "float-compact",
+      "request": {
+        "input": {
+          "count": "4008000000000000",
+          "custom_values": null,
+          "negative_buckets": null,
+          "negative_spans": null,
+          "positive_buckets": null,
+          "positive_spans": null,
+          "reset_hint": 3,
+          "schema": 0,
+          "sum": "bff0000000000000",
+          "zero_count": "3ff0000000000000",
+          "zero_threshold": "3f847ae147ae147b"
+        },
+        "max_empty": 2
+      },
+      "declared": null
+    },
+    {
+      "id": "supplement:compact:1:-1",
+      "mode": "float-compact",
+      "request": {
+        "input": {
+          "count": "4008000000000000",
+          "custom_values": null,
+          "negative_buckets": null,
+          "negative_spans": null,
+          "positive_buckets": [],
+          "positive_spans": [],
+          "reset_hint": 3,
+          "schema": 0,
+          "sum": "bff0000000000000",
+          "zero_count": "3ff0000000000000",
+          "zero_threshold": "3f847ae147ae147b"
+        },
+        "max_empty": -1
+      },
+      "declared": null
+    },
+    {
+      "id": "supplement:compact:1:0",
+      "mode": "float-compact",
+      "request": {
+        "input": {
+          "count": "4008000000000000",
+          "custom_values": null,
+          "negative_buckets": null,
+          "negative_spans": null,
+          "positive_buckets": [],
+          "positive_spans": [],
+          "reset_hint": 3,
+          "schema": 0,
+          "sum": "bff0000000000000",
+          "zero_count": "3ff0000000000000",
+          "zero_threshold": "3f847ae147ae147b"
+        },
+        "max_empty": 0
+      },
+      "declared": null
+    },
+    {
+      "id": "supplement:compact:1:2",
+      "mode": "float-compact",
+      "request": {
+        "input": {
+          "count": "4008000000000000",
+          "custom_values": null,
+          "negative_buckets": null,
+          "negative_spans": null,
+          "positive_buckets": [],
+          "positive_spans": [],
+          "reset_hint": 3,
+          "schema": 0,
+          "sum": "bff0000000000000",
+          "zero_count": "3ff0000000000000",
+          "zero_threshold": "3f847ae147ae147b"
+        },
+        "max_empty": 2
+      },
+      "declared": null
+    },
+    {
+      "id": "supplement:compact:2:-1",
+      "mode": "float-compact",
+      "request": {
+        "input": {
+          "count": "4008000000000000",
+          "custom_values": null,
+          "negative_buckets": null,
+          "negative_spans": null,
+          "positive_buckets": [],
+          "positive_spans": [
+            {
+              "Offset": 0,
+              "Length": 0
+            }
+          ],
+          "reset_hint": 3,
+          "schema": 0,
+          "sum": "bff0000000000000",
+          "zero_count": "3ff0000000000000",
+          "zero_threshold": "3f847ae147ae147b"
+        },
+        "max_empty": -1
+      },
+      "declared": null
+    },
+    {
+      "id": "supplement:compact:2:0",
+      "mode": "float-compact",
+      "request": {
+        "input": {
+          "count": "4008000000000000",
+          "custom_values": null,
+          "negative_buckets": null,
+          "negative_spans": null,
+          "positive_buckets": [],
+          "positive_spans": [
+            {
+              "Offset": 0,
+              "Length": 0
+            }
+          ],
+          "reset_hint": 3,
+          "schema": 0,
+          "sum": "bff0000000000000",
+          "zero_count": "3ff0000000000000",
+          "zero_threshold": "3f847ae147ae147b"
+        },
+        "max_empty": 0
+      },
+      "declared": null
+    },
+    {
+      "id": "supplement:compact:2:2",
+      "mode": "float-compact",
+      "request": {
+        "input": {
+          "count": "4008000000000000",
+          "custom_values": null,
+          "negative_buckets": null,
+          "negative_spans": null,
+          "positive_buckets": [],
+          "positive_spans": [
+            {
+              "Offset": 0,
+              "Length": 0
+            }
+          ],
+          "reset_hint": 3,
+          "schema": 0,
+          "sum": "bff0000000000000",
+          "zero_count": "3ff0000000000000",
+          "zero_threshold": "3f847ae147ae147b"
+        },
+        "max_empty": 2
+      },
+      "declared": null
+    },
+    {
+      "id": "supplement:compact:3:-1",
+      "mode": "float-compact",
+      "request": {
+        "input": {
+          "count": "4008000000000000",
+          "custom_values": null,
+          "negative_buckets": null,
+          "negative_spans": null,
+          "positive_buckets": [
+            "8000000000000000",
+            "0000000000000000"
+          ],
+          "positive_spans": [
+            {
+              "Offset": -1,
+              "Length": 2
+            }
+          ],
+          "reset_hint": 3,
+          "schema": 0,
+          "sum": "bff0000000000000",
+          "zero_count": "3ff0000000000000",
+          "zero_threshold": "3f847ae147ae147b"
+        },
+        "max_empty": -1
+      },
+      "declared": null
+    },
+    {
+      "id": "supplement:compact:3:0",
+      "mode": "float-compact",
+      "request": {
+        "input": {
+          "count": "4008000000000000",
+          "custom_values": null,
+          "negative_buckets": null,
+          "negative_spans": null,
+          "positive_buckets": [
+            "8000000000000000",
+            "0000000000000000"
+          ],
+          "positive_spans": [
+            {
+              "Offset": -1,
+              "Length": 2
+            }
+          ],
+          "reset_hint": 3,
+          "schema": 0,
+          "sum": "bff0000000000000",
+          "zero_count": "3ff0000000000000",
+          "zero_threshold": "3f847ae147ae147b"
+        },
+        "max_empty": 0
+      },
+      "declared": null
+    },
+    {
+      "id": "supplement:compact:3:2",
+      "mode": "float-compact",
+      "request": {
+        "input": {
+          "count": "4008000000000000",
+          "custom_values": null,
+          "negative_buckets": null,
+          "negative_spans": null,
+          "positive_buckets": [
+            "8000000000000000",
+            "0000000000000000"
+          ],
+          "positive_spans": [
+            {
+              "Offset": -1,
+              "Length": 2
+            }
+          ],
+          "reset_hint": 3,
+          "schema": 0,
+          "sum": "bff0000000000000",
+          "zero_count": "3ff0000000000000",
+          "zero_threshold": "3f847ae147ae147b"
+        },
+        "max_empty": 2
+      },
+      "declared": null
+    },
+    {
+      "id": "supplement:compact:4:-1",
+      "mode": "float-compact",
+      "request": {
+        "input": {
+          "count": "4008000000000000",
+          "custom_values": null,
+          "negative_buckets": null,
+          "negative_spans": null,
+          "positive_buckets": [
+            "8000000000000000",
+            "7ff8000000000001",
+            "bff0000000000000",
+            "0000000000000000"
+          ],
+          "positive_spans": [
+            {
+              "Offset": 0,
+              "Length": 4
+            }
+          ],
+          "reset_hint": 3,
+          "schema": 0,
+          "sum": "bff0000000000000",
+          "zero_count": "3ff0000000000000",
+          "zero_threshold": "3f847ae147ae147b"
+        },
+        "max_empty": -1
+      },
+      "declared": null
+    },
+    {
+      "id": "supplement:compact:4:0",
+      "mode": "float-compact",
+      "request": {
+        "input": {
+          "count": "4008000000000000",
+          "custom_values": null,
+          "negative_buckets": null,
+          "negative_spans": null,
+          "positive_buckets": [
+            "8000000000000000",
+            "7ff8000000000001",
+            "bff0000000000000",
+            "0000000000000000"
+          ],
+          "positive_spans": [
+            {
+              "Offset": 0,
+              "Length": 4
+            }
+          ],
+          "reset_hint": 3,
+          "schema": 0,
+          "sum": "bff0000000000000",
+          "zero_count": "3ff0000000000000",
+          "zero_threshold": "3f847ae147ae147b"
+        },
+        "max_empty": 0
+      },
+      "declared": null
+    },
+    {
+      "id": "supplement:compact:4:2",
+      "mode": "float-compact",
+      "request": {
+        "input": {
+          "count": "4008000000000000",
+          "custom_values": null,
+          "negative_buckets": null,
+          "negative_spans": null,
+          "positive_buckets": [
+            "8000000000000000",
+            "7ff8000000000001",
+            "bff0000000000000",
+            "0000000000000000"
+          ],
+          "positive_spans": [
+            {
+              "Offset": 0,
+              "Length": 4
+            }
+          ],
+          "reset_hint": 3,
+          "schema": 0,
+          "sum": "bff0000000000000",
+          "zero_count": "3ff0000000000000",
+          "zero_threshold": "3f847ae147ae147b"
+        },
+        "max_empty": 2
+      },
+      "declared": null
+    },
+    {
+      "id": "supplement:compact:5:-1",
+      "mode": "float-compact",
+      "request": {
+        "input": {
+          "count": "4008000000000000",
+          "custom_values": null,
+          "negative_buckets": null,
+          "negative_spans": null,
+          "positive_buckets": [
+            "3ff0000000000000",
+            "4000000000000000"
+          ],
+          "positive_spans": [
+            {
+              "Offset": 0,
+              "Length": 1
+            },
+            {
+              "Offset": 2,
+              "Length": 0
+            },
+            {
+              "Offset": 0,
+              "Length": 1
+            }
+          ],
+          "reset_hint": 3,
+          "schema": 0,
+          "sum": "bff0000000000000",
+          "zero_count": "3ff0000000000000",
+          "zero_threshold": "3f847ae147ae147b"
+        },
+        "max_empty": -1
+      },
+      "declared": null
+    },
+    {
+      "id": "supplement:compact:5:0",
+      "mode": "float-compact",
+      "request": {
+        "input": {
+          "count": "4008000000000000",
+          "custom_values": null,
+          "negative_buckets": null,
+          "negative_spans": null,
+          "positive_buckets": [
+            "3ff0000000000000",
+            "4000000000000000"
+          ],
+          "positive_spans": [
+            {
+              "Offset": 0,
+              "Length": 1
+            },
+            {
+              "Offset": 2,
+              "Length": 0
+            },
+            {
+              "Offset": 0,
+              "Length": 1
+            }
+          ],
+          "reset_hint": 3,
+          "schema": 0,
+          "sum": "bff0000000000000",
+          "zero_count": "3ff0000000000000",
+          "zero_threshold": "3f847ae147ae147b"
+        },
+        "max_empty": 0
+      },
+      "declared": null
+    },
+    {
+      "id": "supplement:compact:5:2",
+      "mode": "float-compact",
+      "request": {
+        "input": {
+          "count": "4008000000000000",
+          "custom_values": null,
+          "negative_buckets": null,
+          "negative_spans": null,
+          "positive_buckets": [
+            "3ff0000000000000",
+            "4000000000000000"
+          ],
+          "positive_spans": [
+            {
+              "Offset": 0,
+              "Length": 1
+            },
+            {
+              "Offset": 2,
+              "Length": 0
+            },
+            {
+              "Offset": 0,
+              "Length": 1
+            }
+          ],
+          "reset_hint": 3,
+          "schema": 0,
+          "sum": "bff0000000000000",
+          "zero_count": "3ff0000000000000",
+          "zero_threshold": "3f847ae147ae147b"
+        },
+        "max_empty": 2
+      },
+      "declared": null
+    },
+    {
+      "id": "supplement:compact:6:-1",
+      "mode": "float-compact",
+      "request": {
+        "input": {
+          "count": "4008000000000000",
+          "custom_values": null,
+          "negative_buckets": null,
+          "negative_spans": null,
+          "positive_buckets": null,
+          "positive_spans": [
+            {
+              "Offset": 0,
+              "Length": 0
+            }
+          ],
+          "reset_hint": 3,
+          "schema": 0,
+          "sum": "bff0000000000000",
+          "zero_count": "3ff0000000000000",
+          "zero_threshold": "3f847ae147ae147b"
+        },
+        "max_empty": -1
+      },
+      "declared": null
+    },
+    {
+      "id": "supplement:compact:6:0",
+      "mode": "float-compact",
+      "request": {
+        "input": {
+          "count": "4008000000000000",
+          "custom_values": null,
+          "negative_buckets": null,
+          "negative_spans": null,
+          "positive_buckets": null,
+          "positive_spans": [
+            {
+              "Offset": 0,
+              "Length": 0
+            }
+          ],
+          "reset_hint": 3,
+          "schema": 0,
+          "sum": "bff0000000000000",
+          "zero_count": "3ff0000000000000",
+          "zero_threshold": "3f847ae147ae147b"
+        },
+        "max_empty": 0
+      },
+      "declared": null
+    },
+    {
+      "id": "supplement:compact:6:2",
+      "mode": "float-compact",
+      "request": {
+        "input": {
+          "count": "4008000000000000",
+          "custom_values": null,
+          "negative_buckets": null,
+          "negative_spans": null,
+          "positive_buckets": null,
+          "positive_spans": [
+            {
+              "Offset": 0,
+              "Length": 0
+            }
+          ],
+          "reset_hint": 3,
+          "schema": 0,
+          "sum": "bff0000000000000",
+          "zero_count": "3ff0000000000000",
+          "zero_threshold": "3f847ae147ae147b"
+        },
+        "max_empty": 2
+      },
+      "declared": null
+    },
+    {
+      "id": "supplement:compact:7:-1",
+      "mode": "float-compact",
+      "request": {
+        "input": {
+          "count": "4008000000000000",
+          "custom_values": null,
+          "negative_buckets": null,
+          "negative_spans": null,
+          "positive_buckets": [],
+          "positive_spans": null,
+          "reset_hint": 3,
+          "schema": 0,
+          "sum": "bff0000000000000",
+          "zero_count": "3ff0000000000000",
+          "zero_threshold": "3f847ae147ae147b"
+        },
+        "max_empty": -1
+      },
+      "declared": null
+    },
+    {
+      "id": "supplement:compact:7:0",
+      "mode": "float-compact",
+      "request": {
+        "input": {
+          "count": "4008000000000000",
+          "custom_values": null,
+          "negative_buckets": null,
+          "negative_spans": null,
+          "positive_buckets": [],
+          "positive_spans": null,
+          "reset_hint": 3,
+          "schema": 0,
+          "sum": "bff0000000000000",
+          "zero_count": "3ff0000000000000",
+          "zero_threshold": "3f847ae147ae147b"
+        },
+        "max_empty": 0
+      },
+      "declared": null
+    },
+    {
+      "id": "supplement:compact:7:2",
+      "mode": "float-compact",
+      "request": {
+        "input": {
+          "count": "4008000000000000",
+          "custom_values": null,
+          "negative_buckets": null,
+          "negative_spans": null,
+          "positive_buckets": [],
+          "positive_spans": null,
+          "reset_hint": 3,
+          "schema": 0,
+          "sum": "bff0000000000000",
+          "zero_count": "3ff0000000000000",
+          "zero_threshold": "3f847ae147ae147b"
+        },
+        "max_empty": 2
+      },
+      "declared": null
+    },
+    {
+      "id": "supplement:reduce-resolution:0",
+      "mode": "float-reduce-resolution",
+      "request": {
+        "input": {
+          "count": "4008000000000000",
+          "custom_values": null,
+          "negative_buckets": [
+            "3ff0000000000000",
+            "4000000000000000"
+          ],
+          "negative_spans": [
+            {
+              "Offset": 0,
+              "Length": 2
+            }
+          ],
+          "positive_buckets": [
+            "3ff0000000000000",
+            "4000000000000000"
+          ],
+          "positive_spans": [
+            {
+              "Offset": -2,
+              "Length": 2
+            }
+          ],
+          "reset_hint": 1,
+          "schema": -53,
+          "sum": "4014000000000000",
+          "zero_count": "0000000000000000",
+          "zero_threshold": "0000000000000000"
+        },
+        "target_schema": -1
+      },
+      "declared": null
+    },
+    {
+      "id": "supplement:reduce-resolution:1",
+      "mode": "float-reduce-resolution",
+      "request": {
+        "input": {
+          "count": "4008000000000000",
+          "custom_values": null,
+          "negative_buckets": [
+            "3ff0000000000000",
+            "4000000000000000"
+          ],
+          "negative_spans": [
+            {
+              "Offset": 0,
+              "Length": 2
+            }
+          ],
+          "positive_buckets": [
+            "3ff0000000000000",
+            "4000000000000000"
+          ],
+          "positive_spans": [
+            {
+              "Offset": -2,
+              "Length": 2
+            }
+          ],
+          "reset_hint": 1,
+          "schema": 0,
+          "sum": "4014000000000000",
+          "zero_count": "0000000000000000",
+          "zero_threshold": "0000000000000000"
+        },
+        "target_schema": -53
+      },
+      "declared": null
+    },
+    {
+      "id": "supplement:reduce-resolution:2",
+      "mode": "float-reduce-resolution",
+      "request": {
+        "input": {
+          "count": "4008000000000000",
+          "custom_values": null,
+          "negative_buckets": [
+            "3ff0000000000000",
+            "4000000000000000"
+          ],
+          "negative_spans": [
+            {
+              "Offset": 0,
+              "Length": 2
+            }
+          ],
+          "positive_buckets": [
+            "3ff0000000000000",
+            "4000000000000000"
+          ],
+          "positive_spans": [
+            {
+              "Offset": -2,
+              "Length": 2
+            }
+          ],
+          "reset_hint": 1,
+          "schema": 0,
+          "sum": "4014000000000000",
+          "zero_count": "0000000000000000",
+          "zero_threshold": "0000000000000000"
+        },
+        "target_schema": 0
+      },
+      "declared": null
+    },
+    {
+      "id": "supplement:reduce-resolution:3",
+      "mode": "float-reduce-resolution",
+      "request": {
+        "input": {
+          "count": "4008000000000000",
+          "custom_values": null,
+          "negative_buckets": [
+            "3ff0000000000000",
+            "4000000000000000"
+          ],
+          "negative_spans": [
+            {
+              "Offset": 0,
+              "Length": 2
+            }
+          ],
+          "positive_buckets": [
+            "3ff0000000000000",
+            "4000000000000000"
+          ],
+          "positive_spans": [
+            {
+              "Offset": -2,
+              "Length": 2
+            }
+          ],
+          "reset_hint": 1,
+          "schema": 0,
+          "sum": "4014000000000000",
+          "zero_count": "0000000000000000",
+          "zero_threshold": "0000000000000000"
+        },
+        "target_schema": 1
+      },
+      "declared": null
+    },
+    {
+      "id": "supplement:reduce-resolution:4",
+      "mode": "float-reduce-resolution",
+      "request": {
+        "input": {
+          "count": "4008000000000000",
+          "custom_values": null,
+          "negative_buckets": [
+            "3ff0000000000000",
+            "4000000000000000"
+          ],
+          "negative_spans": [
+            {
+              "Offset": 0,
+              "Length": 2
+            }
+          ],
+          "positive_buckets": [
+            "3ff0000000000000"
+          ],
+          "positive_spans": [
+            {
+              "Offset": -2,
+              "Length": 2
+            }
+          ],
+          "reset_hint": 1,
+          "schema": 0,
+          "sum": "4014000000000000",
+          "zero_count": "0000000000000000",
+          "zero_threshold": "0000000000000000"
+        },
+        "target_schema": -1
+      },
+      "declared": null
+    },
+    {
+      "id": "supplement:reduce-resolution:5",
+      "mode": "float-reduce-resolution",
+      "request": {
+        "input": {
+          "count": "4008000000000000",
+          "custom_values": null,
+          "negative_buckets": [
+            "3ff0000000000000"
+          ],
+          "negative_spans": [
+            {
+              "Offset": 0,
+              "Length": 2
+            }
+          ],
+          "positive_buckets": [
+            "3ff0000000000000",
+            "4000000000000000"
+          ],
+          "positive_spans": [
+            {
+              "Offset": -2,
+              "Length": 2
+            }
+          ],
+          "reset_hint": 1,
+          "schema": 0,
+          "sum": "4014000000000000",
+          "zero_count": "0000000000000000",
+          "zero_threshold": "0000000000000000"
+        },
+        "target_schema": -1
+      },
+      "declared": null
+    },
+    {
+      "id": "supplement:reduce-resolution:6",
+      "mode": "float-reduce-resolution",
+      "request": {
+        "input": {
+          "count": "4008000000000000",
+          "custom_values": null,
+          "negative_buckets": [
+            "3ff0000000000000",
+            "4000000000000000",
+            "4008000000000000"
+          ],
+          "negative_spans": [
+            {
+              "Offset": 0,
+              "Length": 2
+            }
+          ],
+          "positive_buckets": [
+            "3ff0000000000000",
+            "4000000000000000"
+          ],
+          "positive_spans": [
+            {
+              "Offset": -2,
+              "Length": 2
+            }
+          ],
+          "reset_hint": 1,
+          "schema": 0,
+          "sum": "4014000000000000",
+          "zero_count": "0000000000000000",
+          "zero_threshold": "0000000000000000"
+        },
+        "target_schema": -1
+      },
+      "declared": null
+    },
+    {
+      "id": "supplement:reduce-resolution:7",
+      "mode": "float-reduce-resolution",
+      "request": {
+        "input": {
+          "count": "4008000000000000",
+          "custom_values": null,
+          "negative_buckets": [
+            "3ff0000000000000",
+            "4000000000000000"
+          ],
+          "negative_spans": [
+            {
+              "Offset": 0,
+              "Length": 1
+            },
+            {
+              "Offset": -1,
+              "Length": 1
+            }
+          ],
+          "positive_buckets": [
+            "3ff0000000000000",
+            "4000000000000000"
+          ],
+          "positive_spans": [
+            {
+              "Offset": -2,
+              "Length": 2
+            }
+          ],
+          "reset_hint": 1,
+          "schema": 0,
+          "sum": "4014000000000000",
+          "zero_count": "0000000000000000",
+          "zero_threshold": "0000000000000000"
+        },
+        "target_schema": -1
       },
       "declared": null
     }
