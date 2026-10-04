@@ -21,13 +21,19 @@ class HistogramReferenceTests(unittest.TestCase):
                 case["actual"] = copy.deepcopy(case["declared"])
             elif case["mode"] in {"compensated-add", "compensated-sub"}:
                 case["actual"] = {"sum": "0000000000000000", "compensation": "0000000000000000"}
+            elif case["mode"] == "float-copy-to-schema":
+                case["actual"] = {"result": copy.deepcopy(empty_float), "input_after": copy.deepcopy(case["request"]["input"])}
+            elif case["mode"] == "float-reduce-resolution":
+                case["actual"] = {"result": copy.deepcopy(empty_float), "error": "", "histogram_error": False}
             else:
                 case["actual"] = copy.deepcopy(empty_float)
+            if case["mode"] == "float-reduce-resolution" and case["actual"]["result"] is None:
+                case["actual"]["result"] = copy.deepcopy(empty_float)
             cls.document["cases"].append(case)
 
     def test_complete_decoder_roster(self):
         self.assertEqual(validate_cases(self.document, self.ledger["tables"]),
-                         {"original_table_cases": 39, "supplemental_cases": 342, "total": 381})
+                         {"original_table_cases": 70, "supplemental_cases": 390, "total": 460})
 
     def test_valid_but_rebound_inputs_are_rejected(self):
         mutations = [
@@ -37,6 +43,9 @@ class HistogramReferenceTests(unittest.TestCase):
             ("supplement:arithmetic:float-mul:0:0:0", lambda case: case["request"]["input"].update(reset_hint=255)),
             ("supplement:arithmetic:float-mul:0:0:0", lambda case: case["request"].update(scalar="8000000000000000")),
             ("supplement:compensated-add:0:0", lambda case: case["request"].update(compensation="0000000000000000")),
+            ("TestFloatHistogramCompact:000", lambda case: case["request"].update(max_empty=1)),
+            ("TestFloatHistogramCopyToSchema:001", lambda case: case["request"].update(target_schema=-1)),
+            ("TestFloatHistogramReduceResolution:negative offset", lambda case: case["request"]["input"]["positive_spans"][1].update(Offset=0)),
         ]
         for identity, mutate in mutations:
             with self.subTest(identity=identity):

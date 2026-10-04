@@ -8,9 +8,9 @@ import tempfile
 
 from build import directory
 from build_frontend import build
-from histogram_reference import compare_value, fields, load
+from histogram_reference import compare_declared, compare_value, fields, load
 
-BORROWED = {"float-copy", "float-copy-to", "integer-copy", "integer-copy-to", "integer-to-float"}
+BORROWED = {"float-copy", "float-copy-to", "integer-copy", "integer-copy-to", "integer-to-float", "float-copy-to-schema"}
 
 
 def requests(data):
@@ -58,9 +58,7 @@ def compare(capture, binary=None):
     report["declared_bit_differences"] = []
     declared_failures = []
     for case in data["cases"]:
-        if case["declared"] is not None:
-            compare_value(case["declared"], case["actual"], case["id"], "declared",
-                          declared_failures, report["declared_bit_differences"], exact_numeric=True)
+        compare_declared(case, declared_failures, report["declared_bit_differences"])
     if declared_failures:
         raise ValueError("captured Go kernel differs from its original declared assertion")
     (task / "report.json").write_text(json.dumps(report, indent=2) + "\n")

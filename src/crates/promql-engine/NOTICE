@@ -8,7 +8,7 @@ Copyright The Prometheus Authors. Licensed under Apache-2.0;
 see LICENSE-APACHE-2.0.
 
 Histogram value copy, conversion and arithmetic algorithms derive from the same
-Prometheus commit, model/histogram/histogram.go and float_histogram.go.
+Prometheus commit, model/histogram/histogram.go, float_histogram.go and generic.go.
 Compensated summation derives from util/kahansum/kahansum.go.
 Copyright The Prometheus Authors. Licensed under Apache-2.0;
 see LICENSE-APACHE-2.0.

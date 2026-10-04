@@ -17,6 +17,9 @@ TABLES = [
     ("TestHistogramCopyTo", "integer-copy-to", 4),
     ("TestHistogramToFloat", "integer-to-float", 3),
     ("TestCustomBucketsHistogramToFloat", "integer-to-float", 3),
+    ("TestFloatHistogramCompact", "float-compact", 24),
+    ("TestFloatHistogramCopyToSchema", "float-copy-to-schema", 3),
+    ("TestFloatHistogramReduceResolution", "float-reduce-resolution", 4),
 ]
 
 
@@ -113,6 +116,25 @@ def histogram(value, is_integer):
                 number(item)
 
 
+def reduction_result(value, allow_nil=False):
+    fields(value, ("result", "error", "histogram_error"))
+    if type(value["error"]) is not str or type(value["histogram_error"]) is not bool:
+        raise ValueError("invalid histogram reduction error")
+    if value["result"] is not None or not allow_nil:
+        histogram(value["result"], False)
+
+
+def compare_declared(case, failures, bit_differences):
+    declared, actual = case["declared"], case["actual"]
+    if declared is None:
+        return
+    if case["mode"] == "float-reduce-resolution" and declared["result"] is None:
+        # Original error assertions do not specify the post-failure receiver.
+        declared = {key: declared[key] for key in ("error", "histogram_error")}
+        actual = {key: actual[key] for key in declared}
+    compare_value(declared, actual, case["id"], "declared", failures, bit_differences, exact_numeric=True)
+
+
 def validate_case(case):
     fields(case, ("id", "mode", "request", "actual", "declared"))
     if type(case["id"]) is not str or not case["id"]:
@@ -137,12 +159,30 @@ def validate_case(case):
         histogram(actual, output_integer)
         if case["declared"] is not None:
             histogram(case["declared"], output_integer)
-            failures = []
-            compare_value(case["declared"], actual, case["id"], "declared", failures, [], exact_numeric=True)
-            if failures:
-                raise ValueError("captured kernel differs from its declared source assertion")
+    elif mode in {"float-compact", "float-copy-to-schema", "float-reduce-resolution"}:
+        parameter = "max_empty" if mode == "float-compact" else "target_schema"
+        fields(request, ("input", parameter))
+        integer(request[parameter], -(1 << 31), (1 << 31) - 1)
+        histogram(request["input"], False)
+        if mode == "float-compact":
+            histogram(actual, False)
+            if case["declared"] is not None:
+                histogram(case["declared"], False)
+        elif mode == "float-copy-to-schema":
+            for value in [actual] + ([] if case["declared"] is None else [case["declared"]]):
+                fields(value, ("result", "input_after"))
+                histogram(value["result"], False)
+                histogram(value["input_after"], False)
+        else:
+            reduction_result(actual)
+            if case["declared"] is not None:
+                reduction_result(case["declared"], allow_nil=True)
     else:
         raise ValueError("unknown histogram kernel mode")
+    failures = []
+    compare_declared(case, failures, [])
+    if failures:
+        raise ValueError("captured kernel differs from its declared source assertion")
 
 
 def supplemental_ids():
@@ -158,10 +198,17 @@ def supplemental_ids():
         for j in range(11):
             for mode in ("compensated-add", "compensated-sub"):
                 result[f"supplement:{mode}:{i}:{j}"] = mode
+    for hint in range(4):
+        for shape in range(4):
+            result[f"supplement:copy-to-schema:{hint}:{shape}"] = "float-copy-to-schema"
+    for shape in range(8):
+        for max_empty in (-1, 0, 2):
+            result[f"supplement:compact:{shape}:{max_empty}"] = "float-compact"
+        result[f"supplement:reduce-resolution:{shape}"] = "float-reduce-resolution"
     return result
 
 
-def validate_cases(data, tables):
+def validate_cases(data, tables, ledger=None):
     fields(data, ("schema_version", "commit", "go_version", "go_os", "go_arch",
                   "original_assertions_passed", "cases"))
     if (type(data["schema_version"]) is not int or data["schema_version"] != 1
@@ -171,7 +218,7 @@ def validate_cases(data, tables):
         raise ValueError("unexpected histogram kernel reference")
     if type(tables) is not list or len(tables) != len(TABLES):
         raise ValueError("incomplete histogram source table inventory")
-    ledger = input_ledger()
+    ledger = input_ledger() if ledger is None else ledger
     if tables != ledger["tables"]:
         raise ValueError("histogram source declaration or positions changed")
     bindings = {}
@@ -182,7 +229,7 @@ def validate_cases(data, tables):
         bindings[binding["id"]] = binding
     expected = {}
     for table, (test, mode, count) in zip(tables, TABLES):
-        fields(table, ("test", "file", "mode", "cases", "line", "case_lines", "source_sha256", "prefix"))
+        fields(table, ("test", "file", "mode", "cases", "line", "case_lines", "source_sha256", "prefix", "variable", "case_keys"))
         file = "float_histogram_test.go" if test.startswith("TestFloat") else "histogram_test.go"
         if (table["test"] != test or table["file"] != file or table["mode"] != mode
                 or type(table["cases"]) is not int or table["cases"] != count
@@ -193,8 +240,18 @@ def validate_cases(data, tables):
         integer(table["line"], 1, (1 << 31) - 1)
         for line in table["case_lines"]:
             integer(line, table["line"] + 1, (1 << 31) - 1)
-        for i in range(count):
-            expected[f"{test}:{i:03d}"] = mode
+        if test == "TestFloatHistogramReduceResolution":
+            if (table["variable"] != "tcs" or type(table["case_keys"]) is not list
+                    or len(table["case_keys"]) != count or any(type(key) is not str or not key for key in table["case_keys"])
+                    or len(set(table["case_keys"])) != count):
+                raise ValueError("changed histogram source map keys")
+            for key in table["case_keys"]:
+                expected[f"{test}:{key}"] = mode
+        else:
+            if table["variable"] != "cases" or table["case_keys"] is not None:
+                raise ValueError("changed histogram source table kind")
+            for i in range(count):
+                expected[f"{test}:{i:03d}"] = mode
     original_count = len(expected)
     expected.update(supplemental_ids())
     if type(data["cases"]) is not list or len(data["cases"]) != len(expected):

@@ -4,6 +4,7 @@ package histogram
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"math"
 	"os"
@@ -15,34 +16,42 @@ import (
 )
 
 func netdataNumbers(input []float64) any {
-	if input == nil { return nil }
+	if input == nil {
+		return nil
+	}
 	output := make([]string, len(input))
-	for i, value := range input { output[i] = fmt.Sprintf("%016x", math.Float64bits(value)) }
+	for i, value := range input {
+		output[i] = fmt.Sprintf("%016x", math.Float64bits(value))
+	}
 	return output
 }
 
 func netdataFloat(input *FloatHistogram) any {
-	if input == nil { return nil }
+	if input == nil {
+		return nil
+	}
 	return map[string]any{
 		"reset_hint": input.CounterResetHint, "schema": input.Schema,
 		"zero_threshold": fmt.Sprintf("%016x", math.Float64bits(input.ZeroThreshold)),
-		"zero_count": fmt.Sprintf("%016x", math.Float64bits(input.ZeroCount)),
-		"count": fmt.Sprintf("%016x", math.Float64bits(input.Count)),
-		"sum": fmt.Sprintf("%016x", math.Float64bits(input.Sum)),
+		"zero_count":     fmt.Sprintf("%016x", math.Float64bits(input.ZeroCount)),
+		"count":          fmt.Sprintf("%016x", math.Float64bits(input.Count)),
+		"sum":            fmt.Sprintf("%016x", math.Float64bits(input.Sum)),
 		"positive_spans": input.PositiveSpans, "negative_spans": input.NegativeSpans,
 		"positive_buckets": netdataNumbers(input.PositiveBuckets),
 		"negative_buckets": netdataNumbers(input.NegativeBuckets),
-		"custom_values": netdataNumbers(input.CustomValues),
+		"custom_values":    netdataNumbers(input.CustomValues),
 	}
 }
 
 func netdataInteger(input *Histogram) any {
-	if input == nil { return nil }
+	if input == nil {
+		return nil
+	}
 	return map[string]any{
 		"reset_hint": input.CounterResetHint, "schema": input.Schema,
 		"zero_threshold": fmt.Sprintf("%016x", math.Float64bits(input.ZeroThreshold)),
-		"zero_count": input.ZeroCount, "count": input.Count,
-		"sum": fmt.Sprintf("%016x", math.Float64bits(input.Sum)),
+		"zero_count":     input.ZeroCount, "count": input.Count,
+		"sum":            fmt.Sprintf("%016x", math.Float64bits(input.Sum)),
 		"positive_spans": input.PositiveSpans, "negative_spans": input.NegativeSpans,
 		"positive_buckets": input.PositiveBuckets, "negative_buckets": input.NegativeBuckets,
 		"custom_values": netdataNumbers(input.CustomValues),
@@ -51,7 +60,9 @@ func netdataInteger(input *Histogram) any {
 
 func netdataFrozen(input any) json.RawMessage {
 	raw, err := json.Marshal(input)
-	if err != nil { panic(err) }
+	if err != nil {
+		panic(err)
+	}
 	return raw
 }
 
@@ -59,6 +70,101 @@ func netdataRecord(cases *[]map[string]any, id, mode string, request, actual, de
 	*cases = append(*cases, map[string]any{"id": id, "mode": mode,
 		"request": netdataFrozen(request), "actual": netdataFrozen(actual),
 		"declared": netdataFrozen(declared)})
+}
+
+func netdataReductionResult(input *FloatHistogram, err error) any {
+	message := ""
+	if err != nil {
+		message = err.Error()
+	}
+	return map[string]any{"result": netdataFloat(input), "error": message, "histogram_error": errors.As(err, &Error{})}
+}
+
+func netdataLayoutSupplemental(cases *[]map[string]any) {
+	for hint := UnknownCounterReset; hint <= GaugeType; hint++ {
+		for shape := 0; shape < 4; shape++ {
+			input := &FloatHistogram{CounterResetHint: hint, Schema: 1, Count: 5, Sum: -1, ZeroCount: 2, ZeroThreshold: 0.01}
+			target := int32(0)
+			switch shape {
+			case 1:
+				input.PositiveSpans = []Span{}
+				input.NegativeSpans = []Span{}
+				input.PositiveBuckets = []float64{}
+				input.NegativeBuckets = []float64{}
+			case 2:
+				input.PositiveSpans = []Span{{-3, 4}}
+				input.PositiveBuckets = []float64{1, 1e16, -1e16, 1}
+				input.NegativeSpans = []Span{{0, 2}}
+				input.NegativeBuckets = []float64{1, math.Copysign(0, -1)}
+			case 3:
+				input.Schema = CustomBucketsSchema
+				target = CustomBucketsSchema
+				input.PositiveSpans = []Span{{0, 2}}
+				input.PositiveBuckets = []float64{0, 3}
+				input.CustomValues = []float64{1, 2}
+			}
+			request := netdataFrozen(map[string]any{"input": netdataFloat(input), "target_schema": target})
+			result := input.CopyToSchema(target)
+			netdataRecord(cases, fmt.Sprintf("supplement:copy-to-schema:%d:%d", hint, shape), "float-copy-to-schema",
+				request, map[string]any{"result": netdataFloat(result), "input_after": netdataFloat(input)}, nil)
+		}
+	}
+	for shape := 0; shape < 8; shape++ {
+		for _, maxEmpty := range []int{-1, 0, 2} {
+			input := &FloatHistogram{CounterResetHint: GaugeType, Count: 3, Sum: -1, ZeroCount: 1, ZeroThreshold: 0.01}
+			switch shape {
+			case 1:
+				input.PositiveSpans = []Span{}
+				input.PositiveBuckets = []float64{}
+			case 2:
+				input.PositiveSpans = []Span{{0, 0}}
+				input.PositiveBuckets = []float64{}
+			case 3:
+				input.PositiveSpans = []Span{{-1, 2}}
+				input.PositiveBuckets = []float64{math.Copysign(0, -1), 0}
+			case 4:
+				input.PositiveSpans = []Span{{0, 4}}
+				input.PositiveBuckets = []float64{math.Copysign(0, -1), math.NaN(), -1, 0}
+			case 5:
+				input.PositiveSpans = []Span{{0, 1}, {2, 0}, {0, 1}}
+				input.PositiveBuckets = []float64{1, 2}
+			case 6:
+				input.PositiveSpans = []Span{{0, 0}}
+			case 7:
+				input.PositiveBuckets = []float64{}
+			}
+			request := netdataFrozen(map[string]any{"input": netdataFloat(input), "max_empty": maxEmpty})
+			input.Compact(maxEmpty)
+			netdataRecord(cases, fmt.Sprintf("supplement:compact:%d:%d", shape, maxEmpty), "float-compact", request, netdataFloat(input), nil)
+		}
+	}
+	for shape := 0; shape < 8; shape++ {
+		input := &FloatHistogram{CounterResetHint: CounterReset, Schema: 0, Count: 3, Sum: 5,
+			PositiveSpans: []Span{{-2, 2}}, PositiveBuckets: []float64{1, 2},
+			NegativeSpans: []Span{{0, 2}}, NegativeBuckets: []float64{1, 2}}
+		target := int32(-1)
+		switch shape {
+		case 0:
+			input.Schema = CustomBucketsSchema
+		case 1:
+			target = CustomBucketsSchema
+		case 2:
+			target = 0
+		case 3:
+			target = 1
+		case 4:
+			input.PositiveBuckets = []float64{1}
+		case 5:
+			input.NegativeBuckets = []float64{1}
+		case 6:
+			input.NegativeBuckets = []float64{1, 2, 3}
+		case 7:
+			input.NegativeSpans = []Span{{0, 1}, {-1, 1}}
+		}
+		request := netdataFrozen(map[string]any{"input": netdataFloat(input), "target_schema": target})
+		err := input.ReduceResolution(target)
+		netdataRecord(cases, fmt.Sprintf("supplement:reduce-resolution:%d", shape), "float-reduce-resolution", request, netdataReductionResult(input, err), nil)
+	}
 }
 
 func netdataSupplemental(cases *[]map[string]any) {
@@ -70,10 +176,16 @@ func netdataSupplemental(cases *[]map[string]any) {
 						ZeroThreshold: 0.01, ZeroCount: 0, Count: 3, Sum: -1,
 						PositiveSpans: []Span{{0, 2}}, PositiveBuckets: []float64{0, 3},
 						NegativeSpans: []Span{{0, 1}}, NegativeBuckets: []float64{math.Copysign(0, -1)}}
-					if schema == CustomBucketsSchema { input.CustomValues = []float64{1, 2} }
+					if schema == CustomBucketsSchema {
+						input.CustomValues = []float64{1, 2}
+					}
 					request := netdataFrozen(map[string]any{"input": netdataFloat(input),
 						"scalar": fmt.Sprintf("%016x", math.Float64bits(factor))})
-					if mode == "float-mul" { input.Mul(factor) } else { input.Div(factor) }
+					if mode == "float-mul" {
+						input.Mul(factor)
+					} else {
+						input.Div(factor)
+					}
 					netdataRecord(cases, fmt.Sprintf("supplement:arithmetic:%s:%d:%d:%d", mode, hint, schema, i),
 						mode, request, netdataFloat(input), nil)
 				}
@@ -91,18 +203,21 @@ func netdataSupplemental(cases *[]map[string]any) {
 		netdataRecord(cases, fmt.Sprintf("supplement:integer-to-float:%d", i), "integer-to-float",
 			request, netdataFloat(input.ToFloat(nil)), nil)
 	}
-	values := []float64{0, math.Copysign(0,-1), 1, -1, 1e16, -1e16,
+	values := []float64{0, math.Copysign(0, -1), 1, -1, 1e16, -1e16,
 		math.MaxFloat64, -math.MaxFloat64, math.Inf(1), math.Inf(-1), math.NaN()}
 	for i, sum := range values {
 		for j, increment := range values {
 			for _, mode := range []string{"compensated-add", "compensated-sub"} {
 				compensation := 0.25
 				request := map[string]any{"sum": fmt.Sprintf("%016x", math.Float64bits(sum)),
-					"increment": fmt.Sprintf("%016x", math.Float64bits(increment)),
+					"increment":    fmt.Sprintf("%016x", math.Float64bits(increment)),
 					"compensation": fmt.Sprintf("%016x", math.Float64bits(compensation))}
 				var total, correction float64
-				if mode == "compensated-add" { total, correction = kahansum.Inc(increment, sum, compensation)
-				} else { total, correction = kahansum.Dec(increment, sum, compensation) }
+				if mode == "compensated-add" {
+					total, correction = kahansum.Inc(increment, sum, compensation)
+				} else {
+					total, correction = kahansum.Dec(increment, sum, compensation)
+				}
 				netdataRecord(cases, fmt.Sprintf("supplement:%s:%d:%d", mode, i, j), mode, request,
 					map[string]any{"sum": fmt.Sprintf("%016x", math.Float64bits(total)),
 						"compensation": fmt.Sprintf("%016x", math.Float64bits(correction))}, nil)
@@ -113,21 +228,37 @@ func netdataSupplemental(cases *[]map[string]any) {
 
 func TestNetdataCaptureHistogram(t *testing.T) {
 	destination := os.Getenv("NETDATA_HISTOGRAM_CAPTURE")
-	if destination == "" { t.Skip("capture path not supplied") }
-	if runtime.Version() != "go1.27.1" { t.Fatal("unexpected Go toolchain") }
-	for _, assertion := range []struct{name string; run func(*testing.T)}{
-/* ORIGINAL_ASSERTIONS */
-	} { t.Run(assertion.name, assertion.run) }
-	if t.Failed() { t.Fatal("original histogram assertions failed") }
+	if destination == "" {
+		t.Skip("capture path not supplied")
+	}
+	if runtime.Version() != "go1.27.1" {
+		t.Fatal("unexpected Go toolchain")
+	}
+	for _, assertion := range []struct {
+		name string
+		run  func(*testing.T)
+	}{
+		/* ORIGINAL_ASSERTIONS */
+	} {
+		t.Run(assertion.name, assertion.run)
+	}
+	if t.Failed() {
+		t.Fatal("original histogram assertions failed")
+	}
 	cases := []map[string]any{}
-/* CAPTURE_CALLS */
+	/* CAPTURE_CALLS */
 	netdataSupplemental(&cases)
+	netdataLayoutSupplemental(&cases)
 	raw, err := json.MarshalIndent(map[string]any{"schema_version": 1,
 		"commit": "5241a27fe3c6983549fccc32f6e65917408c63cd", "go_version": runtime.Version(),
 		"go_os": runtime.GOOS, "go_arch": runtime.GOARCH,
 		"original_assertions_passed": true, "cases": cases}, "", "  ")
-	if err != nil { t.Fatal(err) }
-	if err := os.WriteFile(destination, append(raw, '\n'), 0600); err != nil { t.Fatal(err) }
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(destination, append(raw, '\n'), 0600); err != nil {
+		t.Fatal(err)
+	}
 }
 
 /* CAPTURE_HELPERS */
