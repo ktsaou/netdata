@@ -471,6 +471,37 @@ diagnostics. Fourteen original declaration-versus-Go differences are reported se
 assertions. Overflow and compensation consumers distinguish reordered arithmetic that changes a comparison.
 Float omission, name removal, inherited warnings and full expression outcomes still require the Rust evaluator.
 
+## Classic histogram bucket kernels
+
+`BucketQuantile` and `BucketFraction` follow pinned `promql/quantile.go` and mutate one borrowed bucket-aggregate
+slice in place. The kernels preserve full backing tails after coalescing, quantile monotonicity/precision metadata,
+and Fraction's original cumulative counts. Go 1.27.1's comparator sort and binary-search visit order are ported
+explicitly: accepted NaN bounds and counts, duplicate buckets and zero signs make these choices observable.
+The pinned Go coalescing operand's NaN payload is retained locally without changing finite addition order.
+A 100,000-bucket test checks descending and permuted sorts, interpolation and retained caller storage on a
+128KiB stack. A group's aggregate slice may grow; this gate does not establish whole-query memory bounds.
+
+The additive capture executes untouched quantile and `almost.Equal` assertions before observing copies with
+the same assertions. It binds 29 source owners, all 1,654 Prometheus files and four Go support-source hashes.
+Twenty-four original quantiles and ten near-equality assertions retain their exact source scopes. Supplemental
+cases exercise sorting thresholds, correction extrema, repeated full-slice mutation, empty-helper panics,
+signed-zero reciprocals and quiet/signaling NaNs. Valid quantiles and fractions require a nonempty aggregate
+group; these pure-helper panic probes do not define complete expression errors.
+
+```sh
+python3 tests/promql-conformance/classic_capture.py --mod-cache "${PROMQL_GO_MOD_CACHE:?}"
+python3 tests/promql-conformance/classic.py --capture "${PROMQL_CLASSIC_CAPTURE_DIR:?}"
+```
+
+The gate contains 4,176 comparisons: 1,676 bucket-operation steps and 2,602 near-equality outcomes. Candidate
+snapshots, panic classifications, all five quantile metadata fields and composed booleans compare exactly;
+scalar values use the pinned numerical contract, with every bit difference reported separately. Original
+quantile values also satisfy their narrower relative-epsilon assertions. Both release profiles pass the
+4,176 comparisons, with four NaN-only candidate bit differences and three finite declaration-versus-Go
+differences. Every finite candidate value matches Go's bits; strict-bit mode rejects the four NaN diagnostics.
+Complete grouped expressions,
+diagnostic formatting, storage replay and C accounting remain later qualification gates.
+
 ## Required SRE expression sources
 
 The source-pinned extractor reads Git objects without changing the repository mirrors:

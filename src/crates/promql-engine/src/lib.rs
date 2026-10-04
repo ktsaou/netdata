@@ -6,10 +6,12 @@
 compile_error!("PromQL requires panic=unwind for containment at its C boundary");
 
 pub mod frontend;
+mod go_sort;
 pub mod histogram;
 mod histogram_arithmetic;
 mod histogram_bounds;
 mod histogram_bounds_table;
+mod histogram_classic;
 mod histogram_counter;
 mod histogram_equality;
 mod histogram_functions;

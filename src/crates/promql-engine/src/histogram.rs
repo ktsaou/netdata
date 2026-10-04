@@ -2,6 +2,9 @@
 // Histogram value operations derive from the pinned Prometheus model; see NOTICE.
 pub use crate::histogram_arithmetic::HistogramArithmetic;
 pub use crate::histogram_bounds::bucket_bound;
+pub use crate::histogram_classic::{
+    BucketQuantileResult, ClassicBucket, bucket_fraction, bucket_quantile,
+};
 pub use crate::histogram_counter::{ZeroCount, custom_bounds_match};
 pub use crate::histogram_functions::{
     HistogramFunctionResult, NativeHistogramInfo, histogram_avg, histogram_count,
