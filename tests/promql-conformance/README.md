@@ -327,6 +327,7 @@ conversion and assertions before each observation. All 41 original pairs and 30 
 Counts, sums and bucket data use bit equality; thresholds and custom bounds use numeric equality. Empty spans fold with
 wrapping offsets, while adjacent nonempty spans remain distinct. Thirty-five overflow witnesses distinguish infinities
 in watched fields from NaNs and the ignored zero threshold. Both helpers borrow the payload and use constant auxiliary memory.
+Their unchanged operand snapshots use exact bit comparison, including NaN payloads and signed zeros.
 
 The complete 1,654-file source facade stays unchanged. The public Go-derived input ledger binds every request,
 declared expectation, source prefix/position and the source-manifest digest independently of the capture directory.

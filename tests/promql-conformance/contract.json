@@ -157,6 +157,7 @@
     "overflow_cases": 35,
     "equality_capture": "Whole procedural source bodies, including integer-to-float conversion; observations follow original assertions. Both directional booleans and complete operand states are retained.",
     "equality_retention": "Borrowed payloads, bitwise data comparison, numeric threshold/custom-bound comparison, wrapping empty-span folds; constant auxiliary memory.",
+    "read_only_operand_comparison": "Equality and overflow snapshots use exact bits for every unchanged numerical field, including NaN payloads and signed zeros.",
     "paired_compaction_boundary": "Standalone fixtures use independent spans; Go shared receiver/correction backing storage in a direct arithmetic-to-compaction lifecycle remains unqualified. Normal KahanAdd resynchronizes spans before returning; Rust mutable arrays are owned independently.",
     "arithmetic_capture": "Operands frozen after source Copy for original fixtures; raw, folded and compacted results retained separately. Source assertion scope is preserved.",
     "arithmetic_retention": "Borrowed right operand; reusable accumulator buffers; reduced schema output; virtual zero correction; target arrays for custom-bound reconciliation. No raw history container.",

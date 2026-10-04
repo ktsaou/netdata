@@ -221,6 +221,8 @@ def validate_case(case):
             raise ValueError("invalid histogram equality outcome")
         for key in ("left_after", "right_after"):
             histogram(actual[key], False)
+        if actual["left_after"] != request["left"] or actual["right_after"] != request["right"]:
+            raise ValueError("histogram equality mutated an operand")
         if case["declared"] is not None:
             fields(case["declared"], ("forward", "reverse"))
             if any(type(value) is not bool for value in case["declared"].values()):
@@ -232,6 +234,8 @@ def validate_case(case):
         if type(actual["overflow"]) is not bool:
             raise ValueError("invalid histogram overflow outcome")
         histogram(actual["input_after"], False)
+        if actual["input_after"] != request["input"]:
+            raise ValueError("histogram overflow scan mutated its operand")
         if case["declared"] is not None:
             raise ValueError("invented upstream overflow assertion")
     elif mode == "float-arithmetic-set":
