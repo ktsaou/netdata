@@ -158,8 +158,8 @@ execution architecture: bounded raw pages, sufficient operator state, exact repl
 ## Owned Rust frontend
 
 `src/crates/promql-engine` is a standalone Cargo workspace, edition 2024 with an MSRV declaration of 1.91.
-It is outside the Agent/plugin default build. The library currently uses only the Rust standard library;
-the optional `fixtures` feature adds `serde_json` for the test binary's AST projection.
+It is outside the Agent/plugin default build. The library uses pinned `regex-automata` and `regex-syntax`;
+the optional `fixtures` feature adds `serde_json` for the test binary's projections.
 The checked toolchain is Rust 1.97.1; the MSRV itself has not been built here.
 
 ```sh
@@ -172,7 +172,7 @@ python3 tests/promql-conformance/parser_cases.py
 
 The builder uses offline, locked Cargo operations and the ignored `.tmp/core-target` output directory.
 The driver verifies the reference fixture digest and compares all lexer items, byte positions and diagnostic bytes.
-The current candidate passes **157/157 lexer cases** and **7/7 captured string literal values**. Four focused Rust
+The current candidate passes **157/157 lexer cases** and **7/7 captured string literal values**. Focused Rust
 tests also cover invalid literals, non-UTF-8/NUL escapes, raw CR/newline preservation and Go `%#U` escape diagnostics.
 
 `literal-cases.json` contains 32 independently captured pinned Go parser results. `literals.py` compares exact
@@ -186,9 +186,8 @@ qualify complete parsing or evaluation.
 The typed AST uses flat arena references and cached structural types/spans. Its 90 function signatures come from
 the independent language catalog. The owned Pratt parser and ordered typed validator use explicit continuation
 stacks. `parser.py` executes all 356 captured expression cases and compares complete AST fields and ordered error
-bytes/positions. **350/356 match exactly**, including the 41,001-node AST and 10,999-error case. The six remaining
-cases require the unfinished Go-compatible regex compiler; they fail explicitly and remain mandatory. The parser
-driver returns failure until every captured expression matches, and writes differences to ignored `.tmp/`.
+bytes/positions. **356/356 match exactly**, including the 41,001-node AST and 10,999-error case. Compiled selectors
+use the owned regex frontend below. The parser driver fails on any difference and writes differences to ignored `.tmp/`.
 The committed `parser-cases.json` adds **784/784 exact public regression/profile cases**, captured independently
 from Go for all sixteen parser-option combinations. They cover trailing argument commas, malformed grouping,
 fixed-arity duration calls, repeated commas, surviving parentheses after recovery, chained offset signs and
@@ -205,14 +204,65 @@ execution and leaves the reference module cache unchanged. These finite cases do
 - Expression consumers stop on the first lexer error. Raw-string EOF is terminal in Rust, avoiding the reference
   scanner's repeating error state; the first error and all captured finite streams match.
 
-The complete frontend gate remains pending. Regex compilation, additional parser profiles, evaluation, the C
-interface and runtime accounting still require qualification; captured parser matches cannot establish query compatibility.
+These are finite frontend checks. Remaining helper/source corpora, evaluation, the C interface and runtime accounting
+still require qualification; captured parser matches cannot establish query compatibility.
 
 Set `exact_numeric` for boolean/discrete result cases. Always test the complete filtered/bool expression around a
 threshold, alongside its numerical intermediate. The preserved prototype rate regression demonstrates why a
 one-bit numerical difference can change whether an alert returns a series. Numeric tolerance never excuses that
 changed result. Require `ordered` for order-sensitive output; the oracle retains traversal order even when ignored
 by a case comparison.
+
+## Owned Go-compatible regex frontend
+
+The Rust frontend owns byte parsing, canonical syntax, simplification, capture numbering, Go replacement expansion
+and Prometheus selector optimizations. It constructs a flat Go metadata program with explicit work stacks, then
+uses the public `regex-automata 0.4.16` Thompson Builder and PikeVM. `regex-syntax 0.8.11` supplies bounded UTF-8
+range encoding. The backend does not parse the expression or recursively compile its syntax tree. Release and
+release-min tests compile, execute and drop 999 nested captures and 1,500 noncapturing groups on a 128 KiB test stack.
+The test creates a thread to control stack size; the library creates no runtime or execution thread.
+
+Upstream has two syntax origins. Selectors first parse with `grafana/regexp/syntax` at
+`f7b3be9d18538c56fb03caa6088db55404e784e8`, serialize, then compile with Go 1.27.1 standard syntax. Label replacement
+compiles its wrapped original pattern with standard syntax. The owned frontend preserves their different Unicode
+aliases and case-folding equality. Unicode properties, simple fold and lowercase use Go Unicode 17.0.0 tables;
+map optimizations use pinned `golang.org/x/text v0.41.0` NFKD and stream-safe decomposition.
+
+Capture and compare using the existing pinned cache:
+
+```sh
+python3 tests/promql-conformance/regex_capture.py --mod-cache "${PROMQL_GO_MOD_CACHE:?}"
+python3 tests/promql-conformance/regex_cases.py --capture "${PROMQL_REGEX_CAPTURE_DIR:?}"
+```
+
+The checked capture contains **21,320 exact Rust comparisons**:
+
+| Surface | Cases |
+|---|---:|
+| Fork syntax / standard syntax | 478 / 478 |
+| Compilation / original program and OnePass metadata | 40 / 237 |
+| Find, capture vectors and byte replacement | 4,505 |
+| Anchored label-replacement kernel | 4,348 |
+| Prometheus selector matching | 11,188 |
+| Normalized and lowercase byte strings | 46 |
+
+Original Go assertions run before capture. Private source facades and the immutable cache retain all 33 Grafana
+and 1,654 Prometheus source files byte-for-byte. Original input bindings, targeted requests, source manifests,
+added-hook whitelist and output hashes are checked before candidate execution. Mutation tests reject missing
+cases/fields, changed syntax origins/profiles, malformed capture vectors and modified source/hook bytes.
+Every expected field is compared, including error bytes, canonical syntax, duplicate capture names, offsets,
+nil versus empty rune slices, branch links, OnePass eligibility and prefix fields. No unsupported case counts as passing.
+
+Targeted inputs include invalid UTF-8, ASCII Perl classes, Unicode 17 properties, duplicate capture names, replacement
+name grammar, surrogate-prefix behavior, 16-entry normalized maps, overlapping contains retries, nullable repeats,
+and empty-class concatenations. They include all 37 original OnePass compilation patterns and its separate execution
+regression. Five Rust unit tests pass in release and release-min; this includes the small-stack test above.
+
+This finite corpus does not prove arbitrary-pattern compatibility. RE2/Fowler/exhaustive suites and remaining
+optimizer helper suites are outside this evidence. The anchored replacement checks qualify its regex kernel, not
+the pending PromQL `label_replace` evaluation and label mutation. PikeVM construction currently omits meta-engine
+accelerators; its query performance has not been measured. Go syntax limits and optimizer strategy thresholds are
+preserved as upstream behavior. No engine regex or query resource quota is enabled.
 
 ## Required SRE expression sources
 
