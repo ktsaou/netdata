@@ -51,7 +51,7 @@ class HistogramReferenceTests(unittest.TestCase):
 
     def test_complete_decoder_roster(self):
         self.assertEqual(validate_cases(self.document, self.ledger["tables"]),
-                         {"original_table_cases": 160, "supplemental_cases": 5696, "total": 5856})
+                         {"original_table_cases": 160, "supplemental_cases": 5698, "total": 5858})
 
     def test_valid_but_rebound_inputs_are_rejected(self):
         mutations = [

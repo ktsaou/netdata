@@ -102347,6 +102347,98 @@
         "threshold": "3fe8000000000000"
       },
       "declared": null
+    },
+    {
+      "id": "supplement:zero-threshold:20",
+      "mode": "float-zero-threshold",
+      "request": {
+        "compensation": {
+          "count": "0000000000000000",
+          "custom_values": null,
+          "negative_buckets": null,
+          "negative_spans": null,
+          "positive_buckets": null,
+          "positive_spans": [
+            {
+              "Offset": 0,
+              "Length": 1
+            }
+          ],
+          "reset_hint": 0,
+          "schema": 0,
+          "sum": "0000000000000000",
+          "zero_count": "0000000000000000",
+          "zero_threshold": "0000000000000000"
+        },
+        "input": {
+          "count": "0000000000000000",
+          "custom_values": null,
+          "negative_buckets": null,
+          "negative_spans": null,
+          "positive_buckets": [
+            "3ff0000000000000"
+          ],
+          "positive_spans": [
+            {
+              "Offset": 0,
+              "Length": 1
+            }
+          ],
+          "reset_hint": 0,
+          "schema": 0,
+          "sum": "0000000000000000",
+          "zero_count": "0000000000000000",
+          "zero_threshold": "0000000000000000"
+        },
+        "threshold": "4000000000000000"
+      },
+      "declared": null
+    },
+    {
+      "id": "supplement:zero-threshold:21",
+      "mode": "float-zero-threshold",
+      "request": {
+        "compensation": {
+          "count": "0000000000000000",
+          "custom_values": null,
+          "negative_buckets": null,
+          "negative_spans": [
+            {
+              "Offset": 0,
+              "Length": 1
+            }
+          ],
+          "positive_buckets": null,
+          "positive_spans": null,
+          "reset_hint": 0,
+          "schema": 0,
+          "sum": "0000000000000000",
+          "zero_count": "0000000000000000",
+          "zero_threshold": "0000000000000000"
+        },
+        "input": {
+          "count": "0000000000000000",
+          "custom_values": null,
+          "negative_buckets": [
+            "3ff0000000000000"
+          ],
+          "negative_spans": [
+            {
+              "Offset": 0,
+              "Length": 1
+            }
+          ],
+          "positive_buckets": null,
+          "positive_spans": null,
+          "reset_hint": 0,
+          "schema": 0,
+          "sum": "0000000000000000",
+          "zero_count": "0000000000000000",
+          "zero_threshold": "0000000000000000"
+        },
+        "threshold": "4000000000000000"
+      },
+      "declared": null
     }
   ]
 }

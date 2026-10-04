@@ -27,6 +27,16 @@ fn threshold_text(value: f64) -> String {
     }
 }
 
+fn correction_bucket(buckets: Option<&[f64]>, index: usize) -> f64 {
+    let buckets = buckets.unwrap_or(&[]);
+    *buckets.get(index).unwrap_or_else(|| {
+        panic!(
+            "runtime error: index out of range [{index}] with length {}",
+            buckets.len()
+        )
+    })
+}
+
 pub fn zero_count_for_threshold(
     histogram: FloatHistogramRef<'_>,
     mut threshold: f64,
@@ -57,7 +67,7 @@ pub fn zero_count_for_threshold(
             (count, compensation) = compensated_add(bucket.count, count, compensation);
             if let Some(correction) = correction {
                 (count, compensation) = compensated_add(
-                    correction.positive_buckets.unwrap_or(&[])[index],
+                    correction_bucket(correction.positive_buckets, index),
                     count,
                     compensation,
                 );
@@ -78,7 +88,7 @@ pub fn zero_count_for_threshold(
             (count, compensation) = compensated_add(bucket.count, count, compensation);
             if let Some(correction) = correction {
                 (count, compensation) = compensated_add(
-                    correction.negative_buckets.unwrap_or(&[])[index],
+                    correction_bucket(correction.negative_buckets, index),
                     count,
                     compensation,
                 );
