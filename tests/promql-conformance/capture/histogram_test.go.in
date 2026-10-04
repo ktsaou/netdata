@@ -451,11 +451,12 @@ func netdataResetResult(current, previous *FloatHistogram) any {
 }
 
 func netdataThresholdResult(h, c *FloatHistogram, threshold float64) (output map[string]any) {
-	output = map[string]any{"result": nil, "panic": "", "input_after": netdataFloat(h), "compensation_after": netdataFloat(c)}
+	output = map[string]any{"result": nil, "panic": ""}
 	defer func() {
 		if failure := recover(); failure != nil {
 			output["panic"] = fmt.Sprint(failure)
 		}
+		output["input_after"], output["compensation_after"] = netdataFloat(h), netdataFloat(c)
 	}()
 	count, bound, correction := h.zeroCountForLargerThreshold(threshold, c)
 	output["result"] = map[string]any{"count": fmt.Sprintf("%016x", math.Float64bits(count)),
@@ -556,7 +557,7 @@ func netdataCounterSupplemental(cases *[]map[string]any) {
 		netdataRecord(cases, fmt.Sprintf("supplement:reset:%d", shape), "float-detect-reset",
 			map[string]any{"current": netdataFloat(current), "previous": netdataFloat(previous)}, netdataResetResult(current, previous), nil)
 	}
-	for shape := 0; shape < 20; shape++ {
+	for shape := 0; shape < 22; shape++ {
 		h := &FloatHistogram{Schema: 0, ZeroThreshold: 0.01, ZeroCount: 0.25,
 			PositiveSpans: []Span{{-1, 3}}, PositiveBuckets: []float64{1, 2, 3},
 			NegativeSpans: []Span{{-1, 2}}, NegativeBuckets: []float64{4, 5}}
@@ -604,6 +605,12 @@ func netdataCounterSupplemental(cases *[]map[string]any) {
 			h.PositiveSpans, h.PositiveBuckets = []Span{{0, 1}, {2, 0}, {3, 2}}, []float64{1, 2, 3}
 		case 19:
 			h.PositiveSpans, h.PositiveBuckets = []Span{{0, 1}, {-1, 1}}, []float64{1, 2}
+		case 20, 21:
+			h = &FloatHistogram{Schema: 0, PositiveSpans: []Span{{0, 1}}, PositiveBuckets: []float64{1}}
+			if shape == 21 {
+				h.PositiveSpans, h.PositiveBuckets, h.NegativeSpans, h.NegativeBuckets = nil, nil, h.PositiveSpans, h.PositiveBuckets
+			}
+			threshold = 2
 		}
 		var c *FloatHistogram
 		if shape%2 == 1 {
@@ -616,6 +623,9 @@ func netdataCounterSupplemental(cases *[]map[string]any) {
 			for i := range c.NegativeBuckets {
 				c.NegativeBuckets[i] = float64(i+1) / 100
 			}
+		}
+		if shape >= 20 {
+			c = &FloatHistogram{Schema: h.Schema, PositiveSpans: h.PositiveSpans, NegativeSpans: h.NegativeSpans}
 		}
 		netdataRecord(cases, fmt.Sprintf("supplement:zero-threshold:%d", shape), "float-zero-threshold",
 			map[string]any{"input": netdataFloat(h), "compensation": netdataFloat(c), "threshold": fmt.Sprintf("%016x", math.Float64bits(threshold))},

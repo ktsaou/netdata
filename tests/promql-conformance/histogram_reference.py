@@ -350,7 +350,7 @@ def supplemental_ids():
             result[f"supplement:reset-hint:{hint}:{shape}"] = "float-detect-reset"
     for shape in range(18):
         result[f"supplement:reset:{shape}"] = "float-detect-reset"
-    for shape in range(20):
+    for shape in range(22):
         result[f"supplement:zero-threshold:{shape}"] = "float-zero-threshold"
     return result
 
