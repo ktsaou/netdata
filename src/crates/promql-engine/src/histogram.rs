@@ -15,7 +15,9 @@ pub use crate::histogram_iterator::{
     AllFloatBucketIterator, Bucket, FloatBucketIterator, ReverseFloatBucketIterator,
 };
 pub use crate::histogram_layout::HistogramError;
-use crate::histogram_layout::{compact_float, reduce_float_copy, reduce_float_in_place};
+use crate::histogram_layout::{
+    compact_float, compact_float_pair_with, reduce_float_copy, reduce_float_in_place,
+};
 use std::sync::Arc;
 
 pub const CUSTOM_BUCKETS_SCHEMA: i32 = -53;
@@ -252,6 +254,30 @@ impl FloatHistogram {
         self.schema == CUSTOM_BUCKETS_SCHEMA
     }
 
+    pub(crate) fn normalize_copy_fields(&mut self) {
+        // A uniquely owned map input needs Copy's field semantics without another bucket allocation.
+        if self.uses_custom_buckets() {
+            self.zero_threshold = 0.0;
+            self.zero_count = 0.0;
+            self.negative_spans = None;
+            self.negative_buckets = None;
+        } else {
+            self.custom_values = None;
+        }
+        if self.positive_spans.as_ref().is_some_and(|v| v.is_empty()) {
+            self.positive_spans = None;
+        }
+        if self.negative_spans.as_ref().is_some_and(|v| v.is_empty()) {
+            self.negative_spans = None;
+        }
+        if self.positive_buckets.as_ref().is_some_and(|v| v.is_empty()) {
+            self.positive_buckets = None;
+        }
+        if self.negative_buckets.as_ref().is_some_and(|v| v.is_empty()) {
+            self.negative_buckets = None;
+        }
+    }
+
     pub fn compact(&mut self, max_empty_buckets: isize) {
         self.compact_in(max_empty_buckets, None);
     }
@@ -272,6 +298,29 @@ impl FloatHistogram {
             max_empty_buckets,
             context,
         );
+    }
+    pub(crate) fn compact_with<E>(
+        &mut self,
+        max_empty_buckets: isize,
+        context: Option<&AllocationContext>,
+        mut poll: impl FnMut(usize) -> Result<(), E>,
+    ) -> Result<(), E> {
+        compact_float_pair_with(
+            &mut self.positive_buckets,
+            &mut self.positive_spans,
+            None,
+            max_empty_buckets,
+            context,
+            &mut poll,
+        )?;
+        compact_float_pair_with(
+            &mut self.negative_buckets,
+            &mut self.negative_spans,
+            None,
+            max_empty_buckets,
+            context,
+            poll,
+        )
     }
 
     pub fn copy_to_schema(&self, target: i32) -> Self {
@@ -337,21 +386,48 @@ impl FloatHistogram {
     }
 
     pub fn mul(&mut self, factor: f64) {
+        let result: Result<(), std::convert::Infallible> = self.mul_with(factor, || Ok(()));
+        match result {
+            Ok(()) => (),
+            Err(never) => match never {},
+        }
+    }
+    pub(crate) fn mul_with<E>(
+        &mut self,
+        factor: f64,
+        mut poll: impl FnMut() -> Result<(), E>,
+    ) -> Result<(), E> {
+        poll()?;
         self.zero_count *= factor;
         self.count *= factor;
         self.sum *= factor;
         for bucket in self.positive_buckets.iter_mut().flatten() {
+            poll()?;
             *bucket *= factor;
         }
         for bucket in self.negative_buckets.iter_mut().flatten() {
+            poll()?;
             *bucket *= factor;
         }
         if factor < 0.0 {
             self.reset_hint = GAUGE;
         }
+        Ok(())
     }
 
     pub fn div(&mut self, divisor: f64) {
+        let result: Result<(), std::convert::Infallible> = self.div_with(divisor, || Ok(()));
+        match result {
+            Ok(()) => (),
+            Err(never) => match never {},
+        }
+    }
+    pub(crate) fn div_with<E>(
+        &mut self,
+        divisor: f64,
+        mut poll: impl FnMut() -> Result<(), E>,
+    ) -> Result<(), E> {
+        poll()?;
         self.zero_count /= divisor;
         self.count /= divisor;
         self.sum /= divisor;
@@ -361,17 +437,20 @@ impl FloatHistogram {
             self.negative_spans = None;
             self.positive_buckets = None;
             self.negative_buckets = None;
-            return;
+            return Ok(());
         }
         for bucket in self.positive_buckets.iter_mut().flatten() {
+            poll()?;
             *bucket /= divisor;
         }
         for bucket in self.negative_buckets.iter_mut().flatten() {
+            poll()?;
             *bucket /= divisor;
         }
         if divisor < 0.0 {
             self.reset_hint = GAUGE;
         }
+        Ok(())
     }
 }
 
@@ -517,6 +596,33 @@ impl<'a> FloatHistogramRef<'a> {
         let mut result = FloatHistogram::default();
         self.copy_to_in(&mut result, context);
         result
+    }
+    pub(crate) fn to_owned_result_in(self, context: &AllocationContext) -> FloatHistogram {
+        // Result ownership preserves evaluated fields, including ignored custom fields changed by arithmetic.
+        let context = Some(context);
+        FloatHistogram {
+            reset_hint: self.reset_hint,
+            schema: self.schema,
+            zero_threshold: self.zero_threshold,
+            zero_count: self.zero_count,
+            count: self.count,
+            sum: self.sum,
+            positive_spans: self
+                .positive_spans
+                .map(|values| AccountedVec::from_slice_in(values, context)),
+            negative_spans: self
+                .negative_spans
+                .map(|values| AccountedVec::from_slice_in(values, context)),
+            positive_buckets: self
+                .positive_buckets
+                .map(|values| AccountedVec::from_slice_in(values, context)),
+            negative_buckets: self
+                .negative_buckets
+                .map(|values| AccountedVec::from_slice_in(values, context)),
+            custom_values: self
+                .custom_values
+                .map(|values| HistogramBounds::from_slice_in(values, context)),
+        }
     }
 }
 

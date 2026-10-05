@@ -276,6 +276,23 @@ pub(crate) fn compact_float_pair(
     max_empty: isize,
     context: Option<&AllocationContext>,
 ) {
+    let result: Result<(), std::convert::Infallible> =
+        compact_float_pair_with(buckets, spans, correction, max_empty, context, |_| Ok(()));
+    match result {
+        Ok(()) => (),
+        Err(never) => match never {},
+    }
+}
+
+pub(crate) fn compact_float_pair_with<E>(
+    buckets: &mut Option<AccountedVec<f64>>,
+    spans: &mut Option<AccountedVec<Span>>,
+    correction: Option<&mut Option<AccountedVec<f64>>>,
+    max_empty: isize,
+    context: Option<&AllocationContext>,
+    mut poll: impl FnMut(usize) -> Result<(), E>,
+) -> Result<(), E> {
+    poll(1)?;
     let (mut absent_buckets, mut absent_spans) =
         (AccountedVec::new_in(context), AccountedVec::new_in(context));
     let buckets = buckets.as_mut().unwrap_or(&mut absent_buckets);
@@ -288,16 +305,31 @@ pub(crate) fn compact_float_pair(
             "compensation bucket layout mismatch"
         );
     }
-    if !buckets.contains(&0.0)
-        && spans
-            .iter()
-            .all(|span| span.offset as isize > max_empty && span.length != 0)
-    {
-        return;
+    let mut has_zero = false;
+    for &bucket in buckets.iter() {
+        poll(1)?;
+        if bucket == 0.0 {
+            has_zero = true;
+            break;
+        }
+    }
+    if !has_zero {
+        let mut unchanged = true;
+        for span in spans.iter() {
+            poll(1)?;
+            if span.offset as isize <= max_empty || span.length == 0 {
+                unchanged = false;
+                break;
+            }
+        }
+        if unchanged {
+            return Ok(());
+        }
     }
     let (mut bucket, mut span_index, mut position) = (0, 0, 0u32);
     if spans.len() > 1 {
         for n in 1..spans.len() {
+            poll(1)?;
             let span = spans[n];
             if span.offset == 0 {
                 spans[span_index].length = spans[span_index].length.wrapping_add(span.length);
@@ -310,6 +342,7 @@ pub(crate) fn compact_float_pair(
         span_index = 0;
     }
     for n in 0..spans.len() {
+        poll(1)?;
         let span = spans[n];
         if span.length == 0 {
             if n + 1 < spans.len() {
@@ -327,9 +360,10 @@ pub(crate) fn compact_float_pair(
         if let Some(values) = correction {
             values.clear();
         }
-        return;
+        return Ok(());
     }
     while bucket < buckets.len() && span_index < spans.len() {
+        poll(1)?;
         let mut empty = 0usize;
         let mut value = buckets[bucket];
         let mut compensation = correction.as_ref().map_or(0.0, |values| values[bucket]);
@@ -337,6 +371,7 @@ pub(crate) fn compact_float_pair(
             && value == 0.0
             && compensation == 0.0
         {
+            poll(1)?;
             empty += 1;
             if empty + bucket >= buckets.len() {
                 break;
@@ -355,13 +390,16 @@ pub(crate) fn compact_float_pair(
                 position += empty as u32;
                 continue;
             }
+            poll(buckets.len() - bucket - empty)?;
             remove_range(buckets, bucket, empty);
             if let Some(values) = correction.as_mut() {
+                poll(values.len() - bucket - empty)?;
                 remove_range(values, bucket, empty);
             }
             if position == 0 {
                 if empty == spans[span_index].length as usize {
                     let offset = spans[span_index].offset;
+                    poll(spans.len() - span_index - 1)?;
                     spans.remove(span_index);
                     if span_index < spans.len() {
                         spans[span_index].offset = spans[span_index]
@@ -387,6 +425,7 @@ pub(crate) fn compact_float_pair(
                     spans[span_index].offset = spans[span_index].offset.wrapping_add(empty as i32);
                 }
             } else {
+                poll(spans.len() - span_index)?;
                 spans.insert(span_index, next);
             }
             continue;
@@ -399,11 +438,12 @@ pub(crate) fn compact_float_pair(
         }
     }
     if max_empty == 0 || buckets.is_empty() {
-        return;
+        return Ok(());
     }
     bucket = spans[0].length as usize;
     span_index = 1;
     while span_index < spans.len() {
+        poll(1)?;
         let span = spans[span_index];
         if span.offset as isize > max_empty {
             bucket += span.length as usize;
@@ -415,20 +455,24 @@ pub(crate) fn compact_float_pair(
             .length
             .wrapping_add(offset as u32)
             .wrapping_add(span.length);
+        poll(spans.len() - span_index - 1)?;
         spans.remove(span_index);
         let old_len = buckets.len();
         // Reuse this payload instead of holding an additional complete bucket array.
         buckets.resize(old_len + offset, 0.0);
+        poll(old_len - bucket + offset)?;
         buckets.copy_within(bucket..old_len, bucket + offset);
         buckets[bucket..bucket + offset].fill(0.0);
         if let Some(values) = correction.as_mut() {
             let old_len = values.len();
             values.resize(old_len + offset, 0.0);
+            poll(old_len - bucket + offset)?;
             values.copy_within(bucket..old_len, bucket + offset);
             values[bucket..bucket + offset].fill(0.0);
         }
         bucket += offset + span.length as usize;
     }
+    Ok(())
 }
 
 fn reduce_kahan_layout(

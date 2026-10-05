@@ -574,8 +574,9 @@ the classification of arithmetic and returned filter operands. Missing classific
 retained corpus has 2,788 variants classified for exact numeric comparison. Near-integer boolean/function mutations
 are rejected, while fractional fill outputs retain their permitted tolerance.
 
-The full run after native histogram projections, timestamp support and intermediate ordering matches 5,795 of
-21,442 variants, with zero completed semantic failures and 15,647 open variants at page sizes 17 and 1024. Its 24 paired bit differences are
+The full run after native histogram projections, timestamp support, intermediate ordering and native scalar/vector
+maps matches 6,059 of 21,442 variants, with zero completed semantic failures and 15,383 open variants at page sizes
+17 and 1024. Its 24 paired bit differences are
 NaN payload/sign differences from one original aggregation case. Further implementation and replay remain
 required. Separate fresh Go checks match
 192 typed reducer, start-timestamp and fixed-`@` executions exactly across page sizes 1, 17 and 1024.
@@ -634,6 +635,19 @@ each source function; delayed removal occurs at final output. Duplicate checks a
 source boundaries. Histogram variance polls cancellation during bucket traversal. Fresh Go checks match 4,134
 pointwise, composed, multi-step and disjoint-alias cases in both build profiles at page sizes 1, 17 and 1024;
 all 33 paired bit differences are NaN signs in nested nonfinite sums, reported separately from semantic comparison.
+
+Native scalar/vector multiplication works in both operand orders; histogram/scalar division and unary minus also
+work. Multiplication and division compact the resulting histogram, while unary minus preserves its bucket layout.
+Invalid scalar/histogram operator pairs suppress the row and emit the exact source informational diagnostic,
+including with `bool`. Native maps reuse an independently owned payload; bucket loops poll cancellation and count
+work. Each arithmetic operator applies the source histogram copy's field semantics. The convenience collector
+instead preserves every evaluated field, including custom-schema NaN and signed-zero fields, in its independently
+owned result. A source-copy operation at this output boundary would erase those values. Permanent regressions
+cover chained maps, retained results and interruption cleanup. Fresh Go checks match all 8,196 native-map cases
+in both builds at page sizes 1/17/1024, with thirty separately reported NaN-sign differences. The shared histogram
+kernel replay still matches all 6,440 cases semantically; it reports ten NaN-sign differences in release and one
+in release-min, plus three unchanged differences between the source's numeric assertions and actual signed-zero
+bits. Native trimming and vector/vector operators remain required implementation.
 
 Selectors under histogram count/sum/average use the source's statistics decoding for ordinary range folds.
 Subqueries, bucket-dependent histogram functions and trimming disable it. One tracked full histogram supplies

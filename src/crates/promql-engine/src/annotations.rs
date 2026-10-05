@@ -2,7 +2,7 @@
 // Logical emission, merge and position rules derive from pinned util/annotations; see NOTICE.
 use crate::{
     accounting::{AccountedVec, MemoryKind, QueryAccounting},
-    frontend::{Span, quote},
+    frontend::{Span, quote, token as tokens},
 };
 use std::{
     fmt::{self, Write},
@@ -40,13 +40,19 @@ pub enum AnnotationKind {
     MixedExponentialCustomHistograms,
     HistogramCounterResetCollision(HistogramOperation),
     MismatchedCustomBuckets(HistogramOperation),
+    IncompatibleBinaryTypes {
+        left_histogram: bool,
+        operator: tokens::TokenKind,
+        right_histogram: bool,
+    },
 }
 impl AnnotationKind {
     fn severity(self) -> Severity {
         match self {
             Self::PossibleNonCounter
             | Self::HistogramIgnoredInMixedRange
-            | Self::MismatchedCustomBuckets(_) => Severity::Info,
+            | Self::MismatchedCustomBuckets(_)
+            | Self::IncompatibleBinaryTypes { .. } => Severity::Info,
             Self::MixedFloatsHistograms
             | Self::StartTimeOverlap
             | Self::MixedExponentialCustomHistograms
@@ -75,6 +81,9 @@ impl AnnotationKind {
             }
             Self::MismatchedCustomBuckets(_) => {
                 "PromQL info: mismatched custom buckets were reconciled during "
+            }
+            Self::IncompatibleBinaryTypes { .. } => {
+                "PromQL info: incompatible sample types encountered for binary operator "
             }
         }
     }
@@ -170,7 +179,22 @@ impl AnnotationBuilder {
     ) {
         let mut raw_message = AccountedVec::new(account, MemoryKind::Result);
         raw_message.extend_from_slice(kind.prefix().as_bytes());
-        if let Some(operation) = kind.operation() {
+        if let AnnotationKind::IncompatibleBinaryTypes {
+            left_histogram,
+            operator,
+            right_histogram,
+        } = kind
+        {
+            let operation = operator.text().expect("binary operator text");
+            quote::write_bytes(operation.as_bytes(), &mut raw_message).expect("byte writer");
+            let left = if left_histogram { "histogram" } else { "float" };
+            let right = if right_histogram {
+                "histogram"
+            } else {
+                "float"
+            };
+            write!(raw_message, ": {left} {operation} {right}").expect("byte writer");
+        } else if let Some(operation) = kind.operation() {
             raw_message.extend_from_slice(operation.name().as_bytes());
         } else {
             quote::write_bytes(metric, &mut raw_message).expect("byte writer");

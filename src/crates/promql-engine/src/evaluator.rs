@@ -681,44 +681,100 @@ impl<'a, Q: QueryProvider + 'a> Machine<'a, Q> {
                             else {
                                 return Ok(None);
                             };
-                            (result, true)
+                            (OwnedValue::Float(result), true)
                         }
-                        MapOperation::Unary(operator) => {
-                            let OwnedValue::Float(value) = sample.value else {
-                                return Err(EvaluationError::Unsupported("histogram map kernel"));
-                            };
-                            if operator == TokenKind::SUB {
-                                (-value, true)
-                            } else {
-                                (value, false)
+                        MapOperation::Unary(operator) => match sample.value {
+                            OwnedValue::Float(value) => {
+                                if operator == TokenKind::SUB {
+                                    (OwnedValue::Float(-value), true)
+                                } else {
+                                    (OwnedValue::Float(value), false)
+                                }
                             }
-                        }
+                            OwnedValue::Histogram(mut histogram) => {
+                                let negative = operator == TokenKind::SUB;
+                                if negative {
+                                    histogram.normalize_copy_fields();
+                                    histogram.mul_checked(-1.0, self.control, self.account)?;
+                                }
+                                (OwnedValue::Histogram(histogram), negative)
+                            }
+                        },
                         MapOperation::Binary {
                             operator,
                             scalar,
                             scalar_left,
                             return_bool,
-                        } => {
-                            let OwnedValue::Float(value) = sample.value else {
-                                return Err(EvaluationError::Unsupported("histogram map kernel"));
-                            };
-                            let (left, right) = if scalar_left {
-                                (scalar, value)
-                            } else {
-                                (value, scalar)
-                            };
-                            let result = scalar_binary(operator, left, right)?;
-                            if operator.is_comparison() && !return_bool {
-                                if result == 0.0 {
-                                    return Ok(None);
+                        } => match sample.value {
+                            OwnedValue::Float(value) => {
+                                let (left, right) = if scalar_left {
+                                    (scalar, value)
+                                } else {
+                                    (value, scalar)
+                                };
+                                let result = scalar_binary(operator, left, right)?;
+                                if operator.is_comparison() && !return_bool {
+                                    if result == 0.0 {
+                                        return Ok(None);
+                                    }
+                                    (OwnedValue::Float(value), false)
+                                } else {
+                                    (
+                                        OwnedValue::Float(result),
+                                        !operator.is_comparison() || return_bool,
+                                    )
                                 }
-                                (value, false)
-                            } else {
-                                (result, !operator.is_comparison() || return_bool)
                             }
-                        }
+                            OwnedValue::Histogram(mut histogram) => {
+                                match operator {
+                                    TokenKind::MUL => {
+                                        histogram.normalize_copy_fields();
+                                        histogram.mul_checked(
+                                            scalar,
+                                            self.control,
+                                            self.account,
+                                        )?;
+                                    }
+                                    TokenKind::DIV if !scalar_left => {
+                                        histogram.normalize_copy_fields();
+                                        histogram.div_checked(
+                                            scalar,
+                                            self.control,
+                                            self.account,
+                                        )?;
+                                    }
+                                    TokenKind::TRIM_LOWER | TokenKind::TRIM_UPPER
+                                        if !scalar_left =>
+                                    {
+                                        return Err(EvaluationError::Unsupported(
+                                            "histogram map kernel",
+                                        ));
+                                    }
+                                    _ => {
+                                        if node == self.diagnostic_node
+                                            && let Some(annotations) = &mut self.annotations
+                                        {
+                                            annotations.add(
+                                                AnnotationKind::IncompatibleBinaryTypes {
+                                                    left_histogram: !scalar_left,
+                                                    operator,
+                                                    right_histogram: scalar_left,
+                                                },
+                                                b"",
+                                                self.expression.arena[node].span,
+                                                &self.expression.source,
+                                                self.account,
+                                            );
+                                        }
+                                        return Ok(None);
+                                    }
+                                }
+                                histogram.compact_checked(self.control, self.account)?;
+                                (OwnedValue::Histogram(histogram), true)
+                            }
+                        },
                     };
-                    sample.value = OwnedValue::Float(result);
+                    sample.value = result;
                     sample.drop_name |= drop_name;
                     if drop_name && !self.options.delayed_name_removal {
                         let name_only = matches!(operation,
