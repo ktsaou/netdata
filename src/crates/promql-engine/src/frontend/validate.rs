@@ -40,12 +40,22 @@ enum Frame {
 fn error(errors: &mut Vec<ParseError>, span: Span, message: impl AsRef<[u8]>) {
     errors.push(ParseError {
         span,
-        message: message.as_ref().to_vec(),
+        message: message.as_ref().to_vec().into(),
     });
 }
 
 /// Construction errors suppress this entire pass, as in the upstream parser.
 pub fn validate(input: &[u8], arena: &mut Arena, root: NodeId, errors: &mut Vec<ParseError>) {
+    validate_in(input, arena, root, errors, None);
+}
+
+pub(crate) fn validate_in(
+    input: &[u8],
+    arena: &mut Arena,
+    root: NodeId,
+    errors: &mut Vec<ParseError>,
+    accounting: Option<&crate::accounting::QueryAccounting>,
+) {
     if !errors.is_empty() {
         return;
     }
@@ -223,7 +233,7 @@ pub fn validate(input: &[u8], arena: &mut Arena, root: NodeId, errors: &mut Vec<
                                 .matchers
                                 .iter()
                                 .flatten()
-                                .all(|matcher| matcher.matches(b""))
+                                .all(|matcher| matcher.matches_in(b"", accounting))
                         {
                             error(
                                 errors,

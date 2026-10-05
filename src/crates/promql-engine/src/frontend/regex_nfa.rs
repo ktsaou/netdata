@@ -6,11 +6,43 @@ use regex_automata::{
     util::{look::Look, primitives::StateID},
 };
 use regex_syntax::utf8::Utf8Sequences;
+use std::fmt::Write as _;
 
 use super::{
+    AllocationContext, Buffer,
     program::{Code, Program},
     runes,
 };
+use crate::accounting::{MemoryKind, MemoryLease};
+
+macro_rules! change {
+    ($builder:ident, $method:ident($($argument:expr),* $(,)?)) => {
+        $builder.change(|value| value.$method($($argument),*).map_err(Box::new))
+    };
+}
+
+struct ObservedBuilder {
+    value: Builder,
+    estimate: Option<MemoryLease>,
+}
+impl ObservedBuilder {
+    fn new(context: Option<&AllocationContext>) -> Self {
+        Self {
+            value: Builder::new(),
+            estimate: context.map(|context| context.with_kind(MemoryKind::RegexEstimate).hold(0)),
+        }
+    }
+    fn change<R>(&mut self, operation: impl FnOnce(&mut Builder) -> R) -> R {
+        let result = operation(&mut self.value);
+        if let Some(estimate) = &mut self.estimate {
+            let bytes = self.value.memory_usage() as u64;
+            if bytes != estimate.bytes() {
+                estimate.resize(bytes);
+            }
+        }
+        result
+    }
+}
 
 #[derive(Clone, Copy)]
 struct Fragment {
@@ -18,9 +50,13 @@ struct Fragment {
     end: StateID,
 }
 
-fn class(builder: &mut Builder, ranges: &[(u32, u32)]) -> Result<Fragment, Box<BuildError>> {
-    let mut alternatives = Vec::new();
-    let exit = builder.add_empty()?;
+fn class(
+    builder: &mut ObservedBuilder,
+    ranges: &[(u32, u32)],
+    context: Option<&AllocationContext>,
+) -> Result<Fragment, Box<BuildError>> {
+    let mut alternatives = Buffer::new_in(context);
+    let exit = change!(builder, add_empty())?;
     for &(lo, hi) in ranges {
         for (lo, hi) in [(lo, hi.min(0xd7ff)), (lo.max(0xe000), hi)] {
             if lo > hi {
@@ -32,31 +68,35 @@ fn class(builder: &mut Builder, ranges: &[(u32, u32)]) -> Result<Fragment, Box<B
                 let mut first = None;
                 let mut previous = None;
                 for range in encoding.as_slice() {
-                    let state = builder.add_range(Transition {
-                        start: range.start,
-                        end: range.end,
-                        next: StateID::ZERO,
-                    })?;
+                    let state = change!(
+                        builder,
+                        add_range(Transition {
+                            start: range.start,
+                            end: range.end,
+                            next: StateID::ZERO,
+                        })
+                    )?;
                     if let Some(previous) = previous {
-                        builder.patch(previous, state)?;
+                        change!(builder, patch(previous, state))?;
                     } else {
                         first = Some(state);
                     }
                     previous = Some(state);
                 }
-                builder.patch(previous.unwrap(), exit)?;
+                change!(builder, patch(previous.unwrap(), exit))?;
                 alternatives.push(first.unwrap());
             }
         }
     }
     if alternatives.is_empty() {
-        let fail = builder.add_fail()?;
+        let fail = change!(builder, add_fail())?;
         return Ok(Fragment {
             start: fail,
             end: fail,
         });
     }
-    let start = builder.add_union(alternatives)?;
+    let start =
+        alternatives.transfer_to_dependency(|values| change!(builder, add_union(values)))?;
     Ok(Fragment { start, end: exit })
 }
 
@@ -72,10 +112,13 @@ fn look(bits: usize) -> Look {
     }
 }
 
-fn construct(program: &Program) -> Result<(PikeVM, Vec<u8>), Box<BuildError>> {
+type Built = (PikeVM, Buffer<u8>, Option<MemoryLease>);
+
+fn construct(program: &Program) -> Result<Built, Box<BuildError>> {
+    let context = program.instructions.context();
     let (prefix, prefix_instructions) = program.prefix();
-    let mut reachable = vec![false; program.instructions.len()];
-    let mut pending = vec![program.start];
+    let mut reachable = buffer![context.as_ref(); false; program.instructions.len()];
+    let mut pending = buffer![context.as_ref(); program.start];
     while let Some(pc) = pending.pop() {
         if reachable[pc] {
             continue;
@@ -91,36 +134,40 @@ fn construct(program: &Program) -> Result<(PikeVM, Vec<u8>), Box<BuildError>> {
             _ => pending.push(instruction.out),
         }
     }
-    let mut builder = Builder::new();
-    builder.set_utf8(true);
-    builder.set_size_limit(None)?;
-    assert_eq!(builder.add_fail()?, StateID::ZERO);
-    builder.start_pattern()?;
-    let capture_zero = builder.add_capture_start(StateID::ZERO, 0, None)?;
+    let mut builder = ObservedBuilder::new(context.as_ref());
+    builder.change(|b| {
+        b.set_utf8(true);
+    });
+    change!(builder, set_size_limit(None))?;
+    assert_eq!(change!(builder, add_fail())?, StateID::ZERO);
+    change!(builder, start_pattern())?;
+    let capture_zero = change!(builder, add_capture_start(StateID::ZERO, 0, None))?;
     let fail = Fragment {
         start: StateID::ZERO,
         end: StateID::ZERO,
     };
-    let mut fragments = vec![fail; program.instructions.len()];
+    let mut fragments = buffer![context.as_ref(); fail; program.instructions.len()];
     for (pc, instruction) in program.instructions.iter().enumerate() {
         if !reachable[pc] {
             continue;
         }
         let state = match instruction.code {
             Code::Fail => StateID::ZERO,
-            Code::Nop => builder.add_empty()?,
-            Code::Alt => builder.add_union(Vec::new())?,
-            Code::Empty => builder.add_look(StateID::ZERO, look(instruction.arg))?,
-            Code::Capture if instruction.arg % 2 == 0 => {
-                builder.add_capture_start(StateID::ZERO, (instruction.arg / 2) as u32, None)?
-            }
-            Code::Capture => {
-                builder.add_capture_end(StateID::ZERO, (instruction.arg / 2) as u32)?
-            }
+            Code::Nop => change!(builder, add_empty())?,
+            Code::Alt => change!(builder, add_union(Vec::new()))?,
+            Code::Empty => change!(builder, add_look(StateID::ZERO, look(instruction.arg)))?,
+            Code::Capture if instruction.arg % 2 == 0 => change!(
+                builder,
+                add_capture_start(StateID::ZERO, (instruction.arg / 2) as u32, None)
+            )?,
+            Code::Capture => change!(
+                builder,
+                add_capture_end(StateID::ZERO, (instruction.arg / 2) as u32)
+            )?,
             Code::Match => {
-                let end = builder.add_capture_end(StateID::ZERO, 0)?;
-                let matched = builder.add_match()?;
-                builder.patch(end, matched)?;
+                let end = change!(builder, add_capture_end(StateID::ZERO, 0))?;
+                let matched = change!(builder, add_match())?;
+                change!(builder, patch(end, matched))?;
                 end
             }
             _ => {
@@ -133,19 +180,21 @@ fn construct(program: &Program) -> Result<(PikeVM, Vec<u8>), Box<BuildError>> {
                             rune
                         };
                     if instruction.arg & 1 != 0 {
-                        runes::folded(vec![(rune, rune)])
+                        runes::folded(buffer![context.as_ref(); (rune, rune)])
                     } else {
-                        vec![(rune, rune)]
+                        buffer![context.as_ref(); (rune, rune)]
                     }
                 } else {
-                    instruction
-                        .runes
-                        .chunks_exact(2)
-                        .map(|pair| (pair[0], pair[1]))
-                        .collect()
+                    Buffer::from_iter_in(
+                        instruction
+                            .runes
+                            .chunks_exact(2)
+                            .map(|pair| (pair[0], pair[1])),
+                        context.as_ref(),
+                    )
                 };
                 ranges = runes::clean(ranges);
-                fragments[pc] = class(&mut builder, &ranges)?;
+                fragments[pc] = class(&mut builder, &ranges, context.as_ref())?;
                 continue;
             }
         };
@@ -161,29 +210,50 @@ fn construct(program: &Program) -> Result<(PikeVM, Vec<u8>), Box<BuildError>> {
         match instruction.code {
             Code::Fail | Code::Match => {}
             Code::Alt => {
-                builder.patch(fragments[pc].end, fragments[instruction.out].start)?;
-                builder.patch(fragments[pc].end, fragments[instruction.arg].start)?;
+                change!(
+                    builder,
+                    patch(fragments[pc].end, fragments[instruction.out].start)
+                )?;
+                change!(
+                    builder,
+                    patch(fragments[pc].end, fragments[instruction.arg].start)
+                )?;
             }
-            _ => builder.patch(fragments[pc].end, fragments[instruction.out].start)?,
+            _ => change!(
+                builder,
+                patch(fragments[pc].end, fragments[instruction.out].start)
+            )?,
         }
     }
-    builder.patch(capture_zero, fragments[program.start].start)?;
-    builder.finish_pattern(capture_zero)?;
-    let unanchored = builder.add_union(vec![capture_zero])?;
-    let byte = builder.add_range(Transition {
-        start: 0,
-        end: 255,
-        next: unanchored,
-    })?;
-    builder.patch(unanchored, byte)?;
-    let nfa = builder.build(capture_zero, unanchored)?;
+    change!(builder, patch(capture_zero, fragments[program.start].start))?;
+    change!(builder, finish_pattern(capture_zero))?;
+    let unanchored = buffer![context.as_ref(); capture_zero]
+        .transfer_to_dependency(|values| change!(builder, add_union(values)))?;
+    let byte = change!(
+        builder,
+        add_range(Transition {
+            start: 0,
+            end: 255,
+            next: unanchored,
+        })
+    )?;
+    change!(builder, patch(unanchored, byte))?;
+    let nfa = change!(builder, build(capture_zero, unanchored))?;
+    let estimate = context.as_ref().map(|context| {
+        context
+            .with_kind(MemoryKind::RegexEstimate)
+            .hold(nfa.memory_usage() as u64)
+    });
     let vm = PikeVM::builder()
         .configure(PikeVM::config().match_kind(MatchKind::LeftmostFirst))
         .build_from_nfa(nfa)?;
-    Ok((vm, prefix))
+    Ok((vm, prefix, estimate))
 }
 
-pub fn build(program: &Program) -> Result<(PikeVM, Vec<u8>), Vec<u8>> {
-    construct(program)
-        .map_err(|error| format!("internal regex backend error: {error}").into_bytes())
+pub fn build(program: &Program) -> Result<Built, Buffer<u8>> {
+    construct(program).map_err(|error| {
+        let mut bytes = Buffer::new_in(program.instructions.context().as_ref());
+        write!(bytes, "internal regex backend error: {error}").unwrap();
+        bytes
+    })
 }

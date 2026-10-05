@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Owned Go regexp syntax and ordered diagnostics, derived from syntax/parse.go; see NOTICE.
 use super::runes::{self, Class};
+use super::{AllocationContext, Buffer};
 use crate::frontend::quote::decode_rune;
 
 pub type Id = usize;
@@ -55,29 +56,29 @@ impl Op {
 pub struct Node {
     pub op: Op,
     pub flags: Flags,
-    pub runes: Vec<u32>,
+    pub runes: Buffer<u32>,
     pub class: Class,
-    pub children: Vec<Id>,
+    pub children: Buffer<Id>,
     pub min: u32,
     pub max: Option<u32>,
     pub capture: u32,
-    pub name: Vec<u8>,
+    pub name: Buffer<u8>,
     height: usize,
     size: u64,
 }
 
 impl Node {
-    pub(super) fn new(op: Op, flags: Flags) -> Self {
+    pub(super) fn new(op: Op, flags: Flags, context: Option<&AllocationContext>) -> Self {
         Self {
             op,
             flags,
-            runes: Vec::new(),
-            class: Vec::new(),
-            children: Vec::new(),
+            runes: Buffer::new_in(context),
+            class: Buffer::new_in(context),
+            children: Buffer::new_in(context),
             min: 0,
             max: Some(0),
             capture: 0,
-            name: Vec::new(),
+            name: Buffer::new_in(context),
             height: 1,
             size: 1,
         }
@@ -86,27 +87,35 @@ impl Node {
 
 #[derive(Debug)]
 pub struct Tree {
-    pub nodes: Vec<Node>,
+    pub nodes: Buffer<Node>,
     pub root: Id,
-    pub names: Vec<Vec<u8>>,
+    pub names: Buffer<Buffer<u8>>,
+}
+impl Tree {
+    pub(super) fn context(&self) -> Option<AllocationContext> {
+        self.nodes.context()
+    }
 }
 
 #[derive(Debug)]
 pub struct Error {
     pub code: &'static str,
-    pub expression: Vec<u8>,
+    pub expression: Buffer<u8>,
 }
 
 impl Error {
-    pub fn new(code: &'static str, expression: &[u8]) -> Self {
+    fn new(code: &'static str, expression: &[u8], context: Option<&AllocationContext>) -> Self {
         Self {
             code,
-            expression: expression.to_vec(),
+            expression: Buffer::from_slice_in(expression, context),
         }
     }
 
-    pub fn bytes(&self) -> Vec<u8> {
-        let mut result = format!("error parsing regexp: {}: `", self.code).into_bytes();
+    pub fn bytes(&self) -> Buffer<u8> {
+        let mut result = Buffer::new_in(self.expression.context().as_ref());
+        result.extend_from_slice(b"error parsing regexp: ");
+        result.extend_from_slice(self.code.as_bytes());
+        result.extend_from_slice(b": `");
         result.extend_from_slice(&self.expression);
         result.push(b'`');
         result
@@ -116,99 +125,128 @@ impl Error {
 type Result<T> = std::result::Result<T, Error>;
 
 struct Parser<'a> {
+    context: Option<AllocationContext>,
     input: &'a [u8],
     position: usize,
     flags: Flags,
-    nodes: Vec<Node>,
-    stack: Vec<Id>,
-    names: Vec<Vec<u8>>,
+    nodes: Buffer<Node>,
+    stack: Buffer<Id>,
+    names: Buffer<Buffer<u8>>,
     rune_count: usize,
     standard: bool,
 }
 
 enum CollapseFrame {
-    Collapse(Vec<Id>, Op),
+    Collapse(Buffer<Id>, Op),
     Literal {
         id: Id,
-        subs: Vec<Id>,
+        subs: Buffer<Id>,
         index: usize,
-        output: Vec<Id>,
+        output: Buffer<Id>,
     },
     LiteralResume {
         id: Id,
-        subs: Vec<Id>,
+        subs: Buffer<Id>,
         index: usize,
-        output: Vec<Id>,
+        output: Buffer<Id>,
         prefix: Id,
     },
     Simple {
         id: Id,
-        subs: Vec<Id>,
+        subs: Buffer<Id>,
         index: usize,
-        output: Vec<Id>,
+        output: Buffer<Id>,
     },
     SimpleResume {
         id: Id,
-        subs: Vec<Id>,
+        subs: Buffer<Id>,
         index: usize,
-        output: Vec<Id>,
+        output: Buffer<Id>,
         prefix: Id,
     },
     Classes {
         id: Id,
-        subs: Vec<Id>,
+        subs: Buffer<Id>,
     },
 }
 
+#[cfg(feature = "fixtures")]
 pub fn parse(input: &[u8], flags: Flags) -> Result<Tree> {
-    parse_profile(input, flags, false)
+    parse_profile(input, flags, false, None)
 }
 
+#[cfg(feature = "fixtures")]
 pub fn parse_standard(input: &[u8], flags: Flags) -> Result<Tree> {
-    parse_profile(input, flags, true)
+    parse_profile(input, flags, true, None)
 }
 
-fn parse_profile(input: &[u8], flags: Flags, standard: bool) -> Result<Tree> {
+pub(super) fn parse_in(
+    input: &[u8],
+    flags: Flags,
+    context: Option<&AllocationContext>,
+) -> Result<Tree> {
+    parse_profile(input, flags, false, context)
+}
+
+pub(super) fn parse_standard_in(
+    input: &[u8],
+    flags: Flags,
+    context: Option<&AllocationContext>,
+) -> Result<Tree> {
+    parse_profile(input, flags, true, context)
+}
+
+fn parse_profile(
+    input: &[u8],
+    flags: Flags,
+    standard: bool,
+    context: Option<&AllocationContext>,
+) -> Result<Tree> {
     if flags & LITERAL != 0 {
-        check_utf8(input)?;
+        check_utf8(input, context)?;
         let mut position = 0;
-        let mut node = Node::new(Op::Literal, flags);
+        let mut node = Node::new(Op::Literal, flags, context);
         while position < input.len() {
-            let rune = next_rune(input, &mut position)?;
+            let rune = next_rune(input, &mut position, context)?;
             node.runes.push(rune);
         }
         return Ok(Tree {
-            nodes: vec![node],
+            nodes: buffer![context; node],
             root: 0,
-            names: vec![Vec::new()],
+            names: buffer![context; Buffer::new_in(context)],
         });
     }
     Parser {
+        context: context.cloned(),
         input,
         position: 0,
         flags,
-        nodes: Vec::new(),
-        stack: Vec::new(),
-        names: vec![Vec::new()],
+        nodes: Buffer::new_in(context),
+        stack: Buffer::new_in(context),
+        names: buffer![context; Buffer::new_in(context)],
         rune_count: 0,
         standard,
     }
     .run()
 }
 
-fn next_rune(input: &[u8], position: &mut usize) -> Result<u32> {
+fn next_rune(
+    input: &[u8],
+    position: &mut usize,
+    context: Option<&AllocationContext>,
+) -> Result<u32> {
     let (rune, width) = decode_rune(&input[*position..]);
     if rune == 0xfffd && width == 1 {
-        return Err(Error::new("invalid UTF-8", &input[*position..]));
+        return Err(Error::new("invalid UTF-8", &input[*position..], context));
     }
     *position += width;
     Ok(if width == 0 { 0xfffd } else { rune as u32 })
 }
 
-fn check_utf8(mut input: &[u8]) -> Result<()> {
+fn check_utf8(mut input: &[u8], context: Option<&AllocationContext>) -> Result<()> {
     while !input.is_empty() {
         let mut used = 0;
-        next_rune(input, &mut used)?;
+        next_rune(input, &mut used, context)?;
         input = &input[used..];
     }
     Ok(())
@@ -226,7 +264,8 @@ fn hex(rune: u32) -> Option<u32> {
 impl Parser<'_> {
     fn alloc(&mut self, op: Op) -> Id {
         let id = self.nodes.len();
-        self.nodes.push(Node::new(op, self.flags));
+        self.nodes
+            .push(Node::new(op, self.flags, self.context.as_ref()));
         id
     }
 
@@ -267,10 +306,18 @@ impl Parser<'_> {
     fn limits(&mut self, id: Id) -> Result<()> {
         self.refresh(id);
         if self.rune_count > MAX_RUNES || self.nodes[id].size > MAX_SIZE {
-            return Err(Error::new("expression too large", self.input));
+            return Err(Error::new(
+                "expression too large",
+                self.input,
+                self.context.as_ref(),
+            ));
         }
         if self.nodes[id].height > MAX_HEIGHT {
-            return Err(Error::new("expression nests too deeply", self.input));
+            return Err(Error::new(
+                "expression nests too deeply",
+                self.input,
+                self.context.as_ref(),
+            ));
         }
         Ok(())
     }
@@ -326,7 +373,7 @@ impl Parser<'_> {
                     return Ok(());
                 }
                 self.nodes[id].op = Op::Literal;
-                self.nodes[id].runes = vec![rune];
+                self.nodes[id].runes = buffer![self.context.as_ref(); rune];
                 self.nodes[id].class.clear();
                 self.nodes[id].flags = flags;
             } else {
@@ -362,14 +409,16 @@ impl Parser<'_> {
 
     fn character_class(&self, id: Id) -> Class {
         match self.nodes[id].op {
-            Op::Any => vec![(0, runes::MAX_RUNE)],
-            Op::AnyNotNL => vec![(0, 9), (11, runes::MAX_RUNE)],
+            Op::Any => buffer![self.context.as_ref(); (0, runes::MAX_RUNE)],
+            Op::AnyNotNL => buffer![self.context.as_ref(); (0, 9), (11, runes::MAX_RUNE)],
             Op::Class => self.nodes[id].class.clone(),
             Op::Literal if self.nodes[id].flags & FOLD_CASE != 0 => {
                 let rune = self.nodes[id].runes[0];
-                runes::folded(vec![(rune, rune)])
+                runes::folded(buffer![self.context.as_ref(); (rune, rune)])
             }
-            Op::Literal => vec![(self.nodes[id].runes[0], self.nodes[id].runes[0])],
+            Op::Literal => {
+                buffer![self.context.as_ref(); (self.nodes[id].runes[0], self.nodes[id].runes[0])]
+            }
             _ => unreachable!("character-like expression"),
         }
     }
@@ -475,7 +524,7 @@ impl Parser<'_> {
     }
 
     fn equal(&self, left: Id, right: Id) -> bool {
-        let mut pending = vec![(left, right)];
+        let mut pending = buffer![self.context.as_ref(); (left, right)];
         while let Some((left, right)) = pending.pop() {
             let left = &self.nodes[left];
             let right = &self.nodes[right];
@@ -519,14 +568,14 @@ impl Parser<'_> {
 
     fn factored_concat(&mut self, prefix: Id, suffix: Id) -> Id {
         let id = self.alloc(Op::Concat);
-        self.nodes[id].children = vec![prefix, suffix];
+        self.nodes[id].children = buffer![self.context.as_ref(); prefix, suffix];
         self.refresh(id);
         id
     }
 
-    fn collapse(&mut self, children: Vec<Id>, op: Op) -> Result<Id> {
-        let mut frames = vec![CollapseFrame::Collapse(children, op)];
-        let mut values = Vec::new();
+    fn collapse(&mut self, children: Buffer<Id>, op: Op) -> Result<Id> {
+        let mut frames = buffer![self.context.as_ref(); CollapseFrame::Collapse(children, op)];
+        let mut values = Buffer::new_in(self.context.as_ref());
         'frames: while let Some(frame) = frames.pop() {
             match frame {
                 CollapseFrame::Collapse(children, op) => {
@@ -535,7 +584,7 @@ impl Parser<'_> {
                         continue;
                     }
                     let id = self.alloc(op);
-                    let mut subs = Vec::new();
+                    let mut subs = Buffer::new_in(self.context.as_ref());
                     for child in children {
                         if self.nodes[child].op == op {
                             subs.extend_from_slice(&self.nodes[child].children);
@@ -548,7 +597,7 @@ impl Parser<'_> {
                             id,
                             subs,
                             index: 0,
-                            output: Vec::new(),
+                            output: Buffer::new_in(self.context.as_ref()),
                         });
                     } else {
                         self.nodes[id].children = subs;
@@ -564,7 +613,7 @@ impl Parser<'_> {
                 } => {
                     while index < subs.len() {
                         let (prefix, flags) = self.leading_string(subs[index]);
-                        let mut prefix = prefix.to_vec();
+                        let mut prefix = Buffer::from_slice_in(prefix, self.context.as_ref());
                         let mut end = index + 1;
                         while end < subs.len() {
                             let (next, next_flags) = self.leading_string(subs[end]);
@@ -588,7 +637,8 @@ impl Parser<'_> {
                             *sub = self.remove_string(*sub, self.nodes[prefix_id].runes.len());
                             self.limits(*sub)?;
                         }
-                        let suffixes = subs[index..end].to_vec();
+                        let suffixes =
+                            Buffer::from_slice_in(&subs[index..end], self.context.as_ref());
                         frames.push(CollapseFrame::LiteralResume {
                             id,
                             subs,
@@ -603,7 +653,7 @@ impl Parser<'_> {
                         id,
                         subs: output,
                         index: 0,
-                        output: Vec::new(),
+                        output: Buffer::new_in(self.context.as_ref()),
                     });
                 }
                 CollapseFrame::LiteralResume {
@@ -651,7 +701,8 @@ impl Parser<'_> {
                             *sub = self.remove_leading(*sub);
                             self.limits(*sub)?;
                         }
-                        let suffixes = subs[index..end].to_vec();
+                        let suffixes =
+                            Buffer::from_slice_in(&subs[index..end], self.context.as_ref());
                         frames.push(CollapseFrame::SimpleResume {
                             id,
                             subs,
@@ -681,7 +732,7 @@ impl Parser<'_> {
                     });
                 }
                 CollapseFrame::Classes { id, subs } => {
-                    let mut output = Vec::new();
+                    let mut output = Buffer::new_in(self.context.as_ref());
                     let mut index = 0;
                     while index < subs.len() {
                         if !self.is_class(subs[index]) {
@@ -714,7 +765,7 @@ impl Parser<'_> {
                         output.push(destination);
                         index = end;
                     }
-                    let mut deduplicated = Vec::new();
+                    let mut deduplicated = Buffer::new_in(self.context.as_ref());
                     for (index, &sub) in output.iter().enumerate() {
                         if self.nodes[sub].op == Op::Empty
                             && output
@@ -816,12 +867,20 @@ impl Parser<'_> {
         }
         self.alternate()?;
         if self.stack.len() < 2 {
-            return Err(Error::new("unexpected )", self.input));
+            return Err(Error::new(
+                "unexpected )",
+                self.input,
+                self.context.as_ref(),
+            ));
         }
         let child = self.stack.pop().unwrap();
         let open = self.stack.pop().unwrap();
         if self.nodes[open].op != Op::LeftParen {
-            return Err(Error::new("unexpected )", self.input));
+            return Err(Error::new(
+                "unexpected )",
+                self.input,
+                self.context.as_ref(),
+            ));
         }
         self.flags = self.nodes[open].flags;
         if self.nodes[open].capture == 0 {
@@ -846,22 +905,31 @@ impl Parser<'_> {
         };
         if let Some(name_begin) = named {
             let Some(end) = suffix.iter().position(|&byte| byte == b'>') else {
-                check_utf8(suffix)?;
-                return Err(Error::new("invalid named capture", suffix));
+                check_utf8(suffix, self.context.as_ref())?;
+                return Err(Error::new(
+                    "invalid named capture",
+                    suffix,
+                    self.context.as_ref(),
+                ));
             };
             let name = &suffix[name_begin..end];
-            check_utf8(name)?;
+            check_utf8(name, self.context.as_ref())?;
             if name.is_empty()
                 || !name
                     .iter()
                     .all(|byte| byte.is_ascii_alphanumeric() || *byte == b'_')
             {
-                return Err(Error::new("invalid named capture", &suffix[..=end]));
+                return Err(Error::new(
+                    "invalid named capture",
+                    &suffix[..=end],
+                    self.context.as_ref(),
+                ));
             }
-            self.names.push(name.to_vec());
+            self.names
+                .push(Buffer::from_slice_in(name, self.context.as_ref()));
             let id = self.op(Op::LeftParen)?;
             self.nodes[id].capture = (self.names.len() - 1) as u32;
-            self.nodes[id].name = name.to_vec();
+            self.nodes[id].name = Buffer::from_slice_in(name, self.context.as_ref());
             self.position += end + 1;
             return Ok(());
         }
@@ -870,7 +938,7 @@ impl Parser<'_> {
         let mut negative = false;
         let mut saw_flag = false;
         while self.position < self.input.len() {
-            let rune = next_rune(self.input, &mut self.position)?;
+            let rune = next_rune(self.input, &mut self.position, self.context.as_ref())?;
             match rune {
                 105 => {
                     flags |= FOLD_CASE;
@@ -912,6 +980,7 @@ impl Parser<'_> {
         Err(Error::new(
             "invalid or unsupported Perl syntax",
             &self.input[start..self.position],
+            self.context.as_ref(),
         ))
     }
 
@@ -919,9 +988,13 @@ impl Parser<'_> {
         let start = self.position;
         self.position += 1;
         if self.position == self.input.len() {
-            return Err(Error::new("trailing backslash at end of expression", b""));
+            return Err(Error::new(
+                "trailing backslash at end of expression",
+                b"",
+                self.context.as_ref(),
+            ));
         }
-        let rune = next_rune(self.input, &mut self.position)?;
+        let rune = next_rune(self.input, &mut self.position, self.context.as_ref())?;
         match rune {
             48..=55
                 if rune == 48
@@ -945,12 +1018,13 @@ impl Parser<'_> {
                 return Ok(value);
             }
             120 if self.position < self.input.len() => {
-                let first = next_rune(self.input, &mut self.position)?;
+                let first = next_rune(self.input, &mut self.position, self.context.as_ref())?;
                 if first == 123 {
                     let mut value = 0;
                     let mut digits = 0;
                     while self.position < self.input.len() {
-                        let digit = next_rune(self.input, &mut self.position)?;
+                        let digit =
+                            next_rune(self.input, &mut self.position, self.context.as_ref())?;
                         if digit == 125 {
                             if digits > 0 {
                                 return Ok(value);
@@ -967,7 +1041,7 @@ impl Parser<'_> {
                         digits += 1;
                     }
                 } else {
-                    let second = next_rune(self.input, &mut self.position)?;
+                    let second = next_rune(self.input, &mut self.position, self.context.as_ref())?;
                     if let (Some(first), Some(second)) = (hex(first), hex(second)) {
                         return Ok(first * 16 + second);
                     }
@@ -985,6 +1059,7 @@ impl Parser<'_> {
         Err(Error::new(
             "invalid escape sequence",
             &self.input[start..self.position],
+            self.context.as_ref(),
         ))
     }
 
@@ -998,30 +1073,37 @@ impl Parser<'_> {
         let start = self.position;
         let mut negate = self.input[self.position + 1] == b'P';
         self.position += 2;
-        let rune = next_rune(self.input, &mut self.position)?;
+        let rune = next_rune(self.input, &mut self.position, self.context.as_ref())?;
         let mut name = if rune != 123 {
             &self.input[start + 2..self.position]
         } else {
             let Some(relative) = self.input[start..].iter().position(|&byte| byte == b'}') else {
-                check_utf8(&self.input[start..])?;
+                check_utf8(&self.input[start..], self.context.as_ref())?;
                 return Err(Error::new(
                     "invalid character class range",
                     &self.input[start..],
+                    self.context.as_ref(),
                 ));
             };
             self.position = start + relative + 1;
             let name = &self.input[start + 3..self.position - 1];
-            check_utf8(name)?;
+            check_utf8(name, self.context.as_ref())?;
             name
         };
         if name.starts_with(b"^") {
             name = &name[1..];
             negate = !negate;
         }
-        let Some(ranges) = runes::property(name, self.flags & FOLD_CASE != 0, self.standard) else {
+        let Some(ranges) = runes::property(
+            name,
+            self.flags & FOLD_CASE != 0,
+            self.standard,
+            self.context.as_ref(),
+        ) else {
             return Err(Error::new(
                 "invalid character class range",
                 &self.input[start..self.position],
+                self.context.as_ref(),
             ));
         };
         Ok(Some(if negate {
@@ -1035,7 +1117,8 @@ impl Parser<'_> {
         if self.flags & PERL_X == 0 || self.input.get(self.position) != Some(&b'\\') {
             return None;
         }
-        let (mut ranges, negate) = runes::perl(*self.input.get(self.position + 1)?)?;
+        let (mut ranges, negate) =
+            runes::perl(*self.input.get(self.position + 1)?, self.context.as_ref())?;
         self.position += 2;
         if self.flags & FOLD_CASE != 0 {
             ranges = runes::folded(ranges);
@@ -1049,12 +1132,16 @@ impl Parser<'_> {
 
     fn class_char(&mut self, start: usize) -> Result<u32> {
         if self.position == self.input.len() {
-            return Err(Error::new("missing closing ]", &self.input[start..]));
+            return Err(Error::new(
+                "missing closing ]",
+                &self.input[start..],
+                self.context.as_ref(),
+            ));
         }
         if self.input[self.position] == b'\\' {
             self.escape()
         } else {
-            next_rune(self.input, &mut self.position)
+            next_rune(self.input, &mut self.position, self.context.as_ref())
         }
     }
 
@@ -1065,7 +1152,7 @@ impl Parser<'_> {
         if negate {
             self.position += 1;
         }
-        let mut ranges = Vec::new();
+        let mut ranges = Buffer::new_in(self.context.as_ref());
         if negate && self.flags & CLASS_NL == 0 {
             ranges.push((10, 10));
         }
@@ -1080,6 +1167,7 @@ impl Parser<'_> {
                 return Err(Error::new(
                     "invalid character class range",
                     &self.input[self.position..self.position + 1 + width],
+                    self.context.as_ref(),
                 ));
             }
             first = false;
@@ -1090,10 +1178,11 @@ impl Parser<'_> {
             {
                 let end = self.position + relative + 4;
                 let name = &self.input[self.position + 2..end - 2];
-                let Some((mut class, negate)) = runes::posix(name) else {
+                let Some((mut class, negate)) = runes::posix(name, self.context.as_ref()) else {
                     return Err(Error::new(
                         "invalid character class range",
                         &self.input[self.position..end],
+                        self.context.as_ref(),
                     ));
                 };
                 if self.flags & FOLD_CASE != 0 {
@@ -1132,9 +1221,10 @@ impl Parser<'_> {
                 return Err(Error::new(
                     "invalid character class range",
                     &self.input[range_start..self.position],
+                    self.context.as_ref(),
                 ));
             }
-            let class = vec![(lo, hi)];
+            let class = buffer![self.context.as_ref(); (lo, hi)];
             ranges.extend(if self.flags & FOLD_CASE != 0 {
                 runes::folded(class)
             } else {
@@ -1214,6 +1304,7 @@ impl Parser<'_> {
                 return Err(Error::new(
                     "invalid nested repetition operator",
                     &self.input[last..self.position],
+                    self.context.as_ref(),
                 ));
             }
         }
@@ -1221,6 +1312,7 @@ impl Parser<'_> {
             return Err(Error::new(
                 "missing argument to repetition operator",
                 &self.input[start..self.position],
+                self.context.as_ref(),
             ));
         };
         let id = self.alloc(op);
@@ -1231,7 +1323,7 @@ impl Parser<'_> {
         *self.stack.last_mut().unwrap() = id;
         self.limits(id)?;
         if op == Op::Repeat && (min >= 2 || max.is_some_and(|max| max >= 2)) {
-            let mut pending = vec![(id, 1000)];
+            let mut pending = buffer![self.context.as_ref(); (id, 1000)];
             while let Some((id, mut budget)) = pending.pop() {
                 let node = &self.nodes[id];
                 if node.op == Op::Repeat {
@@ -1243,6 +1335,7 @@ impl Parser<'_> {
                         return Err(Error::new(
                             "invalid repeat count",
                             &self.input[start..self.position],
+                            self.context.as_ref(),
                         ));
                     }
                     budget = budget.checked_div(amount).unwrap_or(budget);
@@ -1263,7 +1356,7 @@ impl Parser<'_> {
                     {
                         self.flags()?;
                     } else {
-                        self.names.push(Vec::new());
+                        self.names.push(Buffer::new_in(self.context.as_ref()));
                         let id = self.op(Op::LeftParen)?;
                         self.nodes[id].capture = (self.names.len() - 1) as u32;
                         self.position += 1;
@@ -1321,6 +1414,7 @@ impl Parser<'_> {
                             return Err(Error::new(
                                 "invalid repeat count",
                                 &self.input[self.position..end],
+                                self.context.as_ref(),
                             ));
                         }
                         let start = self.position;
@@ -1348,6 +1442,7 @@ impl Parser<'_> {
                                 return Err(Error::new(
                                     "invalid escape sequence",
                                     &self.input[self.position..self.position + 2],
+                                    self.context.as_ref(),
                                 ));
                             }
                             b'Q' => {
@@ -1358,8 +1453,11 @@ impl Parser<'_> {
                                     .map(|i| self.position + i);
                                 let quoted_end = end.unwrap_or(self.input.len());
                                 while self.position < quoted_end {
-                                    let rune =
-                                        next_rune(&self.input[..quoted_end], &mut self.position)?;
+                                    let rune = next_rune(
+                                        &self.input[..quoted_end],
+                                        &mut self.position,
+                                        self.context.as_ref(),
+                                    )?;
                                     self.literal(rune)?;
                                 }
                                 self.position = end.map_or(quoted_end, |end| end + 2);
@@ -1388,7 +1486,7 @@ impl Parser<'_> {
                     }
                 }
                 _ => {
-                    let rune = next_rune(self.input, &mut self.position)?;
+                    let rune = next_rune(self.input, &mut self.position, self.context.as_ref())?;
                     self.literal(rune)?;
                 }
             }
@@ -1400,7 +1498,11 @@ impl Parser<'_> {
         }
         self.alternate()?;
         if self.stack.len() != 1 {
-            return Err(Error::new("missing closing )", self.input));
+            return Err(Error::new(
+                "missing closing )",
+                self.input,
+                self.context.as_ref(),
+            ));
         }
         Ok(Tree {
             nodes: self.nodes,

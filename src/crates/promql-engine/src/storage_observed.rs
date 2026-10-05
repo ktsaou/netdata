@@ -105,7 +105,13 @@ impl<Q: QueryProvider> QueryProvider for ObservedQuery<Q> {
         request: SelectionRequest<'_>,
         control: &Control,
     ) -> Result<Self::Selection<'_>, StorageError> {
-        let result = self.value.select(request, control);
+        let result = self.value.select(
+            SelectionRequest {
+                accounting: Some(&self.account),
+                ..request
+            },
+            control,
+        );
         match result {
             Ok(value) => {
                 let resources = value.resources();
@@ -576,6 +582,7 @@ mod tests {
             let mut selection = query
                 .select(
                     SelectionRequest {
+                        accounting: None,
                         matchers: &[],
                         bounds,
                     },
@@ -718,6 +725,7 @@ mod tests {
             let mut selection = query
                 .select(
                     SelectionRequest {
+                        accounting: None,
                         matchers: &[],
                         bounds: TimeBounds {
                             start_ms: 0,
@@ -779,6 +787,7 @@ mod tests {
             let mut selection = query
                 .select(
                     SelectionRequest {
+                        accounting: None,
                         matchers: &[],
                         bounds: TimeBounds {
                             start_ms: 0,

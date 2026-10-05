@@ -15,7 +15,8 @@ use crate::{
     result::{OwnedLabels, OwnedValue},
     storage::{
         Control, Interrupted, QueryProvider, ResourceLease, ResourceOwner, SelectionRequest,
-        Series, SeriesSelection, StorageError, TimeBounds, label, matches, scan, validate_labels,
+        Series, SeriesSelection, StorageError, TimeBounds, label, matches_in, scan,
+        validate_labels,
     },
 };
 use tokens::TokenKind;
@@ -364,6 +365,7 @@ impl<'a, Q: QueryProvider + 'a> Machine<'a, Q> {
             SelectionRequest {
                 matchers: &selector.matchers,
                 bounds,
+                accounting: Some(self.account),
             },
             self.control,
         )?;
@@ -692,7 +694,7 @@ impl<'a, Q: QueryProvider + 'a> Machine<'a, Q> {
                     let selector_node = *selector;
                     let operation = *operation;
                     let selector = self.selector(selector_node);
-                    if !matches(&series_labels, &selector.matchers) {
+                    if !matches_in(&series_labels, &selector.matchers, Some(self.account)) {
                         continue;
                     }
                     let end_ms = self.lookup(selector)?;

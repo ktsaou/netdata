@@ -1,8 +1,10 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 use crate::{
+    accounting::{AccountedVec, AllocationContext, MemoryKind, QueryAccounting},
+    frontend::ast::Matcher,
     storage::{
         Control, LabelRef, PageSamples, ProviderResources, SampleCursor, SamplePage, Series,
-        StorageError, TimeBounds,
+        StorageError, TimeBounds, matches_in,
     },
     value::{Sample, SampleValue},
 };
@@ -205,6 +207,7 @@ pub(crate) struct FixtureSeries {
 pub(crate) struct FixtureProvider {
     pub series: Vec<FixtureSeries>,
     pub counts: Arc<FixtureCounts>,
+    pub filter_selectors: bool,
 }
 pub(crate) struct FixtureQuery<'a> {
     provider: &'a FixtureProvider,
@@ -212,6 +215,8 @@ pub(crate) struct FixtureQuery<'a> {
 pub(crate) struct FixtureSelection<'a> {
     provider: &'a FixtureProvider,
     index: usize,
+    matchers: Option<Vec<Option<Matcher>>>,
+    accounting: Option<QueryAccounting>,
 }
 pub(crate) struct FixtureHandle<'a> {
     data: &'a FixtureSeries,
@@ -236,7 +241,7 @@ impl crate::storage::QueryProvider for FixtureQuery<'_> {
     }
     fn select(
         &self,
-        _: crate::storage::SelectionRequest<'_>,
+        request: crate::storage::SelectionRequest<'_>,
         control: &Control,
     ) -> Result<Self::Selection<'_>, StorageError> {
         control.check()?;
@@ -247,28 +252,65 @@ impl crate::storage::QueryProvider for FixtureQuery<'_> {
         Ok(FixtureSelection {
             provider: self.provider,
             index: 0,
+            matchers: self
+                .provider
+                .filter_selectors
+                .then(|| request.matchers.to_vec()),
+            accounting: self
+                .provider
+                .filter_selectors
+                .then(|| request.accounting.cloned())
+                .flatten(),
         })
     }
 }
 impl<'a> crate::storage::SeriesSelection for FixtureSelection<'a> {
     type Series = FixtureHandle<'a>;
     fn resources(&self) -> ProviderResources {
-        ProviderResources::default()
+        let bytes = self.matchers.as_ref().map_or(0, |matchers| {
+            matchers.capacity() * size_of::<Option<Matcher>>()
+                + matchers
+                    .iter()
+                    .flatten()
+                    .map(|matcher| matcher.name.capacity() + matcher.value.capacity())
+                    .sum::<usize>()
+        });
+        ProviderResources {
+            held_bytes: bytes as u64,
+            shared_cache_bytes: 0,
+        }
     }
     fn next(&mut self, control: &Control) -> Result<Option<Self::Series>, StorageError> {
-        control.check()?;
-        let Some(data) = self.provider.series.get(self.index) else {
-            return Ok(None);
-        };
-        self.index += 1;
-        self.provider
-            .counts
-            .series_opened
-            .fetch_add(1, Ordering::Relaxed);
-        Ok(Some(FixtureHandle {
-            data,
-            counts: &self.provider.counts,
-        }))
+        loop {
+            control.check()?;
+            let Some(data) = self.provider.series.get(self.index) else {
+                return Ok(None);
+            };
+            self.index += 1;
+            if let Some(matchers) = &self.matchers {
+                let context = self
+                    .accounting
+                    .as_ref()
+                    .map(|account| AllocationContext::new(account, MemoryKind::Workspace));
+                let labels = AccountedVec::from_iter_in(
+                    data.labels
+                        .iter()
+                        .map(|(name, value)| LabelRef { name, value }),
+                    context.as_ref(),
+                );
+                if !matches_in(&labels, matchers, self.accounting.as_ref()) {
+                    continue;
+                }
+            }
+            self.provider
+                .counts
+                .series_opened
+                .fetch_add(1, Ordering::Relaxed);
+            return Ok(Some(FixtureHandle {
+                data,
+                counts: &self.provider.counts,
+            }));
+        }
     }
 }
 impl Series for FixtureHandle<'_> {
@@ -337,6 +379,7 @@ impl FixtureProvider {
         Self {
             series,
             counts: Arc::new(FixtureCounts::default()),
+            filter_selectors: false,
         }
     }
     pub(crate) fn assert_closed(&self) {

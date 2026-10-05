@@ -2,7 +2,8 @@
 //! Synchronous query ownership, incremental output and ordinary-panic containment.
 use crate::{
     accounting::{
-        AccountedVec, EngineAccounting, MemoryKind, MemoryLease, QueryAccounting, QueryObservations,
+        AccountedVec, AllocationContext, EngineAccounting, MemoryKind, MemoryLease,
+        QueryAccounting, QueryObservations,
     },
     annotations::{AnnotationBuilder, Annotations},
     evaluator::{
@@ -21,7 +22,7 @@ use crate::{
     result::{CollectedResult, Collector, OutputChunk, OutputHeader, OutputSink},
     storage::{
         Control, Interrupted, Provider, QueryProvider, ResourceOwner, SelectionRequest, Series,
-        SeriesSelection, StorageError, TimeBounds, matches, scan_with, validate_labels,
+        SeriesSelection, StorageError, TimeBounds, matches_in, scan_with, validate_labels,
     },
     storage_observed::ObservedQuery,
     value::SampleRef,
@@ -104,7 +105,8 @@ pub struct CompiledQuery {
     expression: ParsedExpression,
     options: EngineOptions,
     engine: EngineAccounting,
-    allocation: MemoryLease,
+    _allocation: MemoryLease,
+    accounting: QueryAccounting,
 }
 
 impl Engine {
@@ -119,7 +121,14 @@ impl Engine {
             options.lookback_ms = EngineOptions::default().lookback_ms;
         }
         catch_unwind(AssertUnwindSafe(|| {
-            let output = parser::parse(source, options.parser, Selector::compile);
+            let account = self.accounting.query();
+            let context = AllocationContext::new(&account, MemoryKind::Compiled);
+            let output = parser::parse_in(
+                source,
+                options.parser,
+                |pattern| Selector::compile_in(pattern, Some(&context)),
+                Some(&account),
+            );
             control.check().map_err(CompileError::Interrupted)?;
             if !output.errors.is_empty() {
                 return Err(CompileError::Parse(output.errors));
@@ -129,13 +138,13 @@ impl Engine {
                 arena: output.arena,
                 root: output.root.expect("valid expression has a root"),
             };
-            let account = self.accounting.query();
             let allocation = account.hold(MemoryKind::Compiled, compiled_bytes(&expression) as u64);
             Ok(CompiledQuery {
                 expression,
                 options,
                 engine: self.accounting.clone(),
-                allocation,
+                _allocation: allocation,
+                accounting: account,
             })
         }))
         .unwrap_or(Err(CompileError::Internal))
@@ -150,7 +159,7 @@ impl CompiledQuery {
         self.expression.arena[self.expression.root].value_type
     }
     pub fn compiled_buffer_bytes(&self) -> u64 {
-        self.allocation.bytes()
+        self.accounting.snapshot().memory[MemoryKind::Compiled as usize].current
     }
     pub fn execute<P: Provider, S: OutputSink>(
         &self,
@@ -610,6 +619,7 @@ impl CompiledQuery {
             SelectionRequest {
                 matchers: &selector.matchers,
                 bounds,
+                accounting: Some(account),
             },
             control,
         )?;
@@ -631,7 +641,7 @@ impl CompiledQuery {
             let series = ResourceOwner::new(series, resources, account);
             let labels = series.value.label_views(account);
             validate_labels(&labels)?;
-            if !matches(&labels, &selector.matchers) {
+            if !matches_in(&labels, &selector.matchers, Some(account)) {
                 continue;
             }
             scan_with(
@@ -732,6 +742,123 @@ mod tests {
     use super::*;
     use crate::{result::OwnedValue, test_storage::FixtureProvider};
     use std::sync::atomic::Ordering;
+
+    #[test]
+    fn failed_compilation_releases_prior_matchers_and_retains_regex_error_bytes() {
+        let engine = Engine::default();
+        let error = engine
+            .compile(
+                b"counter_total{good=~\"a[^0-9]+c\",bad=~\"(\"}",
+                EngineOptions::default(),
+                &Control::default(),
+            )
+            .err()
+            .unwrap();
+        let CompileError::Parse(errors) = &error else {
+            panic!("expected parse error")
+        };
+        assert_eq!(errors.len(), 1);
+        assert!(errors[0].message.starts_with(b"error parsing regexp:"));
+        let observed = engine.accounting.snapshot();
+        let compiled = observed.memory[MemoryKind::Compiled as usize];
+        assert_eq!(compiled.current, errors[0].message.capacity() as u64);
+        assert!(compiled.peak > compiled.current);
+        let estimated = observed.memory[MemoryKind::RegexEstimate as usize];
+        assert!(estimated.peak > 0);
+        assert_eq!(estimated.current, 0);
+        drop(error);
+        assert!(
+            engine
+                .accounting
+                .snapshot()
+                .memory
+                .iter()
+                .all(|memory| memory.current == 0)
+        );
+    }
+
+    #[test]
+    fn empty_selector_validation_observes_matcher_search_and_releases_the_plan() {
+        let engine = Engine::default();
+        assert!(matches!(
+            engine.compile(
+                b"{l=~\"a*\"}",
+                EngineOptions::default(),
+                &Control::default()
+            ),
+            Err(CompileError::Parse(_))
+        ));
+        let observed = engine.accounting.snapshot();
+        assert!(observed.memory[MemoryKind::Workspace as usize].peak > 0);
+        assert!(observed.memory[MemoryKind::RegexEstimate as usize].peak > 0);
+        assert!(observed.memory.iter().all(|memory| memory.current == 0));
+    }
+
+    #[test]
+    fn provider_and_core_regex_filtering_use_the_execution_owner() {
+        for filter in [false, true] {
+            let engine = Engine::default();
+            let mut provider = FixtureProvider::new(1, 1, 4);
+            provider.filter_selectors = filter;
+            for (series, instance) in provider.series.iter_mut().zip([
+                b"a\xffbc".as_slice(),
+                b"a\xff9c",
+                b"unrelated",
+                b"abc",
+            ]) {
+                series.labels[1].1 = instance.to_vec();
+            }
+            let control = Control::default();
+            let query = engine
+                .compile(
+                    b"counter_total{instance=~\"a[^0-9]+c\"}",
+                    EngineOptions::default(),
+                    &control,
+                )
+                .unwrap();
+            let compiled = query.accounting.snapshot();
+            let (result, observed) = query
+                .collect(&provider, QueryRequest::Instant { time_ms: 1000 }, &control)
+                .unwrap();
+            assert_eq!(result.series.len(), 2);
+            for series in &*result.series {
+                assert_eq!(series.points.len(), 1);
+                assert_eq!(float_bits(&series.points[0]), 1.0f64.to_bits());
+            }
+            assert_eq!(query.accounting.snapshot(), compiled);
+            for kind in [
+                MemoryKind::Workspace,
+                MemoryKind::RegexEstimate,
+                MemoryKind::ProviderHeld,
+            ] {
+                assert!(
+                    observed.memory[kind as usize].peak > 0,
+                    "{kind:?} filter {filter}"
+                );
+                assert_eq!(observed.memory[kind as usize].current, 0);
+            }
+            assert_eq!(observed.memory[MemoryKind::Compiled as usize].acquired, 0);
+            provider.assert_closed();
+            drop(query);
+            drop(provider);
+            let retained = engine.accounting.snapshot();
+            assert_eq!(retained.memory[MemoryKind::Compiled as usize].current, 0);
+            assert_eq!(
+                retained.memory[MemoryKind::RegexEstimate as usize].current,
+                0
+            );
+            assert!(retained.memory[MemoryKind::Result as usize].current > 0);
+            drop(result);
+            assert!(
+                engine
+                    .accounting
+                    .snapshot()
+                    .memory
+                    .iter()
+                    .all(|memory| memory.current == 0)
+            );
+        }
+    }
 
     #[test]
     fn complete_grouped_rate_threshold_pages_and_owned_release() {

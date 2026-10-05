@@ -25,10 +25,17 @@ pub fn label<'a>(labels: LabelsRef<'a>, name: &[u8]) -> &'a [u8] {
         .map_or(&[], |index| labels[index].value)
 }
 pub fn matches(labels: LabelsRef<'_>, matchers: &[Option<Matcher>]) -> bool {
+    matches_in(labels, matchers, None)
+}
+pub fn matches_in(
+    labels: LabelsRef<'_>,
+    matchers: &[Option<Matcher>],
+    accounting: Option<&QueryAccounting>,
+) -> bool {
     matchers
         .iter()
         .flatten()
-        .all(|matcher| matcher.matches(label(labels, &matcher.name)))
+        .all(|matcher| matcher.matches_in(label(labels, &matcher.name), accounting))
 }
 
 #[derive(Clone, Debug, Default)]
@@ -92,6 +99,8 @@ pub struct TimeBounds {
 pub struct SelectionRequest<'a> {
     pub matchers: &'a [Option<Matcher>],
     pub bounds: TimeBounds,
+    /// Filtering may clone this owner; directly charged scratch is excluded from provider snapshots.
+    pub accounting: Option<&'a QueryAccounting>,
 }
 #[derive(Debug)]
 pub struct SamplePage<'a> {

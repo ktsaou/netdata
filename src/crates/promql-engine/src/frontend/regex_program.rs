@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Go-compatible simplification, flat program and one-pass analysis; see NOTICE.
 use super::{
+    Buffer,
     runes::{self, Class},
     syntax::{FOLD_CASE, Id, NON_GREEDY, Node, Op, Tree},
 };
@@ -19,6 +20,7 @@ fn add(tree: &mut Tree, node: Node) -> Id {
 }
 
 fn unary(tree: &mut Tree, op: Op, flags: u16, sub: Id, original: Option<Id>) -> Id {
+    let context = tree.context();
     let node = &tree.nodes[sub];
     if node.op == Op::Empty || node.op == op && node.flags & NON_GREEDY == flags & NON_GREEDY {
         return sub;
@@ -26,25 +28,27 @@ fn unary(tree: &mut Tree, op: Op, flags: u16, sub: Id, original: Option<Id>) -> 
     if let Some(original) = original.filter(|&id| tree.nodes[id].children[0] == sub) {
         return original;
     }
-    let mut node = Node::new(op, flags);
+    let mut node = Node::new(op, flags, context.as_ref());
     node.children.push(sub);
     add(tree, node)
 }
 
-fn concatenation(tree: &mut Tree, children: Vec<Id>) -> Id {
-    let mut node = Node::new(Op::Concat, 0);
+fn concatenation(tree: &mut Tree, children: Buffer<Id>) -> Id {
+    let context = tree.context();
+    let mut node = Node::new(Op::Concat, 0, context.as_ref());
     node.children = children;
     add(tree, node)
 }
 
 fn simplify(tree: &mut Tree) {
-    let mut frames = vec![(tree.root, false)];
-    let mut values = Vec::new();
+    let context = tree.context();
+    let mut frames = buffer![context.as_ref(); (tree.root, false)];
+    let mut values = Buffer::new_in(context.as_ref());
     while let Some((id, finish)) = frames.pop() {
         let op = tree.nodes[id].op;
         if !finish {
             if op == Op::Repeat && tree.nodes[id].min == 0 && tree.nodes[id].max == Some(0) {
-                values.push(add(tree, Node::new(Op::Empty, 0)));
+                values.push(add(tree, Node::new(Op::Empty, 0, context.as_ref())));
                 continue;
             }
             if matches!(
@@ -80,17 +84,18 @@ fn simplify(tree: &mut Tree) {
                     ),
                     None => {
                         let last = unary(tree, Op::Plus, node.flags, sub, None);
-                        let mut children = vec![sub; node.min as usize - 1];
+                        let mut children = buffer![context.as_ref(); sub; node.min as usize - 1];
                         children.push(last);
                         concatenation(tree, children)
                     }
                     Some(1) if node.min == 1 => sub,
                     Some(max) => {
-                        let mut children = vec![sub; node.min as usize];
+                        let mut children = buffer![context.as_ref(); sub; node.min as usize];
                         if max > node.min {
                             let mut suffix = unary(tree, Op::Quest, node.flags, sub, None);
                             for _ in node.min + 1..max {
-                                let concat = concatenation(tree, vec![sub, suffix]);
+                                let concat =
+                                    concatenation(tree, buffer![context.as_ref(); sub, suffix]);
                                 suffix = unary(tree, Op::Quest, node.flags, concat, None);
                             }
                             if node.min == 0 {
@@ -100,7 +105,7 @@ fn simplify(tree: &mut Tree) {
                             children.push(suffix);
                         }
                         if node.min == 0 {
-                            add(tree, Node::new(Op::NoMatch, 0))
+                            add(tree, Node::new(Op::NoMatch, 0, context.as_ref()))
                         } else {
                             concatenation(tree, children)
                         }
@@ -139,12 +144,12 @@ pub struct Instruction {
     pub code: Code,
     pub out: usize,
     pub arg: usize,
-    pub runes: Vec<u32>,
+    pub runes: Buffer<u32>,
 }
 
 #[derive(Debug)]
 pub struct Program {
-    pub instructions: Vec<Instruction>,
+    pub instructions: Buffer<Instruction>,
     pub start: usize,
 }
 
@@ -175,12 +180,13 @@ enum Frame {
 
 impl Program {
     fn instruction(&mut self, code: Code) -> Fragment {
+        let context = self.instructions.context();
         let start = self.instructions.len();
         self.instructions.push(Instruction {
             code,
             out: 0,
             arg: 0,
-            runes: Vec::new(),
+            runes: Buffer::new_in(context.as_ref()),
         });
         Fragment {
             start,
@@ -289,7 +295,7 @@ impl Program {
         };
         result
     }
-    fn rune(&mut self, runes: Vec<u32>, flags: u16) -> Fragment {
+    fn rune(&mut self, runes: Buffer<u32>, flags: u16) -> Fragment {
         let fold = flags & FOLD_CASE != 0 && runes.len() == 1 && runes::fold(runes[0]) != runes[0];
         let code = if !fold && (runes.len() == 1 || runes.len() == 2 && runes[0] == runes[1]) {
             Code::Rune1
@@ -307,14 +313,15 @@ impl Program {
     }
 
     pub fn compile(tree: &mut Tree) -> Self {
+        let context = tree.context();
         simplify(tree);
         let mut program = Self {
-            instructions: Vec::new(),
+            instructions: Buffer::new_in(context.as_ref()),
             start: 0,
         };
         program.instruction(Code::Fail);
-        let mut frames = vec![Frame::Visit(tree.root)];
-        let mut values = Vec::<Fragment>::new();
+        let mut frames = buffer![context.as_ref(); Frame::Visit(tree.root)];
+        let mut values = Buffer::<Fragment>::new_in(context.as_ref());
         while let Some(frame) = frames.pop() {
             let result = match frame {
                 Frame::Visit(id) => {
@@ -325,7 +332,8 @@ impl Program {
                         Op::Literal => {
                             let mut value = None;
                             for &rune in &node.runes {
-                                let next = program.rune(vec![rune], node.flags);
+                                let next =
+                                    program.rune(buffer![context.as_ref(); rune], node.flags);
                                 value = Some(
                                     value.map_or(next, |previous| program.concat(previous, next)),
                                 );
@@ -333,11 +341,16 @@ impl Program {
                             value.unwrap_or_else(|| program.outgoing(Code::Nop, 0))
                         }
                         Op::Class => program.rune(
-                            node.class.iter().flat_map(|&(lo, hi)| [lo, hi]).collect(),
+                            Buffer::from_iter_in(
+                                node.class.iter().flat_map(|&(lo, hi)| [lo, hi]),
+                                context.as_ref(),
+                            ),
                             node.flags,
                         ),
-                        Op::Any => program.rune(vec![0, runes::MAX_RUNE], 0),
-                        Op::AnyNotNL => program.rune(vec![0, 9, 11, runes::MAX_RUNE], 0),
+                        Op::Any => program.rune(buffer![context.as_ref(); 0, runes::MAX_RUNE], 0),
+                        Op::AnyNotNL => {
+                            program.rune(buffer![context.as_ref(); 0, 9, 11, runes::MAX_RUNE], 0)
+                        }
                         Op::BeginText => program.outgoing(Code::Empty, BEGIN_TEXT),
                         Op::EndText => program.outgoing(Code::Empty, END_TEXT),
                         Op::BeginLine => program.outgoing(Code::Empty, BEGIN_LINE),
@@ -435,6 +448,7 @@ impl Program {
     }
 
     fn one_pass(&self) -> bool {
+        let context = self.instructions.context();
         if self.start == 0 || self.instructions.len() >= 1000 {
             return false;
         }
@@ -494,16 +508,16 @@ impl Program {
             }
         }
         let count = program.instructions.len();
-        let mut queue = vec![self.start];
-        let mut queued = vec![false; count];
+        let mut queue = buffer![context.as_ref(); self.start];
+        let mut queued = buffer![context.as_ref(); false; count];
         queued[self.start] = true;
-        let mut initialized = vec![false; count];
-        let mut nullable = vec![false; count];
-        let mut sets = vec![Class::new(); count];
+        let mut initialized = buffer![context.as_ref(); false; count];
+        let mut nullable = buffer![context.as_ref(); false; count];
+        let mut sets = buffer![context.as_ref(); Class::new_in(context.as_ref()); count];
         let mut cursor = 0;
         while cursor < queue.len() {
-            let mut visited = vec![false; count];
-            let mut frames = vec![(queue[cursor], false)];
+            let mut visited = buffer![context.as_ref(); false; count];
+            let mut frames = buffer![context.as_ref(); (queue[cursor], false)];
             cursor += 1;
             while let Some((pc, finish)) = frames.pop() {
                 let instruction = &program.instructions[pc];
@@ -538,16 +552,18 @@ impl Program {
                             {
                                 let rune = instruction.runes[0];
                                 if instruction.arg & FOLD_CASE as usize != 0 {
-                                    runes::folded(vec![(rune, rune)])
+                                    runes::folded(buffer![context.as_ref(); (rune, rune)])
                                 } else {
-                                    vec![(rune, rune)]
+                                    buffer![context.as_ref(); (rune, rune)]
                                 }
                             } else {
-                                instruction
-                                    .runes
-                                    .chunks_exact(2)
-                                    .map(|pair| (pair[0], pair[1]))
-                                    .collect()
+                                Buffer::from_iter_in(
+                                    instruction
+                                        .runes
+                                        .chunks_exact(2)
+                                        .map(|pair| (pair[0], pair[1])),
+                                    context.as_ref(),
+                                )
                             };
                         }
                     }
@@ -573,16 +589,17 @@ impl Program {
         true
     }
 
-    pub fn prefix(&self) -> (Vec<u8>, Vec<usize>) {
-        let mut selected = Vec::new();
+    pub fn prefix(&self) -> (Buffer<u8>, Buffer<usize>) {
+        let context = self.instructions.context();
+        let mut selected = Buffer::new_in(context.as_ref());
         if !self.one_pass() {
-            return (Vec::new(), selected);
+            return (Buffer::new_in(context.as_ref()), selected);
         }
         let mut pc = self.instructions[self.start].out;
         while self.instructions[pc].code == Code::Nop {
             pc = self.instructions[pc].out;
         }
-        let mut prefix = Vec::new();
+        let mut prefix = Buffer::new_in(context.as_ref());
         loop {
             let instruction = &self.instructions[pc];
             if !matches!(
@@ -594,7 +611,7 @@ impl Program {
             {
                 break;
             }
-            prefix.extend(runes::text(&instruction.runes));
+            prefix.extend(runes::text(&instruction.runes, context.as_ref()));
             selected.push(pc);
             pc = instruction.out;
         }
@@ -604,11 +621,11 @@ impl Program {
 
 #[cfg(feature = "fixtures")]
 pub struct Inspection {
-    pub instructions: Vec<Instruction>,
+    pub instructions: Buffer<Instruction>,
     pub start: usize,
     pub num_cap: usize,
     pub one_pass: bool,
-    pub prefix: Vec<u8>,
+    pub prefix: Buffer<u8>,
     pub prefix_end: usize,
     pub complete: bool,
 }
@@ -645,6 +662,7 @@ impl Code {
 #[cfg(feature = "fixtures")]
 impl Program {
     pub fn inspect(&self) -> Inspection {
+        let context = self.instructions.context();
         let one_pass = self.one_pass();
         let (mut prefix, selected) = self.prefix();
         let mut pc = self.start;
@@ -690,7 +708,7 @@ impl Program {
                 {
                     break;
                 }
-                prefix.extend(runes::text(&instruction.runes));
+                prefix.extend(runes::text(&instruction.runes, context.as_ref()));
                 pc = skip(instruction.out);
             }
             complete = self.instructions[pc].code == Code::Match;

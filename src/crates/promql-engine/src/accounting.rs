@@ -1,7 +1,10 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 //! Observations remain active without admitting, throttling or limiting queries.
 use std::{
-    ops::{Deref, DerefMut},
+    borrow::Borrow,
+    hash::{Hash, Hasher},
+    iter::FusedIterator,
+    ops::{Deref, DerefMut, RangeBounds},
     sync::{Arc, Mutex, MutexGuard},
     time::{Duration, Instant},
 };
@@ -159,6 +162,9 @@ impl AllocationContext {
     pub(crate) fn owns(&self, lease: &MemoryLease) -> bool {
         self.kind == lease.kind && Arc::ptr_eq(&self.query.0, &lease.query.0)
     }
+    pub(crate) fn with_kind(&self, kind: MemoryKind) -> Self {
+        Self::new(&self.query, kind)
+    }
 }
 impl MemoryLease {
     pub(crate) fn reconcile<const N: usize>(mut targets: [(&mut Self, u64); N]) {
@@ -192,6 +198,9 @@ impl MemoryLease {
         }
     }
     pub fn resize(&mut self, bytes: u64) {
+        if bytes == self.bytes {
+            return;
+        }
         let mut engine = lock(&self.query.0.engine.0);
         let mut query = lock(&self.query.0.observations);
         let index = self.kind as usize;
@@ -349,6 +358,19 @@ impl<T> AccountedVec<T> {
     pub fn remove(&mut self, index: usize) -> T {
         self.values.remove(index)
     }
+    pub fn append(&mut self, other: &mut Self) {
+        self.reserve(other.len());
+        self.values.append(&mut other.values);
+    }
+    pub fn split_off(&mut self, at: usize) -> Self {
+        assert!(at <= self.len(), "split index out of bounds");
+        let mut result = Self::with_capacity_in(self.len() - at, self.context().as_ref());
+        result.values.extend(self.values.drain(at..));
+        result
+    }
+    pub fn drain<R: RangeBounds<usize>>(&mut self, range: R) -> std::vec::Drain<'_, T> {
+        self.values.drain(range)
+    }
     pub fn insert(&mut self, index: usize, value: T) {
         assert!(index <= self.values.len(), "insertion index out of bounds");
         self.reserve(1);
@@ -377,6 +399,28 @@ impl<T> AccountedVec<T> {
         result.values.resize(len, value);
         result
     }
+    pub(crate) fn from_iter_in<I: IntoIterator<Item = T>>(
+        values: I,
+        context: Option<&AllocationContext>,
+    ) -> Self {
+        let values = values.into_iter();
+        let mut result = Self::with_capacity_in(values.size_hint().0, context);
+        result.extend(values);
+        result
+    }
+    pub(crate) fn into_unobserved(self) -> Vec<T> {
+        assert!(
+            self.lease.is_none(),
+            "observed buffers must retain their owner"
+        );
+        self.values
+    }
+    pub(crate) fn transfer_to_dependency<R>(self, consumer: impl FnOnce(Vec<T>) -> R) -> R {
+        let Self { values, lease } = self;
+        // The dependency's separate estimate takes over at this ownership boundary.
+        drop(lease);
+        consumer(values)
+    }
     pub fn extend_from_slice(&mut self, values: &[T])
     where
         T: Clone,
@@ -401,6 +445,45 @@ impl<T> From<Vec<T>> for AccountedVec<T> {
 impl<T> FromIterator<T> for AccountedVec<T> {
     fn from_iter<I: IntoIterator<Item = T>>(iter: I) -> Self {
         Self::from(Vec::from_iter(iter))
+    }
+}
+impl<T> Extend<T> for AccountedVec<T> {
+    fn extend<I: IntoIterator<Item = T>>(&mut self, values: I) {
+        let values = values.into_iter();
+        self.reserve(values.size_hint().0);
+        for value in values {
+            self.push(value);
+        }
+    }
+}
+pub struct AccountedIntoIter<T> {
+    values: std::vec::IntoIter<T>,
+    _lease: Option<MemoryLease>,
+}
+impl<T> Iterator for AccountedIntoIter<T> {
+    type Item = T;
+    fn next(&mut self) -> Option<T> {
+        self.values.next()
+    }
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        self.values.size_hint()
+    }
+}
+impl<T> DoubleEndedIterator for AccountedIntoIter<T> {
+    fn next_back(&mut self) -> Option<T> {
+        self.values.next_back()
+    }
+}
+impl<T> ExactSizeIterator for AccountedIntoIter<T> {}
+impl<T> FusedIterator for AccountedIntoIter<T> {}
+impl<T> IntoIterator for AccountedVec<T> {
+    type Item = T;
+    type IntoIter = AccountedIntoIter<T>;
+    fn into_iter(self) -> Self::IntoIter {
+        AccountedIntoIter {
+            values: self.values.into_iter(),
+            _lease: self.lease,
+        }
     }
 }
 impl<T: Clone> Clone for AccountedVec<T> {
@@ -437,6 +520,27 @@ impl<T> DerefMut for AccountedVec<T> {
         &mut self.values
     }
 }
+impl<T> AsRef<[T]> for AccountedVec<T> {
+    fn as_ref(&self) -> &[T] {
+        &self.values
+    }
+}
+impl<T> Borrow<[T]> for AccountedVec<T> {
+    fn borrow(&self) -> &[T] {
+        &self.values
+    }
+}
+impl<T: Hash> Hash for AccountedVec<T> {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.values.hash(state);
+    }
+}
+impl<T: PartialEq, R: AsRef<[T]> + ?Sized> PartialEq<R> for AccountedVec<T> {
+    fn eq(&self, other: &R) -> bool {
+        self.values == other.as_ref()
+    }
+}
+impl<T: Eq> Eq for AccountedVec<T> {}
 impl std::fmt::Write for AccountedVec<u8> {
     fn write_str(&mut self, value: &str) -> std::fmt::Result {
         self.extend_from_slice(value.as_bytes());
@@ -506,6 +610,71 @@ mod tests {
         assert!(panic.is_err());
         let observation = query.snapshot().memory[1];
         assert_eq!((observation.current, observation.peak), (0, 8));
+        assert_eq!(observation.acquired, observation.released);
+    }
+    #[test]
+    fn split_append_drain_and_consuming_iteration_retain_actual_buffer_owners() {
+        let engine = EngineAccounting::default();
+        let query = engine.query();
+        let context = AllocationContext::new(&query, MemoryKind::Workspace);
+        let mut source = AccountedVec::from_slice_in(&[0u64, 1, 2, 3, 4], Some(&context));
+        let mut target = AccountedVec::from_slice_in(&[9u64], Some(&context));
+        let mut tail = source.split_off(2);
+        assert_eq!(&*source, &[0, 1]);
+        assert_eq!(&*tail, &[2, 3, 4]);
+        assert_eq!(query.snapshot().memory[1].current, 72);
+        target.append(&mut tail);
+        assert!(tail.is_empty());
+        assert_eq!(tail.capacity(), 3);
+        assert_eq!(query.snapshot().memory[1].current, 96);
+        assert_eq!(query.snapshot().memory[1].peak, 104);
+        drop(tail);
+        assert_eq!(source.drain(..).next(), Some(0));
+        assert!(source.is_empty());
+        let mut values = target.into_iter();
+        assert_eq!(values.len(), 4);
+        assert_eq!(values.next(), Some(9));
+        assert_eq!(values.next_back(), Some(4));
+        assert_eq!(values.next(), Some(2));
+        assert_eq!(values.next(), Some(3));
+        assert_eq!(values.next(), None);
+        assert_eq!(query.snapshot().memory[1].current, 72);
+        drop(source);
+        drop(context);
+        drop(query);
+        assert_eq!(engine.snapshot().memory[1].current, 32);
+        drop(values);
+        assert_eq!(engine.snapshot().memory[1].current, 0);
+    }
+    #[test]
+    // Hashing uses immutable bytes; the accounting mutex is outside the key's equality.
+    #[allow(clippy::mutable_key_type)]
+    fn byte_keys_match_borrowed_slices_and_duplicate_keys_release_their_buffers() {
+        let engine = EngineAccounting::default();
+        let query = engine.query();
+        let context = AllocationContext::new(&query, MemoryKind::Compiled);
+        let mut values = std::collections::HashSet::new();
+        assert!(values.insert(AccountedVec::from_slice_in(b"abc", Some(&context))));
+        assert!(!values.insert(AccountedVec::from_slice_in(b"abc", Some(&context))));
+        assert!(values.contains(&b"abc"[..]));
+        assert_eq!(query.snapshot().memory[0].current, 3);
+        drop(values);
+        assert_eq!(query.snapshot().memory[0].current, 0);
+    }
+    #[test]
+    fn an_observed_buffer_cannot_escape_as_an_unowned_vector() {
+        let engine = EngineAccounting::default();
+        let query = engine.query();
+        let panic = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            let buffer = AccountedVec::from_slice_in(
+                b"abc",
+                Some(&AllocationContext::new(&query, MemoryKind::Workspace)),
+            );
+            buffer.into_unobserved();
+        }));
+        assert!(panic.is_err());
+        let observation = query.snapshot().memory[1];
+        assert_eq!(observation.current, 0);
         assert_eq!(observation.acquired, observation.released);
     }
     #[test]
