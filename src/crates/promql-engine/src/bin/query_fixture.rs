@@ -326,10 +326,24 @@ fn evaluate(provider: &FixtureProvider, request: &Value) -> Result<Value, Error>
         Ok(query) => query,
         Err(CompileError::Parse(errors)) => {
             result["error"] = parse_failure(&source, &errors);
+            if request["op"].as_str() == Some("prepare") {
+                result["error"]["phase"] = json!("parse");
+                return Ok(json!({"id": id, "scope": {"error": result["error"]}}));
+            }
             return Ok(json!({"id": id, "result": result}));
         }
         Err(error) => return Err(format!("fixture compilation failed: {error:?}").into()),
     };
+    if request["op"].as_str() == Some("prepare") {
+        let scope = match query.preparation_fixture(query_request, &control) {
+            Ok(snapshot) => snapshot,
+            Err(EvaluationError::Preparation(message)) => {
+                json!({"error": failure("preprocess", "*errors.errorString", &message)})
+            }
+            Err(error) => return Err(format!("fixture preparation failed: {error:?}").into()),
+        };
+        return Ok(json!({"id": id, "scope": scope}));
+    }
     if matches!(query_request, QueryRequest::Range { .. })
         && !matches!(query.value_type(), ValueType::Scalar | ValueType::Vector)
     {
@@ -359,6 +373,9 @@ fn evaluate(provider: &FixtureProvider, request: &Value) -> Result<Value, Error>
         }
         Err(ExecutionError::Evaluation(EvaluationError::Invalid(message))) => {
             result["error"] = failure("execution", "*errors.errorString", message.as_bytes());
+        }
+        Err(ExecutionError::Evaluation(EvaluationError::Preparation(message))) => {
+            result["error"] = failure("construction", "*errors.errorString", &message);
         }
         Err(error) => return Err(format!("fixture execution failed: {error:?}").into()),
     }

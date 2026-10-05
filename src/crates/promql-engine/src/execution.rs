@@ -19,6 +19,7 @@ use crate::{
         regex::Selector,
         token as tokens,
     },
+    query_preparation::Prepared,
     range_reduce::RangeFunction,
     result::{CollectedResult, Collector, OutputChunk, OutputHeader, OutputSink},
     storage::{
@@ -182,6 +183,44 @@ impl CompiledQuery {
     pub fn compiled_buffer_bytes(&self) -> u64 {
         self.accounting.snapshot().memory[MemoryKind::Compiled as usize].current
     }
+    /// Test-only projection of preprocessing, including matrix roots in range contexts.
+    #[cfg(feature = "fixtures")]
+    pub fn preparation_fixture(
+        &self,
+        request: QueryRequest,
+        control: &Control,
+    ) -> Result<serde_json::Value, EvaluationError> {
+        let header = match request {
+            QueryRequest::Instant { time_ms } => OutputHeader {
+                value_type: self.value_type(),
+                start_ms: time_ms,
+                end_ms: time_ms,
+                step_ms: 0,
+            },
+            QueryRequest::Range {
+                start_ms,
+                end_ms,
+                step_ms,
+            } => OutputHeader {
+                value_type: ValueType::Matrix,
+                start_ms,
+                end_ms,
+                step_ms,
+            },
+        };
+        let account = self.engine.query();
+        let prepared = Prepared::new(&self.expression, header, control, &account)?;
+        let bounds = crate::query_bounds::find(
+            &self.expression,
+            self.evaluation_options(header, header.start_ms),
+            &prepared,
+            control,
+            &account,
+        )?;
+        let mut snapshot = prepared.snapshot(&self.expression);
+        snapshot["bounds"] = serde_json::json!([bounds.start_ms, bounds.end_ms]);
+        Ok(snapshot)
+    }
     pub fn execute<P: Provider, S: OutputSink>(
         &self,
         provider: &P,
@@ -267,12 +306,13 @@ impl CompiledQuery {
         let outcome = catch_unwind(AssertUnwindSafe(|| {
             let header = self.header(request)?;
             control.check().map_err(EvaluationError::from)?;
+            let prepared = Prepared::new(&self.expression, header, control, account)?;
             sink.begin(header).map_err(ExecutionError::Sink)?;
             {
                 account.provider_call();
                 let query = provider.open(control).map_err(EvaluationError::from)?;
                 let query = ObservedQuery::new(query, account);
-                self.evaluate(&query, header, control, account, sink, annotations)?;
+                self.evaluate(&query, &prepared, control, account, sink, annotations)?;
             }
             control.check().map_err(EvaluationError::from)?;
             if !annotations.is_empty() {
@@ -325,12 +365,13 @@ impl CompiledQuery {
     fn evaluate<Q: QueryProvider, S: OutputSink>(
         &self,
         query: &Q,
-        header: OutputHeader,
+        prepared: &Prepared,
         control: &Control,
         account: &QueryAccounting,
         sink: &mut S,
         annotations: &mut Annotations,
     ) -> Result<(), ExecutionError> {
+        let header = prepared.header;
         let mut root = self.expression.root;
         while let Expr::Paren(child) = self.expression.arena[root].expression {
             root = child;
@@ -346,15 +387,16 @@ impl CompiledQuery {
         }
         let root_type = self.expression.arena[self.expression.root].value_type;
         if root_type == ValueType::Matrix {
-            return self.evaluate_matrix(query, header, control, account, sink);
+            return self.evaluate_matrix(query, prepared, control, account, sink);
         }
         let data_bounds = crate::query_bounds::find(
             &self.expression,
             self.evaluation_options(header, header.start_ms),
+            prepared,
             control,
             account,
         )?;
-        let mut rosters = self.prepare_rosters(query, header, data_bounds, control, account)?;
+        let mut rosters = self.prepare_rosters(query, prepared, data_bounds, control, account)?;
         *annotations = rosters
             .take_annotations(self.expression.root)
             .expect("completed root diagnostics")
@@ -373,6 +415,7 @@ impl CompiledQuery {
                     control,
                     account,
                     EvaluationMetadata {
+                        prepared,
                         rosters: &rosters,
                         invariants: &self.invariants,
                         timestamp_selectors: &self.timestamp_selectors,
@@ -435,6 +478,7 @@ impl CompiledQuery {
                 control,
                 account,
                 EvaluationMetadata {
+                    prepared,
                     rosters: &rosters,
                     invariants: &self.invariants,
                     timestamp_selectors: &self.timestamp_selectors,
@@ -606,11 +650,12 @@ impl CompiledQuery {
     fn prepare_rosters<Q: QueryProvider>(
         &self,
         query: &Q,
-        header: OutputHeader,
+        prepared: &Prepared,
         data_bounds: TimeBounds,
         control: &Control,
         account: &QueryAccounting,
     ) -> Result<Rosters, EvaluationError> {
+        let header = prepared.header;
         enum Task {
             Visit(NodeId),
             Finish(NodeId),
@@ -679,6 +724,7 @@ impl CompiledQuery {
                     control,
                     account,
                     EvaluationMetadata {
+                        prepared,
                         rosters: &rosters,
                         invariants: &self.invariants,
                         timestamp_selectors: &self.timestamp_selectors,
@@ -791,42 +837,37 @@ impl CompiledQuery {
     fn evaluate_matrix<Q: QueryProvider, S: OutputSink>(
         &self,
         query: &Q,
-        header: OutputHeader,
+        prepared: &Prepared,
         control: &Control,
         account: &QueryAccounting,
         sink: &mut S,
     ) -> Result<(), ExecutionError> {
+        let header = prepared.header;
         let mut root = self.expression.root;
         while let Expr::Paren(child) = self.expression.arena[root].expression {
             root = child;
         }
         let Expr::Matrix {
-            selector,
+            selector: selector_node,
             range,
-            range_expression: None,
+            ..
         } = self.expression.arena[root].expression
         else {
             return Err(EvaluationError::Unsupported("top-level subquery output").into());
         };
-        let Expr::Selector(selector) = &self.expression.arena[selector].expression else {
+        let range = prepared.range(root, range);
+        let Expr::Selector(selector) = &self.expression.arena[selector_node].expression else {
             unreachable!("typed selector")
         };
-        if selector.anchored
-            || selector.smoothed
-            || selector.modifiers.original_offset_expression.is_some()
-        {
+        if selector.anchored || selector.smoothed {
             return Err(EvaluationError::Unsupported("extended top-level matrix").into());
         }
-        let timestamp =
-            selector
-                .modifiers
-                .timestamp
-                .unwrap_or(match selector.modifiers.start_or_end {
-                    Some(TokenKind::START) => header.start_ms,
-                    Some(TokenKind::END) => header.end_ms,
-                    _ => header.start_ms,
-                });
-        let end_ms = timestamp.wrapping_sub(selector.modifiers.original_offset / 1_000_000);
+        let timestamp = prepared
+            .timestamp(&selector.modifiers)
+            .unwrap_or(header.start_ms);
+        let end_ms = timestamp.wrapping_sub(
+            prepared.offset(selector_node, selector.modifiers.original_offset) / 1_000_000,
+        );
         let bounds = TimeBounds {
             start_ms: end_ms.wrapping_sub(range / 1_000_000).wrapping_add(1),
             end_ms,
@@ -1735,6 +1776,7 @@ mod tests {
 
     #[derive(Default)]
     struct RecordingSink {
+        begun: bool,
         chunks: usize,
         committed: bool,
         aborted: bool,
@@ -1744,6 +1786,7 @@ mod tests {
     }
     impl OutputSink for RecordingSink {
         fn begin(&mut self, _: OutputHeader) -> Result<(), Vec<u8>> {
+            self.begun = true;
             Ok(())
         }
         fn chunk(&mut self, _: OutputChunk<'_>) -> Result<(), Vec<u8>> {
@@ -4121,7 +4164,7 @@ mod tests {
         provider.assert_closed();
     }
     #[test]
-    fn immutable_compiled_plan_allows_independent_concurrent_executions() {
+    fn immutable_dynamic_plan_preserves_original_contexts_during_concurrent_executions() {
         use std::sync::{Arc, Mutex, mpsc};
         struct GatedProvider {
             provider: FixtureProvider,
@@ -4146,7 +4189,7 @@ mod tests {
         let (entered_tx, entered_rx) = mpsc::sync_channel(1);
         let (resume_tx, resume_rx) = mpsc::sync_channel(1);
         let provider = Arc::new(GatedProvider {
-            provider: FixtureProvider::new(1, 1, 2),
+            provider: FixtureProvider::new(10, 1, 2),
             entered: entered_tx,
             resume: Mutex::new(resume_rx),
             opens: std::sync::atomic::AtomicUsize::new(0),
@@ -4155,7 +4198,10 @@ mod tests {
         let control = Control::default();
         let query = Arc::new(
             engine
-                .compile(b"sum(counter_total)", EngineOptions::default(), &control)
+                .compile(b"sum(count_over_time(counter_total[step()+1s])) + start() + end() + range() + step()", EngineOptions {
+                    parser: ParserOptions { experimental_functions: true, ..ParserOptions::default() },
+                    ..EngineOptions::default()
+                }, &control)
                 .unwrap(),
         );
         let other_query = query.clone();
@@ -4172,18 +4218,81 @@ mod tests {
             .unwrap();
         let second = query.collect(
             &*provider,
-            QueryRequest::Instant { time_ms: 1000 },
+            QueryRequest::Range {
+                start_ms: 2000,
+                end_ms: 5000,
+                step_ms: 2000,
+            },
             &control,
         );
         resume_tx.send(()).unwrap();
         let first = first.join().unwrap();
-        for result in [first, second] {
+        for (result, expected) in [
+            (first, vec![4.0_f64.to_bits()]),
+            (second, vec![16.0_f64.to_bits(), 18.0_f64.to_bits()]),
+        ] {
             let (result, _) = result.unwrap();
-            assert_eq!(float_bits(&result.series[0].points[0]), 2.0f64.to_bits());
+            assert_eq!(
+                result.series[0]
+                    .points
+                    .iter()
+                    .map(float_bits)
+                    .collect::<Vec<_>>(),
+                expected
+            );
         }
         assert_eq!(engine.accounting.snapshot().peak_executions, 2);
         assert_eq!(engine.accounting.snapshot().active_executions, 0);
         provider.provider.assert_closed();
+    }
+
+    #[test]
+    fn duration_preparation_errors_precede_storage_and_retain_accounted_messages() {
+        let engine = Engine::default();
+        let provider = FixtureProvider::new(10, 1, 1);
+        let control = Control::default();
+        for source in [
+            &b"count_over_time(counter_total[1s/(1-1)])"[..],
+            &b"counter_total[step()*1:step()*1]"[..],
+        ] {
+            let query = engine
+                .compile(source, EngineOptions::default(), &control)
+                .unwrap();
+            let mut sink = RecordingSink::default();
+            let error = query
+                .execute(
+                    &provider,
+                    QueryRequest::Instant { time_ms: 4000 },
+                    &control,
+                    &mut sink,
+                )
+                .unwrap_err();
+            assert!(matches!(
+                &error,
+                ExecutionError::Evaluation(EvaluationError::Preparation(_))
+            ));
+            assert!(!sink.begun);
+            assert!(sink.aborted);
+            assert!(!sink.committed);
+            assert_eq!(provider.counts.scopes_opened.load(Ordering::Relaxed), 0);
+            assert_eq!(engine.accounting.snapshot().active_executions, 0);
+            assert_eq!(
+                engine.accounting.snapshot().memory[MemoryKind::Workspace as usize].current,
+                0
+            );
+            drop(query);
+            assert!(engine.accounting.snapshot().memory[MemoryKind::Result as usize].current > 0);
+            drop(error);
+            assert!(
+                engine
+                    .accounting
+                    .snapshot()
+                    .memory
+                    .iter()
+                    .all(|memory| memory.current == 0)
+            );
+        }
+        provider.assert_closed();
     }
 
     #[test]

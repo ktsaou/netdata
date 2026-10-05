@@ -1,7 +1,11 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Compensated summation derives from Prometheus util/kahansum; see NOTICE.
-pub use crate::numerical_exponential::{exp2, ldexp};
-pub use crate::numerical_math::{frexp, log, log2, sqrt};
+pub use crate::numerical_exponential::{exp, exp2, ldexp};
+pub use crate::numerical_math::{
+    frexp, log, log2, max, min, modulo, modulo_with, pow, pow_with, sqrt,
+};
+#[cfg(any(test, feature = "fixtures"))]
+pub use crate::{numerical_exponential::exp_dispatch, numerical_math::pow_dispatch};
 
 /// Neumaier's compensation preserves upstream's chronological arithmetic order.
 pub fn compensated_add(increment: f64, sum: f64, mut compensation: f64) -> (f64, f64) {

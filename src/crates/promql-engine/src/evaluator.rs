@@ -12,6 +12,7 @@ use crate::{
     histogram_functions,
     histogram_stats::StatisticsWindow,
     label_hash,
+    query_preparation::Prepared,
     range_float::{RateKind, RateValue, RateWindow, rate},
     range_reduce::{FoldKind, FoldOptions, RangeFunction, fold},
     result::{OwnedLabels, OwnedValue},
@@ -31,6 +32,7 @@ pub enum EvaluationError {
     Storage(StorageError),
     Unsupported(&'static str),
     Invalid(&'static str),
+    Preparation(AccountedVec<u8>),
 }
 impl From<Interrupted> for EvaluationError {
     fn from(value: Interrupted) -> Self {
@@ -239,6 +241,7 @@ impl RowFilter<'_> {
 }
 
 pub(crate) struct EvaluationMetadata<'a> {
+    pub(crate) prepared: &'a Prepared,
     pub(crate) rosters: &'a Rosters,
     pub(crate) invariants: &'a [bool],
     pub(crate) timestamp_selectors: &'a [bool],
@@ -248,6 +251,7 @@ pub(crate) struct EvaluationMetadata<'a> {
 pub(crate) struct Machine<'a, Q: QueryProvider + 'a> {
     query: &'a Q,
     expression: &'a ParsedExpression,
+    prepared: &'a Prepared,
     options: EvaluationOptions,
     control: &'a Control,
     account: &'a QueryAccounting,
@@ -281,6 +285,7 @@ impl<'a, Q: QueryProvider + 'a> Machine<'a, Q> {
         Self {
             query,
             expression,
+            prepared: metadata.prepared,
             options,
             control,
             account,
@@ -349,19 +354,17 @@ impl<'a, Q: QueryProvider + 'a> Machine<'a, Q> {
         };
         selector
     }
-    fn lookup(&self, selector: &VectorSelector) -> Result<i64, EvaluationError> {
-        if selector.modifiers.original_offset_expression.is_some() {
-            return Err(EvaluationError::Unsupported("duration offset expression"));
-        }
-        let time = selector
-            .modifiers
-            .timestamp
-            .unwrap_or(match selector.modifiers.start_or_end {
-                Some(TokenKind::START) => self.options.start_ms,
-                Some(TokenKind::END) => self.options.end_ms,
-                _ => self.options.time_ms,
-            });
-        Ok(time.wrapping_sub(selector.modifiers.original_offset / 1_000_000))
+    fn lookup(&self, node: NodeId) -> i64 {
+        let selector = self.selector(node);
+        let time = self
+            .prepared
+            .timestamp(&selector.modifiers)
+            .unwrap_or(self.options.time_ms);
+        time.wrapping_sub(
+            self.prepared
+                .offset(node, selector.modifiers.original_offset)
+                / 1_000_000,
+        )
     }
     fn select(
         &self,
@@ -372,7 +375,7 @@ impl<'a, Q: QueryProvider + 'a> Machine<'a, Q> {
         if selector.anchored || selector.smoothed {
             return Err(EvaluationError::Unsupported("extended selector reducer"));
         }
-        let end_ms = self.lookup(selector)?;
+        let end_ms = self.lookup(selector_node);
         let duration = match operation {
             SelectorOperation::Instant => self.options.lookback_ms,
             SelectorOperation::Rate { range_ns, .. } | SelectorOperation::Fold { range_ns, .. } => {
@@ -381,7 +384,10 @@ impl<'a, Q: QueryProvider + 'a> Machine<'a, Q> {
         };
         let fixed =
             selector.modifiers.timestamp.is_some() || selector.modifiers.start_or_end.is_some();
-        let offset = selector.modifiers.original_offset / 1_000_000;
+        let offset = self
+            .prepared
+            .offset(selector_node, selector.modifiers.original_offset)
+            / 1_000_000;
         // Use the same conservative roster at every step; cursor reads remain step-local.
         let bounds = TimeBounds {
             start_ms: (if fixed {
@@ -526,6 +532,17 @@ impl<'a, Q: QueryProvider + 'a> Machine<'a, Q> {
                 function: Some(function),
                 arguments,
             } => match function.name {
+                "start" | "end" | "range" | "step" => {
+                    self.frames.pop();
+                    Ok(Some(
+                        self.sample(
+                            self.prepared
+                                .context
+                                .scalar(function.name)
+                                .expect("context function"),
+                        ),
+                    ))
+                }
                 "time" => {
                     self.frames.pop();
                     Ok(Some(self.sample(self.options.time_ms as f64 / 1000.0)))
@@ -554,13 +571,12 @@ impl<'a, Q: QueryProvider + 'a> Machine<'a, Q> {
                         .ok_or(EvaluationError::Unsupported("function reducer"))?;
                     let argument = self.expression.arena.unparenthesized(arguments[0]);
                     let Expr::Matrix {
-                        selector,
-                        range,
-                        range_expression: None,
+                        selector, range, ..
                     } = self.expression.arena[argument].expression
                     else {
                         return Err(EvaluationError::Unsupported("subquery range reducer"));
                     };
+                    let range = self.prepared.range(argument, range);
                     let operation = match function {
                         RangeFunction::Rate(kind) => SelectorOperation::Rate {
                             kind,
@@ -673,7 +689,13 @@ impl<'a, Q: QueryProvider + 'a> Machine<'a, Q> {
                                 } else {
                                     (value, scalar)
                                 };
-                                let result = scalar_binary(operator, left, right)?;
+                                let result = scalar_binary(
+                                    operator,
+                                    left,
+                                    right,
+                                    self.control,
+                                    self.account,
+                                )?;
                                 if operator.is_comparison() && !return_bool {
                                     if result == 0.0 {
                                         return Ok(None);
@@ -941,7 +963,7 @@ impl<'a, Q: QueryProvider + 'a> Machine<'a, Q> {
                     if !matches_in(&series_labels, &selector.matchers, Some(self.account)) {
                         continue;
                     }
-                    let end_ms = self.lookup(selector)?;
+                    let end_ms = self.lookup(selector_node);
                     let value = match operation {
                         SelectorOperation::Instant => {
                             if selector.skip_histogram_buckets {
@@ -954,7 +976,10 @@ impl<'a, Q: QueryProvider + 'a> Machine<'a, Q> {
                                             end_ms
                                         } else {
                                             self.options.start_ms.wrapping_sub(
-                                                selector.modifiers.original_offset / 1_000_000,
+                                                self.prepared.offset(
+                                                    selector_node,
+                                                    selector.modifiers.original_offset,
+                                                ) / 1_000_000,
                                             )
                                         },
                                         lookup_ms: end_ms,
@@ -1090,7 +1115,10 @@ impl<'a, Q: QueryProvider + 'a> Machine<'a, Q> {
                                                 end_ms
                                             } else {
                                                 self.options.start_ms.wrapping_sub(
-                                                    selector.modifiers.original_offset / 1_000_000,
+                                                    self.prepared.offset(
+                                                        selector_node,
+                                                        selector.modifiers.original_offset,
+                                                    ) / 1_000_000,
                                                 )
                                             },
                                             range_ms: range_ns / 1_000_000,
@@ -1224,6 +1252,8 @@ impl<'a, Q: QueryProvider + 'a> Machine<'a, Q> {
                             operator,
                             left.expect("left scalar"),
                             right.expect("right scalar"),
+                            self.control,
+                            self.account,
                         )?;
                         self.frames.pop();
                         let sample = self.sample(result);
@@ -1302,13 +1332,30 @@ pub(crate) fn metadata(name: &[u8]) -> bool {
     matches!(name, b"__name__" | b"__type__" | b"__unit__")
 }
 
-fn scalar_binary(operator: TokenKind, left: f64, right: f64) -> Result<f64, EvaluationError> {
+fn scalar_binary(
+    operator: TokenKind,
+    left: f64,
+    right: f64,
+    control: &Control,
+    account: &QueryAccounting,
+) -> Result<f64, EvaluationError> {
     use TokenKind::*;
     Ok(match operator {
         ADD => left + right,
         SUB => left - right,
         MUL => left * right,
         DIV => left / right,
+        POW | MOD => {
+            let check = || {
+                account.work(1);
+                control.check()
+            };
+            if operator == POW {
+                crate::numerical::pow_with(left, right, check)?
+            } else {
+                crate::numerical::modulo_with(left, right, check)?
+            }
+        }
         EQLC => f64::from(left == right),
         NEQ => f64::from(left != right),
         GTR => f64::from(left > right),

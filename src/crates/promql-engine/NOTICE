@@ -18,6 +18,8 @@ Native histogram statistic algorithms derive from promql/functions.go.
 Paged evaluator, range reducers, scalar conversion and metadata/duplicate cleanup algorithms
 derive from promql/engine.go and promql/functions.go. Logical diagnostic ownership,
 deduplication and occurrence formatting derive from util/annotations/annotations.go.
+Request-context duration evaluation derives from promql/durations.go and engine.go's preprocessing.
+Implicit info-series reference inference derives from promql/info.go.
 Statistics-only histogram decoding and buffered access epochs derive from
 promql/histogram_stats_iterator.go and storage/buffer.go.
 Classic bucket interpolation, coalescing and monotonicity derive from promql/quantile.go;
@@ -72,6 +74,11 @@ Copyright (C) 2004 by Sun Microsystems, Inc. All rights reserved.
 Permission to use, copy, modify, and distribute this
 software is freely granted, provided that this notice
 is preserved.
+
+Power, remainder and min/max algorithms derive from Go 1.27.1 math/pow.go, mod.go,
+modf.go, dim.go and dim_amd64.s. The natural exponential follows exp_amd64.s and
+exp_amd64.go, including CPU dispatch and scaling order. Copyright 2009, 2010, 2017
+The Go Authors. Licensed under the Go BSD license; see LICENSE-GO-BSD.
 
 Integer duration parsing is derived from prometheus/common v0.71.0,
 model/time.go. Copyright 2013 The Prometheus Authors. Licensed under
