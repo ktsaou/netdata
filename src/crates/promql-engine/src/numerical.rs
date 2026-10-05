@@ -1,8 +1,16 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Compensated summation derives from Prometheus util/kahansum; see NOTICE.
 pub use crate::numerical_exponential::{exp, exp2, ldexp};
+pub use crate::numerical_hyperbolic::{acosh, asinh, atanh, cosh, log1p, sinh, tanh};
 pub use crate::numerical_math::{
-    frexp, log, log2, max, min, modulo, modulo_with, pow, pow_with, sqrt,
+    ceil, floor, frexp, log, log2, log10, max, min, modulo, modulo_with, pow, pow_with, sqrt,
+};
+pub use crate::numerical_trigonometric::{acos, asin, atan, atan2, cos, sin, tan};
+#[cfg(any(test, feature = "fixtures"))]
+pub use crate::{
+    calendar::fixture as calendar_fixture, float_functions::fixture as float_function_fixture,
+    float_functions::time_fixture as float_function_time_fixture,
+    numerical_hyperbolic::hyperbolic_dispatch,
 };
 #[cfg(any(test, feature = "fixtures"))]
 pub use crate::{numerical_exponential::exp_dispatch, numerical_math::pow_dispatch};

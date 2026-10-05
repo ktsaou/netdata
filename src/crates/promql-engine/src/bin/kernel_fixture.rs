@@ -12,6 +12,10 @@ use netdata_promql_engine::numerical::{
     almost_equal, compensated_add, compensated_sub, exp, exp_dispatch, exp2, frexp, ldexp, log,
     log2, max, min, modulo, pow, pow_dispatch, sqrt,
 };
+use netdata_promql_engine::numerical::{
+    atan2, calendar_fixture, float_function_fixture, float_function_time_fixture,
+    hyperbolic_dispatch, log1p,
+};
 use serde_json::{Value, json};
 
 pub mod fixture_codec;
@@ -374,6 +378,51 @@ fn result(input: &Value) -> Result<Value, Error> {
             json!({"trim": trimmed, "forward": result.equals(peer.as_ref()), "reverse": peer.equals(result.as_ref()),
                 "borrowed_forward": result.as_ref().equals(peer.as_ref()),
                 "borrowed_reverse": peer.as_ref().equals(result.as_ref()), "peer_after": encoded_float(&peer)})
+        }
+        "math-float-function" => {
+            let name = request["function"]
+                .as_str()
+                .ok_or("missing float function")?;
+            let value = number(&request["input"])?;
+            let parameter = |index| {
+                if request[index].is_null() {
+                    Ok(0.0)
+                } else {
+                    number(&request[index])
+                }
+            };
+            let result = if name == "log1p" {
+                Some(log1p(value))
+            } else if let Some(fused) = request["fused"].as_bool()
+                && let Some(result) = hyperbolic_dispatch(name, value, fused)
+            {
+                Some(result)
+            } else {
+                float_function_fixture(name, value, [parameter("right")?, parameter("upper")?])
+            };
+            json!(result.map(|value| format!("{:016x}", value.to_bits())))
+        }
+        "math-calendar" => {
+            let (seconds, fields) = calendar_fixture(number(&request["input"])?);
+            json!({"seconds": seconds, "calendar": {
+                "year": fields[0] as i64, "month": fields[1] as i64,
+                "day": fields[2] as i64, "yearday": fields[3] as i64,
+                "weekday": fields[4] as i64, "hour": fields[5] as i64,
+                "minute": fields[6] as i64, "days_in_month": fields[7] as i64,
+            }, "actual": format!("{:016x}", fields[0].to_bits())})
+        }
+        "math-calendar-time" => {
+            let name = request["function"]
+                .as_str()
+                .ok_or("missing calendar function")?;
+            let time_ms = request["time_ms"].as_i64().ok_or("missing calendar time")?;
+            let value =
+                float_function_time_fixture(name, time_ms).ok_or("unknown calendar function")?;
+            json!(format!("{:016x}", value.to_bits()))
+        }
+        "math-atan2" => {
+            let value = atan2(number(&request["input"])?, number(&request["right"])?);
+            json!(format!("{:016x}", value.to_bits()))
         }
         "math-frexp" => {
             let (fraction, exponent) = frexp(number(&request["input"])?);
