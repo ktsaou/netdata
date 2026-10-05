@@ -356,10 +356,14 @@ impl<'a, Q: QueryProvider + 'a> Machine<'a, Q> {
     }
     fn lookup(&self, node: NodeId) -> i64 {
         let selector = self.selector(node);
-        let time = self
-            .prepared
-            .timestamp(&selector.modifiers)
-            .unwrap_or(self.options.time_ms);
+        let fixed = self.prepared.timestamp(&selector.modifiers);
+        // Direct timestamp selectors replace the lookup offset; storage retains the original.
+        if self.timestamp_selectors[node.0]
+            && let Some(time) = fixed
+        {
+            return time;
+        }
+        let time = fixed.unwrap_or(self.options.time_ms);
         time.wrapping_sub(
             self.prepared
                 .offset(node, selector.modifiers.original_offset)
@@ -997,25 +1001,28 @@ impl<'a, Q: QueryProvider + 'a> Machine<'a, Q> {
                                 let bounds = TimeBounds {
                                     start_ms: end_ms
                                         .wrapping_sub(self.options.lookback_ms)
-                                        .wrapping_add(1),
-                                    end_ms,
+                                        .wrapping_add(1)
+                                        .max(self.data_bounds.start_ms),
+                                    end_ms: end_ms.min(self.data_bounds.end_ms),
                                 };
                                 let mut selected = None;
-                                scan(series, bounds, self.control, self.account, |sample| {
-                                    selected = if sample.value.is_stale() {
-                                        None
-                                    } else {
-                                        Some((
-                                            sample.time_ms,
-                                            OwnedValue::copy_from(
-                                                sample.value,
-                                                self.account,
-                                                MemoryKind::Workspace,
-                                            ),
-                                        ))
-                                    };
-                                    Ok(())
-                                })?;
+                                if bounds.start_ms <= bounds.end_ms {
+                                    scan(series, bounds, self.control, self.account, |sample| {
+                                        selected = if sample.value.is_stale() {
+                                            None
+                                        } else {
+                                            Some((
+                                                sample.time_ms,
+                                                OwnedValue::copy_from(
+                                                    sample.value,
+                                                    self.account,
+                                                    MemoryKind::Workspace,
+                                                ),
+                                            ))
+                                        };
+                                        Ok(())
+                                    })?;
+                                }
                                 selected
                             }
                         }

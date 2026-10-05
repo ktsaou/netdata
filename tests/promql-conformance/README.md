@@ -655,7 +655,12 @@ Instant and range evaluation supports `histogram_count`, `histogram_sum`, `histo
 `histogram_stdvar`, `histogram_stddev` and `timestamp`. Projections ignore floats; timestamp accepts both value
 types and distinguishes raw sample timestamps from derived evaluation timestamps. Eager metadata removal follows
 each source function; delayed removal occurs at final output. Duplicate checks and child diagnostics retain their
-source boundaries. Histogram variance polls cancellation during bucket traversal. Fresh Go checks match 4,134
+source boundaries. A direct `timestamp(metric @ ...)` lookup follows the pinned engine's fixed timestamp,
+ignoring its original offset during lookup; query-wide storage bounds still include that offset. Ordinary instant
+cursor reads intersect those bounds. Parenthesized and derived arguments use ordinary expression evaluation.
+After a reproduced failing regression, 331 completed review cases match all bits in both profiles at page sizes
+1, 17 and 1024; nine `start_timestamp` cases remain explicitly open. Histogram variance polls cancellation
+during bucket traversal. Fresh Go checks match 4,134
 pointwise, composed, multi-step and disjoint-alias cases in both build profiles at page sizes 1, 17 and 1024;
 all 33 paired bit differences are NaN signs in nested nonfinite sums, reported separately from semantic comparison.
 
