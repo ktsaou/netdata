@@ -13,6 +13,153 @@ use crate::{
 };
 use tokens::TokenKind;
 
+pub(crate) fn timestamp_selectors(
+    expression: &ParsedExpression,
+    control: &Control,
+    account: &QueryAccounting,
+) -> Result<AccountedVec<bool>, Interrupted> {
+    let mut result = AccountedVec::new(account, MemoryKind::Compiled);
+    result.extend((0..expression.arena.nodes.len()).map(|_| false));
+    for node in &expression.arena.nodes {
+        control.check()?;
+        account.work(1);
+        if let Expr::Call {
+            function: Some(function),
+            arguments,
+        } = &node.expression
+            && matches!(function.name, "timestamp" | "start_timestamp")
+            && let Some(&argument) = arguments.first()
+        {
+            let argument = expression.arena.unparenthesized(argument);
+            if matches!(expression.arena[argument].expression, Expr::Selector(_)) {
+                result[argument.0] = true;
+            }
+        }
+    }
+    Ok(result)
+}
+
+#[derive(Clone, Copy)]
+pub(crate) enum Projection {
+    Float(f64),
+    Histogram {
+        hint: u8,
+        schema: i32,
+        count: f64,
+        sum: f64,
+    },
+}
+impl Projection {
+    pub(crate) fn as_ref(self) -> SampleValueRef<'static> {
+        match self {
+            Self::Float(value) => SampleValueRef::Float(value),
+            Self::Histogram {
+                hint,
+                schema,
+                count,
+                sum,
+            } => SampleValueRef::FloatHistogram(FloatHistogramRef {
+                reset_hint: hint,
+                schema,
+                count,
+                sum,
+                zero_threshold: 0.0,
+                zero_count: 0.0,
+                positive_spans: None,
+                negative_spans: None,
+                positive_buckets: None,
+                negative_buckets: None,
+                custom_values: None,
+            }),
+        }
+    }
+    fn histogram(histogram: FloatHistogramRef<'_>, hint: u8) -> Self {
+        Self::Histogram {
+            hint,
+            schema: histogram.schema,
+            count: histogram.count,
+            sum: histogram.sum,
+        }
+    }
+}
+
+#[derive(Default)]
+pub(crate) struct StatisticsDecoder {
+    last: Option<OwnedHistogram>,
+    last_is_current: bool,
+}
+impl StatisticsDecoder {
+    pub(crate) fn moved(&mut self) {
+        self.last_is_current = false;
+    }
+    pub(crate) fn clear(&mut self) {
+        self.last = None;
+        self.last_is_current = false;
+    }
+    pub(crate) fn project(
+        &mut self,
+        value: SampleValueRef<'_>,
+        control: &Control,
+        account: &QueryAccounting,
+    ) -> Result<Projection, StorageError> {
+        control.check()?;
+        account.work(1);
+        if let SampleValueRef::Float(value) = value {
+            return Ok(Projection::Float(value));
+        }
+        if self.last_is_current {
+            let histogram = self
+                .last
+                .as_ref()
+                .expect("cached current histogram")
+                .as_ref();
+            return Ok(Projection::histogram(histogram, histogram.reset_hint));
+        }
+        let converted;
+        let histogram = match value {
+            SampleValueRef::FloatHistogram(histogram) => histogram,
+            SampleValueRef::IntegerHistogram(_) => {
+                let OwnedValue::Histogram(histogram) =
+                    OwnedValue::copy_from(value, account, MemoryKind::Workspace)
+                else {
+                    unreachable!()
+                };
+                converted = histogram;
+                converted.as_ref()
+            }
+            SampleValueRef::Float(_) => unreachable!(),
+        };
+        let mut hint = histogram.reset_hint;
+        if !value.is_stale() {
+            if hint == 0
+                && let Some(previous) = &self.last
+            {
+                hint = if histogram.detect_reset(previous.as_ref()) {
+                    COUNTER_RESET
+                } else {
+                    NOT_RESET
+                };
+            }
+            if let Some(previous) = &mut self.last {
+                previous.copy_from_ref(histogram);
+                previous.set_reset_hint(hint);
+            } else {
+                let OwnedValue::Histogram(mut histogram) = OwnedValue::copy_from(
+                    SampleValueRef::FloatHistogram(histogram),
+                    account,
+                    MemoryKind::Workspace,
+                ) else {
+                    unreachable!()
+                };
+                histogram.set_reset_hint(hint);
+                self.last = Some(histogram);
+            }
+            self.last_is_current = true;
+        }
+        Ok(Projection::histogram(histogram, hint))
+    }
+}
+
 pub(crate) fn configure(
     expression: &mut ParsedExpression,
     control: &Control,
@@ -134,7 +281,7 @@ pub(crate) fn scan_statistics<S: Series>(
     };
     let mut step_end = statistics.first_end_ms;
     let mut endpoint = None;
-    let mut last = None::<OwnedHistogram>;
+    let mut decoder = StatisticsDecoder::default();
     let read_bounds = TimeBounds {
         start_ms: statistics
             .first_end_ms
@@ -143,6 +290,7 @@ pub(crate) fn scan_statistics<S: Series>(
         end_ms: bounds.end_ms,
     };
     scan(series, read_bounds, control, account, |sample| {
+        decoder.moved();
         let mut position = endpoint.take().unwrap_or(sample.time_ms);
         while sample.time_ms > step_end && step_end < bounds.end_ms {
             control.check()?;
@@ -153,75 +301,23 @@ pub(crate) fn scan_statistics<S: Series>(
                 .unwrap_or(bounds.end_ms)
                 .min(bounds.end_ms);
             if step_end.wrapping_sub(statistics.range_ms) > position {
-                last = None;
+                decoder.clear();
             }
             position = sample.time_ms;
         }
         if sample.time_ms < step_end.wrapping_sub(statistics.range_ms) {
-            last = None;
+            decoder.clear();
             return Ok(());
         }
         if sample.time_ms == step_end {
             endpoint = Some(sample.time_ms);
         }
-        let converted;
-        let histogram = match sample.value {
-            SampleValueRef::Float(_) => {
-                return if sample.time_ms >= bounds.start_ms {
-                    visit(sample)
-                } else {
-                    Ok(())
-                };
-            }
-            SampleValueRef::FloatHistogram(histogram) => histogram,
-            SampleValueRef::IntegerHistogram(_) => {
-                let OwnedValue::Histogram(histogram) =
-                    OwnedValue::copy_from(sample.value, account, MemoryKind::Workspace)
-                else {
-                    unreachable!()
-                };
-                converted = histogram;
-                converted.as_ref()
-            }
-        };
-        let mut hint = histogram.reset_hint;
-        if !sample.value.is_stale() {
-            if hint == 0
-                && let Some(previous) = &last
-            {
-                hint = if histogram.detect_reset(previous.as_ref()) {
-                    COUNTER_RESET
-                } else {
-                    NOT_RESET
-                };
-            }
-            let OwnedValue::Histogram(mut retained) = OwnedValue::copy_from(
-                SampleValueRef::FloatHistogram(histogram),
-                account,
-                MemoryKind::Workspace,
-            ) else {
-                unreachable!()
-            };
-            retained.set_reset_hint(hint);
-            last = Some(retained);
-        }
+        let projection = decoder.project(sample.value, control, account)?;
         if sample.time_ms < bounds.start_ms {
             return Ok(());
         }
         visit(SampleRef {
-            value: SampleValueRef::FloatHistogram(FloatHistogramRef {
-                reset_hint: hint,
-                schema: histogram.schema,
-                count: histogram.count,
-                sum: histogram.sum,
-                zero_threshold: 0.0,
-                zero_count: 0.0,
-                positive_spans: None,
-                negative_spans: None,
-                positive_buckets: None,
-                negative_buckets: None,
-                custom_values: None,
-            }),
+            value: projection.as_ref(),
             ..sample
         })
     })

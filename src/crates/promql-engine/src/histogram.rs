@@ -578,7 +578,11 @@ impl<'a> FloatHistogramRef<'a> {
     pub fn copy_to(self, destination: &mut FloatHistogram) {
         self.copy_to_in(destination, None);
     }
-    fn copy_to_in(self, destination: &mut FloatHistogram, context: Option<&AllocationContext>) {
+    pub(crate) fn copy_to_in(
+        self,
+        destination: &mut FloatHistogram,
+        context: Option<&AllocationContext>,
+    ) {
         self.copy_fields_to(destination, context);
         // Retaining a provider view requires ownership independent of the page.
         destination.custom_values = if self.schema == CUSTOM_BUCKETS_SCHEMA {

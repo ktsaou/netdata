@@ -268,6 +268,9 @@ impl<T> AccountedBox<T> {
     pub(crate) fn allocation_bytes() -> usize {
         size_of::<BoxAllocation<T>>()
     }
+    pub(crate) fn into_inner(self) -> T {
+        self.0.value
+    }
 }
 impl<T> Deref for AccountedBox<T> {
     type Target = T;

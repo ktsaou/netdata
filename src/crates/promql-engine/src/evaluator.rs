@@ -2,8 +2,9 @@
 // Evaluation mechanics derive from pinned Prometheus promql/engine.go; see NOTICE.
 use crate::{
     accounting::{AccountedVec, MemoryKind, QueryAccounting},
+    aggregation::Group,
     annotations::{AnnotationBuilder, AnnotationKind},
-    evaluator_roster::{Descriptor, GroupDescriptor, Rosters, group_key},
+    evaluator_roster::{Descriptor, Rosters, group_key},
     frontend::{
         ast::{Expr, NodeId, ParsedExpression, ValueType, VectorSelector},
         token as tokens,
@@ -11,7 +12,6 @@ use crate::{
     histogram_functions,
     histogram_stats::StatisticsWindow,
     label_hash,
-    numerical::compensated_add,
     range_float::{RateKind, RateValue, RateWindow, rate},
     range_reduce::{FoldKind, FoldOptions, RangeFunction, fold},
     result::{OwnedLabels, OwnedValue},
@@ -146,118 +146,6 @@ impl PointwiseFunction {
     }
 }
 
-#[derive(Debug)]
-struct FloatGroup<'a> {
-    labels: &'a OwnedLabels,
-    ordinal: usize,
-    hash: u64,
-    seen: bool,
-    value: f64,
-    compensation: f64,
-    mean: f64,
-    count: f64,
-    incremental_mean: bool,
-    drop_name: bool,
-}
-impl<'a> FloatGroup<'a> {
-    fn new(group: &'a GroupDescriptor, ordinal: usize) -> Self {
-        Self {
-            labels: &group.labels,
-            hash: group.hash,
-            ordinal,
-            seen: false,
-            value: 0.0,
-            compensation: 0.0,
-            mean: 0.0,
-            count: 0.0,
-            incremental_mean: false,
-            drop_name: false,
-        }
-    }
-    fn add(
-        &mut self,
-        operator: TokenKind,
-        value: f64,
-        drop_name: bool,
-    ) -> Result<(), EvaluationError> {
-        use TokenKind::*;
-        if !self.seen {
-            self.seen = true;
-            self.value = value;
-            self.mean = value;
-            self.count = 1.0;
-            self.drop_name = drop_name;
-            return Ok(());
-        }
-        self.drop_name |= drop_name;
-        match operator {
-            SUM => {
-                (self.value, self.compensation) =
-                    compensated_add(value, self.value, self.compensation)
-            }
-            AVG => {
-                self.count += 1.0;
-                if !self.incremental_mean {
-                    let (next, compensation) =
-                        compensated_add(value, self.value, self.compensation);
-                    if !next.is_infinite() {
-                        self.value = next;
-                        self.compensation = compensation;
-                        return Ok(());
-                    }
-                    self.incremental_mean = true;
-                    self.mean = self.value / (self.count - 1.0);
-                    self.compensation /= self.count - 1.0;
-                }
-                let q = (self.count - 1.0) / self.count;
-                (self.mean, self.compensation) =
-                    compensated_add(value / self.count, q * self.mean, q * self.compensation);
-            }
-            COUNT => self.count += 1.0,
-            MIN => {
-                if self.value > value || self.value.is_nan() {
-                    self.value = value;
-                }
-            }
-            MAX => {
-                if self.value < value || self.value.is_nan() {
-                    self.value = value;
-                }
-            }
-            GROUP => (),
-            _ => return Err(EvaluationError::Unsupported("aggregation kernel")),
-        }
-        Ok(())
-    }
-    fn finish(
-        self,
-        operator: TokenKind,
-        time_ms: i64,
-        account: &QueryAccounting,
-    ) -> EvaluatedSample {
-        use TokenKind::*;
-        let value = match operator {
-            SUM => self.value + self.compensation,
-            AVG if self.incremental_mean => self.mean + self.compensation,
-            AVG => self.value / self.count + self.compensation / self.count,
-            COUNT => self.count,
-            GROUP => 1.0,
-            _ => self.value,
-        };
-        let views = self.labels.views(account);
-        let mut labels = OwnedLabels::copy_from(&views, account, MemoryKind::Workspace);
-        // The source label builder removes empty values after hashing the raw group key.
-        labels.retain_labels(|label| !label.value.is_empty());
-        EvaluatedSample {
-            ordinal: self.ordinal,
-            labels,
-            value: OwnedValue::Float(value),
-            source_time_ms: time_ms,
-            drop_name: self.drop_name,
-        }
-    }
-}
-
 enum State<'a, Q: QueryProvider + 'a> {
     Enter,
     OrderedRows {
@@ -280,7 +168,7 @@ enum State<'a, Q: QueryProvider + 'a> {
         ordinal: usize,
     },
     Aggregate {
-        groups: AccountedVec<FloatGroup<'a>>,
+        groups: AccountedVec<Group<'a>>,
         collecting: bool,
     },
     Scalar {
@@ -353,6 +241,8 @@ impl RowFilter<'_> {
 pub(crate) struct EvaluationMetadata<'a> {
     pub(crate) rosters: &'a Rosters,
     pub(crate) invariants: &'a [bool],
+    pub(crate) timestamp_selectors: &'a [bool],
+    pub(crate) data_bounds: TimeBounds,
     pub(crate) annotations: Option<&'a mut AnnotationBuilder>,
 }
 pub(crate) struct Machine<'a, Q: QueryProvider + 'a> {
@@ -364,6 +254,8 @@ pub(crate) struct Machine<'a, Q: QueryProvider + 'a> {
     frames: AccountedVec<Frame<'a, Q>>,
     rosters: &'a Rosters,
     invariants: &'a [bool],
+    timestamp_selectors: &'a [bool],
+    data_bounds: TimeBounds,
     diagnostic_node: NodeId,
     annotations: Option<&'a mut AnnotationBuilder>,
 }
@@ -395,6 +287,8 @@ impl<'a, Q: QueryProvider + 'a> Machine<'a, Q> {
             frames,
             rosters: metadata.rosters,
             invariants: metadata.invariants,
+            timestamp_selectors: metadata.timestamp_selectors,
+            data_bounds: metadata.data_bounds,
             diagnostic_node: root,
             annotations: metadata.annotations,
         }
@@ -574,6 +468,8 @@ impl<'a, Q: QueryProvider + 'a> Machine<'a, Q> {
                         | TokenKind::MIN
                         | TokenKind::MAX
                         | TokenKind::GROUP
+                        | TokenKind::STDVAR
+                        | TokenKind::STDDEV
                 ) {
                     return Err(EvaluationError::Unsupported("aggregation kernel"));
                 }
@@ -588,7 +484,7 @@ impl<'a, Q: QueryProvider + 'a> Machine<'a, Q> {
                     if !self.frames[index].filter.accepts(ordinal) {
                         continue;
                     }
-                    groups.push(FloatGroup::new(labels, ordinal));
+                    groups.push(Group::new(labels, ordinal));
                 }
                 self.frames[index].state = State::Aggregate {
                     groups,
@@ -885,13 +781,11 @@ impl<'a, Q: QueryProvider + 'a> Machine<'a, Q> {
                         operator,
                         grouping,
                         without,
+                        expression: Some(child),
                         ..
                     } = &self.expression.arena[node].expression
                     else {
                         unreachable!()
-                    };
-                    let OwnedValue::Float(value) = sample.value else {
-                        return Err(EvaluationError::Unsupported("histogram aggregation kernel"));
                     };
                     let views = sample.labels.views(self.account);
                     let mut labels =
@@ -904,7 +798,19 @@ impl<'a, Q: QueryProvider + 'a> Machine<'a, Q> {
                         label_hash::grouping(&labels, self.control, self.account)?
                     };
                     if let Some(group) = groups.iter_mut().find(|group| group.hash == hash) {
-                        group.add(*operator, value, sample.drop_name)?;
+                        if let Some(kind) =
+                            group.add(*operator, &sample.value, sample.drop_name, self.account)
+                            && node == self.diagnostic_node
+                            && let Some(annotations) = &mut self.annotations
+                        {
+                            annotations.add(
+                                kind,
+                                label(&views, b"__name__"),
+                                self.expression.arena[*child].span,
+                                &self.expression.source,
+                                self.account,
+                            );
+                        }
                     } else if matches!(filter, RowFilter::All) {
                         return Err(EvaluationError::Invalid("aggregation group is missing"));
                     }
@@ -1038,29 +944,55 @@ impl<'a, Q: QueryProvider + 'a> Machine<'a, Q> {
                     let end_ms = self.lookup(selector)?;
                     let value = match operation {
                         SelectorOperation::Instant => {
-                            let bounds = TimeBounds {
-                                start_ms: end_ms
-                                    .wrapping_sub(self.options.lookback_ms)
-                                    .wrapping_add(1),
-                                end_ms,
-                            };
-                            let mut selected = None;
-                            scan(series, bounds, self.control, self.account, |sample| {
-                                selected = if sample.value.is_stale() {
-                                    None
-                                } else {
-                                    Some((
-                                        sample.time_ms,
-                                        OwnedValue::copy_from(
-                                            sample.value,
-                                            self.account,
-                                            MemoryKind::Workspace,
-                                        ),
-                                    ))
+                            if selector.skip_histogram_buckets {
+                                let fixed = selector.modifiers.timestamp.is_some()
+                                    || selector.modifiers.start_or_end.is_some();
+                                crate::instant_statistics::select(
+                                    series,
+                                    crate::instant_statistics::InstantWindow {
+                                        first_lookup_ms: if fixed {
+                                            end_ms
+                                        } else {
+                                            self.options.start_ms.wrapping_sub(
+                                                selector.modifiers.original_offset / 1_000_000,
+                                            )
+                                        },
+                                        lookup_ms: end_ms,
+                                        step_ms: self.options.step_ms,
+                                        lookback_ms: self.options.lookback_ms,
+                                        delta_ms: self.options.lookback_ms.wrapping_sub(i64::from(
+                                            self.timestamp_selectors[selector_node.0],
+                                        )),
+                                        data_bounds: self.data_bounds,
+                                    },
+                                    self.control,
+                                    self.account,
+                                )?
+                            } else {
+                                let bounds = TimeBounds {
+                                    start_ms: end_ms
+                                        .wrapping_sub(self.options.lookback_ms)
+                                        .wrapping_add(1),
+                                    end_ms,
                                 };
-                                Ok(())
-                            })?;
-                            selected
+                                let mut selected = None;
+                                scan(series, bounds, self.control, self.account, |sample| {
+                                    selected = if sample.value.is_stale() {
+                                        None
+                                    } else {
+                                        Some((
+                                            sample.time_ms,
+                                            OwnedValue::copy_from(
+                                                sample.value,
+                                                self.account,
+                                                MemoryKind::Workspace,
+                                            ),
+                                        ))
+                                    };
+                                    Ok(())
+                                })?;
+                                selected
+                            }
                         }
                         SelectorOperation::Rate { kind, range_ns } => {
                             let result = rate(
@@ -1222,13 +1154,35 @@ impl<'a, Q: QueryProvider + 'a> Machine<'a, Q> {
                         if !group.seen {
                             continue;
                         }
-                        let Expr::Aggregate { operator, .. } =
-                            self.expression.arena[node].expression
+                        let Expr::Aggregate {
+                            operator,
+                            expression: Some(child),
+                            ..
+                        } = self.expression.arena[node].expression
                         else {
                             unreachable!()
                         };
-                        let sample = group.finish(operator, self.options.time_ms, self.account);
-                        if let Some(sample) = self.propagate(sample, index)? {
+                        let (sample, annotation) = group.finish(
+                            operator,
+                            self.options.time_ms,
+                            self.control,
+                            self.account,
+                        )?;
+                        if let Some(kind) = annotation
+                            && node == self.diagnostic_node
+                            && let Some(annotations) = &mut self.annotations
+                        {
+                            annotations.add(
+                                kind,
+                                b"",
+                                self.expression.arena[child].span,
+                                &self.expression.source,
+                                self.account,
+                            );
+                        }
+                        if let Some(sample) = sample
+                            && let Some(sample) = self.propagate(sample, index)?
+                        {
                             return Ok(Some(sample));
                         }
                     } else {

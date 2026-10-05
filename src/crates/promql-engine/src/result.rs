@@ -116,6 +116,10 @@ impl OwnedHistogram {
     pub fn as_ref(&self) -> crate::histogram::FloatHistogramRef<'_> {
         self.payload.value.as_ref()
     }
+    pub(crate) fn copy_from_ref(&mut self, source: crate::histogram::FloatHistogramRef<'_>) {
+        let payload = &mut *self.payload;
+        source.copy_to_in(&mut payload.value, Some(&payload.context));
+    }
     pub(crate) fn copy(&self) -> Self {
         Self::new(
             self.payload.value.copy_in(Some(&self.payload.context)),

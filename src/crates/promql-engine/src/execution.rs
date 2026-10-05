@@ -106,6 +106,7 @@ pub struct CompiledQuery {
     expression: ParsedExpression,
     invariants: AccountedVec<bool>,
     invariant_boundaries: AccountedVec<bool>,
+    timestamp_selectors: AccountedVec<bool>,
     options: EngineOptions,
     engine: EngineAccounting,
     _allocation: MemoryLease,
@@ -152,11 +153,15 @@ impl Engine {
                 &account,
             )
             .map_err(CompileError::Interrupted)?;
+            let timestamp_selectors =
+                crate::histogram_stats::timestamp_selectors(&expression, control, &account)
+                    .map_err(CompileError::Interrupted)?;
             let allocation = account.hold(MemoryKind::Compiled, compiled_bytes(&expression) as u64);
             Ok(CompiledQuery {
                 expression,
                 invariants,
                 invariant_boundaries,
+                timestamp_selectors,
                 options,
                 engine: self.accounting.clone(),
                 _allocation: allocation,
@@ -343,7 +348,13 @@ impl CompiledQuery {
         if root_type == ValueType::Matrix {
             return self.evaluate_matrix(query, header, control, account, sink);
         }
-        let mut rosters = self.prepare_rosters(query, header, control, account)?;
+        let data_bounds = crate::query_bounds::find(
+            &self.expression,
+            self.evaluation_options(header, header.start_ms),
+            control,
+            account,
+        )?;
+        let mut rosters = self.prepare_rosters(query, header, data_bounds, control, account)?;
         *annotations = rosters
             .take_annotations(self.expression.root)
             .expect("completed root diagnostics")
@@ -364,6 +375,8 @@ impl CompiledQuery {
                     EvaluationMetadata {
                         rosters: &rosters,
                         invariants: &self.invariants,
+                        timestamp_selectors: &self.timestamp_selectors,
+                        data_bounds,
                         annotations: None,
                     },
                 );
@@ -424,6 +437,8 @@ impl CompiledQuery {
                 EvaluationMetadata {
                     rosters: &rosters,
                     invariants: &self.invariants,
+                    timestamp_selectors: &self.timestamp_selectors,
+                    data_bounds,
                     annotations: None,
                 },
             );
@@ -592,6 +607,7 @@ impl CompiledQuery {
         &self,
         query: &Q,
         header: OutputHeader,
+        data_bounds: TimeBounds,
         control: &Control,
         account: &QueryAccounting,
     ) -> Result<Rosters, EvaluationError> {
@@ -665,6 +681,8 @@ impl CompiledQuery {
                     EvaluationMetadata {
                         rosters: &rosters,
                         invariants: &self.invariants,
+                        timestamp_selectors: &self.timestamp_selectors,
+                        data_bounds,
                         annotations: Some(&mut annotations),
                     },
                 );
@@ -685,6 +703,9 @@ impl CompiledQuery {
                             && descriptor.labels.same(&sample.labels)
                     }) {
                         descriptor.kinds |= kind;
+                        if matches!(expression, Expr::Aggregate { .. }) {
+                            descriptor.drop_name = sample.drop_name;
+                        }
                         continue;
                     }
                     descriptors.push(Descriptor {
@@ -739,6 +760,7 @@ impl CompiledQuery {
                         prior.hash == descriptor.hash && prior.ordinal != descriptor.ordinal
                     })
                 });
+            rosters.finish_group_flags(node, &descriptors, control, account)?;
             if generic_boundary || merged_unary {
                 if merged_unary {
                     for descriptor in descriptors.iter_mut() {
@@ -2405,6 +2427,119 @@ mod tests {
                 positive_buckets: Some(vec![1.0, 2.0, 3.0].into()),
                 ..FloatHistogram::default()
             }),
+        }
+    }
+
+    #[test]
+    fn native_vector_aggregations_preserve_owned_payloads_and_ignored_input_infos() {
+        use crate::annotations::{AnnotationKind, Severity};
+        for page in [1, 17, 1024] {
+            for delayed in [false, true] {
+                let mut provider = FixtureProvider::new(3, page, 3);
+                for series in &mut provider.series {
+                    series.labels[0].1 = b"m".to_vec();
+                    series.source.sample = native_range_sample;
+                }
+                let engine = Engine::default();
+                let control = Control::default();
+                for (source, count, sum, floats, ignored) in [
+                    ("sum(m)", 24.0, 6.0, None, false),
+                    ("avg(m)", 8.0, 2.0, None, false),
+                    ("count(m)", 0.0, 0.0, Some(3.0), false),
+                    ("group(m)", 0.0, 0.0, Some(1.0), false),
+                    ("min(m)", 0.0, 0.0, None, true),
+                    ("max(m)", 0.0, 0.0, None, true),
+                    ("stdvar(m)", 0.0, 0.0, None, true),
+                    ("stddev(m)", 0.0, 0.0, None, true),
+                ] {
+                    let query = engine
+                        .compile(source.as_bytes(), options(delayed), &control)
+                        .unwrap();
+                    let (result, observations) = query
+                        .collect(
+                            &provider,
+                            QueryRequest::Range {
+                                start_ms: 1000,
+                                end_ms: 3000,
+                                step_ms: 1000,
+                            },
+                            &control,
+                        )
+                        .unwrap();
+                    assert_eq!(result.series.len(), usize::from(!ignored), "{source}");
+                    assert_eq!(result.annotations.len(), usize::from(ignored), "{source}");
+                    if ignored {
+                        let annotation = result.annotations.iter().next().unwrap();
+                        assert!(matches!(
+                            annotation.kind,
+                            AnnotationKind::HistogramIgnoredInAggregation(_)
+                        ));
+                        assert_eq!(annotation.severity, Severity::Info);
+                        assert_eq!(annotation.span.start, source.find('(').unwrap() + 1);
+                    } else {
+                        let series = &result.series[0];
+                        assert!(series.labels.0.is_empty());
+                        assert_eq!(series.points.len(), 3);
+                        for (index, point) in series.points.iter().enumerate() {
+                            match &point.value {
+                                OwnedValue::Float(value) => assert_eq!(Some(*value), floats),
+                                OwnedValue::Histogram(value) => {
+                                    let histogram = value.as_ref();
+                                    assert_eq!(histogram.count, count);
+                                    assert_eq!(histogram.sum, sum / 2.0 * (index + 1) as f64);
+                                    assert_eq!(
+                                        histogram.positive_buckets.unwrap(),
+                                        if source == "sum(m)" {
+                                            &[3.0, 6.0, 9.0][..]
+                                        } else {
+                                            &[1.0, 2.0, 3.0][..]
+                                        }
+                                    );
+                                }
+                            }
+                        }
+                    }
+                    assert_eq!(
+                        observations.memory[MemoryKind::ProviderHeld as usize].current,
+                        0
+                    );
+                    provider.assert_closed();
+                    drop(query);
+                    drop(result);
+                    assert!(
+                        engine
+                            .accounting
+                            .snapshot()
+                            .memory
+                            .iter()
+                            .all(|memory| memory.current == 0)
+                    );
+                }
+                // The collected native payload remains valid after the provider is gone.
+                let query = engine
+                    .compile(b"sum(m)", options(delayed), &control)
+                    .unwrap();
+                let (result, _) = query
+                    .collect(&provider, QueryRequest::Instant { time_ms: 2000 }, &control)
+                    .unwrap();
+                provider.assert_closed();
+                drop(provider);
+                drop(query);
+                let OwnedValue::Histogram(histogram) = &result.series[0].points[0].value else {
+                    unreachable!()
+                };
+                assert_eq!(histogram.as_ref().count, 24.0);
+                assert_eq!(histogram.as_ref().sum, 6.0);
+                drop(result);
+                assert!(
+                    engine
+                        .accounting
+                        .snapshot()
+                        .memory
+                        .iter()
+                        .all(|memory| memory.current == 0)
+                );
+            }
         }
     }
 
