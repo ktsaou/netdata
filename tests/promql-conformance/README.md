@@ -586,7 +586,7 @@ are rejected, while fractional fill outputs retain their permitted tolerance.
 
 The full run after native histogram projections, timestamp support, intermediate ordering, native scalar/vector
 maps, native vector aggregation, request-context preparation, ordinary math/calendar calls and native/instant
-rates matches 9,126 of 21,442 variants, with zero completed semantic failures and 12,316 open variants at page sizes
+rates and regression/smoothing matches 9,266 of 21,442 variants, with zero completed semantic failures and 12,176 open variants at page sizes
 17 and 1024. Its 24 paired bit differences are
 NaN payload/sign differences from one original aggregation case. Further implementation and replay remain
 required. Separate fresh Go checks match
@@ -609,7 +609,7 @@ scaled input, without retaining the raw history.
 ## Remaining qualification
 
 The productive Rust path connects the owned frontend to typed page cursors, float/native rate/increase/delta
-and irate/idelta,
+and irate/idelta, deriv/predict_linear/double_exponential_smoothing,
 count/present/first/last/min/max over time, float/native histogram sum/average and float variance/stddev over time, timestamp extrema/endpoints,
 changes/resets, scalar/vector arithmetic
 and comparisons including power/remainder, float/native sum/avg/count/group and float min/max/stdvar/stddev with native ignored-input infos. Evaluation uses explicit frames,
@@ -625,6 +625,9 @@ plan stays immutable during concurrent executions; only queries with dynamic mod
 24-byte duration entry per AST node. Explicit tracked frames evaluate durations in source order, retaining
 final validation, millisecond truncation, exact error spans and independently owned error bytes. Selectors,
 range folds and raw matrix output use the resolved offsets/ranges. Subquery execution remains required.
+Preprocessing keeps original Unix milliseconds for context functions and storage bounds. Evaluation and output
+timestamps follow the pinned nanosecond clock's wrapping conversion. Fixed selector offsets retain duration
+arithmetic before millisecond truncation; direct timestamp selectors use their separate per-step override.
 Both builds match all 426 source preprocessing/bounds projections and 198 additional offset projections.
 Fresh source parser checks match 1,544 offset syntax/position cases, preserving direct literals/functions,
 single signs, parenthesized/chained duration continuations and the three modifier owners. The 356 original
@@ -718,6 +721,22 @@ aggregation and other remaining callers still require those interruption hooks; 
 not establish complete runtime accounting or full expression/C compatibility. Replaying the shared 6,440-case
 histogram helpers preserves their ten/one NaN-sign differences in release/release-min and three declared-bit
 reports. Replaying all 1,270 statistics helpers preserves their eight paired and fourteen declared-bit reports.
+
+Regression keeps four compensated sums and its source constancy check. Smoothing keeps two previous values and
+one trend, including the source's second-point initialization and NaN factor behavior. Scalar arguments are
+evaluated before matrix expansion; invalid-factor errors occur only after a nonempty typed window. Histograms
+are ignored with the exact mixed-range info, including a one-float window that returns no value. These folds
+retain constant state and one bounded storage page, with no raw window or histogram payload copy.
+
+Independent source panels match all 622 completed of 868 fresh regression/smoothing/order-statistic expressions
+at pages 1/17/1024 in both builds; 246 required quantile/MAD/composition cases remain open. The 140 original
+regression/smoothing variants and 28 long-history controls match every bit. Generated 2,048-versus-100,000-sample
+histories retain equal workspace peaks at every page size; provider failure, cancellation and owner release are
+checked. All 5,020 offset/fixed-reference/diagnostic review cases match exactly. Extrapolation truncates Range+Offset
+together while physical scans truncate them separately and intersect query-wide bounds; permanent regressions
+cover the resulting alert threshold and fixed-reference membership. Of 1,058 additional time-context controls,
+1,029 match exactly and 29 still require other expression families. Extreme fixed-time/storage-sentinel tests
+cover the pinned integer-overflow behavior. Both profiles pass 132 units and offline locked Clippy/build checks.
 
 Selectors under histogram count/sum/average use the source's statistics decoding for ordinary range folds.
 Subqueries, bucket-dependent histogram functions and trimming disable it. One tracked full histogram supplies

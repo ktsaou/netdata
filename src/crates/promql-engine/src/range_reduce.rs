@@ -8,6 +8,7 @@ use crate::{
     histogram_stats::{StatisticsWindow, scan_statistics},
     numerical::{compensated_add, sqrt},
     range_float::{RateKind, start_timestamp_reset},
+    range_numeric::NumericRangeFunction,
     range_rates::RateFunction,
     result::{OwnedHistogram, OwnedValue},
     storage::{Control, Series, StorageError, TimeBounds},
@@ -18,6 +19,7 @@ use crate::{
 pub(crate) enum RangeFunction {
     Rate(RateFunction),
     Fold(FoldKind),
+    Numeric(NumericRangeFunction),
 }
 impl RangeFunction {
     pub(crate) fn parse(name: &str) -> Option<Self> {
@@ -28,6 +30,9 @@ impl RangeFunction {
             "delta" => Self::Rate(RateFunction::Extrapolated(RateKind::Delta)),
             "irate" => Self::Rate(RateFunction::Instant { counter: true }),
             "idelta" => Self::Rate(RateFunction::Instant { counter: false }),
+            "deriv" => Self::Numeric(NumericRangeFunction::Deriv),
+            "predict_linear" => Self::Numeric(NumericRangeFunction::PredictLinear),
+            "double_exponential_smoothing" => Self::Numeric(NumericRangeFunction::Smoothing),
             "count_over_time" => Self::Fold(Count),
             "present_over_time" => Self::Fold(Present),
             "first_over_time" => Self::Fold(First),

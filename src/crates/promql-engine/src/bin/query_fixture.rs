@@ -377,6 +377,9 @@ fn evaluate(provider: &FixtureProvider, request: &Value) -> Result<Value, Error>
         Err(ExecutionError::Evaluation(EvaluationError::Preparation(message))) => {
             result["error"] = failure("construction", "*errors.errorString", &message);
         }
+        Err(ExecutionError::Evaluation(EvaluationError::Runtime(message))) => {
+            result["error"] = failure("execution", "*errors.errorString", &message);
+        }
         Err(error) => return Err(format!("fixture execution failed: {error:?}").into()),
     }
     drop(query);

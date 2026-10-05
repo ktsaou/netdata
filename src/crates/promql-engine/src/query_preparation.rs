@@ -78,6 +78,12 @@ impl Prepared {
         account: &QueryAccounting,
     ) -> Result<Self, EvaluationError> {
         let context = QueryContext::new(header);
+        // Evaluation uses the nanosecond clock; preprocessing retains Unix milliseconds.
+        let header = OutputHeader {
+            start_ms: header.start_ms.wrapping_mul(1_000_000) / 1_000_000,
+            end_ms: header.end_ms.wrapping_mul(1_000_000) / 1_000_000,
+            ..header
+        };
         let mut needed = false;
         for node in &expression.arena.nodes {
             control.check()?;
@@ -188,6 +194,24 @@ impl Prepared {
             Some(TokenKind::END) => Some(self.context.end_ms),
             _ => None,
         })
+    }
+
+    pub(crate) fn adjusted_offset(
+        &self,
+        node: NodeId,
+        modifiers: &SelectorModifiers,
+        scope_start_ms: i64,
+    ) -> i64 {
+        let offset = self.offset(node, modifiers.original_offset);
+        if let Some(timestamp) = self.timestamp(modifiers) {
+            offset.wrapping_add(
+                scope_start_ms
+                    .wrapping_sub(timestamp)
+                    .wrapping_mul(1_000_000),
+            )
+        } else {
+            offset
+        }
     }
 
     // Scalar paths and selector-free vector branches must not supply an info-series reference.

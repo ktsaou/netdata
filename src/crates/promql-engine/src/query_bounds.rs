@@ -72,6 +72,11 @@ pub(crate) fn find(
     control: &Control,
     account: &QueryAccounting,
 ) -> Result<TimeBounds, Interrupted> {
+    let options = EvaluationOptions {
+        start_ms: prepared.context.start_ms,
+        end_ms: prepared.context.end_ms,
+        ..options
+    };
     let mut tasks = AccountedVec::new(account, MemoryKind::Workspace);
     tasks.push((expression.root, Scope::default()));
     let mut bounds = None::<TimeBounds>;
@@ -134,10 +139,12 @@ pub(crate) fn find(
             value => tasks.extend(value.children().rev().map(|child| (child, scope))),
         }
     }
-    Ok(bounds.unwrap_or(TimeBounds {
-        start_ms: 0,
-        end_ms: 0,
-    }))
+    Ok(bounds
+        .filter(|bounds| bounds.end_ms != i64::MIN)
+        .unwrap_or(TimeBounds {
+            start_ms: 0,
+            end_ms: 0,
+        }))
 }
 
 #[cfg(test)]

@@ -307,7 +307,7 @@ impl CompiledQuery {
             let header = self.header(request)?;
             control.check().map_err(EvaluationError::from)?;
             let prepared = Prepared::new(&self.expression, header, control, account)?;
-            sink.begin(header).map_err(ExecutionError::Sink)?;
+            sink.begin(prepared.header).map_err(ExecutionError::Sink)?;
             {
                 account.provider_call();
                 let query = provider.open(control).map_err(EvaluationError::from)?;
@@ -372,6 +372,9 @@ impl CompiledQuery {
         annotations: &mut Annotations,
     ) -> Result<(), ExecutionError> {
         let header = prepared.header;
+        if header.end_ms < header.start_ms {
+            return Ok(());
+        }
         let mut root = self.expression.root;
         while let Expr::Paren(child) = self.expression.arena[root].expression {
             root = child;
@@ -634,7 +637,10 @@ impl CompiledQuery {
         else {
             return false;
         };
-        if RangeFunction::parse(function.name).is_none() {
+        if RangeFunction::parse(function.name).is_none()
+            || crate::evaluator_order::at_modifier_unsafe(function.name)
+            || !arguments[1..].iter().all(|child| self.invariants[child.0])
+        {
             return false;
         }
         let argument = self.expression.arena.unparenthesized(arguments[0]);
@@ -862,15 +868,21 @@ impl CompiledQuery {
         if selector.anchored || selector.smoothed {
             return Err(EvaluationError::Unsupported("extended top-level matrix").into());
         }
-        let timestamp = prepared
-            .timestamp(&selector.modifiers)
-            .unwrap_or(header.start_ms);
-        let end_ms = timestamp.wrapping_sub(
-            prepared.offset(selector_node, selector.modifiers.original_offset) / 1_000_000,
-        );
+        let offset = prepared.adjusted_offset(selector_node, &selector.modifiers, header.start_ms);
+        let end_ms = header.start_ms.wrapping_sub(offset / 1_000_000);
+        let data_bounds = crate::query_bounds::find(
+            &self.expression,
+            self.evaluation_options(header, header.start_ms),
+            prepared,
+            control,
+            account,
+        )?;
         let bounds = TimeBounds {
-            start_ms: end_ms.wrapping_sub(range / 1_000_000).wrapping_add(1),
-            end_ms,
+            start_ms: end_ms
+                .wrapping_sub(range / 1_000_000)
+                .wrapping_add(1)
+                .max(data_bounds.start_ms),
+            end_ms: end_ms.min(data_bounds.end_ms),
         };
         account.provider_call();
         let selection = query.select(
@@ -950,8 +962,8 @@ fn children(expression: &Expr) -> impl DoubleEndedIterator<Item = NodeId> + '_ {
         } => ([*parameter, *expression], &[]),
         Expr::Call {
             function: Some(function),
-            ..
-        } if RangeFunction::parse(function.name).is_some() => ([None, None], &[]),
+            arguments,
+        } if RangeFunction::parse(function.name).is_some() => ([None, None], &arguments[1..]),
         Expr::Call { arguments, .. } => ([None, None], arguments),
         _ => ([None, None], &[]),
     };
@@ -1000,6 +1012,276 @@ mod tests {
     use super::*;
     use crate::{result::OwnedValue, test_storage::FixtureProvider};
     use std::sync::atomic::Ordering;
+
+    #[test]
+    fn fractional_rate_offset_does_not_cross_the_source_alert_threshold() {
+        use crate::{
+            histogram::{FloatHistogram, Span},
+            value::{Sample, SampleValue},
+        };
+        fn sample(index: usize) -> Sample {
+            Sample {
+                time_ms: 500 + index as i64 * 1000,
+                start_time_ms: 0,
+                value: SampleValue::Float(10.0 + index as f64 * 5.0),
+            }
+        }
+        fn with_start(index: usize) -> Sample {
+            Sample {
+                start_time_ms: -498,
+                ..sample(index)
+            }
+        }
+        fn native(index: usize) -> Sample {
+            let mut point = sample(index);
+            let SampleValue::Float(value) = point.value else {
+                unreachable!()
+            };
+            point.value = SampleValue::FloatHistogram(FloatHistogram {
+                count: value,
+                sum: 2.0 * value,
+                positive_spans: Some(
+                    vec![Span {
+                        offset: 0,
+                        length: 1,
+                    }]
+                    .into(),
+                ),
+                positive_buckets: Some(vec![value].into()),
+                ..FloatHistogram::default()
+            });
+            point
+        }
+        fn native_with_start(index: usize) -> Sample {
+            Sample {
+                start_time_ms: -498,
+                ..native(index)
+            }
+        }
+        for page in [1, 17, 1024] {
+            for (make_sample, expression) in [
+                (
+                    sample as fn(usize) -> Sample,
+                    b"rate(counter_total[4s] offset -0.0015) > 4.999".as_slice(),
+                ),
+                (
+                    with_start,
+                    b"rate(counter_total[4s] offset -0.0015) > 4.999".as_slice(),
+                ),
+                (
+                    native,
+                    b"histogram_count(rate(counter_total[4s] offset -0.0015)) > 4.999".as_slice(),
+                ),
+                (
+                    native_with_start,
+                    b"histogram_count(rate(counter_total[4s] offset -0.0015)) > 4.999".as_slice(),
+                ),
+            ] {
+                let mut provider = FixtureProvider::new(3, page, 1);
+                provider.series[0].source.sample = make_sample;
+                let engine = Engine::default();
+                let control = Control::default();
+                let query = engine
+                    .compile(
+                        expression,
+                        EngineOptions {
+                            start_timestamps: true,
+                            ..EngineOptions::default()
+                        },
+                        &control,
+                    )
+                    .unwrap();
+                let (output, _) = query
+                    .collect(&provider, QueryRequest::Instant { time_ms: 3500 }, &control)
+                    .unwrap();
+                assert!(output.series.is_empty());
+                drop(output);
+                drop(query);
+                assert!(
+                    engine
+                        .accounting
+                        .snapshot()
+                        .memory
+                        .iter()
+                        .all(|kind| kind.current == 0)
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn fixed_fractional_offsets_preserve_scan_and_original_storage_bounds() {
+        use crate::value::{Sample, SampleValue};
+        fn sample(index: usize) -> Sample {
+            Sample {
+                time_ms: [5999, 6000, 6001, 6500, 8500, 9999, 10000][index],
+                start_time_ms: 0,
+                value: SampleValue::Float(10.0 + 5.0 * index as f64),
+            }
+        }
+        for page in [1, 17, 1024] {
+            let mut provider = FixtureProvider::new(7, page, 1);
+            provider.series[0].source.sample = sample;
+            let engine = Engine::default();
+            let control = Control::default();
+            for (expression, expected) in [
+                (
+                    b"count_over_time(counter_total[4s] @10 offset 0.0015)".as_slice(),
+                    4.0_f64,
+                ),
+                (
+                    b"last_over_time(counter_total[4s] @10 offset 0.0015)".as_slice(),
+                    30.0,
+                ),
+                (b"counter_total @10 offset 0.0015".as_slice(), 30.0),
+                (
+                    b"timestamp(counter_total @10 offset 0.0015)".as_slice(),
+                    9.999,
+                ),
+            ] {
+                let query = engine
+                    .compile(expression, EngineOptions::default(), &control)
+                    .unwrap();
+                let (output, _) = query
+                    .collect(&provider, QueryRequest::Instant { time_ms: 3500 }, &control)
+                    .unwrap();
+                assert_eq!(output.series.len(), 1);
+                assert_eq!(output.series[0].points.len(), 1);
+                assert!(
+                    matches!(output.series[0].points[0].value, OwnedValue::Float(value) if value.to_bits() == expected.to_bits())
+                );
+                assert_eq!(output.series[0].points[0].time_ms, 3500);
+            }
+            let query = engine
+                .compile(
+                    b"counter_total[4s] @10 offset 0.0015",
+                    EngineOptions::default(),
+                    &control,
+                )
+                .unwrap();
+            let (output, _) = query
+                .collect(&provider, QueryRequest::Instant { time_ms: 3500 }, &control)
+                .unwrap();
+            assert_eq!(output.series.len(), 1);
+            assert_eq!(
+                output.series[0]
+                    .points
+                    .iter()
+                    .map(|point| point.time_ms)
+                    .collect::<Vec<_>>(),
+                [6000, 6001, 6500, 8500]
+            );
+            drop(output);
+            drop(query);
+            assert!(
+                engine
+                    .accounting
+                    .snapshot()
+                    .memory
+                    .iter()
+                    .all(|kind| kind.current == 0)
+            );
+        }
+    }
+
+    #[test]
+    fn evaluation_clock_conversion_preserves_the_original_preprocessing_context() {
+        let provider = FixtureProvider::new(0, 1, 0);
+        let engine = Engine::default();
+        let control = Control::default();
+        let options = EngineOptions {
+            parser: ParserOptions {
+                experimental_functions: true,
+                ..ParserOptions::default()
+            },
+            ..EngineOptions::default()
+        };
+        for time_ms in [
+            9_007_199_254_740_991_i64,
+            9_007_199_254_740_992,
+            i64::MAX - 1000,
+            i64::MIN + 1000,
+        ] {
+            let evaluated_time_ms = time_ms.wrapping_mul(1_000_000) / 1_000_000;
+            for (expression, value) in [
+                (b"time()".as_slice(), evaluated_time_ms as f64 / 1000.0),
+                (b"start()".as_slice(), time_ms as f64 / 1000.0),
+                (b"end()".as_slice(), time_ms as f64 / 1000.0),
+            ] {
+                let query = engine.compile(expression, options, &control).unwrap();
+                let (output, _) = query
+                    .collect(&provider, QueryRequest::Instant { time_ms }, &control)
+                    .unwrap();
+                let (actual_time_ms, actual) = output.scalar.unwrap();
+                assert_eq!(actual_time_ms, evaluated_time_ms);
+                assert_eq!(actual.to_bits(), value.to_bits());
+                assert_eq!(output.header.start_ms, evaluated_time_ms);
+            }
+        }
+        assert!(
+            engine
+                .accounting
+                .snapshot()
+                .memory
+                .iter()
+                .all(|kind| kind.current == 0)
+        );
+    }
+
+    #[test]
+    fn extreme_fixed_time_uses_source_query_bounds_and_timestamp_offset_arithmetic() {
+        use crate::value::{Sample, SampleValue};
+        fn sample(_: usize) -> Sample {
+            Sample {
+                time_ms: 0,
+                start_time_ms: -1000,
+                value: SampleValue::Float(7.0),
+            }
+        }
+        let mut provider = FixtureProvider::new(1, 1, 1);
+        provider.series[0].source.sample = sample;
+        let engine = Engine::default();
+        let control = Control::default();
+        let options = EngineOptions {
+            start_timestamps: true,
+            ..EngineOptions::default()
+        };
+        for (expression, expected) in [
+            (
+                b"count_over_time(counter_total[10s] @start())".as_slice(),
+                1.0_f64,
+            ),
+            (b"timestamp(counter_total @start())".as_slice(), 0.0),
+        ] {
+            let query = engine.compile(expression, options, &control).unwrap();
+            let (output, _) = query
+                .collect(
+                    &provider,
+                    QueryRequest::Instant { time_ms: i64::MIN },
+                    &control,
+                )
+                .unwrap();
+            assert_eq!(
+                output.series.len(),
+                1,
+                "{}",
+                String::from_utf8_lossy(expression)
+            );
+            assert_eq!(output.series[0].points.len(), 1);
+            assert_eq!(output.series[0].points[0].time_ms, 0);
+            assert!(
+                matches!(output.series[0].points[0].value, OwnedValue::Float(value) if value.to_bits() == expected.to_bits())
+            );
+        }
+        assert!(
+            engine
+                .accounting
+                .snapshot()
+                .memory
+                .iter()
+                .all(|kind| kind.current == 0)
+        );
+    }
 
     fn mixed_alias_provider(page: usize) -> FixtureProvider {
         use crate::{
