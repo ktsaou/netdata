@@ -128,6 +128,9 @@ impl OwnedHistogram {
     pub(crate) fn div(&mut self, divisor: f64) {
         self.payload.value.div(divisor);
     }
+    pub(crate) fn set_reset_hint(&mut self, hint: u8) {
+        self.payload.value.reset_hint = hint;
+    }
     pub(crate) fn has_overflow(&self) -> bool {
         let h = self.as_ref();
         h.zero_count.is_infinite()

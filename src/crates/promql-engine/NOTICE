@@ -18,6 +18,8 @@ Native histogram statistic algorithms derive from promql/functions.go.
 Paged evaluator, range reducers, scalar conversion and metadata/duplicate cleanup algorithms
 derive from promql/engine.go and promql/functions.go. Logical diagnostic ownership,
 deduplication and occurrence formatting derive from util/annotations/annotations.go.
+Statistics-only histogram decoding and buffered access epochs derive from
+promql/histogram_stats_iterator.go and storage/buffer.go.
 Classic bucket interpolation, coalescing and monotonicity derive from promql/quantile.go;
 numeric near-equality derives from util/almost/almost.go.
 Copyright The Prometheus Authors. Licensed under Apache-2.0;
