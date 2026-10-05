@@ -265,11 +265,12 @@ enum State<'a, Q: QueryProvider + 'a> {
         sources: &'a [usize],
         position: usize,
         running: bool,
+        phase: u8,
     },
     Pass,
     Map {
         operation: MapOperation,
-        seen: AccountedVec<u64>,
+        seen: AccountedVec<(u64, u8)>,
     },
     Selection {
         selection: Q::Selection<'a>,
@@ -305,6 +306,34 @@ struct Frame<'a, Q: QueryProvider + 'a> {
     state: State<'a, Q>,
     filter: RowFilter<'a>,
     bypass_order: bool,
+    mode: OutputMode,
+}
+
+#[derive(Clone, Copy)]
+enum OutputMode {
+    Matrix,
+    Vector,
+}
+
+fn advance_row(
+    position: &mut usize,
+    phase: &mut u8,
+    descriptor: &Descriptor,
+    mode: OutputMode,
+    time_ms: i64,
+    matched: bool,
+) {
+    // A float/histogram collision leaves the histogram head unconsumed in nextValues.
+    if *phase == 0
+        && descriptor.collision_time_ms.is_some_and(|collision| {
+            matches!(mode, OutputMode::Matrix) || (!matched && time_ms < collision)
+        })
+    {
+        *phase = 1;
+    } else {
+        *position += 1;
+        *phase = 0;
+    }
 }
 
 #[derive(Clone, Copy)]
@@ -355,6 +384,7 @@ impl<'a, Q: QueryProvider + 'a> Machine<'a, Q> {
             state: State::Enter,
             filter: RowFilter::All,
             bypass_order: false,
+            mode: OutputMode::Matrix,
         });
         Self {
             query,
@@ -374,18 +404,35 @@ impl<'a, Q: QueryProvider + 'a> Machine<'a, Q> {
             .frames
             .last()
             .map_or(RowFilter::All, |frame| frame.filter);
-        self.push_filtered(node, filter, false);
+        self.push_filtered(node, filter, false, OutputMode::Vector);
+    }
+    fn push_matrix(&mut self, node: NodeId) {
+        let filter = self
+            .frames
+            .last()
+            .map_or(RowFilter::All, |frame| frame.filter);
+        self.push_filtered(node, filter, false, OutputMode::Matrix);
     }
     fn push_all(&mut self, node: NodeId) {
-        self.push_filtered(node, RowFilter::All, false);
+        self.push_filtered(node, RowFilter::All, false, OutputMode::Vector);
     }
-    fn push_filtered(&mut self, node: NodeId, filter: RowFilter<'a>, bypass_order: bool) {
+    fn push_filtered(
+        &mut self,
+        node: NodeId,
+        filter: RowFilter<'a>,
+        bypass_order: bool,
+        mode: OutputMode,
+    ) {
         self.frames.push(Frame {
             node,
             state: State::Enter,
             filter,
             bypass_order,
+            mode,
         });
+    }
+    pub(crate) fn restrict(&mut self, ordinals: &'a [usize]) {
+        self.frames[0].filter = RowFilter::Ordinals(ordinals);
     }
     fn map(&self, operation: MapOperation) -> State<'a, Q> {
         State::Map {
@@ -485,6 +532,7 @@ impl<'a, Q: QueryProvider + 'a> Machine<'a, Q> {
                 sources,
                 position: 0,
                 running: false,
+                phase: 0,
             };
             return Ok(None);
         }
@@ -497,7 +545,7 @@ impl<'a, Q: QueryProvider + 'a> Machine<'a, Q> {
             }
             Expr::Paren(child) => {
                 self.frames[index].state = State::Pass;
-                self.push(*child);
+                self.push_matrix(*child);
                 Ok(None)
             }
             Expr::Unary {
@@ -505,7 +553,7 @@ impl<'a, Q: QueryProvider + 'a> Machine<'a, Q> {
                 expression,
             } => {
                 self.frames[index].state = self.map(MapOperation::Unary(*operator));
-                self.push(*expression);
+                self.push_matrix(*expression);
                 Ok(None)
             }
             Expr::Selector(_) => {
@@ -645,22 +693,32 @@ impl<'a, Q: QueryProvider + 'a> Machine<'a, Q> {
             self.account.work(1);
             let node = self.frames[index].node;
             let filter = self.frames[index].filter;
+            let mode = self.frames[index].mode;
             match &mut self.frames[index].state {
                 State::Pass => (),
                 State::OrderedRows {
                     descriptors,
                     position,
                     running,
+                    phase,
                     ..
                 } => {
                     let descriptor = &descriptors[*position];
-                    if !filter.accepts(*position)
+                    let kind = if descriptor.collision_time_ms.is_none() {
+                        0
+                    } else if *phase == 0 {
+                        1
+                    } else {
+                        2
+                    };
+                    if !filter.accepts(descriptor.ordinal)
+                        || kind != 0 && sample.value.kind_bit() != kind
                         || label_hash::full(&sample.labels, self.control, self.account)?
                             != descriptor.hash
                     {
                         return Ok(None);
                     }
-                    sample.ordinal = *position;
+                    sample.ordinal = descriptor.ordinal;
                     sample.drop_name = descriptor.drop_name;
                     if !sample.labels.same(&descriptor.labels) {
                         sample.labels = OwnedLabels::copy_from(
@@ -669,7 +727,14 @@ impl<'a, Q: QueryProvider + 'a> Machine<'a, Q> {
                             MemoryKind::Workspace,
                         );
                     }
-                    *position += 1;
+                    advance_row(
+                        position,
+                        phase,
+                        descriptor,
+                        mode,
+                        self.options.time_ms,
+                        true,
+                    );
                     *running = false;
                     self.frames.truncate(index + 1);
                 }
@@ -798,7 +863,18 @@ impl<'a, Q: QueryProvider + 'a> Machine<'a, Q> {
                         }
                     };
                     if duplicate_check {
-                        remember_unique(seen, &sample.labels, self.account, self.control)?;
+                        let kind = if matches!(operation, MapOperation::Unary(_)) {
+                            sample.value.kind_bit()
+                        } else {
+                            0
+                        };
+                        remember_unique_kind(
+                            seen,
+                            &sample.labels,
+                            kind,
+                            self.account,
+                            self.control,
+                        )?;
                     }
                 }
                 State::Aggregate {
@@ -890,18 +966,29 @@ impl<'a, Q: QueryProvider + 'a> Machine<'a, Q> {
             }
             let node = self.frames[index].node;
             let filter = self.frames[index].filter;
+            let mode = self.frames[index].mode;
             match &mut self.frames[index].state {
                 State::OrderedRows {
                     descriptors,
                     sources,
                     position,
                     running,
+                    phase,
                 } => {
                     if *running {
-                        *position += 1;
+                        advance_row(
+                            position,
+                            phase,
+                            &descriptors[*position],
+                            mode,
+                            self.options.time_ms,
+                            false,
+                        );
                         *running = false;
                     }
-                    while *position < descriptors.len() && !filter.accepts(*position) {
+                    while *position < descriptors.len()
+                        && !filter.accepts(descriptors[*position].ordinal)
+                    {
                         self.control.check()?;
                         self.account.work(1);
                         *position += 1;
@@ -912,7 +999,7 @@ impl<'a, Q: QueryProvider + 'a> Machine<'a, Q> {
                     };
                     let filter = RowFilter::Ordinals(&sources[descriptor.sources.clone()]);
                     *running = true;
-                    self.push_filtered(node, filter, true);
+                    self.push_filtered(node, filter, true, OutputMode::Matrix);
                 }
                 State::Pass | State::Map { .. } => {
                     self.frames.pop();
@@ -1236,6 +1323,23 @@ pub(crate) fn remember_unique(
         ));
     }
     seen.push(hash);
+    Ok(())
+}
+
+pub(crate) fn remember_unique_kind(
+    seen: &mut AccountedVec<(u64, u8)>,
+    labels: &OwnedLabels,
+    kind: u8,
+    account: &QueryAccounting,
+    control: &Control,
+) -> Result<(), EvaluationError> {
+    let identity = (label_hash::full(labels, control, account)?, kind);
+    if seen.contains(&identity) {
+        return Err(EvaluationError::Invalid(
+            "vector cannot contain metrics with the same labelset",
+        ));
+    }
+    seen.push(identity);
     Ok(())
 }
 

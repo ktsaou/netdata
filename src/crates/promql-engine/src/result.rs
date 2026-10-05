@@ -217,6 +217,12 @@ impl OwnedHistogram {
     }
 }
 impl OwnedValue {
+    pub(crate) fn kind_bit(&self) -> u8 {
+        match self {
+            Self::Float(_) => 1,
+            Self::Histogram(_) => 2,
+        }
+    }
     pub fn copy_from(
         value: SampleValueRef<'_>,
         account: &QueryAccounting,

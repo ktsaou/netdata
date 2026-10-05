@@ -199,6 +199,39 @@ class ComparisonTests(unittest.TestCase):
         self.assertFalse(report["semantic_pass"])
         self.assertEqual(len(report["bitwise_differences"]), 1)
 
+    def test_equal_time_typed_matrix_points_are_independent(self):
+        reference = result()
+        row = reference["results"][0]["rows"][0]
+        reference["results"][0]["kind"] = "matrix"
+        row["points"].append({"time_ms": 1000, "kind": "float_histogram", "float_histogram": {
+            "schema": 0, "reset_hint": 0, "zero_threshold": raw(0), "zero_count": raw(0),
+            "count": raw(2), "sum": raw(3), "positive_spans": None, "negative_spans": None,
+            "positive_buckets": None, "negative_buckets": None, "custom_values": None}})
+        reordered = deepcopy(reference)
+        reordered["results"][0]["rows"][0]["points"].reverse()
+        self.assertTrue(compare(reference, reordered, self.cases)["bitwise_pass"])
+        for index in [0, 1]:
+            with self.subTest(duplicate_kind=index):
+                duplicate = deepcopy(reference)
+                duplicate["results"][0]["rows"][0]["points"].append(deepcopy(row["points"][index]))
+                with self.assertRaises(ValueError):
+                    compare(reference, duplicate, self.cases)
+            with self.subTest(missing_kind=index):
+                missing = deepcopy(reference)
+                missing["results"][0]["rows"][0]["points"].pop(index)
+                self.assertFalse(compare(reference, missing, self.cases)["semantic_pass"])
+        changed = deepcopy(reference)
+        changed["results"][0]["rows"][0]["points"][1]["float_histogram"]["sum"] = raw(4)
+        self.assertFalse(compare(reference, changed, self.cases)["semantic_pass"])
+        changed["results"][0]["rows"][0]["points"].pop(1)
+        changed["results"][0]["rows"][0]["points"][0]["float"] = raw(math.nextafter(0.6, 0))
+        report = compare(reference, changed, self.cases)
+        self.assertFalse(report["semantic_pass"])
+        self.assertEqual(len(report["bitwise_differences"]), 1)
+        reference["results"][0]["kind"] = "vector"
+        with self.assertRaises(ValueError):
+            compare(reference, reference, self.cases)
+
 
 if __name__ == "__main__":
     unittest.main()

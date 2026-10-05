@@ -129,18 +129,22 @@ def checked_results(document):
             if not row["points"] or (result["kind"] == "vector" and len(row["points"]) != 1):
                 raise ValueError("empty row or invalid vector point count")
             previous = None
+            previous_by_kind = {}
             for point in row["points"]:
                 record(point, "point")
                 timestamp = point["time_ms"]
                 if type(timestamp) is not int or not -(1 << 63) <= timestamp < (1 << 63):
                     raise ValueError("invalid sample timestamp")
-                if previous is not None and timestamp <= previous:
-                    raise ValueError("timestamps are not strictly increasing")
+                if previous is not None and timestamp < previous:
+                    raise ValueError("timestamps are not increasing")
                 previous = timestamp
                 start = point.get("start_time_ms", 0)
                 if type(start) is not int or not -(1 << 63) <= start < (1 << 63):
                     raise ValueError("invalid sample start timestamp")
                 kind = point["kind"]
+                if kind in previous_by_kind and timestamp <= previous_by_kind[kind]:
+                    raise ValueError("per-kind timestamps are not strictly increasing")
+                previous_by_kind[kind] = timestamp
                 allowed = {"float": "float", "string": "string", "float_histogram": "float_histogram"}
                 if any(name in point and name != allowed.get(kind)
                        for name in ["float", "string", "histogram", "float_histogram"]):
@@ -224,10 +228,13 @@ def difference(expected, actual, ordered=False, exact_numeric=False):
         if ar is None:
             continue
         exact(f"row[{row_index}].point count", len(er["points"]), len(ar["points"]))
-        exact(f"row[{row_index}].timestamps", [p["time_ms"] for p in er["points"]], [p["time_ms"] for p in ar["points"]])
-        actual_by_time = {p["time_ms"]: p for p in ar["points"]}
+        identity = lambda point: (point["time_ms"], point["kind"])
+        # Go sorts by timestamp alone; equal-time float/histogram tie order is unspecified.
+        exact(f"row[{row_index}].typed timestamps", sorted(map(identity, er["points"])),
+              sorted(map(identity, ar["points"])))
+        actual_by_time_and_kind = {identity(point): point for point in ar["points"]}
         for index, ep in enumerate(er["points"]):
-            ap = actual_by_time.get(ep["time_ms"])
+            ap = actual_by_time_and_kind.get(identity(ep))
             if ap is None:
                 continue
             path = f"row[{row_index}].point[{index}]"
