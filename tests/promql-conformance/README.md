@@ -570,13 +570,13 @@ the classification of arithmetic and returned filter operands. Missing classific
 retained corpus has 2,788 variants classified for exact numeric comparison. Near-integer boolean/function mutations
 are rejected, while fractional fill outputs retain their permitted tolerance.
 
-The full run after scalar and ordinary numerical range support matches 4,600 of 21,442 variants, with zero
-completed semantic failures and 16,842 open variants at page sizes 17 and 1024. Its 24 paired bit differences are
+The full run after native histogram sum/average range support matches 4,784 of 21,442 variants, with zero
+completed semantic failures and 16,658 open variants at page sizes 17 and 1024. Its 24 paired bit differences are
 NaN payload/sign differences from one original aggregation case. Further implementation and replay remain
 required. Separate fresh Go checks match
 192 typed reducer, start-timestamp and fixed-`@` executions exactly across page sizes 1, 17 and 1024.
-Another 320-case numerical range capture matches 296 cases semantically at each of these page sizes, with 24
-native sum/average cases explicitly open. Release matches all completed bits; release-min reports twelve ordinary
+Another 320-case numerical range capture matches all cases semantically in release at page size 1024 and
+release-min at page size 17, including its 24 native sum/average cases. Release matches all bits; release-min reports twelve ordinary
 NaN-payload differences. It covers ordinary, overflow, nonfinite, signed-zero, compensated, subnormal, stale, mixed
 and empty inputs. The test runner checks observed-owner cleanup for unsupported executions too.
 An additional 684-case capture qualifies plain and nested parenthesized arguments for all nineteen implemented
@@ -584,11 +584,16 @@ ordinary range functions, including mixed diagnostics and fixed-time calls. It m
 page sizes in both builds. Release is bit-exact; release-min reports 48 ordinary NaN payload differences in the
 mixed variance/stddev cases. Argument lookup preserves the frontend AST while using the inner source position
 for diagnostics and recognizing fixed-time calls through parentheses.
+An additional 352-case native sum/average capture matches exactly at page sizes 1/17/1024 in both builds. It covers
+overflow trial rollback, compensated arithmetic, changing exponential resolution, custom-bound reconciliation,
+original counter-reset hints, schema-warning precedence and late-float suppression. Native evaluation classifies
+the complete window before replaying histograms; it retains an accumulator, compensation and temporary trial or
+scaled input, without retaining the raw history.
 
 ## Remaining qualification
 
 The productive Rust path connects the owned frontend to typed page cursors, float rate/increase/delta,
-count/present/first/last/min/max over time, float sum/average/variance/stddev over time, timestamp extrema/endpoints,
+count/present/first/last/min/max over time, float/native histogram sum/average and float variance/stddev over time, timestamp extrema/endpoints,
 changes/resets, scalar/vector arithmetic
 and comparisons, and float sum/avg/count/min/max/group. Evaluation uses explicit frames,
 whole-query label/group descriptors and replay; raw histories and complete raw instant vectors are not retained.
@@ -608,10 +613,18 @@ abort cleanup, retained output, shared compiled plans and resource-owner transfe
 count unions of aliased byte ranges, including a returned page discarded after cancellation. `samples_fetched`
 counts points received in accepted pages; operator work is a separate counter. Original provider/page snapshots
 are validated before observation wrappers rewrite them. Owned histogram payloads expose immutable views and keep
-their allocation lease attached. These finite cases do not certify the complete language or C integration.
+their observed mutable buffers and shared immutable bounds attached to their lifetimes. The native payload is boxed
+with its allocation token, keeping `OwnedValue`/`OutputPoint` at 16/24 bytes on the qualified amd64 build. Each
+retained histogram adds one observed 296-byte box, plus its arrays and bounds. Sum reuses its compensation box;
+average's source-defined trial copies allocate independent boxes. Float-only collection allocates no native boxes.
+Mutation accounting includes
+capacity growth overlap, copied reductions, custom mapping scratch and discarded average trials. A 2,048-versus-
+100,000-sample native sum/average check retains the same workspace peak at each page size; both histories cross page
+boundaries with an accumulator already retained. Accumulated bucket unions may still grow. These finite cases do
+not certify the complete language or C integration.
 
 Runtime accounting remains unfinished: control-object allocations, frontend compilation temporaries, regex
-dependency estimates, histogram mutation high-water instrumentation and general provider-internal transient peaks
+dependency estimates and general provider-internal transient peaks
 are not fully instrumented. Reported buffer capacities and exposed page ranges must not be read as exact total
 query allocation or RSS. Provider callbacks return resource snapshots on every outcome; normal ownership transfers
 are reconciled together. Unwinding skips additional provider callbacks, so a newly allocated panicking callback may

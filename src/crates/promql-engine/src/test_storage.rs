@@ -88,10 +88,10 @@ impl SampleCursor for GeneratedCursor<'_> {
                 && !self.values[..index].iter().any(|previous| {
                     histogram_buffers(&previous.value)
                         .1
-                        .is_some_and(|other| Arc::ptr_eq(bounds, other))
+                        .is_some_and(|other| std::ptr::eq(bounds, other))
                 })
             {
-                bytes += size_of_val(bounds.as_ref());
+                bytes += size_of_val(bounds);
             }
         }
         ProviderResources {
@@ -149,25 +149,25 @@ impl SampleCursor for GeneratedCursor<'_> {
     }
 }
 
-fn histogram_buffers(value: &SampleValue) -> (usize, Option<&Arc<[f64]>>) {
+fn histogram_buffers(value: &SampleValue) -> (usize, Option<&[f64]>) {
     let (positive_spans, negative_spans, positive, negative, bounds) = match value {
         SampleValue::Float(_) => return (0, None),
         SampleValue::FloatHistogram(h) => (
-            h.positive_spans.as_ref(),
-            h.negative_spans.as_ref(),
-            h.positive_buckets.as_ref().map_or(0, Vec::capacity),
-            h.negative_buckets.as_ref().map_or(0, Vec::capacity),
-            h.custom_values.as_ref(),
+            h.positive_spans.as_ref().map_or(0, |v| v.capacity()),
+            h.negative_spans.as_ref().map_or(0, |v| v.capacity()),
+            h.positive_buckets.as_ref().map_or(0, |v| v.capacity()),
+            h.negative_buckets.as_ref().map_or(0, |v| v.capacity()),
+            h.custom_values.as_deref(),
         ),
         SampleValue::IntegerHistogram(h) => (
-            h.positive_spans.as_ref(),
-            h.negative_spans.as_ref(),
+            h.positive_spans.as_ref().map_or(0, Vec::capacity),
+            h.negative_spans.as_ref().map_or(0, Vec::capacity),
             h.positive_buckets.as_ref().map_or(0, Vec::capacity),
             h.negative_buckets.as_ref().map_or(0, Vec::capacity),
-            h.custom_values.as_ref(),
+            h.custom_values.as_deref(),
         ),
     };
-    let spans = positive_spans.map_or(0, Vec::capacity) + negative_spans.map_or(0, Vec::capacity);
+    let spans = positive_spans + negative_spans;
     (
         spans * size_of::<crate::histogram::Span>() + (positive + negative) * size_of::<f64>(),
         bounds,

@@ -2,10 +2,11 @@
 // Ordinary range reducers derive from pinned promql/functions.go; see NOTICE.
 use crate::{
     accounting::{MemoryKind, QueryAccounting},
-    annotations::AnnotationKind,
+    annotations::{AnnotationKind, HistogramOperation},
+    histogram::{COUNTER_RESET, FloatHistogramRef, HistogramError, NOT_RESET},
     numerical::{compensated_add, sqrt},
     range_float::{RateKind, start_timestamp_reset},
-    result::OwnedValue,
+    result::{OwnedHistogram, OwnedValue},
     storage::{Control, Series, StorageError, TimeBounds, scan},
     value::{SampleRef, SampleValueRef},
 };
@@ -79,8 +80,165 @@ impl FoldKind {
 
 pub(crate) struct FoldResult {
     pub(crate) value: Option<OwnedValue>,
-    pub(crate) annotation: Option<AnnotationKind>,
-    pub(crate) unsupported_native: bool,
+    pub(crate) annotations: [Option<AnnotationKind>; 2],
+}
+
+struct NativeFold {
+    sum: OwnedHistogram,
+    compensation: Option<OwnedHistogram>,
+    count: usize,
+    average: bool,
+    incremental: bool,
+    reset_seen: bool,
+    not_reset_seen: bool,
+    reconciled: bool,
+}
+impl NativeFold {
+    fn new(kind: FoldKind, sum: OwnedHistogram) -> Self {
+        let hint = sum.as_ref().reset_hint;
+        Self {
+            sum,
+            compensation: None,
+            count: 1,
+            average: kind == FoldKind::Avg,
+            incremental: false,
+            reset_seen: hint == COUNTER_RESET,
+            not_reset_seen: hint == NOT_RESET,
+            reconciled: false,
+        }
+    }
+    fn add(
+        &mut self,
+        value: FloatHistogramRef<'_>,
+        account: &QueryAccounting,
+    ) -> Result<(), HistogramError> {
+        // The source tracks original hints even after the accumulator becomes unknown.
+        self.reset_seen |= value.reset_hint == COUNTER_RESET;
+        self.not_reset_seen |= value.reset_hint == NOT_RESET;
+        if !self.average {
+            self.reconciled |= self
+                .sum
+                .kahan_add(value, &mut self.compensation)?
+                .nhcb_bounds_reconciled;
+            return Ok(());
+        }
+        self.count += 1;
+        let count = self.count as f64;
+        if !self.incremental {
+            let mut trial_sum = self.sum.copy();
+            let mut trial_compensation = self.compensation.as_ref().map(OwnedHistogram::copy);
+            self.reconciled |= trial_sum
+                .kahan_add(value, &mut trial_compensation)?
+                .nhcb_bounds_reconciled;
+            if !trial_sum.has_overflow() {
+                self.sum = trial_sum;
+                self.compensation = trial_compensation;
+                return Ok(());
+            }
+            drop(trial_sum);
+            drop(trial_compensation);
+            self.incremental = true;
+            let mut mean = self.sum.copy();
+            mean.div(count - 1.0);
+            self.sum = mean;
+            if let Some(compensation) = &mut self.compensation {
+                compensation.div(count - 1.0);
+            }
+        }
+        let q = (count - 1.0) / count;
+        if let Some(compensation) = &mut self.compensation {
+            compensation.mul(q);
+        }
+        let mut to_add = retain_histogram(SampleValueRef::FloatHistogram(value), account);
+        to_add.div(count);
+        self.sum.mul(q);
+        self.reconciled |= self
+            .sum
+            .kahan_add(to_add.as_ref(), &mut self.compensation)?
+            .nhcb_bounds_reconciled;
+        Ok(())
+    }
+    fn finish(mut self) -> Result<FoldResult, HistogramError> {
+        if self.average && !self.incremental {
+            self.sum.div(self.count as f64);
+            if let Some(compensation) = &mut self.compensation {
+                compensation.div(self.count as f64);
+            }
+        }
+        if let Some(compensation) = &self.compensation {
+            let flags = self.sum.add(compensation.as_ref())?;
+            // Average's final correction intentionally does not contribute annotations.
+            if !self.average {
+                self.reconciled |= flags.nhcb_bounds_reconciled;
+            }
+        }
+        Ok(FoldResult {
+            value: Some(OwnedValue::Histogram(self.sum)),
+            annotations: [
+                (self.reset_seen && self.not_reset_seen).then_some(
+                    AnnotationKind::HistogramCounterResetCollision(HistogramOperation::Aggregation),
+                ),
+                self.reconciled
+                    .then_some(AnnotationKind::MismatchedCustomBuckets(
+                        HistogramOperation::Aggregation,
+                    )),
+            ],
+        })
+    }
+}
+
+fn retain_histogram(value: SampleValueRef<'_>, account: &QueryAccounting) -> OwnedHistogram {
+    let OwnedValue::Histogram(value) = OwnedValue::copy_from(value, account, MemoryKind::Workspace)
+    else {
+        unreachable!("classified histogram window")
+    };
+    value
+}
+
+fn fold_histograms<S: Series>(
+    series: &S,
+    bounds: TimeBounds,
+    kind: FoldKind,
+    control: &Control,
+    account: &QueryAccounting,
+) -> Result<FoldResult, StorageError> {
+    let mut state = None::<NativeFold>;
+    let mut error = None;
+    scan(series, bounds, control, account, |sample| {
+        if sample.value.is_stale() || error.is_some() {
+            return Ok(());
+        }
+        let Some(state) = &mut state else {
+            state = Some(NativeFold::new(
+                kind,
+                retain_histogram(sample.value, account),
+            ));
+            return Ok(());
+        };
+        let converted;
+        let value = match sample.value {
+            SampleValueRef::FloatHistogram(value) => value,
+            SampleValueRef::IntegerHistogram(_) => {
+                converted = retain_histogram(sample.value, account);
+                converted.as_ref()
+            }
+            SampleValueRef::Float(_) => unreachable!("classified histogram window"),
+        };
+        error = state.add(value, account).err();
+        Ok(())
+    })?;
+    let result = match error {
+        Some(error) => Err(error),
+        None => state.expect("nonempty histogram window").finish(),
+    };
+    Ok(match result {
+        Ok(result) => result,
+        Err(HistogramError::IncompatibleSchema) => FoldResult {
+            value: None,
+            annotations: [Some(AnnotationKind::MixedExponentialCustomHistograms), None],
+        },
+        Err(error) => panic!("{error}"),
+    })
 }
 
 enum NumericalFold {
@@ -330,7 +488,17 @@ pub(crate) fn fold<S: Series>(
     })?;
     let mixed = float_last.is_some() && histogram_last.is_some();
     let native_fold = matches!(kind, Sum | Avg) && histogram_last.is_some();
-    let value = if count == 0 || native_fold {
+    if native_fold {
+        if mixed {
+            return Ok(FoldResult {
+                value: None,
+                annotations: [Some(AnnotationKind::MixedFloatsHistograms), None],
+            });
+        }
+        // Classify before arithmetic so a late float suppresses all native outcomes.
+        return fold_histograms(series, bounds, kind, control, account);
+    }
+    let value = if count == 0 {
         None
     } else {
         match kind {
@@ -353,13 +521,13 @@ pub(crate) fn fold<S: Series>(
     };
     Ok(FoldResult {
         value,
-        annotation: if native_fold && mixed {
-            Some(AnnotationKind::MixedFloatsHistograms)
-        } else if mixed && (kind.extrema() || kind.variance()) {
-            Some(AnnotationKind::HistogramIgnoredInMixedRange)
-        } else {
-            None
-        },
-        unsupported_native: native_fold && !mixed,
+        annotations: [
+            if mixed && (kind.extrema() || kind.variance()) {
+                Some(AnnotationKind::HistogramIgnoredInMixedRange)
+            } else {
+                None
+            },
+            None,
+        ],
     })
 }

@@ -141,6 +141,25 @@ pub struct MemoryLease {
     kind: MemoryKind,
     bytes: u64,
 }
+#[derive(Clone, Debug)]
+pub(crate) struct AllocationContext {
+    query: QueryAccounting,
+    kind: MemoryKind,
+}
+impl AllocationContext {
+    pub(crate) fn new(query: &QueryAccounting, kind: MemoryKind) -> Self {
+        Self {
+            query: query.clone(),
+            kind,
+        }
+    }
+    pub(crate) fn hold(&self, bytes: u64) -> MemoryLease {
+        self.query.hold(self.kind, bytes)
+    }
+    pub(crate) fn owns(&self, lease: &MemoryLease) -> bool {
+        self.kind == lease.kind && Arc::ptr_eq(&self.query.0, &lease.query.0)
+    }
+}
 impl MemoryLease {
     pub(crate) fn reconcile<const N: usize>(mut targets: [(&mut Self, u64); N]) {
         if N == 0 {
@@ -220,18 +239,70 @@ impl Drop for ExecutionObservation {
     }
 }
 
+#[derive(Debug)]
+struct BoxAllocation<T> {
+    value: T,
+    _lease: MemoryLease,
+}
+
+/// The allocation token lives inside the box so enum variants retain a thin pointer.
+#[derive(Debug)]
+pub(crate) struct AccountedBox<T>(Box<BoxAllocation<T>>);
+impl<T> AccountedBox<T> {
+    pub(crate) fn new(value: T, context: &AllocationContext) -> Self {
+        let lease = context.hold(Self::allocation_bytes() as u64);
+        Self(Box::new(BoxAllocation {
+            value,
+            _lease: lease,
+        }))
+    }
+    pub(crate) fn allocation_bytes() -> usize {
+        size_of::<BoxAllocation<T>>()
+    }
+}
+impl<T> Deref for AccountedBox<T> {
+    type Target = T;
+    fn deref(&self) -> &Self::Target {
+        &self.0.value
+    }
+}
+impl<T> DerefMut for AccountedBox<T> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0.value
+    }
+}
+
 /// Include both allocations in the observed peak while replacing a buffer.
 #[derive(Debug)]
 pub struct AccountedVec<T> {
     values: Vec<T>,
-    lease: MemoryLease,
+    lease: Option<MemoryLease>,
 }
 impl<T> AccountedVec<T> {
     pub fn new(query: &QueryAccounting, kind: MemoryKind) -> Self {
+        Self::new_in(Some(&AllocationContext::new(query, kind)))
+    }
+    pub(crate) fn new_in(context: Option<&AllocationContext>) -> Self {
         Self {
             values: Vec::new(),
-            lease: query.hold(kind, 0),
+            lease: context.map(|context| context.hold(0)),
         }
+    }
+    pub(crate) fn with_capacity_in(capacity: usize, context: Option<&AllocationContext>) -> Self {
+        let values = Vec::with_capacity(capacity);
+        let bytes = values
+            .capacity()
+            .checked_mul(size_of::<T>())
+            .expect("allocation size overflow");
+        Self {
+            values,
+            lease: context.map(|context| context.hold(bytes as u64)),
+        }
+    }
+    pub(crate) fn context(&self) -> Option<AllocationContext> {
+        self.lease
+            .as_ref()
+            .map(|lease| AllocationContext::new(&lease.query, lease.kind))
     }
     pub fn capacity(&self) -> usize {
         self.values.capacity()
@@ -245,6 +316,10 @@ impl<T> AccountedVec<T> {
         if required <= self.values.capacity() {
             return;
         }
+        let Some(previous) = &self.lease else {
+            self.values.reserve(additional);
+            return;
+        };
         let capacity = required
             .max(self.values.capacity().saturating_mul(2))
             .max(4);
@@ -253,10 +328,10 @@ impl<T> AccountedVec<T> {
             .capacity()
             .checked_mul(size_of::<T>())
             .expect("allocation size overflow");
-        let lease = self.lease.query.hold(self.lease.kind, bytes as u64);
+        let lease = previous.query.hold(previous.kind, bytes as u64);
         values.append(&mut self.values);
         self.values = values;
-        self.lease = lease;
+        self.lease = Some(lease);
     }
     pub fn push(&mut self, value: T) {
         self.reserve(1);
@@ -271,12 +346,84 @@ impl<T> AccountedVec<T> {
     pub fn truncate(&mut self, len: usize) {
         self.values.truncate(len);
     }
+    pub fn remove(&mut self, index: usize) -> T {
+        self.values.remove(index)
+    }
+    pub fn insert(&mut self, index: usize, value: T) {
+        assert!(index <= self.values.len(), "insertion index out of bounds");
+        self.reserve(1);
+        self.values.insert(index, value);
+    }
+    pub fn resize(&mut self, len: usize, value: T)
+    where
+        T: Clone,
+    {
+        self.reserve(len.saturating_sub(self.values.len()));
+        self.values.resize(len, value);
+    }
+    pub(crate) fn from_slice_in(values: &[T], context: Option<&AllocationContext>) -> Self
+    where
+        T: Clone,
+    {
+        let mut result = Self::with_capacity_in(values.len(), context);
+        result.values.extend_from_slice(values);
+        result
+    }
+    pub(crate) fn filled_in(len: usize, value: T, context: Option<&AllocationContext>) -> Self
+    where
+        T: Clone,
+    {
+        let mut result = Self::with_capacity_in(len, context);
+        result.values.resize(len, value);
+        result
+    }
     pub fn extend_from_slice(&mut self, values: &[T])
     where
         T: Clone,
     {
         self.reserve(values.len());
         self.values.extend_from_slice(values);
+    }
+}
+impl<T> Default for AccountedVec<T> {
+    fn default() -> Self {
+        Self::new_in(None)
+    }
+}
+impl<T> From<Vec<T>> for AccountedVec<T> {
+    fn from(values: Vec<T>) -> Self {
+        Self {
+            values,
+            lease: None,
+        }
+    }
+}
+impl<T> FromIterator<T> for AccountedVec<T> {
+    fn from_iter<I: IntoIterator<Item = T>>(iter: I) -> Self {
+        Self::from(Vec::from_iter(iter))
+    }
+}
+impl<T: Clone> Clone for AccountedVec<T> {
+    fn clone(&self) -> Self {
+        Self::from_slice_in(&self.values, self.context().as_ref())
+    }
+    fn clone_from(&mut self, source: &Self) {
+        self.clear();
+        self.extend_from_slice(&source.values);
+    }
+}
+impl<'a, T> IntoIterator for &'a AccountedVec<T> {
+    type Item = &'a T;
+    type IntoIter = std::slice::Iter<'a, T>;
+    fn into_iter(self) -> Self::IntoIter {
+        self.values.iter()
+    }
+}
+impl<'a, T> IntoIterator for &'a mut AccountedVec<T> {
+    type Item = &'a mut T;
+    type IntoIter = std::slice::IterMut<'a, T>;
+    fn into_iter(self) -> Self::IntoIter {
+        self.values.iter_mut()
     }
 }
 impl<T> Deref for AccountedVec<T> {
@@ -320,6 +467,46 @@ mod tests {
         assert_eq!(engine.snapshot().memory[2].current, 64);
         drop(result);
         assert_eq!(engine.snapshot().memory[2].current, 0);
+    }
+    #[test]
+    fn cloned_buffers_account_growth_and_retain_cleared_capacity() {
+        let engine = EngineAccounting::default();
+        let query = engine.query();
+        let context = AllocationContext::new(&query, MemoryKind::Workspace);
+        let source = AccountedVec::from_slice_in(&[1.0f64], Some(&context));
+        let mut copy = source.clone();
+        assert_eq!(query.snapshot().memory[1].current, 16);
+        copy.insert(1, 2.0);
+        let observation = query.snapshot().memory[1];
+        assert_eq!((observation.current, observation.peak), (40, 48));
+        copy.resize(6, 3.0);
+        let observation = query.snapshot().memory[1];
+        assert_eq!((observation.current, observation.peak), (72, 104));
+        copy.clear();
+        copy.clone_from(&source);
+        assert_eq!(&*copy, &[1.0]);
+        assert_eq!(query.snapshot().memory[1].current, 72);
+        drop(context);
+        drop(query);
+        assert_eq!(engine.snapshot().memory[1].current, 72);
+        drop(copy);
+        assert_eq!(engine.snapshot().memory[1].current, 8);
+        drop(source);
+        assert_eq!(engine.snapshot().memory[1].current, 0);
+    }
+    #[test]
+    fn invalid_insert_unwinds_without_growing_or_leaking_the_buffer() {
+        let engine = EngineAccounting::default();
+        let query = engine.query();
+        let panic = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            let context = AllocationContext::new(&query, MemoryKind::Workspace);
+            let mut buffer = AccountedVec::from_slice_in(&[1.0f64], Some(&context));
+            buffer.insert(2, 2.0);
+        }));
+        assert!(panic.is_err());
+        let observation = query.snapshot().memory[1];
+        assert_eq!((observation.current, observation.peak), (0, 8));
+        assert_eq!(observation.acquired, observation.released);
     }
     #[test]
     fn independent_concurrent_owners_release_after_execution() {

@@ -1,15 +1,15 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Arithmetic derives from pinned Prometheus model/histogram; see NOTICE.
+use crate::accounting::{AccountedVec, AllocationContext};
 use crate::histogram::{
-    CUSTOM_BUCKETS_SCHEMA, FloatHistogram, FloatHistogramRef, GAUGE, HistogramError, Span,
-    UNKNOWN_RESET, bucket_bound, custom_bounds_match,
+    CUSTOM_BUCKETS_SCHEMA, FloatHistogram, FloatHistogramRef, GAUGE, HistogramBounds,
+    HistogramError, Span, UNKNOWN_RESET, bucket_bound, custom_bounds_match,
 };
 use crate::histogram_layout::{
     compact_float_pair, reduce_float_copy, reduce_float_in_place, reduce_kahan_copy,
     reduce_kahan_in_place,
 };
 use crate::numerical::{compensated_add, compensated_sub};
-use std::sync::Arc;
 
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub struct HistogramArithmetic {
@@ -37,21 +37,35 @@ impl FloatHistogram {
 
     /// Compact paired counts; correction span headers follow the upstream helper's lifecycle.
     pub fn kahan_compact(&mut self, max_empty: isize, correction: &mut Self) {
+        self.kahan_compact_in(max_empty, correction, None);
+    }
+    fn kahan_compact_in(
+        &mut self,
+        max_empty: isize,
+        correction: &mut Self,
+        context: Option<&AllocationContext>,
+    ) {
         compact_float_pair(
             &mut self.positive_buckets,
             &mut self.positive_spans,
             Some(&mut correction.positive_buckets),
             max_empty,
+            context,
         );
         compact_float_pair(
             &mut self.negative_buckets,
             &mut self.negative_spans,
             Some(&mut correction.negative_buckets),
             max_empty,
+            context,
         );
     }
 
-    fn trim_zero(&mut self, mut correction: Option<&mut Self>) {
+    fn trim_zero(
+        &mut self,
+        mut correction: Option<&mut Self>,
+        context: Option<&AllocationContext>,
+    ) {
         for positive in [true, false] {
             let mut count = 0;
             // Bounds are independent of counts; scan the borrowed prefix before zeroing it.
@@ -83,9 +97,9 @@ impl FloatHistogram {
             }
         }
         if let Some(correction) = correction {
-            self.kahan_compact(0, correction);
+            self.kahan_compact_in(0, correction, context);
         } else {
-            self.compact(0);
+            self.compact_in(0, context);
         }
     }
 
@@ -93,6 +107,7 @@ impl FloatHistogram {
         &mut self,
         other: FloatHistogramRef<'_>,
         mut correction: Option<&mut Self>,
+        context: Option<&AllocationContext>,
     ) -> (f64, f64) {
         let (mut count, mut threshold, mut comp) = (other.zero_count, other.zero_threshold, 0.0);
         while threshold != self.zero_threshold {
@@ -108,7 +123,7 @@ impl FloatHistogram {
                 if let Some(correction) = correction.as_mut() {
                     correction.zero_count = zero.compensation;
                 }
-                self.trim_zero(correction.as_deref_mut());
+                self.trim_zero(correction.as_deref_mut(), context);
             }
         }
         (count, comp)
@@ -118,20 +133,29 @@ impl FloatHistogram {
         &mut self,
         other: FloatHistogramRef<'_>,
     ) -> Result<HistogramArithmetic, HistogramError> {
-        self.add_or_sub(other, false)
+        self.add_or_sub(other, false, None)
     }
 
     pub fn sub(
         &mut self,
         other: FloatHistogramRef<'_>,
     ) -> Result<HistogramArithmetic, HistogramError> {
-        self.add_or_sub(other, true)
+        self.add_or_sub(other, true, None)
+    }
+
+    pub(crate) fn add_in(
+        &mut self,
+        other: FloatHistogramRef<'_>,
+        context: Option<&AllocationContext>,
+    ) -> Result<HistogramArithmetic, HistogramError> {
+        self.add_or_sub(other, false, context)
     }
 
     fn add_or_sub(
         &mut self,
         other: FloatHistogramRef<'_>,
         negative: bool,
+        context: Option<&AllocationContext>,
     ) -> Result<HistogramArithmetic, HistogramError> {
         if self.uses_custom_buckets() != (other.schema == CUSTOM_BUCKETS_SCHEMA) {
             return Err(HistogramError::IncompatibleSchema);
@@ -141,7 +165,7 @@ impl FloatHistogram {
             nhcb_bounds_reconciled: false,
         };
         if !self.uses_custom_buckets() {
-            let (zero, _) = self.reconcile_zero(other, None);
+            let (zero, _) = self.reconcile_zero(other, None, context);
             if negative {
                 self.zero_count -= zero;
             } else {
@@ -167,10 +191,12 @@ impl FloatHistogram {
                     other.positive_spans,
                     other.positive_buckets,
                     None,
+                    context,
                 );
             } else {
                 flags.nhcb_bounds_reconciled = true;
-                let bounds = intersect_bounds(self.custom_values.as_deref(), other.custom_values);
+                let bounds =
+                    intersect_bounds(self.custom_values.as_deref(), other.custom_values, context);
                 map_custom(
                     &mut self.positive_spans,
                     &mut self.positive_buckets,
@@ -179,6 +205,7 @@ impl FloatHistogram {
                     None,
                     bounds.as_deref(),
                     negative,
+                    context,
                 );
                 self.custom_values = bounds;
             }
@@ -209,12 +236,14 @@ impl FloatHistogram {
                 other.positive_buckets,
                 other.schema,
                 self.schema,
+                context,
             ));
             negative_layout = Some(reduce_float_copy(
                 other.negative_spans,
                 other.negative_buckets,
                 other.schema,
                 self.schema,
+                context,
             ));
         }
         let (pos_spans, pos_buckets) = positive.as_ref().map_or(
@@ -235,6 +264,7 @@ impl FloatHistogram {
             pos_spans,
             pos_buckets,
             None,
+            context,
         );
         merge_buckets(
             self.schema,
@@ -246,28 +276,31 @@ impl FloatHistogram {
             neg_spans,
             neg_buckets,
             None,
+            context,
         );
         Ok(flags)
     }
 
-    fn new_correction(&self) -> Self {
+    fn new_correction(&self, context: Option<&AllocationContext>) -> Self {
         Self {
             reset_hint: self.reset_hint,
             schema: self.schema,
             zero_threshold: self.zero_threshold,
             positive_spans: self.positive_spans.clone(),
             negative_spans: self.negative_spans.clone(),
-            positive_buckets: Some(vec![
-                0.0;
-                self.positive_buckets.as_ref().map_or(0, Vec::len)
-            ]),
+            positive_buckets: Some(AccountedVec::filled_in(
+                self.positive_buckets.as_ref().map_or(0, |v| v.len()),
+                0.0,
+                context,
+            )),
             negative_buckets: if self.uses_custom_buckets() {
                 None
             } else {
-                Some(vec![
-                    0.0;
-                    self.negative_buckets.as_ref().map_or(0, Vec::len)
-                ])
+                Some(AccountedVec::filled_in(
+                    self.negative_buckets.as_ref().map_or(0, |v| v.len()),
+                    0.0,
+                    context,
+                ))
             },
             custom_values: self.custom_values.clone(),
             ..Self::default()
@@ -279,6 +312,14 @@ impl FloatHistogram {
         other: FloatHistogramRef<'_>,
         correction: &mut Option<Self>,
     ) -> Result<HistogramArithmetic, HistogramError> {
+        self.kahan_add_in(other, correction, None)
+    }
+    pub(crate) fn kahan_add_in(
+        &mut self,
+        other: FloatHistogramRef<'_>,
+        correction: &mut Option<Self>,
+        context: Option<&AllocationContext>,
+    ) -> Result<HistogramArithmetic, HistogramError> {
         if self.uses_custom_buckets() != (other.schema == CUSTOM_BUCKETS_SCHEMA) {
             return Err(HistogramError::IncompatibleSchema);
         }
@@ -286,9 +327,9 @@ impl FloatHistogram {
             counter_reset_collision: self.adjust_reset(other.reset_hint),
             nhcb_bounds_reconciled: false,
         };
-        let correction = correction.get_or_insert_with(|| self.new_correction());
+        let correction = correction.get_or_insert_with(|| self.new_correction(context));
         if !self.uses_custom_buckets() {
-            let (zero, comp) = self.reconcile_zero(other, Some(correction));
+            let (zero, comp) = self.reconcile_zero(other, Some(correction), context);
             (self.zero_count, correction.zero_count) =
                 compensated_add(zero, self.zero_count, correction.zero_count);
             (self.zero_count, correction.zero_count) =
@@ -308,10 +349,12 @@ impl FloatHistogram {
                     other.positive_spans,
                     other.positive_buckets,
                     None,
+                    context,
                 );
             } else {
                 flags.nhcb_bounds_reconciled = true;
-                let bounds = intersect_bounds(self.custom_values.as_deref(), other.custom_values);
+                let bounds =
+                    intersect_bounds(self.custom_values.as_deref(), other.custom_values, context);
                 map_custom(
                     &mut self.positive_spans,
                     &mut self.positive_buckets,
@@ -320,6 +363,7 @@ impl FloatHistogram {
                     Some(&mut correction.positive_buckets),
                     bounds.as_deref(),
                     false,
+                    context,
                 );
                 self.custom_values = bounds;
                 correction.custom_values = self.custom_values.clone();
@@ -354,6 +398,7 @@ impl FloatHistogram {
                     other.positive_buckets,
                     other.schema,
                     self.schema,
+                    context,
                 ));
             }
             if other
@@ -365,6 +410,7 @@ impl FloatHistogram {
                     other.negative_buckets,
                     other.schema,
                     self.schema,
+                    context,
                 ));
             }
         }
@@ -398,6 +444,7 @@ impl FloatHistogram {
             pos_spans,
             pos_buckets,
             pos_comp,
+            context,
         );
         merge_buckets(
             self.schema,
@@ -409,6 +456,7 @@ impl FloatHistogram {
             neg_spans,
             neg_buckets,
             neg_comp,
+            context,
         );
         correction.schema = self.schema;
         correction.zero_threshold = self.zero_threshold;
@@ -434,14 +482,19 @@ fn merge_buckets(
     schema: i32,
     threshold: f64,
     negative: bool,
-    spans: &mut Option<Vec<Span>>,
-    buckets: &mut Option<Vec<f64>>,
-    mut correction: Option<&mut Option<Vec<f64>>>,
+    spans: &mut Option<AccountedVec<Span>>,
+    buckets: &mut Option<AccountedVec<f64>>,
+    mut correction: Option<&mut Option<AccountedVec<f64>>>,
     other_spans: Option<&[Span]>,
     other_buckets: Option<&[f64]>,
     other_correction: Option<&[f64]>,
+    context: Option<&AllocationContext>,
 ) {
-    let (mut new_spans, mut new_buckets, mut new_correction) = (Vec::new(), Vec::new(), Vec::new());
+    let (mut new_spans, mut new_buckets, mut new_correction) = (
+        AccountedVec::new_in(context),
+        AccountedVec::new_in(context),
+        AccountedVec::new_in(context),
+    );
     let spans_a = spans.as_mut().unwrap_or(&mut new_spans);
     let buckets_a = buckets.as_mut().unwrap_or(&mut new_buckets);
     let paired = correction.is_some();
@@ -589,13 +642,19 @@ fn merge_buckets(
     }
 }
 
-fn intersect_bounds(left: Option<&[f64]>, right: Option<&[f64]>) -> Option<Arc<[f64]>> {
+fn intersect_bounds(
+    left: Option<&[f64]>,
+    right: Option<&[f64]>,
+    context: Option<&AllocationContext>,
+) -> Option<HistogramBounds> {
     let (left, right) = (left.unwrap_or(&[]), right.unwrap_or(&[]));
-    let (mut i, mut j, mut result) = (0, 0, None::<Vec<f64>>);
+    let (mut i, mut j, mut result) = (0, 0, None::<AccountedVec<f64>>);
     while i < left.len() && j < right.len() {
         if left[i] == right[j] {
             result
-                .get_or_insert_with(|| Vec::with_capacity(left.len().min(right.len())))
+                .get_or_insert_with(|| {
+                    AccountedVec::with_capacity_in(left.len().min(right.len()), context)
+                })
                 .push(left[i]);
             i += 1;
             j += 1;
@@ -605,22 +664,23 @@ fn intersect_bounds(left: Option<&[f64]>, right: Option<&[f64]>) -> Option<Arc<[
             j += 1;
         }
     }
-    result.map(Into::into)
+    result.map(|values| HistogramBounds::from_slice_in(&values, context))
 }
 
 #[allow(clippy::too_many_arguments)]
 fn map_custom(
-    spans: &mut Option<Vec<Span>>,
-    buckets: &mut Option<Vec<f64>>,
+    spans: &mut Option<AccountedVec<Span>>,
+    buckets: &mut Option<AccountedVec<f64>>,
     bounds: Option<&[f64]>,
     other: FloatHistogramRef<'_>,
-    correction: Option<&mut Option<Vec<f64>>>,
+    correction: Option<&mut Option<AccountedVec<f64>>>,
     intersected: Option<&[f64]>,
     negative: bool,
+    context: Option<&AllocationContext>,
 ) {
     let intersected = intersected.unwrap_or(&[]);
-    let mut target = vec![0.0; intersected.len() + 1];
-    let mut comp_target = vec![0.0; intersected.len() + 1];
+    let mut target = AccountedVec::filled_in(intersected.len() + 1, 0.0, context);
+    let mut comp_target = AccountedVec::filled_in(intersected.len() + 1, 0.0, context);
     let comp_buckets = correction.as_deref().and_then(|values| values.as_deref());
     for (source_spans, source_buckets, bounds, subtract, with_comp) in [
         (spans.as_deref(), buckets.as_deref(), bounds, false, true),
@@ -674,7 +734,7 @@ fn map_custom(
             }
         }
     }
-    let mut new_spans = Vec::new();
+    let mut new_spans = AccountedVec::new_in(context);
     let dest_spans = spans.as_mut().unwrap_or(&mut new_spans);
     dest_spans.clear();
     let (mut written, mut last_index) = (0, -1i32);
@@ -719,22 +779,28 @@ mod tests {
     #[test]
     fn same_schema_accumulation_reuses_buffers_and_outlives_the_borrowed_operand() {
         let mut histogram = FloatHistogram {
-            positive_spans: Some(vec![Span {
-                offset: 0,
-                length: 2,
-            }]),
-            positive_buckets: Some(vec![1.0, 2.0]),
+            positive_spans: Some(
+                vec![Span {
+                    offset: 0,
+                    length: 2,
+                }]
+                .into(),
+            ),
+            positive_buckets: Some(vec![1.0, 2.0].into()),
             ..FloatHistogram::default()
         };
         let spans = histogram.positive_spans.as_ref().unwrap().as_ptr();
         let buckets = histogram.positive_buckets.as_ref().unwrap().as_ptr();
         {
             let source = FloatHistogram {
-                positive_spans: Some(vec![Span {
-                    offset: 0,
-                    length: 2,
-                }]),
-                positive_buckets: Some(vec![3.0, 4.0]),
+                positive_spans: Some(
+                    vec![Span {
+                        offset: 0,
+                        length: 2,
+                    }]
+                    .into(),
+                ),
+                positive_buckets: Some(vec![3.0, 4.0].into()),
                 ..FloatHistogram::default()
             };
             histogram.add(source.as_ref()).unwrap();
@@ -767,13 +833,13 @@ mod tests {
         let main_ptr = main.as_ptr();
         let comp_ptr = comp.as_ptr();
         let mut histogram = FloatHistogram {
-            positive_spans: Some(spans.clone()),
-            positive_buckets: Some(main),
+            positive_spans: Some(spans.clone().into()),
+            positive_buckets: Some(main.into()),
             ..FloatHistogram::default()
         };
         let mut correction = FloatHistogram {
-            positive_spans: Some(spans.clone()),
-            positive_buckets: Some(comp),
+            positive_spans: Some(spans.clone().into()),
+            positive_buckets: Some(comp.into()),
             ..FloatHistogram::default()
         };
         histogram.kahan_compact(2, &mut correction);

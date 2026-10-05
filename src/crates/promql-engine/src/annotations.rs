@@ -16,17 +16,41 @@ pub enum Severity {
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum HistogramOperation {
+    Addition,
+    Subtraction,
+    Aggregation,
+}
+impl HistogramOperation {
+    fn name(self) -> &'static str {
+        match self {
+            Self::Addition => "addition",
+            Self::Subtraction => "subtraction",
+            Self::Aggregation => "aggregation",
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum AnnotationKind {
     PossibleNonCounter,
     MixedFloatsHistograms,
     StartTimeOverlap,
     HistogramIgnoredInMixedRange,
+    MixedExponentialCustomHistograms,
+    HistogramCounterResetCollision(HistogramOperation),
+    MismatchedCustomBuckets(HistogramOperation),
 }
 impl AnnotationKind {
     fn severity(self) -> Severity {
         match self {
-            Self::PossibleNonCounter | Self::HistogramIgnoredInMixedRange => Severity::Info,
-            Self::MixedFloatsHistograms | Self::StartTimeOverlap => Severity::Warning,
+            Self::PossibleNonCounter
+            | Self::HistogramIgnoredInMixedRange
+            | Self::MismatchedCustomBuckets(_) => Severity::Info,
+            Self::MixedFloatsHistograms
+            | Self::StartTimeOverlap
+            | Self::MixedExponentialCustomHistograms
+            | Self::HistogramCounterResetCollision(_) => Severity::Warning,
         }
     }
     fn prefix(self) -> &'static str {
@@ -43,6 +67,22 @@ impl AnnotationKind {
             Self::HistogramIgnoredInMixedRange => {
                 "PromQL info: ignored histograms in a range containing both floats and histograms for metric name "
             }
+            Self::MixedExponentialCustomHistograms => {
+                "PromQL warning: vector contains a mix of histograms with exponential and custom buckets schemas for metric name "
+            }
+            Self::HistogramCounterResetCollision(_) => {
+                "PromQL warning: conflicting counter resets during histogram "
+            }
+            Self::MismatchedCustomBuckets(_) => {
+                "PromQL info: mismatched custom buckets were reconciled during "
+            }
+        }
+    }
+    fn operation(self) -> Option<HistogramOperation> {
+        match self {
+            Self::HistogramCounterResetCollision(operation)
+            | Self::MismatchedCustomBuckets(operation) => Some(operation),
+            _ => None,
         }
     }
 }
@@ -130,7 +170,11 @@ impl AnnotationBuilder {
     ) {
         let mut raw_message = AccountedVec::new(account, MemoryKind::Result);
         raw_message.extend_from_slice(kind.prefix().as_bytes());
-        quote::write_bytes(metric, &mut raw_message).expect("byte writer");
+        if let Some(operation) = kind.operation() {
+            raw_message.extend_from_slice(operation.name().as_bytes());
+        } else {
+            quote::write_bytes(metric, &mut raw_message).expect("byte writer");
+        }
         let mut entry = Annotation {
             kind,
             raw_message,
@@ -203,6 +247,53 @@ pub(crate) fn write_position_suffix(
 mod tests {
     use super::*;
     use crate::accounting::EngineAccounting;
+    #[test]
+    fn histogram_operation_notes_deduplicate_without_the_metric_name() {
+        let engine = EngineAccounting::default();
+        let account = engine.query();
+        let mut builder = AnnotationBuilder::new(&account);
+        for (metric, start) in [(&b"a"[..], 0), (&b"b"[..], 2)] {
+            for kind in [
+                AnnotationKind::HistogramCounterResetCollision(HistogramOperation::Aggregation),
+                AnnotationKind::MismatchedCustomBuckets(HistogramOperation::Aggregation),
+                AnnotationKind::MixedExponentialCustomHistograms,
+            ] {
+                builder.add(
+                    kind,
+                    metric,
+                    Span {
+                        start,
+                        end: start + 1,
+                    },
+                    b"a+b",
+                    &account,
+                );
+            }
+        }
+        let result = builder.finish();
+        let notes: Vec<_> = result.iter().collect();
+        assert_eq!(notes.len(), 4);
+        assert_eq!(notes[0].severity, Severity::Warning);
+        assert_eq!(
+            notes[0].message,
+            b"PromQL warning: conflicting counter resets during histogram aggregation (1:3)"
+        );
+        assert_eq!(notes[1].severity, Severity::Info);
+        assert_eq!(
+            notes[1].message,
+            b"PromQL info: mismatched custom buckets were reconciled during aggregation (1:3)"
+        );
+        assert!(notes[2].message.ends_with(b"metric name \"a\" (1:1)"));
+        assert!(notes[3].message.ends_with(b"metric name \"b\" (1:3)"));
+        drop(result);
+        assert!(
+            account
+                .snapshot()
+                .memory
+                .iter()
+                .all(|memory| memory.current == 0)
+        );
+    }
     #[test]
     fn raw_dedup_keeps_last_generic_position_and_first_overlap_position() {
         let engine = EngineAccounting::default();

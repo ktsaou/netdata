@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Sparse layout algorithms derive from Prometheus model/histogram; see NOTICE.
+use crate::accounting::{AccountedVec, AllocationContext};
 use crate::histogram::Span;
 use crate::numerical::compensated_add;
 use std::fmt;
@@ -87,7 +88,8 @@ impl<T: Copy> ReductionBuffer<T> for Reused<'_, T> {
 
 struct Copied<'a, T> {
     source: &'a [T],
-    target: Option<Vec<T>>,
+    target: Option<AccountedVec<T>>,
+    context: Option<&'a AllocationContext>,
 }
 
 impl<T: Copy> ReductionBuffer<T> for Copied<'_, T> {
@@ -101,7 +103,9 @@ impl<T: Copy> ReductionBuffer<T> for Copied<'_, T> {
         self.target.as_ref().unwrap()[index]
     }
     fn write(&mut self, index: usize, value: T) {
-        let target = self.target.get_or_insert_default();
+        let target = self
+            .target
+            .get_or_insert_with(|| AccountedVec::new_in(self.context));
         if index == target.len() {
             target.push(value);
         } else {
@@ -199,8 +203,8 @@ fn reduce_float_layout(
 }
 
 pub(crate) fn reduce_float_in_place(
-    spans: &mut Option<Vec<Span>>,
-    buckets: &mut Option<Vec<f64>>,
+    spans: &mut Option<AccountedVec<Span>>,
+    buckets: &mut Option<AccountedVec<f64>>,
     origin: i32,
     target: i32,
 ) -> Result<(), HistogramError> {
@@ -233,14 +237,17 @@ pub(crate) fn reduce_float_copy(
     buckets: Option<&[f64]>,
     origin: i32,
     target: i32,
-) -> (Option<Vec<Span>>, Option<Vec<f64>>) {
+    context: Option<&AllocationContext>,
+) -> (Option<AccountedVec<Span>>, Option<AccountedVec<f64>>) {
     let mut spans = Copied {
         source: spans.unwrap_or(&[]),
         target: None,
+        context,
     };
     let mut buckets = Copied {
         source: buckets.unwrap_or(&[]),
         target: None,
+        context,
     };
     if let Err(error) = reduce_float_layout(&mut spans, &mut buckets, origin, target) {
         panic!("{error}");
@@ -248,26 +255,29 @@ pub(crate) fn reduce_float_copy(
     (spans.target, buckets.target)
 }
 
-fn remove_range<T: Copy>(values: &mut Vec<T>, start: usize, length: usize) {
+fn remove_range<T: Copy>(values: &mut AccountedVec<T>, start: usize, length: usize) {
     values.copy_within(start + length.., start);
     values.truncate(values.len() - length);
 }
 
 pub(crate) fn compact_float(
-    buckets: &mut Option<Vec<f64>>,
-    spans: &mut Option<Vec<Span>>,
+    buckets: &mut Option<AccountedVec<f64>>,
+    spans: &mut Option<AccountedVec<Span>>,
     max_empty: isize,
+    context: Option<&AllocationContext>,
 ) {
-    compact_float_pair(buckets, spans, None, max_empty);
+    compact_float_pair(buckets, spans, None, max_empty, context);
 }
 
 pub(crate) fn compact_float_pair(
-    buckets: &mut Option<Vec<f64>>,
-    spans: &mut Option<Vec<Span>>,
-    correction: Option<&mut Option<Vec<f64>>>,
+    buckets: &mut Option<AccountedVec<f64>>,
+    spans: &mut Option<AccountedVec<Span>>,
+    correction: Option<&mut Option<AccountedVec<f64>>>,
     max_empty: isize,
+    context: Option<&AllocationContext>,
 ) {
-    let (mut absent_buckets, mut absent_spans) = (Vec::new(), Vec::new());
+    let (mut absent_buckets, mut absent_spans) =
+        (AccountedVec::new_in(context), AccountedVec::new_in(context));
     let buckets = buckets.as_mut().unwrap_or(&mut absent_buckets);
     let spans = spans.as_mut().unwrap_or(&mut absent_spans);
     let mut correction = correction.and_then(Option::as_mut);
@@ -496,9 +506,9 @@ fn reduce_kahan_layout(
 }
 
 pub(crate) fn reduce_kahan_in_place(
-    spans: &mut Option<Vec<Span>>,
-    buckets: &mut Option<Vec<f64>>,
-    correction: &mut Option<Vec<f64>>,
+    spans: &mut Option<AccountedVec<Span>>,
+    buckets: &mut Option<AccountedVec<f64>>,
+    correction: &mut Option<AccountedVec<f64>>,
     origin: i32,
     target: i32,
 ) {
@@ -520,12 +530,13 @@ pub(crate) fn reduce_kahan_in_place(
     }
 }
 
-struct ZeroCopied {
+struct ZeroCopied<'a> {
     source_len: usize,
-    target: Option<Vec<f64>>,
+    target: Option<AccountedVec<f64>>,
+    context: Option<&'a AllocationContext>,
 }
 
-impl ReductionBuffer<f64> for ZeroCopied {
+impl ReductionBuffer<f64> for ZeroCopied<'_> {
     fn source_len(&self) -> usize {
         self.source_len
     }
@@ -537,7 +548,9 @@ impl ReductionBuffer<f64> for ZeroCopied {
         self.target.as_ref().unwrap()[index]
     }
     fn write(&mut self, index: usize, value: f64) {
-        let target = self.target.get_or_insert_default();
+        let target = self
+            .target
+            .get_or_insert_with(|| AccountedVec::new_in(self.context));
         if index == target.len() {
             target.push(value);
         } else {
@@ -547,9 +560,9 @@ impl ReductionBuffer<f64> for ZeroCopied {
 }
 
 pub(crate) struct ReducedKahan {
-    pub spans: Option<Vec<Span>>,
-    pub buckets: Option<Vec<f64>>,
-    pub compensation: Option<Vec<f64>>,
+    pub spans: Option<AccountedVec<Span>>,
+    pub buckets: Option<AccountedVec<f64>>,
+    pub compensation: Option<AccountedVec<f64>>,
 }
 
 pub(crate) fn reduce_kahan_copy(
@@ -557,19 +570,23 @@ pub(crate) fn reduce_kahan_copy(
     buckets: Option<&[f64]>,
     origin: i32,
     target: i32,
+    context: Option<&AllocationContext>,
 ) -> ReducedKahan {
     let mut spans = Copied {
         source: spans.unwrap_or(&[]),
         target: None,
+        context,
     };
     let mut buckets = Copied {
         source: buckets.unwrap_or(&[]),
         target: None,
+        context,
     };
     // Read the upstream zero correction virtually instead of allocating its unreduced array.
     let mut correction = ZeroCopied {
         source_len: buckets.source.len(),
         target: None,
+        context,
     };
     reduce_kahan_layout(&mut spans, &mut buckets, &mut correction, origin, target);
     ReducedKahan {

@@ -291,12 +291,15 @@ mod tests {
                     schema: CUSTOM_BUCKETS_SCHEMA,
                     count: 100_000.0,
                     sum: 100_000.0,
-                    positive_spans: Some(vec![Span {
-                        offset: 0,
-                        length: 100_000,
-                    }]),
-                    positive_buckets: Some(vec![1.0; 100_000]),
-                    custom_values: Some((1..100_000).map(f64::from).collect()),
+                    positive_spans: Some(
+                        vec![Span {
+                            offset: 0,
+                            length: 100_000,
+                        }]
+                        .into(),
+                    ),
+                    positive_buckets: Some(vec![1.0; 100_000].into()),
+                    custom_values: Some((1..100_000).map(f64::from).collect::<Vec<_>>().into()),
                     ..FloatHistogram::default()
                 };
                 let counts = h.positive_buckets.as_ref().unwrap();

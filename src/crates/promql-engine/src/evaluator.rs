@@ -812,13 +812,7 @@ impl<'a, Q: QueryProvider + 'a> Machine<'a, Q> {
                                 self.control,
                                 self.account,
                             )?;
-                            if result.unsupported_native {
-                                return Err(EvaluationError::Unsupported(
-                                    "histogram range reduction kernel",
-                                ));
-                            }
                             if node == self.diagnostic_node
-                                && let Some(kind) = result.annotation
                                 && let Some(annotations) = &mut self.annotations
                             {
                                 let Expr::Call { arguments, .. } =
@@ -827,13 +821,15 @@ impl<'a, Q: QueryProvider + 'a> Machine<'a, Q> {
                                     unreachable!()
                                 };
                                 let argument = self.expression.arena.unparenthesized(arguments[0]);
-                                annotations.add(
-                                    kind,
-                                    label(&series_labels, b"__name__"),
-                                    self.expression.arena[argument].span,
-                                    &self.expression.source,
-                                    self.account,
-                                );
+                                for kind in result.annotations.into_iter().flatten() {
+                                    annotations.add(
+                                        kind,
+                                        label(&series_labels, b"__name__"),
+                                        self.expression.arena[argument].span,
+                                        &self.expression.source,
+                                        self.account,
+                                    );
+                                }
                             }
                             result.value.map(|value| (self.options.time_ms, value))
                         }
