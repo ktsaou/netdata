@@ -381,6 +381,19 @@ pub fn scan_with<S: Series, E: From<StorageError> + From<Interrupted>>(
     account: &QueryAccounting,
     mut visit: impl for<'a> FnMut(SampleRef<'a>) -> Result<(), E>,
 ) -> Result<(), E> {
+    scan_until(series, bounds, control, account, |sample| {
+        visit(sample).map(|()| std::ops::ControlFlow::Continue(()))
+    })
+    .map(|_| ())
+}
+
+pub(crate) fn scan_until<S: Series, E: From<StorageError> + From<Interrupted>>(
+    series: &S,
+    bounds: TimeBounds,
+    control: &Control,
+    account: &QueryAccounting,
+    mut visit: impl for<'a> FnMut(SampleRef<'a>) -> Result<std::ops::ControlFlow<()>, E>,
+) -> Result<std::ops::ControlFlow<()>, E> {
     control.check()?;
     account.provider_call();
     let cursor = series.cursor(bounds, control)?;
@@ -420,6 +433,7 @@ pub fn scan_with<S: Series, E: From<StorageError> + From<Interrupted>>(
         account.page(page.samples.len());
         let mut borrow = account.hold(MemoryKind::BorrowedView, 0);
         page_bytes(page.samples, account, &mut borrow)?;
+        let mut stopped = false;
         for index in 0..page.samples.len() {
             let sample = page.samples.sample(index);
             control.check()?;
@@ -433,10 +447,15 @@ pub fn scan_with<S: Series, E: From<StorageError> + From<Interrupted>>(
             }
             previous = Some(sample.time_ms);
             account.work(1);
-            visit(sample)?;
+            if !stopped {
+                stopped = visit(sample)?.is_break();
+            }
+        }
+        if stopped {
+            return Ok(std::ops::ControlFlow::Break(()));
         }
     }
-    Ok(())
+    Ok(std::ops::ControlFlow::Continue(()))
 }
 
 #[cfg(test)]
@@ -446,6 +465,58 @@ mod tests {
         accounting::EngineAccounting,
         histogram::{FloatHistogramRef, Span},
     };
+    #[test]
+    fn stopped_scans_validate_the_complete_returned_page() {
+        use crate::{
+            test_storage::GeneratedSeries,
+            value::{Sample, SampleValue},
+        };
+        fn sample(index: usize) -> Sample {
+            Sample {
+                time_ms: [1, 2, 2][index],
+                start_time_ms: 0,
+                value: SampleValue::Float(1.0),
+            }
+        }
+        let source = GeneratedSeries::new(3, 17, sample);
+        let account = EngineAccounting::default().query();
+        let mut visited = 0;
+        let result = scan_until::<_, StorageError>(
+            &source,
+            TimeBounds {
+                start_ms: 0,
+                end_ms: 10,
+            },
+            &Control::default(),
+            &account,
+            |_| {
+                visited += 1;
+                Ok(std::ops::ControlFlow::Break(()))
+            },
+        );
+        assert_eq!(
+            result,
+            Err(StorageError::Invalid(
+                "sample timestamps are not strictly increasing"
+            ))
+        );
+        assert_eq!(visited, 1);
+        assert_eq!(account.snapshot().samples_fetched, 3);
+        assert!(
+            account
+                .snapshot()
+                .memory
+                .iter()
+                .all(|memory| memory.current == 0)
+        );
+        assert_eq!(
+            source
+                .counters
+                .active
+                .load(std::sync::atomic::Ordering::Relaxed),
+            0
+        );
+    }
     #[test]
     fn shared_and_overlapping_page_slices_are_exposed_once() {
         let bounds = [1.0, 2.0, 3.0, 4.0];

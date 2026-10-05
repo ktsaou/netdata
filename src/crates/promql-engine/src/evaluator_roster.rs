@@ -24,6 +24,7 @@ pub(crate) struct Descriptor {
 pub(crate) struct GroupDescriptor {
     pub(crate) hash: u64,
     pub(crate) labels: OwnedLabels,
+    pub(crate) whole_drop_name: Option<bool>,
 }
 #[derive(Default)]
 struct NodeRoster {
@@ -124,6 +125,22 @@ impl Rosters {
     pub(crate) fn groups(&self, node: NodeId) -> Option<&[GroupDescriptor]> {
         self.nodes[node.0].groups.as_deref()
     }
+    pub(crate) fn finish_group_flags(
+        &mut self,
+        node: NodeId,
+        descriptors: &[Descriptor],
+        control: &Control,
+        account: &QueryAccounting,
+    ) -> Result<(), Interrupted> {
+        if let Some(groups) = &mut self.nodes[node.0].groups {
+            for descriptor in descriptors {
+                control.check()?;
+                account.work(1);
+                groups[descriptor.ordinal].whole_drop_name = Some(descriptor.drop_name);
+            }
+        }
+        Ok(())
+    }
     pub(crate) fn take_annotations(&mut self, node: NodeId) -> Option<AnnotationBuilder> {
         self.nodes[node.0].annotations.take()
     }
@@ -156,7 +173,11 @@ impl Rosters {
                     label_hash::grouping(&labels, control, account)?
                 };
                 if !groups.iter().any(|group| group.hash == hash) {
-                    groups.push(GroupDescriptor { hash, labels });
+                    groups.push(GroupDescriptor {
+                        hash,
+                        labels,
+                        whole_drop_name: None,
+                    });
                 }
             }
         } else if let Some(mut descriptors) = self.take_output(child) {
@@ -172,6 +193,7 @@ impl Rosters {
                     groups.push(GroupDescriptor {
                         hash,
                         labels: descriptor.labels,
+                        whole_drop_name: None,
                     });
                 }
             }

@@ -3,7 +3,8 @@
 use crate::{
     accounting::{MemoryKind, QueryAccounting},
     annotations::{AnnotationKind, HistogramOperation},
-    histogram::{COUNTER_RESET, FloatHistogramRef, HistogramError, NOT_RESET},
+    histogram::{FloatHistogramRef, HistogramError},
+    histogram_accumulator::{Finalization, NativeAccumulator},
     histogram_stats::{StatisticsWindow, scan_statistics},
     numerical::{compensated_add, sqrt},
     range_float::{RateKind, start_timestamp_reset},
@@ -85,27 +86,14 @@ pub(crate) struct FoldResult {
 }
 
 struct NativeFold {
-    sum: OwnedHistogram,
-    compensation: Option<OwnedHistogram>,
+    accumulator: NativeAccumulator,
     count: usize,
-    average: bool,
-    incremental: bool,
-    reset_seen: bool,
-    not_reset_seen: bool,
-    reconciled: bool,
 }
 impl NativeFold {
     fn new(kind: FoldKind, sum: OwnedHistogram) -> Self {
-        let hint = sum.as_ref().reset_hint;
         Self {
-            sum,
-            compensation: None,
+            accumulator: NativeAccumulator::new(kind == FoldKind::Avg, sum),
             count: 1,
-            average: kind == FoldKind::Avg,
-            incremental: false,
-            reset_seen: hint == COUNTER_RESET,
-            not_reset_seen: hint == NOT_RESET,
-            reconciled: false,
         }
     }
     fn add(
@@ -113,73 +101,25 @@ impl NativeFold {
         value: FloatHistogramRef<'_>,
         account: &QueryAccounting,
     ) -> Result<(), HistogramError> {
-        // The source tracks original hints even after the accumulator becomes unknown.
-        self.reset_seen |= value.reset_hint == COUNTER_RESET;
-        self.not_reset_seen |= value.reset_hint == NOT_RESET;
-        if !self.average {
-            self.reconciled |= self
-                .sum
-                .kahan_add(value, &mut self.compensation)?
-                .nhcb_bounds_reconciled;
-            return Ok(());
-        }
         self.count += 1;
-        let count = self.count as f64;
-        if !self.incremental {
-            let mut trial_sum = self.sum.copy();
-            let mut trial_compensation = self.compensation.as_ref().map(OwnedHistogram::copy);
-            self.reconciled |= trial_sum
-                .kahan_add(value, &mut trial_compensation)?
-                .nhcb_bounds_reconciled;
-            if !trial_sum.has_overflow() {
-                self.sum = trial_sum;
-                self.compensation = trial_compensation;
-                return Ok(());
-            }
-            drop(trial_sum);
-            drop(trial_compensation);
-            self.incremental = true;
-            let mut mean = self.sum.copy();
-            mean.div(count - 1.0);
-            self.sum = mean;
-            if let Some(compensation) = &mut self.compensation {
-                compensation.div(count - 1.0);
-            }
-        }
-        let q = (count - 1.0) / count;
-        if let Some(compensation) = &mut self.compensation {
-            compensation.mul(q);
-        }
-        let mut to_add = retain_histogram(SampleValueRef::FloatHistogram(value), account);
-        to_add.div(count);
-        self.sum.mul(q);
-        self.reconciled |= self
-            .sum
-            .kahan_add(to_add.as_ref(), &mut self.compensation)?
-            .nhcb_bounds_reconciled;
-        Ok(())
+        self.accumulator
+            .add(value, self.count as f64, account)
+            .map(|_| ())
     }
-    fn finish(mut self) -> Result<FoldResult, HistogramError> {
-        if self.average && !self.incremental {
-            self.sum.div(self.count as f64);
-            if let Some(compensation) = &mut self.compensation {
-                compensation.div(self.count as f64);
-            }
-        }
-        if let Some(compensation) = &self.compensation {
-            let flags = self.sum.add(compensation.as_ref())?;
-            // Average's final correction intentionally does not contribute annotations.
-            if !self.average {
-                self.reconciled |= flags.nhcb_bounds_reconciled;
-            }
-        }
+    fn finish(self) -> Result<FoldResult, HistogramError> {
+        let result = self
+            .accumulator
+            .finish(self.count as f64, Finalization::Range)?;
         Ok(FoldResult {
-            value: Some(OwnedValue::Histogram(self.sum)),
+            value: Some(OwnedValue::Histogram(result.value)),
             annotations: [
-                (self.reset_seen && self.not_reset_seen).then_some(
-                    AnnotationKind::HistogramCounterResetCollision(HistogramOperation::Aggregation),
-                ),
-                self.reconciled
+                result
+                    .reset_collision
+                    .then_some(AnnotationKind::HistogramCounterResetCollision(
+                        HistogramOperation::Aggregation,
+                    )),
+                result
+                    .reconciled
                     .then_some(AnnotationKind::MismatchedCustomBuckets(
                         HistogramOperation::Aggregation,
                     )),

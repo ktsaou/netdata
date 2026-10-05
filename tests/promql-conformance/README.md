@@ -577,8 +577,8 @@ the classification of arithmetic and returned filter operands. Missing classific
 retained corpus has 2,788 variants classified for exact numeric comparison. Near-integer boolean/function mutations
 are rejected, while fractional fill outputs retain their permitted tolerance.
 
-The full run after native histogram projections, timestamp support, intermediate ordering and native scalar/vector
-maps matches 6,059 of 21,442 variants, with zero completed semantic failures and 15,383 open variants at page sizes
+The full run after native histogram projections, timestamp support, intermediate ordering, native scalar/vector
+maps and native vector aggregation matches 6,753 of 21,442 variants, with zero completed semantic failures and 14,689 open variants at page sizes
 17 and 1024. Its 24 paired bit differences are
 NaN payload/sign differences from one original aggregation case. Further implementation and replay remain
 required. Separate fresh Go checks match
@@ -603,7 +603,7 @@ scaled input, without retaining the raw history.
 The productive Rust path connects the owned frontend to typed page cursors, float rate/increase/delta,
 count/present/first/last/min/max over time, float/native histogram sum/average and float variance/stddev over time, timestamp extrema/endpoints,
 changes/resets, scalar/vector arithmetic
-and comparisons, and float sum/avg/count/min/max/group. Evaluation uses explicit frames,
+and comparisons, float/native sum/avg/count/group and float min/max/stdvar/stddev with native ignored-input infos. Evaluation uses explicit frames,
 whole-query label/group descriptors and replay; raw histories and complete raw instant vectors are not retained.
 Output uses synchronous provisional chunks followed by commit/abort, with a separately owned collector. Stable
 series identities retain legitimate duplicate projected labelsets and merge disjoint rows at cleanup owners.
@@ -657,8 +657,26 @@ Subqueries, bucket-dependent histogram functions and trimming disable it. One tr
 reset detection; consumers receive only schema, count, sum and reset hint. Prefix replay reconstructs buffered
 access and moving-seek state without retaining raw windows. Two direct pinned-Go buffered iterator witnesses
 distinguish unaccessed lookahead from an accessed endpoint; all 30 original nested reset-warning cases now pass.
-Repeated prefix I/O/work is accounted. Statistics decoding for ordinary instant selectors remains required when
-native vector aggregation is integrated, which is still unsupported.
+Repeated prefix I/O/work is accounted. Ordinary instant statistics replay now preserves future-current access
+before predecessor selection, repeated-current caching, different memoized/raw seek reset conditions and EOF.
+Finite static query-wide bounds include sibling selectors, original request endpoints, static subquery ranges and
+offsets. Dynamic durations and `info`'s implicit metadata scope remain required with their unfinished owners.
+All 38 fresh Go iterator witnesses match exactly in both builds at page sizes 1/17/1024. The private scan can stop
+after the required current sample while still validating and observing the complete returned page. Generated
+1,024-versus-100,000-point histories retain the same workspace peak and one live cursor at each page size.
+
+Vector aggregation shares native SUM/AVG arithmetic with range folds, with separate source classification and
+finalization policies. Native state is an optional accounted box. Schema incompatibility stops subsequent group
+inputs; mixed-type suppression, custom-bucket infos, reset collisions, average overflow rollback and compaction
+follow the vector owner. COUNT/GROUP accept native values; MIN/MAX/STDVAR/STDDEV ignore them with exact infos.
+The last emitted group flag is retained for replay before a parent consumes earlier points.
+Fresh Go capture has 6,452 variants: 6,372 complete and eighty remain open through unsupported set operators.
+The unmodified reference comparison has 6,352 semantic matches and twenty disagreements at unspecified map
+boundaries, with 62 reported paired bit differences. Separate policy qualification compares all 496 plain
+aggregation map-boundary cases with 992 fresh Go instant evaluations using source-defined input order sorted by
+the approved intermediate label bytes. All 496 match semantically at all three page sizes in both builds;
+their eight NaN-payload differences remain reported. Original source-defined cases and original assertions are
+unchanged. This qualifies the selected ordering policy separately from exact upstream equivalence.
 
 Runtime accounting remains unfinished: control-object allocations, general frontend compilation temporaries and
 provider-internal transient peaks are not fully instrumented. Regex dependency/table estimates expose known
@@ -684,8 +702,8 @@ conversion instead prefers the histogram. Replay records only kind presence and 
 instant cleanup uses metadata cohorts and retains one selected value. It does not collect raw vectors or timelines.
 Highest invariant wrapper boundaries reject dual-kind rows with the source's `unexpected number of samples` error,
 including instant queries; an enclosing safe consumer may first reduce or ignore the mixed row successfully.
-Fresh Go witnesses cover 6,864 variants across seventeen datasets. Rust matches all 6,538 completed cases exactly
-in both builds at page sizes 1/17/1024; 326 native aggregation cases remain open. Permanent regressions cover matrix
+Fresh Go witnesses cover 6,864 variants across seventeen datasets. Rust matches all 6,864 cases exactly
+in both builds at page sizes 1/17/1024. Permanent regressions cover matrix
 and vector consumption, scope-local blocking, fixed boundaries, negative times, page release and accounting cleanup.
 
 A repeated pinned-Go witness for `1 / min(m * 1) > bool 0` over positive and negative zero returned true 115 times

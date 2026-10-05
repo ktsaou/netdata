@@ -35,8 +35,10 @@ impl HistogramOperation {
 pub enum AnnotationKind {
     PossibleNonCounter,
     MixedFloatsHistograms,
+    MixedFloatsHistogramsAggregation,
     StartTimeOverlap,
     HistogramIgnoredInMixedRange,
+    HistogramIgnoredInAggregation(tokens::TokenKind),
     MixedExponentialCustomHistograms,
     HistogramCounterResetCollision(HistogramOperation),
     MismatchedCustomBuckets(HistogramOperation),
@@ -51,9 +53,11 @@ impl AnnotationKind {
         match self {
             Self::PossibleNonCounter
             | Self::HistogramIgnoredInMixedRange
+            | Self::HistogramIgnoredInAggregation(_)
             | Self::MismatchedCustomBuckets(_)
             | Self::IncompatibleBinaryTypes { .. } => Severity::Info,
             Self::MixedFloatsHistograms
+            | Self::MixedFloatsHistogramsAggregation
             | Self::StartTimeOverlap
             | Self::MixedExponentialCustomHistograms
             | Self::HistogramCounterResetCollision(_) => Severity::Warning,
@@ -67,12 +71,16 @@ impl AnnotationKind {
             Self::MixedFloatsHistograms => {
                 "PromQL warning: encountered a mix of histograms and floats for metric name "
             }
+            Self::MixedFloatsHistogramsAggregation => {
+                "PromQL warning: encountered a mix of histograms and floats for aggregation"
+            }
             Self::StartTimeOverlap => {
                 "PromQL warning: sample has start time that overlaps with previous sample timestamp for metric "
             }
             Self::HistogramIgnoredInMixedRange => {
                 "PromQL info: ignored histograms in a range containing both floats and histograms for metric name "
             }
+            Self::HistogramIgnoredInAggregation(_) => "PromQL info: ignored histogram in ",
             Self::MixedExponentialCustomHistograms => {
                 "PromQL warning: vector contains a mix of histograms with exponential and custom buckets schemas for metric name "
             }
@@ -196,6 +204,10 @@ impl AnnotationBuilder {
             write!(raw_message, ": {left} {operation} {right}").expect("byte writer");
         } else if let Some(operation) = kind.operation() {
             raw_message.extend_from_slice(operation.name().as_bytes());
+        } else if let AnnotationKind::HistogramIgnoredInAggregation(operator) = kind {
+            raw_message.extend_from_slice(operator.text().expect("aggregation text").as_bytes());
+            raw_message.extend_from_slice(b" aggregation");
+        } else if kind == AnnotationKind::MixedFloatsHistogramsAggregation {
         } else {
             quote::write_bytes(metric, &mut raw_message).expect("byte writer");
         }
