@@ -810,8 +810,13 @@ impl<'a, Q: QueryProvider + 'a> Machine<'a, Q> {
                                 self.control,
                                 self.account,
                             )?;
-                            if result.ignored_histograms
-                                && node == self.diagnostic_node
+                            if result.unsupported_native {
+                                return Err(EvaluationError::Unsupported(
+                                    "histogram range reduction kernel",
+                                ));
+                            }
+                            if node == self.diagnostic_node
+                                && let Some(kind) = result.annotation
                                 && let Some(annotations) = &mut self.annotations
                             {
                                 let Expr::Call { arguments, .. } =
@@ -820,7 +825,7 @@ impl<'a, Q: QueryProvider + 'a> Machine<'a, Q> {
                                     unreachable!()
                                 };
                                 annotations.add(
-                                    AnnotationKind::HistogramIgnoredInMixedRange,
+                                    kind,
                                     label(&series_labels, b"__name__"),
                                     self.expression.arena[arguments[0]].span,
                                     &self.expression.source,

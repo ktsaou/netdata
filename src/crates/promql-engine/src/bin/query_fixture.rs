@@ -348,15 +348,14 @@ fn evaluate(provider: &FixtureProvider, request: &Value) -> Result<Value, Error>
     let observed = observations(&report.observations);
     result["warnings"] = json!(messages(&report.annotations, Severity::Warning));
     result["infos"] = json!(messages(&report.annotations, Severity::Info));
+    let mut unsupported = None;
     match report.result {
         Ok(output) => {
             result["kind"] = json!(output.header.value_type.name());
             result["rows"] = json!(result_rows(&output));
         }
         Err(ExecutionError::Evaluation(EvaluationError::Unsupported(reason))) => {
-            return Ok(
-                json!({"id": id, "unsupported": encoded_bytes(reason.as_bytes()), "observations": observed}),
-            );
+            unsupported = Some(encoded_bytes(reason.as_bytes()));
         }
         Err(ExecutionError::Evaluation(EvaluationError::Invalid(message))) => {
             result["error"] = failure("execution", "*errors.errorString", message.as_bytes());
@@ -376,7 +375,10 @@ fn evaluate(provider: &FixtureProvider, request: &Value) -> Result<Value, Error>
     {
         return Err("fixture query leaked an observed owner".into());
     }
-    Ok(json!({"id": id, "result": result, "observations": observed}))
+    Ok(match unsupported {
+        Some(reason) => json!({"id": id, "unsupported": reason, "observations": observed}),
+        None => json!({"id": id, "result": result, "observations": observed}),
+    })
 }
 fn main() -> Result<(), Error> {
     let mut out = io::BufWriter::new(io::stdout().lock());
