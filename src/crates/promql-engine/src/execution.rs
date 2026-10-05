@@ -766,6 +766,117 @@ mod tests {
     use std::sync::atomic::Ordering;
 
     #[test]
+    fn native_maps_preserve_results_and_apply_source_copy_between_operators() {
+        use crate::{
+            histogram::{FloatHistogram, Span},
+            value::{Sample, SampleValue},
+        };
+        fn sample(index: usize) -> Sample {
+            Sample {
+                time_ms: (index as i64 + 1) * 1000,
+                start_time_ms: 0,
+                value: SampleValue::FloatHistogram(FloatHistogram {
+                    schema: -53,
+                    count: 3.0,
+                    sum: 5.0,
+                    positive_spans: Some(
+                        vec![Span {
+                            offset: 0,
+                            length: 2,
+                        }]
+                        .into(),
+                    ),
+                    positive_buckets: Some(vec![1.0, 2.0].into()),
+                    custom_values: Some(vec![1.0].into()),
+                    ..FloatHistogram::default()
+                }),
+            }
+        }
+        // Pinned Go Copy canonicalizes custom zero_count before each arithmetic operator.
+        for page in [1, 17, 1024] {
+            let mut provider = FixtureProvider::new(3, page, 1);
+            provider.series[0].source.sample = sample;
+            provider.series[0].labels = vec![(b"__name__".to_vec(), b"m".to_vec())];
+            let engine = Engine::default();
+            let control = Control::default();
+            for delayed in [false, true] {
+                for (source, zero, count, sum) in [
+                    ("m / 0", f64::NAN, f64::INFINITY, f64::INFINITY),
+                    ("+(m / 0)", f64::NAN, f64::INFINITY, f64::INFINITY),
+                    ("(m / 0) * -1", -0.0, f64::NEG_INFINITY, f64::NEG_INFINITY),
+                    ("-(m / 0)", -0.0, f64::NEG_INFINITY, f64::NEG_INFINITY),
+                    ("m * 0", 0.0, 0.0, 0.0),
+                    ("m * -1", -0.0, -3.0, -5.0),
+                    ("-m", -0.0, -3.0, -5.0),
+                    ("-(-m)", -0.0, 3.0, 5.0),
+                ] {
+                    let query = engine
+                        .compile(source.as_bytes(), options(delayed), &control)
+                        .unwrap();
+                    for request in [
+                        QueryRequest::Instant { time_ms: 3500 },
+                        QueryRequest::Range {
+                            start_ms: 1500,
+                            end_ms: 3500,
+                            step_ms: 1000,
+                        },
+                    ] {
+                        let (result, _) = query.collect(&provider, request, &control).unwrap();
+                        assert!(result.annotations.is_empty());
+                        assert_eq!(result.series.len(), 1);
+                        assert!(result.series[0].labels.0.is_empty());
+                        for point in result.series[0].points.iter() {
+                            let OwnedValue::Histogram(value) = &point.value else {
+                                unreachable!()
+                            };
+                            let value = value.as_ref();
+                            if zero.is_nan() {
+                                assert!(value.zero_count.is_nan(), "{source}");
+                            } else {
+                                assert_eq!(value.zero_count.to_bits(), zero.to_bits(), "{source}");
+                            }
+                            assert_eq!(value.count.to_bits(), count.to_bits(), "{source}");
+                            assert_eq!(value.sum.to_bits(), sum.to_bits(), "{source}");
+                        }
+                    }
+                }
+                for (source, message) in [
+                    (
+                        "m == bool 1",
+                        "PromQL info: incompatible sample types encountered for binary operator \"==\": histogram == float (1:1)",
+                    ),
+                    (
+                        "0 / m",
+                        "PromQL info: incompatible sample types encountered for binary operator \"/\": float / histogram (1:1)",
+                    ),
+                ] {
+                    let query = engine
+                        .compile(source.as_bytes(), options(delayed), &control)
+                        .unwrap();
+                    let (result, _) = query
+                        .collect(&provider, QueryRequest::Instant { time_ms: 3500 }, &control)
+                        .unwrap();
+                    assert!(result.series.is_empty());
+                    assert_eq!(result.annotations.len(), 1);
+                    assert_eq!(
+                        result.annotations.iter().next().unwrap().message,
+                        message.as_bytes()
+                    );
+                }
+            }
+            provider.assert_closed();
+            assert!(
+                engine
+                    .accounting
+                    .snapshot()
+                    .memory
+                    .iter()
+                    .all(|m| m.current == 0)
+            );
+        }
+    }
+
+    #[test]
     fn native_projections_filter_floats_and_preserve_source_metadata_policy() {
         use crate::{
             histogram::{FloatHistogram, HistogramBounds, Span},

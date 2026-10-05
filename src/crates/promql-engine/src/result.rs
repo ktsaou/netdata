@@ -122,11 +122,52 @@ impl OwnedHistogram {
             self.payload.context.clone(),
         )
     }
+    pub(crate) fn normalize_copy_fields(&mut self) {
+        self.payload.value.normalize_copy_fields();
+    }
     pub(crate) fn mul(&mut self, factor: f64) {
         self.payload.value.mul(factor);
     }
     pub(crate) fn div(&mut self, divisor: f64) {
         self.payload.value.div(divisor);
+    }
+    pub(crate) fn mul_checked(
+        &mut self,
+        factor: f64,
+        control: &crate::storage::Control,
+        account: &QueryAccounting,
+    ) -> Result<(), crate::storage::Interrupted> {
+        self.payload.value.mul_with(factor, || {
+            control.check()?;
+            account.work(1);
+            Ok(())
+        })
+    }
+    pub(crate) fn div_checked(
+        &mut self,
+        divisor: f64,
+        control: &crate::storage::Control,
+        account: &QueryAccounting,
+    ) -> Result<(), crate::storage::Interrupted> {
+        self.payload.value.div_with(divisor, || {
+            control.check()?;
+            account.work(1);
+            Ok(())
+        })
+    }
+    pub(crate) fn compact_checked(
+        &mut self,
+        control: &crate::storage::Control,
+        account: &QueryAccounting,
+    ) -> Result<(), crate::storage::Interrupted> {
+        let payload = &mut *self.payload;
+        payload
+            .value
+            .compact_with(0, Some(&payload.context), |work| {
+                control.check()?;
+                account.work(work as u64);
+                Ok(())
+            })
     }
     pub(crate) fn set_reset_hint(&mut self, hint: u8) {
         self.payload.value.reset_hint = hint;
@@ -191,6 +232,16 @@ impl OwnedValue {
             SampleValueRef::FloatHistogram(value) => value.to_owned_in(Some(&context)),
         };
         Self::Histogram(OwnedHistogram::new(value, context))
+    }
+    fn copy_result_from(value: SampleValueRef<'_>, account: &QueryAccounting) -> Self {
+        let SampleValueRef::FloatHistogram(histogram) = value else {
+            return Self::copy_from(value, account, MemoryKind::Result);
+        };
+        let context = AllocationContext::new(account, MemoryKind::Result);
+        Self::Histogram(OwnedHistogram::new(
+            histogram.to_owned_result_in(&context),
+            context,
+        ))
     }
     pub fn as_ref(&self) -> SampleValueRef<'_> {
         match self {
@@ -318,11 +369,7 @@ impl OutputSink for Collector {
                 for point in points {
                     result.series[index].points.push(OutputPoint {
                         time_ms: point.time_ms,
-                        value: OwnedValue::copy_from(
-                            point.value,
-                            &self.account,
-                            MemoryKind::Result,
-                        ),
+                        value: OwnedValue::copy_result_from(point.value, &self.account),
                     });
                 }
             }
@@ -383,6 +430,91 @@ mod tests {
     }
     fn box_bytes() -> u64 {
         AccountedBox::<HistogramPayload>::allocation_bytes() as u64
+    }
+
+    #[test]
+    fn collected_native_results_preserve_transformed_fields_after_source_release() {
+        let engine = EngineAccounting::default();
+        let account = engine.query();
+        let mut value = own(
+            &histogram(CUSTOM_BUCKETS_SCHEMA, &[1.0, 2.0], Some(&[1.0])),
+            &account,
+        );
+        value.div(0.0);
+        let zero_bits = value.as_ref().zero_count.to_bits();
+        assert!(value.as_ref().zero_count.is_nan());
+        let mut collector = Collector::new(&account);
+        collector
+            .begin(OutputHeader {
+                value_type: ValueType::Vector,
+                start_ms: 1000,
+                end_ms: 1000,
+                step_ms: 0,
+            })
+            .unwrap();
+        collector
+            .chunk(OutputChunk::Series {
+                series_id: 7,
+                labels: &[],
+                points: &[SampleRef {
+                    time_ms: 1000,
+                    start_time_ms: 0,
+                    value: SampleValueRef::FloatHistogram(value.as_ref()),
+                }],
+            })
+            .unwrap();
+        collector.commit(&account.snapshot()).unwrap();
+        drop(value);
+        assert_eq!(account.snapshot().memory[1].current, 0);
+        let result = collector.take().unwrap();
+        drop(collector);
+        drop(account);
+        let OwnedValue::Histogram(value) = &result.series[0].points[0].value else {
+            unreachable!()
+        };
+        let value = value.as_ref();
+        assert_eq!(value.zero_count.to_bits(), zero_bits);
+        assert_eq!(value.count, f64::INFINITY);
+        assert_eq!(value.sum, f64::INFINITY);
+        assert!(value.positive_spans.is_none());
+        assert!(value.positive_buckets.is_none());
+        assert_eq!(value.custom_values, Some(&[1.0][..]));
+        assert!(engine.snapshot().memory[2].current > 0);
+        drop(result);
+        assert!(engine.snapshot().memory.iter().all(|m| m.current == 0));
+    }
+
+    #[test]
+    fn interrupted_native_maps_release_all_attached_buffers() {
+        use crate::storage::{Control, Interrupted};
+        let engine = EngineAccounting::default();
+        let account = engine.query();
+        for operation in 0..3 {
+            let control = Control::default();
+            let mut value = own(&histogram(0, &[0.0, 1.0, 0.0, 2.0, 0.0], None), &account);
+            let mut polls = 0;
+            let mut poll = |work| {
+                polls += 1;
+                account.work(work as u64);
+                if polls == 4 {
+                    control.cancellation.cancel();
+                }
+                control.check()
+            };
+            let payload = &mut *value.payload;
+            let outcome = match operation {
+                0 => payload.value.mul_with(2.0, || poll(1)),
+                1 => payload.value.div_with(2.0, || poll(1)),
+                _ => payload.value.compact_with(0, Some(&payload.context), poll),
+            };
+            assert_eq!(outcome, Err(Interrupted::Cancelled));
+            assert_eq!(polls, 4);
+            drop(value);
+            let memory = account.snapshot().memory[1];
+            assert_eq!(memory.current, 0);
+            assert_eq!(memory.acquired, memory.released);
+        }
+        assert!(account.snapshot().work >= 12);
     }
 
     #[test]
