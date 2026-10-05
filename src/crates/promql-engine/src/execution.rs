@@ -1546,6 +1546,86 @@ mod tests {
     }
 
     #[test]
+    fn fixed_timestamp_offsets_preserve_lookup_and_original_storage_scopes() {
+        for page in [1, 17, 1024] {
+            let provider = FixtureProvider::new(6, page, 1);
+            let engine = Engine::default();
+            let control = Control::default();
+            for delayed in [false, true] {
+                let options = EngineOptions {
+                    lookback_ms: 2000,
+                    ..options(delayed)
+                };
+                for (source, expected) in [
+                    ("timestamp(counter_total @ end() offset (step()+1ms))", None),
+                    (
+                        "timestamp(counter_total @ end() offset (-step()-1ms))",
+                        Some(4.0f64),
+                    ),
+                    ("timestamp(counter_total @ 4 offset 1701ms)", None),
+                    (
+                        "timestamp(counter_total @ start() offset -1701ms)",
+                        Some(4.0),
+                    ),
+                    (
+                        "timestamp(counter_total @ end() offset (step()+1ms)) + scalar(counter_total @ end()) * 0",
+                        Some(4.0),
+                    ),
+                    (
+                        "timestamp((counter_total @ end() offset (step()+1ms))*1)",
+                        Some(4.0),
+                    ),
+                    (
+                        "timestamp((counter_total @ end() offset (-step()-1ms)))",
+                        Some(4.0),
+                    ),
+                    ("timestamp(counter_total offset 1701ms)", Some(2.0)),
+                ] {
+                    let query = engine
+                        .compile(source.as_bytes(), options, &control)
+                        .unwrap();
+                    let (result, observations) = query
+                        .collect(
+                            &provider,
+                            QueryRequest::Range {
+                                start_ms: 4000,
+                                end_ms: 4000,
+                                step_ms: 1700,
+                            },
+                            &control,
+                        )
+                        .unwrap();
+                    assert!(result.annotations.is_empty(), "{source}");
+                    assert_eq!(
+                        result.series.len(),
+                        usize::from(expected.is_some()),
+                        "{source}"
+                    );
+                    if let Some(value) = expected {
+                        let points = &result.series[0].points;
+                        assert_eq!(points.len(), 1, "{source}");
+                        assert_eq!(points[0].time_ms, 4000, "{source}");
+                        assert_eq!(float_bits(&points[0]), value.to_bits(), "{source}");
+                    }
+                    assert_eq!(
+                        observations.memory[MemoryKind::Workspace as usize].current,
+                        0
+                    );
+                }
+            }
+            provider.assert_closed();
+            assert!(
+                engine
+                    .accounting
+                    .snapshot()
+                    .memory
+                    .iter()
+                    .all(|m| m.current == 0)
+            );
+        }
+    }
+
+    #[test]
     fn pointwise_calls_check_output_duplicates_in_both_query_modes() {
         let engine = Engine::default();
         let control = Control::default();
