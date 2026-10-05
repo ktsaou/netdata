@@ -41,6 +41,7 @@ mod numerical_trigonometric;
 mod query_bounds;
 mod query_preparation;
 pub mod range_float;
+mod range_numeric;
 mod range_rates;
 mod range_reduce;
 pub mod result;

@@ -22,6 +22,35 @@ pub struct RateWindow {
     pub start_timestamps: bool,
 }
 
+#[derive(Clone, Copy, Debug)]
+pub(crate) struct RateInput {
+    pub(crate) window: RateWindow,
+    pub(crate) range_start_ms: i64,
+    pub(crate) data_bounds: Option<TimeBounds>,
+}
+impl From<RateWindow> for RateInput {
+    fn from(window: RateWindow) -> Self {
+        Self {
+            range_start_ms: window.start_ms,
+            window,
+            data_bounds: None,
+        }
+    }
+}
+impl RateInput {
+    pub(crate) fn bounds(self) -> Option<TimeBounds> {
+        let mut bounds = TimeBounds {
+            start_ms: self.window.start_ms.checked_add(1)?,
+            end_ms: self.window.end_ms,
+        };
+        if let Some(data) = self.data_bounds {
+            bounds.start_ms = bounds.start_ms.max(data.start_ms);
+            bounds.end_ms = bounds.end_ms.min(data.end_ms);
+        }
+        (bounds.start_ms <= bounds.end_ms).then_some(bounds)
+    }
+}
+
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum RateValue {
     Empty,
@@ -74,8 +103,8 @@ pub(crate) fn start_time_overlap(previous_start: i64, previous_time: i64, start:
     start != 0 && start < previous_time && start != previous_start
 }
 
-pub(crate) fn uses_first_start(window: RateWindow, kind: RateKind, time: i64, start: i64) -> bool {
-    kind != RateKind::Delta && start != 0 && start > window.start_ms && start < time
+pub(crate) fn uses_first_start(input: RateInput, kind: RateKind, time: i64, start: i64) -> bool {
+    kind != RateKind::Delta && start != 0 && start > input.range_start_ms && start < time
 }
 
 pub(crate) struct Extrapolation {
@@ -88,11 +117,13 @@ pub(crate) struct Extrapolation {
 }
 
 pub(crate) fn extrapolation_factor(
-    window: RateWindow,
+    input: RateInput,
     kind: RateKind,
     points: Extrapolation,
 ) -> Option<f64> {
-    let mut duration_to_start = points.first_time.wrapping_sub(window.start_ms) as f64 / 1000.0;
+    let window = input.window;
+    let mut duration_to_start =
+        points.first_time.wrapping_sub(input.range_start_ms) as f64 / 1000.0;
     let mut duration_to_end = window.end_ms.wrapping_sub(points.last_time) as f64 / 1000.0;
     let mut sampled_interval = points.last_time.wrapping_sub(points.first_time) as f64 / 1000.0;
     let average_duration = if points.count > 1 {
@@ -101,7 +132,7 @@ pub(crate) fn extrapolation_factor(
         0.0
     };
     let threshold = average_duration * 1.1;
-    if uses_first_start(window, kind, points.first_time, points.first_start) {
+    if uses_first_start(input, kind, points.first_time, points.first_start) {
         duration_to_start = 0.0;
         sampled_interval = points.last_time.wrapping_sub(points.first_start) as f64 / 1000.0;
     } else if points.count == 1 {
@@ -141,31 +172,25 @@ pub fn rate<S: Series>(
     control: &Control,
     account: &QueryAccounting,
 ) -> Result<RateResult, StorageError> {
-    rate_with(series, window, kind, None, control, account)
+    rate_with(series, window.into(), kind, None, control, account)
 }
 
 pub(crate) fn rate_with<S: Series>(
     series: &S,
-    window: RateWindow,
+    input: RateInput,
     kind: RateKind,
     statistics: Option<StatisticsWindow>,
     control: &Control,
     account: &QueryAccounting,
 ) -> Result<RateResult, StorageError> {
+    let window = input.window;
     let empty = |value| RateResult {
         value,
         start_time_overlap: false,
     };
-    let Some(start_ms) = window.start_ms.checked_add(1) else {
+    let Some(bounds) = input.bounds() else {
         return Ok(empty(RateValue::Empty));
     };
-    let bounds = TimeBounds {
-        start_ms,
-        end_ms: window.end_ms,
-    };
-    if start_ms > window.end_ms {
-        return Ok(empty(RateValue::Empty));
-    }
     let mut first = None;
     let mut last = None;
     let mut count = 0usize;
@@ -226,11 +251,11 @@ pub(crate) fn rate_with<S: Series>(
             Ok(())
         })?;
     }
-    if uses_first_start(window, kind, first.time, first.start) {
+    if uses_first_start(input, kind, first.time, first.start) {
         result += first.value;
     }
     let Some(factor) = extrapolation_factor(
-        window,
+        input,
         kind,
         Extrapolation {
             first_time: first.time,

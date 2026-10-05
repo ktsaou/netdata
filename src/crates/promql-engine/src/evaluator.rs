@@ -14,7 +14,8 @@ use crate::{
     histogram_stats::StatisticsWindow,
     label_hash,
     query_preparation::Prepared,
-    range_float::RateWindow,
+    range_float::{RateInput, RateWindow},
+    range_numeric::{self, NumericRangeError, NumericRangeFunction},
     range_rates::{self, RateFunction},
     range_reduce::{FoldKind, FoldOptions, RangeFunction, fold},
     result::{OwnedLabels, OwnedValue},
@@ -35,6 +36,7 @@ pub enum EvaluationError {
     Unsupported(&'static str),
     Invalid(&'static str),
     Preparation(AccountedVec<u8>),
+    Runtime(AccountedVec<u8>),
 }
 impl From<Interrupted> for EvaluationError {
     fn from(value: Interrupted) -> Self {
@@ -70,14 +72,25 @@ pub(crate) struct EvaluatedSample {
 #[derive(Clone, Copy, Debug)]
 enum SelectorOperation {
     Instant,
-    Rate { kind: RateFunction, range_ns: i64 },
-    Fold { kind: FoldKind, range_ns: i64 },
+    Rate {
+        kind: RateFunction,
+        range_ns: i64,
+    },
+    Fold {
+        kind: FoldKind,
+        range_ns: i64,
+    },
+    Numeric {
+        function: NumericRangeFunction,
+        parameters: [f64; 2],
+        range_ns: i64,
+    },
 }
 impl SelectorOperation {
     fn drops_name(self) -> bool {
         match self {
             Self::Instant => false,
-            Self::Rate { .. } => true,
+            Self::Rate { .. } | Self::Numeric { .. } => true,
             Self::Fold { kind, .. } => !kind.preserves_name(),
         }
     }
@@ -158,6 +171,12 @@ impl PointwiseFunction {
     }
 }
 
+#[derive(Clone, Copy)]
+enum ParameterizedFunction {
+    Pointwise(FloatFunction),
+    Range(RangeFunction),
+}
+
 enum State<'a, Q: QueryProvider + 'a> {
     Enter,
     OrderedRows {
@@ -193,8 +212,8 @@ enum State<'a, Q: QueryProvider + 'a> {
         right: Option<f64>,
         phase: u8,
     },
-    PointwiseParameters {
-        function: FloatFunction,
+    Parameters {
+        function: ParameterizedFunction,
         parameters: [f64; 2],
         position: usize,
     },
@@ -376,14 +395,31 @@ impl<'a, Q: QueryProvider + 'a> Machine<'a, Q> {
         if self.timestamp_selectors[node.0]
             && let Some(time) = fixed
         {
-            return time;
+            let offset = self
+                .options
+                .time_ms
+                .wrapping_sub(time)
+                .wrapping_mul(1_000_000);
+            return self.options.time_ms.wrapping_sub(offset / 1_000_000);
         }
-        let time = fixed.unwrap_or(self.options.time_ms);
+        let time = if fixed.is_some() {
+            self.options.start_ms
+        } else {
+            self.options.time_ms
+        };
         time.wrapping_sub(
             self.prepared
-                .offset(node, selector.modifiers.original_offset)
+                .adjusted_offset(node, &selector.modifiers, self.options.start_ms)
                 / 1_000_000,
         )
+    }
+    fn matrix_bounds(&self, end_ms: i64, range_ns: i64) -> Option<TimeBounds> {
+        let start_ms = end_ms.wrapping_sub(range_ns / 1_000_000).checked_add(1)?;
+        let bounds = TimeBounds {
+            start_ms: start_ms.max(self.data_bounds.start_ms),
+            end_ms: end_ms.min(self.data_bounds.end_ms),
+        };
+        (bounds.start_ms <= bounds.end_ms).then_some(bounds)
     }
     fn statistics_window(
         &self,
@@ -422,9 +458,9 @@ impl<'a, Q: QueryProvider + 'a> Machine<'a, Q> {
         let end_ms = self.lookup(selector_node);
         let duration = match operation {
             SelectorOperation::Instant => self.options.lookback_ms,
-            SelectorOperation::Rate { range_ns, .. } | SelectorOperation::Fold { range_ns, .. } => {
-                range_ns / 1_000_000
-            }
+            SelectorOperation::Rate { range_ns, .. }
+            | SelectorOperation::Fold { range_ns, .. }
+            | SelectorOperation::Numeric { range_ns, .. } => range_ns / 1_000_000,
         };
         let fixed =
             selector.modifiers.timestamp.is_some() || selector.modifiers.start_or_end.is_some();
@@ -465,6 +501,34 @@ impl<'a, Q: QueryProvider + 'a> Machine<'a, Q> {
             operation,
             ordinal: 0,
         })
+    }
+    fn range_call(
+        &self,
+        node: NodeId,
+        function: RangeFunction,
+        parameters: [f64; 2],
+    ) -> Result<State<'a, Q>, EvaluationError> {
+        let Expr::Call { arguments, .. } = &self.expression.arena[node].expression else {
+            unreachable!()
+        };
+        let argument = self.expression.arena.unparenthesized(arguments[0]);
+        let Expr::Matrix {
+            selector, range, ..
+        } = self.expression.arena[argument].expression
+        else {
+            return Err(EvaluationError::Unsupported("subquery range reducer"));
+        };
+        let range_ns = self.prepared.range(argument, range);
+        let operation = match function {
+            RangeFunction::Rate(kind) => SelectorOperation::Rate { kind, range_ns },
+            RangeFunction::Fold(kind) => SelectorOperation::Fold { kind, range_ns },
+            RangeFunction::Numeric(function) => SelectorOperation::Numeric {
+                function,
+                parameters,
+                range_ns,
+            },
+        };
+        self.select(selector, operation)
     }
     fn enter(&mut self, index: usize) -> Result<Option<EvaluatedSample>, EvaluationError> {
         let node = self.frames[index].node;
@@ -629,8 +693,8 @@ impl<'a, Q: QueryProvider + 'a> Machine<'a, Q> {
                                 return Ok(Some(self.sample(result)));
                             }
                             if arguments.len() > 1 {
-                                self.frames[index].state = State::PointwiseParameters {
-                                    function: float,
+                                self.frames[index].state = State::Parameters {
+                                    function: ParameterizedFunction::Pointwise(float),
                                     parameters: [1.0, 0.0],
                                     position: 0,
                                 };
@@ -644,25 +708,18 @@ impl<'a, Q: QueryProvider + 'a> Machine<'a, Q> {
                     }
                     let function = RangeFunction::parse(function.name)
                         .ok_or(EvaluationError::Unsupported("function reducer"))?;
-                    let argument = self.expression.arena.unparenthesized(arguments[0]);
-                    let Expr::Matrix {
-                        selector, range, ..
-                    } = self.expression.arena[argument].expression
-                    else {
-                        return Err(EvaluationError::Unsupported("subquery range reducer"));
-                    };
-                    let range = self.prepared.range(argument, range);
-                    let operation = match function {
-                        RangeFunction::Rate(kind) => SelectorOperation::Rate {
-                            kind,
-                            range_ns: range,
-                        },
-                        RangeFunction::Fold(kind) => SelectorOperation::Fold {
-                            kind,
-                            range_ns: range,
-                        },
-                    };
-                    self.frames[index].state = self.select(selector, operation)?;
+                    if let RangeFunction::Numeric(kind) = function
+                        && kind.parameters() > 0
+                    {
+                        self.frames[index].state = State::Parameters {
+                            function: ParameterizedFunction::Range(function),
+                            parameters: [0.0, 0.0],
+                            position: 0,
+                        };
+                        self.push_all(arguments[1]);
+                    } else {
+                        self.frames[index].state = self.range_call(node, function, [0.0; 2])?;
+                    }
                     Ok(None)
                 }
             },
@@ -935,7 +992,7 @@ impl<'a, Q: QueryProvider + 'a> Machine<'a, Q> {
                     }
                     return Ok(None);
                 }
-                State::PointwiseParameters {
+                State::Parameters {
                     parameters,
                     position,
                     ..
@@ -1111,11 +1168,26 @@ impl<'a, Q: QueryProvider + 'a> Machine<'a, Q> {
                         SelectorOperation::Rate { kind, range_ns } => {
                             let result = range_rates::evaluate(
                                 series,
-                                RateWindow {
-                                    start_ms: end_ms.wrapping_sub(range_ns / 1_000_000),
-                                    end_ms,
-                                    range_ns,
-                                    start_timestamps: self.options.start_timestamps,
+                                RateInput {
+                                    window: RateWindow {
+                                        start_ms: end_ms.wrapping_sub(range_ns / 1_000_000),
+                                        end_ms,
+                                        range_ns,
+                                        start_timestamps: self.options.start_timestamps,
+                                    },
+                                    range_start_ms: (if self.invariants[node.0] {
+                                        self.options.start_ms
+                                    } else {
+                                        self.options.time_ms
+                                    })
+                                    .wrapping_sub(
+                                        range_ns.wrapping_add(self.prepared.adjusted_offset(
+                                            selector_node,
+                                            &selector.modifiers,
+                                            self.options.start_ms,
+                                        )) / 1_000_000,
+                                    ),
+                                    data_bounds: Some(self.data_bounds),
                                 },
                                 kind,
                                 self.statistics_window(selector_node, range_ns, end_ms),
@@ -1166,14 +1238,12 @@ impl<'a, Q: QueryProvider + 'a> Machine<'a, Q> {
                             result.value.map(|value| (self.options.time_ms, value))
                         }
                         SelectorOperation::Fold { kind, range_ns } => {
-                            let Some(start_ms) =
-                                end_ms.wrapping_sub(range_ns / 1_000_000).checked_add(1)
-                            else {
+                            let Some(bounds) = self.matrix_bounds(end_ms, range_ns) else {
                                 continue;
                             };
                             let result = fold(
                                 series,
-                                TimeBounds { start_ms, end_ms },
+                                bounds,
                                 kind,
                                 FoldOptions {
                                     start_timestamps: self.options.start_timestamps,
@@ -1206,6 +1276,57 @@ impl<'a, Q: QueryProvider + 'a> Machine<'a, Q> {
                                 }
                             }
                             result.value.map(|value| (self.options.time_ms, value))
+                        }
+                        SelectorOperation::Numeric {
+                            function,
+                            parameters,
+                            range_ns,
+                        } => {
+                            let Some(bounds) = self.matrix_bounds(end_ms, range_ns) else {
+                                continue;
+                            };
+                            let result = range_numeric::evaluate(
+                                series,
+                                bounds,
+                                function,
+                                parameters,
+                                self.options.time_ms,
+                                self.control,
+                                self.account,
+                            )
+                            .map_err(|error| match error {
+                                NumericRangeError::Storage(error) => {
+                                    EvaluationError::Storage(error)
+                                }
+                                NumericRangeError::Factor { trend, value } => {
+                                    EvaluationError::Runtime(NumericRangeError::message(
+                                        trend,
+                                        value,
+                                        self.account,
+                                    ))
+                                }
+                            })?;
+                            if let Some(kind) = result.annotation
+                                && node == self.diagnostic_node
+                                && let Some(annotations) = &mut self.annotations
+                            {
+                                let Expr::Call { arguments, .. } =
+                                    &self.expression.arena[node].expression
+                                else {
+                                    unreachable!()
+                                };
+                                let argument = self.expression.arena.unparenthesized(arguments[0]);
+                                annotations.add(
+                                    kind,
+                                    label(&series_labels, b"__name__"),
+                                    self.expression.arena[argument].span,
+                                    &self.expression.source,
+                                    self.account,
+                                );
+                            }
+                            result
+                                .value
+                                .map(|value| (self.options.time_ms, OwnedValue::Float(value)))
                         }
                     };
                     if let Some((source_time_ms, value)) = value {
@@ -1327,7 +1448,7 @@ impl<'a, Q: QueryProvider + 'a> Machine<'a, Q> {
                         }
                     }
                 }
-                State::PointwiseParameters {
+                State::Parameters {
                     function,
                     parameters,
                     position,
@@ -1341,12 +1462,20 @@ impl<'a, Q: QueryProvider + 'a> Machine<'a, Q> {
                         let child = arguments[*position + 1];
                         self.push_all(child);
                     } else {
-                        let operation = MapOperation::Pointwise(PointwiseFunction::Float(
-                            *function,
-                            *parameters,
-                        ));
-                        self.frames[index].state = self.map(operation);
-                        self.push(arguments[0]);
+                        let (function, parameters) = (*function, *parameters);
+                        match function {
+                            ParameterizedFunction::Pointwise(function) => {
+                                let operation = MapOperation::Pointwise(PointwiseFunction::Float(
+                                    function, parameters,
+                                ));
+                                self.frames[index].state = self.map(operation);
+                                self.push(arguments[0]);
+                            }
+                            ParameterizedFunction::Range(function) => {
+                                self.frames[index].state =
+                                    self.range_call(node, function, parameters)?;
+                            }
+                        }
                     }
                 }
                 State::MixedBinary {

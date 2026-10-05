@@ -11,6 +11,23 @@ use crate::{
 use std::cmp::Ordering;
 use tokens::TokenKind;
 
+pub(crate) fn at_modifier_unsafe(name: &str) -> bool {
+    matches!(
+        name,
+        "days_in_month"
+            | "day_of_month"
+            | "day_of_week"
+            | "day_of_year"
+            | "hour"
+            | "minute"
+            | "month"
+            | "year"
+            | "predict_linear"
+            | "time"
+            | "timestamp"
+    )
+}
+
 pub(crate) fn invariants(
     expression: &ParsedExpression,
     control: &Control,
@@ -53,20 +70,7 @@ pub(crate) fn invariants(
                 function: Some(function),
                 arguments,
             } => {
-                let unsafe_function = matches!(
-                    function.name,
-                    "days_in_month"
-                        | "day_of_month"
-                        | "day_of_week"
-                        | "day_of_year"
-                        | "hour"
-                        | "minute"
-                        | "month"
-                        | "year"
-                        | "predict_linear"
-                        | "time"
-                        | "timestamp"
-                );
+                let unsafe_function = at_modifier_unsafe(function.name);
                 let fixed_timestamp = function.name == "timestamp"
                     && arguments.iter().all(|&arg| {
                         let child = expression.arena.unparenthesized(arg);

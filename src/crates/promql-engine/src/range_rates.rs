@@ -8,11 +8,11 @@ use crate::{
     histogram_stats::{StatisticsWindow, scan_statistics},
     histogram_work::{HistogramEvaluationError, HistogramWork},
     range_float::{
-        Extrapolation, RateKind, RateValue, RateWindow, extrapolation_factor, rate_with,
+        Extrapolation, RateInput, RateKind, RateValue, RateWindow, extrapolation_factor, rate_with,
         start_time_overlap, start_timestamp_reset, uses_first_start,
     },
     result::{OwnedHistogram, OwnedValue},
-    storage::{Control, Series, StorageError, TimeBounds},
+    storage::{Control, Series, StorageError},
     value::{SampleRef, SampleValueRef},
 };
 
@@ -55,19 +55,20 @@ impl RateOutput {
 
 pub(crate) fn evaluate<S: Series>(
     series: &S,
-    window: RateWindow,
+    input: impl Into<RateInput>,
     function: RateFunction,
     statistics: Option<StatisticsWindow>,
     control: &Control,
     account: &QueryAccounting,
 ) -> Result<RateOutput, StorageError> {
+    let input = input.into();
     let RateFunction::Extrapolated(kind) = function else {
         let RateFunction::Instant { counter } = function else {
             unreachable!()
         };
-        return instant(series, window, counter, statistics, control, account);
+        return instant(series, input, counter, statistics, control, account);
     };
-    let result = rate_with(series, window, kind, statistics, control, account)?;
+    let result = rate_with(series, input, kind, statistics, control, account)?;
     let mut output = RateOutput::default();
     if result.start_time_overlap {
         output.note(AnnotationKind::StartTimeOverlap);
@@ -80,18 +81,10 @@ pub(crate) fn evaluate<S: Series>(
             None
         }
         RateValue::Histogram => {
-            return extrapolated_histogram(series, window, kind, statistics, control, account);
+            return extrapolated_histogram(series, input, kind, statistics, control, account);
         }
     };
     Ok(output)
-}
-
-fn bounds(window: RateWindow) -> Option<TimeBounds> {
-    let start_ms = window.start_ms.checked_add(1)?;
-    (start_ms <= window.end_ms).then_some(TimeBounds {
-        start_ms,
-        end_ms: window.end_ms,
-    })
 }
 
 fn arithmetic_error(error: HistogramEvaluationError) -> StorageError {
@@ -142,13 +135,14 @@ impl HistogramPoint {
 
 fn extrapolated_histogram<S: Series>(
     series: &S,
-    window: RateWindow,
+    input: RateInput,
     kind: RateKind,
     statistics: Option<StatisticsWindow>,
     control: &Control,
     account: &QueryAccounting,
 ) -> Result<RateOutput, StorageError> {
-    let Some(bounds) = bounds(window) else {
+    let window = input.window;
+    let Some(bounds) = input.bounds() else {
         return Ok(RateOutput::default());
     };
     let mut first = None;
@@ -354,7 +348,7 @@ fn extrapolated_histogram<S: Series>(
     } else {
         None
     };
-    if uses_first_start(window, kind, first.time, first.start) {
+    if uses_first_start(input, kind, first.time, first.start) {
         if let Some(value) = &mut value {
             match value.arithmetic_checked(first.value.as_ref(), false, control, account) {
                 Ok(flags) => {
@@ -383,7 +377,7 @@ fn extrapolated_histogram<S: Series>(
         return Ok(output);
     };
     let Some(factor) = extrapolation_factor(
-        window,
+        input,
         kind,
         Extrapolation {
             first_time: first.time,
@@ -408,13 +402,14 @@ struct InstantPoint {
 }
 fn instant<S: Series>(
     series: &S,
-    window: RateWindow,
+    input: RateInput,
     counter: bool,
     statistics: Option<StatisticsWindow>,
     control: &Control,
     account: &QueryAccounting,
 ) -> Result<RateOutput, StorageError> {
-    let Some(bounds) = bounds(window) else {
+    let window = input.window;
+    let Some(bounds) = input.bounds() else {
         return Ok(RateOutput::default());
     };
     let mut first = None;
@@ -516,6 +511,7 @@ mod tests {
     use crate::{
         accounting::EngineAccounting,
         histogram::{NOT_RESET, Span},
+        storage::TimeBounds,
         test_storage::GeneratedSeries,
         value::{Sample, SampleValue},
     };
