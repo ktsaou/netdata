@@ -2,6 +2,7 @@
 // Sparse layout algorithms derive from Prometheus model/histogram; see NOTICE.
 use crate::accounting::{AccountedVec, AllocationContext};
 use crate::histogram::Span;
+use crate::histogram_work::{HistogramEvaluationError, HistogramWork};
 use crate::numerical::compensated_add;
 use std::fmt;
 
@@ -131,25 +132,30 @@ fn reduce_float_layout(
     buckets: &mut impl ReductionBuffer<f64>,
     origin: i32,
     target: i32,
-) -> Result<(usize, usize), HistogramError> {
+    work: HistogramWork<'_>,
+) -> Result<(usize, usize), HistogramEvaluationError> {
     let (mut written_spans, mut written_buckets) = (0, 0);
     let (mut index, mut last_target): (i32, i32) = (0, 0);
     let mut read_bucket = 0;
     for n in 0..spans.source_len() {
+        work.step(1)?;
         // Save the source span before its prefix can be overwritten in-place.
         let span = spans.source(n);
         if n > 0 && span.offset < 0 {
             return Err(HistogramError::NegativeOffset {
                 span: n + 1,
                 offset: span.offset,
-            });
+            }
+            .into());
         }
         index = index.wrapping_add(span.offset);
         for _ in 0..span.length {
+            work.step(1)?;
             if read_bucket >= buckets.source_len() {
                 return Err(HistogramError::TooFewBuckets {
                     have: buckets.source_len(),
-                });
+                }
+                .into());
             }
             let target_index = target_index(index, origin, target);
             let value = buckets.source(read_bucket);
@@ -197,7 +203,8 @@ fn reduce_float_layout(
         return Err(HistogramError::TooManyBuckets {
             need: read_bucket,
             have: buckets.source_len(),
-        });
+        }
+        .into());
     }
     Ok((written_spans, written_buckets))
 }
@@ -208,12 +215,24 @@ pub(crate) fn reduce_float_in_place(
     origin: i32,
     target: i32,
 ) -> Result<(), HistogramError> {
+    reduce_float_in_place_with(spans, buckets, origin, target, HistogramWork::default())
+        .map_err(HistogramEvaluationError::arithmetic)
+}
+
+pub(crate) fn reduce_float_in_place_with(
+    spans: &mut Option<AccountedVec<Span>>,
+    buckets: &mut Option<AccountedVec<f64>>,
+    origin: i32,
+    target: i32,
+    work: HistogramWork<'_>,
+) -> Result<(), HistogramEvaluationError> {
     // Keep arrays attached during unwinding; only returned errors assign nil outputs.
     let result = reduce_float_layout(
         &mut Reused(spans.as_deref_mut().unwrap_or(&mut [])),
         &mut Reused(buckets.as_deref_mut().unwrap_or(&mut [])),
         origin,
         target,
+        work,
     );
     let (span_count, bucket_count) = match result {
         Ok(counts) => counts,
@@ -232,13 +251,16 @@ pub(crate) fn reduce_float_in_place(
     Ok(())
 }
 
-pub(crate) fn reduce_float_copy(
+type FloatLayout = (Option<AccountedVec<Span>>, Option<AccountedVec<f64>>);
+
+pub(crate) fn reduce_float_copy_with(
     spans: Option<&[Span]>,
     buckets: Option<&[f64]>,
     origin: i32,
     target: i32,
     context: Option<&AllocationContext>,
-) -> (Option<AccountedVec<Span>>, Option<AccountedVec<f64>>) {
+    work: HistogramWork<'_>,
+) -> Result<FloatLayout, HistogramEvaluationError> {
     let mut spans = Copied {
         source: spans.unwrap_or(&[]),
         target: None,
@@ -249,10 +271,8 @@ pub(crate) fn reduce_float_copy(
         target: None,
         context,
     };
-    if let Err(error) = reduce_float_layout(&mut spans, &mut buckets, origin, target) {
-        panic!("{error}");
-    }
-    (spans.target, buckets.target)
+    reduce_float_layout(&mut spans, &mut buckets, origin, target, work)?;
+    Ok((spans.target, buckets.target))
 }
 
 fn remove_range<T: Copy>(values: &mut AccountedVec<T>, start: usize, length: usize) {

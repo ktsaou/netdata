@@ -2,7 +2,8 @@
 // Pinned Prometheus promql/functions.go:474–629,759–803; see NOTICE.
 use crate::{
     accounting::QueryAccounting,
-    storage::{Control, Series, StorageError, TimeBounds, scan},
+    histogram_stats::{StatisticsWindow, scan_statistics},
+    storage::{Control, Series, StorageError, TimeBounds},
     value::{SampleRef, SampleValueRef},
 };
 
@@ -73,10 +74,81 @@ pub(crate) fn start_time_overlap(previous_start: i64, previous_time: i64, start:
     start != 0 && start < previous_time && start != previous_start
 }
 
+pub(crate) fn uses_first_start(window: RateWindow, kind: RateKind, time: i64, start: i64) -> bool {
+    kind != RateKind::Delta && start != 0 && start > window.start_ms && start < time
+}
+
+pub(crate) struct Extrapolation {
+    pub(crate) first_time: i64,
+    pub(crate) last_time: i64,
+    pub(crate) first_start: i64,
+    pub(crate) count: usize,
+    pub(crate) first_value: f64,
+    pub(crate) result_value: f64,
+}
+
+pub(crate) fn extrapolation_factor(
+    window: RateWindow,
+    kind: RateKind,
+    points: Extrapolation,
+) -> Option<f64> {
+    let mut duration_to_start = points.first_time.wrapping_sub(window.start_ms) as f64 / 1000.0;
+    let mut duration_to_end = window.end_ms.wrapping_sub(points.last_time) as f64 / 1000.0;
+    let mut sampled_interval = points.last_time.wrapping_sub(points.first_time) as f64 / 1000.0;
+    let average_duration = if points.count > 1 {
+        sampled_interval / (points.count - 1) as f64
+    } else {
+        0.0
+    };
+    let threshold = average_duration * 1.1;
+    if uses_first_start(window, kind, points.first_time, points.first_start) {
+        duration_to_start = 0.0;
+        sampled_interval = points.last_time.wrapping_sub(points.first_start) as f64 / 1000.0;
+    } else if points.count == 1 {
+        return None;
+    } else {
+        if duration_to_start >= threshold {
+            duration_to_start = average_duration / 2.0;
+        }
+        if kind != RateKind::Delta {
+            let duration_to_zero = if points.result_value > 0.0 && points.first_value >= 0.0 {
+                sampled_interval * (points.first_value / points.result_value)
+            } else {
+                duration_to_start
+            };
+            if duration_to_zero < duration_to_start {
+                duration_to_start = duration_to_zero;
+            }
+        }
+    }
+    if duration_to_end >= threshold {
+        duration_to_end = average_duration / 2.0;
+    }
+    let mut factor = 1.0;
+    if sampled_interval != 0.0 {
+        factor = (sampled_interval + duration_to_start + duration_to_end) / sampled_interval;
+    }
+    if kind == RateKind::Rate {
+        factor /= crate::frontend::number::seconds(window.range_ns);
+    }
+    Some(factor)
+}
+
 pub fn rate<S: Series>(
     series: &S,
     window: RateWindow,
     kind: RateKind,
+    control: &Control,
+    account: &QueryAccounting,
+) -> Result<RateResult, StorageError> {
+    rate_with(series, window, kind, None, control, account)
+}
+
+pub(crate) fn rate_with<S: Series>(
+    series: &S,
+    window: RateWindow,
+    kind: RateKind,
+    statistics: Option<StatisticsWindow>,
     control: &Control,
     account: &QueryAccounting,
 ) -> Result<RateResult, StorageError> {
@@ -98,7 +170,7 @@ pub fn rate<S: Series>(
     let mut last = None;
     let mut count = 0usize;
     let mut histograms = false;
-    scan(series, bounds, control, account, |sample| {
+    scan_statistics(series, bounds, statistics, control, account, |sample| {
         if sample.value.is_stale() {
             return Ok(());
         }
@@ -127,7 +199,7 @@ pub fn rate<S: Series>(
     let mut overlap = false;
     if counter && count > 1 {
         let mut previous = None::<Point>;
-        scan(series, bounds, control, account, |sample| {
+        scan_statistics(series, bounds, statistics, control, account, |sample| {
             if sample.value.is_stale() {
                 return Ok(());
             }
@@ -154,46 +226,23 @@ pub fn rate<S: Series>(
             Ok(())
         })?;
     }
-    let mut duration_to_start = first.time.wrapping_sub(window.start_ms) as f64 / 1000.0;
-    let mut duration_to_end = window.end_ms.wrapping_sub(last.time) as f64 / 1000.0;
-    let mut sampled_interval = last.time.wrapping_sub(first.time) as f64 / 1000.0;
-    let average_duration = if count > 1 {
-        sampled_interval / (count - 1) as f64
-    } else {
-        0.0
-    };
-    let threshold = average_duration * 1.1;
-    if counter && first.start != 0 && first.start > window.start_ms && first.start < first.time {
-        duration_to_start = 0.0;
-        sampled_interval = last.time.wrapping_sub(first.start) as f64 / 1000.0;
+    if uses_first_start(window, kind, first.time, first.start) {
         result += first.value;
-    } else if count == 1 {
+    }
+    let Some(factor) = extrapolation_factor(
+        window,
+        kind,
+        Extrapolation {
+            first_time: first.time,
+            last_time: last.time,
+            first_start: first.start,
+            count,
+            first_value: first.value,
+            result_value: result,
+        },
+    ) else {
         return Ok(empty(RateValue::Empty));
-    } else {
-        if duration_to_start >= threshold {
-            duration_to_start = average_duration / 2.0;
-        }
-        if counter {
-            let duration_to_zero = if result > 0.0 && first.value >= 0.0 {
-                sampled_interval * (first.value / result)
-            } else {
-                duration_to_start
-            };
-            if duration_to_zero < duration_to_start {
-                duration_to_start = duration_to_zero;
-            }
-        }
-    }
-    if duration_to_end >= threshold {
-        duration_to_end = average_duration / 2.0;
-    }
-    let mut factor = 1.0;
-    if sampled_interval != 0.0 {
-        factor = (sampled_interval + duration_to_start + duration_to_end) / sampled_interval;
-    }
-    if kind == RateKind::Rate {
-        factor /= crate::frontend::number::seconds(window.range_ns);
-    }
+    };
     result *= factor;
     Ok(RateResult {
         value: RateValue::Float(result),

@@ -585,8 +585,8 @@ retained corpus has 2,788 variants classified for exact numeric comparison. Near
 are rejected, while fractional fill outputs retain their permitted tolerance.
 
 The full run after native histogram projections, timestamp support, intermediate ordering, native scalar/vector
-maps, native vector aggregation, request-context preparation and ordinary math/calendar calls matches 8,323 of
-21,442 variants, with zero completed semantic failures and 13,119 open variants at page sizes
+maps, native vector aggregation, request-context preparation, ordinary math/calendar calls and native/instant
+rates matches 9,126 of 21,442 variants, with zero completed semantic failures and 12,316 open variants at page sizes
 17 and 1024. Its 24 paired bit differences are
 NaN payload/sign differences from one original aggregation case. Further implementation and replay remain
 required. Separate fresh Go checks match
@@ -608,7 +608,8 @@ scaled input, without retaining the raw history.
 
 ## Remaining qualification
 
-The productive Rust path connects the owned frontend to typed page cursors, float rate/increase/delta,
+The productive Rust path connects the owned frontend to typed page cursors, float/native rate/increase/delta
+and irate/idelta,
 count/present/first/last/min/max over time, float/native histogram sum/average and float variance/stddev over time, timestamp extrema/endpoints,
 changes/resets, scalar/vector arithmetic
 and comparisons including power/remainder, float/native sum/avg/count/group and float min/max/stdvar/stddev with native ignored-input infos. Evaluation uses explicit frames,
@@ -697,6 +698,26 @@ in both builds at page sizes 1/17/1024, with thirty separately reported NaN-sign
 kernel replay still matches all 6,440 cases semantically; it reports ten NaN-sign differences in release and one
 in release-min, plus three unchanged differences between the source's numeric assertions and actual signed-zero
 bits. Native trimming and vector/vector operators remain required implementation.
+
+Ordinary native `rate`, `increase` and `delta` retain first/second/last histograms and replay schema and reset
+passes in source order. `irate` and `idelta` retain the last two relevant values, including transitions between
+float and histogram samples. Extrapolation shares the qualified float formula, including start-timestamp
+extension, zero-point correction and fractional range duration. Singleton start-timestamp rates preserve their
+source hint and uncompact layout; multi-sample and instant paths set gauge hints and compact at their source
+boundaries. Endpoint warnings, discarded interior-error annotations and custom-bound reconciliation infos retain
+their separate source phases. The existing statistics decoder supplies projected inputs below histogram
+count/sum/average; full-bucket replacement would emit extra infos and change reset behavior.
+
+Fresh independent source captures include 2,120 expressions: all 2,070 completed cases match every bit and exact
+diagnostics at pages 1/17/1024 in both builds; fifty subquery cases remain open. Original native/start-timestamp
+rate assertions remain unchanged. Generated 2,048-versus-100,000-sample histories keep equal workspace peaks
+for all five rate families at every page size, with one open cursor and independently released result owners.
+Checked schema-copy, reset, zero-threshold, layout, Add/Sub and integer-conversion paths count work and poll
+cancellation inside bucket loops. Their temporary arrays and shifted merge cells are accounted. Native Kahan
+aggregation and other remaining callers still require those interruption hooks; this rate qualification does
+not establish complete runtime accounting or full expression/C compatibility. Replaying the shared 6,440-case
+histogram helpers preserves their ten/one NaN-sign differences in release/release-min and three declared-bit
+reports. Replaying all 1,270 statistics helpers preserves their eight paired and fourteen declared-bit reports.
 
 Selectors under histogram count/sum/average use the source's statistics decoding for ordinary range folds.
 Subqueries, bucket-dependent histogram functions and trimming disable it. One tracked full histogram supplies

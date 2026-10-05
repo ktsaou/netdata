@@ -14,7 +14,8 @@ use crate::{
     histogram_stats::StatisticsWindow,
     label_hash,
     query_preparation::Prepared,
-    range_float::{RateKind, RateValue, RateWindow, rate},
+    range_float::RateWindow,
+    range_rates::{self, RateFunction},
     range_reduce::{FoldKind, FoldOptions, RangeFunction, fold},
     result::{OwnedLabels, OwnedValue},
     storage::{
@@ -69,7 +70,7 @@ pub(crate) struct EvaluatedSample {
 #[derive(Clone, Copy, Debug)]
 enum SelectorOperation {
     Instant,
-    Rate { kind: RateKind, range_ns: i64 },
+    Rate { kind: RateFunction, range_ns: i64 },
     Fold { kind: FoldKind, range_ns: i64 },
 }
 impl SelectorOperation {
@@ -384,6 +385,31 @@ impl<'a, Q: QueryProvider + 'a> Machine<'a, Q> {
                 / 1_000_000,
         )
     }
+    fn statistics_window(
+        &self,
+        node: NodeId,
+        range_ns: i64,
+        end_ms: i64,
+    ) -> Option<StatisticsWindow> {
+        let selector = self.selector(node);
+        selector.skip_histogram_buckets.then_some(StatisticsWindow {
+            first_end_ms: if selector.modifiers.timestamp.is_some()
+                || selector.modifiers.start_or_end.is_some()
+            {
+                end_ms
+            } else {
+                self.options.start_ms.wrapping_sub(
+                    self.prepared
+                        .offset(node, selector.modifiers.original_offset)
+                        / 1_000_000,
+                )
+            },
+            range_ms: range_ns / 1_000_000,
+            step_ms: self.options.step_ms,
+            data_bounds: self.data_bounds,
+        })
+    }
+
     fn select(
         &self,
         selector_node: NodeId,
@@ -1083,7 +1109,7 @@ impl<'a, Q: QueryProvider + 'a> Machine<'a, Q> {
                             }
                         }
                         SelectorOperation::Rate { kind, range_ns } => {
-                            let result = rate(
+                            let result = range_rates::evaluate(
                                 series,
                                 RateWindow {
                                     start_ms: end_ms.wrapping_sub(range_ns / 1_000_000),
@@ -1092,6 +1118,7 @@ impl<'a, Q: QueryProvider + 'a> Machine<'a, Q> {
                                     start_timestamps: self.options.start_timestamps,
                                 },
                                 kind,
+                                self.statistics_window(selector_node, range_ns, end_ms),
                                 self.control,
                                 self.account,
                             )?;
@@ -1106,26 +1133,17 @@ impl<'a, Q: QueryProvider + 'a> Machine<'a, Q> {
                                 let argument = self.expression.arena.unparenthesized(arguments[0]);
                                 let span = self.expression.arena[argument].span;
                                 let metric = label(&series_labels, b"__name__");
-                                if result.start_time_overlap {
+                                for kind in result.annotations.into_iter().flatten() {
                                     annotations.add(
-                                        AnnotationKind::StartTimeOverlap,
+                                        kind,
                                         metric,
                                         span,
                                         &self.expression.source,
                                         self.account,
                                     );
                                 }
-                                if matches!(result.value, RateValue::Mixed) {
-                                    annotations.add(
-                                        AnnotationKind::MixedFloatsHistograms,
-                                        metric,
-                                        span,
-                                        &self.expression.source,
-                                        self.account,
-                                    );
-                                }
-                                if kind != RateKind::Delta
-                                    && matches!(result.value, RateValue::Float(_))
+                                if kind.checks_counter_name()
+                                    && matches!(result.value, Some(OwnedValue::Float(_)))
                                     && !metric.is_empty()
                                     && ![
                                         &b"_total"[..],
@@ -1145,18 +1163,7 @@ impl<'a, Q: QueryProvider + 'a> Machine<'a, Q> {
                                     );
                                 }
                             }
-                            match result.value {
-                                RateValue::Float(value) => {
-                                    Some((self.options.time_ms, OwnedValue::Float(value)))
-                                }
-                                RateValue::Empty => None,
-                                RateValue::Mixed => None,
-                                RateValue::Histogram => {
-                                    return Err(EvaluationError::Unsupported(
-                                        "histogram rate kernel",
-                                    ));
-                                }
-                            }
+                            result.value.map(|value| (self.options.time_ms, value))
                         }
                         SelectorOperation::Fold { kind, range_ns } => {
                             let Some(start_ms) =
@@ -1170,24 +1177,10 @@ impl<'a, Q: QueryProvider + 'a> Machine<'a, Q> {
                                 kind,
                                 FoldOptions {
                                     start_timestamps: self.options.start_timestamps,
-                                    statistics: selector.skip_histogram_buckets.then_some(
-                                        StatisticsWindow {
-                                            first_end_ms: if selector.modifiers.timestamp.is_some()
-                                                || selector.modifiers.start_or_end.is_some()
-                                            {
-                                                end_ms
-                                            } else {
-                                                self.options.start_ms.wrapping_sub(
-                                                    self.prepared.offset(
-                                                        selector_node,
-                                                        selector.modifiers.original_offset,
-                                                    ) / 1_000_000,
-                                                )
-                                            },
-                                            range_ms: range_ns / 1_000_000,
-                                            step_ms: self.options.step_ms,
-                                            data_bounds: self.data_bounds,
-                                        },
+                                    statistics: self.statistics_window(
+                                        selector_node,
+                                        range_ns,
+                                        end_ms,
                                     ),
                                 },
                                 self.control,

@@ -116,9 +116,54 @@ impl OwnedHistogram {
     pub fn as_ref(&self) -> crate::histogram::FloatHistogramRef<'_> {
         self.payload.value.as_ref()
     }
-    pub(crate) fn copy_from_ref(&mut self, source: crate::histogram::FloatHistogramRef<'_>) {
+    pub(crate) fn copy_from_sample_checked(
+        &mut self,
+        source: SampleValueRef<'_>,
+        control: &crate::storage::Control,
+        account: &QueryAccounting,
+    ) -> Result<(), crate::storage::Interrupted> {
         let payload = &mut *self.payload;
-        source.copy_to_in(&mut payload.value, Some(&payload.context));
+        let work = crate::histogram_work::HistogramWork::new(control, account);
+        match source {
+            SampleValueRef::FloatHistogram(value) => {
+                value.copy_to_with(&mut payload.value, Some(&payload.context), work)
+            }
+            SampleValueRef::IntegerHistogram(value) => {
+                value.to_float_into_with(&mut payload.value, Some(&payload.context), work)
+            }
+            SampleValueRef::Float(_) => unreachable!("classified histogram value"),
+        }
+    }
+    pub(crate) fn copy_to_schema_checked(
+        &self,
+        schema: i32,
+        control: &crate::storage::Control,
+        account: &QueryAccounting,
+    ) -> Result<Self, crate::histogram_work::HistogramEvaluationError> {
+        let value = self.as_ref().copy_to_schema_with(
+            schema,
+            Some(&self.payload.context),
+            crate::histogram_work::HistogramWork::new(control, account),
+        )?;
+        Ok(Self::new(value, self.payload.context.clone()))
+    }
+    pub(crate) fn arithmetic_checked(
+        &mut self,
+        other: crate::histogram::FloatHistogramRef<'_>,
+        subtract: bool,
+        control: &crate::storage::Control,
+        account: &QueryAccounting,
+    ) -> Result<
+        crate::histogram::HistogramArithmetic,
+        crate::histogram_work::HistogramEvaluationError,
+    > {
+        let payload = &mut *self.payload;
+        payload.value.add_or_sub_with(
+            other,
+            subtract,
+            Some(&payload.context),
+            crate::histogram_work::HistogramWork::new(control, account),
+        )
     }
     pub(crate) fn copy(&self) -> Self {
         Self::new(
@@ -232,16 +277,44 @@ impl OwnedValue {
         account: &QueryAccounting,
         kind: MemoryKind,
     ) -> Self {
+        Self::copy_from_with(
+            value,
+            account,
+            kind,
+            crate::histogram_work::HistogramWork::default(),
+        )
+        .expect("inert histogram work")
+    }
+    pub(crate) fn copy_from_checked(
+        value: SampleValueRef<'_>,
+        control: &crate::storage::Control,
+        account: &QueryAccounting,
+        kind: MemoryKind,
+    ) -> Result<Self, crate::storage::Interrupted> {
+        Self::copy_from_with(
+            value,
+            account,
+            kind,
+            crate::histogram_work::HistogramWork::new(control, account),
+        )
+    }
+    fn copy_from_with(
+        value: SampleValueRef<'_>,
+        account: &QueryAccounting,
+        kind: MemoryKind,
+        work: crate::histogram_work::HistogramWork<'_>,
+    ) -> Result<Self, crate::storage::Interrupted> {
+        work.step(1)?;
         if let SampleValueRef::Float(value) = value {
-            return Self::Float(value);
+            return Ok(Self::Float(value));
         }
         let context = AllocationContext::new(account, kind);
         let value = match value {
             SampleValueRef::Float(_) => unreachable!(),
-            SampleValueRef::IntegerHistogram(value) => value.to_float_in(Some(&context)),
-            SampleValueRef::FloatHistogram(value) => value.to_owned_in(Some(&context)),
+            SampleValueRef::IntegerHistogram(value) => value.to_float_with(Some(&context), work)?,
+            SampleValueRef::FloatHistogram(value) => value.to_owned_with(Some(&context), work)?,
         };
-        Self::Histogram(OwnedHistogram::new(value, context))
+        Ok(Self::Histogram(OwnedHistogram::new(value, context)))
     }
     fn copy_result_from(value: SampleValueRef<'_>, account: &QueryAccounting) -> Self {
         let SampleValueRef::FloatHistogram(histogram) = value else {

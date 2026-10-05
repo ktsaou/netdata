@@ -7,6 +7,8 @@ use crate::{
         token as tokens,
     },
     histogram::{COUNTER_RESET, FloatHistogramRef, NOT_RESET},
+    histogram_counter::detect_reset_with,
+    histogram_work::HistogramWork,
     result::{OwnedHistogram, OwnedValue},
     storage::{Control, Interrupted, Series, StorageError, TimeBounds, scan},
     value::{SampleRef, SampleValueRef},
@@ -120,7 +122,7 @@ impl StatisticsDecoder {
             SampleValueRef::FloatHistogram(histogram) => histogram,
             SampleValueRef::IntegerHistogram(_) => {
                 let OwnedValue::Histogram(histogram) =
-                    OwnedValue::copy_from(value, account, MemoryKind::Workspace)
+                    OwnedValue::copy_from_checked(value, control, account, MemoryKind::Workspace)?
                 else {
                     unreachable!()
                 };
@@ -134,21 +136,31 @@ impl StatisticsDecoder {
             if hint == 0
                 && let Some(previous) = &self.last
             {
-                hint = if histogram.detect_reset(previous.as_ref()) {
+                hint = if detect_reset_with(
+                    histogram,
+                    previous.as_ref(),
+                    HistogramWork::new(control, account),
+                )? {
                     COUNTER_RESET
                 } else {
                     NOT_RESET
                 };
             }
             if let Some(previous) = &mut self.last {
-                previous.copy_from_ref(histogram);
+                previous.copy_from_sample_checked(
+                    SampleValueRef::FloatHistogram(histogram),
+                    control,
+                    account,
+                )?;
                 previous.set_reset_hint(hint);
             } else {
-                let OwnedValue::Histogram(mut histogram) = OwnedValue::copy_from(
+                let OwnedValue::Histogram(mut histogram) = OwnedValue::copy_from_checked(
                     SampleValueRef::FloatHistogram(histogram),
+                    control,
                     account,
                     MemoryKind::Workspace,
-                ) else {
+                )?
+                else {
                     unreachable!()
                 };
                 histogram.set_reset_hint(hint);

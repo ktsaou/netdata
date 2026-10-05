@@ -34,6 +34,8 @@ impl HistogramOperation {
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum AnnotationKind {
     PossibleNonCounter,
+    NativeHistogramNotCounter,
+    NativeHistogramNotGauge,
     MixedFloatsHistograms,
     MixedFloatsHistogramsAggregation,
     StartTimeOverlap,
@@ -57,6 +59,8 @@ impl AnnotationKind {
             | Self::MismatchedCustomBuckets(_)
             | Self::IncompatibleBinaryTypes { .. } => Severity::Info,
             Self::MixedFloatsHistograms
+            | Self::NativeHistogramNotCounter
+            | Self::NativeHistogramNotGauge
             | Self::MixedFloatsHistogramsAggregation
             | Self::StartTimeOverlap
             | Self::MixedExponentialCustomHistograms
@@ -67,6 +71,12 @@ impl AnnotationKind {
         match self {
             Self::PossibleNonCounter => {
                 "PromQL info: metric might not be a counter, name does not end in _total/_sum/_count/_bucket: "
+            }
+            Self::NativeHistogramNotCounter => {
+                "PromQL warning: this native histogram metric is not a counter: "
+            }
+            Self::NativeHistogramNotGauge => {
+                "PromQL warning: this native histogram metric is not a gauge: "
             }
             Self::MixedFloatsHistograms => {
                 "PromQL warning: encountered a mix of histograms and floats for metric name "
