@@ -34,6 +34,7 @@ pub mod numerical;
 mod numerical_exponential;
 mod numerical_math;
 mod query_bounds;
+mod query_preparation;
 pub mod range_float;
 mod range_reduce;
 pub mod result;

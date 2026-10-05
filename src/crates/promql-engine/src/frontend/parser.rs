@@ -1112,6 +1112,9 @@ where
                             self.take();
                             let wrapped = mode == Mode::Offset && self.peek().kind == LEFT_PAREN;
                             let chained = mode.is_offset() && matches!(self.peek().kind, ADD | SUB);
+                            if chained {
+                                frames.push(Frame::Rest(0, Mode::Duration));
+                            }
                             frames.push(Frame::Unary(
                                 item,
                                 if chained { Mode::Duration } else { mode },
@@ -1320,6 +1323,10 @@ where
                     } else {
                         self.experimental_duration(child);
                         values.push(self.wrap_duration(child, open.span.start, close.span.end));
+                        if mode == Mode::Offset {
+                            // Leading parentheses use the general duration alternative, including lookahead.
+                            frames.push(Frame::Rest(0, Mode::Duration));
+                        }
                     }
                 }
                 Frame::Binary {
@@ -1537,4 +1544,69 @@ fn description(item: &Item<'_>) -> String {
         quote::bytes(&item.value)
     };
     format!("{kind} {value}")
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::frontend::regex::Selector;
+
+    fn expression(query: &str) -> ParseOutput {
+        let output = parse(query.as_bytes(), ParserOptions::default(), |pattern| {
+            Selector::compile_in(pattern, None)
+        });
+        assert!(output.errors.is_empty(), "{query}: {:?}", output.errors);
+        output
+    }
+
+    #[test]
+    fn parenthesized_offsets_follow_the_duration_fallback_grammar() {
+        for (query, selector_root) in [
+            ("m offset (1s) + 1", true),
+            ("m offset (1s) ^ 2", true),
+            ("m offset --1s + 1", true),
+            ("m offset +(1s) + 1", false),
+            ("m offset -(1s) + 1", false),
+            ("m offset 1s + 1", false),
+            ("m offset step() + 1", false),
+            ("m offset min_of(1s,2s) + 1", false),
+        ] {
+            let output = expression(query);
+            assert_eq!(
+                matches!(
+                    output.arena[output.root.unwrap()].expression,
+                    Expr::Selector(_)
+                ),
+                selector_root,
+                "{query}"
+            );
+        }
+    }
+
+    #[test]
+    fn parenthesized_offsets_retain_source_lookahead_positions() {
+        for (query, include_enclosing_close) in [
+            ("abs(m offset (1s*1))", true),
+            ("abs(m offset --1s)", true),
+            ("abs(m offset +(1s*1))", false),
+            ("abs(m offset 1s)", false),
+            ("abs(m offset step())", false),
+        ] {
+            let output = expression(query);
+            let selector = output
+                .arena
+                .nodes
+                .iter()
+                .find(|node| matches!(node.expression, Expr::Selector(_)))
+                .unwrap();
+            assert_eq!(
+                selector.span,
+                Span {
+                    start: 4,
+                    end: query.len() - usize::from(!include_enclosing_close)
+                },
+                "{query}"
+            );
+        }
+    }
 }

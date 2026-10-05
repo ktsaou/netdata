@@ -1,6 +1,94 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Exponential reduction and scaling derive from the pinned Go math package; see NOTICE.
 
+pub(crate) fn fma_supported() -> bool {
+    #[cfg(target_arch = "x86_64")]
+    {
+        std::is_x86_feature_detected!("avx") && std::is_x86_feature_detected!("fma")
+    }
+    #[cfg(not(target_arch = "x86_64"))]
+    {
+        false
+    }
+}
+
+pub fn exp(value: f64) -> f64 {
+    exp_kernel(value, fma_supported())
+}
+
+pub(crate) fn exp_kernel(value: f64, fused: bool) -> f64 {
+    const LOG_2_E: f64 = f64::from_bits(0x3ff7_1547_652b_82fe);
+    const LN_2_UPPER: f64 = f64::from_bits(0x3fe6_2e42_fefa_3000);
+    const LN_2_LOWER: f64 = f64::from_bits(0x3d53_de6a_f278_ece6);
+    const OVERFLOW: f64 = f64::from_bits(0x4086_2e42_fefa_39ef);
+    const COEFFICIENTS: [f64; 8] = [
+        f64::from_bits(0x3efa_01a0_1a01_a01a),
+        f64::from_bits(0x3f2a_01a0_1a01_a01a),
+        f64::from_bits(0x3f56_c16c_16c1_6c17),
+        f64::from_bits(0x3f81_1111_1111_1111),
+        f64::from_bits(0x3fa5_5555_5555_5555),
+        f64::from_bits(0x3fc5_5555_5555_5555),
+        0.5,
+        1.0,
+    ];
+    if value.to_bits() & !(1 << 63) >= f64::INFINITY.to_bits() {
+        return if value == f64::NEG_INFINITY {
+            0.0
+        } else {
+            value
+        };
+    }
+    if value > OVERFLOW {
+        return f64::INFINITY;
+    }
+    let rounded = (value * LOG_2_E).round_ties_even();
+    // CVTSD2SL returns its integer-indefinite value on an out-of-range conversion.
+    let exponent = if rounded < f64::from(i32::MIN) || rounded > f64::from(i32::MAX) {
+        i32::MIN
+    } else {
+        rounded as i32
+    };
+    let scale = f64::from(exponent);
+    let residual = if fused {
+        (-scale).mul_add(LN_2_LOWER, (-scale).mul_add(LN_2_UPPER, value))
+    } else {
+        (value - scale * LN_2_UPPER) - scale * LN_2_LOWER
+    } * 0.0625;
+    let mut polynomial = COEFFICIENTS[0];
+    for &coefficient in &COEFFICIENTS[1..] {
+        polynomial = if fused {
+            polynomial.mul_add(residual, coefficient)
+        } else {
+            polynomial * residual + coefficient
+        };
+    }
+    let mut result = residual * polynomial;
+    for _ in 0..3 {
+        result *= 2.0 + result;
+    }
+    result = if fused {
+        result.mul_add(2.0 + result, 1.0)
+    } else {
+        result * (2.0 + result) + 1.0
+    };
+    let biased = exponent.wrapping_add(1023);
+    if biased >= 2047 {
+        return f64::INFINITY;
+    }
+    if biased <= 0 {
+        if biased < -52 {
+            return 0.0;
+        }
+        return (result * f64::from_bits(((biased + 1022) as u64) << 52)) * f64::MIN_POSITIVE;
+    }
+    result * f64::from_bits((biased as u64) << 52)
+}
+
+#[cfg(any(test, feature = "fixtures"))]
+pub fn exp_dispatch(value: f64, fused: bool) -> f64 {
+    exp_kernel(value, fused)
+}
+
 pub fn ldexp(mut fraction: f64, mut exponent: isize) -> f64 {
     if fraction == 0.0 || !fraction.is_finite() {
         return fraction;

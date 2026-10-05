@@ -78,3 +78,257 @@ pub fn sqrt(value: f64) -> f64 {
     // Go's public Sqrt lowers to this same hardware primitive on qualified targets.
     value.sqrt()
 }
+
+pub fn min(left: f64, right: f64) -> f64 {
+    if left == f64::NEG_INFINITY || right == f64::NEG_INFINITY {
+        f64::NEG_INFINITY
+    } else if left.is_nan() || right.is_nan() {
+        NAN
+    } else if left == 0.0 && right == 0.0 {
+        if left.is_sign_negative() { left } else { right }
+    } else if left < right {
+        left
+    } else {
+        right
+    }
+}
+
+pub fn max(left: f64, right: f64) -> f64 {
+    if left == f64::INFINITY || right == f64::INFINITY {
+        f64::INFINITY
+    } else if left.is_nan() || right.is_nan() {
+        NAN
+    } else if left == 0.0 && right == 0.0 {
+        if left.is_sign_negative() { right } else { left }
+    } else if left > right {
+        left
+    } else {
+        right
+    }
+}
+
+fn completed(result: Result<f64, std::convert::Infallible>) -> f64 {
+    match result {
+        Ok(value) => value,
+        Err(never) => match never {},
+    }
+}
+
+pub fn modulo(left: f64, right: f64) -> f64 {
+    completed(modulo_with(left, right, || Ok(())))
+}
+
+pub fn modulo_with<E>(
+    left: f64,
+    right: f64,
+    mut check: impl FnMut() -> Result<(), E>,
+) -> Result<f64, E> {
+    if right == 0.0 || left.is_infinite() || left.is_nan() || right.is_nan() {
+        return Ok(NAN);
+    }
+    let divisor = right.abs();
+    let (divisor_fraction, divisor_exponent) = frexp(divisor);
+    let mut remainder = if left < 0.0 { -left } else { left };
+    while remainder >= divisor {
+        check()?;
+        let (fraction, mut exponent) = frexp(remainder);
+        if fraction < divisor_fraction {
+            exponent -= 1;
+        }
+        remainder -=
+            crate::numerical_exponential::ldexp(divisor, (exponent - divisor_exponent) as isize);
+    }
+    Ok(if left < 0.0 { -remainder } else { remainder })
+}
+
+fn odd_integer(value: f64) -> bool {
+    value.abs() < (1_u64 << 53) as f64 && value == value.trunc() && value as i64 & 1 == 1
+}
+
+pub fn pow(left: f64, right: f64) -> f64 {
+    completed(pow_with(left, right, || Ok(())))
+}
+
+pub fn pow_with<E>(left: f64, right: f64, check: impl FnMut() -> Result<(), E>) -> Result<f64, E> {
+    pow_kernel(
+        left,
+        right,
+        crate::numerical_exponential::fma_supported(),
+        check,
+    )
+}
+
+fn pow_kernel<E>(
+    left: f64,
+    right: f64,
+    fused: bool,
+    mut check: impl FnMut() -> Result<(), E>,
+) -> Result<f64, E> {
+    if right == 0.0 || left == 1.0 {
+        return Ok(1.0);
+    }
+    if right == 1.0 {
+        return Ok(left);
+    }
+    if left.is_nan() || right.is_nan() {
+        return Ok(NAN);
+    }
+    if left == 0.0 {
+        return Ok(if right < 0.0 {
+            if left.is_sign_negative() && odd_integer(right) {
+                f64::NEG_INFINITY
+            } else {
+                f64::INFINITY
+            }
+        } else if left.is_sign_negative() && odd_integer(right) {
+            left
+        } else {
+            0.0
+        });
+    }
+    if right.is_infinite() {
+        return Ok(if left == -1.0 {
+            1.0
+        } else if (left.abs() < 1.0) == (right == f64::INFINITY) {
+            0.0
+        } else {
+            f64::INFINITY
+        });
+    }
+    if left.is_infinite() {
+        return if left == f64::NEG_INFINITY {
+            pow_kernel(1.0 / left, -right, fused, check)
+        } else {
+            Ok(if right < 0.0 { 0.0 } else { f64::INFINITY })
+        };
+    }
+    if right == 0.5 {
+        return Ok(sqrt(left));
+    }
+    if right == -0.5 {
+        return Ok(1.0 / sqrt(left));
+    }
+    let mut integer = right.abs().trunc();
+    let mut fraction = right.abs() - integer;
+    if fraction != 0.0 && left < 0.0 {
+        return Ok(NAN);
+    }
+    if integer >= (1_u64 << 63) as f64 {
+        return Ok(if left == -1.0 {
+            1.0
+        } else if (left.abs() < 1.0) == (right > 0.0) {
+            0.0
+        } else {
+            f64::INFINITY
+        });
+    }
+    let mut result = 1.0;
+    let mut result_exponent = 0;
+    if fraction != 0.0 {
+        if fraction > 0.5 {
+            fraction -= 1.0;
+            integer += 1.0;
+        }
+        result = crate::numerical_exponential::exp_kernel(fraction * log(left), fused);
+    }
+    let (mut factor, mut exponent) = frexp(left);
+    let mut bits = integer as i64;
+    while bits != 0 {
+        check()?;
+        if !(-4096..=4096).contains(&exponent) {
+            result_exponent += exponent;
+            break;
+        }
+        if bits & 1 == 1 {
+            result *= factor;
+            result_exponent += exponent;
+        }
+        factor *= factor;
+        exponent <<= 1;
+        if factor < 0.5 {
+            factor += factor;
+            exponent -= 1;
+        }
+        bits >>= 1;
+    }
+    if right < 0.0 {
+        result = 1.0 / result;
+        result_exponent = -result_exponent;
+    }
+    Ok(crate::numerical_exponential::ldexp(
+        result,
+        result_exponent as isize,
+    ))
+}
+
+#[cfg(any(test, feature = "fixtures"))]
+pub fn pow_dispatch(left: f64, right: f64, fused: bool) -> f64 {
+    completed(pow_kernel(left, right, fused, || Ok(())))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn source_dispatch_changes_power_thresholds_and_preserves_special_values() {
+        let threshold = 0.3535533905932738;
+        let fused = pow_dispatch(0.5, 1.5, true);
+        let separate = pow_dispatch(0.5, 1.5, false);
+        assert_eq!(fused.to_bits(), 0x3fd6_a09e_667f_3bcd);
+        assert_eq!(separate.to_bits(), 0x3fd6_a09e_667f_3bcc);
+        assert!(fused >= threshold);
+        assert!(separate < threshold);
+        for (left, right, expected) in [
+            (-0.0, 0.5, 0),
+            (-0.0, 3.0, (-0.0_f64).to_bits()),
+            (-0.0, -3.0, f64::NEG_INFINITY.to_bits()),
+            (
+                f64::from_bits(0x7ff8_0000_0000_0123),
+                1.0,
+                0x7ff8_0000_0000_0123,
+            ),
+            (f64::from_bits(0x7ff8_0000_0000_0123), 2.0, NAN.to_bits()),
+        ] {
+            assert_eq!(pow(left, right).to_bits(), expected);
+        }
+        assert_eq!(min(f64::NEG_INFINITY, NAN), f64::NEG_INFINITY);
+        assert_eq!(max(NAN, f64::INFINITY), f64::INFINITY);
+        assert_eq!(min(0.0, -0.0).to_bits(), (-0.0_f64).to_bits());
+        assert_eq!(max(-0.0, 0.0).to_bits(), 0);
+        assert_eq!(modulo(-4.0, 2.0).to_bits(), (-0.0_f64).to_bits());
+        assert_eq!(modulo(-0.0, 2.0).to_bits(), (-0.0_f64).to_bits());
+        for fused in [false, true] {
+            assert_eq!(
+                crate::numerical_exponential::exp_dispatch(709.5, fused),
+                f64::INFINITY
+            );
+        }
+    }
+
+    #[test]
+    fn numerical_loops_observe_interruption_without_an_iteration_cap() {
+        let mut work = 0;
+        let result = modulo_with(f64::MAX, f64::from_bits(3), || {
+            work += 1;
+            if work == 5 {
+                Err("interrupted")
+            } else {
+                Ok(())
+            }
+        });
+        assert_eq!(result, Err("interrupted"));
+        assert_eq!(work, 5);
+        let mut work = 0;
+        let result = pow_with(1.01, 123.0, || {
+            work += 1;
+            if work == 3 {
+                Err("interrupted")
+            } else {
+                Ok(())
+            }
+        });
+        assert_eq!(result, Err("interrupted"));
+        assert_eq!(work, 3);
+    }
+}

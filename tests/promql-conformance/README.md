@@ -369,6 +369,13 @@ branch. Log2 retains the exact-power shortcut and ordered multiplication/additio
 primitive as Go's public intrinsic. Exp2 preserves the public generic reduction and polynomial order; Ldexp
 retains signed special values, subnormal scaling and machine-int wrapping. These operations use constant auxiliary memory.
 
+Power, remainder, min/max and natural exponential now follow the pinned source algorithms too. Exp uses Go's
+amd64 polynomial, scaling order and AVX/FMA dispatch; power reuses that dispatch for fractional exponents.
+All 547 additional math inputs match exact bits in both build profiles against the native Go run and separate
+FMA-disabled and AVX-disabled runs. The resulting power threshold and duration cases demonstrate that dispatch
+can change series membership. Variable power/remainder loops poll cancellation and account work without an
+iteration cap. Broader platform qualification remains required.
+
 The capture adds one test file through a Go overlay; it never changes installed source files. All six untouched
 original math tests run first, including the generic SqrtGo and Exp2Go assertions. Thirty-one exact AST source definitions
 and all 113 math/compiler source hashes are retained and checked. The public input ledger binds 4,336 original and
@@ -578,7 +585,7 @@ retained corpus has 2,788 variants classified for exact numeric comparison. Near
 are rejected, while fractional fill outputs retain their permitted tolerance.
 
 The full run after native histogram projections, timestamp support, intermediate ordering, native scalar/vector
-maps and native vector aggregation matches 6,753 of 21,442 variants, with zero completed semantic failures and 14,689 open variants at page sizes
+maps, native vector aggregation and request-context preparation matches 7,277 of 21,442 variants, with zero completed semantic failures and 14,165 open variants at page sizes
 17 and 1024. Its 24 paired bit differences are
 NaN payload/sign differences from one original aggregation case. Further implementation and replay remain
 required. Separate fresh Go checks match
@@ -603,13 +610,26 @@ scaled input, without retaining the raw history.
 The productive Rust path connects the owned frontend to typed page cursors, float rate/increase/delta,
 count/present/first/last/min/max over time, float/native histogram sum/average and float variance/stddev over time, timestamp extrema/endpoints,
 changes/resets, scalar/vector arithmetic
-and comparisons, float/native sum/avg/count/group and float min/max/stdvar/stddev with native ignored-input infos. Evaluation uses explicit frames,
+and comparisons including power/remainder, float/native sum/avg/count/group and float min/max/stdvar/stddev with native ignored-input infos. Evaluation uses explicit frames,
 whole-query label/group descriptors and replay; raw histories and complete raw instant vectors are not retained.
 Output uses synchronous provisional chunks followed by commit/abort, with a separately owned collector. Stable
 series identities retain legitimate duplicate projected labelsets and merge disjoint rows at cleanup owners.
 The optional collector materializes the complete output and can grow with it, including raw selector results;
 use the chunk interface to stream large outputs. Reported execution/collection methods retain counters on failures
 as well as successes; the convenience `Result` methods return counters only on success.
+Request preparation resolves duration expressions and original `start()`, `end()`, `range()` and `step()`
+contexts before storage opens. Context functions keep their upstream optional-function profile. The compiled
+plan stays immutable during concurrent executions; only queries with dynamic modifiers allocate a tracked
+24-byte duration entry per AST node. Explicit tracked frames evaluate durations in source order, retaining
+final validation, millisecond truncation, exact error spans and independently owned error bytes. Selectors,
+range folds and raw matrix output use the resolved offsets/ranges. Subquery execution remains required.
+Both builds match all 426 source preprocessing/bounds projections and 198 additional offset projections.
+Fresh source parser checks match 1,544 offset syntax/position cases, preserving direct literals/functions,
+single signs, parenthesized/chained duration continuations and the three modifier owners. The 356 original
+AST/error cases and 784 parser/profile cases remain exact. Of 444 contextual expression cases, 325 execute
+exactly and 119 still require subquery/info/other function reducers; all 198 power/duration expressions execute
+exactly at page sizes 1/17/1024 in both builds.
+
 Logical source diagnostics are shared immutable owned results. Replay does not multiply occurrences; fixed safe
 range calls emit diagnostics once while retaining every output step. Default duplicate failures discard unfinished
 subtree diagnostics, while delayed output-cleanup failures retain completed root diagnostics.
@@ -659,8 +679,11 @@ access and moving-seek state without retaining raw windows. Two direct pinned-Go
 distinguish unaccessed lookahead from an accessed endpoint; all 30 original nested reset-warning cases now pass.
 Repeated prefix I/O/work is accounted. Ordinary instant statistics replay now preserves future-current access
 before predecessor selection, repeated-current caching, different memoized/raw seek reset conditions and EOF.
-Finite static query-wide bounds include sibling selectors, original request endpoints, static subquery ranges and
-offsets. Dynamic durations and `info`'s implicit metadata scope remain required with their unfinished owners.
+Finite query-wide bounds include sibling selectors, original request endpoints, resolved dynamic durations and
+subquery ranges/offsets. The bounds also include `info`'s implicit metadata lookback, inferred from vector-producing
+paths and the call's ancestor scope. Heterogeneous or selector-free paths use the evaluation context; scalar
+paths and nested-info metadata arguments do not provide an inferred reference. Ordinary bounds traversal still
+visits both `info` arguments. Actual `info` evaluation remains required.
 Range statistics replay also decodes the excluded lower boundary when sibling selectors make it available.
 Its hint can affect SUM/AVG warnings and first/last values consumed by vector aggregation. All 396 fresh source
 boundary cases match exactly in both builds at page sizes 1/17/1024, including integer histograms, clipped input,

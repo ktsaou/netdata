@@ -9,7 +9,8 @@ use netdata_promql_engine::histogram::{
     histogram_sum,
 };
 use netdata_promql_engine::numerical::{
-    almost_equal, compensated_add, compensated_sub, exp2, frexp, ldexp, log, log2, sqrt,
+    almost_equal, compensated_add, compensated_sub, exp, exp_dispatch, exp2, frexp, ldexp, log,
+    log2, max, min, modulo, pow, pow_dispatch, sqrt,
 };
 use serde_json::{Value, json};
 
@@ -388,13 +389,30 @@ fn result(input: &Value) -> Result<Value, Error> {
             );
             json!(format!("{:016x}", result.to_bits()))
         }
-        "math-log" | "math-log2" | "math-sqrt" | "math-exp2" => {
+        "math-log" | "math-log2" | "math-sqrt" | "math-exp2" | "math-exp" => {
             let value = number(&request["input"])?;
             let result = match mode {
                 "math-log" => log(value),
                 "math-log2" => log2(value),
                 "math-exp2" => exp2(value),
+                "math-exp" => request["fused"]
+                    .as_bool()
+                    .map_or_else(|| exp(value), |fused| exp_dispatch(value, fused)),
                 _ => sqrt(value),
+            };
+            json!(format!("{:016x}", result.to_bits()))
+        }
+        "math-pow" | "math-mod" | "math-min" | "math-max" => {
+            let left = number(&request["input"])?;
+            let right = number(&request["right"])?;
+            let result = match mode {
+                "math-pow" => request["fused"].as_bool().map_or_else(
+                    || pow(left, right),
+                    |fused| pow_dispatch(left, right, fused),
+                ),
+                "math-mod" => modulo(left, right),
+                "math-min" => min(left, right),
+                _ => max(left, right),
             };
             json!(format!("{:016x}", result.to_bits()))
         }
