@@ -17,6 +17,9 @@ pub(crate) struct Descriptor {
     pub(crate) drop_name: bool,
     pub(crate) first_order: usize,
     pub(crate) sources: std::ops::Range<usize>,
+    pub(crate) kinds: u8,
+    // Only the earliest dual-kind logical step is needed to replay monotone vector reads.
+    pub(crate) collision_time_ms: Option<i64>,
 }
 pub(crate) struct GroupDescriptor {
     pub(crate) hash: u64,
@@ -48,8 +51,27 @@ impl Rosters {
             self.nodes[node.0].output = None;
         }
     }
-    pub(crate) fn output(&mut self, node: NodeId, mut descriptors: AccountedVec<Descriptor>) {
+    pub(crate) fn descriptors(&self, node: NodeId) -> &[Descriptor] {
+        self.nodes[node.0].output.as_deref().unwrap_or(&[])
+    }
+    pub(crate) fn output(
+        &mut self,
+        node: NodeId,
+        mut descriptors: AccountedVec<Descriptor>,
+        account: &QueryAccounting,
+    ) {
         descriptors.sort_unstable_by_key(|descriptor| descriptor.ordinal);
+        if descriptors
+            .iter()
+            .any(|descriptor| descriptor.collision_time_ms.is_some())
+        {
+            let mut sources = AccountedVec::new(account, MemoryKind::Workspace);
+            for descriptor in descriptors.iter_mut() {
+                descriptor.sources = sources.len()..sources.len() + 1;
+                sources.push(descriptor.ordinal);
+            }
+            self.nodes[node.0].sources = Some(sources);
+        }
         self.nodes[node.0].output = Some(descriptors);
     }
     pub(crate) fn ordered(&self, node: NodeId) -> Option<(&[Descriptor], &[usize])> {
@@ -76,6 +98,9 @@ impl Rosters {
             if let Some(previous) = output.last_mut()
                 && previous.hash == descriptor.hash
             {
+                previous.kinds |= descriptor.kinds;
+                previous.collision_time_ms =
+                    earliest(previous.collision_time_ms, descriptor.collision_time_ms);
                 if !sources[previous.sources.clone()].contains(&descriptor.ordinal) {
                     sources.push(descriptor.ordinal);
                     previous.sources.end = sources.len();
@@ -153,6 +178,12 @@ impl Rosters {
         }
         self.nodes[node.0].groups = Some(groups);
         Ok(())
+    }
+}
+pub(crate) fn earliest(left: Option<i64>, right: Option<i64>) -> Option<i64> {
+    match (left, right) {
+        (Some(left), Some(right)) => Some(left.min(right)),
+        (left, right) => left.or(right),
     }
 }
 pub(crate) fn group_key(labels: &mut OwnedLabels, grouping: Option<&[Vec<u8>]>, without: bool) {

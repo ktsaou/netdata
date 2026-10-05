@@ -83,6 +83,9 @@ The internal wire format has `schema_version: 1`.
 - Results: `kind`, complete `rows`, separate warning/info sets and an optional structured `error`. Errors retain
   request/construction/execution phase, upstream type, original message bytes and parser positions when available.
 - Strings use base64 `string`; a missing string field represents an empty string. Output histograms are float histograms.
+- Matrix output may contain a float and a histogram at the same timestamp. Timelines remain strictly increasing
+  within each kind; comparison pairs points by timestamp and kind. Equal-time cross-kind serialization order is
+  unspecified. Input timelines remain strictly increasing across all kinds, and vector rows contain one point.
 
 Run the oracle with dataset and request files:
 
@@ -670,8 +673,20 @@ promql/engine.go:1620, before final public result sorting. The implemented Rust 
 boundaries, including unary minus's eager alias-merging slow path. Provider, ordinary range-function, aggregation,
 instant and fixed safe expression order retain their source contracts. Step-invariance classification includes
 timestamp's fixed raw-selector exception. Equal full-label hashes merge different-step aliases with first-writer
-labels and flags; same-step duplicates still fail at their source boundary. Accounted descriptors and a flat
+labels and flags; ordinary vector operators reject same-step duplicate labelsets across types. Accounted descriptors and a flat
 ordinal-binding table support one requested row's exact replay. No raw point matrix or additional raw cache is retained.
+
+Unary matrix merging and delayed final cleanup retain separate float and histogram lists. Their duplicate checks
+reject overlapping timestamps within the same kind, while retaining equal-time float/histogram pairs. Unary and
+parentheses preserve both lists. Ordinary vector consumers prefer the float at a collision; the unconsumed histogram
+head then blocks later histograms in that query scope. A new instant query reconstructs its own scope. Public instant
+conversion instead prefers the histogram. Replay records only kind presence and the earliest colliding logical step;
+instant cleanup uses metadata cohorts and retains one selected value. It does not collect raw vectors or timelines.
+Highest invariant wrapper boundaries reject dual-kind rows with the source's `unexpected number of samples` error,
+including instant queries; an enclosing safe consumer may first reduce or ignore the mixed row successfully.
+Fresh Go witnesses cover 6,864 variants across seventeen datasets. Rust matches all 6,538 completed cases exactly
+in both builds at page sizes 1/17/1024; 326 native aggregation cases remain open. Permanent regressions cover matrix
+and vector consumption, scope-local blocking, fixed boundaries, negative times, page release and accounting cleanup.
 
 A repeated pinned-Go witness for `1 / min(m * 1) > bool 0` over positive and negative zero returned true 115 times
 and false 13 times in 128 default-profile requests; the optional profile returned true 118 times and false ten
@@ -683,7 +698,7 @@ the same policy and preserve source-defined ordering elsewhere.
 
 Replay repeatedly enumerates selection metadata and skips unneeded raw cursors. In a finite release fixture probe
 with three output steps and eight raw points per series, increasing from 32 to 128 series kept borrowed-page
-observations at 2,176 bytes. Workspace rose from 37,696 to 147,136 bytes for `m * 1`, while provider calls rose from
+observations at 2,176 bytes. Workspace rose from 40,320 to 157,440 bytes for `m * 1`, while provider calls rose from
 3,037 to 30,541. A second nested map increased the 128-series calls to 83,917. This confirms a metadata cost that
 can be quadratic and compounded by nested replay; it does not establish total RAM, production latency or
 dbengine performance. Metadata and independently collected output may grow; all admission limits remain disabled.

@@ -82,6 +82,33 @@ pub(crate) fn invariants(
     Ok(result)
 }
 
+pub(crate) fn invariant_boundaries(
+    expression: &ParsedExpression,
+    invariants: &[bool],
+    control: &Control,
+    account: &QueryAccounting,
+) -> Result<AccountedVec<bool>, Interrupted> {
+    let mut result = AccountedVec::new(account, MemoryKind::Compiled);
+    result.extend((0..expression.arena.nodes.len()).map(|_| false));
+    let mut tasks = AccountedVec::new(account, MemoryKind::Workspace);
+    tasks.push((expression.root, false));
+    while let Some((node, parent_invariant)) = tasks.pop() {
+        control.check()?;
+        account.work(1);
+        let value = &expression.arena[node].expression;
+        let invariant = invariants[node.0];
+        // Preprocessing wraps the highest safe expression, not each invariant descendant.
+        result[node.0] = invariant
+            && !parent_invariant
+            && !matches!(
+                value,
+                Expr::Matrix { .. } | Expr::Number { .. } | Expr::String(_)
+            );
+        tasks.extend(value.children().rev().map(|child| (child, invariant)));
+    }
+    Ok(result)
+}
+
 /// Metadata sorting is interruptible and uses no retained auxiliary array.
 pub(crate) fn sort<T>(
     values: &mut [T],
