@@ -8,10 +8,12 @@ use crate::{
         ast::{Expr, NodeId, ParsedExpression, ValueType, VectorSelector},
         token as tokens,
     },
+    histogram_functions,
+    histogram_stats::StatisticsWindow,
     label_hash,
     numerical::compensated_add,
     range_float::{RateKind, RateValue, RateWindow, rate},
-    range_reduce::{FoldKind, RangeFunction, fold},
+    range_reduce::{FoldKind, FoldOptions, RangeFunction, fold},
     result::{OwnedLabels, OwnedValue},
     storage::{
         Control, Interrupted, QueryProvider, ResourceLease, ResourceOwner, SelectionRequest,
@@ -80,12 +82,68 @@ impl SelectorOperation {
 #[derive(Clone, Copy, Debug)]
 enum MapOperation {
     Unary(TokenKind),
+    Pointwise(PointwiseFunction),
     Binary {
         operator: TokenKind,
         scalar: f64,
         scalar_left: bool,
         return_bool: bool,
     },
+}
+
+#[derive(Clone, Copy, Debug)]
+pub(crate) enum PointwiseFunction {
+    Timestamp,
+    HistogramCount,
+    HistogramSum,
+    HistogramAvg,
+    HistogramStdVar,
+    HistogramStdDev,
+}
+impl PointwiseFunction {
+    pub(crate) fn parse(name: &str) -> Option<Self> {
+        Some(match name {
+            "timestamp" => Self::Timestamp,
+            "histogram_count" => Self::HistogramCount,
+            "histogram_sum" => Self::HistogramSum,
+            "histogram_avg" => Self::HistogramAvg,
+            "histogram_stdvar" => Self::HistogramStdVar,
+            "histogram_stddev" => Self::HistogramStdDev,
+            _ => return None,
+        })
+    }
+    fn apply(
+        self,
+        sample: &EvaluatedSample,
+        account: &QueryAccounting,
+        control: &Control,
+    ) -> Result<Option<f64>, EvaluationError> {
+        if matches!(self, Self::Timestamp) {
+            return Ok(Some(sample.source_time_ms as f64 / 1000.0));
+        }
+        let OwnedValue::Histogram(histogram) = &sample.value else {
+            return Ok(None);
+        };
+        let histogram = histogram.as_ref();
+        let poll = || {
+            control.check()?;
+            account.work(1);
+            Ok::<(), EvaluationError>(())
+        };
+        Ok(Some(match self {
+            Self::HistogramCount => histogram_functions::histogram_count(histogram),
+            Self::HistogramSum => histogram_functions::histogram_sum(histogram),
+            Self::HistogramAvg => histogram_functions::histogram_avg(histogram),
+            Self::HistogramStdVar => histogram_functions::histogram_stdvar_with(histogram, poll)?,
+            Self::HistogramStdDev => crate::numerical_math::sqrt(
+                histogram_functions::histogram_stdvar_with(histogram, poll)?,
+            ),
+            Self::Timestamp => unreachable!(),
+        }))
+    }
+    fn drops_metadata(self) -> bool {
+        matches!(self, Self::Timestamp)
+    }
 }
 
 #[derive(Debug)]
@@ -490,6 +548,11 @@ impl<'a, Q: QueryProvider + 'a> Machine<'a, Q> {
                     Ok(None)
                 }
                 _ => {
+                    if let Some(function) = PointwiseFunction::parse(function.name) {
+                        self.frames[index].state = self.map(MapOperation::Pointwise(function));
+                        self.push(arguments[0]);
+                        return Ok(None);
+                    }
                     let function = RangeFunction::parse(function.name)
                         .ok_or(EvaluationError::Unsupported("function reducer"))?;
                     let argument = self.expression.arena.unparenthesized(arguments[0]);
@@ -531,18 +594,34 @@ impl<'a, Q: QueryProvider + 'a> Machine<'a, Q> {
             match &mut self.frames[index].state {
                 State::Pass => (),
                 State::Map { operation, seen } => {
-                    let OwnedValue::Float(value) = sample.value else {
-                        return Err(EvaluationError::Unsupported("histogram map kernel"));
-                    };
                     let (result, drop_name) = match *operation {
-                        MapOperation::Unary(TokenKind::SUB) => (-value, true),
-                        MapOperation::Unary(_) => (value, false),
+                        MapOperation::Pointwise(function) => {
+                            let Some(result) =
+                                function.apply(&sample, self.account, self.control)?
+                            else {
+                                return Ok(None);
+                            };
+                            (result, true)
+                        }
+                        MapOperation::Unary(operator) => {
+                            let OwnedValue::Float(value) = sample.value else {
+                                return Err(EvaluationError::Unsupported("histogram map kernel"));
+                            };
+                            if operator == TokenKind::SUB {
+                                (-value, true)
+                            } else {
+                                (value, false)
+                            }
+                        }
                         MapOperation::Binary {
                             operator,
                             scalar,
                             scalar_left,
                             return_bool,
                         } => {
+                            let OwnedValue::Float(value) = sample.value else {
+                                return Err(EvaluationError::Unsupported("histogram map kernel"));
+                            };
                             let (left, right) = if scalar_left {
                                 (scalar, value)
                             } else {
@@ -562,13 +641,21 @@ impl<'a, Q: QueryProvider + 'a> Machine<'a, Q> {
                     sample.value = OwnedValue::Float(result);
                     sample.drop_name |= drop_name;
                     if drop_name && !self.options.delayed_name_removal {
-                        sample.labels.retain(|name| !metadata(name));
+                        let name_only = matches!(operation,
+                            MapOperation::Pointwise(function) if !function.drops_metadata());
+                        sample.labels.retain(|name| {
+                            if name_only {
+                                name != b"__name__"
+                            } else {
+                                !metadata(name)
+                            }
+                        });
                     }
                     sample.source_time_ms = self.options.time_ms;
                     let duplicate_check = match operation {
                         MapOperation::Unary(TokenKind::SUB) => !self.options.delayed_name_removal,
                         MapOperation::Unary(_) => false,
-                        MapOperation::Binary { .. } => {
+                        MapOperation::Binary { .. } | MapOperation::Pointwise(_) => {
                             !self.options.delayed_name_removal
                                 || self.options.start_ms != self.options.end_ms
                         }
@@ -810,7 +897,24 @@ impl<'a, Q: QueryProvider + 'a> Machine<'a, Q> {
                                 series,
                                 TimeBounds { start_ms, end_ms },
                                 kind,
-                                self.options.start_timestamps,
+                                FoldOptions {
+                                    start_timestamps: self.options.start_timestamps,
+                                    statistics: selector.skip_histogram_buckets.then_some(
+                                        StatisticsWindow {
+                                            first_end_ms: if selector.modifiers.timestamp.is_some()
+                                                || selector.modifiers.start_or_end.is_some()
+                                            {
+                                                end_ms
+                                            } else {
+                                                self.options.start_ms.wrapping_sub(
+                                                    selector.modifiers.original_offset / 1_000_000,
+                                                )
+                                            },
+                                            range_ms: range_ns / 1_000_000,
+                                            step_ms: self.options.step_ms,
+                                        },
+                                    ),
+                                },
                                 self.control,
                                 self.account,
                             )?;

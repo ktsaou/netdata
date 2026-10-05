@@ -239,10 +239,18 @@ pub fn histogram_avg(h: FloatHistogramRef<'_>) -> f64 {
 }
 
 pub fn histogram_stdvar(h: FloatHistogramRef<'_>) -> f64 {
+    histogram_stdvar_with(h, || Ok::<(), std::convert::Infallible>(())).unwrap()
+}
+
+pub(crate) fn histogram_stdvar_with<E>(
+    h: FloatHistogramRef<'_>,
+    mut poll: impl FnMut() -> Result<(), E>,
+) -> Result<f64, E> {
     let mean = h.sum / h.count;
     let (mut variance, mut compensation) = (0.0, 0.0);
     let mut iterator = AllFloatBucketIterator::new(h, false);
     while iterator.advance() {
+        poll()?;
         let bucket = iterator.at();
         if bucket.count == 0.0 {
             continue;
@@ -260,7 +268,7 @@ pub fn histogram_stdvar(h: FloatHistogramRef<'_>) -> f64 {
         (variance, compensation) =
             compensated_add((bucket.count * delta) * delta, variance, compensation);
     }
-    (variance + compensation) / h.count
+    Ok((variance + compensation) / h.count)
 }
 
 pub fn histogram_stddev(h: FloatHistogramRef<'_>) -> f64 {
@@ -281,6 +289,61 @@ fn adjust_zero_bounds(bucket: &mut Bucket, histogram: FloatHistogramRef<'_>) {
 mod tests {
     use super::*;
     use crate::histogram::{FloatHistogram, Span};
+
+    #[test]
+    fn variance_poll_interrupts_bucket_traversal_without_mutating_input() {
+        use crate::{
+            accounting::{AllocationContext, EngineAccounting, MemoryKind},
+            storage::{Control, Interrupted},
+        };
+        let engine = EngineAccounting::default();
+        let account = engine.query();
+        let context = AllocationContext::new(&account, MemoryKind::Workspace);
+        let histogram = FloatHistogramRef {
+            reset_hint: 0,
+            schema: CUSTOM_BUCKETS_SCHEMA,
+            zero_threshold: 0.0,
+            zero_count: 0.0,
+            count: 2.0,
+            sum: 4.0,
+            positive_spans: Some(&[Span {
+                offset: 1,
+                length: 2,
+            }]),
+            positive_buckets: Some(&[1.0, 1.0]),
+            negative_spans: None,
+            negative_buckets: None,
+            custom_values: Some(&[0.0, 2.0, 4.0]),
+        }
+        .to_owned_in(Some(&context));
+        let control = Control::default();
+        let mut visited = 0;
+        let result = histogram_stdvar_with(histogram.as_ref(), || {
+            visited += 1;
+            if visited == 2 {
+                control.cancellation.cancel();
+            }
+            control.check()?;
+            account.work(1);
+            Ok::<(), Interrupted>(())
+        });
+        assert_eq!(result, Err(Interrupted::Cancelled));
+        assert_eq!(visited, 2);
+        assert_eq!(account.snapshot().work, 1);
+        assert_eq!(
+            histogram_stdvar(histogram.as_ref()).to_bits(),
+            1.0f64.to_bits()
+        );
+        assert_eq!(histogram.positive_buckets.as_deref(), Some(&[1.0, 1.0][..]));
+        drop(histogram);
+        assert!(
+            account
+                .snapshot()
+                .memory
+                .iter()
+                .all(|memory| memory.current == 0)
+        );
+    }
 
     #[test]
     fn long_borrowed_scans_preserve_caller_buffers_on_a_small_stack() {

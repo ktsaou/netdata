@@ -574,8 +574,8 @@ the classification of arithmetic and returned filter operands. Missing classific
 retained corpus has 2,788 variants classified for exact numeric comparison. Near-integer boolean/function mutations
 are rejected, while fractional fill outputs retain their permitted tolerance.
 
-The full run after native histogram sum/average range support matches 4,784 of 21,442 variants, with zero
-completed semantic failures and 16,658 open variants at page sizes 17 and 1024. Its 24 paired bit differences are
+The full run after native histogram projections and timestamp support matches 5,147 of 21,442 variants, with zero
+completed semantic failures and 16,295 open variants at page sizes 17 and 1024. Its 24 paired bit differences are
 NaN payload/sign differences from one original aggregation case. Further implementation and replay remain
 required. Separate fresh Go checks match
 192 typed reducer, start-timestamp and fixed-`@` executions exactly across page sizes 1, 17 and 1024.
@@ -627,6 +627,22 @@ capacity growth overlap, copied reductions, custom mapping scratch and discarded
 boundaries with an accumulator already retained. Accumulated bucket unions may still grow. These finite cases do
 not certify the complete language or C integration.
 
+Instant and single-step range evaluation supports `histogram_count`, `histogram_sum`, `histogram_avg`,
+`histogram_stdvar`, `histogram_stddev` and `timestamp`. Projections ignore floats; timestamp accepts both value
+types and distinguishes raw sample timestamps from derived evaluation timestamps. Eager metadata removal follows
+each source function; delayed removal occurs at final output. Duplicate checks and child diagnostics retain their
+source boundaries. Histogram variance polls cancellation during bucket traversal. Fresh Go checks match 1,364
+cases in both build profiles at page sizes 1, 17 and 1024; all 16 paired bit differences are NaN signs in nested
+nonfinite sums, reported separately from semantic comparison.
+
+Selectors under histogram count/sum/average use the source's statistics decoding for ordinary range folds.
+Subqueries, bucket-dependent histogram functions and trimming disable it. One tracked full histogram supplies
+reset detection; consumers receive only schema, count, sum and reset hint. Prefix replay reconstructs buffered
+access and moving-seek state without retaining raw windows. Two direct pinned-Go buffered iterator witnesses
+distinguish unaccessed lookahead from an accessed endpoint; all 30 original nested reset-warning cases now pass.
+Repeated prefix I/O/work is accounted. Statistics decoding for ordinary instant selectors remains required when
+native vector aggregation is integrated, which is still unsupported.
+
 Runtime accounting remains unfinished: control-object allocations, general frontend compilation temporaries and
 provider-internal transient peaks are not fully instrumented. Regex dependency/table estimates expose known
 limitations rather than exact allocator totals. Reported buffer capacities and exposed page ranges must not be read as exact total
@@ -634,11 +650,12 @@ query allocation or RSS. Provider callbacks return resource snapshots on every o
 are reconciled together. Unwinding skips additional provider callbacks, so a newly allocated panicking callback may
 have an unobserved peak. No configured resource or concurrency admission limit is enabled.
 
-The pinned reference has an unresolved ordering contract: intermediate multi-step results assembled by Go maps
+The pinned reference has an unspecified ordering contract: intermediate multi-step results assembled by Go maps
 can change a parent reduction and boolean outcome across identical requests. The source of this behavior is
 promql/engine.go:1620, before final public result sorting. Selection and ordinary range-function series order remain
-source-defined. A user decision on upstream-unspecified ordering is pending; affected multi-step binary paths
-explicitly return unsupported while the contract is unresolved. No numerical-contract relaxation is assumed.
+source-defined. The approved Rust policy is deterministic label-byte order at these unspecified boundaries;
+order-dependent outcomes will be explicitly qualified. Its implementation remains in progress, so affected
+multi-step binary and pointwise function paths currently return unsupported. No numerical tolerance is widened.
 
 The foundation represents the full value model and records required inputs. The following remain mandatory in the
 typed Rust core stage:

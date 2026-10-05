@@ -7,7 +7,8 @@ use crate::{
     },
     annotations::{AnnotationBuilder, Annotations},
     evaluator::{
-        EvaluationError, EvaluationMetadata, EvaluationOptions, Machine, metadata, remember_unique,
+        EvaluationError, EvaluationMetadata, EvaluationOptions, Machine, PointwiseFunction,
+        metadata, remember_unique,
     },
     evaluator_roster::{Descriptor, Rosters},
     frontend::{
@@ -133,11 +134,13 @@ impl Engine {
             if !output.errors.is_empty() {
                 return Err(CompileError::Parse(output.errors));
             }
-            let expression = ParsedExpression {
+            let mut expression = ParsedExpression {
                 source: source.into(),
                 arena: output.arena,
                 root: output.root.expect("valid expression has a root"),
             };
+            crate::histogram_stats::configure(&mut expression, control, &account)
+                .map_err(CompileError::Interrupted)?;
             let allocation = account.hold(MemoryKind::Compiled, compiled_bytes(&expression) as u64);
             Ok(CompiledQuery {
                 expression,
@@ -500,7 +503,9 @@ impl CompiledQuery {
             // The upstream multi-step map ordering contract is awaiting decision 9.
             if header.start_ms != header.end_ms
                 && self.expression.arena[node].value_type == ValueType::Vector
-                && matches!(expression, Expr::Binary { .. })
+                && (matches!(expression, Expr::Binary { .. })
+                    || matches!(expression, Expr::Call { function: Some(function), .. }
+                        if PointwiseFunction::parse(function.name).is_some()))
             {
                 return Err(EvaluationError::Unsupported(
                     "unordered intermediate matrix policy pending",
@@ -742,6 +747,183 @@ mod tests {
     use super::*;
     use crate::{result::OwnedValue, test_storage::FixtureProvider};
     use std::sync::atomic::Ordering;
+
+    #[test]
+    fn native_projections_filter_floats_and_preserve_source_metadata_policy() {
+        use crate::{
+            histogram::{FloatHistogram, HistogramBounds, Span},
+            value::{Sample, SampleValue},
+        };
+        fn sample(index: usize) -> Sample {
+            Sample {
+                time_ms: (index as i64 + 1) * 1000,
+                start_time_ms: 0,
+                value: if index == 1 {
+                    SampleValue::Float(12.0)
+                } else {
+                    SampleValue::FloatHistogram(FloatHistogram {
+                        schema: -53,
+                        count: 2.0,
+                        sum: if index == 3 {
+                            f64::from_bits(0x7ff0_0000_0000_0002)
+                        } else {
+                            4.0
+                        },
+                        positive_spans: Some(
+                            vec![Span {
+                                offset: 1,
+                                length: 2,
+                            }]
+                            .into(),
+                        ),
+                        positive_buckets: Some(vec![1.0, 1.0].into()),
+                        custom_values: Some(HistogramBounds::from(vec![0.0, 2.0, 4.0])),
+                        ..FloatHistogram::default()
+                    })
+                },
+            }
+        }
+        for page in [1, 17, 1024] {
+            let mut provider = FixtureProvider::new(4, page, 1);
+            provider.series[0].source.sample = sample;
+            provider.series[0].labels = vec![
+                (b"__name__".to_vec(), b"m".to_vec()),
+                (b"__type__".to_vec(), b"histogram".to_vec()),
+                (b"__unit__".to_vec(), b"seconds".to_vec()),
+                (b"job".to_vec(), b"x".to_vec()),
+            ];
+            for delayed in [false, true] {
+                for (function, expected) in [
+                    ("histogram_count", 2.0f64),
+                    ("histogram_sum", 4.0),
+                    ("histogram_avg", 2.0),
+                    ("histogram_stdvar", 1.0),
+                    ("histogram_stddev", 1.0),
+                ] {
+                    let engine = Engine::default();
+                    let control = Control::default();
+                    let query = engine
+                        .compile(
+                            format!("{function}(m)").as_bytes(),
+                            options(delayed),
+                            &control,
+                        )
+                        .unwrap();
+                    for time_ms in [1000, 2000, 3500, 4000] {
+                        let (result, observations) = query
+                            .collect(&provider, QueryRequest::Instant { time_ms }, &control)
+                            .unwrap();
+                        assert!(result.annotations.is_empty());
+                        assert_eq!(
+                            result.series.len(),
+                            usize::from(time_ms == 1000 || time_ms == 3500)
+                        );
+                        if let Some(series) = result.series.first() {
+                            assert_eq!(float_bits(&series.points[0]), expected.to_bits());
+                            assert_eq!(series.labels.0.len(), if delayed { 1 } else { 3 });
+                            assert!(
+                                series
+                                    .labels
+                                    .0
+                                    .iter()
+                                    .all(|label| label.name.as_ref() != b"__name__")
+                            );
+                        }
+                        assert_eq!(
+                            observations.memory[MemoryKind::Workspace as usize].current,
+                            0
+                        );
+                    }
+                    drop(query);
+                    assert!(
+                        engine
+                            .accounting
+                            .snapshot()
+                            .memory
+                            .iter()
+                            .all(|memory| memory.current == 0)
+                    );
+                }
+                let engine = Engine::default();
+                let control = Control::default();
+                for (source, expected) in [
+                    ("timestamp(m)", 3.0f64),
+                    ("timestamp(m @ 2)", 2.0),
+                    ("timestamp(m offset 1s)", 2.0),
+                    ("timestamp(timestamp(m))", 3.5),
+                    ("timestamp(histogram_sum(m))", 3.5),
+                    ("timestamp(last_over_time((m[3s])))", 3.5),
+                ] {
+                    let query = engine
+                        .compile(source.as_bytes(), options(delayed), &control)
+                        .unwrap();
+                    let (result, _) = query
+                        .collect(&provider, QueryRequest::Instant { time_ms: 3500 }, &control)
+                        .unwrap();
+                    assert_eq!(result.series.len(), 1);
+                    assert_eq!(
+                        float_bits(&result.series[0].points[0]),
+                        expected.to_bits(),
+                        "{source}"
+                    );
+                    assert_eq!(result.series[0].labels.0.len(), 1);
+                }
+                assert!(
+                    engine
+                        .accounting
+                        .snapshot()
+                        .memory
+                        .iter()
+                        .all(|memory| memory.current == 0)
+                );
+            }
+            provider.assert_closed();
+        }
+    }
+
+    #[test]
+    fn pointwise_calls_check_output_duplicates_and_keep_multi_step_order_open() {
+        let engine = Engine::default();
+        let control = Control::default();
+        let mut provider = FixtureProvider::new(1, 1, 2);
+        provider.series[1].labels = provider.series[0].labels.clone();
+        provider.series[0].labels[0].1 = b"a".to_vec();
+        provider.series[1].labels[0].1 = b"b".to_vec();
+        for delayed in [false, true] {
+            let query = engine
+                .compile(b"timestamp({job=\"worker\"})", options(delayed), &control)
+                .unwrap();
+            assert!(matches!(
+                query.collect(&provider, QueryRequest::Instant { time_ms: 1000 }, &control),
+                Err(ExecutionError::Evaluation(EvaluationError::Invalid(
+                    "vector cannot contain metrics with the same labelset"
+                )))
+            ));
+            assert!(matches!(
+                query.collect(
+                    &provider,
+                    QueryRequest::Range {
+                        start_ms: 1000,
+                        end_ms: 2000,
+                        step_ms: 1000
+                    },
+                    &control
+                ),
+                Err(ExecutionError::Evaluation(EvaluationError::Unsupported(
+                    "unordered intermediate matrix policy pending"
+                )))
+            ));
+        }
+        provider.assert_closed();
+        assert!(
+            engine
+                .accounting
+                .snapshot()
+                .memory
+                .iter()
+                .all(|memory| memory.current == 0)
+        );
+    }
 
     #[test]
     fn failed_compilation_releases_prior_matchers_and_retains_regex_error_bytes() {
@@ -1857,6 +2039,129 @@ mod tests {
                 assert_eq!(peaks[0], peaks[1], "{name} page {page_size}");
             }
         }
+    }
+
+    #[test]
+    fn histogram_statistics_decoding_detects_resets_only_on_safe_paths() {
+        use crate::{
+            annotations::{AnnotationKind, HistogramOperation},
+            value::SampleValue,
+        };
+
+        fn sample(index: usize) -> crate::value::Sample {
+            let mut sample = native_range_sample(index);
+            let SampleValue::FloatHistogram(histogram) = &mut sample.value else {
+                unreachable!()
+            };
+            histogram.reset_hint = [2, 0][index];
+            if index == 1 {
+                histogram.count = 4.0;
+                histogram.sum = 3.0;
+                histogram.zero_count = 1.0;
+                histogram.positive_buckets = Some(vec![1.0, 1.0, 1.0].into());
+            }
+            sample
+        }
+        for page_size in [1, 17, 1024] {
+            for delayed in [false, true] {
+                let mut provider = FixtureProvider::new(2, page_size, 1);
+                provider.series[0].labels[0].1 = b"m".to_vec();
+                provider.series[0].source.sample = sample;
+                let engine = Engine::default();
+                let control = Control::default();
+                for name in ["sum_over_time", "avg_over_time"] {
+                    for (outer, expected) in [
+                        ("", false),
+                        ("histogram_count", true),
+                        ("histogram_sum", true),
+                        ("histogram_avg", true),
+                        ("histogram_stdvar", false),
+                        ("histogram_stddev", false),
+                    ] {
+                        let inner = format!("{name}(m[10s])");
+                        let expression = if outer.is_empty() {
+                            inner
+                        } else {
+                            format!("{outer}({inner})")
+                        };
+                        let query = engine
+                            .compile(expression.as_bytes(), options(delayed), &control)
+                            .unwrap();
+                        let (result, _) = query
+                            .collect(&provider, QueryRequest::Instant { time_ms: 2000 }, &control)
+                            .unwrap();
+                        let notes: Vec<_> = result.annotations.iter().collect();
+                        assert_eq!(notes.len(), usize::from(expected), "{expression}");
+                        if expected {
+                            assert_eq!(
+                                notes[0].kind,
+                                AnnotationKind::HistogramCounterResetCollision(
+                                    HistogramOperation::Aggregation
+                                )
+                            );
+                            assert_eq!(notes[0].span.start, outer.len() + name.len() + 2);
+                        }
+                        provider.assert_closed();
+                        drop(query);
+                        drop(result);
+                        assert!(
+                            engine
+                                .accounting
+                                .snapshot()
+                                .memory
+                                .iter()
+                                .all(|memory| memory.current == 0)
+                        );
+                    }
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn histogram_statistics_preprocessing_respects_every_bucket_dependency() {
+        let engine = Engine::default();
+        let control = Control::default();
+        for (expression, expected) in [
+            ("histogram_count((sum_over_time(m[10s])))", true),
+            (
+                "histogram_stdvar(histogram_count(sum_over_time(m[10s])))",
+                false,
+            ),
+            (
+                "histogram_count(histogram_stdvar(sum_over_time(m[10s])))",
+                false,
+            ),
+            ("histogram_count(sum_over_time(m[10s:1s]))", false),
+            ("histogram_count(m </ 1)", false),
+            ("histogram_count(m >/ 1)", false),
+        ] {
+            let query = engine
+                .compile(expression.as_bytes(), options(true), &control)
+                .unwrap();
+            let selectors: Vec<_> = query
+                .expression
+                .arena
+                .nodes
+                .iter()
+                .filter_map(|node| {
+                    if let Expr::Selector(selector) = &node.expression {
+                        Some(selector.skip_histogram_buckets)
+                    } else {
+                        None
+                    }
+                })
+                .collect();
+            assert_eq!(selectors, [expected], "{expression}");
+        }
+        assert!(
+            engine
+                .accounting
+                .snapshot()
+                .memory
+                .iter()
+                .all(|memory| memory.current == 0)
+        );
     }
 
     #[test]

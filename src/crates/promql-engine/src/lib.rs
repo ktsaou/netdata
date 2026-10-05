@@ -23,6 +23,7 @@ mod histogram_equality;
 mod histogram_functions;
 mod histogram_iterator;
 mod histogram_layout;
+mod histogram_stats;
 mod histogram_trim;
 mod label_hash;
 pub mod numerical;
