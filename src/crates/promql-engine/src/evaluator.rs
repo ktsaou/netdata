@@ -1095,6 +1095,7 @@ impl<'a, Q: QueryProvider + 'a> Machine<'a, Q> {
                                             },
                                             range_ms: range_ns / 1_000_000,
                                             step_ms: self.options.step_ms,
+                                            data_bounds: self.data_bounds,
                                         },
                                     ),
                                 },

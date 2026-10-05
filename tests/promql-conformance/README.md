@@ -661,6 +661,10 @@ Repeated prefix I/O/work is accounted. Ordinary instant statistics replay now pr
 before predecessor selection, repeated-current caching, different memoized/raw seek reset conditions and EOF.
 Finite static query-wide bounds include sibling selectors, original request endpoints, static subquery ranges and
 offsets. Dynamic durations and `info`'s implicit metadata scope remain required with their unfinished owners.
+Range statistics replay also decodes the excluded lower boundary when sibling selectors make it available.
+Its hint can affect SUM/AVG warnings and first/last values consumed by vector aggregation. All 396 fresh source
+boundary cases match exactly in both builds at page sizes 1/17/1024, including integer histograms, clipped input,
+float/stale boundaries and future-payload controls. Logical range output remains strictly exclusive.
 All 38 fresh Go iterator witnesses match exactly in both builds at page sizes 1/17/1024. The private scan can stop
 after the required current sample while still validating and observing the complete returned page. Generated
 1,024-versus-100,000-point histories retain the same workspace peak and one live cursor at each page size.

@@ -2855,6 +2855,88 @@ mod tests {
     }
 
     #[test]
+    fn range_statistics_decode_an_available_excluded_boundary_for_reset_warnings() {
+        use crate::{
+            annotations::{AnnotationKind, HistogramOperation},
+            histogram::{FloatHistogram, NOT_RESET},
+            value::{Sample, SampleValue},
+        };
+        fn sample(index: usize) -> Sample {
+            let count = [8.0, 16.0, 4.0][index];
+            Sample {
+                time_ms: [1000, 1500, 2000][index],
+                start_time_ms: 0,
+                value: SampleValue::FloatHistogram(FloatHistogram {
+                    reset_hint: if index == 0 { NOT_RESET } else { 0 },
+                    count,
+                    sum: count,
+                    zero_count: count,
+                    ..FloatHistogram::default()
+                }),
+            }
+        }
+        fn anchor(_: usize) -> Sample {
+            Sample {
+                time_ms: 0,
+                start_time_ms: 0,
+                value: SampleValue::Float(1.0),
+            }
+        }
+        for page in [1, 17, 1024] {
+            let mut provider = FixtureProvider::new(3, page, 2);
+            provider.series[0].labels[0].1 = b"m".to_vec();
+            provider.series[0].source.sample = sample;
+            provider.series[1].labels[0].1 = b"anchor".to_vec();
+            provider.series[1].source.sample = anchor;
+            provider.series[1].source.count = 1;
+            let engine = Engine::default();
+            let control = Control::default();
+            for delayed in [false, true] {
+                let mut settings = options(delayed);
+                settings.lookback_ms = 500;
+                for (function, count) in [("sum_over_time", 20.0), ("avg_over_time", 10.0)] {
+                    for sibling in [false, true] {
+                        let mut expression = format!("histogram_count({function}(m[1s]))");
+                        if sibling {
+                            expression.push_str(" + scalar(anchor @ 0)");
+                        }
+                        let query = engine
+                            .compile(expression.as_bytes(), settings, &control)
+                            .unwrap();
+                        let (result, _) = query
+                            .collect(&provider, QueryRequest::Instant { time_ms: 2000 }, &control)
+                            .unwrap();
+                        assert_eq!(result.series.len(), 1, "{expression}");
+                        assert_eq!(
+                            float_bits(&result.series[0].points[0]),
+                            (count + f64::from(sibling)).to_bits()
+                        );
+                        let notes: Vec<_> = result.annotations.iter().collect();
+                        assert_eq!(notes.len(), usize::from(sibling), "{expression}");
+                        if sibling {
+                            assert_eq!(
+                                notes[0].kind,
+                                AnnotationKind::HistogramCounterResetCollision(
+                                    HistogramOperation::Aggregation
+                                )
+                            );
+                        }
+                    }
+                }
+            }
+            provider.assert_closed();
+            assert!(
+                engine
+                    .accounting
+                    .snapshot()
+                    .memory
+                    .iter()
+                    .all(|memory| memory.current == 0)
+            );
+        }
+    }
+
+    #[test]
     fn histogram_statistics_preprocessing_respects_every_bucket_dependency() {
         let engine = Engine::default();
         let control = Control::default();
