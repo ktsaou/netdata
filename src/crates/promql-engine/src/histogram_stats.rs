@@ -265,6 +265,7 @@ pub(crate) struct StatisticsWindow {
     pub(crate) first_end_ms: i64,
     pub(crate) range_ms: i64,
     pub(crate) step_ms: i64,
+    pub(crate) data_bounds: TimeBounds,
 }
 
 /// Reconstruct accessed histograms without retaining the source iterator's raw window.
@@ -282,11 +283,12 @@ pub(crate) fn scan_statistics<S: Series>(
     let mut step_end = statistics.first_end_ms;
     let mut endpoint = None;
     let mut decoder = StatisticsDecoder::default();
+    // Source buffering decodes the available lower boundary before excluding it from output.
     let read_bounds = TimeBounds {
         start_ms: statistics
             .first_end_ms
             .wrapping_sub(statistics.range_ms)
-            .wrapping_add(1),
+            .max(statistics.data_bounds.start_ms),
         end_ms: bounds.end_ms,
     };
     scan(series, read_bounds, control, account, |sample| {
@@ -379,6 +381,10 @@ mod tests {
                         first_end_ms: 1000,
                         range_ms: 500,
                         step_ms: 4000,
+                        data_bounds: TimeBounds {
+                            start_ms: 0,
+                            end_ms: 5000,
+                        },
                     }),
                     &Control::default(),
                     &account,
@@ -453,6 +459,10 @@ mod tests {
                 first_end_ms: 1000,
                 range_ms: 1000,
                 step_ms: 1000,
+                data_bounds: TimeBounds {
+                    start_ms: 0,
+                    end_ms: 4000,
+                },
             }),
             &Control::default(),
             &account,
