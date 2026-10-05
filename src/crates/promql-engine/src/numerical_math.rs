@@ -79,6 +79,35 @@ pub fn sqrt(value: f64) -> f64 {
     value.sqrt()
 }
 
+pub fn log10(value: f64) -> f64 {
+    // Go rounds the untyped reciprocal once, before multiplication.
+    log(value) * f64::from_bits(0x3fdb_cb7b_1526_e50e)
+}
+
+pub fn floor(value: f64) -> f64 {
+    if value == 0.0 || !value.is_finite() {
+        return value;
+    }
+    let integer = value.trunc();
+    if value < integer {
+        integer - 1.0
+    } else {
+        integer
+    }
+}
+
+pub fn ceil(value: f64) -> f64 {
+    if value == 0.0 || !value.is_finite() {
+        return value;
+    }
+    let integer = value.trunc();
+    if value > integer {
+        integer + 1.0
+    } else {
+        integer
+    }
+}
+
 pub fn min(left: f64, right: f64) -> f64 {
     if left == f64::NEG_INFINITY || right == f64::NEG_INFINITY {
         f64::NEG_INFINITY
@@ -269,6 +298,16 @@ pub fn pow_dispatch(left: f64, right: f64, fused: bool) -> f64 {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn function_value_rounding_and_untyped_log10_scale_follow_source() {
+        let signalling = f64::from_bits(0x7ff0_0000_0000_0001);
+        assert_eq!(ceil(signalling).to_bits(), signalling.to_bits());
+        assert_eq!(floor(signalling).to_bits(), signalling.to_bits());
+        assert_eq!(ceil(-0.5).to_bits(), (-0.0f64).to_bits());
+        assert_eq!(floor(-0.0).to_bits(), (-0.0f64).to_bits());
+        assert_eq!(log10(f64::MIN_POSITIVE).to_bits(), 0xc073_3a71_46f7_2a42);
+    }
 
     #[test]
     fn source_dispatch_changes_power_thresholds_and_preserves_special_values() {

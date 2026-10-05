@@ -585,7 +585,8 @@ retained corpus has 2,788 variants classified for exact numeric comparison. Near
 are rejected, while fractional fill outputs retain their permitted tolerance.
 
 The full run after native histogram projections, timestamp support, intermediate ordering, native scalar/vector
-maps, native vector aggregation and request-context preparation matches 7,277 of 21,442 variants, with zero completed semantic failures and 14,165 open variants at page sizes
+maps, native vector aggregation, request-context preparation and ordinary math/calendar calls matches 8,323 of
+21,442 variants, with zero completed semantic failures and 13,119 open variants at page sizes
 17 and 1024. Its 24 paired bit differences are
 NaN payload/sign differences from one original aggregation case. Further implementation and replay remain
 required. Separate fresh Go checks match
@@ -663,6 +664,26 @@ After a reproduced failing regression, 331 completed review cases match all bits
 during bucket traversal. Fresh Go checks match 4,134
 pointwise, composed, multi-step and disjoint-alias cases in both build profiles at page sizes 1, 17 and 1024;
 all 33 paired bit differences are NaN signs in nested nonfinite sums, reported separately from semantic comparison.
+
+Float-only pointwise calls also support `abs`, `ceil`, `floor`, `exp`, `sqrt`, `ln`, `log2`, `log10`,
+the circular/inverse/hyperbolic functions, `rad`, `deg`, `sgn`, `round` and all three clamp functions.
+The eight UTC calendar calls accept explicit float vectors or an omitted argument. `pi`, `min_of`, `max_of`
+and scalar/mixed float `atan2` use the source arithmetic. Vector/vector matching remains required.
+Parameterized maps retain only one or two scalar operands and reuse row-at-a-time evaluation; native samples
+are silently filtered. Source duplicate, metadata, diagnostics and multi-step ordering boundaries remain active.
+
+The numerical kernels follow Go 1.27.1, including its fixed-size Payne-Hanek reduction, actual exponential CPU
+dispatch, untyped reciprocal constant rounding, signed-zero/NaN cases and UTC unsigned epoch wrapping.
+`days_in_month` retains the source Date round trip rather than substituting a month-length table; extreme values
+can consequently return seven. Degree/radian calls retain multiplication-before-division overflow behavior.
+On the qualified Linux amd64 target, 5,854 raw numeric/calendar cases match every bit in both Rust profiles
+against native, FMA-disabled, SSE4.1-disabled and combined-disabled Go captures. Six hundred additional Go
+direct rounding/truncation calls are retained as compiler-dispatch diagnostics; PromQL uses function values.
+Original unmodified Go math assertions pass in three CPU profiles. Fresh engine checks match all 1,402 completed
+cases at pages 1, 17 and 1024, with zero bit differences; thirty join/start-timestamp/label-replacement cases remain
+explicitly open. A generated 2,048-versus-100,000-sample map with a scalar parameter keeps the same workspace
+peak and at most one open cursor at each page size. This qualifies these source owners, not the complete engine
+or other architectures.
 
 Native scalar/vector multiplication works in both operand orders; histogram/scalar division and unary minus also
 work. Multiplication and division compact the resulting histogram, while unary minus preserves its bucket layout.

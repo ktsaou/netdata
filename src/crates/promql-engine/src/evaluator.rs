@@ -5,6 +5,7 @@ use crate::{
     aggregation::Group,
     annotations::{AnnotationBuilder, AnnotationKind},
     evaluator_roster::{Descriptor, Rosters, group_key},
+    float_functions::FloatFunction,
     frontend::{
         ast::{Expr, NodeId, ParsedExpression, ValueType, VectorSelector},
         token as tokens,
@@ -101,6 +102,7 @@ pub(crate) enum PointwiseFunction {
     HistogramAvg,
     HistogramStdVar,
     HistogramStdDev,
+    Float(FloatFunction, [f64; 2]),
 }
 impl PointwiseFunction {
     pub(crate) fn parse(name: &str) -> Option<Self> {
@@ -111,7 +113,7 @@ impl PointwiseFunction {
             "histogram_avg" => Self::HistogramAvg,
             "histogram_stdvar" => Self::HistogramStdVar,
             "histogram_stddev" => Self::HistogramStdDev,
-            _ => return None,
+            _ => Self::Float(FloatFunction::parse(name)?, [1.0, 0.0]),
         })
     }
     fn apply(
@@ -122,6 +124,13 @@ impl PointwiseFunction {
     ) -> Result<Option<f64>, EvaluationError> {
         if matches!(self, Self::Timestamp) {
             return Ok(Some(sample.source_time_ms as f64 / 1000.0));
+        }
+        if let Self::Float(function, parameters) = self {
+            return Ok(if let OwnedValue::Float(value) = &sample.value {
+                function.apply(*value, parameters)
+            } else {
+                None
+            });
         }
         let OwnedValue::Histogram(histogram) = &sample.value else {
             return Ok(None);
@@ -140,11 +149,11 @@ impl PointwiseFunction {
             Self::HistogramStdDev => crate::numerical_math::sqrt(
                 histogram_functions::histogram_stdvar_with(histogram, poll)?,
             ),
-            Self::Timestamp => unreachable!(),
+            Self::Timestamp | Self::Float(..) => unreachable!(),
         }))
     }
     fn drops_metadata(self) -> bool {
-        matches!(self, Self::Timestamp)
+        matches!(self, Self::Timestamp | Self::Float(..))
     }
 }
 
@@ -182,6 +191,11 @@ enum State<'a, Q: QueryProvider + 'a> {
         left: Option<f64>,
         right: Option<f64>,
         phase: u8,
+    },
+    PointwiseParameters {
+        function: FloatFunction,
+        parameters: [f64; 2],
+        position: usize,
     },
     MixedBinary {
         scalar: Option<f64>,
@@ -551,6 +565,19 @@ impl<'a, Q: QueryProvider + 'a> Machine<'a, Q> {
                     self.frames.pop();
                     Ok(Some(self.sample(self.options.time_ms as f64 / 1000.0)))
                 }
+                "pi" => {
+                    self.frames.pop();
+                    Ok(Some(self.sample(std::f64::consts::PI)))
+                }
+                "min_of" | "max_of" => {
+                    self.frames[index].state = State::ScalarBinary {
+                        left: None,
+                        right: None,
+                        phase: 0,
+                    };
+                    self.push_all(arguments[0]);
+                    Ok(None)
+                }
                 "vector" => {
                     self.frames[index].state = State::Pass;
                     self.push(arguments[0]);
@@ -567,6 +594,24 @@ impl<'a, Q: QueryProvider + 'a> Machine<'a, Q> {
                 }
                 _ => {
                     if let Some(function) = PointwiseFunction::parse(function.name) {
+                        if let PointwiseFunction::Float(float, _) = function {
+                            if arguments.is_empty() {
+                                let result = float
+                                    .at_time(self.options.time_ms)
+                                    .expect("calendar function");
+                                self.frames.pop();
+                                return Ok(Some(self.sample(result)));
+                            }
+                            if arguments.len() > 1 {
+                                self.frames[index].state = State::PointwiseParameters {
+                                    function: float,
+                                    parameters: [1.0, 0.0],
+                                    position: 0,
+                                };
+                                self.push_all(arguments[1]);
+                                return Ok(None);
+                            }
+                        }
                         self.frames[index].state = self.map(MapOperation::Pointwise(function));
                         self.push(arguments[0]);
                         return Ok(None);
@@ -862,6 +907,17 @@ impl<'a, Q: QueryProvider + 'a> Machine<'a, Q> {
                     } else {
                         *right = Some(value);
                     }
+                    return Ok(None);
+                }
+                State::PointwiseParameters {
+                    parameters,
+                    position,
+                    ..
+                } => {
+                    let OwnedValue::Float(value) = sample.value else {
+                        unreachable!("scalar parameter")
+                    };
+                    parameters[*position] = value;
                     return Ok(None);
                 }
                 State::MixedBinary {
@@ -1243,13 +1299,22 @@ impl<'a, Q: QueryProvider + 'a> Machine<'a, Q> {
                     }
                 }
                 State::ScalarBinary { left, right, phase } => {
-                    let Expr::Binary {
-                        operator,
-                        right: right_node,
-                        ..
-                    } = self.expression.arena[node].expression
-                    else {
-                        unreachable!()
+                    let (operator, right_node) = match &self.expression.arena[node].expression {
+                        Expr::Binary {
+                            operator, right, ..
+                        } => (*operator, *right),
+                        Expr::Call {
+                            function: Some(function),
+                            arguments,
+                        } => (
+                            if function.name == "min_of" {
+                                TokenKind::MIN
+                            } else {
+                                TokenKind::MAX
+                            },
+                            arguments[1],
+                        ),
+                        _ => unreachable!(),
                     };
                     if *phase == 0 {
                         *phase = 1;
@@ -1267,6 +1332,28 @@ impl<'a, Q: QueryProvider + 'a> Machine<'a, Q> {
                         if let Some(sample) = self.propagate(sample, self.frames.len())? {
                             return Ok(Some(sample));
                         }
+                    }
+                }
+                State::PointwiseParameters {
+                    function,
+                    parameters,
+                    position,
+                } => {
+                    let Expr::Call { arguments, .. } = &self.expression.arena[node].expression
+                    else {
+                        unreachable!()
+                    };
+                    if *position + 2 < arguments.len() {
+                        *position += 1;
+                        let child = arguments[*position + 1];
+                        self.push_all(child);
+                    } else {
+                        let operation = MapOperation::Pointwise(PointwiseFunction::Float(
+                            *function,
+                            *parameters,
+                        ));
+                        self.frames[index].state = self.map(operation);
+                        self.push(arguments[0]);
                     }
                 }
                 State::MixedBinary {
@@ -1352,6 +1439,9 @@ fn scalar_binary(
         SUB => left - right,
         MUL => left * right,
         DIV => left / right,
+        ATAN2 => crate::numerical::atan2(left, right),
+        MIN => crate::numerical::min(left, right),
+        MAX => crate::numerical::max(left, right),
         POW | MOD => {
             let check = || {
                 account.work(1);

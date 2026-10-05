@@ -1670,6 +1670,69 @@ mod tests {
     }
 
     #[test]
+    fn numeric_map_parameters_keep_history_independent_working_memory() {
+        fn sample(index: usize) -> crate::value::Sample {
+            let mut sample = crate::test_storage::counter(index);
+            sample.value = crate::value::SampleValue::Float(-13.7);
+            sample
+        }
+        for page in [1, 17, 1024] {
+            let mut peaks = Vec::new();
+            for count in [2048, 100_000] {
+                let mut provider = FixtureProvider::new(count, page, 1);
+                provider.series[0].source.sample = sample;
+                let engine = Engine::default();
+                let control = Control::default();
+                let query = engine
+                    .compile(
+                        b"round(abs(counter_total),scalar(vector(0.5)))",
+                        EngineOptions {
+                            lookback_ms: 200_000_000,
+                            ..EngineOptions::default()
+                        },
+                        &control,
+                    )
+                    .unwrap();
+                let (result, observations) = query
+                    .collect(
+                        &provider,
+                        QueryRequest::Instant {
+                            time_ms: count as i64 * 1000,
+                        },
+                        &control,
+                    )
+                    .unwrap();
+                assert!(result.annotations.is_empty());
+                assert_eq!(result.series.len(), 1);
+                assert_eq!(float_bits(&result.series[0].points[0]), 13.5f64.to_bits());
+                assert!(
+                    result.series[0]
+                        .labels
+                        .0
+                        .iter()
+                        .all(|label| !metadata(&label.name))
+                );
+                let cursor = &provider.series[0].source.counters;
+                assert_eq!(cursor.peak.load(std::sync::atomic::Ordering::Relaxed), 1);
+                assert!(observations.samples_fetched >= count as u64);
+                peaks.push(observations.memory[MemoryKind::Workspace as usize].peak);
+                provider.assert_closed();
+                drop(result);
+                drop(query);
+                assert!(
+                    engine
+                        .accounting
+                        .snapshot()
+                        .memory
+                        .iter()
+                        .all(|m| m.current == 0)
+                );
+            }
+            assert_eq!(peaks[0], peaks[1]);
+        }
+    }
+
+    #[test]
     fn failed_compilation_releases_prior_matchers_and_retains_regex_error_bytes() {
         let engine = Engine::default();
         let error = engine
