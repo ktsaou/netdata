@@ -186,6 +186,14 @@ pub struct Arena {
 }
 
 impl Arena {
+    /// Evaluation uses the inner argument without mutating captured source nodes.
+    pub(crate) fn unparenthesized(&self, mut id: NodeId) -> NodeId {
+        while let Expr::Paren(child) = &self[id].expression {
+            id = *child;
+        }
+        id
+    }
+
     pub fn push(&mut self, expression: Expr, span: Span) -> NodeId {
         let value_type = match &expression {
             Expr::Number { .. } | Expr::Duration { .. } => ValueType::Scalar,

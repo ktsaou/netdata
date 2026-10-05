@@ -490,11 +490,12 @@ impl<'a, Q: QueryProvider + 'a> Machine<'a, Q> {
                 _ => {
                     let function = RangeFunction::parse(function.name)
                         .ok_or(EvaluationError::Unsupported("function reducer"))?;
+                    let argument = self.expression.arena.unparenthesized(arguments[0]);
                     let Expr::Matrix {
                         selector,
                         range,
                         range_expression: None,
-                    } = self.expression.arena[arguments[0]].expression
+                    } = self.expression.arena[argument].expression
                     else {
                         return Err(EvaluationError::Unsupported("subquery range reducer"));
                     };
@@ -742,7 +743,8 @@ impl<'a, Q: QueryProvider + 'a> Machine<'a, Q> {
                                 else {
                                     unreachable!()
                                 };
-                                let span = self.expression.arena[arguments[0]].span;
+                                let argument = self.expression.arena.unparenthesized(arguments[0]);
+                                let span = self.expression.arena[argument].span;
                                 let metric = label(&series_labels, b"__name__");
                                 if result.start_time_overlap {
                                     annotations.add(
@@ -824,10 +826,11 @@ impl<'a, Q: QueryProvider + 'a> Machine<'a, Q> {
                                 else {
                                     unreachable!()
                                 };
+                                let argument = self.expression.arena.unparenthesized(arguments[0]);
                                 annotations.add(
                                     kind,
                                     label(&series_labels, b"__name__"),
-                                    self.expression.arena[arguments[0]].span,
+                                    self.expression.arena[argument].span,
                                     &self.expression.source,
                                     self.account,
                                 );

@@ -570,8 +570,8 @@ the classification of arithmetic and returned filter operands. Missing classific
 retained corpus has 2,788 variants classified for exact numeric comparison. Near-integer boolean/function mutations
 are rejected, while fractional fill outputs retain their permitted tolerance.
 
-The full run after scalar and ordinary numerical range support matches 4,570 of 21,442 variants, with zero
-completed semantic failures and 16,872 open variants at page sizes 17 and 1024. Its 24 paired bit differences are
+The full run after scalar and ordinary numerical range support matches 4,600 of 21,442 variants, with zero
+completed semantic failures and 16,842 open variants at page sizes 17 and 1024. Its 24 paired bit differences are
 NaN payload/sign differences from one original aggregation case. Further implementation and replay remain
 required. Separate fresh Go checks match
 192 typed reducer, start-timestamp and fixed-`@` executions exactly across page sizes 1, 17 and 1024.
@@ -579,6 +579,11 @@ Another 320-case numerical range capture matches 296 cases semantically at each 
 native sum/average cases explicitly open. Release matches all completed bits; release-min reports twelve ordinary
 NaN-payload differences. It covers ordinary, overflow, nonfinite, signed-zero, compensated, subnormal, stale, mixed
 and empty inputs. The test runner checks observed-owner cleanup for unsupported executions too.
+An additional 684-case capture qualifies plain and nested parenthesized arguments for all nineteen implemented
+ordinary range functions, including mixed diagnostics and fixed-time calls. It matches semantically at all three
+page sizes in both builds. Release is bit-exact; release-min reports 48 ordinary NaN payload differences in the
+mixed variance/stddev cases. Argument lookup preserves the frontend AST while using the inner source position
+for diagnostics and recognizing fixed-time calls through parentheses.
 
 ## Remaining qualification
 

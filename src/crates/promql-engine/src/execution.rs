@@ -434,7 +434,8 @@ impl CompiledQuery {
         if RangeFunction::parse(function.name).is_none() {
             return false;
         }
-        let Expr::Matrix { selector, .. } = &self.expression.arena[arguments[0]].expression else {
+        let argument = self.expression.arena.unparenthesized(arguments[0]);
+        let Expr::Matrix { selector, .. } = &self.expression.arena[argument].expression else {
             return false;
         };
         let Expr::Selector(selector) = &self.expression.arena[*selector].expression else {
@@ -1250,6 +1251,92 @@ mod tests {
         }
     }
     #[test]
+    fn parenthesized_range_arguments_keep_values_and_source_positions() {
+        fn ordinary(index: usize) -> crate::value::Sample {
+            let mut sample = diagnostic_sample(index);
+            sample.value = crate::value::SampleValue::Float((index + 1) as f64);
+            sample
+        }
+        // Pinned Go ordinary-selector capture also checks the extrapolated rate values.
+        let cases: [(&str, f64); 19] = [
+            ("rate", 0.625),
+            ("increase", 2.5),
+            ("delta", 2.5),
+            ("count_over_time", 3.0),
+            ("present_over_time", 1.0),
+            ("first_over_time", 1.0),
+            ("last_over_time", 3.0),
+            ("min_over_time", 1.0),
+            ("max_over_time", 3.0),
+            ("sum_over_time", 6.0),
+            ("avg_over_time", 2.0),
+            ("stdvar_over_time", 2.0 / 3.0),
+            ("stddev_over_time", 0.816496580927726),
+            ("ts_of_first_over_time", 1.0),
+            ("ts_of_last_over_time", 3.0),
+            ("ts_of_min_over_time", 1.0),
+            ("ts_of_max_over_time", 3.0),
+            ("changes", 2.0),
+            ("resets", 0.0),
+        ];
+        for page_size in [1, 17, 1024] {
+            let mut provider = FixtureProvider::new(3, page_size, 1);
+            provider.series[0].labels = vec![(b"__name__".to_vec(), b"m".to_vec())];
+            provider.series[0].source.sample = ordinary;
+            let engine = Engine::default();
+            let control = Control::default();
+            for delayed in [false, true] {
+                let mut options = options(delayed);
+                options.parser.experimental_functions = true;
+                for (name, expected) in cases {
+                    for depth in 0..=2 {
+                        let source =
+                            format!("{name}({}m[4s]{})", "(".repeat(depth), ")".repeat(depth));
+                        let query = engine
+                            .compile(source.as_bytes(), options, &control)
+                            .unwrap();
+                        let (result, _) = query
+                            .collect(&provider, QueryRequest::Instant { time_ms: 3000 }, &control)
+                            .unwrap();
+                        assert_eq!(result.series.len(), 1, "{source}");
+                        assert_eq!(result.series[0].points.len(), 1);
+                        assert_eq!(result.series[0].points[0].time_ms, 3000);
+                        assert_eq!(
+                            float_bits(&result.series[0].points[0]),
+                            expected.to_bits(),
+                            "{source}"
+                        );
+                        let retains_name = matches!(name, "first_over_time" | "last_over_time");
+                        assert_eq!(result.series[0].labels.0.len(), usize::from(retains_name));
+                        let warns = matches!(name, "rate" | "increase");
+                        assert_eq!(result.annotations.len(), usize::from(warns));
+                        if warns {
+                            let note = result.annotations.iter().next().unwrap();
+                            assert_eq!(
+                                note.kind,
+                                crate::annotations::AnnotationKind::PossibleNonCounter
+                            );
+                            assert_eq!(note.span.start, name.len() + 1 + depth);
+                            assert_eq!(note.occurrences, 1);
+                        }
+                        drop(query);
+                        drop(result);
+                        provider.assert_closed();
+                        assert!(
+                            engine
+                                .accounting
+                                .snapshot()
+                                .memory
+                                .iter()
+                                .all(|m| m.current == 0)
+                        );
+                    }
+                }
+            }
+        }
+    }
+
+    #[test]
     fn numerical_range_folds_preserve_overflow_compensation_and_mixed_diagnostics() {
         fn ordinary(index: usize) -> crate::value::Sample {
             let mut sample = diagnostic_sample(index);
@@ -1604,6 +1691,9 @@ mod tests {
                     &b"sum(rate(m[4s] @ 4))"[..],
                     &b"sum(rate(m[4s] @ end()))"[..],
                     &b"rate(m[4s] @ 4)"[..],
+                    &b"sum(rate(((m[4s] @ 4))))"[..],
+                    &b"sum(rate(((m[4s] @ end()))))"[..],
+                    &b"rate(((m[4s] @ 4)))"[..],
                 ] {
                     let query = engine
                         .compile(expression, options(delayed), &control)
@@ -1643,11 +1733,16 @@ mod tests {
                                 .windows(11)
                                 .any(|bytes| bytes == b"occurrences")
                         );
-                        assert!(warning.message.ends_with(if expression[0] == b's' {
-                            &b"(1:10)"[..]
-                        } else {
-                            &b"(1:6)"[..]
-                        }));
+                        let position = expression
+                            .windows(2)
+                            .position(|bytes| bytes == b"m[")
+                            .unwrap();
+                        assert_eq!(warning.span.start, position);
+                        assert!(
+                            warning
+                                .message
+                                .ends_with(format!("(1:{})", position + 1).as_bytes())
+                        );
                     }
                 }
             }
