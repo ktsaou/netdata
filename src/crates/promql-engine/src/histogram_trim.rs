@@ -252,8 +252,8 @@ mod tests {
                 let mut histogram = FloatHistogram {
                     count: 100_000.0,
                     sum: original_sum,
-                    positive_spans: Some(spans),
-                    positive_buckets: Some(buckets),
+                    positive_spans: Some(spans.into()),
+                    positive_buckets: Some(buckets.into()),
                     ..FloatHistogram::default()
                 };
                 let address = std::ptr::from_ref(&histogram);

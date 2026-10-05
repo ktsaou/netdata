@@ -425,11 +425,14 @@ mod tests {
                 let histogram = FloatHistogram {
                     schema: 8,
                     count: 100_000.0,
-                    positive_spans: Some(vec![Span {
-                        offset: -50_000,
-                        length: 100_000,
-                    }]),
-                    positive_buckets: Some(vec![1.0; 100_000]),
+                    positive_spans: Some(
+                        vec![Span {
+                            offset: -50_000,
+                            length: 100_000,
+                        }]
+                        .into(),
+                    ),
+                    positive_buckets: Some(vec![1.0; 100_000].into()),
                     ..FloatHistogram::default()
                 };
                 let buckets = histogram.positive_buckets.as_deref().unwrap();

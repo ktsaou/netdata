@@ -66,10 +66,10 @@ pub fn float(value: &Value) -> Result<FloatHistogram, Error> {
         zero_count: number(&value["zero_count"])?,
         count: number(&value["count"])?,
         sum: number(&value["sum"])?,
-        positive_spans: array(&value["positive_spans"], span)?,
-        negative_spans: array(&value["negative_spans"], span)?,
-        positive_buckets: array(&value["positive_buckets"], number)?,
-        negative_buckets: array(&value["negative_buckets"], number)?,
+        positive_spans: array(&value["positive_spans"], span)?.map(Into::into),
+        negative_spans: array(&value["negative_spans"], span)?.map(Into::into),
+        positive_buckets: array(&value["positive_buckets"], number)?.map(Into::into),
+        negative_buckets: array(&value["negative_buckets"], number)?.map(Into::into),
         custom_values: array(&value["custom_values"], number)?.map(Into::into),
     })
 }

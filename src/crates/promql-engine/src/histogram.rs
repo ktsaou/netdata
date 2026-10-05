@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Histogram value operations derive from the pinned Prometheus model; see NOTICE.
+use crate::accounting::{AccountedVec, AllocationContext, MemoryLease};
 pub use crate::histogram_arithmetic::HistogramArithmetic;
 pub use crate::histogram_bounds::bucket_bound;
 pub use crate::histogram_classic::{
@@ -23,6 +24,59 @@ pub const COUNTER_RESET: u8 = 1;
 pub const NOT_RESET: u8 = 2;
 pub const GAUGE: u8 = 3;
 
+/// Immutable bounds retain one observation through all owning aliases.
+#[derive(Clone, Debug)]
+pub struct HistogramBounds {
+    values: Arc<[f64]>,
+    allocation: Option<Arc<MemoryLease>>,
+}
+impl HistogramBounds {
+    pub(crate) fn from_slice_in(values: &[f64], context: Option<&AllocationContext>) -> Self {
+        let values: Arc<[f64]> = Arc::from(values);
+        let allocation =
+            context.map(|context| Arc::new(context.hold(size_of_val(values.as_ref()) as u64)));
+        Self { values, allocation }
+    }
+    pub(crate) fn clone_in(&self, context: Option<&AllocationContext>) -> Self {
+        if let Some(context) = context
+            && self
+                .allocation
+                .as_deref()
+                .is_none_or(|lease| !context.owns(lease))
+        {
+            return Self::from_slice_in(self, Some(context));
+        }
+        self.clone()
+    }
+    pub fn same_allocation(&self, other: &Self) -> bool {
+        Arc::ptr_eq(&self.values, &other.values)
+    }
+}
+impl std::ops::Deref for HistogramBounds {
+    type Target = [f64];
+    fn deref(&self) -> &Self::Target {
+        &self.values
+    }
+}
+impl AsRef<[f64]> for HistogramBounds {
+    fn as_ref(&self) -> &[f64] {
+        &self.values
+    }
+}
+impl From<Arc<[f64]>> for HistogramBounds {
+    fn from(values: Arc<[f64]>) -> Self {
+        Self {
+            values,
+            allocation: None,
+        }
+    }
+}
+impl From<Vec<f64>> for HistogramBounds {
+    fn from(values: Vec<f64>) -> Self {
+        Self::from(Arc::<[f64]>::from(values))
+    }
+}
+
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 #[repr(C)]
 pub struct Span {
@@ -39,11 +93,11 @@ pub struct FloatHistogram {
     pub zero_count: f64,
     pub count: f64,
     pub sum: f64,
-    pub positive_spans: Option<Vec<Span>>,
-    pub negative_spans: Option<Vec<Span>>,
-    pub positive_buckets: Option<Vec<f64>>,
-    pub negative_buckets: Option<Vec<f64>>,
-    pub custom_values: Option<Arc<[f64]>>,
+    pub positive_spans: Option<AccountedVec<Span>>,
+    pub negative_spans: Option<AccountedVec<Span>>,
+    pub positive_buckets: Option<AccountedVec<f64>>,
+    pub negative_buckets: Option<AccountedVec<f64>>,
+    pub custom_values: Option<HistogramBounds>,
 }
 
 /// A cursor's histogram view cannot outlive its borrowed page.
@@ -92,17 +146,52 @@ pub struct IntegerHistogramRef<'a> {
     pub custom_values: Option<&'a [f64]>,
 }
 
-fn overwrite<T: Copy>(destination: &mut Option<Vec<T>>, source: Option<&[T]>) {
+trait CopyBuffer<T: Copy> {
+    fn empty(context: Option<&AllocationContext>) -> Self;
+    fn clear(&mut self);
+    fn extend_from_slice(&mut self, source: &[T]);
+}
+impl<T: Copy> CopyBuffer<T> for Vec<T> {
+    fn empty(context: Option<&AllocationContext>) -> Self {
+        assert!(
+            context.is_none(),
+            "raw fixture buffer cannot acquire query memory"
+        );
+        Self::new()
+    }
+    fn clear(&mut self) {
+        Vec::clear(self);
+    }
+    fn extend_from_slice(&mut self, source: &[T]) {
+        Vec::extend_from_slice(self, source);
+    }
+}
+impl<T: Copy> CopyBuffer<T> for AccountedVec<T> {
+    fn empty(context: Option<&AllocationContext>) -> Self {
+        Self::new_in(context)
+    }
+    fn clear(&mut self) {
+        AccountedVec::clear(self);
+    }
+    fn extend_from_slice(&mut self, source: &[T]) {
+        AccountedVec::extend_from_slice(self, source);
+    }
+}
+fn overwrite<T: Copy, B: CopyBuffer<T>>(
+    destination: &mut Option<B>,
+    source: Option<&[T]>,
+    context: Option<&AllocationContext>,
+) {
     let source = source.unwrap_or(&[]);
     if destination.is_none() && source.is_empty() {
         return;
     }
-    let destination = destination.get_or_insert_default();
+    let destination = destination.get_or_insert_with(|| B::empty(context));
     destination.clear();
     destination.extend_from_slice(source);
 }
 
-fn clear_if_present<T>(destination: &mut Option<Vec<T>>) {
+fn clear_if_present<T: Copy, B: CopyBuffer<T>>(destination: &mut Option<B>) {
     if let Some(destination) = destination {
         destination.clear();
     }
@@ -164,15 +253,24 @@ impl FloatHistogram {
     }
 
     pub fn compact(&mut self, max_empty_buckets: isize) {
+        self.compact_in(max_empty_buckets, None);
+    }
+    pub(crate) fn compact_in(
+        &mut self,
+        max_empty_buckets: isize,
+        context: Option<&AllocationContext>,
+    ) {
         compact_float(
             &mut self.positive_buckets,
             &mut self.positive_spans,
             max_empty_buckets,
+            context,
         );
         compact_float(
             &mut self.negative_buckets,
             &mut self.negative_spans,
             max_empty_buckets,
+            context,
         );
     }
 
@@ -214,15 +312,25 @@ impl FloatHistogram {
 
     /// Copy only the fields that upstream uses for this schema.
     pub fn copy(&self) -> Self {
+        self.copy_in(None)
+    }
+
+    pub(crate) fn copy_in(&self, context: Option<&AllocationContext>) -> Self {
         let mut result = Self::default();
-        self.copy_to(&mut result);
+        self.copy_to_in(&mut result, context);
         result
     }
 
     pub fn copy_to(&self, destination: &mut Self) {
-        self.as_ref().copy_fields_to(destination);
+        self.copy_to_in(destination, None);
+    }
+
+    fn copy_to_in(&self, destination: &mut Self, context: Option<&AllocationContext>) {
+        self.as_ref().copy_fields_to(destination, context);
         destination.custom_values = if self.uses_custom_buckets() {
-            self.custom_values.clone()
+            self.custom_values
+                .as_ref()
+                .map(|values| values.clone_in(context))
         } else {
             None
         };
@@ -341,16 +449,18 @@ impl<'a> FloatHistogramRef<'a> {
             self.positive_buckets,
             self.schema,
             target,
+            None,
         );
         (result.negative_spans, result.negative_buckets) = reduce_float_copy(
             self.negative_spans,
             self.negative_buckets,
             self.schema,
             target,
+            None,
         );
         result
     }
-    fn copy_fields_to(self, destination: &mut FloatHistogram) {
+    fn copy_fields_to(self, destination: &mut FloatHistogram, context: Option<&AllocationContext>) {
         destination.reset_hint = self.reset_hint;
         destination.schema = self.schema;
         destination.count = self.count;
@@ -363,26 +473,49 @@ impl<'a> FloatHistogramRef<'a> {
         } else {
             destination.zero_threshold = self.zero_threshold;
             destination.zero_count = self.zero_count;
-            overwrite(&mut destination.negative_spans, self.negative_spans);
-            overwrite(&mut destination.negative_buckets, self.negative_buckets);
+            overwrite(
+                &mut destination.negative_spans,
+                self.negative_spans,
+                context,
+            );
+            overwrite(
+                &mut destination.negative_buckets,
+                self.negative_buckets,
+                context,
+            );
         }
-        overwrite(&mut destination.positive_spans, self.positive_spans);
-        overwrite(&mut destination.positive_buckets, self.positive_buckets);
+        overwrite(
+            &mut destination.positive_spans,
+            self.positive_spans,
+            context,
+        );
+        overwrite(
+            &mut destination.positive_buckets,
+            self.positive_buckets,
+            context,
+        );
     }
 
     pub fn copy_to(self, destination: &mut FloatHistogram) {
-        self.copy_fields_to(destination);
+        self.copy_to_in(destination, None);
+    }
+    fn copy_to_in(self, destination: &mut FloatHistogram, context: Option<&AllocationContext>) {
+        self.copy_fields_to(destination, context);
         // Retaining a provider view requires ownership independent of the page.
         destination.custom_values = if self.schema == CUSTOM_BUCKETS_SCHEMA {
-            self.custom_values.map(Arc::from)
+            self.custom_values
+                .map(|values| HistogramBounds::from_slice_in(values, context))
         } else {
             None
         };
     }
 
     pub fn to_owned(self) -> FloatHistogram {
+        self.to_owned_in(None)
+    }
+    pub(crate) fn to_owned_in(self, context: Option<&AllocationContext>) -> FloatHistogram {
         let mut result = FloatHistogram::default();
-        self.copy_to(&mut result);
+        self.copy_to_in(&mut result, context);
         result
     }
 }
@@ -426,21 +559,25 @@ impl IntegerHistogram {
     }
 
     pub fn to_float_into(&self, destination: &mut FloatHistogram) {
-        self.as_ref().convert_fields_to(destination);
+        self.as_ref().convert_fields_to(destination, None);
         destination.custom_values = if self.schema == CUSTOM_BUCKETS_SCHEMA {
-            self.custom_values.clone()
+            self.custom_values.clone().map(Into::into)
         } else {
             None
         };
     }
 }
 
-fn decode_deltas(destination: &mut Option<Vec<f64>>, deltas: Option<&[i64]>) {
+fn decode_deltas(
+    destination: &mut Option<AccountedVec<f64>>,
+    deltas: Option<&[i64]>,
+    context: Option<&AllocationContext>,
+) {
     let deltas = deltas.unwrap_or(&[]);
     if destination.is_none() && deltas.is_empty() {
         return;
     }
-    let destination = destination.get_or_insert_default();
+    let destination = destination.get_or_insert_with(|| AccountedVec::new_in(context));
     destination.clear();
     destination.reserve(deltas.len());
     let mut current = 0.0;
@@ -465,11 +602,19 @@ impl IntegerHistogramRef<'_> {
         } else {
             destination.zero_threshold = self.zero_threshold;
             destination.zero_count = self.zero_count;
-            overwrite(&mut destination.negative_spans, self.negative_spans);
-            overwrite(&mut destination.negative_buckets, self.negative_buckets);
+            overwrite(&mut destination.negative_spans, self.negative_spans, None);
+            overwrite(
+                &mut destination.negative_buckets,
+                self.negative_buckets,
+                None,
+            );
         }
-        overwrite(&mut destination.positive_spans, self.positive_spans);
-        overwrite(&mut destination.positive_buckets, self.positive_buckets);
+        overwrite(&mut destination.positive_spans, self.positive_spans, None);
+        overwrite(
+            &mut destination.positive_buckets,
+            self.positive_buckets,
+            None,
+        );
     }
 
     pub fn copy_to(self, destination: &mut IntegerHistogram) {
@@ -487,7 +632,11 @@ impl IntegerHistogramRef<'_> {
         result
     }
 
-    fn convert_fields_to(self, destination: &mut FloatHistogram) {
+    fn convert_fields_to(
+        self,
+        destination: &mut FloatHistogram,
+        context: Option<&AllocationContext>,
+    ) {
         destination.reset_hint = self.reset_hint;
         destination.schema = self.schema;
         destination.count = self.count as f64;
@@ -500,25 +649,52 @@ impl IntegerHistogramRef<'_> {
         } else {
             destination.zero_threshold = self.zero_threshold;
             destination.zero_count = self.zero_count as f64;
-            overwrite(&mut destination.negative_spans, self.negative_spans);
-            decode_deltas(&mut destination.negative_buckets, self.negative_buckets);
+            overwrite(
+                &mut destination.negative_spans,
+                self.negative_spans,
+                context,
+            );
+            decode_deltas(
+                &mut destination.negative_buckets,
+                self.negative_buckets,
+                context,
+            );
         }
-        overwrite(&mut destination.positive_spans, self.positive_spans);
-        decode_deltas(&mut destination.positive_buckets, self.positive_buckets);
+        overwrite(
+            &mut destination.positive_spans,
+            self.positive_spans,
+            context,
+        );
+        decode_deltas(
+            &mut destination.positive_buckets,
+            self.positive_buckets,
+            context,
+        );
     }
 
     pub fn to_float_into(self, destination: &mut FloatHistogram) {
-        self.convert_fields_to(destination);
+        self.to_float_into_in(destination, None);
+    }
+    fn to_float_into_in(
+        self,
+        destination: &mut FloatHistogram,
+        context: Option<&AllocationContext>,
+    ) {
+        self.convert_fields_to(destination, context);
         destination.custom_values = if self.schema == CUSTOM_BUCKETS_SCHEMA {
-            self.custom_values.map(Arc::from)
+            self.custom_values
+                .map(|values| HistogramBounds::from_slice_in(values, context))
         } else {
             None
         };
     }
 
     pub fn to_float(self) -> FloatHistogram {
+        self.to_float_in(None)
+    }
+    pub(crate) fn to_float_in(self, context: Option<&AllocationContext>) -> FloatHistogram {
         let mut result = FloatHistogram::default();
-        self.to_float_into(&mut result);
+        self.to_float_into_in(&mut result, context);
         result
     }
 }
@@ -531,11 +707,14 @@ mod tests {
     fn reduction_keeps_arrays_attached_when_an_invalid_schema_panics() {
         let mut value = FloatHistogram {
             schema: i32::MAX,
-            positive_spans: Some(vec![Span {
-                offset: 0,
-                length: 1,
-            }]),
-            positive_buckets: Some(vec![3.0]),
+            positive_spans: Some(
+                vec![Span {
+                    offset: 0,
+                    length: 1,
+                }]
+                .into(),
+            ),
+            positive_buckets: Some(vec![3.0].into()),
             ..FloatHistogram::default()
         };
         let result =
@@ -560,19 +739,25 @@ mod tests {
         let mut source = FloatHistogram {
             schema: CUSTOM_BUCKETS_SCHEMA,
             sum: 12.0,
-            positive_spans: Some(vec![Span {
-                offset: 0,
-                length: 2,
-            }]),
-            positive_buckets: Some(vec![-0.0, 3.0]),
-            custom_values: Some(Arc::from([1.0, 2.0])),
+            positive_spans: Some(
+                vec![Span {
+                    offset: 0,
+                    length: 2,
+                }]
+                .into(),
+            ),
+            positive_buckets: Some(vec![-0.0, 3.0].into()),
+            custom_values: Some(Arc::<[f64]>::from([1.0, 2.0]).into()),
             ..FloatHistogram::default()
         };
         let copied = source.copy();
-        assert!(Arc::ptr_eq(
-            source.custom_values.as_ref().unwrap(),
-            copied.custom_values.as_ref().unwrap()
-        ));
+        assert!(
+            source
+                .custom_values
+                .as_ref()
+                .unwrap()
+                .same_allocation(copied.custom_values.as_ref().unwrap())
+        );
         source.sum = 4.0;
         source.positive_spans.as_mut().unwrap()[0].offset = 2;
         source.positive_buckets.as_mut().unwrap()[0] = 7.0;

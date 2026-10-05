@@ -1471,6 +1471,424 @@ mod tests {
         }
     }
 
+    fn native_range_sample(index: usize) -> crate::value::Sample {
+        use crate::{
+            histogram::{FloatHistogram, Span},
+            value::{Sample, SampleValue},
+        };
+        Sample {
+            time_ms: (index as i64 + 1) * 1000,
+            start_time_ms: 0,
+            value: SampleValue::FloatHistogram(FloatHistogram {
+                schema: 0,
+                zero_threshold: 0.001,
+                zero_count: 2.0,
+                count: 8.0,
+                sum: (index + 1) as f64,
+                positive_spans: Some(
+                    vec![Span {
+                        offset: 0,
+                        length: 3,
+                    }]
+                    .into(),
+                ),
+                positive_buckets: Some(vec![1.0, 2.0, 3.0].into()),
+                ..FloatHistogram::default()
+            }),
+        }
+    }
+
+    #[test]
+    fn native_range_folds_keep_integer_stale_compensated_and_overflow_outcomes() {
+        use crate::{
+            histogram::{IntegerHistogram, Span},
+            value::{STALE_NAN_BITS, Sample, SampleValue},
+        };
+        fn integer(index: usize) -> Sample {
+            let mut sample = native_range_sample(index);
+            sample.value = SampleValue::IntegerHistogram(IntegerHistogram {
+                schema: 0,
+                zero_threshold: 0.001,
+                zero_count: 2,
+                count: 8,
+                sum: (index + 1) as f64,
+                positive_spans: Some(vec![Span {
+                    offset: 0,
+                    length: 3,
+                }]),
+                positive_buckets: Some(vec![1, 1, 1]),
+                ..IntegerHistogram::default()
+            });
+            sample
+        }
+        fn stale(index: usize) -> Sample {
+            let mut sample = native_range_sample(index);
+            if index == 1 {
+                let SampleValue::FloatHistogram(histogram) = &mut sample.value else {
+                    unreachable!()
+                };
+                histogram.sum = f64::from_bits(STALE_NAN_BITS);
+            }
+            sample
+        }
+        fn precision(index: usize) -> Sample {
+            let mut sample = native_range_sample(index);
+            let SampleValue::FloatHistogram(histogram) = &mut sample.value else {
+                unreachable!()
+            };
+            histogram.sum = [1e100, 1.0, 1.0, -1e100][index];
+            sample
+        }
+        fn overflow(index: usize) -> Sample {
+            let mut sample = native_range_sample(index);
+            let SampleValue::FloatHistogram(histogram) = &mut sample.value else {
+                unreachable!()
+            };
+            histogram.sum = [1e308, 1e308, -1e308][index];
+            sample
+        }
+        type NativeCase = (fn(usize) -> Sample, usize, usize, [u64; 2]);
+        // Compensated and overflow sum fields are also independently captured from pinned Go.
+        let cases: [NativeCase; 5] = [
+            (
+                native_range_sample,
+                3,
+                3,
+                [6.0f64.to_bits(), 2.0f64.to_bits()],
+            ),
+            (integer, 3, 3, [6.0f64.to_bits(), 2.0f64.to_bits()]),
+            (stale, 3, 2, [4.0f64.to_bits(), 2.0f64.to_bits()]),
+            (precision, 4, 4, [2.0f64.to_bits(), 0.5f64.to_bits()]),
+            (
+                overflow,
+                3,
+                3,
+                [f64::INFINITY.to_bits(), 0x7fc7_bbef_5d3a_60d5],
+            ),
+        ];
+        for page_size in [1, 17, 1024] {
+            for delayed in [false, true] {
+                for (sample, count, valid, expected) in cases {
+                    let mut provider = FixtureProvider::new(count, page_size, 1);
+                    provider.series[0].labels[0].1 = b"m".to_vec();
+                    provider.series[0].source.sample = sample;
+                    let engine = Engine::default();
+                    let control = Control::default();
+                    for (function, name) in ["sum_over_time", "avg_over_time"].iter().enumerate() {
+                        for fixed in [false, true] {
+                            let query = engine
+                                .compile(
+                                    format!(
+                                        "{name}((m[10s]{}))",
+                                        if fixed {
+                                            format!(" @ {count}")
+                                        } else {
+                                            String::new()
+                                        }
+                                    )
+                                    .as_bytes(),
+                                    options(delayed),
+                                    &control,
+                                )
+                                .unwrap();
+                            let request = if fixed {
+                                QueryRequest::Range {
+                                    start_ms: 1000,
+                                    end_ms: 3000,
+                                    step_ms: 1000,
+                                }
+                            } else {
+                                QueryRequest::Instant {
+                                    time_ms: count as i64 * 1000,
+                                }
+                            };
+                            let (result, observations) =
+                                query.collect(&provider, request, &control).unwrap();
+                            assert_eq!(result.series.len(), 1);
+                            assert!(result.annotations.is_empty());
+                            assert_eq!(result.series[0].points.len(), if fixed { 3 } else { 1 });
+                            // Fixed calls emit diagnostics once and replay each provisional output step.
+                            assert_eq!(
+                                observations.samples_fetched,
+                                count as u64 * if fixed { 8 } else { 4 }
+                            );
+                            let factor = if function == 0 { valid as f64 } else { 1.0 };
+                            for point in result.series[0].points.iter() {
+                                let OwnedValue::Histogram(histogram) = &point.value else {
+                                    panic!("expected native result")
+                                };
+                                let value = histogram.as_ref();
+                                assert_eq!(
+                                    value.sum.to_bits(),
+                                    expected[function],
+                                    "{name} fixed {fixed}"
+                                );
+                                assert_eq!(value.count, factor * 8.0);
+                                assert_eq!(value.zero_count, factor * 2.0);
+                                assert_eq!(value.reset_hint, 0);
+                                assert_eq!(value.schema, 0);
+                                assert_eq!(
+                                    value.positive_spans,
+                                    Some(
+                                        &[Span {
+                                            offset: 0,
+                                            length: 3
+                                        }][..]
+                                    )
+                                );
+                                assert_eq!(
+                                    value.positive_buckets,
+                                    Some(&[factor, factor * 2.0, factor * 3.0][..])
+                                );
+                            }
+                            provider.assert_closed();
+                            drop(query);
+                            drop(result);
+                            assert!(
+                                engine
+                                    .accounting
+                                    .snapshot()
+                                    .memory
+                                    .iter()
+                                    .all(|m| m.current == 0)
+                            );
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn native_range_history_length_does_not_grow_retained_raw_memory() {
+        for page_size in [1, 17, 1024] {
+            for name in ["sum_over_time", "avg_over_time"] {
+                let mut peaks = vec![];
+                // Both histories cross a full page while an accumulator is already retained.
+                for count in [2048, 100_000] {
+                    let engine = Engine::default();
+                    let mut provider = FixtureProvider::new(count, page_size, 1);
+                    provider.series[0].source.sample = native_range_sample;
+                    let control = Control::default();
+                    let query = engine
+                        .compile(
+                            format!("{name}(counter_total[{count}s])").as_bytes(),
+                            EngineOptions::default(),
+                            &control,
+                        )
+                        .unwrap();
+                    let (result, observations) = query
+                        .collect(
+                            &provider,
+                            QueryRequest::Instant {
+                                time_ms: count as i64 * 1000,
+                            },
+                            &control,
+                        )
+                        .unwrap();
+                    let OwnedValue::Histogram(histogram) = &result.series[0].points[0].value else {
+                        panic!("expected native result")
+                    };
+                    let value = histogram.as_ref();
+                    let n = count as f64;
+                    assert_eq!(
+                        value.sum,
+                        if name == "sum_over_time" {
+                            n * (n + 1.0) / 2.0
+                        } else {
+                            (n + 1.0) / 2.0
+                        }
+                    );
+                    let factor = if name == "sum_over_time" { n } else { 1.0 };
+                    assert_eq!(value.count, factor * 8.0);
+                    assert_eq!(
+                        value.positive_buckets,
+                        Some(&[factor, factor * 2.0, factor * 3.0][..])
+                    );
+                    assert_eq!(observations.samples_fetched, count as u64 * 4);
+                    assert_eq!(
+                        provider.series[0]
+                            .source
+                            .counters
+                            .peak
+                            .load(Ordering::Relaxed),
+                        1
+                    );
+                    peaks.push(observations.memory[MemoryKind::Workspace as usize].peak);
+                    provider.assert_closed();
+                    drop(query);
+                    drop(result);
+                    assert!(
+                        engine
+                            .accounting
+                            .snapshot()
+                            .memory
+                            .iter()
+                            .all(|m| m.current == 0)
+                    );
+                }
+                assert_eq!(peaks[0], peaks[1], "{name} page {page_size}");
+            }
+        }
+    }
+
+    #[test]
+    fn native_range_diagnostics_keep_original_hints_and_source_precedence() {
+        use crate::{
+            annotations::{AnnotationKind, HistogramOperation},
+            value::{STALE_NAN_BITS, Sample, SampleValue},
+        };
+        fn original_hints(index: usize) -> Sample {
+            let mut sample = native_range_sample(index);
+            let SampleValue::FloatHistogram(histogram) = &mut sample.value else {
+                unreachable!()
+            };
+            histogram.reset_hint = [1, 0, 2][index];
+            sample
+        }
+        fn custom_collision(index: usize) -> Sample {
+            let mut sample = native_range_sample(index);
+            let SampleValue::FloatHistogram(histogram) = &mut sample.value else {
+                unreachable!()
+            };
+            histogram.schema = -53;
+            histogram.zero_threshold = 0.0;
+            histogram.zero_count = 0.0;
+            histogram.count = 6.0;
+            histogram.sum = [7.0, 11.0][index];
+            histogram.reset_hint = [1, 2][index];
+            histogram.custom_values = Some(
+                if index == 0 {
+                    vec![1.0, 2.0]
+                } else {
+                    vec![2.0, 3.0]
+                }
+                .into(),
+            );
+            sample
+        }
+        fn schema_after_notes(index: usize) -> Sample {
+            if index < 2 {
+                custom_collision(index)
+            } else {
+                native_range_sample(index)
+            }
+        }
+        fn float_after_schema(index: usize) -> Sample {
+            if index < 3 {
+                schema_after_notes(index)
+            } else {
+                diagnostic_sample(index)
+            }
+        }
+        fn stale_float_after_notes(index: usize) -> Sample {
+            if index < 2 {
+                custom_collision(index)
+            } else {
+                let mut sample = diagnostic_sample(index);
+                sample.value = SampleValue::Float(f64::from_bits(STALE_NAN_BITS));
+                sample
+            }
+        }
+        let collision =
+            AnnotationKind::HistogramCounterResetCollision(HistogramOperation::Aggregation);
+        let reconcile = AnnotationKind::MismatchedCustomBuckets(HistogramOperation::Aggregation);
+        type DiagnosticCase = (fn(usize) -> Sample, usize, bool, Vec<AnnotationKind>);
+        let cases: [DiagnosticCase; 5] = [
+            (original_hints, 3, true, vec![collision]),
+            (custom_collision, 2, true, vec![collision, reconcile]),
+            (
+                schema_after_notes,
+                3,
+                false,
+                vec![AnnotationKind::MixedExponentialCustomHistograms],
+            ),
+            (
+                float_after_schema,
+                4,
+                false,
+                vec![AnnotationKind::MixedFloatsHistograms],
+            ),
+            (stale_float_after_notes, 3, true, vec![collision, reconcile]),
+        ];
+        for page_size in [1, 17, 1024] {
+            for delayed in [false, true] {
+                for (case, (sample, count, productive, expected)) in cases.iter().enumerate() {
+                    let mut provider = FixtureProvider::new(*count, page_size, 1);
+                    provider.series[0].labels[0].1 = b"m".to_vec();
+                    provider.series[0].source.sample = *sample;
+                    let engine = Engine::default();
+                    let control = Control::default();
+                    for name in ["sum_over_time", "avg_over_time"] {
+                        let query = engine
+                            .compile(
+                                format!("{name}((m[10s] @ {count}))").as_bytes(),
+                                options(delayed),
+                                &control,
+                            )
+                            .unwrap();
+                        let (result, _) = query
+                            .collect(
+                                &provider,
+                                QueryRequest::Range {
+                                    start_ms: 1000,
+                                    end_ms: 3000,
+                                    step_ms: 1000,
+                                },
+                                &control,
+                            )
+                            .unwrap();
+                        assert_eq!(result.series.len(), usize::from(*productive));
+                        let notes: Vec<_> = result.annotations.iter().collect();
+                        assert_eq!(
+                            notes.iter().map(|entry| entry.kind).collect::<Vec<_>>(),
+                            *expected
+                        );
+                        for note in notes {
+                            assert_eq!(note.span.start, name.len() + 2);
+                            assert_eq!(note.occurrences, 1);
+                            assert!(
+                                note.message
+                                    .ends_with(format!("(1:{})", name.len() + 3).as_bytes())
+                            );
+                        }
+                        if *productive {
+                            assert_eq!(result.series[0].points.len(), 3);
+                            if case != 0 {
+                                let factor = if name == "sum_over_time" { 1.0 } else { 0.5 };
+                                for point in result.series[0].points.iter() {
+                                    let OwnedValue::Histogram(histogram) = &point.value else {
+                                        panic!("expected native result")
+                                    };
+                                    let value = histogram.as_ref();
+                                    assert_eq!(value.reset_hint, 0);
+                                    assert_eq!(value.count, factor * 12.0);
+                                    assert_eq!(value.sum, factor * 18.0);
+                                    assert_eq!(value.custom_values, Some(&[2.0][..]));
+                                    assert_eq!(
+                                        value.positive_buckets,
+                                        Some(&[factor * 4.0, factor * 8.0][..])
+                                    );
+                                }
+                            }
+                        }
+                        provider.assert_closed();
+                        drop(query);
+                        drop(result);
+                        assert!(
+                            engine
+                                .accounting
+                                .snapshot()
+                                .memory
+                                .iter()
+                                .all(|m| m.current == 0)
+                        );
+                    }
+                }
+            }
+        }
+    }
+
     #[test]
     fn numerical_range_history_length_does_not_grow_retained_raw_memory() {
         for page_size in [1, 17, 1024] {
