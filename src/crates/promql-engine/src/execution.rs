@@ -1250,6 +1250,207 @@ mod tests {
         }
     }
     #[test]
+    fn numerical_range_folds_preserve_overflow_compensation_and_mixed_diagnostics() {
+        fn ordinary(index: usize) -> crate::value::Sample {
+            let mut sample = diagnostic_sample(index);
+            sample.value = crate::value::SampleValue::Float((index + 1) as f64);
+            sample
+        }
+        fn precision(index: usize) -> crate::value::Sample {
+            let mut sample = diagnostic_sample(index);
+            sample.value = crate::value::SampleValue::Float([1e100, 1.0, 1.0, -1e100][index]);
+            sample
+        }
+        fn overflow(index: usize) -> crate::value::Sample {
+            let mut sample = diagnostic_sample(index);
+            sample.value = crate::value::SampleValue::Float([1e308, 1e308, -1e308][index]);
+            sample
+        }
+        fn mixed(index: usize) -> crate::value::Sample {
+            let mut sample = if index == 1 {
+                mixed_range_sample(1)
+            } else {
+                ordinary(index)
+            };
+            sample.time_ms = (index + 1) as i64 * 1000;
+            if index != 1 {
+                sample.value = crate::value::SampleValue::Float(if index == 0 { 2.0 } else { 4.0 });
+            }
+            sample
+        }
+        type NumericCase = (fn(usize) -> crate::value::Sample, usize, [u64; 4]);
+        let cases: [NumericCase; 4] = [
+            (
+                ordinary,
+                3,
+                [
+                    6.0f64.to_bits(),
+                    2.0f64.to_bits(),
+                    0x3fe5_5555_5555_5555,
+                    0x3fea_20bd_700c_2c3e,
+                ],
+            ),
+            (
+                precision,
+                4,
+                [
+                    2.0f64.to_bits(),
+                    0.5f64.to_bits(),
+                    0x6964_e718_d7d7_625b,
+                    0x54a9_dce3_e3d9_4c84,
+                ],
+            ),
+            (
+                overflow,
+                3,
+                [
+                    f64::INFINITY.to_bits(),
+                    0x7fc7_bbef_5d3a_60d5,
+                    f64::NEG_INFINITY.to_bits(),
+                    f64::NAN.to_bits(),
+                ],
+            ),
+            (mixed, 3, [0, 0, 1.0f64.to_bits(), 1.0f64.to_bits()]),
+        ];
+        for page_size in [1, 17, 1024] {
+            for delayed in [false, true] {
+                for (case, (sample, count, expected)) in cases.iter().enumerate() {
+                    let mut provider = FixtureProvider::new(*count, page_size, 1);
+                    provider.series[0].labels[0].1 = b"m".to_vec();
+                    provider.series[0].source.sample = *sample;
+                    let engine = Engine::default();
+                    let control = Control::default();
+                    for (index, name) in [
+                        "sum_over_time",
+                        "avg_over_time",
+                        "stdvar_over_time",
+                        "stddev_over_time",
+                    ]
+                    .iter()
+                    .enumerate()
+                    {
+                        let query = engine
+                            .compile(
+                                format!("{name}(m[5s])").as_bytes(),
+                                options(delayed),
+                                &control,
+                            )
+                            .unwrap();
+                        let (result, _) = query
+                            .collect(
+                                &provider,
+                                QueryRequest::Instant {
+                                    time_ms: *count as i64 * 1000,
+                                },
+                                &control,
+                            )
+                            .unwrap();
+                        if case == 3 && index < 2 {
+                            assert!(result.series.is_empty());
+                            let notes: Vec<_> = result.annotations.iter().collect();
+                            assert_eq!(notes.len(), 1);
+                            assert_eq!(
+                                notes[0].kind,
+                                crate::annotations::AnnotationKind::MixedFloatsHistograms
+                            );
+                            assert_eq!(notes[0].span.start, name.len() + 1);
+                        } else {
+                            assert_eq!(result.series.len(), 1);
+                            let actual = f64::from_bits(float_bits(&result.series[0].points[0]));
+                            if f64::from_bits(expected[index]).is_nan() {
+                                assert!(actual.is_nan());
+                            } else {
+                                assert_eq!(actual.to_bits(), expected[index], "{name} case {case}");
+                            }
+                            assert_eq!(result.annotations.len(), usize::from(case == 3));
+                            if case == 3 {
+                                assert_eq!(result.annotations.iter().next().unwrap().kind, crate::annotations::AnnotationKind::HistogramIgnoredInMixedRange);
+                            }
+                        }
+                        provider.assert_closed();
+                        drop(query);
+                        drop(result);
+                        assert!(
+                            engine
+                                .accounting
+                                .snapshot()
+                                .memory
+                                .iter()
+                                .all(|m| m.current == 0)
+                        );
+                    }
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn numerical_range_history_length_does_not_grow_retained_raw_memory() {
+        for page_size in [1, 17, 1024] {
+            for name in [
+                "sum_over_time",
+                "avg_over_time",
+                "stdvar_over_time",
+                "stddev_over_time",
+            ] {
+                let mut peaks = vec![];
+                for count in [1024, 100_000] {
+                    let engine = Engine::default();
+                    let provider = FixtureProvider::new(count, page_size, 1);
+                    let control = Control::default();
+                    let query = engine
+                        .compile(
+                            format!("{name}(counter_total[{count}s])").as_bytes(),
+                            EngineOptions::default(),
+                            &control,
+                        )
+                        .unwrap();
+                    let (result, observations) = query
+                        .collect(
+                            &provider,
+                            QueryRequest::Instant {
+                                time_ms: count as i64 * 1000,
+                            },
+                            &control,
+                        )
+                        .unwrap();
+                    let n = count as f64;
+                    let variance = (n * n - 1.0) / 12.0;
+                    let expected = match name {
+                        "sum_over_time" => n * (n + 1.0) / 2.0,
+                        "avg_over_time" => (n + 1.0) / 2.0,
+                        "stdvar_over_time" => variance,
+                        _ => crate::numerical::sqrt(variance),
+                    };
+                    assert_eq!(float_bits(&result.series[0].points[0]), expected.to_bits());
+                    assert_eq!(observations.samples_fetched, count as u64 * 2);
+                    assert_eq!(
+                        provider.series[0]
+                            .source
+                            .counters
+                            .peak
+                            .load(Ordering::Relaxed),
+                        1
+                    );
+                    peaks.push(observations.memory[MemoryKind::Workspace as usize].peak);
+                    provider.assert_closed();
+                    drop(query);
+                    drop(result);
+                    assert!(
+                        engine
+                            .accounting
+                            .snapshot()
+                            .memory
+                            .iter()
+                            .all(|m| m.current == 0)
+                    );
+                }
+                assert_eq!(peaks[0], peaks[1], "{name}");
+            }
+        }
+    }
+
+    #[test]
     fn count_range_history_length_does_not_grow_retained_raw_memory() {
         for page_size in [1, 17, 1024] {
             let mut peaks = vec![];

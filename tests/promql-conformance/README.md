@@ -564,20 +564,27 @@ required expression remains open or mismatched. Both semantic and strict bitwise
 paired bit difference reported. Intermediate partial expression counts do not certify complete language support.
 
 Each variant also receives a numeric contract from the pinned Go AST, independently of candidate parsing and
-results. Boolean, count and value-preserving discrete expressions receive exact numeric comparison; general
-numeric results retain the agreed upstream tolerance. Missing classification fails the comparison. The retained
-corpus has 2,380 variants classified for exact numeric comparison. A near-1 boolean mutation is rejected.
+results. Boolean, count, integer-valued functions and value-preserving discrete expressions receive exact numeric
+comparison; general numeric results retain the agreed upstream tolerance. Fractional fill values are included in
+the classification of arithmetic and returned filter operands. Missing classification fails the comparison. The
+retained corpus has 2,788 variants classified for exact numeric comparison. Near-integer boolean/function mutations
+are rejected, while fractional fill outputs retain their permitted tolerance.
 
-The full run after the scalar/histogram correction and scalar range support matches 3,810 of 21,442 variants,
-with zero completed semantic failures and 17,632 open variants at page sizes 17 and 1024. Its 24 paired bit
-differences are NaN payload/sign differences from
-one original aggregation case. Further implementation and replay remain required. Separate fresh Go checks match
+The full run after scalar and ordinary numerical range support matches 4,570 of 21,442 variants, with zero
+completed semantic failures and 16,872 open variants at page sizes 17 and 1024. Its 24 paired bit differences are
+NaN payload/sign differences from one original aggregation case. Further implementation and replay remain
+required. Separate fresh Go checks match
 192 typed reducer, start-timestamp and fixed-`@` executions exactly across page sizes 1, 17 and 1024.
+Another 320-case numerical range capture matches 296 cases semantically at each of these page sizes, with 24
+native sum/average cases explicitly open. Release matches all completed bits; release-min reports twelve ordinary
+NaN-payload differences. It covers ordinary, overflow, nonfinite, signed-zero, compensated, subnormal, stale, mixed
+and empty inputs. The test runner checks observed-owner cleanup for unsupported executions too.
 
 ## Remaining qualification
 
 The productive Rust path connects the owned frontend to typed page cursors, float rate/increase/delta,
-count/present/first/last/min/max over time, timestamp extrema/endpoints, changes/resets, scalar/vector arithmetic
+count/present/first/last/min/max over time, float sum/average/variance/stddev over time, timestamp extrema/endpoints,
+changes/resets, scalar/vector arithmetic
 and comparisons, and float sum/avg/count/min/max/group. Evaluation uses explicit frames,
 whole-query label/group descriptors and replay; raw histories and complete raw instant vectors are not retained.
 Output uses synchronous provisional chunks followed by commit/abort, with a separately owned collector. Stable

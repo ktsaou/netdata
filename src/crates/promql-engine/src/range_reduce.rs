@@ -2,6 +2,8 @@
 // Ordinary range reducers derive from pinned promql/functions.go; see NOTICE.
 use crate::{
     accounting::{MemoryKind, QueryAccounting},
+    annotations::AnnotationKind,
+    numerical::{compensated_add, sqrt},
     range_float::{RateKind, start_timestamp_reset},
     result::OwnedValue,
     storage::{Control, Series, StorageError, TimeBounds, scan},
@@ -26,6 +28,10 @@ impl RangeFunction {
             "last_over_time" => Self::Fold(Last),
             "min_over_time" => Self::Fold(Min),
             "max_over_time" => Self::Fold(Max),
+            "sum_over_time" => Self::Fold(Sum),
+            "avg_over_time" => Self::Fold(Avg),
+            "stdvar_over_time" => Self::Fold(Stdvar),
+            "stddev_over_time" => Self::Fold(Stddev),
             "ts_of_first_over_time" => Self::Fold(TsFirst),
             "ts_of_last_over_time" => Self::Fold(TsLast),
             "ts_of_min_over_time" => Self::Fold(TsMin),
@@ -45,6 +51,10 @@ pub(crate) enum FoldKind {
     Last,
     Min,
     Max,
+    Sum,
+    Avg,
+    Stdvar,
+    Stddev,
     TsFirst,
     TsLast,
     TsMin,
@@ -62,11 +72,150 @@ impl FoldKind {
     fn previous(self) -> bool {
         matches!(self, Self::Changes | Self::Resets)
     }
+    fn variance(self) -> bool {
+        matches!(self, Self::Stdvar | Self::Stddev)
+    }
 }
 
 pub(crate) struct FoldResult {
     pub(crate) value: Option<OwnedValue>,
-    pub(crate) ignored_histograms: bool,
+    pub(crate) annotation: Option<AnnotationKind>,
+    pub(crate) unsupported_native: bool,
+}
+
+enum NumericalFold {
+    Sum {
+        sum: f64,
+        compensation: f64,
+    },
+    Average {
+        sum: f64,
+        compensation: f64,
+        mean: f64,
+        count: usize,
+        incremental: bool,
+    },
+    Variance {
+        count: f64,
+        mean: f64,
+        mean_compensation: f64,
+        auxiliary: f64,
+        auxiliary_compensation: f64,
+    },
+}
+impl NumericalFold {
+    fn new(kind: FoldKind) -> Option<Self> {
+        Some(match kind {
+            FoldKind::Sum => Self::Sum {
+                sum: 0.0,
+                compensation: 0.0,
+            },
+            FoldKind::Avg => Self::Average {
+                sum: 0.0,
+                compensation: 0.0,
+                mean: 0.0,
+                count: 0,
+                incremental: false,
+            },
+            FoldKind::Stdvar | FoldKind::Stddev => Self::Variance {
+                count: 0.0,
+                mean: 0.0,
+                mean_compensation: 0.0,
+                auxiliary: 0.0,
+                auxiliary_compensation: 0.0,
+            },
+            _ => return None,
+        })
+    }
+    fn add(&mut self, value: f64) {
+        match self {
+            Self::Sum { sum, compensation } => {
+                (*sum, *compensation) = compensated_add(value, *sum, *compensation);
+            }
+            Self::Average {
+                sum,
+                compensation,
+                mean,
+                count,
+                incremental,
+            } => {
+                *count += 1;
+                if *count == 1 {
+                    *sum = value;
+                    return;
+                }
+                let count = *count as f64;
+                if !*incremental {
+                    let (new_sum, new_compensation) = compensated_add(value, *sum, *compensation);
+                    if !new_sum.is_infinite() {
+                        (*sum, *compensation) = (new_sum, new_compensation);
+                        return;
+                    }
+                    // Discard the overflowing trial before switching algorithms.
+                    *incremental = true;
+                    *mean = *sum / (count - 1.0);
+                    *compensation /= count - 1.0;
+                }
+                let q = (count - 1.0) / count;
+                (*mean, *compensation) =
+                    compensated_add(value / count, q * *mean, q * *compensation);
+            }
+            Self::Variance {
+                count,
+                mean,
+                mean_compensation,
+                auxiliary,
+                auxiliary_compensation,
+            } => {
+                *count += 1.0;
+                let delta = value - (*mean + *mean_compensation);
+                (*mean, *mean_compensation) =
+                    compensated_add(delta / *count, *mean, *mean_compensation);
+                (*auxiliary, *auxiliary_compensation) = compensated_add(
+                    delta * (value - (*mean + *mean_compensation)),
+                    *auxiliary,
+                    *auxiliary_compensation,
+                );
+            }
+        }
+    }
+    fn finish(self, kind: FoldKind) -> f64 {
+        match self {
+            Self::Sum { sum, compensation } => {
+                if sum.is_infinite() {
+                    sum
+                } else {
+                    sum + compensation
+                }
+            }
+            Self::Average {
+                sum,
+                compensation,
+                mean,
+                count,
+                incremental,
+            } => {
+                if incremental {
+                    mean + compensation
+                } else {
+                    sum / count as f64 + compensation / count as f64
+                }
+            }
+            Self::Variance {
+                count,
+                auxiliary,
+                auxiliary_compensation,
+                ..
+            } => {
+                let variance = (auxiliary + auxiliary_compensation) / count;
+                if kind == FoldKind::Stddev {
+                    sqrt(variance)
+                } else {
+                    variance
+                }
+            }
+        }
+    }
 }
 struct Previous {
     value: OwnedValue,
@@ -100,6 +249,7 @@ pub(crate) fn fold<S: Series>(
     let mut float_last = None::<i64>;
     let mut histogram_last = None::<i64>;
     let mut first_time = None::<i64>;
+    let mut numerical = NumericalFold::new(kind);
     scan(series, bounds, control, account, |sample| {
         if sample.value.is_stale() {
             return Ok(());
@@ -108,6 +258,9 @@ pub(crate) fn fold<S: Series>(
         first_time.get_or_insert(sample.time_ms);
         if let SampleValueRef::Float(value) = sample.value {
             float_last = Some(sample.time_ms);
+            if let Some(numerical) = &mut numerical {
+                numerical.add(value);
+            }
             if kind.extrema() {
                 let replace = float.is_none_or(|(old, _)| {
                     old.is_nan()
@@ -175,7 +328,9 @@ pub(crate) fn fold<S: Series>(
         }
         Ok(())
     })?;
-    let value = if count == 0 {
+    let mixed = float_last.is_some() && histogram_last.is_some();
+    let native_fold = matches!(kind, Sum | Avg) && histogram_last.is_some();
+    let value = if count == 0 || native_fold {
         None
     } else {
         match kind {
@@ -183,6 +338,8 @@ pub(crate) fn fold<S: Series>(
             Present => Some(OwnedValue::Float(1.0)),
             First | Last => selected,
             Min | Max => float.map(|(value, _)| OwnedValue::Float(value)),
+            Sum | Avg | Stdvar | Stddev => float_last
+                .map(|_| OwnedValue::Float(numerical.expect("numerical fold state").finish(kind))),
             TsMin | TsMax => float.map(|(_, time)| OwnedValue::Float(time as f64 / 1000.0)),
             TsFirst => Some(OwnedValue::Float(
                 first_time.expect("nonempty range") as f64 / 1000.0,
@@ -196,6 +353,13 @@ pub(crate) fn fold<S: Series>(
     };
     Ok(FoldResult {
         value,
-        ignored_histograms: kind.extrema() && float_last.is_some() && histogram_last.is_some(),
+        annotation: if native_fold && mixed {
+            Some(AnnotationKind::MixedFloatsHistograms)
+        } else if mixed && (kind.extrema() || kind.variance()) {
+            Some(AnnotationKind::HistogramIgnoredInMixedRange)
+        } else {
+            None
+        },
+        unsupported_native: native_fold && !mixed,
     })
 }
