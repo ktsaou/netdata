@@ -75,21 +75,42 @@ pub struct ParseOutput {
     pub errors: Vec<ParseError>,
 }
 
-pub fn parse<C>(input: &[u8], options: ParserOptions, compile: C) -> ParseOutput
+pub fn parse<C, E>(input: &[u8], options: ParserOptions, compile: C) -> ParseOutput
 where
-    C: FnMut(&[u8]) -> Result<Arc<dyn CompiledMatcher>, Vec<u8>>,
+    C: FnMut(&[u8]) -> Result<Arc<dyn CompiledMatcher>, E>,
+    E: Into<crate::accounting::AccountedVec<u8>>,
+{
+    parse_in(input, options, compile, None)
+}
+
+pub(crate) fn parse_in<C, E>(
+    input: &[u8],
+    options: ParserOptions,
+    compile: C,
+    accounting: Option<&crate::accounting::QueryAccounting>,
+) -> ParseOutput
+where
+    C: FnMut(&[u8]) -> Result<Arc<dyn CompiledMatcher>, E>,
+    E: Into<crate::accounting::AccountedVec<u8>>,
 {
     let mut output = parse_syntax(input, options, compile);
     if let Some(root) = output.root {
-        super::validate::validate(input, &mut output.arena, root, &mut output.errors);
+        super::validate::validate_in(
+            input,
+            &mut output.arena,
+            root,
+            &mut output.errors,
+            accounting,
+        );
     }
     output
 }
 
 /// Regex compilation happens at grammar reductions, before ordered type validation.
-pub fn parse_syntax<C>(input: &[u8], options: ParserOptions, compile: C) -> ParseOutput
+pub fn parse_syntax<C, E>(input: &[u8], options: ParserOptions, compile: C) -> ParseOutput
 where
-    C: FnMut(&[u8]) -> Result<Arc<dyn CompiledMatcher>, Vec<u8>>,
+    C: FnMut(&[u8]) -> Result<Arc<dyn CompiledMatcher>, E>,
+    E: Into<crate::accounting::AccountedVec<u8>>,
 {
     Parser {
         input,
@@ -119,14 +140,15 @@ struct Parser<'a, C> {
     compile: C,
 }
 
-impl<'a, C> Parser<'a, C>
+impl<'a, C, E> Parser<'a, C>
 where
-    C: FnMut(&[u8]) -> Result<Arc<dyn CompiledMatcher>, Vec<u8>>,
+    C: FnMut(&[u8]) -> Result<Arc<dyn CompiledMatcher>, E>,
+    E: Into<crate::accounting::AccountedVec<u8>>,
 {
     fn error(&mut self, span: Span, message: impl AsRef<[u8]>) {
         self.errors.push(ParseError {
             span,
-            message: message.as_ref().to_vec(),
+            message: message.as_ref().to_vec().into(),
         });
     }
 
@@ -505,13 +527,13 @@ where
                 Ok(compiled) => Some(compiled),
                 Err(error) => {
                     let start = label.span.start + usize::from(label.kind == STRING);
-                    self.error(
-                        Span {
+                    self.errors.push(ParseError {
+                        span: Span {
                             start,
                             end: item.span.end,
                         },
-                        error,
-                    );
+                        message: error.into(),
+                    });
                     return None;
                 }
             }

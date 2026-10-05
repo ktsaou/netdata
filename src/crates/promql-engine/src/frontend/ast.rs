@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Derived from pinned Prometheus promql/parser/ast.go; see NOTICE.
 use super::{Span, functions::Function, token as token_types};
+use crate::accounting::{AccountedVec, QueryAccounting};
 use std::sync::Arc;
 use token_types::TokenKind;
 
@@ -57,11 +58,17 @@ pub struct Matcher {
 }
 
 pub trait CompiledMatcher: std::fmt::Debug + Send + Sync {
-    fn matches(&self, value: &[u8]) -> bool;
+    fn matches(&self, value: &[u8]) -> bool {
+        self.matches_in(value, None)
+    }
+    fn matches_in(&self, value: &[u8], accounting: Option<&QueryAccounting>) -> bool;
 }
 
 impl Matcher {
     pub fn matches(&self, value: &[u8]) -> bool {
+        self.matches_in(value, None)
+    }
+    pub fn matches_in(&self, value: &[u8], accounting: Option<&QueryAccounting>) -> bool {
         match self.kind {
             MatchType::Equal => self.value == value,
             MatchType::NotEqual => self.value != value,
@@ -69,12 +76,12 @@ impl Matcher {
                 .compiled
                 .as_ref()
                 .expect("validated regexp matcher")
-                .matches(value),
+                .matches_in(value, accounting),
             MatchType::NotRegex => !self
                 .compiled
                 .as_ref()
                 .expect("validated regexp matcher")
-                .matches(value),
+                .matches_in(value, accounting),
         }
     }
 }
@@ -260,7 +267,7 @@ impl Default for ParserOptions {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ParseError {
     pub span: Span,
-    pub message: Vec<u8>,
+    pub message: AccountedVec<u8>,
 }
 
 #[derive(Debug)]

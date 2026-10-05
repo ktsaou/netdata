@@ -264,10 +264,14 @@ the pending PromQL `label_replace` evaluation and label mutation. PikeVM constru
 accelerators; its query performance has not been measured. Go syntax limits and optimizer strategy thresholds are
 preserved as upstream behavior. No engine regex or query resource quota is enabled.
 
-Opaque regex-backend allocations and selector hash-table backing memory will be reported as explicit estimates.
-Observable engine-owned buffers and borrowed storage pages remain subject to precise accounting. Hidden temporary
-regex peaks are not an exact requested-byte measurement; a total containing estimates cannot be a guaranteed bound.
-This approved accounting trade-off retains the qualified matcher. Runtime accounting itself remains unfinished.
+Opaque regex-backend allocations and selector hash-table backing memory are reported as explicit estimates.
+Retained regex plans, keys, names and compilation scratch use observed buffer capacities. Invalid-byte subjects,
+offsets, normalization, retry frames, captures and replacements use the current search owner; shared compiled
+matchers retain one charge. Public backend memory reports are observed after construction/mutations and searches.
+Their hidden compilation/search capacities and temporary peaks, and hash-table resizing peaks, remain unknown.
+Observable engine-owned buffers and borrowed storage pages remain subject to precise accounting. A total containing
+estimates cannot be a guaranteed bound. This accounting trade-off retains the qualified matcher and all 21,320
+original regex cases pass unchanged in both build profiles. Runtime accounting itself remains unfinished.
 
 ## Typed sample and initial histogram kernels
 
@@ -623,9 +627,9 @@ capacity growth overlap, copied reductions, custom mapping scratch and discarded
 boundaries with an accumulator already retained. Accumulated bucket unions may still grow. These finite cases do
 not certify the complete language or C integration.
 
-Runtime accounting remains unfinished: control-object allocations, frontend compilation temporaries, regex
-dependency estimates and general provider-internal transient peaks
-are not fully instrumented. Reported buffer capacities and exposed page ranges must not be read as exact total
+Runtime accounting remains unfinished: control-object allocations, general frontend compilation temporaries and
+provider-internal transient peaks are not fully instrumented. Regex dependency/table estimates expose known
+limitations rather than exact allocator totals. Reported buffer capacities and exposed page ranges must not be read as exact total
 query allocation or RSS. Provider callbacks return resource snapshots on every outcome; normal ownership transfers
 are reconciled together. Unwinding skips additional provider callbacks, so a newly allocated panicking callback may
 have an unobserved peak. No configured resource or concurrency admission limit is enabled.

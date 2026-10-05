@@ -1,18 +1,91 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Preserve Prometheus FastRegexMatcher's observable optimization order; see NOTICE.
-use std::{
-    borrow::Cow,
-    collections::{HashMap, HashSet},
-};
+use std::collections::{HashMap, HashSet};
 
 use super::{
-    GoRegex, normalization, runes, string,
+    AllocationContext, Buffer, GoRegex, normalization, runes, string,
     syntax::{self, FOLD_CASE, Id, Op, Tree},
 };
+use crate::accounting::{MemoryKind, MemoryLease};
 use crate::frontend::quote::decode_rune;
 
 const SET_THRESHOLD: usize = 256;
 const MAP_THRESHOLD: usize = 16;
+
+fn table_bytes<T>(capacity: usize) -> u64 {
+    if capacity == 0 {
+        return 0;
+    }
+    // Public usable capacity cannot expose bucket layout or hidden growth peaks.
+    capacity
+        .checked_mul(size_of::<T>() + 1)
+        .and_then(|bytes| bytes.checked_add(16))
+        .expect("regex table estimate overflow") as u64
+}
+fn table_owner(context: Option<&AllocationContext>) -> Option<MemoryLease> {
+    context.map(|context| context.with_kind(MemoryKind::RegexEstimate).hold(0))
+}
+
+#[derive(Debug)]
+struct ByteSet {
+    values: HashSet<Buffer<u8>>,
+    estimate: Option<MemoryLease>,
+}
+impl ByteSet {
+    fn from_values(
+        values: impl IntoIterator<Item = Buffer<u8>>,
+        context: Option<&AllocationContext>,
+    ) -> Self {
+        let mut result = Self {
+            values: HashSet::new(),
+            estimate: table_owner(context),
+        };
+        for value in values {
+            result.values.insert(value);
+            if let Some(estimate) = &mut result.estimate {
+                estimate.resize(table_bytes::<Buffer<u8>>(result.values.capacity()));
+            }
+        }
+        result
+    }
+    fn is_empty(&self) -> bool {
+        self.values.is_empty()
+    }
+    fn contains(&self, value: &[u8]) -> bool {
+        self.values.contains(value)
+    }
+}
+
+#[derive(Debug)]
+struct ByteMap {
+    values: HashMap<Buffer<u8>, Buffer<usize>>,
+    estimate: Option<MemoryLease>,
+}
+impl ByteMap {
+    fn new(context: Option<&AllocationContext>) -> Self {
+        Self {
+            values: HashMap::new(),
+            estimate: table_owner(context),
+        }
+    }
+    fn push(&mut self, key: Buffer<u8>, value: usize, context: Option<&AllocationContext>) {
+        self.values
+            .entry(key)
+            .or_insert_with(|| Buffer::new_in(context))
+            .push(value);
+        if let Some(estimate) = &mut self.estimate {
+            estimate.resize(table_bytes::<(Buffer<u8>, Buffer<usize>)>(
+                self.values.capacity(),
+            ));
+        }
+    }
+    fn is_empty(&self) -> bool {
+        self.values.is_empty()
+    }
+    fn get(&self, key: &[u8]) -> Option<&Buffer<usize>> {
+        self.values.get(key)
+    }
+}
 
 fn sensitive(tree: &Tree, id: Id) -> bool {
     tree.nodes[id].flags & FOLD_CASE == 0
@@ -51,31 +124,31 @@ fn clear_anchors(tree: &mut Tree, id: Id) {
 
 #[derive(Debug)]
 struct Set {
-    values: Vec<Vec<u8>>,
+    values: Buffer<Buffer<u8>>,
     sensitive: bool,
 }
 
 enum SetFrame {
-    Visit(Id, Vec<u8>),
+    Visit(Id, Buffer<u8>),
     Alternate {
-        children: Vec<Id>,
-        base: Vec<u8>,
+        children: Buffer<Id>,
+        base: Buffer<u8>,
         index: usize,
-        values: Vec<Vec<u8>>,
+        values: Buffer<Buffer<u8>>,
         sensitive: Option<bool>,
     },
     Concat {
-        children: Vec<Id>,
+        children: Buffer<Id>,
         child: usize,
-        prefixes: Vec<Vec<u8>>,
+        prefixes: Buffer<Buffer<u8>>,
         prefix: usize,
-        values: Vec<Vec<u8>>,
+        values: Buffer<Buffer<u8>>,
         sensitive: Option<bool>,
     },
 }
 
 fn append_set(
-    values: &mut Vec<Vec<u8>>,
+    values: &mut Buffer<Buffer<u8>>,
     sensitivity: &mut Option<bool>,
     found: Option<Set>,
 ) -> bool {
@@ -93,8 +166,10 @@ fn append_set(
 }
 
 fn find_set(tree: &mut Tree, id: Id) -> Option<Set> {
-    let mut frames = vec![SetFrame::Visit(id, Vec::new())];
-    let mut results = Vec::<Option<Set>>::new();
+    let context = tree.context();
+    let mut frames =
+        buffer![context.as_ref(); SetFrame::Visit(id, Buffer::new_in(context.as_ref()))];
+    let mut results = Buffer::<Option<Set>>::new_in(context.as_ref());
     while let Some(frame) = frames.pop() {
         match frame {
             SetFrame::Visit(id, base) => {
@@ -103,14 +178,14 @@ fn find_set(tree: &mut Tree, id: Id) -> Option<Set> {
                 match node.op {
                     Op::Literal => {
                         let mut value = base;
-                        value.extend(runes::text(&node.runes));
+                        value.extend(runes::text(&node.runes, context.as_ref()));
                         results.push(Some(Set {
-                            values: vec![value],
+                            values: buffer![context.as_ref(); value],
                             sensitive: sensitive(tree, id),
                         }));
                     }
                     Op::Empty if !base.is_empty() => results.push(Some(Set {
-                        values: vec![base],
+                        values: buffer![context.as_ref(); base],
                         sensitive: sensitive(tree, id),
                     })),
                     Op::Class
@@ -122,11 +197,11 @@ fn find_set(tree: &mut Tree, id: Id) -> Option<Set> {
                                 .sum::<u64>()
                                 <= SET_THRESHOLD as u64 =>
                     {
-                        let mut values = Vec::new();
+                        let mut values = Buffer::new_in(context.as_ref());
                         for &(lo, hi) in &node.class {
                             for rune in lo..=hi {
                                 let mut value = base.clone();
-                                value.extend(runes::text(&[rune]));
+                                value.extend(runes::text(&[rune], context.as_ref()));
                                 values.push(value);
                             }
                         }
@@ -142,7 +217,7 @@ fn find_set(tree: &mut Tree, id: Id) -> Option<Set> {
                             children,
                             base: base.clone(),
                             index: 0,
-                            values: Vec::new(),
+                            values: Buffer::new_in(context.as_ref()),
                             sensitive: None,
                         });
                         frames.push(SetFrame::Visit(first, base));
@@ -156,9 +231,9 @@ fn find_set(tree: &mut Tree, id: Id) -> Option<Set> {
                         frames.push(SetFrame::Concat {
                             children,
                             child: 0,
-                            prefixes: vec![base.clone()],
+                            prefixes: buffer![context.as_ref(); base.clone()],
                             prefix: 0,
-                            values: Vec::new(),
+                            values: Buffer::new_in(context.as_ref()),
                             sensitive: None,
                         });
                         frames.push(SetFrame::Visit(first, base));
@@ -215,7 +290,7 @@ fn find_set(tree: &mut Tree, id: Id) -> Option<Set> {
                         continue;
                     }
                     prefixes = values;
-                    values = Vec::new();
+                    values = Buffer::new_in(context.as_ref());
                     prefix = 0;
                 }
                 let next = children[child];
@@ -241,12 +316,13 @@ fn is_any(tree: &Tree, id: Id) -> bool {
 }
 
 fn optimize_contains(tree: &mut Tree) {
+    let context = tree.context();
     let root = tree.root;
     if tree.nodes[root].op != Op::Alternate || tree.nodes[root].children.len() < 2 {
         return;
     }
     let alternatives = tree.nodes[root].children.clone();
-    let mut literals = Vec::new();
+    let mut literals = Buffer::new_in(context.as_ref());
     for &alternative in &alternatives {
         let node = &tree.nodes[alternative];
         if node.op != Op::Concat
@@ -271,14 +347,14 @@ fn optimize_contains(tree: &mut Tree) {
     let any_id = tree.nodes.len();
     tree.nodes.push(any);
     wildcard.flags = syntax::PERL | syntax::DOT_NL;
-    wildcard.children = vec![any_id];
+    wildcard.children = buffer![context.as_ref(); any_id];
     let first = tree.nodes.len();
     tree.nodes.push(wildcard.clone());
     let last = tree.nodes.len();
     tree.nodes.push(wildcard);
     tree.nodes[root].op = Op::Concat;
     tree.nodes[root].flags = 0;
-    tree.nodes[root].children = vec![first, middle, last];
+    tree.nodes[root].children = buffer![context.as_ref(); first, middle, last];
 }
 
 #[derive(Debug)]
@@ -288,26 +364,26 @@ enum Matcher {
     NoNewline,
     NonEmpty(bool),
     OptionalRune(bool),
-    Equal(Vec<u8>, bool),
-    Or(Vec<usize>),
+    Equal(Buffer<u8>, bool),
+    Or(Buffer<usize>),
     Prefix {
-        value: Vec<u8>,
+        value: Buffer<u8>,
         sensitive: bool,
         right: usize,
     },
     Suffix {
-        value: Vec<u8>,
+        value: Buffer<u8>,
         sensitive: bool,
         left: usize,
     },
     Contains {
-        values: Vec<Vec<u8>>,
+        values: Buffer<Buffer<u8>>,
         left: Option<usize>,
         right: Option<usize>,
     },
     Map {
-        values: HashSet<Vec<u8>>,
-        prefixes: HashMap<Vec<u8>, Vec<usize>>,
+        values: ByteSet,
+        prefixes: ByteMap,
         min_prefix: usize,
         sensitive: bool,
     },
@@ -315,7 +391,7 @@ enum Matcher {
 
 #[derive(Debug, Default)]
 struct Plans {
-    nodes: Vec<Matcher>,
+    nodes: Buffer<Matcher>,
 }
 
 impl Plans {
@@ -325,26 +401,29 @@ impl Plans {
         id
     }
 
-    fn multi(&mut self, values: Vec<Vec<u8>>, sensitive: bool) -> usize {
+    fn multi(&mut self, values: Buffer<Buffer<u8>>, sensitive: bool) -> usize {
+        let context = self.nodes.context();
         if values.len() < MAP_THRESHOLD {
-            let nodes = values
-                .into_iter()
-                .map(|value| self.add(Matcher::Equal(value, sensitive)))
-                .collect();
+            let nodes = Buffer::from_iter_in(
+                values
+                    .into_iter()
+                    .map(|value| self.add(Matcher::Equal(value, sensitive))),
+                context.as_ref(),
+            );
             self.add(Matcher::Or(nodes))
         } else {
             self.add(Matcher::Map {
-                values: values
-                    .into_iter()
-                    .map(|value| {
+                values: ByteSet::from_values(
+                    values.into_iter().map(|value| {
                         if sensitive {
                             value
                         } else {
-                            normalization::normalized_lower(&value)
+                            normalization::normalized_lower(&value, context.as_ref())
                         }
-                    })
-                    .collect(),
-                prefixes: HashMap::new(),
+                    }),
+                    context.as_ref(),
+                ),
+                prefixes: ByteMap::new(context.as_ref()),
                 min_prefix: 0,
                 sensitive,
             })
@@ -352,12 +431,13 @@ impl Plans {
     }
 
     fn optimize_or(&mut self, root: usize) -> usize {
+        let context = self.nodes.context();
         let Matcher::Or(children) = &self.nodes[root] else {
             return root;
         };
-        let mut pending: Vec<_> = children.iter().rev().copied().collect();
-        let mut values = Vec::new();
-        let mut prefixes = Vec::new();
+        let mut pending = Buffer::from_iter_in(children.iter().rev().copied(), context.as_ref());
+        let mut values = Buffer::new_in(context.as_ref());
+        let mut prefixes = Buffer::new_in(context.as_ref());
         let mut sensitivity = None;
         let mut min_prefix = usize::MAX;
         while let Some(id) = pending.pop() {
@@ -387,28 +467,28 @@ impl Plans {
             return root;
         }
         let sensitive = sensitivity.unwrap();
-        let mut prefix_map = HashMap::<Vec<u8>, Vec<usize>>::new();
+        let mut prefix_map = ByteMap::new(context.as_ref());
         for (value, id) in prefixes {
             let key = &value[..min_prefix];
             let key = if sensitive {
-                key.to_vec()
+                Buffer::from_slice_in(key, context.as_ref())
             } else {
-                normalization::lower(key)
+                normalization::lower(key, context.as_ref())
             };
-            prefix_map.entry(key).or_default().push(id);
+            prefix_map.push(key, id, context.as_ref());
         }
         let min_prefix = if prefix_map.is_empty() { 0 } else { min_prefix };
         self.add(Matcher::Map {
-            values: values
-                .into_iter()
-                .map(|value| {
+            values: ByteSet::from_values(
+                values.into_iter().map(|value| {
                     if sensitive {
                         value
                     } else {
-                        normalization::normalized_lower(&value)
+                        normalization::normalized_lower(&value, context.as_ref())
                     }
-                })
-                .collect(),
+                }),
+                context.as_ref(),
+            ),
             prefixes: prefix_map,
             min_prefix,
             sensitive,
@@ -425,7 +505,7 @@ enum PlanFrame {
         right: Option<Id>,
     },
     Fallback {
-        values: Vec<Vec<u8>>,
+        values: Buffer<Buffer<u8>>,
         sensitive: bool,
         left: Option<usize>,
         right: Option<usize>,
@@ -439,16 +519,18 @@ fn combine(
     left: Option<usize>,
     right: Option<usize>,
 ) -> Option<usize> {
+    let context = plans.nodes.context();
     if set.values.is_empty() {
         return None;
     }
     match (left, right) {
         (None, None) => {
-            let children = set
-                .values
-                .into_iter()
-                .map(|value| plans.add(Matcher::Equal(value, set.sensitive)))
-                .collect();
+            let children = Buffer::from_iter_in(
+                set.values
+                    .into_iter()
+                    .map(|value| plans.add(Matcher::Equal(value, set.sensitive))),
+                context.as_ref(),
+            );
             Some(plans.add(Matcher::Or(children)))
         }
         (None, Some(right)) if set.values.len() == 1 => Some(plans.add(Matcher::Prefix {
@@ -471,8 +553,9 @@ fn combine(
 }
 
 fn from_tree(tree: &mut Tree, plans: &mut Plans) -> Option<usize> {
-    let mut frames = vec![PlanFrame::Visit(tree.root)];
-    let mut results = Vec::<Option<usize>>::new();
+    let context = tree.context();
+    let mut frames = buffer![context.as_ref(); PlanFrame::Visit(tree.root)];
+    let mut results = Buffer::<Option<usize>>::new_in(context.as_ref());
     while let Some(frame) = frames.pop() {
         match frame {
             PlanFrame::Visit(id) => {
@@ -481,7 +564,7 @@ fn from_tree(tree: &mut Tree, plans: &mut Plans) -> Option<usize> {
                 let plan = match node.op {
                     Op::Empty => Some(Matcher::Empty),
                     Op::Literal => Some(Matcher::Equal(
-                        runes::text(&node.runes),
+                        runes::text(&node.runes, context.as_ref()),
                         sensitive(tree, id),
                     )),
                     Op::Star | Op::Plus | Op::Quest
@@ -539,7 +622,10 @@ fn from_tree(tree: &mut Tree, plans: &mut Plans) -> Option<usize> {
                 results.push(
                     children
                         .into_iter()
-                        .collect::<Option<Vec<_>>>()
+                        .try_fold(Buffer::new_in(context.as_ref()), |mut values, child| {
+                            values.push(child?);
+                            Some(values)
+                        })
                         .map(|children| plans.add(Matcher::Or(children))),
                 );
             }
@@ -565,7 +651,7 @@ fn from_tree(tree: &mut Tree, plans: &mut Plans) -> Option<usize> {
                         let literal = children[usize::from(suffix)];
                         let other = children[usize::from(prefix)];
                         frames.push(PlanFrame::Fallback {
-                            values: vec![runes::text(&tree.nodes[literal].runes)],
+                            values: buffer![context.as_ref(); runes::text(&tree.nodes[literal].runes, context.as_ref())],
                             sensitive: sensitive(tree, literal),
                             left,
                             right,
@@ -672,9 +758,10 @@ enum Resume {
 }
 
 impl Plans {
-    fn matches(&self, root: usize, subject: &[u8]) -> bool {
+    fn matches(&self, root: usize, subject: &[u8], allocation: Option<&AllocationContext>) -> bool {
+        let context = allocation.cloned();
         let mut action = Eval::Visit(root, 0, subject.len());
-        let mut resumes = Vec::new();
+        let mut resumes = Buffer::new_in(context.as_ref());
         loop {
             let value = match action {
                 Eval::Visit(id, begin, end) => {
@@ -748,23 +835,21 @@ impl Plans {
                             sensitive,
                         } => {
                             let matched = !values.is_empty() && {
-                                let key = if *sensitive {
-                                    Cow::Borrowed(value)
-                                } else {
-                                    Cow::Owned(normalization::normalized_lower(value))
-                                };
-                                values.contains(key.as_ref())
+                                let normalized = (!sensitive).then(|| {
+                                    normalization::normalized_lower(value, context.as_ref())
+                                });
+                                values.contains(normalized.as_deref().unwrap_or(value))
                             };
                             if matched {
                                 true
                             } else if *min_prefix > 0 && value.len() >= *min_prefix {
                                 let prefix = &value[..*min_prefix];
-                                let key = if *sensitive {
-                                    Cow::Borrowed(prefix)
-                                } else {
-                                    Cow::Owned(normalization::normalized_lower(prefix))
-                                };
-                                if let Some(children) = prefixes.get(key.as_ref()) {
+                                let normalized = (!sensitive).then(|| {
+                                    normalization::normalized_lower(prefix, context.as_ref())
+                                });
+                                if let Some(children) =
+                                    prefixes.get(normalized.as_deref().unwrap_or(prefix))
+                                {
                                     // The map stores full prefix matcher IDs, including their right-hand conditions.
                                     for &child in children[1..].iter().rev() {
                                         resumes.push(Resume::Retry(Eval::Visit(child, begin, end)));
@@ -875,29 +960,37 @@ pub struct Program {
     plans: Plans,
     matcher: Option<usize>,
     regex: Option<GoRegex>,
-    prefix: Vec<u8>,
-    suffix: Vec<u8>,
-    contains: Vec<Vec<u8>>,
+    prefix: Buffer<u8>,
+    suffix: Buffer<u8>,
+    contains: Buffer<Buffer<u8>>,
     insensitive_prefix: bool,
-    equality: Option<Vec<u8>>,
+    equality: Option<Buffer<u8>>,
 }
 
 impl Program {
-    pub fn compile(pattern: &[u8]) -> Result<Self, Vec<u8>> {
+    pub fn compile(
+        pattern: &[u8],
+        allocation: Option<&AllocationContext>,
+    ) -> Result<Self, Buffer<u8>> {
+        let context = allocation.cloned();
         let mut program = Self {
-            plans: Plans::default(),
+            plans: Plans {
+                nodes: Buffer::new_in(context.as_ref()),
+            },
             matcher: None,
             regex: None,
-            prefix: Vec::new(),
-            suffix: Vec::new(),
-            contains: Vec::new(),
+            prefix: Buffer::new_in(context.as_ref()),
+            suffix: Buffer::new_in(context.as_ref()),
+            contains: Buffer::new_in(context.as_ref()),
             insensitive_prefix: false,
             equality: None,
         };
-        let literals: Vec<_> = pattern
-            .split(|&byte| byte == b'|')
-            .map(<[u8]>::to_vec)
-            .collect();
+        let literals = Buffer::from_iter_in(
+            pattern
+                .split(|&byte| byte == b'|')
+                .map(|value| Buffer::from_slice_in(value, context.as_ref())),
+            context.as_ref(),
+        );
         if literals
             .iter()
             .all(|value| !value.iter().any(|byte| b"\\.+*?()|[]{}^$".contains(byte)))
@@ -905,10 +998,13 @@ impl Program {
             program.matcher = Some(program.plans.multi(literals, true));
             return Ok(program);
         }
-        let mut tree =
-            syntax::parse(pattern, syntax::PERL | syntax::DOT_NL).map_err(|error| error.bytes())?;
+        let mut tree = syntax::parse_in(pattern, syntax::PERL | syntax::DOT_NL, context.as_ref())
+            .map_err(|error| error.bytes())?;
         optimize_contains(&mut tree);
-        program.regex = Some(GoRegex::compile_label_replace(&string::canonical(&tree))?);
+        program.regex = Some(GoRegex::compile_label_replace_in(
+            &string::canonical(&tree),
+            context.as_ref(),
+        )?);
         let root = tree.root;
         clear_capture(&mut tree, root);
         if tree.nodes[root].op == Op::Concat {
@@ -932,14 +1028,14 @@ impl Program {
                 .first()
                 .filter(|&&id| tree.nodes[id].op == Op::Literal)
             {
-                program.prefix = runes::text(&tree.nodes[first].runes);
+                program.prefix = runes::text(&tree.nodes[first].runes, context.as_ref());
                 program.insensitive_prefix = !sensitive(&tree, first);
             }
             if let Some(&last) = children
                 .last()
                 .filter(|&&id| tree.nodes[id].op == Op::Literal && sensitive(&tree, id))
             {
-                program.suffix = runes::text(&tree.nodes[last].runes);
+                program.suffix = runes::text(&tree.nodes[last].runes, context.as_ref());
             }
             for &id in children
                 .iter()
@@ -947,7 +1043,9 @@ impl Program {
                 .take(children.len().saturating_sub(2))
             {
                 if tree.nodes[id].op == Op::Literal && sensitive(&tree, id) {
-                    program.contains.push(runes::text(&tree.nodes[id].runes));
+                    program
+                        .contains
+                        .push(runes::text(&tree.nodes[id].runes, context.as_ref()));
                 }
             }
         }
@@ -982,17 +1080,23 @@ impl Program {
         Ok(program)
     }
 
-    pub fn matches(&self, value: &[u8]) -> bool {
+    pub fn matches(&self, value: &[u8], context: Option<&AllocationContext>) -> bool {
         if let Some(equality) = &self.equality {
-            return value == equality;
+            return value == equality.as_ref();
         }
-        let regex = || self.regex.as_ref().unwrap().captures(value).is_some();
+        let regex = || {
+            self.regex
+                .as_ref()
+                .unwrap()
+                .captures_in(value, context)
+                .is_some()
+        };
         if self.prefix.is_empty()
             && self.suffix.is_empty()
             && self.contains.is_empty()
             && let Some(matcher) = self.matcher
         {
-            return self.plans.matches(matcher, value);
+            return self.plans.matches(matcher, value, context);
         }
         if self.insensitive_prefix && !self.prefix.is_empty() {
             return prefix_fold(value, &self.prefix).is_some() && regex();
@@ -1008,6 +1112,85 @@ impl Program {
             offset += position + contains.len();
         }
         self.matcher
-            .map_or_else(regex, |matcher| self.plans.matches(matcher, value))
+            .map_or_else(regex, |matcher| self.plans.matches(matcher, value, context))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::accounting::EngineAccounting;
+
+    #[test]
+    fn prefix_table_keys_retry_growth_and_normalization_use_separate_owners() {
+        let engine = EngineAccounting::default();
+        let compiled = engine.query();
+        let context = AllocationContext::new(&compiled, MemoryKind::Compiled);
+        let mut plans = Plans {
+            nodes: Buffer::new_in(Some(&context)),
+        };
+        let mut children = Buffer::new_in(Some(&context));
+        for index in 0..64 {
+            let right = plans.add(Matcher::Equal(
+                Buffer::from_slice_in(format!("tail{index}").as_bytes(), Some(&context)),
+                false,
+            ));
+            children.push(plans.add(Matcher::Prefix {
+                value: Buffer::from_slice_in(b"P", Some(&context)),
+                sensitive: false,
+                right,
+            }));
+        }
+        let root = plans.add(Matcher::Or(children));
+        let root = plans.optimize_or(root);
+        let Matcher::Map { prefixes, .. } = &plans.nodes[root] else {
+            panic!("expected prefix table")
+        };
+        assert_eq!(prefixes.values.len(), 1);
+        assert_eq!(prefixes.get(b"p").unwrap().len(), 64);
+        let retained = compiled.snapshot();
+        assert!(retained.memory[MemoryKind::RegexEstimate as usize].current > 0);
+        let search = engine.query();
+        let scratch = AllocationContext::new(&search, MemoryKind::Workspace);
+        assert!(plans.matches(root, b"pTAIL63", Some(&scratch)));
+        assert!(!plans.matches(root, b"pother", Some(&scratch)));
+        let observed = search.snapshot();
+        assert!(
+            observed.memory[MemoryKind::Workspace as usize].peak
+                >= (63 * size_of::<Resume>()) as u64
+        );
+        assert!(observed.memory.iter().all(|memory| memory.current == 0));
+        assert_eq!(compiled.snapshot(), retained);
+        drop(plans);
+
+        let mut plans = Plans {
+            nodes: Buffer::new_in(Some(&context)),
+        };
+        let alternatives = Buffer::from_iter_in(
+            (0..20).map(|index| {
+                Buffer::from_slice_in(format!("\u{fb03}x{index}").as_bytes(), Some(&context))
+            }),
+            Some(&context),
+        );
+        let root = plans.multi(alternatives, false);
+        let retained = compiled.snapshot();
+        assert!(plans.matches(root, "\u{fb03}X17".as_bytes(), Some(&scratch)));
+        assert!(!plans.matches(root, "\u{fb03}Xmissing".as_bytes(), Some(&scratch)));
+        assert_eq!(compiled.snapshot(), retained);
+        assert!(
+            search
+                .snapshot()
+                .memory
+                .iter()
+                .all(|memory| memory.current == 0)
+        );
+        drop(plans);
+        assert!(
+            engine
+                .snapshot()
+                .memory
+                .iter()
+                .all(|memory| memory.current == 0)
+        );
     }
 }

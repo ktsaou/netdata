@@ -2,6 +2,7 @@
 // Pinned Prometheus map normalization: NFKD followed by Go Unicode ToLower.
 use super::normalization_data::{self, Entry};
 use super::unicode;
+use super::{AllocationContext, Buffer};
 use crate::frontend::quote::decode_rune;
 
 fn property(rune: u32) -> Option<&'static Entry> {
@@ -17,7 +18,7 @@ fn lower_rune(rune: u32) -> u32 {
         .map_or(rune, |index| unicode::LOWER[index].1)
 }
 
-fn append(output: &mut Vec<u8>, rune: u32) {
+fn append(output: &mut Buffer<u8>, rune: u32) {
     let mut buffer = [0; 4];
     output.extend_from_slice(
         char::from_u32(rune)
@@ -27,8 +28,8 @@ fn append(output: &mut Vec<u8>, rune: u32) {
     );
 }
 
-pub fn lower(input: &[u8]) -> Vec<u8> {
-    let mut output = Vec::with_capacity(input.len());
+pub fn lower(input: &[u8], context: Option<&AllocationContext>) -> Buffer<u8> {
+    let mut output = Buffer::with_capacity_in(input.len(), context);
     let mut position = 0;
     while position < input.len() {
         let (rune, width) = decode_rune(&input[position..]);
@@ -38,13 +39,13 @@ pub fn lower(input: &[u8]) -> Vec<u8> {
     output
 }
 
-fn flush(segment: &mut Vec<(u32, u8)>, output: &mut Vec<u8>) {
+fn flush(segment: &mut Buffer<(u32, u8)>, output: &mut Buffer<u8>) {
     for (rune, _) in segment.drain(..) {
         append(output, lower_rune(rune));
     }
 }
 
-fn insert(rune: u32, segment: &mut Vec<(u32, u8)>, output: &mut Vec<u8>) {
+fn insert(rune: u32, segment: &mut Buffer<(u32, u8)>, output: &mut Buffer<u8>) {
     let ccc = property(rune).map_or(0, |entry| entry.1);
     if ccc == 0 {
         flush(segment, output);
@@ -58,12 +59,12 @@ fn insert(rune: u32, segment: &mut Vec<(u32, u8)>, output: &mut Vec<u8>) {
     }
 }
 
-pub fn normalized_lower(input: &[u8]) -> Vec<u8> {
+pub fn normalized_lower(input: &[u8], context: Option<&AllocationContext>) -> Buffer<u8> {
     if input.is_ascii() {
-        return input.iter().map(u8::to_ascii_lowercase).collect();
+        return Buffer::from_iter_in(input.iter().map(u8::to_ascii_lowercase), context);
     }
-    let mut output = Vec::with_capacity(input.len());
-    let mut segment = Vec::new();
+    let mut output = Buffer::with_capacity_in(input.len(), context);
+    let mut segment = Buffer::new_in(context);
     let mut nonstarters = 0u8;
     let mut position = 0;
     while position < input.len() {
