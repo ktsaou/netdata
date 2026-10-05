@@ -574,8 +574,8 @@ the classification of arithmetic and returned filter operands. Missing classific
 retained corpus has 2,788 variants classified for exact numeric comparison. Near-integer boolean/function mutations
 are rejected, while fractional fill outputs retain their permitted tolerance.
 
-The full run after native histogram projections and timestamp support matches 5,147 of 21,442 variants, with zero
-completed semantic failures and 16,295 open variants at page sizes 17 and 1024. Its 24 paired bit differences are
+The full run after native histogram projections, timestamp support and intermediate ordering matches 5,795 of
+21,442 variants, with zero completed semantic failures and 15,647 open variants at page sizes 17 and 1024. Its 24 paired bit differences are
 NaN payload/sign differences from one original aggregation case. Further implementation and replay remain
 required. Separate fresh Go checks match
 192 typed reducer, start-timestamp and fixed-`@` executions exactly across page sizes 1, 17 and 1024.
@@ -627,13 +627,13 @@ capacity growth overlap, copied reductions, custom mapping scratch and discarded
 boundaries with an accumulator already retained. Accumulated bucket unions may still grow. These finite cases do
 not certify the complete language or C integration.
 
-Instant and single-step range evaluation supports `histogram_count`, `histogram_sum`, `histogram_avg`,
+Instant and range evaluation supports `histogram_count`, `histogram_sum`, `histogram_avg`,
 `histogram_stdvar`, `histogram_stddev` and `timestamp`. Projections ignore floats; timestamp accepts both value
 types and distinguishes raw sample timestamps from derived evaluation timestamps. Eager metadata removal follows
 each source function; delayed removal occurs at final output. Duplicate checks and child diagnostics retain their
-source boundaries. Histogram variance polls cancellation during bucket traversal. Fresh Go checks match 1,364
-cases in both build profiles at page sizes 1, 17 and 1024; all 16 paired bit differences are NaN signs in nested
-nonfinite sums, reported separately from semantic comparison.
+source boundaries. Histogram variance polls cancellation during bucket traversal. Fresh Go checks match 4,134
+pointwise, composed, multi-step and disjoint-alias cases in both build profiles at page sizes 1, 17 and 1024;
+all 33 paired bit differences are NaN signs in nested nonfinite sums, reported separately from semantic comparison.
 
 Selectors under histogram count/sum/average use the source's statistics decoding for ordinary range folds.
 Subqueries, bucket-dependent histogram functions and trimming disable it. One tracked full histogram supplies
@@ -652,10 +652,27 @@ have an unobserved peak. No configured resource or concurrency admission limit i
 
 The pinned reference has an unspecified ordering contract: intermediate multi-step results assembled by Go maps
 can change a parent reduction and boolean outcome across identical requests. The source of this behavior is
-promql/engine.go:1620, before final public result sorting. Selection and ordinary range-function series order remain
-source-defined. The approved Rust policy is deterministic label-byte order at these unspecified boundaries;
-order-dependent outcomes will be explicitly qualified. Its implementation remains in progress, so affected
-multi-step binary and pointwise function paths currently return unsupported. No numerical tolerance is widened.
+promql/engine.go:1620, before final public result sorting. The implemented Rust policy sorts by label bytes at these
+boundaries, including unary minus's eager alias-merging slow path. Provider, ordinary range-function, aggregation,
+instant and fixed safe expression order retain their source contracts. Step-invariance classification includes
+timestamp's fixed raw-selector exception. Equal full-label hashes merge different-step aliases with first-writer
+labels and flags; same-step duplicates still fail at their source boundary. Accounted descriptors and a flat
+ordinal-binding table support one requested row's exact replay. No raw point matrix or additional raw cache is retained.
+
+A repeated pinned-Go witness for `1 / min(m * 1) > bool 0` over positive and negative zero returned true 115 times
+and false 13 times in 128 default-profile requests; the optional profile returned true 118 times and false ten
+times. With negative zero's label ordered first, Rust consistently returns false in both builds at all three
+page sizes. These 256 repetitions qualify the approved ordering policy, separately from exact Go equivalence;
+ten instant, raw-selector and fixed-expression witnesses remain exact. Original expression assertions are unchanged,
+and no numerical tolerance is widened. Future implementations of currently unsupported map boundaries must use
+the same policy and preserve source-defined ordering elsewhere.
+
+Replay repeatedly enumerates selection metadata and skips unneeded raw cursors. In a finite release fixture probe
+with three output steps and eight raw points per series, increasing from 32 to 128 series kept borrowed-page
+observations at 2,176 bytes. Workspace rose from 37,696 to 147,136 bytes for `m * 1`, while provider calls rose from
+3,037 to 30,541. A second nested map increased the 128-series calls to 83,917. This confirms a metadata cost that
+can be quadratic and compounded by nested replay; it does not establish total RAM, production latency or
+dbengine performance. Metadata and independently collected output may grow; all admission limits remain disabled.
 
 The foundation represents the full value model and records required inputs. The following remain mandatory in the
 typed Rust core stage:

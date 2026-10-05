@@ -104,6 +104,7 @@ pub enum QueryRequest {
 
 pub struct CompiledQuery {
     expression: ParsedExpression,
+    invariants: AccountedVec<bool>,
     options: EngineOptions,
     engine: EngineAccounting,
     _allocation: MemoryLease,
@@ -141,9 +142,12 @@ impl Engine {
             };
             crate::histogram_stats::configure(&mut expression, control, &account)
                 .map_err(CompileError::Interrupted)?;
+            let invariants = crate::evaluator_order::invariants(&expression, control, &account)
+                .map_err(CompileError::Interrupted)?;
             let allocation = account.hold(MemoryKind::Compiled, compiled_bytes(&expression) as u64);
             Ok(CompiledQuery {
                 expression,
+                invariants,
                 options,
                 engine: self.accounting.clone(),
                 _allocation: allocation,
@@ -364,6 +368,7 @@ impl CompiledQuery {
                 account,
                 EvaluationMetadata {
                     rosters: &rosters,
+                    invariants: &self.invariants,
                     annotations: None,
                 },
             );
@@ -500,17 +505,12 @@ impl CompiledQuery {
                     control,
                 )?;
             }
-            // The upstream multi-step map ordering contract is awaiting decision 9.
-            if header.start_ms != header.end_ms
+            let generic_boundary = header.start_ms != header.end_ms
+                && !self.invariants[node.0]
                 && self.expression.arena[node].value_type == ValueType::Vector
                 && (matches!(expression, Expr::Binary { .. })
                     || matches!(expression, Expr::Call { function: Some(function), .. }
-                        if PointwiseFunction::parse(function.name).is_some()))
-            {
-                return Err(EvaluationError::Unsupported(
-                    "unordered intermediate matrix policy pending",
-                ));
-            }
+                        if PointwiseFunction::parse(function.name).is_some()));
             let mut annotations = AnnotationBuilder::new(account);
             for child in children(expression) {
                 if let Some(child_annotations) = rosters.take_annotations(child) {
@@ -519,7 +519,8 @@ impl CompiledQuery {
             }
             let mut descriptors = AccountedVec::<Descriptor>::new(account, MemoryKind::Workspace);
             // Fixed safe range calls have one logical evaluation, irrespective of output steps.
-            let single_step = header.step_ms == 0 || self.fixed_range_call(expression);
+            let single_step =
+                header.step_ms == 0 || self.invariants[node.0] || self.fixed_range_call(expression);
             let mut time_ms = header.start_ms;
             loop {
                 let mut machine = Machine::new(
@@ -531,6 +532,7 @@ impl CompiledQuery {
                     account,
                     EvaluationMetadata {
                         rosters: &rosters,
+                        invariants: &self.invariants,
                         annotations: Some(&mut annotations),
                     },
                 );
@@ -542,7 +544,11 @@ impl CompiledQuery {
                         continue;
                     }
                     descriptors.push(Descriptor {
+                        hash: crate::label_hash::full(&sample.labels, control, account)?,
                         ordinal: sample.ordinal,
+                        drop_name: sample.drop_name,
+                        first_order: descriptors.len(),
+                        sources: 0..0,
                         labels: sample.labels,
                     });
                 }
@@ -567,7 +573,18 @@ impl CompiledQuery {
                     remember_unique(&mut seen, &descriptor.labels, account, control)?;
                 }
             }
-            rosters.output(node, descriptors);
+            let merged_unary =
+                crate::evaluator_order::unary_merge(expression, self.options.delayed_name_removal)
+                    && descriptors.iter().enumerate().any(|(index, descriptor)| {
+                        descriptors[..index].iter().any(|prior| {
+                            prior.hash == descriptor.hash && prior.ordinal != descriptor.ordinal
+                        })
+                    });
+            if generic_boundary || merged_unary {
+                rosters.ordered_output(node, descriptors, control, account)?;
+            } else {
+                rosters.output(node, descriptors);
+            }
             rosters.annotations(node, annotations);
             for child in children(expression) {
                 rosters.release_output(child);
@@ -882,7 +899,7 @@ mod tests {
     }
 
     #[test]
-    fn pointwise_calls_check_output_duplicates_and_keep_multi_step_order_open() {
+    fn pointwise_calls_check_output_duplicates_in_both_query_modes() {
         let engine = Engine::default();
         let control = Control::default();
         let mut provider = FixtureProvider::new(1, 1, 2);
@@ -909,8 +926,8 @@ mod tests {
                     },
                     &control
                 ),
-                Err(ExecutionError::Evaluation(EvaluationError::Unsupported(
-                    "unordered intermediate matrix policy pending"
+                Err(ExecutionError::Evaluation(EvaluationError::Invalid(
+                    "vector cannot contain metrics with the same labelset"
                 )))
             ));
         }
@@ -2701,7 +2718,7 @@ mod tests {
     }
 
     #[test]
-    fn scalar_binary_ranges_have_one_row_without_releasing_the_vector_order_guard() {
+    fn scalar_and_vector_binary_ranges_have_stable_rows() {
         let provider = FixtureProvider::new(1, 1, 1);
         let engine = Engine::default();
         let control = Control::default();
@@ -2739,14 +2756,219 @@ mod tests {
             let query = engine
                 .compile(expression, EngineOptions::default(), &control)
                 .unwrap();
-            assert!(matches!(
-                query.collect(&provider, request, &control),
-                Err(ExecutionError::Evaluation(EvaluationError::Unsupported(
-                    "unordered intermediate matrix policy pending"
-                )))
-            ));
+            let (result, _) = query.collect(&provider, request, &control).unwrap();
+            assert_eq!(result.series.len(), 1);
+            assert_eq!(result.series[0].points.len(), 4);
         }
         provider.assert_closed();
+    }
+
+    #[test]
+    fn mapped_range_order_is_deterministic_but_instant_and_fixed_order_are_preserved() {
+        fn positive_zero(index: usize) -> crate::value::Sample {
+            let mut sample = diagnostic_sample(index);
+            sample.value = crate::value::SampleValue::Float(0.0);
+            sample
+        }
+        fn negative_zero(index: usize) -> crate::value::Sample {
+            let mut sample = positive_zero(index);
+            sample.value = crate::value::SampleValue::Float(-0.0);
+            sample
+        }
+        fn native_positive(index: usize) -> crate::value::Sample {
+            let mut sample = native_range_sample(index);
+            let crate::value::SampleValue::FloatHistogram(histogram) = &mut sample.value else {
+                unreachable!()
+            };
+            histogram.sum = 0.0;
+            sample
+        }
+        fn native_negative(index: usize) -> crate::value::Sample {
+            let mut sample = native_positive(index);
+            let crate::value::SampleValue::FloatHistogram(histogram) = &mut sample.value else {
+                unreachable!()
+            };
+            histogram.sum = -0.0;
+            sample
+        }
+        for page in [1, 17, 1024] {
+            for delayed in [false, true] {
+                for native in [false, true] {
+                    let mut provider = FixtureProvider::new(1, page, 2);
+                    provider.series[0].labels[1].1 = b"b".to_vec();
+                    provider.series[1].labels[1].1 = b"a".to_vec();
+                    provider.series[0].source.sample = if native {
+                        native_positive
+                    } else {
+                        positive_zero
+                    };
+                    provider.series[1].source.sample = if native {
+                        native_negative
+                    } else {
+                        negative_zero
+                    };
+                    let engine = Engine::default();
+                    let control = Control::default();
+                    let mapped = if native {
+                        "histogram_sum(counter_total)"
+                    } else {
+                        "counter_total * 1"
+                    };
+                    let fixed = if native {
+                        "histogram_sum(counter_total @ 1)"
+                    } else {
+                        "counter_total @ 1 * 1"
+                    };
+                    for (expression, request, expected) in [
+                        (
+                            format!("1 / min({mapped}) > bool 0"),
+                            QueryRequest::Instant { time_ms: 1000 },
+                            1.0f64,
+                        ),
+                        (
+                            format!("1 / min({mapped}) > bool 0"),
+                            QueryRequest::Range {
+                                start_ms: 1000,
+                                end_ms: 3000,
+                                step_ms: 1000,
+                            },
+                            0.0,
+                        ),
+                        (
+                            format!("1 / min({fixed}) > bool 0"),
+                            QueryRequest::Range {
+                                start_ms: 1000,
+                                end_ms: 3000,
+                                step_ms: 1000,
+                            },
+                            1.0,
+                        ),
+                    ] {
+                        let query = engine
+                            .compile(expression.as_bytes(), options(delayed), &control)
+                            .unwrap();
+                        let (result, _) = query.collect(&provider, request, &control).unwrap();
+                        assert_eq!(result.series.len(), 1, "{expression}");
+                        assert!(
+                            result.series[0]
+                                .points
+                                .iter()
+                                .all(|point| float_bits(point) == expected.to_bits()),
+                            "{expression}"
+                        );
+                        provider.assert_closed();
+                        drop(query);
+                        drop(result);
+                        assert!(
+                            engine
+                                .accounting
+                                .snapshot()
+                                .memory
+                                .iter()
+                                .all(|memory| memory.current == 0)
+                        );
+                    }
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn mapped_ranges_merge_disjoint_projected_aliases_at_the_source_boundary() {
+        fn early(index: usize) -> crate::value::Sample {
+            let mut sample = native_range_sample(index);
+            let crate::value::SampleValue::FloatHistogram(histogram) = &mut sample.value else {
+                unreachable!()
+            };
+            histogram.sum = if index == 0 {
+                4.0
+            } else {
+                f64::from_bits(crate::value::STALE_NAN_BITS)
+            };
+            sample
+        }
+        fn late(_: usize) -> crate::value::Sample {
+            let mut sample = early(0);
+            sample.time_ms = 3000;
+            sample
+        }
+        for page in [1, 17, 1024] {
+            for delayed in [false, true] {
+                for distinct_units in [false, true] {
+                    let mut provider = FixtureProvider::new(2, page, 2);
+                    for (index, series) in provider.series.iter_mut().enumerate() {
+                        series.labels = vec![
+                            (
+                                b"__name__".to_vec(),
+                                if index == 0 { b"a" } else { b"b" }.to_vec(),
+                            ),
+                            (b"__type__".to_vec(), b"histogram".to_vec()),
+                            (
+                                b"__unit__".to_vec(),
+                                if index == 1 && distinct_units {
+                                    &b"bytes"[..]
+                                } else {
+                                    b"seconds"
+                                }
+                                .to_vec(),
+                            ),
+                            (b"job".to_vec(), b"x".to_vec()),
+                        ];
+                    }
+                    provider.series[0].source.sample = early;
+                    provider.series[1].source.sample = late;
+                    provider.series[1].source.count = 1;
+                    let engine = Engine::default();
+                    let control = Control::default();
+                    // Pinned Go rangeEval and unary cleanup merge aliases only at their owners.
+                    for (expression, negative) in [
+                        (&b"histogram_sum({job=\"x\"})"[..], false),
+                        (&b"-(histogram_sum({job=\"x\"}))"[..], true),
+                    ] {
+                        let query = engine
+                            .compile(expression, options(delayed), &control)
+                            .unwrap();
+                        let (result, _) = query
+                            .collect(
+                                &provider,
+                                QueryRequest::Range {
+                                    start_ms: 1500,
+                                    end_ms: 3500,
+                                    step_ms: 1000,
+                                },
+                                &control,
+                            )
+                            .unwrap();
+                        let separate = distinct_units && !negative && !delayed;
+                        assert_eq!(result.series.len(), if separate { 2 } else { 1 });
+                        let mut times = result
+                            .series
+                            .iter()
+                            .flat_map(|row| row.points.iter().map(|point| point.time_ms))
+                            .collect::<Vec<_>>();
+                        times.sort_unstable();
+                        assert_eq!(times, [1500, 3500]);
+                        let expected = if negative { -4.0f64 } else { 4.0 };
+                        assert!(result.series.iter().all(|row| {
+                            row.points
+                                .iter()
+                                .all(|point| float_bits(point) == expected.to_bits())
+                        }));
+                        provider.assert_closed();
+                        drop(query);
+                        drop(result);
+                        assert!(
+                            engine
+                                .accounting
+                                .snapshot()
+                                .memory
+                                .iter()
+                                .all(|memory| memory.current == 0)
+                        );
+                    }
+                }
+            }
+        }
     }
 
     #[test]

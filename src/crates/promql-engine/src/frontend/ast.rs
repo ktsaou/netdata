@@ -180,6 +180,33 @@ pub enum Expr {
     },
 }
 
+impl Expr {
+    /// Expression children after source duration preprocessing; modifier durations are separate.
+    pub(crate) fn children(&self) -> impl DoubleEndedIterator<Item = NodeId> + '_ {
+        let (fixed, slice): ([Option<NodeId>; 2], &[NodeId]) = match self {
+            Self::Paren(child)
+            | Self::Unary {
+                expression: child, ..
+            }
+            | Self::Subquery {
+                expression: child, ..
+            }
+            | Self::Matrix {
+                selector: child, ..
+            } => ([Some(*child), None], &[]),
+            Self::Aggregate {
+                expression,
+                parameter,
+                ..
+            } => ([*expression, *parameter], &[]),
+            Self::Binary { left, right, .. } => ([Some(*left), Some(*right)], &[]),
+            Self::Call { arguments, .. } => ([None, None], arguments),
+            _ => ([None, None], &[]),
+        };
+        fixed.into_iter().flatten().chain(slice.iter().copied())
+    }
+}
+
 #[derive(Clone, Debug)]
 pub struct Node {
     pub expression: Expr,
