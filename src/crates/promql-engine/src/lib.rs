@@ -9,6 +9,7 @@ compile_error!("PromQL requires panic=unwind for containment at its C boundary")
 pub mod accounting;
 pub mod annotations;
 pub mod evaluator;
+mod evaluator_order;
 mod evaluator_roster;
 pub mod execution;
 pub mod frontend;

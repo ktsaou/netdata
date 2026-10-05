@@ -3,7 +3,7 @@
 use crate::{
     accounting::{AccountedVec, MemoryKind, QueryAccounting},
     annotations::{AnnotationBuilder, AnnotationKind},
-    evaluator_roster::{GroupDescriptor, Rosters, group_key},
+    evaluator_roster::{Descriptor, GroupDescriptor, Rosters, group_key},
     frontend::{
         ast::{Expr, NodeId, ParsedExpression, ValueType, VectorSelector},
         token as tokens,
@@ -260,6 +260,12 @@ impl<'a> FloatGroup<'a> {
 
 enum State<'a, Q: QueryProvider + 'a> {
     Enter,
+    OrderedRows {
+        descriptors: &'a [Descriptor],
+        sources: &'a [usize],
+        position: usize,
+        running: bool,
+    },
     Pass,
     Map {
         operation: MapOperation,
@@ -297,10 +303,27 @@ enum State<'a, Q: QueryProvider + 'a> {
 struct Frame<'a, Q: QueryProvider + 'a> {
     node: NodeId,
     state: State<'a, Q>,
+    filter: RowFilter<'a>,
+    bypass_order: bool,
+}
+
+#[derive(Clone, Copy)]
+enum RowFilter<'a> {
+    All,
+    Ordinals(&'a [usize]),
+}
+impl RowFilter<'_> {
+    fn accepts(self, ordinal: usize) -> bool {
+        match self {
+            Self::All => true,
+            Self::Ordinals(values) => values.contains(&ordinal),
+        }
+    }
 }
 
 pub(crate) struct EvaluationMetadata<'a> {
     pub(crate) rosters: &'a Rosters,
+    pub(crate) invariants: &'a [bool],
     pub(crate) annotations: Option<&'a mut AnnotationBuilder>,
 }
 pub(crate) struct Machine<'a, Q: QueryProvider + 'a> {
@@ -311,6 +334,7 @@ pub(crate) struct Machine<'a, Q: QueryProvider + 'a> {
     account: &'a QueryAccounting,
     frames: AccountedVec<Frame<'a, Q>>,
     rosters: &'a Rosters,
+    invariants: &'a [bool],
     diagnostic_node: NodeId,
     annotations: Option<&'a mut AnnotationBuilder>,
 }
@@ -329,6 +353,8 @@ impl<'a, Q: QueryProvider + 'a> Machine<'a, Q> {
         frames.push(Frame {
             node: root,
             state: State::Enter,
+            filter: RowFilter::All,
+            bypass_order: false,
         });
         Self {
             query,
@@ -338,14 +364,27 @@ impl<'a, Q: QueryProvider + 'a> Machine<'a, Q> {
             account,
             frames,
             rosters: metadata.rosters,
+            invariants: metadata.invariants,
             diagnostic_node: root,
             annotations: metadata.annotations,
         }
     }
     fn push(&mut self, node: NodeId) {
+        let filter = self
+            .frames
+            .last()
+            .map_or(RowFilter::All, |frame| frame.filter);
+        self.push_filtered(node, filter, false);
+    }
+    fn push_all(&mut self, node: NodeId) {
+        self.push_filtered(node, RowFilter::All, false);
+    }
+    fn push_filtered(&mut self, node: NodeId, filter: RowFilter<'a>, bypass_order: bool) {
         self.frames.push(Frame {
             node,
             state: State::Enter,
+            filter,
+            bypass_order,
         });
     }
     fn map(&self, operation: MapOperation) -> State<'a, Q> {
@@ -438,6 +477,17 @@ impl<'a, Q: QueryProvider + 'a> Machine<'a, Q> {
     }
     fn enter(&mut self, index: usize) -> Result<Option<EvaluatedSample>, EvaluationError> {
         let node = self.frames[index].node;
+        if !self.frames[index].bypass_order
+            && let Some((descriptors, sources)) = self.rosters.ordered(node)
+        {
+            self.frames[index].state = State::OrderedRows {
+                descriptors,
+                sources,
+                position: 0,
+                running: false,
+            };
+            return Ok(None);
+        }
         let expression = &self.expression.arena[node].expression;
         match expression {
             Expr::Number { value, .. } => {
@@ -487,13 +537,16 @@ impl<'a, Q: QueryProvider + 'a> Machine<'a, Q> {
                     .iter()
                     .enumerate()
                 {
+                    if !self.frames[index].filter.accepts(ordinal) {
+                        continue;
+                    }
                     groups.push(FloatGroup::new(labels, ordinal));
                 }
                 self.frames[index].state = State::Aggregate {
                     groups,
                     collecting: true,
                 };
-                self.push(*child);
+                self.push_all(*child);
                 Ok(None)
             }
             Expr::Binary { left, right, .. } => {
@@ -505,7 +558,7 @@ impl<'a, Q: QueryProvider + 'a> Machine<'a, Q> {
                         right: None,
                         phase: 0,
                     };
-                    self.push(*left);
+                    self.push_all(*left);
                 } else if left_scalar || right_scalar {
                     let (scalar_node, vector_node) = if left_scalar {
                         (*left, *right)
@@ -519,7 +572,7 @@ impl<'a, Q: QueryProvider + 'a> Machine<'a, Q> {
                         scalar_left: left_scalar,
                         collecting: true,
                     };
-                    self.push(scalar_node);
+                    self.push_all(scalar_node);
                 } else {
                     return Err(EvaluationError::Unsupported("vector matching reducer"));
                 }
@@ -544,7 +597,7 @@ impl<'a, Q: QueryProvider + 'a> Machine<'a, Q> {
                         value: None,
                         collecting: true,
                     };
-                    self.push(arguments[0]);
+                    self.push_all(arguments[0]);
                     Ok(None)
                 }
                 _ => {
@@ -591,8 +644,35 @@ impl<'a, Q: QueryProvider + 'a> Machine<'a, Q> {
             self.control.check()?;
             self.account.work(1);
             let node = self.frames[index].node;
+            let filter = self.frames[index].filter;
             match &mut self.frames[index].state {
                 State::Pass => (),
+                State::OrderedRows {
+                    descriptors,
+                    position,
+                    running,
+                    ..
+                } => {
+                    let descriptor = &descriptors[*position];
+                    if !filter.accepts(*position)
+                        || label_hash::full(&sample.labels, self.control, self.account)?
+                            != descriptor.hash
+                    {
+                        return Ok(None);
+                    }
+                    sample.ordinal = *position;
+                    sample.drop_name = descriptor.drop_name;
+                    if !sample.labels.same(&descriptor.labels) {
+                        sample.labels = OwnedLabels::copy_from(
+                            &descriptor.labels.views(self.account),
+                            self.account,
+                            MemoryKind::Workspace,
+                        );
+                    }
+                    *position += 1;
+                    *running = false;
+                    self.frames.truncate(index + 1);
+                }
                 State::Map { operation, seen } => {
                     let (result, drop_name) = match *operation {
                         MapOperation::Pointwise(function) => {
@@ -658,6 +738,7 @@ impl<'a, Q: QueryProvider + 'a> Machine<'a, Q> {
                         MapOperation::Binary { .. } | MapOperation::Pointwise(_) => {
                             !self.options.delayed_name_removal
                                 || self.options.start_ms != self.options.end_ms
+                                    && !self.invariants[node.0]
                         }
                     };
                     if duplicate_check {
@@ -692,7 +773,7 @@ impl<'a, Q: QueryProvider + 'a> Machine<'a, Q> {
                     };
                     if let Some(group) = groups.iter_mut().find(|group| group.hash == hash) {
                         group.add(*operator, value, sample.drop_name)?;
-                    } else {
+                    } else if matches!(filter, RowFilter::All) {
                         return Err(EvaluationError::Invalid("aggregation group is missing"));
                     }
                     return Ok(None);
@@ -752,7 +833,31 @@ impl<'a, Q: QueryProvider + 'a> Machine<'a, Q> {
                 continue;
             }
             let node = self.frames[index].node;
+            let filter = self.frames[index].filter;
             match &mut self.frames[index].state {
+                State::OrderedRows {
+                    descriptors,
+                    sources,
+                    position,
+                    running,
+                } => {
+                    if *running {
+                        *position += 1;
+                        *running = false;
+                    }
+                    while *position < descriptors.len() && !filter.accepts(*position) {
+                        self.control.check()?;
+                        self.account.work(1);
+                        *position += 1;
+                    }
+                    let Some(descriptor) = descriptors.get(*position) else {
+                        self.frames.pop();
+                        continue;
+                    };
+                    let filter = RowFilter::Ordinals(&sources[descriptor.sources.clone()]);
+                    *running = true;
+                    self.push_filtered(node, filter, true);
+                }
                 State::Pass | State::Map { .. } => {
                     self.frames.pop();
                 }
@@ -778,6 +883,9 @@ impl<'a, Q: QueryProvider + 'a> Machine<'a, Q> {
                     let series = &series.value;
                     let series_labels = series.label_views(self.account);
                     validate_labels(&series_labels)?;
+                    if !filter.accepts(series_ordinal) {
+                        continue;
+                    }
                     let selector_node = *selector;
                     let operation = *operation;
                     let selector = self.selector(selector_node);
@@ -1012,7 +1120,7 @@ impl<'a, Q: QueryProvider + 'a> Machine<'a, Q> {
                     };
                     if *phase == 0 {
                         *phase = 1;
-                        self.push(right_node);
+                        self.push_all(right_node);
                     } else {
                         let result = scalar_binary(
                             operator,
