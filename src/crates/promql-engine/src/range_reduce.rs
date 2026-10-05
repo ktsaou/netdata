@@ -8,6 +8,7 @@ use crate::{
     histogram_stats::{StatisticsWindow, scan_statistics},
     numerical::{compensated_add, sqrt},
     range_float::{RateKind, start_timestamp_reset},
+    range_rates::RateFunction,
     result::{OwnedHistogram, OwnedValue},
     storage::{Control, Series, StorageError, TimeBounds},
     value::{SampleRef, SampleValueRef},
@@ -15,16 +16,18 @@ use crate::{
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) enum RangeFunction {
-    Rate(RateKind),
+    Rate(RateFunction),
     Fold(FoldKind),
 }
 impl RangeFunction {
     pub(crate) fn parse(name: &str) -> Option<Self> {
         use FoldKind::*;
         Some(match name {
-            "rate" => Self::Rate(RateKind::Rate),
-            "increase" => Self::Rate(RateKind::Increase),
-            "delta" => Self::Rate(RateKind::Delta),
+            "rate" => Self::Rate(RateFunction::Extrapolated(RateKind::Rate)),
+            "increase" => Self::Rate(RateFunction::Extrapolated(RateKind::Increase)),
+            "delta" => Self::Rate(RateFunction::Extrapolated(RateKind::Delta)),
+            "irate" => Self::Rate(RateFunction::Instant { counter: true }),
+            "idelta" => Self::Rate(RateFunction::Instant { counter: false }),
             "count_over_time" => Self::Fold(Count),
             "present_over_time" => Self::Fold(Present),
             "first_over_time" => Self::Fold(First),

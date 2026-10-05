@@ -131,9 +131,18 @@ impl<'a> FloatBucketIterator<'a> {
     }
 
     pub fn advance(&mut self) -> bool {
+        self.advance_with(crate::histogram_work::HistogramWork::default())
+            .expect("inert histogram work")
+    }
+
+    pub(crate) fn advance_with(
+        &mut self,
+        work: crate::histogram_work::HistogramWork<'_>,
+    ) -> Result<bool, crate::storage::Interrupted> {
         loop {
-            if !self.advance_unfiltered() {
-                return false;
+            work.step(1)?;
+            if !self.advance_unfiltered(work)? {
+                return Ok(false);
             }
             // Consume skipped buckets in a loop instead of growing the caller's stack.
             if !self.bound_reached
@@ -143,21 +152,25 @@ impl<'a> FloatBucketIterator<'a> {
                 continue;
             }
             self.bound_reached = true;
-            return true;
+            return Ok(true);
         }
     }
 
-    fn advance_unfiltered(&mut self) -> bool {
+    fn advance_unfiltered(
+        &mut self,
+        work: crate::histogram_work::HistogramWork<'_>,
+    ) -> Result<bool, crate::storage::Interrupted> {
         if self.span_index >= self.layout.spans.len() {
-            return false;
+            return Ok(false);
         }
         let mut span = self.layout.spans[self.span_index];
         if self.layout.schema == self.target_schema {
-            let Some(position) = self.advance_position(self.layout.buckets.len()) else {
-                return false;
+            let Some(position) = self.advance_position_with(self.layout.buckets.len(), work)?
+            else {
+                return Ok(false);
             };
             self.current_count = self.layout.buckets[position];
-            return true;
+            return Ok(true);
         }
 
         let (mut original_index, mut span_index, mut within_span) =
@@ -165,19 +178,21 @@ impl<'a> FloatBucketIterator<'a> {
         let mut first = true;
         self.current_count = 0.0;
         'merge: loop {
+            work.step(1)?;
             original_index = if self.bucket_index == 0 {
                 span.offset
             } else {
                 original_index.wrapping_add(1)
             };
             if self.bucket_index >= self.layout.buckets.len() {
-                return !first;
+                return Ok(!first);
             }
             while within_span >= span.length {
+                work.step(1)?;
                 within_span = 0;
                 span_index += 1;
                 if span_index >= self.layout.spans.len() {
-                    return !first;
+                    return Ok(!first);
                 }
                 span = self.layout.spans[span_index];
                 original_index = original_index.wrapping_add(span.offset);
@@ -196,29 +211,48 @@ impl<'a> FloatBucketIterator<'a> {
             self.span_index = span_index;
             self.within_span = within_span;
         }
-        true
+        Ok(true)
     }
 
     fn advance_position(&mut self, bucket_count: usize) -> Option<usize> {
-        let mut span = *self.layout.spans.get(self.span_index)?;
+        self.advance_position_with(
+            bucket_count,
+            crate::histogram_work::HistogramWork::default(),
+        )
+        .expect("inert histogram work")
+    }
+
+    fn advance_position_with(
+        &mut self,
+        bucket_count: usize,
+        work: crate::histogram_work::HistogramWork<'_>,
+    ) -> Result<Option<usize>, crate::storage::Interrupted> {
+        work.step(1)?;
+        let Some(mut span) = self.layout.spans.get(self.span_index).copied() else {
+            return Ok(None);
+        };
         self.current_index = if self.bucket_index == 0 {
             span.offset
         } else {
             self.current_index.wrapping_add(1)
         };
         if self.bucket_index >= bucket_count {
-            return None;
+            return Ok(None);
         }
         while self.within_span >= span.length {
+            work.step(1)?;
             self.within_span = 0;
             self.span_index += 1;
-            span = *self.layout.spans.get(self.span_index)?;
+            let Some(next) = self.layout.spans.get(self.span_index).copied() else {
+                return Ok(None);
+            };
+            span = next;
             self.current_index = self.current_index.wrapping_add(span.offset);
         }
         self.within_span = self.within_span.wrapping_add(1);
         let position = self.bucket_index;
         self.bucket_index += 1;
-        Some(position)
+        Ok(Some(position))
     }
 
     pub fn at(&self) -> Bucket {
