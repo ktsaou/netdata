@@ -85,6 +85,8 @@ atan.go, atan2.go, asin.go, sinh.go, tanh.go, asinh.go, acosh.go, atanh.go,
 log1p.go and trig_reduce.go. Float rounding follows floor.go and floor_amd64.s.
 UTC calendar arithmetic derives from time/time.go. Copyright 2009, 2012, 2018
 The Go Authors. Licensed under the Go BSD license; see LICENSE-GO-BSD.
+UTC annotation text also follows time/format_rfc3339.go and format.go's integer padding.
+Copyright 2009, 2022 The Go Authors. Licensed under the Go BSD license; see LICENSE-GO-BSD.
 Log1p retains the Sun Microsystems permission notice above.
 The circular/tanh approximations retain the Cephes attribution and permission:
 

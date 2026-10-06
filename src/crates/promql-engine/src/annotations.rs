@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Logical emission, merge and position rules derive from pinned util/annotations; see NOTICE.
 use crate::{
-    accounting::{AccountedVec, MemoryKind, QueryAccounting},
+    accounting::{AccountedBox, AccountedVec, AllocationContext, MemoryKind, QueryAccounting},
+    float_text::{FloatTextStyle, float_text},
     frontend::{Span, quote, token as tokens},
     shared::Strong,
     storage::{Control, Interrupted},
@@ -50,6 +51,13 @@ pub enum AnnotationKind {
         right_histogram: bool,
     },
     IncompatibleBinaryLayout(tokens::TokenKind),
+    InvalidQuantile,
+    BadBucketLabel,
+    MixedClassicNativeHistograms,
+    HistogramQuantileForcedMonotonicity,
+    NativeHistogramQuantileNaNResult,
+    NativeHistogramQuantileNaNSkew,
+    NativeHistogramFractionNaNs,
 }
 impl AnnotationKind {
     fn severity(self) -> Severity {
@@ -59,7 +67,11 @@ impl AnnotationKind {
             | Self::HistogramIgnoredInMixedRange
             | Self::HistogramIgnoredInAggregation(_)
             | Self::MismatchedCustomBuckets(_)
-            | Self::IncompatibleBinaryTypes { .. } => Severity::Info,
+            | Self::IncompatibleBinaryTypes { .. }
+            | Self::HistogramQuantileForcedMonotonicity
+            | Self::NativeHistogramQuantileNaNResult
+            | Self::NativeHistogramQuantileNaNSkew
+            | Self::NativeHistogramFractionNaNs => Severity::Info,
             Self::MixedFloatsHistograms
             | Self::NativeHistogramNotCounter
             | Self::NativeHistogramNotGauge
@@ -67,7 +79,10 @@ impl AnnotationKind {
             | Self::StartTimeOverlap
             | Self::MixedExponentialCustomHistograms
             | Self::HistogramCounterResetCollision(_)
-            | Self::IncompatibleBinaryLayout(_) => Severity::Warning,
+            | Self::IncompatibleBinaryLayout(_)
+            | Self::InvalidQuantile
+            | Self::BadBucketLabel
+            | Self::MixedClassicNativeHistograms => Severity::Warning,
         }
     }
     fn prefix(self) -> &'static str {
@@ -110,6 +125,25 @@ impl AnnotationKind {
             Self::IncompatibleBinaryLayout(_) => {
                 "PromQL warning: incompatible bucket layout encountered for binary operator "
             }
+            Self::InvalidQuantile => "PromQL warning: quantile value should be between 0 and 1",
+            Self::BadBucketLabel => {
+                "PromQL warning: bucket label \"le\" is missing or has a malformed value"
+            }
+            Self::MixedClassicNativeHistograms => {
+                "PromQL warning: vector contains a mix of classic and native histograms"
+            }
+            Self::HistogramQuantileForcedMonotonicity => {
+                "PromQL info: input to histogram_quantile needed to be fixed for monotonicity (see https://prometheus.io/docs/prometheus/latest/querying/functions/#histogram_quantile)"
+            }
+            Self::NativeHistogramQuantileNaNResult => {
+                crate::histogram::NativeHistogramInfo::QuantileNaNResult.prefix()
+            }
+            Self::NativeHistogramQuantileNaNSkew => {
+                crate::histogram::NativeHistogramInfo::QuantileNaNSkew.prefix()
+            }
+            Self::NativeHistogramFractionNaNs => {
+                crate::histogram::NativeHistogramInfo::FractionNaNs.prefix()
+            }
         }
     }
     fn operation(self) -> Option<HistogramOperation> {
@@ -117,6 +151,56 @@ impl AnnotationKind {
             Self::HistogramCounterResetCollision(operation)
             | Self::MismatchedCustomBuckets(operation) => Some(operation),
             _ => None,
+        }
+    }
+    fn optional_metric_name(self) -> bool {
+        matches!(
+            self,
+            Self::MixedClassicNativeHistograms
+                | Self::NativeHistogramQuantileNaNResult
+                | Self::NativeHistogramQuantileNaNSkew
+                | Self::NativeHistogramFractionNaNs
+        )
+    }
+}
+
+#[derive(Clone, Copy, Debug)]
+pub(crate) struct Monotonicity {
+    min_ts: i64,
+    max_ts: i64,
+    min_bucket: f64,
+    max_bucket: f64,
+    max_diff: f64,
+}
+impl Monotonicity {
+    #[cfg_attr(
+        not(any(test, feature = "fixtures")),
+        expect(
+            dead_code,
+            reason = "Histogram call dispatch is a remaining staged owner."
+        )
+    )]
+    pub(crate) fn new(ts: i64, min_bucket: f64, max_bucket: f64, max_diff: f64) -> Self {
+        Self {
+            min_ts: ts,
+            max_ts: ts,
+            min_bucket,
+            max_bucket,
+            max_diff,
+        }
+    }
+    fn merge(&mut self, incoming: &Self) {
+        self.min_ts = self.min_ts.min(incoming.min_ts);
+        self.max_ts = self.max_ts.max(incoming.max_ts);
+        // Strict comparisons retain the old signed-zero and NaN provenance.
+        if incoming.min_bucket < self.min_bucket {
+            self.min_bucket = incoming.min_bucket;
+        }
+        if incoming.max_bucket > self.max_bucket {
+            self.max_bucket = incoming.max_bucket;
+        }
+        if incoming.max_diff > self.max_diff {
+            self.max_diff = incoming.max_diff;
         }
     }
 }
@@ -138,11 +222,30 @@ struct Annotation {
     message: AccountedVec<u8>,
     span: Option<Span>,
     occurrences: i64,
+    monotonicity: Option<AccountedBox<Monotonicity>>,
 }
 impl Annotation {
     fn format(&mut self, query: &[u8]) {
         self.message.clear();
         self.message.extend_from_slice(&self.raw_message);
+        if !query.is_empty()
+            && let Some(details) = &self.monotonicity
+        {
+            write!(
+                self.message,
+                ", from buckets {} to {}, with a max diff of {}, over {} samples from ",
+                float_text(details.min_bucket, FloatTextStyle::Shortest),
+                float_text(details.max_bucket, FloatTextStyle::Shortest),
+                float_text(details.max_diff, FloatTextStyle::TwoSignificant),
+                self.occurrences,
+            )
+            .expect("byte writer");
+            crate::calendar::write_rfc3339(details.min_ts / 1000, &mut self.message)
+                .expect("byte writer");
+            self.message.extend_from_slice(b" to ");
+            crate::calendar::write_rfc3339(details.max_ts / 1000, &mut self.message)
+                .expect("byte writer");
+        }
         if !query.is_empty()
             && self.kind == AnnotationKind::StartTimeOverlap
             && self.occurrences > 1
@@ -232,16 +335,104 @@ impl AnnotationBuilder {
         } else if let AnnotationKind::HistogramIgnoredInAggregation(operator) = kind {
             raw_message.extend_from_slice(operator.text().expect("aggregation text").as_bytes());
             raw_message.extend_from_slice(b" aggregation");
+        } else if kind.optional_metric_name() {
+            write_metric_name(metric, &mut raw_message);
         } else if kind == AnnotationKind::MixedFloatsHistogramsAggregation {
         } else {
             quote::write_bytes(metric, &mut raw_message).expect("byte writer");
         }
+        self.add_generated(kind, raw_message, span, query, account, None);
+    }
+    #[cfg_attr(
+        not(any(test, feature = "fixtures")),
+        expect(
+            dead_code,
+            reason = "Histogram call dispatch is a remaining staged owner."
+        )
+    )]
+    pub(crate) fn add_invalid_quantile(
+        &mut self,
+        q: f64,
+        span: Span,
+        query: &[u8],
+        account: &QueryAccounting,
+    ) {
+        let kind = AnnotationKind::InvalidQuantile;
+        let mut raw = AccountedVec::new(account, MemoryKind::Result);
+        write!(
+            raw,
+            "{}, got {}",
+            kind.prefix(),
+            float_text(q, FloatTextStyle::Shortest),
+        )
+        .expect("byte writer");
+        self.add_generated(kind, raw, span, query, account, None);
+    }
+    #[cfg_attr(
+        not(any(test, feature = "fixtures")),
+        expect(
+            dead_code,
+            reason = "Histogram call dispatch is a remaining staged owner."
+        )
+    )]
+    pub(crate) fn add_bad_bucket(
+        &mut self,
+        metric: &[u8],
+        label: &[u8],
+        span: Span,
+        query: &[u8],
+        account: &QueryAccounting,
+    ) {
+        let kind = AnnotationKind::BadBucketLabel;
+        let mut raw = AccountedVec::new(account, MemoryKind::Result);
+        raw.extend_from_slice(kind.prefix().as_bytes());
+        raw.extend_from_slice(b" of ");
+        quote::write_bytes(label, &mut raw).expect("byte writer");
+        write_metric_name(metric, &mut raw);
+        self.add_generated(kind, raw, span, query, account, None);
+    }
+    #[cfg_attr(
+        not(any(test, feature = "fixtures")),
+        expect(
+            dead_code,
+            reason = "Histogram call dispatch is a remaining staged owner."
+        )
+    )]
+    pub(crate) fn add_monotonicity(
+        &mut self,
+        metric: &[u8],
+        span: Span,
+        details: Monotonicity,
+        query: &[u8],
+        account: &QueryAccounting,
+    ) {
+        let kind = AnnotationKind::HistogramQuantileForcedMonotonicity;
+        let mut raw = AccountedVec::new(account, MemoryKind::Result);
+        raw.extend_from_slice(kind.prefix().as_bytes());
+        write_metric_name(metric, &mut raw);
+        self.add_generated(kind, raw, span, query, account, Some(details));
+    }
+    fn add_generated(
+        &mut self,
+        kind: AnnotationKind,
+        raw_message: AccountedVec<u8>,
+        span: Span,
+        query: &[u8],
+        account: &QueryAccounting,
+        details: Option<Monotonicity>,
+    ) {
         let mut entry = Annotation {
             kind,
             raw_message,
             span: Some(span),
             occurrences: 1,
             message: AccountedVec::new(account, MemoryKind::Result),
+            monotonicity: details.map(|details| {
+                AccountedBox::new(
+                    details,
+                    &AllocationContext::new(account, MemoryKind::Result),
+                )
+            }),
         };
         entry.format(query);
         self.merge_one(entry, query);
@@ -274,6 +465,7 @@ impl AnnotationBuilder {
                 message,
                 span: diagnostic.position,
                 occurrences: 1,
+                monotonicity: None,
             },
             query,
         );
@@ -285,11 +477,22 @@ impl AnnotationBuilder {
             .iter()
             .position(|entry| *entry.raw_message == *incoming.raw_message)
         {
-            if incoming.kind == AnnotationKind::StartTimeOverlap
-                && self.entries[index].kind == AnnotationKind::StartTimeOverlap
+            if incoming.kind == self.entries[index].kind
+                && matches!(
+                    incoming.kind,
+                    AnnotationKind::StartTimeOverlap
+                        | AnnotationKind::HistogramQuantileForcedMonotonicity
+                )
             {
-                // The incoming overlap merges into the previous object, keeping its first position.
+                // Special merges keep the previous object's first position.
                 let previous = &mut self.entries[index];
+                if let Some(details) = &incoming.monotonicity {
+                    previous
+                        .monotonicity
+                        .as_mut()
+                        .expect("monotonicity payload")
+                        .merge(details);
+                }
                 previous.occurrences = previous.occurrences.wrapping_add(incoming.occurrences);
                 previous.format(query);
             } else {
@@ -316,6 +519,17 @@ impl AnnotationBuilder {
         }
     }
 }
+
+fn write_metric_name(metric: &[u8], raw: &mut AccountedVec<u8>) {
+    if !metric.is_empty() {
+        raw.extend_from_slice(b" for metric name ");
+        quote::write_bytes(metric, raw).expect("byte writer");
+    }
+}
+
+#[cfg(feature = "fixtures")]
+#[path = "annotations_fixture.rs"]
+pub mod fixture;
 
 pub(crate) fn write_position_suffix(
     query: &[u8],
@@ -344,6 +558,184 @@ pub(crate) fn write_position_suffix(
 mod tests {
     use super::*;
     use crate::accounting::EngineAccounting;
+    #[test]
+    fn histogram_generic_notes_keep_last_position_and_quoted_bucket_bytes() {
+        let engine = EngineAccounting::default();
+        let account = engine.query();
+        let mut builder = AnnotationBuilder::new(&account);
+        for start in [0, 2] {
+            let span = Span {
+                start,
+                end: start + 1,
+            };
+            builder.add_invalid_quantile(f64::NEG_INFINITY, span, b"a+b", &account);
+            builder.add_bad_bucket(b"", b"\xff\n", span, b"a+b", &account);
+        }
+        let notes = builder.finish();
+        assert_eq!(notes.len(), 2);
+        assert!(notes.iter().all(|note| note.severity == Severity::Warning));
+        assert!(
+            notes
+                .iter()
+                .all(|note| note.span == Some(Span { start: 2, end: 3 }))
+        );
+        assert!(notes.iter().any(|note| note.message
+            == b"PromQL warning: quantile value should be between 0 and 1, got -Inf (1:3)"));
+        assert!(notes.iter().any(|note| note.message == b"PromQL warning: bucket label \"le\" is missing or has a malformed value of \"\\xff\\n\" (1:3)"));
+        drop(notes);
+        account.snapshot().assert_memory_released();
+    }
+    fn requested_result_bytes(builder: &AnnotationBuilder) -> u64 {
+        let entries = builder.entries.capacity() * size_of::<Annotation>();
+        let buffers: usize = builder
+            .entries
+            .iter()
+            .map(|entry| {
+                entry.raw_message.capacity()
+                    + entry.message.capacity()
+                    + if entry.monotonicity.is_some() {
+                        AccountedBox::<Monotonicity>::allocation_bytes()
+                    } else {
+                        0
+                    }
+            })
+            .sum();
+        (entries + buffers) as u64
+    }
+    #[test]
+    fn monotonicity_keeps_the_original_position_and_precise_payload_owner() {
+        let engine = EngineAccounting::default();
+        let account = engine.query();
+        let query = b"a+b+c";
+        let mut builder = AnnotationBuilder::new(&account);
+        builder.add_monotonicity(
+            b"m",
+            Span { start: 0, end: 1 },
+            Monotonicity::new(2001, 2.0, 5.0, 3.0),
+            query,
+            &account,
+        );
+        let original = &**builder.entries[0].monotonicity.as_ref().unwrap() as *const Monotonicity;
+        assert_eq!(
+            account.snapshot().memory[MemoryKind::Result as usize].current,
+            requested_result_bytes(&builder)
+        );
+        let mut child = AnnotationBuilder::new(&account);
+        for (start, ts, min, max, diff) in [(2, -1001, 1.0, 4.0, 2.0), (4, 3001, 3.0, 6.0, 5.0)] {
+            child.add_monotonicity(
+                b"m",
+                Span {
+                    start,
+                    end: start + 1,
+                },
+                Monotonicity::new(ts, min, max, diff),
+                query,
+                &account,
+            );
+        }
+        builder.merge(child, query);
+        let entry = &builder.entries[0];
+        assert_eq!(
+            &**entry.monotonicity.as_ref().unwrap() as *const Monotonicity,
+            original
+        );
+        assert_eq!(entry.span, Some(Span { start: 0, end: 1 }));
+        assert_eq!(entry.occurrences, 3);
+        assert!(entry.message.ends_with(b", from buckets 1 to 6, with a max diff of 5, over 3 samples from 1969-12-31T23:59:59Z to 1970-01-01T00:00:03Z (1:1)"));
+        assert_eq!(
+            account.snapshot().memory[MemoryKind::Result as usize].current,
+            requested_result_bytes(&builder)
+        );
+        assert_eq!(
+            size_of::<Option<AccountedBox<Monotonicity>>>(),
+            size_of::<usize>()
+        );
+        let result = builder.finish();
+        let held = account.snapshot().memory[MemoryKind::Result as usize].current;
+        let retained = result.clone();
+        assert_eq!(
+            account.snapshot().memory[MemoryKind::Result as usize].current,
+            held
+        );
+        drop(result);
+        drop(account);
+        assert_eq!(
+            engine.snapshot().memory[MemoryKind::Result as usize].current,
+            held
+        );
+        drop(retained);
+        engine.snapshot().assert_memory_released();
+    }
+    #[test]
+    fn monotonicity_strict_comparisons_and_empty_query_retain_original_bits() {
+        let engine = EngineAccounting::default();
+        let account = engine.query();
+        let mut builder = AnnotationBuilder::new(&account);
+        let payload = f64::from_bits(0x7ff8_0000_0000_0042);
+        for details in [
+            Monotonicity::new(0, -0.0, payload, -0.0),
+            Monotonicity::new(-999, 0.0, 4.0, 0.0),
+        ] {
+            builder.add_monotonicity(b"", Span { start: 0, end: 1 }, details, b"", &account);
+        }
+        let entry = &builder.entries[0];
+        let details = entry.monotonicity.as_ref().unwrap();
+        assert_eq!(details.min_bucket.to_bits(), (-0.0_f64).to_bits());
+        assert_eq!(details.max_bucket.to_bits(), payload.to_bits());
+        assert_eq!(details.max_diff.to_bits(), (-0.0_f64).to_bits());
+        assert_eq!(entry.occurrences, 2);
+        assert_eq!(&*entry.message, &*entry.raw_message);
+        drop(builder);
+        account.snapshot().assert_memory_released();
+    }
+    #[test]
+    fn opaque_replacement_releases_and_restarts_monotonicity_payload() {
+        let engine = EngineAccounting::default();
+        let account = engine.query();
+        let control = Control::default();
+        let mut builder = AnnotationBuilder::new(&account);
+        let query = b"a+b+c";
+        builder.add_monotonicity(
+            b"m",
+            Span { start: 0, end: 1 },
+            Monotonicity::new(0, 1.0, 2.0, 1.0),
+            query,
+            &account,
+        );
+        let raw = builder.entries[0].raw_message.to_vec();
+        builder
+            .add_provider(
+                crate::storage::ProviderDiagnosticRef {
+                    message: &raw,
+                    severity: Severity::Warning,
+                    position: None,
+                },
+                query,
+                Some(&control),
+                &account,
+            )
+            .unwrap();
+        assert!(builder.entries[0].monotonicity.is_none());
+        assert_eq!(
+            account.snapshot().memory[MemoryKind::Result as usize].current,
+            requested_result_bytes(&builder)
+        );
+        builder.add_monotonicity(
+            b"m",
+            Span { start: 4, end: 5 },
+            Monotonicity::new(3000, 2.0, 4.0, 2.0),
+            query,
+            &account,
+        );
+        assert_eq!(builder.entries[0].span, Some(Span { start: 4, end: 5 }));
+        assert_eq!(builder.entries[0].occurrences, 1);
+        assert_eq!(
+            account.snapshot().memory[MemoryKind::Result as usize].current,
+            requested_result_bytes(&builder)
+        );
+        drop(builder);
+        account.snapshot().assert_memory_released();
+    }
     #[test]
     fn opaque_overlap_text_replaces_the_owner_before_a_new_generated_overlap() {
         let engine = EngineAccounting::default();
