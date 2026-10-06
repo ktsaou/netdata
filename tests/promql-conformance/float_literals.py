@@ -22,6 +22,11 @@ SOURCES = {
     "src/internal/strconv/atof.go": "b3322257fd15836b2ed9355599a767915382c040665391e01a6af35548b9b643",
     "src/internal/strconv/atof_test.go": "13883818e4eba65d99da2b4d1806782ebc1243fdbeeb1bdb90e44b1c75c11500",
     "src/internal/strconv/atoi.go": "bd69756b79c2f007ce7900bea400051f9f9da600c9c6bad656e46900331663d8",
+    "src/internal/strconv/uscale.go": "bd6b0f22f08b35182c18103b1dad93590bb54f007da1eda908daf44f4331a8b8",
+    "src/internal/strconv/pow10tab.go": "aae7690406fa6f2295cdc98d5a164a2ecd97ad92d5b828ca418c78ba2a48fe36",
+    "src/internal/strconv/decimal.go": "23bd45989d0b5a7b441c45873bf43f210fdf8381132fc74424d381216ac3a8b4",
+    "src/internal/strconv/deps.go": "052459732bddd00d8584351fb6a906566fc664ea40cbb125a6084c266ec32238",
+    "src/internal/strconv/decimal_test.go": "3aeade85e321862f00fb93c4049035b7e81fdee0746e8ba15cb0ce4a67deec1b",
     "src/strconv/number.go": "dda43e8c91d95f9dea0c46b2fec6637e5520cae099e40c5965dca0e41bbaab9e",
     "VERSION": "25eb74b09036e1ad894fb63b86cb0f0ee53342df8d2e2e860da4ff5079607758",
     "LICENSE": "911f8f5782931320f5b8d1160a76365b83aea6447ee6c04fa6d5591467db9dad",
@@ -82,6 +87,9 @@ def capture():
     shutil.copyfile(HERE / "capture/float_literals.go", probe)
     binary = task / "parse-float-go"
     invoke(["go", "build", "-p", "4", "-o", binary, probe], task, env, "build")
+    invoke(["go", "test", "-count=1", "-p", "4", "internal/strconv", "-v", "-run",
+            "^(TestAtof|TestAtofSlow|TestDecimalShift|TestDecimalRoundedInteger)$"],
+           task, env, "original-tests")
     original = invoke([binary, "--cases", runtime / "src/internal/strconv/atof_test.go"], task, env, "original")
     (task / "original-inputs.json").write_bytes(original)
     requests, counts = generate(decode(original))
@@ -91,7 +99,8 @@ def capture():
     (task / "reference.json").write_bytes(reference)
     if any(digest(runtime / relative) != expected for relative, expected in SOURCES.items()):
         raise ValueError("Go owners changed during capture")
-    files = ["original-inputs.json", "requests.json", "reference.json", "float_literals.go", "parse-float-go"]
+    files = ["original-inputs.json", "requests.json", "reference.json", "float_literals.go", "parse-float-go",
+             "original-tests.stdout", "original-tests.stderr"]
     manifest = {"schema_version": 1, "runtime_commit": COMMIT, "profile": profile,
                 "counts": counts, "required": len(requests), "sources": SOURCES,
                 "generator_sha256": digest(HERE / "float_literal_cases.py"),
@@ -109,7 +118,8 @@ def load(task):
             or manifest["profile"] != PROFILE or manifest["sources"] != SOURCES
             or manifest["generator_sha256"] != digest(HERE / "float_literal_cases.py")):
         raise ValueError("float reference source/input contract changed")
-    expected_files = {"original-inputs.json", "requests.json", "reference.json", "float_literals.go", "parse-float-go"}
+    expected_files = {"original-inputs.json", "requests.json", "reference.json", "float_literals.go", "parse-float-go",
+                      "original-tests.stdout", "original-tests.stderr"}
     if set(manifest["files"]) != expected_files:
         raise ValueError("incomplete float reference file ledger")
     if any(digest(task / name) != expected for name, expected in manifest["files"].items()):

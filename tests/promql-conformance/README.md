@@ -188,13 +188,18 @@ qualify complete parsing or evaluation.
 
 Bucket labels use float-only conversion, while NUMBER keeps its integer-first conversion. Thus `010` is decimal 10
 for a bucket bound and octal 8 for a NUMBER; float-only `-0` keeps its sign and `0x10` requires a binary exponent.
-The shared frontend now also handles Go hexadecimal floats with sticky truncation, subnormal ties-to-even rounding
-and range-error classification. Its decimal scratch is accounted, and its input walks support cancellation/deadlines.
+The shared frontend handles Go hexadecimal floats with sticky truncation, subnormal ties-to-even rounding
+and range-error classification. Decimal conversion preserves Go's optimized 19-digit path, frozen exponent prefixes
+and distinct 800-digit fallback. It scans borrowed input; fallback scratch is accounted only when needed. Input and
+fallback digit walks support cancellation/deadlines.
 
 `float_literals.py` captures all 264 original Go 1.27.1 float-test inputs and independently generated boundaries,
 specials, raw bytes, long mantissas and round trips. It verifies the pinned runtime source hashes, retains the source,
-probe, requests and results in ignored `.tmp/`, and compares value bits and error classes exactly. The 12,154-case
-panel passes in both release profiles. All 243 unit tests pass in both profiles and Rust 1.91; the existing
+probe, requests and results in ignored `.tmp/`, and compares value bits and error classes exactly. The 13,087-case
+panel passes in both release profiles, including 933 added long-decimal cancellation/fallback cases. The earlier
+12,154-case panel missed these source behaviors; both original captures and failed before binaries remain retained.
+Eighteen additional scalar comparison requests now match Prometheus exactly across parser profiles, query modes
+and fixture page sizes. All 247 unit tests pass in both profiles and Rust 1.91; the existing
 157 lexer, 356 AST, 784 parser-option and 32 literal cases continue to match. The complete expression panel remains
 13,330 passing variants and 8,112 unsupported variants, with no lost passes or new paired numerical differences.
 This is a finite parser-helper check; histogram expression execution remains a separate required surface.

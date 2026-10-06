@@ -3,6 +3,9 @@
 pub mod ast;
 pub mod bytes;
 pub(crate) mod float;
+mod float_decimal;
+mod float_powers;
+mod float_scale;
 pub mod functions;
 pub mod lexer;
 pub mod literal;
