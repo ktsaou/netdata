@@ -92,7 +92,8 @@ impl<'a> LabelOperation<'a> {
             let pattern = string(4)?;
             control.check()?;
             account.work(pattern.len() as u64);
-            let compiled = GoRegex::compile_label_replace_in(pattern, Some(&context));
+            let compiled =
+                GoRegex::compile_label_replace_checked(pattern, Some(&context), control)?;
             control.check()?;
             let regex = match compiled {
                 Ok(regex) => regex,
@@ -172,13 +173,19 @@ impl<'a> LabelOperation<'a> {
             } => {
                 let original = descriptor.labels.get_checked(source, account, control)?;
                 account.work(original.len() as u64);
-                let captures = regex.captures_in(original, Some(&context));
+                let captures = regex.captures_checked(original, Some(&context), control)?;
                 control.check()?;
                 let Some(captures) = captures else {
                     return Ok(());
                 };
                 account.work(replacement.len() as u64);
-                let value = regex.expand_in(replacement, original, &captures, Some(&context));
+                let value = regex.expand_checked(
+                    replacement,
+                    original,
+                    &captures,
+                    Some(&context),
+                    control,
+                )?;
                 control.check()?;
                 (*destination, value)
             }

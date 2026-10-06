@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Go-compatible Unicode and character-class operations; see NOTICE.
 use super::unicode::{self, Table};
-use super::{AllocationContext, Buffer};
+use super::{AllocationContext, Buffer, Work};
+use crate::storage::Interrupted;
 
 pub const MAX_RUNE: u32 = 0x10ffff;
 pub type Class = Buffer<(u32, u32)>;
@@ -22,11 +23,13 @@ pub fn min_fold(rune: u32) -> u32 {
     result
 }
 
-pub fn clean(mut ranges: Class) -> Class {
+pub fn clean(mut ranges: Class, work: Work<'_>) -> Result<Class, Interrupted> {
+    work.step(0)?;
     let context = ranges.context();
-    ranges.sort_unstable();
+    work.sort(&mut ranges)?;
     let mut output: Class = Buffer::with_capacity_in(ranges.len(), context.as_ref());
     for (lo, hi) in ranges {
+        work.step(1)?;
         if let Some(last) = output.last_mut()
             && lo <= last.1.saturating_add(1)
         {
@@ -35,7 +38,7 @@ pub fn clean(mut ranges: Class) -> Class {
             output.push((lo, hi));
         }
     }
-    output
+    Ok(output)
 }
 
 pub fn contains(ranges: &[(u32, u32)], rune: u32) -> bool {
@@ -43,11 +46,12 @@ pub fn contains(ranges: &[(u32, u32)], rune: u32) -> bool {
     ranges.get(index).is_some_and(|range| range.0 <= rune)
 }
 
-pub fn complement(ranges: Class) -> Class {
-    let ranges = clean(ranges);
+pub fn complement(ranges: Class, work: Work<'_>) -> Result<Class, Interrupted> {
+    let ranges = clean(ranges, work)?;
     let mut result = Buffer::with_capacity_in(ranges.len() + 1, ranges.context().as_ref());
     let mut next = 0;
     for (lo, hi) in ranges {
+        work.step(1)?;
         if next < lo {
             result.push((next, lo - 1));
         }
@@ -56,35 +60,43 @@ pub fn complement(ranges: Class) -> Class {
     if next <= MAX_RUNE {
         result.push((next, MAX_RUNE));
     }
-    result
+    Ok(result)
 }
 
-pub fn folded(ranges: Class) -> Class {
-    let mut result = clean(ranges);
+pub fn folded(ranges: Class, work: Work<'_>) -> Result<Class, Interrupted> {
+    let mut result = clean(ranges, work)?;
     let mut added = Buffer::new_in(result.context().as_ref());
     for &(rune, next) in unicode::SIMPLE_FOLD {
+        work.step(1)?;
         if contains(&result, rune) {
             let mut next = next;
             while next != rune {
+                work.step(1)?;
                 added.push((next, next));
                 next = fold(next);
             }
         }
     }
-    result.extend(added);
-    clean(result)
+    work.extend_iter(&mut result, added)?;
+    clean(result, work)
 }
 
-pub fn table(ranges: Table, context: Option<&AllocationContext>) -> Class {
+pub fn table(ranges: Table, work: Work<'_>) -> Result<Class, Interrupted> {
+    work.step(0)?;
+    let context = work.context;
     let mut result = Buffer::new_in(context);
     for &(lo, hi, stride) in ranges {
+        work.step(1)?;
         if stride == 1 {
             result.push((lo, hi));
         } else {
-            result.extend((lo..=hi).step_by(stride as usize).map(|rune| (rune, rune)));
+            work.extend_iter(
+                &mut result,
+                (lo..=hi).step_by(stride as usize).map(|rune| (rune, rune)),
+            )?;
         }
     }
-    clean(result)
+    clean(result, work)
 }
 
 fn lookup(tables: &[(&str, Table)], name: &[u8]) -> Option<Table> {
@@ -94,9 +106,10 @@ fn lookup(tables: &[(&str, Table)], name: &[u8]) -> Option<Table> {
         .map(|i| tables[i].1)
 }
 
-fn canonical_name(name: &[u8], context: Option<&AllocationContext>) -> Buffer<u8> {
-    let mut result = Buffer::new_in(context);
+fn canonical_name(name: &[u8], work: Work<'_>) -> Result<Buffer<u8>, Interrupted> {
+    let mut result = work.buffer();
     for &byte in name {
+        work.step(1)?;
         if matches!(byte, b' ' | b'_' | b'-') {
             continue;
         }
@@ -106,68 +119,82 @@ fn canonical_name(name: &[u8], context: Option<&AllocationContext>) -> Buffer<u8
             byte.to_ascii_lowercase()
         });
     }
-    result
+    Ok(result)
 }
 
 pub fn property(
     name: &[u8],
     insensitive: bool,
     standard: bool,
-    context: Option<&AllocationContext>,
-) -> Option<Class> {
-    let normalized = standard.then(|| canonical_name(name, context));
+    work: Work<'_>,
+) -> Result<Option<Class>, Interrupted> {
+    work.step(0)?;
+    let context = work.context;
+    let normalized = if standard {
+        Some(canonical_name(name, work)?)
+    } else {
+        None
+    };
     let mut name = normalized.as_deref().unwrap_or(name);
     if standard {
         match name {
             b"Assigned" => {
-                return Some(complement(table(
-                    lookup(unicode::CATEGORIES, b"Cn")?,
-                    context,
-                )));
+                let Some(ranges) = lookup(unicode::CATEGORIES, b"Cn") else {
+                    return Ok(None);
+                };
+                return Ok(Some(complement(table(ranges, work)?, work)?));
             }
             b"Ascii" => {
-                return Some(if insensitive {
+                return Ok(Some(if insensitive {
                     buffer![context; (0, 0x7f), (0x17f, 0x17f), (0x212a, 0x212a)]
                 } else {
                     buffer![context; (0, 0x7f)]
-                });
+                }));
             }
             b"Lc" => name = b"LC",
             _ => {
                 if lookup(unicode::CATEGORIES, name).is_none()
                     && lookup(unicode::SCRIPTS, name).is_none()
                 {
-                    if let Some((_, category)) = unicode::CATEGORY_ALIASES
-                        .iter()
-                        .find(|(alias, _)| canonical_name(alias.as_bytes(), context) == name)
-                    {
-                        name = category.as_bytes();
-                    } else if let Some((script, _)) = unicode::SCRIPTS
-                        .iter()
-                        .find(|(script, _)| canonical_name(script.as_bytes(), context) == name)
-                    {
-                        name = script.as_bytes();
+                    let mut category = None;
+                    for &(alias, value) in unicode::CATEGORY_ALIASES {
+                        work.step(1)?;
+                        if work.equal(&canonical_name(alias.as_bytes(), work)?, name)? {
+                            category = Some(value);
+                            break;
+                        }
+                    }
+                    if let Some(value) = category {
+                        name = value.as_bytes();
+                    } else {
+                        for &(script, _) in unicode::SCRIPTS {
+                            work.step(1)?;
+                            if work.equal(&canonical_name(script.as_bytes(), work)?, name)? {
+                                name = script.as_bytes();
+                                break;
+                            }
+                        }
                     }
                 }
             }
         }
     }
     if name == b"Any" {
-        return Some(buffer![context; (0, MAX_RUNE)]);
+        return Ok(Some(buffer![context; (0, MAX_RUNE)]));
     }
     let (ranges, folds) = if let Some(ranges) = lookup(unicode::CATEGORIES, name) {
         (ranges, lookup(unicode::FOLD_CATEGORIES, name))
     } else {
-        (
-            lookup(unicode::SCRIPTS, name)?,
-            lookup(unicode::FOLD_SCRIPTS, name),
-        )
+        let Some(ranges) = lookup(unicode::SCRIPTS, name) else {
+            return Ok(None);
+        };
+        (ranges, lookup(unicode::FOLD_SCRIPTS, name))
     };
-    let mut result = table(ranges, context);
+    let mut result = table(ranges, work)?;
     if insensitive && let Some(folds) = folds {
-        result.extend(table(folds, context));
+        work.extend_iter(&mut result, table(folds, work)?)?;
     }
-    Some(clean(result))
+    Ok(Some(clean(result, work)?))
 }
 
 pub fn perl(name: u8, context: Option<&AllocationContext>) -> Option<(Class, bool)> {
@@ -204,9 +231,10 @@ pub fn posix(name: &[u8], context: Option<&AllocationContext>) -> Option<(Class,
     Some((ranges, negate))
 }
 
-pub fn text(runes: &[u32], context: Option<&AllocationContext>) -> Buffer<u8> {
-    let mut result = Buffer::new_in(context);
+pub fn text(runes: &[u32], work: Work<'_>) -> Result<Buffer<u8>, Interrupted> {
+    let mut result = work.buffer();
     for &rune in runes {
+        work.step(1)?;
         let mut buffer = [0; 4];
         result.extend_from_slice(
             char::from_u32(rune)
@@ -215,7 +243,7 @@ pub fn text(runes: &[u32], context: Option<&AllocationContext>) -> Buffer<u8> {
                 .as_bytes(),
         );
     }
-    result
+    Ok(result)
 }
 
 pub fn is_letter_or_digit(rune: u32) -> bool {

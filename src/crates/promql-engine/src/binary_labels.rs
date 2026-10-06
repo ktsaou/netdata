@@ -19,9 +19,20 @@ pub(crate) fn compare(
     control: &Control,
     account: &QueryAccounting,
 ) -> Result<std::cmp::Ordering, Interrupted> {
+    compare_with(left, right, control, Some(account))
+}
+pub(crate) fn compare_with(
+    left: &[u8],
+    right: &[u8],
+    control: &Control,
+    account: Option<&QueryAccounting>,
+) -> Result<std::cmp::Ordering, Interrupted> {
+    control.check()?;
     for (left, right) in left.chunks(1024).zip(right.chunks(1024)) {
         control.check()?;
-        account.work(left.len().min(right.len()) as u64);
+        if let Some(account) = account {
+            account.work(left.len().min(right.len()) as u64);
+        }
         let order = left.cmp(right);
         if !order.is_eq() {
             return Ok(order);

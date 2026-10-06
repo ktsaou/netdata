@@ -195,8 +195,14 @@ impl QueryAccounting {
         self.count(|s| &mut s.pages, 1);
         self.count(|s| &mut s.samples_fetched, samples as u64);
     }
+    #[cfg(test)]
+    pub(crate) fn test_identity(&self) -> usize {
+        (&*self.0 as *const QueryState) as usize
+    }
     pub fn work(&self, amount: u64) {
         self.count(|s| &mut s.work, amount);
+        #[cfg(test)]
+        crate::test_storage::work_observed(self, amount);
     }
     pub fn output(&self, amount: u64) {
         self.count(|s| &mut s.output_samples, amount);
@@ -302,6 +308,9 @@ pub(crate) struct AllocationContext {
     kind: MemoryKind,
 }
 impl AllocationContext {
+    pub(crate) fn accounting(&self) -> &QueryAccounting {
+        &self.query
+    }
     pub(crate) fn new(query: &QueryAccounting, kind: MemoryKind) -> Self {
         Self {
             query: query.clone(),

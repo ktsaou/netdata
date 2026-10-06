@@ -1,10 +1,12 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Go-compatible simplification, flat program and one-pass analysis; see NOTICE.
 use super::{
-    Buffer,
+    Buffer, Work,
     runes::{self, Class},
     syntax::{FOLD_CASE, Id, NON_GREEDY, Node, Op, Tree},
 };
+
+use crate::storage::Interrupted;
 
 const BEGIN_LINE: usize = 1;
 const END_LINE: usize = 2;
@@ -40,11 +42,13 @@ fn concatenation(tree: &mut Tree, children: Buffer<Id>) -> Id {
     add(tree, node)
 }
 
-fn simplify(tree: &mut Tree) {
-    let context = tree.context();
+fn simplify(tree: &mut Tree, work: Work<'_>) -> Result<(), Interrupted> {
+    work.step(0)?;
+    let context = work.context.cloned();
     let mut frames = buffer![context.as_ref(); (tree.root, false)];
     let mut values = Buffer::new_in(context.as_ref());
     while let Some((id, finish)) = frames.pop() {
+        work.step(1)?;
         let op = tree.nodes[id].op;
         if !finish {
             if op == Op::Repeat && tree.nodes[id].min == 0 && tree.nodes[id].max == Some(0) {
@@ -62,14 +66,18 @@ fn simplify(tree: &mut Tree) {
                     | Op::Repeat
             ) {
                 frames.push((id, true));
-                frames.extend(tree.nodes[id].children.iter().rev().map(|&id| (id, false)));
+                work.extend_iter(
+                    &mut frames,
+                    tree.nodes[id].children.iter().rev().map(|&id| (id, false)),
+                )?;
             } else {
                 values.push(id);
             }
             continue;
         }
-        let node = tree.nodes[id].clone();
-        let children = values.split_off(values.len() - node.children.len());
+        let node = tree.nodes[id].copy(work)?;
+        let begin = values.len() - node.children.len();
+        let children = work.split(&mut values, begin)?;
         let result = match op {
             Op::Star | Op::Plus | Op::Quest => unary(tree, op, node.flags, children[0], Some(id)),
             Op::Repeat => {
@@ -84,16 +92,17 @@ fn simplify(tree: &mut Tree) {
                     ),
                     None => {
                         let last = unary(tree, Op::Plus, node.flags, sub, None);
-                        let mut children = buffer![context.as_ref(); sub; node.min as usize - 1];
+                        let mut children = work.filled(node.min as usize - 1, sub)?;
                         children.push(last);
                         concatenation(tree, children)
                     }
                     Some(1) if node.min == 1 => sub,
                     Some(max) => {
-                        let mut children = buffer![context.as_ref(); sub; node.min as usize];
+                        let mut children = work.filled(node.min as usize, sub)?;
                         if max > node.min {
                             let mut suffix = unary(tree, Op::Quest, node.flags, sub, None);
                             for _ in node.min + 1..max {
+                                work.step(1)?;
                                 let concat =
                                     concatenation(tree, buffer![context.as_ref(); sub, suffix]);
                                 suffix = unary(tree, Op::Quest, node.flags, concat, None);
@@ -112,7 +121,7 @@ fn simplify(tree: &mut Tree) {
                     }
                 }
             }
-            _ if children == node.children => id,
+            _ if work.same(&children, &node.children)? => id,
             _ => {
                 let mut node = node;
                 node.children = children;
@@ -123,6 +132,7 @@ fn simplify(tree: &mut Tree) {
         values.push(result);
     }
     tree.root = values.pop().unwrap();
+    Ok(())
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -151,6 +161,17 @@ pub struct Instruction {
 pub struct Program {
     pub instructions: Buffer<Instruction>,
     pub start: usize,
+}
+
+impl Instruction {
+    fn copy(&self, work: Work<'_>) -> Result<Self, Interrupted> {
+        Ok(Self {
+            code: self.code,
+            out: self.out,
+            arg: self.arg,
+            runes: work.elements(&self.runes)?,
+        })
+    }
 }
 
 #[derive(Clone, Copy, Default)]
@@ -209,12 +230,19 @@ impl Program {
             self.instructions[edge / 2].arg = value;
         }
     }
-    fn patch(&mut self, mut exits: Link, destination: usize) {
+    fn patch(
+        &mut self,
+        mut exits: Link,
+        destination: usize,
+        work: Work<'_>,
+    ) -> Result<(), Interrupted> {
         while exits.head != 0 {
+            work.step(1)?;
             let next = self.edge(exits.head);
             self.set_edge(exits.head, destination);
             exits.head = next;
         }
+        Ok(())
     }
     fn append(&mut self, left: Link, right: Link) -> Link {
         if left.head == 0 {
@@ -238,16 +266,21 @@ impl Program {
         };
         fragment
     }
-    fn concat(&mut self, left: Fragment, right: Fragment) -> Fragment {
+    fn concat(
+        &mut self,
+        left: Fragment,
+        right: Fragment,
+        work: Work<'_>,
+    ) -> Result<Fragment, Interrupted> {
         if left.start == 0 || right.start == 0 {
-            return Fragment::default();
+            return Ok(Fragment::default());
         }
-        self.patch(left.exits, right.start);
-        Fragment {
+        self.patch(left.exits, right.start, work)?;
+        Ok(Fragment {
             start: left.start,
             exits: right.exits,
             nullable: left.nullable && right.nullable,
-        }
+        })
     }
     fn alternate(&mut self, left: Fragment, right: Fragment) -> Fragment {
         if left.start == 0 {
@@ -276,24 +309,34 @@ impl Program {
         );
         result
     }
-    fn plus(&mut self, body: Fragment, lazy: bool) -> Fragment {
-        let choice = self.loop_fragment(body, lazy);
-        Fragment {
+    fn plus(
+        &mut self,
+        body: Fragment,
+        lazy: bool,
+        work: Work<'_>,
+    ) -> Result<Fragment, Interrupted> {
+        let choice = self.loop_fragment(body, lazy, work)?;
+        Ok(Fragment {
             start: body.start,
             exits: choice.exits,
             nullable: body.nullable,
-        }
+        })
     }
-    fn loop_fragment(&mut self, body: Fragment, lazy: bool) -> Fragment {
+    fn loop_fragment(
+        &mut self,
+        body: Fragment,
+        lazy: bool,
+        work: Work<'_>,
+    ) -> Result<Fragment, Interrupted> {
         let mut result = self.instruction(Code::Alt);
         let exit = result.start * 2 + usize::from(!lazy);
         self.set_edge(result.start * 2 + usize::from(lazy), body.start);
-        self.patch(body.exits, result.start);
+        self.patch(body.exits, result.start, work)?;
         result.exits = Link {
             head: exit,
             tail: exit,
         };
-        result
+        Ok(result)
     }
     fn rune(&mut self, runes: Buffer<u32>, flags: u16) -> Fragment {
         let fold = flags & FOLD_CASE != 0 && runes.len() == 1 && runes::fold(runes[0]) != runes[0];
@@ -312,9 +355,10 @@ impl Program {
         result
     }
 
-    pub fn compile(tree: &mut Tree) -> Self {
-        let context = tree.context();
-        simplify(tree);
+    pub fn compile(tree: &mut Tree, work: Work<'_>) -> Result<Self, Interrupted> {
+        work.step(0)?;
+        let context = work.context.cloned();
+        simplify(tree, work)?;
         let mut program = Self {
             instructions: Buffer::new_in(context.as_ref()),
             start: 0,
@@ -323,6 +367,7 @@ impl Program {
         let mut frames = buffer![context.as_ref(); Frame::Visit(tree.root)];
         let mut values = Buffer::<Fragment>::new_in(context.as_ref());
         while let Some(frame) = frames.pop() {
+            work.step(1)?;
             let result = match frame {
                 Frame::Visit(id) => {
                     let node = &tree.nodes[id];
@@ -332,19 +377,18 @@ impl Program {
                         Op::Literal => {
                             let mut value = None;
                             for &rune in &node.runes {
+                                work.step(1)?;
                                 let next =
                                     program.rune(buffer![context.as_ref(); rune], node.flags);
-                                value = Some(
-                                    value.map_or(next, |previous| program.concat(previous, next)),
-                                );
+                                value = Some(match value {
+                                    Some(previous) => program.concat(previous, next, work)?,
+                                    None => next,
+                                });
                             }
                             value.unwrap_or_else(|| program.outgoing(Code::Nop, 0))
                         }
                         Op::Class => program.rune(
-                            Buffer::from_iter_in(
-                                node.class.iter().flat_map(|&(lo, hi)| [lo, hi]),
-                                context.as_ref(),
-                            ),
+                            work.collect(node.class.iter().flat_map(|&(lo, hi)| [lo, hi]))?,
                             node.flags,
                         ),
                         Op::Any => program.rune(buffer![context.as_ref(); 0, runes::MAX_RUNE], 0),
@@ -380,7 +424,10 @@ impl Program {
                         Op::Alternate => Fragment::default(),
                         Op::Concat => {
                             frames.push(Frame::Concat(node.children.len()));
-                            frames.extend(node.children.iter().rev().copied().map(Frame::Visit));
+                            work.extend_iter(
+                                &mut frames,
+                                node.children.iter().rev().copied().map(Frame::Visit),
+                            )?;
                             continue;
                         }
                         _ => unreachable!("simplified regex tree"),
@@ -394,10 +441,11 @@ impl Program {
                         Fragment::default()
                     };
                     for (index, &fragment) in values[begin..].iter().enumerate() {
+                        work.step(1)?;
                         result = if index == 0 {
                             fragment
                         } else {
-                            program.concat(result, fragment)
+                            program.concat(result, fragment, work)?
                         };
                     }
                     values.truncate(begin);
@@ -421,20 +469,20 @@ impl Program {
                 Frame::CaptureEnd(begin, capture) => {
                     let sub = values.pop().unwrap();
                     let end = program.outgoing(Code::Capture, capture as usize * 2 + 1);
-                    let head = program.concat(begin, sub);
-                    program.concat(head, end)
+                    let head = program.concat(begin, sub, work)?;
+                    program.concat(head, end, work)?
                 }
                 Frame::Unary(op, flags) => {
                     let body = values.pop().unwrap();
                     let lazy = flags & NON_GREEDY != 0;
                     match op {
                         Op::Quest => program.question(body, lazy),
-                        Op::Plus => program.plus(body, lazy),
+                        Op::Plus => program.plus(body, lazy, work)?,
                         _ if body.nullable => {
-                            let plus = program.plus(body, lazy);
+                            let plus = program.plus(body, lazy, work)?;
                             program.question(plus, lazy)
                         }
-                        _ => program.loop_fragment(body, lazy),
+                        _ => program.loop_fragment(body, lazy, work)?,
                     }
                 }
             };
@@ -442,41 +490,47 @@ impl Program {
         }
         let root = values.pop().unwrap();
         let matched = program.instruction(Code::Match);
-        program.patch(root.exits, matched.start);
+        program.patch(root.exits, matched.start, work)?;
         program.start = root.start;
-        program
+        Ok(program)
     }
 
-    fn one_pass(&self) -> bool {
-        let context = self.instructions.context();
+    fn one_pass(&self, work: Work<'_>) -> Result<bool, Interrupted> {
+        work.step(0)?;
+        let context = work.context.cloned();
         if self.start == 0 || self.instructions.len() >= 1000 {
-            return false;
+            return Ok(false);
         }
         let first = &self.instructions[self.start];
         if first.code != Code::Empty || first.arg & BEGIN_TEXT == 0 {
-            return false;
+            return Ok(false);
         }
-        let has_alt = self
-            .instructions
-            .iter()
-            .any(|instruction| instruction.code == Code::Alt);
+        let has_alt = work.any(self.instructions.iter(), |instruction| {
+            instruction.code == Code::Alt
+        })?;
         for instruction in &self.instructions {
+            work.step(1)?;
             let matched = self.instructions[instruction.out].code == Code::Match;
             match instruction.code {
                 Code::Alt if matched || self.instructions[instruction.arg].code == Code::Match => {
-                    return false;
+                    return Ok(false);
                 }
-                Code::Empty if matched && instruction.arg & END_TEXT == 0 => return false,
+                Code::Empty if matched && instruction.arg & END_TEXT == 0 => return Ok(false),
                 Code::Alt | Code::Empty => {}
-                _ if matched && has_alt => return false,
+                _ if matched && has_alt => return Ok(false),
                 _ => {}
             }
         }
+        let mut instructions = work.buffer();
+        for instruction in &self.instructions {
+            instructions.push(instruction.copy(work)?);
+        }
         let mut program = Self {
-            instructions: self.instructions.clone(),
+            instructions,
             start: self.start,
         };
         for pc in 0..program.instructions.len() {
+            work.step(1)?;
             if program.instructions[pc].code != Code::Alt {
                 continue;
             }
@@ -509,17 +563,19 @@ impl Program {
         }
         let count = program.instructions.len();
         let mut queue = buffer![context.as_ref(); self.start];
-        let mut queued = buffer![context.as_ref(); false; count];
+        let mut queued = work.filled(count, false)?;
         queued[self.start] = true;
-        let mut initialized = buffer![context.as_ref(); false; count];
-        let mut nullable = buffer![context.as_ref(); false; count];
-        let mut sets = buffer![context.as_ref(); Class::new_in(context.as_ref()); count];
+        let mut initialized = work.filled(count, false)?;
+        let mut nullable = work.filled(count, false)?;
+        let mut sets = work.collect((0..count).map(|_| Class::new_in(context.as_ref())))?;
         let mut cursor = 0;
         while cursor < queue.len() {
-            let mut visited = buffer![context.as_ref(); false; count];
+            work.step(1)?;
+            let mut visited = work.filled(count, false)?;
             let mut frames = buffer![context.as_ref(); (queue[cursor], false)];
             cursor += 1;
             while let Some((pc, finish)) = frames.pop() {
+                work.step(1)?;
                 let instruction = &program.instructions[pc];
                 if !finish {
                     if visited[pc] {
@@ -552,55 +608,56 @@ impl Program {
                             {
                                 let rune = instruction.runes[0];
                                 if instruction.arg & FOLD_CASE as usize != 0 {
-                                    runes::folded(buffer![context.as_ref(); (rune, rune)])
+                                    runes::folded(buffer![context.as_ref(); (rune, rune)], work)?
                                 } else {
                                     buffer![context.as_ref(); (rune, rune)]
                                 }
                             } else {
-                                Buffer::from_iter_in(
+                                work.collect(
                                     instruction
                                         .runes
                                         .chunks_exact(2)
                                         .map(|pair| (pair[0], pair[1])),
-                                    context.as_ref(),
-                                )
+                                )?
                             };
                         }
                     }
                 } else if instruction.code == Code::Alt {
                     let (a, b) = (instruction.out, instruction.arg);
                     if nullable[a] && nullable[b] {
-                        return false;
+                        return Ok(false);
                     }
-                    let mut ranges = sets[a].clone();
-                    ranges.extend_from_slice(&sets[b]);
-                    ranges.sort_unstable();
-                    if ranges.windows(2).any(|pair| pair[1].0 <= pair[0].1) {
-                        return false;
+                    let mut ranges = work.elements(&sets[a])?;
+                    work.extend_iter(&mut ranges, sets[b].iter().copied())?;
+                    work.sort(&mut ranges)?;
+                    if work.any(ranges.windows(2), |pair| pair[1].0 <= pair[0].1)? {
+                        return Ok(false);
                     }
                     sets[pc] = ranges;
                     nullable[pc] = nullable[a] || nullable[b];
                 } else {
                     nullable[pc] = nullable[instruction.out];
-                    sets[pc] = sets[instruction.out].clone();
+                    sets[pc] = work.elements(&sets[instruction.out])?;
                 }
             }
         }
-        true
+        Ok(true)
     }
 
-    pub fn prefix(&self) -> (Buffer<u8>, Buffer<usize>) {
-        let context = self.instructions.context();
+    pub fn prefix(&self, work: Work<'_>) -> Result<(Buffer<u8>, Buffer<usize>), Interrupted> {
+        let context = work.context.cloned();
         let mut selected = Buffer::new_in(context.as_ref());
-        if !self.one_pass() {
-            return (Buffer::new_in(context.as_ref()), selected);
+        if !self.one_pass(work)? {
+            return Ok((Buffer::new_in(context.as_ref()), selected));
         }
         let mut pc = self.instructions[self.start].out;
         while self.instructions[pc].code == Code::Nop {
+            work.step(1)?;
             pc = self.instructions[pc].out;
         }
         let mut prefix = Buffer::new_in(context.as_ref());
         loop {
+            work.step(1)?;
             let instruction = &self.instructions[pc];
             if !matches!(
                 instruction.code,
@@ -611,11 +668,11 @@ impl Program {
             {
                 break;
             }
-            prefix.extend(runes::text(&instruction.runes, context.as_ref()));
+            work.extend(&mut prefix, &runes::text(&instruction.runes, work)?)?;
             selected.push(pc);
             pc = instruction.out;
         }
-        (prefix, selected)
+        Ok((prefix, selected))
     }
 }
 
@@ -663,8 +720,12 @@ impl Code {
 impl Program {
     pub fn inspect(&self) -> Inspection {
         let context = self.instructions.context();
-        let one_pass = self.one_pass();
-        let (mut prefix, selected) = self.prefix();
+        let one_pass = self
+            .one_pass(Work::default())
+            .expect("inert one-pass inspection");
+        let (mut prefix, selected) = self
+            .prefix(Work::default())
+            .expect("inert prefix inspection");
         let mut pc = self.start;
         let prefix_end;
         let complete;
@@ -708,7 +769,10 @@ impl Program {
                 {
                     break;
                 }
-                prefix.extend(runes::text(&instruction.runes, context.as_ref()));
+                prefix.extend(
+                    runes::text(&instruction.runes, Work::new(context.as_ref(), None))
+                        .expect("inert rune text"),
+                );
                 pc = skip(instruction.out);
             }
             complete = self.instructions[pc].code == Code::Match;

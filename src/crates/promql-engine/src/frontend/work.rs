@@ -5,7 +5,7 @@ use crate::{
 };
 use std::fmt::{self, Write};
 
-/// Borrow the compile owner; buffers retain their own leases after this scope ends.
+/// Borrow the current owner; buffers retain their own leases after this scope ends.
 #[derive(Clone, Copy, Default)]
 pub(super) struct Work<'a> {
     pub(super) context: Option<&'a AllocationContext>,
@@ -13,6 +13,16 @@ pub(super) struct Work<'a> {
     pub(super) control: Option<&'a Control>,
 }
 impl Work<'_> {
+    pub(super) fn new<'a>(
+        context: Option<&'a AllocationContext>,
+        control: Option<&'a Control>,
+    ) -> Work<'a> {
+        Work {
+            context,
+            account: context.map(AllocationContext::accounting),
+            control,
+        }
+    }
     pub(super) fn step(self, units: usize) -> Result<(), Interrupted> {
         if let Some(control) = self.control {
             control.check()?;
@@ -46,6 +56,7 @@ impl Work<'_> {
         Ok(())
     }
     pub(super) fn contains(self, bytes: &[u8], byte: u8) -> Result<bool, Interrupted> {
+        self.step(0)?;
         for chunk in bytes.chunks(1024) {
             self.step(chunk.len())?;
             if chunk.contains(&byte) {
@@ -55,6 +66,7 @@ impl Work<'_> {
         Ok(false)
     }
     pub(super) fn equal(self, left: &[u8], right: &[u8]) -> Result<bool, Interrupted> {
+        self.step(0)?;
         if left.len() != right.len() {
             return Ok(false);
         }
@@ -67,6 +79,7 @@ impl Work<'_> {
         Ok(true)
     }
     pub(super) fn valid_utf8(self, mut bytes: &[u8]) -> Result<bool, Interrupted> {
+        self.step(0)?;
         while !bytes.is_empty() {
             let (rune, width) = super::quote::decode_rune(bytes);
             self.step(width)?;
@@ -81,6 +94,7 @@ impl Work<'_> {
         self,
         arguments: fmt::Arguments<'_>,
     ) -> Result<AccountedVec<u8>, Interrupted> {
+        self.step(0)?;
         let mut writer = Writer {
             work: self,
             bytes: self.buffer(),
@@ -92,6 +106,137 @@ impl Work<'_> {
         }
         result.expect("frontend byte writer");
         Ok(writer.bytes)
+    }
+
+    pub(super) fn collect<T>(
+        self,
+        values: impl IntoIterator<Item = T>,
+    ) -> Result<AccountedVec<T>, Interrupted> {
+        self.step(0)?;
+        let mut result = self.buffer();
+        self.extend_iter(&mut result, values)?;
+        Ok(result)
+    }
+    pub(super) fn extend_iter<T>(
+        self,
+        target: &mut AccountedVec<T>,
+        values: impl IntoIterator<Item = T>,
+    ) -> Result<(), Interrupted> {
+        self.step(0)?;
+        for value in values {
+            self.step(1)?;
+            target.push(value);
+        }
+        Ok(())
+    }
+    pub(super) fn elements<T: Copy>(self, values: &[T]) -> Result<AccountedVec<T>, Interrupted> {
+        self.step(0)?;
+        let mut result = AccountedVec::with_capacity_in(values.len(), self.context);
+        self.extend_iter(&mut result, values.iter().copied())?;
+        Ok(result)
+    }
+    pub(super) fn filled<T: Copy>(
+        self,
+        len: usize,
+        value: T,
+    ) -> Result<AccountedVec<T>, Interrupted> {
+        self.step(0)?;
+        let mut result = AccountedVec::with_capacity_in(len, self.context);
+        self.extend_iter(&mut result, std::iter::repeat_n(value, len))?;
+        Ok(result)
+    }
+    pub(super) fn same<T: PartialEq>(self, left: &[T], right: &[T]) -> Result<bool, Interrupted> {
+        self.step(0)?;
+        if left.len() != right.len() {
+            return Ok(false);
+        }
+        for (a, b) in left.iter().zip(right) {
+            self.step(1)?;
+            if a != b {
+                return Ok(false);
+            }
+        }
+        Ok(true)
+    }
+    pub(super) fn find(self, bytes: &[u8], needle: &[u8]) -> Result<Option<usize>, Interrupted> {
+        self.step(0)?;
+        if needle.is_empty() {
+            return Ok(Some(0));
+        }
+        for (position, window) in bytes.windows(needle.len()).enumerate() {
+            self.step(1)?;
+            if self.equal(window, needle)? {
+                return Ok(Some(position));
+            }
+        }
+        Ok(None)
+    }
+    pub(super) fn starts(self, bytes: &[u8], prefix: &[u8]) -> Result<bool, Interrupted> {
+        self.step(0)?;
+        match bytes.get(..prefix.len()) {
+            Some(bytes) => self.equal(bytes, prefix),
+            None => Ok(false),
+        }
+    }
+    pub(super) fn ends(self, bytes: &[u8], suffix: &[u8]) -> Result<bool, Interrupted> {
+        self.step(0)?;
+        match bytes.len().checked_sub(suffix.len()) {
+            Some(start) => self.equal(&bytes[start..], suffix),
+            None => Ok(false),
+        }
+    }
+    pub(super) fn discard_prefix<T: Copy>(
+        self,
+        values: &mut AccountedVec<T>,
+        count: usize,
+    ) -> Result<(), Interrupted> {
+        self.step(0)?;
+        assert!(count <= values.len());
+        for index in count..values.len() {
+            self.step(1)?;
+            values[index - count] = values[index];
+        }
+        values.truncate(values.len() - count);
+        Ok(())
+    }
+    pub(super) fn split<T: Copy>(
+        self,
+        values: &mut AccountedVec<T>,
+        begin: usize,
+    ) -> Result<AccountedVec<T>, Interrupted> {
+        let result = self.elements(&values[begin..])?;
+        values.truncate(begin);
+        Ok(result)
+    }
+    pub(super) fn sort<T: Ord>(self, values: &mut [T]) -> Result<(), Interrupted> {
+        crate::evaluator_order::sort_with(values, self.control, self.account, Ord::cmp)
+    }
+    pub(super) fn any<T>(
+        self,
+        values: impl IntoIterator<Item = T>,
+        mut predicate: impl FnMut(T) -> bool,
+    ) -> Result<bool, Interrupted> {
+        self.step(0)?;
+        for value in values {
+            self.step(1)?;
+            if predicate(value) {
+                return Ok(true);
+            }
+        }
+        Ok(false)
+    }
+    pub(super) fn fold<T, R>(
+        self,
+        values: impl IntoIterator<Item = T>,
+        mut value: R,
+        mut combine: impl FnMut(R, T) -> R,
+    ) -> Result<R, Interrupted> {
+        self.step(0)?;
+        for next in values {
+            self.step(1)?;
+            value = combine(value, next);
+        }
+        Ok(value)
     }
 }
 

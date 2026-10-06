@@ -196,19 +196,39 @@ pub(crate) fn sort<T>(
     values: &mut [T],
     control: &Control,
     account: &QueryAccounting,
+    compare: impl FnMut(&T, &T) -> Ordering,
+) -> Result<(), Interrupted> {
+    sort_with(values, Some(control), Some(account), compare)
+}
+
+pub(crate) fn sort_with<T>(
+    values: &mut [T],
+    control: Option<&Control>,
+    account: Option<&QueryAccounting>,
     mut compare: impl FnMut(&T, &T) -> Ordering,
 ) -> Result<(), Interrupted> {
+    fn check(
+        control: Option<&Control>,
+        account: Option<&QueryAccounting>,
+    ) -> Result<(), Interrupted> {
+        if let Some(control) = control {
+            control.check()?;
+        }
+        if let Some(account) = account {
+            account.work(1);
+        }
+        Ok(())
+    }
     fn sift<T>(
         values: &mut [T],
         mut root: usize,
         end: usize,
-        control: &Control,
-        account: &QueryAccounting,
+        control: Option<&Control>,
+        account: Option<&QueryAccounting>,
         compare: &mut impl FnMut(&T, &T) -> Ordering,
     ) -> Result<(), Interrupted> {
         loop {
-            control.check()?;
-            account.work(1);
+            check(control, account)?;
             let child = root * 2 + 1;
             if child >= end {
                 return Ok(());
@@ -226,7 +246,9 @@ pub(crate) fn sort<T>(
             root = largest;
         }
     }
-    control.check()?;
+    if let Some(control) = control {
+        control.check()?;
+    }
     for root in (0..values.len() / 2).rev() {
         sift(values, root, values.len(), control, account, &mut compare)?;
     }

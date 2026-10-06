@@ -1019,6 +1019,23 @@ Public inert lexer/parser/literal helpers use the same algorithms with no accoun
 Checked frontend loops return cancellation and deadline outcomes separately from syntax diagnostics. Byte copies
 poll in chunks of at most 1,024 bytes; scanner, recovery, decoding and validation walks poll as they advance.
 Allocator calls, buffer migrations, cleanup and standard float parsing are cooperative latency boundaries.
-Owned regex loops still require the separately tracked checked compile/search/replacement path; backend calls
-cannot be interrupted internally. This checkpoint does not establish a hard deadline, a total allocation/RSS
+The regex path below extends these checks through owned compile/search/replacement work. This checkpoint does not establish a hard deadline, a total allocation/RSS
 bound, complete provider/error/sink/C ownership or full expression/SRE compatibility. Limits remain disabled.
+
+## Regex cooperative control
+
+Engine compilation, empty-selector validation, provider/core filtering and runtime `label_replace` use a checked
+regex path. Owned syntax, factoring, classes, canonical serialization, program/NFA construction, optimization,
+Unicode normalization, subject-offset construction, capture export and replacement scans poll as they advance.
+Deep copies and variable-length shifts use explicit checked walks; fixed-size class tuples use interruptible
+sorting. New scratch buffers use the current work owner; borrowed input retains its original ownership.
+
+Cancellation and deadline errors travel separately from syntax/backend error bytes and unmatched results.
+Negative matchers negate only successful boolean results. Original public inert helpers and boolean matcher
+methods remain available. Existing matcher implementations inherit pre/post checks around their legacy callback;
+the owned selector implements checks within its semantic loops. Compiled matchers retain no query control.
+
+Regex backend build/cache/search, standard hash-table operations, allocations, buffer migration and cleanup remain
+atomic from this interface. Checks surround those operations, but cannot interrupt them internally. Partitioning
+input would change anchors and capture behavior. Backend/table memory remains explicitly estimated under the
+existing contract, and every admission limit remains disabled.

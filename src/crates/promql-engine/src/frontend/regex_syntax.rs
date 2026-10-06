@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Owned Go regexp syntax and ordered diagnostics, derived from syntax/parse.go; see NOTICE.
 use super::runes::{self, Class};
-use super::{AllocationContext, Buffer};
+use super::{AllocationContext, Buffer, Failure, Work};
 use crate::frontend::quote::decode_rune;
+use crate::storage::Interrupted;
 
 pub type Id = usize;
 pub type Flags = u16;
@@ -83,6 +84,21 @@ impl Node {
             size: 1,
         }
     }
+    pub(super) fn copy(&self, work: Work<'_>) -> std::result::Result<Self, Interrupted> {
+        Ok(Self {
+            op: self.op,
+            flags: self.flags,
+            runes: work.elements(&self.runes)?,
+            class: work.elements(&self.class)?,
+            children: work.elements(&self.children)?,
+            min: self.min,
+            max: self.max,
+            capture: self.capture,
+            name: work.copy(&self.name)?,
+            height: self.height,
+            size: self.size,
+        })
+    }
 }
 
 #[derive(Debug)]
@@ -104,28 +120,40 @@ pub struct Error {
 }
 
 impl Error {
-    fn new(code: &'static str, expression: &[u8], context: Option<&AllocationContext>) -> Self {
-        Self {
-            code,
-            expression: Buffer::from_slice_in(expression, context),
+    fn failure(code: &'static str, expression: &[u8], work: Work<'_>) -> Failure<Self> {
+        match work.copy(expression) {
+            Ok(expression) => Failure::Error(Self { code, expression }),
+            Err(error) => Failure::Interrupted(error),
         }
     }
-
+    #[cfg(feature = "fixtures")]
     pub fn bytes(&self) -> Buffer<u8> {
-        let mut result = Buffer::new_in(self.expression.context().as_ref());
-        result.extend_from_slice(b"error parsing regexp: ");
-        result.extend_from_slice(self.code.as_bytes());
-        result.extend_from_slice(b": `");
-        result.extend_from_slice(&self.expression);
-        result.push(b'`');
-        result
+        let context = self.expression.context();
+        self.bytes_checked(Work::new(context.as_ref(), None))
+            .expect("inert regex diagnostic")
+    }
+    pub(super) fn bytes_checked(
+        &self,
+        work: Work<'_>,
+    ) -> std::result::Result<Buffer<u8>, Interrupted> {
+        let mut result = work.buffer();
+        for bytes in [
+            b"error parsing regexp: ".as_slice(),
+            self.code.as_bytes(),
+            b": `",
+            &self.expression,
+            b"`",
+        ] {
+            work.extend(&mut result, bytes)?;
+        }
+        Ok(result)
     }
 }
 
-type Result<T> = std::result::Result<T, Error>;
+type Result<T> = std::result::Result<T, Failure<Error>>;
 
-struct Parser<'a> {
-    context: Option<AllocationContext>,
+struct Parser<'a, 'w> {
+    work: Work<'w>,
     input: &'a [u8],
     position: usize,
     flags: Flags,
@@ -171,43 +199,32 @@ enum CollapseFrame {
 }
 
 #[cfg(feature = "fixtures")]
-pub fn parse(input: &[u8], flags: Flags) -> Result<Tree> {
-    parse_profile(input, flags, false, None)
+pub fn parse(input: &[u8], flags: Flags) -> std::result::Result<Tree, Error> {
+    super::inert(parse_profile(input, flags, false, Work::default()))
 }
 
 #[cfg(feature = "fixtures")]
-pub fn parse_standard(input: &[u8], flags: Flags) -> Result<Tree> {
-    parse_profile(input, flags, true, None)
+pub fn parse_standard(input: &[u8], flags: Flags) -> std::result::Result<Tree, Error> {
+    super::inert(parse_profile(input, flags, true, Work::default()))
 }
 
-pub(super) fn parse_in(
-    input: &[u8],
-    flags: Flags,
-    context: Option<&AllocationContext>,
-) -> Result<Tree> {
-    parse_profile(input, flags, false, context)
+pub(super) fn parse_in(input: &[u8], flags: Flags, work: Work<'_>) -> Result<Tree> {
+    parse_profile(input, flags, false, work)
 }
 
-pub(super) fn parse_standard_in(
-    input: &[u8],
-    flags: Flags,
-    context: Option<&AllocationContext>,
-) -> Result<Tree> {
-    parse_profile(input, flags, true, context)
+pub(super) fn parse_standard_in(input: &[u8], flags: Flags, work: Work<'_>) -> Result<Tree> {
+    parse_profile(input, flags, true, work)
 }
 
-fn parse_profile(
-    input: &[u8],
-    flags: Flags,
-    standard: bool,
-    context: Option<&AllocationContext>,
-) -> Result<Tree> {
+fn parse_profile(input: &[u8], flags: Flags, standard: bool, work: Work<'_>) -> Result<Tree> {
+    work.step(0)?;
+    let context = work.context;
     if flags & LITERAL != 0 {
-        check_utf8(input, context)?;
+        check_utf8(input, work)?;
         let mut position = 0;
         let mut node = Node::new(Op::Literal, flags, context);
         while position < input.len() {
-            let rune = next_rune(input, &mut position, context)?;
+            let rune = next_rune(input, &mut position, work)?;
             node.runes.push(rune);
         }
         return Ok(Tree {
@@ -217,7 +234,7 @@ fn parse_profile(
         });
     }
     Parser {
-        context: context.cloned(),
+        work,
         input,
         position: 0,
         flags,
@@ -230,23 +247,20 @@ fn parse_profile(
     .run()
 }
 
-fn next_rune(
-    input: &[u8],
-    position: &mut usize,
-    context: Option<&AllocationContext>,
-) -> Result<u32> {
+fn next_rune(input: &[u8], position: &mut usize, work: Work<'_>) -> Result<u32> {
+    work.step(1)?;
     let (rune, width) = decode_rune(&input[*position..]);
     if rune == 0xfffd && width == 1 {
-        return Err(Error::new("invalid UTF-8", &input[*position..], context));
+        return Err(Error::failure("invalid UTF-8", &input[*position..], work));
     }
     *position += width;
     Ok(if width == 0 { 0xfffd } else { rune as u32 })
 }
 
-fn check_utf8(mut input: &[u8], context: Option<&AllocationContext>) -> Result<()> {
+fn check_utf8(mut input: &[u8], work: Work<'_>) -> Result<()> {
     while !input.is_empty() {
         let mut used = 0;
-        next_rune(input, &mut used, context)?;
+        next_rune(input, &mut used, work)?;
         input = &input[used..];
     }
     Ok(())
@@ -261,31 +275,28 @@ fn hex(rune: u32) -> Option<u32> {
     }
 }
 
-impl Parser<'_> {
+impl Parser<'_, '_> {
     fn alloc(&mut self, op: Op) -> Id {
         let id = self.nodes.len();
         self.nodes
-            .push(Node::new(op, self.flags, self.context.as_ref()));
+            .push(Node::new(op, self.flags, self.work.context));
         id
     }
 
-    fn refresh(&mut self, id: Id) {
+    fn refresh(&mut self, id: Id) -> Result<()> {
+        self.work.step(1)?;
         let node = &self.nodes[id];
         let sub = node
             .children
             .first()
             .map_or(0, |&child| self.nodes[child].size);
-        let sum = node
-            .children
-            .iter()
-            .map(|&child| self.nodes[child].size)
-            .sum::<u64>();
-        let height = 1 + node
-            .children
-            .iter()
-            .map(|&child| self.nodes[child].height)
-            .max()
-            .unwrap_or(0);
+        let (mut sum, mut maximum) = (0, 0);
+        for &child in &node.children {
+            self.work.step(1)?;
+            sum += self.nodes[child].size;
+            maximum = maximum.max(self.nodes[child].height);
+        }
+        let height = 1 + maximum;
         let size = match node.op {
             Op::Literal => node.runes.len() as u64,
             Op::Capture | Op::Star => 2 + sub,
@@ -301,30 +312,31 @@ impl Parser<'_> {
         };
         self.nodes[id].height = height;
         self.nodes[id].size = size.max(1);
+        Ok(())
     }
 
     fn limits(&mut self, id: Id) -> Result<()> {
-        self.refresh(id);
+        self.refresh(id)?;
         if self.rune_count > MAX_RUNES || self.nodes[id].size > MAX_SIZE {
-            return Err(Error::new(
+            return Err(Error::failure(
                 "expression too large",
                 self.input,
-                self.context.as_ref(),
+                self.work,
             ));
         }
         if self.nodes[id].height > MAX_HEIGHT {
-            return Err(Error::new(
+            return Err(Error::failure(
                 "expression nests too deeply",
                 self.input,
-                self.context.as_ref(),
+                self.work,
             ));
         }
         Ok(())
     }
 
-    fn maybe_concat(&mut self, next: Option<(u32, Flags)>) -> bool {
+    fn maybe_concat(&mut self, next: Option<(u32, Flags)>) -> Result<bool> {
         if self.stack.len() < 2 {
-            return false;
+            return Ok(false);
         }
         let first = self.stack[self.stack.len() - 2];
         let last = self.stack[self.stack.len() - 1];
@@ -332,19 +344,19 @@ impl Parser<'_> {
             || self.nodes[last].op != Op::Literal
             || self.nodes[first].flags & FOLD_CASE != self.nodes[last].flags & FOLD_CASE
         {
-            return false;
+            return Ok(false);
         }
         let runes = std::mem::take(&mut self.nodes[last].runes);
-        self.nodes[first].runes.extend(runes);
-        self.refresh(first);
+        self.work.extend_iter(&mut self.nodes[first].runes, runes)?;
+        self.refresh(first)?;
         if let Some((rune, flags)) = next {
             self.nodes[last].runes.push(rune);
             self.nodes[last].flags = flags;
-            self.refresh(last);
-            true
+            self.refresh(last)?;
+            Ok(true)
         } else {
             self.stack.pop();
-            false
+            Ok(false)
         }
     }
 
@@ -369,18 +381,18 @@ impl Parser<'_> {
                 None
             };
             if let Some((rune, flags)) = literal {
-                if self.maybe_concat(Some((rune, flags))) {
+                if self.maybe_concat(Some((rune, flags)))? {
                     return Ok(());
                 }
                 self.nodes[id].op = Op::Literal;
-                self.nodes[id].runes = buffer![self.context.as_ref(); rune];
+                self.nodes[id].runes = buffer![self.work.context; rune];
                 self.nodes[id].class.clear();
                 self.nodes[id].flags = flags;
             } else {
-                self.maybe_concat(None);
+                self.maybe_concat(None)?;
             }
         } else {
-            self.maybe_concat(None);
+            self.maybe_concat(None)?;
         }
         self.stack.push(id);
         self.limits(id)
@@ -407,50 +419,53 @@ impl Parser<'_> {
             || self.nodes[id].op == Op::Literal && self.nodes[id].runes.len() == 1
     }
 
-    fn character_class(&self, id: Id) -> Class {
-        match self.nodes[id].op {
-            Op::Any => buffer![self.context.as_ref(); (0, runes::MAX_RUNE)],
-            Op::AnyNotNL => buffer![self.context.as_ref(); (0, 9), (11, runes::MAX_RUNE)],
-            Op::Class => self.nodes[id].class.clone(),
+    fn character_class(&self, id: Id) -> Result<Class> {
+        Ok(match self.nodes[id].op {
+            Op::Any => buffer![self.work.context; (0, runes::MAX_RUNE)],
+            Op::AnyNotNL => buffer![self.work.context; (0, 9), (11, runes::MAX_RUNE)],
+            Op::Class => self.work.elements(&self.nodes[id].class)?,
             Op::Literal if self.nodes[id].flags & FOLD_CASE != 0 => {
                 let rune = self.nodes[id].runes[0];
-                runes::folded(buffer![self.context.as_ref(); (rune, rune)])
+                runes::folded(buffer![self.work.context; (rune, rune)], self.work)?
             }
             Op::Literal => {
-                buffer![self.context.as_ref(); (self.nodes[id].runes[0], self.nodes[id].runes[0])]
+                buffer![self.work.context; (self.nodes[id].runes[0], self.nodes[id].runes[0])]
             }
             _ => unreachable!("character-like expression"),
-        }
+        })
     }
 
-    fn merge_class(&mut self, destination: Id, source: Id) {
+    fn merge_class(&mut self, destination: Id, source: Id) -> Result<()> {
         if self.nodes[destination].op == Op::Any {
-            return;
+            return Ok(());
         }
         if self.nodes[destination].op == Op::AnyNotNL {
-            if runes::contains(&self.character_class(source), 10) {
+            if runes::contains(&self.character_class(source)?, 10) {
                 self.nodes[destination].op = Op::Any;
             }
-            return;
+            return Ok(());
         }
         if self.nodes[destination].op == Op::Literal
             && self.nodes[source].op == Op::Literal
             && self.nodes[destination].runes == self.nodes[source].runes
             && self.nodes[destination].flags == self.nodes[source].flags
         {
-            return;
+            return Ok(());
         }
-        let mut class = self.character_class(destination);
-        class.extend(self.character_class(source));
+        let mut class = self.character_class(destination)?;
+        self.work
+            .extend_iter(&mut class, self.character_class(source)?)?;
         self.nodes[destination].op = Op::Class;
         self.nodes[destination].runes.clear();
         self.nodes[destination].class = class;
-        self.refresh(destination);
+        self.refresh(destination)?;
+        Ok(())
     }
 
-    fn clean_alternative(&mut self, id: Id) {
+    fn clean_alternative(&mut self, id: Id) -> Result<()> {
         if self.nodes[id].op == Op::Class {
-            self.nodes[id].class = runes::clean(std::mem::take(&mut self.nodes[id].class));
+            self.nodes[id].class =
+                runes::clean(std::mem::take(&mut self.nodes[id].class), self.work)?;
             let class = &self.nodes[id].class;
             let replacement = if class == &[(0, runes::MAX_RUNE)] {
                 Some(Op::Any)
@@ -463,8 +478,9 @@ impl Parser<'_> {
                 self.nodes[id].op = op;
                 self.nodes[id].class.clear();
             }
-            self.refresh(id);
+            self.refresh(id)?;
         }
+        Ok(())
     }
 
     fn leading(&self, id: Id) -> Id {
@@ -484,99 +500,108 @@ impl Parser<'_> {
         }
     }
 
-    fn remove_string(&mut self, id: Id, count: usize) -> Id {
+    fn remove_string(&mut self, id: Id, count: usize) -> Result<Id> {
         let leading = self.leading(id);
         if self.nodes[leading].op != Op::Literal {
-            return id;
+            return Ok(id);
         }
-        self.nodes[leading].runes.drain(..count);
+        self.work
+            .discard_prefix(&mut self.nodes[leading].runes, count)?;
         if self.nodes[leading].runes.is_empty() {
             self.nodes[leading].op = Op::Empty;
         }
-        self.refresh(leading);
+        self.refresh(leading)?;
         if leading != id && self.nodes[leading].op == Op::Empty {
-            self.nodes[id].children.remove(0);
+            self.work.discard_prefix(&mut self.nodes[id].children, 1)?;
             if self.nodes[id].children.len() == 1 {
-                return self.nodes[id].children[0];
+                return Ok(self.nodes[id].children[0]);
             }
             if self.nodes[id].children.is_empty() {
                 self.nodes[id].op = Op::Empty;
             }
         }
-        self.refresh(id);
-        id
+        self.refresh(id)?;
+        Ok(id)
     }
 
-    fn remove_leading(&mut self, id: Id) -> Id {
+    fn remove_leading(&mut self, id: Id) -> Result<Id> {
         if self.nodes[id].op == Op::Concat && !self.nodes[id].children.is_empty() {
-            self.nodes[id].children.remove(0);
+            self.work.discard_prefix(&mut self.nodes[id].children, 1)?;
             if self.nodes[id].children.len() == 1 {
-                return self.nodes[id].children[0];
+                return Ok(self.nodes[id].children[0]);
             }
             if self.nodes[id].children.is_empty() {
                 self.nodes[id].op = Op::Empty;
             }
-            self.refresh(id);
-            id
+            self.refresh(id)?;
+            Ok(id)
         } else {
-            self.alloc(Op::Empty)
+            Ok(self.alloc(Op::Empty))
         }
     }
 
-    fn equal(&self, left: Id, right: Id) -> bool {
-        let mut pending = buffer![self.context.as_ref(); (left, right)];
+    fn equal(&self, left: Id, right: Id) -> Result<bool> {
+        let mut pending = buffer![self.work.context; (left, right)];
         while let Some((left, right)) = pending.pop() {
+            self.work.step(1)?;
             let left = &self.nodes[left];
             let right = &self.nodes[right];
             if left.op != right.op {
-                return false;
+                return Ok(false);
             }
             match left.op {
-                Op::EndText if left.flags & WAS_DOLLAR != right.flags & WAS_DOLLAR => return false,
+                Op::EndText if left.flags & WAS_DOLLAR != right.flags & WAS_DOLLAR => {
+                    return Ok(false);
+                }
                 Op::Literal | Op::Class => {
-                    if left.runes != right.runes
-                        || left.class != right.class
+                    if !self.work.same(&left.runes, &right.runes)?
+                        || !self.work.same(&left.class, &right.class)?
                         || self.standard && left.flags & FOLD_CASE != right.flags & FOLD_CASE
                     {
-                        return false;
+                        return Ok(false);
                     }
                 }
                 Op::Star | Op::Plus | Op::Quest | Op::Repeat => {
                     if left.flags & NON_GREEDY != right.flags & NON_GREEDY
                         || left.op == Op::Repeat && (left.min != right.min || left.max != right.max)
                     {
-                        return false;
+                        return Ok(false);
                     }
                 }
-                Op::Capture if left.capture != right.capture || left.name != right.name => {
-                    return false;
+                Op::Capture
+                    if left.capture != right.capture
+                        || !self.work.equal(&left.name, &right.name)? =>
+                {
+                    return Ok(false);
                 }
                 _ => {}
             }
             if left.children.len() != right.children.len() {
-                return false;
+                return Ok(false);
             }
-            pending.extend(
+            self.work.extend_iter(
+                &mut pending,
                 left.children
                     .iter()
                     .copied()
                     .zip(right.children.iter().copied()),
-            );
+            )?;
         }
-        true
+        Ok(true)
     }
 
-    fn factored_concat(&mut self, prefix: Id, suffix: Id) -> Id {
+    fn factored_concat(&mut self, prefix: Id, suffix: Id) -> Result<Id> {
         let id = self.alloc(Op::Concat);
-        self.nodes[id].children = buffer![self.context.as_ref(); prefix, suffix];
-        self.refresh(id);
-        id
+        self.nodes[id].children = buffer![self.work.context; prefix, suffix];
+        self.refresh(id)?;
+        Ok(id)
     }
 
     fn collapse(&mut self, children: Buffer<Id>, op: Op) -> Result<Id> {
-        let mut frames = buffer![self.context.as_ref(); CollapseFrame::Collapse(children, op)];
-        let mut values = Buffer::new_in(self.context.as_ref());
+        let mut frames = buffer![self.work.context; CollapseFrame::Collapse(children, op)];
+        let mut values = Buffer::new_in(self.work.context);
         'frames: while let Some(frame) = frames.pop() {
+            self.work.step(1)?;
             match frame {
                 CollapseFrame::Collapse(children, op) => {
                     if children.len() == 1 {
@@ -584,10 +609,14 @@ impl Parser<'_> {
                         continue;
                     }
                     let id = self.alloc(op);
-                    let mut subs = Buffer::new_in(self.context.as_ref());
+                    let mut subs = Buffer::new_in(self.work.context);
                     for child in children {
+                        self.work.step(1)?;
                         if self.nodes[child].op == op {
-                            subs.extend_from_slice(&self.nodes[child].children);
+                            self.work.extend_iter(
+                                &mut subs,
+                                self.nodes[child].children.iter().copied(),
+                            )?;
                         } else {
                             subs.push(child);
                         }
@@ -597,11 +626,11 @@ impl Parser<'_> {
                             id,
                             subs,
                             index: 0,
-                            output: Buffer::new_in(self.context.as_ref()),
+                            output: Buffer::new_in(self.work.context),
                         });
                     } else {
                         self.nodes[id].children = subs;
-                        self.refresh(id);
+                        self.refresh(id)?;
                         values.push(id);
                     }
                 }
@@ -612,12 +641,21 @@ impl Parser<'_> {
                     mut output,
                 } => {
                     while index < subs.len() {
+                        self.work.step(1)?;
                         let (prefix, flags) = self.leading_string(subs[index]);
-                        let mut prefix = Buffer::from_slice_in(prefix, self.context.as_ref());
+                        let mut prefix = self.work.elements(prefix)?;
                         let mut end = index + 1;
                         while end < subs.len() {
+                            self.work.step(1)?;
                             let (next, next_flags) = self.leading_string(subs[end]);
-                            let same = prefix.iter().zip(next).take_while(|(a, b)| a == b).count();
+                            let mut same = 0;
+                            for (a, b) in prefix.iter().zip(next) {
+                                self.work.step(1)?;
+                                if a != b {
+                                    break;
+                                }
+                                same += 1;
+                            }
                             if flags != next_flags || same == 0 {
                                 break;
                             }
@@ -632,13 +670,13 @@ impl Parser<'_> {
                         let prefix_id = self.alloc(Op::Literal);
                         self.nodes[prefix_id].flags = flags;
                         self.nodes[prefix_id].runes = prefix;
-                        self.refresh(prefix_id);
+                        self.refresh(prefix_id)?;
                         for sub in &mut subs[index..end] {
-                            *sub = self.remove_string(*sub, self.nodes[prefix_id].runes.len());
+                            self.work.step(1)?;
+                            *sub = self.remove_string(*sub, self.nodes[prefix_id].runes.len())?;
                             self.limits(*sub)?;
                         }
-                        let suffixes =
-                            Buffer::from_slice_in(&subs[index..end], self.context.as_ref());
+                        let suffixes = self.work.elements(&subs[index..end])?;
                         frames.push(CollapseFrame::LiteralResume {
                             id,
                             subs,
@@ -653,7 +691,7 @@ impl Parser<'_> {
                         id,
                         subs: output,
                         index: 0,
-                        output: Buffer::new_in(self.context.as_ref()),
+                        output: Buffer::new_in(self.work.context),
                     });
                 }
                 CollapseFrame::LiteralResume {
@@ -664,7 +702,7 @@ impl Parser<'_> {
                     prefix,
                 } => {
                     let suffix = values.pop().unwrap();
-                    output.push(self.factored_concat(prefix, suffix));
+                    output.push(self.factored_concat(prefix, suffix)?);
                     frames.push(CollapseFrame::Literal {
                         id,
                         subs,
@@ -679,6 +717,7 @@ impl Parser<'_> {
                     mut output,
                 } => {
                     while index < subs.len() {
+                        self.work.step(1)?;
                         let first = self.leading(subs[index]);
                         let node = &self.nodes[first];
                         let eligible = self.is_class(first)
@@ -688,8 +727,9 @@ impl Parser<'_> {
                         let mut end = index + 1;
                         while eligible
                             && end < subs.len()
-                            && self.equal(first, self.leading(subs[end]))
+                            && self.equal(first, self.leading(subs[end]))?
                         {
+                            self.work.step(1)?;
                             end += 1;
                         }
                         if end == index + 1 {
@@ -698,11 +738,11 @@ impl Parser<'_> {
                             continue;
                         }
                         for sub in &mut subs[index..end] {
-                            *sub = self.remove_leading(*sub);
+                            self.work.step(1)?;
+                            *sub = self.remove_leading(*sub)?;
                             self.limits(*sub)?;
                         }
-                        let suffixes =
-                            Buffer::from_slice_in(&subs[index..end], self.context.as_ref());
+                        let suffixes = self.work.elements(&subs[index..end])?;
                         frames.push(CollapseFrame::SimpleResume {
                             id,
                             subs,
@@ -723,7 +763,7 @@ impl Parser<'_> {
                     prefix,
                 } => {
                     let suffix = values.pop().unwrap();
-                    output.push(self.factored_concat(prefix, suffix));
+                    output.push(self.factored_concat(prefix, suffix)?);
                     frames.push(CollapseFrame::Simple {
                         id,
                         subs,
@@ -732,9 +772,10 @@ impl Parser<'_> {
                     });
                 }
                 CollapseFrame::Classes { id, subs } => {
-                    let mut output = Buffer::new_in(self.context.as_ref());
+                    let mut output = Buffer::new_in(self.work.context);
                     let mut index = 0;
                     while index < subs.len() {
+                        self.work.step(1)?;
                         if !self.is_class(subs[index]) {
                             output.push(subs[index]);
                             index += 1;
@@ -742,10 +783,12 @@ impl Parser<'_> {
                         }
                         let mut end = index + 1;
                         while end < subs.len() && self.is_class(subs[end]) {
+                            self.work.step(1)?;
                             end += 1;
                         }
                         let mut destination = subs[index];
                         for &candidate in &subs[index + 1..end] {
+                            self.work.step(1)?;
                             let key = |id: Id| {
                                 (
                                     self.nodes[id].op,
@@ -757,16 +800,18 @@ impl Parser<'_> {
                             }
                         }
                         for &source in &subs[index..end] {
+                            self.work.step(1)?;
                             if source != destination {
-                                self.merge_class(destination, source);
+                                self.merge_class(destination, source)?;
                             }
                         }
-                        self.clean_alternative(destination);
+                        self.clean_alternative(destination)?;
                         output.push(destination);
                         index = end;
                     }
-                    let mut deduplicated = Buffer::new_in(self.context.as_ref());
+                    let mut deduplicated = Buffer::new_in(self.work.context);
                     for (index, &sub) in output.iter().enumerate() {
+                        self.work.step(1)?;
                         if self.nodes[sub].op == Op::Empty
                             && output
                                 .get(index + 1)
@@ -780,7 +825,7 @@ impl Parser<'_> {
                         values.push(deduplicated[0]);
                     } else {
                         self.nodes[id].children = deduplicated;
-                        self.refresh(id);
+                        self.refresh(id)?;
                         values.push(id);
                     }
                 }
@@ -790,12 +835,13 @@ impl Parser<'_> {
     }
 
     fn concat(&mut self) -> Result<Id> {
-        self.maybe_concat(None);
+        self.maybe_concat(None)?;
         let mut begin = self.stack.len();
         while begin > 0 && !self.nodes[self.stack[begin - 1]].op.pseudo() {
+            self.work.step(1)?;
             begin -= 1;
         }
-        let children = self.stack.split_off(begin);
+        let children = self.work.split(&mut self.stack, begin)?;
         let id = if children.is_empty() {
             self.alloc(Op::Empty)
         } else {
@@ -808,11 +854,12 @@ impl Parser<'_> {
     fn alternate(&mut self) -> Result<Id> {
         let mut begin = self.stack.len();
         while begin > 0 && !self.nodes[self.stack[begin - 1]].op.pseudo() {
+            self.work.step(1)?;
             begin -= 1;
         }
-        let children = self.stack.split_off(begin);
+        let children = self.work.split(&mut self.stack, begin)?;
         if let Some(&last) = children.last() {
-            self.clean_alternative(last);
+            self.clean_alternative(last)?;
         }
         let id = if children.is_empty() {
             self.alloc(Op::NoMatch)
@@ -825,14 +872,14 @@ impl Parser<'_> {
 
     fn vertical_bar(&mut self) -> Result<()> {
         self.concat()?;
-        if self.swap_vertical_bar() {
+        if self.swap_vertical_bar()? {
             return Ok(());
         }
         self.op(Op::VerticalBar)?;
         Ok(())
     }
 
-    fn swap_vertical_bar(&mut self) -> bool {
+    fn swap_vertical_bar(&mut self) -> Result<bool> {
         let n = self.stack.len();
         if n >= 3
             && self.nodes[self.stack[n - 2]].op == Op::VerticalBar
@@ -845,42 +892,34 @@ impl Parser<'_> {
                 std::mem::swap(&mut source, &mut destination);
                 self.stack[n - 3] = destination;
             }
-            self.merge_class(destination, source);
+            self.merge_class(destination, source)?;
             self.stack.pop();
-            return true;
+            return Ok(true);
         }
         if n >= 2 && self.nodes[self.stack[n - 2]].op == Op::VerticalBar {
             if n >= 3 {
-                self.clean_alternative(self.stack[n - 3]);
+                self.clean_alternative(self.stack[n - 3])?;
             }
             self.stack.swap(n - 1, n - 2);
-            true
+            Ok(true)
         } else {
-            false
+            Ok(false)
         }
     }
 
     fn close(&mut self) -> Result<()> {
         self.concat()?;
-        if self.swap_vertical_bar() {
+        if self.swap_vertical_bar()? {
             self.stack.pop();
         }
         self.alternate()?;
         if self.stack.len() < 2 {
-            return Err(Error::new(
-                "unexpected )",
-                self.input,
-                self.context.as_ref(),
-            ));
+            return Err(Error::failure("unexpected )", self.input, self.work));
         }
         let child = self.stack.pop().unwrap();
         let open = self.stack.pop().unwrap();
         if self.nodes[open].op != Op::LeftParen {
-            return Err(Error::new(
-                "unexpected )",
-                self.input,
-                self.context.as_ref(),
-            ));
+            return Err(Error::failure("unexpected )", self.input, self.work));
         }
         self.flags = self.nodes[open].flags;
         if self.nodes[open].capture == 0 {
@@ -891,6 +930,16 @@ impl Parser<'_> {
             self.push(open)?;
         }
         Ok(())
+    }
+
+    fn valid_capture_name(&self, name: &[u8]) -> Result<bool> {
+        for &byte in name {
+            self.work.step(1)?;
+            if !byte.is_ascii_alphanumeric() && byte != b'_' {
+                return Ok(false);
+            }
+        }
+        Ok(true)
     }
 
     fn flags(&mut self) -> Result<()> {
@@ -904,32 +953,23 @@ impl Parser<'_> {
             None
         };
         if let Some(name_begin) = named {
-            let Some(end) = suffix.iter().position(|&byte| byte == b'>') else {
-                check_utf8(suffix, self.context.as_ref())?;
-                return Err(Error::new(
-                    "invalid named capture",
-                    suffix,
-                    self.context.as_ref(),
-                ));
+            let Some(end) = self.work.find(suffix, b">")? else {
+                check_utf8(suffix, self.work)?;
+                return Err(Error::failure("invalid named capture", suffix, self.work));
             };
             let name = &suffix[name_begin..end];
-            check_utf8(name, self.context.as_ref())?;
-            if name.is_empty()
-                || !name
-                    .iter()
-                    .all(|byte| byte.is_ascii_alphanumeric() || *byte == b'_')
-            {
-                return Err(Error::new(
+            check_utf8(name, self.work)?;
+            if name.is_empty() || !self.valid_capture_name(name)? {
+                return Err(Error::failure(
                     "invalid named capture",
                     &suffix[..=end],
-                    self.context.as_ref(),
+                    self.work,
                 ));
             }
-            self.names
-                .push(Buffer::from_slice_in(name, self.context.as_ref()));
+            self.names.push(self.work.copy(name)?);
             let id = self.op(Op::LeftParen)?;
             self.nodes[id].capture = (self.names.len() - 1) as u32;
-            self.nodes[id].name = Buffer::from_slice_in(name, self.context.as_ref());
+            self.nodes[id].name = self.work.copy(name)?;
             self.position += end + 1;
             return Ok(());
         }
@@ -938,7 +978,8 @@ impl Parser<'_> {
         let mut negative = false;
         let mut saw_flag = false;
         while self.position < self.input.len() {
-            let rune = next_rune(self.input, &mut self.position, self.context.as_ref())?;
+            self.work.step(1)?;
+            let rune = next_rune(self.input, &mut self.position, self.work)?;
             match rune {
                 105 => {
                     flags |= FOLD_CASE;
@@ -977,10 +1018,10 @@ impl Parser<'_> {
                 _ => break,
             }
         }
-        Err(Error::new(
+        Err(Error::failure(
             "invalid or unsupported Perl syntax",
             &self.input[start..self.position],
-            self.context.as_ref(),
+            self.work,
         ))
     }
 
@@ -988,13 +1029,13 @@ impl Parser<'_> {
         let start = self.position;
         self.position += 1;
         if self.position == self.input.len() {
-            return Err(Error::new(
+            return Err(Error::failure(
                 "trailing backslash at end of expression",
                 b"",
-                self.context.as_ref(),
+                self.work,
             ));
         }
-        let rune = next_rune(self.input, &mut self.position, self.context.as_ref())?;
+        let rune = next_rune(self.input, &mut self.position, self.work)?;
         match rune {
             48..=55
                 if rune == 48
@@ -1005,6 +1046,7 @@ impl Parser<'_> {
             {
                 let mut value = rune - 48;
                 for _ in 1..3 {
+                    self.work.step(1)?;
                     let Some(&byte) = self
                         .input
                         .get(self.position)
@@ -1018,13 +1060,13 @@ impl Parser<'_> {
                 return Ok(value);
             }
             120 if self.position < self.input.len() => {
-                let first = next_rune(self.input, &mut self.position, self.context.as_ref())?;
+                let first = next_rune(self.input, &mut self.position, self.work)?;
                 if first == 123 {
                     let mut value = 0;
                     let mut digits = 0;
                     while self.position < self.input.len() {
-                        let digit =
-                            next_rune(self.input, &mut self.position, self.context.as_ref())?;
+                        self.work.step(1)?;
+                        let digit = next_rune(self.input, &mut self.position, self.work)?;
                         if digit == 125 {
                             if digits > 0 {
                                 return Ok(value);
@@ -1041,7 +1083,7 @@ impl Parser<'_> {
                         digits += 1;
                     }
                 } else {
-                    let second = next_rune(self.input, &mut self.position, self.context.as_ref())?;
+                    let second = next_rune(self.input, &mut self.position, self.work)?;
                     if let (Some(first), Some(second)) = (hex(first), hex(second)) {
                         return Ok(first * 16 + second);
                     }
@@ -1056,10 +1098,10 @@ impl Parser<'_> {
             rune if rune < 128 && !(rune as u8).is_ascii_alphanumeric() => return Ok(rune),
             _ => {}
         }
-        Err(Error::new(
+        Err(Error::failure(
             "invalid escape sequence",
             &self.input[start..self.position],
-            self.context.as_ref(),
+            self.work,
         ))
     }
 
@@ -1073,75 +1115,77 @@ impl Parser<'_> {
         let start = self.position;
         let mut negate = self.input[self.position + 1] == b'P';
         self.position += 2;
-        let rune = next_rune(self.input, &mut self.position, self.context.as_ref())?;
+        let rune = next_rune(self.input, &mut self.position, self.work)?;
         let mut name = if rune != 123 {
             &self.input[start + 2..self.position]
         } else {
-            let Some(relative) = self.input[start..].iter().position(|&byte| byte == b'}') else {
-                check_utf8(&self.input[start..], self.context.as_ref())?;
-                return Err(Error::new(
+            let Some(relative) = self.work.find(&self.input[start..], b"}")? else {
+                check_utf8(&self.input[start..], self.work)?;
+                return Err(Error::failure(
                     "invalid character class range",
                     &self.input[start..],
-                    self.context.as_ref(),
+                    self.work,
                 ));
             };
             self.position = start + relative + 1;
             let name = &self.input[start + 3..self.position - 1];
-            check_utf8(name, self.context.as_ref())?;
+            check_utf8(name, self.work)?;
             name
         };
         if name.starts_with(b"^") {
             name = &name[1..];
             negate = !negate;
         }
-        let Some(ranges) = runes::property(
-            name,
-            self.flags & FOLD_CASE != 0,
-            self.standard,
-            self.context.as_ref(),
-        ) else {
-            return Err(Error::new(
+        let Some(ranges) =
+            runes::property(name, self.flags & FOLD_CASE != 0, self.standard, self.work)?
+        else {
+            return Err(Error::failure(
                 "invalid character class range",
                 &self.input[start..self.position],
-                self.context.as_ref(),
+                self.work,
             ));
         };
         Ok(Some(if negate {
-            runes::complement(ranges)
+            runes::complement(ranges, self.work)?
         } else {
             ranges
         }))
     }
 
-    fn perl_class(&mut self) -> Option<Class> {
+    fn perl_class(&mut self) -> Result<Option<Class>> {
+        self.work.step(0)?;
         if self.flags & PERL_X == 0 || self.input.get(self.position) != Some(&b'\\') {
-            return None;
+            return Ok(None);
         }
-        let (mut ranges, negate) =
-            runes::perl(*self.input.get(self.position + 1)?, self.context.as_ref())?;
+        let Some(&name) = self.input.get(self.position + 1) else {
+            return Ok(None);
+        };
+        let Some((mut ranges, negate)) = runes::perl(name, self.work.context) else {
+            return Ok(None);
+        };
         self.position += 2;
         if self.flags & FOLD_CASE != 0 {
-            ranges = runes::folded(ranges);
+            ranges = runes::folded(ranges, self.work)?;
         }
-        Some(if negate {
-            runes::complement(ranges)
+        Ok(Some(if negate {
+            runes::complement(ranges, self.work)?
         } else {
             ranges
-        })
+        }))
     }
 
     fn class_char(&mut self, start: usize) -> Result<u32> {
         if self.position == self.input.len() {
-            return Err(Error::new(
+            return Err(Error::failure(
                 "missing closing ]",
                 &self.input[start..],
-                self.context.as_ref(),
+                self.work,
             ));
         }
         if self.input[self.position] == b'\\' {
             self.escape()
         } else {
-            next_rune(self.input, &mut self.position, self.context.as_ref())
+            next_rune(self.input, &mut self.position, self.work)
         }
     }
 
@@ -1152,56 +1196,58 @@ impl Parser<'_> {
         if negate {
             self.position += 1;
         }
-        let mut ranges = Buffer::new_in(self.context.as_ref());
+        let mut ranges = Buffer::new_in(self.work.context);
         if negate && self.flags & CLASS_NL == 0 {
             ranges.push((10, 10));
         }
         let mut first = true;
         while first || self.input.get(self.position) != Some(&b']') {
+            self.work.step(1)?;
             if self.input.get(self.position) == Some(&b'-')
                 && self.flags & PERL_X == 0
                 && !first
                 && self.input.get(self.position + 1) != Some(&b']')
             {
                 let (_, width) = decode_rune(&self.input[self.position + 1..]);
-                return Err(Error::new(
+                return Err(Error::failure(
                     "invalid character class range",
                     &self.input[self.position..self.position + 1 + width],
-                    self.context.as_ref(),
+                    self.work,
                 ));
             }
             first = false;
             if self.input[self.position..].starts_with(b"[:")
-                && let Some(relative) = self.input[self.position + 2..]
-                    .windows(2)
-                    .position(|bytes| bytes == b":]")
+                && let Some(relative) = self.work.find(&self.input[self.position + 2..], b":]")?
             {
                 let end = self.position + relative + 4;
                 let name = &self.input[self.position + 2..end - 2];
-                let Some((mut class, negate)) = runes::posix(name, self.context.as_ref()) else {
-                    return Err(Error::new(
+                let Some((mut class, negate)) = runes::posix(name, self.work.context) else {
+                    return Err(Error::failure(
                         "invalid character class range",
                         &self.input[self.position..end],
-                        self.context.as_ref(),
+                        self.work,
                     ));
                 };
                 if self.flags & FOLD_CASE != 0 {
-                    class = runes::folded(class);
+                    class = runes::folded(class, self.work)?;
                 }
-                ranges.extend(if negate {
-                    runes::complement(class)
-                } else {
-                    class
-                });
+                self.work.extend_iter(
+                    &mut ranges,
+                    if negate {
+                        runes::complement(class, self.work)?
+                    } else {
+                        class
+                    },
+                )?;
                 self.position = end;
                 continue;
             }
             if let Some(class) = self.unicode_class()? {
-                ranges.extend(class);
+                self.work.extend_iter(&mut ranges, class)?;
                 continue;
             }
-            if let Some(class) = self.perl_class() {
-                ranges.extend(class);
+            if let Some(class) = self.perl_class()? {
+                self.work.extend_iter(&mut ranges, class)?;
                 continue;
             }
             let range_start = self.position;
@@ -1218,39 +1264,43 @@ impl Parser<'_> {
                 lo
             };
             if hi < lo {
-                return Err(Error::new(
+                return Err(Error::failure(
                     "invalid character class range",
                     &self.input[range_start..self.position],
-                    self.context.as_ref(),
+                    self.work,
                 ));
             }
-            let class = buffer![self.context.as_ref(); (lo, hi)];
-            ranges.extend(if self.flags & FOLD_CASE != 0 {
-                runes::folded(class)
-            } else {
-                class
-            });
+            let class = buffer![self.work.context; (lo, hi)];
+            self.work.extend_iter(
+                &mut ranges,
+                if self.flags & FOLD_CASE != 0 {
+                    runes::folded(class, self.work)?
+                } else {
+                    class
+                },
+            )?;
         }
         self.position += 1;
-        let mut class = runes::clean(ranges);
+        let mut class = runes::clean(ranges, self.work)?;
         if negate {
-            class = runes::complement(class);
+            class = runes::complement(class, self.work)?;
         }
         let id = self.alloc(Op::Class);
         self.nodes[id].class = class;
         self.push(id)
     }
 
-    fn decimal(input: &[u8], position: &mut usize) -> Option<i64> {
+    fn decimal(input: &[u8], position: &mut usize, work: Work<'_>) -> Result<Option<i64>> {
         let start = *position;
         if !input.get(start).is_some_and(u8::is_ascii_digit) {
-            return None;
+            return Ok(None);
         }
         if input[start] == b'0' && input.get(start + 1).is_some_and(u8::is_ascii_digit) {
-            return None;
+            return Ok(None);
         }
         let mut value = 0i64;
         while let Some(&digit) = input.get(*position).filter(|byte| byte.is_ascii_digit()) {
+            work.step(1)?;
             if value >= 100_000_000 {
                 value = -1;
             } else if value >= 0 {
@@ -1258,18 +1308,22 @@ impl Parser<'_> {
             }
             *position += 1;
         }
-        Some(value)
+        Ok(Some(value))
     }
 
-    fn repeat_count(&self) -> Option<(i64, i64, usize)> {
+    fn repeat_count(&self) -> Result<Option<(i64, i64, usize)>> {
         let mut position = self.position + 1;
-        let mut min = Self::decimal(self.input, &mut position)?;
+        let Some(mut min) = Self::decimal(self.input, &mut position, self.work)? else {
+            return Ok(None);
+        };
         let max = if self.input.get(position) == Some(&b',') {
             position += 1;
             if self.input.get(position) == Some(&b'}') {
                 -1
             } else {
-                let max = Self::decimal(self.input, &mut position)?;
+                let Some(max) = Self::decimal(self.input, &mut position, self.work)? else {
+                    return Ok(None);
+                };
                 if max < 0 {
                     min = -1;
                 }
@@ -1279,9 +1333,9 @@ impl Parser<'_> {
             min
         };
         if self.input.get(position) != Some(&b'}') {
-            return None;
+            return Ok(None);
         }
-        Some((min, max, position + 1))
+        Ok(Some((min, max, position + 1)))
     }
 
     fn repeat(
@@ -1301,18 +1355,18 @@ impl Parser<'_> {
                 flags ^= NON_GREEDY;
             }
             if let Some(last) = last {
-                return Err(Error::new(
+                return Err(Error::failure(
                     "invalid nested repetition operator",
                     &self.input[last..self.position],
-                    self.context.as_ref(),
+                    self.work,
                 ));
             }
         }
         let Some(&child) = self.stack.last().filter(|&&id| !self.nodes[id].op.pseudo()) else {
-            return Err(Error::new(
+            return Err(Error::failure(
                 "missing argument to repetition operator",
                 &self.input[start..self.position],
-                self.context.as_ref(),
+                self.work,
             ));
         };
         let id = self.alloc(op);
@@ -1323,8 +1377,9 @@ impl Parser<'_> {
         *self.stack.last_mut().unwrap() = id;
         self.limits(id)?;
         if op == Op::Repeat && (min >= 2 || max.is_some_and(|max| max >= 2)) {
-            let mut pending = buffer![self.context.as_ref(); (id, 1000)];
+            let mut pending = buffer![self.work.context; (id, 1000)];
             while let Some((id, mut budget)) = pending.pop() {
+                self.work.step(1)?;
                 let node = &self.nodes[id];
                 if node.op == Op::Repeat {
                     if node.max == Some(0) {
@@ -1332,15 +1387,18 @@ impl Parser<'_> {
                     }
                     let amount = node.max.unwrap_or(node.min);
                     if amount > budget {
-                        return Err(Error::new(
+                        return Err(Error::failure(
                             "invalid repeat count",
                             &self.input[start..self.position],
-                            self.context.as_ref(),
+                            self.work,
                         ));
                     }
                     budget = budget.checked_div(amount).unwrap_or(budget);
                 }
-                pending.extend(node.children.iter().map(|&child| (child, budget)));
+                self.work.extend_iter(
+                    &mut pending,
+                    node.children.iter().map(|&child| (child, budget)),
+                )?;
             }
         }
         Ok(())
@@ -1349,6 +1407,7 @@ impl Parser<'_> {
     fn run(mut self) -> Result<Tree> {
         let mut last_repeat = None;
         while self.position < self.input.len() {
+            self.work.step(1)?;
             let mut repeat = None;
             match self.input[self.position] {
                 b'(' => {
@@ -1356,7 +1415,7 @@ impl Parser<'_> {
                     {
                         self.flags()?;
                     } else {
-                        self.names.push(Buffer::new_in(self.context.as_ref()));
+                        self.names.push(Buffer::new_in(self.work.context));
                         let id = self.op(Op::LeftParen)?;
                         self.nodes[id].capture = (self.names.len() - 1) as u32;
                         self.position += 1;
@@ -1409,12 +1468,12 @@ impl Parser<'_> {
                     repeat = Some(start);
                 }
                 b'{' => {
-                    if let Some((min, max, end)) = self.repeat_count() {
+                    if let Some((min, max, end)) = self.repeat_count()? {
                         if !(0..=1000).contains(&min) || max > 1000 || max >= 0 && min > max {
-                            return Err(Error::new(
+                            return Err(Error::failure(
                                 "invalid repeat count",
                                 &self.input[self.position..end],
-                                self.context.as_ref(),
+                                self.work,
                             ));
                         }
                         let start = self.position;
@@ -1439,24 +1498,25 @@ impl Parser<'_> {
                     {
                         match escape.unwrap() {
                             b'C' => {
-                                return Err(Error::new(
+                                return Err(Error::failure(
                                     "invalid escape sequence",
                                     &self.input[self.position..self.position + 2],
-                                    self.context.as_ref(),
+                                    self.work,
                                 ));
                             }
                             b'Q' => {
                                 self.position += 2;
-                                let end = self.input[self.position..]
-                                    .windows(2)
-                                    .position(|bytes| bytes == b"\\E")
+                                let end = self
+                                    .work
+                                    .find(&self.input[self.position..], b"\\E")?
                                     .map(|i| self.position + i);
                                 let quoted_end = end.unwrap_or(self.input.len());
                                 while self.position < quoted_end {
+                                    self.work.step(1)?;
                                     let rune = next_rune(
                                         &self.input[..quoted_end],
                                         &mut self.position,
-                                        self.context.as_ref(),
+                                        self.work,
                                     )?;
                                     self.literal(rune)?;
                                 }
@@ -1476,7 +1536,7 @@ impl Parser<'_> {
                         let id = self.alloc(Op::Class);
                         self.nodes[id].class = class;
                         self.push(id)?;
-                    } else if let Some(class) = self.perl_class() {
+                    } else if let Some(class) = self.perl_class()? {
                         let id = self.alloc(Op::Class);
                         self.nodes[id].class = class;
                         self.push(id)?;
@@ -1486,23 +1546,19 @@ impl Parser<'_> {
                     }
                 }
                 _ => {
-                    let rune = next_rune(self.input, &mut self.position, self.context.as_ref())?;
+                    let rune = next_rune(self.input, &mut self.position, self.work)?;
                     self.literal(rune)?;
                 }
             }
             last_repeat = repeat;
         }
         self.concat()?;
-        if self.swap_vertical_bar() {
+        if self.swap_vertical_bar()? {
             self.stack.pop();
         }
         self.alternate()?;
         if self.stack.len() != 1 {
-            return Err(Error::new(
-                "missing closing )",
-                self.input,
-                self.context.as_ref(),
-            ));
+            return Err(Error::failure("missing closing )", self.input, self.work));
         }
         Ok(Tree {
             nodes: self.nodes,
