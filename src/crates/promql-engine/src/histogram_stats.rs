@@ -17,12 +17,13 @@ use tokens::TokenKind;
 
 pub(crate) fn timestamp_selectors(
     expression: &ParsedExpression,
+    preprocessing: &crate::evaluator_order::Preprocessing,
     control: &Control,
     account: &QueryAccounting,
 ) -> Result<AccountedVec<bool>, Interrupted> {
     let mut result = AccountedVec::new(account, MemoryKind::Compiled);
     result.extend((0..expression.arena.nodes.len()).map(|_| false));
-    for node in &expression.arena.nodes {
+    for (index, node) in expression.arena.nodes.iter().enumerate() {
         control.check()?;
         account.work(1);
         if let Expr::Call {
@@ -32,7 +33,8 @@ pub(crate) fn timestamp_selectors(
             && matches!(function.name, "timestamp" | "start_timestamp")
             && let Some(&argument) = arguments.first()
         {
-            let argument = expression.arena.unparenthesized(argument);
+            let argument =
+                preprocessing.child(expression, crate::frontend::ast::NodeId(index), argument);
             if matches!(expression.arena[argument].expression, Expr::Selector(_)) {
                 result[argument.0] = true;
             }

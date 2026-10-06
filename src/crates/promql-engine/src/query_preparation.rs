@@ -65,14 +65,16 @@ impl SelectorReference {
     }
 }
 
-pub(crate) struct Prepared {
+pub(crate) struct Prepared<'p> {
+    pub(crate) preprocessing: &'p crate::evaluator_order::Preprocessing,
     pub(crate) context: QueryContext,
     pub(crate) header: OutputHeader,
     durations: Option<AccountedVec<[i64; 3]>>,
 }
-impl Prepared {
+impl<'p> Prepared<'p> {
     pub(crate) fn new(
         expression: &ParsedExpression,
+        preprocessing: &'p crate::evaluator_order::Preprocessing,
         header: OutputHeader,
         control: &Control,
         account: &QueryAccounting,
@@ -109,6 +111,7 @@ impl Prepared {
         let Some(mut durations) = needed.then(|| AccountedVec::new(account, MemoryKind::Workspace))
         else {
             return Ok(Self {
+                preprocessing,
                 context,
                 header,
                 durations: None,
@@ -173,6 +176,7 @@ impl Prepared {
             tasks.extend(value.children().rev());
         }
         Ok(Self {
+            preprocessing,
             context,
             header,
             durations: Some(durations),
@@ -188,12 +192,23 @@ impl Prepared {
             .as_ref()
             .map_or(value, |values| values[node.0][OFFSET_SLOT])
     }
-    pub(crate) fn timestamp(&self, modifiers: &SelectorModifiers) -> Option<i64> {
-        modifiers.timestamp.or(match modifiers.start_or_end {
-            Some(TokenKind::START) => Some(self.context.start_ms),
-            Some(TokenKind::END) => Some(self.context.end_ms),
-            _ => None,
-        })
+    pub(crate) fn step(&self, node: NodeId, value: i64) -> i64 {
+        self.durations
+            .as_ref()
+            .map_or(value, |values| values[node.0][STEP_SLOT])
+    }
+    pub(crate) fn timestamp(&self, node: NodeId, modifiers: &SelectorModifiers) -> Option<i64> {
+        modifiers
+            .timestamp
+            .or(if self.preprocessing.visited[node.0] {
+                match modifiers.start_or_end {
+                    Some(TokenKind::START) => Some(self.context.start_ms),
+                    Some(TokenKind::END) => Some(self.context.end_ms),
+                    _ => None,
+                }
+            } else {
+                None
+            })
     }
 
     pub(crate) fn adjusted_offset(
@@ -203,7 +218,7 @@ impl Prepared {
         scope_start_ms: i64,
     ) -> i64 {
         let offset = self.offset(node, modifiers.original_offset);
-        if let Some(timestamp) = self.timestamp(modifiers) {
+        if let Some(timestamp) = self.timestamp(node, modifiers) {
             offset.wrapping_add(
                 scope_start_ms
                     .wrapping_sub(timestamp)
@@ -256,7 +271,7 @@ impl Prepared {
                     }
                     let value = &expression.arena[node].expression;
                     if let Expr::Selector(selector) = value {
-                        let timestamp_ms = self.timestamp(&selector.modifiers);
+                        let timestamp_ms = self.timestamp(node, &selector.modifiers);
                         let offset_ns = self.offset(node, selector.modifiers.original_offset);
                         let reference = if timestamp_ms.is_some() {
                             SelectorReference {
@@ -280,7 +295,7 @@ impl Prepared {
                     if let Expr::Subquery { modifiers, .. } = value {
                         let offset = self.offset(node, modifiers.original_offset);
                         scope.offset_ns = scope.offset_ns.wrapping_add(offset);
-                        if let Some(timestamp) = self.timestamp(modifiers) {
+                        if let Some(timestamp) = self.timestamp(node, modifiers) {
                             scope.timestamp_ms = Some(timestamp);
                             scope.offset_ns = offset;
                         }
@@ -325,7 +340,7 @@ impl Prepared {
                 Expr::Selector(selector) => {
                     row["type"] = json!("*parser.VectorSelector");
                     row["offset_ns"] = json!(self.offset(node, selector.modifiers.original_offset));
-                    row["timestamp_ms"] = json!(self.timestamp(&selector.modifiers));
+                    row["timestamp_ms"] = json!(self.timestamp(node, &selector.modifiers));
                     if let Some(duration) = selector.modifiers.original_offset_expression {
                         row["duration_span"] = span(duration);
                     }
@@ -357,7 +372,7 @@ impl Prepared {
                             .map_or(*step, |values| values[node.0][STEP_SLOT])
                     );
                     row["offset_ns"] = json!(self.offset(node, modifiers.original_offset));
-                    row["timestamp_ms"] = json!(self.timestamp(modifiers));
+                    row["timestamp_ms"] = json!(self.timestamp(node, modifiers));
                     for (field, child) in [
                         ("range_span", *range_expression),
                         ("step_span", *step_expression),

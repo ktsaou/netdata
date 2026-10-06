@@ -40,12 +40,15 @@ mod numerical_hyperbolic;
 mod numerical_math;
 mod numerical_trigonometric;
 mod query_bounds;
+mod query_catalog;
 mod query_preparation;
 pub mod range_float;
 mod range_numeric;
 mod range_rates;
 mod range_reduce;
 pub mod result;
+#[cfg(test)]
+mod selection_tests;
 pub mod storage;
 mod storage_observed;
 #[cfg(test)]

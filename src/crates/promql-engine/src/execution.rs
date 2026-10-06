@@ -19,12 +19,13 @@ use crate::{
         regex::Selector,
         token as tokens,
     },
+    query_catalog::Catalog,
     query_preparation::Prepared,
     range_reduce::RangeFunction,
     result::{CollectedResult, Collector, OutputChunk, OutputHeader, OutputSink},
     storage::{
-        Control, Interrupted, Provider, QueryProvider, ResourceOwner, SelectionRequest, Series,
-        SeriesSelection, StorageError, TimeBounds, matches_in, scan_with, validate_labels,
+        Control, Interrupted, Provider, QueryProvider, Series, StorageError, TimeBounds,
+        matches_in, scan_with,
     },
     storage_observed::ObservedQuery,
     value::SampleRef,
@@ -36,6 +37,7 @@ use tokens::TokenKind;
 pub struct EngineOptions {
     pub parser: ParserOptions,
     pub lookback_ms: i64,
+    pub no_step_subquery_interval_ms: i64,
     pub start_timestamps: bool,
     pub delayed_name_removal: bool,
 }
@@ -44,6 +46,7 @@ impl Default for EngineOptions {
         Self {
             parser: ParserOptions::default(),
             lookback_ms: 300_000,
+            no_step_subquery_interval_ms: 60_000,
             start_timestamps: false,
             delayed_name_removal: false,
         }
@@ -105,13 +108,18 @@ pub enum QueryRequest {
 
 pub struct CompiledQuery {
     expression: ParsedExpression,
-    invariants: AccountedVec<bool>,
-    invariant_boundaries: AccountedVec<bool>,
+    preprocessing: crate::evaluator_order::Preprocessing,
     timestamp_selectors: AccountedVec<bool>,
     options: EngineOptions,
     engine: EngineAccounting,
     _allocation: MemoryLease,
     accounting: QueryAccounting,
+}
+
+#[derive(Clone, Copy)]
+struct EvaluationScope<'a> {
+    prepared: &'a Prepared<'a>,
+    data_bounds: TimeBounds,
 }
 
 impl Engine {
@@ -124,6 +132,10 @@ impl Engine {
         control.check().map_err(CompileError::Interrupted)?;
         if options.lookback_ms == 0 {
             options.lookback_ms = EngineOptions::default().lookback_ms;
+        }
+        if options.no_step_subquery_interval_ms == 0 {
+            options.no_step_subquery_interval_ms =
+                EngineOptions::default().no_step_subquery_interval_ms;
         }
         catch_unwind(AssertUnwindSafe(|| {
             let account = self.accounting.query();
@@ -145,23 +157,24 @@ impl Engine {
             };
             crate::histogram_stats::configure(&mut expression, control, &account)
                 .map_err(CompileError::Interrupted)?;
-            let invariants = crate::evaluator_order::invariants(&expression, control, &account)
-                .map_err(CompileError::Interrupted)?;
-            let invariant_boundaries = crate::evaluator_order::invariant_boundaries(
+            let preprocessing = crate::evaluator_order::preprocess(
                 &expression,
-                &invariants,
+                MemoryKind::Compiled,
                 control,
                 &account,
             )
             .map_err(CompileError::Interrupted)?;
-            let timestamp_selectors =
-                crate::histogram_stats::timestamp_selectors(&expression, control, &account)
-                    .map_err(CompileError::Interrupted)?;
+            let timestamp_selectors = crate::histogram_stats::timestamp_selectors(
+                &expression,
+                &preprocessing,
+                control,
+                &account,
+            )
+            .map_err(CompileError::Interrupted)?;
             let allocation = account.hold(MemoryKind::Compiled, compiled_bytes(&expression) as u64);
             Ok(CompiledQuery {
                 expression,
-                invariants,
-                invariant_boundaries,
+                preprocessing,
                 timestamp_selectors,
                 options,
                 engine: self.accounting.clone(),
@@ -209,7 +222,13 @@ impl CompiledQuery {
             },
         };
         let account = self.engine.query();
-        let prepared = Prepared::new(&self.expression, header, control, &account)?;
+        let prepared = Prepared::new(
+            &self.expression,
+            &self.preprocessing,
+            header,
+            control,
+            &account,
+        )?;
         let bounds = crate::query_bounds::find(
             &self.expression,
             self.evaluation_options(header, header.start_ms),
@@ -220,6 +239,57 @@ impl CompiledQuery {
         let mut snapshot = prepared.snapshot(&self.expression);
         snapshot["bounds"] = serde_json::json!([bounds.start_ms, bounds.end_ms]);
         Ok(snapshot)
+    }
+    /// Test-only transport projection before metadata expansion or evaluation.
+    #[cfg(feature = "fixtures")]
+    pub fn selection_fixture(
+        &self,
+        request: QueryRequest,
+        control: &Control,
+    ) -> Result<serde_json::Value, EvaluationError> {
+        use serde_json::json;
+        let account = self.engine.query();
+        let header = self.header(request)?;
+        let prepared = Prepared::new(
+            &self.expression,
+            &self.preprocessing,
+            header,
+            control,
+            &account,
+        )?;
+        let options = self.evaluation_options(header, header.start_ms);
+        let bounds =
+            crate::query_bounds::find(&self.expression, options, &prepared, control, &account)?;
+        let sites = crate::query_bounds::selection_sites(
+            &self.expression,
+            options,
+            &prepared,
+            self.options.no_step_subquery_interval_ms,
+            control,
+            &account,
+        )?;
+        let bytes = |value: &[u8]| {
+            value
+                .iter()
+                .map(|byte| format!("{byte:02x}"))
+                .collect::<String>()
+        };
+        let selections: Vec<_> = sites.iter().map(|site| {
+            let Expr::Selector(selector) = &self.expression.arena[site.node].expression else {
+                unreachable!("selector site")
+            };
+            json!({
+                "name": bytes(&selector.name),
+                "start_ms": site.bounds.start_ms,
+                "end_ms": site.bounds.end_ms,
+                "step_ms": site.hints.step_ms,
+                "range_ms": site.hints.range_ms,
+                "function": site.hints.function,
+                "by": site.hints.by,
+                "grouping": site.hints.grouping.map(|group| group.iter().map(|label| bytes(label)).collect::<Vec<_>>()),
+            })
+        }).collect();
+        Ok(json!({"bounds": [bounds.start_ms, bounds.end_ms], "selections": selections}))
     }
     pub fn execute<P: Provider, S: OutputSink>(
         &self,
@@ -306,13 +376,47 @@ impl CompiledQuery {
         let outcome = catch_unwind(AssertUnwindSafe(|| {
             let header = self.header(request)?;
             control.check().map_err(EvaluationError::from)?;
-            let prepared = Prepared::new(&self.expression, header, control, account)?;
+            let prepared = Prepared::new(
+                &self.expression,
+                &self.preprocessing,
+                header,
+                control,
+                account,
+            )?;
+            let data_bounds = crate::query_bounds::find(
+                &self.expression,
+                self.evaluation_options(prepared.header, prepared.header.start_ms),
+                &prepared,
+                control,
+                account,
+            )?;
             sink.begin(prepared.header).map_err(ExecutionError::Sink)?;
             {
                 account.provider_call();
-                let query = provider.open(control).map_err(EvaluationError::from)?;
+                let query = provider
+                    .open(data_bounds, control)
+                    .map_err(EvaluationError::from)?;
                 let query = ObservedQuery::new(query, account);
-                self.evaluate(&query, &prepared, control, account, sink, annotations)?;
+                let catalog = Catalog::new(
+                    &query,
+                    &self.expression,
+                    &prepared,
+                    self.evaluation_options(prepared.header, prepared.header.start_ms),
+                    self.options.no_step_subquery_interval_ms,
+                    control,
+                    account,
+                )?;
+                self.evaluate(
+                    &catalog,
+                    EvaluationScope {
+                        prepared: &prepared,
+                        data_bounds,
+                    },
+                    control,
+                    account,
+                    sink,
+                    annotations,
+                )?;
             }
             control.check().map_err(EvaluationError::from)?;
             if !annotations.is_empty() {
@@ -364,13 +468,17 @@ impl CompiledQuery {
     }
     fn evaluate<Q: QueryProvider, S: OutputSink>(
         &self,
-        query: &Q,
-        prepared: &Prepared,
+        catalog: &Catalog<'_, Q>,
+        scope: EvaluationScope<'_>,
         control: &Control,
         account: &QueryAccounting,
         sink: &mut S,
         annotations: &mut Annotations,
     ) -> Result<(), ExecutionError> {
+        let EvaluationScope {
+            prepared,
+            data_bounds,
+        } = scope;
         let header = prepared.header;
         if header.end_ms < header.start_ms {
             return Ok(());
@@ -390,16 +498,16 @@ impl CompiledQuery {
         }
         let root_type = self.expression.arena[self.expression.root].value_type;
         if root_type == ValueType::Matrix {
-            return self.evaluate_matrix(query, prepared, control, account, sink);
+            return self.evaluate_matrix(catalog, scope, control, account, sink, annotations);
         }
-        let data_bounds = crate::query_bounds::find(
-            &self.expression,
-            self.evaluation_options(header, header.start_ms),
+        let mut rosters = self.prepare_rosters(
+            catalog,
             prepared,
+            data_bounds,
             control,
             account,
+            annotations,
         )?;
-        let mut rosters = self.prepare_rosters(query, prepared, data_bounds, control, account)?;
         *annotations = rosters
             .take_annotations(self.expression.root)
             .expect("completed root diagnostics")
@@ -411,7 +519,7 @@ impl CompiledQuery {
             let (descriptors, sources) = cohorts.ordered(NodeId(0)).expect("typed instant cohorts");
             for (series_id, descriptor) in descriptors.iter().enumerate() {
                 let mut machine = Machine::new(
-                    query,
+                    catalog,
                     &self.expression,
                     self.expression.root,
                     self.evaluation_options(header, header.start_ms),
@@ -420,7 +528,7 @@ impl CompiledQuery {
                     EvaluationMetadata {
                         prepared,
                         rosters: &rosters,
-                        invariants: &self.invariants,
+                        invariants: &self.preprocessing.invariants,
                         timestamp_selectors: &self.timestamp_selectors,
                         data_bounds,
                         annotations: None,
@@ -474,7 +582,7 @@ impl CompiledQuery {
                 delayed_name_removal: self.options.delayed_name_removal,
             };
             let mut machine = Machine::new(
-                query,
+                catalog,
                 &self.expression,
                 self.expression.root,
                 options,
@@ -483,7 +591,7 @@ impl CompiledQuery {
                 EvaluationMetadata {
                     prepared,
                     rosters: &rosters,
-                    invariants: &self.invariants,
+                    invariants: &self.preprocessing.invariants,
                     timestamp_selectors: &self.timestamp_selectors,
                     data_bounds,
                     annotations: None,
@@ -629,7 +737,8 @@ impl CompiledQuery {
         }
     }
 
-    fn fixed_range_call(&self, expression: &Expr) -> bool {
+    fn fixed_range_call(&self, node: NodeId, prepared: &Prepared) -> bool {
+        let expression = &self.expression.arena[node].expression;
         let Expr::Call {
             function: Some(function),
             arguments,
@@ -639,27 +748,56 @@ impl CompiledQuery {
         };
         if RangeFunction::parse(function.name).is_none()
             || crate::evaluator_order::at_modifier_unsafe(function.name)
-            || !arguments[1..].iter().all(|child| self.invariants[child.0])
+            || !arguments[1..].iter().all(|child| {
+                self.preprocessing.invariants
+                    [self.preprocessing.child(&self.expression, node, *child).0]
+            })
         {
             return false;
         }
-        let argument = self.expression.arena.unparenthesized(arguments[0]);
+        let argument = self
+            .preprocessing
+            .child(&self.expression, node, arguments[0]);
         let Expr::Matrix { selector, .. } = &self.expression.arena[argument].expression else {
             return false;
         };
-        let Expr::Selector(selector) = &self.expression.arena[*selector].expression else {
+        let Expr::Selector(selector_value) = &self.expression.arena[*selector].expression else {
             return false;
         };
-        selector.modifiers.timestamp.is_some() || selector.modifiers.start_or_end.is_some()
+        prepared
+            .timestamp(*selector, &selector_value.modifiers)
+            .is_some()
+    }
+
+    fn direct_clock_selector(&self, node: NodeId) -> Option<NodeId> {
+        let Expr::Call {
+            function: Some(function),
+            arguments,
+        } = &self.expression.arena[node].expression
+        else {
+            return None;
+        };
+        if !matches!(function.name, "timestamp" | "start_timestamp") {
+            return None;
+        }
+        let argument = self
+            .preprocessing
+            .child(&self.expression, node, arguments[0]);
+        matches!(
+            self.expression.arena[argument].expression,
+            Expr::Selector(_)
+        )
+        .then_some(argument)
     }
 
     fn prepare_rosters<Q: QueryProvider>(
         &self,
-        query: &Q,
+        catalog: &Catalog<'_, Q>,
         prepared: &Prepared,
         data_bounds: TimeBounds,
         control: &Control,
         account: &QueryAccounting,
+        failure_annotations: &mut Annotations,
     ) -> Result<Rosters, EvaluationError> {
         let header = prepared.header;
         enum Task {
@@ -678,8 +816,10 @@ impl CompiledQuery {
             let expression = &self.expression.arena[node].expression;
             if matches!(task, Task::Visit(_)) {
                 tasks.push(Task::Finish(node));
-                for child in children(expression).rev() {
-                    tasks.push(Task::Visit(child));
+                if self.direct_clock_selector(node).is_none() {
+                    for child in children(expression).rev() {
+                        tasks.push(Task::Visit(child));
+                    }
                 }
                 continue;
             }
@@ -700,7 +840,7 @@ impl CompiledQuery {
                 )?;
             }
             let generic_boundary = header.start_ms != header.end_ms
-                && !self.invariants[node.0]
+                && !self.preprocessing.invariants[node.0]
                 && self.expression.arena[node].value_type == ValueType::Vector
                 && (matches!(expression, Expr::Binary { .. })
                     || matches!(expression, Expr::Call { function: Some(function), .. }
@@ -717,8 +857,9 @@ impl CompiledQuery {
             let mut step_kinds =
                 AccountedVec::<(u64, usize, u8)>::new(account, MemoryKind::Workspace);
             // Fixed safe range calls have one logical evaluation, irrespective of output steps.
-            let single_step =
-                header.step_ms == 0 || self.invariants[node.0] || self.fixed_range_call(expression);
+            let single_step = header.step_ms == 0
+                || self.preprocessing.invariants[node.0]
+                || self.fixed_range_call(node, prepared);
             let absent_range = matches!(expression,
                 Expr::Call { function: Some(function), .. } if function.name == "absent_over_time");
             let range_function = match expression {
@@ -728,114 +869,70 @@ impl CompiledQuery {
                 } => RangeFunction::parse(function.name),
                 _ => None,
             };
-            let range_machine = range_function.map(|_| {
-                Machine::new(
-                    query,
-                    &self.expression,
-                    node,
-                    self.evaluation_options(header, header.start_ms),
-                    control,
-                    account,
-                    EvaluationMetadata {
-                        prepared,
-                        rosters: &rosters,
-                        invariants: &self.invariants,
-                        timestamp_selectors: &self.timestamp_selectors,
-                        data_bounds,
-                        annotations: None,
-                    },
-                )
-            });
-            let mut selection =
-                if let (Some(machine), Some(function)) = (&range_machine, range_function) {
-                    let (value, lease, _) = machine.range_selection(node, function)?;
-                    let mut expanded = ResourceOwner { value, lease };
-                    // Expand metadata before samples, as the source matrix evaluator does.
-                    loop {
-                        control.check()?;
-                        account.provider_call();
-                        let series = expanded.value.next(control);
-                        expanded.lease.update(expanded.value.resources());
-                        let Some(series) = series? else {
-                            break;
-                        };
-                        let resources = series.resources();
-                        let series = ResourceOwner::new(series, resources, account);
-                        validate_labels(&series.value.label_views(account))?;
+            let base = Machine::new(
+                catalog,
+                &self.expression,
+                node,
+                self.evaluation_options(header, header.start_ms),
+                control,
+                account,
+                EvaluationMetadata {
+                    prepared,
+                    rosters: &rosters,
+                    invariants: &self.preprocessing.invariants,
+                    timestamp_selectors: &self.timestamp_selectors,
+                    data_bounds,
+                    annotations: None,
+                },
+            );
+            let raw_selector = matches!(expression, Expr::Selector(_));
+            let site = if raw_selector {
+                Some(node)
+            } else if let Some(function) = range_function {
+                Some(base.range_selector(node, function)?)
+            } else {
+                self.direct_clock_selector(node)
+            };
+            if let Some(site) = site {
+                match catalog.expand(site, control, account) {
+                    Ok(notes) => annotations.merge(notes, &self.expression.source),
+                    Err(failure) => {
+                        annotations.merge(failure.annotations, &self.expression.source);
+                        *failure_annotations = annotations.finish();
+                        return Err(failure.error);
                     }
-                    drop(expanded);
-                    let (value, lease, selector) = machine.range_selection(node, function)?;
-                    Some((ResourceOwner { value, lease }, selector))
-                } else {
-                    None
-                };
+                }
+            }
+            let series_site = site.filter(|_| raw_selector || range_function.is_some());
             let mut ordinal = 0;
             loop {
-                let series = if let Some((selection, selector_node)) = &mut selection {
-                    control.check()?;
-                    account.provider_call();
-                    let series = selection.value.next(control);
-                    selection.lease.update(selection.value.resources());
-                    let Some(series) = series? else {
-                        break;
-                    };
-                    let resources = series.resources();
-                    let series = ResourceOwner::new(series, resources, account);
-                    let current = ordinal;
-                    ordinal += 1;
-                    let Expr::Selector(selector) =
-                        &self.expression.arena[*selector_node].expression
-                    else {
-                        unreachable!("range selector")
-                    };
-                    {
-                        let labels = series.value.label_views(account);
-                        validate_labels(&labels)?;
-                        if !matches_in(&labels, &selector.matchers, Some(account)) {
-                            continue;
-                        }
-                    }
-                    Some((current, series))
-                } else {
-                    None
-                };
+                if series_site.is_some_and(|site| ordinal >= catalog.len(site)) {
+                    break;
+                }
                 let mut time_ms = header.start_ms;
                 loop {
                     step_kinds.clear();
-                    let mut machine = if let Some(base) = &range_machine {
-                        base.replay(
-                            node,
-                            self.evaluation_options(header, time_ms),
-                            Some(&mut annotations),
-                        )
-                    } else {
-                        Machine::new(
-                            query,
-                            &self.expression,
-                            node,
-                            self.evaluation_options(header, time_ms),
-                            control,
-                            account,
-                            EvaluationMetadata {
-                                prepared,
-                                rosters: &rosters,
-                                invariants: &self.invariants,
-                                timestamp_selectors: &self.timestamp_selectors,
-                                data_bounds,
-                                annotations: Some(&mut annotations),
-                            },
-                        )
-                    };
-                    let mut range_sample = if let (Some((ordinal, series)), Some(function)) =
-                        (&series, range_function)
-                    {
-                        machine.range_series_sample(node, function, *ordinal, &series.value)?
+                    let mut machine = base.replay(
+                        node,
+                        self.evaluation_options(header, time_ms),
+                        Some(&mut annotations),
+                    );
+                    let mut series_sample = if let Some(site) = series_site {
+                        catalog
+                            .with_series(site, ordinal, |series| {
+                                if let Some(function) = range_function {
+                                    machine.range_series_sample(node, function, ordinal, series)
+                                } else {
+                                    machine.raw_series_sample(node, ordinal, series)
+                                }
+                            })
+                            .expect("catalog ordinal")?
                     } else {
                         None
                     };
                     loop {
-                        let sample = if range_function.is_some() {
-                            range_sample.take()
+                        let sample = if series_site.is_some() {
+                            series_sample.take()
                         } else {
                             machine.next()?
                         };
@@ -902,18 +999,18 @@ impl CompiledQuery {
                     }
                     time_ms = next;
                 }
-                if range_function.is_none() {
+                if series_site.is_none() {
                     break;
                 }
+                ordinal += 1;
             }
-            drop(selection);
-            drop(range_machine);
+            drop(base);
             if absent_range {
                 // Validate every series first, then invert the union without a timestamp bitmap.
                 let mut time_ms = header.start_ms;
                 loop {
                     let mut machine = Machine::new(
-                        query,
+                        catalog,
                         &self.expression,
                         node,
                         self.evaluation_options(header, time_ms),
@@ -922,7 +1019,7 @@ impl CompiledQuery {
                         EvaluationMetadata {
                             prepared,
                             rosters: &rosters,
-                            invariants: &self.invariants,
+                            invariants: &self.preprocessing.invariants,
                             timestamp_selectors: &self.timestamp_selectors,
                             data_bounds,
                             annotations: Some(&mut annotations),
@@ -981,7 +1078,7 @@ impl CompiledQuery {
             } else {
                 rosters.output(node, descriptors, account);
             }
-            if self.invariant_boundaries[node.0]
+            if self.preprocessing.boundaries[node.0]
                 && self.expression.arena[node].value_type == ValueType::Vector
                 && rosters
                     .descriptors(node)
@@ -1000,12 +1097,17 @@ impl CompiledQuery {
 
     fn evaluate_matrix<Q: QueryProvider, S: OutputSink>(
         &self,
-        query: &Q,
-        prepared: &Prepared,
+        catalog: &Catalog<'_, Q>,
+        scope: EvaluationScope<'_>,
         control: &Control,
         account: &QueryAccounting,
         sink: &mut S,
+        annotations: &mut Annotations,
     ) -> Result<(), ExecutionError> {
+        let EvaluationScope {
+            prepared,
+            data_bounds,
+        } = scope;
         let header = prepared.header;
         let mut root = self.expression.root;
         while let Expr::Paren(child) = self.expression.arena[root].expression {
@@ -1028,13 +1130,6 @@ impl CompiledQuery {
         }
         let offset = prepared.adjusted_offset(selector_node, &selector.modifiers, header.start_ms);
         let end_ms = header.start_ms.wrapping_sub(offset / 1_000_000);
-        let data_bounds = crate::query_bounds::find(
-            &self.expression,
-            self.evaluation_options(header, header.start_ms),
-            prepared,
-            control,
-            account,
-        )?;
         let bounds = TimeBounds {
             start_ms: end_ms
                 .wrapping_sub(range / 1_000_000)
@@ -1042,66 +1137,59 @@ impl CompiledQuery {
                 .max(data_bounds.start_ms),
             end_ms: end_ms.min(data_bounds.end_ms),
         };
-        account.provider_call();
-        let selection = query.select(
-            SelectionRequest {
-                matchers: &selector.matchers,
-                bounds,
-                accounting: Some(account),
-            },
-            control,
-        )?;
-        let resources = selection.resources();
-        let mut selection = ResourceOwner::new(selection, resources, account);
-        let mut series_id = 0;
-        loop {
-            control.check()?;
-            account.provider_call();
-            let series = selection.value.next(control);
-            selection.lease.update(selection.value.resources());
-            let series = series?;
-            let Some(series) = series else {
-                break;
-            };
-            let resources = series.resources();
-            let current_series_id = series_id;
-            series_id += 1;
-            let series = ResourceOwner::new(series, resources, account);
-            let labels = series.value.label_views(account);
-            validate_labels(&labels)?;
-            if !matches_in(&labels, &selector.matchers, Some(account)) {
-                continue;
+        let notes = match catalog.expand(selector_node, control, account) {
+            Ok(notes) => notes,
+            Err(failure) => {
+                *annotations = failure.annotations.finish();
+                return Err(failure.error.into());
             }
-            scan_with(
-                &series.value,
-                bounds,
-                control,
-                account,
-                |sample| -> Result<(), ExecutionError> {
-                    if sample.value.is_stale() {
-                        return Ok(());
-                    }
-                    let value = crate::result::OwnedValue::copy_from(
-                        sample.value,
-                        account,
-                        MemoryKind::Workspace,
-                    );
-                    let point = SampleRef {
-                        time_ms: sample.time_ms,
-                        start_time_ms: 0,
-                        value: value.as_ref(),
-                    };
-                    sink.chunk(OutputChunk::Series {
-                        series_id: current_series_id,
-                        labels: &labels,
-                        points: &[point],
-                    })
-                    .map_err(ExecutionError::Sink)?;
-                    account.output(1);
-                    Ok(())
-                },
-            )?;
+        };
+        for series_id in 0..catalog.len(selector_node) {
+            catalog
+                .with_series(
+                    selector_node,
+                    series_id,
+                    |series| -> Result<(), ExecutionError> {
+                        control.check()?;
+                        let labels = series.label_views(account);
+                        if !matches_in(&labels, &selector.matchers, Some(account)) {
+                            return Ok(());
+                        }
+                        scan_with(
+                            series,
+                            bounds,
+                            control,
+                            account,
+                            |sample| -> Result<(), ExecutionError> {
+                                if sample.value.is_stale() {
+                                    return Ok(());
+                                }
+                                let value = crate::result::OwnedValue::copy_from(
+                                    sample.value,
+                                    account,
+                                    MemoryKind::Workspace,
+                                );
+                                let point = SampleRef {
+                                    time_ms: sample.time_ms,
+                                    start_time_ms: 0,
+                                    value: value.as_ref(),
+                                };
+                                sink.chunk(OutputChunk::Series {
+                                    series_id,
+                                    labels: &labels,
+                                    points: &[point],
+                                })
+                                .map_err(ExecutionError::Sink)?;
+                                account.output(1);
+                                Ok(())
+                            },
+                        )?;
+                        Ok(())
+                    },
+                )
+                .expect("catalog ordinal")?;
         }
+        *annotations = notes.finish();
         Ok(())
     }
 }
@@ -2265,9 +2353,14 @@ mod tests {
                                 step_ms: 1000,
                             })
                             .unwrap();
-                        let prepared =
-                            Prepared::new(&compiled.expression, header, &control, &account)
-                                .unwrap();
+                        let prepared = Prepared::new(
+                            &compiled.expression,
+                            &compiled.preprocessing,
+                            header,
+                            &control,
+                            &account,
+                        )
+                        .unwrap();
                         let bounds = crate::query_bounds::find(
                             &compiled.expression,
                             compiled.evaluation_options(header, header.start_ms),
@@ -2276,9 +2369,26 @@ mod tests {
                             &account,
                         )
                         .unwrap();
-                        let query = provider.open(&control).unwrap();
+                        let query = provider.open(bounds, &control).unwrap();
+                        let catalog = Catalog::new(
+                            &query,
+                            &compiled.expression,
+                            &prepared,
+                            compiled.evaluation_options(header, header.start_ms),
+                            compiled.options.no_step_subquery_interval_ms,
+                            &control,
+                            &account,
+                        )
+                        .unwrap();
                         let rosters = compiled
-                            .prepare_rosters(&query, &prepared, bounds, &control, &account)
+                            .prepare_rosters(
+                                &catalog,
+                                &prepared,
+                                bounds,
+                                &control,
+                                &account,
+                                &mut Annotations::default(),
+                            )
                             .unwrap();
                         assert!(rosters.descriptors(compiled.expression.root).is_empty());
                         assert!(
@@ -3719,7 +3829,10 @@ mod tests {
                                 info.kind,
                                 crate::annotations::AnnotationKind::HistogramIgnoredInMixedRange
                             );
-                            assert_eq!(info.span.start, name.len() + 1);
+                            assert_eq!(
+                                info.span.expect("generated source position").start,
+                                name.len() + 1
+                            );
                             assert_eq!(info.message, format!("PromQL info: ignored histograms in a range containing both floats and histograms for metric name \"m\" (1:{})", name.len()+2).as_bytes());
                         }
                         assert_eq!(
@@ -3848,7 +3961,10 @@ mod tests {
                                 note.kind,
                                 crate::annotations::AnnotationKind::PossibleNonCounter
                             );
-                            assert_eq!(note.span.start, name.len() + 1 + depth);
+                            assert_eq!(
+                                note.span.expect("generated source position").start,
+                                name.len() + 1 + depth
+                            );
                             assert_eq!(note.occurrences, 1);
                         }
                         drop(query);
@@ -3972,7 +4088,10 @@ mod tests {
                                 notes[0].kind,
                                 crate::annotations::AnnotationKind::MixedFloatsHistograms
                             );
-                            assert_eq!(notes[0].span.start, name.len() + 1);
+                            assert_eq!(
+                                notes[0].span.expect("generated source position").start,
+                                name.len() + 1
+                            );
                         } else {
                             assert_eq!(result.series.len(), 1);
                             let actual = f64::from_bits(float_bits(&result.series[0].points[0]));
@@ -4075,7 +4194,10 @@ mod tests {
                             AnnotationKind::HistogramIgnoredInAggregation(_)
                         ));
                         assert_eq!(annotation.severity, Severity::Info);
-                        assert_eq!(annotation.span.start, source.find('(').unwrap() + 1);
+                        assert_eq!(
+                            annotation.span.expect("generated source position").start,
+                            source.find('(').unwrap() + 1
+                        );
                     } else {
                         let series = &result.series[0];
                         assert!(series.labels.0.is_empty());
@@ -4435,7 +4557,10 @@ mod tests {
                                     HistogramOperation::Aggregation
                                 )
                             );
-                            assert_eq!(notes[0].span.start, outer.len() + name.len() + 2);
+                            assert_eq!(
+                                notes[0].span.expect("generated source position").start,
+                                outer.len() + name.len() + 2
+                            );
                         }
                         provider.assert_closed();
                         drop(query);
@@ -4695,7 +4820,10 @@ mod tests {
                             *expected
                         );
                         for note in notes {
-                            assert_eq!(note.span.start, name.len() + 2);
+                            assert_eq!(
+                                note.span.expect("generated source position").start,
+                                name.len() + 2
+                            );
                             assert_eq!(note.occurrences, 1);
                             assert!(
                                 note.message
@@ -4887,7 +5015,7 @@ mod tests {
                 assert_eq!(result.annotations.len(), 1);
                 let info = result.annotations.iter().next().unwrap();
                 assert_eq!(info.kind, AnnotationKind::PossibleNonCounter);
-                assert_eq!(info.span.start, 35);
+                assert_eq!(info.span.expect("generated source position").start, 35);
                 assert!(info.message.ends_with(b"\"m\" (1:36)"));
             }
             provider.series[0].source.sample = overlap;
@@ -5005,7 +5133,10 @@ mod tests {
                             .windows(2)
                             .position(|bytes| bytes == b"m[")
                             .unwrap();
-                        assert_eq!(warning.span.start, position);
+                        assert_eq!(
+                            warning.span.expect("generated source position").start,
+                            position
+                        );
                         assert!(
                             warning
                                 .message
@@ -5731,7 +5862,11 @@ mod tests {
         }
         impl Provider for GatedProvider {
             type Query<'a> = crate::test_storage::FixtureQuery<'a>;
-            fn open(&self, control: &Control) -> Result<Self::Query<'_>, StorageError> {
+            fn open(
+                &self,
+                bounds: TimeBounds,
+                control: &Control,
+            ) -> Result<Self::Query<'_>, StorageError> {
                 if self.opens.fetch_add(1, Ordering::Relaxed) == 0 {
                     self.entered.send(()).unwrap();
                     self.resume
@@ -5740,7 +5875,7 @@ mod tests {
                         .recv_timeout(std::time::Duration::from_secs(5))
                         .unwrap();
                 }
-                self.provider.open(control)
+                self.provider.open(bounds, control)
             }
         }
         let (entered_tx, entered_rx) = mpsc::sync_channel(1);

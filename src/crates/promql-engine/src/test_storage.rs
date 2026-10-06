@@ -225,7 +225,11 @@ pub(crate) struct FixtureHandle<'a> {
 
 impl crate::storage::Provider for FixtureProvider {
     type Query<'a> = FixtureQuery<'a>;
-    fn open(&self, control: &Control) -> Result<Self::Query<'_>, StorageError> {
+    fn open(
+        &self,
+        _bounds: crate::storage::TimeBounds,
+        control: &Control,
+    ) -> Result<Self::Query<'_>, StorageError> {
         control.check()?;
         self.counts.scopes_opened.fetch_add(1, Ordering::Relaxed);
         Ok(FixtureQuery { provider: self })

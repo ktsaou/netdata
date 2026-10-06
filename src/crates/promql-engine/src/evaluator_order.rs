@@ -3,7 +3,7 @@
 use crate::{
     accounting::{AccountedVec, MemoryKind, QueryAccounting},
     frontend::{
-        ast::{Expr, ParsedExpression},
+        ast::{Expr, NodeId, ParsedExpression},
         token as tokens,
     },
     storage::{Control, Interrupted},
@@ -28,13 +28,50 @@ pub(crate) fn at_modifier_unsafe(name: &str) -> bool {
     )
 }
 
-pub(crate) fn invariants(
+pub(crate) struct Preprocessing {
+    pub(crate) visited: AccountedVec<bool>,
+    pub(crate) invariants: AccountedVec<bool>,
+    pub(crate) boundaries: AccountedVec<bool>,
+}
+impl Preprocessing {
+    pub(crate) fn child(
+        &self,
+        expression: &ParsedExpression,
+        parent: NodeId,
+        child: NodeId,
+    ) -> NodeId {
+        if self.visited[parent.0]
+            && matches!(
+                expression.arena[parent].expression,
+                Expr::Aggregate { .. } | Expr::Call { .. }
+            )
+        {
+            expression.arena.unparenthesized(child)
+        } else {
+            child
+        }
+    }
+}
+
+/// Retain source helper visits and virtual edges without mutating the typed AST.
+pub(crate) fn preprocess(
     expression: &ParsedExpression,
+    kind: MemoryKind,
     control: &Control,
     account: &QueryAccounting,
-) -> Result<AccountedVec<bool>, Interrupted> {
-    let mut result = AccountedVec::new(account, MemoryKind::Compiled);
-    result.extend((0..expression.arena.nodes.len()).map(|_| false));
+) -> Result<Preprocessing, Interrupted> {
+    let mut result = Preprocessing {
+        visited: AccountedVec::new(account, kind),
+        invariants: AccountedVec::new(account, kind),
+        boundaries: AccountedVec::new(account, kind),
+    };
+    for _ in &expression.arena.nodes {
+        control.check()?;
+        account.work(1);
+        result.visited.push(false);
+        result.invariants.push(false);
+        result.boundaries.push(false);
+    }
     let mut tasks = AccountedVec::new(account, MemoryKind::Workspace);
     tasks.push((expression.root, false));
     while let Some((node, finish)) = tasks.pop() {
@@ -42,11 +79,27 @@ pub(crate) fn invariants(
         account.work(1);
         let value = &expression.arena[node].expression;
         if !finish {
+            result.visited[node.0] = true;
             tasks.push((node, true));
-            tasks.extend(value.children().rev().map(|child| (child, false)));
+            if let Expr::Aggregate {
+                expression: Some(child),
+                ..
+            } = value
+            {
+                // The source strips Param's outer parentheses but does not visit its subtree.
+                tasks.push((expression.arena.unparenthesized(*child), false));
+            } else {
+                tasks.extend(
+                    value
+                        .children()
+                        .rev()
+                        .map(|child| (result.child(expression, node, child), false)),
+                );
+            }
             continue;
         }
-        result[node.0] = match value {
+        let child = |child| result.child(expression, node, child);
+        result.invariants[node.0] = match value {
             Expr::Number { .. } | Expr::String(_) | Expr::Duration { .. } => true,
             Expr::Selector(selector) => {
                 selector.modifiers.timestamp.is_some() || selector.modifiers.start_or_end.is_some()
@@ -55,61 +108,86 @@ pub(crate) fn invariants(
                 modifiers.timestamp.is_some() || modifiers.start_or_end.is_some()
             }
             Expr::Aggregate {
-                expression: Some(child),
+                expression: Some(inner),
                 ..
+            } => result.invariants[child(*inner).0],
+            Expr::Matrix {
+                selector: inner, ..
             }
-            | Expr::Matrix {
-                selector: child, ..
-            }
-            | Expr::Paren(child)
+            | Expr::Paren(inner)
             | Expr::Unary {
-                expression: child, ..
-            } => result[child.0],
-            Expr::Binary { left, right, .. } => result[left.0] && result[right.0],
+                expression: inner, ..
+            } => result.invariants[inner.0],
+            Expr::Binary { left, right, .. } => {
+                result.invariants[left.0] && result.invariants[right.0]
+            }
             Expr::Call {
                 function: Some(function),
                 arguments,
             } => {
-                let unsafe_function = at_modifier_unsafe(function.name);
-                let fixed_timestamp = function.name == "timestamp"
-                    && arguments.iter().all(|&arg| {
-                        let child = expression.arena.unparenthesized(arg);
-                        result[child.0]
-                            && matches!(expression.arena[child].expression, Expr::Selector(_))
-                    });
-                fixed_timestamp
-                    || (!unsafe_function && arguments.iter().all(|child| result[child.0]))
+                let mut invariant = !at_modifier_unsafe(function.name);
+                let mut fixed_timestamp = function.name == "timestamp";
+                for (index, arg) in arguments.iter().enumerate() {
+                    let arg = child(*arg);
+                    if function.name == "info" && index == 1 {
+                        continue;
+                    }
+                    invariant &= result.invariants[arg.0];
+                    fixed_timestamp &= result.invariants[arg.0]
+                        && matches!(expression.arena[arg].expression, Expr::Selector(_));
+                }
+                invariant || fixed_timestamp
             }
             _ => false,
         };
+        let should_wrap = |child: NodeId| {
+            result.invariants[child.0]
+                && !matches!(
+                    expression.arena[child].expression,
+                    Expr::Matrix { .. }
+                        | Expr::Subquery { .. }
+                        | Expr::Number { .. }
+                        | Expr::String(_)
+                )
+                && !matches!(&expression.arena[child].expression,
+                    Expr::Call { function: Some(function), .. } if matches!(function.name, "start" | "end" | "range" | "step"))
+        };
+        match value {
+            Expr::Binary { left, right, .. } if !result.invariants[node.0] => {
+                let left_wrap = should_wrap(*left);
+                let right_wrap = should_wrap(*right);
+                result.boundaries[left.0] |= left_wrap;
+                result.boundaries[right.0] |= right_wrap;
+            }
+            Expr::Call {
+                function: Some(function),
+                arguments,
+            } if !result.invariants[node.0] => {
+                for (index, arg) in arguments.iter().enumerate() {
+                    if function.name == "info" && index == 1 {
+                        continue;
+                    }
+                    let arg = result.child(expression, node, *arg);
+                    let wrap = should_wrap(arg);
+                    result.boundaries[arg.0] |= wrap;
+                }
+            }
+            Expr::Subquery {
+                expression: inner, ..
+            } => {
+                result.boundaries[inner.0] |= result.invariants[inner.0];
+            }
+            _ => (),
+        }
     }
-    Ok(result)
-}
-
-pub(crate) fn invariant_boundaries(
-    expression: &ParsedExpression,
-    invariants: &[bool],
-    control: &Control,
-    account: &QueryAccounting,
-) -> Result<AccountedVec<bool>, Interrupted> {
-    let mut result = AccountedVec::new(account, MemoryKind::Compiled);
-    result.extend((0..expression.arena.nodes.len()).map(|_| false));
-    let mut tasks = AccountedVec::new(account, MemoryKind::Workspace);
-    tasks.push((expression.root, false));
-    while let Some((node, parent_invariant)) = tasks.pop() {
-        control.check()?;
-        account.work(1);
-        let value = &expression.arena[node].expression;
-        let invariant = invariants[node.0];
-        // Preprocessing wraps the highest safe expression, not each invariant descendant.
-        result[node.0] = invariant
-            && !parent_invariant
-            && !matches!(
-                value,
-                Expr::Matrix { .. } | Expr::Number { .. } | Expr::String(_)
-            );
-        tasks.extend(value.children().rev().map(|child| (child, invariant)));
-    }
+    let root = expression.root;
+    result.boundaries[root.0] |= result.invariants[root.0]
+        && !matches!(
+            expression.arena[root].expression,
+            Expr::Matrix { .. } | Expr::Subquery { .. } | Expr::Number { .. } | Expr::String(_)
+        )
+        && !matches!(&expression.arena[root].expression,
+            Expr::Call { function: Some(function), .. } if matches!(function.name, "start" | "end" | "range" | "step"));
     Ok(result)
 }
 

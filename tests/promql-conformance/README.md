@@ -662,7 +662,9 @@ types and distinguishes raw sample timestamps from derived evaluation timestamps
 each source function; delayed removal occurs at final output. Duplicate checks and child diagnostics retain their
 source boundaries. A direct `timestamp(metric @ ...)` lookup follows the pinned engine's fixed timestamp,
 ignoring its original offset during lookup; query-wide storage bounds still include that offset. Ordinary instant
-cursor reads intersect those bounds. Parenthesized and derived arguments use ordinary expression evaluation.
+cursor reads intersect those bounds. Source preprocessing unwraps a direct parenthesized selector argument;
+derived arguments use ordinary expression evaluation. An aggregation parameter's subtree is not visited by that
+preprocessing helper, so surviving parentheses there retain their ordinary evaluation boundary.
 After reproduced failing regressions, all 340 retained review cases match all bits in both profiles at page sizes
 1, 17 and 1024, including the nine previously open `start_timestamp` cases. Histogram variance polls cancellation
 during bucket traversal. Fresh Go checks match 4,134
@@ -758,8 +760,8 @@ subquery and other child cases remain explicitly open. All 9,266 previously pass
 passing, with 416 additional passes and the same 24 paired bit reports. The separate 459-request source-phase review
 corpus remains exact in both builds/pages. Generated 2,048-versus-16,384-sample range-absence histories keep equal
 workspace and page peaks at each page size with one live raw cursor and a streaming sink. These finite fixtures
-qualify this owner; shared upfront selection, complete provider diagnostics and the full absence family still
-require the remaining engine work.
+qualify this owner; the full absence family and complete iterator-phase compatibility still require the remaining
+engine work. The query-scope catalog below supplies shared upfront selection and terminal provider diagnostics.
 
 `start_timestamp` returns raw start timestamps only for a syntactically direct selector, including parentheses,
 when its independent runtime feature is enabled. Composed arguments are fully evaluated before producing no
@@ -840,12 +842,28 @@ ten instant, raw-selector and fixed-expression witnesses remain exact. Original 
 and no numerical tolerance is widened. Future implementations of currently unsupported map boundaries must use
 the same policy and preserve source-defined ordering elsewhere.
 
-Replay repeatedly enumerates selection metadata and skips unneeded raw cursors. In a finite release fixture probe
-with three output steps and eight raw points per series, increasing from 32 to 128 series kept borrowed-page
-observations at 2,176 bytes. Workspace rose from 40,320 to 157,440 bytes for `m * 1`, while provider calls rose from
-3,037 to 30,541. A second nested map increased the 128-series calls to 83,917. This confirms a metadata cost that
-can be quadratic and compounded by nested replay; it does not establish total RAM, production latency or
-dbengine performance. Metadata and independently collected output may grow; all admission limits remain disabled.
+Each query now opens every explicit AST selector site once, in syntax order, before expanding metadata. Identical
+selector text at different sites retains separate selections. Expansion retains series handles and provider
+ordinals in a tracked catalog, exhausts metadata before raw reads, and lends one handle at a time to bounded
+page kernels. Physical replay reuses those handles. Original query-wide bounds are passed to the provider before
+offset adjustment; each selection carries its original bounds and borrowed step/range/function/grouping hints.
+Compiled preprocessing metadata preserves source helper visits, invariant wrappers and surviving parentheses,
+including unvisited aggregation parameter subtrees. Hint grouping retains original label order and distinguishes
+an absent grouping from an explicit empty one. These metadata projections do not establish execution of currently
+unsupported parameterized aggregations or subqueries.
+
+Terminal provider diagnostics retain explicit severity, opaque bytes and optional positions in independently
+owned results. Expansion failures carry their own notes and completed numeric parameter notes according to source
+boundaries; unfinished ancestor and ordinary raw-helper failures discard their notes. Replays do not duplicate
+diagnostics. Deferred selection errors retain their buffer capacity while awaiting their source evaluation owner.
+Metadata handles and output can grow with cardinality; raw history remains page scoped. Shared-wrapper, bootstrap,
+raw-error and sink-error accounting still require their remaining owners. Exact memoized initial reads, Seek
+landing and lookahead failure precedence remain mandatory qualification work. All admission limits remain disabled.
+
+Both builds pass 157 unit tests. The 64 independent selector-hint projections, 426 preparation scopes, 198 offset
+projections and retained parser/clock/phase panels match their pinned source. The original corpus retains all
+9,684 passing variants, 11,758 open variants and the same 24 paired bit reports. These are finite catalog and
+preprocessing checks; they do not satisfy the complete expression, SRE, C or accounting gates.
 
 The foundation represents the full value model and records required inputs. The following remain mandatory in the
 typed Rust core stage:
