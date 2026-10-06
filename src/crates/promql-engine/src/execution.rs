@@ -1171,6 +1171,311 @@ mod tests {
     use crate::{result::OwnedValue, test_storage::FixtureProvider};
     use std::sync::atomic::Ordering;
 
+    fn start_options(delayed: bool, enabled: bool) -> EngineOptions {
+        let mut settings = options(delayed);
+        settings.parser.experimental_functions = true;
+        settings.start_timestamps = enabled;
+        settings
+    }
+
+    #[test]
+    fn start_timestamp_preserves_raw_start_time_and_independent_flags() {
+        // Pinned functions.go:1920-1946 casts the start timestamp before division, including zero.
+        use crate::{
+            histogram::{FloatHistogram, IntegerHistogram},
+            value::{STALE_NAN_BITS, Sample, SampleValue},
+        };
+        fn float<const START: i64>(_: usize) -> Sample {
+            Sample {
+                time_ms: 1000,
+                start_time_ms: START,
+                value: SampleValue::Float(1.0),
+            }
+        }
+        fn nan(_: usize) -> Sample {
+            Sample {
+                value: SampleValue::Float(f64::from_bits(0x7ff8_0000_0000_0042)),
+                ..float::<777>(0)
+            }
+        }
+        fn integer(_: usize) -> Sample {
+            Sample {
+                value: SampleValue::IntegerHistogram(IntegerHistogram::default()),
+                ..float::<333>(0)
+            }
+        }
+        fn native(_: usize) -> Sample {
+            Sample {
+                value: SampleValue::FloatHistogram(FloatHistogram::default()),
+                ..float::<201>(0)
+            }
+        }
+        fn stale(_: usize) -> Sample {
+            Sample {
+                value: SampleValue::Float(f64::from_bits(STALE_NAN_BITS)),
+                ..float::<100>(0)
+            }
+        }
+        fn stale_integer(_: usize) -> Sample {
+            Sample {
+                value: SampleValue::IntegerHistogram(IntegerHistogram {
+                    sum: f64::from_bits(STALE_NAN_BITS),
+                    ..IntegerHistogram::default()
+                }),
+                ..float::<100>(0)
+            }
+        }
+        fn stale_native(_: usize) -> Sample {
+            Sample {
+                value: SampleValue::FloatHistogram(FloatHistogram {
+                    sum: f64::from_bits(STALE_NAN_BITS),
+                    ..FloatHistogram::default()
+                }),
+                ..float::<100>(0)
+            }
+        }
+        type Generator = fn(usize) -> Sample;
+        let cases: [(Generator, Option<i64>); 10] = [
+            (float::<0>, Some(0)),
+            (float::<{ -2501 }>, Some(-2501)),
+            (float::<{ i64::MAX }>, Some(i64::MAX)),
+            (float::<{ i64::MIN }>, Some(i64::MIN)),
+            (nan, Some(777)),
+            (integer, Some(333)),
+            (native, Some(201)),
+            (stale, None),
+            (stale_integer, None),
+            (stale_native, None),
+        ];
+        for page in [1, 17, 1024] {
+            for delayed in [false, true] {
+                for enabled in [false, true] {
+                    for (sample, expected) in cases {
+                        let engine = Engine::default();
+                        let mut provider = FixtureProvider::new(1, page, 1);
+                        provider.series[0].source.sample = sample;
+                        let control = Control::default();
+                        let query = engine
+                            .compile(
+                                b"start_timestamp((((counter_total))))",
+                                start_options(delayed, enabled),
+                                &control,
+                            )
+                            .unwrap();
+                        let (result, observed) = query
+                            .collect(&provider, QueryRequest::Instant { time_ms: 1000 }, &control)
+                            .unwrap();
+                        assert_eq!(
+                            result.series.len(),
+                            usize::from(enabled && expected.is_some())
+                        );
+                        if let Some(series) = result.series.first() {
+                            assert_eq!(series.points.len(), 1);
+                            assert_eq!(series.points[0].time_ms, 1000);
+                            assert_eq!(
+                                float_bits(&series.points[0]),
+                                (expected.unwrap() as f64 / 1000.0).to_bits()
+                            );
+                            assert!(series.labels.0.iter().all(|label| !metadata(&label.name)));
+                        }
+                        assert_eq!(observed.memory[MemoryKind::Workspace as usize].current, 0);
+                        provider.assert_closed();
+                    }
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn start_timestamp_distinguishes_raw_fixed_and_derived_clocks() {
+        fn sample(index: usize) -> crate::value::Sample {
+            crate::value::Sample {
+                time_ms: [1000, 3000][index],
+                start_time_ms: [100, 2500][index],
+                value: crate::value::SampleValue::Float(2.0),
+            }
+        }
+        type Times = &'static [(i64, f64)];
+        let cases: &[(&[u8], Times)] = &[
+            (
+                b"start_timestamp(counter_total)",
+                &[(1000, 0.1), (2000, 0.1), (3000, 2.5), (4000, 2.5)],
+            ),
+            (
+                b"start_timestamp(counter_total offset 500ms)",
+                &[(2000, 0.1), (4000, 2.5)],
+            ),
+            (
+                b"start_timestamp((counter_total @ 1))",
+                &[(1000, 0.1), (2000, 0.1), (3000, 0.1), (4000, 0.1)],
+            ),
+            (
+                b"timestamp(start_timestamp(counter_total @ 1))",
+                &[(1000, 1.0), (2000, 2.0), (3000, 3.0), (4000, 4.0)],
+            ),
+            (b"start_timestamp(abs(counter_total))", &[]),
+            (b"start_timestamp(timestamp(counter_total))", &[]),
+            (b"start_timestamp(sum(counter_total))", &[]),
+        ];
+        for page in [1, 17, 1024] {
+            for delayed in [false, true] {
+                let engine = Engine::default();
+                let mut provider = FixtureProvider::new(2, page, 1);
+                provider.series[0].source.sample = sample;
+                let control = Control::default();
+                let mut settings = start_options(delayed, true);
+                settings.lookback_ms = 1500;
+                for (expression, expected) in cases {
+                    let query = engine.compile(expression, settings, &control).unwrap();
+                    let (result, _) = query
+                        .collect(
+                            &provider,
+                            QueryRequest::Range {
+                                start_ms: 1000,
+                                end_ms: 4000,
+                                step_ms: 1000,
+                            },
+                            &control,
+                        )
+                        .unwrap();
+                    assert_eq!(
+                        result.series.is_empty(),
+                        expected.is_empty(),
+                        "{expression:?}"
+                    );
+                    if let Some(series) = result.series.first() {
+                        assert_eq!(series.points.len(), expected.len(), "{expression:?}");
+                        for (point, (time_ms, value)) in series.points.iter().zip(*expected) {
+                            assert_eq!(point.time_ms, *time_ms, "{expression:?}");
+                            assert_eq!(float_bits(point), value.to_bits(), "{expression:?}");
+                        }
+                    }
+                    provider.assert_closed();
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn start_timestamp_keeps_child_failures_and_enabled_duplicate_checks() {
+        for page in [1, 17, 1024] {
+            for delayed in [false, true] {
+                for enabled in [false, true] {
+                    let engine = Engine::default();
+                    let control = Control::default();
+                    let settings = start_options(delayed, enabled);
+                    let mut provider = FixtureProvider::new(1, page, 2);
+                    provider.series[1].source.fail_page = Some(0);
+                    for expression in [
+                        b"start_timestamp(counter_total)".as_slice(),
+                        b"start_timestamp(abs(counter_total))",
+                    ] {
+                        let query = engine.compile(expression, settings, &control).unwrap();
+                        let report = query.collect_reported(
+                            &provider,
+                            QueryRequest::Instant { time_ms: 1000 },
+                            &control,
+                        );
+                        assert!(matches!(
+                            report.result,
+                            Err(ExecutionError::Evaluation(EvaluationError::Storage(_)))
+                        ));
+                        assert_eq!(
+                            report.observations.memory[MemoryKind::Workspace as usize].current,
+                            0
+                        );
+                        provider.assert_closed();
+                    }
+                    let mut provider = FixtureProvider::new(1, page, 2);
+                    for (series, kind) in provider
+                        .series
+                        .iter_mut()
+                        .zip([b"gauge".as_slice(), b"counter"])
+                    {
+                        series.labels = vec![
+                            (b"__name__".to_vec(), b"counter_total".to_vec()),
+                            (b"__type__".to_vec(), kind.to_vec()),
+                            (b"instance".to_vec(), b"same".to_vec()),
+                        ];
+                    }
+                    let query = engine
+                        .compile(b"start_timestamp(counter_total)", settings, &control)
+                        .unwrap();
+                    let report = query.collect_reported(
+                        &provider,
+                        QueryRequest::Instant { time_ms: 1000 },
+                        &control,
+                    );
+                    if enabled {
+                        assert!(is_duplicate(report.result.as_ref().unwrap_err()));
+                    } else {
+                        assert!(report.result.unwrap().series.is_empty());
+                    }
+                    provider.assert_closed();
+                    assert_eq!(
+                        report.observations.memory[MemoryKind::Workspace as usize].current,
+                        0
+                    );
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn start_timestamp_keeps_bounded_raw_history_workspace() {
+        for page in [1, 17, 1024] {
+            for delayed in [false, true] {
+                let mut peaks = Vec::new();
+                for count in [2048, 16_384] {
+                    let engine = Engine::default();
+                    let provider = FixtureProvider::new(count, page, 2);
+                    let control = Control::default();
+                    let mut settings = start_options(delayed, true);
+                    settings.lookback_ms = 1_000_000_000;
+                    let query = engine
+                        .compile(b"start_timestamp(counter_total)", settings, &control)
+                        .unwrap();
+                    let mut sink = RecordingSink::default();
+                    let observed = query
+                        .execute(
+                            &provider,
+                            QueryRequest::Instant {
+                                time_ms: count as i64 * 1000,
+                            },
+                            &control,
+                            &mut sink,
+                        )
+                        .unwrap();
+                    assert!(sink.committed && !sink.aborted);
+                    assert_eq!(observed.output_samples, 2);
+                    assert!(observed.samples_fetched >= (2 * count) as u64);
+                    peaks.push(
+                        [
+                            MemoryKind::Workspace,
+                            MemoryKind::ProviderHeld,
+                            MemoryKind::BorrowedView,
+                        ]
+                        .map(|kind| {
+                            let memory = observed.memory[kind as usize];
+                            assert_eq!(memory.current, 0);
+                            memory.peak
+                        }),
+                    );
+                    assert_eq!(
+                        provider.series[0]
+                            .source
+                            .counters
+                            .peak
+                            .load(Ordering::Relaxed),
+                        1
+                    );
+                    provider.assert_closed();
+                }
+                assert_eq!(peaks[0], peaks[1], "page {page} delayed {delayed}");
+            }
+        }
+    }
+
     #[test]
     fn absent_infers_labels_with_source_matcher_history() {
         // prometheus/prometheus @5241a27fe3c6983549fccc32f6e65917408c63cd
