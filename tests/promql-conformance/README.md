@@ -674,7 +674,7 @@ all 33 paired bit differences are NaN signs in nested nonfinite sums, reported s
 Float-only pointwise calls also support `abs`, `ceil`, `floor`, `exp`, `sqrt`, `ln`, `log2`, `log10`,
 the circular/inverse/hyperbolic functions, `rad`, `deg`, `sgn`, `round` and all three clamp functions.
 The eight UTC calendar calls accept explicit float vectors or an omitted argument. `pi`, `min_of`, `max_of`
-and scalar/mixed float `atan2` use the source arithmetic. Vector/vector matching remains required.
+and scalar/mixed float `atan2` use the source arithmetic. Vector/vector operations use the bounded binary owner described below.
 Parameterized maps retain only one or two scalar operands and reuse row-at-a-time evaluation; native samples
 are silently filtered. Source duplicate, metadata, diagnostics and multi-step ordering boundaries remain active.
 
@@ -702,7 +702,7 @@ cover chained maps, retained results and interruption cleanup. Fresh Go checks m
 in both builds at page sizes 1/17/1024, with thirty separately reported NaN-sign differences. The shared histogram
 kernel replay still matches all 6,440 cases semantically; it reports ten NaN-sign differences in release and one
 in release-min, plus three unchanged differences between the source's numeric assertions and actual signed-zero
-bits. Native trimming and vector/vector operators remain required implementation.
+bits. Native trimming and vector/vector operators now share the bounded binary owner described below.
 
 Ordinary native `rate`, `increase` and `delta` retain first/second/last histograms and replay schema and reset
 passes in source order. `irate` and `idelta` retain the last two relevant values, including transitions between
@@ -953,3 +953,56 @@ enforcement is disabled; fixed memory, cardinality, concurrency and default dead
 enforcement must adapt to the device. Opaque regex memory is explicitly estimated; observable owned/page bytes
 remain precise, and totals containing estimates are not guaranteed bounds. Live dbengine, APIs, Go Cloud distribution and independent rule lifecycle are
 later tracked stages. Alertmanager remains excluded.
+
+## Bounded binary matching and pair replay
+
+Vector/vector arithmetic, comparisons, `bool`, `and`, `or`, `unless`, `on`, `ignoring`, group modifiers and optional
+fill modifiers use the pinned typed pair semantics. Native histogram addition/subtraction, multiplication/division,
+equality/inequality and upper/lower trimming share checked kernels with scalar/vector maps. Native equality uses
+original layouts and reset hints; trimming compacts only at the source's conditional trim boundary. Long equality,
+trim, arithmetic, signature and label walks count work and observe cancellation.
+
+Whole LHS preparation finishes before whole RHS preparation. A join retains productive child row descriptors,
+exact raw matching-signature identities and its logical-scope label cache. Each logical step discovers active row
+identities and sample kinds, discards inspected values, then replays the current operands through the explicit
+frame stack. It does not retain raw timelines, an instant payload vector or a time-by-series presence bitmap.
+Nested joins may retain an operand in each active frame; histogram arithmetic also has its checked temporaries.
+
+Matching always uses complete active inputs before requested output filtering. Valid false comparisons reserve
+cardinality and populate the label cache; incompatible or failed histogram pairs do neither. Group-right swaps
+control sides while preserving original value operand direction and configured fill fields. Set operations retain
+source child order and values. Last nonnil pair diagnostics, cardinality-before-output-duplicate precedence and
+float-before-histogram vector head blocking preserve their source boundaries. Approved label-byte ordering applies
+only at actual unspecified map assembly boundaries.
+
+The result-label cache deliberately uses the source's undelimited concatenation of both raw label streams, with
+first-writer projections retained across the entire logical scope, including false comparisons. Preparation may
+insert; physical replay only reads the frozen cache. Resetting that cache per timestamp or adding side separators
+changes observable range results. Exact matching signatures retain empty input values; normalized label builders
+remove empty fields only at source builder boundaries. Arithmetic includes may restore metadata labels, while
+delayed `bool` cleanup still removes them. Set outputs preserve inherited name-removal flags.
+
+Accounted metadata and distinct combined-label cache keys can grow substantially, including quadratic cache growth;
+replay work can multiply through nested operators. Streaming output avoids the convenience collector's retained
+output matrix, but is not a total-memory bound. Admission limits remain disabled. Finite paging/memory checks do
+not establish RSS limits, throughput, arbitrary provider iterator equivalence or complete language support.
+
+The fixture transport optionally accepts synthetic `faults` on dataset requests. It exposes terminal selection
+errors and opaque warnings plus per-selector/series raw read faults. Healthy page prefixes precede a failing
+landing, so page size does not move the tested failure ahead of already available values. This is a finite test
+adapter over immutable input, not the complete Go memoized/raw cursor state machine. Exact initial reads, Seek
+landing, lookahead and their fault precedence remain separately required. Consequential native NaN architecture
+behavior, remaining functions/subqueries, C/runtime accounting and SRE expression acceptance remain open.
+
+This checkpoint passes 193 unit tests in both release profiles and Rust 1.91, plus focused Miri checks without
+ignoring leaks. At pages 1/17/1024, both profiles pass 284 independently captured binary cases, 28 original fault
+cases, four empty-fault-field controls and 80 retained actual-full-hash cases. Permanent tests cover chronological
+cache ownership, history-independent raw workspace, current-pair histogram storage, a small caller stack,
+late-child failure precedence, sink/cancellation cleanup and preprocessed aggregation diagnostic positions.
+
+The original 21,442-case expression gate now completes and passes 13,330 cases; 8,112 remain OPEN. Its 24 disclosed
+numeric bit differences are unchanged. Separate retained panels preserve 20 previously attributed map-order
+disagreements and expose one newly executable label-merge disagreement: unchanged Go repeated that original query
+128 times with two metadata-label outcomes. Sorting the child OR map's complete labels under approved 9.A selects
+the metadata-removing outcome. The original expectation and disagreement remain recorded; a separate policy check
+qualifies the deterministic result. These figures do not establish complete language or alert compatibility.

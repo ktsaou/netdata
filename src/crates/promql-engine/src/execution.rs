@@ -542,6 +542,7 @@ impl CompiledQuery {
                         timestamp_selectors: &self.timestamp_selectors,
                         data_bounds,
                         annotations: None,
+                        binary_preparation: None,
                     },
                 );
                 machine.restrict(&sources[descriptor.sources.clone()]);
@@ -605,6 +606,7 @@ impl CompiledQuery {
                     timestamp_selectors: &self.timestamp_selectors,
                     data_bounds,
                     annotations: None,
+                    binary_preparation: None,
                 },
             );
             let mut seen = AccountedVec::new(account, MemoryKind::Workspace);
@@ -887,6 +889,25 @@ impl CompiledQuery {
                     control,
                 )?;
             }
+            let binary_cache =
+                std::cell::RefCell::new(AccountedVec::new(account, MemoryKind::Workspace));
+            let binary_preparation = if let Expr::Binary {
+                left,
+                right,
+                matching: Some(matching),
+                ..
+            } = expression
+                && self.expression.arena[*left].value_type == ValueType::Vector
+                && self.expression.arena[*right].value_type == ValueType::Vector
+            {
+                rosters.prepare_binary(node, [*left, *right], matching, control, account)?;
+                Some(crate::vector_matching::Preparation {
+                    node,
+                    cache: &binary_cache,
+                })
+            } else {
+                None
+            };
             let generic_boundary = header.start_ms != header.end_ms
                 && !self.preprocessing.invariants[node.0]
                 && self.expression.arena[node].value_type == ValueType::Vector
@@ -931,6 +952,7 @@ impl CompiledQuery {
                     timestamp_selectors: &self.timestamp_selectors,
                     data_bounds,
                     annotations: None,
+                    binary_preparation,
                 },
             );
             let raw_selector = matches!(expression, Expr::Selector(_));
@@ -1053,6 +1075,9 @@ impl CompiledQuery {
                 ordinal += 1;
             }
             drop(base);
+            if binary_preparation.is_some() {
+                rosters.finish_binary_cache(node, binary_cache.into_inner());
+            }
             if absent_range {
                 // Validate every series first, then invert the union without a timestamp bitmap.
                 let mut time_ms = header.start_ms;
@@ -1071,6 +1096,7 @@ impl CompiledQuery {
                             timestamp_selectors: &self.timestamp_selectors,
                             data_bounds,
                             annotations: Some(&mut annotations),
+                            binary_preparation: None,
                         },
                     );
                     while let Some(sample) = machine.next()? {
@@ -1196,6 +1222,7 @@ impl CompiledQuery {
                     timestamp_selectors: &self.timestamp_selectors,
                     data_bounds: scope.data_bounds,
                     annotations: None,
+                    binary_preparation: None,
                 },
             );
             // Descendant matrices remain authoritative; only this new merge is bypassed.
@@ -3814,7 +3841,7 @@ mod tests {
                 provider.inner.series[0].source.sample = panic_sample;
             }
             let expression = if failure == 5 {
-                b"counter_total + counter_total".as_slice()
+                b"counter_total + on() (counter_total or vector(1))".as_slice()
             } else {
                 b"counter_total"
             };
@@ -3833,7 +3860,7 @@ mod tests {
             if failure == 5 {
                 assert!(matches!(
                     report.result,
-                    Err(ExecutionError::Evaluation(EvaluationError::Unsupported(_)))
+                    Err(ExecutionError::Evaluation(EvaluationError::Runtime(_)))
                 ));
             }
             assert_eq!(
@@ -4266,6 +4293,389 @@ mod tests {
             }
             assert_eq!(peaks[0], peaks[1], "page {page}");
         }
+    }
+    #[test]
+    fn binary_cache_retains_false_first_writer_across_range_steps() {
+        // Pinned resultMetric caches the undelimited side-label bytes before false-pair filtering.
+        fn point<const FIRST: bool, const VALUE: u64>(index: usize) -> crate::value::Sample {
+            crate::value::Sample {
+                time_ms: (index as i64 + 1) * 1000,
+                start_time_ms: 0,
+                value: crate::value::SampleValue::Float(f64::from_bits(if (index == 0) == FIRST {
+                    VALUE
+                } else {
+                    crate::value::STALE_NAN_BITS
+                })),
+            }
+        }
+        for page in [1, 17, 1024] {
+            for delayed in [false, true] {
+                let mut provider = FixtureProvider::new(2, page, 4);
+                provider.filter_selectors = true;
+                for (index, series) in provider.series.iter_mut().enumerate() {
+                    series.labels = vec![(
+                        b"__name__".to_vec(),
+                        if index < 2 { b"a" } else { b"b" }.to_vec(),
+                    )];
+                    if index == 0 || index == 3 {
+                        series.labels.push((b"k".to_vec(), b"x".to_vec()));
+                    }
+                }
+                provider.series[0].source.sample = point::<true, { 2.0f64.to_bits() }>;
+                provider.series[1].source.sample = point::<false, { 7.0f64.to_bits() }>;
+                provider.series[2].source.sample = point::<true, { 4.0f64.to_bits() }>;
+                provider.series[3].source.sample = point::<false, { 5.0f64.to_bits() }>;
+                let engine = Engine::default();
+                let control = Control::default();
+                let query = engine
+                    .compile(
+                        b"a > on() group_left(k) sum by(k)(b)",
+                        options(delayed),
+                        &control,
+                    )
+                    .unwrap();
+                for range in [true, false] {
+                    let request = if range {
+                        QueryRequest::Range {
+                            start_ms: 1000,
+                            end_ms: 2000,
+                            step_ms: 1000,
+                        }
+                    } else {
+                        QueryRequest::Instant { time_ms: 2000 }
+                    };
+                    let (result, observed) = query.collect(&provider, request, &control).unwrap();
+                    assert_eq!(result.series.len(), 1);
+                    let row = &result.series[0];
+                    let labels: Vec<_> = row
+                        .labels
+                        .0
+                        .iter()
+                        .map(|label| (&label.name[..], &label.value[..]))
+                        .collect();
+                    let mut expected = vec![(b"__name__".as_slice(), b"a".as_slice())];
+                    if !range {
+                        expected.push((b"k", b"x"));
+                    }
+                    assert_eq!(labels, expected);
+                    assert_eq!(row.points.len(), 1);
+                    assert_eq!(row.points[0].time_ms, 2000);
+                    assert_eq!(float_bits(&row.points[0]), 7.0f64.to_bits());
+                    assert_eq!(observed.memory[MemoryKind::Workspace as usize].current, 0);
+                    provider.assert_closed();
+                }
+                drop(query);
+                engine.accounting.snapshot().assert_memory_released();
+            }
+        }
+    }
+    #[test]
+    fn aggregation_diagnostics_use_the_preprocessed_binary_child_span() {
+        use crate::{
+            histogram::{FloatHistogram, Span},
+            value::{Sample, SampleValue},
+        };
+        fn point<const DERIVED: bool>(index: usize) -> Sample {
+            Sample {
+                time_ms: 900 + index as i64 * 1000,
+                start_time_ms: 0,
+                value: if (index == 0) == DERIVED {
+                    SampleValue::FloatHistogram(FloatHistogram {
+                        count: 3.0,
+                        sum: 3.0,
+                        positive_spans: Some(
+                            vec![Span {
+                                offset: 0,
+                                length: 1,
+                            }]
+                            .into(),
+                        ),
+                        positive_buckets: Some(vec![3.0].into()),
+                        ..FloatHistogram::default()
+                    })
+                } else {
+                    SampleValue::Float(if DERIVED { 1.0 } else { 5.0 })
+                },
+            }
+        }
+        let mut provider = FixtureProvider::new(2, 1, 2);
+        provider.filter_selectors = true;
+        for (index, series) in provider.series.iter_mut().enumerate() {
+            series.labels = vec![
+                (b"__name__".to_vec(), b"m".to_vec()),
+                (
+                    b"id".to_vec(),
+                    if index == 0 { &b"derived"[..] } else { b"raw" }.to_vec(),
+                ),
+            ];
+        }
+        provider.series[0].source.sample = point::<true>;
+        provider.series[1].source.sample = point::<false>;
+        let engine = Engine::default();
+        let control = Control::default();
+        for delayed in [false, true] {
+            for (operator, position) in [
+                ("sum", 19),
+                ("avg", 19),
+                ("min", 19),
+                ("max", 19),
+                ("stdvar", 22),
+                ("stddev", 22),
+            ] {
+                if !delayed && matches!(operator, "sum" | "avg") {
+                    continue;
+                }
+                let source =
+                    format!("{operator} by(__name__)((m{{id=\"derived\"}}*1 or m{{id=\"raw\"}}))");
+                let query = engine
+                    .compile(source.as_bytes(), options(delayed), &control)
+                    .unwrap();
+                let report = query.collect_reported(
+                    &provider,
+                    QueryRequest::Instant { time_ms: 2000 },
+                    &control,
+                );
+                assert!(report.result.is_ok());
+                assert_eq!(report.annotations.len(), 1, "{source}");
+                for annotation in report.annotations.iter() {
+                    assert!(
+                        annotation
+                            .message
+                            .ends_with(format!("(1:{position})").as_bytes()),
+                        "{source}: {:?}",
+                        annotation.message
+                    );
+                }
+                provider.assert_closed();
+            }
+        }
+    }
+    #[test]
+    fn binary_history_replay_keeps_one_cursor_and_constant_raw_workspace() {
+        for expression in [
+            b"count(counter_total and on(instance) counter_total)".as_slice(),
+            b"sum(rate(counter_total[1000000s]) + on(instance) rate(counter_total[1000000s]))",
+        ] {
+            for page in [1, 17, 1024] {
+                let mut peaks = Vec::new();
+                for count in [2048, 16384] {
+                    let provider = FixtureProvider::new(count, page, 2);
+                    let engine = Engine::default();
+                    let control = Control::default();
+                    let query = engine
+                        .compile(
+                            expression,
+                            EngineOptions {
+                                lookback_ms: 1_000_000_000,
+                                ..EngineOptions::default()
+                            },
+                            &control,
+                        )
+                        .unwrap();
+                    let mut sink = RecordingSink::default();
+                    let observed = query
+                        .execute(
+                            &provider,
+                            QueryRequest::Instant {
+                                time_ms: count as i64 * 1000,
+                            },
+                            &control,
+                            &mut sink,
+                        )
+                        .unwrap();
+                    assert!(sink.committed && !sink.aborted);
+                    assert_eq!(observed.output_samples, 1);
+                    assert_eq!(
+                        provider.series[0]
+                            .source
+                            .counters
+                            .peak
+                            .load(Ordering::Relaxed),
+                        1
+                    );
+                    peaks.push(
+                        [
+                            MemoryKind::Workspace,
+                            MemoryKind::ProviderHeld,
+                            MemoryKind::BorrowedView,
+                        ]
+                        .map(|kind| {
+                            let value = observed.memory[kind as usize];
+                            assert_eq!(value.current, 0);
+                            value.peak
+                        }),
+                    );
+                    provider.assert_closed();
+                    drop(query);
+                    engine.accounting.snapshot().assert_memory_released();
+                }
+                assert_eq!(peaks[0], peaks[1], "{expression:?}, page {page}");
+            }
+        }
+    }
+    #[test]
+    fn binary_histogram_pairs_do_not_retain_a_vector_of_native_payloads() {
+        use crate::{
+            histogram::{FloatHistogram, GAUGE, Span},
+            value::{Sample, SampleValue},
+        };
+        const BUCKETS: usize = 10_000;
+        fn sample(_: usize) -> Sample {
+            Sample {
+                time_ms: 1000,
+                start_time_ms: 0,
+                value: SampleValue::FloatHistogram(FloatHistogram {
+                    schema: 8,
+                    reset_hint: GAUGE,
+                    count: BUCKETS as f64,
+                    sum: BUCKETS as f64,
+                    positive_spans: Some(
+                        vec![Span {
+                            offset: 0,
+                            length: BUCKETS as u32,
+                        }]
+                        .into(),
+                    ),
+                    positive_buckets: Some(vec![1.0; BUCKETS].into()),
+                    ..FloatHistogram::default()
+                }),
+            }
+        }
+        for metrics in [4, 32] {
+            let mut provider = FixtureProvider::new(1, 1, metrics);
+            for series in &mut provider.series {
+                series.source.sample = sample;
+            }
+            let engine = Engine::default();
+            let control = Control::default();
+            let query = engine
+                .compile(
+                    b"histogram_sum(counter_total + on(instance) counter_total)",
+                    EngineOptions::default(),
+                    &control,
+                )
+                .unwrap();
+            let mut sink = RecordingSink::default();
+            let observed = query
+                .execute(
+                    &provider,
+                    QueryRequest::Instant { time_ms: 1000 },
+                    &control,
+                    &mut sink,
+                )
+                .unwrap();
+            assert_eq!(observed.output_samples, metrics as u64);
+            assert!(sink.committed && !sink.aborted);
+            // Bound payload slots plus label metadata; retaining all 32 native values exceeds this envelope.
+            assert!(
+                observed.memory[MemoryKind::Workspace as usize].peak
+                    < (8 * BUCKETS * size_of::<f64>() + metrics * 4096) as u64
+            );
+            assert_eq!(
+                provider.series[0]
+                    .source
+                    .counters
+                    .peak
+                    .load(Ordering::Relaxed),
+                1
+            );
+            provider.assert_closed();
+            drop(query);
+            engine.accounting.snapshot().assert_memory_released();
+        }
+    }
+    #[test]
+    fn empty_nested_binary_phases_use_a_small_caller_stack() {
+        std::thread::Builder::new()
+            .stack_size(128 * 1024)
+            .spawn(|| {
+                let mut source = b"missing + (".repeat(1000);
+                source.extend_from_slice(b"missing");
+                source.extend(std::iter::repeat_n(b')', 1000));
+                let provider = FixtureProvider::new(0, 1, 0);
+                let engine = Engine::default();
+                let control = Control::default();
+                let query = engine
+                    .compile(&source, EngineOptions::default(), &control)
+                    .unwrap();
+                let (result, _) = query
+                    .collect(&provider, QueryRequest::Instant { time_ms: 1000 }, &control)
+                    .unwrap();
+                assert!(result.series.is_empty());
+                provider.assert_closed();
+            })
+            .unwrap()
+            .join()
+            .unwrap();
+    }
+    #[test]
+    fn binary_late_child_failure_precedes_matching_and_replay_releases_sink_failures() {
+        let mut provider = FixtureProvider::new(2, 1, 4);
+        provider.filter_selectors = true;
+        for (index, series) in provider.series.iter_mut().enumerate() {
+            series.labels[0].1 = if index < 2 { b"a" } else { b"b" }.to_vec();
+        }
+        provider.series[3].source.fail_page = Some(1);
+        let engine = Engine::default();
+        let control = Control::default();
+        let query = engine
+            .compile(
+                b"a + on(job) group_left b",
+                EngineOptions::default(),
+                &control,
+            )
+            .unwrap();
+        let report = query.collect_reported(
+            &provider,
+            QueryRequest::Range {
+                start_ms: 1000,
+                end_ms: 2000,
+                step_ms: 1000,
+            },
+            &control,
+        );
+        assert!(matches!(
+            report.result,
+            Err(ExecutionError::Evaluation(EvaluationError::Storage(
+                StorageError::Provider(_)
+            )))
+        ));
+        assert!(report.annotations.is_empty());
+        provider.assert_closed();
+        drop(query);
+        for failure in 0..3 {
+            let provider = FixtureProvider::new(2, 1, 2);
+            let control = Control::default();
+            let query = engine
+                .compile(
+                    b"counter_total + on(instance) counter_total",
+                    EngineOptions::default(),
+                    &control,
+                )
+                .unwrap();
+            let mut sink = RecordingSink {
+                fail_after: (failure == 0).then_some(1),
+                cancel: (failure == 1).then(|| control.cancellation.clone()),
+                panic_after: (failure == 2).then_some(1),
+                ..RecordingSink::default()
+            };
+            let report = query.execute_reported(
+                &provider,
+                QueryRequest::Range {
+                    start_ms: 1000,
+                    end_ms: 2000,
+                    step_ms: 1000,
+                },
+                &control,
+                &mut sink,
+            );
+            assert!(report.result.is_err());
+            assert!(sink.aborted && !sink.committed);
+            report.observations.assert_memory_released();
+            provider.assert_closed();
+            drop(query);
+        }
+        engine.accounting.snapshot().assert_memory_released();
     }
     #[test]
     fn singleton_label_filters_avoid_quadratic_skipped_ordinal_walks() {

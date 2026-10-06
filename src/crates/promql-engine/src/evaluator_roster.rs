@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 //! Whole-query descriptors retain labels and ordinals, never raw sample timelines.
 use crate::{
-    accounting::{AccountedVec, MemoryKind, QueryAccounting},
+    accounting::{AccountedBox, AccountedVec, AllocationContext, MemoryKind, QueryAccounting},
     annotations::AnnotationBuilder,
     evaluator_order,
-    frontend::ast::NodeId,
+    frontend::ast::{NodeId, VectorMatching},
     label_hash,
     result::OwnedLabels,
     storage::{Control, Interrupted},
@@ -37,11 +37,42 @@ struct NodeRoster {
     groups: Option<AccountedVec<GroupDescriptor>>,
     annotations: Option<AnnotationBuilder>,
     projection: Option<AccountedVec<(usize, usize)>>,
+    binary: Option<AccountedBox<crate::vector_matching::Plan>>,
 }
 pub(crate) struct Rosters {
     nodes: AccountedVec<NodeRoster>,
 }
 impl Rosters {
+    pub(crate) fn prepare_binary(
+        &mut self,
+        node: NodeId,
+        children: [NodeId; 2],
+        matching: &VectorMatching,
+        control: &Control,
+        account: &QueryAccounting,
+    ) -> Result<(), Interrupted> {
+        let left = self.projection_input(children[0], control, account)?;
+        let right = self.projection_input(children[1], control, account)?;
+        self.nodes[node.0].binary = Some(AccountedBox::new(
+            crate::vector_matching::Plan::new(left, right, matching, control, account)?,
+            &AllocationContext::new(account, MemoryKind::Workspace),
+        ));
+        Ok(())
+    }
+    pub(crate) fn binary(&self, node: NodeId) -> Option<&crate::vector_matching::Plan> {
+        self.nodes[node.0].binary.as_deref()
+    }
+    pub(crate) fn finish_binary_cache(
+        &mut self,
+        node: NodeId,
+        cache: AccountedVec<crate::vector_matching::CacheEntry>,
+    ) {
+        self.nodes[node.0]
+            .binary
+            .as_deref_mut()
+            .expect("binary plan")
+            .cache = cache;
+    }
     pub(crate) fn new(account: &QueryAccounting, nodes: usize) -> Self {
         let mut values = AccountedVec::new(account, MemoryKind::Workspace);
         for _ in 0..nodes {

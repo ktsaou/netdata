@@ -49,6 +49,7 @@ pub enum AnnotationKind {
         operator: tokens::TokenKind,
         right_histogram: bool,
     },
+    IncompatibleBinaryLayout(tokens::TokenKind),
 }
 impl AnnotationKind {
     fn severity(self) -> Severity {
@@ -65,7 +66,8 @@ impl AnnotationKind {
             | Self::MixedFloatsHistogramsAggregation
             | Self::StartTimeOverlap
             | Self::MixedExponentialCustomHistograms
-            | Self::HistogramCounterResetCollision(_) => Severity::Warning,
+            | Self::HistogramCounterResetCollision(_)
+            | Self::IncompatibleBinaryLayout(_) => Severity::Warning,
         }
     }
     fn prefix(self) -> &'static str {
@@ -104,6 +106,9 @@ impl AnnotationKind {
             }
             Self::IncompatibleBinaryTypes { .. } => {
                 "PromQL info: incompatible sample types encountered for binary operator "
+            }
+            Self::IncompatibleBinaryLayout(_) => {
+                "PromQL warning: incompatible bucket layout encountered for binary operator "
             }
         }
     }
@@ -216,6 +221,9 @@ impl AnnotationBuilder {
                 "float"
             };
             write!(raw_message, ": {left} {operation} {right}").expect("byte writer");
+        } else if let AnnotationKind::IncompatibleBinaryLayout(operator) = kind {
+            raw_message
+                .extend_from_slice(operator.text().expect("binary operator text").as_bytes());
         } else if let Some(operation) = kind.operation() {
             raw_message.extend_from_slice(operation.name().as_bytes());
         } else if let AnnotationKind::HistogramIgnoredInAggregation(operator) = kind {
