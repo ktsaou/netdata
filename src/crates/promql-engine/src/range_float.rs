@@ -172,6 +172,7 @@ pub fn rate<S: Series>(
     control: &Control,
     account: &QueryAccounting,
 ) -> Result<RateResult, StorageError> {
+    let _control_observation = control.observe(account);
     rate_with(series, window.into(), kind, None, control, account)
 }
 
@@ -429,12 +430,6 @@ mod tests {
             source.counters.opened.load(Ordering::Relaxed),
             source.counters.closed.load(Ordering::Relaxed)
         );
-        assert!(
-            account
-                .snapshot()
-                .memory
-                .iter()
-                .all(|kind| kind.current == 0)
-        );
+        account.snapshot().assert_memory_released();
     }
 }

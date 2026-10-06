@@ -989,13 +989,7 @@ mod tests {
         assert_eq!(&*alias, &[1.0, 2.0]);
         assert_eq!(engine.snapshot().memory[1].current, bytes + wrapper + 16);
         drop((alias, different_kind, different_query, other_account));
-        assert!(
-            engine
-                .snapshot()
-                .memory
-                .iter()
-                .all(|memory| memory.current == 0)
-        );
+        engine.snapshot().assert_memory_released();
     }
 
     #[test]

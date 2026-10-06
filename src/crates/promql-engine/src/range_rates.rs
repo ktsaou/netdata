@@ -628,13 +628,7 @@ mod tests {
                     assert!(snapshot.memory[MemoryKind::Workspace as usize].current > 0);
                     drop(account);
                     drop(result);
-                    assert!(
-                        engine
-                            .snapshot()
-                            .memory
-                            .iter()
-                            .all(|kind| kind.current == 0)
-                    );
+                    engine.snapshot().assert_memory_released();
                 }
             }
         }
@@ -702,13 +696,7 @@ mod tests {
             );
             assert_eq!(value.as_ref().count.to_bits(), (7.0f64 * 0.1).to_bits());
             drop(value);
-            assert!(
-                account
-                    .snapshot()
-                    .memory
-                    .iter()
-                    .all(|kind| kind.current == 0)
-            );
+            account.snapshot().assert_memory_released();
         }
     }
 
@@ -742,13 +730,7 @@ mod tests {
                 Err(StorageError::Provider(_))
             ));
             assert_eq!(source.counters.active.load(Ordering::Relaxed), 0);
-            assert!(
-                account
-                    .snapshot()
-                    .memory
-                    .iter()
-                    .all(|kind| kind.current == 0)
-            );
+            account.snapshot().assert_memory_released();
             let control = Control::default();
             control.cancellation.cancel();
             assert!(matches!(
@@ -759,13 +741,7 @@ mod tests {
                 source.counters.opened.load(Ordering::Relaxed),
                 source.counters.closed.load(Ordering::Relaxed)
             );
-            assert!(
-                account
-                    .snapshot()
-                    .memory
-                    .iter()
-                    .all(|kind| kind.current == 0)
-            );
+            account.snapshot().assert_memory_released();
         }
     }
 }

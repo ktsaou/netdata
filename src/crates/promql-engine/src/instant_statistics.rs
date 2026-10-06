@@ -181,13 +181,7 @@ mod tests {
             source.counters.opened.load(Ordering::Relaxed),
             source.counters.closed.load(Ordering::Relaxed)
         );
-        assert!(
-            account
-                .snapshot()
-                .memory
-                .iter()
-                .all(|memory| memory.current == 0)
-        );
+        account.snapshot().assert_memory_released();
     }
 
     #[test]

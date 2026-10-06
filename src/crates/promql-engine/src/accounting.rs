@@ -1,11 +1,12 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 //! Observations remain active without admitting, throttling or limiting queries.
+use crate::shared::Strong;
 use std::{
     borrow::Borrow,
     hash::{Hash, Hasher},
     iter::FusedIterator,
     ops::{Deref, DerefMut, RangeBounds},
-    sync::{Arc, Mutex, MutexGuard},
+    sync::{Mutex, MutexGuard},
     time::{Duration, Instant},
 };
 
@@ -19,8 +20,10 @@ pub enum MemoryKind {
     BorrowedView,
     RegexEstimate,
     SharedCacheReference,
+    /// Engine/query ledgers and explicitly engine-owned cancellation allocations.
+    Accounting,
 }
-pub const MEMORY_KINDS: usize = 7;
+pub const MEMORY_KINDS: usize = 8;
 
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub struct MemoryObservation {
@@ -52,9 +55,47 @@ impl MemoryObservation {
     }
 }
 
+/// Counts scoped aliases, independently of physical allocation bytes.
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct ReferenceObservation {
+    pub current: u64,
+    pub peak: u64,
+    pub acquired: u64,
+    pub released: u64,
+    pub overflowed: bool,
+}
+impl ReferenceObservation {
+    fn acquire(&mut self) {
+        add(&mut self.current, 1, &mut self.overflowed);
+        add(&mut self.acquired, 1, &mut self.overflowed);
+        self.peak = self.peak.max(self.current);
+    }
+    fn release(&mut self) {
+        self.current = self.current.saturating_sub(1);
+        add(&mut self.released, 1, &mut self.overflowed);
+    }
+}
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct CancellationReferences {
+    /// Engine-held guard aliases of tokens created by any engine.
+    pub engine_owned: ReferenceObservation,
+    /// Engine-held guard aliases of caller/default tokens.
+    pub external: ReferenceObservation,
+}
+impl CancellationReferences {
+    fn entry(&mut self, engine_owned: bool) -> &mut ReferenceObservation {
+        if engine_owned {
+            &mut self.engine_owned
+        } else {
+            &mut self.external
+        }
+    }
+}
+
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct QueryObservations {
     pub memory: [MemoryObservation; MEMORY_KINDS],
+    pub cancellation_references: CancellationReferences,
     pub provider_calls: u64,
     pub pages: u64,
     /// Samples received in accepted pages, including a page discarded on cancellation.
@@ -67,6 +108,7 @@ pub struct QueryObservations {
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct EngineObservations {
     pub memory: [MemoryObservation; MEMORY_KINDS],
+    pub cancellation_references: CancellationReferences,
     pub active_executions: u64,
     pub peak_executions: u64,
     pub completed_executions: u64,
@@ -76,17 +118,42 @@ pub struct EngineObservations {
 fn lock<T>(mutex: &Mutex<T>) -> MutexGuard<'_, T> {
     mutex.lock().unwrap_or_else(|error| error.into_inner())
 }
-#[derive(Clone, Debug, Default)]
-pub struct EngineAccounting(Arc<Mutex<EngineObservations>>);
+#[derive(Clone, Debug)]
+pub struct EngineAccounting(Strong<Mutex<EngineObservations>>);
+impl Default for EngineAccounting {
+    fn default() -> Self {
+        let mut observations = EngineObservations::default();
+        // The terminal root cannot retain a lease to itself.
+        observations.memory[MemoryKind::Accounting as usize].acquire(Self::allocation_bytes());
+        Self(Strong::new_in(Mutex::new(observations), None))
+    }
+}
 impl EngineAccounting {
+    pub(crate) fn allocation_bytes() -> u64 {
+        Strong::<Mutex<EngineObservations>>::allocation_bytes()
+    }
     pub fn snapshot(&self) -> EngineObservations {
         lock(&self.0).clone()
     }
     pub fn query(&self) -> QueryAccounting {
-        QueryAccounting(Arc::new(QueryState {
+        let mut observations = QueryObservations::default();
+        observations.memory[MemoryKind::Accounting as usize]
+            .acquire(QueryAccounting::allocation_bytes());
+        QueryAccounting(Strong::new_for_engine(
+            QueryState {
+                engine: self.clone(),
+                observations: Mutex::new(observations),
+            },
+            self,
+        ))
+    }
+    pub(crate) fn hold_accounting(&self, bytes: u64) -> EngineLease {
+        let mut lease = EngineLease {
             engine: self.clone(),
-            observations: Mutex::new(QueryObservations::default()),
-        }))
+            bytes: 0,
+        };
+        lease.resize(bytes);
+        lease
     }
 }
 #[derive(Debug)]
@@ -95,8 +162,11 @@ struct QueryState {
     observations: Mutex<QueryObservations>,
 }
 #[derive(Clone, Debug)]
-pub struct QueryAccounting(Arc<QueryState>);
+pub struct QueryAccounting(Strong<QueryState>);
 impl QueryAccounting {
+    pub(crate) fn allocation_bytes() -> u64 {
+        Strong::<QueryState>::allocation_bytes()
+    }
     pub fn snapshot(&self) -> QueryObservations {
         lock(&self.0.observations).clone()
     }
@@ -137,6 +207,88 @@ impl QueryAccounting {
         add(field(&mut observations), amount, &mut overflowed);
         observations.counter_overflowed = overflowed;
     }
+    pub(crate) fn hold_cancellation_reference(&self, engine_owned: bool) -> ReferenceLease {
+        let lease = ReferenceLease {
+            query: self.clone(),
+            engine_owned,
+        };
+        let mut engine = lock(&self.0.engine.0);
+        let mut query = lock(&self.0.observations);
+        engine.cancellation_references.entry(engine_owned).acquire();
+        query.cancellation_references.entry(engine_owned).acquire();
+        lease
+    }
+}
+
+/// A child charge retains only its ancestor, never the allocation being charged.
+#[derive(Debug)]
+pub(crate) struct EngineLease {
+    engine: EngineAccounting,
+    bytes: u64,
+}
+impl EngineLease {
+    fn resize(&mut self, bytes: u64) {
+        if bytes == self.bytes {
+            return;
+        }
+        let mut engine = lock(&self.engine.0);
+        let observation = &mut engine.memory[MemoryKind::Accounting as usize];
+        if bytes >= self.bytes {
+            observation.acquire(bytes - self.bytes);
+        } else {
+            observation.release(self.bytes - bytes);
+        }
+        self.bytes = bytes;
+    }
+}
+impl Drop for EngineLease {
+    fn drop(&mut self) {
+        self.resize(0);
+    }
+}
+#[derive(Debug)]
+pub(crate) enum SharedCharge {
+    Query(MemoryLease),
+    Engine(EngineLease),
+}
+impl SharedCharge {
+    pub(crate) fn bytes(&self) -> u64 {
+        match self {
+            Self::Query(lease) => lease.bytes(),
+            Self::Engine(lease) => lease.bytes,
+        }
+    }
+    pub(crate) fn owns(&self, context: &AllocationContext) -> bool {
+        matches!(self, Self::Query(lease) if context.owns(lease))
+    }
+    pub(crate) fn engine_owned(&self) -> bool {
+        matches!(self, Self::Engine(_))
+    }
+}
+impl From<MemoryLease> for SharedCharge {
+    fn from(value: MemoryLease) -> Self {
+        Self::Query(value)
+    }
+}
+
+#[derive(Debug)]
+pub(crate) struct ReferenceLease {
+    query: QueryAccounting,
+    engine_owned: bool,
+}
+impl Drop for ReferenceLease {
+    fn drop(&mut self) {
+        let mut engine = lock(&self.query.0.engine.0);
+        let mut query = lock(&self.query.0.observations);
+        engine
+            .cancellation_references
+            .entry(self.engine_owned)
+            .release();
+        query
+            .cancellation_references
+            .entry(self.engine_owned)
+            .release();
+    }
 }
 #[derive(Debug)]
 pub struct MemoryLease {
@@ -160,7 +312,7 @@ impl AllocationContext {
         self.query.hold(self.kind, bytes)
     }
     pub(crate) fn owns(&self, lease: &MemoryLease) -> bool {
-        self.kind == lease.kind && Arc::ptr_eq(&self.query.0, &lease.query.0)
+        self.kind == lease.kind && self.query.0.same_allocation(&lease.query.0)
     }
     pub(crate) fn with_kind(&self, kind: MemoryKind) -> Self {
         Self::new(&self.query, kind)
@@ -175,7 +327,7 @@ impl MemoryLease {
         assert!(
             targets
                 .iter()
-                .all(|(lease, _)| Arc::ptr_eq(&owner.0, &lease.query.0)),
+                .all(|(lease, _)| owner.0.same_allocation(&lease.query.0)),
             "snapshot owners must share a query"
         );
         let mut engine = lock(&owner.0.engine.0);
@@ -245,6 +397,52 @@ impl Drop for ExecutionObservation {
         engine.counter_overflowed = overflowed;
         engine.elapsed = engine.elapsed.saturating_add(elapsed);
         query.elapsed = query.elapsed.saturating_add(elapsed);
+    }
+}
+
+#[cfg(test)]
+fn assert_released_memory(
+    memory: &[MemoryObservation; MEMORY_KINDS],
+    references: CancellationReferences,
+    accounting_bytes: u64,
+) {
+    for (kind, observed) in memory.iter().enumerate() {
+        let expected = if kind == MemoryKind::Accounting as usize {
+            accounting_bytes
+        } else {
+            0
+        };
+        assert_eq!(observed.current, expected, "memory category {kind}");
+        assert!(!observed.overflowed, "memory category {kind}");
+        assert_eq!(observed.acquired - observed.released, expected);
+    }
+    for observed in [references.engine_owned, references.external] {
+        assert_eq!(observed.current, 0);
+        assert_eq!(observed.acquired, observed.released);
+        assert!(!observed.overflowed);
+    }
+}
+#[cfg(test)]
+impl QueryObservations {
+    pub(crate) fn assert_memory_released(&self) {
+        assert_released_memory(
+            &self.memory,
+            self.cancellation_references,
+            QueryAccounting::allocation_bytes(),
+        );
+    }
+}
+#[cfg(test)]
+impl EngineObservations {
+    pub(crate) fn assert_memory_released(&self) {
+        self.assert_memory_released_with_queries(0);
+    }
+    pub(crate) fn assert_memory_released_with_queries(&self, queries: u64) {
+        assert_released_memory(
+            &self.memory,
+            self.cancellation_references,
+            EngineAccounting::allocation_bytes() + queries * QueryAccounting::allocation_bytes(),
+        );
     }
 }
 
@@ -565,6 +763,123 @@ impl std::fmt::Write for AccountedVec<u8> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::sync::Arc;
+    #[test]
+    fn idle_roots_remain_observable_without_any_data_buffers() {
+        let engine = EngineAccounting::default();
+        let engine_bytes = std::alloc::Layout::new::<
+            crate::shared::Allocation<Mutex<EngineObservations>>,
+        >()
+        .size() as u64;
+        let query_bytes =
+            std::alloc::Layout::new::<crate::shared::Allocation<QueryState>>().size() as u64;
+        let current = |memory: [MemoryObservation; MEMORY_KINDS]| {
+            memory.iter().map(|entry| entry.current).sum::<u64>()
+        };
+        assert_eq!(current(engine.snapshot().memory), engine_bytes);
+        assert_eq!(
+            engine.snapshot().memory[MemoryKind::Accounting as usize].current,
+            engine_bytes
+        );
+        println!(
+            "bookkeeping_layout engine={engine_bytes} query={query_bytes} shared_charge={} reference={} memory_kinds={MEMORY_KINDS}",
+            size_of::<SharedCharge>(),
+            size_of::<ReferenceObservation>()
+        );
+        let query = engine.query();
+        assert_eq!(current(query.snapshot().memory), query_bytes);
+        assert_eq!(
+            current(engine.snapshot().memory),
+            engine_bytes + query_bytes
+        );
+        let alias = query.clone();
+        drop(query);
+        assert_eq!(
+            current(engine.snapshot().memory),
+            engine_bytes + query_bytes
+        );
+        drop(alias);
+        assert_eq!(current(engine.snapshot().memory), engine_bytes);
+        engine.snapshot().assert_memory_released();
+    }
+    #[test]
+    fn empty_owners_retain_one_query_root_and_do_not_reacquire_on_clone() {
+        let engine = EngineAccounting::default();
+        let query = engine.query();
+        let baseline = engine.snapshot();
+        let engine_alias = engine.clone();
+        let query_alias = query.clone();
+        assert_eq!(engine.snapshot(), baseline);
+        let lease = query.hold(MemoryKind::Result, 0);
+        let buffer = AccountedVec::<u64>::new(&query, MemoryKind::Result);
+        drop((engine, query, query_alias));
+        engine_alias
+            .snapshot()
+            .assert_memory_released_with_queries(1);
+        drop(lease);
+        engine_alias
+            .snapshot()
+            .assert_memory_released_with_queries(1);
+        drop(buffer);
+        engine_alias.snapshot().assert_memory_released();
+    }
+    #[test]
+    fn root_identity_and_reconciliation_do_not_merge_independent_queries() {
+        let engine = EngineAccounting::default();
+        let left = engine.query();
+        let right = engine.query();
+        let mut a = left.hold(MemoryKind::ProviderHeld, 3);
+        let mut b = right.hold(MemoryKind::ProviderHeld, 5);
+        let context = AllocationContext::new(&left, MemoryKind::ProviderHeld);
+        assert!(context.owns(&a));
+        assert!(!context.owns(&b));
+        let observed = engine.snapshot();
+        assert!(
+            std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                MemoryLease::reconcile([(&mut a, 0), (&mut b, 0)])
+            }))
+            .is_err()
+        );
+        assert_eq!(engine.snapshot(), observed);
+        drop((a, b, context, left, right));
+        engine.snapshot().assert_memory_released();
+    }
+    #[test]
+    fn poisoned_root_ledgers_recover_snapshots_and_balanced_release() {
+        let engine = EngineAccounting::default();
+        let query = engine.query();
+        let baseline = engine.snapshot();
+        let control = crate::storage::Control::default();
+        let observation = control.observe(&query);
+        let lease = query.hold(MemoryKind::Workspace, 19);
+        for engine_mutex in [false, true] {
+            assert!(
+                std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                    if engine_mutex {
+                        let _guard = lock(&engine.0);
+                        panic!("synthetic engine ledger poison");
+                    } else {
+                        let _guard = lock(&query.0.observations);
+                        panic!("synthetic query ledger poison");
+                    }
+                }))
+                .is_err()
+            );
+        }
+        assert_eq!(
+            query.snapshot().memory[MemoryKind::Workspace as usize].current,
+            19
+        );
+        assert_eq!(query.snapshot().cancellation_references.external.current, 1);
+        drop((observation, lease));
+        query.snapshot().assert_memory_released();
+        assert_eq!(
+            engine.snapshot().memory[MemoryKind::Accounting as usize],
+            baseline.memory[MemoryKind::Accounting as usize]
+        );
+        drop(query);
+        engine.snapshot().assert_memory_released();
+    }
     #[test]
     fn capacity_growth_accounts_overlap_and_survives_query_owner() {
         let engine = EngineAccounting::default();

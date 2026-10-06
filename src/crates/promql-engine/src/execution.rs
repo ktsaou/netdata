@@ -124,22 +124,27 @@ struct EvaluationScope<'a> {
 }
 
 impl Engine {
+    /// The token retains this engine's physical accounting ownership across all aliases.
+    pub fn cancellation(&self) -> crate::storage::Cancellation {
+        crate::storage::Cancellation::new_for_engine(&self.accounting)
+    }
     pub fn compile(
         &self,
         source: &[u8],
         mut options: EngineOptions,
         control: &Control,
     ) -> Result<CompiledQuery, CompileError> {
-        control.check().map_err(CompileError::Interrupted)?;
-        if options.lookback_ms == 0 {
-            options.lookback_ms = EngineOptions::default().lookback_ms;
-        }
-        if options.no_step_subquery_interval_ms == 0 {
-            options.no_step_subquery_interval_ms =
-                EngineOptions::default().no_step_subquery_interval_ms;
-        }
         catch_unwind(AssertUnwindSafe(|| {
             let account = self.accounting.query();
+            let _control_observation = control.observe(&account);
+            control.check().map_err(CompileError::Interrupted)?;
+            if options.lookback_ms == 0 {
+                options.lookback_ms = EngineOptions::default().lookback_ms;
+            }
+            if options.no_step_subquery_interval_ms == 0 {
+                options.no_step_subquery_interval_ms =
+                    EngineOptions::default().no_step_subquery_interval_ms;
+            }
             let context = AllocationContext::new(&account, MemoryKind::Compiled);
             let output = parser::parse_in(
                 source,
@@ -223,6 +228,7 @@ impl CompiledQuery {
             },
         };
         let account = self.engine.query();
+        let _control_observation = control.observe(&account);
         let prepared = Prepared::new(
             &self.expression,
             &self.preprocessing,
@@ -250,6 +256,7 @@ impl CompiledQuery {
     ) -> Result<serde_json::Value, EvaluationError> {
         use serde_json::json;
         let account = self.engine.query();
+        let _control_observation = control.observe(&account);
         let header = self.header(request)?;
         let prepared = Prepared::new(
             &self.expression,
@@ -373,6 +380,7 @@ impl CompiledQuery {
         account: &QueryAccounting,
         annotations: &mut Annotations,
     ) -> Result<QueryObservations, ExecutionError> {
+        let control_observation = control.observe(account);
         let observation = account.execution();
         let outcome = catch_unwind(AssertUnwindSafe(|| {
             let header = self.header(request)?;
@@ -434,6 +442,7 @@ impl CompiledQuery {
             return Err(ExecutionError::Internal);
         }
         drop(observation);
+        drop(control_observation);
         outcome.map(|()| account.snapshot())
     }
     fn header(&self, request: QueryRequest) -> Result<OutputHeader, EvaluationError> {
@@ -1781,14 +1790,7 @@ mod tests {
                 assert_eq!(observed.memory[MemoryKind::Workspace as usize].current, 0);
             }
             provider.assert_closed();
-            assert!(
-                engine
-                    .accounting
-                    .snapshot()
-                    .memory
-                    .iter()
-                    .all(|memory| memory.current == 0)
-            );
+            engine.accounting.snapshot().assert_memory_released();
         }
     }
 
@@ -2257,14 +2259,7 @@ mod tests {
                 assert!(output.series.is_empty());
                 drop(output);
                 drop(query);
-                assert!(
-                    engine
-                        .accounting
-                        .snapshot()
-                        .memory
-                        .iter()
-                        .all(|kind| kind.current == 0)
-                );
+                engine.accounting.snapshot().assert_memory_released();
             }
         }
     }
@@ -2333,14 +2328,7 @@ mod tests {
             );
             drop(output);
             drop(query);
-            assert!(
-                engine
-                    .accounting
-                    .snapshot()
-                    .memory
-                    .iter()
-                    .all(|kind| kind.current == 0)
-            );
+            engine.accounting.snapshot().assert_memory_released();
         }
     }
 
@@ -2378,14 +2366,7 @@ mod tests {
                 assert_eq!(output.header.start_ms, evaluated_time_ms);
             }
         }
-        assert!(
-            engine
-                .accounting
-                .snapshot()
-                .memory
-                .iter()
-                .all(|kind| kind.current == 0)
-        );
+        engine.accounting.snapshot().assert_memory_released();
     }
 
     #[test]
@@ -2456,14 +2437,7 @@ mod tests {
                     drop(error);
                     drop(query);
                     provider.assert_closed();
-                    assert!(
-                        engine
-                            .accounting
-                            .snapshot()
-                            .memory
-                            .iter()
-                            .all(|kind| kind.current == 0)
-                    );
+                    engine.accounting.snapshot().assert_memory_released();
                 }
             }
         }
@@ -2539,18 +2513,14 @@ mod tests {
                     }
                     provider.assert_closed();
                     let observations = account.snapshot();
-                    assert!(observations.memory.iter().all(|kind| kind.current == 0));
+                    observations.assert_memory_released();
                     assert!(observations.work > 0);
                     peaks.push(observations.memory[MemoryKind::Workspace as usize].peak);
                     drop(compiled);
-                    assert!(
-                        engine
-                            .accounting
-                            .snapshot()
-                            .memory
-                            .iter()
-                            .all(|kind| kind.current == 0)
-                    );
+                    engine
+                        .accounting
+                        .snapshot()
+                        .assert_memory_released_with_queries(1);
                 }
                 assert_eq!(peaks[0], peaks[1]);
             }
@@ -2601,14 +2571,7 @@ mod tests {
             );
             provider.assert_closed();
             drop(compiled);
-            assert!(
-                engine
-                    .accounting
-                    .snapshot()
-                    .memory
-                    .iter()
-                    .all(|kind| kind.current == 0)
-            );
+            engine.accounting.snapshot().assert_memory_released();
         }
     }
 
@@ -2657,14 +2620,7 @@ mod tests {
                 matches!(output.series[0].points[0].value, OwnedValue::Float(value) if value.to_bits() == expected.to_bits())
             );
         }
-        assert!(
-            engine
-                .accounting
-                .snapshot()
-                .memory
-                .iter()
-                .all(|kind| kind.current == 0)
-        );
+        engine.accounting.snapshot().assert_memory_released();
     }
 
     fn mixed_alias_provider(page: usize) -> FixtureProvider {
@@ -2777,14 +2733,7 @@ mod tests {
                 }
             }
             provider.assert_closed();
-            assert!(
-                engine
-                    .accounting
-                    .snapshot()
-                    .memory
-                    .iter()
-                    .all(|m| m.current == 0)
-            );
+            engine.accounting.snapshot().assert_memory_released();
         }
     }
 
@@ -2873,14 +2822,7 @@ mod tests {
                 }
             }
             provider.assert_closed();
-            assert!(
-                engine
-                    .accounting
-                    .snapshot()
-                    .memory
-                    .iter()
-                    .all(|memory| memory.current == 0)
-            );
+            engine.accounting.snapshot().assert_memory_released();
         }
     }
 
@@ -2956,14 +2898,7 @@ mod tests {
                 }
             }
             provider.assert_closed();
-            assert!(
-                engine
-                    .accounting
-                    .snapshot()
-                    .memory
-                    .iter()
-                    .all(|memory| memory.current == 0)
-            );
+            engine.accounting.snapshot().assert_memory_released();
         }
     }
 
@@ -3067,14 +3002,7 @@ mod tests {
                 }
             }
             provider.assert_closed();
-            assert!(
-                engine
-                    .accounting
-                    .snapshot()
-                    .memory
-                    .iter()
-                    .all(|m| m.current == 0)
-            );
+            engine.accounting.snapshot().assert_memory_released();
         }
     }
 
@@ -3165,14 +3093,7 @@ mod tests {
                         );
                     }
                     drop(query);
-                    assert!(
-                        engine
-                            .accounting
-                            .snapshot()
-                            .memory
-                            .iter()
-                            .all(|memory| memory.current == 0)
-                    );
+                    engine.accounting.snapshot().assert_memory_released();
                 }
                 let engine = Engine::default();
                 let control = Control::default();
@@ -3198,14 +3119,7 @@ mod tests {
                     );
                     assert_eq!(result.series[0].labels.0.len(), 1);
                 }
-                assert!(
-                    engine
-                        .accounting
-                        .snapshot()
-                        .memory
-                        .iter()
-                        .all(|memory| memory.current == 0)
-                );
+                engine.accounting.snapshot().assert_memory_released();
             }
             provider.assert_closed();
         }
@@ -3280,14 +3194,7 @@ mod tests {
                 }
             }
             provider.assert_closed();
-            assert!(
-                engine
-                    .accounting
-                    .snapshot()
-                    .memory
-                    .iter()
-                    .all(|m| m.current == 0)
-            );
+            engine.accounting.snapshot().assert_memory_released();
         }
     }
 
@@ -3325,14 +3232,7 @@ mod tests {
             ));
         }
         provider.assert_closed();
-        assert!(
-            engine
-                .accounting
-                .snapshot()
-                .memory
-                .iter()
-                .all(|memory| memory.current == 0)
-        );
+        engine.accounting.snapshot().assert_memory_released();
     }
 
     #[test]
@@ -3385,14 +3285,7 @@ mod tests {
                 provider.assert_closed();
                 drop(result);
                 drop(query);
-                assert!(
-                    engine
-                        .accounting
-                        .snapshot()
-                        .memory
-                        .iter()
-                        .all(|m| m.current == 0)
-                );
+                engine.accounting.snapshot().assert_memory_released();
             }
             assert_eq!(peaks[0], peaks[1]);
         }
@@ -3422,14 +3315,7 @@ mod tests {
         assert!(estimated.peak > 0);
         assert_eq!(estimated.current, 0);
         drop(error);
-        assert!(
-            engine
-                .accounting
-                .snapshot()
-                .memory
-                .iter()
-                .all(|memory| memory.current == 0)
-        );
+        engine.accounting.snapshot().assert_memory_released();
     }
 
     #[test]
@@ -3446,7 +3332,7 @@ mod tests {
         let observed = engine.accounting.snapshot();
         assert!(observed.memory[MemoryKind::Workspace as usize].peak > 0);
         assert!(observed.memory[MemoryKind::RegexEstimate as usize].peak > 0);
-        assert!(observed.memory.iter().all(|memory| memory.current == 0));
+        observed.assert_memory_released();
     }
 
     #[test]
@@ -3504,14 +3390,7 @@ mod tests {
             );
             assert!(retained.memory[MemoryKind::Result as usize].current > 0);
             drop(result);
-            assert!(
-                engine
-                    .accounting
-                    .snapshot()
-                    .memory
-                    .iter()
-                    .all(|memory| memory.current == 0)
-            );
+            engine.accounting.snapshot().assert_memory_released();
         }
     }
 
@@ -3572,14 +3451,7 @@ mod tests {
             assert!(engine.accounting.snapshot().memory[MemoryKind::Result as usize].current > 0);
             assert_eq!(&*result.series[0].labels.0[0].value, b"worker");
             drop(result);
-            assert!(
-                engine
-                    .accounting
-                    .snapshot()
-                    .memory
-                    .iter()
-                    .all(|memory| memory.current == 0)
-            );
+            engine.accounting.snapshot().assert_memory_released();
         }
     }
 
@@ -3592,13 +3464,30 @@ mod tests {
         fail_after: Option<usize>,
         cancel: Option<crate::storage::Cancellation>,
         panic_after: Option<usize>,
+        reference_accounting: Option<EngineAccounting>,
+        fail_begin: bool,
+        fail_commit: bool,
+        panic_abort: bool,
+    }
+    impl RecordingSink {
+        fn assert_reference_live(&self) {
+            if let Some(accounting) = &self.reference_accounting {
+                let observed = accounting.snapshot().cancellation_references;
+                assert!(observed.engine_owned.current + observed.external.current > 0);
+            }
+        }
     }
     impl OutputSink for RecordingSink {
         fn begin(&mut self, _: OutputHeader) -> Result<(), Vec<u8>> {
+            self.assert_reference_live();
             self.begun = true;
+            if self.fail_begin {
+                return Err(b"sink begin failure".to_vec());
+            }
             Ok(())
         }
         fn chunk(&mut self, _: OutputChunk<'_>) -> Result<(), Vec<u8>> {
+            self.assert_reference_live();
             self.chunks += 1;
             assert_ne!(self.panic_after, Some(self.chunks), "injected output panic");
             if let Some(cancel) = &self.cancel
@@ -3611,14 +3500,446 @@ mod tests {
             }
             Ok(())
         }
-        fn commit(&mut self, _: &QueryObservations) -> Result<(), Vec<u8>> {
+        fn commit(&mut self, observations: &QueryObservations) -> Result<(), Vec<u8>> {
+            self.assert_reference_live();
+            if self.reference_accounting.is_some() {
+                let refs = observations.cancellation_references;
+                assert_eq!(refs.engine_owned.current + refs.external.current, 1);
+                assert_eq!(
+                    observations.memory[MemoryKind::Accounting as usize].current,
+                    QueryAccounting::allocation_bytes()
+                );
+            }
+            if self.fail_commit {
+                return Err(b"sink commit failure".to_vec());
+            }
             self.committed = true;
             Ok(())
         }
         fn abort(&mut self) {
+            self.assert_reference_live();
             self.committed = false;
             self.aborted = true;
+            assert!(!self.panic_abort, "synthetic sink abort panic");
         }
+    }
+
+    #[test]
+    fn control_references_survive_sink_failures_and_release_before_final_reports() {
+        for owned in [false, true] {
+            for stage in 0..7 {
+                let engine = Engine::default();
+                let provider = FixtureProvider::new(10, 1, 1);
+                let control = Control {
+                    cancellation: if owned {
+                        engine.cancellation()
+                    } else {
+                        crate::storage::Cancellation::default()
+                    },
+                    deadline: None,
+                };
+                let query = engine
+                    .compile(b"counter_total", EngineOptions::default(), &control)
+                    .unwrap();
+                let mut sink = RecordingSink {
+                    reference_accounting: Some(engine.accounting.clone()),
+                    fail_begin: stage == 1,
+                    fail_after: (stage == 2 || stage == 5).then_some(1),
+                    fail_commit: stage == 3,
+                    panic_after: (stage == 4).then_some(1),
+                    panic_abort: stage == 5,
+                    cancel: (stage == 6).then(|| control.cancellation.clone()),
+                    ..RecordingSink::default()
+                };
+                let report = query.execute_reported(
+                    &provider,
+                    QueryRequest::Range {
+                        start_ms: 1000,
+                        end_ms: 10000,
+                        step_ms: 1000,
+                    },
+                    &control,
+                    &mut sink,
+                );
+                assert_eq!(report.result.is_ok(), stage == 0);
+                assert_eq!(sink.aborted, stage != 0);
+                if stage == 4 || stage == 5 {
+                    assert!(matches!(report.result, Err(ExecutionError::Internal)));
+                }
+                report.observations.assert_memory_released();
+                let refs = report.observations.cancellation_references;
+                let entry = if owned {
+                    refs.engine_owned
+                } else {
+                    refs.external
+                };
+                assert!(entry.acquired > 0);
+                assert_eq!(entry.acquired, entry.released);
+                provider.assert_closed();
+                drop((query, control, sink, report));
+                engine.accounting.snapshot().assert_memory_released();
+            }
+        }
+    }
+
+    #[test]
+    fn compile_and_invalid_execution_return_balanced_control_references() {
+        let engine = Engine::default();
+        let control = Control {
+            cancellation: engine.cancellation(),
+            deadline: None,
+        };
+        let current = engine.accounting.snapshot().memory[MemoryKind::Accounting as usize].current;
+        assert!(matches!(
+            engine.compile(b"(", EngineOptions::default(), &control),
+            Err(CompileError::Parse(_))
+        ));
+        let query = engine
+            .compile(b"counter_total", EngineOptions::default(), &control)
+            .unwrap();
+        assert_eq!(
+            query
+                .accounting
+                .snapshot()
+                .cancellation_references
+                .engine_owned
+                .current,
+            0
+        );
+        control.cancellation.cancel();
+        assert!(matches!(
+            engine.compile(b"(", EngineOptions::default(), &control),
+            Err(CompileError::Interrupted(Interrupted::Cancelled))
+        ));
+        let provider = FixtureProvider::new(1, 1, 1);
+        for request in [
+            QueryRequest::Range {
+                start_ms: 2000,
+                end_ms: 1000,
+                step_ms: 1000,
+            },
+            QueryRequest::Range {
+                start_ms: 0,
+                end_ms: 1000,
+                step_ms: 0,
+            },
+        ] {
+            let report = query.collect_reported(&provider, request, &control);
+            assert!(matches!(
+                report.result,
+                Err(ExecutionError::Evaluation(EvaluationError::Invalid(
+                    "invalid range query times"
+                )))
+            ));
+            report.observations.assert_memory_released();
+            assert_eq!(
+                report
+                    .observations
+                    .cancellation_references
+                    .engine_owned
+                    .acquired,
+                1
+            );
+        }
+        let report =
+            query.collect_reported(&provider, QueryRequest::Instant { time_ms: 1000 }, &control);
+        assert!(matches!(
+            report.result,
+            Err(ExecutionError::Evaluation(EvaluationError::Interrupted(
+                Interrupted::Cancelled
+            )))
+        ));
+        report.observations.assert_memory_released();
+        provider.assert_closed();
+        drop(query);
+        assert_eq!(
+            engine.accounting.snapshot().memory[MemoryKind::Accounting as usize].current,
+            current
+        );
+        let refs = engine
+            .accounting
+            .snapshot()
+            .cancellation_references
+            .engine_owned;
+        assert_eq!(refs.current, 0);
+        assert_eq!(refs.acquired, refs.released);
+        drop(control);
+        engine.accounting.snapshot().assert_memory_released();
+    }
+
+    #[test]
+    fn empty_and_populated_results_retain_their_query_roots_after_engine_close() {
+        for expression in [
+            b"1".as_slice(),
+            b"counter_total > 1000000",
+            b"counter_total",
+        ] {
+            let engine = Engine::default();
+            let observer = engine.accounting.clone();
+            let provider = FixtureProvider::new(1, 1, 1);
+            let control = Control {
+                cancellation: engine.cancellation(),
+                deadline: None,
+            };
+            let query = engine
+                .compile(expression, EngineOptions::default(), &control)
+                .unwrap();
+            let (result, observed) = query
+                .collect(&provider, QueryRequest::Instant { time_ms: 1000 }, &control)
+                .unwrap();
+            assert_eq!(
+                observed.memory[MemoryKind::Accounting as usize].current,
+                QueryAccounting::allocation_bytes()
+            );
+            assert_eq!(observed.cancellation_references.engine_owned.current, 0);
+            provider.assert_closed();
+            drop((engine, query, control, provider));
+            assert_eq!(
+                observer.snapshot().memory[MemoryKind::Accounting as usize].current,
+                EngineAccounting::allocation_bytes() + QueryAccounting::allocation_bytes()
+            );
+            if expression != b"counter_total" {
+                observer.snapshot().assert_memory_released_with_queries(1);
+            }
+            drop(result);
+            observer.snapshot().assert_memory_released();
+        }
+    }
+
+    #[test]
+    fn retained_provider_accounts_and_scope_failures_preserve_root_lifetimes() {
+        use crate::{
+            storage::{ProviderResources, SelectionRequest},
+            test_storage::{FixtureQuery, FixtureSelection},
+        };
+        use std::cell::RefCell;
+        struct HeldProvider {
+            inner: FixtureProvider,
+            retained: RefCell<Option<QueryAccounting>>,
+            engine: EngineAccounting,
+            failure: u8,
+        }
+        struct HeldQuery<'a> {
+            inner: FixtureQuery<'a>,
+            provider: &'a HeldProvider,
+        }
+        impl Provider for HeldProvider {
+            type Query<'a> = HeldQuery<'a>;
+            fn open(
+                &self,
+                bounds: TimeBounds,
+                control: &Control,
+            ) -> Result<Self::Query<'_>, StorageError> {
+                assert_eq!(
+                    self.engine
+                        .snapshot()
+                        .cancellation_references
+                        .engine_owned
+                        .current,
+                    1
+                );
+                if self.failure == 1 {
+                    return Err(StorageError::Invalid("synthetic scope open failure"));
+                }
+                Ok(HeldQuery {
+                    inner: self.inner.open(bounds, control)?,
+                    provider: self,
+                })
+            }
+        }
+        impl QueryProvider for HeldQuery<'_> {
+            type Selection<'a>
+                = FixtureSelection<'a>
+            where
+                Self: 'a;
+            fn resources(&self) -> ProviderResources {
+                self.inner.resources()
+            }
+            fn select(
+                &self,
+                request: SelectionRequest<'_>,
+                control: &Control,
+            ) -> Result<Self::Selection<'_>, StorageError> {
+                let account = request
+                    .accounting
+                    .expect("observed provider account")
+                    .clone();
+                assert_eq!(
+                    account
+                        .snapshot()
+                        .cancellation_references
+                        .engine_owned
+                        .current,
+                    1
+                );
+                *self.provider.retained.borrow_mut() = Some(account);
+                if self.provider.failure == 2 {
+                    return Err(StorageError::Invalid("synthetic select failure"));
+                }
+                self.inner.select(request, control)
+            }
+        }
+        impl Drop for HeldQuery<'_> {
+            fn drop(&mut self) {
+                assert_eq!(
+                    self.provider
+                        .engine
+                        .snapshot()
+                        .cancellation_references
+                        .engine_owned
+                        .current,
+                    1
+                );
+            }
+        }
+        fn panic_sample(_: usize) -> crate::value::Sample {
+            panic!("synthetic raw provider panic")
+        }
+        for failure in 0..6 {
+            let engine = Engine::default();
+            let control = Control {
+                cancellation: engine.cancellation(),
+                deadline: None,
+            };
+            let mut provider = HeldProvider {
+                inner: FixtureProvider::new(1, 1, 1),
+                retained: RefCell::new(None),
+                engine: engine.accounting.clone(),
+                failure,
+            };
+            if failure == 3 {
+                provider.inner.series[0].source.fail_page = Some(0);
+            }
+            if failure == 4 {
+                provider.inner.series[0].source.sample = panic_sample;
+            }
+            let expression = if failure == 5 {
+                b"counter_total + counter_total".as_slice()
+            } else {
+                b"counter_total"
+            };
+            let query = engine
+                .compile(expression, EngineOptions::default(), &control)
+                .unwrap();
+            let report = query.collect_reported(
+                &provider,
+                QueryRequest::Instant { time_ms: 1000 },
+                &control,
+            );
+            assert_eq!(report.result.is_ok(), failure == 0);
+            if failure == 4 {
+                assert!(matches!(report.result, Err(ExecutionError::Internal)));
+            }
+            if failure == 5 {
+                assert!(matches!(
+                    report.result,
+                    Err(ExecutionError::Evaluation(EvaluationError::Unsupported(_)))
+                ));
+            }
+            assert_eq!(
+                report
+                    .observations
+                    .cancellation_references
+                    .engine_owned
+                    .current,
+                0
+            );
+            assert_eq!(
+                report
+                    .observations
+                    .cancellation_references
+                    .engine_owned
+                    .acquired,
+                report
+                    .observations
+                    .cancellation_references
+                    .engine_owned
+                    .released
+            );
+            provider.inner.assert_closed();
+            drop((report, query, control));
+            let retained_queries = u64::from(provider.retained.borrow().is_some());
+            engine
+                .accounting
+                .snapshot()
+                .assert_memory_released_with_queries(retained_queries);
+            if let Some(account) = &*provider.retained.borrow() {
+                account.snapshot().assert_memory_released();
+            }
+            provider.retained.borrow_mut().take();
+            engine.accounting.snapshot().assert_memory_released();
+        }
+    }
+
+    #[cfg(feature = "fixtures")]
+    #[test]
+    fn preparation_entries_observe_controls_on_failure_and_cancellation() {
+        let engine = Engine::default();
+        let control = Control {
+            cancellation: engine.cancellation(),
+            deadline: None,
+        };
+        let query = engine
+            .compile(
+                b"counter_total[step()*1:step()*1]",
+                EngineOptions::default(),
+                &control,
+            )
+            .unwrap();
+        for selection in [false, true] {
+            let before = engine
+                .accounting
+                .snapshot()
+                .cancellation_references
+                .engine_owned;
+            let request = QueryRequest::Instant { time_ms: 4000 };
+            let result = if selection {
+                query.selection_fixture(request, &control)
+            } else {
+                query.preparation_fixture(request, &control)
+            };
+            assert!(matches!(result, Err(EvaluationError::Preparation(_))));
+            let after = engine
+                .accounting
+                .snapshot()
+                .cancellation_references
+                .engine_owned;
+            assert_eq!(after.current, 0);
+            assert_eq!(after.acquired, before.acquired + 1);
+            assert_eq!(after.released, before.released + 1);
+        }
+        drop(query);
+        let query = engine
+            .compile(b"counter_total", EngineOptions::default(), &control)
+            .unwrap();
+        control.cancellation.cancel();
+        for selection in [false, true] {
+            let before = engine
+                .accounting
+                .snapshot()
+                .cancellation_references
+                .engine_owned;
+            let request = QueryRequest::Instant { time_ms: 4000 };
+            let result = if selection {
+                query.selection_fixture(request, &control)
+            } else {
+                query.preparation_fixture(request, &control)
+            };
+            assert!(matches!(
+                result,
+                Err(EvaluationError::Interrupted(Interrupted::Cancelled))
+            ));
+            let after = engine
+                .accounting
+                .snapshot()
+                .cancellation_references
+                .engine_owned;
+            assert_eq!(after.current, 0);
+            assert_eq!(after.acquired, before.acquired + 1);
+            assert_eq!(after.released, before.released + 1);
+        }
+        drop((query, control));
+        engine.accounting.snapshot().assert_memory_released();
     }
 
     #[test]
@@ -4445,14 +4766,7 @@ mod tests {
                         drop(query);
                         drop(result);
                         provider.assert_closed();
-                        assert!(
-                            engine
-                                .accounting
-                                .snapshot()
-                                .memory
-                                .iter()
-                                .all(|m| m.current == 0)
-                        );
+                        engine.accounting.snapshot().assert_memory_released();
                     }
                 }
             }
@@ -4583,14 +4897,7 @@ mod tests {
                         provider.assert_closed();
                         drop(query);
                         drop(result);
-                        assert!(
-                            engine
-                                .accounting
-                                .snapshot()
-                                .memory
-                                .iter()
-                                .all(|m| m.current == 0)
-                        );
+                        engine.accounting.snapshot().assert_memory_released();
                     }
                 }
             }
@@ -4703,14 +5010,7 @@ mod tests {
                     provider.assert_closed();
                     drop(query);
                     drop(result);
-                    assert!(
-                        engine
-                            .accounting
-                            .snapshot()
-                            .memory
-                            .iter()
-                            .all(|memory| memory.current == 0)
-                    );
+                    engine.accounting.snapshot().assert_memory_released();
                 }
                 // The collected native payload remains valid after the provider is gone.
                 let query = engine
@@ -4728,14 +5028,7 @@ mod tests {
                 assert_eq!(histogram.as_ref().count, 24.0);
                 assert_eq!(histogram.as_ref().sum, 6.0);
                 drop(result);
-                assert!(
-                    engine
-                        .accounting
-                        .snapshot()
-                        .memory
-                        .iter()
-                        .all(|memory| memory.current == 0)
-                );
+                engine.accounting.snapshot().assert_memory_released();
             }
         }
     }
@@ -4886,14 +5179,7 @@ mod tests {
                             provider.assert_closed();
                             drop(query);
                             drop(result);
-                            assert!(
-                                engine
-                                    .accounting
-                                    .snapshot()
-                                    .memory
-                                    .iter()
-                                    .all(|m| m.current == 0)
-                            );
+                            engine.accounting.snapshot().assert_memory_released();
                         }
                     }
                 }
@@ -4960,14 +5246,7 @@ mod tests {
                     provider.assert_closed();
                     drop(query);
                     drop(result);
-                    assert!(
-                        engine
-                            .accounting
-                            .snapshot()
-                            .memory
-                            .iter()
-                            .all(|m| m.current == 0)
-                    );
+                    engine.accounting.snapshot().assert_memory_released();
                 }
                 assert_eq!(peaks[0], peaks[1], "{name} page {page_size}");
             }
@@ -5040,14 +5319,7 @@ mod tests {
                         provider.assert_closed();
                         drop(query);
                         drop(result);
-                        assert!(
-                            engine
-                                .accounting
-                                .snapshot()
-                                .memory
-                                .iter()
-                                .all(|memory| memory.current == 0)
-                        );
+                        engine.accounting.snapshot().assert_memory_released();
                     }
                 }
             }
@@ -5125,14 +5397,7 @@ mod tests {
                 }
             }
             provider.assert_closed();
-            assert!(
-                engine
-                    .accounting
-                    .snapshot()
-                    .memory
-                    .iter()
-                    .all(|memory| memory.current == 0)
-            );
+            engine.accounting.snapshot().assert_memory_released();
         }
     }
 
@@ -5172,14 +5437,7 @@ mod tests {
                 .collect();
             assert_eq!(selectors, [expected], "{expression}");
         }
-        assert!(
-            engine
-                .accounting
-                .snapshot()
-                .memory
-                .iter()
-                .all(|memory| memory.current == 0)
-        );
+        engine.accounting.snapshot().assert_memory_released();
     }
 
     #[test]
@@ -5328,14 +5586,7 @@ mod tests {
                         provider.assert_closed();
                         drop(query);
                         drop(result);
-                        assert!(
-                            engine
-                                .accounting
-                                .snapshot()
-                                .memory
-                                .iter()
-                                .all(|m| m.current == 0)
-                        );
+                        engine.accounting.snapshot().assert_memory_released();
                     }
                 }
             }
@@ -5394,14 +5645,7 @@ mod tests {
                     provider.assert_closed();
                     drop(query);
                     drop(result);
-                    assert!(
-                        engine
-                            .accounting
-                            .snapshot()
-                            .memory
-                            .iter()
-                            .all(|m| m.current == 0)
-                    );
+                    engine.accounting.snapshot().assert_memory_released();
                 }
                 assert_eq!(peaks[0], peaks[1], "{name}");
             }
@@ -5449,14 +5693,7 @@ mod tests {
                 provider.assert_closed();
                 drop(query);
                 drop(result);
-                assert!(
-                    engine
-                        .accounting
-                        .snapshot()
-                        .memory
-                        .iter()
-                        .all(|memory| memory.current == 0)
-                );
+                engine.accounting.snapshot().assert_memory_released();
             }
             assert_eq!(peaks[0], peaks[1]);
         }
@@ -5866,14 +6103,7 @@ mod tests {
                         provider.assert_closed();
                         drop(query);
                         drop(result);
-                        assert!(
-                            engine
-                                .accounting
-                                .snapshot()
-                                .memory
-                                .iter()
-                                .all(|memory| memory.current == 0)
-                        );
+                        engine.accounting.snapshot().assert_memory_released();
                     }
                 }
             }
@@ -5964,14 +6194,7 @@ mod tests {
                         provider.assert_closed();
                         drop(query);
                         drop(result);
-                        assert!(
-                            engine
-                                .accounting
-                                .snapshot()
-                                .memory
-                                .iter()
-                                .all(|memory| memory.current == 0)
-                        );
+                        engine.accounting.snapshot().assert_memory_released();
                     }
                 }
             }
@@ -6450,14 +6673,7 @@ mod tests {
             drop(query);
             assert!(engine.accounting.snapshot().memory[MemoryKind::Result as usize].current > 0);
             drop(error);
-            assert!(
-                engine
-                    .accounting
-                    .snapshot()
-                    .memory
-                    .iter()
-                    .all(|memory| memory.current == 0)
-            );
+            engine.accounting.snapshot().assert_memory_released();
         }
         provider.assert_closed();
     }
@@ -6576,13 +6792,6 @@ mod tests {
             assert_eq!(value.custom_values, Some(&[1.0, 3.0][..]));
         }
         drop(result);
-        assert!(
-            engine
-                .accounting
-                .snapshot()
-                .memory
-                .iter()
-                .all(|memory| memory.current == 0)
-        );
+        engine.accounting.snapshot().assert_memory_released();
     }
 }

@@ -139,13 +139,7 @@ mod tests {
             ))
         ));
         assert!(account.snapshot().memory[MemoryKind::Workspace as usize].peak > 0);
-        assert!(
-            account
-                .snapshot()
-                .memory
-                .iter()
-                .all(|kind| kind.current == 0)
-        );
+        account.snapshot().assert_memory_released();
 
         let account = engine.query();
         let control = Control::default();
@@ -157,13 +151,7 @@ mod tests {
             )
         });
         assert_eq!(reset, Err(Interrupted::Cancelled));
-        assert!(
-            account
-                .snapshot()
-                .memory
-                .iter()
-                .all(|kind| kind.current == 0)
-        );
+        account.snapshot().assert_memory_released();
 
         let account = engine.query();
         let control = Control::default();
@@ -184,12 +172,6 @@ mod tests {
             ))
         ));
         drop(value);
-        assert!(
-            account
-                .snapshot()
-                .memory
-                .iter()
-                .all(|kind| kind.current == 0)
-        );
+        account.snapshot().assert_memory_released();
     }
 }

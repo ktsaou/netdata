@@ -259,7 +259,8 @@ fn result_rows(result: &CollectedResult) -> Vec<Value> {
 }
 fn observations(observed: &QueryObservations) -> Value {
     let memory: Vec<_> = observed.memory.iter().map(|m| json!({"current": m.current, "peak": m.peak, "acquired": m.acquired, "released": m.released, "overflowed": m.overflowed})).collect();
-    json!({"memory": memory, "pages": observed.pages, "samples_fetched": observed.samples_fetched, "work": observed.work, "provider_calls": observed.provider_calls, "output_samples": observed.output_samples, "elapsed_ns": observed.elapsed.as_nanos().to_string(), "counter_overflowed": observed.counter_overflowed})
+    let references = |value: netdata_promql_engine::accounting::ReferenceObservation| json!({"current": value.current, "peak": value.peak, "acquired": value.acquired, "released": value.released, "overflowed": value.overflowed});
+    json!({"memory": memory, "cancellation_references": {"engine_owned": references(observed.cancellation_references.engine_owned), "external": references(observed.cancellation_references.external)}, "pages": observed.pages, "samples_fetched": observed.samples_fetched, "work": observed.work, "provider_calls": observed.provider_calls, "output_samples": observed.output_samples, "elapsed_ns": observed.elapsed.as_nanos().to_string(), "counter_overflowed": observed.counter_overflowed})
 }
 fn failure(phase: &str, kind: &str, message: &[u8]) -> Value {
     json!({"phase": phase, "type": kind, "message": encoded_bytes(message)})
@@ -327,6 +328,7 @@ fn evaluate(provider: &FixtureProvider, request: &Value) -> Result<Value, Error>
         _ => return Err("unknown fixture query mode".into()),
     };
     let engine = Engine::default();
+    let baseline = engine.accounting.snapshot();
     let control = Control::default();
     let mut result = json!({"id": id, "kind": "error", "rows": [], "warnings": [], "infos": []});
     let query = match engine.compile(&source, options, &control) {
@@ -403,11 +405,20 @@ fn evaluate(provider: &FixtureProvider, request: &Value) -> Result<Value, Error>
     // Owned output is projected and released before checking query-owned storage cleanup.
     let snapshot = engine.accounting.snapshot();
     if snapshot.active_executions != 0
-        || snapshot
-            .memory
-            .iter()
-            .enumerate()
-            .any(|(index, m)| index != MemoryKind::SharedCacheReference as usize && m.current != 0)
+        || snapshot.memory.iter().enumerate().any(|(index, m)| {
+            index != MemoryKind::SharedCacheReference as usize
+                && m.current != baseline.memory[index].current
+        })
+        || [
+            snapshot.cancellation_references.engine_owned,
+            snapshot.cancellation_references.external,
+        ]
+        .iter()
+        .any(|reference| {
+            reference.current != 0
+                || reference.acquired != reference.released
+                || reference.overflowed
+        })
     {
         return Err("fixture query leaked an observed owner".into());
     }
