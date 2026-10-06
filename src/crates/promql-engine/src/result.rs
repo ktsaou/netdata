@@ -41,6 +41,31 @@ impl OwnedLabels {
             value: owned_value,
         });
     }
+    pub(crate) fn set(
+        &mut self,
+        name: &[u8],
+        value: &[u8],
+        account: &QueryAccounting,
+        kind: MemoryKind,
+    ) {
+        let position = self.0.binary_search_by(|label| label.name[..].cmp(name));
+        if value.is_empty() {
+            if let Ok(position) = position {
+                self.0.remove(position);
+            }
+        } else {
+            match position {
+                Ok(position) => {
+                    self.0[position].value.clear();
+                    self.0[position].value.extend_from_slice(value);
+                }
+                Err(position) => {
+                    self.push(name, value, account, kind);
+                    self.0[position..].rotate_right(1);
+                }
+            }
+        }
+    }
     pub fn views<'a>(&'a self, account: &QueryAccounting) -> AccountedVec<LabelRef<'a>> {
         let mut result = AccountedVec::new(account, MemoryKind::Workspace);
         for label in self.0.iter() {

@@ -719,6 +719,8 @@ impl CompiledQuery {
             // Fixed safe range calls have one logical evaluation, irrespective of output steps.
             let single_step =
                 header.step_ms == 0 || self.invariants[node.0] || self.fixed_range_call(expression);
+            let absent_range = matches!(expression,
+                Expr::Call { function: Some(function), .. } if function.name == "absent_over_time");
             let range_function = match expression {
                 Expr::Call {
                     function: Some(function),
@@ -840,6 +842,9 @@ impl CompiledQuery {
                         let Some(sample) = sample else {
                             break;
                         };
+                        if absent_range {
+                            continue;
+                        }
                         let hash = crate::label_hash::full(&sample.labels, control, account)?;
                         let kind = sample.value.kind_bit();
                         if let Some((_, _, kinds)) =
@@ -903,6 +908,52 @@ impl CompiledQuery {
             }
             drop(selection);
             drop(range_machine);
+            if absent_range {
+                // Validate every series first, then invert the union without a timestamp bitmap.
+                let mut time_ms = header.start_ms;
+                loop {
+                    let mut machine = Machine::new(
+                        query,
+                        &self.expression,
+                        node,
+                        self.evaluation_options(header, time_ms),
+                        control,
+                        account,
+                        EvaluationMetadata {
+                            prepared,
+                            rosters: &rosters,
+                            invariants: &self.invariants,
+                            timestamp_selectors: &self.timestamp_selectors,
+                            data_bounds,
+                            annotations: Some(&mut annotations),
+                        },
+                    );
+                    while let Some(sample) = machine.next()? {
+                        if descriptors.is_empty() {
+                            descriptors.push(Descriptor {
+                                hash: crate::label_hash::full(&sample.labels, control, account)?,
+                                ordinal: 0,
+                                drop_name: sample.drop_name,
+                                first_order: 0,
+                                sources: 0..0,
+                                labels: sample.labels,
+                                kinds: 1,
+                                collision_time_ms: None,
+                            });
+                        }
+                    }
+                    if single_step {
+                        break;
+                    }
+                    let Some(next) = time_ms.checked_add(header.step_ms) else {
+                        break;
+                    };
+                    if next > header.end_ms {
+                        break;
+                    }
+                    time_ms = next;
+                }
+            }
             if !self.options.delayed_name_removal
                 && matches!(expression,
                 Expr::Call { function: Some(function), .. }
@@ -1119,6 +1170,473 @@ mod tests {
     use super::*;
     use crate::{result::OwnedValue, test_storage::FixtureProvider};
     use std::sync::atomic::Ordering;
+
+    #[test]
+    fn absent_infers_labels_with_source_matcher_history() {
+        // prometheus/prometheus @5241a27fe3c6983549fccc32f6e65917408c63cd
+        // promql/functions.go:2848-2880; equality history survives deletion.
+        type Labels = &'static [(&'static [u8], &'static [u8])];
+        let cases: &[(&[u8], Labels)] = &[
+            (
+                b"absent(m{z=\"last\",a=\"first\"})",
+                &[(b"a", b"first"), (b"z", b"last")],
+            ),
+            (
+                b"absent((m{job=\"a\",foo=\"bar\"}))",
+                &[(b"foo", b"bar"), (b"job", b"a")],
+            ),
+            (
+                b"absent(m{job=\"a\",job=\"a\",foo=\"bar\"})",
+                &[(b"foo", b"bar")],
+            ),
+            (
+                b"absent(m{job=\"a\",job!=\"b\",job=\"a\",foo=\"bar\"})",
+                &[(b"foo", b"bar")],
+            ),
+            (
+                b"absent(m{job=\"a\",job=~\".*\",foo=\"bar\"})",
+                &[(b"foo", b"bar")],
+            ),
+            (
+                b"absent(m{job=~\".*\",job=\"a\",foo=\"bar\"})",
+                &[(b"foo", b"bar"), (b"job", b"a")],
+            ),
+            (
+                b"absent(m{job=\"\",job=\"a\",foo=\"bar\"})",
+                &[(b"foo", b"bar")],
+            ),
+            (b"absent(m{job=\"\",foo=\"bar\"})", &[(b"foo", b"bar")]),
+            (
+                b"absent(m{__type__=\"gauge\",__unit__=\"bytes\"})",
+                &[(b"__type__", b"gauge"), (b"__unit__", b"bytes")],
+            ),
+            (
+                b"absent(m{a=\"\\xff\",z=\"v\"})",
+                &[(b"a", b"\xff"), (b"z", b"v")],
+            ),
+            (b"absent(sum(m{job=\"worker\"}))", &[]),
+            (b"absent(abs(m{job=\"worker\"}))", &[]),
+        ];
+        for delayed in [false, true] {
+            let engine = Engine::default();
+            let provider = FixtureProvider::new(0, 1, 0);
+            let control = Control::default();
+            for (expression, expected) in cases {
+                let query = engine
+                    .compile(expression, options(delayed), &control)
+                    .unwrap();
+                let (result, observed) = query
+                    .collect(&provider, QueryRequest::Instant { time_ms: 1000 }, &control)
+                    .unwrap();
+                assert_eq!(result.series.len(), 1, "{expression:?}");
+                let series = &result.series[0];
+                assert_eq!(
+                    series
+                        .labels
+                        .0
+                        .iter()
+                        .map(|label| (&*label.name, &*label.value))
+                        .collect::<Vec<_>>(),
+                    *expected,
+                    "{expression:?}"
+                );
+                assert_eq!(series.points.len(), 1);
+                assert_eq!(series.points[0].time_ms, 1000);
+                assert_eq!(float_bits(&series.points[0]), 1.0f64.to_bits());
+                assert_eq!(observed.memory[MemoryKind::Workspace as usize].current, 0);
+            }
+            provider.assert_closed();
+            assert!(
+                engine
+                    .accounting
+                    .snapshot()
+                    .memory
+                    .iter()
+                    .all(|memory| memory.current == 0)
+            );
+        }
+    }
+
+    #[test]
+    fn absent_counts_every_nonstale_kind_and_exhausts_its_child() {
+        use crate::{
+            histogram::FloatHistogram,
+            value::{STALE_NAN_BITS, Sample, SampleValue},
+        };
+        fn zero(_: usize) -> Sample {
+            Sample {
+                time_ms: 1000,
+                start_time_ms: 0,
+                value: SampleValue::Float(0.0),
+            }
+        }
+        fn nan(_: usize) -> Sample {
+            Sample {
+                value: SampleValue::Float(f64::from_bits(0x7ff8_0000_0000_0042)),
+                ..zero(0)
+            }
+        }
+        fn histogram(_: usize) -> Sample {
+            Sample {
+                value: SampleValue::FloatHistogram(FloatHistogram {
+                    count: 1.0,
+                    zero_count: 1.0,
+                    ..FloatHistogram::default()
+                }),
+                ..zero(0)
+            }
+        }
+        fn stale(_: usize) -> Sample {
+            Sample {
+                value: SampleValue::Float(f64::from_bits(STALE_NAN_BITS)),
+                ..zero(0)
+            }
+        }
+        for page_size in [1, 17, 1024] {
+            for delayed in [false, true] {
+                for (sample, empty) in [
+                    (zero as fn(usize) -> Sample, true),
+                    (nan, true),
+                    (histogram, true),
+                    (stale, false),
+                ] {
+                    let engine = Engine::default();
+                    let mut provider = FixtureProvider::new(1, page_size, 2);
+                    for series in &mut provider.series {
+                        series.source.sample = sample;
+                    }
+                    let control = Control::default();
+                    let query = engine
+                        .compile(b"absent(counter_total)", options(delayed), &control)
+                        .unwrap();
+                    let (result, observed) = query
+                        .collect(&provider, QueryRequest::Instant { time_ms: 1000 }, &control)
+                        .unwrap();
+                    assert_eq!(result.series.is_empty(), empty);
+                    if !empty {
+                        assert_eq!(float_bits(&result.series[0].points[0]), 1.0f64.to_bits());
+                    }
+                    assert_eq!(
+                        observed.memory[MemoryKind::ProviderHeld as usize].current,
+                        0
+                    );
+                    provider.assert_closed();
+                }
+                let engine = Engine::default();
+                let mut provider = FixtureProvider::new(1, page_size, 2);
+                provider.series[1].source.fail_page = Some(0);
+                let control = Control::default();
+                let query = engine
+                    .compile(b"absent(counter_total)", options(delayed), &control)
+                    .unwrap();
+                let report = query.collect_reported(
+                    &provider,
+                    QueryRequest::Instant { time_ms: 1000 },
+                    &control,
+                );
+                assert!(matches!(
+                    report.result,
+                    Err(ExecutionError::Evaluation(EvaluationError::Storage(_)))
+                ));
+                provider.assert_closed();
+                assert_eq!(
+                    report.observations.memory[MemoryKind::ProviderHeld as usize].current,
+                    0
+                );
+                assert_eq!(
+                    report.observations.memory[MemoryKind::Workspace as usize].current,
+                    0
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn absent_range_checks_all_input_ordinals_at_each_step() {
+        fn early(_: usize) -> crate::value::Sample {
+            crate::test_storage::counter(0)
+        }
+        fn late(_: usize) -> crate::value::Sample {
+            crate::test_storage::counter(2)
+        }
+        for page_size in [1, 17, 1024] {
+            for delayed in [false, true] {
+                let engine = Engine::default();
+                let mut provider = FixtureProvider::new(1, page_size, 2);
+                provider.series[0].source.sample = early;
+                provider.series[1].source.sample = late;
+                let control = Control::default();
+                let mut settings = options(delayed);
+                settings.lookback_ms = 1000;
+                let query = engine
+                    .compile(b"absent(counter_total{job=\"worker\"})", settings, &control)
+                    .unwrap();
+                let (result, _) = query
+                    .collect(
+                        &provider,
+                        QueryRequest::Range {
+                            start_ms: 1000,
+                            end_ms: 4000,
+                            step_ms: 1000,
+                        },
+                        &control,
+                    )
+                    .unwrap();
+                assert_eq!(result.series.len(), 1);
+                let series = &result.series[0];
+                assert_eq!(
+                    series
+                        .points
+                        .iter()
+                        .map(|point| point.time_ms)
+                        .collect::<Vec<_>>(),
+                    vec![2000, 4000]
+                );
+                assert!(
+                    series
+                        .points
+                        .iter()
+                        .all(|point| float_bits(point) == 1.0f64.to_bits())
+                );
+                assert_eq!(series.labels.0.len(), 1);
+                assert_eq!(&*series.labels.0[0].name, b"job");
+                assert_eq!(&*series.labels.0[0].value, b"worker");
+                let query = engine
+                    .compile(b"timestamp(absent(missing))", settings, &control)
+                    .unwrap();
+                let (result, _) = query
+                    .collect(
+                        &provider,
+                        QueryRequest::Range {
+                            start_ms: 1000,
+                            end_ms: 4000,
+                            step_ms: 1000,
+                        },
+                        &control,
+                    )
+                    .unwrap();
+                assert_eq!(result.series.len(), 1);
+                for (index, point) in result.series[0].points.iter().enumerate() {
+                    assert_eq!(float_bits(point), (index as f64 + 1.0).to_bits());
+                }
+                provider.assert_closed();
+            }
+        }
+    }
+
+    #[test]
+    fn absent_over_time_combines_windows_and_infers_labels() {
+        use crate::{
+            histogram::FloatHistogram,
+            value::{STALE_NAN_BITS, Sample, SampleValue},
+        };
+        fn early(_: usize) -> Sample {
+            crate::test_storage::counter(0)
+        }
+        fn late(_: usize) -> Sample {
+            Sample {
+                time_ms: 3000,
+                start_time_ms: 0,
+                value: SampleValue::FloatHistogram(FloatHistogram::default()),
+            }
+        }
+        fn stale(_: usize) -> Sample {
+            Sample {
+                time_ms: 2000,
+                start_time_ms: 0,
+                value: SampleValue::Float(f64::from_bits(STALE_NAN_BITS)),
+            }
+        }
+        for page_size in [1, 17, 1024] {
+            for delayed in [false, true] {
+                let engine = Engine::default();
+                let mut provider = FixtureProvider::new(1, page_size, 3);
+                for (series, sample) in
+                    provider
+                        .series
+                        .iter_mut()
+                        .zip([early as fn(usize) -> Sample, late, stale])
+                {
+                    series.source.sample = sample;
+                }
+                let control = Control::default();
+                for (expression, expected_times) in [
+                    (
+                        b"absent_over_time((counter_total{job=\"worker\"}[1s]))".as_slice(),
+                        &[2000, 4000][..],
+                    ),
+                    (
+                        b"absent_over_time(counter_total[1s] @ 2)",
+                        &[1000, 2000, 3000, 4000][..],
+                    ),
+                    (b"absent_over_time(counter_total[1s] @ 3)", &[][..]),
+                ] {
+                    let query = engine
+                        .compile(expression, options(delayed), &control)
+                        .unwrap();
+                    let (result, _) = query
+                        .collect(
+                            &provider,
+                            QueryRequest::Range {
+                                start_ms: 1000,
+                                end_ms: 4000,
+                                step_ms: 1000,
+                            },
+                            &control,
+                        )
+                        .unwrap();
+                    assert_eq!(result.series.is_empty(), expected_times.is_empty());
+                    if let Some(series) = result.series.first() {
+                        assert_eq!(
+                            series
+                                .points
+                                .iter()
+                                .map(|point| point.time_ms)
+                                .collect::<Vec<_>>(),
+                            expected_times
+                        );
+                        assert!(
+                            series
+                                .points
+                                .iter()
+                                .all(|point| float_bits(point) == 1.0f64.to_bits())
+                        );
+                        if expression == b"absent_over_time((counter_total{job=\"worker\"}[1s]))" {
+                            assert_eq!(series.labels.0.len(), 1);
+                            assert_eq!(&*series.labels.0[0].value, b"worker");
+                        }
+                    }
+                }
+                let query = engine.compile(b"absent_over_time(missing{__type__=\"gauge\",__unit__=\"bytes\",job=\"worker\"}[1s])", options(delayed), &control).unwrap();
+                let (result, _) = query
+                    .collect(&provider, QueryRequest::Instant { time_ms: 1000 }, &control)
+                    .unwrap();
+                assert_eq!(result.series.len(), 1);
+                let labels = &result.series[0].labels.0;
+                assert_eq!(labels.len(), if delayed { 1 } else { 3 });
+                assert_eq!(&*labels.last().unwrap().name, b"job");
+                assert_eq!(&*labels.last().unwrap().value, b"worker");
+                provider.assert_closed();
+            }
+        }
+    }
+
+    #[test]
+    fn absent_over_time_validates_all_series_before_global_presence() {
+        // Source engine.go:2470-2509 short-circuits only after all raw series were evaluated.
+        for page_size in [1, 17, 1024] {
+            for delayed in [false, true] {
+                for invalid_metadata in [false, true] {
+                    let engine = Engine::default();
+                    let mut provider = FixtureProvider::new(3, page_size, 2);
+                    provider.series[if invalid_metadata { 0 } else { 1 }]
+                        .source
+                        .fail_page = Some(0);
+                    if invalid_metadata {
+                        provider.series[1].labels[0].0.clear();
+                    }
+                    let control = Control::default();
+                    let query = engine
+                        .compile(
+                            b"absent_over_time(counter_total[1s])",
+                            options(delayed),
+                            &control,
+                        )
+                        .unwrap();
+                    let report = query.collect_reported(
+                        &provider,
+                        QueryRequest::Range {
+                            start_ms: 1000,
+                            end_ms: 3000,
+                            step_ms: 1000,
+                        },
+                        &control,
+                    );
+                    if invalid_metadata {
+                        assert!(matches!(
+                            report.result,
+                            Err(ExecutionError::Evaluation(EvaluationError::Storage(
+                                crate::storage::StorageError::Invalid("empty label name")
+                            )))
+                        ));
+                    } else {
+                        assert!(matches!(
+                            report.result,
+                            Err(ExecutionError::Evaluation(EvaluationError::Storage(
+                                crate::storage::StorageError::Provider(_)
+                            )))
+                        ));
+                    }
+                    provider.assert_closed();
+                    assert_eq!(
+                        report.observations.memory[MemoryKind::Workspace as usize].current,
+                        0
+                    );
+                    assert_eq!(
+                        report.observations.memory[MemoryKind::ProviderHeld as usize].current,
+                        0
+                    );
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn absent_over_time_replays_long_raw_windows_without_retaining_history() {
+        for page_size in [1, 17, 1024] {
+            for delayed in [false, true] {
+                let mut peaks = Vec::new();
+                for count in [2048, 16_384] {
+                    let engine = Engine::default();
+                    let provider = FixtureProvider::new(count, page_size, 2);
+                    let control = Control::default();
+                    let query = engine
+                        .compile(
+                            b"absent_over_time(counter_total[1000000s])",
+                            options(delayed),
+                            &control,
+                        )
+                        .unwrap();
+                    let mut sink = RecordingSink::default();
+                    let observed = query
+                        .execute(
+                            &provider,
+                            QueryRequest::Instant {
+                                time_ms: count as i64 * 1000,
+                            },
+                            &control,
+                            &mut sink,
+                        )
+                        .unwrap();
+                    assert!(sink.committed && !sink.aborted);
+                    assert_eq!(observed.output_samples, 0);
+                    assert!(observed.samples_fetched >= (2 * count) as u64);
+                    peaks.push(
+                        [
+                            MemoryKind::Workspace,
+                            MemoryKind::ProviderHeld,
+                            MemoryKind::BorrowedView,
+                        ]
+                        .map(|kind| {
+                            let memory = observed.memory[kind as usize];
+                            assert_eq!(memory.current, 0);
+                            memory.peak
+                        }),
+                    );
+                    assert_eq!(
+                        provider.series[0]
+                            .source
+                            .counters
+                            .peak
+                            .load(Ordering::Relaxed),
+                        1
+                    );
+                    provider.assert_closed();
+                }
+                assert_eq!(peaks[0], peaks[1], "page {page_size} delayed {delayed}");
+            }
+        }
+    }
 
     #[test]
     fn fractional_rate_offset_does_not_cross_the_source_alert_threshold() {
