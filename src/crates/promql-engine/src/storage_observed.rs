@@ -1,7 +1,11 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 //! Reconcile owner snapshots at callbacks and releases without inventing transfer peaks.
-use crate::{accounting::QueryAccounting, storage::*};
-use std::{cell::RefCell, rc::Rc};
+use crate::{
+    accounting::{AllocationContext, MemoryKind, QueryAccounting},
+    shared::Strong,
+    storage::*,
+};
+use std::cell::RefCell;
 
 pub(crate) struct ObservedQuery<Q: QueryProvider> {
     value: Q,
@@ -77,14 +81,14 @@ impl<S: SeriesSelection> SelectionObservation for SelectionOwner<S> {
     }
 }
 pub(crate) struct ObservedSelection<'a, Q: QueryProvider, S> {
-    owner: Rc<SelectionOwner<S>>,
+    owner: Strong<SelectionOwner<S>>,
     query: &'a ObservedQuery<Q>,
 }
-pub(crate) struct ObservedSeries<'a, Q: QueryProvider, S> {
+pub(crate) struct ObservedSeries<'a, Q: QueryProvider, S, P: SeriesSelection> {
     value: Option<S>,
     lease: RefCell<ResourceLease>,
     query: &'a ObservedQuery<Q>,
-    parent: Rc<dyn SelectionObservation + 'a>,
+    parent: Strong<SelectionOwner<P>>,
 }
 pub(crate) struct ObservedCursor<'a, C> {
     value: Option<C>,
@@ -116,13 +120,19 @@ impl<Q: QueryProvider> QueryProvider for ObservedQuery<Q> {
             Ok(value) => {
                 let resources = value.resources();
                 let selection = ObservedSelection {
-                    owner: Rc::new(SelectionOwner {
-                        value: RefCell::new(Some(value)),
-                        lease: RefCell::new(ResourceLease::new(
+                    owner: Strong::new_in(
+                        SelectionOwner {
+                            value: RefCell::new(Some(value)),
+                            lease: RefCell::new(ResourceLease::new(
+                                &self.account,
+                                ProviderResources::default(),
+                            )),
+                        },
+                        Some(&AllocationContext::new(
                             &self.account,
-                            ProviderResources::default(),
+                            MemoryKind::Workspace,
                         )),
-                    }),
+                    ),
                     query: self,
                 };
                 self.pair(&selection.owner.lease, resources);
@@ -138,7 +148,7 @@ impl<Q: QueryProvider> QueryProvider for ObservedQuery<Q> {
 impl<'a, Q: QueryProvider, S: SeriesSelection + 'a> SeriesSelection
     for ObservedSelection<'a, Q, S>
 {
-    type Series = ObservedSeries<'a, Q, S::Series>;
+    type Series = ObservedSeries<'a, Q, S::Series, S>;
     fn resources(&self) -> ProviderResources {
         ProviderResources::default()
     }
@@ -210,7 +220,7 @@ impl<'a, Q: QueryProvider, S: SeriesSelection + 'a> SeriesSelection
         result
     }
 }
-impl<Q: QueryProvider, S: Series> ObservedSeries<'_, Q, S> {
+impl<Q: QueryProvider, S: Series, P: SeriesSelection> ObservedSeries<'_, Q, S, P> {
     fn observe(&self) {
         let (parent, resources) = self.parent.snapshot();
         self.query.triple(
@@ -221,7 +231,9 @@ impl<Q: QueryProvider, S: Series> ObservedSeries<'_, Q, S> {
         );
     }
 }
-impl<Q: QueryProvider, S: Series> SeriesObservation for ObservedSeries<'_, Q, S> {
+impl<Q: QueryProvider, S: Series, P: SeriesSelection> SeriesObservation
+    for ObservedSeries<'_, Q, S, P>
+{
     fn reconcile(&self, cursor: &RefCell<ResourceLease>, resources: ProviderResources) {
         let selection = self.parent.snapshot();
         self.query.four(
@@ -234,7 +246,7 @@ impl<Q: QueryProvider, S: Series> SeriesObservation for ObservedSeries<'_, Q, S>
         );
     }
 }
-impl<Q: QueryProvider, S: Series> Series for ObservedSeries<'_, Q, S> {
+impl<Q: QueryProvider, S: Series, P: SeriesSelection> Series for ObservedSeries<'_, Q, S, P> {
     type Cursor<'a>
         = ObservedCursor<'a, S::Cursor<'a>>
     where
@@ -346,7 +358,7 @@ impl<Q: QueryProvider, S> Drop for ObservedSelection<'_, Q, S> {
         }
     }
 }
-impl<Q: QueryProvider, S> Drop for ObservedSeries<'_, Q, S> {
+impl<Q: QueryProvider, S, P: SeriesSelection> Drop for ObservedSeries<'_, Q, S, P> {
     fn drop(&mut self) {
         drop(self.value.take());
         if !std::thread::panicking() {
@@ -376,7 +388,7 @@ mod tests {
         storage::Provider,
         value::{Sample, SampleValue},
     };
-    use std::{cell::Cell, sync::OnceLock};
+    use std::{cell::Cell, rc::Rc, sync::OnceLock};
     #[derive(Clone, Copy, Default)]
     struct Mode {
         lazy: bool,
@@ -622,6 +634,12 @@ mod tests {
                     &control,
                 )
                 .unwrap();
+            let wrapper =
+                size_of::<crate::shared::Allocation<SelectionOwner<Selection<'_>>>>() as u64;
+            assert_eq!(
+                account.snapshot().memory[MemoryKind::Workspace as usize].current,
+                wrapper
+            );
             assert_eq!(held(&account), 16);
             let series = selection.next(&control).unwrap().unwrap();
             let pool = series.value.as_ref().unwrap().pool.clone();
@@ -631,6 +649,10 @@ mod tests {
                 assert_eq!(held(&account), 32);
                 drop(selection);
                 assert_eq!(pool.closes.get(), 1);
+                assert_eq!(
+                    account.snapshot().memory[MemoryKind::Workspace as usize].current,
+                    wrapper
+                );
                 let calls = pool.calls.get();
                 assert_eq!(cursor.max_page_samples(), 1);
                 drop(cursor);
@@ -649,6 +671,10 @@ mod tests {
             }
             assert_eq!(pool.closes.get(), 1);
             assert_eq!(held(&account), 0);
+            let memory = account.snapshot().memory[MemoryKind::Workspace as usize];
+            assert_eq!(memory.current, 0);
+            assert_eq!(memory.acquired, wrapper);
+            assert_eq!(memory.released, wrapper);
             drop(query);
             assert_eq!(held(&account), 0);
         }

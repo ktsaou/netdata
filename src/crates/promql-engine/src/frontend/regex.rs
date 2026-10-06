@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Go-compatible frontend over an explicit regex-automata NFA; see NOTICE.
-use std::{ops::Range, sync::Arc};
+use crate::shared::{Allocation, Strong};
+use std::ops::Range;
 
 use regex_automata::{Input, nfa::thompson::pikevm::PikeVM};
 
@@ -371,15 +372,18 @@ pub struct Selector {
 }
 
 impl Selector {
-    pub fn compile(pattern: &[u8]) -> Result<Arc<dyn CompiledMatcher>, Vec<u8>> {
+    pub fn compile(pattern: &[u8]) -> Result<Strong<dyn CompiledMatcher>, Vec<u8>> {
         Self::compile_in(pattern, None).map_err(Buffer::into_unobserved)
     }
     pub(crate) fn compile_in(
         pattern: &[u8],
         context: Option<&AllocationContext>,
-    ) -> Result<Arc<dyn CompiledMatcher>, Buffer<u8>> {
+    ) -> Result<Strong<dyn CompiledMatcher>, Buffer<u8>> {
         let program = selector::Program::compile(pattern, context)?;
-        Ok(Arc::new(Self { program }))
+        let charge = Allocation::<Self>::charge(context);
+        let allocation: Box<Allocation<dyn CompiledMatcher>> =
+            Box::new(Allocation::new(Self { program }));
+        Ok(Strong::finish(allocation, charge))
     }
 }
 

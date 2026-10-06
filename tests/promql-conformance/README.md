@@ -856,14 +856,32 @@ Terminal provider diagnostics retain explicit severity, opaque bytes and optiona
 owned results. Expansion failures carry their own notes and completed numeric parameter notes according to source
 boundaries; unfinished ancestor and ordinary raw-helper failures discard their notes. Replays do not duplicate
 diagnostics. Deferred selection errors retain their buffer capacity while awaiting their source evaluation owner.
-Metadata handles and output can grow with cardinality; raw history remains page scoped. Shared-wrapper, bootstrap,
-raw-error and sink-error accounting still require their remaining owners. Exact memoized initial reads, Seek
+Metadata handles and output can grow with cardinality; raw history remains page scoped. Bootstrap,
+raw-error, sink-error and complete frontend accounting still require their remaining owners. Exact memoized initial reads, Seek
 landing and lookahead failure precedence remain mandatory qualification work. All admission limits remain disabled.
 
-Both builds pass 157 unit tests. The 64 independent selector-hint projections, 426 preparation scopes, 198 offset
+Both builds pass 166 unit tests. The 64 independent selector-hint projections, 426 preparation scopes, 198 offset
 projections and retained parser/clock/phase panels match their pinned source. The original corpus retains all
 9,684 passing variants, 11,758 open variants and the same 24 paired bit reports. These are finite catalog and
 preprocessing checks; they do not satisfy the complete expression, SRE, C or accounting gates.
+
+Matchers, owned histogram bounds, immutable diagnostics and observed selection parents now share one local
+strong-only owner. Its exact Box layout includes the reference count, allocation charge, inline payload and
+alignment; nested buffers retain separate capacity charges. Trait erasure uses ordinary Box coercion before
+sharing. Clones retain the same allocation without charging it again, and the final owner releases its charge
+after payload destruction and Box deallocation, including an ordinary payload panic. Checked reference-count
+overflow cannot mutate the counter. The complete header and payload constrain thread access. There is no weak,
+mutable or copy-on-write owner interface.
+
+Owned bounds preserve moved vector capacity, share only in the same query/category and copy into a different
+accounting context. Unobserved caller Arc bounds keep their external identity until an observed copy. Empty
+bounds have distinct real shared headers; absent bounds have none. Empty diagnostic results have no wrapper.
+Stable Rust and the 1.91 minimum version pass 166 units and compiler rejection controls for unsafe RefCell thread
+access and implicit shared-handle unsizing. Production Miri checks cover three seeds, alignment/DST/ZST,
+overflow, concurrent last-owner release, panic cleanup and bounds/diagnostic/selection lifetimes. Float values
+and output points remain 16/24 bytes on these amd64 builds. These finite checks qualify the four owners;
+engine/query accounting roots and cancellation allocation attribution remain required, along with the full
+C boundary. Backend regex memory continues to be explicitly estimated.
 
 The foundation represents the full value model and records required inputs. The following remain mandatory in the
 typed Rust core stage:

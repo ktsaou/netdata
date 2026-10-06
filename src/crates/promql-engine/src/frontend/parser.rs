@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Pinned Prometheus generated_parser.y and parse.go construction semantics; see NOTICE.
-use std::{borrow::Cow, sync::Arc};
+use crate::Strong;
+use std::borrow::Cow;
 
 use super::{
     Span,
@@ -77,7 +78,7 @@ pub struct ParseOutput {
 
 pub fn parse<C, E>(input: &[u8], options: ParserOptions, compile: C) -> ParseOutput
 where
-    C: FnMut(&[u8]) -> Result<Arc<dyn CompiledMatcher>, E>,
+    C: FnMut(&[u8]) -> Result<Strong<dyn CompiledMatcher>, E>,
     E: Into<crate::accounting::AccountedVec<u8>>,
 {
     parse_in(input, options, compile, None)
@@ -90,7 +91,7 @@ pub(crate) fn parse_in<C, E>(
     accounting: Option<&crate::accounting::QueryAccounting>,
 ) -> ParseOutput
 where
-    C: FnMut(&[u8]) -> Result<Arc<dyn CompiledMatcher>, E>,
+    C: FnMut(&[u8]) -> Result<Strong<dyn CompiledMatcher>, E>,
     E: Into<crate::accounting::AccountedVec<u8>>,
 {
     let mut output = parse_syntax(input, options, compile);
@@ -109,7 +110,7 @@ where
 /// Regex compilation happens at grammar reductions, before ordered type validation.
 pub fn parse_syntax<C, E>(input: &[u8], options: ParserOptions, compile: C) -> ParseOutput
 where
-    C: FnMut(&[u8]) -> Result<Arc<dyn CompiledMatcher>, E>,
+    C: FnMut(&[u8]) -> Result<Strong<dyn CompiledMatcher>, E>,
     E: Into<crate::accounting::AccountedVec<u8>>,
 {
     Parser {
@@ -142,7 +143,7 @@ struct Parser<'a, C> {
 
 impl<'a, C, E> Parser<'a, C>
 where
-    C: FnMut(&[u8]) -> Result<Arc<dyn CompiledMatcher>, E>,
+    C: FnMut(&[u8]) -> Result<Strong<dyn CompiledMatcher>, E>,
     E: Into<crate::accounting::AccountedVec<u8>>,
 {
     fn error(&mut self, span: Span, message: impl AsRef<[u8]>) {
