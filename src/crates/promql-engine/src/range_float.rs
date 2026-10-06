@@ -417,7 +417,9 @@ mod tests {
                 &Control::default(),
                 &account
             ),
-            Err(StorageError::Provider(b"injected page failure".to_vec()))
+            Err(StorageError::Provider(
+                b"injected page failure".to_vec().into()
+            ))
         );
         assert_eq!(source.counters.active.load(Ordering::Relaxed), 0);
         let control = Control::default();

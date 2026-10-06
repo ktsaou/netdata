@@ -493,9 +493,9 @@ pub enum OutputChunk<'a> {
 }
 
 pub trait OutputSink {
-    fn begin(&mut self, header: OutputHeader) -> Result<(), Vec<u8>>;
-    fn chunk(&mut self, chunk: OutputChunk<'_>) -> Result<(), Vec<u8>>;
-    fn commit(&mut self, observations: &QueryObservations) -> Result<(), Vec<u8>>;
+    fn begin(&mut self, header: OutputHeader) -> Result<(), AccountedVec<u8>>;
+    fn chunk(&mut self, chunk: OutputChunk<'_>) -> Result<(), AccountedVec<u8>>;
+    fn commit(&mut self, observations: &QueryObservations) -> Result<(), AccountedVec<u8>>;
     fn abort(&mut self);
 }
 
@@ -541,7 +541,7 @@ impl Collector {
     }
 }
 impl OutputSink for Collector {
-    fn begin(&mut self, header: OutputHeader) -> Result<(), Vec<u8>> {
+    fn begin(&mut self, header: OutputHeader) -> Result<(), AccountedVec<u8>> {
         self.committed = false;
         self.result = Some(CollectedResult {
             header,
@@ -552,7 +552,7 @@ impl OutputSink for Collector {
         });
         Ok(())
     }
-    fn chunk(&mut self, chunk: OutputChunk<'_>) -> Result<(), Vec<u8>> {
+    fn chunk(&mut self, chunk: OutputChunk<'_>) -> Result<(), AccountedVec<u8>> {
         let result = self.result.as_mut().expect("output begins before chunks");
         match chunk {
             OutputChunk::Annotations(annotations) => result.annotations = annotations.clone(),
@@ -590,7 +590,7 @@ impl OutputSink for Collector {
         }
         Ok(())
     }
-    fn commit(&mut self, _: &QueryObservations) -> Result<(), Vec<u8>> {
+    fn commit(&mut self, _: &QueryObservations) -> Result<(), AccountedVec<u8>> {
         if let Some(result) = self.result.as_mut()
             && result.header.value_type == ValueType::Matrix
         {

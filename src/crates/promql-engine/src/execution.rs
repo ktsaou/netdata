@@ -67,8 +67,14 @@ pub enum CompileError {
 #[derive(Debug)]
 pub enum ExecutionError {
     Evaluation(EvaluationError),
-    Sink(Vec<u8>),
+    Sink(AccountedVec<u8>),
     Internal,
+}
+impl ExecutionError {
+    fn sink(mut bytes: AccountedVec<u8>, account: &QueryAccounting) -> Self {
+        bytes.account_if_unobserved(&AllocationContext::new(account, MemoryKind::Workspace));
+        Self::Sink(bytes)
+    }
 }
 impl From<EvaluationError> for ExecutionError {
     fn from(value: EvaluationError) -> Self {
@@ -91,6 +97,22 @@ pub struct ExecutionReport<T> {
     pub result: Result<T, ExecutionError>,
     pub observations: QueryObservations,
     pub annotations: Annotations,
+}
+#[cfg(test)]
+impl<T> ExecutionReport<T> {
+    pub(crate) fn assert_retained_callback_error_memory(&self) {
+        let bytes = match &self.result {
+            Err(ExecutionError::Sink(bytes))
+            | Err(ExecutionError::Evaluation(EvaluationError::Storage(StorageError::Provider(
+                bytes,
+            )))) => {
+                assert!(bytes.context().is_some());
+                bytes.capacity() as u64
+            }
+            _ => 0,
+        };
+        self.observations.assert_retained_error_memory(bytes);
+    }
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -128,12 +150,24 @@ impl Engine {
     pub fn compile(
         &self,
         source: &[u8],
-        mut options: EngineOptions,
+        options: EngineOptions,
         control: &Control,
     ) -> Result<CompiledQuery, CompileError> {
         catch_unwind(AssertUnwindSafe(|| {
             let account = self.accounting.query();
-            let _control_observation = control.observe(&account);
+            self.compile_accounted(source, options, control, &account)
+        }))
+        .unwrap_or(Err(CompileError::Internal))
+    }
+    pub(crate) fn compile_accounted(
+        &self,
+        source: &[u8],
+        mut options: EngineOptions,
+        control: &Control,
+        account: &QueryAccounting,
+    ) -> Result<CompiledQuery, CompileError> {
+        catch_unwind(AssertUnwindSafe(|| {
+            let _control_observation = control.observe(account);
             control.check().map_err(CompileError::Interrupted)?;
             if options.lookback_ms == 0 {
                 options.lookback_ms = EngineOptions::default().lookback_ms;
@@ -142,12 +176,12 @@ impl Engine {
                 options.no_step_subquery_interval_ms =
                     EngineOptions::default().no_step_subquery_interval_ms;
             }
-            let context = AllocationContext::new(&account, MemoryKind::Compiled);
+            let context = AllocationContext::new(account, MemoryKind::Compiled);
             let output = parser::parse_in(
                 source,
                 options.parser,
                 |pattern| Selector::compile_checked(pattern, Some(&context), Some(control)),
-                Some(&account),
+                Some(account),
                 Some(control),
             )
             .map_err(CompileError::Interrupted)?;
@@ -156,27 +190,27 @@ impl Engine {
                 return Err(CompileError::Parse(output.errors));
             }
             let mut owned_source = AccountedVec::with_capacity_in(source.len(), Some(&context));
-            crate::result::append_bytes_checked(&mut owned_source, source, &account, control)
+            crate::result::append_bytes_checked(&mut owned_source, source, account, control)
                 .map_err(CompileError::Interrupted)?;
             let mut expression = ParsedExpression {
                 source: owned_source,
                 arena: output.arena,
                 root: output.root.expect("valid expression has a root"),
             };
-            crate::histogram_stats::configure(&mut expression, control, &account)
+            crate::histogram_stats::configure(&mut expression, control, account)
                 .map_err(CompileError::Interrupted)?;
             let preprocessing = crate::evaluator_order::preprocess(
                 &expression,
                 MemoryKind::Compiled,
                 control,
-                &account,
+                account,
             )
             .map_err(CompileError::Interrupted)?;
             let timestamp_selectors = crate::histogram_stats::timestamp_selectors(
                 &expression,
                 &preprocessing,
                 control,
-                &account,
+                account,
             )
             .map_err(CompileError::Interrupted)?;
             Ok(CompiledQuery {
@@ -185,7 +219,7 @@ impl Engine {
                 timestamp_selectors,
                 options,
                 engine: self.accounting.clone(),
-                accounting: account,
+                accounting: account.clone(),
             })
         }))
         .unwrap_or(Err(CompileError::Internal))
@@ -193,6 +227,9 @@ impl Engine {
 }
 
 impl CompiledQuery {
+    pub(crate) fn execution_accounting(&self) -> QueryAccounting {
+        self.engine.query()
+    }
     pub fn source(&self) -> &[u8] {
         &self.expression.source
     }
@@ -316,10 +353,20 @@ impl CompiledQuery {
         control: &Control,
         sink: &mut S,
     ) -> ExecutionReport<()> {
-        let account = self.engine.query();
+        let account = self.execution_accounting();
+        self.execute_reported_in(provider, request, control, sink, &account)
+    }
+    pub(crate) fn execute_reported_in<P: Provider, S: OutputSink>(
+        &self,
+        provider: &P,
+        request: QueryRequest,
+        control: &Control,
+        sink: &mut S,
+        account: &QueryAccounting,
+    ) -> ExecutionReport<()> {
         let mut annotations = Annotations::default();
         let result = self
-            .execute_accounted(provider, request, control, sink, &account, &mut annotations)
+            .execute_accounted(provider, request, control, sink, account, &mut annotations)
             .map(|_| ());
         if matches!(&result, Err(ExecutionError::Internal)) {
             annotations = Annotations::default();
@@ -345,8 +392,17 @@ impl CompiledQuery {
         request: QueryRequest,
         control: &Control,
     ) -> ExecutionReport<CollectedResult> {
-        let account = self.engine.query();
-        let mut collector = Collector::new(&account);
+        let account = self.execution_accounting();
+        self.collect_reported_in(provider, request, control, &account)
+    }
+    pub(crate) fn collect_reported_in<P: Provider>(
+        &self,
+        provider: &P,
+        request: QueryRequest,
+        control: &Control,
+        account: &QueryAccounting,
+    ) -> ExecutionReport<CollectedResult> {
+        let mut collector = Collector::new(account);
         let mut annotations = Annotations::default();
         let result = self
             .execute_accounted(
@@ -354,7 +410,7 @@ impl CompiledQuery {
                 request,
                 control,
                 &mut collector,
-                &account,
+                account,
                 &mut annotations,
             )
             .map(|_| {
@@ -399,11 +455,13 @@ impl CompiledQuery {
                 control,
                 account,
             )?;
-            sink.begin(prepared.header).map_err(ExecutionError::Sink)?;
+            sink.begin(prepared.header)
+                .map_err(|bytes| ExecutionError::sink(bytes, account))?;
             {
                 account.provider_call();
                 let query = provider
                     .open(data_bounds, control)
+                    .map_err(|error| error.accounted(account))
                     .map_err(EvaluationError::from)?;
                 let query = ObservedQuery::new(query, account);
                 let catalog = Catalog::new(
@@ -430,11 +488,12 @@ impl CompiledQuery {
             control.check().map_err(EvaluationError::from)?;
             if !annotations.is_empty() {
                 sink.chunk(OutputChunk::Annotations(annotations))
-                    .map_err(ExecutionError::Sink)?;
+                    .map_err(|bytes| ExecutionError::sink(bytes, account))?;
             }
             let mut observations = account.snapshot();
             observations.elapsed = observations.elapsed.saturating_add(observation.elapsed());
-            sink.commit(&observations).map_err(ExecutionError::Sink)?;
+            sink.commit(&observations)
+                .map_err(|bytes| ExecutionError::sink(bytes, account))?;
             Ok(())
         }))
         .unwrap_or(Err(ExecutionError::Internal));
@@ -502,7 +561,7 @@ impl CompiledQuery {
                 time_ms: header.start_ms,
                 value,
             })
-            .map_err(ExecutionError::Sink)?;
+            .map_err(|bytes| ExecutionError::sink(bytes, account))?;
             account.output(1);
             return Ok(());
         }
@@ -566,7 +625,7 @@ impl CompiledQuery {
                             value: value.as_ref(),
                         }],
                     })
-                    .map_err(ExecutionError::Sink)?;
+                    .map_err(|bytes| ExecutionError::sink(bytes, account))?;
                     account.output(1);
                 }
             }
@@ -647,14 +706,14 @@ impl CompiledQuery {
                         unreachable!("scalar output")
                     };
                     sink.chunk(OutputChunk::Scalar { time_ms, value })
-                        .map_err(ExecutionError::Sink)?;
+                        .map_err(|bytes| ExecutionError::sink(bytes, account))?;
                 } else {
                     sink.chunk(OutputChunk::Series {
                         series_id,
                         labels: &labels,
                         points: &[point],
                     })
-                    .map_err(ExecutionError::Sink)?;
+                    .map_err(|bytes| ExecutionError::sink(bytes, account))?;
                 }
                 account.output(1);
             }
@@ -1354,7 +1413,7 @@ impl CompiledQuery {
                                     labels: &labels,
                                     points: &[point],
                                 })
-                                .map_err(ExecutionError::Sink)?;
+                                .map_err(|bytes| ExecutionError::sink(bytes, account))?;
                                 account.output(1);
                                 Ok(())
                             },
@@ -1399,6 +1458,190 @@ mod tests {
     use super::*;
     use crate::{result::OwnedValue, test_storage::FixtureProvider};
     use std::sync::atomic::Ordering;
+
+    #[test]
+    fn accounted_compilation_retains_the_supplied_owner_on_success_and_parse_failure() {
+        for source in [b"sum(counter_total)".as_slice(), b"m{bad=~\"(\"}"] {
+            let engine = Engine::default();
+            let account = engine.accounting.query();
+            let outcome = engine.compile_accounted(
+                source,
+                EngineOptions::default(),
+                &Control::default(),
+                &account,
+            );
+            match &outcome {
+                Ok(query) => assert_eq!(query.accounting.test_identity(), account.test_identity()),
+                Err(CompileError::Parse(errors)) => {
+                    assert_eq!(
+                        errors.context().unwrap().accounting().test_identity(),
+                        account.test_identity()
+                    );
+                    for error in errors {
+                        assert_eq!(
+                            error
+                                .message
+                                .context()
+                                .unwrap()
+                                .accounting()
+                                .test_identity(),
+                            account.test_identity()
+                        );
+                    }
+                }
+                _ => panic!("expected a plan or an ordered parse error"),
+            }
+            let query_bytes = account.snapshot().memory[MemoryKind::Compiled as usize].current;
+            assert!(query_bytes > 0);
+            let observed = engine.accounting.snapshot();
+            assert_eq!(
+                observed.memory[MemoryKind::Compiled as usize].current,
+                query_bytes
+            );
+            assert_eq!(
+                observed.memory[MemoryKind::Accounting as usize].current,
+                EngineAccounting::allocation_bytes() + QueryAccounting::allocation_bytes()
+            );
+            drop(outcome);
+            account.snapshot().assert_memory_released();
+            drop(account);
+            engine.accounting.snapshot().assert_memory_released();
+        }
+    }
+
+    #[test]
+    fn provider_failure_retains_capacity_and_original_owner_despite_concurrent_cancellation() {
+        use std::cell::RefCell;
+        struct FailingOpen {
+            error: RefCell<Option<AccountedVec<u8>>>,
+        }
+        impl Provider for FailingOpen {
+            type Query<'a> = <FixtureProvider as Provider>::Query<'a>;
+            fn open(
+                &self,
+                _: TimeBounds,
+                control: &Control,
+            ) -> Result<Self::Query<'_>, StorageError> {
+                control.cancellation.cancel();
+                Err(StorageError::Provider(
+                    self.error.borrow_mut().take().unwrap(),
+                ))
+            }
+        }
+        for already_owned in [false, true] {
+            let creator = EngineAccounting::default();
+            let original = creator.query();
+            let context = AllocationContext::new(&original, MemoryKind::Result);
+            let mut bytes = AccountedVec::with_capacity_in(8192, already_owned.then_some(&context));
+            bytes.extend_from_slice(b"provider\0\xfffailure");
+            let pointer = bytes.as_ptr();
+            let capacity = bytes.capacity() as u64;
+            let provider = FailingOpen {
+                error: RefCell::new(Some(bytes)),
+            };
+            let engine = Engine::default();
+            let query = engine
+                .compile(b"1", EngineOptions::default(), &Control::default())
+                .unwrap();
+            let account = query.execution_accounting();
+            let control = Control::default();
+            let report = query.collect_reported_in(
+                &provider,
+                QueryRequest::Instant { time_ms: 0 },
+                &control,
+                &account,
+            );
+            assert!(control.cancellation.cancelled());
+            let Err(ExecutionError::Evaluation(EvaluationError::Storage(StorageError::Provider(
+                error,
+            )))) = report.result
+            else {
+                panic!("the returned provider error must precede post-call cancellation")
+            };
+            assert_eq!(&*error, b"provider\0\xfffailure");
+            assert_eq!(error.as_ptr(), pointer);
+            assert_eq!(error.capacity() as u64, capacity);
+            assert_eq!(
+                error.context().unwrap().accounting().test_identity(),
+                if already_owned {
+                    original.test_identity()
+                } else {
+                    account.test_identity()
+                }
+            );
+            assert_eq!(
+                report.observations.memory[MemoryKind::Workspace as usize].current,
+                if already_owned { 0 } else { capacity }
+            );
+            assert_eq!(
+                original.snapshot().memory[MemoryKind::Result as usize].current,
+                if already_owned { capacity } else { 0 }
+            );
+            assert_eq!(engine.accounting.snapshot().completed_executions, 1);
+            assert_eq!(engine.accounting.snapshot().active_executions, 0);
+            drop((report.annotations, query, provider, control, context));
+            assert_eq!(&*error, b"provider\0\xfffailure");
+            drop(error);
+            account.snapshot().assert_memory_released();
+            original.snapshot().assert_memory_released();
+            drop((account, original));
+            engine.accounting.snapshot().assert_memory_released();
+            creator.snapshot().assert_memory_released();
+        }
+    }
+
+    #[test]
+    fn every_sink_failure_phase_retains_error_bytes_on_the_actual_execution_owner() {
+        for phase in 0..3 {
+            let engine = Engine::default();
+            let control = Control::default();
+            let query = engine
+                .compile(b"1", EngineOptions::default(), &control)
+                .unwrap();
+            let account = query.execution_accounting();
+            let provider = FixtureProvider::new(1, 1, 1);
+            let mut sink = RecordingSink {
+                fail_begin: phase == 0,
+                fail_after: (phase == 1).then_some(1),
+                fail_commit: phase == 2,
+                ..RecordingSink::default()
+            };
+            let report = query.execute_reported_in(
+                &provider,
+                QueryRequest::Instant { time_ms: 0 },
+                &control,
+                &mut sink,
+                &account,
+            );
+            let Err(ExecutionError::Sink(error)) = report.result else {
+                panic!("expected the selected sink failure")
+            };
+            assert_eq!(
+                &*error,
+                [
+                    b"sink begin failure".as_slice(),
+                    b"sink failure",
+                    b"sink commit failure"
+                ][phase]
+            );
+            assert_eq!(
+                error.context().unwrap().accounting().test_identity(),
+                account.test_identity()
+            );
+            assert_eq!(
+                report.observations.memory[MemoryKind::Workspace as usize].current,
+                error.capacity() as u64
+            );
+            assert!(sink.aborted);
+            assert!(!sink.committed);
+            provider.assert_closed();
+            drop((report.annotations, query, provider, sink));
+            drop(error);
+            account.snapshot().assert_memory_released();
+            drop(account);
+            engine.accounting.snapshot().assert_memory_released();
+        }
+    }
 
     fn start_options(delayed: bool, enabled: bool) -> EngineOptions {
         let mut settings = options(delayed);
@@ -1609,11 +1852,11 @@ mod tests {
                             report.result,
                             Err(ExecutionError::Evaluation(EvaluationError::Storage(_)))
                         ));
-                        assert_eq!(
-                            report.observations.memory[MemoryKind::Workspace as usize].current,
-                            0
-                        );
+                        report.assert_retained_callback_error_memory();
                         provider.assert_closed();
+                        drop(report);
+                        drop(query);
+                        engine.accounting.snapshot().assert_memory_released();
                     }
                     let mut provider = FixtureProvider::new(1, page, 2);
                     for (series, kind) in provider
@@ -1641,10 +1884,7 @@ mod tests {
                         assert!(report.result.unwrap().series.is_empty());
                     }
                     provider.assert_closed();
-                    assert_eq!(
-                        report.observations.memory[MemoryKind::Workspace as usize].current,
-                        0
-                    );
+                    report.observations.assert_memory_released();
                 }
             }
         }
@@ -1870,10 +2110,10 @@ mod tests {
                     report.observations.memory[MemoryKind::ProviderHeld as usize].current,
                     0
                 );
-                assert_eq!(
-                    report.observations.memory[MemoryKind::Workspace as usize].current,
-                    0
-                );
+                report.assert_retained_callback_error_memory();
+                drop(report);
+                drop(query);
+                engine.accounting.snapshot().assert_memory_released();
             }
         }
     }
@@ -2095,14 +2335,14 @@ mod tests {
                         ));
                     }
                     provider.assert_closed();
-                    assert_eq!(
-                        report.observations.memory[MemoryKind::Workspace as usize].current,
-                        0
-                    );
+                    report.assert_retained_callback_error_memory();
                     assert_eq!(
                         report.observations.memory[MemoryKind::ProviderHeld as usize].current,
                         0
                     );
+                    drop(report);
+                    drop(query);
+                    engine.accounting.snapshot().assert_memory_released();
                 }
             }
         }
@@ -3571,15 +3811,15 @@ mod tests {
         }
     }
     impl OutputSink for RecordingSink {
-        fn begin(&mut self, _: OutputHeader) -> Result<(), Vec<u8>> {
+        fn begin(&mut self, _: OutputHeader) -> Result<(), AccountedVec<u8>> {
             self.assert_reference_live();
             self.begun = true;
             if self.fail_begin {
-                return Err(b"sink begin failure".to_vec());
+                return Err(b"sink begin failure".to_vec().into());
             }
             Ok(())
         }
-        fn chunk(&mut self, _: OutputChunk<'_>) -> Result<(), Vec<u8>> {
+        fn chunk(&mut self, _: OutputChunk<'_>) -> Result<(), AccountedVec<u8>> {
             self.assert_reference_live();
             self.chunks += 1;
             assert_ne!(self.panic_after, Some(self.chunks), "injected output panic");
@@ -3589,11 +3829,11 @@ mod tests {
                 cancel.cancel();
             }
             if self.fail_after == Some(self.chunks) {
-                return Err(b"sink failure".to_vec());
+                return Err(b"sink failure".to_vec().into());
             }
             Ok(())
         }
-        fn commit(&mut self, observations: &QueryObservations) -> Result<(), Vec<u8>> {
+        fn commit(&mut self, observations: &QueryObservations) -> Result<(), AccountedVec<u8>> {
             self.assert_reference_live();
             if self.reference_accounting.is_some() {
                 let refs = observations.cancellation_references;
@@ -3604,7 +3844,7 @@ mod tests {
                 );
             }
             if self.fail_commit {
-                return Err(b"sink commit failure".to_vec());
+                return Err(b"sink commit failure".to_vec().into());
             }
             self.committed = true;
             Ok(())
@@ -3659,7 +3899,7 @@ mod tests {
                 if stage == 4 || stage == 5 {
                     assert!(matches!(report.result, Err(ExecutionError::Internal)));
                 }
-                report.observations.assert_memory_released();
+                report.assert_retained_callback_error_memory();
                 let refs = report.observations.cancellation_references;
                 let entry = if owned {
                     refs.engine_owned
@@ -4708,7 +4948,8 @@ mod tests {
         ));
         assert!(report.annotations.is_empty());
         provider.assert_closed();
-        drop(query);
+        report.assert_retained_callback_error_memory();
+        drop((report, query));
         for failure in 0..3 {
             let provider = FixtureProvider::new(2, 1, 2);
             let control = Control::default();
@@ -4737,7 +4978,7 @@ mod tests {
             );
             assert!(report.result.is_err());
             assert!(sink.aborted && !sink.committed);
-            report.observations.assert_memory_released();
+            report.assert_retained_callback_error_memory();
             provider.assert_closed();
             drop(query);
         }
@@ -7183,12 +7424,10 @@ mod tests {
             report.observations.memory[MemoryKind::ProviderHeld as usize].current,
             0
         );
-        assert_eq!(
-            report.observations.memory[MemoryKind::Workspace as usize].current,
-            0
-        );
+        report.assert_retained_callback_error_memory();
         assert!(sink.aborted);
         provider.assert_closed();
+        drop(report);
         let cancelled = Control::default();
         cancelled.cancellation.cancel();
         let report = query.collect_reported(
@@ -7202,6 +7441,8 @@ mod tests {
             0
         );
         assert_eq!(engine.accounting.snapshot().active_executions, 0);
+        drop((report, query, sink, provider));
+        engine.accounting.snapshot().assert_memory_released();
     }
 
     #[test]

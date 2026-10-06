@@ -157,7 +157,7 @@ impl QueryProvider for Query<'_> {
         if self.source.fail_select == Some(site) {
             let mut message = Vec::with_capacity(8192);
             message.extend_from_slice(b"source-a");
-            return Err(StorageError::Provider(message));
+            return Err(StorageError::Provider(message.into()));
         }
         Ok(Selection {
             source: self.source,
@@ -181,7 +181,7 @@ impl<'a> SeriesSelection for Selection<'a> {
             control.cancellation.cancel();
         }
         if self.source.fail_metadata == Some((self.site, self.index)) {
-            return Err(StorageError::Provider(b"metadata-failed".to_vec()));
+            return Err(StorageError::Provider(b"metadata-failed".to_vec().into()));
         }
         let result = self.inner.next(control)?;
         let index = self.index;
@@ -244,7 +244,7 @@ impl Series for Handle<'_> {
             end_ms: bounds.end_ms,
         });
         if self.source.fail_cursor == Some((self.site, self.index)) {
-            return Err(StorageError::Provider(b"raw-failed".to_vec()));
+            return Err(StorageError::Provider(b"raw-failed".to_vec().into()));
         }
         self.inner.cursor(bounds, control)
     }
@@ -382,15 +382,14 @@ fn label_projection_waits_for_late_child_failure_and_drops_pending_regex_on_canc
             )));
         }
         assert!(report.annotations.is_empty());
-        assert_eq!(
-            report.observations.memory[MemoryKind::Workspace as usize].current,
-            0
-        );
+        report.assert_retained_callback_error_memory();
         assert_eq!(
             report.observations.memory[MemoryKind::RegexEstimate as usize].current,
             0
         );
         source.assert_closed();
+        drop((report, query));
+        engine.accounting.snapshot().assert_memory_released();
     }
 }
 

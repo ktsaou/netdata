@@ -902,8 +902,20 @@ Cancellation still takes precedence over the inline deadline; observation does n
 Cleanup checks verify every memory category against exact live root counts, including `Accounting`; they do not
 exempt bookkeeping from leak detection. Query snapshots include the query root that is live when the snapshot
 is taken. Finite tests cover root identity, zero-capacity retention, creator/consumer attribution, concurrency,
-poison recovery, scoped failures and panicking cleanup. Complete provider/error/sink accounting, typed C
+poison recovery, scoped failures and panicking cleanup. Complete foreign provider/sink accounting, typed C
 ownership and the full expression/SRE gates remain required. All resource enforcement remains disabled.
+
+Compilation and reported execution/collection have shared internal entry points that accept their actual operation
+account. Native callers use these same paths; adapters can charge descriptors, errors and retained report/result
+wrappers to that account without opening a second ledger or execution observation. Compilation retains its account
+through the plan or ordered parse errors. Existing execution timing and concurrency counters retain their meanings.
+
+Provider and output failure bytes retain their allocation charge after callback and operation cleanup. Previously
+unobserved owned buffers transfer without copying and acquire their actual capacity charge at the callback boundary.
+Already observed buffers retain their original physical owner and category. Observation does not add a cancellation
+poll or overwrite an error returned by a callback. Upfront selector failures keep their lazy expansion phase; standalone
+scans account cursor open/seek/page failures as well. Typed foreign error transport and complete C lifetime validation
+remain required.
 
 `label_replace` and `label_join` project whole-series metadata after the vector child completes. Runtime validation
 occurs before child evaluation, following the upfront selector catalog. Replacement uses Go's anchored DotNL

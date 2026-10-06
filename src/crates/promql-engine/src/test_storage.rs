@@ -171,7 +171,9 @@ impl SampleCursor for GeneratedCursor<'_> {
         self.values.clear();
         *resources = self.resources();
         if self.source.fail_page == Some(self.pages) {
-            return Err(StorageError::Provider(b"injected page failure".to_vec()));
+            return Err(StorageError::Provider(
+                b"injected page failure".to_vec().into(),
+            ));
         }
         while self.index < self.source.count && self.values.len() < self.source.page_size {
             let sample = (self.source.sample)(self.index);

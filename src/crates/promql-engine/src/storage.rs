@@ -133,7 +133,18 @@ impl Control {
 pub enum StorageError {
     Interrupted(Interrupted),
     Invalid(&'static str),
-    Provider(Vec<u8>),
+    Provider(crate::accounting::AccountedVec<u8>),
+}
+impl StorageError {
+    pub(crate) fn accounted(mut self, account: &QueryAccounting) -> Self {
+        if let Self::Provider(bytes) = &mut self {
+            bytes.account_if_unobserved(&crate::accounting::AllocationContext::new(
+                account,
+                MemoryKind::Workspace,
+            ));
+        }
+        self
+    }
 }
 impl From<Interrupted> for StorageError {
     fn from(value: Interrupted) -> Self {
@@ -483,7 +494,9 @@ pub(crate) fn scan_until<S: Series, E: From<StorageError> + From<Interrupted>>(
 ) -> Result<std::ops::ControlFlow<()>, E> {
     control.check()?;
     account.provider_call();
-    let cursor = series.cursor(bounds, control)?;
+    let cursor = series
+        .cursor(bounds, control)
+        .map_err(|error| error.accounted(account))?;
     let resources = cursor.resources();
     let mut cursor = ResourceOwner::new(cursor, resources, account);
     let maximum = cursor.value.max_page_samples();
@@ -491,7 +504,10 @@ pub(crate) fn scan_until<S: Series, E: From<StorageError> + From<Interrupted>>(
         return Err(StorageError::Invalid("zero cursor page size").into());
     }
     account.provider_call();
-    let seek = cursor.value.seek(bounds.start_ms, control);
+    let seek = cursor
+        .value
+        .seek(bounds.start_ms, control)
+        .map_err(|error| error.accounted(account));
     cursor.lease.update(cursor.value.resources());
     seek?;
     let mut previous = None;
@@ -499,7 +515,11 @@ pub(crate) fn scan_until<S: Series, E: From<StorageError> + From<Interrupted>>(
         control.check()?;
         account.provider_call();
         let mut resources = cursor.value.resources();
-        let page = match cursor.value.next(control, &mut resources) {
+        let page = match cursor
+            .value
+            .next(control, &mut resources)
+            .map_err(|error| error.accounted(account))
+        {
             Ok(Some(page)) => page,
             Ok(None) => {
                 cursor.lease.update(resources);
@@ -552,6 +572,53 @@ mod tests {
         accounting::EngineAccounting,
         histogram::{FloatHistogramRef, Span},
     };
+    #[test]
+    fn standalone_scan_retains_failed_page_bytes_after_releasing_the_cursor() {
+        use crate::test_storage::{GeneratedSeries, counter};
+        let engine = EngineAccounting::default();
+        let account = engine.query();
+        let mut source = GeneratedSeries::new(100, 2, counter);
+        source.fail_page = Some(2);
+        let error = scan(
+            &source,
+            TimeBounds {
+                start_ms: 1000,
+                end_ms: 100_000,
+            },
+            &Control::default(),
+            &account,
+            |_| Ok(()),
+        )
+        .unwrap_err();
+        let StorageError::Provider(bytes) = &error else {
+            panic!("expected the injected page failure")
+        };
+        assert_eq!(&**bytes, b"injected page failure");
+        assert_eq!(
+            bytes.context().unwrap().accounting().test_identity(),
+            account.test_identity()
+        );
+        assert_eq!(source.counters.active.load(Ordering::Relaxed), 0);
+        let observed = account.snapshot();
+        assert_eq!(
+            observed.memory[MemoryKind::Workspace as usize].current,
+            bytes.capacity() as u64
+        );
+        assert_eq!(
+            observed.memory[MemoryKind::BorrowedView as usize].current,
+            0
+        );
+        assert_eq!(
+            observed.memory[MemoryKind::ProviderHeld as usize].current,
+            0
+        );
+        drop(source);
+        assert_eq!(&**bytes, b"injected page failure");
+        drop(error);
+        account.snapshot().assert_memory_released();
+        drop(account);
+        engine.snapshot().assert_memory_released();
+    }
     #[test]
     fn cross_engine_and_external_controls_keep_creation_attribution() {
         use crate::execution::Engine;

@@ -63,6 +63,7 @@ trait SelectionObservation {
     fn snapshot(&self) -> (&RefCell<ResourceLease>, ProviderResources);
 }
 trait SeriesObservation {
+    fn account(&self) -> &QueryAccounting;
     fn reconcile(&self, cursor: &RefCell<ResourceLease>, resources: ProviderResources);
 }
 struct SelectionOwner<S> {
@@ -109,13 +110,16 @@ impl<Q: QueryProvider> QueryProvider for ObservedQuery<Q> {
         request: SelectionRequest<'_>,
         control: &Control,
     ) -> Result<Self::Selection<'_>, StorageError> {
-        let result = self.value.select(
-            SelectionRequest {
-                accounting: Some(&self.account),
-                ..request
-            },
-            control,
-        );
+        let result = self
+            .value
+            .select(
+                SelectionRequest {
+                    accounting: Some(&self.account),
+                    ..request
+                },
+                control,
+            )
+            .map_err(|error| error.accounted(&self.account));
         match result {
             Ok(value) => {
                 let resources = value.resources();
@@ -159,7 +163,8 @@ impl<'a, Q: QueryProvider, S: SeriesSelection + 'a> SeriesSelection
             .borrow_mut()
             .as_mut()
             .expect("live selection")
-            .next(control);
+            .next(control)
+            .map_err(|error| error.accounted(&self.query.account));
         let (_, selection_resources) = self.owner.snapshot();
         match result {
             Ok(Some(value)) => {
@@ -234,6 +239,9 @@ impl<Q: QueryProvider, S: Series, P: SeriesSelection> ObservedSeries<'_, Q, S, P
 impl<Q: QueryProvider, S: Series, P: SeriesSelection> SeriesObservation
     for ObservedSeries<'_, Q, S, P>
 {
+    fn account(&self) -> &QueryAccounting {
+        &self.query.account
+    }
     fn reconcile(&self, cursor: &RefCell<ResourceLease>, resources: ProviderResources) {
         let selection = self.parent.snapshot();
         self.query.four(
@@ -273,7 +281,8 @@ impl<Q: QueryProvider, S: Series, P: SeriesSelection> Series for ObservedSeries<
             .value
             .as_ref()
             .expect("live series")
-            .cursor(bounds, control);
+            .cursor(bounds, control)
+            .map_err(|error| error.accounted(&self.query.account));
         match result {
             Ok(value) => {
                 let resources = value.resources();
@@ -317,7 +326,8 @@ impl<C: SampleCursor> SampleCursor for ObservedCursor<'_, C> {
             .value
             .as_mut()
             .expect("live cursor")
-            .seek(time_ms, control);
+            .seek(time_ms, control)
+            .map_err(|error| error.accounted(self.parent.account()));
         self.observe();
         result
     }
@@ -331,7 +341,8 @@ impl<C: SampleCursor> SampleCursor for ObservedCursor<'_, C> {
             .value
             .as_mut()
             .expect("live cursor")
-            .next(control, &mut snapshot);
+            .next(control, &mut snapshot)
+            .map_err(|error| error.accounted(self.parent.account()));
         self.parent.reconcile(&self.lease, snapshot);
         *resources = ProviderResources::default();
         match result {
@@ -558,7 +569,7 @@ mod tests {
         fn seek(&mut self, _: i64, _: &Control) -> Result<(), StorageError> {
             if self.query.mode.fail_seek {
                 self.query.held.borrow_mut().resize(128, 0);
-                return Err(StorageError::Provider(vec![1]));
+                return Err(StorageError::Provider(vec![1].into()));
             }
             Ok(())
         }
@@ -572,7 +583,7 @@ mod tests {
             }
             *resources = self.resources();
             if self.query.mode.fail_next {
-                return Err(StorageError::Provider(vec![2]));
+                return Err(StorageError::Provider(vec![2].into()));
             }
             if self.returned {
                 self.query.held.borrow_mut().resize(128, 0);
