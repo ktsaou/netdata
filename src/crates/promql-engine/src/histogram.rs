@@ -18,6 +18,7 @@ use crate::histogram_layout::{
     compact_float, compact_float_pair_with, reduce_float_copy_with, reduce_float_in_place,
 };
 use crate::histogram_work::{HistogramEvaluationError, HistogramWork};
+use crate::numerical::{source_div, source_mul};
 use crate::storage::Interrupted;
 use crate::{
     accounting::{AccountedVec, AllocationContext},
@@ -41,7 +42,14 @@ enum BoundsOwner {
 }
 impl HistogramBounds {
     pub(crate) fn from_slice_in(values: &[f64], context: Option<&AllocationContext>) -> Self {
-        Self::from_owned(AccountedVec::from_slice_in(values, context))
+        Self::from_slice_with(values, context, HistogramWork::default()).expect("inert bounds copy")
+    }
+    fn from_slice_with(
+        values: &[f64],
+        context: Option<&AllocationContext>,
+        work: HistogramWork<'_>,
+    ) -> Result<Self, Interrupted> {
+        Ok(Self::from_owned(copy_slice_with(values, context, work)?))
     }
     pub(crate) fn from_owned(values: AccountedVec<f64>) -> Self {
         let context = values.context();
@@ -86,6 +94,31 @@ impl From<Vec<f64>> for HistogramBounds {
     fn from(values: Vec<f64>) -> Self {
         Self::from_owned(AccountedVec::from_vec_in(values, None))
     }
+}
+
+fn copy_slice_with<T: Copy>(
+    values: &[T],
+    context: Option<&AllocationContext>,
+    work: HistogramWork<'_>,
+) -> Result<AccountedVec<T>, Interrupted> {
+    work.step(1)?;
+    let mut result = AccountedVec::with_capacity_in(values.len(), context);
+    for chunk in values.chunks(1024) {
+        work.step(chunk.len())?;
+        result.extend_from_slice(chunk);
+    }
+    work.step(1)?;
+    Ok(result)
+}
+
+fn copy_optional_with<T: Copy>(
+    values: Option<&[T]>,
+    context: Option<&AllocationContext>,
+    work: HistogramWork<'_>,
+) -> Result<Option<AccountedVec<T>>, Interrupted> {
+    values
+        .map(|values| copy_slice_with(values, context, work))
+        .transpose()
 }
 
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
@@ -449,16 +482,16 @@ impl FloatHistogram {
         mut poll: impl FnMut() -> Result<(), E>,
     ) -> Result<(), E> {
         poll()?;
-        self.zero_count *= factor;
-        self.count *= factor;
-        self.sum *= factor;
+        self.zero_count = source_mul(self.zero_count, factor);
+        self.count = source_mul(self.count, factor);
+        self.sum = source_mul(self.sum, factor);
         for bucket in self.positive_buckets.iter_mut().flatten() {
             poll()?;
-            *bucket *= factor;
+            *bucket = source_mul(*bucket, factor);
         }
         for bucket in self.negative_buckets.iter_mut().flatten() {
             poll()?;
-            *bucket *= factor;
+            *bucket = source_mul(*bucket, factor);
         }
         if factor < 0.0 {
             self.reset_hint = GAUGE;
@@ -479,9 +512,9 @@ impl FloatHistogram {
         mut poll: impl FnMut() -> Result<(), E>,
     ) -> Result<(), E> {
         poll()?;
-        self.zero_count /= divisor;
-        self.count /= divisor;
-        self.sum /= divisor;
+        self.zero_count = source_div(self.zero_count, divisor);
+        self.count = source_div(self.count, divisor);
+        self.sum = source_div(self.sum, divisor);
         if divisor == 0.0 {
             // Upstream drops these allocations and returns before changing the hint.
             self.positive_spans = None;
@@ -492,11 +525,11 @@ impl FloatHistogram {
         }
         for bucket in self.positive_buckets.iter_mut().flatten() {
             poll()?;
-            *bucket /= divisor;
+            *bucket = source_div(*bucket, divisor);
         }
         for bucket in self.negative_buckets.iter_mut().flatten() {
             poll()?;
-            *bucket /= divisor;
+            *bucket = source_div(*bucket, divisor);
         }
         if divisor < 0.0 {
             self.reset_hint = GAUGE;
@@ -674,8 +707,7 @@ impl<'a> FloatHistogramRef<'a> {
         // Retaining a provider view requires ownership independent of the page.
         destination.custom_values = if self.schema == CUSTOM_BUCKETS_SCHEMA {
             if let Some(values) = self.custom_values {
-                work.step(values.len())?;
-                Some(HistogramBounds::from_slice_in(values, context))
+                Some(HistogramBounds::from_slice_with(values, context, work)?)
             } else {
                 None
             }
@@ -702,32 +734,32 @@ impl<'a> FloatHistogramRef<'a> {
         self.copy_to_with(&mut result, context, work)?;
         Ok(result)
     }
-    pub(crate) fn to_owned_result_in(self, context: &AllocationContext) -> FloatHistogram {
+    pub(crate) fn to_owned_result_with(
+        self,
+        context: &AllocationContext,
+        work: HistogramWork<'_>,
+    ) -> Result<FloatHistogram, Interrupted> {
         // Result ownership preserves evaluated fields, including ignored custom fields changed by arithmetic.
+        work.step(1)?;
         let context = Some(context);
-        FloatHistogram {
+        let result = FloatHistogram {
             reset_hint: self.reset_hint,
             schema: self.schema,
             zero_threshold: self.zero_threshold,
             zero_count: self.zero_count,
             count: self.count,
             sum: self.sum,
-            positive_spans: self
-                .positive_spans
-                .map(|values| AccountedVec::from_slice_in(values, context)),
-            negative_spans: self
-                .negative_spans
-                .map(|values| AccountedVec::from_slice_in(values, context)),
-            positive_buckets: self
-                .positive_buckets
-                .map(|values| AccountedVec::from_slice_in(values, context)),
-            negative_buckets: self
-                .negative_buckets
-                .map(|values| AccountedVec::from_slice_in(values, context)),
+            positive_spans: copy_optional_with(self.positive_spans, context, work)?,
+            negative_spans: copy_optional_with(self.negative_spans, context, work)?,
+            positive_buckets: copy_optional_with(self.positive_buckets, context, work)?,
+            negative_buckets: copy_optional_with(self.negative_buckets, context, work)?,
             custom_values: self
                 .custom_values
-                .map(|values| HistogramBounds::from_slice_in(values, context)),
-        }
+                .map(|values| HistogramBounds::from_slice_with(values, context, work))
+                .transpose()?,
+        };
+        work.step(1)?;
+        Ok(result)
     }
 }
 
@@ -922,8 +954,7 @@ impl IntegerHistogramRef<'_> {
         self.convert_fields_to_with(destination, context, work)?;
         destination.custom_values = if self.schema == CUSTOM_BUCKETS_SCHEMA {
             if let Some(values) = self.custom_values {
-                work.step(values.len())?;
-                Some(HistogramBounds::from_slice_in(values, context))
+                Some(HistogramBounds::from_slice_with(values, context, work)?)
             } else {
                 None
             }
@@ -956,6 +987,121 @@ impl IntegerHistogramRef<'_> {
 mod tests {
     use super::*;
     use crate::accounting::{EngineAccounting, MemoryKind};
+
+    #[cfg(target_arch = "x86_64")]
+    #[test]
+    fn scaling_nan_provenance_retains_each_histogram_field() {
+        // Original Go Mul/Div captures, including generated invalid arithmetic.
+        let cases = [
+            (
+                0x7ff8_0000_0000_0042,
+                0x7ff8_0000_0000_0001,
+                0x7ff8_0000_0000_0042,
+                0x7ff8_0000_0000_0042,
+            ),
+            (
+                0x7ff8_0000_0000_0001,
+                0x7ff8_0000_0000_0042,
+                0x7ff8_0000_0000_0001,
+                0x7ff8_0000_0000_0001,
+            ),
+            (
+                0x7ff0_0000_0000_0044,
+                0xfff0_0000_0000_0045,
+                0x7ff8_0000_0000_0044,
+                0x7ff8_0000_0000_0044,
+            ),
+            (
+                0xfff0_0000_0000_0045,
+                0x7ff8_0000_0000_0042,
+                0xfff8_0000_0000_0045,
+                0xfff8_0000_0000_0045,
+            ),
+            (
+                0x0000_0000_0000_0000,
+                0x7ff0_0000_0000_0000,
+                0xfff8_0000_0000_0000,
+                0x0000_0000_0000_0000,
+            ),
+            (
+                0x7ff0_0000_0000_0000,
+                0x0000_0000_0000_0000,
+                0xfff8_0000_0000_0000,
+                0x7ff0_0000_0000_0000,
+            ),
+            (
+                0x7ff0_0000_0000_0000,
+                0xfff0_0000_0000_0000,
+                0xfff0_0000_0000_0000,
+                0xfff8_0000_0000_0000,
+            ),
+            (
+                0x0000_0000_0000_0000,
+                0x8000_0000_0000_0000,
+                0x8000_0000_0000_0000,
+                0xfff8_0000_0000_0000,
+            ),
+        ];
+        for (input, scalar, product, quotient) in cases {
+            for divide in [false, true] {
+                let value = f64::from_bits(input);
+                let mut histogram = FloatHistogram {
+                    zero_count: value,
+                    count: value,
+                    sum: value,
+                    positive_spans: Some(
+                        vec![Span {
+                            offset: 0,
+                            length: 2,
+                        }]
+                        .into(),
+                    ),
+                    positive_buckets: Some(vec![value, value].into()),
+                    negative_spans: Some(
+                        vec![Span {
+                            offset: 0,
+                            length: 1,
+                        }]
+                        .into(),
+                    ),
+                    negative_buckets: Some(vec![value].into()),
+                    ..FloatHistogram::default()
+                };
+                let scalar = f64::from_bits(scalar);
+                if divide {
+                    histogram.div(scalar);
+                } else {
+                    histogram.mul(scalar);
+                }
+                let expected = if divide { quotient } else { product };
+                let fields = [histogram.zero_count, histogram.count, histogram.sum];
+                assert_eq!(
+                    fields.map(f64::to_bits),
+                    [expected; 3],
+                    "{input:x} {scalar:?} divide={divide}"
+                );
+                if divide && scalar == 0.0 {
+                    assert!(histogram.positive_spans.is_none());
+                    assert!(histogram.negative_spans.is_none());
+                    assert!(histogram.positive_buckets.is_none());
+                    assert!(histogram.negative_buckets.is_none());
+                } else {
+                    for bucket in histogram
+                        .positive_buckets
+                        .iter()
+                        .flatten()
+                        .chain(histogram.negative_buckets.iter().flatten())
+                    {
+                        assert_eq!(bucket.to_bits(), expected);
+                    }
+                }
+                assert_eq!(
+                    histogram.reset_hint,
+                    if scalar < 0.0 { GAUGE } else { UNKNOWN_RESET }
+                );
+            }
+        }
+    }
 
     #[test]
     fn bounds_move_retained_capacity_and_share_only_the_same_query_and_kind() {

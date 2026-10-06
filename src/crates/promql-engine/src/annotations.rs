@@ -172,6 +172,9 @@ pub struct Annotations {
     entries: Option<Strong<AccountedVec<Annotation>>>,
 }
 impl Annotations {
+    pub(crate) fn get(&self, index: usize) -> Option<AnnotationRef<'_>> {
+        self.entries.as_deref()?.get(index).map(Annotation::as_ref)
+    }
     pub fn iter(&self) -> impl Iterator<Item = AnnotationRef<'_>> {
         self.entries
             .as_deref()
@@ -247,13 +250,15 @@ impl AnnotationBuilder {
         &mut self,
         diagnostic: crate::storage::ProviderDiagnosticRef<'_>,
         query: &[u8],
-        control: &Control,
+        control: Option<&Control>,
         account: &QueryAccounting,
     ) -> Result<(), Interrupted> {
         let mut raw_message = AccountedVec::new(account, MemoryKind::Result);
         let mut message = AccountedVec::new(account, MemoryKind::Result);
         for bytes in diagnostic.message.chunks(1024) {
-            control.check()?;
+            if let Some(control) = control {
+                control.check()?;
+            }
             account.work(bytes.len() as u64);
             raw_message.extend_from_slice(bytes);
             message.extend_from_slice(bytes);
@@ -367,7 +372,7 @@ mod tests {
                     position: None,
                 },
                 query,
-                &control,
+                Some(&control),
                 &account,
             )
             .unwrap();

@@ -19,6 +19,7 @@ serde_json = { version = "=1.0.151", optional = true }
 
 [lib]
 path = "src/lib.rs"
+crate-type = ["rlib", "staticlib"]
 
 [[bin]]
 name = "promql-frontend-fixture"

@@ -12,6 +12,7 @@ mod aggregation;
 pub mod annotations;
 mod binary_labels;
 mod binary_value;
+pub mod c_abi;
 mod calendar;
 pub mod evaluator;
 mod evaluator_order;

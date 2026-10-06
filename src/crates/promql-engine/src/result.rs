@@ -8,6 +8,7 @@ use crate::{
     annotations::Annotations,
     frontend::ast::ValueType,
     histogram::FloatHistogram,
+    histogram_work::HistogramWork,
     storage::{Control, Interrupted, LabelRef, LabelsRef},
     value::{SampleRef, SampleValueRef},
 };
@@ -26,9 +27,15 @@ pub(crate) fn append_bytes_checked(
     account: &QueryAccounting,
     control: &Control,
 ) -> Result<(), Interrupted> {
+    append_bytes_with(target, bytes, HistogramWork::new(control, account))
+}
+fn append_bytes_with(
+    target: &mut AccountedVec<u8>,
+    bytes: &[u8],
+    work: HistogramWork<'_>,
+) -> Result<(), Interrupted> {
     for chunk in bytes.chunks(1024) {
-        control.check()?;
-        account.work(chunk.len() as u64);
+        work.step(chunk.len())?;
         target.extend_from_slice(chunk);
     }
     Ok(())
@@ -38,11 +45,37 @@ impl OwnedLabels {
         Self(AccountedVec::new(account, kind))
     }
     pub fn copy_from(labels: LabelsRef<'_>, account: &QueryAccounting, kind: MemoryKind) -> Self {
-        let mut owned = Self::new(account, kind);
+        Self::copy_labels_with(
+            labels.iter().copied(),
+            account,
+            kind,
+            HistogramWork::default(),
+        )
+        .expect("inert label copy")
+    }
+    fn copy_labels_with<'a>(
+        labels: impl IntoIterator<Item = LabelRef<'a>>,
+        account: &QueryAccounting,
+        kind: MemoryKind,
+        work: HistogramWork<'_>,
+    ) -> Result<Self, Interrupted> {
+        let mut result = Self::new(account, kind);
         for label in labels {
-            owned.push(label.name, label.value, account, kind);
+            work.step(1)?;
+            let mut name = AccountedVec::with_capacity_in(
+                label.name.len(),
+                Some(&AllocationContext::new(account, kind)),
+            );
+            let mut value = AccountedVec::with_capacity_in(
+                label.value.len(),
+                Some(&AllocationContext::new(account, kind)),
+            );
+            append_bytes_with(&mut name, label.name, work)?;
+            append_bytes_with(&mut value, label.value, work)?;
+            result.0.push(OwnedLabel { name, value });
         }
-        owned
+        work.step(1)?;
+        Ok(result)
     }
     pub fn push(&mut self, name: &[u8], value: &[u8], account: &QueryAccounting, kind: MemoryKind) {
         let mut owned_name = AccountedVec::new(account, kind);
@@ -60,17 +93,15 @@ impl OwnedLabels {
         kind: MemoryKind,
         control: &Control,
     ) -> Result<Self, Interrupted> {
-        let mut result = Self::new(account, kind);
-        for label in &*self.0 {
-            control.check()?;
-            account.work(1);
-            let mut name = AccountedVec::new(account, kind);
-            let mut value = AccountedVec::new(account, kind);
-            append_bytes_checked(&mut name, &label.name, account, control)?;
-            append_bytes_checked(&mut value, &label.value, account, control)?;
-            result.0.push(OwnedLabel { name, value });
-        }
-        Ok(result)
+        Self::copy_labels_with(
+            self.0.iter().map(|label| LabelRef {
+                name: &label.name,
+                value: &label.value,
+            }),
+            account,
+            kind,
+            HistogramWork::new(control, account),
+        )
     }
     fn position(
         &self,
@@ -158,6 +189,23 @@ impl OwnedLabels {
         }
         result
     }
+    pub(crate) fn views_checked<'a>(
+        &'a self,
+        account: &QueryAccounting,
+        control: &Control,
+    ) -> Result<AccountedVec<LabelRef<'a>>, Interrupted> {
+        let mut result = AccountedVec::new(account, MemoryKind::Workspace);
+        for label in &*self.0 {
+            control.check()?;
+            account.work(1);
+            result.push(LabelRef {
+                name: &label.name,
+                value: &label.value,
+            });
+        }
+        control.check()?;
+        Ok(result)
+    }
     pub fn same(&self, other: &Self) -> bool {
         self.0.len() == other.0.len()
             && self
@@ -177,6 +225,23 @@ impl OwnedLabels {
             }
         }
         self.0.len().cmp(&other.0.len())
+    }
+    pub(crate) fn compare_checked(
+        &self,
+        other: &Self,
+        account: &QueryAccounting,
+        control: &Control,
+    ) -> Result<std::cmp::Ordering, Interrupted> {
+        for (left, right) in self.0.iter().zip(other.0.iter()) {
+            for (left, right) in [(&left.name, &right.name), (&left.value, &right.value)] {
+                let order = crate::binary_labels::compare(left, right, control, account)?;
+                if !order.is_eq() {
+                    return Ok(order);
+                }
+            }
+        }
+        control.check()?;
+        Ok(self.0.len().cmp(&other.0.len()))
     }
     pub fn retain(&mut self, mut keep: impl FnMut(&[u8]) -> bool) {
         self.retain_labels(|label| keep(&label.name));
@@ -447,15 +512,19 @@ impl OwnedValue {
         };
         Ok(Self::Histogram(OwnedHistogram::new(value, context)))
     }
-    fn copy_result_from(value: SampleValueRef<'_>, account: &QueryAccounting) -> Self {
+    fn copy_result_with(
+        value: SampleValueRef<'_>,
+        account: &QueryAccounting,
+        work: HistogramWork<'_>,
+    ) -> Result<Self, Interrupted> {
         let SampleValueRef::FloatHistogram(histogram) = value else {
-            return Self::copy_from(value, account, MemoryKind::Result);
+            return Self::copy_from_with(value, account, MemoryKind::Result, work);
         };
         let context = AllocationContext::new(account, MemoryKind::Result);
-        Self::Histogram(OwnedHistogram::new(
-            histogram.to_owned_result_in(&context),
+        Ok(Self::Histogram(OwnedHistogram::new(
+            histogram.to_owned_result_with(&context, work)?,
             context,
-        ))
+        )))
     }
     pub fn as_ref(&self) -> SampleValueRef<'_> {
         match self {
@@ -497,6 +566,44 @@ pub trait OutputSink {
     fn chunk(&mut self, chunk: OutputChunk<'_>) -> Result<(), AccountedVec<u8>>;
     fn commit(&mut self, observations: &QueryObservations) -> Result<(), AccountedVec<u8>>;
     fn abort(&mut self);
+    fn begin_checked(
+        &mut self,
+        header: OutputHeader,
+        control: &Control,
+        _account: &QueryAccounting,
+    ) -> Result<(), OutputError> {
+        control.check()?;
+        self.begin(header).map_err(OutputError::Failure)
+    }
+    fn chunk_checked(
+        &mut self,
+        chunk: OutputChunk<'_>,
+        control: &Control,
+        _account: &QueryAccounting,
+    ) -> Result<(), OutputError> {
+        control.check()?;
+        self.chunk(chunk).map_err(OutputError::Failure)
+    }
+    fn commit_checked(
+        &mut self,
+        observations: &QueryObservations,
+        control: &Control,
+        _account: &QueryAccounting,
+    ) -> Result<(), OutputError> {
+        control.check()?;
+        self.commit(observations).map_err(OutputError::Failure)
+    }
+}
+
+#[derive(Debug)]
+pub enum OutputError {
+    Failure(AccountedVec<u8>),
+    Interrupted(Interrupted),
+}
+impl From<Interrupted> for OutputError {
+    fn from(error: Interrupted) -> Self {
+        Self::Interrupted(error)
+    }
 }
 
 #[derive(Debug)]
@@ -539,9 +646,7 @@ impl Collector {
             None
         }
     }
-}
-impl OutputSink for Collector {
-    fn begin(&mut self, header: OutputHeader) -> Result<(), AccountedVec<u8>> {
+    fn begin_output(&mut self, header: OutputHeader) {
         self.committed = false;
         self.result = Some(CollectedResult {
             header,
@@ -550,16 +655,27 @@ impl OutputSink for Collector {
             series: AccountedVec::new(&self.account, MemoryKind::Result),
             annotations: Annotations::default(),
         });
-        Ok(())
     }
-    fn chunk(&mut self, chunk: OutputChunk<'_>) -> Result<(), AccountedVec<u8>> {
+    fn chunk_with(
+        &mut self,
+        chunk: OutputChunk<'_>,
+        control: Option<&Control>,
+        account: &QueryAccounting,
+    ) -> Result<(), Interrupted> {
+        let work = control.map_or_else(HistogramWork::default, |control| {
+            HistogramWork::new(control, account)
+        });
+        work.step(1)?;
         let result = self.result.as_mut().expect("output begins before chunks");
         match chunk {
             OutputChunk::Annotations(annotations) => result.annotations = annotations.clone(),
             OutputChunk::Scalar { time_ms, value } => result.scalar = Some((time_ms, value)),
             OutputChunk::String { time_ms, value } => {
-                let mut bytes = AccountedVec::new(&self.account, MemoryKind::Result);
-                bytes.extend_from_slice(value);
+                let mut bytes = AccountedVec::with_capacity_in(
+                    value.len(),
+                    Some(&AllocationContext::new(&self.account, MemoryKind::Result)),
+                );
+                append_bytes_with(&mut bytes, value, work)?;
                 result.string = Some((time_ms, bytes));
             }
             OutputChunk::Series {
@@ -567,39 +683,116 @@ impl OutputSink for Collector {
                 labels,
                 points,
             } => {
-                let found = result
-                    .series
-                    .iter()
-                    .position(|series| series.series_id == series_id);
-                let index = found.unwrap_or_else(|| {
+                let mut found = None;
+                for (index, series) in result.series.iter().enumerate() {
+                    work.step(1)?;
+                    if series.series_id == series_id {
+                        found = Some(index);
+                        break;
+                    }
+                }
+                let index = if let Some(index) = found {
+                    index
+                } else {
                     let index = result.series.len();
                     result.series.push(ResultSeries {
                         series_id,
-                        labels: OwnedLabels::copy_from(labels, &self.account, MemoryKind::Result),
+                        labels: OwnedLabels::copy_labels_with(
+                            labels.iter().copied(),
+                            &self.account,
+                            MemoryKind::Result,
+                            work,
+                        )?,
                         points: AccountedVec::new(&self.account, MemoryKind::Result),
                     });
                     index
-                });
+                };
                 for point in points {
+                    work.step(1)?;
                     result.series[index].points.push(OutputPoint {
                         time_ms: point.time_ms,
-                        value: OwnedValue::copy_result_from(point.value, &self.account),
+                        value: OwnedValue::copy_result_with(point.value, &self.account, work)?,
                     });
                 }
             }
         }
+        if let Some(control) = control {
+            control.check()?;
+        }
         Ok(())
     }
-    fn commit(&mut self, _: &QueryObservations) -> Result<(), AccountedVec<u8>> {
+    fn commit_with(
+        &mut self,
+        control: Option<&Control>,
+        account: &QueryAccounting,
+    ) -> Result<(), Interrupted> {
         if let Some(result) = self.result.as_mut()
             && result.header.value_type == ValueType::Matrix
         {
-            result
-                .series
-                .sort_unstable_by(|left, right| left.labels.compare(&right.labels));
+            if let Some(control) = control {
+                crate::evaluator_order::sort_by_with(
+                    &mut result.series,
+                    Some(control),
+                    Some(account),
+                    |left, right| left.labels.compare_checked(&right.labels, account, control),
+                )?;
+            } else {
+                result
+                    .series
+                    .sort_unstable_by(|left, right| left.labels.compare(&right.labels));
+            }
+        }
+        if let Some(control) = control {
+            control.check()?;
         }
         self.committed = true;
         Ok(())
+    }
+}
+impl OutputSink for Collector {
+    fn begin(&mut self, header: OutputHeader) -> Result<(), AccountedVec<u8>> {
+        self.begin_output(header);
+        Ok(())
+    }
+    fn chunk(&mut self, chunk: OutputChunk<'_>) -> Result<(), AccountedVec<u8>> {
+        let account = self.account.clone();
+        self.chunk_with(chunk, None, &account)
+            .expect("inert output copy");
+        Ok(())
+    }
+    fn commit(&mut self, _: &QueryObservations) -> Result<(), AccountedVec<u8>> {
+        let account = self.account.clone();
+        self.commit_with(None, &account)
+            .expect("inert output ordering");
+        Ok(())
+    }
+    fn begin_checked(
+        &mut self,
+        header: OutputHeader,
+        control: &Control,
+        _account: &QueryAccounting,
+    ) -> Result<(), OutputError> {
+        control.check()?;
+        self.begin_output(header);
+        Ok(())
+    }
+    fn chunk_checked(
+        &mut self,
+        chunk: OutputChunk<'_>,
+        control: &Control,
+        account: &QueryAccounting,
+    ) -> Result<(), OutputError> {
+        self.chunk_with(chunk, Some(control), account)
+            .map_err(OutputError::from)
+    }
+    fn commit_checked(
+        &mut self,
+        _: &QueryObservations,
+        control: &Control,
+        account: &QueryAccounting,
+    ) -> Result<(), OutputError> {
+        self.commit_with(Some(control), account)
+            .map_err(OutputError::from)
     }
     fn abort(&mut self) {
         self.committed = false;
@@ -648,6 +841,215 @@ mod tests {
 
     fn bounds_wrapper_bytes() -> u64 {
         size_of::<crate::shared::Allocation<AccountedVec<f64>>>() as u64
+    }
+
+    #[test]
+    fn checked_collector_interrupts_copy_lookup_and_final_comparison_work() {
+        use crate::test_storage::interrupt_during;
+        for operation in [
+            "string",
+            "name",
+            "value",
+            "points",
+            "buckets",
+            "bounds",
+            "lookup",
+            "comparison",
+        ] {
+            let engine = EngineAccounting::default();
+            let account = engine.query();
+            let control = Control::default();
+            let mut collector = Collector::new(&account);
+            collector
+                .begin(OutputHeader {
+                    value_type: if operation == "comparison" {
+                        ValueType::Matrix
+                    } else {
+                        ValueType::Vector
+                    },
+                    start_ms: 0,
+                    end_ms: 0,
+                    step_ms: 0,
+                })
+                .unwrap();
+            let bytes = vec![b'a'; 32_768];
+            let buckets = vec![1.0; 16_384];
+            let points = vec![
+                SampleRef {
+                    time_ms: 0,
+                    start_time_ms: 0,
+                    value: SampleValueRef::Float(1.0)
+                };
+                9000
+            ];
+            let histogram = FloatHistogram {
+                schema: if operation == "bounds" {
+                    CUSTOM_BUCKETS_SCHEMA
+                } else {
+                    0
+                },
+                positive_buckets: (operation == "buckets").then(|| buckets.clone().into()),
+                custom_values: (operation == "bounds").then(|| buckets.clone().into()),
+                ..FloatHistogram::default()
+            };
+            if operation == "lookup" {
+                let result = collector.result.as_mut().unwrap();
+                for series_id in 0..9000 {
+                    result.series.push(ResultSeries {
+                        series_id,
+                        labels: OwnedLabels::new(&account, MemoryKind::Result),
+                        points: AccountedVec::new(&account, MemoryKind::Result),
+                    });
+                }
+            } else if operation == "comparison" {
+                for (series_id, value) in [b"a".as_slice(), b"b"].into_iter().enumerate() {
+                    collector
+                        .chunk(OutputChunk::Series {
+                            series_id,
+                            labels: &[LabelRef {
+                                name: &bytes,
+                                value,
+                            }],
+                            points: &[],
+                        })
+                        .unwrap();
+                }
+            }
+            let labels = [LabelRef {
+                name: if operation == "name" {
+                    &bytes
+                } else {
+                    b"label"
+                },
+                value: if operation == "value" {
+                    &bytes
+                } else {
+                    b"value"
+                },
+            }];
+            let histogram_point = [SampleRef {
+                time_ms: 0,
+                start_time_ms: 0,
+                value: SampleValueRef::FloatHistogram(histogram.as_ref()),
+            }];
+            let outcome = interrupt_during(&account, &control, || {
+                if operation == "comparison" {
+                    collector.commit_checked(&account.snapshot(), &control, &account)
+                } else {
+                    let chunk = if operation == "string" {
+                        OutputChunk::String {
+                            time_ms: 0,
+                            value: &bytes,
+                        }
+                    } else {
+                        OutputChunk::Series {
+                            series_id: if operation == "lookup" { 9000 } else { 0 },
+                            labels: &labels,
+                            points: if operation == "points" {
+                                &points
+                            } else if operation == "buckets" || operation == "bounds" {
+                                &histogram_point
+                            } else {
+                                &[]
+                            },
+                        }
+                    };
+                    collector.chunk_checked(chunk, &control, &account)
+                }
+            });
+            assert!(
+                matches!(
+                    outcome,
+                    Err(OutputError::Interrupted(Interrupted::Cancelled))
+                ),
+                "{operation}: {outcome:?}"
+            );
+            assert!(collector.take().is_none());
+            assert!(account.snapshot().work >= 8192, "{operation}");
+            collector.abort();
+            drop(collector);
+            account.snapshot().assert_memory_released();
+            drop(account);
+            engine.snapshot().assert_memory_released();
+        }
+    }
+
+    #[test]
+    fn checked_native_result_copy_preserves_bits_and_present_empty_fields() {
+        for schema in [0, CUSTOM_BUCKETS_SCHEMA] {
+            let engine = EngineAccounting::default();
+            let account = engine.query();
+            let control = Control::default();
+            let source = FloatHistogram {
+                reset_hint: crate::histogram::GAUGE,
+                schema,
+                zero_threshold: -0.0,
+                zero_count: f64::from_bits(0x7ff8_0000_0000_0123),
+                count: f64::NEG_INFINITY,
+                sum: f64::from_bits(0xfff8_0000_0000_0456),
+                positive_spans: Some(Vec::new().into()),
+                negative_spans: None,
+                positive_buckets: None,
+                negative_buckets: Some(Vec::new().into()),
+                custom_values: Some(Vec::new().into()),
+            };
+            let mut collector = Collector::new(&account);
+            collector
+                .begin_checked(
+                    OutputHeader {
+                        value_type: ValueType::Vector,
+                        start_ms: 0,
+                        end_ms: 0,
+                        step_ms: 0,
+                    },
+                    &control,
+                    &account,
+                )
+                .unwrap();
+            collector
+                .chunk_checked(
+                    OutputChunk::Series {
+                        series_id: 17,
+                        labels: &[],
+                        points: &[SampleRef {
+                            time_ms: 0,
+                            start_time_ms: 0,
+                            value: SampleValueRef::FloatHistogram(source.as_ref()),
+                        }],
+                    },
+                    &control,
+                    &account,
+                )
+                .unwrap();
+            collector
+                .commit_checked(&account.snapshot(), &control, &account)
+                .unwrap();
+            let result = collector.take().unwrap();
+            drop((source, collector));
+            let SampleValueRef::FloatHistogram(value) = result.series[0].points[0].value.as_ref()
+            else {
+                panic!("native result");
+            };
+            assert_eq!(result.series[0].series_id, 17);
+            assert_eq!(
+                (value.reset_hint, value.schema),
+                (crate::histogram::GAUGE, schema)
+            );
+            assert_eq!(value.zero_threshold.to_bits(), (-0.0f64).to_bits());
+            assert_eq!(value.zero_count.to_bits(), 0x7ff8_0000_0000_0123);
+            assert_eq!(value.count.to_bits(), f64::NEG_INFINITY.to_bits());
+            assert_eq!(value.sum.to_bits(), 0xfff8_0000_0000_0456);
+            assert_eq!(value.positive_spans, Some(&[][..]));
+            assert_eq!(value.negative_spans, None);
+            assert_eq!(value.positive_buckets, None);
+            assert_eq!(value.negative_buckets, Some(&[][..]));
+            assert_eq!(value.custom_values, Some(&[][..]));
+            assert!(!control.cancellation.cancelled());
+            drop(result);
+            account.snapshot().assert_memory_released();
+            drop(account);
+            engine.snapshot().assert_memory_released();
+        }
     }
 
     #[test]

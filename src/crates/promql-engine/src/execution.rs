@@ -21,7 +21,7 @@ use crate::{
     query_catalog::Catalog,
     query_preparation::Prepared,
     range_reduce::RangeFunction,
-    result::{CollectedResult, Collector, OutputChunk, OutputHeader, OutputSink},
+    result::{CollectedResult, Collector, OutputChunk, OutputError, OutputHeader, OutputSink},
     storage::{
         Control, Interrupted, Provider, QueryProvider, Series, StorageError, TimeBounds,
         matches_checked, scan_with,
@@ -71,6 +71,12 @@ pub enum ExecutionError {
     Internal,
 }
 impl ExecutionError {
+    fn output(error: OutputError, account: &QueryAccounting) -> Self {
+        match error {
+            OutputError::Failure(bytes) => Self::sink(bytes, account),
+            OutputError::Interrupted(error) => error.into(),
+        }
+    }
     fn sink(mut bytes: AccountedVec<u8>, account: &QueryAccounting) -> Self {
         bytes.account_if_unobserved(&AllocationContext::new(account, MemoryKind::Workspace));
         Self::Sink(bytes)
@@ -166,6 +172,7 @@ impl Engine {
         control: &Control,
         account: &QueryAccounting,
     ) -> Result<CompiledQuery, CompileError> {
+        let _compilation = account.compilation();
         catch_unwind(AssertUnwindSafe(|| {
             let _control_observation = control.observe(account);
             control.check().map_err(CompileError::Interrupted)?;
@@ -227,6 +234,12 @@ impl Engine {
 }
 
 impl CompiledQuery {
+    pub(crate) fn compilation_accounting(&self) -> &QueryAccounting {
+        &self.accounting
+    }
+    pub(crate) fn engine_accounting(&self) -> &EngineAccounting {
+        &self.engine
+    }
     pub(crate) fn execution_accounting(&self) -> QueryAccounting {
         self.engine.query()
     }
@@ -455,8 +468,8 @@ impl CompiledQuery {
                 control,
                 account,
             )?;
-            sink.begin(prepared.header)
-                .map_err(|bytes| ExecutionError::sink(bytes, account))?;
+            sink.begin_checked(prepared.header, control, account)
+                .map_err(|error| ExecutionError::output(error, account))?;
             {
                 account.provider_call();
                 let query = provider
@@ -487,13 +500,13 @@ impl CompiledQuery {
             }
             control.check().map_err(EvaluationError::from)?;
             if !annotations.is_empty() {
-                sink.chunk(OutputChunk::Annotations(annotations))
-                    .map_err(|bytes| ExecutionError::sink(bytes, account))?;
+                sink.chunk_checked(OutputChunk::Annotations(annotations), control, account)
+                    .map_err(|error| ExecutionError::output(error, account))?;
             }
             let mut observations = account.snapshot();
             observations.elapsed = observations.elapsed.saturating_add(observation.elapsed());
-            sink.commit(&observations)
-                .map_err(|bytes| ExecutionError::sink(bytes, account))?;
+            sink.commit_checked(&observations, control, account)
+                .map_err(|error| ExecutionError::output(error, account))?;
             Ok(())
         }))
         .unwrap_or(Err(ExecutionError::Internal));
@@ -557,11 +570,15 @@ impl CompiledQuery {
             root = child;
         }
         if let Expr::String(value) = &self.expression.arena[root].expression {
-            sink.chunk(OutputChunk::String {
-                time_ms: header.start_ms,
-                value,
-            })
-            .map_err(|bytes| ExecutionError::sink(bytes, account))?;
+            sink.chunk_checked(
+                OutputChunk::String {
+                    time_ms: header.start_ms,
+                    value,
+                },
+                control,
+                account,
+            )
+            .map_err(|error| ExecutionError::output(error, account))?;
             account.output(1);
             return Ok(());
         }
@@ -616,16 +633,20 @@ impl CompiledQuery {
                     }
                 }
                 if let Some(value) = selected {
-                    sink.chunk(OutputChunk::Series {
-                        series_id,
-                        labels: &descriptor.labels.views(account),
-                        points: &[SampleRef {
-                            time_ms: header.start_ms,
-                            start_time_ms: 0,
-                            value: value.as_ref(),
-                        }],
-                    })
-                    .map_err(|bytes| ExecutionError::sink(bytes, account))?;
+                    sink.chunk_checked(
+                        OutputChunk::Series {
+                            series_id,
+                            labels: &descriptor.labels.views_checked(account, control)?,
+                            points: &[SampleRef {
+                                time_ms: header.start_ms,
+                                start_time_ms: 0,
+                                value: value.as_ref(),
+                            }],
+                        },
+                        control,
+                        account,
+                    )
+                    .map_err(|error| ExecutionError::output(error, account))?;
                     account.output(1);
                 }
             }
@@ -672,7 +693,11 @@ impl CompiledQuery {
             while let Some(mut sample) = machine.next()? {
                 control.check().map_err(EvaluationError::from)?;
                 if sample.drop_name && self.options.delayed_name_removal {
-                    sample.labels.retain(|name| !metadata(name));
+                    sample.labels.retain_labels_with(|label| {
+                        control.check()?;
+                        account.work(1);
+                        Ok::<_, Interrupted>(!metadata(&label.name))
+                    })?;
                 }
                 if self.options.delayed_name_removal {
                     remember_unique_kind(
@@ -683,11 +708,20 @@ impl CompiledQuery {
                         control,
                     )?;
                 }
-                let labels = sample.labels.views(account);
+                let labels = sample.labels.views_checked(account, control)?;
                 let series_id = if merge_root {
                     let hash = crate::label_hash::full(&sample.labels, control, account)?;
-                    if let Some((_, id)) = identities.iter().find(|(key, _)| *key == hash) {
-                        *id
+                    let mut found = None;
+                    for (key, id) in &*identities {
+                        control.check()?;
+                        account.work(1);
+                        if *key == hash {
+                            found = Some(*id);
+                            break;
+                        }
+                    }
+                    if let Some(id) = found {
+                        id
                     } else {
                         let id = identities.len();
                         identities.push((hash, id));
@@ -705,15 +739,19 @@ impl CompiledQuery {
                     let crate::result::OwnedValue::Float(value) = sample.value else {
                         unreachable!("scalar output")
                     };
-                    sink.chunk(OutputChunk::Scalar { time_ms, value })
-                        .map_err(|bytes| ExecutionError::sink(bytes, account))?;
+                    sink.chunk_checked(OutputChunk::Scalar { time_ms, value }, control, account)
+                        .map_err(|error| ExecutionError::output(error, account))?;
                 } else {
-                    sink.chunk(OutputChunk::Series {
-                        series_id,
-                        labels: &labels,
-                        points: &[point],
-                    })
-                    .map_err(|bytes| ExecutionError::sink(bytes, account))?;
+                    sink.chunk_checked(
+                        OutputChunk::Series {
+                            series_id,
+                            labels: &labels,
+                            points: &[point],
+                        },
+                        control,
+                        account,
+                    )
+                    .map_err(|error| ExecutionError::output(error, account))?;
                 }
                 account.output(1);
             }
@@ -755,11 +793,9 @@ impl CompiledQuery {
         for source in root_descriptors {
             control.check()?;
             account.work(1);
-            let mut labels = crate::result::OwnedLabels::copy_from(
-                &source.labels.views(account),
-                account,
-                MemoryKind::Workspace,
-            );
+            let mut labels = source
+                .labels
+                .copy_checked(account, MemoryKind::Workspace, control)?;
             if source.drop_name && self.options.delayed_name_removal {
                 labels.retain(|name| !metadata(name));
             }
@@ -1385,7 +1421,7 @@ impl CompiledQuery {
                     series_id,
                     |series| -> Result<(), ExecutionError> {
                         control.check()?;
-                        let labels = series.label_views(account);
+                        let labels = series.label_views_checked(account, control)?;
                         if !matches_checked(&labels, &selector.matchers, Some(account), control)? {
                             return Ok(());
                         }
@@ -1398,22 +1434,27 @@ impl CompiledQuery {
                                 if sample.value.is_stale() {
                                     return Ok(());
                                 }
-                                let value = crate::result::OwnedValue::copy_from(
+                                let value = crate::result::OwnedValue::copy_from_checked(
                                     sample.value,
+                                    control,
                                     account,
                                     MemoryKind::Workspace,
-                                );
+                                )?;
                                 let point = SampleRef {
                                     time_ms: sample.time_ms,
                                     start_time_ms: 0,
                                     value: value.as_ref(),
                                 };
-                                sink.chunk(OutputChunk::Series {
-                                    series_id,
-                                    labels: &labels,
-                                    points: &[point],
-                                })
-                                .map_err(|bytes| ExecutionError::sink(bytes, account))?;
+                                sink.chunk_checked(
+                                    OutputChunk::Series {
+                                        series_id,
+                                        labels: &labels,
+                                        points: &[point],
+                                    },
+                                    control,
+                                    account,
+                                )
+                                .map_err(|error| ExecutionError::output(error, account))?;
                                 account.output(1);
                                 Ok(())
                             },
@@ -1458,6 +1499,106 @@ mod tests {
     use super::*;
     use crate::{result::OwnedValue, test_storage::FixtureProvider};
     use std::sync::atomic::Ordering;
+
+    #[cfg(target_arch = "x86_64")]
+    #[test]
+    fn averaged_nan_payload_preserves_composed_histogram_comparison() {
+        use crate::{
+            histogram::FloatHistogram,
+            value::{Sample, SampleValue},
+        };
+        fn nan<const BITS: u64>(_: usize) -> Sample {
+            Sample {
+                time_ms: 900,
+                start_time_ms: 0,
+                value: SampleValue::Float(f64::from_bits(BITS)),
+            }
+        }
+        fn histogram(_: usize) -> Sample {
+            Sample {
+                time_ms: 900,
+                start_time_ms: 0,
+                value: SampleValue::FloatHistogram(FloatHistogram {
+                    reset_hint: 3,
+                    zero_threshold: 1.0,
+                    zero_count: 1.0,
+                    count: 1.0,
+                    sum: 1.0,
+                    ..FloatHistogram::default()
+                }),
+            }
+        }
+        // Pinned Go's complete responses: NaN storage bits affect histogram equality.
+        let cases = [
+            (b"avg(m)".as_slice(), 0x7ff8_0000_0000_0001),
+            (
+                b"(h * scalar(avg(m))) == bool (h * scalar(m{id=\"0\"}))",
+                1.0f64.to_bits(),
+            ),
+            (
+                b"(h * scalar(avg(m))) != bool (h * scalar(m{id=\"0\"}))",
+                0.0f64.to_bits(),
+            ),
+        ];
+        for page in [1, 17, 1024] {
+            for delayed in [false, true] {
+                let engine = Engine::default();
+                let control = Control::default();
+                let mut provider = FixtureProvider::new(1, page, 3);
+                for (index, series) in provider.series[..2].iter_mut().enumerate() {
+                    series.labels = vec![
+                        (b"__name__".to_vec(), b"m".to_vec()),
+                        (b"id".to_vec(), index.to_string().into_bytes()),
+                    ];
+                }
+                provider.series[0].source.sample = nan::<0x7ff8_0000_0000_0001>;
+                provider.series[1].source.sample = nan::<0x7ff8_0000_0000_0002>;
+                provider.series[2].labels = vec![(b"__name__".to_vec(), b"h".to_vec())];
+                provider.series[2].source.sample = histogram;
+                for request in [
+                    QueryRequest::Instant { time_ms: 2000 },
+                    QueryRequest::Range {
+                        start_ms: 2000,
+                        end_ms: 2000,
+                        step_ms: 1000,
+                    },
+                    QueryRequest::Range {
+                        start_ms: 1000,
+                        end_ms: 2000,
+                        step_ms: 1000,
+                    },
+                ] {
+                    for (source, expected) in cases {
+                        let query = engine.compile(source, options(delayed), &control).unwrap();
+                        let (result, observations) =
+                            query.collect(&provider, request, &control).unwrap();
+                        assert_eq!(result.series.len(), 1, "{source:?}");
+                        let series = &result.series[0];
+                        assert!(series.labels.0.is_empty());
+                        assert_eq!(
+                            series.points.len(),
+                            if matches!(request, QueryRequest::Range { start_ms: 1000, .. }) {
+                                2
+                            } else {
+                                1
+                            }
+                        );
+                        for point in &*series.points {
+                            assert_eq!(float_bits(point), expected, "{source:?}");
+                        }
+                        assert!(result.annotations.is_empty());
+                        assert_eq!(
+                            observations.memory[MemoryKind::Workspace as usize].current,
+                            0
+                        );
+                        provider.assert_closed();
+                        drop((result, query));
+                        engine.accounting.snapshot().assert_memory_released();
+                    }
+                }
+            }
+        }
+    }
 
     #[test]
     fn accounted_compilation_retains_the_supplied_owner_on_success_and_parse_failure() {
@@ -1639,6 +1780,86 @@ mod tests {
             drop(error);
             account.snapshot().assert_memory_released();
             drop(account);
+            engine.accounting.snapshot().assert_memory_released();
+        }
+    }
+
+    #[test]
+    fn checked_output_preserves_returned_error_and_successful_commit_precedence() {
+        struct Sink<'a> {
+            control: &'a Control,
+            phase: usize,
+            fail: bool,
+            calls: [usize; 4],
+        }
+        impl Sink<'_> {
+            fn callback(&mut self, phase: usize) -> Result<(), AccountedVec<u8>> {
+                self.calls[phase] += 1;
+                if phase == self.phase {
+                    self.control.cancellation.cancel();
+                    if self.fail {
+                        return Err(b"output\0\xfffailure".to_vec().into());
+                    }
+                }
+                Ok(())
+            }
+        }
+        impl OutputSink for Sink<'_> {
+            fn begin(&mut self, _: OutputHeader) -> Result<(), AccountedVec<u8>> {
+                self.callback(0)
+            }
+            fn chunk(&mut self, _: OutputChunk<'_>) -> Result<(), AccountedVec<u8>> {
+                self.callback(1)
+            }
+            fn commit(&mut self, _: &QueryObservations) -> Result<(), AccountedVec<u8>> {
+                self.callback(2)
+            }
+            fn abort(&mut self) {
+                self.calls[3] += 1;
+            }
+        }
+        for (phase, fail) in [(0, true), (1, true), (2, true), (2, false)] {
+            let engine = Engine::default();
+            let control = Control::default();
+            let query = engine
+                .compile(b"1", EngineOptions::default(), &control)
+                .unwrap();
+            let provider = FixtureProvider::new(1, 1, 1);
+            let mut sink = Sink {
+                control: &control,
+                phase,
+                fail,
+                calls: [0; 4],
+            };
+            let report = query.execute_reported(
+                &provider,
+                QueryRequest::Instant { time_ms: 0 },
+                &control,
+                &mut sink,
+            );
+            assert!(control.cancellation.cancelled());
+            if fail {
+                let Err(ExecutionError::Sink(bytes)) = &report.result else {
+                    panic!("callback error precedes cancellation");
+                };
+                assert_eq!(&**bytes, b"output\0\xfffailure");
+            } else {
+                assert!(report.result.is_ok(), "successful commit is final");
+            }
+            assert_eq!(
+                sink.calls,
+                [
+                    1,
+                    usize::from(phase >= 1),
+                    usize::from(phase >= 2),
+                    usize::from(fail)
+                ]
+            );
+            report.assert_retained_callback_error_memory();
+            provider.assert_closed();
+            assert_eq!(engine.accounting.snapshot().active_executions, 0);
+            assert_eq!(engine.accounting.snapshot().completed_executions, 1);
+            drop((report, query, sink));
             engine.accounting.snapshot().assert_memory_released();
         }
     }

@@ -8,7 +8,7 @@ use crate::{
     frontend::token as tokens,
     histogram::HistogramError,
     histogram_accumulator::{Finalization, NativeAccumulator},
-    numerical::{compensated_add, sqrt},
+    numerical::{compensated_add, source_add, sqrt},
     result::{OwnedLabels, OwnedValue},
     storage::{Control, Interrupted},
 };
@@ -214,9 +214,9 @@ impl<'a> Group<'a> {
             )
         } else {
             let value = match operator {
-                SUM => self.value + self.compensation,
-                AVG if self.incremental_mean => self.mean + self.compensation,
-                AVG => self.value / self.count + self.compensation / self.count,
+                SUM => source_add(self.value, self.compensation),
+                AVG if self.incremental_mean => source_add(self.mean, self.compensation),
+                AVG => source_add(self.value / self.count, self.compensation / self.count),
                 COUNT => self.count,
                 GROUP => 1.0,
                 STDVAR => self.value / self.count,
