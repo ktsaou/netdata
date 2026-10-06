@@ -417,13 +417,7 @@ mod tests {
                 )
                 .unwrap();
                 assert_eq!(hints, [expected]);
-                assert!(
-                    account
-                        .snapshot()
-                        .memory
-                        .iter()
-                        .all(|memory| memory.current == 0)
-                );
+                account.snapshot().assert_memory_released();
                 assert_eq!(
                     source
                         .counters
@@ -490,12 +484,6 @@ mod tests {
         )
         .unwrap();
         assert_eq!(hints, [COUNTER_RESET]);
-        assert!(
-            account
-                .snapshot()
-                .memory
-                .iter()
-                .all(|memory| memory.current == 0)
-        );
+        account.snapshot().assert_memory_released();
     }
 }

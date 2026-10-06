@@ -1159,7 +1159,7 @@ mod tests {
             observed.memory[MemoryKind::Workspace as usize].peak
                 >= (63 * size_of::<Resume>()) as u64
         );
-        assert!(observed.memory.iter().all(|memory| memory.current == 0));
+        observed.assert_memory_released();
         assert_eq!(compiled.snapshot(), retained);
         drop(plans);
 
@@ -1177,20 +1177,8 @@ mod tests {
         assert!(plans.matches(root, "\u{fb03}X17".as_bytes(), Some(&scratch)));
         assert!(!plans.matches(root, "\u{fb03}Xmissing".as_bytes(), Some(&scratch)));
         assert_eq!(compiled.snapshot(), retained);
-        assert!(
-            search
-                .snapshot()
-                .memory
-                .iter()
-                .all(|memory| memory.current == 0)
-        );
+        search.snapshot().assert_memory_released();
         drop(plans);
-        assert!(
-            engine
-                .snapshot()
-                .memory
-                .iter()
-                .all(|memory| memory.current == 0)
-        );
+        engine.snapshot().assert_memory_released_with_queries(2);
     }
 }

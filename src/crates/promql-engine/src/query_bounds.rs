@@ -342,13 +342,7 @@ mod tests {
             assert_eq!((bounds.start_ms, bounds.end_ms), expected, "{query}");
             drop(prepared);
             drop(preprocessing);
-            assert!(
-                account
-                    .snapshot()
-                    .memory
-                    .iter()
-                    .all(|memory| memory.current == 0)
-            );
+            account.snapshot().assert_memory_released();
         }
     }
 
@@ -428,13 +422,7 @@ mod tests {
             );
             drop(prepared);
             drop(preprocessing);
-            assert!(
-                account
-                    .snapshot()
-                    .memory
-                    .iter()
-                    .all(|memory| memory.current == 0)
-            );
+            account.snapshot().assert_memory_released();
         }
     }
 }

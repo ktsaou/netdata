@@ -393,13 +393,7 @@ mod tests {
                 .ends_with(b" (2 occurrences) (1:5)")
         );
         drop(builder);
-        assert!(
-            account
-                .snapshot()
-                .memory
-                .iter()
-                .all(|kind| kind.current == 0)
-        );
+        account.snapshot().assert_memory_released();
     }
     #[test]
     fn histogram_operation_notes_deduplicate_without_the_metric_name() {
@@ -440,13 +434,7 @@ mod tests {
         assert!(notes[2].message.ends_with(b"metric name \"a\" (1:1)"));
         assert!(notes[3].message.ends_with(b"metric name \"b\" (1:3)"));
         drop(result);
-        assert!(
-            account
-                .snapshot()
-                .memory
-                .iter()
-                .all(|memory| memory.current == 0)
-        );
+        account.snapshot().assert_memory_released();
     }
     #[test]
     fn raw_dedup_keeps_last_generic_position_and_first_overlap_position() {

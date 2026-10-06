@@ -325,13 +325,7 @@ mod tests {
         }
         drop(values);
         drop(group);
-        assert!(
-            account
-                .snapshot()
-                .memory
-                .iter()
-                .all(|memory| memory.current == 0)
-        );
+        account.snapshot().assert_memory_released();
     }
 
     #[test]
@@ -356,12 +350,6 @@ mod tests {
             assert_eq!(sample.unwrap().drop_name, whole_flag);
             assert!(note.is_none());
         }
-        assert!(
-            account
-                .snapshot()
-                .memory
-                .iter()
-                .all(|memory| memory.current == 0)
-        );
+        account.snapshot().assert_memory_released();
     }
 }

@@ -301,15 +301,9 @@ mod tests {
                         source.counters.opened.load(Ordering::Relaxed),
                         source.counters.closed.load(Ordering::Relaxed)
                     );
-                    assert!(snapshot.memory.iter().all(|kind| kind.current == 0));
+                    snapshot.assert_memory_released();
                     drop(account);
-                    assert!(
-                        engine
-                            .snapshot()
-                            .memory
-                            .iter()
-                            .all(|kind| kind.current == 0)
-                    );
+                    engine.snapshot().assert_memory_released();
                 }
             }
         }
@@ -401,13 +395,7 @@ mod tests {
                 assert_eq!(result.value, None);
                 assert_eq!(result.annotation, None);
             }
-            assert!(
-                account
-                    .snapshot()
-                    .memory
-                    .iter()
-                    .all(|kind| kind.current == 0)
-            );
+            account.snapshot().assert_memory_released();
             // The scanner's address-region table is retained; histogram payloads are borrowed.
             assert_eq!(
                 account.snapshot().memory[MemoryKind::Workspace as usize].peak,
@@ -502,21 +490,9 @@ mod tests {
                     Interrupted::Cancelled
                 )))
             ));
-            assert!(
-                account
-                    .snapshot()
-                    .memory
-                    .iter()
-                    .all(|kind| kind.current == 0)
-            );
+            account.snapshot().assert_memory_released();
             drop(account);
-            assert!(
-                engine
-                    .snapshot()
-                    .memory
-                    .iter()
-                    .all(|kind| kind.current == 0)
-            );
+            engine.snapshot().assert_memory_released();
         }
     }
 }

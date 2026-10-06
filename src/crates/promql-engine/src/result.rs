@@ -683,7 +683,7 @@ mod tests {
         assert_eq!(value.custom_values, Some(&[1.0][..]));
         assert!(engine.snapshot().memory[2].current > 0);
         drop(result);
-        assert!(engine.snapshot().memory.iter().all(|m| m.current == 0));
+        engine.snapshot().assert_memory_released();
     }
 
     #[test]

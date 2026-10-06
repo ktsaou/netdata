@@ -440,13 +440,7 @@ mod tests {
             before.memory[5].current
         );
         drop(shared);
-        assert!(
-            engine
-                .snapshot()
-                .memory
-                .iter()
-                .all(|memory| memory.current == 0)
-        );
+        engine.snapshot().assert_memory_released();
     }
 
     #[test]
@@ -539,7 +533,7 @@ mod tests {
                     assert!(matched.unwrap());
                     assert!(observed.memory[1].peak > 0);
                     assert!(observed.memory[5].peak > 0);
-                    assert!(observed.memory.iter().all(|memory| memory.current == 0));
+                    observed.assert_memory_released();
                 });
             }
             barrier.wait();
@@ -551,13 +545,7 @@ mod tests {
         drop(context);
         drop(compiled);
         drop(matcher);
-        assert!(
-            engine
-                .snapshot()
-                .memory
-                .iter()
-                .all(|memory| memory.current == 0)
-        );
+        engine.snapshot().assert_memory_released();
     }
 
     #[test]
@@ -575,27 +563,9 @@ mod tests {
             panic!("injected ordinary regex owner unwind")
         }));
         assert!(panic.is_err());
-        assert!(
-            compiled
-                .snapshot()
-                .memory
-                .iter()
-                .all(|memory| memory.current == 0)
-        );
-        assert!(
-            searched
-                .snapshot()
-                .memory
-                .iter()
-                .all(|memory| memory.current == 0)
-        );
-        assert!(
-            engine
-                .snapshot()
-                .memory
-                .iter()
-                .all(|memory| memory.current == 0)
-        );
+        compiled.snapshot().assert_memory_released();
+        searched.snapshot().assert_memory_released();
+        engine.snapshot().assert_memory_released_with_queries(2);
     }
 
     #[test]

@@ -1,15 +1,13 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 //! Query-scoped, repeatable typed storage. Providers own their handles and pages.
 use crate::{
-    accounting::{MemoryKind, MemoryLease, QueryAccounting},
+    accounting::{EngineAccounting, MemoryKind, MemoryLease, QueryAccounting, ReferenceLease},
     frontend::ast::Matcher,
+    shared::Strong,
     value::{Sample, SampleRef, SampleValueRef},
 };
 use std::{
-    sync::{
-        Arc,
-        atomic::{AtomicBool, Ordering},
-    },
+    sync::atomic::{AtomicBool, Ordering},
     time::Instant,
 };
 
@@ -38,9 +36,18 @@ pub fn matches_in(
         .all(|matcher| matcher.matches_in(label(labels, &matcher.name), accounting))
 }
 
-#[derive(Clone, Debug, Default)]
-pub struct Cancellation(Arc<AtomicBool>);
+#[derive(Clone, Debug)]
+pub struct Cancellation(Strong<AtomicBool>);
+impl Default for Cancellation {
+    /// Caller-created tokens remain outside every engine's physical memory census.
+    fn default() -> Self {
+        Self(Strong::new_in(AtomicBool::new(false), None))
+    }
+}
 impl Cancellation {
+    pub(crate) fn new_for_engine(engine: &EngineAccounting) -> Self {
+        Self(Strong::new_for_engine(AtomicBool::new(false), engine))
+    }
     pub fn cancel(&self) {
         self.0.store(true, Ordering::Release);
     }
@@ -58,7 +65,20 @@ pub enum Interrupted {
     Cancelled,
     Deadline,
 }
+// Drop the token alias before releasing its reference census and query owner.
+pub(crate) struct ControlObservation {
+    _cancellation: Cancellation,
+    _reference: ReferenceLease,
+}
 impl Control {
+    pub(crate) fn observe(&self, account: &QueryAccounting) -> ControlObservation {
+        let cancellation = self.cancellation.clone();
+        let reference = account.hold_cancellation_reference(cancellation.0.engine_owned());
+        ControlObservation {
+            _cancellation: cancellation,
+            _reference: reference,
+        }
+    }
     pub fn check(&self) -> Result<(), Interrupted> {
         if self.cancellation.cancelled() {
             return Err(Interrupted::Cancelled);
@@ -410,6 +430,7 @@ pub fn scan_with<S: Series, E: From<StorageError> + From<Interrupted>>(
     account: &QueryAccounting,
     mut visit: impl for<'a> FnMut(SampleRef<'a>) -> Result<(), E>,
 ) -> Result<(), E> {
+    let _control_observation = control.observe(account);
     scan_until(series, bounds, control, account, |sample| {
         visit(sample).map(|()| std::ops::ControlFlow::Continue(()))
     })
@@ -495,6 +516,183 @@ mod tests {
         histogram::{FloatHistogramRef, Span},
     };
     #[test]
+    fn cross_engine_and_external_controls_keep_creation_attribution() {
+        use crate::execution::Engine;
+        let creator = Engine::default();
+        let consumer = Engine::default();
+        let token_bytes = Strong::<AtomicBool>::allocation_bytes();
+        println!("bookkeeping_token_layout bytes={token_bytes}");
+        let token = creator.cancellation();
+        let before = creator.accounting.snapshot();
+        let alias = token.clone();
+        assert_eq!(creator.accounting.snapshot(), before);
+        assert_eq!(
+            before.memory[MemoryKind::Accounting as usize].current,
+            EngineAccounting::allocation_bytes() + token_bytes
+        );
+        let account = consumer.accounting.query();
+        let control = Control {
+            cancellation: alias,
+            deadline: Some(Instant::now()),
+        };
+        let owned = control.observe(&account);
+        let external_control = Control::default();
+        let external = external_control.observe(&account);
+        let observed = account.snapshot();
+        assert_eq!(observed.cancellation_references.engine_owned.current, 1);
+        assert_eq!(observed.cancellation_references.external.current, 1);
+        assert_eq!(
+            observed.memory[MemoryKind::Accounting as usize].current,
+            QueryAccounting::allocation_bytes()
+        );
+        assert_eq!(
+            consumer.accounting.snapshot().memory[MemoryKind::Accounting as usize].current,
+            EngineAccounting::allocation_bytes() + QueryAccounting::allocation_bytes()
+        );
+        assert_eq!(creator.accounting.snapshot(), before);
+        assert_eq!(control.check(), Err(Interrupted::Deadline));
+        token.cancel();
+        assert!(control.cancellation.cancelled());
+        assert_eq!(control.check(), Err(Interrupted::Cancelled));
+        drop((owned, external));
+        account.snapshot().assert_memory_released();
+        drop((control, account));
+        consumer.accounting.snapshot().assert_memory_released();
+        assert_eq!(
+            creator.accounting.snapshot().memory[MemoryKind::Accounting as usize].current,
+            EngineAccounting::allocation_bytes() + token_bytes
+        );
+        let retained_engine = creator.accounting.clone();
+        drop(creator);
+        drop(token);
+        retained_engine.snapshot().assert_memory_released();
+    }
+    #[test]
+    fn concurrent_scoped_aliases_charge_one_owned_token() {
+        use crate::execution::Engine;
+        let engine = Engine::default();
+        let control = Control {
+            cancellation: engine.cancellation(),
+            deadline: None,
+        };
+        let barrier = std::sync::Barrier::new(3);
+        std::thread::scope(|scope| {
+            for _ in 0..2 {
+                let accounting = &engine.accounting;
+                let control = &control;
+                let barrier = &barrier;
+                scope.spawn(move || {
+                    let account = accounting.query();
+                    let guard = control.observe(&account);
+                    barrier.wait();
+                    assert_eq!(
+                        account
+                            .snapshot()
+                            .cancellation_references
+                            .engine_owned
+                            .current,
+                        1
+                    );
+                    barrier.wait();
+                    drop(guard);
+                    account.snapshot().assert_memory_released();
+                });
+            }
+            barrier.wait();
+            let observed = engine.accounting.snapshot();
+            assert_eq!(observed.cancellation_references.engine_owned.current, 2);
+            assert_eq!(observed.cancellation_references.engine_owned.peak, 2);
+            assert_eq!(
+                observed.memory[MemoryKind::Accounting as usize].current,
+                EngineAccounting::allocation_bytes()
+                    + 2 * QueryAccounting::allocation_bytes()
+                    + Strong::<AtomicBool>::allocation_bytes()
+            );
+            barrier.wait();
+        });
+        let observed = engine.accounting.snapshot();
+        assert_eq!(observed.cancellation_references.engine_owned.current, 0);
+        assert_eq!(observed.cancellation_references.engine_owned.acquired, 2);
+        assert_eq!(observed.cancellation_references.engine_owned.released, 2);
+        drop(control);
+        engine.accounting.snapshot().assert_memory_released();
+    }
+    #[test]
+    fn standalone_scan_and_rate_scopes_balance_references_on_every_return() {
+        use crate::{
+            execution::Engine,
+            range_float::{RateKind, RateValue, RateWindow, rate},
+            test_storage::{GeneratedSeries, counter},
+        };
+        for owned in [false, true] {
+            let engine = Engine::default();
+            let account = engine.accounting.query();
+            let control = Control {
+                cancellation: if owned {
+                    engine.cancellation()
+                } else {
+                    Cancellation::default()
+                },
+                deadline: None,
+            };
+            let source = GeneratedSeries::new(2, 1, counter);
+            let bounds = TimeBounds {
+                start_ms: 1000,
+                end_ms: 2000,
+            };
+            let entry = |observed: crate::accounting::QueryObservations| {
+                if owned {
+                    observed.cancellation_references.engine_owned
+                } else {
+                    observed.cancellation_references.external
+                }
+            };
+            scan(&source, bounds, &control, &account, |_| {
+                assert_eq!(entry(account.snapshot()).current, 1);
+                Ok(())
+            })
+            .unwrap();
+            let result = scan_with::<_, StorageError>(&source, bounds, &control, &account, |_| {
+                assert_eq!(entry(account.snapshot()).current, 1);
+                Err(StorageError::Invalid("synthetic scan callback failure"))
+            });
+            assert!(matches!(result, Err(StorageError::Invalid(_))));
+            control.cancellation.cancel();
+            assert_eq!(
+                scan(&source, bounds, &control, &account, |_| Ok(())),
+                Err(StorageError::Interrupted(Interrupted::Cancelled))
+            );
+            // Empty rate bounds return before control polling in the source path.
+            let result = rate(
+                &source,
+                RateWindow {
+                    start_ms: 0,
+                    end_ms: 0,
+                    range_ns: 0,
+                    start_timestamps: false,
+                },
+                RateKind::Rate,
+                &control,
+                &account,
+            )
+            .unwrap();
+            assert_eq!(result.value, RateValue::Empty);
+            let observed = entry(account.snapshot());
+            assert_eq!(
+                (
+                    observed.current,
+                    observed.peak,
+                    observed.acquired,
+                    observed.released
+                ),
+                (0, 1, 4, 4)
+            );
+            account.snapshot().assert_memory_released();
+            drop((account, control));
+            engine.accounting.snapshot().assert_memory_released();
+        }
+    }
+    #[test]
     fn stopped_scans_validate_the_complete_returned_page() {
         use crate::{
             test_storage::GeneratedSeries,
@@ -531,13 +729,7 @@ mod tests {
         );
         assert_eq!(visited, 1);
         assert_eq!(account.snapshot().samples_fetched, 3);
-        assert!(
-            account
-                .snapshot()
-                .memory
-                .iter()
-                .all(|memory| memory.current == 0)
-        );
+        account.snapshot().assert_memory_released();
         assert_eq!(
             source
                 .counters

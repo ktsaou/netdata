@@ -806,7 +806,7 @@ the approved intermediate label bytes. All 496 match semantically at all three p
 their eight NaN-payload differences remain reported. Original source-defined cases and original assertions are
 unchanged. This qualifies the selected ordering policy separately from exact upstream equivalence.
 
-Runtime accounting remains unfinished: control-object allocations, general frontend compilation temporaries and
+Runtime accounting remains unfinished: general frontend compilation temporaries, error/sink owners and
 provider-internal transient peaks are not fully instrumented. Regex dependency/table estimates expose known
 limitations rather than exact allocator totals. Reported buffer capacities and exposed page ranges must not be read as exact total
 query allocation or RSS. Provider callbacks return resource snapshots on every outcome; normal ownership transfers
@@ -860,7 +860,7 @@ Metadata handles and output can grow with cardinality; raw history remains page 
 raw-error, sink-error and complete frontend accounting still require their remaining owners. Exact memoized initial reads, Seek
 landing and lookahead failure precedence remain mandatory qualification work. All admission limits remain disabled.
 
-Both builds pass 174 unit tests. The 64 independent selector-hint projections, 426 preparation scopes, 198 offset
+Both builds pass 187 unit tests. The 64 independent selector-hint projections, 426 preparation scopes, 198 offset
 projections and retained parser/clock/phase panels match their pinned source. The original corpus retains all
 previous 9,684 passing variants and adds 230: 9,914 pass, 11,528 remain open, and the same 24 paired bit reports
 remain. These are finite expression, catalog and
@@ -880,9 +880,30 @@ bounds have distinct real shared headers; absent bounds have none. Empty diagnos
 Stable Rust and the 1.91 minimum version pass 166 units and compiler rejection controls for unsafe RefCell thread
 access and implicit shared-handle unsizing. Production Miri checks cover three seeds, alignment/DST/ZST,
 overflow, concurrent last-owner release, panic cleanup and bounds/diagnostic/selection lifetimes. Float values
-and output points remain 16/24 bytes on these amd64 builds. These finite checks qualify the four owners;
-engine/query accounting roots and cancellation allocation attribution remain required, along with the full
-C boundary. Backend regex memory continues to be explicitly estimated.
+and output points remain 16/24 bytes on these amd64 builds. The earlier finite checks qualify those four owners;
+the root/control qualification below extends the same wrapper. The full C boundary remains required. Backend
+regex memory continues to be explicitly estimated.
+
+Engine/query ledgers and explicitly engine-created cancellation allocations occupy the eighth `Accounting`
+memory category; the preceding seven indices retain their meanings. Roots census their own known Box layout.
+A query or owned token charges only its engine ancestor, which stays alive until the child's actual deallocation
+and charge release. Clones share the same allocation and do not acquire its bytes again. No root stores a lease
+to itself. Idle engines have a real fixed baseline; live plans, retained empty results, diagnostics and
+provider-held accounts can keep query roots charged after execution ends.
+
+`Engine::cancellation()` creates a token whose physical charge belongs to that engine across clones and use by
+other engines. Caller/default tokens remain external. Query and consuming-engine `cancellation_references`
+counters separately observe guard-held aliases, divided by engine-created versus external origin. Their unit is
+references, not bytes or unique tokens; nested public helper guards can hold additional aliases. These counters
+do not enumerate independent caller/provider clones and do not duplicate the physical token charge. Guards
+remain live through provider destruction and sink abort, then release before the final report snapshot.
+Cancellation still takes precedence over the inline deadline; observation does not change error or polling order.
+
+Cleanup checks verify every memory category against exact live root counts, including `Accounting`; they do not
+exempt bookkeeping from leak detection. Query snapshots include the query root that is live when the snapshot
+is taken. Finite tests cover root identity, zero-capacity retention, creator/consumer attribution, concurrency,
+poison recovery, scoped failures and panicking cleanup. Complete frontend/provider/sink accounting, typed C
+ownership and the full expression/SRE gates remain required. All resource enforcement remains disabled.
 
 `label_replace` and `label_join` project whole-series metadata after the vector child completes. Runtime validation
 occurs before child evaluation, following the upfront selector catalog. Replacement uses Go's anchored DotNL

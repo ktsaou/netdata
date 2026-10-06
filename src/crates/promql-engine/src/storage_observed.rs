@@ -705,13 +705,7 @@ mod tests {
             report.observations.memory[MemoryKind::ProviderHeld as usize].peak,
             16
         );
-        assert!(
-            report
-                .observations
-                .memory
-                .iter()
-                .all(|memory| memory.current == 0)
-        );
+        report.observations.assert_memory_released();
         assert_eq!(engine.accounting.snapshot().active_executions, 0);
     }
     #[test]
@@ -741,13 +735,7 @@ mod tests {
             size_of::<Sample>() as u64
         );
         assert_eq!(report.observations.output_samples, 0);
-        assert!(
-            report
-                .observations
-                .memory
-                .iter()
-                .all(|memory| memory.current == 0)
-        );
+        report.observations.assert_memory_released();
     }
     #[test]
     fn lazy_metadata_and_callback_or_release_transfers_are_one_observation() {

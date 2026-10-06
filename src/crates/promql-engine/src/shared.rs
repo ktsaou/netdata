@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 //! Strong ownership of one known Box allocation and its requested-byte charge.
-use crate::accounting::{AllocationContext, MemoryLease};
+use crate::accounting::{AllocationContext, EngineAccounting, SharedCharge};
 use std::{
     alloc::Layout,
     fmt,
@@ -14,7 +14,7 @@ use std::{
 #[repr(C)]
 pub(crate) struct Allocation<T: ?Sized> {
     strong: AtomicUsize,
-    charge: Option<MemoryLease>,
+    charge: Option<SharedCharge>,
     value: T,
 }
 impl<T> Allocation<T> {
@@ -25,8 +25,8 @@ impl<T> Allocation<T> {
             value,
         }
     }
-    pub(crate) fn charge(context: Option<&AllocationContext>) -> Option<MemoryLease> {
-        context.map(|context| context.hold(Layout::new::<Self>().size() as u64))
+    pub(crate) fn charge(context: Option<&AllocationContext>) -> Option<SharedCharge> {
+        context.map(|context| context.hold(Layout::new::<Self>().size() as u64).into())
     }
 }
 
@@ -43,17 +43,25 @@ unsafe impl<T: ?Sized> Sync for Strong<T> where Allocation<T>: Send + Sync {}
 // Declaration order keeps the charge until payload destruction and Box deallocation.
 struct Pending<T: ?Sized> {
     allocation: Box<Allocation<T>>,
-    charge: Option<MemoryLease>,
+    charge: Option<SharedCharge>,
 }
 impl<T> Strong<T> {
+    pub(crate) fn allocation_bytes() -> u64 {
+        Layout::new::<Allocation<T>>().size() as u64
+    }
     pub(crate) fn new_in(value: T, context: Option<&AllocationContext>) -> Self {
         let charge = Allocation::<T>::charge(context);
         let allocation = Box::new(Allocation::new(value));
         Self::finish(allocation, charge)
     }
+    pub(crate) fn new_for_engine(value: T, engine: &EngineAccounting) -> Self {
+        let charge = SharedCharge::Engine(engine.hold_accounting(Self::allocation_bytes()));
+        let allocation = Box::new(Allocation::new(value));
+        Self::finish(allocation, Some(charge))
+    }
 }
 impl<T: ?Sized> Strong<T> {
-    pub(crate) fn finish(allocation: Box<Allocation<T>>, charge: Option<MemoryLease>) -> Self {
+    pub(crate) fn finish(allocation: Box<Allocation<T>>, charge: Option<SharedCharge>) -> Self {
         let mut pending = Pending { allocation, charge };
         assert!(pending.allocation.charge.is_none(), "unshared allocation");
         assert_eq!(pending.allocation.strong.load(Ordering::Relaxed), 1);
@@ -79,7 +87,14 @@ impl<T: ?Sized> Strong<T> {
         unsafe { self.allocation.as_ref() }
             .charge
             .as_ref()
-            .is_some_and(|charge| context.owns(charge))
+            .is_some_and(|charge| charge.owns(context))
+    }
+    pub(crate) fn engine_owned(&self) -> bool {
+        // The immutable charge records creation ownership, independent of later consumers.
+        unsafe { self.allocation.as_ref() }
+            .charge
+            .as_ref()
+            .is_some_and(SharedCharge::engine_owned)
     }
 }
 fn increment(strong: &AtomicUsize) {
@@ -257,7 +272,7 @@ mod tests {
                 drops: drops.clone(),
                 panic: false,
             }));
-            Strong::finish(allocation, Some(charge))
+            Strong::finish(allocation, Some(charge.into()))
         }));
         assert!(failure.is_err());
         assert_eq!(drops.load(Ordering::Relaxed), 1);
@@ -334,5 +349,58 @@ mod tests {
         });
         assert_eq!(drops.load(Ordering::Relaxed), 1);
         assert_eq!(account.snapshot().memory[1].current, 0);
+    }
+
+    #[derive(Debug)]
+    struct AncestorPayload {
+        engine: EngineAccounting,
+        drops: Arc<AtomicUsize>,
+        panic: bool,
+    }
+    impl Drop for AncestorPayload {
+        fn drop(&mut self) {
+            assert!(
+                self.engine.snapshot().memory[MemoryKind::Accounting as usize].current
+                    >= EngineAccounting::allocation_bytes() + Strong::<Self>::allocation_bytes()
+            );
+            self.drops.fetch_add(1, Ordering::Relaxed);
+            assert!(!self.panic, "synthetic ancestor payload drop");
+        }
+    }
+    #[test]
+    fn ancestor_charges_survive_construction_failure_and_panicking_last_drop() {
+        for (construction_failure, payload_panic) in [(false, false), (false, true), (true, false)]
+        {
+            let engine = EngineAccounting::default();
+            let drops = Arc::new(AtomicUsize::new(0));
+            let baseline = engine.snapshot();
+            let outcome = catch_unwind(AssertUnwindSafe(|| {
+                let payload = AncestorPayload {
+                    engine: engine.clone(),
+                    drops: drops.clone(),
+                    panic: payload_panic,
+                };
+                let value = if construction_failure {
+                    let charge = SharedCharge::Engine(
+                        engine.hold_accounting(Strong::<AncestorPayload>::allocation_bytes() + 1),
+                    );
+                    Strong::finish(Box::new(Allocation::new(payload)), Some(charge))
+                } else {
+                    Strong::new_for_engine(payload, &engine)
+                };
+                let alias = value.clone();
+                assert!(value.engine_owned());
+                drop(value);
+                assert_eq!(drops.load(Ordering::Relaxed), 0);
+                drop(alias);
+            }));
+            assert_eq!(outcome.is_err(), construction_failure || payload_panic);
+            assert_eq!(drops.load(Ordering::Relaxed), 1);
+            assert_eq!(
+                engine.snapshot().memory[MemoryKind::Accounting as usize].current,
+                baseline.memory[MemoryKind::Accounting as usize].current
+            );
+            engine.snapshot().assert_memory_released();
+        }
     }
 }

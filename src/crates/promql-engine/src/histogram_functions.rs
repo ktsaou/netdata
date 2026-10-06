@@ -336,13 +336,7 @@ mod tests {
         );
         assert_eq!(histogram.positive_buckets.as_deref(), Some(&[1.0, 1.0][..]));
         drop(histogram);
-        assert!(
-            account
-                .snapshot()
-                .memory
-                .iter()
-                .all(|memory| memory.current == 0)
-        );
+        account.snapshot().assert_memory_released();
     }
 
     #[test]

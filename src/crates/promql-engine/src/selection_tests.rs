@@ -589,15 +589,18 @@ fn opaque_terminal_annotations_keep_bytes_and_explicit_severity_after_scope_rele
     assert_eq!(notes[0].severity, Severity::Warning);
     assert_eq!(notes[0].span, None);
     assert_eq!(notes[1].severity, Severity::Info);
-    drop(report);
-    assert!(
-        engine
-            .accounting
-            .snapshot()
-            .memory
-            .iter()
-            .all(|kind| kind.current == 0)
+    assert_eq!(
+        engine.accounting.snapshot().memory[MemoryKind::Accounting as usize].current,
+        crate::accounting::EngineAccounting::allocation_bytes()
+            + crate::accounting::QueryAccounting::allocation_bytes()
     );
+    let references = report.observations.cancellation_references.external;
+    assert_eq!(references.current, 0);
+    assert_eq!(references.acquired, references.released);
+    let observer = engine.accounting.clone();
+    drop(engine);
+    drop(report);
+    observer.snapshot().assert_memory_released();
 }
 
 #[test]
@@ -736,12 +739,6 @@ fn deferred_error_capacity_and_cancelled_partial_catalog_owners_release() {
         ))
     ));
     assert!(report.annotations.is_empty());
-    assert!(
-        report
-            .observations
-            .memory
-            .iter()
-            .all(|kind| kind.current == 0)
-    );
+    report.observations.assert_memory_released();
     source.assert_closed();
 }
