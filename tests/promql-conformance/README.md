@@ -585,8 +585,8 @@ retained corpus has 2,788 variants classified for exact numeric comparison. Near
 are rejected, while fractional fill outputs retain their permitted tolerance.
 
 The full run after native histogram projections, timestamp support, intermediate ordering, native scalar/vector
-maps, native vector aggregation, request-context preparation, ordinary math/calendar calls and native/instant
-rates and regression/smoothing matches 9,266 of 21,442 variants, with zero completed semantic failures and 12,176 open variants at page sizes
+maps, native vector aggregation, request-context preparation, ordinary math/calendar calls, native/instant
+rates, regression/smoothing and ordinary absence matches 9,682 of 21,442 variants, with zero completed semantic failures and 11,760 open variants at page sizes
 17 and 1024. Its 24 paired bit differences are
 NaN payload/sign differences from one original aggregation case. Further implementation and replay remain
 required. Separate fresh Go checks match
@@ -610,7 +610,7 @@ scaled input, without retaining the raw history.
 
 The productive Rust path connects the owned frontend to typed page cursors, float/native rate/increase/delta
 and irate/idelta, deriv/predict_linear/double_exponential_smoothing,
-count/present/first/last/min/max over time, float/native histogram sum/average and float variance/stddev over time, timestamp extrema/endpoints,
+count/present/first/last/min/max and absence over time, float/native histogram sum/average and float variance/stddev over time, timestamp extrema/endpoints,
 changes/resets, scalar/vector arithmetic
 and comparisons including power/remainder, float/native sum/avg/count/group and float min/max/stdvar/stddev with native ignored-input infos. Evaluation uses explicit frames,
 whole-query label/group descriptors and replay; raw histories and complete raw instant vectors are not retained.
@@ -737,7 +737,7 @@ checked. All 5,020 offset/fixed-reference/diagnostic review cases match exactly.
 together while physical scans truncate them separately and intersect query-wide bounds; permanent regressions
 cover the resulting alert threshold and fixed-reference membership. Of 1,058 additional time-context controls,
 1,029 match exactly and 29 still require other expression families. Extreme fixed-time/storage-sentinel tests
-cover the pinned integer-overflow behavior. Both profiles pass 135 units and offline locked Clippy/build checks.
+cover the pinned integer-overflow behavior. Both profiles pass 141 units and offline locked Clippy/build checks.
 
 Ordinary range-call preparation expands matrix metadata before opening raw cursors, then completes every logical
 step of one physical series before advancing to the next. Scalar children remain unrestricted. This preserves
@@ -746,6 +746,20 @@ for each series and step. All 363 focused review requests match exactly in both 
 eight previously failing ordering witnesses. Metadata-failure and generated step-count tests check release,
 error precedence, bounded workspace and metadata work independent of the step count; output replay has its
 separate existing costs.
+
+`absent` consumes every implemented vector child before testing presence. Floats, ordinary NaNs and native
+histograms count as present; later child failures remain visible. Label inference follows selector matcher order,
+including repeated equality and empty-value history, while owned output labels use byte order. Direct-matrix
+`absent_over_time` validates every series across all logical steps before replaying windows to invert their global
+presence. It retains one presence bit and a single output descriptor, without a raw window, timestamp bitmap or
+per-series presence timeline. Its inferred reserved labels follow immediate versus delayed cleanup.
+Both builds/pages1/17/1024 match all 272 completed of 320 independent presence controls exactly; 48 extended-selector,
+subquery and other child cases remain explicitly open. All 9,266 previously passing original expressions remain
+passing, with 416 additional passes and the same 24 paired bit reports. The separate 459-request source-phase review
+corpus remains exact in both builds/pages. Generated 2,048-versus-16,384-sample range-absence histories keep equal
+workspace and page peaks at each page size with one live raw cursor and a streaming sink. These finite fixtures
+qualify this owner; shared upfront selection, complete provider diagnostics and the full absence family still
+require the remaining engine work.
 
 Selectors under histogram count/sum/average use the source's statistics decoding for ordinary range folds.
 Subqueries, bucket-dependent histogram functions and trimming disable it. One tracked full histogram supplies

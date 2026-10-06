@@ -34,7 +34,7 @@ impl RangeFunction {
             "predict_linear" => Self::Numeric(NumericRangeFunction::PredictLinear),
             "double_exponential_smoothing" => Self::Numeric(NumericRangeFunction::Smoothing),
             "count_over_time" => Self::Fold(Count),
-            "present_over_time" => Self::Fold(Present),
+            "present_over_time" | "absent_over_time" => Self::Fold(Present),
             "first_over_time" => Self::Fold(First),
             "last_over_time" => Self::Fold(Last),
             "min_over_time" => Self::Fold(Min),

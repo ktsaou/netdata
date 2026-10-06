@@ -6,6 +6,7 @@
 #[cfg(panic = "abort")]
 compile_error!("PromQL requires panic=unwind for containment at its C boundary");
 
+mod absence;
 pub mod accounting;
 mod aggregation;
 pub mod annotations;

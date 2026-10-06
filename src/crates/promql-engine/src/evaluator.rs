@@ -207,6 +207,11 @@ enum State<'a, Q: QueryProvider + 'a> {
         value: Option<f64>,
         collecting: bool,
     },
+    Absent {
+        present: bool,
+        labels: OwnedLabels,
+        drop_name: bool,
+    },
     ScalarBinary {
         left: Option<f64>,
         right: Option<f64>,
@@ -993,6 +998,36 @@ impl<'a, Q: QueryProvider + 'a> Machine<'a, Q> {
                     self.push_all(arguments[0]);
                     Ok(None)
                 }
+                "absent" | "absent_over_time" => {
+                    let over_time = function.name == "absent_over_time";
+                    self.frames[index].state = State::Absent {
+                        present: false,
+                        labels: crate::absence::labels(
+                            self.expression,
+                            arguments[0],
+                            self.account,
+                            self.control,
+                        )?,
+                        drop_name: over_time,
+                    };
+                    if over_time {
+                        let state = self.range_call(
+                            node,
+                            RangeFunction::Fold(FoldKind::Present),
+                            [0.0; 2],
+                        )?;
+                        self.frames.push(Frame {
+                            node,
+                            state,
+                            filter: RowFilter::All,
+                            bypass_order: true,
+                            mode: OutputMode::Vector,
+                        });
+                    } else {
+                        self.push_all(arguments[0]);
+                    }
+                    Ok(None)
+                }
                 _ => {
                     if let Some(function) = PointwiseFunction::parse(function.name) {
                         if let PointwiseFunction::Float(float, _) = function {
@@ -1292,6 +1327,10 @@ impl<'a, Q: QueryProvider + 'a> Machine<'a, Q> {
                     }
                     return Ok(None);
                 }
+                State::Absent { present, .. } => {
+                    *present = true;
+                    return Ok(None);
+                }
                 State::ScalarBinary { left, right, phase } => {
                     let OwnedValue::Float(value) = sample.value else {
                         unreachable!("scalar value")
@@ -1477,6 +1516,28 @@ impl<'a, Q: QueryProvider + 'a> Machine<'a, Q> {
                     self.frames.pop();
                     let sample = self.sample(value);
                     if let Some(sample) = self.propagate(sample, self.frames.len())? {
+                        return Ok(Some(sample));
+                    }
+                }
+                State::Absent {
+                    present,
+                    labels,
+                    drop_name,
+                } => {
+                    let sample = (!*present).then(|| EvaluatedSample {
+                        ordinal: 0,
+                        labels: std::mem::replace(
+                            labels,
+                            OwnedLabels::new(self.account, MemoryKind::Workspace),
+                        ),
+                        value: OwnedValue::Float(1.0),
+                        source_time_ms: self.options.time_ms,
+                        drop_name: *drop_name,
+                    });
+                    self.frames.pop();
+                    if let Some(sample) = sample
+                        && let Some(sample) = self.propagate(sample, self.frames.len())?
+                    {
                         return Ok(Some(sample));
                     }
                 }
