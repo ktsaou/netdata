@@ -199,7 +199,7 @@ probe, requests and results in ignored `.tmp/`, and compares value bits and erro
 panel passes in both release profiles, including 933 added long-decimal cancellation/fallback cases. The earlier
 12,154-case panel missed these source behaviors; both original captures and failed before binaries remain retained.
 Eighteen additional scalar comparison requests now match Prometheus exactly across parser profiles, query modes
-and fixture page sizes. All 247 unit tests pass in both profiles and Rust 1.91; the existing
+and fixture page sizes. All 249 unit tests pass in both profiles and Rust 1.91; the existing
 157 lexer, 356 AST, 784 parser-option and 32 literal cases continue to match. The complete expression panel remains
 13,330 passing variants and 8,112 unsupported variants, with no lost passes or new paired numerical differences.
 This is a finite parser-helper check; histogram expression execution remains a separate required surface.
@@ -207,6 +207,28 @@ This is a finite parser-helper check; histogram expression execution remains a s
 ```sh
 python3 tests/promql-conformance/float_literals.py
 python3 tests/promql-conformance/float_literals.py --capture "${PROMQL_FLOAT_CAPTURE_DIR:?}" \
+  --binary tests/promql-conformance/.tmp/core-target/release-min/promql-frontend-fixture
+```
+
+Numeric annotations and generated labels require Go-compatible float text. The Rust numerical helper supplies
+shortest lowercase g, two-significant-digit g and Prometheus OpenMetrics projections. It uses a 32-byte inline
+output buffer and fixed digit/scalar state, sharing the float parser's integer scaling table. Final text can be
+appended into the caller's accounted destination. General text preserves negative zero; OpenMetrics renders both
+zero signs as `0.0` and appends `.0` to integers without an exponent. NaN and infinity text, decimal carry,
+ties-to-even rounding and exponent signs/padding follow the original sources. Distinct fixed-six error formatting
+keeps its existing contract.
+
+`float_text.py` first runs untouched Go `TestFtoa` and compiles the original test declarations, preserving all
+148 binary64 FormatFloat/prefixed AppendFloat assertions and the 38 applicable g rows. Additional bit inputs cover
+every finite binary exponent at four mantissas, decimal-decade neighbors, rounding ties, signed specials and seeded
+values. The reference calls actual pinned `FormatOpenMetricsFloat` for its label projection. Source, profile,
+module, probe, generator, input and result hashes bind the capture. All **80,942 text/round-trip cases match exactly**
+in both release profiles; all 13,087 float parser cases and the existing frontend/expression outcomes remain exact.
+These are finite numerical-helper checks; histogram expression execution remains required.
+
+```sh
+python3 tests/promql-conformance/float_text.py
+python3 tests/promql-conformance/float_text.py --capture "${PROMQL_FLOAT_TEXT_CAPTURE_DIR:?}" \
   --binary tests/promql-conformance/.tmp/core-target/release-min/promql-frontend-fixture
 ```
 

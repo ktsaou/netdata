@@ -19,6 +19,7 @@ mod evaluator_order;
 mod evaluator_roster;
 pub mod execution;
 mod float_functions;
+mod float_text;
 pub mod frontend;
 mod go_sort;
 pub mod histogram;

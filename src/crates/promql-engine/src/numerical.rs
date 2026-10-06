@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Compensated summation derives from Prometheus util/kahansum; see NOTICE.
+pub use crate::float_text::{FloatText, FloatTextStyle, float_text};
 pub use crate::numerical_exponential::{exp, exp2, ldexp};
 pub use crate::numerical_hyperbolic::{acosh, asinh, atanh, cosh, log1p, sinh, tanh};
 pub use crate::numerical_math::{

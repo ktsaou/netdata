@@ -6,6 +6,7 @@ use netdata_promql_engine::frontend::lexer::Lexer;
 use netdata_promql_engine::frontend::literal::unquote;
 use netdata_promql_engine::frontend::number;
 use netdata_promql_engine::frontend::{ast::ParserOptions, parser, regex::Selector};
+use netdata_promql_engine::numerical::{FloatTextStyle, float_text};
 
 #[path = "frontend_fixture_output.rs"]
 mod output;
@@ -28,12 +29,35 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         let fields: Vec<_> = line.split('\t').collect();
         if fields.len() != 4
             || fields[0].is_empty()
-            || !matches!(fields[1], "q" | "s" | "u" | "n" | "d" | "p" | "r" | "f")
+            || !matches!(
+                fields[1],
+                "q" | "s" | "u" | "n" | "d" | "p" | "r" | "f" | "g"
+            )
         {
             return Err("expected ID, query/series mode, fixture token guard and hex input".into());
         }
         let count: usize = fields[2].parse()?;
         let input = decode(fields[3])?;
+        if fields[1] == "g" {
+            let bytes: [u8; 8] = input.try_into().map_err(|_| "expected binary64 bytes")?;
+            let style = match count {
+                0 => FloatTextStyle::Shortest,
+                1 => FloatTextStyle::TwoSignificant,
+                2 => FloatTextStyle::OpenMetrics,
+                _ => return Err("invalid float formatting projection".into()),
+            };
+            let text = float_text(f64::from_bits(u64::from_be_bytes(bytes)), style);
+            let (roundtrip, error) = number::float_fixture(text.as_bytes());
+            serde_json::to_writer(
+                &mut out,
+                &serde_json::json!({
+                    "id": fields[0], "text": text.as_str(),
+                    "roundtrip_bits": format!("{:016x}", roundtrip.to_bits()), "roundtrip_error": error,
+                }),
+            )?;
+            writeln!(out)?;
+            continue;
+        }
         if fields[1] == "f" {
             let (value, error) = number::float_fixture(&input);
             serde_json::to_writer(
