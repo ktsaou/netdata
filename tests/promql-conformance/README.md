@@ -729,14 +729,23 @@ are ignored with the exact mixed-range info, including a one-float window that r
 retain constant state and one bounded storage page, with no raw window or histogram payload copy.
 
 Independent source panels match all 622 completed of 868 fresh regression/smoothing/order-statistic expressions
-at pages 1/17/1024 in both builds; 246 required quantile/MAD/composition cases remain open. The 140 original
+semantically at pages 1/17/1024 in both builds; release-min reports 28 ordinary NaN sign/payload differences.
+The 246 required quantile/MAD/composition cases remain open. The 140 original
 regression/smoothing variants and 28 long-history controls match every bit. Generated 2,048-versus-100,000-sample
 histories retain equal workspace peaks at every page size; provider failure, cancellation and owner release are
 checked. All 5,020 offset/fixed-reference/diagnostic review cases match exactly. Extrapolation truncates Range+Offset
 together while physical scans truncate them separately and intersect query-wide bounds; permanent regressions
 cover the resulting alert threshold and fixed-reference membership. Of 1,058 additional time-context controls,
 1,029 match exactly and 29 still require other expression families. Extreme fixed-time/storage-sentinel tests
-cover the pinned integer-overflow behavior. Both profiles pass 132 units and offline locked Clippy/build checks.
+cover the pinned integer-overflow behavior. Both profiles pass 135 units and offline locked Clippy/build checks.
+
+Ordinary range-call preparation expands matrix metadata before opening raw cursors, then completes every logical
+step of one physical series before advancing to the next. Scalar children remain unrestricted. This preserves
+source helper-error precedence without retaining a sample timeline or repeatedly enumerating matrix metadata
+for each series and step. All 363 focused review requests match exactly in both builds/pages, including the
+eight previously failing ordering witnesses. Metadata-failure and generated step-count tests check release,
+error precedence, bounded workspace and metadata work independent of the step count; output replay has its
+separate existing costs.
 
 Selectors under histogram count/sum/average use the source's statistics decoding for ordinary range folds.
 Subqueries, bucket-dependent histogram functions and trimming disable it. One tracked full histogram supplies

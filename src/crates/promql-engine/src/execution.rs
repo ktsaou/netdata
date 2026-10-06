@@ -719,14 +719,19 @@ impl CompiledQuery {
             // Fixed safe range calls have one logical evaluation, irrespective of output steps.
             let single_step =
                 header.step_ms == 0 || self.invariants[node.0] || self.fixed_range_call(expression);
-            let mut time_ms = header.start_ms;
-            loop {
-                step_kinds.clear();
-                let mut machine = Machine::new(
+            let range_function = match expression {
+                Expr::Call {
+                    function: Some(function),
+                    ..
+                } => RangeFunction::parse(function.name),
+                _ => None,
+            };
+            let range_machine = range_function.map(|_| {
+                Machine::new(
                     query,
                     &self.expression,
                     node,
-                    self.evaluation_options(header, time_ms),
+                    self.evaluation_options(header, header.start_ms),
                     control,
                     account,
                     EvaluationMetadata {
@@ -735,67 +740,169 @@ impl CompiledQuery {
                         invariants: &self.invariants,
                         timestamp_selectors: &self.timestamp_selectors,
                         data_bounds,
-                        annotations: Some(&mut annotations),
+                        annotations: None,
                     },
-                );
-                while let Some(sample) = machine.next()? {
-                    let hash = crate::label_hash::full(&sample.labels, control, account)?;
-                    let kind = sample.value.kind_bit();
-                    if let Some((_, _, kinds)) =
-                        step_kinds.iter_mut().find(|(prior_hash, ordinal, _)| {
-                            *prior_hash == hash && (unary_merge || *ordinal == sample.ordinal)
-                        })
-                    {
-                        *kinds |= kind;
-                    } else {
-                        step_kinds.push((hash, sample.ordinal, kind));
+                )
+            });
+            let mut selection =
+                if let (Some(machine), Some(function)) = (&range_machine, range_function) {
+                    let (value, lease, _) = machine.range_selection(node, function)?;
+                    let mut expanded = ResourceOwner { value, lease };
+                    // Expand metadata before samples, as the source matrix evaluator does.
+                    loop {
+                        control.check()?;
+                        account.provider_call();
+                        let series = expanded.value.next(control);
+                        expanded.lease.update(expanded.value.resources());
+                        let Some(series) = series? else {
+                            break;
+                        };
+                        let resources = series.resources();
+                        let series = ResourceOwner::new(series, resources, account);
+                        validate_labels(&series.value.label_views(account))?;
                     }
-                    if let Some(descriptor) = descriptors.iter_mut().find(|descriptor| {
-                        descriptor.ordinal == sample.ordinal
-                            && descriptor.labels.same(&sample.labels)
-                    }) {
-                        descriptor.kinds |= kind;
-                        if matches!(expression, Expr::Aggregate { .. }) {
-                            descriptor.drop_name = sample.drop_name;
-                        }
-                        continue;
-                    }
-                    descriptors.push(Descriptor {
-                        hash,
-                        ordinal: sample.ordinal,
-                        drop_name: sample.drop_name,
-                        first_order: descriptors.len(),
-                        sources: 0..0,
-                        labels: sample.labels,
-                        kinds: kind,
-                        collision_time_ms: None,
-                    });
-                }
-                for descriptor in descriptors.iter_mut() {
-                    control.check()?;
-                    account.work(1);
-                    if step_kinds.iter().any(|(hash, ordinal, kinds)| {
-                        *hash == descriptor.hash
-                            && (unary_merge || *ordinal == descriptor.ordinal)
-                            && *kinds == 3
-                    }) {
-                        descriptor.collision_time_ms = crate::evaluator_roster::earliest(
-                            descriptor.collision_time_ms,
-                            Some(time_ms),
-                        );
-                    }
-                }
-                if single_step {
-                    break;
-                }
-                let Some(next) = time_ms.checked_add(header.step_ms) else {
-                    break;
+                    drop(expanded);
+                    let (value, lease, selector) = machine.range_selection(node, function)?;
+                    Some((ResourceOwner { value, lease }, selector))
+                } else {
+                    None
                 };
-                if next > header.end_ms {
+            let mut ordinal = 0;
+            loop {
+                let series = if let Some((selection, selector_node)) = &mut selection {
+                    control.check()?;
+                    account.provider_call();
+                    let series = selection.value.next(control);
+                    selection.lease.update(selection.value.resources());
+                    let Some(series) = series? else {
+                        break;
+                    };
+                    let resources = series.resources();
+                    let series = ResourceOwner::new(series, resources, account);
+                    let current = ordinal;
+                    ordinal += 1;
+                    let Expr::Selector(selector) =
+                        &self.expression.arena[*selector_node].expression
+                    else {
+                        unreachable!("range selector")
+                    };
+                    {
+                        let labels = series.value.label_views(account);
+                        validate_labels(&labels)?;
+                        if !matches_in(&labels, &selector.matchers, Some(account)) {
+                            continue;
+                        }
+                    }
+                    Some((current, series))
+                } else {
+                    None
+                };
+                let mut time_ms = header.start_ms;
+                loop {
+                    step_kinds.clear();
+                    let mut machine = if let Some(base) = &range_machine {
+                        base.replay(
+                            node,
+                            self.evaluation_options(header, time_ms),
+                            Some(&mut annotations),
+                        )
+                    } else {
+                        Machine::new(
+                            query,
+                            &self.expression,
+                            node,
+                            self.evaluation_options(header, time_ms),
+                            control,
+                            account,
+                            EvaluationMetadata {
+                                prepared,
+                                rosters: &rosters,
+                                invariants: &self.invariants,
+                                timestamp_selectors: &self.timestamp_selectors,
+                                data_bounds,
+                                annotations: Some(&mut annotations),
+                            },
+                        )
+                    };
+                    let mut range_sample = if let (Some((ordinal, series)), Some(function)) =
+                        (&series, range_function)
+                    {
+                        machine.range_series_sample(node, function, *ordinal, &series.value)?
+                    } else {
+                        None
+                    };
+                    loop {
+                        let sample = if range_function.is_some() {
+                            range_sample.take()
+                        } else {
+                            machine.next()?
+                        };
+                        let Some(sample) = sample else {
+                            break;
+                        };
+                        let hash = crate::label_hash::full(&sample.labels, control, account)?;
+                        let kind = sample.value.kind_bit();
+                        if let Some((_, _, kinds)) =
+                            step_kinds.iter_mut().find(|(prior_hash, ordinal, _)| {
+                                *prior_hash == hash && (unary_merge || *ordinal == sample.ordinal)
+                            })
+                        {
+                            *kinds |= kind;
+                        } else {
+                            step_kinds.push((hash, sample.ordinal, kind));
+                        }
+                        if let Some(descriptor) = descriptors.iter_mut().find(|descriptor| {
+                            descriptor.ordinal == sample.ordinal
+                                && descriptor.labels.same(&sample.labels)
+                        }) {
+                            descriptor.kinds |= kind;
+                            if matches!(expression, Expr::Aggregate { .. }) {
+                                descriptor.drop_name = sample.drop_name;
+                            }
+                            continue;
+                        }
+                        descriptors.push(Descriptor {
+                            hash,
+                            ordinal: sample.ordinal,
+                            drop_name: sample.drop_name,
+                            first_order: descriptors.len(),
+                            sources: 0..0,
+                            labels: sample.labels,
+                            kinds: kind,
+                            collision_time_ms: None,
+                        });
+                    }
+                    for descriptor in descriptors.iter_mut() {
+                        control.check()?;
+                        account.work(1);
+                        if step_kinds.iter().any(|(hash, ordinal, kinds)| {
+                            *hash == descriptor.hash
+                                && (unary_merge || *ordinal == descriptor.ordinal)
+                                && *kinds == 3
+                        }) {
+                            descriptor.collision_time_ms = crate::evaluator_roster::earliest(
+                                descriptor.collision_time_ms,
+                                Some(time_ms),
+                            );
+                        }
+                    }
+                    if single_step {
+                        break;
+                    }
+                    let Some(next) = time_ms.checked_add(header.step_ms) else {
+                        break;
+                    };
+                    if next > header.end_ms {
+                        break;
+                    }
+                    time_ms = next;
+                }
+                if range_function.is_none() {
                     break;
                 }
-                time_ms = next;
             }
+            drop(selection);
+            drop(range_machine);
             if !self.options.delayed_name_removal
                 && matches!(expression,
                 Expr::Call { function: Some(function), .. }
@@ -1226,6 +1333,208 @@ mod tests {
                 .iter()
                 .all(|kind| kind.current == 0)
         );
+    }
+
+    #[test]
+    fn range_helper_errors_follow_series_before_step_order() {
+        use crate::value::{Sample, SampleValue};
+        fn late(_: usize) -> Sample {
+            Sample {
+                time_ms: 5000,
+                start_time_ms: 0,
+                value: SampleValue::Float(7.0),
+            }
+        }
+        fn early(index: usize) -> Sample {
+            Sample {
+                time_ms: 1000,
+                ..late(index)
+            }
+        }
+        for page in [1, 17, 1024] {
+            for late_first in [true, false] {
+                let mut provider = FixtureProvider::new(1, page, 2);
+                provider.series[0].source.sample = if late_first { late } else { early };
+                provider.series[1].source.sample = if late_first { early } else { late };
+                let engine = Engine::default();
+                let control = Control::default();
+                let options = EngineOptions {
+                    parser: ParserOptions {
+                        experimental_functions: true,
+                        ..ParserOptions::default()
+                    },
+                    ..EngineOptions::default()
+                };
+                for (parameters, factor, name) in [
+                    ("time(),0.5", "sf", "smoothing"),
+                    ("0.5,time()", "tf", "trend"),
+                    ("time(),time()", "sf", "smoothing"),
+                    (
+                        "1.1-time()/10,time()",
+                        if late_first { "tf" } else { "sf" },
+                        if late_first { "trend" } else { "smoothing" },
+                    ),
+                ] {
+                    let expression =
+                        format!("double_exponential_smoothing(counter_total[500ms],{parameters})");
+                    let query = engine
+                        .compile(expression.as_bytes(), options, &control)
+                        .unwrap();
+                    let error = query
+                        .collect(
+                            &provider,
+                            QueryRequest::Range {
+                                start_ms: 1000,
+                                end_ms: 5000,
+                                step_ms: 1000,
+                            },
+                            &control,
+                        )
+                        .unwrap_err();
+                    let ExecutionError::Evaluation(EvaluationError::Runtime(message)) = &error
+                    else {
+                        panic!("{error:?}");
+                    };
+                    let expected = format!(
+                        "invalid {name} factor. Expected: 0 < {factor} < 1, got: {:.6}",
+                        if late_first { 5.0 } else { 1.0 }
+                    );
+                    assert_eq!(&message[..], expected.as_bytes());
+                    drop(error);
+                    drop(query);
+                    provider.assert_closed();
+                    assert!(
+                        engine
+                            .accounting
+                            .snapshot()
+                            .memory
+                            .iter()
+                            .all(|kind| kind.current == 0)
+                    );
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn range_preparation_keeps_metadata_work_independent_of_the_step_count() {
+        use std::sync::atomic::Ordering;
+        for expression in [
+            &b"rate(counter_total[1s])"[..],
+            &b"sum_over_time(counter_total[1s])"[..],
+            &b"deriv(counter_total[1s])"[..],
+        ] {
+            for metrics in [8, 32] {
+                let mut peaks = Vec::new();
+                for steps in [3, 97] {
+                    let provider = FixtureProvider::new(0, 1, metrics);
+                    let engine = Engine::default();
+                    let control = Control::default();
+                    let compiled = engine
+                        .compile(expression, EngineOptions::default(), &control)
+                        .unwrap();
+                    let account = engine.accounting.query();
+                    {
+                        let header = compiled
+                            .header(QueryRequest::Range {
+                                start_ms: 1000,
+                                end_ms: steps * 1000,
+                                step_ms: 1000,
+                            })
+                            .unwrap();
+                        let prepared =
+                            Prepared::new(&compiled.expression, header, &control, &account)
+                                .unwrap();
+                        let bounds = crate::query_bounds::find(
+                            &compiled.expression,
+                            compiled.evaluation_options(header, header.start_ms),
+                            &prepared,
+                            &control,
+                            &account,
+                        )
+                        .unwrap();
+                        let query = provider.open(&control).unwrap();
+                        let rosters = compiled
+                            .prepare_rosters(&query, &prepared, bounds, &control, &account)
+                            .unwrap();
+                        assert!(rosters.descriptors(compiled.expression.root).is_empty());
+                        assert!(
+                            provider.counts.series_opened.load(Ordering::Relaxed) <= 3 * metrics
+                        );
+                    }
+                    provider.assert_closed();
+                    let observations = account.snapshot();
+                    assert!(observations.memory.iter().all(|kind| kind.current == 0));
+                    assert!(observations.work > 0);
+                    peaks.push(observations.memory[MemoryKind::Workspace as usize].peak);
+                    drop(compiled);
+                    assert!(
+                        engine
+                            .accounting
+                            .snapshot()
+                            .memory
+                            .iter()
+                            .all(|kind| kind.current == 0)
+                    );
+                }
+                assert_eq!(peaks[0], peaks[1]);
+            }
+        }
+    }
+
+    #[test]
+    fn range_metadata_failure_precedes_raw_cursor_open_and_helper_errors() {
+        use std::sync::atomic::Ordering;
+        for expression in [
+            &b"rate(counter_total[1s])"[..],
+            &b"sum_over_time(counter_total[1s])"[..],
+            &b"double_exponential_smoothing(counter_total[1s],5,5)"[..],
+        ] {
+            let mut provider = FixtureProvider::new(2, 1, 2);
+            provider.series[0].source.fail_page = Some(0);
+            let duplicate = provider.series[1].labels[0].clone();
+            provider.series[1].labels.push(duplicate);
+            let engine = Engine::default();
+            let control = Control::default();
+            let compiled = engine
+                .compile(
+                    expression,
+                    EngineOptions {
+                        parser: ParserOptions {
+                            experimental_functions: true,
+                            ..ParserOptions::default()
+                        },
+                        ..EngineOptions::default()
+                    },
+                    &control,
+                )
+                .unwrap();
+            let error = compiled
+                .collect(&provider, QueryRequest::Instant { time_ms: 2000 }, &control)
+                .unwrap_err();
+            assert!(matches!(
+                error,
+                ExecutionError::Evaluation(EvaluationError::Storage(StorageError::Invalid(
+                    "label names are not unique and sorted"
+                )))
+            ));
+            assert!(
+                provider
+                    .series
+                    .iter()
+                    .all(|series| { series.source.counters.opened.load(Ordering::Relaxed) == 0 })
+            );
+            provider.assert_closed();
+            drop(compiled);
+            assert!(
+                engine
+                    .accounting
+                    .snapshot()
+                    .memory
+                    .iter()
+                    .all(|kind| kind.current == 0)
+            );
+        }
     }
 
     #[test]

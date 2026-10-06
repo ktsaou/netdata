@@ -367,6 +367,29 @@ impl<'a, Q: QueryProvider + 'a> Machine<'a, Q> {
     pub(crate) fn restrict(&mut self, ordinals: &'a [usize]) {
         self.frames[0].filter = RowFilter::Ordinals(ordinals);
     }
+    pub(crate) fn replay<'b>(
+        &'b self,
+        node: NodeId,
+        options: EvaluationOptions,
+        annotations: Option<&'b mut AnnotationBuilder>,
+    ) -> Machine<'b, Q> {
+        Machine::new(
+            self.query,
+            self.expression,
+            node,
+            options,
+            self.control,
+            self.account,
+            EvaluationMetadata {
+                prepared: self.prepared,
+                rosters: self.rosters,
+                invariants: self.invariants,
+                timestamp_selectors: self.timestamp_selectors,
+                data_bounds: self.data_bounds,
+                annotations,
+            },
+        )
+    }
     fn map(&self, operation: MapOperation) -> State<'a, Q> {
         State::Map {
             operation,
@@ -502,12 +525,12 @@ impl<'a, Q: QueryProvider + 'a> Machine<'a, Q> {
             ordinal: 0,
         })
     }
-    fn range_call(
+    fn range_spec(
         &self,
         node: NodeId,
         function: RangeFunction,
         parameters: [f64; 2],
-    ) -> Result<State<'a, Q>, EvaluationError> {
+    ) -> Result<(NodeId, SelectorOperation), EvaluationError> {
         let Expr::Call { arguments, .. } = &self.expression.arena[node].expression else {
             unreachable!()
         };
@@ -528,8 +551,296 @@ impl<'a, Q: QueryProvider + 'a> Machine<'a, Q> {
                 range_ns,
             },
         };
+        Ok((selector, operation))
+    }
+    fn range_call(
+        &self,
+        node: NodeId,
+        function: RangeFunction,
+        parameters: [f64; 2],
+    ) -> Result<State<'a, Q>, EvaluationError> {
+        let (selector, operation) = self.range_spec(node, function, parameters)?;
         self.select(selector, operation)
     }
+    pub(crate) fn range_selection(
+        &self,
+        node: NodeId,
+        function: RangeFunction,
+    ) -> Result<(Q::Selection<'a>, ResourceLease, NodeId), EvaluationError> {
+        let State::Selection {
+            selection,
+            resources,
+            selector,
+            ..
+        } = self.range_call(node, function, [0.0; 2])?
+        else {
+            unreachable!("range selection")
+        };
+        Ok((selection, resources, selector))
+    }
+    pub(crate) fn range_series_sample<S: Series>(
+        &mut self,
+        node: NodeId,
+        function: RangeFunction,
+        series_ordinal: usize,
+        series: &S,
+    ) -> Result<Option<EvaluatedSample>, EvaluationError> {
+        self.control.check()?;
+        self.account.work(1);
+        let mut parameters = [0.0; 2];
+        if let RangeFunction::Numeric(kind) = function {
+            let Expr::Call { arguments, .. } = &self.expression.arena[node].expression else {
+                unreachable!("range call")
+            };
+            for (position, &argument) in arguments[1..].iter().take(kind.parameters()).enumerate() {
+                let mut child = self.replay(argument, self.options, None);
+                child.frames[0].mode = OutputMode::Vector;
+                while let Some(sample) = child.next()? {
+                    let OwnedValue::Float(value) = sample.value else {
+                        unreachable!("scalar parameter")
+                    };
+                    parameters[position] = value;
+                }
+            }
+        }
+        let (selector, operation) = self.range_spec(node, function, parameters)?;
+        self.series_sample(node, selector, operation, series_ordinal, series)
+    }
+    fn series_sample<S: Series>(
+        &mut self,
+        node: NodeId,
+        selector_node: NodeId,
+        operation: SelectorOperation,
+        series_ordinal: usize,
+        series: &S,
+    ) -> Result<Option<EvaluatedSample>, EvaluationError> {
+        let series_labels = series.label_views(self.account);
+        validate_labels(&series_labels)?;
+        let selector = self.selector(selector_node);
+        if !matches_in(&series_labels, &selector.matchers, Some(self.account)) {
+            return Ok(None);
+        }
+        let end_ms = self.lookup(selector_node);
+        let value = match operation {
+            SelectorOperation::Instant => {
+                if selector.skip_histogram_buckets {
+                    let fixed = selector.modifiers.timestamp.is_some()
+                        || selector.modifiers.start_or_end.is_some();
+                    crate::instant_statistics::select(
+                        series,
+                        crate::instant_statistics::InstantWindow {
+                            first_lookup_ms: if fixed {
+                                end_ms
+                            } else {
+                                self.options.start_ms.wrapping_sub(
+                                    self.prepared
+                                        .offset(selector_node, selector.modifiers.original_offset)
+                                        / 1_000_000,
+                                )
+                            },
+                            lookup_ms: end_ms,
+                            step_ms: self.options.step_ms,
+                            lookback_ms: self.options.lookback_ms,
+                            delta_ms: self
+                                .options
+                                .lookback_ms
+                                .wrapping_sub(i64::from(self.timestamp_selectors[selector_node.0])),
+                            data_bounds: self.data_bounds,
+                        },
+                        self.control,
+                        self.account,
+                    )?
+                } else {
+                    let bounds = TimeBounds {
+                        start_ms: end_ms
+                            .wrapping_sub(self.options.lookback_ms)
+                            .wrapping_add(1)
+                            .max(self.data_bounds.start_ms),
+                        end_ms: end_ms.min(self.data_bounds.end_ms),
+                    };
+                    let mut selected = None;
+                    if bounds.start_ms <= bounds.end_ms {
+                        scan(series, bounds, self.control, self.account, |sample| {
+                            selected = if sample.value.is_stale() {
+                                None
+                            } else {
+                                Some((
+                                    sample.time_ms,
+                                    OwnedValue::copy_from(
+                                        sample.value,
+                                        self.account,
+                                        MemoryKind::Workspace,
+                                    ),
+                                ))
+                            };
+                            Ok(())
+                        })?;
+                    }
+                    selected
+                }
+            }
+            SelectorOperation::Rate { kind, range_ns } => {
+                let result = range_rates::evaluate(
+                    series,
+                    RateInput {
+                        window: RateWindow {
+                            start_ms: end_ms.wrapping_sub(range_ns / 1_000_000),
+                            end_ms,
+                            range_ns,
+                            start_timestamps: self.options.start_timestamps,
+                        },
+                        range_start_ms: (if self.invariants[node.0] {
+                            self.options.start_ms
+                        } else {
+                            self.options.time_ms
+                        })
+                        .wrapping_sub(
+                            range_ns.wrapping_add(self.prepared.adjusted_offset(
+                                selector_node,
+                                &selector.modifiers,
+                                self.options.start_ms,
+                            )) / 1_000_000,
+                        ),
+                        data_bounds: Some(self.data_bounds),
+                    },
+                    kind,
+                    self.statistics_window(selector_node, range_ns, end_ms),
+                    self.control,
+                    self.account,
+                )?;
+                if node == self.diagnostic_node
+                    && let Some(annotations) = &mut self.annotations
+                {
+                    let Expr::Call { arguments, .. } = &self.expression.arena[node].expression
+                    else {
+                        unreachable!()
+                    };
+                    let argument = self.expression.arena.unparenthesized(arguments[0]);
+                    let span = self.expression.arena[argument].span;
+                    let metric = label(&series_labels, b"__name__");
+                    for kind in result.annotations.into_iter().flatten() {
+                        annotations.add(kind, metric, span, &self.expression.source, self.account);
+                    }
+                    if kind.checks_counter_name()
+                        && matches!(result.value, Some(OwnedValue::Float(_)))
+                        && !metric.is_empty()
+                        && ![
+                            &b"_total"[..],
+                            &b"_sum"[..],
+                            &b"_count"[..],
+                            &b"_bucket"[..],
+                        ]
+                        .iter()
+                        .any(|suffix| metric.ends_with(suffix))
+                    {
+                        annotations.add(
+                            AnnotationKind::PossibleNonCounter,
+                            metric,
+                            span,
+                            &self.expression.source,
+                            self.account,
+                        );
+                    }
+                }
+                result.value.map(|value| (self.options.time_ms, value))
+            }
+            SelectorOperation::Fold { kind, range_ns } => {
+                let Some(bounds) = self.matrix_bounds(end_ms, range_ns) else {
+                    return Ok(None);
+                };
+                let result = fold(
+                    series,
+                    bounds,
+                    kind,
+                    FoldOptions {
+                        start_timestamps: self.options.start_timestamps,
+                        statistics: self.statistics_window(selector_node, range_ns, end_ms),
+                    },
+                    self.control,
+                    self.account,
+                )?;
+                if node == self.diagnostic_node
+                    && let Some(annotations) = &mut self.annotations
+                {
+                    let Expr::Call { arguments, .. } = &self.expression.arena[node].expression
+                    else {
+                        unreachable!()
+                    };
+                    let argument = self.expression.arena.unparenthesized(arguments[0]);
+                    for kind in result.annotations.into_iter().flatten() {
+                        annotations.add(
+                            kind,
+                            label(&series_labels, b"__name__"),
+                            self.expression.arena[argument].span,
+                            &self.expression.source,
+                            self.account,
+                        );
+                    }
+                }
+                result.value.map(|value| (self.options.time_ms, value))
+            }
+            SelectorOperation::Numeric {
+                function,
+                parameters,
+                range_ns,
+            } => {
+                let Some(bounds) = self.matrix_bounds(end_ms, range_ns) else {
+                    return Ok(None);
+                };
+                let result = range_numeric::evaluate(
+                    series,
+                    bounds,
+                    function,
+                    parameters,
+                    self.options.time_ms,
+                    self.control,
+                    self.account,
+                )
+                .map_err(|error| match error {
+                    NumericRangeError::Storage(error) => EvaluationError::Storage(error),
+                    NumericRangeError::Factor { trend, value } => EvaluationError::Runtime(
+                        NumericRangeError::message(trend, value, self.account),
+                    ),
+                })?;
+                if let Some(kind) = result.annotation
+                    && node == self.diagnostic_node
+                    && let Some(annotations) = &mut self.annotations
+                {
+                    let Expr::Call { arguments, .. } = &self.expression.arena[node].expression
+                    else {
+                        unreachable!()
+                    };
+                    let argument = self.expression.arena.unparenthesized(arguments[0]);
+                    annotations.add(
+                        kind,
+                        label(&series_labels, b"__name__"),
+                        self.expression.arena[argument].span,
+                        &self.expression.source,
+                        self.account,
+                    );
+                }
+                result
+                    .value
+                    .map(|value| (self.options.time_ms, OwnedValue::Float(value)))
+            }
+        };
+        Ok(value.map(|(source_time_ms, value)| {
+            let mut labels =
+                OwnedLabels::copy_from(&series_labels, self.account, MemoryKind::Workspace);
+            let drop_name = operation.drops_name();
+            if drop_name && !self.options.delayed_name_removal {
+                labels.retain(|name| !metadata(name));
+            }
+            EvaluatedSample {
+                ordinal: series_ordinal,
+                labels,
+                value,
+                source_time_ms,
+                drop_name,
+            }
+        }))
+    }
+
     fn enter(&mut self, index: usize) -> Result<Option<EvaluatedSample>, EvaluationError> {
         let node = self.frames[index].node;
         if !self.frames[index].bypass_order
@@ -1095,260 +1406,17 @@ impl<'a, Q: QueryProvider + 'a> Machine<'a, Q> {
                     let resources = series.resources();
                     let series = ResourceOwner::new(series, resources, self.account);
                     let series = &series.value;
-                    let series_labels = series.label_views(self.account);
-                    validate_labels(&series_labels)?;
                     if !filter.accepts(series_ordinal) {
+                        validate_labels(&series.label_views(self.account))?;
                         continue;
                     }
                     let selector_node = *selector;
                     let operation = *operation;
-                    let selector = self.selector(selector_node);
-                    if !matches_in(&series_labels, &selector.matchers, Some(self.account)) {
-                        continue;
-                    }
-                    let end_ms = self.lookup(selector_node);
-                    let value = match operation {
-                        SelectorOperation::Instant => {
-                            if selector.skip_histogram_buckets {
-                                let fixed = selector.modifiers.timestamp.is_some()
-                                    || selector.modifiers.start_or_end.is_some();
-                                crate::instant_statistics::select(
-                                    series,
-                                    crate::instant_statistics::InstantWindow {
-                                        first_lookup_ms: if fixed {
-                                            end_ms
-                                        } else {
-                                            self.options.start_ms.wrapping_sub(
-                                                self.prepared.offset(
-                                                    selector_node,
-                                                    selector.modifiers.original_offset,
-                                                ) / 1_000_000,
-                                            )
-                                        },
-                                        lookup_ms: end_ms,
-                                        step_ms: self.options.step_ms,
-                                        lookback_ms: self.options.lookback_ms,
-                                        delta_ms: self.options.lookback_ms.wrapping_sub(i64::from(
-                                            self.timestamp_selectors[selector_node.0],
-                                        )),
-                                        data_bounds: self.data_bounds,
-                                    },
-                                    self.control,
-                                    self.account,
-                                )?
-                            } else {
-                                let bounds = TimeBounds {
-                                    start_ms: end_ms
-                                        .wrapping_sub(self.options.lookback_ms)
-                                        .wrapping_add(1)
-                                        .max(self.data_bounds.start_ms),
-                                    end_ms: end_ms.min(self.data_bounds.end_ms),
-                                };
-                                let mut selected = None;
-                                if bounds.start_ms <= bounds.end_ms {
-                                    scan(series, bounds, self.control, self.account, |sample| {
-                                        selected = if sample.value.is_stale() {
-                                            None
-                                        } else {
-                                            Some((
-                                                sample.time_ms,
-                                                OwnedValue::copy_from(
-                                                    sample.value,
-                                                    self.account,
-                                                    MemoryKind::Workspace,
-                                                ),
-                                            ))
-                                        };
-                                        Ok(())
-                                    })?;
-                                }
-                                selected
-                            }
-                        }
-                        SelectorOperation::Rate { kind, range_ns } => {
-                            let result = range_rates::evaluate(
-                                series,
-                                RateInput {
-                                    window: RateWindow {
-                                        start_ms: end_ms.wrapping_sub(range_ns / 1_000_000),
-                                        end_ms,
-                                        range_ns,
-                                        start_timestamps: self.options.start_timestamps,
-                                    },
-                                    range_start_ms: (if self.invariants[node.0] {
-                                        self.options.start_ms
-                                    } else {
-                                        self.options.time_ms
-                                    })
-                                    .wrapping_sub(
-                                        range_ns.wrapping_add(self.prepared.adjusted_offset(
-                                            selector_node,
-                                            &selector.modifiers,
-                                            self.options.start_ms,
-                                        )) / 1_000_000,
-                                    ),
-                                    data_bounds: Some(self.data_bounds),
-                                },
-                                kind,
-                                self.statistics_window(selector_node, range_ns, end_ms),
-                                self.control,
-                                self.account,
-                            )?;
-                            if node == self.diagnostic_node
-                                && let Some(annotations) = &mut self.annotations
-                            {
-                                let Expr::Call { arguments, .. } =
-                                    &self.expression.arena[node].expression
-                                else {
-                                    unreachable!()
-                                };
-                                let argument = self.expression.arena.unparenthesized(arguments[0]);
-                                let span = self.expression.arena[argument].span;
-                                let metric = label(&series_labels, b"__name__");
-                                for kind in result.annotations.into_iter().flatten() {
-                                    annotations.add(
-                                        kind,
-                                        metric,
-                                        span,
-                                        &self.expression.source,
-                                        self.account,
-                                    );
-                                }
-                                if kind.checks_counter_name()
-                                    && matches!(result.value, Some(OwnedValue::Float(_)))
-                                    && !metric.is_empty()
-                                    && ![
-                                        &b"_total"[..],
-                                        &b"_sum"[..],
-                                        &b"_count"[..],
-                                        &b"_bucket"[..],
-                                    ]
-                                    .iter()
-                                    .any(|suffix| metric.ends_with(suffix))
-                                {
-                                    annotations.add(
-                                        AnnotationKind::PossibleNonCounter,
-                                        metric,
-                                        span,
-                                        &self.expression.source,
-                                        self.account,
-                                    );
-                                }
-                            }
-                            result.value.map(|value| (self.options.time_ms, value))
-                        }
-                        SelectorOperation::Fold { kind, range_ns } => {
-                            let Some(bounds) = self.matrix_bounds(end_ms, range_ns) else {
-                                continue;
-                            };
-                            let result = fold(
-                                series,
-                                bounds,
-                                kind,
-                                FoldOptions {
-                                    start_timestamps: self.options.start_timestamps,
-                                    statistics: self.statistics_window(
-                                        selector_node,
-                                        range_ns,
-                                        end_ms,
-                                    ),
-                                },
-                                self.control,
-                                self.account,
-                            )?;
-                            if node == self.diagnostic_node
-                                && let Some(annotations) = &mut self.annotations
-                            {
-                                let Expr::Call { arguments, .. } =
-                                    &self.expression.arena[node].expression
-                                else {
-                                    unreachable!()
-                                };
-                                let argument = self.expression.arena.unparenthesized(arguments[0]);
-                                for kind in result.annotations.into_iter().flatten() {
-                                    annotations.add(
-                                        kind,
-                                        label(&series_labels, b"__name__"),
-                                        self.expression.arena[argument].span,
-                                        &self.expression.source,
-                                        self.account,
-                                    );
-                                }
-                            }
-                            result.value.map(|value| (self.options.time_ms, value))
-                        }
-                        SelectorOperation::Numeric {
-                            function,
-                            parameters,
-                            range_ns,
-                        } => {
-                            let Some(bounds) = self.matrix_bounds(end_ms, range_ns) else {
-                                continue;
-                            };
-                            let result = range_numeric::evaluate(
-                                series,
-                                bounds,
-                                function,
-                                parameters,
-                                self.options.time_ms,
-                                self.control,
-                                self.account,
-                            )
-                            .map_err(|error| match error {
-                                NumericRangeError::Storage(error) => {
-                                    EvaluationError::Storage(error)
-                                }
-                                NumericRangeError::Factor { trend, value } => {
-                                    EvaluationError::Runtime(NumericRangeError::message(
-                                        trend,
-                                        value,
-                                        self.account,
-                                    ))
-                                }
-                            })?;
-                            if let Some(kind) = result.annotation
-                                && node == self.diagnostic_node
-                                && let Some(annotations) = &mut self.annotations
-                            {
-                                let Expr::Call { arguments, .. } =
-                                    &self.expression.arena[node].expression
-                                else {
-                                    unreachable!()
-                                };
-                                let argument = self.expression.arena.unparenthesized(arguments[0]);
-                                annotations.add(
-                                    kind,
-                                    label(&series_labels, b"__name__"),
-                                    self.expression.arena[argument].span,
-                                    &self.expression.source,
-                                    self.account,
-                                );
-                            }
-                            result
-                                .value
-                                .map(|value| (self.options.time_ms, OwnedValue::Float(value)))
-                        }
-                    };
-                    if let Some((source_time_ms, value)) = value {
-                        let mut labels = OwnedLabels::copy_from(
-                            &series_labels,
-                            self.account,
-                            MemoryKind::Workspace,
-                        );
-                        let drop_name = operation.drops_name();
-                        if drop_name && !self.options.delayed_name_removal {
-                            labels.retain(|name| !metadata(name));
-                        }
-                        let sample = EvaluatedSample {
-                            ordinal: series_ordinal,
-                            labels,
-                            value,
-                            source_time_ms,
-                            drop_name,
-                        };
-                        if let Some(sample) = self.propagate(sample, index)? {
-                            return Ok(Some(sample));
-                        }
+                    if let Some(sample) =
+                        self.series_sample(node, selector_node, operation, series_ordinal, series)?
+                        && let Some(sample) = self.propagate(sample, index)?
+                    {
+                        return Ok(Some(sample));
                     }
                 }
                 State::Aggregate { groups, collecting } => {
