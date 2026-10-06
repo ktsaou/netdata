@@ -235,6 +235,7 @@ impl<'a> Group<'a> {
                 labels,
                 value,
                 source_time_ms: time_ms,
+                source_start_time_ms: 0,
                 drop_name: self.whole_drop_name.unwrap_or(self.drop_name),
             }),
             annotation,

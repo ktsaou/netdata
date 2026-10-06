@@ -22,6 +22,7 @@ pub(crate) struct InstantWindow {
 #[derive(Clone, Copy)]
 struct Point {
     time_ms: i64,
+    start_time_ms: i64,
     value: Projection,
 }
 impl Point {
@@ -36,7 +37,7 @@ pub(crate) fn select<S: Series>(
     window: InstantWindow,
     control: &Control,
     account: &QueryAccounting,
-) -> Result<Option<(i64, OwnedValue)>, StorageError> {
+) -> Result<Option<(i64, i64, OwnedValue)>, StorageError> {
     let bounds = TimeBounds {
         start_ms: window
             .data_bounds
@@ -85,6 +86,7 @@ pub(crate) fn select<S: Series>(
                 if last_time < lookup_ms {
                     previous = Some(Point {
                         time_ms: sample.time_ms,
+                        start_time_ms: sample.start_time_ms,
                         value: decoder.project(sample.value, control, account)?,
                     });
                     advanced = true;
@@ -93,6 +95,7 @@ pub(crate) fn select<S: Series>(
                 // Access future current histograms before choosing the buffered predecessor.
                 let current = Point {
                     time_ms: sample.time_ms,
+                    start_time_ms: sample.start_time_ms,
                     value: decoder.project(sample.value, control, account)?,
                 };
                 selected = if current.time_ms > lookup_ms {
@@ -128,6 +131,7 @@ pub(crate) fn select<S: Series>(
     Ok(selected.map(|point| {
         (
             point.time_ms,
+            point.start_time_ms,
             OwnedValue::copy_from(point.value.as_ref(), account, MemoryKind::Workspace),
         )
     }))
@@ -187,6 +191,49 @@ mod tests {
     }
 
     #[test]
+    fn start_timestamps_follow_statistics_predecessors() {
+        // Pinned vectorSelectorSingle returns the predecessor's start time after future access.
+        fn sample(index: usize) -> Sample {
+            Sample {
+                start_time_ms: [77, 4100][index],
+                ..histogram([900, 5000][index], [8.0, 4.0][index], NOT_RESET)
+            }
+        }
+        for page in [1, 17, 1024] {
+            for (count, lookup_ms, expected) in [
+                (1, 1000, Some((900, 77))),
+                (2, 1000, Some((900, 77))),
+                (2, 1500, Some((900, 77))),
+                (2, 1900, None),
+                (2, 5000, Some((5000, 4100))),
+            ] {
+                let source = GeneratedSeries::new(count, page, sample);
+                let account = EngineAccounting::default().query();
+                let result = select(
+                    &source,
+                    InstantWindow {
+                        lookup_ms,
+                        step_ms: lookup_ms - 1000,
+                        lookback_ms: 1000,
+                        delta_ms: 999,
+                        data_bounds: TimeBounds {
+                            start_ms: 1,
+                            end_ms: 5000,
+                        },
+                        ..window()
+                    },
+                    &Control::default(),
+                    &account,
+                )
+                .unwrap();
+                assert_eq!(result.as_ref().map(|point| (point.0, point.1)), expected);
+                drop(result);
+                assert_closed(&source, &account);
+            }
+        }
+    }
+
+    #[test]
     fn future_access_cache_and_moving_seek_match_source_hints() {
         fn lookahead(index: usize) -> Sample {
             histogram([900, 5000][index], [8.0, 4.0][index], [NOT_RESET, 0][index])
@@ -217,7 +264,7 @@ mod tests {
                     .unwrap()
                     .unwrap();
                 assert_eq!(result.0, 5000);
-                let OwnedValue::Histogram(histogram) = &result.1 else {
+                let OwnedValue::Histogram(histogram) = &result.2 else {
                     panic!("histogram output")
                 };
                 let histogram = histogram.as_ref();
@@ -272,7 +319,7 @@ mod tests {
             )
             .unwrap()
             .unwrap();
-            let OwnedValue::Histogram(h) = &result.1 else {
+            let OwnedValue::Histogram(h) = &result.2 else {
                 panic!("histogram output")
             };
             assert_eq!(h.as_ref().reset_hint, COUNTER_RESET);

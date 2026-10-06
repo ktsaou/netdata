@@ -66,6 +66,7 @@ pub(crate) struct EvaluatedSample {
     pub labels: OwnedLabels,
     pub value: OwnedValue,
     pub source_time_ms: i64,
+    pub source_start_time_ms: i64,
     pub drop_name: bool,
 }
 
@@ -111,6 +112,7 @@ enum MapOperation {
 #[derive(Clone, Copy, Debug)]
 pub(crate) enum PointwiseFunction {
     Timestamp,
+    StartTimestamp { propagate: bool },
     HistogramCount,
     HistogramSum,
     HistogramAvg,
@@ -122,6 +124,7 @@ impl PointwiseFunction {
     pub(crate) fn parse(name: &str) -> Option<Self> {
         Some(match name {
             "timestamp" => Self::Timestamp,
+            "start_timestamp" => Self::StartTimestamp { propagate: false },
             "histogram_count" => Self::HistogramCount,
             "histogram_sum" => Self::HistogramSum,
             "histogram_avg" => Self::HistogramAvg,
@@ -138,6 +141,9 @@ impl PointwiseFunction {
     ) -> Result<Option<f64>, EvaluationError> {
         if matches!(self, Self::Timestamp) {
             return Ok(Some(sample.source_time_ms as f64 / 1000.0));
+        }
+        if let Self::StartTimestamp { propagate } = self {
+            return Ok(propagate.then_some(sample.source_start_time_ms as f64 / 1000.0));
         }
         if let Self::Float(function, parameters) = self {
             return Ok(if let OwnedValue::Float(value) = &sample.value {
@@ -163,11 +169,14 @@ impl PointwiseFunction {
             Self::HistogramStdDev => crate::numerical_math::sqrt(
                 histogram_functions::histogram_stdvar_with(histogram, poll)?,
             ),
-            Self::Timestamp | Self::Float(..) => unreachable!(),
+            Self::Timestamp | Self::StartTimestamp { .. } | Self::Float(..) => unreachable!(),
         }))
     }
     fn drops_metadata(self) -> bool {
-        matches!(self, Self::Timestamp | Self::Float(..))
+        matches!(
+            self,
+            Self::Timestamp | Self::StartTimestamp { .. } | Self::Float(..)
+        )
     }
 }
 
@@ -407,6 +416,7 @@ impl<'a, Q: QueryProvider + 'a> Machine<'a, Q> {
             labels: OwnedLabels::new(self.account, MemoryKind::Workspace),
             value: OwnedValue::Float(value),
             source_time_ms: self.options.time_ms,
+            source_start_time_ms: 0,
             drop_name: false,
         }
     }
@@ -671,6 +681,7 @@ impl<'a, Q: QueryProvider + 'a> Machine<'a, Q> {
                             } else {
                                 Some((
                                     sample.time_ms,
+                                    sample.start_time_ms,
                                     OwnedValue::copy_from(
                                         sample.value,
                                         self.account,
@@ -747,7 +758,7 @@ impl<'a, Q: QueryProvider + 'a> Machine<'a, Q> {
                         );
                     }
                 }
-                result.value.map(|value| (self.options.time_ms, value))
+                result.value.map(|value| (self.options.time_ms, 0, value))
             }
             SelectorOperation::Fold { kind, range_ns } => {
                 let Some(bounds) = self.matrix_bounds(end_ms, range_ns) else {
@@ -782,7 +793,7 @@ impl<'a, Q: QueryProvider + 'a> Machine<'a, Q> {
                         );
                     }
                 }
-                result.value.map(|value| (self.options.time_ms, value))
+                result.value.map(|value| (self.options.time_ms, 0, value))
             }
             SelectorOperation::Numeric {
                 function,
@@ -826,10 +837,10 @@ impl<'a, Q: QueryProvider + 'a> Machine<'a, Q> {
                 }
                 result
                     .value
-                    .map(|value| (self.options.time_ms, OwnedValue::Float(value)))
+                    .map(|value| (self.options.time_ms, 0, OwnedValue::Float(value)))
             }
         };
-        Ok(value.map(|(source_time_ms, value)| {
+        Ok(value.map(|(source_time_ms, source_start_time_ms, value)| {
             let mut labels =
                 OwnedLabels::copy_from(&series_labels, self.account, MemoryKind::Workspace);
             let drop_name = operation.drops_name();
@@ -841,6 +852,7 @@ impl<'a, Q: QueryProvider + 'a> Machine<'a, Q> {
                 labels,
                 value,
                 source_time_ms,
+                source_start_time_ms,
                 drop_name,
             }
         }))
@@ -1029,7 +1041,15 @@ impl<'a, Q: QueryProvider + 'a> Machine<'a, Q> {
                     Ok(None)
                 }
                 _ => {
-                    if let Some(function) = PointwiseFunction::parse(function.name) {
+                    if let Some(mut function) = PointwiseFunction::parse(function.name) {
+                        if let PointwiseFunction::StartTimestamp { propagate } = &mut function {
+                            let argument = self.expression.arena.unparenthesized(arguments[0]);
+                            *propagate = self.options.start_timestamps
+                                && matches!(
+                                    self.expression.arena[argument].expression,
+                                    Expr::Selector(_)
+                                );
+                        }
                         if let PointwiseFunction::Float(float, _) = function {
                             if arguments.is_empty() {
                                 let result = float
@@ -1249,6 +1269,7 @@ impl<'a, Q: QueryProvider + 'a> Machine<'a, Q> {
                         });
                     }
                     sample.source_time_ms = self.options.time_ms;
+                    sample.source_start_time_ms = 0;
                     let duplicate_check = match operation {
                         MapOperation::Unary(TokenKind::SUB) => !self.options.delayed_name_removal,
                         MapOperation::Unary(_) => false,
@@ -1532,6 +1553,7 @@ impl<'a, Q: QueryProvider + 'a> Machine<'a, Q> {
                         ),
                         value: OwnedValue::Float(1.0),
                         source_time_ms: self.options.time_ms,
+                        source_start_time_ms: 0,
                         drop_name: *drop_name,
                     });
                     self.frames.pop();

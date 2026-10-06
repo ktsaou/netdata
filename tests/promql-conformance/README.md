@@ -586,7 +586,7 @@ are rejected, while fractional fill outputs retain their permitted tolerance.
 
 The full run after native histogram projections, timestamp support, intermediate ordering, native scalar/vector
 maps, native vector aggregation, request-context preparation, ordinary math/calendar calls, native/instant
-rates, regression/smoothing and ordinary absence matches 9,682 of 21,442 variants, with zero completed semantic failures and 11,760 open variants at page sizes
+rates, regression/smoothing, ordinary absence and direct start timestamps matches 9,684 of 21,442 variants, with zero completed semantic failures and 11,758 open variants at page sizes
 17 and 1024. Its 24 paired bit differences are
 NaN payload/sign differences from one original aggregation case. Further implementation and replay remain
 required. Separate fresh Go checks match
@@ -657,14 +657,14 @@ boundaries with an accumulator already retained. Accumulated bucket unions may s
 not certify the complete language or C integration.
 
 Instant and range evaluation supports `histogram_count`, `histogram_sum`, `histogram_avg`,
-`histogram_stdvar`, `histogram_stddev` and `timestamp`. Projections ignore floats; timestamp accepts both value
+`histogram_stdvar`, `histogram_stddev`, `timestamp` and experimental `start_timestamp`. Projections ignore floats; timestamp accepts both value
 types and distinguishes raw sample timestamps from derived evaluation timestamps. Eager metadata removal follows
 each source function; delayed removal occurs at final output. Duplicate checks and child diagnostics retain their
 source boundaries. A direct `timestamp(metric @ ...)` lookup follows the pinned engine's fixed timestamp,
 ignoring its original offset during lookup; query-wide storage bounds still include that offset. Ordinary instant
 cursor reads intersect those bounds. Parenthesized and derived arguments use ordinary expression evaluation.
-After a reproduced failing regression, 331 completed review cases match all bits in both profiles at page sizes
-1, 17 and 1024; nine `start_timestamp` cases remain explicitly open. Histogram variance polls cancellation
+After reproduced failing regressions, all 340 retained review cases match all bits in both profiles at page sizes
+1, 17 and 1024, including the nine previously open `start_timestamp` cases. Histogram variance polls cancellation
 during bucket traversal. Fresh Go checks match 4,134
 pointwise, composed, multi-step and disjoint-alias cases in both build profiles at page sizes 1, 17 and 1024;
 all 33 paired bit differences are NaN signs in nested nonfinite sums, reported separately from semantic comparison.
@@ -683,8 +683,8 @@ can consequently return seven. Degree/radian calls retain multiplication-before-
 On the qualified Linux amd64 target, 5,854 raw numeric/calendar cases match every bit in both Rust profiles
 against native, FMA-disabled, SSE4.1-disabled and combined-disabled Go captures. Six hundred additional Go
 direct rounding/truncation calls are retained as compiler-dispatch diagnostics; PromQL uses function values.
-Original unmodified Go math assertions pass in three CPU profiles. Fresh engine checks match all 1,402 completed
-cases at pages 1, 17 and 1024, with zero bit differences; thirty join/start-timestamp/label-replacement cases remain
+Original unmodified Go math assertions pass in three CPU profiles. Fresh engine checks match all 1,417 completed
+cases at pages 1, 17 and 1024, with zero bit differences; fifteen join/label-replacement cases remain
 explicitly open. A generated 2,048-versus-100,000-sample map with a scalar parameter keeps the same workspace
 peak and at most one open cursor at each page size. This qualifies these source owners, not the complete engine
 or other architectures.
@@ -736,8 +736,8 @@ histories retain equal workspace peaks at every page size; provider failure, can
 checked. All 5,020 offset/fixed-reference/diagnostic review cases match exactly. Extrapolation truncates Range+Offset
 together while physical scans truncate them separately and intersect query-wide bounds; permanent regressions
 cover the resulting alert threshold and fixed-reference membership. Of 1,058 additional time-context controls,
-1,029 match exactly and 29 still require other expression families. Extreme fixed-time/storage-sentinel tests
-cover the pinned integer-overflow behavior. Both profiles pass 141 units and offline locked Clippy/build checks.
+1,043 match exactly and 15 still require other expression families. Extreme fixed-time/storage-sentinel tests
+cover the pinned integer-overflow behavior. Both profiles pass 146 units and offline locked Clippy/build checks.
 
 Ordinary range-call preparation expands matrix metadata before opening raw cursors, then completes every logical
 step of one physical series before advancing to the next. Scalar children remain unrestricted. This preserves
@@ -760,6 +760,16 @@ corpus remains exact in both builds/pages. Generated 2,048-versus-16,384-sample 
 workspace and page peaks at each page size with one live raw cursor and a streaming sink. These finite fixtures
 qualify this owner; shared upfront selection, complete provider diagnostics and the full absence family still
 require the remaining engine work.
+
+`start_timestamp` returns raw start timestamps only for a syntactically direct selector, including parentheses,
+when its independent runtime feature is enabled. Composed arguments are fully evaluated before producing no
+result, preserving their failures and diagnostics. Raw zero, negative and extreme start timestamps are valid;
+conversion casts to float before dividing by 1000. Statistics lookups retain the selected predecessor's start
+timestamp through future access and EOF. These paths retain fixed fields beside the current sample, rather than
+raw history. All 192 completed of 208 independent clock controls match exactly in both builds/pages; twelve
+other expression and four vector-matching controls remain open. Generated 2,048-versus-16,384-sample histories
+retain equal workspace and page peaks with one live cursor and a streaming sink. The feature flags and shared
+source-phase/C/accounting requirements remain unchanged.
 
 Selectors under histogram count/sum/average use the source's statistics decoding for ordinary range folds.
 Subqueries, bucket-dependent histogram functions and trimming disable it. One tracked full histogram supplies
