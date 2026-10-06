@@ -310,6 +310,43 @@ impl RowFilter<'_> {
             }
         }
     }
+    fn next_position(
+        self,
+        descriptors: &[Descriptor],
+        mut start: usize,
+        control: &Control,
+        account: &QueryAccounting,
+    ) -> Result<Option<usize>, Interrupted> {
+        control.check()?;
+        if matches!(self, Self::All) {
+            return Ok((start < descriptors.len()).then_some(start));
+        }
+        while let Some(descriptor) = descriptors.get(start) {
+            let Some(wanted) = self.next_ordinal(descriptor.ordinal, control, account)? else {
+                return Ok(None);
+            };
+            // Ordered rosters may contain gaps and repeated ordinals.
+            let (mut left, mut right) = (start, descriptors.len());
+            while left < right {
+                control.check()?;
+                account.work(1);
+                let middle = left + (right - left) / 2;
+                if descriptors[middle].ordinal < wanted {
+                    left = middle + 1;
+                } else {
+                    right = middle;
+                }
+            }
+            if descriptors
+                .get(left)
+                .is_some_and(|value| value.ordinal == wanted)
+            {
+                return Ok(Some(left));
+            }
+            start = left;
+        }
+        Ok(None)
+    }
 }
 
 pub(crate) struct EvaluationMetadata<'a> {
@@ -1462,17 +1499,17 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
                         );
                         *running = false;
                     }
-                    while *position < descriptors.len()
-                        && !filter.accepts(descriptors[*position].ordinal)
-                    {
-                        self.control.check()?;
-                        self.account.work(1);
-                        *position += 1;
-                    }
-                    let Some(descriptor) = descriptors.get(*position) else {
+                    let Some(next) =
+                        filter.next_position(descriptors, *position, self.control, self.account)?
+                    else {
                         self.frames.pop();
                         continue;
                     };
+                    if next != *position {
+                        *phase = 0;
+                        *position = next;
+                    }
+                    let descriptor = &descriptors[*position];
                     let filter = RowFilter::Ordinals(&sources[descriptor.sources.clone()]);
                     *running = true;
                     self.push_filtered(node, filter, true, OutputMode::Matrix);
@@ -1771,4 +1808,69 @@ fn scalar_binary(
         LTE => f64::from(left <= right),
         _ => return Err(EvaluationError::Unsupported("binary numerical kernel")),
     })
+}
+
+#[cfg(test)]
+mod filter_tests {
+    use super::*;
+    use crate::accounting::EngineAccounting;
+
+    #[test]
+    fn ordered_filter_preserves_gaps_repeats_and_cancellation() {
+        let engine = EngineAccounting::default();
+        let account = engine.query();
+        let control = Control::default();
+        let descriptors: Vec<_> = [2, 2, 7, 9, 11]
+            .into_iter()
+            .map(|ordinal| Descriptor {
+                labels: OwnedLabels::new(&account, MemoryKind::Workspace),
+                ordinal,
+                hash: 0,
+                drop_name: false,
+                first_order: 0,
+                sources: 0..0,
+                kinds: 0,
+                collision_time_ms: None,
+            })
+            .collect();
+        for accepted in [
+            b"".as_slice(),
+            b"\x02\x09",
+            b"\x07\x02\x02",
+            b"\x00\x01\x03\x08\x0c",
+        ] {
+            let ordinals: Vec<_> = accepted.iter().map(|value| *value as usize).collect();
+            for start in 0..=descriptors.len() + 1 {
+                let expected = descriptors
+                    .iter()
+                    .enumerate()
+                    .skip(start)
+                    .find(|(_, descriptor)| ordinals.contains(&descriptor.ordinal))
+                    .map(|(position, _)| position);
+                assert_eq!(
+                    RowFilter::Ordinals(&ordinals)
+                        .next_position(&descriptors, start, &control, &account)
+                        .unwrap(),
+                    expected
+                );
+                assert_eq!(
+                    RowFilter::All
+                        .next_position(&descriptors, start, &control, &account)
+                        .unwrap(),
+                    (start < descriptors.len()).then_some(start)
+                );
+            }
+        }
+        assert_eq!(
+            RowFilter::Ordinals(&[usize::MAX])
+                .next_position(&descriptors, 0, &control, &account)
+                .unwrap(),
+            None
+        );
+        control.cancellation.cancel();
+        assert!(matches!(
+            RowFilter::Ordinals(&[2]).next_position(&descriptors, 0, &control, &account),
+            Err(Interrupted::Cancelled)
+        ));
+    }
 }

@@ -3949,29 +3949,140 @@ mod tests {
     #[test]
     fn singleton_label_filters_avoid_quadratic_skipped_ordinal_walks() {
         let mut work = Vec::new();
+        let mut nested_work = Vec::new();
         for count in [256, 1024] {
             let engine = Engine::default();
             let provider = FixtureProvider::new(1, 1, count);
             let control = Control::default();
-            let query = engine
-                .compile(
-                    b"count(label_join(counter_total,\"x\",\"/\",\"job\",\"instance\"))",
-                    EngineOptions::default(),
-                    &control,
-                )
-                .unwrap();
-            let (result, observed) = query
-                .collect(&provider, QueryRequest::Instant { time_ms: 1000 }, &control)
-                .unwrap();
-            assert_eq!(
-                float_bits(&result.series[0].points[0]),
-                (count as f64).to_bits()
-            );
-            work.push(observed.work);
-            provider.assert_closed();
+            let mut costs = Vec::new();
+            for expression in [
+                b"count(label_join(counter_total,\"x\",\"/\",\"job\",\"instance\"))".as_slice(),
+                b"count(label_join(label_join(counter_total,\"x\",\"/\",\"job\",\"instance\"),\"y\",\"/\",\"x\",\"instance\"))",
+            ] {
+                let query = engine
+                    .compile(expression, EngineOptions::default(), &control)
+                    .unwrap();
+                let (result, observed) = query
+                    .collect(&provider, QueryRequest::Instant { time_ms: 1000 }, &control)
+                    .unwrap();
+                assert_eq!(
+                    float_bits(&result.series[0].points[0]),
+                    (count as f64).to_bits()
+                );
+                costs.push(observed.work);
+                provider.assert_closed();
+            }
+            work.push(costs[0]);
+            nested_work.push(costs[1] - costs[0]);
         }
         // A finite guard for repeated skipped-ordinal walks, not an overall complexity proof.
         assert!(work[1] < work[0] * 8, "{work:?}");
+        assert!(nested_work[1] < nested_work[0] * 6, "{nested_work:?}");
+    }
+    #[test]
+    fn unequal_labels_with_the_same_full_hash_follow_source_merge_identity() {
+        // Go mergeSeriesWithSameLabelset uses Hash alone, not label equality.
+        const FIRST: &[u8] = b"Aaaaa\x00\x00\x00\x00\x00\x00\x00\x00";
+        const SECOND: &[u8] = b"Bbbbb\x1d\x3c\xa5\x95\x96\x2f\x43\xdd";
+        fn first(index: usize) -> crate::value::Sample {
+            crate::value::Sample {
+                time_ms: [1000, 2000][index],
+                start_time_ms: 0,
+                value: crate::value::SampleValue::Float(if index == 0 {
+                    -0.0
+                } else {
+                    f64::from_bits(crate::value::STALE_NAN_BITS)
+                }),
+            }
+        }
+        fn second(index: usize) -> crate::value::Sample {
+            crate::value::Sample {
+                time_ms: [1000, 3000][index],
+                start_time_ms: 0,
+                value: crate::value::SampleValue::Float(f64::from_bits(if index == 0 {
+                    crate::value::STALE_NAN_BITS
+                } else {
+                    0x7ff8_0000_0000_0073
+                })),
+            }
+        }
+        let engine = Engine::default();
+        let account = engine.accounting.query();
+        let control = Control::default();
+        for value in [FIRST, SECOND] {
+            let mut labels = crate::result::OwnedLabels::new(&account, MemoryKind::Workspace);
+            labels.push(b"a", value, &account, MemoryKind::Workspace);
+            assert_eq!(
+                crate::label_hash::full(&labels, &control, &account).unwrap(),
+                0x9c71_0b2e_3747_e3bd
+            );
+        }
+        for page in [1, 17, 1024] {
+            for overlap in [false, true] {
+                let mut provider = FixtureProvider::new(2, page, 2);
+                for (index, value) in [FIRST, SECOND].into_iter().enumerate() {
+                    provider.series[index].labels = vec![
+                        (b"a".to_vec(), value.to_vec()),
+                        (
+                            b"id".to_vec(),
+                            [b"first".as_slice(), b"second"][index].to_vec(),
+                        ),
+                    ];
+                }
+                if !overlap {
+                    provider.series[0].source.sample = first;
+                    provider.series[1].source.sample = second;
+                }
+                let query = engine
+                    .compile(
+                        b"label_replace({id=~\".+\"},\"id\",\"\",\"id\",\".*\")",
+                        EngineOptions {
+                            lookback_ms: 1500,
+                            ..EngineOptions::default()
+                        },
+                        &control,
+                    )
+                    .unwrap();
+                let result = query.collect(
+                    &provider,
+                    QueryRequest::Range {
+                        start_ms: 1000,
+                        end_ms: 4000,
+                        step_ms: 1000,
+                    },
+                    &control,
+                );
+                if overlap {
+                    assert!(matches!(
+                        result,
+                        Err(ExecutionError::Evaluation(EvaluationError::Invalid(
+                            "vector cannot contain metrics with the same labelset"
+                        )))
+                    ));
+                } else {
+                    let (result, observed) = result.unwrap();
+                    assert_eq!(result.series.len(), 1);
+                    let series = &result.series[0];
+                    assert_eq!(series.labels.0.len(), 1);
+                    assert_eq!(&series.labels.0[0].name[..], b"a");
+                    assert_eq!(&series.labels.0[0].value[..], FIRST);
+                    assert_eq!(
+                        series
+                            .points
+                            .iter()
+                            .map(|point| (point.time_ms, float_bits(point)))
+                            .collect::<Vec<_>>(),
+                        [
+                            (1000, (-0.0f64).to_bits()),
+                            (3000, 0x7ff8_0000_0000_0073),
+                            (4000, 0x7ff8_0000_0000_0073),
+                        ]
+                    );
+                    assert_eq!(observed.memory[MemoryKind::Workspace as usize].current, 0);
+                }
+                provider.assert_closed();
+            }
+        }
     }
     #[test]
     fn empty_group_keys_remain_distinct_until_source_label_projection() {

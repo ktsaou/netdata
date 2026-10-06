@@ -860,7 +860,7 @@ Metadata handles and output can grow with cardinality; raw history remains page 
 raw-error, sink-error and complete frontend accounting still require their remaining owners. Exact memoized initial reads, Seek
 landing and lookahead failure precedence remain mandatory qualification work. All admission limits remain disabled.
 
-Both builds pass 172 unit tests. The 64 independent selector-hint projections, 426 preparation scopes, 198 offset
+Both builds pass 174 unit tests. The 64 independent selector-hint projections, 426 preparation scopes, 198 offset
 projections and retained parser/clock/phase panels match their pinned source. The original corpus retains all
 previous 9,684 passing variants and adds 230: 9,914 pass, 11,528 remain open, and the same 24 paired bit reports
 remain. These are finite expression, catalog and
@@ -893,19 +893,26 @@ parameters retain their separate, currently open source branch.
 
 Projected labels and child-ordinal bindings are accounted metadata retained for replay. Same-kind overlapping
 aliases fail; disjoint aliases and equal-time float/histogram values retain the existing source merge/consumption
-rules. Actual duplicate hashes use the first child's labels and flags, including real byte-encoding collisions;
+rules. Actual duplicate hashes use the first child's labels and flags;
 the approved deterministic ordering applies only at the source's unspecified merge boundary. No raw-history,
 cross-metric value matrix or presence timeline is retained. Nested calls with 2,048 versus 16,384 raw samples keep
 equal workspace/provider/view peaks and at most one open cursor at pages 1/17/1024. Metadata and owned output still
 grow with cardinality, and all limits remain disabled.
 
 Both profiles match all 536 completed cases in the 552-case retained label/merge/clock panel and all 264 completed
-cases in 288 additional source-derived composition, empty-label, hash-collision and fixed mixed-kind checks at
+cases in 288 additional source-derived composition, empty-label, distinct byte-encoding and fixed mixed-kind checks at
 pages 1/17/1024, with no semantic or bit differences. Sixteen retained vector-matching dependencies and twenty-four
 additional aggregation-parameter dependencies remain explicitly open. Checked byte loops and ordinal lookup count
-work and poll cancellation. Filtered selection skips unrequested ordinals directly; the finite cardinality guard
-qualifies that avoided scan, rather than the complexity of every existing metadata operation. These checks do not
+work and poll cancellation. Filtered selection skips unrequested ordinals directly; nested ordered replay uses
+bounded lookup while preserving gaps, repeated ordinals and pending mixed-kind phases. Finite cardinality guards
+qualify those avoided scans, rather than the complexity of every existing metadata operation. These checks do not
 establish the remaining complete language, SRE, C or accounting gates.
+
+Eighty additional pinned-Go checks exercise two unequal label values with the same actual full uint64 hash,
+including same-kind overlap errors, disjoint first-child merging and composition. Both profiles match all bits at
+pages 1/17/1024. A permanent regression pins that collision and its negative-zero/NaN payloads. The earlier
+separator-byte fixture is a distinct-full-encoding control: its collision under the grouping encoding does not
+establish full-label Hash equality.
 
 The foundation represents the full value model and records required inputs. The following remain mandatory in the
 typed Rust core stage:
