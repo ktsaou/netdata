@@ -3,7 +3,7 @@
 use super::{Span, functions::Function, token as token_types};
 use crate::{
     Strong,
-    accounting::{AccountedVec, QueryAccounting},
+    accounting::{AccountedVec, AllocationContext, QueryAccounting},
 };
 use token_types::TokenKind;
 
@@ -54,8 +54,8 @@ pub enum MatchType {
 #[derive(Clone, Debug)]
 pub struct Matcher {
     pub kind: MatchType,
-    pub name: Vec<u8>,
-    pub value: Vec<u8>,
+    pub name: AccountedVec<u8>,
+    pub value: AccountedVec<u8>,
     pub compiled: Option<Strong<dyn CompiledMatcher>>,
 }
 
@@ -67,6 +67,27 @@ pub trait CompiledMatcher: std::fmt::Debug + Send + Sync {
 }
 
 impl Matcher {
+    #[cfg(test)]
+    pub(crate) fn copy_for(
+        &self,
+        account: Option<&QueryAccounting>,
+        kind: crate::accounting::MemoryKind,
+        control: &crate::storage::Control,
+    ) -> Result<Self, crate::storage::Interrupted> {
+        let context = account.map(|account| AllocationContext::new(account, kind));
+        let work = super::work::Work {
+            context: context.as_ref(),
+            account,
+            control: Some(control),
+        };
+        Ok(Self {
+            kind: self.kind,
+            name: work.copy(&self.name)?,
+            value: work.copy(&self.value)?,
+            compiled: self.compiled.clone(),
+        })
+    }
+
     pub fn matches(&self, value: &[u8]) -> bool {
         self.matches_in(value, None)
     }
@@ -101,9 +122,9 @@ pub enum Cardinality {
 #[derive(Clone, Debug, Default)]
 pub struct VectorMatching {
     pub cardinality: Cardinality,
-    pub labels: Option<Vec<Vec<u8>>>,
+    pub labels: Option<AccountedVec<AccountedVec<u8>>>,
     pub on: bool,
-    pub include: Option<Vec<Vec<u8>>>,
+    pub include: Option<AccountedVec<AccountedVec<u8>>>,
     pub fill_left: Option<f64>,
     pub fill_right: Option<f64>,
 }
@@ -119,9 +140,9 @@ pub struct SelectorModifiers {
 
 #[derive(Clone, Debug, Default)]
 pub struct VectorSelector {
-    pub name: Vec<u8>,
+    pub name: AccountedVec<u8>,
     pub modifiers: SelectorModifiers,
-    pub matchers: Vec<Option<Matcher>>,
+    pub matchers: AccountedVec<Option<Matcher>>,
     pub skip_histogram_buckets: bool,
     pub bypass_empty_matcher_check: bool,
     pub anchored: bool,
@@ -134,13 +155,13 @@ pub enum Expr {
         value: f64,
         duration: bool,
     },
-    String(Vec<u8>),
+    String(AccountedVec<u8>),
     Selector(VectorSelector),
     Aggregate {
         operator: TokenKind,
         expression: Option<NodeId>,
         parameter: Option<NodeId>,
-        grouping: Option<Vec<Vec<u8>>>,
+        grouping: Option<AccountedVec<AccountedVec<u8>>>,
         without: bool,
     },
     Binary {
@@ -152,7 +173,7 @@ pub enum Expr {
     },
     Call {
         function: Option<&'static Function>,
-        arguments: Vec<NodeId>,
+        arguments: AccountedVec<NodeId>,
     },
     Matrix {
         selector: NodeId,
@@ -218,10 +239,15 @@ pub struct Node {
 
 #[derive(Debug, Default)]
 pub struct Arena {
-    pub nodes: Vec<Node>,
+    pub nodes: AccountedVec<Node>,
 }
 
 impl Arena {
+    pub(crate) fn new_in(context: Option<&AllocationContext>) -> Self {
+        Self {
+            nodes: AccountedVec::new_in(context),
+        }
+    }
     /// Evaluation uses the inner argument without mutating captured source nodes.
     pub(crate) fn unparenthesized(&self, mut id: NodeId) -> NodeId {
         while let Expr::Paren(child) = &self[id].expression {
@@ -301,7 +327,7 @@ pub struct ParseError {
 
 #[derive(Debug)]
 pub struct ParsedExpression {
-    pub source: Box<[u8]>,
+    pub source: AccountedVec<u8>,
     pub arena: Arena,
     pub root: NodeId,
 }

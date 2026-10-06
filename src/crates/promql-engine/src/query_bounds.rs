@@ -85,7 +85,7 @@ pub(crate) fn selection_sites<'a>(
         step_ns: i64,
         function: &'a str,
         by: bool,
-        grouping: Option<&'a [Vec<u8>]>,
+        grouping: Option<&'a [AccountedVec<u8>]>,
     }
     let options = EvaluationOptions {
         start_ms: prepared.context.start_ms,
@@ -297,7 +297,7 @@ mod tests {
             );
             assert!(parsed.errors.is_empty(), "{query}: {:?}", parsed.errors);
             let expression = ParsedExpression {
-                source: query.as_bytes().into(),
+                source: query.as_bytes().to_vec().into(),
                 arena: parsed.arena,
                 root: parsed.root.unwrap(),
             };
@@ -382,7 +382,7 @@ mod tests {
             });
             assert!(parsed.errors.is_empty(), "{query}: {:?}", parsed.errors);
             let expression = ParsedExpression {
-                source: query.as_bytes().into(),
+                source: query.as_bytes().to_vec().into(),
                 arena: parsed.arena,
                 root: parsed.root.unwrap(),
             };

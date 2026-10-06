@@ -9,9 +9,42 @@ use crate::{
     value::{Sample, SampleValue},
 };
 use std::sync::{
-    Arc,
-    atomic::{AtomicUsize, Ordering},
+    Arc, Barrier,
+    atomic::{AtomicBool, AtomicUsize, Ordering},
 };
+
+pub(crate) fn interrupt_during<R>(
+    account: &QueryAccounting,
+    control: &Control,
+    operation: impl FnOnce() -> R,
+) -> R {
+    struct Done<'a>(&'a AtomicBool);
+    impl Drop for Done<'_> {
+        fn drop(&mut self) {
+            self.0.store(true, Ordering::Release);
+        }
+    }
+    let baseline = account.snapshot().work;
+    let ready = Barrier::new(2);
+    let done = AtomicBool::new(false);
+    std::thread::scope(|scope| {
+        scope.spawn(|| {
+            ready.wait();
+            while !done.load(Ordering::Acquire) {
+                if account.snapshot().work >= baseline + 8192 {
+                    control.cancellation.cancel();
+                    return;
+                }
+                std::thread::yield_now();
+            }
+        });
+        let finished = Done(&done);
+        ready.wait();
+        let result = operation();
+        drop(finished);
+        result
+    })
+}
 
 #[derive(Default, Debug)]
 pub(crate) struct CursorCounts {
@@ -215,7 +248,7 @@ pub(crate) struct FixtureQuery<'a> {
 pub(crate) struct FixtureSelection<'a> {
     provider: &'a FixtureProvider,
     index: usize,
-    matchers: Option<Vec<Option<Matcher>>>,
+    matchers: Option<AccountedVec<Option<Matcher>>>,
     accounting: Option<QueryAccounting>,
 }
 pub(crate) struct FixtureHandle<'a> {
@@ -249,28 +282,52 @@ impl crate::storage::QueryProvider for FixtureQuery<'_> {
         control: &Control,
     ) -> Result<Self::Selection<'_>, StorageError> {
         control.check()?;
-        self.provider
-            .counts
-            .selections_opened
-            .fetch_add(1, Ordering::Relaxed);
-        Ok(FixtureSelection {
+        let matchers = if self.provider.filter_selectors {
+            let context = request
+                .accounting
+                .map(|account| AllocationContext::new(account, MemoryKind::ProviderHeld));
+            let mut copies = AccountedVec::new_in(context.as_ref());
+            for matcher in request.matchers {
+                control.check()?;
+                if let Some(account) = request.accounting {
+                    account.work(1);
+                }
+                copies.push(
+                    matcher
+                        .as_ref()
+                        .map(|matcher| {
+                            matcher.copy_for(request.accounting, MemoryKind::ProviderHeld, control)
+                        })
+                        .transpose()?,
+                );
+            }
+            Some(copies)
+        } else {
+            None
+        };
+        let selection = FixtureSelection {
             provider: self.provider,
             index: 0,
-            matchers: self
-                .provider
-                .filter_selectors
-                .then(|| request.matchers.to_vec()),
+            matchers,
             accounting: self
                 .provider
                 .filter_selectors
                 .then(|| request.accounting.cloned())
                 .flatten(),
-        })
+        };
+        self.provider
+            .counts
+            .selections_opened
+            .fetch_add(1, Ordering::Relaxed);
+        Ok(selection)
     }
 }
 impl<'a> crate::storage::SeriesSelection for FixtureSelection<'a> {
     type Series = FixtureHandle<'a>;
     fn resources(&self) -> ProviderResources {
+        if self.accounting.is_some() {
+            return ProviderResources::default();
+        }
         let bytes = self.matchers.as_ref().map_or(0, |matchers| {
             matchers.capacity() * size_of::<Option<Matcher>>()
                 + matchers

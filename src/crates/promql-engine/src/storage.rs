@@ -1,7 +1,9 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 //! Query-scoped, repeatable typed storage. Providers own their handles and pages.
 use crate::{
-    accounting::{EngineAccounting, MemoryKind, MemoryLease, QueryAccounting, ReferenceLease},
+    accounting::{
+        AccountedVec, EngineAccounting, MemoryKind, MemoryLease, QueryAccounting, ReferenceLease,
+    },
     frontend::ast::Matcher,
     shared::Strong,
     value::{Sample, SampleRef, SampleValueRef},
@@ -121,7 +123,7 @@ pub struct SelectionHints<'a> {
     pub range_ms: i64,
     pub function: &'a str,
     pub by: bool,
-    pub grouping: Option<&'a [Vec<u8>]>,
+    pub grouping: Option<&'a [AccountedVec<u8>]>,
 }
 #[derive(Clone, Copy, Debug)]
 pub struct SelectionRequest<'a> {

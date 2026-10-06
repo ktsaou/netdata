@@ -72,7 +72,7 @@ pub(crate) fn equal(
 
 pub(crate) fn named(
     name: &[u8],
-    names: &[Vec<u8>],
+    names: &[AccountedVec<u8>],
     control: &Control,
     account: &QueryAccounting,
 ) -> Result<bool, Interrupted> {

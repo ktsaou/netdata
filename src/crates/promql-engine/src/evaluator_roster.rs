@@ -298,7 +298,7 @@ impl Rosters {
         &mut self,
         node: NodeId,
         child: NodeId,
-        grouping: Option<&[Vec<u8>]>,
+        grouping: Option<&[AccountedVec<u8>]>,
         without: bool,
         account: &QueryAccounting,
         control: &Control,
@@ -374,7 +374,11 @@ pub(crate) fn earliest(left: Option<i64>, right: Option<i64>) -> Option<i64> {
         (left, right) => left.or(right),
     }
 }
-pub(crate) fn group_key(labels: &mut OwnedLabels, grouping: Option<&[Vec<u8>]>, without: bool) {
+pub(crate) fn group_key(
+    labels: &mut OwnedLabels,
+    grouping: Option<&[AccountedVec<u8>]>,
+    without: bool,
+) {
     labels.retain(|name| {
         let found = grouping.is_some_and(|labels| labels.iter().any(|label| label == name));
         if without {

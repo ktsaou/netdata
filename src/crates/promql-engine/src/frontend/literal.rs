@@ -3,7 +3,8 @@
 // util/strutil/quote.go. See NOTICE, LICENSE-APACHE-2.0 and LICENSE-GO-BSD.
 use std::{borrow::Cow, fmt};
 
-use super::quote::decode_rune;
+use super::{bytes::Bytes, quote::decode_rune, work::Work};
+use crate::storage::Interrupted;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct SyntaxError;
@@ -26,32 +27,46 @@ fn hex(byte: u8) -> Result<u32, SyntaxError> {
 
 /// Decode Go-style byte escapes without converting them to Unicode characters.
 pub fn unquote(input: &[u8]) -> Result<Cow<'_, [u8]>, SyntaxError> {
+    unquote_in(input, Work::default())
+        .expect("inert literal decoding")
+        .map(|value| match value {
+            Bytes::Borrowed(bytes) => Cow::Borrowed(bytes),
+            Bytes::Owned(bytes) => Cow::Owned(bytes.into_unobserved()),
+        })
+}
+
+pub(super) fn unquote_in<'a>(
+    input: &'a [u8],
+    work: Work<'_>,
+) -> Result<Result<Bytes<'a>, SyntaxError>, Interrupted> {
+    work.step(0)?;
     if input.len() < 2 {
-        return Err(SyntaxError);
+        return Ok(Err(SyntaxError));
     }
     let delimiter = input[0];
     if input.last() != Some(&delimiter) {
-        return Err(SyntaxError);
+        return Ok(Err(SyntaxError));
     }
     let body = &input[1..input.len() - 1];
     if delimiter == b'`' {
-        return if body.contains(&b'`') {
-            Err(SyntaxError)
+        return if work.contains(body, b'`')? {
+            Ok(Err(SyntaxError))
         } else {
-            Ok(Cow::Borrowed(body))
+            Ok(Ok(Bytes::Borrowed(body)))
         };
     }
-    if !matches!(delimiter, b'\'' | b'"') || body.contains(&b'\n') {
-        return Err(SyntaxError);
+    if !matches!(delimiter, b'\'' | b'"') || work.contains(body, b'\n')? {
+        return Ok(Err(SyntaxError));
     }
-    if !body.contains(&b'\\') && !body.contains(&delimiter) {
-        return Ok(Cow::Borrowed(body));
+    if !work.contains(body, b'\\')? && !work.contains(body, delimiter)? {
+        return Ok(Ok(Bytes::Borrowed(body)));
     }
     let mut rest = body;
-    let mut out = Vec::new();
+    let mut out = work.buffer();
     while let Some(&first) = rest.first() {
+        work.step(1)?;
         if first == delimiter {
-            return Err(SyntaxError);
+            return Ok(Err(SyntaxError));
         }
         if first >= 0x80 {
             let (r, width) = decode_rune(rest);
@@ -70,7 +85,9 @@ pub fn unquote(input: &[u8]) -> Result<Cow<'_, [u8]>, SyntaxError> {
             rest = &rest[1..];
             continue;
         }
-        let code = *rest.get(1).ok_or(SyntaxError)?;
+        let Some(&code) = rest.get(1) else {
+            return Ok(Err(SyntaxError));
+        };
         rest = &rest[2..];
         match code {
             b'a' => out.push(7),
@@ -89,18 +106,21 @@ pub fn unquote(input: &[u8]) -> Result<Cow<'_, [u8]>, SyntaxError> {
                     _ => 8,
                 };
                 if rest.len() < count {
-                    return Err(SyntaxError);
+                    return Ok(Err(SyntaxError));
                 }
                 let mut value = 0u32;
                 for &digit in &rest[..count] {
-                    value = (value << 4) | hex(digit)?;
+                    let Ok(digit) = hex(digit) else {
+                        return Ok(Err(SyntaxError));
+                    };
+                    value = (value << 4) | digit;
                 }
                 rest = &rest[count..];
                 if code == b'x' {
                     out.push(value as u8);
                 } else {
                     if value > 0x10ffff {
-                        return Err(SyntaxError);
+                        return Ok(Err(SyntaxError));
                     }
                     let mut encoded = [0; 4];
                     out.extend_from_slice(
@@ -113,25 +133,25 @@ pub fn unquote(input: &[u8]) -> Result<Cow<'_, [u8]>, SyntaxError> {
             }
             b'0'..=b'7' => {
                 if rest.len() < 2 {
-                    return Err(SyntaxError);
+                    return Ok(Err(SyntaxError));
                 }
                 let mut value = u32::from(code - b'0');
                 for &digit in &rest[..2] {
                     if !matches!(digit, b'0'..=b'7') {
-                        return Err(SyntaxError);
+                        return Ok(Err(SyntaxError));
                     }
                     value = (value << 3) | u32::from(digit - b'0');
                 }
                 if value > 255 {
-                    return Err(SyntaxError);
+                    return Ok(Err(SyntaxError));
                 }
                 out.push(value as u8);
                 rest = &rest[2..];
             }
-            _ => return Err(SyntaxError),
+            _ => return Ok(Err(SyntaxError)),
         }
     }
-    Ok(Cow::Owned(out))
+    Ok(Ok(Bytes::Owned(out)))
 }
 
 #[cfg(test)]
