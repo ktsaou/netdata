@@ -1029,6 +1029,10 @@ regex path. Owned syntax, factoring, classes, canonical serialization, program/N
 Unicode normalization, subject-offset construction, capture export and replacement scans poll as they advance.
 Deep copies and variable-length shifts use explicit checked walks; fixed-size class tuples use interruptible
 sorting. New scratch buffers use the current work owner; borrowed input retains its original ownership.
+Fresh class results, simplified-node payloads and NFA buffers use that work owner. Existing owned inputs and mutable
+container growth keep their physical allocation factories. Reusable syntax slots preserve their factory when old
+contents are moved out. Exact retained-capacity tests cover literal reuse and constructors with independent input
+and work owners, including the retained NFA dependency estimate.
 
 Cancellation and deadline errors travel separately from syntax/backend error bytes and unmatched results.
 Negative matchers negate only successful boolean results. Original public inert helpers and boolean matcher

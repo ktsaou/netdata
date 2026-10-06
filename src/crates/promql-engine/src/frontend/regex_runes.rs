@@ -25,9 +25,8 @@ pub fn min_fold(rune: u32) -> u32 {
 
 pub fn clean(mut ranges: Class, work: Work<'_>) -> Result<Class, Interrupted> {
     work.step(0)?;
-    let context = ranges.context();
     work.sort(&mut ranges)?;
-    let mut output: Class = Buffer::with_capacity_in(ranges.len(), context.as_ref());
+    let mut output: Class = Buffer::with_capacity_in(ranges.len(), work.context);
     for (lo, hi) in ranges {
         work.step(1)?;
         if let Some(last) = output.last_mut()
@@ -48,7 +47,7 @@ pub fn contains(ranges: &[(u32, u32)], rune: u32) -> bool {
 
 pub fn complement(ranges: Class, work: Work<'_>) -> Result<Class, Interrupted> {
     let ranges = clean(ranges, work)?;
-    let mut result = Buffer::with_capacity_in(ranges.len() + 1, ranges.context().as_ref());
+    let mut result = Buffer::with_capacity_in(ranges.len() + 1, work.context);
     let mut next = 0;
     for (lo, hi) in ranges {
         work.step(1)?;
@@ -65,7 +64,7 @@ pub fn complement(ranges: Class, work: Work<'_>) -> Result<Class, Interrupted> {
 
 pub fn folded(ranges: Class, work: Work<'_>) -> Result<Class, Interrupted> {
     let mut result = clean(ranges, work)?;
-    let mut added = Buffer::new_in(result.context().as_ref());
+    let mut added = work.buffer();
     for &(rune, next) in unicode::SIMPLE_FOLD {
         work.step(1)?;
         if contains(&result, rune) {

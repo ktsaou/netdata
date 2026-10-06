@@ -555,6 +555,200 @@ mod tests {
     use crate::accounting::{AllocationContext, EngineAccounting, MemoryKind};
 
     #[test]
+    fn singleton_literal_reuse_retains_every_syntax_buffer_owner() {
+        use super::{Buffer, Work, syntax};
+        use crate::accounting::QueryAccounting;
+
+        fn bytes<T>(buffer: &Buffer<T>, account: &QueryAccounting) -> u64 {
+            if buffer.capacity() > 0 {
+                let context = buffer
+                    .context()
+                    .expect("allocated syntax buffer has an owner");
+                assert_eq!(
+                    context.accounting().test_identity(),
+                    account.test_identity()
+                );
+            }
+            (buffer.capacity() * size_of::<T>()) as u64
+        }
+        for input in [
+            b"aa[b]".as_slice(),
+            b"aa[b]+",
+            b"(?P<x>aa[b])",
+            b"aa[b]|dd[e]|ff[g]",
+        ] {
+            let engine = EngineAccounting::default();
+            let account = engine.query();
+            let context = AllocationContext::new(&account, MemoryKind::Compiled);
+            let tree =
+                syntax::parse_standard_in(input, syntax::PERL, Work::new(Some(&context), None))
+                    .unwrap();
+            let mut retained = bytes(&tree.nodes, &account) + bytes(&tree.names, &account);
+            for node in &tree.nodes {
+                retained += bytes(&node.runes, &account)
+                    + bytes(&node.class, &account)
+                    + bytes(&node.children, &account)
+                    + bytes(&node.name, &account);
+            }
+            for name in &tree.names {
+                retained += bytes(name, &account);
+            }
+            assert_eq!(
+                account.snapshot().memory[MemoryKind::Compiled as usize].current,
+                retained
+            );
+            drop(tree);
+            account.snapshot().assert_memory_released();
+            drop(context);
+            drop(account);
+            engine.snapshot().assert_memory_released();
+        }
+    }
+
+    #[test]
+    fn nfa_construction_owns_new_buffers_independently_of_borrowed_program() {
+        use super::{Work, nfa, program, syntax};
+        for tracked_source in [false, true] {
+            let source_engine = EngineAccounting::default();
+            let source_account = source_engine.query();
+            let source_context = AllocationContext::new(&source_account, MemoryKind::Compiled);
+            let original = Work::new(tracked_source.then_some(&source_context), None);
+            let mut tree = syntax::parse_in(b"a", syntax::PERL, original).unwrap();
+            let flat = program::Program::compile(&mut tree, original).unwrap();
+            let before = source_account.snapshot();
+            let engine = EngineAccounting::default();
+            let account = engine.query();
+            let context = AllocationContext::new(&account, MemoryKind::Workspace);
+            let built = nfa::build(&flat, Work::new(Some(&context), None)).unwrap();
+            let (vm, prefix, estimate) = &built;
+            let expected = vm.get_nfa().memory_usage() as u64;
+            assert!(expected > 0);
+            assert_eq!(
+                account.snapshot().memory[MemoryKind::RegexEstimate as usize].current,
+                expected
+            );
+            assert!(estimate.is_some());
+            assert_eq!(
+                prefix.context().unwrap().accounting().test_identity(),
+                account.test_identity()
+            );
+            assert_eq!(source_account.snapshot().memory, before.memory);
+            drop(built);
+            account.snapshot().assert_memory_released();
+            drop(context);
+            drop(account);
+            engine.snapshot().assert_memory_released();
+            drop(flat);
+            drop(tree);
+            source_account.snapshot().assert_memory_released();
+            drop(source_context);
+            drop(source_account);
+            source_engine.snapshot().assert_memory_released();
+        }
+    }
+
+    #[test]
+    fn new_class_buffers_use_work_without_reparenting_the_consumed_input() {
+        use super::{Buffer, Work, runes};
+        for stage in ["clean", "complement", "folded"] {
+            for tracked_source in [false, true] {
+                let source_engine = EngineAccounting::default();
+                let source_account = source_engine.query();
+                let source_context = AllocationContext::new(&source_account, MemoryKind::Compiled);
+                let ranges = Buffer::from_vec_in(
+                    vec![(u32::from(b'a'), u32::from(b'a'))],
+                    tracked_source.then_some(&source_context),
+                );
+                let engine = EngineAccounting::default();
+                let account = engine.query();
+                let context = AllocationContext::new(&account, MemoryKind::Workspace);
+                let work = Work::new(Some(&context), None);
+                let output = match stage {
+                    "clean" => runes::clean(ranges, work),
+                    "complement" => runes::complement(ranges, work),
+                    "folded" => runes::folded(ranges, work),
+                    _ => unreachable!(),
+                }
+                .unwrap();
+                assert_eq!(
+                    output
+                        .context()
+                        .expect("new class buffer has an owner")
+                        .accounting()
+                        .test_identity(),
+                    account.test_identity(),
+                    "{stage}"
+                );
+                assert_eq!(
+                    account.snapshot().memory[MemoryKind::Workspace as usize].current,
+                    (output.capacity() * size_of::<(u32, u32)>()) as u64
+                );
+                source_account.snapshot().assert_memory_released();
+                drop(output);
+                account.snapshot().assert_memory_released();
+                drop(context);
+                drop(account);
+                engine.snapshot().assert_memory_released();
+                drop(source_context);
+                drop(source_account);
+                source_engine.snapshot().assert_memory_released();
+            }
+        }
+    }
+
+    #[test]
+    fn newly_simplified_node_buffers_use_work_while_existing_tree_keeps_its_owner() {
+        use super::{Work, program, syntax};
+        for tracked_source in [false, true] {
+            let source_engine = EngineAccounting::default();
+            let source_account = source_engine.query();
+            let source_context = AllocationContext::new(&source_account, MemoryKind::Compiled);
+            let mut tree = syntax::parse_in(
+                b"a{2,3}",
+                syntax::PERL,
+                Work::new(tracked_source.then_some(&source_context), None),
+            )
+            .unwrap();
+            let original_nodes = tree.nodes.len();
+            let engine = EngineAccounting::default();
+            let account = engine.query();
+            let context = AllocationContext::new(&account, MemoryKind::Workspace);
+            let flat =
+                program::Program::compile(&mut tree, Work::new(Some(&context), None)).unwrap();
+            assert!(tree.nodes.len() > original_nodes);
+            for node in &tree.nodes[original_nodes..] {
+                if !node.children.is_empty() {
+                    assert_eq!(
+                        node.children
+                            .context()
+                            .expect("new child buffer has an owner")
+                            .accounting()
+                            .test_identity(),
+                        account.test_identity()
+                    );
+                }
+            }
+            assert_eq!(tree.nodes.context().is_some(), tracked_source);
+            if let Some(original) = tree.nodes.context() {
+                assert_eq!(
+                    original.accounting().test_identity(),
+                    source_account.test_identity()
+                );
+            }
+            drop(flat);
+            drop(tree);
+            account.snapshot().assert_memory_released();
+            source_account.snapshot().assert_memory_released();
+            drop(context);
+            drop(account);
+            engine.snapshot().assert_memory_released();
+            drop(source_context);
+            drop(source_account);
+            source_engine.snapshot().assert_memory_released();
+        }
+    }
+
+    #[test]
     fn owned_regex_compile_stages_release_partial_buffers_on_cancellation() {
         use super::{Buffer, Failure, Work, nfa, program, runes, string, syntax};
         use crate::{

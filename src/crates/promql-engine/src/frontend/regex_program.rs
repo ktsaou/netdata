@@ -21,8 +21,7 @@ fn add(tree: &mut Tree, node: Node) -> Id {
     id
 }
 
-fn unary(tree: &mut Tree, op: Op, flags: u16, sub: Id, original: Option<Id>) -> Id {
-    let context = tree.context();
+fn unary(tree: &mut Tree, op: Op, flags: u16, sub: Id, original: Option<Id>, work: Work<'_>) -> Id {
     let node = &tree.nodes[sub];
     if node.op == Op::Empty || node.op == op && node.flags & NON_GREEDY == flags & NON_GREEDY {
         return sub;
@@ -30,14 +29,13 @@ fn unary(tree: &mut Tree, op: Op, flags: u16, sub: Id, original: Option<Id>) -> 
     if let Some(original) = original.filter(|&id| tree.nodes[id].children[0] == sub) {
         return original;
     }
-    let mut node = Node::new(op, flags, context.as_ref());
+    let mut node = Node::new(op, flags, work.context);
     node.children.push(sub);
     add(tree, node)
 }
 
-fn concatenation(tree: &mut Tree, children: Buffer<Id>) -> Id {
-    let context = tree.context();
-    let mut node = Node::new(Op::Concat, 0, context.as_ref());
+fn concatenation(tree: &mut Tree, children: Buffer<Id>, work: Work<'_>) -> Id {
+    let mut node = Node::new(Op::Concat, 0, work.context);
     node.children = children;
     add(tree, node)
 }
@@ -79,7 +77,9 @@ fn simplify(tree: &mut Tree, work: Work<'_>) -> Result<(), Interrupted> {
         let begin = values.len() - node.children.len();
         let children = work.split(&mut values, begin)?;
         let result = match op {
-            Op::Star | Op::Plus | Op::Quest => unary(tree, op, node.flags, children[0], Some(id)),
+            Op::Star | Op::Plus | Op::Quest => {
+                unary(tree, op, node.flags, children[0], Some(id), work)
+            }
             Op::Repeat => {
                 let sub = children[0];
                 match node.max {
@@ -89,23 +89,27 @@ fn simplify(tree: &mut Tree, work: Work<'_>) -> Result<(), Interrupted> {
                         node.flags,
                         sub,
                         None,
+                        work,
                     ),
                     None => {
-                        let last = unary(tree, Op::Plus, node.flags, sub, None);
+                        let last = unary(tree, Op::Plus, node.flags, sub, None, work);
                         let mut children = work.filled(node.min as usize - 1, sub)?;
                         children.push(last);
-                        concatenation(tree, children)
+                        concatenation(tree, children, work)
                     }
                     Some(1) if node.min == 1 => sub,
                     Some(max) => {
                         let mut children = work.filled(node.min as usize, sub)?;
                         if max > node.min {
-                            let mut suffix = unary(tree, Op::Quest, node.flags, sub, None);
+                            let mut suffix = unary(tree, Op::Quest, node.flags, sub, None, work);
                             for _ in node.min + 1..max {
                                 work.step(1)?;
-                                let concat =
-                                    concatenation(tree, buffer![context.as_ref(); sub, suffix]);
-                                suffix = unary(tree, Op::Quest, node.flags, concat, None);
+                                let concat = concatenation(
+                                    tree,
+                                    buffer![context.as_ref(); sub, suffix],
+                                    work,
+                                );
+                                suffix = unary(tree, Op::Quest, node.flags, concat, None, work);
                             }
                             if node.min == 0 {
                                 values.push(suffix);
@@ -116,7 +120,7 @@ fn simplify(tree: &mut Tree, work: Work<'_>) -> Result<(), Interrupted> {
                         if node.min == 0 {
                             add(tree, Node::new(Op::NoMatch, 0, context.as_ref()))
                         } else {
-                            concatenation(tree, children)
+                            concatenation(tree, children, work)
                         }
                     }
                 }
