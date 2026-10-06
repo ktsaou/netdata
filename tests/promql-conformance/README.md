@@ -685,8 +685,8 @@ can consequently return seven. Degree/radian calls retain multiplication-before-
 On the qualified Linux amd64 target, 5,854 raw numeric/calendar cases match every bit in both Rust profiles
 against native, FMA-disabled, SSE4.1-disabled and combined-disabled Go captures. Six hundred additional Go
 direct rounding/truncation calls are retained as compiler-dispatch diagnostics; PromQL uses function values.
-Original unmodified Go math assertions pass in three CPU profiles. Fresh engine checks match all 1,417 completed
-cases at pages 1, 17 and 1024, with zero bit differences; fifteen join/label-replacement cases remain
+Original unmodified Go math assertions pass in three CPU profiles. Fresh engine checks match all 1,420 completed
+cases at pages 1, 17 and 1024, with zero bit differences; twelve vector-matching cases remain
 explicitly open. A generated 2,048-versus-100,000-sample map with a scalar parameter keeps the same workspace
 peak and at most one open cursor at each page size. This qualifies these source owners, not the complete engine
 or other architectures.
@@ -860,9 +860,10 @@ Metadata handles and output can grow with cardinality; raw history remains page 
 raw-error, sink-error and complete frontend accounting still require their remaining owners. Exact memoized initial reads, Seek
 landing and lookahead failure precedence remain mandatory qualification work. All admission limits remain disabled.
 
-Both builds pass 166 unit tests. The 64 independent selector-hint projections, 426 preparation scopes, 198 offset
+Both builds pass 172 unit tests. The 64 independent selector-hint projections, 426 preparation scopes, 198 offset
 projections and retained parser/clock/phase panels match their pinned source. The original corpus retains all
-9,684 passing variants, 11,758 open variants and the same 24 paired bit reports. These are finite catalog and
+previous 9,684 passing variants and adds 230: 9,914 pass, 11,528 remain open, and the same 24 paired bit reports
+remain. These are finite expression, catalog and
 preprocessing checks; they do not satisfy the complete expression, SRE, C or accounting gates.
 
 Matchers, owned histogram bounds, immutable diagnostics and observed selection parents now share one local
@@ -882,6 +883,29 @@ overflow, concurrent last-owner release, panic cleanup and bounds/diagnostic/sel
 and output points remain 16/24 bytes on these amd64 builds. These finite checks qualify the four owners;
 engine/query accounting roots and cancellation allocation attribution remain required, along with the full
 C boundary. Backend regex memory continues to be explicitly estimated.
+
+`label_replace` and `label_join` project whole-series metadata after the vector child completes. Runtime validation
+occurs before child evaluation, following the upfront selector catalog. Replacement uses Go's anchored DotNL
+expression and expansion rules; join reads original label values before changing its destination. Empty-label
+normalization, missing and repeated sources, byte values, name-removal flags and derived timestamps follow the
+pinned source. Only the vector argument is evaluated; surviving string parentheses inside unvisited aggregation
+parameters retain their separate, currently open source branch.
+
+Projected labels and child-ordinal bindings are accounted metadata retained for replay. Same-kind overlapping
+aliases fail; disjoint aliases and equal-time float/histogram values retain the existing source merge/consumption
+rules. Actual duplicate hashes use the first child's labels and flags, including real byte-encoding collisions;
+the approved deterministic ordering applies only at the source's unspecified merge boundary. No raw-history,
+cross-metric value matrix or presence timeline is retained. Nested calls with 2,048 versus 16,384 raw samples keep
+equal workspace/provider/view peaks and at most one open cursor at pages 1/17/1024. Metadata and owned output still
+grow with cardinality, and all limits remain disabled.
+
+Both profiles match all 536 completed cases in the 552-case retained label/merge/clock panel and all 264 completed
+cases in 288 additional source-derived composition, empty-label, hash-collision and fixed mixed-kind checks at
+pages 1/17/1024, with no semantic or bit differences. Sixteen retained vector-matching dependencies and twenty-four
+additional aggregation-parameter dependencies remain explicitly open. Checked byte loops and ordinal lookup count
+work and poll cancellation. Filtered selection skips unrequested ordinals directly; the finite cardinality guard
+qualifies that avoided scan, rather than the complexity of every existing metadata operation. These checks do not
+establish the remaining complete language, SRE, C or accounting gates.
 
 The foundation represents the full value model and records required inputs. The following remain mandatory in the
 typed Rust core stage:

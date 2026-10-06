@@ -26,12 +26,17 @@ pub(crate) struct GroupDescriptor {
     pub(crate) labels: OwnedLabels,
     pub(crate) whole_drop_name: Option<bool>,
 }
+pub(crate) struct Projection<'a> {
+    pub(crate) descriptors: &'a [Descriptor],
+    pub(crate) bindings: &'a [(usize, usize)],
+}
 #[derive(Default)]
 struct NodeRoster {
     output: Option<AccountedVec<Descriptor>>,
     sources: Option<AccountedVec<usize>>,
     groups: Option<AccountedVec<GroupDescriptor>>,
     annotations: Option<AnnotationBuilder>,
+    projection: Option<AccountedVec<(usize, usize)>>,
 }
 pub(crate) struct Rosters {
     nodes: AccountedVec<NodeRoster>,
@@ -122,6 +127,117 @@ impl Rosters {
         self.nodes[node.0].sources = Some(sources);
         Ok(())
     }
+    pub(crate) fn projection_input(
+        &mut self,
+        child: NodeId,
+        control: &Control,
+        account: &QueryAccounting,
+    ) -> Result<AccountedVec<Descriptor>, Interrupted> {
+        if self.nodes[child.0].sources.is_none() {
+            return Ok(self
+                .take_output(child)
+                .unwrap_or_else(|| AccountedVec::new(account, MemoryKind::Workspace)));
+        }
+        let mut output = AccountedVec::new(account, MemoryKind::Workspace);
+        for descriptor in self.descriptors(child) {
+            control.check()?;
+            account.work(1);
+            output.push(Descriptor {
+                labels: descriptor
+                    .labels
+                    .copy_checked(account, MemoryKind::Workspace, control)?,
+                ordinal: descriptor.ordinal,
+                hash: descriptor.hash,
+                drop_name: descriptor.drop_name,
+                first_order: descriptor.first_order,
+                sources: 0..0,
+                kinds: descriptor.kinds,
+                collision_time_ms: descriptor.collision_time_ms,
+            });
+        }
+        Ok(output)
+    }
+    pub(crate) fn projection_output(
+        &mut self,
+        node: NodeId,
+        mut descriptors: AccountedVec<Descriptor>,
+        control: &Control,
+        account: &QueryAccounting,
+    ) -> Result<(), Interrupted> {
+        // Check hashes in place; unique matrices recover their original child order.
+        evaluator_order::sort(&mut descriptors, control, account, |left, right| {
+            left.hash
+                .cmp(&right.hash)
+                .then_with(|| left.first_order.cmp(&right.first_order))
+        })?;
+        let mut duplicates = false;
+        for pair in descriptors.windows(2) {
+            control.check()?;
+            account.work(1);
+            duplicates |= pair[0].hash == pair[1].hash;
+        }
+        if duplicates {
+            self.ordered_output(node, descriptors, control, account)?;
+        } else {
+            evaluator_order::sort(&mut descriptors, control, account, |left, right| {
+                left.first_order.cmp(&right.first_order)
+            })?;
+            let mut sources = AccountedVec::new(account, MemoryKind::Workspace);
+            for (ordinal, descriptor) in descriptors.iter_mut().enumerate() {
+                control.check()?;
+                account.work(1);
+                descriptor.sources = sources.len()..sources.len() + 1;
+                sources.push(descriptor.ordinal);
+                descriptor.ordinal = ordinal;
+            }
+            self.nodes[node.0].output = Some(descriptors);
+            self.nodes[node.0].sources = Some(sources);
+        }
+        let mut bindings = AccountedVec::new(account, MemoryKind::Workspace);
+        let (descriptors, sources) = self.ordered(node).expect("projected roster");
+        for (position, descriptor) in descriptors.iter().enumerate() {
+            for source in &sources[descriptor.sources.clone()] {
+                control.check()?;
+                account.work(1);
+                bindings.push((*source, position));
+            }
+        }
+        evaluator_order::sort(&mut bindings, control, account, |left, right| {
+            left.0.cmp(&right.0)
+        })?;
+        self.nodes[node.0].projection = Some(bindings);
+        Ok(())
+    }
+    pub(crate) fn projection(&self, node: NodeId) -> Option<Projection<'_>> {
+        let roster = &self.nodes[node.0];
+        Some(Projection {
+            descriptors: roster.output.as_deref()?,
+            bindings: roster.projection.as_deref()?,
+        })
+    }
+    pub(crate) fn projection_collisions(
+        &mut self,
+        node: NodeId,
+        kinds: &[u8],
+        time_ms: i64,
+        control: &Control,
+        account: &QueryAccounting,
+    ) -> Result<(), Interrupted> {
+        let descriptors = self.nodes[node.0]
+            .output
+            .as_deref_mut()
+            .expect("projected roster");
+        assert_eq!(descriptors.len(), kinds.len());
+        for (descriptor, kind) in descriptors.iter_mut().zip(kinds) {
+            control.check()?;
+            account.work(1);
+            if *kind == 3 {
+                descriptor.collision_time_ms =
+                    earliest(descriptor.collision_time_ms, Some(time_ms));
+            }
+        }
+        Ok(())
+    }
     pub(crate) fn groups(&self, node: NodeId) -> Option<&[GroupDescriptor]> {
         self.nodes[node.0].groups.as_deref()
     }
@@ -201,6 +317,25 @@ impl Rosters {
         self.nodes[node.0].groups = Some(groups);
         Ok(())
     }
+}
+pub(crate) fn projection_index(
+    bindings: &[(usize, usize)],
+    ordinal: usize,
+    control: &Control,
+    account: &QueryAccounting,
+) -> Result<Option<usize>, Interrupted> {
+    let (mut left, mut right) = (0, bindings.len());
+    while left < right {
+        control.check()?;
+        account.work(1);
+        let middle = left + (right - left) / 2;
+        match bindings[middle].0.cmp(&ordinal) {
+            std::cmp::Ordering::Less => left = middle + 1,
+            std::cmp::Ordering::Greater => right = middle,
+            std::cmp::Ordering::Equal => return Ok(Some(bindings[middle].1)),
+        }
+    }
+    Ok(None)
 }
 pub(crate) fn earliest(left: Option<i64>, right: Option<i64>) -> Option<i64> {
     match (left, right) {

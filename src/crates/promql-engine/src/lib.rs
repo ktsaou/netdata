@@ -33,6 +33,7 @@ mod histogram_stats;
 mod histogram_trim;
 mod histogram_work;
 mod instant_statistics;
+mod label_functions;
 mod label_hash;
 pub mod numerical;
 mod numerical_exponential;

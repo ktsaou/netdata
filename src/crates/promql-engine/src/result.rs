@@ -8,7 +8,7 @@ use crate::{
     annotations::Annotations,
     frontend::ast::ValueType,
     histogram::FloatHistogram,
-    storage::{LabelRef, LabelsRef},
+    storage::{Control, Interrupted, LabelRef, LabelsRef},
     value::{SampleRef, SampleValueRef},
 };
 
@@ -20,6 +20,19 @@ pub struct OwnedLabel {
 
 #[derive(Debug)]
 pub struct OwnedLabels(pub AccountedVec<OwnedLabel>);
+pub(crate) fn append_bytes_checked(
+    target: &mut AccountedVec<u8>,
+    bytes: &[u8],
+    account: &QueryAccounting,
+    control: &Control,
+) -> Result<(), Interrupted> {
+    for chunk in bytes.chunks(1024) {
+        control.check()?;
+        account.work(chunk.len() as u64);
+        target.extend_from_slice(chunk);
+    }
+    Ok(())
+}
 impl OwnedLabels {
     pub fn new(account: &QueryAccounting, kind: MemoryKind) -> Self {
         Self(AccountedVec::new(account, kind))
@@ -41,30 +54,99 @@ impl OwnedLabels {
             value: owned_value,
         });
     }
+    pub(crate) fn copy_checked(
+        &self,
+        account: &QueryAccounting,
+        kind: MemoryKind,
+        control: &Control,
+    ) -> Result<Self, Interrupted> {
+        let mut result = Self::new(account, kind);
+        for label in &*self.0 {
+            control.check()?;
+            account.work(1);
+            let mut name = AccountedVec::new(account, kind);
+            let mut value = AccountedVec::new(account, kind);
+            append_bytes_checked(&mut name, &label.name, account, control)?;
+            append_bytes_checked(&mut value, &label.value, account, control)?;
+            result.0.push(OwnedLabel { name, value });
+        }
+        Ok(result)
+    }
+    fn position(
+        &self,
+        name: &[u8],
+        account: &QueryAccounting,
+        control: &Control,
+    ) -> Result<Result<usize, usize>, Interrupted> {
+        let (mut left, mut right) = (0, self.0.len());
+        while left < right {
+            control.check()?;
+            let middle = left + (right - left) / 2;
+            account.work(1 + self.0[middle].name.len().min(name.len()) as u64);
+            match self.0[middle].name[..].cmp(name) {
+                std::cmp::Ordering::Less => left = middle + 1,
+                std::cmp::Ordering::Greater => right = middle,
+                std::cmp::Ordering::Equal => return Ok(Ok(middle)),
+            }
+        }
+        Ok(Err(left))
+    }
+    pub(crate) fn get_checked(
+        &self,
+        name: &[u8],
+        account: &QueryAccounting,
+        control: &Control,
+    ) -> Result<&[u8], Interrupted> {
+        Ok(self
+            .position(name, account, control)?
+            .map_or(&b""[..], |position| &self.0[position].value))
+    }
     pub(crate) fn set(
         &mut self,
         name: &[u8],
         value: &[u8],
         account: &QueryAccounting,
         kind: MemoryKind,
-    ) {
-        let position = self.0.binary_search_by(|label| label.name[..].cmp(name));
+        control: &Control,
+    ) -> Result<(), Interrupted> {
+        let position = self.position(name, account, control)?;
         if value.is_empty() {
             if let Ok(position) = position {
+                account.work((self.0.len() - position) as u64);
                 self.0.remove(position);
             }
         } else {
             match position {
                 Ok(position) => {
                     self.0[position].value.clear();
-                    self.0[position].value.extend_from_slice(value);
+                    append_bytes_checked(&mut self.0[position].value, value, account, control)?;
                 }
                 Err(position) => {
-                    self.push(name, value, account, kind);
+                    let mut owned_name = AccountedVec::new(account, kind);
+                    let mut owned_value = AccountedVec::new(account, kind);
+                    append_bytes_checked(&mut owned_name, name, account, control)?;
+                    append_bytes_checked(&mut owned_value, value, account, control)?;
+                    self.0.push(OwnedLabel {
+                        name: owned_name,
+                        value: owned_value,
+                    });
+                    account.work((self.0.len() - position) as u64);
                     self.0[position..].rotate_right(1);
                 }
             }
         }
+        control.check()
+    }
+    pub(crate) fn reset_checked(
+        &mut self,
+        account: &QueryAccounting,
+        control: &Control,
+    ) -> Result<(), Interrupted> {
+        self.retain_labels_with(|label| {
+            control.check()?;
+            account.work(1);
+            Ok(!label.value.is_empty())
+        })
     }
     pub fn views<'a>(&'a self, account: &QueryAccounting) -> AccountedVec<LabelRef<'a>> {
         let mut result = AccountedVec::new(account, MemoryKind::Workspace);
@@ -100,14 +182,22 @@ impl OwnedLabels {
         self.retain_labels(|label| keep(&label.name));
     }
     pub fn retain_labels(&mut self, mut keep: impl FnMut(&OwnedLabel) -> bool) {
+        self.retain_labels_with(|label| Ok::<_, std::convert::Infallible>(keep(label)))
+            .unwrap();
+    }
+    fn retain_labels_with<E>(
+        &mut self,
+        mut keep: impl FnMut(&OwnedLabel) -> Result<bool, E>,
+    ) -> Result<(), E> {
         let mut index = 0;
         for next in 0..self.0.len() {
-            if keep(&self.0[next]) {
+            if keep(&self.0[next])? {
                 self.0.swap(index, next);
                 index += 1;
             }
         }
         self.0.truncate(index);
+        Ok(())
     }
 }
 

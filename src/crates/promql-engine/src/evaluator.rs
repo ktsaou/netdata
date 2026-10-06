@@ -4,7 +4,7 @@ use crate::{
     accounting::{AccountedVec, MemoryKind, QueryAccounting},
     aggregation::Group,
     annotations::{AnnotationBuilder, AnnotationKind},
-    evaluator_roster::{Descriptor, Rosters, group_key},
+    evaluator_roster::{Descriptor, Rosters, group_key, projection_index},
     float_functions::FloatFunction,
     frontend::{
         ast::{Expr, NodeId, ParsedExpression, ValueType, VectorSelector},
@@ -197,6 +197,10 @@ enum State<'a> {
         phase: u8,
     },
     Pass,
+    Labels {
+        descriptors: &'a [Descriptor],
+        bindings: &'a [(usize, usize)],
+    },
     Map {
         operation: MapOperation,
         seen: AccountedVec<(u64, u8)>,
@@ -283,6 +287,27 @@ impl RowFilter<'_> {
         match self {
             Self::All => true,
             Self::Ordinals(values) => values.contains(&ordinal),
+        }
+    }
+    fn next_ordinal(
+        self,
+        start: usize,
+        control: &Control,
+        account: &QueryAccounting,
+    ) -> Result<Option<usize>, Interrupted> {
+        match self {
+            Self::All => Ok(Some(start)),
+            Self::Ordinals(values) => {
+                let mut next = None;
+                for value in values {
+                    control.check()?;
+                    account.work(1);
+                    if *value >= start && next.is_none_or(|previous| *value < previous) {
+                        next = Some(*value);
+                    }
+                }
+                Ok(next)
+            }
         }
     }
 }
@@ -379,6 +404,9 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
     }
     pub(crate) fn restrict(&mut self, ordinals: &'a [usize]) {
         self.frames[0].filter = RowFilter::Ordinals(ordinals);
+    }
+    pub(crate) fn bypass_root_order(&mut self) {
+        self.frames[0].bypass_order = true;
     }
     pub(crate) fn replay<'b>(
         &'b self,
@@ -972,6 +1000,18 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
                     self.push(arguments[0]);
                     Ok(None)
                 }
+                "label_replace" | "label_join" => {
+                    let projection = self
+                        .rosters
+                        .projection(node)
+                        .ok_or(EvaluationError::Invalid("label projection is missing"))?;
+                    self.frames[index].state = State::Labels {
+                        descriptors: projection.descriptors,
+                        bindings: projection.bindings,
+                    };
+                    self.push_matrix(arguments[0]);
+                    Ok(None)
+                }
                 "scalar" => {
                     self.frames[index].state = State::Scalar {
                         count: 0,
@@ -1081,6 +1121,25 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
             let mode = self.frames[index].mode;
             match &mut self.frames[index].state {
                 State::Pass => (),
+                State::Labels {
+                    descriptors,
+                    bindings,
+                } => {
+                    let position =
+                        projection_index(bindings, sample.ordinal, self.control, self.account)?
+                            .ok_or(EvaluationError::Invalid(
+                                "label projection source is missing",
+                            ))?;
+                    let descriptor = &descriptors[position];
+                    sample.labels = descriptor.labels.copy_checked(
+                        self.account,
+                        MemoryKind::Workspace,
+                        self.control,
+                    )?;
+                    sample.drop_name = descriptor.drop_name;
+                    sample.source_time_ms = self.options.time_ms;
+                    sample.source_start_time_ms = 0;
+                }
                 State::OrderedRows {
                     descriptors,
                     position,
@@ -1418,7 +1477,7 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
                     *running = true;
                     self.push_filtered(node, filter, true, OutputMode::Matrix);
                 }
-                State::Pass | State::Map { .. } => {
+                State::Pass | State::Map { .. } | State::Labels { .. } => {
                     self.frames.pop();
                 }
                 State::Selection {
@@ -1428,15 +1487,17 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
                 } => {
                     let selector_node = *selector;
                     let operation = *operation;
-                    let series_ordinal = *ordinal;
-                    *ordinal += 1;
+                    let Some(series_ordinal) =
+                        filter.next_ordinal(*ordinal, self.control, self.account)?
+                    else {
+                        self.frames.pop();
+                        continue;
+                    };
                     if series_ordinal >= self.catalog.len(selector_node) {
                         self.frames.pop();
                         continue;
                     }
-                    if !filter.accepts(series_ordinal) {
-                        continue;
-                    }
+                    *ordinal = series_ordinal + 1;
                     let catalog = self.catalog;
                     let sample = catalog
                         .with_series(selector_node, series_ordinal, |series| {
