@@ -106,6 +106,13 @@ src/internal/strconv/atof.go, atoi.go, uscale.go, pow10tab.go and decimal.go.
 Copyright 2009, 2025, 2026 The Go Authors.
 Licensed under the Go BSD license; see LICENSE-GO-BSD.
 
+Shortest and two-significant-digit binary64 text derive from the same Go commit,
+src/internal/strconv/ftoa.go and uscale.go, sharing its decimal power table.
+Copyright 2009, 2025, 2026 The Go Authors. Licensed under the Go BSD license;
+see LICENSE-GO-BSD. OpenMetrics numeric label text derives from the pinned
+Prometheus model/labels/float.go. Copyright The Prometheus Authors.
+Licensed under Apache-2.0; see LICENSE-APACHE-2.0.
+
 Go-compatible diagnostic quoting and printability are derived from Go 1.27.1,
 strconv/quote.go, fmt/format.go, time.Duration.Seconds and strconv.IsPrint,
 using Unicode 17.0.0.
