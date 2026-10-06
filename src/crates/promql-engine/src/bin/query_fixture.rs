@@ -225,7 +225,7 @@ impl<'a> SeriesSelection for FixtureSelection<'a> {
         control.check()?;
         let Some(series) = self.provider.series.get(self.index) else {
             if let Some(error) = self.fault.and_then(|fault| fault.set_error.as_ref()) {
-                return Err(StorageError::Provider(error.clone()));
+                return Err(StorageError::Provider(error.clone().into()));
             }
             return Ok(None);
         };
@@ -316,7 +316,8 @@ impl SampleCursor for FixtureCursor<'_> {
             return Err(StorageError::Provider(
                 self.fault
                     .and_then(|fault| fault.iterator_error.clone())
-                    .expect("failed synthetic cursor"),
+                    .expect("failed synthetic cursor")
+                    .into(),
             ));
         }
         self.index = self.points.partition_point(|p| p.time_ms < time_ms);
@@ -333,7 +334,8 @@ impl SampleCursor for FixtureCursor<'_> {
             return Err(StorageError::Provider(
                 self.fault
                     .and_then(|fault| fault.iterator_error.clone())
-                    .expect("failed synthetic cursor"),
+                    .expect("failed synthetic cursor")
+                    .into(),
             ));
         }
         if self.index == self.points.len() {
@@ -352,7 +354,8 @@ impl SampleCursor for FixtureCursor<'_> {
                         .iterator_error
                         .as_ref()
                         .expect("synthetic iterator error")
-                        .clone(),
+                        .clone()
+                        .into(),
                 ));
             }
         }

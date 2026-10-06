@@ -414,10 +414,13 @@ fn assert_released_memory(
     memory: &[MemoryObservation; MEMORY_KINDS],
     references: CancellationReferences,
     accounting_bytes: u64,
+    workspace_bytes: u64,
 ) {
     for (kind, observed) in memory.iter().enumerate() {
         let expected = if kind == MemoryKind::Accounting as usize {
             accounting_bytes
+        } else if kind == MemoryKind::Workspace as usize {
+            workspace_bytes
         } else {
             0
         };
@@ -438,6 +441,15 @@ impl QueryObservations {
             &self.memory,
             self.cancellation_references,
             QueryAccounting::allocation_bytes(),
+            0,
+        );
+    }
+    pub(crate) fn assert_retained_error_memory(&self, bytes: u64) {
+        assert_released_memory(
+            &self.memory,
+            self.cancellation_references,
+            QueryAccounting::allocation_bytes(),
+            bytes,
         );
     }
 }
@@ -451,6 +463,7 @@ impl EngineObservations {
             &self.memory,
             self.cancellation_references,
             EngineAccounting::allocation_bytes() + queries * QueryAccounting::allocation_bytes(),
+            0,
         );
     }
 }
@@ -533,6 +546,16 @@ impl<T> AccountedVec<T> {
         self.lease
             .as_ref()
             .map(|lease| AllocationContext::new(&lease.query, lease.kind))
+    }
+    pub(crate) fn account_if_unobserved(&mut self, context: &AllocationContext) {
+        if self.lease.is_none() {
+            let bytes = self
+                .values
+                .capacity()
+                .checked_mul(size_of::<T>())
+                .expect("allocation size overflow");
+            self.lease = Some(context.hold(bytes as u64));
+        }
     }
     pub fn capacity(&self) -> usize {
         self.values.capacity()

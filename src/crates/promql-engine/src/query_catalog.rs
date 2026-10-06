@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 //! AST-site selections and retained metadata; raw values remain cursor/page scoped.
 use crate::{
-    accounting::{AccountedVec, AllocationContext, MemoryKind, QueryAccounting},
+    accounting::{AccountedVec, MemoryKind, QueryAccounting},
     annotations::AnnotationBuilder,
     evaluator::{EvaluationError, EvaluationOptions},
     frontend::ast::{Expr, NodeId, ParsedExpression},
@@ -60,27 +60,23 @@ impl<'q, Q: QueryProvider + 'q> Catalog<'q, Q> {
             let Expr::Selector(selector) = &expression.arena[request.node].expression else {
                 unreachable!("selection site")
             };
-            let selection = query.select(
-                SelectionRequest {
-                    matchers: &selector.matchers,
-                    bounds: request.bounds,
-                    hints: request.hints,
-                    accounting: Some(account),
-                },
-                control,
-            );
+            let selection = query
+                .select(
+                    SelectionRequest {
+                        matchers: &selector.matchers,
+                        bounds: request.bounds,
+                        hints: request.hints,
+                        accounting: Some(account),
+                    },
+                    control,
+                )
+                .map_err(|error| error.accounted(account));
             let (selection, failure) = match selection {
                 Ok(value) => {
                     let resources = value.resources();
                     (Some(ResourceOwner::new(value, resources, account)), None)
                 }
-                Err(StorageError::Provider(bytes)) => (
-                    None,
-                    Some(AccountedVec::from_vec_in(
-                        bytes,
-                        Some(&AllocationContext::new(account, MemoryKind::Workspace)),
-                    )),
-                ),
+                Err(StorageError::Provider(bytes)) => (None, Some(bytes)),
                 Err(error) => return Err(error.into()),
             };
             sites[request.node.0] = Some(Site {
@@ -128,7 +124,10 @@ impl<'q, Q: QueryProvider + 'q> Catalog<'q, Q> {
                 });
             }
             account.provider_call();
-            let result = selection.value.next(control);
+            let result = selection
+                .value
+                .next(control)
+                .map_err(|error| error.accounted(account));
             selection.lease.update(selection.value.resources());
             match result {
                 Ok(Some(value)) => {
@@ -150,10 +149,7 @@ impl<'q, Q: QueryProvider + 'q> Catalog<'q, Q> {
                 }
                 Ok(None) => break,
                 Err(StorageError::Provider(bytes)) => {
-                    failure = Some(AccountedVec::from_vec_in(
-                        bytes,
-                        Some(&AllocationContext::new(account, MemoryKind::Workspace)),
-                    ));
+                    failure = Some(bytes);
                     break;
                 }
                 Err(error) => {
