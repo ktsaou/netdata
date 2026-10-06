@@ -107,12 +107,6 @@ pub struct Tree {
     pub root: Id,
     pub names: Buffer<Buffer<u8>>,
 }
-impl Tree {
-    pub(super) fn context(&self) -> Option<AllocationContext> {
-        self.nodes.context()
-    }
-}
-
 #[derive(Debug)]
 pub struct Error {
     pub code: &'static str,
@@ -346,7 +340,9 @@ impl Parser<'_, '_> {
         {
             return Ok(false);
         }
-        let runes = std::mem::take(&mut self.nodes[last].runes);
+        // The next literal may grow this reused slot, so preserve its allocation factory.
+        let replacement = Buffer::new_in(self.nodes[last].runes.context().as_ref());
+        let runes = std::mem::replace(&mut self.nodes[last].runes, replacement);
         self.work.extend_iter(&mut self.nodes[first].runes, runes)?;
         self.refresh(first)?;
         if let Some((rune, flags)) = next {

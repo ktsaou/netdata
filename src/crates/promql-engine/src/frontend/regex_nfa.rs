@@ -126,10 +126,10 @@ type Built = (PikeVM, Buffer<u8>, Option<MemoryLease>);
 
 fn construct(program: &Program, work: Work<'_>) -> Result<Built, Failure<Box<BuildError>>> {
     work.step(0)?;
-    let context = program.instructions.context();
+    let context = work.context;
     let (prefix, prefix_instructions) = program.prefix(work)?;
     let mut reachable = work.filled(program.instructions.len(), false)?;
-    let mut pending = buffer![context.as_ref(); program.start];
+    let mut pending = buffer![context; program.start];
     while let Some(pc) = pending.pop() {
         work.step(1)?;
         if reachable[pc] {
@@ -194,9 +194,9 @@ fn construct(program: &Program, work: Work<'_>) -> Result<Built, Failure<Box<Bui
                         rune
                     };
                     if instruction.arg & 1 != 0 {
-                        runes::folded(buffer![context.as_ref(); (rune, rune)], work)?
+                        runes::folded(buffer![context; (rune, rune)], work)?
                     } else {
-                        buffer![context.as_ref(); (rune, rune)]
+                        buffer![context; (rune, rune)]
                     }
                 } else {
                     work.collect(
@@ -241,7 +241,7 @@ fn construct(program: &Program, work: Work<'_>) -> Result<Built, Failure<Box<Bui
     }
     change!(builder, patch(capture_zero, fragments[program.start].start))?;
     change!(builder, finish_pattern(capture_zero))?;
-    let unanchored = buffer![context.as_ref(); capture_zero]
+    let unanchored = buffer![context; capture_zero]
         .transfer_to_dependency(|values| change!(builder, add_union(values)))?;
     let byte = change!(
         builder,
@@ -253,7 +253,7 @@ fn construct(program: &Program, work: Work<'_>) -> Result<Built, Failure<Box<Bui
     )?;
     change!(builder, patch(unanchored, byte))?;
     let nfa = change!(builder, build(capture_zero, unanchored))?;
-    let estimate = context.as_ref().map(|context| {
+    let estimate = context.map(|context| {
         context
             .with_kind(MemoryKind::RegexEstimate)
             .hold(nfa.memory_usage() as u64)
