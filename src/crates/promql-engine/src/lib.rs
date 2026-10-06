@@ -10,6 +10,8 @@ mod absence;
 pub mod accounting;
 mod aggregation;
 pub mod annotations;
+mod binary_labels;
+mod binary_value;
 mod calendar;
 pub mod evaluator;
 mod evaluator_order;
@@ -57,3 +59,4 @@ mod storage_observed;
 #[cfg(test)]
 mod test_storage;
 pub mod value;
+mod vector_matching;

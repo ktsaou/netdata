@@ -185,7 +185,7 @@ impl OwnedLabels {
         self.retain_labels_with(|label| Ok::<_, std::convert::Infallible>(keep(label)))
             .unwrap();
     }
-    fn retain_labels_with<E>(
+    pub(crate) fn retain_labels_with<E>(
         &mut self,
         mut keep: impl FnMut(&OwnedLabel) -> Result<bool, E>,
     ) -> Result<(), E> {
@@ -335,6 +335,22 @@ impl OwnedHistogram {
     }
     pub(crate) fn set_reset_hint(&mut self, hint: u8) {
         self.payload.value.reset_hint = hint;
+    }
+    pub(crate) fn trim_checked(
+        &mut self,
+        threshold: f64,
+        upper: bool,
+        control: &crate::storage::Control,
+        account: &QueryAccounting,
+    ) -> Result<(), crate::storage::Interrupted> {
+        let payload = &mut *self.payload;
+        payload.value.trim_buckets_with(
+            threshold,
+            upper,
+            Some(&payload.context),
+            crate::histogram_work::HistogramWork::new(control, account),
+        )?;
+        Ok(())
     }
     pub(crate) fn has_overflow(&self) -> bool {
         let h = self.as_ref();

@@ -1,11 +1,26 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // In-place histogram trimming derives from the pinned Prometheus model; see NOTICE.
 use crate::histogram::{Bucket, FloatHistogram};
-use crate::histogram_iterator::visit_float_buckets_mut;
 use crate::numerical::sqrt;
+use crate::{
+    accounting::AllocationContext, histogram_iterator::visit_float_buckets_mut_with,
+    histogram_work::HistogramWork, storage::Interrupted,
+};
 
 impl FloatHistogram {
     pub fn trim_buckets(&mut self, threshold: f64, upper_trim: bool) -> &mut Self {
+        self.trim_buckets_with(threshold, upper_trim, None, HistogramWork::default())
+            .expect("inert histogram work")
+    }
+
+    pub(crate) fn trim_buckets_with(
+        &mut self,
+        threshold: f64,
+        upper_trim: bool,
+        context: Option<&AllocationContext>,
+        work: HistogramWork<'_>,
+    ) -> Result<&mut Self, Interrupted> {
+        work.step(1)?;
         let custom = self.uses_custom_buckets();
         let mut count = 0.0;
         let mut sum = 0.0;
@@ -27,15 +42,16 @@ impl FloatHistogram {
                     &mut has_negative,
                 )
             };
-            visit_float_buckets_mut(
+            visit_float_buckets_mut_with(
                 self.schema,
                 positive,
                 spans.as_deref().unwrap_or(&[]),
                 buckets.as_deref_mut().unwrap_or(&mut []),
                 self.custom_values.as_deref(),
+                work,
                 |bucket, slot| {
                     if bucket.count == 0.0 {
-                        return;
+                        return Ok(());
                     }
                     *present = true;
                     let (keep, midpoint) =
@@ -51,8 +67,9 @@ impl FloatHistogram {
                         *slot = keep;
                         trimmed = true;
                     }
+                    Ok(())
                 },
-            );
+            )?;
         }
 
         if self.zero_count > 0.0 {
@@ -73,9 +90,9 @@ impl FloatHistogram {
         if trimmed {
             self.count = count;
             self.sum = sum;
-            self.compact(0);
+            self.compact_with(0, context, |units| work.step(units))?;
         }
-        self
+        Ok(self)
     }
 }
 

@@ -214,14 +214,6 @@ impl<'a> FloatBucketIterator<'a> {
         Ok(true)
     }
 
-    fn advance_position(&mut self, bucket_count: usize) -> Option<usize> {
-        self.advance_position_with(
-            bucket_count,
-            crate::histogram_work::HistogramWork::default(),
-        )
-        .expect("inert histogram work")
-    }
-
     fn advance_position_with(
         &mut self,
         bucket_count: usize,
@@ -277,14 +269,15 @@ impl Iterator for FloatBucketIterator<'_> {
     }
 }
 
-pub(crate) fn visit_float_buckets_mut(
+pub(crate) fn visit_float_buckets_mut_with(
     schema: i32,
     positive: bool,
     spans: &[Span],
     buckets: &mut [f64],
     custom_values: Option<&[f64]>,
-    mut visit: impl FnMut(Bucket, &mut f64),
-) {
+    work: crate::histogram_work::HistogramWork<'_>,
+    mut visit: impl FnMut(Bucket, &mut f64) -> Result<(), crate::storage::Interrupted>,
+) -> Result<(), crate::storage::Interrupted> {
     let layout = Layout {
         schema,
         positive,
@@ -293,10 +286,11 @@ pub(crate) fn visit_float_buckets_mut(
         custom_values: if positive { custom_values } else { None },
     };
     let mut cursor = FloatBucketIterator::from_layout(layout, 0.0, schema);
-    while let Some(position) = cursor.advance_position(buckets.len()) {
+    while let Some(position) = cursor.advance_position_with(buckets.len(), work)? {
         let slot = &mut buckets[position];
-        visit(layout.at(schema, cursor.current_index, *slot), slot);
+        visit(layout.at(schema, cursor.current_index, *slot), slot)?;
     }
+    Ok(())
 }
 
 pub struct ReverseFloatBucketIterator<'a> {

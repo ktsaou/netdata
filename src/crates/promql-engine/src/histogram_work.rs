@@ -155,6 +155,32 @@ mod tests {
 
         let account = engine.query();
         let control = Control::default();
+        let equality = interrupt_during(&account, &control, || {
+            histogram
+                .as_ref()
+                .equals_with(histogram.as_ref(), HistogramWork::new(&control, &account))
+        });
+        assert_eq!(equality, Err(Interrupted::Cancelled));
+        account.snapshot().assert_memory_released();
+
+        let account = engine.query();
+        let control = Control::default();
+        let OwnedValue::Histogram(mut trimmed) = OwnedValue::copy_from(
+            SampleValueRef::FloatHistogram(histogram.as_ref()),
+            &account,
+            MemoryKind::Workspace,
+        ) else {
+            unreachable!()
+        };
+        let trim = interrupt_during(&account, &control, || {
+            trimmed.trim_checked(f64::INFINITY, false, &control, &account)
+        });
+        assert_eq!(trim, Err(Interrupted::Cancelled));
+        drop(trimmed);
+        account.snapshot().assert_memory_released();
+
+        let account = engine.query();
+        let control = Control::default();
         let OwnedValue::Histogram(mut value) = OwnedValue::copy_from(
             SampleValueRef::FloatHistogram(histogram.as_ref()),
             &account,

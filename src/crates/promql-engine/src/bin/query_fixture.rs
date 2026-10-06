@@ -7,11 +7,12 @@ use netdata_promql_engine::{
     annotations::{Annotations, Severity},
     evaluator::EvaluationError,
     execution::{CompileError, Engine, EngineOptions, ExecutionError, QueryRequest},
-    frontend::ast::{ParseError, ParserOptions, ValueType},
+    frontend::ast::{MatchType, ParseError, ParserOptions, ValueType},
     result::{CollectedResult, OwnedValue},
     storage::{
-        Control, LabelRef, PageSamples, Provider, ProviderResources, QueryProvider, SampleCursor,
-        SamplePage, SelectionRequest, Series, SeriesSelection, StorageError, TimeBounds,
+        Control, LabelRef, PageSamples, Provider, ProviderDiagnosticRef, ProviderResources,
+        QueryProvider, SampleCursor, SamplePage, SelectionRequest, Series, SeriesSelection,
+        StorageError, TimeBounds,
     },
     value::{Sample, SampleValue},
 };
@@ -30,6 +31,15 @@ struct FixtureProvider {
     id: String,
     series: Vec<FixtureSeries>,
     page_size: usize,
+    faults: Vec<Fault>,
+}
+struct Fault {
+    metric: Vec<u8>,
+    series: Option<Vec<u8>>,
+    set_error: Option<Vec<u8>>,
+    iterator_error: Option<Vec<u8>>,
+    warning: Option<Vec<u8>>,
+    fail_at: i64,
 }
 impl FixtureProvider {
     fn decode(request: &Value) -> Result<Self, Error> {
@@ -93,6 +103,38 @@ impl FixtureProvider {
         if page_size == 0 {
             return Err("fixture pages cannot be empty".into());
         }
+        let mut faults = Vec::new();
+        if let Some(input) = request.get("faults") {
+            for (key, value) in input.as_object().ok_or("invalid fixture faults")? {
+                let (metric, series) = key
+                    .split_once('/')
+                    .map_or((key.as_str(), None), |(metric, series)| {
+                        (metric, Some(series.as_bytes().to_vec()))
+                    });
+                let bytes = |name| {
+                    value
+                        .get(name)
+                        .map(|input| {
+                            input
+                                .as_str()
+                                .map(|text| text.as_bytes().to_vec())
+                                .ok_or("invalid fixture fault bytes")
+                        })
+                        .transpose()
+                        .map(|bytes| bytes.filter(|bytes| !bytes.is_empty()))
+                };
+                faults.push(Fault {
+                    metric: metric.as_bytes().to_vec(),
+                    series,
+                    set_error: bytes("set_error")?,
+                    iterator_error: bytes("iterator_error")?,
+                    warning: bytes("warning")?,
+                    fail_at: value.get("fail_at").map_or(Ok(0), |input| {
+                        input.as_i64().ok_or("invalid fixture fail timestamp")
+                    })?,
+                });
+            }
+        }
         Ok(Self {
             id: request["dataset_id"]
                 .as_str()
@@ -100,6 +142,7 @@ impl FixtureProvider {
                 .into(),
             series,
             page_size,
+            faults,
         })
     }
 }
@@ -107,15 +150,20 @@ struct FixtureQuery<'a>(&'a FixtureProvider);
 struct FixtureSelection<'a> {
     provider: &'a FixtureProvider,
     index: usize,
+    selector: &'a [u8],
+    fault: Option<&'a Fault>,
 }
 struct FixtureHandle<'a> {
     series: &'a FixtureSeries,
     page_size: usize,
+    fault: Option<&'a Fault>,
 }
 struct FixtureCursor<'a> {
     points: &'a [Sample],
     index: usize,
     page_size: usize,
+    fault: Option<&'a Fault>,
+    failed: bool,
 }
 impl Provider for FixtureProvider {
     type Query<'a> = FixtureQuery<'a>;
@@ -138,14 +186,33 @@ impl QueryProvider for FixtureQuery<'_> {
     }
     fn select(
         &self,
-        _: SelectionRequest<'_>,
+        request: SelectionRequest<'_>,
         control: &Control,
     ) -> Result<Self::Selection<'_>, StorageError> {
         control.check()?;
         // Overscan metadata only; the engine authoritatively applies matchers and time bounds.
+        let selector = request
+            .matchers
+            .iter()
+            .flatten()
+            .find(|matcher| matcher.name == b"__name__" && matcher.kind == MatchType::Equal)
+            .map_or(b"selector".as_slice(), |matcher| matcher.value.as_slice());
+        let selector = self
+            .0
+            .faults
+            .iter()
+            .find(|fault| fault.metric == selector)
+            .map_or(b"selector".as_slice(), |fault| fault.metric.as_slice());
+        let fault = self
+            .0
+            .faults
+            .iter()
+            .find(|fault| fault.metric == selector && fault.series.is_none());
         Ok(FixtureSelection {
             provider: self.0,
             index: 0,
+            selector,
+            fault,
         })
     }
 }
@@ -157,13 +224,50 @@ impl<'a> SeriesSelection for FixtureSelection<'a> {
     fn next(&mut self, control: &Control) -> Result<Option<Self::Series>, StorageError> {
         control.check()?;
         let Some(series) = self.provider.series.get(self.index) else {
+            if let Some(error) = self.fault.and_then(|fault| fault.set_error.as_ref()) {
+                return Err(StorageError::Provider(error.clone()));
+            }
             return Ok(None);
         };
         self.index += 1;
+        let z = series
+            .labels
+            .iter()
+            .find(|(name, _)| name == b"z")
+            .map_or(b"".as_slice(), |(_, value)| value.as_slice());
+        let fault = self
+            .provider
+            .faults
+            .iter()
+            .find(|fault| fault.metric == self.selector && fault.series.as_deref() == Some(z))
+            .or(self.fault);
         Ok(Some(FixtureHandle {
             series,
             page_size: self.provider.page_size,
+            fault,
         }))
+    }
+    fn diagnostic_count(&self) -> usize {
+        usize::from(
+            self.fault
+                .and_then(|fault| fault.warning.as_ref())
+                .is_some(),
+        )
+    }
+    fn diagnostic<R>(
+        &self,
+        index: usize,
+        visit: impl for<'b> FnOnce(ProviderDiagnosticRef<'b>) -> R,
+    ) -> R {
+        assert_eq!(index, 0);
+        visit(ProviderDiagnosticRef {
+            message: self
+                .fault
+                .and_then(|fault| fault.warning.as_deref())
+                .expect("synthetic warning"),
+            severity: Severity::Warning,
+            position: None,
+        })
     }
 }
 impl Series for FixtureHandle<'_> {
@@ -194,6 +298,8 @@ impl Series for FixtureHandle<'_> {
             points: &points[start..end.max(start)],
             index: 0,
             page_size: self.page_size,
+            fault: self.fault,
+            failed: false,
         })
     }
 }
@@ -206,6 +312,13 @@ impl SampleCursor for FixtureCursor<'_> {
     }
     fn seek(&mut self, time_ms: i64, control: &Control) -> Result<(), StorageError> {
         control.check()?;
+        if self.failed {
+            return Err(StorageError::Provider(
+                self.fault
+                    .and_then(|fault| fault.iterator_error.clone())
+                    .expect("failed synthetic cursor"),
+            ));
+        }
         self.index = self.points.partition_point(|p| p.time_ms < time_ms);
         Ok(())
     }
@@ -216,11 +329,33 @@ impl SampleCursor for FixtureCursor<'_> {
     ) -> Result<Option<SamplePage<'_>>, StorageError> {
         *resources = self.resources();
         control.check()?;
+        if self.failed {
+            return Err(StorageError::Provider(
+                self.fault
+                    .and_then(|fault| fault.iterator_error.clone())
+                    .expect("failed synthetic cursor"),
+            ));
+        }
         if self.index == self.points.len() {
             return Ok(None);
         }
         let start = self.index;
         self.index = self.points.len().min(start.saturating_add(self.page_size));
+        if let Some(fault) = self.fault.filter(|fault| fault.iterator_error.is_some()) {
+            let good = self.points[start..self.index]
+                .partition_point(|point| point.time_ms < fault.fail_at);
+            self.index = start + good;
+            if good == 0 {
+                self.failed = true;
+                return Err(StorageError::Provider(
+                    fault
+                        .iterator_error
+                        .as_ref()
+                        .expect("synthetic iterator error")
+                        .clone(),
+                ));
+            }
+        }
         Ok(Some(SamplePage {
             samples: PageSamples::Samples(&self.points[start..self.index]),
             resources: *resources,
@@ -397,6 +532,11 @@ fn evaluate(provider: &FixtureProvider, request: &Value) -> Result<Value, Error>
         }
         Err(ExecutionError::Evaluation(EvaluationError::Expansion(message))) => {
             result["error"] = failure("execution", "*fmt.wrapError", &message);
+        }
+        Err(ExecutionError::Evaluation(EvaluationError::Storage(StorageError::Provider(
+            message,
+        )))) => {
+            result["error"] = failure("execution", "*errors.errorString", &message);
         }
         Err(error) => return Err(format!("fixture execution failed: {error:?}").into()),
     }

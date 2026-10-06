@@ -1,0 +1,260 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Exact keys and projections follow pinned stringlabels and resultMetric; see NOTICE.
+use crate::{
+    accounting::{AccountedVec, MemoryKind, QueryAccounting},
+    evaluator::EvaluationError,
+    frontend::{
+        ast::{Cardinality, VectorMatching},
+        quote,
+        token::TokenKind,
+    },
+    result::{OwnedLabels, append_bytes_checked},
+    storage::{Control, Interrupted},
+};
+use std::fmt::{self, Write};
+
+pub(crate) fn compare(
+    left: &[u8],
+    right: &[u8],
+    control: &Control,
+    account: &QueryAccounting,
+) -> Result<std::cmp::Ordering, Interrupted> {
+    for (left, right) in left.chunks(1024).zip(right.chunks(1024)) {
+        control.check()?;
+        account.work(left.len().min(right.len()) as u64);
+        let order = left.cmp(right);
+        if !order.is_eq() {
+            return Ok(order);
+        }
+    }
+    Ok(left.len().cmp(&right.len()))
+}
+
+pub(crate) fn same(
+    left: &OwnedLabels,
+    right: &OwnedLabels,
+    control: &Control,
+    account: &QueryAccounting,
+) -> Result<bool, Interrupted> {
+    if left.0.len() != right.0.len() {
+        return Ok(false);
+    }
+    for (left, right) in left.0.iter().zip(right.0.iter()) {
+        if !equal(&left.name, &right.name, control, account)?
+            || !equal(&left.value, &right.value, control, account)?
+        {
+            return Ok(false);
+        }
+    }
+    Ok(true)
+}
+
+pub(crate) fn equal(
+    left: &[u8],
+    right: &[u8],
+    control: &Control,
+    account: &QueryAccounting,
+) -> Result<bool, Interrupted> {
+    control.check()?;
+    if left.len() != right.len() {
+        account.work(1);
+        return Ok(false);
+    }
+    for (left, right) in left.chunks(1024).zip(right.chunks(1024)) {
+        control.check()?;
+        account.work(left.len() as u64);
+        if left != right {
+            return Ok(false);
+        }
+    }
+    Ok(true)
+}
+
+pub(crate) fn named(
+    name: &[u8],
+    names: &[Vec<u8>],
+    control: &Control,
+    account: &QueryAccounting,
+) -> Result<bool, Interrupted> {
+    for candidate in names {
+        if equal(name, candidate, control, account)? {
+            return Ok(true);
+        }
+    }
+    Ok(false)
+}
+
+fn field(
+    target: &mut AccountedVec<u8>,
+    value: &[u8],
+    control: &Control,
+    account: &QueryAccounting,
+) -> Result<(), Interrupted> {
+    let n = value.len();
+    assert!(n < 1 << 24, "label exceeds source stringlabels encoding");
+    if n < 255 {
+        target.push(n as u8);
+    } else {
+        target.extend_from_slice(&[255, n as u8, (n >> 8) as u8, (n >> 16) as u8]);
+    }
+    append_bytes_checked(target, value, account, control)
+}
+
+pub(crate) fn append(
+    target: &mut AccountedVec<u8>,
+    labels: &OwnedLabels,
+    matching: Option<&VectorMatching>,
+    control: &Control,
+    account: &QueryAccounting,
+) -> Result<(), Interrupted> {
+    for label in &*labels.0 {
+        control.check()?;
+        account.work(1);
+        if let Some(matching) = matching {
+            let selected = named(
+                &label.name,
+                matching.labels.as_deref().unwrap_or(&[]),
+                control,
+                account,
+            )?;
+            if if matching.on {
+                !selected
+            } else {
+                selected || &*label.name == b"__name__"
+            } {
+                continue;
+            }
+        }
+        field(target, &label.name, control, account)?;
+        field(target, &label.value, control, account)?;
+    }
+    Ok(())
+}
+
+pub(crate) fn matched(
+    labels: &OwnedLabels,
+    matching: &VectorMatching,
+    control: &Control,
+    account: &QueryAccounting,
+) -> Result<OwnedLabels, Interrupted> {
+    let mut result = labels.copy_checked(account, MemoryKind::Workspace, control)?;
+    result.reset_checked(account, control)?;
+    result.retain_labels_with(|label| {
+        let selected = named(
+            &label.name,
+            matching.labels.as_deref().unwrap_or(&[]),
+            control,
+            account,
+        )?;
+        Ok(if matching.on {
+            selected
+        } else {
+            !selected && &*label.name != b"__name__"
+        })
+    })?;
+    Ok(result)
+}
+
+pub(crate) fn projected(
+    left: &OwnedLabels,
+    right: &OwnedLabels,
+    operator: TokenKind,
+    matching: &VectorMatching,
+    drop_name: bool,
+    control: &Control,
+    account: &QueryAccounting,
+) -> Result<OwnedLabels, Interrupted> {
+    let mut result = left.copy_checked(account, MemoryKind::Workspace, control)?;
+    result.reset_checked(account, control)?;
+    if drop_name || crate::binary_value::changes_metadata(operator) {
+        result.retain_labels_with(|label| {
+            control.check()?;
+            account.work(1);
+            Ok::<_, Interrupted>(!crate::evaluator::metadata(&label.name))
+        })?;
+    }
+    if matching.cardinality == Cardinality::OneToOne {
+        result.retain_labels_with(|label| {
+            let selected = named(
+                &label.name,
+                matching.labels.as_deref().unwrap_or(&[]),
+                control,
+                account,
+            )?;
+            Ok(if matching.on { selected } else { !selected })
+        })?;
+    }
+    for name in matching.include.as_deref().unwrap_or(&[]) {
+        let value = right.get_checked(name, account, control)?;
+        result.set(name, value, account, MemoryKind::Workspace, control)?;
+    }
+    Ok(result)
+}
+
+struct Writer<'a> {
+    bytes: &'a mut AccountedVec<u8>,
+    control: &'a Control,
+    account: &'a QueryAccounting,
+    failure: Option<Interrupted>,
+}
+impl Write for Writer<'_> {
+    fn write_str(&mut self, value: &str) -> fmt::Result {
+        append_bytes_checked(self.bytes, value.as_bytes(), self.account, self.control).map_err(
+            |error| {
+                self.failure = Some(error);
+                fmt::Error
+            },
+        )
+    }
+}
+
+pub(crate) fn render(
+    labels: &OwnedLabels,
+    control: &Control,
+    account: &QueryAccounting,
+) -> Result<AccountedVec<u8>, EvaluationError> {
+    let mut bytes = AccountedVec::new(account, MemoryKind::Workspace);
+    bytes.push(b'{');
+    for (position, label) in labels.0.iter().enumerate() {
+        if position != 0 {
+            bytes.extend_from_slice(b", ");
+        }
+        let mut legacy = !label.name.is_empty()
+            && (label.name[0].is_ascii_alphabetic() || label.name[0] == b'_');
+        for chunk in label.name.chunks(1024) {
+            control.check()?;
+            account.work(chunk.len() as u64);
+            legacy &= chunk
+                .iter()
+                .all(|byte| byte.is_ascii_alphanumeric() || *byte == b'_');
+        }
+        if legacy {
+            append_bytes_checked(&mut bytes, &label.name, account, control)?;
+        } else {
+            quoted(&mut bytes, &label.name, control, account)?;
+        }
+        bytes.push(b'=');
+        quoted(&mut bytes, &label.value, control, account)?;
+    }
+    bytes.push(b'}');
+    Ok(bytes)
+}
+fn quoted(
+    bytes: &mut AccountedVec<u8>,
+    value: &[u8],
+    control: &Control,
+    account: &QueryAccounting,
+) -> Result<(), Interrupted> {
+    let mut writer = Writer {
+        bytes,
+        control,
+        account,
+        failure: None,
+    };
+    let result = quote::write_bytes(value, &mut writer);
+    if let Some(error) = writer.failure {
+        return Err(error);
+    }
+    result.expect("accounted byte writer");
+    Ok(())
+}

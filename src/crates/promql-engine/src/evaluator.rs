@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Evaluation mechanics derive from pinned Prometheus promql/engine.go; see NOTICE.
 use crate::{
-    accounting::{AccountedVec, MemoryKind, QueryAccounting},
+    accounting::{AccountedBox, AccountedVec, AllocationContext, MemoryKind, QueryAccounting},
     aggregation::Group,
     annotations::{AnnotationBuilder, AnnotationKind},
     evaluator_roster::{Descriptor, Rosters, group_key, projection_index},
@@ -204,6 +204,7 @@ enum State<'a> {
     Map {
         operation: MapOperation,
         seen: AccountedVec<(u64, u8)>,
+        last_diagnostic: Option<crate::binary_value::Diagnostic>,
     },
     Selection {
         selector: NodeId,
@@ -241,6 +242,7 @@ enum State<'a> {
         scalar_left: bool,
         collecting: bool,
     },
+    Binary(AccountedBox<crate::vector_matching::Step<'a>>),
 }
 struct Frame<'a> {
     node: NodeId,
@@ -356,6 +358,7 @@ pub(crate) struct EvaluationMetadata<'a> {
     pub(crate) timestamp_selectors: &'a [bool],
     pub(crate) data_bounds: TimeBounds,
     pub(crate) annotations: Option<&'a mut AnnotationBuilder>,
+    pub(crate) binary_preparation: Option<crate::vector_matching::Preparation<'a>>,
 }
 pub(crate) struct Machine<'a, 'q, Q: QueryProvider + 'q> {
     catalog: &'a Catalog<'q, Q>,
@@ -371,6 +374,7 @@ pub(crate) struct Machine<'a, 'q, Q: QueryProvider + 'q> {
     data_bounds: TimeBounds,
     diagnostic_node: NodeId,
     annotations: Option<&'a mut AnnotationBuilder>,
+    binary_preparation: Option<crate::vector_matching::Preparation<'a>>,
 }
 
 impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
@@ -405,6 +409,7 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
             data_bounds: metadata.data_bounds,
             diagnostic_node: root,
             annotations: metadata.annotations,
+            binary_preparation: metadata.binary_preparation,
         }
     }
     fn push(&mut self, node: NodeId) {
@@ -465,6 +470,7 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
                 timestamp_selectors: self.timestamp_selectors,
                 data_bounds: self.data_bounds,
                 annotations,
+                binary_preparation: self.binary_preparation,
             },
         )
     }
@@ -472,6 +478,7 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
         State::Map {
             operation,
             seen: AccountedVec::new(self.account, MemoryKind::Workspace),
+            last_diagnostic: None,
         }
     }
     fn sample(&self, value: f64) -> EvaluatedSample {
@@ -971,7 +978,13 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
                 self.push_all(*child);
                 Ok(None)
             }
-            Expr::Binary { left, right, .. } => {
+            Expr::Binary {
+                left,
+                right,
+                operator,
+                matching,
+                return_bool,
+            } => {
                 let left_scalar = self.expression.arena[*left].value_type == ValueType::Scalar;
                 let right_scalar = self.expression.arena[*right].value_type == ValueType::Scalar;
                 if left_scalar && right_scalar {
@@ -996,7 +1009,18 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
                     };
                     self.push_all(scalar_node);
                 } else {
-                    return Err(EvaluationError::Unsupported("vector matching reducer"));
+                    self.frames[index].state = State::Binary(AccountedBox::new(
+                        crate::vector_matching::Step::new(
+                            self.rosters
+                                .binary(node)
+                                .ok_or(EvaluationError::Invalid("binary plan is missing"))?,
+                            matching.as_ref().expect("typed vector matching"),
+                            *operator,
+                            *return_bool,
+                            self.account,
+                        ),
+                        &AllocationContext::new(self.account, MemoryKind::Workspace),
+                    ));
                 }
                 Ok(None)
             }
@@ -1157,6 +1181,10 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
             let filter = self.frames[index].filter;
             let mode = self.frames[index].mode;
             match &mut self.frames[index].state {
+                State::Binary(step) => {
+                    step.receive(sample, self.control, self.account)?;
+                    return Ok(None);
+                }
                 State::Pass => (),
                 State::Labels {
                     descriptors,
@@ -1219,7 +1247,11 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
                     *running = false;
                     self.frames.truncate(index + 1);
                 }
-                State::Map { operation, seen } => {
+                State::Map {
+                    operation,
+                    seen,
+                    last_diagnostic,
+                } => {
                     let (result, drop_name) = match *operation {
                         MapOperation::Pointwise(function) => {
                             let Some(result) =
@@ -1251,80 +1283,47 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
                             scalar,
                             scalar_left,
                             return_bool,
-                        } => match sample.value {
-                            OwnedValue::Float(value) => {
-                                let (left, right) = if scalar_left {
-                                    (scalar, value)
-                                } else {
-                                    (value, scalar)
-                                };
-                                let result = scalar_binary(
-                                    operator,
-                                    left,
-                                    right,
-                                    self.control,
-                                    self.account,
-                                )?;
-                                if operator.is_comparison() && !return_bool {
-                                    if result == 0.0 {
-                                        return Ok(None);
-                                    }
-                                    (OwnedValue::Float(value), false)
-                                } else {
-                                    (
-                                        OwnedValue::Float(result),
-                                        !operator.is_comparison() || return_bool,
-                                    )
-                                }
+                        } => {
+                            let vector_float = if let OwnedValue::Float(value) = &sample.value {
+                                Some(*value)
+                            } else {
+                                None
+                            };
+                            let vector =
+                                std::mem::replace(&mut sample.value, OwnedValue::Float(0.0));
+                            let scalar = OwnedValue::Float(scalar);
+                            let (left, right) = if scalar_left {
+                                (scalar, vector)
+                            } else {
+                                (vector, scalar)
+                            };
+                            let pair = crate::binary_value::evaluate(
+                                operator,
+                                left,
+                                right,
+                                self.control,
+                                self.account,
+                            )?;
+                            if pair.diagnostic.is_some() {
+                                *last_diagnostic = pair.diagnostic;
                             }
-                            OwnedValue::Histogram(mut histogram) => {
-                                match operator {
-                                    TokenKind::MUL => {
-                                        histogram.normalize_copy_fields();
-                                        histogram.mul_checked(
-                                            scalar,
-                                            self.control,
-                                            self.account,
-                                        )?;
-                                    }
-                                    TokenKind::DIV if !scalar_left => {
-                                        histogram.normalize_copy_fields();
-                                        histogram.div_checked(
-                                            scalar,
-                                            self.control,
-                                            self.account,
-                                        )?;
-                                    }
-                                    TokenKind::TRIM_LOWER | TokenKind::TRIM_UPPER
-                                        if !scalar_left =>
-                                    {
-                                        return Err(EvaluationError::Unsupported(
-                                            "histogram map kernel",
-                                        ));
-                                    }
-                                    _ => {
-                                        if node == self.diagnostic_node
-                                            && let Some(annotations) = &mut self.annotations
-                                        {
-                                            annotations.add(
-                                                AnnotationKind::IncompatibleBinaryTypes {
-                                                    left_histogram: !scalar_left,
-                                                    operator,
-                                                    right_histogram: scalar_left,
-                                                },
-                                                b"",
-                                                self.expression.arena[node].span,
-                                                &self.expression.source,
-                                                self.account,
-                                            );
-                                        }
-                                        return Ok(None);
-                                    }
-                                }
-                                histogram.compact_checked(self.control, self.account)?;
-                                (OwnedValue::Histogram(histogram), true)
+                            let Some(mut value) = pair.value else {
+                                return Ok(None);
+                            };
+                            if return_bool {
+                                value = OwnedValue::Float(f64::from(pair.keep));
+                            } else if !pair.keep {
+                                return Ok(None);
+                            } else if scalar_left && operator.is_comparison() {
+                                value = OwnedValue::Float(
+                                    vector_float.expect("compatible scalar comparison"),
+                                );
                             }
-                        },
+                            (
+                                value,
+                                crate::binary_value::changes_metadata(operator) || return_bool,
+                            )
+                        }
                     };
                     sample.value = result;
                     sample.drop_name |= drop_name;
@@ -1398,7 +1397,12 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
                             annotations.add(
                                 kind,
                                 label(&views, b"__name__"),
-                                self.expression.arena[*child].span,
+                                self.expression.arena[self.prepared.preprocessing.child(
+                                    self.expression,
+                                    node,
+                                    *child,
+                                )]
+                                .span,
                                 &self.expression.source,
                                 self.account,
                             );
@@ -1481,6 +1485,55 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
             let filter = self.frames[index].filter;
             let mode = self.frames[index].mode;
             match &mut self.frames[index].state {
+                State::Binary(step) => {
+                    let mut options = self.options;
+                    if self.invariants[node.0] {
+                        options.end_ms = options.start_ms;
+                    }
+                    match step.advance(
+                        node,
+                        options,
+                        self.binary_preparation,
+                        self.control,
+                        self.account,
+                    )? {
+                        crate::vector_matching::Action::Child { side, ordinal } => {
+                            let Expr::Binary { left, right, .. } =
+                                self.expression.arena[node].expression
+                            else {
+                                unreachable!()
+                            };
+                            let child = if side == 0 { left } else { right };
+                            let filter = ordinal.map_or(RowFilter::All, |value| {
+                                RowFilter::Ordinals(std::slice::from_ref(value))
+                            });
+                            self.push_filtered(child, filter, false, OutputMode::Vector);
+                        }
+                        crate::vector_matching::Action::Sample(sample) => {
+                            if filter.accepts(sample.ordinal)
+                                && let Some(sample) = self.propagate(sample, index)?
+                            {
+                                return Ok(Some(sample));
+                            }
+                        }
+                        crate::vector_matching::Action::Done(diagnostic) => {
+                            if node == self.diagnostic_node
+                                && let Some(crate::binary_value::Diagnostic::Annotation(kind)) =
+                                    diagnostic
+                                && let Some(annotations) = &mut self.annotations
+                            {
+                                annotations.add(
+                                    kind,
+                                    b"",
+                                    self.expression.arena[node].span,
+                                    &self.expression.source,
+                                    self.account,
+                                );
+                            }
+                            self.frames.pop();
+                        }
+                    }
+                }
                 State::OrderedRows {
                     descriptors,
                     sources,
@@ -1514,7 +1567,25 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
                     *running = true;
                     self.push_filtered(node, filter, true, OutputMode::Matrix);
                 }
-                State::Pass | State::Map { .. } | State::Labels { .. } => {
+                State::Map {
+                    last_diagnostic, ..
+                } => {
+                    if node == self.diagnostic_node
+                        && let Some(crate::binary_value::Diagnostic::Annotation(kind)) =
+                            last_diagnostic.take()
+                        && let Some(annotations) = &mut self.annotations
+                    {
+                        annotations.add(
+                            kind,
+                            b"",
+                            self.expression.arena[node].span,
+                            &self.expression.source,
+                            self.account,
+                        );
+                    }
+                    self.frames.pop();
+                }
+                State::Pass | State::Labels { .. } => {
                     self.frames.pop();
                 }
                 State::Selection {
@@ -1583,7 +1654,12 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
                             annotations.add(
                                 kind,
                                 b"",
-                                self.expression.arena[child].span,
+                                self.expression.arena[self.prepared.preprocessing.child(
+                                    self.expression,
+                                    node,
+                                    child,
+                                )]
+                                .span,
                                 &self.expression.source,
                                 self.account,
                             );
@@ -1773,7 +1849,7 @@ pub(crate) fn metadata(name: &[u8]) -> bool {
     matches!(name, b"__name__" | b"__type__" | b"__unit__")
 }
 
-fn scalar_binary(
+pub(crate) fn scalar_binary(
     operator: TokenKind,
     left: f64,
     right: f64,
