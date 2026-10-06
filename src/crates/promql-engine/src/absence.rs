@@ -47,11 +47,12 @@ pub(crate) fn labels(
                 &matcher.value,
                 account,
                 MemoryKind::Workspace,
-            );
+                control,
+            )?;
             // Empty equality also prevents a later equality from restoring this label.
             equalities.push(&matcher.name);
         } else {
-            labels.set(&matcher.name, b"", account, MemoryKind::Workspace);
+            labels.set(&matcher.name, b"", account, MemoryKind::Workspace, control)?;
         }
     }
     Ok(labels)

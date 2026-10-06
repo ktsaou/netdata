@@ -2,7 +2,7 @@
 //! Synchronous query ownership, incremental output and ordinary-panic containment.
 use crate::{
     accounting::{
-        AccountedVec, AllocationContext, EngineAccounting, MemoryKind, MemoryLease,
+        AccountedBox, AccountedVec, AllocationContext, EngineAccounting, MemoryKind, MemoryLease,
         QueryAccounting, QueryObservations,
     },
     annotations::{AnnotationBuilder, Annotations},
@@ -19,6 +19,7 @@ use crate::{
         regex::Selector,
         token as tokens,
     },
+    label_functions::{self, LabelOperation},
     query_catalog::Catalog,
     query_preparation::Prepared,
     range_reduce::RangeFunction,
@@ -800,9 +801,10 @@ impl CompiledQuery {
         failure_annotations: &mut Annotations,
     ) -> Result<Rosters, EvaluationError> {
         let header = prepared.header;
-        enum Task {
+        enum Task<'a> {
             Visit(NodeId),
             Finish(NodeId),
+            LabelFinish(NodeId, AccountedBox<LabelOperation<'a>>),
         }
         let mut rosters = Rosters::new(account, self.expression.arena.nodes.len());
         let mut tasks = AccountedVec::new(account, MemoryKind::Workspace);
@@ -810,17 +812,54 @@ impl CompiledQuery {
         while let Some(task) = tasks.pop() {
             control.check()?;
             account.work(1);
-            let node = match task {
-                Task::Visit(node) | Task::Finish(node) => node,
+            let node = match &task {
+                Task::Visit(node) | Task::Finish(node) | Task::LabelFinish(node, _) => *node,
             };
             let expression = &self.expression.arena[node].expression;
             if matches!(task, Task::Visit(_)) {
+                if label_functions::is_label_call(expression) {
+                    let operation = LabelOperation::prepare(
+                        &self.expression,
+                        node,
+                        prepared,
+                        account,
+                        control,
+                    )?;
+                    tasks.push(Task::LabelFinish(node, operation));
+                    let Expr::Call { arguments, .. } = expression else {
+                        unreachable!()
+                    };
+                    tasks.push(Task::Visit(arguments[0]));
+                    continue;
+                }
                 tasks.push(Task::Finish(node));
                 if self.direct_clock_selector(node).is_none() {
                     for child in children(expression).rev() {
                         tasks.push(Task::Visit(child));
                     }
                 }
+                continue;
+            }
+            if let Task::LabelFinish(_, operation) = task {
+                let Expr::Call { arguments, .. } = expression else {
+                    unreachable!()
+                };
+                let annotations = rosters
+                    .take_annotations(arguments[0])
+                    .unwrap_or_else(|| AnnotationBuilder::new(account));
+                self.prepare_label_roster(
+                    (node, operation),
+                    catalog,
+                    EvaluationScope {
+                        prepared,
+                        data_bounds,
+                    },
+                    control,
+                    account,
+                    &mut rosters,
+                )?;
+                rosters.annotations(node, annotations);
+                rosters.release_output(arguments[0]);
                 continue;
             }
             if let Expr::Aggregate {
@@ -1095,6 +1134,106 @@ impl CompiledQuery {
         Ok(rosters)
     }
 
+    fn prepare_label_roster<Q: QueryProvider>(
+        &self,
+        call: (NodeId, AccountedBox<LabelOperation<'_>>),
+        catalog: &Catalog<'_, Q>,
+        scope: EvaluationScope<'_>,
+        control: &Control,
+        account: &QueryAccounting,
+        rosters: &mut Rosters,
+    ) -> Result<(), EvaluationError> {
+        let (node, operation) = call;
+        let Expr::Call { arguments, .. } = &self.expression.arena[node].expression else {
+            unreachable!("label call")
+        };
+        let mut descriptors = rosters.projection_input(arguments[0], control, account)?;
+        for (order, descriptor) in descriptors.iter_mut().enumerate() {
+            control.check()?;
+            account.work(1);
+            descriptor.first_order = order;
+            operation.apply(descriptor, account, control)?;
+            descriptor.hash = crate::label_hash::full(&descriptor.labels, control, account)?;
+        }
+        drop(operation);
+        rosters.projection_output(node, descriptors, control, account)?;
+
+        let header = scope.prepared.header;
+        let single_step = header.step_ms == 0 || self.preprocessing.invariants[node.0];
+        let mut kinds = AccountedVec::new(account, MemoryKind::Workspace);
+        for _ in rosters.descriptors(node) {
+            control.check()?;
+            account.work(1);
+            kinds.push(0u8);
+        }
+        let mut time_ms = header.start_ms;
+        loop {
+            for kind in kinds.iter_mut() {
+                control.check()?;
+                account.work(1);
+                *kind = 0;
+            }
+            let mut machine = Machine::new(
+                catalog,
+                &self.expression,
+                node,
+                self.evaluation_options(header, time_ms),
+                control,
+                account,
+                EvaluationMetadata {
+                    prepared: scope.prepared,
+                    rosters,
+                    invariants: &self.preprocessing.invariants,
+                    timestamp_selectors: &self.timestamp_selectors,
+                    data_bounds: scope.data_bounds,
+                    annotations: None,
+                },
+            );
+            // Descendant matrices remain authoritative; only this new merge is bypassed.
+            machine.bypass_root_order();
+            let bindings = rosters.projection(node).expect("label projection").bindings;
+            while let Some(sample) = machine.next()? {
+                let position = crate::evaluator_roster::projection_index(
+                    bindings,
+                    sample.ordinal,
+                    control,
+                    account,
+                )?
+                .ok_or(EvaluationError::Invalid(
+                    "label projection source is missing",
+                ))?;
+                let bit = sample.value.kind_bit();
+                if kinds[position] & bit != 0 {
+                    return Err(EvaluationError::Invalid(
+                        "vector cannot contain metrics with the same labelset",
+                    ));
+                }
+                kinds[position] |= bit;
+            }
+            drop(machine);
+            rosters.projection_collisions(node, &kinds, time_ms, control, account)?;
+            if single_step {
+                break;
+            }
+            let Some(next) = time_ms.checked_add(header.step_ms) else {
+                break;
+            };
+            if next > header.end_ms {
+                break;
+            }
+            time_ms = next;
+        }
+        if self.preprocessing.boundaries[node.0]
+            && rosters
+                .descriptors(node)
+                .iter()
+                .any(|descriptor| descriptor.collision_time_ms.is_some())
+        {
+            return Err(EvaluationError::Invalid("unexpected number of samples"));
+        }
+        Ok(())
+    }
+
     fn evaluate_matrix<Q: QueryProvider, S: OutputSink>(
         &self,
         catalog: &Catalog<'_, Q>,
@@ -1210,6 +1349,9 @@ fn children(expression: &Expr) -> impl DoubleEndedIterator<Item = NodeId> + '_ {
             function: Some(function),
             arguments,
         } if RangeFunction::parse(function.name).is_some() => ([None, None], &arguments[1..]),
+        Expr::Call { arguments, .. } if label_functions::is_label_call(expression) => {
+            ([None, None], &arguments[..1])
+        }
         Expr::Call { arguments, .. } => ([None, None], arguments),
         _ => ([None, None], &[]),
     };
@@ -3608,6 +3750,228 @@ mod tests {
                 "vector cannot contain metrics with the same labelset"
             ))
         )
+    }
+    #[test]
+    fn label_operations_replay_nested_source_free_and_grouped_children() {
+        // Pinned functions.go:2483-2571 changes labels after complete child evaluation.
+        type Labels = &'static [(&'static [u8], &'static [u8])];
+        let cases: &[(&[u8], Labels, f64)] = &[
+            (
+                b"label_join(label_replace(vector(2),\"a\",\"one\",\"missing\",\".*\"),\"b\",\"/\",\"a\",\"missing\",\"a\")",
+                &[(b"a", b"one"), (b"b", b"one//one")],
+                2.0,
+            ),
+            (
+                b"sum by (b) (label_join(label_replace(vector(2),\"a\",\"one\",\"missing\",\".*\"),\"b\",\"/\",\"a\"))",
+                &[(b"b", b"one")],
+                2.0,
+            ),
+            (
+                b"label_replace(sum(vector(3)),\"a\",\"x\",\"missing\",\".*\")",
+                &[(b"a", b"x")],
+                3.0,
+            ),
+            (
+                b"label_join(absent(m{job=\"demo\"}),\"a\",\"/\",\"job\",\"missing\")",
+                &[(b"a", b"demo/"), (b"job", b"demo")],
+                1.0,
+            ),
+        ];
+        for delayed in [false, true] {
+            let engine = Engine::default();
+            let provider = FixtureProvider::new(0, 1, 0);
+            let control = Control::default();
+            for (expression, expected_labels, value) in cases {
+                let query = engine
+                    .compile(expression, options(delayed), &control)
+                    .unwrap();
+                let (result, observed) = query
+                    .collect(
+                        &provider,
+                        QueryRequest::Range {
+                            start_ms: 1000,
+                            end_ms: 3000,
+                            step_ms: 1000,
+                        },
+                        &control,
+                    )
+                    .unwrap();
+                assert_eq!(result.series.len(), 1, "{expression:?}");
+                let series = &result.series[0];
+                let labels: Vec<_> = series
+                    .labels
+                    .0
+                    .iter()
+                    .map(|label| (&label.name[..], &label.value[..]))
+                    .collect();
+                assert_eq!(labels, *expected_labels, "{expression:?}");
+                assert_eq!(series.points.len(), 3, "{expression:?}");
+                for (index, point) in series.points.iter().enumerate() {
+                    assert_eq!(point.time_ms, (index as i64 + 1) * 1000);
+                    assert_eq!(float_bits(point), value.to_bits(), "{expression:?}");
+                }
+                assert_eq!(observed.memory[MemoryKind::Workspace as usize].current, 0);
+                provider.assert_closed();
+            }
+        }
+    }
+    #[test]
+    fn nested_label_replay_retains_disjoint_merged_rows_and_payload_bits() {
+        fn first(index: usize) -> crate::value::Sample {
+            crate::value::Sample {
+                time_ms: [1000, 2000][index],
+                start_time_ms: 0,
+                value: crate::value::SampleValue::Float(if index == 0 {
+                    -0.0
+                } else {
+                    f64::from_bits(crate::value::STALE_NAN_BITS)
+                }),
+            }
+        }
+        fn second(index: usize) -> crate::value::Sample {
+            crate::value::Sample {
+                time_ms: [1000, 3000][index],
+                start_time_ms: 0,
+                value: crate::value::SampleValue::Float(f64::from_bits(if index == 0 {
+                    crate::value::STALE_NAN_BITS
+                } else {
+                    0x7ff8_0000_0000_0073
+                })),
+            }
+        }
+        let expression = b"label_replace(label_join(label_replace(counter_total,\"instance\",\"\",\"instance\",\".*\"),\"x\",\"/\",\"job\",\"missing\"),\"job\",\"renamed\",\"job\",\".*\")";
+        for page in [1, 17, 1024] {
+            for delayed in [false, true] {
+                let mut provider = FixtureProvider::new(2, page, 2);
+                provider.series[0].source.sample = first;
+                provider.series[1].source.sample = second;
+                let engine = Engine::default();
+                let control = Control::default();
+                let mut settings = options(delayed);
+                settings.lookback_ms = 1500;
+                let query = engine.compile(expression, settings, &control).unwrap();
+                let (result, observed) = query
+                    .collect(
+                        &provider,
+                        QueryRequest::Range {
+                            start_ms: 1000,
+                            end_ms: 4000,
+                            step_ms: 1000,
+                        },
+                        &control,
+                    )
+                    .unwrap();
+                assert_eq!(result.series.len(), 1);
+                let series = &result.series[0];
+                let labels: Vec<_> = series
+                    .labels
+                    .0
+                    .iter()
+                    .map(|label| (&label.name[..], &label.value[..]))
+                    .collect();
+                assert_eq!(
+                    labels,
+                    [
+                        (b"__name__".as_slice(), b"counter_total".as_slice()),
+                        (b"job", b"renamed"),
+                        (b"x", b"worker/")
+                    ]
+                );
+                let points: Vec<_> = series
+                    .points
+                    .iter()
+                    .map(|point| (point.time_ms, float_bits(point)))
+                    .collect();
+                assert_eq!(
+                    points,
+                    [
+                        (1000, (-0.0f64).to_bits()),
+                        (3000, 0x7ff8_0000_0000_0073),
+                        (4000, 0x7ff8_0000_0000_0073)
+                    ]
+                );
+                assert_eq!(observed.memory[MemoryKind::Workspace as usize].current, 0);
+                provider.assert_closed();
+            }
+        }
+    }
+    #[test]
+    fn label_replay_keeps_raw_workspace_independent_of_history_length() {
+        for page in [1, 17, 1024] {
+            let mut peaks = Vec::new();
+            for count in [2048, 16384] {
+                let engine = Engine::default();
+                let provider = FixtureProvider::new(count, page, 2);
+                let control = Control::default();
+                let query = engine.compile(
+                    b"count(label_join(label_replace(counter_total,\"x\",\"$1\",\"job\",\"(.*)\"),\"y\",\"/\",\"x\",\"instance\"))",
+                    EngineOptions { lookback_ms: 1_000_000_000, ..EngineOptions::default() },
+                    &control,
+                ).unwrap();
+                let mut sink = RecordingSink::default();
+                let observed = query
+                    .execute(
+                        &provider,
+                        QueryRequest::Instant {
+                            time_ms: count as i64 * 1000,
+                        },
+                        &control,
+                        &mut sink,
+                    )
+                    .unwrap();
+                assert!(sink.committed && !sink.aborted);
+                assert_eq!(observed.output_samples, 1);
+                assert_eq!(
+                    provider.series[0]
+                        .source
+                        .counters
+                        .peak
+                        .load(Ordering::Relaxed),
+                    1
+                );
+                peaks.push(
+                    [
+                        MemoryKind::Workspace,
+                        MemoryKind::ProviderHeld,
+                        MemoryKind::BorrowedView,
+                    ]
+                    .map(|kind| {
+                        let memory = observed.memory[kind as usize];
+                        assert_eq!(memory.current, 0);
+                        memory.peak
+                    }),
+                );
+                provider.assert_closed();
+            }
+            assert_eq!(peaks[0], peaks[1], "page {page}");
+        }
+    }
+    #[test]
+    fn singleton_label_filters_avoid_quadratic_skipped_ordinal_walks() {
+        let mut work = Vec::new();
+        for count in [256, 1024] {
+            let engine = Engine::default();
+            let provider = FixtureProvider::new(1, 1, count);
+            let control = Control::default();
+            let query = engine
+                .compile(
+                    b"count(label_join(counter_total,\"x\",\"/\",\"job\",\"instance\"))",
+                    EngineOptions::default(),
+                    &control,
+                )
+                .unwrap();
+            let (result, observed) = query
+                .collect(&provider, QueryRequest::Instant { time_ms: 1000 }, &control)
+                .unwrap();
+            assert_eq!(
+                float_bits(&result.series[0].points[0]),
+                (count as f64).to_bits()
+            );
+            work.push(observed.work);
+            provider.assert_closed();
+        }
+        // A finite guard for repeated skipped-ordinal walks, not an overall complexity proof.
+        assert!(work[1] < work[0] * 8, "{work:?}");
     }
     #[test]
     fn empty_group_keys_remain_distinct_until_source_label_projection() {

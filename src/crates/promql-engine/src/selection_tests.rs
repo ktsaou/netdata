@@ -280,6 +280,121 @@ fn request() -> QueryRequest {
 }
 
 #[test]
+fn label_runtime_validation_precedes_child_expansion_but_follows_all_selects() {
+    // Source functions.go:2483-2499 validates before ev.eval; populateSeries is upfront.
+    let cases: &[(&[u8], bool)] = &[
+        (b"label_replace(m+n,\"\",\"x\",\"id\",\"(\")", false),
+        (b"label_replace(m,\"dst\",\"x\",\"id\",\"(\")+n", false),
+        (b"m+label_replace(n,\"dst\",\"x\",\"id\",\"(\")", true),
+    ];
+    for (expression, left_expanded) in cases {
+        let mut source = Source::new();
+        source.fail_select = Some(1);
+        source.notes = vec![(0, Severity::Warning, b"unfinished-left".to_vec())];
+        let engine = Engine::default();
+        let control = Control::default();
+        let query = engine
+            .compile(expression, EngineOptions::default(), &control)
+            .unwrap();
+        let report = query.collect_reported(&source, request(), &control);
+        let Err(ExecutionError::Evaluation(EvaluationError::Runtime(message))) = &report.result
+        else {
+            panic!("expected label regex failure: {:?}", report.result)
+        };
+        assert_eq!(
+            &message[..],
+            b"invalid regular expression in label_replace(): ("
+        );
+        assert_eq!(source.select_names(), [b"m".to_vec(), b"n".to_vec()]);
+        assert_eq!(
+            source
+                .events
+                .borrow()
+                .iter()
+                .any(|event| matches!(event, Event::Metadata { site: 0, .. })),
+            *left_expanded
+        );
+        assert!(
+            !source
+                .events
+                .borrow()
+                .iter()
+                .any(|event| matches!(event, Event::Metadata { site: 1, .. }))
+        );
+        assert!(report.annotations.is_empty());
+        assert_eq!(
+            report.observations.memory[MemoryKind::Workspace as usize].current,
+            message.capacity() as u64
+        );
+        assert_eq!(
+            report.observations.memory[MemoryKind::RegexEstimate as usize].current,
+            0
+        );
+        source.assert_closed();
+        drop(report);
+        assert_eq!(
+            engine.accounting.snapshot().memory[MemoryKind::Workspace as usize].current,
+            0
+        );
+    }
+}
+
+#[test]
+fn label_projection_waits_for_late_child_failure_and_drops_pending_regex_on_cancel() {
+    for cancelled in [false, true] {
+        let mut source = Source::new();
+        source.data.series[1].labels[0].1 = b"m".to_vec();
+        source.notes = vec![(0, Severity::Warning, b"unfinished-child".to_vec())];
+        if cancelled {
+            source.cancel_metadata = Some((0, 1));
+        } else {
+            source.fail_cursor = Some((0, 1));
+        }
+        let engine = Engine::default();
+        let control = Control::default();
+        let query = engine
+            .compile(
+                b"label_replace(m,\"instance\",\"\",\"instance\",\".*\")",
+                EngineOptions::default(),
+                &control,
+            )
+            .unwrap();
+        let report = query.collect_reported(&source, request(), &control);
+        if cancelled {
+            assert!(matches!(
+                &report.result,
+                Err(ExecutionError::Evaluation(
+                    EvaluationError::Interrupted(_)
+                        | EvaluationError::Storage(StorageError::Interrupted(_))
+                ))
+            ));
+        } else {
+            assert!(matches!(&report.result, Err(ExecutionError::Evaluation(
+                EvaluationError::Storage(StorageError::Provider(message))
+            )) if message == b"raw-failed"));
+            assert!(source.events.borrow().iter().any(|event| matches!(
+                event,
+                Event::Cursor {
+                    site: 0,
+                    index: 0,
+                    end_ms: 2000
+                }
+            )));
+        }
+        assert!(report.annotations.is_empty());
+        assert_eq!(
+            report.observations.memory[MemoryKind::Workspace as usize].current,
+            0
+        );
+        assert_eq!(
+            report.observations.memory[MemoryKind::RegexEstimate as usize].current,
+            0
+        );
+        source.assert_closed();
+    }
+}
+
+#[test]
 fn selection_sites_open_in_syntax_order_before_metadata_and_only_once() {
     let source = Source::new();
     let engine = Engine::default();

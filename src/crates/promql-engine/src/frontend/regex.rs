@@ -127,7 +127,7 @@ impl GoRegex {
         Self::compile_label_replace_in(pattern, None).map_err(Buffer::into_unobserved)
     }
 
-    fn compile_label_replace_in(
+    pub(crate) fn compile_label_replace_in(
         pattern: &[u8],
         context: Option<&AllocationContext>,
     ) -> Result<Self, Buffer<u8>> {
