@@ -100,6 +100,11 @@ Integer duration parsing is derived from prometheus/common v0.71.0,
 model/time.go. Copyright 2013 The Prometheus Authors. Licensed under
 Apache-2.0; see LICENSE-APACHE-2.0.
 
+Float-only numeric grammar, hexadecimal conversion and underscore validation derive from
+golang/go commit 862c888e612ac346c7c4d99c9392bdfd265f33b0 (Go 1.27.1),
+src/internal/strconv/atof.go and atoi.go. Copyright 2009 The Go Authors.
+Licensed under the Go BSD license; see LICENSE-GO-BSD.
+
 Go-compatible diagnostic quoting and printability are derived from Go 1.27.1,
 strconv/quote.go, fmt/format.go, time.Duration.Seconds and strconv.IsPrint,
 using Unicode 17.0.0.

@@ -28,12 +28,23 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         let fields: Vec<_> = line.split('\t').collect();
         if fields.len() != 4
             || fields[0].is_empty()
-            || !matches!(fields[1], "q" | "s" | "u" | "n" | "d" | "p" | "r")
+            || !matches!(fields[1], "q" | "s" | "u" | "n" | "d" | "p" | "r" | "f")
         {
             return Err("expected ID, query/series mode, fixture token guard and hex input".into());
         }
         let count: usize = fields[2].parse()?;
         let input = decode(fields[3])?;
+        if fields[1] == "f" {
+            let (value, error) = number::float_fixture(&input);
+            serde_json::to_writer(
+                &mut out,
+                &serde_json::json!({
+                    "id": fields[0], "value_bits": format!("{:016x}", value.to_bits()), "error": error,
+                }),
+            )?;
+            writeln!(out)?;
+            continue;
+        }
         if fields[1] == "r" {
             serde_json::to_writer(&mut out, &regex_fixture::result(fields[0], &input)?)?;
             writeln!(out)?;
