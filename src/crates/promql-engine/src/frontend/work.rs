@@ -263,7 +263,7 @@ mod tests {
     use super::*;
     use crate::{
         accounting::{EngineAccounting, MemoryKind},
-        frontend::{lexer::Lexer, literal, number, quote},
+        frontend::{float, lexer::Lexer, literal, number, quote},
         test_storage::interrupt_during,
     };
 
@@ -278,6 +278,9 @@ mod tests {
             "utf8" => work.valid_utf8(bytes).map(|_| ()),
             "literal" | "escape" => literal::unquote_in(bytes, work).map(|_| ()),
             "number" => number::number_in(bytes, work).map(|_| ()),
+            "float" | "hex-float" => {
+                float::parse_checked(bytes, work.context, work.account, work.control).map(|_| ())
+            }
             "duration" => number::duration_in(bytes, work).map(|_| ()),
             "lexer" => Lexer::new_in(bytes, false, work).next_in().map(|_| ()),
             _ => unreachable!(),
@@ -287,13 +290,25 @@ mod tests {
     #[test]
     fn long_frontend_operations_return_cancellation_from_owned_work() {
         for name in [
-            "copy", "format", "compare", "contains", "utf8", "literal", "escape", "number",
-            "duration", "lexer",
+            "copy",
+            "format",
+            "compare",
+            "contains",
+            "utf8",
+            "literal",
+            "escape",
+            "number",
+            "float",
+            "hex-float",
+            "duration",
+            "lexer",
         ] {
             let bytes = match name {
                 "literal" => [b"\"".as_slice(), &vec![b'a'; 400_000], b"\""].concat(),
                 "escape" => [b"\"".as_slice(), &b"\\n".repeat(200_000), b"\""].concat(),
                 "number" => vec![b'1'; 400_000],
+                "float" => vec![b'1'; 400_000],
+                "hex-float" => [b"0x1".as_slice(), &vec![b'0'; 400_000], b"p0"].concat(),
                 "duration" => [&vec![b'0'; 400_000], b"h".as_slice()].concat(),
                 _ => vec![b'a'; 400_000],
             };
@@ -339,6 +354,8 @@ mod tests {
             ("literal", b"\"abc\""),
             ("escape", b"\"\\n\""),
             ("number", b"123"),
+            ("float", b"123"),
+            ("hex-float", b"0x1p0"),
             ("duration", b"123h"),
             ("lexer", b"abc"),
         ] {

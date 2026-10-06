@@ -2,6 +2,7 @@
 
 pub mod ast;
 pub mod bytes;
+pub(crate) mod float;
 pub mod functions;
 pub mod lexer;
 pub mod literal;

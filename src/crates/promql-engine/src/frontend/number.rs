@@ -1,21 +1,12 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Pinned Prometheus parse.go and common/model/time.go literal algorithms; see NOTICE.
-use super::{quote, work::Work};
+use super::{float, float::digit, quote, work::Work};
 use crate::{accounting::AccountedVec, storage::Interrupted};
 
 #[derive(Debug)]
 pub struct Number<E = Vec<u8>> {
     pub value: f64,
     pub error: Option<E>,
-}
-
-fn digit(byte: u8) -> u32 {
-    match byte {
-        b'0'..=b'9' => u32::from(byte - b'0'),
-        b'a'..=b'f' => u32::from(byte - b'a' + 10),
-        b'A'..=b'F' => u32::from(byte - b'A' + 10),
-        _ => 16,
-    }
 }
 
 fn integer(mut input: &[u8], work: Work<'_>) -> Result<Option<i64>, Interrupted> {
@@ -80,58 +71,6 @@ fn integer(mut input: &[u8], work: Work<'_>) -> Result<Option<i64>, Interrupted>
     }))
 }
 
-fn decimal(input: &[u8], work: Work<'_>) -> Result<Option<AccountedVec<u8>>, Interrupted> {
-    let mut position = usize::from(matches!(input.first(), Some(b'+' | b'-')));
-    let mut digits = 0;
-    let mut out = AccountedVec::with_capacity_in(input.len(), work.context);
-    for (index, &byte) in input.iter().enumerate() {
-        work.step(1)?;
-        if byte == b'_' {
-            if index == 0
-                || !input[index - 1].is_ascii_digit()
-                || input.get(index + 1).is_none_or(|b| !b.is_ascii_digit())
-            {
-                return Ok(None);
-            }
-        } else {
-            let mut encoded = [0; 4];
-            out.extend_from_slice(char::from(byte).encode_utf8(&mut encoded).as_bytes());
-        }
-    }
-    let bytes = &*out;
-    while bytes.get(position).is_some_and(u8::is_ascii_digit) {
-        work.step(1)?;
-        position += 1;
-        digits += 1;
-    }
-    if bytes.get(position) == Some(&b'.') {
-        position += 1;
-        while bytes.get(position).is_some_and(u8::is_ascii_digit) {
-            work.step(1)?;
-            position += 1;
-            digits += 1;
-        }
-    }
-    if digits == 0 {
-        return Ok(None);
-    }
-    if matches!(bytes.get(position), Some(b'e' | b'E')) {
-        position += 1;
-        if matches!(bytes.get(position), Some(b'+' | b'-')) {
-            position += 1;
-        }
-        let start = position;
-        while bytes.get(position).is_some_and(u8::is_ascii_digit) {
-            work.step(1)?;
-            position += 1;
-        }
-        if position == start {
-            return Ok(None);
-        }
-    }
-    Ok((position == bytes.len()).then_some(out))
-}
-
 /// Parse a NUMBER token using the upstream integer-first conversion.
 pub fn number(input: &[u8]) -> Number {
     let parsed = number_in(input, Work::default()).expect("inert number parsing");
@@ -152,38 +91,16 @@ pub(super) fn number_in(
             error: None,
         });
     }
-    let special = if input.eq_ignore_ascii_case(b"nan") {
-        Some(f64::from_bits(0x7ff8_0000_0000_0001))
-    } else if [b"inf".as_slice(), b"infinity", b"+inf", b"+infinity"]
-        .iter()
-        .any(|name| input.eq_ignore_ascii_case(name))
-    {
-        Some(f64::INFINITY)
-    } else if [b"-inf".as_slice(), b"-infinity"]
-        .iter()
-        .any(|name| input.eq_ignore_ascii_case(name))
-    {
-        Some(f64::NEG_INFINITY)
-    } else {
-        None
+    let parsed = float::parse_checked(input, work.context, work.account, work.control)?;
+    let Some(error) = parsed.error else {
+        return Ok(Number {
+            value: parsed.value,
+            error: None,
+        });
     };
-    if let Some(value) = special {
-        return Ok(Number { value, error: None });
-    }
-    let parsed = decimal(input, work)?.and_then(|text| {
-        std::str::from_utf8(&text)
-            .expect("encoded decimal bytes")
-            .parse::<f64>()
-            .ok()
-    });
-    work.step(0)?;
-    let reason = match parsed {
-        Some(value) if !value.is_infinite() => return Ok(Number { value, error: None }),
-        Some(_) => "value out of range",
-        None => "invalid syntax",
-    };
+    let reason = error.description();
     Ok(Number {
-        value: parsed.unwrap_or(0.0),
+        value: parsed.value,
         error: Some(work.format(format_args!(
             "error parsing number: strconv.ParseFloat: parsing {}: {reason}",
             quote::quoted(input)
@@ -195,6 +112,17 @@ pub fn duration(input: &[u8]) -> Result<i64, Vec<u8>> {
     duration_in(input, Work::default())
         .expect("inert duration parsing")
         .map_err(AccountedVec::into_unobserved)
+}
+
+#[cfg(feature = "fixtures")]
+pub fn float_fixture(input: &[u8]) -> (f64, &'static str) {
+    let parsed = float::parse_checked(input, None, None, None).expect("inert float parsing");
+    let error = match parsed.error {
+        Some(float::FloatError::Syntax) => "syntax",
+        Some(float::FloatError::Range) => "range",
+        None => "",
+    };
+    (parsed.value, error)
 }
 
 pub(super) fn duration_in(
@@ -309,4 +237,27 @@ pub fn go_i64(value: f64) -> i64 {
 
 pub fn nanoseconds(seconds: f64) -> i64 {
     go_i64((seconds * 1_000_000_000.0).round())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn integer_first_numbers_fall_back_to_hex_floats() {
+        // Go ParseInt fails on these; ParseFloat supplies the value and rounding.
+        for (input, bits) in [
+            (b"0x1p0".as_slice(), 0x3ff0_0000_0000_0000),
+            (b"0x1.000000000000081p0", 0x3ff0_0000_0000_0001),
+            (b"-0x0p999999999999999", 0x8000_0000_0000_0000),
+            (b"0x_1p0", 0x3ff0_0000_0000_0000),
+        ] {
+            let parsed = number(input);
+            assert_eq!(parsed.value.to_bits(), bits, "{input:?}");
+            assert_eq!(parsed.error, None, "{input:?}");
+        }
+        assert_eq!(number(b"010").value, 8.0);
+        assert_eq!(number(b"-0").value.to_bits(), 0);
+        assert_eq!(number(b"0x10").value, 16.0);
+    }
 }
