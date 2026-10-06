@@ -1,6 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Histogram value operations derive from the pinned Prometheus model; see NOTICE.
-use crate::accounting::{AccountedVec, AllocationContext, MemoryLease};
 pub use crate::histogram_arithmetic::HistogramArithmetic;
 pub use crate::histogram_bounds::bucket_bound;
 pub use crate::histogram_classic::{
@@ -20,6 +19,10 @@ use crate::histogram_layout::{
 };
 use crate::histogram_work::{HistogramEvaluationError, HistogramWork};
 use crate::storage::Interrupted;
+use crate::{
+    accounting::{AccountedVec, AllocationContext},
+    shared::Strong,
+};
 use std::sync::Arc;
 
 pub const CUSTOM_BUCKETS_SCHEMA: i32 = -53;
@@ -30,54 +33,58 @@ pub const GAUGE: u8 = 3;
 
 /// Immutable bounds retain one observation through all owning aliases.
 #[derive(Clone, Debug)]
-pub struct HistogramBounds {
-    values: Arc<[f64]>,
-    allocation: Option<Arc<MemoryLease>>,
+pub struct HistogramBounds(BoundsOwner);
+#[derive(Clone, Debug)]
+enum BoundsOwner {
+    Owned(Strong<AccountedVec<f64>>),
+    External(Arc<[f64]>),
 }
 impl HistogramBounds {
     pub(crate) fn from_slice_in(values: &[f64], context: Option<&AllocationContext>) -> Self {
-        let values: Arc<[f64]> = Arc::from(values);
-        let allocation =
-            context.map(|context| Arc::new(context.hold(size_of_val(values.as_ref()) as u64)));
-        Self { values, allocation }
+        Self::from_owned(AccountedVec::from_slice_in(values, context))
+    }
+    pub(crate) fn from_owned(values: AccountedVec<f64>) -> Self {
+        let context = values.context();
+        Self(BoundsOwner::Owned(Strong::new_in(values, context.as_ref())))
     }
     pub(crate) fn clone_in(&self, context: Option<&AllocationContext>) -> Self {
         if let Some(context) = context
-            && self
-                .allocation
-                .as_deref()
-                .is_none_or(|lease| !context.owns(lease))
+            && !matches!(&self.0, BoundsOwner::Owned(values) if values.owns(context))
         {
             return Self::from_slice_in(self, Some(context));
         }
         self.clone()
     }
     pub fn same_allocation(&self, other: &Self) -> bool {
-        Arc::ptr_eq(&self.values, &other.values)
+        match (&self.0, &other.0) {
+            (BoundsOwner::Owned(left), BoundsOwner::Owned(right)) => left.same_allocation(right),
+            (BoundsOwner::External(left), BoundsOwner::External(right)) => Arc::ptr_eq(left, right),
+            _ => false,
+        }
     }
 }
 impl std::ops::Deref for HistogramBounds {
     type Target = [f64];
     fn deref(&self) -> &Self::Target {
-        &self.values
+        match &self.0 {
+            BoundsOwner::Owned(values) => values,
+            BoundsOwner::External(values) => values,
+        }
     }
 }
 impl AsRef<[f64]> for HistogramBounds {
     fn as_ref(&self) -> &[f64] {
-        &self.values
+        self
     }
 }
 impl From<Arc<[f64]>> for HistogramBounds {
     fn from(values: Arc<[f64]>) -> Self {
-        Self {
-            values,
-            allocation: None,
-        }
+        Self(BoundsOwner::External(values))
     }
 }
 impl From<Vec<f64>> for HistogramBounds {
     fn from(values: Vec<f64>) -> Self {
-        Self::from(Arc::<[f64]>::from(values))
+        Self::from_owned(AccountedVec::from_vec_in(values, None))
     }
 }
 
@@ -948,6 +955,83 @@ impl IntegerHistogramRef<'_> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::accounting::{EngineAccounting, MemoryKind};
+
+    #[test]
+    fn bounds_move_retained_capacity_and_share_only_the_same_query_and_kind() {
+        let engine = EngineAccounting::default();
+        let account = engine.query();
+        let other_account = engine.query();
+        let context = AllocationContext::new(&account, MemoryKind::Workspace);
+        let mut values = Vec::with_capacity(257);
+        values.extend_from_slice(&[1.0, 2.0]);
+        let capacity = values.capacity();
+        let address = values.as_ptr();
+        let bounds = HistogramBounds::from_owned(AccountedVec::from_vec_in(values, Some(&context)));
+        let wrapper = size_of::<crate::shared::Allocation<AccountedVec<f64>>>() as u64;
+        let bytes = wrapper + (capacity * size_of::<f64>()) as u64;
+        assert_eq!(bounds.as_ptr(), address);
+        assert_eq!(account.snapshot().memory[1].current, bytes);
+        let before = account.snapshot();
+        let alias = bounds.clone_in(Some(&context));
+        assert!(bounds.same_allocation(&alias));
+        assert_eq!(account.snapshot(), before);
+        let different_kind = bounds.clone_in(Some(&context.with_kind(MemoryKind::Result)));
+        let different_query = bounds.clone_in(Some(&AllocationContext::new(
+            &other_account,
+            MemoryKind::Workspace,
+        )));
+        assert!(!bounds.same_allocation(&different_kind));
+        assert!(!bounds.same_allocation(&different_query));
+        assert_eq!(account.snapshot().memory[2].current, wrapper + 16);
+        assert_eq!(other_account.snapshot().memory[1].current, wrapper + 16);
+        drop((bounds, context, account));
+        assert_eq!(&*alias, &[1.0, 2.0]);
+        assert_eq!(engine.snapshot().memory[1].current, bytes + wrapper + 16);
+        drop((alias, different_kind, different_query, other_account));
+        assert!(
+            engine
+                .snapshot()
+                .memory
+                .iter()
+                .all(|memory| memory.current == 0)
+        );
+    }
+
+    #[test]
+    fn bounds_external_import_and_empty_owned_headers_keep_their_distinct_identity() {
+        let engine = EngineAccounting::default();
+        let account = engine.query();
+        let context = AllocationContext::new(&account, MemoryKind::Result);
+        let external: Arc<[f64]> = Arc::from([1.0, 2.0]);
+        let first = HistogramBounds::from(external.clone());
+        let second = HistogramBounds::from(external);
+        assert!(first.same_allocation(&second));
+        assert!(first.same_allocation(&first.clone_in(None)));
+        let copied = first.clone_in(Some(&context));
+        assert!(!first.same_allocation(&copied));
+        assert!(copied.same_allocation(&copied.clone_in(Some(&context))));
+        let left = HistogramBounds::from_slice_in(&[], Some(&context));
+        let right = HistogramBounds::from_slice_in(&[], Some(&context));
+        assert_eq!(left.as_ptr(), right.as_ptr());
+        assert!(!left.same_allocation(&right));
+        assert!(left.same_allocation(&left.clone()));
+        let histogram = FloatHistogram {
+            schema: CUSTOM_BUCKETS_SCHEMA,
+            custom_values: Some(left),
+            ..FloatHistogram::default()
+        };
+        assert_eq!(histogram.as_ref().custom_values, Some([].as_slice()));
+        let absent = FloatHistogram {
+            schema: CUSTOM_BUCKETS_SCHEMA,
+            ..FloatHistogram::default()
+        };
+        assert_eq!(absent.as_ref().custom_values, None);
+        let wrapper = size_of::<crate::shared::Allocation<AccountedVec<f64>>>() as u64;
+        assert_eq!(account.snapshot().memory[2].current, 3 * wrapper + 16);
+        drop((copied, right, histogram));
+        assert_eq!(account.snapshot().memory[2].current, 0);
+    }
 
     #[test]
     fn reduction_keeps_arrays_attached_when_an_invalid_schema_panics() {

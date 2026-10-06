@@ -3,12 +3,10 @@
 use crate::{
     accounting::{AccountedVec, MemoryKind, QueryAccounting},
     frontend::{Span, quote, token as tokens},
+    shared::Strong,
     storage::{Control, Interrupted},
 };
-use std::{
-    fmt::{self, Write},
-    sync::Arc,
-};
+use std::fmt::{self, Write};
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum Severity {
@@ -166,7 +164,7 @@ impl Annotation {
 /// Immutable diagnostics share tracked storage independently of the provider and compiled plan.
 #[derive(Clone, Debug, Default)]
 pub struct Annotations {
-    entries: Option<Arc<AccountedVec<Annotation>>>,
+    entries: Option<Strong<AccountedVec<Annotation>>>,
 }
 impl Annotations {
     pub fn iter(&self) -> impl Iterator<Item = AnnotationRef<'_>> {
@@ -299,7 +297,8 @@ impl AnnotationBuilder {
             entries: if self.entries.is_empty() {
                 None
             } else {
-                Some(Arc::new(self.entries))
+                let context = self.entries.context();
+                Some(Strong::new_in(self.entries, context.as_ref()))
             },
         }
     }
@@ -464,8 +463,15 @@ mod tests {
             second.add(kind, b"m\xff\n", Span { start: 4, end: 5 }, query, &account);
         }
         first.merge(second, query);
+        let before_finish = account.snapshot().memory[MemoryKind::Result as usize].current;
         let result = first.finish();
+        assert_eq!(
+            account.snapshot().memory[MemoryKind::Result as usize].current,
+            before_finish + size_of::<crate::shared::Allocation<AccountedVec<Annotation>>>() as u64
+        );
+        let before_clone = account.snapshot();
         let retained = result.clone();
+        assert_eq!(account.snapshot(), before_clone);
         assert_eq!(result.len(), 2);
         let generic = result
             .iter()

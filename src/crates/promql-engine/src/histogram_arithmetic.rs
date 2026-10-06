@@ -770,7 +770,7 @@ fn intersect_bounds(
     }
     if let Some(values) = result {
         work.step(values.len())?;
-        let result = HistogramBounds::from_slice_in(&values, context);
+        let result = HistogramBounds::from_owned(values);
         work.step(1)?;
         Ok(Some(result))
     } else {

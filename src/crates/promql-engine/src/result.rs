@@ -540,6 +540,10 @@ mod tests {
         AccountedBox::<HistogramPayload>::allocation_bytes() as u64
     }
 
+    fn bounds_wrapper_bytes() -> u64 {
+        size_of::<crate::shared::Allocation<AccountedVec<f64>>>() as u64
+    }
+
     #[test]
     fn collected_native_results_preserve_transformed_fields_after_source_release() {
         let engine = EngineAccounting::default();
@@ -727,7 +731,10 @@ mod tests {
             let account = engine.query();
             let source = histogram(CUSTOM_BUCKETS_SCHEMA, &[1.0, 2.0, 3.0], Some(&[1.0, 2.0]));
             let original = own(&source, &account);
-            assert_eq!(account.snapshot().memory[1].current, 80 + box_bytes());
+            assert_eq!(
+                account.snapshot().memory[1].current,
+                80 + box_bytes() + bounds_wrapper_bytes()
+            );
             let mut copy = original.copy();
             assert!(
                 original
@@ -743,7 +750,10 @@ mod tests {
                 original.as_ref().positive_buckets,
                 Some(&[1.0, 2.0, 3.0][..])
             );
-            assert_eq!(account.snapshot().memory[1].current, 144 + 2 * box_bytes());
+            assert_eq!(
+                account.snapshot().memory[1].current,
+                144 + 2 * box_bytes() + bounds_wrapper_bytes()
+            );
             let remaining = if drop_original_first {
                 drop(original);
                 copy
@@ -751,11 +761,17 @@ mod tests {
                 drop(copy);
                 original
             };
-            assert_eq!(account.snapshot().memory[1].current, 80 + box_bytes());
+            assert_eq!(
+                account.snapshot().memory[1].current,
+                80 + box_bytes() + bounds_wrapper_bytes()
+            );
             drop(account);
             drop(source);
             assert_eq!(remaining.as_ref().custom_values, Some(&[1.0, 2.0][..]));
-            assert_eq!(engine.snapshot().memory[1].current, 80 + box_bytes());
+            assert_eq!(
+                engine.snapshot().memory[1].current,
+                80 + box_bytes() + bounds_wrapper_bytes()
+            );
             drop(remaining);
             assert_eq!(engine.snapshot().memory[1].current, 0);
         }
@@ -814,7 +830,10 @@ mod tests {
         let observation = account.snapshot().memory[1];
         assert_eq!(
             (observation.current, observation.peak),
-            (56 + box_bytes(), 120 + box_bytes())
+            (
+                64 + box_bytes() + bounds_wrapper_bytes(),
+                128 + box_bytes() + 2 * bounds_wrapper_bytes()
+            )
         );
         drop(sum);
         let observation = account.snapshot().memory[1];

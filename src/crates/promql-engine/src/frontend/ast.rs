@@ -1,8 +1,10 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Derived from pinned Prometheus promql/parser/ast.go; see NOTICE.
 use super::{Span, functions::Function, token as token_types};
-use crate::accounting::{AccountedVec, QueryAccounting};
-use std::sync::Arc;
+use crate::{
+    Strong,
+    accounting::{AccountedVec, QueryAccounting},
+};
 use token_types::TokenKind;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -54,7 +56,7 @@ pub struct Matcher {
     pub kind: MatchType,
     pub name: Vec<u8>,
     pub value: Vec<u8>,
-    pub compiled: Option<Arc<dyn CompiledMatcher>>,
+    pub compiled: Option<Strong<dyn CompiledMatcher>>,
 }
 
 pub trait CompiledMatcher: std::fmt::Debug + Send + Sync {

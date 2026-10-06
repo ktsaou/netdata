@@ -47,6 +47,8 @@ mod range_numeric;
 mod range_rates;
 mod range_reduce;
 pub mod result;
+mod shared;
+pub use shared::Strong;
 #[cfg(test)]
 mod selection_tests;
 pub mod storage;
