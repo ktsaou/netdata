@@ -24,8 +24,8 @@ impl NativeHistogramInfo {
         }
     }
 
-    pub fn raw_message(self, metric_name: &[u8]) -> String {
-        let message = match self {
+    pub(crate) fn prefix(self) -> &'static str {
+        match self {
             Self::QuantileNaNResult => {
                 "PromQL info: input to histogram_quantile has NaN observations, result is NaN"
             }
@@ -35,8 +35,11 @@ impl NativeHistogramInfo {
             Self::FractionNaNs => {
                 "PromQL info: input to histogram_fraction has NaN observations, which are excluded from all fractions"
             }
-        };
-        let mut result = String::from(message);
+        }
+    }
+
+    pub fn raw_message(self, metric_name: &[u8]) -> String {
+        let mut result = String::from(self.prefix());
         if !metric_name.is_empty() {
             result.push_str(" for metric name ");
             result.push_str(&quote::bytes(metric_name));

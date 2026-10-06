@@ -31,13 +31,22 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             || fields[0].is_empty()
             || !matches!(
                 fields[1],
-                "q" | "s" | "u" | "n" | "d" | "p" | "r" | "f" | "g"
+                "q" | "s" | "u" | "n" | "d" | "p" | "r" | "f" | "g" | "a"
             )
         {
             return Err("expected ID, query/series mode, fixture token guard and hex input".into());
         }
         let count: usize = fields[2].parse()?;
         let input = decode(fields[3])?;
+        if fields[1] == "a" {
+            if count != 0 {
+                return Err("invalid annotation fixture projection".into());
+            }
+            let result = netdata_promql_engine::annotations::fixture::result(fields[0], &input)?;
+            serde_json::to_writer(&mut out, &result)?;
+            writeln!(out)?;
+            continue;
+        }
         if fields[1] == "g" {
             let bytes: [u8; 8] = input.try_into().map_err(|_| "expected binary64 bytes")?;
             let style = match count {

@@ -59,6 +59,25 @@ pub(crate) fn float_seconds(value: f64) -> i64 {
     }
 }
 
+pub(crate) fn write_rfc3339(seconds: i64, out: &mut impl std::fmt::Write) -> std::fmt::Result {
+    let absolute = seconds.wrapping_add(UNIX_TO_ABSOLUTE) as u64;
+    let date = Date::from_days(absolute / 86_400);
+    if date.year < 0 {
+        out.write_str("-")?;
+    }
+    // Go pads the year magnitude and accepts years beyond the strict RFC3339 range.
+    write!(
+        out,
+        "{:04}-{:02}-{:02}T{:02}:{:02}:{:02}Z",
+        date.year.unsigned_abs(),
+        date.month,
+        date.day,
+        (absolute % 86_400) / 3600,
+        (absolute % 3600) / 60,
+        absolute % 60,
+    )
+}
+
 struct Date {
     year: i64,
     month: u32,

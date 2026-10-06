@@ -199,7 +199,8 @@ probe, requests and results in ignored `.tmp/`, and compares value bits and erro
 panel passes in both release profiles, including 933 added long-decimal cancellation/fallback cases. The earlier
 12,154-case panel missed these source behaviors; both original captures and failed before binaries remain retained.
 Eighteen additional scalar comparison requests now match Prometheus exactly across parser profiles, query modes
-and fixture page sizes. All 249 unit tests pass in both profiles and Rust 1.91; the existing
+and fixture page sizes. All 253 core unit tests pass in both profiles and Rust 1.91; the fixtures feature
+adds one transport test. The existing
 157 lexer, 356 AST, 784 parser-option and 32 literal cases continue to match. The complete expression panel remains
 13,330 passing variants and 8,112 unsupported variants, with no lost passes or new paired numerical differences.
 This is a finite parser-helper check; histogram expression execution remains a separate required surface.
@@ -229,6 +230,32 @@ These are finite numerical-helper checks; histogram expression execution remains
 ```sh
 python3 tests/promql-conformance/float_text.py
 python3 tests/promql-conformance/float_text.py --capture "${PROMQL_FLOAT_TEXT_CAPTURE_DIR:?}" \
+  --binary tests/promql-conformance/.tmp/core-target/release-min/promql-frontend-fixture
+```
+
+The annotation owner supports histogram invalid-quantile, malformed/missing bucket-label,
+mixed-classic/native and native-NaN notes. Native kernel text projections share their static message owner
+with the accounted annotation constructors. Forced-monotonicity notes retain their first source position,
+merge occurrence counts and timestamp/bucket/difference extrema, and preserve signed-zero/NaN comparison
+behavior. Opaque provider messages replace the previous payload. Empty query text returns the raw message.
+
+Only monotonicity notes own an optional tracked box for the extra fields; regular notes retain one pointer
+of additional state. Raw and formatted byte capacities, the box and shared result ownership are precisely
+accounted. UTC timestamp text uses the existing calendar arithmetic, whole-second truncation and Go's signed
+year padding, including years outside strict RFC3339 bounds.
+
+`histogram_annotations.py --capture` first runs untouched upstream annotation and Go RFC3339 tests, then
+captures the original constructors and merge operations. Its **1,583 cases match exactly in both release
+profiles**, including negative/extreme times, invalid label bytes, optional names, repeated and child merges,
+provider replacement, raw/final messages, severities, positions and occurrences. Hashes bind sources, runtime
+profile, helpers, inputs and original results in ignored `.tmp/`. Ownership units and focused Miri checks
+cover precise payload charges, retained result lifetime and replacement cleanup. This qualifies annotation
+helpers; histogram expression dispatch and bounded count replay remain required.
+
+```sh
+python3 tests/promql-conformance/histogram_annotations.py --capture
+python3 tests/promql-conformance/histogram_annotations.py --reference "${PROMQL_ANNOTATION_CAPTURE_DIR:?}"
+python3 tests/promql-conformance/histogram_annotations.py --reference "${PROMQL_ANNOTATION_CAPTURE_DIR:?}" \
   --binary tests/promql-conformance/.tmp/core-target/release-min/promql-frontend-fixture
 ```
 
