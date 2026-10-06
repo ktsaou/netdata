@@ -207,6 +207,17 @@ pub(crate) fn sort_with<T>(
     account: Option<&QueryAccounting>,
     mut compare: impl FnMut(&T, &T) -> Ordering,
 ) -> Result<(), Interrupted> {
+    sort_by_with(values, control, account, |left, right| {
+        Ok(compare(left, right))
+    })
+}
+
+pub(crate) fn sort_by_with<T>(
+    values: &mut [T],
+    control: Option<&Control>,
+    account: Option<&QueryAccounting>,
+    mut compare: impl FnMut(&T, &T) -> Result<Ordering, Interrupted>,
+) -> Result<(), Interrupted> {
     fn check(
         control: Option<&Control>,
         account: Option<&QueryAccounting>,
@@ -225,7 +236,7 @@ pub(crate) fn sort_with<T>(
         end: usize,
         control: Option<&Control>,
         account: Option<&QueryAccounting>,
-        compare: &mut impl FnMut(&T, &T) -> Ordering,
+        compare: &mut impl FnMut(&T, &T) -> Result<Ordering, Interrupted>,
     ) -> Result<(), Interrupted> {
         loop {
             check(control, account)?;
@@ -233,13 +244,13 @@ pub(crate) fn sort_with<T>(
             if child >= end {
                 return Ok(());
             }
-            let largest = if child + 1 < end && compare(&values[child], &values[child + 1]).is_lt()
+            let largest = if child + 1 < end && compare(&values[child], &values[child + 1])?.is_lt()
             {
                 child + 1
             } else {
                 child
             };
-            if !compare(&values[root], &values[largest]).is_lt() {
+            if !compare(&values[root], &values[largest])?.is_lt() {
                 return Ok(());
             }
             values.swap(root, largest);

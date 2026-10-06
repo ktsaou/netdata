@@ -59,6 +59,31 @@ impl<T> Strong<T> {
         let allocation = Box::new(Allocation::new(value));
         Self::finish(allocation, Some(charge))
     }
+    pub(crate) fn get_mut(&mut self) -> Option<&mut T> {
+        if unsafe { self.allocation.as_ref() }
+            .strong
+            .load(Ordering::Acquire)
+            != 1
+        {
+            return None;
+        }
+        // No weak owners exist; the exclusive handle prevents another alias from being created.
+        Some(unsafe { &mut self.allocation.as_mut().value })
+    }
+    pub(crate) fn into_raw(self) -> *mut Allocation<T> {
+        std::mem::ManuallyDrop::new(self).allocation.as_ptr()
+    }
+    pub(crate) unsafe fn from_raw(allocation: *mut Allocation<T>) -> Self {
+        // The caller transfers exactly one live reference created by into_raw.
+        Self {
+            allocation: unsafe { NonNull::new_unchecked(allocation) },
+            owned: PhantomData,
+        }
+    }
+    pub(crate) unsafe fn borrow_raw<'a>(allocation: *const Allocation<T>) -> &'a T {
+        // The raw owner's paired release cannot race or precede this borrow.
+        unsafe { &(*allocation).value }
+    }
 }
 impl<T: ?Sized> Strong<T> {
     pub(crate) fn finish(allocation: Box<Allocation<T>>, charge: Option<SharedCharge>) -> Self {
@@ -167,6 +192,25 @@ mod tests {
 
     fn context(account: &QueryAccounting) -> AllocationContext {
         AllocationContext::new(account, MemoryKind::Workspace)
+    }
+    #[test]
+    fn raw_transfer_keeps_one_charge_and_unique_access_rejects_aliases() {
+        let engine = EngineAccounting::default();
+        let account = engine.query();
+        let mut owner = Strong::new_in(7u64, Some(&context(&account)));
+        let alias = owner.clone();
+        assert!(owner.get_mut().is_none());
+        drop(alias);
+        *owner.get_mut().unwrap() = 11;
+        let bytes = Strong::<u64>::allocation_bytes();
+        let raw = owner.into_raw();
+        drop(account);
+        assert_eq!(engine.snapshot().memory[1].current, bytes);
+        assert_eq!(*unsafe { Strong::<u64>::borrow_raw(raw) }, 11);
+        let owner = unsafe { Strong::<u64>::from_raw(raw) };
+        assert_eq!(*owner, 11);
+        drop(owner);
+        engine.snapshot().assert_memory_released();
     }
     #[test]
     fn aliases_charge_one_layout_until_the_last_owner_outlives_the_query_handle() {

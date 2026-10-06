@@ -191,6 +191,14 @@ pub struct SamplePage<'a> {
 pub enum PageSamples<'a> {
     Views(&'a [SampleRef<'a>]),
     Samples(&'a [Sample]),
+    Adapted(AdaptedPage<'a>),
+}
+
+/// Adapter descriptors have their own charge; the foreign page is observed before conversion can be interrupted.
+#[derive(Clone, Copy, Debug)]
+pub struct AdaptedPage<'a> {
+    pub(crate) samples: &'a [SampleRef<'a>],
+    pub(crate) observation: &'a MemoryLease,
 }
 
 impl<'a> PageSamples<'a> {
@@ -198,6 +206,7 @@ impl<'a> PageSamples<'a> {
         match self {
             Self::Views(samples) => samples.len(),
             Self::Samples(samples) => samples.len(),
+            Self::Adapted(page) => page.samples.len(),
         }
     }
 
@@ -209,6 +218,7 @@ impl<'a> PageSamples<'a> {
         match self {
             Self::Views(samples) => samples[index],
             Self::Samples(samples) => samples[index].as_ref(),
+            Self::Adapted(page) => page.samples[index],
         }
     }
 }
@@ -271,6 +281,20 @@ pub trait Series {
             views.push(self.label(index));
         }
         views
+    }
+    fn label_views_checked<'a>(
+        &'a self,
+        account: &QueryAccounting,
+        control: &Control,
+    ) -> Result<crate::accounting::AccountedVec<LabelRef<'a>>, Interrupted> {
+        let mut views = crate::accounting::AccountedVec::new(account, MemoryKind::Workspace);
+        for index in 0..self.label_count() {
+            control.check()?;
+            account.work(1);
+            views.push(self.label(index));
+        }
+        control.check()?;
+        Ok(views)
     }
     fn resources(&self) -> ProviderResources;
     fn cursor(
@@ -411,11 +435,15 @@ pub(crate) fn page_bytes(
     account: &QueryAccounting,
     borrow: &mut MemoryLease,
 ) -> Result<u64, StorageError> {
+    if let PageSamples::Adapted(page) = samples {
+        return Ok(page.observation.bytes());
+    }
     let header_bytes = samples
         .len()
         .checked_mul(match samples {
             PageSamples::Views(_) => size_of::<SampleRef<'_>>(),
             PageSamples::Samples(_) => size_of::<Sample>(),
+            PageSamples::Adapted(_) => unreachable!("already observed foreign page"),
         })
         .ok_or(StorageError::Invalid("slice size overflow"))?;
     borrow.resize(header_bytes as u64);
@@ -423,6 +451,7 @@ pub(crate) fn page_bytes(
     match samples {
         PageSamples::Views(samples) => expose(&mut ranges, Some(samples))?,
         PageSamples::Samples(samples) => expose(&mut ranges, Some(samples))?,
+        PageSamples::Adapted(_) => unreachable!("already observed foreign page"),
     }
     // Observe the complete bounded page before a pending cancellation discards its borrow.
     for index in 0..samples.len() {
@@ -537,7 +566,9 @@ pub(crate) fn scan_until<S: Series, E: From<StorageError> + From<Interrupted>>(
         if page.samples.is_empty() || page.samples.len() > maximum {
             return Err(StorageError::Invalid("invalid cursor page size").into());
         }
-        account.page(page.samples.len());
+        if !matches!(page.samples, PageSamples::Adapted(_)) {
+            account.page(page.samples.len());
+        }
         let mut borrow = account.hold(MemoryKind::BorrowedView, 0);
         page_bytes(page.samples, account, &mut borrow)?;
         let mut stopped = false;

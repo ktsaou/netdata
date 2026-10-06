@@ -188,6 +188,12 @@ impl QueryAccounting {
             start: Instant::now(),
         }
     }
+    pub(crate) fn compilation(&self) -> CompilationObservation {
+        CompilationObservation {
+            query: self.clone(),
+            start: Instant::now(),
+        }
+    }
     pub fn provider_call(&self) {
         self.count(|s| &mut s.provider_calls, 1);
     }
@@ -388,6 +394,18 @@ impl Drop for MemoryLease {
 pub struct ExecutionObservation {
     query: QueryAccounting,
     start: Instant,
+}
+
+pub(crate) struct CompilationObservation {
+    query: QueryAccounting,
+    start: Instant,
+}
+impl Drop for CompilationObservation {
+    fn drop(&mut self) {
+        let elapsed = self.start.elapsed();
+        let mut query = lock(&self.query.0.observations);
+        query.elapsed = query.elapsed.saturating_add(elapsed);
+    }
 }
 
 impl ExecutionObservation {

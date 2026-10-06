@@ -2,7 +2,9 @@
 // Native histogram kernels derive from Prometheus promql/{quantile,functions}.go; see NOTICE.
 use crate::frontend::quote;
 use crate::histogram::{AllFloatBucketIterator, Bucket, CUSTOM_BUCKETS_SCHEMA, FloatHistogramRef};
-use crate::numerical::{compensated_add, exp2, log2, sqrt};
+use crate::numerical::{compensated_add, exp2, log2, source_add, source_div, sqrt};
+#[cfg(target_arch = "x86_64")]
+use crate::numerical::{source_mul, source_sub};
 
 const NAN: f64 = f64::from_bits(0x7ff8_0000_0000_0001);
 
@@ -246,7 +248,7 @@ pub(crate) fn histogram_stdvar_with<E>(
     h: FloatHistogramRef<'_>,
     mut poll: impl FnMut() -> Result<(), E>,
 ) -> Result<f64, E> {
-    let mean = h.sum / h.count;
+    let mean = source_div(h.sum, h.count);
     let (mut variance, mut compensation) = (0.0, 0.0);
     let mut iterator = AllFloatBucketIterator::new(h, false);
     while iterator.advance() {
@@ -256,19 +258,38 @@ pub(crate) fn histogram_stdvar_with<E>(
             continue;
         }
         let value = if h.schema == CUSTOM_BUCKETS_SCHEMA {
-            (bucket.upper + bucket.lower) / 2.0
+            #[cfg(target_arch = "x86_64")]
+            {
+                source_mul(source_add(bucket.upper, bucket.lower), 0.5)
+            }
+            #[cfg(not(target_arch = "x86_64"))]
+            {
+                (bucket.upper + bucket.lower) / 2.0
+            }
         } else if bucket.lower <= 0.0 && bucket.upper >= 0.0 {
             0.0
         } else {
+            #[cfg(target_arch = "x86_64")]
+            let value = sqrt(source_mul(bucket.lower, bucket.upper));
+            #[cfg(not(target_arch = "x86_64"))]
             let value = sqrt(bucket.upper * bucket.lower);
             if bucket.upper < 0.0 { -value } else { value }
         };
-        let delta = value - mean;
+        #[cfg(target_arch = "x86_64")]
+        let contribution = {
+            let delta = source_sub(value, mean);
+            // Go retains the original delta in the second product; native equality observes it.
+            source_mul(delta, source_mul(bucket.count, delta))
+        };
+        #[cfg(not(target_arch = "x86_64"))]
+        let contribution = {
+            let delta = value - mean;
+            (bucket.count * delta) * delta
+        };
         // Squaring delta first can overflow a finite upstream contribution.
-        (variance, compensation) =
-            compensated_add((bucket.count * delta) * delta, variance, compensation);
+        (variance, compensation) = compensated_add(contribution, variance, compensation);
     }
-    Ok((variance + compensation) / h.count)
+    Ok(source_div(source_add(variance, compensation), h.count))
 }
 
 pub fn histogram_stddev(h: FloatHistogramRef<'_>) -> f64 {
@@ -289,6 +310,40 @@ fn adjust_zero_bounds(bucket: &mut Bucket, histogram: FloatHistogramRef<'_>) {
 mod tests {
     use super::*;
     use crate::histogram::{FloatHistogram, Span};
+
+    #[test]
+    #[cfg(target_arch = "x86_64")]
+    fn variance_nan_provenance_retains_mean_after_each_bucket_product() {
+        // Original Go histogramVariance capture; native equality observes these bits.
+        let buckets = [
+            f64::from_bits(0xfff8_0000_0000_0027),
+            f64::from_bits(0x7ff8_0000_0000_0063),
+        ];
+        let spans = [Span {
+            offset: 0,
+            length: 2,
+        }];
+        for (sum, expected) in [
+            (0x7ff8_0000_0000_0099, 0x7ff8_0000_0000_0099),
+            (0, 0x7ff8_0000_0000_0042),
+        ] {
+            let histogram = FloatHistogramRef {
+                reset_hint: 0,
+                schema: 0,
+                zero_threshold: 0.0,
+                zero_count: 0.0,
+                count: f64::from_bits(0x7ff8_0000_0000_0042),
+                sum: f64::from_bits(sum),
+                positive_spans: Some(&spans),
+                positive_buckets: Some(&buckets),
+                negative_spans: None,
+                negative_buckets: None,
+                custom_values: None,
+            };
+            assert_eq!(histogram_stdvar(histogram).to_bits(), expected);
+            assert_eq!(histogram_stddev(histogram).to_bits(), expected);
+        }
+    }
 
     #[test]
     fn variance_poll_interrupts_bucket_traversal_without_mutating_input() {

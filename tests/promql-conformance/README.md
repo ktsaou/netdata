@@ -163,7 +163,7 @@ execution architecture: bounded raw pages, sufficient operator state, exact repl
 `src/crates/promql-engine` is a standalone Cargo workspace, edition 2024 with an MSRV declaration of 1.91.
 It is outside the Agent/plugin default build. The library uses pinned `regex-automata` and `regex-syntax`;
 the optional `fixtures` feature adds `serde_json` for the test binary's projections.
-The checked toolchain is Rust 1.97.1; the MSRV itself has not been built here.
+The checked toolchains are Rust 1.97.1 and the declared MSRV, Rust 1.91.0.
 
 ```sh
 python3 tests/promql-conformance/build_frontend.py
@@ -203,7 +203,7 @@ execution and leaves the reference module cache unchanged. These finite cases do
 - Go diagnostic printability uses a generated Unicode 17.0.0 table from Go 1.27.1 `strconv.IsPrint`.
   `capture/go_tables.go` regenerates the range data without dependency downloads. Source notices accompany the crate.
 - Both release and release-min retain unwind support. The crate rejects `panic=abort` builds; this prevents inheriting
-  the plugin workspace's abort profile. A C panic boundary still requires implementation and qualification.
+  the plugin workspace's abort profile. The synchronous C boundary and its finite embedding checks are described below.
 - Expression consumers stop on the first lexer error. Raw-string EOF is terminal in Rust, avoiding the reference
   scanner's repeating error state; the first error and all captured finite streams match.
 
@@ -479,11 +479,11 @@ python3 tests/promql-conformance/histogram_statistics_capture.py --mod-cache "${
 python3 tests/promql-conformance/histogram_statistics.py --capture "${PROMQL_HISTOGRAM_STATISTICS_CAPTURE_DIR:?}"
 ```
 
-Both release profiles pass all 1,270 comparisons, including exact input snapshots, nil helper diagnostics and
-reciprocal/threshold outcomes. Each reports eight NaN-only numeric bit differences; strict-bit mode fails those
-diagnostics. Fourteen original declaration-versus-Go differences are reported separately and satisfy the pinned
+Both release profiles pass all 1,270 comparisons bit-for-bit, including exact input snapshots, nil helper diagnostics
+and reciprocal/threshold outcomes. The earlier eight NaN differences are corrected on the qualified AMD64 target.
+Fourteen original declaration-versus-Go differences are reported separately and satisfy the pinned
 assertions. Overflow and compensation consumers distinguish reordered arithmetic that changes a comparison.
-Float omission, name removal, inherited warnings and full expression outcomes still require the Rust evaluator.
+Composite expression coverage is measured separately by the evaluator gates below.
 
 ## Classic histogram bucket kernels
 
@@ -584,10 +584,10 @@ the classification of arithmetic and returned filter operands. Missing classific
 retained corpus has 2,788 variants classified for exact numeric comparison. Near-integer boolean/function mutations
 are rejected, while fractional fill outputs retain their permitted tolerance.
 
-The full run after native histogram projections, timestamp support, intermediate ordering, native scalar/vector
+The earlier full run after native histogram projections, timestamp support, intermediate ordering, native scalar/vector
 maps, native vector aggregation, request-context preparation, ordinary math/calendar calls, native/instant
-rates, regression/smoothing, ordinary absence and direct start timestamps matches 9,684 of 21,442 variants, with zero completed semantic failures and 11,758 open variants at page sizes
-17 and 1024. Its 24 paired bit differences are
+rates, regression/smoothing, ordinary absence and direct start timestamps matched 9,684 of 21,442 variants, with zero completed semantic failures and 11,758 open variants at page sizes
+17 and 1024. Its 24 recorded paired bit differences were
 NaN payload/sign differences from one original aggregation case. Further implementation and replay remain
 required. Separate fresh Go checks match
 192 typed reducer, start-timestamp and fixed-`@` executions exactly across page sizes 1, 17 and 1024.
@@ -902,8 +902,9 @@ Cancellation still takes precedence over the inline deadline; observation does n
 Cleanup checks verify every memory category against exact live root counts, including `Accounting`; they do not
 exempt bookkeeping from leak detection. Query snapshots include the query root that is live when the snapshot
 is taken. Finite tests cover root identity, zero-capacity retention, creator/consumer attribution, concurrency,
-poison recovery, scoped failures and panicking cleanup. Complete foreign provider/sink accounting, typed C
-ownership and the full expression/SRE gates remain required. All resource enforcement remains disabled.
+poison recovery, scoped failures and panicking cleanup. Typed C ownership is exercised by the finite embedding checks
+below. Complete foreign transient accounting and the full
+expression/SRE gates remain required. All resource enforcement remains disabled.
 
 Compilation and reported execution/collection have shared internal entry points that accept their actual operation
 account. Native callers use these same paths; adapters can charge descriptors, errors and retained report/result
@@ -914,8 +915,64 @@ Provider and output failure bytes retain their allocation charge after callback 
 unobserved owned buffers transfer without copying and acquire their actual capacity charge at the callback boundary.
 Already observed buffers retain their original physical owner and category. Observation does not add a cancellation
 poll or overwrite an error returned by a callback. Upfront selector failures keep their lazy expansion phase; standalone
-scans account cursor open/seek/page failures as well. Typed foreign error transport and complete C lifetime validation
-remain required.
+scans account cursor open/seek/page failures as well. The C adapter retains opaque returned errors before another
+callback can invalidate them. Pinned upstream selection phases remain distinct: cancellation during selection creation
+is checked on evaluator entry; an already returned terminal expansion error retains its error and warnings.
+
+Output sinks have checked delivery delegates with borrowed control and operation accounting. Existing ordinary
+callbacks use default delegates; their returned error wins over cancellation triggered inside that callback.
+Checked collection polls byte/label/native copies, series lookup, points and final label ordering. Result histogram
+copies preserve evaluated bits and absent versus present-empty fields. Direct inert collector calls remain available.
+No cancellation poll or fallible construction follows successful external commit. The C adapter uses these checked
+delegates for descriptor marshalling and independently owned collection.
+
+### Synchronous C embedding
+
+`src/crates/promql-engine/include/netdata-promql.h` declares version 1 of the standalone interface. The crate emits an
+`rlib` and a static library. Production Agent/plugin build integration belongs to a later stage.
+
+- Engine, immutable query, control, report and result handles have paired release functions. Results and reports own
+  their data independently of the query, foreign provider and engine handle. Individual getters borrow bytes and
+  native arrays until the corresponding handle is released.
+- Tables, options and requests have a version/size prefix; future trailing fields are ignored. Byte and array views
+  use explicit counts. Shape checks cover active tags, reserved fields, optional presence, alignment, address/count
+  arithmetic and required callbacks. Pointer liveness, correct handle types and nonracing access are caller contracts.
+- Provider scopes, selections, series and cursors have paired ownership. Successful NULL opaque tokens receive their
+  matching close. Series metadata survives selection close. Cursor pages survive until that cursor's next operation;
+  one bounded raw page and its accounted view descriptors are retained. Repeated reads use the provider's stable input.
+- Raw sample tags distinguish floats, integer histograms and float histograms. Arrays preserve absent versus
+  present-empty identity; scalar fields preserve binary64 bits. C `double` bit helpers use `memcpy`.
+- Output callbacks receive borrowed provisional chunks, then commit or one abort. Returned error bytes are copied
+  before cleanup. Callback failures retain precedence over concurrent cancellation; successful commit is final.
+- Explicit controls are charged to their creator engine, including cross-engine execution. Callback controls are
+  borrowed; NULL optional call controls create private engine-owned tokens. Explicit deadlines activate once.
+- Whole-export guards contain ordinary Rust unwind panics without installing hooks or a runtime. Allocation abort,
+  invalid pointers, foreign exceptions/longjmp and destructor panic during active unwinding retain their documented
+  runtime/caller limits. Compilation timing belongs to its compilation account; execution counters keep their scope.
+
+Run the native embedding gate from the repository root:
+
+```sh
+python tests/promql-conformance/c_embedding.py --sanitizers --abort-check
+```
+
+Use the configured development Python environment. The driver uses installed GCC/Clang and Cargo offline; it creates
+private `.tmp/c-embedding-*` evidence containing commands, source hashes, layouts, binaries and witness output. Both
+unwind profiles compare all 50 declared structures/unions, 12 callback aliases and 33 shared constants between Rust,
+C11 and C++17, and check header/archive exports. The real foreign callers exercise arithmetic, repeated paging,
+resource conservation, independent results, opaque errors, output delivery and cancellation/error precedence.
+ASan/UBSan instrument the C caller; the Rust core is exercised separately under Miri. `panic=abort` must fail the
+crate's compile guard.
+
+The generated-history sum witness uses pages of 1, 7 and 1,024 samples. Increasing history from 8,192 to 65,536 points
+leaves observed workspace peaks unchanged: 4,795, 5,883 and 225,339 bytes respectively on the qualified amd64 host.
+Borrowed raw-page peaks are 32, 224 and 32,768 bytes. Fetched sample/page counters equal the provider's actual physical
+deliveries, including replay. These finite measurements do not bound cardinality-dependent operator state or output.
+
+Current foreign resource snapshots observe allocations surviving callback return. They cannot observe scratch
+allocated and freed inside a callback, or reconstruct concurrent temporary peaks. A precise foreign allocation-event
+mechanism remains a required design decision. Regex backend memory remains explicitly estimated, all resource caps
+remain disabled, and complete expression/SRE compatibility remains unqualified.
 
 `label_replace` and `label_join` project whole-series metadata after the vector child completes. Runtime validation
 occurs before child evaluation, following the upfront selector catalog. Replacement uses Go's anchored DotNL
@@ -1012,12 +1069,33 @@ cases, four empty-fault-field controls and 80 retained actual-full-hash cases. P
 cache ownership, history-independent raw workspace, current-pair histogram storage, a small caller stack,
 late-child failure precedence, sink/cancellation cleanup and preprocessed aggregation diagnostic positions.
 
-The original 21,442-case expression gate now completes and passes 13,330 cases; 8,112 remain OPEN. Its 24 disclosed
-numeric bit differences are unchanged. Separate retained panels preserve 20 previously attributed map-order
+The original 21,442-case expression gate completes and passes 13,330 cases; 8,112 remain OPEN. Both profiles now have
+zero paired numeric bit differences in that gate. Separate retained panels preserve 20 previously attributed map-order
 disagreements and expose one newly executable label-merge disagreement: unchanged Go repeated that original query
 128 times with two metadata-label outcomes. Sorting the child OR map's complete labels under approved 9.A selects
 the metadata-removing outcome. The original expectation and disagreement remain recorded; a separate policy check
 qualifies the deterministic result. These figures do not establish complete language or alert compatibility.
+
+### Qualified AMD64 arithmetic order
+
+NaN payloads can change native histogram equality even when the numerical tolerance accepts both intermediates.
+The qualified AMD64 path therefore preserves the actual pinned Go instruction destinations in compensated summation,
+grouped SUM/AVG finalization, regression/prediction, native histogram scaling and histogram variance. The second
+variance multiplication retains the original delta; its first product is still evaluated before the second to
+preserve finite overflow behavior. The shared helpers use constant local state and retain existing paging and polling.
+Other targets retain their prior implementation pending the cross-device numerical contract.
+
+Both profiles and Rust 1.91 pass 239 unit tests. Independent source panels qualify 2,662 compensated additions and
+subtractions, 121 earlier summation cases, 242 native scaling cases, 220 complete aggregation/regression expressions
+and 96 complete variance/scaling/equality expressions. Complete expressions match exactly at pages 1/17/1024; the
+1,270 histogram-statistics helper cases also match all bits. These finite owners do not establish arbitrary numerical
+or complete language compatibility.
+
+The unchanged retained-output stability audit still reports 225 deliberate arithmetic response changes across
+127,608 records. Source adjudication separates those historical Rust pins from Go correctness: 219 responses match
+Go exactly, while six response instances differ only at an independently observed unspecified map boundary.
+Approved label-byte ordering supplies the deterministic result there. All 120,072 accounting snapshots validate.
+Original captures, expectations and failed stability reports remain preserved.
 
 ## Frontend allocation ownership
 

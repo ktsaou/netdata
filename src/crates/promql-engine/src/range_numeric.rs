@@ -1,9 +1,11 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Pinned Prometheus promql/functions.go:981-1031,1949-2043; see NOTICE.
+#[cfg(target_arch = "x86_64")]
+use crate::numerical::{source_add, source_div, source_sub};
 use crate::{
     accounting::{AccountedVec, MemoryKind, QueryAccounting},
     annotations::AnnotationKind,
-    numerical::compensated_add,
+    numerical::{compensated_add, source_mul},
     storage::{Control, Series, StorageError, TimeBounds, scan},
     value::SampleValueRef,
 };
@@ -89,7 +91,7 @@ impl Regression {
         let x = time.wrapping_sub(self.intercept_time) as f64 / 1000.0;
         (self.x, self.cx) = compensated_add(x, self.x, self.cx);
         (self.y, self.cy) = compensated_add(value, self.y, self.cy);
-        (self.xy, self.cxy) = compensated_add(x * value, self.xy, self.cxy);
+        (self.xy, self.cxy) = compensated_add(source_mul(x, value), self.xy, self.cxy);
         (self.x2, self.cx2) = compensated_add(x * x, self.x2, self.cx2);
     }
     fn finish(mut self) -> (f64, f64) {
@@ -101,15 +103,34 @@ impl Regression {
                 (0.0, self.initial)
             };
         }
-        self.x += self.cx;
-        self.y += self.cy;
-        self.xy += self.cxy;
-        self.x2 += self.cx2;
-        let covariance = self.xy - self.x * self.y / self.n;
-        let variance = self.x2 - self.x * self.x / self.n;
-        let slope = covariance / variance;
-        let intercept = self.y / self.n - slope * self.x / self.n;
-        (slope, intercept)
+        #[cfg(target_arch = "x86_64")]
+        {
+            self.x = source_add(self.x, self.cx);
+            self.y = source_add(self.y, self.cy);
+            self.xy = source_add(self.xy, self.cxy);
+            self.x2 = source_add(self.x2, self.cx2);
+            // The compiled Go products retain sumY and saved sumX, respectively.
+            let covariance = source_sub(self.xy, source_div(source_mul(self.y, self.x), self.n));
+            let variance = source_sub(self.x2, source_div(source_mul(self.x, self.x), self.n));
+            let slope = source_div(covariance, variance);
+            let intercept = source_sub(
+                source_div(self.y, self.n),
+                source_div(source_mul(self.x, slope), self.n),
+            );
+            (slope, intercept)
+        }
+        #[cfg(not(target_arch = "x86_64"))]
+        {
+            self.x += self.cx;
+            self.y += self.cy;
+            self.xy += self.cxy;
+            self.x2 += self.cx2;
+            let covariance = self.xy - self.x * self.y / self.n;
+            let variance = self.x2 - self.x * self.x / self.n;
+            let slope = covariance / variance;
+            let intercept = self.y / self.n - slope * self.x / self.n;
+            (slope, intercept)
+        }
     }
 }
 
@@ -202,7 +223,14 @@ pub(crate) fn evaluate<S: Series>(
         NumericRangeFunction::Deriv => regression.finish().0,
         NumericRangeFunction::PredictLinear => {
             let (slope, intercept) = regression.finish();
-            slope * parameters[0] + intercept
+            #[cfg(target_arch = "x86_64")]
+            {
+                source_add(intercept, source_mul(slope, parameters[0]))
+            }
+            #[cfg(not(target_arch = "x86_64"))]
+            {
+                slope * parameters[0] + intercept
+            }
         }
         NumericRangeFunction::Smoothing => smoothing.current,
     });
@@ -242,6 +270,59 @@ mod tests {
         TimeBounds {
             start_ms: 0,
             end_ms: count as i64 * 1000,
+        }
+    }
+
+    #[cfg(target_arch = "x86_64")]
+    #[test]
+    fn prediction_nan_provenance_survives_paged_regression() {
+        fn middle(index: usize) -> Sample {
+            Sample {
+                time_ms: (index as i64 - 3) * 1000,
+                start_time_ms: 0,
+                value: SampleValue::Float(f64::from_bits(
+                    [
+                        0x3ff0_0000_0000_0000,
+                        0x7ff8_0000_0000_0042,
+                        0x4000_0000_0000_0000,
+                        0x4008_0000_0000_0000,
+                    ][index],
+                )),
+            }
+        }
+        // Original registered Go functions retain the sample NaN through prediction.
+        for page in [1, 17, 1024] {
+            let engine = EngineAccounting::default();
+            let account = engine.query();
+            let source = GeneratedSeries::new(4, page, middle);
+            for function in [
+                NumericRangeFunction::Deriv,
+                NumericRangeFunction::PredictLinear,
+            ] {
+                let result = evaluate(
+                    &source,
+                    TimeBounds {
+                        start_ms: -10_000,
+                        end_ms: 0,
+                    },
+                    function,
+                    [f64::from_bits(0x7ff8_0000_0000_0001), 0.0],
+                    0,
+                    &Control::default(),
+                    &account,
+                )
+                .unwrap();
+                assert_eq!(result.value.unwrap().to_bits(), 0x7ff8_0000_0000_0042);
+                assert_eq!(result.annotation, None);
+            }
+            assert_eq!(source.counters.peak.load(Ordering::Relaxed), 1);
+            assert_eq!(
+                source.counters.opened.load(Ordering::Relaxed),
+                source.counters.closed.load(Ordering::Relaxed)
+            );
+            account.snapshot().assert_memory_released();
+            drop(account);
+            engine.snapshot().assert_memory_released();
         }
     }
 

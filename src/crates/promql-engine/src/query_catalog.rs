@@ -109,7 +109,7 @@ impl<'q, Q: QueryProvider + 'q> Catalog<'q, Q> {
         }
         if let Some(message) = site.failure.take() {
             return Err(ExpansionFailure {
-                error: expansion_error(&message, control, account),
+                error: expansion_error(&message, account),
                 annotations,
             });
         }
@@ -170,7 +170,12 @@ impl<'q, Q: QueryProvider + 'q> Catalog<'q, Q> {
                     MemoryKind::BorrowedView,
                     (size_of_val(&diagnostic) + diagnostic.message.len()) as u64,
                 );
-                annotations.add_provider(diagnostic, &self.expression.source, control, account)
+                annotations.add_provider(
+                    diagnostic,
+                    &self.expression.source,
+                    failure.is_none().then_some(control),
+                    account,
+                )
             });
             selection.lease.update(selection.value.resources());
             if let Err(error) = result {
@@ -182,7 +187,7 @@ impl<'q, Q: QueryProvider + 'q> Catalog<'q, Q> {
         }
         if let Some(message) = failure {
             return Err(ExpansionFailure {
-                error: expansion_error(&message, control, account),
+                error: expansion_error(&message, account),
                 annotations,
             });
         }
@@ -216,17 +221,11 @@ impl<'q, Q: QueryProvider + 'q> Catalog<'q, Q> {
     }
 }
 
-fn expansion_error(
-    message: &[u8],
-    control: &Control,
-    account: &QueryAccounting,
-) -> EvaluationError {
+fn expansion_error(message: &[u8], account: &QueryAccounting) -> EvaluationError {
     let mut output = AccountedVec::new(account, MemoryKind::Result);
     output.extend_from_slice(b"expanding series: ");
     for bytes in message.chunks(1024) {
-        if let Err(error) = control.check() {
-            return error.into();
-        }
+        // Formatting an already returned failure cannot replace it with later cancellation.
         account.work(bytes.len() as u64);
         output.extend_from_slice(bytes);
     }
