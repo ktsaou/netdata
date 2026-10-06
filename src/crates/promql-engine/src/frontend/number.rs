@@ -1,11 +1,12 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Pinned Prometheus parse.go and common/model/time.go literal algorithms; see NOTICE.
-use super::quote;
+use super::{quote, work::Work};
+use crate::{accounting::AccountedVec, storage::Interrupted};
 
 #[derive(Debug)]
-pub struct Number {
+pub struct Number<E = Vec<u8>> {
     pub value: f64,
-    pub error: Option<Vec<u8>>,
+    pub error: Option<E>,
 }
 
 fn digit(byte: u8) -> u32 {
@@ -17,7 +18,7 @@ fn digit(byte: u8) -> u32 {
     }
 }
 
-fn integer(mut input: &[u8]) -> Option<i64> {
+fn integer(mut input: &[u8], work: Work<'_>) -> Result<Option<i64>, Interrupted> {
     let negative = input.first() == Some(&b'-');
     if matches!(input.first(), Some(b'+' | b'-')) {
         input = &input[1..];
@@ -35,12 +36,13 @@ fn integer(mut input: &[u8]) -> Option<i64> {
     };
     let digits = &input[prefix..];
     if digits.is_empty() {
-        return None;
+        return Ok(None);
     }
     let limit = (i64::MAX as u64) + u64::from(negative);
     let mut value = 0u64;
     let mut saw_digit = false;
     for (index, &byte) in digits.iter().enumerate() {
+        work.step(1)?;
         if byte == b'_' {
             if (index == 0 && prefix == 0)
                 || (index > 0 && digit(digits[index - 1]) >= base)
@@ -48,62 +50,70 @@ fn integer(mut input: &[u8]) -> Option<i64> {
                     .get(index + 1)
                     .is_none_or(|&next| digit(next) >= base)
             {
-                return None;
+                return Ok(None);
             }
             continue;
         }
         let d = digit(byte);
         if d >= base {
-            return None;
+            return Ok(None);
         }
-        value = value
-            .checked_mul(u64::from(base))?
-            .checked_add(u64::from(d))?;
+        let Some(next) = value
+            .checked_mul(u64::from(base))
+            .and_then(|value| value.checked_add(u64::from(d)))
+        else {
+            return Ok(None);
+        };
+        value = next;
         if value > limit {
-            return None;
+            return Ok(None);
         }
         saw_digit = true;
     }
     if !saw_digit {
-        return None;
+        return Ok(None);
     }
-    Some(if negative {
+    Ok(Some(if negative {
         (value as i64).wrapping_neg()
     } else {
         value as i64
-    })
+    }))
 }
 
-fn decimal(input: &[u8]) -> Option<String> {
+fn decimal(input: &[u8], work: Work<'_>) -> Result<Option<AccountedVec<u8>>, Interrupted> {
     let mut position = usize::from(matches!(input.first(), Some(b'+' | b'-')));
     let mut digits = 0;
-    let mut out = String::with_capacity(input.len());
+    let mut out = AccountedVec::with_capacity_in(input.len(), work.context);
     for (index, &byte) in input.iter().enumerate() {
+        work.step(1)?;
         if byte == b'_' {
             if index == 0
                 || !input[index - 1].is_ascii_digit()
                 || input.get(index + 1).is_none_or(|b| !b.is_ascii_digit())
             {
-                return None;
+                return Ok(None);
             }
         } else {
-            out.push(char::from(byte));
+            let mut encoded = [0; 4];
+            out.extend_from_slice(char::from(byte).encode_utf8(&mut encoded).as_bytes());
         }
     }
-    let bytes = out.as_bytes();
+    let bytes = &*out;
     while bytes.get(position).is_some_and(u8::is_ascii_digit) {
+        work.step(1)?;
         position += 1;
         digits += 1;
     }
     if bytes.get(position) == Some(&b'.') {
         position += 1;
         while bytes.get(position).is_some_and(u8::is_ascii_digit) {
+            work.step(1)?;
             position += 1;
             digits += 1;
         }
     }
     if digits == 0 {
-        return None;
+        return Ok(None);
     }
     if matches!(bytes.get(position), Some(b'e' | b'E')) {
         position += 1;
@@ -112,22 +122,35 @@ fn decimal(input: &[u8]) -> Option<String> {
         }
         let start = position;
         while bytes.get(position).is_some_and(u8::is_ascii_digit) {
+            work.step(1)?;
             position += 1;
         }
         if position == start {
-            return None;
+            return Ok(None);
         }
     }
-    (position == bytes.len()).then_some(out)
+    Ok((position == bytes.len()).then_some(out))
 }
 
 /// Parse a NUMBER token using the upstream integer-first conversion.
 pub fn number(input: &[u8]) -> Number {
-    if let Some(value) = integer(input) {
-        return Number {
+    let parsed = number_in(input, Work::default()).expect("inert number parsing");
+    Number {
+        value: parsed.value,
+        error: parsed.error.map(AccountedVec::into_unobserved),
+    }
+}
+
+pub(super) fn number_in(
+    input: &[u8],
+    work: Work<'_>,
+) -> Result<Number<AccountedVec<u8>>, Interrupted> {
+    work.step(0)?;
+    if let Some(value) = integer(input, work)? {
+        return Ok(Number {
             value: value as f64,
             error: None,
-        };
+        });
     }
     let special = if input.eq_ignore_ascii_case(b"nan") {
         Some(f64::from_bits(0x7ff8_0000_0000_0001))
@@ -145,52 +168,91 @@ pub fn number(input: &[u8]) -> Number {
         None
     };
     if let Some(value) = special {
-        return Number { value, error: None };
+        return Ok(Number { value, error: None });
     }
-    let parsed = decimal(input).and_then(|text| text.parse::<f64>().ok());
+    let parsed = decimal(input, work)?.and_then(|text| {
+        std::str::from_utf8(&text)
+            .expect("encoded decimal bytes")
+            .parse::<f64>()
+            .ok()
+    });
+    work.step(0)?;
     let reason = match parsed {
-        Some(value) if !value.is_infinite() => return Number { value, error: None },
+        Some(value) if !value.is_infinite() => return Ok(Number { value, error: None }),
         Some(_) => "value out of range",
         None => "invalid syntax",
     };
-    Number {
+    Ok(Number {
         value: parsed.unwrap_or(0.0),
-        error: Some(
-            format!(
-                "error parsing number: strconv.ParseFloat: parsing {}: {reason}",
-                quote::bytes(input)
-            )
-            .into_bytes(),
-        ),
-    }
+        error: Some(work.format(format_args!(
+            "error parsing number: strconv.ParseFloat: parsing {}: {reason}",
+            quote::quoted(input)
+        ))?),
+    })
 }
 
 pub fn duration(input: &[u8]) -> Result<i64, Vec<u8>> {
+    duration_in(input, Work::default())
+        .expect("inert duration parsing")
+        .map_err(AccountedVec::into_unobserved)
+}
+
+pub(super) fn duration_in(
+    input: &[u8],
+    work: Work<'_>,
+) -> Result<Result<i64, AccountedVec<u8>>, Interrupted> {
+    work.step(0)?;
     if input == b"0" {
-        return Ok(0);
+        return Ok(Ok(0));
     }
     if input.is_empty() {
-        return Err(b"empty duration string".to_vec());
+        return Ok(Err(work.copy(b"empty duration string")?));
     }
-    let invalid = || format!("not a valid duration string: {}", quote::bytes(input)).into_bytes();
+    let invalid = || {
+        work.format(format_args!(
+            "not a valid duration string: {}",
+            quote::quoted(input)
+        ))
+    };
     let mut rest = input;
     let mut total = 0u64;
     let mut last_unit = 0;
     while !rest.is_empty() {
-        let count = rest.iter().take_while(|b| b.is_ascii_digit()).count();
-        if count == 0 {
-            return Err(invalid());
+        work.step(1)?;
+        let mut count = 0;
+        for &byte in rest {
+            work.step(1)?;
+            if !byte.is_ascii_digit() {
+                break;
+            }
+            count += 1;
         }
-        let amount = rest[..count]
-            .iter()
-            .try_fold(0usize, |value, &byte| {
-                value.checked_mul(10)?.checked_add(usize::from(byte - b'0'))
-            })
-            .ok_or_else(&invalid)? as u64;
-        rest = &rest[count..];
-        let count = rest.iter().take_while(|b| !b.is_ascii_digit()).count();
         if count == 0 {
-            return Err(invalid());
+            return Ok(Err(invalid()?));
+        }
+        let mut amount = 0usize;
+        for &byte in &rest[..count] {
+            work.step(1)?;
+            let Some(next) = amount
+                .checked_mul(10)
+                .and_then(|value| value.checked_add(usize::from(byte - b'0')))
+            else {
+                return Ok(Err(invalid()?));
+            };
+            amount = next;
+        }
+        let amount = amount as u64;
+        rest = &rest[count..];
+        let mut count = 0;
+        for &byte in rest {
+            work.step(1)?;
+            if byte.is_ascii_digit() {
+                break;
+            }
+            count += 1;
+        }
+        if count == 0 {
+            return Ok(Err(invalid()?));
         }
         let unit = &rest[..count];
         rest = &rest[count..];
@@ -203,27 +265,26 @@ pub fn duration(input: &[u8]) -> Result<i64, Vec<u8>> {
             b"s" => (6, 1_000_000_000),
             b"ms" => (7, 1_000_000),
             _ => {
-                return Err(format!(
+                return Ok(Err(work.format(format_args!(
                     "unknown unit {} in duration {}",
-                    quote::bytes(unit),
-                    quote::bytes(input)
-                )
-                .into_bytes());
+                    quote::quoted(unit),
+                    quote::quoted(input)
+                ))?));
             }
         };
         if position <= last_unit {
-            return Err(invalid());
+            return Ok(Err(invalid()?));
         }
         last_unit = position;
         if amount > (1u64 << 63) / multiplier {
-            return Err(b"duration out of range".to_vec());
+            return Ok(Err(work.copy(b"duration out of range")?));
         }
         total += amount * multiplier;
         if total > i64::MAX as u64 {
-            return Err(b"duration out of range".to_vec());
+            return Ok(Err(work.copy(b"duration out of range")?));
         }
     }
-    Ok(total as i64)
+    Ok(Ok(total as i64))
 }
 
 pub fn seconds(nanoseconds: i64) -> f64 {

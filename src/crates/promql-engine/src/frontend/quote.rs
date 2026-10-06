@@ -2,6 +2,7 @@
 // Go-compatible diagnostics, derived from Go 1.27.1 strconv/quote.go and fmt/format.go.
 // Copyright 2009 The Go Authors. See LICENSE-GO-BSD.
 use super::unicode::is_print;
+use std::fmt::{self, Write};
 
 pub(super) fn decode_rune(bytes: &[u8]) -> (i32, usize) {
     let Some(&first) = bytes.first() else {
@@ -45,23 +46,46 @@ fn write_escaped(r: u32, delimiter: char, out: &mut impl std::fmt::Write) -> std
         _ => write!(out, "\\U{r:08x}"),
     }
 }
-fn escaped(r: u32, delimiter: char) -> String {
-    let mut out = String::new();
-    write_escaped(r, delimiter, &mut out).expect("string writer");
-    out
-}
-
-pub(super) fn rune(r: i32) -> String {
-    let r = char::from_u32(r as u32).map_or(0xfffd, |c| c as u32);
-    format!("'{}'", escaped(r, '\''))
-}
-
-pub(super) fn unicode_rune(r: i32) -> String {
-    if r >= 0 && is_print(r as u32) {
-        format!("U+{:04X} '{}'", r, char::from_u32(r as u32).unwrap())
-    } else {
-        format!("U+{:04X}", i64::from(r) as u64)
+pub(super) struct Rune(i32);
+impl fmt::Display for Rune {
+    fn fmt(&self, out: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let rune = char::from_u32(self.0 as u32).map_or(0xfffd, |c| c as u32);
+        out.write_char('\'')?;
+        write_escaped(rune, '\'', out)?;
+        out.write_char('\'')
     }
+}
+pub(super) fn rune(rune: i32) -> Rune {
+    Rune(rune)
+}
+pub(super) struct UnicodeRune(i32);
+impl fmt::Display for UnicodeRune {
+    fn fmt(&self, out: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let rune = self.0;
+        if rune >= 0 && is_print(rune as u32) {
+            write!(
+                out,
+                "U+{:04X} '{}'",
+                rune,
+                char::from_u32(rune as u32).unwrap()
+            )
+        } else {
+            write!(out, "U+{:04X}", i64::from(rune) as u64)
+        }
+    }
+}
+pub(super) fn unicode_rune(rune: i32) -> UnicodeRune {
+    UnicodeRune(rune)
+}
+
+pub(super) struct Quoted<'a>(&'a [u8]);
+impl fmt::Display for Quoted<'_> {
+    fn fmt(&self, out: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write_bytes(self.0, out)
+    }
+}
+pub(super) fn quoted(bytes: &[u8]) -> Quoted<'_> {
+    Quoted(bytes)
 }
 
 pub(crate) fn write_bytes(mut bytes: &[u8], out: &mut impl std::fmt::Write) -> std::fmt::Result {

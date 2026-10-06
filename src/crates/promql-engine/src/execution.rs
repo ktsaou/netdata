@@ -2,7 +2,7 @@
 //! Synchronous query ownership, incremental output and ordinary-panic containment.
 use crate::{
     accounting::{
-        AccountedBox, AccountedVec, AllocationContext, EngineAccounting, MemoryKind, MemoryLease,
+        AccountedBox, AccountedVec, AllocationContext, EngineAccounting, MemoryKind,
         QueryAccounting, QueryObservations,
     },
     annotations::{AnnotationBuilder, Annotations},
@@ -12,9 +12,7 @@ use crate::{
     },
     evaluator_roster::{Descriptor, Rosters},
     frontend::{
-        ast::{
-            Expr, NodeId, ParseError, ParsedExpression, ParserOptions, ValueType, VectorMatching,
-        },
+        ast::{Expr, NodeId, ParseError, ParsedExpression, ParserOptions, ValueType},
         parser,
         regex::Selector,
         token as tokens,
@@ -62,7 +60,7 @@ pub struct Engine {
 #[derive(Debug)]
 pub enum CompileError {
     Interrupted(crate::storage::Interrupted),
-    Parse(Vec<ParseError>),
+    Parse(AccountedVec<ParseError>),
     Internal,
 }
 
@@ -113,7 +111,6 @@ pub struct CompiledQuery {
     timestamp_selectors: AccountedVec<bool>,
     options: EngineOptions,
     engine: EngineAccounting,
-    _allocation: MemoryLease,
     accounting: QueryAccounting,
 }
 
@@ -151,13 +148,18 @@ impl Engine {
                 options.parser,
                 |pattern| Selector::compile_in(pattern, Some(&context)),
                 Some(&account),
-            );
+                Some(control),
+            )
+            .map_err(CompileError::Interrupted)?;
             control.check().map_err(CompileError::Interrupted)?;
             if !output.errors.is_empty() {
                 return Err(CompileError::Parse(output.errors));
             }
+            let mut owned_source = AccountedVec::with_capacity_in(source.len(), Some(&context));
+            crate::result::append_bytes_checked(&mut owned_source, source, &account, control)
+                .map_err(CompileError::Interrupted)?;
             let mut expression = ParsedExpression {
-                source: source.into(),
+                source: owned_source,
                 arena: output.arena,
                 root: output.root.expect("valid expression has a root"),
             };
@@ -177,14 +179,12 @@ impl Engine {
                 &account,
             )
             .map_err(CompileError::Interrupted)?;
-            let allocation = account.hold(MemoryKind::Compiled, compiled_bytes(&expression) as u64);
             Ok(CompiledQuery {
                 expression,
                 preprocessing,
                 timestamp_selectors,
                 options,
                 engine: self.accounting.clone(),
-                _allocation: allocation,
                 accounting: account,
             })
         }))
@@ -1392,43 +1392,6 @@ fn children(expression: &Expr) -> impl DoubleEndedIterator<Item = NodeId> + '_ {
         _ => ([None, None], &[]),
     };
     fixed.into_iter().flatten().chain(slice.iter().copied())
-}
-
-fn vector_bytes(values: &Option<Vec<Vec<u8>>>) -> usize {
-    values.as_ref().map_or(0, |values| {
-        values.capacity() * size_of::<Vec<u8>>() + values.iter().map(Vec::capacity).sum::<usize>()
-    })
-}
-fn matching_bytes(value: &Option<VectorMatching>) -> usize {
-    value.as_ref().map_or(0, |value| {
-        vector_bytes(&value.labels) + vector_bytes(&value.include)
-    })
-}
-fn compiled_bytes(expression: &ParsedExpression) -> usize {
-    let mut bytes = expression.source.len()
-        + expression.arena.nodes.capacity() * size_of::<crate::frontend::ast::Node>();
-    for node in &expression.arena.nodes {
-        bytes += match &node.expression {
-            Expr::String(value) => value.capacity(),
-            Expr::Selector(value) => {
-                value.name.capacity()
-                    + value.matchers.capacity() * size_of::<Option<crate::frontend::ast::Matcher>>()
-                    + value
-                        .matchers
-                        .iter()
-                        .flatten()
-                        .map(|matcher| matcher.name.capacity() + matcher.value.capacity())
-                        .sum::<usize>()
-            }
-            Expr::Aggregate { grouping, .. } => vector_bytes(grouping),
-            Expr::Binary { matching, .. } => matching_bytes(matching),
-            Expr::Call { arguments, .. } => {
-                arguments.capacity() * size_of::<crate::frontend::ast::NodeId>()
-            }
-            _ => 0,
-        };
-    }
-    bytes
 }
 
 #[cfg(test)]
@@ -3336,7 +3299,14 @@ mod tests {
         assert!(errors[0].message.starts_with(b"error parsing regexp:"));
         let observed = engine.accounting.snapshot();
         let compiled = observed.memory[MemoryKind::Compiled as usize];
-        assert_eq!(compiled.current, errors[0].message.capacity() as u64);
+        assert_eq!(
+            compiled.current,
+            (errors.capacity() * size_of::<crate::frontend::ast::ParseError>()
+                + errors
+                    .iter()
+                    .map(|error| error.message.capacity())
+                    .sum::<usize>()) as u64
+        );
         assert!(compiled.peak > compiled.current);
         let estimated = observed.memory[MemoryKind::RegexEstimate as usize];
         assert!(estimated.peak > 0);
@@ -3360,6 +3330,40 @@ mod tests {
         assert!(observed.memory[MemoryKind::Workspace as usize].peak > 0);
         assert!(observed.memory[MemoryKind::RegexEstimate as usize].peak > 0);
         observed.assert_memory_released();
+    }
+
+    #[test]
+    fn parse_error_clone_retains_only_its_message_after_engine_and_list_release() {
+        let engine = Engine::default();
+        let observer = engine.accounting.clone();
+        let error = engine
+            .compile(b"sum()", EngineOptions::default(), &Control::default())
+            .err()
+            .unwrap();
+        let CompileError::Parse(errors) = &error else {
+            panic!("expected parse error")
+        };
+        assert_eq!(errors.len(), 1);
+        assert_eq!(
+            errors[0].message.as_ref(),
+            b"no arguments for aggregate expression provided"
+        );
+        let retained = errors[0].clone();
+        let bytes = retained.message.capacity() as u64;
+        drop(error);
+        drop(engine);
+        let observed = observer.snapshot();
+        assert_eq!(
+            observed.memory[MemoryKind::Compiled as usize].current,
+            bytes
+        );
+        assert_eq!(
+            observed.memory[MemoryKind::Accounting as usize].current,
+            EngineAccounting::allocation_bytes() + QueryAccounting::allocation_bytes()
+        );
+        assert!(observed.memory[MemoryKind::Compiled as usize].released > 0);
+        drop(retained);
+        observer.snapshot().assert_memory_released();
     }
 
     #[test]
@@ -3419,6 +3423,68 @@ mod tests {
             drop(result);
             engine.accounting.snapshot().assert_memory_released();
         }
+    }
+
+    #[test]
+    fn interrupted_provider_matcher_copy_releases_bytes_before_open_publication() {
+        let engine = Engine::default();
+        let mut provider = FixtureProvider::new(1, 1, 1);
+        provider.filter_selectors = true;
+        let compile_control = Control::default();
+        let source = [b"m{l=\"".as_slice(), &vec![b'a'; 400_000], b"\"}"].concat();
+        let query = engine
+            .compile(&source, EngineOptions::default(), &compile_control)
+            .unwrap();
+        let baseline = query.accounting.snapshot();
+        let Expr::Selector(selector) = &query.expression.arena[query.expression.root].expression
+        else {
+            panic!("expected selector")
+        };
+        let account = engine.accounting.query();
+        let control = Control::default();
+        let bounds = TimeBounds {
+            start_ms: 0,
+            end_ms: 1000,
+        };
+        let scope = provider.open(bounds, &control).unwrap();
+        let selection = crate::test_storage::interrupt_during(&account, &control, || {
+            scope.select(
+                crate::storage::SelectionRequest {
+                    matchers: &selector.matchers,
+                    bounds,
+                    hints: crate::storage::SelectionHints::default(),
+                    accounting: Some(&account),
+                },
+                &control,
+            )
+        });
+        assert!(matches!(
+            selection,
+            Err(StorageError::Interrupted(Interrupted::Cancelled))
+        ));
+        assert_eq!(
+            provider
+                .counts
+                .selections_opened
+                .load(std::sync::atomic::Ordering::Relaxed),
+            0
+        );
+        assert_eq!(
+            provider
+                .counts
+                .selections_closed
+                .load(std::sync::atomic::Ordering::Relaxed),
+            0
+        );
+        assert_eq!(query.accounting.snapshot(), baseline);
+        assert!(account.snapshot().memory[MemoryKind::ProviderHeld as usize].peak > 0);
+        drop(selection);
+        drop(scope);
+        provider.assert_closed();
+        account.snapshot().assert_memory_released();
+        drop(account);
+        drop(query);
+        engine.accounting.snapshot().assert_memory_released();
     }
 
     #[test]

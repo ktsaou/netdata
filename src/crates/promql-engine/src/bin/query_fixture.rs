@@ -196,7 +196,7 @@ impl QueryProvider for FixtureQuery<'_> {
             .iter()
             .flatten()
             .find(|matcher| matcher.name == b"__name__" && matcher.kind == MatchType::Equal)
-            .map_or(b"selector".as_slice(), |matcher| matcher.value.as_slice());
+            .map_or(b"selector".as_slice(), |matcher| matcher.value.as_ref());
         let selector = self
             .0
             .faults

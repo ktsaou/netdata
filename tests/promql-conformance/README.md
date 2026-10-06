@@ -806,8 +806,8 @@ the approved intermediate label bytes. All 496 match semantically at all three p
 their eight NaN-payload differences remain reported. Original source-defined cases and original assertions are
 unchanged. This qualifies the selected ordering policy separately from exact upstream equivalence.
 
-Runtime accounting remains unfinished: general frontend compilation temporaries, error/sink owners and
-provider-internal transient peaks are not fully instrumented. Regex dependency/table estimates expose known
+Runtime accounting remains unfinished: storage-error/sink owners and provider-internal transient peaks are not
+fully instrumented. The frontend buffer checkpoint below replaces its retained census. Regex dependency/table estimates expose known
 limitations rather than exact allocator totals. Reported buffer capacities and exposed page ranges must not be read as exact total
 query allocation or RSS. Provider callbacks return resource snapshots on every outcome; normal ownership transfers
 are reconciled together. Unwinding skips additional provider callbacks, so a newly allocated panicking callback may
@@ -857,7 +857,7 @@ owned results. Expansion failures carry their own notes and completed numeric pa
 boundaries; unfinished ancestor and ordinary raw-helper failures discard their notes. Replays do not duplicate
 diagnostics. Deferred selection errors retain their buffer capacity while awaiting their source evaluation owner.
 Metadata handles and output can grow with cardinality; raw history remains page scoped. Bootstrap,
-raw-error, sink-error and complete frontend accounting still require their remaining owners. Exact memoized initial reads, Seek
+raw-error and sink-error accounting still require their remaining owners. Exact memoized initial reads, Seek
 landing and lookahead failure precedence remain mandatory qualification work. All admission limits remain disabled.
 
 Both builds pass 187 unit tests. The 64 independent selector-hint projections, 426 preparation scopes, 198 offset
@@ -902,7 +902,7 @@ Cancellation still takes precedence over the inline deadline; observation does n
 Cleanup checks verify every memory category against exact live root counts, including `Accounting`; they do not
 exempt bookkeeping from leak detection. Query snapshots include the query root that is live when the snapshot
 is taken. Finite tests cover root identity, zero-capacity retention, creator/consumer attribution, concurrency,
-poison recovery, scoped failures and panicking cleanup. Complete frontend/provider/sink accounting, typed C
+poison recovery, scoped failures and panicking cleanup. Complete provider/error/sink accounting, typed C
 ownership and the full expression/SRE gates remain required. All resource enforcement remains disabled.
 
 `label_replace` and `label_join` project whole-series metadata after the vector child completes. Runtime validation
@@ -1006,3 +1006,19 @@ disagreements and expose one newly executable label-merge disagreement: unchange
 128 times with two metadata-label outcomes. Sorting the child OR map's complete labels under approved 9.A selects
 the metadata-removing outcome. The original expectation and disagreement remain recorded; a separate policy check
 qualifies the deterministic result. These figures do not establish complete language or alert compatibility.
+
+## Frontend allocation ownership
+
+`Engine::compile` observes AST/source buffers, grouping/matching labels, argument lists, scanner diagnostics,
+literal/number/format buffers, parser/recovery/validation stacks and returned parse-error lists from their first
+allocation. They use actual capacity times slot size in the existing `Compiled` category. Temporary buffers
+release before publication; retained buffers keep their owner through movement and cloning. The former retained
+census is removed. A retained parse error or its cloned message can outlive the engine without losing its charge.
+Public inert lexer/parser/literal helpers use the same algorithms with no accounting or control owner.
+
+Checked frontend loops return cancellation and deadline outcomes separately from syntax diagnostics. Byte copies
+poll in chunks of at most 1,024 bytes; scanner, recovery, decoding and validation walks poll as they advance.
+Allocator calls, buffer migrations, cleanup and standard float parsing are cooperative latency boundaries.
+Owned regex loops still require the separately tracked checked compile/search/replacement path; backend calls
+cannot be interrupted internally. This checkpoint does not establish a hard deadline, a total allocation/RSS
+bound, complete provider/error/sink/C ownership or full expression/SRE compatibility. Limits remain disabled.

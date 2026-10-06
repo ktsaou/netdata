@@ -6,7 +6,10 @@ use super::{
     functions::Function,
     quote,
     token::{TokenKind, TokenKind::*},
+    work::Work,
 };
+use crate::{accounting::AccountedVec, storage::Interrupted};
+use std::fmt;
 
 #[derive(Clone, Copy)]
 enum Context {
@@ -15,14 +18,15 @@ enum Context {
     Call(&'static Function),
 }
 
-impl Context {
-    fn text(self) -> String {
+impl fmt::Display for Context {
+    fn fmt(&self, out: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::AggregateExpression => "aggregation expression".into(),
-            Self::AggregateParameter => "aggregation parameter".into(),
-            Self::Call(function) => format!(
+            Self::AggregateExpression => out.write_str("aggregation expression"),
+            Self::AggregateParameter => out.write_str("aggregation parameter"),
+            Self::Call(function) => write!(
+                out,
                 "call to function {}",
-                quote::bytes(function.name.as_bytes())
+                quote::quoted(function.name.as_bytes())
             ),
         }
     }
@@ -37,30 +41,53 @@ enum Frame {
     Subquery(NodeId, NodeId),
 }
 
-fn error(errors: &mut Vec<ParseError>, span: Span, message: impl AsRef<[u8]>) {
+fn error(
+    errors: &mut AccountedVec<ParseError>,
+    span: Span,
+    message: impl AsRef<[u8]>,
+    work: Work<'_>,
+) -> Result<(), Interrupted> {
     errors.push(ParseError {
         span,
-        message: message.as_ref().to_vec().into(),
+        message: work.copy(message.as_ref())?,
     });
+    Ok(())
+}
+fn error_fmt(
+    errors: &mut AccountedVec<ParseError>,
+    span: Span,
+    message: fmt::Arguments<'_>,
+    work: Work<'_>,
+) -> Result<(), Interrupted> {
+    let message = work.format(message)?;
+    errors.push(ParseError { span, message });
+    Ok(())
 }
 
 /// Construction errors suppress this entire pass, as in the upstream parser.
-pub fn validate(input: &[u8], arena: &mut Arena, root: NodeId, errors: &mut Vec<ParseError>) {
-    validate_in(input, arena, root, errors, None);
-}
-
-pub(crate) fn validate_in(
+pub fn validate(
     input: &[u8],
     arena: &mut Arena,
     root: NodeId,
-    errors: &mut Vec<ParseError>,
-    accounting: Option<&crate::accounting::QueryAccounting>,
+    errors: &mut AccountedVec<ParseError>,
 ) {
+    validate_in(input, arena, root, errors, Work::default()).expect("inert validation");
+}
+
+pub(super) fn validate_in(
+    input: &[u8],
+    arena: &mut Arena,
+    root: NodeId,
+    errors: &mut AccountedVec<ParseError>,
+    work: Work<'_>,
+) -> Result<(), Interrupted> {
     if !errors.is_empty() {
-        return;
+        return Ok(());
     }
-    let mut frames = vec![Frame::Enter(root)];
+    let mut frames = work.buffer();
+    frames.push(Frame::Enter(root));
     while let Some(frame) = frames.pop() {
+        work.step(1)?;
         match frame {
             Frame::Enter(id) => {
                 let span = arena[id].span;
@@ -76,14 +103,15 @@ pub(crate) fn validate_in(
                         let expression = *expression;
                         let parameter = *parameter;
                         if !operator.is_aggregator() {
-                            error(
+                            error_fmt(
                                 errors,
                                 span,
-                                format!(
+                                format_args!(
                                     "aggregation operator expected in aggregation expression but got {}",
                                     operator_quote(operator)
                                 ),
-                            );
+                                work,
+                            )?;
                         }
                         if operator.takes_parameter() {
                             let expected = if operator == COUNT_VALUES {
@@ -117,38 +145,41 @@ pub(crate) fn validate_in(
                         let nargs = function.arguments.len();
                         if function.variadic == 0 {
                             if nargs != count {
-                                error(
+                                error_fmt(
                                     errors,
                                     span,
-                                    format!(
+                                    format_args!(
                                         "expected {nargs} argument(s) in call to {}, got {count}",
-                                        quote::bytes(function.name.as_bytes())
+                                        quote::quoted(function.name.as_bytes())
                                     ),
-                                );
+                                    work,
+                                )?;
                             }
                         } else {
                             let minimum = nargs - 1;
                             if minimum > count {
-                                error(
+                                error_fmt(
                                     errors,
                                     span,
-                                    format!(
+                                    format_args!(
                                         "expected at least {minimum} argument(s) in call to {}, got {count}",
-                                        quote::bytes(function.name.as_bytes())
+                                        quote::quoted(function.name.as_bytes())
                                     ),
-                                );
+                                    work,
+                                )?;
                             } else if function.variadic > 0
                                 && minimum + (function.variadic as usize) < count
                             {
-                                error(
+                                error_fmt(
                                     errors,
                                     span,
-                                    format!(
+                                    format_args!(
                                         "expected at most {} argument(s) in call to {}, got {count}",
                                         minimum + (function.variadic as usize),
-                                        quote::bytes(function.name.as_bytes())
+                                        quote::quoted(function.name.as_bytes())
                                     ),
-                                );
+                                    work,
+                                )?;
                             }
                         }
                         let info_second =
@@ -159,6 +190,7 @@ pub(crate) fn validate_in(
                             count
                         };
                         for index in (0..checked).rev() {
+                            work.step(1)?;
                             frames.push(Frame::Expect(
                                 arguments[index],
                                 function.arguments[index.min(nargs - 1)],
@@ -167,14 +199,15 @@ pub(crate) fn validate_in(
                         }
                         if let Some(second) = info_second {
                             if arena[second].value_type != ValueType::Vector {
-                                error(
+                                error_fmt(
                                     errors,
                                     span,
-                                    format!(
+                                    format_args!(
                                         "expected type instant vector in call to function \"info\", got {}",
                                         arena[second].value_type.diagnostic_name()
                                     ),
-                                );
+                                    work,
+                                )?;
                             }
                             let second_span = arena[second].span;
                             match &mut arena[second].expression {
@@ -185,8 +218,14 @@ pub(crate) fn validate_in(
                                     errors,
                                     second_span,
                                     "expected label selectors only, got vector selector instead",
-                                ),
-                                _ => error(errors, second_span, "expected label selectors only"),
+                                    work,
+                                )?,
+                                _ => error(
+                                    errors,
+                                    second_span,
+                                    "expected label selectors only",
+                                    work,
+                                )?,
                             }
                         }
                     }
@@ -200,7 +239,8 @@ pub(crate) fn validate_in(
                                 errors,
                                 span,
                                 "only + and - operators allowed for unary expressions",
-                            );
+                                work,
+                            )?;
                         }
                         frames.push(Frame::Unary(id, *expression));
                         frames.push(Frame::Enter(*expression));
@@ -216,35 +256,47 @@ pub(crate) fn validate_in(
                                 .iter()
                                 .flatten()
                             {
+                                work.step(1)?;
                                 if matcher.name == b"__name__" {
-                                    error(
+                                    error_fmt(
                                         errors,
                                         span,
-                                        format!(
+                                        format_args!(
                                             "metric name must not be set twice: {} or {}",
-                                            quote::bytes(&selector.name),
-                                            quote::bytes(&matcher.value)
+                                            quote::quoted(&selector.name),
+                                            quote::quoted(&matcher.value)
                                         ),
-                                    );
+                                        work,
+                                    )?;
                                 }
                             }
-                        } else if !selector.bypass_empty_matcher_check
-                            && selector
-                                .matchers
-                                .iter()
-                                .flatten()
-                                .all(|matcher| matcher.matches_in(b"", accounting))
-                        {
-                            error(
-                                errors,
-                                span,
-                                "vector selector must contain at least one non-empty matcher",
-                            );
+                        } else if !selector.bypass_empty_matcher_check {
+                            let mut all_empty = true;
+                            for matcher in selector.matchers.iter().flatten() {
+                                work.step(1)?;
+                                let matches = matcher.matches_in(b"", work.account);
+                                work.step(0)?;
+                                if !matches {
+                                    all_empty = false;
+                                    break;
+                                }
+                            }
+                            if all_empty {
+                                error(
+                                    errors,
+                                    span,
+                                    "vector selector must contain at least one non-empty matcher",
+                                    work,
+                                )?;
+                            }
                         }
                     }
-                    Expr::Duration { .. } => {
-                        error(errors, span, "unknown node type: *parser.DurationExpr")
-                    }
+                    Expr::Duration { .. } => error(
+                        errors,
+                        span,
+                        "unknown node type: *parser.DurationExpr",
+                        work,
+                    )?,
                 }
             }
             Frame::Expect(id, wanted, context) => {
@@ -254,58 +306,68 @@ pub(crate) fn validate_in(
             Frame::Expected(id, wanted, context) => {
                 let actual = arena[id].value_type;
                 if actual != wanted {
-                    error(
+                    error_fmt(
                         errors,
                         arena[id].span,
-                        format!(
+                        format_args!(
                             "expected type {} in {}, got {}",
                             wanted.diagnostic_name(),
-                            context.text(),
+                            context,
                             actual.diagnostic_name()
                         ),
-                    );
+                        work,
+                    )?;
                 }
             }
-            Frame::Binary(id) => binary(input, arena, id, errors),
+            Frame::Binary(id) => binary(input, arena, id, errors, work)?,
             Frame::Unary(id, child) => {
                 let value_type = arena[child].value_type;
                 if !matches!(value_type, ValueType::Scalar | ValueType::Vector) {
-                    error(
+                    error_fmt(
                         errors,
                         arena[id].span,
-                        format!(
+                        format_args!(
                             "unary expression only allowed on expressions of type scalar or instant vector, got {}",
-                            quote::bytes(value_type.diagnostic_name().as_bytes())
+                            quote::quoted(value_type.diagnostic_name().as_bytes())
                         ),
-                    );
+                        work,
+                    )?;
                 }
             }
             Frame::Subquery(id, child) => {
                 let value_type = arena[child].value_type;
                 if value_type != ValueType::Vector {
-                    error(
+                    error_fmt(
                         errors,
                         arena[id].span,
-                        format!(
+                        format_args!(
                             "subquery is only allowed on instant vector, got {} instead",
                             value_type.name()
                         ),
-                    );
+                        work,
+                    )?;
                 }
             }
         }
     }
+    Ok(())
 }
 
-fn operator_quote(operator: TokenKind) -> String {
-    quote::bytes(operator.text().unwrap_or("<unknown>").as_bytes())
+fn operator_quote(operator: TokenKind) -> impl fmt::Display {
+    quote::quoted(operator.text().unwrap_or("<unknown>").as_bytes())
 }
 
 fn space(byte: u8) -> bool {
     matches!(byte, b' ' | b'\t' | b'\r' | b'\n')
 }
 
-fn binary(input: &[u8], arena: &mut Arena, id: NodeId, errors: &mut Vec<ParseError>) {
+fn binary(
+    input: &[u8],
+    arena: &mut Arena,
+    id: NodeId,
+    errors: &mut AccountedVec<ParseError>,
+    work: Work<'_>,
+) -> Result<(), Interrupted> {
     let Expr::Binary {
         operator,
         left,
@@ -321,24 +383,27 @@ fn binary(input: &[u8], arena: &mut Arena, id: NodeId, errors: &mut Vec<ParseErr
     let right_span = arena[right].span;
     let left_type = arena[left].value_type;
     let right_type = arena[right].value_type;
-    let operator_span = || {
+    let operator_span = || -> Result<Span, Interrupted> {
         let mut start = left_span.end;
         while input.get(start).is_some_and(|&b| space(b)) {
+            work.step(1)?;
             start += 1;
         }
         let mut end = right_span.start.saturating_sub(1);
         while end > 0 && input.get(end).is_some_and(|&b| space(b)) {
+            work.step(1)?;
             end -= 1;
         }
         // The upstream diagnostic stores the final operator byte index, not index + 1.
-        Span { start, end }
+        Ok(Span { start, end })
     };
     if return_bool && !operator.is_comparison() {
         error(
             errors,
-            operator_span(),
+            operator_span()?,
             "bool modifier can only be used on comparison operators",
-        );
+            work,
+        )?;
     }
     if operator.is_comparison()
         && !return_bool
@@ -347,9 +412,10 @@ fn binary(input: &[u8], arena: &mut Arena, id: NodeId, errors: &mut Vec<ParseErr
     {
         error(
             errors,
-            operator_span(),
+            operator_span()?,
             "comparisons between scalars must use BOOL modifier",
-        );
+            work,
+        )?;
     }
     let Expr::Binary { matching, .. } = &mut arena[id].expression else {
         unreachable!()
@@ -361,42 +427,47 @@ fn binary(input: &[u8], arena: &mut Arena, id: NodeId, errors: &mut Vec<ParseErr
     if matching_value.on {
         for label in matching_value.labels.as_deref().unwrap_or_default() {
             for included in matching_value.include.as_deref().unwrap_or_default() {
-                if label == included {
-                    error(
+                work.step(1)?;
+                if work.equal(label, included)? {
+                    error_fmt(
                         errors,
-                        operator_span(),
-                        format!(
+                        operator_span()?,
+                        format_args!(
                             "label {} must not occur in ON and GROUP clause at once",
-                            quote::bytes(label)
+                            quote::quoted(label)
                         ),
-                    );
+                        work,
+                    )?;
                 }
             }
         }
     }
     if !operator.is_operator() {
-        error(
+        error_fmt(
             errors,
             span,
-            format!(
+            format_args!(
                 "binary expression does not support operator {}",
                 operator_quote(operator)
             ),
-        );
+            work,
+        )?;
     }
     if !matches!(left_type, ValueType::Scalar | ValueType::Vector) {
         error(
             errors,
             left_span,
             "binary expression must contain only scalar and instant vector types",
-        );
+            work,
+        )?;
     }
     if !matches!(right_type, ValueType::Scalar | ValueType::Vector) {
         error(
             errors,
             right_span,
             "binary expression must contain only scalar and instant vector types",
-        );
+            work,
+        )?;
     }
     let filled = matching_value.fill_left.is_some() || matching_value.fill_right.is_some();
     if left_type != ValueType::Vector || right_type != ValueType::Vector {
@@ -409,14 +480,16 @@ fn binary(input: &[u8], arena: &mut Arena, id: NodeId, errors: &mut Vec<ParseErr
                 errors,
                 span,
                 "vector matching only allowed between instant vectors",
-            );
+                work,
+            )?;
         }
         if filled {
             error(
                 errors,
                 span,
                 "filling in missing series only allowed between instant vectors",
-            );
+                work,
+            )?;
         }
         *matching = None;
     } else if operator.is_set() {
@@ -424,34 +497,43 @@ fn binary(input: &[u8], arena: &mut Arena, id: NodeId, errors: &mut Vec<ParseErr
             matching_value.cardinality,
             Cardinality::OneToMany | Cardinality::ManyToOne
         ) {
-            error(
+            error_fmt(
                 errors,
                 span,
-                format!(
+                format_args!(
                     "no grouping allowed for {} operation",
                     operator_quote(operator)
                 ),
-            );
+                work,
+            )?;
         }
         if matching_value.cardinality != Cardinality::ManyToMany {
-            error(errors, span, "set operations must always be many-to-many");
+            error(
+                errors,
+                span,
+                "set operations must always be many-to-many",
+                work,
+            )?;
         }
         if filled {
             error(
                 errors,
                 span,
                 "filling in missing series not allowed for set operators",
-            );
+                work,
+            )?;
         }
     }
     if (left_type == ValueType::Scalar || right_type == ValueType::Scalar) && operator.is_set() {
-        error(
+        error_fmt(
             errors,
             span,
-            format!(
+            format_args!(
                 "set operator {} not allowed in binary scalar expression",
                 operator_quote(operator)
             ),
-        );
+            work,
+        )?;
     }
+    Ok(())
 }

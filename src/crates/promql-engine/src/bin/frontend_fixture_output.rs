@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 //! Test-only projection into the independently captured flat Go AST format.
+use netdata_promql_engine::accounting::AccountedVec;
 use std::collections::HashMap;
 
 use netdata_promql_engine::frontend::{
@@ -38,7 +39,7 @@ fn span(span: Span) -> Value {
 fn float(value: f64) -> Value {
     json!({"float_bits": format!("{:016x}", value.to_bits())})
 }
-fn labels(value: &Option<Vec<Vec<u8>>>) -> Value {
+fn labels(value: &Option<AccountedVec<AccountedVec<u8>>>) -> Value {
     value.as_ref().map_or(Value::Null, |labels| {
         json!(labels.iter().map(|label| bytes(label)).collect::<Vec<_>>())
     })
@@ -53,7 +54,7 @@ fn children(arena: &Arena, id: NodeId) -> Vec<NodeId> {
         } => expression.iter().chain(parameter.iter()).copied().collect(),
         Expr::Binary { left, right, .. } => vec![*left, *right],
         Expr::Duration { left, right, .. } => left.iter().chain(right.iter()).copied().collect(),
-        Expr::Call { arguments, .. } => arguments.clone(),
+        Expr::Call { arguments, .. } => arguments.to_vec(),
         Expr::Matrix {
             selector,
             range_expression,

@@ -66,45 +66,9 @@ mod tests {
         histogram::{FloatHistogram, Span},
         histogram_counter::detect_reset_with,
         result::OwnedValue,
+        test_storage::interrupt_during,
         value::SampleValueRef,
     };
-    use std::sync::{
-        Barrier,
-        atomic::{AtomicBool, Ordering},
-    };
-
-    fn interrupt_during<R>(
-        account: &QueryAccounting,
-        control: &Control,
-        operation: impl FnOnce() -> R,
-    ) -> R {
-        struct Done<'a>(&'a AtomicBool);
-        impl Drop for Done<'_> {
-            fn drop(&mut self) {
-                self.0.store(true, Ordering::Release);
-            }
-        }
-        let baseline = account.snapshot().work;
-        let ready = Barrier::new(2);
-        let done = AtomicBool::new(false);
-        std::thread::scope(|scope| {
-            scope.spawn(|| {
-                ready.wait();
-                while !done.load(Ordering::Acquire) {
-                    if account.snapshot().work >= baseline + 8192 {
-                        control.cancellation.cancel();
-                        return;
-                    }
-                    std::thread::yield_now();
-                }
-            });
-            let finished = Done(&done);
-            ready.wait();
-            let result = operation();
-            drop(finished);
-            result
-        })
-    }
 
     #[test]
     fn long_native_operations_observe_cancellation_inside_bucket_loops() {
