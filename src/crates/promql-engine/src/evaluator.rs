@@ -21,8 +21,8 @@ use crate::{
     range_reduce::{FoldKind, FoldOptions, RangeFunction, fold},
     result::{OwnedLabels, OwnedValue},
     storage::{
-        Control, Interrupted, QueryProvider, Series, StorageError, TimeBounds, label, matches_in,
-        scan, validate_labels,
+        Control, Interrupted, QueryProvider, Series, StorageError, TimeBounds, label,
+        matches_checked, scan, validate_labels,
     },
 };
 use tokens::TokenKind;
@@ -665,7 +665,12 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
         let series_labels = series.label_views(self.account);
         validate_labels(&series_labels)?;
         let selector = self.selector(selector_node);
-        if !matches_in(&series_labels, &selector.matchers, Some(self.account)) {
+        if !matches_checked(
+            &series_labels,
+            &selector.matchers,
+            Some(self.account),
+            self.control,
+        )? {
             return Ok(None);
         }
         let end_ms = self.lookup(selector_node);

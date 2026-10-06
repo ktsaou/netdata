@@ -3,11 +3,12 @@
 use std::collections::{HashMap, HashSet};
 
 use super::{
-    AllocationContext, Buffer, GoRegex, normalization, runes, string,
+    AllocationContext, Buffer, Failure, GoRegex, Work, normalization, runes, string,
     syntax::{self, FOLD_CASE, Id, Op, Tree},
 };
 use crate::accounting::{MemoryKind, MemoryLease};
 use crate::frontend::quote::decode_rune;
+use crate::storage::Interrupted;
 
 const SET_THRESHOLD: usize = 256;
 const MAP_THRESHOLD: usize = 16;
@@ -34,25 +35,37 @@ struct ByteSet {
 impl ByteSet {
     fn from_values(
         values: impl IntoIterator<Item = Buffer<u8>>,
-        context: Option<&AllocationContext>,
-    ) -> Self {
+        normalize: bool,
+        work: Work<'_>,
+    ) -> Result<Self, Interrupted> {
+        work.step(0)?;
         let mut result = Self {
             values: HashSet::new(),
-            estimate: table_owner(context),
+            estimate: table_owner(work.context),
         };
         for value in values {
+            work.step(1)?;
+            let value = if normalize {
+                normalization::normalized_lower(&value, work)?
+            } else {
+                value
+            };
             result.values.insert(value);
             if let Some(estimate) = &mut result.estimate {
                 estimate.resize(table_bytes::<Buffer<u8>>(result.values.capacity()));
             }
+            work.step(0)?;
         }
-        result
+        Ok(result)
     }
     fn is_empty(&self) -> bool {
         self.values.is_empty()
     }
-    fn contains(&self, value: &[u8]) -> bool {
-        self.values.contains(value)
+    fn contains(&self, value: &[u8], work: Work<'_>) -> Result<bool, Interrupted> {
+        work.step(0)?;
+        let result = self.values.contains(value);
+        work.step(0)?;
+        Ok(result)
     }
 }
 
@@ -68,7 +81,9 @@ impl ByteMap {
             estimate: table_owner(context),
         }
     }
-    fn push(&mut self, key: Buffer<u8>, value: usize, context: Option<&AllocationContext>) {
+    fn push(&mut self, key: Buffer<u8>, value: usize, work: Work<'_>) -> Result<(), Interrupted> {
+        work.step(0)?;
+        let context = work.context;
         self.values
             .entry(key)
             .or_insert_with(|| Buffer::new_in(context))
@@ -78,12 +93,17 @@ impl ByteMap {
                 self.values.capacity(),
             ));
         }
+        work.step(0)?;
+        Ok(())
     }
     fn is_empty(&self) -> bool {
         self.values.is_empty()
     }
-    fn get(&self, key: &[u8]) -> Option<&Buffer<usize>> {
-        self.values.get(key)
+    fn get(&self, key: &[u8], work: Work<'_>) -> Result<Option<&Buffer<usize>>, Interrupted> {
+        work.step(0)?;
+        let result = self.values.get(key);
+        work.step(0)?;
+        Ok(result)
     }
 }
 
@@ -91,27 +111,30 @@ fn sensitive(tree: &Tree, id: Id) -> bool {
     tree.nodes[id].flags & FOLD_CASE == 0
 }
 
-fn clear_capture(tree: &mut Tree, id: Id) {
+fn clear_capture(tree: &mut Tree, id: Id, work: Work<'_>) -> Result<(), Interrupted> {
     while tree.nodes[id].op == Op::Capture {
-        tree.nodes[id] = tree.nodes[tree.nodes[id].children[0]].clone();
+        work.step(1)?;
+        tree.nodes[id] = tree.nodes[tree.nodes[id].children[0]].copy(work)?;
     }
+    Ok(())
 }
 
-fn clear_anchors(tree: &mut Tree, id: Id) {
+fn clear_anchors(tree: &mut Tree, id: Id, work: Work<'_>) -> Result<(), Interrupted> {
+    work.step(0)?;
     let node = &tree.nodes[id];
     if node.op == Op::Alternate || node.children.is_empty() {
-        return;
+        return Ok(());
     }
     if node.children.len() == 1
         && matches!(tree.nodes[node.children[0]].op, Op::BeginText | Op::EndText)
     {
         tree.nodes[id].op = Op::Empty;
         tree.nodes[id].children.clear();
-        return;
+        return Ok(());
     }
-    let mut children = tree.nodes[id].children.clone();
+    let mut children = work.elements(&tree.nodes[id].children)?;
     if tree.nodes[children[0]].op == Op::BeginText {
-        children.remove(0);
+        work.discard_prefix(&mut children, 1)?;
     }
     if children
         .last()
@@ -120,6 +143,7 @@ fn clear_anchors(tree: &mut Tree, id: Id) {
         children.pop();
     }
     tree.nodes[id].children = children;
+    Ok(())
 }
 
 #[derive(Debug)]
@@ -151,34 +175,37 @@ fn append_set(
     values: &mut Buffer<Buffer<u8>>,
     sensitivity: &mut Option<bool>,
     found: Option<Set>,
-) -> bool {
+    work: Work<'_>,
+) -> Result<bool, Interrupted> {
     let Some(found) = found else {
-        return false;
+        return Ok(false);
     };
     if values.len() + found.values.len() > SET_THRESHOLD
         || sensitivity.is_some_and(|s| s != found.sensitive)
     {
-        return false;
+        return Ok(false);
     }
     *sensitivity = Some(found.sensitive);
-    values.extend(found.values);
-    true
+    work.extend_iter(values, found.values)?;
+    Ok(true)
 }
 
-fn find_set(tree: &mut Tree, id: Id) -> Option<Set> {
-    let context = tree.context();
+fn find_set(tree: &mut Tree, id: Id, work: Work<'_>) -> Result<Option<Set>, Interrupted> {
+    work.step(0)?;
+    let context = work.context.cloned();
     let mut frames =
         buffer![context.as_ref(); SetFrame::Visit(id, Buffer::new_in(context.as_ref()))];
     let mut results = Buffer::<Option<Set>>::new_in(context.as_ref());
     while let Some(frame) = frames.pop() {
+        work.step(1)?;
         match frame {
             SetFrame::Visit(id, base) => {
-                clear_capture(tree, id);
+                clear_capture(tree, id, work)?;
                 let node = &tree.nodes[id];
                 match node.op {
                     Op::Literal => {
                         let mut value = base;
-                        value.extend(runes::text(&node.runes, context.as_ref()));
+                        work.extend(&mut value, &runes::text(&node.runes, work)?)?;
                         results.push(Some(Set {
                             values: buffer![context.as_ref(); value],
                             sensitive: sensitive(tree, id),
@@ -190,18 +217,17 @@ fn find_set(tree: &mut Tree, id: Id) -> Option<Set> {
                     })),
                     Op::Class
                         if !node.class.is_empty()
-                            && node
-                                .class
-                                .iter()
-                                .map(|&(lo, hi)| u64::from(hi - lo) + 1)
-                                .sum::<u64>()
-                                <= SET_THRESHOLD as u64 =>
+                            && work.fold(node.class.iter(), 0u64, |sum, &(lo, hi)| {
+                                sum + u64::from(hi - lo) + 1
+                            })? <= SET_THRESHOLD as u64 =>
                     {
                         let mut values = Buffer::new_in(context.as_ref());
                         for &(lo, hi) in &node.class {
+                            work.step(1)?;
                             for rune in lo..=hi {
-                                let mut value = base.clone();
-                                value.extend(runes::text(&[rune], context.as_ref()));
+                                work.step(1)?;
+                                let mut value = work.copy(&base)?;
+                                work.extend(&mut value, &runes::text(&[rune], work)?)?;
                                 values.push(value);
                             }
                         }
@@ -211,11 +237,11 @@ fn find_set(tree: &mut Tree, id: Id) -> Option<Set> {
                         }));
                     }
                     Op::Alternate if !node.children.is_empty() => {
-                        let children = node.children.clone();
+                        let children = work.elements(&node.children)?;
                         let first = children[0];
                         frames.push(SetFrame::Alternate {
                             children,
-                            base: base.clone(),
+                            base: work.copy(&base)?,
                             index: 0,
                             values: Buffer::new_in(context.as_ref()),
                             sensitive: None,
@@ -223,15 +249,16 @@ fn find_set(tree: &mut Tree, id: Id) -> Option<Set> {
                         frames.push(SetFrame::Visit(first, base));
                     }
                     Op::Concat if !node.children.is_empty() => {
-                        let children = node.children.clone();
+                        let children = work.elements(&node.children)?;
                         for &child in &children {
-                            clear_capture(tree, child);
+                            work.step(1)?;
+                            clear_capture(tree, child, work)?;
                         }
                         let first = children[0];
                         frames.push(SetFrame::Concat {
                             children,
                             child: 0,
-                            prefixes: buffer![context.as_ref(); base.clone()],
+                            prefixes: buffer![context.as_ref(); work.copy(&base)?],
                             prefix: 0,
                             values: Buffer::new_in(context.as_ref()),
                             sensitive: None,
@@ -248,7 +275,7 @@ fn find_set(tree: &mut Tree, id: Id) -> Option<Set> {
                 mut values,
                 mut sensitive,
             } => {
-                if !append_set(&mut values, &mut sensitive, results.pop().unwrap()) {
+                if !append_set(&mut values, &mut sensitive, results.pop().unwrap(), work)? {
                     results.push(None);
                 } else if index + 1 == children.len() {
                     results.push(Some(Set {
@@ -259,7 +286,7 @@ fn find_set(tree: &mut Tree, id: Id) -> Option<Set> {
                     let next = children[index + 1];
                     frames.push(SetFrame::Alternate {
                         children,
-                        base: base.clone(),
+                        base: work.copy(&base)?,
                         index: index + 1,
                         values,
                         sensitive,
@@ -275,7 +302,7 @@ fn find_set(tree: &mut Tree, id: Id) -> Option<Set> {
                 mut values,
                 mut sensitive,
             } => {
-                if !append_set(&mut values, &mut sensitive, results.pop().unwrap()) {
+                if !append_set(&mut values, &mut sensitive, results.pop().unwrap(), work)? {
                     results.push(None);
                     continue;
                 }
@@ -294,7 +321,7 @@ fn find_set(tree: &mut Tree, id: Id) -> Option<Set> {
                     prefix = 0;
                 }
                 let next = children[child];
-                let base = prefixes[prefix].clone();
+                let base = work.copy(&prefixes[prefix])?;
                 frames.push(SetFrame::Concat {
                     children,
                     child,
@@ -307,7 +334,7 @@ fn find_set(tree: &mut Tree, id: Id) -> Option<Set> {
             }
         }
     }
-    results.pop().unwrap()
+    Ok(results.pop().unwrap())
 }
 
 fn is_any(tree: &Tree, id: Id) -> bool {
@@ -315,15 +342,17 @@ fn is_any(tree: &Tree, id: Id) -> bool {
     node.op == Op::Star && tree.nodes[node.children[0]].op == Op::Any
 }
 
-fn optimize_contains(tree: &mut Tree) {
-    let context = tree.context();
+fn optimize_contains(tree: &mut Tree, work: Work<'_>) -> Result<(), Interrupted> {
+    work.step(0)?;
+    let context = work.context.cloned();
     let root = tree.root;
     if tree.nodes[root].op != Op::Alternate || tree.nodes[root].children.len() < 2 {
-        return;
+        return Ok(());
     }
-    let alternatives = tree.nodes[root].children.clone();
+    let alternatives = work.elements(&tree.nodes[root].children)?;
     let mut literals = Buffer::new_in(context.as_ref());
     for &alternative in &alternatives {
+        work.step(1)?;
         let node = &tree.nodes[alternative];
         if node.op != Op::Concat
             || node.children.len() != 3
@@ -332,29 +361,30 @@ fn optimize_contains(tree: &mut Tree) {
             || tree.nodes[node.children[1]].op != Op::Literal
             || !sensitive(tree, node.children[1])
         {
-            return;
+            return Ok(());
         }
         literals.push(node.children[1]);
     }
-    let mut alternate = tree.nodes[root].clone();
+    let mut alternate = tree.nodes[root].copy(work)?;
     alternate.flags = 0;
     alternate.children = literals;
     let middle = tree.nodes.len();
     tree.nodes.push(alternate);
-    let mut wildcard = tree.nodes[tree.nodes[alternatives[0]].children[0]].clone();
-    let mut any = tree.nodes[wildcard.children[0]].clone();
+    let mut wildcard = tree.nodes[tree.nodes[alternatives[0]].children[0]].copy(work)?;
+    let mut any = tree.nodes[wildcard.children[0]].copy(work)?;
     any.flags = 0;
     let any_id = tree.nodes.len();
     tree.nodes.push(any);
     wildcard.flags = syntax::PERL | syntax::DOT_NL;
     wildcard.children = buffer![context.as_ref(); any_id];
     let first = tree.nodes.len();
-    tree.nodes.push(wildcard.clone());
+    tree.nodes.push(wildcard.copy(work)?);
     let last = tree.nodes.len();
     tree.nodes.push(wildcard);
     tree.nodes[root].op = Op::Concat;
     tree.nodes[root].flags = 0;
     tree.nodes[root].children = buffer![context.as_ref(); first, middle, last];
+    Ok(())
 }
 
 #[derive(Debug)]
@@ -401,98 +431,87 @@ impl Plans {
         id
     }
 
-    fn multi(&mut self, values: Buffer<Buffer<u8>>, sensitive: bool) -> usize {
-        let context = self.nodes.context();
+    fn multi(
+        &mut self,
+        values: Buffer<Buffer<u8>>,
+        sensitive: bool,
+        work: Work<'_>,
+    ) -> Result<usize, Interrupted> {
+        work.step(0)?;
         if values.len() < MAP_THRESHOLD {
-            let nodes = Buffer::from_iter_in(
-                values
-                    .into_iter()
-                    .map(|value| self.add(Matcher::Equal(value, sensitive))),
-                context.as_ref(),
-            );
-            self.add(Matcher::Or(nodes))
+            let mut nodes = work.buffer();
+            for value in values {
+                work.step(1)?;
+                nodes.push(self.add(Matcher::Equal(value, sensitive)));
+            }
+            Ok(self.add(Matcher::Or(nodes)))
         } else {
-            self.add(Matcher::Map {
-                values: ByteSet::from_values(
-                    values.into_iter().map(|value| {
-                        if sensitive {
-                            value
-                        } else {
-                            normalization::normalized_lower(&value, context.as_ref())
-                        }
-                    }),
-                    context.as_ref(),
-                ),
-                prefixes: ByteMap::new(context.as_ref()),
+            Ok(self.add(Matcher::Map {
+                values: ByteSet::from_values(values, !sensitive, work)?,
+                prefixes: ByteMap::new(work.context),
                 min_prefix: 0,
                 sensitive,
-            })
+            }))
         }
     }
 
-    fn optimize_or(&mut self, root: usize) -> usize {
-        let context = self.nodes.context();
+    fn optimize_or(&mut self, root: usize, work: Work<'_>) -> Result<usize, Interrupted> {
+        work.step(0)?;
+        let context = work.context.cloned();
         let Matcher::Or(children) = &self.nodes[root] else {
-            return root;
+            return Ok(root);
         };
-        let mut pending = Buffer::from_iter_in(children.iter().rev().copied(), context.as_ref());
+        let mut pending = work.collect(children.iter().rev().copied())?;
         let mut values = Buffer::new_in(context.as_ref());
         let mut prefixes = Buffer::new_in(context.as_ref());
         let mut sensitivity = None;
         let mut min_prefix = usize::MAX;
         while let Some(id) = pending.pop() {
+            work.step(1)?;
             let (sensitive, value, prefix) = match &self.nodes[id] {
                 Matcher::Or(children) => {
-                    pending.extend(children.iter().rev().copied());
+                    work.extend_iter(&mut pending, children.iter().rev().copied())?;
                     continue;
                 }
                 Matcher::Equal(value, sensitive) => (*sensitive, value, false),
                 Matcher::Prefix {
                     value, sensitive, ..
                 } => (*sensitive, value, true),
-                _ => return root,
+                _ => return Ok(root),
             };
             if sensitivity.is_some_and(|s| s != sensitive) {
-                return root;
+                return Ok(root);
             }
             sensitivity = Some(sensitive);
             if prefix {
                 min_prefix = min_prefix.min(value.len());
-                prefixes.push((value.clone(), id));
+                prefixes.push((work.copy(value)?, id));
             } else {
-                values.push(value.clone());
+                values.push(work.copy(value)?);
             }
         }
         if values.len() + prefixes.len() < MAP_THRESHOLD {
-            return root;
+            return Ok(root);
         }
         let sensitive = sensitivity.unwrap();
         let mut prefix_map = ByteMap::new(context.as_ref());
         for (value, id) in prefixes {
+            work.step(1)?;
             let key = &value[..min_prefix];
             let key = if sensitive {
-                Buffer::from_slice_in(key, context.as_ref())
+                work.copy(key)?
             } else {
-                normalization::lower(key, context.as_ref())
+                normalization::lower(key, work)?
             };
-            prefix_map.push(key, id, context.as_ref());
+            prefix_map.push(key, id, work)?;
         }
         let min_prefix = if prefix_map.is_empty() { 0 } else { min_prefix };
-        self.add(Matcher::Map {
-            values: ByteSet::from_values(
-                values.into_iter().map(|value| {
-                    if sensitive {
-                        value
-                    } else {
-                        normalization::normalized_lower(&value, context.as_ref())
-                    }
-                }),
-                context.as_ref(),
-            ),
+        Ok(self.add(Matcher::Map {
+            values: ByteSet::from_values(values, !sensitive, work)?,
             prefixes: prefix_map,
             min_prefix,
             sensitive,
-        })
+        }))
     }
 }
 
@@ -518,19 +537,18 @@ fn combine(
     set: Set,
     left: Option<usize>,
     right: Option<usize>,
-) -> Option<usize> {
-    let context = plans.nodes.context();
+    work: Work<'_>,
+) -> Result<Option<usize>, Interrupted> {
     if set.values.is_empty() {
-        return None;
+        return Ok(None);
     }
-    match (left, right) {
+    Ok(match (left, right) {
         (None, None) => {
-            let children = Buffer::from_iter_in(
-                set.values
-                    .into_iter()
-                    .map(|value| plans.add(Matcher::Equal(value, set.sensitive))),
-                context.as_ref(),
-            );
+            let mut children = work.buffer();
+            for value in set.values {
+                work.step(1)?;
+                children.push(plans.add(Matcher::Equal(value, set.sensitive)));
+            }
             Some(plans.add(Matcher::Or(children)))
         }
         (None, Some(right)) if set.values.len() == 1 => Some(plans.add(Matcher::Prefix {
@@ -549,22 +567,28 @@ fn combine(
             right,
         })),
         _ => None,
-    }
+    })
 }
 
-fn from_tree(tree: &mut Tree, plans: &mut Plans) -> Option<usize> {
-    let context = tree.context();
+fn from_tree(
+    tree: &mut Tree,
+    plans: &mut Plans,
+    work: Work<'_>,
+) -> Result<Option<usize>, Interrupted> {
+    work.step(0)?;
+    let context = work.context.cloned();
     let mut frames = buffer![context.as_ref(); PlanFrame::Visit(tree.root)];
     let mut results = Buffer::<Option<usize>>::new_in(context.as_ref());
     while let Some(frame) = frames.pop() {
+        work.step(1)?;
         match frame {
             PlanFrame::Visit(id) => {
-                clear_capture(tree, id);
+                clear_capture(tree, id, work)?;
                 let node = &tree.nodes[id];
                 let plan = match node.op {
                     Op::Empty => Some(Matcher::Empty),
                     Op::Literal => Some(Matcher::Equal(
-                        runes::text(&node.runes, context.as_ref()),
+                        runes::text(&node.runes, work)?,
                         sensitive(tree, id),
                     )),
                     Op::Star | Op::Plus | Op::Quest
@@ -580,13 +604,17 @@ fn from_tree(tree: &mut Tree, plans: &mut Plans) -> Option<usize> {
                     }
                     Op::Alternate => {
                         frames.push(PlanFrame::Or(node.children.len()));
-                        frames.extend(node.children.iter().rev().copied().map(PlanFrame::Visit));
+                        work.extend_iter(
+                            &mut frames,
+                            node.children.iter().rev().copied().map(PlanFrame::Visit),
+                        )?;
                         continue;
                     }
                     Op::Concat => {
-                        let mut children = node.children.clone();
+                        let mut children = work.elements(&node.children)?;
                         for &child in &children {
-                            clear_capture(tree, child);
+                            work.step(1)?;
+                            clear_capture(tree, child, work)?;
                         }
                         if children.is_empty() {
                             results.push(Some(plans.add(Matcher::Empty)));
@@ -598,7 +626,13 @@ fn from_tree(tree: &mut Tree, plans: &mut Plans) -> Option<usize> {
                         }
                         let wildcard =
                             |id: Id| matches!(tree.nodes[id].op, Op::Star | Op::Plus | Op::Quest);
-                        let left = wildcard(children[0]).then(|| children.remove(0));
+                        let left = if wildcard(children[0]) {
+                            let first = children[0];
+                            work.discard_prefix(&mut children, 1)?;
+                            Some(first)
+                        } else {
+                            None
+                        };
                         let right = children.last().copied().filter(|&id| wildcard(id));
                         if right.is_some() {
                             children.pop();
@@ -618,16 +652,20 @@ fn from_tree(tree: &mut Tree, plans: &mut Plans) -> Option<usize> {
                 results.push(plan.map(|plan| plans.add(plan)));
             }
             PlanFrame::Or(count) => {
-                let children = results.split_off(results.len() - count);
-                results.push(
-                    children
-                        .into_iter()
-                        .try_fold(Buffer::new_in(context.as_ref()), |mut values, child| {
-                            values.push(child?);
-                            Some(values)
-                        })
-                        .map(|children| plans.add(Matcher::Or(children))),
-                );
+                let begin = results.len() - count;
+                let children = work.split(&mut results, begin)?;
+                let mut values = work.buffer();
+                let mut complete = true;
+                for child in children {
+                    work.step(1)?;
+                    if let Some(child) = child {
+                        values.push(child);
+                    } else {
+                        complete = false;
+                        break;
+                    }
+                }
+                results.push(complete.then(|| plans.add(Matcher::Or(values))));
             }
             PlanFrame::Concat { id, left, right } => {
                 let right_plan = right.map(|_| results.pop().unwrap());
@@ -638,8 +676,8 @@ fn from_tree(tree: &mut Tree, plans: &mut Plans) -> Option<usize> {
                 }
                 let left = left_plan.flatten();
                 let right = right_plan.flatten();
-                if let Some(set) = find_set(tree, id).filter(|set| !set.values.is_empty()) {
-                    results.push(combine(plans, set, left, right));
+                if let Some(set) = find_set(tree, id, work)?.filter(|set| !set.values.is_empty()) {
+                    results.push(combine(plans, set, left, right, work)?);
                     continue;
                 }
                 let children = &tree.nodes[id].children;
@@ -651,7 +689,7 @@ fn from_tree(tree: &mut Tree, plans: &mut Plans) -> Option<usize> {
                         let literal = children[usize::from(suffix)];
                         let other = children[usize::from(prefix)];
                         frames.push(PlanFrame::Fallback {
-                            values: buffer![context.as_ref(); runes::text(&tree.nodes[literal].runes, context.as_ref())],
+                            values: buffer![context.as_ref(); runes::text(&tree.nodes[literal].runes,work)?],
                             sensitive: sensitive(tree, literal),
                             left,
                             right,
@@ -671,42 +709,59 @@ fn from_tree(tree: &mut Tree, plans: &mut Plans) -> Option<usize> {
                 prefix,
             } => {
                 let other = results.pop().unwrap();
-                results.push(other.and_then(|other| {
+                results.push(if let Some(other) = other {
                     combine(
                         plans,
                         Set { values, sensitive },
                         if prefix { left } else { Some(other) },
                         if prefix { Some(other) } else { right },
-                    )
-                }));
+                        work,
+                    )?
+                } else {
+                    None
+                });
             }
         }
     }
-    results.pop().unwrap().map(|id| plans.optimize_or(id))
+    match results.pop().unwrap() {
+        Some(id) => Ok(Some(plans.optimize_or(id, work)?)),
+        None => Ok(None),
+    }
 }
 
-fn prefix_fold(subject: &[u8], prefix: &[u8]) -> Option<usize> {
+fn prefix_fold(
+    subject: &[u8],
+    prefix: &[u8],
+    work: Work<'_>,
+) -> Result<Option<usize>, Interrupted> {
+    work.step(0)?;
     let (mut position, mut pattern) = (0, 0);
     while pattern < prefix.len() {
+        work.step(1)?;
         if position == subject.len() {
-            return None;
+            return Ok(None);
         }
         let (a, aw) = decode_rune(&subject[position..]);
         let (b, bw) = decode_rune(&prefix[pattern..]);
         if runes::min_fold(a as u32) != runes::min_fold(b as u32) {
-            return None;
+            return Ok(None);
         }
         position += aw;
         pattern += bw;
     }
-    Some(position)
+    Ok(Some(position))
 }
 
-fn equal_fold(a: &[u8], b: &[u8]) -> bool {
-    prefix_fold(a, b) == Some(a.len())
+fn equal_fold(a: &[u8], b: &[u8], work: Work<'_>) -> Result<bool, Interrupted> {
+    Ok(prefix_fold(a, b, work)? == Some(a.len()))
 }
 
-fn suffix_fold(subject: &[u8], suffix: &[u8]) -> Option<usize> {
+fn suffix_fold(
+    subject: &[u8],
+    suffix: &[u8],
+    work: Work<'_>,
+) -> Result<Option<usize>, Interrupted> {
+    work.step(0)?;
     fn last(input: &[u8]) -> (i32, usize) {
         if input.is_empty() {
             return (0xfffd, 0);
@@ -722,28 +777,23 @@ fn suffix_fold(subject: &[u8], suffix: &[u8]) -> Option<usize> {
     }
     let (mut position, mut pattern) = (subject.len(), suffix.len());
     while pattern > 0 {
+        work.step(1)?;
         if position == 0 {
-            return None;
+            return Ok(None);
         }
         let (a, aw) = last(&subject[..position]);
         let (b, bw) = last(&suffix[..pattern]);
         if runes::min_fold(a as u32) != runes::min_fold(b as u32) {
-            return None;
+            return Ok(None);
         }
         position -= aw;
         pattern -= bw;
     }
-    Some(subject.len() - position)
+    Ok(Some(subject.len() - position))
 }
 
-fn index(subject: &[u8], value: &[u8]) -> Option<usize> {
-    if value.is_empty() {
-        Some(0)
-    } else {
-        subject
-            .windows(value.len())
-            .position(|window| window == value)
-    }
+fn index(subject: &[u8], value: &[u8], work: Work<'_>) -> Result<Option<usize>, Interrupted> {
+    work.find(subject, value)
 }
 
 enum Eval {
@@ -758,20 +808,22 @@ enum Resume {
 }
 
 impl Plans {
-    fn matches(&self, root: usize, subject: &[u8], allocation: Option<&AllocationContext>) -> bool {
-        let context = allocation.cloned();
+    fn matches(&self, root: usize, subject: &[u8], work: Work<'_>) -> Result<bool, Interrupted> {
+        work.step(0)?;
+        let context = work.context.cloned();
         let mut action = Eval::Visit(root, 0, subject.len());
         let mut resumes = Buffer::new_in(context.as_ref());
         loop {
+            work.step(1)?;
             let value = match action {
                 Eval::Visit(id, begin, end) => {
                     let value = &subject[begin..end];
                     match &self.nodes[id] {
                         Matcher::True => true,
                         Matcher::Empty => value.is_empty(),
-                        Matcher::NoNewline => !value.contains(&b'\n'),
+                        Matcher::NoNewline => !work.contains(value, b'\n')?,
                         Matcher::NonEmpty(newline) => {
-                            !value.is_empty() && (*newline || !value.contains(&b'\n'))
+                            !value.is_empty() && (*newline || !work.contains(value, b'\n')?)
                         }
                         Matcher::OptionalRune(newline) => {
                             let (rune, width) = decode_rune(value);
@@ -783,9 +835,9 @@ impl Plans {
                         }
                         Matcher::Equal(expected, sensitive) => {
                             if *sensitive {
-                                expected == value
+                                work.equal(expected, value)?
                             } else {
-                                equal_fold(value, expected)
+                                equal_fold(value, expected, work)?
                             }
                         }
                         Matcher::Or(_) => {
@@ -798,9 +850,9 @@ impl Plans {
                             right,
                         } => {
                             let width = if *sensitive {
-                                value.starts_with(expected).then_some(expected.len())
+                                work.starts(value, expected)?.then_some(expected.len())
                             } else {
-                                prefix_fold(value, expected)
+                                prefix_fold(value, expected, work)?
                             };
                             if let Some(width) = width {
                                 action = Eval::Visit(*right, begin + width, end);
@@ -814,9 +866,9 @@ impl Plans {
                             left,
                         } => {
                             let width = if *sensitive {
-                                value.ends_with(expected).then_some(expected.len())
+                                work.ends(value, expected)?.then_some(expected.len())
                             } else {
-                                suffix_fold(value, expected)
+                                suffix_fold(value, expected, work)?
                             };
                             if let Some(width) = width {
                                 action = Eval::Visit(*left, begin, end - width);
@@ -835,23 +887,28 @@ impl Plans {
                             sensitive,
                         } => {
                             let matched = !values.is_empty() && {
-                                let normalized = (!sensitive).then(|| {
-                                    normalization::normalized_lower(value, context.as_ref())
-                                });
-                                values.contains(normalized.as_deref().unwrap_or(value))
+                                let normalized = if !*sensitive {
+                                    Some(normalization::normalized_lower(value, work)?)
+                                } else {
+                                    None
+                                };
+                                values.contains(normalized.as_deref().unwrap_or(value), work)?
                             };
                             if matched {
                                 true
                             } else if *min_prefix > 0 && value.len() >= *min_prefix {
                                 let prefix = &value[..*min_prefix];
-                                let normalized = (!sensitive).then(|| {
-                                    normalization::normalized_lower(prefix, context.as_ref())
-                                });
+                                let normalized = if !*sensitive {
+                                    Some(normalization::normalized_lower(prefix, work)?)
+                                } else {
+                                    None
+                                };
                                 if let Some(children) =
-                                    prefixes.get(normalized.as_deref().unwrap_or(prefix))
+                                    prefixes.get(normalized.as_deref().unwrap_or(prefix), work)?
                                 {
                                     // The map stores full prefix matcher IDs, including their right-hand conditions.
                                     for &child in children[1..].iter().rev() {
+                                        work.step(1)?;
                                         resumes.push(Resume::Retry(Eval::Visit(child, begin, end)));
                                     }
                                     action = Eval::Visit(children[0], begin, end);
@@ -887,16 +944,19 @@ impl Plans {
                     };
                     let mut found = None;
                     while which < values.len() {
+                        work.step(1)?;
                         let value = &values[which];
                         let position = match (left, right) {
                             (Some(_), Some(_)) if start <= end - begin => {
-                                index(&subject[begin + start..end], value)
+                                index(&subject[begin + start..end], value, work)?
                                     .map(|position| start + position)
                             }
-                            (Some(_), None) => subject[begin..end]
-                                .ends_with(value)
+                            (Some(_), None) => work
+                                .ends(&subject[begin..end], value)?
                                 .then_some(end - begin - value.len().min(end - begin)),
-                            (None, Some(_)) => subject[begin..end].starts_with(value).then_some(0),
+                            (None, Some(_)) => {
+                                work.starts(&subject[begin..end], value)?.then_some(0)
+                            }
                             _ => None,
                         };
                         if let Some(position) = position {
@@ -934,6 +994,7 @@ impl Plans {
             };
             let mut next = None;
             while let Some(resume) = resumes.pop() {
+                work.step(1)?;
                 match resume {
                     Resume::Retry(retry) if !value => {
                         next = Some(retry);
@@ -949,7 +1010,7 @@ impl Plans {
             if let Some(next) = next {
                 action = next;
             } else {
-                return value;
+                return Ok(value);
             }
         }
     }
@@ -968,11 +1029,9 @@ pub struct Program {
 }
 
 impl Program {
-    pub fn compile(
-        pattern: &[u8],
-        allocation: Option<&AllocationContext>,
-    ) -> Result<Self, Buffer<u8>> {
-        let context = allocation.cloned();
+    pub fn compile(pattern: &[u8], work: Work<'_>) -> Result<Self, Failure<Buffer<u8>>> {
+        work.step(0)?;
+        let context = work.context.cloned();
         let mut program = Self {
             plans: Plans {
                 nodes: Buffer::new_in(context.as_ref()),
@@ -985,38 +1044,50 @@ impl Program {
             insensitive_prefix: false,
             equality: None,
         };
-        let literals = Buffer::from_iter_in(
-            pattern
-                .split(|&byte| byte == b'|')
-                .map(|value| Buffer::from_slice_in(value, context.as_ref())),
-            context.as_ref(),
-        );
-        if literals
-            .iter()
-            .all(|value| !value.iter().any(|byte| b"\\.+*?()|[]{}^$".contains(byte)))
-        {
-            program.matcher = Some(program.plans.multi(literals, true));
+        let mut literals = work.buffer();
+        let mut begin = 0;
+        for (index, &byte) in pattern.iter().enumerate() {
+            work.step(1)?;
+            if byte == b'|' {
+                literals.push(work.copy(&pattern[begin..index])?);
+                begin = index + 1;
+            }
+        }
+        literals.push(work.copy(&pattern[begin..])?);
+        let mut plain = true;
+        for value in &literals {
+            work.step(1)?;
+            if work.any(value.iter(), |byte| b"\\.+*?()|[]{}^$".contains(byte))? {
+                plain = false;
+                break;
+            }
+        }
+        if plain {
+            program.matcher = Some(program.plans.multi(literals, true, work)?);
             return Ok(program);
         }
-        let mut tree = syntax::parse_in(pattern, syntax::PERL | syntax::DOT_NL, context.as_ref())
-            .map_err(|error| error.bytes())?;
-        optimize_contains(&mut tree);
-        program.regex = Some(GoRegex::compile_label_replace_in(
-            &string::canonical(&tree),
-            context.as_ref(),
+        let mut tree = super::syntax_result(
+            syntax::parse_in(pattern, syntax::PERL | syntax::DOT_NL, work),
+            work,
+        )?;
+        optimize_contains(&mut tree, work)?;
+        program.regex = Some(GoRegex::compile_label_replace_work(
+            &string::canonical(&tree, work)?,
+            work,
         )?);
         let root = tree.root;
-        clear_capture(&mut tree, root);
+        clear_capture(&mut tree, root, work)?;
         if tree.nodes[root].op == Op::Concat {
-            let mut children = tree.nodes[root].children.clone();
+            let mut children = work.elements(&tree.nodes[root].children)?;
             for &child in &children {
-                clear_capture(&mut tree, child);
+                work.step(1)?;
+                clear_capture(&mut tree, child, work)?;
             }
             if children
                 .first()
                 .is_some_and(|&id| tree.nodes[id].op == Op::BeginText)
             {
-                children.remove(0);
+                work.discard_prefix(&mut children, 1)?;
             }
             if children
                 .last()
@@ -1028,34 +1099,35 @@ impl Program {
                 .first()
                 .filter(|&&id| tree.nodes[id].op == Op::Literal)
             {
-                program.prefix = runes::text(&tree.nodes[first].runes, context.as_ref());
+                program.prefix = runes::text(&tree.nodes[first].runes, work)?;
                 program.insensitive_prefix = !sensitive(&tree, first);
             }
             if let Some(&last) = children
                 .last()
                 .filter(|&&id| tree.nodes[id].op == Op::Literal && sensitive(&tree, id))
             {
-                program.suffix = runes::text(&tree.nodes[last].runes, context.as_ref());
+                program.suffix = runes::text(&tree.nodes[last].runes, work)?;
             }
             for &id in children
                 .iter()
                 .skip(1)
                 .take(children.len().saturating_sub(2))
             {
+                work.step(1)?;
                 if tree.nodes[id].op == Op::Literal && sensitive(&tree, id) {
                     program
                         .contains
-                        .push(runes::text(&tree.nodes[id].runes, context.as_ref()));
+                        .push(runes::text(&tree.nodes[id].runes, work)?);
                 }
             }
         }
-        clear_anchors(&mut tree, root);
-        if let Some(set) = find_set(&mut tree, root).filter(|set| !set.values.is_empty()) {
+        clear_anchors(&mut tree, root, work)?;
+        if let Some(set) = find_set(&mut tree, root, work)?.filter(|set| !set.values.is_empty()) {
             if set.sensitive && set.values.len() == 1 {
-                program.equality = Some(set.values[0].clone());
+                program.equality = Some(work.copy(&set.values[0])?);
             }
             if set.values.len() > 1 {
-                program.matcher = Some(program.plans.multi(set.values, set.sensitive));
+                program.matcher = Some(program.plans.multi(set.values, set.sensitive, work)?);
             }
         }
         if program.matcher.is_none() {
@@ -1063,56 +1135,60 @@ impl Program {
             let simple = tree.nodes[root].op == Op::Concat
                 && children.len() >= 3
                 && children.len() % 2 == 1
-                && children.iter().enumerate().all(|(i, &id)| {
+                && !work.any(children.iter().enumerate(), |(i, &id)| {
                     if i % 2 == 0 {
-                        is_any(&tree, id)
+                        !is_any(&tree, id)
                     } else {
-                        tree.nodes[id].op == Op::Literal && sensitive(&tree, id)
+                        !(tree.nodes[id].op == Op::Literal && sensitive(&tree, id))
                     }
-                });
+                })?;
             if simple {
                 program.matcher = Some(program.plans.add(Matcher::True));
             } else {
-                clear_anchors(&mut tree, root);
-                program.matcher = from_tree(&mut tree, &mut program.plans);
+                clear_anchors(&mut tree, root, work)?;
+                program.matcher = from_tree(&mut tree, &mut program.plans, work)?;
             }
         }
         Ok(program)
     }
 
-    pub fn matches(&self, value: &[u8], context: Option<&AllocationContext>) -> bool {
+    pub fn matches(&self, value: &[u8], work: Work<'_>) -> Result<bool, Interrupted> {
+        work.step(0)?;
         if let Some(equality) = &self.equality {
-            return value == equality.as_ref();
+            return work.equal(value, equality);
         }
         let regex = || {
             self.regex
                 .as_ref()
                 .unwrap()
-                .captures_in(value, context)
-                .is_some()
+                .captures_work(value, work)
+                .map(|value| value.is_some())
         };
         if self.prefix.is_empty()
             && self.suffix.is_empty()
             && self.contains.is_empty()
             && let Some(matcher) = self.matcher
         {
-            return self.plans.matches(matcher, value, context);
+            return self.plans.matches(matcher, value, work);
         }
         if self.insensitive_prefix && !self.prefix.is_empty() {
-            return prefix_fold(value, &self.prefix).is_some() && regex();
+            return Ok(prefix_fold(value, &self.prefix, work)?.is_some() && regex()?);
         }
-        if !value.starts_with(&self.prefix) || !value.ends_with(&self.suffix) {
-            return false;
+        if !work.starts(value, &self.prefix)? || !work.ends(value, &self.suffix)? {
+            return Ok(false);
         }
         let mut offset = 0;
         for contains in &self.contains {
-            let Some(position) = index(&value[offset..], contains) else {
-                return false;
+            work.step(1)?;
+            let Some(position) = index(&value[offset..], contains, work)? else {
+                return Ok(false);
             };
             offset += position + contains.len();
         }
-        self.matcher
-            .map_or_else(regex, |matcher| self.plans.matches(matcher, value, context))
+        match self.matcher {
+            Some(matcher) => self.plans.matches(matcher, value, work),
+            None => regex(),
+        }
     }
 }
 
@@ -1120,6 +1196,48 @@ impl Program {
 mod tests {
     use super::*;
     use crate::accounting::EngineAccounting;
+
+    #[test]
+    fn folded_and_contains_matcher_walks_are_cooperative() {
+        use crate::{
+            storage::{Control, Interrupted},
+            test_storage::interrupt_during,
+        };
+        let input = vec![b'a'; 400_000];
+        for stage in ["prefix", "suffix", "equal", "contains", "newline"] {
+            let engine = EngineAccounting::default();
+            let account = engine.query();
+            let context = AllocationContext::new(&account, MemoryKind::Workspace);
+            let control = Control::default();
+            let work = Work::new(Some(&context), Some(&control));
+            let result = interrupt_during(&account, &control, || -> Result<(), Interrupted> {
+                match stage {
+                    "prefix" => {
+                        prefix_fold(&input, &input, work)?;
+                    }
+                    "suffix" => {
+                        suffix_fold(&input, &input, work)?;
+                    }
+                    "equal" => {
+                        equal_fold(&input, &input, work)?;
+                    }
+                    "contains" => {
+                        index(&input, b"z", work)?;
+                    }
+                    "newline" => {
+                        let plans = Plans {
+                            nodes: buffer![None; Matcher::NoNewline],
+                        };
+                        plans.matches(0, &input, work)?;
+                    }
+                    _ => unreachable!(),
+                }
+                Ok(())
+            });
+            assert_eq!(result, Err(Interrupted::Cancelled), "{stage}");
+            account.snapshot().assert_memory_released();
+        }
+    }
 
     #[test]
     fn prefix_table_keys_retry_growth_and_normalization_use_separate_owners() {
@@ -1142,18 +1260,35 @@ mod tests {
             }));
         }
         let root = plans.add(Matcher::Or(children));
-        let root = plans.optimize_or(root);
+        let root = plans
+            .optimize_or(root, Work::new(Some(&context), None))
+            .unwrap();
         let Matcher::Map { prefixes, .. } = &plans.nodes[root] else {
             panic!("expected prefix table")
         };
         assert_eq!(prefixes.values.len(), 1);
-        assert_eq!(prefixes.get(b"p").unwrap().len(), 64);
+        assert_eq!(
+            prefixes
+                .get(b"p", Work::new(Some(&context), None))
+                .unwrap()
+                .unwrap()
+                .len(),
+            64
+        );
         let retained = compiled.snapshot();
         assert!(retained.memory[MemoryKind::RegexEstimate as usize].current > 0);
         let search = engine.query();
         let scratch = AllocationContext::new(&search, MemoryKind::Workspace);
-        assert!(plans.matches(root, b"pTAIL63", Some(&scratch)));
-        assert!(!plans.matches(root, b"pother", Some(&scratch)));
+        assert!(
+            plans
+                .matches(root, b"pTAIL63", Work::new(Some(&scratch), None))
+                .unwrap()
+        );
+        assert!(
+            !plans
+                .matches(root, b"pother", Work::new(Some(&scratch), None))
+                .unwrap()
+        );
         let observed = search.snapshot();
         assert!(
             observed.memory[MemoryKind::Workspace as usize].peak
@@ -1172,10 +1307,28 @@ mod tests {
             }),
             Some(&context),
         );
-        let root = plans.multi(alternatives, false);
+        let root = plans
+            .multi(alternatives, false, Work::new(Some(&context), None))
+            .unwrap();
         let retained = compiled.snapshot();
-        assert!(plans.matches(root, "\u{fb03}X17".as_bytes(), Some(&scratch)));
-        assert!(!plans.matches(root, "\u{fb03}Xmissing".as_bytes(), Some(&scratch)));
+        assert!(
+            plans
+                .matches(
+                    root,
+                    "\u{fb03}X17".as_bytes(),
+                    Work::new(Some(&scratch), None)
+                )
+                .unwrap()
+        );
+        assert!(
+            !plans
+                .matches(
+                    root,
+                    "\u{fb03}Xmissing".as_bytes(),
+                    Work::new(Some(&scratch), None)
+                )
+                .unwrap()
+        );
         assert_eq!(compiled.snapshot(), retained);
         search.snapshot().assert_memory_released();
         drop(plans);

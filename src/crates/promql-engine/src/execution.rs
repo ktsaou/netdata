@@ -24,7 +24,7 @@ use crate::{
     result::{CollectedResult, Collector, OutputChunk, OutputHeader, OutputSink},
     storage::{
         Control, Interrupted, Provider, QueryProvider, Series, StorageError, TimeBounds,
-        matches_in, scan_with,
+        matches_checked, scan_with,
     },
     storage_observed::ObservedQuery,
     value::SampleRef,
@@ -146,7 +146,7 @@ impl Engine {
             let output = parser::parse_in(
                 source,
                 options.parser,
-                |pattern| Selector::compile_in(pattern, Some(&context)),
+                |pattern| Selector::compile_checked(pattern, Some(&context), Some(control)),
                 Some(&account),
                 Some(control),
             )
@@ -1327,7 +1327,7 @@ impl CompiledQuery {
                     |series| -> Result<(), ExecutionError> {
                         control.check()?;
                         let labels = series.label_views(account);
-                        if !matches_in(&labels, &selector.matchers, Some(account)) {
+                        if !matches_checked(&labels, &selector.matchers, Some(account), control)? {
                             return Ok(());
                         }
                         scan_with(

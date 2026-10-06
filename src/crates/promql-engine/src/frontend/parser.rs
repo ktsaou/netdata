@@ -85,12 +85,12 @@ pub struct ParseOutput {
     pub errors: AccountedVec<ParseError>,
 }
 
-pub fn parse<C, E>(input: &[u8], options: ParserOptions, compile: C) -> ParseOutput
+pub fn parse<C, E>(input: &[u8], options: ParserOptions, mut compile: C) -> ParseOutput
 where
     C: FnMut(&[u8]) -> Result<Strong<dyn CompiledMatcher>, E>,
     E: Into<crate::accounting::AccountedVec<u8>>,
 {
-    parse_in(input, options, compile, None, None).expect("inert parser")
+    parse_in(input, options, |pattern| Ok(compile(pattern)), None, None).expect("inert parser")
 }
 
 pub(crate) fn parse_in<C, E>(
@@ -101,7 +101,7 @@ pub(crate) fn parse_in<C, E>(
     control: Option<&Control>,
 ) -> Result<ParseOutput, Interrupted>
 where
-    C: FnMut(&[u8]) -> Result<Strong<dyn CompiledMatcher>, E>,
+    C: FnMut(&[u8]) -> Result<Result<Strong<dyn CompiledMatcher>, E>, Interrupted>,
     E: Into<crate::accounting::AccountedVec<u8>>,
 {
     let context = accounting.map(|account| AllocationContext::new(account, MemoryKind::Compiled));
@@ -118,12 +118,18 @@ where
 }
 
 /// Regex compilation happens at grammar reductions, before ordered type validation.
-pub fn parse_syntax<C, E>(input: &[u8], options: ParserOptions, compile: C) -> ParseOutput
+pub fn parse_syntax<C, E>(input: &[u8], options: ParserOptions, mut compile: C) -> ParseOutput
 where
     C: FnMut(&[u8]) -> Result<Strong<dyn CompiledMatcher>, E>,
     E: Into<crate::accounting::AccountedVec<u8>>,
 {
-    parse_syntax_in(input, options, compile, Work::default()).expect("inert syntax parser")
+    parse_syntax_in(
+        input,
+        options,
+        |pattern| Ok(compile(pattern)),
+        Work::default(),
+    )
+    .expect("inert syntax parser")
 }
 
 fn parse_syntax_in<C, E>(
@@ -133,7 +139,7 @@ fn parse_syntax_in<C, E>(
     work: Work<'_>,
 ) -> Result<ParseOutput, Interrupted>
 where
-    C: FnMut(&[u8]) -> Result<Strong<dyn CompiledMatcher>, E>,
+    C: FnMut(&[u8]) -> Result<Result<Strong<dyn CompiledMatcher>, E>, Interrupted>,
     E: Into<AccountedVec<u8>>,
 {
     Parser {
@@ -168,7 +174,7 @@ struct Parser<'a, 'w, C> {
 
 impl<'a, 'w, C, E> Parser<'a, 'w, C>
 where
-    C: FnMut(&[u8]) -> Result<Strong<dyn CompiledMatcher>, E>,
+    C: FnMut(&[u8]) -> Result<Result<Strong<dyn CompiledMatcher>, E>, Interrupted>,
     E: Into<crate::accounting::AccountedVec<u8>>,
 {
     fn error_owned(&mut self, span: Span, message: AccountedVec<u8>) -> Result<(), Interrupted> {
@@ -585,7 +591,7 @@ where
         };
         let value = self.unquote(&item)?;
         let compiled = if matches!(kind, MatchType::Regex | MatchType::NotRegex) {
-            match (self.compile)(&value) {
+            match (self.compile)(&value)? {
                 Ok(compiled) => Some(compiled),
                 Err(error) => {
                     let start = label.span.start + usize::from(label.kind == STRING);
@@ -1693,6 +1699,24 @@ mod tests {
     }
 
     #[test]
+    fn regex_compile_interruption_stays_out_of_parse_diagnostics() {
+        let engine = EngineAccounting::default();
+        let account = engine.query();
+        let control = Control::default();
+        let output = parse_in(
+            b"{x=~\"a\"}",
+            ParserOptions::default(),
+            |_| -> Result<Result<Strong<dyn CompiledMatcher>, Vec<u8>>, Interrupted> {
+                Err(Interrupted::Cancelled)
+            },
+            Some(&account),
+            Some(&control),
+        );
+        assert!(matches!(output, Err(Interrupted::Cancelled)));
+        account.snapshot().assert_memory_released();
+    }
+
+    #[test]
     fn deep_parse_counts_retained_slots_and_releases_transient_frames() {
         let depth = 4096;
         let input = ["(".repeat(depth), "m".into(), ")".repeat(depth)].concat();
@@ -1702,7 +1726,9 @@ mod tests {
         let output = parse_in(
             input.as_bytes(),
             ParserOptions::default(),
-            |_| -> Result<Strong<dyn CompiledMatcher>, Vec<u8>> { panic!("unexpected matcher") },
+            |_| -> Result<Result<Strong<dyn CompiledMatcher>, Vec<u8>>, Interrupted> {
+                panic!("unexpected matcher")
+            },
             Some(&account),
             Some(&control),
         )
@@ -1762,7 +1788,7 @@ mod tests {
                 parse_in(
                     &input,
                     ParserOptions::default(),
-                    |_| -> Result<Strong<dyn CompiledMatcher>, Vec<u8>> {
+                    |_| -> Result<Result<Strong<dyn CompiledMatcher>, Vec<u8>>, Interrupted> {
                         panic!("unexpected matcher")
                     },
                     Some(&account),
@@ -1787,7 +1813,9 @@ mod tests {
         let output = parse_in(
             &input,
             ParserOptions::default(),
-            |_| -> Result<Strong<dyn CompiledMatcher>, Vec<u8>> { panic!("unexpected matcher") },
+            |_| -> Result<Result<Strong<dyn CompiledMatcher>, Vec<u8>>, Interrupted> {
+                panic!("unexpected matcher")
+            },
             Some(&account),
             Some(&control),
         )
@@ -1838,7 +1866,7 @@ mod tests {
             parse_in(
                 &input,
                 ParserOptions::default(),
-                |_| -> Result<Strong<dyn CompiledMatcher>, Vec<u8>> {
+                |_| -> Result<Result<Strong<dyn CompiledMatcher>, Vec<u8>>, Interrupted> {
                     assert!(account.snapshot().memory[MemoryKind::Compiled as usize].current > 0);
                     panic!("regex callback fault")
                 },

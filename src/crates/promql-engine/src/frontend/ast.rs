@@ -64,9 +64,49 @@ pub trait CompiledMatcher: std::fmt::Debug + Send + Sync {
         self.matches_in(value, None)
     }
     fn matches_in(&self, value: &[u8], accounting: Option<&QueryAccounting>) -> bool;
+    fn matches_checked(
+        &self,
+        value: &[u8],
+        accounting: Option<&QueryAccounting>,
+        control: &crate::storage::Control,
+    ) -> Result<bool, crate::storage::Interrupted> {
+        control.check()?;
+        let result = self.matches_in(value, accounting);
+        control.check()?;
+        Ok(result)
+    }
 }
 
 impl Matcher {
+    pub(crate) fn matches_with(
+        &self,
+        value: &[u8],
+        accounting: Option<&QueryAccounting>,
+        control: Option<&crate::storage::Control>,
+    ) -> Result<bool, crate::storage::Interrupted> {
+        let work = super::work::Work {
+            context: None,
+            account: accounting,
+            control,
+        };
+        work.step(0)?;
+        match self.kind {
+            MatchType::Equal => work.equal(&self.value, value),
+            MatchType::NotEqual => Ok(!work.equal(&self.value, value)?),
+            MatchType::Regex | MatchType::NotRegex => {
+                let compiled = self.compiled.as_ref().expect("validated regexp matcher");
+                let result = match control {
+                    Some(control) => compiled.matches_checked(value, accounting, control)?,
+                    None => compiled.matches_in(value, accounting),
+                };
+                Ok(if self.kind == MatchType::NotRegex {
+                    !result
+                } else {
+                    result
+                })
+            }
+        }
+    }
     #[cfg(test)]
     pub(crate) fn copy_for(
         &self,
@@ -330,4 +370,36 @@ pub struct ParsedExpression {
     pub source: AccountedVec<u8>,
     pub arena: Arena,
     pub root: NodeId,
+}
+
+#[cfg(test)]
+mod checked_matcher_tests {
+    use super::*;
+    use crate::storage::{Cancellation, Control, Interrupted};
+    #[derive(Debug)]
+    struct Legacy(Cancellation);
+    impl CompiledMatcher for Legacy {
+        fn matches_in(&self, _value: &[u8], _account: Option<&QueryAccounting>) -> bool {
+            self.0.cancel();
+            false
+        }
+    }
+    #[test]
+    fn legacy_callback_interruption_is_not_negated_into_a_match() {
+        let control = Control::default();
+        let allocation: Box<crate::shared::Allocation<dyn CompiledMatcher>> = Box::new(
+            crate::shared::Allocation::new(Legacy(control.cancellation.clone())),
+        );
+        let compiled = Strong::finish(allocation, None);
+        let matcher = Matcher {
+            kind: MatchType::NotRegex,
+            name: b"x".to_vec().into(),
+            value: b"a".to_vec().into(),
+            compiled: Some(compiled),
+        };
+        assert_eq!(
+            matcher.matches_with(b"value", None, Some(&control)),
+            Err(Interrupted::Cancelled)
+        );
+    }
 }

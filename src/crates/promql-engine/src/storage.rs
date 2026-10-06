@@ -38,6 +38,41 @@ pub fn matches_in(
         .all(|matcher| matcher.matches_in(label(labels, &matcher.name), accounting))
 }
 
+pub fn matches_checked(
+    labels: LabelsRef<'_>,
+    matchers: &[Option<Matcher>],
+    accounting: Option<&QueryAccounting>,
+    control: &Control,
+) -> Result<bool, Interrupted> {
+    control.check()?;
+    for matcher in matchers.iter().flatten() {
+        control.check()?;
+        let (mut begin, mut end) = (0, labels.len());
+        let mut value: &[u8] = &[];
+        while begin < end {
+            control.check()?;
+            let middle = begin + (end - begin) / 2;
+            match crate::binary_labels::compare_with(
+                labels[middle].name,
+                &matcher.name,
+                control,
+                accounting,
+            )? {
+                std::cmp::Ordering::Less => begin = middle + 1,
+                std::cmp::Ordering::Greater => end = middle,
+                std::cmp::Ordering::Equal => {
+                    value = labels[middle].value;
+                    break;
+                }
+            }
+        }
+        if !matcher.matches_with(value, accounting, Some(control))? {
+            return Ok(false);
+        }
+    }
+    Ok(true)
+}
+
 #[derive(Clone, Debug)]
 pub struct Cancellation(Strong<AtomicBool>);
 impl Default for Cancellation {

@@ -1,15 +1,15 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Flat Go program to Thompson NFA; construction and execution use heap work stacks.
+use crate::storage::Interrupted;
 use regex_automata::{
     MatchKind,
     nfa::thompson::{BuildError, Builder, Transition, pikevm::PikeVM},
     util::{look::Look, primitives::StateID},
 };
 use regex_syntax::utf8::Utf8Sequences;
-use std::fmt::Write as _;
 
 use super::{
-    AllocationContext, Buffer,
+    Buffer, Failure, Work,
     program::{Code, Program},
     runes,
 };
@@ -17,22 +17,26 @@ use crate::accounting::{MemoryKind, MemoryLease};
 
 macro_rules! change {
     ($builder:ident, $method:ident($($argument:expr),* $(,)?)) => {
-        $builder.change(|value| value.$method($($argument),*).map_err(Box::new))
+        $builder.change(|value| value.$method($($argument),*).map_err(Box::new))?.map_err(Failure::Error)
     };
 }
 
-struct ObservedBuilder {
+struct ObservedBuilder<'a> {
+    work: Work<'a>,
     value: Builder,
     estimate: Option<MemoryLease>,
 }
-impl ObservedBuilder {
-    fn new(context: Option<&AllocationContext>) -> Self {
+impl<'a> ObservedBuilder<'a> {
+    fn new(work: Work<'a>) -> Self {
+        let context = work.context;
         Self {
+            work,
             value: Builder::new(),
             estimate: context.map(|context| context.with_kind(MemoryKind::RegexEstimate).hold(0)),
         }
     }
-    fn change<R>(&mut self, operation: impl FnOnce(&mut Builder) -> R) -> R {
+    fn change<R>(&mut self, operation: impl FnOnce(&mut Builder) -> R) -> Result<R, Interrupted> {
+        self.work.step(0)?;
         let result = operation(&mut self.value);
         if let Some(estimate) = &mut self.estimate {
             let bytes = self.value.memory_usage() as u64;
@@ -40,7 +44,8 @@ impl ObservedBuilder {
                 estimate.resize(bytes);
             }
         }
-        result
+        self.work.step(0)?;
+        Ok(result)
     }
 }
 
@@ -51,23 +56,28 @@ struct Fragment {
 }
 
 fn class(
-    builder: &mut ObservedBuilder,
+    builder: &mut ObservedBuilder<'_>,
     ranges: &[(u32, u32)],
-    context: Option<&AllocationContext>,
-) -> Result<Fragment, Box<BuildError>> {
+    work: Work<'_>,
+) -> Result<Fragment, Failure<Box<BuildError>>> {
+    let context = work.context;
     let mut alternatives = Buffer::new_in(context);
     let exit = change!(builder, add_empty())?;
     for &(lo, hi) in ranges {
+        work.step(1)?;
         for (lo, hi) in [(lo, hi.min(0xd7ff)), (lo.max(0xe000), hi)] {
+            work.step(1)?;
             if lo > hi {
                 continue;
             }
             for encoding in
                 Utf8Sequences::new(char::from_u32(lo).unwrap(), char::from_u32(hi).unwrap())
             {
+                work.step(1)?;
                 let mut first = None;
                 let mut previous = None;
                 for range in encoding.as_slice() {
+                    work.step(1)?;
                     let state = change!(
                         builder,
                         add_range(Transition {
@@ -114,12 +124,14 @@ fn look(bits: usize) -> Look {
 
 type Built = (PikeVM, Buffer<u8>, Option<MemoryLease>);
 
-fn construct(program: &Program) -> Result<Built, Box<BuildError>> {
+fn construct(program: &Program, work: Work<'_>) -> Result<Built, Failure<Box<BuildError>>> {
+    work.step(0)?;
     let context = program.instructions.context();
-    let (prefix, prefix_instructions) = program.prefix();
-    let mut reachable = buffer![context.as_ref(); false; program.instructions.len()];
+    let (prefix, prefix_instructions) = program.prefix(work)?;
+    let mut reachable = work.filled(program.instructions.len(), false)?;
     let mut pending = buffer![context.as_ref(); program.start];
     while let Some(pc) = pending.pop() {
+        work.step(1)?;
         if reachable[pc] {
             continue;
         }
@@ -134,10 +146,10 @@ fn construct(program: &Program) -> Result<Built, Box<BuildError>> {
             _ => pending.push(instruction.out),
         }
     }
-    let mut builder = ObservedBuilder::new(context.as_ref());
+    let mut builder = ObservedBuilder::new(work);
     builder.change(|b| {
         b.set_utf8(true);
-    });
+    })?;
     change!(builder, set_size_limit(None))?;
     assert_eq!(change!(builder, add_fail())?, StateID::ZERO);
     change!(builder, start_pattern())?;
@@ -146,8 +158,9 @@ fn construct(program: &Program) -> Result<Built, Box<BuildError>> {
         start: StateID::ZERO,
         end: StateID::ZERO,
     };
-    let mut fragments = buffer![context.as_ref(); fail; program.instructions.len()];
+    let mut fragments = work.filled(program.instructions.len(), fail)?;
     for (pc, instruction) in program.instructions.iter().enumerate() {
+        work.step(1)?;
         if !reachable[pc] {
             continue;
         }
@@ -173,28 +186,28 @@ fn construct(program: &Program) -> Result<Built, Box<BuildError>> {
             _ => {
                 let mut ranges = if instruction.runes.len() == 1 {
                     let rune = instruction.runes[0];
-                    let rune =
-                        if prefix_instructions.contains(&pc) && (0xd800..=0xdfff).contains(&rune) {
-                            0xfffd
-                        } else {
-                            rune
-                        };
+                    let rune = if work.any(prefix_instructions.iter(), |&id| id == pc)?
+                        && (0xd800..=0xdfff).contains(&rune)
+                    {
+                        0xfffd
+                    } else {
+                        rune
+                    };
                     if instruction.arg & 1 != 0 {
-                        runes::folded(buffer![context.as_ref(); (rune, rune)])
+                        runes::folded(buffer![context.as_ref(); (rune, rune)], work)?
                     } else {
                         buffer![context.as_ref(); (rune, rune)]
                     }
                 } else {
-                    Buffer::from_iter_in(
+                    work.collect(
                         instruction
                             .runes
                             .chunks_exact(2)
                             .map(|pair| (pair[0], pair[1])),
-                        context.as_ref(),
-                    )
+                    )?
                 };
-                ranges = runes::clean(ranges);
-                fragments[pc] = class(&mut builder, &ranges, context.as_ref())?;
+                ranges = runes::clean(ranges, work)?;
+                fragments[pc] = class(&mut builder, &ranges, work)?;
                 continue;
             }
         };
@@ -204,6 +217,7 @@ fn construct(program: &Program) -> Result<Built, Box<BuildError>> {
         };
     }
     for (pc, instruction) in program.instructions.iter().enumerate() {
+        work.step(1)?;
         if !reachable[pc] {
             continue;
         }
@@ -244,16 +258,21 @@ fn construct(program: &Program) -> Result<Built, Box<BuildError>> {
             .with_kind(MemoryKind::RegexEstimate)
             .hold(nfa.memory_usage() as u64)
     });
+    work.step(0)?;
     let vm = PikeVM::builder()
         .configure(PikeVM::config().match_kind(MatchKind::LeftmostFirst))
-        .build_from_nfa(nfa)?;
+        .build_from_nfa(nfa)
+        .map_err(|error| Failure::Error(Box::new(error)))?;
+    work.step(0)?;
     Ok((vm, prefix, estimate))
 }
 
-pub fn build(program: &Program) -> Result<Built, Buffer<u8>> {
-    construct(program).map_err(|error| {
-        let mut bytes = Buffer::new_in(program.instructions.context().as_ref());
-        write!(bytes, "internal regex backend error: {error}").unwrap();
-        bytes
-    })
+pub fn build(program: &Program, work: Work<'_>) -> Result<Built, Failure<Buffer<u8>>> {
+    match construct(program, work) {
+        Ok(value) => Ok(value),
+        Err(Failure::Interrupted(error)) => Err(Failure::Interrupted(error)),
+        Err(Failure::Error(error)) => Err(Failure::Error(
+            work.format(format_args!("internal regex backend error: {error}"))?,
+        )),
+    }
 }

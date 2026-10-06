@@ -4,46 +4,57 @@ use crate::{
     frontend::ast::Matcher,
     storage::{
         Control, LabelRef, PageSamples, ProviderResources, SampleCursor, SamplePage, Series,
-        StorageError, TimeBounds, matches_in,
+        StorageError, TimeBounds, matches_checked,
     },
     value::{Sample, SampleValue},
 };
 use std::sync::{
-    Arc, Barrier,
-    atomic::{AtomicBool, AtomicUsize, Ordering},
+    Arc,
+    atomic::{AtomicUsize, Ordering},
 };
+
+struct WorkInterruption {
+    query: usize,
+    remaining: u64,
+    cancellation: crate::storage::Cancellation,
+}
+thread_local! {
+    static WORK_INTERRUPTION: std::cell::RefCell<Option<WorkInterruption>> = const { std::cell::RefCell::new(None) };
+}
+pub(crate) fn work_observed(account: &QueryAccounting, amount: u64) {
+    WORK_INTERRUPTION.with_borrow_mut(|entry| {
+        if let Some(entry) = entry
+            && entry.query == account.test_identity()
+        {
+            entry.remaining = entry.remaining.saturating_sub(amount);
+            if entry.remaining == 0 {
+                entry.cancellation.cancel();
+            }
+        }
+    });
+}
 
 pub(crate) fn interrupt_during<R>(
     account: &QueryAccounting,
     control: &Control,
     operation: impl FnOnce() -> R,
 ) -> R {
-    struct Done<'a>(&'a AtomicBool);
-    impl Drop for Done<'_> {
+    struct Restore(Option<WorkInterruption>);
+    impl Drop for Restore {
         fn drop(&mut self) {
-            self.0.store(true, Ordering::Release);
+            WORK_INTERRUPTION.with_borrow_mut(|entry| *entry = self.0.take());
         }
     }
-    let baseline = account.snapshot().work;
-    let ready = Barrier::new(2);
-    let done = AtomicBool::new(false);
-    std::thread::scope(|scope| {
-        scope.spawn(|| {
-            ready.wait();
-            while !done.load(Ordering::Acquire) {
-                if account.snapshot().work >= baseline + 8192 {
-                    control.cancellation.cancel();
-                    return;
-                }
-                std::thread::yield_now();
-            }
-        });
-        let finished = Done(&done);
-        ready.wait();
-        let result = operation();
-        drop(finished);
-        result
-    })
+    // Inject at actual observed work, independently of worker scheduling.
+    let previous = WORK_INTERRUPTION.with_borrow_mut(|entry| {
+        entry.replace(WorkInterruption {
+            query: account.test_identity(),
+            remaining: 8192,
+            cancellation: control.cancellation.clone(),
+        })
+    });
+    let _restore = Restore(previous);
+    operation()
 }
 
 #[derive(Default, Debug)]
@@ -359,7 +370,7 @@ impl<'a> crate::storage::SeriesSelection for FixtureSelection<'a> {
                         .map(|(name, value)| LabelRef { name, value }),
                     context.as_ref(),
                 );
-                if !matches_in(&labels, matchers, self.accounting.as_ref()) {
+                if !matches_checked(&labels, matchers, self.accounting.as_ref(), control)? {
                     continue;
                 }
             }
@@ -463,5 +474,48 @@ impl FixtureProvider {
             );
             assert_eq!(series.source.counters.active.load(Ordering::Relaxed), 0);
         }
+    }
+}
+
+#[cfg(test)]
+mod work_injection_tests {
+    use super::*;
+    use crate::{accounting::EngineAccounting, storage::Interrupted};
+    #[test]
+    fn injection_is_query_specific_nested_and_unwind_scoped() {
+        let engine = EngineAccounting::default();
+        let outer = engine.query();
+        let inner = engine.query();
+        let first = Control::default();
+        let second = Control::default();
+        let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            interrupt_during(&outer, &first, || {
+                inner.work(20_000);
+                assert!(first.check().is_ok());
+                outer.work(8191);
+                assert!(first.check().is_ok());
+                interrupt_during(&inner, &second, || {
+                    inner.work(8192);
+                    assert_eq!(second.check(), Err(Interrupted::Cancelled));
+                });
+                assert!(first.check().is_ok());
+                outer.work(1);
+                assert_eq!(first.check(), Err(Interrupted::Cancelled));
+                panic!("work fixture unwind");
+            })
+        }));
+        assert!(result.is_err());
+        let after = Control::default();
+        interrupt_during(&outer, &after, || {
+            inner.work(8192);
+            assert!(after.check().is_ok());
+        });
+        outer.work(8192);
+        assert!(after.check().is_ok());
+        outer.snapshot().assert_memory_released();
+        inner.snapshot().assert_memory_released();
+        drop(outer);
+        drop(inner);
+        engine.snapshot().assert_memory_released();
     }
 }
