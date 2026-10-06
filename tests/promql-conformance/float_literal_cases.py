@@ -63,4 +63,30 @@ def generate(original):
                 add("hex-sticky", text + "0" * length + tail + "p0")
     add("long-zero", "-0x" + "0" * 400000 + "p999999999999999999999999999999999")
     add("long-zero", "-" + "0" * 400000 + "e999999999999999999999999999999999")
+
+    # Original Go freezes exponent prefixes and routes ambiguous 19-digit values to an
+    # independent 800-digit fallback. Preserve the original panel before these additions.
+    add("decimal-exponent-cancel", "1" + "0" * 10000 + "e-100000")
+    for length in [799, 800, 801, 9998, 9999, 10000, 10001, 10002, 99990, 99998, 99999, 100000]:
+        for exponent in [length, length + 1, 10000, 10001, 100000, 999990]:
+            for sign in ["", "-"]:
+                add("decimal-zero-tail-cancel", sign + "1" + "0" * length + "e-" + str(exponent))
+    for length in [799, 800, 801, 9999, 10000, 10001]:
+        for lead in ["1000000000000000111", "1000000000000000333", "1999999999999999888", "1234567890123456789"]:
+            for tail in ["0", "1", "5", "9"]:
+                add("decimal-sticky-cancel", lead + "0" * (length - len(lead) + 1) + tail + "e-100000")
+    for zeros in [9999, 10000, 10001, 10002, 99999]:
+        for exponent in [10000, 100000, 100009, 100010, 999990]:
+            for sign in ["", "-"]:
+                add("decimal-fraction-cancel", sign + "0." + "0" * zeros + "1e" + str(exponent))
+    add("decimal-fallback-cancel", "10000000000000001111" + "0" * 781 + "e-800")
+    add("decimal-fallback-cancel", "10000000000000001111" + "0" * 10000 + "e-10019")
+    for length in [18, 19, 20, 798, 799, 800, 801, 802, 9999, 10000, 10001]:
+        for lead in ["1000000000000000111", "1000000000000000112", "1000000000000000333", "1999999999999999888"]:
+            for tail in ["0", "1", "5", "9"]:
+                if length >= len(lead):
+                    text = lead + "0" * (length - len(lead)) + tail
+                    for sign in ["", "-"]:
+                        add("decimal-fallback-no-dot", sign + text + "e-" + str(len(text) - 1))
+                        add("decimal-fallback-dot", sign + text[0] + "." + text[1:])
     return requests, counts
