@@ -119,7 +119,11 @@ struct FixtureCursor<'a> {
 }
 impl Provider for FixtureProvider {
     type Query<'a> = FixtureQuery<'a>;
-    fn open(&self, control: &Control) -> Result<Self::Query<'_>, StorageError> {
+    fn open(
+        &self,
+        _bounds: TimeBounds,
+        control: &Control,
+    ) -> Result<Self::Query<'_>, StorageError> {
         control.check()?;
         Ok(FixtureQuery(self))
     }
@@ -303,6 +307,9 @@ fn evaluate(provider: &FixtureProvider, request: &Value) -> Result<Value, Error>
         lookback_ms: request
             .get("lookback_ms")
             .map_or(Ok(300_000), |v| v.as_i64().ok_or("invalid lookback"))?,
+        no_step_subquery_interval_ms: request
+            .get("subquery_step_ms")
+            .map_or(Ok(60_000), |v| v.as_i64().ok_or("invalid no-step interval"))?,
         start_timestamps: extended,
         delayed_name_removal: extended,
     };
@@ -344,6 +351,12 @@ fn evaluate(provider: &FixtureProvider, request: &Value) -> Result<Value, Error>
         };
         return Ok(json!({"id": id, "scope": scope}));
     }
+    if request["op"].as_str() == Some("select-plan") {
+        let scope = query
+            .selection_fixture(query_request, &control)
+            .map_err(|error| format!("fixture selection projection failed: {error:?}"))?;
+        return Ok(json!({"id": id, "scope": scope}));
+    }
     if matches!(query_request, QueryRequest::Range { .. })
         && !matches!(query.value_type(), ValueType::Scalar | ValueType::Vector)
     {
@@ -379,6 +392,9 @@ fn evaluate(provider: &FixtureProvider, request: &Value) -> Result<Value, Error>
         }
         Err(ExecutionError::Evaluation(EvaluationError::Runtime(message))) => {
             result["error"] = failure("execution", "*errors.errorString", &message);
+        }
+        Err(ExecutionError::Evaluation(EvaluationError::Expansion(message))) => {
+            result["error"] = failure("execution", "*fmt.wrapError", &message);
         }
         Err(error) => return Err(format!("fixture execution failed: {error:?}").into()),
     }

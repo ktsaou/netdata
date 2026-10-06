@@ -13,6 +13,7 @@ use crate::{
     histogram_functions,
     histogram_stats::StatisticsWindow,
     label_hash,
+    query_catalog::Catalog,
     query_preparation::Prepared,
     range_float::{RateInput, RateWindow},
     range_numeric::{self, NumericRangeError, NumericRangeFunction},
@@ -20,9 +21,8 @@ use crate::{
     range_reduce::{FoldKind, FoldOptions, RangeFunction, fold},
     result::{OwnedLabels, OwnedValue},
     storage::{
-        Control, Interrupted, QueryProvider, ResourceLease, ResourceOwner, SelectionRequest,
-        Series, SeriesSelection, StorageError, TimeBounds, label, matches_in, scan,
-        validate_labels,
+        Control, Interrupted, QueryProvider, Series, StorageError, TimeBounds, label, matches_in,
+        scan, validate_labels,
     },
 };
 use tokens::TokenKind;
@@ -37,6 +37,7 @@ pub enum EvaluationError {
     Invalid(&'static str),
     Preparation(AccountedVec<u8>),
     Runtime(AccountedVec<u8>),
+    Expansion(AccountedVec<u8>),
 }
 impl From<Interrupted> for EvaluationError {
     fn from(value: Interrupted) -> Self {
@@ -186,7 +187,7 @@ enum ParameterizedFunction {
     Range(RangeFunction),
 }
 
-enum State<'a, Q: QueryProvider + 'a> {
+enum State<'a> {
     Enter,
     OrderedRows {
         descriptors: &'a [Descriptor],
@@ -201,8 +202,6 @@ enum State<'a, Q: QueryProvider + 'a> {
         seen: AccountedVec<(u64, u8)>,
     },
     Selection {
-        selection: Q::Selection<'a>,
-        resources: ResourceLease,
         selector: NodeId,
         operation: SelectorOperation,
         ordinal: usize,
@@ -239,9 +238,9 @@ enum State<'a, Q: QueryProvider + 'a> {
         collecting: bool,
     },
 }
-struct Frame<'a, Q: QueryProvider + 'a> {
+struct Frame<'a> {
     node: NodeId,
-    state: State<'a, Q>,
+    state: State<'a>,
     filter: RowFilter<'a>,
     bypass_order: bool,
     mode: OutputMode,
@@ -289,21 +288,21 @@ impl RowFilter<'_> {
 }
 
 pub(crate) struct EvaluationMetadata<'a> {
-    pub(crate) prepared: &'a Prepared,
+    pub(crate) prepared: &'a Prepared<'a>,
     pub(crate) rosters: &'a Rosters,
     pub(crate) invariants: &'a [bool],
     pub(crate) timestamp_selectors: &'a [bool],
     pub(crate) data_bounds: TimeBounds,
     pub(crate) annotations: Option<&'a mut AnnotationBuilder>,
 }
-pub(crate) struct Machine<'a, Q: QueryProvider + 'a> {
-    query: &'a Q,
+pub(crate) struct Machine<'a, 'q, Q: QueryProvider + 'q> {
+    catalog: &'a Catalog<'q, Q>,
     expression: &'a ParsedExpression,
-    prepared: &'a Prepared,
+    prepared: &'a Prepared<'a>,
     options: EvaluationOptions,
     control: &'a Control,
     account: &'a QueryAccounting,
-    frames: AccountedVec<Frame<'a, Q>>,
+    frames: AccountedVec<Frame<'a>>,
     rosters: &'a Rosters,
     invariants: &'a [bool],
     timestamp_selectors: &'a [bool],
@@ -312,9 +311,9 @@ pub(crate) struct Machine<'a, Q: QueryProvider + 'a> {
     annotations: Option<&'a mut AnnotationBuilder>,
 }
 
-impl<'a, Q: QueryProvider + 'a> Machine<'a, Q> {
+impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
     pub(crate) fn new(
-        query: &'a Q,
+        catalog: &'a Catalog<'q, Q>,
         expression: &'a ParsedExpression,
         root: NodeId,
         options: EvaluationOptions,
@@ -331,7 +330,7 @@ impl<'a, Q: QueryProvider + 'a> Machine<'a, Q> {
             mode: OutputMode::Matrix,
         });
         Self {
-            query,
+            catalog,
             expression,
             prepared: metadata.prepared,
             options,
@@ -386,9 +385,9 @@ impl<'a, Q: QueryProvider + 'a> Machine<'a, Q> {
         node: NodeId,
         options: EvaluationOptions,
         annotations: Option<&'b mut AnnotationBuilder>,
-    ) -> Machine<'b, Q> {
+    ) -> Machine<'b, 'q, Q> {
         Machine::new(
-            self.query,
+            self.catalog,
             self.expression,
             node,
             options,
@@ -404,7 +403,7 @@ impl<'a, Q: QueryProvider + 'a> Machine<'a, Q> {
             },
         )
     }
-    fn map(&self, operation: MapOperation) -> State<'a, Q> {
+    fn map(&self, operation: MapOperation) -> State<'a> {
         State::Map {
             operation,
             seen: AccountedVec::new(self.account, MemoryKind::Workspace),
@@ -428,7 +427,7 @@ impl<'a, Q: QueryProvider + 'a> Machine<'a, Q> {
     }
     fn lookup(&self, node: NodeId) -> i64 {
         let selector = self.selector(node);
-        let fixed = self.prepared.timestamp(&selector.modifiers);
+        let fixed = self.prepared.timestamp(node, &selector.modifiers);
         // Direct timestamp selectors replace the lookup offset; storage retains the original.
         if self.timestamp_selectors[node.0]
             && let Some(time) = fixed
@@ -440,7 +439,7 @@ impl<'a, Q: QueryProvider + 'a> Machine<'a, Q> {
                 .wrapping_mul(1_000_000);
             return self.options.time_ms.wrapping_sub(offset / 1_000_000);
         }
-        let time = if fixed.is_some() {
+        let time = if self.invariants[node.0] {
             self.options.start_ms
         } else {
             self.options.time_ms
@@ -467,14 +466,12 @@ impl<'a, Q: QueryProvider + 'a> Machine<'a, Q> {
     ) -> Option<StatisticsWindow> {
         let selector = self.selector(node);
         selector.skip_histogram_buckets.then_some(StatisticsWindow {
-            first_end_ms: if selector.modifiers.timestamp.is_some()
-                || selector.modifiers.start_or_end.is_some()
-            {
+            first_end_ms: if self.invariants[node.0] {
                 end_ms
             } else {
                 self.options.start_ms.wrapping_sub(
                     self.prepared
-                        .offset(node, selector.modifiers.original_offset)
+                        .adjusted_offset(node, &selector.modifiers, self.options.start_ms)
                         / 1_000_000,
                 )
             },
@@ -488,53 +485,12 @@ impl<'a, Q: QueryProvider + 'a> Machine<'a, Q> {
         &self,
         selector_node: NodeId,
         operation: SelectorOperation,
-    ) -> Result<State<'a, Q>, EvaluationError> {
+    ) -> Result<State<'a>, EvaluationError> {
         let selector = self.selector(selector_node);
         if selector.anchored || selector.smoothed {
             return Err(EvaluationError::Unsupported("extended selector reducer"));
         }
-        let end_ms = self.lookup(selector_node);
-        let duration = match operation {
-            SelectorOperation::Instant => self.options.lookback_ms,
-            SelectorOperation::Rate { range_ns, .. }
-            | SelectorOperation::Fold { range_ns, .. }
-            | SelectorOperation::Numeric { range_ns, .. } => range_ns / 1_000_000,
-        };
-        let fixed =
-            selector.modifiers.timestamp.is_some() || selector.modifiers.start_or_end.is_some();
-        let offset = self
-            .prepared
-            .offset(selector_node, selector.modifiers.original_offset)
-            / 1_000_000;
-        // Use the same conservative roster at every step; cursor reads remain step-local.
-        let bounds = TimeBounds {
-            start_ms: (if fixed {
-                end_ms
-            } else {
-                self.options.start_ms.wrapping_sub(offset)
-            })
-            .wrapping_sub(duration)
-            .wrapping_add(1),
-            end_ms: if fixed {
-                end_ms
-            } else {
-                self.options.end_ms.wrapping_sub(offset)
-            },
-        };
-        self.control.check()?;
-        self.account.provider_call();
-        let selection = self.query.select(
-            SelectionRequest {
-                matchers: &selector.matchers,
-                bounds,
-                accounting: Some(self.account),
-            },
-            self.control,
-        )?;
-        let resources = ResourceLease::new(self.account, selection.resources());
         Ok(State::Selection {
-            selection,
-            resources,
             selector: selector_node,
             operation,
             ordinal: 0,
@@ -549,7 +505,10 @@ impl<'a, Q: QueryProvider + 'a> Machine<'a, Q> {
         let Expr::Call { arguments, .. } = &self.expression.arena[node].expression else {
             unreachable!()
         };
-        let argument = self.expression.arena.unparenthesized(arguments[0]);
+        let argument = self
+            .prepared
+            .preprocessing
+            .child(self.expression, node, arguments[0]);
         let Expr::Matrix {
             selector, range, ..
         } = self.expression.arena[argument].expression
@@ -573,25 +532,27 @@ impl<'a, Q: QueryProvider + 'a> Machine<'a, Q> {
         node: NodeId,
         function: RangeFunction,
         parameters: [f64; 2],
-    ) -> Result<State<'a, Q>, EvaluationError> {
+    ) -> Result<State<'a>, EvaluationError> {
         let (selector, operation) = self.range_spec(node, function, parameters)?;
         self.select(selector, operation)
     }
-    pub(crate) fn range_selection(
+    pub(crate) fn range_selector(
         &self,
         node: NodeId,
         function: RangeFunction,
-    ) -> Result<(Q::Selection<'a>, ResourceLease, NodeId), EvaluationError> {
-        let State::Selection {
-            selection,
-            resources,
-            selector,
-            ..
-        } = self.range_call(node, function, [0.0; 2])?
-        else {
-            unreachable!("range selection")
-        };
-        Ok((selection, resources, selector))
+    ) -> Result<NodeId, EvaluationError> {
+        let (selector, operation) = self.range_spec(node, function, [0.0; 2])?;
+        self.select(selector, operation)?;
+        Ok(selector)
+    }
+    pub(crate) fn raw_series_sample<S: Series>(
+        &mut self,
+        node: NodeId,
+        ordinal: usize,
+        series: &S,
+    ) -> Result<Option<EvaluatedSample>, EvaluationError> {
+        self.select(node, SelectorOperation::Instant)?;
+        self.series_sample(node, node, SelectorOperation::Instant, ordinal, series)
     }
     pub(crate) fn range_series_sample<S: Series>(
         &mut self,
@@ -639,8 +600,7 @@ impl<'a, Q: QueryProvider + 'a> Machine<'a, Q> {
         let value = match operation {
             SelectorOperation::Instant => {
                 if selector.skip_histogram_buckets {
-                    let fixed = selector.modifiers.timestamp.is_some()
-                        || selector.modifiers.start_or_end.is_some();
+                    let fixed = self.invariants[selector_node.0];
                     crate::instant_statistics::select(
                         series,
                         crate::instant_statistics::InstantWindow {
@@ -648,9 +608,11 @@ impl<'a, Q: QueryProvider + 'a> Machine<'a, Q> {
                                 end_ms
                             } else {
                                 self.options.start_ms.wrapping_sub(
-                                    self.prepared
-                                        .offset(selector_node, selector.modifiers.original_offset)
-                                        / 1_000_000,
+                                    self.prepared.adjusted_offset(
+                                        selector_node,
+                                        &selector.modifiers,
+                                        self.options.start_ms,
+                                    ) / 1_000_000,
                                 )
                             },
                             lookup_ms: end_ms,
@@ -731,7 +693,10 @@ impl<'a, Q: QueryProvider + 'a> Machine<'a, Q> {
                     else {
                         unreachable!()
                     };
-                    let argument = self.expression.arena.unparenthesized(arguments[0]);
+                    let argument =
+                        self.prepared
+                            .preprocessing
+                            .child(self.expression, node, arguments[0]);
                     let span = self.expression.arena[argument].span;
                     let metric = label(&series_labels, b"__name__");
                     for kind in result.annotations.into_iter().flatten() {
@@ -782,7 +747,10 @@ impl<'a, Q: QueryProvider + 'a> Machine<'a, Q> {
                     else {
                         unreachable!()
                     };
-                    let argument = self.expression.arena.unparenthesized(arguments[0]);
+                    let argument =
+                        self.prepared
+                            .preprocessing
+                            .child(self.expression, node, arguments[0]);
                     for kind in result.annotations.into_iter().flatten() {
                         annotations.add(
                             kind,
@@ -826,7 +794,10 @@ impl<'a, Q: QueryProvider + 'a> Machine<'a, Q> {
                     else {
                         unreachable!()
                     };
-                    let argument = self.expression.arena.unparenthesized(arguments[0]);
+                    let argument =
+                        self.prepared
+                            .preprocessing
+                            .child(self.expression, node, arguments[0]);
                     annotations.add(
                         kind,
                         label(&series_labels, b"__name__"),
@@ -1043,7 +1014,11 @@ impl<'a, Q: QueryProvider + 'a> Machine<'a, Q> {
                 _ => {
                     if let Some(mut function) = PointwiseFunction::parse(function.name) {
                         if let PointwiseFunction::StartTimestamp { propagate } = &mut function {
-                            let argument = self.expression.arena.unparenthesized(arguments[0]);
+                            let argument = self.prepared.preprocessing.child(
+                                self.expression,
+                                node,
+                                arguments[0],
+                            );
                             *propagate = self.options.start_timestamps
                                 && matches!(
                                     self.expression.arena[argument].expression,
@@ -1447,33 +1422,34 @@ impl<'a, Q: QueryProvider + 'a> Machine<'a, Q> {
                     self.frames.pop();
                 }
                 State::Selection {
-                    selection,
-                    resources,
                     selector,
                     operation,
                     ordinal,
                 } => {
-                    self.account.provider_call();
-                    let series = selection.next(self.control);
-                    resources.update(selection.resources());
-                    let series = series?;
-                    let Some(series) = series else {
-                        self.frames.pop();
-                        continue;
-                    };
-                    let series_ordinal = *ordinal;
-                    *ordinal += 1;
-                    let resources = series.resources();
-                    let series = ResourceOwner::new(series, resources, self.account);
-                    let series = &series.value;
-                    if !filter.accepts(series_ordinal) {
-                        validate_labels(&series.label_views(self.account))?;
-                        continue;
-                    }
                     let selector_node = *selector;
                     let operation = *operation;
-                    if let Some(sample) =
-                        self.series_sample(node, selector_node, operation, series_ordinal, series)?
+                    let series_ordinal = *ordinal;
+                    *ordinal += 1;
+                    if series_ordinal >= self.catalog.len(selector_node) {
+                        self.frames.pop();
+                        continue;
+                    }
+                    if !filter.accepts(series_ordinal) {
+                        continue;
+                    }
+                    let catalog = self.catalog;
+                    let sample = catalog
+                        .with_series(selector_node, series_ordinal, |series| {
+                            self.series_sample(
+                                node,
+                                selector_node,
+                                operation,
+                                series_ordinal,
+                                series,
+                            )
+                        })
+                        .expect("catalog ordinal")?;
+                    if let Some(sample) = sample
                         && let Some(sample) = self.propagate(sample, index)?
                     {
                         return Ok(Some(sample));

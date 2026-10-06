@@ -3,6 +3,7 @@
 use crate::{
     accounting::{AccountedVec, MemoryKind, QueryAccounting},
     frontend::{Span, quote, token as tokens},
+    storage::{Control, Interrupted},
 };
 use std::{
     fmt::{self, Write},
@@ -33,6 +34,7 @@ impl HistogramOperation {
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum AnnotationKind {
+    Provider(Severity),
     PossibleNonCounter,
     NativeHistogramNotCounter,
     NativeHistogramNotGauge,
@@ -53,6 +55,7 @@ pub enum AnnotationKind {
 impl AnnotationKind {
     fn severity(self) -> Severity {
         match self {
+            Self::Provider(severity) => severity,
             Self::PossibleNonCounter
             | Self::HistogramIgnoredInMixedRange
             | Self::HistogramIgnoredInAggregation(_)
@@ -69,6 +72,7 @@ impl AnnotationKind {
     }
     fn prefix(self) -> &'static str {
         match self {
+            Self::Provider(_) => "",
             Self::PossibleNonCounter => {
                 "PromQL info: metric might not be a counter, name does not end in _total/_sum/_count/_bucket: "
             }
@@ -120,7 +124,7 @@ pub struct AnnotationRef<'a> {
     pub severity: Severity,
     pub raw_message: &'a [u8],
     pub message: &'a [u8],
-    pub span: Span,
+    pub span: Option<Span>,
     pub occurrences: i64,
 }
 
@@ -129,7 +133,7 @@ struct Annotation {
     kind: AnnotationKind,
     raw_message: AccountedVec<u8>,
     message: AccountedVec<u8>,
-    span: Span,
+    span: Option<Span>,
     occurrences: i64,
 }
 impl Annotation {
@@ -142,8 +146,10 @@ impl Annotation {
         {
             write!(self.message, " ({} occurrences)", self.occurrences).expect("byte writer");
         }
-        write_position_suffix(query, self.span.start as isize, &mut self.message)
-            .expect("byte writer");
+        if let Some(span) = self.span {
+            write_position_suffix(query, span.start as isize, &mut self.message)
+                .expect("byte writer");
+        }
     }
     fn as_ref(&self) -> AnnotationRef<'_> {
         AnnotationRef {
@@ -224,12 +230,43 @@ impl AnnotationBuilder {
         let mut entry = Annotation {
             kind,
             raw_message,
-            span,
+            span: Some(span),
             occurrences: 1,
             message: AccountedVec::new(account, MemoryKind::Result),
         };
         entry.format(query);
         self.merge_one(entry, query);
+    }
+    pub(crate) fn add_provider(
+        &mut self,
+        diagnostic: crate::storage::ProviderDiagnosticRef<'_>,
+        query: &[u8],
+        control: &Control,
+        account: &QueryAccounting,
+    ) -> Result<(), Interrupted> {
+        let mut raw_message = AccountedVec::new(account, MemoryKind::Result);
+        let mut message = AccountedVec::new(account, MemoryKind::Result);
+        for bytes in diagnostic.message.chunks(1024) {
+            control.check()?;
+            account.work(bytes.len() as u64);
+            raw_message.extend_from_slice(bytes);
+            message.extend_from_slice(bytes);
+        }
+        if let Some(position) = diagnostic.position {
+            write_position_suffix(query, position.start as isize, &mut message)
+                .expect("byte writer");
+        }
+        self.merge_one(
+            Annotation {
+                kind: AnnotationKind::Provider(diagnostic.severity),
+                raw_message,
+                message,
+                span: diagnostic.position,
+                occurrences: 1,
+            },
+            query,
+        );
+        Ok(())
     }
     fn merge_one(&mut self, incoming: Annotation, query: &[u8]) {
         if let Some(index) = self
@@ -237,7 +274,9 @@ impl AnnotationBuilder {
             .iter()
             .position(|entry| *entry.raw_message == *incoming.raw_message)
         {
-            if incoming.kind == AnnotationKind::StartTimeOverlap {
+            if incoming.kind == AnnotationKind::StartTimeOverlap
+                && self.entries[index].kind == AnnotationKind::StartTimeOverlap
+            {
                 // The incoming overlap merges into the previous object, keeping its first position.
                 let previous = &mut self.entries[index];
                 previous.occurrences = previous.occurrences.wrapping_add(incoming.occurrences);
@@ -293,6 +332,76 @@ pub(crate) fn write_position_suffix(
 mod tests {
     use super::*;
     use crate::accounting::EngineAccounting;
+    #[test]
+    fn opaque_overlap_text_replaces_the_owner_before_a_new_generated_overlap() {
+        let engine = EngineAccounting::default();
+        let account = engine.query();
+        let control = Control::default();
+        let mut builder = AnnotationBuilder::new(&account);
+        let query = b"a+b+c";
+        for start in [0, 2] {
+            builder.add(
+                AnnotationKind::StartTimeOverlap,
+                b"m",
+                Span {
+                    start,
+                    end: start + 1,
+                },
+                query,
+                &account,
+            );
+        }
+        let raw = b"PromQL warning: sample has start time that overlaps with previous sample timestamp for metric \"m\"";
+        builder
+            .add_provider(
+                crate::storage::ProviderDiagnosticRef {
+                    message: raw,
+                    severity: Severity::Info,
+                    position: None,
+                },
+                query,
+                &control,
+                &account,
+            )
+            .unwrap();
+        assert_eq!(
+            builder.entries[0].kind,
+            AnnotationKind::Provider(Severity::Info)
+        );
+        assert_eq!(builder.entries[0].occurrences, 1);
+        assert_eq!(&*builder.entries[0].message, raw);
+        builder.add(
+            AnnotationKind::StartTimeOverlap,
+            b"m",
+            Span { start: 4, end: 5 },
+            query,
+            &account,
+        );
+        assert_eq!(builder.entries[0].kind, AnnotationKind::StartTimeOverlap);
+        assert_eq!(builder.entries[0].occurrences, 1);
+        assert_eq!(builder.entries[0].span, Some(Span { start: 4, end: 5 }));
+        builder.add(
+            AnnotationKind::StartTimeOverlap,
+            b"m",
+            Span { start: 0, end: 1 },
+            query,
+            &account,
+        );
+        assert_eq!(builder.entries[0].occurrences, 2);
+        assert!(
+            builder.entries[0]
+                .message
+                .ends_with(b" (2 occurrences) (1:5)")
+        );
+        drop(builder);
+        assert!(
+            account
+                .snapshot()
+                .memory
+                .iter()
+                .all(|kind| kind.current == 0)
+        );
+    }
     #[test]
     fn histogram_operation_notes_deduplicate_without_the_metric_name() {
         let engine = EngineAccounting::default();

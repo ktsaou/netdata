@@ -3,9 +3,9 @@
 use crate::{
     accounting::{AccountedVec, MemoryKind, QueryAccounting},
     evaluator::EvaluationOptions,
-    frontend::ast::{Expr, ParsedExpression},
+    frontend::ast::{Expr, NodeId, ParsedExpression},
     query_preparation::{Prepared, SelectorReference},
-    storage::{Control, Interrupted, TimeBounds},
+    storage::{Control, Interrupted, SelectionHints, TimeBounds},
 };
 
 #[derive(Clone, Copy, Default)]
@@ -65,6 +65,126 @@ fn include(bounds: &mut Option<TimeBounds>, value: TimeBounds) {
     }
 }
 
+pub(crate) struct SelectionSite<'a> {
+    pub(crate) node: NodeId,
+    pub(crate) bounds: TimeBounds,
+    pub(crate) hints: SelectionHints<'a>,
+}
+
+/// Syntax traversal precedes evaluation; identical selectors remain distinct sites.
+pub(crate) fn selection_sites<'a>(
+    expression: &'a ParsedExpression,
+    options: EvaluationOptions,
+    prepared: &Prepared,
+    no_step_interval_ms: i64,
+    control: &Control,
+    account: &QueryAccounting,
+) -> Result<AccountedVec<SelectionSite<'a>>, Interrupted> {
+    #[derive(Clone, Copy, Default)]
+    struct Hints<'a> {
+        step_ns: i64,
+        function: &'a str,
+        by: bool,
+        grouping: Option<&'a [Vec<u8>]>,
+    }
+    let options = EvaluationOptions {
+        start_ms: prepared.context.start_ms,
+        end_ms: prepared.context.end_ms,
+        ..options
+    };
+    let mut sites = AccountedVec::new(account, MemoryKind::Workspace);
+    let mut tasks = AccountedVec::new(account, MemoryKind::Workspace);
+    tasks.push((expression.root, Scope::default(), Hints::default()));
+    while let Some((node, mut scope, mut hints)) = tasks.pop() {
+        control.check()?;
+        account.work(1);
+        if prepared.preprocessing.boundaries[node.0] {
+            hints.by = false;
+            hints.grouping = None;
+        }
+        let value = &expression.arena[node].expression;
+        if let Expr::Selector(selector) = value {
+            sites.push(SelectionSite {
+                node,
+                bounds: selector_bounds(
+                    options,
+                    scope,
+                    SelectorReference {
+                        timestamp_ms: prepared.timestamp(node, &selector.modifiers),
+                        offset_ns: prepared.offset(node, selector.modifiers.original_offset),
+                    },
+                    selector.anchored,
+                    selector.smoothed,
+                ),
+                hints: SelectionHints {
+                    step_ms: if hints.step_ns == 0 {
+                        options.step_ms
+                    } else {
+                        hints.step_ns / 1_000_000
+                    },
+                    range_ms: scope.eval_range_ns / 1_000_000,
+                    function: hints.function,
+                    by: hints.by,
+                    grouping: hints.grouping,
+                },
+            });
+            continue;
+        }
+        // Grouping is only the immediate parent's, unlike the nearest function owner.
+        hints.by = false;
+        hints.grouping = None;
+        match value {
+            Expr::Aggregate {
+                operator,
+                grouping,
+                without,
+                ..
+            } => {
+                hints.function = operator.text().expect("aggregation text");
+                hints.by = !without;
+                hints.grouping = grouping.as_deref();
+            }
+            Expr::Call {
+                function: Some(function),
+                ..
+            } => hints.function = function.name,
+            Expr::Binary { .. } => hints.function = "",
+            Expr::Matrix { range, .. } => scope.eval_range_ns = prepared.range(node, *range),
+            Expr::Subquery {
+                range,
+                step,
+                modifiers,
+                ..
+            } => {
+                let offset = prepared.offset(node, modifiers.original_offset);
+                let range = prepared.range(node, *range);
+                scope.offset_ns = scope.offset_ns.wrapping_add(offset);
+                scope.range_ns = scope.range_ns.wrapping_add(range);
+                if let Some(time) = prepared.timestamp(node, modifiers) {
+                    scope.offset_ns = offset;
+                    scope.range_ns = range;
+                    scope.fixed_ms = (time != i64::MAX).then_some(time);
+                }
+                let step = prepared.step(node, *step);
+                hints.step_ns = if step == 0 {
+                    no_step_interval_ms.wrapping_mul(1_000_000)
+                } else {
+                    step
+                };
+            }
+            _ => (),
+        }
+        tasks.extend(value.children().rev().map(|child| {
+            (
+                prepared.preprocessing.child(expression, node, child),
+                scope,
+                hints,
+            )
+        }));
+    }
+    Ok(sites)
+}
+
 pub(crate) fn find(
     expression: &ParsedExpression,
     options: EvaluationOptions,
@@ -91,7 +211,7 @@ pub(crate) fn find(
                         options,
                         scope,
                         SelectorReference {
-                            timestamp_ms: prepared.timestamp(&selector.modifiers),
+                            timestamp_ms: prepared.timestamp(node, &selector.modifiers),
                             offset_ns: prepared.offset(node, selector.modifiers.original_offset),
                         },
                         selector.anchored,
@@ -115,7 +235,7 @@ pub(crate) fn find(
                 let range = prepared.range(node, *range);
                 scope.offset_ns = scope.offset_ns.wrapping_add(offset);
                 scope.range_ns = scope.range_ns.wrapping_add(range);
-                if let Some(time) = prepared.timestamp(modifiers) {
+                if let Some(time) = prepared.timestamp(node, modifiers) {
                     scope.offset_ns = offset;
                     scope.range_ns = range;
                     scope.fixed_ms = (time != i64::MAX).then_some(time);
@@ -183,8 +303,16 @@ mod tests {
             };
             let account = EngineAccounting::default().query();
             let control = Control::default();
+            let preprocessing = crate::evaluator_order::preprocess(
+                &expression,
+                MemoryKind::Workspace,
+                &Control::default(),
+                &account,
+            )
+            .unwrap();
             let prepared = Prepared::new(
                 &expression,
+                &preprocessing,
                 crate::result::OutputHeader {
                     value_type: crate::frontend::ast::ValueType::Vector,
                     start_ms,
@@ -213,6 +341,7 @@ mod tests {
             .unwrap();
             assert_eq!((bounds.start_ms, bounds.end_ms), expected, "{query}");
             drop(prepared);
+            drop(preprocessing);
             assert!(
                 account
                     .snapshot()
@@ -264,8 +393,16 @@ mod tests {
                 root: parsed.root.unwrap(),
             };
             let account = EngineAccounting::default().query();
+            let preprocessing = crate::evaluator_order::preprocess(
+                &expression,
+                MemoryKind::Workspace,
+                &Control::default(),
+                &account,
+            )
+            .unwrap();
             let prepared = Prepared::new(
                 &expression,
+                &preprocessing,
                 crate::result::OutputHeader {
                     value_type: crate::frontend::ast::ValueType::Matrix,
                     start_ms: options.start_ms,
@@ -289,6 +426,8 @@ mod tests {
                 (start_ms, end_ms),
                 "{query}"
             );
+            drop(prepared);
+            drop(preprocessing);
             assert!(
                 account
                     .snapshot()

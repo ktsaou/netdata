@@ -177,6 +177,38 @@ impl<'a, Q: QueryProvider, S: SeriesSelection + 'a> SeriesSelection
             }
         }
     }
+    fn diagnostic_count(&self) -> usize {
+        let result = self
+            .owner
+            .value
+            .borrow()
+            .as_ref()
+            .expect("live selection")
+            .diagnostic_count();
+        let (_, resources) = self.owner.snapshot();
+        self.query.pair(&self.owner.lease, resources);
+        result
+    }
+    fn diagnostic<R>(
+        &self,
+        index: usize,
+        visit: impl for<'b> FnOnce(ProviderDiagnosticRef<'b>) -> R,
+    ) -> R {
+        let result = self
+            .owner
+            .value
+            .borrow()
+            .as_ref()
+            .expect("live selection")
+            .diagnostic(index, |diagnostic| {
+                let (_, resources) = self.owner.snapshot();
+                self.query.pair(&self.owner.lease, resources);
+                visit(diagnostic)
+            });
+        let (_, resources) = self.owner.snapshot();
+        self.query.pair(&self.owner.lease, resources);
+        result
+    }
 }
 impl<Q: QueryProvider, S: Series> ObservedSeries<'_, Q, S> {
     fn observe(&self) {
@@ -364,7 +396,7 @@ mod tests {
     struct SourceProvider(Mode);
     impl Provider for SourceProvider {
         type Query<'a> = Source;
-        fn open(&self, _: &Control) -> Result<Source, StorageError> {
+        fn open(&self, _: TimeBounds, _: &Control) -> Result<Source, StorageError> {
             Ok(Source {
                 held: RefCell::new(vec![]),
                 mode: self.0,
@@ -585,6 +617,7 @@ mod tests {
                         accounting: None,
                         matchers: &[],
                         bounds,
+                        hints: Default::default(),
                     },
                     &control,
                 )
@@ -727,6 +760,7 @@ mod tests {
                     SelectionRequest {
                         accounting: None,
                         matchers: &[],
+                        hints: Default::default(),
                         bounds: TimeBounds {
                             start_ms: 0,
                             end_ms: 0,
@@ -789,6 +823,7 @@ mod tests {
                     SelectionRequest {
                         accounting: None,
                         matchers: &[],
+                        hints: Default::default(),
                         bounds: TimeBounds {
                             start_ms: 0,
                             end_ms: 0,

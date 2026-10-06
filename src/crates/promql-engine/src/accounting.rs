@@ -311,6 +311,17 @@ impl<T> AccountedVec<T> {
             lease: context.map(|context| context.hold(bytes as u64)),
         }
     }
+    /// Transfer an existing owned allocation without copying or losing its capacity charge.
+    pub(crate) fn from_vec_in(values: Vec<T>, context: Option<&AllocationContext>) -> Self {
+        let bytes = values
+            .capacity()
+            .checked_mul(size_of::<T>())
+            .expect("allocation size overflow");
+        Self {
+            values,
+            lease: context.map(|context| context.hold(bytes as u64)),
+        }
+    }
     pub(crate) fn context(&self) -> Option<AllocationContext> {
         self.lease
             .as_ref()

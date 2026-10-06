@@ -95,10 +95,20 @@ pub struct TimeBounds {
     pub start_ms: i64,
     pub end_ms: i64,
 }
+#[derive(Clone, Copy, Debug, Default)]
+pub struct SelectionHints<'a> {
+    pub step_ms: i64,
+    pub range_ms: i64,
+    pub function: &'a str,
+    pub by: bool,
+    pub grouping: Option<&'a [Vec<u8>]>,
+}
 #[derive(Clone, Copy, Debug)]
 pub struct SelectionRequest<'a> {
     pub matchers: &'a [Option<Matcher>],
     pub bounds: TimeBounds,
+    /// Hints borrow the compiled plan for this callback; retained copies belong to the provider.
+    pub hints: SelectionHints<'a>,
     /// Filtering may clone this owner; directly charged scratch is excluded from provider snapshots.
     pub accounting: Option<&'a QueryAccounting>,
 }
@@ -140,7 +150,8 @@ pub trait Provider {
     type Query<'a>: QueryProvider
     where
         Self: 'a;
-    fn open(&self, control: &Control) -> Result<Self::Query<'_>, StorageError>;
+    /// Inclusive original query bounds, before adjusted evaluation offsets.
+    fn open(&self, bounds: TimeBounds, control: &Control) -> Result<Self::Query<'_>, StorageError>;
 }
 pub trait QueryProvider {
     type Selection<'a>: SeriesSelection + 'a
@@ -157,6 +168,24 @@ pub trait SeriesSelection {
     type Series: Series;
     fn resources(&self) -> ProviderResources;
     fn next(&mut self, control: &Control) -> Result<Option<Self::Series>, StorageError>;
+    /// Terminal diagnostics are observed after metadata exhaustion, including a returned error.
+    fn diagnostic_count(&self) -> usize {
+        0
+    }
+    /// The view cannot escape its callback; severity is independent of message text.
+    fn diagnostic<R>(
+        &self,
+        _index: usize,
+        _visit: impl for<'a> FnOnce(ProviderDiagnosticRef<'a>) -> R,
+    ) -> R {
+        panic!("selection has no diagnostics")
+    }
+}
+#[derive(Clone, Copy, Debug)]
+pub struct ProviderDiagnosticRef<'a> {
+    pub message: &'a [u8],
+    pub severity: crate::annotations::Severity,
+    pub position: Option<crate::frontend::Span>,
 }
 pub trait Series {
     type Cursor<'a>: SampleCursor
