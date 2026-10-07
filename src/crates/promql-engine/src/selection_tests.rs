@@ -279,6 +279,142 @@ fn request() -> QueryRequest {
     }
 }
 
+fn info_source() -> Source {
+    let mut source = Source::new();
+    source.data.series[1].labels = vec![
+        (b"__name__".to_vec(), b"target_info".to_vec()),
+        (b"data".to_vec(), b"enriched".to_vec()),
+        (b"instance".to_vec(), b"0".to_vec()),
+        (b"job".to_vec(), b"worker".to_vec()),
+    ];
+    source
+}
+fn info_options() -> EngineOptions {
+    let mut options = EngineOptions::default();
+    options.parser.experimental_functions = true;
+    options
+}
+
+#[test]
+fn info_keeps_upfront_selector_syntax_without_expanding_it() {
+    let mut source = info_source();
+    source.fail_select = Some(1);
+    let engine = Engine::default();
+    let control = Control::default();
+    let query = engine
+        .compile(
+            b"info(m,{__name__=\"target_info\",data=~\".*\"})",
+            info_options(),
+            &control,
+        )
+        .unwrap();
+    let (result, _) = query.collect(&source, request(), &control).unwrap();
+    assert_eq!(result.series.len(), 1);
+    assert!(
+        result.series[0]
+            .labels
+            .0
+            .iter()
+            .any(|label| label.name == b"data" && label.value == b"enriched")
+    );
+    assert_eq!(
+        source.select_names(),
+        [
+            b"m".to_vec(),
+            b"target_info".to_vec(),
+            b"target_info".to_vec()
+        ]
+    );
+    let events = source.events.borrow();
+    assert!(!events.iter().any(|event| matches!(
+        event,
+        Event::Metadata { site: 1, .. } | Event::Cursor { site: 1, .. }
+    )));
+    let first_info_cursor = events
+        .iter()
+        .position(|event| matches!(event, Event::Cursor { site: 2, .. }))
+        .unwrap();
+    assert!(
+        events[..first_info_cursor]
+            .iter()
+            .any(|event| matches!(event, Event::Metadata { site: 2, index: 1 }))
+    );
+    drop(events);
+    source.assert_closed();
+    drop((result, query));
+    engine.accounting.snapshot().assert_memory_released();
+}
+
+#[test]
+fn info_implicit_failures_are_bare_and_discard_unreturned_warnings() {
+    for failure in 0..3 {
+        let mut source = info_source();
+        source.notes = vec![
+            (0, Severity::Warning, b"base-warning".to_vec()),
+            (1, Severity::Info, b"info-note".to_vec()),
+        ];
+        let expected = match failure {
+            0 => {
+                source.fail_select = Some(1);
+                &b"source-a"[..]
+            }
+            1 => {
+                source.fail_metadata = Some((1, 0));
+                &b"metadata-failed"[..]
+            }
+            _ => {
+                source.fail_cursor = Some((1, 0));
+                &b"raw-failed"[..]
+            }
+        };
+        let engine = Engine::default();
+        let control = Control::default();
+        let query = engine
+            .compile(b"info(m)", info_options(), &control)
+            .unwrap();
+        let report = query.collect_reported(&source, request(), &control);
+        assert!(
+            matches!(&report.result, Err(ExecutionError::Evaluation(EvaluationError::Storage(StorageError::Provider(bytes)))) if &bytes[..] == expected)
+        );
+        assert!(report.annotations.is_empty());
+        report.assert_retained_callback_error_memory();
+        source.assert_closed();
+        drop((report, query));
+        engine.accounting.snapshot().assert_memory_released();
+    }
+}
+
+#[test]
+fn info_metadata_cancellation_releases_both_completed_base_and_partial_info_owners() {
+    let mut source = info_source();
+    source.cancel_metadata = Some((1, 1));
+    source.notes = vec![(0, Severity::Warning, b"base-warning".to_vec())];
+    let engine = Engine::default();
+    let control = Control::default();
+    let query = engine
+        .compile(b"info(m)", info_options(), &control)
+        .unwrap();
+    let report = query.collect_reported(&source, request(), &control);
+    assert!(matches!(
+        &report.result,
+        Err(ExecutionError::Evaluation(
+            EvaluationError::Interrupted(_)
+                | EvaluationError::Storage(StorageError::Interrupted(_))
+        ))
+    ));
+    assert!(report.annotations.is_empty());
+    assert!(
+        !source
+            .events
+            .borrow()
+            .iter()
+            .any(|event| matches!(event, Event::Cursor { site: 1, .. }))
+    );
+    source.assert_closed();
+    drop((report, query));
+    engine.accounting.snapshot().assert_memory_released();
+}
+
 #[test]
 fn label_runtime_validation_precedes_child_expansion_but_follows_all_selects() {
     // Source functions.go:2483-2499 validates before ev.eval; populateSeries is upfront.

@@ -107,7 +107,6 @@ impl Matcher {
             }
         }
     }
-    #[cfg(test)]
     pub(crate) fn copy_for(
         &self,
         account: Option<&QueryAccounting>,

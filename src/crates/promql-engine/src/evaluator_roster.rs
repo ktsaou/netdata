@@ -39,11 +39,33 @@ struct NodeRoster {
     projection: Option<AccountedVec<(usize, usize)>>,
     binary: Option<AccountedBox<crate::vector_matching::Plan>>,
     histogram: Option<AccountedBox<crate::histogram_call::Plan>>,
+    info: Option<AccountedBox<crate::info::Plan>>,
 }
 pub(crate) struct Rosters {
     nodes: AccountedVec<NodeRoster>,
 }
 impl Rosters {
+    pub(crate) fn prepare_info(
+        &mut self,
+        node: NodeId,
+        plan: crate::info::Plan,
+        account: &QueryAccounting,
+    ) {
+        self.nodes[node.0].info = Some(AccountedBox::new(
+            plan,
+            &AllocationContext::new(account, MemoryKind::Workspace),
+        ));
+    }
+    pub(crate) fn info(&self, node: NodeId) -> Option<&crate::info::Plan> {
+        self.nodes[node.0].info.as_deref()
+    }
+    pub(crate) fn finish_info_cache(&mut self, node: NodeId, cache: crate::info::Cache) {
+        self.nodes[node.0]
+            .info
+            .as_deref_mut()
+            .expect("INFO plan")
+            .finish(cache);
+    }
     pub(crate) fn prepare_histogram(
         &mut self,
         node: NodeId,

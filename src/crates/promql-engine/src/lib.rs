@@ -42,6 +42,8 @@ mod histogram_layout;
 mod histogram_stats;
 mod histogram_trim;
 mod histogram_work;
+mod info;
+mod instant_select;
 mod instant_statistics;
 mod label_functions;
 mod label_hash;

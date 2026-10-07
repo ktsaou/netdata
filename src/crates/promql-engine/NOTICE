@@ -19,7 +19,7 @@ Paged evaluator, range reducers, scalar conversion and metadata/duplicate cleanu
 derive from promql/engine.go and promql/functions.go. Logical diagnostic ownership,
 deduplication and occurrence formatting derive from util/annotations/annotations.go.
 Request-context duration evaluation derives from promql/durations.go and engine.go's preprocessing.
-Implicit info-series reference inference derives from promql/info.go.
+INFO reference inference, identifying-label selection, signatures and enrichment derive from promql/info.go.
 Statistics-only histogram decoding and buffered access epochs derive from
 promql/histogram_stats_iterator.go and storage/buffer.go.
 Classic bucket interpolation, coalescing and monotonicity derive from promql/quantile.go;

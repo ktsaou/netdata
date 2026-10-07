@@ -28,7 +28,7 @@ fn execution_error(value: &ExecutionError) -> types::Error {
             EvaluationError::Storage(StorageError::Provider(value)) => error(2, value),
             EvaluationError::Storage(StorageError::Invalid(value)) => error(4, value.as_bytes()),
             EvaluationError::Preparation(value) => error(5, value),
-            EvaluationError::Runtime(value) => error(6, value),
+            EvaluationError::Runtime(value) | EvaluationError::Regex(value) => error(6, value),
             EvaluationError::Expansion(value) => error(7, value),
             EvaluationError::Invalid(value) => error(8, value.as_bytes()),
             EvaluationError::Unsupported(value) => error(9, value.as_bytes()),

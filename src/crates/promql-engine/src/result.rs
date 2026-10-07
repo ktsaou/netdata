@@ -53,6 +53,19 @@ impl OwnedLabels {
         )
         .expect("inert label copy")
     }
+    pub(crate) fn copy_from_checked(
+        labels: LabelsRef<'_>,
+        account: &QueryAccounting,
+        kind: MemoryKind,
+        control: &crate::storage::Control,
+    ) -> Result<Self, Interrupted> {
+        Self::copy_labels_with(
+            labels.iter().copied(),
+            account,
+            kind,
+            HistogramWork::new(control, account),
+        )
+    }
     fn copy_labels_with<'a>(
         labels: impl IntoIterator<Item = LabelRef<'a>>,
         account: &QueryAccounting,
@@ -103,7 +116,7 @@ impl OwnedLabels {
             HistogramWork::new(control, account),
         )
     }
-    fn position(
+    pub(crate) fn position(
         &self,
         name: &[u8],
         account: &QueryAccounting,
