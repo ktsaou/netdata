@@ -69,31 +69,53 @@ impl HistogramFunctionResult {
 }
 
 pub fn histogram_quantile(q: f64, h: FloatHistogramRef<'_>) -> HistogramFunctionResult {
+    histogram_quantile_with(q, h, || Ok::<(), std::convert::Infallible>(())).unwrap()
+}
+
+pub(crate) fn histogram_quantile_with<E>(
+    q: f64,
+    h: FloatHistogramRef<'_>,
+    mut poll: impl FnMut() -> Result<(), E>,
+) -> Result<HistogramFunctionResult, E> {
     if q < 0.0 {
-        return HistogramFunctionResult::scalar(f64::NEG_INFINITY);
+        return Ok(HistogramFunctionResult::scalar(f64::NEG_INFINITY));
     }
     if q > 1.0 {
-        return HistogramFunctionResult::scalar(f64::INFINITY);
+        return Ok(HistogramFunctionResult::scalar(f64::INFINITY));
     }
     if h.count == 0.0 || q.is_nan() {
-        return HistogramFunctionResult::scalar(NAN);
+        return Ok(HistogramFunctionResult::scalar(NAN));
     }
 
     let forward = h.sum.is_nan() || q < 0.5;
     let mut iterator = AllFloatBucketIterator::new(h, !forward);
-    let mut rank = if forward {
-        q * h.count
-    } else {
-        (1.0 - q) * h.count
+    let mut rank = {
+        #[cfg(target_arch = "x86_64")]
+        {
+            if forward {
+                source_mul(h.count, q)
+            } else {
+                source_mul(source_sub(1.0, q), h.count)
+            }
+        }
+        #[cfg(not(target_arch = "x86_64"))]
+        {
+            if forward {
+                q * h.count
+            } else {
+                (1.0 - q) * h.count
+            }
+        }
     };
     let mut count = 0.0;
     let mut bucket = Bucket::default();
     while iterator.advance() {
+        poll()?;
         bucket = iterator.at();
         if bucket.count == 0.0 {
             continue;
         }
-        count += bucket.count;
+        count = add_bucket_count(count, bucket.count);
         if count >= rank {
             break;
         }
@@ -104,26 +126,35 @@ pub fn histogram_quantile(q: f64, h: FloatHistogramRef<'_>) -> HistogramFunction
     } else if custom {
         if bucket.lower == f64::NEG_INFINITY {
             if bucket.upper <= 0.0 {
-                return HistogramFunctionResult::scalar(bucket.upper);
+                return Ok(HistogramFunctionResult::scalar(bucket.upper));
             }
             bucket.lower = 0.0;
         } else if bucket.upper == f64::INFINITY {
-            return HistogramFunctionResult::scalar(bucket.lower);
+            return Ok(HistogramFunctionResult::scalar(bucket.lower));
         }
     }
     if count > h.count {
         count = h.count;
     }
     if count < rank {
-        return if h.sum.is_nan() {
+        return Ok(if h.sum.is_nan() {
             HistogramFunctionResult {
                 value: NAN,
                 info: Some(NativeHistogramInfo::QuantileNaNResult),
             }
         } else {
             HistogramFunctionResult::scalar(bucket.upper)
+        });
+    }
+    #[cfg(target_arch = "x86_64")]
+    {
+        rank = if forward {
+            source_sub(rank, source_sub(count, bucket.count))
+        } else {
+            source_sub(count, rank)
         };
     }
+    #[cfg(not(target_arch = "x86_64"))]
     if forward {
         rank -= count - bucket.count;
     } else {
@@ -133,26 +164,58 @@ pub fn histogram_quantile(q: f64, h: FloatHistogramRef<'_>) -> HistogramFunction
     if h.sum.is_nan() {
         // Pinned NaN-skew traversal overwrites the interpolation bucket as it finishes.
         while iterator.advance() {
+            poll()?;
             bucket = iterator.at();
-            count += bucket.count;
+            // Unlike the main scan, Go keeps the old accumulator as the destination here.
+            count = source_add(count, bucket.count);
         }
         if count < h.count {
             info = Some(NativeHistogramInfo::QuantileNaNSkew);
         }
     }
-    let fraction = rank / bucket.count;
+    let fraction = source_div(rank, bucket.count);
     let value = if custom || (bucket.lower <= 0.0 && bucket.upper >= 0.0) {
-        bucket.lower + (bucket.upper - bucket.lower) * fraction
+        #[cfg(target_arch = "x86_64")]
+        {
+            source_add(
+                bucket.lower,
+                source_mul(source_sub(bucket.upper, bucket.lower), fraction),
+            )
+        }
+        #[cfg(not(target_arch = "x86_64"))]
+        {
+            bucket.lower + (bucket.upper - bucket.lower) * fraction
+        }
     } else {
         let lower = log2(bucket.lower.abs());
         let upper = log2(bucket.upper.abs());
         if bucket.lower > 0.0 {
-            exp2(lower + (upper - lower) * fraction)
+            #[cfg(target_arch = "x86_64")]
+            {
+                exp2(source_add(
+                    source_mul(source_sub(upper, lower), fraction),
+                    lower,
+                ))
+            }
+            #[cfg(not(target_arch = "x86_64"))]
+            {
+                exp2(lower + (upper - lower) * fraction)
+            }
         } else {
-            -exp2(upper + (lower - upper) * (1.0 - fraction))
+            #[cfg(target_arch = "x86_64")]
+            {
+                -exp2(source_add(
+                    upper,
+                    source_mul(source_sub(1.0, fraction), source_sub(lower, upper)),
+                ))
+            }
+            #[cfg(not(target_arch = "x86_64"))]
+            {
+                -exp2(upper + (lower - upper) * (1.0 - fraction))
+            }
         }
     };
-    HistogramFunctionResult { value, info }
+    Ok(HistogramFunctionResult { value, info })
 }
 
 pub fn histogram_fraction(
@@ -160,18 +223,28 @@ pub fn histogram_fraction(
     upper: f64,
     h: FloatHistogramRef<'_>,
 ) -> HistogramFunctionResult {
+    histogram_fraction_with(lower, upper, h, || Ok::<(), std::convert::Infallible>(())).unwrap()
+}
+
+pub(crate) fn histogram_fraction_with<E>(
+    lower: f64,
+    upper: f64,
+    h: FloatHistogramRef<'_>,
+    mut poll: impl FnMut() -> Result<(), E>,
+) -> Result<HistogramFunctionResult, E> {
     if h.count == 0.0 || lower.is_nan() || upper.is_nan() {
-        return HistogramFunctionResult::scalar(NAN);
+        return Ok(HistogramFunctionResult::scalar(NAN));
     }
     if lower >= upper {
-        return HistogramFunctionResult::scalar(0.0);
+        return Ok(HistogramFunctionResult::scalar(0.0));
     }
     let (mut count, mut rank, mut lower_rank, mut upper_rank) = (0.0, 0.0, 0.0, 0.0);
     let (mut lower_set, mut upper_set) = (false, false);
     let mut iterator = AllFloatBucketIterator::new(h, false);
     while iterator.advance() {
+        poll()?;
         let mut bucket = iterator.at();
-        count += bucket.count;
+        count = add_bucket_count(count, bucket.count);
         let zero = bucket.lower <= 0.0 && bucket.upper >= 0.0;
         if zero {
             adjust_zero_bounds(&mut bucket, h);
@@ -192,7 +265,15 @@ pub fn histogram_fraction(
             if linear && bucket.lower == f64::NEG_INFINITY {
                 bucket.count
             } else {
-                rank + bucket.count * bucket.fraction_below(value, linear)
+                let fraction = bucket.fraction_below(value, linear);
+                #[cfg(target_arch = "x86_64")]
+                {
+                    source_add(source_mul(fraction, bucket.count), rank)
+                }
+                #[cfg(not(target_arch = "x86_64"))]
+                {
+                    rank + bucket.count * fraction
+                }
             }
         };
         if !lower_set && bucket.lower < lower && bucket.upper > lower {
@@ -206,12 +287,13 @@ pub fn histogram_fraction(
         if lower_set && upper_set {
             break;
         }
-        rank += bucket.count;
+        rank = add_bucket_count(rank, bucket.count);
     }
     let mut info = None;
     if h.sum.is_nan() {
         while iterator.advance() {
-            count += iterator.at().count;
+            poll()?;
+            count = add_bucket_count(count, iterator.at().count);
         }
         if count < h.count {
             info = Some(NativeHistogramInfo::FractionNaNs);
@@ -225,9 +307,22 @@ pub fn histogram_fraction(
     if !upper_set || upper_rank > count {
         upper_rank = count;
     }
-    HistogramFunctionResult {
-        value: (upper_rank - lower_rank) / h.count,
-        info,
+    #[cfg(target_arch = "x86_64")]
+    let value = source_div(source_sub(upper_rank, lower_rank), h.count);
+    #[cfg(not(target_arch = "x86_64"))]
+    let value = (upper_rank - lower_rank) / h.count;
+    Ok(HistogramFunctionResult { value, info })
+}
+
+fn add_bucket_count(previous: f64, bucket: f64) -> f64 {
+    #[cfg(target_arch = "x86_64")]
+    {
+        // Go's main scans preserve the arriving bucket when both counts are NaNs.
+        source_add(bucket, previous)
+    }
+    #[cfg(not(target_arch = "x86_64"))]
+    {
+        previous + bucket
     }
 }
 
@@ -313,6 +408,120 @@ fn adjust_zero_bounds(bucket: &mut Bucket, histogram: FloatHistogramRef<'_>) {
 mod tests {
     use super::*;
     use crate::histogram::{FloatHistogram, Span};
+
+    #[test]
+    #[cfg(target_arch = "x86_64")]
+    fn native_nan_counts_preserve_original_go_forward_and_reverse_destinations() {
+        // Original Go helper capture, including signaling payload permutations.
+        let cases = [
+            (0xfff8_0000_0000_0027, 0x7ff8_0000_0000_0063),
+            (0x7ff8_0000_0000_0063, 0xfff8_0000_0000_0027),
+            (0xfff8_0000_0000_0027, 0x7ff0_0000_0000_0044),
+            (0x7ff0_0000_0000_0044, 0xfff8_0000_0000_0027),
+            (0x7ff8_0000_0000_0063, 0x7ff0_0000_0000_0044),
+            (0x7ff0_0000_0000_0044, 0x7ff8_0000_0000_0063),
+        ];
+        let spans = [Span {
+            offset: 0,
+            length: 2,
+        }];
+        for (a, b) in cases {
+            let buckets = [f64::from_bits(a), f64::from_bits(b)];
+            let histogram = FloatHistogramRef {
+                reset_hint: 0,
+                schema: 0,
+                zero_threshold: 0.0,
+                zero_count: 0.0,
+                count: f64::from_bits(0x7ff8_0000_0000_0042),
+                sum: f64::from_bits(0x7ff8_0000_0000_0099),
+                positive_spans: Some(&spans),
+                positive_buckets: Some(&buckets),
+                negative_spans: None,
+                negative_buckets: None,
+                custom_values: None,
+            };
+            assert_eq!(
+                histogram_fraction(f64::NEG_INFINITY, f64::INFINITY, histogram)
+                    .value
+                    .to_bits(),
+                b | 0x0008_0000_0000_0000,
+            );
+            let reverse = FloatHistogramRef {
+                sum: 0.0,
+                ..histogram
+            };
+            for q in [0.5, 0.75, 1.0] {
+                assert_eq!(
+                    histogram_quantile(q, reverse).value.to_bits(),
+                    a | 0x0008_0000_0000_0000
+                );
+            }
+            assert_eq!(buckets.map(f64::to_bits), [a, b]);
+        }
+    }
+
+    #[test]
+    fn quantile_and_fraction_polls_interrupt_main_and_nan_tail_scans_without_allocations() {
+        use crate::{
+            accounting::{AllocationContext, EngineAccounting, MemoryKind},
+            storage::{Control, Interrupted},
+        };
+        for (quantile, tail) in [(true, false), (true, true), (false, false), (false, true)] {
+            let engine = EngineAccounting::default();
+            let account = engine.query();
+            let context = AllocationContext::new(&account, MemoryKind::Workspace);
+            let histogram = FloatHistogramRef {
+                reset_hint: 0,
+                schema: CUSTOM_BUCKETS_SCHEMA,
+                zero_threshold: 0.0,
+                zero_count: 0.0,
+                count: 5.0,
+                sum: if tail { NAN } else { 10.0 },
+                positive_spans: Some(&[Span {
+                    offset: 0,
+                    length: 4,
+                }]),
+                positive_buckets: Some(&[1.0; 4]),
+                negative_spans: None,
+                negative_buckets: None,
+                custom_values: Some(&[1.0, 2.0, 3.0]),
+            }
+            .to_owned_in(Some(&context));
+            let memory = account.snapshot().memory;
+            let control = Control::default();
+            let mut visited = 0;
+            let poll = || {
+                visited += 1;
+                if visited == 2 {
+                    control.cancellation.cancel();
+                }
+                control.check()?;
+                account.work(1);
+                Ok::<(), Interrupted>(())
+            };
+            let result = if quantile {
+                histogram_quantile_with(if tail { 0.1 } else { 0.5 }, histogram.as_ref(), poll)
+            } else {
+                histogram_fraction_with(
+                    f64::NEG_INFINITY,
+                    if tail { 0.5 } else { f64::INFINITY },
+                    histogram.as_ref(),
+                    poll,
+                )
+            };
+            assert!(matches!(result, Err(Interrupted::Cancelled)));
+            assert_eq!(visited, 2);
+            assert_eq!(account.snapshot().work, 1);
+            assert_eq!(account.snapshot().memory, memory);
+            assert_eq!(histogram.positive_buckets.as_deref(), Some(&[1.0; 4][..]));
+            assert_eq!(
+                histogram.custom_values.as_deref(),
+                Some(&[1.0, 2.0, 3.0][..])
+            );
+            drop(histogram);
+            account.snapshot().assert_memory_released();
+        }
+    }
 
     #[test]
     #[cfg(target_arch = "x86_64")]
