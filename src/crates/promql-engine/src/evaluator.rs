@@ -1055,7 +1055,8 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
                 Ok(None)
             }
             Expr::Aggregate {
-                operator: TokenKind::TOPK | TokenKind::BOTTOMK,
+                operator:
+                    TokenKind::TOPK | TokenKind::BOTTOMK | TokenKind::LIMITK | TokenKind::LIMIT_RATIO,
                 ..
             } => {
                 self.frames[index].state = State::TopK(AccountedBox::new(

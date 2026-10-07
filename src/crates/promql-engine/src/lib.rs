@@ -33,6 +33,8 @@ mod histogram_call;
 pub use go_sort::fixture as sort_fixture;
 #[cfg(feature = "fixtures")]
 pub use go_sort::selection_order_fixture;
+#[cfg(feature = "fixtures")]
+pub use topk::ratio_sampler_fixture;
 pub mod histogram;
 mod histogram_accumulator;
 mod histogram_arithmetic;

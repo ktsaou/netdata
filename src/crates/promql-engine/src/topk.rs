@@ -2,12 +2,13 @@
 // Selection reducers derive from pinned promql/engine.go and value.go; see NOTICE.
 use crate::{
     accounting::{AccountedVec, AllocationContext, MemoryKind, QueryAccounting},
-    annotations::AnnotationKind,
+    annotations::{AnnotationBuilder, AnnotationKind},
     binary_labels,
     evaluator::{EvaluatedSample, EvaluationError, EvaluationOptions},
     evaluator_roster::{Descriptor, group_key},
     float_text::{FloatTextStyle, float_text},
     frontend::{
+        Span,
         ast::{Expr, NodeId, ParsedExpression},
         token::TokenKind,
     },
@@ -19,11 +20,26 @@ use crate::{
 };
 use std::cell::RefCell;
 
+fn sample_offset(hash: u64) -> f64 {
+    (hash as f64) / (u64::MAX as f64)
+}
+fn ratio_contains(ratio: f64, offset: f64) -> bool {
+    (ratio >= 0.0 && offset < ratio) || (ratio < 0.0 && offset >= 1.0 + ratio)
+}
+#[cfg(feature = "fixtures")]
+pub fn ratio_sampler_fixture(hash: u64, ratio: f64) -> (f64, bool) {
+    let offset = sample_offset(hash);
+    (offset, ratio_contains(ratio, offset))
+}
+
 pub(crate) fn is_selection(expression: &Expr) -> bool {
     matches!(
         expression,
         Expr::Aggregate {
-            operator: TokenKind::TOPK | TokenKind::BOTTOMK,
+            operator: TokenKind::TOPK
+                | TokenKind::BOTTOMK
+                | TokenKind::LIMITK
+                | TokenKind::LIMIT_RATIO,
             ..
         }
     )
@@ -63,11 +79,25 @@ impl Parameters {
     }
     fn validate(
         self,
+        operator: TokenKind,
         control: &Control,
         account: &QueryAccounting,
     ) -> Result<bool, EvaluationError> {
         let minimum = if self.present { self.minimum } else { 0.0 };
         let maximum = if self.present { self.maximum } else { 0.0 };
+        if operator == TokenKind::LIMIT_RATIO {
+            if maximum == 0.0 && minimum == 0.0 {
+                return Ok(false);
+            }
+            if self.nan {
+                return Err(EvaluationError::Runtime(binary_labels::formatted(
+                    format_args!("Ratio value is NaN"),
+                    control,
+                    account,
+                )?));
+            }
+            return Ok(true);
+        }
         if maximum < 1.0 {
             return Ok(false);
         }
@@ -183,11 +213,28 @@ impl Plan {
             });
         }
         // The complete parameter and body precede this global validation in the source.
-        self.productive = self.parameters.validate(control, account)?;
+        self.productive = self.parameters.validate(self.operator, control, account)?;
         self.inputs = rows;
         self.bindings = bindings;
         self.groups = hashes.len();
         Ok(())
+    }
+    pub(crate) fn add_annotations(
+        &self,
+        annotations: &mut AnnotationBuilder,
+        span: Span,
+        source: &[u8],
+        account: &QueryAccounting,
+    ) {
+        if self.operator != TokenKind::LIMIT_RATIO || !self.productive {
+            return;
+        }
+        if self.parameters.maximum > 1.0 {
+            annotations.add_invalid_ratio(self.parameters.maximum, 1.0, span, source, account);
+        }
+        if self.parameters.minimum < -1.0 {
+            annotations.add_invalid_ratio(self.parameters.minimum, -1.0, span, source, account);
+        }
     }
     pub(crate) fn project(
         &mut self,
@@ -241,6 +288,7 @@ struct Heap {
 struct Snapshot {
     key: Key,
     k: usize,
+    parameter: f64,
     heaps: AccountedVec<Heap>,
     ignored: bool,
 }
@@ -288,6 +336,7 @@ pub(crate) struct Step<'a> {
     heaps: AccountedVec<Heap>,
     snapshot: Option<Strong<Snapshot>>,
     k: usize,
+    parameter: f64,
     input: usize,
     group: usize,
     waiting: bool,
@@ -320,18 +369,18 @@ impl<'a> Step<'a> {
                 .filter(|snapshot| snapshot.key == Key::from(options))
                 .cloned()
         };
-        let (stage, k) = if !plan.productive {
-            (Stage::Done, 0)
+        let (stage, parameter) = if !plan.productive {
+            (Stage::Done, 0.0)
         } else if let Some(snapshot) = &snapshot {
-            (Stage::Emit, snapshot.k)
+            (Stage::Emit, snapshot.parameter)
         } else if plan.parameters.constant {
-            (
-                Stage::Scan,
-                (plan.parameters.value as usize).min(plan.inputs.len()),
-            )
+            (Stage::Scan, plan.parameters.value)
         } else {
-            (Stage::Parameter, 0)
+            (Stage::Parameter, 0.0)
         };
+        let k = snapshot
+            .as_ref()
+            .map_or_else(|| Self::capacity(plan, parameter), |snapshot| snapshot.k);
         Self {
             plan,
             options,
@@ -341,6 +390,7 @@ impl<'a> Step<'a> {
             canonical_rows,
             snapshot,
             k,
+            parameter,
             heaps: AccountedVec::new(account, MemoryKind::Workspace),
             input: 0,
             group: 0,
@@ -358,6 +408,23 @@ impl<'a> Step<'a> {
             emit_position: 0,
             emitted: None,
         }
+    }
+    fn capacity(plan: &Plan, parameter: f64) -> usize {
+        if plan.operator == TokenKind::LIMIT_RATIO {
+            if parameter == 0.0 {
+                0
+            } else {
+                plan.inputs.len()
+            }
+        } else {
+            (parameter as usize).min(plan.inputs.len())
+        }
+    }
+    fn native(&self) -> bool {
+        matches!(
+            self.plan.operator,
+            TokenKind::LIMITK | TokenKind::LIMIT_RATIO
+        )
     }
     fn request(&mut self, input: usize) -> Action<'a> {
         self.waiting = true;
@@ -404,6 +471,14 @@ impl<'a> Step<'a> {
             )),
         }
     }
+    fn comparison_value(&mut self) -> Result<f64, EvaluationError> {
+        if self.native() && matches!(self.pending, Pending::Histogram) {
+            self.pending = Pending::Empty;
+            Ok(0.0)
+        } else {
+            self.float()
+        }
+    }
     fn start_program(&mut self, program: Program, group: usize, resume: Resume) {
         self.program = Some(program);
         self.group = group;
@@ -420,6 +495,7 @@ impl<'a> Step<'a> {
             Snapshot {
                 key: self.options.into(),
                 k: self.k,
+                parameter: self.parameter,
                 heaps,
                 ignored: self.ignored,
             },
@@ -467,20 +543,8 @@ impl<'a> Step<'a> {
                 let canonical = self.plan.bindings[input]
                     .canonical
                     .expect("productive canonical binding");
-                if canonical.ordinal != self.emit_row
-                    || self.vector
-                        && !self
-                            .canonical_rows
-                            .expect("frozen canonical selection rows")[canonical.ordinal]
-                            .heads
-                            .accepts(1, self.options.time_ms)
-                {
+                if canonical.ordinal != self.emit_row {
                     continue;
-                }
-                if self.vector {
-                    self.emit_row += 1;
-                    self.emit_group = 0;
-                    self.emit_position = 0;
                 }
             }
             return Ok(Some(input));
@@ -504,7 +568,8 @@ impl<'a> Step<'a> {
                     });
                 }
                 self.waiting = false;
-                self.k = (self.float()? as usize).min(self.plan.inputs.len());
+                self.parameter = self.float()?;
+                self.k = Self::capacity(self.plan, self.parameter);
                 self.stage = Stage::Scan;
             }
             Stage::Scan => {
@@ -533,17 +598,37 @@ impl<'a> Step<'a> {
                 let group = self.plan.bindings[self.input].group;
                 match std::mem::replace(&mut self.pending, Pending::Empty) {
                     Pending::Empty => self.input += 1,
-                    Pending::Histogram => {
+                    Pending::Histogram if !self.native() => {
                         self.ignored = true;
                         self.input += 1;
                     }
-                    Pending::Float(value) => {
+                    value => {
+                        let value = match value {
+                            Pending::Float(value) => value,
+                            Pending::Histogram => 0.0,
+                            Pending::Empty => unreachable!(),
+                        };
+                        if self.plan.operator == TokenKind::LIMIT_RATIO {
+                            let hash = label_hash::full(
+                                &self.plan.inputs[self.input].labels,
+                                control,
+                                account,
+                            )?;
+                            let offset = sample_offset(hash);
+                            let ratio = self.parameter.clamp(-1.0, 1.0);
+                            if !ratio_contains(ratio, offset) {
+                                self.input += 1;
+                                return Ok(Action::Continue);
+                            }
+                        }
                         let heap = &mut self.heaps[group].indices;
                         if heap.len() < self.k {
                             heap.push(self.input);
                             let program = Program::heap_push(heap.len());
                             self.input += 1;
                             self.start_program(program, group, Resume::Scan);
+                        } else if self.native() {
+                            self.input += 1;
                         } else {
                             self.candidate = value;
                             self.group = group;
@@ -582,7 +667,7 @@ impl<'a> Step<'a> {
                     if self.waiting {
                         self.waiting = false;
                         let position = comparison.position;
-                        let value = self.float()?;
+                        let value = self.comparison_value()?;
                         let comparison = self.comparison.as_mut().expect("comparison continuation");
                         comparison.values[position] = value;
                         comparison.position += 1;
@@ -594,10 +679,10 @@ impl<'a> Step<'a> {
                     let [left, right] = comparison.values;
                     self.reply = Some(
                         left.is_nan()
-                            || if self.plan.operator == TokenKind::TOPK {
-                                left < right
-                            } else {
+                            || if self.plan.operator == TokenKind::BOTTOMK {
                                 left > right
+                            } else {
+                                left < right
                             },
                     );
                     self.comparison = None;
@@ -638,7 +723,7 @@ impl<'a> Step<'a> {
                 }
             }
             Stage::Sort => {
-                if self.group == self.heaps.len() {
+                if self.native() || self.group == self.heaps.len() {
                     self.publish(control, account)?;
                 } else if self.heaps[self.group].indices.len() > 1 {
                     self.start_program(
@@ -657,7 +742,7 @@ impl<'a> Step<'a> {
                     let mut sample = self.emitted.take().ok_or(EvaluationError::Invalid(
                         "selection winner changed during replay",
                     ))?;
-                    if !matches!(sample.value, OwnedValue::Float(_)) {
+                    if !self.native() && !matches!(sample.value, OwnedValue::Float(_)) {
                         return Err(EvaluationError::Invalid(
                             "selection winner changed during replay",
                         ));
@@ -666,6 +751,24 @@ impl<'a> Step<'a> {
                     if self.project
                         && let Some(canonical) = self.plan.bindings[input].canonical
                     {
+                        if self.vector {
+                            let kind = if matches!(sample.value, OwnedValue::Float(_)) {
+                                1
+                            } else {
+                                2
+                            };
+                            if !self
+                                .canonical_rows
+                                .expect("frozen canonical selection rows")[canonical.ordinal]
+                                .heads
+                                .accepts(kind, self.options.time_ms)
+                            {
+                                return Ok(Action::Continue);
+                            }
+                            self.emit_row += 1;
+                            self.emit_group = 0;
+                            self.emit_position = 0;
+                        }
                         let representative = &self.plan.inputs[canonical.representative];
                         sample.ordinal = canonical.ordinal;
                         sample.labels = representative.labels.copy_checked(

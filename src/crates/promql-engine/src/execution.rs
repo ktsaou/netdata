@@ -1221,6 +1221,22 @@ impl CompiledQuery {
             if let Some(notes) = info_annotations {
                 annotations.merge(notes, &self.expression.source);
             }
+            if let Expr::Aggregate {
+                parameter: Some(parameter),
+                ..
+            } = expression
+                && let Some(selection) = rosters.selection(node)
+            {
+                let parameter = prepared
+                    .preprocessing
+                    .child(&self.expression, node, *parameter);
+                selection.add_annotations(
+                    &mut annotations,
+                    self.expression.arena[parameter].span,
+                    &self.expression.source,
+                    account,
+                );
+            }
             let mut descriptors = AccountedVec::<Descriptor>::new(account, MemoryKind::Workspace);
             let mut descriptor_index = DescriptorIndex::new(account);
             let unary_merge =
@@ -7511,17 +7527,48 @@ mod tests {
     }
 
     #[test]
+    fn ratio_warnings_use_the_visited_parameter_span_after_parenthesis_preprocessing() {
+        let provider = FixtureProvider::new(1, 1, 1);
+        let engine = Engine::default();
+        let control = Control::default();
+        let mut settings = EngineOptions::default();
+        settings.parser.experimental_functions = true;
+        let query = engine
+            .compile(b"(limit_ratio((2),counter_total))", settings, &control)
+            .unwrap();
+        let report =
+            query.collect_reported(&provider, QueryRequest::Instant { time_ms: 1000 }, &control);
+        assert!(report.result.is_ok());
+        assert_eq!(report.annotations.len(), 1);
+        assert_eq!(
+            report.annotations.iter().next().unwrap().message,
+            b"PromQL warning: ratio value should be between -1 and 1, got 2, capping to 1 (1:15)"
+        );
+        provider.assert_closed();
+        drop((report, query));
+        engine.accounting.snapshot().assert_memory_released();
+    }
+
+    #[test]
     fn selection_replay_preserves_sum_conservation_with_one_page_of_raw_memory() {
         for page_size in [1, 17, 1024] {
-            for operator in ["topk", "bottomk"] {
+            for (operator, parameter, selected) in [
+                ("topk", "2", 2),
+                ("bottomk", "2", 2),
+                ("limitk", "2", 2),
+                ("limit_ratio", "-1", 3),
+            ] {
                 let mut peaks = Vec::new();
                 for count in [2048, 100_000] {
                     let provider = FixtureProvider::new(count, page_size, 3);
                     let engine = Engine::default();
                     let control = Control::default();
-                    let source = format!("{operator}(2,sum_over_time(counter_total[1000000s]))");
+                    let source =
+                        format!("{operator}({parameter},sum_over_time(counter_total[1000000s]))");
+                    let mut settings = EngineOptions::default();
+                    settings.parser.experimental_functions = true;
                     let query = engine
-                        .compile(source.as_bytes(), EngineOptions::default(), &control)
+                        .compile(source.as_bytes(), settings, &control)
                         .unwrap();
                     let (result, observed) = query
                         .collect(
@@ -7532,7 +7579,7 @@ mod tests {
                             &control,
                         )
                         .unwrap();
-                    assert_eq!(result.series.len(), 2);
+                    assert_eq!(result.series.len(), selected);
                     for row in &result.series {
                         assert_eq!(row.points.len(), 1);
                         assert_eq!(
@@ -7579,7 +7626,7 @@ mod tests {
                 value: crate::value::SampleValue::Float(1.0),
             }
         }
-        for operator in ["topk", "bottomk"] {
+        for operator in ["topk", "bottomk", "limitk", "limit_ratio"] {
             let mut reads = Vec::new();
             for depth in [1, 4] {
                 let mut provider = FixtureProvider::new(1, 1, 24);
@@ -7588,17 +7635,27 @@ mod tests {
                 }
                 let engine = Engine::default();
                 let control = Control::default();
-                let mut source = format!("{operator}(5,counter_total)");
+                let parameter = if operator == "limit_ratio" { "-1" } else { "5" };
+                let mut source = format!("{operator}({parameter},counter_total)");
                 for _ in 0..depth {
-                    source = format!("{operator}(scalar(sum({source})),counter_total)");
+                    source = if operator == "limit_ratio" {
+                        format!("{operator}(-scalar(sum({source}))/24,counter_total)")
+                    } else {
+                        format!("{operator}(scalar(sum({source})),counter_total)")
+                    };
                 }
+                let mut settings = EngineOptions::default();
+                settings.parser.experimental_functions = true;
                 let query = engine
-                    .compile(source.as_bytes(), EngineOptions::default(), &control)
+                    .compile(source.as_bytes(), settings, &control)
                     .unwrap();
                 let (result, observed) = query
                     .collect(&provider, QueryRequest::Instant { time_ms: 1000 }, &control)
                     .unwrap();
-                assert_eq!(result.series.len(), 5);
+                assert_eq!(
+                    result.series.len(),
+                    if operator == "limit_ratio" { 24 } else { 5 }
+                );
                 assert!(
                     result
                         .series
@@ -7640,17 +7697,41 @@ mod tests {
             });
             crate::test_storage::counter(index)
         }
-        for operator in ["topk", "bottomk"] {
+        fn native_sample(index: usize) -> crate::value::Sample {
+            let mut point = sample(index);
+            point.value =
+                crate::value::SampleValue::FloatHistogram(crate::histogram::FloatHistogram {
+                    schema: -53,
+                    count: 3.0,
+                    sum: 5.0,
+                    zero_count: 7.0,
+                    positive_buckets: Some(vec![1.0, 2.0].into()),
+                    custom_values: Some(vec![1.0].into()),
+                    ..crate::histogram::FloatHistogram::default()
+                });
+            point
+        }
+        for (operator, native) in [
+            ("topk", false),
+            ("bottomk", false),
+            ("limitk", false),
+            ("limit_ratio", false),
+            ("limitk", true),
+            ("limit_ratio", true),
+        ] {
             for cancel in [false, true] {
                 let mut provider = FixtureProvider::new(1, 1, 8);
                 for series in &mut provider.series {
-                    series.source.sample = sample;
+                    series.source.sample = if native { native_sample } else { sample };
                 }
                 let engine = Engine::default();
                 let control = Control::default();
-                let source = format!("{operator}(8,counter_total)");
+                let parameter = if operator == "limit_ratio" { "-1" } else { "8" };
+                let source = format!("{operator}({parameter},counter_total)");
+                let mut settings = EngineOptions::default();
+                settings.parser.experimental_functions = true;
                 let query = engine
-                    .compile(source.as_bytes(), EngineOptions::default(), &control)
+                    .compile(source.as_bytes(), settings, &control)
                     .unwrap();
                 let mut sink = RecordingSink {
                     fail_after: (!cancel).then_some(2),

@@ -165,6 +165,59 @@ class SamplerCaptureTests(unittest.TestCase):
         self.assertTrue(rounded["thresholds"][12]["selected"])
         self.assertFalse(rounded["thresholds"][13]["selected"])
 
+    def test_candidate_transport_rejects_loss_reordering_and_incomplete_values(self):
+        original = self.original["cases"]
+        packets = ratio_sampler.candidate_packets(original)
+        self.assertEqual(len(packets), 30)
+        self.assertEqual(
+            packets[15],
+            {
+                "id": "uint64:ffffffffffffffff:0",
+                "mode": "limit-ratio-sampler",
+                "borrowed": False,
+                "request": {"hash": "ffffffffffffffff", "ratio": "0000000000000000"},
+            },
+        )
+        responses = [
+            {
+                "id": f"{row['id']}:{index}",
+                "actual": {"offset": row["offset"], "selected": threshold["selected"]},
+            }
+            for row in original
+            for index, threshold in enumerate(row["thresholds"])
+        ]
+        self.assertEqual(
+            ratio_sampler.qualify_outputs(original, responses)["status"], "PASS"
+        )
+        for rows in (responses[:-1], responses[::-1], [responses[0]] * 30):
+            with self.assertRaises(ValueError):
+                ratio_sampler.qualify_outputs(original, rows)
+        for field, value in (("offset", True), ("offset", "invalid"), ("selected", 0)):
+            changed = deepcopy(responses)
+            changed[0]["actual"][field] = value
+            with self.subTest(field=field, value=value), self.assertRaises(ValueError):
+                ratio_sampler.qualify_outputs(original, changed)
+
+    def test_valid_changed_offset_or_predicate_is_an_exact_failure(self):
+        original = self.original["cases"]
+        responses = [
+            {
+                "id": f"{row['id']}:{index}",
+                "actual": {"offset": row["offset"], "selected": threshold["selected"]},
+            }
+            for row in original
+            for index, threshold in enumerate(row["thresholds"])
+        ]
+        responses[15]["actual"]["offset"] = "3fefffffffffffff"
+        responses[27]["actual"]["selected"] = False
+        report = ratio_sampler.qualify_outputs(original, responses)
+        self.assertEqual(report["status"], "FAIL")
+        self.assertEqual(report["passed"], 28)
+        self.assertEqual(
+            {row["id"] for row in report["failures"]},
+            {"uint64:ffffffffffffffff:0", "uint64:ffffffffffffffff:12"},
+        )
+
     def test_resealed_offsets_thresholds_and_branch_booleans_fail(self):
         for mutation in (
             "offset",
