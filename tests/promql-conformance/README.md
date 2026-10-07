@@ -998,11 +998,15 @@ diagnostics at pages 1/17/1024 in both builds; fifty subquery cases remain open.
 rate assertions remain unchanged. Generated 2,048-versus-100,000-sample histories keep equal workspace peaks
 for all five rate families at every page size, with one open cursor and independently released result owners.
 Checked schema-copy, reset, zero-threshold, layout, Add/Sub and integer-conversion paths count work and poll
-cancellation inside bucket loops. Their temporary arrays and shifted merge cells are accounted. Native Kahan
-aggregation and other remaining callers still require those interruption hooks; this rate qualification does
-not establish complete runtime accounting or full expression/C compatibility. Replaying the shared 6,440-case
-histogram helpers preserves their ten/one NaN-sign differences in release/release-min and three declared-bit
-reports. Replaying all 1,270 statistics helpers preserves their eight paired and fourteen declared-bit reports.
+cancellation inside bucket loops. Native SUM/AVG, first/last retention and changes/reset comparisons use the same
+checked owners. Correction creation, overflow scans, schema reductions, sparse shifts, compaction and explicit
+buffer-growth copies process bounded chunks. Interrupted growth keeps the source buffer and releases its
+replacement; both live allocations contribute to the observed peak. Arithmetic errors retain their source
+phases, including deliberately ignored vector-finalization flags and later range provider failures. This does
+not establish full expression/C compatibility or interrupt latency inside the allocator. The current candidate
+and previous signed metadata baseline match all 6,440 histogram and 1,270 statistics helpers bit for bit in both
+profiles. Original Go assertions retain three histogram and fourteen statistics declared-bit differences from
+their source execution.
 
 Regression keeps four compensated sums and its source constancy check. Smoothing keeps two previous values and
 one trend, including the source's second-point initialization and NaN factor behavior. Scalar arguments are

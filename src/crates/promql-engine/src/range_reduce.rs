@@ -5,13 +5,15 @@ use crate::{
     annotations::{AnnotationKind, HistogramOperation},
     histogram::{FloatHistogramRef, HistogramError},
     histogram_accumulator::{Finalization, NativeAccumulator},
+    histogram_counter::detect_reset_with,
     histogram_stats::{StatisticsWindow, scan_statistics},
+    histogram_work::{HistogramEvaluationError, HistogramWork},
     numerical::{compensated_add, sqrt},
     range_float::{RateKind, start_timestamp_reset},
     range_numeric::NumericRangeFunction,
     range_rates::RateFunction,
     result::{OwnedHistogram, OwnedValue},
-    storage::{Control, Series, StorageError, TimeBounds},
+    storage::{Control, Interrupted, Series, StorageError, TimeBounds},
     value::{SampleRef, SampleValueRef},
 };
 
@@ -108,17 +110,22 @@ impl NativeFold {
     fn add(
         &mut self,
         value: FloatHistogramRef<'_>,
+        control: &Control,
         account: &QueryAccounting,
-    ) -> Result<(), HistogramError> {
+    ) -> Result<(), HistogramEvaluationError> {
         self.count += 1;
         self.accumulator
-            .add(value, self.count as f64, account)
+            .add(value, self.count as f64, control, account)
             .map(|_| ())
     }
-    fn finish(self) -> Result<FoldResult, HistogramError> {
-        let result = self
-            .accumulator
-            .finish(self.count as f64, Finalization::Range)?;
+    fn finish(
+        self,
+        control: &Control,
+        account: &QueryAccounting,
+    ) -> Result<FoldResult, HistogramEvaluationError> {
+        let result =
+            self.accumulator
+                .finish(self.count as f64, Finalization::Range, control, account)?;
         Ok(FoldResult {
             value: Some(OwnedValue::Histogram(result.value)),
             annotations: [
@@ -137,12 +144,17 @@ impl NativeFold {
     }
 }
 
-fn retain_histogram(value: SampleValueRef<'_>, account: &QueryAccounting) -> OwnedHistogram {
-    let OwnedValue::Histogram(value) = OwnedValue::copy_from(value, account, MemoryKind::Workspace)
+fn retain_histogram(
+    value: SampleValueRef<'_>,
+    control: &Control,
+    account: &QueryAccounting,
+) -> Result<OwnedHistogram, Interrupted> {
+    let OwnedValue::Histogram(value) =
+        OwnedValue::copy_from_checked(value, control, account, MemoryKind::Workspace)?
     else {
         unreachable!("classified histogram window")
     };
-    value
+    Ok(value)
 }
 
 fn fold_histograms<S: Series>(
@@ -162,7 +174,7 @@ fn fold_histograms<S: Series>(
         let Some(state) = &mut state else {
             state = Some(NativeFold::new(
                 kind,
-                retain_histogram(sample.value, account),
+                retain_histogram(sample.value, control, account)?,
             ));
             return Ok(());
         };
@@ -170,25 +182,34 @@ fn fold_histograms<S: Series>(
         let value = match sample.value {
             SampleValueRef::FloatHistogram(value) => value,
             SampleValueRef::IntegerHistogram(_) => {
-                converted = retain_histogram(sample.value, account);
+                converted = retain_histogram(sample.value, control, account)?;
                 converted.as_ref()
             }
             SampleValueRef::Float(_) => unreachable!("classified histogram window"),
         };
-        error = state.add(value, account).err();
+        match state.add(value, control, account) {
+            Ok(()) => (),
+            Err(HistogramEvaluationError::Arithmetic(failure)) => error = Some(failure),
+            Err(HistogramEvaluationError::Interrupted(failure)) => return Err(failure.into()),
+        }
         Ok(())
     })?;
     let result = match error {
-        Some(error) => Err(error),
-        None => state.expect("nonempty histogram window").finish(),
+        Some(error) => Err(HistogramEvaluationError::Arithmetic(error)),
+        None => state
+            .expect("nonempty histogram window")
+            .finish(control, account),
     };
     Ok(match result {
         Ok(result) => result,
-        Err(HistogramError::IncompatibleSchema) => FoldResult {
-            value: None,
-            annotations: [Some(AnnotationKind::MixedExponentialCustomHistograms), None],
-        },
-        Err(error) => panic!("{error}"),
+        Err(HistogramEvaluationError::Arithmetic(HistogramError::IncompatibleSchema)) => {
+            FoldResult {
+                value: None,
+                annotations: [Some(AnnotationKind::MixedExponentialCustomHistograms), None],
+            }
+        }
+        Err(HistogramEvaluationError::Arithmetic(error)) => panic!("{error}"),
+        Err(HistogramEvaluationError::Interrupted(error)) => return Err(error.into()),
     })
 }
 
@@ -332,12 +353,22 @@ struct Previous {
     start_time_ms: i64,
 }
 impl Previous {
-    fn copy(sample: SampleRef<'_>, use_start: bool, account: &QueryAccounting) -> Self {
-        Self {
-            value: OwnedValue::copy_from(sample.value, account, MemoryKind::Workspace),
+    fn copy(
+        sample: SampleRef<'_>,
+        use_start: bool,
+        control: &Control,
+        account: &QueryAccounting,
+    ) -> Result<Self, Interrupted> {
+        Ok(Self {
+            value: OwnedValue::copy_from_checked(
+                sample.value,
+                control,
+                account,
+                MemoryKind::Workspace,
+            )?,
             time_ms: sample.time_ms,
             start_time_ms: if use_start { sample.start_time_ms } else { 0 },
-        }
+        })
     }
 }
 
@@ -400,15 +431,20 @@ pub(crate) fn fold<S: Series>(
                 histogram_last = Some(sample.time_ms);
             }
             if kind == Last || kind == First && count == 1 {
-                selected = Some(OwnedValue::copy_from(
+                selected = Some(OwnedValue::copy_from_checked(
                     sample.value,
+                    control,
                     account,
                     MemoryKind::Workspace,
-                ));
+                )?);
             }
             if kind.previous() {
-                let current =
-                    Previous::copy(sample, kind == Resets && options.start_timestamps, account);
+                let current = Previous::copy(
+                    sample,
+                    kind == Resets && options.start_timestamps,
+                    control,
+                    account,
+                )?;
                 if let Some(previous) = &previous {
                     let changed = match (current.value.as_ref(), previous.value.as_ref()) {
                         (SampleValueRef::Float(value), SampleValueRef::Float(old)) => {
@@ -429,14 +465,18 @@ pub(crate) fn fold<S: Series>(
                             SampleValueRef::FloatHistogram(old),
                         ) => {
                             if kind == Changes {
-                                !value.equals(old)
+                                !value.equals_with(old, HistogramWork::new(control, account))?
                             } else {
                                 start_timestamp_reset(
                                     previous.start_time_ms,
                                     previous.time_ms,
                                     current.start_time_ms,
                                     current.time_ms,
-                                ) || value.detect_reset(old)
+                                ) || detect_reset_with(
+                                    value,
+                                    old,
+                                    HistogramWork::new(control, account),
+                                )?
                             }
                         }
                         _ => true,
@@ -494,4 +534,81 @@ pub(crate) fn fold<S: Series>(
             None,
         ],
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::{
+        accounting::EngineAccounting,
+        histogram::{FloatHistogram, Span},
+        test_storage::{GeneratedSeries, interrupt_during},
+        value::{Sample, SampleValue},
+    };
+    use std::sync::atomic::Ordering;
+
+    fn large_native_sample(index: usize) -> Sample {
+        Sample {
+            time_ms: 1000 + index as i64 * 1000,
+            start_time_ms: 0,
+            value: SampleValue::FloatHistogram(FloatHistogram {
+                count: 16_384.0,
+                sum: 16_384.0,
+                positive_spans: Some(
+                    vec![Span {
+                        offset: 0,
+                        length: 16_384,
+                    }]
+                    .into(),
+                ),
+                positive_buckets: Some(vec![1.0; 16_384].into()),
+                ..FloatHistogram::default()
+            }),
+        }
+    }
+
+    #[test]
+    fn native_range_retention_interrupts_and_closes_its_page_cursor() {
+        for kind in [
+            FoldKind::First,
+            FoldKind::Last,
+            FoldKind::Sum,
+            FoldKind::Avg,
+            FoldKind::Changes,
+            FoldKind::Resets,
+        ] {
+            let engine = EngineAccounting::default();
+            let account = engine.query();
+            let control = Control::default();
+            let series = GeneratedSeries::new(2, 1, large_native_sample);
+            let result = interrupt_during(&account, &control, || {
+                fold(
+                    &series,
+                    TimeBounds {
+                        start_ms: 1000,
+                        end_ms: 2000,
+                    },
+                    kind,
+                    FoldOptions {
+                        start_timestamps: true,
+                        statistics: None,
+                    },
+                    &control,
+                    &account,
+                )
+            });
+            assert!(matches!(
+                result,
+                Err(StorageError::Interrupted(Interrupted::Cancelled))
+            ));
+            assert_eq!(
+                series.counters.opened.load(Ordering::Relaxed),
+                series.counters.closed.load(Ordering::Relaxed)
+            );
+            assert_eq!(series.counters.peak.load(Ordering::Relaxed), 1);
+            account.snapshot().assert_memory_released();
+            drop(account);
+            engine.snapshot().assert_memory_released();
+        }
+    }
 }

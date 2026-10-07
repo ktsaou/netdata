@@ -43,9 +43,6 @@ fn syntax_result<T>(
 }
 
 macro_rules! buffer {
-    ($context:expr; $value:expr; $len:expr) => {
-        Buffer::filled_in($len, $value, $context)
-    };
     ($context:expr; $($value:expr),* $(,)?) => {
         Buffer::from_iter_in([$($value),*], $context)
     };

@@ -1645,9 +1645,13 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
                         self.account,
                     )? {
                         let group = &mut groups[position];
-                        if let Some(kind) =
-                            group.add(*operator, &sample.value, sample.drop_name, self.account)
-                            && node == self.diagnostic_node
+                        if let Some(kind) = group.add(
+                            *operator,
+                            &sample.value,
+                            sample.drop_name,
+                            self.control,
+                            self.account,
+                        )? && node == self.diagnostic_node
                             && let Some(annotations) = &mut self.annotations
                         {
                             annotations.add(

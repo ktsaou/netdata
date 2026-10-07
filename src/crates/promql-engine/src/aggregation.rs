@@ -8,6 +8,7 @@ use crate::{
     frontend::token as tokens,
     histogram::HistogramError,
     histogram_accumulator::{Finalization, NativeAccumulator},
+    histogram_work::HistogramEvaluationError,
     numerical::{compensated_add, source_add, sqrt},
     result::{OwnedLabels, OwnedValue},
     storage::{Control, Interrupted},
@@ -60,8 +61,9 @@ impl<'a> Group<'a> {
         operator: TokenKind,
         value: &OwnedValue,
         drop_name: bool,
+        control: &Control,
         account: &QueryAccounting,
-    ) -> Option<AnnotationKind> {
+    ) -> Result<Option<AnnotationKind>, Interrupted> {
         use TokenKind::*;
         let (float, histogram) = match value {
             OwnedValue::Float(value) => (*value, None),
@@ -77,7 +79,10 @@ impl<'a> Group<'a> {
                 SUM | AVG => {
                     if let Some(histogram) = histogram {
                         self.native = Some(AccountedBox::new(
-                            NativeAccumulator::new(operator == AVG, histogram.copy()),
+                            NativeAccumulator::new(
+                                operator == AVG,
+                                histogram.copy_checked(control, account)?,
+                            ),
                             &AllocationContext::new(account, MemoryKind::Workspace),
                         ));
                         self.has_histogram = true;
@@ -87,7 +92,9 @@ impl<'a> Group<'a> {
                 }
                 MIN | MAX | STDVAR | STDDEV if histogram.is_some() => {
                     self.seen = false;
-                    return Some(AnnotationKind::HistogramIgnoredInAggregation(operator));
+                    return Ok(Some(AnnotationKind::HistogramIgnoredInAggregation(
+                        operator,
+                    )));
                 }
                 STDVAR | STDDEV => {
                     self.value = if float.is_nan() || float.is_infinite() {
@@ -99,11 +106,11 @@ impl<'a> Group<'a> {
                 GROUP => self.value = 1.0,
                 _ => (),
             }
-            return None;
+            return Ok(None);
         }
         // Upstream stops a schema-invalid group before consuming later flags or sample kinds.
         if self.incompatible {
-            return None;
+            return Ok(None);
         }
         self.drop_name |= drop_name;
         match operator {
@@ -114,16 +121,19 @@ impl<'a> Group<'a> {
                 if let Some(histogram) = histogram {
                     self.has_histogram = true;
                     if let Some(native) = &mut self.native {
-                        return match native.add(histogram.as_ref(), self.count, account) {
-                            Ok(true) => Some(AnnotationKind::MismatchedCustomBuckets(
+                        return match native.add(histogram.as_ref(), self.count, control, account) {
+                            Ok(true) => Ok(Some(AnnotationKind::MismatchedCustomBuckets(
                                 HistogramOperation::Aggregation,
-                            )),
-                            Ok(false) => None,
-                            Err(HistogramError::IncompatibleSchema) => {
+                            ))),
+                            Ok(false) => Ok(None),
+                            Err(HistogramEvaluationError::Arithmetic(
+                                HistogramError::IncompatibleSchema,
+                            )) => {
                                 self.incompatible = true;
-                                Some(AnnotationKind::MixedExponentialCustomHistograms)
+                                Ok(Some(AnnotationKind::MixedExponentialCustomHistograms))
                             }
-                            Err(error) => panic!("{error}"),
+                            Err(HistogramEvaluationError::Arithmetic(error)) => panic!("{error}"),
+                            Err(HistogramEvaluationError::Interrupted(error)) => Err(error),
                         };
                     }
                 } else {
@@ -138,7 +148,7 @@ impl<'a> Group<'a> {
                             if !next.is_infinite() {
                                 self.value = next;
                                 self.compensation = compensation;
-                                return None;
+                                return Ok(None);
                             }
                             self.incremental_mean = true;
                             self.mean = self.value / (self.count - 1.0);
@@ -155,7 +165,9 @@ impl<'a> Group<'a> {
             }
             COUNT => self.count += 1.0,
             MIN | MAX | STDVAR | STDDEV if histogram.is_some() => {
-                return Some(AnnotationKind::HistogramIgnoredInAggregation(operator));
+                return Ok(Some(AnnotationKind::HistogramIgnoredInAggregation(
+                    operator,
+                )));
             }
             MIN => {
                 if self.value > float || self.value.is_nan() {
@@ -176,7 +188,7 @@ impl<'a> Group<'a> {
             GROUP => (),
             _ => unreachable!("qualified aggregation operator"),
         }
-        None
+        Ok(None)
     }
     pub(crate) fn finish(
         mut self,
@@ -200,9 +212,12 @@ impl<'a> Group<'a> {
                 .take()
                 .expect("live histogram group")
                 .into_inner();
-            let mut result = native
-                .finish(self.count, Finalization::Vector)
-                .expect("vector final correction");
+            let mut result = match native.finish(self.count, Finalization::Vector, control, account)
+            {
+                Ok(result) => result,
+                Err(HistogramEvaluationError::Interrupted(error)) => return Err(error),
+                Err(HistogramEvaluationError::Arithmetic(error)) => panic!("{error}"),
+            };
             result.value.compact_checked(control, account)?;
             (
                 OwnedValue::Histogram(result.value),
@@ -304,7 +319,17 @@ mod tests {
                 let mut state = Group::new(&group, 0);
                 let notes: Vec<_> = order
                     .into_iter()
-                    .filter_map(|index| state.add(operator, &values[index], true, &account))
+                    .filter_map(|index| {
+                        state
+                            .add(
+                                operator,
+                                &values[index],
+                                true,
+                                &Control::default(),
+                                &account,
+                            )
+                            .unwrap()
+                    })
                     .collect();
                 assert_eq!(
                     notes,
@@ -339,12 +364,15 @@ mod tests {
                 whole_drop_name: Some(whole_flag),
             };
             let mut group = Group::new(&descriptor, 0);
-            group.add(
-                TokenKind::MIN,
-                &OwnedValue::Float(1.0),
-                !whole_flag,
-                &account,
-            );
+            group
+                .add(
+                    TokenKind::MIN,
+                    &OwnedValue::Float(1.0),
+                    !whole_flag,
+                    &Control::default(),
+                    &account,
+                )
+                .unwrap();
             let (sample, note) = group
                 .finish(TokenKind::MIN, 1000, &Control::default(), &account)
                 .unwrap();

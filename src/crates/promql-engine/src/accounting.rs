@@ -5,7 +5,7 @@ use std::{
     borrow::Borrow,
     hash::{Hash, Hasher},
     iter::FusedIterator,
-    ops::{Deref, DerefMut, RangeBounds},
+    ops::{Deref, DerefMut, Range, RangeBounds},
     sync::{Mutex, MutexGuard},
     time::{Duration, Instant},
 };
@@ -653,14 +653,6 @@ impl<T> AccountedVec<T> {
         result.values.extend_from_slice(values);
         result
     }
-    pub(crate) fn filled_in(len: usize, value: T, context: Option<&AllocationContext>) -> Self
-    where
-        T: Clone,
-    {
-        let mut result = Self::with_capacity_in(len, context);
-        result.values.resize(len, value);
-        result
-    }
     pub(crate) fn from_iter_in<I: IntoIterator<Item = T>>(
         values: I,
         context: Option<&AllocationContext>,
@@ -748,6 +740,132 @@ impl<T> IntoIterator for AccountedVec<T> {
         }
     }
 }
+impl<T: Copy> AccountedVec<T> {
+    pub(crate) fn reserve_copy_with<E>(
+        &mut self,
+        additional: usize,
+        mut poll: impl FnMut(usize) -> Result<(), E>,
+    ) -> Result<(), E> {
+        poll(1)?;
+        let required = self
+            .len()
+            .checked_add(additional)
+            .expect("allocation size overflow");
+        if required > self.capacity() {
+            let capacity = required.max(self.capacity().saturating_mul(2)).max(4);
+            let mut replacement = Self::with_capacity_in(capacity, self.context().as_ref());
+            // Keep the source and both charges until the complete replacement is ready.
+            for chunk in self.values.chunks(1024) {
+                poll(chunk.len())?;
+                replacement.values.extend_from_slice(chunk);
+            }
+            poll(1)?;
+            *self = replacement;
+        }
+        poll(1)
+    }
+
+    pub(crate) fn push_copy_with<E>(
+        &mut self,
+        value: T,
+        mut poll: impl FnMut(usize) -> Result<(), E>,
+    ) -> Result<(), E> {
+        self.reserve_copy_with(1, &mut poll)?;
+        self.values.push(value);
+        poll(1)
+    }
+
+    pub(crate) fn copy_within_with<E>(
+        &mut self,
+        source: Range<usize>,
+        destination: usize,
+        mut poll: impl FnMut(usize) -> Result<(), E>,
+    ) -> Result<(), E> {
+        assert!(
+            source.start <= source.end && source.end <= self.len(),
+            "copy range out of bounds"
+        );
+        let length = source.end - source.start;
+        assert!(
+            destination <= self.len() && length <= self.len() - destination,
+            "copy target out of bounds"
+        );
+        poll(1)?;
+        if destination <= source.start {
+            let mut copied = 0;
+            while copied < length {
+                let count = (length - copied).min(1024);
+                poll(count)?;
+                self.values.copy_within(
+                    source.start + copied..source.start + copied + count,
+                    destination + copied,
+                );
+                copied += count;
+            }
+        } else {
+            let mut remaining = length;
+            while remaining > 0 {
+                let count = remaining.min(1024);
+                let start = remaining - count;
+                poll(count)?;
+                self.values.copy_within(
+                    source.start + start..source.start + remaining,
+                    destination + start,
+                );
+                remaining = start;
+            }
+        }
+        poll(1)
+    }
+
+    pub(crate) fn insert_copy_with<E>(
+        &mut self,
+        index: usize,
+        value: T,
+        mut poll: impl FnMut(usize) -> Result<(), E>,
+    ) -> Result<(), E> {
+        assert!(index <= self.len(), "insertion index out of bounds");
+        self.reserve_copy_with(1, &mut poll)?;
+        let length = self.len();
+        self.values.push(value);
+        self.copy_within_with(index..length, index + 1, &mut poll)?;
+        self.values[index] = value;
+        poll(1)
+    }
+
+    pub(crate) fn remove_copy_range_with<E>(
+        &mut self,
+        start: usize,
+        length: usize,
+        mut poll: impl FnMut(usize) -> Result<(), E>,
+    ) -> Result<(), E> {
+        assert!(
+            start <= self.len() && length <= self.len() - start,
+            "removal range out of bounds"
+        );
+        self.copy_within_with(start + length..self.len(), start, &mut poll)?;
+        self.values.truncate(self.len() - length);
+        poll(1)
+    }
+
+    pub(crate) fn resize_copy_with<E>(
+        &mut self,
+        length: usize,
+        value: T,
+        mut poll: impl FnMut(usize) -> Result<(), E>,
+    ) -> Result<(), E> {
+        self.reserve_copy_with(length.saturating_sub(self.len()), &mut poll)?;
+        if length < self.len() {
+            self.values.truncate(length);
+        }
+        while self.len() < length {
+            let count = (length - self.len()).min(1024);
+            poll(count)?;
+            self.values.resize(self.len() + count, value);
+        }
+        poll(1)
+    }
+}
 impl<T: Clone> Clone for AccountedVec<T> {
     fn clone(&self) -> Self {
         Self::from_slice_in(&self.values, self.context().as_ref())
@@ -814,6 +932,73 @@ impl std::fmt::Write for AccountedVec<u8> {
 mod tests {
     use super::*;
     use std::sync::Arc;
+    #[test]
+    fn checked_growth_keeps_the_source_and_releases_interrupted_replacement() {
+        let engine = EngineAccounting::default();
+        let query = engine.query();
+        let control = crate::storage::Control::default();
+        let original: Vec<_> = (0..16_384u64).collect();
+        let mut values = AccountedVec::from_slice_in(
+            &original,
+            Some(&AllocationContext::new(&query, MemoryKind::Workspace)),
+        );
+        let pointer = values.as_ptr();
+        let before = query.snapshot().memory[MemoryKind::Workspace as usize];
+        let result = crate::test_storage::interrupt_during(&query, &control, || {
+            values.reserve_copy_with(1, |units| {
+                assert!(units <= 1024);
+                control.check()?;
+                query.work(units as u64);
+                Ok::<_, crate::storage::Interrupted>(())
+            })
+        });
+        assert_eq!(result, Err(crate::storage::Interrupted::Cancelled));
+        assert_eq!(values.as_ptr(), pointer);
+        assert_eq!(&values[..], &original);
+        let after = query.snapshot().memory[MemoryKind::Workspace as usize];
+        assert_eq!(after.current, before.current);
+        assert!(after.peak >= 3 * before.current);
+        assert_eq!(
+            after.acquired - before.acquired,
+            after.released - before.released
+        );
+        drop(values);
+        query.snapshot().assert_memory_released();
+        drop(query);
+        engine.snapshot().assert_memory_released();
+    }
+
+    #[test]
+    fn checked_overlapping_moves_preserve_values_across_chunk_boundaries() {
+        let engine = EngineAccounting::default();
+        let query = engine.query();
+        let original: Vec<_> = (0..8193u64).collect();
+        for distance in [1, 1023, 1024, 1025] {
+            for (source, destination) in [
+                (0..original.len() - distance, distance),
+                (distance..original.len(), 0),
+            ] {
+                let mut values = AccountedVec::from_slice_in(
+                    &original,
+                    Some(&AllocationContext::new(&query, MemoryKind::Workspace)),
+                );
+                values
+                    .copy_within_with(source.clone(), destination, |units| {
+                        assert!(units <= 1024);
+                        Ok::<_, std::convert::Infallible>(())
+                    })
+                    .unwrap();
+                let mut expected = original.clone();
+                expected[destination..destination + source.len()]
+                    .copy_from_slice(&original[source]);
+                assert_eq!(&values[..], &expected);
+            }
+        }
+        query.snapshot().assert_memory_released();
+        drop(query);
+        engine.snapshot().assert_memory_released();
+    }
+
     #[test]
     fn idle_roots_remain_observable_without_any_data_buffers() {
         let engine = EngineAccounting::default();

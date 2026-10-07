@@ -54,8 +54,14 @@ impl FloatHistogramRef<'_> {
     }
 
     pub fn has_overflow(self) -> bool {
+        self.has_overflow_with(HistogramWork::default())
+            .expect("inert histogram work")
+    }
+
+    pub(crate) fn has_overflow_with(self, work: HistogramWork<'_>) -> Result<bool, Interrupted> {
+        work.step(1)?;
         if self.zero_count.is_infinite() || self.count.is_infinite() || self.sum.is_infinite() {
-            return true;
+            return Ok(true);
         }
         for values in [
             self.positive_buckets,
@@ -63,12 +69,15 @@ impl FloatHistogramRef<'_> {
             self.custom_values,
         ] {
             for value in values.unwrap_or(&[]) {
+                work.step(1)?;
                 if value.is_infinite() {
-                    return true;
+                    work.step(1)?;
+                    return Ok(true);
                 }
             }
         }
-        false
+        work.step(1)?;
+        Ok(false)
     }
 }
 
