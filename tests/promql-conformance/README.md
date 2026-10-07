@@ -817,6 +817,27 @@ identities. Controls cover 2/12/13/50/51/129 raw groups, both profiles, instant 
 Capture with `output_label_calls.py --capture --upstream "$PROMETHEUS_SOURCE"`; compare using `--reference`,
 `--binary` and `--page-size`. The gate requires exact numbers and output order at every boundary.
 
+## Aggregation quantile source preparation
+
+`quantile_aggregate_cases.py` independently declares 3,198 complete queries in 154 families, with 1,381
+server-default and 1,817 upstream-test calls. `quantile_aggregate_calls.py` uses the source-bound cursor facade
+for original capture and candidate qualification. The original reference was captured before any aggregation
+QUANTILE runtime implementation; this source preparation is not runtime qualification.
+
+Controls cover global and moving parameters, invalid-quantile warnings, empty/stale/native-only bodies, ignored
+histogram positions, first-writer metric-name flags, grouping/hash aliases, duplicate projected output labels,
+fixed/context clocks, independent parameter/body faults and nested parents. Signed zero, distinct quiet and
+signalling NaN payloads, infinities, singleton/integer-rank/zero-weight interpolation and Go sort thresholds up
+to 1,025 identities retain the original arithmetic and branch evidence. Source owners are pinned Prometheus
+`5241a27fe3c6983549fccc32f6e65917408c63cd`, `promql/engine.go:1630–1767,3675–3740,3939–3944,4004–4005` and
+`promql/quantile.go:717–738`; the captured unmodified Go AMD64 assembly resolves interpolation operand order.
+
+Capture with `quantile_aggregate_calls.py --capture --upstream "$PROMETHEUS_SOURCE"`; compare using `--reference`,
+`--binary` and `--page-size`. This focused edge gate requires exact numerical outcomes, series order and paired
+bits; the general corpus retains its independently classified upstream numerical tolerance. Input-witness tests
+check raw grouping identities, IEEE payload provenance, changing native kinds and independent fault declarations.
+Temporal quantile/MAD and general nested-work qualification remain required separately.
+
 ## Remaining qualification
 
 The productive Rust path connects the owned frontend to typed page cursors, float/native rate/increase/delta
