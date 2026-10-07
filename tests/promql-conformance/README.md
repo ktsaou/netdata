@@ -1387,7 +1387,7 @@ and can grow. All resource enforcement remains disabled.
 The common walker owns cursor cleanup, post-operation resource accounting and complete returned-page validation.
 A Seek may revisit a validated but semantically unread tail. Stop and Seek still validate that tail's timestamps
 and bounds without projecting it; an earlier visitor error keeps precedence. Range scans retain their initial
-Seek and full-page contract through the same owner.
+read, actual Seek calls and full-page contract through the same owner.
 
 ```sh
 python3 tests/promql-conformance/cursor_calls.py --capture --upstream "${PROMQL_ORIGINAL_SOURCE_DIR:?}"
@@ -1407,6 +1407,45 @@ These synthetic operations expose successful page prefixes before a required sam
 to skip an unread Next fault. An atomic failed storage page returns no samples. Physical page callback traces,
 arbitrary transient or call-count-dependent faults and cancellation/error races are separate from the repeatable
 query-replay contract. This panel is finite source qualification, not arbitrary iterator or complete-core acceptance.
+
+### Ordinary buffered matrix replay
+
+Ordinary range functions and raw matrix roots use one source operation owner derived from
+`storage/buffer.go`, `matrixIterSlice` and the statistics iterator. It separates query-wide data bounds,
+physical window endpoints and included result bounds. Even an empty included window can require an initial
+read and Seek. The initial Seek is issued when required, including when it lands on the already current point.
+Exact endpoints stop without reading EOF; future floats are accessed while future native values supply only
+their timestamp. Only nonempty admitted windows reduce the buffer delta. Fixed `@` selectors reuse their first
+physical window while unsafe scalar function arguments retain the current evaluation time.
+
+Each helper pass validates acquisition before streaming its members. Reconstruction retains scalar schedule
+state and, for statistics decoding, one accounted histogram predecessor. It allocates no raw history, time
+grid or matrix of raw values across series. Complete returned pages remain validated and accounted, including
+an unread page tail. Engine sample counters include every physical publication and replay read. Native histories
+and schedules of 100,000 points retain the same provider, borrowed-view and workspace peaks as shorter histories
+at each tested page size. Cursor errors, interruption and helper unwinding release retained pages and decoders.
+
+Replay adds CPU and storage reads: a target may reconstruct earlier steps, and numerical helpers can require
+several passes. Work therefore grows with history, step count and helper passes despite bounded raw memory.
+Metadata, accumulators and owned derived output remain separately accounted and can grow. All enforcement is
+disabled. General nested adapters and extended windows require their own qualification.
+
+The permanent source-control rosters contain 1,826 ordinary, 370 clipped/error-phase, 376 timestamp-fold and
+220 widened-universe zero-range cases, including 458 source construction errors. They cover every implemented ordinary family, native statistics
+epochs, empty/stale steps, required and unrequested operations, tiny physical windows and fixed selectors with
+varying scalar arguments. Expectations come solely from the unchanged pinned Go source. Comparisons require
+exact labels, times, membership, diagnostics, errors and paired numeric bits at pages 1/17/1024.
+
+```sh
+python3 tests/promql-conformance/matrix_reader_calls.py --roster ordinary --capture \
+  --upstream "${PROMQL_ORIGINAL_SOURCE_DIR:?}"
+python3 tests/promql-conformance/matrix_reader_calls.py --roster ordinary \
+  --reference "${PROMQL_MATRIX_READER_CAPTURE_DIR:?}" --binary "${PROMQL_QUERY_BINARY:?}" --page-size 1024
+```
+
+Use `--roster clipped`, `--roster timestamp` or `--roster zero` with its matching capture for the other rosters.
+The separate zero-range capture verifies 84 armed initial timestamp/EOF errors in the unchanged Go source and
+their suppression when physical endpoints coincide; its available query-wide universe prevents inert faults.
 
 The earlier selector-catalog checkpoint passed 187 unit tests in both profiles, with 64 independent selector-hint
 projections, 426 preparation scopes, 198 offset projections and retained parser/clock/phase panels matching their

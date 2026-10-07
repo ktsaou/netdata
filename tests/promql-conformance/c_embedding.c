@@ -185,6 +185,10 @@ static uint32_t cursor_next(void *context, void *handle,
     while (count < c->capacity && c->index < f->rows) {
         int64_t time_ms = (int64_t)(c->index + 1) * 1000;
         if (time_ms > c->bounds.end_ms) break;
+        if (time_ms < c->bounds.start_ms) {
+            c->index++;
+            continue;
+        }
         netdata_promql_sample_t *sample = &c->page[count++];
         memset(sample, 0, sizeof(*sample));
         sample->time_ms = time_ms;

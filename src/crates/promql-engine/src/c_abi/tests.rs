@@ -14,6 +14,7 @@ struct Fixture {
     points: Vec<types::Sample>,
     labels: [types::Label; 2],
     page_size: usize,
+    samples_returned: Cell<usize>,
     opened: [Cell<usize>; 4],
     closed: [Cell<usize>; 4],
     failure: usize,
@@ -51,6 +52,7 @@ impl Fixture {
                 },
             ],
             page_size,
+            samples_returned: Cell::new(0),
             opened: std::array::from_fn(|_| Cell::new(0)),
             closed: std::array::from_fn(|_| Cell::new(0)),
             failure: 0,
@@ -305,14 +307,19 @@ unsafe extern "C" fn cursor_next(
         if point.time_ms > cursor.bounds.end_ms {
             break;
         }
-        cursor.page.push(*point);
         cursor.index += 1;
+        if point.time_ms >= cursor.bounds.start_ms {
+            cursor.page.push(*point);
+        }
     }
     let observed = cursor_memory(cursor);
     unsafe { resources.write(observed) };
     if cursor.page.is_empty() {
         return types::END;
     }
+    fixture
+        .samples_returned
+        .set(fixture.samples_returned.get() + cursor.page.len());
     unsafe {
         out.write(types::Page {
             samples: types::Samples {
@@ -392,7 +399,10 @@ fn paged_c_collection_outlives_all_foreign_and_plan_handles() {
                 netdata_promql_report_observations(report, &mut observations),
                 types::OK
             );
-            assert_eq!(observations.samples_fetched, 5);
+            assert_eq!(
+                observations.samples_fetched,
+                fixture.samples_returned.get() as u64
+            );
             assert_eq!(
                 observations.memory[MemoryKind::BorrowedView as usize].current,
                 0

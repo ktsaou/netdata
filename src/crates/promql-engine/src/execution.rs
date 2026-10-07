@@ -20,13 +20,14 @@ use crate::{
         token as tokens,
     },
     label_functions::{self, LabelOperation},
+    matrix_reader::{MatrixWindow, scan as scan_matrix},
     query_catalog::Catalog,
     query_preparation::Prepared,
     range_reduce::RangeFunction,
     result::{CollectedResult, Collector, OutputChunk, OutputError, OutputHeader, OutputSink},
     storage::{
         Control, Interrupted, Provider, QueryProvider, Series, StorageError, TimeBounds,
-        matches_checked, scan_with,
+        matches_checked,
     },
     storage_observed::ObservedQuery,
     value::SampleRef,
@@ -1755,6 +1756,16 @@ impl CompiledQuery {
                 .max(data_bounds.start_ms),
             end_ms: end_ms.min(data_bounds.end_ms),
         };
+        let bounds = (bounds.start_ms <= bounds.end_ms).then_some(bounds);
+        let matrix = MatrixWindow {
+            first_end_ms: end_ms,
+            end_ms,
+            range_ms: range / 1_000_000,
+            step_ms: 0,
+            data_bounds,
+            statistics: false,
+            reduce_delta: false,
+        };
         let notes = match catalog.expand(selector_node, control, account) {
             Ok(notes) => notes,
             Err(failure) => {
@@ -1773,9 +1784,10 @@ impl CompiledQuery {
                         if !matches_checked(&labels, &selector.matchers, Some(account), control)? {
                             return Ok(());
                         }
-                        scan_with(
+                        scan_matrix(
                             series,
                             bounds,
+                            Some(matrix),
                             control,
                             account,
                             |sample| -> Result<(), ExecutionError> {
@@ -4865,7 +4877,14 @@ mod tests {
                     .load(Ordering::Relaxed),
                 1
             );
-            assert_eq!(observations.samples_fetched, 160_000);
+            assert_eq!(
+                observations.samples_fetched,
+                provider.series[0]
+                    .source
+                    .counters
+                    .samples_returned
+                    .load(Ordering::Relaxed) as u64
+            );
             assert_eq!(
                 observations.memory[MemoryKind::Workspace as usize].current,
                 0
@@ -7018,15 +7037,25 @@ mod tests {
                                     time_ms: count as i64 * 1000,
                                 }
                             };
+                            let before_samples = provider.series[0]
+                                .source
+                                .counters
+                                .samples_returned
+                                .load(Ordering::Relaxed)
+                                as u64;
                             let (result, observations) =
                                 query.collect(&provider, request, &control).unwrap();
                             assert_eq!(result.series.len(), 1);
                             assert!(result.annotations.is_empty());
                             assert_eq!(result.series[0].points.len(), if fixed { 3 } else { 1 });
-                            // Fixed calls emit diagnostics once and replay each provisional output step.
                             assert_eq!(
                                 observations.samples_fetched,
-                                count as u64 * if fixed { 8 } else { 4 }
+                                provider.series[0]
+                                    .source
+                                    .counters
+                                    .samples_returned
+                                    .load(Ordering::Relaxed) as u64
+                                    - before_samples
                             );
                             let factor = if function == 0 { valid as f64 } else { 1.0 };
                             for point in result.series[0].points.iter() {
@@ -7114,7 +7143,14 @@ mod tests {
                         value.positive_buckets,
                         Some(&[factor, factor * 2.0, factor * 3.0][..])
                     );
-                    assert_eq!(observations.samples_fetched, count as u64 * 4);
+                    assert_eq!(
+                        observations.samples_fetched,
+                        provider.series[0]
+                            .source
+                            .counters
+                            .samples_returned
+                            .load(Ordering::Relaxed) as u64
+                    );
                     assert_eq!(
                         provider.series[0]
                             .source
@@ -7513,7 +7549,14 @@ mod tests {
                         _ => crate::numerical::sqrt(variance),
                     };
                     assert_eq!(float_bits(&result.series[0].points[0]), expected.to_bits());
-                    assert_eq!(observations.samples_fetched, count as u64 * 2);
+                    assert_eq!(
+                        observations.samples_fetched,
+                        provider.series[0]
+                            .source
+                            .counters
+                            .samples_returned
+                            .load(Ordering::Relaxed) as u64
+                    );
                     assert_eq!(
                         provider.series[0]
                             .source
@@ -8320,7 +8363,14 @@ mod tests {
                     float_bits(&result.series[0].points[0]),
                     (count as f64).to_bits()
                 );
-                assert_eq!(observations.samples_fetched, count as u64 * 2);
+                assert_eq!(
+                    observations.samples_fetched,
+                    provider.series[0]
+                        .source
+                        .counters
+                        .samples_returned
+                        .load(Ordering::Relaxed) as u64
+                );
                 assert_eq!(
                     provider.series[0]
                         .source

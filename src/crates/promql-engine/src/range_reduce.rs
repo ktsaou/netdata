@@ -6,8 +6,8 @@ use crate::{
     histogram::{FloatHistogramRef, HistogramError},
     histogram_accumulator::{Finalization, NativeAccumulator},
     histogram_counter::detect_reset_with,
-    histogram_stats::{StatisticsWindow, scan_statistics},
     histogram_work::{HistogramEvaluationError, HistogramWork},
+    matrix_reader::{MatrixWindow, scan as scan_matrix},
     numerical::{compensated_add, sqrt},
     range_float::{RateKind, start_timestamp_reset},
     range_numeric::NumericRangeFunction,
@@ -159,15 +159,15 @@ fn retain_histogram(
 
 fn fold_histograms<S: Series>(
     series: &S,
-    bounds: TimeBounds,
+    bounds: Option<TimeBounds>,
     kind: FoldKind,
-    statistics: Option<StatisticsWindow>,
+    matrix: Option<MatrixWindow>,
     control: &Control,
     account: &QueryAccounting,
 ) -> Result<FoldResult, StorageError> {
     let mut state = None::<NativeFold>;
     let mut error = None;
-    scan_statistics(series, bounds, statistics, control, account, |sample| {
+    scan_matrix::<_, StorageError>(series, bounds, matrix, control, account, |sample| {
         if sample.value.is_stale() || error.is_some() {
             return Ok(());
         }
@@ -374,18 +374,19 @@ impl Previous {
 
 pub(crate) struct FoldOptions {
     pub(crate) start_timestamps: bool,
-    pub(crate) statistics: Option<StatisticsWindow>,
+    pub(crate) matrix: Option<MatrixWindow>,
 }
 
 pub(crate) fn fold<S: Series>(
     series: &S,
-    bounds: TimeBounds,
+    bounds: impl Into<Option<TimeBounds>>,
     kind: FoldKind,
     options: FoldOptions,
     control: &Control,
     account: &QueryAccounting,
 ) -> Result<FoldResult, StorageError> {
     use FoldKind::*;
+    let bounds = bounds.into();
     let mut count = 0usize;
     let mut changes = 0i64;
     let mut selected = None;
@@ -395,101 +396,94 @@ pub(crate) fn fold<S: Series>(
     let mut histogram_last = None::<i64>;
     let mut first_time = None::<i64>;
     let mut numerical = NumericalFold::new(kind);
-    scan_statistics(
-        series,
-        bounds,
-        options.statistics,
-        control,
-        account,
-        |sample| {
-            if sample.value.is_stale() {
-                return Ok(());
+    scan_matrix::<_, StorageError>(series, bounds, options.matrix, control, account, |sample| {
+        if sample.value.is_stale() {
+            return Ok(());
+        }
+        count += 1;
+        first_time.get_or_insert(sample.time_ms);
+        if let SampleValueRef::Float(value) = sample.value {
+            float_last = Some(sample.time_ms);
+            if let Some(numerical) = &mut numerical {
+                numerical.add(value);
             }
-            count += 1;
-            first_time.get_or_insert(sample.time_ms);
-            if let SampleValueRef::Float(value) = sample.value {
-                float_last = Some(sample.time_ms);
-                if let Some(numerical) = &mut numerical {
-                    numerical.add(value);
-                }
-                if kind.extrema() {
-                    let replace = float.is_none_or(|(old, _)| {
-                        old.is_nan()
-                            || match kind {
-                                Min => value < old,
-                                Max => value > old,
-                                TsMin => value <= old,
-                                TsMax => value >= old,
-                                _ => unreachable!(),
-                            }
-                    });
-                    if replace {
-                        float = Some((value, sample.time_ms));
-                    }
-                }
-            } else {
-                histogram_last = Some(sample.time_ms);
-            }
-            if kind == Last || kind == First && count == 1 {
-                selected = Some(OwnedValue::copy_from_checked(
-                    sample.value,
-                    control,
-                    account,
-                    MemoryKind::Workspace,
-                )?);
-            }
-            if kind.previous() {
-                let current = Previous::copy(
-                    sample,
-                    kind == Resets && options.start_timestamps,
-                    control,
-                    account,
-                )?;
-                if let Some(previous) = &previous {
-                    let changed = match (current.value.as_ref(), previous.value.as_ref()) {
-                        (SampleValueRef::Float(value), SampleValueRef::Float(old)) => {
-                            if kind == Changes {
-                                value != old && !(value.is_nan() && old.is_nan())
-                            } else {
-                                value < old
-                                    || start_timestamp_reset(
-                                        previous.start_time_ms,
-                                        previous.time_ms,
-                                        current.start_time_ms,
-                                        current.time_ms,
-                                    )
-                            }
+            if kind.extrema() {
+                let replace = float.is_none_or(|(old, _)| {
+                    old.is_nan()
+                        || match kind {
+                            Min => value < old,
+                            Max => value > old,
+                            TsMin => value <= old,
+                            TsMax => value >= old,
+                            _ => unreachable!(),
                         }
-                        (
-                            SampleValueRef::FloatHistogram(value),
-                            SampleValueRef::FloatHistogram(old),
-                        ) => {
-                            if kind == Changes {
-                                !value.equals_with(old, HistogramWork::new(control, account))?
-                            } else {
-                                start_timestamp_reset(
+                });
+                if replace {
+                    float = Some((value, sample.time_ms));
+                }
+            }
+        } else {
+            histogram_last = Some(sample.time_ms);
+        }
+        if kind == Last || kind == First && count == 1 {
+            selected = Some(OwnedValue::copy_from_checked(
+                sample.value,
+                control,
+                account,
+                MemoryKind::Workspace,
+            )?);
+        }
+        if kind.previous() {
+            let current = Previous::copy(
+                sample,
+                kind == Resets && options.start_timestamps,
+                control,
+                account,
+            )?;
+            if let Some(previous) = &previous {
+                let changed = match (current.value.as_ref(), previous.value.as_ref()) {
+                    (SampleValueRef::Float(value), SampleValueRef::Float(old)) => {
+                        if kind == Changes {
+                            value != old && !(value.is_nan() && old.is_nan())
+                        } else {
+                            value < old
+                                || start_timestamp_reset(
                                     previous.start_time_ms,
                                     previous.time_ms,
                                     current.start_time_ms,
                                     current.time_ms,
-                                ) || detect_reset_with(
-                                    value,
-                                    old,
-                                    HistogramWork::new(control, account),
-                                )?
-                            }
+                                )
                         }
-                        _ => true,
-                    };
-                    if changed {
-                        changes = changes.wrapping_add(1);
                     }
+                    (
+                        SampleValueRef::FloatHistogram(value),
+                        SampleValueRef::FloatHistogram(old),
+                    ) => {
+                        if kind == Changes {
+                            !value.equals_with(old, HistogramWork::new(control, account))?
+                        } else {
+                            start_timestamp_reset(
+                                previous.start_time_ms,
+                                previous.time_ms,
+                                current.start_time_ms,
+                                current.time_ms,
+                            ) || detect_reset_with(
+                                value,
+                                old,
+                                HistogramWork::new(control, account),
+                            )?
+                        }
+                    }
+                    _ => true,
+                };
+                if changed {
+                    changes = changes.wrapping_add(1);
                 }
-                previous = Some(current);
             }
-            Ok(())
-        },
-    )?;
+            previous = Some(current);
+        }
+        Ok(())
+    })?;
     let mixed = float_last.is_some() && histogram_last.is_some();
     let native_fold = matches!(kind, Sum | Avg) && histogram_last.is_some();
     if native_fold {
@@ -500,7 +494,7 @@ pub(crate) fn fold<S: Series>(
             });
         }
         // Classify before arithmetic so a late float suppresses all native outcomes.
-        return fold_histograms(series, bounds, kind, options.statistics, control, account);
+        return fold_histograms(series, bounds, kind, options.matrix, control, account);
     }
     let value = if count == 0 {
         None
@@ -591,7 +585,7 @@ mod tests {
                     kind,
                     FoldOptions {
                         start_timestamps: true,
-                        statistics: None,
+                        matrix: None,
                     },
                     &control,
                     &account,

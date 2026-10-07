@@ -5,8 +5,8 @@ use crate::{
     annotations::{AnnotationKind, HistogramOperation},
     histogram::{CUSTOM_BUCKETS_SCHEMA, FloatHistogram, FloatHistogramRef, GAUGE, HistogramError},
     histogram_counter::detect_reset_with,
-    histogram_stats::{StatisticsWindow, scan_statistics},
     histogram_work::{HistogramEvaluationError, HistogramWork},
+    matrix_reader::{MatrixWindow, scan as scan_matrix},
     range_float::{
         Extrapolation, RateInput, RateKind, RateValue, RateWindow, extrapolation_factor, rate_with,
         start_time_overlap, start_timestamp_reset, uses_first_start,
@@ -57,7 +57,7 @@ pub(crate) fn evaluate<S: Series>(
     series: &S,
     input: impl Into<RateInput>,
     function: RateFunction,
-    statistics: Option<StatisticsWindow>,
+    matrix: Option<MatrixWindow>,
     control: &Control,
     account: &QueryAccounting,
 ) -> Result<RateOutput, StorageError> {
@@ -66,9 +66,9 @@ pub(crate) fn evaluate<S: Series>(
         let RateFunction::Instant { counter } = function else {
             unreachable!()
         };
-        return instant(series, input, counter, statistics, control, account);
+        return instant(series, input, counter, matrix, control, account);
     };
-    let result = rate_with(series, input, kind, statistics, control, account)?;
+    let result = rate_with(series, input, kind, matrix, control, account)?;
     let mut output = RateOutput::default();
     if result.start_time_overlap {
         output.note(AnnotationKind::StartTimeOverlap);
@@ -81,7 +81,7 @@ pub(crate) fn evaluate<S: Series>(
             None
         }
         RateValue::Histogram => {
-            return extrapolated_histogram(series, input, kind, statistics, control, account);
+            return extrapolated_histogram(series, input, kind, matrix, control, account);
         }
     };
     Ok(output)
@@ -137,19 +137,17 @@ fn extrapolated_histogram<S: Series>(
     series: &S,
     input: RateInput,
     kind: RateKind,
-    statistics: Option<StatisticsWindow>,
+    matrix: Option<MatrixWindow>,
     control: &Control,
     account: &QueryAccounting,
 ) -> Result<RateOutput, StorageError> {
     let window = input.window;
-    let Some(bounds) = input.bounds() else {
-        return Ok(RateOutput::default());
-    };
+    let bounds = input.bounds();
     let mut first = None;
     let mut second = None;
     let mut last = None::<HistogramPoint>;
     let mut count = 0usize;
-    scan_statistics(series, bounds, statistics, control, account, |sample| {
+    scan_matrix::<_, StorageError>(series, bounds, matrix, control, account, |sample| {
         if sample.value.is_stale() {
             return Ok(());
         }
@@ -218,7 +216,7 @@ fn extrapolated_histogram<S: Series>(
         if counter {
             let mut index = 0usize;
             let mut mismatch = false;
-            scan_statistics(series, bounds, statistics, control, account, |sample| {
+            scan_matrix::<_, StorageError>(series, bounds, matrix, control, account, |sample| {
                 if sample.value.is_stale() {
                     return Ok(());
                 }
@@ -274,7 +272,7 @@ fn extrapolated_histogram<S: Series>(
             let mut previous_time = first.time;
             let mut previous_start = first.start;
             let mut mismatch = false;
-            scan_statistics(series, bounds, statistics, control, account, |sample| {
+            scan_matrix::<_, StorageError>(series, bounds, matrix, control, account, |sample| {
                 if sample.value.is_stale() {
                     return Ok(());
                 }
@@ -404,17 +402,15 @@ fn instant<S: Series>(
     series: &S,
     input: RateInput,
     counter: bool,
-    statistics: Option<StatisticsWindow>,
+    matrix: Option<MatrixWindow>,
     control: &Control,
     account: &QueryAccounting,
 ) -> Result<RateOutput, StorageError> {
     let window = input.window;
-    let Some(bounds) = input.bounds() else {
-        return Ok(RateOutput::default());
-    };
+    let bounds = input.bounds();
     let mut first = None;
     let mut last = None;
-    scan_statistics(series, bounds, statistics, control, account, |sample| {
+    scan_matrix::<_, StorageError>(series, bounds, matrix, control, account, |sample| {
         if sample.value.is_stale() {
             return Ok(());
         }
@@ -709,8 +705,11 @@ mod tests {
             let mut source = GeneratedSeries::new(100, 2, native);
             source.fail_page = Some(1);
             let account = EngineAccounting::default().query();
-            let statistics = Some(StatisticsWindow {
+            let matrix = Some(MatrixWindow {
                 first_end_ms: window(100).end_ms,
+                end_ms: window(100).end_ms,
+                statistics: true,
+                reduce_delta: true,
                 range_ms: window(100).end_ms,
                 step_ms: 1,
                 data_bounds: TimeBounds {
@@ -723,7 +722,7 @@ mod tests {
                     &source,
                     window(100),
                     function,
-                    statistics,
+                    matrix,
                     &Control::default(),
                     &account
                 ),

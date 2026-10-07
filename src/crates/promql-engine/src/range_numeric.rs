@@ -5,6 +5,7 @@ use crate::numerical::{source_add, source_div, source_sub};
 use crate::{
     accounting::{AccountedVec, MemoryKind, QueryAccounting},
     annotations::AnnotationKind,
+    matrix_reader::{MatrixWindow, scan as scan_matrix},
     numerical::{compensated_add, source_mul},
     storage::{Control, CursorAction, Series, StorageError, TimeBounds, WalkStart, walk},
     value::{SampleRef, SampleValueRef},
@@ -13,14 +14,16 @@ use std::fmt::Write;
 
 #[derive(Clone, Copy)]
 pub(crate) struct NumericRangeInput {
-    pub(crate) bounds: TimeBounds,
+    pub(crate) bounds: Option<TimeBounds>,
     pub(crate) seek_ms: i64,
+    pub(crate) matrix: Option<MatrixWindow>,
 }
 impl From<TimeBounds> for NumericRangeInput {
     fn from(bounds: TimeBounds) -> Self {
         Self {
-            bounds,
+            bounds: Some(bounds),
             seek_ms: bounds.start_ms.saturating_sub(1),
+            matrix: None,
         }
     }
 }
@@ -32,10 +35,16 @@ pub(crate) fn scan<S: Series>(
     account: &QueryAccounting,
     mut visit: impl for<'a> FnMut(SampleRef<'a>) -> Result<(), StorageError>,
 ) -> Result<(), StorageError> {
+    if input.matrix.is_some() {
+        return scan_matrix(series, input.bounds, input.matrix, control, account, visit);
+    }
+    let Some(bounds) = input.bounds else {
+        return Ok(());
+    };
     // Go's buffer seeks the excluded left endpoint; returned pages retain included bounds.
     walk(
         series,
-        input.bounds,
+        bounds,
         WalkStart::Seek(input.seek_ms),
         control,
         account,

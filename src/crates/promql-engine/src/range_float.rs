@@ -2,7 +2,7 @@
 // Pinned Prometheus promql/functions.go:474–629,759–803; see NOTICE.
 use crate::{
     accounting::QueryAccounting,
-    histogram_stats::{StatisticsWindow, scan_statistics},
+    matrix_reader::{MatrixWindow, scan as scan_matrix},
     storage::{Control, Series, StorageError, TimeBounds},
     value::{SampleRef, SampleValueRef},
 };
@@ -182,7 +182,7 @@ pub(crate) fn rate_with<S: Series>(
     series: &S,
     input: RateInput,
     kind: RateKind,
-    statistics: Option<StatisticsWindow>,
+    matrix: Option<MatrixWindow>,
     control: &Control,
     account: &QueryAccounting,
 ) -> Result<RateResult, StorageError> {
@@ -191,14 +191,12 @@ pub(crate) fn rate_with<S: Series>(
         value,
         start_time_overlap: false,
     };
-    let Some(bounds) = input.bounds() else {
-        return Ok(empty(RateValue::Empty));
-    };
+    let bounds = input.bounds();
     let mut first = None;
     let mut last = None;
     let mut count = 0usize;
     let mut histograms = false;
-    scan_statistics(series, bounds, statistics, control, account, |sample| {
+    scan_matrix::<_, StorageError>(series, bounds, matrix, control, account, |sample| {
         if sample.value.is_stale() {
             return Ok(());
         }
@@ -227,7 +225,7 @@ pub(crate) fn rate_with<S: Series>(
     let mut overlap = false;
     if counter && count > 1 {
         let mut previous = None::<Point>;
-        scan_statistics(series, bounds, statistics, control, account, |sample| {
+        scan_matrix::<_, StorageError>(series, bounds, matrix, control, account, |sample| {
             if sample.value.is_stale() {
                 return Ok(());
             }
