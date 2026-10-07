@@ -856,6 +856,26 @@ Apply it with `--base`, `--reference "$POLICY_REFERENCE"` and `--candidate "$COM
 comparison. Raw reports remain unchanged; the separate policy report preserves their failures and verifies the
 original input/output hashes. Policy tests reject changed flags, scopes, identities, numbers and undeclared controls.
 
+## Median absolute deviation source gate
+
+`mad_cases.py` independently declares 2,248 complete ordinary `mad_over_time` requests in 209 families, with
+1,124 calls per feature profile. The inputs preserve 176 declared IEEE arrays and their permutations, including
+signed zeros, subnormals, infinities, raw NaN payloads, arithmetic overflow and a 1,030-sample page boundary.
+Additional controls cover moving windows, fixed timestamps, offsets, scalar consumers, parent aggregations,
+native-only and mixed ranges, stale points, duplicate output labels and provider failures after a raw NaN.
+
+`mad_calls.py` captures original preparation and results through an explicit construction-error mode of the
+cursor facade. This mode records disabled-feature parser errors and query-construction errors as complete error
+results. Successful evaluation phases and default-mode generated helpers remain byte-identical; the additional
+helper and its two exact failure sites are bound and checked. Production Prometheus source remains unchanged.
+Capture with `mad_calls.py --capture --upstream "$PROMETHEUS_SOURCE"`; compare with `--reference`, `--binary`
+and `--page-size`. The focused gate requires exact numeric outcomes, series order, diagnostics and paired bits.
+
+This checkpoint prepares source expectations only. The planned Rust reducer uses full initial classification
+and simultaneous two-rank refinement of each median, with two fixed 16-counter tables and at most 33 complete
+page scans. Its runtime, cancellation, ownership and history-independent memory qualification remain required.
+Extended selectors, subquery inputs and general temporal quantile sorting retain their separate open scope.
+
 ## Remaining qualification
 
 The productive Rust path connects the owned frontend to typed page cursors, float/native rate/increase/delta
