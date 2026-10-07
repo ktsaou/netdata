@@ -14,6 +14,16 @@ mod binary_labels;
 mod binary_value;
 pub mod c_abi;
 mod calendar;
+#[cfg_attr(
+    not(any(test, feature = "fixtures")),
+    expect(
+        dead_code,
+        reason = "Histogram query dispatch is the next in-scope stage."
+    )
+)]
+mod classic_replay;
+#[cfg(feature = "fixtures")]
+pub use classic_replay::fixture as classic_replay_fixture;
 pub mod evaluator;
 mod evaluator_order;
 mod evaluator_roster;

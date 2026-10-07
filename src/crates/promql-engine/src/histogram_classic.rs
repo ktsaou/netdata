@@ -3,9 +3,11 @@
 use std::cmp::Ordering;
 
 use crate::go_sort::sort_by;
-use crate::numerical::almost_equal;
+use crate::numerical::{almost_equal, source_mul};
+#[cfg(target_arch = "x86_64")]
+use crate::numerical::{source_add, source_div, source_sub};
 
-const NAN: f64 = f64::from_bits(0x7ff8_0000_0000_0001);
+pub(crate) const NAN: f64 = f64::from_bits(0x7ff8_0000_0000_0001);
 
 #[derive(Clone, Copy, Debug)]
 pub struct ClassicBucket {
@@ -24,7 +26,7 @@ pub struct BucketQuantileResult {
 }
 
 impl BucketQuantileResult {
-    fn new(value: f64) -> Self {
+    pub(crate) fn new(value: f64) -> Self {
         Self {
             value,
             forced_monotonicity: false,
@@ -64,7 +66,7 @@ pub fn bucket_quantile(q: f64, buckets: &mut [ClassicBucket]) -> BucketQuantileR
     if observations == 0.0 {
         return result;
     }
-    let mut rank = q * observations;
+    let rank = source_mul(q, observations);
     // Go's predicate visits remain observable when counts include NaN.
     let (mut left, mut right) = (0, length - 1);
     while left < right {
@@ -81,15 +83,11 @@ pub fn bucket_quantile(q: f64, buckets: &mut [ClassicBucket]) -> BucketQuantileR
     } else if index == 0 && buckets[0].upper_bound <= 0.0 {
         buckets[0].upper_bound
     } else {
-        let mut start = 0.0;
-        let end = buckets[index].upper_bound;
-        let mut count = buckets[index].count;
-        if index > 0 {
-            start = buckets[index - 1].upper_bound;
-            count -= buckets[index - 1].count;
-            rank -= buckets[index - 1].count;
-        }
-        start + (end - start) * (rank / count)
+        quantile_interpolate(
+            rank,
+            buckets[index],
+            index.checked_sub(1).map(|i| buckets[i]),
+        )
     };
     result
 }
@@ -109,67 +107,28 @@ pub fn bucket_fraction(lower: f64, upper: f64, buckets: &mut [ClassicBucket]) ->
     if lower >= upper {
         return 0.0;
     }
-    let (mut rank, mut lower_rank, mut upper_rank) = (0.0, 0.0, 0.0);
-    let (mut lower_set, mut upper_set) = (false, false);
-    let mut lower_bound = if buckets[0].upper_bound <= 0.0 {
-        f64::NEG_INFINITY
+    let mut ranks = FractionRanks::new(lower, upper);
+    for bucket in buckets {
+        if ranks.push(*bucket) {
+            break;
+        }
+    }
+    ranks.finish(count)
+}
+
+pub(crate) fn bound_order(left: f64, right: f64) -> Ordering {
+    if left < right {
+        Ordering::Less
+    } else if left > right {
+        Ordering::Greater
     } else {
-        0.0
-    };
-    for (index, bucket) in buckets.iter().enumerate() {
-        if index > 0 {
-            lower_bound = buckets[index - 1].upper_bound;
-        }
-        let upper_bound = bucket.upper_bound;
-        let interpolate = |value: f64| {
-            if lower_bound == f64::NEG_INFINITY {
-                bucket.count
-            } else {
-                rank + (bucket.count - rank) * (value - lower_bound) / (upper_bound - lower_bound)
-            }
-        };
-        if !lower_set && lower_bound >= lower {
-            lower_rank = rank;
-            lower_set = true;
-        }
-        if !upper_set && lower_bound >= upper {
-            upper_rank = rank;
-            upper_set = true;
-        }
-        if lower_set && upper_set {
-            break;
-        }
-        if !lower_set && lower_bound < lower && upper_bound > lower {
-            lower_rank = interpolate(lower);
-            lower_set = true;
-        }
-        if !upper_set && lower_bound < upper && upper_bound > upper {
-            upper_rank = interpolate(upper);
-            upper_set = true;
-        }
-        if lower_set && upper_set {
-            break;
-        }
-        rank = bucket.count;
+        Ordering::Equal
     }
-    if !lower_set || lower_rank > count {
-        lower_rank = count;
-    }
-    if !upper_set || upper_rank > count {
-        upper_rank = count;
-    }
-    (upper_rank - lower_rank) / count
 }
 
 fn sort_buckets(buckets: &mut [ClassicBucket]) {
     sort_by(buckets, |left, right| {
-        if left.upper_bound < right.upper_bound {
-            Ordering::Less
-        } else if left.upper_bound > right.upper_bound {
-            Ordering::Greater
-        } else {
-            Ordering::Equal
-        }
+        bound_order(left.upper_bound, right.upper_bound)
     });
 }
 
@@ -179,13 +138,7 @@ fn coalesce(buckets: &mut [ClassicBucket]) -> usize {
     for index in 1..buckets.len() {
         let bucket = buckets[index];
         if bucket.upper_bound == last.upper_bound {
-            let count = last.count + bucket.count;
-            // Pinned Go coalescing retains the arriving operand's NaN payload.
-            last.count = if last.count.is_nan() && bucket.count.is_nan() {
-                f64::from_bits(bucket.count.to_bits() | 0x0008_0000_0000_0000)
-            } else {
-                count
-            };
+            last.count = coalesced_count(last.count, bucket.count);
         } else {
             buckets[output] = last;
             last = bucket;
@@ -201,31 +154,191 @@ fn ensure_monotonic(buckets: &mut [ClassicBucket], result: &mut BucketQuantileRe
     result.max_bound = f64::NEG_INFINITY;
     let mut previous = buckets[0].count;
     for bucket in &mut buckets[1..] {
-        let current = bucket.count;
-        if current == previous {
-            continue;
+        bucket.count = corrected_count(bucket.count, bucket.upper_bound, &mut previous, result);
+    }
+}
+
+pub(crate) fn coalesced_count(previous: f64, arriving: f64) -> f64 {
+    #[cfg(target_arch = "x86_64")]
+    {
+        source_add(arriving, previous)
+    }
+    #[cfg(not(target_arch = "x86_64"))]
+    {
+        if previous.is_nan() && arriving.is_nan() {
+            f64::from_bits(arriving.to_bits() | 0x0008_0000_0000_0000)
+        } else {
+            previous + arriving
         }
-        if almost_equal(previous, current, 1e-12) {
-            bucket.count = previous;
-            result.fixed_precision = true;
-            continue;
+    }
+}
+
+pub(crate) fn corrected_count(
+    current: f64,
+    bound: f64,
+    previous: &mut f64,
+    result: &mut BucketQuantileResult,
+) -> f64 {
+    if current == *previous {
+        return current;
+    }
+    if almost_equal(*previous, current, 1e-12) {
+        result.fixed_precision = true;
+        return *previous;
+    }
+    if current < *previous {
+        result.forced_monotonicity = true;
+        if bound < result.min_bound {
+            result.min_bound = bound;
         }
-        if current < previous {
-            bucket.count = previous;
-            result.forced_monotonicity = true;
-            if bucket.upper_bound < result.min_bound {
-                result.min_bound = bucket.upper_bound;
-            }
-            if bucket.upper_bound > result.max_bound {
-                result.max_bound = bucket.upper_bound;
-            }
-            let decrease = previous - current;
-            if decrease > result.max_decrease {
-                result.max_decrease = decrease;
-            }
-            continue;
+        if bound > result.max_bound {
+            result.max_bound = bound;
         }
-        previous = current;
+        let decrease = *previous - current;
+        if decrease > result.max_decrease {
+            result.max_decrease = decrease;
+        }
+        return *previous;
+    }
+    *previous = current;
+    current
+}
+
+pub(crate) fn quantile_interpolate(
+    mut rank: f64,
+    bucket: ClassicBucket,
+    previous: Option<ClassicBucket>,
+) -> f64 {
+    let mut count = bucket.count;
+    let start = previous.map_or(0.0, |bucket| bucket.upper_bound);
+    #[cfg(target_arch = "x86_64")]
+    {
+        if let Some(previous) = previous {
+            count = source_sub(count, previous.count);
+            rank = source_sub(rank, previous.count);
+        }
+        let width = source_sub(bucket.upper_bound, start);
+        source_add(source_mul(width, source_div(rank, count)), start)
+    }
+    #[cfg(not(target_arch = "x86_64"))]
+    {
+        if let Some(previous) = previous {
+            count -= previous.count;
+            rank -= previous.count;
+        }
+        start + (bucket.upper_bound - start) * (rank / count)
+    }
+}
+
+pub(crate) struct FractionRanks {
+    lower: f64,
+    upper: f64,
+    rank: f64,
+    lower_rank: f64,
+    upper_rank: f64,
+    lower_set: bool,
+    upper_set: bool,
+    previous_bound: Option<f64>,
+}
+
+impl FractionRanks {
+    pub(crate) fn new(lower: f64, upper: f64) -> Self {
+        Self {
+            lower,
+            upper,
+            rank: 0.0,
+            lower_rank: 0.0,
+            upper_rank: 0.0,
+            lower_set: false,
+            upper_set: false,
+            previous_bound: None,
+        }
+    }
+
+    pub(crate) fn push(&mut self, bucket: ClassicBucket) -> bool {
+        let lower_bound = match self.previous_bound {
+            Some(bound) => bound,
+            None if bucket.upper_bound <= 0.0 => f64::NEG_INFINITY,
+            None => 0.0,
+        };
+        self.previous_bound = Some(bucket.upper_bound);
+        if !self.lower_set && lower_bound >= self.lower {
+            self.lower_rank = self.rank;
+            self.lower_set = true;
+        }
+        if !self.upper_set && lower_bound >= self.upper {
+            self.upper_rank = self.rank;
+            self.upper_set = true;
+        }
+        if self.lower_set && self.upper_set {
+            return true;
+        }
+        if !self.lower_set && lower_bound < self.lower && bucket.upper_bound > self.lower {
+            self.lower_rank =
+                fraction_interpolate(self.lower, lower_bound, bucket, self.rank, false);
+            self.lower_set = true;
+        }
+        if !self.upper_set && lower_bound < self.upper && bucket.upper_bound > self.upper {
+            self.upper_rank =
+                fraction_interpolate(self.upper, lower_bound, bucket, self.rank, true);
+            self.upper_set = true;
+        }
+        if self.lower_set && self.upper_set {
+            return true;
+        }
+        self.rank = bucket.count;
+        false
+    }
+
+    pub(crate) fn finish(&self, count: f64) -> f64 {
+        let lower = if !self.lower_set || self.lower_rank > count {
+            count
+        } else {
+            self.lower_rank
+        };
+        let upper = if !self.upper_set || self.upper_rank > count {
+            count
+        } else {
+            self.upper_rank
+        };
+        #[cfg(target_arch = "x86_64")]
+        {
+            source_div(source_sub(upper, lower), count)
+        }
+        #[cfg(not(target_arch = "x86_64"))]
+        {
+            (upper - lower) / count
+        }
+    }
+}
+
+fn fraction_interpolate(
+    value: f64,
+    lower: f64,
+    bucket: ClassicBucket,
+    rank: f64,
+    upper: bool,
+) -> f64 {
+    if lower == f64::NEG_INFINITY {
+        return bucket.count;
+    }
+    #[cfg(target_arch = "x86_64")]
+    {
+        let product = source_div(
+            source_mul(source_sub(value, lower), source_sub(bucket.count, rank)),
+            source_sub(bucket.upper_bound, lower),
+        );
+        // The two original Go call sites use different ADD destinations.
+        if upper {
+            source_add(rank, product)
+        } else {
+            source_add(product, rank)
+        }
+    }
+    #[cfg(not(target_arch = "x86_64"))]
+    {
+        let _ = upper;
+        rank + (bucket.count - rank) * (value - lower) / (bucket.upper_bound - lower)
     }
 }
 
