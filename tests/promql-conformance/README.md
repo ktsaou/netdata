@@ -1214,8 +1214,9 @@ Terminal provider diagnostics retain explicit severity, opaque bytes and optiona
 owned results. Expansion failures carry their own notes and completed numeric parameter notes according to source
 boundaries; unfinished ancestor and ordinary raw-helper failures discard their notes. Replays do not duplicate
 diagnostics. Deferred selection errors retain their buffer capacity while awaiting their source evaluation owner.
-Metadata handles and output can grow with cardinality; raw history remains page scoped. Complete foreign transient
-allocation accounting and complete expression qualification remain required. All admission limits remain disabled.
+Metadata handles and output can grow with cardinality; raw history remains page scoped. Foreign transient allocation
+accounting uses the allocation handles described below. Complete expression qualification remains required. All
+admission limits remain disabled.
 
 ### COUNT_VALUES generated label identities
 
@@ -1494,14 +1495,14 @@ comparisons; insertion/removal moves and instant cohort metadata walks are obser
 Public owned-value mutators retain
 their inert interface; query execution uses checked owners. Interrupted local metadata is discarded with its
 query context, and error/unwind destruction remains infallible. Required native-accumulator bucket observation
-and complete foreign transient accounting retain their separate open qualification.
+retains its separate open qualification. Foreign transient allocations use the callback accounting interface below.
 
 Cleanup checks verify every memory category against exact live root counts, including `Accounting`; they do not
 exempt bookkeeping from leak detection. Query snapshots include the query root that is live when the snapshot
 is taken. Finite tests cover root identity, zero-capacity retention, creator/consumer attribution, concurrency,
 poison recovery, scoped failures and panicking cleanup. Typed C ownership is exercised by the finite embedding checks
-below. Complete foreign transient accounting and the full
-expression/SRE gates remain required. All resource enforcement remains disabled.
+below, including caller-reported transient allocations. The full expression/SRE gates remain required. All resource
+enforcement remains disabled.
 
 Compilation and reported execution/collection have shared internal entry points that accept their actual operation
 account. Native callers use these same paths; adapters can charge descriptors, errors and retained report/result
@@ -1525,7 +1526,7 @@ delegates for descriptor marshalling and independently owned collection.
 
 ### Synchronous C embedding
 
-`src/crates/promql-engine/include/netdata-promql.h` declares version 1 of the standalone interface. The crate emits an
+`src/crates/promql-engine/include/netdata-promql.h` declares version 2 of the standalone interface. The crate emits an
 `rlib` and a static library. Production Agent/plugin build integration belongs to a later stage.
 
 - Engine, immutable query, control, report and result handles have paired release functions. Results and reports own
@@ -1562,14 +1563,32 @@ ASan/UBSan instrument the C caller; the Rust core is exercised separately under 
 crate's compile guard.
 
 The generated-history sum witness uses pages of 1, 7 and 1,024 samples. Increasing history from 8,192 to 65,536 points
-leaves observed workspace peaks unchanged: 4,795, 5,883 and 225,339 bytes respectively on the qualified amd64 host.
+leaves observed workspace peaks unchanged: 6,843, 7,632 and 227,088 bytes respectively on the qualified amd64 host.
 Borrowed raw-page peaks are 32, 224 and 32,768 bytes. Fetched sample/page counters equal the provider's actual physical
 deliveries, including replay. These finite measurements do not bound cardinality-dependent operator state or output.
 
-Current foreign resource snapshots observe allocations surviving callback return. They cannot observe scratch
-allocated and freed inside a callback, or reconstruct concurrent temporary peaks. A precise foreign allocation-event
-mechanism remains a required design decision. Regex backend memory remains explicitly estimated, all resource caps
-remain disabled, and complete expression/SRE compatibility remains unqualified.
+Normal callbacks obtain their actual query's borrowed accounting context through `netdata_promql_callback_accounting`.
+Resource, close and abort callbacks receive it directly. Abort receives this capability even before begin when a valid
+query was established; an invalid query supplies NULL. Contexts expire when their callback returns and must not be
+retained. This ABI2 callback change rejects ABI1 tables before dispatch.
+
+`netdata_promql_allocation_acquire`, `resize` and `release` observe caller-reported live allocation bytes. They do not
+allocate or free foreign storage. An acquired handle retains its creator query and engine account independently of
+callback, query, report and engine handles. Compiled, Workspace, Result and ProviderHeld are valid payload categories;
+the engine charges each handle's known wrapper layout precisely to Accounting. Zero-byte handles are valid. Release
+must not race access, and callers release their handle after freeing its foreign storage.
+
+Allocation handles observe scratch freed before callback return and concurrent allocation overlap. Allocate/copy/free
+replacement requires two handles for its two simultaneously live allocations; resizing one handle cannot reveal hidden
+allocator overlap. Resource snapshots report residual owner storage, excluding descendants, adapter buffers and bytes
+already covered by allocation handles. BorrowedView describes exposure separately from physical storage. Requested
+allocation bytes exclude allocator-internal metadata and do not measure process RSS.
+
+The native caller witnesses exercise temporary allocation and exact 7 MiB overlap through normal and cleanup callbacks,
+snapshot exclusion for a retained provider buffer, valid-query abort before begin, invalid-query NULL accounting,
+retained output cleanup on begin/chunk/commit failure, and allocation handles surviving all other handle releases.
+Regex backend memory remains explicitly estimated, all resource caps remain disabled, and complete expression/SRE
+compatibility remains unqualified.
 
 `label_replace` and `label_join` project whole-series metadata after the vector child completes. Runtime validation
 occurs before child evaluation, following the upfront selector catalog. Replacement uses Go's anchored DotNL
@@ -1641,7 +1660,8 @@ validated, after child evaluation. Signature/hash encoding is fallible rather th
 The boundary tests exercise names and values immediately below, at and above the limit, generated fields,
 pre-grouping COUNT errors, deletion/no-match controls and combined labelsets larger than the field boundary.
 The real C/C++ embedding gate adds six provider cases and checks error classification, rejection before raw cursor
-creation and paired releases. These checks do not establish complete language or foreign-allocation accounting.
+creation and paired releases. Allocation-accounting witnesses are documented above; complete language qualification
+remains open.
 
 ## Bounded binary matching and pair replay
 

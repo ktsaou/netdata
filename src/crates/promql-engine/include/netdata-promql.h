@@ -22,7 +22,7 @@ _Static_assert(sizeof(double) == 8 && DBL_MANT_DIG == 53 && DBL_MAX_EXP == 1024,
  * Shape/version checks cannot establish pointer liveness or prevent caller memory corruption.
  * Ordinary Rust unwind panics return INTERNAL_ERROR; abort/OOM/invalid-pointer faults are not recovered.
  */
-#define NETDATA_PROMQL_ABI_VERSION UINT32_C(1)
+#define NETDATA_PROMQL_ABI_VERSION UINT32_C(2)
 #define NETDATA_PROMQL_OK UINT32_C(0)
 #define NETDATA_PROMQL_INVALID_ARGUMENT UINT32_C(1)
 #define NETDATA_PROMQL_PARSE_ERROR UINT32_C(2)
@@ -91,6 +91,8 @@ typedef struct netdata_promql_result_t netdata_promql_result_t;
 typedef struct netdata_promql_report_t netdata_promql_report_t;
 typedef struct netdata_promql_control_t netdata_promql_control_t;
 typedef struct netdata_promql_callback_control_t netdata_promql_callback_control_t;
+typedef struct netdata_promql_accounting_context_t netdata_promql_accounting_context_t;
+typedef struct netdata_promql_allocation_handle_t netdata_promql_allocation_handle_t;
 
 typedef struct netdata_promql_header_t {
     uint32_t abi_version;
@@ -269,9 +271,9 @@ typedef struct netdata_promql_page_t {
     netdata_promql_resources_t resources;
 } netdata_promql_page_t;
 
-typedef void (*netdata_promql_close_t)(void *, void *);
+typedef void (*netdata_promql_close_t)(void *, void *, const netdata_promql_accounting_context_t *);
 
-typedef netdata_promql_resources_t (*netdata_promql_resource_callback_t)(void *, void *);
+typedef netdata_promql_resources_t (*netdata_promql_resource_callback_t)(void *, void *, const netdata_promql_accounting_context_t *);
 
 typedef uint32_t (*netdata_promql_query_open_callback_t)(void *, netdata_promql_bounds_t, const netdata_promql_callback_control_t *, void * *, netdata_promql_bytes_t *);
 
@@ -430,7 +432,7 @@ typedef uint32_t (*netdata_promql_chunk_callback_t)(void *, const netdata_promql
 
 typedef uint32_t (*netdata_promql_commit_callback_t)(void *, const netdata_promql_query_observations_t *, const netdata_promql_callback_control_t *, netdata_promql_bytes_t *);
 
-typedef void (*netdata_promql_abort_callback_t)(void *);
+typedef void (*netdata_promql_abort_callback_t)(void *, const netdata_promql_accounting_context_t *);
 
 typedef struct netdata_promql_output_t {
     netdata_promql_header_t header;
@@ -494,9 +496,12 @@ static inline double netdata_promql_double_from_bits(uint64_t bits) {
  * increasing samples. Neither complete histories nor raw values across all metrics may be retained.
  * Page/histogram/array views live until the same cursor's next operation or close; other cursors
  * cannot invalidate them. next publishes resource snapshots on item, END and error.
- * Resources exclude descendants and directly accounted adapter buffers. Shared cache is external.
+ * Resources exclude descendants, directly accounted adapter buffers, and bytes covered by allocation handles.
+ * Snapshots describe residual owner memory; never subtract the query's total leased bytes from each owner.
+ * Shared cache is external. BorrowedView measures exposed views separately from physical allocation storage.
  * Returned error bytes stay live until the next callback; the engine copies them first.
  * Callback control is borrowed only for that callback. Poll it cooperatively during blocking work.
+ * Resource/close callbacks receive the same actual-query accounting capability without a cancellation contract.
  */
 
 /* Output contract:
@@ -505,6 +510,7 @@ static inline double netdata_promql_double_from_bits(uint64_t bits) {
  * Borrowed chunk descriptors/payloads expire when their callback returns; copy retained values.
  * Returned errors win over concurrent cancellation. No fallible construction follows successful commit.
  * abort is infallible. All callbacks and context remain valid until execution returns.
+ * abort receives actual-query accounting even before begin when a valid query was established; otherwise NULL.
  * All caps/admission/implicit deadlines are disabled. Owned collection may grow with derived output.
  */
 
@@ -522,6 +528,20 @@ uint32_t netdata_promql_control_cancel(const netdata_promql_control_t *);
 uint32_t netdata_promql_control_state(const netdata_promql_control_t *, netdata_promql_control_state_t *);
 uint32_t netdata_promql_control_release(netdata_promql_control_t *);
 uint32_t netdata_promql_callback_control_state(const netdata_promql_callback_control_t *, netdata_promql_control_state_t *);
+/* Accounting contexts are borrowed only during the current callback and must not be retained or released.
+ * Acquired handles retain their actual creator query independently of callback/query/report/engine lifetimes.
+ * Report requested live allocation bytes, excluding allocator-internal overhead; these calls do not allocate
+ * or free foreign storage. Resize reports the new live size of one allocation. Two overlapping allocations
+ * require two handles, including allocate/copy/free replacement. Release after the foreign storage is freed.
+ * Valid payload kinds: COMPILED, WORKSPACE, RESULT, PROVIDER_HELD. Handle wrapper bytes are charged precisely
+ * to ACCOUNTING. Observation/bootstrap categories are invalid payload kinds. Zero-byte handles are valid.
+ * Acquire initializes its out handle to NULL on failure. Release must not race any use of the handle.
+ * Normal callbacks obtain accounting through callback_accounting; cleanup receives it directly.
+ */
+uint32_t netdata_promql_callback_accounting(const netdata_promql_callback_control_t *, const netdata_promql_accounting_context_t **);
+uint32_t netdata_promql_allocation_acquire(const netdata_promql_accounting_context_t *, uint32_t kind, uint64_t bytes, netdata_promql_allocation_handle_t **);
+uint32_t netdata_promql_allocation_resize(const netdata_promql_allocation_handle_t *, uint64_t bytes);
+uint32_t netdata_promql_allocation_release(netdata_promql_allocation_handle_t *);
 uint32_t netdata_promql_compile(const netdata_promql_engine_t *, netdata_promql_bytes_t, const netdata_promql_control_t *, netdata_promql_query_t **, netdata_promql_report_t **);
 uint32_t netdata_promql_query_release(netdata_promql_query_t *);
 uint32_t netdata_promql_query_source(const netdata_promql_query_t *, netdata_promql_bytes_t *);

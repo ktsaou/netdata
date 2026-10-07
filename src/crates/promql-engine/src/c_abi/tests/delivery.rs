@@ -108,7 +108,7 @@ unsafe extern "C" fn commit(
         .set(Some(unsafe { observations.read() }));
     unsafe { delivery.called(3, control, error) }
 }
-unsafe extern "C" fn abort(context: *mut c_void) {
+unsafe extern "C" fn abort(context: *mut c_void, _: *const types::AccountingContext) {
     let delivery = unsafe { delivery(context) };
     delivery.calls[3].set(delivery.calls[3].get() + 1);
     // Returned error bytes expire at this callback, after the engine has retained them.

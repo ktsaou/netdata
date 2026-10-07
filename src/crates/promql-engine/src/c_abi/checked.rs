@@ -89,8 +89,34 @@ pub(crate) unsafe fn optional<'a, T>(
     }
     Ok(Some(unsafe { slice(data, len) }?))
 }
-pub(crate) fn callback_control(control: &Control) -> *const types::CallbackControl {
-    (control as *const Control).cast()
+pub(crate) struct Callback<'a> {
+    pub(crate) control: &'a Control,
+    pub(crate) account: &'a QueryAccounting,
+}
+impl<'a> Callback<'a> {
+    pub(crate) fn new(control: &'a Control, account: &'a QueryAccounting) -> Self {
+        Self { control, account }
+    }
+    pub(crate) fn as_ptr(&self) -> *const types::CallbackControl {
+        (self as *const Self).cast()
+    }
+}
+pub(crate) unsafe fn callback<'a>(
+    value: *const types::CallbackControl,
+) -> Result<&'a Callback<'a>, Invalid> {
+    let value = value.cast::<Callback<'a>>();
+    region(value, 1)?;
+    Ok(unsafe { &*value })
+}
+pub(crate) fn accounting_context(account: &QueryAccounting) -> *const types::AccountingContext {
+    (account as *const QueryAccounting).cast()
+}
+pub(crate) unsafe fn accounting<'a>(
+    value: *const types::AccountingContext,
+) -> Result<&'a QueryAccounting, Invalid> {
+    let value = value.cast::<QueryAccounting>();
+    region(value, 1)?;
+    Ok(unsafe { &*value })
 }
 pub(crate) unsafe fn returned_error(
     value: Bytes,

@@ -12,6 +12,10 @@ typedef struct {
     unsigned failure, cancel_at;
     netdata_promql_control_t *control;
     uint8_t error[32];
+    netdata_promql_engine_t *accounting_engine;
+    unsigned accounting_phases;
+    void *query_buffer;
+    netdata_promql_allocation_handle_t *query_allocation;
 } fixture;
 
 typedef struct {
@@ -27,9 +31,74 @@ static netdata_promql_bytes_t bytes(const void *data, uint64_t len) {
     value.len = len;
     return value;
 }
-static netdata_promql_resources_t no_resources(void *context, void *handle) {
+static void *foreign_buffer(size_t size) {
+    volatile uint8_t *value = (volatile uint8_t *)malloc(size);
+    assert(value && size);
+    value[0] = 1;
+    value[size - 1] = 2;
+    return (void *)value;
+}
+static netdata_promql_allocation_handle_t *foreign_allocation(
+        const netdata_promql_accounting_context_t *account, uint32_t kind, uint64_t size) {
+    netdata_promql_allocation_handle_t *value = NULL;
+    assert(netdata_promql_allocation_acquire(account, kind, size, &value) == NETDATA_PROMQL_OK);
+    assert(value);
+    return value;
+}
+static netdata_promql_engine_observations_t engine_observations(netdata_promql_engine_t *engine) {
+    netdata_promql_engine_observations_t value;
+    assert(netdata_promql_engine_observations(engine, &value) == NETDATA_PROMQL_OK);
+    return value;
+}
+static void foreign_accounting_probe(netdata_promql_engine_t *engine,
+                                     const netdata_promql_accounting_context_t *account) {
+    const uint64_t unit = UINT64_C(1048576);
+    netdata_promql_engine_observations_t before = engine_observations(engine);
+    void *first = foreign_buffer((size_t)unit);
+    netdata_promql_allocation_handle_t *a = foreign_allocation(account, NETDATA_PROMQL_MEMORY_WORKSPACE, unit);
+    netdata_promql_engine_observations_t one = engine_observations(engine);
+    assert(one.memory[NETDATA_PROMQL_MEMORY_WORKSPACE].current == before.memory[NETDATA_PROMQL_MEMORY_WORKSPACE].current + unit);
+    uint64_t wrapper = one.memory[NETDATA_PROMQL_MEMORY_ACCOUNTING].current - before.memory[NETDATA_PROMQL_MEMORY_ACCOUNTING].current;
+    assert(wrapper > 0);
+    void *second = foreign_buffer((size_t)(2 * unit));
+    netdata_promql_allocation_handle_t *b = foreign_allocation(account, NETDATA_PROMQL_MEMORY_WORKSPACE, 2 * unit);
+    void *replacement = foreign_buffer((size_t)(4 * unit));
+    netdata_promql_allocation_handle_t *c = foreign_allocation(account, NETDATA_PROMQL_MEMORY_WORKSPACE, 4 * unit);
+    netdata_promql_engine_observations_t overlap = engine_observations(engine);
+    assert(overlap.memory[NETDATA_PROMQL_MEMORY_WORKSPACE].current == before.memory[NETDATA_PROMQL_MEMORY_WORKSPACE].current + 7 * unit);
+    assert(overlap.memory[NETDATA_PROMQL_MEMORY_WORKSPACE].peak >= overlap.memory[NETDATA_PROMQL_MEMORY_WORKSPACE].current);
+    assert(overlap.memory[NETDATA_PROMQL_MEMORY_ACCOUNTING].current == before.memory[NETDATA_PROMQL_MEMORY_ACCOUNTING].current + 3 * wrapper);
+    free(second);
+    assert(netdata_promql_allocation_release(b) == NETDATA_PROMQL_OK);
+    netdata_promql_engine_observations_t smaller = engine_observations(engine);
+    assert(smaller.memory[NETDATA_PROMQL_MEMORY_WORKSPACE].current == before.memory[NETDATA_PROMQL_MEMORY_WORKSPACE].current + 5 * unit);
+    free(first);
+    assert(netdata_promql_allocation_resize(a, 0) == NETDATA_PROMQL_OK);
+    first = foreign_buffer(4096);
+    assert(netdata_promql_allocation_resize(a, 4096) == NETDATA_PROMQL_OK);
+    smaller = engine_observations(engine);
+    assert(smaller.memory[NETDATA_PROMQL_MEMORY_WORKSPACE].current == before.memory[NETDATA_PROMQL_MEMORY_WORKSPACE].current + 4 * unit + 4096);
+    assert(smaller.memory[NETDATA_PROMQL_MEMORY_ACCOUNTING].current == before.memory[NETDATA_PROMQL_MEMORY_ACCOUNTING].current + 2 * wrapper);
+    free(first);
+    assert(netdata_promql_allocation_resize(a, 0) == NETDATA_PROMQL_OK);
+    assert(netdata_promql_allocation_release(a) == NETDATA_PROMQL_OK);
+    free(replacement);
+    assert(netdata_promql_allocation_release(c) == NETDATA_PROMQL_OK);
+    netdata_promql_engine_observations_t after = engine_observations(engine);
+    assert(after.memory[NETDATA_PROMQL_MEMORY_WORKSPACE].current == before.memory[NETDATA_PROMQL_MEMORY_WORKSPACE].current);
+    assert(after.memory[NETDATA_PROMQL_MEMORY_ACCOUNTING].current == before.memory[NETDATA_PROMQL_MEMORY_ACCOUNTING].current);
+}
+static void account_fixture(fixture *f, const netdata_promql_accounting_context_t *account, unsigned phase) {
+    assert(account);
+    if (!f->accounting_engine) return;
+    f->accounting_phases |= 1u << phase;
+    foreign_accounting_probe(f->accounting_engine, account);
+}
+static netdata_promql_resources_t no_resources(void *context, void *handle,
+                                             const netdata_promql_accounting_context_t *account) {
     fixture *f = (fixture *)context;
     (void)handle;
+    assert(account != NULL);
     memset(f->error, 'X', sizeof(f->error));
     netdata_promql_resources_t result;
     memset(&result, 0, sizeof(result));
@@ -39,6 +108,12 @@ static uint32_t checked_control(const netdata_promql_callback_control_t *control
     netdata_promql_control_state_t state;
     uint32_t status = netdata_promql_callback_control_state(control, &state);
     return status == NETDATA_PROMQL_OK ? state.status : status;
+}
+static const netdata_promql_accounting_context_t *callback_account(const netdata_promql_callback_control_t *control) {
+    const netdata_promql_accounting_context_t *account = NULL;
+    assert(netdata_promql_callback_accounting(control, &account) == NETDATA_PROMQL_OK);
+    assert(account != NULL);
+    return account;
 }
 static uint32_t returned(fixture *f, unsigned stage, netdata_promql_bytes_t *error) {
     static const uint8_t message[] = {'p','r','o','v','i','d','e','r',0,255,'f','a','i','l','u','r','e'};
@@ -58,17 +133,36 @@ static uint32_t query_open(void *context, netdata_promql_bounds_t bounds,
     (void)bounds;
     uint32_t status = checked_control(control);
     if (status != NETDATA_PROMQL_OK) return status;
+    if (f->accounting_engine) account_fixture(f, callback_account(control), 0);
     f->opened[0]++;
     status = returned(f, 1, error);
     if (status != NETDATA_PROMQL_OK) return status;
+    if (f->accounting_engine) {
+        f->query_buffer = foreign_buffer(4096);
+        f->query_allocation = foreign_allocation(callback_account(control), NETDATA_PROMQL_MEMORY_PROVIDER_HELD, 4096);
+    }
     *out = NULL;
     return NETDATA_PROMQL_OK;
 }
-static void query_close(void *context, void *handle) {
+static void query_close(void *context, void *handle, const netdata_promql_accounting_context_t *account) {
     fixture *f = (fixture *)context;
+    assert(account != NULL);
+    account_fixture(f, account, 2);
+    if (f->query_allocation) {
+        free(f->query_buffer);
+        f->query_buffer = NULL;
+        assert(netdata_promql_allocation_release(f->query_allocation) == NETDATA_PROMQL_OK);
+        f->query_allocation = NULL;
+    }
     (void)handle;
     f->closed[0]++;
     memset(f->error, 'X', sizeof(f->error));
+}
+static netdata_promql_resources_t query_resources(void *context, void *handle,
+                                                 const netdata_promql_accounting_context_t *account) {
+    account_fixture((fixture *)context, account, 1);
+    /* The retained query buffer is already charged through its explicit allocation handle. */
+    return no_resources(context, handle, account);
 }
 static uint32_t selection_open(void *context, void *query,
                                const netdata_promql_selection_request_t *request,
@@ -85,14 +179,18 @@ static uint32_t selection_open(void *context, void *query,
     *out = calloc(1, 1);
     return *out ? NETDATA_PROMQL_OK : NETDATA_PROMQL_PROVIDER_ERROR;
 }
-static void selection_close(void *context, void *handle) {
+static void selection_close(void *context, void *handle, const netdata_promql_accounting_context_t *account) {
     fixture *f = (fixture *)context;
+    assert(account != NULL);
+    account_fixture(f, account, 4);
     f->closed[1]++;
     free(handle);
     memset(f->error, 'X', sizeof(f->error));
 }
-static netdata_promql_resources_t selection_resources(void *context, void *handle) {
-    netdata_promql_resources_t result = no_resources(context, handle);
+static netdata_promql_resources_t selection_resources(void *context, void *handle,
+                                                    const netdata_promql_accounting_context_t *account) {
+    account_fixture((fixture *)context, account, 3);
+    netdata_promql_resources_t result = no_resources(context, handle, account);
     result.held_bytes = 1;
     return result;
 }
@@ -116,11 +214,18 @@ static uint32_t selection_next(void *context, void *handle,
     out->labels.len = 2;
     return NETDATA_PROMQL_OK;
 }
-static void series_close(void *context, void *handle) {
+static void series_close(void *context, void *handle, const netdata_promql_accounting_context_t *account) {
     fixture *f = (fixture *)context;
+    assert(account != NULL);
+    account_fixture(f, account, 6);
     (void)handle;
     f->closed[2]++;
     memset(f->error, 'X', sizeof(f->error));
+}
+static netdata_promql_resources_t series_resources(void *context, void *handle,
+                                                  const netdata_promql_accounting_context_t *account) {
+    account_fixture((fixture *)context, account, 5);
+    return no_resources(context, handle, account);
 }
 static uint32_t cursor_open(void *context, void *series, netdata_promql_bounds_t bounds,
                             const netdata_promql_callback_control_t *control,
@@ -143,17 +248,21 @@ static uint32_t cursor_open(void *context, void *series, netdata_promql_bounds_t
     out->max_page_samples = c->capacity;
     return NETDATA_PROMQL_OK;
 }
-static void cursor_close(void *context, void *handle) {
+static void cursor_close(void *context, void *handle, const netdata_promql_accounting_context_t *account) {
     fixture *f = (fixture *)context;
     cursor *c = (cursor *)handle;
+    assert(account != NULL);
+    account_fixture(f, account, 8);
     f->closed[3]++;
     free(c->page);
     free(c);
     memset(f->error, 'X', sizeof(f->error));
 }
-static netdata_promql_resources_t cursor_resources(void *context, void *handle) {
+static netdata_promql_resources_t cursor_resources(void *context, void *handle,
+                                                 const netdata_promql_accounting_context_t *account) {
+    account_fixture((fixture *)context, account, 7);
     cursor *c = (cursor *)handle;
-    netdata_promql_resources_t result = no_resources(context, handle);
+    netdata_promql_resources_t result = no_resources(context, handle, account);
     result.held_bytes = sizeof(*c) + c->capacity * sizeof(*c->page);
     result.shared_cache_bytes = 7;
     return result;
@@ -176,7 +285,7 @@ static uint32_t cursor_next(void *context, void *handle,
                             netdata_promql_bytes_t *error) {
     fixture *f = (fixture *)context;
     cursor *c = (cursor *)handle;
-    *resources = cursor_resources(context, handle);
+    *resources = cursor_resources(context, handle, callback_account(control));
     uint32_t status = checked_control(control);
     if (status != NETDATA_PROMQL_OK) return status;
     status = returned(f, 6, error);
@@ -220,10 +329,10 @@ static netdata_promql_provider_t provider(fixture *f) {
     p.header.abi_version = NETDATA_PROMQL_ABI_VERSION;
     p.header.struct_size = sizeof(p);
     p.context = f;
-    p.query_open = query_open; p.query_close = query_close; p.query_resources = no_resources;
+    p.query_open = query_open; p.query_close = query_close; p.query_resources = query_resources;
     p.selection_open = selection_open; p.selection_close = selection_close;
     p.selection_resources = selection_resources; p.selection_next = selection_next;
-    p.series_close = series_close; p.series_resources = no_resources;
+    p.series_close = series_close; p.series_resources = series_resources;
     p.cursor_open = cursor_open; p.cursor_close = cursor_close; p.cursor_resources = cursor_resources;
     p.cursor_seek = cursor_seek; p.cursor_next = cursor_next;
     return p;
@@ -358,11 +467,26 @@ typedef struct {
     uint32_t failure, cancel_at, calls[4];
     netdata_promql_control_t *control;
     uint8_t error[5];
+    netdata_promql_engine_t *accounting_engine;
+    uint32_t accounting_callbacks, null_accounting, retain_output;
+    uint64_t result_before;
+    void *buffer;
+    netdata_promql_allocation_handle_t *allocation;
 } delivery;
 static uint32_t output_status(delivery *d, uint32_t phase,
                               const netdata_promql_callback_control_t *control,
                               netdata_promql_bytes_t *error) {
     assert(checked_control(control) == NETDATA_PROMQL_OK);
+    if (d->accounting_engine) {
+        const netdata_promql_accounting_context_t *account = callback_account(control);
+        foreign_accounting_probe(d->accounting_engine, account);
+        d->accounting_callbacks++;
+        if (d->retain_output && phase == 1) {
+            d->result_before = engine_observations(d->accounting_engine).memory[NETDATA_PROMQL_MEMORY_RESULT].current;
+            d->buffer = foreign_buffer(4096);
+            d->allocation = foreign_allocation(account, NETDATA_PROMQL_MEMORY_RESULT, 4096);
+        }
+    }
     d->calls[phase - 1]++;
     if (d->cancel_at == phase) assert(netdata_promql_control_cancel(d->control) == NETDATA_PROMQL_OK);
     if (d->failure != phase) return NETDATA_PROMQL_OK;
@@ -399,10 +523,32 @@ static uint32_t output_commit(void *context, const netdata_promql_query_observat
     assert(observations->memory[NETDATA_PROMQL_MEMORY_BORROWED_VIEW].current == 0);
     return output_status((delivery *)context, 3, control, error);
 }
-static void output_abort(void *context) {
+static void output_abort(void *context, const netdata_promql_accounting_context_t *account) {
     delivery *d = (delivery *)context;
+    if (d->accounting_engine) {
+        if (account) {
+            foreign_accounting_probe(d->accounting_engine, account);
+            d->accounting_callbacks++;
+        } else d->null_accounting++;
+    } else assert(account);
     d->calls[3]++;
+    if (d->allocation) {
+        free(d->buffer);
+        d->buffer = NULL;
+        assert(netdata_promql_allocation_release(d->allocation) == NETDATA_PROMQL_OK);
+        d->allocation = NULL;
+    }
     memset(d->error, 'X', sizeof(d->error));
+}
+static netdata_promql_output_t delivery_table(delivery *d) {
+    netdata_promql_output_t output;
+    memset(&output, 0, sizeof(output));
+    output.header.abi_version = NETDATA_PROMQL_ABI_VERSION;
+    output.header.struct_size = sizeof(output);
+    output.context = d;
+    output.begin = output_begin; output.chunk = output_chunk;
+    output.commit = output_commit; output.abort = output_abort;
+    return output;
 }
 static void output_delivery(netdata_promql_engine_t *engine) {
     for (unsigned test = 0; test < 6; test++) {
@@ -416,13 +562,7 @@ static void output_delivery(netdata_promql_engine_t *engine) {
         d.failure = test < 4 ? test : 0;
         d.cancel_at = test < 4 ? (test ? test : 3) : test - 3;
         assert(netdata_promql_control_create(engine, NULL, &d.control) == NETDATA_PROMQL_OK);
-        netdata_promql_output_t output;
-        memset(&output, 0, sizeof(output));
-        output.header.abi_version = NETDATA_PROMQL_ABI_VERSION;
-        output.header.struct_size = sizeof(output);
-        output.context = &d;
-        output.begin = output_begin; output.chunk = output_chunk;
-        output.commit = output_commit; output.abort = output_abort;
+        netdata_promql_output_t output = delivery_table(&d);
         netdata_promql_report_t *report = NULL;
         uint32_t status = netdata_promql_execute(query, &p, &request, d.control, &output, &report);
         assert(status == (d.failure ? NETDATA_PROMQL_OUTPUT_ERROR : test ? NETDATA_PROMQL_CANCELLED : NETDATA_PROMQL_OK));
@@ -441,6 +581,125 @@ static void output_delivery(netdata_promql_engine_t *engine) {
         assert(netdata_promql_control_release(d.control) == NETDATA_PROMQL_OK);
         assert(netdata_promql_report_release(report) == NETDATA_PROMQL_OK);
     }
+}
+static void foreign_provider_accounting(netdata_promql_engine_t *engine) {
+    netdata_promql_query_t *query = compile(engine, "m[1s]");
+    fixture f;
+    init_fixture(&f, 3, 1);
+    f.accounting_engine = engine;
+    netdata_promql_provider_t p = provider(&f);
+    netdata_promql_request_t request = instant(3000);
+    netdata_promql_result_t *result = NULL;
+    netdata_promql_report_t *report = NULL;
+    assert(netdata_promql_collect(query, &p, &request, NULL, &result, &report) == NETDATA_PROMQL_OK);
+    released(&f);
+    assert(f.accounting_phases == 511 && !f.query_buffer && !f.query_allocation);
+    netdata_promql_query_observations_t observed;
+    assert(netdata_promql_report_observations(report, &observed) == NETDATA_PROMQL_OK);
+    assert(observed.memory[NETDATA_PROMQL_MEMORY_PROVIDER_HELD].current == 0);
+    assert(observed.memory[NETDATA_PROMQL_MEMORY_PROVIDER_HELD].peak >= 4096);
+    assert(observed.memory[NETDATA_PROMQL_MEMORY_PROVIDER_HELD].peak < 8192);
+    assert(observed.memory[NETDATA_PROMQL_MEMORY_WORKSPACE].peak >= UINT64_C(7340032));
+    assert(netdata_promql_result_release(result) == NETDATA_PROMQL_OK);
+    assert(netdata_promql_report_release(report) == NETDATA_PROMQL_OK);
+    assert(netdata_promql_query_release(query) == NETDATA_PROMQL_OK);
+    puts("{\"foreign_accounting\":\"pass\",\"callback_phases\":9,\"overlap_bytes\":7340032,\"retained_bytes\":4096}");
+}
+static void foreign_early_abort(netdata_promql_engine_t *engine) {
+    for (unsigned test = 0; test < 7; test++) {
+        netdata_promql_query_t *query = compile(engine, test == 5 ? "m[step()]" : "m");
+        fixture f;
+        init_fixture(&f, 3, 1);
+        netdata_promql_provider_t p = provider(&f);
+        if (test == 3) p.header.abi_version = 1;
+        netdata_promql_request_t request = instant(3000);
+        if (test == 2) request.kind = UINT32_MAX;
+        delivery d;
+        memset(&d, 0, sizeof(d));
+        d.accounting_engine = engine;
+        netdata_promql_output_t output = delivery_table(&d);
+        if (test == 6) output.header.abi_version = 1;
+        if (test == 4) {
+            assert(netdata_promql_control_create(engine, NULL, &d.control) == NETDATA_PROMQL_OK);
+            assert(netdata_promql_control_cancel(d.control) == NETDATA_PROMQL_OK);
+        }
+        netdata_promql_report_t *report = NULL;
+        uint32_t status = netdata_promql_execute(test == 0 ? NULL : query, &p,
+                test == 1 ? NULL : &request, d.control, &output, &report);
+        assert(status == (test == 4 ? NETDATA_PROMQL_CANCELLED :
+                          test == 5 ? NETDATA_PROMQL_EVALUATION_ERROR : NETDATA_PROMQL_INVALID_ARGUMENT));
+        assert(!d.calls[0] && !d.calls[1] && !d.calls[2]);
+        assert(d.calls[3] == (test != 6));
+        assert(d.null_accounting == (test == 0));
+        assert(d.accounting_callbacks == (test > 0 && test < 6));
+        assert(!f.opened[0]);
+        released(&f);
+        if (report) assert(netdata_promql_report_release(report) == NETDATA_PROMQL_OK);
+        if (d.control) assert(netdata_promql_control_release(d.control) == NETDATA_PROMQL_OK);
+        assert(netdata_promql_query_release(query) == NETDATA_PROMQL_OK);
+    }
+    puts("{\"foreign_early_abort\":\"pass\",\"cases\":7}");
+}
+static void foreign_allocation_lifetime(void) {
+    netdata_promql_engine_t *engine = NULL;
+    assert(netdata_promql_engine_create(NULL, &engine) == NETDATA_PROMQL_OK);
+    netdata_promql_query_t *query = compile(engine, "m");
+    fixture f;
+    init_fixture(&f, 3, 1);
+    netdata_promql_provider_t p = provider(&f);
+    netdata_promql_request_t request = instant(3000);
+    netdata_promql_engine_observations_t idle = engine_observations(engine);
+    assert(idle.memory[NETDATA_PROMQL_MEMORY_RESULT].current == 0);
+    for (unsigned phase = 1; phase <= 3; phase++) {
+        delivery failed;
+        memset(&failed, 0, sizeof(failed));
+        failed.accounting_engine = engine;
+        failed.retain_output = 1;
+        failed.failure = phase;
+        netdata_promql_output_t output = delivery_table(&failed);
+        netdata_promql_report_t *report = NULL;
+        assert(netdata_promql_execute(query, &p, &request, NULL, &output, &report) == NETDATA_PROMQL_OUTPUT_ERROR);
+        assert(failed.calls[3] == 1 && !failed.buffer && !failed.allocation);
+        assert(failed.accounting_callbacks == phase + 1);
+        netdata_promql_query_observations_t observed;
+        assert(netdata_promql_report_live_observations(report, &observed) == NETDATA_PROMQL_OK);
+        assert(observed.memory[NETDATA_PROMQL_MEMORY_RESULT].current == failed.result_before);
+        assert(observed.memory[NETDATA_PROMQL_MEMORY_RESULT].peak == failed.result_before + 4096);
+        released(&f);
+        assert(netdata_promql_report_release(report) == NETDATA_PROMQL_OK);
+        balanced(engine, &idle);
+    }
+    delivery d;
+    memset(&d, 0, sizeof(d));
+    d.accounting_engine = engine;
+    d.retain_output = 1;
+    netdata_promql_output_t output = delivery_table(&d);
+    netdata_promql_report_t *report = NULL;
+    assert(netdata_promql_execute(query, &p, &request, NULL, &output, &report) == NETDATA_PROMQL_OK);
+    assert(d.accounting_callbacks == 3 && !d.calls[3] && d.buffer && d.allocation);
+    released(&f);
+    netdata_promql_query_observations_t fixed, live;
+    assert(netdata_promql_report_observations(report, &fixed) == NETDATA_PROMQL_OK);
+    assert(fixed.memory[NETDATA_PROMQL_MEMORY_RESULT].current == d.result_before + 4096);
+    free(d.buffer);
+    assert(netdata_promql_allocation_resize(d.allocation, 0) == NETDATA_PROMQL_OK);
+    d.buffer = foreign_buffer(8192);
+    assert(netdata_promql_allocation_resize(d.allocation, 8192) == NETDATA_PROMQL_OK);
+    assert(netdata_promql_report_live_observations(report, &live) == NETDATA_PROMQL_OK);
+    assert(live.memory[NETDATA_PROMQL_MEMORY_RESULT].current == d.result_before + 8192);
+    assert(netdata_promql_report_observations(report, &live) == NETDATA_PROMQL_OK);
+    assert(live.memory[NETDATA_PROMQL_MEMORY_RESULT].current == fixed.memory[NETDATA_PROMQL_MEMORY_RESULT].current);
+    assert(netdata_promql_report_release(report) == NETDATA_PROMQL_OK);
+    assert(netdata_promql_query_release(query) == NETDATA_PROMQL_OK);
+    assert(netdata_promql_engine_release(engine) == NETDATA_PROMQL_OK);
+    free(d.buffer);
+    assert(netdata_promql_allocation_resize(d.allocation, 0) == NETDATA_PROMQL_OK);
+    d.buffer = foreign_buffer(16384);
+    assert(netdata_promql_allocation_resize(d.allocation, 16384) == NETDATA_PROMQL_OK);
+    assert(((volatile uint8_t *)d.buffer)[16383] == 2);
+    free(d.buffer);
+    assert(netdata_promql_allocation_release(d.allocation) == NETDATA_PROMQL_OK);
+    puts("{\"foreign_allocation_lifetime\":\"pass\",\"bytes\":16384,\"abort_cases\":3}");
 }
 static void label_field_boundary(netdata_promql_engine_t *engine) {
     const size_t boundary = ((size_t)1) << 24;
@@ -510,9 +769,14 @@ int main(void) {
     balanced(engine, &idle);
     output_delivery(engine);
     balanced(engine, &idle);
+    foreign_provider_accounting(engine);
+    balanced(engine, &idle);
+    foreign_early_abort(engine);
+    balanced(engine, &idle);
     label_field_boundary(engine);
     balanced(engine, &idle);
     assert(netdata_promql_engine_release(engine) == NETDATA_PROMQL_OK);
+    foreign_allocation_lifetime();
     puts("{\"native_embedding\":\"pass\"}");
     return 0;
 }

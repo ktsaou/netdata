@@ -6,6 +6,7 @@ use std::{
     ptr,
 };
 
+mod allocations;
 mod delivery;
 mod ownership;
 mod pages;
@@ -140,10 +141,18 @@ unsafe extern "C" fn query_open(
     unsafe { fixture(context) }.cancel(1);
     types::OK
 }
-unsafe extern "C" fn query_close(context: *mut c_void, _: *mut c_void) {
+unsafe extern "C" fn query_close(
+    context: *mut c_void,
+    _: *mut c_void,
+    _: *const types::AccountingContext,
+) {
     unsafe { fixture(context) }.closed(0);
 }
-unsafe extern "C" fn empty_resources(context: *mut c_void, _: *mut c_void) -> types::Resources {
+unsafe extern "C" fn empty_resources(
+    context: *mut c_void,
+    _: *mut c_void,
+    _: *const types::AccountingContext,
+) -> types::Resources {
     unsafe { fixture(context) }.invalidate_error();
     types::Resources::default()
 }
@@ -163,11 +172,19 @@ unsafe extern "C" fn selection_open(
     unsafe { fixture(context) }.cancel(2);
     types::OK
 }
-unsafe extern "C" fn selection_close(context: *mut c_void, value: *mut c_void) {
+unsafe extern "C" fn selection_close(
+    context: *mut c_void,
+    value: *mut c_void,
+    _: *const types::AccountingContext,
+) {
     unsafe { fixture(context) }.closed(1);
     drop(unsafe { Box::from_raw(value.cast::<bool>()) });
 }
-unsafe extern "C" fn selection_resources(context: *mut c_void, _: *mut c_void) -> types::Resources {
+unsafe extern "C" fn selection_resources(
+    context: *mut c_void,
+    _: *mut c_void,
+    _: *const types::AccountingContext,
+) -> types::Resources {
     unsafe { fixture(context) }.invalidate_error();
     types::Resources {
         held_bytes: size_of::<bool>() as u64,
@@ -218,7 +235,11 @@ unsafe extern "C" fn selection_next(
     fixture.cancel(3);
     types::OK
 }
-unsafe extern "C" fn series_close(context: *mut c_void, _: *mut c_void) {
+unsafe extern "C" fn series_close(
+    context: *mut c_void,
+    _: *mut c_void,
+    _: *const types::AccountingContext,
+) {
     unsafe { fixture(context) }.closed(2);
 }
 unsafe extern "C" fn cursor_open(
@@ -248,13 +269,18 @@ unsafe extern "C" fn cursor_open(
     fixture.cancel(4);
     types::OK
 }
-unsafe extern "C" fn cursor_close(context: *mut c_void, value: *mut c_void) {
+unsafe extern "C" fn cursor_close(
+    context: *mut c_void,
+    value: *mut c_void,
+    _: *const types::AccountingContext,
+) {
     unsafe { fixture(context) }.closed(3);
     drop(unsafe { Box::from_raw(value.cast::<Cursor>()) });
 }
 unsafe extern "C" fn cursor_resources(
     context: *mut c_void,
     value: *mut c_void,
+    _: *const types::AccountingContext,
 ) -> types::Resources {
     unsafe { fixture(context) }.invalidate_error();
     let value = unsafe { &*value.cast::<Cursor>() };
@@ -508,6 +534,50 @@ fn foreign_failures_keep_bytes_and_close_only_successful_opens() {
             assert_eq!(netdata_promql_report_release(report), types::OK);
             accounting.snapshot().assert_memory_released();
         }
+    }
+}
+
+#[test]
+fn legacy_callback_prefixes_reject_before_table_access() {
+    #[repr(align(16))]
+    struct Prefix(types::Header);
+    let prefix = Prefix(types::Header {
+        abi_version: 1,
+        struct_size: u32::MAX,
+    });
+    unsafe {
+        let mut report = ptr::null_mut();
+        assert_eq!(
+            netdata_promql_execute(
+                ptr::null(),
+                ptr::null(),
+                ptr::null(),
+                ptr::null(),
+                (&prefix.0 as *const types::Header).cast(),
+                &mut report,
+            ),
+            types::INVALID_ARGUMENT
+        );
+        assert!(report.is_null());
+        let engine = engine();
+        let account = borrow::<Engine, _>(engine).unwrap().core.accounting.clone();
+        let query = compiled(engine, b"m");
+        let mut result = ptr::null_mut();
+        assert_eq!(
+            netdata_promql_collect(
+                query,
+                (&prefix.0 as *const types::Header).cast(),
+                &instant(3000),
+                ptr::null(),
+                &mut result,
+                &mut report,
+            ),
+            types::INVALID_ARGUMENT
+        );
+        assert!(result.is_null() && report.is_null());
+        assert_eq!(netdata_promql_query_release(query), types::OK);
+        assert_eq!(netdata_promql_engine_release(engine), types::OK);
+        account.snapshot().assert_memory_released();
     }
 }
 

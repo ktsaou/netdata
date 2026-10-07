@@ -95,6 +95,22 @@ def records(output):
     return [json.loads(line) for line in output.splitlines()]
 
 
+def native_records(name, output):
+    values = records(output)
+    tail = [
+        {'foreign_accounting': 'pass', 'callback_phases': 9, 'overlap_bytes': 7340032, 'retained_bytes': 4096},
+        {'foreign_early_abort': 'pass', 'cases': 7},
+        {'label_field_boundary': 'pass', 'cases': 6},
+        {'foreign_allocation_lifetime': 'pass', 'bytes': 16384, 'abort_cases': 3},
+        {'native_embedding': 'pass'},
+    ]
+    expected = [(rows, size) for size in (1, 7, 1024) for rows in (8192, 65536)]
+    actual = [(value.get('rows'), value.get('page_size')) for value in values[:6]]
+    if len(values) != 11 or actual != expected or values[6:] != tail:
+        raise ValueError(name + ': incomplete native witnesses')
+    return values
+
+
 def qualify(profiles, sanitizers, abort_check):
     root = directory(HERE.parent.parent)
     crate = directory(root / "src/crates/promql-engine")
@@ -146,11 +162,7 @@ def qualify(profiles, sanitizers, abort_check):
             binary = task / name
             command(task, name + '-build', [*flags, HERE / 'c_embedding.c', '-x', 'none', archive,
                                           *libs, '-o', binary], root, env)
-            values = records(command(task, name, [binary], root, env).stdout)
-            if (len(values) != 8 or values[-2] != {'label_field_boundary': 'pass', 'cases': 6}
-                    or values[-1] != {'native_embedding': 'pass'}):
-                raise ValueError(name + ': incomplete native witnesses')
-            witnesses[name] = values
+            witnesses[name] = native_records(name, command(task, name, [binary], root, env).stdout)
         if sanitizers:
             name = profile + '-clang-sanitized'
             binary = task / name
@@ -158,7 +170,7 @@ def qualify(profiles, sanitizers, abort_check):
                     '-fsanitize=address,undefined', '-fno-omit-frame-pointer', '-I', crate / 'include',
                     HERE / 'c_embedding.c', archive, *libs, '-o', binary], root, env)
             sanitizer_env = dict(env, ASAN_OPTIONS='detect_leaks=1:halt_on_error=1', UBSAN_OPTIONS='halt_on_error=1')
-            witnesses[name] = records(command(task, name, [binary], root, sanitizer_env).stdout)
+            witnesses[name] = native_records(name, command(task, name, [binary], root, sanitizer_env).stdout)
     if abort_check:
         abort_target = scratch / 'c-embedding-abort-target'
         abort_target.mkdir(exist_ok=True)
