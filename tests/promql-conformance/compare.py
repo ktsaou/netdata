@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Compare complete typed results and report every paired binary64 difference."""
+
 import argparse
 import base64
 import json
@@ -41,13 +42,13 @@ def same_number(left, right):
 
 def byte_value(value):
     if not isinstance(value, str):
-        raise ValueError("expected a base64 byte string")
+        raise ValueError("expected a base64 byte string")  # noqa: TRY004 - Unified wire-validation error contract.
     return base64.b64decode(value, validate=True)
 
 
 def record(value, name):
     if not isinstance(value, dict):
-        raise ValueError(name + " must be an object")
+        raise ValueError(name + " must be an object")  # noqa: TRY004 - Unified wire-validation error contract.
     return value
 
 
@@ -55,7 +56,7 @@ def array(value, name, nullable=False):
     if nullable and value is None:
         return []
     if not isinstance(value, list):
-        raise ValueError(name + " must be an array")
+        raise ValueError(name + " must be an array")  # noqa: TRY004 - Unified wire-validation error contract.
     return value
 
 
@@ -75,7 +76,7 @@ def histogram_buckets(histogram, side):
     buckets = histogram[side + "_buckets"] or []
     for span in histogram[side + "_spans"] or []:
         index += span["Offset"]
-        for value in buckets[cursor:cursor + span["Length"]]:
+        for value in buckets[cursor : cursor + span["Length"]]:
             if index in out:
                 raise ValueError("overlapping histogram buckets")
             out[index] = value
@@ -86,10 +87,13 @@ def histogram_buckets(histogram, side):
 
 def checked_results(document):
     record(document, "result document")
-    if type(document.get("schema_version")) is not int or document["schema_version"] != 1:
+    if (
+        type(document.get("schema_version")) is not int
+        or document["schema_version"] != 1
+    ):
         raise ValueError("unsupported result schema")
     if not isinstance(document.get("results"), list):
-        raise ValueError("results must be a list")
+        raise ValueError("results must be a list")  # noqa: TRY004 - Unified wire-validation error contract.
     out = {}
     for result in document["results"]:
         record(result, "result")
@@ -103,14 +107,15 @@ def checked_results(document):
             if len(messages) != len(set(messages)):
                 raise ValueError("duplicate diagnostic")
         keys = [labels(row) for row in array(result["rows"], "rows")]
-        if len(keys) != len(set(keys)):
-            raise ValueError("duplicate output labelset")
         if result["kind"] == "error":
             if result["rows"] or not result.get("error"):
                 raise ValueError("malformed error result")
             error = record(result["error"], "error")
-            if (error["phase"] not in {"request", "construction", "execution"}
-                    or not isinstance(error["type"], str) or not error["type"]):
+            if (
+                error["phase"] not in {"request", "construction", "execution"}
+                or not isinstance(error["type"], str)
+                or not error["type"]
+            ):
                 raise ValueError("invalid error attribution")
             byte_value(error["message"])
             for parsed in array(error.get("parse_errors", []), "parse errors"):
@@ -122,17 +127,25 @@ def checked_results(document):
         elif result.get("error") is not None:
             raise ValueError("successful result contains error")
         elif result["kind"] in {"scalar", "string"}:
-            if len(result["rows"]) != 1 or keys[0] or len(result["rows"][0]["points"]) != 1:
+            if (
+                len(result["rows"]) != 1
+                or keys[0]
+                or len(result["rows"][0]["points"]) != 1
+            ):
                 raise ValueError("malformed scalar/string result")
         for row in result["rows"]:
             array(row["points"], "points")
-            if not row["points"] or (result["kind"] == "vector" and len(row["points"]) != 1):
+            if not row["points"] or (
+                result["kind"] == "vector" and len(row["points"]) != 1
+            ):
                 raise ValueError("empty row or invalid vector point count")
             previous = None
             for point in row["points"]:
                 record(point, "point")
                 timestamp = point["time_ms"]
-                if type(timestamp) is not int or not -(1 << 63) <= timestamp < (1 << 63):
+                if type(timestamp) is not int or not -(1 << 63) <= timestamp < (
+                    1 << 63
+                ):
                     raise ValueError("invalid sample timestamp")
                 if previous is not None and timestamp < previous:
                     raise ValueError("timestamps are not increasing")
@@ -141,9 +154,15 @@ def checked_results(document):
                 if type(start) is not int or not -(1 << 63) <= start < (1 << 63):
                     raise ValueError("invalid sample start timestamp")
                 kind = point["kind"]
-                allowed = {"float": "float", "string": "string", "float_histogram": "float_histogram"}
-                if any(name in point and name != allowed.get(kind)
-                       for name in ["float", "string", "histogram", "float_histogram"]):
+                allowed = {
+                    "float": "float",
+                    "string": "string",
+                    "float_histogram": "float_histogram",
+                }
+                if any(
+                    name in point and name != allowed.get(kind)
+                    for name in ["float", "string", "histogram", "float_histogram"]
+                ):
                     raise ValueError("ambiguous sample payload")
                 if kind == "float":
                     bits(point["float"])
@@ -151,23 +170,42 @@ def checked_results(document):
                     byte_value(point.get("string", ""))
                 elif kind == "float_histogram":
                     histogram = record(point["float_histogram"], "float histogram")
-                    if type(histogram["schema"]) is not int or not -(1 << 31) <= histogram["schema"] < (1 << 31):
+                    if type(histogram["schema"]) is not int or not -(
+                        1 << 31
+                    ) <= histogram["schema"] < (1 << 31):
                         raise ValueError("invalid histogram schema")
-                    if type(histogram["reset_hint"]) is not int or not 0 <= histogram["reset_hint"] <= 3:
+                    if (
+                        type(histogram["reset_hint"]) is not int
+                        or not 0 <= histogram["reset_hint"] <= 3
+                    ):
                         raise ValueError("invalid histogram reset hint")
                     for side in ["positive", "negative"]:
-                        spans = array(histogram[side + "_spans"], side + " spans", nullable=True)
-                        buckets = array(histogram[side + "_buckets"], side + " buckets", nullable=True)
+                        spans = array(
+                            histogram[side + "_spans"], side + " spans", nullable=True
+                        )
+                        buckets = array(
+                            histogram[side + "_buckets"],
+                            side + " buckets",
+                            nullable=True,
+                        )
                         for span in spans:
                             record(span, "span")
-                            if (type(span["Offset"]) is not int or not -(1 << 31) <= span["Offset"] < (1 << 31)
-                                    or type(span["Length"]) is not int or not 0 <= span["Length"] < (1 << 32)):
+                            if (
+                                type(span["Offset"]) is not int
+                                or not -(1 << 31) <= span["Offset"] < (1 << 31)
+                                or type(span["Length"]) is not int
+                                or not 0 <= span["Length"] < (1 << 32)
+                            ):
                                 raise ValueError("invalid histogram span")
                         if sum(span["Length"] for span in spans) != len(buckets):
                             raise ValueError("histogram spans and buckets disagree")
                     for name in ["zero_threshold", "zero_count", "count", "sum"]:
                         bits(histogram[name])
-                    for name in ["positive_buckets", "negative_buckets", "custom_values"]:
+                    for name in [
+                        "positive_buckets",
+                        "negative_buckets",
+                        "custom_values",
+                    ]:
                         for value in array(histogram[name], name, nullable=True):
                             bits(value)
                 else:
@@ -185,6 +223,14 @@ def checked_results(document):
 def difference(expected, actual, ordered=False, exact_numeric=False):
     failures, bit_differences = [], []
 
+    def row_occurrences(rows):
+        counts = {}
+        for row in rows:
+            identity = labels(row)
+            occurrence = counts.get(identity, 0)
+            counts[identity] = occurrence + 1
+            yield (identity, occurrence), row
+
     def point_occurrences(points):
         counts = {}
         for point in points:
@@ -201,7 +247,9 @@ def difference(expected, actual, ordered=False, exact_numeric=False):
         left_bits, a = bits(left)
         right_bits, b = bits(right)
         if left_bits != right_bits:
-            bit_differences.append({"path": path, "reference": left, "candidate": right})
+            bit_differences.append(
+                {"path": path, "reference": left, "candidate": right}
+            )
         unequal_exact = a != b and not (math.isnan(a) and math.isnan(b))
         if (exact_numeric and unequal_exact) or not same_number(left, right):
             failures.append(path)
@@ -209,13 +257,19 @@ def difference(expected, actual, ordered=False, exact_numeric=False):
     def boundary(path, left, right):
         # Native bucket boundaries use exact equality in upstream tests.
         if bits(left)[0] != bits(right)[0]:
-            bit_differences.append({"path": path, "reference": left, "candidate": right})
+            bit_differences.append(
+                {"path": path, "reference": left, "candidate": right}
+            )
         if bits(left)[1] != bits(right)[1]:
             failures.append(path)
 
     exact("kind", expected["kind"], actual["kind"])
     for name in ["warnings", "infos"]:
-        exact(name, sorted(map(byte_value, expected[name])), sorted(map(byte_value, actual[name])))
+        exact(
+            name,
+            sorted(map(byte_value, expected[name])),
+            sorted(map(byte_value, actual[name])),
+        )
     if expected["kind"] != actual["kind"]:
         return failures, bit_differences
     if expected["kind"] == "error":
@@ -225,17 +279,21 @@ def difference(expected, actual, ordered=False, exact_numeric=False):
     if not ordered:
         e_rows, a_rows = sorted(e_rows, key=labels), sorted(a_rows, key=labels)
     exact("series membership", [labels(r) for r in e_rows], [labels(r) for r in a_rows])
-    # Report common-series bits even when another series is missing or reordered.
-    actual_by_labels = {labels(row): row for row in a_rows}
-    for row_index, er in enumerate(e_rows):
-        ar = actual_by_labels.get(labels(er))
+    # Original ordinary groups can project distinct raw hashes to identical labels.
+    # Preserve each occurrence while reporting common rows when another is missing.
+    actual_by_row_occurrence = dict(row_occurrences(a_rows))
+    for row_index, (occurrence, er) in enumerate(row_occurrences(e_rows)):
+        ar = actual_by_row_occurrence.get(occurrence)
         if ar is None:
             continue
         exact(f"row[{row_index}].point count", len(er["points"]), len(ar["points"]))
         identity = lambda point: (point["time_ms"], point["kind"])
         # Go sorts by timestamp alone; equal-time float/histogram tie order is unspecified.
-        exact(f"row[{row_index}].typed timestamps", sorted(map(identity, er["points"])),
-              sorted(map(identity, ar["points"])))
+        exact(
+            f"row[{row_index}].typed timestamps",
+            sorted(map(identity, er["points"])),
+            sorted(map(identity, ar["points"])),
+        )
         actual_by_occurrence = dict(point_occurrences(ar["points"]))
         for index, (occurrence, ep) in enumerate(point_occurrences(er["points"])):
             ap = actual_by_occurrence.get(occurrence)
@@ -243,19 +301,31 @@ def difference(expected, actual, ordered=False, exact_numeric=False):
                 continue
             path = f"row[{row_index}].point[{index}]"
             exact(path + ".time_ms", ep["time_ms"], ap["time_ms"])
-            exact(path + ".start_time_ms", ep.get("start_time_ms", 0), ap.get("start_time_ms", 0))
+            exact(
+                path + ".start_time_ms",
+                ep.get("start_time_ms", 0),
+                ap.get("start_time_ms", 0),
+            )
             exact(path + ".kind", ep["kind"], ap["kind"])
             if ep["kind"] != ap["kind"]:
                 continue
             if ep["kind"] == "float":
                 numeric(path + ".float", ep["float"], ap["float"])
             elif ep["kind"] == "string":
-                exact(path + ".string", byte_value(ep.get("string", "")), byte_value(ap.get("string", "")))
+                exact(
+                    path + ".string",
+                    byte_value(ep.get("string", "")),
+                    byte_value(ap.get("string", "")),
+                )
             else:
                 eh, ah = ep["float_histogram"], ap["float_histogram"]
                 for key in ["reset_hint", "schema"]:
                     exact(path + ".histogram." + key, eh[key], ah[key])
-                boundary(path + ".histogram.zero_threshold", eh["zero_threshold"], ah["zero_threshold"])
+                boundary(
+                    path + ".histogram.zero_threshold",
+                    eh["zero_threshold"],
+                    ah["zero_threshold"],
+                )
                 for key in ["zero_count", "count", "sum"]:
                     numeric(path + ".histogram." + key, eh[key], ah[key])
                 e, a = eh["custom_values"] or [], ah["custom_values"] or []
@@ -264,8 +334,12 @@ def difference(expected, actual, ordered=False, exact_numeric=False):
                     boundary(f"{path}.histogram.custom_values[{j}]", eb, ab)
                 for side in ["positive", "negative"]:
                     e, a = histogram_buckets(eh, side), histogram_buckets(ah, side)
-                    active = lambda buckets: [i for i, value in buckets.items() if bits(value)[1] != 0]
-                    exact(path + ".histogram." + side + ".indices", active(e), active(a))
+                    active = lambda buckets: [
+                        i for i, value in buckets.items() if bits(value)[1] != 0
+                    ]
+                    exact(
+                        path + ".histogram." + side + ".indices", active(e), active(a)
+                    )
                     for j in sorted(e.keys() & a.keys()):
                         numeric(f"{path}.histogram.{side}_bucket[{j}]", e[j], a[j])
     return failures, bit_differences
@@ -293,16 +367,24 @@ def compare(reference, candidate, cases):
         if ident in missing:
             failures[ident] = ["missing required result"]
             continue
-        differences, raw = difference(expected[ident], actual[ident], case.get("ordered", False),
-                                      case.get("exact_numeric", False))
+        differences, raw = difference(
+            expected[ident],
+            actual[ident],
+            case.get("ordered", False),
+            case.get("exact_numeric", False),
+        )
         if differences:
             failures[ident] = differences
         mismatches.extend({"id": ident, **value} for value in raw)
-    return {"required": len(cases), "evaluated": len(cases) - len(missing),
-            "semantic_failures": failures, "unexpected_results": extra,
-            "bitwise_differences": mismatches,
-            "semantic_pass": not failures and not extra,
-            "bitwise_pass": not failures and not extra and not mismatches}
+    return {
+        "required": len(cases),
+        "evaluated": len(cases) - len(missing),
+        "semantic_failures": failures,
+        "unexpected_results": extra,
+        "bitwise_differences": mismatches,
+        "semantic_pass": not failures and not extra,
+        "bitwise_pass": not failures and not extra and not mismatches,
+    }
 
 
 if __name__ == "__main__":

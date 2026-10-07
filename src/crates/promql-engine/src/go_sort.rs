@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-// Sorting derives from Go 1.27.1 slices/{sort,zsortanyfunc}.go; see NOTICE.
+// Sorting derives from Go 1.27.1 sort/{sort,zsortinterface}.go; see NOTICE.
 use crate::go_sort_program::{Operation, Program};
 use std::{cmp::Ordering, convert::Infallible};
 
@@ -10,15 +10,23 @@ pub(crate) fn sort_by<T, F: Fn(&T, &T) -> Ordering>(data: &mut [T], compare: F) 
 pub(crate) fn sort_by_with<T, E>(
     data: &mut [T],
     compare: impl Fn(&T, &T) -> Ordering,
+    poll: impl FnMut() -> Result<(), E>,
+) -> Result<(), E> {
+    try_sort_by_with(data, |left, right| Ok(compare(left, right)), poll)
+}
+
+pub(crate) fn try_sort_by_with<T, E>(
+    data: &mut [T],
+    mut compare: impl FnMut(&T, &T) -> Result<Ordering, E>,
     mut poll: impl FnMut() -> Result<(), E>,
 ) -> Result<(), E> {
-    run_program(data, Program::sort(data.len()), &compare, &mut poll)
+    run_program(data, Program::sort(data.len()), &mut compare, &mut poll)
 }
 
 fn run_program<T, E>(
     data: &mut [T],
     mut program: Program,
-    compare: &impl Fn(&T, &T) -> Ordering,
+    compare: &mut impl FnMut(&T, &T) -> Result<Ordering, E>,
     poll: &mut impl FnMut() -> Result<(), E>,
 ) -> Result<(), E> {
     let mut reply = None;
@@ -26,7 +34,7 @@ fn run_program<T, E>(
         poll()?;
         match program.next(reply.take()) {
             Operation::Step => (),
-            Operation::Less(a, b) => reply = Some(compare(&data[a], &data[b]).is_lt()),
+            Operation::Less(a, b) => reply = Some(compare(&data[a], &data[b])?.is_lt()),
             Operation::Swap(a, b) => data.swap(a, b),
             Operation::Done => return Ok(()),
         }
@@ -229,8 +237,13 @@ mod tests {
                 account.work(1);
                 Ok::<_, Interrupted>(())
             };
-            let cmp = |a: &(usize, usize), b: &(usize, usize)| a.0.cmp(&b.0);
-            let result = run_program(&mut data, Program::phase(phase, 64, 32), &cmp, &mut poll);
+            let mut cmp = |a: &(usize, usize), b: &(usize, usize)| Ok(a.0.cmp(&b.0));
+            let result = run_program(
+                &mut data,
+                Program::phase(phase, 64, 32),
+                &mut cmp,
+                &mut poll,
+            );
             assert_eq!(result, Err(Interrupted::Cancelled), "{phase}");
             assert_eq!(visits, 2, "{phase}");
             assert_eq!(account.snapshot().work, 1, "{phase}");

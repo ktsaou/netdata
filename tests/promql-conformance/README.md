@@ -796,6 +796,27 @@ original counter-reset hints, schema-warning precedence and late-float suppressi
 the complete window before replaying histograms; it retains an accumulator, compensation and temporary trial or
 scaled input, without retaining the raw history.
 
+## Duplicate projected output rows
+
+`output_label_calls.py` declares 200 complete SUM/MIN/COUNT/GROUP/ABS controls, independently of candidate
+results. Present-empty and absent grouping labels produce distinct raw grouping hashes, then the source label
+builder removes empty values. At Prometheus `5241a27fe3c6983549fccc32f6e65917408c63cd`, ordinary aggregate
+output can consequently contain separate rows with identical projected labels (`promql/engine.go:1630–1668,1754–1767`;
+`model/labels/labels_stringlabels.go:471–480`). Delayed cleanup and ordinary parent operations can instead return
+the source duplicate-label error. The capture retains all of these complete, profile-specific outcomes.
+
+The decoder preserves each output row occurrence, its point occurrences and series multiplicity. Individual
+label-name uniqueness, vector single-point shape, diagnostics and error attribution remain required. Mutations
+of missing, extra, swapped, first and last duplicate rows fail; common occurrences retain every paired bit report
+even when another series is absent. Input labelset uniqueness remains required.
+
+Owned matrix collection uses the qualified Go interface sorter because equal projected labels make its exact
+row provenance observable (`promql/engine.go:919`, `promql/value.go:338`). Checked comparison retains byte-level
+polling; both collector entry points account sorting work. Provisional chunks retain distinct query-local series
+identities. Controls cover 2/12/13/50/51/129 raw groups, both profiles, instant and single/multiple-step range queries.
+Capture with `output_label_calls.py --capture --upstream "$PROMETHEUS_SOURCE"`; compare using `--reference`,
+`--binary` and `--page-size`. The gate requires exact numbers and output order at every boundary.
+
 ## Remaining qualification
 
 The productive Rust path connects the owned frontend to typed page cursors, float/native rate/increase/delta

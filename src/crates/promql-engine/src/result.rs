@@ -758,18 +758,21 @@ impl Collector {
         if let Some(result) = self.result.as_mut()
             && result.header.value_type == ValueType::Matrix
         {
-            if let Some(control) = control {
-                crate::evaluator_order::sort_by_with(
-                    &mut result.series,
-                    Some(control),
-                    Some(account),
-                    |left, right| left.labels.compare_checked(&right.labels, account, control),
-                )?;
-            } else {
-                result
-                    .series
-                    .sort_unstable_by(|left, right| left.labels.compare(&right.labels));
-            }
+            // Source sort.Sort determines observable provenance among equal projected labels.
+            crate::go_sort::try_sort_by_with(
+                &mut result.series,
+                |left, right| match control {
+                    Some(control) => left.labels.compare_checked(&right.labels, account, control),
+                    None => Ok(left.labels.compare(&right.labels)),
+                },
+                || {
+                    if let Some(control) = control {
+                        control.check()?;
+                    }
+                    account.work(1);
+                    Ok(())
+                },
+            )?;
         }
         if let Some(control) = control {
             control.check()?;
@@ -836,6 +839,60 @@ mod tests {
         accounting::EngineAccounting,
         histogram::{CUSTOM_BUCKETS_SCHEMA, Span},
     };
+
+    #[test]
+    fn collected_equal_label_rows_keep_source_sort_provenance_in_both_entry_points() {
+        for checked in [false, true] {
+            let engine = EngineAccounting::default();
+            let account = engine.query();
+            let baseline = account.snapshot().memory.map(|memory| memory.current);
+            let control = Control::default();
+            let mut collector = Collector::new(&account);
+            collector
+                .begin(OutputHeader {
+                    value_type: ValueType::Matrix,
+                    start_ms: 0,
+                    end_ms: 0,
+                    step_ms: 1000,
+                })
+                .unwrap();
+            for series_id in [1, 2] {
+                collector
+                    .chunk(OutputChunk::Series {
+                        series_id,
+                        labels: &[],
+                        points: &[SampleRef {
+                            time_ms: 0,
+                            start_time_ms: 0,
+                            value: SampleValueRef::Float(series_id as f64),
+                        }],
+                    })
+                    .unwrap();
+            }
+            if checked {
+                collector
+                    .commit_checked(&account.snapshot(), &control, &account)
+                    .unwrap();
+            } else {
+                collector.commit(&account.snapshot()).unwrap();
+            }
+            let result = collector.take().unwrap();
+            assert_eq!(
+                result
+                    .series
+                    .iter()
+                    .map(|row| row.series_id)
+                    .collect::<Vec<_>>(),
+                [1, 2]
+            );
+            drop(result);
+            drop(collector);
+            assert_eq!(
+                account.snapshot().memory.map(|memory| memory.current),
+                baseline
+            );
+        }
+    }
 
     fn histogram(schema: i32, buckets: &[f64], bounds: Option<&[f64]>) -> FloatHistogram {
         FloatHistogram {

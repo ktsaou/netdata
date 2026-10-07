@@ -6138,35 +6138,48 @@ mod tests {
         let engine = Engine::default();
         let control = Control::default();
         for delayed in [false, true] {
-            for (expression, duplicate, bits) in [
-                (
-                    &b"sum by(job)(m)"[..],
-                    delayed,
-                    vec![1.0f64.to_bits(), 2.0f64.to_bits()],
-                ),
-                (&b"sum(sum by(job)(m))"[..], false, vec![3.0f64.to_bits()]),
-                (&b"sum by(job)(m)+0"[..], true, vec![]),
-                (&b"-sum by(job)(m)"[..], true, vec![]),
+            for request in [
+                QueryRequest::Instant { time_ms: 1000 },
+                QueryRequest::Range {
+                    start_ms: 1000,
+                    end_ms: 1000,
+                    step_ms: 1000,
+                },
+                QueryRequest::Range {
+                    start_ms: 1000,
+                    end_ms: 3000,
+                    step_ms: 1000,
+                },
             ] {
-                let query = engine
-                    .compile(expression, options(delayed), &control)
-                    .unwrap();
-                let result =
-                    query.collect(&provider, QueryRequest::Instant { time_ms: 1000 }, &control);
-                if duplicate {
-                    assert!(is_duplicate(&result.unwrap_err()));
-                } else {
-                    let (result, _) = result.unwrap();
-                    assert_eq!(result.series.len(), bits.len());
-                    assert_eq!(
-                        result
-                            .series
-                            .iter()
-                            .map(|row| float_bits(&row.points[0]))
-                            .collect::<Vec<_>>(),
-                        bits
-                    );
-                    assert!(result.series.iter().all(|row| row.labels.0.is_empty()));
+                for (expression, duplicate, bits) in [
+                    (
+                        &b"sum by(job)(m)"[..],
+                        delayed,
+                        vec![1.0f64.to_bits(), 2.0f64.to_bits()],
+                    ),
+                    (&b"sum(sum by(job)(m))"[..], false, vec![3.0f64.to_bits()]),
+                    (&b"sum by(job)(m)+0"[..], true, vec![]),
+                    (&b"-sum by(job)(m)"[..], true, vec![]),
+                ] {
+                    let query = engine
+                        .compile(expression, options(delayed), &control)
+                        .unwrap();
+                    let result = query.collect(&provider, request, &control);
+                    if duplicate {
+                        assert!(is_duplicate(&result.unwrap_err()));
+                    } else {
+                        let (result, _) = result.unwrap();
+                        assert_eq!(result.series.len(), bits.len());
+                        assert_eq!(
+                            result
+                                .series
+                                .iter()
+                                .map(|row| float_bits(&row.points[0]))
+                                .collect::<Vec<_>>(),
+                            bits
+                        );
+                        assert!(result.series.iter().all(|row| row.labels.0.is_empty()));
+                    }
                 }
             }
         }
