@@ -2,7 +2,7 @@
 //! Fixed-width declarations mirrored by include/netdata-promql.h.
 use std::ffi::c_void;
 
-pub const ABI_VERSION: u32 = 1;
+pub const ABI_VERSION: u32 = 2;
 pub const OK: u32 = 0;
 pub const INVALID_ARGUMENT: u32 = 1;
 pub const PARSE_ERROR: u32 = 2;
@@ -270,11 +270,14 @@ opaque!(
     ResultHandle,
     Report,
     Control,
-    CallbackControl
+    CallbackControl,
+    AccountingContext,
+    AllocationHandle
 );
 
-pub type Close = unsafe extern "C" fn(*mut c_void, *mut c_void);
-pub type ResourceCallback = unsafe extern "C" fn(*mut c_void, *mut c_void) -> Resources;
+pub type Close = unsafe extern "C" fn(*mut c_void, *mut c_void, *const AccountingContext);
+pub type ResourceCallback =
+    unsafe extern "C" fn(*mut c_void, *mut c_void, *const AccountingContext) -> Resources;
 pub type QueryOpenCallback = unsafe extern "C" fn(
     *mut c_void,
     Bounds,
@@ -494,7 +497,7 @@ pub type CommitCallback = unsafe extern "C" fn(
     *const CallbackControl,
     *mut Bytes,
 ) -> u32;
-pub type AbortCallback = unsafe extern "C" fn(*mut c_void);
+pub type AbortCallback = unsafe extern "C" fn(*mut c_void, *const AccountingContext);
 #[repr(C)]
 #[derive(Clone, Copy, Default)]
 pub struct Output {

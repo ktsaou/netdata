@@ -10,7 +10,7 @@ mod tests;
 pub mod types;
 
 use crate::{
-    accounting::{AllocationContext, MemoryKind, QueryAccounting, QueryObservations},
+    accounting::{AllocationContext, MemoryKind, MemoryLease, QueryAccounting, QueryObservations},
     annotations::Annotations,
     evaluator::EvaluationError,
     execution::{
@@ -24,6 +24,7 @@ use crate::{
 };
 use checked::Invalid;
 use std::panic::{AssertUnwindSafe, catch_unwind};
+use std::sync::Mutex;
 
 struct Engine {
     core: CoreEngine,
@@ -42,6 +43,17 @@ struct Report {
     outcome: Outcome,
     observations: QueryObservations,
     annotations: Annotations,
+}
+type ForeignAllocation = Mutex<MemoryLease>;
+
+fn allocation_kind(value: u32) -> Result<MemoryKind, Invalid> {
+    match value {
+        value if value == MemoryKind::Compiled as u32 => Ok(MemoryKind::Compiled),
+        value if value == MemoryKind::Workspace as u32 => Ok(MemoryKind::Workspace),
+        value if value == MemoryKind::Result as u32 => Ok(MemoryKind::Result),
+        value if value == MemoryKind::ProviderHeld as u32 => Ok(MemoryKind::ProviderHeld),
+        _ => Err(Invalid("invalid foreign allocation category")),
+    }
 }
 impl Report {
     fn new(account: &QueryAccounting, compile: bool) -> Strong<Self> {
@@ -255,12 +267,32 @@ export! {
     }
     fn netdata_promql_callback_control_state(value: *const types::CallbackControl, out: *mut types::ControlState) {
         unsafe { checked::output(out) }?;
-        let value = value.cast::<CoreControl>();
-        checked::region(value, 1)?;
-        let value = control_state(unsafe { &*value });
+        let value = control_state(unsafe { checked::callback(value) }?.control);
         unsafe { out.write(value) };
         Ok(types::OK)
     }
+    fn netdata_promql_callback_accounting(value: *const types::CallbackControl, out: *mut *const types::AccountingContext) {
+        unsafe { checked::output(out) }?;
+        unsafe { out.write(std::ptr::null()) };
+        let value = unsafe { checked::callback(value) }?;
+        unsafe { out.write(checked::accounting_context(value.account)) };
+        Ok(types::OK)
+    }
+    fn netdata_promql_allocation_acquire(value: *const types::AccountingContext, kind: u32, bytes: u64, out: *mut *mut types::AllocationHandle) {
+        unsafe { checked::output(out) }?;
+        unsafe { out.write(std::ptr::null_mut()) };
+        let kind = allocation_kind(kind)?;
+        let account = unsafe { checked::accounting(value) }?;
+        let allocation = Strong::new_in(Mutex::new(account.hold(kind, bytes)), Some(&AllocationContext::new(account, MemoryKind::Accounting)));
+        unsafe { out.write(allocation.into_raw().cast()) };
+        Ok(types::OK)
+    }
+    fn netdata_promql_allocation_resize(value: *const types::AllocationHandle, bytes: u64) {
+        let allocation = unsafe { borrow::<ForeignAllocation, _>(value) }?;
+        allocation.lock().unwrap_or_else(|error| error.into_inner()).resize(bytes);
+        Ok(types::OK)
+    }
+    fn netdata_promql_allocation_release(value: *mut types::AllocationHandle) { unsafe { release::<ForeignAllocation, _>(value) } }
     fn netdata_promql_control_release(value: *mut types::Control) { unsafe { release::<CoreControl, _>(value) } }
     fn netdata_promql_compile(engine: *const types::Engine, source: types::Bytes, raw_control: *const types::Control, out_query: *mut *mut types::Query, out_report: *mut *mut types::Report) {
         checked::distinct_outputs(out_query, out_report)?;
@@ -289,9 +321,10 @@ export! {
         unsafe { out_report.write(std::ptr::null_mut()) };
         let mut sink = unsafe { output::Sink::new(raw_output) }?;
         let query = unsafe { borrow::<CompiledQuery, _>(query) }?;
+        let account = query.execution_accounting();
+        sink.bind(&account);
         let request = request(unsafe { checked::versioned(raw_request) }?)?;
         let control = unsafe { control(raw_control, query.engine_accounting()) }?;
-        let account = query.execution_accounting();
         let provider = unsafe { provider::Provider::new(raw_provider, &account) }?;
         let mut report = Report::new(&account, false);
         let slot = report.get_mut().expect("unpublished execution report");

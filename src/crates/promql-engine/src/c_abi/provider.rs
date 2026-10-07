@@ -83,14 +83,26 @@ struct Owner<'a> {
 impl Owner<'_> {
     fn resources(&self) -> ProviderResources {
         self.provider.account.work(1);
-        resources(unsafe { (self.resource)(self.provider.table.context, self.handle) })
+        resources(unsafe {
+            (self.resource)(
+                self.provider.table.context,
+                self.handle,
+                checked::accounting_context(self.provider.account),
+            )
+        })
     }
 }
 impl Drop for Owner<'_> {
     fn drop(&mut self) {
         self.provider.account.work(1);
         // Status, rather than the token's value, transferred ownership.
-        unsafe { (self.close)(self.provider.table.context, self.handle) };
+        unsafe {
+            (self.close)(
+                self.provider.table.context,
+                self.handle,
+                checked::accounting_context(self.provider.account),
+            )
+        };
     }
 }
 pub(crate) struct Query<'a> {
@@ -126,7 +138,7 @@ impl storage::Provider for Provider<'_> {
             table.query_open.expect("validated query open")(
                 table.context,
                 bounds(time),
-                checked::callback_control(control),
+                checked::Callback::new(control, self.account).as_ptr(),
                 &mut handle,
                 &mut error,
             )
@@ -202,7 +214,7 @@ impl storage::QueryProvider for Query<'_> {
                 table.context,
                 self.owner.handle,
                 &request,
-                checked::callback_control(control),
+                checked::Callback::new(control, provider.account).as_ptr(),
                 &mut handle,
                 &mut error,
             )
@@ -237,7 +249,7 @@ impl<'a> storage::SeriesSelection for Selection<'a> {
             table.selection_next.expect("validated selection next")(
                 table.context,
                 self.owner.handle,
-                checked::callback_control(control),
+                checked::Callback::new(control, provider.account).as_ptr(),
                 &mut series,
                 &mut diagnostics,
                 &mut error,
@@ -340,7 +352,7 @@ impl storage::Series for Series<'_> {
                 table.context,
                 self.owner.handle,
                 bounds(time),
-                checked::callback_control(control),
+                checked::Callback::new(control, provider.account).as_ptr(),
                 &mut cursor,
                 &mut error,
             )
@@ -393,7 +405,7 @@ impl storage::SampleCursor for Cursor<'_> {
                 provider.table.context,
                 self.owner.handle,
                 time_ms,
-                checked::callback_control(control),
+                checked::Callback::new(control, provider.account).as_ptr(),
                 &mut error,
             )
         };
@@ -413,7 +425,7 @@ impl storage::SampleCursor for Cursor<'_> {
             provider.table.cursor_next.expect("validated cursor next")(
                 provider.table.context,
                 self.owner.handle,
-                checked::callback_control(control),
+                checked::Callback::new(control, provider.account).as_ptr(),
                 &mut page,
                 &mut observed,
                 &mut error,

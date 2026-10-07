@@ -107,6 +107,7 @@ pub(crate) fn annotation(value: crate::annotations::AnnotationRef<'_>) -> types:
 pub(crate) struct Sink {
     table: types::Output,
     finished: bool,
+    account: Option<QueryAccounting>,
 }
 impl Sink {
     pub(crate) unsafe fn new(table: *const types::Output) -> Result<Self, Invalid> {
@@ -121,7 +122,11 @@ impl Sink {
         Ok(Self {
             table,
             finished: false,
+            account: None,
         })
+    }
+    pub(crate) fn bind(&mut self, account: &QueryAccounting) {
+        self.account = Some(account.clone());
     }
     unsafe fn status(
         &self,
@@ -172,7 +177,13 @@ impl OutputSink for Sink {
     fn abort(&mut self) {
         if !self.finished {
             self.finished = true;
-            unsafe { self.table.abort.expect("validated output abort")(self.table.context) };
+            let account = self
+                .account
+                .as_ref()
+                .map_or(std::ptr::null(), checked::accounting_context);
+            unsafe {
+                self.table.abort.expect("validated output abort")(self.table.context, account)
+            };
         }
     }
     fn begin_checked(
@@ -188,7 +199,7 @@ impl OutputSink for Sink {
             self.table.begin.expect("validated output begin")(
                 self.table.context,
                 &value,
-                checked::callback_control(control),
+                checked::Callback::new(control, account).as_ptr(),
                 &mut error,
             )
         };
@@ -337,7 +348,7 @@ impl OutputSink for Sink {
             self.table.chunk.expect("validated output chunk")(
                 self.table.context,
                 &value,
-                checked::callback_control(control),
+                checked::Callback::new(control, account).as_ptr(),
                 &mut error,
             )
         };
@@ -357,7 +368,7 @@ impl OutputSink for Sink {
             callback(
                 self.table.context,
                 &value,
-                checked::callback_control(control),
+                checked::Callback::new(control, account).as_ptr(),
                 &mut error,
             )
         };
