@@ -4,6 +4,18 @@
 use super::unicode::is_print;
 use std::fmt::{self, Write};
 
+pub(crate) fn valid_utf8(
+    bytes: &[u8],
+    account: &crate::accounting::QueryAccounting,
+    control: &crate::storage::Control,
+) -> Result<bool, crate::storage::Interrupted> {
+    let context = crate::accounting::AllocationContext::new(
+        account,
+        crate::accounting::MemoryKind::Workspace,
+    );
+    super::work::Work::new(Some(&context), Some(control)).valid_utf8(bytes)
+}
+
 pub(super) fn decode_rune(bytes: &[u8]) -> (i32, usize) {
     let Some(&first) = bytes.first() else {
         return (-1, 0);

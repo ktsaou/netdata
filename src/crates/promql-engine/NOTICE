@@ -108,7 +108,7 @@ src/internal/strconv/atof.go, atoi.go, uscale.go, pow10tab.go and decimal.go.
 Copyright 2009, 2025, 2026 The Go Authors.
 Licensed under the Go BSD license; see LICENSE-GO-BSD.
 
-Shortest and two-significant-digit binary64 text derive from the same Go commit,
+Shortest general/fixed and two-significant-digit binary64 text derive from the same Go commit,
 src/internal/strconv/ftoa.go and uscale.go, sharing its decimal power table.
 Copyright 2009, 2025, 2026 The Go Authors. Licensed under the Go BSD license;
 see LICENSE-GO-BSD. OpenMetrics numeric label text derives from the pinned

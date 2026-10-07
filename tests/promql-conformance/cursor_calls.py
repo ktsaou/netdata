@@ -91,10 +91,10 @@ def checked_original(document, inputs):
     return expected
 
 
-def load_reference(reference):
+def load_reference(reference, inputs=None):
     reference = directory(reference)
     binding = json.loads((reference / "binding.json").read_bytes())
-    inputs = cases()
+    inputs = cases() if inputs is None else inputs
     if (type(binding) is not dict or binding.keys() != {"commit", "cases", "source_manifest_sha256", "files"}
             or binding["commit"] != COMMIT or type(binding["cases"]) is not int
             or binding["cases"] != len(inputs)
@@ -121,13 +121,13 @@ def load_reference(reference):
     return inputs, checked_original(json.loads((reference / "original.json").read_bytes()), inputs)
 
 
-def capture(upstream):
+def capture(upstream, inputs=None, subject="cursor-call"):
     upstream = directory(upstream)
     source = verify_facade(upstream, upstream)
     if manifest_digest(source) != input_ledger()["source_manifest_sha256"]:
         raise ValueError("original cursor source changed")
-    inputs = cases()
-    task = directory(tempfile.mkdtemp(prefix="cursor-call-capture-", dir=directory(HERE / ".tmp")))
+    inputs = cases() if inputs is None else inputs
+    task = directory(tempfile.mkdtemp(prefix=subject + "-capture-", dir=directory(HERE / ".tmp")))
     for name, raw in helper_files().items():
         path = task / name
         path.parent.mkdir(parents=True, exist_ok=True)
@@ -162,7 +162,7 @@ def capture(upstream):
     (task / "binding.json").write_text(json.dumps({"commit": COMMIT, "cases": len(inputs),
         "source_manifest_sha256": manifest_digest(source),
         "files": {name: sha(task / name) for name in sorted(artifact_names())}}, indent=2) + "\n")
-    load_reference(task)
+    load_reference(task, inputs)
     print(json.dumps({"capture": str(task), "cases": len(inputs)}), flush=True)
     return task
 
@@ -178,13 +178,14 @@ def candidate_packets(inputs, page_size):
     return groups, rows
 
 
-def qualify(reference, binary, page_size=1024):
+def qualify(reference, binary, page_size=1024, inputs=None, subject="cursor-call", exact_numeric=False,
+            ordered=True):
     reference = directory(reference)
     binary = Path(binary).resolve(strict=True)
-    inputs, expected = load_reference(reference)
+    inputs, expected = load_reference(reference, inputs)
     if type(page_size) is not int or page_size < 1:
         raise ValueError("page size must be positive")
-    task = directory(tempfile.mkdtemp(prefix="cursor-call-compare-", dir=directory(HERE / ".tmp")))
+    task = directory(tempfile.mkdtemp(prefix=subject + "-compare-", dir=directory(HERE / ".tmp")))
     groups, rows = candidate_packets(inputs, page_size)
     (task / "requests.jsonl").write_text("".join(json.dumps(row) + "\n" for row in rows))
     with ((task / "requests.jsonl").open("rb") as inputs_stream, (task / "candidate.jsonl").open("xb") as out,
@@ -194,7 +195,9 @@ def qualify(reference, binary, page_size=1024):
         raise ValueError(f"cursor candidate failed; evidence: {task}")
     responses = [json.loads(line) for line in (task / "candidate.jsonl").read_text().splitlines()]
     actual = checked_candidate_packets(responses, groups, "cursor")
-    report = compare(expected, actual, [{"id": row["request"]["id"], "ordered": True, "exact_numeric": False}
+    report = compare(expected, actual, [{"id": row["request"]["id"],
+                                       "ordered": ordered or row["request"]["mode"] == "range",
+                                       "exact_numeric": exact_numeric}
                                        for row in inputs])
     report.update(cases=len(inputs), page_size=page_size, binary_sha256=sha(binary),
                   reference_sha256=sha(reference / "original.json"), input_sha256=sha(task / "requests.jsonl"),

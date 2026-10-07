@@ -734,12 +734,12 @@ impl<'a> FloatHistogramRef<'a> {
         self.copy_to_with(&mut result, context, work)?;
         Ok(result)
     }
-    pub(crate) fn to_owned_result_with(
+    pub(crate) fn to_owned_fields_with(
         self,
         context: &AllocationContext,
         work: HistogramWork<'_>,
     ) -> Result<FloatHistogram, Interrupted> {
-        // Result ownership preserves evaluated fields, including ignored custom fields changed by arithmetic.
+        // Ownership alone must preserve fields; source Copy semantics normalize separately.
         work.step(1)?;
         let context = Some(context);
         let result = FloatHistogram {

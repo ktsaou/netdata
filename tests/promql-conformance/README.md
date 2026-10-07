@@ -780,7 +780,7 @@ The productive Rust path connects the owned frontend to typed page cursors, floa
 and irate/idelta, deriv/predict_linear/double_exponential_smoothing,
 count/present/first/last/min/max and absence over time, float/native histogram sum/average and float variance/stddev over time, timestamp extrema/endpoints,
 changes/resets, scalar/vector arithmetic
-and comparisons including power/remainder, float/native sum/avg/count/group and float min/max/stdvar/stddev with native ignored-input infos. Evaluation uses explicit frames,
+and comparisons including power/remainder, float/native sum/avg/count/group/count_values and float min/max/stdvar/stddev with native ignored-input infos. Evaluation uses explicit frames,
 whole-query label/group descriptors and replay; raw histories and complete raw instant vectors are not retained.
 Output uses synchronous provisional chunks followed by commit/abort, with a separately owned collector. Stable
 series identities retain legitimate duplicate projected labelsets and merge disjoint rows at cleanup owners.
@@ -1086,7 +1086,7 @@ timestamps, diagnostics, error types/bytes and numerical bit reports, allowing o
 Falsification tests reject incomplete bindings and cross-dataset packet mistakes. Original captured results
 are never refreshed to fit the implementation.
 
-The current full expression gate passes 17,452 of 21,442 variants, with zero completed semantic failures and
+The full expression gate after INFO passes 17,452 of 21,442 variants, with zero completed semantic failures and
 zero paired numerical bit differences; 3,990 variants remain OPEN. This includes 122 newly completed INFO checks
 and retains every previously passing identity. The shared instant reader and INFO accounting tests cover pages
 1/17/1024, 2,048 versus 100,000 samples, ownership release, cancellation, bare provider errors and discarded
@@ -1100,6 +1100,50 @@ boundaries; unfinished ancestor and ordinary raw-helper failures discard their n
 diagnostics. Deferred selection errors retain their buffer capacity while awaiting their source evaluation owner.
 Metadata handles and output can grow with cardinality; raw history remains page scoped. Complete foreign transient
 allocation accounting and complete expression qualification remain required. All admission limits remain disabled.
+
+### COUNT_VALUES generated label identities
+
+`count_values()` validates its preprocessed string parameter before evaluating the vector body. It overwrites
+the destination label before grouping, adds it to `by` grouping, and retains source hash collision behavior.
+Each activation consumes the child once, one sample at a time, keeping counters and the first current labels
+for each group. The source's unspecified group-map boundary uses the approved deterministic label-byte order.
+Discovery retains exact generated label identities across the logical scope; projection separately preserves
+source full-hash aliases and first-label ownership. Default and delayed name removal retain their distinct
+instant and multistep duplicate checks.
+
+Float labels use Go's shortest fixed-decimal text, including negative zero and subnormal padding. Histogram
+labels follow `FloatHistogram.String`, including productive malformed prefixes and known source runtime errors.
+Negative buckets are reversed using constant traversal state; no bucket vector or raw history is retained.
+Raw instant float histogram acquisition preserves all supplied fields. Explicit histogram `Copy` operations
+and integer-to-float conversion retain their separate source normalization rules. Known wrapped source errors
+use the existing C evaluation status and runtime error kind; unexpected Rust panics retain containment.
+
+Counter groups and generated label metadata can grow with cardinality and histogram text size. They are precisely
+accounted and support cancellation. The source's 24-bit label-field representation bound still applies. Query
+memory/work/time/concurrency enforcement stays disabled. Ancestor and output replay can repeat an activation;
+this implementation does not establish a polynomial work bound for arbitrary nested expressions.
+
+```sh
+python3 tests/promql-conformance/count_values_calls.py --capture \
+  --upstream "${PROMQL_ORIGINAL_SOURCE_DIR:?}"
+python3 tests/promql-conformance/count_values_calls.py --reference "${PROMQL_COUNT_VALUES_CAPTURE_DIR:?}" \
+  --binary "${PROMQL_QUERY_BINARY:?}" --page-size 1024
+```
+
+The durable panel declares 796 original queries covering fixed-decimal boundaries, both native sample kinds,
+malformed and nonfinite buckets, byte labels, grouping/full-hash collisions, changing identities, nested consumers,
+invariance, both profiles, storage faults and name-error precedence. It reuses the source-bound cursor/phase
+capture and checks complete outcomes with exact numerical comparison. Only unspecified instant row order is
+normalized; range ordering and all source errors remain exact. Packet/binding falsification tests reject altered
+requests and mismatched error classes. Permanent typed tests also check changing identities, nested COUNT cursor
+growth, raw-field preservation, constant formatter scratch, inner cancellation, ownership cleanup and C error
+reports surviving foreign/query/engine release. Unsupported parent reducers and subqueries remain required.
+
+All 796 cases match exactly at pages 1/17/1024 in both release profiles, alongside all 64 builtin COUNT_VALUES
+variants. The complete expression gate now passes 17,516 of 21,442 variants, preserving previous passes, with
+zero completed failures or paired bit differences; 3,926 remain OPEN. Both profiles pass 294 library tests
+(295 with fixtures), strict Clippy and the declared MSRV check. The retained 80,942 float-text cases and focused
+cursor, INFO, histogram-alias/provider and preprocessing panels retain their previous exact outcomes.
 
 ### Shared instantaneous cursor replay
 

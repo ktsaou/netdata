@@ -15,6 +15,7 @@ mod binary_value;
 pub mod c_abi;
 mod calendar;
 mod classic_replay;
+mod count_values;
 #[cfg(feature = "fixtures")]
 pub use classic_replay::fixture as classic_replay_fixture;
 pub mod evaluator;
@@ -40,6 +41,7 @@ mod histogram_functions;
 mod histogram_iterator;
 mod histogram_layout;
 mod histogram_stats;
+mod histogram_text;
 mod histogram_trim;
 mod histogram_work;
 mod info;

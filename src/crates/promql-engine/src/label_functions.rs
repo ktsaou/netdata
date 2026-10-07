@@ -44,16 +44,12 @@ fn runtime_error(
     Ok(EvaluationError::Runtime(message))
 }
 
-fn valid_name(
+pub(crate) fn valid_name(
     name: &[u8],
     account: &QueryAccounting,
     control: &Control,
 ) -> Result<bool, EvaluationError> {
-    for chunk in name.chunks(1024) {
-        control.check()?;
-        account.work(chunk.len() as u64);
-    }
-    Ok(!name.is_empty() && std::str::from_utf8(name).is_ok())
+    Ok(!name.is_empty() && crate::frontend::quote::valid_utf8(name, account, control)?)
 }
 
 impl<'a> LabelOperation<'a> {

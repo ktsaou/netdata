@@ -1,6 +1,6 @@
 """A candidate cannot qualify by losing cases, diagnostics or binary64 differences."""
-from copy import deepcopy
 import unittest
+from copy import deepcopy
 
 from query import dataset_hex, qualify_outputs, request_hex, result_base64
 
@@ -82,6 +82,21 @@ class QueryDispositionTests(unittest.TestCase):
         result["warnings"] = ["00 ff"]
         with self.assertRaises(ValueError):
             result_base64(result)
+
+    def test_go_span_transport_preserves_signed_offsets_and_unsigned_lengths(self):
+        for kind in ("histogram", "float_histogram"):
+            data = {"series": [{"labels": [], "points": [{"kind": kind, kind: {
+                "negative_spans": [{"offset": -(1 << 31), "length": (1 << 32) - 1}],
+                "positive_spans": [{"Offset": 0, "Length": 0}]}}]}]}
+            before = deepcopy(data)
+            expected = deepcopy(data)
+            expected["series"][0]["points"][0][kind]["negative_spans"] = [
+                {"Offset": -(1 << 31), "Length": (1 << 32) - 1}]
+            self.assertEqual(dataset_hex(data), expected)
+            self.assertEqual(data, before)
+            data["series"][0]["points"][0][kind]["negative_spans"][0]["Offset"] = 1
+            with self.assertRaises(ValueError):
+                dataset_hex(data)
 
 
 if __name__ == "__main__":

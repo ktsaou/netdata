@@ -78,6 +78,18 @@ def dataset_hex(dataset):
         for label in series["labels"]:
             for key in ["name", "value"]:
                 label[key] = base64.b64decode(label[key], validate=True).hex()
+        for point in series.get("points", []):
+            for kind in ("histogram", "float_histogram"):
+                if kind not in point:
+                    continue
+                for side in ("positive_spans", "negative_spans"):
+                    for span in point[kind].get(side) or []:
+                        # Go accepts lowercase spellings too; the shared fixture requires its exported fields.
+                        for original, target in (("offset", "Offset"), ("length", "Length")):
+                            if original in span:
+                                if target in span:
+                                    raise ValueError("ambiguous histogram span field")
+                                span[target] = span.pop(original)
     return dataset
 
 

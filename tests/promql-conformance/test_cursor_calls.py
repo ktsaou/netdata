@@ -80,6 +80,16 @@ class CursorCaptureTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             checked_original(changed, self.inputs)
 
+    def test_explicit_expression_cases_bind_inputs_without_loading_the_legacy_roster(self):
+        with patch("cursor_calls.cases", side_effect=AssertionError("legacy cases loaded")):
+            inputs, results = load_reference(self.task, self.inputs)
+            self.assertEqual(inputs, self.inputs)
+            self.assertEqual(len(results["results"]), 2)
+            changed = deepcopy(self.inputs)
+            changed[0]["request"]["query"] = 'count_values("v",m)'
+            with self.assertRaises(ValueError):
+                load_reference(self.task, changed)
+
     def test_missing_extra_and_unsafe_capture_rosters_fail(self):
         original = deepcopy(self.binding)
         for name in ("inputs.json", "source.json", "original.json", "cursor-oracle", "helper/main.go"):
