@@ -129,7 +129,6 @@ def checked_results(document):
             if not row["points"] or (result["kind"] == "vector" and len(row["points"]) != 1):
                 raise ValueError("empty row or invalid vector point count")
             previous = None
-            previous_by_kind = {}
             for point in row["points"]:
                 record(point, "point")
                 timestamp = point["time_ms"]
@@ -142,9 +141,6 @@ def checked_results(document):
                 if type(start) is not int or not -(1 << 63) <= start < (1 << 63):
                     raise ValueError("invalid sample start timestamp")
                 kind = point["kind"]
-                if kind in previous_by_kind and timestamp <= previous_by_kind[kind]:
-                    raise ValueError("per-kind timestamps are not strictly increasing")
-                previous_by_kind[kind] = timestamp
                 allowed = {"float": "float", "string": "string", "float_histogram": "float_histogram"}
                 if any(name in point and name != allowed.get(kind)
                        for name in ["float", "string", "histogram", "float_histogram"]):
@@ -189,6 +185,14 @@ def checked_results(document):
 def difference(expected, actual, ordered=False, exact_numeric=False):
     failures, bit_differences = [], []
 
+    def point_occurrences(points):
+        counts = {}
+        for point in points:
+            identity = (point["time_ms"], point["kind"])
+            occurrence = counts.get(identity, 0)
+            counts[identity] = occurrence + 1
+            yield (*identity, occurrence), point
+
     def exact(path, left, right):
         if left != right:
             failures.append(path)
@@ -232,9 +236,9 @@ def difference(expected, actual, ordered=False, exact_numeric=False):
         # Go sorts by timestamp alone; equal-time float/histogram tie order is unspecified.
         exact(f"row[{row_index}].typed timestamps", sorted(map(identity, er["points"])),
               sorted(map(identity, ar["points"])))
-        actual_by_time_and_kind = {identity(point): point for point in ar["points"]}
-        for index, ep in enumerate(er["points"]):
-            ap = actual_by_time_and_kind.get(identity(ep))
+        actual_by_occurrence = dict(point_occurrences(ar["points"]))
+        for index, (occurrence, ep) in enumerate(point_occurrences(er["points"])):
+            ap = actual_by_occurrence.get(occurrence)
             if ap is None:
                 continue
             path = f"row[{row_index}].point[{index}]"

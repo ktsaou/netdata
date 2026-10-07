@@ -214,8 +214,8 @@ class ComparisonTests(unittest.TestCase):
             with self.subTest(duplicate_kind=index):
                 duplicate = deepcopy(reference)
                 duplicate["results"][0]["rows"][0]["points"].append(deepcopy(row["points"][index]))
-                with self.assertRaises(ValueError):
-                    compare(reference, duplicate, self.cases)
+                self.assertTrue(compare(duplicate, deepcopy(duplicate), self.cases)["bitwise_pass"])
+                self.assertFalse(compare(reference, duplicate, self.cases)["semantic_pass"])
             with self.subTest(missing_kind=index):
                 missing = deepcopy(reference)
                 missing["results"][0]["rows"][0]["points"].pop(index)
@@ -231,6 +231,40 @@ class ComparisonTests(unittest.TestCase):
         reference["results"][0]["kind"] = "vector"
         with self.assertRaises(ValueError):
             compare(reference, reference, self.cases)
+
+    def test_same_kind_matrix_occurrences_preserve_sequence_and_all_bits(self):
+        # Pinned aggregationK appends hash aliases at the same timestamp in heap visitation order.
+        reference = result(2)
+        reference["results"][0]["kind"] = "matrix"
+        points = reference["results"][0]["rows"][0]["points"]
+        points.extend([{"time_ms": 1000, "kind": "float", "float": raw(1)},
+                       {"time_ms": 2000, "kind": "float", "float": raw(2)},
+                       {"time_ms": 2000, "kind": "float", "float": raw(1)}])
+        self.assertTrue(compare(reference, deepcopy(reference), self.cases)["bitwise_pass"])
+        for mutation in ("drop", "add", "swap", "change-first", "change-last"):
+            with self.subTest(mutation=mutation):
+                actual = deepcopy(reference)
+                candidate = actual["results"][0]["rows"][0]["points"]
+                if mutation == "drop":
+                    candidate.pop(1)
+                elif mutation == "add":
+                    candidate.append(deepcopy(candidate[-1]))
+                elif mutation == "swap":
+                    candidate[0], candidate[1] = candidate[1], candidate[0]
+                else:
+                    candidate[0 if mutation == "change-first" else -1]["float"] = raw(3)
+                self.assertFalse(compare(reference, actual, self.cases)["semantic_pass"])
+        actual = deepcopy(reference)
+        candidate = actual["results"][0]["rows"][0]["points"]
+        candidate[0]["float"] = raw(math.nextafter(2, 3))
+        candidate[1]["float"] = raw(math.nextafter(1, 2))
+        report = compare(reference, actual, self.cases)
+        self.assertTrue(report["semantic_pass"])
+        self.assertEqual([row["path"] for row in report["bitwise_differences"]],
+                         ["row[0].point[0].float", "row[0].point[1].float"])
+        candidate[2]["time_ms"] = 0
+        with self.assertRaises(ValueError):
+            compare(reference, actual, self.cases)
 
 
 if __name__ == "__main__":

@@ -83,9 +83,11 @@ The internal wire format has `schema_version: 1`.
 - Results: `kind`, complete `rows`, separate warning/info sets and an optional structured `error`. Errors retain
   request/construction/execution phase, upstream type, original message bytes and parser positions when available.
 - Strings use base64 `string`; a missing string field represents an empty string. Output histograms are float histograms.
-- Matrix output may contain a float and a histogram at the same timestamp. Timelines remain strictly increasing
-  within each kind; comparison pairs points by timestamp and kind. Equal-time cross-kind serialization order is
-  unspecified. Input timelines remain strictly increasing across all kinds, and vector rows contain one point.
+- Matrix output may contain repeated points at one timestamp, including within one kind. Comparison pairs
+  points by timestamp, kind and occurrence, preserving equal-time order within each kind. Equal-time cross-kind
+  serialization order is unspecified. Input timelines remain strictly increasing across all kinds, and vector
+  rows contain one point. Pinned `aggregationK` can merge full-hash aliases into one row with repeated floats;
+  their sequence and multiplicity are required output behavior.
 
 Run the oracle with dataset and request files:
 
