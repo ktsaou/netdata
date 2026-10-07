@@ -26,9 +26,12 @@ mod float_functions;
 mod float_text;
 pub mod frontend;
 mod go_sort;
+mod go_sort_program;
 mod histogram_call;
 #[cfg(feature = "fixtures")]
 pub use go_sort::fixture as sort_fixture;
+#[cfg(feature = "fixtures")]
+pub use go_sort::selection_order_fixture;
 pub mod histogram;
 mod histogram_accumulator;
 mod histogram_arithmetic;

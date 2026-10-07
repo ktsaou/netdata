@@ -55,8 +55,9 @@ Histogram exponential-bound scaling derives from Go 1.27.1 math/ldexp.go.
 Copyright 2009 The Go Authors. All rights reserved. Licensed under the
 Go BSD license; see LICENSE-GO-BSD.
 
-In-place sorting and binary search derive from Go 1.27.1 slices/sort.go,
-slices/zsortanyfunc.go and sort/search.go. Copyright 2009, 2022 The Go Authors.
+In-place and resumable sorting, heap updates and binary search derive from Go 1.27.1
+slices/sort.go, slices/zsortanyfunc.go, sort/{sort,zsortinterface,search}.go and
+container/heap/heap.go. Copyright 2009, 2022 The Go Authors.
 All rights reserved. Licensed under the Go BSD license; see LICENSE-GO-BSD.
 
 Numerical normalization and logarithms derive from Go 1.27.1 math/bits.go,
