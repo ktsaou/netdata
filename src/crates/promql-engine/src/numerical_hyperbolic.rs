@@ -3,7 +3,7 @@
 #![allow(clippy::excessive_precision)]
 
 use crate::{
-    numerical_exponential::{exp_kernel, fma_supported},
+    numerical_exponential::exp_kernel,
     numerical_math::{log, sqrt},
 };
 use std::f64::consts::LN_2;
@@ -138,7 +138,7 @@ fn sinh_kernel(value: f64, fused: bool) -> f64 {
     if value < 0.0 { -result } else { result }
 }
 pub fn sinh(value: f64) -> f64 {
-    sinh_kernel(value, fma_supported())
+    sinh_kernel(value, true)
 }
 
 fn cosh_kernel(value: f64, fused: bool) -> f64 {
@@ -150,7 +150,7 @@ fn cosh_kernel(value: f64, fused: bool) -> f64 {
     (exponential + 1.0 / exponential) * 0.5
 }
 pub fn cosh(value: f64) -> f64 {
-    cosh_kernel(value, fma_supported())
+    cosh_kernel(value, true)
 }
 
 fn tanh_kernel(value: f64, fused: bool) -> f64 {
@@ -176,7 +176,7 @@ fn tanh_kernel(value: f64, fused: bool) -> f64 {
                 + 4.84406305325125486048e3)
 }
 pub fn tanh(value: f64) -> f64 {
-    tanh_kernel(value, fma_supported())
+    tanh_kernel(value, true)
 }
 
 pub fn asinh(value: f64) -> f64 {

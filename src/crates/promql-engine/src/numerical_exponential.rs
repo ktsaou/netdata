@@ -1,19 +1,9 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Exponential reduction and scaling derive from the pinned Go math package; see NOTICE.
 
-pub(crate) fn fma_supported() -> bool {
-    #[cfg(target_arch = "x86_64")]
-    {
-        std::is_x86_feature_detected!("avx") && std::is_x86_feature_detected!("fma")
-    }
-    #[cfg(not(target_arch = "x86_64"))]
-    {
-        false
-    }
-}
-
 pub fn exp(value: f64) -> f64 {
-    exp_kernel(value, fma_supported())
+    // The retained oracle's fused rounding must not depend on device features.
+    exp_kernel(value, true)
 }
 
 pub(crate) fn exp_kernel(value: f64, fused: bool) -> f64 {
