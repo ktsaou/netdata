@@ -329,6 +329,7 @@ fn result(input: &Value) -> Result<Value, Error> {
                 .collect::<Result<Vec<_>, Error>>()?;
             netdata_promql_engine::sort_fixture(bounds)
         }
+        "selection-order" => netdata_promql_engine::selection_order_fixture(request)?,
         "classic-buckets" => classic_result(request)?,
         "classic-replay" => netdata_promql_engine::classic_replay_fixture(request),
         "almost-equal" => json!(almost_equal(

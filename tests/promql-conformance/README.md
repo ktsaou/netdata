@@ -668,9 +668,29 @@ command accepts either original capture kind. Both corrected build profiles pass
 The shared Go comparator sort has a fallible polling entry and an inert wrapper for existing numeric helpers.
 It checks before comparisons, swaps and PDQ loop entries, including comparison-free reverse and pattern-breaking
 work. Cancellation returns the original error; already owned metadata may be partly permuted and must be discarded.
-The implementation allocates no buffer and retains Go's smaller-side recursion. NaN bounds violate the usual
+The common implementation uses resumable comparison/swap instructions and a fixed inline control stack bounded
+by the machine word size plus helper depth. It allocates no buffer and retains Go's smaller-side evaluation order.
+NaN bounds violate the usual
 strict weak ordering requirement, so this path preserves the original permutation rather than assuming the
 usual quicksort complexity bound.
+
+The same instruction program provides boolean comparison requests for selection reducers. A caller can suspend
+at each comparison, read two values sequentially, release them and resume using the reply. Numeric values are never
+stored in the program. Physical swaps and comparison argument order remain separate operations; reversed sorting
+exchanges comparison arguments. Container heap Push/Fix use their original child/parent comparisons, which differ
+from sort's heap fallback. The heap entries are currently qualified through fixtures and unit tests; their query
+reducer integration remains required work.
+
+`selection_order.py` binds the pinned Go sort/heap sources and copies the unchanged Prometheus comparator methods.
+Its 13,828 declared cases compare complete permutations, values, comparison/swap counts and an ordered operation
+digest, including private original helper return values. Original `sort` and `container/heap` tests also run.
+Fixture vectors belong to the qualification harness; the production program retains only control state.
+
+```sh
+python3 tests/promql-conformance/selection_order.py --upstream "${PROMQL_UPSTREAM_DIR:?}"
+python3 tests/promql-conformance/selection_order.py --reference "${PROMQL_SELECTION_ORDER_CAPTURE_DIR:?}" \
+  --binary "${PROMQL_KERNEL_BINARY:?}"
+```
 
 ```sh
 python3 tests/promql-conformance/go_sort.py
