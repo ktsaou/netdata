@@ -205,6 +205,105 @@ def load_reference(reference):
     )
 
 
+def candidate_packets(original):
+    return [
+        {
+            "id": f"{row['id']}:{index}",
+            "mode": "limit-ratio-sampler",
+            "borrowed": False,
+            "request": {"hash": row["hash"], "ratio": threshold["ratio"]},
+        }
+        for row in original
+        for index, threshold in enumerate(row["thresholds"])
+    ]
+
+
+def qualify_outputs(original, responses):
+    expected = [
+        {
+            "id": f"{row['id']}:{index}",
+            "actual": {"offset": row["offset"], "selected": threshold["selected"]},
+        }
+        for row in original
+        for index, threshold in enumerate(row["thresholds"])
+    ]
+    if type(responses) is not list or len(responses) != len(expected):
+        raise ValueError("sampler candidate packet roster changed")
+    failures = []
+    for source, actual in zip(expected, responses, strict=True):
+        if (
+            type(actual) is not dict
+            or actual.keys() != {"id", "actual"}
+            or actual["id"] != source["id"]
+            or type(actual["actual"]) is not dict
+            or actual["actual"].keys() != {"offset", "selected"}
+            or type(actual["actual"]["offset"]) is not str
+            or HEX64.fullmatch(actual["actual"]["offset"]) is None
+            or type(actual["actual"]["selected"]) is not bool
+        ):
+            raise ValueError(
+                "sampler candidate identity, offset or boolean packet changed"
+            )
+        if source != actual:
+            failures.append(
+                {
+                    "id": source["id"],
+                    "expected": source["actual"],
+                    "actual": actual["actual"],
+                }
+            )
+    return {
+        "required": len(expected),
+        "passed": len(expected) - len(failures),
+        "failures": failures,
+        "status": "FAIL" if failures else "PASS",
+    }
+
+
+def qualify(reference, binary):
+    reference = directory(reference)
+    _, original = load_reference(reference)
+    binary = Path(binary).resolve(strict=True)
+    digest = cursor_calls.sha(binary)
+    task = directory(
+        tempfile.mkdtemp(prefix="ratio-sampler-compare-", dir=directory(HERE / ".tmp"))
+    )
+    (task / "requests.jsonl").write_text(
+        "".join(json.dumps(row) + "\n" for row in candidate_packets(original))
+    )
+    with (
+        (task / "requests.jsonl").open("rb") as data,
+        (task / "candidate.jsonl").open("xb") as out,
+        (task / "candidate.stderr").open("xb") as err,
+    ):
+        process = subprocess.run(
+            [str(binary)], stdin=data, stdout=out, stderr=err, timeout=600, check=False
+        )
+    if process.returncode or cursor_calls.sha(binary) != digest:
+        raise ValueError(
+            f"sampler candidate failed or binary changed; evidence: {task}"
+        )
+    responses = [
+        json.loads(line) for line in (task / "candidate.jsonl").read_text().splitlines()
+    ]
+    report = qualify_outputs(original, responses)
+    report.update(
+        binary_sha256=digest,
+        reference_sha256=cursor_calls.sha(reference / "original.json"),
+        input_sha256=cursor_calls.sha(task / "requests.jsonl"),
+        output_sha256=cursor_calls.sha(task / "candidate.jsonl"),
+    )
+    (task / "report.json").write_text(json.dumps(report, indent=2) + "\n")
+    print(
+        json.dumps(
+            {key: report[key] for key in ("required", "passed", "status")}
+            | {"evidence": str(task)}
+        ),
+        flush=True,
+    )
+    return report
+
+
 def capture(upstream):
     upstream = directory(upstream)
     source = verify_facade(upstream, upstream)
@@ -306,6 +405,7 @@ if __name__ == "__main__":
     parser.add_argument("--capture", action="store_true")
     parser.add_argument("--upstream")
     parser.add_argument("--reference")
+    parser.add_argument("--binary")
     arguments = parser.parse_args()
     if arguments.capture:
         if not arguments.upstream:
@@ -314,6 +414,10 @@ if __name__ == "__main__":
     else:
         if not arguments.reference:
             parser.error("validation requires --reference")
+        if arguments.binary:
+            raise SystemExit(
+                qualify(arguments.reference, arguments.binary)["status"] != "PASS"
+            )
         inputs, _ = load_reference(arguments.reference)
         print(
             json.dumps({"cases": len(inputs), "thresholds": len(inputs) * 15}),

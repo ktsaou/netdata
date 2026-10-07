@@ -52,6 +52,7 @@ pub enum AnnotationKind {
     },
     IncompatibleBinaryLayout(tokens::TokenKind),
     InvalidQuantile,
+    InvalidRatio,
     BadBucketLabel,
     MixedClassicNativeHistograms,
     HistogramQuantileForcedMonotonicity,
@@ -81,6 +82,7 @@ impl AnnotationKind {
             | Self::HistogramCounterResetCollision(_)
             | Self::IncompatibleBinaryLayout(_)
             | Self::InvalidQuantile
+            | Self::InvalidRatio
             | Self::BadBucketLabel
             | Self::MixedClassicNativeHistograms => Severity::Warning,
         }
@@ -126,6 +128,7 @@ impl AnnotationKind {
                 "PromQL warning: incompatible bucket layout encountered for binary operator "
             }
             Self::InvalidQuantile => "PromQL warning: quantile value should be between 0 and 1",
+            Self::InvalidRatio => "PromQL warning: ratio value should be between -1 and 1",
             Self::BadBucketLabel => {
                 "PromQL warning: bucket label \"le\" is missing or has a malformed value"
             }
@@ -437,6 +440,26 @@ impl AnnotationBuilder {
             "{}, got {}",
             kind.prefix(),
             float_text(q, FloatTextStyle::Shortest),
+        )
+        .expect("byte writer");
+        self.add_generated(kind, raw, span, query, account, None);
+    }
+    pub(crate) fn add_invalid_ratio(
+        &mut self,
+        ratio: f64,
+        capped: f64,
+        span: Span,
+        query: &[u8],
+        account: &QueryAccounting,
+    ) {
+        let kind = AnnotationKind::InvalidRatio;
+        let mut raw = AccountedVec::new(account, MemoryKind::Result);
+        write!(
+            raw,
+            "{}, got {}, capping to {}",
+            kind.prefix(),
+            float_text(ratio, FloatTextStyle::Shortest),
+            float_text(capped, FloatTextStyle::Shortest)
         )
         .expect("byte writer");
         self.add_generated(kind, raw, span, query, account, None);

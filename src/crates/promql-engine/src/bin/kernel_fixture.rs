@@ -330,6 +330,13 @@ fn result(input: &Value) -> Result<Value, Error> {
             netdata_promql_engine::sort_fixture(bounds)
         }
         "selection-order" => netdata_promql_engine::selection_order_fixture(request)?,
+        "limit-ratio-sampler" => {
+            let hash =
+                u64::from_str_radix(request["hash"].as_str().ok_or("invalid sampler hash")?, 16)?;
+            let (offset, selected) =
+                netdata_promql_engine::ratio_sampler_fixture(hash, number(&request["ratio"])?);
+            json!({"offset": format!("{:016x}", offset.to_bits()), "selected": selected})
+        }
         "classic-buckets" => classic_result(request)?,
         "classic-replay" => netdata_promql_engine::classic_replay_fixture(request),
         "almost-equal" => json!(almost_equal(

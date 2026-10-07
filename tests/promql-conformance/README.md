@@ -1213,10 +1213,21 @@ Typed tests cover exact sum conservation over 2,048 and 100,000 raw points at pa
 workspace, one cursor across the whole provider, cancellation during a heap comparison, partial-output failure
 and baseline-aware release. Complete core, SRE and remaining policy qualification are still required.
 
-### Source controls for LIMITK/LIMIT_RATIO
+### Paged LIMITK/LIMIT_RATIO selection
 
-The LIMIT harness is source-only preparation; it does not qualify a Rust LIMIT implementation. Its sampler
-facade captures 13 literal byte-label sets through the original `HashRatioSampler` and 17 separately identified
+`limitk()` and `limit_ratio()` share the ordinal-only selection heaps and evaluator continuation. LIMITK
+retains the first available K samples per group; LIMIT_RATIO tests each sample's complete raw label hash before
+canonical output projection. Both accept native histograms, use positive zero as their heap comparison value,
+emit the unsorted heap and forward histogram payloads unchanged. Comparison and output replay acquire one
+child value at a time. Actual float/histogram head eligibility is checked before advancing a canonical vector row.
+
+The complete parameter grid and body precede global validation. Ratio warnings preserve source construction
+order and the visited parameter span; unvisited parameter subtrees retain their original spans and clocks.
+The immutable selection snapshot retains the validated scalar parameter, indices and effective scope.
+Raw history length does not enlarge these buffers; retained metadata grows with series/groups and selected
+cardinality. Resource limits remain disabled. Finite nested replay tests do not prove a general nested work bound.
+
+The sampler facade captures 13 literal byte-label sets through the original `HashRatioSampler` and 17 separately identified
 unsigned normalization primitives. The latter reproduce the source cast/division expression and invoke its
 threshold predicate, without claiming actual label-hash preimages. The 450 thresholds retain exact offset and
 ratio bits, signed zero, NaN, unsigned rounding to offset 1.0 and both predicate branches. Adjacent negative
@@ -1233,16 +1244,31 @@ All experimental runtime declarations use `upstream-tests`; disabled-profile rej
 ```sh
 python3 tests/promql-conformance/ratio_sampler.py --capture --upstream "${PROMQL_ORIGINAL_SOURCE_DIR:?}"
 python3 tests/promql-conformance/ratio_sampler.py --reference "${PROMQL_RATIO_SAMPLER_DIR:?}"
+python3 tests/promql-conformance/ratio_sampler.py --reference "${PROMQL_RATIO_SAMPLER_DIR:?}" \
+  --binary "${PROMQL_KERNEL_BINARY:?}"
 python3 tests/promql-conformance/limit_calls.py --capture --upstream "${PROMQL_ORIGINAL_SOURCE_DIR:?}" \
   --sampler-reference "${PROMQL_RATIO_SAMPLER_DIR:?}"
 python3 tests/promql-conformance/limit_calls.py --reference "${PROMQL_LIMIT_CAPTURE_DIR:?}" \
   --sampler-reference "${PROMQL_RATIO_SAMPLER_DIR:?}" --binary "${PROMQL_QUERY_BINARY:?}" --page-size 1024
+python3 tests/promql-conformance/limit_policy.py --base "${PROMQL_LIMIT_CAPTURE_DIR:?}" \
+  --sampler-reference "${PROMQL_RATIO_SAMPLER_DIR:?}" --capture
+python3 tests/promql-conformance/limit_policy.py --base "${PROMQL_LIMIT_CAPTURE_DIR:?}" \
+  --sampler-reference "${PROMQL_RATIO_SAMPLER_DIR:?}" --reference "${PROMQL_LIMIT_POLICY_DIR:?}" \
+  --candidate "${PROMQL_LIMIT_COMPARISON_DIR:?}"
 ```
 
 Query comparisons require exact numbers and ordered complete outcomes. The original 1,864-case capture remains
-immutable; the expanded declarations require a fresh capture. No ordering policy is applied by this harness,
-and ABS API output is not treated as raw-label-preserving injection for ratio hashing. Tests check sampler and
-query schema falsification, grouped operator substitution, fault independence and mixed-kind/native preservation.
+immutable; the expanded declarations require a fresh capture. The separate policy gate qualifies six singleton
+COUNT_VALUES child injections and four instant root COUNT maps under the approved label-byte order. Injected
+children preserve their sole raw `v` label and ordinary distinct float points, without diagnostics or deferred names.
+The gate retains all raw differences and changes only ten declared expectations in a separate file. It still
+rejects warning-position errors; ABS API output cannot substitute for raw labels in ratio hashing.
+
+The fixture kernel invokes the production normalization and membership helpers for all 450 captured pairs.
+Meaningful packet tests reject missing/reordered results, malformed bits and boolean types; valid numerical or
+membership differences remain failures. Query tests cover grouped substitution, fault independence and native
+field preservation. Typed resource tests extend conservation, one-provider-cursor, cancellation and partial-output
+release checks to both LIMIT operators and native payloads. Complete core and SRE qualification remain open.
 
 ### Shared instantaneous cursor replay
 

@@ -18,8 +18,9 @@ Native histogram statistic algorithms derive from promql/functions.go.
 Paged evaluator, range reducers, scalar conversion and metadata/duplicate cleanup algorithms
 derive from promql/engine.go and promql/functions.go. Logical diagnostic ownership,
 deduplication and occurrence formatting derive from util/annotations/annotations.go.
-Selection parameter summaries, TOPK/BOTTOMK grouping, comparisons, heap and output semantics
-derive from promql/value.go:598-650 and promql/engine.go:1645-1753,4032-4260.
+Selection parameter summaries, TOPK/BOTTOMK/LIMIT grouping, comparisons, heap and output semantics
+derive from promql/value.go:598-650 and promql/engine.go:1645-1753,4032-4261.
+Unsigned label-hash ratio normalization and membership derive from promql/engine.go:4835-4885.
 Request-context duration evaluation derives from promql/durations.go and engine.go's preprocessing.
 INFO reference inference, identifying-label selection, signatures and enrichment derive from promql/info.go.
 Statistics-only histogram decoding, memoized selection and buffered access epochs derive from
