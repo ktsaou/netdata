@@ -14,10 +14,13 @@ mod binary_labels;
 mod binary_value;
 pub mod c_abi;
 mod calendar;
+mod classic_mutation;
 mod classic_replay;
 mod count_values;
 mod quantile_aggregate;
 mod topk;
+#[cfg(feature = "fixtures")]
+pub use classic_mutation::fixture as classic_mutation_fixture;
 #[cfg(feature = "fixtures")]
 pub use classic_replay::fixture as classic_replay_fixture;
 pub mod evaluator;

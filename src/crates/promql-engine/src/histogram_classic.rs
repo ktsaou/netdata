@@ -173,18 +173,25 @@ pub(crate) fn coalesced_count(previous: f64, arriving: f64) -> f64 {
     }
 }
 
-pub(crate) fn corrected_count(
+#[derive(Clone, Copy)]
+pub(crate) enum CountCorrection {
+    KeepState,
+    UsePrevious,
+    AdvancePrevious,
+}
+
+pub(crate) fn count_correction(
     current: f64,
     bound: f64,
     previous: &mut f64,
     result: &mut BucketQuantileResult,
-) -> f64 {
+) -> CountCorrection {
     if current == *previous {
-        return current;
+        return CountCorrection::KeepState;
     }
     if almost_equal(*previous, current, 1e-12) {
         result.fixed_precision = true;
-        return *previous;
+        return CountCorrection::UsePrevious;
     }
     if current < *previous {
         result.forced_monotonicity = true;
@@ -198,10 +205,22 @@ pub(crate) fn corrected_count(
         if decrease > result.max_decrease {
             result.max_decrease = decrease;
         }
-        return *previous;
+        return CountCorrection::UsePrevious;
     }
     *previous = current;
-    current
+    CountCorrection::AdvancePrevious
+}
+
+pub(crate) fn corrected_count(
+    current: f64,
+    bound: f64,
+    previous: &mut f64,
+    result: &mut BucketQuantileResult,
+) -> f64 {
+    match count_correction(current, bound, previous, result) {
+        CountCorrection::UsePrevious => *previous,
+        CountCorrection::KeepState | CountCorrection::AdvancePrevious => current,
+    }
 }
 
 pub(crate) fn quantile_interpolate(

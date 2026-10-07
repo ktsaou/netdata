@@ -509,7 +509,11 @@ fn evaluate(provider: &FixtureProvider, request: &Value) -> Result<Value, Error>
             .get("subquery_step_ms")
             .map_or(Ok(60_000), |v| v.as_i64().ok_or("invalid no-step interval"))?,
         start_timestamps: extended,
-        delayed_name_removal: extended,
+        delayed_name_removal: request
+            .get("delayed_name_removal")
+            .map_or(Ok(extended), |v| {
+                v.as_bool().ok_or("invalid delayed name removal")
+            })?,
     };
     let query_request = match request["mode"].as_str() {
         Some("instant") => QueryRequest::Instant {

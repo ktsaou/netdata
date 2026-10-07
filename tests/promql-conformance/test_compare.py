@@ -55,6 +55,21 @@ class ComparisonTests(unittest.TestCase):
         actual["results"][0]["rows"] = []
         self.assertFalse(compare(reference, actual, self.cases)["semantic_pass"])
 
+    def test_empty_generated_names_are_exact_and_duplicate_names_are_rejected(self):
+        reference = result()
+        label = reference["results"][0]["rows"][0]["labels"][0]
+        label.update(name=text(b""), value=text(b"0.25"))
+        self.assertTrue(compare(reference, deepcopy(reference), self.cases)["bitwise_pass"])
+        for change in [{"name": text(b"q")}, {"value": text(b"0.75")}]:
+            with self.subTest(change=change):
+                actual = deepcopy(reference)
+                actual["results"][0]["rows"][0]["labels"][0].update(change)
+                self.assertFalse(compare(reference, actual, self.cases)["semantic_pass"])
+        actual = deepcopy(reference)
+        actual["results"][0]["rows"][0]["labels"].append(deepcopy(label))
+        with self.assertRaisesRegex(ValueError, "duplicate label name"):
+            compare(reference, actual, self.cases)
+
     def test_exact_boolean_values(self):
         self.assertFalse(compare(result(1), result(0), self.cases)["semantic_pass"])
         self.assertFalse(

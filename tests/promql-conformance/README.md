@@ -627,8 +627,8 @@ The supplemental capture validates the complete original module digest, runtime 
 input identities and frozen file hashes. Read counts, panic behavior, reciprocal/boolean results and every
 quantile diagnostic are checked. Tests reject altered results, read bounds and identities. Cancellation
 covers every replay sweep; 100,000 buckets run on a 128KiB stack with unchanged accounted memory during
-count reconstruction. This qualifies the private Q=1 continuation. General repeated `histogram_quantiles`
-backing-tail reconstruction remains required.
+count reconstruction. This qualifies the private Q=1 continuation. Repeated plural calls use the separate
+mutation continuation described below, preserving the complete original-length backing between quantiles.
 
 `histogram_quantile` and `histogram_fraction` now use that continuation through the evaluator's explicit frames.
 Arguments run in source order. Classification retains labels, ordinals, kinds and bounds while discarding values;
@@ -636,6 +636,42 @@ count reconstruction reads one requested bucket value at a time. Native calculat
 Neither path retains raw history or a cross-metric count array. Metadata and classic group/output bindings take
 O(N) space; nested child replay contributes additional work. Chronological preparation keeps the classic label
 cache and freezes output bindings for later value replay. It retains no presence or cache-event timeline.
+
+`histogram_quantiles` evaluates its vector before its scalar arguments, then processes quantiles in argument
+order. Its classic continuation retains bound/source-reference metadata and completed coalescing results;
+singletons remain references to paged input. Monotonicity repair aliases the previous reference. Every later
+quantile sorts the full backing, including the tail left by earlier prefix overwrites. A prepared-prefix reader
+then probes the total, literal binary search, and interpolation endpoints without repeating repairs. At most
+Q*floor(N/2) completed fold values are retained for Q quantiles and N backing slots; these are aggregations,
+not a raw count vector, and release between evaluation instants. The typed language permits at most ten quantiles.
+
+Output bindings distinguish source, actual generated quantile text, and occurrence rank. Repeated values,
+signed zeros and NaNs can produce duplicate labels; delayed instant parents may consume each occurrence before
+final cleanup. Generated destinations accept arbitrary bytes, including an empty name, and Builder reset removes
+empty-valued source labels. Immediate metadata removal runs before setting the destination; delayed cleanup runs
+at its existing source boundary. Pinned reserved-label removal fails on an empty first name; the engine returns
+the same wrapped runtime error at that removal phase. Parents that aggregate away the label can succeed before
+delayed cleanup. Result comparison permits empty generated names and still requires exact byte
+identity and unique names within each label set. Storage input validation remains independent.
+
+```sh
+python3 tests/promql-conformance/plural_histogram.py --capture \
+  --upstream "${PROMQL_ORIGINAL_SOURCE_DIR:?}"
+python3 tests/promql-conformance/plural_histogram.py --reference "${PROMQL_PLURAL_CAPTURE_DIR:?}" \
+  --binary "${PROMQL_QUERY_BINARY:?}" --page-size 17
+python3 tests/promql-conformance/classic_mutation.py --reference "${PROMQL_CLASSIC_CAPTURE_DIR:?}" \
+  --binary "${PROMQL_KERNEL_BINARY:?}"
+```
+
+The standalone Go probe invokes the unchanged engine with experimental parsing and independently chosen name
+removal. Its 426 cases cover changing and swapped values, repeated finite/NaN/zero values, native/classic conflicts,
+empty/opaque/reserved destinations, parent aggregation/filtering, and warning/error phases in instant and range
+queries. The Rust fixture accepts an optional `delayed_name_removal` boolean for this panel; omitted values retain
+the existing parser-profile default. Capture binds every original module file, runtime profile, input and probe
+artifact. Qualification compares complete labels, membership, timestamps, diagnostics, errors and numeric bits.
+The mutation gate compares 724 original quantile steps in 690 contiguous runs, including complete post-call
+backing and panic state. Fraction boundaries supply their captured Go state to a fresh quantile run; candidate
+output never becomes an expected input. Completed producer and raw-read bounds are checked separately.
 
 Grouping excludes only `le`. Native/classic conflicts, malformed bucket labels, delayed name removal, timestamps,
 duplicate results and diagnostic positions follow the pinned source. At source map boundaries, approved 9.A orders

@@ -56,15 +56,12 @@ pub(crate) struct Replay {
     correction: BucketQuantileResult,
     ranks: FractionRanks,
     waiting: bool,
+    prepared: bool,
 }
 
 impl Replay {
-    pub(crate) fn new<E>(
-        operation: Operation,
-        bounds: &mut [Bound],
-        mut poll: impl FnMut() -> Result<(), E>,
-    ) -> Result<Self, E> {
-        let mut replay = Self {
+    fn initial(operation: Operation) -> Self {
+        Self {
             operation,
             phase: Phase::Done,
             result: BucketQuantileResult::new(NAN),
@@ -87,7 +84,16 @@ impl Replay {
                 Operation::Quantile(_) => FractionRanks::new(0.0, 0.0),
             },
             waiting: false,
-        };
+            prepared: false,
+        }
+    }
+
+    pub(crate) fn new<E>(
+        operation: Operation,
+        bounds: &mut [Bound],
+        mut poll: impl FnMut() -> Result<(), E>,
+    ) -> Result<Self, E> {
+        let mut replay = Self::initial(operation);
         if let Operation::Quantile(q) = operation {
             if q.is_nan() {
                 return Ok(replay);
@@ -125,6 +131,18 @@ impl Replay {
         Ok(replay)
     }
 
+    pub(crate) fn from_prepared(q: f64, bounds: &[Bound], result: BucketQuantileResult) -> Self {
+        let mut replay = Self::initial(Operation::Quantile(q));
+        replay.prepared = true;
+        replay.result = result;
+        replay.groups = bounds.len();
+        if bounds.len() >= 2 {
+            replay.penultimate_bound = bounds[bounds.len() - 2].upper_bound;
+            replay.phase = Phase::QuantileTotal;
+        }
+        replay
+    }
+
     fn reset_sweep(&mut self) {
         self.position = 0;
         self.run_start = 0;
@@ -144,6 +162,9 @@ impl Replay {
         mut poll: impl FnMut() -> Result<(), E>,
     ) -> Result<Action, E> {
         assert!(!self.waiting, "count request has not completed");
+        if self.prepared {
+            return self.next_prepared(bounds, poll);
+        }
         loop {
             poll()?;
             if self.phase == Phase::Done {
@@ -169,11 +190,103 @@ impl Replay {
     pub(crate) fn receive(&mut self, count: f64) {
         assert!(self.waiting, "unsolicited bucket count");
         self.waiting = false;
+        if self.prepared {
+            self.receive_prepared(count);
+            return;
+        }
         self.count = Some(
             self.count
                 .map_or(count, |previous| coalesced_count(previous, count)),
         );
         self.position += 1;
+    }
+
+    fn next_prepared<E>(
+        &mut self,
+        bounds: &[Bound],
+        mut poll: impl FnMut() -> Result<(), E>,
+    ) -> Result<Action, E> {
+        loop {
+            poll()?;
+            self.position = match self.phase {
+                Phase::Done => return Ok(Action::Done(self.result)),
+                Phase::QuantileTotal => self.groups - 1,
+                Phase::QuantileProbe => self.target,
+                Phase::QuantileEndpoint => {
+                    if self.target == self.groups - 1 {
+                        self.result.value = self.penultimate_bound;
+                        self.phase = Phase::Done;
+                        continue;
+                    }
+                    if self.target == 0 && bounds[0].upper_bound <= 0.0 {
+                        self.result.value = bounds[0].upper_bound;
+                        self.phase = Phase::Done;
+                        continue;
+                    }
+                    if let Some(count) = self.count {
+                        if self.target == 0 || self.previous_bucket.is_some() {
+                            let previous = self.previous_bucket.map(|mut bucket| {
+                                bucket.upper_bound = bounds[self.target - 1].upper_bound;
+                                bucket
+                            });
+                            self.result.value = quantile_interpolate(
+                                self.rank,
+                                ClassicBucket {
+                                    upper_bound: bounds[self.target].upper_bound,
+                                    count,
+                                },
+                                previous,
+                            );
+                            self.phase = Phase::Done;
+                            continue;
+                        }
+                        self.target - 1
+                    } else {
+                        self.target
+                    }
+                }
+                Phase::FractionTotal | Phase::FractionRanks => unreachable!("prepared quantile"),
+            };
+            self.waiting = true;
+            return Ok(Action::Count(bounds[self.position].ordinal));
+        }
+    }
+
+    fn receive_prepared(&mut self, count: f64) {
+        match self.phase {
+            Phase::QuantileTotal => {
+                self.total = count;
+                if count == 0.0 {
+                    self.phase = Phase::Done;
+                } else {
+                    let Operation::Quantile(q) = self.operation else {
+                        unreachable!("prepared quantile")
+                    };
+                    self.rank = source_mul(q, count);
+                    self.right = self.groups - 1;
+                    self.search();
+                }
+            }
+            Phase::QuantileProbe => {
+                if count >= self.rank {
+                    self.right = self.target;
+                } else {
+                    self.left = self.target + 1;
+                }
+                self.search();
+            }
+            Phase::QuantileEndpoint => {
+                if self.position == self.target {
+                    self.count = Some(count);
+                } else {
+                    self.previous_bucket = Some(ClassicBucket {
+                        upper_bound: 0.0,
+                        count,
+                    });
+                }
+            }
+            _ => unreachable!("prepared count request"),
+        }
     }
 
     fn finish_run(&mut self, mut bucket: ClassicBucket, last: bool) {
@@ -270,7 +383,13 @@ impl Replay {
             self.target = self.left;
             self.phase = Phase::QuantileEndpoint;
         }
-        self.reset_sweep();
+        if self.prepared {
+            // Completed prefix producers make the source predicate directly addressable.
+            self.count = None;
+            self.previous_bucket = None;
+        } else {
+            self.reset_sweep();
+        }
     }
 }
 

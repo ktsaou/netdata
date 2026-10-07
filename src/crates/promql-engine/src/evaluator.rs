@@ -982,9 +982,7 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
                 )?;
                 let drop_name = operation.drops_name();
                 if drop_name && !self.options.delayed_name_removal {
-                    labels.retain_labels_checked(self.account, self.control, |label| {
-                        Ok::<_, Interrupted>(!metadata(&label.name))
-                    })?;
+                    drop_reserved(&mut labels, false, self.account, self.control)?;
                 }
                 Ok::<_, EvaluationError>(EvaluatedSample {
                     ordinal: series_ordinal,
@@ -1219,26 +1217,21 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
                     ));
                     Ok(None)
                 }
-                "histogram_quantile" | "histogram_fraction" => {
+                "histogram_quantile" | "histogram_quantiles" | "histogram_fraction" => {
                     let function = crate::histogram_call::Function::parse(function.name)
                         .expect("histogram function");
-                    let scalar =
-                        self.prepared
-                            .preprocessing
-                            .child(self.expression, node, arguments[0]);
-                    let vector = self.prepared.preprocessing.child(
-                        self.expression,
+                    let arguments = crate::histogram_call::Arguments::new(
+                        function,
                         node,
-                        arguments[function.vector_argument()],
+                        self.expression,
+                        self.prepared,
                     );
                     self.frames[index].state = State::Histogram(AccountedBox::new(
                         crate::histogram_call::Step::new(
                             self.rosters
                                 .histogram(node)
                                 .ok_or(EvaluationError::Invalid("histogram plan is missing"))?,
-                            function,
-                            self.expression.arena[scalar].span,
-                            self.expression.arena[vector].span,
+                            arguments,
                             self.histogram_preparation
                                 .is_some_and(|value| value.node == node),
                             match self.frames[index].filter {
@@ -1552,17 +1545,7 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
                     if drop_name && !self.options.delayed_name_removal {
                         let name_only = matches!(operation,
                             MapOperation::Pointwise(function) if !function.drops_metadata());
-                        sample.labels.retain_labels_checked(
-                            self.account,
-                            self.control,
-                            |label| {
-                                Ok::<_, Interrupted>(if name_only {
-                                    &*label.name != b"__name__"
-                                } else {
-                                    !metadata(&label.name)
-                                })
-                            },
-                        )?;
+                        drop_reserved(&mut sample.labels, name_only, self.account, self.control)?;
                     }
                     sample.source_time_ms = self.options.time_ms;
                     sample.source_start_time_ms = 0;
@@ -2302,6 +2285,36 @@ pub(crate) fn remember_unique_kind(
 
 pub(crate) fn metadata(name: &[u8]) -> bool {
     matches!(name, b"__name__" | b"__type__" | b"__unit__")
+}
+
+pub(crate) fn drop_reserved(
+    labels: &mut OwnedLabels,
+    name_only: bool,
+    account: &QueryAccounting,
+    control: &Control,
+) -> Result<(), EvaluationError> {
+    control.check()?;
+    account.work(1);
+    // Pinned DropReserved indexes the first sorted name before calling its predicate.
+    if labels.0.first().is_some_and(|label| label.name.is_empty()) {
+        return Err(EvaluationError::WrappedRuntime(
+            crate::binary_labels::formatted(
+                format_args!(
+                    "unexpected error: runtime error: index out of range [0] with length 0"
+                ),
+                control,
+                account,
+            )?,
+        ));
+    }
+    labels.retain_labels_checked(account, control, |label| {
+        Ok::<_, Interrupted>(if name_only {
+            &*label.name != b"__name__"
+        } else {
+            !metadata(&label.name)
+        })
+    })?;
+    Ok(())
 }
 
 pub(crate) fn scalar_binary(

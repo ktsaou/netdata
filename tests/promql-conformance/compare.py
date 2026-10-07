@@ -65,8 +65,9 @@ def labels(row):
     for label in array(record(row, "row")["labels"], "labels"):
         record(label, "label")
         ls.append((byte_value(label["name"]), byte_value(label["value"])))
-    if any(not name for name, _ in ls) or len({name for name, _ in ls}) != len(ls):
-        raise ValueError("empty or duplicate label name")
+    # Generated result labels can have an empty name; storage input validation is separate.
+    if len({name for name, _ in ls}) != len(ls):
+        raise ValueError("duplicate label name")
     return tuple(sorted(ls))
 
 

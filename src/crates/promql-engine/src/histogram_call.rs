@@ -4,13 +4,20 @@ use crate::{
     accounting::{AccountedVec, AllocationContext, MemoryKind, QueryAccounting},
     annotations::{AnnotationBuilder, AnnotationKind, Monotonicity},
     binary_labels,
+    classic_mutation::{self, Mutation},
     classic_replay::{self, Bound, Operation, Replay},
-    evaluator::{EvaluatedSample, EvaluationError, EvaluationOptions, metadata},
+    evaluator::{EvaluatedSample, EvaluationError, EvaluationOptions, drop_reserved, metadata},
     evaluator_order,
     evaluator_roster::Descriptor,
-    frontend::{Span, ast::NodeId, float},
+    float_text::{FloatTextStyle, float_text},
+    frontend::{
+        Span,
+        ast::{Expr, NodeId, ParsedExpression},
+        float,
+    },
     histogram_functions::{self, NativeHistogramInfo},
     label_hash,
+    query_preparation::Prepared,
     result::{OwnedLabels, OwnedValue},
     storage::{Control, Interrupted},
 };
@@ -19,12 +26,14 @@ use std::{cell::RefCell, cmp::Ordering, ops::Range};
 #[derive(Clone, Copy)]
 pub(crate) enum Function {
     Quantile,
+    Quantiles,
     Fraction,
 }
 impl Function {
     pub(crate) fn parse(name: &str) -> Option<Self> {
         Some(match name {
             "histogram_quantile" => Self::Quantile,
+            "histogram_quantiles" => Self::Quantiles,
             "histogram_fraction" => Self::Fraction,
             _ => return None,
         })
@@ -32,8 +41,58 @@ impl Function {
     pub(crate) fn vector_argument(self) -> usize {
         match self {
             Self::Quantile => 1,
+            Self::Quantiles => 0,
             Self::Fraction => 2,
         }
+    }
+    fn scalar_argument(self, index: usize) -> usize {
+        if matches!(self, Self::Quantiles) {
+            index + 2
+        } else {
+            index
+        }
+    }
+}
+
+pub(crate) struct Arguments<'a> {
+    function: Function,
+    scalar_spans: [Span; 10],
+    scalar_count: usize,
+    vector_span: Span,
+    destination: Option<&'a Expr>,
+}
+impl<'a> Arguments<'a> {
+    pub(crate) fn new(
+        function: Function,
+        node: NodeId,
+        expression: &'a ParsedExpression,
+        prepared: &Prepared,
+    ) -> Self {
+        let Expr::Call { arguments, .. } = &expression.arena[node].expression else {
+            unreachable!("typed histogram call")
+        };
+        let child = |index| {
+            prepared
+                .preprocessing
+                .child(expression, node, arguments[index])
+        };
+        let mut result = Self {
+            function,
+            scalar_spans: [Span::default(); 10],
+            scalar_count: if matches!(function, Function::Quantiles) {
+                arguments.len() - 2
+            } else {
+                function.vector_argument()
+            },
+            vector_span: expression.arena[child(function.vector_argument())].span,
+            destination: matches!(function, Function::Quantiles)
+                .then(|| &expression.arena[child(1)].expression),
+        };
+        for index in 0..result.scalar_count {
+            result.scalar_spans[index] =
+                expression.arena[child(function.scalar_argument(index))].span;
+        }
+        result
     }
 }
 struct Row {
@@ -51,6 +110,7 @@ enum BindingKey {
 }
 pub(crate) struct Binding {
     key: BindingKey,
+    occurrence: usize,
     labels: OwnedLabels,
 }
 pub(crate) struct Plan {
@@ -210,7 +270,12 @@ enum Phase {
     Choose,
     Native(usize),
     Classic(usize),
-    Count { position: usize, row: usize },
+    Mutate(usize),
+    Count {
+        position: usize,
+        row: usize,
+        mutating: bool,
+    },
     Finished,
 }
 pub(crate) enum Action<'a> {
@@ -223,17 +288,19 @@ pub(crate) enum Action<'a> {
 }
 pub(crate) struct Step<'a> {
     plan: &'a Plan,
-    function: Function,
-    scalar_span: Span,
-    vector_span: Span,
+    arguments: Arguments<'a>,
     phase: Phase,
-    parameters: [Option<f64>; 2],
+    parameters: [Option<f64>; 10],
+    quantile: usize,
     active: AccountedVec<Active>,
     groups: AccountedVec<ActiveGroup>,
     bounds: AccountedVec<Bound>,
     choice: Option<BindingKey>,
     position: usize,
     replay: Option<Replay>,
+    mutation: Option<Mutation>,
+    prepared_length: usize,
+    producers: AccountedVec<f64>,
     pending: Option<OwnedValue>,
     notes: Option<AnnotationBuilder>,
     seen: AccountedVec<u64>,
@@ -243,26 +310,31 @@ pub(crate) struct Step<'a> {
 impl<'a> Step<'a> {
     pub(crate) fn new(
         plan: &'a Plan,
-        function: Function,
-        scalar_span: Span,
-        vector_span: Span,
+        arguments: Arguments<'a>,
         logical: bool,
         selected: Option<&'a [usize]>,
         account: &QueryAccounting,
     ) -> Self {
+        let phase = if matches!(arguments.function, Function::Quantiles) {
+            Phase::StartVector
+        } else {
+            Phase::StartScalar(0)
+        };
         Self {
             plan,
-            function,
-            scalar_span,
-            vector_span,
-            phase: Phase::StartScalar(0),
-            parameters: [None, None],
+            arguments,
+            phase,
+            parameters: [None; 10],
+            quantile: 0,
             active: AccountedVec::new(account, MemoryKind::Workspace),
             groups: AccountedVec::new(account, MemoryKind::Workspace),
             bounds: AccountedVec::new(account, MemoryKind::Workspace),
             choice: None,
             position: 0,
             replay: None,
+            mutation: None,
+            prepared_length: 0,
+            producers: AccountedVec::new(account, MemoryKind::Workspace),
             pending: None,
             notes: logical.then(|| AnnotationBuilder::new(account)),
             seen: AccountedVec::new(account, MemoryKind::Workspace),
@@ -316,18 +388,27 @@ impl<'a> Step<'a> {
         control: &Control,
         account: &QueryAccounting,
     ) -> Result<(), EvaluationError> {
-        if self.parameters[0].is_none()
-            || matches!(self.function, Function::Fraction) && self.parameters[1].is_none()
+        if matches!(self.arguments.function, Function::Quantiles)
+            && !matches!(self.arguments.destination, Some(Expr::String(_)))
         {
-            self.phase = Phase::Finished;
-            return Ok(());
+            return Err(EvaluationError::WrappedRuntime(binary_labels::formatted(
+                format_args!(
+                    "unexpected error: interface conversion: parser.Expr is *parser.ParenExpr, not *parser.StringLiteral"
+                ),
+                control,
+                account,
+            )?));
         }
-        if matches!(self.function, Function::Quantile) {
-            let q = self.parameters[0].unwrap();
-            if (q.is_nan() || !(0.0..=1.0).contains(&q))
+        for index in 0..self.arguments.scalar_count {
+            let Some(q) = self.parameters[index] else {
+                self.phase = Phase::Finished;
+                return Ok(());
+            };
+            if !matches!(self.arguments.function, Function::Fraction)
+                && (q.is_nan() || !(0.0..=1.0).contains(&q))
                 && let Some(notes) = &mut self.notes
             {
-                notes.add_invalid_quantile(q, self.scalar_span, query, account);
+                notes.add_invalid_quantile(q, self.arguments.scalar_spans[index], query, account);
             }
         }
         for active in &*self.active {
@@ -343,7 +424,7 @@ impl<'a> Step<'a> {
                     notes.add_bad_bucket(
                         metric,
                         row.labels.get_checked(b"le", account, control)?,
-                        self.vector_span,
+                        self.arguments.vector_span,
                         query,
                         account,
                     );
@@ -422,7 +503,7 @@ impl<'a> Step<'a> {
                             control,
                             account,
                         )?,
-                        self.vector_span,
+                        self.arguments.vector_span,
                         query,
                         account,
                     );
@@ -430,23 +511,7 @@ impl<'a> Step<'a> {
                 break;
             }
         }
-        // Freeze enumeration before any emitted group mutates its retained metric.
-        evaluator_order::sort_by_with(
-            &mut self.groups,
-            Some(control),
-            Some(account),
-            |left, right| {
-                compare_stored(
-                    &self.plan.groups[left.group].labels,
-                    left.dropped,
-                    &self.plan.groups[right.group].labels,
-                    right.dropped,
-                    control,
-                    account,
-                )
-                .map(|order| order.then_with(|| left.group.cmp(&right.group)))
-            },
-        )?;
+        self.enumerate_groups(control, account)?;
         for group in &mut *self.groups {
             group.bounds.start = self.bounds.len();
             if !group.skip {
@@ -469,30 +534,63 @@ impl<'a> Step<'a> {
         self.phase = Phase::Choose;
         Ok(())
     }
+    fn enumerate_groups(
+        &mut self,
+        control: &Control,
+        account: &QueryAccounting,
+    ) -> Result<(), Interrupted> {
+        // Freeze each source enumeration before its emitted groups drop metadata.
+        evaluator_order::sort_by_with(
+            &mut self.groups,
+            Some(control),
+            Some(account),
+            |left, right| {
+                compare_stored(
+                    &self.plan.groups[left.group].labels,
+                    left.dropped,
+                    &self.plan.groups[right.group].labels,
+                    right.dropped,
+                    control,
+                    account,
+                )
+                .map(|order| order.then_with(|| left.group.cmp(&right.group)))
+            },
+        )
+    }
     fn choose(
         &mut self,
         logical: bool,
         control: &Control,
         account: &QueryAccounting,
     ) -> Result<bool, Interrupted> {
-        if logical {
-            while self.position < self.active.len() + self.groups.len() {
-                control.check()?;
-                account.work(1);
-                let position = self.position;
-                self.position += 1;
-                if let Some(active) = self.active.get(position) {
-                    if active.kind == 2 && !active.skip {
-                        self.choice = Some(BindingKey::Native(active.row));
-                        return Ok(true);
-                    }
-                } else {
-                    let group = &self.groups[position - self.active.len()];
-                    if !group.skip {
-                        self.choice = Some(BindingKey::Classic(group.group));
-                        return Ok(true);
+        if logical || matches!(self.arguments.function, Function::Quantiles) {
+            loop {
+                while self.position < self.active.len() + self.groups.len() {
+                    control.check()?;
+                    account.work(1);
+                    let position = self.position;
+                    self.position += 1;
+                    if let Some(active) = self.active.get(position) {
+                        if active.kind == 2 && !active.skip {
+                            self.choice = Some(BindingKey::Native(active.row));
+                            return Ok(true);
+                        }
+                    } else {
+                        let group = &self.groups[position - self.active.len()];
+                        if !group.skip {
+                            self.choice = Some(BindingKey::Classic(group.group));
+                            return Ok(true);
+                        }
                     }
                 }
+                if !matches!(self.arguments.function, Function::Quantiles)
+                    || self.quantile + 1 == self.arguments.scalar_count
+                {
+                    break;
+                }
+                self.quantile += 1;
+                self.position = 0;
+                self.enumerate_groups(control, account)?;
             }
         } else {
             // Unwrapped single-step calls expose this frozen native-first order to parents.
@@ -542,18 +640,80 @@ impl<'a> Step<'a> {
         options: EvaluationOptions,
         control: &Control,
         account: &QueryAccounting,
-    ) -> Result<OwnedLabels, Interrupted> {
+    ) -> Result<OwnedLabels, EvaluationError> {
         let source = match self.choice.expect("chosen histogram") {
             BindingKey::Classic(group) => &self.plan.groups[group].labels,
             BindingKey::Native(row) => &self.plan.rows[row].labels,
         };
         let mut result = source.copy_checked(account, MemoryKind::Workspace, control)?;
         if !options.delayed_name_removal {
-            result.retain_labels_checked(account, control, |label| {
-                Ok::<_, Interrupted>(!metadata(&label.name))
-            })?;
+            drop_reserved(&mut result, false, account, control)?;
+        }
+        if let Some(destination) = self.destination() {
+            result.reset_checked(account, control)?;
+            let text = float_text(
+                self.parameters[self.quantile].unwrap(),
+                FloatTextStyle::OpenMetrics,
+            );
+            result.set(
+                destination,
+                text.as_bytes(),
+                account,
+                MemoryKind::Workspace,
+                control,
+            )?;
+            crate::label_encoding::finalized(&result, control, account)?;
         }
         Ok(result)
+    }
+    fn destination(&self) -> Option<&[u8]> {
+        match self.arguments.destination {
+            Some(Expr::String(name)) => Some(name),
+            _ => None,
+        }
+    }
+    fn binding_matches(
+        &self,
+        entry: &Binding,
+        key: BindingKey,
+        occurrence: usize,
+        control: &Control,
+        account: &QueryAccounting,
+    ) -> Result<bool, Interrupted> {
+        if entry.key != key || entry.occurrence != occurrence {
+            return Ok(false);
+        }
+        if let Some(destination) = self.destination() {
+            let text = float_text(
+                self.parameters[self.quantile].unwrap(),
+                FloatTextStyle::OpenMetrics,
+            );
+            return binary_labels::equal(
+                entry.labels.get_checked(destination, account, control)?,
+                text.as_bytes(),
+                control,
+                account,
+            );
+        }
+        Ok(true)
+    }
+    fn occurrence(
+        &self,
+        control: &Control,
+        account: &QueryAccounting,
+    ) -> Result<usize, Interrupted> {
+        let mut count = 0;
+        let current = float_text(
+            self.parameters[self.quantile].unwrap(),
+            FloatTextStyle::OpenMetrics,
+        );
+        for value in &self.parameters[..self.quantile] {
+            control.check()?;
+            account.work(1);
+            count +=
+                usize::from(float_text(value.unwrap(), FloatTextStyle::OpenMetrics) == current);
+        }
+        Ok(count)
     }
     fn emit(
         &mut self,
@@ -564,13 +724,15 @@ impl<'a> Step<'a> {
         account: &QueryAccounting,
     ) -> Result<EvaluatedSample, EvaluationError> {
         let key = self.choice.expect("chosen histogram");
+        // Delayed instant parents may consume repeated labels before final cleanup.
+        let occurrence = self.occurrence(control, account)?;
         let (ordinal, labels) = if let Some(preparation) = preparation {
             let mut cache = preparation.cache.borrow_mut();
             let mut found = None;
             for (position, entry) in cache.bindings.iter().enumerate() {
                 control.check()?;
                 account.work(1);
-                if entry.key == key {
+                if self.binding_matches(entry, key, occurrence, control, account)? {
                     found = Some(position);
                     break;
                 }
@@ -580,7 +742,11 @@ impl<'a> Step<'a> {
             } else {
                 let labels = self.labels(options, control, account)?;
                 let ordinal = cache.bindings.len();
-                cache.bindings.push(Binding { key, labels });
+                cache.bindings.push(Binding {
+                    key,
+                    occurrence,
+                    labels,
+                });
                 ordinal
             };
             (
@@ -596,7 +762,7 @@ impl<'a> Step<'a> {
             for (position, entry) in self.plan.bindings.iter().enumerate() {
                 control.check()?;
                 account.work(1);
-                if entry.key == key {
+                if self.binding_matches(entry, key, occurrence, control, account)? {
                     found = Some(position);
                     break;
                 }
@@ -631,7 +797,7 @@ impl<'a> Step<'a> {
         })
     }
     fn drop_live(
-        &self,
+        &mut self,
         preparation: Option<Preparation<'a>>,
         options: EvaluationOptions,
         control: &Control,
@@ -639,14 +805,23 @@ impl<'a> Step<'a> {
     ) -> Result<(), Interrupted> {
         if !options.delayed_name_removal
             && let BindingKey::Classic(group) = self.choice.expect("chosen histogram")
-            && let Some(preparation) = preparation
         {
-            for entry in &mut *preparation.cache.borrow_mut().live {
+            for entry in &mut *self.groups {
                 control.check()?;
                 account.work(1);
                 if entry.group == group {
                     entry.dropped = true;
                     break;
+                }
+            }
+            if let Some(preparation) = preparation {
+                for entry in &mut *preparation.cache.borrow_mut().live {
+                    control.check()?;
+                    account.work(1);
+                    if entry.group == group {
+                        entry.dropped = true;
+                        break;
+                    }
                 }
             }
         }
@@ -669,25 +844,35 @@ impl<'a> Step<'a> {
                 Phase::StartScalar(argument) => {
                     self.phase = Phase::Scalar(argument);
                     return Ok(Action::Child {
-                        argument,
+                        argument: self.arguments.function.scalar_argument(argument),
                         ordinal: None,
                     });
                 }
                 Phase::Scalar(argument) => {
-                    self.phase = if argument + 1 < self.function.vector_argument() {
+                    self.phase = if argument + 1 < self.arguments.scalar_count {
                         Phase::StartScalar(argument + 1)
                     } else {
-                        Phase::StartVector
+                        if matches!(self.arguments.function, Function::Quantiles) {
+                            Phase::Begin
+                        } else {
+                            Phase::StartVector
+                        }
                     };
                 }
                 Phase::StartVector => {
                     self.phase = Phase::Vector;
                     return Ok(Action::Child {
-                        argument: self.function.vector_argument(),
+                        argument: self.arguments.function.vector_argument(),
                         ordinal: None,
                     });
                 }
-                Phase::Vector => self.phase = Phase::Begin,
+                Phase::Vector => {
+                    self.phase = if matches!(self.arguments.function, Function::Quantiles) {
+                        Phase::StartScalar(0)
+                    } else {
+                        Phase::Begin
+                    }
+                }
                 Phase::Begin => self.begin(options, preparation, query, control, account)?,
                 Phase::Choose => {
                     if !self.choose(preparation.is_some(), control, account)? {
@@ -698,7 +883,7 @@ impl<'a> Step<'a> {
                         BindingKey::Native(row) => {
                             self.phase = Phase::Native(row);
                             return Ok(Action::Child {
-                                argument: self.function.vector_argument(),
+                                argument: self.arguments.function.vector_argument(),
                                 ordinal: Some(&self.plan.rows[row].ordinal),
                             });
                         }
@@ -713,10 +898,23 @@ impl<'a> Step<'a> {
                                 }
                             }
                             let position = position.expect("active classic group");
-                            if matches!(self.function, Function::Fraction) {
+                            if matches!(self.arguments.function, Function::Quantiles) {
+                                self.mutation = Some(Mutation::new(
+                                    self.parameters[self.quantile].unwrap(),
+                                    &mut self.bounds[self.groups[position].bounds.clone()],
+                                    || {
+                                        control.check()?;
+                                        account.work(1);
+                                        Ok::<_, Interrupted>(())
+                                    },
+                                )?);
+                                self.phase = Phase::Mutate(position);
+                                continue;
+                            }
+                            if matches!(self.arguments.function, Function::Fraction) {
                                 self.drop_live(preparation, options, control, account)?;
                             }
-                            let operation = match self.function {
+                            let operation = match self.arguments.function {
                                 Function::Quantile => {
                                     Operation::Quantile(self.parameters[0].unwrap())
                                 }
@@ -724,6 +922,7 @@ impl<'a> Step<'a> {
                                     self.parameters[0].unwrap(),
                                     self.parameters[1].unwrap(),
                                 ),
+                                Function::Quantiles => unreachable!("plural mutation continuation"),
                             };
                             self.replay = Some(Replay::new(
                                 operation,
@@ -749,12 +948,14 @@ impl<'a> Step<'a> {
                         account.work(1);
                         Ok::<_, Interrupted>(())
                     };
-                    let result = match self.function {
-                        Function::Quantile => histogram_functions::histogram_quantile_with(
-                            self.parameters[0].unwrap(),
-                            histogram.as_ref(),
-                            poll,
-                        )?,
+                    let result = match self.arguments.function {
+                        Function::Quantile | Function::Quantiles => {
+                            histogram_functions::histogram_quantile_with(
+                                self.parameters[self.quantile].unwrap(),
+                                histogram.as_ref(),
+                                poll,
+                            )?
+                        }
                         Function::Fraction => histogram_functions::histogram_fraction_with(
                             self.parameters[0].unwrap(),
                             self.parameters[1].unwrap(),
@@ -779,7 +980,7 @@ impl<'a> Step<'a> {
                         notes.add(
                             kind,
                             metric_name(&self.plan.rows[row].labels, options, control, account)?,
-                            self.vector_span,
+                            self.arguments.vector_span,
                             query,
                             account,
                         );
@@ -793,20 +994,37 @@ impl<'a> Step<'a> {
                     )?));
                 }
                 Phase::Classic(position) => {
+                    let mut bounds = self.groups[position].bounds.clone();
+                    if matches!(self.arguments.function, Function::Quantiles) {
+                        bounds.end = bounds.start + self.prepared_length;
+                    }
                     match self
                         .replay
                         .as_mut()
                         .expect("classic count continuation")
-                        .next(&self.bounds[self.groups[position].bounds.clone()], || {
+                        .next(&self.bounds[bounds], || {
                             control.check()?;
                             account.work(1);
                             Ok::<_, Interrupted>(())
                         })? {
                         classic_replay::Action::Count(row) => {
-                            self.phase = Phase::Count { position, row };
+                            if row >= self.plan.rows.len() {
+                                let value = *self.producers.get(row - self.plan.rows.len()).ok_or(
+                                    EvaluationError::Invalid(
+                                        "classic producer reference is missing",
+                                    ),
+                                )?;
+                                self.replay.as_mut().expect("classic replay").receive(value);
+                                continue;
+                            }
+                            self.phase = Phase::Count {
+                                position,
+                                row,
+                                mutating: false,
+                            };
                             // The immutable plan owns this reference throughout the child frame.
                             return Ok(Action::Child {
-                                argument: self.function.vector_argument(),
+                                argument: self.arguments.function.vector_argument(),
                                 ordinal: Some(&self.plan.rows[row].ordinal),
                             });
                         }
@@ -821,7 +1039,7 @@ impl<'a> Step<'a> {
                                         control,
                                         account,
                                     )?,
-                                    self.vector_span,
+                                    self.arguments.vector_span,
                                     Monotonicity::new(
                                         options.time_ms,
                                         result.min_bound,
@@ -844,17 +1062,74 @@ impl<'a> Step<'a> {
                         }
                     }
                 }
-                Phase::Count { position, .. } => {
+                Phase::Mutate(position) => {
+                    let bounds = self.groups[position].bounds.clone();
+                    match self.mutation.as_mut().expect("classic mutation").next(
+                        &mut self.bounds[bounds.clone()],
+                        &mut self.producers,
+                        self.plan.rows.len(),
+                        || {
+                            control.check()?;
+                            account.work(1);
+                            Ok(())
+                        },
+                    )? {
+                        classic_mutation::Action::Count(row) => {
+                            if row >= self.plan.rows.len() {
+                                let value = *self.producers.get(row - self.plan.rows.len()).ok_or(
+                                    EvaluationError::Invalid(
+                                        "classic producer reference is missing",
+                                    ),
+                                )?;
+                                self.mutation
+                                    .as_mut()
+                                    .expect("classic mutation")
+                                    .receive(value, &mut self.bounds[bounds]);
+                                continue;
+                            }
+                            self.phase = Phase::Count {
+                                position,
+                                row,
+                                mutating: true,
+                            };
+                            return Ok(Action::Child {
+                                argument: self.arguments.function.vector_argument(),
+                                ordinal: Some(&self.plan.rows[row].ordinal),
+                            });
+                        }
+                        classic_mutation::Action::Done { length, result } => {
+                            self.prepared_length = length;
+                            self.replay = Some(Replay::from_prepared(
+                                self.parameters[self.quantile].unwrap(),
+                                &self.bounds[bounds.start..bounds.start + length],
+                                result,
+                            ));
+                            self.mutation = None;
+                            self.phase = Phase::Classic(position);
+                        }
+                    }
+                }
+                Phase::Count {
+                    position, mutating, ..
+                } => {
                     let Some(OwnedValue::Float(value)) = self.pending.take() else {
                         return Err(EvaluationError::Invalid(
                             "histogram classic replay value is missing",
                         ));
                     };
-                    self.replay
-                        .as_mut()
-                        .expect("classic count continuation")
-                        .receive(value);
-                    self.phase = Phase::Classic(position);
+                    if mutating {
+                        self.mutation.as_mut().expect("classic mutation").receive(
+                            value,
+                            &mut self.bounds[self.groups[position].bounds.clone()],
+                        );
+                        self.phase = Phase::Mutate(position);
+                    } else {
+                        self.replay
+                            .as_mut()
+                            .expect("classic count continuation")
+                            .receive(value);
+                        self.phase = Phase::Classic(position);
+                    }
                 }
                 Phase::Finished => {
                     if self.duplicate
