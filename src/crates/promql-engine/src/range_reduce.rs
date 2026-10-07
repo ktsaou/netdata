@@ -33,6 +33,7 @@ impl RangeFunction {
             "deriv" => Self::Numeric(NumericRangeFunction::Deriv),
             "predict_linear" => Self::Numeric(NumericRangeFunction::PredictLinear),
             "double_exponential_smoothing" => Self::Numeric(NumericRangeFunction::Smoothing),
+            "mad_over_time" => Self::Numeric(NumericRangeFunction::Mad),
             "count_over_time" => Self::Fold(Count),
             "present_over_time" | "absent_over_time" => Self::Fold(Present),
             "first_over_time" => Self::Fold(First),

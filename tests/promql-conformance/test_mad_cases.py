@@ -4,10 +4,29 @@ import base64
 import unittest
 from collections import Counter
 
+import cursor_calls
+import mad_calls
 from mad_cases import arrays, cases
 
 
 class MadCases(unittest.TestCase):
+    def test_only_instant_root_count_values_has_unspecified_order(self):
+        exceptions = []
+        for row in cases():
+            request = row["request"]
+            actual = cursor_calls.query_order(mad_calls.ordered, request)
+            expected = not (
+                request["mode"] == "instant"
+                and request["query"].startswith("count_values(")
+            )
+            self.assertEqual(actual, expected)
+            if not actual:
+                exceptions.append(request["id"])
+        self.assertEqual(len(exceptions), 4)
+        for invalid in (None, 0, 1, "false"):
+            with self.assertRaisesRegex(ValueError, "must be boolean"):
+                cursor_calls.query_order(lambda request, value=invalid: value, request)
+
     def test_numeric_provenance_and_permutations_are_preserved(self):
         declared = arrays()
         self.assertEqual(len(declared), 176)

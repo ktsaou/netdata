@@ -869,17 +869,26 @@ cursor facade. This mode records disabled-feature parser errors and query-constr
 results. Successful evaluation phases and default-mode generated helpers remain byte-identical; the additional
 helper and its two exact failure sites are bound and checked. Production Prometheus source remains unchanged.
 Capture with `mad_calls.py --capture --upstream "$PROMETHEUS_SOURCE"`; compare with `--reference`, `--binary`
-and `--page-size`. The focused gate requires exact numeric outcomes, series order, diagnostics and paired bits.
+and `--page-size`. The focused gate requires exact numeric outcomes, diagnostics and paired bits. It preserves
+exact range and ordinary instant ordering; only instant root `count_values` output uses its existing unordered
+source contract because the original constructs those rows by map iteration. All values and labels remain checked.
 
-This checkpoint prepares source expectations only. The planned Rust reducer uses full initial classification
+The Rust reducer uses full initial classification
 and simultaneous two-rank refinement of each median, with two fixed 16-counter tables and at most 33 complete
-page scans. Its runtime, cancellation, ownership and history-independent memory qualification remain required.
+page scans. Raw NaNs return the source's explicit NaN after complete decoding; generated NaNs retain the qualified
+arithmetic operands and both weighted terms, including zero weights. The original excluded-left seek target is
+carried separately from clipped cursor bounds through numeric MAD, regression and smoothing. The public inclusive
+scan retains its own contract. Mixed ranges report the source info; native-only and empty ranges return no sample.
+Runtime checks compare workspace, provider and borrowed-view peaks over 2,048 and 100,000 samples, keep one open
+cursor, and verify cancellation/error release in both median phases, unclipped seeks and failures after raw NaN.
+Complete buffered-window fault qualification for other range paths remains required; physical replay is not an
+original iterator trace. Repeated scans can increase storage work, and this gate makes no throughput claim.
 Extended selectors, subquery inputs and general temporal quantile sorting retain their separate open scope.
 
 ## Remaining qualification
 
 The productive Rust path connects the owned frontend to typed page cursors, float/native rate/increase/delta
-and irate/idelta, deriv/predict_linear/double_exponential_smoothing,
+and irate/idelta, deriv/predict_linear/double_exponential_smoothing/mad_over_time,
 count/present/first/last/min/max and absence over time, float/native histogram sum/average and float variance/stddev over time, timestamp extrema/endpoints,
 changes/resets, scalar/vector arithmetic
 and comparisons including power/remainder, float/native sum/avg/count/group/count_values, topk/bottomk

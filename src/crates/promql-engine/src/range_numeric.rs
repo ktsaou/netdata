@@ -6,21 +6,58 @@ use crate::{
     accounting::{AccountedVec, MemoryKind, QueryAccounting},
     annotations::AnnotationKind,
     numerical::{compensated_add, source_mul},
-    storage::{Control, Series, StorageError, TimeBounds, scan},
-    value::SampleValueRef,
+    storage::{Control, CursorAction, Series, StorageError, TimeBounds, WalkStart, walk},
+    value::{SampleRef, SampleValueRef},
 };
 use std::fmt::Write;
+
+#[derive(Clone, Copy)]
+pub(crate) struct NumericRangeInput {
+    pub(crate) bounds: TimeBounds,
+    pub(crate) seek_ms: i64,
+}
+impl From<TimeBounds> for NumericRangeInput {
+    fn from(bounds: TimeBounds) -> Self {
+        Self {
+            bounds,
+            seek_ms: bounds.start_ms.saturating_sub(1),
+        }
+    }
+}
+
+pub(crate) fn scan<S: Series>(
+    series: &S,
+    input: NumericRangeInput,
+    control: &Control,
+    account: &QueryAccounting,
+    mut visit: impl for<'a> FnMut(SampleRef<'a>) -> Result<(), StorageError>,
+) -> Result<(), StorageError> {
+    // Go's buffer seeks the excluded left endpoint; returned pages retain included bounds.
+    walk(
+        series,
+        input.bounds,
+        WalkStart::Seek(input.seek_ms),
+        control,
+        account,
+        |sample| {
+            visit(sample)?;
+            Ok(CursorAction::Next)
+        },
+    )
+    .map(|_| ())
+}
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) enum NumericRangeFunction {
     Deriv,
     PredictLinear,
     Smoothing,
+    Mad,
 }
 impl NumericRangeFunction {
     pub(crate) fn parameters(self) -> usize {
         match self {
-            Self::Deriv => 0,
+            Self::Deriv | Self::Mad => 0,
             Self::PredictLinear => 1,
             Self::Smoothing => 2,
         }
@@ -165,13 +202,17 @@ impl Smoothing {
 
 pub(crate) fn evaluate<S: Series>(
     series: &S,
-    bounds: TimeBounds,
+    input: impl Into<NumericRangeInput>,
     function: NumericRangeFunction,
     parameters: [f64; 2],
     time_ms: i64,
     control: &Control,
     account: &QueryAccounting,
 ) -> Result<NumericRangeOutput, NumericRangeError> {
+    let input = input.into();
+    if function == NumericRangeFunction::Mad {
+        return crate::mad::evaluate(series, input, control, account).map_err(Into::into);
+    }
     let invalid_factor = if function == NumericRangeFunction::Smoothing {
         parameters
             .into_iter()
@@ -184,7 +225,7 @@ pub(crate) fn evaluate<S: Series>(
     let mut histograms = false;
     let mut regression = Regression::default();
     let mut smoothing = Smoothing::default();
-    scan(series, bounds, control, account, |sample| {
+    scan(series, input, control, account, |sample| {
         if sample.value.is_stale() {
             return Ok(());
         }
@@ -233,6 +274,7 @@ pub(crate) fn evaluate<S: Series>(
             }
         }
         NumericRangeFunction::Smoothing => smoothing.current,
+        NumericRangeFunction::Mad => unreachable!("MAD uses bounded median replay"),
     });
     Ok(NumericRangeOutput {
         value,
@@ -366,6 +408,7 @@ mod tests {
                         (NumericRangeFunction::PredictLinear, 2048) => 0x40b0_2500_0000_0000,
                         (NumericRangeFunction::PredictLinear, _) => 0x4108_6b28_0000_0002,
                         (NumericRangeFunction::Smoothing, _) => 0x401c_0000_0000_0000,
+                        (NumericRangeFunction::Mad, _) => unreachable!("regression test roster"),
                     };
                     assert_eq!(result.value.unwrap().to_bits(), expected_bits);
                     assert_eq!(result.annotation, None);

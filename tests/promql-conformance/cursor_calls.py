@@ -313,6 +313,13 @@ def candidate_packets(inputs, page_size):
     return groups, rows
 
 
+def query_order(ordered, request):
+    value = ordered(request) if callable(ordered) else ordered
+    if type(value) is not bool:
+        raise ValueError("cursor ordering contract must be boolean")
+    return value or request["mode"] == "range"
+
+
 def qualify(
     reference,
     binary,
@@ -363,7 +370,7 @@ def qualify(
         [
             {
                 "id": row["request"]["id"],
-                "ordered": ordered or row["request"]["mode"] == "range",
+                "ordered": query_order(ordered, row["request"]),
                 "exact_numeric": exact_numeric,
             }
             for row in inputs

@@ -15,6 +15,8 @@ Native fraction/quantile interpolation derives from promql/quantile.go;
 their diagnostic identities/formatting derive from util/annotations/annotations.go
 and promql/parser/posrange/posrange.go.
 Native histogram statistic algorithms derive from promql/functions.go.
+Median absolute deviation and median interpolation derive from promql/functions.go:1438-1471
+and promql/quantile.go:717-738.
 Paged evaluator, range reducers, scalar conversion and metadata/duplicate cleanup algorithms
 derive from promql/engine.go and promql/functions.go. Logical diagnostic ownership,
 deduplication and occurrence formatting derive from util/annotations/annotations.go.
