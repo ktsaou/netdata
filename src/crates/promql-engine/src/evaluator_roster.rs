@@ -7,7 +7,7 @@ use crate::{
     frontend::ast::{NodeId, VectorMatching},
     label_hash,
     result::OwnedLabels,
-    storage::{Control, Interrupted},
+    storage::{Control, InitialSample, Interrupted},
 };
 
 pub(crate) struct Descriptor {
@@ -40,11 +40,22 @@ struct NodeRoster {
     binary: Option<AccountedBox<crate::vector_matching::Plan>>,
     histogram: Option<AccountedBox<crate::histogram_call::Plan>>,
     info: Option<AccountedBox<crate::info::Plan>>,
+    clock_initial: Option<AccountedVec<InitialSample>>,
 }
 pub(crate) struct Rosters {
     nodes: AccountedVec<NodeRoster>,
 }
 impl Rosters {
+    pub(crate) fn prepare_clock(
+        &mut self,
+        selector: NodeId,
+        failures: AccountedVec<InitialSample>,
+    ) {
+        self.nodes[selector.0].clock_initial = Some(failures);
+    }
+    pub(crate) fn clock_initial(&self, selector: NodeId, ordinal: usize) -> Option<&InitialSample> {
+        self.nodes[selector.0].clock_initial.as_ref()?.get(ordinal)
+    }
     pub(crate) fn prepare_info(
         &mut self,
         node: NodeId,

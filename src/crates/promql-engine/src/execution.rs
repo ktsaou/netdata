@@ -1094,6 +1094,56 @@ impl CompiledQuery {
                 } => RangeFunction::parse(function.name),
                 _ => None,
             };
+            let raw_selector = matches!(expression, Expr::Selector(_));
+            let site = if raw_selector {
+                Some(node)
+            } else if range_function.is_some() {
+                Some(crate::evaluator::range_selector(
+                    &self.expression,
+                    prepared,
+                    node,
+                )?)
+            } else {
+                self.direct_clock_selector(node)
+            };
+            if let Some(site) = site {
+                match catalog.expand(site, control, account) {
+                    Ok(notes) => annotations.merge(notes, &self.expression.source),
+                    Err(failure) => {
+                        annotations.merge(failure.annotations, &self.expression.source);
+                        *failure_annotations = annotations.finish();
+                        return Err(failure.error);
+                    }
+                }
+            }
+            if let Some(selector_node) = self.direct_clock_selector(node) {
+                let Expr::Selector(selector) = &self.expression.arena[selector_node].expression
+                else {
+                    unreachable!("direct clock selector")
+                };
+                let mut failures = AccountedVec::new(account, MemoryKind::Workspace);
+                for ordinal in 0..catalog.len(selector_node) {
+                    control.check()?;
+                    account.work(1);
+                    let failure = catalog
+                        .with_series(selector_node, ordinal, |series| {
+                            let labels = series.label_views_checked(account, control)?;
+                            crate::storage::validate_labels(&labels)?;
+                            if !matches_checked(
+                                &labels,
+                                &selector.matchers,
+                                Some(account),
+                                control,
+                            )? {
+                                return Ok(crate::storage::InitialSample::Empty);
+                            }
+                            crate::storage::initialize(series, data_bounds, control, account)
+                        })
+                        .expect("clock series ordinal")?;
+                    failures.push(failure);
+                }
+                rosters.prepare_clock(selector_node, failures);
+            }
             let base = Machine::new(
                 catalog,
                 &self.expression,
@@ -1113,24 +1163,6 @@ impl CompiledQuery {
                     info_preparation,
                 },
             );
-            let raw_selector = matches!(expression, Expr::Selector(_));
-            let site = if raw_selector {
-                Some(node)
-            } else if let Some(function) = range_function {
-                Some(base.range_selector(node, function)?)
-            } else {
-                self.direct_clock_selector(node)
-            };
-            if let Some(site) = site {
-                match catalog.expand(site, control, account) {
-                    Ok(notes) => annotations.merge(notes, &self.expression.source),
-                    Err(failure) => {
-                        annotations.merge(failure.annotations, &self.expression.source);
-                        *failure_annotations = annotations.finish();
-                        return Err(failure.error);
-                    }
-                }
-            }
             let series_site = site.filter(|_| raw_selector || range_function.is_some());
             let mut ordinal = 0;
             loop {

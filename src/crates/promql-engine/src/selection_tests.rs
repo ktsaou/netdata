@@ -660,11 +660,19 @@ fn ordinary_raw_series_finish_steps_before_the_next_series_and_direct_clocks_kee
             })
             .collect();
         let expected = if expression.starts_with("timestamp") {
-            [(0, 1000), (1, 1000), (0, 2000), (1, 2000)]
+            // Both initial reads precede step-major lookups over the available universe.
+            vec![
+                (0, 2000),
+                (1, 2000),
+                (0, 2000),
+                (1, 2000),
+                (0, 2000),
+                (1, 2000),
+            ]
         } else {
-            [(0, 1000), (0, 2000), (1, 1000), (1, 2000)]
+            vec![(0, 2000), (0, 2000), (1, 2000), (1, 2000)]
         };
-        assert_eq!(&reads[..4], &expected, "{expression}");
+        assert_eq!(&reads[..expected.len()], &expected, "{expression}");
         let events = source.events.borrow();
         let close = events
             .iter()

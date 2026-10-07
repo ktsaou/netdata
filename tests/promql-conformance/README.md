@@ -1090,16 +1090,58 @@ The current full expression gate passes 17,452 of 21,442 variants, with zero com
 zero paired numerical bit differences; 3,990 variants remain OPEN. This includes 122 newly completed INFO checks
 and retains every previously passing identity. The shared instant reader and INFO accounting tests cover pages
 1/17/1024, 2,048 versus 100,000 samples, ownership release, cancellation, bare provider errors and discarded
-unfinished diagnostics. Exact ordinary memoized initial reads, seeks, lookahead and fault precedence remain
-required work; these finite INFO results do not establish arbitrary iterator or complete language compatibility.
+unfinished diagnostics. Exact ordinary memoized initial reads, seeks, lookahead and fault precedence are
+qualified by the finite shared-reader panel below; these INFO results do not establish arbitrary iterator or
+complete language compatibility.
 
 Terminal provider diagnostics retain explicit severity, opaque bytes and optional positions in independently
 owned results. Expansion failures carry their own notes and completed numeric parameter notes according to source
 boundaries; unfinished ancestor and ordinary raw-helper failures discard their notes. Replays do not duplicate
 diagnostics. Deferred selection errors retain their buffer capacity while awaiting their source evaluation owner.
-Metadata handles and output can grow with cardinality; raw history remains page scoped. Bootstrap,
-raw-error and sink-error accounting still require their remaining owners. Exact memoized initial reads, Seek
-landing and lookahead failure precedence remain mandatory qualification work. All admission limits remain disabled.
+Metadata handles and output can grow with cardinality; raw history remains page scoped. Complete foreign transient
+allocation accounting and complete expression qualification remain required. All admission limits remain disabled.
+
+### Shared instantaneous cursor replay
+
+Ordinary selectors, statistics decoding and INFO projections use one memoized paging driver derived from the
+pinned `storage/memoized_iterator.go` and `promql/engine.go`. It reads the first available sample before seeking,
+retains one predecessor, and performs a moving storage Seek only when needed. A logical no-op Seek retains the
+current page and statistics access epoch. Future-current access occurs before predecessor selection; required
+Next/Seek failures precede fallback, while successful EOF preserves an eligible predecessor. Exact endpoints
+stop without another terminal read. Fixed selectors replay their source-defined prefix; direct clock lookups
+retain their distinct delta and wrapped fixed-reference offset.
+
+Direct clock calls initialize matching series before their first lookup. Each cursor/page is released before
+the next series opens; only accounted Ready/Empty/error metadata survives initialization. Initial Provider read
+errors are raised at their original lookup phase after remaining series initialize. Cursor-construction,
+invalid-page and interruption errors retain the typed storage contract. Ordinary owned histogram projections
+poll cancellation while copying large payloads. Retained raw state is one bounded page and at most a predecessor
+and current projection, independent of history length; metadata, owned outputs and replay work remain accounted
+and can grow. All resource enforcement remains disabled.
+
+The common walker owns cursor cleanup, post-operation resource accounting and complete returned-page validation.
+A Seek may revisit a validated but semantically unread tail. Stop and Seek still validate that tail's timestamps
+and bounds without projecting it; an earlier visitor error keeps precedence. Range scans retain their initial
+Seek and full-page contract through the same owner.
+
+```sh
+python3 tests/promql-conformance/cursor_calls.py --capture --upstream "${PROMQL_ORIGINAL_SOURCE_DIR:?}"
+python3 tests/promql-conformance/cursor_calls.py --reference "${PROMQL_CURSOR_CAPTURE_DIR:?}" \
+  --binary "${PROMQL_QUERY_BINARY:?}" --page-size 1024
+```
+
+The 82 independently declared queries include 32 no-fault and 50 operation-fault inputs, with 40 default-profile
+and 42 upstream-test-profile requests. Fresh original captures reproduce the retained complete results and phase
+evidence. Both Rust profiles pass at pages 1/17/1024 with exact labels, timestamps, diagnostics, error types/bytes
+and paired numerical bits. The harness privately reuses canonical engine options and codecs, binds its exact
+helper/module/source/input/binary roster, and rejects lost, rebound, reordered or unsupported result packets.
+Falsification tests prevent identical datasets from aliasing distinct fault configurations. The panel exercises
+Next timestamp/EOF and Seek target faults; it does not qualify the wrapper's unused SeekEOF or set-error controls.
+
+These synthetic operations expose successful page prefixes before a required sample fault and permit moving Seek
+to skip an unread Next fault. An atomic failed storage page returns no samples. Physical page callback traces,
+arbitrary transient or call-count-dependent faults and cancellation/error races are separate from the repeatable
+query-replay contract. This panel is finite source qualification, not arbitrary iterator or complete-core acceptance.
 
 The earlier selector-catalog checkpoint passed 187 unit tests in both profiles, with 64 independent selector-hint
 projections, 426 preparation scopes, 198 offset projections and retained parser/clock/phase panels matching their
@@ -1300,8 +1342,8 @@ not establish RSS limits, throughput, arbitrary provider iterator equivalence or
 The fixture transport optionally accepts synthetic `faults` on dataset requests. It exposes terminal selection
 errors and opaque warnings plus per-selector/series raw read faults. Healthy page prefixes precede a failing
 landing, so page size does not move the tested failure ahead of already available values. This is a finite test
-adapter over immutable input, not the complete Go memoized/raw cursor state machine. Exact initial reads, Seek
-landing, lookahead and their fault precedence remain separately required. Consequential native NaN architecture
+adapter over immutable input. The shared instantaneous replay panel above separately qualifies initial reads,
+Seek landing, lookahead and deterministic operation-fault precedence. Consequential native NaN architecture
 behavior, remaining functions/subqueries, C/runtime accounting and SRE expression acceptance remain open.
 
 This checkpoint passes 193 unit tests in both release profiles and Rust 1.91, plus focused Miri checks without
