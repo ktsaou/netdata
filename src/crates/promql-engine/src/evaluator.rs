@@ -16,7 +16,7 @@ use crate::{
     query_catalog::Catalog,
     query_preparation::Prepared,
     range_float::{RateInput, RateWindow},
-    range_numeric::{self, NumericRangeError, NumericRangeFunction},
+    range_numeric::{self, NumericRangeError, NumericRangeFunction, NumericRangeInput},
     range_rates::{self, RateFunction},
     range_reduce::{FoldKind, FoldOptions, RangeFunction, fold},
     result::{OwnedLabels, OwnedValue},
@@ -929,7 +929,10 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
                 };
                 let result = range_numeric::evaluate(
                     series,
-                    bounds,
+                    NumericRangeInput {
+                        bounds,
+                        seek_ms: end_ms.wrapping_sub(range_ns / 1_000_000),
+                    },
                     function,
                     parameters,
                     self.options.time_ms,

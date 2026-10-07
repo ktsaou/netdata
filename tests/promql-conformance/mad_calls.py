@@ -17,6 +17,11 @@ def load_reference(reference):
     return cursor_calls.load_reference(reference, cases(), construction_errors=True)
 
 
+def ordered(request):
+    # Pinned engine.go:4304-4311 constructs root COUNT_VALUES output by map iteration.
+    return not request["query"].startswith("count_values(")
+
+
 def qualify(reference, binary, page_size=1024):
     return cursor_calls.qualify(
         reference,
@@ -25,7 +30,7 @@ def qualify(reference, binary, page_size=1024):
         cases(),
         subject="mad",
         exact_numeric=True,
-        ordered=True,
+        ordered=ordered,
         construction_errors=True,
     )
 

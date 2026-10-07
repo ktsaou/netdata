@@ -6545,6 +6545,50 @@ mod tests {
     }
 
     #[test]
+    fn mad_range_dispatch_preserves_scalar_consumers_and_fixed_timestamps() {
+        for page_size in [1, 17, 1024] {
+            for delayed in [false, true] {
+                let engine = Engine::default();
+                let mut provider = FixtureProvider::new(5, page_size, 1);
+                provider.series[0].labels[0].1 = b"m".to_vec();
+                let control = Control::default();
+                let mut settings = options(delayed);
+                settings.parser.experimental_functions = true;
+                for (source, expected) in [
+                    ("mad_over_time(m[10s])", [1.0f64, 1.0]),
+                    ("mad_over_time(m[10s]) >= bool 1", [1.0, 1.0]),
+                    ("timestamp(mad_over_time(m[10s] @ 5))", [5.0, 6.0]),
+                ] {
+                    let query = engine
+                        .compile(source.as_bytes(), settings, &control)
+                        .unwrap();
+                    let (result, _) = query
+                        .collect(
+                            &provider,
+                            QueryRequest::Range {
+                                start_ms: 5000,
+                                end_ms: 6000,
+                                step_ms: 1000,
+                            },
+                            &control,
+                        )
+                        .unwrap();
+                    assert_eq!(result.series.len(), 1, "{source}/{delayed}");
+                    let points = &result.series[0].points;
+                    assert_eq!(points.len(), 2);
+                    for ((point, time), expected) in points.iter().zip([5000, 6000]).zip(expected) {
+                        assert_eq!(point.time_ms, time);
+                        assert_eq!(float_bits(point), expected.to_bits(), "{source}/{delayed}");
+                    }
+                    assert!(result.annotations.is_empty());
+                }
+                provider.assert_closed();
+                engine.accounting.snapshot().assert_memory_released();
+            }
+        }
+    }
+
+    #[test]
     fn numerical_range_folds_preserve_overflow_compensation_and_mixed_diagnostics() {
         fn ordinary(index: usize) -> crate::value::Sample {
             let mut sample = diagnostic_sample(index);
