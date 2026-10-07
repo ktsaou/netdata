@@ -28,10 +28,13 @@ pub(crate) fn at_modifier_unsafe(name: &str) -> bool {
     )
 }
 
-pub(crate) struct Preprocessing {
-    pub(crate) visited: AccountedVec<bool>,
+pub(crate) struct EvaluationFlags {
     pub(crate) invariants: AccountedVec<bool>,
     pub(crate) boundaries: AccountedVec<bool>,
+}
+pub(crate) struct Preprocessing {
+    pub(crate) visited: AccountedVec<bool>,
+    pub(crate) flags: EvaluationFlags,
 }
 impl Preprocessing {
     pub(crate) fn child(
@@ -40,16 +43,22 @@ impl Preprocessing {
         parent: NodeId,
         child: NodeId,
     ) -> NodeId {
-        if self.visited[parent.0]
-            && matches!(
-                expression.arena[parent].expression,
-                Expr::Aggregate { .. } | Expr::Call { .. }
-            )
-        {
-            expression.arena.unparenthesized(child)
+        if self.visited[parent.0] {
+            preprocessed_child(expression, parent, child)
         } else {
             child
         }
+    }
+}
+
+fn preprocessed_child(expression: &ParsedExpression, parent: NodeId, child: NodeId) -> NodeId {
+    if matches!(
+        expression.arena[parent].expression,
+        Expr::Aggregate { .. } | Expr::Call { .. }
+    ) {
+        expression.arena.unparenthesized(child)
+    } else {
+        child
     }
 }
 
@@ -60,15 +69,41 @@ pub(crate) fn preprocess(
     control: &Control,
     account: &QueryAccounting,
 ) -> Result<Preprocessing, Interrupted> {
-    let mut result = Preprocessing {
-        visited: AccountedVec::new(account, kind),
+    let mut visited = AccountedVec::new(account, kind);
+    for _ in &expression.arena.nodes {
+        control.check()?;
+        account.work(1);
+        visited.push(false);
+    }
+    let flags = evaluation_flags(
+        expression,
+        kind,
+        control,
+        account,
+        Some(&mut visited),
+        |_| {
+            // Request preparation resolves INFO's contextual selector references.
+            Ok(true)
+        },
+    )?;
+    Ok(Preprocessing { visited, flags })
+}
+
+pub(crate) fn evaluation_flags(
+    expression: &ParsedExpression,
+    kind: MemoryKind,
+    control: &Control,
+    account: &QueryAccounting,
+    mut visited: Option<&mut [bool]>,
+    mut info_uniform: impl FnMut(NodeId) -> Result<bool, Interrupted>,
+) -> Result<EvaluationFlags, Interrupted> {
+    let mut result = EvaluationFlags {
         invariants: AccountedVec::new(account, kind),
         boundaries: AccountedVec::new(account, kind),
     };
     for _ in &expression.arena.nodes {
         control.check()?;
         account.work(1);
-        result.visited.push(false);
         result.invariants.push(false);
         result.boundaries.push(false);
     }
@@ -79,7 +114,9 @@ pub(crate) fn preprocess(
         account.work(1);
         let value = &expression.arena[node].expression;
         if !finish {
-            result.visited[node.0] = true;
+            if let Some(visited) = &mut visited {
+                visited[node.0] = true;
+            }
             tasks.push((node, true));
             if let Expr::Aggregate {
                 expression: Some(child),
@@ -93,12 +130,12 @@ pub(crate) fn preprocess(
                     value
                         .children()
                         .rev()
-                        .map(|child| (result.child(expression, node, child), false)),
+                        .map(|child| (preprocessed_child(expression, node, child), false)),
                 );
             }
             continue;
         }
-        let child = |child| result.child(expression, node, child);
+        let child = |child| preprocessed_child(expression, node, child);
         result.invariants[node.0] = match value {
             Expr::Number { .. } | Expr::String(_) | Expr::Duration { .. } => true,
             Expr::Selector(selector) => {
@@ -136,26 +173,17 @@ pub(crate) fn preprocess(
                     fixed_timestamp &= result.invariants[arg.0]
                         && matches!(expression.arena[arg].expression, Expr::Selector(_));
                 }
+                if function.name == "info" {
+                    invariant &= info_uniform(child(arguments[0]))?;
+                }
                 invariant || fixed_timestamp
             }
             _ => false,
         };
-        let should_wrap = |child: NodeId| {
-            result.invariants[child.0]
-                && !matches!(
-                    expression.arena[child].expression,
-                    Expr::Matrix { .. }
-                        | Expr::Subquery { .. }
-                        | Expr::Number { .. }
-                        | Expr::String(_)
-                )
-                && !matches!(&expression.arena[child].expression,
-                    Expr::Call { function: Some(function), .. } if matches!(function.name, "start" | "end" | "range" | "step"))
-        };
         match value {
             Expr::Binary { left, right, .. } if !result.invariants[node.0] => {
-                let left_wrap = should_wrap(*left);
-                let right_wrap = should_wrap(*right);
+                let left_wrap = should_wrap(expression, &result, *left, control, account)?;
+                let right_wrap = should_wrap(expression, &result, *right, control, account)?;
                 result.boundaries[left.0] |= left_wrap;
                 result.boundaries[right.0] |= right_wrap;
             }
@@ -167,8 +195,8 @@ pub(crate) fn preprocess(
                     if function.name == "info" && index == 1 {
                         continue;
                     }
-                    let arg = result.child(expression, node, *arg);
-                    let wrap = should_wrap(arg);
+                    let arg = child(*arg);
+                    let wrap = should_wrap(expression, &result, arg, control, account)?;
                     result.boundaries[arg.0] |= wrap;
                 }
             }
@@ -180,15 +208,47 @@ pub(crate) fn preprocess(
             _ => (),
         }
     }
-    let root = expression.root;
-    result.boundaries[root.0] |= result.invariants[root.0]
-        && !matches!(
-            expression.arena[root].expression,
-            Expr::Matrix { .. } | Expr::Subquery { .. } | Expr::Number { .. } | Expr::String(_)
-        )
-        && !matches!(&expression.arena[root].expression,
-            Expr::Call { function: Some(function), .. } if matches!(function.name, "start" | "end" | "range" | "step"));
+    result.boundaries[expression.root.0] |=
+        should_wrap(expression, &result, expression.root, control, account)?;
     Ok(result)
+}
+
+fn should_wrap(
+    expression: &ParsedExpression,
+    flags: &EvaluationFlags,
+    mut node: NodeId,
+    control: &Control,
+    account: &QueryAccounting,
+) -> Result<bool, Interrupted> {
+    if !flags.invariants[node.0] {
+        return Ok(false);
+    }
+    loop {
+        control.check()?;
+        account.work(1);
+        match &expression.arena[node].expression {
+            Expr::Paren(inner)
+            | Expr::Unary {
+                expression: inner, ..
+            } => node = *inner,
+            Expr::Aggregate {
+                expression: Some(inner),
+                ..
+            } => {
+                node = preprocessed_child(expression, node, *inner);
+            }
+            Expr::Matrix { .. } | Expr::Subquery { .. } | Expr::Number { .. } | Expr::String(_) => {
+                return Ok(false);
+            }
+            Expr::Call {
+                function: Some(function),
+                ..
+            } if matches!(function.name, "start" | "end" | "range" | "step") => {
+                return Ok(false);
+            }
+            _ => return Ok(true),
+        }
+    }
 }
 
 /// Metadata sorting is interruptible and uses no retained auxiliary array.

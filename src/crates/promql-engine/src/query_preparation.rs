@@ -70,6 +70,7 @@ pub(crate) struct Prepared<'p> {
     pub(crate) context: QueryContext,
     pub(crate) header: OutputHeader,
     durations: Option<AccountedVec<[i64; 3]>>,
+    request_flags: Option<crate::evaluator_order::EvaluationFlags>,
 }
 impl<'p> Prepared<'p> {
     pub(crate) fn new(
@@ -87,9 +88,13 @@ impl<'p> Prepared<'p> {
             ..header
         };
         let mut needed = false;
-        for node in &expression.arena.nodes {
+        let mut has_info = false;
+        for (index, node) in expression.arena.nodes.iter().enumerate() {
             control.check()?;
             account.work(1);
+            has_info |= preprocessing.visited[index]
+                && matches!(&node.expression, Expr::Call { function: Some(function), .. }
+                    if function.name == "info");
             needed |= match &node.expression {
                 Expr::Selector(selector) => selector.modifiers.original_offset_expression.is_some(),
                 Expr::Matrix {
@@ -108,79 +113,97 @@ impl<'p> Prepared<'p> {
                 _ => false,
             };
         }
-        let Some(mut durations) = needed.then(|| AccountedVec::new(account, MemoryKind::Workspace))
-        else {
-            return Ok(Self {
-                preprocessing,
-                context,
-                header,
-                durations: None,
-            });
-        };
-        for node in &expression.arena.nodes {
-            control.check()?;
-            account.work(1);
-            durations.push(match &node.expression {
-                Expr::Selector(selector) => [0, 0, selector.modifiers.original_offset],
-                Expr::Matrix { range, .. } => [*range, 0, 0],
-                Expr::Subquery {
-                    range,
-                    step,
-                    modifiers,
-                    ..
-                } => [*range, *step, modifiers.original_offset],
-                _ => [0; 3],
-            });
-        }
-        let mut tasks = AccountedVec::new(account, MemoryKind::Workspace);
-        tasks.push(expression.root);
-        while let Some(node) = tasks.pop() {
-            control.check()?;
-            account.work(1);
-            let value = &expression.arena[node].expression;
-            match value {
-                Expr::Selector(selector) => {
-                    if let Some(offset) = selector.modifiers.original_offset_expression {
-                        durations[node.0][OFFSET_SLOT] =
-                            duration(expression, offset, true, context, control, account)?;
+        let durations = if needed {
+            let mut durations = AccountedVec::new(account, MemoryKind::Workspace);
+            for node in &expression.arena.nodes {
+                control.check()?;
+                account.work(1);
+                durations.push(match &node.expression {
+                    Expr::Selector(selector) => [0, 0, selector.modifiers.original_offset],
+                    Expr::Matrix { range, .. } => [*range, 0, 0],
+                    Expr::Subquery {
+                        range,
+                        step,
+                        modifiers,
+                        ..
+                    } => [*range, *step, modifiers.original_offset],
+                    _ => [0; 3],
+                });
+            }
+            let mut tasks = AccountedVec::new(account, MemoryKind::Workspace);
+            tasks.push(expression.root);
+            while let Some(node) = tasks.pop() {
+                control.check()?;
+                account.work(1);
+                let value = &expression.arena[node].expression;
+                match value {
+                    Expr::Selector(selector) => {
+                        if let Some(offset) = selector.modifiers.original_offset_expression {
+                            durations[node.0][OFFSET_SLOT] =
+                                duration(expression, offset, true, context, control, account)?;
+                        }
                     }
-                }
-                Expr::Matrix {
-                    range_expression: Some(range),
-                    ..
-                } => {
-                    durations[node.0][RANGE_SLOT] =
-                        duration(expression, *range, false, context, control, account)?;
-                }
-                Expr::Subquery {
-                    range_expression,
-                    step_expression,
-                    modifiers,
-                    ..
-                } => {
-                    if let Some(offset) = modifiers.original_offset_expression {
-                        durations[node.0][OFFSET_SLOT] =
-                            duration(expression, offset, true, context, control, account)?;
-                    }
-                    if let Some(step) = step_expression {
-                        durations[node.0][STEP_SLOT] =
-                            duration(expression, *step, false, context, control, account)?;
-                    }
-                    if let Some(range) = range_expression {
+                    Expr::Matrix {
+                        range_expression: Some(range),
+                        ..
+                    } => {
                         durations[node.0][RANGE_SLOT] =
                             duration(expression, *range, false, context, control, account)?;
                     }
+                    Expr::Subquery {
+                        range_expression,
+                        step_expression,
+                        modifiers,
+                        ..
+                    } => {
+                        if let Some(offset) = modifiers.original_offset_expression {
+                            durations[node.0][OFFSET_SLOT] =
+                                duration(expression, offset, true, context, control, account)?;
+                        }
+                        if let Some(step) = step_expression {
+                            durations[node.0][STEP_SLOT] =
+                                duration(expression, *step, false, context, control, account)?;
+                        }
+                        if let Some(range) = range_expression {
+                            durations[node.0][RANGE_SLOT] =
+                                duration(expression, *range, false, context, control, account)?;
+                        }
+                    }
+                    _ => (),
                 }
-                _ => (),
+                tasks.extend(value.children().rev());
             }
-            tasks.extend(value.children().rev());
-        }
-        Ok(Self {
+            Some(durations)
+        } else {
+            None
+        };
+        let mut result = Self {
             preprocessing,
             context,
             header,
-            durations: Some(durations),
-        })
+            durations,
+            request_flags: None,
+        };
+        if has_info {
+            result.request_flags = Some(crate::evaluator_order::evaluation_flags(
+                expression,
+                MemoryKind::Workspace,
+                control,
+                account,
+                None,
+                |root| {
+                    result
+                        .info_reference_details(expression, root, control, account)
+                        .map(|(_, uniform)| uniform)
+                },
+            )?);
+        }
+        Ok(result)
+    }
+    pub(crate) fn flags(&self) -> &crate::evaluator_order::EvaluationFlags {
+        self.request_flags
+            .as_ref()
+            .unwrap_or(&self.preprocessing.flags)
     }
     pub(crate) fn range(&self, node: NodeId, value: i64) -> i64 {
         self.durations
@@ -229,7 +252,6 @@ impl<'p> Prepared<'p> {
         }
     }
 
-    // Scalar paths and selector-free vector branches must not supply an info-series reference.
     pub(crate) fn info_reference(
         &self,
         expression: &ParsedExpression,
@@ -237,6 +259,23 @@ impl<'p> Prepared<'p> {
         control: &Control,
         account: &QueryAccounting,
     ) -> Result<SelectorReference, Interrupted> {
+        let (reference, uniform) =
+            self.info_reference_details(expression, root, control, account)?;
+        Ok(if uniform {
+            reference
+        } else {
+            SelectorReference::default()
+        })
+    }
+
+    // Scalar paths and selector-free vector branches must not supply an info-series reference.
+    fn info_reference_details(
+        &self,
+        expression: &ParsedExpression,
+        root: NodeId,
+        control: &Control,
+        account: &QueryAccounting,
+    ) -> Result<(SelectorReference, bool), Interrupted> {
         enum Task {
             Visit(NodeId, SelectorReference),
             Finish(usize, bool),
@@ -320,11 +359,10 @@ impl<'p> Prepared<'p> {
                 }
             }
         }
-        Ok(if uniform && !reference_free {
-            first.unwrap_or_default()
-        } else {
-            SelectorReference::default()
-        })
+        Ok((
+            first.unwrap_or_default(),
+            first.is_some() && uniform && !reference_free,
+        ))
     }
 
     #[cfg(feature = "fixtures")]
@@ -403,7 +441,15 @@ impl<'p> Prepared<'p> {
             }
             tasks.extend(value.children().rev());
         }
-        json!({"nodes": nodes})
+        let boundaries = expression
+            .arena
+            .nodes
+            .iter()
+            .enumerate()
+            .filter(|(index, _)| self.flags().boundaries[*index])
+            .map(|(_, node)| [node.span.start, node.span.end])
+            .collect::<Vec<_>>();
+        json!({"nodes": nodes, "boundaries": boundaries})
     }
 }
 

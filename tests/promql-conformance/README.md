@@ -1020,6 +1020,28 @@ including unvisited aggregation parameter subtrees. Hint grouping retains origin
 an absent grouping from an explicit empty one. These metadata projections do not establish execution of currently
 unsupported parameterized aggregations or subqueries.
 
+Requests containing evaluated INFO calls rebuild invariant and wrapper flags after resolving request durations
+and contextual selector timestamps. The same postorder algorithm serves compilation and request preparation;
+evaluation, replay, selection hints and roster scans all read the prepared request's flags. INFO requires a
+uniform reference on every vector-producing path. Scalar paths do not supply that reference, and selector-free
+vector branches prevent it. Request flags use two accounted boolean arrays indexed by AST node, with no history
+or output-step array. Requests without evaluated INFO borrow the compiled flags. Concurrent requests retain
+independent flags; duration failure and cancellation release preparation scratch before opening storage.
+
+```sh
+python3 tests/promql-conformance/preprocessing_flags.py --capture \
+  --upstream "${PROMQL_ORIGINAL_SOURCE_DIR:?}"
+python3 tests/promql-conformance/preprocessing_flags.py --reference "${PROMQL_PREPROCESSING_CAPTURE_DIR:?}" \
+  --binary "${PROMQL_QUERY_BINARY:?}"
+```
+
+This panel compares 150 highest-wrapper projections from the unchanged pinned Go preprocessor. It covers equal
+and different fixed references, contextual endpoints, duration `step()` in instant and one-step range requests,
+selector-free branches, scalar-path exclusion, nested INFO, ancestors, unsafe functions, timestamp's direct
+selector exception and unvisited aggregate parameters. The retained before-correction binary fails 59 cases.
+The source, inputs, compiler, helper binary and original output remain hash-bound. These projections qualify
+preprocessing; both corrected profiles pass all 150 requests. Complete INFO expression evaluation remains required.
+
 Terminal provider diagnostics retain explicit severity, opaque bytes and optional positions in independently
 owned results. Expansion failures carry their own notes and completed numeric parameter notes according to source
 boundaries; unfinished ancestor and ordinary raw-helper failures discard their notes. Replays do not duplicate
@@ -1028,11 +1050,11 @@ Metadata handles and output can grow with cardinality; raw history remains page 
 raw-error and sink-error accounting still require their remaining owners. Exact memoized initial reads, Seek
 landing and lookahead failure precedence remain mandatory qualification work. All admission limits remain disabled.
 
-Both builds pass 187 unit tests. The 64 independent selector-hint projections, 426 preparation scopes, 198 offset
-projections and retained parser/clock/phase panels match their pinned source. The original corpus retains all
-previous 9,684 passing variants and adds 230: 9,914 pass, 11,528 remain open, and the same 24 paired bit reports
-remain. These are finite expression, catalog and
-preprocessing checks; they do not satisfy the complete expression, SRE, C or accounting gates.
+The earlier selector-catalog checkpoint passed 187 unit tests in both profiles, with 64 independent selector-hint
+projections, 426 preparation scopes, 198 offset projections and retained parser/clock/phase panels matching their
+pinned source. Its corpus had 9,914 passing variants and 11,528 open variants, with 24 paired bit reports. Current
+expression counts are recorded with the histogram caller qualification above. Finite catalog and preprocessing
+checks do not satisfy the complete expression, SRE, C or accounting gates.
 
 Matchers, owned histogram bounds, immutable diagnostics and observed selection parents now share one local
 strong-only owner. Its exact Box layout includes the reference count, allocation charge, inline payload and
