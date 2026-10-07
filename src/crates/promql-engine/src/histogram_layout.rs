@@ -4,6 +4,7 @@ use crate::accounting::{AccountedVec, AllocationContext};
 use crate::histogram::Span;
 use crate::histogram_work::{HistogramEvaluationError, HistogramWork};
 use crate::numerical::compensated_add;
+use crate::storage::Interrupted;
 use std::fmt;
 
 #[derive(Debug, Eq, PartialEq)]
@@ -67,7 +68,8 @@ trait ReductionBuffer<T: Copy> {
     fn source_len(&self) -> usize;
     fn source(&self, index: usize) -> T;
     fn target(&self, index: usize) -> T;
-    fn write(&mut self, index: usize, value: T);
+    fn write(&mut self, index: usize, value: T, work: HistogramWork<'_>)
+    -> Result<(), Interrupted>;
 }
 
 struct Reused<'a, T>(&'a mut [T]);
@@ -82,8 +84,9 @@ impl<T: Copy> ReductionBuffer<T> for Reused<'_, T> {
     fn target(&self, index: usize) -> T {
         self.0[index]
     }
-    fn write(&mut self, index: usize, value: T) {
+    fn write(&mut self, index: usize, value: T, _: HistogramWork<'_>) -> Result<(), Interrupted> {
         self.0[index] = value;
+        Ok(())
     }
 }
 
@@ -103,15 +106,21 @@ impl<T: Copy> ReductionBuffer<T> for Copied<'_, T> {
     fn target(&self, index: usize) -> T {
         self.target.as_ref().unwrap()[index]
     }
-    fn write(&mut self, index: usize, value: T) {
+    fn write(
+        &mut self,
+        index: usize,
+        value: T,
+        work: HistogramWork<'_>,
+    ) -> Result<(), Interrupted> {
         let target = self
             .target
             .get_or_insert_with(|| AccountedVec::new_in(self.context));
         if index == target.len() {
-            target.push(value);
+            target.push_copy_with(value, |units| work.step(units))?;
         } else {
             target[index] = value;
         }
+        Ok(())
     }
 }
 
@@ -166,21 +175,22 @@ fn reduce_float_layout(
                         offset: target_index,
                         length: 1,
                     },
-                );
-                buckets.write(0, value);
+                    work,
+                )?;
+                buckets.write(0, value, work)?;
                 written_spans = 1;
                 written_buckets = 1;
                 last_target = target_index;
             } else if last_target == target_index {
                 let last = written_buckets - 1;
-                buckets.write(last, buckets.target(last) + value);
+                buckets.write(last, buckets.target(last) + value, work)?;
             } else if last_target.wrapping_add(1) == target_index {
                 let last = written_spans - 1;
                 let mut span = spans.target(last);
                 span.length = span.length.wrapping_add(1);
-                spans.write(last, span);
+                spans.write(last, span, work)?;
                 last_target = last_target.wrapping_add(1);
-                buckets.write(written_buckets, value);
+                buckets.write(written_buckets, value, work)?;
                 written_buckets += 1;
             } else if last_target.wrapping_add(1) < target_index {
                 spans.write(
@@ -189,10 +199,11 @@ fn reduce_float_layout(
                         offset: target_index.wrapping_sub(last_target).wrapping_sub(1),
                         length: 1,
                     },
-                );
+                    work,
+                )?;
                 written_spans += 1;
                 last_target = target_index;
-                buckets.write(written_buckets, value);
+                buckets.write(written_buckets, value, work)?;
                 written_buckets += 1;
             }
             index = index.wrapping_add(1);
@@ -273,11 +284,6 @@ pub(crate) fn reduce_float_copy_with(
     };
     reduce_float_layout(&mut spans, &mut buckets, origin, target, work)?;
     Ok((spans.target, buckets.target))
-}
-
-fn remove_range<T: Copy>(values: &mut AccountedVec<T>, start: usize, length: usize) {
-    values.copy_within(start + length.., start);
-    values.truncate(values.len() - length);
 }
 
 pub(crate) fn compact_float(
@@ -410,17 +416,14 @@ pub(crate) fn compact_float_pair_with<E>(
                 position += empty as u32;
                 continue;
             }
-            poll(buckets.len() - bucket - empty)?;
-            remove_range(buckets, bucket, empty);
+            buckets.remove_copy_range_with(bucket, empty, &mut poll)?;
             if let Some(values) = correction.as_mut() {
-                poll(values.len() - bucket - empty)?;
-                remove_range(values, bucket, empty);
+                values.remove_copy_range_with(bucket, empty, &mut poll)?;
             }
             if position == 0 {
                 if empty == spans[span_index].length as usize {
                     let offset = spans[span_index].offset;
-                    poll(spans.len() - span_index - 1)?;
-                    spans.remove(span_index);
+                    spans.remove_copy_range_with(span_index, 1, &mut poll)?;
                     if span_index < spans.len() {
                         spans[span_index].offset = spans[span_index]
                             .offset
@@ -445,8 +448,7 @@ pub(crate) fn compact_float_pair_with<E>(
                     spans[span_index].offset = spans[span_index].offset.wrapping_add(empty as i32);
                 }
             } else {
-                poll(spans.len() - span_index)?;
-                spans.insert(span_index, next);
+                spans.insert_copy_with(span_index, next, &mut poll)?;
             }
             continue;
         }
@@ -475,20 +477,23 @@ pub(crate) fn compact_float_pair_with<E>(
             .length
             .wrapping_add(offset as u32)
             .wrapping_add(span.length);
-        poll(spans.len() - span_index - 1)?;
-        spans.remove(span_index);
+        spans.remove_copy_range_with(span_index, 1, &mut poll)?;
         let old_len = buckets.len();
         // Reuse this payload instead of holding an additional complete bucket array.
-        buckets.resize(old_len + offset, 0.0);
-        poll(old_len - bucket + offset)?;
-        buckets.copy_within(bucket..old_len, bucket + offset);
-        buckets[bucket..bucket + offset].fill(0.0);
+        buckets.resize_copy_with(old_len + offset, 0.0, &mut poll)?;
+        buckets.copy_within_with(bucket..old_len, bucket + offset, &mut poll)?;
+        for chunk in buckets[bucket..bucket + offset].chunks_mut(1024) {
+            poll(chunk.len())?;
+            chunk.fill(0.0);
+        }
         if let Some(values) = correction.as_mut() {
             let old_len = values.len();
-            values.resize(old_len + offset, 0.0);
-            poll(old_len - bucket + offset)?;
-            values.copy_within(bucket..old_len, bucket + offset);
-            values[bucket..bucket + offset].fill(0.0);
+            values.resize_copy_with(old_len + offset, 0.0, &mut poll)?;
+            values.copy_within_with(bucket..old_len, bucket + offset, &mut poll)?;
+            for chunk in values[bucket..bucket + offset].chunks_mut(1024) {
+                poll(chunk.len())?;
+                chunk.fill(0.0);
+            }
         }
         bucket += offset + span.length as usize;
     }
@@ -501,14 +506,18 @@ fn reduce_kahan_layout(
     correction: &mut impl ReductionBuffer<f64>,
     origin: i32,
     target: i32,
-) -> (usize, usize) {
+    work: HistogramWork<'_>,
+) -> Result<(usize, usize), Interrupted> {
+    work.step(1)?;
     let (mut written_spans, mut written_buckets) = (0, 0);
     let (mut index, mut last_target): (i32, i32) = (0, 0);
     let mut read_bucket = 0;
     for n in 0..spans.source_len() {
+        work.step(1)?;
         let span = spans.source(n);
         index = index.wrapping_add(span.offset);
         for _ in 0..span.length {
+            work.step(1)?;
             let target = target_index(index, origin, target);
             if written_spans == 0 {
                 spans.write(
@@ -517,10 +526,11 @@ fn reduce_kahan_layout(
                         offset: target,
                         length: 1,
                     },
-                );
-                buckets.write(0, buckets.source(read_bucket));
+                    work,
+                )?;
+                buckets.write(0, buckets.source(read_bucket), work)?;
                 last_target = target;
-                correction.write(0, correction.source(read_bucket));
+                correction.write(0, correction.source(read_bucket), work)?;
                 written_spans = 1;
                 written_buckets = 1;
             } else if last_target == target {
@@ -530,23 +540,23 @@ fn reduce_kahan_layout(
                     buckets.target(last),
                     correction.target(last),
                 );
-                buckets.write(last, sum);
-                correction.write(last, comp);
+                buckets.write(last, sum, work)?;
+                correction.write(last, comp, work)?;
                 let (sum, comp) = compensated_add(
                     correction.source(read_bucket),
                     buckets.target(last),
                     correction.target(last),
                 );
-                buckets.write(last, sum);
-                correction.write(last, comp);
+                buckets.write(last, sum, work)?;
+                correction.write(last, comp, work)?;
             } else if last_target.wrapping_add(1) == target {
                 let last = written_spans - 1;
                 let mut span = spans.target(last);
                 span.length = span.length.wrapping_add(1);
-                spans.write(last, span);
+                spans.write(last, span, work)?;
                 last_target = last_target.wrapping_add(1);
-                buckets.write(written_buckets, buckets.source(read_bucket));
-                correction.write(written_buckets, correction.source(read_bucket));
+                buckets.write(written_buckets, buckets.source(read_bucket), work)?;
+                correction.write(written_buckets, correction.source(read_bucket), work)?;
                 written_buckets += 1;
             } else if last_target.wrapping_add(1) < target {
                 spans.write(
@@ -555,34 +565,38 @@ fn reduce_kahan_layout(
                         offset: target.wrapping_sub(last_target).wrapping_sub(1),
                         length: 1,
                     },
-                );
+                    work,
+                )?;
                 written_spans += 1;
                 last_target = target;
-                buckets.write(written_buckets, buckets.source(read_bucket));
-                correction.write(written_buckets, correction.source(read_bucket));
+                buckets.write(written_buckets, buckets.source(read_bucket), work)?;
+                correction.write(written_buckets, correction.source(read_bucket), work)?;
                 written_buckets += 1;
             }
             index = index.wrapping_add(1);
             read_bucket += 1;
         }
     }
-    (written_spans, written_buckets)
+    work.step(1)?;
+    Ok((written_spans, written_buckets))
 }
 
-pub(crate) fn reduce_kahan_in_place(
+pub(crate) fn reduce_kahan_in_place_with(
     spans: &mut Option<AccountedVec<Span>>,
     buckets: &mut Option<AccountedVec<f64>>,
     correction: &mut Option<AccountedVec<f64>>,
     origin: i32,
     target: i32,
-) {
+    work: HistogramWork<'_>,
+) -> Result<(), Interrupted> {
     let (span_count, bucket_count) = reduce_kahan_layout(
         &mut Reused(spans.as_deref_mut().unwrap_or(&mut [])),
         &mut Reused(buckets.as_deref_mut().unwrap_or(&mut [])),
         &mut Reused(correction.as_deref_mut().unwrap_or(&mut [])),
         origin,
         target,
-    );
+        work,
+    )?;
     if let Some(values) = spans {
         values.truncate(span_count);
     }
@@ -592,6 +606,7 @@ pub(crate) fn reduce_kahan_in_place(
     if let Some(values) = correction {
         values.truncate(bucket_count);
     }
+    work.step(1)
 }
 
 struct ZeroCopied<'a> {
@@ -611,15 +626,21 @@ impl ReductionBuffer<f64> for ZeroCopied<'_> {
     fn target(&self, index: usize) -> f64 {
         self.target.as_ref().unwrap()[index]
     }
-    fn write(&mut self, index: usize, value: f64) {
+    fn write(
+        &mut self,
+        index: usize,
+        value: f64,
+        work: HistogramWork<'_>,
+    ) -> Result<(), Interrupted> {
         let target = self
             .target
             .get_or_insert_with(|| AccountedVec::new_in(self.context));
         if index == target.len() {
-            target.push(value);
+            target.push_copy_with(value, |units| work.step(units))?;
         } else {
             target[index] = value;
         }
+        Ok(())
     }
 }
 
@@ -629,13 +650,14 @@ pub(crate) struct ReducedKahan {
     pub compensation: Option<AccountedVec<f64>>,
 }
 
-pub(crate) fn reduce_kahan_copy(
+pub(crate) fn reduce_kahan_copy_with(
     spans: Option<&[Span]>,
     buckets: Option<&[f64]>,
     origin: i32,
     target: i32,
     context: Option<&AllocationContext>,
-) -> ReducedKahan {
+    work: HistogramWork<'_>,
+) -> Result<ReducedKahan, Interrupted> {
     let mut spans = Copied {
         source: spans.unwrap_or(&[]),
         target: None,
@@ -652,10 +674,17 @@ pub(crate) fn reduce_kahan_copy(
         target: None,
         context,
     };
-    reduce_kahan_layout(&mut spans, &mut buckets, &mut correction, origin, target);
-    ReducedKahan {
+    reduce_kahan_layout(
+        &mut spans,
+        &mut buckets,
+        &mut correction,
+        origin,
+        target,
+        work,
+    )?;
+    Ok(ReducedKahan {
         spans: spans.target,
         buckets: buckets.target,
         compensation: correction.target,
-    }
+    })
 }

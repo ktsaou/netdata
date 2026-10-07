@@ -3,12 +3,12 @@
 use crate::accounting::{AccountedVec, AllocationContext};
 use crate::histogram::{
     CUSTOM_BUCKETS_SCHEMA, FloatHistogram, FloatHistogramRef, GAUGE, HistogramBounds,
-    HistogramError, Span, UNKNOWN_RESET, bucket_bound, custom_bounds_match,
+    HistogramError, Span, UNKNOWN_RESET, bucket_bound,
 };
 use crate::histogram_counter::{custom_bounds_match_with, zero_count_for_threshold_with};
 use crate::histogram_layout::{
     compact_float_pair, compact_float_pair_with, reduce_float_copy_with,
-    reduce_float_in_place_with, reduce_kahan_copy, reduce_kahan_in_place,
+    reduce_float_in_place_with, reduce_kahan_copy_with, reduce_kahan_in_place_with,
 };
 use crate::histogram_work::{HistogramEvaluationError, HistogramWork};
 use crate::numerical::{compensated_add, compensated_sub};
@@ -173,14 +173,6 @@ impl FloatHistogram {
         self.add_or_sub(other, true, None)
     }
 
-    pub(crate) fn add_in(
-        &mut self,
-        other: FloatHistogramRef<'_>,
-        context: Option<&AllocationContext>,
-    ) -> Result<HistogramArithmetic, HistogramError> {
-        self.add_or_sub(other, false, context)
-    }
-
     fn add_or_sub(
         &mut self,
         other: FloatHistogramRef<'_>,
@@ -339,30 +331,38 @@ impl FloatHistogram {
         Ok(flags)
     }
 
-    fn new_correction(&self, context: Option<&AllocationContext>) -> Self {
-        Self {
+    fn new_correction_with(
+        &self,
+        context: Option<&AllocationContext>,
+        work: HistogramWork<'_>,
+    ) -> Result<Self, Interrupted> {
+        let mut positive_spans = None;
+        let mut negative_spans = None;
+        clone_spans_with(&mut positive_spans, &self.positive_spans, work)?;
+        clone_spans_with(&mut negative_spans, &self.negative_spans, work)?;
+        Ok(Self {
             reset_hint: self.reset_hint,
             schema: self.schema,
             zero_threshold: self.zero_threshold,
-            positive_spans: self.positive_spans.clone(),
-            negative_spans: self.negative_spans.clone(),
-            positive_buckets: Some(AccountedVec::filled_in(
+            positive_spans,
+            negative_spans,
+            positive_buckets: Some(zeros_with(
                 self.positive_buckets.as_ref().map_or(0, |v| v.len()),
-                0.0,
                 context,
-            )),
+                work,
+            )?),
             negative_buckets: if self.uses_custom_buckets() {
                 None
             } else {
-                Some(AccountedVec::filled_in(
+                Some(zeros_with(
                     self.negative_buckets.as_ref().map_or(0, |v| v.len()),
-                    0.0,
                     context,
-                ))
+                    work,
+                )?)
             },
             custom_values: self.custom_values.clone(),
             ..Self::default()
-        }
+        })
     }
 
     pub fn kahan_add(
@@ -378,18 +378,31 @@ impl FloatHistogram {
         correction: &mut Option<Self>,
         context: Option<&AllocationContext>,
     ) -> Result<HistogramArithmetic, HistogramError> {
+        self.kahan_add_with(other, correction, context, HistogramWork::default())
+            .map_err(HistogramEvaluationError::arithmetic)
+    }
+
+    pub(crate) fn kahan_add_with(
+        &mut self,
+        other: FloatHistogramRef<'_>,
+        correction: &mut Option<Self>,
+        context: Option<&AllocationContext>,
+        work: HistogramWork<'_>,
+    ) -> Result<HistogramArithmetic, HistogramEvaluationError> {
+        work.step(1)?;
         if self.uses_custom_buckets() != (other.schema == CUSTOM_BUCKETS_SCHEMA) {
-            return Err(HistogramError::IncompatibleSchema);
+            return Err(HistogramError::IncompatibleSchema.into());
         }
         let mut flags = HistogramArithmetic {
             counter_reset_collision: self.adjust_reset(other.reset_hint),
             nhcb_bounds_reconciled: false,
         };
-        let correction = correction.get_or_insert_with(|| self.new_correction(context));
+        if correction.is_none() {
+            *correction = Some(self.new_correction_with(context, work)?);
+        }
+        let correction = correction.as_mut().unwrap();
         if !self.uses_custom_buckets() {
-            let (zero, comp) = self
-                .reconcile_zero(other, Some(correction), context, HistogramWork::default())
-                .expect("inert histogram work");
+            let (zero, comp) = self.reconcile_zero(other, Some(correction), context, work)?;
             (self.zero_count, correction.zero_count) =
                 compensated_add(zero, self.zero_count, correction.zero_count);
             (self.zero_count, correction.zero_count) =
@@ -398,7 +411,7 @@ impl FloatHistogram {
         (self.count, correction.count) = compensated_add(other.count, self.count, correction.count);
         (self.sum, correction.sum) = compensated_add(other.sum, self.sum, correction.sum);
         if self.uses_custom_buckets() {
-            if custom_bounds_match(self.custom_values.as_deref(), other.custom_values) {
+            if custom_bounds_match_with(self.custom_values.as_deref(), other.custom_values, work)? {
                 merge_buckets(
                     self.schema,
                     self.zero_threshold,
@@ -410,18 +423,16 @@ impl FloatHistogram {
                     other.positive_buckets,
                     None,
                     context,
-                    HistogramWork::default(),
-                )
-                .expect("inert histogram work");
+                    work,
+                )?;
             } else {
                 flags.nhcb_bounds_reconciled = true;
                 let bounds = intersect_bounds(
                     self.custom_values.as_deref(),
                     other.custom_values,
                     context,
-                    HistogramWork::default(),
-                )
-                .expect("inert histogram work");
+                    work,
+                )?;
                 map_custom(
                     &mut self.positive_spans,
                     &mut self.positive_buckets,
@@ -431,56 +442,60 @@ impl FloatHistogram {
                     bounds.as_deref(),
                     false,
                     context,
-                    HistogramWork::default(),
-                )
-                .expect("inert histogram work");
+                    work,
+                )?;
                 self.custom_values = bounds;
                 correction.custom_values = self.custom_values.clone();
             }
-            correction.positive_spans.clone_from(&self.positive_spans);
+            clone_spans_with(&mut correction.positive_spans, &self.positive_spans, work)?;
+            work.step(1)?;
             return Ok(flags);
         }
         let (mut positive, mut negative) = (None, None);
         if other.schema < self.schema {
-            reduce_kahan_in_place(
+            reduce_kahan_in_place_with(
                 &mut self.positive_spans,
                 &mut self.positive_buckets,
                 &mut correction.positive_buckets,
                 self.schema,
                 other.schema,
-            );
-            reduce_kahan_in_place(
+                work,
+            )?;
+            reduce_kahan_in_place_with(
                 &mut self.negative_spans,
                 &mut self.negative_buckets,
                 &mut correction.negative_buckets,
                 self.schema,
                 other.schema,
-            );
+                work,
+            )?;
             self.schema = other.schema;
         } else if other.schema > self.schema {
             if other
                 .positive_buckets
                 .is_some_and(|values| !values.is_empty())
             {
-                positive = Some(reduce_kahan_copy(
+                positive = Some(reduce_kahan_copy_with(
                     other.positive_spans,
                     other.positive_buckets,
                     other.schema,
                     self.schema,
                     context,
-                ));
+                    work,
+                )?);
             }
             if other
                 .negative_buckets
                 .is_some_and(|values| !values.is_empty())
             {
-                negative = Some(reduce_kahan_copy(
+                negative = Some(reduce_kahan_copy_with(
                     other.negative_spans,
                     other.negative_buckets,
                     other.schema,
                     self.schema,
                     context,
-                ));
+                    work,
+                )?);
             }
         }
         let (pos_spans, pos_buckets, pos_comp) = positive.as_ref().map_or(
@@ -514,9 +529,8 @@ impl FloatHistogram {
             pos_buckets,
             pos_comp,
             context,
-            HistogramWork::default(),
-        )
-        .expect("inert histogram work");
+            work,
+        )?;
         merge_buckets(
             self.schema,
             self.zero_threshold,
@@ -528,15 +542,53 @@ impl FloatHistogram {
             neg_buckets,
             neg_comp,
             context,
-            HistogramWork::default(),
-        )
-        .expect("inert histogram work");
+            work,
+        )?;
         correction.schema = self.schema;
         correction.zero_threshold = self.zero_threshold;
-        correction.positive_spans.clone_from(&self.positive_spans);
-        correction.negative_spans.clone_from(&self.negative_spans);
+        clone_spans_with(&mut correction.positive_spans, &self.positive_spans, work)?;
+        clone_spans_with(&mut correction.negative_spans, &self.negative_spans, work)?;
+        work.step(1)?;
         Ok(flags)
     }
+}
+
+fn zeros_with(
+    len: usize,
+    context: Option<&AllocationContext>,
+    work: HistogramWork<'_>,
+) -> Result<AccountedVec<f64>, Interrupted> {
+    work.step(1)?;
+    let mut result = AccountedVec::with_capacity_in(len, context);
+    while result.len() < len {
+        let end = result.len() + (len - result.len()).min(1024);
+        work.step(end - result.len())?;
+        result.resize(end, 0.0);
+    }
+    work.step(1)?;
+    Ok(result)
+}
+
+fn clone_spans_with(
+    destination: &mut Option<AccountedVec<Span>>,
+    source: &Option<AccountedVec<Span>>,
+    work: HistogramWork<'_>,
+) -> Result<(), Interrupted> {
+    work.step(1)?;
+    if let Some(source) = source {
+        let destination = destination.get_or_insert_with(|| {
+            AccountedVec::with_capacity_in(source.len(), source.context().as_ref())
+        });
+        destination.clear();
+        destination.reserve(source.len());
+        for chunk in source.chunks(1024) {
+            work.step(chunk.len())?;
+            destination.extend_from_slice(chunk);
+        }
+    } else {
+        *destination = None;
+    }
+    work.step(1)
 }
 
 fn accumulate(bucket: &mut f64, correction: Option<&mut f64>, increment: f64, increment_comp: f64) {
@@ -602,25 +654,23 @@ fn merge_buckets(
                 }
                 if span_a == -1 {
                     if spans_a.is_empty() || spans_a[0].offset > index_b {
-                        work.step(buckets_a.len().saturating_add(1))?;
-                        buckets_a.insert(0, value);
+                        buckets_a.insert_copy_with(0, value, |units| work.step(units))?;
                         if paired {
-                            work.step(comp_a.len().saturating_add(1))?;
-                            comp_a.insert(0, comp);
+                            comp_a.insert_copy_with(0, comp, |units| work.step(units))?;
                         }
                         if !spans_a.is_empty() && spans_a[0].offset == index_b.wrapping_add(1) {
                             spans_a[0].length = spans_a[0].length.wrapping_add(1);
                             spans_a[0].offset = spans_a[0].offset.wrapping_sub(1);
                             break 'process;
                         }
-                        work.step(spans_a.len().saturating_add(1))?;
-                        spans_a.insert(
+                        spans_a.insert_copy_with(
                             0,
                             Span {
                                 offset: index_b,
                                 length: 1,
                             },
-                        );
+                            |units| work.step(units),
+                        )?;
                         if spans_a.len() > 1 {
                             spans_a[1].offset =
                                 spans_a[1].offset.wrapping_sub(index_b.wrapping_add(1));
@@ -661,21 +711,12 @@ fn merge_buckets(
                     bucket_a = bucket_a.wrapping_add(remaining as isize);
                     span_a += 1;
                     if span_a as usize == spans_a.len() || delta < spans_a[span_a as usize].offset {
-                        work.step(
-                            buckets_a
-                                .len()
-                                .saturating_sub(bucket_a as usize)
-                                .saturating_add(1),
-                        )?;
-                        buckets_a.insert(bucket_a as usize, value);
+                        buckets_a
+                            .insert_copy_with(bucket_a as usize, value, |units| work.step(units))?;
                         if paired {
-                            work.step(
-                                comp_a
-                                    .len()
-                                    .saturating_sub(bucket_a as usize)
-                                    .saturating_add(1),
-                            )?;
-                            comp_a.insert(bucket_a as usize, comp);
+                            comp_a.insert_copy_with(bucket_a as usize, comp, |units| {
+                                work.step(units)
+                            })?;
                         }
                         if delta == 0 {
                             if (span_a as usize) < spans_a.len() {
@@ -701,19 +742,14 @@ fn merge_buckets(
                                     .offset
                                     .wrapping_sub(delta.wrapping_add(1));
                             }
-                            work.step(
-                                spans_a
-                                    .len()
-                                    .saturating_sub(span_a as usize)
-                                    .saturating_add(1),
-                            )?;
-                            spans_a.insert(
+                            spans_a.insert_copy_with(
                                 span_a as usize,
                                 Span {
                                     offset: delta,
                                     length: 1,
                                 },
-                            );
+                                |units| work.step(units),
+                            )?;
                         }
                         break 'process;
                     } else {
@@ -791,10 +827,8 @@ fn map_custom(
     work: HistogramWork<'_>,
 ) -> Result<(), Interrupted> {
     let intersected = intersected.unwrap_or(&[]);
-    work.step(intersected.len().saturating_add(1))?;
-    let mut target = AccountedVec::filled_in(intersected.len() + 1, 0.0, context);
-    work.step(intersected.len().saturating_add(1))?;
-    let mut comp_target = AccountedVec::filled_in(intersected.len() + 1, 0.0, context);
+    let mut target = zeros_with(intersected.len() + 1, context, work)?;
+    let mut comp_target = zeros_with(intersected.len() + 1, context, work)?;
     let comp_buckets = correction.as_deref().and_then(|values| values.as_deref());
     for (source_spans, source_buckets, bounds, subtract, with_comp) in [
         (spans.as_deref(), buckets.as_deref(), bounds, false, true),
@@ -869,14 +903,17 @@ fn map_custom(
             let span = dest_spans.last_mut().unwrap();
             span.length = span.length.wrapping_add(1);
         } else {
-            dest_spans.push(Span {
-                offset: if dest_spans.is_empty() {
-                    index
-                } else {
-                    index.wrapping_sub(last_index).wrapping_sub(1)
+            dest_spans.push_copy_with(
+                Span {
+                    offset: if dest_spans.is_empty() {
+                        index
+                    } else {
+                        index.wrapping_sub(last_index).wrapping_sub(1)
+                    },
+                    length: 1,
                 },
-                length: 1,
-            });
+                |units| work.step(units),
+            )?;
         }
         last_index = index;
     }
@@ -895,6 +932,90 @@ fn map_custom(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::{
+        accounting::{EngineAccounting, MemoryKind},
+        storage::Control,
+        test_storage::interrupt_during,
+    };
+
+    #[test]
+    fn sparse_prefix_and_zero_run_suffix_moves_interrupt_in_bounded_chunks() {
+        for compact in [false, true] {
+            let engine = EngineAccounting::default();
+            let account = engine.query();
+            let control = Control::default();
+            let context = AllocationContext::new(&account, MemoryKind::Workspace);
+            let mut buckets = AccountedVec::with_capacity_in(32_768, Some(&context));
+            buckets.extend_from_slice(&vec![1.0; 16_384]);
+            if compact {
+                buckets[1] = 0.0;
+            }
+            let mut histogram = FloatHistogram {
+                count: 16_384.0,
+                sum: 16_384.0,
+                positive_spans: Some(AccountedVec::from_slice_in(
+                    &[Span {
+                        offset: 100,
+                        length: 16_384,
+                    }],
+                    Some(&context),
+                )),
+                positive_buckets: Some(buckets),
+                ..FloatHistogram::default()
+            };
+            let source = FloatHistogram {
+                count: 1.0,
+                sum: 1.0,
+                positive_spans: Some(
+                    vec![Span {
+                        offset: 99,
+                        length: 1,
+                    }]
+                    .into(),
+                ),
+                positive_buckets: Some(vec![1.0].into()),
+                ..FloatHistogram::default()
+            };
+            let before = account.snapshot().work;
+            let result = interrupt_during(&account, &control, || {
+                if compact {
+                    compact_float_pair_with(
+                        &mut histogram.positive_buckets,
+                        &mut histogram.positive_spans,
+                        None,
+                        0,
+                        Some(&context),
+                        |units| {
+                            assert!(units <= 1024);
+                            HistogramWork::new(&control, &account).step(units)
+                        },
+                    )
+                    .map_err(HistogramEvaluationError::from)
+                } else {
+                    histogram
+                        .add_or_sub_with(
+                            source.as_ref(),
+                            false,
+                            Some(&context),
+                            HistogramWork::new(&control, &account),
+                        )
+                        .map(|_| ())
+                }
+            });
+            assert!(matches!(
+                result,
+                Err(HistogramEvaluationError::Interrupted(
+                    Interrupted::Cancelled
+                ))
+            ));
+            assert!(account.snapshot().work - before <= 8192 + 1024);
+            drop(histogram);
+            drop(context);
+            account.snapshot().assert_memory_released();
+            drop(account);
+            engine.snapshot().assert_memory_released();
+        }
+    }
 
     #[test]
     fn same_schema_accumulation_reuses_buffers_and_outlives_the_borrowed_operand() {

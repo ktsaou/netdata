@@ -394,18 +394,30 @@ impl OwnedHistogram {
             crate::histogram_work::HistogramWork::new(control, account),
         )
     }
+    #[cfg(test)]
     pub(crate) fn copy(&self) -> Self {
-        Self::new(
-            self.payload.value.copy_in(Some(&self.payload.context)),
+        self.copy_with(HistogramWork::default())
+            .expect("inert histogram work")
+    }
+    pub(crate) fn copy_checked(
+        &self,
+        control: &Control,
+        account: &QueryAccounting,
+    ) -> Result<Self, Interrupted> {
+        self.copy_with(HistogramWork::new(control, account))
+    }
+    fn copy_with(&self, work: HistogramWork<'_>) -> Result<Self, Interrupted> {
+        Ok(Self::new(
+            self.payload
+                .value
+                .copy_with(Some(&self.payload.context), work)?,
             self.payload.context.clone(),
-        )
+        ))
     }
     pub(crate) fn normalize_copy_fields(&mut self) {
         self.payload.value.normalize_copy_fields();
     }
-    pub(crate) fn mul(&mut self, factor: f64) {
-        self.payload.value.mul(factor);
-    }
+    #[cfg(test)]
     pub(crate) fn div(&mut self, divisor: f64) {
         self.payload.value.div(divisor);
     }
@@ -466,30 +478,44 @@ impl OwnedHistogram {
         )?;
         Ok(())
     }
-    pub(crate) fn has_overflow(&self) -> bool {
-        let h = self.as_ref();
-        h.zero_count.is_infinite()
-            || h.count.is_infinite()
-            || h.sum.is_infinite()
-            || h.positive_buckets
-                .into_iter()
-                .flatten()
-                .chain(h.negative_buckets.into_iter().flatten())
-                .chain(h.custom_values.into_iter().flatten())
-                .any(|value| value.is_infinite())
+    pub(crate) fn has_overflow_checked(
+        &self,
+        control: &Control,
+        account: &QueryAccounting,
+    ) -> Result<bool, Interrupted> {
+        self.as_ref()
+            .has_overflow_with(HistogramWork::new(control, account))
     }
-    pub(crate) fn add(
-        &mut self,
-        other: crate::histogram::FloatHistogramRef<'_>,
-    ) -> Result<crate::histogram::HistogramArithmetic, crate::histogram::HistogramError> {
-        let payload = &mut *self.payload;
-        payload.value.add_in(other, Some(&payload.context))
-    }
+    #[cfg(test)]
     pub(crate) fn kahan_add(
         &mut self,
         other: crate::histogram::FloatHistogramRef<'_>,
         correction: &mut Option<Self>,
     ) -> Result<crate::histogram::HistogramArithmetic, crate::histogram::HistogramError> {
+        self.kahan_add_with(other, correction, HistogramWork::default())
+            .map_err(crate::histogram_work::HistogramEvaluationError::arithmetic)
+    }
+    pub(crate) fn kahan_add_checked(
+        &mut self,
+        other: crate::histogram::FloatHistogramRef<'_>,
+        correction: &mut Option<Self>,
+        control: &Control,
+        account: &QueryAccounting,
+    ) -> Result<
+        crate::histogram::HistogramArithmetic,
+        crate::histogram_work::HistogramEvaluationError,
+    > {
+        self.kahan_add_with(other, correction, HistogramWork::new(control, account))
+    }
+    fn kahan_add_with(
+        &mut self,
+        other: crate::histogram::FloatHistogramRef<'_>,
+        correction: &mut Option<Self>,
+        work: HistogramWork<'_>,
+    ) -> Result<
+        crate::histogram::HistogramArithmetic,
+        crate::histogram_work::HistogramEvaluationError,
+    > {
         // Keep the correction box and its charge while the helper owns its arrays.
         let mut retained = correction.take();
         let mut value = retained
@@ -498,7 +524,7 @@ impl OwnedHistogram {
         let payload = &mut *self.payload;
         let result = payload
             .value
-            .kahan_add_in(other, &mut value, Some(&payload.context));
+            .kahan_add_with(other, &mut value, Some(&payload.context), work);
         *correction = value.map(|value| {
             if let Some(mut histogram) = retained {
                 histogram.payload.value = value;
@@ -1154,6 +1180,71 @@ mod tests {
         AccountedBox::<HistogramPayload>::allocation_bytes() as u64
     }
 
+    #[test]
+    fn checked_native_copy_and_overflow_scan_interrupt_without_retaining_scratch() {
+        for copy in [true, false] {
+            let engine = EngineAccounting::default();
+            let account = engine.query();
+            let control = Control::default();
+            let source = histogram(0, &vec![1.0; 16_384], None);
+            let value = own(&source, &account);
+            let baseline = account.snapshot().memory[MemoryKind::Workspace as usize].current;
+            let result = crate::test_storage::interrupt_during(&account, &control, || {
+                if copy {
+                    value.copy_checked(&control, &account).map(drop)
+                } else {
+                    value.has_overflow_checked(&control, &account).map(|_| ())
+                }
+            });
+            assert_eq!(result, Err(Interrupted::Cancelled));
+            assert_eq!(
+                account.snapshot().memory[MemoryKind::Workspace as usize].current,
+                baseline
+            );
+            drop(value);
+            account.snapshot().assert_memory_released();
+            drop(account);
+            engine.snapshot().assert_memory_released();
+        }
+    }
+
+    #[test]
+    fn checked_kahan_restores_the_compensation_box_after_interrupted_reduction_or_merge() {
+        for (schema, length, other_schema, other_length) in
+            [(0, 16_384, 0, 16_384), (2, 16_384, 0, 1), (0, 1, 2, 16_384)]
+        {
+            let engine = EngineAccounting::default();
+            let account = engine.query();
+            let control = Control::default();
+            let source = histogram(schema, &vec![1.0; length], None);
+            let operand = histogram(other_schema, &vec![1.0; other_length], None);
+            let mut sum = own(&source, &account);
+            let mut correction = None;
+            sum.kahan_add(source.as_ref(), &mut correction).unwrap();
+            let pointer = &*correction.as_ref().unwrap().payload as *const HistogramPayload;
+            let result = crate::test_storage::interrupt_during(&account, &control, || {
+                sum.kahan_add_checked(operand.as_ref(), &mut correction, &control, &account)
+            });
+            assert!(matches!(
+                result,
+                Err(
+                    crate::histogram_work::HistogramEvaluationError::Interrupted(
+                        Interrupted::Cancelled
+                    )
+                )
+            ));
+            assert_eq!(
+                &*correction.as_ref().unwrap().payload as *const HistogramPayload,
+                pointer
+            );
+            drop(sum);
+            drop(correction);
+            account.snapshot().assert_memory_released();
+            drop(account);
+            engine.snapshot().assert_memory_released();
+        }
+    }
+
     fn bounds_wrapper_bytes() -> u64 {
         size_of::<crate::shared::Allocation<AccountedVec<f64>>>() as u64
     }
@@ -1630,7 +1721,8 @@ mod tests {
         let mut sum = own(&histogram(0, &[1.0], None), &account);
         let baseline = account.snapshot().memory[1].current;
         let operand = histogram(2, &[1.0; 8], None);
-        sum.add(operand.as_ref()).unwrap();
+        sum.arithmetic_checked(operand.as_ref(), false, &Control::default(), &account)
+            .unwrap();
         let observation = account.snapshot().memory[1];
         assert_eq!(observation.current, baseline);
         assert!(observation.peak >= baseline + 64);
@@ -1646,7 +1738,9 @@ mod tests {
         let source = histogram(CUSTOM_BUCKETS_SCHEMA, &[1.0, 2.0, 3.0], Some(&[1.0, 2.0]));
         let operand = histogram(CUSTOM_BUCKETS_SCHEMA, &[1.0, 2.0, 3.0], Some(&[2.0, 3.0]));
         let mut sum = own(&source, &account);
-        let flags = sum.add(operand.as_ref()).unwrap();
+        let flags = sum
+            .arithmetic_checked(operand.as_ref(), false, &Control::default(), &account)
+            .unwrap();
         assert!(flags.nhcb_bounds_reconciled);
         assert_eq!(sum.as_ref().custom_values, Some(&[2.0][..]));
         assert_eq!(sum.as_ref().positive_buckets, Some(&[4.0, 8.0][..]));
@@ -1672,7 +1766,8 @@ mod tests {
             let mut sum = own(&histogram(0, &[1.0], None), &account);
             let mut malformed = histogram(2, &[1.0, 2.0], None);
             malformed.positive_spans.as_mut().unwrap()[0].length = 8;
-            sum.add(malformed.as_ref()).unwrap();
+            sum.arithmetic_checked(malformed.as_ref(), false, &Control::default(), &account)
+                .unwrap();
         }));
         assert!(panic.is_err());
         let observation = account.snapshot().memory[1];
