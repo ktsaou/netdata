@@ -913,7 +913,7 @@ impl CompiledQuery {
             Visit(NodeId, OutputHeader),
             Finish(NodeId, OutputHeader),
             LabelFinish(NodeId, OutputHeader, AccountedBox<LabelOperation<'a>>),
-            SelectionParameter(NodeId, OutputHeader),
+            AggregateParameter(NodeId, OutputHeader),
         }
         let mut rosters = Rosters::new(account, self.expression.arena.nodes.len());
         let mut tasks = AccountedVec::new(account, MemoryKind::Workspace);
@@ -924,18 +924,18 @@ impl CompiledQuery {
             let (node, mut header) = match &task {
                 Task::Visit(node, header)
                 | Task::Finish(node, header)
-                | Task::SelectionParameter(node, header)
+                | Task::AggregateParameter(node, header)
                 | Task::LabelFinish(node, header, _) => (*node, *header),
             };
             let expression = &self.expression.arena[node].expression;
-            if matches!(task, Task::SelectionParameter(..)) {
+            if matches!(task, Task::AggregateParameter(..)) {
                 let Expr::Aggregate {
                     parameter: Some(parameter),
                     operator,
                     ..
                 } = expression
                 else {
-                    unreachable!("typed selection parameter")
+                    unreachable!("typed aggregate parameter")
                 };
                 let parameter = prepared
                     .preprocessing
@@ -972,7 +972,7 @@ impl CompiledQuery {
                     );
                     while let Some(sample) = machine.next()? {
                         let crate::result::OwnedValue::Float(value) = sample.value else {
-                            unreachable!("typed scalar selection parameter")
+                            unreachable!("typed scalar aggregate parameter")
                         };
                         summary.push(value);
                     }
@@ -987,28 +987,28 @@ impl CompiledQuery {
                     }
                     time_ms = next;
                 }
-                rosters.prepare_selection_parameter(node, *operator, summary, account);
+                rosters.prepare_aggregate_parameter(node, *operator, summary, account);
                 continue;
             }
             if matches!(task, Task::Visit(..)) {
                 if prepared.flags().boundaries[node.0] {
                     header.end_ms = header.start_ms;
                 }
-                if crate::topk::is_selection(expression) {
+                if crate::topk::has_step_parameter(expression) {
                     let Expr::Aggregate {
                         parameter: Some(parameter),
                         expression: Some(child),
                         ..
                     } = expression
                     else {
-                        unreachable!("typed selection operands")
+                        unreachable!("typed numeric aggregate operands")
                     };
                     tasks.push(Task::Finish(node, header));
                     tasks.push(Task::Visit(
                         prepared.preprocessing.child(&self.expression, node, *child),
                         header,
                     ));
-                    tasks.push(Task::SelectionParameter(node, header));
+                    tasks.push(Task::AggregateParameter(node, header));
                     tasks.push(Task::Visit(
                         prepared
                             .preprocessing
@@ -1091,6 +1091,13 @@ impl CompiledQuery {
             } = expression
                 && !crate::count_values::is_count(expression)
                 && !crate::topk::is_selection(expression)
+                && !matches!(
+                    expression,
+                    Expr::Aggregate {
+                        operator: TokenKind::QUANTILE,
+                        ..
+                    }
+                )
             {
                 rosters.prepare_groups(
                     node,
@@ -1110,6 +1117,20 @@ impl CompiledQuery {
                     unreachable!()
                 };
                 rosters.prepare_selection(
+                    node,
+                    prepared.preprocessing.child(&self.expression, node, *child),
+                    &self.expression,
+                    control,
+                    account,
+                )?;
+            }
+            if let Expr::Aggregate {
+                operator: TokenKind::QUANTILE,
+                expression: Some(child),
+                ..
+            } = expression
+            {
+                rosters.prepare_quantile(
                     node,
                     prepared.preprocessing.child(&self.expression, node, *child),
                     &self.expression,
@@ -1231,6 +1252,22 @@ impl CompiledQuery {
                     .preprocessing
                     .child(&self.expression, node, *parameter);
                 selection.add_annotations(
+                    &mut annotations,
+                    self.expression.arena[parameter].span,
+                    &self.expression.source,
+                    account,
+                );
+            }
+            if let Expr::Aggregate {
+                parameter: Some(parameter),
+                ..
+            } = expression
+                && let Some(quantile) = rosters.quantile(node)
+            {
+                let parameter = prepared
+                    .preprocessing
+                    .child(&self.expression, node, *parameter);
+                quantile.parameters.add_quantile_annotations(
                     &mut annotations,
                     self.expression.arena[parameter].span,
                     &self.expression.source,
@@ -7536,6 +7573,174 @@ mod tests {
                     "INFO page {page_size} delayed {delayed}"
                 );
             }
+        }
+    }
+
+    #[test]
+    fn aggregate_quantile_keeps_singleton_ieee_operations_and_releases_replay_state() {
+        fn point<const BITS: u64>(_: usize) -> crate::value::Sample {
+            crate::value::Sample {
+                time_ms: 1000,
+                start_time_ms: 0,
+                value: crate::value::SampleValue::Float(f64::from_bits(BITS)),
+            }
+        }
+        for (sample, expected) in [
+            (
+                point::<0x8000_0000_0000_0000> as fn(usize) -> _,
+                0x8000_0000_0000_0000,
+            ),
+            (point::<0x7ff0_0000_0000_0000>, 0xfff8_0000_0000_0000),
+            (point::<0xfff0_0000_0000_0000>, 0xfff8_0000_0000_0000),
+            (point::<0x7ff8_0000_0000_0063>, 0x7ff8_0000_0000_0063),
+            (point::<0xfff8_0000_0000_0027>, 0xfff8_0000_0000_0027),
+            (point::<0x7ff0_0000_0000_0044>, 0x7ff8_0000_0000_0044),
+            (point::<0xfff0_0000_0000_0045>, 0xfff8_0000_0000_0045),
+        ] {
+            let mut provider = FixtureProvider::new(1, 1, 1);
+            provider.series[0].source.sample = sample;
+            for parameter in ["0", "0.5", "1"] {
+                let engine = Engine::default();
+                let control = Control::default();
+                let source = format!("quantile({parameter},counter_total)");
+                let query = engine
+                    .compile(source.as_bytes(), EngineOptions::default(), &control)
+                    .unwrap();
+                let (result, observed) = query
+                    .collect(&provider, QueryRequest::Instant { time_ms: 1000 }, &control)
+                    .unwrap();
+                assert_eq!(result.series.len(), 1);
+                assert_eq!(
+                    float_bits(&result.series[0].points[0]),
+                    expected,
+                    "{source}"
+                );
+                assert_eq!(observed.memory[MemoryKind::Workspace as usize].current, 0);
+                provider.assert_closed();
+                drop((result, query));
+                engine.accounting.snapshot().assert_memory_released();
+            }
+        }
+    }
+
+    #[test]
+    fn aggregate_quantile_scans_histogram_only_bodies_before_invalid_parameter_results() {
+        fn histogram(_: usize) -> crate::value::Sample {
+            crate::value::Sample {
+                time_ms: 1000,
+                start_time_ms: 0,
+                value: crate::value::SampleValue::FloatHistogram(
+                    crate::histogram::FloatHistogram {
+                        count: 3.0,
+                        sum: 3.0,
+                        ..crate::histogram::FloatHistogram::default()
+                    },
+                ),
+            }
+        }
+        for (parameter, warning, body_column) in
+            [("2", true, 16), ("NaN", true, 18), ("0.5", false, 18)]
+        {
+            let mut provider = FixtureProvider::new(1, 1, 1);
+            provider.series[0].source.sample = histogram;
+            let engine = Engine::default();
+            let control = Control::default();
+            let source = format!("(quantile(({parameter}),(counter_total)))");
+            let query = engine
+                .compile(source.as_bytes(), EngineOptions::default(), &control)
+                .unwrap();
+            let report = query.collect_reported(
+                &provider,
+                QueryRequest::Instant { time_ms: 1000 },
+                &control,
+            );
+            assert!(report.result.as_ref().unwrap().series.is_empty());
+            assert_eq!(report.annotations.len(), 1 + usize::from(warning));
+            let message =
+                format!("PromQL info: ignored histogram in quantile aggregation (1:{body_column})");
+            assert!(
+                report
+                    .annotations
+                    .iter()
+                    .any(|note| note.message == message.as_bytes())
+            );
+            if warning {
+                let message = format!(
+                    "PromQL warning: quantile value should be between 0 and 1, got {parameter} (1:12)"
+                );
+                assert!(
+                    report
+                        .annotations
+                        .iter()
+                        .any(|note| note.message == message.as_bytes())
+                );
+            }
+            provider.assert_closed();
+            drop((report, query));
+            engine.accounting.snapshot().assert_memory_released();
+        }
+    }
+
+    #[test]
+    fn aggregate_quantile_replay_keeps_one_raw_page_across_growing_history() {
+        for page_size in [1, 17, 1024] {
+            let mut peaks = Vec::new();
+            for count in [2048, 100_000] {
+                let provider = FixtureProvider::new(count, page_size, 3);
+                let engine = Engine::default();
+                let control = Control::default();
+                let settings = EngineOptions {
+                    lookback_ms: 1_000_000_000,
+                    ..EngineOptions::default()
+                };
+                let query = engine
+                    .compile(
+                        b"quantile(0.5,sum_over_time(counter_total[1000000s]))",
+                        settings,
+                        &control,
+                    )
+                    .unwrap();
+                let (result, observed) = query
+                    .collect(
+                        &provider,
+                        QueryRequest::Instant {
+                            time_ms: count as i64 * 1000,
+                        },
+                        &control,
+                    )
+                    .unwrap();
+                assert_eq!(result.series.len(), 1);
+                assert_eq!(result.series[0].points.len(), 1);
+                assert_eq!(
+                    float_bits(&result.series[0].points[0]),
+                    ((count * (count + 1) / 2) as f64).to_bits()
+                );
+                assert!(observed.samples_fetched > 3 * count as u64);
+                assert_eq!(
+                    provider.series[0]
+                        .source
+                        .counters
+                        .peak
+                        .load(Ordering::Relaxed),
+                    1
+                );
+                peaks.push(
+                    [
+                        MemoryKind::Workspace,
+                        MemoryKind::ProviderHeld,
+                        MemoryKind::BorrowedView,
+                    ]
+                    .map(|kind| {
+                        let value = observed.memory[kind as usize];
+                        assert_eq!(value.current, 0);
+                        value.peak
+                    }),
+                );
+                provider.assert_closed();
+                drop((result, query));
+                engine.accounting.snapshot().assert_memory_released();
+            }
+            assert_eq!(peaks[0], peaks[1], "quantile page {page_size}");
         }
     }
 

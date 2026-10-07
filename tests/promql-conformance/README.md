@@ -817,12 +817,15 @@ identities. Controls cover 2/12/13/50/51/129 raw groups, both profiles, instant 
 Capture with `output_label_calls.py --capture --upstream "$PROMETHEUS_SOURCE"`; compare using `--reference`,
 `--binary` and `--page-size`. The gate requires exact numbers and output order at every boundary.
 
-## Aggregation quantile source preparation
+## Aggregation quantile
 
 `quantile_aggregate_cases.py` independently declares 3,558 complete queries in 166 families, with 1,561
 server-default and 1,997 upstream-test calls. `quantile_aggregate_calls.py` uses the source-bound cursor facade
 for original capture and candidate qualification. The original reference was captured before any aggregation
-QUANTILE runtime implementation; this source preparation is not runtime qualification.
+QUANTILE runtime implementation. The Rust reducer retains series identities and grouping state, reads samples
+sequentially, sorts identities through the qualified Go continuation, and rereads two interpolation endpoints.
+It retains no raw numeric vector across metrics or complete time history. Its one-key snapshot uses the entered
+evaluation scope and discards unused previous identity state before preparing another step.
 
 Controls cover global and moving parameters, invalid-quantile warnings, empty/stale/native-only bodies, ignored
 histogram positions, first-writer metric-name flags, grouping/hash aliases, duplicate projected output labels,
@@ -840,6 +843,18 @@ Capture with `quantile_aggregate_calls.py --capture --upstream "$PROMETHEUS_SOUR
 bits; the general corpus retains its independently classified upstream numerical tolerance. Input-witness tests
 check raw grouping identities, IEEE payload provenance, changing native kinds and independent fault declarations.
 Temporal quantile/MAD and general nested-work qualification remain required separately.
+
+`quantile_policy.py` separately qualifies eight declared multistep `or` boundaries under decision 9.A. Original
+map iteration can change whole-matrix deferred name removal when a float and ignored histogram share a group.
+The addition-only private source facade evaluates the original parameter and body, orders the complete child
+Matrix by raw label bytes with its original `DropName` flags, and invokes unchanged aggregation and cleanup.
+Captured child observations are copied before original pooling. Production source owners remain byte-identical;
+scope, native values, flags, diagnostics, output membership, order and numbers remain checked.
+
+Capture this control with `quantile_policy.py --capture --base "$QUANTILE_REFERENCE" --upstream "$PROMETHEUS_SOURCE"`.
+Apply it with `--base`, `--reference "$POLICY_REFERENCE"` and `--candidate "$COMPARISON_DIRECTORY"` after the ordinary
+comparison. Raw reports remain unchanged; the separate policy report preserves their failures and verifies the
+original input/output hashes. Policy tests reject changed flags, scopes, identities, numbers and undeclared controls.
 
 ## Remaining qualification
 
