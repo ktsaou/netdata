@@ -22,7 +22,7 @@ use crate::{
     result::{OwnedLabels, OwnedValue},
     storage::{
         Control, Interrupted, QueryProvider, Series, StorageError, TimeBounds, label,
-        matches_checked, scan, validate_labels,
+        matches_checked, validate_labels,
     },
 };
 use tokens::TokenKind;
@@ -37,6 +37,7 @@ pub enum EvaluationError {
     Invalid(&'static str),
     Preparation(AccountedVec<u8>),
     Runtime(AccountedVec<u8>),
+    Regex(AccountedVec<u8>),
     Expansion(AccountedVec<u8>),
 }
 impl From<Interrupted> for EvaluationError {
@@ -244,6 +245,7 @@ enum State<'a> {
     },
     Binary(AccountedBox<crate::vector_matching::Step<'a>>),
     Histogram(AccountedBox<crate::histogram_call::Step<'a>>),
+    Info(AccountedBox<crate::info::Step<'a>>),
 }
 struct Frame<'a> {
     node: NodeId,
@@ -360,6 +362,7 @@ pub(crate) struct EvaluationMetadata<'a> {
     pub(crate) annotations: Option<&'a mut AnnotationBuilder>,
     pub(crate) binary_preparation: Option<crate::vector_matching::Preparation<'a>>,
     pub(crate) histogram_preparation: Option<crate::histogram_call::Preparation<'a>>,
+    pub(crate) info_preparation: Option<crate::info::Preparation<'a>>,
 }
 pub(crate) struct Machine<'a, 'q, Q: QueryProvider + 'q> {
     catalog: &'a Catalog<'q, Q>,
@@ -377,6 +380,7 @@ pub(crate) struct Machine<'a, 'q, Q: QueryProvider + 'q> {
     annotations: Option<&'a mut AnnotationBuilder>,
     binary_preparation: Option<crate::vector_matching::Preparation<'a>>,
     histogram_preparation: Option<crate::histogram_call::Preparation<'a>>,
+    info_preparation: Option<crate::info::Preparation<'a>>,
 }
 
 impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
@@ -413,6 +417,7 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
             annotations: metadata.annotations,
             binary_preparation: metadata.binary_preparation,
             histogram_preparation: metadata.histogram_preparation,
+            info_preparation: metadata.info_preparation,
         }
     }
     fn push(&mut self, node: NodeId) {
@@ -474,6 +479,7 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
                 annotations,
                 binary_preparation: self.binary_preparation,
                 histogram_preparation: self.histogram_preparation,
+                info_preparation: self.info_preparation,
             },
         )
     }
@@ -708,33 +714,21 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
                         self.account,
                     )?
                 } else {
-                    let bounds = TimeBounds {
-                        start_ms: end_ms
-                            .wrapping_sub(self.options.lookback_ms)
-                            .wrapping_add(1)
-                            .max(self.data_bounds.start_ms),
-                        end_ms: end_ms.min(self.data_bounds.end_ms),
-                    };
-                    let mut selected = None;
-                    if bounds.start_ms <= bounds.end_ms {
-                        scan(series, bounds, self.control, self.account, |sample| {
-                            selected = if sample.value.is_stale() {
-                                None
-                            } else {
-                                Some((
-                                    sample.time_ms,
-                                    sample.start_time_ms,
-                                    OwnedValue::copy_from(
-                                        sample.value,
-                                        self.account,
-                                        MemoryKind::Workspace,
-                                    ),
-                                ))
-                            };
-                            Ok(())
-                        })?;
-                    }
-                    selected
+                    crate::instant_select::select::<_, _, StorageError>(
+                        series,
+                        end_ms,
+                        self.options.lookback_ms,
+                        self.data_bounds,
+                        self.control,
+                        self.account,
+                        |value| {
+                            Ok(OwnedValue::copy_from(
+                                value,
+                                self.account,
+                                MemoryKind::Workspace,
+                            ))
+                        },
+                    )?
                 }
             }
             SelectorOperation::Rate { kind, range_ns } => {
@@ -1055,6 +1049,18 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
                     self.frames.pop();
                     Ok(Some(self.sample(std::f64::consts::PI)))
                 }
+                "info" => {
+                    self.frames[index].state = State::Info(AccountedBox::new(
+                        crate::info::Step::new(
+                            self.rosters
+                                .info(node)
+                                .ok_or(EvaluationError::Invalid("INFO plan is missing"))?,
+                            self.account,
+                        ),
+                        &AllocationContext::new(self.account, MemoryKind::Workspace),
+                    ));
+                    Ok(None)
+                }
                 "histogram_quantile" | "histogram_fraction" => {
                     let function = crate::histogram_call::Function::parse(function.name)
                         .expect("histogram function");
@@ -1226,6 +1232,10 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
                     return Ok(None);
                 }
                 State::Histogram(step) => {
+                    step.receive(sample, self.control, self.account)?;
+                    return Ok(None);
+                }
+                State::Info(step) => {
                     step.receive(sample, self.control, self.account)?;
                     return Ok(None);
                 }
@@ -1529,6 +1539,38 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
             let filter = self.frames[index].filter;
             let mode = self.frames[index].mode;
             match &mut self.frames[index].state {
+                State::Info(step) => {
+                    match step.advance(
+                        node,
+                        self.options,
+                        (self.catalog, self.data_bounds),
+                        self.info_preparation,
+                        self.control,
+                        self.account,
+                    )? {
+                        crate::info::Action::Child(ordinal) => {
+                            let Expr::Call { arguments, .. } =
+                                &self.expression.arena[node].expression
+                            else {
+                                unreachable!()
+                            };
+                            let filter = ordinal.map_or(RowFilter::All, |ordinal| {
+                                RowFilter::Ordinals(std::slice::from_ref(ordinal))
+                            });
+                            self.push_filtered(arguments[0], filter, false, OutputMode::Vector);
+                        }
+                        crate::info::Action::Sample(sample) => {
+                            if filter.accepts(sample.ordinal)
+                                && let Some(sample) = self.propagate(sample, index)?
+                            {
+                                return Ok(Some(sample));
+                            }
+                        }
+                        crate::info::Action::Done => {
+                            self.frames.pop();
+                        }
+                    }
+                }
                 State::Histogram(step) => {
                     let mut options = self.options;
                     if self.invariants[node.0] {

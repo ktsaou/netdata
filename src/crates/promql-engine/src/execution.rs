@@ -620,6 +620,7 @@ impl CompiledQuery {
                         annotations: None,
                         binary_preparation: None,
                         histogram_preparation: None,
+                        info_preparation: None,
                     },
                 );
                 machine.restrict(&sources[descriptor.sources.clone()]);
@@ -689,6 +690,7 @@ impl CompiledQuery {
                     annotations: None,
                     binary_preparation: None,
                     histogram_preparation: None,
+                    info_preparation: None,
                 },
             );
             let mut seen = AccountedVec::new(account, MemoryKind::Workspace);
@@ -1007,6 +1009,37 @@ impl CompiledQuery {
             } else {
                 None
             };
+            let info_cache = std::cell::RefCell::new(crate::info::Cache::new(account));
+            let (info_preparation, info_annotations) = if let Expr::Call {
+                function: Some(function),
+                arguments,
+            } = expression
+                && function.name == "info"
+            {
+                let rows = rosters.projection_input(arguments[0], control, account)?;
+                let mut scope = self.evaluation_options(header, header.start_ms);
+                if prepared.flags().invariants[node.0] {
+                    scope.end_ms = scope.start_ms;
+                }
+                let (plan, notes) = crate::info::Plan::prepare(
+                    rows,
+                    (node, &self.expression, prepared),
+                    catalog,
+                    (scope, data_bounds),
+                    control,
+                    account,
+                )?;
+                rosters.prepare_info(node, plan, account);
+                (
+                    Some(crate::info::Preparation {
+                        node,
+                        cache: &info_cache,
+                    }),
+                    Some(notes),
+                )
+            } else {
+                (None, None)
+            };
             let binary_cache =
                 std::cell::RefCell::new(AccountedVec::new(account, MemoryKind::Workspace));
             let binary_preparation = if let Expr::Binary {
@@ -1026,11 +1059,12 @@ impl CompiledQuery {
             } else {
                 None
             };
-            let generic_boundary = header.start_ms != header.end_ms
-                && !prepared.flags().invariants[node.0]
-                && self.expression.arena[node].value_type == ValueType::Vector
-                && (matches!(expression, Expr::Binary { .. })
-                    || matches!(expression, Expr::Call { function: Some(function), .. }
+            let generic_boundary = info_preparation.is_some()
+                || header.start_ms != header.end_ms
+                    && !prepared.flags().invariants[node.0]
+                    && self.expression.arena[node].value_type == ValueType::Vector
+                    && (matches!(expression, Expr::Binary { .. })
+                        || matches!(expression, Expr::Call { function: Some(function), .. }
                         if PointwiseFunction::parse(function.name).is_some()
                             || crate::histogram_call::Function::parse(function.name).is_some()));
             let mut annotations = AnnotationBuilder::new(account);
@@ -1038,6 +1072,9 @@ impl CompiledQuery {
                 if let Some(child_annotations) = rosters.take_annotations(child) {
                     annotations.merge(child_annotations, &self.expression.source);
                 }
+            }
+            if let Some(notes) = info_annotations {
+                annotations.merge(notes, &self.expression.source);
             }
             let mut descriptors = AccountedVec::<Descriptor>::new(account, MemoryKind::Workspace);
             let unary_merge =
@@ -1073,6 +1110,7 @@ impl CompiledQuery {
                     annotations: None,
                     binary_preparation,
                     histogram_preparation,
+                    info_preparation,
                 },
             );
             let raw_selector = matches!(expression, Expr::Selector(_));
@@ -1201,6 +1239,9 @@ impl CompiledQuery {
             if histogram_preparation.is_some() {
                 rosters.finish_histogram_cache(node, histogram_cache.into_inner());
             }
+            if info_preparation.is_some() {
+                rosters.finish_info_cache(node, info_cache.into_inner());
+            }
             if absent_range {
                 // Validate every series first, then invert the union without a timestamp bitmap.
                 let mut time_ms = header.start_ms;
@@ -1221,6 +1262,7 @@ impl CompiledQuery {
                             annotations: Some(&mut annotations),
                             binary_preparation: None,
                             histogram_preparation: None,
+                            info_preparation: None,
                         },
                     );
                     while let Some(sample) = machine.next()? {
@@ -1348,6 +1390,7 @@ impl CompiledQuery {
                     annotations: None,
                     binary_preparation: None,
                     histogram_preparation: None,
+                    info_preparation: None,
                 },
             );
             // Descendant matrices remain authoritative; only this new merge is bypassed.
@@ -1515,7 +1558,12 @@ fn children(expression: &Expr) -> impl DoubleEndedIterator<Item = NodeId> + '_ {
             function: Some(function),
             arguments,
         } if RangeFunction::parse(function.name).is_some() => ([None, None], &arguments[1..]),
-        Expr::Call { arguments, .. } if label_functions::is_label_call(expression) => {
+        Expr::Call {
+            function,
+            arguments,
+        } if label_functions::is_label_call(expression)
+            || function.is_some_and(|function| function.name == "info") =>
+        {
             ([None, None], &arguments[..1])
         }
         Expr::Call { arguments, .. } => ([None, None], arguments),
@@ -6691,6 +6739,169 @@ mod tests {
                     );
                 }
             }
+        }
+    }
+
+    #[test]
+    fn info_replay_keeps_history_independent_raw_workspace_and_one_cursor() {
+        for page_size in [1, 17, 1024] {
+            for delayed in [false, true] {
+                let mut peaks = Vec::new();
+                for count in [2048, 100_000] {
+                    let mut provider = FixtureProvider::new(count, page_size, 2);
+                    provider.series[1].labels = vec![
+                        (b"__name__".to_vec(), b"target_info".to_vec()),
+                        (b"data".to_vec(), b"enriched".to_vec()),
+                        (b"instance".to_vec(), b"0".to_vec()),
+                        (b"job".to_vec(), b"worker".to_vec()),
+                    ];
+                    let engine = Engine::default();
+                    let control = Control::default();
+                    let mut settings = options(delayed);
+                    settings.parser.experimental_functions = true;
+                    settings.lookback_ms = 1_000_000_000;
+                    let query = engine
+                        .compile(
+                            b"info(sum_over_time(counter_total[1000000s]))",
+                            settings,
+                            &control,
+                        )
+                        .unwrap();
+                    let (result, observed) = query
+                        .collect(
+                            &provider,
+                            QueryRequest::Instant {
+                                time_ms: count as i64 * 1000,
+                            },
+                            &control,
+                        )
+                        .unwrap();
+                    assert_eq!(result.series.len(), 1);
+                    assert_eq!(
+                        float_bits(&result.series[0].points[0]),
+                        ((count * (count + 1) / 2) as f64).to_bits()
+                    );
+                    assert!(
+                        result.series[0]
+                            .labels
+                            .0
+                            .iter()
+                            .any(|label| label.name == b"data" && label.value == b"enriched")
+                    );
+                    assert!(observed.samples_fetched > 3 * count as u64);
+                    assert_eq!(
+                        provider.series[0]
+                            .source
+                            .counters
+                            .peak
+                            .load(Ordering::Relaxed),
+                        1
+                    );
+                    peaks.push(
+                        [
+                            MemoryKind::Workspace,
+                            MemoryKind::ProviderHeld,
+                            MemoryKind::BorrowedView,
+                        ]
+                        .map(|kind| {
+                            let memory = observed.memory[kind as usize];
+                            assert_eq!(memory.current, 0);
+                            memory.peak
+                        }),
+                    );
+                    provider.assert_closed();
+                    drop((result, query));
+                    engine.accounting.snapshot().assert_memory_released();
+                }
+                assert_eq!(
+                    peaks[0], peaks[1],
+                    "INFO page {page_size} delayed {delayed}"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn info_checks_native_samples_without_a_simultaneous_base_but_skips_empty_step_join_duplicates()
+    {
+        use crate::{
+            histogram::FloatHistogram,
+            value::{STALE_NAN_BITS, Sample, SampleValue},
+        };
+        fn base(index: usize) -> Sample {
+            Sample {
+                time_ms: (index as i64 + 1) * 1000,
+                start_time_ms: 77,
+                value: SampleValue::Float(if index == 0 {
+                    f64::from_bits(STALE_NAN_BITS)
+                } else {
+                    42.0
+                }),
+            }
+        }
+        fn native_then_float(index: usize) -> Sample {
+            Sample {
+                time_ms: (index as i64 + 1) * 1000,
+                start_time_ms: 0,
+                value: if index == 0 {
+                    SampleValue::FloatHistogram(FloatHistogram::default())
+                } else {
+                    SampleValue::Float(1.0)
+                },
+            }
+        }
+        for native in [false, true] {
+            let mut provider = FixtureProvider::new(2, 1, 3);
+            provider.series[0].source.sample = base;
+            for (index, series) in provider.series.iter_mut().enumerate().skip(1) {
+                series.labels = vec![
+                    (b"__name__".to_vec(), b"target_info".to_vec()),
+                    (b"data".to_vec(), index.to_string().into_bytes()),
+                    (b"instance".to_vec(), b"0".to_vec()),
+                    (b"job".to_vec(), b"worker".to_vec()),
+                ];
+            }
+            provider.series[1].source.count = 1;
+            if native {
+                provider.series[2].source.sample = native_then_float;
+            }
+            let engine = Engine::default();
+            let control = Control::default();
+            let mut settings = EngineOptions::default();
+            settings.parser.experimental_functions = true;
+            let query = engine
+                .compile(b"info(counter_total)", settings, &control)
+                .unwrap();
+            let report = query.collect_reported(
+                &provider,
+                QueryRequest::Range {
+                    start_ms: 1000,
+                    end_ms: 2000,
+                    step_ms: 1000,
+                },
+                &control,
+            );
+            if native {
+                assert!(
+                    matches!(&report.result, Err(ExecutionError::Evaluation(EvaluationError::Runtime(bytes))) if bytes.starts_with(b"this should be an info metric, with float samples:"))
+                );
+            } else {
+                let output = report.result.as_ref().unwrap();
+                assert_eq!(output.series.len(), 1);
+                assert_eq!(output.series[0].points.len(), 1);
+                assert_eq!(output.series[0].points[0].time_ms, 2000);
+                assert_eq!(float_bits(&output.series[0].points[0]), 42.0_f64.to_bits());
+                assert!(
+                    output.series[0]
+                        .labels
+                        .0
+                        .iter()
+                        .any(|label| label.name == b"data" && label.value == b"2")
+                );
+            }
+            provider.assert_closed();
+            drop((report, query));
+            engine.accounting.snapshot().assert_memory_released();
         }
     }
 

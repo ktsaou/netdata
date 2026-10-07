@@ -1040,7 +1040,54 @@ and different fixed references, contextual endpoints, duration `step()` in insta
 selector-free branches, scalar-path exclusion, nested INFO, ancestors, unsafe functions, timestamp's direct
 selector exception and unvisited aggregate parameters. The retained before-correction binary fails 59 cases.
 The source, inputs, compiler, helper binary and original output remain hash-bound. These projections qualify
-preprocessing; both corrected profiles pass all 150 requests. Complete INFO expression evaluation remains required.
+preprocessing; both corrected profiles pass all 150 requests. Complete-query INFO checks are described below.
+
+### INFO selection and enrichment
+
+`info()` prepares its complete base row descriptors, derives the source's three identifying-label presence
+groups, and selects implicit info series through the typed query provider. Its optional selector remains part
+of upfront syntax selection but is never expanded or evaluated as an argument. All implicit groups finish
+metadata expansion before raw reads. Generated matchers filter permitted provider metadata overscan; implicit
+selection/expansion/read errors retain their original bare payload and discard annotations not returned by
+the failed source evaluation owner.
+
+Productive info descriptors retain labels, ordinals and signatures. Every selected implicit native sample in
+the logical scope fails, including steps without a simultaneous base value. Joins use the newest encoded original
+timestamp; equal timestamps fail with the original duplicate-series error. Empty base steps skip join duplicates.
+Existing base label presence wins, including present empty values; source label-builder boundaries remove empty
+fields. Hash-last signatures and hash-first result labels preserve their whole-scope ownership. Approved byte
+ordering applies at the source's unspecified matched-info and output map boundaries. Successful results preserve
+base float/native values, evaluator timestamps, zero start timestamps and delayed name-removal flags.
+
+Each logical step retains active row identities and one winner per signature, then replays current base operands
+through explicit evaluator continuations. Raw input stays page scoped, with one raw cursor at a time for this
+owner. INFO inspects histogram kind and staleness without copying its payload merely to reject it. Selected
+descriptors and distinct enriched label identities can grow with cardinality and label changes across time;
+they are accounted metadata, and streaming output is not a bound on total memory. All enforcement stays disabled.
+
+```sh
+python3 tests/promql-conformance/info_calls.py --capture \
+  --upstream "${PROMQL_ORIGINAL_SOURCE_DIR:?}" --oracle "${PROMQL_ORACLE_BINARY:?}"
+python3 tests/promql-conformance/info_calls.py --reference "${PROMQL_INFO_CAPTURE_DIR:?}" \
+  --binary "${PROMQL_QUERY_BINARY:?}" --page-size 1024
+```
+
+The independently declared panel contains 227 complete original queries in 37 groups. It covers default and
+filtered enrichment, changing labels, duplicates/conflicts, missing identifiers, empty values, fixed references,
+offsets, nested calls, integer/native/stale inputs, opaque bytes and timestamps above binary64's exact integer
+range. It verifies the original source/module/compiler attribution, exact artifact and input rosters, every
+original group and its combined output. Candidate dataset acknowledgements and query results must occur in
+their declared order; missing, rebound or unsupported outcomes fail. Comparison preserves complete labels,
+timestamps, diagnostics, error types/bytes and numerical bit reports, allowing only unspecified result row order.
+Falsification tests reject incomplete bindings and cross-dataset packet mistakes. Original captured results
+are never refreshed to fit the implementation.
+
+The current full expression gate passes 17,452 of 21,442 variants, with zero completed semantic failures and
+zero paired numerical bit differences; 3,990 variants remain OPEN. This includes 122 newly completed INFO checks
+and retains every previously passing identity. The shared instant reader and INFO accounting tests cover pages
+1/17/1024, 2,048 versus 100,000 samples, ownership release, cancellation, bare provider errors and discarded
+unfinished diagnostics. Exact ordinary memoized initial reads, seeks, lookahead and fault precedence remain
+required work; these finite INFO results do not establish arbitrary iterator or complete language compatibility.
 
 Terminal provider diagnostics retain explicit severity, opaque bytes and optional positions in independently
 owned results. Expansion failures carry their own notes and completed numeric parameter notes according to source
