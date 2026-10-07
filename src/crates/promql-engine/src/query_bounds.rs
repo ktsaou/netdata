@@ -98,7 +98,7 @@ pub(crate) fn selection_sites<'a>(
     while let Some((node, mut scope, mut hints)) = tasks.pop() {
         control.check()?;
         account.work(1);
-        if prepared.preprocessing.boundaries[node.0] {
+        if prepared.flags().boundaries[node.0] {
             hints.by = false;
             hints.grouping = None;
         }

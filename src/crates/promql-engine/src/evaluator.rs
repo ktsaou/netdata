@@ -355,7 +355,6 @@ impl RowFilter<'_> {
 pub(crate) struct EvaluationMetadata<'a> {
     pub(crate) prepared: &'a Prepared<'a>,
     pub(crate) rosters: &'a Rosters,
-    pub(crate) invariants: &'a [bool],
     pub(crate) timestamp_selectors: &'a [bool],
     pub(crate) data_bounds: TimeBounds,
     pub(crate) annotations: Option<&'a mut AnnotationBuilder>,
@@ -407,7 +406,7 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
             account,
             frames,
             rosters: metadata.rosters,
-            invariants: metadata.invariants,
+            invariants: &metadata.prepared.flags().invariants,
             timestamp_selectors: metadata.timestamp_selectors,
             data_bounds: metadata.data_bounds,
             diagnostic_node: root,
@@ -470,7 +469,6 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
             EvaluationMetadata {
                 prepared: self.prepared,
                 rosters: self.rosters,
-                invariants: self.invariants,
                 timestamp_selectors: self.timestamp_selectors,
                 data_bounds: self.data_bounds,
                 annotations,

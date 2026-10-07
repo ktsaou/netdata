@@ -614,7 +614,7 @@ impl CompiledQuery {
                     EvaluationMetadata {
                         prepared,
                         rosters: &rosters,
-                        invariants: &self.preprocessing.invariants,
+
                         timestamp_selectors: &self.timestamp_selectors,
                         data_bounds,
                         annotations: None,
@@ -683,7 +683,7 @@ impl CompiledQuery {
                 EvaluationMetadata {
                     prepared,
                     rosters: &rosters,
-                    invariants: &self.preprocessing.invariants,
+
                     timestamp_selectors: &self.timestamp_selectors,
                     data_bounds,
                     annotations: None,
@@ -858,7 +858,7 @@ impl CompiledQuery {
         if RangeFunction::parse(function.name).is_none()
             || crate::evaluator_order::at_modifier_unsafe(function.name)
             || !arguments[1..].iter().all(|child| {
-                self.preprocessing.invariants
+                prepared.flags().invariants
                     [self.preprocessing.child(&self.expression, node, *child).0]
             })
         {
@@ -1027,7 +1027,7 @@ impl CompiledQuery {
                 None
             };
             let generic_boundary = header.start_ms != header.end_ms
-                && !self.preprocessing.invariants[node.0]
+                && !prepared.flags().invariants[node.0]
                 && self.expression.arena[node].value_type == ValueType::Vector
                 && (matches!(expression, Expr::Binary { .. })
                     || matches!(expression, Expr::Call { function: Some(function), .. }
@@ -1046,7 +1046,7 @@ impl CompiledQuery {
                 AccountedVec::<(u64, usize, u8)>::new(account, MemoryKind::Workspace);
             // Fixed safe range calls have one logical evaluation, irrespective of output steps.
             let single_step = header.step_ms == 0
-                || self.preprocessing.invariants[node.0]
+                || prepared.flags().invariants[node.0]
                 || self.fixed_range_call(node, prepared);
             let absent_range = matches!(expression,
                 Expr::Call { function: Some(function), .. } if function.name == "absent_over_time");
@@ -1067,7 +1067,7 @@ impl CompiledQuery {
                 EvaluationMetadata {
                     prepared,
                     rosters: &rosters,
-                    invariants: &self.preprocessing.invariants,
+
                     timestamp_selectors: &self.timestamp_selectors,
                     data_bounds,
                     annotations: None,
@@ -1215,7 +1215,7 @@ impl CompiledQuery {
                         EvaluationMetadata {
                             prepared,
                             rosters: &rosters,
-                            invariants: &self.preprocessing.invariants,
+
                             timestamp_selectors: &self.timestamp_selectors,
                             data_bounds,
                             annotations: Some(&mut annotations),
@@ -1276,7 +1276,7 @@ impl CompiledQuery {
             } else {
                 rosters.output(node, descriptors, account);
             }
-            if self.preprocessing.boundaries[node.0]
+            if prepared.flags().boundaries[node.0]
                 && self.expression.arena[node].value_type == ValueType::Vector
                 && rosters
                     .descriptors(node)
@@ -1318,7 +1318,7 @@ impl CompiledQuery {
         rosters.projection_output(node, descriptors, control, account)?;
 
         let header = scope.prepared.header;
-        let single_step = header.step_ms == 0 || self.preprocessing.invariants[node.0];
+        let single_step = header.step_ms == 0 || scope.prepared.flags().invariants[node.0];
         let mut kinds = AccountedVec::new(account, MemoryKind::Workspace);
         for _ in rosters.descriptors(node) {
             control.check()?;
@@ -1342,7 +1342,7 @@ impl CompiledQuery {
                 EvaluationMetadata {
                     prepared: scope.prepared,
                     rosters,
-                    invariants: &self.preprocessing.invariants,
+
                     timestamp_selectors: &self.timestamp_selectors,
                     data_bounds: scope.data_bounds,
                     annotations: None,
@@ -1384,7 +1384,7 @@ impl CompiledQuery {
             }
             time_ms = next;
         }
-        if self.preprocessing.boundaries[node.0]
+        if scope.prepared.flags().boundaries[node.0]
             && rosters
                 .descriptors(node)
                 .iter()
@@ -7787,6 +7787,183 @@ mod tests {
         assert_eq!(engine.accounting.snapshot().peak_executions, 2);
         assert_eq!(engine.accounting.snapshot().active_executions, 0);
         provider.provider.assert_closed();
+    }
+
+    #[test]
+    fn info_request_flags_are_owned_and_isolated_across_concurrent_contexts() {
+        let engine = Engine::default();
+        let query = engine
+            .compile(
+                b"abs(info(m @ start() or n @ end()))",
+                EngineOptions {
+                    parser: ParserOptions {
+                        experimental_functions: true,
+                        ..ParserOptions::default()
+                    },
+                    ..EngineOptions::default()
+                },
+                &Control::default(),
+            )
+            .unwrap();
+        let compiled = query.accounting.snapshot();
+        let barrier = std::sync::Barrier::new(2);
+        std::thread::scope(|scope| {
+            for (end_ms, expected) in [(1000, true), (3_000_000_000, false)] {
+                let query = &query;
+                let barrier = &barrier;
+                scope.spawn(move || {
+                    let account = query.execution_accounting();
+                    let prepared = Prepared::new(
+                        &query.expression,
+                        &query.preprocessing,
+                        OutputHeader {
+                            value_type: ValueType::Matrix,
+                            start_ms: 1000,
+                            end_ms,
+                            step_ms: 1000,
+                        },
+                        &Control::default(),
+                        &account,
+                    )
+                    .unwrap();
+                    let flags = prepared.flags();
+                    assert!(!std::ptr::eq(flags, &query.preprocessing.flags));
+                    assert_eq!(flags.invariants.len(), query.expression.arena.nodes.len());
+                    let held = flags.invariants.capacity() + flags.boundaries.capacity();
+                    assert_eq!(
+                        account.snapshot().memory[MemoryKind::Workspace as usize].current,
+                        held as u64
+                    );
+                    barrier.wait();
+                    assert_eq!(flags.invariants[query.expression.root.0], expected);
+                    assert_eq!(flags.boundaries[query.expression.root.0], expected);
+                    drop(prepared);
+                    account.snapshot().assert_memory_released();
+                });
+            }
+        });
+        assert_eq!(query.accounting.snapshot(), compiled);
+        drop(query);
+        engine.accounting.snapshot().assert_memory_released();
+    }
+
+    #[test]
+    fn ordinary_request_flags_borrow_the_immutable_compiled_owner() {
+        let engine = Engine::default();
+        let query = engine
+            .compile(
+                b"sum(m @ start())",
+                EngineOptions::default(),
+                &Control::default(),
+            )
+            .unwrap();
+        let account = query.execution_accounting();
+        let prepared = Prepared::new(
+            &query.expression,
+            &query.preprocessing,
+            query
+                .header(QueryRequest::Range {
+                    start_ms: 1000,
+                    end_ms: 3_000_000_000,
+                    step_ms: 1,
+                })
+                .unwrap(),
+            &Control::default(),
+            &account,
+        )
+        .unwrap();
+        assert!(std::ptr::eq(prepared.flags(), &query.preprocessing.flags));
+        assert_eq!(
+            account.snapshot().memory[MemoryKind::Workspace as usize].acquired,
+            0
+        );
+        drop(prepared);
+        drop((account, query));
+        engine.accounting.snapshot().assert_memory_released();
+    }
+
+    #[test]
+    fn info_reference_cancellation_discards_partial_request_flags() {
+        let engine = Engine::default();
+        let query = engine
+            .compile(
+                b"abs(info(m @ 1 or n @ 2))",
+                EngineOptions {
+                    parser: ParserOptions {
+                        experimental_functions: true,
+                        ..ParserOptions::default()
+                    },
+                    ..EngineOptions::default()
+                },
+                &Control::default(),
+            )
+            .unwrap();
+        let control = Control::default();
+        let account = query.execution_accounting();
+        let flags = crate::evaluator_order::evaluation_flags(
+            &query.expression,
+            MemoryKind::Workspace,
+            &control,
+            &account,
+            None,
+            |_| {
+                control.cancellation.cancel();
+                Ok(false)
+            },
+        );
+        assert!(matches!(flags, Err(Interrupted::Cancelled)));
+        assert!(account.snapshot().memory[MemoryKind::Workspace as usize].peak > 0);
+        account.snapshot().assert_memory_released();
+        drop((account, query));
+        engine.accounting.snapshot().assert_memory_released();
+    }
+
+    #[test]
+    fn info_duration_errors_precede_request_flags_and_provider_open() {
+        let engine = Engine::default();
+        let provider = FixtureProvider::new(10, 1, 1);
+        let control = Control::default();
+        for source in [
+            b"info(m offset (1s/(1-1)))".as_slice(),
+            b"info(m, {foo=\"bar\"} offset (1s/(1-1)))",
+        ] {
+            let query = engine
+                .compile(
+                    source,
+                    EngineOptions {
+                        parser: ParserOptions {
+                            experimental_functions: true,
+                            duration_expressions: true,
+                            ..ParserOptions::default()
+                        },
+                        ..EngineOptions::default()
+                    },
+                    &control,
+                )
+                .unwrap();
+            let mut sink = RecordingSink::default();
+            let error = query
+                .execute(
+                    &provider,
+                    QueryRequest::Instant { time_ms: 1000 },
+                    &control,
+                    &mut sink,
+                )
+                .unwrap_err();
+            assert!(matches!(
+                error,
+                ExecutionError::Evaluation(EvaluationError::Preparation(_))
+            ));
+            assert!(!sink.begun && sink.aborted && !sink.committed);
+            assert_eq!(provider.counts.scopes_opened.load(Ordering::Relaxed), 0);
+            assert_eq!(
+                engine.accounting.snapshot().memory[MemoryKind::Workspace as usize].current,
+                0
+            );
+            drop((error, query));
+            engine.accounting.snapshot().assert_memory_released();
+        }
+        provider.assert_closed();
     }
 
     #[test]
