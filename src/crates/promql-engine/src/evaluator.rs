@@ -225,7 +225,6 @@ enum State<'a> {
         sources: &'a [usize],
         position: usize,
         running: bool,
-        phase: u8,
     },
     Pass,
     Labels {
@@ -276,6 +275,7 @@ enum State<'a> {
     Binary(AccountedBox<crate::vector_matching::Step<'a>>),
     Histogram(AccountedBox<crate::histogram_call::Step<'a>>),
     Info(AccountedBox<crate::info::Step<'a>>),
+    TopK(AccountedBox<crate::topk::Step<'a>>),
     CountValues {
         step: AccountedBox<crate::count_values::Step<'a>>,
         collecting: bool,
@@ -287,33 +287,39 @@ struct Frame<'a> {
     filter: RowFilter<'a>,
     bypass_order: bool,
     mode: OutputMode,
+    options: EvaluationOptions,
+    boundary_time_ms: Option<i64>,
+}
+impl<'a> Frame<'a> {
+    fn new(
+        node: NodeId,
+        filter: RowFilter<'a>,
+        bypass_order: bool,
+        mode: OutputMode,
+        mut options: EvaluationOptions,
+        boundary: bool,
+    ) -> Self {
+        let boundary_time_ms = boundary.then_some(options.time_ms);
+        if boundary {
+            options.time_ms = options.start_ms;
+            options.end_ms = options.start_ms;
+        }
+        Self {
+            node,
+            state: State::Enter,
+            filter,
+            bypass_order,
+            mode,
+            options,
+            boundary_time_ms,
+        }
+    }
 }
 
 #[derive(Clone, Copy)]
 enum OutputMode {
     Matrix,
     Vector,
-}
-
-fn advance_row(
-    position: &mut usize,
-    phase: &mut u8,
-    descriptor: &Descriptor,
-    mode: OutputMode,
-    time_ms: i64,
-    matched: bool,
-) {
-    // A float/histogram collision leaves the histogram head unconsumed in nextValues.
-    if *phase == 0
-        && descriptor.collision_time_ms.is_some_and(|collision| {
-            matches!(mode, OutputMode::Matrix) || (!matched && time_ms < collision)
-        })
-    {
-        *phase = 1;
-    } else {
-        *position += 1;
-        *phase = 0;
-    }
 }
 
 #[derive(Clone, Copy)]
@@ -430,13 +436,15 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
         metadata: EvaluationMetadata<'a>,
     ) -> Self {
         let mut frames = AccountedVec::new(account, MemoryKind::Workspace);
-        frames.push(Frame {
-            node: root,
-            state: State::Enter,
-            filter: RowFilter::All,
-            bypass_order: false,
-            mode: OutputMode::Matrix,
-        });
+        frames.push(Frame::new(
+            root,
+            RowFilter::All,
+            false,
+            OutputMode::Matrix,
+            options,
+            metadata.prepared.flags().boundaries[root.0],
+        ));
+        let options = frames[0].options;
         Self {
             catalog,
             expression,
@@ -481,13 +489,23 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
         bypass_order: bool,
         mode: OutputMode,
     ) {
-        self.frames.push(Frame {
+        let node = if bypass_order {
+            node
+        } else if let Some(parent) = self.frames.last() {
+            self.prepared
+                .preprocessing
+                .child(self.expression, parent.node, node)
+        } else {
+            node
+        };
+        self.frames.push(Frame::new(
             node,
-            state: State::Enter,
             filter,
             bypass_order,
             mode,
-        });
+            self.options,
+            !bypass_order && self.prepared.flags().boundaries[node.0],
+        ));
     }
     pub(crate) fn restrict(&mut self, ordinals: &'a [usize]) {
         self.frames[0].filter = RowFilter::Ordinals(ordinals);
@@ -538,6 +556,13 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
             drop_name: false,
         }
     }
+    fn rebind(mut sample: EvaluatedSample, boundary_time_ms: Option<i64>) -> EvaluatedSample {
+        if let Some(time_ms) = boundary_time_ms {
+            sample.source_time_ms = time_ms;
+            sample.source_start_time_ms = 0;
+        }
+        sample
+    }
     fn selector(&self, node: NodeId) -> &VectorSelector {
         let Expr::Selector(selector) = &self.expression.arena[node].expression else {
             unreachable!("typed matrix selector")
@@ -584,7 +609,9 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
     ) -> Option<StatisticsWindow> {
         let selector = self.selector(node);
         selector.skip_histogram_buckets.then_some(StatisticsWindow {
-            first_end_ms: if self.invariants[node.0] {
+            first_end_ms: if self.invariants[node.0]
+                || self.prepared.timestamp(node, &selector.modifiers).is_some()
+            {
                 end_ms
             } else {
                 self.options.start_ms.wrapping_sub(
@@ -652,7 +679,8 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
         series: &S,
     ) -> Result<Option<EvaluatedSample>, EvaluationError> {
         self.select(node, SelectorOperation::Instant)?;
-        self.series_sample(node, node, SelectorOperation::Instant, ordinal, series)
+        let sample = self.series_sample(node, node, SelectorOperation::Instant, ordinal, series)?;
+        Ok(sample.map(|sample| Self::rebind(sample, self.frames[0].boundary_time_ms)))
     }
     pub(crate) fn range_series_sample<S: Series>(
         &mut self,
@@ -680,7 +708,8 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
             }
         }
         let (selector, operation) = self.range_spec(node, function, parameters)?;
-        self.series_sample(node, selector, operation, series_ordinal, series)
+        let sample = self.series_sample(node, selector, operation, series_ordinal, series)?;
+        Ok(sample.map(|sample| Self::rebind(sample, self.frames[0].boundary_time_ms)))
     }
     fn series_sample<S: Series>(
         &mut self,
@@ -701,7 +730,16 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
         )? {
             return Ok(None);
         }
-        let end_ms = self.lookup(selector_node);
+        let end_ms = if !matches!(operation, SelectorOperation::Instant)
+            && self
+                .prepared
+                .timestamp(selector_node, &selector.modifiers)
+                .is_some()
+        {
+            self.lookup_at(selector_node, self.options.start_ms)
+        } else {
+            self.lookup(selector_node)
+        };
         let value = match operation {
             SelectorOperation::Instant => {
                 match self.rosters.clock_initial(selector_node, series_ordinal) {
@@ -734,10 +772,28 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
                         .wrapping_sub(i64::from(self.timestamp_selectors[selector_node.0])),
                     data_bounds: self.data_bounds,
                 };
+                let options = self.options;
+                let mut grid_time_ms = options.start_ms;
+                let next_lookup = || {
+                    if fixed || grid_time_ms == options.time_ms {
+                        return Ok(None);
+                    }
+                    grid_time_ms = grid_time_ms
+                        .checked_add(options.step_ms)
+                        .filter(|next| *next > grid_time_ms && *next <= options.time_ms)
+                        .ok_or(StorageError::Invalid("invalid instant replay schedule"))?;
+                    Ok(Some(self.lookup_at(selector_node, grid_time_ms)))
+                };
                 if selector.skip_histogram_buckets {
-                    crate::instant_statistics::select(series, window, self.control, self.account)?
+                    crate::instant_statistics::select_scheduled(
+                        series,
+                        window,
+                        self.control,
+                        self.account,
+                        next_lookup,
+                    )?
                 } else {
-                    crate::instant_select::select::<_, _, StorageError>(
+                    crate::instant_select::select_mapped::<_, _, StorageError>(
                         series,
                         window,
                         self.control,
@@ -750,6 +806,7 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
                                 MemoryKind::Workspace,
                             )?)
                         },
+                        next_lookup,
                     )?
                 }
             }
@@ -763,17 +820,19 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
                             range_ns,
                             start_timestamps: self.options.start_timestamps,
                         },
-                        range_start_ms: (if self.invariants[node.0] {
-                            self.options.start_ms
-                        } else {
-                            self.options.time_ms
-                        })
-                        .wrapping_sub(
+                        range_start_ms: self.options.time_ms.wrapping_sub(
                             range_ns.wrapping_add(self.prepared.adjusted_offset(
                                 selector_node,
                                 &selector.modifiers,
                                 self.options.start_ms,
                             )) / 1_000_000,
+                        ),
+                        range_end_ms: self.options.time_ms.wrapping_sub(
+                            self.prepared.adjusted_offset(
+                                selector_node,
+                                &selector.modifiers,
+                                self.options.start_ms,
+                            ) / 1_000_000,
                         ),
                         data_bounds: Some(self.data_bounds),
                     },
@@ -908,6 +967,14 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
             }
         };
         Ok(value.map(|(source_time_ms, source_start_time_ms, value)| {
+            let (source_time_ms, source_start_time_ms) =
+                if matches!(operation, SelectorOperation::Instant)
+                    && !self.timestamp_selectors[selector_node.0]
+                {
+                    (self.options.time_ms, 0)
+                } else {
+                    (source_time_ms, source_start_time_ms)
+                };
             let mut labels =
                 OwnedLabels::copy_from(&series_labels, self.account, MemoryKind::Workspace);
             let drop_name = operation.drops_name();
@@ -930,6 +997,7 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
         let expression = &self.expression.arena[node].expression;
         if !self.frames[index].bypass_order
             && !crate::count_values::is_count(expression)
+            && !crate::topk::is_selection(expression)
             && let Some((descriptors, sources)) = self.rosters.ordered(node)
         {
             self.frames[index].state = State::OrderedRows {
@@ -937,7 +1005,6 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
                 sources,
                 position: 0,
                 running: false,
-                phase: 0,
             };
             return Ok(None);
         }
@@ -985,6 +1052,25 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
                     collecting: true,
                 };
                 self.push_all(*child);
+                Ok(None)
+            }
+            Expr::Aggregate {
+                operator: TokenKind::TOPK | TokenKind::BOTTOMK,
+                ..
+            } => {
+                self.frames[index].state = State::TopK(AccountedBox::new(
+                    crate::topk::Step::new(
+                        self.rosters
+                            .selection(node)
+                            .ok_or(EvaluationError::Invalid("selection plan is missing"))?,
+                        self.options,
+                        !self.frames[index].bypass_order,
+                        matches!(self.frames[index].mode, OutputMode::Vector),
+                        self.rosters.ordered(node).map(|(rows, _)| rows),
+                        self.account,
+                    ),
+                    &AllocationContext::new(self.account, MemoryKind::Workspace),
+                ));
                 Ok(None)
             }
             Expr::Aggregate {
@@ -1198,6 +1284,8 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
                             filter: RowFilter::All,
                             bypass_order: true,
                             mode: OutputMode::Vector,
+                            options: self.options,
+                            boundary_time_ms: None,
                         });
                     } else {
                         self.push_all(arguments[0]);
@@ -1270,6 +1358,7 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
             self.control.check()?;
             self.account.work(1);
             let node = self.frames[index].node;
+            self.options = self.frames[index].options;
             let filter = self.frames[index].filter;
             let mode = self.frames[index].mode;
             match &mut self.frames[index].state {
@@ -1286,6 +1375,10 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
                     return Ok(None);
                 }
                 State::CountValues { step, .. } => {
+                    step.receive(sample, self.control, self.account)?;
+                    return Ok(None);
+                }
+                State::TopK(step) => {
                     step.receive(sample, self.control, self.account)?;
                     return Ok(None);
                 }
@@ -1313,19 +1406,14 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
                     descriptors,
                     position,
                     running,
-                    phase,
                     ..
                 } => {
                     let descriptor = &descriptors[*position];
-                    let kind = if descriptor.collision_time_ms.is_none() {
-                        0
-                    } else if *phase == 0 {
-                        1
-                    } else {
-                        2
-                    };
                     if !filter.accepts(descriptor.ordinal)
-                        || kind != 0 && sample.value.kind_bit() != kind
+                        || matches!(mode, OutputMode::Vector)
+                            && !descriptor
+                                .heads
+                                .accepts(sample.value.kind_bit(), self.options.time_ms)
                         || label_hash::full(&sample.labels, self.control, self.account)?
                             != descriptor.hash
                     {
@@ -1340,16 +1428,11 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
                             MemoryKind::Workspace,
                         );
                     }
-                    advance_row(
-                        position,
-                        phase,
-                        descriptor,
-                        mode,
-                        self.options.time_ms,
-                        true,
-                    );
-                    *running = false;
-                    self.frames.truncate(index + 1);
+                    if matches!(mode, OutputMode::Vector) {
+                        *position += 1;
+                        *running = false;
+                        self.frames.truncate(index + 1);
+                    }
                 }
                 State::Map {
                     operation,
@@ -1445,7 +1528,15 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
                     sample.source_time_ms = self.options.time_ms;
                     sample.source_start_time_ms = 0;
                     let duplicate_check = match operation {
-                        MapOperation::Unary(TokenKind::SUB) => !self.options.delayed_name_removal,
+                        MapOperation::Unary(TokenKind::SUB) => {
+                            !self.options.delayed_name_removal
+                                && self.rosters.checks_merge(
+                                    node,
+                                    label_hash::full(&sample.labels, self.control, self.account)?,
+                                    self.control,
+                                    self.account,
+                                )?
+                        }
                         MapOperation::Unary(_) => false,
                         MapOperation::Binary { .. } | MapOperation::Pointwise(_) => {
                             !self.options.delayed_name_removal
@@ -1566,6 +1657,7 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
                 }
                 _ => unreachable!("active parent consumes its child"),
             }
+            sample = Self::rebind(sample, self.frames[index].boundary_time_ms);
         }
         Ok(Some(sample))
     }
@@ -1577,9 +1669,12 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
                 return Ok(None);
             };
             self.account.work(1);
+            self.options = self.frames[index].options;
+            let boundary_time_ms = self.frames[index].boundary_time_ms;
             if matches!(self.frames[index].state, State::Enter) {
                 if let Some(sample) = self.enter(index)?
-                    && let Some(sample) = self.propagate(sample, self.frames.len())?
+                    && let Some(sample) =
+                        self.propagate(Self::rebind(sample, boundary_time_ms), self.frames.len())?
                 {
                     return Ok(Some(sample));
                 }
@@ -1587,14 +1682,51 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
             }
             let node = self.frames[index].node;
             let filter = self.frames[index].filter;
-            let mode = self.frames[index].mode;
             match &mut self.frames[index].state {
+                State::TopK(step) => match step.advance(self.control, self.account)? {
+                    crate::topk::Action::Continue => (),
+                    crate::topk::Action::Child { parameter, ordinal } => {
+                        let Expr::Aggregate {
+                            expression: Some(child),
+                            parameter: Some(k),
+                            ..
+                        } = self.expression.arena[node].expression
+                        else {
+                            unreachable!()
+                        };
+                        let child = if parameter { k } else { child };
+                        let filter = ordinal.map_or(RowFilter::All, |ordinal| {
+                            RowFilter::Ordinals(std::slice::from_ref(ordinal))
+                        });
+                        self.push_filtered(child, filter, false, OutputMode::Vector);
+                    }
+                    crate::topk::Action::Sample(sample) => {
+                        if filter.accepts(sample.ordinal)
+                            && let Some(sample) =
+                                self.propagate(Self::rebind(sample, boundary_time_ms), index)?
+                        {
+                            return Ok(Some(sample));
+                        }
+                    }
+                    crate::topk::Action::Done(annotation) => {
+                        if node == self.diagnostic_node
+                            && let Some(kind) = annotation
+                            && let Some(annotations) = &mut self.annotations
+                        {
+                            annotations.add(
+                                kind,
+                                b"",
+                                self.expression.arena[node].span,
+                                &self.expression.source,
+                                self.account,
+                            );
+                        }
+                        self.frames.pop();
+                    }
+                },
                 State::CountValues { step, collecting } => {
                     if *collecting {
-                        let mut options = self.options;
-                        if self.invariants[node.0] {
-                            options.end_ms = options.start_ms;
-                        }
+                        let options = self.options;
                         step.finish(
                             options,
                             self.count_preparation.filter(|value| value.node == node),
@@ -1605,7 +1737,8 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
                     }
                     if let Some(sample) = step.next(self.options.time_ms, self.account) {
                         if filter.accepts(sample.ordinal)
-                            && let Some(sample) = self.propagate(sample, index)?
+                            && let Some(sample) =
+                                self.propagate(Self::rebind(sample, boundary_time_ms), index)?
                         {
                             return Ok(Some(sample));
                         }
@@ -1635,7 +1768,8 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
                         }
                         crate::info::Action::Sample(sample) => {
                             if filter.accepts(sample.ordinal)
-                                && let Some(sample) = self.propagate(sample, index)?
+                                && let Some(sample) =
+                                    self.propagate(Self::rebind(sample, boundary_time_ms), index)?
                             {
                                 return Ok(Some(sample));
                             }
@@ -1646,10 +1780,7 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
                     }
                 }
                 State::Histogram(step) => {
-                    let mut options = self.options;
-                    if self.invariants[node.0] {
-                        options.end_ms = options.start_ms;
-                    }
+                    let options = self.options;
                     match step.advance(
                         node,
                         options,
@@ -1672,7 +1803,8 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
                         }
                         crate::histogram_call::Action::Sample(sample) => {
                             if filter.accepts(sample.ordinal)
-                                && let Some(sample) = self.propagate(sample, index)?
+                                && let Some(sample) =
+                                    self.propagate(Self::rebind(sample, boundary_time_ms), index)?
                             {
                                 return Ok(Some(sample));
                             }
@@ -1699,10 +1831,7 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
                     }
                 }
                 State::Binary(step) => {
-                    let mut options = self.options;
-                    if self.invariants[node.0] {
-                        options.end_ms = options.start_ms;
-                    }
+                    let options = self.options;
                     match step.advance(
                         node,
                         options,
@@ -1724,7 +1853,8 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
                         }
                         crate::vector_matching::Action::Sample(sample) => {
                             if filter.accepts(sample.ordinal)
-                                && let Some(sample) = self.propagate(sample, index)?
+                                && let Some(sample) =
+                                    self.propagate(Self::rebind(sample, boundary_time_ms), index)?
                             {
                                 return Ok(Some(sample));
                             }
@@ -1752,17 +1882,9 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
                     sources,
                     position,
                     running,
-                    phase,
                 } => {
                     if *running {
-                        advance_row(
-                            position,
-                            phase,
-                            &descriptors[*position],
-                            mode,
-                            self.options.time_ms,
-                            false,
-                        );
+                        *position += 1;
                         *running = false;
                     }
                     let Some(next) =
@@ -1772,7 +1894,6 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
                         continue;
                     };
                     if next != *position {
-                        *phase = 0;
                         *position = next;
                     }
                     let descriptor = &descriptors[*position];
@@ -1832,7 +1953,8 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
                         })
                         .expect("catalog ordinal")?;
                     if let Some(sample) = sample
-                        && let Some(sample) = self.propagate(sample, index)?
+                        && let Some(sample) =
+                            self.propagate(Self::rebind(sample, boundary_time_ms), index)?
                     {
                         return Ok(Some(sample));
                     }
@@ -1878,7 +2000,8 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
                             );
                         }
                         if let Some(sample) = sample
-                            && let Some(sample) = self.propagate(sample, index)?
+                            && let Some(sample) =
+                                self.propagate(Self::rebind(sample, boundary_time_ms), index)?
                         {
                             return Ok(Some(sample));
                         }
@@ -1899,7 +2022,9 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
                     };
                     self.frames.pop();
                     let sample = self.sample(value);
-                    if let Some(sample) = self.propagate(sample, self.frames.len())? {
+                    if let Some(sample) =
+                        self.propagate(Self::rebind(sample, boundary_time_ms), self.frames.len())?
+                    {
                         return Ok(Some(sample));
                     }
                 }
@@ -1921,7 +2046,8 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
                     });
                     self.frames.pop();
                     if let Some(sample) = sample
-                        && let Some(sample) = self.propagate(sample, self.frames.len())?
+                        && let Some(sample) = self
+                            .propagate(Self::rebind(sample, boundary_time_ms), self.frames.len())?
                     {
                         return Ok(Some(sample));
                     }
@@ -1957,7 +2083,9 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
                         )?;
                         self.frames.pop();
                         let sample = self.sample(result);
-                        if let Some(sample) = self.propagate(sample, self.frames.len())? {
+                        if let Some(sample) = self
+                            .propagate(Self::rebind(sample, boundary_time_ms), self.frames.len())?
+                        {
                             return Ok(Some(sample));
                         }
                     }
@@ -2119,7 +2247,7 @@ mod filter_tests {
                 first_order: 0,
                 sources: 0..0,
                 kinds: 0,
-                collision_time_ms: None,
+                heads: crate::evaluator_roster::HeadSummary::default(),
             })
             .collect();
         for accepted in [

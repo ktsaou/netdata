@@ -114,7 +114,44 @@ pub(crate) fn select_with<S: Series, P: Projector>(
     window: InstantWindow,
     control: &Control,
     account: &QueryAccounting,
+    projector: P,
+) -> Result<Selected<P::Value>, P::Error> {
+    let mut position_ms = window.first_lookup_ms;
+    select_scheduled(series, window, control, account, projector, || {
+        if position_ms == window.lookup_ms {
+            Ok(None)
+        } else {
+            position_ms = window.next_lookup(position_ms)?;
+            Ok(Some(position_ms))
+        }
+    })
+}
+
+pub(crate) fn select_mapped<S: Series, T, E: From<StorageError> + From<Interrupted>>(
+    series: &S,
+    window: InstantWindow,
+    control: &Control,
+    account: &QueryAccounting,
+    project: impl FnMut(SampleValueRef<'_>) -> Result<T, E>,
+    next_lookup: impl FnMut() -> Result<Option<i64>, StorageError>,
+) -> Result<Selected<T>, E> {
+    select_scheduled(
+        series,
+        window,
+        control,
+        account,
+        Plain(project),
+        next_lookup,
+    )
+}
+
+pub(crate) fn select_scheduled<S: Series, P: Projector>(
+    series: &S,
+    window: InstantWindow,
+    control: &Control,
+    account: &QueryAccounting,
     mut projector: P,
+    mut next_lookup: impl FnMut() -> Result<Option<i64>, StorageError>,
 ) -> Result<Selected<P::Value>, P::Error> {
     let mut lookup_ms = window.first_lookup_ms;
     let mut last_time = i64::MIN;
@@ -153,7 +190,7 @@ pub(crate) fn select_with<S: Series, P: Projector>(
                 }
                 // Future access can mutate statistics state even when the predecessor wins.
                 let current = access(&mut projector, sample, control, account)?;
-                if lookup_ms == window.lookup_ms {
+                let Some(next) = next_lookup()? else {
                     selected = if current.time_ms > lookup_ms {
                         previous
                             .take()
@@ -162,9 +199,9 @@ pub(crate) fn select_with<S: Series, P: Projector>(
                         (!current.stale).then_some(current)
                     };
                     return Ok(CursorAction::Stop);
-                }
+                };
                 drop(current);
-                lookup_ms = window.next_lookup(lookup_ms)?;
+                lookup_ms = next;
             }
         },
     )?;
@@ -173,13 +210,13 @@ pub(crate) fn select_with<S: Series, P: Projector>(
         loop {
             control.check()?;
             account.work(1);
-            if lookup_ms == window.lookup_ms {
+            let Some(next) = next_lookup()? else {
                 selected = previous
                     .take()
                     .and_then(|point| point.valid(lookup_ms, window.lookback_ms));
                 break;
-            }
-            lookup_ms = window.next_lookup(lookup_ms)?;
+            };
+            lookup_ms = next;
         }
     }
     Ok(selected.map(Point::tuple))
@@ -234,6 +271,43 @@ mod tests {
             series.counters.closed.load(Ordering::Relaxed)
         );
         account.snapshot().assert_memory_released();
+    }
+
+    #[test]
+    fn repeated_lookup_endpoints_still_observe_each_logical_access_epoch() {
+        fn sample(index: usize) -> Sample {
+            Sample {
+                time_ms: index as i64 * 1000,
+                start_time_ms: 0,
+                value: SampleValue::Float(index as f64),
+            }
+        }
+        for page in [1, 17, 1024] {
+            let series = GeneratedSeries::new(2, page, sample);
+            let account = EngineAccounting::default().query();
+            let control = Control::default();
+            let mut accesses = Vec::new();
+            let mut schedule = [Some(500), Some(500), None].into_iter();
+            let selected = select_mapped::<_, _, StorageError>(
+                &series,
+                InstantWindow::single(500, 1000, bounds(1000)),
+                &control,
+                &account,
+                |value| {
+                    let SampleValueRef::Float(value) = value else {
+                        unreachable!()
+                    };
+                    accesses.push(value);
+                    Ok(value)
+                },
+                || Ok(schedule.next().expect("each grid step is consumed once")),
+            )
+            .unwrap();
+            assert_eq!(selected, Some((0, 0, 0.0)));
+            assert_eq!(accesses, [0.0, 1.0, 1.0, 1.0]);
+            assert!(schedule.next().is_none());
+            assert_closed(&series, &account);
+        }
     }
 
     #[test]

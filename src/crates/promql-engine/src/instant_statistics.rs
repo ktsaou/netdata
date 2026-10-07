@@ -28,27 +28,66 @@ impl Projector for StatisticsDecoder {
     }
 }
 
+#[cfg(test)]
 pub(crate) fn select<S: Series>(
     series: &S,
     window: InstantWindow,
     control: &Control,
     account: &QueryAccounting,
 ) -> Result<Option<(i64, i64, OwnedValue)>, StorageError> {
-    instant_select::select_with(
-        series,
-        window,
+    owned(
+        instant_select::select_with(
+            series,
+            window,
+            control,
+            account,
+            StatisticsDecoder::default(),
+        )?,
         control,
         account,
-        StatisticsDecoder::default(),
-    )?
-    .map(|(time, start, value)| {
-        Ok((
-            time,
-            start,
-            OwnedValue::copy_from_checked(value.as_ref(), control, account, MemoryKind::Workspace)?,
-        ))
-    })
-    .transpose()
+    )
+}
+
+pub(crate) fn select_scheduled<S: Series>(
+    series: &S,
+    window: InstantWindow,
+    control: &Control,
+    account: &QueryAccounting,
+    next_lookup: impl FnMut() -> Result<Option<i64>, StorageError>,
+) -> Result<Option<(i64, i64, OwnedValue)>, StorageError> {
+    owned(
+        instant_select::select_scheduled(
+            series,
+            window,
+            control,
+            account,
+            StatisticsDecoder::default(),
+            next_lookup,
+        )?,
+        control,
+        account,
+    )
+}
+
+fn owned(
+    selected: Option<(i64, i64, Projection)>,
+    control: &Control,
+    account: &QueryAccounting,
+) -> Result<Option<(i64, i64, OwnedValue)>, StorageError> {
+    selected
+        .map(|(time, start, value)| {
+            Ok((
+                time,
+                start,
+                OwnedValue::copy_from_checked(
+                    value.as_ref(),
+                    control,
+                    account,
+                    MemoryKind::Workspace,
+                )?,
+            ))
+        })
+        .transpose()
 }
 
 #[cfg(test)]

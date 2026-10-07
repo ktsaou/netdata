@@ -102,7 +102,6 @@ struct Patterns {
     random: u64,
 }
 #[derive(Clone, Copy)]
-#[cfg(any(test, feature = "fixtures"))]
 struct Down {
     initial: usize,
     root: usize,
@@ -126,14 +125,11 @@ enum Frame {
         i: usize,
         j: usize,
     },
-    #[cfg(any(test, feature = "fixtures"))]
     Up {
         j: usize,
         waiting: bool,
     },
-    #[cfg(any(test, feature = "fixtures"))]
     Down(Down),
-    #[cfg(any(test, feature = "fixtures"))]
     Fix {
         root: usize,
         length: usize,
@@ -259,7 +255,6 @@ impl Program {
     pub(crate) fn sort(length: usize) -> Self {
         Self::new(Frame::pdq(0, length, usize::BITS - length.leading_zeros()))
     }
-    #[cfg(any(test, feature = "fixtures"))]
     pub(crate) fn heap_push(length: usize) -> Self {
         assert!(length > 0, "heap Push follows an append");
         Self::new(Frame::Up {
@@ -267,7 +262,6 @@ impl Program {
             waiting: false,
         })
     }
-    #[cfg(any(test, feature = "fixtures"))]
     pub(crate) fn heap_fix(root: usize, length: usize) -> Self {
         assert!(root < length, "heap Fix needs an existing item");
         Self::new(Frame::Fix {
@@ -783,7 +777,6 @@ impl Program {
                     self.swap(Frame::Reverse { i, j }, pair.0, pair.1)
                 }
             }
-            #[cfg(any(test, feature = "fixtures"))]
             Frame::Up { mut j, waiting } => {
                 if waiting {
                     if !reply.unwrap() {
@@ -800,7 +793,6 @@ impl Program {
                     self.less(Frame::Up { j, waiting: true }, j, (j - 1) / 2)
                 }
             }
-            #[cfg(any(test, feature = "fixtures"))]
             Frame::Down(mut f) => match f.phase {
                 0 => {
                     f.child = 2 * f.root + 1;
@@ -837,7 +829,6 @@ impl Program {
                 }
                 _ => unreachable!(),
             },
-            #[cfg(any(test, feature = "fixtures"))]
             Frame::Fix {
                 root,
                 length,

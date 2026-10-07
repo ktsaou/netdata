@@ -1,0 +1,700 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Selection reducers derive from pinned promql/engine.go and value.go; see NOTICE.
+use crate::{
+    accounting::{AccountedVec, AllocationContext, MemoryKind, QueryAccounting},
+    annotations::AnnotationKind,
+    binary_labels,
+    evaluator::{EvaluatedSample, EvaluationError, EvaluationOptions},
+    evaluator_roster::{Descriptor, group_key},
+    float_text::{FloatTextStyle, float_text},
+    frontend::{
+        ast::{Expr, NodeId, ParsedExpression},
+        token::TokenKind,
+    },
+    go_sort_program::{Operation, Program},
+    label_hash, numerical,
+    result::OwnedValue,
+    shared::Strong,
+    storage::{Control, Interrupted},
+};
+use std::cell::RefCell;
+
+pub(crate) fn is_selection(expression: &Expr) -> bool {
+    matches!(
+        expression,
+        Expr::Aggregate {
+            operator: TokenKind::TOPK | TokenKind::BOTTOMK,
+            ..
+        }
+    )
+}
+
+#[derive(Clone, Copy)]
+pub(crate) struct Parameters {
+    constant: bool,
+    value: f64,
+    minimum: f64,
+    maximum: f64,
+    nan: bool,
+    present: bool,
+}
+impl Parameters {
+    pub(crate) fn new(constant: bool) -> Self {
+        Self {
+            constant,
+            value: 0.0,
+            minimum: f64::MAX,
+            maximum: -f64::MAX,
+            nan: false,
+            present: false,
+        }
+    }
+    pub(crate) fn push(&mut self, value: f64) {
+        if self.constant {
+            self.value = value;
+            self.minimum = value;
+            self.maximum = value;
+        } else {
+            self.minimum = numerical::min(self.minimum, value);
+            self.maximum = numerical::max(self.maximum, value);
+        }
+        self.nan |= value.is_nan();
+        self.present = true;
+    }
+    fn validate(
+        self,
+        control: &Control,
+        account: &QueryAccounting,
+    ) -> Result<bool, EvaluationError> {
+        let minimum = if self.present { self.minimum } else { 0.0 };
+        let maximum = if self.present { self.maximum } else { 0.0 };
+        if maximum < 1.0 {
+            return Ok(false);
+        }
+        let message = if self.nan {
+            binary_labels::formatted(format_args!("Parameter value is NaN"), control, account)?
+        } else if minimum <= -9_223_372_036_854_775_808.0 {
+            binary_labels::formatted(
+                format_args!(
+                    "Scalar value {} underflows int64",
+                    float_text(minimum, FloatTextStyle::Shortest)
+                ),
+                control,
+                account,
+            )?
+        } else if maximum >= 9_223_372_036_854_774_784.0 {
+            binary_labels::formatted(
+                format_args!(
+                    "Scalar value {} overflows int64",
+                    float_text(maximum, FloatTextStyle::Shortest)
+                ),
+                control,
+                account,
+            )?
+        } else {
+            return Ok(true);
+        };
+        Err(EvaluationError::Runtime(message))
+    }
+}
+
+#[derive(Clone, Copy)]
+struct Canonical {
+    ordinal: usize,
+    representative: usize,
+}
+struct Binding {
+    group: usize,
+    canonical: Option<Canonical>,
+}
+pub(crate) struct Plan {
+    operator: TokenKind,
+    parameters: Parameters,
+    productive: bool,
+    inputs: AccountedVec<Descriptor>,
+    bindings: AccountedVec<Binding>,
+    groups: usize,
+    projected_rows: Option<usize>,
+    cache: RefCell<Option<Strong<Snapshot>>>,
+}
+impl Plan {
+    pub(crate) fn new(
+        operator: TokenKind,
+        parameters: Parameters,
+        account: &QueryAccounting,
+    ) -> Self {
+        Self {
+            operator,
+            parameters,
+            productive: false,
+            inputs: AccountedVec::new(account, MemoryKind::Workspace),
+            bindings: AccountedVec::new(account, MemoryKind::Workspace),
+            groups: 0,
+            projected_rows: None,
+            cache: RefCell::new(None),
+        }
+    }
+    pub(crate) fn prepare_rows(
+        &mut self,
+        rows: AccountedVec<Descriptor>,
+        expression: &ParsedExpression,
+        node: NodeId,
+        control: &Control,
+        account: &QueryAccounting,
+    ) -> Result<(), EvaluationError> {
+        let Expr::Aggregate {
+            grouping, without, ..
+        } = &expression.arena[node].expression
+        else {
+            unreachable!("typed selection aggregate")
+        };
+        let mut hashes = AccountedVec::<u64>::new(account, MemoryKind::Workspace);
+        let mut bindings = AccountedVec::new(account, MemoryKind::Workspace);
+        for row in &*rows {
+            control.check()?;
+            account.work(1);
+            let mut labels = row
+                .labels
+                .copy_checked(account, MemoryKind::Workspace, control)?;
+            group_key(&mut labels, grouping.as_deref(), *without);
+            let hash = if !without && grouping.as_ref().is_none_or(|names| names.is_empty()) {
+                0
+            } else {
+                label_hash::grouping(&labels, control, account)?
+            };
+            drop(labels);
+            let mut group = None;
+            for (index, prior) in hashes.iter().enumerate() {
+                control.check()?;
+                account.work(1);
+                if *prior == hash {
+                    group = Some(index);
+                    break;
+                }
+            }
+            let group = group.unwrap_or_else(|| {
+                let index = hashes.len();
+                hashes.push(hash);
+                index
+            });
+            bindings.push(Binding {
+                group,
+                canonical: None,
+            });
+        }
+        // The complete parameter and body precede this global validation in the source.
+        self.productive = self.parameters.validate(control, account)?;
+        self.inputs = rows;
+        self.bindings = bindings;
+        self.groups = hashes.len();
+        Ok(())
+    }
+    pub(crate) fn project(
+        &mut self,
+        descriptors: &[Descriptor],
+        sources: &[usize],
+        control: &Control,
+        account: &QueryAccounting,
+    ) -> Result<(), EvaluationError> {
+        for descriptor in descriptors {
+            let representative = sources[descriptor.sources.start];
+            for &source in &sources[descriptor.sources.clone()] {
+                control.check()?;
+                account.work(1);
+                let input = self
+                    .bindings
+                    .get_mut(source)
+                    .ok_or(EvaluationError::Invalid(
+                        "selection projection source is missing",
+                    ))?;
+                input.canonical = Some(Canonical {
+                    ordinal: descriptor.ordinal,
+                    representative,
+                });
+            }
+        }
+        self.projected_rows = Some(descriptors.len());
+        Ok(())
+    }
+}
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+struct Key {
+    time: i64,
+    start: i64,
+    end: i64,
+    step: i64,
+}
+impl From<EvaluationOptions> for Key {
+    fn from(options: EvaluationOptions) -> Self {
+        Self {
+            time: options.time_ms,
+            start: options.start_ms,
+            end: options.end_ms,
+            step: options.step_ms,
+        }
+    }
+}
+struct Heap {
+    indices: AccountedVec<usize>,
+}
+struct Snapshot {
+    key: Key,
+    k: usize,
+    heaps: AccountedVec<Heap>,
+    ignored: bool,
+}
+#[derive(Clone, Copy)]
+enum Stage {
+    Parameter,
+    Scan,
+    Root,
+    Program,
+    Sort,
+    Emit,
+    Done,
+}
+#[derive(Clone, Copy)]
+enum Resume {
+    Scan,
+    Sort,
+}
+struct Comparison {
+    inputs: [usize; 2],
+    values: [f64; 2],
+    position: usize,
+}
+enum Pending {
+    Empty,
+    Float(f64),
+    Histogram,
+}
+pub(crate) enum Action<'a> {
+    Continue,
+    Child {
+        parameter: bool,
+        ordinal: Option<&'a usize>,
+    },
+    Sample(EvaluatedSample),
+    Done(Option<AnnotationKind>),
+}
+pub(crate) struct Step<'a> {
+    plan: &'a Plan,
+    options: EvaluationOptions,
+    stage: Stage,
+    project: bool,
+    vector: bool,
+    canonical_rows: Option<&'a [Descriptor]>,
+    heaps: AccountedVec<Heap>,
+    snapshot: Option<Strong<Snapshot>>,
+    k: usize,
+    input: usize,
+    group: usize,
+    waiting: bool,
+    expected: Option<usize>,
+    pending: Pending,
+    candidate: f64,
+    program: Option<Program>,
+    resume: Resume,
+    comparison: Option<Comparison>,
+    reply: Option<bool>,
+    ignored: bool,
+    emit_row: usize,
+    emit_group: usize,
+    emit_position: usize,
+    emitted: Option<EvaluatedSample>,
+}
+impl<'a> Step<'a> {
+    pub(crate) fn new(
+        plan: &'a Plan,
+        options: EvaluationOptions,
+        project: bool,
+        vector: bool,
+        canonical_rows: Option<&'a [Descriptor]>,
+        account: &QueryAccounting,
+    ) -> Self {
+        let snapshot = {
+            let cache = plan.cache.borrow();
+            cache
+                .as_ref()
+                .filter(|snapshot| snapshot.key == Key::from(options))
+                .cloned()
+        };
+        let (stage, k) = if !plan.productive {
+            (Stage::Done, 0)
+        } else if let Some(snapshot) = &snapshot {
+            (Stage::Emit, snapshot.k)
+        } else if plan.parameters.constant {
+            (
+                Stage::Scan,
+                (plan.parameters.value as usize).min(plan.inputs.len()),
+            )
+        } else {
+            (Stage::Parameter, 0)
+        };
+        Self {
+            plan,
+            options,
+            stage,
+            project,
+            vector,
+            canonical_rows,
+            snapshot,
+            k,
+            heaps: AccountedVec::new(account, MemoryKind::Workspace),
+            input: 0,
+            group: 0,
+            waiting: false,
+            expected: None,
+            pending: Pending::Empty,
+            candidate: 0.0,
+            program: None,
+            resume: Resume::Scan,
+            comparison: None,
+            reply: None,
+            ignored: false,
+            emit_row: 0,
+            emit_group: 0,
+            emit_position: 0,
+            emitted: None,
+        }
+    }
+    fn request(&mut self, input: usize) -> Action<'a> {
+        self.waiting = true;
+        self.expected = Some(input);
+        self.pending = Pending::Empty;
+        Action::Child {
+            parameter: false,
+            ordinal: Some(&self.plan.inputs[input].ordinal),
+        }
+    }
+    pub(crate) fn receive(
+        &mut self,
+        sample: EvaluatedSample,
+        control: &Control,
+        account: &QueryAccounting,
+    ) -> Result<(), EvaluationError> {
+        control.check()?;
+        account.work(1);
+        if let Some(input) = self.expected {
+            let row = &self.plan.inputs[input];
+            if row.ordinal != sample.ordinal
+                || !binary_labels::same(&row.labels, &sample.labels, control, account)?
+            {
+                return Ok(());
+            }
+        }
+        if matches!(self.stage, Stage::Emit) {
+            if self.emitted.is_none() {
+                self.emitted = Some(sample);
+            }
+        } else if matches!(self.pending, Pending::Empty) {
+            self.pending = match sample.value {
+                OwnedValue::Float(value) => Pending::Float(value),
+                OwnedValue::Histogram(_) => Pending::Histogram,
+            };
+        }
+        Ok(())
+    }
+    fn float(&mut self) -> Result<f64, EvaluationError> {
+        match std::mem::replace(&mut self.pending, Pending::Empty) {
+            Pending::Float(value) => Ok(value),
+            _ => Err(EvaluationError::Invalid(
+                "selection operand changed during replay",
+            )),
+        }
+    }
+    fn start_program(&mut self, program: Program, group: usize, resume: Resume) {
+        self.program = Some(program);
+        self.group = group;
+        self.resume = resume;
+        self.stage = Stage::Program;
+    }
+    fn publish(&mut self, control: &Control, account: &QueryAccounting) -> Result<(), Interrupted> {
+        control.check()?;
+        let heaps = std::mem::replace(
+            &mut self.heaps,
+            AccountedVec::new(account, MemoryKind::Workspace),
+        );
+        let snapshot = Strong::new_in(
+            Snapshot {
+                key: self.options.into(),
+                k: self.k,
+                heaps,
+                ignored: self.ignored,
+            },
+            Some(&AllocationContext::new(account, MemoryKind::Workspace)),
+        );
+        *self.plan.cache.borrow_mut() = Some(snapshot.clone());
+        self.snapshot = Some(snapshot);
+        self.stage = Stage::Emit;
+        Ok(())
+    }
+    fn next_winner(
+        &mut self,
+        control: &Control,
+        account: &QueryAccounting,
+    ) -> Result<Option<usize>, Interrupted> {
+        let snapshot = self
+            .snapshot
+            .as_ref()
+            .expect("completed selection snapshot");
+        loop {
+            control.check()?;
+            account.work(1);
+            if self.project
+                && let Some(rows) = self.plan.projected_rows
+                && self.emit_row >= rows
+            {
+                return Ok(None);
+            }
+            let Some(heap) = snapshot.heaps.get(self.emit_group) else {
+                if self.project && self.plan.projected_rows.is_some() {
+                    self.emit_row += 1;
+                    self.emit_group = 0;
+                    self.emit_position = 0;
+                    continue;
+                }
+                return Ok(None);
+            };
+            let Some(&input) = heap.indices.get(self.emit_position) else {
+                self.emit_group += 1;
+                self.emit_position = 0;
+                continue;
+            };
+            self.emit_position += 1;
+            if self.project && self.plan.projected_rows.is_some() {
+                let canonical = self.plan.bindings[input]
+                    .canonical
+                    .expect("productive canonical binding");
+                if canonical.ordinal != self.emit_row
+                    || self.vector
+                        && !self
+                            .canonical_rows
+                            .expect("frozen canonical selection rows")[canonical.ordinal]
+                            .heads
+                            .accepts(1, self.options.time_ms)
+                {
+                    continue;
+                }
+                if self.vector {
+                    self.emit_row += 1;
+                    self.emit_group = 0;
+                    self.emit_position = 0;
+                }
+            }
+            return Ok(Some(input));
+        }
+    }
+    pub(crate) fn advance(
+        &mut self,
+        control: &Control,
+        account: &QueryAccounting,
+    ) -> Result<Action<'a>, EvaluationError> {
+        control.check()?;
+        account.work(1);
+        match self.stage {
+            Stage::Parameter => {
+                if !self.waiting {
+                    self.waiting = true;
+                    self.expected = None;
+                    return Ok(Action::Child {
+                        parameter: true,
+                        ordinal: None,
+                    });
+                }
+                self.waiting = false;
+                self.k = (self.float()? as usize).min(self.plan.inputs.len());
+                self.stage = Stage::Scan;
+            }
+            Stage::Scan => {
+                if self.k == 0 {
+                    self.publish(control, account)?;
+                    return Ok(Action::Continue);
+                }
+                if self.heaps.is_empty() {
+                    for _ in 0..self.plan.groups {
+                        control.check()?;
+                        account.work(1);
+                        self.heaps.push(Heap {
+                            indices: AccountedVec::new(account, MemoryKind::Workspace),
+                        });
+                    }
+                }
+                if self.input == self.plan.inputs.len() {
+                    self.group = 0;
+                    self.stage = Stage::Sort;
+                    return Ok(Action::Continue);
+                }
+                if !self.waiting {
+                    return Ok(self.request(self.input));
+                }
+                self.waiting = false;
+                let group = self.plan.bindings[self.input].group;
+                match std::mem::replace(&mut self.pending, Pending::Empty) {
+                    Pending::Empty => self.input += 1,
+                    Pending::Histogram => {
+                        self.ignored = true;
+                        self.input += 1;
+                    }
+                    Pending::Float(value) => {
+                        let heap = &mut self.heaps[group].indices;
+                        if heap.len() < self.k {
+                            heap.push(self.input);
+                            let program = Program::heap_push(heap.len());
+                            self.input += 1;
+                            self.start_program(program, group, Resume::Scan);
+                        } else {
+                            self.candidate = value;
+                            self.group = group;
+                            self.stage = Stage::Root;
+                        }
+                    }
+                }
+            }
+            Stage::Root => {
+                if !self.waiting {
+                    return Ok(self.request(self.heaps[self.group].indices[0]));
+                }
+                self.waiting = false;
+                let root = self.float()?;
+                let replace = (if self.plan.operator == TokenKind::TOPK {
+                    root < self.candidate
+                } else {
+                    root > self.candidate
+                }) || root.is_nan() && !self.candidate.is_nan();
+                if replace {
+                    self.heaps[self.group].indices[0] = self.input;
+                }
+                self.input += 1;
+                if replace && self.k > 1 {
+                    self.start_program(
+                        Program::heap_fix(0, self.heaps[self.group].indices.len()),
+                        self.group,
+                        Resume::Scan,
+                    );
+                } else {
+                    self.stage = Stage::Scan;
+                }
+            }
+            Stage::Program => {
+                if let Some(comparison) = &mut self.comparison {
+                    if self.waiting {
+                        self.waiting = false;
+                        let position = comparison.position;
+                        let value = self.float()?;
+                        let comparison = self.comparison.as_mut().expect("comparison continuation");
+                        comparison.values[position] = value;
+                        comparison.position += 1;
+                    }
+                    let comparison = self.comparison.as_ref().expect("comparison continuation");
+                    if comparison.position < 2 {
+                        return Ok(self.request(comparison.inputs[comparison.position]));
+                    }
+                    let [left, right] = comparison.values;
+                    self.reply = Some(
+                        left.is_nan()
+                            || if self.plan.operator == TokenKind::TOPK {
+                                left < right
+                            } else {
+                                left > right
+                            },
+                    );
+                    self.comparison = None;
+                    return Ok(Action::Continue);
+                }
+                match self
+                    .program
+                    .as_mut()
+                    .expect("active ordering program")
+                    .next(self.reply.take())
+                {
+                    Operation::Step => (),
+                    Operation::Swap(left, right) => {
+                        self.heaps[self.group].indices.swap(left, right)
+                    }
+                    Operation::Less(left, right) => {
+                        let heap = &self.heaps[self.group].indices;
+                        let mut inputs = [heap[left], heap[right]];
+                        if matches!(self.resume, Resume::Sort) {
+                            inputs.swap(0, 1);
+                        }
+                        self.comparison = Some(Comparison {
+                            inputs,
+                            values: [0.0; 2],
+                            position: 0,
+                        });
+                    }
+                    Operation::Done => {
+                        self.program = None;
+                        self.stage = match self.resume {
+                            Resume::Scan => Stage::Scan,
+                            Resume::Sort => {
+                                self.group += 1;
+                                Stage::Sort
+                            }
+                        };
+                    }
+                }
+            }
+            Stage::Sort => {
+                if self.group == self.heaps.len() {
+                    self.publish(control, account)?;
+                } else if self.heaps[self.group].indices.len() > 1 {
+                    self.start_program(
+                        Program::sort(self.heaps[self.group].indices.len()),
+                        self.group,
+                        Resume::Sort,
+                    );
+                } else {
+                    self.group += 1;
+                }
+            }
+            Stage::Emit => {
+                if self.waiting {
+                    self.waiting = false;
+                    let input = self.expected.expect("requested selection winner");
+                    let mut sample = self.emitted.take().ok_or(EvaluationError::Invalid(
+                        "selection winner changed during replay",
+                    ))?;
+                    if !matches!(sample.value, OwnedValue::Float(_)) {
+                        return Err(EvaluationError::Invalid(
+                            "selection winner changed during replay",
+                        ));
+                    }
+                    sample.ordinal = input;
+                    if self.project
+                        && let Some(canonical) = self.plan.bindings[input].canonical
+                    {
+                        let representative = &self.plan.inputs[canonical.representative];
+                        sample.ordinal = canonical.ordinal;
+                        sample.labels = representative.labels.copy_checked(
+                            account,
+                            MemoryKind::Workspace,
+                            control,
+                        )?;
+                        sample.drop_name = representative.drop_name;
+                    }
+                    sample.source_time_ms = self.options.time_ms;
+                    sample.source_start_time_ms = 0;
+                    return Ok(Action::Sample(sample));
+                }
+                let Some(input) = self.next_winner(control, account)? else {
+                    self.stage = Stage::Done;
+                    return Ok(Action::Continue);
+                };
+                return Ok(self.request(input));
+            }
+            Stage::Done => {
+                let ignored = self
+                    .snapshot
+                    .as_ref()
+                    .map_or(self.ignored, |snapshot| snapshot.ignored);
+                return Ok(Action::Done(ignored.then_some(
+                    AnnotationKind::HistogramIgnoredInAggregation(self.plan.operator),
+                )));
+            }
+        }
+        Ok(Action::Continue)
+    }
+}
