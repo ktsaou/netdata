@@ -199,7 +199,7 @@ probe, requests and results in ignored `.tmp/`, and compares value bits and erro
 panel passes in both release profiles, including 933 added long-decimal cancellation/fallback cases. The earlier
 12,154-case panel missed these source behaviors; both original captures and failed before binaries remain retained.
 Eighteen additional scalar comparison requests now match Prometheus exactly across parser profiles, query modes
-and fixture page sizes. All 258 core unit tests pass in both profiles and Rust 1.91; the fixtures feature
+and fixture page sizes. All 261 core unit tests pass in both profiles and Rust 1.91; the fixtures feature
 adds one transport test. The existing
 157 lexer, 356 AST, 784 parser-option and 32 literal cases continue to match. The complete expression panel remains
 13,330 passing variants and 8,112 unsupported variants, with no lost passes or new paired numerical differences.
@@ -592,10 +592,39 @@ execute 1,676 operation steps, giving 4,278 operation/outcome checks in total. C
 snapshots, panic classifications, all five quantile metadata fields and composed booleans compare exactly;
 scalar values use the pinned numerical contract, with every bit difference reported separately. Original
 quantile values also satisfy their narrower relative-epsilon assertions. Both release profiles pass the
-4,176 cases, with four NaN-only candidate bit differences and three finite declaration-versus-Go
-differences. Every finite candidate value matches Go's bits; strict-bit mode rejects the four NaN diagnostics.
+4,176 cases bit for bit, with three finite declaration-versus-Go differences reported separately.
+Classic interpolation and coalescing use the actual pinned Go AMD64 operand destinations, including the
+different addition destinations at fraction's lower and upper interpolation sites. Earlier NaN-only
+candidate diagnostics are cleared; original declarations remain unchanged.
 Complete grouped expressions,
 diagnostic formatting, storage replay and C accounting remain later qualification gates.
+
+Single-call count replay retains sorted bound/ordinal metadata and constant scalar scratch. It suspends for
+one original count at a time; the evaluator can supply that count through its existing frame loop. Adjacent
+equal bounds coalesce from their first count, preserving signed zero and NaN payloads. Quantile makes one
+full correction sweep, literal Go binary-search prefix probes and one endpoint sweep; fraction makes a
+terminal-count sweep and a rank sweep. For N inputs and M coalesced runs, count reads are bounded by
+N*(2+ceil(log2 M)) and 2N respectively. Child-expression replay adds its own work. No raw or corrected count
+array, history buffer or additional resource cap is introduced. Other-target arithmetic is preserved;
+cross-target numerical policy remains a separate decision.
+
+```sh
+python3 tests/promql-conformance/classic_replay.py --capture \
+  --mod-cache "${PROMQL_GO_MOD_CACHE:?}" --reference "${PROMQL_CLASSIC_CAPTURE_DIR:?}" \
+  --binary "${PROMQL_KERNEL_BINARY:?}"
+python3 tests/promql-conformance/classic_replay.py --supplement "${PROMQL_CLASSIC_OPERAND_CAPTURE_DIR:?}" \
+  --reference "${PROMQL_CLASSIC_CAPTURE_DIR:?}" --binary "${PROMQL_KERNEL_BINARY:?}"
+```
+
+The gate compares 16,676 single-call outcomes bit for bit in both profiles: the original 1,676 steps and
+15,000 independent count permutations, including quiet/signaling NaNs, infinities, signed zeros and
+duplicate bounds. Each original step uses its actual Go pre-call backing state, including earlier mutations.
+The supplemental capture validates the complete original module digest, runtime profile, capture source,
+input identities and frozen file hashes. Read counts, panic behavior, reciprocal/boolean results and every
+quantile diagnostic are checked. Tests reject altered results, read bounds and identities. Cancellation
+covers every replay sweep; 100,000 buckets run on a 128KiB stack with unchanged accounted memory during
+count reconstruction. This qualifies the private Q=1 continuation. Expression dispatch and general repeated
+`histogram_quantiles` backing-tail reconstruction remain required.
 
 The shared Go comparator sort has a fallible polling entry and an inert wrapper for existing numeric helpers.
 It checks before comparisons, swaps and PDQ loop entries, including comparison-free reverse and pattern-breaking

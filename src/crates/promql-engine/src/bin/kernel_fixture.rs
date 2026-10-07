@@ -330,6 +330,7 @@ fn result(input: &Value) -> Result<Value, Error> {
             netdata_promql_engine::sort_fixture(bounds)
         }
         "classic-buckets" => classic_result(request)?,
+        "classic-replay" => netdata_promql_engine::classic_replay_fixture(request),
         "almost-equal" => json!(almost_equal(
             number(&request["left"])?,
             number(&request["right"])?,
