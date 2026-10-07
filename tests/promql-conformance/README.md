@@ -199,7 +199,7 @@ probe, requests and results in ignored `.tmp/`, and compares value bits and erro
 panel passes in both release profiles, including 933 added long-decimal cancellation/fallback cases. The earlier
 12,154-case panel missed these source behaviors; both original captures and failed before binaries remain retained.
 Eighteen additional scalar comparison requests now match Prometheus exactly across parser profiles, query modes
-and fixture page sizes. All 255 core unit tests pass in both profiles and Rust 1.91; the fixtures feature
+and fixture page sizes. All 258 core unit tests pass in both profiles and Rust 1.91; the fixtures feature
 adds one transport test. The existing
 157 lexer, 356 AST, 784 parser-option and 32 literal cases continue to match. The complete expression panel remains
 13,330 passing variants and 8,112 unsupported variants, with no lost passes or new paired numerical differences.
@@ -596,6 +596,28 @@ quantile values also satisfy their narrower relative-epsilon assertions. Both re
 differences. Every finite candidate value matches Go's bits; strict-bit mode rejects the four NaN diagnostics.
 Complete grouped expressions,
 diagnostic formatting, storage replay and C accounting remain later qualification gates.
+
+The shared Go comparator sort has a fallible polling entry and an inert wrapper for existing numeric helpers.
+It checks before comparisons, swaps and PDQ loop entries, including comparison-free reverse and pattern-breaking
+work. Cancellation returns the original error; already owned metadata may be partly permuted and must be discarded.
+The implementation allocates no buffer and retains Go's smaller-side recursion. NaN bounds violate the usual
+strict weak ordering requirement, so this path preserves the original permutation rather than assuming the
+usual quicksort complexity bound.
+
+```sh
+python3 tests/promql-conformance/go_sort.py
+python3 tests/promql-conformance/go_sort.py --capture "${PROMQL_SORT_CAPTURE_DIR:?}" \
+  --binary "${PROMQL_KERNEL_BINARY:?}"
+```
+
+This additional gate runs original Go 1.27.1 `slices` assertions and captures 9,539 bound/ordinal metadata sorts:
+small special-value products, insertion/PDQ/Tukey boundaries, duplicates, signed zeros, quiet/signaling NaNs,
+pivot positions and four groups of 100,000 references. Both profiles match every complete permutation,
+comparator count and comparator trace digest. The trace is a constant-state checksum; complete bound bits and
+ordinals are compared directly. Seven interrupted sort phases preserve every item and memory observation;
+an expired deadline precedes comparisons, and a 100,000-reference pollable sort passes on a 128KiB stack.
+The fixtures-only transport requires the common `borrowed` Boolean even though this mode holds no sample values.
+This gate qualifies metadata sorting; grouped histogram expression dispatch remains required.
 
 ## Required SRE expression sources
 

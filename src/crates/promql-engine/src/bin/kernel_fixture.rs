@@ -317,6 +317,18 @@ fn result(input: &Value) -> Result<Value, Error> {
             json!(format!("{:016x}", fraction.to_bits()))
         }
         "float-trim" => trim_result(request)?,
+        "sort-metadata" => {
+            let bounds = request["bounds"]
+                .as_array()
+                .ok_or("missing sort bounds")?
+                .iter()
+                .map(|bound| {
+                    u64::from_str_radix(bound.as_str().ok_or("invalid sort bound")?, 16)
+                        .map_err(|_| "invalid sort bound".into())
+                })
+                .collect::<Result<Vec<_>, Error>>()?;
+            netdata_promql_engine::sort_fixture(bounds)
+        }
         "classic-buckets" => classic_result(request)?,
         "almost-equal" => json!(almost_equal(
             number(&request["left"])?,
