@@ -45,6 +45,17 @@ pub(crate) fn is_selection(expression: &Expr) -> bool {
     )
 }
 
+pub(crate) fn has_step_parameter(expression: &Expr) -> bool {
+    is_selection(expression)
+        || matches!(
+            expression,
+            Expr::Aggregate {
+                operator: TokenKind::QUANTILE,
+                ..
+            }
+        )
+}
+
 #[derive(Clone, Copy)]
 pub(crate) struct Parameters {
     constant: bool,
@@ -76,6 +87,31 @@ impl Parameters {
         }
         self.nan |= value.is_nan();
         self.present = true;
+    }
+    pub(crate) fn fixed_value(self) -> Option<f64> {
+        self.constant.then_some(self.value)
+    }
+    pub(crate) fn add_quantile_annotations(
+        self,
+        annotations: &mut AnnotationBuilder,
+        span: Span,
+        source: &[u8],
+        account: &QueryAccounting,
+    ) {
+        if self.nan {
+            annotations.add_invalid_quantile(
+                f64::from_bits(0x7ff8_0000_0000_0001),
+                span,
+                source,
+                account,
+            );
+        }
+        if self.maximum > 1.0 && self.present {
+            annotations.add_invalid_quantile(self.maximum, span, source, account);
+        }
+        if self.minimum < 0.0 && self.present {
+            annotations.add_invalid_quantile(self.minimum, span, source, account);
+        }
     }
     fn validate(
         self,

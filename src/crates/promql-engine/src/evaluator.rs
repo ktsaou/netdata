@@ -276,6 +276,7 @@ enum State<'a> {
     Histogram(AccountedBox<crate::histogram_call::Step<'a>>),
     Info(AccountedBox<crate::info::Step<'a>>),
     TopK(AccountedBox<crate::topk::Step<'a>>),
+    Quantile(AccountedBox<crate::quantile_aggregate::Step<'a>>),
     CountValues {
         step: AccountedBox<crate::count_values::Step<'a>>,
         collecting: bool,
@@ -1113,6 +1114,25 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
                 self.push_all(*child);
                 Ok(None)
             }
+            Expr::Aggregate {
+                operator: TokenKind::QUANTILE,
+                ..
+            } => {
+                self.frames[index].state = State::Quantile(AccountedBox::new(
+                    crate::quantile_aggregate::Step::new(
+                        self.rosters
+                            .quantile(node)
+                            .ok_or(EvaluationError::Invalid("quantile plan is missing"))?,
+                        self.rosters
+                            .groups(node)
+                            .ok_or(EvaluationError::Invalid("quantile groups are missing"))?,
+                        self.options,
+                        self.account,
+                    ),
+                    &AllocationContext::new(self.account, MemoryKind::Workspace),
+                ));
+                Ok(None)
+            }
             Expr::Binary {
                 left,
                 right,
@@ -1380,6 +1400,10 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
                     return Ok(None);
                 }
                 State::TopK(step) => {
+                    step.receive(sample, self.control, self.account)?;
+                    return Ok(None);
+                }
+                State::Quantile(step) => {
                     step.receive(sample, self.control, self.account)?;
                     return Ok(None);
                 }
@@ -1684,6 +1708,58 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
             let node = self.frames[index].node;
             let filter = self.frames[index].filter;
             match &mut self.frames[index].state {
+                State::Quantile(step) => match step.advance(self.control, self.account)? {
+                    crate::quantile_aggregate::Action::Continue => (),
+                    crate::quantile_aggregate::Action::Child { parameter, ordinal } => {
+                        let Expr::Aggregate {
+                            expression: Some(child),
+                            parameter: Some(q),
+                            ..
+                        } = self.expression.arena[node].expression
+                        else {
+                            unreachable!("typed quantile operands")
+                        };
+                        let child = if parameter { q } else { child };
+                        let filter = ordinal.map_or(RowFilter::All, |ordinal| {
+                            RowFilter::Ordinals(std::slice::from_ref(ordinal))
+                        });
+                        self.push_filtered(child, filter, false, OutputMode::Vector);
+                    }
+                    crate::quantile_aggregate::Action::Sample(sample) => {
+                        if filter.accepts(sample.ordinal)
+                            && let Some(sample) =
+                                self.propagate(Self::rebind(sample, boundary_time_ms), index)?
+                        {
+                            return Ok(Some(sample));
+                        }
+                    }
+                    crate::quantile_aggregate::Action::Done(annotation) => {
+                        if node == self.diagnostic_node
+                            && let Some(kind) = annotation
+                            && let Some(annotations) = &mut self.annotations
+                        {
+                            let Expr::Aggregate {
+                                expression: Some(child),
+                                ..
+                            } = self.expression.arena[node].expression
+                            else {
+                                unreachable!("typed quantile body")
+                            };
+                            let child =
+                                self.prepared
+                                    .preprocessing
+                                    .child(self.expression, node, child);
+                            annotations.add(
+                                kind,
+                                b"",
+                                self.expression.arena[child].span,
+                                &self.expression.source,
+                                self.account,
+                            );
+                        }
+                        self.frames.pop();
+                    }
+                },
                 State::TopK(step) => match step.advance(self.control, self.account)? {
                     crate::topk::Action::Continue => (),
                     crate::topk::Action::Child { parameter, ordinal } => {

@@ -301,6 +301,7 @@ struct NodeRoster {
     info: Option<AccountedBox<crate::info::Plan>>,
     count: Option<AccountedBox<crate::count_values::Plan>>,
     selection: Option<AccountedBox<crate::topk::Plan>>,
+    quantile: Option<AccountedBox<crate::quantile_aggregate::Plan>>,
     clock_initial: Option<AccountedVec<InitialSample>>,
     merge_guard: Option<MergeGuard>,
 }
@@ -308,13 +309,20 @@ pub(crate) struct Rosters {
     nodes: AccountedVec<NodeRoster>,
 }
 impl Rosters {
-    pub(crate) fn prepare_selection_parameter(
+    pub(crate) fn prepare_aggregate_parameter(
         &mut self,
         node: NodeId,
         operator: crate::frontend::token::TokenKind,
         parameters: crate::topk::Parameters,
         account: &QueryAccounting,
     ) {
+        if operator == crate::frontend::token::TokenKind::QUANTILE {
+            self.nodes[node.0].quantile = Some(AccountedBox::new(
+                crate::quantile_aggregate::Plan::new(parameters, account),
+                &AllocationContext::new(account, MemoryKind::Workspace),
+            ));
+            return;
+        }
         self.nodes[node.0].selection = Some(AccountedBox::new(
             crate::topk::Plan::new(operator, parameters, account),
             &AllocationContext::new(account, MemoryKind::Workspace),
@@ -342,6 +350,26 @@ impl Rosters {
     }
     pub(crate) fn selection(&self, node: NodeId) -> Option<&crate::topk::Plan> {
         self.nodes[node.0].selection.as_deref()
+    }
+    pub(crate) fn prepare_quantile(
+        &mut self,
+        node: NodeId,
+        child: NodeId,
+        expression: &crate::frontend::ast::ParsedExpression,
+        control: &Control,
+        account: &QueryAccounting,
+    ) -> Result<(), EvaluationError> {
+        let rows = self.projection_input(child, control, account)?;
+        let groups = self.nodes[node.0]
+            .quantile
+            .as_deref_mut()
+            .expect("prepared quantile parameter")
+            .prepare_rows(rows, expression, node, control, account)?;
+        self.nodes[node.0].groups = Some(groups);
+        Ok(())
+    }
+    pub(crate) fn quantile(&self, node: NodeId) -> Option<&crate::quantile_aggregate::Plan> {
+        self.nodes[node.0].quantile.as_deref()
     }
     pub(crate) fn finish_selection_projection(
         &mut self,
