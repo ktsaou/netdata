@@ -1072,10 +1072,14 @@ python3 tests/promql-conformance/info_calls.py --reference "${PROMQL_INFO_CAPTUR
   --binary "${PROMQL_QUERY_BINARY:?}" --page-size 1024
 ```
 
-The independently declared panel contains 227 complete original queries in 37 groups. It covers default and
+The independently declared panel contains 239 complete original queries in 41 groups. It covers default and
 filtered enrichment, changing labels, duplicates/conflicts, missing identifiers, empty values, fixed references,
-offsets, nested calls, integer/native/stale inputs, opaque bytes and timestamps above binary64's exact integer
-range. It verifies the original source/module/compiler attribution, exact artifact and input rosters, every
+offsets, nested calls, integer/native/stale inputs and opaque bytes. Twelve fixed-reference queries use an
+`absent(...)` base to exercise productive newest-winner joins and encoded-time duplicate errors at positive and
+negative timestamps beyond binary64's exact integer range. Their independent result assertions reject empty
+vectors as qualification. The original ordinary-time extreme case remains unchanged and returns an empty vector;
+Prometheus's nanosecond conversions prevent that case from qualifying a join. The panel verifies the original
+source/module/compiler attribution, exact artifact and input rosters, every
 original group and its combined output. Candidate dataset acknowledgements and query results must occur in
 their declared order; missing, rebound or unsupported outcomes fail. Comparison preserves complete labels,
 timestamps, diagnostics, error types/bytes and numerical bit reports, allowing only unspecified result row order.
