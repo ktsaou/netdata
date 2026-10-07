@@ -642,6 +642,8 @@ A precisely accounted callback accumulator reproduces that behavior without muta
 ```sh
 python3 tests/promql-conformance/histogram_calls.py --capture \
   --upstream "${PROMQL_ORIGINAL_SOURCE_DIR:?}" --oracle "${PROMQL_ORIGINAL_QUERY_BINARY:?}"
+python3 tests/promql-conformance/histogram_calls.py --capture --provider \
+  --upstream "${PROMQL_ORIGINAL_SOURCE_DIR:?}"
 python3 tests/promql-conformance/histogram_calls.py --reference "${PROMQL_HISTOGRAM_CALL_CAPTURE_DIR:?}" \
   --binary "${PROMQL_QUERY_BINARY:?}" --page-size 17
 ```
@@ -652,6 +654,14 @@ pages 1/17/1024. The retained pre-correction binary fails 48 of those requests; 
 unchanged. Actual expression tests keep retained Workspace/ProviderHeld/BorrowedView peaks unchanged from 2,048 to
 100,000 input samples at those page sizes, with one active storage cursor. Storage failure and cancellation during
 count reconstruction abort output and release owners. These finite witnesses do not establish a total memory bound.
+
+The provider panel adds 12 complete original engine queries with an ordinary storage warning sharing the
+monotonicity warning's raw text. A special callback replacing that different error type starts sharing its object
+with the outer warning map. The retained before-fix binary fails six requests (including six occurrences versus
+four across warning/silent/warning steps). Capture uses an offline Go wrapper over the unchanged pinned engine;
+its source, module locks, compiler profile, binary and diagnostic inputs remain hash-bound. The same comparison
+command accepts either original capture kind. Both corrected build profiles pass all 12 requests at page sizes
+1/17/1024 with zero numerical-bit differences. These checks qualify warning merging, not arbitrary provider behavior.
 
 The shared Go comparator sort has a fallible polling entry and an inert wrapper for existing numeric helpers.
 It checks before comparisons, swaps and PDQ loop entries, including comparison-free reverse and pattern-breaking

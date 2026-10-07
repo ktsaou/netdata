@@ -342,8 +342,10 @@ impl CallbackAnnotations {
                 outer.entries[prior.expect("shared callback diagnostic")] =
                     copy_annotation(entry, control, account)?;
             } else {
+                let shares_incoming = special
+                    && prior.is_none_or(|position| outer.entries[position].kind != entry.kind);
                 outer.merge_one(copy_annotation(entry, control, account)?, query);
-                self.shared[index] = special && prior.is_none();
+                self.shared[index] = shares_incoming;
             }
         }
         Ok(())
