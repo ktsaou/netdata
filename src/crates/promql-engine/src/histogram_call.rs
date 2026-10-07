@@ -549,9 +549,7 @@ impl<'a> Step<'a> {
         };
         let mut result = source.copy_checked(account, MemoryKind::Workspace, control)?;
         if !options.delayed_name_removal {
-            result.retain_labels_with(|label| {
-                control.check()?;
-                account.work(1);
+            result.retain_labels_checked(account, control, |label| {
                 Ok::<_, Interrupted>(!metadata(&label.name))
             })?;
         }

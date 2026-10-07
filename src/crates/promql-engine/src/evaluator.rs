@@ -970,30 +970,38 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
                     .map(|value| (self.options.time_ms, 0, OwnedValue::Float(value)))
             }
         };
-        Ok(value.map(|(source_time_ms, source_start_time_ms, value)| {
-            let (source_time_ms, source_start_time_ms) =
-                if matches!(operation, SelectorOperation::Instant)
-                    && !self.timestamp_selectors[selector_node.0]
-                {
-                    (self.options.time_ms, 0)
-                } else {
-                    (source_time_ms, source_start_time_ms)
-                };
-            let mut labels =
-                OwnedLabels::copy_from(&series_labels, self.account, MemoryKind::Workspace);
-            let drop_name = operation.drops_name();
-            if drop_name && !self.options.delayed_name_removal {
-                labels.retain(|name| !metadata(name));
-            }
-            EvaluatedSample {
-                ordinal: series_ordinal,
-                labels,
-                value,
-                source_time_ms,
-                source_start_time_ms,
-                drop_name,
-            }
-        }))
+        value
+            .map(|(source_time_ms, source_start_time_ms, value)| {
+                let (source_time_ms, source_start_time_ms) =
+                    if matches!(operation, SelectorOperation::Instant)
+                        && !self.timestamp_selectors[selector_node.0]
+                    {
+                        (self.options.time_ms, 0)
+                    } else {
+                        (source_time_ms, source_start_time_ms)
+                    };
+                let mut labels = OwnedLabels::copy_from_checked(
+                    &series_labels,
+                    self.account,
+                    MemoryKind::Workspace,
+                    self.control,
+                )?;
+                let drop_name = operation.drops_name();
+                if drop_name && !self.options.delayed_name_removal {
+                    labels.retain_labels_checked(self.account, self.control, |label| {
+                        Ok::<_, Interrupted>(!metadata(&label.name))
+                    })?;
+                }
+                Ok::<_, EvaluationError>(EvaluatedSample {
+                    ordinal: series_ordinal,
+                    labels,
+                    value,
+                    source_time_ms,
+                    source_start_time_ms,
+                    drop_name,
+                })
+            })
+            .transpose()
     }
 
     fn enter(&mut self, index: usize) -> Result<Option<EvaluatedSample>, EvaluationError> {
@@ -1449,12 +1457,17 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
                     }
                     sample.ordinal = descriptor.ordinal;
                     sample.drop_name = descriptor.drop_name;
-                    if !sample.labels.same(&descriptor.labels) {
-                        sample.labels = OwnedLabels::copy_from(
-                            &descriptor.labels.views(self.account),
+                    if !crate::binary_labels::same(
+                        &sample.labels,
+                        &descriptor.labels,
+                        self.control,
+                        self.account,
+                    )? {
+                        sample.labels = descriptor.labels.copy_checked(
                             self.account,
                             MemoryKind::Workspace,
-                        );
+                            self.control,
+                        )?;
                     }
                     if matches!(mode, OutputMode::Vector) {
                         *position += 1;
@@ -1545,13 +1558,17 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
                     if drop_name && !self.options.delayed_name_removal {
                         let name_only = matches!(operation,
                             MapOperation::Pointwise(function) if !function.drops_metadata());
-                        sample.labels.retain(|name| {
-                            if name_only {
-                                name != b"__name__"
-                            } else {
-                                !metadata(name)
-                            }
-                        });
+                        sample.labels.retain_labels_checked(
+                            self.account,
+                            self.control,
+                            |label| {
+                                Ok::<_, Interrupted>(if name_only {
+                                    &*label.name != b"__name__"
+                                } else {
+                                    !metadata(&label.name)
+                                })
+                            },
+                        )?;
                     }
                     sample.source_time_ms = self.options.time_ms;
                     sample.source_start_time_ms = 0;
@@ -1601,17 +1618,33 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
                     else {
                         unreachable!()
                     };
-                    let views = sample.labels.views(self.account);
-                    let mut labels =
-                        OwnedLabels::copy_from(&views, self.account, MemoryKind::Workspace);
-                    group_key(&mut labels, grouping.as_deref(), *without);
+                    let views = sample.labels.views_checked(self.account, self.control)?;
+                    let mut labels = sample.labels.copy_checked(
+                        self.account,
+                        MemoryKind::Workspace,
+                        self.control,
+                    )?;
+                    group_key(
+                        &mut labels,
+                        grouping.as_deref(),
+                        *without,
+                        self.control,
+                        self.account,
+                    )?;
                     let hash = if !without && grouping.as_ref().is_none_or(|names| names.is_empty())
                     {
                         0
                     } else {
                         label_hash::grouping(&labels, self.control, self.account)?
                     };
-                    if let Some(group) = groups.iter_mut().find(|group| group.hash == hash) {
+                    if let Some(position) = crate::evaluator_roster::group_position(
+                        groups,
+                        hash,
+                        |group| group.hash,
+                        self.control,
+                        self.account,
+                    )? {
+                        let group = &mut groups[position];
                         if let Some(kind) =
                             group.add(*operator, &sample.value, sample.drop_name, self.account)
                             && node == self.diagnostic_node

@@ -174,7 +174,7 @@ pub(crate) fn matched(
 ) -> Result<OwnedLabels, Interrupted> {
     let mut result = labels.copy_checked(account, MemoryKind::Workspace, control)?;
     result.reset_checked(account, control)?;
-    result.retain_labels_with(|label| {
+    result.retain_labels_checked(account, control, |label| {
         let selected = named(
             &label.name,
             matching.labels.as_deref().unwrap_or(&[]),
@@ -202,14 +202,12 @@ pub(crate) fn projected(
     let mut result = left.copy_checked(account, MemoryKind::Workspace, control)?;
     result.reset_checked(account, control)?;
     if drop_name || crate::binary_value::changes_metadata(operator) {
-        result.retain_labels_with(|label| {
-            control.check()?;
-            account.work(1);
+        result.retain_labels_checked(account, control, |label| {
             Ok::<_, Interrupted>(!crate::evaluator::metadata(&label.name))
         })?;
     }
     if matching.cardinality == Cardinality::OneToOne {
-        result.retain_labels_with(|label| {
+        result.retain_labels_checked(account, control, |label| {
             let selected = named(
                 &label.name,
                 matching.labels.as_deref().unwrap_or(&[]),

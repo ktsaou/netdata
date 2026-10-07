@@ -792,18 +792,17 @@ impl Rosters {
             for descriptor in self.nodes[child.0].output.as_deref().unwrap_or(&[]) {
                 control.check()?;
                 account.work(1);
-                let mut labels = OwnedLabels::copy_from(
-                    &descriptor.labels.views(account),
-                    account,
-                    MemoryKind::Workspace,
-                );
-                group_key(&mut labels, grouping, without);
+                let mut labels =
+                    descriptor
+                        .labels
+                        .copy_checked(account, MemoryKind::Workspace, control)?;
+                group_key(&mut labels, grouping, without, control, account)?;
                 let hash = if !without && grouping.is_none_or(|names| names.is_empty()) {
                     0
                 } else {
                     label_hash::grouping(&labels, control, account)?
                 };
-                if !groups.iter().any(|group| group.hash == hash) {
+                if group_position(&groups, hash, |group| group.hash, control, account)?.is_none() {
                     groups.push(GroupDescriptor {
                         hash,
                         labels,
@@ -812,15 +811,22 @@ impl Rosters {
                 }
             }
         } else if let Some(mut descriptors) = self.take_output(child) {
-            descriptors.reverse();
+            for left in 0..descriptors.len() / 2 {
+                control.check()?;
+                account.work(1);
+                let right = descriptors.len() - 1 - left;
+                descriptors.swap(left, right);
+            }
             while let Some(mut descriptor) = descriptors.pop() {
-                group_key(&mut descriptor.labels, grouping, without);
+                control.check()?;
+                account.work(1);
+                group_key(&mut descriptor.labels, grouping, without, control, account)?;
                 let hash = if !without && grouping.is_none_or(|names| names.is_empty()) {
                     0
                 } else {
                     label_hash::grouping(&descriptor.labels, control, account)?
                 };
-                if !groups.iter().any(|group| group.hash == hash) {
+                if group_position(&groups, hash, |group| group.hash, control, account)?.is_none() {
                     groups.push(GroupDescriptor {
                         hash,
                         labels: descriptor.labels,
@@ -856,15 +862,37 @@ pub(crate) fn group_key(
     labels: &mut OwnedLabels,
     grouping: Option<&[AccountedVec<u8>]>,
     without: bool,
-) {
-    labels.retain(|name| {
-        let found = grouping.is_some_and(|labels| labels.iter().any(|label| label == name));
-        if without {
+    control: &Control,
+    account: &QueryAccounting,
+) -> Result<(), Interrupted> {
+    labels.retain_labels_checked(account, control, |label| {
+        let name = &*label.name;
+        let found = crate::binary_labels::named(name, grouping.unwrap_or(&[]), control, account)?;
+        Ok(if without {
             name != b"__name__" && !found
         } else {
             found
+        })
+    })
+}
+
+pub(crate) fn group_position<T>(
+    groups: &[T],
+    hash: u64,
+    hash_of: impl Fn(&T) -> u64,
+    control: &Control,
+    account: &QueryAccounting,
+) -> Result<Option<usize>, Interrupted> {
+    control.check()?;
+    for (index, group) in groups.iter().enumerate() {
+        control.check()?;
+        account.work(1);
+        if hash_of(group) == hash {
+            return Ok(Some(index));
         }
-    });
+    }
+    control.check()?;
+    Ok(None)
 }
 
 #[cfg(test)]
@@ -872,6 +900,113 @@ mod tests {
     use super::*;
     use crate::accounting::EngineAccounting;
     use std::collections::VecDeque;
+
+    #[test]
+    fn empty_grouping_observes_outer_metadata_work_and_cancellation() {
+        let engine = EngineAccounting::default();
+        let account = engine.query();
+        let control = Control::default();
+        let mut labels = OwnedLabels::new(&account, MemoryKind::Workspace);
+        for index in 0..10_000 {
+            labels.push(
+                format!("label_{index:05}").as_bytes(),
+                b"value",
+                &account,
+                MemoryKind::Workspace,
+            );
+        }
+        // Empty grouping still traverses and releases the complete owned label set.
+        let result = crate::test_storage::interrupt_during(&account, &control, || {
+            group_key(&mut labels, None, false, &control, &account)?;
+            control.check()
+        });
+        assert_eq!(result, Err(Interrupted::Cancelled));
+        drop(labels);
+        account.snapshot().assert_memory_released();
+        drop(account);
+        engine.snapshot().assert_memory_released();
+    }
+
+    #[test]
+    fn grouping_keeps_raw_empty_keys_and_first_hash_match() {
+        let account = EngineAccounting::default().query();
+        let control = Control::default();
+        for (without, expected) in [
+            (false, &[b"a".as_slice(), b"b".as_slice()][..]),
+            (true, &[b"c".as_slice()][..]),
+        ] {
+            let mut labels = OwnedLabels::new(&account, MemoryKind::Workspace);
+            for (name, value) in [
+                (b"__name__".as_slice(), b"m".as_slice()),
+                (b"a", b""),
+                (b"b", b"1"),
+                (b"c", b"2"),
+            ] {
+                labels.push(name, value, &account, MemoryKind::Workspace);
+            }
+            let names = [b"a", b"b"].map(|name| {
+                let mut owned = AccountedVec::new(&account, MemoryKind::Workspace);
+                owned.extend_from_slice(name);
+                owned
+            });
+            group_key(&mut labels, Some(&names), without, &control, &account).unwrap();
+            assert_eq!(
+                labels
+                    .0
+                    .iter()
+                    .map(|label| &*label.name)
+                    .collect::<Vec<_>>(),
+                expected
+            );
+            if !without {
+                assert!(labels.0[0].value.is_empty());
+                let raw = label_hash::grouping(&labels, &control, &account).unwrap();
+                labels.reset_checked(&account, &control).unwrap();
+                assert_eq!(labels.0.len(), 1);
+                assert_ne!(
+                    label_hash::grouping(&labels, &control, &account).unwrap(),
+                    raw
+                );
+            }
+        }
+        assert_eq!(
+            group_position(&[7, 7, 9], 7, |hash| *hash, &control, &account).unwrap(),
+            Some(0)
+        );
+        assert_eq!(
+            group_position(&[7, 7, 9], 8, |hash| *hash, &control, &account).unwrap(),
+            None
+        );
+        account.snapshot().assert_memory_released();
+    }
+
+    #[test]
+    fn long_grouping_names_and_group_lookup_are_observed_and_cancellable() {
+        for names in [false, true] {
+            let engine = EngineAccounting::default();
+            let account = engine.query();
+            let control = Control::default();
+            let result = if names {
+                let name = vec![b'a'; 16_384];
+                let mut labels = OwnedLabels::new(&account, MemoryKind::Workspace);
+                labels.push(&name, b"value", &account, MemoryKind::Workspace);
+                let mut grouping = AccountedVec::new(&account, MemoryKind::Workspace);
+                grouping.extend_from_slice(&name);
+                crate::test_storage::interrupt_during(&account, &control, || {
+                    group_key(&mut labels, Some(&[grouping]), false, &control, &account)
+                })
+            } else {
+                let groups = vec![7u64; 10_000];
+                crate::test_storage::interrupt_during(&account, &control, || {
+                    group_position(&groups, 8, |hash| *hash, &control, &account).map(|_| ())
+                })
+            };
+            assert_eq!(result, Err(Interrupted::Cancelled));
+            account.snapshot().assert_memory_released();
+            drop(account);
+            engine.snapshot().assert_memory_released();
+        }
+    }
 
     #[test]
     fn compact_heads_match_source_destructive_heads_for_every_four_step_multiplicity() {

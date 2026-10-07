@@ -676,7 +676,9 @@ impl CompiledQuery {
                         .labels
                         .copy_checked(account, MemoryKind::Workspace, control)?;
                 if descriptor.drop_name {
-                    labels.retain(|name| !metadata(name));
+                    labels.retain_labels_checked(account, control, |label| {
+                        Ok::<_, Interrupted>(!metadata(&label.name))
+                    })?;
                 }
                 hashes.push(crate::label_hash::full(&labels, control, account)?);
             }
@@ -717,11 +719,11 @@ impl CompiledQuery {
             while let Some(mut sample) = machine.next()? {
                 control.check().map_err(EvaluationError::from)?;
                 if sample.drop_name && self.options.delayed_name_removal {
-                    sample.labels.retain_labels_with(|label| {
-                        control.check()?;
-                        account.work(1);
-                        Ok::<_, Interrupted>(!metadata(&label.name))
-                    })?;
+                    sample
+                        .labels
+                        .retain_labels_checked(account, control, |label| {
+                            Ok::<_, Interrupted>(!metadata(&label.name))
+                        })?;
                 }
                 if self.options.delayed_name_removal
                     && cleanup_guard.checks(
@@ -806,14 +808,17 @@ impl CompiledQuery {
         account: &QueryAccounting,
     ) -> Result<Option<Rosters>, EvaluationError> {
         let root_descriptors = rosters.descriptors(self.expression.root);
-        let kinds = root_descriptors
-            .iter()
-            .fold(0, |kinds, descriptor| kinds | descriptor.kinds);
-        if root_descriptors
-            .iter()
-            .all(|descriptor| !descriptor.heads.multiple())
-            && (kinds != 3 || !self.options.delayed_name_removal)
-        {
+        control.check()?;
+        let mut kinds = 0;
+        let mut single_heads = true;
+        for descriptor in root_descriptors {
+            control.check()?;
+            account.work(1);
+            kinds |= descriptor.kinds;
+            single_heads &= !descriptor.heads.multiple();
+        }
+        control.check()?;
+        if single_heads && (kinds != 3 || !self.options.delayed_name_removal) {
             return Ok(None);
         }
         let mut descriptors = AccountedVec::<Descriptor>::new(account, MemoryKind::Workspace);
@@ -825,11 +830,18 @@ impl CompiledQuery {
                 .labels
                 .copy_checked(account, MemoryKind::Workspace, control)?;
             if source.drop_name && self.options.delayed_name_removal {
-                labels.retain(|name| !metadata(name));
+                labels.retain_labels_checked(account, control, |label| {
+                    Ok::<_, Interrupted>(!metadata(&label.name))
+                })?;
             }
             let hash = crate::label_hash::full(&labels, control, account)?;
             if self.options.delayed_name_removal {
-                for prior in descriptors.iter().filter(|prior| prior.hash == hash) {
+                for prior in &*descriptors {
+                    control.check()?;
+                    account.work(1);
+                    if prior.hash != hash {
+                        continue;
+                    }
                     aliases = true;
                     if prior.kinds & source.kinds != 0
                         || prior.heads.repeated_kind()
@@ -852,11 +864,7 @@ impl CompiledQuery {
                 heads: source.heads,
             });
         }
-        if !aliases
-            && descriptors
-                .iter()
-                .all(|descriptor| !descriptor.heads.multiple())
-        {
+        if !aliases && single_heads {
             return Ok(None);
         }
         let mut cohorts = Rosters::new(account, 1);
@@ -1286,7 +1294,9 @@ impl CompiledQuery {
                         descriptor
                             .labels
                             .copy_checked(account, MemoryKind::Workspace, control)?;
-                    labels.retain(|name| !metadata(name));
+                    labels.retain_labels_checked(account, control, |label| {
+                        Ok::<_, Interrupted>(!metadata(&label.name))
+                    })?;
                     hashes.push(crate::label_hash::full(&labels, control, account)?);
                 }
                 rosters.prepare_merge_guard(node, hashes, control, account)?;
@@ -1847,6 +1857,62 @@ mod tests {
     use super::*;
     use crate::{result::OwnedValue, test_storage::FixtureProvider};
     use std::sync::atomic::Ordering;
+
+    #[test]
+    fn instant_cohort_metadata_interrupts_prechecks_and_prior_hash_walks() {
+        for aliases in [false, true] {
+            let engine = Engine::default();
+            let control = Control::default();
+            let query = engine
+                .compile(
+                    b"m",
+                    EngineOptions {
+                        delayed_name_removal: aliases,
+                        ..EngineOptions::default()
+                    },
+                    &control,
+                )
+                .unwrap();
+            let account = engine.accounting.query();
+            let mut rosters = Rosters::new(&account, query.expression.arena.nodes.len());
+            let mut descriptors = AccountedVec::new(&account, MemoryKind::Workspace);
+            let count = if aliases { 150 } else { 10_000 };
+            for ordinal in 0..count {
+                let mut labels = crate::result::OwnedLabels::new(&account, MemoryKind::Workspace);
+                if aliases {
+                    labels.push(
+                        b"id",
+                        ordinal.to_string().as_bytes(),
+                        &account,
+                        MemoryKind::Workspace,
+                    );
+                }
+                descriptors.push(Descriptor {
+                    labels,
+                    ordinal,
+                    hash: 0,
+                    drop_name: false,
+                    first_order: ordinal,
+                    sources: 0..0,
+                    kinds: if aliases && ordinal % 2 == 1 { 2 } else { 1 },
+                    heads: HeadSummary::default(),
+                });
+            }
+            rosters.output(query.expression.root, descriptors, &account);
+            let result = crate::test_storage::interrupt_during(&account, &control, || {
+                query.instant_cohorts(&rosters, &control, &account)
+            });
+            assert!(matches!(
+                result,
+                Err(EvaluationError::Interrupted(Interrupted::Cancelled))
+            ));
+            assert!(account.snapshot().work >= 8192);
+            drop((rosters, query));
+            account.snapshot().assert_memory_released();
+            drop(account);
+            engine.accounting.snapshot().assert_memory_released();
+        }
+    }
 
     #[cfg(target_arch = "x86_64")]
     #[test]

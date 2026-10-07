@@ -1443,6 +1443,16 @@ do not enumerate independent caller/provider clones and do not duplicate the phy
 remain live through provider destruction and sink abort, then release before the final report snapshot.
 Cancellation still takes precedence over the inline deadline; observation does not change error or polling order.
 
+Productive label retention uses one checked traversal for predicates, swaps and normal suffix release. Empty
+label sets and empty grouping lists still observe cancellation; grouping-name comparisons poll byte chunks.
+Grouped preparation, lookup and output copies preserve raw empty-valued keys and first hash matches. Empty
+values are removed at the original output phase, after raw grouping hashes. Label lookup polls long byte
+comparisons; insertion/removal moves and instant cohort metadata walks are observed without additional buffers.
+Public owned-value mutators retain
+their inert interface; query execution uses checked owners. Interrupted local metadata is discarded with its
+query context, and error/unwind destruction remains infallible. Required native-accumulator bucket observation
+and complete foreign transient accounting retain their separate open qualification.
+
 Cleanup checks verify every memory category against exact live root counts, including `Accounting`; they do not
 exempt bookkeeping from leak detection. Query snapshots include the query root that is live when the snapshot
 is taken. Finite tests cover root identity, zero-capacity retention, creator/consumer attribution, concurrency,
