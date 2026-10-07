@@ -147,7 +147,8 @@ def qualify(profiles, sanitizers, abort_check):
             command(task, name + '-build', [*flags, HERE / 'c_embedding.c', '-x', 'none', archive,
                                           *libs, '-o', binary], root, env)
             values = records(command(task, name, [binary], root, env).stdout)
-            if len(values) != 7 or values[-1] != {'native_embedding': 'pass'}:
+            if (len(values) != 8 or values[-2] != {'label_field_boundary': 'pass', 'cases': 6}
+                    or values[-1] != {'native_embedding': 'pass'}):
                 raise ValueError(name + ': incomplete native witnesses')
             witnesses[name] = values
         if sanitizers:

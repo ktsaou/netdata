@@ -483,7 +483,7 @@ impl Rosters {
         child: NodeId,
         control: &Control,
         account: &QueryAccounting,
-    ) -> Result<(), Interrupted> {
+    ) -> Result<(), EvaluationError> {
         let rows = self.projection_input(child, control, account)?;
         self.nodes[node.0].histogram = Some(AccountedBox::new(
             crate::histogram_call::Plan::new(rows, control, account)?,
@@ -512,7 +512,7 @@ impl Rosters {
         matching: &VectorMatching,
         control: &Control,
         account: &QueryAccounting,
-    ) -> Result<(), Interrupted> {
+    ) -> Result<(), EvaluationError> {
         let left = self.projection_input(children[0], control, account)?;
         let right = self.projection_input(children[1], control, account)?;
         self.nodes[node.0].binary = Some(AccountedBox::new(

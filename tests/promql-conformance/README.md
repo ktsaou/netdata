@@ -1620,6 +1620,29 @@ enforcement must adapt to the device. Opaque regex memory is explicitly estimate
 remain precise, and totals containing estimates are not guaranteed bounds. Live dbengine, APIs, Go Cloud distribution and independent rule lifecycle are
 later tracked stages. Alertmanager remains excluded.
 
+## Label encoding compatibility exception
+
+Each materialized label name and value must contain fewer than **16,777,216 bytes**. The pinned
+[Prometheus stringlabels encoder](https://github.com/prometheus/prometheus/blob/5241a27fe3c6983549fccc32f6e65917408c63cd/model/labels/labels_stringlabels.go#L543-L562)
+accepts exactly that length but encodes it as zero. Depending on the bytes, original evaluation returns a slice
+bounds error or malformed labels. The Rust core explicitly rejects that boundary instead of reproducing the
+corruption. Original Go captures remain unchanged; this departure is an approved compatibility exception.
+
+Provider fields fail with `StorageError::Invalid`; generated fields fail with the ordinary runtime message
+`String too long to encode as label.` Larger fields retain that upstream message. The rule applies per actual
+field: labelsets may exceed this total size, and matcher/string arguments do not acquire a separate size cap.
+Memory, work, concurrency and duration enforcement remain disabled.
+
+Validation follows materialization. COUNT checks its modified labels before grouping can remove the destination.
+Label replacements check after a match generates labels; unmatched replacements and empty-value deletion remain
+valid. Absence inference may provisionally Set then Del a large equality; only a produced absence sample is
+validated, after child evaluation. Signature/hash encoding is fallible rather than panic-based.
+
+The boundary tests exercise names and values immediately below, at and above the limit, generated fields,
+pre-grouping COUNT errors, deletion/no-match controls and combined labelsets larger than the field boundary.
+The real C/C++ embedding gate adds six provider cases and checks error classification, rejection before raw cursor
+creation and paired releases. These checks do not establish complete language or foreign-allocation accounting.
+
 ## Bounded binary matching and pair replay
 
 Vector/vector arithmetic, comparisons, `bool`, `and`, `or`, `unless`, `on`, `ignoring`, group modifiers and optional

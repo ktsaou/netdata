@@ -2144,6 +2144,9 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
                     labels,
                     drop_name,
                 } => {
+                    if !*present {
+                        crate::label_encoding::finalized(labels, self.control, self.account)?;
+                    }
                     let sample = (!*present).then(|| EvaluatedSample {
                         ordinal: 0,
                         labels: std::mem::replace(

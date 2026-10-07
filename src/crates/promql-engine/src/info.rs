@@ -403,7 +403,7 @@ fn signature(
     name: &[u8],
     control: &Control,
     account: &QueryAccounting,
-) -> Result<AccountedVec<u8>, Interrupted> {
+) -> Result<AccountedVec<u8>, EvaluationError> {
     let mut selected = OwnedLabels::new(account, MemoryKind::Workspace);
     // ScratchBuilder keeps the explicitly injected name, including an empty name value.
     let mut metric_name = AccountedVec::new(account, MemoryKind::Workspace);
