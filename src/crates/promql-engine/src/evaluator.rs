@@ -541,18 +541,18 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
     fn lookup_at(&self, node: NodeId, time_ms: i64) -> i64 {
         let selector = self.selector(node);
         let fixed = self.prepared.timestamp(node, &selector.modifiers);
-        // Direct timestamp selectors replace the lookup offset; storage retains the original.
-        if self.timestamp_selectors[node.0]
-            && let Some(time) = fixed
-        {
-            let offset = time_ms.wrapping_sub(time).wrapping_mul(1_000_000);
-            return time_ms.wrapping_sub(offset / 1_000_000);
-        }
         let time = if self.invariants[node.0] {
             self.options.start_ms
         } else {
             time_ms
         };
+        // Direct timestamp selectors replace the lookup offset; storage retains the original.
+        if self.timestamp_selectors[node.0]
+            && let Some(reference) = fixed
+        {
+            let offset = time.wrapping_sub(reference).wrapping_mul(1_000_000);
+            return time.wrapping_sub(offset / 1_000_000);
+        }
         time.wrapping_sub(
             self.prepared
                 .adjusted_offset(node, &selector.modifiers, self.options.start_ms)
@@ -709,8 +709,7 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
                     }
                     _ => (),
                 }
-                let fixed =
-                    self.invariants[selector_node.0] && !self.timestamp_selectors[selector_node.0];
+                let fixed = self.invariants[selector_node.0];
                 let window = crate::instant_select::InstantWindow {
                     first_lookup_ms: if fixed {
                         end_ms

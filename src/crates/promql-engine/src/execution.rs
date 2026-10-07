@@ -3137,6 +3137,156 @@ mod tests {
     }
 
     #[test]
+    fn fixed_direct_clocks_freeze_wrapped_lookups_at_the_scope_start() {
+        use crate::value::{Sample, SampleValue};
+        fn sample<const TIME: i64>(_: usize) -> Sample {
+            Sample {
+                time_ms: TIME,
+                start_time_ms: TIME - 1000,
+                value: SampleValue::Float(7.0),
+            }
+        }
+        let engine = Engine::default();
+        let control = Control::default();
+        for page in [1, 17, 1024] {
+            for delayed in [false, true] {
+                for negative in [false, true] {
+                    let mut provider = FixtureProvider::new(1, page, 1);
+                    provider.series[0].source.sample = if negative {
+                        sample::<-18_446_744_073_709>
+                    } else {
+                        sample::<18_446_744_073_709>
+                    };
+                    let mut settings = options(delayed);
+                    settings.parser.experimental_functions = delayed;
+                    for function in ["timestamp", "start_timestamp"] {
+                        if function == "start_timestamp" && !delayed {
+                            continue;
+                        }
+                        for parenthesized in [false, true] {
+                            let argument = format!(
+                                "counter_total @{}18446744073.709",
+                                if negative { "-" } else { "" }
+                            );
+                            let source = if parenthesized {
+                                format!("{function}(({argument}))")
+                            } else {
+                                format!("{function}({argument})")
+                            };
+                            let query = engine
+                                .compile(source.as_bytes(), settings, &control)
+                                .unwrap();
+                            let (result, observations) = query
+                                .collect(
+                                    &provider,
+                                    QueryRequest::Range {
+                                        start_ms: if negative { 0 } else { -1000 },
+                                        end_ms: if negative { 1000 } else { 0 },
+                                        step_ms: 1000,
+                                    },
+                                    &control,
+                                )
+                                .unwrap();
+                            // Source StepInvariant performs the first wrapped lookup only.
+                            assert!(result.series.is_empty(), "{source}");
+                            assert!(result.string.is_none());
+                            assert!(result.annotations.is_empty());
+                            for kind in [
+                                MemoryKind::Workspace,
+                                MemoryKind::ProviderHeld,
+                                MemoryKind::BorrowedView,
+                            ] {
+                                assert_eq!(observations.memory[kind as usize].current, 0);
+                            }
+                            provider.assert_closed();
+                        }
+                    }
+                }
+            }
+        }
+        engine.accounting.snapshot().assert_memory_released();
+    }
+
+    #[test]
+    fn fixed_direct_clocks_copy_productive_first_steps_across_wrapped_time() {
+        use crate::value::{Sample, SampleValue};
+        fn sample(_: usize) -> Sample {
+            Sample {
+                time_ms: 0,
+                start_time_ms: -1000,
+                value: SampleValue::Float(7.0),
+            }
+        }
+        let engine = Engine::default();
+        let control = Control::default();
+        for page in [1, 17, 1024] {
+            let mut provider = FixtureProvider::new(1, page, 2);
+            for (series, name) in provider.series.iter_mut().zip([b"m".as_slice(), b"anchor"]) {
+                series.source.sample = sample;
+                series.labels = vec![(b"__name__".to_vec(), name.to_vec())];
+            }
+            for delayed in [false, true] {
+                let mut settings = options(delayed);
+                settings.parser.experimental_functions = delayed;
+                for negative in [false, true] {
+                    for function in ["timestamp", "start_timestamp"] {
+                        if function == "start_timestamp" && !delayed {
+                            continue;
+                        }
+                        for parenthesized in [false, true] {
+                            let argument =
+                                format!("m @{}18446744073.709", if negative { "-" } else { "" });
+                            let clock = if parenthesized {
+                                format!("{function}(({argument}))")
+                            } else {
+                                format!("{function}({argument})")
+                            };
+                            let source = format!("{clock} + scalar(anchor @0)*0");
+                            let query = engine
+                                .compile(source.as_bytes(), settings, &control)
+                                .unwrap();
+                            let (result, observations) = query
+                                .collect(
+                                    &provider,
+                                    QueryRequest::Range {
+                                        start_ms: 0,
+                                        end_ms: 1000,
+                                        step_ms: 1000,
+                                    },
+                                    &control,
+                                )
+                                .unwrap();
+                            assert_eq!(result.series.len(), 1, "{source}");
+                            assert!(result.series[0].labels.0.is_empty());
+                            assert_eq!(result.series[0].points.len(), 2);
+                            for (point, time_ms) in result.series[0].points.iter().zip([0, 1000]) {
+                                assert_eq!(point.time_ms, time_ms);
+                                let value = if function == "timestamp" {
+                                    0.0_f64
+                                } else {
+                                    -1.0
+                                };
+                                assert_eq!(float_bits(point), value.to_bits(), "{source}");
+                            }
+                            assert!(result.string.is_none());
+                            assert!(result.annotations.is_empty());
+                            for kind in [
+                                MemoryKind::Workspace,
+                                MemoryKind::ProviderHeld,
+                                MemoryKind::BorrowedView,
+                            ] {
+                                assert_eq!(observations.memory[kind as usize].current, 0);
+                            }
+                            provider.assert_closed();
+                        }
+                    }
+                }
+            }
+        }
+        engine.accounting.snapshot().assert_memory_released();
+    }
+
+    #[test]
     fn extreme_fixed_time_uses_source_query_bounds_and_timestamp_offset_arithmetic() {
         use crate::value::{Sample, SampleValue};
         fn sample(_: usize) -> Sample {
