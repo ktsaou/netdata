@@ -199,13 +199,11 @@ pub(crate) fn projected(
     drop_name: bool,
     control: &Control,
     account: &QueryAccounting,
-) -> Result<OwnedLabels, Interrupted> {
+) -> Result<OwnedLabels, crate::evaluator::EvaluationError> {
     let mut result = left.copy_checked(account, MemoryKind::Workspace, control)?;
     result.reset_checked(account, control)?;
     if drop_name || crate::binary_value::changes_metadata(operator) {
-        result.retain_labels_checked(account, control, |label| {
-            Ok::<_, Interrupted>(!crate::evaluator::metadata(&label.name))
-        })?;
+        crate::evaluator::drop_reserved(&mut result, false, account, control)?;
     }
     if matching.cardinality == Cardinality::OneToOne {
         result.retain_labels_checked(account, control, |label| {
@@ -215,7 +213,7 @@ pub(crate) fn projected(
                 control,
                 account,
             )?;
-            Ok(if matching.on { selected } else { !selected })
+            Ok::<_, Interrupted>(if matching.on { selected } else { !selected })
         })?;
     }
     for name in matching.include.as_deref().unwrap_or(&[]) {

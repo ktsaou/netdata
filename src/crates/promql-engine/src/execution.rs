@@ -1,5 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 //! Synchronous query ownership, incremental output and ordinary-panic containment.
+#[cfg(test)]
+use crate::evaluator::metadata;
 use crate::{
     accounting::{
         AccountedBox, AccountedVec, AllocationContext, EngineAccounting, MemoryKind,
@@ -8,7 +10,7 @@ use crate::{
     annotations::{AnnotationBuilder, Annotations},
     evaluator::{
         EvaluationError, EvaluationMetadata, EvaluationOptions, Machine, PointwiseFunction,
-        metadata, remember_unique, remember_unique_kind,
+        drop_reserved, remember_unique, remember_unique_kind,
     },
     evaluator_roster::{
         Descriptor, DescriptorIndex, HeadSummary, MergeGuard, PointCounts, Rosters, StepKinds,
@@ -677,9 +679,7 @@ impl CompiledQuery {
                         .labels
                         .copy_checked(account, MemoryKind::Workspace, control)?;
                 if descriptor.drop_name {
-                    labels.retain_labels_checked(account, control, |label| {
-                        Ok::<_, Interrupted>(!metadata(&label.name))
-                    })?;
+                    drop_reserved(&mut labels, false, account, control)?;
                 }
                 hashes.push(crate::label_hash::full(&labels, control, account)?);
             }
@@ -720,11 +720,7 @@ impl CompiledQuery {
             while let Some(mut sample) = machine.next()? {
                 control.check().map_err(EvaluationError::from)?;
                 if sample.drop_name && self.options.delayed_name_removal {
-                    sample
-                        .labels
-                        .retain_labels_checked(account, control, |label| {
-                            Ok::<_, Interrupted>(!metadata(&label.name))
-                        })?;
+                    drop_reserved(&mut sample.labels, false, account, control)?;
                 }
                 if self.options.delayed_name_removal
                     && cleanup_guard.checks(
@@ -831,9 +827,7 @@ impl CompiledQuery {
                 .labels
                 .copy_checked(account, MemoryKind::Workspace, control)?;
             if source.drop_name && self.options.delayed_name_removal {
-                labels.retain_labels_checked(account, control, |label| {
-                    Ok::<_, Interrupted>(!metadata(&label.name))
-                })?;
+                drop_reserved(&mut labels, false, account, control)?;
             }
             let hash = crate::label_hash::full(&labels, control, account)?;
             if self.options.delayed_name_removal {
@@ -1295,9 +1289,7 @@ impl CompiledQuery {
                         descriptor
                             .labels
                             .copy_checked(account, MemoryKind::Workspace, control)?;
-                    labels.retain_labels_checked(account, control, |label| {
-                        Ok::<_, Interrupted>(!metadata(&label.name))
-                    })?;
+                    drop_reserved(&mut labels, false, account, control)?;
                     hashes.push(crate::label_hash::full(&labels, control, account)?);
                 }
                 rosters.prepare_merge_guard(node, hashes, control, account)?;
@@ -1857,6 +1849,12 @@ fn children(expression: &Expr) -> impl DoubleEndedIterator<Item = NodeId> + '_ {
             || function.is_some_and(|function| function.name == "info") =>
         {
             ([None, None], &arguments[..1])
+        }
+        Expr::Call { function: Some(function), arguments }
+            if matches!(crate::histogram_call::Function::parse(function.name),
+                Some(crate::histogram_call::Function::Quantiles)) =>
+        {
+            ([Some(arguments[0]), None], &arguments[2..])
         }
         Expr::Call { arguments, .. } => ([None, None], arguments),
         _ => ([None, None], &[]),
@@ -7580,9 +7578,19 @@ mod tests {
     fn histogram_call_replay_keeps_history_independent_raw_workspace() {
         for page_size in [1, 17, 1024] {
             for delayed in [false, true] {
-                for source in [
-                    "histogram_quantile(0.5,sum_over_time(counter_total[1000000s]))",
-                    "histogram_fraction(0.25,0.75,sum_over_time(counter_total[1000000s]))",
+                for (source, expected) in [
+                    (
+                        "histogram_quantile(0.5,sum_over_time(counter_total[1000000s]))",
+                        &[0.5_f64][..],
+                    ),
+                    (
+                        "histogram_fraction(0.25,0.75,sum_over_time(counter_total[1000000s]))",
+                        &[0.5_f64][..],
+                    ),
+                    (
+                        "histogram_quantiles(sum_over_time(counter_total[1000000s]),\"q\",0.25,0.75)",
+                        &[0.25_f64, 0.75][..],
+                    ),
                 ] {
                     let mut peaks = Vec::new();
                     for count in [2048, 100_000] {
@@ -7600,8 +7608,10 @@ mod tests {
                         }
                         let engine = Engine::default();
                         let control = Control::default();
+                        let mut settings = options(delayed);
+                        settings.parser.experimental_functions = true;
                         let query = engine
-                            .compile(source.as_bytes(), options(delayed), &control)
+                            .compile(source.as_bytes(), settings, &control)
                             .unwrap();
                         let (result, observed) = query
                             .collect(
@@ -7612,8 +7622,10 @@ mod tests {
                                 &control,
                             )
                             .unwrap();
-                        assert_eq!(result.series.len(), 1);
-                        assert_eq!(float_bits(&result.series[0].points[0]), 0.5_f64.to_bits());
+                        assert_eq!(result.series.len(), expected.len());
+                        for (series, value) in result.series.iter().zip(expected) {
+                            assert_eq!(float_bits(&series.points[0]), value.to_bits());
+                        }
                         assert!(result.annotations.is_empty());
                         assert!(observed.samples_fetched > 2 * count as u64);
                         assert_eq!(
@@ -8229,6 +8241,7 @@ mod tests {
         for source in [
             "histogram_quantile(0.5,sum_over_time(counter_total[1000000s]))",
             "histogram_fraction(0.25,0.75,sum_over_time(counter_total[1000000s]))",
+            "histogram_quantiles(sum_over_time(counter_total[1000000s]),\"q\",0.25,0.75)",
         ] {
             let mut provider = FixtureProvider::new(100, 17, 2);
             for (index, series) in provider.series.iter_mut().enumerate() {
@@ -8245,8 +8258,10 @@ mod tests {
             provider.series[1].source.fail_page = Some(1);
             let engine = Engine::default();
             let control = Control::default();
+            let mut settings = EngineOptions::default();
+            settings.parser.experimental_functions = true;
             let query = engine
-                .compile(source.as_bytes(), EngineOptions::default(), &control)
+                .compile(source.as_bytes(), settings, &control)
                 .unwrap();
             let mut sink = RecordingSink::default();
             let error = query
@@ -8289,6 +8304,7 @@ mod tests {
         for source in [
             "histogram_quantile(0.5,counter_total)",
             "histogram_fraction(0.25,0.75,counter_total)",
+            "histogram_quantiles(counter_total,\"q\",0.25,0.75)",
         ] {
             let mut provider = FixtureProvider::new(1, 1, 2);
             for (index, series) in provider.series.iter_mut().enumerate() {
@@ -8305,8 +8321,10 @@ mod tests {
             }
             let engine = Engine::default();
             let control = Control::default();
+            let mut settings = EngineOptions::default();
+            settings.parser.experimental_functions = true;
             let query = engine
-                .compile(source.as_bytes(), EngineOptions::default(), &control)
+                .compile(source.as_bytes(), settings, &control)
                 .unwrap();
             // Two descriptor reads and two classification reads precede the first count request.
             GATE.with_borrow_mut(|gate| *gate = Some((control.cancellation.clone(), 0)));
@@ -9661,4 +9679,129 @@ mod tests {
         drop(result);
         engine.accounting.snapshot().assert_memory_released();
     }
+    #[test]
+    fn plural_quantiles_keep_duplicate_occurrences_until_the_source_cleanup_phase() {
+        let call = "histogram_quantiles(counter_total,\"q\",0.25,0.75,0.25,0.75)";
+        for delayed in [false, true] {
+            for parent in ["", "sum by(q)", "topk(1,"] {
+                let source = match parent {
+                    "" => call.to_owned(),
+                    "sum by(q)" => format!("{parent}({call})"),
+                    _ => format!("{parent}{call})"),
+                };
+                let mut provider = FixtureProvider::new(2, 1, 2);
+                for (index, series) in provider.series.iter_mut().enumerate() {
+                    series.labels[1].1 = b"same".to_vec();
+                    series.labels.push((
+                        b"le".to_vec(),
+                        if index == 0 {
+                            b"1".to_vec()
+                        } else {
+                            b"+Inf".to_vec()
+                        },
+                    ));
+                }
+                let engine = Engine::default();
+                let account = engine.accounting.clone();
+                let control = Control::default();
+                let mut settings = options(delayed);
+                settings.parser.experimental_functions = true;
+                let query = engine
+                    .compile(source.as_bytes(), settings, &control)
+                    .unwrap();
+                drop(engine);
+                let outcome =
+                    query.collect(&provider, QueryRequest::Instant { time_ms: 2000 }, &control);
+                if !delayed || parent.is_empty() {
+                    assert!(
+                        is_duplicate(&outcome.unwrap_err()),
+                        "{source} delayed {delayed}"
+                    );
+                } else {
+                    let (result, _) = outcome.unwrap();
+                    let expected: &[f64] = if parent == "sum by(q)" {
+                        &[0.5, 1.5]
+                    } else {
+                        &[0.75]
+                    };
+                    assert_eq!(result.series.len(), expected.len(), "{source}");
+                    for (series, value) in result.series.iter().zip(expected) {
+                        assert_eq!(float_bits(&series.points[0]), value.to_bits(), "{source}");
+                    }
+                    drop(result);
+                }
+                provider.assert_closed();
+                drop(query);
+                account.snapshot().assert_memory_released();
+            }
+        }
+    }
+
+    #[test]
+    fn empty_plural_destination_errors_only_when_reserved_removal_visits_it() {
+        let call = "histogram_quantiles(counter_total,\"\",0.25,0.75)";
+        for delayed in [false, true] {
+            for (source, removes_names, expected) in [
+                (call.to_owned(), delayed, vec![0.25_f64, 0.75]),
+                (format!("sum({call})"), false, vec![1.0]),
+                (format!("sum(-({call}))"), !delayed, vec![-1.0]),
+                (format!("sum(abs({call}))"), !delayed, vec![1.0]),
+            ] {
+                let mut provider = FixtureProvider::new(2, 1, 2);
+                for (index, series) in provider.series.iter_mut().enumerate() {
+                    series.labels[1].1 = b"same".to_vec();
+                    series.labels.push((
+                        b"le".to_vec(),
+                        if index == 0 {
+                            b"1".to_vec()
+                        } else {
+                            b"+Inf".to_vec()
+                        },
+                    ));
+                }
+                let engine = Engine::default();
+                let control = Control::default();
+                let mut settings = options(delayed);
+                settings.parser.experimental_functions = true;
+                let query = engine
+                    .compile(source.as_bytes(), settings, &control)
+                    .unwrap();
+                let outcome =
+                    query.collect(&provider, QueryRequest::Instant { time_ms: 2000 }, &control);
+                if removes_names {
+                    let error = outcome.unwrap_err();
+                    let ExecutionError::Evaluation(EvaluationError::WrappedRuntime(message)) =
+                        &error
+                    else {
+                        panic!("unexpected empty-name failure: {error:?}");
+                    };
+                    assert_eq!(
+                        &**message,
+                        b"unexpected error: runtime error: index out of range [0] with length 0"
+                    );
+                    drop(error);
+                } else {
+                    let (result, _) = outcome.unwrap();
+                    assert_eq!(result.series.len(), expected.len(), "{source}");
+                    for (series, value) in result.series.iter().zip(expected) {
+                        assert_eq!(float_bits(&series.points[0]), value.to_bits(), "{source}");
+                    }
+                    if source == call {
+                        assert!(
+                            result
+                                .series
+                                .iter()
+                                .all(|series| series.labels.0[0].name.is_empty())
+                        );
+                    }
+                    drop(result);
+                }
+                provider.assert_closed();
+                drop(query);
+                engine.accounting.snapshot().assert_memory_released();
+            }
+        }
+    }
+
+
 }
