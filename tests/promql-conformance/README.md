@@ -199,7 +199,7 @@ probe, requests and results in ignored `.tmp/`, and compares value bits and erro
 panel passes in both release profiles, including 933 added long-decimal cancellation/fallback cases. The earlier
 12,154-case panel missed these source behaviors; both original captures and failed before binaries remain retained.
 Eighteen additional scalar comparison requests now match Prometheus exactly across parser profiles, query modes
-and fixture page sizes. All 253 core unit tests pass in both profiles and Rust 1.91; the fixtures feature
+and fixture page sizes. All 255 core unit tests pass in both profiles and Rust 1.91; the fixtures feature
 adds one transport test. The existing
 157 lexer, 356 AST, 784 parser-option and 32 literal cases continue to match. The complete expression panel remains
 13,330 passing variants and 8,112 unsupported variants, with no lost passes or new paired numerical differences.
@@ -503,6 +503,8 @@ the histogram, retains one bucket plus iterator/rank state, and returns one scal
 identity. It does not copy or compact input buckets. This preserves custom infinite-bound early returns,
 slice-length zero-side checks and the quantile NaN continuation's final-bucket overwrite. Diagnostic formatting
 uses the qualified Go byte quoting and original query byte positions; numeric scans allocate no message strings.
+Internal variants poll every visited bucket in the main and NaN-tail scans. Cancellation witnesses
+cover both phases, preserve borrowed inputs and confirm unchanged allocation observations.
 A 100,000-bucket custom histogram test exercises forward/reverse scans on a 128KiB caller stack and checks
 the caller's retained buffers and values.
 
@@ -525,10 +527,15 @@ python3 tests/promql-conformance/histogram_functions_capture.py --mod-cache "${P
 python3 tests/promql-conformance/histogram_functions.py --capture "${PROMQL_HISTOGRAM_FUNCTIONS_CAPTURE_DIR:?}"
 ```
 
-Both release profiles pass all 7,611 comparisons. Each reports 80 numeric bit diagnostics, consisting of 40 NaN
-results and their 40 reciprocals; all discrete outcomes match. Strict-bit mode fails those reported diagnostics.
+Both release profiles pass all 7,611 comparisons bit-for-bit. The earlier 80 NaN result/reciprocal diagnostics
+are corrected on the qualified AMD64 target. Optimized original Go instructions determine each accumulation's
+destination: the main scans preserve the arriving bucket's NaN, while quantile's tail preserves the old count.
+The correction also preserves interpolation operand order. A separate 14,400-case original Go capture includes
+positive, negative, custom and zero buckets, signaling NaNs and infinities; retained before results identify
+1,344 bit differences, and the corrected helpers match exactly. Other-target numerical policy remains unresolved.
 Twenty-four original DSL declaration-versus-Go differences remain separately reported and satisfy the original
-`almost.Equal` assertions. These helper gates do not establish complete Rust expression evaluation.
+`almost.Equal` assertions. Expression dispatch for these two helpers remains unfinished; these gates do not
+establish complete Rust expression evaluation.
 
 ## Native histogram statistics
 
