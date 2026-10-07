@@ -619,6 +619,7 @@ impl CompiledQuery {
                         data_bounds,
                         annotations: None,
                         binary_preparation: None,
+                        histogram_preparation: None,
                     },
                 );
                 machine.restrict(&sources[descriptor.sources.clone()]);
@@ -687,6 +688,7 @@ impl CompiledQuery {
                     data_bounds,
                     annotations: None,
                     binary_preparation: None,
+                    histogram_preparation: None,
                 },
             );
             let mut seen = AccountedVec::new(account, MemoryKind::Workspace);
@@ -984,6 +986,27 @@ impl CompiledQuery {
                     control,
                 )?;
             }
+            let histogram_cache =
+                std::cell::RefCell::new(crate::histogram_call::Cache::new(account));
+            let histogram_preparation = if let Expr::Call {
+                function: Some(function),
+                arguments,
+            } = expression
+                && let Some(function) = crate::histogram_call::Function::parse(function.name)
+            {
+                rosters.prepare_histogram(
+                    node,
+                    arguments[function.vector_argument()],
+                    control,
+                    account,
+                )?;
+                Some(crate::histogram_call::Preparation {
+                    node,
+                    cache: &histogram_cache,
+                })
+            } else {
+                None
+            };
             let binary_cache =
                 std::cell::RefCell::new(AccountedVec::new(account, MemoryKind::Workspace));
             let binary_preparation = if let Expr::Binary {
@@ -1008,7 +1031,8 @@ impl CompiledQuery {
                 && self.expression.arena[node].value_type == ValueType::Vector
                 && (matches!(expression, Expr::Binary { .. })
                     || matches!(expression, Expr::Call { function: Some(function), .. }
-                        if PointwiseFunction::parse(function.name).is_some()));
+                        if PointwiseFunction::parse(function.name).is_some()
+                            || crate::histogram_call::Function::parse(function.name).is_some()));
             let mut annotations = AnnotationBuilder::new(account);
             for child in children(expression) {
                 if let Some(child_annotations) = rosters.take_annotations(child) {
@@ -1048,6 +1072,7 @@ impl CompiledQuery {
                     data_bounds,
                     annotations: None,
                     binary_preparation,
+                    histogram_preparation,
                 },
             );
             let raw_selector = matches!(expression, Expr::Selector(_));
@@ -1173,6 +1198,9 @@ impl CompiledQuery {
             if binary_preparation.is_some() {
                 rosters.finish_binary_cache(node, binary_cache.into_inner());
             }
+            if histogram_preparation.is_some() {
+                rosters.finish_histogram_cache(node, histogram_cache.into_inner());
+            }
             if absent_range {
                 // Validate every series first, then invert the union without a timestamp bitmap.
                 let mut time_ms = header.start_ms;
@@ -1192,6 +1220,7 @@ impl CompiledQuery {
                             data_bounds,
                             annotations: Some(&mut annotations),
                             binary_preparation: None,
+                            histogram_preparation: None,
                         },
                     );
                     while let Some(sample) = machine.next()? {
@@ -1318,6 +1347,7 @@ impl CompiledQuery {
                     data_bounds: scope.data_bounds,
                     annotations: None,
                     binary_preparation: None,
+                    histogram_preparation: None,
                 },
             );
             // Descendant matrices remain authoritative; only this new merge is bypassed.
@@ -6587,6 +6617,191 @@ mod tests {
                 }
                 assert_eq!(peaks[0], peaks[1], "{name}");
             }
+        }
+    }
+
+    #[test]
+    fn histogram_call_replay_keeps_history_independent_raw_workspace() {
+        for page_size in [1, 17, 1024] {
+            for delayed in [false, true] {
+                for source in [
+                    "histogram_quantile(0.5,sum_over_time(counter_total[1000000s]))",
+                    "histogram_fraction(0.25,0.75,sum_over_time(counter_total[1000000s]))",
+                ] {
+                    let mut peaks = Vec::new();
+                    for count in [2048, 100_000] {
+                        let mut provider = FixtureProvider::new(count, page_size, 2);
+                        for (index, series) in provider.series.iter_mut().enumerate() {
+                            series.labels[1].1 = b"same".to_vec();
+                            series.labels.push((
+                                b"le".to_vec(),
+                                if index == 0 {
+                                    b"1".to_vec()
+                                } else {
+                                    b"+Inf".to_vec()
+                                },
+                            ));
+                        }
+                        let engine = Engine::default();
+                        let control = Control::default();
+                        let query = engine
+                            .compile(source.as_bytes(), options(delayed), &control)
+                            .unwrap();
+                        let (result, observed) = query
+                            .collect(
+                                &provider,
+                                QueryRequest::Instant {
+                                    time_ms: count as i64 * 1000,
+                                },
+                                &control,
+                            )
+                            .unwrap();
+                        assert_eq!(result.series.len(), 1);
+                        assert_eq!(float_bits(&result.series[0].points[0]), 0.5_f64.to_bits());
+                        assert!(result.annotations.is_empty());
+                        assert!(observed.samples_fetched > 2 * count as u64);
+                        assert_eq!(
+                            provider.series[0]
+                                .source
+                                .counters
+                                .peak
+                                .load(Ordering::Relaxed),
+                            1
+                        );
+                        peaks.push(
+                            [
+                                MemoryKind::Workspace,
+                                MemoryKind::ProviderHeld,
+                                MemoryKind::BorrowedView,
+                            ]
+                            .map(|kind| {
+                                let memory = observed.memory[kind as usize];
+                                assert_eq!(memory.current, 0);
+                                memory.peak
+                            }),
+                        );
+                        provider.assert_closed();
+                        drop(result);
+                        drop(query);
+                        engine.accounting.snapshot().assert_memory_released();
+                    }
+                    assert_eq!(
+                        peaks[0], peaks[1],
+                        "{source} page {page_size} delayed {delayed}"
+                    );
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn histogram_call_argument_failure_aborts_and_releases_owners() {
+        for source in [
+            "histogram_quantile(0.5,sum_over_time(counter_total[1000000s]))",
+            "histogram_fraction(0.25,0.75,sum_over_time(counter_total[1000000s]))",
+        ] {
+            let mut provider = FixtureProvider::new(100, 17, 2);
+            for (index, series) in provider.series.iter_mut().enumerate() {
+                series.labels[1].1 = b"same".to_vec();
+                series.labels.push((
+                    b"le".to_vec(),
+                    if index == 0 {
+                        b"1".to_vec()
+                    } else {
+                        b"+Inf".to_vec()
+                    },
+                ));
+            }
+            provider.series[1].source.fail_page = Some(1);
+            let engine = Engine::default();
+            let control = Control::default();
+            let query = engine
+                .compile(source.as_bytes(), EngineOptions::default(), &control)
+                .unwrap();
+            let mut sink = RecordingSink::default();
+            let error = query
+                .execute(
+                    &provider,
+                    QueryRequest::Instant { time_ms: 100_000 },
+                    &control,
+                    &mut sink,
+                )
+                .unwrap_err();
+            assert!(matches!(
+                error,
+                ExecutionError::Evaluation(EvaluationError::Storage(_))
+            ));
+            assert!(sink.begun && sink.aborted && !sink.committed);
+            provider.assert_closed();
+            drop(error);
+            drop(query);
+            engine.accounting.snapshot().assert_memory_released();
+        }
+    }
+
+    #[test]
+    fn histogram_call_cancellation_during_count_replay_releases_every_owner() {
+        use crate::storage::{Cancellation, Interrupted};
+        thread_local! {
+            static GATE: std::cell::RefCell<Option<(Cancellation, usize)>> = const { std::cell::RefCell::new(None) };
+        }
+        fn sample(index: usize) -> crate::value::Sample {
+            GATE.with_borrow_mut(|gate| {
+                if let Some((cancellation, reads)) = gate {
+                    *reads += 1;
+                    if *reads == 5 {
+                        cancellation.cancel();
+                    }
+                }
+            });
+            crate::test_storage::counter(index)
+        }
+        for source in [
+            "histogram_quantile(0.5,counter_total)",
+            "histogram_fraction(0.25,0.75,counter_total)",
+        ] {
+            let mut provider = FixtureProvider::new(1, 1, 2);
+            for (index, series) in provider.series.iter_mut().enumerate() {
+                series.labels[1].1 = b"same".to_vec();
+                series.labels.push((
+                    b"le".to_vec(),
+                    if index == 0 {
+                        b"1".to_vec()
+                    } else {
+                        b"+Inf".to_vec()
+                    },
+                ));
+                series.source.sample = sample;
+            }
+            let engine = Engine::default();
+            let control = Control::default();
+            let query = engine
+                .compile(source.as_bytes(), EngineOptions::default(), &control)
+                .unwrap();
+            // Two descriptor reads and two classification reads precede the first count request.
+            GATE.with_borrow_mut(|gate| *gate = Some((control.cancellation.clone(), 0)));
+            let mut sink = RecordingSink::default();
+            let outcome = query.execute(
+                &provider,
+                QueryRequest::Instant { time_ms: 1000 },
+                &control,
+                &mut sink,
+            );
+            let reads = GATE.with_borrow_mut(|gate| gate.take().unwrap().1);
+            assert_eq!(reads, 5);
+            let error = outcome.unwrap_err();
+            assert!(matches!(
+                error,
+                ExecutionError::Evaluation(EvaluationError::Interrupted(Interrupted::Cancelled))
+                    | ExecutionError::Evaluation(EvaluationError::Storage(
+                        StorageError::Interrupted(Interrupted::Cancelled)
+                    ))
+            ));
+            assert!(sink.begun && sink.aborted && !sink.committed);
+            provider.assert_closed();
+            drop(error);
+            drop(query);
+            engine.accounting.snapshot().assert_memory_released();
         }
     }
 

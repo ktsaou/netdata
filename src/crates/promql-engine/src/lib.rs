@@ -14,13 +14,6 @@ mod binary_labels;
 mod binary_value;
 pub mod c_abi;
 mod calendar;
-#[cfg_attr(
-    not(any(test, feature = "fixtures")),
-    expect(
-        dead_code,
-        reason = "Histogram query dispatch is the next in-scope stage."
-    )
-)]
 mod classic_replay;
 #[cfg(feature = "fixtures")]
 pub use classic_replay::fixture as classic_replay_fixture;
@@ -32,6 +25,7 @@ mod float_functions;
 mod float_text;
 pub mod frontend;
 mod go_sort;
+mod histogram_call;
 #[cfg(feature = "fixtures")]
 pub use go_sort::fixture as sort_fixture;
 pub mod histogram;

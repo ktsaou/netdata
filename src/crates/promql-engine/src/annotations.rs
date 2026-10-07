@@ -173,13 +173,6 @@ pub(crate) struct Monotonicity {
     max_diff: f64,
 }
 impl Monotonicity {
-    #[cfg_attr(
-        not(any(test, feature = "fixtures")),
-        expect(
-            dead_code,
-            reason = "Histogram call dispatch is a remaining staged owner."
-        )
-    )]
     pub(crate) fn new(ts: i64, min_bucket: f64, max_bucket: f64, max_diff: f64) -> Self {
         Self {
             min_ts: ts,
@@ -296,6 +289,91 @@ impl Annotations {
 pub(crate) struct AnnotationBuilder {
     entries: AccountedVec<Annotation>,
 }
+
+// The non-matrix call closure and rangeEval can retain the same special error object.
+pub(crate) struct CallbackAnnotations {
+    values: AnnotationBuilder,
+    shared: AccountedVec<bool>,
+}
+impl CallbackAnnotations {
+    pub(crate) fn new(account: &QueryAccounting) -> Self {
+        Self {
+            values: AnnotationBuilder::new(account),
+            shared: AccountedVec::new(account, MemoryKind::Workspace),
+        }
+    }
+    pub(crate) fn merge(
+        &mut self,
+        local: AnnotationBuilder,
+        outer: &mut AnnotationBuilder,
+        query: &[u8],
+        control: &Control,
+        account: &QueryAccounting,
+    ) -> Result<(), Interrupted> {
+        self.values.merge(local, query);
+        while self.shared.len() < self.values.entries.len() {
+            control.check()?;
+            account.work(1);
+            self.shared.push(false);
+        }
+        for (index, entry) in self.values.entries.iter_mut().enumerate() {
+            control.check()?;
+            account.work(1);
+            let special = matches!(
+                entry.kind,
+                AnnotationKind::StartTimeOverlap
+                    | AnnotationKind::HistogramQuantileForcedMonotonicity
+            );
+            let mut prior = None;
+            for (position, previous) in outer.entries.iter().enumerate() {
+                if crate::binary_labels::equal(
+                    &entry.raw_message,
+                    &previous.raw_message,
+                    control,
+                    account,
+                )? {
+                    prior = Some(position);
+                    break;
+                }
+            }
+            if special && self.shared[index] {
+                entry.occurrences = entry.occurrences.wrapping_mul(2);
+                entry.format(query);
+                outer.entries[prior.expect("shared callback diagnostic")] =
+                    copy_annotation(entry, control, account)?;
+            } else {
+                outer.merge_one(copy_annotation(entry, control, account)?, query);
+                self.shared[index] = special && prior.is_none();
+            }
+        }
+        Ok(())
+    }
+}
+
+fn copy_annotation(
+    source: &Annotation,
+    control: &Control,
+    account: &QueryAccounting,
+) -> Result<Annotation, Interrupted> {
+    let mut raw_message = AccountedVec::new(account, MemoryKind::Result);
+    let mut message = AccountedVec::new(account, MemoryKind::Result);
+    crate::result::append_bytes_checked(&mut raw_message, &source.raw_message, account, control)?;
+    crate::result::append_bytes_checked(&mut message, &source.message, account, control)?;
+    Ok(Annotation {
+        kind: source.kind,
+        raw_message,
+        message,
+        span: source.span,
+        occurrences: source.occurrences,
+        monotonicity: source.monotonicity.as_ref().map(|details| {
+            AccountedBox::new(
+                **details,
+                &AllocationContext::new(account, MemoryKind::Result),
+            )
+        }),
+    })
+}
+
 impl AnnotationBuilder {
     pub(crate) fn new(account: &QueryAccounting) -> Self {
         Self {
@@ -343,13 +421,6 @@ impl AnnotationBuilder {
         }
         self.add_generated(kind, raw_message, span, query, account, None);
     }
-    #[cfg_attr(
-        not(any(test, feature = "fixtures")),
-        expect(
-            dead_code,
-            reason = "Histogram call dispatch is a remaining staged owner."
-        )
-    )]
     pub(crate) fn add_invalid_quantile(
         &mut self,
         q: f64,
@@ -368,13 +439,6 @@ impl AnnotationBuilder {
         .expect("byte writer");
         self.add_generated(kind, raw, span, query, account, None);
     }
-    #[cfg_attr(
-        not(any(test, feature = "fixtures")),
-        expect(
-            dead_code,
-            reason = "Histogram call dispatch is a remaining staged owner."
-        )
-    )]
     pub(crate) fn add_bad_bucket(
         &mut self,
         metric: &[u8],
@@ -391,13 +455,6 @@ impl AnnotationBuilder {
         write_metric_name(metric, &mut raw);
         self.add_generated(kind, raw, span, query, account, None);
     }
-    #[cfg_attr(
-        not(any(test, feature = "fixtures")),
-        expect(
-            dead_code,
-            reason = "Histogram call dispatch is a remaining staged owner."
-        )
-    )]
     pub(crate) fn add_monotonicity(
         &mut self,
         metric: &[u8],

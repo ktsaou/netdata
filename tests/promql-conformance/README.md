@@ -199,11 +199,11 @@ probe, requests and results in ignored `.tmp/`, and compares value bits and erro
 panel passes in both release profiles, including 933 added long-decimal cancellation/fallback cases. The earlier
 12,154-case panel missed these source behaviors; both original captures and failed before binaries remain retained.
 Eighteen additional scalar comparison requests now match Prometheus exactly across parser profiles, query modes
-and fixture page sizes. All 261 core unit tests pass in both profiles and Rust 1.91; the fixtures feature
+and fixture page sizes. All 264 core unit tests pass in both profiles and Rust 1.91; the fixtures feature
 adds one transport test. The existing
 157 lexer, 356 AST, 784 parser-option and 32 literal cases continue to match. The complete expression panel remains
-13,330 passing variants and 8,112 unsupported variants, with no lost passes or new paired numerical differences.
-This is a finite parser-helper check; histogram expression execution remains a separate required surface.
+17,330 passing variants and 4,112 unsupported variants, with no lost passes or new paired numerical differences.
+This is a finite parser-helper check; the histogram expression qualification below covers its actual callers.
 
 ```sh
 python3 tests/promql-conformance/float_literals.py
@@ -596,8 +596,8 @@ quantile values also satisfy their narrower relative-epsilon assertions. Both re
 Classic interpolation and coalescing use the actual pinned Go AMD64 operand destinations, including the
 different addition destinations at fraction's lower and upper interpolation sites. Earlier NaN-only
 candidate diagnostics are cleared; original declarations remain unchanged.
-Complete grouped expressions,
-diagnostic formatting, storage replay and C accounting remain later qualification gates.
+Actual grouped expression, diagnostic and storage replay qualification is described below. Foreign C allocation
+accounting remains a separate required surface.
 
 Single-call count replay retains sorted bound/ordinal metadata and constant scalar scratch. It suspends for
 one original count at a time; the evaluator can supply that count through its existing frame loop. Adjacent
@@ -623,8 +623,35 @@ The supplemental capture validates the complete original module digest, runtime 
 input identities and frozen file hashes. Read counts, panic behavior, reciprocal/boolean results and every
 quantile diagnostic are checked. Tests reject altered results, read bounds and identities. Cancellation
 covers every replay sweep; 100,000 buckets run on a 128KiB stack with unchanged accounted memory during
-count reconstruction. This qualifies the private Q=1 continuation. Expression dispatch and general repeated
-`histogram_quantiles` backing-tail reconstruction remain required.
+count reconstruction. This qualifies the private Q=1 continuation. General repeated `histogram_quantiles`
+backing-tail reconstruction remains required.
+
+`histogram_quantile` and `histogram_fraction` now use that continuation through the evaluator's explicit frames.
+Arguments run in source order. Classification retains labels, ordinals, kinds and bounds while discarding values;
+count reconstruction reads one requested bucket value at a time. Native calculations retain one owned histogram.
+Neither path retains raw history or a cross-metric count array. Metadata and classic group/output bindings take
+O(N) space; nested child replay contributes additional work. Chronological preparation keeps the classic label
+cache and freezes output bindings for later value replay. It retains no presence or cache-event timeline.
+
+Grouping excludes only `le`. Native/classic conflicts, malformed bucket labels, delayed name removal, timestamps,
+duplicate results and diagnostic positions follow the pinned source. At source map boundaries, approved 9.A orders
+the actual stored label bytes. The original call closure's warning map persists across steps and can share a special
+diagnostic with its outer evaluator; repeated merges can double occurrences even on a step without a new warning.
+A precisely accounted callback accumulator reproduces that behavior without mutable shared ownership.
+
+```sh
+python3 tests/promql-conformance/histogram_calls.py --capture \
+  --upstream "${PROMQL_ORIGINAL_SOURCE_DIR:?}" --oracle "${PROMQL_ORIGINAL_QUERY_BINARY:?}"
+python3 tests/promql-conformance/histogram_calls.py --reference "${PROMQL_HISTOGRAM_CALL_CAPTURE_DIR:?}" \
+  --binary "${PROMQL_QUERY_BINARY:?}" --page-size 17
+```
+
+The independent original-query panel contains 72 complete requests covering silent steps, nested same-key warnings,
+ordinary parents, both name-removal modes and integer wrapping. Both profiles match all results and numeric bits at
+pages 1/17/1024. The retained pre-correction binary fails 48 of those requests; its original expectations remain
+unchanged. Actual expression tests keep retained Workspace/ProviderHeld/BorrowedView peaks unchanged from 2,048 to
+100,000 input samples at those page sizes, with one active storage cursor. Storage failure and cancellation during
+count reconstruction abort output and release owners. These finite witnesses do not establish a total memory bound.
 
 The shared Go comparator sort has a fallible polling entry and an inert wrapper for existing numeric helpers.
 It checks before comparisons, swaps and PDQ loop entries, including comparison-free reverse and pattern-breaking
@@ -1200,7 +1227,7 @@ cases, four empty-fault-field controls and 80 retained actual-full-hash cases. P
 cache ownership, history-independent raw workspace, current-pair histogram storage, a small caller stack,
 late-child failure precedence, sink/cancellation cleanup and preprocessed aggregation diagnostic positions.
 
-The original 21,442-case expression gate completes and passes 13,330 cases; 8,112 remain OPEN. Both profiles now have
+The original 21,442-case expression gate completes and passes 17,330 cases; 4,112 remain OPEN. Both profiles now have
 zero paired numeric bit differences in that gate. Separate retained panels preserve 20 previously attributed map-order
 disagreements and expose one newly executable label-merge disagreement: unchanged Go repeated that original query
 128 times with two metadata-label outcomes. Sorting the child OR map's complete labels under approved 9.A selects

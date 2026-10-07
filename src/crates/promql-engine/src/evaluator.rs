@@ -243,6 +243,7 @@ enum State<'a> {
         collecting: bool,
     },
     Binary(AccountedBox<crate::vector_matching::Step<'a>>),
+    Histogram(AccountedBox<crate::histogram_call::Step<'a>>),
 }
 struct Frame<'a> {
     node: NodeId,
@@ -359,6 +360,7 @@ pub(crate) struct EvaluationMetadata<'a> {
     pub(crate) data_bounds: TimeBounds,
     pub(crate) annotations: Option<&'a mut AnnotationBuilder>,
     pub(crate) binary_preparation: Option<crate::vector_matching::Preparation<'a>>,
+    pub(crate) histogram_preparation: Option<crate::histogram_call::Preparation<'a>>,
 }
 pub(crate) struct Machine<'a, 'q, Q: QueryProvider + 'q> {
     catalog: &'a Catalog<'q, Q>,
@@ -375,6 +377,7 @@ pub(crate) struct Machine<'a, 'q, Q: QueryProvider + 'q> {
     diagnostic_node: NodeId,
     annotations: Option<&'a mut AnnotationBuilder>,
     binary_preparation: Option<crate::vector_matching::Preparation<'a>>,
+    histogram_preparation: Option<crate::histogram_call::Preparation<'a>>,
 }
 
 impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
@@ -410,6 +413,7 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
             diagnostic_node: root,
             annotations: metadata.annotations,
             binary_preparation: metadata.binary_preparation,
+            histogram_preparation: metadata.histogram_preparation,
         }
     }
     fn push(&mut self, node: NodeId) {
@@ -471,6 +475,7 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
                 data_bounds: self.data_bounds,
                 annotations,
                 binary_preparation: self.binary_preparation,
+                histogram_preparation: self.histogram_preparation,
             },
         )
     }
@@ -1052,6 +1057,38 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
                     self.frames.pop();
                     Ok(Some(self.sample(std::f64::consts::PI)))
                 }
+                "histogram_quantile" | "histogram_fraction" => {
+                    let function = crate::histogram_call::Function::parse(function.name)
+                        .expect("histogram function");
+                    let scalar =
+                        self.prepared
+                            .preprocessing
+                            .child(self.expression, node, arguments[0]);
+                    let vector = self.prepared.preprocessing.child(
+                        self.expression,
+                        node,
+                        arguments[function.vector_argument()],
+                    );
+                    self.frames[index].state = State::Histogram(AccountedBox::new(
+                        crate::histogram_call::Step::new(
+                            self.rosters
+                                .histogram(node)
+                                .ok_or(EvaluationError::Invalid("histogram plan is missing"))?,
+                            function,
+                            self.expression.arena[scalar].span,
+                            self.expression.arena[vector].span,
+                            self.histogram_preparation
+                                .is_some_and(|value| value.node == node),
+                            match self.frames[index].filter {
+                                RowFilter::All => None,
+                                RowFilter::Ordinals(values) => Some(values),
+                            },
+                            self.account,
+                        ),
+                        &AllocationContext::new(self.account, MemoryKind::Workspace),
+                    ));
+                    Ok(None)
+                }
                 "min_of" | "max_of" => {
                     self.frames[index].state = State::ScalarBinary {
                         left: None,
@@ -1187,6 +1224,10 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
             let mode = self.frames[index].mode;
             match &mut self.frames[index].state {
                 State::Binary(step) => {
+                    step.receive(sample, self.control, self.account)?;
+                    return Ok(None);
+                }
+                State::Histogram(step) => {
                     step.receive(sample, self.control, self.account)?;
                     return Ok(None);
                 }
@@ -1490,6 +1531,59 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
             let filter = self.frames[index].filter;
             let mode = self.frames[index].mode;
             match &mut self.frames[index].state {
+                State::Histogram(step) => {
+                    let mut options = self.options;
+                    if self.invariants[node.0] {
+                        options.end_ms = options.start_ms;
+                    }
+                    match step.advance(
+                        node,
+                        options,
+                        self.histogram_preparation,
+                        &self.expression.source,
+                        self.control,
+                        self.account,
+                    )? {
+                        crate::histogram_call::Action::Child { argument, ordinal } => {
+                            let Expr::Call { arguments, .. } =
+                                &self.expression.arena[node].expression
+                            else {
+                                unreachable!()
+                            };
+                            let child = arguments[argument];
+                            let filter = ordinal.map_or(RowFilter::All, |value| {
+                                RowFilter::Ordinals(std::slice::from_ref(value))
+                            });
+                            self.push_filtered(child, filter, false, OutputMode::Vector);
+                        }
+                        crate::histogram_call::Action::Sample(sample) => {
+                            if filter.accepts(sample.ordinal)
+                                && let Some(sample) = self.propagate(sample, index)?
+                            {
+                                return Ok(Some(sample));
+                            }
+                        }
+                        crate::histogram_call::Action::Done(notes) => {
+                            if node == self.diagnostic_node
+                                && let Some(notes) = notes
+                                && let Some(annotations) = &mut self.annotations
+                            {
+                                let preparation = self
+                                    .histogram_preparation
+                                    .filter(|value| value.node == node)
+                                    .expect("logical histogram diagnostics");
+                                preparation.cache.borrow_mut().callbacks.merge(
+                                    notes,
+                                    annotations,
+                                    &self.expression.source,
+                                    self.control,
+                                    self.account,
+                                )?;
+                            }
+                            self.frames.pop();
+                        }
+                    }
+                }
                 State::Binary(step) => {
                     let mut options = self.options;
                     if self.invariants[node.0] {
