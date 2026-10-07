@@ -118,9 +118,33 @@ pub(crate) fn append(
     control: &Control,
     account: &QueryAccounting,
 ) -> Result<(), Interrupted> {
+    append_selected(target, labels, matching, None, control, account)
+}
+
+pub(crate) fn append_without(
+    target: &mut AccountedVec<u8>,
+    labels: &OwnedLabels,
+    excluded: &[u8],
+    control: &Control,
+    account: &QueryAccounting,
+) -> Result<(), Interrupted> {
+    append_selected(target, labels, None, Some(excluded), control, account)
+}
+
+fn append_selected(
+    target: &mut AccountedVec<u8>,
+    labels: &OwnedLabels,
+    matching: Option<&VectorMatching>,
+    excluded: Option<&[u8]>,
+    control: &Control,
+    account: &QueryAccounting,
+) -> Result<(), Interrupted> {
     for label in &*labels.0 {
         control.check()?;
         account.work(1);
+        if excluded.is_some_and(|excluded| &*label.name == excluded) {
+            continue;
+        }
         if let Some(matching) = matching {
             let selected = named(
                 &label.name,

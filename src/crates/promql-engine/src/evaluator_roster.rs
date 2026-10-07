@@ -38,11 +38,40 @@ struct NodeRoster {
     annotations: Option<AnnotationBuilder>,
     projection: Option<AccountedVec<(usize, usize)>>,
     binary: Option<AccountedBox<crate::vector_matching::Plan>>,
+    histogram: Option<AccountedBox<crate::histogram_call::Plan>>,
 }
 pub(crate) struct Rosters {
     nodes: AccountedVec<NodeRoster>,
 }
 impl Rosters {
+    pub(crate) fn prepare_histogram(
+        &mut self,
+        node: NodeId,
+        child: NodeId,
+        control: &Control,
+        account: &QueryAccounting,
+    ) -> Result<(), Interrupted> {
+        let rows = self.projection_input(child, control, account)?;
+        self.nodes[node.0].histogram = Some(AccountedBox::new(
+            crate::histogram_call::Plan::new(rows, control, account)?,
+            &AllocationContext::new(account, MemoryKind::Workspace),
+        ));
+        Ok(())
+    }
+    pub(crate) fn histogram(&self, node: NodeId) -> Option<&crate::histogram_call::Plan> {
+        self.nodes[node.0].histogram.as_deref()
+    }
+    pub(crate) fn finish_histogram_cache(
+        &mut self,
+        node: NodeId,
+        cache: crate::histogram_call::Cache,
+    ) {
+        self.nodes[node.0]
+            .histogram
+            .as_deref_mut()
+            .expect("histogram plan")
+            .finish(cache);
+    }
     pub(crate) fn prepare_binary(
         &mut self,
         node: NodeId,
