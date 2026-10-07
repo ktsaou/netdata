@@ -64,6 +64,7 @@ pub(crate) struct CursorCounts {
     pub active: AtomicUsize,
     pub peak: AtomicUsize,
     pub next_calls: AtomicUsize,
+    pub samples_returned: AtomicUsize,
 }
 
 pub(crate) struct GeneratedSeries {
@@ -189,6 +190,10 @@ impl SampleCursor for GeneratedCursor<'_> {
             return Ok(None);
         }
         self.pages += 1;
+        self.source
+            .counters
+            .samples_returned
+            .fetch_add(self.values.len(), Ordering::Relaxed);
         *resources = self.resources();
         Ok(Some(SamplePage {
             resources: self.resources(),

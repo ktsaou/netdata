@@ -438,11 +438,12 @@ mod tests {
                 seek_ms: Some(-3000),
             };
             let input = NumericRangeInput {
-                bounds: TimeBounds {
+                bounds: Some(TimeBounds {
                     start_ms: 2000,
                     end_ms: 5000,
-                },
+                }),
                 seek_ms: -3000,
+                matrix: None,
             };
             let result = evaluate(&source, input, &Control::default(), &account).unwrap();
             assert_eq!(result.value, Some(1.0));

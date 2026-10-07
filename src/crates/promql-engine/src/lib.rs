@@ -57,6 +57,7 @@ mod instant_statistics;
 mod label_functions;
 mod label_hash;
 mod mad;
+mod matrix_reader;
 pub mod numerical;
 mod numerical_exponential;
 mod numerical_hyperbolic;

@@ -10,9 +10,8 @@ use crate::{
         ast::{Expr, NodeId, ParsedExpression, ValueType, VectorSelector},
         token as tokens,
     },
-    histogram_functions,
-    histogram_stats::StatisticsWindow,
-    label_hash,
+    histogram_functions, label_hash,
+    matrix_reader::MatrixWindow,
     query_catalog::Catalog,
     query_preparation::Prepared,
     range_float::{RateInput, RateWindow},
@@ -602,14 +601,9 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
         };
         (bounds.start_ms <= bounds.end_ms).then_some(bounds)
     }
-    fn statistics_window(
-        &self,
-        node: NodeId,
-        range_ns: i64,
-        end_ms: i64,
-    ) -> Option<StatisticsWindow> {
+    fn matrix_window(&self, node: NodeId, range_ns: i64, end_ms: i64) -> MatrixWindow {
         let selector = self.selector(node);
-        selector.skip_histogram_buckets.then_some(StatisticsWindow {
+        MatrixWindow {
             first_end_ms: if self.invariants[node.0]
                 || self.prepared.timestamp(node, &selector.modifiers).is_some()
             {
@@ -622,9 +616,12 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
                 )
             },
             range_ms: range_ns / 1_000_000,
+            end_ms,
             step_ms: self.options.step_ms,
             data_bounds: self.data_bounds,
-        })
+            statistics: selector.skip_histogram_buckets,
+            reduce_delta: true,
+        }
     }
 
     fn select(
@@ -838,7 +835,7 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
                         data_bounds: Some(self.data_bounds),
                     },
                     kind,
-                    self.statistics_window(selector_node, range_ns, end_ms),
+                    Some(self.matrix_window(selector_node, range_ns, end_ms)),
                     self.control,
                     self.account,
                 )?;
@@ -882,16 +879,14 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
                 result.value.map(|value| (self.options.time_ms, 0, value))
             }
             SelectorOperation::Fold { kind, range_ns } => {
-                let Some(bounds) = self.matrix_bounds(end_ms, range_ns) else {
-                    return Ok(None);
-                };
+                let bounds = self.matrix_bounds(end_ms, range_ns);
                 let result = fold(
                     series,
                     bounds,
                     kind,
                     FoldOptions {
                         start_timestamps: self.options.start_timestamps,
-                        statistics: self.statistics_window(selector_node, range_ns, end_ms),
+                        matrix: Some(self.matrix_window(selector_node, range_ns, end_ms)),
                     },
                     self.control,
                     self.account,
@@ -924,14 +919,13 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
                 parameters,
                 range_ns,
             } => {
-                let Some(bounds) = self.matrix_bounds(end_ms, range_ns) else {
-                    return Ok(None);
-                };
+                let bounds = self.matrix_bounds(end_ms, range_ns);
                 let result = range_numeric::evaluate(
                     series,
                     NumericRangeInput {
                         bounds,
                         seek_ms: end_ms.wrapping_sub(range_ns / 1_000_000),
+                        matrix: Some(self.matrix_window(selector_node, range_ns, end_ms)),
                     },
                     function,
                     parameters,

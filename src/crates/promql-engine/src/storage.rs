@@ -542,7 +542,15 @@ pub(crate) fn scan_until<S: Series, E: From<StorageError> + From<Interrupted>>(
 pub(crate) enum CursorAction {
     Next,
     Seek(i64),
+    SeekInitial(i64),
     Stop,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) enum CursorOrigin {
+    InitialNext,
+    Next,
+    SeekLanding,
 }
 
 pub(crate) enum WalkStart<'a> {
@@ -588,6 +596,19 @@ pub(crate) fn walk<S: Series, E: From<StorageError> + From<Interrupted>>(
     account: &QueryAccounting,
     mut visit: impl for<'a> FnMut(SampleRef<'a>) -> Result<CursorAction, E>,
 ) -> Result<std::ops::ControlFlow<()>, E> {
+    walk_observed(series, bounds, start, control, account, |sample, _| {
+        visit(sample)
+    })
+}
+
+pub(crate) fn walk_observed<S: Series, E: From<StorageError> + From<Interrupted>>(
+    series: &S,
+    bounds: TimeBounds,
+    start: WalkStart<'_>,
+    control: &Control,
+    account: &QueryAccounting,
+    mut visit: impl for<'a> FnMut(SampleRef<'a>, CursorOrigin) -> Result<CursorAction, E>,
+) -> Result<std::ops::ControlFlow<()>, E> {
     let _control_observation = control.observe(account);
     control.check()?;
     account.provider_call();
@@ -606,6 +627,12 @@ pub(crate) fn walk<S: Series, E: From<StorageError> + From<Interrupted>>(
         WalkStart::Seek(target) => (Some(target), None),
         WalkStart::Probe(failure) => (None, Some(failure)),
     };
+    let mut origin = if seek.is_some() {
+        CursorOrigin::SeekLanding
+    } else {
+        CursorOrigin::InitialNext
+    };
+    let mut initial_floor = None;
     let mut first = true;
     let mut minimum = bounds.start_ms;
     loop {
@@ -669,6 +696,11 @@ pub(crate) fn walk<S: Series, E: From<StorageError> + From<Interrupted>>(
             if sample.time_ms < minimum {
                 return Err(StorageError::Invalid("sample before cursor seek target").into());
             }
+            if initial_floor.is_some_and(|time| sample.time_ms < time) {
+                return Err(
+                    StorageError::Invalid("initial seek landed before current sample").into(),
+                );
+            }
             if previous.is_some_and(|time| sample.time_ms <= time) {
                 return Err(
                     StorageError::Invalid("sample timestamps are not strictly increasing").into(),
@@ -677,12 +709,19 @@ pub(crate) fn walk<S: Series, E: From<StorageError> + From<Interrupted>>(
             previous = Some(sample.time_ms);
             account.work(1);
             if matches!(action, CursorAction::Next) {
-                action = visit(sample)?;
+                let initial = origin == CursorOrigin::InitialNext;
+                action = visit(sample, origin)?;
+                origin = CursorOrigin::Next;
                 consumed = Some(sample.time_ms);
                 if let CursorAction::Seek(target) = action
                     && target <= sample.time_ms
                 {
                     return Err(StorageError::Invalid("nonadvancing cursor seek").into());
+                }
+                if let CursorAction::SeekInitial(target) = action
+                    && (!initial || target > sample.time_ms)
+                {
+                    return Err(StorageError::Invalid("invalid initial current seek").into());
                 }
             }
         }
@@ -692,6 +731,14 @@ pub(crate) fn walk<S: Series, E: From<StorageError> + From<Interrupted>>(
             CursorAction::Seek(target) => {
                 previous = consumed;
                 seek = Some(target);
+                origin = CursorOrigin::SeekLanding;
+            }
+            CursorAction::SeekInitial(target) => {
+                // Reset alone permits the same current point to be returned by Seek.
+                previous = None;
+                initial_floor = consumed;
+                seek = Some(target);
+                origin = CursorOrigin::SeekLanding;
             }
             CursorAction::Stop => return Ok(std::ops::ControlFlow::Break(())),
         }

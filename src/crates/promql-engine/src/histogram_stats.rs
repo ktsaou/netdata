@@ -10,8 +10,8 @@ use crate::{
     histogram_counter::detect_reset_with,
     histogram_work::HistogramWork,
     result::{OwnedHistogram, OwnedValue},
-    storage::{Control, Interrupted, Series, StorageError, TimeBounds, scan},
-    value::{SampleRef, SampleValueRef},
+    storage::{Control, Interrupted, StorageError},
+    value::SampleValueRef,
 };
 use tokens::TokenKind;
 
@@ -274,77 +274,14 @@ pub(crate) fn configure(
     Ok(())
 }
 
-#[derive(Clone, Copy)]
-pub(crate) struct StatisticsWindow {
-    pub(crate) first_end_ms: i64,
-    pub(crate) range_ms: i64,
-    pub(crate) step_ms: i64,
-    pub(crate) data_bounds: TimeBounds,
-}
-
-/// Reconstruct accessed histograms without retaining the source iterator's raw window.
-pub(crate) fn scan_statistics<S: Series>(
-    series: &S,
-    bounds: TimeBounds,
-    statistics: Option<StatisticsWindow>,
-    control: &Control,
-    account: &QueryAccounting,
-    mut visit: impl for<'a> FnMut(SampleRef<'a>) -> Result<(), StorageError>,
-) -> Result<(), StorageError> {
-    let Some(statistics) = statistics else {
-        return scan(series, bounds, control, account, visit);
-    };
-    let mut step_end = statistics.first_end_ms;
-    let mut endpoint = None;
-    let mut decoder = StatisticsDecoder::default();
-    // Source buffering decodes the available lower boundary before excluding it from output.
-    let read_bounds = TimeBounds {
-        start_ms: statistics
-            .first_end_ms
-            .wrapping_sub(statistics.range_ms)
-            .max(statistics.data_bounds.start_ms),
-        end_ms: bounds.end_ms,
-    };
-    scan(series, read_bounds, control, account, |sample| {
-        decoder.moved();
-        let mut position = endpoint.take().unwrap_or(sample.time_ms);
-        while sample.time_ms > step_end && step_end < bounds.end_ms {
-            control.check()?;
-            account.work(1);
-            step_end = step_end
-                .checked_add(statistics.step_ms)
-                .filter(|&next| next > step_end)
-                .unwrap_or(bounds.end_ms)
-                .min(bounds.end_ms);
-            if step_end.wrapping_sub(statistics.range_ms) > position {
-                decoder.clear();
-            }
-            position = sample.time_ms;
-        }
-        if sample.time_ms < step_end.wrapping_sub(statistics.range_ms) {
-            decoder.clear();
-            return Ok(());
-        }
-        if sample.time_ms == step_end {
-            endpoint = Some(sample.time_ms);
-        }
-        let projection = decoder.project(sample.value, control, account)?;
-        if sample.time_ms < bounds.start_ms {
-            return Ok(());
-        }
-        visit(SampleRef {
-            value: projection.as_ref(),
-            ..sample
-        })
-    })
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::{
         accounting::EngineAccounting,
         histogram::FloatHistogram,
+        matrix_reader::{MatrixWindow, scan as scan_matrix},
+        storage::TimeBounds,
         test_storage::GeneratedSeries,
         value::{STALE_NAN_BITS, Sample, SampleValue},
     };
@@ -385,14 +322,17 @@ mod tests {
                 let engine = EngineAccounting::default();
                 let account = engine.query();
                 let mut hints = Vec::new();
-                scan_statistics(
+                scan_matrix::<_, StorageError>(
                     &source,
                     TimeBounds {
                         start_ms: 4501,
                         end_ms: 5000,
                     },
-                    Some(StatisticsWindow {
+                    Some(MatrixWindow {
                         first_end_ms: 1000,
+                        end_ms: 5000,
+                        statistics: true,
+                        reduce_delta: true,
                         range_ms: 500,
                         step_ms: 4000,
                         data_bounds: TimeBounds {
@@ -457,14 +397,17 @@ mod tests {
         let engine = EngineAccounting::default();
         let account = engine.query();
         let mut hints = Vec::new();
-        scan_statistics(
+        scan_matrix::<_, StorageError>(
             &source,
             TimeBounds {
                 start_ms: 3001,
                 end_ms: 4000,
             },
-            Some(StatisticsWindow {
+            Some(MatrixWindow {
                 first_end_ms: 1000,
+                end_ms: 4000,
+                statistics: true,
+                reduce_delta: true,
                 range_ms: 1000,
                 step_ms: 1000,
                 data_bounds: TimeBounds {
