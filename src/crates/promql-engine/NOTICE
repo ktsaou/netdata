@@ -83,7 +83,7 @@ is preserved.
 
 Power, remainder and min/max algorithms derive from Go 1.27.1 math/pow.go, mod.go,
 modf.go, dim.go and dim_amd64.s. The natural exponential follows exp_amd64.s and
-exp_amd64.go, including CPU dispatch and scaling order. Copyright 2009, 2010, 2017
+exp_amd64.go, including both arithmetic branches and scaling order. Copyright 2009, 2010, 2017
 The Go Authors. Licensed under the Go BSD license; see LICENSE-GO-BSD.
 
 Circular and hyperbolic functions derive from Go 1.27.1 math/sin.go, tan.go,

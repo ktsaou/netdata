@@ -179,12 +179,7 @@ pub fn pow(left: f64, right: f64) -> f64 {
 }
 
 pub fn pow_with<E>(left: f64, right: f64, check: impl FnMut() -> Result<(), E>) -> Result<f64, E> {
-    pow_kernel(
-        left,
-        right,
-        crate::numerical_exponential::fma_supported(),
-        check,
-    )
+    pow_kernel(left, right, true, check)
 }
 
 fn pow_kernel<E>(
@@ -298,6 +293,36 @@ pub fn pow_dispatch(left: f64, right: f64, fused: bool) -> f64 {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn canonical_runtime_routes_preserve_retained_fused_rounding() {
+        let input = std::hint::black_box(0.5);
+        let exponent = std::hint::black_box(1.5);
+        assert_eq!(pow(input, exponent).to_bits(), 0x3fd6_a09e_667f_3bcd);
+        assert_eq!(
+            pow_with(input, exponent, || Ok::<_, ()>(()))
+                .unwrap()
+                .to_bits(),
+            0x3fd6_a09e_667f_3bcd
+        );
+        assert!(pow(input, exponent) >= 0.3535533905932738);
+        let exp_input = std::hint::black_box(f64::from_bits(0x3fd2_bec3_3301_8868));
+        assert_eq!(
+            crate::numerical_exponential::exp(exp_input).to_bits(),
+            0x3ff5_71de_0f7b_a33d
+        );
+        let hyperbolic_input = std::hint::black_box(std::f64::consts::PI);
+        for (call, expected) in [
+            (
+                crate::numerical_hyperbolic::sinh as fn(f64) -> f64,
+                0x4027_18f4_5d72_e672,
+            ),
+            (crate::numerical_hyperbolic::cosh, 0x4027_2f14_7fee_4000),
+            (crate::numerical_hyperbolic::tanh, 0x3fef_e175_fa29_2810),
+        ] {
+            assert_eq!(call(hyperbolic_input).to_bits(), expected);
+        }
+    }
 
     #[test]
     fn function_value_rounding_and_untyped_log10_scale_follow_source() {

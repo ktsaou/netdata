@@ -444,12 +444,14 @@ branch. Log2 retains the exact-power shortcut and ordered multiplication/additio
 primitive as Go's public intrinsic. Exp2 preserves the public generic reduction and polynomial order; Ldexp
 retains signed special values, subnormal scaling and machine-int wrapping. These operations use constant auxiliary memory.
 
-Power, remainder, min/max and natural exponential now follow the pinned source algorithms too. Exp uses Go's
-amd64 polynomial, scaling order and AVX/FMA dispatch; power reuses that dispatch for fractional exponents.
-All 547 additional math inputs match exact bits in both build profiles against the native Go run and separate
-FMA-disabled and AVX-disabled runs. The resulting power threshold and duration cases demonstrate that dispatch
-can change series membership. Variable power/remainder loops poll cancellation and account work without an
-iteration cap. Broader platform qualification remains required.
+Power, remainder, min/max and natural exponential follow the pinned source algorithms. Production Exp, Pow,
+Sinh, Cosh and Tanh use the retained Go amd64 FMA-on arithmetic on every device. Fused operations retain one
+rounding even when the target requires a software implementation. Device feature detection does not select the
+query's numerical contract. Explicit fixture helpers preserve the separate FMA-off arithmetic for diagnostics.
+The 547 additional math inputs retain their exact comparisons against native, FMA-disabled and AVX-disabled Go
+captures through those explicit helper branches. The power threshold and duration cases demonstrate why the
+route matters to series membership. Variable power/remainder loops poll cancellation and account work without
+an iteration cap. Broader platform qualification remains required.
 
 The capture adds one test file through a Go overlay; it never changes installed source files. All six untouched
 original math tests run first, including the generic SqrtGo and Exp2Go assertions. Thirty-one exact AST source definitions
@@ -958,12 +960,13 @@ and scalar/mixed float `atan2` use the source arithmetic. Vector/vector operatio
 Parameterized maps retain only one or two scalar operands and reuse row-at-a-time evaluation; native samples
 are silently filtered. Source duplicate, metadata, diagnostics and multi-step ordering boundaries remain active.
 
-The numerical kernels follow Go 1.27.1, including its fixed-size Payne-Hanek reduction, actual exponential CPU
-dispatch, untyped reciprocal constant rounding, signed-zero/NaN cases and UTC unsigned epoch wrapping.
+The numerical kernels follow Go 1.27.1, including its fixed-size Payne-Hanek reduction, retained exponential
+FMA-on route, untyped reciprocal constant rounding, signed-zero/NaN cases and UTC unsigned epoch wrapping.
 `days_in_month` retains the source Date round trip rather than substituting a month-length table; extreme values
 can consequently return seven. Degree/radian calls retain multiplication-before-division overflow behavior.
 On the qualified Linux amd64 target, 5,854 raw numeric/calendar cases match every bit in both Rust profiles
-against native, FMA-disabled, SSE4.1-disabled and combined-disabled Go captures. Six hundred additional Go
+against native, FMA-disabled, SSE4.1-disabled and combined-disabled Go captures, with explicit fixture dispatch
+for the disabled-FMA arithmetic. Six hundred additional Go
 direct rounding/truncation calls are retained as compiler-dispatch diagnostics; PromQL uses function values.
 Original unmodified Go math assertions pass in three CPU profiles. Fresh engine checks match all 1,420 completed
 cases at pages 1, 17 and 1024, with zero bit differences; twelve vector-matching cases remain
