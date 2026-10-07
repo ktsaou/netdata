@@ -54,6 +54,9 @@ mod histogram_work;
 mod info;
 mod instant_select;
 mod instant_statistics;
+mod label_encoding;
+#[cfg(test)]
+mod label_encoding_tests;
 mod label_functions;
 mod label_hash;
 mod mad;

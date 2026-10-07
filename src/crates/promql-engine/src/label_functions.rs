@@ -207,6 +207,7 @@ impl<'a> LabelOperation<'a> {
         descriptor
             .labels
             .set(destination, &value, account, MemoryKind::Workspace, control)?;
+        crate::label_encoding::finalized(&descriptor.labels, control, account)?;
         if destination == b"__name__" {
             descriptor.drop_name = false;
         }

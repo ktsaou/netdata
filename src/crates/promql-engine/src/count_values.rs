@@ -201,17 +201,7 @@ impl<'a> Step<'a> {
             control,
         )?;
         // Builder encodes the modified metric before grouping can remove a destination.
-        for label in &*labels.0 {
-            control.check()?;
-            account.work(1);
-            if label.name.len() >= 1 << 24 || label.value.len() >= 1 << 24 {
-                return Err(EvaluationError::Runtime(binary_labels::formatted(
-                    format_args!("String too long to encode as label."),
-                    control,
-                    account,
-                )?));
-            }
-        }
+        crate::label_encoding::finalized(&labels, control, account)?;
         labels.retain_labels_checked(account, control, |label| {
             let found = binary_labels::named(&label.name, &self.plan.grouping, control, account)?;
             Ok::<_, Interrupted>(if self.plan.without {

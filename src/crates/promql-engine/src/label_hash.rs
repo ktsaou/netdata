@@ -2,6 +2,7 @@
 // Derived from Prometheus stringlabels and cespare/xxhash v2.3.0; see NOTICE.
 use crate::{
     accounting::QueryAccounting,
+    evaluator::EvaluationError,
     result::OwnedLabels,
     storage::{Control, Interrupted},
 };
@@ -123,15 +124,16 @@ impl Digest {
         bytes: &[u8],
         control: &Control,
         account: &QueryAccounting,
-    ) -> Result<(), Interrupted> {
+    ) -> Result<(), EvaluationError> {
+        crate::label_encoding::field(bytes, control, account)?;
         let n = bytes.len();
-        assert!(n < 1 << 24, "label exceeds source stringlabels encoding");
         if n < 255 {
             self.write(&[n as u8]);
         } else {
             self.write(&[255, n as u8, (n >> 8) as u8, (n >> 16) as u8]);
         }
-        self.field(bytes, control, account)
+        self.field(bytes, control, account)?;
+        Ok(())
     }
 }
 pub(crate) fn grouping(
@@ -152,7 +154,7 @@ pub(crate) fn full(
     labels: &OwnedLabels,
     control: &Control,
     account: &QueryAccounting,
-) -> Result<u64, Interrupted> {
+) -> Result<u64, EvaluationError> {
     let mut digest = Digest::new();
     for label in labels.0.iter() {
         digest.sized_field(&label.name, control, account)?;

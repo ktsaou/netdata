@@ -320,6 +320,11 @@ pub fn validate_labels(labels: LabelsRef<'_>) -> Result<(), StorageError> {
     if labels.iter().any(|label| label.name.is_empty()) {
         return Err(StorageError::Invalid("empty label name"));
     }
+    if labels.iter().any(|label| {
+        !crate::label_encoding::fits(label.name) || !crate::label_encoding::fits(label.value)
+    }) {
+        return Err(StorageError::Invalid(crate::label_encoding::TOO_LONG));
+    }
     if labels.windows(2).any(|pair| pair[0].name >= pair[1].name) {
         return Err(StorageError::Invalid(
             "label names are not unique and sorted",

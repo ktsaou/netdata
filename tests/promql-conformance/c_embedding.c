@@ -442,6 +442,50 @@ static void output_delivery(netdata_promql_engine_t *engine) {
         assert(netdata_promql_report_release(report) == NETDATA_PROMQL_OK);
     }
 }
+static void label_field_boundary(netdata_promql_engine_t *engine) {
+    const size_t boundary = ((size_t)1) << 24;
+    static const char message[] = "String too long to encode as label.";
+    uint8_t *field = (uint8_t *)malloc(boundary + 1);
+    assert(field);
+    memset(field, 'a', boundary + 1);
+    netdata_promql_query_t *query = compile(engine, "m");
+    for (unsigned name = 0; name < 2; name++) {
+        for (unsigned offset = 0; offset < 3; offset++) {
+            size_t length = boundary - 1 + offset;
+            fixture f;
+            init_fixture(&f, 1, 1);
+            if (name) f.labels[1].name = bytes(field, length);
+            else f.labels[1].value = bytes(field, length);
+            netdata_promql_provider_t p = provider(&f);
+            netdata_promql_request_t request = instant(1000);
+            netdata_promql_result_t *result = NULL;
+            netdata_promql_report_t *report = NULL;
+            uint32_t status = netdata_promql_collect(query, &p, &request, NULL, &result, &report);
+            assert(report);
+            if (offset == 0) {
+                assert(status == NETDATA_PROMQL_OK && result);
+                netdata_promql_label_t label;
+                assert(netdata_promql_result_label(result, 0, 1, &label) == NETDATA_PROMQL_OK);
+                netdata_promql_bytes_t value = name ? label.name : label.value;
+                assert(value.len == length && memcmp(value.data, field, length) == 0);
+                assert(netdata_promql_result_release(result) == NETDATA_PROMQL_OK);
+            } else {
+                assert(status == NETDATA_PROMQL_EVALUATION_ERROR && !result);
+                netdata_promql_error_t error;
+                assert(netdata_promql_report_error(report, 0, &error) == NETDATA_PROMQL_OK);
+                assert(error.kind == NETDATA_PROMQL_ERROR_STORAGE_INVALID);
+                assert(error.message.len == sizeof(message) - 1);
+                assert(memcmp(error.message.data, message, sizeof(message) - 1) == 0);
+                assert(f.opened[3] == 0);
+            }
+            released(&f);
+            assert(netdata_promql_report_release(report) == NETDATA_PROMQL_OK);
+        }
+    }
+    assert(netdata_promql_query_release(query) == NETDATA_PROMQL_OK);
+    free(field);
+    puts("{\"label_field_boundary\":\"pass\",\"cases\":6}");
+}
 int main(void) {
     assert(netdata_promql_abi_version() == NETDATA_PROMQL_ABI_VERSION);
     netdata_promql_engine_options_t options;
@@ -465,6 +509,8 @@ int main(void) {
     error_phases(engine);
     balanced(engine, &idle);
     output_delivery(engine);
+    balanced(engine, &idle);
+    label_field_boundary(engine);
     balanced(engine, &idle);
     assert(netdata_promql_engine_release(engine) == NETDATA_PROMQL_OK);
     puts("{\"native_embedding\":\"pass\"}");

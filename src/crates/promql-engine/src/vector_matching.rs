@@ -40,7 +40,7 @@ impl Plan {
         matching: &VectorMatching,
         control: &Control,
         account: &QueryAccounting,
-    ) -> Result<Self, Interrupted> {
+    ) -> Result<Self, EvaluationError> {
         let mut keys = AccountedVec::<AccountedVec<u8>>::new(account, MemoryKind::Workspace);
         let mut sides = [
             Side {

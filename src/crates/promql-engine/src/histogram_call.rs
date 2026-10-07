@@ -64,7 +64,7 @@ impl Plan {
         rows: AccountedVec<Descriptor>,
         control: &Control,
         account: &QueryAccounting,
-    ) -> Result<Self, Interrupted> {
+    ) -> Result<Self, EvaluationError> {
         let mut result = Self {
             rows,
             metadata: AccountedVec::new(account, MemoryKind::Workspace),

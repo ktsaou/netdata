@@ -100,15 +100,16 @@ fn field(
     value: &[u8],
     control: &Control,
     account: &QueryAccounting,
-) -> Result<(), Interrupted> {
+) -> Result<(), EvaluationError> {
+    crate::label_encoding::field(value, control, account)?;
     let n = value.len();
-    assert!(n < 1 << 24, "label exceeds source stringlabels encoding");
     if n < 255 {
         target.push(n as u8);
     } else {
         target.extend_from_slice(&[255, n as u8, (n >> 8) as u8, (n >> 16) as u8]);
     }
-    append_bytes_checked(target, value, account, control)
+    append_bytes_checked(target, value, account, control)?;
+    Ok(())
 }
 
 pub(crate) fn append(
@@ -117,7 +118,7 @@ pub(crate) fn append(
     matching: Option<&VectorMatching>,
     control: &Control,
     account: &QueryAccounting,
-) -> Result<(), Interrupted> {
+) -> Result<(), EvaluationError> {
     append_selected(target, labels, matching, None, control, account)
 }
 
@@ -127,7 +128,7 @@ pub(crate) fn append_without(
     excluded: &[u8],
     control: &Control,
     account: &QueryAccounting,
-) -> Result<(), Interrupted> {
+) -> Result<(), EvaluationError> {
     append_selected(target, labels, None, Some(excluded), control, account)
 }
 
@@ -138,7 +139,7 @@ fn append_selected(
     excluded: Option<&[u8]>,
     control: &Control,
     account: &QueryAccounting,
-) -> Result<(), Interrupted> {
+) -> Result<(), EvaluationError> {
     for label in &*labels.0 {
         control.check()?;
         account.work(1);

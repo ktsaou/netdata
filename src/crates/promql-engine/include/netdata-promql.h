@@ -487,6 +487,8 @@ static inline double netdata_promql_double_from_bits(uint64_t bits) {
  * Selection may conservatively prefilter; Rust remains authoritative for matching.
  * Series metadata is sorted by unique raw label names and lives until series_close,
  * independently of selection_close. Successful selection_next transfers a retained series.
+ * Each materialized label name/value is less than 16777216 bytes; this explicitly excludes
+ * the pinned stringlabels encoder's broken equality boundary. Total labelset bytes are not capped.
  * Terminal diagnostics are returned only with END/error and live until selection_close.
  * Each cursor supports repeatable seek/read input, a positive bounded maximum page, and strictly
  * increasing samples. Neither complete histories nor raw values across all metrics may be retained.
