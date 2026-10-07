@@ -1188,7 +1188,8 @@ arithmetic have distinct endpoints. Cursor prefixes follow logical grid position
 repeat. Singleton selection output preserves heap order through parents; multistep maps use the approved
 deterministic label-byte order. Matrix replay retains repeated points, while ordinary consumers reproduce the
 source's single-head consumption and public instant conversion prefers the first histogram, otherwise first float.
-Duplicate cleanup uses the pre-merge matrix-row cohort, including inherited repetitions.
+Duplicate cleanup uses the pre-merge matrix-row cohort, including inherited repetitions. Transparent parentheses
+retain the outer root matrix's cleanup cohort, including fixed-reference children.
 
 ```sh
 python3 tests/promql-conformance/topk_calls.py --capture --upstream "${PROMQL_ORIGINAL_SOURCE_DIR:?}"

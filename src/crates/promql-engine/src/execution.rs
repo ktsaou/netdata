@@ -670,7 +670,7 @@ impl CompiledQuery {
         let mut identities = AccountedVec::<(u64, usize)>::new(account, MemoryKind::Workspace);
         let mut hashes = AccountedVec::new(account, MemoryKind::Workspace);
         if self.options.delayed_name_removal {
-            for descriptor in rosters.descriptors(root) {
+            for descriptor in rosters.descriptors(self.expression.root) {
                 let mut labels =
                     descriptor
                         .labels
@@ -4358,6 +4358,60 @@ mod tests {
                 }
             }
             provider.assert_closed();
+            engine.accounting.snapshot().assert_memory_released();
+        }
+    }
+
+    #[test]
+    fn parenthesized_cleanup_checks_the_retained_root_matrix() {
+        // Pinned engine.go cleans the complete matrix after transparent parentheses.
+        for page_size in [1, 17, 1024] {
+            let engine = Engine::default();
+            let control = Control::default();
+            let mut provider = FixtureProvider::new(2, page_size, 2);
+            for (series, name) in provider.series.iter_mut().zip([b"a", b"b"]) {
+                series.labels = vec![
+                    (b"__name__".to_vec(), name.to_vec()),
+                    (b"tag".to_vec(), b"x".to_vec()),
+                ];
+            }
+            for expression in [
+                "-{tag=\"x\"}",
+                "abs({tag=\"x\"})",
+                "{tag=\"x\"} * 1",
+                "-{tag=\"x\"} @1",
+                "abs({tag=\"x\"} @1)",
+                "{tag=\"x\"} @1 * 1",
+            ] {
+                for wrappers in 0..=2 {
+                    let source = format!(
+                        "{}{}{}",
+                        "(".repeat(wrappers),
+                        expression,
+                        ")".repeat(wrappers)
+                    );
+                    let query = engine
+                        .compile(source.as_bytes(), options(true), &control)
+                        .unwrap();
+                    for request in [
+                        QueryRequest::Instant { time_ms: 1000 },
+                        QueryRequest::Range {
+                            start_ms: 1000,
+                            end_ms: 1000,
+                            step_ms: 1000,
+                        },
+                        QueryRequest::Range {
+                            start_ms: 1000,
+                            end_ms: 2000,
+                            step_ms: 1000,
+                        },
+                    ] {
+                        let result = query.collect(&provider, request, &control);
+                        assert!(result.as_ref().is_err_and(is_duplicate), "{source}");
+                        provider.assert_closed();
+                    }
+                }
+            }
             engine.accounting.snapshot().assert_memory_released();
         }
     }
