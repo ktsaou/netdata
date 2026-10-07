@@ -29,6 +29,35 @@ use tokens::TokenKind;
 
 const NAN: f64 = f64::from_bits(0x7ff8_0000_0000_0001);
 
+fn matrix_argument(
+    expression: &ParsedExpression,
+    prepared: &Prepared,
+    node: NodeId,
+) -> Result<(NodeId, NodeId), EvaluationError> {
+    let Expr::Call { arguments, .. } = &expression.arena[node].expression else {
+        unreachable!("typed range call")
+    };
+    let argument = prepared.preprocessing.child(expression, node, arguments[0]);
+    let Expr::Matrix { selector, .. } = expression.arena[argument].expression else {
+        return Err(EvaluationError::Unsupported("subquery range reducer"));
+    };
+    Ok((argument, selector))
+}
+pub(crate) fn range_selector(
+    expression: &ParsedExpression,
+    prepared: &Prepared,
+    node: NodeId,
+) -> Result<NodeId, EvaluationError> {
+    let (_, selector) = matrix_argument(expression, prepared, node)?;
+    let Expr::Selector(value) = &expression.arena[selector].expression else {
+        unreachable!("typed matrix selector")
+    };
+    if value.anchored || value.smoothed {
+        return Err(EvaluationError::Unsupported("extended selector reducer"));
+    }
+    Ok(selector)
+}
+
 #[derive(Debug, PartialEq)]
 pub enum EvaluationError {
     Interrupted(Interrupted),
@@ -507,23 +536,22 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
         selector
     }
     fn lookup(&self, node: NodeId) -> i64 {
+        self.lookup_at(node, self.options.time_ms)
+    }
+    fn lookup_at(&self, node: NodeId, time_ms: i64) -> i64 {
         let selector = self.selector(node);
         let fixed = self.prepared.timestamp(node, &selector.modifiers);
         // Direct timestamp selectors replace the lookup offset; storage retains the original.
         if self.timestamp_selectors[node.0]
             && let Some(time) = fixed
         {
-            let offset = self
-                .options
-                .time_ms
-                .wrapping_sub(time)
-                .wrapping_mul(1_000_000);
-            return self.options.time_ms.wrapping_sub(offset / 1_000_000);
+            let offset = time_ms.wrapping_sub(time).wrapping_mul(1_000_000);
+            return time_ms.wrapping_sub(offset / 1_000_000);
         }
         let time = if self.invariants[node.0] {
             self.options.start_ms
         } else {
-            self.options.time_ms
+            time_ms
         };
         time.wrapping_sub(
             self.prepared
@@ -583,18 +611,9 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
         function: RangeFunction,
         parameters: [f64; 2],
     ) -> Result<(NodeId, SelectorOperation), EvaluationError> {
-        let Expr::Call { arguments, .. } = &self.expression.arena[node].expression else {
-            unreachable!()
-        };
-        let argument = self
-            .prepared
-            .preprocessing
-            .child(self.expression, node, arguments[0]);
-        let Expr::Matrix {
-            selector, range, ..
-        } = self.expression.arena[argument].expression
-        else {
-            return Err(EvaluationError::Unsupported("subquery range reducer"));
+        let (argument, selector) = matrix_argument(self.expression, self.prepared, node)?;
+        let Expr::Matrix { range, .. } = self.expression.arena[argument].expression else {
+            unreachable!("typed matrix argument")
         };
         let range_ns = self.prepared.range(argument, range);
         let operation = match function {
@@ -616,15 +635,6 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
     ) -> Result<State<'a>, EvaluationError> {
         let (selector, operation) = self.range_spec(node, function, parameters)?;
         self.select(selector, operation)
-    }
-    pub(crate) fn range_selector(
-        &self,
-        node: NodeId,
-        function: RangeFunction,
-    ) -> Result<NodeId, EvaluationError> {
-        let (selector, operation) = self.range_spec(node, function, [0.0; 2])?;
-        self.select(selector, operation)?;
-        Ok(selector)
     }
     pub(crate) fn raw_series_sample<S: Series>(
         &mut self,
@@ -685,48 +695,52 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
         let end_ms = self.lookup(selector_node);
         let value = match operation {
             SelectorOperation::Instant => {
+                match self.rosters.clock_initial(selector_node, series_ordinal) {
+                    Some(crate::storage::InitialSample::Empty) => return Ok(None),
+                    Some(crate::storage::InitialSample::Error(bytes)) => {
+                        let mut failure = AccountedVec::new(self.account, MemoryKind::Workspace);
+                        crate::result::append_bytes_checked(
+                            &mut failure,
+                            bytes,
+                            self.account,
+                            self.control,
+                        )?;
+                        return Err(StorageError::Provider(failure).into());
+                    }
+                    _ => (),
+                }
+                let fixed =
+                    self.invariants[selector_node.0] && !self.timestamp_selectors[selector_node.0];
+                let window = crate::instant_select::InstantWindow {
+                    first_lookup_ms: if fixed {
+                        end_ms
+                    } else {
+                        self.lookup_at(selector_node, self.options.start_ms)
+                    },
+                    lookup_ms: end_ms,
+                    step_ms: self.options.step_ms,
+                    lookback_ms: self.options.lookback_ms,
+                    delta_ms: self
+                        .options
+                        .lookback_ms
+                        .wrapping_sub(i64::from(self.timestamp_selectors[selector_node.0])),
+                    data_bounds: self.data_bounds,
+                };
                 if selector.skip_histogram_buckets {
-                    let fixed = self.invariants[selector_node.0];
-                    crate::instant_statistics::select(
-                        series,
-                        crate::instant_statistics::InstantWindow {
-                            first_lookup_ms: if fixed {
-                                end_ms
-                            } else {
-                                self.options.start_ms.wrapping_sub(
-                                    self.prepared.adjusted_offset(
-                                        selector_node,
-                                        &selector.modifiers,
-                                        self.options.start_ms,
-                                    ) / 1_000_000,
-                                )
-                            },
-                            lookup_ms: end_ms,
-                            step_ms: self.options.step_ms,
-                            lookback_ms: self.options.lookback_ms,
-                            delta_ms: self
-                                .options
-                                .lookback_ms
-                                .wrapping_sub(i64::from(self.timestamp_selectors[selector_node.0])),
-                            data_bounds: self.data_bounds,
-                        },
-                        self.control,
-                        self.account,
-                    )?
+                    crate::instant_statistics::select(series, window, self.control, self.account)?
                 } else {
                     crate::instant_select::select::<_, _, StorageError>(
                         series,
-                        end_ms,
-                        self.options.lookback_ms,
-                        self.data_bounds,
+                        window,
                         self.control,
                         self.account,
                         |value| {
-                            Ok(OwnedValue::copy_from(
+                            Ok(OwnedValue::copy_from_checked(
                                 value,
+                                self.control,
                                 self.account,
                                 MemoryKind::Workspace,
-                            ))
+                            )?)
                         },
                     )?
                 }

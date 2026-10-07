@@ -295,7 +295,8 @@ static uint64_t long_window(netdata_promql_engine_t *engine, uint64_t rows, uint
 }
 static void error_phases(netdata_promql_engine_t *engine) {
     for (unsigned stage = 1; stage <= 6; stage++) {
-        netdata_promql_query_t *query = compile(engine, "m");
+        /* A matrix requires a physical Seek; this instant lookup's Seek is a no-op. */
+        netdata_promql_query_t *query = compile(engine, stage == 5 ? "m[1s]" : "m");
         fixture f;
         init_fixture(&f, 5, 1);
         f.failure = f.cancel_at = stage;

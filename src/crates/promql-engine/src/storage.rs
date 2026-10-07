@@ -507,7 +507,6 @@ pub fn scan_with<S: Series, E: From<StorageError> + From<Interrupted>>(
     account: &QueryAccounting,
     mut visit: impl for<'a> FnMut(SampleRef<'a>) -> Result<(), E>,
 ) -> Result<(), E> {
-    let _control_observation = control.observe(account);
     scan_until(series, bounds, control, account, |sample| {
         visit(sample).map(|()| std::ops::ControlFlow::Continue(()))
     })
@@ -521,6 +520,75 @@ pub(crate) fn scan_until<S: Series, E: From<StorageError> + From<Interrupted>>(
     account: &QueryAccounting,
     mut visit: impl for<'a> FnMut(SampleRef<'a>) -> Result<std::ops::ControlFlow<()>, E>,
 ) -> Result<std::ops::ControlFlow<()>, E> {
+    walk(
+        series,
+        bounds,
+        WalkStart::Seek(bounds.start_ms),
+        control,
+        account,
+        |sample| {
+            visit(sample).map(|action| {
+                if action.is_break() {
+                    CursorAction::Stop
+                } else {
+                    CursorAction::Next
+                }
+            })
+        },
+    )
+}
+
+#[derive(Clone, Copy)]
+pub(crate) enum CursorAction {
+    Next,
+    Seek(i64),
+    Stop,
+}
+
+pub(crate) enum WalkStart<'a> {
+    Next,
+    Seek(i64),
+    Probe(&'a mut Option<StorageError>),
+}
+
+pub(crate) enum InitialSample {
+    Ready,
+    Empty,
+    Error(AccountedVec<u8>),
+}
+
+pub(crate) fn initialize<S: Series>(
+    series: &S,
+    bounds: TimeBounds,
+    control: &Control,
+    account: &QueryAccounting,
+) -> Result<InitialSample, StorageError> {
+    let mut failure = None;
+    let outcome = walk::<_, StorageError>(
+        series,
+        bounds,
+        WalkStart::Probe(&mut failure),
+        control,
+        account,
+        |_| Ok(CursorAction::Stop),
+    )?;
+    Ok(match failure {
+        Some(StorageError::Provider(bytes)) => InitialSample::Error(bytes),
+        Some(_) => unreachable!("only initial provider read errors are latched"),
+        None if outcome.is_break() => InitialSample::Ready,
+        None => InitialSample::Empty,
+    })
+}
+
+pub(crate) fn walk<S: Series, E: From<StorageError> + From<Interrupted>>(
+    series: &S,
+    bounds: TimeBounds,
+    start: WalkStart<'_>,
+    control: &Control,
+    account: &QueryAccounting,
+    mut visit: impl for<'a> FnMut(SampleRef<'a>) -> Result<CursorAction, E>,
+) -> Result<std::ops::ControlFlow<()>, E> {
+    let _control_observation = control.observe(account);
     control.check()?;
     account.provider_call();
     let cursor = series
@@ -532,15 +600,26 @@ pub(crate) fn scan_until<S: Series, E: From<StorageError> + From<Interrupted>>(
     if maximum == 0 {
         return Err(StorageError::Invalid("zero cursor page size").into());
     }
-    account.provider_call();
-    let seek = cursor
-        .value
-        .seek(bounds.start_ms, control)
-        .map_err(|error| error.accounted(account));
-    cursor.lease.update(cursor.value.resources());
-    seek?;
     let mut previous = None;
+    let (mut seek, mut initial_failure) = match start {
+        WalkStart::Next => (None, None),
+        WalkStart::Seek(target) => (Some(target), None),
+        WalkStart::Probe(failure) => (None, Some(failure)),
+    };
+    let mut first = true;
+    let mut minimum = bounds.start_ms;
     loop {
+        if let Some(target) = seek.take() {
+            control.check()?;
+            account.provider_call();
+            let outcome = cursor
+                .value
+                .seek(target, control)
+                .map_err(|error| error.accounted(account));
+            cursor.lease.update(cursor.value.resources());
+            outcome?;
+            minimum = target.max(bounds.start_ms);
+        }
         control.check()?;
         account.provider_call();
         let mut resources = cursor.value.resources();
@@ -556,9 +635,17 @@ pub(crate) fn scan_until<S: Series, E: From<StorageError> + From<Interrupted>>(
             }
             Err(error) => {
                 cursor.lease.update(resources);
+                if first
+                    && matches!(error, StorageError::Provider(_))
+                    && let Some(failure) = initial_failure.as_deref_mut()
+                {
+                    *failure = Some(error);
+                    break;
+                }
                 return Err(error.into());
             }
         };
+        first = false;
         cursor.lease.update(resources);
         if page.resources != resources {
             return Err(StorageError::Invalid("inconsistent page resource snapshot").into());
@@ -571,12 +658,16 @@ pub(crate) fn scan_until<S: Series, E: From<StorageError> + From<Interrupted>>(
         }
         let mut borrow = account.hold(MemoryKind::BorrowedView, 0);
         page_bytes(page.samples, account, &mut borrow)?;
-        let mut stopped = false;
+        let mut action = CursorAction::Next;
+        let mut consumed = None;
         for index in 0..page.samples.len() {
             let sample = page.samples.sample(index);
             control.check()?;
             if sample.time_ms < bounds.start_ms || sample.time_ms > bounds.end_ms {
                 return Err(StorageError::Invalid("sample outside cursor bounds").into());
+            }
+            if sample.time_ms < minimum {
+                return Err(StorageError::Invalid("sample before cursor seek target").into());
             }
             if previous.is_some_and(|time| sample.time_ms <= time) {
                 return Err(
@@ -585,12 +676,24 @@ pub(crate) fn scan_until<S: Series, E: From<StorageError> + From<Interrupted>>(
             }
             previous = Some(sample.time_ms);
             account.work(1);
-            if !stopped {
-                stopped = visit(sample)?.is_break();
+            if matches!(action, CursorAction::Next) {
+                action = visit(sample)?;
+                consumed = Some(sample.time_ms);
+                if let CursorAction::Seek(target) = action
+                    && target <= sample.time_ms
+                {
+                    return Err(StorageError::Invalid("nonadvancing cursor seek").into());
+                }
             }
         }
-        if stopped {
-            return Ok(std::ops::ControlFlow::Break(()));
+        // A seek may revisit the validated but semantically unread tail.
+        match action {
+            CursorAction::Next => (),
+            CursorAction::Seek(target) => {
+                previous = consumed;
+                seek = Some(target);
+            }
+            CursorAction::Stop => return Ok(std::ops::ControlFlow::Break(())),
         }
     }
     Ok(std::ops::ControlFlow::Continue(()))
@@ -603,6 +706,169 @@ mod tests {
         accounting::EngineAccounting,
         histogram::{FloatHistogramRef, Span},
     };
+    #[test]
+    fn moving_seeks_can_revisit_the_validated_tail_or_reach_eof() {
+        use crate::{
+            test_storage::GeneratedSeries,
+            value::{Sample, SampleValue},
+        };
+        fn sample(index: usize) -> Sample {
+            Sample {
+                time_ms: 10 * (index as i64 + 1),
+                start_time_ms: 0,
+                value: SampleValue::Float(index as f64),
+            }
+        }
+        for page_size in [1, 17, 1024] {
+            for target in [20, 40, 50] {
+                let source = GeneratedSeries::new(4, page_size, sample);
+                let account = EngineAccounting::default().query();
+                let mut visited = Vec::new();
+                let result = walk::<_, StorageError>(
+                    &source,
+                    TimeBounds {
+                        start_ms: 0,
+                        end_ms: 100,
+                    },
+                    WalkStart::Next,
+                    &Control::default(),
+                    &account,
+                    |sample| {
+                        visited.push(sample.time_ms);
+                        Ok(if sample.time_ms == 10 {
+                            CursorAction::Seek(target)
+                        } else {
+                            CursorAction::Stop
+                        })
+                    },
+                )
+                .unwrap();
+                assert_eq!(
+                    visited,
+                    if target == 50 {
+                        vec![10]
+                    } else {
+                        vec![10, target]
+                    }
+                );
+                assert_eq!(result.is_continue(), target == 50);
+                assert_eq!(source.counters.next_calls.load(Ordering::Relaxed), 2);
+                assert_eq!(source.counters.opened.load(Ordering::Relaxed), 1);
+                assert_eq!(source.counters.closed.load(Ordering::Relaxed), 1);
+                assert_eq!(source.counters.active.load(Ordering::Relaxed), 0);
+                account.snapshot().assert_memory_released();
+            }
+        }
+    }
+    #[test]
+    fn unread_tail_validation_preserves_earlier_visitor_errors() {
+        use crate::{
+            test_storage::GeneratedSeries,
+            value::{Sample, SampleValue},
+        };
+        fn sample(index: usize) -> Sample {
+            Sample {
+                time_ms: [1, 2, 2][index],
+                start_time_ms: 0,
+                value: SampleValue::Float(1.0),
+            }
+        }
+        for mode in 0..3 {
+            let source = GeneratedSeries::new(3, 17, sample);
+            let account = EngineAccounting::default().query();
+            let mut visited = 0;
+            let result = walk::<_, StorageError>(
+                &source,
+                TimeBounds {
+                    start_ms: 0,
+                    end_ms: 10,
+                },
+                WalkStart::Next,
+                &Control::default(),
+                &account,
+                |_| {
+                    visited += 1;
+                    match mode {
+                        0 => Ok(CursorAction::Stop),
+                        1 => Ok(CursorAction::Seek(2)),
+                        _ => {
+                            let mut bytes = AccountedVec::new(&account, MemoryKind::Workspace);
+                            bytes.extend_from_slice(b"earlier semantic failure");
+                            Err(StorageError::Provider(bytes))
+                        }
+                    }
+                },
+            );
+            if mode == 2 {
+                let Err(StorageError::Provider(bytes)) = result else {
+                    panic!("the semantic error must precede the malformed tail")
+                };
+                assert_eq!(&*bytes, b"earlier semantic failure");
+                assert_eq!(
+                    account.snapshot().memory[MemoryKind::Workspace as usize].current,
+                    bytes.capacity() as u64
+                );
+            } else {
+                assert_eq!(
+                    result,
+                    Err(StorageError::Invalid(
+                        "sample timestamps are not strictly increasing"
+                    ))
+                );
+            }
+            assert_eq!(visited, 1);
+            assert_eq!(source.counters.next_calls.load(Ordering::Relaxed), 1);
+            assert_eq!(source.counters.opened.load(Ordering::Relaxed), 1);
+            assert_eq!(source.counters.closed.load(Ordering::Relaxed), 1);
+            assert_eq!(source.counters.active.load(Ordering::Relaxed), 0);
+            account.snapshot().assert_memory_released();
+        }
+    }
+    #[test]
+    fn initial_probe_releases_each_cursor_and_retains_only_error_bytes() {
+        use crate::test_storage::{GeneratedSeries, counter};
+        for mode in 0..3 {
+            let account = EngineAccounting::default().query();
+            let mut source = GeneratedSeries::new(usize::from(mode != 0), 17, counter);
+            if mode == 2 {
+                source.fail_page = Some(0);
+            }
+            let initial = initialize(
+                &source,
+                TimeBounds {
+                    start_ms: 0,
+                    end_ms: 2000,
+                },
+                &Control::default(),
+                &account,
+            )
+            .unwrap();
+            match (&initial, mode) {
+                (InitialSample::Empty, 0) | (InitialSample::Ready, 1) => (),
+                (InitialSample::Error(bytes), 2) => {
+                    assert_eq!(&**bytes, b"injected page failure");
+                    assert_eq!(
+                        bytes.context().unwrap().accounting().test_identity(),
+                        account.test_identity()
+                    );
+                    assert_eq!(
+                        account.snapshot().memory[MemoryKind::Workspace as usize].current,
+                        bytes.capacity() as u64
+                    );
+                }
+                _ => panic!("unexpected initial probe status"),
+            }
+            assert_eq!(source.counters.next_calls.load(Ordering::Relaxed), 1);
+            assert_eq!(source.counters.opened.load(Ordering::Relaxed), 1);
+            assert_eq!(source.counters.closed.load(Ordering::Relaxed), 1);
+            assert_eq!(source.counters.active.load(Ordering::Relaxed), 0);
+            for kind in [MemoryKind::ProviderHeld, MemoryKind::BorrowedView] {
+                assert_eq!(account.snapshot().memory[kind as usize].current, 0);
+            }
+            drop((initial, source));
+            account.snapshot().assert_memory_released();
+        }
+    }
     #[test]
     fn standalone_scan_retains_failed_page_bytes_after_releasing_the_cursor() {
         use crate::test_storage::{GeneratedSeries, counter};

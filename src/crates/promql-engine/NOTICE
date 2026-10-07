@@ -20,8 +20,8 @@ derive from promql/engine.go and promql/functions.go. Logical diagnostic ownersh
 deduplication and occurrence formatting derive from util/annotations/annotations.go.
 Request-context duration evaluation derives from promql/durations.go and engine.go's preprocessing.
 INFO reference inference, identifying-label selection, signatures and enrichment derive from promql/info.go.
-Statistics-only histogram decoding and buffered access epochs derive from
-promql/histogram_stats_iterator.go and storage/buffer.go.
+Statistics-only histogram decoding, memoized selection and buffered access epochs derive from
+promql/histogram_stats_iterator.go, storage/memoized_iterator.go and storage/buffer.go.
 Classic bucket interpolation, coalescing and monotonicity derive from promql/quantile.go;
 numeric near-equality derives from util/almost/almost.go.
 Copyright The Prometheus Authors. Licensed under Apache-2.0;

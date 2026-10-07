@@ -1,34 +1,30 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-// Prefix replay derives from pinned MemoizedSeriesIterator and vectorSelectorSingle; see NOTICE.
+// Statistics decoding and access epochs derive from pinned PromQL/storage; see NOTICE.
 use crate::{
     accounting::{MemoryKind, QueryAccounting},
     histogram_stats::{Projection, StatisticsDecoder},
+    instant_select::{self, InstantWindow, Projector},
     result::OwnedValue,
-    storage::{Control, Series, StorageError, TimeBounds, scan_until},
-    value::SampleRef,
+    storage::{Control, Series, StorageError},
+    value::SampleValueRef,
 };
-use std::ops::ControlFlow;
 
-#[derive(Clone, Copy)]
-pub(crate) struct InstantWindow {
-    pub(crate) first_lookup_ms: i64,
-    pub(crate) lookup_ms: i64,
-    pub(crate) step_ms: i64,
-    pub(crate) lookback_ms: i64,
-    pub(crate) delta_ms: i64,
-    pub(crate) data_bounds: TimeBounds,
-}
-
-#[derive(Clone, Copy)]
-struct Point {
-    time_ms: i64,
-    start_time_ms: i64,
-    value: Projection,
-}
-impl Point {
-    fn valid(self, lookup_ms: i64, lookback_ms: i64) -> Option<Self> {
-        (self.time_ms > lookup_ms.wrapping_sub(lookback_ms) && !self.value.as_ref().is_stale())
-            .then_some(self)
+impl Projector for StatisticsDecoder {
+    type Value = Projection;
+    type Error = StorageError;
+    fn moved(&mut self) {
+        StatisticsDecoder::moved(self);
+    }
+    fn clear(&mut self) {
+        StatisticsDecoder::clear(self);
+    }
+    fn project(
+        &mut self,
+        value: SampleValueRef<'_>,
+        control: &Control,
+        account: &QueryAccounting,
+    ) -> Result<Projection, StorageError> {
+        StatisticsDecoder::project(self, value, control, account)
     }
 }
 
@@ -38,103 +34,21 @@ pub(crate) fn select<S: Series>(
     control: &Control,
     account: &QueryAccounting,
 ) -> Result<Option<(i64, i64, OwnedValue)>, StorageError> {
-    let bounds = TimeBounds {
-        start_ms: window
-            .data_bounds
-            .start_ms
-            .max(window.first_lookup_ms.wrapping_sub(window.delta_ms)),
-        end_ms: window.data_bounds.end_ms,
-    };
-    let mut decoder = StatisticsDecoder::default();
-    let mut lookup_ms = window.first_lookup_ms;
-    let mut last_time = i64::MIN;
-    let mut previous = None::<Point>;
-    let mut selected = None::<Point>;
-    let mut advanced = false;
-    let mut seek_target = None;
-    let outcome = scan_until::<_, StorageError>(
+    instant_select::select_with(
         series,
-        bounds,
+        window,
         control,
         account,
-        |sample: SampleRef<'_>| {
-            decoder.moved();
-            if let Some(target) = seek_target {
-                if sample.time_ms < target {
-                    return Ok(ControlFlow::Continue(()));
-                }
-                seek_target = None;
-                last_time = sample.time_ms;
-            } else if advanced {
-                last_time = sample.time_ms;
-                advanced = false;
-            }
-            loop {
-                control.check()?;
-                account.work(1);
-                let lower = lookup_ms.wrapping_sub(window.delta_ms);
-                if lower > last_time {
-                    previous = None;
-                    // Raw Seek clears statistics only if it moves beyond the current raw sample.
-                    if lower > sample.time_ms {
-                        decoder.clear();
-                        seek_target = Some(lower);
-                        return Ok(ControlFlow::Continue(()));
-                    }
-                    last_time = sample.time_ms;
-                }
-                if last_time < lookup_ms {
-                    previous = Some(Point {
-                        time_ms: sample.time_ms,
-                        start_time_ms: sample.start_time_ms,
-                        value: decoder.project(sample.value, control, account)?,
-                    });
-                    advanced = true;
-                    return Ok(ControlFlow::Continue(()));
-                }
-                // Access future current histograms before choosing the buffered predecessor.
-                let current = Point {
-                    time_ms: sample.time_ms,
-                    start_time_ms: sample.start_time_ms,
-                    value: decoder.project(sample.value, control, account)?,
-                };
-                selected = if current.time_ms > lookup_ms {
-                    previous.and_then(|point| point.valid(lookup_ms, window.lookback_ms))
-                } else {
-                    (!current.value.as_ref().is_stale()).then_some(current)
-                };
-                if lookup_ms == window.lookup_ms {
-                    return Ok(ControlFlow::Break(()));
-                }
-                lookup_ms = lookup_ms
-                    .checked_add(window.step_ms)
-                    .filter(|next| *next > lookup_ms && *next <= window.lookup_ms)
-                    .ok_or(StorageError::Invalid("invalid instant replay schedule"))?;
-            }
-        },
-    )?;
-    if outcome.is_continue() {
-        // EOF keeps the memoized predecessor; later Seek calls do not clear it.
-        loop {
-            control.check()?;
-            account.work(1);
-            selected = previous.and_then(|point| point.valid(lookup_ms, window.lookback_ms));
-            if lookup_ms == window.lookup_ms {
-                break;
-            }
-            lookup_ms = lookup_ms
-                .checked_add(window.step_ms)
-                .filter(|next| *next > lookup_ms && *next <= window.lookup_ms)
-                .ok_or(StorageError::Invalid("invalid instant replay schedule"))?;
-        }
-    }
-    Ok(selected.map(|point| {
-        (
-            point.time_ms,
-            point.start_time_ms,
-            OwnedValue::copy_from(point.value.as_ref(), account, MemoryKind::Workspace),
-        )
-    }))
+        StatisticsDecoder::default(),
+    )?
+    .map(|(time, start, value)| {
+        Ok((
+            time,
+            start,
+            OwnedValue::copy_from_checked(value.as_ref(), control, account, MemoryKind::Workspace)?,
+        ))
+    })
+    .transpose()
 }
 
 #[cfg(test)]
@@ -143,6 +57,7 @@ mod tests {
     use crate::{
         accounting::EngineAccounting,
         histogram::{COUNTER_RESET, FloatHistogram, NOT_RESET},
+        storage::TimeBounds,
         test_storage::{GeneratedSeries, counter},
         value::{STALE_NAN_BITS, Sample, SampleValue},
     };

@@ -1,39 +1,188 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-//! Paged instantaneous selection with one retained caller-owned projection.
+// Prefix replay derives from pinned MemoizedSeriesIterator and vectorSelectorSingle; see NOTICE.
 use crate::{
     accounting::QueryAccounting,
-    storage::{Control, Interrupted, Series, StorageError, TimeBounds, scan_with},
-    value::SampleValueRef,
+    storage::{
+        Control, CursorAction, Interrupted, Series, StorageError, TimeBounds, WalkStart, walk,
+    },
+    value::{SampleRef, SampleValueRef},
 };
+
+#[derive(Clone, Copy)]
+pub(crate) struct InstantWindow {
+    pub(crate) first_lookup_ms: i64,
+    pub(crate) lookup_ms: i64,
+    pub(crate) step_ms: i64,
+    pub(crate) lookback_ms: i64,
+    pub(crate) delta_ms: i64,
+    pub(crate) data_bounds: TimeBounds,
+}
+impl InstantWindow {
+    #[cfg(test)]
+    pub(crate) fn single(lookup_ms: i64, lookback_ms: i64, data_bounds: TimeBounds) -> Self {
+        Self {
+            first_lookup_ms: lookup_ms,
+            lookup_ms,
+            step_ms: 0,
+            lookback_ms,
+            delta_ms: lookback_ms,
+            data_bounds,
+        }
+    }
+    fn next_lookup(self, current: i64) -> Result<i64, StorageError> {
+        current
+            .checked_add(self.step_ms)
+            .filter(|next| *next > current && *next <= self.lookup_ms)
+            .ok_or(StorageError::Invalid("invalid instant replay schedule"))
+    }
+}
+
+type Selected<T> = Option<(i64, i64, T)>;
+
+pub(crate) trait Projector {
+    type Value;
+    type Error: From<StorageError> + From<Interrupted>;
+    fn moved(&mut self) {}
+    fn clear(&mut self) {}
+    fn project(
+        &mut self,
+        value: SampleValueRef<'_>,
+        control: &Control,
+        account: &QueryAccounting,
+    ) -> Result<Self::Value, Self::Error>;
+}
+struct Plain<F>(F);
+impl<T, E, F> Projector for Plain<F>
+where
+    E: From<StorageError> + From<Interrupted>,
+    F: FnMut(SampleValueRef<'_>) -> Result<T, E>,
+{
+    type Value = T;
+    type Error = E;
+    fn project(
+        &mut self,
+        value: SampleValueRef<'_>,
+        _: &Control,
+        _: &QueryAccounting,
+    ) -> Result<T, E> {
+        self.0(value)
+    }
+}
+struct Point<T> {
+    time_ms: i64,
+    start_time_ms: i64,
+    stale: bool,
+    value: T,
+}
+impl<T> Point<T> {
+    fn valid(self, lookup_ms: i64, lookback_ms: i64) -> Option<Self> {
+        (self.time_ms != i64::MIN
+            && self.time_ms > lookup_ms.wrapping_sub(lookback_ms)
+            && !self.stale)
+            .then_some(self)
+    }
+    fn tuple(self) -> (i64, i64, T) {
+        (self.time_ms, self.start_time_ms, self.value)
+    }
+}
+fn access<P: Projector>(
+    projector: &mut P,
+    sample: SampleRef<'_>,
+    control: &Control,
+    account: &QueryAccounting,
+) -> Result<Point<P::Value>, P::Error> {
+    Ok(Point {
+        time_ms: sample.time_ms,
+        start_time_ms: sample.start_time_ms,
+        stale: sample.value.is_stale(),
+        value: projector.project(sample.value, control, account)?,
+    })
+}
 
 pub(crate) fn select<S: Series, T, E: From<StorageError> + From<Interrupted>>(
     series: &S,
-    lookup_ms: i64,
-    lookback_ms: i64,
-    data_bounds: TimeBounds,
+    window: InstantWindow,
     control: &Control,
     account: &QueryAccounting,
-    mut project: impl FnMut(SampleValueRef<'_>) -> Result<T, E>,
-) -> Result<Option<(i64, i64, T)>, E> {
-    let bounds = TimeBounds {
-        start_ms: lookup_ms
-            .wrapping_sub(lookback_ms)
-            .wrapping_add(1)
-            .max(data_bounds.start_ms),
-        end_ms: lookup_ms.min(data_bounds.end_ms),
-    };
+    project: impl FnMut(SampleValueRef<'_>) -> Result<T, E>,
+) -> Result<Selected<T>, E> {
+    select_with(series, window, control, account, Plain(project))
+}
+
+pub(crate) fn select_with<S: Series, P: Projector>(
+    series: &S,
+    window: InstantWindow,
+    control: &Control,
+    account: &QueryAccounting,
+    mut projector: P,
+) -> Result<Selected<P::Value>, P::Error> {
+    let mut lookup_ms = window.first_lookup_ms;
+    let mut last_time = i64::MIN;
+    let mut previous = None::<Point<P::Value>>;
     let mut selected = None;
-    if bounds.start_ms <= bounds.end_ms {
-        scan_with::<_, E>(series, bounds, control, account, |sample| {
-            // Free the prior payload before constructing its replacement.
-            selected = None;
-            if !sample.value.is_stale() {
-                selected = Some((sample.time_ms, sample.start_time_ms, project(sample.value)?));
+    let mut initial = true;
+    let outcome = walk::<_, P::Error>(
+        series,
+        window.data_bounds,
+        WalkStart::Next,
+        control,
+        account,
+        |sample| {
+            projector.moved();
+            if !initial {
+                last_time = sample.time_ms;
             }
-            Ok(())
-        })?;
+            initial = false;
+            loop {
+                control.check()?;
+                account.work(1);
+                let lower = lookup_ms.wrapping_sub(window.delta_ms);
+                if lower > last_time {
+                    previous = None;
+                    if lower > sample.time_ms {
+                        projector.clear();
+                        return Ok(CursorAction::Seek(lower));
+                    }
+                    last_time = sample.time_ms;
+                }
+                if last_time < lookup_ms {
+                    // Release the old buffer before projecting its replacement.
+                    previous = None;
+                    previous = Some(access(&mut projector, sample, control, account)?);
+                    return Ok(CursorAction::Next);
+                }
+                // Future access can mutate statistics state even when the predecessor wins.
+                let current = access(&mut projector, sample, control, account)?;
+                if lookup_ms == window.lookup_ms {
+                    selected = if current.time_ms > lookup_ms {
+                        previous
+                            .take()
+                            .and_then(|point| point.valid(lookup_ms, window.lookback_ms))
+                    } else {
+                        (!current.stale).then_some(current)
+                    };
+                    return Ok(CursorAction::Stop);
+                }
+                drop(current);
+                lookup_ms = window.next_lookup(lookup_ms)?;
+            }
+        },
+    )?;
+    if outcome.is_continue() {
+        // Successful EOF preserves the memoized predecessor; errors never reach fallback.
+        loop {
+            control.check()?;
+            account.work(1);
+            if lookup_ms == window.lookup_ms {
+                selected = previous
+                    .take()
+                    .and_then(|point| point.valid(lookup_ms, window.lookback_ms));
+                break;
+            }
+            lookup_ms = window.next_lookup(lookup_ms)?;
+        }
     }
-    Ok(selected)
+    Ok(selected.map(Point::tuple))
 }
 
 #[cfg(test)]
@@ -65,12 +214,17 @@ mod tests {
     ) -> Result<Option<(i64, i64, OwnedValue)>, StorageError> {
         select(
             series,
-            lookup_ms,
-            lookback_ms,
-            data_bounds,
+            InstantWindow::single(lookup_ms, lookback_ms, data_bounds),
             control,
             account,
-            |value| Ok(OwnedValue::copy_from(value, account, MemoryKind::Workspace)),
+            |value| {
+                Ok(OwnedValue::copy_from_checked(
+                    value,
+                    control,
+                    account,
+                    MemoryKind::Workspace,
+                )?)
+            },
         )
     }
     fn assert_closed(series: &GeneratedSeries, account: &QueryAccounting) {
@@ -142,9 +296,7 @@ mod tests {
             ] {
                 let actual = select::<_, _, StorageError>(
                     &series,
-                    lookup,
-                    10_000,
-                    bounds(5000),
+                    InstantWindow::single(lookup, 10_000, bounds(5000)),
                     &control,
                     &account,
                     |value| {
@@ -181,27 +333,29 @@ mod tests {
     }
 
     #[test]
-    fn replacing_owned_histograms_retains_only_one_projection() {
+    fn replacing_owned_histograms_retains_a_constant_number_of_projections() {
         for page_size in [1, 17, 1024] {
             let account = EngineAccounting::default().query();
             let series = GeneratedSeries::new(100, page_size, histogram);
+            let mut retained_size = 0;
+            let control = Control::default();
             let selected = select::<_, _, StorageError>(
                 &series,
-                99,
-                100,
-                bounds(99),
-                &Control::default(),
+                InstantWindow::single(99, 100, bounds(99)),
+                &control,
                 &account,
                 |value| {
-                    assert_eq!(
-                        account.snapshot().memory[MemoryKind::Workspace as usize].current,
-                        0
-                    );
-                    Ok(OwnedValue::copy_from(
+                    let before = account.snapshot().memory[MemoryKind::Workspace as usize].current;
+                    assert!(before <= retained_size);
+                    let value = OwnedValue::copy_from_checked(
                         value,
+                        &control,
                         &account,
                         MemoryKind::Workspace,
-                    ))
+                    )?;
+                    retained_size =
+                        account.snapshot().memory[MemoryKind::Workspace as usize].current - before;
+                    Ok(value)
                 },
             )
             .unwrap()
@@ -275,5 +429,83 @@ mod tests {
             assert!(series.counters.next_calls.load(Ordering::Relaxed) > 1);
             assert_closed(&series, &account);
         }
+    }
+
+    #[test]
+    fn exact_endpoint_does_not_read_an_armed_terminal_failure() {
+        for page_size in [1, 17, 1024] {
+            let account = EngineAccounting::default().query();
+            let mut series = GeneratedSeries::new(1, page_size, counter);
+            series.fail_page = Some(1);
+            let selected = owned(
+                &series,
+                1000,
+                1000,
+                bounds(2000),
+                &Control::default(),
+                &account,
+            )
+            .unwrap()
+            .unwrap();
+            let OwnedValue::Float(value) = selected.2 else {
+                panic!("expected the exact endpoint float")
+            };
+            assert_eq!((selected.0, selected.1, value), (1000, 0, 1.0));
+            assert_eq!(series.counters.next_calls.load(Ordering::Relaxed), 1);
+            assert_closed(&series, &account);
+        }
+    }
+
+    #[test]
+    fn required_future_and_eof_failures_precede_predecessor_fallback() {
+        for count in [1, 2] {
+            let account = EngineAccounting::default().query();
+            let mut series = GeneratedSeries::new(count, 1, counter);
+            series.fail_page = Some(1);
+            let result = owned(
+                &series,
+                1500,
+                2000,
+                bounds(2000),
+                &Control::default(),
+                &account,
+            );
+            let Err(StorageError::Provider(bytes)) = result else {
+                panic!("a required raw read error must precede the eligible predecessor")
+            };
+            assert_eq!(&*bytes, b"injected page failure");
+            assert_eq!(series.counters.next_calls.load(Ordering::Relaxed), 2);
+            drop(bytes);
+            assert_closed(&series, &account);
+        }
+    }
+
+    #[test]
+    fn cancellation_inside_one_large_histogram_projection_releases_every_owner() {
+        fn large_histogram(_: usize) -> Sample {
+            Sample {
+                time_ms: 0,
+                start_time_ms: 0,
+                value: SampleValue::FloatHistogram(FloatHistogram {
+                    positive_buckets: Some(vec![1.0; 100_000].into()),
+                    ..FloatHistogram::default()
+                }),
+            }
+        }
+        let account = EngineAccounting::default().query();
+        let control = Control::default();
+        let series = GeneratedSeries::new(1, 1, large_histogram);
+        let result = interrupt_during(&account, &control, || {
+            owned(&series, 0, 1000, bounds(1000), &control, &account)
+        });
+        assert!(matches!(
+            result,
+            Err(StorageError::Interrupted(Interrupted::Cancelled))
+        ));
+        let work = account.snapshot().work;
+        assert!((8192..100_000).contains(&work));
+        assert_eq!(series.counters.next_calls.load(Ordering::Relaxed), 1);
+        drop(result);
+        assert_closed(&series, &account);
     }
 }

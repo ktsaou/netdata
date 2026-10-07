@@ -307,7 +307,8 @@ fn provider_errors_preserve_upstream_phase_precedence_and_scratch_lifetimes() {
             unsafe {
                 let engine = engine();
                 let account = borrow::<Engine, _>(engine).unwrap().core.accounting.clone();
-                let query = compiled(engine, b"m");
+                // A matrix requires a physical seek; this instant lookup's seek is a no-op.
+                let query = compiled(engine, if stage == 5 { b"m[1s]" } else { b"m" });
                 let mut token = ptr::null_mut();
                 assert_eq!(
                     netdata_promql_control_create(engine, ptr::null(), &mut token),

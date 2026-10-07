@@ -449,7 +449,8 @@ fn foreign_failures_keep_bytes_and_close_only_successful_opens() {
         unsafe {
             let engine = engine();
             let accounting = borrow::<Engine, _>(engine).unwrap().core.accounting.clone();
-            let query = compiled(engine, b"m");
+            // A matrix requires a physical seek; this instant lookup's seek is a no-op.
+            let query = compiled(engine, if stage == 5 { b"m[1s]" } else { b"m" });
             let mut fixture = Fixture::new(1);
             fixture.failure = stage;
             let table = fixture.table();

@@ -244,9 +244,8 @@ impl Plan {
                         loop {
                             if let Some((_, histogram)) = read(
                                 series,
-                                time_ms,
+                                EvaluationOptions { time_ms, ..scope },
                                 reference,
-                                scope.lookback_ms,
                                 data_bounds,
                                 control,
                                 account,
@@ -426,22 +425,29 @@ fn signature(
 
 fn read<S: Series>(
     series: &S,
-    time_ms: i64,
+    options: EvaluationOptions,
     reference: SelectorReference,
-    lookback_ms: i64,
     data_bounds: TimeBounds,
     control: &Control,
     account: &QueryAccounting,
 ) -> Result<Option<(i64, bool)>, EvaluationError> {
     let lookup = reference
         .timestamp_ms
-        .unwrap_or(time_ms)
+        .unwrap_or(options.time_ms)
         .wrapping_sub(reference.offset_ns / 1_000_000);
     Ok(instant_select::select::<_, _, StorageError>(
         series,
-        lookup,
-        lookback_ms,
-        data_bounds,
+        instant_select::InstantWindow {
+            first_lookup_ms: reference
+                .timestamp_ms
+                .unwrap_or(options.start_ms)
+                .wrapping_sub(reference.offset_ns / 1_000_000),
+            lookup_ms: lookup,
+            step_ms: options.step_ms,
+            lookback_ms: options.lookback_ms,
+            delta_ms: options.lookback_ms,
+            data_bounds,
+        },
         control,
         account,
         |value| Ok(!matches!(value, SampleValueRef::Float(_))),
@@ -549,9 +555,8 @@ impl<'a> Step<'a> {
                             .with_info_series(row.site, row.ordinal, |series| {
                                 read(
                                     series,
-                                    options.time_ms,
+                                    options,
                                     self.plan.reference,
-                                    options.lookback_ms,
                                     data_bounds,
                                     control,
                                     account,

@@ -1,15 +1,14 @@
-#!/usr/bin/env python3
 """Execute every captured expression; unsupported paths remain open qualification."""
 import argparse
 import base64
-from collections import Counter, defaultdict
-from copy import deepcopy
 import hashlib
 import json
-from pathlib import Path
 import re
 import subprocess
 import tempfile
+from collections import Counter, defaultdict
+from copy import deepcopy
+from pathlib import Path
 
 from build import directory
 from build_frontend import build
@@ -114,6 +113,30 @@ def result_base64(result):
         for error in result["error"].get("parse_errors", []):
             error["message"] = byte_base64(error["message"])
     return result
+
+
+def checked_candidate_packets(responses, groups, subject="query"):
+    expected = [("dataset_id", group["id"]) if request is None else ("id", request["id"])
+                for group in groups for request in [None, *group["requests"]]]
+    if type(responses) is not list or len(responses) != len(expected):
+        raise ValueError(f"candidate {subject} packet count changed")
+    results = []
+    for row, (key, ident) in zip(responses, expected):
+        if type(row) is not dict or row.get(key) != ident:
+            raise ValueError(f"candidate {subject} packet order or identity changed")
+        if key == "dataset_id":
+            if row != {key: ident}:
+                raise ValueError(f"candidate {subject} acknowledgement changed")
+        else:
+            if not {"id", "result"} <= row.keys() <= {"id", "result", "observations"}:
+                raise ValueError(f"candidate {subject} result is incomplete or unsupported")
+            result = result_base64(row["result"])
+            if result.get("id") != ident:
+                raise ValueError(f"candidate {subject} inner result identity changed")
+            results.append(result)
+    actual = {"schema_version": 1, "results": results}
+    checked_results(actual)
+    return actual
 
 
 def qualify_outputs(entries, outputs):

@@ -13,7 +13,7 @@ from capture import verify_facade
 from compare import checked_results, compare
 from histogram_reference import COMMIT, MODULE, input_ledger
 from info_cases import cases
-from query import dataset_hex, request_hex, result_base64
+from query import checked_candidate_packets, dataset_hex, request_hex
 
 HERE = Path(__file__).resolve().parent
 ORACLE_SHA256 = "28f31b32475f05ca6ff47e9dc79a65df4811155fec8d80c4eab8e266d76e7f62"
@@ -112,27 +112,7 @@ def load_reference(reference):
 
 
 def checked_candidate(responses, groups):
-    expected = [("dataset_id", group["id"]) if request is None else ("id", request["id"])
-                for group in groups for request in [None, *group["requests"]]]
-    if type(responses) is not list or len(responses) != len(expected):
-        raise ValueError("candidate INFO packet count changed")
-    results = []
-    for row, (key, ident) in zip(responses, expected):
-        if type(row) is not dict or row.get(key) != ident:
-            raise ValueError("candidate INFO packet order or identity changed")
-        if key == "dataset_id":
-            if row != {key: ident}:
-                raise ValueError("candidate INFO acknowledgement changed")
-        else:
-            if not {"id", "result"} <= row.keys() <= {"id", "result", "observations"}:
-                raise ValueError("candidate INFO result is incomplete or unsupported")
-            result = result_base64(row["result"])
-            if result.get("id") != ident:
-                raise ValueError("candidate INFO inner result identity changed")
-            results.append(result)
-    actual = {"schema_version": 1, "results": results}
-    checked_results(actual)
-    return actual
+    return checked_candidate_packets(responses, groups, "INFO")
 
 
 def capture(upstream, oracle):

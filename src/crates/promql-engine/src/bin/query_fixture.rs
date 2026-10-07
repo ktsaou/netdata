@@ -40,6 +40,14 @@ struct Fault {
     iterator_error: Option<Vec<u8>>,
     warning: Option<Vec<u8>>,
     fail_at: i64,
+    phase: Option<CursorFault>,
+}
+struct CursorFault {
+    next_times: Vec<i64>,
+    seek_targets: Vec<i64>,
+    next_eof: bool,
+    seek_eof: bool,
+    message: Vec<u8>,
 }
 impl FixtureProvider {
     fn decode(request: &Value) -> Result<Self, Error> {
@@ -132,6 +140,34 @@ impl FixtureProvider {
                     fail_at: value.get("fail_at").map_or(Ok(0), |input| {
                         input.as_i64().ok_or("invalid fixture fail timestamp")
                     })?,
+                    phase: if let Some(message) = bytes("message")? {
+                        let times = |name| {
+                            value.get(name).map_or(Ok(Vec::new()), |input| {
+                                input
+                                    .as_array()
+                                    .ok_or("invalid fixture cursor fault times")?
+                                    .iter()
+                                    .map(|item| {
+                                        item.as_i64().ok_or("invalid fixture cursor fault time")
+                                    })
+                                    .collect::<Result<Vec<_>, _>>()
+                            })
+                        };
+                        let flag = |name| {
+                            value.get(name).map_or(Ok(false), |input| {
+                                input.as_bool().ok_or("invalid fixture cursor fault flag")
+                            })
+                        };
+                        Some(CursorFault {
+                            next_times: times("next_times")?,
+                            seek_targets: times("seek_targets")?,
+                            next_eof: flag("next_eof")?,
+                            seek_eof: flag("seek_eof")?,
+                            message,
+                        })
+                    } else {
+                        None
+                    },
                 });
             }
         }
@@ -163,7 +199,8 @@ struct FixtureCursor<'a> {
     index: usize,
     page_size: usize,
     fault: Option<&'a Fault>,
-    failed: bool,
+    failed: Option<&'a [u8]>,
+    seek_landing: bool,
 }
 impl Provider for FixtureProvider {
     type Query<'a> = FixtureQuery<'a>;
@@ -299,7 +336,8 @@ impl Series for FixtureHandle<'_> {
             index: 0,
             page_size: self.page_size,
             fault: self.fault,
-            failed: false,
+            failed: None,
+            seek_landing: false,
         })
     }
 }
@@ -312,15 +350,18 @@ impl SampleCursor for FixtureCursor<'_> {
     }
     fn seek(&mut self, time_ms: i64, control: &Control) -> Result<(), StorageError> {
         control.check()?;
-        if self.failed {
-            return Err(StorageError::Provider(
-                self.fault
-                    .and_then(|fault| fault.iterator_error.clone())
-                    .expect("failed synthetic cursor")
-                    .into(),
-            ));
+        if let Some(message) = self.failed {
+            return Err(StorageError::Provider(message.to_vec().into()));
         }
         self.index = self.points.partition_point(|p| p.time_ms < time_ms);
+        self.seek_landing = true;
+        if let Some(fault) = self.fault.and_then(|fault| fault.phase.as_ref())
+            && (fault.seek_targets.contains(&time_ms)
+                || fault.seek_eof && self.index == self.points.len())
+        {
+            self.failed = Some(&fault.message);
+            return Err(StorageError::Provider(fault.message.clone().into()));
+        }
         Ok(())
     }
     fn next(
@@ -330,15 +371,18 @@ impl SampleCursor for FixtureCursor<'_> {
     ) -> Result<Option<SamplePage<'_>>, StorageError> {
         *resources = self.resources();
         control.check()?;
-        if self.failed {
-            return Err(StorageError::Provider(
-                self.fault
-                    .and_then(|fault| fault.iterator_error.clone())
-                    .expect("failed synthetic cursor")
-                    .into(),
-            ));
+        if let Some(message) = self.failed {
+            return Err(StorageError::Provider(message.to_vec().into()));
         }
+        let seek_landing = std::mem::take(&mut self.seek_landing);
         if self.index == self.points.len() {
+            if !seek_landing
+                && let Some(fault) = self.fault.and_then(|fault| fault.phase.as_ref())
+                && fault.next_eof
+            {
+                self.failed = Some(&fault.message);
+                return Err(StorageError::Provider(fault.message.clone().into()));
+            }
             return Ok(None);
         }
         let start = self.index;
@@ -348,7 +392,7 @@ impl SampleCursor for FixtureCursor<'_> {
                 .partition_point(|point| point.time_ms < fault.fail_at);
             self.index = start + good;
             if good == 0 {
-                self.failed = true;
+                self.failed = fault.iterator_error.as_deref();
                 return Err(StorageError::Provider(
                     fault
                         .iterator_error
@@ -357,6 +401,21 @@ impl SampleCursor for FixtureCursor<'_> {
                         .clone()
                         .into(),
                 ));
+            }
+        }
+        if let Some(fault) = self.fault.and_then(|fault| fault.phase.as_ref())
+            && let Some(offset) =
+                self.points[start..self.index]
+                    .iter()
+                    .enumerate()
+                    .position(|(offset, point)| {
+                        !(seek_landing && offset == 0) && fault.next_times.contains(&point.time_ms)
+                    })
+        {
+            self.index = start + offset;
+            if offset == 0 {
+                self.failed = Some(&fault.message);
+                return Err(StorageError::Provider(fault.message.clone().into()));
             }
         }
         Ok(Some(SamplePage {
