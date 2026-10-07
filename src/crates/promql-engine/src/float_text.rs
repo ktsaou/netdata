@@ -3,6 +3,11 @@
 use std::fmt;
 
 use crate::frontend::float_scale::{fixed_two, num_digits, shortest};
+use crate::{
+    accounting::{AccountedVec, QueryAccounting},
+    result::append_bytes_checked,
+    storage::{Control, Interrupted},
+};
 
 /// Source projections used by PromQL numeric annotations and generated labels.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -66,64 +71,22 @@ pub fn float_text(value: f64, style: FloatTextStyle) -> FloatText {
         bytes: [0; 32],
         len: 0,
     };
-    let bits = value.to_bits();
-    let negative = bits >> 63 != 0;
-    let mut exponent = ((bits >> 52) & 0x7ff) as i32;
-    let mut mantissa = bits & ((1 << 52) - 1);
-    if exponent == 0x7ff {
-        output.extend(if mantissa != 0 {
-            b"NaN"
-        } else if negative {
-            b"-Inf"
-        } else {
-            b"+Inf"
-        });
+    let decimal = Decimal::new(value, style != FloatTextStyle::TwoSignificant);
+    if let Some(special) = decimal.special {
+        output.extend(special);
         return output;
     }
-    if exponent == 0 && mantissa == 0 {
-        if negative && style != FloatTextStyle::OpenMetrics {
-            output.push(b'-');
-        }
-        output.extend(if style == FloatTextStyle::OpenMetrics {
-            b"0.0"
-        } else {
-            b"0"
-        });
-        return output;
-    }
-    if exponent == 0 {
-        exponent += 1;
-    } else {
-        mantissa |= 1 << 52;
-    }
-    exponent -= 1023;
-    let shift = mantissa.leading_zeros();
-    let binary = exponent - shift as i32 - 52;
-    mantissa <<= shift;
-    let is_shortest = style != FloatTextStyle::TwoSignificant;
-    let (mut value, power) = if is_shortest {
-        shortest(mantissa, binary)
-    } else {
-        fixed_two(mantissa, binary)
-    };
-    let mut count = num_digits(value);
-    let point = count as i32 + power;
-    let mut digits = [0; 20];
-    for slot in digits[..count].iter_mut().rev() {
-        *slot = (value % 10) as u8 + b'0';
-        value /= 10;
-    }
-    while count > 0 && digits[count - 1] == b'0' {
-        count -= 1;
-    }
-    let precision = if is_shortest { count as i32 } else { 2 };
     general(
         &mut output,
-        negative,
-        &digits[..count],
-        point,
-        precision,
-        is_shortest,
+        decimal.negative && !(value == 0.0 && style == FloatTextStyle::OpenMetrics),
+        &decimal.digits[..decimal.count],
+        decimal.point,
+        if style == FloatTextStyle::TwoSignificant {
+            2
+        } else {
+            decimal.count as i32
+        },
+        style != FloatTextStyle::TwoSignificant,
     );
     if style == FloatTextStyle::OpenMetrics
         && !output.as_bytes().iter().any(|&b| b == b'.' || b == b'e')
@@ -131,6 +94,125 @@ pub fn float_text(value: f64, style: FloatTextStyle) -> FloatText {
         output.extend(b".0");
     }
     output
+}
+
+struct Decimal {
+    digits: [u8; 20],
+    count: usize,
+    point: i32,
+    negative: bool,
+    special: Option<&'static [u8]>,
+}
+impl Decimal {
+    fn new(value: f64, is_shortest: bool) -> Self {
+        let bits = value.to_bits();
+        let negative = bits >> 63 != 0;
+        let mut exponent = ((bits >> 52) & 0x7ff) as i32;
+        let mut mantissa = bits & ((1 << 52) - 1);
+        if exponent == 0x7ff {
+            return Self {
+                digits: [0; 20],
+                count: 0,
+                point: 0,
+                negative,
+                special: Some(if mantissa != 0 {
+                    b"NaN"
+                } else if negative {
+                    b"-Inf"
+                } else {
+                    b"+Inf"
+                }),
+            };
+        }
+        if exponent == 0 && mantissa == 0 {
+            return Self {
+                digits: [b'0'; 20],
+                count: 1,
+                point: 1,
+                negative,
+                special: None,
+            };
+        }
+        if exponent == 0 {
+            exponent += 1;
+        } else {
+            mantissa |= 1 << 52;
+        }
+        exponent -= 1023;
+        let shift = mantissa.leading_zeros();
+        let binary = exponent - shift as i32 - 52;
+        mantissa <<= shift;
+        let (mut value, power) = if is_shortest {
+            shortest(mantissa, binary)
+        } else {
+            fixed_two(mantissa, binary)
+        };
+        let mut count = num_digits(value);
+        let point = count as i32 + power;
+        let mut digits = [0; 20];
+        for slot in digits[..count].iter_mut().rev() {
+            *slot = (value % 10) as u8 + b'0';
+            value /= 10;
+        }
+        while count > 0 && digits[count - 1] == b'0' {
+            count -= 1;
+        }
+        Self {
+            digits,
+            count,
+            point,
+            negative,
+            special: None,
+        }
+    }
+}
+
+/// Go's shortest fixed notation writes padding directly into its owned destination.
+pub(crate) fn append_fixed(
+    output: &mut AccountedVec<u8>,
+    value: f64,
+    control: &Control,
+    account: &QueryAccounting,
+) -> Result<(), Interrupted> {
+    control.check()?;
+    account.work(1);
+    let decimal = Decimal::new(value, true);
+    if let Some(special) = decimal.special {
+        return append_bytes_checked(output, special, account, control);
+    }
+    if decimal.negative {
+        append_bytes_checked(output, b"-", account, control)?;
+    }
+    let digits = &decimal.digits[..decimal.count];
+    let point = decimal.point;
+    if point > 0 {
+        let end = digits.len().min(point as usize);
+        append_bytes_checked(output, &digits[..end], account, control)?;
+        zeros(output, point as usize - end, control, account)?;
+    } else {
+        append_bytes_checked(output, b"0", account, control)?;
+    }
+    if decimal.count as i32 > point {
+        append_bytes_checked(output, b".", account, control)?;
+        zeros(output, (-point).max(0) as usize, control, account)?;
+        append_bytes_checked(output, &digits[point.max(0) as usize..], account, control)?;
+    }
+    Ok(())
+}
+
+fn zeros(
+    output: &mut AccountedVec<u8>,
+    mut count: usize,
+    control: &Control,
+    account: &QueryAccounting,
+) -> Result<(), Interrupted> {
+    const ZEROS: &[u8] = &[b'0'; 32];
+    while count != 0 {
+        let next = count.min(ZEROS.len());
+        append_bytes_checked(output, &ZEROS[..next], account, control)?;
+        count -= next;
+    }
+    Ok(())
 }
 
 fn general(
@@ -251,5 +333,41 @@ mod tests {
                 metric
             );
         }
+    }
+
+    #[test]
+    fn fixed_labels_preserve_specials_and_pad_without_exponent_notation() {
+        use crate::accounting::{EngineAccounting, MemoryKind};
+        let engine = EngineAccounting::default();
+        let account = engine.query();
+        let control = Control::default();
+        for (value, expected) in [
+            (0.0, "0"),
+            (-0.0, "-0"),
+            (1e-7, "0.0000001"),
+            (2_000_000.0, "2000000"),
+            (f64::INFINITY, "+Inf"),
+            (f64::NEG_INFINITY, "-Inf"),
+            (f64::from_bits(0xfff8_0000_0000_0042), "NaN"),
+        ] {
+            let mut output = AccountedVec::new(&account, MemoryKind::Workspace);
+            append_fixed(&mut output, value, &control, &account).unwrap();
+            assert_eq!(&*output, expected.as_bytes());
+        }
+        let mut output = AccountedVec::new(&account, MemoryKind::Workspace);
+        append_fixed(
+            &mut output,
+            f64::from_bits((1 << 63) | 1),
+            &control,
+            &account,
+        )
+        .unwrap();
+        let expected = format!("-0.{}5", "0".repeat(323));
+        assert_eq!(&*output, expected.as_bytes());
+        assert_eq!(output.len(), 327);
+        drop(output);
+        account.snapshot().assert_memory_released();
+        drop(account);
+        engine.snapshot().assert_memory_released();
     }
 }

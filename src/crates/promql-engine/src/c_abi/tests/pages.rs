@@ -2,6 +2,95 @@
 use super::*;
 
 #[test]
+fn source_histogram_formatter_errors_survive_foreign_and_plan_release() {
+    let spans = [types::Span {
+        offset: 0,
+        length: 1,
+    }];
+    let buckets = [1.0f64];
+    for (schema, expected) in [
+        (
+            9,
+            &b"unexpected error: runtime error: index out of range [9] with length 9"[..],
+        ),
+        (
+            i32::MIN,
+            &b"unexpected error: runtime error: negative shift amount"[..],
+        ),
+    ] {
+        for page_size in [1, 17, 1024] {
+            unsafe {
+                let engine = engine();
+                let accounting = borrow::<Engine, _>(engine).unwrap().core.accounting.clone();
+                let query = compiled(engine, b"count_values(\"v\",m)");
+                let histogram = types::FloatHistogram {
+                    schema,
+                    count_bits: 1.0f64.to_bits(),
+                    sum_bits: 1.0f64.to_bits(),
+                    positive_spans: types::SpanArray {
+                        data: spans.as_ptr(),
+                        len: 1,
+                        present: 1,
+                        reserved: 0,
+                    },
+                    positive_buckets: types::F64Array {
+                        data: buckets.as_ptr(),
+                        len: 1,
+                        present: 1,
+                        reserved: 0,
+                    },
+                    ..types::FloatHistogram::default()
+                };
+                let mut fixture = Fixture::new(page_size);
+                fixture.points = vec![types::Sample {
+                    time_ms: 0,
+                    start_time_ms: 0,
+                    value: types::Value {
+                        kind: types::VALUE_FLOAT_HISTOGRAM,
+                        reserved: 0,
+                        payload: types::ValuePayload {
+                            float_histogram: &histogram,
+                        },
+                    },
+                }];
+                let table = fixture.table();
+                let mut result = ptr::null_mut();
+                let mut report = ptr::null_mut();
+                assert_eq!(
+                    netdata_promql_collect(
+                        query,
+                        &table,
+                        &instant(0),
+                        ptr::null(),
+                        &mut result,
+                        &mut report,
+                    ),
+                    types::EVALUATION_ERROR
+                );
+                assert!(result.is_null());
+                assert!(!report.is_null());
+                for (opened, closed) in fixture.opened.iter().zip(&fixture.closed) {
+                    assert!(opened.get() > 0);
+                    assert_eq!(opened.get(), closed.get());
+                }
+                assert_eq!(netdata_promql_query_release(query), types::OK);
+                assert_eq!(netdata_promql_engine_release(engine), types::OK);
+                drop(fixture);
+                let mut error = types::Error::default();
+                assert_eq!(
+                    netdata_promql_report_error(report, 0, &mut error),
+                    types::OK
+                );
+                assert_eq!((error.kind, error.position_present), (6, 0));
+                assert_eq!(checked::bytes(error.message).unwrap(), expected);
+                assert_eq!(netdata_promql_report_release(report), types::OK);
+                accounting.snapshot().assert_memory_released();
+            }
+        }
+    }
+}
+
+#[test]
 fn nested_foreign_views_preserve_bits_and_union_the_actual_exposed_regions() {
     use crate::storage::{Provider, QueryProvider, SampleCursor, Series, SeriesSelection};
     let accounting = crate::accounting::EngineAccounting::default();

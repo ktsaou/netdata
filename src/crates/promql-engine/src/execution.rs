@@ -10,7 +10,7 @@ use crate::{
         EvaluationError, EvaluationMetadata, EvaluationOptions, Machine, PointwiseFunction,
         metadata, remember_unique, remember_unique_kind,
     },
-    evaluator_roster::{Descriptor, Rosters},
+    evaluator_roster::{Descriptor, DescriptorIndex, Rosters, StepKinds},
     frontend::{
         ast::{Expr, NodeId, ParseError, ParsedExpression, ParserOptions, ValueType},
         parser,
@@ -621,6 +621,7 @@ impl CompiledQuery {
                         binary_preparation: None,
                         histogram_preparation: None,
                         info_preparation: None,
+                        count_preparation: None,
                     },
                 );
                 machine.restrict(&sources[descriptor.sources.clone()]);
@@ -691,6 +692,7 @@ impl CompiledQuery {
                     binary_preparation: None,
                     histogram_preparation: None,
                     info_preparation: None,
+                    count_preparation: None,
                 },
             );
             let mut seen = AccountedVec::new(account, MemoryKind::Workspace);
@@ -927,6 +929,16 @@ impl CompiledQuery {
             };
             let expression = &self.expression.arena[node].expression;
             if matches!(task, Task::Visit(_)) {
+                if crate::count_values::is_count(expression) {
+                    let plan = crate::count_values::Plan::prepare(
+                        &self.expression,
+                        node,
+                        prepared,
+                        control,
+                        account,
+                    )?;
+                    rosters.prepare_count(node, plan, account);
+                }
                 if label_functions::is_label_call(expression) {
                     let operation = LabelOperation::prepare(
                         &self.expression,
@@ -978,6 +990,7 @@ impl CompiledQuery {
                 without,
                 ..
             } = expression
+                && !crate::count_values::is_count(expression)
             {
                 rosters.prepare_groups(
                     node,
@@ -990,6 +1003,13 @@ impl CompiledQuery {
             }
             let histogram_cache =
                 std::cell::RefCell::new(crate::histogram_call::Cache::new(account));
+            let count_cache = std::cell::RefCell::new(crate::count_values::Cache::new(account));
+            let count_preparation = crate::count_values::is_count(expression).then_some(
+                crate::count_values::Preparation {
+                    node,
+                    cache: &count_cache,
+                },
+            );
             let histogram_preparation = if let Expr::Call {
                 function: Some(function),
                 arguments,
@@ -1063,7 +1083,8 @@ impl CompiledQuery {
                 || header.start_ms != header.end_ms
                     && !prepared.flags().invariants[node.0]
                     && self.expression.arena[node].value_type == ValueType::Vector
-                    && (matches!(expression, Expr::Binary { .. })
+                    && (crate::count_values::is_count(expression)
+                        || matches!(expression, Expr::Binary { .. })
                         || matches!(expression, Expr::Call { function: Some(function), .. }
                         if PointwiseFunction::parse(function.name).is_some()
                             || crate::histogram_call::Function::parse(function.name).is_some()));
@@ -1077,10 +1098,10 @@ impl CompiledQuery {
                 annotations.merge(notes, &self.expression.source);
             }
             let mut descriptors = AccountedVec::<Descriptor>::new(account, MemoryKind::Workspace);
+            let mut descriptor_index = DescriptorIndex::new(account);
             let unary_merge =
                 crate::evaluator_order::unary_merge(expression, self.options.delayed_name_removal);
-            let mut step_kinds =
-                AccountedVec::<(u64, usize, u8)>::new(account, MemoryKind::Workspace);
+            let mut step_kinds = StepKinds::new(unary_merge, account);
             // Fixed safe range calls have one logical evaluation, irrespective of output steps.
             let single_step = header.step_ms == 0
                 || prepared.flags().invariants[node.0]
@@ -1161,6 +1182,7 @@ impl CompiledQuery {
                     binary_preparation,
                     histogram_preparation,
                     info_preparation,
+                    count_preparation,
                 },
             );
             let series_site = site.filter(|_| raw_selector || range_function.is_some());
@@ -1204,25 +1226,27 @@ impl CompiledQuery {
                         }
                         let hash = crate::label_hash::full(&sample.labels, control, account)?;
                         let kind = sample.value.kind_bit();
-                        if let Some((_, _, kinds)) =
-                            step_kinds.iter_mut().find(|(prior_hash, ordinal, _)| {
-                                *prior_hash == hash && (unary_merge || *ordinal == sample.ordinal)
-                            })
-                        {
-                            *kinds |= kind;
-                        } else {
-                            step_kinds.push((hash, sample.ordinal, kind));
-                        }
-                        if let Some(descriptor) = descriptors.iter_mut().find(|descriptor| {
-                            descriptor.ordinal == sample.ordinal
-                                && descriptor.labels.same(&sample.labels)
-                        }) {
+                        step_kinds.push(hash, sample.ordinal, kind);
+                        if let Some(position) = descriptor_index.find(
+                            sample.ordinal,
+                            &sample.labels,
+                            &descriptors,
+                            control,
+                            account,
+                        )? {
+                            let descriptor = &mut descriptors[position];
                             descriptor.kinds |= kind;
                             if matches!(expression, Expr::Aggregate { .. }) {
                                 descriptor.drop_name = sample.drop_name;
                             }
                             continue;
                         }
+                        descriptor_index.insert(
+                            sample.ordinal,
+                            descriptors.len(),
+                            control,
+                            account,
+                        )?;
                         descriptors.push(Descriptor {
                             hash,
                             ordinal: sample.ordinal,
@@ -1234,14 +1258,11 @@ impl CompiledQuery {
                             collision_time_ms: None,
                         });
                     }
+                    step_kinds.finish(control, account)?;
                     for descriptor in descriptors.iter_mut() {
                         control.check()?;
                         account.work(1);
-                        if step_kinds.iter().any(|(hash, ordinal, kinds)| {
-                            *hash == descriptor.hash
-                                && (unary_merge || *ordinal == descriptor.ordinal)
-                                && *kinds == 3
-                        }) {
+                        if step_kinds.dual_kind(descriptor, control, account)? {
                             descriptor.collision_time_ms = crate::evaluator_roster::earliest(
                                 descriptor.collision_time_ms,
                                 Some(time_ms),
@@ -1274,6 +1295,9 @@ impl CompiledQuery {
             if info_preparation.is_some() {
                 rosters.finish_info_cache(node, info_cache.into_inner());
             }
+            if count_preparation.is_some() {
+                rosters.finish_count_cache(node, count_cache.into_inner());
+            }
             if absent_range {
                 // Validate every series first, then invert the union without a timestamp bitmap.
                 let mut time_ms = header.start_ms;
@@ -1295,6 +1319,7 @@ impl CompiledQuery {
                             binary_preparation: None,
                             histogram_preparation: None,
                             info_preparation: None,
+                            count_preparation: None,
                         },
                     );
                     while let Some(sample) = machine.next()? {
@@ -1350,6 +1375,7 @@ impl CompiledQuery {
             } else {
                 rosters.output(node, descriptors, account);
             }
+            rosters.finish_count_projection(node, control, account)?;
             if prepared.flags().boundaries[node.0]
                 && self.expression.arena[node].value_type == ValueType::Vector
                 && rosters
@@ -1423,6 +1449,7 @@ impl CompiledQuery {
                     binary_preparation: None,
                     histogram_preparation: None,
                     info_preparation: None,
+                    count_preparation: None,
                 },
             );
             // Descendant matrices remain authoritative; only this new merge is bypassed.
@@ -1581,6 +1608,11 @@ fn children(expression: &Expr) -> impl DoubleEndedIterator<Item = NodeId> + '_ {
             expression: child, ..
         } => ([Some(*child), None], &[]),
         Expr::Binary { left, right, .. } => ([Some(*left), Some(*right)], &[]),
+        Expr::Aggregate {
+            operator: TokenKind::COUNT_VALUES,
+            expression,
+            ..
+        } => ([*expression, None], &[]),
         Expr::Aggregate {
             parameter,
             expression,
@@ -3202,6 +3234,274 @@ mod tests {
                         }
                     }
                 }
+            }
+        }
+        engine.accounting.snapshot().assert_memory_released();
+    }
+
+    #[test]
+    fn count_values_preserves_distinct_text_and_changing_output_identities() {
+        use crate::value::{Sample, SampleValue};
+        fn first(index: usize) -> Sample {
+            Sample {
+                time_ms: index as i64 * 1000,
+                start_time_ms: 0,
+                value: SampleValue::Float([0.0, 1.0, -0.0][index]),
+            }
+        }
+        fn second(index: usize) -> Sample {
+            Sample {
+                value: SampleValue::Float([1.0, 1.0, f64::from_bits(0xfff8_0000_0000_0042)][index]),
+                ..first(index)
+            }
+        }
+        let engine = Engine::default();
+        let control = Control::default();
+        for page in [1, 17, 1024] {
+            let mut provider = FixtureProvider::new(3, page, 2);
+            provider.series[0].source.sample = first;
+            provider.series[1].source.sample = second;
+            for delayed in [false, true] {
+                let query = engine
+                    .compile(
+                        b"count_values((\"v\"), counter_total)",
+                        options(delayed),
+                        &control,
+                    )
+                    .unwrap();
+                let (result, observations) = query
+                    .collect(
+                        &provider,
+                        QueryRequest::Range {
+                            start_ms: 0,
+                            end_ms: 2000,
+                            step_ms: 1000,
+                        },
+                        &control,
+                    )
+                    .unwrap();
+                let actual: std::collections::BTreeMap<_, _> = result
+                    .series
+                    .iter()
+                    .map(|series| {
+                        let labels: Vec<_> = series
+                            .labels
+                            .0
+                            .iter()
+                            .map(|label| (label.name.to_vec(), label.value.to_vec()))
+                            .collect();
+                        let points: Vec<_> = series
+                            .points
+                            .iter()
+                            .map(|point| (point.time_ms, float_bits(point)))
+                            .collect();
+                        (labels, points)
+                    })
+                    .collect();
+                let expected: std::collections::BTreeMap<_, _> = [
+                    (b"-0".as_slice(), vec![(2000, 1.0_f64.to_bits())]),
+                    (b"0", vec![(0, 1.0_f64.to_bits())]),
+                    (
+                        b"1",
+                        vec![(0, 1.0_f64.to_bits()), (1000, 2.0_f64.to_bits())],
+                    ),
+                    (b"NaN", vec![(2000, 1.0_f64.to_bits())]),
+                ]
+                .into_iter()
+                .map(|(value, points)| (vec![(b"v".to_vec(), value.to_vec())], points))
+                .collect();
+                assert_eq!(actual, expected);
+                assert_eq!(result.series.len(), expected.len());
+                assert!(result.string.is_none());
+                assert!(result.annotations.is_empty());
+                for kind in [
+                    MemoryKind::Workspace,
+                    MemoryKind::ProviderHeld,
+                    MemoryKind::BorrowedView,
+                ] {
+                    assert_eq!(observations.memory[kind as usize].current, 0);
+                }
+                provider.assert_closed();
+            }
+        }
+        engine.accounting.snapshot().assert_memory_released();
+    }
+
+    #[test]
+    fn count_values_invalid_name_precedes_child_expansion_and_retains_quoted_bytes() {
+        let engine = Engine::default();
+        let control = Control::default();
+        let provider = FixtureProvider::new(1, 1, 1);
+        for (source, expected) in [
+            (
+                b"count_values(\"\",counter_total)".as_slice(),
+                b"invalid label name \"\"".as_slice(),
+            ),
+            (
+                b"count_values(\"a\\xc5z\",counter_total)",
+                b"invalid label name \"a\\xc5z\"",
+            ),
+        ] {
+            let selected = provider.counts.selections_opened.load(Ordering::SeqCst);
+            let query = engine
+                .compile(source, EngineOptions::default(), &control)
+                .unwrap();
+            let report =
+                query.collect_reported(&provider, QueryRequest::Instant { time_ms: 0 }, &control);
+            let Err(ExecutionError::Evaluation(EvaluationError::Runtime(message))) = &report.result
+            else {
+                panic!("expected byte-preserving name error: {:?}", report.result);
+            };
+            assert_eq!(&**message, expected);
+            // Source selections open upfront; name validation precedes their expansion.
+            assert_eq!(
+                provider.counts.selections_opened.load(Ordering::SeqCst),
+                selected + 1
+            );
+            assert_eq!(provider.counts.series_opened.load(Ordering::SeqCst), 0);
+            assert_eq!(
+                provider.series[0]
+                    .source
+                    .counters
+                    .opened
+                    .load(Ordering::SeqCst),
+                0
+            );
+            provider.assert_closed();
+        }
+        engine.accounting.snapshot().assert_memory_released();
+    }
+
+    #[test]
+    fn count_values_preserves_raw_custom_histogram_fields_until_string_evaluation() {
+        use crate::{
+            histogram::{CUSTOM_BUCKETS_SCHEMA, FloatHistogram, Span},
+            value::{Sample, SampleValue},
+        };
+        fn zero(_: usize) -> Sample {
+            Sample {
+                time_ms: 0,
+                start_time_ms: 0,
+                value: SampleValue::FloatHistogram(FloatHistogram {
+                    schema: CUSTOM_BUCKETS_SCHEMA,
+                    count: 1.0,
+                    sum: 1.0,
+                    zero_count: 1.0,
+                    ..FloatHistogram::default()
+                }),
+            }
+        }
+        fn nan(_: usize) -> Sample {
+            let mut result = zero(0);
+            let SampleValue::FloatHistogram(histogram) = &mut result.value else {
+                unreachable!()
+            };
+            histogram.zero_count = f64::from_bits(0xfff8_0000_0000_0042);
+            result
+        }
+        fn negative(_: usize) -> Sample {
+            let mut result = zero(0);
+            let SampleValue::FloatHistogram(histogram) = &mut result.value else {
+                unreachable!()
+            };
+            histogram.zero_count = 0.0;
+            histogram.negative_spans = Some(
+                vec![Span {
+                    offset: 1,
+                    length: 1,
+                }]
+                .into(),
+            );
+            histogram.negative_buckets = Some(vec![0.0].into());
+            result
+        }
+        let engine = Engine::default();
+        let control = Control::default();
+        for page in [1, 17, 1024] {
+            for settings in [options(false), options(true)] {
+                for (sample, expected) in [
+                    (
+                        zero as fn(usize) -> Sample,
+                        b"histograms with custom buckets have no zero bucket".as_slice(),
+                    ),
+                    (nan, b"histograms with custom buckets have no zero bucket"),
+                    (
+                        negative,
+                        b"index 1 out of bounds for custom bounds of length 0",
+                    ),
+                ] {
+                    let mut provider = FixtureProvider::new(1, page, 1);
+                    provider.series[0].source.sample = sample;
+                    let query = engine
+                        .compile(b"count_values(\"v\",counter_total)", settings, &control)
+                        .unwrap();
+                    let report = query.collect_reported(
+                        &provider,
+                        QueryRequest::Instant { time_ms: 0 },
+                        &control,
+                    );
+                    let Err(ExecutionError::Evaluation(EvaluationError::Runtime(message))) =
+                        &report.result
+                    else {
+                        panic!("expected source custom-field error: {:?}", report.result);
+                    };
+                    assert_eq!(&**message, expected);
+                    provider.assert_closed();
+                }
+            }
+        }
+        engine.accounting.snapshot().assert_memory_released();
+    }
+
+    #[test]
+    fn nested_count_values_reads_each_child_once_per_activation() {
+        let engine = Engine::default();
+        let control = Control::default();
+        for metrics in [32, 64] {
+            for depth in [1, 2, 4, 8] {
+                let provider = FixtureProvider::new(1, 1, metrics);
+                let mut source = "counter_total".to_owned();
+                for level in 0..depth {
+                    source = format!("count_values(\"v{level}\",{source})");
+                }
+                let query = engine
+                    .compile(source.as_bytes(), EngineOptions::default(), &control)
+                    .unwrap();
+                let (result, observations) = query
+                    .collect(&provider, QueryRequest::Instant { time_ms: 1000 }, &control)
+                    .unwrap();
+                assert_eq!(result.series.len(), 1);
+                assert_eq!(result.series[0].labels.0.len(), 1);
+                assert_eq!(
+                    &*result.series[0].labels.0[0].name,
+                    format!("v{}", depth - 1).as_bytes()
+                );
+                let expected_label = match depth {
+                    1 => "1".to_owned(),
+                    2 => metrics.to_string(),
+                    _ => "1".to_owned(),
+                };
+                assert_eq!(
+                    &*result.series[0].labels.0[0].value,
+                    expected_label.as_bytes()
+                );
+                assert_eq!(result.series[0].points.len(), 1);
+                let OwnedValue::Float(value) = result.series[0].points[0].value else {
+                    unreachable!()
+                };
+                assert_eq!(value, if depth == 1 { metrics as f64 } else { 1.0 });
+                let counts = &provider.series[0].source.counters;
+                assert!(
+                    counts.opened.load(Ordering::SeqCst) <= metrics * (depth + 3),
+                    "depth={depth}"
+                );
+                assert_eq!(counts.peak.load(Ordering::SeqCst), 1);
+                assert!(
+                    observations.pages <= (metrics * (depth + 3)) as u64,
+                    "depth={depth}"
+                );
+                assert!(result.annotations.is_empty());
+                provider.assert_closed();
             }
         }
         engine.accounting.snapshot().assert_memory_released();

@@ -274,11 +274,34 @@ pub(crate) fn render(
     bytes.push(b'}');
     Ok(bytes)
 }
-fn quoted(
+pub(crate) fn quoted(
     bytes: &mut AccountedVec<u8>,
     value: &[u8],
     control: &Control,
     account: &QueryAccounting,
+) -> Result<(), Interrupted> {
+    write_checked(bytes, control, account, |writer| {
+        quote::write_bytes(value, writer)
+    })
+}
+
+pub(crate) fn formatted(
+    arguments: fmt::Arguments<'_>,
+    control: &Control,
+    account: &QueryAccounting,
+) -> Result<AccountedVec<u8>, Interrupted> {
+    let mut bytes = AccountedVec::new(account, MemoryKind::Workspace);
+    write_checked(&mut bytes, control, account, |writer| {
+        writer.write_fmt(arguments)
+    })?;
+    Ok(bytes)
+}
+
+fn write_checked(
+    bytes: &mut AccountedVec<u8>,
+    control: &Control,
+    account: &QueryAccounting,
+    write: impl FnOnce(&mut Writer<'_>) -> fmt::Result,
 ) -> Result<(), Interrupted> {
     let mut writer = Writer {
         bytes,
@@ -286,7 +309,7 @@ fn quoted(
         account,
         failure: None,
     };
-    let result = quote::write_bytes(value, &mut writer);
+    let result = write(&mut writer);
     if let Some(error) = writer.failure {
         return Err(error);
     }

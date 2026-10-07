@@ -3,6 +3,7 @@
 use crate::{
     accounting::{AccountedBox, AccountedVec, AllocationContext, MemoryKind, QueryAccounting},
     annotations::AnnotationBuilder,
+    evaluator::EvaluationError,
     evaluator_order,
     frontend::ast::{NodeId, VectorMatching},
     label_hash,
@@ -21,6 +22,150 @@ pub(crate) struct Descriptor {
     // Only the earliest dual-kind logical step is needed to replay monotone vector reads.
     pub(crate) collision_time_ms: Option<i64>,
 }
+
+pub(crate) struct DescriptorIndex {
+    entries: AccountedVec<(usize, usize)>,
+}
+impl DescriptorIndex {
+    pub(crate) fn new(account: &QueryAccounting) -> Self {
+        Self {
+            entries: AccountedVec::new(account, MemoryKind::Workspace),
+        }
+    }
+    pub(crate) fn find(
+        &self,
+        ordinal: usize,
+        labels: &OwnedLabels,
+        descriptors: &[Descriptor],
+        control: &Control,
+        account: &QueryAccounting,
+    ) -> Result<Option<usize>, Interrupted> {
+        let (mut left, mut right) = (0, self.entries.len());
+        while left < right {
+            control.check()?;
+            account.work(1);
+            let middle = left + (right - left) / 2;
+            if self.entries[middle].0 < ordinal {
+                left = middle + 1;
+            } else {
+                right = middle;
+            }
+        }
+        for &(prior, position) in &self.entries[left..] {
+            control.check()?;
+            account.work(1);
+            if prior != ordinal {
+                break;
+            }
+            if crate::binary_labels::same(&descriptors[position].labels, labels, control, account)?
+            {
+                return Ok(Some(position));
+            }
+        }
+        Ok(None)
+    }
+    pub(crate) fn insert(
+        &mut self,
+        ordinal: usize,
+        position: usize,
+        control: &Control,
+        account: &QueryAccounting,
+    ) -> Result<(), Interrupted> {
+        let entry = (ordinal, position);
+        let (mut left, mut right) = (0, self.entries.len());
+        while left < right {
+            control.check()?;
+            account.work(1);
+            let middle = left + (right - left) / 2;
+            if self.entries[middle] < entry {
+                left = middle + 1;
+            } else {
+                right = middle;
+            }
+        }
+        let end = self.entries.len();
+        self.entries.push(entry);
+        // Preserve descriptor discovery order while making ordinal lookup independent of unrelated rows.
+        for index in (left + 1..=end).rev() {
+            control.check()?;
+            account.work(1);
+            self.entries.swap(index - 1, index);
+        }
+        Ok(())
+    }
+}
+
+pub(crate) struct StepKinds {
+    entries: AccountedVec<(u64, usize, u8)>,
+    unary_merge: bool,
+}
+impl StepKinds {
+    pub(crate) fn new(unary_merge: bool, account: &QueryAccounting) -> Self {
+        Self {
+            entries: AccountedVec::new(account, MemoryKind::Workspace),
+            unary_merge,
+        }
+    }
+    pub(crate) fn clear(&mut self) {
+        self.entries.clear();
+    }
+    pub(crate) fn push(&mut self, hash: u64, ordinal: usize, kind: u8) {
+        self.entries
+            .push((hash, if self.unary_merge { 0 } else { ordinal }, kind));
+    }
+    pub(crate) fn finish(
+        &mut self,
+        control: &Control,
+        account: &QueryAccounting,
+    ) -> Result<(), Interrupted> {
+        evaluator_order::sort(&mut self.entries, control, account, |left, right| {
+            (left.0, left.1).cmp(&(right.0, right.1))
+        })?;
+        let mut end = 0;
+        for index in 0..self.entries.len() {
+            control.check()?;
+            account.work(1);
+            let entry = self.entries[index];
+            if end > 0 && (self.entries[end - 1].0, self.entries[end - 1].1) == (entry.0, entry.1) {
+                self.entries[end - 1].2 |= entry.2;
+            } else {
+                self.entries[end] = entry;
+                end += 1;
+            }
+        }
+        self.entries.truncate(end);
+        Ok(())
+    }
+    pub(crate) fn dual_kind(
+        &self,
+        descriptor: &Descriptor,
+        control: &Control,
+        account: &QueryAccounting,
+    ) -> Result<bool, Interrupted> {
+        let key = (
+            descriptor.hash,
+            if self.unary_merge {
+                0
+            } else {
+                descriptor.ordinal
+            },
+        );
+        let (mut left, mut right) = (0, self.entries.len());
+        while left < right {
+            control.check()?;
+            account.work(1);
+            let middle = left + (right - left) / 2;
+            let entry = self.entries[middle];
+            match (entry.0, entry.1).cmp(&key) {
+                std::cmp::Ordering::Less => left = middle + 1,
+                std::cmp::Ordering::Greater => right = middle,
+                std::cmp::Ordering::Equal => return Ok(entry.2 == 3),
+            }
+        }
+        Ok(false)
+    }
+}
+
 pub(crate) struct GroupDescriptor {
     pub(crate) hash: u64,
     pub(crate) labels: OwnedLabels,
@@ -40,12 +185,50 @@ struct NodeRoster {
     binary: Option<AccountedBox<crate::vector_matching::Plan>>,
     histogram: Option<AccountedBox<crate::histogram_call::Plan>>,
     info: Option<AccountedBox<crate::info::Plan>>,
+    count: Option<AccountedBox<crate::count_values::Plan>>,
     clock_initial: Option<AccountedVec<InitialSample>>,
 }
 pub(crate) struct Rosters {
     nodes: AccountedVec<NodeRoster>,
 }
 impl Rosters {
+    pub(crate) fn prepare_count(
+        &mut self,
+        node: NodeId,
+        plan: crate::count_values::Plan,
+        account: &QueryAccounting,
+    ) {
+        self.nodes[node.0].count = Some(AccountedBox::new(
+            plan,
+            &AllocationContext::new(account, MemoryKind::Workspace),
+        ));
+    }
+    pub(crate) fn count(&self, node: NodeId) -> Option<&crate::count_values::Plan> {
+        self.nodes[node.0].count.as_deref()
+    }
+    pub(crate) fn finish_count_cache(&mut self, node: NodeId, cache: crate::count_values::Cache) {
+        self.nodes[node.0]
+            .count
+            .as_deref_mut()
+            .expect("count_values plan")
+            .finish(cache);
+    }
+    pub(crate) fn finish_count_projection(
+        &mut self,
+        node: NodeId,
+        control: &Control,
+        account: &QueryAccounting,
+    ) -> Result<(), EvaluationError> {
+        let roster = &mut self.nodes[node.0];
+        if let (Some(plan), Some(descriptors), Some(sources)) = (
+            roster.count.as_deref_mut(),
+            roster.output.as_deref(),
+            roster.sources.as_deref(),
+        ) {
+            plan.project(descriptors, sources, control, account)?;
+        }
+        Ok(())
+    }
     pub(crate) fn prepare_clock(
         &mut self,
         selector: NodeId,
@@ -210,8 +393,8 @@ impl Rosters {
                 output.push(descriptor);
             }
         }
-        evaluator_order::sort(&mut output, control, account, |left, right| {
-            left.labels.compare(&right.labels)
+        evaluator_order::sort_by_with(&mut output, Some(control), Some(account), |left, right| {
+            left.labels.compare_checked(&right.labels, account, control)
         })?;
         for (ordinal, descriptor) in output.iter_mut().enumerate() {
             descriptor.ordinal = ordinal;

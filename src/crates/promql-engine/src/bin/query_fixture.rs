@@ -598,6 +598,9 @@ fn evaluate(provider: &FixtureProvider, request: &Value) -> Result<Value, Error>
         Err(ExecutionError::Evaluation(EvaluationError::Expansion(message))) => {
             result["error"] = failure("execution", "*fmt.wrapError", &message);
         }
+        Err(ExecutionError::Evaluation(EvaluationError::WrappedRuntime(message))) => {
+            result["error"] = failure("execution", "*fmt.wrapError", &message);
+        }
         Err(ExecutionError::Evaluation(EvaluationError::Storage(StorageError::Provider(
             message,
         )))) => {

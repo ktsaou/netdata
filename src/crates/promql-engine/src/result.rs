@@ -530,12 +530,28 @@ impl OwnedValue {
         account: &QueryAccounting,
         work: HistogramWork<'_>,
     ) -> Result<Self, Interrupted> {
+        Self::from_sample_with(value, account, MemoryKind::Result, work)
+    }
+    pub(crate) fn from_sample_checked(
+        value: SampleValueRef<'_>,
+        control: &crate::storage::Control,
+        account: &QueryAccounting,
+        kind: MemoryKind,
+    ) -> Result<Self, Interrupted> {
+        Self::from_sample_with(value, account, kind, HistogramWork::new(control, account))
+    }
+    fn from_sample_with(
+        value: SampleValueRef<'_>,
+        account: &QueryAccounting,
+        kind: MemoryKind,
+        work: HistogramWork<'_>,
+    ) -> Result<Self, Interrupted> {
         let SampleValueRef::FloatHistogram(histogram) = value else {
-            return Self::copy_from_with(value, account, MemoryKind::Result, work);
+            return Self::copy_from_with(value, account, kind, work);
         };
-        let context = AllocationContext::new(account, MemoryKind::Result);
+        let context = AllocationContext::new(account, kind);
         Ok(Self::Histogram(OwnedHistogram::new(
-            histogram.to_owned_result_with(&context, work)?,
+            histogram.to_owned_fields_with(&context, work)?,
             context,
         )))
     }

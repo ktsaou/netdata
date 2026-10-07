@@ -259,6 +259,60 @@ impl<'a> FloatBucketIterator<'a> {
     pub fn current_count(&self) -> f64 {
         self.current_count
     }
+
+    pub(crate) fn reverse_productive_prefix(&self) -> ProductiveReverse<'a> {
+        assert_eq!(self.target_schema, self.layout.schema);
+        assert!(self.bucket_index != 0);
+        ProductiveReverse {
+            layout: self.layout,
+            span_end: self.span_index + 1,
+            within_span: self.within_span,
+            remaining: self.bucket_index,
+            current_index: self.current_index.wrapping_add(1),
+            current_count: 0.0,
+        }
+    }
+}
+
+// String reverses successful forward visits, which may end before the supplied spans or counts.
+pub(crate) struct ProductiveReverse<'a> {
+    layout: Layout<'a>,
+    span_end: usize,
+    within_span: u32,
+    remaining: usize,
+    current_index: i32,
+    current_count: f64,
+}
+impl ProductiveReverse<'_> {
+    pub(crate) fn advance_with(
+        &mut self,
+        work: crate::histogram_work::HistogramWork<'_>,
+    ) -> Result<bool, crate::storage::Interrupted> {
+        work.step(1)?;
+        if self.remaining == 0 {
+            return Ok(false);
+        }
+        self.current_index = self.current_index.wrapping_sub(1);
+        while self.within_span == 0 {
+            work.step(1)?;
+            self.current_index = self
+                .current_index
+                .wrapping_sub(self.layout.spans[self.span_end - 1].offset);
+            self.span_end -= 1;
+            self.within_span = self.layout.spans[self.span_end - 1].length;
+        }
+        self.within_span -= 1;
+        self.remaining -= 1;
+        self.current_count = self.layout.buckets[self.remaining];
+        Ok(true)
+    }
+    pub(crate) fn current_index(&self) -> i32 {
+        self.current_index
+    }
+    pub(crate) fn at(&self) -> Bucket {
+        self.layout
+            .at(self.layout.schema, self.current_index, self.current_count)
+    }
 }
 
 impl Iterator for FloatBucketIterator<'_> {

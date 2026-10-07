@@ -66,6 +66,7 @@ pub enum EvaluationError {
     Invalid(&'static str),
     Preparation(AccountedVec<u8>),
     Runtime(AccountedVec<u8>),
+    WrappedRuntime(AccountedVec<u8>),
     Regex(AccountedVec<u8>),
     Expansion(AccountedVec<u8>),
 }
@@ -275,6 +276,10 @@ enum State<'a> {
     Binary(AccountedBox<crate::vector_matching::Step<'a>>),
     Histogram(AccountedBox<crate::histogram_call::Step<'a>>),
     Info(AccountedBox<crate::info::Step<'a>>),
+    CountValues {
+        step: AccountedBox<crate::count_values::Step<'a>>,
+        collecting: bool,
+    },
 }
 struct Frame<'a> {
     node: NodeId,
@@ -392,6 +397,7 @@ pub(crate) struct EvaluationMetadata<'a> {
     pub(crate) binary_preparation: Option<crate::vector_matching::Preparation<'a>>,
     pub(crate) histogram_preparation: Option<crate::histogram_call::Preparation<'a>>,
     pub(crate) info_preparation: Option<crate::info::Preparation<'a>>,
+    pub(crate) count_preparation: Option<crate::count_values::Preparation<'a>>,
 }
 pub(crate) struct Machine<'a, 'q, Q: QueryProvider + 'q> {
     catalog: &'a Catalog<'q, Q>,
@@ -410,6 +416,7 @@ pub(crate) struct Machine<'a, 'q, Q: QueryProvider + 'q> {
     binary_preparation: Option<crate::vector_matching::Preparation<'a>>,
     histogram_preparation: Option<crate::histogram_call::Preparation<'a>>,
     info_preparation: Option<crate::info::Preparation<'a>>,
+    count_preparation: Option<crate::count_values::Preparation<'a>>,
 }
 
 impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
@@ -447,6 +454,7 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
             binary_preparation: metadata.binary_preparation,
             histogram_preparation: metadata.histogram_preparation,
             info_preparation: metadata.info_preparation,
+            count_preparation: metadata.count_preparation,
         }
     }
     fn push(&mut self, node: NodeId) {
@@ -509,6 +517,7 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
                 binary_preparation: self.binary_preparation,
                 histogram_preparation: self.histogram_preparation,
                 info_preparation: self.info_preparation,
+                count_preparation: self.count_preparation,
             },
         )
     }
@@ -734,7 +743,7 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
                         self.control,
                         self.account,
                         |value| {
-                            Ok(OwnedValue::copy_from_checked(
+                            Ok(OwnedValue::from_sample_checked(
                                 value,
                                 self.control,
                                 self.account,
@@ -918,7 +927,9 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
 
     fn enter(&mut self, index: usize) -> Result<Option<EvaluatedSample>, EvaluationError> {
         let node = self.frames[index].node;
+        let expression = &self.expression.arena[node].expression;
         if !self.frames[index].bypass_order
+            && !crate::count_values::is_count(expression)
             && let Some((descriptors, sources)) = self.rosters.ordered(node)
         {
             self.frames[index].state = State::OrderedRows {
@@ -930,7 +941,6 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
             };
             return Ok(None);
         }
-        let expression = &self.expression.arena[node].expression;
         match expression {
             Expr::Number { value, .. } => {
                 let value = *value;
@@ -952,6 +962,29 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
             }
             Expr::Selector(_) => {
                 self.frames[index].state = self.select(node, SelectorOperation::Instant)?;
+                Ok(None)
+            }
+            Expr::Aggregate {
+                expression: Some(child),
+                operator: TokenKind::COUNT_VALUES,
+                ..
+            } => {
+                let plan = self
+                    .rosters
+                    .count(node)
+                    .ok_or(EvaluationError::Invalid("count_values plan is missing"))?;
+                self.frames[index].state = State::CountValues {
+                    step: AccountedBox::new(
+                        crate::count_values::Step::new(
+                            plan,
+                            !self.frames[index].bypass_order,
+                            self.account,
+                        ),
+                        &AllocationContext::new(self.account, MemoryKind::Workspace),
+                    ),
+                    collecting: true,
+                };
+                self.push_all(*child);
                 Ok(None)
             }
             Expr::Aggregate {
@@ -1249,6 +1282,10 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
                     return Ok(None);
                 }
                 State::Info(step) => {
+                    step.receive(sample, self.control, self.account)?;
+                    return Ok(None);
+                }
+                State::CountValues { step, .. } => {
                     step.receive(sample, self.control, self.account)?;
                     return Ok(None);
                 }
@@ -1552,6 +1589,30 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
             let filter = self.frames[index].filter;
             let mode = self.frames[index].mode;
             match &mut self.frames[index].state {
+                State::CountValues { step, collecting } => {
+                    if *collecting {
+                        let mut options = self.options;
+                        if self.invariants[node.0] {
+                            options.end_ms = options.start_ms;
+                        }
+                        step.finish(
+                            options,
+                            self.count_preparation.filter(|value| value.node == node),
+                            self.control,
+                            self.account,
+                        )?;
+                        *collecting = false;
+                    }
+                    if let Some(sample) = step.next(self.options.time_ms, self.account) {
+                        if filter.accepts(sample.ordinal)
+                            && let Some(sample) = self.propagate(sample, index)?
+                        {
+                            return Ok(Some(sample));
+                        }
+                    } else {
+                        self.frames.pop();
+                    }
+                }
                 State::Info(step) => {
                     match step.advance(
                         node,
