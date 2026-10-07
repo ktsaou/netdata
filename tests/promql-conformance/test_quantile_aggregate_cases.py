@@ -14,6 +14,35 @@ def labels(record):
 
 
 class QuantileAggregateCases(unittest.TestCase):
+    def test_parameter_extrema_controls_keep_infinities_nan_and_empty_bodies(self):
+        inputs = cases()
+        extra = [
+            row
+            for row in inputs
+            if row["request"]["id"].startswith(
+                "aggregate-quantile:parameter-infinity-nan-"
+            )
+        ]
+        self.assertEqual(len(extra), 360)
+        checked = set()
+        for row in extra:
+            family = row["request"]["id"].split(":")[1]
+            if family in checked:
+                continue
+            checked.add(family)
+            parameter = next(
+                record
+                for record in row["dataset"]["series"]
+                if labels(record)[b"__name__"] == b"p"
+            )
+            self.assertEqual(
+                {point["float"] for point in parameter["points"]},
+                {"7ff0000000000000", "fff0000000000000", "7ff8000000000063"},
+            )
+            if family.endswith("empty"):
+                self.assertEqual(len(row["dataset"]["series"]), 1)
+        self.assertEqual(len(checked), 12)
+
     def test_grouping_alias_and_empty_value_have_distinct_raw_identities(self):
         inputs = cases()
         for family, collision in (

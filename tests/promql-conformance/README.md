@@ -819,8 +819,8 @@ Capture with `output_label_calls.py --capture --upstream "$PROMETHEUS_SOURCE"`; 
 
 ## Aggregation quantile source preparation
 
-`quantile_aggregate_cases.py` independently declares 3,198 complete queries in 154 families, with 1,381
-server-default and 1,817 upstream-test calls. `quantile_aggregate_calls.py` uses the source-bound cursor facade
+`quantile_aggregate_cases.py` independently declares 3,558 complete queries in 166 families, with 1,561
+server-default and 1,997 upstream-test calls. `quantile_aggregate_calls.py` uses the source-bound cursor facade
 for original capture and candidate qualification. The original reference was captured before any aggregation
 QUANTILE runtime implementation; this source preparation is not runtime qualification.
 
@@ -831,6 +831,9 @@ signalling NaN payloads, infinities, singleton/integer-rank/zero-weight interpol
 to 1,025 identities retain the original arithmetic and branch evidence. Source owners are pinned Prometheus
 `5241a27fe3c6983549fccc32f6e65917408c63cd`, `promql/engine.go:1630–1767,3675–3740,3939–3944,4004–4005` and
 `promql/quantile.go:717–738`; the captured unmodified Go AMD64 assembly resolves interpolation operand order.
+An additional 360 controls retain Infinity/NaN parameter permutations across float, native-only and empty bodies:
+Go `math.Min/Max` can preserve terminal infinities alongside NaN, producing several quantile warnings. The first
+3,198 declarations remain an exact prefix of their independently captured pre-runtime inputs.
 
 Capture with `quantile_aggregate_calls.py --capture --upstream "$PROMETHEUS_SOURCE"`; compare using `--reference`,
 `--binary` and `--page-size`. This focused edge gate requires exact numerical outcomes, series order and paired

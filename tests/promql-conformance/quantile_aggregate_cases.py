@@ -419,6 +419,48 @@ def cases():
                 profiles=("upstream-tests",),
             )
 
+    # Go math.Min/Max retain terminal infinities even when another parameter is NaN.
+    positive, negative, nan = "7ff0000000000000", "fff0000000000000", "7ff8000000000063"
+    for ordinal, values in enumerate(
+        (
+            (positive, nan, negative),
+            (nan, positive, negative),
+            (negative, nan, positive),
+            (positive, negative, nan),
+        )
+    ):
+        parameter = series(
+            {"__name__": "p"},
+            [
+                (time, value, "float")
+                for time, value in zip((0, 1000, 2000), values, strict=True)
+            ],
+        )
+        for kind in ("float", "float_histogram", "empty"):
+            body = (
+                []
+                if kind == "empty"
+                else [
+                    series(
+                        {"__name__": "m"},
+                        [
+                            (time, index + 1, kind)
+                            for index, time in enumerate((0, 1000, 2000))
+                        ],
+                    )
+                ]
+            )
+            add(
+                f"parameter-infinity-nan-{ordinal}-{kind}",
+                body + [parameter],
+                (
+                    "quantile(scalar(p),m)",
+                    "count(quantile(scalar(p),m))",
+                    "(quantile((scalar(p)),(m)))",
+                ),
+                windows=WINDOWS + (("range", 0, 1000, 2000, 1000),),
+            )
+
     if len(inputs) != len({row["request"]["id"] for row in inputs}):
         raise ValueError("duplicate independent QUANTILE query identity")
     return inputs
