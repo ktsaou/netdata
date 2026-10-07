@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Capture unchanged original INFO queries and compare complete candidate results."""
 import argparse
+import base64
 import hashlib
 import json
 import subprocess
@@ -41,6 +42,36 @@ def checked_original(document, requests):
         raise ValueError("original INFO attribution or result roster changed")
 
 
+def checked_timestamp_outcomes(groups, document):
+    results = {row["id"]: row for row in document["results"]}
+    for group in groups:
+        if not group["id"].startswith("timestamp-fixed-"):
+            continue
+        duplicate = group["id"].endswith("-duplicate")
+        encoded = b"-9007199254740992" if "-negative-" in group["id"] else b"9007199254740992"
+        message = (b'found duplicate series for info metric: existing {__name__="target_info", data="one", '
+                   b'instance="a", job="worker"} @ ' + encoded
+                   + b', new {__name__="target_info", data="two", instance="a", job="worker"} @ ' + encoded)
+        for request in group["requests"]:
+            expected = {"id": request["id"], "kind": "error" if duplicate else
+                        "vector" if request["mode"] == "instant" else "matrix",
+                        "rows": [], "warnings": [], "infos": []}
+            if duplicate:
+                expected["error"] = {"phase": "execution", "type": "*errors.errorString",
+                                     "message": base64.b64encode(message).decode()}
+            else:
+                times = [request["time_ms"]] if request["mode"] == "instant" else range(
+                    request["start_ms"], request["end_ms"] + 1, request["step_ms"])
+                expected["rows"] = [{"labels": [{"name": base64.b64encode(name).decode(),
+                                                 "value": base64.b64encode(value).decode()}
+                                                for name, value in ((b"data", b"new"), (b"instance", b"a"),
+                                                                    (b"job", b"worker"))],
+                                     "points": [{"time_ms": time, "kind": "float", "float": "3ff0000000000000"}
+                                                for time in times]}]
+            if results.get(request["id"]) != expected:
+                raise ValueError("extreme INFO timestamp case did not exercise its declared join")
+
+
 def load_reference(reference):
     reference = directory(reference)
     binding = json.loads((reference / "manifest.json").read_bytes())
@@ -76,6 +107,7 @@ def load_reference(reference):
         results.extend(document["results"])
     if expected != {"schema_version": 1, "results": results}:
         raise ValueError("original INFO combined result changed")
+    checked_timestamp_outcomes(groups, expected)
     return groups, expected
 
 

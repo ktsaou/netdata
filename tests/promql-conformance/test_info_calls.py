@@ -14,6 +14,7 @@ from info_calls import (
     ORACLE_SHA256,
     artifact_names,
     checked_candidate,
+    checked_timestamp_outcomes,
     load_reference,
     manifest_digest,
     sha,
@@ -177,3 +178,35 @@ class InfoPacketTests(unittest.TestCase):
         responses[0]["extra"] = True
         with self.assertRaises(ValueError):
             checked_candidate(responses, self.groups)
+
+
+class InfoTimestampTests(unittest.TestCase):
+    def test_empty_extreme_cases_cannot_qualify_joins(self):
+        for direction in ("positive", "negative"):
+            for operation in ("newest", "duplicate"):
+                group = {"id": f"timestamp-fixed-{direction}-{operation}",
+                         "requests": [{"id": "extreme", "mode": "instant", "time_ms": 0}]}
+                with self.subTest(direction=direction, operation=operation), self.assertRaises(ValueError):
+                    checked_timestamp_outcomes([group], {"results": [empty_result("extreme")]})
+
+    def test_wrong_winner_value_labels_or_timestamp_fail(self):
+        group = {"id": "timestamp-fixed-positive-newest",
+                 "requests": [{"id": "extreme", "mode": "instant", "time_ms": 0}]}
+        row = empty_result("extreme")
+        row["rows"] = [{"labels": [{"name": "ZGF0YQ==", "value": "bmV3"},
+                                   {"name": "aW5zdGFuY2U=", "value": "YQ=="},
+                                   {"name": "am9i", "value": "d29ya2Vy"}],
+                        "points": [{"time_ms": 0, "kind": "float", "float": "3ff0000000000000"}]}]
+        checked_timestamp_outcomes([group], {"results": [row]})
+        for wrong in ("label", "value", "time", "error"):
+            changed = deepcopy(row)
+            if wrong == "label":
+                changed["rows"][0]["labels"][0]["value"] = "b2xk"
+            elif wrong == "value":
+                changed["rows"][0]["points"][0]["float"] = "4024000000000000"
+            elif wrong == "time":
+                changed["rows"][0]["points"][0]["time_ms"] = 1
+            else:
+                changed["kind"] = "error"
+            with self.subTest(wrong=wrong), self.assertRaises(ValueError):
+                checked_timestamp_outcomes([group], {"results": [changed]})

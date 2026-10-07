@@ -118,4 +118,17 @@ def cases():
     add("negative-time", [series(base_labels, [(-1000, 1, "float")]),
         series(info_labels, [(-1001, 1, "float")])],
         contexts=[("instant", -1000, 0, 0, 1000), ("range", 0, -1000, 0, 1000)])
+    fixed_contexts = [windows[0], windows[1], windows[3]]
+    for ident, reference, older, newer in (
+            ("positive", "9007199254740.994", huge, huge + 1),
+            ("negative", "-9007199254740.992", -huge - 1, -huge)):
+        query = f'info(absent(missing{{instance="a",job="worker"}} @{reference}))'
+        add(f"timestamp-fixed-{ident}-duplicate", [
+            series(dict(info_labels, data="one"), [(older, 1, "float")]),
+            series(dict(info_labels, data="two"), [(newer, 1, "float")])],
+            (query,), contexts=fixed_contexts)
+        add(f"timestamp-fixed-{ident}-newest", [
+            series(dict(info_labels, data="old"), [(older - 2, 1, "float")]),
+            series(dict(info_labels, data="new"), [(newer, 1, "float")])],
+            (query,), contexts=fixed_contexts)
     return groups
