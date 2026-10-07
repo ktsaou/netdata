@@ -26,12 +26,14 @@ pub struct RateWindow {
 pub(crate) struct RateInput {
     pub(crate) window: RateWindow,
     pub(crate) range_start_ms: i64,
+    pub(crate) range_end_ms: i64,
     pub(crate) data_bounds: Option<TimeBounds>,
 }
 impl From<RateWindow> for RateInput {
     fn from(window: RateWindow) -> Self {
         Self {
             range_start_ms: window.start_ms,
+            range_end_ms: window.end_ms,
             window,
             data_bounds: None,
         }
@@ -124,7 +126,7 @@ pub(crate) fn extrapolation_factor(
     let window = input.window;
     let mut duration_to_start =
         points.first_time.wrapping_sub(input.range_start_ms) as f64 / 1000.0;
-    let mut duration_to_end = window.end_ms.wrapping_sub(points.last_time) as f64 / 1000.0;
+    let mut duration_to_end = input.range_end_ms.wrapping_sub(points.last_time) as f64 / 1000.0;
     let mut sampled_interval = points.last_time.wrapping_sub(points.first_time) as f64 / 1000.0;
     let average_duration = if points.count > 1 {
         sampled_interval / (points.count - 1) as f64

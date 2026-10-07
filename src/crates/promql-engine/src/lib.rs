@@ -16,6 +16,7 @@ pub mod c_abi;
 mod calendar;
 mod classic_replay;
 mod count_values;
+mod topk;
 #[cfg(feature = "fixtures")]
 pub use classic_replay::fixture as classic_replay_fixture;
 pub mod evaluator;

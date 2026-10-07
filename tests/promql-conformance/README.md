@@ -802,7 +802,8 @@ The productive Rust path connects the owned frontend to typed page cursors, floa
 and irate/idelta, deriv/predict_linear/double_exponential_smoothing,
 count/present/first/last/min/max and absence over time, float/native histogram sum/average and float variance/stddev over time, timestamp extrema/endpoints,
 changes/resets, scalar/vector arithmetic
-and comparisons including power/remainder, float/native sum/avg/count/group/count_values and float min/max/stdvar/stddev with native ignored-input infos. Evaluation uses explicit frames,
+and comparisons including power/remainder, float/native sum/avg/count/group/count_values, topk/bottomk
+and float min/max/stdvar/stddev with native ignored-input infos. Evaluation uses explicit frames,
 whole-query label/group descriptors and replay; raw histories and complete raw instant vectors are not retained.
 Output uses synchronous provisional chunks followed by commit/abort, with a separately owned collector. Stable
 series identities retain legitimate duplicate projected labelsets and merge disjoint rows at cleanup owners.
@@ -1166,6 +1167,50 @@ variants. The complete expression gate now passes 17,516 of 21,442 variants, pre
 zero completed failures or paired bit differences; 3,926 remain OPEN. Both profiles pass 294 library tests
 (295 with fixtures), strict Clippy and the declared MSRV check. The retained 80,942 float-text cases and focused
 cursor, INFO, histogram-alias/provider and preprocessing panels retain their previous exact outcomes.
+
+### Paged TOPK/BOTTOMK selection
+
+`topk()` and `bottomk()` retain whole-body series and group metadata, then use resumable source-compatible
+heaps of series indices. Heap and final sort comparisons request two values sequentially through the same
+explicit evaluator stack. Raw time histories and complete instant value vectors are not retained. The complete
+parameter grid is evaluated before the body; a constant-size summary preserves source global validation and
+error precedence. Selected values are acquired again for output, including their exact NaN and signed-zero bits.
+
+An execution-local cache keeps one immutable selection for one effective time/scope. Cache hits reuse validated
+parameters before replaying them. Snapshots own index buffers, with precisely observed lifetime and overlap;
+selection state grows with series/groups and selected cardinality. All resource limits remain disabled.
+Nested sum/selection controls guard a known repeated-parameter amplification. This does not establish a
+polynomial work bound for arbitrary nested expressions or a production performance claim.
+
+Actual invariant wrappers freeze their full evaluator subtree and rebind its output point times to the caller.
+Unvisited parameter subtrees keep their original clock behavior. Fixed matrix windows and current-step rate
+arithmetic have distinct endpoints. Cursor prefixes follow logical grid positions even when lookup endpoints
+repeat. Singleton selection output preserves heap order through parents; multistep maps use the approved
+deterministic label-byte order. Matrix replay retains repeated points, while ordinary consumers reproduce the
+source's single-head consumption and public instant conversion prefers the first histogram, otherwise first float.
+Duplicate cleanup uses the pre-merge matrix-row cohort, including inherited repetitions.
+
+```sh
+python3 tests/promql-conformance/topk_calls.py --capture --upstream "${PROMQL_ORIGINAL_SOURCE_DIR:?}"
+python3 tests/promql-conformance/topk_calls.py --reference "${PROMQL_TOPK_CAPTURE_DIR:?}" \
+  --binary "${PROMQL_QUERY_BINARY:?}" --page-size 1024
+python3 tests/promql-conformance/topk_policy.py --base "${PROMQL_TOPK_CAPTURE_DIR:?}" --capture
+python3 tests/promql-conformance/topk_policy.py --base "${PROMQL_TOPK_CAPTURE_DIR:?}" \
+  --reference "${PROMQL_TOPK_POLICY_DIR:?}" --candidate "${PROMQL_TOPK_COMPARISON_DIR:?}"
+```
+
+The declared source panel contains 3,556 complete query outcomes, including heap/sort thresholds, changing k,
+groups, native ignored samples, clocks, failures, parents and full-hash aliases. The first comparison remains
+strictly ordered and exact. The separate policy gate binds 24 original child/injection controls at actual
+unspecified map boundaries and eight canonical COUNT_VALUES instant outputs. It preserves all raw failures
+and changes only these 32 declared expectations in a separate file. Confined child injection requires
+ordinary distinct float points and no diagnostics; its ABS controls share one constant metric name and no grouping.
+It does not support arbitrary intermediate-state injection. Meaningful mutation tests preserve source scope,
+points and non-boundary outcomes and reject malformed controls.
+
+Typed tests cover exact sum conservation over 2,048 and 100,000 raw points at pages 1/17/1024, constant raw
+workspace, one cursor across the whole provider, cancellation during a heap comparison, partial-output failure
+and baseline-aware release. Complete core, SRE and remaining policy qualification are still required.
 
 ### Shared instantaneous cursor replay
 

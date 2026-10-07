@@ -19,8 +19,120 @@ pub(crate) struct Descriptor {
     pub(crate) first_order: usize,
     pub(crate) sources: std::ops::Range<usize>,
     pub(crate) kinds: u8,
-    // Only the earliest dual-kind logical step is needed to replay monotone vector reads.
-    pub(crate) collision_time_ms: Option<i64>,
+    pub(crate) heads: HeadSummary,
+}
+
+#[derive(Clone, Copy, Default)]
+pub(crate) struct PointCounts([u8; 2]);
+impl PointCounts {
+    pub(crate) fn push(&mut self, kind: u8) {
+        let index = usize::from(kind == 2);
+        self.0[index] = self.0[index].saturating_add(1).min(2);
+    }
+    fn merge(&mut self, other: Self) {
+        for (count, value) in self.0.iter_mut().zip(other.0) {
+            *count = count.saturating_add(value).min(2);
+        }
+    }
+    pub(crate) fn repeated(self, kind: u8) -> bool {
+        self.0[usize::from(kind == 2)] == 2
+    }
+}
+
+pub(crate) struct MergeGuard {
+    hashes: AccountedVec<u64>,
+}
+impl MergeGuard {
+    pub(crate) fn new(
+        mut hashes: AccountedVec<u64>,
+        control: &Control,
+        account: &QueryAccounting,
+    ) -> Result<Self, Interrupted> {
+        evaluator_order::sort(&mut hashes, control, account, u64::cmp)?;
+        let (mut position, mut end) = (0, 0);
+        while position < hashes.len() {
+            let hash = hashes[position];
+            let start = position;
+            while position < hashes.len() && hashes[position] == hash {
+                control.check()?;
+                account.work(1);
+                position += 1;
+            }
+            if position - start > 1 {
+                hashes[end] = hash;
+                end += 1;
+            }
+        }
+        hashes.truncate(end);
+        Ok(Self { hashes })
+    }
+    pub(crate) fn checks(
+        &self,
+        hash: u64,
+        control: &Control,
+        account: &QueryAccounting,
+    ) -> Result<bool, Interrupted> {
+        let (mut left, mut right) = (0, self.hashes.len());
+        while left < right {
+            control.check()?;
+            account.work(1);
+            let middle = left + (right - left) / 2;
+            match self.hashes[middle].cmp(&hash) {
+                std::cmp::Ordering::Less => left = middle + 1,
+                std::cmp::Ordering::Greater => right = middle,
+                std::cmp::Ordering::Equal => return Ok(true),
+            }
+        }
+        Ok(false)
+    }
+}
+
+#[derive(Clone, Copy, Default)]
+pub(crate) struct HeadSummary {
+    times: [i64; 3],
+    present: u8,
+}
+impl HeadSummary {
+    fn time(self, index: usize) -> Option<i64> {
+        (self.present & (1 << index) != 0).then_some(self.times[index])
+    }
+    fn record(&mut self, index: usize, time_ms: i64) {
+        self.times[index] = self.time(index).map_or(time_ms, |prior| prior.min(time_ms));
+        self.present |= 1 << index;
+    }
+    pub(crate) fn note(&mut self, counts: PointCounts, time_ms: i64) {
+        if counts.0[0] == 2 {
+            self.record(0, time_ms);
+        }
+        if counts.0[1] == 2 {
+            self.record(1, time_ms);
+        }
+        if counts.0[0] != 0 && counts.0[1] != 0 {
+            self.record(2, time_ms);
+        }
+    }
+    pub(crate) fn merge(&mut self, other: Self) {
+        for index in 0..3 {
+            if let Some(time_ms) = other.time(index) {
+                self.record(index, time_ms);
+            }
+        }
+    }
+    pub(crate) fn multiple(self) -> bool {
+        self.present != 0
+    }
+    pub(crate) fn repeated_kind(self) -> bool {
+        self.present & 3 != 0
+    }
+    pub(crate) fn accepts(self, kind: u8, time_ms: i64) -> bool {
+        if kind == 1 {
+            return self.time(0).is_none_or(|duplicate| time_ms <= duplicate);
+        }
+        self.time(1).is_none_or(|duplicate| time_ms <= duplicate)
+            && self.time(2).is_none_or(|collision| {
+                self.time(0).is_some_and(|duplicate| duplicate < collision) || time_ms < collision
+            })
+    }
 }
 
 pub(crate) struct DescriptorIndex {
@@ -96,7 +208,7 @@ impl DescriptorIndex {
 }
 
 pub(crate) struct StepKinds {
-    entries: AccountedVec<(u64, usize, u8)>,
+    entries: AccountedVec<(u64, usize, PointCounts)>,
     unary_merge: bool,
 }
 impl StepKinds {
@@ -110,8 +222,10 @@ impl StepKinds {
         self.entries.clear();
     }
     pub(crate) fn push(&mut self, hash: u64, ordinal: usize, kind: u8) {
+        let mut counts = PointCounts::default();
+        counts.push(kind);
         self.entries
-            .push((hash, if self.unary_merge { 0 } else { ordinal }, kind));
+            .push((hash, if self.unary_merge { 0 } else { ordinal }, counts));
     }
     pub(crate) fn finish(
         &mut self,
@@ -127,7 +241,7 @@ impl StepKinds {
             account.work(1);
             let entry = self.entries[index];
             if end > 0 && (self.entries[end - 1].0, self.entries[end - 1].1) == (entry.0, entry.1) {
-                self.entries[end - 1].2 |= entry.2;
+                self.entries[end - 1].2.merge(entry.2);
             } else {
                 self.entries[end] = entry;
                 end += 1;
@@ -136,12 +250,12 @@ impl StepKinds {
         self.entries.truncate(end);
         Ok(())
     }
-    pub(crate) fn dual_kind(
+    pub(crate) fn counts(
         &self,
         descriptor: &Descriptor,
         control: &Control,
         account: &QueryAccounting,
-    ) -> Result<bool, Interrupted> {
+    ) -> Result<PointCounts, Interrupted> {
         let key = (
             descriptor.hash,
             if self.unary_merge {
@@ -159,10 +273,10 @@ impl StepKinds {
             match (entry.0, entry.1).cmp(&key) {
                 std::cmp::Ordering::Less => left = middle + 1,
                 std::cmp::Ordering::Greater => right = middle,
-                std::cmp::Ordering::Equal => return Ok(entry.2 == 3),
+                std::cmp::Ordering::Equal => return Ok(entry.2),
             }
         }
-        Ok(false)
+        Ok(PointCounts::default())
     }
 }
 
@@ -186,12 +300,87 @@ struct NodeRoster {
     histogram: Option<AccountedBox<crate::histogram_call::Plan>>,
     info: Option<AccountedBox<crate::info::Plan>>,
     count: Option<AccountedBox<crate::count_values::Plan>>,
+    selection: Option<AccountedBox<crate::topk::Plan>>,
     clock_initial: Option<AccountedVec<InitialSample>>,
+    merge_guard: Option<MergeGuard>,
 }
 pub(crate) struct Rosters {
     nodes: AccountedVec<NodeRoster>,
 }
 impl Rosters {
+    pub(crate) fn prepare_selection_parameter(
+        &mut self,
+        node: NodeId,
+        operator: crate::frontend::token::TokenKind,
+        parameters: crate::topk::Parameters,
+        account: &QueryAccounting,
+    ) {
+        self.nodes[node.0].selection = Some(AccountedBox::new(
+            crate::topk::Plan::new(operator, parameters, account),
+            &AllocationContext::new(account, MemoryKind::Workspace),
+        ));
+    }
+    pub(crate) fn prepare_selection(
+        &mut self,
+        node: NodeId,
+        child: NodeId,
+        expression: &crate::frontend::ast::ParsedExpression,
+        control: &Control,
+        account: &QueryAccounting,
+    ) -> Result<(), EvaluationError> {
+        let rows = if self.nodes[child.0].sources.is_some() {
+            self.projection_input(child, control, account)?
+        } else {
+            self.take_output(child)
+                .unwrap_or_else(|| AccountedVec::new(account, MemoryKind::Workspace))
+        };
+        self.nodes[node.0]
+            .selection
+            .as_deref_mut()
+            .expect("prepared selection parameter")
+            .prepare_rows(rows, expression, node, control, account)
+    }
+    pub(crate) fn selection(&self, node: NodeId) -> Option<&crate::topk::Plan> {
+        self.nodes[node.0].selection.as_deref()
+    }
+    pub(crate) fn finish_selection_projection(
+        &mut self,
+        node: NodeId,
+        control: &Control,
+        account: &QueryAccounting,
+    ) -> Result<(), EvaluationError> {
+        let roster = &mut self.nodes[node.0];
+        if let (Some(plan), Some(descriptors), Some(sources)) = (
+            roster.selection.as_deref_mut(),
+            roster.output.as_deref(),
+            roster.sources.as_deref(),
+        ) {
+            plan.project(descriptors, sources, control, account)?;
+        }
+        Ok(())
+    }
+    pub(crate) fn prepare_merge_guard(
+        &mut self,
+        node: NodeId,
+        hashes: AccountedVec<u64>,
+        control: &Control,
+        account: &QueryAccounting,
+    ) -> Result<(), Interrupted> {
+        self.nodes[node.0].merge_guard = Some(MergeGuard::new(hashes, control, account)?);
+        Ok(())
+    }
+    pub(crate) fn checks_merge(
+        &self,
+        node: NodeId,
+        hash: u64,
+        control: &Control,
+        account: &QueryAccounting,
+    ) -> Result<bool, Interrupted> {
+        self.nodes[node.0]
+            .merge_guard
+            .as_ref()
+            .map_or(Ok(false), |guard| guard.checks(hash, control, account))
+    }
     pub(crate) fn prepare_count(
         &mut self,
         node: NodeId,
@@ -345,7 +534,7 @@ impl Rosters {
         descriptors.sort_unstable_by_key(|descriptor| descriptor.ordinal);
         if descriptors
             .iter()
-            .any(|descriptor| descriptor.collision_time_ms.is_some())
+            .any(|descriptor| descriptor.heads.multiple())
         {
             let mut sources = AccountedVec::new(account, MemoryKind::Workspace);
             for descriptor in descriptors.iter_mut() {
@@ -359,6 +548,25 @@ impl Rosters {
     pub(crate) fn ordered(&self, node: NodeId) -> Option<(&[Descriptor], &[usize])> {
         let roster = &self.nodes[node.0];
         Some((roster.output.as_deref()?, roster.sources.as_deref()?))
+    }
+    pub(crate) fn selection_output(
+        &mut self,
+        node: NodeId,
+        mut descriptors: AccountedVec<Descriptor>,
+        control: &Control,
+        account: &QueryAccounting,
+    ) -> Result<(), Interrupted> {
+        let mut sources = AccountedVec::new(account, MemoryKind::Workspace);
+        for (ordinal, descriptor) in descriptors.iter_mut().enumerate() {
+            control.check()?;
+            account.work(1);
+            descriptor.sources = sources.len()..sources.len() + 1;
+            sources.push(descriptor.ordinal);
+            descriptor.ordinal = ordinal;
+        }
+        self.nodes[node.0].output = Some(descriptors);
+        self.nodes[node.0].sources = Some(sources);
+        Ok(())
     }
     pub(crate) fn ordered_output(
         &mut self,
@@ -381,8 +589,7 @@ impl Rosters {
                 && previous.hash == descriptor.hash
             {
                 previous.kinds |= descriptor.kinds;
-                previous.collision_time_ms =
-                    earliest(previous.collision_time_ms, descriptor.collision_time_ms);
+                previous.heads.merge(descriptor.heads);
                 if !sources[previous.sources.clone()].contains(&descriptor.ordinal) {
                     sources.push(descriptor.ordinal);
                     previous.sources.end = sources.len();
@@ -428,7 +635,7 @@ impl Rosters {
                 first_order: descriptor.first_order,
                 sources: 0..0,
                 kinds: descriptor.kinds,
-                collision_time_ms: descriptor.collision_time_ms,
+                heads: descriptor.heads,
             });
         }
         Ok(output)
@@ -440,6 +647,13 @@ impl Rosters {
         control: &Control,
         account: &QueryAccounting,
     ) -> Result<(), Interrupted> {
+        let mut hashes = AccountedVec::new(account, MemoryKind::Workspace);
+        for descriptor in &*descriptors {
+            control.check()?;
+            account.work(1);
+            hashes.push(descriptor.hash);
+        }
+        self.prepare_merge_guard(node, hashes, control, account)?;
         // Check hashes in place; unique matrices recover their original child order.
         evaluator_order::sort(&mut descriptors, control, account, |left, right| {
             left.hash
@@ -494,7 +708,7 @@ impl Rosters {
     pub(crate) fn projection_collisions(
         &mut self,
         node: NodeId,
-        kinds: &[u8],
+        kinds: &[PointCounts],
         time_ms: i64,
         control: &Control,
         account: &QueryAccounting,
@@ -507,10 +721,7 @@ impl Rosters {
         for (descriptor, kind) in descriptors.iter_mut().zip(kinds) {
             control.check()?;
             account.work(1);
-            if *kind == 3 {
-                descriptor.collision_time_ms =
-                    earliest(descriptor.collision_time_ms, Some(time_ms));
-            }
+            descriptor.heads.note(*kind, time_ms);
         }
         Ok(())
     }
@@ -613,12 +824,6 @@ pub(crate) fn projection_index(
     }
     Ok(None)
 }
-pub(crate) fn earliest(left: Option<i64>, right: Option<i64>) -> Option<i64> {
-    match (left, right) {
-        (Some(left), Some(right)) => Some(left.min(right)),
-        (left, right) => left.or(right),
-    }
-}
 pub(crate) fn group_key(
     labels: &mut OwnedLabels,
     grouping: Option<&[AccountedVec<u8>]>,
@@ -632,4 +837,67 @@ pub(crate) fn group_key(
             found
         }
     });
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::accounting::EngineAccounting;
+    use std::collections::VecDeque;
+
+    #[test]
+    fn compact_heads_match_source_destructive_heads_for_every_four_step_multiplicity() {
+        // Pinned engine.go nextValues keeps an unmatched old head rather than skipping it.
+        for mut encoding in 0..9usize.pow(4) {
+            let mut counts = [PointCounts::default(); 4];
+            let mut floats = VecDeque::new();
+            let mut histograms = VecDeque::new();
+            let mut summary = HeadSummary::default();
+            for (time, count) in counts.iter_mut().enumerate() {
+                *count = PointCounts([(encoding % 3) as u8, ((encoding / 3) % 3) as u8]);
+                encoding /= 9;
+                for _ in 0..count.0[0] {
+                    floats.push_back(time);
+                }
+                for _ in 0..count.0[1] {
+                    histograms.push_back(time);
+                }
+                summary.note(*count, time as i64);
+            }
+            for (time, count) in counts.into_iter().enumerate() {
+                let expected = if floats.front() == Some(&time) {
+                    floats.pop_front();
+                    Some(1)
+                } else if histograms.front() == Some(&time) {
+                    histograms.pop_front();
+                    Some(2)
+                } else {
+                    None
+                };
+                let actual = if count.0[0] > 0 && summary.accepts(1, time as i64) {
+                    Some(1)
+                } else if count.0[1] > 0 && summary.accepts(2, time as i64) {
+                    Some(2)
+                } else {
+                    None
+                };
+                assert_eq!(actual, expected);
+            }
+        }
+    }
+
+    #[test]
+    fn cleanup_guard_counts_matrix_rows_and_balances_its_metadata_owner() {
+        let account = EngineAccounting::default().query();
+        let control = Control::default();
+        let mut hashes = AccountedVec::new(&account, MemoryKind::Workspace);
+        hashes.extend([7, 3, 9, 3]);
+        let guard = MergeGuard::new(hashes, &control, &account).unwrap();
+        assert!(guard.checks(3, &control, &account).unwrap());
+        for hash in [0, 7, 9, u64::MAX] {
+            assert!(!guard.checks(hash, &control, &account).unwrap());
+        }
+        drop(guard);
+        account.snapshot().assert_memory_released();
+    }
 }
