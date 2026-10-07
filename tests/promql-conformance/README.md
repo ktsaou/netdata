@@ -1109,7 +1109,10 @@ retains one predecessor, and performs a moving storage Seek only when needed. A 
 current page and statistics access epoch. Future-current access occurs before predecessor selection; required
 Next/Seek failures precede fallback, while successful EOF preserves an eligible predecessor. Exact endpoints
 stop without another terminal read. Fixed selectors replay their source-defined prefix; direct clock lookups
-retain their distinct delta and wrapped fixed-reference offset.
+retain their distinct delta and wrapped fixed-reference offset. Invariant direct clock calls calculate that
+offset at the scope's first step and repeat the first result, including absence, rather than replaying a grid
+of transformed timestamps. Permanent regressions cover positive/negative duration wrap, direct/parenthesized
+fixed selectors and both productive and empty first-step outcomes.
 
 Direct clock calls initialize matching series before their first lookup. Each cursor/page is released before
 the next series opens; only accounted Ready/Empty/error metadata survives initialization. Initial Provider read
