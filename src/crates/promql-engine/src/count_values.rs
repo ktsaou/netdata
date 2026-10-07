@@ -212,7 +212,7 @@ impl<'a> Step<'a> {
                 )?));
             }
         }
-        labels.retain_labels_with(|label| {
+        labels.retain_labels_checked(account, control, |label| {
             let found = binary_labels::named(&label.name, &self.plan.grouping, control, account)?;
             Ok::<_, Interrupted>(if self.plan.without {
                 &*label.name != b"__name__" && !found

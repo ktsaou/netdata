@@ -122,17 +122,22 @@ impl OwnedLabels {
         account: &QueryAccounting,
         control: &Control,
     ) -> Result<Result<usize, usize>, Interrupted> {
+        control.check()?;
         let (mut left, mut right) = (0, self.0.len());
         while left < right {
             control.check()?;
             let middle = left + (right - left) / 2;
-            account.work(1 + self.0[middle].name.len().min(name.len()) as u64);
-            match self.0[middle].name[..].cmp(name) {
+            account.work(1);
+            match crate::binary_labels::compare(&self.0[middle].name, name, control, account)? {
                 std::cmp::Ordering::Less => left = middle + 1,
                 std::cmp::Ordering::Greater => right = middle,
-                std::cmp::Ordering::Equal => return Ok(Ok(middle)),
+                std::cmp::Ordering::Equal => {
+                    control.check()?;
+                    return Ok(Ok(middle));
+                }
             }
         }
+        control.check()?;
         Ok(Err(left))
     }
     pub(crate) fn get_checked(
@@ -156,8 +161,14 @@ impl OwnedLabels {
         let position = self.position(name, account, control)?;
         if value.is_empty() {
             if let Ok(position) = position {
-                account.work((self.0.len() - position) as u64);
-                self.0.remove(position);
+                for next in position..self.0.len() - 1 {
+                    control.check()?;
+                    account.work(1);
+                    self.0.swap(next, next + 1);
+                }
+                control.check()?;
+                account.work(1);
+                drop(self.0.pop());
             }
         } else {
             match position {
@@ -174,8 +185,11 @@ impl OwnedLabels {
                         name: owned_name,
                         value: owned_value,
                     });
-                    account.work((self.0.len() - position) as u64);
-                    self.0[position..].rotate_right(1);
+                    for next in (position + 1..self.0.len()).rev() {
+                        control.check()?;
+                        account.work(1);
+                        self.0.swap(next - 1, next);
+                    }
                 }
             }
         }
@@ -186,11 +200,7 @@ impl OwnedLabels {
         account: &QueryAccounting,
         control: &Control,
     ) -> Result<(), Interrupted> {
-        self.retain_labels_with(|label| {
-            control.check()?;
-            account.work(1);
-            Ok(!label.value.is_empty())
-        })
+        self.retain_labels_checked(account, control, |label| Ok(!label.value.is_empty()))
     }
     pub fn views<'a>(&'a self, account: &QueryAccounting) -> AccountedVec<LabelRef<'a>> {
         let mut result = AccountedVec::new(account, MemoryKind::Workspace);
@@ -265,17 +275,43 @@ impl OwnedLabels {
     }
     pub(crate) fn retain_labels_with<E>(
         &mut self,
-        mut keep: impl FnMut(&OwnedLabel) -> Result<bool, E>,
+        keep: impl FnMut(&OwnedLabel) -> Result<bool, E>,
     ) -> Result<(), E> {
+        self.retain_labels_steps(keep, || Ok(()))
+    }
+    pub(crate) fn retain_labels_checked<E: From<Interrupted>>(
+        &mut self,
+        account: &QueryAccounting,
+        control: &Control,
+        keep: impl FnMut(&OwnedLabel) -> Result<bool, E>,
+    ) -> Result<(), E> {
+        self.retain_labels_steps(keep, || {
+            control.check().map_err(E::from)?;
+            account.work(1);
+            Ok(())
+        })
+    }
+    fn retain_labels_steps<E>(
+        &mut self,
+        mut keep: impl FnMut(&OwnedLabel) -> Result<bool, E>,
+        mut step: impl FnMut() -> Result<(), E>,
+    ) -> Result<(), E> {
+        step()?;
         let mut index = 0;
         for next in 0..self.0.len() {
+            step()?;
             if keep(&self.0[next])? {
+                step()?;
                 self.0.swap(index, next);
                 index += 1;
             }
         }
-        self.0.truncate(index);
-        Ok(())
+        // Normal suffix release is observable; interruption leaves infallible owner cleanup.
+        while self.0.len() > index {
+            step()?;
+            drop(self.0.pop());
+        }
+        step()
     }
 }
 
@@ -840,6 +876,199 @@ mod tests {
         histogram::{CUSTOM_BUCKETS_SCHEMA, Span},
     };
 
+    #[test]
+    fn checked_label_lookup_observes_long_names_and_empty_interruptions() {
+        for length in [8192, 16_384] {
+            let engine = EngineAccounting::default();
+            let account = engine.query();
+            let control = Control::default();
+            let name = vec![b'a'; length];
+            let mut labels = OwnedLabels::new(&account, MemoryKind::Workspace);
+            labels.push(&name, b"value", &account, MemoryKind::Workspace);
+            let result = crate::test_storage::interrupt_during(&account, &control, || {
+                labels.position(&name, &account, &control)
+            });
+            assert_eq!(result, Err(Interrupted::Cancelled));
+            drop(labels);
+            account.snapshot().assert_memory_released();
+            drop(account);
+            engine.snapshot().assert_memory_released();
+        }
+        let account = EngineAccounting::default().query();
+        let labels = OwnedLabels::new(&account, MemoryKind::Workspace);
+        for deadline in [false, true] {
+            let mut control = Control::default();
+            if deadline {
+                control.deadline = Some(std::time::Instant::now());
+            } else {
+                control.cancellation.cancel();
+            }
+            assert_eq!(
+                labels.position(b"a", &account, &control),
+                Err(if deadline {
+                    Interrupted::Deadline
+                } else {
+                    Interrupted::Cancelled
+                })
+            );
+        }
+        drop(labels);
+        account.snapshot().assert_memory_released();
+    }
+
+    #[test]
+    fn checked_label_set_preserves_order_and_replacement_and_removal() {
+        let account = EngineAccounting::default().query();
+        let control = Control::default();
+        let kind = MemoryKind::Workspace;
+        let mut labels = OwnedLabels::new(&account, kind);
+        for name in [b"d", b"f"] {
+            labels.push(name, b"old", &account, kind);
+        }
+        for (name, value) in [
+            (b"b".as_slice(), b"new".as_slice()),
+            (b"e", b"new"),
+            (b"g", b"new"),
+            (b"e", b"updated"),
+            (b"f", b""),
+            (b"z", b""),
+        ] {
+            labels.set(name, value, &account, kind, &control).unwrap();
+        }
+        assert_eq!(
+            labels
+                .0
+                .iter()
+                .map(|label| (&*label.name, &*label.value))
+                .collect::<Vec<_>>(),
+            [
+                (b"b".as_slice(), b"new".as_slice()),
+                (b"d", b"old"),
+                (b"e", b"updated"),
+                (b"g", b"new"),
+            ]
+        );
+        drop(labels);
+        account.snapshot().assert_memory_released();
+    }
+
+    #[test]
+    fn checked_label_set_interrupts_insertion_and_removal_moves() {
+        for insert in [false, true] {
+            let engine = EngineAccounting::default();
+            let account = engine.query();
+            let control = Control::default();
+            let kind = MemoryKind::Workspace;
+            let mut labels = OwnedLabels::new(&account, kind);
+            for index in 0..10_000 {
+                labels.push(
+                    format!("label_{index:05}").as_bytes(),
+                    b"value",
+                    &account,
+                    kind,
+                );
+            }
+            let result = crate::test_storage::interrupt_during(&account, &control, || {
+                if insert {
+                    labels.set(b"a", b"value", &account, kind, &control)
+                } else {
+                    labels.set(b"label_00000", b"", &account, kind, &control)
+                }
+            });
+            assert_eq!(result, Err(Interrupted::Cancelled));
+            assert_eq!(labels.0.len(), if insert { 10_001 } else { 10_000 });
+            assert!(account.snapshot().work >= 8192);
+            drop(labels);
+            account.snapshot().assert_memory_released();
+            drop(account);
+            engine.snapshot().assert_memory_released();
+        }
+    }
+
+    #[test]
+    fn checked_retention_interrupts_selection_swaps_and_normal_release() {
+        for (count, keep, phase) in [
+            (10_000, false, "selection"),
+            (10_000, true, "swaps"),
+            (6_000, false, "release"),
+        ] {
+            let engine = crate::accounting::EngineAccounting::default();
+            let account = engine.query();
+            let control = Control::default();
+            let mut labels = OwnedLabels::new(&account, MemoryKind::Workspace);
+            for index in 0..count {
+                labels.push(
+                    format!("label_{index:05}").as_bytes(),
+                    b"value",
+                    &account,
+                    MemoryKind::Workspace,
+                );
+            }
+            let mut visited = 0;
+            let result = crate::test_storage::interrupt_during(&account, &control, || {
+                labels.retain_labels_checked(&account, &control, |_| {
+                    visited += 1;
+                    Ok::<_, Interrupted>(keep)
+                })
+            });
+            assert_eq!(result, Err(Interrupted::Cancelled), "{phase}");
+            if phase == "release" {
+                assert_eq!(visited, count);
+                assert!(!labels.0.is_empty() && labels.0.len() < count);
+            } else {
+                assert!(visited > 0 && visited < count);
+            }
+            drop(labels);
+            account.snapshot().assert_memory_released();
+            drop(account);
+            engine.snapshot().assert_memory_released();
+        }
+    }
+
+    #[test]
+    fn checked_retention_preserves_order_and_checks_empty_entry_and_deadlines() {
+        let account = crate::accounting::EngineAccounting::default().query();
+        let mut labels = OwnedLabels::new(&account, MemoryKind::Workspace);
+        for name in [b"a", b"b", b"c", b"d", b"e"] {
+            labels.push(name, b"value", &account, MemoryKind::Workspace);
+        }
+        labels
+            .retain_labels_checked(&account, &Control::default(), |label| {
+                Ok::<_, Interrupted>(label.name[0] == b'b' || label.name[0] == b'e')
+            })
+            .unwrap();
+        assert_eq!(
+            labels
+                .0
+                .iter()
+                .map(|label| &*label.name)
+                .collect::<Vec<_>>(),
+            [b"b", b"e"]
+        );
+        drop(labels);
+        let mut empty = OwnedLabels::new(&account, MemoryKind::Workspace);
+        for deadline in [false, true] {
+            let mut control = Control::default();
+            if deadline {
+                control.deadline = Some(std::time::Instant::now());
+            } else {
+                control.cancellation.cancel();
+            }
+            let result = empty.retain_labels_checked(&account, &control, |_| {
+                panic!("empty labels do not invoke the predicate")
+            });
+            assert_eq!(
+                result,
+                Err(if deadline {
+                    Interrupted::Deadline
+                } else {
+                    Interrupted::Cancelled
+                })
+            );
+        }
+        drop(empty);
+        account.snapshot().assert_memory_released();
+    }
     #[test]
     fn collected_equal_label_rows_keep_source_sort_provenance_in_both_entry_points() {
         for checked in [false, true] {

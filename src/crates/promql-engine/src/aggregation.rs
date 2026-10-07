@@ -225,10 +225,11 @@ impl<'a> Group<'a> {
             };
             (OwnedValue::Float(value), None)
         };
-        let mut labels =
-            OwnedLabels::copy_from(&self.labels.views(account), account, MemoryKind::Workspace);
+        let mut labels = self
+            .labels
+            .copy_checked(account, MemoryKind::Workspace, control)?;
         // Source removes empty label values only after hashing the raw grouping key.
-        labels.retain_labels(|label| !label.value.is_empty());
+        labels.reset_checked(account, control)?;
         Ok((
             Some(EvaluatedSample {
                 ordinal: self.ordinal,
