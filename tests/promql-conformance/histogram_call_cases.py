@@ -36,3 +36,16 @@ def cases():
                                  "start_ms": start, "end_ms": end, "step_ms": step,
                                  "lookback_ms": 300000, "subquery_step_ms": 60000})
     return dataset, requests
+
+
+def provider_cases():
+    dataset, requests = cases()
+    requests = [dict(row, id=row["id"].replace("histogram-call", "histogram-provider"))
+                for row in requests if row["query"] == "histogram_quantile(0.1,m)"]
+    return dataset, requests
+
+
+def provider_messages():
+    raw = ("PromQL info: input to histogram_quantile needed to be fixed for monotonicity "
+           "(see https://prometheus.io/docs/prometheus/latest/querying/functions/#histogram_quantile)")
+    return {"server-default": raw, "upstream-tests": raw + ' for metric name "m"'}
