@@ -1213,6 +1213,37 @@ Typed tests cover exact sum conservation over 2,048 and 100,000 raw points at pa
 workspace, one cursor across the whole provider, cancellation during a heap comparison, partial-output failure
 and baseline-aware release. Complete core, SRE and remaining policy qualification are still required.
 
+### Source controls for LIMITK/LIMIT_RATIO
+
+The LIMIT harness is source-only preparation; it does not qualify a Rust LIMIT implementation. Its sampler
+facade captures 13 literal byte-label sets through the original `HashRatioSampler` and 17 separately identified
+unsigned normalization primitives. The latter reproduce the source cast/division expression and invoke its
+threshold predicate, without claiming actual label-hash preimages. The 450 thresholds retain exact offset and
+ratio bits, signed zero, NaN, unsigned rounding to offset 1.0 and both predicate branches. Adjacent negative
+ratios may select the same sample because `1+r` rounds; they are not assumed to straddle the boundary.
+
+The strict loader binds the entire pinned module, helper bytes, declared inputs, compiler/profile and complete
+output packet. It checks normalized offset bits, exact threshold neighbors and boolean predicates, rejecting
+re-sealed primitive mutations. Literal label hashes remain independently captured original results. The query
+generator consumes the validated sampler capture and declares 2,240 complete queries: global and moving
+parameters, heap emission, grouped hash collisions, faults, native payloads, full-hash mixed heads, scopes and
+parents. Additional negative controls pass the captured rounding plateau. Native fields are copied unchanged.
+All experimental runtime declarations use `upstream-tests`; disabled-profile rejection remains in the frontend gate.
+
+```sh
+python3 tests/promql-conformance/ratio_sampler.py --capture --upstream "${PROMQL_ORIGINAL_SOURCE_DIR:?}"
+python3 tests/promql-conformance/ratio_sampler.py --reference "${PROMQL_RATIO_SAMPLER_DIR:?}"
+python3 tests/promql-conformance/limit_calls.py --capture --upstream "${PROMQL_ORIGINAL_SOURCE_DIR:?}" \
+  --sampler-reference "${PROMQL_RATIO_SAMPLER_DIR:?}"
+python3 tests/promql-conformance/limit_calls.py --reference "${PROMQL_LIMIT_CAPTURE_DIR:?}" \
+  --sampler-reference "${PROMQL_RATIO_SAMPLER_DIR:?}" --binary "${PROMQL_QUERY_BINARY:?}" --page-size 1024
+```
+
+Query comparisons require exact numbers and ordered complete outcomes. The original 1,864-case capture remains
+immutable; the expanded declarations require a fresh capture. No ordering policy is applied by this harness,
+and ABS API output is not treated as raw-label-preserving injection for ratio hashing. Tests check sampler and
+query schema falsification, grouped operator substitution, fault independence and mixed-kind/native preservation.
+
 ### Shared instantaneous cursor replay
 
 Ordinary selectors, statistics decoding and INFO projections use one memoized paging driver derived from the
