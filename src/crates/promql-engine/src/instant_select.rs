@@ -75,10 +75,15 @@ struct Point<T> {
     value: T,
 }
 impl<T> Point<T> {
-    fn valid(self, lookup_ms: i64, lookback_ms: i64) -> Option<Self> {
+    fn valid_ref(&self, lookup_ms: i64, lookback_ms: i64) -> Option<&Self> {
         (self.time_ms != i64::MIN
             && self.time_ms > lookup_ms.wrapping_sub(lookback_ms)
             && !self.stale)
+            .then_some(self)
+    }
+    fn valid(self, lookup_ms: i64, lookback_ms: i64) -> Option<Self> {
+        self.valid_ref(lookup_ms, lookback_ms)
+            .is_some()
             .then_some(self)
     }
     fn tuple(self) -> (i64, i64, T) {
@@ -150,8 +155,69 @@ pub(crate) fn select_scheduled<S: Series, P: Projector>(
     window: InstantWindow,
     control: &Control,
     account: &QueryAccounting,
+    projector: P,
+    next_lookup: impl FnMut() -> Result<Option<i64>, StorageError>,
+) -> Result<Selected<P::Value>, P::Error> {
+    scheduled(
+        series,
+        window,
+        control,
+        account,
+        projector,
+        next_lookup,
+        |_, _| Ok(false),
+    )
+}
+
+pub(crate) fn visit_scheduled<S: Series, P: Projector>(
+    series: &S,
+    window: InstantWindow,
+    control: &Control,
+    account: &QueryAccounting,
+    projector: P,
+    next_lookup: impl FnMut() -> Result<Option<i64>, StorageError>,
+    visit: impl FnMut(i64, Option<(i64, i64, &P::Value)>) -> Result<bool, P::Error>,
+) -> Result<(), P::Error> {
+    scheduled(
+        series,
+        window,
+        control,
+        account,
+        projector,
+        next_lookup,
+        visit,
+    )
+    .map(|_| ())
+}
+
+pub(crate) fn visit_mapped<S: Series, T, E: From<StorageError> + From<Interrupted>>(
+    series: &S,
+    window: InstantWindow,
+    control: &Control,
+    account: &QueryAccounting,
+    project: impl FnMut(SampleValueRef<'_>) -> Result<T, E>,
+    next_lookup: impl FnMut() -> Result<Option<i64>, StorageError>,
+    visit: impl FnMut(i64, Option<(i64, i64, &T)>) -> Result<bool, E>,
+) -> Result<(), E> {
+    visit_scheduled(
+        series,
+        window,
+        control,
+        account,
+        Plain(project),
+        next_lookup,
+        visit,
+    )
+}
+
+fn scheduled<S: Series, P: Projector>(
+    series: &S,
+    window: InstantWindow,
+    control: &Control,
+    account: &QueryAccounting,
     mut projector: P,
     mut next_lookup: impl FnMut() -> Result<Option<i64>, StorageError>,
+    mut visit: impl FnMut(i64, Option<(i64, i64, &P::Value)>) -> Result<bool, P::Error>,
 ) -> Result<Selected<P::Value>, P::Error> {
     let mut lookup_ms = window.first_lookup_ms;
     let mut last_time = i64::MIN;
@@ -190,6 +256,19 @@ pub(crate) fn select_scheduled<S: Series, P: Projector>(
                 }
                 // Future access can mutate statistics state even when the predecessor wins.
                 let current = access(&mut projector, sample, control, account)?;
+                let offered = if current.time_ms > lookup_ms {
+                    previous
+                        .as_ref()
+                        .and_then(|point| point.valid_ref(lookup_ms, window.lookback_ms))
+                } else {
+                    (!current.stale).then_some(&current)
+                };
+                if visit(
+                    lookup_ms,
+                    offered.map(|point| (point.time_ms, point.start_time_ms, &point.value)),
+                )? {
+                    return Ok(CursorAction::Stop);
+                }
                 let Some(next) = next_lookup()? else {
                     selected = if current.time_ms > lookup_ms {
                         previous
@@ -210,6 +289,15 @@ pub(crate) fn select_scheduled<S: Series, P: Projector>(
         loop {
             control.check()?;
             account.work(1);
+            let offered = previous
+                .as_ref()
+                .and_then(|point| point.valid_ref(lookup_ms, window.lookback_ms));
+            if visit(
+                lookup_ms,
+                offered.map(|point| (point.time_ms, point.start_time_ms, &point.value)),
+            )? {
+                break;
+            }
             let Some(next) = next_lookup()? else {
                 selected = previous
                     .take()

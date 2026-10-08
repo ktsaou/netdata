@@ -7,6 +7,37 @@ The Rust engine is not qualified by these reference self-tests or by parsing the
 The historical C/C++/Rust experiment remains in `tests/promql-prototype/`, with its original evidence intact.
 This harness uses a separate Go module and the same dependency locks. It does not run a daemon or change metrics.
 
+## Current expression checkpoint
+
+The standalone Rust core evaluates derived expressions, nested subqueries, ordinary/extended range functions,
+vector sorting and typed histogram operations through bounded storage replay. Subquery clocks, source preprocessing
+visits, parameter phases and diagnostic accumulation have separate owners. Raw provider pages and decoder state
+are released after each replay; completed folds and their scalar resume certificates may survive at the current
+evaluation clock. The cache replaces an older fold instead of retaining a timeline. No raw-history array, spill
+store, second storage-page cache or enabled admission limit is introduced.
+
+Retained native qualification covers:
+
+- All 21,442 builtin expression variants in release and release-min, with no unsupported outcome, mismatch or
+  paired numerical bit difference in that panel.
+- All 1,110 SRE source expressions through 231,540 controlled evaluations across both builds and page sizes
+  1/17/1024. Recording chains consume the Rust candidate's own completed parent results. The source/input audit
+  checks every stage and bridge; this evidence covers expression execution rather than rule scheduling or live data.
+- 19,214 canonical arithmetic checks, bounded cursor/progress controls, actual C/C++ embedding and focused work-driven
+  cancellation/panic cleanup. Precise engine/foreign ownership and estimated regex dependency memory retain their
+  declared accounting contracts. Enforcement remains disabled.
+
+Complete-language acceptance remains in progress. The supplementary temporal panel has 2,002 exact matches and
+150 open outcomes: mixed histories longer than twelve floats still need the original sort's NaN payload and
+signed-zero provenance. A separate 1,512-control source audit finds 904 open outcomes for parenthesized matrix
+arguments inside unvisited scalar aggregation parameters. Those arguments follow the source's generic function
+path and include successful results as well as distinct errors; they cannot be replaced by ordinary range evaluation.
+These are required implementation remainders, not compatibility exceptions. Foreign Rust execution, dbengine/API
+integration, alert scheduling and Cloud distribution are separate stages; Alertmanager is outside this work.
+
+The detailed counts below preserve individual historical checkpoints and their source attribution. They do not
+supersede the current complete-language status or turn a partial panel into a compatibility guarantee.
+
 ## Reference and profiles
 
 The reference is **Prometheus v3.15.0**, module `v0.315.0`, commit
@@ -609,8 +640,8 @@ equal bounds coalesce from their first count, preserving signed zero and NaN pay
 full correction sweep, literal Go binary-search prefix probes and one endpoint sweep; fraction makes a
 terminal-count sweep and a rank sweep. For N inputs and M coalesced runs, count reads are bounded by
 N*(2+ceil(log2 M)) and 2N respectively. Child-expression replay adds its own work. No raw or corrected count
-array, history buffer or additional resource cap is introduced. Other-target arithmetic is preserved;
-cross-target numerical policy remains a separate decision.
+array, history buffer or additional resource cap is introduced. The canonical numerical contract below
+now supplies the retained AMD64 operand behavior on every device.
 
 ```sh
 python3 tests/promql-conformance/classic_replay.py --capture \
@@ -1762,7 +1793,8 @@ The qualified AMD64 path therefore preserves the actual pinned Go instruction de
 grouped SUM/AVG finalization, regression/prediction, native histogram scaling and histogram variance. The second
 variance multiplication retains the original delta; its first product is still evaluated before the second to
 preserve finite overflow behavior. The shared helpers use constant local state and retain existing paging and polling.
-Other targets retain their prior implementation pending the cross-device numerical contract.
+The approved numerical contract uses the retained Go AMD64, FMA-on behavior on every device. Native Go
+ARM/ARM64 captures are diagnostic comparisons; they do not define a different engine policy.
 
 Both profiles and Rust 1.91 pass 239 unit tests. Independent source panels qualify 2,662 compensated additions and
 subtractions, 121 earlier summation cases, 242 native scaling cases, 220 complete aggregation/regression expressions
@@ -1775,6 +1807,52 @@ The unchanged retained-output stability audit still reports 225 deliberate arith
 Go exactly, while six response instances differ only at an independently observed unspecified map boundary.
 Approved label-byte ordering supplies the deterministic result there. All 120,072 accounting snapshots validate.
 Original captures, expectations and failed stability reports remain preserved.
+
+### Canonical numerical operations and semantic integer widths
+
+The Rust core makes NaN operand priority, signaling quieting, generated-invalid sign and unary sign inversion
+explicit. Addition/subtraction/multiplication/division preserve the pinned AMD64 destination, including a sole
+NaN operand; finite operations retain their original order. Unary negation flips the raw sign bit. Pointwise
+functions preserve each source function's separate raw/quiet/canonical NaN behavior. Logarithmic and angular
+conversions retain their multiplication and addition/division steps; they are not algebraically combined.
+
+Histogram mutation, resolution reduction, running counts, fraction interpolation and trimming use those operations.
+Trimming retains source-specific positive/negative/zero accumulation order and both infinity boundary branches.
+Vector/range averages, variance, regression, smoothing, ordinary/extended/instant rates and histogram averages
+preserve their source operand destinations and reset/start-time guards. Go's semantic `int` is signed 64-bit for
+exponents, empty-bucket compaction and custom cumulative arithmetic; decimal shifts use the AMD64 60-bit chunk.
+Schema/span/bucket-index fields explicitly declared `int32` remain 32-bit. Physical Rust slice indices retain their
+native width and checked physical bounds.
+
+`portable_arithmetic.py` captures untouched pinned Prometheus and Go math/decimal/compiler owners offline.
+The source-only inputs cover 2,720 native/width kernel cases, 8,710 fraction/trim cases, 7,690 complete expressions
+and 94 float conversions. Native helper snapshots explicitly normalize nil bucket/custom payloads to empty lists;
+the trim and complete-query gates retain their stronger packet contracts. Direct `FunctionCalls` observations are
+preserved separately from complete-query diagnostic outcomes. Copy followed by compaction uses only the candidate's
+own intermediate histogram. Whole queries compare every result field and value bit, without importing Go-computed
+parent values. The capture requires the actual original-engine `0.5^1.5` result `3fd6a09e667f3bcd`, certifying the
+retained FMA-on route on that capture host; a version/environment declaration alone is insufficient.
+
+Eight decimal controls force the default source fallback at `internal/strconv/atof.go:647–686`: the exact decimal
+`1 + 2^-53`, a positive tail beyond the 800-digit retained buffer, a value just below that tie, and a zero-padded
+tie, with both signs. Source observations prove truncation and different rounding for the guard's adjacent
+mantissas. The positive results are respectively `3ff0000000000000`, `3ff0000000000001`, `3ff0000000000000`,
+`3ff0000000000000`; negative controls retain the sign bit. The public gate compares actual default `ParseFloat`
+outcomes, including range-error classification.
+
+```sh
+python3 tests/promql-conformance/portable_arithmetic.py --capture \
+  --upstream "${PROMQL_GO_MOD_CACHE:?}/github.com/prometheus/prometheus@v0.315.0"
+python3 tests/promql-conformance/portable_arithmetic.py \
+  --reference "${PROMQL_PORTABLE_CAPTURE_DIR:?}" --kernel "${PROMQL_KERNEL_BINARY:?}" \
+  --query "${PROMQL_QUERY_BINARY:?}" --frontend "${PROMQL_FRONTEND_BINARY:?}" --page-size 17
+```
+
+Capture and comparison bind the original module/runtime sources, source inputs, probe and binary hashes, actual
+runtime route and roster. Retained native release checks pass all 19,214 candidate cases. This qualifies those
+owners on the tested AMD64 host; it does not establish execution on foreign Rust targets, arbitrary numerical
+behavior or completion of the expression/SRE gates. Raw paging, cooperative controls and disabled admission
+limits retain their existing contracts.
 
 ## Frontend allocation ownership
 

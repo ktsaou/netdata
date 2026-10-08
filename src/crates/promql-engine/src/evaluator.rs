@@ -20,41 +20,159 @@ use crate::{
     range_reduce::{FoldKind, FoldOptions, RangeFunction, fold},
     result::{OwnedLabels, OwnedValue},
     storage::{
-        Control, Interrupted, QueryProvider, Series, StorageError, TimeBounds, label,
-        matches_checked, validate_labels,
+        Control, InitialSample, Interrupted, QueryProvider, Series, StorageError, TimeBounds,
+        label, matches_checked, validate_labels,
     },
+    value::SampleRef,
 };
 use tokens::TokenKind;
 
 const NAN: f64 = f64::from_bits(0x7ff8_0000_0000_0001);
 
-fn matrix_argument(
+pub(crate) fn matrix_argument(
+    expression: &ParsedExpression,
+    prepared: &Prepared,
+    node: NodeId,
+) -> Option<(usize, NodeId)> {
+    let Expr::Call {
+        function: Some(function),
+        arguments,
+    } = &expression.arena[node].expression
+    else {
+        return None;
+    };
+    let position = function
+        .arguments
+        .iter()
+        .position(|kind| *kind == ValueType::Matrix)?;
+    Some((
+        position,
+        prepared
+            .preprocessing
+            .child(expression, node, arguments[position]),
+    ))
+}
+
+fn scalar_arguments(
+    expression: &ParsedExpression,
+    node: NodeId,
+) -> impl Iterator<Item = NodeId> + '_ {
+    let Expr::Call {
+        function: Some(function),
+        arguments,
+    } = &expression.arena[node].expression
+    else {
+        unreachable!("typed function parameters")
+    };
+    arguments
+        .iter()
+        .copied()
+        .zip(function.arguments.iter())
+        .filter_map(|(node, kind)| (*kind == ValueType::Scalar).then_some(node))
+}
+
+fn raw_matrix_argument(
     expression: &ParsedExpression,
     prepared: &Prepared,
     node: NodeId,
 ) -> Result<(NodeId, NodeId), EvaluationError> {
-    let Expr::Call { arguments, .. } = &expression.arena[node].expression else {
+    let Some((_, argument)) = matrix_argument(expression, prepared, node) else {
         unreachable!("typed range call")
     };
-    let argument = prepared.preprocessing.child(expression, node, arguments[0]);
     let Expr::Matrix { selector, .. } = expression.arena[argument].expression else {
         return Err(EvaluationError::Unsupported("subquery range reducer"));
     };
     Ok((argument, selector))
 }
+pub(crate) fn validate_matrix_modifier(
+    expression: &ParsedExpression,
+    prepared: &Prepared,
+    node: NodeId,
+    control: &Control,
+    account: &QueryAccounting,
+) -> Result<(), EvaluationError> {
+    let Some((_, argument)) = matrix_argument(expression, prepared, node) else {
+        return Ok(());
+    };
+    let Expr::Matrix { selector, .. } = expression.arena[argument].expression else {
+        return Ok(());
+    };
+    let Expr::Selector(selector) = &expression.arena[selector].expression else {
+        unreachable!("typed matrix selector")
+    };
+    let Expr::Call {
+        function: Some(function),
+        ..
+    } = &expression.arena[node].expression
+    else {
+        unreachable!("typed matrix call")
+    };
+    let (modifier, allowed, safe) = if selector.anchored {
+        (
+            "anchored",
+            "changes, delta, increase, rate, resets",
+            matches!(
+                function.name,
+                "changes" | "delta" | "increase" | "rate" | "resets"
+            ),
+        )
+    } else if selector.smoothed {
+        (
+            "smoothed",
+            "delta, increase, rate",
+            matches!(function.name, "delta" | "increase" | "rate"),
+        )
+    } else {
+        return Ok(());
+    };
+    if safe {
+        return Ok(());
+    }
+    Err(EvaluationError::Runtime(crate::binary_labels::formatted(
+        format_args!(
+            "{modifier} modifier can only be used with: {allowed} - not with {}",
+            function.name
+        ),
+        control,
+        account,
+    )?))
+}
+
 pub(crate) fn range_selector(
     expression: &ParsedExpression,
     prepared: &Prepared,
     node: NodeId,
-) -> Result<NodeId, EvaluationError> {
-    let (_, selector) = matrix_argument(expression, prepared, node)?;
+) -> Result<Option<NodeId>, EvaluationError> {
+    let (_, argument) = matrix_argument(expression, prepared, node).expect("typed range call");
+    let Expr::Matrix { selector, .. } = expression.arena[argument].expression else {
+        return Ok(None);
+    };
     let Expr::Selector(value) = &expression.arena[selector].expression else {
         unreachable!("typed matrix selector")
     };
-    if value.anchored || value.smoothed {
+    let anchored_transition = matches!(&expression.arena[node].expression,
+        Expr::Call { function: Some(function), .. }
+        if matches!(function.name, "changes" | "resets"));
+    let extended_rate = matches!(&expression.arena[node].expression,
+        Expr::Call { function: Some(function), .. }
+        if matches!(function.name, "rate" | "increase" | "delta"));
+    if value.smoothed && !extended_rate || value.anchored && !anchored_transition && !extended_rate
+    {
         return Err(EvaluationError::Unsupported("extended selector reducer"));
     }
-    Ok(selector)
+    Ok(Some(selector))
+}
+
+pub(crate) fn raw_selector_shortcut(
+    expression: &ParsedExpression,
+    prepared: &Prepared,
+    node: NodeId,
+) -> bool {
+    let Expr::Selector(selector) = &expression.arena[node].expression else {
+        return false;
+    };
+    // Fixed smoothing produces once, then follows the source's invariant expansion.
+    !selector.smoothed || !prepared.flags().invariants[node.0]
 }
 
 #[derive(Debug, PartialEq)]
@@ -77,6 +195,21 @@ impl From<Interrupted> for EvaluationError {
 impl From<StorageError> for EvaluationError {
     fn from(value: StorageError) -> Self {
         Self::Storage(value)
+    }
+}
+
+pub(crate) fn numeric_range_error(
+    error: NumericRangeError,
+    account: &QueryAccounting,
+) -> EvaluationError {
+    match error {
+        NumericRangeError::Storage(error) => EvaluationError::Storage(error),
+        NumericRangeError::Factor { trend, value } => {
+            EvaluationError::Runtime(NumericRangeError::message(trend, value, account))
+        }
+        NumericRangeError::Provenance => {
+            EvaluationError::Unsupported("quantile_over_time mixed equal-class provenance")
+        }
     }
 }
 
@@ -219,6 +352,7 @@ enum ParameterizedFunction {
 
 enum State<'a> {
     Enter,
+    Gather(AccountedBox<crate::matrix_heads::Step<'a>>),
     OrderedRows {
         descriptors: &'a [Descriptor],
         sources: &'a [usize],
@@ -264,6 +398,14 @@ enum State<'a> {
         parameters: [f64; 2],
         position: usize,
     },
+    RawParameters {
+        function: RangeFunction,
+        selector: NodeId,
+        ordinal: usize,
+        initial: Option<InitialSample>,
+        parameters: [f64; 2],
+        position: usize,
+    },
     MixedBinary {
         scalar: Option<f64>,
         scalar_node: NodeId,
@@ -276,6 +418,8 @@ enum State<'a> {
     Info(AccountedBox<crate::info::Step<'a>>),
     TopK(AccountedBox<crate::topk::Step<'a>>),
     Quantile(AccountedBox<crate::quantile_aggregate::Step<'a>>),
+    Sort(AccountedBox<crate::vector_sort::Step<'a>>),
+    Range(AccountedBox<crate::derived_range::Step<'a>>),
     CountValues {
         step: AccountedBox<crate::count_values::Step<'a>>,
         collecting: bool,
@@ -288,6 +432,7 @@ struct Frame<'a> {
     bypass_order: bool,
     mode: OutputMode,
     options: EvaluationOptions,
+    step_index: i64,
     boundary_time_ms: Option<i64>,
 }
 impl<'a> Frame<'a> {
@@ -298,11 +443,20 @@ impl<'a> Frame<'a> {
         mode: OutputMode,
         mut options: EvaluationOptions,
         boundary: bool,
+        step_index: Option<i64>,
     ) -> Self {
         let boundary_time_ms = boundary.then_some(options.time_ms);
-        if boundary {
+        let mut step_index = step_index.unwrap_or_else(|| {
+            crate::query_scopes::quotient(
+                options.time_ms.wrapping_sub(options.start_ms),
+                options.step_ms,
+            )
+            .unwrap_or(0)
+        });
+        if boundary && options.end_ms >= options.start_ms {
             options.time_ms = options.start_ms;
             options.end_ms = options.start_ms;
+            step_index = 0;
         }
         Self {
             node,
@@ -311,6 +465,7 @@ impl<'a> Frame<'a> {
             bypass_order,
             mode,
             options,
+            step_index,
             boundary_time_ms,
         }
     }
@@ -323,15 +478,17 @@ enum OutputMode {
 }
 
 #[derive(Clone, Copy)]
-enum RowFilter<'a> {
+pub(crate) enum RowFilter<'a> {
     All,
     Ordinals(&'a [usize]),
+    One(usize),
 }
 impl RowFilter<'_> {
-    fn accepts(self, ordinal: usize) -> bool {
+    pub(crate) fn accepts(self, ordinal: usize) -> bool {
         match self {
             Self::All => true,
             Self::Ordinals(values) => values.contains(&ordinal),
+            Self::One(value) => value == ordinal,
         }
     }
     fn next_ordinal(
@@ -342,6 +499,7 @@ impl RowFilter<'_> {
     ) -> Result<Option<usize>, Interrupted> {
         match self {
             Self::All => Ok(Some(start)),
+            Self::One(value) => Ok((value >= start).then_some(value)),
             Self::Ordinals(values) => {
                 let mut next = None;
                 for value in values {
@@ -410,6 +568,7 @@ pub(crate) struct Machine<'a, 'q, Q: QueryProvider + 'q> {
     expression: &'a ParsedExpression,
     prepared: &'a Prepared<'a>,
     options: EvaluationOptions,
+    step_index: i64,
     control: &'a Control,
     account: &'a QueryAccounting,
     frames: AccountedVec<Frame<'a>>,
@@ -443,13 +602,16 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
             OutputMode::Matrix,
             options,
             metadata.prepared.flags().boundaries[root.0],
+            None,
         ));
         let options = frames[0].options;
+        let step_index = frames[0].step_index;
         Self {
             catalog,
             expression,
             prepared: metadata.prepared,
             options,
+            step_index,
             control,
             account,
             frames,
@@ -489,6 +651,16 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
         bypass_order: bool,
         mode: OutputMode,
     ) {
+        self.push_scoped(node, filter, bypass_order, mode, self.options);
+    }
+    fn push_scoped(
+        &mut self,
+        node: NodeId,
+        filter: RowFilter<'a>,
+        bypass_order: bool,
+        mode: OutputMode,
+        options: EvaluationOptions,
+    ) {
         let node = if bypass_order {
             node
         } else if let Some(parent) = self.frames.last() {
@@ -498,17 +670,50 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
         } else {
             node
         };
+        if matches!(mode, OutputMode::Vector)
+            && let Some(shape) = self.rosters.matrix(node)
+        {
+            // Consumption belongs to the caller clock, before invariant value collapse.
+            let mut frame = Frame::new(
+                node,
+                filter,
+                bypass_order,
+                mode,
+                options,
+                false,
+                Some(self.step_index),
+            );
+            frame.state = State::Gather(AccountedBox::new(
+                crate::matrix_heads::Step::new(shape, options, self.step_index, filter),
+                &AllocationContext::new(self.account, MemoryKind::Workspace),
+            ));
+            self.frames.push(frame);
+            return;
+        }
         self.frames.push(Frame::new(
             node,
             filter,
             bypass_order,
             mode,
-            self.options,
+            options,
             !bypass_order && self.prepared.flags().boundaries[node.0],
+            Some(self.step_index),
         ));
+    }
+    pub(crate) fn set_step_index(&mut self, step_index: i64) {
+        let step_index = if self.frames[0].boundary_time_ms.is_some() {
+            0
+        } else {
+            step_index
+        };
+        self.frames[0].step_index = step_index;
+        self.step_index = step_index;
     }
     pub(crate) fn restrict(&mut self, ordinals: &'a [usize]) {
         self.frames[0].filter = RowFilter::Ordinals(ordinals);
+    }
+    pub(crate) fn restrict_one(&mut self, ordinal: usize) {
+        self.frames[0].filter = RowFilter::One(ordinal);
     }
     pub(crate) fn bypass_root_order(&mut self) {
         self.frames[0].bypass_order = true;
@@ -594,7 +799,10 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
         )
     }
     fn matrix_bounds(&self, end_ms: i64, range_ns: i64) -> Option<TimeBounds> {
-        let start_ms = end_ms.wrapping_sub(range_ns / 1_000_000).checked_add(1)?;
+        self.matrix_bounds_ms(end_ms, range_ns / 1_000_000)
+    }
+    fn matrix_bounds_ms(&self, end_ms: i64, range_ms: i64) -> Option<TimeBounds> {
+        let start_ms = end_ms.wrapping_sub(range_ms).checked_add(1)?;
         let bounds = TimeBounds {
             start_ms: start_ms.max(self.data_bounds.start_ms),
             end_ms: end_ms.min(self.data_bounds.end_ms),
@@ -616,12 +824,101 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
                 )
             },
             range_ms: range_ns / 1_000_000,
+            buffer_ms: None,
             end_ms,
             step_ms: self.options.step_ms,
             data_bounds: self.data_bounds,
             statistics: selector.skip_histogram_buckets,
             reduce_delta: true,
+            resume: None,
         }
+    }
+
+    fn fold_request(
+        &self,
+        identity: (NodeId, NodeId, usize),
+        operation: SelectorOperation,
+        window: MatrixWindow,
+        input: crate::range_cache::Input,
+    ) -> crate::range_cache::Request {
+        let (function, parameters, range_ns) = match operation {
+            SelectorOperation::Rate { kind, range_ns } => {
+                (RangeFunction::Rate(kind), [0.0; 2], range_ns)
+            }
+            SelectorOperation::Fold { kind, range_ns } => {
+                (RangeFunction::Fold(kind), [0.0; 2], range_ns)
+            }
+            SelectorOperation::Numeric {
+                function,
+                parameters,
+                range_ns,
+            } => (RangeFunction::Numeric(function), parameters, range_ns),
+            SelectorOperation::Instant => unreachable!("range fold request"),
+        };
+        crate::range_cache::Request {
+            owner: identity.0,
+            selector: identity.1,
+            ordinal: identity.2,
+            options: self.options,
+            position: self.step_index,
+            function,
+            parameters,
+            range_ns,
+            window,
+            input,
+        }
+    }
+
+    fn smooths(&self, node: NodeId) -> bool {
+        self.selector(node).smoothed && !self.timestamp_selectors[node.0]
+    }
+
+    fn smoothed_value<S: Series>(
+        &self,
+        node: NodeId,
+        series: &S,
+        time_ms: i64,
+        grid: crate::query_scopes::Grid,
+    ) -> Result<range_rates::RateOutput, StorageError> {
+        let selector = self.selector(node);
+        let offset_ms = self
+            .prepared
+            .adjusted_offset(node, &selector.modifiers, grid.start_ms)
+            / 1_000_000;
+        let lookback_ns = self.options.lookback_ms.wrapping_mul(1_000_000);
+        let lookback_ms = lookback_ns / 1_000_000;
+        let data_ms = time_ms.wrapping_sub(offset_ms);
+        let range_ms = lookback_ms.wrapping_mul(2);
+        let input = RateInput {
+            window: RateWindow {
+                start_ms: data_ms.wrapping_sub(lookback_ms),
+                end_ms: data_ms.wrapping_add(lookback_ms),
+                range_ns: lookback_ns.wrapping_mul(2),
+                start_timestamps: false,
+            },
+            range_start_ms: data_ms,
+            range_end_ms: data_ms,
+            data_bounds: Some(self.data_bounds),
+        };
+        let matrix = MatrixWindow {
+            first_end_ms: grid
+                .start_ms
+                .wrapping_sub(offset_ms)
+                .wrapping_add(lookback_ms),
+            end_ms: input.window.end_ms,
+            range_ms,
+            buffer_ms: Some(
+                grid.end_ms
+                    .wrapping_sub(grid.start_ms)
+                    .wrapping_add(range_ms),
+            ),
+            step_ms: grid.interval_ms,
+            data_bounds: self.data_bounds,
+            statistics: selector.skip_histogram_buckets,
+            reduce_delta: false,
+            resume: None,
+        };
+        crate::range_extended::smooth(series, input, matrix, self.control, self.account)
     }
 
     fn select(
@@ -630,7 +927,27 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
         operation: SelectorOperation,
     ) -> Result<State<'a>, EvaluationError> {
         let selector = self.selector(selector_node);
-        if selector.anchored || selector.smoothed {
+        let anchored_safe = matches!(
+            operation,
+            SelectorOperation::Instant
+                | SelectorOperation::Rate {
+                    kind: RateFunction::Extrapolated(_),
+                    ..
+                }
+                | SelectorOperation::Fold {
+                    kind: FoldKind::Changes | FoldKind::Resets,
+                    ..
+                }
+        );
+        let smoothed_safe = matches!(
+            operation,
+            SelectorOperation::Instant
+                | SelectorOperation::Rate {
+                    kind: RateFunction::Extrapolated(_),
+                    ..
+                }
+        );
+        if selector.smoothed && !smoothed_safe || selector.anchored && !anchored_safe {
             return Err(EvaluationError::Unsupported("extended selector reducer"));
         }
         Ok(State::Selection {
@@ -645,7 +962,7 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
         function: RangeFunction,
         parameters: [f64; 2],
     ) -> Result<(NodeId, SelectorOperation), EvaluationError> {
-        let (argument, selector) = matrix_argument(self.expression, self.prepared, node)?;
+        let (argument, selector) = raw_matrix_argument(self.expression, self.prepared, node)?;
         let Expr::Matrix { range, .. } = self.expression.arena[argument].expression else {
             unreachable!("typed matrix argument")
         };
@@ -667,35 +984,283 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
         function: RangeFunction,
         parameters: [f64; 2],
     ) -> Result<State<'a>, EvaluationError> {
+        let (_, argument) =
+            matrix_argument(self.expression, self.prepared, node).expect("typed range call");
+        if let Expr::Subquery {
+            expression: body,
+            range,
+            modifiers,
+            ..
+        } = &self.expression.arena[argument].expression
+        {
+            let grid = self
+                .prepared
+                .subquery_scope(argument, self.control, self.account)?;
+            let body = self
+                .prepared
+                .preprocessing
+                .child(self.expression, argument, *body);
+            let fixed = self.prepared.timestamp(argument, modifiers);
+            let offset_ns = if let Some(timestamp) = fixed {
+                self.prepared
+                    .offset(argument, modifiers.original_offset)
+                    .wrapping_add(
+                        self.options
+                            .start_ms
+                            .wrapping_sub(timestamp)
+                            .wrapping_mul(1_000_000),
+                    )
+            } else {
+                self.prepared
+                    .adjusted_offset(argument, modifiers, self.options.start_ms)
+            };
+            let filter = if matches!(&self.expression.arena[node].expression,
+                Expr::Call { function: Some(function), .. } if function.name == "absent_over_time")
+            {
+                RowFilter::All
+            } else {
+                self.frames
+                    .last()
+                    .map_or(RowFilter::All, |frame| frame.filter)
+            };
+            return Ok(State::Range(AccountedBox::new(
+                crate::derived_range::Step::new(
+                    crate::derived_range::Input {
+                        body,
+                        grid,
+                        options: self.options,
+                        function,
+                        parameters,
+                        range_ns: self.prepared.range(argument, *range),
+                        offset_ns,
+                        fixed: fixed.is_some(),
+                        raw_selector: raw_selector_shortcut(self.expression, self.prepared, body),
+                    },
+                    self.rosters.descriptors(body),
+                    filter,
+                ),
+                &AllocationContext::new(self.account, MemoryKind::Workspace),
+            )));
+        }
         let (selector, operation) = self.range_spec(node, function, parameters)?;
         self.select(selector, operation)
     }
-    pub(crate) fn raw_series_sample<S: Series>(
-        &mut self,
+    fn instant_window(&self, node: NodeId) -> crate::instant_select::InstantWindow {
+        let end_ms = self.lookup(node);
+        crate::instant_select::InstantWindow {
+            first_lookup_ms: if self.invariants[node.0] {
+                end_ms
+            } else {
+                self.lookup_at(node, self.options.start_ms)
+            },
+            lookup_ms: end_ms,
+            step_ms: self.options.step_ms,
+            lookback_ms: self.options.lookback_ms,
+            delta_ms: self
+                .options
+                .lookback_ms
+                .wrapping_sub(i64::from(self.timestamp_selectors[node.0])),
+            data_bounds: self.data_bounds,
+        }
+    }
+    pub(crate) fn visit_raw_series<
+        S: Series,
+        E: From<EvaluationError> + From<StorageError> + From<Interrupted>,
+    >(
+        &self,
         node: NodeId,
         ordinal: usize,
         series: &S,
-    ) -> Result<Option<EvaluatedSample>, EvaluationError> {
+        grid: crate::query_scopes::Grid,
+        mut annotations: Option<&mut AnnotationBuilder>,
+        mut visit: impl FnMut(
+            i64,
+            &[crate::storage::LabelRef<'_>],
+            Option<SampleRef<'_>>,
+        ) -> Result<bool, E>,
+    ) -> Result<(), E> {
+        if self
+            .prepared
+            .activate(
+                grid.header(self.prepared.header),
+                self.control,
+                self.account,
+            )?
+            .is_none()
+        {
+            return Ok(());
+        }
         self.select(node, SelectorOperation::Instant)?;
-        let sample = self.series_sample(node, node, SelectorOperation::Instant, ordinal, series)?;
-        Ok(sample.map(|sample| Self::rebind(sample, self.frames[0].boundary_time_ms)))
+        self.control.check()?;
+        let labels = series.label_views_checked(self.account, self.control)?;
+        validate_labels(&labels)?;
+        let selector = self.selector(node);
+        if !matches_checked(
+            &labels,
+            &selector.matchers,
+            Some(self.account),
+            self.control,
+        )? {
+            return Ok(());
+        }
+        if self.smooths(node) {
+            let mut traversal = crate::query_scopes::Traversal::new(grid, false);
+            while let Some((time, _)) = traversal.current() {
+                self.control.check()?;
+                self.account.work(1);
+                let output = self.smoothed_value(node, series, time, grid)?;
+                if let Some(annotations) = &mut annotations {
+                    for kind in output.annotations.into_iter().flatten() {
+                        annotations.add(
+                            kind,
+                            label(&labels, b"__name__"),
+                            self.expression.arena[node].span,
+                            &self.expression.source,
+                            self.account,
+                        );
+                    }
+                }
+                let sample = output.value.as_ref().map(|value| SampleRef {
+                    time_ms: time,
+                    start_time_ms: 0,
+                    value: value.as_ref(),
+                });
+                if visit(time, &labels, sample)? {
+                    break;
+                }
+                traversal.advance();
+            }
+            return Ok(());
+        }
+        let empty = match self.rosters.clock_initial(node, ordinal) {
+            Some(crate::storage::InitialSample::Empty) => true,
+            Some(crate::storage::InitialSample::Error(bytes)) => {
+                let mut failure = AccountedVec::new(self.account, MemoryKind::Workspace);
+                crate::result::append_bytes_checked(
+                    &mut failure,
+                    bytes,
+                    self.account,
+                    self.control,
+                )?;
+                return Err(StorageError::Provider(failure).into());
+            }
+            _ => false,
+        };
+        let fixed = self.invariants[node.0];
+        if empty {
+            let mut traversal = crate::query_scopes::Traversal::new(grid, false);
+            while let Some((time, _)) = traversal.current() {
+                self.control.check()?;
+                self.account.work(1);
+                if visit(time, &labels, None)? {
+                    break;
+                }
+                traversal.advance();
+            }
+            return Ok(());
+        }
+        let mut logical = crate::query_scopes::Traversal::new(grid, false);
+        let mut emit = |value: Option<(i64, i64, crate::value::SampleValueRef<'_>)>| {
+            loop {
+                self.control.check()?;
+                self.account.work(1);
+                let Some((logical_time, index)) = logical.current() else {
+                    return Ok::<_, E>(false);
+                };
+                if value.is_some() {
+                    self.prepared.sample_statistics_index(
+                        node,
+                        index,
+                        self.control,
+                        self.account,
+                    )?;
+                }
+                let sample = value.map(|(time_ms, start_time_ms, value)| {
+                    let (time_ms, start_time_ms) = if self.frames[0].boundary_time_ms.is_some()
+                        || !self.timestamp_selectors[node.0]
+                    {
+                        (logical_time, 0)
+                    } else {
+                        (time_ms, start_time_ms)
+                    };
+                    SampleRef {
+                        time_ms,
+                        start_time_ms,
+                        value,
+                    }
+                });
+                if visit(logical_time, &labels, sample)? {
+                    return Ok::<_, E>(true);
+                }
+                logical.advance();
+                if !fixed || logical.current().is_none() {
+                    return Ok(false);
+                }
+            }
+        };
+        let mut position = crate::query_scopes::Traversal::new(grid, false);
+        let next_lookup = || {
+            if fixed {
+                return Ok(None);
+            }
+            position.advance();
+            Ok(position
+                .current()
+                .map(|(time, _)| self.lookup_at(node, time)))
+        };
+        let first_lookup_ms = self.lookup_at(node, grid.start_ms);
+        let window = crate::instant_select::InstantWindow {
+            first_lookup_ms,
+            lookup_ms: first_lookup_ms,
+            ..self.instant_window(node)
+        };
+        if selector.skip_histogram_buckets {
+            crate::instant_statistics::visit_scheduled(
+                series,
+                window,
+                self.control,
+                self.account,
+                next_lookup,
+                |_, value| emit(value),
+            )
+        } else {
+            crate::instant_select::visit_mapped(
+                series,
+                window,
+                self.control,
+                self.account,
+                |value| {
+                    Ok::<_, E>(OwnedValue::from_sample_checked(
+                        value,
+                        self.control,
+                        self.account,
+                        MemoryKind::Workspace,
+                    )?)
+                },
+                next_lookup,
+                |_, value| emit(value.map(|(time, start, value)| (time, start, value.as_ref()))),
+            )
+        }
     }
-    pub(crate) fn range_series_sample<S: Series>(
-        &mut self,
+    pub(crate) fn range_parameters(
+        &self,
         node: NodeId,
         function: RangeFunction,
-        series_ordinal: usize,
-        series: &S,
-    ) -> Result<Option<EvaluatedSample>, EvaluationError> {
+    ) -> Result<[f64; 2], EvaluationError> {
         self.control.check()?;
         self.account.work(1);
         let mut parameters = [0.0; 2];
         if let RangeFunction::Numeric(kind) = function {
-            let Expr::Call { arguments, .. } = &self.expression.arena[node].expression else {
-                unreachable!("range call")
-            };
-            for (position, &argument) in arguments[1..].iter().take(kind.parameters()).enumerate() {
-                let mut child = self.replay(argument, self.options, None);
+            for (position, argument) in scalar_arguments(self.expression, node)
+                .take(kind.parameters())
+                .enumerate()
+            {
+                let argument = self
+                    .prepared
+                    .preprocessing
+                    .child(self.expression, node, argument);
+                let options = self.range_parameter_options(argument)?;
+                let mut child = self.replay(argument, options, None);
                 child.frames[0].mode = OutputMode::Vector;
                 while let Some(sample) = child.next()? {
                     let OwnedValue::Float(value) = sample.value else {
@@ -705,8 +1270,128 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
                 }
             }
         }
+        Ok(parameters)
+    }
+
+    fn range_parameter_options(
+        &self,
+        argument: NodeId,
+    ) -> Result<EvaluationOptions, EvaluationError> {
+        let shape = self
+            .rosters
+            .scalar(argument)
+            .ok_or(EvaluationError::Invalid(
+                "completed scalar parameter shape is missing",
+            ))?;
+        self.prepared
+            .index_error(0, shape.rows, self.control, self.account)?;
+        self.prepared
+            .index_error(self.step_index, shape.floats, self.control, self.account)?;
+        Ok(EvaluationOptions {
+            time_ms: shape
+                .grid
+                .start_ms
+                .wrapping_add(shape.grid.interval_ms.wrapping_mul(self.step_index)),
+            start_ms: shape.grid.start_ms,
+            end_ms: shape.grid.end_ms,
+            step_ms: shape.grid.interval_ms,
+            ..self.options
+        })
+    }
+
+    fn push_parameter(&mut self, child: NodeId, range: bool) -> Result<(), EvaluationError> {
+        let parent = self.frames.last().expect("parameter parent").node;
+        let child = self
+            .prepared
+            .preprocessing
+            .child(self.expression, parent, child);
+        let options = if range {
+            self.range_parameter_options(child)?
+        } else {
+            self.options
+        };
+        let mode = if range {
+            OutputMode::Matrix
+        } else {
+            OutputMode::Vector
+        };
+        self.push_scoped(child, RowFilter::All, false, mode, options);
+        Ok(())
+    }
+
+    fn aggregate_parameter_options(
+        &self,
+        child: NodeId,
+    ) -> Result<Option<EvaluationOptions>, EvaluationError> {
+        let parent = self.frames.last().expect("aggregate parameter parent").node;
+        let child = self
+            .prepared
+            .preprocessing
+            .child(self.expression, parent, child);
+        let shape = self.rosters.scalar(child).ok_or(EvaluationError::Invalid(
+            "completed aggregate parameter shape is missing",
+        ))?;
+        if self.step_index < 0 || self.step_index >= shape.floats {
+            return Ok(None);
+        }
+        Ok(Some(EvaluationOptions {
+            time_ms: shape
+                .grid
+                .start_ms
+                .wrapping_add(shape.grid.interval_ms.wrapping_mul(self.step_index)),
+            start_ms: shape.grid.start_ms,
+            end_ms: shape.grid.end_ms,
+            step_ms: shape.grid.interval_ms,
+            ..self.options
+        }))
+    }
+    pub(crate) fn initialize_range_series<S: Series>(
+        &self,
+        selector: NodeId,
+        series: &S,
+    ) -> Result<Option<InitialSample>, EvaluationError> {
+        let labels = series.label_views_checked(self.account, self.control)?;
+        validate_labels(&labels)?;
+        if !matches_checked(
+            &labels,
+            &self.selector(selector).matchers,
+            Some(self.account),
+            self.control,
+        )? {
+            return Ok(None);
+        }
+        Ok(Some(crate::storage::initialize(
+            series,
+            self.data_bounds,
+            self.control,
+            self.account,
+        )?))
+    }
+
+    pub(crate) fn range_series_sample<S: Series>(
+        &mut self,
+        node: NodeId,
+        function: RangeFunction,
+        parameters: [f64; 2],
+        series_ordinal: usize,
+        series: &S,
+        initial: Option<&InitialSample>,
+    ) -> Result<Option<EvaluatedSample>, EvaluationError> {
+        self.control.check()?;
+        self.account.work(1);
+        self.prepared.activate(
+            crate::query_scopes::Grid {
+                start_ms: self.options.start_ms,
+                end_ms: self.options.end_ms,
+                interval_ms: self.options.step_ms,
+            }
+            .header(self.prepared.header),
+            self.control,
+            self.account,
+        )?;
         let (selector, operation) = self.range_spec(node, function, parameters)?;
-        let sample = self.series_sample(node, selector, operation, series_ordinal, series)?;
+        let sample =
+            self.series_sample(node, selector, operation, series_ordinal, series, initial)?;
         Ok(sample.map(|sample| Self::rebind(sample, self.frames[0].boundary_time_ms)))
     }
     fn series_sample<S: Series>(
@@ -716,6 +1401,7 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
         operation: SelectorOperation,
         series_ordinal: usize,
         series: &S,
+        initial: Option<&InitialSample>,
     ) -> Result<Option<EvaluatedSample>, EvaluationError> {
         let series_labels = series.label_views(self.account);
         validate_labels(&series_labels)?;
@@ -726,6 +1412,12 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
             Some(self.account),
             self.control,
         )? {
+            return Ok(None);
+        }
+        if let Some(initial) = initial
+            && let SelectorOperation::Numeric { range_ns, .. } = operation
+            && !initial.range_ready(range_ns / 1_000_000, self.control, self.account)?
+        {
             return Ok(None);
         }
         let end_ms = if !matches!(operation, SelectorOperation::Instant)
@@ -739,6 +1431,29 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
             self.lookup(selector_node)
         };
         let value = match operation {
+            SelectorOperation::Instant if self.smooths(selector_node) => {
+                let fallback = crate::query_scopes::Grid {
+                    start_ms: self.options.start_ms,
+                    end_ms: self.options.end_ms,
+                    interval_ms: self.options.step_ms,
+                }
+                .header(self.prepared.header);
+                let grid = self.prepared.scope_header(selector_node, fallback).into();
+                let result =
+                    self.smoothed_value(selector_node, series, self.options.time_ms, grid)?;
+                if let Some(annotations) = &mut self.annotations {
+                    for kind in result.annotations.into_iter().flatten() {
+                        annotations.add(
+                            kind,
+                            label(&series_labels, b"__name__"),
+                            self.expression.arena[selector_node].span,
+                            &self.expression.source,
+                            self.account,
+                        );
+                    }
+                }
+                result.value.map(|value| (self.options.time_ms, 0, value))
+            }
             SelectorOperation::Instant => {
                 match self.rosters.clock_initial(selector_node, series_ordinal) {
                     Some(crate::storage::InitialSample::Empty) => return Ok(None),
@@ -755,34 +1470,31 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
                     _ => (),
                 }
                 let fixed = self.invariants[selector_node.0];
-                let window = crate::instant_select::InstantWindow {
-                    first_lookup_ms: if fixed {
-                        end_ms
-                    } else {
-                        self.lookup_at(selector_node, self.options.start_ms)
-                    },
-                    lookup_ms: end_ms,
-                    step_ms: self.options.step_ms,
-                    lookback_ms: self.options.lookback_ms,
-                    delta_ms: self
-                        .options
-                        .lookback_ms
-                        .wrapping_sub(i64::from(self.timestamp_selectors[selector_node.0])),
-                    data_bounds: self.data_bounds,
-                };
+                let window = self.instant_window(selector_node);
                 let options = self.options;
-                let mut grid_time_ms = options.start_ms;
+                let mut position = crate::query_scopes::Traversal::new(
+                    crate::query_scopes::Grid {
+                        start_ms: options.start_ms,
+                        end_ms: options.end_ms,
+                        interval_ms: options.step_ms,
+                    },
+                    false,
+                );
+                let target_index = self.step_index;
                 let next_lookup = || {
-                    if fixed || grid_time_ms == options.time_ms {
+                    if fixed
+                        || position
+                            .current()
+                            .is_some_and(|(_, index)| index == target_index)
+                    {
                         return Ok(None);
                     }
-                    grid_time_ms = grid_time_ms
-                        .checked_add(options.step_ms)
-                        .filter(|next| *next > grid_time_ms && *next <= options.time_ms)
-                        .ok_or(StorageError::Invalid("invalid instant replay schedule"))?;
-                    Ok(Some(self.lookup_at(selector_node, grid_time_ms)))
+                    position.advance();
+                    Ok(position
+                        .current()
+                        .map(|(time, _)| self.lookup_at(selector_node, time)))
                 };
-                if selector.skip_histogram_buckets {
+                let result = if selector.skip_histogram_buckets {
                     crate::instant_statistics::select_scheduled(
                         series,
                         window,
@@ -806,38 +1518,111 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
                         },
                         next_lookup,
                     )?
+                };
+                if result.is_some() {
+                    if self.timestamp_selectors[selector_node.0] {
+                        self.prepared.sample_statistics_time(
+                            node,
+                            options.time_ms,
+                            self.control,
+                            self.account,
+                        )?;
+                    } else {
+                        self.prepared.sample_statistics_index(
+                            node,
+                            self.step_index,
+                            self.control,
+                            self.account,
+                        )?;
+                    }
                 }
+                result
             }
             SelectorOperation::Rate { kind, range_ns } => {
-                let result = range_rates::evaluate(
-                    series,
-                    RateInput {
-                        window: RateWindow {
-                            start_ms: end_ms.wrapping_sub(range_ns / 1_000_000),
-                            end_ms,
-                            range_ns,
-                            start_timestamps: self.options.start_timestamps,
-                        },
-                        range_start_ms: self.options.time_ms.wrapping_sub(
-                            range_ns.wrapping_add(self.prepared.adjusted_offset(
-                                selector_node,
-                                &selector.modifiers,
-                                self.options.start_ms,
-                            )) / 1_000_000,
-                        ),
-                        range_end_ms: self.options.time_ms.wrapping_sub(
-                            self.prepared.adjusted_offset(
-                                selector_node,
-                                &selector.modifiers,
-                                self.options.start_ms,
-                            ) / 1_000_000,
-                        ),
-                        data_bounds: Some(self.data_bounds),
+                let mut input = RateInput {
+                    window: RateWindow {
+                        start_ms: end_ms.wrapping_sub(range_ns / 1_000_000),
+                        end_ms,
+                        range_ns,
+                        start_timestamps: self.options.start_timestamps,
                     },
-                    kind,
-                    Some(self.matrix_window(selector_node, range_ns, end_ms)),
+                    range_start_ms: self.options.time_ms.wrapping_sub(
+                        range_ns.wrapping_add(self.prepared.adjusted_offset(
+                            selector_node,
+                            &selector.modifiers,
+                            self.options.start_ms,
+                        )) / 1_000_000,
+                    ),
+                    range_end_ms: self.options.time_ms.wrapping_sub(
+                        self.prepared.adjusted_offset(
+                            selector_node,
+                            &selector.modifiers,
+                            self.options.start_ms,
+                        ) / 1_000_000,
+                    ),
+                    data_bounds: Some(self.data_bounds),
+                };
+                let mut matrix = self.matrix_window(selector_node, range_ns, end_ms);
+                let extended = if selector.anchored || selector.smoothed {
+                    let RateFunction::Extrapolated(kind) = kind else {
+                        unreachable!("validated extended rate function")
+                    };
+                    let lookback_ns = self.options.lookback_ms.wrapping_mul(1_000_000);
+                    let lookback_ms = lookback_ns / 1_000_000;
+                    matrix.range_ms = matrix.range_ms.wrapping_add(if selector.smoothed {
+                        lookback_ms.wrapping_mul(2)
+                    } else {
+                        lookback_ms
+                    });
+                    matrix.buffer_ms =
+                        Some((range_ns / 1_000_000).wrapping_add(if selector.smoothed {
+                            lookback_ns.wrapping_mul(2) / 1_000_000
+                        } else {
+                            lookback_ms
+                        }));
+                    if selector.smoothed {
+                        matrix.first_end_ms = matrix.first_end_ms.wrapping_add(lookback_ms);
+                        matrix.end_ms = matrix.end_ms.wrapping_add(lookback_ms);
+                    }
+                    input.window.start_ms = matrix.end_ms.wrapping_sub(matrix.range_ms);
+                    input.window.end_ms = matrix.end_ms;
+                    Some(kind)
+                } else {
+                    None
+                };
+                let request = self.fold_request(
+                    (node, selector_node, series_ordinal),
+                    operation,
+                    matrix,
+                    input.into(),
+                );
+                let result = self.prepared.range_folds.evaluate(
+                    request,
                     self.control,
                     self.account,
+                    |matrix| {
+                        let output = if let Some(kind) = extended {
+                            crate::range_extended::evaluate(
+                                series,
+                                input,
+                                kind,
+                                selector.smoothed,
+                                matrix,
+                                self.control,
+                                self.account,
+                            )?
+                        } else {
+                            range_rates::evaluate(
+                                series,
+                                input,
+                                kind,
+                                Some(matrix),
+                                self.control,
+                                self.account,
+                            )?
+                        };
+                        Ok(output.into())
+                    },
                 )?;
                 if node == self.diagnostic_node
                     && let Some(annotations) = &mut self.annotations
@@ -876,20 +1661,56 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
                         );
                     }
                 }
+                if result.nonempty {
+                    self.prepared.sample_statistics_index(
+                        node,
+                        self.step_index,
+                        self.control,
+                        self.account,
+                    )?;
+                }
                 result.value.map(|value| (self.options.time_ms, 0, value))
             }
             SelectorOperation::Fold { kind, range_ns } => {
-                let bounds = self.matrix_bounds(end_ms, range_ns);
-                let result = fold(
-                    series,
-                    bounds,
-                    kind,
-                    FoldOptions {
-                        start_timestamps: self.options.start_timestamps,
-                        matrix: Some(self.matrix_window(selector_node, range_ns, end_ms)),
-                    },
+                let mut matrix = self.matrix_window(selector_node, range_ns, end_ms);
+                let anchor_start_ms = if selector.anchored {
+                    matrix.range_ms = matrix.range_ms.wrapping_add(self.options.lookback_ms);
+                    Some(self.options.time_ms.wrapping_sub(
+                        range_ns.wrapping_add(self.prepared.adjusted_offset(
+                            selector_node,
+                            &selector.modifiers,
+                            self.options.start_ms,
+                        )) / 1_000_000,
+                    ))
+                } else {
+                    None
+                };
+                let bounds = self.matrix_bounds_ms(end_ms, matrix.range_ms);
+                let request = self.fold_request(
+                    (node, selector_node, series_ordinal),
+                    operation,
+                    matrix,
+                    crate::range_cache::Input::fold(bounds, anchor_start_ms),
+                );
+                let result = self.prepared.range_folds.evaluate(
+                    request,
                     self.control,
                     self.account,
+                    |matrix| {
+                        Ok(fold(
+                            series,
+                            bounds,
+                            kind,
+                            FoldOptions {
+                                start_timestamps: self.options.start_timestamps,
+                                matrix: Some(matrix),
+                                anchor_start_ms,
+                            },
+                            self.control,
+                            self.account,
+                        )?
+                        .into())
+                    },
                 )?;
                 if node == self.diagnostic_node
                     && let Some(annotations) = &mut self.annotations
@@ -912,6 +1733,14 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
                         );
                     }
                 }
+                if result.nonempty {
+                    self.prepared.sample_statistics_index(
+                        node,
+                        self.step_index,
+                        self.control,
+                        self.account,
+                    )?;
+                }
                 result.value.map(|value| (self.options.time_ms, 0, value))
             }
             SelectorOperation::Numeric {
@@ -920,27 +1749,40 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
                 range_ns,
             } => {
                 let bounds = self.matrix_bounds(end_ms, range_ns);
-                let result = range_numeric::evaluate(
-                    series,
-                    NumericRangeInput {
-                        bounds,
-                        seek_ms: end_ms.wrapping_sub(range_ns / 1_000_000),
-                        matrix: Some(self.matrix_window(selector_node, range_ns, end_ms)),
-                    },
-                    function,
-                    parameters,
-                    self.options.time_ms,
+                let matrix = self.matrix_window(selector_node, range_ns, end_ms);
+                let input = NumericRangeInput {
+                    bounds,
+                    seek_ms: end_ms.wrapping_sub(range_ns / 1_000_000),
+                    matrix: Some(matrix),
+                };
+                let request = self.fold_request(
+                    (node, selector_node, series_ordinal),
+                    operation,
+                    matrix,
+                    input.into(),
+                );
+                let result = self.prepared.range_folds.evaluate(
+                    request,
                     self.control,
                     self.account,
-                )
-                .map_err(|error| match error {
-                    NumericRangeError::Storage(error) => EvaluationError::Storage(error),
-                    NumericRangeError::Factor { trend, value } => EvaluationError::Runtime(
-                        NumericRangeError::message(trend, value, self.account),
-                    ),
-                })?;
-                if let Some(kind) = result.annotation
-                    && node == self.diagnostic_node
+                    |matrix| {
+                        range_numeric::evaluate(
+                            series,
+                            NumericRangeInput {
+                                matrix: Some(matrix),
+                                ..input
+                            },
+                            function,
+                            parameters,
+                            self.options.time_ms,
+                            self.control,
+                            self.account,
+                        )
+                        .map(Into::into)
+                        .map_err(|error| numeric_range_error(error, self.account))
+                    },
+                )?;
+                if node == self.diagnostic_node
                     && let Some(annotations) = &mut self.annotations
                 {
                     let Expr::Call { arguments, .. } = &self.expression.arena[node].expression
@@ -951,17 +1793,34 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
                         self.prepared
                             .preprocessing
                             .child(self.expression, node, arguments[0]);
-                    annotations.add(
-                        kind,
-                        label(&series_labels, b"__name__"),
-                        self.expression.arena[argument].span,
-                        &self.expression.source,
-                        self.account,
-                    );
+                    let span = self.expression.arena[argument].span;
+                    if result.invalid_quantile {
+                        annotations.add_invalid_quantile(
+                            parameters[0],
+                            span,
+                            &self.expression.source,
+                            self.account,
+                        );
+                    }
+                    for kind in result.annotations.into_iter().flatten() {
+                        annotations.add(
+                            kind,
+                            label(&series_labels, b"__name__"),
+                            span,
+                            &self.expression.source,
+                            self.account,
+                        );
+                    }
                 }
-                result
-                    .value
-                    .map(|value| (self.options.time_ms, 0, OwnedValue::Float(value)))
+                if result.nonempty {
+                    self.prepared.sample_statistics_index(
+                        node,
+                        self.step_index,
+                        self.control,
+                        self.account,
+                    )?;
+                }
+                result.value.map(|value| (self.options.time_ms, 0, value))
             }
         };
         value
@@ -998,10 +1857,31 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
 
     fn enter(&mut self, index: usize) -> Result<Option<EvaluatedSample>, EvaluationError> {
         let node = self.frames[index].node;
+        if self
+            .prepared
+            .activate(
+                crate::query_scopes::Grid {
+                    start_ms: self.options.start_ms,
+                    end_ms: self.options.end_ms,
+                    interval_ms: self.options.step_ms,
+                }
+                .header(self.prepared.header),
+                self.control,
+                self.account,
+            )?
+            .is_none()
+        {
+            self.frames.pop();
+            return Ok(None);
+        }
         let expression = &self.expression.arena[node].expression;
         if !self.frames[index].bypass_order
             && !crate::count_values::is_count(expression)
             && !crate::topk::is_selection(expression)
+            && !self
+                .rosters
+                .sorting(node)
+                .is_some_and(|plan| plan.singleton)
             && let Some((descriptors, sources)) = self.rosters.ordered(node)
         {
             self.frames[index].state = State::OrderedRows {
@@ -1069,6 +1949,7 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
                             .selection(node)
                             .ok_or(EvaluationError::Invalid("selection plan is missing"))?,
                         self.options,
+                        self.step_index,
                         !self.frames[index].bypass_order,
                         matches!(self.frames[index].mode, OutputMode::Vector),
                         self.rosters.ordered(node).map(|(rows, _)| rows),
@@ -1130,6 +2011,7 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
                             .groups(node)
                             .ok_or(EvaluationError::Invalid("quantile groups are missing"))?,
                         self.options,
+                        self.step_index,
                         self.account,
                     ),
                     &AllocationContext::new(self.account, MemoryKind::Workspace),
@@ -1237,7 +2119,23 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
                             match self.frames[index].filter {
                                 RowFilter::All => None,
                                 RowFilter::Ordinals(values) => Some(values),
+                                RowFilter::One(_) => None,
                             },
+                            self.account,
+                        ),
+                        &AllocationContext::new(self.account, MemoryKind::Workspace),
+                    ));
+                    Ok(None)
+                }
+                "sort" | "sort_desc" | "sort_by_label" | "sort_by_label_desc" => {
+                    self.frames[index].state = State::Sort(AccountedBox::new(
+                        crate::vector_sort::Step::new(
+                            self.rosters
+                                .sorting(node)
+                                .ok_or(EvaluationError::Invalid("sort plan is missing"))?,
+                            self.options,
+                            self.step_index,
+                            !self.frames[index].bypass_order,
                             self.account,
                         ),
                         &AllocationContext::new(self.account, MemoryKind::Workspace),
@@ -1304,6 +2202,7 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
                             bypass_order: true,
                             mode: OutputMode::Vector,
                             options: self.options,
+                            step_index: self.step_index,
                             boundary_time_ms: None,
                         });
                     } else {
@@ -1352,12 +2251,28 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
                     if let RangeFunction::Numeric(kind) = function
                         && kind.parameters() > 0
                     {
+                        if let Some(selector) =
+                            range_selector(self.expression, self.prepared, node)?
+                        {
+                            self.frames[index].state = State::RawParameters {
+                                function,
+                                selector,
+                                ordinal: 0,
+                                initial: None,
+                                parameters: [0.0; 2],
+                                position: 0,
+                            };
+                            return Ok(None);
+                        }
                         self.frames[index].state = State::Parameters {
                             function: ParameterizedFunction::Range(function),
                             parameters: [0.0, 0.0],
                             position: 0,
                         };
-                        self.push_all(arguments[1]);
+                        let parameter = scalar_arguments(self.expression, node)
+                            .next()
+                            .expect("typed range parameter");
+                        self.push_parameter(parameter, true)?;
                     } else {
                         self.frames[index].state = self.range_call(node, function, [0.0; 2])?;
                     }
@@ -1378,14 +2293,31 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
             self.account.work(1);
             let node = self.frames[index].node;
             self.options = self.frames[index].options;
+            self.step_index = self.frames[index].step_index;
             let filter = self.frames[index].filter;
             let mode = self.frames[index].mode;
             match &mut self.frames[index].state {
+                State::Gather(step) => {
+                    if step.receive(sample) {
+                        self.frames.truncate(index + 1);
+                    }
+                    return Ok(None);
+                }
+                State::Range(step) => {
+                    if step.receive(sample, self.control, self.account)? {
+                        self.frames.truncate(index + 1);
+                    }
+                    return Ok(None);
+                }
                 State::Binary(step) => {
                     step.receive(sample, self.control, self.account)?;
                     return Ok(None);
                 }
                 State::Histogram(step) => {
+                    step.receive(sample, self.control, self.account)?;
+                    return Ok(None);
+                }
+                State::Sort(step) => {
                     step.receive(sample, self.control, self.account)?;
                     return Ok(None);
                 }
@@ -1479,7 +2411,7 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
                         MapOperation::Unary(operator) => match sample.value {
                             OwnedValue::Float(value) => {
                                 if operator == TokenKind::SUB {
-                                    (OwnedValue::Float(-value), true)
+                                    (OwnedValue::Float(crate::numerical::source_neg(value)), true)
                                 } else {
                                     (OwnedValue::Float(value), false)
                                 }
@@ -1679,6 +2611,11 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
                     parameters,
                     position,
                     ..
+                }
+                | State::RawParameters {
+                    parameters,
+                    position,
+                    ..
                 } => {
                     let OwnedValue::Float(value) = sample.value else {
                         unreachable!("scalar parameter")
@@ -1712,6 +2649,7 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
             };
             self.account.work(1);
             self.options = self.frames[index].options;
+            self.step_index = self.frames[index].step_index;
             let boundary_time_ms = self.frames[index].boundary_time_ms;
             if matches!(self.frames[index].state, State::Enter) {
                 if let Some(sample) = self.enter(index)?
@@ -1725,6 +2663,135 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
             let node = self.frames[index].node;
             let filter = self.frames[index].filter;
             match &mut self.frames[index].state {
+                State::Gather(step) => match step.advance(self.control, self.account)? {
+                    crate::matrix_heads::Action::Child {
+                        ordinal,
+                        options,
+                        step_index,
+                    } => {
+                        self.frames.push(Frame::new(
+                            node,
+                            RowFilter::One(ordinal),
+                            false,
+                            OutputMode::Matrix,
+                            options,
+                            self.prepared.flags().boundaries[node.0],
+                            Some(step_index),
+                        ));
+                    }
+                    crate::matrix_heads::Action::Sample(sample) => {
+                        if let Some(sample) = self.propagate(sample, index)? {
+                            return Ok(Some(sample));
+                        }
+                    }
+                    crate::matrix_heads::Action::Done => {
+                        self.frames.pop();
+                    }
+                },
+                State::Range(step) => match step.advance(self.control, self.account)? {
+                    crate::derived_range::Action::RawPass {
+                        node: body,
+                        ordinal,
+                        options,
+                        grid,
+                    } => {
+                        let State::Range(mut step) =
+                            std::mem::replace(&mut self.frames[index].state, State::Enter)
+                        else {
+                            unreachable!("range continuation")
+                        };
+                        let child = self.replay(body, options, None);
+                        let result = self
+                            .catalog
+                            .with_series(body, ordinal, |series| {
+                                step.raw_pass(self.control, self.account, |visit| {
+                                    child.visit_raw_series(
+                                        body,
+                                        ordinal,
+                                        series,
+                                        grid,
+                                        None,
+                                        |time, _, value| visit(time, value),
+                                    )
+                                })
+                            })
+                            .expect("plain subquery series ordinal");
+                        self.frames[index].state = State::Range(step);
+                        result?;
+                    }
+                    crate::derived_range::Action::Child {
+                        node,
+                        ordinal,
+                        options,
+                    } => {
+                        self.frames.push(Frame::new(
+                            node,
+                            RowFilter::One(ordinal),
+                            false,
+                            OutputMode::Matrix,
+                            options,
+                            self.prepared.flags().boundaries[node.0],
+                            None,
+                        ));
+                    }
+                    crate::derived_range::Action::Series {
+                        sample,
+                        invalid_quantile,
+                        annotations: notes,
+                        metric,
+                        nonempty,
+                    } => {
+                        if node == self.diagnostic_node
+                            && let Some(annotations) = &mut self.annotations
+                        {
+                            let span = if let Expr::Call {
+                                function: Some(function),
+                                arguments,
+                            } = &self.expression.arena[node].expression
+                                && function.name == "quantile_over_time"
+                            {
+                                self.expression.arena[arguments[0]].span
+                            } else {
+                                crate::frontend::Span::default()
+                            };
+                            if let Some(q) = invalid_quantile {
+                                annotations.add_invalid_quantile(
+                                    q,
+                                    span,
+                                    &self.expression.source,
+                                    self.account,
+                                );
+                            }
+                            for kind in notes.into_iter().flatten() {
+                                annotations.add(
+                                    kind,
+                                    metric,
+                                    span,
+                                    &self.expression.source,
+                                    self.account,
+                                );
+                            }
+                        }
+                        if nonempty {
+                            self.prepared.sample_statistics_index(
+                                node,
+                                self.step_index,
+                                self.control,
+                                self.account,
+                            )?;
+                        }
+                        if let Some(sample) = sample
+                            && filter.accepts(sample.ordinal)
+                            && let Some(sample) =
+                                self.propagate(Self::rebind(sample, boundary_time_ms), index)?
+                        {
+                            return Ok(Some(sample));
+                        }
+                    }
+                    crate::derived_range::Action::Done => {
+                        self.frames.pop();
+                    }
+                },
                 State::Quantile(step) => match step.advance(self.control, self.account)? {
                     crate::quantile_aggregate::Action::Continue => (),
                     crate::quantile_aggregate::Action::Child { parameter, ordinal } => {
@@ -1736,11 +2803,28 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
                         else {
                             unreachable!("typed quantile operands")
                         };
-                        let child = if parameter { q } else { child };
-                        let filter = ordinal.map_or(RowFilter::All, |ordinal| {
-                            RowFilter::Ordinals(std::slice::from_ref(ordinal))
-                        });
-                        self.push_filtered(child, filter, false, OutputMode::Vector);
+                        if parameter {
+                            if let Some(options) = self.aggregate_parameter_options(q)? {
+                                self.push_scoped(
+                                    q,
+                                    RowFilter::All,
+                                    false,
+                                    OutputMode::Matrix,
+                                    options,
+                                );
+                            } else {
+                                let zero = self.sample(0.0);
+                                let State::Quantile(step) = &mut self.frames[index].state else {
+                                    unreachable!()
+                                };
+                                step.receive(zero, self.control, self.account)?;
+                            }
+                        } else {
+                            let filter = ordinal.map_or(RowFilter::All, |ordinal| {
+                                RowFilter::Ordinals(std::slice::from_ref(ordinal))
+                            });
+                            self.push_filtered(child, filter, false, OutputMode::Vector);
+                        }
                     }
                     crate::quantile_aggregate::Action::Sample(sample) => {
                         if filter.accepts(sample.ordinal)
@@ -1788,11 +2872,28 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
                         else {
                             unreachable!()
                         };
-                        let child = if parameter { k } else { child };
-                        let filter = ordinal.map_or(RowFilter::All, |ordinal| {
-                            RowFilter::Ordinals(std::slice::from_ref(ordinal))
-                        });
-                        self.push_filtered(child, filter, false, OutputMode::Vector);
+                        if parameter {
+                            if let Some(options) = self.aggregate_parameter_options(k)? {
+                                self.push_scoped(
+                                    k,
+                                    RowFilter::All,
+                                    false,
+                                    OutputMode::Matrix,
+                                    options,
+                                );
+                            } else {
+                                let zero = self.sample(0.0);
+                                let State::TopK(step) = &mut self.frames[index].state else {
+                                    unreachable!()
+                                };
+                                step.receive(zero, self.control, self.account)?;
+                            }
+                        } else {
+                            let filter = ordinal.map_or(RowFilter::All, |ordinal| {
+                                RowFilter::Ordinals(std::slice::from_ref(ordinal))
+                            });
+                            self.push_filtered(child, filter, false, OutputMode::Vector);
+                        }
                     }
                     crate::topk::Action::Sample(sample) => {
                         if filter.accepts(sample.ordinal)
@@ -1924,6 +3025,46 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
                         }
                     }
                 }
+                State::Sort(step) => {
+                    let action = step.advance(self.expression, self.control, self.account);
+                    if step.take_range_warning()
+                        && node == self.diagnostic_node
+                        && let Some(annotations) = &mut self.annotations
+                    {
+                        annotations.add(
+                            AnnotationKind::SortInRangeQuery,
+                            b"",
+                            self.expression.arena[node].span,
+                            &self.expression.source,
+                            self.account,
+                        );
+                    }
+                    match action? {
+                        crate::vector_sort::Action::Continue => (),
+                        crate::vector_sort::Action::Child(ordinal) => {
+                            let Expr::Call { arguments, .. } =
+                                &self.expression.arena[node].expression
+                            else {
+                                unreachable!()
+                            };
+                            let filter = ordinal.map_or(RowFilter::All, |value| {
+                                RowFilter::Ordinals(std::slice::from_ref(value))
+                            });
+                            self.push_filtered(arguments[0], filter, false, OutputMode::Vector);
+                        }
+                        crate::vector_sort::Action::Sample(sample) => {
+                            if filter.accepts(sample.ordinal)
+                                && let Some(sample) =
+                                    self.propagate(Self::rebind(sample, boundary_time_ms), index)?
+                            {
+                                return Ok(Some(sample));
+                            }
+                        }
+                        crate::vector_sort::Action::Done => {
+                            self.frames.pop();
+                        }
+                    }
+                }
                 State::Binary(step) => {
                     let options = self.options;
                     match step.advance(
@@ -2043,6 +3184,7 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
                                 operation,
                                 series_ordinal,
                                 series,
+                                None,
                             )
                         })
                         .expect("catalog ordinal")?;
@@ -2187,6 +3329,106 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
                         }
                     }
                 }
+                State::RawParameters { .. } => {
+                    let State::RawParameters {
+                        function,
+                        selector,
+                        mut ordinal,
+                        mut initial,
+                        mut parameters,
+                        mut position,
+                    } = std::mem::replace(&mut self.frames[index].state, State::Enter)
+                    else {
+                        unreachable!("raw parameter continuation")
+                    };
+                    if initial.is_none() {
+                        let Some(selected) =
+                            filter.next_ordinal(ordinal, self.control, self.account)?
+                        else {
+                            self.frames.pop();
+                            continue;
+                        };
+                        if selected >= self.catalog.len(selector) {
+                            self.frames.pop();
+                            continue;
+                        }
+                        ordinal = selected;
+                        initial = self
+                            .catalog
+                            .with_series(selector, ordinal, |series| {
+                                self.initialize_range_series(selector, series)
+                            })
+                            .expect("raw initialization ordinal")?;
+                        if initial.is_none() {
+                            self.frames[index].state = State::RawParameters {
+                                function,
+                                selector,
+                                ordinal: ordinal + 1,
+                                initial,
+                                parameters,
+                                position,
+                            };
+                            continue;
+                        }
+                        parameters = [0.0; 2];
+                        position = 0;
+                        self.frames[index].state = State::RawParameters {
+                            function,
+                            selector,
+                            ordinal,
+                            initial,
+                            parameters,
+                            position,
+                        };
+                        let child = scalar_arguments(self.expression, node)
+                            .next()
+                            .expect("typed raw range parameter");
+                        self.push_parameter(child, true)?;
+                    } else if let Some(child) =
+                        scalar_arguments(self.expression, node).nth(position + 1)
+                    {
+                        position += 1;
+                        self.frames[index].state = State::RawParameters {
+                            function,
+                            selector,
+                            ordinal,
+                            initial,
+                            parameters,
+                            position,
+                        };
+                        self.push_parameter(child, true)?;
+                    } else {
+                        let (_, operation) = self.range_spec(node, function, parameters)?;
+                        let catalog = self.catalog;
+                        let sample = catalog
+                            .with_series(selector, ordinal, |series| {
+                                self.series_sample(
+                                    node,
+                                    selector,
+                                    operation,
+                                    ordinal,
+                                    series,
+                                    initial.as_ref(),
+                                )
+                            })
+                            .expect("raw range ordinal");
+                        drop(initial);
+                        self.frames[index].state = State::RawParameters {
+                            function,
+                            selector,
+                            ordinal: ordinal + 1,
+                            initial: None,
+                            parameters,
+                            position,
+                        };
+                        if let Some(sample) = sample?
+                            && let Some(sample) =
+                                self.propagate(Self::rebind(sample, boundary_time_ms), index)?
+                        {
+                            return Ok(Some(sample));
+                        }
+                    }
+                }
                 State::Parameters {
                     function,
                     parameters,
@@ -2196,10 +3438,11 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
                     else {
                         unreachable!()
                     };
-                    if *position + 2 < arguments.len() {
+                    if let Some(child) = scalar_arguments(self.expression, node).nth(*position + 1)
+                    {
                         *position += 1;
-                        let child = arguments[*position + 1];
-                        self.push_all(child);
+                        let range = matches!(function, ParameterizedFunction::Range(_));
+                        self.push_parameter(child, range)?;
                     } else {
                         let (function, parameters) = (*function, *parameters);
                         match function {
@@ -2326,10 +3569,10 @@ pub(crate) fn scalar_binary(
 ) -> Result<f64, EvaluationError> {
     use TokenKind::*;
     Ok(match operator {
-        ADD => left + right,
-        SUB => left - right,
-        MUL => left * right,
-        DIV => left / right,
+        ADD => crate::numerical::source_add(left, right),
+        SUB => crate::numerical::source_sub(left, right),
+        MUL => crate::numerical::source_mul(left, right),
+        DIV => crate::numerical::source_div(left, right),
         ATAN2 => crate::numerical::atan2(left, right),
         MIN => crate::numerical::min(left, right),
         MAX => crate::numerical::max(left, right),

@@ -114,6 +114,9 @@ pub fn log1p(value: f64) -> f64 {
 }
 
 fn sinh_kernel(value: f64, fused: bool) -> f64 {
+    if value.is_nan() {
+        return crate::numerical::quiet_nan(value);
+    }
     let magnitude = if value < 0.0 { -value } else { value };
     let result = if magnitude > 21.0 {
         exp_kernel(magnitude, fused) * 0.5
@@ -142,6 +145,9 @@ pub fn sinh(value: f64) -> f64 {
 }
 
 fn cosh_kernel(value: f64, fused: bool) -> f64 {
+    if value.is_nan() {
+        return crate::numerical::quiet_nan(value.abs());
+    }
     let magnitude = value.abs();
     if magnitude > 21.0 {
         return exp_kernel(magnitude, fused) * 0.5;
@@ -154,6 +160,9 @@ pub fn cosh(value: f64) -> f64 {
 }
 
 fn tanh_kernel(value: f64, fused: bool) -> f64 {
+    if value.is_nan() {
+        return crate::numerical::quiet_nan(value);
+    }
     let magnitude = value.abs();
     if magnitude > 0.5 * 8.8029691931113054295988e+01 {
         return if value < 0.0 { -1.0 } else { 1.0 };

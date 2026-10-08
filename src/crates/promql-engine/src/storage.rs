@@ -570,6 +570,31 @@ pub(crate) enum InitialSample {
     Error(AccountedVec<u8>),
 }
 
+impl InitialSample {
+    pub(crate) fn range_ready(
+        &self,
+        range_ms: i64,
+        control: &Control,
+        account: &QueryAccounting,
+    ) -> Result<bool, StorageError> {
+        control.check()?;
+        account.work(1);
+        // matrixIterSlice returns before seeking or polling Err for an empty range.
+        if range_ms == 0 {
+            return Ok(false);
+        }
+        match self {
+            Self::Ready => Ok(true),
+            Self::Empty => Ok(false),
+            Self::Error(bytes) => {
+                let mut failure = AccountedVec::new(account, MemoryKind::Workspace);
+                crate::result::append_bytes_checked(&mut failure, bytes, account, control)?;
+                Err(StorageError::Provider(failure))
+            }
+        }
+    }
+}
+
 pub(crate) fn initialize<S: Series>(
     series: &S,
     bounds: TimeBounds,

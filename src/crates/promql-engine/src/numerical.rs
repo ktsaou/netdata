@@ -22,33 +22,30 @@ pub fn compensated_add(increment: f64, sum: f64, mut compensation: f64) -> (f64,
     if total.is_infinite() {
         compensation = 0.0;
     } else if sum.abs() >= increment.abs() {
-        #[cfg(target_arch = "x86_64")]
-        {
-            compensation = source_add(source_add(source_sub(sum, total), increment), compensation);
-        }
-        #[cfg(not(target_arch = "x86_64"))]
-        {
-            compensation += (sum - total) + increment;
-        }
+        compensation = source_add(source_add(source_sub(sum, total), increment), compensation);
     } else {
-        #[cfg(target_arch = "x86_64")]
-        {
-            // Go adds the difference into the stored sum before the old correction.
-            compensation = source_add(source_add(sum, source_sub(increment, total)), compensation);
-        }
-        #[cfg(not(target_arch = "x86_64"))]
-        {
-            compensation += (increment - total) + sum;
-        }
+        // Go adds the difference into the stored sum before the old correction.
+        compensation = source_add(source_add(sum, source_sub(increment, total)), compensation);
     }
     (total, compensation)
 }
 
+pub(crate) fn quiet_nan(value: f64) -> f64 {
+    f64::from_bits(value.to_bits() | 0x0008_0000_0000_0000)
+}
+
+pub(crate) fn source_neg(value: f64) -> f64 {
+    // Raw unary negation preserves a signaling payload; multiplication does not.
+    f64::from_bits(value.to_bits() ^ (1 << 63))
+}
+
 pub(crate) fn source_add(destination: f64, operand: f64) -> f64 {
-    // Preserve the qualified Go AMD64 destination when both operands carry NaNs.
-    if cfg!(target_arch = "x86_64") && destination.is_nan() && operand.is_nan() {
-        f64::from_bits(destination.to_bits() | 0x0008_0000_0000_0000)
-    } else if cfg!(target_arch = "x86_64") && destination.is_infinite() && operand == -destination {
+    // Make the qualified AMD64 operand priority independent of the device.
+    if destination.is_nan() {
+        quiet_nan(destination)
+    } else if operand.is_nan() {
+        quiet_nan(operand)
+    } else if destination.is_infinite() && operand == -destination {
         // LLVM constant folding need not retain the AMD64 generated-invalid sign.
         f64::from_bits(0xfff8_0000_0000_0000)
     } else {
@@ -56,10 +53,11 @@ pub(crate) fn source_add(destination: f64, operand: f64) -> f64 {
     }
 }
 
-#[cfg(target_arch = "x86_64")]
 pub(crate) fn source_sub(destination: f64, operand: f64) -> f64 {
-    if destination.is_nan() && operand.is_nan() {
-        f64::from_bits(destination.to_bits() | 0x0008_0000_0000_0000)
+    if destination.is_nan() {
+        quiet_nan(destination)
+    } else if operand.is_nan() {
+        quiet_nan(operand)
     } else if destination.is_infinite() && operand == destination {
         f64::from_bits(0xfff8_0000_0000_0000)
     } else {
@@ -68,11 +66,12 @@ pub(crate) fn source_sub(destination: f64, operand: f64) -> f64 {
 }
 
 pub(crate) fn source_mul(destination: f64, operand: f64) -> f64 {
-    if cfg!(target_arch = "x86_64") && destination.is_nan() && operand.is_nan() {
-        f64::from_bits(destination.to_bits() | 0x0008_0000_0000_0000)
-    } else if cfg!(target_arch = "x86_64")
-        && ((destination == 0.0 && operand.is_infinite())
-            || (destination.is_infinite() && operand == 0.0))
+    if destination.is_nan() {
+        quiet_nan(destination)
+    } else if operand.is_nan() {
+        quiet_nan(operand)
+    } else if (destination == 0.0 && operand.is_infinite())
+        || (destination.is_infinite() && operand == 0.0)
     {
         f64::from_bits(0xfff8_0000_0000_0000)
     } else {
@@ -81,11 +80,12 @@ pub(crate) fn source_mul(destination: f64, operand: f64) -> f64 {
 }
 
 pub(crate) fn source_div(destination: f64, operand: f64) -> f64 {
-    if cfg!(target_arch = "x86_64") && destination.is_nan() && operand.is_nan() {
-        f64::from_bits(destination.to_bits() | 0x0008_0000_0000_0000)
-    } else if cfg!(target_arch = "x86_64")
-        && ((destination == 0.0 && operand == 0.0)
-            || (destination.is_infinite() && operand.is_infinite()))
+    if destination.is_nan() {
+        quiet_nan(destination)
+    } else if operand.is_nan() {
+        quiet_nan(operand)
+    } else if (destination == 0.0 && operand == 0.0)
+        || (destination.is_infinite() && operand.is_infinite())
     {
         f64::from_bits(0xfff8_0000_0000_0000)
     } else {
@@ -94,7 +94,7 @@ pub(crate) fn source_div(destination: f64, operand: f64) -> f64 {
 }
 
 pub fn compensated_sub(decrement: f64, sum: f64, compensation: f64) -> (f64, f64) {
-    compensated_add(-decrement, sum, compensation)
+    compensated_add(source_neg(decrement), sum, compensation)
 }
 
 pub fn almost_equal(left: f64, right: f64, epsilon: f64) -> bool {
@@ -114,7 +114,7 @@ pub fn almost_equal(left: f64, right: f64, epsilon: f64) -> bool {
     difference / absolute_sum.min(f64::MAX) < epsilon
 }
 
-#[cfg(all(test, target_arch = "x86_64"))]
+#[cfg(test)]
 mod tests {
     use super::*;
 

@@ -44,6 +44,21 @@ fn runtime_error(
     Ok(EvaluationError::Runtime(message))
 }
 
+pub(crate) fn string_literal_error(
+    control: &Control,
+    account: &QueryAccounting,
+) -> Result<EvaluationError, EvaluationError> {
+    Ok(EvaluationError::WrappedRuntime(
+        crate::binary_labels::formatted(
+            format_args!(
+                "unexpected error: interface conversion: parser.Expr is *parser.ParenExpr, not *parser.StringLiteral"
+            ),
+            control,
+            account,
+        )?,
+    ))
+}
+
 pub(crate) fn valid_name(
     name: &[u8],
     account: &QueryAccounting,
@@ -74,10 +89,12 @@ impl<'a> LabelOperation<'a> {
             if let Expr::String(value) = &expression.arena[argument].expression {
                 Ok(&value[..])
             } else {
-                // Unvisited aggregation parameters keep their source assertion branch open.
-                Err(EvaluationError::Unsupported(
-                    "unpreprocessed label string argument",
-                ))
+                // Unvisited parameter parentheses reach the source's literal assertion.
+                assert!(matches!(
+                    expression.arena[argument].expression,
+                    Expr::Paren(_)
+                ));
+                Err(string_literal_error(control, account)?)
             }
         };
         let context = AllocationContext::new(account, MemoryKind::Workspace);
@@ -212,5 +229,76 @@ impl<'a> LabelOperation<'a> {
             descriptor.drop_name = false;
         }
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::{
+        execution::{Engine, EngineOptions, ExecutionError, QueryRequest},
+        test_storage::FixtureProvider,
+    };
+    use std::sync::atomic::Ordering;
+
+    #[test]
+    fn unvisited_parenthesized_strings_return_source_error_before_vector_reads() {
+        let calls: [(&str, &[&str]); 2] = [
+            (
+                "label_replace",
+                &["counter_total", "\"dst\"", "\"$1\"", "\"job\"", "\"(.*)\""],
+            ),
+            (
+                "label_join",
+                &["counter_total", "\"dst\"", "\":\"", "\"job\""],
+            ),
+        ];
+        for (function, arguments) in calls {
+            for position in 1..arguments.len() {
+                let parenthesized = format!("(({}))", arguments[position]);
+                let mut arguments = arguments.to_vec();
+                arguments[position] = &parenthesized;
+                let call = format!("{function}({})", arguments.join(","));
+                for owner in ["topk", "quantile"] {
+                    let expression = format!("{owner}(scalar({call}),counter_total)");
+                    for series in [0, 1] {
+                        for request in [
+                            QueryRequest::Instant { time_ms: 2000 },
+                            QueryRequest::Range {
+                                start_ms: 0,
+                                end_ms: 2000,
+                                step_ms: 1000,
+                            },
+                        ] {
+                            let engine = Engine::default();
+                            let provider = FixtureProvider::new(3, 1, series);
+                            let control = Control::default();
+                            let query = engine
+                                .compile(expression.as_bytes(), EngineOptions::default(), &control)
+                                .unwrap();
+                            let failure = query.collect(&provider, request, &control).unwrap_err();
+                            assert!(
+                                matches!(
+                                    &failure,
+                                    ExecutionError::Evaluation(EvaluationError::WrappedRuntime(bytes))
+                                        if &**bytes == b"unexpected error: interface conversion: parser.Expr is *parser.ParenExpr, not *parser.StringLiteral"
+                                ),
+                                "{expression}: {failure:?}"
+                            );
+                            for record in &provider.series {
+                                assert_eq!(
+                                    record.source.counters.opened.load(Ordering::Relaxed),
+                                    0
+                                );
+                            }
+                            drop(failure);
+                            drop(query);
+                            provider.assert_closed();
+                            engine.accounting.snapshot().assert_memory_released();
+                        }
+                    }
+                }
+            }
+        }
     }
 }

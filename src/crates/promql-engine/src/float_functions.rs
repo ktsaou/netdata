@@ -99,8 +99,8 @@ impl FloatFunction {
             Self::Asinh => numerical::asinh(value),
             Self::Acosh => numerical::acosh(value),
             Self::Atanh => numerical::atanh(value),
-            Self::Rad => value * PI / 180.0,
-            Self::Deg => value * 180.0 / PI,
+            Self::Rad => numerical::source_div(numerical::source_mul(value, PI), 180.0),
+            Self::Deg => numerical::source_div(numerical::source_mul(value, 180.0), PI),
             Self::Sgn => {
                 if value < 0.0 {
                     -1.0
@@ -111,8 +111,14 @@ impl FloatFunction {
                 }
             }
             Self::Round => {
-                let inverse = 1.0 / parameters[0];
-                numerical::floor(value * inverse + 0.5) / inverse
+                let inverse = numerical::source_div(1.0, parameters[0]);
+                numerical::source_div(
+                    numerical::floor(numerical::source_add(
+                        numerical::source_mul(value, inverse),
+                        0.5,
+                    )),
+                    inverse,
+                )
             }
             Self::Clamp | Self::ClampMin | Self::ClampMax => {
                 let (min, max) = match self {

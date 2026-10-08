@@ -9,7 +9,7 @@ use crate::{
     histogram::HistogramError,
     histogram_accumulator::{Finalization, NativeAccumulator},
     histogram_work::HistogramEvaluationError,
-    numerical::{compensated_add, source_add, sqrt},
+    numerical::{compensated_add, source_add, source_div, source_mul, source_sub, sqrt},
     result::{OwnedLabels, OwnedValue},
     storage::{Control, Interrupted},
 };
@@ -151,14 +151,15 @@ impl<'a> Group<'a> {
                                 return Ok(None);
                             }
                             self.incremental_mean = true;
-                            self.mean = self.value / (self.count - 1.0);
-                            self.compensation /= self.count - 1.0;
+                            self.mean = source_div(self.value, source_sub(self.count, 1.0));
+                            self.compensation =
+                                source_div(self.compensation, source_sub(self.count, 1.0));
                         }
-                        let q = (self.count - 1.0) / self.count;
+                        let q = source_div(source_sub(self.count, 1.0), self.count);
                         (self.mean, self.compensation) = compensated_add(
-                            float / self.count,
-                            q * self.mean,
-                            q * self.compensation,
+                            source_div(float, self.count),
+                            source_mul(self.mean, q),
+                            source_mul(q, self.compensation),
                         );
                     }
                 }
@@ -181,9 +182,10 @@ impl<'a> Group<'a> {
             }
             STDVAR | STDDEV => {
                 self.count += 1.0;
-                let delta = float - self.mean;
-                self.mean += delta / self.count;
-                self.value += delta * (float - self.mean);
+                let delta = source_sub(float, self.mean);
+                self.mean = source_add(source_div(delta, self.count), self.mean);
+                self.value =
+                    source_add(source_mul(source_sub(float, self.mean), delta), self.value);
             }
             GROUP => (),
             _ => unreachable!("qualified aggregation operator"),
@@ -231,11 +233,14 @@ impl<'a> Group<'a> {
             let value = match operator {
                 SUM => source_add(self.value, self.compensation),
                 AVG if self.incremental_mean => source_add(self.mean, self.compensation),
-                AVG => source_add(self.value / self.count, self.compensation / self.count),
+                AVG => source_add(
+                    source_div(self.value, self.count),
+                    source_div(self.compensation, self.count),
+                ),
                 COUNT => self.count,
                 GROUP => 1.0,
-                STDVAR => self.value / self.count,
-                STDDEV => sqrt(self.value / self.count),
+                STDVAR => source_div(self.value, self.count),
+                STDDEV => sqrt(source_div(self.value, self.count)),
                 _ => self.value,
             };
             (OwnedValue::Float(value), None)

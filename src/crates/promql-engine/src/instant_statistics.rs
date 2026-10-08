@@ -5,7 +5,7 @@ use crate::{
     histogram_stats::{Projection, StatisticsDecoder},
     instant_select::{self, InstantWindow, Projector},
     result::OwnedValue,
-    storage::{Control, Series, StorageError},
+    storage::{Control, Interrupted, Series, StorageError},
     value::SampleValueRef,
 };
 
@@ -26,6 +26,50 @@ impl Projector for StatisticsDecoder {
     ) -> Result<Projection, StorageError> {
         StatisticsDecoder::project(self, value, control, account)
     }
+}
+
+struct VisitorDecoder<E>(StatisticsDecoder, std::marker::PhantomData<E>);
+impl<E: From<StorageError> + From<Interrupted>> Projector for VisitorDecoder<E> {
+    type Value = Projection;
+    type Error = E;
+    fn moved(&mut self) {
+        self.0.moved();
+    }
+    fn clear(&mut self) {
+        self.0.clear();
+    }
+    fn project(
+        &mut self,
+        value: SampleValueRef<'_>,
+        control: &Control,
+        account: &QueryAccounting,
+    ) -> Result<Projection, E> {
+        self.0.project(value, control, account).map_err(Into::into)
+    }
+}
+
+pub(crate) fn visit_scheduled<S: Series, E: From<StorageError> + From<Interrupted>>(
+    series: &S,
+    window: InstantWindow,
+    control: &Control,
+    account: &QueryAccounting,
+    next_lookup: impl FnMut() -> Result<Option<i64>, StorageError>,
+    mut visit: impl FnMut(i64, Option<(i64, i64, SampleValueRef<'_>)>) -> Result<bool, E>,
+) -> Result<(), E> {
+    instant_select::visit_scheduled(
+        series,
+        window,
+        control,
+        account,
+        VisitorDecoder(StatisticsDecoder::default(), std::marker::PhantomData::<E>),
+        next_lookup,
+        |lookup, value| {
+            visit(
+                lookup,
+                value.map(|(time, start, value)| (time, start, value.as_ref())),
+            )
+        },
+    )
 }
 
 #[cfg(test)]

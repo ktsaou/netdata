@@ -391,13 +391,9 @@ impl<'a> Step<'a> {
         if matches!(self.arguments.function, Function::Quantiles)
             && !matches!(self.arguments.destination, Some(Expr::String(_)))
         {
-            return Err(EvaluationError::WrappedRuntime(binary_labels::formatted(
-                format_args!(
-                    "unexpected error: interface conversion: parser.Expr is *parser.ParenExpr, not *parser.StringLiteral"
-                ),
-                control,
-                account,
-            )?));
+            return Err(crate::label_functions::string_literal_error(
+                control, account,
+            )?);
         }
         for index in 0..self.arguments.scalar_count {
             let Some(q) = self.parameters[index] else {

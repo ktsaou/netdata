@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // In-place histogram trimming derives from the pinned Prometheus model; see NOTICE.
 use crate::histogram::{Bucket, FloatHistogram};
-use crate::numerical::sqrt;
+use crate::numerical::{source_add, source_div, source_mul, source_neg, source_sub, sqrt};
 use crate::{
     accounting::AllocationContext, histogram_iterator::visit_float_buckets_mut_with,
     histogram_work::HistogramWork, storage::Interrupted,
@@ -56,12 +56,12 @@ impl FloatHistogram {
                     *present = true;
                     let (keep, midpoint) =
                         trim_bucket(bucket, threshold, upper_trim, positive, custom);
-                    count = destination_add(count, keep);
-                    let product = destination_multiply(midpoint, keep);
+                    count = source_add(count, keep);
+                    let product = source_mul(midpoint, keep);
                     sum = if positive {
-                        destination_add(product, sum)
+                        source_add(product, sum)
                     } else {
-                        destination_add(sum, product)
+                        source_add(sum, product)
                     };
                     if *slot != keep {
                         *slot = keep;
@@ -84,8 +84,8 @@ impl FloatHistogram {
                 self.zero_count = keep;
                 trimmed = true;
             }
-            sum = destination_add(sum, destination_multiply(midpoint, keep));
-            count = destination_add(count, keep);
+            sum = source_add(sum, source_mul(midpoint, keep));
+            count = source_add(count, keep);
         }
         if trimmed {
             self.count = count;
@@ -94,21 +94,6 @@ impl FloatHistogram {
         }
         Ok(self)
     }
-}
-
-fn destination_add(left: f64, right: f64) -> f64 {
-    // Histogram equality observes the pinned amd64 Go instruction's NaN destination.
-    if left.is_nan() && right.is_nan() {
-        return f64::from_bits(left.to_bits() | 0x0008_0000_0000_0000);
-    }
-    left + right
-}
-
-fn destination_multiply(left: f64, right: f64) -> f64 {
-    if left.is_nan() && right.is_nan() {
-        return f64::from_bits(left.to_bits() | 0x0008_0000_0000_0000);
-    }
-    left * right
 }
 
 fn trim_bucket(
@@ -140,13 +125,13 @@ fn trim_bucket(
     } else if rhs >= bucket.upper {
         bucket.count
     } else {
-        bucket.count * bucket.fraction_below(rhs, linear)
+        source_mul(bucket.fraction_below(rhs, linear), bucket.count)
     };
     if upper_trim {
         (below, midpoint(bucket.lower, rhs, positive, linear))
     } else {
         (
-            bucket.count - below,
+            source_sub(bucket.count, below),
             midpoint(rhs, bucket.upper, positive, linear),
         )
     }
@@ -162,7 +147,10 @@ fn trim_infinite_bucket(bucket: Bucket, rhs: f64, upper_trim: bool) -> (f64, f64
                 return (bucket.count, 0.0);
             }
             if rhs > 0.0 && bucket.upper > 0.0 && bucket.upper != f64::INFINITY {
-                return (bucket.count * rhs / bucket.upper, rhs / 2.0);
+                return (
+                    source_div(source_mul(bucket.count, rhs), bucket.upper),
+                    source_mul(0.5, rhs),
+                );
             }
             if bucket.upper <= 0.0 {
                 return (bucket.count, rhs);
@@ -174,8 +162,8 @@ fn trim_infinite_bucket(bucket: Bucket, rhs: f64, upper_trim: bool) -> (f64, f64
         }
         if rhs >= 0.0 && bucket.upper > rhs && bucket.upper != f64::INFINITY {
             return (
-                bucket.count * (1.0 - rhs / bucket.upper),
-                (rhs + bucket.upper) / 2.0,
+                source_mul(source_sub(1.0, source_div(rhs, bucket.upper)), bucket.count),
+                source_mul(source_add(bucket.upper, rhs), 0.5),
             );
         }
         return (0.0, zero_if_infinite(bucket.upper));
@@ -210,25 +198,25 @@ fn trim_zero_bucket(
             return (0.0, 0.0);
         }
         if rhs >= upper {
-            return (bucket.count, (lower + upper) / 2.0);
+            return (bucket.count, source_mul(source_add(lower, upper), 0.5));
         }
         (
-            (rhs - lower) / (upper - lower),
-            destination_add(lower, rhs) / 2.0,
+            source_div(source_sub(rhs, lower), source_sub(upper, lower)),
+            source_mul(source_add(lower, rhs), 0.5),
         )
     } else {
         if rhs <= lower {
-            return (bucket.count, (lower + upper) / 2.0);
+            return (bucket.count, source_mul(source_add(lower, upper), 0.5));
         }
         if rhs >= upper {
             return (0.0, 0.0);
         }
         (
-            (upper - rhs) / (upper - lower),
-            destination_add(upper, rhs) / 2.0,
+            source_div(source_sub(upper, rhs), source_sub(upper, lower)),
+            source_mul(0.5, source_add(upper, rhs)),
         )
     };
-    (bucket.count * fraction, midpoint)
+    (source_mul(fraction, bucket.count), midpoint)
 }
 
 fn midpoint(lower: f64, upper: f64, positive: bool, linear: bool) -> f64 {
@@ -236,16 +224,24 @@ fn midpoint(lower: f64, upper: f64, positive: bool, linear: bool) -> f64 {
         if upper.is_infinite() {
             return 0.0;
         }
-        return if upper > 0.0 { upper / 2.0 } else { upper };
+        return if upper > 0.0 {
+            source_mul(upper, 0.5)
+        } else {
+            upper
+        };
     }
     if upper.is_infinite() {
         return lower;
     }
     if linear {
-        return (lower + upper) / 2.0;
+        return source_mul(source_add(lower, upper), 0.5);
     }
-    let geometric = sqrt((lower * upper).abs());
-    if positive { geometric } else { -geometric }
+    let geometric = sqrt(source_mul(upper, lower).abs());
+    if positive {
+        geometric
+    } else {
+        source_neg(geometric)
+    }
 }
 
 #[cfg(test)]

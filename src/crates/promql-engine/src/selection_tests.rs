@@ -670,7 +670,8 @@ fn ordinary_raw_series_finish_steps_before_the_next_series_and_direct_clocks_kee
                 (1, 2000),
             ]
         } else {
-            vec![(0, 2000), (0, 2000), (1, 2000), (1, 2000)]
+            // Pinned engine.go:1888-1934 uses one iterator for every step of each series.
+            vec![(0, 2000), (1, 2000)]
         };
         assert_eq!(&reads[..expected.len()], &expected, "{expression}");
         let events = source.events.borrow();

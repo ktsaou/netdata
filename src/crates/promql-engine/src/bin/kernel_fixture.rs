@@ -455,8 +455,7 @@ fn result(input: &Value) -> Result<Value, Error> {
                 number(&request["input"])?,
                 request["exponent"]
                     .as_i64()
-                    .ok_or("invalid Ldexp exponent")?
-                    .try_into()?,
+                    .ok_or("invalid Ldexp exponent")?,
             );
             json!(format!("{:016x}", result.to_bits()))
         }
@@ -524,10 +523,7 @@ fn result(input: &Value) -> Result<Value, Error> {
             let mut value = float(&request["input"])?;
             let mut correction = float(&request["compensation"])?;
             value.kahan_compact(
-                request["max_empty"]
-                    .as_i64()
-                    .ok_or("invalid max_empty")?
-                    .try_into()?,
+                request["max_empty"].as_i64().ok_or("invalid max_empty")?,
                 &mut correction,
             );
             json!({"input_after": encoded_float(&value), "compensation_after": encoded_float(&correction)})
@@ -645,12 +641,7 @@ fn result(input: &Value) -> Result<Value, Error> {
         ),
         "float-compact" => {
             let mut value = float(&request["input"])?;
-            value.compact(
-                request["max_empty"]
-                    .as_i64()
-                    .ok_or("invalid max_empty")?
-                    .try_into()?,
-            );
+            value.compact(request["max_empty"].as_i64().ok_or("invalid max_empty")?);
             encoded_float(&value)
         }
         "float-copy-to-schema" => {

@@ -47,6 +47,31 @@ const RANGE_SLOT: usize = 0;
 const STEP_SLOT: usize = 1;
 const OFFSET_SLOT: usize = 2;
 
+#[derive(Clone, Copy)]
+struct RootClock {
+    duration_ns: i64,
+    instant: bool,
+}
+impl RootClock {
+    fn new(header: OutputHeader) -> Self {
+        let duration_ns = header.step_ms.wrapping_mul(1_000_000);
+        Self {
+            duration_ns,
+            instant: header.start_ms == header.end_ms && duration_ns == 0,
+        }
+    }
+    fn statement_interval(self) -> i64 {
+        self.duration_ns / 1_000_000
+    }
+    fn evaluator_interval(self) -> i64 {
+        if self.instant {
+            1
+        } else {
+            self.statement_interval()
+        }
+    }
+}
+
 #[derive(Clone, Copy, Default)]
 pub(crate) struct SelectorReference {
     pub(crate) timestamp_ms: Option<i64>,
@@ -69,23 +94,33 @@ pub(crate) struct Prepared<'p> {
     pub(crate) preprocessing: &'p crate::evaluator_order::Preprocessing,
     pub(crate) context: QueryContext,
     pub(crate) header: OutputHeader,
+    clock: RootClock,
     durations: Option<AccountedVec<[i64; 3]>>,
     request_flags: Option<crate::evaluator_order::EvaluationFlags>,
+    pub(crate) scopes: Option<crate::query_scopes::Scopes>,
+    pub(crate) range_folds: crate::range_cache::Folds,
 }
 impl<'p> Prepared<'p> {
     pub(crate) fn new(
         expression: &ParsedExpression,
         preprocessing: &'p crate::evaluator_order::Preprocessing,
         header: OutputHeader,
+        no_step_interval_ms: i64,
         control: &Control,
         account: &QueryAccounting,
     ) -> Result<Self, EvaluationError> {
         let context = QueryContext::new(header);
+        let clock = RootClock::new(header);
         // Evaluation uses the nanosecond clock; preprocessing retains Unix milliseconds.
         let header = OutputHeader {
             start_ms: header.start_ms.wrapping_mul(1_000_000) / 1_000_000,
             end_ms: header.end_ms.wrapping_mul(1_000_000) / 1_000_000,
-            ..header
+            step_ms: clock.statement_interval(),
+            value_type: if clock.instant {
+                expression.arena[expression.root].value_type
+            } else {
+                header.value_type
+            },
         };
         let mut needed = false;
         let mut has_info = false;
@@ -181,8 +216,11 @@ impl<'p> Prepared<'p> {
             preprocessing,
             context,
             header,
+            clock,
             durations,
             request_flags: None,
+            scopes: None,
+            range_folds: crate::range_cache::Folds::new(account),
         };
         if has_info {
             result.request_flags = Some(crate::evaluator_order::evaluation_flags(
@@ -198,7 +236,55 @@ impl<'p> Prepared<'p> {
                 },
             )?);
         }
+        result.scopes = Some(crate::query_scopes::Scopes::new(
+            expression,
+            &result,
+            no_step_interval_ms,
+            control,
+            account,
+        )?);
         Ok(result)
+    }
+
+    pub(crate) fn statement_interval(&self) -> i64 {
+        self.clock.statement_interval()
+    }
+
+    pub(crate) fn evaluator_header(&self) -> OutputHeader {
+        OutputHeader {
+            step_ms: self.clock.evaluator_interval(),
+            ..self.header
+        }
+    }
+
+    pub(crate) fn activate(
+        &self,
+        header: OutputHeader,
+        control: &Control,
+        account: &QueryAccounting,
+    ) -> Result<Option<i64>, EvaluationError> {
+        control.check()?;
+        account.work(1);
+        if header.end_ms < header.start_ms {
+            return Ok(None);
+        }
+        crate::query_scopes::Grid::from(header)
+            .steps()
+            .map(Some)
+            .map_err(|fault| self.grid_error(fault, control, account))
+    }
+
+    fn grid_error(
+        &self,
+        fault: crate::query_scopes::GridFault,
+        control: &Control,
+        account: &QueryAccounting,
+    ) -> EvaluationError {
+        let mut message = AccountedVec::new(account, MemoryKind::Workspace);
+        match crate::result::append_bytes_checked(&mut message, fault.message(), account, control) {
+            Ok(()) => EvaluationError::WrappedRuntime(message),
+            Err(error) => error.into(),
+        }
     }
     pub(crate) fn flags(&self) -> &crate::evaluator_order::EvaluationFlags {
         self.request_flags
@@ -240,6 +326,9 @@ impl<'p> Prepared<'p> {
         modifiers: &SelectorModifiers,
         scope_start_ms: i64,
     ) -> i64 {
+        if let Some(scopes) = &self.scopes {
+            return scopes.offset(node);
+        }
         let offset = self.offset(node, modifiers.original_offset);
         if let Some(timestamp) = self.timestamp(node, modifiers) {
             offset.wrapping_add(
@@ -249,6 +338,129 @@ impl<'p> Prepared<'p> {
             )
         } else {
             offset
+        }
+    }
+
+    pub(crate) fn scope_header(&self, node: NodeId, fallback: OutputHeader) -> OutputHeader {
+        self.scopes
+            .as_ref()
+            .map_or(fallback, |scopes| scopes.value(node).header(fallback))
+    }
+
+    pub(crate) fn source_header(&self, node: NodeId, fallback: OutputHeader) -> OutputHeader {
+        self.scopes
+            .as_ref()
+            .map_or(fallback, |scopes| scopes.source(node).header(fallback))
+    }
+
+    pub(crate) fn index_error(
+        &self,
+        index: i64,
+        length: i64,
+        control: &Control,
+        account: &QueryAccounting,
+    ) -> Result<(), EvaluationError> {
+        if index >= 0 && index < length {
+            return Ok(());
+        }
+        control.check()?;
+        let mut message = AccountedVec::new(account, MemoryKind::Workspace);
+        write!(
+            message,
+            "unexpected error: runtime error: index out of range [{index}] with length {length}"
+        )
+        .expect("accounted byte formatting");
+        Err(EvaluationError::WrappedRuntime(message))
+    }
+
+    pub(crate) fn statistics_index(
+        &self,
+        node: NodeId,
+        index: i64,
+        control: &Control,
+        account: &QueryAccounting,
+    ) -> Result<(), EvaluationError> {
+        if let Some(length) = self
+            .scopes
+            .as_ref()
+            .and_then(|scopes| scopes.tracking(node))
+        {
+            self.index_error(index, length, control, account)?;
+        }
+        Ok(())
+    }
+
+    pub(crate) fn sample_statistics_index(
+        &self,
+        node: NodeId,
+        index: i64,
+        control: &Control,
+        account: &QueryAccounting,
+    ) -> Result<(), EvaluationError> {
+        // The invariant's inner evaluator has disabled step tracking.
+        if !self.flags().boundaries[node.0] {
+            self.statistics_index(node, index, control, account)?;
+        }
+        Ok(())
+    }
+
+    pub(crate) fn sample_statistics_time(
+        &self,
+        node: NodeId,
+        time_ms: i64,
+        control: &Control,
+        account: &QueryAccounting,
+    ) -> Result<(), EvaluationError> {
+        if self.flags().boundaries[node.0]
+            || self
+                .scopes
+                .as_ref()
+                .and_then(|scopes| scopes.tracking(node))
+                .is_none()
+        {
+            return Ok(());
+        }
+        let grid = self
+            .scopes
+            .as_ref()
+            .expect("prepared statistics scope")
+            .value(node);
+        let index =
+            crate::query_scopes::quotient(time_ms.wrapping_sub(grid.start_ms), grid.interval_ms)
+                .map_err(|fault| self.grid_error(fault, control, account))?;
+        self.statistics_index(node, index, control, account)
+    }
+
+    pub(crate) fn slice_capacity(
+        &self,
+        capacity: i64,
+        control: &Control,
+        account: &QueryAccounting,
+    ) -> Result<(), EvaluationError> {
+        if capacity < 0 {
+            return Err(self.grid_error(
+                crate::query_scopes::GridFault::NegativeCapacity,
+                control,
+                account,
+            ));
+        }
+        Ok(())
+    }
+
+    pub(crate) fn subquery_scope(
+        &self,
+        node: NodeId,
+        control: &Control,
+        account: &QueryAccounting,
+    ) -> Result<crate::query_scopes::Grid, EvaluationError> {
+        match self
+            .scopes
+            .as_ref()
+            .expect("prepared subquery scopes")
+            .child(node)
+        {
+            Ok(grid) => Ok(grid),
+            Err(fault) => Err(self.grid_error(fault, control, account)),
         }
     }
 

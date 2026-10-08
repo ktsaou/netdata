@@ -50,6 +50,12 @@ impl Sample {
 }
 
 impl SampleValueRef<'_> {
+    pub(crate) fn kind_bit(self) -> u8 {
+        match self {
+            Self::Float(_) => 1,
+            Self::IntegerHistogram(_) | Self::FloatHistogram(_) => 2,
+        }
+    }
     pub fn is_stale(self) -> bool {
         match self {
             Self::Float(value) => value.to_bits() == STALE_NAN_BITS,

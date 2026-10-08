@@ -1,11 +1,10 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Pinned Prometheus promql/functions.go:981-1031,1949-2043; see NOTICE.
-#[cfg(target_arch = "x86_64")]
 use crate::numerical::{source_add, source_div, source_sub};
 use crate::{
     accounting::{AccountedVec, MemoryKind, QueryAccounting},
     annotations::AnnotationKind,
-    matrix_reader::{MatrixWindow, scan as scan_matrix},
+    matrix_reader::{MatrixWindow, Progress, scan as scan_matrix},
     numerical::{compensated_add, source_mul},
     storage::{Control, CursorAction, Series, StorageError, TimeBounds, WalkStart, walk},
     value::{SampleRef, SampleValueRef},
@@ -34,12 +33,12 @@ pub(crate) fn scan<S: Series>(
     control: &Control,
     account: &QueryAccounting,
     mut visit: impl for<'a> FnMut(SampleRef<'a>) -> Result<(), StorageError>,
-) -> Result<(), StorageError> {
+) -> Result<Option<Progress>, StorageError> {
     if input.matrix.is_some() {
         return scan_matrix(series, input.bounds, input.matrix, control, account, visit);
     }
     let Some(bounds) = input.bounds else {
-        return Ok(());
+        return Ok(None);
     };
     // Go's buffer seeks the excluded left endpoint; returned pages retain included bounds.
     walk(
@@ -53,7 +52,7 @@ pub(crate) fn scan<S: Series>(
             Ok(CursorAction::Next)
         },
     )
-    .map(|_| ())
+    .map(|_| None)
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -62,12 +61,13 @@ pub(crate) enum NumericRangeFunction {
     PredictLinear,
     Smoothing,
     Mad,
+    Quantile,
 }
 impl NumericRangeFunction {
     pub(crate) fn parameters(self) -> usize {
         match self {
             Self::Deriv | Self::Mad => 0,
-            Self::PredictLinear => 1,
+            Self::PredictLinear | Self::Quantile => 1,
             Self::Smoothing => 2,
         }
     }
@@ -76,13 +76,17 @@ impl NumericRangeFunction {
 #[derive(Debug)]
 pub(crate) struct NumericRangeOutput {
     pub(crate) value: Option<f64>,
+    pub(crate) invalid_quantile: bool,
     pub(crate) annotation: Option<AnnotationKind>,
+    pub(crate) nonempty: bool,
+    pub(crate) progress: Option<Progress>,
 }
 
 #[derive(Debug, PartialEq)]
 pub(crate) enum NumericRangeError {
     Storage(StorageError),
     Factor { trend: bool, value: f64 },
+    Provenance,
 }
 impl From<StorageError> for NumericRangeError {
     fn from(error: StorageError) -> Self {
@@ -109,7 +113,7 @@ impl NumericRangeError {
 
 #[derive(Default)]
 struct Regression {
-    count: usize,
+    count: u64,
     n: f64,
     x: f64,
     cx: f64,
@@ -149,7 +153,6 @@ impl Regression {
                 (0.0, self.initial)
             };
         }
-        #[cfg(target_arch = "x86_64")]
         {
             self.x = source_add(self.x, self.cx);
             self.y = source_add(self.y, self.cy);
@@ -165,24 +168,12 @@ impl Regression {
             );
             (slope, intercept)
         }
-        #[cfg(not(target_arch = "x86_64"))]
-        {
-            self.x += self.cx;
-            self.y += self.cy;
-            self.xy += self.cxy;
-            self.x2 += self.cx2;
-            let covariance = self.xy - self.x * self.y / self.n;
-            let variance = self.x2 - self.x * self.x / self.n;
-            let slope = covariance / variance;
-            let intercept = self.y / self.n - slope * self.x / self.n;
-            (slope, intercept)
-        }
     }
 }
 
 #[derive(Default)]
 struct Smoothing {
-    count: usize,
+    count: u64,
     previous: f64,
     current: f64,
     trend: f64,
@@ -193,19 +184,131 @@ impl Smoothing {
             self.current = value;
         } else {
             if self.count == 1 {
-                self.trend = value - self.current;
+                self.trend = source_sub(value, self.current);
             }
-            let scaled = sf * value;
+            let scaled = source_mul(value, sf);
             if self.count > 1 {
-                let x = tf * (self.current - self.previous);
-                let y = (1.0 - tf) * self.trend;
-                self.trend = x + y;
+                let x = source_mul(source_sub(self.current, self.previous), tf);
+                let y = source_mul(self.trend, source_sub(1.0, tf));
+                self.trend = source_add(y, x);
             }
-            let smoothed = (1.0 - sf) * (self.current + self.trend);
+            let smoothed = source_mul(source_add(self.current, self.trend), source_sub(1.0, sf));
             self.previous = self.current;
-            self.current = scaled + smoothed;
+            self.current = source_add(smoothed, scaled);
         }
         self.count += 1;
+    }
+}
+
+enum Accumulator {
+    Regression(Regression),
+    Smoothing(Smoothing),
+}
+
+pub(crate) struct NumericStep {
+    function: NumericRangeFunction,
+    parameters: [f64; 2],
+    time_ms: i64,
+    invalid_factor: Option<(usize, f64)>,
+    present: bool,
+    histograms: bool,
+    accumulator: Accumulator,
+}
+impl NumericStep {
+    pub(crate) fn new(function: NumericRangeFunction, parameters: [f64; 2], time_ms: i64) -> Self {
+        assert!(
+            !matches!(
+                function,
+                NumericRangeFunction::Mad | NumericRangeFunction::Quantile
+            ),
+            "order statistics use rank replay"
+        );
+        Self {
+            function,
+            parameters,
+            time_ms,
+            invalid_factor: (function == NumericRangeFunction::Smoothing)
+                .then(|| {
+                    parameters
+                        .into_iter()
+                        .enumerate()
+                        .find(|(_, value)| *value <= 0.0 || *value >= 1.0)
+                })
+                .flatten(),
+            present: false,
+            histograms: false,
+            accumulator: if function == NumericRangeFunction::Smoothing {
+                Accumulator::Smoothing(Smoothing::default())
+            } else {
+                Accumulator::Regression(Regression::default())
+            },
+        }
+    }
+
+    pub(crate) fn receive(
+        &mut self,
+        sample: SampleRef<'_>,
+        control: &Control,
+        account: &QueryAccounting,
+    ) -> Result<(), StorageError> {
+        control.check()?;
+        if sample.value.is_stale() {
+            return Ok(());
+        }
+        self.present = true;
+        if self.invalid_factor.is_some() {
+            return Ok(());
+        }
+        if let SampleValueRef::Float(value) = sample.value {
+            account.work(1);
+            match &mut self.accumulator {
+                Accumulator::Smoothing(smoothing) => {
+                    smoothing.add(value, self.parameters[0], self.parameters[1])
+                }
+                Accumulator::Regression(regression) => regression.add(
+                    sample.time_ms,
+                    value,
+                    (self.function == NumericRangeFunction::PredictLinear).then_some(self.time_ms),
+                ),
+            }
+        } else {
+            self.histograms = true;
+        }
+        Ok(())
+    }
+
+    pub(crate) fn finish(self) -> Result<NumericRangeOutput, NumericRangeError> {
+        if self.present
+            && let Some((index, value)) = self.invalid_factor
+        {
+            return Err(NumericRangeError::Factor {
+                trend: index == 1,
+                value,
+            });
+        }
+        let count = match &self.accumulator {
+            Accumulator::Regression(state) => state.count,
+            Accumulator::Smoothing(state) => state.count,
+        };
+        let value = (count >= 2).then(|| match self.accumulator {
+            Accumulator::Regression(regression) => {
+                let (slope, intercept) = regression.finish();
+                if self.function == NumericRangeFunction::Deriv {
+                    slope
+                } else {
+                    source_add(intercept, source_mul(slope, self.parameters[0]))
+                }
+            }
+            Accumulator::Smoothing(smoothing) => smoothing.current,
+        });
+        Ok(NumericRangeOutput {
+            progress: None,
+            value,
+            invalid_quantile: false,
+            nonempty: self.present,
+            annotation: (self.histograms && count > 0)
+                .then_some(AnnotationKind::HistogramIgnoredInMixedRange),
+        })
     }
 }
 
@@ -222,74 +325,16 @@ pub(crate) fn evaluate<S: Series>(
     if function == NumericRangeFunction::Mad {
         return crate::mad::evaluate(series, input, control, account).map_err(Into::into);
     }
-    let invalid_factor = if function == NumericRangeFunction::Smoothing {
-        parameters
-            .into_iter()
-            .enumerate()
-            .find(|(_, value)| *value <= 0.0 || *value >= 1.0)
-    } else {
-        None
-    };
-    let mut present = false;
-    let mut histograms = false;
-    let mut regression = Regression::default();
-    let mut smoothing = Smoothing::default();
-    scan(series, input, control, account, |sample| {
-        if sample.value.is_stale() {
-            return Ok(());
-        }
-        present = true;
-        if invalid_factor.is_some() {
-            return Ok(());
-        }
-        if let SampleValueRef::Float(value) = sample.value {
-            account.work(1);
-            if function == NumericRangeFunction::Smoothing {
-                smoothing.add(value, parameters[0], parameters[1]);
-            } else {
-                regression.add(
-                    sample.time_ms,
-                    value,
-                    (function == NumericRangeFunction::PredictLinear).then_some(time_ms),
-                );
-            }
-        } else {
-            histograms = true;
-        }
-        Ok(())
-    })?;
-    if present && let Some((index, value)) = invalid_factor {
-        return Err(NumericRangeError::Factor {
-            trend: index == 1,
-            value,
-        });
+    if function == NumericRangeFunction::Quantile {
+        return crate::temporal_quantile::evaluate(series, input, parameters[0], control, account);
     }
-    let count = if function == NumericRangeFunction::Smoothing {
-        smoothing.count
-    } else {
-        regression.count
-    };
-    let value = (count >= 2).then(|| match function {
-        NumericRangeFunction::Deriv => regression.finish().0,
-        NumericRangeFunction::PredictLinear => {
-            let (slope, intercept) = regression.finish();
-            #[cfg(target_arch = "x86_64")]
-            {
-                source_add(intercept, source_mul(slope, parameters[0]))
-            }
-            #[cfg(not(target_arch = "x86_64"))]
-            {
-                slope * parameters[0] + intercept
-            }
-        }
-        NumericRangeFunction::Smoothing => smoothing.current,
-        NumericRangeFunction::Mad => unreachable!("MAD uses bounded median replay"),
-    });
-    Ok(NumericRangeOutput {
-        value,
-        annotation: (histograms && count > 0)
-            .then_some(AnnotationKind::HistogramIgnoredInMixedRange),
-    })
+    let mut step = NumericStep::new(function, parameters, time_ms);
+    let progress = scan(series, input, control, account, |sample| {
+        step.receive(sample, control, account)
+    })?;
+    let mut output = step.finish()?;
+    output.progress = progress;
+    Ok(output)
 }
 
 #[cfg(test)]
@@ -303,6 +348,33 @@ mod tests {
         value::{Sample, SampleValue},
     };
     use std::sync::atomic::Ordering;
+
+    #[test]
+    fn streamed_numeric_initialization_preserves_u32_rollover() {
+        let prefix = u64::from(u32::MAX);
+        let mut regression = Regression {
+            count: prefix,
+            n: prefix as f64,
+            initial: 1.0,
+            constant: true,
+            ..Regression::default()
+        };
+        regression.add(prefix as i64, 2.0, None);
+        regression.add((prefix + 1) as i64, 1.0, None);
+        assert_eq!(regression.count, prefix + 2);
+        assert!(!regression.constant);
+
+        let mut smoothing = Smoothing {
+            count: prefix,
+            previous: 1.0,
+            current: 1.0,
+            trend: 0.0,
+        };
+        smoothing.add(2.0, 0.5, 0.5);
+        smoothing.add(2.0, 0.5, 0.5);
+        assert_eq!(smoothing.count, prefix + 2);
+        assert_eq!(smoothing.current.to_bits(), 1.875f64.to_bits());
+    }
 
     fn linear(index: usize) -> Sample {
         Sample {
@@ -324,7 +396,6 @@ mod tests {
         }
     }
 
-    #[cfg(target_arch = "x86_64")]
     #[test]
     fn prediction_nan_provenance_survives_paged_regression() {
         fn middle(index: usize) -> Sample {
@@ -417,7 +488,9 @@ mod tests {
                         (NumericRangeFunction::PredictLinear, 2048) => 0x40b0_2500_0000_0000,
                         (NumericRangeFunction::PredictLinear, _) => 0x4108_6b28_0000_0002,
                         (NumericRangeFunction::Smoothing, _) => 0x401c_0000_0000_0000,
-                        (NumericRangeFunction::Mad, _) => unreachable!("regression test roster"),
+                        (NumericRangeFunction::Mad | NumericRangeFunction::Quantile, _) => {
+                            unreachable!("regression test roster")
+                        }
                     };
                     assert_eq!(result.value.unwrap().to_bits(), expected_bits);
                     assert_eq!(result.annotation, None);

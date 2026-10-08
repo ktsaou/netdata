@@ -11,7 +11,7 @@ use crate::histogram_layout::{
     reduce_float_in_place_with, reduce_kahan_copy_with, reduce_kahan_in_place_with,
 };
 use crate::histogram_work::{HistogramEvaluationError, HistogramWork};
-use crate::numerical::{compensated_add, compensated_sub};
+use crate::numerical::{compensated_add, compensated_sub, source_add, source_neg, source_sub};
 use crate::storage::Interrupted;
 
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
@@ -39,12 +39,12 @@ impl FloatHistogram {
     }
 
     /// Compact paired counts; correction span headers follow the upstream helper's lifecycle.
-    pub fn kahan_compact(&mut self, max_empty: isize, correction: &mut Self) {
+    pub fn kahan_compact(&mut self, max_empty: i64, correction: &mut Self) {
         self.kahan_compact_in(max_empty, correction, None);
     }
     fn kahan_compact_in(
         &mut self,
-        max_empty: isize,
+        max_empty: i64,
         correction: &mut Self,
         context: Option<&AllocationContext>,
     ) {
@@ -201,17 +201,17 @@ impl FloatHistogram {
         if !self.uses_custom_buckets() {
             let (zero, _) = self.reconcile_zero(other, None, context, work)?;
             if negative {
-                self.zero_count -= zero;
+                self.zero_count = source_sub(self.zero_count, zero);
             } else {
-                self.zero_count += zero;
+                self.zero_count = source_add(zero, self.zero_count);
             }
         }
         if negative {
-            self.count -= other.count;
-            self.sum -= other.sum;
+            self.count = source_sub(self.count, other.count);
+            self.sum = source_sub(self.sum, other.sum);
         } else {
-            self.count += other.count;
-            self.sum += other.sum;
+            self.count = source_add(self.count, other.count);
+            self.sum = source_add(other.sum, self.sum);
         }
         if self.uses_custom_buckets() {
             if custom_bounds_match_with(self.custom_values.as_deref(), other.custom_values, work)? {
@@ -598,7 +598,7 @@ fn accumulate(bucket: &mut f64, correction: Option<&mut f64>, increment: f64, in
             (*bucket, *correction) = compensated_add(increment_comp, *bucket, *correction);
         }
     } else {
-        *bucket += increment;
+        *bucket = source_add(increment, *bucket);
     }
 }
 
@@ -649,8 +649,8 @@ fn merge_buckets(
                 let mut value = buckets_b[bucket_b];
                 let mut comp = other_correction.map_or(0.0, |values| values[bucket_b]);
                 if negative {
-                    value *= -1.0;
-                    comp *= -1.0;
+                    value = source_neg(value);
+                    comp = source_neg(comp);
                 }
                 if span_a == -1 {
                     if spans_a.is_empty() || spans_a[0].offset > index_b {
@@ -846,15 +846,15 @@ fn map_custom(
             source_buckets.unwrap_or(&[]),
             bounds.unwrap_or(&[]),
         );
-        let (mut source_index, mut bucket_index, mut intersect_index) = (0isize, 0, 0);
+        let (mut source_index, mut bucket_index, mut intersect_index) = (0i64, 0, 0);
         for span in source_spans {
             work.step(1)?;
-            source_index = source_index.wrapping_add(span.offset as isize);
+            source_index = source_index.wrapping_add(i64::from(span.offset));
             for _ in 0..span.length {
                 work.step(1)?;
                 if bucket_index < source_buckets.len() {
                     let mut target_index = target.len() - 1;
-                    if source_index < bounds.len() as isize {
+                    if source_index < bounds.len() as i64 {
                         let bound = bounds[source_index as usize];
                         while intersect_index < intersected.len() {
                             work.step(1)?;

@@ -219,7 +219,9 @@ fn satan(value: f64) -> f64 {
 }
 
 pub fn atan(value: f64) -> f64 {
-    if value == 0.0 {
+    if value.is_nan() {
+        crate::numerical::quiet_nan(value)
+    } else if value == 0.0 {
         value
     } else if value > 0.0 {
         satan(value)
@@ -267,6 +269,9 @@ pub fn atan2(y: f64, x: f64) -> f64 {
 }
 
 pub fn asin(value: f64) -> f64 {
+    if value.is_nan() {
+        return crate::numerical::quiet_nan(value);
+    }
     if value == 0.0 {
         return value;
     }
@@ -283,7 +288,11 @@ pub fn asin(value: f64) -> f64 {
     if value < 0.0 { -result } else { result }
 }
 pub fn acos(value: f64) -> f64 {
-    FRAC_PI_2 - asin(value)
+    if value.is_nan() {
+        crate::numerical::quiet_nan(value)
+    } else {
+        crate::numerical::source_sub(FRAC_PI_2, asin(value))
+    }
 }
 
 #[cfg(test)]

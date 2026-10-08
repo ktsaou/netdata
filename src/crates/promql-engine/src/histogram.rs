@@ -342,12 +342,12 @@ impl FloatHistogram {
         }
     }
 
-    pub fn compact(&mut self, max_empty_buckets: isize) {
+    pub fn compact(&mut self, max_empty_buckets: i64) {
         self.compact_in(max_empty_buckets, None);
     }
     pub(crate) fn compact_in(
         &mut self,
-        max_empty_buckets: isize,
+        max_empty_buckets: i64,
         context: Option<&AllocationContext>,
     ) {
         compact_float(
@@ -365,7 +365,7 @@ impl FloatHistogram {
     }
     pub(crate) fn compact_with<E>(
         &mut self,
-        max_empty_buckets: isize,
+        max_empty_buckets: i64,
         context: Option<&AllocationContext>,
         mut poll: impl FnMut(usize) -> Result<(), E>,
     ) -> Result<(), E> {

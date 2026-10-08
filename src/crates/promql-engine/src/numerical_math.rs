@@ -71,17 +71,25 @@ pub fn log2(value: f64) -> f64 {
     if fraction == 0.5 {
         return f64::from(exponent - 1);
     }
-    log(fraction) * INVERSE_LN_2 + f64::from(exponent)
+    crate::numerical::source_add(
+        crate::numerical::source_mul(INVERSE_LN_2, log(fraction)),
+        f64::from(exponent),
+    )
 }
 
 pub fn sqrt(value: f64) -> f64 {
-    // Go's public Sqrt lowers to this same hardware primitive on qualified targets.
-    value.sqrt()
+    if value.is_nan() {
+        crate::numerical::quiet_nan(value)
+    } else if value < 0.0 {
+        f64::from_bits(0xfff8_0000_0000_0000)
+    } else {
+        value.sqrt()
+    }
 }
 
 pub fn log10(value: f64) -> f64 {
     // Go rounds the untyped reciprocal once, before multiplication.
-    log(value) * f64::from_bits(0x3fdb_cb7b_1526_e50e)
+    crate::numerical::source_mul(f64::from_bits(0x3fdb_cb7b_1526_e50e), log(value))
 }
 
 pub fn floor(value: f64) -> f64 {
@@ -165,7 +173,7 @@ pub fn modulo_with<E>(
             exponent -= 1;
         }
         remainder -=
-            crate::numerical_exponential::ldexp(divisor, (exponent - divisor_exponent) as isize);
+            crate::numerical_exponential::ldexp(divisor, i64::from(exponent - divisor_exponent));
     }
     Ok(if left < 0.0 { -remainder } else { remainder })
 }
@@ -230,7 +238,7 @@ fn pow_kernel<E>(
         return Ok(sqrt(left));
     }
     if right == -0.5 {
-        return Ok(1.0 / sqrt(left));
+        return Ok(crate::numerical::source_div(1.0, sqrt(left)));
     }
     let mut integer = right.abs().trunc();
     let mut fraction = right.abs() - integer;
@@ -281,7 +289,7 @@ fn pow_kernel<E>(
     }
     Ok(crate::numerical_exponential::ldexp(
         result,
-        result_exponent as isize,
+        i64::from(result_exponent),
     ))
 }
 

@@ -6,9 +6,9 @@ use crate::{
     histogram::{CUSTOM_BUCKETS_SCHEMA, FloatHistogram, FloatHistogramRef, GAUGE, HistogramError},
     histogram_counter::detect_reset_with,
     histogram_work::{HistogramEvaluationError, HistogramWork},
-    matrix_reader::{MatrixWindow, scan as scan_matrix},
+    matrix_reader::{MatrixWindow, Progress, scan as scan_matrix},
     range_float::{
-        Extrapolation, RateInput, RateKind, RateValue, RateWindow, extrapolation_factor, rate_with,
+        Extrapolation, FloatStep, RateInput, RateKind, RateValue, RateWindow, extrapolation_factor,
         start_time_overlap, start_timestamp_reset, uses_first_start,
     },
     result::{OwnedHistogram, OwnedValue},
@@ -34,9 +34,11 @@ impl RateFunction {
 pub(crate) struct RateOutput {
     pub(crate) value: Option<OwnedValue>,
     pub(crate) annotations: [Option<AnnotationKind>; 6],
+    pub(crate) nonempty: bool,
+    pub(crate) progress: Option<Progress>,
 }
 impl RateOutput {
-    fn note(&mut self, kind: AnnotationKind) {
+    pub(crate) fn note(&mut self, kind: AnnotationKind) {
         if self.annotations.contains(&Some(kind)) {
             return;
         }
@@ -57,34 +59,111 @@ pub(crate) fn evaluate<S: Series>(
     series: &S,
     input: impl Into<RateInput>,
     function: RateFunction,
-    matrix: Option<MatrixWindow>,
+    mut matrix: Option<MatrixWindow>,
     control: &Control,
     account: &QueryAccounting,
 ) -> Result<RateOutput, StorageError> {
     let input = input.into();
-    let RateFunction::Extrapolated(kind) = function else {
-        let RateFunction::Instant { counter } = function else {
-            unreachable!()
-        };
-        return instant(series, input, counter, matrix, control, account);
-    };
-    let result = rate_with(series, input, kind, matrix, control, account)?;
-    let mut output = RateOutput::default();
-    if result.start_time_overlap {
-        output.note(AnnotationKind::StartTimeOverlap);
+    let mut step = Step::new(input, function);
+    loop {
+        let progress = scan_matrix::<_, StorageError>(
+            series,
+            input.bounds(),
+            matrix,
+            control,
+            account,
+            |sample| step.receive(sample, control, account),
+        )?;
+        if let Some(mut output) = step.finish_pass(control, account)? {
+            output.progress = progress;
+            return Ok(output);
+        }
+        matrix = matrix.map(|window| window.with_progress(progress));
     }
-    output.value = match result.value {
-        RateValue::Float(value) => Some(OwnedValue::Float(value)),
-        RateValue::Empty => None,
-        RateValue::Mixed => {
-            output.note(AnnotationKind::MixedFloatsHistograms);
-            None
+}
+
+pub(crate) enum Step {
+    Float {
+        input: RateInput,
+        kind: RateKind,
+        step: FloatStep,
+    },
+    Native(NativeStep),
+    Instant(InstantStep),
+}
+impl Step {
+    pub(crate) fn new(input: RateInput, function: RateFunction) -> Self {
+        match function {
+            RateFunction::Extrapolated(kind) => Self::Float {
+                input,
+                kind,
+                step: FloatStep::new(input, kind),
+            },
+            RateFunction::Instant { counter } => Self::Instant(InstantStep {
+                start_timestamps: input.window.start_timestamps,
+                counter,
+                floats: [None, None],
+                histograms: [None, None],
+            }),
         }
-        RateValue::Histogram => {
-            return extrapolated_histogram(series, input, kind, matrix, control, account);
+    }
+    pub(crate) fn receive(
+        &mut self,
+        sample: SampleRef<'_>,
+        control: &Control,
+        account: &QueryAccounting,
+    ) -> Result<(), StorageError> {
+        match self {
+            Self::Float { step, .. } => step.receive(sample, control),
+            Self::Native(step) => step.receive(sample, control, account),
+            Self::Instant(step) => step.receive(sample, control, account),
         }
-    };
-    Ok(output)
+    }
+    pub(crate) fn finish_pass(
+        &mut self,
+        control: &Control,
+        account: &QueryAccounting,
+    ) -> Result<Option<RateOutput>, StorageError> {
+        let nonempty = match self {
+            Self::Float { step, .. } => step.nonempty(),
+            Self::Native(step) => step.count != 0,
+            Self::Instant(step) => {
+                step.floats.iter().any(Option::is_some)
+                    || step.histograms.iter().any(Option::is_some)
+            }
+        };
+        let mut result = match self {
+            Self::Float { input, kind, step } => {
+                let Some(result) = step.finish_pass() else {
+                    return Ok(None);
+                };
+                if result.value == RateValue::Histogram {
+                    *self = Self::Native(NativeStep::new(*input, *kind));
+                    return Ok(None);
+                }
+                let mut output = RateOutput::default();
+                if result.start_time_overlap {
+                    output.note(AnnotationKind::StartTimeOverlap);
+                }
+                output.value = match result.value {
+                    RateValue::Float(value) => Some(OwnedValue::Float(value)),
+                    RateValue::Mixed => {
+                        output.note(AnnotationKind::MixedFloatsHistograms);
+                        None
+                    }
+                    RateValue::Empty => None,
+                    RateValue::Histogram => unreachable!(),
+                };
+                Ok(Some(output))
+            }
+            Self::Native(step) => step.finish_pass(control, account),
+            Self::Instant(step) => step.finish(control, account).map(Some),
+        }?;
+        if let Some(output) = &mut result {
+            output.nonempty = nonempty;
+        }
+        Ok(result)
+    }
 }
 
 fn arithmetic_error(error: HistogramEvaluationError) -> StorageError {
@@ -133,99 +212,124 @@ impl HistogramPoint {
     }
 }
 
-fn extrapolated_histogram<S: Series>(
-    series: &S,
+#[derive(Clone, Copy)]
+enum NativePass {
+    Endpoints,
+    Schemas,
+    Resets,
+}
+
+pub(crate) struct NativeStep {
     input: RateInput,
     kind: RateKind,
-    matrix: Option<MatrixWindow>,
-    control: &Control,
-    account: &QueryAccounting,
-) -> Result<RateOutput, StorageError> {
-    let window = input.window;
-    let bounds = input.bounds();
-    let mut first = None;
-    let mut second = None;
-    let mut last = None::<HistogramPoint>;
-    let mut count = 0usize;
-    scan_matrix::<_, StorageError>(series, bounds, matrix, control, account, |sample| {
+    phase: NativePass,
+    first: Option<HistogramPoint>,
+    second: Option<HistogramPoint>,
+    last: Option<HistogramPoint>,
+    count: u64,
+    zero: Option<OwnedHistogram>,
+    schema: i32,
+    custom: bool,
+    value: Option<OwnedHistogram>,
+    previous: Option<OwnedHistogram>,
+    previous_time: i64,
+    previous_start: i64,
+    index: u64,
+    mismatch: bool,
+    output: RateOutput,
+}
+impl NativeStep {
+    fn new(input: RateInput, kind: RateKind) -> Self {
+        Self {
+            input,
+            kind,
+            phase: NativePass::Endpoints,
+            first: None,
+            second: None,
+            last: None,
+            count: 0,
+            zero: None,
+            schema: 0,
+            custom: false,
+            value: None,
+            previous: None,
+            previous_time: 0,
+            previous_start: 0,
+            index: 0,
+            mismatch: false,
+            output: RateOutput::default(),
+        }
+    }
+    fn last(&self) -> &HistogramPoint {
+        self.last
+            .as_ref()
+            .or(self.second.as_ref())
+            .or(self.first.as_ref())
+            .expect("native endpoint")
+    }
+    fn effective_first(&self) -> &OwnedHistogram {
+        self.zero
+            .as_ref()
+            .unwrap_or(&self.first.as_ref().expect("native first").value)
+    }
+    fn receive(
+        &mut self,
+        sample: SampleRef<'_>,
+        control: &Control,
+        account: &QueryAccounting,
+    ) -> Result<(), StorageError> {
+        control.check()?;
         if sample.value.is_stale() {
             return Ok(());
         }
-        count += 1;
-        match count {
-            1 => first = Some(HistogramPoint::copy(sample, window, control, account)?),
-            2 => second = Some(HistogramPoint::copy(sample, window, control, account)?),
-            _ => {
-                if let Some(last) = &mut last {
-                    last.time = sample.time_ms;
-                    last.start = if window.start_timestamps {
-                        sample.start_time_ms
-                    } else {
-                        0
-                    };
-                    last.value
-                        .copy_from_sample_checked(sample.value, control, account)?;
-                } else {
-                    last = Some(HistogramPoint::copy(sample, window, control, account)?);
+        match self.phase {
+            NativePass::Endpoints => {
+                self.count += 1;
+                match self.count {
+                    1 => {
+                        self.first = Some(HistogramPoint::copy(
+                            sample,
+                            self.input.window,
+                            control,
+                            account,
+                        )?);
+                    }
+                    2 => {
+                        self.second = Some(HistogramPoint::copy(
+                            sample,
+                            self.input.window,
+                            control,
+                            account,
+                        )?);
+                    }
+                    _ => {
+                        if let Some(last) = &mut self.last {
+                            last.time = sample.time_ms;
+                            last.start = if self.input.window.start_timestamps {
+                                sample.start_time_ms
+                            } else {
+                                0
+                            };
+                            last.value
+                                .copy_from_sample_checked(sample.value, control, account)?;
+                        } else {
+                            self.last = Some(HistogramPoint::copy(
+                                sample,
+                                self.input.window,
+                                control,
+                                account,
+                            )?);
+                        }
+                    }
                 }
             }
-        }
-        Ok(())
-    })?;
-    let Some(first) = first else {
-        return Ok(RateOutput::default());
-    };
-    let last = last.as_ref().or(second.as_ref()).unwrap_or(&first);
-    let counter = kind != RateKind::Delta;
-    let work = HistogramWork::new(control, account);
-    let mut output = RateOutput::default();
-    let mut value = if count > 1 {
-        if counter
-            && (first.value.as_ref().reset_hint == GAUGE || last.value.as_ref().reset_hint == GAUGE)
-        {
-            output.note(AnnotationKind::NativeHistogramNotCounter);
-        }
-        let second = second.as_ref().expect("second native endpoint");
-        let mut zero = None;
-        if counter
-            && (start_timestamp_reset(first.start, first.time, second.start, second.time)
-                || detect_reset_with(second.value.as_ref(), first.value.as_ref(), work)?)
-        {
-            let empty = FloatHistogram::default();
-            zero = Some(own_histogram(
-                SampleValueRef::FloatHistogram(FloatHistogramRef {
-                    schema: second.value.as_ref().schema,
-                    custom_values: second.value.as_ref().custom_values,
-                    ..empty.as_ref()
-                }),
-                control,
-                account,
-            )?);
-        }
-        let relevant_first = zero.as_ref().unwrap_or(&first.value);
-        let custom = relevant_first.as_ref().schema == CUSTOM_BUCKETS_SCHEMA;
-        if (last.value.as_ref().schema == CUSTOM_BUCKETS_SCHEMA) != custom {
-            output.note(AnnotationKind::MixedExponentialCustomHistograms);
-            return Ok(output);
-        }
-        let mut schema = last
-            .value
-            .as_ref()
-            .schema
-            .min(relevant_first.as_ref().schema);
-        if counter {
-            let mut index = 0usize;
-            let mut mismatch = false;
-            scan_matrix::<_, StorageError>(series, bounds, matrix, control, account, |sample| {
-                if sample.value.is_stale() {
+            NativePass::Schemas => {
+                let interior = self.index > 0 && self.index < self.count - 1;
+                self.index += 1;
+                if !interior || self.mismatch {
                     return Ok(());
                 }
-                let interior = index > 0 && index < count - 1;
-                index += 1;
-                if !interior || mismatch {
-                    return Ok(());
-                }
-                let (current_schema, hint) = match sample.value {
+                let (schema, hint) = match sample.value {
                     SampleValueRef::FloatHistogram(h) => (h.schema, h.reset_hint),
                     SampleValueRef::IntegerHistogram(h) => (h.schema, h.reset_hint),
                     SampleValueRef::Float(_) => {
@@ -235,58 +339,23 @@ fn extrapolated_histogram<S: Series>(
                     }
                 };
                 if hint == GAUGE {
-                    output.note(AnnotationKind::NativeHistogramNotCounter);
+                    self.output.note(AnnotationKind::NativeHistogramNotCounter);
                 }
-                schema = schema.min(current_schema);
-                mismatch = (current_schema == CUSTOM_BUCKETS_SCHEMA) != custom;
-                Ok(())
-            })?;
-            if mismatch {
-                return Ok(RateOutput::only(
-                    AnnotationKind::MixedExponentialCustomHistograms,
-                ));
+                self.schema = self.schema.min(schema);
+                self.mismatch = (schema == CUSTOM_BUCKETS_SCHEMA) != self.custom;
             }
-        }
-        let mut value = last
-            .value
-            .copy_to_schema_checked(schema, control, account)
-            .map_err(arithmetic_error)?;
-        match value.arithmetic_checked(relevant_first.as_ref(), true, control, account) {
-            Ok(flags) => {
-                if flags.nhcb_bounds_reconciled {
-                    output.note(AnnotationKind::MismatchedCustomBuckets(
-                        HistogramOperation::Subtraction,
-                    ));
-                }
-            }
-            Err(HistogramEvaluationError::Arithmetic(HistogramError::IncompatibleSchema)) => {
-                return Ok(RateOutput::only(
-                    AnnotationKind::MixedExponentialCustomHistograms,
-                ));
-            }
-            Err(error) => return Err(arithmetic_error(error)),
-        }
-        if counter {
-            let mut index = 0usize;
-            let mut previous = None::<OwnedHistogram>;
-            let mut previous_time = first.time;
-            let mut previous_start = first.start;
-            let mut mismatch = false;
-            scan_matrix::<_, StorageError>(series, bounds, matrix, control, account, |sample| {
-                if sample.value.is_stale() {
+            NativePass::Resets => {
+                self.index += 1;
+                if self.index == 1 || self.mismatch {
                     return Ok(());
                 }
-                index += 1;
-                if index == 1 || mismatch {
-                    return Ok(());
-                }
-                let start = if window.start_timestamps {
+                let start = if self.input.window.start_timestamps {
                     sample.start_time_ms
                 } else {
                     0
                 };
-                if start_time_overlap(previous_start, previous_time, start) {
-                    output.note(AnnotationKind::StartTimeOverlap);
+                if start_time_overlap(self.previous_start, self.previous_time, start) {
+                    self.output.note(AnnotationKind::StartTimeOverlap);
                 }
                 let mut converted = None;
                 let current = match sample.value {
@@ -301,96 +370,240 @@ fn extrapolated_histogram<S: Series>(
                         ));
                     }
                 };
-                let prior = previous.as_ref().unwrap_or(relevant_first).as_ref();
-                if start_timestamp_reset(previous_start, previous_time, start, sample.time_ms)
-                    || detect_reset_with(current, prior, work)?
+                let effective_first = self
+                    .zero
+                    .as_ref()
+                    .unwrap_or(&self.first.as_ref().expect("native first").value);
+                let prior = self.previous.as_ref().unwrap_or(effective_first).as_ref();
+                if start_timestamp_reset(
+                    self.previous_start,
+                    self.previous_time,
+                    start,
+                    sample.time_ms,
+                ) || detect_reset_with(current, prior, HistogramWork::new(control, account))?
                 {
-                    match value.arithmetic_checked(prior, false, control, account) {
+                    match self
+                        .value
+                        .as_mut()
+                        .expect("native accumulator")
+                        .arithmetic_checked(prior, false, control, account)
+                    {
                         Ok(flags) => {
                             if flags.nhcb_bounds_reconciled {
-                                output.note(AnnotationKind::MismatchedCustomBuckets(
+                                self.output.note(AnnotationKind::MismatchedCustomBuckets(
                                     HistogramOperation::Addition,
                                 ));
                             }
                         }
                         Err(HistogramEvaluationError::Arithmetic(
                             HistogramError::IncompatibleSchema,
-                        )) => mismatch = true,
+                        )) => {
+                            self.mismatch = true;
+                        }
                         Err(error) => return Err(arithmetic_error(error)),
                     }
                 }
                 if let Some(converted) = converted {
-                    previous = Some(converted);
-                } else if let Some(previous) = &mut previous {
+                    self.previous = Some(converted);
+                } else if let Some(previous) = &mut self.previous {
                     previous.copy_from_sample_checked(sample.value, control, account)?;
                 } else {
-                    previous = Some(own_histogram(sample.value, control, account)?);
+                    self.previous = Some(own_histogram(sample.value, control, account)?);
                 }
-                previous_time = sample.time_ms;
-                previous_start = start;
-                Ok(())
-            })?;
-            if mismatch {
-                return Ok(RateOutput::only(
-                    AnnotationKind::MixedExponentialCustomHistograms,
-                ));
+                self.previous_time = sample.time_ms;
+                self.previous_start = start;
             }
-        } else if first.value.as_ref().reset_hint != GAUGE
-            || last.value.as_ref().reset_hint != GAUGE
-        {
-            output.note(AnnotationKind::NativeHistogramNotGauge);
         }
-        value.set_reset_hint(GAUGE);
-        value.compact_checked(control, account)?;
-        Some(value)
-    } else {
-        None
-    };
-    if uses_first_start(input, kind, first.time, first.start) {
-        if let Some(value) = &mut value {
-            match value.arithmetic_checked(first.value.as_ref(), false, control, account) {
-                Ok(flags) => {
-                    if flags.nhcb_bounds_reconciled {
-                        output.note(AnnotationKind::MismatchedCustomBuckets(
-                            HistogramOperation::Addition,
-                        ));
+        Ok(())
+    }
+    fn prepare_endpoints(
+        &mut self,
+        control: &Control,
+        account: &QueryAccounting,
+    ) -> Result<bool, StorageError> {
+        let first = self.first.as_ref().expect("native first");
+        let second = self.second.as_ref().expect("native second");
+        if self.kind != RateKind::Delta {
+            if first.value.as_ref().reset_hint == GAUGE
+                || self.last().value.as_ref().reset_hint == GAUGE
+            {
+                self.output.note(AnnotationKind::NativeHistogramNotCounter);
+            }
+            if start_timestamp_reset(first.start, first.time, second.start, second.time)
+                || detect_reset_with(
+                    second.value.as_ref(),
+                    first.value.as_ref(),
+                    HistogramWork::new(control, account),
+                )?
+            {
+                let empty = FloatHistogram::default();
+                self.zero = Some(own_histogram(
+                    SampleValueRef::FloatHistogram(FloatHistogramRef {
+                        schema: second.value.as_ref().schema,
+                        custom_values: second.value.as_ref().custom_values,
+                        ..empty.as_ref()
+                    }),
+                    control,
+                    account,
+                )?);
+            }
+        }
+        self.custom = self.effective_first().as_ref().schema == CUSTOM_BUCKETS_SCHEMA;
+        if (self.last().value.as_ref().schema == CUSTOM_BUCKETS_SCHEMA) != self.custom {
+            self.output
+                .note(AnnotationKind::MixedExponentialCustomHistograms);
+            return Ok(false);
+        }
+        self.schema = self
+            .last()
+            .value
+            .as_ref()
+            .schema
+            .min(self.effective_first().as_ref().schema);
+        Ok(true)
+    }
+    fn subtract(
+        &mut self,
+        control: &Control,
+        account: &QueryAccounting,
+    ) -> Result<bool, StorageError> {
+        let mut value = self
+            .last()
+            .value
+            .copy_to_schema_checked(self.schema, control, account)
+            .map_err(arithmetic_error)?;
+        match value.arithmetic_checked(self.effective_first().as_ref(), true, control, account) {
+            Ok(flags) => {
+                if flags.nhcb_bounds_reconciled {
+                    self.output.note(AnnotationKind::MismatchedCustomBuckets(
+                        HistogramOperation::Subtraction,
+                    ));
+                }
+            }
+            Err(HistogramEvaluationError::Arithmetic(HistogramError::IncompatibleSchema)) => {
+                self.output = RateOutput::only(AnnotationKind::MixedExponentialCustomHistograms);
+                return Ok(false);
+            }
+            Err(error) => return Err(arithmetic_error(error)),
+        }
+        self.value = Some(value);
+        Ok(true)
+    }
+    fn finish_pass(
+        &mut self,
+        control: &Control,
+        account: &QueryAccounting,
+    ) -> Result<Option<RateOutput>, StorageError> {
+        match self.phase {
+            NativePass::Endpoints => {
+                if self.first.is_none() {
+                    return Ok(Some(std::mem::take(&mut self.output)));
+                }
+                if self.count > 1 {
+                    if !self.prepare_endpoints(control, account)? {
+                        return Ok(Some(std::mem::take(&mut self.output)));
+                    }
+                    if self.kind != RateKind::Delta {
+                        self.phase = NativePass::Schemas;
+                        self.index = 0;
+                        return Ok(None);
+                    }
+                    if !self.subtract(control, account)? {
+                        return Ok(Some(std::mem::take(&mut self.output)));
+                    }
+                    if self.first.as_ref().unwrap().value.as_ref().reset_hint != GAUGE
+                        || self.last().value.as_ref().reset_hint != GAUGE
+                    {
+                        self.output.note(AnnotationKind::NativeHistogramNotGauge);
                     }
                 }
-                Err(HistogramEvaluationError::Arithmetic(HistogramError::IncompatibleSchema)) => {
-                    output.note(AnnotationKind::MixedExponentialCustomHistograms);
-                    return Ok(output);
-                }
-                Err(error) => return Err(arithmetic_error(error)),
             }
-        } else {
-            value = Some(
-                first
-                    .value
-                    .copy_to_schema_checked(first.value.as_ref().schema, control, account)
-                    .map_err(arithmetic_error)?,
-            );
+            NativePass::Schemas => {
+                if self.mismatch {
+                    return Ok(Some(RateOutput::only(
+                        AnnotationKind::MixedExponentialCustomHistograms,
+                    )));
+                }
+                if !self.subtract(control, account)? {
+                    return Ok(Some(std::mem::take(&mut self.output)));
+                }
+                let first = self.first.as_ref().unwrap();
+                self.previous_time = first.time;
+                self.previous_start = first.start;
+                self.phase = NativePass::Resets;
+                self.index = 0;
+                return Ok(None);
+            }
+            NativePass::Resets => {
+                if self.mismatch {
+                    return Ok(Some(RateOutput::only(
+                        AnnotationKind::MixedExponentialCustomHistograms,
+                    )));
+                }
+            }
         }
+        if let Some(value) = &mut self.value {
+            value.set_reset_hint(GAUGE);
+            value.compact_checked(control, account)?;
+        }
+        self.finish(control, account).map(Some)
     }
-    let Some(mut value) = value else {
-        return Ok(output);
-    };
-    let Some(factor) = extrapolation_factor(
-        input,
-        kind,
-        Extrapolation {
-            first_time: first.time,
-            last_time: last.time,
-            first_start: first.start,
-            count,
-            first_value: first.value.as_ref().count,
-            result_value: value.as_ref().count,
-        },
-    ) else {
-        return Ok(output);
-    };
-    value.mul_checked(factor, control, account)?;
-    output.value = Some(OwnedValue::Histogram(value));
-    Ok(output)
+    fn finish(
+        &mut self,
+        control: &Control,
+        account: &QueryAccounting,
+    ) -> Result<RateOutput, StorageError> {
+        let first = self.first.as_ref().expect("native first");
+        if uses_first_start(self.input, self.kind, first.time, first.start) {
+            if let Some(value) = &mut self.value {
+                match value.arithmetic_checked(first.value.as_ref(), false, control, account) {
+                    Ok(flags) => {
+                        if flags.nhcb_bounds_reconciled {
+                            self.output.note(AnnotationKind::MismatchedCustomBuckets(
+                                HistogramOperation::Addition,
+                            ));
+                        }
+                    }
+                    Err(HistogramEvaluationError::Arithmetic(
+                        HistogramError::IncompatibleSchema,
+                    )) => {
+                        self.output
+                            .note(AnnotationKind::MixedExponentialCustomHistograms);
+                        return Ok(std::mem::take(&mut self.output));
+                    }
+                    Err(error) => return Err(arithmetic_error(error)),
+                }
+            } else {
+                // The singleton extension retains its original hint and uncompacted layout.
+                self.value = Some(
+                    first
+                        .value
+                        .copy_to_schema_checked(first.value.as_ref().schema, control, account)
+                        .map_err(arithmetic_error)?,
+                );
+            }
+        }
+        let Some(mut value) = self.value.take() else {
+            return Ok(std::mem::take(&mut self.output));
+        };
+        let Some(factor) = extrapolation_factor(
+            self.input,
+            self.kind,
+            Extrapolation {
+                first_time: first.time,
+                last_time: self.last().time,
+                first_start: first.start,
+                count: self.count,
+                first_value: first.value.as_ref().count,
+                result_value: value.as_ref().count,
+            },
+        ) else {
+            return Ok(std::mem::take(&mut self.output));
+        };
+        value.mul_checked(factor, control, account)?;
+        self.output.value = Some(OwnedValue::Histogram(value));
+        Ok(std::mem::take(&mut self.output))
+    }
 }
 
 struct InstantPoint {
@@ -398,26 +611,32 @@ struct InstantPoint {
     start: i64,
     value: OwnedValue,
 }
-fn instant<S: Series>(
-    series: &S,
-    input: RateInput,
+pub(crate) struct InstantStep {
     counter: bool,
-    matrix: Option<MatrixWindow>,
-    control: &Control,
-    account: &QueryAccounting,
-) -> Result<RateOutput, StorageError> {
-    let window = input.window;
-    let bounds = input.bounds();
-    let mut first = None;
-    let mut last = None;
-    scan_matrix::<_, StorageError>(series, bounds, matrix, control, account, |sample| {
+    start_timestamps: bool,
+    floats: [Option<InstantPoint>; 2],
+    histograms: [Option<InstantPoint>; 2],
+}
+impl InstantStep {
+    fn receive(
+        &mut self,
+        sample: SampleRef<'_>,
+        control: &Control,
+        account: &QueryAccounting,
+    ) -> Result<(), StorageError> {
+        control.check()?;
         if sample.value.is_stale() {
             return Ok(());
         }
-        first = last.take();
-        last = Some(InstantPoint {
+        let points = if matches!(sample.value, SampleValueRef::Float(_)) {
+            &mut self.floats
+        } else {
+            &mut self.histograms
+        };
+        points[0] = points[1].take();
+        points[1] = Some(InstantPoint {
             time: sample.time_ms,
-            start: if window.start_timestamps {
+            start: if self.start_timestamps {
                 sample.start_time_ms
             } else {
                 0
@@ -430,75 +649,121 @@ fn instant<S: Series>(
             )?,
         });
         Ok(())
-    })?;
-    let (Some(first), Some(last)) = (first, last) else {
-        return Ok(RateOutput::default());
-    };
-    let interval = last.time.wrapping_sub(first.time);
-    if interval == 0 {
-        return Ok(RateOutput::default());
     }
-    let mut output = RateOutput::default();
-    output.value = match (&first.value, &last.value) {
-        (OwnedValue::Float(first_value), OwnedValue::Float(last_value)) => {
-            let reset = counter
-                && (*last_value < *first_value
-                    || start_timestamp_reset(first.start, first.time, last.start, last.time));
-            let mut value = if reset {
-                *last_value
+    fn finish(
+        &mut self,
+        control: &Control,
+        account: &QueryAccounting,
+    ) -> Result<RateOutput, StorageError> {
+        let counter = self.counter;
+        let mut first = None::<InstantPoint>;
+        let mut last = None::<InstantPoint>;
+        for point in std::mem::take(&mut self.floats).into_iter().flatten() {
+            if first.is_none() {
+                first = Some(point);
             } else {
-                *last_value - *first_value
-            };
-            if counter {
-                value /= interval as f64 / 1000.0;
+                last = Some(point);
             }
-            Some(OwnedValue::Float(value))
         }
-        (OwnedValue::Histogram(first_value), OwnedValue::Histogram(last_value)) => {
-            let first_h = first_value.as_ref();
-            let last_h = last_value.as_ref();
-            let mut value = last_value
-                .copy_to_schema_checked(last_h.schema, control, account)
-                .map_err(arithmetic_error)?;
-            if counter && (first_h.reset_hint == GAUGE || last_h.reset_hint == GAUGE) {
-                output.note(AnnotationKind::NativeHistogramNotCounter);
-            } else if !counter && (first_h.reset_hint != GAUGE || last_h.reset_hint != GAUGE) {
-                output.note(AnnotationKind::NativeHistogramNotGauge);
-            }
-            if !counter
-                || !(start_timestamp_reset(first.start, first.time, last.start, last.time)
-                    || detect_reset_with(last_h, first_h, HistogramWork::new(control, account))?)
-            {
-                match value.arithmetic_checked(first_h, true, control, account) {
-                    Ok(flags) => {
-                        if flags.nhcb_bounds_reconciled {
-                            output.note(AnnotationKind::MismatchedCustomBuckets(
-                                HistogramOperation::Subtraction,
-                            ));
-                        }
+        // Per-kind tails precede the source insertion switch, including equal-time cases.
+        for point in std::mem::take(&mut self.histograms).into_iter().flatten() {
+            if let Some(left) = &first {
+                if let Some(right) = &last {
+                    if point.time < left.time {
+                        continue;
                     }
-                    Err(HistogramEvaluationError::Arithmetic(
-                        HistogramError::IncompatibleSchema,
-                    )) => {
-                        output.note(AnnotationKind::MixedExponentialCustomHistograms);
-                        return Ok(output);
+                    if point.time > right.time {
+                        first = last.take();
+                        last = Some(point);
+                    } else {
+                        first = Some(point);
                     }
-                    Err(error) => return Err(arithmetic_error(error)),
+                } else if point.time < left.time {
+                    last = first.take();
+                    first = Some(point);
+                } else {
+                    last = Some(point);
                 }
+            } else {
+                first = Some(point);
             }
-            value.set_reset_hint(GAUGE);
-            value.compact_checked(control, account)?;
-            if counter {
-                value.div_checked(interval as f64 / 1000.0, control, account)?;
+        }
+        let (Some(first), Some(last)) = (first, last) else {
+            return Ok(RateOutput::default());
+        };
+        let interval = last.time.wrapping_sub(first.time);
+        if interval == 0 {
+            return Ok(RateOutput::default());
+        }
+        let mut output = RateOutput::default();
+        output.value = match (&first.value, &last.value) {
+            (OwnedValue::Float(first_value), OwnedValue::Float(last_value)) => {
+                let reset = counter
+                    && (*last_value < *first_value
+                        || start_timestamp_reset(first.start, first.time, last.start, last.time));
+                let mut value = if reset {
+                    *last_value
+                } else {
+                    crate::numerical::source_sub(*last_value, *first_value)
+                };
+                if counter {
+                    value = crate::numerical::source_div(
+                        value,
+                        crate::numerical::source_div(interval as f64, 1000.0),
+                    );
+                }
+                Some(OwnedValue::Float(value))
             }
-            Some(OwnedValue::Histogram(value))
-        }
-        _ => {
-            output.note(AnnotationKind::MixedFloatsHistograms);
-            None
-        }
-    };
-    Ok(output)
+            (OwnedValue::Histogram(first_value), OwnedValue::Histogram(last_value)) => {
+                let first_h = first_value.as_ref();
+                let last_h = last_value.as_ref();
+                let mut value = last_value
+                    .copy_to_schema_checked(last_h.schema, control, account)
+                    .map_err(arithmetic_error)?;
+                if counter && (first_h.reset_hint == GAUGE || last_h.reset_hint == GAUGE) {
+                    output.note(AnnotationKind::NativeHistogramNotCounter);
+                } else if !counter && (first_h.reset_hint != GAUGE || last_h.reset_hint != GAUGE) {
+                    output.note(AnnotationKind::NativeHistogramNotGauge);
+                }
+                if !counter
+                    || !(start_timestamp_reset(first.start, first.time, last.start, last.time)
+                        || detect_reset_with(
+                            last_h,
+                            first_h,
+                            HistogramWork::new(control, account),
+                        )?)
+                {
+                    match value.arithmetic_checked(first_h, true, control, account) {
+                        Ok(flags) => {
+                            if flags.nhcb_bounds_reconciled {
+                                output.note(AnnotationKind::MismatchedCustomBuckets(
+                                    HistogramOperation::Subtraction,
+                                ));
+                            }
+                        }
+                        Err(HistogramEvaluationError::Arithmetic(
+                            HistogramError::IncompatibleSchema,
+                        )) => {
+                            output.note(AnnotationKind::MixedExponentialCustomHistograms);
+                            return Ok(output);
+                        }
+                        Err(error) => return Err(arithmetic_error(error)),
+                    }
+                }
+                value.set_reset_hint(GAUGE);
+                value.compact_checked(control, account)?;
+                if counter {
+                    value.div_checked(interval as f64 / 1000.0, control, account)?;
+                }
+                Some(OwnedValue::Histogram(value))
+            }
+            _ => {
+                output.note(AnnotationKind::MixedFloatsHistograms);
+                None
+            }
+        };
+        Ok(output)
+    }
 }
 
 #[cfg(test)]
@@ -541,6 +806,116 @@ mod tests {
             range_ns: count as i64 * 1_000_000_000,
             start_timestamps: false,
         }
+    }
+
+    #[test]
+    fn streamed_native_endpoints_and_replay_ordinals_preserve_u32_rollover() {
+        let account = EngineAccounting::default().query();
+        let control = Control::default();
+        let prefix = u64::from(u32::MAX);
+        let window = RateWindow {
+            start_ms: 0,
+            end_ms: (prefix + 2) as i64,
+            range_ns: (prefix + 2) as i64 * 1_000_000,
+            start_timestamps: false,
+        };
+        let mut step = NativeStep::new(window.into(), RateKind::Increase);
+        let histogram = FloatHistogram {
+            count: 1.0,
+            sum: 1.0,
+            zero_count: 1.0,
+            reset_hint: NOT_RESET,
+            ..FloatHistogram::default()
+        };
+        let mut sample = SampleRef {
+            time_ms: 1,
+            start_time_ms: 0,
+            value: SampleValueRef::FloatHistogram(histogram.as_ref()),
+        };
+        for time in [1, 2, prefix as i64] {
+            sample.time_ms = time;
+            step.receive(sample, &control, &account).unwrap();
+        }
+        step.count = prefix;
+        sample.time_ms = (prefix + 1) as i64;
+        step.receive(sample, &control, &account).unwrap();
+        assert_eq!(step.count, prefix + 1);
+        assert_eq!(step.first.as_ref().unwrap().time, 1);
+        assert_eq!(step.second.as_ref().unwrap().time, 2);
+        assert_eq!(step.last().time, (prefix + 1) as i64);
+
+        step.phase = NativePass::Schemas;
+        step.index = prefix;
+        step.receive(sample, &control, &account).unwrap();
+        assert_eq!(step.index, prefix + 1);
+        step.receive(sample, &control, &account).unwrap();
+        assert_eq!(step.index, prefix + 2);
+        drop(step);
+        account.snapshot().assert_memory_released();
+    }
+
+    #[test]
+    fn instant_typed_tails_preserve_source_equal_time_insertion() {
+        for counter in [false, true] {
+            let engine = EngineAccounting::default();
+            let account = engine.query();
+            let control = Control::default();
+            let mut step = Step::new(window(2).into(), RateFunction::Instant { counter });
+            for (time_ms, value) in [(0, 0.0), (10, 10.0)] {
+                step.receive(
+                    SampleRef {
+                        time_ms,
+                        start_time_ms: 0,
+                        value: SampleValueRef::Float(value),
+                    },
+                    &control,
+                    &account,
+                )
+                .unwrap();
+            }
+            for time_ms in [10, 20] {
+                let mut sample = native(0);
+                sample.time_ms = time_ms;
+                step.receive(sample.as_ref(), &control, &account).unwrap();
+            }
+            let result = step.finish_pass(&control, &account).unwrap().unwrap();
+            assert!(result.value.is_none());
+            assert_eq!(
+                result.annotations[0],
+                Some(AnnotationKind::MixedFloatsHistograms)
+            );
+            assert!(result.annotations[1..].iter().all(Option::is_none));
+            drop((result, step));
+            account.snapshot().assert_memory_released();
+        }
+    }
+
+    #[test]
+    fn instant_equal_selected_times_finish_before_histogram_warnings() {
+        let engine = EngineAccounting::default();
+        let account = engine.query();
+        let control = Control::default();
+        let mut step = Step::new(window(2).into(), RateFunction::Instant { counter: true });
+        for value in [0.0, 10.0] {
+            step.receive(
+                SampleRef {
+                    time_ms: value as i64,
+                    start_time_ms: 0,
+                    value: SampleValueRef::Float(value),
+                },
+                &control,
+                &account,
+            )
+            .unwrap();
+        }
+        let mut sample = native(0);
+        sample.time_ms = 10;
+        step.receive(sample.as_ref(), &control, &account).unwrap();
+        let result = step.finish_pass(&control, &account).unwrap().unwrap();
+        assert!(result.value.is_none());
+        assert!(result.annotations.iter().all(Option::is_none));
+        drop((result, step));
+        account.snapshot().assert_memory_released();
     }
 
     #[test]
@@ -710,7 +1085,9 @@ mod tests {
                 end_ms: window(100).end_ms,
                 statistics: true,
                 reduce_delta: true,
+                resume: None,
                 range_ms: window(100).end_ms,
+                buffer_ms: None,
                 step_ms: 1,
                 data_bounds: TimeBounds {
                     start_ms: 0,

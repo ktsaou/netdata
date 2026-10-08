@@ -61,13 +61,7 @@ impl Plan {
                 expression.arena[parameter].expression,
                 Expr::Paren(_)
             ));
-            return Err(EvaluationError::WrappedRuntime(binary_labels::formatted(
-                format_args!(
-                    "unexpected error: interface conversion: parser.Expr is *parser.ParenExpr, not *parser.StringLiteral"
-                ),
-                control,
-                account,
-            )?));
+            return Err(label_functions::string_literal_error(control, account)?);
         };
         if !label_functions::valid_name(name, account, control)? {
             let mut message = AccountedVec::new(account, MemoryKind::Workspace);

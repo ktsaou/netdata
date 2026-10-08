@@ -447,7 +447,10 @@ fn result_rows(result: &CollectedResult) -> Vec<Value> {
     }
     result.series.iter().map(|row| {
         let labels: Vec<_> = row.labels.0.iter().map(|label| json!({"name": encoded_bytes(&label.name), "value": encoded_bytes(&label.value)})).collect();
-        let points: Vec<_> = row.points.iter().map(|point| match &point.value {
+        // The canonical Go codec sorts encoded points; engine append order stays observable separately.
+        let mut ordered: Vec<_> = row.points.iter().collect();
+        ordered.sort_unstable_by_key(|point| point.time_ms);
+        let points: Vec<_> = ordered.into_iter().map(|point| match &point.value {
             OwnedValue::Float(value) => json!({"time_ms": point.time_ms, "kind": "float", "float": format!("{:016x}", value.to_bits())}),
             OwnedValue::Histogram(value) => json!({"time_ms": point.time_ms, "kind": "float_histogram", "float_histogram": encoded_float_ref(value.as_ref())}),
         }).collect();

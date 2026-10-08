@@ -333,7 +333,9 @@ mod tests {
                         end_ms: 5000,
                         statistics: true,
                         reduce_delta: true,
+                        resume: None,
                         range_ms: 500,
+                        buffer_ms: None,
                         step_ms: 4000,
                         data_bounds: TimeBounds {
                             start_ms: 0,
@@ -408,7 +410,9 @@ mod tests {
                 end_ms: 4000,
                 statistics: true,
                 reduce_delta: true,
+                resume: None,
                 range_ms: 1000,
+                buffer_ms: None,
                 step_ms: 1000,
                 data_bounds: TimeBounds {
                     start_ms: 0,

@@ -307,14 +307,16 @@ struct Key {
     start: i64,
     end: i64,
     step: i64,
+    position: i64,
 }
-impl From<EvaluationOptions> for Key {
-    fn from(options: EvaluationOptions) -> Self {
+impl From<(EvaluationOptions, i64)> for Key {
+    fn from((options, position): (EvaluationOptions, i64)) -> Self {
         Self {
             time: options.time_ms,
             start: options.start_ms,
             end: options.end_ms,
             step: options.step_ms,
+            position,
         }
     }
 }
@@ -365,6 +367,7 @@ pub(crate) enum Action<'a> {
 pub(crate) struct Step<'a> {
     plan: &'a Plan,
     options: EvaluationOptions,
+    step_index: i64,
     stage: Stage,
     project: bool,
     vector: bool,
@@ -393,6 +396,7 @@ impl<'a> Step<'a> {
     pub(crate) fn new(
         plan: &'a Plan,
         options: EvaluationOptions,
+        step_index: i64,
         project: bool,
         vector: bool,
         canonical_rows: Option<&'a [Descriptor]>,
@@ -402,7 +406,7 @@ impl<'a> Step<'a> {
             let cache = plan.cache.borrow();
             cache
                 .as_ref()
-                .filter(|snapshot| snapshot.key == Key::from(options))
+                .filter(|snapshot| snapshot.key == Key::from((options, step_index)))
                 .cloned()
         };
         let (stage, parameter) = if !plan.productive {
@@ -420,6 +424,7 @@ impl<'a> Step<'a> {
         Self {
             plan,
             options,
+            step_index,
             stage,
             project,
             vector,
@@ -529,7 +534,7 @@ impl<'a> Step<'a> {
         );
         let snapshot = Strong::new_in(
             Snapshot {
-                key: self.options.into(),
+                key: (self.options, self.step_index).into(),
                 k: self.k,
                 parameter: self.parameter,
                 heaps,
