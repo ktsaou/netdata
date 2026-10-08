@@ -82,6 +82,14 @@ are retained in `native-trim-source-results.json`. The panel validator accepts e
 including labels, timestamps, notes and every raw field. All other results retain strict canonical validation;
 inputs and comparison policy are unchanged. This is source behavior, not a general validation exemption.
 
+Ordinary histogram outputs retain the existing `Compact(0)` packing equivalence in `contract.json`.
+Upstream's reusable histogram targets also make absent-versus-empty buffer presentation depend on previous queries:
+the same `h[2s]` input returns negative bucket arrays `[null, null]` in a fresh original process and `[null, []]`
+after earlier queries. `FloatHistogram.CopyTo` retains cleared destination buffers, and the matrix selector reuses
+those targets (`model/histogram/float_histogram.go:119-120`, `promql/engine.go:2876-2886,3083` at the pinned commit).
+This panel does not pin that pool-dependent presentation. Rust/C output copies still preserve their own evaluated
+arrays; the four malformed trim controls require complete literal payload equality.
+
 Capture and qualify one panel using existing verified sources and a frozen candidate:
 
 ```sh
