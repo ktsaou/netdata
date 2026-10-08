@@ -191,6 +191,7 @@ impl Kernel {
 fn fold_error(error: FoldError) -> EvaluationError {
     match error {
         FoldError::Interrupted(error) => error.into(),
+        FoldError::Storage(error) => error.into(),
         FoldError::NonAdvancingMerge { kind, .. } => EvaluationError::Invalid(match kind {
             FoldKind::Changes => {
                 "changes() cannot advance past equal float and histogram timestamps"

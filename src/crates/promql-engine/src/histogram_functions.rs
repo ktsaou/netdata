@@ -2,9 +2,11 @@
 // Native histogram kernels derive from Prometheus promql/{quantile,functions}.go; see NOTICE.
 use crate::frontend::quote;
 use crate::histogram::{AllFloatBucketIterator, Bucket, CUSTOM_BUCKETS_SCHEMA, FloatHistogramRef};
+use crate::histogram_work::HistogramWork;
 use crate::numerical::{
     compensated_add, exp2, log2, source_add, source_div, source_mul, source_sub, sqrt,
 };
+use crate::storage::StorageError;
 
 const NAN: f64 = f64::from_bits(0x7ff8_0000_0000_0001);
 
@@ -69,12 +71,19 @@ impl HistogramFunctionResult {
 }
 
 pub fn histogram_quantile(q: f64, h: FloatHistogramRef<'_>) -> HistogramFunctionResult {
-    histogram_quantile_with(q, h, || Ok::<(), std::convert::Infallible>(())).unwrap()
+    histogram_quantile_with(
+        q,
+        h,
+        HistogramWork::default(),
+        || Ok::<(), StorageError>(()),
+    )
+    .unwrap()
 }
 
-pub(crate) fn histogram_quantile_with<E>(
+pub(crate) fn histogram_quantile_with<E: From<StorageError>>(
     q: f64,
     h: FloatHistogramRef<'_>,
+    work: HistogramWork<'_>,
     mut poll: impl FnMut() -> Result<(), E>,
 ) -> Result<HistogramFunctionResult, E> {
     if q < 0.0 {
@@ -96,7 +105,7 @@ pub(crate) fn histogram_quantile_with<E>(
     };
     let mut count = 0.0;
     let mut bucket = Bucket::default();
-    while iterator.advance() {
+    while iterator.advance_with(work).map_err(StorageError::from)? {
         poll()?;
         bucket = iterator.at();
         if bucket.count == 0.0 {
@@ -141,7 +150,7 @@ pub(crate) fn histogram_quantile_with<E>(
     let mut info = None;
     if h.sum.is_nan() {
         // Pinned NaN-skew traversal overwrites the interpolation bucket as it finishes.
-        while iterator.advance() {
+        while iterator.advance_with(work).map_err(StorageError::from)? {
             poll()?;
             bucket = iterator.at();
             // Unlike the main scan, Go keeps the old accumulator as the destination here.
@@ -186,13 +195,17 @@ pub fn histogram_fraction(
     upper: f64,
     h: FloatHistogramRef<'_>,
 ) -> HistogramFunctionResult {
-    histogram_fraction_with(lower, upper, h, || Ok::<(), std::convert::Infallible>(())).unwrap()
+    histogram_fraction_with(lower, upper, h, HistogramWork::default(), || {
+        Ok::<(), StorageError>(())
+    })
+    .unwrap()
 }
 
-pub(crate) fn histogram_fraction_with<E>(
+pub(crate) fn histogram_fraction_with<E: From<StorageError>>(
     lower: f64,
     upper: f64,
     h: FloatHistogramRef<'_>,
+    work: HistogramWork<'_>,
     mut poll: impl FnMut() -> Result<(), E>,
 ) -> Result<HistogramFunctionResult, E> {
     if h.count == 0.0 || lower.is_nan() || upper.is_nan() {
@@ -204,7 +217,7 @@ pub(crate) fn histogram_fraction_with<E>(
     let (mut count, mut rank, mut lower_rank, mut upper_rank) = (0.0, 0.0, 0.0, 0.0);
     let (mut lower_set, mut upper_set) = (false, false);
     let mut iterator = AllFloatBucketIterator::new(h, false);
-    while iterator.advance() {
+    while iterator.advance_with(work).map_err(StorageError::from)? {
         poll()?;
         let mut bucket = iterator.at();
         count = add_bucket_count(count, bucket.count);
@@ -247,7 +260,7 @@ pub(crate) fn histogram_fraction_with<E>(
     }
     let mut info = None;
     if h.sum.is_nan() {
-        while iterator.advance() {
+        while iterator.advance_with(work).map_err(StorageError::from)? {
             poll()?;
             count = add_bucket_count(count, iterator.at().count);
         }
@@ -287,17 +300,18 @@ pub fn histogram_avg(h: FloatHistogramRef<'_>) -> f64 {
 }
 
 pub fn histogram_stdvar(h: FloatHistogramRef<'_>) -> f64 {
-    histogram_stdvar_with(h, || Ok::<(), std::convert::Infallible>(())).unwrap()
+    histogram_stdvar_with(h, HistogramWork::default(), || Ok::<(), StorageError>(())).unwrap()
 }
 
-pub(crate) fn histogram_stdvar_with<E>(
+pub(crate) fn histogram_stdvar_with<E: From<StorageError>>(
     h: FloatHistogramRef<'_>,
+    work: HistogramWork<'_>,
     mut poll: impl FnMut() -> Result<(), E>,
 ) -> Result<f64, E> {
     let mean = source_div(h.sum, h.count);
     let (mut variance, mut compensation) = (0.0, 0.0);
     let mut iterator = AllFloatBucketIterator::new(h, false);
-    while iterator.advance() {
+    while iterator.advance_with(work).map_err(StorageError::from)? {
         poll()?;
         let bucket = iterator.at();
         if bucket.count == 0.0 {
@@ -428,21 +442,30 @@ mod tests {
                 }
                 control.check()?;
                 account.work(1);
-                Ok::<(), Interrupted>(())
+                Ok::<(), StorageError>(())
             };
             let result = if quantile {
-                histogram_quantile_with(if tail { 0.1 } else { 0.5 }, histogram.as_ref(), poll)
+                histogram_quantile_with(
+                    if tail { 0.1 } else { 0.5 },
+                    histogram.as_ref(),
+                    HistogramWork::new(&control, &account),
+                    poll,
+                )
             } else {
                 histogram_fraction_with(
                     f64::NEG_INFINITY,
                     if tail { 0.5 } else { f64::INFINITY },
                     histogram.as_ref(),
+                    HistogramWork::new(&control, &account),
                     poll,
                 )
             };
-            assert!(matches!(result, Err(Interrupted::Cancelled)));
+            assert!(matches!(
+                result,
+                Err(StorageError::Interrupted(Interrupted::Cancelled))
+            ));
             assert_eq!(visited, 2);
-            assert_eq!(account.snapshot().work, 1);
+            assert!(account.snapshot().work > 1);
             assert_eq!(account.snapshot().memory, memory);
             assert_eq!(histogram.positive_buckets.as_deref(), Some(&[1.0; 4][..]));
             assert_eq!(
@@ -515,18 +538,25 @@ mod tests {
         .to_owned_in(Some(&context));
         let control = Control::default();
         let mut visited = 0;
-        let result = histogram_stdvar_with(histogram.as_ref(), || {
-            visited += 1;
-            if visited == 2 {
-                control.cancellation.cancel();
-            }
-            control.check()?;
-            account.work(1);
-            Ok::<(), Interrupted>(())
-        });
-        assert_eq!(result, Err(Interrupted::Cancelled));
+        let result = histogram_stdvar_with(
+            histogram.as_ref(),
+            HistogramWork::new(&control, &account),
+            || {
+                visited += 1;
+                if visited == 2 {
+                    control.cancellation.cancel();
+                }
+                control.check()?;
+                account.work(1);
+                Ok::<(), StorageError>(())
+            },
+        );
+        assert_eq!(
+            result,
+            Err(StorageError::Interrupted(Interrupted::Cancelled))
+        );
         assert_eq!(visited, 2);
-        assert_eq!(account.snapshot().work, 1);
+        assert!(account.snapshot().work > 1);
         assert_eq!(
             histogram_stdvar(histogram.as_ref()).to_bits(),
             1.0f64.to_bits()

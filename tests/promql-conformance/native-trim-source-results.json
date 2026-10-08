@@ -1,0 +1,170 @@
+{
+  "binding_sha256": "c457db02655b8057c139af65a942d4e3d51e800ea7b49d148eb94a0c8a5a2bde",
+  "commit": "5241a27fe3c6983549fccc32f6e65917408c63cd",
+  "original_sha256": "c50af651dce94fb66e6c8bedc6ab6fbda61cbdb03ab73159fd9dbf31707ae807",
+  "results": [
+    {
+      "id": "native-checked-panel-0034-span-counts-short-counts-trim-upper-upstream-tests-instant",
+      "infos": [],
+      "kind": "vector",
+      "rows": [
+        {
+          "labels": [
+            {
+              "name": "X19uYW1lX18=",
+              "value": "aA=="
+            }
+          ],
+          "points": [
+            {
+              "float_histogram": {
+                "count": "3ff0000000000000",
+                "custom_values": null,
+                "negative_buckets": null,
+                "negative_spans": null,
+                "positive_buckets": [
+                  "3ff0000000000000"
+                ],
+                "positive_spans": [
+                  {
+                    "Length": 2,
+                    "Offset": 0
+                  }
+                ],
+                "reset_hint": 0,
+                "schema": 0,
+                "sum": "3ff0000000000000",
+                "zero_count": "0000000000000000",
+                "zero_threshold": "0000000000000000"
+              },
+              "kind": "float_histogram",
+              "time_ms": 2000
+            }
+          ]
+        }
+      ],
+      "warnings": []
+    },
+    {
+      "id": "native-checked-panel-0035-span-counts-short-counts-trim-lower-upstream-tests-instant",
+      "infos": [],
+      "kind": "vector",
+      "rows": [
+        {
+          "labels": [
+            {
+              "name": "X19uYW1lX18=",
+              "value": "aA=="
+            }
+          ],
+          "points": [
+            {
+              "float_histogram": {
+                "count": "0000000000000000",
+                "custom_values": null,
+                "negative_buckets": null,
+                "negative_spans": null,
+                "positive_buckets": [],
+                "positive_spans": [
+                  {
+                    "Length": 1,
+                    "Offset": 1
+                  }
+                ],
+                "reset_hint": 0,
+                "schema": 0,
+                "sum": "0000000000000000",
+                "zero_count": "0000000000000000",
+                "zero_threshold": "0000000000000000"
+              },
+              "kind": "float_histogram",
+              "time_ms": 2000
+            }
+          ]
+        }
+      ],
+      "warnings": []
+    },
+    {
+      "id": "native-checked-panel-0040-span-counts-extra-counts-trim-upper-upstream-tests-instant",
+      "infos": [],
+      "kind": "vector",
+      "rows": [
+        {
+          "labels": [
+            {
+              "name": "X19uYW1lX18=",
+              "value": "aA=="
+            }
+          ],
+          "points": [
+            {
+              "float_histogram": {
+                "count": "3ff0000000000000",
+                "custom_values": null,
+                "negative_buckets": null,
+                "negative_spans": null,
+                "positive_buckets": [
+                  "3ff0000000000000",
+                  "4000000000000000"
+                ],
+                "positive_spans": [
+                  {
+                    "Length": 1,
+                    "Offset": 0
+                  }
+                ],
+                "reset_hint": 0,
+                "schema": 0,
+                "sum": "3ff0000000000000",
+                "zero_count": "0000000000000000",
+                "zero_threshold": "0000000000000000"
+              },
+              "kind": "float_histogram",
+              "time_ms": 2000
+            }
+          ]
+        }
+      ],
+      "warnings": []
+    },
+    {
+      "id": "native-checked-panel-0041-span-counts-extra-counts-trim-lower-upstream-tests-instant",
+      "infos": [],
+      "kind": "vector",
+      "rows": [
+        {
+          "labels": [
+            {
+              "name": "X19uYW1lX18=",
+              "value": "aA=="
+            }
+          ],
+          "points": [
+            {
+              "float_histogram": {
+                "count": "0000000000000000",
+                "custom_values": null,
+                "negative_buckets": null,
+                "negative_spans": null,
+                "positive_buckets": [
+                  "4000000000000000"
+                ],
+                "positive_spans": null,
+                "reset_hint": 0,
+                "schema": 0,
+                "sum": "0000000000000000",
+                "zero_count": "0000000000000000",
+                "zero_threshold": "0000000000000000"
+              },
+              "kind": "float_histogram",
+              "time_ms": 2000
+            }
+          ]
+        }
+      ],
+      "warnings": []
+    }
+  ],
+  "source_manifest_sha256": "329d5ad750b537af4a3c544276dbeabd5b8705a88431b8a20ae0b97f51fbb1d0"
+}

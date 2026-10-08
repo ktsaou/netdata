@@ -20,7 +20,7 @@ use serde_json::{Value, json};
 
 pub mod fixture_codec;
 use fixture_codec::{
-    Error, decoded_bytes, encoded_bytes, encoded_float_ref, float, integer, number,
+    Error, decoded_bytes, encoded_bytes, encoded_query_float_ref, float, integer, number,
 };
 
 struct FixtureSeries {
@@ -452,7 +452,7 @@ fn result_rows(result: &CollectedResult) -> Vec<Value> {
         ordered.sort_unstable_by_key(|point| point.time_ms);
         let points: Vec<_> = ordered.into_iter().map(|point| match &point.value {
             OwnedValue::Float(value) => json!({"time_ms": point.time_ms, "kind": "float", "float": format!("{:016x}", value.to_bits())}),
-            OwnedValue::Histogram(value) => json!({"time_ms": point.time_ms, "kind": "float_histogram", "float_histogram": encoded_float_ref(value.as_ref())}),
+            OwnedValue::Histogram(value) => json!({"time_ms": point.time_ms, "kind": "float_histogram", "float_histogram": encoded_query_float_ref(value.as_ref())}),
         }).collect();
         json!({"labels": labels, "points": points})
     }).collect()
@@ -607,6 +607,20 @@ fn evaluate(provider: &FixtureProvider, request: &Value) -> Result<Value, Error>
         }
         Err(ExecutionError::Evaluation(EvaluationError::WrappedRuntime(message))) => {
             result["error"] = failure("execution", "*fmt.wrapError", &message);
+        }
+        Err(ExecutionError::Evaluation(EvaluationError::Storage(StorageError::Runtime {
+            wrapped,
+            message,
+        }))) => {
+            result["error"] = failure(
+                "execution",
+                if wrapped {
+                    "*fmt.wrapError"
+                } else {
+                    "*errors.errorString"
+                },
+                &message,
+            );
         }
         Err(ExecutionError::Evaluation(EvaluationError::Storage(StorageError::Provider(
             message,

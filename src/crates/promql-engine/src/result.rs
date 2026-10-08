@@ -363,6 +363,24 @@ impl OwnedHistogram {
             SampleValueRef::Float(_) => unreachable!("classified histogram value"),
         }
     }
+    pub(crate) fn retain_from_sample_checked(
+        &mut self,
+        source: SampleValueRef<'_>,
+        control: &Control,
+        account: &QueryAccounting,
+    ) -> Result<(), Interrupted> {
+        let payload = &mut *self.payload;
+        let work = HistogramWork::new(control, account);
+        match source {
+            SampleValueRef::FloatHistogram(value) => {
+                value.retain_fields_to_with(&mut payload.value, &payload.context, work)
+            }
+            SampleValueRef::IntegerHistogram(value) => {
+                value.to_float_into_with(&mut payload.value, Some(&payload.context), work)
+            }
+            SampleValueRef::Float(_) => unreachable!("classified histogram value"),
+        }
+    }
     pub(crate) fn copy_to_schema_checked(
         &self,
         schema: i32,
@@ -468,7 +486,7 @@ impl OwnedHistogram {
         upper: bool,
         control: &crate::storage::Control,
         account: &QueryAccounting,
-    ) -> Result<(), crate::storage::Interrupted> {
+    ) -> Result<(), crate::storage::StorageError> {
         let payload = &mut *self.payload;
         payload.value.trim_buckets_with(
             threshold,

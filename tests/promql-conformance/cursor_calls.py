@@ -106,7 +106,7 @@ def wire_request(request):
     return defaults | request
 
 
-def checked_original(document, inputs):
+def checked_original(document, inputs, *, result_validator=None):
     if (
         type(document) is not dict
         or document.keys() != PROFILE.keys() | {"cases"}
@@ -153,13 +153,15 @@ def checked_original(document, inputs):
         results.append(row["result"])
     expected = {"schema_version": 1, "results": results}
     try:
-        checked_results(expected)
+        (checked_results if result_validator is None else result_validator)(expected)
     except (KeyError, TypeError) as error:
         raise ValueError("original cursor result is incomplete or malformed") from error
     return expected
 
 
-def load_reference(reference, inputs=None, *, construction_errors=False):
+def load_reference(
+    reference, inputs=None, *, construction_errors=False, result_validator=None
+):
     reference = directory(reference)
     binding = json.loads((reference / "binding.json").read_bytes())
     inputs = cases() if inputs is None else inputs
@@ -201,16 +203,27 @@ def load_reference(reference, inputs=None, *, construction_errors=False):
             "original cursor helper, dataset, faults or source binding changed"
         )
     return inputs, checked_original(
-        json.loads((reference / "original.json").read_bytes()), inputs
+        json.loads((reference / "original.json").read_bytes()),
+        inputs,
+        result_validator=result_validator,
     )
 
 
-def capture(upstream, inputs=None, subject="cursor-call", *, construction_errors=False):
+def capture(
+    upstream,
+    inputs=None,
+    subject="cursor-call",
+    *,
+    construction_errors=False,
+    result_validator=None,
+    process_runner=None,
+):
     upstream = directory(upstream)
     source = verify_facade(upstream, upstream)
     if manifest_digest(source) != input_ledger()["source_manifest_sha256"]:
         raise ValueError("original cursor source changed")
     inputs = cases() if inputs is None else inputs
+    run = subprocess.run if process_runner is None else process_runner
     task = directory(
         tempfile.mkdtemp(prefix=subject + "-capture-", dir=directory(HERE / ".tmp"))
     )
@@ -243,7 +256,7 @@ def capture(upstream, inputs=None, subject="cursor-call", *, construction_errors
         (task / "build.stdout").open("xb") as out,
         (task / "build.stderr").open("xb") as err,
     ):
-        process = subprocess.run(
+        process = run(
             command,
             cwd=directory(task / "helper"),
             env=env,
@@ -260,7 +273,7 @@ def capture(upstream, inputs=None, subject="cursor-call", *, construction_errors
         (task / "original.json").open("xb") as out,
         (task / "original.stderr").open("xb") as err,
     ):
-        process = subprocess.run(
+        process = run(
             [str(task / "cursor-oracle"), str(task / "inputs.json")],
             env=env,
             stdout=out,
@@ -272,7 +285,11 @@ def capture(upstream, inputs=None, subject="cursor-call", *, construction_errors
         raise ValueError(
             f"original cursor capture failed or source changed; evidence: {task}"
         )
-    checked_original(json.loads((task / "original.json").read_bytes()), inputs)
+    checked_original(
+        json.loads((task / "original.json").read_bytes()),
+        inputs,
+        result_validator=result_validator,
+    )
     (task / "binding.json").write_text(
         json.dumps(
             {
@@ -288,7 +305,12 @@ def capture(upstream, inputs=None, subject="cursor-call", *, construction_errors
         )
         + "\n"
     )
-    load_reference(task, inputs, construction_errors=construction_errors)
+    load_reference(
+        task,
+        inputs,
+        construction_errors=construction_errors,
+        result_validator=result_validator,
+    )
     print(json.dumps({"capture": str(task), "cases": len(inputs)}), flush=True)
     return task
 

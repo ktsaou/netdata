@@ -412,6 +412,7 @@ fn arithmetic<S: Series>(
             Ok(true)
         }
         Err(HistogramEvaluationError::Interrupted(error)) => Err(error.into()),
+        Err(HistogramEvaluationError::Source(error)) => Err(error),
         Err(HistogramEvaluationError::Arithmetic(error)) => {
             if error == HistogramError::IncompatibleSchema {
                 output.note(AnnotationKind::MixedExponentialCustomHistograms);

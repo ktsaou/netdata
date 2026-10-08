@@ -53,6 +53,25 @@ pub(crate) fn matrix_argument(
     ))
 }
 
+pub(crate) fn generic_matrix_call(
+    expression: &ParsedExpression,
+    prepared: &Prepared,
+    node: NodeId,
+) -> Option<&'static str> {
+    let (_, argument) = matrix_argument(expression, prepared, node)?;
+    if !matches!(expression.arena[argument].expression, Expr::Paren(_)) {
+        return None;
+    }
+    let Expr::Call {
+        function: Some(function),
+        ..
+    } = &expression.arena[node].expression
+    else {
+        unreachable!("typed matrix function")
+    };
+    Some(function.name)
+}
+
 fn scalar_arguments(
     expression: &ParsedExpression,
     node: NodeId,
@@ -329,10 +348,18 @@ impl PointwiseFunction {
             Self::HistogramCount => histogram_functions::histogram_count(histogram),
             Self::HistogramSum => histogram_functions::histogram_sum(histogram),
             Self::HistogramAvg => histogram_functions::histogram_avg(histogram),
-            Self::HistogramStdVar => histogram_functions::histogram_stdvar_with(histogram, poll)?,
-            Self::HistogramStdDev => crate::numerical_math::sqrt(
-                histogram_functions::histogram_stdvar_with(histogram, poll)?,
-            ),
+            Self::HistogramStdVar => histogram_functions::histogram_stdvar_with(
+                histogram,
+                crate::histogram_work::HistogramWork::new(control, account),
+                poll,
+            )?,
+            Self::HistogramStdDev => {
+                crate::numerical_math::sqrt(histogram_functions::histogram_stdvar_with(
+                    histogram,
+                    crate::histogram_work::HistogramWork::new(control, account),
+                    poll,
+                )?)
+            }
             Self::Timestamp | Self::StartTimestamp { .. } | Self::Float(..) => unreachable!(),
         }))
     }
@@ -2063,6 +2090,31 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
                     ));
                 }
                 Ok(None)
+            }
+            Expr::Call {
+                function: Some(function),
+                ..
+            } if generic_matrix_call(self.expression, self.prepared, node).is_some() => {
+                // Whole arguments were validated before this source nil-matrix callback.
+                self.frames.pop();
+                match function.name {
+                    "rate" | "delta" | "increase" => Err(EvaluationError::WrappedRuntime(
+                        crate::binary_labels::formatted(
+                            format_args!(
+                                "unexpected error: interface conversion: parser.Expr is *parser.ParenExpr, not *parser.MatrixSelector"
+                            ),
+                            self.control,
+                            self.account,
+                        )?,
+                    )),
+                    "irate" | "idelta" => {
+                        self.prepared
+                            .index_error(0, 0, self.control, self.account)?;
+                        unreachable!("nil matrix index fails")
+                    }
+                    "absent_over_time" => Ok(Some(self.sample(1.0))),
+                    _ => Ok(None),
+                }
             }
             Expr::Call {
                 function: Some(function),

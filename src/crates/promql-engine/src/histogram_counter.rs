@@ -4,7 +4,10 @@ use crate::histogram::{
     Bucket, COUNTER_RESET, CUSTOM_BUCKETS_SCHEMA, FloatBucketIterator, FloatHistogramRef, NOT_RESET,
 };
 use crate::numerical::compensated_add;
-use crate::{histogram_work::HistogramWork, storage::Interrupted};
+use crate::{
+    histogram_work::{HistogramEvaluationError, HistogramWork},
+    storage::Interrupted,
+};
 
 pub fn custom_bounds_match(left: Option<&[f64]>, right: Option<&[f64]>) -> bool {
     custom_bounds_match_with(left, right, HistogramWork::default()).expect("inert histogram work")
@@ -35,22 +38,30 @@ pub struct ZeroCount {
     pub compensation: f64,
 }
 
-fn threshold_text(value: f64) -> String {
-    if value == f64::INFINITY {
-        "+Inf".to_owned()
-    } else if value == f64::NEG_INFINITY {
-        "-Inf".to_owned()
-    } else {
-        format!("{value:.6}")
+struct Threshold(f64);
+impl std::fmt::Display for Threshold {
+    fn fmt(&self, output: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self.0 {
+            f64::INFINITY => output.write_str("+Inf"),
+            f64::NEG_INFINITY => output.write_str("-Inf"),
+            value => write!(output, "{value:.6}"),
+        }
     }
 }
 
-fn correction_bucket(buckets: Option<&[f64]>, index: usize) -> f64 {
+fn correction_bucket(
+    buckets: Option<&[f64]>,
+    index: usize,
+    work: HistogramWork<'_>,
+) -> Result<f64, HistogramEvaluationError> {
     let buckets = buckets.unwrap_or(&[]);
-    *buckets.get(index).unwrap_or_else(|| {
-        panic!(
-            "runtime error: index out of range [{index}] with length {}",
-            buckets.len()
+    buckets.get(index).copied().ok_or_else(|| {
+        work.source(
+            format_args!(
+                "runtime error: index out of range [{index}] with length {}",
+                buckets.len()
+            ),
+            true,
         )
     })
 }
@@ -61,7 +72,7 @@ pub fn zero_count_for_threshold(
     correction: Option<FloatHistogramRef<'_>>,
 ) -> ZeroCount {
     zero_count_for_threshold_with(histogram, threshold, correction, HistogramWork::default())
-        .expect("inert histogram work")
+        .unwrap_or_else(|error| panic!("{}", error.arithmetic()))
 }
 
 pub(crate) fn zero_count_for_threshold_with(
@@ -69,7 +80,7 @@ pub(crate) fn zero_count_for_threshold_with(
     mut threshold: f64,
     correction: Option<FloatHistogramRef<'_>>,
     work: HistogramWork<'_>,
-) -> Result<ZeroCount, Interrupted> {
+) -> Result<ZeroCount, HistogramEvaluationError> {
     work.step(1)?;
     let mut compensation = correction.map_or(0.0, |value| value.zero_count);
     if threshold == histogram.zero_threshold {
@@ -80,19 +91,22 @@ pub(crate) fn zero_count_for_threshold_with(
         });
     }
     if threshold < histogram.zero_threshold {
-        panic!(
-            "new threshold {} is less than old threshold {}",
-            threshold_text(threshold),
-            threshold_text(histogram.zero_threshold)
-        );
+        return Err(work.source(
+            format_args!(
+                "new threshold {} is less than old threshold {}",
+                Threshold(threshold),
+                Threshold(histogram.zero_threshold)
+            ),
+            false,
+        ));
     }
     'outer: loop {
         work.step(1)?;
         let mut count = histogram.zero_count;
         let mut index = 0;
-        let mut iterator = histogram.bucket_iterator(true, 0.0, histogram.schema);
+        let mut iterator = histogram.bucket_iterator_with(true, 0.0, histogram.schema, work)?;
         while iterator.advance_with(work)? {
-            let bucket = iterator.at();
+            let bucket = iterator.at_with(work)?;
             work.step(1)?;
             if bucket.lower >= threshold {
                 break;
@@ -100,7 +114,7 @@ pub(crate) fn zero_count_for_threshold_with(
             (count, compensation) = compensated_add(bucket.count, count, compensation);
             if let Some(correction) = correction {
                 (count, compensation) = compensated_add(
-                    correction_bucket(correction.positive_buckets, index),
+                    correction_bucket(correction.positive_buckets, index, work)?,
                     count,
                     compensation,
                 );
@@ -114,9 +128,9 @@ pub(crate) fn zero_count_for_threshold_with(
             index += 1;
         }
         index = 0;
-        let mut iterator = histogram.bucket_iterator(false, 0.0, histogram.schema);
+        let mut iterator = histogram.bucket_iterator_with(false, 0.0, histogram.schema, work)?;
         while iterator.advance_with(work)? {
-            let bucket = iterator.at();
+            let bucket = iterator.at_with(work)?;
             work.step(1)?;
             if bucket.upper <= -threshold {
                 break;
@@ -124,7 +138,7 @@ pub(crate) fn zero_count_for_threshold_with(
             (count, compensation) = compensated_add(bucket.count, count, compensation);
             if let Some(correction) = correction {
                 (count, compensation) = compensated_add(
-                    correction_bucket(correction.negative_buckets, index),
+                    correction_bucket(correction.negative_buckets, index, work)?,
                     count,
                     compensation,
                 );
@@ -148,14 +162,15 @@ pub(crate) fn zero_count_for_threshold_with(
 }
 
 pub fn detect_reset(current: FloatHistogramRef<'_>, previous: FloatHistogramRef<'_>) -> bool {
-    detect_reset_with(current, previous, HistogramWork::default()).expect("inert histogram work")
+    detect_reset_with(current, previous, HistogramWork::default())
+        .unwrap_or_else(|error| panic!("{}", error.arithmetic()))
 }
 
 pub(crate) fn detect_reset_with(
     current: FloatHistogramRef<'_>,
     previous: FloatHistogramRef<'_>,
     work: HistogramWork<'_>,
-) -> Result<bool, Interrupted> {
+) -> Result<bool, HistogramEvaluationError> {
     work.step(1)?;
     if current.reset_hint == COUNTER_RESET {
         return Ok(true);
@@ -183,20 +198,24 @@ pub(crate) fn detect_reset_with(
     {
         return Ok(true);
     }
-    let mut current_it = current.bucket_iterator(true, current.zero_threshold, current.schema);
-    let mut previous_it = previous.bucket_iterator(true, current.zero_threshold, current.schema);
+    let mut current_it =
+        current.bucket_iterator_with(true, current.zero_threshold, current.schema, work)?;
+    let mut previous_it =
+        previous.bucket_iterator_with(true, current.zero_threshold, current.schema, work)?;
     if reset_between_iterators(&mut current_it, &mut previous_it, work)? {
         return Ok(true);
     }
-    let mut current_it = current.bucket_iterator(false, current.zero_threshold, current.schema);
-    let mut previous_it = previous.bucket_iterator(false, current.zero_threshold, current.schema);
+    let mut current_it =
+        current.bucket_iterator_with(false, current.zero_threshold, current.schema, work)?;
+    let mut previous_it =
+        previous.bucket_iterator_with(false, current.zero_threshold, current.schema, work)?;
     reset_between_iterators(&mut current_it, &mut previous_it, work)
 }
 
 fn remaining_nonzero(
     iterator: &mut FloatBucketIterator<'_>,
     work: HistogramWork<'_>,
-) -> Result<bool, Interrupted> {
+) -> Result<bool, HistogramEvaluationError> {
     loop {
         work.step(1)?;
         if iterator.current_count() != 0.0 {
@@ -212,7 +231,7 @@ fn reset_between_iterators(
     current: &mut FloatBucketIterator<'_>,
     previous: &mut FloatBucketIterator<'_>,
     work: HistogramWork<'_>,
-) -> Result<bool, Interrupted> {
+) -> Result<bool, HistogramEvaluationError> {
     work.step(1)?;
     if !previous.advance_with(work)? {
         return Ok(false);
@@ -247,13 +266,13 @@ fn rollup_for_bound(
     mut bucket: Bucket,
     bound: f64,
     work: HistogramWork<'_>,
-) -> Result<(f64, Bucket, bool), Interrupted> {
+) -> Result<(f64, Bucket, bool), HistogramEvaluationError> {
     work.step(1)?;
     if !started {
         if !iterator.advance_with(work)? {
             return Ok((0.0, Bucket::default(), false));
         }
-        bucket = iterator.at();
+        bucket = iterator.at_with(work)?;
     }
     let mut sum = 0.0;
     while bucket.upper <= bound {
@@ -262,7 +281,7 @@ fn rollup_for_bound(
         if !iterator.advance_with(work)? {
             return Ok((sum, Bucket::default(), false));
         }
-        bucket = iterator.at();
+        bucket = iterator.at_with(work)?;
     }
     Ok((sum, bucket, true))
 }
@@ -271,11 +290,11 @@ fn detect_custom_reset(
     current: FloatHistogramRef<'_>,
     previous: FloatHistogramRef<'_>,
     work: HistogramWork<'_>,
-) -> Result<bool, Interrupted> {
+) -> Result<bool, HistogramEvaluationError> {
     let current_bounds = current.custom_values.unwrap_or(&[]);
     let previous_bounds = previous.custom_values.unwrap_or(&[]);
-    let mut current_it = current.bucket_iterator(true, 0.0, CUSTOM_BUCKETS_SCHEMA);
-    let mut previous_it = previous.bucket_iterator(true, 0.0, CUSTOM_BUCKETS_SCHEMA);
+    let mut current_it = current.bucket_iterator_with(true, 0.0, CUSTOM_BUCKETS_SCHEMA, work)?;
+    let mut previous_it = previous.bucket_iterator_with(true, 0.0, CUSTOM_BUCKETS_SCHEMA, work)?;
     let (mut current_index, mut previous_index) = (0, 0);
     let (mut current_bucket, mut previous_bucket) = (Bucket::default(), Bucket::default());
     let (mut current_started, mut current_more) = (false, false);
