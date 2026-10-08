@@ -4,7 +4,6 @@ use std::cmp::Ordering;
 
 use crate::go_sort::sort_by;
 use crate::numerical::{almost_equal, source_mul};
-#[cfg(target_arch = "x86_64")]
 use crate::numerical::{source_add, source_div, source_sub};
 
 pub(crate) const NAN: f64 = f64::from_bits(0x7ff8_0000_0000_0001);
@@ -159,18 +158,7 @@ fn ensure_monotonic(buckets: &mut [ClassicBucket], result: &mut BucketQuantileRe
 }
 
 pub(crate) fn coalesced_count(previous: f64, arriving: f64) -> f64 {
-    #[cfg(target_arch = "x86_64")]
-    {
-        source_add(arriving, previous)
-    }
-    #[cfg(not(target_arch = "x86_64"))]
-    {
-        if previous.is_nan() && arriving.is_nan() {
-            f64::from_bits(arriving.to_bits() | 0x0008_0000_0000_0000)
-        } else {
-            previous + arriving
-        }
-    }
+    source_add(arriving, previous)
 }
 
 #[derive(Clone, Copy)]
@@ -230,7 +218,6 @@ pub(crate) fn quantile_interpolate(
 ) -> f64 {
     let mut count = bucket.count;
     let start = previous.map_or(0.0, |bucket| bucket.upper_bound);
-    #[cfg(target_arch = "x86_64")]
     {
         if let Some(previous) = previous {
             count = source_sub(count, previous.count);
@@ -238,14 +225,6 @@ pub(crate) fn quantile_interpolate(
         }
         let width = source_sub(bucket.upper_bound, start);
         source_add(source_mul(width, source_div(rank, count)), start)
-    }
-    #[cfg(not(target_arch = "x86_64"))]
-    {
-        if let Some(previous) = previous {
-            count -= previous.count;
-            rank -= previous.count;
-        }
-        start + (bucket.upper_bound - start) * (rank / count)
     }
 }
 
@@ -320,14 +299,7 @@ impl FractionRanks {
         } else {
             self.upper_rank
         };
-        #[cfg(target_arch = "x86_64")]
-        {
-            source_div(source_sub(upper, lower), count)
-        }
-        #[cfg(not(target_arch = "x86_64"))]
-        {
-            (upper - lower) / count
-        }
+        source_div(source_sub(upper, lower), count)
     }
 }
 
@@ -341,7 +313,6 @@ fn fraction_interpolate(
     if lower == f64::NEG_INFINITY {
         return bucket.count;
     }
-    #[cfg(target_arch = "x86_64")]
     {
         let product = source_div(
             source_mul(source_sub(value, lower), source_sub(bucket.count, rank)),
@@ -353,11 +324,6 @@ fn fraction_interpolate(
         } else {
             source_add(product, rank)
         }
-    }
-    #[cfg(not(target_arch = "x86_64"))]
-    {
-        let _ = upper;
-        rank + (bucket.count - rank) * (value - lower) / (bucket.upper_bound - lower)
     }
 }
 

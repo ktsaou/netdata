@@ -1,0 +1,531 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Pinned promql/functions.go:1652-1673 and quantile.go:717-738; see NOTICE.
+use crate::{
+    accounting::QueryAccounting,
+    annotations::AnnotationKind,
+    numerical::quiet_nan,
+    range_numeric::{NumericRangeError, NumericRangeInput, NumericRangeOutput, scan},
+    range_quantile_rank::{NAN_KEY, Plan, Selector, ZERO_KEY, ordered_key, ordered_value},
+    storage::{Control, Series, StorageError},
+    temporal_quantile_sort::all_nan_ordinal,
+    value::{SampleRef, SampleValueRef},
+};
+
+const SOURCE_NAN: f64 = f64::from_bits(0x7ff8_0000_0000_0001);
+
+#[derive(Default)]
+struct Membership {
+    count: u64,
+    nan_count: u64,
+    below_zero: u64,
+    histograms: bool,
+    first_key: Option<u64>,
+    one_class: bool,
+    first_nan: Option<u64>,
+    one_nan: bool,
+    zero_signs: u8,
+}
+impl Membership {
+    fn receive(&mut self, value: f64) -> Result<(), StorageError> {
+        let count = self
+            .count
+            .checked_add(1)
+            .ok_or(StorageError::Invalid("quantile sample count overflow"))?;
+        let key = ordered_key(value);
+        if let Some(first) = self.first_key {
+            self.one_class &= first == key;
+        } else {
+            self.first_key = Some(key);
+            self.one_class = true;
+        }
+        if value.is_nan() {
+            self.nan_count += 1;
+            let quiet = quiet_nan(value).to_bits();
+            if let Some(first) = self.first_nan {
+                self.one_nan &= first == quiet;
+            } else {
+                self.first_nan = Some(quiet);
+                self.one_nan = true;
+            }
+        } else if value == 0.0 {
+            self.zero_signs |= if value.is_sign_negative() { 2 } else { 1 };
+        }
+        if value.is_nan() || value < 0.0 {
+            self.below_zero += 1;
+        }
+        self.count = count;
+        Ok(())
+    }
+
+    fn value(&self, key: u64) -> Option<f64> {
+        match key {
+            NAN_KEY => self
+                .one_nan
+                .then(|| f64::from_bits(self.first_nan.expect("NaN class"))),
+            ZERO_KEY => match self.zero_signs {
+                1 => Some(0.0),
+                2 => Some(-0.0),
+                _ => None,
+            },
+            _ => Some(ordered_value(key)),
+        }
+    }
+}
+
+#[derive(Clone, Copy)]
+struct Selection {
+    key: Option<u64>,
+    ordinal: u64,
+}
+
+enum Phase {
+    Membership,
+    Rank(Selector),
+    Fetch {
+        selections: [Option<Selection>; 2],
+        next: u64,
+        seen: [u64; 2],
+        values: [Option<f64>; 2],
+    },
+}
+
+pub(crate) struct Step {
+    quantile: f64,
+    membership: Membership,
+    plan: Option<Plan>,
+    phase: Phase,
+}
+impl Step {
+    pub(crate) fn new(quantile: f64) -> Self {
+        Self {
+            quantile,
+            membership: Membership::default(),
+            plan: None,
+            phase: Phase::Membership,
+        }
+    }
+
+    pub(crate) fn receive(
+        &mut self,
+        sample: SampleRef<'_>,
+        control: &Control,
+        account: &QueryAccounting,
+    ) -> Result<(), StorageError> {
+        control.check()?;
+        if sample.value.is_stale() {
+            return Ok(());
+        }
+        account.work(1);
+        if let SampleValueRef::Float(value) = sample.value {
+            match &mut self.phase {
+                Phase::Membership => self.membership.receive(value)?,
+                Phase::Rank(selector) => selector.receive(value, account),
+                Phase::Fetch {
+                    selections,
+                    next,
+                    seen,
+                    values,
+                } => {
+                    for lane in 0..2 {
+                        if let Some(selection) = selections[lane]
+                            && selection.key.is_none_or(|key| key == ordered_key(value))
+                        {
+                            if seen[lane] == selection.ordinal {
+                                values[lane] = Some(value);
+                            }
+                            seen[lane] += 1;
+                        }
+                    }
+                    *next = next
+                        .checked_add(1)
+                        .ok_or(StorageError::Invalid("quantile replay count overflow"))?;
+                }
+            }
+        } else if matches!(self.phase, Phase::Membership) {
+            self.membership.histograms = true;
+        }
+        Ok(())
+    }
+
+    fn output(&self, value: Option<f64>) -> NumericRangeOutput {
+        NumericRangeOutput {
+            progress: None,
+            value,
+            invalid_quantile: self.membership.count > 0 && !(0.0..=1.0).contains(&self.quantile),
+            annotation: (self.membership.histograms && self.membership.count > 0)
+                .then_some(AnnotationKind::HistogramIgnoredInMixedRange),
+            nonempty: self.membership.count > 0 || self.membership.histograms,
+        }
+    }
+
+    pub(crate) fn finish_pass(
+        &mut self,
+        control: &Control,
+        account: &QueryAccounting,
+    ) -> Result<Option<NumericRangeOutput>, NumericRangeError> {
+        control.check().map_err(StorageError::from)?;
+        match &mut self.phase {
+            Phase::Membership => {
+                if self.membership.count == 0 {
+                    return Ok(Some(self.output(None)));
+                }
+                if !(0.0..=1.0).contains(&self.quantile) {
+                    let value = if self.quantile < 0.0 {
+                        f64::NEG_INFINITY
+                    } else if self.quantile > 1.0 {
+                        f64::INFINITY
+                    } else {
+                        SOURCE_NAN
+                    };
+                    return Ok(Some(self.output(Some(value))));
+                }
+                let plan = Plan::new(self.quantile, self.membership.count);
+                self.plan = Some(plan);
+                let key = self.membership.first_key.expect("nonempty float window");
+                if self.membership.one_class {
+                    if let Some(value) = self.membership.value(key) {
+                        return Ok(Some(self.output(Some(plan.interpolate([value; 2])))));
+                    }
+                    let mut ordinals = plan.ordinals;
+                    if key == NAN_KEY {
+                        for ordinal in &mut ordinals {
+                            *ordinal =
+                                all_nan_ordinal(self.membership.count, *ordinal, control, account)?;
+                        }
+                    }
+                    self.phase = Phase::Fetch {
+                        selections: ordinals.map(|ordinal| Some(Selection { key: None, ordinal })),
+                        next: 0,
+                        seen: [0; 2],
+                        values: [None; 2],
+                    };
+                } else {
+                    self.phase = Phase::Rank(Selector::new(plan));
+                }
+                Ok(None)
+            }
+            Phase::Rank(selector) => {
+                let Some(keys) = selector.finish_pass(control, account)? else {
+                    return Ok(None);
+                };
+                let values = keys.map(|key| self.membership.value(key));
+                let plan = self.plan.expect("quantile rank plan");
+                let [Some(lower), Some(upper)] = values else {
+                    if self.membership.count > 12 {
+                        return Err(NumericRangeError::Provenance);
+                    }
+                    let selections = std::array::from_fn(|lane| {
+                        if values[lane].is_some() {
+                            return None;
+                        }
+                        let ordinal = if keys[lane] == NAN_KEY {
+                            self.membership.nan_count - 1 - plan.ordinals[lane]
+                        } else {
+                            plan.ordinals[lane] - self.membership.below_zero
+                        };
+                        Some(Selection {
+                            key: Some(keys[lane]),
+                            ordinal,
+                        })
+                    });
+                    self.phase = Phase::Fetch {
+                        selections,
+                        next: 0,
+                        seen: [0; 2],
+                        values,
+                    };
+                    return Ok(None);
+                };
+                Ok(Some(self.output(Some(plan.interpolate([lower, upper])))))
+            }
+            Phase::Fetch { next, values, .. } => {
+                if *next != self.membership.count {
+                    return Err(StorageError::Invalid("quantile replay membership changed").into());
+                }
+                let [Some(lower), Some(upper)] = *values else {
+                    return Err(StorageError::Invalid("quantile selected ordinal missing").into());
+                };
+                let plan = self.plan.expect("quantile ordinal plan");
+                Ok(Some(self.output(Some(plan.interpolate([lower, upper])))))
+            }
+        }
+    }
+}
+
+pub(crate) fn evaluate<S: Series>(
+    series: &S,
+    input: NumericRangeInput,
+    quantile: f64,
+    control: &Control,
+    account: &QueryAccounting,
+) -> Result<NumericRangeOutput, NumericRangeError> {
+    let mut input = input;
+    let mut step = Step::new(quantile);
+    loop {
+        let progress = scan(series, input, control, account, |sample| {
+            step.receive(sample, control, account)
+        })?;
+        if let Some(mut output) = step.finish_pass(control, account)? {
+            output.progress = progress;
+            return Ok(output);
+        }
+        input.matrix = input.matrix.map(|window| window.with_progress(progress));
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::{
+        accounting::{EngineAccounting, MemoryKind},
+        histogram::FloatHistogram,
+        storage::{Interrupted, TimeBounds},
+        test_storage::{GeneratedSeries, counter},
+        value::{STALE_NAN_BITS, Sample, SampleValue},
+    };
+    use std::sync::atomic::Ordering;
+
+    fn window(count: usize) -> NumericRangeInput {
+        TimeBounds {
+            start_ms: 0,
+            end_ms: count as i64 * 1000,
+        }
+        .into()
+    }
+    fn nan(index: usize) -> Sample {
+        Sample {
+            value: SampleValue::Float(f64::from_bits(0x7ff8_0000_0000_0001 + index as u64)),
+            ..counter(index)
+        }
+    }
+    fn histogram(index: usize) -> Sample {
+        Sample {
+            value: SampleValue::FloatHistogram(FloatHistogram::default()),
+            ..counter(index)
+        }
+    }
+    fn mixed(index: usize) -> Sample {
+        if index == 0 {
+            counter(index)
+        } else {
+            histogram(index)
+        }
+    }
+    fn stale(index: usize) -> Sample {
+        Sample {
+            value: SampleValue::Float(f64::from_bits(STALE_NAN_BITS)),
+            ..counter(index)
+        }
+    }
+    fn zero(index: usize) -> Sample {
+        Sample {
+            value: SampleValue::Float(if index.is_multiple_of(2) { -0.0 } else { 0.0 }),
+            ..counter(index)
+        }
+    }
+
+    fn short_zero(index: usize) -> Sample {
+        const BITS: [u64; 4] = [
+            0x8000_0000_0000_0001,
+            0x8000_0000_0000_0000,
+            0x8000_0000_0000_0000,
+            0,
+        ];
+        Sample {
+            value: SampleValue::Float(f64::from_bits(BITS[index])),
+            ..counter(index)
+        }
+    }
+
+    fn short_mixed(index: usize) -> Sample {
+        const BITS: [u64; 12] = [
+            0xfff0_0000_0000_0045,
+            0x7ff0_0000_0000_0044,
+            0x3ff0_0000_0000_0000,
+            0xfff0_0000_0000_0045,
+            0xc008_0000_0000_0000,
+            0xc008_0000_0000_0000,
+            0x8000_0000_0000_0000,
+            0x3ff0_0000_0000_0000,
+            0x3ff0_0000_0000_0000,
+            0xfff8_0000_0000_0043,
+            0xc008_0000_0000_0000,
+            0,
+        ];
+        Sample {
+            value: SampleValue::Float(f64::from_bits(BITS[index])),
+            ..counter(index)
+        }
+    }
+
+    #[test]
+    fn short_mixed_origin_controls_match_pinned_source() {
+        type SourceCase = (fn(usize) -> Sample, usize, [u64; 3]);
+        let cases: [SourceCase; 2] = [
+            (
+                short_zero,
+                4,
+                [0x8000_0000_0000_0001, 0x8000_0000_0000_0000, 0],
+            ),
+            (
+                short_mixed,
+                12,
+                [
+                    0xfff8_0000_0000_0045,
+                    0xc008_0000_0000_0000,
+                    0x3ff0_0000_0000_0000,
+                ],
+            ),
+        ];
+        for page in [1, 17, 1024] {
+            for (sample, count, expected) in cases {
+                for (q, bits) in [0.0, 0.5, 1.0].into_iter().zip(expected) {
+                    let engine = EngineAccounting::default();
+                    let account = engine.query();
+                    let source = GeneratedSeries::new(count, page, sample);
+                    let output =
+                        evaluate(&source, window(count), q, &Control::default(), &account).unwrap();
+                    assert_eq!(output.value.unwrap().to_bits(), bits, "q{q}/page{page}");
+                    assert!(!output.invalid_quantile);
+                    assert_eq!(output.annotation, None);
+                    assert_eq!(source.counters.active.load(Ordering::Relaxed), 0);
+                    assert_eq!(source.counters.peak.load(Ordering::Relaxed), 1);
+                    account.snapshot().assert_memory_released();
+                    drop(account);
+                    engine.snapshot().assert_memory_released();
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn long_rank_and_origin_replays_keep_one_page_and_constant_memory() {
+        type SourceCase = (fn(usize) -> Sample, f64, [u64; 2], u64);
+        let cases: [SourceCase; 3] = [
+            (
+                counter,
+                0.5,
+                [1024.5f64.to_bits(), 50_000.5f64.to_bits()],
+                17,
+            ),
+            // The terminal source sort origins are separately pinned by the inverse-sort controls.
+            (nan, 1.0, [0x7ff8_0000_0000_03fc, 0x7ff8_0000_0000_c34c], 2),
+            (zero, 1.0, [0, 0], 2),
+        ];
+        for page in [1, 17, 1024] {
+            for (sample, q, expected, passes) in cases {
+                let mut previous = None;
+                for (count, bits) in [2048, 100_000].into_iter().zip(expected) {
+                    let engine = EngineAccounting::default();
+                    let account = engine.query();
+                    let source = GeneratedSeries::new(count, page, sample);
+                    let result =
+                        evaluate(&source, window(count), q, &Control::default(), &account).unwrap();
+                    assert_eq!(
+                        result.value.unwrap().to_bits(),
+                        bits,
+                        "count{count}/page{page}"
+                    );
+                    assert!(!result.invalid_quantile);
+                    assert_eq!(result.annotation, None);
+                    let snapshot = account.snapshot();
+                    let peaks = [
+                        MemoryKind::Workspace,
+                        MemoryKind::ProviderHeld,
+                        MemoryKind::BorrowedView,
+                    ]
+                    .map(|kind| snapshot.memory[kind as usize].peak);
+                    if let Some(previous) = previous {
+                        assert_eq!(peaks, previous);
+                    }
+                    previous = Some(peaks);
+                    assert_eq!(snapshot.samples_fetched, passes * count as u64);
+                    assert_eq!(
+                        source.counters.opened.load(Ordering::Relaxed),
+                        passes as usize
+                    );
+                    assert_eq!(
+                        source.counters.closed.load(Ordering::Relaxed),
+                        passes as usize
+                    );
+                    assert_eq!(source.counters.peak.load(Ordering::Relaxed), 1);
+                    assert_eq!(source.counters.active.load(Ordering::Relaxed), 0);
+                    snapshot.assert_memory_released();
+                    drop(account);
+                    engine.snapshot().assert_memory_released();
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn membership_and_both_notes_precede_quantile_shortcuts() {
+        for page in [1, 17, 1024] {
+            for (sample, has_floats, has_mixed) in [
+                (counter as fn(usize) -> Sample, true, false),
+                (histogram, false, false),
+                (mixed, true, true),
+                (stale, false, false),
+            ] {
+                for q in [-1.0, 2.0, SOURCE_NAN] {
+                    let engine = EngineAccounting::default();
+                    let account = engine.query();
+                    let source = GeneratedSeries::new(3, page, sample);
+                    let output =
+                        evaluate(&source, window(3), q, &Control::default(), &account).unwrap();
+                    assert_eq!(output.invalid_quantile, has_floats);
+                    assert_eq!(output.value.is_some(), has_floats);
+                    assert_eq!(
+                        output.annotation,
+                        has_mixed.then_some(AnnotationKind::HistogramIgnoredInMixedRange)
+                    );
+                    assert_eq!(source.counters.opened.load(Ordering::Relaxed), 1);
+                    assert_eq!(source.counters.active.load(Ordering::Relaxed), 0);
+                    account.snapshot().assert_memory_released();
+                    drop(account);
+                    engine.snapshot().assert_memory_released();
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn invalid_quantile_does_not_hide_late_provider_failure_or_cancellation() {
+        for page in [1, 17, 1024] {
+            let engine = EngineAccounting::default();
+            let account = engine.query();
+            let mut source = GeneratedSeries::new(page + 1, page, nan);
+            source.fail_page = Some(1);
+            let result = evaluate(
+                &source,
+                window(page + 1),
+                -1.0,
+                &Control::default(),
+                &account,
+            );
+            assert!(matches!(
+                result,
+                Err(NumericRangeError::Storage(StorageError::Provider(_)))
+            ));
+            drop(result);
+            let control = Control::default();
+            control.cancellation.cancel();
+            let result = evaluate(&source, window(page + 1), SOURCE_NAN, &control, &account);
+            assert!(matches!(
+                result,
+                Err(NumericRangeError::Storage(StorageError::Interrupted(
+                    Interrupted::Cancelled
+                )))
+            ));
+            assert_eq!(source.counters.active.load(Ordering::Relaxed), 0);
+            assert_eq!(
+                source.counters.opened.load(Ordering::Relaxed),
+                source.counters.closed.load(Ordering::Relaxed)
+            );
+            drop(result);
+            account.snapshot().assert_memory_released();
+            drop(account);
+            engine.snapshot().assert_memory_released();
+        }
+    }
+}

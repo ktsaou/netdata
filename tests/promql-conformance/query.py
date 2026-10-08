@@ -127,12 +127,12 @@ def result_base64(result):
     return result
 
 
-def checked_candidate_packets(responses, groups, subject="query"):
+def checked_candidate_ids(responses, groups, subject="query"):
     expected = [("dataset_id", group["id"]) if request is None else ("id", request["id"])
                 for group in groups for request in [None, *group["requests"]]]
     if type(responses) is not list or len(responses) != len(expected):
         raise ValueError(f"candidate {subject} packet count changed")
-    results = []
+    packets = []
     for row, (key, ident) in zip(responses, expected):
         if type(row) is not dict or row.get(key) != ident:
             raise ValueError(f"candidate {subject} packet order or identity changed")
@@ -140,12 +140,19 @@ def checked_candidate_packets(responses, groups, subject="query"):
             if row != {key: ident}:
                 raise ValueError(f"candidate {subject} acknowledgement changed")
         else:
-            if not {"id", "result"} <= row.keys() <= {"id", "result", "observations"}:
-                raise ValueError(f"candidate {subject} result is incomplete or unsupported")
-            result = result_base64(row["result"])
-            if result.get("id") != ident:
-                raise ValueError(f"candidate {subject} inner result identity changed")
-            results.append(result)
+            packets.append(row)
+    return packets
+
+
+def checked_candidate_packets(responses, groups, subject="query"):
+    results = []
+    for row in checked_candidate_ids(responses, groups, subject):
+        if not {"id", "result"} <= row.keys() <= {"id", "result", "observations"}:
+            raise ValueError(f"candidate {subject} result is incomplete or unsupported")
+        result = result_base64(row["result"])
+        if result.get("id") != row["id"]:
+            raise ValueError(f"candidate {subject} inner result identity changed")
+        results.append(result)
     actual = {"schema_version": 1, "results": results}
     checked_results(actual)
     return actual

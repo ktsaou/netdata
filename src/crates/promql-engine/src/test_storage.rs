@@ -71,6 +71,7 @@ pub(crate) struct GeneratedSeries {
     pub count: usize,
     pub page_size: usize,
     pub sample: fn(usize) -> Sample,
+    pub seek_index: Option<fn(i64) -> usize>,
     pub counters: Arc<CursorCounts>,
     pub fail_page: Option<usize>,
 }
@@ -81,6 +82,7 @@ impl GeneratedSeries {
             count,
             page_size,
             sample,
+            seek_index: None,
             counters: Arc::new(CursorCounts::default()),
             fail_page: None,
         }
@@ -152,6 +154,10 @@ impl SampleCursor for GeneratedCursor<'_> {
     fn seek(&mut self, time_ms: i64, control: &Control) -> Result<(), StorageError> {
         control.check()?;
         self.values.clear();
+        if let Some(seek_index) = self.source.seek_index {
+            self.index = seek_index(time_ms).min(self.source.count);
+            return Ok(());
+        }
         self.index = 0;
         while self.index < self.source.count && (self.source.sample)(self.index).time_ms < time_ms {
             self.index += 1;

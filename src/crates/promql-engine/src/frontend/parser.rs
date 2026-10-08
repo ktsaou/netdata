@@ -425,7 +425,7 @@ where
         }
         if let Expr::Number { value, .. } = &mut self.arena[id].expression {
             if operator.kind == SUB {
-                *value *= -1.0;
+                *value = crate::numerical::source_neg(*value);
             }
             if mode != Mode::Normal && number::duration_out_of_range(*value) {
                 self.error(operator.span, "duration out of range")?;
@@ -706,7 +706,7 @@ where
             unreachable!()
         };
         if sign == Some(SUB) {
-            value *= -1.0;
+            value = crate::numerical::source_neg(value);
         }
         Ok(Some(value))
     }
@@ -951,7 +951,7 @@ where
                 unreachable!()
             };
             if sign == Some(SUB) {
-                value *= -1.0;
+                value = crate::numerical::source_neg(value);
             }
             if !value.is_finite() || value >= i64::MAX as f64 || value <= i64::MIN as f64 {
                 let text = Timestamp(value);

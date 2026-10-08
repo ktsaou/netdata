@@ -27,10 +27,10 @@ fn exponential_bound(index: i32, schema: i32) -> f64 {
         let shift = schema.wrapping_neg();
         assert!(shift >= 0, "negative shift amount");
         let shift = shift as u32;
-        let exponent = if shift >= isize::BITS {
+        let exponent = if shift >= i64::BITS {
             0
         } else {
-            (index as isize).wrapping_shl(shift)
+            i64::from(index).wrapping_shl(shift)
         };
         if exponent == 1024 {
             return f64::MAX;
@@ -41,7 +41,7 @@ fn exponential_bound(index: i32, schema: i32) -> f64 {
     let values = EXPONENTIAL_BOUNDS[schema as usize];
     let fraction_index = index & ((1_i32 << schema) - 1);
     let fraction = f64::from_bits(values[fraction_index as usize]);
-    let exponent = ((index as isize) >> schema).wrapping_add(1);
+    let exponent = (i64::from(index) >> schema).wrapping_add(1);
     if fraction == 0.5 && exponent == 1025 {
         return f64::MAX;
     }
@@ -50,9 +50,9 @@ fn exponential_bound(index: i32, schema: i32) -> f64 {
 
 // The fixed bound fractions are positive and normal, so Go's special-case and
 // subnormal-input normalization paths cannot occur here.
-fn normal_fraction_ldexp(fraction: f64, exponent: isize) -> f64 {
+fn normal_fraction_ldexp(fraction: f64, exponent: i64) -> f64 {
     let mut bits = fraction.to_bits();
-    let mut exponent = exponent.wrapping_add(((bits >> 52) & 0x7ff) as isize - 1023);
+    let mut exponent = exponent.wrapping_add(((bits >> 52) & 0x7ff) as i64 - 1023);
     if exponent < -1075 {
         return 0.0;
     }

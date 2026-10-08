@@ -3,7 +3,7 @@
 use crate::accounting::{AccountedVec, AllocationContext};
 use crate::histogram::Span;
 use crate::histogram_work::{HistogramEvaluationError, HistogramWork};
-use crate::numerical::compensated_add;
+use crate::numerical::{compensated_add, source_add};
 use crate::storage::Interrupted;
 use std::fmt;
 
@@ -183,7 +183,7 @@ fn reduce_float_layout(
                 last_target = target_index;
             } else if last_target == target_index {
                 let last = written_buckets - 1;
-                buckets.write(last, buckets.target(last) + value, work)?;
+                buckets.write(last, source_add(buckets.target(last), value), work)?;
             } else if last_target.wrapping_add(1) == target_index {
                 let last = written_spans - 1;
                 let mut span = spans.target(last);
@@ -289,7 +289,7 @@ pub(crate) fn reduce_float_copy_with(
 pub(crate) fn compact_float(
     buckets: &mut Option<AccountedVec<f64>>,
     spans: &mut Option<AccountedVec<Span>>,
-    max_empty: isize,
+    max_empty: i64,
     context: Option<&AllocationContext>,
 ) {
     compact_float_pair(buckets, spans, None, max_empty, context);
@@ -299,7 +299,7 @@ pub(crate) fn compact_float_pair(
     buckets: &mut Option<AccountedVec<f64>>,
     spans: &mut Option<AccountedVec<Span>>,
     correction: Option<&mut Option<AccountedVec<f64>>>,
-    max_empty: isize,
+    max_empty: i64,
     context: Option<&AllocationContext>,
 ) {
     let result: Result<(), std::convert::Infallible> =
@@ -314,7 +314,7 @@ pub(crate) fn compact_float_pair_with<E>(
     buckets: &mut Option<AccountedVec<f64>>,
     spans: &mut Option<AccountedVec<Span>>,
     correction: Option<&mut Option<AccountedVec<f64>>>,
-    max_empty: isize,
+    max_empty: i64,
     context: Option<&AllocationContext>,
     mut poll: impl FnMut(usize) -> Result<(), E>,
 ) -> Result<(), E> {
@@ -343,7 +343,7 @@ pub(crate) fn compact_float_pair_with<E>(
         let mut unchanged = true;
         for span in spans.iter() {
             poll(1)?;
-            if span.offset as isize <= max_empty || span.length == 0 {
+            if i64::from(span.offset) <= max_empty || span.length == 0 {
                 unchanged = false;
                 break;
             }
@@ -410,7 +410,7 @@ pub(crate) fn compact_float_pair_with<E>(
         if empty > 0 {
             if position > 0
                 && empty < (spans[span_index].length - position) as usize
-                && empty as isize <= max_empty
+                && empty as i64 <= max_empty
             {
                 bucket += empty;
                 position += empty as u32;
@@ -467,7 +467,7 @@ pub(crate) fn compact_float_pair_with<E>(
     while span_index < spans.len() {
         poll(1)?;
         let span = spans[span_index];
-        if span.offset as isize > max_empty {
+        if i64::from(span.offset) > max_empty {
             bucket += span.length as usize;
             span_index += 1;
             continue;

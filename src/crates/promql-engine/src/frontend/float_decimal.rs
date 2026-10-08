@@ -7,7 +7,7 @@ use super::{
 use crate::{accounting::AccountedVec, storage::Interrupted};
 
 const DIGITS: usize = 800;
-const MAX_SHIFT: i32 = usize::BITS as i32 - 4;
+const MAX_SHIFT: i32 = u64::BITS as i32 - 4;
 
 struct Decimal {
     digits: AccountedVec<u8>,

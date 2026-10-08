@@ -91,6 +91,7 @@ impl MergeGuard {
 pub(crate) struct HeadSummary {
     times: [i64; 3],
     present: u8,
+    sorted: bool,
 }
 impl HeadSummary {
     fn time(self, index: usize) -> Option<i64> {
@@ -112,6 +113,7 @@ impl HeadSummary {
         }
     }
     pub(crate) fn merge(&mut self, other: Self) {
+        self.sorted |= other.sorted;
         for index in 0..3 {
             if let Some(time_ms) = other.time(index) {
                 self.record(index, time_ms);
@@ -120,6 +122,12 @@ impl HeadSummary {
     }
     pub(crate) fn multiple(self) -> bool {
         self.present != 0
+    }
+    pub(crate) fn sorted(self) -> bool {
+        self.sorted
+    }
+    pub(crate) fn inherit_order(&mut self, sorted: bool) {
+        self.sorted = sorted;
     }
     pub(crate) fn repeated_kind(self) -> bool {
         self.present & 3 != 0
@@ -289,6 +297,14 @@ pub(crate) struct Projection<'a> {
     pub(crate) descriptors: &'a [Descriptor],
     pub(crate) bindings: &'a [(usize, usize)],
 }
+
+#[derive(Clone, Copy)]
+pub(crate) struct ScalarShape {
+    pub(crate) rows: i64,
+    pub(crate) floats: i64,
+    pub(crate) grid: crate::query_scopes::Grid,
+}
+
 #[derive(Default)]
 struct NodeRoster {
     output: Option<AccountedVec<Descriptor>>,
@@ -302,13 +318,78 @@ struct NodeRoster {
     count: Option<AccountedBox<crate::count_values::Plan>>,
     selection: Option<AccountedBox<crate::topk::Plan>>,
     quantile: Option<AccountedBox<crate::quantile_aggregate::Plan>>,
+    sorting: Option<AccountedBox<crate::vector_sort::Plan>>,
     clock_initial: Option<AccountedVec<InitialSample>>,
     merge_guard: Option<MergeGuard>,
+    scalar: Option<AccountedBox<ScalarShape>>,
+    producer: Option<crate::matrix_heads::Clock>,
+    matrix: Option<AccountedBox<crate::matrix_heads::Shape>>,
 }
 pub(crate) struct Rosters {
     nodes: AccountedVec<NodeRoster>,
 }
 impl Rosters {
+    pub(crate) fn prepare_matrix(
+        &mut self,
+        node: NodeId,
+        clock: crate::matrix_heads::Clock,
+        copied: bool,
+        control: &Control,
+        account: &QueryAccounting,
+    ) -> Result<(), Interrupted> {
+        self.nodes[node.0].producer = Some(clock);
+        if copied && let Some(output) = &mut self.nodes[node.0].output {
+            for descriptor in output.iter_mut() {
+                control.check()?;
+                account.work(1);
+                // Invariant duplication appends on the outer clock, even after an inner sort.
+                descriptor.heads.inherit_order(false);
+            }
+        }
+        if clock.grid.forward_without_wrap() {
+            return Ok(());
+        }
+        let mut rows = AccountedVec::new(account, MemoryKind::Workspace);
+        for descriptor in self.descriptors(node) {
+            control.check()?;
+            account.work(1);
+            rows.push(crate::matrix_heads::Row {
+                ordinal: descriptor.ordinal,
+                kinds: descriptor.kinds,
+                sorted: descriptor.heads.sorted(),
+            });
+        }
+        self.nodes[node.0].matrix = Some(AccountedBox::new(
+            crate::matrix_heads::Shape { clock, rows },
+            &AllocationContext::new(account, MemoryKind::Workspace),
+        ));
+        Ok(())
+    }
+
+    pub(crate) fn matrix(&self, node: NodeId) -> Option<&crate::matrix_heads::Shape> {
+        self.nodes[node.0].matrix.as_deref()
+    }
+
+    pub(crate) fn producer_clock(&self, node: NodeId) -> Option<crate::matrix_heads::Clock> {
+        self.nodes[node.0].producer
+    }
+
+    pub(crate) fn prepare_scalar(
+        &mut self,
+        node: NodeId,
+        shape: ScalarShape,
+        account: &QueryAccounting,
+    ) {
+        self.nodes[node.0].scalar = Some(AccountedBox::new(
+            shape,
+            &AllocationContext::new(account, MemoryKind::Workspace),
+        ));
+    }
+
+    pub(crate) fn scalar(&self, node: NodeId) -> Option<ScalarShape> {
+        self.nodes[node.0].scalar.as_deref().copied()
+    }
+
     pub(crate) fn prepare_aggregate_parameter(
         &mut self,
         node: NodeId,
@@ -380,6 +461,47 @@ impl Rosters {
         let roster = &mut self.nodes[node.0];
         if let (Some(plan), Some(descriptors), Some(sources)) = (
             roster.selection.as_deref_mut(),
+            roster.output.as_deref(),
+            roster.sources.as_deref(),
+        ) {
+            plan.project(descriptors, sources, control, account)?;
+        }
+        Ok(())
+    }
+    pub(crate) fn prepare_sort(
+        &mut self,
+        node: NodeId,
+        child: NodeId,
+        context: (
+            &crate::frontend::ast::ParsedExpression,
+            &crate::query_preparation::Prepared,
+        ),
+        singleton: bool,
+        control: &Control,
+        account: &QueryAccounting,
+    ) -> Result<(), EvaluationError> {
+        let rows = self.projection_input(child, control, account)?;
+        let (expression, prepared) = context;
+        self.nodes[node.0].sorting = Some(AccountedBox::new(
+            crate::vector_sort::Plan::new(
+                rows, expression, prepared, node, singleton, control, account,
+            )?,
+            &AllocationContext::new(account, MemoryKind::Workspace),
+        ));
+        Ok(())
+    }
+    pub(crate) fn sorting(&self, node: NodeId) -> Option<&crate::vector_sort::Plan> {
+        self.nodes[node.0].sorting.as_deref()
+    }
+    pub(crate) fn finish_sort_projection(
+        &mut self,
+        node: NodeId,
+        control: &Control,
+        account: &QueryAccounting,
+    ) -> Result<(), EvaluationError> {
+        let roster = &mut self.nodes[node.0];
+        if let (Some(plan), Some(descriptors), Some(sources)) = (
+            roster.sorting.as_deref_mut(),
             roster.output.as_deref(),
             roster.sources.as_deref(),
         ) {
@@ -599,7 +721,17 @@ impl Rosters {
     pub(crate) fn ordered_output(
         &mut self,
         node: NodeId,
+        descriptors: AccountedVec<Descriptor>,
+        control: &Control,
+        account: &QueryAccounting,
+    ) -> Result<(), Interrupted> {
+        self.assemble_output(node, descriptors, false, control, account)
+    }
+    fn assemble_output(
+        &mut self,
+        node: NodeId,
         mut descriptors: AccountedVec<Descriptor>,
+        sort_collisions: bool,
         control: &Control,
         account: &QueryAccounting,
     ) -> Result<(), Interrupted> {
@@ -618,6 +750,9 @@ impl Rosters {
             {
                 previous.kinds |= descriptor.kinds;
                 previous.heads.merge(descriptor.heads);
+                if sort_collisions {
+                    previous.heads.inherit_order(true);
+                }
                 if !sources[previous.sources.clone()].contains(&descriptor.ordinal) {
                     sources.push(descriptor.ordinal);
                     previous.sources.end = sources.len();
@@ -637,6 +772,15 @@ impl Rosters {
         self.nodes[node.0].output = Some(output);
         self.nodes[node.0].sources = Some(sources);
         Ok(())
+    }
+    pub(crate) fn merged_output(
+        &mut self,
+        node: NodeId,
+        descriptors: AccountedVec<Descriptor>,
+        control: &Control,
+        account: &QueryAccounting,
+    ) -> Result<(), Interrupted> {
+        self.assemble_output(node, descriptors, true, control, account)
     }
     pub(crate) fn projection_input(
         &mut self,
@@ -695,7 +839,7 @@ impl Rosters {
             duplicates |= pair[0].hash == pair[1].hash;
         }
         if duplicates {
-            self.ordered_output(node, descriptors, control, account)?;
+            self.merged_output(node, descriptors, control, account)?;
         } else {
             evaluator_order::sort(&mut descriptors, control, account, |left, right| {
                 left.first_order.cmp(&right.first_order)

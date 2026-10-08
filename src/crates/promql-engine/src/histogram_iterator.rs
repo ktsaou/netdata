@@ -2,7 +2,7 @@
 // Borrowed bucket traversal derives from the pinned Prometheus model; see NOTICE.
 use crate::histogram::{CUSTOM_BUCKETS_SCHEMA, FloatHistogramRef, Span, bucket_bound};
 use crate::histogram_layout::target_index;
-use crate::numerical::log2;
+use crate::numerical::{log2, source_add, source_div, source_sub};
 
 #[derive(Clone, Copy, Debug, Default)]
 pub struct Bucket {
@@ -17,15 +17,21 @@ pub struct Bucket {
 impl Bucket {
     pub fn fraction_below(self, value: f64, linear: bool) -> f64 {
         if linear {
-            return (value - self.lower) / (self.upper - self.lower);
+            return source_div(
+                source_sub(value, self.lower),
+                source_sub(self.upper, self.lower),
+            );
         }
         let lower = log2(self.lower.abs());
         let upper = log2(self.upper.abs());
         let value_log = log2(value.abs());
         if value > 0.0 {
-            (value_log - lower) / (upper - lower)
+            source_div(source_sub(value_log, lower), source_sub(upper, lower))
         } else {
-            1.0 - ((value_log - upper) / (lower - upper))
+            source_sub(
+                1.0,
+                source_div(source_sub(value_log, upper), source_sub(lower, upper)),
+            )
         }
     }
 }
@@ -204,7 +210,8 @@ impl<'a> FloatBucketIterator<'a> {
             } else if index != self.current_index {
                 break 'merge;
             }
-            self.current_count += self.layout.buckets[self.bucket_index];
+            self.current_count =
+                source_add(self.current_count, self.layout.buckets[self.bucket_index]);
             within_span = within_span.wrapping_add(1);
             self.bucket_index += 1;
             self.original_index = original_index;

@@ -79,7 +79,7 @@ pub fn exp_dispatch(value: f64, fused: bool) -> f64 {
     exp_kernel(value, fused)
 }
 
-pub fn ldexp(mut fraction: f64, mut exponent: isize) -> f64 {
+pub fn ldexp(mut fraction: f64, mut exponent: i64) -> f64 {
     if fraction == 0.0 || !fraction.is_finite() {
         return fraction;
     }
@@ -88,7 +88,7 @@ pub fn ldexp(mut fraction: f64, mut exponent: isize) -> f64 {
         exponent = exponent.wrapping_sub(52);
     }
     let mut bits = fraction.to_bits();
-    exponent = exponent.wrapping_add(((bits >> 52) & 0x7ff) as isize - 1023);
+    exponent = exponent.wrapping_add(((bits >> 52) & 0x7ff) as i64 - 1023);
     if exponent < -1075 {
         return f64::from_bits(bits & (1 << 63));
     }
@@ -123,9 +123,9 @@ pub fn exp2(value: f64) -> f64 {
         return 0.0;
     }
     let exponent = if value > 0.0 {
-        (value + 0.5) as isize
+        (value + 0.5) as i64
     } else if value < 0.0 {
-        (value - 0.5) as isize
+        (value - 0.5) as i64
     } else {
         0
     };
@@ -133,7 +133,7 @@ pub fn exp2(value: f64) -> f64 {
     exp_multi(residual * LN_2_HIGH, -residual * LN_2_LOW, exponent)
 }
 
-fn exp_multi(high: f64, low: f64, exponent: isize) -> f64 {
+fn exp_multi(high: f64, low: f64, exponent: i64) -> f64 {
     const P1: f64 = f64::from_bits(0x3fc5_5555_5555_5555);
     const P2: f64 = f64::from_bits(0xbf66_c16c_16be_bd93);
     const P3: f64 = f64::from_bits(0x3f11_566a_af25_de2c);

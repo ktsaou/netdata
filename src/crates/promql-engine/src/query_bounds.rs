@@ -118,7 +118,7 @@ pub(crate) fn selection_sites<'a>(
                 ),
                 hints: SelectionHints {
                     step_ms: if hints.step_ns == 0 {
-                        options.step_ms
+                        prepared.statement_interval()
                     } else {
                         hints.step_ns / 1_000_000
                     },
@@ -319,6 +319,7 @@ mod tests {
                     end_ms,
                     step_ms: 1000,
                 },
+                60_000,
                 &control,
                 &account,
             )
@@ -403,6 +404,7 @@ mod tests {
                     end_ms: options.end_ms,
                     step_ms: options.step_ms,
                 },
+                60_000,
                 &Control::default(),
                 &account,
             )

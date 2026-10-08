@@ -3,6 +3,7 @@
 use crate::{
     accounting::QueryAccounting,
     matrix_reader::{MatrixWindow, scan as scan_matrix},
+    numerical::{source_add, source_mul, source_sub},
     storage::{Control, Series, StorageError, TimeBounds},
     value::{SampleRef, SampleValueRef},
 };
@@ -113,7 +114,7 @@ pub(crate) struct Extrapolation {
     pub(crate) first_time: i64,
     pub(crate) last_time: i64,
     pub(crate) first_start: i64,
-    pub(crate) count: usize,
+    pub(crate) count: u64,
     pub(crate) first_value: f64,
     pub(crate) result_value: f64,
 }
@@ -182,61 +183,76 @@ pub(crate) fn rate_with<S: Series>(
     series: &S,
     input: RateInput,
     kind: RateKind,
-    matrix: Option<MatrixWindow>,
+    mut matrix: Option<MatrixWindow>,
     control: &Control,
     account: &QueryAccounting,
 ) -> Result<RateResult, StorageError> {
-    let window = input.window;
-    let empty = |value| RateResult {
-        value,
-        start_time_overlap: false,
-    };
     let bounds = input.bounds();
-    let mut first = None;
-    let mut last = None;
-    let mut count = 0usize;
-    let mut histograms = false;
-    scan_matrix::<_, StorageError>(series, bounds, matrix, control, account, |sample| {
+    let mut step = FloatStep::new(input, kind);
+    loop {
+        let progress =
+            scan_matrix::<_, StorageError>(series, bounds, matrix, control, account, |sample| {
+                step.receive(sample, control)
+            })?;
+        if let Some(result) = step.finish_pass() {
+            return Ok(result);
+        }
+        matrix = matrix.map(|window| window.with_progress(progress));
+    }
+}
+
+pub(crate) struct FloatStep {
+    input: RateInput,
+    kind: RateKind,
+    first: Option<Point>,
+    last: Option<Point>,
+    count: u64,
+    histograms: bool,
+    reset_pass: bool,
+    previous: Option<Point>,
+    result: f64,
+    overlap: bool,
+}
+impl FloatStep {
+    pub(crate) fn nonempty(&self) -> bool {
+        self.count != 0 || self.histograms
+    }
+    pub(crate) fn new(input: RateInput, kind: RateKind) -> Self {
+        Self {
+            input,
+            kind,
+            first: None,
+            last: None,
+            count: 0,
+            histograms: false,
+            reset_pass: false,
+            previous: None,
+            result: 0.0,
+            overlap: false,
+        }
+    }
+    pub(crate) fn receive(
+        &mut self,
+        sample: SampleRef<'_>,
+        control: &Control,
+    ) -> Result<(), StorageError> {
+        control.check()?;
         if sample.value.is_stale() {
             return Ok(());
         }
-        if let SampleValueRef::Float(value) = sample.value {
-            let point = Point::from_sample(sample, value, window.start_timestamps);
-            first.get_or_insert(point);
-            last = Some(point);
-            count += 1;
-        } else {
-            histograms = true;
-        }
-        Ok(())
-    })?;
-    if histograms {
-        return Ok(empty(if count > 0 {
-            RateValue::Mixed
-        } else {
-            RateValue::Histogram
-        }));
-    }
-    let (Some(first), Some(last)) = (first, last) else {
-        return Ok(empty(RateValue::Empty));
-    };
-    let counter = kind != RateKind::Delta;
-    let mut result = last.value - first.value;
-    let mut overlap = false;
-    if counter && count > 1 {
-        let mut previous = None::<Point>;
-        scan_matrix::<_, StorageError>(series, bounds, matrix, control, account, |sample| {
-            if sample.value.is_stale() {
-                return Ok(());
-            }
-            let SampleValueRef::Float(value) = sample.value else {
+        let SampleValueRef::Float(value) = sample.value else {
+            if self.reset_pass {
                 return Err(StorageError::Invalid(
                     "provider replay changed sample kinds",
                 ));
-            };
-            let current = Point::from_sample(sample, value, window.start_timestamps);
-            if let Some(previous) = previous {
-                overlap |= start_time_overlap(previous.start, previous.time, current.start);
+            }
+            self.histograms = true;
+            return Ok(());
+        };
+        let current = Point::from_sample(sample, value, self.input.window.start_timestamps);
+        if self.reset_pass {
+            if let Some(previous) = self.previous {
+                self.overlap |= start_time_overlap(previous.start, previous.time, current.start);
                 if current.value < previous.value
                     || start_timestamp_reset(
                         previous.start,
@@ -245,35 +261,67 @@ pub(crate) fn rate_with<S: Series>(
                         current.time,
                     )
                 {
-                    result += previous.value;
+                    self.result = source_add(self.result, previous.value);
                 }
             }
-            previous = Some(current);
-            Ok(())
-        })?;
+            self.previous = Some(current);
+        } else {
+            self.first.get_or_insert(current);
+            self.last = Some(current);
+            self.count += 1;
+        }
+        Ok(())
     }
-    if uses_first_start(input, kind, first.time, first.start) {
-        result += first.value;
+    pub(crate) fn finish_pass(&mut self) -> Option<RateResult> {
+        let empty = |value| {
+            Some(RateResult {
+                value,
+                start_time_overlap: false,
+            })
+        };
+        if !self.reset_pass {
+            if self.histograms {
+                return empty(if self.count > 0 {
+                    RateValue::Mixed
+                } else {
+                    RateValue::Histogram
+                });
+            }
+            let (Some(first), Some(last)) = (self.first, self.last) else {
+                return empty(RateValue::Empty);
+            };
+            // Source subtraction precedes every chronological reset addition.
+            self.result = source_sub(last.value, first.value);
+            if self.kind != RateKind::Delta && self.count > 1 {
+                self.reset_pass = true;
+                return None;
+            }
+        }
+        let first = self.first.expect("nonempty float endpoints");
+        let last = self.last.expect("nonempty float endpoints");
+        if uses_first_start(self.input, self.kind, first.time, first.start) {
+            self.result = source_add(self.result, first.value);
+        }
+        let Some(factor) = extrapolation_factor(
+            self.input,
+            self.kind,
+            Extrapolation {
+                first_time: first.time,
+                last_time: last.time,
+                first_start: first.start,
+                count: self.count,
+                first_value: first.value,
+                result_value: self.result,
+            },
+        ) else {
+            return empty(RateValue::Empty);
+        };
+        self.result = source_mul(self.result, factor);
+        Some(RateResult {
+            value: RateValue::Float(self.result),
+            start_time_overlap: self.overlap,
+        })
     }
-    let Some(factor) = extrapolation_factor(
-        input,
-        kind,
-        Extrapolation {
-            first_time: first.time,
-            last_time: last.time,
-            first_start: first.start,
-            count,
-            first_value: first.value,
-            result_value: result,
-        },
-    ) else {
-        return Ok(empty(RateValue::Empty));
-    };
-    result *= factor;
-    Ok(RateResult {
-        value: RateValue::Float(result),
-        start_time_overlap: overlap,
-    })
 }
 
 #[cfg(test)]
@@ -305,6 +353,39 @@ mod tests {
             range_ns: end_ms * 1_000_000,
             start_timestamps: false,
         }
+    }
+
+    #[test]
+    fn streamed_rate_membership_preserves_u32_rollover() {
+        let prefix = u64::from(u32::MAX);
+        let control = Control::default();
+        let mut step = FloatStep::new(window((prefix + 1) as i64).into(), RateKind::Delta);
+        let sample = SampleRef {
+            time_ms: 1,
+            start_time_ms: 0,
+            value: SampleValueRef::Float(1.0),
+        };
+        step.receive(sample, &control).unwrap();
+        // A constant prefix needs only its first, last and occurrence count.
+        step.count = prefix;
+        step.last = Some(Point {
+            time: prefix as i64,
+            start: 0,
+            value: 1.0,
+        });
+        step.receive(
+            SampleRef {
+                time_ms: (prefix + 1) as i64,
+                ..sample
+            },
+            &control,
+        )
+        .unwrap();
+        assert_eq!(step.count, prefix + 1);
+        assert!(step.nonempty());
+        assert_eq!(step.first.unwrap().time, 1);
+        assert_eq!(step.last.unwrap().time, (prefix + 1) as i64);
+        assert_eq!(step.finish_pass().unwrap().value, RateValue::Float(0.0));
     }
 
     #[test]

@@ -96,14 +96,16 @@ struct Key {
     start: i64,
     end: i64,
     step: i64,
+    position: i64,
 }
-impl From<EvaluationOptions> for Key {
-    fn from(options: EvaluationOptions) -> Self {
+impl From<(EvaluationOptions, i64)> for Key {
+    fn from((options, position): (EvaluationOptions, i64)) -> Self {
         Self {
             time: options.time_ms,
             start: options.start_ms,
             end: options.end_ms,
             step: options.step_ms,
+            position,
         }
     }
 }
@@ -149,6 +151,7 @@ pub(crate) struct Step<'a> {
     plan: &'a Plan,
     descriptors: &'a [GroupDescriptor],
     options: EvaluationOptions,
+    step_index: i64,
     stage: Stage,
     groups: AccountedVec<Group>,
     snapshot: Option<Strong<Snapshot>>,
@@ -169,13 +172,14 @@ impl<'a> Step<'a> {
         plan: &'a Plan,
         descriptors: &'a [GroupDescriptor],
         options: EvaluationOptions,
+        step_index: i64,
         account: &QueryAccounting,
     ) -> Self {
         let snapshot = {
             let mut cache = plan.cache.borrow_mut();
             if cache
                 .as_ref()
-                .is_some_and(|snapshot| snapshot.key != Key::from(options))
+                .is_some_and(|snapshot| snapshot.key != Key::from((options, step_index)))
             {
                 *cache = None;
             }
@@ -192,6 +196,7 @@ impl<'a> Step<'a> {
             plan,
             descriptors,
             options,
+            step_index,
             stage,
             groups: AccountedVec::new(account, MemoryKind::Workspace),
             snapshot,
@@ -257,7 +262,7 @@ impl<'a> Step<'a> {
         );
         let snapshot = Strong::new_in(
             Snapshot {
-                key: self.options.into(),
+                key: (self.options, self.step_index).into(),
                 parameter: self.parameter,
                 groups,
                 ignored: self.ignored,

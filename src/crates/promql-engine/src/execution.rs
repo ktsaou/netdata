@@ -288,6 +288,7 @@ impl CompiledQuery {
             &self.expression,
             &self.preprocessing,
             header,
+            self.options.no_step_subquery_interval_ms,
             control,
             &account,
         )?;
@@ -317,6 +318,7 @@ impl CompiledQuery {
             &self.expression,
             &self.preprocessing,
             header,
+            self.options.no_step_subquery_interval_ms,
             control,
             &account,
         )?;
@@ -463,6 +465,7 @@ impl CompiledQuery {
                 &self.expression,
                 &self.preprocessing,
                 header,
+                self.options.no_step_subquery_interval_ms,
                 control,
                 account,
             )?;
@@ -567,7 +570,11 @@ impl CompiledQuery {
             data_bounds,
         } = scope;
         let header = prepared.header;
-        if header.end_ms < header.start_ms {
+        let evaluator_header = prepared.evaluator_header();
+        if prepared
+            .activate(evaluator_header, control, account)?
+            .is_none()
+        {
             return Ok(());
         }
         let mut root = self.expression.root;
@@ -599,10 +606,14 @@ impl CompiledQuery {
             account,
             annotations,
         )?;
+        prepared.range_folds.clear(control, account)?;
         *annotations = rosters
             .take_annotations(self.expression.root)
             .expect("completed root diagnostics")
             .finish();
+        if root_type == ValueType::Vector && rosters.descriptors(self.expression.root).is_empty() {
+            return Ok(());
+        }
         if header.step_ms == 0
             && root_type == ValueType::Vector
             && let Some(cohorts) = self.instant_cohorts(&rosters, control, account)?
@@ -613,7 +624,7 @@ impl CompiledQuery {
                     catalog,
                     &self.expression,
                     self.expression.root,
-                    self.evaluation_options(header, header.start_ms),
+                    self.evaluation_options(evaluator_header, header.start_ms),
                     control,
                     account,
                     EvaluationMetadata {
@@ -685,13 +696,17 @@ impl CompiledQuery {
             }
         }
         let cleanup_guard = MergeGuard::new(hashes, control, account)?;
-        let mut time_ms = header.start_ms;
-        loop {
+        let mut traversal = crate::query_scopes::Traversal::new(
+            evaluator_header.into(),
+            !prepared.flags().boundaries[self.expression.root.0]
+                && self.helper_shortcut(self.expression.root),
+        );
+        while let Some((time_ms, step_index)) = traversal.current() {
             let options = EvaluationOptions {
                 time_ms,
                 start_ms: header.start_ms,
                 end_ms: header.end_ms,
-                step_ms: header.step_ms,
+                step_ms: evaluator_header.step_ms,
                 lookback_ms: self.options.lookback_ms,
                 start_timestamps: self.options.start_timestamps,
                 delayed_name_removal: self.options.delayed_name_removal,
@@ -716,6 +731,7 @@ impl CompiledQuery {
                     count_preparation: None,
                 },
             );
+            machine.set_step_index(step_index);
             let mut seen = AccountedVec::new(account, MemoryKind::Workspace);
             while let Some(mut sample) = machine.next()? {
                 control.check().map_err(EvaluationError::from)?;
@@ -784,16 +800,7 @@ impl CompiledQuery {
                 }
                 account.output(1);
             }
-            if header.step_ms == 0 {
-                break;
-            }
-            let Some(next) = time_ms.checked_add(header.step_ms) else {
-                break;
-            };
-            if next > header.end_ms {
-                break;
-            }
-            time_ms = next;
+            traversal.advance();
         }
         Ok(())
     }
@@ -903,6 +910,103 @@ impl CompiledQuery {
         .then_some(argument)
     }
 
+    fn helper_shortcut(&self, mut node: NodeId) -> bool {
+        loop {
+            match &self.expression.arena[node].expression {
+                Expr::Paren(child)
+                | Expr::Unary {
+                    expression: child, ..
+                } => node = *child,
+                Expr::Call { arguments, .. }
+                    if label_functions::is_label_call(&self.expression.arena[node].expression) =>
+                {
+                    node = self
+                        .preprocessing
+                        .child(&self.expression, node, arguments[0]);
+                }
+                Expr::Call {
+                    function: Some(function),
+                    ..
+                } => {
+                    return function.name != "info"
+                        && !function.arguments.contains(&ValueType::Matrix);
+                }
+                Expr::Aggregate { operator, .. } => {
+                    return *operator == TokenKind::COUNT_VALUES
+                        || crate::topk::is_selection(&self.expression.arena[node].expression);
+                }
+                Expr::Number { .. } | Expr::Binary { .. } => return true,
+                _ => return false,
+            }
+        }
+    }
+
+    fn finish_invariant(
+        &self,
+        call: (NodeId, OutputHeader),
+        prepared: &Prepared,
+        rosters: &Rosters,
+        control: &Control,
+        account: &QueryAccounting,
+    ) -> Result<Option<i64>, EvaluationError> {
+        let (node, source_header) = call;
+        if !prepared.flags().boundaries[node.0] {
+            return Ok(None);
+        }
+        let mut traversal = crate::query_scopes::Traversal::new(source_header.into(), false);
+        let mut copies = 0_i64;
+        while let Some((_, index)) = traversal.current() {
+            control.check()?;
+            account.work(1);
+            prepared.statistics_index(node, index, control, account)?;
+            copies = copies.wrapping_add(1);
+            traversal.advance();
+        }
+        prepared.statistics_index(node, 0, control, account)?;
+        if self.expression.arena[node].value_type != ValueType::Matrix
+            && rosters
+                .descriptors(node)
+                .iter()
+                .any(|descriptor| descriptor.heads.multiple())
+        {
+            return Err(EvaluationError::Invalid("unexpected number of samples"));
+        }
+        Ok(Some(copies))
+    }
+
+    fn matrix_clock(
+        &self,
+        node: NodeId,
+        header: OutputHeader,
+        prepared: &Prepared,
+        rosters: &Rosters,
+    ) -> crate::matrix_heads::Clock {
+        if !prepared.flags().boundaries[node.0] {
+            let child = match &self.expression.arena[node].expression {
+                Expr::Paren(child)
+                | Expr::Unary {
+                    expression: child, ..
+                } => Some(*child),
+                Expr::Call { arguments, .. }
+                    if label_functions::is_label_call(&self.expression.arena[node].expression) =>
+                {
+                    Some(arguments[0])
+                }
+                _ => None,
+            };
+            if let Some(child) = child {
+                let child = prepared.preprocessing.child(&self.expression, node, child);
+                if let Some(clock) = rosters.producer_clock(child) {
+                    return clock;
+                }
+            }
+        }
+        crate::matrix_heads::Clock {
+            grid: prepared.source_header(node, header).into(),
+            shortcut: !prepared.flags().boundaries[node.0] && self.helper_shortcut(node),
+        }
+    }
+
     fn prepare_rosters<Q: QueryProvider>(
         &self,
         catalog: &Catalog<'_, Q>,
@@ -920,7 +1024,10 @@ impl CompiledQuery {
         }
         let mut rosters = Rosters::new(account, self.expression.arena.nodes.len());
         let mut tasks = AccountedVec::new(account, MemoryKind::Workspace);
-        tasks.push(Task::Visit(self.expression.root, prepared.header));
+        tasks.push(Task::Visit(
+            self.expression.root,
+            prepared.evaluator_header(),
+        ));
         while let Some(task) = tasks.pop() {
             control.check()?;
             account.work(1);
@@ -952,13 +1059,23 @@ impl CompiledQuery {
                     _ => false,
                 };
                 let mut summary = crate::topk::Parameters::new(constant);
-                let mut time_ms = header.start_ms;
-                loop {
+                let shape = rosters.scalar(parameter).ok_or(EvaluationError::Invalid(
+                    "completed aggregate parameter shape is missing",
+                ))?;
+                let scalar_header = shape.grid.header(header);
+                prepared.range_folds.clear(control, account)?;
+                for step_index in 0..shape.floats {
+                    control.check()?;
+                    account.work(1);
+                    let time_ms = shape
+                        .grid
+                        .start_ms
+                        .wrapping_add(shape.grid.interval_ms.wrapping_mul(step_index));
                     let mut machine = Machine::new(
                         catalog,
                         &self.expression,
                         parameter,
-                        self.evaluation_options(header, time_ms),
+                        self.evaluation_options(scalar_header, time_ms),
                         control,
                         account,
                         EvaluationMetadata {
@@ -973,29 +1090,75 @@ impl CompiledQuery {
                             count_preparation: None,
                         },
                     );
+                    machine.set_step_index(step_index);
                     while let Some(sample) = machine.next()? {
                         let crate::result::OwnedValue::Float(value) = sample.value else {
                             unreachable!("typed scalar aggregate parameter")
                         };
                         summary.push(value);
                     }
-                    if header.start_ms == header.end_ms {
+                    if constant {
                         break;
                     }
-                    let Some(next) = time_ms.checked_add(header.step_ms) else {
-                        break;
-                    };
-                    if next > header.end_ms {
-                        break;
-                    }
-                    time_ms = next;
                 }
                 rosters.prepare_aggregate_parameter(node, *operator, summary, account);
                 continue;
             }
             if matches!(task, Task::Visit(..)) {
+                header = prepared.source_header(node, header);
+                if prepared.activate(header, control, account)?.is_none() {
+                    if self.expression.arena[node].value_type == ValueType::Scalar {
+                        rosters.prepare_scalar(
+                            node,
+                            crate::evaluator_roster::ScalarShape {
+                                rows: 0,
+                                floats: 0,
+                                grid: header.into(),
+                            },
+                            account,
+                        );
+                    }
+                    rosters.output(
+                        node,
+                        AccountedVec::new(account, MemoryKind::Workspace),
+                        account,
+                    );
+                    if self.expression.arena[node].value_type != ValueType::Matrix {
+                        rosters.prepare_matrix(
+                            node,
+                            self.matrix_clock(node, header, prepared, &rosters),
+                            prepared.flags().boundaries[node.0],
+                            control,
+                            account,
+                        )?;
+                    }
+                    rosters.annotations(node, AnnotationBuilder::new(account));
+                    continue;
+                }
+                header = prepared.scope_header(node, header);
+                if header.end_ms < header.start_ms {
+                    rosters.output(
+                        node,
+                        AccountedVec::new(account, MemoryKind::Workspace),
+                        account,
+                    );
+                    rosters.annotations(node, AnnotationBuilder::new(account));
+                    continue;
+                }
                 if prepared.flags().boundaries[node.0] {
                     header.end_ms = header.start_ms;
+                }
+                if let Expr::Subquery {
+                    expression: child, ..
+                } = expression
+                {
+                    let grid = prepared.subquery_scope(node, control, account)?;
+                    tasks.push(Task::Finish(node, header));
+                    tasks.push(Task::Visit(
+                        prepared.preprocessing.child(&self.expression, node, *child),
+                        grid.header(header),
+                    ));
+                    continue;
                 }
                 if crate::topk::has_step_parameter(expression) {
                     let Expr::Aggregate {
@@ -1052,13 +1215,43 @@ impl CompiledQuery {
                 }
                 tasks.push(Task::Finish(node, header));
                 if self.direct_clock_selector(node).is_none() {
-                    for child in children(expression).rev() {
+                    for child in children(&self.expression, prepared, node).rev() {
                         tasks.push(Task::Visit(
                             prepared.preprocessing.child(&self.expression, node, child),
                             header,
                         ));
                     }
                 }
+                continue;
+            }
+            let source_header = prepared.source_header(node, header);
+            header = prepared.scope_header(node, header);
+            if prepared.flags().boundaries[node.0] && header.end_ms >= header.start_ms {
+                header.end_ms = header.start_ms;
+            }
+            // Source plain modifier errors discard completed local child warnings.
+            crate::evaluator::validate_matrix_modifier(
+                &self.expression,
+                prepared,
+                node,
+                control,
+                account,
+            )?;
+            if self.expression.arena[node].value_type == ValueType::Matrix {
+                let child = match expression {
+                    Expr::Subquery {
+                        expression: child, ..
+                    }
+                    | Expr::Paren(child) => *child,
+                    _ => unreachable!("derived matrix preparation"),
+                };
+                let child = prepared.preprocessing.child(&self.expression, node, child);
+                let notes = rosters
+                    .take_annotations(child)
+                    .unwrap_or_else(|| AnnotationBuilder::new(account));
+                // Consumers borrow the body roster; a matrix passthrough never moves or duplicates it.
+                rosters.annotations(node, notes);
+                self.finish_invariant((node, source_header), prepared, &rosters, control, account)?;
                 continue;
             }
             if let Task::LabelFinish(_, _, operation) = task {
@@ -1081,6 +1274,14 @@ impl CompiledQuery {
                     control,
                     account,
                     &mut rosters,
+                )?;
+                self.finish_invariant((node, source_header), prepared, &rosters, control, account)?;
+                rosters.prepare_matrix(
+                    node,
+                    self.matrix_clock(node, source_header, prepared, &rosters),
+                    prepared.flags().boundaries[node.0],
+                    control,
+                    account,
                 )?;
                 rosters.annotations(node, annotations);
                 rosters.release_output(child);
@@ -1137,6 +1338,21 @@ impl CompiledQuery {
                     node,
                     prepared.preprocessing.child(&self.expression, node, *child),
                     &self.expression,
+                    control,
+                    account,
+                )?;
+            }
+            if crate::vector_sort::is_sort(expression) {
+                let Expr::Call { arguments, .. } = expression else {
+                    unreachable!()
+                };
+                rosters.prepare_sort(
+                    node,
+                    prepared
+                        .preprocessing
+                        .child(&self.expression, node, arguments[0]),
+                    (&self.expression, prepared),
+                    header.start_ms == header.end_ms,
                     control,
                     account,
                 )?;
@@ -1231,12 +1447,13 @@ impl CompiledQuery {
                     && self.expression.arena[node].value_type == ValueType::Vector
                     && (crate::count_values::is_count(expression)
                         || crate::topk::is_selection(expression)
+                        || crate::vector_sort::is_sort(expression)
                         || matches!(expression, Expr::Binary { .. })
                         || matches!(expression, Expr::Call { function: Some(function), .. }
                         if PointwiseFunction::parse(function.name).is_some()
                             || crate::histogram_call::Function::parse(function.name).is_some()));
             let mut annotations = AnnotationBuilder::new(account);
-            for child in children(expression) {
+            for child in children(&self.expression, prepared, node) {
                 let child = prepared.preprocessing.child(&self.expression, node, child);
                 if let Some(child_annotations) = rosters.take_annotations(child) {
                     annotations.merge(child_annotations, &self.expression.source);
@@ -1282,7 +1499,9 @@ impl CompiledQuery {
             let unary_merge =
                 crate::evaluator_order::unary_merge(expression, self.options.delayed_name_removal);
             if unary_merge {
-                let child = children(expression).next().expect("unary child");
+                let child = children(&self.expression, prepared, node)
+                    .next()
+                    .expect("unary child");
                 let mut hashes = AccountedVec::new(account, MemoryKind::Workspace);
                 for descriptor in rosters.descriptors(child) {
                     let mut labels =
@@ -1299,6 +1518,7 @@ impl CompiledQuery {
                     || crate::topk::is_selection(expression) && header.start_ms != header.end_ms,
                 account,
             );
+            let mut scalar_points = 0_i64;
             // Fixed safe range calls have one logical evaluation, irrespective of output steps.
             let single_step = header.start_ms == header.end_ms;
             let absent_range = matches!(expression,
@@ -1314,11 +1534,7 @@ impl CompiledQuery {
             let site = if raw_selector {
                 Some(node)
             } else if range_function.is_some() {
-                Some(crate::evaluator::range_selector(
-                    &self.expression,
-                    prepared,
-                    node,
-                )?)
+                crate::evaluator::range_selector(&self.expression, prepared, node)?
             } else {
                 self.direct_clock_selector(node)
             };
@@ -1360,6 +1576,7 @@ impl CompiledQuery {
                 }
                 rosters.prepare_clock(selector_node, failures);
             }
+            prepared.range_folds.clear(control, account)?;
             let base = Machine::new(
                 catalog,
                 &self.expression,
@@ -1381,101 +1598,218 @@ impl CompiledQuery {
                 },
             );
             let series_site = site.filter(|_| raw_selector || range_function.is_some());
-            let mut ordinal = 0;
-            loop {
-                if series_site.is_some_and(|site| ordinal >= catalog.len(site)) {
-                    break;
+            let empty_passthrough = !prepared.flags().boundaries[node.0]
+                && match expression {
+                    Expr::Paren(child)
+                    | Expr::Unary {
+                        expression: child, ..
+                    } => {
+                        let child = prepared.preprocessing.child(&self.expression, node, *child);
+                        rosters.descriptors(child).is_empty()
+                    }
+                    _ => false,
+                };
+            if raw_selector {
+                let grid = crate::query_scopes::Grid {
+                    start_ms: header.start_ms,
+                    end_ms: header.end_ms,
+                    interval_ms: header.step_ms,
+                };
+                let machine =
+                    base.replay(node, self.evaluation_options(header, header.end_ms), None);
+                for ordinal in 0..catalog.len(node) {
+                    control.check()?;
+                    account.work(1);
+                    let mut position = None;
+                    catalog
+                        .with_series(node, ordinal, |series| {
+                            machine.visit_raw_series(
+                                node,
+                                ordinal,
+                                series,
+                                grid,
+                                Some(&mut annotations),
+                                |_, labels, sample| {
+                                    let Some(sample) = sample else {
+                                        return Ok::<_, EvaluationError>(false);
+                                    };
+                                    let kind = sample.value.kind_bit();
+                                    if let Some(position) = position {
+                                        let descriptor: &mut Descriptor =
+                                            &mut descriptors[position];
+                                        descriptor.kinds |= kind;
+                                    } else {
+                                        let labels = crate::result::OwnedLabels::copy_from_checked(
+                                            labels,
+                                            account,
+                                            MemoryKind::Workspace,
+                                            control,
+                                        )?;
+                                        let hash =
+                                            crate::label_hash::full(&labels, control, account)?;
+                                        descriptor_index.insert(
+                                            ordinal,
+                                            descriptors.len(),
+                                            control,
+                                            account,
+                                        )?;
+                                        position = Some(descriptors.len());
+                                        descriptors.push(Descriptor {
+                                            hash,
+                                            ordinal,
+                                            labels,
+                                            drop_name: false,
+                                            first_order: descriptors.len(),
+                                            sources: 0..0,
+                                            kinds: kind,
+                                            heads: HeadSummary::default(),
+                                        });
+                                    }
+                                    Ok(false)
+                                },
+                            )
+                        })
+                        .expect("raw catalog ordinal")?;
                 }
-                let mut time_ms = header.start_ms;
+            } else if !empty_passthrough {
+                let mut ordinal = 0;
                 loop {
-                    step_kinds.clear();
-                    let mut machine = base.replay(
-                        node,
-                        self.evaluation_options(header, time_ms),
-                        Some(&mut annotations),
-                    );
-                    let mut series_sample = if let Some(site) = series_site {
-                        catalog
+                    if series_site.is_some_and(|site| ordinal >= catalog.len(site)) {
+                        break;
+                    }
+                    let initial = if let Some(site) = series_site
+                        && matches!(range_function, Some(RangeFunction::Numeric(kind)) if kind.parameters() > 0)
+                    {
+                        match catalog
                             .with_series(site, ordinal, |series| {
-                                if let Some(function) = range_function {
-                                    machine.range_series_sample(node, function, ordinal, series)
-                                } else {
-                                    machine.raw_series_sample(node, ordinal, series)
-                                }
+                                base.initialize_range_series(site, series)
                             })
-                            .expect("catalog ordinal")?
+                            .expect("range initialization ordinal")?
+                        {
+                            Some(initial) => Some(initial),
+                            None => {
+                                ordinal += 1;
+                                continue;
+                            }
+                        }
                     } else {
                         None
                     };
-                    loop {
-                        let sample = if series_site.is_some() {
-                            series_sample.take()
+                    let mut traversal = crate::query_scopes::Traversal::new(
+                        header.into(),
+                        self.helper_shortcut(node),
+                    );
+                    while let Some((time_ms, step_index)) = traversal.current() {
+                        step_kinds.clear();
+                        let mut machine = base.replay(
+                            node,
+                            self.evaluation_options(header, time_ms),
+                            Some(&mut annotations),
+                        );
+                        machine.set_step_index(step_index);
+                        let parameters = if series_site.is_some()
+                            && let Some(function) = range_function
+                        {
+                            machine.range_parameters(node, function)?
                         } else {
-                            machine.next()?
+                            [0.0; 2]
                         };
-                        let Some(sample) = sample else {
-                            break;
+                        let mut series_sample = if let Some(site) = series_site {
+                            catalog
+                                .with_series(site, ordinal, |series| {
+                                    machine.range_series_sample(
+                                        node,
+                                        range_function.expect("range series site"),
+                                        parameters,
+                                        ordinal,
+                                        series,
+                                        initial.as_ref(),
+                                    )
+                                })
+                                .expect("catalog ordinal")?
+                        } else {
+                            None
                         };
-                        if absent_range {
-                            continue;
-                        }
-                        let hash = crate::label_hash::full(&sample.labels, control, account)?;
-                        let kind = sample.value.kind_bit();
-                        step_kinds.push(hash, sample.ordinal, kind);
-                        if let Some(position) = descriptor_index.find(
-                            sample.ordinal,
-                            &sample.labels,
-                            &descriptors,
-                            control,
-                            account,
-                        )? {
-                            let descriptor = &mut descriptors[position];
-                            descriptor.kinds |= kind;
-                            if matches!(expression, Expr::Aggregate { .. }) {
-                                descriptor.drop_name = sample.drop_name;
+                        loop {
+                            let sample = if series_site.is_some() {
+                                series_sample.take()
+                            } else {
+                                machine.next()?
+                            };
+                            let Some(sample) = sample else {
+                                break;
+                            };
+                            if self.expression.arena[node].value_type == ValueType::Scalar {
+                                scalar_points = scalar_points.wrapping_add(1);
                             }
-                            continue;
+                            if absent_range {
+                                continue;
+                            }
+                            let hash = crate::label_hash::full(&sample.labels, control, account)?;
+                            let kind = sample.value.kind_bit();
+                            step_kinds.push(hash, sample.ordinal, kind);
+                            if let Some(position) = descriptor_index.find(
+                                sample.ordinal,
+                                &sample.labels,
+                                &descriptors,
+                                control,
+                                account,
+                            )? {
+                                let descriptor = &mut descriptors[position];
+                                descriptor.kinds |= kind;
+                                if matches!(expression, Expr::Aggregate { .. }) {
+                                    descriptor.drop_name = sample.drop_name;
+                                }
+                                continue;
+                            }
+                            descriptor_index.insert(
+                                sample.ordinal,
+                                descriptors.len(),
+                                control,
+                                account,
+                            )?;
+                            let mut heads = HeadSummary::default();
+                            if let Expr::Paren(child)
+                            | Expr::Unary {
+                                expression: child, ..
+                            } = expression
+                            {
+                                let child =
+                                    prepared.preprocessing.child(&self.expression, node, *child);
+                                if let Some(shape) = rosters.matrix(child) {
+                                    heads.inherit_order(shape.sorted(
+                                        sample.ordinal,
+                                        control,
+                                        account,
+                                    )?);
+                                }
+                            }
+                            descriptors.push(Descriptor {
+                                hash,
+                                ordinal: sample.ordinal,
+                                drop_name: sample.drop_name,
+                                first_order: descriptors.len(),
+                                sources: 0..0,
+                                labels: sample.labels,
+                                kinds: kind,
+                                heads,
+                            });
                         }
-                        descriptor_index.insert(
-                            sample.ordinal,
-                            descriptors.len(),
-                            control,
-                            account,
-                        )?;
-                        descriptors.push(Descriptor {
-                            hash,
-                            ordinal: sample.ordinal,
-                            drop_name: sample.drop_name,
-                            first_order: descriptors.len(),
-                            sources: 0..0,
-                            labels: sample.labels,
-                            kinds: kind,
-                            heads: HeadSummary::default(),
-                        });
+                        step_kinds.finish(control, account)?;
+                        for descriptor in descriptors.iter_mut() {
+                            control.check()?;
+                            account.work(1);
+                            descriptor
+                                .heads
+                                .note(step_kinds.counts(descriptor, control, account)?, time_ms);
+                        }
+                        traversal.advance();
                     }
-                    step_kinds.finish(control, account)?;
-                    for descriptor in descriptors.iter_mut() {
-                        control.check()?;
-                        account.work(1);
-                        descriptor
-                            .heads
-                            .note(step_kinds.counts(descriptor, control, account)?, time_ms);
-                    }
-                    if single_step {
+                    if series_site.is_none() {
                         break;
                     }
-                    let Some(next) = time_ms.checked_add(header.step_ms) else {
-                        break;
-                    };
-                    if next > header.end_ms {
-                        break;
-                    }
-                    time_ms = next;
+                    ordinal += 1;
                 }
-                if series_site.is_none() {
-                    break;
-                }
-                ordinal += 1;
             }
             drop(base);
             if binary_preparation.is_some() {
@@ -1492,7 +1826,15 @@ impl CompiledQuery {
             }
             if absent_range {
                 // Validate every series first, then invert the union without a timestamp bitmap.
+                prepared.slice_capacity(
+                    crate::query_scopes::Grid::from(header)
+                        .steps()
+                        .expect("activated absence grid"),
+                    control,
+                    account,
+                )?;
                 let mut time_ms = header.start_ms;
+                prepared.range_folds.clear(control, account)?;
                 loop {
                     let mut machine = Machine::new(
                         catalog,
@@ -1557,7 +1899,9 @@ impl CompiledQuery {
                     })
                 });
             rosters.finish_group_flags(node, &descriptors, control, account)?;
-            if crate::topk::is_selection(expression) && single_step {
+            if (crate::topk::is_selection(expression) || crate::vector_sort::is_sort(expression))
+                && single_step
+            {
                 rosters.selection_output(node, descriptors, control, account)?;
             } else if generic_boundary || merged_unary {
                 if merged_unary {
@@ -1565,23 +1909,43 @@ impl CompiledQuery {
                         descriptor.first_order = descriptor.ordinal;
                     }
                 }
-                rosters.ordered_output(node, descriptors, control, account)?;
+                if merged_unary {
+                    rosters.merged_output(node, descriptors, control, account)?;
+                } else {
+                    rosters.ordered_output(node, descriptors, control, account)?;
+                }
             } else {
                 rosters.output(node, descriptors, account);
             }
             rosters.finish_count_projection(node, control, account)?;
             rosters.finish_selection_projection(node, control, account)?;
-            if prepared.flags().boundaries[node.0]
-                && self.expression.arena[node].value_type == ValueType::Vector
-                && rosters
-                    .descriptors(node)
-                    .iter()
-                    .any(|descriptor| descriptor.heads.multiple())
+            rosters.finish_sort_projection(node, control, account)?;
+            if let Some(copies) =
+                self.finish_invariant((node, source_header), prepared, &rosters, control, account)?
+                && scalar_points != 0
             {
-                return Err(EvaluationError::Invalid("unexpected number of samples"));
+                scalar_points = copies;
             }
+            if self.expression.arena[node].value_type == ValueType::Scalar {
+                rosters.prepare_scalar(
+                    node,
+                    crate::evaluator_roster::ScalarShape {
+                        rows: i64::from(scalar_points != 0),
+                        floats: scalar_points,
+                        grid: source_header.into(),
+                    },
+                    account,
+                );
+            }
+            rosters.prepare_matrix(
+                node,
+                self.matrix_clock(node, source_header, prepared, &rosters),
+                prepared.flags().boundaries[node.0],
+                control,
+                account,
+            )?;
             rosters.annotations(node, annotations);
-            for child in children(expression) {
+            for child in children(&self.expression, prepared, node) {
                 let child = prepared.preprocessing.child(&self.expression, node, child);
                 rosters.release_output(child);
             }
@@ -1619,16 +1983,20 @@ impl CompiledQuery {
         }
         drop(operation);
         rosters.projection_output(node, descriptors, control, account)?;
+        if rosters.descriptors(node).is_empty() {
+            return Ok(());
+        }
 
-        let single_step = header.start_ms == header.end_ms;
+        scope.prepared.range_folds.clear(control, account)?;
         let mut kinds = AccountedVec::new(account, MemoryKind::Workspace);
         for _ in rosters.descriptors(node) {
             control.check()?;
             account.work(1);
             kinds.push(PointCounts::default());
         }
-        let mut time_ms = header.start_ms;
-        loop {
+        let mut traversal =
+            crate::query_scopes::Traversal::new(header.into(), self.helper_shortcut(node));
+        while let Some((time_ms, step_index)) = traversal.current() {
             for kind in kinds.iter_mut() {
                 control.check()?;
                 account.work(1);
@@ -1654,6 +2022,7 @@ impl CompiledQuery {
                     count_preparation: None,
                 },
             );
+            machine.set_step_index(step_index);
             // Descendant matrices remain authoritative; only this new merge is bypassed.
             machine.bypass_root_order();
             let bindings = rosters.projection(node).expect("label projection").bindings;
@@ -1684,24 +2053,7 @@ impl CompiledQuery {
             }
             drop(machine);
             rosters.projection_collisions(node, &kinds, time_ms, control, account)?;
-            if single_step {
-                break;
-            }
-            let Some(next) = time_ms.checked_add(header.step_ms) else {
-                break;
-            };
-            if next > header.end_ms {
-                break;
-            }
-            time_ms = next;
-        }
-        if scope.prepared.flags().boundaries[node.0]
-            && rosters
-                .descriptors(node)
-                .iter()
-                .any(|descriptor| descriptor.heads.multiple())
-        {
-            return Err(EvaluationError::Invalid("unexpected number of samples"));
+            traversal.advance();
         }
         Ok(())
     }
@@ -1724,6 +2076,19 @@ impl CompiledQuery {
         while let Expr::Paren(child) = self.expression.arena[root].expression {
             root = child;
         }
+        if matches!(
+            self.expression.arena[root].expression,
+            Expr::Subquery { .. }
+        ) {
+            return self.evaluate_derived_matrix(
+                (root, scope),
+                catalog,
+                control,
+                account,
+                sink,
+                annotations,
+            );
+        }
         let Expr::Matrix {
             selector: selector_node,
             range,
@@ -1736,27 +2101,35 @@ impl CompiledQuery {
         let Expr::Selector(selector) = &self.expression.arena[selector_node].expression else {
             unreachable!("typed selector")
         };
-        if selector.anchored || selector.smoothed {
-            return Err(EvaluationError::Unsupported("extended top-level matrix").into());
-        }
         let offset = prepared.adjusted_offset(selector_node, &selector.modifiers, header.start_ms);
         let end_ms = header.start_ms.wrapping_sub(offset / 1_000_000);
+        let start_ms = end_ms.wrapping_sub(range / 1_000_000);
+        let extended = selector.anchored || selector.smoothed;
+        let smoothed = selector.smoothed && !selector.anchored;
+        let lookback = if extended {
+            self.options.lookback_ms.wrapping_mul(1_000_000) / 1_000_000
+        } else {
+            0
+        };
+        let physical_end = end_ms.wrapping_add(if smoothed { lookback } else { 0 });
+        let physical_range =
+            (range / 1_000_000).wrapping_add(lookback.wrapping_mul(if smoothed { 2 } else { 1 }));
+        let physical_start = physical_end.wrapping_sub(physical_range);
         let bounds = TimeBounds {
-            start_ms: end_ms
-                .wrapping_sub(range / 1_000_000)
-                .wrapping_add(1)
-                .max(data_bounds.start_ms),
-            end_ms: end_ms.min(data_bounds.end_ms),
+            start_ms: physical_start.wrapping_add(1).max(data_bounds.start_ms),
+            end_ms: physical_end.min(data_bounds.end_ms),
         };
         let bounds = (bounds.start_ms <= bounds.end_ms).then_some(bounds);
         let matrix = MatrixWindow {
-            first_end_ms: end_ms,
-            end_ms,
-            range_ms: range / 1_000_000,
+            first_end_ms: physical_end,
+            end_ms: physical_end,
+            range_ms: physical_range,
+            buffer_ms: None,
             step_ms: 0,
             data_bounds,
             statistics: false,
             reduce_delta: false,
+            resume: None,
         };
         let notes = match catalog.expand(selector_node, control, account) {
             Ok(notes) => notes,
@@ -1776,41 +2149,108 @@ impl CompiledQuery {
                         if !matches_checked(&labels, &selector.matchers, Some(account), control)? {
                             return Ok(());
                         }
-                        scan_matrix(
-                            series,
-                            bounds,
-                            Some(matrix),
-                            control,
-                            account,
-                            |sample| -> Result<(), ExecutionError> {
-                                if sample.value.is_stale() {
-                                    return Ok(());
-                                }
-                                let value = crate::result::OwnedValue::copy_from_checked(
-                                    sample.value,
-                                    control,
-                                    account,
-                                    MemoryKind::Workspace,
-                                )?;
-                                let point = SampleRef {
-                                    time_ms: sample.time_ms,
-                                    start_time_ms: 0,
-                                    value: value.as_ref(),
-                                };
-                                sink.chunk_checked(
-                                    OutputChunk::Series {
-                                        series_id,
-                                        labels: &labels,
-                                        points: &[point],
+                        let mut emit = |time_ms,
+                                        value: crate::value::SampleValueRef<'_>|
+                         -> Result<(), ExecutionError> {
+                            let value = crate::result::OwnedValue::copy_from_checked(
+                                value,
+                                control,
+                                account,
+                                MemoryKind::Workspace,
+                            )?;
+                            let point = SampleRef {
+                                time_ms,
+                                start_time_ms: 0,
+                                value: value.as_ref(),
+                            };
+                            sink.chunk_checked(
+                                OutputChunk::Series {
+                                    series_id,
+                                    labels: &labels,
+                                    points: &[point],
+                                },
+                                control,
+                                account,
+                            )
+                            .map_err(|error| ExecutionError::output(error, account))?;
+                            account.output(1);
+                            Ok(())
+                        };
+                        if extended {
+                            let extension = crate::range_extended::matrix(
+                                series,
+                                crate::range_float::RateInput {
+                                    window: crate::range_float::RateWindow {
+                                        start_ms: physical_start,
+                                        end_ms: physical_end,
+                                        range_ns: range,
+                                        start_timestamps: false,
                                     },
-                                    control,
-                                    account,
+                                    range_start_ms: start_ms,
+                                    range_end_ms: end_ms,
+                                    data_bounds: Some(data_bounds),
+                                },
+                                matrix,
+                                smoothed,
+                                control,
+                                account,
+                            )?;
+                            if extension.histograms() {
+                                return Err(EvaluationError::Runtime(
+                                    crate::binary_labels::formatted(
+                                        format_args!(
+                                            "{} modifier is not supported with histograms",
+                                            if smoothed { "smoothed" } else { "anchored" }
+                                        ),
+                                        control,
+                                        account,
+                                    )?,
                                 )
-                                .map_err(|error| ExecutionError::output(error, account))?;
-                                account.output(1);
-                                Ok(())
-                            },
-                        )?;
+                                .into());
+                            }
+                            if let Some(capacity) = extension.capacity() {
+                                prepared.slice_capacity(capacity, control, account)?;
+                            }
+                            if let Some((first, end)) = extension.invalid_slice() {
+                                return Err(EvaluationError::WrappedRuntime(
+                                    crate::binary_labels::formatted(
+                                        format_args!(
+                                            "unexpected error: runtime error: slice bounds out of range [{first}:{end}]"
+                                        ),
+                                        control,
+                                        account,
+                                    )?,
+                                )
+                                .into());
+                            }
+                            prepared.sample_statistics_time(root, header.start_ms, control, account)?;
+                            extension.visit(|time_ms, value| {
+                                emit(time_ms, crate::value::SampleValueRef::Float(value))
+                            })?;
+                        } else {
+                            let mut statistics_checked = false;
+                            scan_matrix(
+                                series,
+                                bounds,
+                                Some(matrix),
+                                control,
+                                account,
+                                |sample| -> Result<(), ExecutionError> {
+                                    if !statistics_checked {
+                                        prepared.sample_statistics_time(
+                                            root, header.start_ms, control, account,
+                                        )?;
+                                        statistics_checked = true;
+                                    }
+                                    emit(sample.time_ms, sample.value)
+                                },
+                            )?;
+                            if !statistics_checked {
+                                prepared.sample_statistics_time(
+                                    root, header.start_ms, control, account,
+                                )?;
+                            }
+                        }
                         Ok(())
                     },
                 )
@@ -1819,12 +2259,281 @@ impl CompiledQuery {
         *annotations = notes.finish();
         Ok(())
     }
+
+    fn evaluate_derived_matrix<Q: QueryProvider, S: OutputSink>(
+        &self,
+        call: (NodeId, EvaluationScope<'_>),
+        catalog: &Catalog<'_, Q>,
+        control: &Control,
+        account: &QueryAccounting,
+        sink: &mut S,
+        annotations: &mut Annotations,
+    ) -> Result<(), ExecutionError> {
+        let (node, scope) = call;
+        let prepared = scope.prepared;
+        let Expr::Subquery {
+            expression: body, ..
+        } = self.expression.arena[node].expression
+        else {
+            unreachable!("typed derived matrix")
+        };
+        let body = prepared.preprocessing.child(&self.expression, node, body);
+        let mut rosters = self.prepare_rosters(
+            catalog,
+            prepared,
+            scope.data_bounds,
+            control,
+            account,
+            annotations,
+        )?;
+        *annotations = rosters
+            .take_annotations(self.expression.root)
+            .expect("completed derived matrix diagnostics")
+            .finish();
+        let clock = rosters
+            .producer_clock(body)
+            .expect("completed derived body clock");
+        let grid = clock.grid;
+        let rows = rosters.descriptors(body);
+        struct Cohort {
+            hash: u64,
+            representative: usize,
+            members: usize,
+            kinds: u8,
+        }
+        let mut cohorts = AccountedVec::<Cohort>::new(account, MemoryKind::Workspace);
+        for (position, row) in rows.iter().enumerate() {
+            control.check()?;
+            account.work(1);
+            let hash = if self.options.delayed_name_removal && row.drop_name {
+                let mut labels =
+                    row.labels
+                        .copy_checked(account, MemoryKind::Workspace, control)?;
+                drop_reserved(&mut labels, false, account, control)?;
+                crate::label_hash::full(&labels, control, account)?
+            } else {
+                row.hash
+            };
+            let mut representative = position;
+            if self.options.delayed_name_removal {
+                for (index, prior) in cohorts.iter().enumerate() {
+                    control.check()?;
+                    account.work(1);
+                    if prior.hash == hash {
+                        representative = prior.representative;
+                        assert!(representative <= index);
+                        break;
+                    }
+                }
+            }
+            if representative != position {
+                cohorts[representative].members += 1;
+                cohorts[representative].kinds |= row.kinds;
+            }
+            cohorts.push(Cohort {
+                hash,
+                representative,
+                members: usize::from(representative == position),
+                kinds: row.kinds,
+            });
+        }
+        for (position, cohort) in cohorts.iter().enumerate() {
+            control.check()?;
+            account.work(1);
+            if cohort.representative != position {
+                continue;
+            }
+            prepared.range_folds.clear(control, account)?;
+            let row = &rows[position];
+            let mut labels = row
+                .labels
+                .copy_checked(account, MemoryKind::Workspace, control)?;
+            if self.options.delayed_name_removal && row.drop_name {
+                drop_reserved(&mut labels, false, account, control)?;
+            }
+            let labels = labels.views_checked(account, control)?;
+            if cohort.members == 1
+                && grid.forward_without_wrap()
+                && crate::evaluator::raw_selector_shortcut(&self.expression, prepared, body)
+            {
+                let machine = Machine::new(
+                    catalog,
+                    &self.expression,
+                    body,
+                    self.evaluation_options(grid.header(prepared.header), grid.end_ms),
+                    control,
+                    account,
+                    EvaluationMetadata {
+                        prepared,
+                        rosters: &rosters,
+                        timestamp_selectors: &self.timestamp_selectors,
+                        data_bounds: scope.data_bounds,
+                        annotations: None,
+                        binary_preparation: None,
+                        histogram_preparation: None,
+                        info_preparation: None,
+                        count_preparation: None,
+                    },
+                );
+                catalog
+                    .with_series(body, row.ordinal, |series| {
+                        machine.visit_raw_series(
+                            body,
+                            row.ordinal,
+                            series,
+                            grid,
+                            None,
+                            |time, _, sample| {
+                                if let Some(sample) = sample {
+                                    sink.chunk_checked(
+                                        OutputChunk::Series {
+                                            series_id: position,
+                                            labels: &labels,
+                                            points: &[SampleRef {
+                                                time_ms: time,
+                                                start_time_ms: 0,
+                                                value: sample.value,
+                                            }],
+                                        },
+                                        control,
+                                        account,
+                                    )
+                                    .map_err(|error| ExecutionError::output(error, account))?;
+                                    account.output(1);
+                                }
+                                Ok::<_, ExecutionError>(false)
+                            },
+                        )
+                    })
+                    .expect("direct plain subquery ordinal")?;
+                continue;
+            }
+            let options = self.evaluation_options(grid.header(prepared.header), grid.start_ms);
+            let mut iterator = (!grid.forward_without_wrap()).then(|| {
+                crate::matrix_heads::SeriesIterator::new(
+                    clock,
+                    crate::matrix_heads::Row {
+                        ordinal: position,
+                        kinds: cohort.kinds,
+                        sorted: cohort.members > 1 || row.heads.sorted(),
+                    },
+                    options,
+                )
+            });
+            let mut traversal = crate::query_scopes::Traversal::new(grid, clock.shortcut);
+            let mut emit = |time_ms, sample: &crate::evaluator::EvaluatedSample| {
+                sink.chunk_checked(
+                    OutputChunk::Series {
+                        series_id: position,
+                        labels: &labels,
+                        points: &[SampleRef {
+                            time_ms,
+                            start_time_ms: 0,
+                            value: sample.value.as_ref(),
+                        }],
+                    },
+                    control,
+                    account,
+                )
+                .map_err(|error| ExecutionError::output(error, account))?;
+                account.output(1);
+                Ok::<_, ExecutionError>(())
+            };
+            loop {
+                control.check()?;
+                account.work(1);
+                let action = if let Some(iterator) = &mut iterator {
+                    iterator.advance(control, account)?
+                } else if let Some((time_ms, step_index)) = traversal.current() {
+                    crate::matrix_heads::Action::Child {
+                        ordinal: position,
+                        options: EvaluationOptions { time_ms, ..options },
+                        step_index,
+                    }
+                } else {
+                    crate::matrix_heads::Action::Done
+                };
+                match action {
+                    crate::matrix_heads::Action::Child {
+                        options,
+                        step_index,
+                        ..
+                    } => {
+                        let mut counts = crate::evaluator_roster::PointCounts::default();
+                        'members: for (member, source) in cohorts.iter().enumerate() {
+                            control.check()?;
+                            account.work(1);
+                            if source.representative != position {
+                                continue;
+                            }
+                            let mut machine = Machine::new(
+                                catalog,
+                                &self.expression,
+                                body,
+                                options,
+                                control,
+                                account,
+                                EvaluationMetadata {
+                                    prepared,
+                                    rosters: &rosters,
+                                    timestamp_selectors: &self.timestamp_selectors,
+                                    data_bounds: scope.data_bounds,
+                                    annotations: None,
+                                    binary_preparation: None,
+                                    histogram_preparation: None,
+                                    info_preparation: None,
+                                    count_preparation: None,
+                                },
+                            );
+                            machine.set_step_index(step_index);
+                            machine.restrict_one(rows[member].ordinal);
+                            while let Some(sample) = machine.next()? {
+                                let kind = sample.value.kind_bit();
+                                counts.push(kind);
+                                if cohort.members > 1 && counts.repeated(kind) {
+                                    return Err(EvaluationError::Invalid(
+                                        "vector cannot contain metrics with the same labelset",
+                                    )
+                                    .into());
+                                }
+                                if let Some(iterator) = &mut iterator {
+                                    // Both discovery and acquisition traverse this stable cohort order.
+                                    if iterator.receive(sample) {
+                                        break 'members;
+                                    }
+                                } else {
+                                    emit(options.time_ms, &sample)?;
+                                }
+                            }
+                        }
+                        if iterator.is_none() {
+                            traversal.advance();
+                        }
+                    }
+                    crate::matrix_heads::Action::Sample(sample) => {
+                        emit(sample.source_time_ms, &sample)?;
+                    }
+                    crate::matrix_heads::Action::Done => break,
+                }
+            }
+        }
+        Ok(())
+    }
 }
 
-fn children(expression: &Expr) -> impl DoubleEndedIterator<Item = NodeId> + '_ {
-    let (fixed, slice): ([Option<NodeId>; 2], &[NodeId]) = match expression {
+fn children<'a>(
+    expression: &'a ParsedExpression,
+    prepared: &Prepared,
+    node: NodeId,
+) -> impl DoubleEndedIterator<Item = NodeId> + 'a {
+    let value = &expression.arena[node].expression;
+    let mut matrix_position = None;
+    let (fixed, slice): ([Option<NodeId>; 2], &[NodeId]) = match value {
         Expr::Paren(child)
         | Expr::Unary {
+            expression: child, ..
+        }
+        | Expr::Subquery {
             expression: child, ..
         } => ([Some(*child), None], &[]),
         Expr::Binary { left, right, .. } => ([Some(*left), Some(*right)], &[]),
@@ -1841,25 +2550,40 @@ fn children(expression: &Expr) -> impl DoubleEndedIterator<Item = NodeId> + '_ {
         Expr::Call {
             function: Some(function),
             arguments,
-        } if RangeFunction::parse(function.name).is_some() => ([None, None], &arguments[1..]),
+        } if function.arguments.contains(&ValueType::Matrix) => {
+            let (position, argument) =
+                crate::evaluator::matrix_argument(expression, prepared, node)
+                    .expect("typed matrix function");
+            matrix_position = Some(position);
+            let child = matches!(expression.arena[argument].expression, Expr::Subquery { .. })
+                .then_some(arguments[position]);
+            // The complete subquery child precedes every scalar parameter.
+            ([child, None], arguments.as_ref())
+        }
         Expr::Call {
             function,
             arguments,
-        } if label_functions::is_label_call(expression)
+        } if label_functions::is_label_call(value)
             || function.is_some_and(|function| function.name == "info") =>
         {
             ([None, None], &arguments[..1])
         }
-        Expr::Call { function: Some(function), arguments }
-            if matches!(crate::histogram_call::Function::parse(function.name),
-                Some(crate::histogram_call::Function::Quantiles)) =>
-        {
-            ([Some(arguments[0]), None], &arguments[2..])
-        }
         Expr::Call { arguments, .. } => ([None, None], arguments),
         _ => ([None, None], &[]),
     };
-    fixed.into_iter().flatten().chain(slice.iter().copied())
+    fixed
+        .into_iter()
+        .flatten()
+        .chain(
+            slice
+                .iter()
+                .enumerate()
+                .filter_map(move |(position, child)| {
+                    (Some(position) != matrix_position
+                        && expression.arena[*child].value_type != ValueType::String)
+                        .then_some(*child)
+                }),
+        )
 }
 
 #[cfg(test)]
@@ -3245,6 +3969,2041 @@ mod tests {
     }
 
     #[test]
+    fn wrapped_duration_dispatch_keeps_raw_and_evaluator_clocks_separate() {
+        // Pinned engine.go instant dispatch tests raw endpoints and the converted duration.
+        let provider = FixtureProvider::new(0, 1, 0);
+        let engine = Engine::default();
+        let control = Control::default();
+        for step_ms in [1_i64 << 58, i64::MAX] {
+            for expression in [b"time()".as_slice(), b"vector(time())".as_slice()] {
+                let query = engine
+                    .compile(expression, EngineOptions::default(), &control)
+                    .unwrap();
+                let (output, _) = query
+                    .collect(
+                        &provider,
+                        QueryRequest::Range {
+                            start_ms: 0,
+                            end_ms: 0,
+                            step_ms,
+                        },
+                        &control,
+                    )
+                    .unwrap();
+                let instant = step_ms == 1_i64 << 58;
+                let scalar = expression == b"time()";
+                assert_eq!(output.header.step_ms, if instant { 0 } else { -1 });
+                assert_eq!(
+                    output.header.value_type,
+                    if instant {
+                        if scalar {
+                            ValueType::Scalar
+                        } else {
+                            ValueType::Vector
+                        }
+                    } else {
+                        ValueType::Matrix
+                    }
+                );
+                if instant && scalar {
+                    assert_eq!(output.scalar, Some((0, 0.0)));
+                    assert!(output.series.is_empty());
+                } else {
+                    assert!(output.scalar.is_none());
+                    assert_eq!(output.series.len(), 1);
+                    assert_eq!(output.series[0].points.len(), 1);
+                    assert_eq!(output.series[0].points[0].time_ms, 0);
+                    assert_eq!(float_bits(&output.series[0].points[0]), 0);
+                }
+                drop(output);
+                drop(query);
+                provider.assert_closed();
+                engine.accounting.snapshot().assert_memory_released();
+            }
+        }
+    }
+
+    #[test]
+    fn root_activation_keeps_empty_bounds_and_division_before_child_errors() {
+        // Pinned evaluator.eval returns an empty range before computing numSteps.
+        let provider = FixtureProvider::new(0, 1, 0);
+        let engine = Engine::default();
+        let control = Control::default();
+        for expression in [
+            b"vector(time())".as_slice(),
+            b"label_replace(vector(time()),\"dst\",\"$1\",\"id\",\"(\")".as_slice(),
+        ] {
+            let query = engine
+                .compile(expression, EngineOptions::default(), &control)
+                .unwrap();
+            let failure = query
+                .collect(
+                    &provider,
+                    QueryRequest::Range {
+                        start_ms: 0,
+                        end_ms: 1_i64 << 58,
+                        step_ms: 1_i64 << 58,
+                    },
+                    &control,
+                )
+                .unwrap_err();
+            assert!(matches!(
+                &failure,
+                ExecutionError::Evaluation(EvaluationError::WrappedRuntime(bytes))
+                    if &**bytes == b"unexpected error: runtime error: integer divide by zero"
+            ));
+            drop(failure);
+            let (output, _) = query
+                .collect(
+                    &provider,
+                    QueryRequest::Range {
+                        start_ms: 9_223_372_036_854,
+                        end_ms: 9_223_372_036_855,
+                        step_ms: 1_i64 << 58,
+                    },
+                    &control,
+                )
+                .unwrap();
+            assert!(output.header.end_ms < output.header.start_ms);
+            assert!(output.series.is_empty());
+            assert!(output.scalar.is_none());
+            drop(output);
+            drop(query);
+            provider.assert_closed();
+            engine.accounting.snapshot().assert_memory_released();
+        }
+        assert_eq!(provider.counts.series_opened.load(Ordering::Relaxed), 0);
+    }
+
+    #[test]
+    fn range_parameter_exhaustion_uses_completed_scalar_length() {
+        fn singleton(_: usize) -> crate::value::Sample {
+            crate::value::Sample {
+                time_ms: 0,
+                start_time_ms: 0,
+                value: crate::value::SampleValue::Float(2.0),
+            }
+        }
+        for page in [1, 17, 1024] {
+            let mut provider = FixtureProvider::new(1, page, 1);
+            provider.series[0].source.sample = singleton;
+            let engine = Engine::default();
+            let control = Control::default();
+            let query = engine
+                .compile(
+                    b"predict_linear(counter_total[1ms],time())",
+                    EngineOptions::default(),
+                    &control,
+                )
+                .unwrap();
+            let failure = query
+                .collect(
+                    &provider,
+                    QueryRequest::Range {
+                        start_ms: 0,
+                        end_ms: 0,
+                        step_ms: i64::MAX,
+                    },
+                    &control,
+                )
+                .unwrap_err();
+            assert!(matches!(
+                &failure,
+                ExecutionError::Evaluation(EvaluationError::WrappedRuntime(bytes))
+                    if &**bytes == b"unexpected error: runtime error: index out of range [1] with length 1"
+            ));
+            drop(failure);
+            drop(query);
+            provider.assert_closed();
+            engine.accounting.snapshot().assert_memory_released();
+        }
+    }
+
+    #[test]
+    fn finite_signed_subquery_output_keeps_literal_append_order() {
+        let provider = FixtureProvider::new(0, 1, 0);
+        for (expression, absolute) in [
+            (b"vector(time())[2ms:]".as_slice(), false),
+            (b"abs(vector(time()))[2ms:]".as_slice(), true),
+        ] {
+            let engine = Engine::default();
+            let control = Control::default();
+            let query = engine
+                .compile(
+                    expression,
+                    EngineOptions {
+                        no_step_subquery_interval_ms: -(1_i64 << 62),
+                        ..EngineOptions::default()
+                    },
+                    &control,
+                )
+                .unwrap();
+            let (output, _) = query
+                .collect(&provider, QueryRequest::Instant { time_ms: 1 }, &control)
+                .unwrap();
+            assert_eq!(output.series.len(), 1);
+            let points = &output.series[0].points;
+            assert_eq!(points.len(), 3);
+            for (point, time) in points.iter().zip([0, -(1_i64 << 62), i64::MIN]) {
+                assert_eq!(point.time_ms, time);
+                let value = time as f64 / 1000.0;
+                assert_eq!(
+                    float_bits(point),
+                    if absolute { value.abs() } else { value }.to_bits()
+                );
+            }
+            provider.assert_closed();
+            drop((output, query));
+            engine.accounting.snapshot().assert_memory_released();
+        }
+    }
+
+    #[test]
+    fn sort_preserves_owned_and_parent_input_order() {
+        use crate::value::{Sample, SampleValue};
+        fn negative(_: usize) -> Sample {
+            Sample {
+                time_ms: 0,
+                start_time_ms: 0,
+                value: SampleValue::Float(-4.0),
+            }
+        }
+        fn zero(_: usize) -> Sample {
+            Sample {
+                time_ms: 0,
+                start_time_ms: 0,
+                value: SampleValue::Float(0.0),
+            }
+        }
+        fn positive(_: usize) -> Sample {
+            Sample {
+                time_ms: 0,
+                start_time_ms: 0,
+                value: SampleValue::Float(2.0),
+            }
+        }
+        for page_size in [1, 17, 1024] {
+            for (expression, expected) in [
+                ("sort(m)", [b"negative".as_slice(), b"zero", b"positive"]),
+                (
+                    "abs(sort(m))",
+                    [b"negative".as_slice(), b"zero", b"positive"],
+                ),
+                (
+                    "sort_desc(m)",
+                    [b"positive".as_slice(), b"zero", b"negative"],
+                ),
+            ] {
+                let engine = Engine::default();
+                let control = Control::default();
+                let query = engine
+                    .compile(expression.as_bytes(), EngineOptions::default(), &control)
+                    .unwrap();
+                let mut provider = FixtureProvider::new(1, page_size, 3);
+                for (series, (name, generator)) in provider.series.iter_mut().zip([
+                    (b"positive".as_slice(), positive as fn(usize) -> Sample),
+                    (b"negative".as_slice(), negative as fn(usize) -> Sample),
+                    (b"zero".as_slice(), zero as fn(usize) -> Sample),
+                ]) {
+                    series.labels = vec![
+                        (b"__name__".to_vec(), b"m".to_vec()),
+                        (b"id".to_vec(), name.to_vec()),
+                    ];
+                    series.source.sample = generator;
+                }
+                let (output, _) = query
+                    .collect(&provider, QueryRequest::Instant { time_ms: 1000 }, &control)
+                    .unwrap();
+                let identities: Vec<_> = output
+                    .series
+                    .iter()
+                    .map(|row| {
+                        &*row
+                            .labels
+                            .0
+                            .iter()
+                            .find(|label| &*label.name == b"id")
+                            .unwrap()
+                            .value
+                    })
+                    .collect();
+                assert_eq!(identities, expected, "{expression}, page={page_size}");
+                provider.assert_closed();
+                drop((output, query));
+                engine.accounting.snapshot().assert_memory_released();
+            }
+        }
+    }
+
+    #[test]
+    fn finite_signed_merged_matrix_output_preserves_sorted_lanes() {
+        // A collided label group sorts its lanes before aliases publish the completed matrix.
+        let left = "label_replace(vector(time()) == 0,\"src\",\"a\",\"__name__\",\".*\")";
+        let right = "label_replace(vector(time()) < 0,\"src\",\"b\",\"__name__\",\".*\")";
+        let merged = format!("label_replace({left} or {right},\"src\",\"x\",\"src\",\".*\")");
+        for page in [1, 17, 1024] {
+            for delayed in [false, true] {
+                for (body, negate) in [
+                    (merged.clone(), false),
+                    (format!("label_join({merged},\"x\",\"-\",\"src\")"), false),
+                    (
+                        format!("label_replace({merged},\"src\",\"x\",\"src\",\".*\")"),
+                        false,
+                    ),
+                    (format!("-({merged})"), true),
+                ] {
+                    let provider = FixtureProvider::new(0, page, 0);
+                    let engine = Engine::default();
+                    let control = Control::default();
+                    let query = engine
+                        .compile(
+                            format!("({body})[2ms:]").as_bytes(),
+                            EngineOptions {
+                                no_step_subquery_interval_ms: -(1_i64 << 62),
+                                ..options(delayed)
+                            },
+                            &control,
+                        )
+                        .unwrap();
+                    let (output, observed) = query
+                        .collect(&provider, QueryRequest::Instant { time_ms: 1 }, &control)
+                        .unwrap();
+                    assert_eq!(output.series.len(), 1, "{body}");
+                    let points = &output.series[0].points;
+                    assert_eq!(points.len(), 3, "{body}");
+                    for (point, time) in points.iter().zip([i64::MIN, -(1_i64 << 62), 0]) {
+                        assert_eq!(point.time_ms, time, "{body}");
+                        let value = time as f64 / 1000.0;
+                        assert_eq!(
+                            float_bits(point),
+                            if negate { -value } else { value }.to_bits(),
+                            "{body}"
+                        );
+                    }
+                    assert_eq!(observed.memory[MemoryKind::Workspace as usize].current, 0);
+                    drop((output, query));
+                    provider.assert_closed();
+                    engine.accounting.snapshot().assert_memory_released();
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn signed_direct_native_lanes_preserve_ties_hints_and_failure_cleanup() {
+        use crate::{
+            histogram::{FloatHistogram, Span},
+            value::{Sample, SampleValue},
+        };
+        fn native(_: usize) -> Sample {
+            Sample {
+                time_ms: 0,
+                start_time_ms: 0,
+                value: SampleValue::FloatHistogram(FloatHistogram {
+                    reset_hint: 3,
+                    count: 4.0,
+                    sum: 4.0,
+                    positive_spans: Some(AccountedVec::from_iter_in(
+                        [Span {
+                            offset: 0,
+                            length: 1,
+                        }],
+                        None,
+                    )),
+                    positive_buckets: Some(AccountedVec::from_iter_in([4.0], None)),
+                    ..FloatHistogram::default()
+                }),
+            }
+        }
+        let left = "label_replace(vector(time()),\"source\",\"a\",\"__name__\",\".*\")";
+        let right = "label_replace(h,\"source\",\"b\",\"__name__\",\".*\")";
+        let merged = format!(
+            "label_replace(label_replace({left} or {right},\"__name__\",\"\",\"__name__\",\".*\"),\"source\",\"x\",\"source\",\".*\")"
+        );
+        for page in [1, 17, 1024] {
+            for delayed in [false, true] {
+                for (body, negate) in [
+                    (merged.clone(), false),
+                    (format!("label_join({merged},\"x\",\"-\",\"source\")"), false),
+                    (format!("-({merged})"), true),
+                    (
+                        "-(label_replace(vector(time()),\"__name__\",\"a\",\"__name__\",\".*\") or on(__name__) h)"
+                            .to_owned(),
+                        true,
+                    ),
+                ] {
+                    let mut provider = FixtureProvider::new(1, page, 1);
+                    provider.series[0].labels = vec![(b"__name__".to_vec(), b"h".to_vec())];
+                    provider.series[0].source.sample = native;
+                    let engine = Engine::default();
+                    let control = Control::default();
+                    let query = engine
+                        .compile(
+                            format!("({body})[2ms:]").as_bytes(),
+                            EngineOptions {
+                                no_step_subquery_interval_ms: -(1_i64 << 62),
+                                ..options(delayed)
+                            },
+                            &control,
+                        )
+                        .unwrap();
+                    let (output, observed) = query
+                        .collect(&provider, QueryRequest::Instant { time_ms: 1 }, &control)
+                        .unwrap();
+                    assert_eq!(output.series.len(), 1, "{body}/{delayed}");
+                    let points = &output.series[0].points;
+                    assert_eq!(points.len(), 4, "{body}/{delayed}");
+                    for (point, time) in points[..3].iter().zip([i64::MIN, -(1_i64 << 62), 0]) {
+                        assert_eq!(point.time_ms, time, "{body}/{delayed}");
+                        let value = time as f64 / 1000.0;
+                        assert_eq!(
+                            float_bits(point),
+                            if negate { -value } else { value }.to_bits(),
+                            "{body}/{delayed}"
+                        );
+                    }
+                    assert_eq!(points[3].time_ms, 0);
+                    let OwnedValue::Histogram(histogram) = &points[3].value else {
+                        panic!("expected histogram after the equal-time float");
+                    };
+                    let histogram = histogram.as_ref();
+                    assert_eq!(histogram.reset_hint, 3);
+                    let count: f64 = if negate { -4.0 } else { 4.0 };
+                    let zero: f64 = if negate { -0.0 } else { 0.0 };
+                    assert_eq!(histogram.count.to_bits(), count.to_bits());
+                    assert_eq!(histogram.sum.to_bits(), count.to_bits());
+                    assert_eq!(histogram.zero_count.to_bits(), zero.to_bits());
+                    assert_eq!(histogram.positive_buckets.as_ref().unwrap()[0], count);
+                    assert_eq!(observed.memory[MemoryKind::Workspace as usize].current, 0);
+                    drop(output);
+                    for mode in 1..=3 {
+                        let control = Control::default();
+                        let mut sink = RecordingSink {
+                            fail_after: (mode == 1).then_some(4),
+                            cancel: (mode == 2).then(|| control.cancellation.clone()),
+                            panic_after: (mode == 3).then_some(4),
+                            ..RecordingSink::default()
+                        };
+                        let report = query.execute_reported(
+                            &provider,
+                            QueryRequest::Instant { time_ms: 1 },
+                            &control,
+                            &mut sink,
+                        );
+                        assert!(report.result.is_err());
+                        assert!(sink.begun && sink.aborted && !sink.committed);
+                        if mode == 2 {
+                            assert!(matches!(
+                                report.result,
+                                Err(ExecutionError::Evaluation(EvaluationError::Interrupted(
+                                    Interrupted::Cancelled
+                                )))
+                            ));
+                        } else if mode == 3 {
+                            assert!(matches!(report.result, Err(ExecutionError::Internal)));
+                        }
+                        provider.assert_closed();
+                        assert_eq!(engine.accounting.snapshot().active_executions, 0);
+                    }
+                    assert_eq!(provider.series[0].source.counters.peak.load(Ordering::Relaxed), 1);
+                    drop(query);
+                    provider.assert_closed();
+                    engine.accounting.snapshot().assert_memory_released();
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn signed_matrix_parents_consume_sorted_heads_by_caller_position() {
+        // Merged label groups sort their lanes; a mismatched head stays blocked.
+        let left = "label_replace(vector(time()) == 0,\"src\",\"a\",\"__name__\",\".*\")";
+        let right = "label_replace(vector(time()) < 0,\"src\",\"b\",\"__name__\",\".*\")";
+        let merged = format!("label_replace({left} or {right},\"src\",\"x\",\"src\",\".*\")");
+        let provider = FixtureProvider::new(0, 1, 0);
+        for (parent, positive) in [
+            (format!("abs({merged})"), true),
+            (format!("sum({merged})"), false),
+            (
+                format!("abs(label_join({merged},\"x\",\"-\",\"src\"))"),
+                true,
+            ),
+            (format!("abs(-({merged}))"), true),
+        ] {
+            let engine = Engine::default();
+            let control = Control::default();
+            let expression = format!("({parent})[2ms:]");
+            let query = engine
+                .compile(
+                    expression.as_bytes(),
+                    EngineOptions {
+                        no_step_subquery_interval_ms: -(1_i64 << 62),
+                        ..EngineOptions::default()
+                    },
+                    &control,
+                )
+                .unwrap();
+            let (output, _) = query
+                .collect(&provider, QueryRequest::Instant { time_ms: 1 }, &control)
+                .unwrap();
+            assert_eq!(output.series.len(), 1, "{expression}");
+            let points = &output.series[0].points;
+            assert_eq!(points.len(), 1, "{expression}");
+            assert_eq!(points[0].time_ms, i64::MIN, "{expression}");
+            let value = i64::MIN as f64 / 1000.0;
+            assert_eq!(
+                float_bits(&points[0]),
+                if positive { value.abs() } else { value }.to_bits(),
+                "{expression}"
+            );
+            provider.assert_closed();
+            drop((output, query));
+            engine.accounting.snapshot().assert_memory_released();
+        }
+    }
+
+    #[test]
+    fn signed_aggregate_body_exhaustion_is_independent_of_parameter_exhaustion() {
+        // Ordinary quantile keeps traversing after both singleton children are consumed.
+        let provider = FixtureProvider::new(0, 1, 0);
+        let engine = Engine::default();
+        let control = Control::default();
+        let query = engine
+            .compile(
+                b"quantile(time(),vector(time()))[1ms:]",
+                EngineOptions {
+                    no_step_subquery_interval_ms: -(1_i64 << 62),
+                    ..EngineOptions::default()
+                },
+                &control,
+            )
+            .unwrap();
+        let (output, _) = query
+            .collect(&provider, QueryRequest::Instant { time_ms: 0 }, &control)
+            .unwrap();
+        assert_eq!(output.series.len(), 1);
+        assert_eq!(output.series[0].points.len(), 1);
+        assert_eq!(output.series[0].points[0].time_ms, 0);
+        assert_eq!(float_bits(&output.series[0].points[0]), 0.0_f64.to_bits());
+        provider.assert_closed();
+        drop((output, query));
+        engine.accounting.snapshot().assert_memory_released();
+    }
+
+    #[test]
+    fn backward_raw_steps_check_each_productive_statistics_position() {
+        // Pinned evalSeries increments the traversal index even when timestamps move backward.
+        fn predecessor(_: usize) -> crate::value::Sample {
+            crate::value::Sample {
+                time_ms: -2,
+                start_time_ms: 0,
+                value: crate::value::SampleValue::Float(7.0),
+            }
+        }
+        for page in [1, 17, 1024] {
+            let mut provider = FixtureProvider::new(1, page, 1);
+            provider.series[0].source.sample = predecessor;
+            let engine = Engine::default();
+            let control = Control::default();
+            let query = engine
+                .compile(
+                    b"counter_total[1ms:]",
+                    EngineOptions {
+                        no_step_subquery_interval_ms: -2,
+                        ..EngineOptions::default()
+                    },
+                    &control,
+                )
+                .unwrap();
+            let failure = query
+                .collect(&provider, QueryRequest::Instant { time_ms: 0 }, &control)
+                .unwrap_err();
+            assert!(matches!(&failure,
+                ExecutionError::Evaluation(EvaluationError::WrappedRuntime(bytes))
+                    if &**bytes == b"unexpected error: runtime error: index out of range [1] with length 1"));
+            assert_eq!(
+                provider.series[0]
+                    .source
+                    .counters
+                    .peak
+                    .load(Ordering::Relaxed),
+                1
+            );
+            provider.assert_closed();
+            drop((failure, query));
+            engine.accounting.snapshot().assert_memory_released();
+        }
+    }
+
+    #[test]
+    fn invariant_label_calls_account_the_outer_statistics_loop() {
+        // StepInvariantExpr accounts its outer loop before checking the inner result shape.
+        let provider = FixtureProvider::new(0, 1, 0);
+        for expression in [
+            b"label_replace(vector(1),\"x\",\"y\",\"x\",\".*\")[1ms:]".as_slice(),
+            b"label_join(vector(1),\"x\",\"-\",\"id\")[1ms:]",
+        ] {
+            let engine = Engine::default();
+            let control = Control::default();
+            let query = engine
+                .compile(
+                    expression,
+                    EngineOptions {
+                        no_step_subquery_interval_ms: i64::MIN,
+                        ..EngineOptions::default()
+                    },
+                    &control,
+                )
+                .unwrap();
+            let failure = query
+                .collect(&provider, QueryRequest::Instant { time_ms: 0 }, &control)
+                .unwrap_err();
+            assert!(matches!(&failure,
+                ExecutionError::Evaluation(EvaluationError::WrappedRuntime(bytes))
+                    if &**bytes == b"unexpected error: runtime error: index out of range [1] with length 1"));
+            provider.assert_closed();
+            drop((failure, query));
+            engine.accounting.snapshot().assert_memory_released();
+        }
+    }
+
+    #[test]
+    fn empty_raw_matrices_and_passthroughs_do_not_replay_a_missing_clock() {
+        let raw = "predict_linear(m[1ms],time())";
+        for page in [1, 17, 1024] {
+            for delayed in [false, true] {
+                let engine = Engine::default();
+                let control = Control::default();
+                let provider = FixtureProvider::new(0, page, 0);
+                for source in [
+                    raw.to_owned(),
+                    format!("-({raw})"),
+                    format!("label_join({raw},\"x\",\"-\",\"id\")"),
+                    format!("label_replace({raw},\"x\",\"y\",\"x\",\".*\")"),
+                    format!("abs({raw})"),
+                    format!("scalar({raw})"),
+                    "timestamp(m)".to_owned(),
+                ] {
+                    let scalar = source.starts_with("scalar(");
+                    let query = engine
+                        .compile(source.as_bytes(), options(delayed), &control)
+                        .unwrap();
+                    let (result, observations) = query
+                        .collect(
+                            &provider,
+                            QueryRequest::Range {
+                                start_ms: 0,
+                                end_ms: 0,
+                                step_ms: i64::MAX,
+                            },
+                            &control,
+                        )
+                        .unwrap();
+                    assert!(result.annotations.is_empty(), "{source}");
+                    assert_eq!(result.series.len(), usize::from(scalar), "{source}");
+                    if scalar {
+                        assert_eq!(result.series[0].points.len(), 1);
+                        assert_eq!(result.series[0].points[0].time_ms, 0);
+                        assert_eq!(
+                            float_bits(&result.series[0].points[0]),
+                            0x7ff8_0000_0000_0001
+                        );
+                    }
+                    assert_eq!(
+                        observations.memory[MemoryKind::Workspace as usize].current,
+                        0
+                    );
+                    provider.assert_closed();
+                }
+                drop(provider);
+                engine.accounting.snapshot().assert_memory_released();
+            }
+        }
+    }
+
+    #[test]
+    fn anchored_transition_history_keeps_constant_workspace_and_linear_raw_work() {
+        for (source, changes) in [
+            (b"changes(counter_total[200000s] anchored)".as_slice(), true),
+            (b"resets(counter_total[200000s] anchored)".as_slice(), false),
+        ] {
+            let mut prior = None;
+            for count in [1024, 100_000] {
+                let engine = Engine::default();
+                let control = Control::default();
+                let provider = FixtureProvider::new(count, 1, 1);
+                let mut settings = EngineOptions::default();
+                settings.parser.extended_range_selectors = true;
+                let query = engine.compile(source, settings, &control).unwrap();
+                let request = QueryRequest::Instant {
+                    time_ms: count as i64 * 1000,
+                };
+                let report = query.collect_reported(&provider, request, &control);
+                let output = report.result.as_ref().unwrap();
+                assert_eq!(output.series.len(), 1);
+                assert_eq!(output.series[0].points.len(), 1);
+                assert_eq!(
+                    float_bits(&output.series[0].points[0]),
+                    (if changes { (count - 1) as f64 } else { 0.0 }).to_bits()
+                );
+                let workspace = report.observations.memory[MemoryKind::Workspace as usize];
+                assert_eq!(workspace.current, 0);
+                if let Some((peak, work)) = prior {
+                    assert_eq!(workspace.peak, peak);
+                    assert!(report.observations.work <= work * 100);
+                }
+                prior = Some((workspace.peak, report.observations.work));
+                assert_eq!(
+                    provider.series[0]
+                        .source
+                        .counters
+                        .peak
+                        .load(Ordering::Relaxed),
+                    1
+                );
+                provider.assert_closed();
+                drop(report);
+                if count == 100_000 {
+                    let account = query.execution_accounting();
+                    let report = crate::test_storage::interrupt_during(&account, &control, || {
+                        query.collect_reported_in(&provider, request, &control, &account)
+                    });
+                    assert!(matches!(
+                        &report.result,
+                        Err(ExecutionError::Evaluation(EvaluationError::Storage(
+                            StorageError::Interrupted(Interrupted::Cancelled)
+                        )))
+                    ));
+                    provider.assert_closed();
+                    drop(report);
+                    account.snapshot().assert_memory_released();
+                }
+                drop(query);
+                engine.accounting.snapshot().assert_memory_released();
+            }
+        }
+    }
+
+    #[test]
+    fn anchored_transition_folds_select_one_anchor_across_widened_pages() {
+        fn sample(index: usize) -> crate::value::Sample {
+            let (time_ms, value) = [
+                (-2500, 9.0),
+                (-2000, 8.0),
+                (-1000, 5.0),
+                (0, 2.0),
+                (1000, 3.0),
+            ][index];
+            crate::value::Sample {
+                time_ms,
+                start_time_ms: 0,
+                value: crate::value::SampleValue::Float(value),
+            }
+        }
+        for page in [1, 17, 1024] {
+            for delayed in [false, true] {
+                for count in [3, 5] {
+                    let engine = Engine::default();
+                    let control = Control::default();
+                    let mut provider = FixtureProvider::new(count, page, 1);
+                    provider.series[0].source.sample = sample;
+                    provider.series[0].labels = vec![(b"__name__".to_vec(), b"m".to_vec())];
+                    let mut settings = options(delayed);
+                    settings.parser.extended_range_selectors = true;
+                    settings.lookback_ms = 1500;
+                    for (source, values) in [
+                        (b"changes(m[1s] anchored)".as_slice(), [1.0, 1.0, 1.0]),
+                        (b"resets(m[1s] anchored)".as_slice(), [1.0, 1.0, 0.0]),
+                    ] {
+                        let query = engine.compile(source, settings, &control).unwrap();
+                        for request in [
+                            QueryRequest::Instant { time_ms: 0 },
+                            QueryRequest::Range {
+                                start_ms: 0,
+                                end_ms: 1000,
+                                step_ms: 500,
+                            },
+                        ] {
+                            let (output, _) = query.collect(&provider, request, &control).unwrap();
+                            if count == 3 {
+                                assert!(output.series.is_empty());
+                            } else {
+                                assert_eq!(output.series.len(), 1);
+                                let points = &output.series[0].points;
+                                let expected = if matches!(request, QueryRequest::Instant { .. }) {
+                                    &values[..1]
+                                } else {
+                                    &values[..]
+                                };
+                                assert_eq!(points.len(), expected.len());
+                                for (point, &value) in points.iter().zip(expected) {
+                                    assert_eq!(float_bits(point), f64::to_bits(value));
+                                }
+                            }
+                            assert!(output.annotations.is_empty());
+                            provider.assert_closed();
+                        }
+                        drop(query);
+                        engine.accounting.snapshot().assert_memory_released();
+                    }
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn extended_rates_preserve_boundary_interpolation_and_reset_correction() {
+        fn sample(index: usize) -> crate::value::Sample {
+            let (time_ms, value) = [
+                (-2500, 9.0),
+                (-2000, 8.0),
+                (-1000, 5.0),
+                (0, 2.0),
+                (1000, 3.0),
+            ][index];
+            crate::value::Sample {
+                time_ms,
+                start_time_ms: -3000,
+                value: crate::value::SampleValue::Float(value),
+            }
+        }
+        fn native(index: usize) -> crate::value::Sample {
+            let mut sample = sample(index);
+            let crate::value::SampleValue::Float(value) = sample.value else {
+                unreachable!()
+            };
+            sample.value =
+                crate::value::SampleValue::FloatHistogram(crate::histogram::FloatHistogram {
+                    count: value,
+                    sum: value,
+                    zero_count: value,
+                    reset_hint: if (1..4).contains(&index) {
+                        crate::histogram::COUNTER_RESET
+                    } else {
+                        crate::histogram::NOT_RESET
+                    },
+                    ..crate::histogram::FloatHistogram::default()
+                });
+            sample
+        }
+        for page_size in [1, 17, 1024] {
+            for histograms in [false, true] {
+                for delayed in [false, true] {
+                    for smoothed in [false, true] {
+                        let mut settings = EngineOptions::default();
+                        settings.parser.extended_range_selectors = true;
+                        settings.lookback_ms = 1500;
+                        settings.start_timestamps = true;
+                        settings.delayed_name_removal = delayed;
+                        for function in ["rate", "increase", "delta"] {
+                            let source = format!(
+                                "{function}(counter_total[1s] {})",
+                                if smoothed { "smoothed" } else { "anchored" }
+                            );
+                            let expected: [f64; 3] = match (function, smoothed) {
+                                ("delta", false) => [-3.0, -3.0, 1.0],
+                                ("delta", true) => [-3.0, -1.0, 1.0],
+                                (_, false) => [2.0, 2.0, 1.0],
+                                (_, true) => [2.0, 1.5, 1.0],
+                            };
+                            let engine = Engine::default();
+                            let control = Control::default();
+                            let mut provider = FixtureProvider::new(5, page_size, 1);
+                            provider.series[0].source.sample =
+                                if histograms { native } else { sample };
+                            let query = engine
+                                .compile(source.as_bytes(), settings, &control)
+                                .unwrap();
+                            let (output, _) = query
+                                .collect(
+                                    &provider,
+                                    QueryRequest::Range {
+                                        start_ms: 0,
+                                        end_ms: 1000,
+                                        step_ms: 500,
+                                    },
+                                    &control,
+                                )
+                                .unwrap();
+                            assert_eq!(output.series.len(), 1, "{source}");
+                            let points = &output.series[0].points;
+                            assert_eq!(points.len(), expected.len(), "{source}");
+                            for (index, (point, value)) in points.iter().zip(expected).enumerate() {
+                                assert_eq!(point.time_ms, index as i64 * 500);
+                                match &point.value {
+                                    OwnedValue::Float(actual) => {
+                                        assert!(!histograms);
+                                        assert_eq!(actual.to_bits(), value.to_bits(), "{source}");
+                                    }
+                                    OwnedValue::Histogram(actual) => {
+                                        assert!(histograms);
+                                        let actual = actual.as_ref();
+                                        assert_eq!(
+                                            actual.count.to_bits(),
+                                            value.to_bits(),
+                                            "{source}"
+                                        );
+                                        assert_eq!(
+                                            actual.sum.to_bits(),
+                                            value.to_bits(),
+                                            "{source}"
+                                        );
+                                        assert_eq!(
+                                            actual.zero_count.to_bits(),
+                                            value.to_bits(),
+                                            "{source}"
+                                        );
+                                        assert_eq!(actual.reset_hint, crate::histogram::GAUGE);
+                                    }
+                                }
+                            }
+                            provider.assert_closed();
+                            drop(output);
+                            drop(query);
+                            engine.accounting.snapshot().assert_memory_released();
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn bare_smoothed_selectors_preserve_interpolation_and_direct_clock_delegation() {
+        fn sample(index: usize) -> crate::value::Sample {
+            let (time_ms, value) = [(-1500, 10.0), (-500, 5.0), (500, 2.0), (1500, 4.0)][index];
+            crate::value::Sample {
+                time_ms,
+                start_time_ms: -2000,
+                value: crate::value::SampleValue::Float(value),
+            }
+        }
+        fn native(index: usize) -> crate::value::Sample {
+            let mut sample = sample(index);
+            let crate::value::SampleValue::Float(value) = sample.value else {
+                unreachable!()
+            };
+            sample.value =
+                crate::value::SampleValue::FloatHistogram(crate::histogram::FloatHistogram {
+                    count: value,
+                    sum: value,
+                    zero_count: value,
+                    reset_hint: if (1..3).contains(&index) {
+                        crate::histogram::COUNTER_RESET
+                    } else {
+                        crate::histogram::NOT_RESET
+                    },
+                    ..crate::histogram::FloatHistogram::default()
+                });
+            sample
+        }
+        fn gauge(index: usize) -> crate::value::Sample {
+            let mut sample = native(index);
+            let crate::value::SampleValue::FloatHistogram(value) = &mut sample.value else {
+                unreachable!()
+            };
+            value.reset_hint = crate::histogram::GAUGE;
+            sample
+        }
+        for page_size in [1, 17, 1024] {
+            for mode in 0..3 {
+                let engine = Engine::default();
+                let control = Control::default();
+                let mut provider = FixtureProvider::new(4, page_size, 1);
+                provider.series[0].source.sample = match mode {
+                    0 => sample,
+                    1 => native,
+                    _ => gauge,
+                };
+                let mut settings = EngineOptions::default();
+                settings.parser.extended_range_selectors = true;
+                settings.lookback_ms = 1500;
+                settings.start_timestamps = true;
+                settings.parser.experimental_functions = true;
+                let cases: [(&[u8], [f64; 3]); 4] = [
+                    (
+                        b"counter_total smoothed".as_slice(),
+                        if mode == 1 {
+                            [1.0, 2.0, 3.0]
+                        } else {
+                            [3.5, 2.0, 3.0]
+                        },
+                    ),
+                    (b"timestamp(counter_total smoothed)", [-0.5, 0.5, 0.5]),
+                    (b"timestamp(abs(counter_total smoothed))", [0.0, 0.5, 1.0]),
+                    (b"start_timestamp(counter_total smoothed)", [-2.0; 3]),
+                ];
+                for (source, expected) in cases {
+                    if mode != 0 && source == b"timestamp(abs(counter_total smoothed))" {
+                        continue;
+                    }
+                    let query = engine.compile(source, settings, &control).unwrap();
+                    let (output, _) = query
+                        .collect(
+                            &provider,
+                            QueryRequest::Range {
+                                start_ms: 0,
+                                end_ms: 1000,
+                                step_ms: 500,
+                            },
+                            &control,
+                        )
+                        .unwrap();
+                    assert!(output.annotations.is_empty());
+                    assert_eq!(output.series.len(), 1, "{source:?}");
+                    let row = &output.series[0];
+                    assert_eq!(row.points.len(), 3, "{source:?}");
+                    if source == b"counter_total smoothed" {
+                        assert!(row.labels.0.iter().any(|label| {
+                            &*label.name == b"__name__" && &*label.value == b"counter_total"
+                        }));
+                    }
+                    for (index, (point, expected)) in row.points.iter().zip(expected).enumerate() {
+                        assert_eq!(point.time_ms, index as i64 * 500);
+                        match &point.value {
+                            OwnedValue::Float(value) => {
+                                assert_eq!(value.to_bits(), expected.to_bits(), "{source:?}");
+                            }
+                            OwnedValue::Histogram(value) => {
+                                assert_eq!(source, b"counter_total smoothed");
+                                let value = value.as_ref();
+                                assert_eq!(value.count.to_bits(), expected.to_bits());
+                                assert_eq!(value.sum.to_bits(), expected.to_bits());
+                                assert_eq!(value.zero_count.to_bits(), expected.to_bits());
+                            }
+                        }
+                    }
+                    provider.assert_closed();
+                    drop(output);
+                    drop(query);
+                    engine.accounting.snapshot().assert_memory_released();
+                }
+                for source in [
+                    b"(counter_total @ 0 smoothed)[1s:500ms]".as_slice(),
+                    b"counter_total @ 0 smoothed[1s:500ms]",
+                ] {
+                    let query = engine.compile(source, settings, &control).unwrap();
+                    let (output, _) = query
+                        .collect(&provider, QueryRequest::Instant { time_ms: 1000 }, &control)
+                        .unwrap();
+                    let expected: f64 = if mode == 1 { 1.0 } else { 3.5 };
+                    assert_eq!(output.series.len(), 1);
+                    assert_eq!(output.series[0].points.len(), 2);
+                    for (index, point) in output.series[0].points.iter().enumerate() {
+                        assert_eq!(point.time_ms, (index as i64 + 1) * 500);
+                        match &point.value {
+                            OwnedValue::Float(value) => {
+                                assert_eq!(value.to_bits(), expected.to_bits())
+                            }
+                            OwnedValue::Histogram(value) => {
+                                assert_eq!(value.as_ref().count.to_bits(), expected.to_bits());
+                            }
+                        }
+                    }
+                    provider.assert_closed();
+                    drop(output);
+                    drop(query);
+                    engine.accounting.snapshot().assert_memory_released();
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn bare_smoothed_history_keeps_constant_workspace_and_releases_cancelled_queries() {
+        fn native(index: usize) -> crate::value::Sample {
+            let mut sample = crate::test_storage::counter(index);
+            let value = index as f64 + 1.0;
+            sample.value =
+                crate::value::SampleValue::FloatHistogram(crate::histogram::FloatHistogram {
+                    count: value,
+                    sum: value,
+                    zero_count: value,
+                    reset_hint: crate::histogram::NOT_RESET,
+                    ..crate::histogram::FloatHistogram::default()
+                });
+            sample
+        }
+        for page_size in [1, 1024] {
+            for histograms in [false, true] {
+                let mut prior = None;
+                for count in [1024, 100_000] {
+                    let engine = Engine::default();
+                    let control = Control::default();
+                    let mut provider = FixtureProvider::new(count, page_size, 1);
+                    if histograms {
+                        provider.series[0].source.sample = native;
+                    }
+                    let mut settings = EngineOptions::default();
+                    settings.parser.extended_range_selectors = true;
+                    settings.lookback_ms = 200_000_000;
+                    let query = engine
+                        .compile(b"counter_total smoothed", settings, &control)
+                        .unwrap();
+                    let request = QueryRequest::Instant {
+                        time_ms: (count as i64 + 1) * 1000,
+                    };
+                    let report = query.collect_reported(&provider, request, &control);
+                    let output = report.result.as_ref().unwrap();
+                    assert_eq!(output.series.len(), 1);
+                    assert_eq!(output.series[0].points.len(), 1);
+                    let expected = (count as f64).to_bits();
+                    match &output.series[0].points[0].value {
+                        OwnedValue::Float(value) => {
+                            assert!(!histograms);
+                            assert_eq!(value.to_bits(), expected);
+                        }
+                        OwnedValue::Histogram(value) => {
+                            assert!(histograms);
+                            let value = value.as_ref();
+                            assert_eq!(value.count.to_bits(), expected);
+                            assert_eq!(value.sum.to_bits(), expected);
+                            assert_eq!(value.zero_count.to_bits(), expected);
+                            assert_eq!(value.reset_hint, crate::histogram::UNKNOWN_RESET);
+                        }
+                    }
+                    let workspace = report.observations.memory[MemoryKind::Workspace as usize];
+                    assert_eq!(workspace.current, 0);
+                    if let Some((peak, work)) = prior {
+                        assert_eq!(
+                            workspace.peak, peak,
+                            "page={page_size}, native={histograms}"
+                        );
+                        assert!(report.observations.work <= work * 100);
+                    }
+                    prior = Some((workspace.peak, report.observations.work));
+                    assert_eq!(
+                        provider.series[0]
+                            .source
+                            .counters
+                            .peak
+                            .load(Ordering::Relaxed),
+                        1
+                    );
+                    provider.assert_closed();
+                    drop(report);
+                    if count == 100_000 {
+                        let account = query.execution_accounting();
+                        let report =
+                            crate::test_storage::interrupt_during(&account, &control, || {
+                                query.collect_reported_in(&provider, request, &control, &account)
+                            });
+                        assert!(matches!(
+                            &report.result,
+                            Err(ExecutionError::Evaluation(EvaluationError::Storage(
+                                StorageError::Interrupted(Interrupted::Cancelled)
+                            )))
+                        ));
+                        provider.assert_closed();
+                        drop(report);
+                        account.snapshot().assert_memory_released();
+                    }
+                    drop(query);
+                    engine.accounting.snapshot().assert_memory_released();
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn bare_smoothed_mixed_warnings_survive_empty_rows_and_derived_parents() {
+        fn sample(index: usize) -> crate::value::Sample {
+            let value = (index + 1) as f64;
+            crate::value::Sample {
+                time_ms: index as i64 * 1000 - 1500,
+                start_time_ms: 0,
+                value: if index.is_multiple_of(2) {
+                    crate::value::SampleValue::Float(value)
+                } else {
+                    crate::value::SampleValue::FloatHistogram(crate::histogram::FloatHistogram {
+                        count: value,
+                        sum: value,
+                        zero_count: value,
+                        reset_hint: crate::histogram::NOT_RESET,
+                        ..crate::histogram::FloatHistogram::default()
+                    })
+                },
+            }
+        }
+        for page in [1, 17, 1024] {
+            for delayed in [false, true] {
+                let engine = Engine::default();
+                let control = Control::default();
+                let mut provider = FixtureProvider::new(4, page, 1);
+                provider.series[0].source.sample = sample;
+                let mut settings = options(delayed);
+                settings.parser.extended_range_selectors = true;
+                settings.lookback_ms = 1500;
+                for source in [
+                    b"counter_total smoothed".as_slice(),
+                    b"abs(counter_total smoothed)",
+                    b"scalar(abs(counter_total smoothed))",
+                    b"(counter_total smoothed)[1s:500ms]",
+                    b"sum_over_time(counter_total smoothed[1s:500ms])",
+                ] {
+                    let query = engine.compile(source, settings, &control).unwrap();
+                    let report = query.collect_reported(
+                        &provider,
+                        QueryRequest::Instant { time_ms: 0 },
+                        &control,
+                    );
+                    let output = report.result.as_ref().unwrap();
+                    let notes: Vec<_> = report.annotations.iter().collect();
+                    assert_eq!(notes.len(), 1, "{source:?}");
+                    assert_eq!(
+                        notes[0].kind,
+                        crate::annotations::AnnotationKind::MixedFloatsHistograms
+                    );
+                    if source == b"scalar(abs(counter_total smoothed))" {
+                        assert!(output.series.is_empty());
+                        let (time, value) = output.scalar.unwrap();
+                        assert_eq!(time, 0);
+                        assert_eq!(value.to_bits(), 0x7ff8_0000_0000_0001);
+                    } else {
+                        assert!(output.series.is_empty(), "{source:?}");
+                    }
+                    provider.assert_closed();
+                    drop(report);
+                    drop(query);
+                    engine.accounting.snapshot().assert_memory_released();
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn extended_matrices_stream_history_with_constant_workspace_and_abort_partial_output() {
+        for page in [1, 1024] {
+            for source in [
+                b"counter_total[200000s] anchored".as_slice(),
+                b"counter_total[200000s] smoothed",
+            ] {
+                let mut prior = None;
+                for count in [1024, 100_000] {
+                    let engine = Engine::default();
+                    let control = Control::default();
+                    let provider = FixtureProvider::new(count, page, 1);
+                    let mut settings = EngineOptions::default();
+                    settings.parser.extended_range_selectors = true;
+                    settings.lookback_ms = 1000;
+                    let query = engine.compile(source, settings, &control).unwrap();
+                    let request = QueryRequest::Instant {
+                        time_ms: (count as i64 + 1) * 1000,
+                    };
+                    let mut sink = RecordingSink::default();
+                    let report = query.execute_reported(&provider, request, &control, &mut sink);
+                    assert!(report.result.is_ok(), "{source:?}");
+                    assert!(report.annotations.is_empty());
+                    assert!(sink.begun && sink.committed && !sink.aborted);
+                    assert_eq!(sink.chunks, count + 2);
+                    assert_eq!(report.observations.output_samples, (count + 2) as u64);
+                    let peaks = [
+                        MemoryKind::Workspace,
+                        MemoryKind::ProviderHeld,
+                        MemoryKind::BorrowedView,
+                    ]
+                    .map(|kind| {
+                        let memory = report.observations.memory[kind as usize];
+                        assert_eq!(memory.current, 0);
+                        memory.peak
+                    });
+                    if let Some((prior_peaks, work)) = prior {
+                        assert_eq!(peaks, prior_peaks, "{source:?}, page {page}");
+                        assert!(report.observations.work <= work * 100);
+                    }
+                    prior = Some((peaks, report.observations.work));
+                    assert_eq!(
+                        provider.series[0]
+                            .source
+                            .counters
+                            .peak
+                            .load(Ordering::Relaxed),
+                        1
+                    );
+                    provider.assert_closed();
+                    drop(report);
+                    if count == 100_000 {
+                        for fail in [false, true] {
+                            let control = Control::default();
+                            let mut sink = RecordingSink {
+                                fail_after: fail.then_some(2),
+                                cancel: (!fail).then(|| control.cancellation.clone()),
+                                ..RecordingSink::default()
+                            };
+                            let report =
+                                query.execute_reported(&provider, request, &control, &mut sink);
+                            if fail {
+                                assert!(matches!(&report.result,
+                                    Err(ExecutionError::Sink(message)) if &**message == b"sink failure"
+                                ));
+                            } else {
+                                assert!(matches!(
+                                    report.result,
+                                    Err(ExecutionError::Evaluation(
+                                        EvaluationError::Interrupted(Interrupted::Cancelled)
+                                            | EvaluationError::Storage(StorageError::Interrupted(
+                                                Interrupted::Cancelled
+                                            ))
+                                    ))
+                                ));
+                            }
+                            assert_eq!(sink.chunks, 2);
+                            assert!(sink.begun && sink.aborted && !sink.committed);
+                            provider.assert_closed();
+                            drop((report, sink, control));
+                        }
+                    }
+                    drop((query, sink, control));
+                    engine.accounting.snapshot().assert_memory_released();
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn extended_matrices_preserve_scalar_boundaries_and_histogram_error_phases() {
+        fn sample(index: usize) -> crate::value::Sample {
+            let (time_ms, value) = [(-1500, 10.0), (-500, 5.0), (500, 2.0), (1500, 4.0)][index];
+            crate::value::Sample {
+                time_ms,
+                start_time_ms: -2000,
+                value: crate::value::SampleValue::Float(value),
+            }
+        }
+        fn native(index: usize) -> crate::value::Sample {
+            let mut sample = sample(index);
+            sample.value =
+                crate::value::SampleValue::FloatHistogram(crate::histogram::FloatHistogram {
+                    count: 1.0,
+                    sum: 1.0,
+                    zero_count: 1.0,
+                    ..crate::histogram::FloatHistogram::default()
+                });
+            sample
+        }
+        fn stale(index: usize) -> crate::value::Sample {
+            let mut sample = native(index);
+            let crate::value::SampleValue::FloatHistogram(value) = &mut sample.value else {
+                unreachable!()
+            };
+            value.sum = f64::from_bits(crate::value::STALE_NAN_BITS);
+            sample
+        }
+        type MatrixCase<'a> = (&'a [u8], &'a [(i64, f64)]);
+        let cases: &[MatrixCase<'_>] = &[
+            (
+                b"counter_total[1s] anchored",
+                &[(-1000, 10.0), (-500, 5.0), (0, 5.0)],
+            ),
+            (
+                b"counter_total[1s] smoothed",
+                &[(-1000, 7.5), (-500, 5.0), (0, 3.5)],
+            ),
+            (b"counter_total[0.0005] smoothed", &[(0, 3.5), (0, 3.5)]),
+        ];
+        for page in [1, 17, 1024] {
+            let engine = Engine::default();
+            let control = Control::default();
+            let mut provider = FixtureProvider::new(4, page, 1);
+            provider.series[0].source.sample = sample;
+            let mut settings = EngineOptions::default();
+            settings.parser.extended_range_selectors = true;
+            settings.lookback_ms = 1500;
+            for (source, expected) in cases {
+                let query = engine.compile(source, settings, &control).unwrap();
+                let (output, _) = query
+                    .collect(&provider, QueryRequest::Instant { time_ms: 0 }, &control)
+                    .unwrap();
+                assert_eq!(output.series.len(), 1, "{source:?}");
+                assert!(output.annotations.is_empty());
+                let points = &output.series[0].points;
+                assert_eq!(points.len(), expected.len(), "{source:?}");
+                for (point, (time, value)) in points.iter().zip(*expected) {
+                    assert_eq!(point.time_ms, *time);
+                    assert_eq!(float_bits(point), value.to_bits(), "{source:?}");
+                }
+                provider.assert_closed();
+                drop(output);
+                drop(query);
+                engine.accounting.snapshot().assert_memory_released();
+            }
+            for generator in [native as fn(usize) -> crate::value::Sample, stale] {
+                provider.series[0].source.sample = generator;
+                for (source, expected) in [
+                    (
+                        b"counter_total[1s] anchored".as_slice(),
+                        b"anchored modifier is not supported with histograms".as_slice(),
+                    ),
+                    (
+                        b"counter_total[1s] smoothed".as_slice(),
+                        b"smoothed modifier is not supported with histograms".as_slice(),
+                    ),
+                ] {
+                    let query = engine.compile(source, settings, &control).unwrap();
+                    let report = query.collect_reported(
+                        &provider,
+                        QueryRequest::Instant { time_ms: 0 },
+                        &control,
+                    );
+                    let Err(ExecutionError::Evaluation(EvaluationError::Runtime(message))) =
+                        &report.result
+                    else {
+                        panic!("expected histogram prohibition: {:?}", report.result)
+                    };
+                    assert_eq!(&**message, expected);
+                    assert!(report.annotations.is_empty());
+                    provider.assert_closed();
+                    drop(report);
+                    drop(query);
+                    engine.accounting.snapshot().assert_memory_released();
+                }
+            }
+            let mut provider = FixtureProvider::new(4, 1, 2);
+            provider.series[0].source.sample = stale;
+            provider.series[1].source.fail_page = Some(0);
+            provider.series[1].source.counters =
+                std::sync::Arc::new(crate::test_storage::CursorCounts::default());
+            let query = engine
+                .compile(b"counter_total[1s] smoothed", settings, &control)
+                .unwrap();
+            let report =
+                query.collect_reported(&provider, QueryRequest::Instant { time_ms: 0 }, &control);
+            assert!(matches!(&report.result,
+                Err(ExecutionError::Evaluation(EvaluationError::Runtime(message)))
+                if &**message == b"smoothed modifier is not supported with histograms"
+            ));
+            assert_eq!(
+                provider.series[1]
+                    .source
+                    .counters
+                    .opened
+                    .load(Ordering::Relaxed),
+                0
+            );
+            provider.assert_closed();
+            drop(report);
+            provider.series[0].source.fail_page = Some(2);
+            let report =
+                query.collect_reported(&provider, QueryRequest::Instant { time_ms: 0 }, &control);
+            assert!(matches!(
+                &report.result,
+                Err(ExecutionError::Evaluation(EvaluationError::Storage(
+                    StorageError::Provider(_)
+                )))
+            ));
+            provider.assert_closed();
+            drop(report);
+            drop(query);
+            engine.accounting.snapshot().assert_memory_released();
+        }
+    }
+
+    #[test]
+    fn extended_rates_keep_constant_history_workspace_and_release_cancelled_queries() {
+        fn native(index: usize) -> crate::value::Sample {
+            let mut sample = crate::test_storage::counter(index);
+            let value = index as f64 + 1.0;
+            sample.value =
+                crate::value::SampleValue::FloatHistogram(crate::histogram::FloatHistogram {
+                    count: value,
+                    sum: value,
+                    zero_count: value,
+                    reset_hint: crate::histogram::NOT_RESET,
+                    ..crate::histogram::FloatHistogram::default()
+                });
+            sample
+        }
+        for page_size in [1, 1024] {
+            for histograms in [false, true] {
+                for smoothed in [false, true] {
+                    let source = if smoothed {
+                        b"increase(counter_total[200000s] smoothed)".as_slice()
+                    } else {
+                        b"increase(counter_total[200000s] anchored)".as_slice()
+                    };
+                    let mut prior = None;
+                    for count in [1024, 100_000] {
+                        let engine = Engine::default();
+                        let control = Control::default();
+                        let mut provider = FixtureProvider::new(count, page_size, 1);
+                        if histograms {
+                            provider.series[0].source.sample = native;
+                        }
+                        let mut settings = EngineOptions::default();
+                        settings.parser.extended_range_selectors = true;
+                        let query = engine.compile(source, settings, &control).unwrap();
+                        let request = QueryRequest::Instant {
+                            time_ms: count as i64 * 1000,
+                        };
+                        let report = query.collect_reported(&provider, request, &control);
+                        let output = report.result.as_ref().unwrap();
+                        assert_eq!(output.series.len(), 1);
+                        assert_eq!(output.series[0].points.len(), 1);
+                        let expected = ((count - 1) as f64).to_bits();
+                        match &output.series[0].points[0].value {
+                            OwnedValue::Float(value) => {
+                                assert!(!histograms);
+                                assert_eq!(value.to_bits(), expected);
+                            }
+                            OwnedValue::Histogram(value) => {
+                                assert!(histograms);
+                                let value = value.as_ref();
+                                assert_eq!(value.count.to_bits(), expected);
+                                assert_eq!(value.sum.to_bits(), expected);
+                                assert_eq!(value.zero_count.to_bits(), expected);
+                            }
+                        }
+                        let workspace = report.observations.memory[MemoryKind::Workspace as usize];
+                        assert_eq!(workspace.current, 0);
+                        if let Some((peak, work)) = prior {
+                            assert_eq!(
+                                workspace.peak, peak,
+                                "page={page_size}, native={histograms}, smoothed={smoothed}, count={count}"
+                            );
+                            assert!(report.observations.work <= work * 100);
+                        }
+                        prior = Some((workspace.peak, report.observations.work));
+                        assert_eq!(
+                            provider.series[0]
+                                .source
+                                .counters
+                                .peak
+                                .load(Ordering::Relaxed),
+                            1
+                        );
+                        provider.assert_closed();
+                        drop(report);
+                        if count == 100_000 {
+                            let account = query.execution_accounting();
+                            let report =
+                                crate::test_storage::interrupt_during(&account, &control, || {
+                                    query
+                                        .collect_reported_in(&provider, request, &control, &account)
+                                });
+                            assert!(matches!(
+                                &report.result,
+                                Err(ExecutionError::Evaluation(EvaluationError::Storage(
+                                    StorageError::Interrupted(Interrupted::Cancelled)
+                                )))
+                            ));
+                            provider.assert_closed();
+                            drop(report);
+                            account.snapshot().assert_memory_released();
+                        }
+                        drop(query);
+                        engine.accounting.snapshot().assert_memory_released();
+                    }
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn extended_modifier_rejection_follows_parameters_before_raw_acquisition() {
+        let cases = [
+            (
+                b"predict_linear(m[5s] anchored,0)".as_slice(),
+                b"anchored modifier can only be used with: changes, delta, increase, rate, resets - not with predict_linear".as_slice(),
+            ),
+            (
+                b"quantile_over_time(0.5,m[5s] smoothed)".as_slice(),
+                b"smoothed modifier can only be used with: delta, increase, rate - not with quantile_over_time".as_slice(),
+            ),
+            (
+                b"predict_linear(m[5s] anchored,scalar(histogram_quantile(-1,vector(1))))".as_slice(),
+                b"anchored modifier can only be used with: changes, delta, increase, rate, resets - not with predict_linear".as_slice(),
+            ),
+        ];
+        for page in [1, 17, 1024] {
+            for delayed in [false, true] {
+                for count in [0, 1] {
+                    let engine = Engine::default();
+                    let control = Control::default();
+                    let mut provider = FixtureProvider::new(count, page, 1);
+                    provider.series[0].labels = vec![(b"__name__".to_vec(), b"m".to_vec())];
+                    provider.series[0].source.fail_page = Some(0);
+                    let mut settings = options(delayed);
+                    settings.parser.extended_range_selectors = true;
+                    for (source, expected) in cases {
+                        let query = engine.compile(source, settings, &control).unwrap();
+                        let report = query.collect_reported(
+                            &provider,
+                            QueryRequest::Instant { time_ms: 0 },
+                            &control,
+                        );
+                        let Err(ExecutionError::Evaluation(EvaluationError::Runtime(message))) =
+                            &report.result
+                        else {
+                            panic!("expected the modifier error: {:?}", report.result)
+                        };
+                        assert_eq!(&**message, expected);
+                        assert!(report.annotations.is_empty());
+                        assert_eq!(
+                            provider.series[0]
+                                .source
+                                .counters
+                                .opened
+                                .load(Ordering::Relaxed),
+                            0
+                        );
+                        provider.assert_closed();
+                        drop(report);
+                        drop(query);
+                        engine.accounting.snapshot().assert_memory_released();
+                    }
+                    let query = engine.compile(
+                        b"predict_linear(m[5s] anchored,scalar(label_replace(vector(1),\"x\",\"y\",\"x\",\"(\")))",
+                        settings,
+                        &control,
+                    ).unwrap();
+                    let report = query.collect_reported(
+                        &provider,
+                        QueryRequest::Instant { time_ms: 0 },
+                        &control,
+                    );
+                    let Err(ExecutionError::Evaluation(EvaluationError::Runtime(message))) =
+                        &report.result
+                    else {
+                        panic!("expected the scalar regex error: {:?}", report.result)
+                    };
+                    assert_eq!(
+                        &**message,
+                        b"invalid regular expression in label_replace(): ("
+                    );
+                    assert_eq!(
+                        provider.series[0]
+                            .source
+                            .counters
+                            .opened
+                            .load(Ordering::Relaxed),
+                        0
+                    );
+                    provider.assert_closed();
+                    drop(report);
+                    drop(query);
+                    engine.accounting.snapshot().assert_memory_released();
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn bare_anchored_selectors_preserve_ordinary_owned_results() {
+        for page in [1, 17, 1024] {
+            for delayed in [false, true] {
+                let engine = Engine::default();
+                let control = Control::default();
+                let provider = FixtureProvider::new(3, page, 1);
+                let mut settings = options(delayed);
+                settings.parser.extended_range_selectors = true;
+                let ordinary = engine
+                    .compile(b"counter_total", settings, &control)
+                    .unwrap();
+                let anchored = engine
+                    .compile(b"counter_total anchored", settings, &control)
+                    .unwrap();
+                for request in [
+                    QueryRequest::Instant { time_ms: 2000 },
+                    QueryRequest::Range {
+                        start_ms: 0,
+                        end_ms: 2000,
+                        step_ms: 1000,
+                    },
+                ] {
+                    let (expected, _) = ordinary.collect(&provider, request, &control).unwrap();
+                    let (actual, _) = anchored.collect(&provider, request, &control).unwrap();
+                    assert_eq!(actual.series.len(), expected.series.len());
+                    for (left, right) in actual.series.iter().zip(expected.series.iter()) {
+                        assert_eq!(left.labels.0.len(), right.labels.0.len());
+                        for (left, right) in left.labels.0.iter().zip(right.labels.0.iter()) {
+                            assert_eq!(&*left.name, &*right.name);
+                            assert_eq!(&*left.value, &*right.value);
+                        }
+                        assert_eq!(left.points.len(), right.points.len());
+                        for (left, right) in left.points.iter().zip(right.points.iter()) {
+                            assert_eq!(left.time_ms, right.time_ms);
+                            assert_eq!(float_bits(left), float_bits(right));
+                        }
+                    }
+                    assert!(actual.annotations.is_empty() && expected.annotations.is_empty());
+                    provider.assert_closed();
+                }
+                drop(ordinary);
+                drop(anchored);
+                engine.accounting.snapshot().assert_memory_released();
+            }
+        }
+    }
+
+    #[test]
+    fn initial_raw_read_errors_follow_scalar_indexing_and_empty_range_acquisition() {
+        fn sample(_: usize) -> crate::value::Sample {
+            crate::value::Sample {
+                time_ms: 0,
+                start_time_ms: 0,
+                value: crate::value::SampleValue::Float(2.0),
+            }
+        }
+        for page in [1, 17, 1024] {
+            for delayed in [false, true] {
+                for mode in 0..3 {
+                    for empty_range in [false, true] {
+                        for ranged in [false, true] {
+                            let engine = Engine::default();
+                            let control = Control::default();
+                            let mut provider =
+                                FixtureProvider::new(usize::from(mode != 0), page, 1);
+                            provider.series[0].labels = vec![(b"__name__".to_vec(), b"m".to_vec())];
+                            provider.series[0].source.sample = sample;
+                            provider.series[0].source.fail_page = (mode == 2).then_some(0);
+                            let source = if empty_range {
+                                b"predict_linear(m[0.0005],time())".as_slice()
+                            } else {
+                                b"predict_linear(m[1ms],time())"
+                            };
+                            let query = engine.compile(source, options(delayed), &control).unwrap();
+                            let request = if ranged {
+                                QueryRequest::Range {
+                                    start_ms: 0,
+                                    end_ms: 0,
+                                    step_ms: i64::MAX,
+                                }
+                            } else {
+                                QueryRequest::Instant { time_ms: 0 }
+                            };
+                            let report = query.collect_reported(&provider, request, &control);
+                            if mode == 2 && !empty_range {
+                                let Err(ExecutionError::Evaluation(EvaluationError::Storage(
+                                    StorageError::Provider(bytes),
+                                ))) = &report.result
+                                else {
+                                    panic!("expected the initial read error: {:?}", report.result)
+                                };
+                                assert_eq!(&**bytes, b"injected page failure");
+                            } else if ranged {
+                                let Err(ExecutionError::Evaluation(
+                                    EvaluationError::WrappedRuntime(bytes),
+                                )) = &report.result
+                                else {
+                                    panic!(
+                                        "expected scalar indexing after initialization: {:?}",
+                                        report.result
+                                    )
+                                };
+                                assert_eq!(
+                                    &**bytes,
+                                    b"unexpected error: runtime error: index out of range [1] with length 1"
+                                );
+                            } else {
+                                assert!(report.result.as_ref().unwrap().series.is_empty());
+                            }
+                            assert!(report.annotations.is_empty());
+                            provider.assert_closed();
+                            drop((report, query, provider));
+                            engine.accounting.snapshot().assert_memory_released();
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn raw_initialization_is_series_major_even_when_eof_precedes_scalar_errors() {
+        use std::sync::atomic::Ordering;
+        for page in [1, 17, 1024] {
+            for delayed in [false, true] {
+                let engine = Engine::default();
+                let control = Control::default();
+                let mut provider = FixtureProvider::new(0, page, 2);
+                for (index, series) in provider.series.iter_mut().enumerate() {
+                    series.source.counters =
+                        std::sync::Arc::new(crate::test_storage::CursorCounts::default());
+                    series.labels = vec![
+                        (b"__name__".to_vec(), b"m".to_vec()),
+                        (b"id".to_vec(), index.to_string().into_bytes()),
+                    ];
+                }
+                let query = engine
+                    .compile(
+                        b"predict_linear(m[0.0005],time())",
+                        options(delayed),
+                        &control,
+                    )
+                    .unwrap();
+                let report = query.collect_reported(
+                    &provider,
+                    QueryRequest::Range {
+                        start_ms: 0,
+                        end_ms: 0,
+                        step_ms: i64::MAX,
+                    },
+                    &control,
+                );
+                let Err(ExecutionError::Evaluation(EvaluationError::WrappedRuntime(bytes))) =
+                    &report.result
+                else {
+                    panic!("expected the first series's scalar index error")
+                };
+                assert_eq!(
+                    &**bytes,
+                    b"unexpected error: runtime error: index out of range [1] with length 1"
+                );
+                assert_eq!(
+                    provider.series[0]
+                        .source
+                        .counters
+                        .opened
+                        .load(Ordering::Relaxed),
+                    1
+                );
+                assert_eq!(
+                    provider.series[1]
+                        .source
+                        .counters
+                        .opened
+                        .load(Ordering::Relaxed),
+                    0
+                );
+                provider.assert_closed();
+                drop((report, query, provider));
+                engine.accounting.snapshot().assert_memory_released();
+            }
+        }
+    }
+
+    #[test]
+    fn raw_initialization_closes_before_scalar_replay_and_output_failure_cleanup() {
+        use std::sync::atomic::Ordering;
+        for page in [1, 17, 1024] {
+            for delayed in [false, true] {
+                for mode in 0..4 {
+                    let engine = Engine::default();
+                    let control = Control::default();
+                    let mut provider = FixtureProvider::new(5, page, 2);
+                    let counters = provider.series[0].source.counters.clone();
+                    for (series, name) in
+                        provider.series.iter_mut().zip([b"m".as_slice(), b"other"])
+                    {
+                        series.labels = vec![(b"__name__".to_vec(), name.to_vec())];
+                        series.source.counters = counters.clone();
+                    }
+                    let query = engine
+                        .compile(
+                            b"predict_linear(m[3s],scalar(other))",
+                            options(delayed),
+                            &control,
+                        )
+                        .unwrap();
+                    let mut sink = RecordingSink {
+                        fail_after: (mode == 1).then_some(2),
+                        cancel: (mode == 2).then(|| control.cancellation.clone()),
+                        panic_after: (mode == 3).then_some(2),
+                        ..RecordingSink::default()
+                    };
+                    let report = query.execute_reported(
+                        &provider,
+                        QueryRequest::Range {
+                            start_ms: 2000,
+                            end_ms: 5000,
+                            step_ms: 1000,
+                        },
+                        &control,
+                        &mut sink,
+                    );
+                    assert_eq!(report.result.is_ok(), mode == 0);
+                    assert_eq!(sink.committed, mode == 0);
+                    assert_eq!(sink.aborted, mode != 0);
+                    if mode == 2 {
+                        assert!(matches!(
+                            report.result,
+                            Err(ExecutionError::Evaluation(EvaluationError::Interrupted(
+                                Interrupted::Cancelled
+                            )))
+                        ));
+                    } else if mode == 3 {
+                        assert!(matches!(report.result, Err(ExecutionError::Internal)));
+                    }
+                    assert_eq!(counters.peak.load(Ordering::Relaxed), 1);
+                    provider.assert_closed();
+                    assert_eq!(engine.accounting.snapshot().active_executions, 0);
+                    drop((report, query, provider, sink));
+                    engine.accounting.snapshot().assert_memory_released();
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn direct_timestamp_keeps_the_generic_singleton_shortcut() {
+        fn predecessor(_: usize) -> crate::value::Sample {
+            crate::value::Sample {
+                time_ms: -2,
+                start_time_ms: 0,
+                value: crate::value::SampleValue::Float(7.0),
+            }
+        }
+        for page in [1, 17, 1024] {
+            let mut provider = FixtureProvider::new(1, page, 1);
+            provider.series[0].source.sample = predecessor;
+            for expression in [
+                b"timestamp(counter_total)[1ms:]".as_slice(),
+                b"timestamp((counter_total))[1ms:]",
+            ] {
+                let engine = Engine::default();
+                let control = Control::default();
+                let query = engine
+                    .compile(
+                        expression,
+                        EngineOptions {
+                            no_step_subquery_interval_ms: i64::MIN,
+                            ..EngineOptions::default()
+                        },
+                        &control,
+                    )
+                    .unwrap();
+                let (output, _) = query
+                    .collect(&provider, QueryRequest::Instant { time_ms: 0 }, &control)
+                    .unwrap();
+                assert_eq!(output.series.len(), 1);
+                assert_eq!(output.series[0].points.len(), 1);
+                assert_eq!(output.series[0].points[0].time_ms, 0);
+                assert_eq!(
+                    float_bits(&output.series[0].points[0]),
+                    (-0.002_f64).to_bits()
+                );
+                provider.assert_closed();
+                drop((output, query));
+                engine.accounting.snapshot().assert_memory_released();
+            }
+        }
+    }
+
+    #[test]
+    fn nonempty_range_helpers_account_even_without_an_output_value() {
+        use crate::{
+            histogram::FloatHistogram,
+            value::{Sample, SampleValue},
+        };
+        fn predecessor(_: usize) -> Sample {
+            Sample {
+                time_ms: -2,
+                start_time_ms: 0,
+                value: SampleValue::Float(7.0),
+            }
+        }
+        fn mixed(index: usize) -> Sample {
+            if index == 0 {
+                Sample {
+                    time_ms: -3,
+                    ..predecessor(index)
+                }
+            } else {
+                Sample {
+                    time_ms: -2,
+                    start_time_ms: 0,
+                    value: SampleValue::FloatHistogram(FloatHistogram::default()),
+                }
+            }
+        }
+        for page in [1, 17, 1024] {
+            for function in [
+                "count_over_time",
+                "deriv",
+                "sum_over_time",
+                "avg_over_time",
+                "min_over_time",
+                "max_over_time",
+                "stdvar_over_time",
+                "stddev_over_time",
+                "present_over_time",
+                "first_over_time",
+                "last_over_time",
+                "rate",
+                "increase",
+                "delta",
+                "irate",
+                "idelta",
+                "changes",
+                "resets",
+                "mad_over_time",
+            ] {
+                for mixed_input in [false, true] {
+                    let mut provider =
+                        FixtureProvider::new(if mixed_input { 2 } else { 1 }, page, 1);
+                    provider.series[0].source.sample =
+                        if mixed_input { mixed } else { predecessor };
+                    let engine = Engine::default();
+                    let control = Control::default();
+                    let expression = format!("{function}(counter_total[10ms])[1ms:]");
+                    let query = engine
+                        .compile(
+                            expression.as_bytes(),
+                            EngineOptions {
+                                no_step_subquery_interval_ms: -2,
+                                parser: ParserOptions {
+                                    experimental_functions: true,
+                                    ..ParserOptions::default()
+                                },
+                                ..EngineOptions::default()
+                            },
+                            &control,
+                        )
+                        .unwrap();
+                    let report = query.collect_reported(
+                        &provider,
+                        QueryRequest::Instant { time_ms: 1 },
+                        &control,
+                    );
+                    assert!(
+                        matches!(&report.result,
+                        Err(ExecutionError::Evaluation(EvaluationError::WrappedRuntime(bytes)))
+                            if &**bytes == b"unexpected error: runtime error: index out of range [0] with length 0"),
+                        "{function} mixed={mixed_input}: {:?}",
+                        report.result
+                    );
+                    assert!(report.annotations.is_empty(), "{function}");
+                    provider.assert_closed();
+                    drop((report, query));
+                    engine.accounting.snapshot().assert_memory_released();
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn empty_absence_reaches_its_late_negative_output_capacity() {
+        let provider = FixtureProvider::new(0, 1, 0);
+        let engine = Engine::default();
+        let control = Control::default();
+        let query = engine
+            .compile(
+                b"absent_over_time(counter_total[1ms])",
+                EngineOptions::default(),
+                &control,
+            )
+            .unwrap();
+        let failure = query
+            .collect(
+                &provider,
+                QueryRequest::Range {
+                    start_ms: 0,
+                    end_ms: 2,
+                    step_ms: i64::MAX,
+                },
+                &control,
+            )
+            .unwrap_err();
+        assert!(matches!(&failure,
+            ExecutionError::Evaluation(EvaluationError::WrappedRuntime(bytes))
+                if &**bytes == b"unexpected error: runtime error: makeslice: cap out of range"));
+        assert_eq!(provider.counts.series_opened.load(Ordering::Relaxed), 0);
+        provider.assert_closed();
+        drop((failure, query));
+        engine.accounting.snapshot().assert_memory_released();
+    }
+
+    #[test]
     fn range_helper_errors_follow_series_before_step_order() {
         use crate::value::{Sample, SampleValue};
         fn late(_: usize) -> Sample {
@@ -3348,6 +6107,7 @@ mod tests {
                             &compiled.expression,
                             &compiled.preprocessing,
                             header,
+                            compiled.options.no_step_subquery_interval_ms,
                             &control,
                             &account,
                         )
@@ -8354,6 +11114,470 @@ mod tests {
     }
 
     #[test]
+    fn plural_quantiles_keep_duplicate_occurrences_until_the_source_cleanup_phase() {
+        let call = "histogram_quantiles(counter_total,\"q\",0.25,0.75,0.25,0.75)";
+        for delayed in [false, true] {
+            for parent in ["", "sum by(q)", "topk(1,"] {
+                let source = match parent {
+                    "" => call.to_owned(),
+                    "sum by(q)" => format!("{parent}({call})"),
+                    _ => format!("{parent}{call})"),
+                };
+                let mut provider = FixtureProvider::new(2, 1, 2);
+                for (index, series) in provider.series.iter_mut().enumerate() {
+                    series.labels[1].1 = b"same".to_vec();
+                    series.labels.push((
+                        b"le".to_vec(),
+                        if index == 0 {
+                            b"1".to_vec()
+                        } else {
+                            b"+Inf".to_vec()
+                        },
+                    ));
+                }
+                let engine = Engine::default();
+                let account = engine.accounting.clone();
+                let control = Control::default();
+                let mut settings = options(delayed);
+                settings.parser.experimental_functions = true;
+                let query = engine
+                    .compile(source.as_bytes(), settings, &control)
+                    .unwrap();
+                drop(engine);
+                let outcome =
+                    query.collect(&provider, QueryRequest::Instant { time_ms: 2000 }, &control);
+                if !delayed || parent.is_empty() {
+                    assert!(
+                        is_duplicate(&outcome.unwrap_err()),
+                        "{source} delayed {delayed}"
+                    );
+                } else {
+                    let (result, _) = outcome.unwrap();
+                    let expected: &[f64] = if parent == "sum by(q)" {
+                        &[0.5, 1.5]
+                    } else {
+                        &[0.75]
+                    };
+                    assert_eq!(result.series.len(), expected.len(), "{source}");
+                    for (series, value) in result.series.iter().zip(expected) {
+                        assert_eq!(float_bits(&series.points[0]), value.to_bits(), "{source}");
+                    }
+                    drop(result);
+                }
+                provider.assert_closed();
+                drop(query);
+                account.snapshot().assert_memory_released();
+            }
+        }
+    }
+
+    #[test]
+    fn empty_plural_destination_errors_only_when_reserved_removal_visits_it() {
+        let call = "histogram_quantiles(counter_total,\"\",0.25,0.75)";
+        for delayed in [false, true] {
+            for (source, removes_names, expected) in [
+                (call.to_owned(), delayed, vec![0.25_f64, 0.75]),
+                (format!("sum({call})"), false, vec![1.0]),
+                (format!("sum(-({call}))"), !delayed, vec![-1.0]),
+                (format!("sum(abs({call}))"), !delayed, vec![1.0]),
+            ] {
+                let mut provider = FixtureProvider::new(2, 1, 2);
+                for (index, series) in provider.series.iter_mut().enumerate() {
+                    series.labels[1].1 = b"same".to_vec();
+                    series.labels.push((
+                        b"le".to_vec(),
+                        if index == 0 {
+                            b"1".to_vec()
+                        } else {
+                            b"+Inf".to_vec()
+                        },
+                    ));
+                }
+                let engine = Engine::default();
+                let control = Control::default();
+                let mut settings = options(delayed);
+                settings.parser.experimental_functions = true;
+                let query = engine
+                    .compile(source.as_bytes(), settings, &control)
+                    .unwrap();
+                let outcome =
+                    query.collect(&provider, QueryRequest::Instant { time_ms: 2000 }, &control);
+                if removes_names {
+                    let error = outcome.unwrap_err();
+                    let ExecutionError::Evaluation(EvaluationError::WrappedRuntime(message)) =
+                        &error
+                    else {
+                        panic!("unexpected empty-name failure: {error:?}");
+                    };
+                    assert_eq!(
+                        &**message,
+                        b"unexpected error: runtime error: index out of range [0] with length 0"
+                    );
+                    drop(error);
+                } else {
+                    let (result, _) = outcome.unwrap();
+                    assert_eq!(result.series.len(), expected.len(), "{source}");
+                    for (series, value) in result.series.iter().zip(expected) {
+                        assert_eq!(float_bits(&series.points[0]), value.to_bits(), "{source}");
+                    }
+                    if source == call {
+                        assert!(
+                            result
+                                .series
+                                .iter()
+                                .all(|series| series.labels.0[0].name.is_empty())
+                        );
+                    }
+                    drop(result);
+                }
+                provider.assert_closed();
+                drop(query);
+                engine.accounting.snapshot().assert_memory_released();
+            }
+        }
+    }
+
+    #[test]
+    fn subquery_history_keeps_constant_workspace_for_fixed_float_and_native_children() {
+        fn native(index: usize) -> crate::value::Sample {
+            let mut sample = crate::test_storage::counter(index);
+            sample.value =
+                crate::value::SampleValue::FloatHistogram(crate::histogram::FloatHistogram {
+                    count: 1.0,
+                    zero_count: 1.0,
+                    sum: 1.0,
+                    ..crate::histogram::FloatHistogram::default()
+                });
+            sample
+        }
+        for page_size in [1, 17, 1024] {
+            for histogram in [false, true] {
+                let mut peaks = vec![];
+                for count in [1024, 100_000] {
+                    let engine = Engine::default();
+                    let mut provider = FixtureProvider::new(1, page_size, 1);
+                    if histogram {
+                        provider.series[0].source.sample = native;
+                    }
+                    let control = Control::default();
+                    let query = engine
+                        .compile(
+                            format!("count_over_time((counter_total @1)[{count}s:1s])").as_bytes(),
+                            EngineOptions::default(),
+                            &control,
+                        )
+                        .unwrap();
+                    let (result, observed) = query
+                        .collect(
+                            &provider,
+                            QueryRequest::Instant {
+                                time_ms: count as i64 * 1000,
+                            },
+                            &control,
+                        )
+                        .unwrap();
+                    assert_eq!(result.series.len(), 1);
+                    assert_eq!(
+                        float_bits(&result.series[0].points[0]),
+                        (count as f64).to_bits()
+                    );
+                    peaks.push(observed.memory[MemoryKind::Workspace as usize].peak);
+                    assert_eq!(
+                        provider.series[0]
+                            .source
+                            .counters
+                            .peak
+                            .load(Ordering::Relaxed),
+                        1
+                    );
+                    assert_eq!(
+                        observed.memory[MemoryKind::ProviderHeld as usize].current,
+                        0
+                    );
+                    provider.assert_closed();
+                    drop((result, query));
+                    engine.accounting.snapshot().assert_memory_released();
+                }
+                assert_eq!(peaks[0], peaks[1]);
+            }
+        }
+    }
+
+    #[test]
+    fn subquery_replays_distinct_raw_history_without_retaining_either_timeline() {
+        fn seek_index(time_ms: i64) -> usize {
+            usize::try_from(time_ms.saturating_sub(1).max(0) / 1000).unwrap()
+        }
+        let mut peaks = vec![];
+        for count in [1024, 100_000] {
+            let engine = Engine::default();
+            let mut provider = FixtureProvider::new(count, 1, 1);
+            provider.series[0].source.seek_index = Some(seek_index);
+            let control = Control::default();
+            let query = engine
+                .compile(
+                    format!("count_over_time(counter_total[{count}s:1s])").as_bytes(),
+                    EngineOptions {
+                        lookback_ms: 1,
+                        ..EngineOptions::default()
+                    },
+                    &control,
+                )
+                .unwrap();
+            let (result, observed) = query
+                .collect(
+                    &provider,
+                    QueryRequest::Instant {
+                        time_ms: count as i64 * 1000,
+                    },
+                    &control,
+                )
+                .unwrap();
+            assert_eq!(result.series.len(), 1);
+            assert_eq!(
+                float_bits(&result.series[0].points[0]),
+                (count as f64).to_bits()
+            );
+            assert!(observed.samples_fetched >= count as u64);
+            assert!(observed.samples_fetched <= 8 * count as u64 + 16);
+            assert!(observed.work <= 5000 * count as u64);
+            assert_eq!(
+                observed.samples_fetched,
+                provider.series[0]
+                    .source
+                    .counters
+                    .samples_returned
+                    .load(Ordering::Relaxed) as u64
+            );
+            assert_eq!(
+                provider.series[0]
+                    .source
+                    .counters
+                    .peak
+                    .load(Ordering::Relaxed),
+                1
+            );
+            assert_eq!(
+                observed.memory[MemoryKind::ProviderHeld as usize].current,
+                0
+            );
+            peaks.push((
+                observed.memory[MemoryKind::Workspace as usize].peak,
+                observed.memory[MemoryKind::ProviderHeld as usize].peak,
+            ));
+            provider.assert_closed();
+            drop((result, query));
+            engine.accounting.snapshot().assert_memory_released();
+        }
+        assert_eq!(peaks[0], peaks[1]);
+    }
+
+    #[test]
+    fn direct_subquery_streams_growing_history_without_retaining_output() {
+        for raw in [false, true] {
+            let mut peaks = vec![];
+            for count in [1024, 100_000] {
+                let engine = Engine::default();
+                let provider = FixtureProvider::new(if raw { count } else { 1 }, 1, 1);
+                let control = Control::default();
+                let body = if raw { "counter_total" } else { "vector(1)" };
+                let query = engine
+                    .compile(
+                        format!("{body}[{count}s:1s]").as_bytes(),
+                        EngineOptions::default(),
+                        &control,
+                    )
+                    .unwrap();
+                let mut sink = RecordingSink::default();
+                let report = query.execute_reported(
+                    &provider,
+                    QueryRequest::Instant {
+                        time_ms: count as i64 * 1000,
+                    },
+                    &control,
+                    &mut sink,
+                );
+                report.result.as_ref().unwrap();
+                assert_eq!(sink.chunks, count);
+                assert!(sink.begun && sink.committed && !sink.aborted);
+                assert_eq!(report.observations.output_samples, count as u64);
+                assert!(report.observations.samples_fetched <= 4 * count as u64 + 16);
+                assert!(report.observations.work <= 5000 * count as u64);
+                assert_eq!(
+                    report.observations.memory[MemoryKind::Result as usize].peak,
+                    0
+                );
+                peaks.push(report.observations.memory[MemoryKind::Workspace as usize].peak);
+                provider.assert_closed();
+                drop((report, query, sink));
+                engine.accounting.snapshot().assert_memory_released();
+            }
+            assert_eq!(peaks[0], peaks[1]);
+        }
+    }
+
+    #[test]
+    fn direct_subquery_keeps_one_raw_page_as_series_cardinality_grows() {
+        for page_size in [1, 17, 1024] {
+            let mut peaks = vec![];
+            for metrics in [2, 257] {
+                let engine = Engine::default();
+                let mut provider = FixtureProvider::new(64, page_size, metrics);
+                let counters = std::sync::Arc::new(crate::test_storage::CursorCounts::default());
+                for series in &mut provider.series {
+                    series.source.counters = counters.clone();
+                }
+                let control = Control::default();
+                let query = engine
+                    .compile(b"counter_total[64s:1s]", EngineOptions::default(), &control)
+                    .unwrap();
+                let mut sink = RecordingSink::default();
+                let report = query.execute_reported(
+                    &provider,
+                    QueryRequest::Instant { time_ms: 64000 },
+                    &control,
+                    &mut sink,
+                );
+                report.result.as_ref().unwrap();
+                assert_eq!(sink.chunks, metrics * 64);
+                assert_eq!(counters.peak.load(Ordering::Relaxed), 1);
+                assert_eq!(counters.active.load(Ordering::Relaxed), 0);
+                assert_eq!(
+                    report.observations.samples_fetched,
+                    counters.samples_returned.load(Ordering::Relaxed) as u64
+                );
+                peaks.push(report.observations.memory[MemoryKind::ProviderHeld as usize].peak);
+                provider.assert_closed();
+                drop((report, query, sink));
+                engine.accounting.snapshot().assert_memory_released();
+            }
+            assert_eq!(peaks[0], peaks[1]);
+        }
+    }
+
+    #[test]
+    fn direct_subquery_aborts_provisional_output_on_failure_cancellation_and_panic() {
+        for raw in [false, true] {
+            for phase in 0..3 {
+                let engine = Engine::default();
+                let provider = FixtureProvider::new(if raw { 100 } else { 1 }, 1, 1);
+                let control = Control::default();
+                let query = engine
+                    .compile(
+                        if raw {
+                            b"counter_total[100s:1s]"
+                        } else {
+                            b"vector(1)[100s:1s]"
+                        },
+                        EngineOptions::default(),
+                        &control,
+                    )
+                    .unwrap();
+                let mut sink = RecordingSink {
+                    fail_after: (phase == 0).then_some(2),
+                    cancel: (phase == 1).then(|| control.cancellation.clone()),
+                    panic_after: (phase == 2).then_some(2),
+                    ..RecordingSink::default()
+                };
+                let report = query.execute_reported(
+                    &provider,
+                    QueryRequest::Instant { time_ms: 100000 },
+                    &control,
+                    &mut sink,
+                );
+                match (&report.result, phase) {
+                    (Err(ExecutionError::Sink(bytes)), 0) => assert_eq!(&**bytes, b"sink failure"),
+                    (
+                        Err(ExecutionError::Evaluation(EvaluationError::Interrupted(
+                            crate::storage::Interrupted::Cancelled,
+                        ))),
+                        1,
+                    ) => (),
+                    (Err(ExecutionError::Internal), 2) => (),
+                    _ => panic!("derived output failure phase: {:?}", report.result),
+                }
+                assert_eq!(sink.chunks, 2);
+                assert!(sink.begun && sink.aborted && !sink.committed);
+                assert_eq!(
+                    report.observations.output_samples,
+                    if phase == 1 { 2 } else { 1 }
+                );
+                provider.assert_closed();
+                report.assert_retained_callback_error_memory();
+                drop((report, query, sink));
+                engine.accounting.snapshot().assert_memory_released();
+            }
+        }
+    }
+
+    #[test]
+    fn derived_changes_and_resets_report_reached_ties_after_child_acquisition() {
+        fn native(index: usize) -> crate::value::Sample {
+            let mut sample = crate::test_storage::counter(index);
+            sample.value = crate::value::SampleValue::FloatHistogram(
+                crate::histogram::FloatHistogram::default(),
+            );
+            sample
+        }
+        for page_size in [1, 17, 1024] {
+            for function in ["changes", "resets"] {
+                for failure in [false, true] {
+                    let engine = Engine::default();
+                    let mut provider = FixtureProvider::new(4, page_size, 2);
+                    for (series, name) in provider.series.iter_mut().zip([b"a", b"b"]) {
+                        series.labels = vec![(b"__name__".to_vec(), name.to_vec())];
+                    }
+                    provider.series[1].source.sample = native;
+                    if failure {
+                        provider.series[1].source.fail_page = Some(0);
+                    }
+                    let control = Control::default();
+                    let query = engine
+                        .compile(
+                            format!("{function}((-{{__name__=~\"a|b\"}})[4s:1s])").as_bytes(),
+                            EngineOptions::default(),
+                            &control,
+                        )
+                        .unwrap();
+                    let report = query.collect_reported(
+                        &provider,
+                        QueryRequest::Instant { time_ms: 4000 },
+                        &control,
+                    );
+                    if failure {
+                        let Err(ExecutionError::Evaluation(EvaluationError::Storage(
+                            StorageError::Provider(bytes),
+                        ))) = &report.result
+                        else {
+                            panic!("child acquisition precedes derived helper");
+                        };
+                        assert_eq!(&**bytes, b"injected page failure");
+                    } else {
+                        let Err(ExecutionError::Evaluation(EvaluationError::Invalid(message))) =
+                            &report.result
+                        else {
+                            panic!("reached source nonadvancing merge");
+                        };
+                        assert_eq!(
+                            *message,
+                            if function == "changes" {
+                                "changes() cannot advance past equal float and histogram timestamps"
+                            } else {
+                                "resets() cannot advance past equal float and histogram timestamps"
+                            }
+                        );
+                    }
+                    assert_eq!(report.observations.output_samples, 0);
+                    provider.assert_closed();
+                    report.assert_retained_callback_error_memory();
+                    drop((report, query));
+                    engine.accounting.snapshot().assert_memory_released();
+                }
+            }
+        }
+    }
+
+    #[test]
     fn count_range_history_length_does_not_grow_retained_raw_memory() {
         for page_size in [1, 17, 1024] {
             let mut peaks = vec![];
@@ -9368,7 +12592,7 @@ mod tests {
                 let barrier = &barrier;
                 scope.spawn(move || {
                     let account = query.execution_accounting();
-                    let prepared = Prepared::new(
+                    let mut prepared = Prepared::new(
                         &query.expression,
                         &query.preprocessing,
                         OutputHeader {
@@ -9377,10 +12601,13 @@ mod tests {
                             end_ms,
                             step_ms: 1000,
                         },
+                        query.options.no_step_subquery_interval_ms,
                         &Control::default(),
                         &account,
                     )
                     .unwrap();
+                    // Isolate the flag owner from separately accounted evaluator geometry.
+                    drop(prepared.scopes.take());
                     let flags = prepared.flags();
                     assert!(!std::ptr::eq(flags, &query.preprocessing.flags));
                     assert_eq!(flags.invariants.len(), query.expression.arena.nodes.len());
@@ -9413,7 +12640,7 @@ mod tests {
             )
             .unwrap();
         let account = query.execution_accounting();
-        let prepared = Prepared::new(
+        let mut prepared = Prepared::new(
             &query.expression,
             &query.preprocessing,
             query
@@ -9423,13 +12650,15 @@ mod tests {
                     step_ms: 1,
                 })
                 .unwrap(),
+            query.options.no_step_subquery_interval_ms,
             &Control::default(),
             &account,
         )
         .unwrap();
+        drop(prepared.scopes.take());
         assert!(std::ptr::eq(prepared.flags(), &query.preprocessing.flags));
         assert_eq!(
-            account.snapshot().memory[MemoryKind::Workspace as usize].acquired,
+            account.snapshot().memory[MemoryKind::Workspace as usize].current,
             0
         );
         drop(prepared);
@@ -9679,129 +12908,4 @@ mod tests {
         drop(result);
         engine.accounting.snapshot().assert_memory_released();
     }
-    #[test]
-    fn plural_quantiles_keep_duplicate_occurrences_until_the_source_cleanup_phase() {
-        let call = "histogram_quantiles(counter_total,\"q\",0.25,0.75,0.25,0.75)";
-        for delayed in [false, true] {
-            for parent in ["", "sum by(q)", "topk(1,"] {
-                let source = match parent {
-                    "" => call.to_owned(),
-                    "sum by(q)" => format!("{parent}({call})"),
-                    _ => format!("{parent}{call})"),
-                };
-                let mut provider = FixtureProvider::new(2, 1, 2);
-                for (index, series) in provider.series.iter_mut().enumerate() {
-                    series.labels[1].1 = b"same".to_vec();
-                    series.labels.push((
-                        b"le".to_vec(),
-                        if index == 0 {
-                            b"1".to_vec()
-                        } else {
-                            b"+Inf".to_vec()
-                        },
-                    ));
-                }
-                let engine = Engine::default();
-                let account = engine.accounting.clone();
-                let control = Control::default();
-                let mut settings = options(delayed);
-                settings.parser.experimental_functions = true;
-                let query = engine
-                    .compile(source.as_bytes(), settings, &control)
-                    .unwrap();
-                drop(engine);
-                let outcome =
-                    query.collect(&provider, QueryRequest::Instant { time_ms: 2000 }, &control);
-                if !delayed || parent.is_empty() {
-                    assert!(
-                        is_duplicate(&outcome.unwrap_err()),
-                        "{source} delayed {delayed}"
-                    );
-                } else {
-                    let (result, _) = outcome.unwrap();
-                    let expected: &[f64] = if parent == "sum by(q)" {
-                        &[0.5, 1.5]
-                    } else {
-                        &[0.75]
-                    };
-                    assert_eq!(result.series.len(), expected.len(), "{source}");
-                    for (series, value) in result.series.iter().zip(expected) {
-                        assert_eq!(float_bits(&series.points[0]), value.to_bits(), "{source}");
-                    }
-                    drop(result);
-                }
-                provider.assert_closed();
-                drop(query);
-                account.snapshot().assert_memory_released();
-            }
-        }
-    }
-
-    #[test]
-    fn empty_plural_destination_errors_only_when_reserved_removal_visits_it() {
-        let call = "histogram_quantiles(counter_total,\"\",0.25,0.75)";
-        for delayed in [false, true] {
-            for (source, removes_names, expected) in [
-                (call.to_owned(), delayed, vec![0.25_f64, 0.75]),
-                (format!("sum({call})"), false, vec![1.0]),
-                (format!("sum(-({call}))"), !delayed, vec![-1.0]),
-                (format!("sum(abs({call}))"), !delayed, vec![1.0]),
-            ] {
-                let mut provider = FixtureProvider::new(2, 1, 2);
-                for (index, series) in provider.series.iter_mut().enumerate() {
-                    series.labels[1].1 = b"same".to_vec();
-                    series.labels.push((
-                        b"le".to_vec(),
-                        if index == 0 {
-                            b"1".to_vec()
-                        } else {
-                            b"+Inf".to_vec()
-                        },
-                    ));
-                }
-                let engine = Engine::default();
-                let control = Control::default();
-                let mut settings = options(delayed);
-                settings.parser.experimental_functions = true;
-                let query = engine
-                    .compile(source.as_bytes(), settings, &control)
-                    .unwrap();
-                let outcome =
-                    query.collect(&provider, QueryRequest::Instant { time_ms: 2000 }, &control);
-                if removes_names {
-                    let error = outcome.unwrap_err();
-                    let ExecutionError::Evaluation(EvaluationError::WrappedRuntime(message)) =
-                        &error
-                    else {
-                        panic!("unexpected empty-name failure: {error:?}");
-                    };
-                    assert_eq!(
-                        &**message,
-                        b"unexpected error: runtime error: index out of range [0] with length 0"
-                    );
-                    drop(error);
-                } else {
-                    let (result, _) = outcome.unwrap();
-                    assert_eq!(result.series.len(), expected.len(), "{source}");
-                    for (series, value) in result.series.iter().zip(expected) {
-                        assert_eq!(float_bits(&series.points[0]), value.to_bits(), "{source}");
-                    }
-                    if source == call {
-                        assert!(
-                            result
-                                .series
-                                .iter()
-                                .all(|series| series.labels.0[0].name.is_empty())
-                        );
-                    }
-                    drop(result);
-                }
-                provider.assert_closed();
-                drop(query);
-                engine.accounting.snapshot().assert_memory_released();
-            }
-        }
-    }
-
-
 }

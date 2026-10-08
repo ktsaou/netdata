@@ -2,9 +2,9 @@
 // Native histogram kernels derive from Prometheus promql/{quantile,functions}.go; see NOTICE.
 use crate::frontend::quote;
 use crate::histogram::{AllFloatBucketIterator, Bucket, CUSTOM_BUCKETS_SCHEMA, FloatHistogramRef};
-use crate::numerical::{compensated_add, exp2, log2, source_add, source_div, sqrt};
-#[cfg(target_arch = "x86_64")]
-use crate::numerical::{source_mul, source_sub};
+use crate::numerical::{
+    compensated_add, exp2, log2, source_add, source_div, source_mul, source_sub, sqrt,
+};
 
 const NAN: f64 = f64::from_bits(0x7ff8_0000_0000_0001);
 
@@ -89,23 +89,10 @@ pub(crate) fn histogram_quantile_with<E>(
 
     let forward = h.sum.is_nan() || q < 0.5;
     let mut iterator = AllFloatBucketIterator::new(h, !forward);
-    let mut rank = {
-        #[cfg(target_arch = "x86_64")]
-        {
-            if forward {
-                source_mul(h.count, q)
-            } else {
-                source_mul(source_sub(1.0, q), h.count)
-            }
-        }
-        #[cfg(not(target_arch = "x86_64"))]
-        {
-            if forward {
-                q * h.count
-            } else {
-                (1.0 - q) * h.count
-            }
-        }
+    let mut rank = if forward {
+        source_mul(h.count, q)
+    } else {
+        source_mul(source_sub(1.0, q), h.count)
     };
     let mut count = 0.0;
     let mut bucket = Bucket::default();
@@ -146,20 +133,11 @@ pub(crate) fn histogram_quantile_with<E>(
             HistogramFunctionResult::scalar(bucket.upper)
         });
     }
-    #[cfg(target_arch = "x86_64")]
-    {
-        rank = if forward {
-            source_sub(rank, source_sub(count, bucket.count))
-        } else {
-            source_sub(count, rank)
-        };
-    }
-    #[cfg(not(target_arch = "x86_64"))]
-    if forward {
-        rank -= count - bucket.count;
+    rank = if forward {
+        source_sub(rank, source_sub(count, bucket.count))
     } else {
-        rank = count - rank;
-    }
+        source_sub(count, rank)
+    };
     let mut info = None;
     if h.sum.is_nan() {
         // Pinned NaN-skew traversal overwrites the interpolation bucket as it finishes.
@@ -175,43 +153,28 @@ pub(crate) fn histogram_quantile_with<E>(
     }
     let fraction = source_div(rank, bucket.count);
     let value = if custom || (bucket.lower <= 0.0 && bucket.upper >= 0.0) {
-        #[cfg(target_arch = "x86_64")]
         {
             source_add(
                 bucket.lower,
                 source_mul(source_sub(bucket.upper, bucket.lower), fraction),
             )
         }
-        #[cfg(not(target_arch = "x86_64"))]
-        {
-            bucket.lower + (bucket.upper - bucket.lower) * fraction
-        }
     } else {
         let lower = log2(bucket.lower.abs());
         let upper = log2(bucket.upper.abs());
         if bucket.lower > 0.0 {
-            #[cfg(target_arch = "x86_64")]
             {
                 exp2(source_add(
                     source_mul(source_sub(upper, lower), fraction),
                     lower,
                 ))
             }
-            #[cfg(not(target_arch = "x86_64"))]
-            {
-                exp2(lower + (upper - lower) * fraction)
-            }
         } else {
-            #[cfg(target_arch = "x86_64")]
             {
                 -exp2(source_add(
                     upper,
                     source_mul(source_sub(1.0, fraction), source_sub(lower, upper)),
                 ))
-            }
-            #[cfg(not(target_arch = "x86_64"))]
-            {
-                -exp2(upper + (lower - upper) * (1.0 - fraction))
             }
         }
     };
@@ -266,14 +229,7 @@ pub(crate) fn histogram_fraction_with<E>(
                 bucket.count
             } else {
                 let fraction = bucket.fraction_below(value, linear);
-                #[cfg(target_arch = "x86_64")]
-                {
-                    source_add(source_mul(fraction, bucket.count), rank)
-                }
-                #[cfg(not(target_arch = "x86_64"))]
-                {
-                    rank + bucket.count * fraction
-                }
+                source_add(source_mul(fraction, bucket.count), rank)
             }
         };
         if !lower_set && bucket.lower < lower && bucket.upper > lower {
@@ -307,22 +263,14 @@ pub(crate) fn histogram_fraction_with<E>(
     if !upper_set || upper_rank > count {
         upper_rank = count;
     }
-    #[cfg(target_arch = "x86_64")]
     let value = source_div(source_sub(upper_rank, lower_rank), h.count);
-    #[cfg(not(target_arch = "x86_64"))]
-    let value = (upper_rank - lower_rank) / h.count;
     Ok(HistogramFunctionResult { value, info })
 }
 
 fn add_bucket_count(previous: f64, bucket: f64) -> f64 {
-    #[cfg(target_arch = "x86_64")]
     {
         // Go's main scans preserve the arriving bucket when both counts are NaNs.
         source_add(bucket, previous)
-    }
-    #[cfg(not(target_arch = "x86_64"))]
-    {
-        previous + bucket
     }
 }
 
@@ -335,7 +283,7 @@ pub fn histogram_sum(h: FloatHistogramRef<'_>) -> f64 {
 }
 
 pub fn histogram_avg(h: FloatHistogramRef<'_>) -> f64 {
-    h.sum / h.count
+    source_div(h.sum, h.count)
 }
 
 pub fn histogram_stdvar(h: FloatHistogramRef<'_>) -> f64 {
@@ -356,33 +304,17 @@ pub(crate) fn histogram_stdvar_with<E>(
             continue;
         }
         let value = if h.schema == CUSTOM_BUCKETS_SCHEMA {
-            #[cfg(target_arch = "x86_64")]
-            {
-                source_mul(source_add(bucket.upper, bucket.lower), 0.5)
-            }
-            #[cfg(not(target_arch = "x86_64"))]
-            {
-                (bucket.upper + bucket.lower) / 2.0
-            }
+            source_mul(source_add(bucket.upper, bucket.lower), 0.5)
         } else if bucket.lower <= 0.0 && bucket.upper >= 0.0 {
             0.0
         } else {
-            #[cfg(target_arch = "x86_64")]
             let value = sqrt(source_mul(bucket.lower, bucket.upper));
-            #[cfg(not(target_arch = "x86_64"))]
-            let value = sqrt(bucket.upper * bucket.lower);
             if bucket.upper < 0.0 { -value } else { value }
         };
-        #[cfg(target_arch = "x86_64")]
         let contribution = {
             let delta = source_sub(value, mean);
             // Go retains the original delta in the second product; native equality observes it.
             source_mul(delta, source_mul(bucket.count, delta))
-        };
-        #[cfg(not(target_arch = "x86_64"))]
-        let contribution = {
-            let delta = value - mean;
-            (bucket.count * delta) * delta
         };
         // Squaring delta first can overflow a finite upstream contribution.
         (variance, compensation) = compensated_add(contribution, variance, compensation);
@@ -410,7 +342,6 @@ mod tests {
     use crate::histogram::{FloatHistogram, Span};
 
     #[test]
-    #[cfg(target_arch = "x86_64")]
     fn native_nan_counts_preserve_original_go_forward_and_reverse_destinations() {
         // Original Go helper capture, including signaling payload permutations.
         let cases = [
@@ -524,7 +455,6 @@ mod tests {
     }
 
     #[test]
-    #[cfg(target_arch = "x86_64")]
     fn variance_nan_provenance_retains_mean_after_each_bucket_product() {
         // Original Go histogramVariance capture; native equality observes these bits.
         let buckets = [

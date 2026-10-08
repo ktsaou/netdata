@@ -285,7 +285,7 @@ def validate_case(case):
                     histogram(expectation["final"], False)
     elif mode == "float-kahan-compact":
         fields(request, ("input", "compensation", "max_empty"))
-        integer(request["max_empty"], -(1 << 31), (1 << 31) - 1)
+        integer(request["max_empty"], -(1 << 63), (1 << 63) - 1)
         fields(actual, ("input_after", "compensation_after"))
         for key in ("input", "compensation"):
             histogram(request[key], False)
@@ -401,7 +401,8 @@ def validate_case(case):
     elif mode in {"float-compact", "float-copy-to-schema", "float-reduce-resolution"}:
         parameter = "max_empty" if mode == "float-compact" else "target_schema"
         fields(request, ("input", parameter))
-        integer(request[parameter], -(1 << 31), (1 << 31) - 1)
+        width = 63 if mode == "float-compact" else 31
+        integer(request[parameter], -(1 << width), (1 << width) - 1)
         histogram(request["input"], False)
         if mode == "float-compact":
             histogram(actual, False)

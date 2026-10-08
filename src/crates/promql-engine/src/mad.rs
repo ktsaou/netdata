@@ -1,115 +1,116 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Pinned promql/functions.go:1438-1471 and quantile.go:717-738; see NOTICE.
-#[cfg(target_arch = "x86_64")]
 use crate::numerical::source_sub;
 use crate::{
     accounting::QueryAccounting,
     annotations::AnnotationKind,
-    numerical::{floor, source_add, source_mul},
     range_numeric::{NumericRangeInput, NumericRangeOutput, scan},
+    range_quantile_rank::{Plan, Selector, ordered_value},
     storage::{Control, Series, StorageError},
-    value::SampleValueRef,
+    value::{SampleRef, SampleValueRef},
 };
 
 const SOURCE_NAN: f64 = f64::from_bits(0x7ff8_0000_0000_0001);
 
-fn ordered_key(value: f64) -> u64 {
-    if value.is_nan() {
-        // Only the homogeneous, Abs-generated NaN class reaches median replay.
-        return 0;
-    }
-    let bits = if value == 0.0 { 0 } else { value.to_bits() };
-    if bits >> 63 != 0 {
-        !bits
-    } else {
-        bits ^ (1 << 63)
-    }
-}
-
-fn ordered_value(key: u64) -> f64 {
-    let bits = if key == 0 {
-        0x7ff8_0000_0000_0000
-    } else if key >> 63 == 0 {
-        !key
-    } else {
-        key ^ (1 << 63)
-    };
-    f64::from_bits(bits)
-}
-
 fn deviation(value: f64, median: f64) -> f64 {
-    #[cfg(target_arch = "x86_64")]
-    {
-        source_sub(value, median).abs()
-    }
-    #[cfg(not(target_arch = "x86_64"))]
-    {
-        (value - median).abs()
-    }
+    source_sub(value, median).abs()
 }
 
-fn median<S: Series>(
-    series: &S,
-    input: NumericRangeInput,
-    count: u64,
+struct Median {
     center: Option<f64>,
-    control: &Control,
-    account: &QueryAccounting,
-) -> Result<f64, StorageError> {
-    let n = count as f64;
-    let rank = source_mul(0.5, n - 1.0);
-    let lower = floor(rank).max(0.0);
-    let upper = (n - 1.0).min(lower + 1.0);
-    let weight = rank - floor(rank);
-    let mut ranks = [lower as u64, upper as u64];
-    let mut prefixes = [0u64; 2];
-    for nibble in 0..16 {
-        control.check()?;
-        let shift = 60 - 4 * nibble;
-        let mask = if nibble == 0 {
-            0
-        } else {
-            u64::MAX << (shift + 4)
-        };
-        let mut counters = [[0u64; 16]; 2];
-        scan(series, input, control, account, |sample| {
-            if sample.value.is_stale() {
-                return Ok(());
-            }
-            let SampleValueRef::Float(value) = sample.value else {
-                return Ok(());
-            };
-            account.work(1);
-            let value = center.map_or(value, |median| deviation(value, median));
-            let key = ordered_key(value);
-            let digit = ((key >> shift) & 15) as usize;
-            for lane in 0..2 {
-                account.work(1);
-                if key & mask == prefixes[lane] {
-                    counters[lane][digit] += 1;
-                }
-            }
-            Ok(())
-        })?;
-        for lane in 0..2 {
-            control.check()?;
-            let mut selected = None;
-            for (digit, count) in counters[lane].iter().enumerate() {
-                account.work(1);
-                if ranks[lane] < *count {
-                    selected = Some(digit);
-                    break;
-                }
-                ranks[lane] -= count;
-            }
-            let digit = selected.ok_or(StorageError::Invalid("MAD rank missing during replay"))?;
-            prefixes[lane] |= (digit as u64) << shift;
+    plan: Plan,
+    selector: Selector,
+}
+impl Median {
+    fn new(count: u64, center: Option<f64>) -> Self {
+        let plan = Plan::new(0.5, count);
+        Self {
+            center,
+            plan,
+            selector: Selector::new(plan),
         }
     }
-    let lower_product = source_mul(1.0 - weight, ordered_value(prefixes[0]));
-    let upper_product = source_mul(ordered_value(prefixes[1]), weight);
-    // Zero-weight terms remain observable for terminal infinities and generated NaNs.
-    Ok(source_add(upper_product, lower_product))
+    fn receive(&mut self, value: f64, account: &QueryAccounting) {
+        let value = self.center.map_or(value, |median| deviation(value, median));
+        self.selector.receive(value, account);
+    }
+    fn finish_pass(
+        &mut self,
+        control: &Control,
+        account: &QueryAccounting,
+    ) -> Result<Option<f64>, StorageError> {
+        Ok(self
+            .selector
+            .finish_pass(control, account)?
+            .map(|keys| self.plan.interpolate(keys.map(ordered_value))))
+    }
+}
+
+#[derive(Default)]
+pub(crate) struct Step {
+    count: u64,
+    raw_nan: bool,
+    histograms: bool,
+    median: Option<Median>,
+}
+impl Step {
+    pub(crate) fn receive(
+        &mut self,
+        sample: SampleRef<'_>,
+        control: &Control,
+        account: &QueryAccounting,
+    ) -> Result<(), StorageError> {
+        control.check()?;
+        if sample.value.is_stale() {
+            return Ok(());
+        }
+        if let Some(median) = &mut self.median {
+            if let SampleValueRef::Float(value) = sample.value {
+                median.receive(value, account);
+            }
+        } else {
+            account.work(1);
+            if let SampleValueRef::Float(value) = sample.value {
+                self.count += 1;
+                self.raw_nan |= value.is_nan();
+            } else {
+                self.histograms = true;
+            }
+        }
+        Ok(())
+    }
+    pub(crate) fn finish_pass(
+        &mut self,
+        control: &Control,
+        account: &QueryAccounting,
+    ) -> Result<Option<NumericRangeOutput>, StorageError> {
+        let value = if let Some(median) = &mut self.median {
+            let Some(value) = median.finish_pass(control, account)? else {
+                return Ok(None);
+            };
+            if median.center.is_none() {
+                self.median = Some(Median::new(self.count, Some(value)));
+                return Ok(None);
+            }
+            Some(value)
+        } else if self.count == 0 {
+            None
+        } else if self.raw_nan {
+            Some(SOURCE_NAN)
+        } else {
+            // Complete membership precedes the shortcut and every median pass.
+            self.median = Some(Median::new(self.count, None));
+            return Ok(None);
+        };
+        Ok(Some(NumericRangeOutput {
+            progress: None,
+            value,
+            invalid_quantile: false,
+            nonempty: self.count != 0 || self.histograms,
+            annotation: (self.histograms && self.count > 0)
+                .then_some(AnnotationKind::HistogramIgnoredInMixedRange),
+        }))
+    }
 }
 
 pub(crate) fn evaluate<S: Series>(
@@ -118,43 +119,18 @@ pub(crate) fn evaluate<S: Series>(
     control: &Control,
     account: &QueryAccounting,
 ) -> Result<NumericRangeOutput, StorageError> {
-    let input = input.into();
-    let mut count = 0u64;
-    let mut raw_nan = false;
-    let mut histograms = false;
-    // Decode the complete window before the raw-NaN shortcut, preserving iterator errors.
-    scan(series, input, control, account, |sample| {
-        if !sample.value.is_stale() {
-            account.work(1);
-            if let SampleValueRef::Float(value) = sample.value {
-                count += 1;
-                raw_nan |= value.is_nan();
-            } else {
-                histograms = true;
-            }
+    let mut input = input.into();
+    let mut step = Step::default();
+    loop {
+        let progress = scan(series, input, control, account, |sample| {
+            step.receive(sample, control, account)
+        })?;
+        if let Some(mut output) = step.finish_pass(control, account)? {
+            output.progress = progress;
+            return Ok(output);
         }
-        Ok(())
-    })?;
-    let value = if count == 0 {
-        None
-    } else if raw_nan {
-        Some(SOURCE_NAN)
-    } else {
-        let center = median(series, input, count, None, control, account)?;
-        Some(median(
-            series,
-            input,
-            count,
-            Some(center),
-            control,
-            account,
-        )?)
-    };
-    Ok(NumericRangeOutput {
-        value,
-        annotation: (histograms && count > 0)
-            .then_some(AnnotationKind::HistogramIgnoredInMixedRange),
-    })
+        input.matrix = input.matrix.map(|window| window.with_progress(progress));
+    }
 }
 
 #[cfg(test)]
@@ -176,7 +152,6 @@ mod tests {
         }
     }
 
-    #[cfg(target_arch = "x86_64")]
     #[test]
     fn ieee_medians_keep_both_weighted_terms_and_raw_nan_provenance() {
         fn bits(case: usize) -> &'static [u64] {

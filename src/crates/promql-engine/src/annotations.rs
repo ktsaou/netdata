@@ -59,6 +59,7 @@ pub enum AnnotationKind {
     NativeHistogramQuantileNaNResult,
     NativeHistogramQuantileNaNSkew,
     NativeHistogramFractionNaNs,
+    SortInRangeQuery,
 }
 impl AnnotationKind {
     fn severity(self) -> Severity {
@@ -84,7 +85,8 @@ impl AnnotationKind {
             | Self::InvalidQuantile
             | Self::InvalidRatio
             | Self::BadBucketLabel
-            | Self::MixedClassicNativeHistograms => Severity::Warning,
+            | Self::MixedClassicNativeHistograms
+            | Self::SortInRangeQuery => Severity::Warning,
         }
     }
     fn prefix(self) -> &'static str {
@@ -146,6 +148,9 @@ impl AnnotationKind {
             }
             Self::NativeHistogramFractionNaNs => {
                 crate::histogram::NativeHistogramInfo::FractionNaNs.prefix()
+            }
+            Self::SortInRangeQuery => {
+                "PromQL warning: sort is ineffective for range queries since results are always ordered by labels"
             }
         }
     }
@@ -420,7 +425,10 @@ impl AnnotationBuilder {
             raw_message.extend_from_slice(b" aggregation");
         } else if kind.optional_metric_name() {
             write_metric_name(metric, &mut raw_message);
-        } else if kind == AnnotationKind::MixedFloatsHistogramsAggregation {
+        } else if matches!(
+            kind,
+            AnnotationKind::MixedFloatsHistogramsAggregation | AnnotationKind::SortInRangeQuery
+        ) {
         } else {
             quote::write_bytes(metric, &mut raw_message).expect("byte writer");
         }
