@@ -137,6 +137,13 @@ pub fn encoded_float(value: &FloatHistogram) -> Value {
     encoded_float_ref(value.as_ref())
 }
 
+pub fn encoded_query_float_ref(mut value: FloatHistogramRef<'_>) -> Value {
+    // The query oracle copies spans with append(nil, spans...), unlike native probes.
+    value.positive_spans = value.positive_spans.filter(|spans| !spans.is_empty());
+    value.negative_spans = value.negative_spans.filter(|spans| !spans.is_empty());
+    encoded_float_ref(value)
+}
+
 pub fn encoded_integer(value: &IntegerHistogram) -> Value {
     json!({"reset_hint": value.reset_hint, "schema": value.schema,
         "zero_threshold": format!("{:016x}", value.zero_threshold.to_bits()),

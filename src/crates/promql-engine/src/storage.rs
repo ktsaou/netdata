@@ -134,10 +134,15 @@ pub enum StorageError {
     Interrupted(Interrupted),
     Invalid(&'static str),
     Provider(crate::accounting::AccountedVec<u8>),
+    /// A reached native operation's pinned evaluation error, separate from provider failures.
+    Runtime {
+        wrapped: bool,
+        message: crate::accounting::AccountedVec<u8>,
+    },
 }
 impl StorageError {
     pub(crate) fn accounted(mut self, account: &QueryAccounting) -> Self {
-        if let Self::Provider(bytes) = &mut self {
+        if let Self::Provider(bytes) | Self::Runtime { message: bytes, .. } = &mut self {
             bytes.account_if_unobserved(&crate::accounting::AllocationContext::new(
                 account,
                 MemoryKind::Workspace,

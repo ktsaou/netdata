@@ -19,7 +19,7 @@ use crate::{
     label_hash,
     query_preparation::Prepared,
     result::{OwnedLabels, OwnedValue},
-    storage::{Control, Interrupted},
+    storage::{Control, Interrupted, StorageError},
 };
 use std::{cell::RefCell, cmp::Ordering, ops::Range};
 
@@ -942,13 +942,14 @@ impl<'a> Step<'a> {
                     let poll = || {
                         control.check()?;
                         account.work(1);
-                        Ok::<_, Interrupted>(())
+                        Ok::<_, StorageError>(())
                     };
                     let result = match self.arguments.function {
                         Function::Quantile | Function::Quantiles => {
                             histogram_functions::histogram_quantile_with(
                                 self.parameters[self.quantile].unwrap(),
                                 histogram.as_ref(),
+                                crate::histogram_work::HistogramWork::new(control, account),
                                 poll,
                             )?
                         }
@@ -956,6 +957,7 @@ impl<'a> Step<'a> {
                             self.parameters[0].unwrap(),
                             self.parameters[1].unwrap(),
                             histogram.as_ref(),
+                            crate::histogram_work::HistogramWork::new(control, account),
                             poll,
                         )?,
                     };

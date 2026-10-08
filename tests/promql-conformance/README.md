@@ -26,17 +26,75 @@ Retained native qualification covers:
 - 19,214 canonical arithmetic checks, bounded cursor/progress controls, actual C/C++ embedding and focused work-driven
   cancellation/panic cleanup. Precise engine/foreign ownership and estimated regex dependency memory retain their
   declared accounting contracts. Enforcement remains disabled.
+- All 3,103 parenthesized-matrix and native-operation controls in both builds at page sizes 1/17/1024:
+  18,618 complete outcomes, with no unsupported result, mismatch or paired numerical bit difference in that panel.
 
 Complete-language acceptance remains in progress. The supplementary temporal panel has 2,002 exact matches and
 150 open outcomes: mixed histories longer than twelve floats still need the original sort's NaN payload and
-signed-zero provenance. A separate 1,512-control source audit finds 904 open outcomes for parenthesized matrix
-arguments inside unvisited scalar aggregation parameters. Those arguments follow the source's generic function
-path and include successful results as well as distinct errors; they cannot be replaced by ordinary range evaluation.
-These are required implementation remainders, not compatibility exceptions. Foreign Rust execution, dbengine/API
+signed-zero provenance. That is a required implementation remainder, not a compatibility exception.
+Parenthesized matrix arguments inside unvisited scalar aggregation parameters now follow the source's generic
+function path, including its successful results and distinct errors. Foreign Rust execution, dbengine/API
 integration, alert scheduling and Cloud distribution are separate stages; Alertmanager is outside this work.
 
 The detailed counts below preserve individual historical checkpoints and their source attribution. They do not
 supersede the current complete-language status or turn a partial panel into a compatibility guarantee.
+
+## Parenthesized matrix and native-operation qualification
+
+The compiler preserves surviving parentheses in unvisited aggregation parameters. Source dispatch recognizes
+actual matrix/subquery nodes; a surviving parenthesized argument follows generic function evaluation. Replacing
+that path with ordinary range evaluation changes results, labels, errors, annotations and acquisition order.
+The internal matrix visitor scans and discards borrowed raw points one page at a time. It retains no queried
+history or matrix output; parenthesized subqueries still visit their complete logical child grid. Multi-instant
+raw matrix evaluation returns its source error before matrix expansion, with upstream selector preparation intact.
+
+Reached native histogram failures use checked, accounted source diagnostics through the storage/evaluator layers.
+Query recovery retains the original plain/wrapped error class and discards incomplete evaluator annotations.
+The C boundary reports the existing evaluation status/error kind; unexpected Rust panics retain internal-error
+containment. Standalone histogram helpers preserve their original raw panic messages. Native kernel probes retain
+empty-versus-absent spans; only the query fixture codec applies the original query oracle's empty-span projection.
+
+Native acquisition also distinguishes buffered `CopyTo` from the exact current point's borrowed `At` result.
+The buffered path clears custom-schema zero/negative fields or exponential-schema custom bounds at the source copy
+boundary. An exact current point retains provider fields, including during later overlapping replay. Rate endpoints,
+instant-rate tails and changes/reset previous values retain those acquired fields; subsequent source-defined output
+copies keep their own normalization. Raw matrix output preserves acquired fields through the sink and owned collector.
+
+The independently declared panels are:
+
+| Panel | Cases | Covered boundaries |
+| --- | ---: | --- |
+| `unvisited-primary` | 1,512 | Generic matrix calls in aggregation parameters |
+| `unvisited-supplement` | 1,044 | Parameters, labels, scalar outcomes and typed source errors |
+| `unvisited-phases` | 336 | Acquisition, faults, query-wide statistics and precedence |
+| `native-valid` | 24 | Valid extreme histogram layouts and error contracts |
+| `native-checked` | 123 | Reached native guards, ignored operands and trim outputs |
+| `native-notes` | 17 | COUNT/native error and diagnostic composition |
+| `matrix-copy` | 39 | Buffered versus exact-point native acquisition |
+| `instant-copy` | 8 | Instant-rate retained-pointer fields |
+
+`native_matrix_cases.py` checks each complete input roster against its canonical digest. The primary generator
+remains in `unvisited_matrix_cases.py`; its CLI delegates to the shared multi-panel workflow. Reference capture and
+candidate execution retain process identities, outputs and completion status without automatic signals.
+
+Four original successful trim results contain inconsistent spans/bucket counts. Their complete original payloads
+are retained in `native-trim-source-results.json`. The panel validator accepts exactly those four declared outcomes,
+including labels, timestamps, notes and every raw field. All other results retain strict canonical validation;
+inputs and comparison policy are unchanged. This is source behavior, not a general validation exemption.
+
+Capture and qualify one panel using existing verified sources and a frozen candidate:
+
+```sh
+python3 tests/promql-conformance/native_matrix_calls.py --panel unvisited-primary --capture \
+  --upstream "${PROMQL_UPSTREAM_SOURCE:?}"
+python3 tests/promql-conformance/native_matrix_calls.py --panel unvisited-primary \
+  --reference "${PROMQL_MATRIX_REFERENCE:?}" --binary "${PROMQL_QUERY_FIXTURE:?}" --page-size 1024
+```
+
+The same commands accept every panel in the table. Permanent engine regressions cover a 100,000-point discarded
+history, late faults, cleanup/reuse, native acquisition and raw helper diagnostics. The native kernel, expression,
+portable arithmetic and foreign embedding checks cover shared helpers beyond this panel. These finite gates do
+not close the remaining general temporal provenance obligation or qualify a live storage/API integration.
 
 ## Reference and profiles
 

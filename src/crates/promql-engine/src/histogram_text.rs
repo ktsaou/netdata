@@ -2,10 +2,9 @@
 // Count labels follow pinned model/histogram/{float_histogram,generic}.go; see NOTICE.
 use crate::{
     accounting::{AccountedVec, QueryAccounting},
-    binary_labels,
     evaluator::EvaluationError,
     float_text::{FloatTextStyle, float_text},
-    histogram::{Bucket, CUSTOM_BUCKETS_SCHEMA, FloatHistogramRef},
+    histogram::{Bucket, FloatHistogramRef},
     histogram_work::HistogramWork,
     result::append_bytes_checked,
     storage::{Control, Interrupted},
@@ -52,67 +51,6 @@ fn bucket(
     number(output, value.count, control, account)
 }
 
-fn source_error(
-    arguments: std::fmt::Arguments<'_>,
-    wrapped: bool,
-    control: &Control,
-    account: &QueryAccounting,
-) -> Result<(), EvaluationError> {
-    let message = binary_labels::formatted(arguments, control, account)?;
-    Err(if wrapped {
-        EvaluationError::WrappedRuntime(message)
-    } else {
-        EvaluationError::Runtime(message)
-    })
-}
-
-// Check only the bounds that At evaluates; malformed unused storage stays unexamined.
-fn bounds(
-    histogram: FloatHistogramRef<'_>,
-    positive: bool,
-    index: i32,
-    control: &Control,
-    account: &QueryAccounting,
-) -> Result<(), EvaluationError> {
-    if histogram.schema == CUSTOM_BUCKETS_SCHEMA {
-        let length = if positive {
-            histogram.custom_values.unwrap_or(&[]).len() as i32
-        } else {
-            0
-        };
-        for index in [index, index.wrapping_sub(1)] {
-            if index > length || index < -1 {
-                return source_error(
-                    format_args!(
-                        "index {index} out of bounds for custom bounds of length {length}"
-                    ),
-                    false,
-                    control,
-                    account,
-                );
-            }
-        }
-    } else if histogram.schema == i32::MIN {
-        return source_error(
-            format_args!("unexpected error: runtime error: negative shift amount"),
-            true,
-            control,
-            account,
-        );
-    } else if histogram.schema > 8 {
-        return source_error(
-            format_args!(
-                "unexpected error: runtime error: index out of range [{}] with length 9",
-                histogram.schema
-            ),
-            true,
-            control,
-            account,
-        );
-    }
-    Ok(())
-}
-
 pub(crate) fn append(
     output: &mut AccountedVec<u8>,
     histogram: FloatHistogramRef<'_>,
@@ -125,37 +63,26 @@ pub(crate) fn append(
     number(output, histogram.count, control, account)?;
     append_bytes_checked(output, b", sum:", account, control)?;
     number(output, histogram.sum, control, account)?;
-    let mut negative = histogram.bucket_iterator(false, 0.0, histogram.schema);
+    let mut negative = histogram.bucket_iterator_with(false, 0.0, histogram.schema, work)?;
     let mut reversed = None;
     while negative.advance_with(work)? {
-        bounds(histogram, false, negative.current_index(), control, account)?;
-        let _ = negative.at();
+        let _ = negative.at_with(work)?;
         reversed = Some(negative.reverse_productive_prefix());
     }
     if let Some(mut reversed) = reversed {
         while reversed.advance_with(work)? {
-            bounds(histogram, false, reversed.current_index(), control, account)?;
-            let value = reversed.at();
+            let value = reversed.at_with(work)?;
             if value.count != 0.0 {
                 bucket(output, value, control, account)?;
             }
         }
     }
     if histogram.zero_count != 0.0 {
-        if histogram.schema == CUSTOM_BUCKETS_SCHEMA {
-            return source_error(
-                format_args!("histograms with custom buckets have no zero bucket"),
-                false,
-                control,
-                account,
-            );
-        }
-        bucket(output, histogram.zero_bucket(), control, account)?;
+        bucket(output, histogram.zero_bucket_with(work)?, control, account)?;
     }
-    let mut positive = histogram.bucket_iterator(true, 0.0, histogram.schema);
+    let mut positive = histogram.bucket_iterator_with(true, 0.0, histogram.schema, work)?;
     while positive.advance_with(work)? {
-        bounds(histogram, true, positive.current_index(), control, account)?;
-        let value = positive.at();
+        let value = positive.at_with(work)?;
         if value.count != 0.0 {
             bucket(output, value, control, account)?;
         }

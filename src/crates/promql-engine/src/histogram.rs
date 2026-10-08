@@ -111,14 +111,25 @@ fn copy_slice_with<T: Copy>(
     Ok(result)
 }
 
-fn copy_optional_with<T: Copy>(
-    values: Option<&[T]>,
-    context: Option<&AllocationContext>,
+fn retain_optional_with<T: Copy>(
+    destination: &mut Option<AccountedVec<T>>,
+    source: Option<&[T]>,
+    context: &AllocationContext,
     work: HistogramWork<'_>,
-) -> Result<Option<AccountedVec<T>>, Interrupted> {
-    values
-        .map(|values| copy_slice_with(values, context, work))
-        .transpose()
+) -> Result<(), Interrupted> {
+    work.step(1)?;
+    let Some(source) = source else {
+        *destination = None;
+        return Ok(());
+    };
+    let destination = destination.get_or_insert_with(|| AccountedVec::new_in(Some(context)));
+    destination.clear();
+    destination.reserve(source.len());
+    for chunk in source.chunks(1024) {
+        work.step(chunk.len())?;
+        destination.extend_from_slice(chunk);
+    }
+    Ok(())
 }
 
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
@@ -560,6 +571,16 @@ impl<'a> FloatHistogramRef<'a> {
         FloatBucketIterator::new(self, positive, start, target)
     }
 
+    pub(crate) fn bucket_iterator_with(
+        self,
+        positive: bool,
+        start: f64,
+        target: i32,
+        work: HistogramWork<'_>,
+    ) -> Result<FloatBucketIterator<'a>, HistogramEvaluationError> {
+        FloatBucketIterator::new_with(self, positive, start, target, work)
+    }
+
     pub fn reverse_bucket_iterator(self, positive: bool) -> ReverseFloatBucketIterator<'a> {
         ReverseFloatBucketIterator::new(self, positive)
     }
@@ -569,17 +590,27 @@ impl<'a> FloatHistogramRef<'a> {
     }
 
     pub fn zero_bucket(self) -> Bucket {
+        self.zero_bucket_with(HistogramWork::default())
+            .unwrap_or_else(|error| panic!("{}", error.arithmetic()))
+    }
+    pub(crate) fn zero_bucket_with(
+        self,
+        work: HistogramWork<'_>,
+    ) -> Result<Bucket, HistogramEvaluationError> {
         if self.schema == CUSTOM_BUCKETS_SCHEMA {
-            panic!("histograms with custom buckets have no zero bucket");
+            return Err(work.source(
+                format_args!("histograms with custom buckets have no zero bucket"),
+                false,
+            ));
         }
-        Bucket {
+        Ok(Bucket {
             lower: -self.zero_threshold,
             upper: self.zero_threshold,
             lower_inclusive: true,
             upper_inclusive: true,
             count: self.zero_count,
             index: 0,
-        }
+        })
     }
 
     pub fn copy_to_schema(self, target: i32) -> FloatHistogram {
@@ -596,19 +627,24 @@ impl<'a> FloatHistogramRef<'a> {
         if target == self.schema {
             return Ok(self.to_owned_with(context, work)?);
         }
-        assert!(
-            self.schema != CUSTOM_BUCKETS_SCHEMA,
-            "cannot reduce resolution to {target} when there are custom buckets"
-        );
-        assert!(
-            target != CUSTOM_BUCKETS_SCHEMA,
-            "cannot reduce resolution to custom buckets schema"
-        );
-        assert!(
-            target <= self.schema,
-            "cannot copy from schema {} to {target}",
-            self.schema
-        );
+        if self.schema == CUSTOM_BUCKETS_SCHEMA {
+            return Err(work.source(
+                format_args!("cannot reduce resolution to {target} when there are custom buckets"),
+                false,
+            ));
+        }
+        if target == CUSTOM_BUCKETS_SCHEMA {
+            return Err(work.source(
+                format_args!("cannot reduce resolution to custom buckets schema"),
+                false,
+            ));
+        }
+        if target > self.schema {
+            return Err(work.source(
+                format_args!("cannot copy from schema {} to {target}", self.schema),
+                false,
+            ));
+        }
         let mut result = FloatHistogram {
             schema: target,
             zero_threshold: self.zero_threshold,
@@ -739,27 +775,54 @@ impl<'a> FloatHistogramRef<'a> {
         context: &AllocationContext,
         work: HistogramWork<'_>,
     ) -> Result<FloatHistogram, Interrupted> {
-        // Ownership alone must preserve fields; source Copy semantics normalize separately.
-        work.step(1)?;
-        let context = Some(context);
-        let result = FloatHistogram {
-            reset_hint: self.reset_hint,
-            schema: self.schema,
-            zero_threshold: self.zero_threshold,
-            zero_count: self.zero_count,
-            count: self.count,
-            sum: self.sum,
-            positive_spans: copy_optional_with(self.positive_spans, context, work)?,
-            negative_spans: copy_optional_with(self.negative_spans, context, work)?,
-            positive_buckets: copy_optional_with(self.positive_buckets, context, work)?,
-            negative_buckets: copy_optional_with(self.negative_buckets, context, work)?,
-            custom_values: self
-                .custom_values
-                .map(|values| HistogramBounds::from_slice_with(values, context, work))
-                .transpose()?,
-        };
-        work.step(1)?;
+        let mut result = FloatHistogram::default();
+        self.retain_fields_to_with(&mut result, context, work)?;
         Ok(result)
+    }
+    pub(crate) fn retain_fields_to_with(
+        self,
+        destination: &mut FloatHistogram,
+        context: &AllocationContext,
+        work: HistogramWork<'_>,
+    ) -> Result<(), Interrupted> {
+        // Pointer retention preserves fields until a separate source Copy operation.
+        work.step(1)?;
+        destination.reset_hint = self.reset_hint;
+        destination.schema = self.schema;
+        destination.zero_threshold = self.zero_threshold;
+        destination.zero_count = self.zero_count;
+        destination.count = self.count;
+        destination.sum = self.sum;
+        retain_optional_with(
+            &mut destination.positive_spans,
+            self.positive_spans,
+            context,
+            work,
+        )?;
+        retain_optional_with(
+            &mut destination.negative_spans,
+            self.negative_spans,
+            context,
+            work,
+        )?;
+        retain_optional_with(
+            &mut destination.positive_buckets,
+            self.positive_buckets,
+            context,
+            work,
+        )?;
+        retain_optional_with(
+            &mut destination.negative_buckets,
+            self.negative_buckets,
+            context,
+            work,
+        )?;
+        destination.custom_values = self
+            .custom_values
+            .map(|values| HistogramBounds::from_slice_with(values, Some(context), work))
+            .transpose()?;
+        work.step(1)?;
+        Ok(())
     }
 }
 
@@ -987,6 +1050,69 @@ impl IntegerHistogramRef<'_> {
 mod tests {
     use super::*;
     use crate::accounting::{EngineAccounting, MemoryKind};
+
+    #[test]
+    fn standalone_histogram_panics_retain_original_diagnostics() {
+        let cases = [
+            (
+                FloatHistogram {
+                    zero_threshold: 0.01,
+                    ..FloatHistogram::default()
+                },
+                -1.0,
+                None,
+            ),
+            (
+                FloatHistogram {
+                    positive_spans: Some(
+                        vec![Span {
+                            offset: 0,
+                            length: 1,
+                        }]
+                        .into(),
+                    ),
+                    positive_buckets: Some(vec![1.0].into()),
+                    ..FloatHistogram::default()
+                },
+                2.0,
+                Some(FloatHistogram {
+                    positive_spans: Some(
+                        vec![Span {
+                            offset: 0,
+                            length: 1,
+                        }]
+                        .into(),
+                    ),
+                    ..FloatHistogram::default()
+                }),
+            ),
+        ];
+        let messages: Vec<_> = cases
+            .into_iter()
+            .map(|(histogram, threshold, correction)| {
+                let panic = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                    histogram.zero_count_for_threshold(
+                        threshold,
+                        correction.as_ref().map(FloatHistogram::as_ref),
+                    )
+                }))
+                .expect_err("original native helper panics");
+                panic
+                    .downcast_ref::<String>()
+                    .map(String::as_str)
+                    .or_else(|| panic.downcast_ref::<&str>().copied())
+                    .expect("string panic diagnostic")
+                    .to_owned()
+            })
+            .collect();
+        assert_eq!(
+            messages,
+            [
+                "new threshold -1.000000 is less than old threshold 0.010000",
+                "runtime error: index out of range [0] with length 0",
+            ]
+        );
+    }
 
     #[cfg(target_arch = "x86_64")]
     #[test]

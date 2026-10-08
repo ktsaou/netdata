@@ -1,7 +1,9 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Borrowed bucket traversal derives from the pinned Prometheus model; see NOTICE.
-use crate::histogram::{CUSTOM_BUCKETS_SCHEMA, FloatHistogramRef, Span, bucket_bound};
-use crate::histogram_layout::target_index;
+use crate::histogram::{CUSTOM_BUCKETS_SCHEMA, FloatHistogramRef, Span};
+use crate::histogram_bounds::bucket_bound_with;
+use crate::histogram_layout::target_index_with;
+use crate::histogram_work::{HistogramEvaluationError, HistogramWork};
 use crate::numerical::{log2, source_add, source_div, source_sub};
 
 #[derive(Clone, Copy, Debug, Default)]
@@ -70,15 +72,21 @@ impl<'a> Layout<'a> {
         }
     }
 
-    fn at(self, schema: i32, index: i32, count: f64) -> Bucket {
-        let bound = bucket_bound(index, schema, self.custom_values);
-        let previous = bucket_bound(index.wrapping_sub(1), schema, self.custom_values);
+    fn at_with(
+        self,
+        schema: i32,
+        index: i32,
+        count: f64,
+        work: HistogramWork<'_>,
+    ) -> Result<Bucket, HistogramEvaluationError> {
+        let bound = bucket_bound_with(index, schema, self.custom_values, work)?;
+        let previous = bucket_bound_with(index.wrapping_sub(1), schema, self.custom_values, work)?;
         let (lower, upper) = if self.positive {
             (previous, bound)
         } else {
             (-bound, -previous)
         };
-        Bucket {
+        Ok(Bucket {
             lower,
             upper,
             lower_inclusive: if schema == CUSTOM_BUCKETS_SCHEMA {
@@ -89,7 +97,7 @@ impl<'a> Layout<'a> {
             upper_inclusive: schema == CUSTOM_BUCKETS_SCHEMA || upper > 0.0,
             count,
             index,
-        }
+        })
     }
 }
 
@@ -109,16 +117,40 @@ pub struct FloatBucketIterator<'a> {
 
 impl<'a> FloatBucketIterator<'a> {
     pub fn new(histogram: FloatHistogramRef<'a>, positive: bool, start: f64, target: i32) -> Self {
+        Self::new_with(histogram, positive, start, target, HistogramWork::default())
+            .unwrap_or_else(|error| panic!("{}", error.arithmetic()))
+    }
+
+    pub(crate) fn new_with(
+        histogram: FloatHistogramRef<'a>,
+        positive: bool,
+        start: f64,
+        target: i32,
+        work: HistogramWork<'_>,
+    ) -> Result<Self, HistogramEvaluationError> {
         if histogram.schema == CUSTOM_BUCKETS_SCHEMA && target != histogram.schema {
-            panic!("cannot merge from custom buckets schema to exponential schema");
+            return Err(work.source(
+                format_args!("cannot merge from custom buckets schema to exponential schema"),
+                false,
+            ));
         }
         if histogram.schema != CUSTOM_BUCKETS_SCHEMA && target == CUSTOM_BUCKETS_SCHEMA {
-            panic!("cannot merge from exponential buckets schema to custom schema");
+            return Err(work.source(
+                format_args!("cannot merge from exponential buckets schema to custom schema"),
+                false,
+            ));
         }
         if target > histogram.schema {
-            panic!("cannot merge from schema {} to {target}", histogram.schema);
+            return Err(work.source(
+                format_args!("cannot merge from schema {} to {target}", histogram.schema),
+                false,
+            ));
         }
-        Self::from_layout(Layout::new(histogram, positive), start, target)
+        Ok(Self::from_layout(
+            Layout::new(histogram, positive),
+            start,
+            target,
+        ))
     }
 
     fn from_layout(layout: Layout<'a>, start: f64, target: i32) -> Self {
@@ -138,13 +170,13 @@ impl<'a> FloatBucketIterator<'a> {
 
     pub fn advance(&mut self) -> bool {
         self.advance_with(crate::histogram_work::HistogramWork::default())
-            .expect("inert histogram work")
+            .unwrap_or_else(|error| panic!("{}", error.arithmetic()))
     }
 
     pub(crate) fn advance_with(
         &mut self,
         work: crate::histogram_work::HistogramWork<'_>,
-    ) -> Result<bool, crate::storage::Interrupted> {
+    ) -> Result<bool, HistogramEvaluationError> {
         loop {
             work.step(1)?;
             if !self.advance_unfiltered(work)? {
@@ -153,7 +185,8 @@ impl<'a> FloatBucketIterator<'a> {
             // Consume skipped buckets in a loop instead of growing the caller's stack.
             if !self.bound_reached
                 && (-4..=8).contains(&self.target_schema)
-                && bucket_bound(self.current_index, self.target_schema, None) <= self.start
+                && bucket_bound_with(self.current_index, self.target_schema, None, work)?
+                    <= self.start
             {
                 continue;
             }
@@ -165,7 +198,7 @@ impl<'a> FloatBucketIterator<'a> {
     fn advance_unfiltered(
         &mut self,
         work: crate::histogram_work::HistogramWork<'_>,
-    ) -> Result<bool, crate::storage::Interrupted> {
+    ) -> Result<bool, HistogramEvaluationError> {
         if self.span_index >= self.layout.spans.len() {
             return Ok(false);
         }
@@ -203,7 +236,8 @@ impl<'a> FloatBucketIterator<'a> {
                 span = self.layout.spans[span_index];
                 original_index = original_index.wrapping_add(span.offset);
             }
-            let index = target_index(original_index, self.layout.schema, self.target_schema);
+            let index =
+                target_index_with(original_index, self.layout.schema, self.target_schema, work)?;
             if first {
                 self.current_index = index;
                 first = false;
@@ -255,8 +289,19 @@ impl<'a> FloatBucketIterator<'a> {
     }
 
     pub fn at(&self) -> Bucket {
-        self.layout
-            .at(self.target_schema, self.current_index, self.current_count)
+        self.at_with(HistogramWork::default())
+            .unwrap_or_else(|error| panic!("{}", error.arithmetic()))
+    }
+    pub(crate) fn at_with(
+        &self,
+        work: HistogramWork<'_>,
+    ) -> Result<Bucket, HistogramEvaluationError> {
+        self.layout.at_with(
+            self.target_schema,
+            self.current_index,
+            self.current_count,
+            work,
+        )
     }
 
     pub fn current_index(&self) -> i32 {
@@ -313,12 +358,16 @@ impl ProductiveReverse<'_> {
         self.current_count = self.layout.buckets[self.remaining];
         Ok(true)
     }
-    pub(crate) fn current_index(&self) -> i32 {
-        self.current_index
-    }
-    pub(crate) fn at(&self) -> Bucket {
-        self.layout
-            .at(self.layout.schema, self.current_index, self.current_count)
+    pub(crate) fn at_with(
+        &self,
+        work: HistogramWork<'_>,
+    ) -> Result<Bucket, HistogramEvaluationError> {
+        self.layout.at_with(
+            self.layout.schema,
+            self.current_index,
+            self.current_count,
+            work,
+        )
     }
 }
 
@@ -338,7 +387,7 @@ pub(crate) fn visit_float_buckets_mut_with(
     custom_values: Option<&[f64]>,
     work: crate::histogram_work::HistogramWork<'_>,
     mut visit: impl FnMut(Bucket, &mut f64) -> Result<(), crate::storage::Interrupted>,
-) -> Result<(), crate::storage::Interrupted> {
+) -> Result<(), HistogramEvaluationError> {
     let layout = Layout {
         schema,
         positive,
@@ -349,7 +398,10 @@ pub(crate) fn visit_float_buckets_mut_with(
     let mut cursor = FloatBucketIterator::from_layout(layout, 0.0, schema);
     while let Some(position) = cursor.advance_position_with(buckets.len(), work)? {
         let slot = &mut buckets[position];
-        visit(layout.at(schema, cursor.current_index, *slot), slot)?;
+        visit(
+            layout.at_with(schema, cursor.current_index, *slot, work)?,
+            slot,
+        )?;
     }
     Ok(())
 }
@@ -386,14 +438,24 @@ impl<'a> ReverseFloatBucketIterator<'a> {
     }
 
     pub fn advance(&mut self) -> bool {
+        self.advance_with(HistogramWork::default())
+            .expect("inert histogram work")
+    }
+
+    pub(crate) fn advance_with(
+        &mut self,
+        work: HistogramWork<'_>,
+    ) -> Result<bool, crate::storage::Interrupted> {
+        work.step(1)?;
         self.current_index = self.current_index.wrapping_sub(1);
         if self.bucket_index < 0 {
-            return false;
+            return Ok(false);
         }
         while self.within_span < 0 {
+            work.step(1)?;
             self.span_index -= 1;
             if self.span_index < 0 {
-                return false;
+                return Ok(false);
             }
             self.within_span =
                 (self.layout.spans[self.span_index as usize].length as i32).wrapping_sub(1);
@@ -404,12 +466,23 @@ impl<'a> ReverseFloatBucketIterator<'a> {
         self.current_count = self.layout.buckets[self.bucket_index as usize];
         self.bucket_index -= 1;
         self.within_span = self.within_span.wrapping_sub(1);
-        true
+        Ok(true)
     }
 
     pub fn at(&self) -> Bucket {
-        self.layout
-            .at(self.layout.schema, self.current_index, self.current_count)
+        self.at_with(HistogramWork::default())
+            .unwrap_or_else(|error| panic!("{}", error.arithmetic()))
+    }
+    pub(crate) fn at_with(
+        &self,
+        work: HistogramWork<'_>,
+    ) -> Result<Bucket, HistogramEvaluationError> {
+        self.layout.at_with(
+            self.layout.schema,
+            self.current_index,
+            self.current_count,
+            work,
+        )
     }
 }
 
@@ -441,33 +514,42 @@ impl<'a> AllFloatBucketIterator<'a> {
     }
 
     pub fn advance(&mut self) -> bool {
+        self.advance_with(HistogramWork::default())
+            .unwrap_or_else(|error| panic!("{}", error.arithmetic()))
+    }
+
+    pub(crate) fn advance_with(
+        &mut self,
+        work: HistogramWork<'_>,
+    ) -> Result<bool, HistogramEvaluationError> {
         loop {
+            work.step(1)?;
             match self.state {
                 -1 => {
-                    if self.left.advance() {
-                        self.current = self.left.at();
+                    if self.left.advance_with(work)? {
+                        self.current = self.left.at_with(work)?;
                         self.clip(true);
-                        return true;
+                        return Ok(true);
                     }
                     self.state = 0;
                 }
                 0 => {
                     self.state = 1;
                     if self.histogram.zero_count > 0.0 {
-                        self.current = self.histogram.zero_bucket();
-                        return true;
+                        self.current = self.histogram.zero_bucket_with(work)?;
+                        return Ok(true);
                     }
                 }
                 1 => {
-                    if self.right.advance() {
-                        self.current = self.right.at();
+                    if self.right.advance_with(work)? {
+                        self.current = self.right.at_with(work)?;
                         self.clip(false);
-                        return true;
+                        return Ok(true);
                     }
                     self.state = 42;
-                    return false;
+                    return Ok(false);
                 }
-                _ => return false,
+                _ => return Ok(false),
             }
         }
     }

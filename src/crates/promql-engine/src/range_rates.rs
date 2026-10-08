@@ -166,10 +166,17 @@ impl Step {
     }
 }
 
-fn arithmetic_error(error: HistogramEvaluationError) -> StorageError {
+fn arithmetic_error(
+    error: HistogramEvaluationError,
+    control: &Control,
+    account: &QueryAccounting,
+) -> StorageError {
     match error {
         HistogramEvaluationError::Interrupted(error) => error.into(),
-        HistogramEvaluationError::Arithmetic(error) => panic!("{error}"),
+        HistogramEvaluationError::Source(error) => error,
+        HistogramEvaluationError::Arithmetic(error) => HistogramWork::new(control, account)
+            .source(format_args!("{error}"), false)
+            .into(),
     }
 }
 
@@ -179,7 +186,7 @@ fn own_histogram(
     account: &QueryAccounting,
 ) -> Result<OwnedHistogram, StorageError> {
     let OwnedValue::Histogram(value) =
-        OwnedValue::copy_from_checked(value, control, account, MemoryKind::Workspace)?
+        OwnedValue::from_sample_checked(value, control, account, MemoryKind::Workspace)?
     else {
         return Err(StorageError::Invalid(
             "provider replay changed sample kinds",
@@ -310,8 +317,11 @@ impl NativeStep {
                             } else {
                                 0
                             };
-                            last.value
-                                .copy_from_sample_checked(sample.value, control, account)?;
+                            last.value.retain_from_sample_checked(
+                                sample.value,
+                                control,
+                                account,
+                            )?;
                         } else {
                             self.last = Some(HistogramPoint::copy(
                                 sample,
@@ -400,13 +410,13 @@ impl NativeStep {
                         )) => {
                             self.mismatch = true;
                         }
-                        Err(error) => return Err(arithmetic_error(error)),
+                        Err(error) => return Err(arithmetic_error(error, control, account)),
                     }
                 }
                 if let Some(converted) = converted {
                     self.previous = Some(converted);
                 } else if let Some(previous) = &mut self.previous {
-                    previous.copy_from_sample_checked(sample.value, control, account)?;
+                    previous.retain_from_sample_checked(sample.value, control, account)?;
                 } else {
                     self.previous = Some(own_histogram(sample.value, control, account)?);
                 }
@@ -471,7 +481,7 @@ impl NativeStep {
             .last()
             .value
             .copy_to_schema_checked(self.schema, control, account)
-            .map_err(arithmetic_error)?;
+            .map_err(|error| arithmetic_error(error, control, account))?;
         match value.arithmetic_checked(self.effective_first().as_ref(), true, control, account) {
             Ok(flags) => {
                 if flags.nhcb_bounds_reconciled {
@@ -484,7 +494,7 @@ impl NativeStep {
                 self.output = RateOutput::only(AnnotationKind::MixedExponentialCustomHistograms);
                 return Ok(false);
             }
-            Err(error) => return Err(arithmetic_error(error)),
+            Err(error) => return Err(arithmetic_error(error, control, account)),
         }
         self.value = Some(value);
         Ok(true)
@@ -571,7 +581,7 @@ impl NativeStep {
                             .note(AnnotationKind::MixedExponentialCustomHistograms);
                         return Ok(std::mem::take(&mut self.output));
                     }
-                    Err(error) => return Err(arithmetic_error(error)),
+                    Err(error) => return Err(arithmetic_error(error, control, account)),
                 }
             } else {
                 // The singleton extension retains its original hint and uncompacted layout.
@@ -579,7 +589,7 @@ impl NativeStep {
                     first
                         .value
                         .copy_to_schema_checked(first.value.as_ref().schema, control, account)
-                        .map_err(arithmetic_error)?,
+                        .map_err(|error| arithmetic_error(error, control, account))?,
                 );
             }
         }
@@ -641,7 +651,7 @@ impl InstantStep {
             } else {
                 0
             },
-            value: OwnedValue::copy_from_checked(
+            value: OwnedValue::from_sample_checked(
                 sample.value,
                 control,
                 account,
@@ -719,7 +729,7 @@ impl InstantStep {
                 let last_h = last_value.as_ref();
                 let mut value = last_value
                     .copy_to_schema_checked(last_h.schema, control, account)
-                    .map_err(arithmetic_error)?;
+                    .map_err(|error| arithmetic_error(error, control, account))?;
                 if counter && (first_h.reset_hint == GAUGE || last_h.reset_hint == GAUGE) {
                     output.note(AnnotationKind::NativeHistogramNotCounter);
                 } else if !counter && (first_h.reset_hint != GAUGE || last_h.reset_hint != GAUGE) {
@@ -747,7 +757,7 @@ impl InstantStep {
                             output.note(AnnotationKind::MixedExponentialCustomHistograms);
                             return Ok(output);
                         }
-                        Err(error) => return Err(arithmetic_error(error)),
+                        Err(error) => return Err(arithmetic_error(error, control, account)),
                     }
                 }
                 value.set_reset_hint(GAUGE);

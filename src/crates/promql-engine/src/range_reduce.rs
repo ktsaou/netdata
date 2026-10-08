@@ -318,7 +318,7 @@ impl Previous {
         account: &QueryAccounting,
     ) -> Result<Self, Interrupted> {
         Ok(Self {
-            value: OwnedValue::copy_from_checked(
+            value: OwnedValue::from_sample_checked(
                 sample.value,
                 control,
                 account,
@@ -339,6 +339,7 @@ pub(crate) struct FoldOptions {
 #[derive(Debug, PartialEq)]
 pub(crate) enum FoldError {
     Interrupted(Interrupted),
+    Storage(StorageError),
     NonAdvancingMerge { kind: FoldKind, time_ms: i64 },
 }
 impl From<Interrupted> for FoldError {
@@ -346,10 +347,19 @@ impl From<Interrupted> for FoldError {
         Self::Interrupted(value)
     }
 }
+impl From<HistogramEvaluationError> for FoldError {
+    fn from(error: HistogramEvaluationError) -> Self {
+        match error {
+            HistogramEvaluationError::Interrupted(error) => error.into(),
+            error => Self::Storage(error.into()),
+        }
+    }
+}
 impl FoldError {
     fn storage(self) -> StorageError {
         match self {
             Self::Interrupted(error) => error.into(),
+            Self::Storage(error) => error,
             Self::NonAdvancingMerge { kind, .. } => StorageError::Invalid(match kind {
                 FoldKind::Changes => {
                     "changes() cannot advance past equal float and histogram timestamps"
@@ -560,6 +570,7 @@ impl FoldStep {
                 Ok(())
             }
             Err(HistogramEvaluationError::Interrupted(error)) => Err(error.into()),
+            Err(HistogramEvaluationError::Source(error)) => Err(FoldError::Storage(error)),
         }
     }
 
@@ -590,8 +601,15 @@ impl FoldStep {
                         annotations: [Some(AnnotationKind::MixedExponentialCustomHistograms), None],
                     }
                 }
-                Err(HistogramEvaluationError::Arithmetic(error)) => panic!("{error}"),
+                Err(HistogramEvaluationError::Arithmetic(error)) => {
+                    return Err(HistogramWork::new(control, account)
+                        .source(format_args!("{error}"), false)
+                        .into());
+                }
                 Err(HistogramEvaluationError::Interrupted(error)) => return Err(error.into()),
+                Err(HistogramEvaluationError::Source(error)) => {
+                    return Err(FoldError::Storage(error));
+                }
             }));
         }
         if matches!(kind, Sum | Avg) && self.histogram_last.is_some() {

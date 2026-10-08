@@ -3,14 +3,15 @@
 use crate::histogram::{Bucket, FloatHistogram};
 use crate::numerical::{source_add, source_div, source_mul, source_neg, source_sub, sqrt};
 use crate::{
-    accounting::AllocationContext, histogram_iterator::visit_float_buckets_mut_with,
-    histogram_work::HistogramWork, storage::Interrupted,
+    accounting::AllocationContext,
+    histogram_iterator::visit_float_buckets_mut_with,
+    histogram_work::{HistogramEvaluationError, HistogramWork},
 };
 
 impl FloatHistogram {
     pub fn trim_buckets(&mut self, threshold: f64, upper_trim: bool) -> &mut Self {
         self.trim_buckets_with(threshold, upper_trim, None, HistogramWork::default())
-            .expect("inert histogram work")
+            .unwrap_or_else(|error| panic!("{}", error.arithmetic()))
     }
 
     pub(crate) fn trim_buckets_with(
@@ -19,7 +20,7 @@ impl FloatHistogram {
         upper_trim: bool,
         context: Option<&AllocationContext>,
         work: HistogramWork<'_>,
-    ) -> Result<&mut Self, Interrupted> {
+    ) -> Result<&mut Self, HistogramEvaluationError> {
         work.step(1)?;
         let custom = self.uses_custom_buckets();
         let mut count = 0.0;
@@ -74,7 +75,7 @@ impl FloatHistogram {
 
         if self.zero_count > 0.0 {
             let (keep, midpoint) = trim_zero_bucket(
-                self.zero_bucket(),
+                self.as_ref().zero_bucket_with(work)?,
                 threshold,
                 has_negative,
                 has_positive,

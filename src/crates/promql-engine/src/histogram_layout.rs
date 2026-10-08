@@ -124,16 +124,23 @@ impl<T: Copy> ReductionBuffer<T> for Copied<'_, T> {
     }
 }
 
-pub(crate) fn target_index(index: i32, origin: i32, target: i32) -> i32 {
+pub(crate) fn target_index_with(
+    index: i32,
+    origin: i32,
+    target: i32,
+    work: HistogramWork<'_>,
+) -> Result<i32, HistogramEvaluationError> {
     let shift = origin.wrapping_sub(target);
-    assert!(shift >= 0, "negative shift amount");
+    if shift < 0 {
+        return Err(work.source(format_args!("runtime error: negative shift amount"), true));
+    }
     let index = index.wrapping_sub(1);
     let shifted = if shift >= 32 {
         if index < 0 { -1 } else { 0 }
     } else {
         index >> shift
     };
-    shifted.wrapping_add(1)
+    Ok(shifted.wrapping_add(1))
 }
 
 fn reduce_float_layout(
@@ -166,7 +173,7 @@ fn reduce_float_layout(
                 }
                 .into());
             }
-            let target_index = target_index(index, origin, target);
+            let target_index = target_index_with(index, origin, target, work)?;
             let value = buckets.source(read_bucket);
             if written_spans == 0 {
                 spans.write(
@@ -237,7 +244,7 @@ pub(crate) fn reduce_float_in_place_with(
     target: i32,
     work: HistogramWork<'_>,
 ) -> Result<(), HistogramEvaluationError> {
-    // Keep arrays attached during unwinding; only returned errors assign nil outputs.
+    // Source panics never assign the upstream helper's nil return values.
     let result = reduce_float_layout(
         &mut Reused(spans.as_deref_mut().unwrap_or(&mut [])),
         &mut Reused(buckets.as_deref_mut().unwrap_or(&mut [])),
@@ -247,6 +254,7 @@ pub(crate) fn reduce_float_in_place_with(
     );
     let (span_count, bucket_count) = match result {
         Ok(counts) => counts,
+        Err(error @ HistogramEvaluationError::Source(_)) => return Err(error),
         Err(error) => {
             *spans = None;
             *buckets = None;
@@ -507,7 +515,7 @@ fn reduce_kahan_layout(
     origin: i32,
     target: i32,
     work: HistogramWork<'_>,
-) -> Result<(usize, usize), Interrupted> {
+) -> Result<(usize, usize), HistogramEvaluationError> {
     work.step(1)?;
     let (mut written_spans, mut written_buckets) = (0, 0);
     let (mut index, mut last_target): (i32, i32) = (0, 0);
@@ -518,7 +526,7 @@ fn reduce_kahan_layout(
         index = index.wrapping_add(span.offset);
         for _ in 0..span.length {
             work.step(1)?;
-            let target = target_index(index, origin, target);
+            let target = target_index_with(index, origin, target, work)?;
             if written_spans == 0 {
                 spans.write(
                     0,
@@ -588,7 +596,7 @@ pub(crate) fn reduce_kahan_in_place_with(
     origin: i32,
     target: i32,
     work: HistogramWork<'_>,
-) -> Result<(), Interrupted> {
+) -> Result<(), HistogramEvaluationError> {
     let (span_count, bucket_count) = reduce_kahan_layout(
         &mut Reused(spans.as_deref_mut().unwrap_or(&mut [])),
         &mut Reused(buckets.as_deref_mut().unwrap_or(&mut [])),
@@ -606,7 +614,7 @@ pub(crate) fn reduce_kahan_in_place_with(
     if let Some(values) = correction {
         values.truncate(bucket_count);
     }
-    work.step(1)
+    Ok(work.step(1)?)
 }
 
 struct ZeroCopied<'a> {
@@ -657,7 +665,7 @@ pub(crate) fn reduce_kahan_copy_with(
     target: i32,
     context: Option<&AllocationContext>,
     work: HistogramWork<'_>,
-) -> Result<ReducedKahan, Interrupted> {
+) -> Result<ReducedKahan, HistogramEvaluationError> {
     let mut spans = Copied {
         source: spans.unwrap_or(&[]),
         target: None,

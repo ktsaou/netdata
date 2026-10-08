@@ -27,6 +27,7 @@ fn execution_error(value: &ExecutionError) -> types::Error {
             | EvaluationError::Storage(StorageError::Interrupted(value)) => interrupted(*value),
             EvaluationError::Storage(StorageError::Provider(value)) => error(2, value),
             EvaluationError::Storage(StorageError::Invalid(value)) => error(4, value.as_bytes()),
+            EvaluationError::Storage(StorageError::Runtime { message, .. }) => error(6, message),
             EvaluationError::Preparation(value) => error(5, value),
             EvaluationError::Runtime(value)
             | EvaluationError::Regex(value)

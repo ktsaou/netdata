@@ -200,6 +200,21 @@ impl Replay {
             sample.time_ms >= bounds.start_ms && sample.time_ms <= bounds.end_ms
         }) && self.emitted.is_none_or(|time| sample.time_ms > time)
         {
+            // Ring CopyTo precedes the consumer; exact current points retain provider fields.
+            let value = match value {
+                SampleValueRef::FloatHistogram(mut histogram) if sample.time_ms < self.end_ms => {
+                    if histogram.schema == crate::histogram::CUSTOM_BUCKETS_SCHEMA {
+                        histogram.zero_threshold = 0.0;
+                        histogram.zero_count = 0.0;
+                        histogram.negative_spans = None;
+                        histogram.negative_buckets = None;
+                    } else {
+                        histogram.custom_values = None;
+                    }
+                    SampleValueRef::FloatHistogram(histogram)
+                }
+                value => value,
+            };
             visit(SampleRef { value, ..sample })?;
             self.emitted = Some(sample.time_ms);
         }
@@ -492,6 +507,109 @@ mod tests {
             resume: None,
         }
     }
+
+    #[test]
+    fn matrix_copy_phase_preserves_buffered_and_direct_native_fields() {
+        fn custom(index: usize) -> Sample {
+            Sample {
+                time_ms: [500, 2000][index],
+                start_time_ms: 0,
+                value: SampleValue::FloatHistogram(FloatHistogram {
+                    schema: crate::histogram::CUSTOM_BUCKETS_SCHEMA,
+                    zero_threshold: [0.001, 0.002][index],
+                    zero_count: 7.0 + index as f64,
+                    count: 1.0,
+                    sum: 1.0,
+                    custom_values: Some(vec![1.0].into()),
+                    positive_spans: Some(
+                        vec![Span {
+                            offset: 0,
+                            length: 1,
+                        }]
+                        .into(),
+                    ),
+                    positive_buckets: Some(vec![1.0].into()),
+                    negative_spans: Some(
+                        vec![Span {
+                            offset: 1,
+                            length: 1,
+                        }]
+                        .into(),
+                    ),
+                    negative_buckets: Some(vec![2.0].into()),
+                    ..FloatHistogram::default()
+                }),
+            }
+        }
+        fn exponential(index: usize) -> Sample {
+            let mut sample = custom(index);
+            let SampleValue::FloatHistogram(histogram) = &mut sample.value else {
+                unreachable!()
+            };
+            histogram.schema = 0;
+            sample
+        }
+        for page in [1, 17, 1024] {
+            for end_ms in [2000, 3000] {
+                for sample in [custom as fn(usize) -> Sample, exponential] {
+                    let source = GeneratedSeries::new(2, page, sample);
+                    let account = EngineAccounting::default().query();
+                    let physical = MatrixWindow {
+                        first_end_ms: 2000,
+                        end_ms,
+                        range_ms: 3000,
+                        step_ms: 1000,
+                        data_bounds: TimeBounds {
+                            start_ms: -999,
+                            end_ms,
+                        },
+                        ..window()
+                    };
+                    let mut count = 0;
+                    scan::<_, StorageError>(
+                        &source,
+                        TimeBounds {
+                            start_ms: 1,
+                            end_ms,
+                        },
+                        Some(physical),
+                        &Control::default(),
+                        &account,
+                        |sample| {
+                            let SampleValueRef::FloatHistogram(histogram) = sample.value else {
+                                panic!("native point")
+                            };
+                            let direct = sample.time_ms == 2000;
+                            if histogram.schema == crate::histogram::CUSTOM_BUCKETS_SCHEMA {
+                                assert_eq!(
+                                    histogram.zero_threshold,
+                                    if direct { 0.002 } else { 0.0 }
+                                );
+                                assert_eq!(histogram.zero_count, if direct { 8.0 } else { 0.0 });
+                                assert_eq!(histogram.negative_buckets.is_some(), direct);
+                                assert_eq!(histogram.custom_values, Some([1.0].as_slice()));
+                            } else {
+                                assert_eq!(
+                                    histogram.zero_threshold,
+                                    if direct { 0.002 } else { 0.001 }
+                                );
+                                assert_eq!(histogram.zero_count, if direct { 8.0 } else { 7.0 });
+                                assert!(histogram.negative_buckets.is_some());
+                                assert_eq!(histogram.custom_values.is_some(), direct);
+                            }
+                            count += 1;
+                            Ok(())
+                        },
+                    )
+                    .unwrap();
+                    assert_eq!(count, 2);
+                    assert_closed(&source, &account);
+                    assert_eq!(source.counters.peak.load(Ordering::Relaxed), 1);
+                }
+            }
+        }
+    }
+
     fn assert_closed(source: &GeneratedSeries, account: &QueryAccounting) {
         assert_eq!(
             source.counters.opened.load(Ordering::Relaxed),

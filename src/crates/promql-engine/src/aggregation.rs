@@ -8,10 +8,10 @@ use crate::{
     frontend::token as tokens,
     histogram::HistogramError,
     histogram_accumulator::{Finalization, NativeAccumulator},
-    histogram_work::HistogramEvaluationError,
+    histogram_work::{HistogramEvaluationError, HistogramWork},
     numerical::{compensated_add, source_add, source_div, source_mul, source_sub, sqrt},
     result::{OwnedLabels, OwnedValue},
-    storage::{Control, Interrupted},
+    storage::{Control, StorageError},
 };
 use tokens::TokenKind;
 
@@ -63,7 +63,7 @@ impl<'a> Group<'a> {
         drop_name: bool,
         control: &Control,
         account: &QueryAccounting,
-    ) -> Result<Option<AnnotationKind>, Interrupted> {
+    ) -> Result<Option<AnnotationKind>, StorageError> {
         use TokenKind::*;
         let (float, histogram) = match value {
             OwnedValue::Float(value) => (*value, None),
@@ -132,8 +132,13 @@ impl<'a> Group<'a> {
                                 self.incompatible = true;
                                 Ok(Some(AnnotationKind::MixedExponentialCustomHistograms))
                             }
-                            Err(HistogramEvaluationError::Arithmetic(error)) => panic!("{error}"),
-                            Err(HistogramEvaluationError::Interrupted(error)) => Err(error),
+                            Err(HistogramEvaluationError::Arithmetic(error)) => {
+                                Err(HistogramWork::new(control, account)
+                                    .source(format_args!("{error}"), false)
+                                    .into())
+                            }
+                            Err(HistogramEvaluationError::Interrupted(error)) => Err(error.into()),
+                            Err(HistogramEvaluationError::Source(error)) => Err(error),
                         };
                     }
                 } else {
@@ -198,7 +203,7 @@ impl<'a> Group<'a> {
         time_ms: i64,
         control: &Control,
         account: &QueryAccounting,
-    ) -> Result<(Option<EvaluatedSample>, Option<AnnotationKind>), Interrupted> {
+    ) -> Result<(Option<EvaluatedSample>, Option<AnnotationKind>), StorageError> {
         use TokenKind::*;
         if matches!(operator, SUM | AVG) {
             if self.has_float && self.has_histogram {
@@ -217,8 +222,13 @@ impl<'a> Group<'a> {
             let mut result = match native.finish(self.count, Finalization::Vector, control, account)
             {
                 Ok(result) => result,
-                Err(HistogramEvaluationError::Interrupted(error)) => return Err(error),
-                Err(HistogramEvaluationError::Arithmetic(error)) => panic!("{error}"),
+                Err(HistogramEvaluationError::Interrupted(error)) => return Err(error.into()),
+                Err(HistogramEvaluationError::Source(error)) => return Err(error),
+                Err(HistogramEvaluationError::Arithmetic(error)) => {
+                    return Err(HistogramWork::new(control, account)
+                        .source(format_args!("{error}"), false)
+                        .into());
+                }
             };
             result.value.compact_checked(control, account)?;
             (

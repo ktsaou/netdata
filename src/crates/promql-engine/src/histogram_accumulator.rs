@@ -135,6 +135,9 @@ impl NativeAccumulator {
             // Vector aggregation ignores final correction flags; range SUM retains them.
             match result {
                 Err(HistogramEvaluationError::Interrupted(error)) => return Err(error.into()),
+                Err(HistogramEvaluationError::Source(error)) => {
+                    return Err(HistogramEvaluationError::Source(error));
+                }
                 Err(error) if policy == Finalization::Range => return Err(error),
                 Ok(flags) if policy == Finalization::Range && !self.average => {
                     self.reconciled |= flags.nhcb_bounds_reconciled;

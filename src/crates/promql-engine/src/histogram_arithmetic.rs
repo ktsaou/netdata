@@ -69,14 +69,16 @@ impl FloatHistogram {
         mut correction: Option<&mut Self>,
         context: Option<&AllocationContext>,
         work: HistogramWork<'_>,
-    ) -> Result<(), Interrupted> {
+    ) -> Result<(), HistogramEvaluationError> {
         for positive in [true, false] {
             work.step(1)?;
             let mut count = 0;
             // Bounds are independent of counts; scan the borrowed prefix before zeroing it.
-            let mut iterator = self.bucket_iterator(positive, 0.0, self.schema);
+            let mut iterator =
+                self.as_ref()
+                    .bucket_iterator_with(positive, 0.0, self.schema, work)?;
             while iterator.advance_with(work)? {
-                let bucket = iterator.at();
+                let bucket = iterator.at_with(work)?;
                 if if positive {
                     bucket.lower >= self.zero_threshold
                 } else {
@@ -133,7 +135,7 @@ impl FloatHistogram {
         mut correction: Option<&mut Self>,
         context: Option<&AllocationContext>,
         work: HistogramWork<'_>,
-    ) -> Result<(f64, f64), Interrupted> {
+    ) -> Result<(f64, f64), HistogramEvaluationError> {
         let (mut count, mut threshold, mut comp) = (other.zero_count, other.zero_threshold, 0.0);
         while threshold != self.zero_threshold {
             work.step(1)?;
@@ -260,7 +262,7 @@ impl FloatHistogram {
                 other.schema,
                 work,
             )
-            .map_err(HistogramEvaluationError::panic_arithmetic)?;
+            .map_err(|error| error.source_arithmetic(work))?;
             reduce_float_in_place_with(
                 &mut self.negative_spans,
                 &mut self.negative_buckets,
@@ -268,7 +270,7 @@ impl FloatHistogram {
                 other.schema,
                 work,
             )
-            .map_err(HistogramEvaluationError::panic_arithmetic)?;
+            .map_err(|error| error.source_arithmetic(work))?;
             self.schema = other.schema;
         } else if other.schema > self.schema {
             positive = Some(
@@ -280,7 +282,7 @@ impl FloatHistogram {
                     context,
                     work,
                 )
-                .map_err(HistogramEvaluationError::panic_arithmetic)?,
+                .map_err(|error| error.source_arithmetic(work))?,
             );
             negative_layout = Some(
                 reduce_float_copy_with(
@@ -291,7 +293,7 @@ impl FloatHistogram {
                     context,
                     work,
                 )
-                .map_err(HistogramEvaluationError::panic_arithmetic)?,
+                .map_err(|error| error.source_arithmetic(work))?,
             );
         }
         let (pos_spans, pos_buckets) = positive.as_ref().map_or(
@@ -615,7 +617,7 @@ fn merge_buckets(
     other_correction: Option<&[f64]>,
     context: Option<&AllocationContext>,
     work: HistogramWork<'_>,
-) -> Result<(), Interrupted> {
+) -> Result<(), HistogramEvaluationError> {
     work.step(1)?;
     let (mut new_spans, mut new_buckets, mut new_correction) = (
         AccountedVec::new_in(context),
@@ -646,8 +648,15 @@ fn merge_buckets(
                     break 'process;
                 }
                 lower_than_threshold = false;
-                let mut value = buckets_b[bucket_b];
-                let mut comp = other_correction.map_or(0.0, |values| values[bucket_b]);
+                let mut value = *buckets_b
+                    .get(bucket_b)
+                    .ok_or_else(|| work.index_error(bucket_b as isize, buckets_b.len()))?;
+                let mut comp = match other_correction {
+                    Some(values) => *values
+                        .get(bucket_b)
+                        .ok_or_else(|| work.index_error(bucket_b as isize, values.len()))?,
+                    None => 0.0,
+                };
                 if negative {
                     value = source_neg(value);
                     comp = source_neg(comp);
@@ -695,10 +704,16 @@ fn merge_buckets(
                     if delta < remaining {
                         bucket_a = bucket_a.wrapping_add(delta as isize);
                         in_span = in_span.wrapping_add(delta);
+                        let bucket_length = buckets_a.len();
+                        let compensation_length = comp_a.len();
                         accumulate(
-                            &mut buckets_a[bucket_a as usize],
+                            buckets_a
+                                .get_mut(bucket_a as usize)
+                                .ok_or_else(|| work.index_error(bucket_a, bucket_length))?,
                             if paired {
-                                Some(&mut comp_a[bucket_a as usize])
+                                Some(comp_a.get_mut(bucket_a as usize).ok_or_else(|| {
+                                    work.index_error(bucket_a, compensation_length)
+                                })?)
                             } else {
                                 None
                             },
@@ -825,7 +840,7 @@ fn map_custom(
     negative: bool,
     context: Option<&AllocationContext>,
     work: HistogramWork<'_>,
-) -> Result<(), Interrupted> {
+) -> Result<(), HistogramEvaluationError> {
     let intersected = intersected.unwrap_or(&[]);
     let mut target = zeros_with(intersected.len() + 1, context, work)?;
     let mut comp_target = zeros_with(intersected.len() + 1, context, work)?;

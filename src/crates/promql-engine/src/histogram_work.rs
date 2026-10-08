@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 use crate::{
-    accounting::QueryAccounting,
+    accounting::{AccountedVec, QueryAccounting},
     histogram::HistogramError,
-    storage::{Control, Interrupted},
+    storage::{Control, Interrupted, StorageError},
 };
 
 #[derive(Clone, Copy, Default)]
@@ -26,12 +26,62 @@ impl<'a> HistogramWork<'a> {
         }
         Ok(())
     }
+    pub(crate) fn source(
+        self,
+        arguments: std::fmt::Arguments<'_>,
+        wrapped: bool,
+    ) -> HistogramEvaluationError {
+        let message = if wrapped && self.control.is_some() {
+            self.diagnostic(format_args!("unexpected error: {arguments}"))
+        } else {
+            self.diagnostic(arguments)
+        };
+        match message {
+            Ok(message) => {
+                HistogramEvaluationError::Source(StorageError::Runtime { wrapped, message })
+            }
+            Err(error) => error.into(),
+        }
+    }
+    pub(crate) fn index_error(self, index: isize, length: usize) -> HistogramEvaluationError {
+        if index < 0 {
+            self.source(
+                format_args!("runtime error: index out of range [{index}]"),
+                true,
+            )
+        } else {
+            self.source(
+                format_args!("runtime error: index out of range [{index}] with length {length}"),
+                true,
+            )
+        }
+    }
+    fn diagnostic(
+        self,
+        arguments: std::fmt::Arguments<'_>,
+    ) -> Result<AccountedVec<u8>, Interrupted> {
+        match (self.control, self.account) {
+            (Some(control), Some(account)) => {
+                crate::binary_labels::formatted(arguments, control, account)
+            }
+            (None, None) => {
+                use std::fmt::Write;
+                let mut message = AccountedVec::new_in(None);
+                message
+                    .write_fmt(arguments)
+                    .expect("inert diagnostic writer");
+                Ok(message)
+            }
+            _ => unreachable!("complete histogram work capability"),
+        }
+    }
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub(crate) enum HistogramEvaluationError {
     Arithmetic(HistogramError),
     Interrupted(Interrupted),
+    Source(StorageError),
 }
 impl From<HistogramError> for HistogramEvaluationError {
     fn from(error: HistogramError) -> Self {
@@ -44,9 +94,9 @@ impl From<Interrupted> for HistogramEvaluationError {
     }
 }
 impl HistogramEvaluationError {
-    pub(crate) fn panic_arithmetic(self) -> Self {
+    pub(crate) fn source_arithmetic(self, work: HistogramWork<'_>) -> Self {
         match self {
-            Self::Arithmetic(error) => panic!("{error}"),
+            Self::Arithmetic(error) => work.source(format_args!("{error}"), false),
             error => error,
         }
     }
@@ -54,6 +104,29 @@ impl HistogramEvaluationError {
         match self {
             Self::Arithmetic(error) => error,
             Self::Interrupted(_) => unreachable!("inert histogram operation"),
+            Self::Source(StorageError::Runtime { message, .. }) => {
+                panic!("{}", String::from_utf8_lossy(&message))
+            }
+            Self::Source(_) => unreachable!("native source runtime diagnostic"),
+        }
+    }
+}
+impl From<HistogramEvaluationError> for StorageError {
+    fn from(error: HistogramEvaluationError) -> Self {
+        match error {
+            HistogramEvaluationError::Source(error) => error,
+            HistogramEvaluationError::Interrupted(error) => error.into(),
+            HistogramEvaluationError::Arithmetic(error) => {
+                panic!("unhandled returned histogram error: {error}")
+            }
+        }
+    }
+}
+impl From<HistogramEvaluationError> for crate::evaluator::EvaluationError {
+    fn from(error: HistogramEvaluationError) -> Self {
+        match error {
+            HistogramEvaluationError::Interrupted(error) => error.into(),
+            error => StorageError::from(error).into(),
         }
     }
 }
@@ -114,7 +187,12 @@ mod tests {
                 HistogramWork::new(&control, &account),
             )
         });
-        assert_eq!(reset, Err(Interrupted::Cancelled));
+        assert_eq!(
+            reset,
+            Err(HistogramEvaluationError::Interrupted(
+                Interrupted::Cancelled
+            ))
+        );
         account.snapshot().assert_memory_released();
 
         let account = engine.query();
@@ -139,7 +217,7 @@ mod tests {
         let trim = interrupt_during(&account, &control, || {
             trimmed.trim_checked(f64::INFINITY, false, &control, &account)
         });
-        assert_eq!(trim, Err(Interrupted::Cancelled));
+        assert_eq!(trim, Err(StorageError::Interrupted(Interrupted::Cancelled)));
         drop(trimmed);
         account.snapshot().assert_memory_released();
 

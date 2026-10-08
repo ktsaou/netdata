@@ -110,6 +110,7 @@ pub(crate) fn evaluate(
                 ) {
                     Ok(result) => result,
                     Err(HistogramEvaluationError::Interrupted(error)) => return Err(error.into()),
+                    Err(HistogramEvaluationError::Source(error)) => return Err(error.into()),
                     Err(HistogramEvaluationError::Arithmetic(error)) => {
                         return Ok(Pair::invalid(
                             if error == HistogramError::IncompatibleSchema {
