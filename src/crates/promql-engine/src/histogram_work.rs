@@ -43,7 +43,7 @@ impl<'a> HistogramWork<'a> {
             Err(error) => error.into(),
         }
     }
-    pub(crate) fn index_error(self, index: isize, length: usize) -> HistogramEvaluationError {
+    pub(crate) fn index_error(self, index: i64, length: usize) -> HistogramEvaluationError {
         if index < 0 {
             self.source(
                 format_args!("runtime error: index out of range [{index}]"),

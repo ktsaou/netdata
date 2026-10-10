@@ -67,6 +67,16 @@ impl std::error::Error for HistogramError {}
 trait ReductionBuffer<T: Copy> {
     fn source_len(&self) -> usize;
     fn source(&self, index: usize) -> T;
+    fn source_checked(
+        &self,
+        index: usize,
+        work: HistogramWork<'_>,
+    ) -> Result<T, HistogramEvaluationError> {
+        if index >= self.source_len() {
+            return Err(work.index_error(index as i64, self.source_len()));
+        }
+        Ok(self.source(index))
+    }
     fn target(&self, index: usize) -> T;
     fn write(&mut self, index: usize, value: T, work: HistogramWork<'_>)
     -> Result<(), Interrupted>;
@@ -536,22 +546,22 @@ fn reduce_kahan_layout(
                     },
                     work,
                 )?;
-                buckets.write(0, buckets.source(read_bucket), work)?;
+                buckets.write(0, buckets.source_checked(read_bucket, work)?, work)?;
                 last_target = target;
-                correction.write(0, correction.source(read_bucket), work)?;
+                correction.write(0, correction.source_checked(read_bucket, work)?, work)?;
                 written_spans = 1;
                 written_buckets = 1;
             } else if last_target == target {
                 let last = written_buckets - 1;
                 let (sum, comp) = compensated_add(
-                    buckets.source(read_bucket),
+                    buckets.source_checked(read_bucket, work)?,
                     buckets.target(last),
                     correction.target(last),
                 );
                 buckets.write(last, sum, work)?;
                 correction.write(last, comp, work)?;
                 let (sum, comp) = compensated_add(
-                    correction.source(read_bucket),
+                    correction.source_checked(read_bucket, work)?,
                     buckets.target(last),
                     correction.target(last),
                 );
@@ -563,8 +573,16 @@ fn reduce_kahan_layout(
                 span.length = span.length.wrapping_add(1);
                 spans.write(last, span, work)?;
                 last_target = last_target.wrapping_add(1);
-                buckets.write(written_buckets, buckets.source(read_bucket), work)?;
-                correction.write(written_buckets, correction.source(read_bucket), work)?;
+                buckets.write(
+                    written_buckets,
+                    buckets.source_checked(read_bucket, work)?,
+                    work,
+                )?;
+                correction.write(
+                    written_buckets,
+                    correction.source_checked(read_bucket, work)?,
+                    work,
+                )?;
                 written_buckets += 1;
             } else if last_target.wrapping_add(1) < target {
                 spans.write(
@@ -577,8 +595,16 @@ fn reduce_kahan_layout(
                 )?;
                 written_spans += 1;
                 last_target = target;
-                buckets.write(written_buckets, buckets.source(read_bucket), work)?;
-                correction.write(written_buckets, correction.source(read_bucket), work)?;
+                buckets.write(
+                    written_buckets,
+                    buckets.source_checked(read_bucket, work)?,
+                    work,
+                )?;
+                correction.write(
+                    written_buckets,
+                    correction.source_checked(read_bucket, work)?,
+                    work,
+                )?;
                 written_buckets += 1;
             }
             index = index.wrapping_add(1);

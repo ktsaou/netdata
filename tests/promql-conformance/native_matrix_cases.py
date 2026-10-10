@@ -1175,6 +1175,102 @@ def _instant_copy():
     return rows
 
 
+def _native_recovery():
+    """Declare reached reads independently of source and candidate outcomes."""
+    rows = []
+
+    def histogram(variant):
+        value = {
+            "reset_hint": 0,
+            "schema": 0,
+            "zero_threshold": bits(0.0),
+            "zero_count": bits(0.0),
+            "count": bits(1.0),
+            "sum": bits(1.0),
+            "positive_spans": [{"offset": 0, "length": 1}],
+            "positive_buckets": [bits(1.0)],
+            "negative_spans": None,
+            "negative_buckets": None,
+            "custom_values": None,
+        }
+        if variant == "short-high":
+            value.update(schema=1, positive_spans=[{"offset": 0, "length": 2}])
+        elif variant == "empty":
+            value["positive_buckets"] = []
+        elif variant.startswith("custom"):
+            value.update(schema=-53, custom_values=[bits(1.0)])
+            if variant == "custom-negative":
+                value["positive_spans"][0]["offset"] = -1
+            elif variant == "custom-wide":
+                value["positive_spans"] = [
+                    {"offset": -(1 << 31), "length": 0},
+                    {"offset": -(1 << 31), "length": 1},
+                ]
+            elif variant == "custom-other":
+                value["custom_values"] = [bits(2.0)]
+        return value
+
+    def record(labels, points):
+        result = series(labels, [(time, 1.0, "float_histogram") for time, _ in points])
+        for point, (_, variant) in zip(result["points"], points, strict=True):
+            point["float_histogram"] = histogram(variant)
+        return result
+
+    def add(family, query, records, modes=("instant", "range")):
+        for profile in ("server-default", "upstream-tests"):
+            for mode in modes:
+                rows.append(
+                    {
+                        "request": {
+                            "id": f"native-recovery-{len(rows):04d}-{family}-{profile}-{mode}",
+                            "query": query,
+                            "profile": profile,
+                            "mode": mode,
+                            "time_ms": 2000,
+                            "start_ms": 2000,
+                            "end_ms": 3000,
+                            "step_ms": 1000,
+                            "lookback_ms": 1000,
+                            "subquery_step_ms": 500,
+                        },
+                        "dataset": {"schema_version": 1, "series": deepcopy(records)},
+                        "faults": {},
+                    }
+                )
+
+    pairs = {
+        "lowering": ("short-high", "ordinary"),
+        "raising": ("ordinary", "short-high"),
+        "custom-negative": ("custom-negative", "custom-other"),
+        "custom-wide": ("custom-wide", "custom-other"),
+        "empty-receiver": ("empty", "ordinary"),
+    }
+    for family, (first, second) in pairs.items():
+        records = [record({"__name__": "h"}, [(500, first), (1500, second)])]
+        for query in (
+            "sum_over_time(h[2s])",
+            "avg_over_time(h[2s])",
+            "histogram_count(sum_over_time(h[2s]))",
+        ):
+            add("range-" + family, query, records)
+    for family in ("custom-negative", "custom-wide", "empty-receiver"):
+        first, second = pairs[family]
+        records = [
+            record({"__name__": "h"}, [(2000, first)]),
+            record({"__name__": "g"}, [(2000, second)]),
+        ]
+        for query in ("h+g", "h-g", "histogram_count(h+g)"):
+            add("binary-" + family, query, records)
+    for family, (first, second) in pairs.items():
+        records = [
+            record({"__name__": "h", "id": "0"}, [(2000, first)]),
+            record({"__name__": "h", "id": "1"}, [(2000, second)]),
+        ]
+        for query in ("sum(h)", "avg(h)", "histogram_count(sum(h))"):
+            add("aggregate-" + family, query, records, ("instant",))
+    return rows
+
+
 _BUILDERS = {
     "unvisited-primary": _primary,
     "unvisited-supplement": _unvisited_supplement,
@@ -1184,6 +1280,7 @@ _BUILDERS = {
     "native-notes": _native_notes,
     "matrix-copy": _matrix_copy,
     "instant-copy": _instant_copy,
+    "native-recovery": _native_recovery,
 }
 
 _INPUTS = {
@@ -1218,6 +1315,10 @@ _INPUTS = {
     "instant-copy": (
         8,
         "98699e78eead7a4b3e2f8300e73a51213f5da8f77154c940841ffc3699635120",
+    ),
+    "native-recovery": (
+        126,
+        "31e38d0726a8b43948ebe7015be6fa1dff036642d352c8bd23634152f3ff19e5",
     ),
 }
 

@@ -650,11 +650,11 @@ fn merge_buckets(
                 lower_than_threshold = false;
                 let mut value = *buckets_b
                     .get(bucket_b)
-                    .ok_or_else(|| work.index_error(bucket_b as isize, buckets_b.len()))?;
+                    .ok_or_else(|| work.index_error(bucket_b as i64, buckets_b.len()))?;
                 let mut comp = match other_correction {
                     Some(values) => *values
                         .get(bucket_b)
-                        .ok_or_else(|| work.index_error(bucket_b as isize, values.len()))?,
+                        .ok_or_else(|| work.index_error(bucket_b as i64, values.len()))?,
                     None => 0.0,
                 };
                 if negative {
@@ -686,9 +686,21 @@ fn merge_buckets(
                         }
                         break 'process;
                     } else if spans_a[0].offset == index_b {
+                        let bucket_length = buckets_a.len();
+                        let compensation_length = comp_a.len();
                         accumulate(
-                            &mut buckets_a[0],
-                            if paired { Some(&mut comp_a[0]) } else { None },
+                            buckets_a
+                                .get_mut(0)
+                                .ok_or_else(|| work.index_error(0, bucket_length))?,
+                            if paired {
+                                Some(
+                                    comp_a
+                                        .get_mut(0)
+                                        .ok_or_else(|| work.index_error(0, compensation_length))?,
+                                )
+                            } else {
+                                None
+                            },
                             value,
                             comp,
                         );
@@ -709,10 +721,10 @@ fn merge_buckets(
                         accumulate(
                             buckets_a
                                 .get_mut(bucket_a as usize)
-                                .ok_or_else(|| work.index_error(bucket_a, bucket_length))?,
+                                .ok_or_else(|| work.index_error(bucket_a as i64, bucket_length))?,
                             if paired {
                                 Some(comp_a.get_mut(bucket_a as usize).ok_or_else(|| {
-                                    work.index_error(bucket_a, compensation_length)
+                                    work.index_error(bucket_a as i64, compensation_length)
                                 })?)
                             } else {
                                 None
@@ -870,6 +882,9 @@ fn map_custom(
                 if bucket_index < source_buckets.len() {
                     let mut target_index = target.len() - 1;
                     if source_index < bounds.len() as i64 {
+                        if source_index < 0 {
+                            return Err(work.index_error(source_index, bounds.len()));
+                        }
                         let bound = bounds[source_index as usize];
                         while intersect_index < intersected.len() {
                             work.step(1)?;
@@ -889,7 +904,9 @@ fn map_custom(
                             compensated_add(value, target[target_index], comp_target[target_index]);
                         if with_comp && let Some(comp) = comp_buckets {
                             (target[target_index], comp_target[target_index]) = compensated_add(
-                                comp[bucket_index],
+                                *comp.get(bucket_index).ok_or_else(|| {
+                                    work.index_error(bucket_index as i64, comp.len())
+                                })?,
                                 target[target_index],
                                 comp_target[target_index],
                             );
