@@ -10593,6 +10593,232 @@ mod tests {
     }
 
     #[test]
+    fn native_index_failures_preserve_source_diagnostics_across_query_recovery() {
+        use crate::{
+            histogram::{CUSTOM_BUCKETS_SCHEMA, FloatHistogram, Span},
+            value::{Sample, SampleValue},
+        };
+        fn point(index: usize) -> Sample {
+            Sample {
+                time_ms: [500, 1500][index],
+                start_time_ms: 0,
+                value: SampleValue::FloatHistogram(FloatHistogram {
+                    count: 1.0,
+                    sum: 1.0,
+                    positive_spans: Some(
+                        vec![Span {
+                            offset: 0,
+                            length: 1,
+                        }]
+                        .into(),
+                    ),
+                    positive_buckets: Some(vec![1.0].into()),
+                    ..FloatHistogram::default()
+                }),
+            }
+        }
+        fn lowering(index: usize) -> Sample {
+            let mut sample = point(index);
+            let SampleValue::FloatHistogram(histogram) = &mut sample.value else {
+                unreachable!()
+            };
+            if index == 0 {
+                histogram.schema = 1;
+                histogram.positive_spans.as_mut().unwrap()[0].length = 2;
+            }
+            sample
+        }
+        fn raising(index: usize) -> Sample {
+            let mut sample = lowering(1 - index);
+            sample.time_ms = [500, 1500][index];
+            sample
+        }
+        fn custom(index: usize) -> Sample {
+            let mut sample = point(index);
+            let SampleValue::FloatHistogram(histogram) = &mut sample.value else {
+                unreachable!()
+            };
+            histogram.schema = CUSTOM_BUCKETS_SCHEMA;
+            histogram.custom_values = Some(vec![1.0 + index as f64].into());
+            if index == 0 {
+                histogram.positive_spans.as_mut().unwrap()[0].offset = -1;
+            }
+            sample
+        }
+        fn wide_custom(index: usize) -> Sample {
+            let mut sample = custom(index);
+            if index == 0 {
+                let SampleValue::FloatHistogram(histogram) = &mut sample.value else {
+                    unreachable!()
+                };
+                histogram.positive_spans = Some(
+                    vec![
+                        Span {
+                            offset: i32::MIN,
+                            length: 0,
+                        },
+                        Span {
+                            offset: i32::MIN,
+                            length: 1,
+                        },
+                    ]
+                    .into(),
+                );
+            }
+            sample
+        }
+        fn empty_receiver(index: usize) -> Sample {
+            let mut sample = point(index);
+            if index == 0 {
+                let SampleValue::FloatHistogram(histogram) = &mut sample.value else {
+                    unreachable!()
+                };
+                histogram.positive_buckets = Some(Vec::new().into());
+            }
+            sample
+        }
+        fn custom_left(_: usize) -> Sample {
+            let mut sample = custom(0);
+            sample.time_ms = 2000;
+            sample
+        }
+        fn custom_right(_: usize) -> Sample {
+            let mut sample = custom(1);
+            sample.time_ms = 2000;
+            sample
+        }
+        fn wide_left(_: usize) -> Sample {
+            let mut sample = wide_custom(0);
+            sample.time_ms = 2000;
+            sample
+        }
+        fn empty_left(_: usize) -> Sample {
+            let mut sample = empty_receiver(0);
+            sample.time_ms = 2000;
+            sample
+        }
+        fn ordinary_right(_: usize) -> Sample {
+            let mut sample = point(1);
+            sample.time_ms = 2000;
+            sample
+        }
+        let mut failures = Vec::new();
+        for page in [1, 17, 1024] {
+            for (samples, expected) in [
+                (
+                    lowering as fn(usize) -> Sample,
+                    "unexpected error: runtime error: index out of range [1] with length 1",
+                ),
+                (
+                    raising,
+                    "unexpected error: runtime error: index out of range [1] with length 1",
+                ),
+                (
+                    custom,
+                    "unexpected error: runtime error: index out of range [-1]",
+                ),
+                (
+                    wide_custom,
+                    "unexpected error: runtime error: index out of range [-4294967296]",
+                ),
+                (
+                    empty_receiver,
+                    "unexpected error: runtime error: index out of range [0] with length 0",
+                ),
+            ] {
+                for function in ["sum_over_time", "avg_over_time"] {
+                    for request in [
+                        QueryRequest::Instant { time_ms: 2000 },
+                        QueryRequest::Range {
+                            start_ms: 2000,
+                            end_ms: 3000,
+                            step_ms: 1000,
+                        },
+                    ] {
+                        let engine = Engine::default();
+                        let control = Control::default();
+                        let mut provider = FixtureProvider::new(2, page, 1);
+                        provider.series[0].source.sample = samples;
+                        let expression = format!("{function}(counter_total[2s])");
+                        let query = engine
+                            .compile(expression.as_bytes(), options(true), &control)
+                            .unwrap();
+                        let report = query.collect_reported(&provider, request, &control);
+                        if !matches!(&report.result,
+                            Err(ExecutionError::Evaluation(EvaluationError::WrappedRuntime(bytes)))
+                            if &**bytes == expected.as_bytes())
+                        {
+                            failures.push(format!(
+                                "{expression}, page{page}, {request:?}: {:?}",
+                                report.result
+                            ));
+                        }
+                        assert!(report.annotations.is_empty());
+                        provider.assert_closed();
+                        drop((report, query, provider));
+                        engine.accounting.snapshot().assert_memory_released();
+                    }
+                }
+            }
+            for (left, right, expected) in [
+                (
+                    custom_left as fn(usize) -> Sample,
+                    custom_right as fn(usize) -> Sample,
+                    "unexpected error: runtime error: index out of range [-1]",
+                ),
+                (
+                    wide_left,
+                    custom_right,
+                    "unexpected error: runtime error: index out of range [-4294967296]",
+                ),
+                (
+                    empty_left,
+                    ordinary_right,
+                    "unexpected error: runtime error: index out of range [0] with length 0",
+                ),
+            ] {
+                for operator in ["+", "-"] {
+                    let engine = Engine::default();
+                    let control = Control::default();
+                    let mut provider = FixtureProvider::new(1, page, 2);
+                    for ((series, name), sample) in provider
+                        .series
+                        .iter_mut()
+                        .zip([b"h", b"g"])
+                        .zip([left, right])
+                    {
+                        series.labels = vec![(b"__name__".to_vec(), name.to_vec())];
+                        series.source.sample = sample;
+                    }
+                    let expression = format!("h {operator} g");
+                    let query = engine
+                        .compile(expression.as_bytes(), options(true), &control)
+                        .unwrap();
+                    let report = query.collect_reported(
+                        &provider,
+                        QueryRequest::Instant { time_ms: 2000 },
+                        &control,
+                    );
+                    if !matches!(&report.result,
+                        Err(ExecutionError::Evaluation(EvaluationError::WrappedRuntime(bytes)))
+                        if &**bytes == expected.as_bytes())
+                    {
+                        failures.push(format!("{expression}, page{page}: {:?}", report.result));
+                    }
+                    assert!(report.annotations.is_empty());
+                    provider.assert_closed();
+                    drop((report, query, provider));
+                    engine.accounting.snapshot().assert_memory_released();
+                }
+            }
+        }
+        assert!(
+            failures.is_empty(),
+            "source diagnostic differences: {failures:#?}"
+        );
+    }
+
+    #[test]
     fn native_range_diagnostics_keep_original_hints_and_source_precedence() {
         use crate::{
             annotations::{AnnotationKind, HistogramOperation},

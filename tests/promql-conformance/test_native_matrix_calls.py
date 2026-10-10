@@ -76,12 +76,14 @@ class NativeSourceContractTests(unittest.TestCase):
             "native-notes": 17,
             "matrix-copy": 39,
             "instant-copy": 8,
+            "native-recovery": 126,
         }
         self.assertEqual(set(PANELS), set(counts))
         for panel, count in counts.items():
             with self.subTest(panel=panel):
                 self.assertEqual(len(cases(panel)), count)
-        self.assertEqual(sum(counts.values()), 3103)
+        self.assertEqual(sum(counts.values()), 3229)
+        self.assertEqual(sum(counts.values()) - counts["native-recovery"], 3103)
 
     def test_exact_source_contract_preserves_all_four_malformed_payloads(self):
         self.assertEqual(exact_trim_results(), self.trim)

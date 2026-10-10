@@ -26,12 +26,15 @@ Retained native qualification covers:
 - 19,214 canonical arithmetic checks, bounded cursor/progress controls, actual C/C++ embedding and focused work-driven
   cancellation/panic cleanup. Precise engine/foreign ownership and estimated regex dependency memory retain their
   declared accounting contracts. Enforcement remains disabled.
-- All 3,103 parenthesized-matrix and native-operation controls in both builds at page sizes 1/17/1024:
-  18,618 complete outcomes, with no unsupported result, mismatch or paired numerical bit difference in that panel.
+- All 3,229 parenthesized-matrix and native-operation controls in both builds at page sizes 1/17/1024:
+  19,374 complete outcomes, with no unsupported result, mismatch or paired numerical bit difference in that panel.
 
 Complete-language acceptance remains in progress. The supplementary temporal panel has 2,002 exact matches and
 150 open outcomes: mixed histories longer than twelve floats still need the original sort's NaN payload and
 signed-zero provenance. That is a required implementation remainder, not a compatibility exception.
+The selected completion design uses a provider-owned paged temporary float-value store and the literal upstream
+sort, keeping resident pages bounded. Its storage interface and backing policy are still being designed; the
+temporary store is not implemented yet.
 Parenthesized matrix arguments inside unvisited scalar aggregation parameters now follow the source's generic
 function path, including its successful results and distinct errors. Foreign Rust execution, dbengine/API
 integration, alert scheduling and Cloud distribution are separate stages; Alertmanager is outside this work.
@@ -53,6 +56,9 @@ Query recovery retains the original plain/wrapped error class and discards incom
 The C boundary reports the existing evaluation status/error kind; unexpected Rust panics retain internal-error
 containment. Standalone histogram helpers preserve their original raw panic messages. Native kernel probes retain
 empty-versus-absent spans; only the query fixture codec applies the original query oracle's empty-span projection.
+Checked reads include Kahan schema reduction, the first equal-offset receiving bucket and custom-bound
+intersection. Guards run at the reached access, preserving preceding source operations and skipped buckets.
+Custom-bound diagnostics retain signed 64-bit indices, including `[-4294967296]`, under the AMD64 contract.
 
 Native acquisition also distinguishes buffered `CopyTo` from the exact current point's borrowed `At` result.
 The buffered path clears custom-schema zero/negative fields or exponential-schema custom bounds at the source copy
@@ -72,6 +78,7 @@ The independently declared panels are:
 | `native-notes` | 17 | COUNT/native error and diagnostic composition |
 | `matrix-copy` | 39 | Buffered versus exact-point native acquisition |
 | `instant-copy` | 8 | Instant-rate retained-pointer fields |
+| `native-recovery` | 126 | Receiving/copied reduction, early merge, custom-bound errors and skipped reads |
 
 `native_matrix_cases.py` checks each complete input roster against its canonical digest. The primary generator
 remains in `unvisited_matrix_cases.py`; its CLI delegates to the shared multi-panel workflow. Reference capture and
@@ -1691,8 +1698,11 @@ python tests/promql-conformance/c_embedding.py --sanitizers --abort-check
 ```
 
 Use the configured development Python environment. The driver uses installed GCC/Clang and Cargo offline; it creates
-private `.tmp/c-embedding-*` evidence containing commands, source hashes, layouts, binaries and witness output. Both
-unwind profiles compare all 50 declared structures/unions, 12 callback aliases and 33 shared constants between Rust,
+private `.tmp/c-embedding-*` evidence containing commands, source hashes, layouts, binaries and witness output.
+Process identities and ordinary completion are retained without an automatic process-killing deadline. Static
+archives and the Rust layout dependency roster are hashed before and after their consuming commands and included
+in the evidence manifest. Both unwind profiles compare all 50 declared structures/unions, 12 callback aliases and
+33 shared constants between Rust,
 C11 and C++17, and check header/archive exports. The real foreign callers exercise arithmetic, repeated paging,
 resource conservation, independent results, opaque errors, output delivery and cancellation/error precedence.
 ASan/UBSan instrument the C caller; the Rust core is exercised separately under Miri. `panic=abort` must fail the
