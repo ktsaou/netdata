@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Sorting derives from Go 1.27.1 sort/{sort,zsortinterface}.go; see NOTICE.
-use crate::go_sort_program::{Operation, Program};
+use crate::go_sort_program::{Operation, Program, physical_index};
 use std::{cmp::Ordering, convert::Infallible};
 
 pub(crate) fn sort_by<T, F: Fn(&T, &T) -> Ordering>(data: &mut [T], compare: F) {
@@ -20,7 +20,12 @@ pub(crate) fn try_sort_by_with<T, E>(
     mut compare: impl FnMut(&T, &T) -> Result<Ordering, E>,
     mut poll: impl FnMut() -> Result<(), E>,
 ) -> Result<(), E> {
-    run_program(data, Program::sort(data.len()), &mut compare, &mut poll)
+    run_program(
+        data,
+        Program::sort(data.len() as u64),
+        &mut compare,
+        &mut poll,
+    )
 }
 
 fn run_program<T, E>(
@@ -34,8 +39,14 @@ fn run_program<T, E>(
         poll()?;
         match program.next(reply.take()) {
             Operation::Step => (),
-            Operation::Less(a, b) => reply = Some(compare(&data[a], &data[b])?.is_lt()),
-            Operation::Swap(a, b) => data.swap(a, b),
+            Operation::Less(a, b) => {
+                let (a, b) = (physical_index(a, data.len()), physical_index(b, data.len()));
+                reply = Some(compare(&data[a], &data[b])?.is_lt());
+            }
+            Operation::Swap(a, b) => {
+                let (a, b) = (physical_index(a, data.len()), physical_index(b, data.len()));
+                data.swap(a, b);
+            }
             Operation::Done => return Ok(()),
         }
     }
@@ -95,12 +106,14 @@ pub fn selection_order_fixture(
             data: &mut [(u64, usize)],
             bottom: bool,
             reverse: bool,
-        ) -> Option<Vec<usize>> {
+        ) -> Option<Vec<u64>> {
             let mut reply = None;
             loop {
                 match program.next(reply.take()) {
                     Operation::Step => (),
-                    Operation::Less(mut a, mut b) => {
+                    Operation::Less(a, b) => {
+                        let (mut a, mut b) =
+                            (physical_index(a, data.len()), physical_index(b, data.len()));
                         if reverse {
                             std::mem::swap(&mut a, &mut b);
                         }
@@ -110,6 +123,7 @@ pub fn selection_order_fixture(
                         reply = Some(a.is_nan() || if bottom { a > b } else { a < b });
                     }
                     Operation::Swap(a, b) => {
+                        let (a, b) = (physical_index(a, data.len()), physical_index(b, data.len()));
                         self.swaps += 1;
                         self.record(2, data[a].1, data[b].1);
                         data.swap(a, b);
@@ -155,7 +169,12 @@ pub fn selection_order_fixture(
             let input = std::mem::take(&mut data);
             for item in input {
                 data.push(item);
-                trace.drive(Program::heap_push(data.len()), &mut data, bottom, false);
+                trace.drive(
+                    Program::heap_push(data.len() as u64),
+                    &mut data,
+                    bottom,
+                    false,
+                );
             }
             if action == "fix" {
                 let index = request["index"]
@@ -164,11 +183,16 @@ pub fn selection_order_fixture(
                     .filter(|index| *index < length)
                     .ok_or("invalid heap Fix index")?;
                 data[index].0 = bits(&request["replacement"])?;
-                trace.drive(Program::heap_fix(index, length), &mut data, bottom, false);
+                trace.drive(
+                    Program::heap_fix(index as u64, length as u64),
+                    &mut data,
+                    bottom,
+                    false,
+                );
             }
             None
         }
-        "sort" => trace.drive(Program::sort(length), &mut data, bottom, reverse),
+        "sort" => trace.drive(Program::sort(length as u64), &mut data, bottom, reverse),
         "insertion" | "partial" | "heap" | "pivot" | "reverse" | "patterns" | "partition"
         | "equal" => {
             if length == 0 {
@@ -184,7 +208,7 @@ pub fn selection_order_fixture(
                 0
             };
             trace.drive(
-                Program::phase(action, length, pivot),
+                Program::phase(action, length as u64, pivot as u64),
                 &mut data,
                 bottom,
                 reverse,

@@ -12,7 +12,7 @@ use crate::{
         ast::{Expr, NodeId, ParsedExpression},
         token::TokenKind,
     },
-    go_sort_program::{Operation, Program},
+    go_sort_program::{Operation, Program, physical_index},
     label_hash, numerical,
     result::OwnedValue,
     shared::Strong,
@@ -665,7 +665,7 @@ impl<'a> Step<'a> {
                         let heap = &mut self.heaps[group].indices;
                         if heap.len() < self.k {
                             heap.push(self.input);
-                            let program = Program::heap_push(heap.len());
+                            let program = Program::heap_push(heap.len() as u64);
                             self.input += 1;
                             self.start_program(program, group, Resume::Scan);
                         } else if self.native() {
@@ -695,7 +695,7 @@ impl<'a> Step<'a> {
                 self.input += 1;
                 if replace && self.k > 1 {
                     self.start_program(
-                        Program::heap_fix(0, self.heaps[self.group].indices.len()),
+                        Program::heap_fix(0, self.heaps[self.group].indices.len() as u64),
                         self.group,
                         Resume::Scan,
                     );
@@ -737,10 +737,19 @@ impl<'a> Step<'a> {
                 {
                     Operation::Step => (),
                     Operation::Swap(left, right) => {
-                        self.heaps[self.group].indices.swap(left, right)
+                        let heap = &mut self.heaps[self.group].indices;
+                        let (left, right) = (
+                            physical_index(left, heap.len()),
+                            physical_index(right, heap.len()),
+                        );
+                        heap.swap(left, right);
                     }
                     Operation::Less(left, right) => {
                         let heap = &self.heaps[self.group].indices;
+                        let (left, right) = (
+                            physical_index(left, heap.len()),
+                            physical_index(right, heap.len()),
+                        );
                         let mut inputs = [heap[left], heap[right]];
                         if matches!(self.resume, Resume::Sort) {
                             inputs.swap(0, 1);
@@ -768,7 +777,7 @@ impl<'a> Step<'a> {
                     self.publish(control, account)?;
                 } else if self.heaps[self.group].indices.len() > 1 {
                     self.start_program(
-                        Program::sort(self.heaps[self.group].indices.len()),
+                        Program::sort(self.heaps[self.group].indices.len() as u64),
                         self.group,
                         Resume::Sort,
                     );

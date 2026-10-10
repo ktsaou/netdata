@@ -7,7 +7,7 @@ use crate::{
     evaluator::{EvaluatedSample, EvaluationError, EvaluationOptions},
     evaluator_roster::{Descriptor, GroupDescriptor, group_key},
     frontend::ast::{Expr, NodeId, ParsedExpression},
-    go_sort_program::{Operation, Program},
+    go_sort_program::{Operation, Program, physical_index},
     label_hash,
     numerical::{floor, source_add, source_mul},
     result::OwnedValue,
@@ -367,7 +367,8 @@ impl<'a> Step<'a> {
                 {
                     self.publish(control, account)?;
                 } else if self.groups[self.group].indices.len() > 1 {
-                    self.program = Some(Program::sort(self.groups[self.group].indices.len()));
+                    self.program =
+                        Some(Program::sort(self.groups[self.group].indices.len() as u64));
                     self.stage = Stage::Program;
                 } else {
                     self.group += 1;
@@ -399,10 +400,19 @@ impl<'a> Step<'a> {
                 {
                     Operation::Step => (),
                     Operation::Swap(left, right) => {
-                        self.groups[self.group].indices.swap(left, right)
+                        let indices = &mut self.groups[self.group].indices;
+                        let (left, right) = (
+                            physical_index(left, indices.len()),
+                            physical_index(right, indices.len()),
+                        );
+                        indices.swap(left, right);
                     }
                     Operation::Less(left, right) => {
                         let indices = &self.groups[self.group].indices;
+                        let (left, right) = (
+                            physical_index(left, indices.len()),
+                            physical_index(right, indices.len()),
+                        );
                         self.comparison = Some(Comparison {
                             inputs: [indices[left], indices[right]],
                             values: [0.0; 2],

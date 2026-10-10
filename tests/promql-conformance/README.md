@@ -849,6 +849,19 @@ an expired deadline precedes comparisons, and a 100,000-reference pollable sort 
 The fixtures-only transport requires the common `borrowed` Boolean even though this mode holds no sample values.
 This gate qualifies metadata sorting; grouped histogram expression dispatch remains required.
 
+The shared sort/heap controller uses `u64` logical addresses and canonical 64-bit pattern masks with 67 fixed
+frames. Physical metadata ordinals remain `usize`; each controller comparison and swap checks conversion and
+the physical buffer boundary before access. Boxed reducer state is charged at its actual allocation size.
+The controller can therefore address a paged logical window without constructing its whole-length array.
+The temporary backing store is still pending; this prerequisite supplies its controller, not its storage.
+
+Nine virtual controls captured from unchanged Go 1.27.1 AMD64 sort/heap helpers cover `Fix` at four lengths,
+`choosePivot`, three `breakPatterns` masks and `Push`. Exact captured comparisons, swaps and helper returns
+are retained in `go_sort_program` unit tests. Their declared lengths include `2^32 + 5`, `2^40 + 5` and
+`2^60 + 5`; they retain at most 33 value exceptions and perform at most 64 comparisons/swaps. These controls
+qualify logical addressing and pattern masks. They do not measure a complete sort of billions of samples or
+qualify a foreign Rust build. Original Go owner hashes remain the same as the interface/heap capture above.
+
 ## Required SRE expression sources
 
 The source-pinned extractor reads Git objects without changing the repository mirrors:
