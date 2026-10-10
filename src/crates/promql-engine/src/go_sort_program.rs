@@ -4,9 +4,15 @@
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) enum Operation {
     Step,
-    Less(usize, usize),
-    Swap(usize, usize),
+    Less(u64, u64),
+    Swap(u64, u64),
     Done,
+}
+
+pub(crate) fn physical_index(index: u64, length: usize) -> usize {
+    let index = usize::try_from(index).expect("sort index exceeds physical address width");
+    assert!(index < length, "sort index exceeds physical buffer");
+    index
 }
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 enum Hint {
@@ -18,95 +24,95 @@ enum Hint {
 enum Return {
     Unit,
     Boolean(bool),
-    Index(usize),
-    Partition(usize, bool),
-    Pivot(usize, Hint),
-    Median(usize, usize),
+    Index(u64),
+    Partition(u64, bool),
+    Pivot(u64, Hint),
+    Median(u64, usize),
 }
 #[derive(Clone, Copy)]
 struct Pdq {
-    a: usize,
-    b: usize,
+    a: u64,
+    b: u64,
     limit: u32,
     balanced: bool,
     partitioned: bool,
-    pivot: usize,
+    pivot: u64,
     hint: Hint,
     phase: u8,
 }
 #[derive(Clone, Copy)]
 struct Insertion {
-    a: usize,
-    b: usize,
-    i: usize,
-    j: usize,
+    a: u64,
+    b: u64,
+    i: u64,
+    j: u64,
     waiting: bool,
 }
 #[derive(Clone, Copy)]
 struct Partition {
-    a: usize,
-    pivot: usize,
-    i: usize,
-    j: usize,
+    a: u64,
+    pivot: u64,
+    i: u64,
+    j: u64,
     equal: bool,
     untouched: bool,
     phase: u8,
 }
 #[derive(Clone, Copy)]
 struct Partial {
-    a: usize,
-    b: usize,
-    i: usize,
-    j: usize,
+    a: u64,
+    b: u64,
+    i: u64,
+    j: u64,
     attempts: u8,
     phase: u8,
 }
 #[derive(Clone, Copy)]
 struct Pivot {
-    a: usize,
-    b: usize,
-    i: usize,
-    j: usize,
-    k: usize,
+    a: u64,
+    b: u64,
+    i: u64,
+    j: u64,
+    k: u64,
     swaps: usize,
     phase: u8,
 }
 #[derive(Clone, Copy)]
 struct Median {
-    a: usize,
-    b: usize,
-    c: usize,
+    a: u64,
+    b: u64,
+    c: u64,
     swaps: usize,
     phase: u8,
 }
 #[derive(Clone, Copy)]
 struct Heap {
-    a: usize,
-    hi: usize,
-    i: usize,
+    a: u64,
+    hi: u64,
+    i: u64,
     phase: u8,
 }
 #[derive(Clone, Copy)]
 struct Sift {
-    first: usize,
-    root: usize,
-    hi: usize,
-    child: usize,
+    first: u64,
+    root: u64,
+    hi: u64,
+    child: u64,
     phase: u8,
 }
 #[derive(Clone, Copy)]
 struct Patterns {
-    a: usize,
-    length: usize,
+    a: u64,
+    length: u64,
     position: usize,
     random: u64,
 }
 #[derive(Clone, Copy)]
 struct Down {
-    initial: usize,
-    root: usize,
-    length: usize,
-    child: usize,
+    initial: u64,
+    root: u64,
+    length: u64,
+    child: u64,
     phase: u8,
 }
 #[derive(Clone, Copy)]
@@ -121,23 +127,13 @@ enum Frame {
     Heap(Heap),
     Sift(Sift),
     Patterns(Patterns),
-    Reverse {
-        i: usize,
-        j: usize,
-    },
-    Up {
-        j: usize,
-        waiting: bool,
-    },
+    Reverse { i: u64, j: u64 },
+    Up { j: u64, waiting: bool },
     Down(Down),
-    Fix {
-        root: usize,
-        length: usize,
-        phase: u8,
-    },
+    Fix { root: u64, length: u64, phase: u8 },
 }
 impl Frame {
-    fn pdq(a: usize, b: usize, limit: u32) -> Self {
+    fn pdq(a: u64, b: u64, limit: u32) -> Self {
         Self::Pdq(Pdq {
             a,
             b,
@@ -149,7 +145,7 @@ impl Frame {
             phase: 0,
         })
     }
-    fn insertion(a: usize, b: usize) -> Self {
+    fn insertion(a: u64, b: u64) -> Self {
         Self::Insertion(Insertion {
             a,
             b,
@@ -158,7 +154,7 @@ impl Frame {
             waiting: false,
         })
     }
-    fn partition(a: usize, b: usize, pivot: usize, equal: bool) -> Self {
+    fn partition(a: u64, b: u64, pivot: u64, equal: bool) -> Self {
         Self::Partition(Partition {
             a,
             pivot,
@@ -169,7 +165,7 @@ impl Frame {
             phase: 0,
         })
     }
-    fn partial(a: usize, b: usize) -> Self {
+    fn partial(a: u64, b: u64) -> Self {
         Self::Partial(Partial {
             a,
             b,
@@ -179,7 +175,7 @@ impl Frame {
             phase: 0,
         })
     }
-    fn pivot(a: usize, b: usize) -> Self {
+    fn pivot(a: u64, b: u64) -> Self {
         let quarter = (b - a) / 4;
         Self::Pivot(Pivot {
             a,
@@ -191,7 +187,7 @@ impl Frame {
             phase: 0,
         })
     }
-    fn median(a: usize, b: usize, c: usize) -> Self {
+    fn median(a: u64, b: u64, c: u64) -> Self {
         Self::Median(Median {
             a,
             b,
@@ -200,7 +196,7 @@ impl Frame {
             phase: 0,
         })
     }
-    fn heap(a: usize, b: usize) -> Self {
+    fn heap(a: u64, b: u64) -> Self {
         Self::Heap(Heap {
             a,
             hi: b - a,
@@ -208,7 +204,7 @@ impl Frame {
             phase: 0,
         })
     }
-    fn sift(first: usize, root: usize, hi: usize) -> Self {
+    fn sift(first: u64, root: u64, hi: u64) -> Self {
         Self::Sift(Sift {
             first,
             root,
@@ -217,24 +213,24 @@ impl Frame {
             phase: 0,
         })
     }
-    fn reverse(a: usize, b: usize) -> Self {
+    fn reverse(a: u64, b: u64) -> Self {
         Self::Reverse {
             i: a,
             j: b.saturating_sub(1),
         }
     }
-    fn patterns(a: usize, b: usize) -> Self {
+    fn patterns(a: u64, b: u64) -> Self {
         Self::Patterns(Patterns {
             a,
             length: b - a,
             position: 0,
-            random: (b - a) as u64,
+            random: b - a,
         })
     }
 }
 
 // Every recursive PDQ child has at most half its parent's length; helpers add at most two frames.
-const FRAMES: usize = usize::BITS as usize + 3;
+const FRAMES: usize = 64 + 3;
 pub(crate) struct Program {
     frames: [Frame; FRAMES],
     depth: usize,
@@ -252,17 +248,17 @@ impl Program {
             waiting: false,
         }
     }
-    pub(crate) fn sort(length: usize) -> Self {
-        Self::new(Frame::pdq(0, length, usize::BITS - length.leading_zeros()))
+    pub(crate) fn sort(length: u64) -> Self {
+        Self::new(Frame::pdq(0, length, u64::BITS - length.leading_zeros()))
     }
-    pub(crate) fn heap_push(length: usize) -> Self {
+    pub(crate) fn heap_push(length: u64) -> Self {
         assert!(length > 0, "heap Push follows an append");
         Self::new(Frame::Up {
             j: length - 1,
             waiting: false,
         })
     }
-    pub(crate) fn heap_fix(root: usize, length: usize) -> Self {
+    pub(crate) fn heap_fix(root: u64, length: u64) -> Self {
         assert!(root < length, "heap Fix needs an existing item");
         Self::new(Frame::Fix {
             root,
@@ -277,12 +273,12 @@ impl Program {
         self.save(frame);
         Operation::Step
     }
-    fn less(&mut self, frame: Frame, a: usize, b: usize) -> Operation {
+    fn less(&mut self, frame: Frame, a: u64, b: u64) -> Operation {
         self.save(frame);
         self.waiting = true;
         Operation::Less(a, b)
     }
-    fn swap(&mut self, frame: Frame, a: usize, b: usize) -> Operation {
+    fn swap(&mut self, frame: Frame, a: u64, b: u64) -> Operation {
         self.save(frame);
         Operation::Swap(a, b)
     }
@@ -756,13 +752,13 @@ impl Program {
                     f.random ^= f.random << 13;
                     f.random ^= f.random >> 7;
                     f.random ^= f.random << 17;
-                    let shift = usize::BITS - f.length.leading_zeros();
-                    let modulus = 1usize.checked_shl(shift).unwrap_or(0);
-                    let mut other = f.random as usize & modulus.wrapping_sub(1);
+                    let shift = u64::BITS - f.length.leading_zeros();
+                    let modulus = 1u64.checked_shl(shift).unwrap_or(0);
+                    let mut other = f.random & modulus.wrapping_sub(1);
                     if other >= f.length {
                         other -= f.length;
                     }
-                    let index = f.a + (f.length / 4) * 2 - 1 + f.position;
+                    let index = f.a + (f.length / 4) * 2 - 1 + f.position as u64;
                     f.position += 1;
                     self.swap(Frame::Patterns(f), index, f.a + other)
                 }
@@ -874,7 +870,7 @@ impl Program {
         }
     }
     #[cfg(any(test, feature = "fixtures"))]
-    pub(crate) fn phase(name: &str, length: usize, pivot: usize) -> Self {
+    pub(crate) fn phase(name: &str, length: u64, pivot: u64) -> Self {
         Self::new(match name {
             "insertion" => Frame::insertion(0, length),
             "partial" => Frame::partial(0, length),
@@ -888,13 +884,13 @@ impl Program {
         })
     }
     #[cfg(feature = "fixtures")]
-    pub(crate) fn result(&self) -> Option<Vec<usize>> {
+    pub(crate) fn result(&self) -> Option<Vec<u64>> {
         assert_eq!(self.depth, 0);
         match self.returned {
             Return::Unit => None,
-            Return::Boolean(value) => Some(vec![usize::from(value)]),
+            Return::Boolean(value) => Some(vec![u64::from(value)]),
             Return::Index(index) => Some(vec![index]),
-            Return::Partition(index, value) => Some(vec![index, usize::from(value)]),
+            Return::Partition(index, value) => Some(vec![index, u64::from(value)]),
             Return::Pivot(index, hint) => Some(vec![
                 index,
                 match hint {
@@ -915,6 +911,226 @@ mod tests {
         accounting::{AccountedBox, AccountedVec, AllocationContext, EngineAccounting, MemoryKind},
         storage::{Control, Interrupted},
     };
+    use std::collections::BTreeMap;
+
+    type VirtualTrace = Vec<(Operation, Option<bool>)>;
+
+    // Captured unchanged Go 1.27.1 helpers use only word-bounded state for these inputs.
+    fn virtual_trace(
+        mut program: Program,
+        length: u64,
+        mut values: BTreeMap<u64, i128>,
+    ) -> (Return, VirtualTrace, BTreeMap<u64, i128>) {
+        let mut trace = Vec::new();
+        let mut reply = None;
+        for _ in 0..512 {
+            let operation = program.next(reply.take());
+            match operation {
+                Operation::Step => (),
+                Operation::Less(a, b) => {
+                    assert!(a < length && b < length);
+                    let left = values.get(&a).copied().unwrap_or(i128::from(a));
+                    let right = values.get(&b).copied().unwrap_or(i128::from(b));
+                    reply = Some(left < right);
+                    trace.push((operation, reply));
+                }
+                Operation::Swap(a, b) => {
+                    assert!(a < length && b < length);
+                    let left = values.get(&a).copied().unwrap_or(i128::from(a));
+                    let right = values.get(&b).copied().unwrap_or(i128::from(b));
+                    values.insert(a, right);
+                    values.insert(b, left);
+                    trace.push((operation, None));
+                }
+                Operation::Done => return (program.returned, trace, values),
+            }
+            assert!(values.len() <= 64 && trace.len() <= 256);
+        }
+        panic!("original virtual control exceeded its declared transition bound");
+    }
+
+    #[test]
+    fn wide_heap_fix_preserves_original_child_addresses_and_operations() {
+        for length in [
+            17,
+            4_294_967_301,
+            1_099_511_627_781,
+            1_152_921_504_606_846_981,
+        ] {
+            let root = (length - 3) / 2;
+            let replacement = i128::from(length + 1);
+            let (result, trace, values) = virtual_trace(
+                Program::heap_fix(root, length),
+                length,
+                BTreeMap::from([(root, replacement)]),
+            );
+            assert!(matches!(result, Return::Unit));
+            assert_eq!(
+                trace,
+                vec![
+                    (Operation::Less(length - 1, length - 2), Some(false)),
+                    (Operation::Less(length - 2, root), Some(true)),
+                    (Operation::Swap(root, length - 2), None),
+                ]
+            );
+            assert_eq!(
+                values,
+                BTreeMap::from([(root, i128::from(length - 2)), (length - 2, replacement),])
+            );
+        }
+    }
+
+    #[test]
+    fn wide_pivot_preserves_original_comparisons_and_returned_index() {
+        let (result, trace, values) = virtual_trace(
+            Program::phase("pivot", 8_589_934_597, 0),
+            8_589_934_597,
+            BTreeMap::new(),
+        );
+        assert!(matches!(
+            result,
+            Return::Pivot(4_294_967_298, Hint::Increasing)
+        ));
+        assert!(values.is_empty());
+        let pairs = [
+            (2_147_483_649, 2_147_483_648),
+            (2_147_483_650, 2_147_483_649),
+            (2_147_483_649, 2_147_483_648),
+            (4_294_967_298, 4_294_967_297),
+            (4_294_967_299, 4_294_967_298),
+            (4_294_967_298, 4_294_967_297),
+            (6_442_450_947, 6_442_450_946),
+            (6_442_450_948, 6_442_450_947),
+            (6_442_450_947, 6_442_450_946),
+            (4_294_967_298, 2_147_483_649),
+            (6_442_450_947, 4_294_967_298),
+            (4_294_967_298, 2_147_483_649),
+        ];
+        assert_eq!(
+            trace,
+            pairs
+                .into_iter()
+                .map(|(a, b)| (Operation::Less(a, b), Some(false)))
+                .collect::<Vec<_>>()
+        );
+    }
+
+    #[test]
+    fn wide_pattern_masks_preserve_original_random_swap_addresses() {
+        for (length, pairs) in [
+            (
+                4_294_967_301,
+                [
+                    (2_147_483_649, 1_082_827_077),
+                    (2_147_483_650, 1_006_978_370),
+                    (2_147_483_651, 1_470_037_512),
+                ],
+            ),
+            (
+                1_099_511_627_781,
+                [
+                    (549_755_813_889, 14_001_283_392),
+                    (549_755_813_890, 129_788_626_247),
+                    (549_755_813_891, 41_885_562_376),
+                ],
+            ),
+            (
+                1_152_921_504_606_846_981,
+                [
+                    (576_460_752_303_423_489, 9_007_204_666_089_792),
+                    (576_460_752_303_423_490, 287_102_390_584_647),
+                    (576_460_752_303_423_491, 1_105_024_694_045_308_429),
+                ],
+            ),
+        ] {
+            let (result, trace, values) = virtual_trace(
+                Program::phase("patterns", length, 0),
+                length,
+                BTreeMap::new(),
+            );
+            assert!(matches!(result, Return::Unit));
+            assert_eq!(
+                trace,
+                pairs
+                    .into_iter()
+                    .map(|(a, b)| (Operation::Swap(a, b), None))
+                    .collect::<Vec<_>>()
+            );
+            assert_eq!(values.len(), 6);
+            for (a, b) in pairs {
+                assert_eq!(values[&a], i128::from(b));
+                assert_eq!(values[&b], i128::from(a));
+            }
+        }
+    }
+
+    #[test]
+    fn wide_heap_push_preserves_original_ancestor_path_with_bounded_state() {
+        let length = 4_294_967_301;
+        let (result, trace, values) = virtual_trace(
+            Program::heap_push(length),
+            length,
+            BTreeMap::from([(length - 1, -1)]),
+        );
+        let path = [
+            4_294_967_300,
+            2_147_483_649,
+            1_073_741_824,
+            536_870_911,
+            268_435_455,
+            134_217_727,
+            67_108_863,
+            33_554_431,
+            16_777_215,
+            8_388_607,
+            4_194_303,
+            2_097_151,
+            1_048_575,
+            524_287,
+            262_143,
+            131_071,
+            65_535,
+            32_767,
+            16_383,
+            8_191,
+            4_095,
+            2_047,
+            1_023,
+            511,
+            255,
+            127,
+            63,
+            31,
+            15,
+            7,
+            3,
+            1,
+            0,
+        ];
+        assert!(matches!(result, Return::Unit));
+        assert_eq!(
+            trace,
+            path.windows(2)
+                .flat_map(|pair| [
+                    (Operation::Less(pair[0], pair[1]), Some(true)),
+                    (Operation::Swap(pair[1], pair[0]), None),
+                ])
+                .collect::<Vec<_>>()
+        );
+        assert_eq!(values.len(), 33);
+        assert_eq!(values[&0], -1);
+        for pair in path.windows(2) {
+            assert_eq!(values[&pair[0]], i128::from(pair[1]));
+        }
+    }
+
+    #[test]
+    fn physical_buffer_boundaries_reject_wide_indices_without_truncation() {
+        assert_eq!(physical_index(2, 4), 2);
+        for index in [4, 1 << 32, u64::MAX] {
+            assert!(std::panic::catch_unwind(|| physical_index(index, 4)).is_err());
+        }
+    }
 
     #[test]
     fn comparison_answers_are_required_once_and_do_not_change_indices_while_suspended() {
@@ -979,8 +1195,16 @@ mod tests {
                     account.work(1);
                     match program.next(reply.take()) {
                         Operation::Step => (),
-                        Operation::Less(a, b) => reply = Some(data[a].0 < data[b].0),
-                        Operation::Swap(a, b) => data.swap(a, b),
+                        Operation::Less(a, b) => {
+                            let (a, b) =
+                                (physical_index(a, data.len()), physical_index(b, data.len()));
+                            reply = Some(data[a].0 < data[b].0);
+                        }
+                        Operation::Swap(a, b) => {
+                            let (a, b) =
+                                (physical_index(a, data.len()), physical_index(b, data.len()));
+                            data.swap(a, b);
+                        }
                         Operation::Done => break Ok(()),
                     }
                 };

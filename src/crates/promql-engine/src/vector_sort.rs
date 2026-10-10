@@ -6,7 +6,7 @@ use crate::{
     evaluator::{EvaluatedSample, EvaluationError, EvaluationOptions},
     evaluator_roster::Descriptor,
     frontend::ast::{Expr, NodeId, ParsedExpression},
-    go_sort_program::{Operation, Program},
+    go_sort_program::{Operation, Program, physical_index},
     query_preparation::Prepared,
     result::{OwnedLabels, OwnedValue},
     shared::Strong,
@@ -398,7 +398,7 @@ impl<'a> Step<'a> {
                     self.publish(control, account)?;
                 }
                 Function::Numeric(_) => {
-                    self.program = Some(Program::sort(self.indices.len()));
+                    self.program = Some(Program::sort(self.indices.len() as u64));
                     self.stage = Stage::Program;
                 }
             },
@@ -437,13 +437,23 @@ impl<'a> Step<'a> {
                 {
                     Operation::Step => (),
                     Operation::Less(a, b) => {
+                        let (a, b) = (
+                            physical_index(a, self.indices.len()),
+                            physical_index(b, self.indices.len()),
+                        );
                         self.comparison = Some(Comparison {
                             inputs: [self.indices[a], self.indices[b]],
                             values: [0.0; 2],
                             position: 0,
                         })
                     }
-                    Operation::Swap(a, b) => self.indices.swap(a, b),
+                    Operation::Swap(a, b) => {
+                        let (a, b) = (
+                            physical_index(a, self.indices.len()),
+                            physical_index(b, self.indices.len()),
+                        );
+                        self.indices.swap(a, b);
+                    }
                     Operation::Done => {
                         self.program = None;
                         self.publish(control, account)?;
