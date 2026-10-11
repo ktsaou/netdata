@@ -78,13 +78,23 @@ pub fn log2(value: f64) -> f64 {
 }
 
 pub fn sqrt(value: f64) -> f64 {
-    if value.is_nan() {
-        crate::numerical::quiet_nan(value)
-    } else if value < 0.0 {
-        f64::from_bits(0xfff8_0000_0000_0000)
-    } else {
-        value.sqrt()
+    f64::from_bits(sqrt_bits(value.to_bits()))
+}
+
+// An integer return boundary preserves observable NaN bits through power's inlining.
+#[inline(never)]
+fn sqrt_bits(bits: u64) -> u64 {
+    let magnitude = bits & !(1 << 63);
+    if magnitude > EXPONENT {
+        return bits | (1 << 51);
     }
+    if magnitude == 0 {
+        return bits;
+    }
+    if bits >> 63 != 0 {
+        return 0xfff8_0000_0000_0000;
+    }
+    f64::from_bits(bits).sqrt().to_bits()
 }
 
 pub fn log10(value: f64) -> f64 {
@@ -301,6 +311,62 @@ pub fn pow_dispatch(left: f64, right: f64, fused: bool) -> f64 {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn square_root_and_half_power_preserve_canonical_exception_bits() {
+        for (bits, expected) in [
+            (0, 0),
+            (1 << 63, 1 << 63),
+            (4.0_f64.to_bits(), 2.0_f64.to_bits()),
+            (f64::INFINITY.to_bits(), f64::INFINITY.to_bits()),
+            (f64::NEG_INFINITY.to_bits(), 0xfff8_0000_0000_0000),
+            ((-1.0_f64).to_bits(), 0xfff8_0000_0000_0000),
+            (0x8000_0000_0000_0001, 0xfff8_0000_0000_0000),
+            (0x7ff0_0000_0000_0123, 0x7ff8_0000_0000_0123),
+            (0xfff0_0000_0000_0123, 0xfff8_0000_0000_0123),
+            (0x7ff8_0000_0000_0123, 0x7ff8_0000_0000_0123),
+            (0xfff8_0000_0000_0123, 0xfff8_0000_0000_0123),
+        ] {
+            assert_eq!(
+                sqrt(f64::from_bits(std::hint::black_box(bits))).to_bits(),
+                expected
+            );
+        }
+        for bits in [
+            (-1.0_f64).to_bits(),
+            (-f64::MAX).to_bits(),
+            0x8000_0000_0000_0001,
+        ] {
+            for exponent in [-0.5, 0.5] {
+                assert_eq!(
+                    pow(
+                        f64::from_bits(std::hint::black_box(bits)),
+                        std::hint::black_box(exponent)
+                    )
+                    .to_bits(),
+                    0xfff8_0000_0000_0000
+                );
+            }
+        }
+        for (bits, exponent, expected) in [
+            ((-1.0_f64).to_bits(), 0.25, NAN.to_bits()),
+            (1 << 63, 0.5, 0),
+            (1 << 63, -0.5, f64::INFINITY.to_bits()),
+            (f64::NEG_INFINITY.to_bits(), 0.5, f64::INFINITY.to_bits()),
+            (f64::NEG_INFINITY.to_bits(), -0.5, 0),
+            (0xfff0_0000_0000_0123, 1.0, 0xfff0_0000_0000_0123),
+            (0xfff0_0000_0000_0123, 0.5, NAN.to_bits()),
+        ] {
+            assert_eq!(
+                pow(
+                    f64::from_bits(std::hint::black_box(bits)),
+                    std::hint::black_box(exponent)
+                )
+                .to_bits(),
+                expected
+            );
+        }
+    }
 
     #[test]
     fn canonical_runtime_routes_preserve_retained_fused_rounding() {

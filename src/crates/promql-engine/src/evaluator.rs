@@ -360,7 +360,7 @@ impl PointwiseFunction {
             Self::Timestamp | Self::StartTimestamp { .. } | Self::Float(..) => unreachable!(),
         }))
     }
-    fn drops_metadata(self) -> bool {
+    pub(crate) fn drops_metadata(self) -> bool {
         matches!(
             self,
             Self::Timestamp | Self::StartTimestamp { .. } | Self::Float(..)
@@ -587,6 +587,18 @@ pub(crate) struct EvaluationMetadata<'a> {
     pub(crate) info_preparation: Option<crate::info::Preparation<'a>>,
     pub(crate) count_preparation: Option<crate::count_values::Preparation<'a>>,
 }
+#[derive(Clone, Copy)]
+pub(crate) struct ScheduledRow {
+    root: NodeId,
+    pub(crate) selector: NodeId,
+    pub(crate) physical_ordinal: usize,
+    ordinal: usize,
+    bypass_root: bool,
+}
+struct SelectedPoint {
+    labels: OwnedLabels,
+    value: Option<(i64, i64, OwnedValue)>,
+}
 pub(crate) struct Machine<'a, 'q, Q: QueryProvider + 'q> {
     catalog: &'a Catalog<'q, Q>,
     expression: &'a ParsedExpression,
@@ -606,6 +618,8 @@ pub(crate) struct Machine<'a, 'q, Q: QueryProvider + 'q> {
     histogram_preparation: Option<crate::histogram_call::Preparation<'a>>,
     info_preparation: Option<crate::info::Preparation<'a>>,
     count_preparation: Option<crate::count_values::Preparation<'a>>,
+    scheduled_selector: Option<(NodeId, usize)>,
+    selected_point: Option<SelectedPoint>,
 }
 
 impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
@@ -649,6 +663,8 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
             histogram_preparation: metadata.histogram_preparation,
             info_preparation: metadata.info_preparation,
             count_preparation: metadata.count_preparation,
+            scheduled_selector: None,
+            selected_point: None,
         }
     }
     fn push(&mut self, node: NodeId) {
@@ -768,42 +784,274 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
             },
         )
     }
+    pub(crate) fn supports_schedule(
+        &self,
+        selector: NodeId,
+        grid: crate::query_scopes::Grid,
+    ) -> bool {
+        if !grid.forward_without_wrap()
+            || grid
+                .end_ms
+                .checked_sub(grid.start_ms)
+                .is_none_or(|width| width < 0)
+            || self.selector(selector).smoothed
+        {
+            return false;
+        }
+        let modifiers = &self.selector(selector).modifiers;
+        if let Some(reference) = self.prepared.timestamp(selector, modifiers) {
+            let Some(offset) = grid
+                .start_ms
+                .checked_sub(reference)
+                .and_then(|delta| delta.checked_mul(1_000_000))
+                .and_then(|delta| {
+                    delta.checked_add(self.prepared.offset(selector, modifiers.original_offset))
+                })
+            else {
+                return false;
+            };
+            if !self.timestamp_selectors[selector.0]
+                && offset
+                    != self
+                        .prepared
+                        .adjusted_offset(selector, modifiers, grid.start_ms)
+            {
+                return false;
+            }
+            if self.timestamp_selectors[selector.0]
+                && grid
+                    .end_ms
+                    .checked_sub(reference)
+                    .and_then(|delta| delta.checked_mul(1_000_000))
+                    .is_none()
+            {
+                return false;
+            }
+        }
+        let offset = self
+            .prepared
+            .adjusted_offset(selector, modifiers, grid.start_ms)
+            / 1_000_000;
+        for time in [grid.start_ms, grid.end_ms] {
+            let lookup = if self.timestamp_selectors[selector.0]
+                && let Some(reference) = self.prepared.timestamp(selector, modifiers)
+            {
+                reference
+            } else {
+                let Some(lookup) = time.checked_sub(offset) else {
+                    return false;
+                };
+                lookup
+            };
+            if lookup.checked_sub(self.options.lookback_ms).is_none() {
+                return false;
+            }
+        }
+        true
+    }
+
+    pub(crate) fn scheduled_row(
+        &self,
+        root: NodeId,
+        ordinal: usize,
+        grid: crate::query_scopes::Grid,
+        bypass_root: bool,
+    ) -> Result<Option<ScheduledRow>, EvaluationError> {
+        let mut node = root;
+        let mut physical_ordinal = ordinal;
+        loop {
+            self.control.check()?;
+            self.account.work(1);
+            if !(node == root && bypass_root)
+                && let Some((descriptors, sources)) = self.rosters.ordered(node)
+            {
+                let Some(descriptor) = descriptors
+                    .get(physical_ordinal)
+                    .filter(|descriptor| descriptor.ordinal == physical_ordinal)
+                else {
+                    return Ok(None);
+                };
+                if descriptor.sources.len() != 1 {
+                    return Ok(None);
+                }
+                physical_ordinal = sources[descriptor.sources.start];
+            }
+            if matches!(self.expression.arena[node].expression, Expr::Selector(_)) {
+                return Ok(self.supports_schedule(node, grid).then_some(ScheduledRow {
+                    root,
+                    selector: node,
+                    physical_ordinal,
+                    ordinal,
+                    bypass_root,
+                }));
+            }
+            let Some(child) =
+                crate::scheduled_expression::vector_child(self.expression, self.prepared, node)
+            else {
+                return Ok(None);
+            };
+            node = child;
+        }
+    }
+
+    pub(crate) fn visit_scheduled_points<
+        S: Series,
+        E: From<EvaluationError> + From<StorageError> + From<Interrupted>,
+    >(
+        &self,
+        row: ScheduledRow,
+        series: &S,
+        grid: crate::query_scopes::Grid,
+        mut annotations: Option<&mut AnnotationBuilder>,
+        mut visit: impl FnMut(i64, i64, Option<EvaluatedSample>) -> Result<bool, E>,
+    ) -> Result<(), E> {
+        let header = grid.header(self.prepared.header);
+        let leaf = self.replay(
+            row.selector,
+            EvaluationOptions {
+                time_ms: grid.end_ms,
+                start_ms: grid.start_ms,
+                end_ms: grid.end_ms,
+                step_ms: grid.interval_ms,
+                ..self.options
+            },
+            None,
+        );
+        leaf.visit_selected_series(
+            row.selector,
+            row.physical_ordinal,
+            series,
+            grid,
+            None,
+            |time, index, labels, value| {
+                let mut machine = self.replay(
+                    row.root,
+                    EvaluationOptions {
+                        time_ms: time,
+                        start_ms: header.start_ms,
+                        end_ms: header.end_ms,
+                        step_ms: header.step_ms,
+                        ..self.options
+                    },
+                    annotations.as_deref_mut(),
+                );
+                machine.set_step_index(index);
+                machine.restrict_one(row.ordinal);
+                if row.bypass_root {
+                    machine.bypass_root_order();
+                }
+                machine.scheduled_selector = Some((row.selector, row.physical_ordinal));
+                machine.selected_point = Some(SelectedPoint {
+                    labels: OwnedLabels::copy_from_checked(
+                        labels,
+                        self.account,
+                        MemoryKind::Workspace,
+                        self.control,
+                    )?,
+                    value: value
+                        .map(|sample| {
+                            Ok::<_, EvaluationError>((
+                                sample.time_ms,
+                                sample.start_time_ms,
+                                OwnedValue::from_sample_checked(
+                                    sample.value,
+                                    self.control,
+                                    self.account,
+                                    MemoryKind::Workspace,
+                                )?,
+                            ))
+                        })
+                        .transpose()?,
+                });
+                let sample = machine.next()?;
+                let done = visit(time, index, sample)?;
+                // Complete the ordinary map's diagnostic phase even when its only point is filtered.
+                if machine.next()?.is_some() {
+                    return Err(EvaluationError::Invalid(
+                        "scheduled expression returned multiple points",
+                    )
+                    .into());
+                }
+                Ok(done)
+            },
+        )
+    }
+
+    pub(crate) fn visit_scheduled_row<
+        S: Series,
+        E: From<EvaluationError> + From<StorageError> + From<Interrupted>,
+    >(
+        &self,
+        row: ScheduledRow,
+        series: &S,
+        grid: crate::query_scopes::Grid,
+        annotations: Option<&mut AnnotationBuilder>,
+        mut visit: impl FnMut(i64, Option<SampleRef<'_>>) -> Result<bool, E>,
+    ) -> Result<(), E> {
+        self.visit_scheduled_points(row, series, grid, annotations, |time, _, sample| {
+            visit(
+                time,
+                sample.as_ref().map(|sample| SampleRef {
+                    time_ms: sample.source_time_ms,
+                    start_time_ms: sample.source_start_time_ms,
+                    value: sample.value.as_ref(),
+                }),
+            )
+        })
+    }
+
+    pub(crate) fn visit_scheduled(
+        &self,
+        root: NodeId,
+        ordinal: usize,
+        grid: crate::query_scopes::Grid,
+        mut visit: impl FnMut(i64, Option<SampleRef<'_>>) -> Result<bool, EvaluationError>,
+    ) -> Result<(), EvaluationError> {
+        if crate::evaluator::raw_selector_shortcut(self.expression, self.prepared, root) {
+            return self
+                .catalog
+                .with_series(root, ordinal, |series| {
+                    self.visit_raw_series(root, ordinal, series, grid, None, |time, _, value| {
+                        visit(time, value)
+                    })
+                })
+                .expect("raw scheduled ordinal");
+        }
+        let row =
+            self.scheduled_row(root, ordinal, grid, false)?
+                .ok_or(EvaluationError::Invalid(
+                    "certified scheduled row is missing",
+                ))?;
+        self.catalog
+            .with_series(row.selector, row.physical_ordinal, |series| {
+                self.visit_scheduled_row(row, series, grid, None, visit)
+            })
+            .expect("computed scheduled ordinal")
+    }
+
     fn materialize_range_bits(
         &self,
         source: crate::derived_range::BackingSource,
         writer: &mut crate::temporary_float_bits::Writer<'_>,
     ) -> Result<(), EvaluationError> {
         let mut reader = source.reader();
-        if source.raw() {
+        if source.scheduled() {
             let grid = source.grid();
             let child = self.replay(source.node(), source.options(grid.end_ms), None);
-            self.catalog
-                .with_series(source.node(), source.ordinal, |series| {
-                    crate::derived_range::raw_reader_pass(
-                        &mut reader,
-                        self.control,
-                        self.account,
-                        |sample| {
-                            if let SampleValueRef::Float(value) = sample.value
-                                && !sample.value.is_stale()
-                            {
-                                writer.push(value.to_bits())?;
-                            }
-                            Ok(())
-                        },
-                        |visit| {
-                            child.visit_raw_series(
-                                source.node(),
-                                source.ordinal,
-                                series,
-                                grid,
-                                None,
-                                |time, _, value| visit(time, value),
-                            )
-                        },
-                    )
-                })
-                .expect("plain subquery backing ordinal")?;
+            crate::derived_range::scheduled_reader_pass(
+                &mut reader,
+                self.control,
+                self.account,
+                |sample| {
+                    if let SampleValueRef::Float(value) = sample.value
+                        && !sample.value.is_stale()
+                    {
+                        writer.push(value.to_bits())?;
+                    }
+                    Ok(())
+                },
+                |visit| child.visit_scheduled(source.node(), source.ordinal, grid, visit),
+            )?;
         } else {
             while let crate::derived_matrix::Action::Fetch(fetch) =
                 reader.advance(self.control, self.account, |sample| {
@@ -1116,7 +1364,11 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
                         range_ns: self.prepared.range(argument, *range),
                         offset_ns,
                         fixed: fixed.is_some(),
-                        raw_selector: raw_selector_shortcut(self.expression, self.prepared, body),
+                        scheduled: raw_selector_shortcut(self.expression, self.prepared, body)
+                            || self
+                                .rosters
+                                .scheduled_selector(body)
+                                .is_some_and(|selector| self.supports_schedule(selector, grid)),
                     },
                     self.rosters.descriptors(body),
                     filter,
@@ -1154,8 +1406,57 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
         ordinal: usize,
         series: &S,
         grid: crate::query_scopes::Grid,
+        annotations: Option<&mut AnnotationBuilder>,
+        mut visit: impl FnMut(
+            i64,
+            &[crate::storage::LabelRef<'_>],
+            Option<SampleRef<'_>>,
+        ) -> Result<bool, E>,
+    ) -> Result<(), E> {
+        self.visit_selected_series(
+            node,
+            ordinal,
+            series,
+            grid,
+            annotations,
+            |time, index, labels, value| {
+                if value.is_some() && !self.smooths(node) {
+                    self.prepared.sample_statistics_index(
+                        node,
+                        index,
+                        self.control,
+                        self.account,
+                    )?;
+                }
+                let sample = value.map(|sample| {
+                    if self.frames[0].boundary_time_ms.is_some()
+                        || !self.timestamp_selectors[node.0]
+                    {
+                        SampleRef {
+                            time_ms: time,
+                            start_time_ms: 0,
+                            ..sample
+                        }
+                    } else {
+                        sample
+                    }
+                });
+                visit(time, labels, sample)
+            },
+        )
+    }
+    fn visit_selected_series<
+        S: Series,
+        E: From<EvaluationError> + From<StorageError> + From<Interrupted>,
+    >(
+        &self,
+        node: NodeId,
+        ordinal: usize,
+        series: &S,
+        grid: crate::query_scopes::Grid,
         mut annotations: Option<&mut AnnotationBuilder>,
         mut visit: impl FnMut(
+            i64,
             i64,
             &[crate::storage::LabelRef<'_>],
             Option<SampleRef<'_>>,
@@ -1187,7 +1488,7 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
         }
         if self.smooths(node) {
             let mut traversal = crate::query_scopes::Traversal::new(grid, false);
-            while let Some((time, _)) = traversal.current() {
+            while let Some((time, index)) = traversal.current() {
                 self.control.check()?;
                 self.account.work(1);
                 let output = self.smoothed_value(node, series, time, grid)?;
@@ -1207,7 +1508,7 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
                     start_time_ms: 0,
                     value: value.as_ref(),
                 });
-                if visit(time, &labels, sample)? {
+                if visit(time, index, &labels, sample)? {
                     break;
                 }
                 traversal.advance();
@@ -1231,10 +1532,10 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
         let fixed = self.invariants[node.0];
         if empty {
             let mut traversal = crate::query_scopes::Traversal::new(grid, false);
-            while let Some((time, _)) = traversal.current() {
+            while let Some((time, index)) = traversal.current() {
                 self.control.check()?;
                 self.account.work(1);
-                if visit(time, &labels, None)? {
+                if visit(time, index, &labels, None)? {
                     break;
                 }
                 traversal.advance();
@@ -1249,29 +1550,12 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
                 let Some((logical_time, index)) = logical.current() else {
                     return Ok::<_, E>(false);
                 };
-                if value.is_some() {
-                    self.prepared.sample_statistics_index(
-                        node,
-                        index,
-                        self.control,
-                        self.account,
-                    )?;
-                }
-                let sample = value.map(|(time_ms, start_time_ms, value)| {
-                    let (time_ms, start_time_ms) = if self.frames[0].boundary_time_ms.is_some()
-                        || !self.timestamp_selectors[node.0]
-                    {
-                        (logical_time, 0)
-                    } else {
-                        (time_ms, start_time_ms)
-                    };
-                    SampleRef {
-                        time_ms,
-                        start_time_ms,
-                        value,
-                    }
+                let sample = value.map(|(time_ms, start_time_ms, value)| SampleRef {
+                    time_ms,
+                    start_time_ms,
+                    value,
                 });
-                if visit(logical_time, &labels, sample)? {
+                if visit(logical_time, index, &labels, sample)? {
                     return Ok::<_, E>(true);
                 }
                 logical.advance();
@@ -1602,21 +1886,7 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
                     )?
                 };
                 if result.is_some() {
-                    if self.timestamp_selectors[selector_node.0] {
-                        self.prepared.sample_statistics_time(
-                            node,
-                            options.time_ms,
-                            self.control,
-                            self.account,
-                        )?;
-                    } else {
-                        self.prepared.sample_statistics_index(
-                            node,
-                            self.step_index,
-                            self.control,
-                            self.account,
-                        )?;
-                    }
+                    self.note_instant_sample(node, selector_node)?;
                 }
                 result
             }
@@ -1906,6 +2176,40 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
                 result.value.map(|value| (self.options.time_ms, 0, value))
             }
         };
+        self.finish_selector_sample(
+            selector_node,
+            operation,
+            series_ordinal,
+            &series_labels,
+            value,
+        )
+    }
+    fn note_instant_sample(&self, node: NodeId, selector: NodeId) -> Result<(), EvaluationError> {
+        if self.timestamp_selectors[selector.0] {
+            self.prepared.sample_statistics_time(
+                node,
+                self.options.time_ms,
+                self.control,
+                self.account,
+            )?;
+        } else {
+            self.prepared.sample_statistics_index(
+                node,
+                self.step_index,
+                self.control,
+                self.account,
+            )?;
+        }
+        Ok(())
+    }
+    fn finish_selector_sample(
+        &self,
+        selector_node: NodeId,
+        operation: SelectorOperation,
+        series_ordinal: usize,
+        series_labels: &[crate::storage::LabelRef<'_>],
+        value: Option<(i64, i64, OwnedValue)>,
+    ) -> Result<Option<EvaluatedSample>, EvaluationError> {
         value
             .map(|(source_time_ms, source_start_time_ms, value)| {
                 let (source_time_ms, source_start_time_ms) =
@@ -1917,7 +2221,7 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
                         (source_time_ms, source_start_time_ms)
                     };
                 let mut labels = OwnedLabels::copy_from_checked(
-                    &series_labels,
+                    series_labels,
                     self.account,
                     MemoryKind::Workspace,
                     self.control,
@@ -2817,7 +3121,7 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
                         self.frames[index].state = State::Range(step);
                         result?;
                     }
-                    crate::derived_range::Action::RawPass {
+                    crate::derived_range::Action::ScheduledPass {
                         node: body,
                         ordinal,
                         options,
@@ -2829,21 +3133,9 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
                             unreachable!("range continuation")
                         };
                         let child = self.replay(body, options, None);
-                        let result = self
-                            .catalog
-                            .with_series(body, ordinal, |series| {
-                                step.raw_pass(self.control, self.account, |visit| {
-                                    child.visit_raw_series(
-                                        body,
-                                        ordinal,
-                                        series,
-                                        grid,
-                                        None,
-                                        |time, _, value| visit(time, value),
-                                    )
-                                })
-                            })
-                            .expect("plain subquery series ordinal");
+                        let result = step.scheduled_pass(self.control, self.account, |visit| {
+                            child.visit_scheduled(body, ordinal, grid, visit)
+                        });
                         self.frames[index].state = State::Range(step);
                         result?;
                     }
@@ -3304,18 +3596,45 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
                     }
                     *ordinal = series_ordinal + 1;
                     let catalog = self.catalog;
-                    let sample = catalog
-                        .with_series(selector_node, series_ordinal, |series| {
-                            self.series_sample(
-                                node,
-                                selector_node,
-                                operation,
-                                series_ordinal,
-                                series,
-                                None,
-                            )
-                        })
-                        .expect("catalog ordinal")?;
+                    let sample = if let Some((scheduled_selector, scheduled_ordinal)) =
+                        self.scheduled_selector
+                    {
+                        if selector_node != scheduled_selector
+                            || series_ordinal != scheduled_ordinal
+                            || !matches!(operation, SelectorOperation::Instant)
+                        {
+                            return Err(EvaluationError::Invalid(
+                                "scheduled selector identity changed",
+                            ));
+                        }
+                        let point = self.selected_point.take().ok_or(EvaluationError::Invalid(
+                            "scheduled point consumed more than once",
+                        ))?;
+                        if point.value.is_some() {
+                            self.note_instant_sample(node, selector_node)?;
+                        }
+                        let labels = point.labels.views_checked(self.account, self.control)?;
+                        self.finish_selector_sample(
+                            selector_node,
+                            operation,
+                            series_ordinal,
+                            &labels,
+                            point.value,
+                        )?
+                    } else {
+                        catalog
+                            .with_series(selector_node, series_ordinal, |series| {
+                                self.series_sample(
+                                    node,
+                                    selector_node,
+                                    operation,
+                                    series_ordinal,
+                                    series,
+                                    None,
+                                )
+                            })
+                            .expect("catalog ordinal")?
+                    };
                     if let Some(sample) = sample
                         && let Some(sample) =
                             self.propagate(Self::rebind(sample, boundary_time_ms), index)?
@@ -3721,6 +4040,16 @@ pub(crate) fn scalar_binary(
         LSS => f64::from(left < right),
         GTE => f64::from(left >= right),
         LTE => f64::from(left <= right),
+        TRIM_LOWER | TRIM_UPPER => {
+            return Err(EvaluationError::Runtime(crate::binary_labels::formatted(
+                format_args!(
+                    "operator {:?} not allowed for Scalar operations",
+                    operator.text().expect("typed trim operator")
+                ),
+                control,
+                account,
+            )?));
+        }
         _ => return Err(EvaluationError::Unsupported("binary numerical kernel")),
     })
 }
@@ -3729,6 +4058,31 @@ pub(crate) fn scalar_binary(
 mod filter_tests {
     use super::*;
     use crate::accounting::EngineAccounting;
+
+    #[test]
+    fn scalar_trim_errors_keep_source_text_and_release_owned_messages() {
+        for (operator, expected) in [
+            (
+                TokenKind::TRIM_LOWER,
+                b"operator \">/\" not allowed for Scalar operations".as_slice(),
+            ),
+            (
+                TokenKind::TRIM_UPPER,
+                b"operator \"</\" not allowed for Scalar operations".as_slice(),
+            ),
+        ] {
+            let account = EngineAccounting::default().query();
+            let error = scalar_binary(operator, 1.0, 2.0, &Control::default(), &account)
+                .expect_err("typed scalar trim is a source execution error");
+            let EvaluationError::Runtime(message) = &error else {
+                panic!("scalar trim must preserve the plain runtime error");
+            };
+            assert_eq!(&**message, expected);
+            assert!(account.snapshot().memory[MemoryKind::Workspace as usize].current > 0);
+            drop(error);
+            account.snapshot().assert_memory_released();
+        }
+    }
 
     #[test]
     fn ordered_filter_preserves_gaps_repeats_and_cancellation() {

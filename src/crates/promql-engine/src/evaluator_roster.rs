@@ -307,6 +307,7 @@ pub(crate) struct ScalarShape {
 
 #[derive(Default)]
 struct NodeRoster {
+    scheduled_selector: Option<NodeId>,
     output: Option<AccountedVec<Descriptor>>,
     sources: Option<AccountedVec<usize>>,
     groups: Option<AccountedVec<GroupDescriptor>>,
@@ -329,6 +330,12 @@ pub(crate) struct Rosters {
     nodes: AccountedVec<NodeRoster>,
 }
 impl Rosters {
+    pub(crate) fn scheduled_selector(&self, node: NodeId) -> Option<NodeId> {
+        self.nodes[node.0].scheduled_selector
+    }
+    pub(crate) fn certify_schedule(&mut self, node: NodeId, selector: NodeId) {
+        self.nodes[node.0].scheduled_selector = Some(selector);
+    }
     pub(crate) fn prepare_matrix(
         &mut self,
         node: NodeId,

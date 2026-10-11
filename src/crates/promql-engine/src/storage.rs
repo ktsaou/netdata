@@ -691,6 +691,64 @@ pub(crate) fn walk_observed<S: Series, E: From<StorageError> + From<Interrupted>
     start: WalkStart<'_>,
     control: &Control,
     account: &QueryAccounting,
+    visit: impl for<'a> FnMut(SampleRef<'a>, CursorOrigin) -> Result<CursorAction, E>,
+) -> Result<std::ops::ControlFlow<()>, E> {
+    walk_observed_inner(series, bounds, start, control, account, false, visit)
+}
+
+pub(crate) fn walk_scheduled<S: Series, E: From<StorageError> + From<Interrupted>>(
+    series: &S,
+    bounds: TimeBounds,
+    start: WalkStart<'_>,
+    control: &Control,
+    account: &QueryAccounting,
+    mut visit: impl for<'a> FnMut(SampleRef<'a>) -> Result<CursorAction, E>,
+) -> Result<std::ops::ControlFlow<()>, E> {
+    walk_observed_inner(
+        series,
+        bounds,
+        start,
+        control,
+        account,
+        true,
+        |sample, _| visit(sample),
+    )
+}
+
+fn validate_walk_sample<E: From<StorageError> + From<Interrupted>>(
+    sample: SampleRef<'_>,
+    bounds: TimeBounds,
+    minimum: i64,
+    initial_floor: Option<i64>,
+    previous: &mut Option<i64>,
+    control: &Control,
+    account: &QueryAccounting,
+) -> Result<(), E> {
+    control.check()?;
+    if sample.time_ms < bounds.start_ms || sample.time_ms > bounds.end_ms {
+        return Err(StorageError::Invalid("sample outside cursor bounds").into());
+    }
+    if sample.time_ms < minimum {
+        return Err(StorageError::Invalid("sample before cursor seek target").into());
+    }
+    if initial_floor.is_some_and(|time| sample.time_ms < time) {
+        return Err(StorageError::Invalid("initial seek landed before current sample").into());
+    }
+    if previous.is_some_and(|time| sample.time_ms <= time) {
+        return Err(StorageError::Invalid("sample timestamps are not strictly increasing").into());
+    }
+    *previous = Some(sample.time_ms);
+    account.work(1);
+    Ok(())
+}
+
+fn walk_observed_inner<S: Series, E: From<StorageError> + From<Interrupted>>(
+    series: &S,
+    bounds: TimeBounds,
+    start: WalkStart<'_>,
+    control: &Control,
+    account: &QueryAccounting,
+    local_seeks: bool,
     mut visit: impl for<'a> FnMut(SampleRef<'a>, CursorOrigin) -> Result<CursorAction, E>,
 ) -> Result<std::ops::ControlFlow<()>, E> {
     let _control_observation = control.observe(account);
@@ -771,27 +829,30 @@ pub(crate) fn walk_observed<S: Series, E: From<StorageError> + From<Interrupted>
         page_bytes(page.samples, account, &mut borrow)?;
         let mut action = CursorAction::Next;
         let mut consumed = None;
+        let mut tail_validated = false;
         for index in 0..page.samples.len() {
             let sample = page.samples.sample(index);
-            control.check()?;
-            if sample.time_ms < bounds.start_ms || sample.time_ms > bounds.end_ms {
-                return Err(StorageError::Invalid("sample outside cursor bounds").into());
+            if tail_validated {
+                control.check()?;
+                account.work(1);
+            } else {
+                validate_walk_sample::<E>(
+                    sample,
+                    bounds,
+                    minimum,
+                    initial_floor,
+                    &mut previous,
+                    control,
+                    account,
+                )?;
             }
-            if sample.time_ms < minimum {
-                return Err(StorageError::Invalid("sample before cursor seek target").into());
+            if local_seeks
+                && let CursorAction::Seek(target) = action
+                && sample.time_ms >= target
+            {
+                action = CursorAction::Next;
+                origin = CursorOrigin::SeekLanding;
             }
-            if initial_floor.is_some_and(|time| sample.time_ms < time) {
-                return Err(
-                    StorageError::Invalid("initial seek landed before current sample").into(),
-                );
-            }
-            if previous.is_some_and(|time| sample.time_ms <= time) {
-                return Err(
-                    StorageError::Invalid("sample timestamps are not strictly increasing").into(),
-                );
-            }
-            previous = Some(sample.time_ms);
-            account.work(1);
             if matches!(action, CursorAction::Next) {
                 let initial = origin == CursorOrigin::InitialNext;
                 action = visit(sample, origin)?;
@@ -806,6 +867,21 @@ pub(crate) fn walk_observed<S: Series, E: From<StorageError> + From<Interrupted>
                     && (!initial || target > sample.time_ms)
                 {
                     return Err(StorageError::Invalid("invalid initial current seek").into());
+                }
+                if local_seeks && matches!(action, CursorAction::Seek(_)) && !tail_validated {
+                    // Preserve tail validation before advancing to another logical point.
+                    for remaining in index + 1..page.samples.len() {
+                        validate_walk_sample::<E>(
+                            page.samples.sample(remaining),
+                            bounds,
+                            minimum,
+                            initial_floor,
+                            &mut previous,
+                            control,
+                            account,
+                        )?;
+                    }
+                    tail_validated = true;
                 }
             }
         }
@@ -892,6 +968,201 @@ mod tests {
         }
     }
     #[test]
+    fn scheduled_seeks_reuse_the_page_and_preserve_physical_boundary_errors() {
+        use crate::{
+            test_storage::{GeneratedCursor, GeneratedSeries},
+            value::{Sample, SampleValue},
+        };
+        use std::sync::atomic::AtomicUsize;
+        struct Source {
+            inner: GeneratedSeries,
+            seeks: AtomicUsize,
+            fail_seek: bool,
+        }
+        struct Cursor<'a> {
+            inner: GeneratedCursor<'a>,
+            seeks: &'a AtomicUsize,
+            fail_seek: bool,
+        }
+        impl Series for Source {
+            type Cursor<'a> = Cursor<'a>;
+            fn label_count(&self) -> usize {
+                self.inner.label_count()
+            }
+            fn label(&self, index: usize) -> LabelRef<'_> {
+                self.inner.label(index)
+            }
+            fn resources(&self) -> ProviderResources {
+                self.inner.resources()
+            }
+            fn cursor(
+                &self,
+                bounds: TimeBounds,
+                control: &Control,
+            ) -> Result<Cursor<'_>, StorageError> {
+                Ok(Cursor {
+                    inner: self.inner.cursor(bounds, control)?,
+                    seeks: &self.seeks,
+                    fail_seek: self.fail_seek,
+                })
+            }
+        }
+        impl SampleCursor for Cursor<'_> {
+            fn resources(&self) -> ProviderResources {
+                self.inner.resources()
+            }
+            fn max_page_samples(&self) -> usize {
+                self.inner.max_page_samples()
+            }
+            fn seek(&mut self, target: i64, control: &Control) -> Result<(), StorageError> {
+                self.seeks.fetch_add(1, Ordering::Relaxed);
+                control.check()?;
+                if self.fail_seek {
+                    return Err(StorageError::Provider(
+                        b"injected seek failure".to_vec().into(),
+                    ));
+                }
+                self.inner.seek(target, control)
+            }
+            fn next(
+                &mut self,
+                control: &Control,
+                resources: &mut ProviderResources,
+            ) -> Result<Option<SamplePage<'_>>, StorageError> {
+                self.inner.next(control, resources)
+            }
+        }
+        fn sample(index: usize) -> Sample {
+            Sample {
+                time_ms: 10 * (index as i64 + 1),
+                start_time_ms: 0,
+                value: SampleValue::Float(index as f64),
+            }
+        }
+        for scheduled in [false, true] {
+            for page in [1, 17, 1024] {
+                for target in [20, 40, 50] {
+                    for failure in [None, Some("seek"), Some("next")] {
+                        let mut source = Source {
+                            inner: GeneratedSeries::new(4, page, sample),
+                            seeks: AtomicUsize::new(0),
+                            fail_seek: failure == Some("seek"),
+                        };
+                        if failure == Some("next") {
+                            source.inner.fail_page = Some(1);
+                        }
+                        let account = EngineAccounting::default().query();
+                        let control = Control::default();
+                        let mut visited = Vec::new();
+                        let visit = |point: SampleRef<'_>| {
+                            visited.push(point.time_ms);
+                            Ok(if point.time_ms == 10 {
+                                CursorAction::Seek(target)
+                            } else {
+                                CursorAction::Stop
+                            })
+                        };
+                        let bounds = TimeBounds {
+                            start_ms: 0,
+                            end_ms: 100,
+                        };
+                        let outcome = if scheduled {
+                            walk_scheduled::<_, StorageError>(
+                                &source,
+                                bounds,
+                                WalkStart::Next,
+                                &control,
+                                &account,
+                                visit,
+                            )
+                        } else {
+                            walk::<_, StorageError>(
+                                &source,
+                                bounds,
+                                WalkStart::Next,
+                                &control,
+                                &account,
+                                visit,
+                            )
+                        };
+                        let physical = !scheduled || page == 1 || target == 50;
+                        if physical && failure.is_some() {
+                            let Err(StorageError::Provider(bytes)) = &outcome else {
+                                panic!("physical operation must return its error")
+                            };
+                            assert_eq!(
+                                &**bytes,
+                                if failure == Some("seek") {
+                                    b"injected seek failure".as_slice()
+                                } else {
+                                    b"injected page failure".as_slice()
+                                }
+                            );
+                            assert_eq!(visited, [10]);
+                        } else {
+                            assert_eq!(outcome.as_ref().unwrap().is_continue(), target == 50);
+                            assert_eq!(
+                                visited,
+                                if target == 50 {
+                                    vec![10]
+                                } else {
+                                    vec![10, target]
+                                }
+                            );
+                        }
+                        assert_eq!(source.seeks.load(Ordering::Relaxed), usize::from(physical));
+                        assert_eq!(
+                            source.inner.counters.next_calls.load(Ordering::Relaxed),
+                            1 + usize::from(physical && failure != Some("seek"))
+                        );
+                        assert_eq!(source.inner.counters.active.load(Ordering::Relaxed), 0);
+                        assert_eq!(
+                            source.inner.counters.opened.load(Ordering::Relaxed),
+                            source.inner.counters.closed.load(Ordering::Relaxed)
+                        );
+                        drop(outcome);
+                        account.snapshot().assert_memory_released();
+                    }
+                }
+            }
+        }
+    }
+    #[test]
+    fn scheduled_page_advancement_checks_cancellation_and_releases_its_borrow() {
+        use crate::test_storage::{GeneratedSeries, counter, interrupt_during};
+        let source = GeneratedSeries::new(10000, 1024, counter);
+        let account = EngineAccounting::default().query();
+        let control = Control::default();
+        let mut visited = 0;
+        let outcome = interrupt_during(&account, &control, || {
+            walk_scheduled::<_, StorageError>(
+                &source,
+                TimeBounds {
+                    start_ms: 0,
+                    end_ms: 10_000_000,
+                },
+                WalkStart::Next,
+                &control,
+                &account,
+                |point| {
+                    visited += 1;
+                    Ok(CursorAction::Seek(point.time_ms + 1))
+                },
+            )
+        });
+        assert!(matches!(
+            outcome,
+            Err(StorageError::Interrupted(Interrupted::Cancelled))
+        ));
+        assert!(visited > 1 && visited < 10000);
+        assert_eq!(source.counters.active.load(Ordering::Relaxed), 0);
+        assert_eq!(
+            source.counters.opened.load(Ordering::Relaxed),
+            source.counters.closed.load(Ordering::Relaxed)
+        );
+        account.snapshot().assert_memory_released();
+    }
+    #[test]
     fn unread_tail_validation_preserves_earlier_visitor_errors() {
         use crate::{
             test_storage::GeneratedSeries,
@@ -904,11 +1175,13 @@ mod tests {
                 value: SampleValue::Float(1.0),
             }
         }
-        for mode in 0..3 {
+        for (scheduled, mode) in
+            (0..3).flat_map(|mode| [false, true].map(|scheduled| (scheduled, mode)))
+        {
             let source = GeneratedSeries::new(3, 17, sample);
             let account = EngineAccounting::default().query();
             let mut visited = 0;
-            let result = walk::<_, StorageError>(
+            let result = walk_observed_inner::<_, StorageError>(
                 &source,
                 TimeBounds {
                     start_ms: 0,
@@ -917,7 +1190,8 @@ mod tests {
                 WalkStart::Next,
                 &Control::default(),
                 &account,
-                |_| {
+                scheduled,
+                |_, _| {
                     visited += 1;
                     match mode {
                         0 => Ok(CursorAction::Stop),

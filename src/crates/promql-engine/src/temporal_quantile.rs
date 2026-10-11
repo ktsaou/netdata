@@ -423,57 +423,87 @@ mod tests {
             execution::{Engine, QueryRequest},
             test_storage::FixtureProvider,
         };
-        for page in [1, 17, 1024] {
-            let mut previous = None;
-            for count in [2048, 100_000] {
-                let engine = Engine::default();
-                let query = engine
-                    .compile(
-                        b"quantile_over_time(0.5,counter_total[100000s])",
-                        crate::execution::EngineOptions::default(),
+        fn seek_index(time_ms: i64) -> usize {
+            usize::try_from(time_ms.saturating_sub(1).max(0) / 1000).unwrap()
+        }
+        for computed in [false, true] {
+            for page in [1, 17, 1024] {
+                let mut previous = None;
+                for count in [2048, 100_000] {
+                    let engine = Engine::default();
+                    let expression = if computed {
+                        format!("quantile_over_time(0.5,(counter_total*1)[{count}s:1s])")
+                    } else {
+                        "quantile_over_time(0.5,counter_total[100000s])".to_owned()
+                    };
+                    let query = engine
+                        .compile(
+                            expression.as_bytes(),
+                            crate::execution::EngineOptions {
+                                lookback_ms: 1,
+                                ..crate::execution::EngineOptions::default()
+                            },
+                            &Control::default(),
+                        )
+                        .unwrap();
+                    let mut provider = FixtureProvider::new(count, page, 1);
+                    provider.series[0].source.sample = mixed_zeros;
+                    provider.series[0].source.seek_index = Some(seek_index);
+                    let report = query.collect_reported(
+                        &provider,
+                        QueryRequest::Instant {
+                            time_ms: count as i64 * 1000,
+                        },
                         &Control::default(),
-                    )
-                    .unwrap();
-                let mut provider = FixtureProvider::new(count, page, 1);
-                provider.series[0].source.sample = mixed_zeros;
-                let report = query.collect_reported(
-                    &provider,
-                    QueryRequest::Instant {
-                        time_ms: count as i64 * 1000,
-                    },
-                    &Control::default(),
-                );
-                let output = report.result.as_ref().unwrap();
-                assert_eq!(output.series.len(), 1);
-                let crate::result::OwnedValue::Float(value) = output.series[0].points[0].value
-                else {
-                    panic!("float quantile");
-                };
-                assert_eq!(value.to_bits(), 0);
-                let snapshot = &report.observations;
-                let peaks = [
-                    MemoryKind::Workspace,
-                    MemoryKind::ProviderHeld,
-                    MemoryKind::BorrowedView,
-                ]
-                .map(|kind| snapshot.memory[kind as usize].peak);
-                if let Some(previous) = previous {
-                    assert_eq!(peaks, previous);
+                    );
+                    let output = report.result.as_ref().unwrap();
+                    assert_eq!(output.series.len(), 1);
+                    let crate::result::OwnedValue::Float(value) = output.series[0].points[0].value
+                    else {
+                        panic!("float quantile");
+                    };
+                    assert_eq!(value.to_bits(), 0);
+                    let snapshot = &report.observations;
+                    let peaks = [
+                        MemoryKind::Workspace,
+                        MemoryKind::ProviderHeld,
+                        MemoryKind::BorrowedView,
+                    ]
+                    .map(|kind| snapshot.memory[kind as usize].peak);
+                    if let Some(previous) = previous {
+                        assert_eq!(peaks, previous);
+                    }
+                    previous = Some(peaks);
+                    assert_eq!(snapshot.temporary_storage.extent.peak, count as u64 * 8);
+                    assert_eq!(snapshot.temporary_storage.extent.current, 0);
+                    assert_eq!(snapshot.temporary_storage.stores.peak, 1);
+                    assert_eq!(snapshot.temporary_storage.stores.current, 0);
+                    assert!(snapshot.temporary_storage.read_calls > 0);
+                    assert!(snapshot.temporary_storage.written_bytes >= count as u64 * 8);
+                    let counters = &provider.series[0].source.counters;
+                    if computed {
+                        assert_eq!(
+                            snapshot.samples_fetched,
+                            counters.samples_returned.load(Ordering::Relaxed) as u64
+                        );
+                        assert!(snapshot.samples_fetched <= 80 * count as u64);
+                        assert!(snapshot.pages <= 80 * count.div_ceil(page) as u64);
+                        assert!(counters.opened.load(Ordering::Relaxed) <= 80);
+                        for kind in [
+                            MemoryKind::Workspace,
+                            MemoryKind::ProviderHeld,
+                            MemoryKind::BorrowedView,
+                        ] {
+                            assert_eq!(snapshot.memory[kind as usize].current, 0);
+                        }
+                    }
+                    assert_eq!(counters.active.load(Ordering::Relaxed), 0);
+                    assert_eq!(counters.peak.load(Ordering::Relaxed), 1);
+                    provider.assert_closed();
+                    drop(report);
+                    drop(query);
+                    engine.accounting.snapshot().assert_memory_released();
                 }
-                previous = Some(peaks);
-                assert_eq!(snapshot.temporary_storage.extent.peak, count as u64 * 8);
-                assert_eq!(snapshot.temporary_storage.extent.current, 0);
-                assert_eq!(snapshot.temporary_storage.stores.peak, 1);
-                assert_eq!(snapshot.temporary_storage.stores.current, 0);
-                assert!(snapshot.temporary_storage.read_calls > 0);
-                assert!(snapshot.temporary_storage.written_bytes >= count as u64 * 8);
-                let counters = &provider.series[0].source.counters;
-                assert_eq!(counters.active.load(Ordering::Relaxed), 0);
-                assert_eq!(counters.peak.load(Ordering::Relaxed), 1);
-                provider.assert_closed();
-                drop(report);
-                drop(query);
-                engine.accounting.snapshot().assert_memory_released();
             }
         }
     }

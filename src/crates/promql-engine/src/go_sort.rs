@@ -305,7 +305,7 @@ mod tests {
         let account = engine.query();
         let mut data = AccountedVec::new(&account, MemoryKind::Workspace);
         for ordinal in 0..100000usize {
-            data.push(((ordinal * 65537) % 100003, ordinal));
+            data.push((((ordinal as u64 * 65537) % 100003) as usize, ordinal));
         }
         let memory = account.snapshot().memory;
         std::thread::Builder::new()
@@ -328,7 +328,7 @@ mod tests {
                 assert_eq!(account.snapshot().memory, memory);
                 assert!(data.windows(2).all(|items| items[0].0 < items[1].0));
                 for &(bound, ordinal) in &data {
-                    assert_eq!(bound, (ordinal * 65537) % 100003);
+                    assert_eq!(bound, ((ordinal as u64 * 65537) % 100003) as usize);
                 }
                 drop(data);
                 account.snapshot().assert_memory_released();
