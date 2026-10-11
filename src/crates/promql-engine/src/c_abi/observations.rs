@@ -36,10 +36,25 @@ fn references(value: accounting::CancellationReferences) -> types::CancellationR
         external: reference(value.external),
     }
 }
+fn temporary(
+    value: accounting::TemporaryStorageObservations,
+) -> types::TemporaryStorageObservations {
+    types::TemporaryStorageObservations {
+        extent: memory(value.extent),
+        stores: reference(value.stores),
+        read_calls: value.read_calls,
+        write_calls: value.write_calls,
+        read_bytes: value.read_bytes,
+        written_bytes: value.written_bytes,
+        counter_overflowed: u32::from(value.counter_overflowed),
+        reserved: 0,
+    }
+}
 pub(crate) fn query(value: &accounting::QueryObservations) -> types::QueryObservations {
     types::QueryObservations {
         memory: value.memory.map(memory),
         cancellation_references: references(value.cancellation_references),
+        temporary_storage: temporary(value.temporary_storage),
         provider_calls: value.provider_calls,
         pages: value.pages,
         samples_fetched: value.samples_fetched,
@@ -54,6 +69,7 @@ pub(crate) fn engine(value: &accounting::EngineObservations) -> types::EngineObs
     types::EngineObservations {
         memory: value.memory.map(memory),
         cancellation_references: references(value.cancellation_references),
+        temporary_storage: temporary(value.temporary_storage),
         active_executions: value.active_executions,
         peak_executions: value.peak_executions,
         completed_executions: value.completed_executions,

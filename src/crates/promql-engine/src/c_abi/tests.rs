@@ -10,6 +10,8 @@ mod allocations;
 mod delivery;
 mod ownership;
 mod pages;
+#[cfg(all(target_os = "linux", target_arch = "x86_64"))]
+mod temporary;
 
 struct Fixture {
     points: Vec<types::Sample>,
@@ -83,6 +85,11 @@ impl Fixture {
             cursor_resources: Some(cursor_resources),
             cursor_seek: Some(cursor_seek),
             cursor_next: Some(cursor_next),
+            temporary_create: None,
+            temporary_read: None,
+            temporary_write: None,
+            temporary_resources: None,
+            temporary_close: None,
         }
     }
     fn opened(&self, index: usize) {

@@ -82,6 +82,37 @@ pub struct CancellationReferences {
     /// Engine-held guard aliases of caller/default tokens.
     pub external: ReferenceObservation,
 }
+
+/// Logical provider backing is separate from RAM and raw source pages.
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct TemporaryStorageObservations {
+    pub extent: MemoryObservation,
+    pub stores: ReferenceObservation,
+    pub read_calls: u64,
+    pub write_calls: u64,
+    pub read_bytes: u64,
+    pub written_bytes: u64,
+    pub counter_overflowed: bool,
+}
+impl TemporaryStorageObservations {
+    fn transfer(&mut self, write: bool, bytes: Option<u64>) {
+        let calls = if write {
+            &mut self.write_calls
+        } else {
+            &mut self.read_calls
+        };
+        if let Some(bytes) = bytes {
+            let counter = if write {
+                &mut self.written_bytes
+            } else {
+                &mut self.read_bytes
+            };
+            add(counter, bytes, &mut self.counter_overflowed);
+        } else {
+            add(calls, 1, &mut self.counter_overflowed);
+        }
+    }
+}
 impl CancellationReferences {
     fn entry(&mut self, engine_owned: bool) -> &mut ReferenceObservation {
         if engine_owned {
@@ -96,6 +127,7 @@ impl CancellationReferences {
 pub struct QueryObservations {
     pub memory: [MemoryObservation; MEMORY_KINDS],
     pub cancellation_references: CancellationReferences,
+    pub temporary_storage: TemporaryStorageObservations,
     pub provider_calls: u64,
     pub pages: u64,
     /// Samples received in accepted pages, including a page discarded on cancellation.
@@ -109,6 +141,7 @@ pub struct QueryObservations {
 pub struct EngineObservations {
     pub memory: [MemoryObservation; MEMORY_KINDS],
     pub cancellation_references: CancellationReferences,
+    pub temporary_storage: TemporaryStorageObservations,
     pub active_executions: u64,
     pub peak_executions: u64,
     pub completed_executions: u64,
@@ -229,6 +262,40 @@ impl QueryAccounting {
         engine.cancellation_references.entry(engine_owned).acquire();
         query.cancellation_references.entry(engine_owned).acquire();
         lease
+    }
+    pub(crate) fn hold_temporary_storage(&self, bytes: u64) -> TemporaryStorageLease {
+        let mut engine = lock(&self.0.engine.0);
+        let mut query = lock(&self.0.observations);
+        for observation in [&mut engine.temporary_storage, &mut query.temporary_storage] {
+            observation.extent.acquire(bytes);
+            observation.stores.acquire();
+        }
+        TemporaryStorageLease {
+            query: self.clone(),
+            bytes,
+        }
+    }
+    pub(crate) fn temporary_transfer(&self, write: bool, bytes: Option<u64>) {
+        let mut engine = lock(&self.0.engine.0);
+        let mut query = lock(&self.0.observations);
+        engine.temporary_storage.transfer(write, bytes);
+        query.temporary_storage.transfer(write, bytes);
+    }
+}
+
+#[derive(Debug)]
+pub(crate) struct TemporaryStorageLease {
+    query: QueryAccounting,
+    bytes: u64,
+}
+impl Drop for TemporaryStorageLease {
+    fn drop(&mut self) {
+        let mut engine = lock(&self.query.0.engine.0);
+        let mut query = lock(&self.query.0.observations);
+        for observation in [&mut engine.temporary_storage, &mut query.temporary_storage] {
+            observation.extent.release(self.bytes);
+            observation.stores.release();
+        }
     }
 }
 
@@ -455,6 +522,7 @@ fn assert_released_memory(
 #[cfg(test)]
 impl QueryObservations {
     pub(crate) fn assert_memory_released(&self) {
+        assert_temporary_released(self.temporary_storage);
         assert_released_memory(
             &self.memory,
             self.cancellation_references,
@@ -463,6 +531,7 @@ impl QueryObservations {
         );
     }
     pub(crate) fn assert_retained_error_memory(&self, bytes: u64) {
+        assert_temporary_released(self.temporary_storage);
         assert_released_memory(
             &self.memory,
             self.cancellation_references,
@@ -477,6 +546,7 @@ impl EngineObservations {
         self.assert_memory_released_with_queries(0);
     }
     pub(crate) fn assert_memory_released_with_queries(&self, queries: u64) {
+        assert_temporary_released(self.temporary_storage);
         assert_released_memory(
             &self.memory,
             self.cancellation_references,
@@ -484,6 +554,14 @@ impl EngineObservations {
             0,
         );
     }
+}
+
+#[cfg(test)]
+fn assert_temporary_released(observation: TemporaryStorageObservations) {
+    assert_eq!(observation.extent.current, 0);
+    assert_eq!(observation.extent.acquired, observation.extent.released);
+    assert_eq!(observation.stores.current, 0);
+    assert_eq!(observation.stores.acquired, observation.stores.released);
 }
 
 #[derive(Debug)]

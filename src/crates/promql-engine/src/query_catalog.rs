@@ -274,6 +274,10 @@ impl<'q, Q: QueryProvider + 'q> Catalog<'q, Q> {
             .expect("expanded selector site")
             .len()
     }
+    /// Backing factories do not borrow selector tables across a nested replay.
+    pub(crate) fn query(&self) -> &'q Q {
+        self.query
+    }
     pub(crate) fn with_series<R>(
         &self,
         node: NodeId,

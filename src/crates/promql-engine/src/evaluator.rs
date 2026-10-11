@@ -23,7 +23,7 @@ use crate::{
         Control, InitialSample, Interrupted, QueryProvider, Series, StorageError, TimeBounds,
         label, matches_checked, validate_labels,
     },
-    value::SampleRef,
+    value::{SampleRef, SampleValueRef},
 };
 use tokens::TokenKind;
 
@@ -225,9 +225,6 @@ pub(crate) fn numeric_range_error(
         NumericRangeError::Storage(error) => EvaluationError::Storage(error),
         NumericRangeError::Factor { trend, value } => {
             EvaluationError::Runtime(NumericRangeError::message(trend, value, account))
-        }
-        NumericRangeError::Provenance => {
-            EvaluationError::Unsupported("quantile_over_time mixed equal-class provenance")
         }
     }
 }
@@ -770,6 +767,64 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
                 count_preparation: self.count_preparation,
             },
         )
+    }
+    fn materialize_range_bits(
+        &self,
+        source: crate::derived_range::BackingSource,
+        writer: &mut crate::temporary_float_bits::Writer<'_>,
+    ) -> Result<(), EvaluationError> {
+        let mut reader = source.reader();
+        if source.raw() {
+            let grid = source.grid();
+            let child = self.replay(source.node(), source.options(grid.end_ms), None);
+            self.catalog
+                .with_series(source.node(), source.ordinal, |series| {
+                    crate::derived_range::raw_reader_pass(
+                        &mut reader,
+                        self.control,
+                        self.account,
+                        |sample| {
+                            if let SampleValueRef::Float(value) = sample.value
+                                && !sample.value.is_stale()
+                            {
+                                writer.push(value.to_bits())?;
+                            }
+                            Ok(())
+                        },
+                        |visit| {
+                            child.visit_raw_series(
+                                source.node(),
+                                source.ordinal,
+                                series,
+                                grid,
+                                None,
+                                |time, _, value| visit(time, value),
+                            )
+                        },
+                    )
+                })
+                .expect("plain subquery backing ordinal")?;
+        } else {
+            while let crate::derived_matrix::Action::Fetch(fetch) =
+                reader.advance(self.control, self.account, |sample| {
+                    if let SampleValueRef::Float(value) = sample.value
+                        && !sample.value.is_stale()
+                    {
+                        writer.push(value.to_bits())?;
+                    }
+                    Ok(())
+                })?
+            {
+                let mut child = self.replay(source.node(), source.options(fetch.time_ms), None);
+                child.restrict_one(source.ordinal);
+                while let Some(sample) = child.next()? {
+                    if reader.receive(sample) {
+                        break;
+                    }
+                }
+            }
+        }
+        Ok(())
     }
     fn map(&self, operation: MapOperation) -> State<'a> {
         State::Map {
@@ -1794,6 +1849,7 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
                     self.account,
                     |matrix| {
                         range_numeric::evaluate(
+                            self.catalog.query(),
                             series,
                             NumericRangeInput {
                                 matrix: Some(matrix),
@@ -2741,6 +2797,26 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
                     }
                 },
                 State::Range(step) => match step.advance(self.control, self.account)? {
+                    crate::derived_range::Action::Backing { request, source } => {
+                        let State::Range(mut step) =
+                            std::mem::replace(&mut self.frames[index].state, State::Enter)
+                        else {
+                            unreachable!("range backing continuation")
+                        };
+                        let result = crate::temporary_float_bits::quantile(
+                            self.catalog.query(),
+                            request.count,
+                            request.plan,
+                            self.control,
+                            self.account,
+                            |writer| self.materialize_range_bits(source, writer),
+                        );
+                        if let Ok(value) = &result {
+                            step.receive_backed(*value);
+                        }
+                        self.frames[index].state = State::Range(step);
+                        result?;
+                    }
                     crate::derived_range::Action::RawPass {
                         node: body,
                         ordinal,

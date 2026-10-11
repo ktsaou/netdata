@@ -80,7 +80,7 @@ fn temporary_foreign_allocation_is_observed_before_a_zero_resource_snapshot() {
     }
 }
 
-unsafe fn acquire(
+pub(super) unsafe fn acquire(
     account: &QueryAccounting,
     kind: MemoryKind,
     bytes: u64,

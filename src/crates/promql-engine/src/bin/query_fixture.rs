@@ -221,6 +221,14 @@ impl QueryProvider for FixtureQuery<'_> {
     fn resources(&self) -> ProviderResources {
         ProviderResources::default()
     }
+    fn with_temporary_float_bits<R>(
+        &self,
+        request: netdata_promql_engine::storage::TemporaryFloatBitsRequest<'_>,
+        control: &Control,
+        visit: impl for<'a> FnOnce(&'a mut dyn netdata_promql_engine::storage::TemporaryFloatBits) -> R,
+    ) -> Result<R, StorageError> {
+        netdata_promql_engine::fixture_temporary_storage::with_store(request, control, visit)
+    }
     fn select(
         &self,
         request: SelectionRequest<'_>,
@@ -458,9 +466,11 @@ fn result_rows(result: &CollectedResult) -> Vec<Value> {
     }).collect()
 }
 fn observations(observed: &QueryObservations) -> Value {
-    let memory: Vec<_> = observed.memory.iter().map(|m| json!({"current": m.current, "peak": m.peak, "acquired": m.acquired, "released": m.released, "overflowed": m.overflowed})).collect();
+    let bytes = |m: netdata_promql_engine::accounting::MemoryObservation| json!({"current": m.current, "peak": m.peak, "acquired": m.acquired, "released": m.released, "overflowed": m.overflowed});
+    let memory: Vec<_> = observed.memory.iter().copied().map(bytes).collect();
     let references = |value: netdata_promql_engine::accounting::ReferenceObservation| json!({"current": value.current, "peak": value.peak, "acquired": value.acquired, "released": value.released, "overflowed": value.overflowed});
-    json!({"memory": memory, "cancellation_references": {"engine_owned": references(observed.cancellation_references.engine_owned), "external": references(observed.cancellation_references.external)}, "pages": observed.pages, "samples_fetched": observed.samples_fetched, "work": observed.work, "provider_calls": observed.provider_calls, "output_samples": observed.output_samples, "elapsed_ns": observed.elapsed.as_nanos().to_string(), "counter_overflowed": observed.counter_overflowed})
+    let temporary = observed.temporary_storage;
+    json!({"memory": memory, "cancellation_references": {"engine_owned": references(observed.cancellation_references.engine_owned), "external": references(observed.cancellation_references.external)}, "temporary_storage": {"extent": bytes(temporary.extent), "stores": references(temporary.stores), "read_calls": temporary.read_calls, "write_calls": temporary.write_calls, "read_bytes": temporary.read_bytes, "written_bytes": temporary.written_bytes, "counter_overflowed": temporary.counter_overflowed}, "pages": observed.pages, "samples_fetched": observed.samples_fetched, "work": observed.work, "provider_calls": observed.provider_calls, "output_samples": observed.output_samples, "elapsed_ns": observed.elapsed.as_nanos().to_string(), "counter_overflowed": observed.counter_overflowed})
 }
 fn failure(phase: &str, kind: &str, message: &[u8]) -> Value {
     json!({"phase": phase, "type": kind, "message": encoded_bytes(message)})

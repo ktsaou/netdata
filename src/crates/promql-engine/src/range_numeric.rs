@@ -86,7 +86,6 @@ pub(crate) struct NumericRangeOutput {
 pub(crate) enum NumericRangeError {
     Storage(StorageError),
     Factor { trend: bool, value: f64 },
-    Provenance,
 }
 impl From<StorageError> for NumericRangeError {
     fn from(error: StorageError) -> Self {
@@ -312,7 +311,9 @@ impl NumericStep {
     }
 }
 
-pub(crate) fn evaluate<S: Series>(
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn evaluate<S: Series, Q: crate::storage::QueryProvider>(
+    query: &Q,
     series: &S,
     input: impl Into<NumericRangeInput>,
     function: NumericRangeFunction,
@@ -326,7 +327,14 @@ pub(crate) fn evaluate<S: Series>(
         return crate::mad::evaluate(series, input, control, account).map_err(Into::into);
     }
     if function == NumericRangeFunction::Quantile {
-        return crate::temporal_quantile::evaluate(series, input, parameters[0], control, account);
+        return crate::temporal_quantile::evaluate(
+            query,
+            series,
+            input,
+            parameters[0],
+            control,
+            account,
+        );
     }
     let mut step = NumericStep::new(function, parameters, time_ms);
     let progress = scan(series, input, control, account, |sample| {
@@ -422,6 +430,7 @@ mod tests {
                 NumericRangeFunction::PredictLinear,
             ] {
                 let result = evaluate(
+                    &crate::test_storage::NoTemporary,
                     &source,
                     TimeBounds {
                         start_ms: -10_000,
@@ -472,6 +481,7 @@ mod tests {
                         [15.0, 0.0]
                     };
                     let result = evaluate(
+                        &crate::test_storage::NoTemporary,
                         &source,
                         window(count),
                         function,
@@ -543,6 +553,7 @@ mod tests {
             let account = EngineAccounting::default().query();
             let source = GeneratedSeries::new(4, page, changing);
             let result = evaluate(
+                &crate::test_storage::NoTemporary,
                 &source,
                 window(4),
                 NumericRangeFunction::Smoothing,
@@ -556,6 +567,7 @@ mod tests {
             assert_eq!(result.value, Some(7.375));
             let source = GeneratedSeries::new(2, page, changing);
             let result = evaluate(
+                &crate::test_storage::NoTemporary,
                 &source,
                 window(2),
                 NumericRangeFunction::Smoothing,
@@ -573,6 +585,7 @@ mod tests {
             ] {
                 let source = GeneratedSeries::new(2, page, mixed);
                 let result = evaluate(
+                    &crate::test_storage::NoTemporary,
                     &source,
                     window(2),
                     function,
@@ -589,6 +602,7 @@ mod tests {
                 );
                 let source = GeneratedSeries::new(2, page, histogram);
                 let result = evaluate(
+                    &crate::test_storage::NoTemporary,
                     &source,
                     window(2),
                     function,
@@ -626,6 +640,7 @@ mod tests {
                 let source = GeneratedSeries::new(count, page, stale);
                 assert!(
                     evaluate(
+                        &crate::test_storage::NoTemporary,
                         &source,
                         window(2),
                         NumericRangeFunction::Smoothing,
@@ -641,6 +656,7 @@ mod tests {
             }
             let source = GeneratedSeries::new(1, page, constant);
             let error = evaluate(
+                &crate::test_storage::NoTemporary,
                 &source,
                 window(2),
                 NumericRangeFunction::Smoothing,
@@ -670,6 +686,7 @@ mod tests {
             source.fail_page = Some(1);
             assert!(matches!(
                 evaluate(
+                    &crate::test_storage::NoTemporary,
                     &source,
                     window(page + 1),
                     NumericRangeFunction::Smoothing,
@@ -684,6 +701,7 @@ mod tests {
             control.cancellation.cancel();
             assert!(matches!(
                 evaluate(
+                    &crate::test_storage::NoTemporary,
                     &source,
                     window(2),
                     NumericRangeFunction::Deriv,

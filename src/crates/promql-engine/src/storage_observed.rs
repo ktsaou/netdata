@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 //! Reconcile owner snapshots at callbacks and releases without inventing transfer peaks.
 use crate::{
-    accounting::{AllocationContext, MemoryKind, QueryAccounting},
+    accounting::{AllocationContext, MemoryKind, QueryAccounting, TemporaryStorageLease},
     shared::Strong,
     storage::*,
 };
@@ -22,9 +22,10 @@ impl<Q: QueryProvider> ObservedQuery<Q> {
         }
     }
     fn pair(&self, lease: &RefCell<ResourceLease>, resources: ProviderResources) {
+        let query_resources = self.value.resources();
         ResourceLease::pair(
             &mut self.lease.borrow_mut(),
-            self.value.resources(),
+            query_resources,
             &mut lease.borrow_mut(),
             resources,
         );
@@ -36,9 +37,10 @@ impl<Q: QueryProvider> ObservedQuery<Q> {
         b: &RefCell<ResourceLease>,
         br: ProviderResources,
     ) {
+        let query_resources = self.value.resources();
         ResourceLease::triple(
             &mut self.lease.borrow_mut(),
-            self.value.resources(),
+            query_resources,
             &mut a.borrow_mut(),
             ar,
             &mut b.borrow_mut(),
@@ -51,8 +53,9 @@ impl<Q: QueryProvider> ObservedQuery<Q> {
         b: (&RefCell<ResourceLease>, ProviderResources),
         c: (&RefCell<ResourceLease>, ProviderResources),
     ) {
+        let query_resources = self.value.resources();
         ResourceLease::quartet(
-            (&mut self.lease.borrow_mut(), self.value.resources()),
+            (&mut self.lease.borrow_mut(), query_resources),
             (&mut a.0.borrow_mut(), a.1),
             (&mut b.0.borrow_mut(), b.1),
             (&mut c.0.borrow_mut(), c.1),
@@ -143,10 +146,99 @@ impl<Q: QueryProvider> QueryProvider for ObservedQuery<Q> {
                 Ok(selection)
             }
             Err(error) => {
-                self.lease.borrow_mut().update(self.value.resources());
+                let resources = self.value.resources();
+                self.lease.borrow_mut().update(resources);
                 Err(error)
             }
         }
+    }
+    fn with_temporary_float_bits<R>(
+        &self,
+        request: TemporaryFloatBitsRequest<'_>,
+        control: &Control,
+        visit: impl for<'a> FnOnce(&'a mut dyn TemporaryFloatBits) -> R,
+    ) -> Result<R, StorageError> {
+        let bytes = request.extent_bytes()?;
+        let mut scope = TemporaryScope {
+            query: self,
+            lease: RefCell::new(ResourceLease::new(
+                &self.account,
+                ProviderResources::default(),
+            )),
+            extent: None,
+        };
+        self.value
+            .with_temporary_float_bits(
+                TemporaryFloatBitsRequest {
+                    accounting: &self.account,
+                    ..request
+                },
+                control,
+                |value| {
+                    scope.extent = Some(self.account.hold_temporary_storage(bytes));
+                    scope.observe(value.resources());
+                    visit(&mut ObservedTemporary {
+                        value,
+                        scope: &scope,
+                    })
+                },
+            )
+            .map_err(|error| error.accounted(&self.account))
+    }
+}
+
+// The provider factory closes its owner before this outer scope releases accounting.
+struct TemporaryScope<'a, Q: QueryProvider> {
+    query: &'a ObservedQuery<Q>,
+    lease: RefCell<ResourceLease>,
+    extent: Option<TemporaryStorageLease>,
+}
+impl<Q: QueryProvider> TemporaryScope<'_, Q> {
+    fn observe(&self, resources: ProviderResources) {
+        self.query.pair(&self.lease, resources);
+    }
+}
+impl<Q: QueryProvider> Drop for TemporaryScope<'_, Q> {
+    fn drop(&mut self) {
+        if !std::thread::panicking() {
+            self.observe(ProviderResources::default());
+        }
+    }
+}
+struct ObservedTemporary<'s, 'g, 'q, Q: QueryProvider> {
+    value: &'s mut dyn TemporaryFloatBits,
+    scope: &'g TemporaryScope<'q, Q>,
+}
+impl<Q: QueryProvider> TemporaryFloatBits for ObservedTemporary<'_, '_, '_, Q> {
+    fn resources(&self) -> ProviderResources {
+        self.scope.observe(self.value.resources());
+        ProviderResources::default()
+    }
+    fn read_into(
+        &mut self,
+        offset: u64,
+        values: &mut [u64],
+        control: &Control,
+    ) -> Result<(), StorageError> {
+        let result = self
+            .value
+            .read_into(offset, values, control)
+            .map_err(|error| error.accounted(&self.scope.query.account));
+        self.scope.observe(self.value.resources());
+        result
+    }
+    fn write_at(
+        &mut self,
+        offset: u64,
+        values: &[u64],
+        control: &Control,
+    ) -> Result<(), StorageError> {
+        let result = self
+            .value
+            .write_at(offset, values, control)
+            .map_err(|error| error.accounted(&self.scope.query.account));
+        self.scope.observe(self.value.resources());
+        result
     }
 }
 impl<'a, Q: QueryProvider, S: SeriesSelection + 'a> SeriesSelection
@@ -613,6 +705,239 @@ mod tests {
     }
     fn held(account: &QueryAccounting) -> u64 {
         account.snapshot().memory[MemoryKind::ProviderHeld as usize].current
+    }
+    struct ResourceProbe<'a>(&'a Cell<Option<&'a dyn Fn()>>);
+    impl QueryProvider for ResourceProbe<'_> {
+        type Selection<'a>
+            = crate::test_storage::FixtureSelection<'a>
+        where
+            Self: 'a;
+        fn resources(&self) -> ProviderResources {
+            if let Some(probe) = self.0.get() {
+                probe();
+            }
+            ProviderResources::default()
+        }
+        fn select(
+            &self,
+            _: SelectionRequest<'_>,
+            _: &Control,
+        ) -> Result<Self::Selection<'_>, StorageError> {
+            Err(StorageError::Invalid("injected selection failure"))
+        }
+        fn with_temporary_float_bits<R>(
+            &self,
+            request: TemporaryFloatBitsRequest<'_>,
+            control: &Control,
+            visit: impl for<'a> FnOnce(&'a mut dyn TemporaryFloatBits) -> R,
+        ) -> Result<R, StorageError> {
+            crate::fixture_temporary_storage::with_store(request, control, visit)
+        }
+    }
+    #[test]
+    fn provider_resource_callbacks_run_without_accounting_borrows() {
+        let engine = EngineAccounting::default();
+        let account = engine.query();
+        let hook = Cell::new(None);
+        let calls = Cell::new(0);
+        let query = ObservedQuery::new(ResourceProbe(&hook), &account);
+        let probe = || {
+            assert!(query.lease.try_borrow_mut().is_ok());
+            calls.set(calls.get() + 1);
+        };
+        hook.set(Some(&probe));
+        let a = RefCell::new(ResourceLease::new(&account, ProviderResources::default()));
+        let b = RefCell::new(ResourceLease::new(&account, ProviderResources::default()));
+        let c = RefCell::new(ResourceLease::new(&account, ProviderResources::default()));
+        query.pair(&a, ProviderResources::default());
+        query.triple(
+            &a,
+            ProviderResources::default(),
+            &b,
+            ProviderResources::default(),
+        );
+        query.four(
+            (&a, ProviderResources::default()),
+            (&b, ProviderResources::default()),
+            (&c, ProviderResources::default()),
+        );
+        let control = Control::default();
+        assert!(matches!(
+            query.select(
+                SelectionRequest {
+                    accounting: None,
+                    matchers: &[],
+                    bounds: TimeBounds {
+                        start_ms: 0,
+                        end_ms: 0
+                    },
+                    hints: Default::default(),
+                },
+                &control,
+            ),
+            Err(StorageError::Invalid("injected selection failure"))
+        ));
+        query
+            .with_temporary_float_bits(
+                TemporaryFloatBitsRequest {
+                    value_count: 1,
+                    accounting: &account,
+                },
+                &control,
+                |store| {
+                    store
+                        .write_at(0, &[(-0.0_f64).to_bits()], &control)
+                        .unwrap();
+                    let mut values = [0];
+                    store.read_into(0, &mut values, &control).unwrap();
+                    assert_eq!(values, [(-0.0_f64).to_bits()]);
+                },
+            )
+            .unwrap();
+        assert_eq!(calls.get(), 8);
+        hook.set(None);
+    }
+    struct TransferringQuery<'a> {
+        held: RefCell<Vec<u8>>,
+        closed: &'a Cell<bool>,
+    }
+    struct TransferringTemporary<'a, 'q> {
+        value: crate::fixture_temporary_storage::FileStore,
+        held: Vec<u8>,
+        query: &'a TransferringQuery<'q>,
+        account: &'a QueryAccounting,
+    }
+    impl QueryProvider for TransferringQuery<'_> {
+        type Selection<'a>
+            = crate::test_storage::FixtureSelection<'a>
+        where
+            Self: 'a;
+        fn resources(&self) -> ProviderResources {
+            ProviderResources {
+                held_bytes: self.held.borrow().capacity() as u64,
+                ..ProviderResources::default()
+            }
+        }
+        fn select(
+            &self,
+            _: SelectionRequest<'_>,
+            _: &Control,
+        ) -> Result<Self::Selection<'_>, StorageError> {
+            Err(StorageError::Invalid(
+                "temporary transfer query has no selectors",
+            ))
+        }
+        fn with_temporary_float_bits<R>(
+            &self,
+            request: TemporaryFloatBitsRequest<'_>,
+            control: &Control,
+            visit: impl for<'a> FnOnce(&'a mut dyn TemporaryFloatBits) -> R,
+        ) -> Result<R, StorageError> {
+            let value = crate::fixture_temporary_storage::FileStore::create(request, control)?;
+            let mut store = TransferringTemporary {
+                value,
+                held: self.held.take(),
+                query: self,
+                account: request.accounting,
+            };
+            let result = visit(&mut store);
+            drop(store);
+            assert!(self.closed.get());
+            assert_eq!(
+                request
+                    .accounting
+                    .snapshot()
+                    .temporary_storage
+                    .extent
+                    .current,
+                16
+            );
+            Ok(result)
+        }
+    }
+    impl TemporaryFloatBits for TransferringTemporary<'_, '_> {
+        fn resources(&self) -> ProviderResources {
+            assert!(!self.query.closed.get());
+            ProviderResources {
+                held_bytes: self.held.capacity() as u64,
+                ..ProviderResources::default()
+            }
+        }
+        fn read_into(
+            &mut self,
+            offset: u64,
+            values: &mut [u64],
+            control: &Control,
+        ) -> Result<(), StorageError> {
+            self.held = self.query.held.take();
+            self.value.read_into(offset, values, control)
+        }
+        fn write_at(
+            &mut self,
+            offset: u64,
+            values: &[u64],
+            control: &Control,
+        ) -> Result<(), StorageError> {
+            *self.query.held.borrow_mut() = std::mem::take(&mut self.held);
+            self.value.write_at(offset, values, control)
+        }
+    }
+    impl Drop for TransferringTemporary<'_, '_> {
+        fn drop(&mut self) {
+            assert_eq!(held(self.account), 64);
+            assert_eq!(self.account.snapshot().temporary_storage.extent.current, 16);
+            *self.query.held.borrow_mut() = std::mem::take(&mut self.held);
+            self.query.closed.set(true);
+        }
+    }
+    #[test]
+    fn temporary_owner_transfers_are_one_observation_through_physical_close() {
+        let engine = EngineAccounting::default();
+        let account = engine.query();
+        let closed = Cell::new(false);
+        let query = ObservedQuery::new(
+            TransferringQuery {
+                held: RefCell::new(vec![0; 64]),
+                closed: &closed,
+            },
+            &account,
+        );
+        let control = Control::default();
+        query
+            .with_temporary_float_bits(
+                TemporaryFloatBitsRequest {
+                    value_count: 2,
+                    accounting: &account,
+                },
+                &control,
+                |store| {
+                    assert_eq!(held(&account), 64);
+                    assert!(query.value.held.borrow().is_empty());
+                    let bits = [(-0.0_f64).to_bits(), 0x7ff8_0000_0000_0001];
+                    store.write_at(0, &bits, &control).unwrap();
+                    assert_eq!(query.value.held.borrow().len(), 64);
+                    assert_eq!(held(&account), 64);
+                    let mut values = [0; 2];
+                    store.read_into(0, &mut values, &control).unwrap();
+                    assert_eq!(values, bits);
+                    assert!(query.value.held.borrow().is_empty());
+                    assert_eq!(held(&account), 64);
+                },
+            )
+            .unwrap();
+        assert!(closed.get());
+        assert_eq!(query.value.held.borrow().len(), 64);
+        assert_eq!(held(&account), 64);
+        assert_eq!(
+            account.snapshot().memory[MemoryKind::ProviderHeld as usize].peak,
+            64
+        );
+        assert_eq!(account.snapshot().temporary_storage.extent.current, 0);
+        drop(query);
+        assert_eq!(held(&account), 0);
+        account.snapshot().assert_memory_released();
+        drop(account);
+        engine.snapshot().assert_memory_released();
     }
     #[test]
     fn selection_pool_transfers_and_release_with_live_descendants_keep_owner_timing() {

@@ -22,7 +22,7 @@ _Static_assert(sizeof(double) == 8 && DBL_MANT_DIG == 53 && DBL_MAX_EXP == 1024,
  * Shape/version checks cannot establish pointer liveness or prevent caller memory corruption.
  * Ordinary Rust unwind panics return INTERNAL_ERROR; abort/OOM/invalid-pointer faults are not recovered.
  */
-#define NETDATA_PROMQL_ABI_VERSION UINT32_C(2)
+#define NETDATA_PROMQL_ABI_VERSION UINT32_C(3)
 #define NETDATA_PROMQL_OK UINT32_C(0)
 #define NETDATA_PROMQL_INVALID_ARGUMENT UINT32_C(1)
 #define NETDATA_PROMQL_PARSE_ERROR UINT32_C(2)
@@ -287,6 +287,12 @@ typedef uint32_t (*netdata_promql_seek_callback_t)(void *, void *, int64_t, cons
 
 typedef uint32_t (*netdata_promql_next_callback_t)(void *, void *, const netdata_promql_callback_control_t *, netdata_promql_page_t *, netdata_promql_resources_t *, netdata_promql_bytes_t *);
 
+typedef uint32_t (*netdata_promql_temporary_create_callback_t)(void *, void *, uint64_t, const netdata_promql_callback_control_t *, void * *, netdata_promql_bytes_t *);
+
+typedef uint32_t (*netdata_promql_temporary_read_callback_t)(void *, void *, uint64_t, uint64_t *, uint64_t, const netdata_promql_callback_control_t *, uint64_t *, netdata_promql_bytes_t *);
+
+typedef uint32_t (*netdata_promql_temporary_write_callback_t)(void *, void *, uint64_t, const uint64_t *, uint64_t, const netdata_promql_callback_control_t *, uint64_t *, netdata_promql_bytes_t *);
+
 typedef struct netdata_promql_provider_t {
     netdata_promql_header_t header;
     void * context;
@@ -304,6 +310,11 @@ typedef struct netdata_promql_provider_t {
     netdata_promql_resource_callback_t cursor_resources;
     netdata_promql_seek_callback_t cursor_seek;
     netdata_promql_next_callback_t cursor_next;
+    netdata_promql_temporary_create_callback_t temporary_create;
+    netdata_promql_temporary_read_callback_t temporary_read;
+    netdata_promql_temporary_write_callback_t temporary_write;
+    netdata_promql_resource_callback_t temporary_resources;
+    netdata_promql_close_t temporary_close;
 } netdata_promql_provider_t;
 
 typedef struct netdata_promql_engine_options_t {
@@ -402,9 +413,21 @@ typedef struct netdata_promql_cancellation_references_t {
     netdata_promql_reference_observation_t external;
 } netdata_promql_cancellation_references_t;
 
+typedef struct netdata_promql_temporary_storage_observations_t {
+    netdata_promql_memory_observation_t extent;
+    netdata_promql_reference_observation_t stores;
+    uint64_t read_calls;
+    uint64_t write_calls;
+    uint64_t read_bytes;
+    uint64_t written_bytes;
+    uint32_t counter_overflowed;
+    uint32_t reserved;
+} netdata_promql_temporary_storage_observations_t;
+
 typedef struct netdata_promql_query_observations_t {
     netdata_promql_memory_observation_t memory[NETDATA_PROMQL_MEMORY_KINDS];
     netdata_promql_cancellation_references_t cancellation_references;
+    netdata_promql_temporary_storage_observations_t temporary_storage;
     uint64_t provider_calls;
     uint64_t pages;
     uint64_t samples_fetched;
@@ -418,6 +441,7 @@ typedef struct netdata_promql_query_observations_t {
 typedef struct netdata_promql_engine_observations_t {
     netdata_promql_memory_observation_t memory[NETDATA_PROMQL_MEMORY_KINDS];
     netdata_promql_cancellation_references_t cancellation_references;
+    netdata_promql_temporary_storage_observations_t temporary_storage;
     uint64_t active_executions;
     uint64_t peak_executions;
     uint64_t completed_executions;
@@ -502,6 +526,13 @@ static inline double netdata_promql_double_from_bits(uint64_t bits) {
  * Returned error bytes stay live until the next callback; the engine copies them first.
  * Callback control is borrowed only for that callback. Poll it cooperatively during blocking work.
  * Resource/close callbacks receive the same actual-query accounting capability without a cancellation contract.
+ * ABI3 temporary_create/read/write/resources/close are either all present or all absent. Missing backing is an
+ * error only when evaluation needs it. create receives the query token and logical float-value count (8N bytes).
+ * Offsets and transfer lengths count uint64 float-bit values. Buffers live only during the callback. OK requires
+ * the exact requested transfer count; short/oversized transfers are errors. Preserve every bit, including NaNs.
+ * Providers choose backing and clean it on close; the core never creates files or retains a complete raw window.
+ * Temporary extent/store counts are logical backing, separate from memory. Traffic reports attempted calls and
+ * accepted logical bytes, excluding partially failed transfers, physical blocks and kernel-cache residency.
  */
 
 /* Output contract:
@@ -515,6 +546,9 @@ static inline double netdata_promql_double_from_bits(uint64_t bits) {
  */
 
 uint32_t netdata_promql_abi_version(void);
+/* Every caller must check ABI_VERSION before using tables or observation outputs; ABI2 callers must rebuild.
+ * Observation outputs have no size prefix and require the complete ABI3 layout.
+ */
 uint32_t netdata_promql_engine_options_default(netdata_promql_engine_options_t *out);
 uint32_t netdata_promql_control_options_default(netdata_promql_control_options_t *out);
 /* NULL options select native defaults; a NULL optional call control creates a private engine-owned

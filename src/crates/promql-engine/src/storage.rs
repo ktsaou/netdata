@@ -246,6 +246,55 @@ pub trait QueryProvider {
         request: SelectionRequest<'_>,
         control: &Control,
     ) -> Result<Self::Selection<'_>, StorageError>;
+    /// Successful backing stays owned by the provider until after the visitor, including unwind.
+    fn with_temporary_float_bits<R>(
+        &self,
+        request: TemporaryFloatBitsRequest<'_>,
+        _control: &Control,
+        _visit: impl for<'a> FnOnce(&'a mut dyn TemporaryFloatBits) -> R,
+    ) -> Result<R, StorageError> {
+        Err(temporary_storage_error(
+            request.accounting,
+            b"temporary float storage unavailable",
+        ))
+    }
+}
+
+#[derive(Clone, Copy, Debug)]
+pub struct TemporaryFloatBitsRequest<'a> {
+    pub value_count: u64,
+    pub accounting: &'a QueryAccounting,
+}
+impl TemporaryFloatBitsRequest<'_> {
+    pub fn extent_bytes(self) -> Result<u64, StorageError> {
+        self.value_count
+            .checked_mul(8)
+            .ok_or(StorageError::Invalid("temporary float extent overflow"))
+    }
+}
+
+/// Exact all-or-error transfers of raw float bits; offsets count values, not bytes.
+/// No buffer or nested borrow survives a call. Unwritten slots must not be read.
+pub trait TemporaryFloatBits {
+    fn resources(&self) -> ProviderResources;
+    fn read_into(
+        &mut self,
+        offset: u64,
+        values: &mut [u64],
+        control: &Control,
+    ) -> Result<(), StorageError>;
+    fn write_at(
+        &mut self,
+        offset: u64,
+        values: &[u64],
+        control: &Control,
+    ) -> Result<(), StorageError>;
+}
+
+pub(crate) fn temporary_storage_error(account: &QueryAccounting, message: &[u8]) -> StorageError {
+    let mut bytes = AccountedVec::new(account, MemoryKind::Workspace);
+    bytes.extend_from_slice(message);
+    StorageError::Provider(bytes)
 }
 pub trait SeriesSelection {
     type Series: Series;
