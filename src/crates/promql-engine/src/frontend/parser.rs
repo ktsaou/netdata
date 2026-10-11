@@ -1699,6 +1699,19 @@ mod tests {
     }
 
     #[test]
+    fn matrix_ranges_accept_duration_components_above_u32() {
+        let output = expression("h[4294967296ms]");
+        let root = output.root.unwrap();
+        assert!(matches!(
+            output.arena[root].expression,
+            Expr::Matrix {
+                range: 4_294_967_296_000_000,
+                ..
+            }
+        ));
+    }
+
+    #[test]
     fn regex_compile_interruption_stays_out_of_parse_diagnostics() {
         let engine = EngineAccounting::default();
         let account = engine.query();

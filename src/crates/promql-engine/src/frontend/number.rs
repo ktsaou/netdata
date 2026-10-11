@@ -158,18 +158,17 @@ pub(super) fn duration_in(
         if count == 0 {
             return Ok(Err(invalid()?));
         }
-        let mut amount = 0usize;
+        let mut amount = 0u64;
         for &byte in &rest[..count] {
             work.step(1)?;
             let Some(next) = amount
                 .checked_mul(10)
-                .and_then(|value| value.checked_add(usize::from(byte - b'0')))
+                .and_then(|value| value.checked_add(u64::from(byte - b'0')))
             else {
                 return Ok(Err(invalid()?));
             };
             amount = next;
         }
-        let amount = amount as u64;
         rest = &rest[count..];
         let mut count = 0;
         for &byte in rest {
@@ -242,6 +241,38 @@ pub fn nanoseconds(seconds: f64) -> i64 {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn duration_components_keep_amd64_unsigned_width_and_error_order() {
+        for (input, nanoseconds) in [
+            (b"4294967296ms".as_slice(), 4_294_967_296_000_000),
+            (b"4294967296s", 4_294_967_296_000_000_000),
+            (b"9223372036854ms", 9_223_372_036_854_000_000),
+            (b"999999999999ms", 999_999_999_999_000_000),
+            (b"9007199254741ms", 9_007_199_254_741_000_000),
+        ] {
+            assert_eq!(duration(input), Ok(nanoseconds), "{input:?}");
+        }
+        for input in [
+            b"4294967296m".as_slice(),
+            b"9223372036855ms",
+            b"18446744073709551615ms",
+        ] {
+            assert_eq!(duration(input), Err(b"duration out of range".to_vec()));
+        }
+        assert_eq!(
+            duration(b"18446744073709551615x"),
+            Err(b"unknown unit \"x\" in duration \"18446744073709551615x\"".to_vec())
+        );
+        assert_eq!(
+            duration(b"18446744073709551616ms"),
+            Err(b"not a valid duration string: \"18446744073709551616ms\"".to_vec())
+        );
+        assert_eq!(
+            duration(b"1ms4294967296s"),
+            Err(b"not a valid duration string: \"1ms4294967296s\"".to_vec())
+        );
+    }
 
     #[test]
     fn integer_first_numbers_fall_back_to_hex_floats() {

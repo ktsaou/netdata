@@ -30,6 +30,7 @@ SELECTED = {
     "ln": "testdata/functions.test:1975:variant:0000",
     "log10": "testdata/functions.test:2023:variant:0000",
     "log2": "testdata/functions.test:2007:variant:0000",
+    "max": "testdata/aggregators.test:234:variant:0000",
     "minute": "testdata/functions.test:1531:variant:0000",
     "month": "testdata/functions.test:1500:variant:0000",
     "pi": "testdata/trig_functions.test:100:variant:0000",
@@ -53,7 +54,7 @@ DISABLED = {
     "limit_ratio": "limit_ratio(0.5, m)",
 }
 
-INPUT_SHA256 = "207a3f6b1ffed77bc0c6424dc2c043cde22a4ce6d0eeca8f1731730559c08758"
+INPUT_SHA256 = "d4cc9775ff15496af7819cec0563d7bfedd005a8b918f61dc3180fe5e61b946d"
 
 
 def cases(builtin_capture, upstream):
@@ -102,6 +103,6 @@ def cases(builtin_capture, upstream):
     encoded = json.dumps(
         inputs, sort_keys=True, separators=(",", ":"), allow_nan=False
     ).encode()
-    if len(inputs) != 41 or hashlib.sha256(encoded).hexdigest() != INPUT_SHA256:
+    if len(inputs) != 42 or hashlib.sha256(encoded).hexdigest() != INPUT_SHA256:
         raise ValueError("default-profile query/dataset/fault roster changed")
     return inputs

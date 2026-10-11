@@ -519,7 +519,9 @@ static inline double netdata_promql_double_from_bits(uint64_t bits) {
  * Each cursor supports repeatable seek/read input, a positive bounded maximum page, and strictly
  * increasing samples. Neither complete histories nor raw values across all metrics may be retained.
  * Page/histogram/array views live until the same cursor's next operation or close; other cursors
- * cannot invalidate them. next publishes resource snapshots on item, END and error.
+ * cannot invalidate them. Scheduled selectors may advance within a retained page without a callback.
+ * Errors are observed at actual physical operations; callbacks have no fixed per-query call roster.
+ * next publishes resource snapshots on item, END and error.
  * Resources exclude descendants, directly accounted adapter buffers, and bytes covered by allocation handles.
  * Snapshots describe residual owner memory; never subtract the query's total leased bytes from each owner.
  * Shared cache is external. BorrowedView measures exposed views separately from physical allocation storage.
