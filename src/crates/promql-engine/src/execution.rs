@@ -1599,27 +1599,52 @@ impl CompiledQuery {
                     unreachable!("direct clock selector")
                 };
                 let mut failures = AccountedVec::new(account, MemoryKind::Workspace);
+                let mut hashes = AccountedVec::new(account, MemoryKind::Workspace);
                 for ordinal in 0..catalog.len(selector_node) {
                     control.check()?;
                     account.work(1);
                     let failure = catalog
-                        .with_series(selector_node, ordinal, |series| {
-                            let labels = series.label_views_checked(account, control)?;
-                            crate::storage::validate_labels(&labels)?;
-                            if !matches_checked(
-                                &labels,
-                                &selector.matchers,
-                                Some(account),
-                                control,
-                            )? {
-                                return Ok(crate::storage::InitialSample::Empty);
-                            }
-                            crate::storage::initialize(series, data_bounds, control, account)
-                        })
+                        .with_series(
+                            selector_node,
+                            ordinal,
+                            |series| -> Result<_, EvaluationError> {
+                                let labels = series.label_views_checked(account, control)?;
+                                crate::storage::validate_labels(&labels)?;
+                                if !matches_checked(
+                                    &labels,
+                                    &selector.matchers,
+                                    Some(account),
+                                    control,
+                                )? {
+                                    return Ok(crate::storage::InitialSample::Empty);
+                                }
+                                let mut projected = crate::result::OwnedLabels::copy_from_checked(
+                                    &labels,
+                                    account,
+                                    MemoryKind::Workspace,
+                                    control,
+                                )?;
+                                if !self.options.delayed_name_removal {
+                                    drop_reserved(&mut projected, false, account, control)?;
+                                }
+                                hashes.push(crate::label_hash::full(&projected, control, account)?);
+                                Ok(crate::storage::initialize(
+                                    series,
+                                    data_bounds,
+                                    control,
+                                    account,
+                                )?)
+                            },
+                        )
                         .expect("clock series ordinal")?;
                     failures.push(failure);
                 }
                 rosters.prepare_clock(selector_node, failures);
+                if !selector.smoothed
+                    && crate::scheduled_expression::unique(hashes, control, account)?
+                {
+                    rosters.certify_schedule(selector_node, selector_node);
+                }
             }
             prepared.range_folds.clear(control, account)?;
             let base = Machine::new(
@@ -1642,6 +1667,27 @@ impl CompiledQuery {
                     count_preparation,
                 },
             );
+            let scheduled = if let Some((child, selector)) = crate::scheduled_expression::candidate(
+                &self.expression,
+                prepared,
+                &rosters,
+                node,
+                control,
+                account,
+            )? {
+                (base.supports_schedule(selector, header.into())
+                    && crate::scheduled_expression::unique_map(
+                        &self.expression,
+                        node,
+                        rosters.descriptors(child),
+                        self.options.delayed_name_removal,
+                        control,
+                        account,
+                    )?)
+                .then_some((child, selector))
+            } else {
+                None
+            };
             let series_site = site.filter(|_| raw_selector || range_function.is_some());
             let empty_passthrough = !prepared.flags().boundaries[node.0]
                 && match expression {
@@ -1715,6 +1761,63 @@ impl CompiledQuery {
                             )
                         })
                         .expect("raw catalog ordinal")?;
+                }
+            } else if let Some((child, _)) = scheduled {
+                let grid = crate::query_scopes::Grid::from(header);
+                let clock = self.direct_clock_selector(node);
+                let count = clock.map_or(rosters.descriptors(child).len(), |selector| {
+                    catalog.len(selector)
+                });
+                let mut discovered = AccountedVec::new(account, MemoryKind::Workspace);
+                for order in 0..count {
+                    control.check()?;
+                    account.work(1);
+                    let ordinal = if clock.is_some() {
+                        order
+                    } else {
+                        rosters.descriptors(child)[order].ordinal
+                    };
+                    let row = base.scheduled_row(node, ordinal, grid, true)?.ok_or(
+                        EvaluationError::Invalid("scheduled preparation source is missing"),
+                    )?;
+                    catalog
+                        .with_series(row.selector, row.physical_ordinal, |series| {
+                            base.visit_scheduled_points(
+                                row,
+                                series,
+                                grid,
+                                Some(&mut annotations),
+                                |_, index, sample| {
+                                    let Some(sample) = sample else {
+                                        return Ok::<_, EvaluationError>(false);
+                                    };
+                                    let hash =
+                                        crate::label_hash::full(&sample.labels, control, account)?;
+                                    let prior = descriptors.len();
+                                    let position = self.record_descriptor(
+                                        node,
+                                        (sample, hash),
+                                        (&mut descriptors, &mut descriptor_index),
+                                        (prepared, &rosters),
+                                        control,
+                                        account,
+                                    )?;
+                                    if descriptors.len() != prior {
+                                        discovered.push((index, order, position));
+                                    }
+                                    Ok(false)
+                                },
+                            )
+                        })
+                        .expect("scheduled preparation ordinal")?;
+                }
+                crate::evaluator_order::sort(&mut discovered, control, account, |left, right| {
+                    (left.0, left.1).cmp(&(right.0, right.1))
+                })?;
+                for (order, (_, _, position)) in discovered.into_iter().enumerate() {
+                    control.check()?;
+                    account.work(1);
+                    descriptors[position].first_order = order;
                 }
             } else if !empty_passthrough {
                 let mut ordinal = 0;
@@ -1793,52 +1896,14 @@ impl CompiledQuery {
                             let hash = crate::label_hash::full(&sample.labels, control, account)?;
                             let kind = sample.value.kind_bit();
                             step_kinds.push(hash, sample.ordinal, kind);
-                            if let Some(position) = descriptor_index.find(
-                                sample.ordinal,
-                                &sample.labels,
-                                &descriptors,
-                                control,
-                                account,
-                            )? {
-                                let descriptor = &mut descriptors[position];
-                                descriptor.kinds |= kind;
-                                if matches!(expression, Expr::Aggregate { .. }) {
-                                    descriptor.drop_name = sample.drop_name;
-                                }
-                                continue;
-                            }
-                            descriptor_index.insert(
-                                sample.ordinal,
-                                descriptors.len(),
+                            self.record_descriptor(
+                                node,
+                                (sample, hash),
+                                (&mut descriptors, &mut descriptor_index),
+                                (prepared, &rosters),
                                 control,
                                 account,
                             )?;
-                            let mut heads = HeadSummary::default();
-                            if let Expr::Paren(child)
-                            | Expr::Unary {
-                                expression: child, ..
-                            } = expression
-                            {
-                                let child =
-                                    prepared.preprocessing.child(&self.expression, node, *child);
-                                if let Some(shape) = rosters.matrix(child) {
-                                    heads.inherit_order(shape.sorted(
-                                        sample.ordinal,
-                                        control,
-                                        account,
-                                    )?);
-                                }
-                            }
-                            descriptors.push(Descriptor {
-                                hash,
-                                ordinal: sample.ordinal,
-                                drop_name: sample.drop_name,
-                                first_order: descriptors.len(),
-                                sources: 0..0,
-                                labels: sample.labels,
-                                kinds: kind,
-                                heads,
-                            });
                         }
                         step_kinds.finish(control, account)?;
                         for descriptor in descriptors.iter_mut() {
@@ -1962,6 +2027,20 @@ impl CompiledQuery {
             } else {
                 rosters.output(node, descriptors, account);
             }
+            if raw_selector {
+                if let Expr::Selector(selector) = expression
+                    && !selector.smoothed
+                    && crate::scheduled_expression::unique_rows(
+                        rosters.descriptors(node),
+                        control,
+                        account,
+                    )?
+                {
+                    rosters.certify_schedule(node, node);
+                }
+            } else if let Some((_, selector)) = scheduled {
+                rosters.certify_schedule(node, selector);
+            }
             rosters.finish_count_projection(node, control, account)?;
             rosters.finish_selection_projection(node, control, account)?;
             rosters.finish_sort_projection(node, control, account)?;
@@ -1998,6 +2077,60 @@ impl CompiledQuery {
         Ok(rosters)
     }
 
+    fn record_descriptor(
+        &self,
+        node: NodeId,
+        point: (crate::evaluator::EvaluatedSample, u64),
+        state: (&mut AccountedVec<Descriptor>, &mut DescriptorIndex),
+        metadata: (&Prepared<'_>, &Rosters),
+        control: &Control,
+        account: &QueryAccounting,
+    ) -> Result<usize, EvaluationError> {
+        let (sample, hash) = point;
+        let (descriptors, descriptor_index) = state;
+        let (prepared, rosters) = metadata;
+        let expression = &self.expression.arena[node].expression;
+        let kind = sample.value.kind_bit();
+        if let Some(position) = descriptor_index.find(
+            sample.ordinal,
+            &sample.labels,
+            descriptors,
+            control,
+            account,
+        )? {
+            let descriptor = &mut descriptors[position];
+            descriptor.kinds |= kind;
+            if matches!(expression, Expr::Aggregate { .. }) {
+                descriptor.drop_name = sample.drop_name;
+            }
+            return Ok(position);
+        }
+        let position = descriptors.len();
+        descriptor_index.insert(sample.ordinal, position, control, account)?;
+        let mut heads = HeadSummary::default();
+        if let Expr::Paren(child)
+        | Expr::Unary {
+            expression: child, ..
+        } = expression
+        {
+            let child = prepared.preprocessing.child(&self.expression, node, *child);
+            if let Some(shape) = rosters.matrix(child) {
+                heads.inherit_order(shape.sorted(sample.ordinal, control, account)?);
+            }
+        }
+        descriptors.push(Descriptor {
+            hash,
+            ordinal: sample.ordinal,
+            drop_name: sample.drop_name,
+            first_order: position,
+            sources: 0..0,
+            labels: sample.labels,
+            kinds: kind,
+            heads,
+        });
+        Ok(position)
+    }
+
     fn prepare_label_roster<Q: QueryProvider>(
         &self,
         call: (NodeId, AccountedBox<LabelOperation<'_>>, OutputHeader),
@@ -2028,6 +2161,20 @@ impl CompiledQuery {
         }
         drop(operation);
         rosters.projection_output(node, descriptors, control, account)?;
+        let child = scope
+            .prepared
+            .preprocessing
+            .child(&self.expression, node, arguments[0]);
+        if let Some(selector) = rosters.scheduled_selector(child)
+            && crate::scheduled_expression::unique_rows(
+                rosters.descriptors(node),
+                control,
+                account,
+            )?
+        {
+            rosters.certify_schedule(node, selector);
+            return Ok(());
+        }
         if rosters.descriptors(node).is_empty() {
             return Ok(());
         }
@@ -2422,9 +2569,10 @@ impl CompiledQuery {
                 drop_reserved(&mut labels, false, account, control)?;
             }
             let labels = labels.views_checked(account, control)?;
+            let raw = crate::evaluator::raw_selector_shortcut(&self.expression, prepared, body);
             if cohort.members == 1
                 && grid.forward_without_wrap()
-                && crate::evaluator::raw_selector_shortcut(&self.expression, prepared, body)
+                && (raw || rosters.scheduled_selector(body).is_some())
             {
                 let machine = Machine::new(
                     catalog,
@@ -2445,38 +2593,54 @@ impl CompiledQuery {
                         count_preparation: None,
                     },
                 );
-                catalog
-                    .with_series(body, row.ordinal, |series| {
-                        machine.visit_raw_series(
-                            body,
-                            row.ordinal,
-                            series,
-                            grid,
-                            None,
-                            |time, _, sample| {
-                                if let Some(sample) = sample {
-                                    sink.chunk_checked(
-                                        OutputChunk::Series {
-                                            series_id: position,
-                                            labels: &labels,
-                                            points: &[SampleRef {
-                                                time_ms: time,
-                                                start_time_ms: 0,
-                                                value: sample.value,
-                                            }],
-                                        },
-                                        control,
-                                        account,
-                                    )
-                                    .map_err(|error| ExecutionError::output(error, account))?;
-                                    account.output(1);
-                                }
-                                Ok::<_, ExecutionError>(false)
-                            },
-                        )
-                    })
-                    .expect("direct plain subquery ordinal")?;
-                continue;
+                let scheduled = if raw {
+                    None
+                } else {
+                    machine.scheduled_row(body, row.ordinal, grid, false)?
+                };
+                if raw || scheduled.is_some() {
+                    let mut emit = |time, sample: Option<SampleRef<'_>>| {
+                        if let Some(sample) = sample {
+                            sink.chunk_checked(
+                                OutputChunk::Series {
+                                    series_id: position,
+                                    labels: &labels,
+                                    points: &[SampleRef {
+                                        time_ms: time,
+                                        start_time_ms: 0,
+                                        value: sample.value,
+                                    }],
+                                },
+                                control,
+                                account,
+                            )
+                            .map_err(|error| ExecutionError::output(error, account))?;
+                            account.output(1);
+                        }
+                        Ok::<_, ExecutionError>(false)
+                    };
+                    if let Some(row) = scheduled {
+                        catalog
+                            .with_series(row.selector, row.physical_ordinal, |series| {
+                                machine.visit_scheduled_row(row, series, grid, None, &mut emit)
+                            })
+                            .expect("computed standalone subquery ordinal")?;
+                    } else {
+                        catalog
+                            .with_series(body, row.ordinal, |series| {
+                                machine.visit_raw_series(
+                                    body,
+                                    row.ordinal,
+                                    series,
+                                    grid,
+                                    None,
+                                    |time, _, sample| emit(time, sample),
+                                )
+                            })
+                            .expect("plain standalone subquery ordinal")?;
+                    }
+                    continue;
+                }
             }
             let options = self.evaluation_options(grid.header(prepared.header), grid.start_ms);
             let mut iterator = (!grid.forward_without_wrap()).then(|| {
@@ -3642,32 +3806,43 @@ mod tests {
                 let control = Control::default();
                 let mut settings = start_options(delayed, true);
                 settings.lookback_ms = 1500;
-                for (expression, expected) in cases {
-                    let query = engine.compile(expression, settings, &control).unwrap();
-                    let (result, _) = query
-                        .collect(
-                            &provider,
-                            QueryRequest::Range {
-                                start_ms: 1000,
-                                end_ms: 4000,
-                                step_ms: 1000,
-                            },
-                            &control,
-                        )
-                        .unwrap();
-                    assert_eq!(
-                        result.series.is_empty(),
-                        expected.is_empty(),
-                        "{expression:?}"
-                    );
-                    if let Some(series) = result.series.first() {
-                        assert_eq!(series.points.len(), expected.len(), "{expression:?}");
-                        for (point, (time_ms, value)) in series.points.iter().zip(*expected) {
-                            assert_eq!(point.time_ms, *time_ms, "{expression:?}");
-                            assert_eq!(float_bits(point), value.to_bits(), "{expression:?}");
+                for derived in [false, true] {
+                    for (expression, expected) in cases {
+                        let input = if derived {
+                            [b"(".as_slice(), *expression, b")[4s:1s]".as_slice()].concat()
+                        } else {
+                            expression.to_vec()
+                        };
+                        let query = engine.compile(&input, settings, &control).unwrap();
+                        let (result, _) = query
+                            .collect(
+                                &provider,
+                                if derived {
+                                    QueryRequest::Instant { time_ms: 4000 }
+                                } else {
+                                    QueryRequest::Range {
+                                        start_ms: 1000,
+                                        end_ms: 4000,
+                                        step_ms: 1000,
+                                    }
+                                },
+                                &control,
+                            )
+                            .unwrap();
+                        assert_eq!(
+                            result.series.is_empty(),
+                            expected.is_empty(),
+                            "{expression:?}"
+                        );
+                        if let Some(series) = result.series.first() {
+                            assert_eq!(series.points.len(), expected.len(), "{expression:?}");
+                            for (point, (time_ms, value)) in series.points.iter().zip(*expected) {
+                                assert_eq!(point.time_ms, *time_ms, "{expression:?}");
+                                assert_eq!(float_bits(point), value.to_bits(), "{expression:?}");
+                            }
                         }
+                        provider.assert_closed();
                     }
-                    provider.assert_closed();
                 }
             }
         }
@@ -6634,6 +6809,166 @@ mod tests {
                         .assert_memory_released_with_queries(1);
                 }
                 assert_eq!(peaks[0], peaks[1]);
+            }
+        }
+    }
+
+    #[test]
+    fn single_selector_preparation_streams_each_map_with_one_page() {
+        for page in [1, 17, 1024] {
+            for metrics in [2, 8] {
+                let mut peaks = Vec::new();
+                for count in [2048, 8192] {
+                    let mut provider = FixtureProvider::new(count, page, metrics);
+                    provider.series.reverse();
+                    let counters = provider.series[0].source.counters.clone();
+                    let engine = Engine::default();
+                    let control = Control::default();
+                    let compiled = engine
+                        .compile(
+                            b"round(abs(counter_total),0.5)",
+                            EngineOptions::default(),
+                            &control,
+                        )
+                        .unwrap();
+                    let account = engine.accounting.query();
+                    {
+                        let header = compiled
+                            .header(QueryRequest::Range {
+                                start_ms: 1000,
+                                end_ms: count as i64 * 1000,
+                                step_ms: 1000,
+                            })
+                            .unwrap();
+                        let prepared = Prepared::new(
+                            &compiled.expression,
+                            &compiled.preprocessing,
+                            header,
+                            compiled.options.no_step_subquery_interval_ms,
+                            &control,
+                            &account,
+                        )
+                        .unwrap();
+                        let bounds = crate::query_bounds::find(
+                            &compiled.expression,
+                            compiled.evaluation_options(header, header.start_ms),
+                            &prepared,
+                            &control,
+                            &account,
+                        )
+                        .unwrap();
+                        let query = provider.open(bounds, &control).unwrap();
+                        let catalog = Catalog::new(
+                            &query,
+                            &compiled.expression,
+                            &prepared,
+                            compiled.evaluation_options(header, header.start_ms),
+                            compiled.options.no_step_subquery_interval_ms,
+                            &control,
+                            &account,
+                        )
+                        .unwrap();
+                        let rosters = compiled
+                            .prepare_rosters(
+                                &catalog,
+                                &prepared,
+                                bounds,
+                                &control,
+                                &account,
+                                &mut Annotations::default(),
+                            )
+                            .unwrap();
+                        let rows = rosters.descriptors(compiled.expression.root);
+                        assert_eq!(rows.len(), metrics);
+                        assert!(
+                            rows.iter()
+                                .all(|row| row.kinds == 1 && !row.heads.multiple())
+                        );
+                        assert!(
+                            rosters
+                                .scheduled_selector(compiled.expression.root)
+                                .is_some()
+                        );
+                    }
+                    provider.assert_closed();
+                    let observed = account.snapshot();
+                    observed.assert_memory_released();
+                    assert_eq!(
+                        observed.samples_fetched,
+                        counters.samples_returned.load(Ordering::Relaxed) as u64
+                    );
+                    assert!(observed.samples_fetched <= 4 * metrics as u64 * count as u64);
+                    assert!(observed.pages <= 4 * metrics as u64 * count.div_ceil(page) as u64);
+                    assert!(counters.opened.load(Ordering::Relaxed) <= 4 * metrics);
+                    assert_eq!(counters.peak.load(Ordering::Relaxed), 1);
+                    peaks.push(
+                        [
+                            MemoryKind::Workspace,
+                            MemoryKind::ProviderHeld,
+                            MemoryKind::BorrowedView,
+                        ]
+                        .map(|kind| observed.memory[kind as usize].peak),
+                    );
+                    drop((account, compiled));
+                    engine.accounting.snapshot().assert_memory_released();
+                }
+                assert_eq!(peaks[0], peaks[1]);
+            }
+        }
+    }
+
+    #[test]
+    fn scheduled_projection_follows_sorted_ordinals_to_distinct_source_values() {
+        fn scaled<const FACTOR: i32>(index: usize) -> crate::value::Sample {
+            let mut sample = crate::test_storage::counter(index);
+            sample.value = crate::value::SampleValue::Float((index + 1) as f64 * f64::from(FACTOR));
+            sample
+        }
+        for page in [1, 17, 1024] {
+            for delayed in [false, true] {
+                let mut provider = FixtureProvider::new(4, page, 2);
+                provider.series[0].source.sample = scaled::<-2>;
+                provider.series[1].source.sample = scaled::<-3>;
+                provider.series.reverse();
+                let engine = Engine::default();
+                let control = Control::default();
+                let query = engine.compile(
+                    b"(label_join(round(abs(counter_total),0.5),\"row\",\"-\",\"instance\"))[4s:1s]",
+                    EngineOptions { delayed_name_removal: delayed, ..EngineOptions::default() }, &control,
+                ).unwrap();
+                let (result, observed) = query
+                    .collect(&provider, QueryRequest::Instant { time_ms: 4000 }, &control)
+                    .unwrap();
+                assert_eq!(result.series.len(), 2);
+                for series in &result.series {
+                    let instance = series
+                        .labels
+                        .0
+                        .iter()
+                        .find(|label| &label.name[..] == b"instance")
+                        .unwrap();
+                    let factor = if &instance.value[..] == b"0" {
+                        2.0
+                    } else {
+                        3.0
+                    };
+                    let row = series
+                        .labels
+                        .0
+                        .iter()
+                        .find(|label| &label.name[..] == b"row")
+                        .unwrap();
+                    assert_eq!(&row.value[..], &instance.value[..]);
+                    assert_eq!(series.points.len(), 4);
+                    for (index, point) in series.points.iter().enumerate() {
+                        assert_eq!(point.time_ms, (index + 1) as i64 * 1000);
+                        assert_eq!(float_bits(point), ((index + 1) as f64 * factor).to_bits());
+                    }
+                }
+                assert_eq!(observed.memory[MemoryKind::Workspace as usize].current, 0);
+                provider.assert_closed();
+                drop((result, query));
+                engine.accounting.snapshot().assert_memory_released();
             }
         }
     }
@@ -11161,7 +11496,7 @@ mod tests {
                     assert_eq!(result.series.len(), 1);
                     assert_eq!(
                         float_bits(&result.series[0].points[0]),
-                        ((count * (count + 1) / 2) as f64).to_bits()
+                        ((count as u64 * (count as u64 + 1) / 2) as f64).to_bits()
                     );
                     assert!(
                         result.series[0]
@@ -11340,7 +11675,7 @@ mod tests {
                 assert_eq!(result.series[0].points.len(), 1);
                 assert_eq!(
                     float_bits(&result.series[0].points[0]),
-                    ((count * (count + 1) / 2) as f64).to_bits()
+                    ((count as u64 * (count as u64 + 1) / 2) as f64).to_bits()
                 );
                 assert!(observed.samples_fetched > 3 * count as u64);
                 assert_eq!(
@@ -11429,7 +11764,7 @@ mod tests {
                         assert_eq!(row.points.len(), 1);
                         assert_eq!(
                             float_bits(&row.points[0]),
-                            ((count * (count + 1) / 2) as f64).to_bits()
+                            ((count as u64 * (count as u64 + 1) / 2) as f64).to_bits()
                         );
                     }
                     assert!(observed.samples_fetched > 3 * count as u64);
@@ -12010,79 +12345,81 @@ mod tests {
         fn seek_index(time_ms: i64) -> usize {
             usize::try_from(time_ms.saturating_sub(1).max(0) / 1000).unwrap()
         }
-        let mut peaks = vec![];
-        for count in [1024, 100_000] {
-            let engine = Engine::default();
-            let mut provider = FixtureProvider::new(count, 1, 1);
-            provider.series[0].source.seek_index = Some(seek_index);
-            let control = Control::default();
-            let query = engine
-                .compile(
-                    format!("count_over_time(counter_total[{count}s:1s])").as_bytes(),
-                    EngineOptions {
-                        lookback_ms: 1,
-                        ..EngineOptions::default()
-                    },
-                    &control,
-                )
-                .unwrap();
-            let (result, observed) = query
-                .collect(
-                    &provider,
-                    QueryRequest::Instant {
-                        time_ms: count as i64 * 1000,
-                    },
-                    &control,
-                )
-                .unwrap();
-            assert_eq!(result.series.len(), 1);
-            assert_eq!(
-                float_bits(&result.series[0].points[0]),
-                (count as f64).to_bits()
-            );
-            assert!(observed.samples_fetched >= count as u64);
-            assert!(observed.samples_fetched <= 8 * count as u64 + 16);
-            assert!(observed.work <= 5000 * count as u64);
-            assert_eq!(
-                observed.samples_fetched,
-                provider.series[0]
-                    .source
-                    .counters
-                    .samples_returned
-                    .load(Ordering::Relaxed) as u64
-            );
-            assert_eq!(
-                provider.series[0]
-                    .source
-                    .counters
-                    .peak
-                    .load(Ordering::Relaxed),
-                1
-            );
-            assert_eq!(
-                observed.memory[MemoryKind::ProviderHeld as usize].current,
-                0
-            );
-            peaks.push((
-                observed.memory[MemoryKind::Workspace as usize].peak,
-                observed.memory[MemoryKind::ProviderHeld as usize].peak,
-            ));
-            provider.assert_closed();
-            drop((result, query));
-            engine.accounting.snapshot().assert_memory_released();
+        for body in ["counter_total", "(counter_total*1)"] {
+            let mut peaks = vec![];
+            for count in [1024, 100_000] {
+                let engine = Engine::default();
+                let mut provider = FixtureProvider::new(count, 1, 1);
+                provider.series[0].source.seek_index = Some(seek_index);
+                let control = Control::default();
+                let query = engine
+                    .compile(
+                        format!("count_over_time({body}[{count}s:1s])").as_bytes(),
+                        EngineOptions {
+                            lookback_ms: 1,
+                            ..EngineOptions::default()
+                        },
+                        &control,
+                    )
+                    .unwrap();
+                let (result, observed) = query
+                    .collect(
+                        &provider,
+                        QueryRequest::Instant {
+                            time_ms: count as i64 * 1000,
+                        },
+                        &control,
+                    )
+                    .unwrap();
+                assert_eq!(result.series.len(), 1);
+                assert_eq!(
+                    float_bits(&result.series[0].points[0]),
+                    (count as f64).to_bits()
+                );
+                assert!(observed.samples_fetched >= count as u64);
+                assert!(observed.samples_fetched <= 8 * count as u64 + 16);
+                assert!(observed.work <= 5000 * count as u64);
+                assert_eq!(
+                    observed.samples_fetched,
+                    provider.series[0]
+                        .source
+                        .counters
+                        .samples_returned
+                        .load(Ordering::Relaxed) as u64
+                );
+                assert_eq!(
+                    provider.series[0]
+                        .source
+                        .counters
+                        .peak
+                        .load(Ordering::Relaxed),
+                    1
+                );
+                assert_eq!(
+                    observed.memory[MemoryKind::ProviderHeld as usize].current,
+                    0
+                );
+                peaks.push((
+                    observed.memory[MemoryKind::Workspace as usize].peak,
+                    observed.memory[MemoryKind::ProviderHeld as usize].peak,
+                ));
+                provider.assert_closed();
+                drop((result, query));
+                engine.accounting.snapshot().assert_memory_released();
+            }
+            assert_eq!(peaks[0], peaks[1]);
         }
-        assert_eq!(peaks[0], peaks[1]);
     }
 
     #[test]
     fn direct_subquery_streams_growing_history_without_retaining_output() {
-        for raw in [false, true] {
+        for body in ["vector(1)", "counter_total", "(counter_total*1)"] {
             let mut peaks = vec![];
             for count in [1024, 100_000] {
                 let engine = Engine::default();
-                let provider = FixtureProvider::new(if raw { count } else { 1 }, 1, 1);
+                let provider =
+                    FixtureProvider::new(if body == "vector(1)" { 1 } else { count }, 1, 1);
                 let control = Control::default();
-                let body = if raw { "counter_total" } else { "vector(1)" };
                 let query = engine
                     .compile(
                         format!("{body}[{count}s:1s]").as_bytes(),
@@ -12120,57 +12457,61 @@ mod tests {
 
     #[test]
     fn direct_subquery_keeps_one_raw_page_as_series_cardinality_grows() {
-        for page_size in [1, 17, 1024] {
-            let mut peaks = vec![];
-            for metrics in [2, 257] {
-                let engine = Engine::default();
-                let mut provider = FixtureProvider::new(64, page_size, metrics);
-                let counters = std::sync::Arc::new(crate::test_storage::CursorCounts::default());
-                for series in &mut provider.series {
-                    series.source.counters = counters.clone();
+        for body in ["counter_total", "(counter_total*1)"] {
+            for page_size in [1, 17, 1024] {
+                let mut peaks = vec![];
+                for metrics in [2, 257] {
+                    let engine = Engine::default();
+                    let mut provider = FixtureProvider::new(64, page_size, metrics);
+                    let counters =
+                        std::sync::Arc::new(crate::test_storage::CursorCounts::default());
+                    for series in &mut provider.series {
+                        series.source.counters = counters.clone();
+                    }
+                    let control = Control::default();
+                    let query = engine
+                        .compile(
+                            format!("{body}[64s:1s]").as_bytes(),
+                            EngineOptions::default(),
+                            &control,
+                        )
+                        .unwrap();
+                    let mut sink = RecordingSink::default();
+                    let report = query.execute_reported(
+                        &provider,
+                        QueryRequest::Instant { time_ms: 64000 },
+                        &control,
+                        &mut sink,
+                    );
+                    report.result.as_ref().unwrap();
+                    assert_eq!(sink.chunks, metrics * 64);
+                    assert_eq!(counters.peak.load(Ordering::Relaxed), 1);
+                    assert_eq!(counters.active.load(Ordering::Relaxed), 0);
+                    assert_eq!(
+                        report.observations.samples_fetched,
+                        counters.samples_returned.load(Ordering::Relaxed) as u64
+                    );
+                    peaks.push(report.observations.memory[MemoryKind::ProviderHeld as usize].peak);
+                    provider.assert_closed();
+                    drop((report, query, sink));
+                    engine.accounting.snapshot().assert_memory_released();
                 }
-                let control = Control::default();
-                let query = engine
-                    .compile(b"counter_total[64s:1s]", EngineOptions::default(), &control)
-                    .unwrap();
-                let mut sink = RecordingSink::default();
-                let report = query.execute_reported(
-                    &provider,
-                    QueryRequest::Instant { time_ms: 64000 },
-                    &control,
-                    &mut sink,
-                );
-                report.result.as_ref().unwrap();
-                assert_eq!(sink.chunks, metrics * 64);
-                assert_eq!(counters.peak.load(Ordering::Relaxed), 1);
-                assert_eq!(counters.active.load(Ordering::Relaxed), 0);
-                assert_eq!(
-                    report.observations.samples_fetched,
-                    counters.samples_returned.load(Ordering::Relaxed) as u64
-                );
-                peaks.push(report.observations.memory[MemoryKind::ProviderHeld as usize].peak);
-                provider.assert_closed();
-                drop((report, query, sink));
-                engine.accounting.snapshot().assert_memory_released();
+                assert_eq!(peaks[0], peaks[1]);
             }
-            assert_eq!(peaks[0], peaks[1]);
         }
     }
 
     #[test]
     fn direct_subquery_aborts_provisional_output_on_failure_cancellation_and_panic() {
-        for raw in [false, true] {
+        for body in ["vector(1)", "counter_total", "(counter_total*1)"] {
             for phase in 0..3 {
                 let engine = Engine::default();
-                let provider = FixtureProvider::new(if raw { 100 } else { 1 }, 1, 1);
+                let provider =
+                    FixtureProvider::new(if body == "vector(1)" { 1 } else { 100 }, 1, 1);
                 let control = Control::default();
                 let query = engine
                     .compile(
-                        if raw {
-                            b"counter_total[100s:1s]"
-                        } else {
-                            b"vector(1)[100s:1s]"
-                        },
+                        format!("{body}[100s:1s]").as_bytes(),
                         EngineOptions::default(),
                         &control,
                     )

@@ -124,7 +124,10 @@ def cases():
         add(
             f"generated-{count}",
             generated,
-            ("quantile_over_time(0.5,m[100000s])",),
+            (
+                "quantile_over_time(0.5,m[100000s])",
+                f"quantile_over_time(0.5,(m*1)[{count}s:1s])",
+            ),
             time=count * 1000,
         )
     return output

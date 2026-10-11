@@ -616,10 +616,10 @@ mod tests {
                 assert_eq!(result.annotation, None);
             }
             account.snapshot().assert_memory_released();
-            // The scanner's address-region table is retained; histogram payloads are borrowed.
+            // Four two-pointer address ranges are retained; histogram payloads are borrowed.
             assert_eq!(
                 account.snapshot().memory[MemoryKind::Workspace as usize].peak,
-                64
+                size_of::<[(usize, usize); 4]>() as u64
             );
         }
     }

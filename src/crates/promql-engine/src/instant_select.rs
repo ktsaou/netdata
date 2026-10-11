@@ -3,7 +3,8 @@
 use crate::{
     accounting::QueryAccounting,
     storage::{
-        Control, CursorAction, Interrupted, Series, StorageError, TimeBounds, WalkStart, walk,
+        Control, CursorAction, Interrupted, Series, StorageError, TimeBounds, WalkStart,
+        walk_scheduled,
     },
     value::{SampleRef, SampleValueRef},
 };
@@ -224,7 +225,7 @@ fn scheduled<S: Series, P: Projector>(
     let mut previous = None::<Point<P::Value>>;
     let mut selected = None;
     let mut initial = true;
-    let outcome = walk::<_, P::Error>(
+    let outcome = walk_scheduled::<_, P::Error>(
         series,
         window.data_bounds,
         WalkStart::Next,

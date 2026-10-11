@@ -29,7 +29,7 @@ pub(crate) struct Input {
     pub(crate) range_ns: i64,
     pub(crate) offset_ns: i64,
     pub(crate) fixed: bool,
-    pub(crate) raw_selector: bool,
+    pub(crate) scheduled: bool,
 }
 impl Input {
     fn window(self) -> Window {
@@ -206,7 +206,7 @@ fn fold_error(error: FoldError) -> EvaluationError {
     }
 }
 
-pub(crate) fn raw_reader_pass(
+pub(crate) fn scheduled_reader_pass(
     reader: &mut Reader,
     control: &Control,
     account: &QueryAccounting,
@@ -243,7 +243,7 @@ pub(crate) fn raw_reader_pass(
     })?;
     if !matches!(next, derived_matrix::Action::Done) {
         return Err(EvaluationError::Invalid(
-            "raw subquery schedule ended before its matrix reader",
+            "subquery schedule ended before its matrix reader",
         ));
     }
     Ok(())
@@ -254,7 +254,7 @@ pub(crate) enum Action<'a> {
         request: temporal_quantile::Backing,
         source: BackingSource,
     },
-    RawPass {
+    ScheduledPass {
         node: NodeId,
         ordinal: usize,
         options: EvaluationOptions,
@@ -290,8 +290,8 @@ impl BackingSource {
     pub(crate) fn grid(self) -> Grid {
         self.input.grid
     }
-    pub(crate) fn raw(self) -> bool {
-        self.input.raw_selector
+    pub(crate) fn scheduled(self) -> bool {
+        self.input.scheduled
     }
     pub(crate) fn options(self, time_ms: i64) -> EvaluationOptions {
         EvaluationOptions {
@@ -312,7 +312,7 @@ pub(crate) struct Step<'a> {
     reader: Reader,
     kernel: Kernel,
     dry: bool,
-    raw_complete: bool,
+    scheduled_complete: bool,
     backed: Option<Output>,
 }
 impl<'a> Step<'a> {
@@ -325,7 +325,7 @@ impl<'a> Step<'a> {
             reader: Reader::new(input.grid, input.window()),
             kernel: Kernel::new(input),
             dry: true,
-            raw_complete: false,
+            scheduled_complete: false,
             backed: None,
         }
     }
@@ -354,7 +354,7 @@ impl<'a> Step<'a> {
         Ok(self.reader.receive(sample))
     }
 
-    pub(crate) fn raw_pass(
+    pub(crate) fn scheduled_pass(
         &mut self,
         control: &Control,
         account: &QueryAccounting,
@@ -365,7 +365,7 @@ impl<'a> Step<'a> {
         let dry = self.dry;
         let reader = &mut self.reader;
         let kernel = &mut self.kernel;
-        raw_reader_pass(
+        scheduled_reader_pass(
             reader,
             control,
             account,
@@ -378,7 +378,7 @@ impl<'a> Step<'a> {
             },
             drive,
         )?;
-        self.raw_complete = true;
+        self.scheduled_complete = true;
         Ok(())
     }
 
@@ -463,8 +463,8 @@ impl<'a> Step<'a> {
             if let Some(output) = self.backed.take() {
                 return self.finish_row(output, control, account);
             }
-            if self.input.raw_selector && !self.raw_complete {
-                return Ok(Action::RawPass {
+            if self.input.scheduled && !self.scheduled_complete {
+                return Ok(Action::ScheduledPass {
                     node: self.input.body,
                     ordinal: row.ordinal,
                     grid: self.input.grid,
@@ -501,7 +501,7 @@ impl<'a> Step<'a> {
                 }
                 derived_matrix::Action::Done => {
                     self.reader = Reader::new(self.input.grid, self.input.window());
-                    self.raw_complete = false;
+                    self.scheduled_complete = false;
                     if self.dry {
                         self.dry = false;
                         continue;
