@@ -228,6 +228,7 @@ unsafe extern "C" fn selection_next(
                 len: fixture.diagnostics.len() as u64,
             })
         };
+        fixture.cancel(7);
         return types::END;
     }
     *sent = true;

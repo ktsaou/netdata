@@ -64,7 +64,11 @@ impl Plan {
         for &argument in &arguments[1..] {
             control.check()?;
             account.work(1);
-            labels.push(prepared.preprocessing.child(expression, node, argument));
+            labels.push(
+                prepared
+                    .preprocessing
+                    .child(expression, node, argument, control, account)?,
+            );
         }
         Ok(Self {
             rows,

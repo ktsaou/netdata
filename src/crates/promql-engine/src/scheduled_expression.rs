@@ -16,7 +16,9 @@ pub(crate) fn vector_child(
     expression: &ParsedExpression,
     prepared: &Prepared,
     node: NodeId,
-) -> Option<NodeId> {
+    control: &Control,
+    account: &QueryAccounting,
+) -> Result<Option<NodeId>, Interrupted> {
     let child = match &expression.arena[node].expression {
         Expr::Paren(child)
         | Expr::Unary {
@@ -29,7 +31,7 @@ pub(crate) fn vector_child(
             ) {
                 (ValueType::Vector, ValueType::Scalar) => *left,
                 (ValueType::Scalar, ValueType::Vector) => *right,
-                _ => return None,
+                _ => return Ok(None),
             }
         }
         Expr::Call {
@@ -38,12 +40,22 @@ pub(crate) fn vector_child(
         } if PointwiseFunction::parse(function.name).is_some()
             || matches!(function.name, "label_join" | "label_replace") =>
         {
-            *arguments.first()?
+            let Some(&argument) = arguments.first() else {
+                return Ok(None);
+            };
+            argument
         }
-        _ => return None,
+        _ => return Ok(None),
     };
-    (expression.arena[child].value_type == ValueType::Vector)
-        .then(|| prepared.preprocessing.child(expression, node, child))
+    if expression.arena[child].value_type == ValueType::Vector {
+        Ok(Some(
+            prepared
+                .preprocessing
+                .child(expression, node, child, control, account)?,
+        ))
+    } else {
+        Ok(None)
+    }
 }
 
 fn pure_scalar(
@@ -93,7 +105,7 @@ pub(crate) fn candidate(
     control: &Control,
     account: &QueryAccounting,
 ) -> Result<Option<(NodeId, NodeId)>, Interrupted> {
-    let Some(child) = vector_child(expression, prepared, node) else {
+    let Some(child) = vector_child(expression, prepared, node, control, account)? else {
         return Ok(None);
     };
     let Some(selector) = rosters.scheduled_selector(child) else {

@@ -174,13 +174,17 @@ pub(crate) fn selection_sites<'a>(
             }
             _ => (),
         }
-        tasks.extend(value.children().rev().map(|child| {
-            (
-                prepared.preprocessing.child(expression, node, child),
+        for child in value.children().rev() {
+            control.check()?;
+            account.work(1);
+            tasks.push((
+                prepared
+                    .preprocessing
+                    .child(expression, node, child, control, account)?,
                 scope,
                 hints,
-            )
-        }));
+            ));
+        }
     }
     Ok(sites)
 }
@@ -254,9 +258,19 @@ pub(crate) fn find(
                     &mut bounds,
                     selector_bounds(options, info_scope, reference, false, false),
                 );
-                tasks.extend(arguments.iter().rev().map(|child| (*child, scope)));
+                for child in arguments.iter().rev() {
+                    control.check()?;
+                    account.work(1);
+                    tasks.push((*child, scope));
+                }
             }
-            value => tasks.extend(value.children().rev().map(|child| (child, scope))),
+            value => {
+                for child in value.children().rev() {
+                    control.check()?;
+                    account.work(1);
+                    tasks.push((child, scope));
+                }
+            }
         }
     }
     Ok(bounds

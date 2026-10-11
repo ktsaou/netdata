@@ -22,7 +22,11 @@ pub(crate) fn timestamp_selectors(
     account: &QueryAccounting,
 ) -> Result<AccountedVec<bool>, Interrupted> {
     let mut result = AccountedVec::new(account, MemoryKind::Compiled);
-    result.extend((0..expression.arena.nodes.len()).map(|_| false));
+    for _ in &expression.arena.nodes {
+        control.check()?;
+        account.work(1);
+        result.push(false);
+    }
     for (index, node) in expression.arena.nodes.iter().enumerate() {
         control.check()?;
         account.work(1);
@@ -33,8 +37,13 @@ pub(crate) fn timestamp_selectors(
             && matches!(function.name, "timestamp" | "start_timestamp")
             && let Some(&argument) = arguments.first()
         {
-            let argument =
-                preprocessing.child(expression, crate::frontend::ast::NodeId(index), argument);
+            let argument = preprocessing.child(
+                expression,
+                crate::frontend::ast::NodeId(index),
+                argument,
+                control,
+                account,
+            )?;
             if matches!(expression.arena[argument].expression, Expr::Selector(_)) {
                 result[argument.0] = true;
             }

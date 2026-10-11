@@ -21,7 +21,7 @@ use crate::{
     result::{OwnedLabels, OwnedValue},
     storage::{
         Control, InitialSample, Interrupted, QueryProvider, Series, StorageError, TimeBounds,
-        label, matches_checked, validate_labels,
+        label, matches_checked, validate_labels_checked,
     },
     value::{SampleRef, SampleValueRef},
 };
@@ -33,34 +33,43 @@ pub(crate) fn matrix_argument(
     expression: &ParsedExpression,
     prepared: &Prepared,
     node: NodeId,
-) -> Option<(usize, NodeId)> {
+    control: &Control,
+    account: &QueryAccounting,
+) -> Result<Option<(usize, NodeId)>, Interrupted> {
     let Expr::Call {
         function: Some(function),
         arguments,
     } = &expression.arena[node].expression
     else {
-        return None;
+        return Ok(None);
     };
-    let position = function
+    let Some(position) = function
         .arguments
         .iter()
-        .position(|kind| *kind == ValueType::Matrix)?;
-    Some((
+        .position(|kind| *kind == ValueType::Matrix)
+    else {
+        return Ok(None);
+    };
+    Ok(Some((
         position,
         prepared
             .preprocessing
-            .child(expression, node, arguments[position]),
-    ))
+            .child(expression, node, arguments[position], control, account)?,
+    )))
 }
 
 pub(crate) fn generic_matrix_call(
     expression: &ParsedExpression,
     prepared: &Prepared,
     node: NodeId,
-) -> Option<&'static str> {
-    let (_, argument) = matrix_argument(expression, prepared, node)?;
+    control: &Control,
+    account: &QueryAccounting,
+) -> Result<Option<&'static str>, Interrupted> {
+    let Some((_, argument)) = matrix_argument(expression, prepared, node, control, account)? else {
+        return Ok(None);
+    };
     if !matches!(expression.arena[argument].expression, Expr::Paren(_)) {
-        return None;
+        return Ok(None);
     }
     let Expr::Call {
         function: Some(function),
@@ -69,7 +78,7 @@ pub(crate) fn generic_matrix_call(
     else {
         unreachable!("typed matrix function")
     };
-    Some(function.name)
+    Ok(Some(function.name))
 }
 
 fn scalar_arguments(
@@ -94,8 +103,10 @@ fn raw_matrix_argument(
     expression: &ParsedExpression,
     prepared: &Prepared,
     node: NodeId,
+    control: &Control,
+    account: &QueryAccounting,
 ) -> Result<(NodeId, NodeId), EvaluationError> {
-    let Some((_, argument)) = matrix_argument(expression, prepared, node) else {
+    let Some((_, argument)) = matrix_argument(expression, prepared, node, control, account)? else {
         unreachable!("typed range call")
     };
     let Expr::Matrix { selector, .. } = expression.arena[argument].expression else {
@@ -110,7 +121,7 @@ pub(crate) fn validate_matrix_modifier(
     control: &Control,
     account: &QueryAccounting,
 ) -> Result<(), EvaluationError> {
-    let Some((_, argument)) = matrix_argument(expression, prepared, node) else {
+    let Some((_, argument)) = matrix_argument(expression, prepared, node, control, account)? else {
         return Ok(());
     };
     let Expr::Matrix { selector, .. } = expression.arena[argument].expression else {
@@ -161,8 +172,11 @@ pub(crate) fn range_selector(
     expression: &ParsedExpression,
     prepared: &Prepared,
     node: NodeId,
+    control: &Control,
+    account: &QueryAccounting,
 ) -> Result<Option<NodeId>, EvaluationError> {
-    let (_, argument) = matrix_argument(expression, prepared, node).expect("typed range call");
+    let (_, argument) =
+        matrix_argument(expression, prepared, node, control, account)?.expect("typed range call");
     let Expr::Matrix { selector, .. } = expression.arena[argument].expression else {
         return Ok(None);
     };
@@ -508,11 +522,20 @@ pub(crate) enum RowFilter<'a> {
     One(usize),
 }
 impl RowFilter<'_> {
-    pub(crate) fn accepts(self, ordinal: usize) -> bool {
+    pub(crate) fn accepts(
+        self,
+        ordinal: usize,
+        control: &Control,
+        account: &QueryAccounting,
+    ) -> Result<bool, Interrupted> {
+        control.check()?;
+        account.work(1);
         match self {
-            Self::All => true,
-            Self::Ordinals(values) => values.contains(&ordinal),
-            Self::One(value) => value == ordinal,
+            Self::All => Ok(true),
+            Self::Ordinals(values) => {
+                crate::evaluator_order::contains(values, &ordinal, control, account)
+            }
+            Self::One(value) => Ok(value == ordinal),
         }
     }
     fn next_ordinal(
@@ -667,22 +690,25 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
             selected_point: None,
         }
     }
-    fn push(&mut self, node: NodeId) {
+    fn push(&mut self, node: NodeId) -> Result<(), EvaluationError> {
         let filter = self
             .frames
             .last()
             .map_or(RowFilter::All, |frame| frame.filter);
-        self.push_filtered(node, filter, false, OutputMode::Vector);
+        self.push_filtered(node, filter, false, OutputMode::Vector)?;
+        Ok(())
     }
-    fn push_matrix(&mut self, node: NodeId) {
+    fn push_matrix(&mut self, node: NodeId) -> Result<(), EvaluationError> {
         let filter = self
             .frames
             .last()
             .map_or(RowFilter::All, |frame| frame.filter);
-        self.push_filtered(node, filter, false, OutputMode::Matrix);
+        self.push_filtered(node, filter, false, OutputMode::Matrix)?;
+        Ok(())
     }
-    fn push_all(&mut self, node: NodeId) {
-        self.push_filtered(node, RowFilter::All, false, OutputMode::Vector);
+    fn push_all(&mut self, node: NodeId) -> Result<(), EvaluationError> {
+        self.push_filtered(node, RowFilter::All, false, OutputMode::Vector)?;
+        Ok(())
     }
     fn push_filtered(
         &mut self,
@@ -690,8 +716,9 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
         filter: RowFilter<'a>,
         bypass_order: bool,
         mode: OutputMode,
-    ) {
-        self.push_scoped(node, filter, bypass_order, mode, self.options);
+    ) -> Result<(), EvaluationError> {
+        self.push_scoped(node, filter, bypass_order, mode, self.options)?;
+        Ok(())
     }
     fn push_scoped(
         &mut self,
@@ -700,13 +727,17 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
         bypass_order: bool,
         mode: OutputMode,
         options: EvaluationOptions,
-    ) {
+    ) -> Result<(), EvaluationError> {
         let node = if bypass_order {
             node
         } else if let Some(parent) = self.frames.last() {
-            self.prepared
-                .preprocessing
-                .child(self.expression, parent.node, node)
+            self.prepared.preprocessing.child(
+                self.expression,
+                parent.node,
+                node,
+                self.control,
+                self.account,
+            )?
         } else {
             node
         };
@@ -728,7 +759,7 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
                 &AllocationContext::new(self.account, MemoryKind::Workspace),
             ));
             self.frames.push(frame);
-            return;
+            return Ok(());
         }
         self.frames.push(Frame::new(
             node,
@@ -739,6 +770,7 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
             !bypass_order && self.prepared.flags().boundaries[node.0],
             Some(self.step_index),
         ));
+        Ok(())
     }
     pub(crate) fn set_step_index(&mut self, step_index: i64) {
         let step_index = if self.frames[0].boundary_time_ms.is_some() {
@@ -885,8 +917,13 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
                     bypass_root,
                 }));
             }
-            let Some(child) =
-                crate::scheduled_expression::vector_child(self.expression, self.prepared, node)
+            let Some(child) = crate::scheduled_expression::vector_child(
+                self.expression,
+                self.prepared,
+                node,
+                self.control,
+                self.account,
+            )?
             else {
                 return Ok(None);
             };
@@ -1292,7 +1329,13 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
         function: RangeFunction,
         parameters: [f64; 2],
     ) -> Result<(NodeId, SelectorOperation), EvaluationError> {
-        let (argument, selector) = raw_matrix_argument(self.expression, self.prepared, node)?;
+        let (argument, selector) = raw_matrix_argument(
+            self.expression,
+            self.prepared,
+            node,
+            self.control,
+            self.account,
+        )?;
         let Expr::Matrix { range, .. } = self.expression.arena[argument].expression else {
             unreachable!("typed matrix argument")
         };
@@ -1314,8 +1357,14 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
         function: RangeFunction,
         parameters: [f64; 2],
     ) -> Result<State<'a>, EvaluationError> {
-        let (_, argument) =
-            matrix_argument(self.expression, self.prepared, node).expect("typed range call");
+        let (_, argument) = matrix_argument(
+            self.expression,
+            self.prepared,
+            node,
+            self.control,
+            self.account,
+        )?
+        .expect("typed range call");
         if let Expr::Subquery {
             expression: body,
             range,
@@ -1326,10 +1375,13 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
             let grid = self
                 .prepared
                 .subquery_scope(argument, self.control, self.account)?;
-            let body = self
-                .prepared
-                .preprocessing
-                .child(self.expression, argument, *body);
+            let body = self.prepared.preprocessing.child(
+                self.expression,
+                argument,
+                *body,
+                self.control,
+                self.account,
+            )?;
             let fixed = self.prepared.timestamp(argument, modifiers);
             let offset_ns = if let Some(timestamp) = fixed {
                 self.prepared
@@ -1476,7 +1528,7 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
         self.select(node, SelectorOperation::Instant)?;
         self.control.check()?;
         let labels = series.label_views_checked(self.account, self.control)?;
-        validate_labels(&labels)?;
+        validate_labels_checked(&labels, self.account, self.control)?;
         let selector = self.selector(node);
         if !matches_checked(
             &labels,
@@ -1499,8 +1551,9 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
                             label(&labels, b"__name__"),
                             self.expression.arena[node].span,
                             &self.expression.source,
+                            self.control,
                             self.account,
-                        );
+                        )?;
                     }
                 }
                 let sample = output.value.as_ref().map(|value| SampleRef {
@@ -1621,10 +1674,13 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
                 .take(kind.parameters())
                 .enumerate()
             {
-                let argument = self
-                    .prepared
-                    .preprocessing
-                    .child(self.expression, node, argument);
+                let argument = self.prepared.preprocessing.child(
+                    self.expression,
+                    node,
+                    argument,
+                    self.control,
+                    self.account,
+                )?;
                 let options = self.range_parameter_options(argument)?;
                 let mut child = self.replay(argument, options, None);
                 child.frames[0].mode = OutputMode::Vector;
@@ -1667,10 +1723,13 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
 
     fn push_parameter(&mut self, child: NodeId, range: bool) -> Result<(), EvaluationError> {
         let parent = self.frames.last().expect("parameter parent").node;
-        let child = self
-            .prepared
-            .preprocessing
-            .child(self.expression, parent, child);
+        let child = self.prepared.preprocessing.child(
+            self.expression,
+            parent,
+            child,
+            self.control,
+            self.account,
+        )?;
         let options = if range {
             self.range_parameter_options(child)?
         } else {
@@ -1681,7 +1740,7 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
         } else {
             OutputMode::Vector
         };
-        self.push_scoped(child, RowFilter::All, false, mode, options);
+        self.push_scoped(child, RowFilter::All, false, mode, options)?;
         Ok(())
     }
 
@@ -1690,10 +1749,13 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
         child: NodeId,
     ) -> Result<Option<EvaluationOptions>, EvaluationError> {
         let parent = self.frames.last().expect("aggregate parameter parent").node;
-        let child = self
-            .prepared
-            .preprocessing
-            .child(self.expression, parent, child);
+        let child = self.prepared.preprocessing.child(
+            self.expression,
+            parent,
+            child,
+            self.control,
+            self.account,
+        )?;
         let shape = self.rosters.scalar(child).ok_or(EvaluationError::Invalid(
             "completed aggregate parameter shape is missing",
         ))?;
@@ -1717,7 +1779,7 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
         series: &S,
     ) -> Result<Option<InitialSample>, EvaluationError> {
         let labels = series.label_views_checked(self.account, self.control)?;
-        validate_labels(&labels)?;
+        validate_labels_checked(&labels, self.account, self.control)?;
         if !matches_checked(
             &labels,
             &self.selector(selector).matchers,
@@ -1769,8 +1831,8 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
         series: &S,
         initial: Option<&InitialSample>,
     ) -> Result<Option<EvaluatedSample>, EvaluationError> {
-        let series_labels = series.label_views(self.account);
-        validate_labels(&series_labels)?;
+        let series_labels = series.label_views_checked(self.account, self.control)?;
+        validate_labels_checked(&series_labels, self.account, self.control)?;
         let selector = self.selector(selector_node);
         if !matches_checked(
             &series_labels,
@@ -1814,8 +1876,9 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
                             label(&series_labels, b"__name__"),
                             self.expression.arena[selector_node].span,
                             &self.expression.source,
+                            self.control,
                             self.account,
-                        );
+                        )?;
                     }
                 }
                 result.value.map(|value| (self.options.time_ms, 0, value))
@@ -1983,14 +2046,24 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
                     else {
                         unreachable!()
                     };
-                    let argument =
-                        self.prepared
-                            .preprocessing
-                            .child(self.expression, node, arguments[0]);
+                    let argument = self.prepared.preprocessing.child(
+                        self.expression,
+                        node,
+                        arguments[0],
+                        self.control,
+                        self.account,
+                    )?;
                     let span = self.expression.arena[argument].span;
                     let metric = label(&series_labels, b"__name__");
                     for kind in result.annotations.into_iter().flatten() {
-                        annotations.add(kind, metric, span, &self.expression.source, self.account);
+                        annotations.add(
+                            kind,
+                            metric,
+                            span,
+                            &self.expression.source,
+                            self.control,
+                            self.account,
+                        )?;
                     }
                     if kind.checks_counter_name()
                         && matches!(result.value, Some(OwnedValue::Float(_)))
@@ -2009,8 +2082,9 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
                             metric,
                             span,
                             &self.expression.source,
+                            self.control,
                             self.account,
-                        );
+                        )?;
                     }
                 }
                 if result.nonempty {
@@ -2071,18 +2145,22 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
                     else {
                         unreachable!()
                     };
-                    let argument =
-                        self.prepared
-                            .preprocessing
-                            .child(self.expression, node, arguments[0]);
+                    let argument = self.prepared.preprocessing.child(
+                        self.expression,
+                        node,
+                        arguments[0],
+                        self.control,
+                        self.account,
+                    )?;
                     for kind in result.annotations.into_iter().flatten() {
                         annotations.add(
                             kind,
                             label(&series_labels, b"__name__"),
                             self.expression.arena[argument].span,
                             &self.expression.source,
+                            self.control,
                             self.account,
-                        );
+                        )?;
                     }
                 }
                 if result.nonempty {
@@ -2142,18 +2220,22 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
                     else {
                         unreachable!()
                     };
-                    let argument =
-                        self.prepared
-                            .preprocessing
-                            .child(self.expression, node, arguments[0]);
+                    let argument = self.prepared.preprocessing.child(
+                        self.expression,
+                        node,
+                        arguments[0],
+                        self.control,
+                        self.account,
+                    )?;
                     let span = self.expression.arena[argument].span;
                     if result.invalid_quantile {
                         annotations.add_invalid_quantile(
                             parameters[0],
                             span,
                             &self.expression.source,
+                            self.control,
                             self.account,
-                        );
+                        )?;
                     }
                     for kind in result.annotations.into_iter().flatten() {
                         annotations.add(
@@ -2161,8 +2243,9 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
                             label(&series_labels, b"__name__"),
                             span,
                             &self.expression.source,
+                            self.control,
                             self.account,
-                        );
+                        )?;
                     }
                 }
                 if result.nonempty {
@@ -2287,7 +2370,7 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
             }
             Expr::Paren(child) => {
                 self.frames[index].state = State::Pass;
-                self.push_matrix(*child);
+                self.push_matrix(*child)?;
                 Ok(None)
             }
             Expr::Unary {
@@ -2295,7 +2378,7 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
                 expression,
             } => {
                 self.frames[index].state = self.map(MapOperation::Unary(*operator));
-                self.push_matrix(*expression);
+                self.push_matrix(*expression)?;
                 Ok(None)
             }
             Expr::Selector(_) => {
@@ -2322,7 +2405,7 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
                     ),
                     collecting: true,
                 };
-                self.push_all(*child);
+                self.push_all(*child)?;
                 Ok(None)
             }
             Expr::Aggregate {
@@ -2373,7 +2456,10 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
                     .iter()
                     .enumerate()
                 {
-                    if !self.frames[index].filter.accepts(ordinal) {
+                    if !self.frames[index]
+                        .filter
+                        .accepts(ordinal, self.control, self.account)?
+                    {
                         continue;
                     }
                     groups.push(Group::new(labels, ordinal));
@@ -2382,7 +2468,7 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
                     groups,
                     collecting: true,
                 };
-                self.push_all(*child);
+                self.push_all(*child)?;
                 Ok(None)
             }
             Expr::Aggregate {
@@ -2420,7 +2506,7 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
                         right: None,
                         phase: 0,
                     };
-                    self.push_all(*left);
+                    self.push_all(*left)?;
                 } else if left_scalar || right_scalar {
                     let (scalar_node, vector_node) = if left_scalar {
                         (*left, *right)
@@ -2434,7 +2520,7 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
                         scalar_left: left_scalar,
                         collecting: true,
                     };
-                    self.push_all(scalar_node);
+                    self.push_all(scalar_node)?;
                 } else {
                     self.frames[index].state = State::Binary(AccountedBox::new(
                         crate::vector_matching::Step::new(
@@ -2454,7 +2540,15 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
             Expr::Call {
                 function: Some(function),
                 ..
-            } if generic_matrix_call(self.expression, self.prepared, node).is_some() => {
+            } if generic_matrix_call(
+                self.expression,
+                self.prepared,
+                node,
+                self.control,
+                self.account,
+            )?
+            .is_some() =>
+            {
                 // Whole arguments were validated before this source nil-matrix callback.
                 self.frames.pop();
                 match function.name {
@@ -2519,7 +2613,9 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
                         node,
                         self.expression,
                         self.prepared,
-                    );
+                        self.control,
+                        self.account,
+                    )?;
                     self.frames[index].state = State::Histogram(AccountedBox::new(
                         crate::histogram_call::Step::new(
                             self.rosters
@@ -2560,12 +2656,12 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
                         right: None,
                         phase: 0,
                     };
-                    self.push_all(arguments[0]);
+                    self.push_all(arguments[0])?;
                     Ok(None)
                 }
                 "vector" => {
                     self.frames[index].state = State::Pass;
-                    self.push(arguments[0]);
+                    self.push(arguments[0])?;
                     Ok(None)
                 }
                 "label_replace" | "label_join" => {
@@ -2577,7 +2673,7 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
                         descriptors: projection.descriptors,
                         bindings: projection.bindings,
                     };
-                    self.push_matrix(arguments[0]);
+                    self.push_matrix(arguments[0])?;
                     Ok(None)
                 }
                 "scalar" => {
@@ -2586,7 +2682,7 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
                         value: None,
                         collecting: true,
                     };
-                    self.push_all(arguments[0]);
+                    self.push_all(arguments[0])?;
                     Ok(None)
                 }
                 "absent" | "absent_over_time" => {
@@ -2618,7 +2714,7 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
                             boundary_time_ms: None,
                         });
                     } else {
-                        self.push_all(arguments[0]);
+                        self.push_all(arguments[0])?;
                     }
                     Ok(None)
                 }
@@ -2629,7 +2725,9 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
                                 self.expression,
                                 node,
                                 arguments[0],
-                            );
+                                self.control,
+                                self.account,
+                            )?;
                             *propagate = self.options.start_timestamps
                                 && matches!(
                                     self.expression.arena[argument].expression,
@@ -2650,12 +2748,12 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
                                     parameters: [1.0, 0.0],
                                     position: 0,
                                 };
-                                self.push_all(arguments[1]);
+                                self.push_all(arguments[1])?;
                                 return Ok(None);
                             }
                         }
                         self.frames[index].state = self.map(MapOperation::Pointwise(function));
-                        self.push(arguments[0]);
+                        self.push(arguments[0])?;
                         return Ok(None);
                     }
                     let function = RangeFunction::parse(function.name)
@@ -2663,9 +2761,13 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
                     if let RangeFunction::Numeric(kind) = function
                         && kind.parameters() > 0
                     {
-                        if let Some(selector) =
-                            range_selector(self.expression, self.prepared, node)?
-                        {
+                        if let Some(selector) = range_selector(
+                            self.expression,
+                            self.prepared,
+                            node,
+                            self.control,
+                            self.account,
+                        )? {
                             self.frames[index].state = State::RawParameters {
                                 function,
                                 selector,
@@ -2776,7 +2878,7 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
                     ..
                 } => {
                     let descriptor = &descriptors[*position];
-                    if !filter.accepts(descriptor.ordinal)
+                    if !filter.accepts(descriptor.ordinal, self.control, self.account)?
                         || matches!(mode, OutputMode::Vector)
                             && !descriptor
                                 .heads
@@ -2982,11 +3084,14 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
                                     self.expression,
                                     node,
                                     *child,
-                                )]
+                                    self.control,
+                                    self.account,
+                                )?]
                                 .span,
                                 &self.expression.source,
+                                self.control,
                                 self.account,
-                            );
+                            )?;
                         }
                     } else if matches!(filter, RowFilter::All) {
                         return Err(EvaluationError::Invalid("aggregation group is missing"));
@@ -3179,8 +3284,9 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
                                     q,
                                     span,
                                     &self.expression.source,
+                                    self.control,
                                     self.account,
-                                );
+                                )?;
                             }
                             for kind in notes.into_iter().flatten() {
                                 annotations.add(
@@ -3188,8 +3294,9 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
                                     metric,
                                     span,
                                     &self.expression.source,
+                                    self.control,
                                     self.account,
-                                );
+                                )?;
                             }
                         }
                         if nonempty {
@@ -3201,7 +3308,7 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
                             )?;
                         }
                         if let Some(sample) = sample
-                            && filter.accepts(sample.ordinal)
+                            && filter.accepts(sample.ordinal, self.control, self.account)?
                             && let Some(sample) =
                                 self.propagate(Self::rebind(sample, boundary_time_ms), index)?
                         {
@@ -3231,7 +3338,7 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
                                     false,
                                     OutputMode::Matrix,
                                     options,
-                                );
+                                )?;
                             } else {
                                 let zero = self.sample(0.0);
                                 let State::Quantile(step) = &mut self.frames[index].state else {
@@ -3243,11 +3350,11 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
                             let filter = ordinal.map_or(RowFilter::All, |ordinal| {
                                 RowFilter::Ordinals(std::slice::from_ref(ordinal))
                             });
-                            self.push_filtered(child, filter, false, OutputMode::Vector);
+                            self.push_filtered(child, filter, false, OutputMode::Vector)?;
                         }
                     }
                     crate::quantile_aggregate::Action::Sample(sample) => {
-                        if filter.accepts(sample.ordinal)
+                        if filter.accepts(sample.ordinal, self.control, self.account)?
                             && let Some(sample) =
                                 self.propagate(Self::rebind(sample, boundary_time_ms), index)?
                         {
@@ -3266,17 +3373,21 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
                             else {
                                 unreachable!("typed quantile body")
                             };
-                            let child =
-                                self.prepared
-                                    .preprocessing
-                                    .child(self.expression, node, child);
+                            let child = self.prepared.preprocessing.child(
+                                self.expression,
+                                node,
+                                child,
+                                self.control,
+                                self.account,
+                            )?;
                             annotations.add(
                                 kind,
                                 b"",
                                 self.expression.arena[child].span,
                                 &self.expression.source,
+                                self.control,
                                 self.account,
-                            );
+                            )?;
                         }
                         self.frames.pop();
                     }
@@ -3300,7 +3411,7 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
                                     false,
                                     OutputMode::Matrix,
                                     options,
-                                );
+                                )?;
                             } else {
                                 let zero = self.sample(0.0);
                                 let State::TopK(step) = &mut self.frames[index].state else {
@@ -3312,11 +3423,11 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
                             let filter = ordinal.map_or(RowFilter::All, |ordinal| {
                                 RowFilter::Ordinals(std::slice::from_ref(ordinal))
                             });
-                            self.push_filtered(child, filter, false, OutputMode::Vector);
+                            self.push_filtered(child, filter, false, OutputMode::Vector)?;
                         }
                     }
                     crate::topk::Action::Sample(sample) => {
-                        if filter.accepts(sample.ordinal)
+                        if filter.accepts(sample.ordinal, self.control, self.account)?
                             && let Some(sample) =
                                 self.propagate(Self::rebind(sample, boundary_time_ms), index)?
                         {
@@ -3333,8 +3444,9 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
                                 b"",
                                 self.expression.arena[node].span,
                                 &self.expression.source,
+                                self.control,
                                 self.account,
-                            );
+                            )?;
                         }
                         self.frames.pop();
                     }
@@ -3351,7 +3463,7 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
                         *collecting = false;
                     }
                     if let Some(sample) = step.next(self.options.time_ms, self.account) {
-                        if filter.accepts(sample.ordinal)
+                        if filter.accepts(sample.ordinal, self.control, self.account)?
                             && let Some(sample) =
                                 self.propagate(Self::rebind(sample, boundary_time_ms), index)?
                         {
@@ -3379,10 +3491,10 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
                             let filter = ordinal.map_or(RowFilter::All, |ordinal| {
                                 RowFilter::Ordinals(std::slice::from_ref(ordinal))
                             });
-                            self.push_filtered(arguments[0], filter, false, OutputMode::Vector);
+                            self.push_filtered(arguments[0], filter, false, OutputMode::Vector)?;
                         }
                         crate::info::Action::Sample(sample) => {
-                            if filter.accepts(sample.ordinal)
+                            if filter.accepts(sample.ordinal, self.control, self.account)?
                                 && let Some(sample) =
                                     self.propagate(Self::rebind(sample, boundary_time_ms), index)?
                             {
@@ -3414,10 +3526,10 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
                             let filter = ordinal.map_or(RowFilter::All, |value| {
                                 RowFilter::Ordinals(std::slice::from_ref(value))
                             });
-                            self.push_filtered(child, filter, false, OutputMode::Vector);
+                            self.push_filtered(child, filter, false, OutputMode::Vector)?;
                         }
                         crate::histogram_call::Action::Sample(sample) => {
-                            if filter.accepts(sample.ordinal)
+                            if filter.accepts(sample.ordinal, self.control, self.account)?
                                 && let Some(sample) =
                                     self.propagate(Self::rebind(sample, boundary_time_ms), index)?
                             {
@@ -3456,8 +3568,9 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
                             b"",
                             self.expression.arena[node].span,
                             &self.expression.source,
+                            self.control,
                             self.account,
-                        );
+                        )?;
                     }
                     match action? {
                         crate::vector_sort::Action::Continue => (),
@@ -3470,10 +3583,10 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
                             let filter = ordinal.map_or(RowFilter::All, |value| {
                                 RowFilter::Ordinals(std::slice::from_ref(value))
                             });
-                            self.push_filtered(arguments[0], filter, false, OutputMode::Vector);
+                            self.push_filtered(arguments[0], filter, false, OutputMode::Vector)?;
                         }
                         crate::vector_sort::Action::Sample(sample) => {
-                            if filter.accepts(sample.ordinal)
+                            if filter.accepts(sample.ordinal, self.control, self.account)?
                                 && let Some(sample) =
                                     self.propagate(Self::rebind(sample, boundary_time_ms), index)?
                             {
@@ -3504,10 +3617,10 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
                             let filter = ordinal.map_or(RowFilter::All, |value| {
                                 RowFilter::Ordinals(std::slice::from_ref(value))
                             });
-                            self.push_filtered(child, filter, false, OutputMode::Vector);
+                            self.push_filtered(child, filter, false, OutputMode::Vector)?;
                         }
                         crate::vector_matching::Action::Sample(sample) => {
-                            if filter.accepts(sample.ordinal)
+                            if filter.accepts(sample.ordinal, self.control, self.account)?
                                 && let Some(sample) =
                                     self.propagate(Self::rebind(sample, boundary_time_ms), index)?
                             {
@@ -3525,8 +3638,9 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
                                     b"",
                                     self.expression.arena[node].span,
                                     &self.expression.source,
+                                    self.control,
                                     self.account,
-                                );
+                                )?;
                             }
                             self.frames.pop();
                         }
@@ -3554,7 +3668,7 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
                     let descriptor = &descriptors[*position];
                     let filter = RowFilter::Ordinals(&sources[descriptor.sources.clone()]);
                     *running = true;
-                    self.push_filtered(node, filter, true, OutputMode::Matrix);
+                    self.push_filtered(node, filter, true, OutputMode::Matrix)?;
                 }
                 State::Map {
                     last_diagnostic, ..
@@ -3569,8 +3683,9 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
                             b"",
                             self.expression.arena[node].span,
                             &self.expression.source,
+                            self.control,
                             self.account,
-                        );
+                        )?;
                     }
                     self.frames.pop();
                 }
@@ -3645,7 +3760,12 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
                 State::Aggregate { groups, collecting } => {
                     if *collecting {
                         *collecting = false;
-                        groups.reverse();
+                        let length = groups.len();
+                        for position in 0..length / 2 {
+                            self.control.check()?;
+                            self.account.work(1);
+                            groups.swap(position, length - 1 - position);
+                        }
                     }
                     if let Some(group) = groups.pop() {
                         if !group.seen {
@@ -3676,11 +3796,14 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
                                     self.expression,
                                     node,
                                     child,
-                                )]
+                                    self.control,
+                                    self.account,
+                                )?]
                                 .span,
                                 &self.expression.source,
+                                self.control,
                                 self.account,
-                            );
+                            )?;
                         }
                         if let Some(sample) = sample
                             && let Some(sample) =
@@ -3758,7 +3881,7 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
                     };
                     if *phase == 0 {
                         *phase = 1;
-                        self.push_all(right_node);
+                        self.push_all(right_node)?;
                     } else {
                         let result = scalar_binary(
                             operator,
@@ -3898,7 +4021,7 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
                                     function, parameters,
                                 ));
                                 self.frames[index].state = self.map(operation);
-                                self.push(arguments[0]);
+                                self.push(arguments[0])?;
                             }
                             ParameterizedFunction::Range(function) => {
                                 self.frames[index].state =
@@ -3932,7 +4055,7 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
                     };
                     let child = *vector_node;
                     self.frames[index].state = self.map(operation);
-                    self.push(child);
+                    self.push(child)?;
                 }
                 State::Enter => unreachable!(),
             }
@@ -3947,7 +4070,7 @@ pub(crate) fn remember_unique(
     control: &Control,
 ) -> Result<(), EvaluationError> {
     let hash = label_hash::full(labels, control, account)?;
-    if seen.contains(&hash) {
+    if crate::evaluator_order::contains(seen, &hash, control, account)? {
         return Err(EvaluationError::Invalid(
             "vector cannot contain metrics with the same labelset",
         ));
@@ -3964,7 +4087,7 @@ pub(crate) fn remember_unique_kind(
     control: &Control,
 ) -> Result<(), EvaluationError> {
     let identity = (label_hash::full(labels, control, account)?, kind);
-    if seen.contains(&identity) {
+    if crate::evaluator_order::contains(seen, &identity, control, account)? {
         return Err(EvaluationError::Invalid(
             "vector cannot contain metrics with the same labelset",
         ));

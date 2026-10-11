@@ -55,7 +55,9 @@ impl Plan {
         };
         control.check()?;
         account.work(1);
-        let parameter = prepared.preprocessing.child(expression, node, *parameter);
+        let parameter = prepared
+            .preprocessing
+            .child(expression, node, *parameter, control, account)?;
         let Expr::String(name) = &expression.arena[parameter].expression else {
             assert!(matches!(
                 expression.arena[parameter].expression,

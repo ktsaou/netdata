@@ -223,20 +223,26 @@ pub(crate) fn projected(
     Ok(result)
 }
 
-struct Writer<'a> {
+pub(crate) struct Writer<'a> {
     bytes: &'a mut AccountedVec<u8>,
-    control: &'a Control,
+    control: Option<&'a Control>,
     account: &'a QueryAccounting,
     failure: Option<Interrupted>,
 }
 impl Write for Writer<'_> {
     fn write_str(&mut self, value: &str) -> fmt::Result {
-        append_bytes_checked(self.bytes, value.as_bytes(), self.account, self.control).map_err(
-            |error| {
-                self.failure = Some(error);
-                fmt::Error
-            },
-        )
+        if let Some(control) = self.control {
+            append_bytes_checked(self.bytes, value.as_bytes(), self.account, control).map_err(
+                |error| {
+                    self.failure = Some(error);
+                    fmt::Error
+                },
+            )
+        } else {
+            self.account.work(value.len() as u64);
+            self.bytes.extend_from_slice(value.as_bytes());
+            Ok(())
+        }
     }
 }
 
@@ -294,12 +300,23 @@ pub(crate) fn formatted(
     Ok(bytes)
 }
 
-fn write_checked(
+pub(crate) fn write_checked(
     bytes: &mut AccountedVec<u8>,
     control: &Control,
     account: &QueryAccounting,
     write: impl FnOnce(&mut Writer<'_>) -> fmt::Result,
 ) -> Result<(), Interrupted> {
+    write_with_control(bytes, Some(control), account, write)
+}
+pub(crate) fn write_with_control(
+    bytes: &mut AccountedVec<u8>,
+    control: Option<&Control>,
+    account: &QueryAccounting,
+    write: impl FnOnce(&mut Writer<'_>) -> fmt::Result,
+) -> Result<(), Interrupted> {
+    if let Some(control) = control {
+        control.check()?;
+    }
     let mut writer = Writer {
         bytes,
         control,
@@ -311,5 +328,8 @@ fn write_checked(
         return Err(error);
     }
     result.expect("accounted byte writer");
+    if let Some(control) = control {
+        control.check()?;
+    }
     Ok(())
 }

@@ -57,6 +57,52 @@ pub(crate) fn interrupt_during<R>(
     operation()
 }
 
+#[cfg(test)]
+struct LabelObservation {
+    cancellation: crate::storage::Cancellation,
+    cancel_at: Option<usize>,
+    reads: usize,
+}
+#[cfg(test)]
+thread_local! {
+    static LABEL_OBSERVATION: std::cell::RefCell<Option<LabelObservation>> = const { std::cell::RefCell::new(None) };
+}
+#[cfg(test)]
+pub(crate) fn observe_label_reads<R>(
+    control: &Control,
+    cancel_at: Option<usize>,
+    operation: impl FnOnce() -> R,
+) -> (R, usize) {
+    struct Restore(Option<LabelObservation>);
+    impl Drop for Restore {
+        fn drop(&mut self) {
+            LABEL_OBSERVATION.with_borrow_mut(|entry| *entry = self.0.take());
+        }
+    }
+    let previous = LABEL_OBSERVATION.with_borrow_mut(|entry| {
+        entry.replace(LabelObservation {
+            cancellation: control.cancellation.clone(),
+            cancel_at,
+            reads: 0,
+        })
+    });
+    let _restore = Restore(previous);
+    let value = operation();
+    let reads = LABEL_OBSERVATION.with_borrow(|entry| entry.as_ref().unwrap().reads);
+    (value, reads)
+}
+#[cfg(test)]
+fn label_observed() {
+    LABEL_OBSERVATION.with_borrow_mut(|entry| {
+        if let Some(entry) = entry {
+            entry.reads += 1;
+            if entry.cancel_at == Some(entry.reads) {
+                entry.cancellation.cancel();
+            }
+        }
+    });
+}
+
 #[derive(Default, Debug)]
 pub(crate) struct CursorCounts {
     pub opened: AtomicUsize,
@@ -429,6 +475,8 @@ impl Series for FixtureHandle<'_> {
         self.data.labels.len()
     }
     fn label(&self, index: usize) -> LabelRef<'_> {
+        #[cfg(test)]
+        label_observed();
         LabelRef {
             name: &self.data.labels[index].0,
             value: &self.data.labels[index].1,

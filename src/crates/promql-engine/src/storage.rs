@@ -371,18 +371,54 @@ pub trait SampleCursor {
     ) -> Result<Option<SamplePage<'_>>, StorageError>;
 }
 pub fn validate_labels(labels: LabelsRef<'_>) -> Result<(), StorageError> {
-    if labels.iter().any(|label| label.name.is_empty()) {
-        return Err(StorageError::Invalid("empty label name"));
+    validate_labels_with(labels, None)
+}
+pub(crate) fn validate_labels_checked(
+    labels: LabelsRef<'_>,
+    account: &QueryAccounting,
+    control: &Control,
+) -> Result<(), StorageError> {
+    validate_labels_with(labels, Some((account, control)))
+}
+fn validate_labels_with(
+    labels: LabelsRef<'_>,
+    observation: Option<(&QueryAccounting, &Control)>,
+) -> Result<(), StorageError> {
+    let poll = || -> Result<(), StorageError> {
+        if let Some((account, control)) = observation {
+            control.check()?;
+            account.work(1);
+        }
+        Ok(())
+    };
+    // Preserve the provider validation phases before inspecting label order.
+    for label in labels {
+        poll()?;
+        if label.name.is_empty() {
+            return Err(StorageError::Invalid("empty label name"));
+        }
     }
-    if labels.iter().any(|label| {
-        !crate::label_encoding::fits(label.name) || !crate::label_encoding::fits(label.value)
-    }) {
-        return Err(StorageError::Invalid(crate::label_encoding::TOO_LONG));
+    for label in labels {
+        poll()?;
+        if !crate::label_encoding::fits(label.name) || !crate::label_encoding::fits(label.value) {
+            return Err(StorageError::Invalid(crate::label_encoding::TOO_LONG));
+        }
     }
-    if labels.windows(2).any(|pair| pair[0].name >= pair[1].name) {
-        return Err(StorageError::Invalid(
-            "label names are not unique and sorted",
-        ));
+    for pair in labels.windows(2) {
+        poll()?;
+        let order = if let Some((account, control)) = observation {
+            crate::binary_labels::compare_with(pair[0].name, pair[1].name, control, Some(account))?
+        } else {
+            pair[0].name.cmp(pair[1].name)
+        };
+        if !order.is_lt() {
+            return Err(StorageError::Invalid(
+                "label names are not unique and sorted",
+            ));
+        }
+    }
+    if let Some((_, control)) = observation {
+        control.check()?;
     }
     Ok(())
 }
@@ -908,6 +944,36 @@ fn walk_observed_inner<S: Series, E: From<StorageError> + From<Interrupted>>(
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn checked_label_validation_interrupts_long_adjacent_names() {
+        let account = crate::accounting::EngineAccounting::default().query();
+        let control = Control::default();
+        let mut left = vec![b'a'; 32 * 1024];
+        let mut right = left.clone();
+        left.push(b'0');
+        right.push(b'1');
+        let labels = [
+            LabelRef {
+                name: &left,
+                value: b"",
+            },
+            LabelRef {
+                name: &right,
+                value: b"",
+            },
+        ];
+        assert!(validate_labels(&labels).is_ok());
+        let before = account.snapshot().work;
+        let result = crate::test_storage::interrupt_during(&account, &control, || {
+            validate_labels_checked(&labels, &account, &control)
+        });
+        assert!(matches!(
+            result,
+            Err(StorageError::Interrupted(Interrupted::Cancelled))
+        ));
+        assert!(account.snapshot().work - before < 10_000);
+        account.snapshot().assert_memory_released();
+    }
     use super::*;
     use crate::{
         accounting::EngineAccounting,

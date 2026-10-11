@@ -67,14 +67,16 @@ impl<'a> Arguments<'a> {
         node: NodeId,
         expression: &'a ParsedExpression,
         prepared: &Prepared,
-    ) -> Self {
+        control: &Control,
+        account: &QueryAccounting,
+    ) -> Result<Self, Interrupted> {
         let Expr::Call { arguments, .. } = &expression.arena[node].expression else {
             unreachable!("typed histogram call")
         };
         let child = |index| {
             prepared
                 .preprocessing
-                .child(expression, node, arguments[index])
+                .child(expression, node, arguments[index], control, account)
         };
         let mut result = Self {
             function,
@@ -84,15 +86,20 @@ impl<'a> Arguments<'a> {
             } else {
                 function.vector_argument()
             },
-            vector_span: expression.arena[child(function.vector_argument())].span,
-            destination: matches!(function, Function::Quantiles)
-                .then(|| &expression.arena[child(1)].expression),
+            vector_span: expression.arena[child(function.vector_argument())?].span,
+            destination: if matches!(function, Function::Quantiles) {
+                Some(&expression.arena[child(1)?].expression)
+            } else {
+                None
+            },
         };
         for index in 0..result.scalar_count {
+            control.check()?;
+            account.work(1);
             result.scalar_spans[index] =
-                expression.arena[child(function.scalar_argument(index))].span;
+                expression.arena[child(function.scalar_argument(index))?].span;
         }
-        result
+        Ok(result)
     }
 }
 struct Row {
@@ -404,7 +411,13 @@ impl<'a> Step<'a> {
                 && (q.is_nan() || !(0.0..=1.0).contains(&q))
                 && let Some(notes) = &mut self.notes
             {
-                notes.add_invalid_quantile(q, self.arguments.scalar_spans[index], query, account);
+                notes.add_invalid_quantile(
+                    q,
+                    self.arguments.scalar_spans[index],
+                    query,
+                    control,
+                    account,
+                )?;
             }
         }
         for active in &*self.active {
@@ -422,8 +435,9 @@ impl<'a> Step<'a> {
                         row.labels.get_checked(b"le", account, control)?,
                         self.arguments.vector_span,
                         query,
+                        control,
                         account,
-                    );
+                    )?;
                 }
                 continue;
             };
@@ -501,8 +515,9 @@ impl<'a> Step<'a> {
                         )?,
                         self.arguments.vector_span,
                         query,
+                        control,
                         account,
-                    );
+                    )?;
                 }
                 break;
             }
@@ -980,8 +995,9 @@ impl<'a> Step<'a> {
                             metric_name(&self.plan.rows[row].labels, options, control, account)?,
                             self.arguments.vector_span,
                             query,
+                            control,
                             account,
-                        );
+                        )?;
                     }
                     return Ok(Action::Sample(self.emit(
                         result.value,
@@ -1045,8 +1061,9 @@ impl<'a> Step<'a> {
                                         result.max_decrease,
                                     ),
                                     query,
+                                    control,
                                     account,
-                                );
+                                )?;
                             }
                             self.drop_live(preparation, options, control, account)?;
                             self.replay = None;

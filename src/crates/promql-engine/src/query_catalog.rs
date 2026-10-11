@@ -9,7 +9,7 @@ use crate::{
     query_preparation::Prepared,
     storage::{
         Control, QueryProvider, ResourceOwner, SelectionRequest, Series, SeriesSelection,
-        StorageError, matches_checked, validate_labels,
+        StorageError, matches_checked, validate_labels_checked,
     },
 };
 use std::cell::RefCell;
@@ -194,7 +194,12 @@ impl<'q, Q: QueryProvider + 'q> Catalog<'q, Q> {
                             annotations,
                         });
                     }
-                    if let Err(error) = validate_labels(&value.value.label_views(account)) {
+                    if let Err(error) = value
+                        .value
+                        .label_views_checked(account, control)
+                        .map_err(StorageError::from)
+                        .and_then(|labels| validate_labels_checked(&labels, account, control))
+                    {
                         return Err(ExpansionFailure {
                             error: error.into(),
                             annotations,
@@ -230,10 +235,27 @@ impl<'q, Q: QueryProvider + 'q> Catalog<'q, Q> {
                 }
             }
         }
+        if failure.is_none()
+            && let Err(error) = control.check()
+        {
+            return Err(ExpansionFailure {
+                error: error.into(),
+                annotations,
+            });
+        }
         account.provider_call();
         let count = selection.value.diagnostic_count();
         selection.lease.update(selection.value.resources());
         for index in 0..count {
+            if failure.is_none()
+                && let Err(error) = control.check()
+            {
+                return Err(ExpansionFailure {
+                    error: error.into(),
+                    annotations,
+                });
+            }
+            account.work(1);
             account.provider_call();
             let result = selection.value.diagnostic(index, |diagnostic| {
                 let _view = account.hold(

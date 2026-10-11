@@ -96,22 +96,25 @@ impl Parameters {
         annotations: &mut AnnotationBuilder,
         span: Span,
         source: &[u8],
+        control: &Control,
         account: &QueryAccounting,
-    ) {
+    ) -> Result<(), Interrupted> {
         if self.nan {
             annotations.add_invalid_quantile(
                 f64::from_bits(0x7ff8_0000_0000_0001),
                 span,
                 source,
+                control,
                 account,
-            );
+            )?;
         }
         if self.maximum > 1.0 && self.present {
-            annotations.add_invalid_quantile(self.maximum, span, source, account);
+            annotations.add_invalid_quantile(self.maximum, span, source, control, account)?;
         }
         if self.minimum < 0.0 && self.present {
-            annotations.add_invalid_quantile(self.minimum, span, source, account);
+            annotations.add_invalid_quantile(self.minimum, span, source, control, account)?;
         }
+        Ok(())
     }
     fn validate(
         self,
@@ -260,17 +263,33 @@ impl Plan {
         annotations: &mut AnnotationBuilder,
         span: Span,
         source: &[u8],
+        control: &Control,
         account: &QueryAccounting,
-    ) {
+    ) -> Result<(), Interrupted> {
         if self.operator != TokenKind::LIMIT_RATIO || !self.productive {
-            return;
+            return Ok(());
         }
         if self.parameters.maximum > 1.0 {
-            annotations.add_invalid_ratio(self.parameters.maximum, 1.0, span, source, account);
+            annotations.add_invalid_ratio(
+                self.parameters.maximum,
+                1.0,
+                span,
+                source,
+                control,
+                account,
+            )?;
         }
         if self.parameters.minimum < -1.0 {
-            annotations.add_invalid_ratio(self.parameters.minimum, -1.0, span, source, account);
+            annotations.add_invalid_ratio(
+                self.parameters.minimum,
+                -1.0,
+                span,
+                source,
+                control,
+                account,
+            )?;
         }
+        Ok(())
     }
     pub(crate) fn project(
         &mut self,
