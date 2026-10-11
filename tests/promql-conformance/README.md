@@ -10,6 +10,8 @@ This harness uses a separate Go module and the same dependency locks. It does no
 
 ## Standalone expression core
 
+The [design decisions](DESIGN.md) summarize the approved architecture, rationale, trade-offs and integration boundaries.
+
 The standalone Rust core evaluates derived expressions, nested subqueries, ordinary/extended range functions,
 vector sorting and typed histogram operations through bounded storage replay. Subquery clocks, source preprocessing
 visits, parameter phases and diagnostic accumulation have separate owners. Raw provider pages and decoder state
