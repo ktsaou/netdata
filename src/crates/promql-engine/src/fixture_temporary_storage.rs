@@ -2,7 +2,10 @@
 //! Explicit qualification-provider backing; absent from the production core.
 use crate::storage::{Control, StorageError, TemporaryFloatBits, TemporaryFloatBitsRequest};
 
-#[cfg(all(target_os = "linux", target_arch = "x86_64"))]
+#[cfg(all(
+    target_os = "linux",
+    any(target_arch = "x86_64", target_arch = "aarch64", target_arch = "arm")
+))]
 mod disk {
     use super::*;
     use crate::{
@@ -16,8 +19,11 @@ mod disk {
         path::Path,
     };
 
-    // Linux x86_64 glibc bits/fcntl-linux.h: __O_TMPFILE | __O_DIRECTORY.
+    // glibc target fcntl headers define __O_TMPFILE | __O_DIRECTORY.
+    #[cfg(target_arch = "x86_64")]
     const O_TMPFILE: i32 = 0o20200000;
+    #[cfg(any(target_arch = "aarch64", target_arch = "arm"))]
+    const O_TMPFILE: i32 = 0o20040000;
     const DIRECTORY: &str = concat!(
         env!("CARGO_MANIFEST_DIR"),
         "/../../../tests/promql-conformance/.tmp"
@@ -132,7 +138,10 @@ mod disk {
     }
 }
 
-#[cfg(all(target_os = "linux", target_arch = "x86_64"))]
+#[cfg(all(
+    target_os = "linux",
+    any(target_arch = "x86_64", target_arch = "aarch64", target_arch = "arm")
+))]
 pub use disk::FileStore;
 
 pub fn with_store<R>(
@@ -140,12 +149,18 @@ pub fn with_store<R>(
     control: &Control,
     visit: impl for<'a> FnOnce(&'a mut dyn TemporaryFloatBits) -> R,
 ) -> Result<R, StorageError> {
-    #[cfg(all(target_os = "linux", target_arch = "x86_64"))]
+    #[cfg(all(
+        target_os = "linux",
+        any(target_arch = "x86_64", target_arch = "aarch64", target_arch = "arm")
+    ))]
     {
         let mut store = FileStore::create(request, control)?;
         Ok(visit(&mut store))
     }
-    #[cfg(not(all(target_os = "linux", target_arch = "x86_64")))]
+    #[cfg(not(all(
+        target_os = "linux",
+        any(target_arch = "x86_64", target_arch = "aarch64", target_arch = "arm")
+    )))]
     {
         let _ = (control, visit);
         Err(crate::storage::temporary_storage_error(

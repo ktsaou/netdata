@@ -3125,7 +3125,6 @@ mod tests {
         }
     }
 
-    #[cfg(target_arch = "x86_64")]
     #[test]
     fn averaged_nan_payload_preserves_composed_histogram_comparison() {
         use crate::{

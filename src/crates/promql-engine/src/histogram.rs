@@ -1114,7 +1114,6 @@ mod tests {
         );
     }
 
-    #[cfg(target_arch = "x86_64")]
     #[test]
     fn scaling_nan_provenance_retains_each_histogram_field() {
         // Original Go Mul/Div captures, including generated invalid arithmetic.

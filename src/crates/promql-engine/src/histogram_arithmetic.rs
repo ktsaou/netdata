@@ -604,6 +604,38 @@ fn accumulate(bucket: &mut f64, correction: Option<&mut f64>, increment: f64, in
     }
 }
 
+fn insert_float_bucket(
+    buckets: &mut AccountedVec<f64>,
+    index: i64,
+    value: f64,
+    work: HistogramWork<'_>,
+) -> Result<(), HistogramEvaluationError> {
+    // The source appends before evaluating the destination and source slices, in that order.
+    buckets.push_copy_with(0.0, |units| work.step(units))?;
+    let length = buckets.len();
+    let destination = index.wrapping_add(1);
+    for address in [destination, index] {
+        if address < 0 {
+            return Err(work.source(
+                format_args!("runtime error: slice bounds out of range [{address}:]"),
+                true,
+            ));
+        }
+        if !usize::try_from(address).is_ok_and(|address| address <= length) {
+            return Err(work.source(
+                format_args!("runtime error: slice bounds out of range [{address}:{length}]"),
+                true,
+            ));
+        }
+    }
+    let index = usize::try_from(index).expect("checked source slice address");
+    let destination = usize::try_from(destination).expect("checked destination slice address");
+    buckets.copy_within_with(index..length - 1, destination, |units| work.step(units))?;
+    buckets[index] = value;
+    work.step(1)?;
+    Ok(())
+}
+
 #[allow(clippy::too_many_arguments)]
 fn merge_buckets(
     schema: i32,
@@ -632,7 +664,7 @@ fn merge_buckets(
         .and_then(|value| value.as_mut())
         .unwrap_or(&mut new_correction);
     let buckets_b = other_buckets.unwrap_or(&[]);
-    let (mut span_a, mut bucket_a, mut in_span) = (-1isize, -1isize, 0i32);
+    let (mut span_a, mut bucket_a, mut in_span) = (-1isize, -1i64, 0i32);
     let (mut index_a, mut index_b, mut bucket_b, mut lower_than_threshold) =
         (0i32, 0i32, 0usize, true);
     for span_b in other_spans.unwrap_or(&[]) {
@@ -663,9 +695,9 @@ fn merge_buckets(
                 }
                 if span_a == -1 {
                     if spans_a.is_empty() || spans_a[0].offset > index_b {
-                        buckets_a.insert_copy_with(0, value, |units| work.step(units))?;
+                        insert_float_bucket(buckets_a, 0, value, work)?;
                         if paired {
-                            comp_a.insert_copy_with(0, comp, |units| work.step(units))?;
+                            insert_float_bucket(comp_a, 0, comp, work)?;
                         }
                         if !spans_a.is_empty() && spans_a[0].offset == index_b.wrapping_add(1) {
                             spans_a[0].length = spans_a[0].length.wrapping_add(1);
@@ -714,18 +746,24 @@ fn merge_buckets(
                     work.step(1)?;
                     let remaining = (spans_a[span_a as usize].length as i32).wrapping_sub(in_span);
                     if delta < remaining {
-                        bucket_a = bucket_a.wrapping_add(delta as isize);
+                        bucket_a = bucket_a.wrapping_add(i64::from(delta));
                         in_span = in_span.wrapping_add(delta);
                         let bucket_length = buckets_a.len();
                         let compensation_length = comp_a.len();
                         accumulate(
-                            buckets_a
-                                .get_mut(bucket_a as usize)
-                                .ok_or_else(|| work.index_error(bucket_a as i64, bucket_length))?,
+                            usize::try_from(bucket_a)
+                                .ok()
+                                .and_then(|index| buckets_a.get_mut(index))
+                                .ok_or_else(|| work.index_error(bucket_a, bucket_length))?,
                             if paired {
-                                Some(comp_a.get_mut(bucket_a as usize).ok_or_else(|| {
-                                    work.index_error(bucket_a as i64, compensation_length)
-                                })?)
+                                Some(
+                                    usize::try_from(bucket_a)
+                                        .ok()
+                                        .and_then(|index| comp_a.get_mut(index))
+                                        .ok_or_else(|| {
+                                            work.index_error(bucket_a, compensation_length)
+                                        })?,
+                                )
                             } else {
                                 None
                             },
@@ -735,15 +773,12 @@ fn merge_buckets(
                         break;
                     }
                     delta = delta.wrapping_sub(remaining);
-                    bucket_a = bucket_a.wrapping_add(remaining as isize);
+                    bucket_a = bucket_a.wrapping_add(i64::from(remaining));
                     span_a += 1;
                     if span_a as usize == spans_a.len() || delta < spans_a[span_a as usize].offset {
-                        buckets_a
-                            .insert_copy_with(bucket_a as usize, value, |units| work.step(units))?;
+                        insert_float_bucket(buckets_a, bucket_a, value, work)?;
                         if paired {
-                            comp_a.insert_copy_with(bucket_a as usize, comp, |units| {
-                                work.step(units)
-                            })?;
+                            insert_float_bucket(comp_a, bucket_a, comp, work)?;
                         }
                         if delta == 0 {
                             if (span_a as usize) < spans_a.len() {
@@ -969,6 +1004,117 @@ mod tests {
         storage::Control,
         test_storage::interrupt_during,
     };
+
+    #[test]
+    fn large_logical_bucket_addresses_keep_source_errors_and_release_memory() {
+        // Complete pinned Go queries supply these errors with only one or two physical buckets.
+        let cases = [
+            (
+                vec![
+                    Span {
+                        offset: 0,
+                        length: 2_147_483_647,
+                    },
+                    Span {
+                        offset: -2,
+                        length: 3,
+                    },
+                ],
+                1,
+                "unexpected error: runtime error: index out of range [2147483649] with length 1",
+            ),
+            (
+                vec![
+                    Span {
+                        offset: 0,
+                        length: 2_147_483_647,
+                    },
+                    Span {
+                        offset: -2_147_483_647,
+                        length: 2_147_483_647,
+                    },
+                    Span {
+                        offset: -3,
+                        length: 4,
+                    },
+                ],
+                2,
+                "unexpected error: runtime error: index out of range [4294967297] with length 2",
+            ),
+            (
+                vec![
+                    Span {
+                        offset: 0,
+                        length: 2_147_483_647,
+                    },
+                    Span {
+                        offset: -2,
+                        length: 2,
+                    },
+                ],
+                1,
+                "unexpected error: runtime error: slice bounds out of range [2147483650:2]",
+            ),
+        ];
+        for (source_spans, count, expected) in cases {
+            for paired in [false, true] {
+                for negative in [false, true] {
+                    let engine = EngineAccounting::default();
+                    let account = engine.query();
+                    let control = Control::default();
+                    let context = AllocationContext::new(&account, MemoryKind::Workspace);
+                    let mut spans =
+                        Some(AccountedVec::from_slice_in(&source_spans, Some(&context)));
+                    let mut buckets = Some(AccountedVec::from_slice_in(
+                        &vec![1.0; count],
+                        Some(&context),
+                    ));
+                    let mut correction = Some(AccountedVec::from_slice_in(
+                        &vec![0.0; count],
+                        Some(&context),
+                    ));
+                    let result = merge_buckets(
+                        0,
+                        0.0,
+                        negative,
+                        &mut spans,
+                        &mut buckets,
+                        paired.then_some(&mut correction),
+                        Some(&[Span {
+                            offset: i32::MAX,
+                            length: 1,
+                        }]),
+                        Some(&[2.0]),
+                        paired.then_some(&[0.0]),
+                        Some(&context),
+                        HistogramWork::new(&control, &account),
+                    );
+                    let Err(HistogramEvaluationError::Source(
+                        crate::storage::StorageError::Runtime {
+                            wrapped: true,
+                            message,
+                        },
+                    )) = result
+                    else {
+                        panic!("expected captured logical-address error")
+                    };
+                    assert_eq!(&*message, expected.as_bytes());
+                    assert_eq!(
+                        buckets.as_ref().unwrap().len(),
+                        if expected.contains("slice bounds") {
+                            2
+                        } else {
+                            count
+                        }
+                    );
+                    drop((spans, buckets, correction, message, context));
+                    account.snapshot().assert_memory_released();
+                    drop(account);
+                    engine.snapshot().assert_memory_released();
+                }
+            }
+        }
+    }
 
     #[test]
     fn sparse_prefix_and_zero_run_suffix_moves_interrupt_in_bounded_chunks() {

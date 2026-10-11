@@ -853,7 +853,8 @@ The shared sort/heap controller uses `u64` logical addresses and canonical 64-bi
 frames. Physical metadata ordinals remain `usize`; each controller comparison and swap checks conversion and
 the physical buffer boundary before access. Boxed reducer state is charged at its actual allocation size.
 The controller can therefore address a paged logical window without constructing its whole-length array.
-The temporary backing store is still pending; this prerequisite supplies its controller, not its storage.
+ABI 3 provider-owned temporary storage now backs exact quantile windows through this controller and two bounded
+pages. Providers choose their backing policy; unavailable or full backing returns a specific query error.
 
 Nine virtual controls captured from unchanged Go 1.27.1 AMD64 sort/heap helpers cover `Fix` at four lengths,
 `choosePivot`, three `breakPatterns` masks and `Push`. Exact captured comparisons, swaps and helper returns
@@ -1726,6 +1727,19 @@ resource conservation, independent results, opaque errors, output delivery and c
 ASan/UBSan instrument the C caller; the Rust core is exercised separately under Miri. `panic=abort` must fail the
 crate's compile guard.
 
+With the installed Rust target libraries, GNU GCC/G++ 14, target libc and QEMU, run the same interface gate on ARM:
+
+```sh
+python tests/promql-conformance/c_embedding.py --target aarch64-unknown-linux-gnu
+python tests/promql-conformance/c_embedding.py --target armv7-unknown-linux-gnueabihf
+```
+
+The target compiler supplies the verified loader prefix. Both profiles compile and execute Rust/C layout probes and
+actual C11/C++17 callers; target tools, loader, binaries and link inputs are bound to the evidence. File callbacks
+require 64-bit `off_t`, including on 32-bit ARM. These generated C storage cases contain at most 100,000 slots;
+the adapter's separate sparse-file controls exercise logical offsets above `2^32`. Target GNU callers run without
+instrumentation; the native Clang caller gate retains its separate ASan/UBSan scope.
+
 The generated-history sum witness uses pages of 1, 7 and 1,024 samples. Increasing history from 8,192 to 65,536 points
 leaves observed workspace peaks unchanged: 7,427, 7,643 and 227,099 bytes respectively in the retained native-recovery
 and canonical-controller cohorts on the qualified amd64 host.
@@ -1762,7 +1776,7 @@ controller state, per active operator. Materialization overlaps only the first v
 the second value page is allocated after the materializing cursor closes. Dirty pages write back on necessary
 eviction. Cleanup discards unused dirty pages and preserves an earlier query error.
 
-Qualification providers explicitly supply unnamed disk files on the verified Linux x86_64 fixture target. The Rust
+Qualification providers explicitly supply unnamed disk files on Linux x86_64, AArch64 and ARM fixture targets. The Rust
 backend is compiled only for tests/the `fixtures` feature; the C gate receives a validated private scratch directory
 from its driver. Unsupported backing returns an explicit fixture error. No provider filesystem policy is imposed
 on production, and no files are silently created by the engine.
@@ -1981,6 +1995,20 @@ runtime route and roster. Retained native release checks pass all 19,214 candida
 owners on the tested AMD64 host; it does not establish execution on foreign Rust targets, arbitrary numerical
 behavior or completion of the expression/SRE gates. Raw paging, cooperative controls and disabled admission
 limits retain their existing contracts.
+
+`logical_bucket_calls.py` declares 96 complete queries for receiving histogram addresses above signed 32-bit
+and unsigned 32-bit boundaries. Each input contains only two or three spans and one or two stored buckets.
+The cases cover positive/negative buckets, addition/subtraction, temporal sum/average, both parser profiles and
+instant/range evaluation. Receiving addresses follow signed 64-bit Go arithmetic, with checked conversion at
+physical access. Insertion appends before checking the destination slice and then the source slice; the original
+error and preceding allocation remain observable. This panel compares complete errors and every numeric bit.
+
+```sh
+python tests/promql-conformance/logical_bucket_calls.py \
+  --upstream "${PROMQL_UPSTREAM_SOURCE:?}"
+python tests/promql-conformance/logical_bucket_calls.py \
+  --reference "${PROMQL_LOGICAL_BUCKET_REFERENCE:?}" --binary "${PROMQL_QUERY_FIXTURE:?}" --page-size 1024
+```
 
 ## Frontend allocation ownership
 
