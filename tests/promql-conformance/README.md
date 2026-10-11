@@ -2,12 +2,13 @@
 
 This directory defines the independent reference and comparison contract for completing the Rust engine.
 It targets the complete pinned language, including all required SRE recording and alert expressions.
-The Rust engine is not qualified by these reference self-tests or by parsing the SRE corpus.
+Candidate qualification uses separately retained complete results; reference self-tests and SRE parsing alone
+do not establish engine compatibility.
 
 The historical C/C++/Rust experiment remains in `tests/promql-prototype/`, with its original evidence intact.
 This harness uses a separate Go module and the same dependency locks. It does not run a daemon or change metrics.
 
-## Current expression checkpoint
+## Standalone expression core
 
 The standalone Rust core evaluates derived expressions, nested subqueries, ordinary/extended range functions,
 vector sorting and typed histogram operations through bounded storage replay. Subquery clocks, source preprocessing
@@ -17,7 +18,7 @@ evaluation clock. The cache replaces an older fold instead of retaining a timeli
 general temporal quantiles use separate provider-owned temporary backing. No second raw-storage page cache or
 enabled admission limit is introduced.
 
-Retained native qualification covers:
+Retained qualification covers:
 
 - All 21,442 builtin expression variants in release and release-min, with no unsupported outcome, mismatch or
   paired numerical bit difference in that panel.
@@ -29,18 +30,67 @@ Retained native qualification covers:
   declared accounting contracts. Enforcement remains disabled.
 - All 3,229 parenthesized-matrix and native-operation controls in both builds at page sizes 1/17/1024:
   19,374 complete outcomes, with no unsupported result, mismatch or paired numerical bit difference in that panel.
+- The complete frontend panels on compiled AMD64, ARM64 and 32-bit ARM, in both builds: 135,936 comparisons across
+  lexer/strings, 32 literals, 356 parser cases, 784 option controls and 21,320 regex cases per target/build.
+- Successful expressions with nonempty original results for all 90 catalog functions and 14 aggregations in the
+  explicit upstream-test profile. The default profile has corresponding witnesses for all 73 stable functions and
+  12 stable aggregations. These are expression AST witnesses, not instrumented node visits or branch coverage.
+- A 42-case default-profile panel, including 37 positive results and five optional-feature rejections, passes all
+  756 comparisons across three targets, both builds and pages 1/17/1024. Existing 41-case inputs and results remain
+  unchanged; the added `max(http_requests)` control retains its complete upstream dataset.
+- The duration-width cohort passes 460 native unit tests in each build, 12 focused cross-target regressions,
+  12 strict production/fixture lint checks and 459 production unit tests with Rust 1.91. Its actual binaries and
+  source manifests remain attributed to that cohort. The subsequent metadata-control correction is qualified
+  separately in `core-qualification.json`.
+- The final control/accounting correction passes 471 native unit tests in each build and 69 compiled checks,
+  including 12 strict production/fixture lint checks, Rust 1.91 and focused tests on ARM64/32-bit ARM. Fresh C/C++
+  callers pass 18 executions/324 records on the same final source across all three GNU targets and both builds.
+  Earlier complete expression panels retain their actual binary identity; the small follow-up changes only
+  compilation control checks and diagnostic work observation, with its source and consequential checks recorded.
 
-Complete-language acceptance remains in progress. The retained pre-storage temporal checkpoint has 2,002 exact
-matches and 150 open mixed-history outcomes. Their completion now uses an implemented provider-owned paged float-bit
-store and the literal upstream sort; qualification of that implementation is in progress. Storage creation,
+All 2,152 temporal outcomes pass in both native builds at page sizes 1/17/1024, including the 150 formerly open
+mixed-history cases. They use provider-owned paged float-bit backing and the literal upstream sort. Storage creation,
 configuration and cleanup belong to the provider. Missing or failed backing returns a specific storage error when
 the general-sort path is reached. The production core creates no files and has no whole-history RAM fallback.
-Parenthesized matrix arguments inside unvisited scalar aggregation parameters now follow the source's generic
-function path, including its successful results and distinct errors. Foreign Rust execution, dbengine/API
-integration, alert scheduling and Cloud distribution are separate stages; Alertmanager is outside this work.
+Parenthesized matrix arguments inside unvisited scalar aggregation parameters follow the source's generic
+function path, including its successful results and distinct errors.
 
-The detailed counts below preserve individual historical checkpoints and their source attribution. They do not
-supersede the current complete-language status or turn a partial panel into a compatibility guarantee.
+The standalone expression core is qualified against these pinned panels and independently assessed source scopes.
+[Catalog coverage](catalog-coverage.json) identifies successful expression witnesses, and
+[core qualification](core-qualification.json) records the original source/binary cohorts, comparison policy,
+qualified scope and limitations. These panels do not establish equivalence for every possible input.
+Live dbengine/API integration, alert scheduling and Cloud distribution are later stages. Alertmanager is outside this work.
+
+The detailed counts below preserve individual historical checkpoints and their source attribution. Historical
+OPEN counts and earlier prerequisite limitations describe those earlier cohorts. Current scope and final source
+qualification are stated here; a finite corpus does not establish equivalence for every possible input.
+
+Raw-input memory is bounded by pages and decoder/operator state. Series metadata, derived group state, histogram
+payloads and an independently owned complete result can still grow with cardinality. All resource caps remain
+disabled, so this stage does not guarantee bounded total memory or process RSS for every query. Streaming output
+consumers may release provisional chunks immediately. General exact temporal quantiles need provider-owned
+temporary backing; the core has no whole-history RAM fallback.
+
+## Cooperative control and work observations
+
+Label descriptor walks, ordered validation, diagnostic formatting/merging, metadata rosters/filters and variable
+query task walks use the query's existing cancellation/deadline control and work account. Long label comparisons
+and diagnostic position scans poll in bounded byte chunks. Parenthesis projection and helper-shortcut walks
+record each hop; their callers propagate interruption through preparation and evaluation.
+
+Unary collision detection reuses the existing prepared merge guard and checks actual collision candidates with
+an accounted metadata sort. Distinct series avoid an all-pairs scan. Identity-changing operators retain their
+ordered-output path; ordinary ordinal output uses the existing interruptible metadata sort.
+
+A completed provider failure keeps precedence over cancellation received while transporting its diagnostics.
+Diagnostic position scans still charge their visited query bytes on that failure path; suppressing later
+cancellation does not suppress work accounting. Compilation also polls while enqueuing variadic call arguments,
+so pending cancellation is observed before growing the remaining task stack.
+Successful/END callbacks observe cancellation before converting their diagnostic roster. Generated diagnostics
+publish completed formatted messages; interrupted formatting retains the prior valid message.
+
+Controls are cooperative. The core cannot interrupt a blocking foreign callback. Resource enforcement remains
+disabled, and no implicit query timeout or admission policy is introduced.
 
 ## Parenthesized matrix and native-operation qualification
 
@@ -109,7 +159,8 @@ python3 tests/promql-conformance/native_matrix_calls.py --panel unvisited-primar
 The same commands accept every panel in the table. Permanent engine regressions cover a 100,000-point discarded
 history, late faults, cleanup/reuse, native acquisition and raw helper diagnostics. The native kernel, expression,
 portable arithmetic and foreign embedding checks cover shared helpers beyond this panel. These finite gates do
-not close the remaining general temporal provenance obligation or qualify a live storage/API integration.
+qualify their declared source panels. The temporal backing panel above now passes; these gates do not qualify
+a live storage/API integration.
 
 ## Reference and profiles
 
@@ -122,7 +173,7 @@ directory identify upstream source; they are not credentials or private identiti
 - `upstream-tests`: the four parser options used by the upstream builtin tests are enabled, together with delayed
   name removal and start-timestamp evaluation. Optional syntax remains attributable to this profile.
 - `language-catalog.json`: the pinned function signatures, 90 functions (73 stable, 17 experimental), 14 aggregations
-  and profile options. This is an inventory, not a list of implemented Rust features.
+  and profile options. The inventory is separate from the source-bound implementation and qualification evidence.
 - `upstream-sources.json`: digests for all 21 evaluation DSL files (2,243 commands: 2,240 `eval` and three `eval_fail`;
   12,023 physical lines)
   and the parser/lexer fixture sources. `upstream_inventory.py` rejects any digest change.
@@ -163,7 +214,10 @@ tests/promql-conformance/.tmp/oracle --catalog
 
 These path arguments describe existing sources; the tools do not create environments or download dependencies.
 All generated binaries, build caches and private fixtures remain in ignored `.tmp/`. Numeric and histogram validation
-retains a uniquely named input directory for reproduction.
+retains a uniquely named input directory for reproduction. The file-backed Rust fixture provider also requires
+`tests/promql-conformance/.tmp/` in the tested checkout. `build.py` creates it; create this ignored directory before
+running Cargo tests directly or testing a separate source copy. The production provider owns its backing policy
+and creates no files through the Rust core.
 
 The Go tests assert fixture-derived values for typed samples, staleness, strings, time, joins, absence, classic and
 native histograms, offsets, subqueries and threshold/bool results. Mutation tests reject changed complete results.
@@ -233,8 +287,9 @@ nesting limit. Strings remain base64 bytes and floats retain raw bits. Repeated 
 case input once; error order, messages, positions and line offsets remain explicit. Successful ASTs/token streams
 and all ordered errors are also compared with the computed table's declared expectations.
 
-These are reference fixtures and passing original assertions, not a Rust conformance result. Candidate execution
-and the remaining helper surfaces still require qualification.
+These captures establish reference fixtures and original assertions. Separate candidate execution passes the
+computed frontend panels on all six target/build variants; see `core-qualification.json` for source attribution.
+Reference capture alone is not a Rust conformance result or coverage of every parser helper.
 
 ## Complete builtin evaluation fixtures
 
@@ -331,7 +386,8 @@ every finite binary exponent at four mantissas, decimal-decade neighbors, roundi
 values. The reference calls actual pinned `FormatOpenMetricsFloat` for its label projection. Source, profile,
 module, probe, generator, input and result hashes bind the capture. All **80,942 text/round-trip cases match exactly**
 in both release profiles; all 13,087 float parser cases and the existing frontend/expression outcomes remain exact.
-These are finite numerical-helper checks; histogram expression execution remains required.
+These are finite numerical-helper checks; histogram expression execution is qualified separately in the later
+expression panels.
 
 ```sh
 python3 tests/promql-conformance/float_text.py
@@ -442,7 +498,7 @@ regression. Five Rust unit tests pass in release and release-min; this includes 
 
 This finite corpus does not prove arbitrary-pattern compatibility. RE2/Fowler/exhaustive suites and remaining
 optimizer helper suites are outside this evidence. The anchored replacement checks qualify its regex kernel, not
-the pending PromQL `label_replace` evaluation and label mutation. PikeVM construction currently omits meta-engine
+the PromQL `label_replace` evaluation and label mutation qualified separately by the expression gates. PikeVM construction currently omits meta-engine
 accelerators; its query performance has not been measured. Go syntax limits and optimizer strategy thresholds are
 preserved as upstream behavior. No engine regex or query resource quota is enabled.
 
@@ -453,9 +509,13 @@ matchers retain one charge. Public backend memory reports are observed after con
 Their hidden compilation/search capacities and temporary peaks, and hash-table resizing peaks, remain unknown.
 Observable engine-owned buffers and borrowed storage pages remain subject to precise accounting. A total containing
 estimates cannot be a guaranteed bound. This accounting trade-off retains the qualified matcher and all 21,320
-original regex cases pass unchanged in both build profiles. Runtime accounting itself remains unfinished.
+original regex cases pass unchanged in both build profiles. Engine-owned runtime accounting and foreign allocation
+leases are described in the C embedding and allocation ownership sections below.
 
 ## Typed sample and initial histogram kernels
+
+This is an earlier helper checkpoint. Its counts, bit differences and then-unfinished expression/runtime owners
+remain historical; the standalone overview and source-bound core report state current qualification.
 
 The standalone crate now has owned and borrowed float/integer histogram payloads and timestamped samples.
 Borrowed views carry the provider's page lifetime. Retaining one copies mutable spans/buckets and custom bounds;
@@ -542,6 +602,9 @@ the C boundary, runtime accounting and paged-provider qualification remain requi
 
 ## Numerical prerequisites
 
+This is an earlier helper checkpoint. Its counts, bit differences and then-unfinished expression/runtime owners
+remain historical; the standalone overview and source-bound core report state current qualification.
+
 Frexp, Ldexp, Exp2, natural/binary logarithms and public square root are implemented for the pinned Go 1.27.1 linux/amd64
 profile. Log preserves the actual assembly's subnormal extraction, negative-NaN handling and inclusive half-sqrt-two
 branch. Log2 retains the exact-power shortcut and ordered multiplication/addition. Sqrt uses the same compiler
@@ -579,6 +642,9 @@ expression evaluation remain required.
 
 ## Histogram fractions and in-place trimming
 
+This is an earlier helper checkpoint. Its counts, bit differences and then-unfinished expression/runtime owners
+remain historical; the standalone overview and source-bound core report state current qualification.
+
 `Bucket.FractionBelow` and `FloatHistogram.TrimBuckets` follow the pinned source, including infinite-bound
 rules, one-sided zero buckets and the unchanged-total fast path. Trimming shares forward traversal's constant
 position state, mutates one existing bucket slot at a time, and compacts the same buffers after traversal.
@@ -605,6 +671,9 @@ Copy-source snapshots and immutable metadata use exact bits. Complete expression
 platform qualification remain unfinished.
 
 ## Native histogram fraction and quantile helpers
+
+This is an earlier helper checkpoint. Its counts, bit differences and then-unfinished expression/runtime owners
+remain historical; the standalone overview and source-bound core report state current qualification.
 
 `HistogramFraction` and `HistogramQuantile` follow pinned `promql/quantile.go:225–516`. Each numeric scan borrows
 the histogram, retains one bucket plus iterator/rank state, and returns one scalar plus an optional typed info
@@ -647,6 +716,9 @@ establish complete Rust expression evaluation.
 
 ## Native histogram statistics
 
+This is an earlier helper checkpoint. Its counts, bit differences and then-unfinished expression/runtime owners
+remain historical; the standalone overview and source-bound core report state current qualification.
+
 Count, Sum, Avg, StdVar and StdDev follow pinned `promql/functions.go:2044–2125`. Count and Sum return the
 unchanged fields; Avg divides Sum by Count without a zero-count guard. Variance borrows the ascending bucket
 iterator and retains only scalar state. It skips empty buckets, preserves custom midpoint overflow and
@@ -674,6 +746,9 @@ assertions. Overflow and compensation consumers distinguish reordered arithmetic
 Composite expression coverage is measured separately by the evaluator gates below.
 
 ## Classic histogram bucket kernels
+
+This is an earlier helper checkpoint. Its counts, bit differences and then-unfinished expression/runtime owners
+remain historical; the standalone overview and source-bound core report state current qualification.
 
 `BucketQuantile` and `BucketFraction` follow pinned `promql/quantile.go` and mutate one borrowed bucket-aggregate
 slice in place. The kernels preserve full backing tails after coalescing, quantile monotonicity/precision metadata,
@@ -1014,6 +1089,10 @@ original input/output hashes. Policy tests reject changed flags, scopes, identit
 
 ## Median absolute deviation source gate
 
+This is an earlier bounded-reducer checkpoint. Its then-open expression integration is historical; current
+standalone expression qualification is listed above. The original fault and throughput limits below remain
+specific to this panel.
+
 `mad_cases.py` independently declares 2,248 complete ordinary `mad_over_time` requests in 209 families, with
 1,124 calls per feature profile. The inputs preserve 176 declared IEEE arrays and their permutations, including
 signed zeros, subnormals, infinities, raw NaN payloads, arithmetic overflow and a 1,030-sample page boundary.
@@ -1041,7 +1120,10 @@ Complete buffered-window fault qualification for other range paths remains requi
 original iterator trace. Repeated scans can increase storage work, and this gate makes no throughput claim.
 Extended selectors, subquery inputs and general temporal quantile sorting retain their separate open scope.
 
-## Remaining qualification
+## Historical productive-expression checkpoint
+
+This section records an earlier implementation and its remaining work at that checkpoint. The current expression
+checkpoint above supersedes its OPEN counts and implementation status; original evidence remains attributed below.
 
 The productive Rust path connects the owned frontend to typed page cursors, float/native rate/increase/delta
 and irate/idelta, deriv/predict_linear/double_exponential_smoothing/mad_over_time,
@@ -1247,12 +1329,12 @@ the approved intermediate label bytes. All 496 match semantically at all three p
 their eight NaN-payload differences remain reported. Original source-defined cases and original assertions are
 unchanged. This qualifies the selected ordering policy separately from exact upstream equivalence.
 
-Runtime accounting remains unfinished: storage-error/sink owners and provider-internal transient peaks are not
-fully instrumented. The frontend buffer checkpoint below replaces its retained census. Regex dependency/table estimates expose known
-limitations rather than exact allocator totals. Reported buffer capacities and exposed page ranges must not be read as exact total
-query allocation or RSS. Provider callbacks return resource snapshots on every outcome; normal ownership transfers
-are reconciled together. Unwinding skips additional provider callbacks, so a newly allocated panicking callback may
-have an unobserved peak. No configured resource or concurrency admission limit is enabled.
+Runtime accounting covers engine-owned buffers, frontend/error/sink owners, shared allocations and borrowed pages.
+Foreign callbacks report transient allocations through query-owned acquire/resize/release handles, including cleanup
+callbacks. Remaining caller-reported snapshots exclude leased bytes to avoid double charging. Unreported allocations
+inside a provider remain unobservable; a callback panic cannot establish their hidden temporary peak. Regex dependency
+and selector-table backing include explicit estimates and hidden temporary/high-water limitations. Accounted requested
+bytes are distinct from total process allocation and RSS. No resource or concurrency admission limit is enabled.
 
 The pinned reference has an unspecified ordering contract: intermediate multi-step results assembled by Go maps
 can change a parent reduction and boolean outcome across identical requests. The source of this behavior is
@@ -1280,8 +1362,8 @@ and false 13 times in 128 default-profile requests; the optional profile returne
 times. With negative zero's label ordered first, Rust consistently returns false in both builds at all three
 page sizes. These 256 repetitions qualify the approved ordering policy, separately from exact Go equivalence;
 ten instant, raw-selector and fixed-expression witnesses remain exact. Original expression assertions are unchanged,
-and no numerical tolerance is widened. Future implementations of currently unsupported map boundaries must use
-the same policy and preserve source-defined ordering elsewhere.
+and no numerical tolerance is widened. The completed expression core uses this policy at source-unspecified map
+boundaries and preserves source-defined ordering elsewhere.
 
 Each query now opens every explicit AST selector site once, in syntax order, before expanding metadata. Identical
 selector text at different sites retains separate selections. Expansion retains series handles and provider
@@ -1543,9 +1625,13 @@ and current projection, independent of history length; metadata, owned outputs a
 and can grow. All resource enforcement remains disabled.
 
 The common walker owns cursor cleanup, post-operation resource accounting and complete returned-page validation.
-A Seek may revisit a validated but semantically unread tail. Stop and Seek still validate that tail's timestamps
-and bounds without projecting it; an earlier visitor error keeps precedence. Range scans retain their initial
-read, actual Seek calls and full-page contract through the same owner.
+Scheduled instantaneous selectors satisfy forward movement from the page already held when its remaining samples
+can reach the target. Before the first such movement, they validate that returned page's unread tail once, preserving
+source-validation precedence before later logical points. They retain one borrowed page and bounded indices;
+skipped points are not projected. Movement beyond the page performs the required physical Seek and Next.
+Stop and Seek still validate the unread tail's timestamps and bounds; an earlier visitor error keeps precedence.
+Provider errors occur at actual physical operations, so skipped redundant callbacks do not produce an error.
+General range scans retain their initial read, actual Seek calls and full-page contract through the same owner.
 
 ```sh
 python3 tests/promql-conformance/cursor_calls.py --capture --upstream "${PROMQL_ORIGINAL_SOURCE_DIR:?}"
@@ -1565,6 +1651,37 @@ These synthetic operations expose successful page prefixes before a required sam
 to skip an unread Next fault. An atomic failed storage page returns no samples. Physical page callback traces,
 arbitrary transient or call-count-dependent faults and cancellation/error races are separate from the repeatable
 query-replay contract. This panel is finite source qualification, not arbitrary iterator or complete-core acceptance.
+
+### Common single-selector schedules
+
+Preparation certifies expressions whose rows each bind to one physical selector ordinal with unique full label
+hashes. Eligible chains include parentheses, unary operations, vector/scalar arithmetic and comparisons, ordinary
+pointwise functions, and unambiguous label projections. Scalar parameters may use literals, scalar arithmetic and
+`time()`; vector-derived scalar parameters retain ordinary replay. The certificate is scoped to the original
+selector, child roster and grid. It does not infer independence from the final output's cardinality.
+
+A certified expression visits its original child ticks through one cursor/page and bounded current/predecessor
+values. Each tick uses the ordinary operator machine with its scalar time, flags and diagnostics. Preparation
+preserves postorder acquisition and first productive row order. Derived reducer validation, productive replay and
+provider-backed quantile materialization share the same scheduled owner. A single certified row can also stream
+standalone computed matrix output; other cohorts retain their general replay path.
+
+Duplicate full hashes, merged source heads, joins, aggregations, sorting, INFO, nested matrix children,
+histogram variance/deviation and source-incompatible wrapped or smoothed clocks retain ordinary replay. Label
+projections that merge physical ordinals do not receive the certificate. These fallbacks preserve the full
+expression result while potentially repeating work; the scheduler is not a general distributed planner.
+
+Native generated regressions compare growing histories at pages 1/17/1024, including a 1 ms lookback and one-second
+step, and assert fetched samples/pages as well as history-independent raw workspace. They exercise original tick
+values, clocks, ordinal projections, validation/error order, cancellation, sink failure and cleanup. The separate
+208-case schedule panel uses unchanged Go outcomes; only eight declared projection folds use the approved
+unspecified-order policy, with canonical final label order checked and the strict ordering differences preserved.
+
+The native release/page1024 sparse-clock witness reads 7,300,000 sample entries in 7,154 pages for 100,000
+computed points, versus 7,436,964,352 entries in 7,300,000 pages before page reuse. In those captured runs,
+query time falls from 151.65 s to 16.49 s. Engine workspace is 38,476 bytes at both 2,048 and 100,000 points;
+borrowed source pages and provider-selected temporary backing are accounted separately. These are finite fixture
+measurements, not throughput or elapsed-time guarantees for dbengine or other devices.
 
 ### Ordinary buffered matrix replay
 
@@ -1623,7 +1740,7 @@ Owned bounds preserve moved vector capacity, share only in the same query/catego
 accounting context. Unobserved caller Arc bounds keep their external identity until an observed copy. Empty
 bounds have distinct real shared headers; absent bounds have none. Empty diagnostic results have no wrapper.
 Stable Rust and the 1.91 minimum version pass 166 units and compiler rejection controls for unsafe RefCell thread
-access and implicit shared-handle unsizing. Production Miri checks cover three seeds, alignment/DST/ZST,
+access and implicit shared-handle unsizing. Historical selected-owner Miri checks at ABI 2 cover three seeds, alignment/DST/ZST,
 overflow, concurrent last-owner release, panic cleanup and bounds/diagnostic/selection lifetimes. Float values
 and output points remain 16/24 bytes on these amd64 builds. The earlier finite checks qualify those four owners;
 the root/control qualification below extends the same wrapper. The full C boundary remains required. Backend
@@ -1724,7 +1841,8 @@ in the evidence manifest. Both unwind profiles compare all 51 declared structure
 33 shared constants between Rust,
 C11 and C++17, and check header/archive exports. The real foreign callers exercise arithmetic, repeated paging,
 resource conservation, independent results, opaque errors, output delivery and cancellation/error precedence.
-ASan/UBSan instrument the C caller; the Rust core is exercised separately under Miri. `panic=abort` must fail the
+ASan/UBSan instrument the native C caller, not the Rust static library. The retained Miri checks cover selected
+Rust owners at their historical ABI 2 checkpoint; they are not a complete ABI 3 Miri gate. `panic=abort` must fail the
 crate's compile guard.
 
 With the installed Rust target libraries, GNU GCC/G++ 14, target libc and QEMU, run the same interface gate on ARM:
@@ -1781,7 +1899,7 @@ backend is compiled only for tests/the `fixtures` feature; the C gate receives a
 from its driver. Unsupported backing returns an explicit fixture error. No provider filesystem policy is imposed
 on production, and no files are silently created by the engine.
 
-The unchanged 2,152-case temporal panel and the independent 80-case temporary panel use these drivers:
+The unchanged 2,152-case temporal panel and the independent 84-case temporary panel use these drivers:
 
 ```sh
 python tests/promql-conformance/temporal_quantile_calls.py \
@@ -1799,15 +1917,18 @@ bounded input RAM; native Rust and real C/C++ generated providers retain one raw
 The native caller witnesses exercise temporary allocation and exact 7 MiB overlap through normal and cleanup callbacks,
 snapshot exclusion for a retained provider buffer, valid-query abort before begin, invalid-query NULL accounting,
 retained output cleanup on begin/chunk/commit failure, and allocation handles surviving all other handle releases.
-Regex backend memory remains explicitly estimated, all resource caps remain disabled, and complete expression/SRE
-compatibility remains unqualified.
+Regex backend memory remains explicitly estimated and all resource caps remain disabled. Complete expression/SRE
+gate results are separately attributed in the standalone overview and `core-qualification.json`.
+
+The following label/merge figures record the earlier source checkpoint; the current complete expression and
+parenthesized-matrix gates above supersede its pending reducer status.
 
 `label_replace` and `label_join` project whole-series metadata after the vector child completes. Runtime validation
 occurs before child evaluation, following the upfront selector catalog. Replacement uses Go's anchored DotNL
 expression and expansion rules; join reads original label values before changing its destination. Empty-label
 normalization, missing and repeated sources, byte values, name-removal flags and derived timestamps follow the
 pinned source. Only the vector argument is evaluated; surviving string parentheses inside unvisited aggregation
-parameters retain their separate, currently open source branch.
+parameters follow their separately qualified source branch in the parenthesized-matrix gate above.
 
 Projected labels and child-ordinal bindings are accounted metadata retained for replay. Same-kind overlapping
 aliases fail; disjoint aliases and equal-time float/histogram values retain the existing source merge/consumption
@@ -1832,8 +1953,9 @@ pages 1/17/1024. A permanent regression pins that collision and its negative-zer
 separator-byte fixture is a distinct-full-encoding control: its collision under the grouping encoding does not
 establish full-label Hash equality.
 
-The foundation represents the full value model and records required inputs. The following remain mandatory in the
-typed Rust core stage:
+The foundation represents the full value model and records required inputs. The following are the typed core
+acceptance obligations, with candidate results attributed to their declared source/binary cohorts in
+`core-qualification.json`:
 
 - Execute the Rust candidate against the complete captured DSL and computed parser/lexer fixtures, including mixed
   samples, failures and structured expectations. Reference capture is not a candidate execution result.
@@ -1872,8 +1994,8 @@ validated, after child evaluation. Signature/hash encoding is fallible rather th
 The boundary tests exercise names and values immediately below, at and above the limit, generated fields,
 pre-grouping COUNT errors, deletion/no-match controls and combined labelsets larger than the field boundary.
 The real C/C++ embedding gate adds six provider cases and checks error classification, rejection before raw cursor
-creation and paired releases. Allocation-accounting witnesses are documented above; complete language qualification
-remains open.
+creation and paired releases. Allocation-accounting witnesses are documented above; complete expression gate
+results and their finite evidence limits are recorded separately in the standalone overview.
 
 ## Bounded binary matching and pair replay
 
@@ -1907,6 +2029,9 @@ Accounted metadata and distinct combined-label cache keys can grow substantially
 replay work can multiply through nested operators. Streaming output avoids the convenience collector's retained
 output matrix, but is not a total-memory bound. Admission limits remain disabled. Finite paging/memory checks do
 not establish RSS limits, throughput, arbitrary provider iterator equivalence or complete language support.
+
+The following binary checkpoint retains its original evidence counts and formerly open owners. Its implementation
+status is superseded by the current expression, numerical, C and SRE gates above.
 
 The fixture transport optionally accepts synthetic `faults` on dataset requests. It exposes terminal selection
 errors and opaque warnings plus per-selector/series raw read faults. Healthy page prefixes precede a failing
