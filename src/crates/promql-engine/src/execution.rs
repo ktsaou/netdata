@@ -12040,6 +12040,134 @@ mod tests {
     }
 
     #[test]
+    fn histogram_preprocessing_stops_before_enqueuing_cancelled_variadic_arguments() {
+        let engine = Engine::default();
+        let control = Control::default();
+        let mut source = "(".repeat(8191);
+        source.push_str("label_join(counter_total,\"destination\",\",\"");
+        for _ in 0..10_000 {
+            source.push_str(",\"id\"");
+        }
+        source.push(')');
+        source.push_str(&")".repeat(8191));
+        let mut query = engine
+            .compile(source.as_bytes(), EngineOptions::default(), &control)
+            .unwrap();
+        let account = engine.accounting.query();
+        let result = crate::test_storage::interrupt_during(&account, &control, || {
+            crate::histogram_stats::configure(&mut query.expression, &control, &account)
+        });
+        assert_eq!(result, Err(Interrupted::Cancelled));
+        let observed = account.snapshot();
+        assert_eq!(observed.work, 8192);
+        assert!(
+            observed.memory[MemoryKind::Workspace as usize].peak
+                < (100 * size_of::<(NodeId, bool, bool)>()) as u64,
+            "pending cancellation must precede the variable argument task allocation: {observed:?}"
+        );
+        drop(query);
+        account.snapshot().assert_memory_released();
+        drop(account);
+        engine.accounting.snapshot().assert_memory_released();
+    }
+
+    #[test]
+    fn failed_selection_positions_account_work_without_replacing_provider_error() {
+        use crate::storage::{
+            ProviderDiagnosticRef, ProviderResources, SelectionRequest, SeriesSelection,
+        };
+        #[derive(Clone, Copy)]
+        struct FailedSelection {
+            position: usize,
+        }
+        impl Provider for FailedSelection {
+            type Query<'a> = Self;
+            fn open(&self, _: TimeBounds, _: &Control) -> Result<Self, StorageError> {
+                Ok(*self)
+            }
+        }
+        impl QueryProvider for FailedSelection {
+            type Selection<'a> = Self;
+            fn resources(&self) -> ProviderResources {
+                ProviderResources::default()
+            }
+            fn select(&self, _: SelectionRequest<'_>, _: &Control) -> Result<Self, StorageError> {
+                Ok(*self)
+            }
+        }
+        impl SeriesSelection for FailedSelection {
+            type Series = crate::test_storage::FixtureHandle<'static>;
+            fn resources(&self) -> ProviderResources {
+                ProviderResources::default()
+            }
+            fn next(&mut self, control: &Control) -> Result<Option<Self::Series>, StorageError> {
+                control.cancellation.cancel();
+                Err(StorageError::Provider(b"selection failure".to_vec().into()))
+            }
+            fn diagnostic_count(&self) -> usize {
+                1
+            }
+            fn diagnostic<R>(
+                &self,
+                _: usize,
+                visit: impl for<'a> FnOnce(ProviderDiagnosticRef<'a>) -> R,
+            ) -> R {
+                visit(ProviderDiagnosticRef {
+                    message: b"",
+                    severity: crate::annotations::Severity::Info,
+                    position: Some(crate::frontend::Span {
+                        start: self.position,
+                        end: self.position,
+                    }),
+                })
+            }
+        }
+        let engine = Engine::default();
+        let source = format!("{}counter_total", " ".repeat(32_768));
+        let query = engine
+            .compile(
+                source.as_bytes(),
+                EngineOptions::default(),
+                &Control::default(),
+            )
+            .unwrap();
+        let mut work = Vec::new();
+        for position in [0, 32_768] {
+            let control = Control::default();
+            let account = query.execution_accounting();
+            let report = query.collect_reported_in(
+                &FailedSelection { position },
+                QueryRequest::Instant { time_ms: 0 },
+                &control,
+                &account,
+            );
+            assert!(control.cancellation.cancelled());
+            let Err(ExecutionError::Evaluation(EvaluationError::Expansion(error))) = &report.result
+            else {
+                panic!("the completed selection error must precede cancellation")
+            };
+            assert_eq!(&**error, b"expanding series: selection failure");
+            let note = report
+                .annotations
+                .iter()
+                .next()
+                .expect("positioned diagnostic");
+            assert!(note.raw_message.is_empty());
+            assert_eq!(note.message, format!(" (1:{})", position + 1).as_bytes());
+            assert_eq!(note.span.unwrap().start, position);
+            work.push(report.observations.work);
+            drop(report);
+            account.snapshot().assert_memory_released();
+        }
+        assert!(
+            work[1] - work[0] >= 32_768,
+            "visited prefix bytes must be charged after a completed error: {work:?}"
+        );
+        drop(query);
+        engine.accounting.snapshot().assert_memory_released();
+    }
+
+    #[test]
     fn parenthesis_projection_reports_work_and_observes_cancellation() {
         use crate::storage::Interrupted;
         let engine = Engine::default();

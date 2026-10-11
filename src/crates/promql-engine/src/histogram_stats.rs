@@ -213,12 +213,11 @@ pub(crate) fn configure(
                         _ => (),
                     }
                 }
-                tasks.extend(
-                    arguments
-                        .iter()
-                        .rev()
-                        .map(|&child| (child, enabled, blocked)),
-                );
+                for &child in arguments.iter().rev() {
+                    control.check()?;
+                    account.work(1);
+                    tasks.push((child, enabled, blocked));
+                }
             }
             Expr::Binary {
                 operator,
