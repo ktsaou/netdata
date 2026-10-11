@@ -14,7 +14,7 @@ HERE = Path(__file__).resolve().parent
 
 def generate(mod_cache):
     root = directory(HERE.parent.parent)
-    destination = directory(root / "src/crates/promql-engine/src/frontend") / "regex_unicode.rs"
+    destination = directory(root / "src/frontend") / "regex_unicode.rs"
     command = ["go", "run", str(HERE / "capture/regex_unicode.go")]
     env = os.environ.copy()
     env.update(GOTOOLCHAIN="local", GOPROXY="off", GOSUMDB="off", GOWORK="off",

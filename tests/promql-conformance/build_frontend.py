@@ -10,7 +10,7 @@ HERE = Path(__file__).resolve().parent
 
 def build():
     root = directory(HERE.parent.parent)
-    crate = directory(root / "src/crates/promql-engine")
+    crate = root
     output = HERE / ".tmp"
     output.mkdir(exist_ok=True)
     directory(output)

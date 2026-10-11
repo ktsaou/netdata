@@ -79,7 +79,7 @@ The [README](README.md#standalone-expression-core) summarizes implementation and
 - **Consequence:** parsing does not depend on recursive expression depth fitting the call stack, but grammar,
   diagnostics and upstream drift become maintenance responsibilities. Strings and labels preserve their byte
   semantics rather than undergoing blanket UTF-8 conversion.
-- **Evidence:** [owned frontend](README.md#owned-rust-frontend), [frontend source](../../src/crates/promql-engine/src/frontend).
+- **Evidence:** [owned frontend](README.md#owned-rust-frontend), [frontend source](../../src/frontend).
 
 ### 6. Own Go regex compatibility; reuse a Rust execution backend
 
@@ -91,7 +91,7 @@ The [README](README.md#standalone-expression-core) summarizes implementation and
   compatibility frontend, generated Unicode data and dependency changes. Regex allocation estimates have the
   separate limitations described under decision 17 below.
 - **Evidence:** [Go-compatible regex frontend](README.md#owned-go-compatible-regex-frontend),
-  [pinned dependencies](../../src/crates/promql-engine/Cargo.toml).
+  [pinned dependencies](../../Cargo.toml).
 
 ### 7. Preserve upstream arithmetic and exact expression outcomes
 
@@ -116,7 +116,7 @@ The [README](README.md#standalone-expression-core) summarizes implementation and
   fused arithmetic. Runtime CPU features must not select different semantics. Semantic integer behavior stays
   canonical while physical slice/allocation indexes remain checked, target-sized indexes.
 - **Evidence:** [canonical numerical behavior](README.md#canonical-numerical-operations-and-semantic-integer-widths),
-  [numerical source](../../src/crates/promql-engine/src/numerical.rs).
+  [numerical source](../../src/numerical.rs).
 
 ### 9. Define deterministic order only where upstream leaves it unspecified
 
@@ -138,8 +138,8 @@ The [README](README.md#standalone-expression-core) summarizes implementation and
 - **Consequence:** histogram values pay an additional accounted allocation/indirection. Metadata and histogram
   payloads can still grow; compact float storage is not a total-memory bound. Rust value layout is separate from
   the public typed C layout.
-- **Evidence:** [value model](../../src/crates/promql-engine/src/value.rs),
-  [owned values and output](../../src/crates/promql-engine/src/result.rs).
+- **Evidence:** [value model](../../src/value.rs),
+  [owned values and output](../../src/result.rs).
 
 ### 11. Record two narrow upstream compatibility exceptions
 
@@ -165,8 +165,8 @@ Original failures remain evidence. [Approved exceptions](contract.json) and
 - **Cache policy:** the live adapter will reuse dbengine's existing shared LRU. The core introduces no second
   raw-history cache. Its completed-fold cache replaces earlier clocks and retains scalar progress certificates,
   rather than raw timelines.
-- **Evidence:** [typed storage](../../src/crates/promql-engine/src/storage.rs),
-  [fold cache](../../src/crates/promql-engine/src/range_cache.rs), [memory contract](contract.json).
+- **Evidence:** [typed storage](../../src/storage.rs),
+  [fold cache](../../src/range_cache.rs), [memory contract](contract.json).
 
 ### 13. Exact temporal sorting uses provider-owned temporary backing
 
@@ -179,8 +179,8 @@ Original failures remain evidence. [Approved exceptions](contract.json) and
   reached. Diskless providers need another suitable backend or return that error.
 - **Accounting:** logical extent and read/write traffic are separate from RAM, RSS and allocated filesystem blocks.
   Production backing policy belongs to the later provider integration.
-- **Evidence:** [temporary interface](../../src/crates/promql-engine/src/storage.rs),
-  [paged float-bit owner](../../src/crates/promql-engine/src/temporary_float_bits.rs).
+- **Evidence:** [temporary interface](../../src/storage.rs),
+  [paged float-bit owner](../../src/temporary_float_bits.rs).
 
 ### 14. Stream certified common chains; retain general replay for other shapes
 
@@ -193,7 +193,7 @@ Original failures remain evidence. [Approved exceptions](contract.json) and
 - **Consequence:** those are optimization boundaries, not unsupported language features. Nested replay can still
   multiply work; this is not a general distributed planner or a universal performance guarantee.
 - **Evidence:** [single-selector schedules](README.md#common-single-selector-schedules),
-  [certification owner](../../src/crates/promql-engine/src/scheduled_expression.rs).
+  [certification owner](../../src/scheduled_expression.rs).
 
 ### 15. Advance within the immutable raw page already held
 
@@ -206,7 +206,7 @@ Original failures remain evidence. [Approved exceptions](contract.json) and
   to 7.3 million / 16.49 seconds, with flat accounted workspace. These are original fixture-cohort measurements,
   not dbengine/device throughput guarantees or total-RAM measurements.
 - **Evidence:** [shared cursor replay](README.md#shared-instantaneous-cursor-replay),
-  [paging driver](../../src/crates/promql-engine/src/storage.rs).
+  [paging driver](../../src/storage.rs).
 
 ## Runtime, ownership and accounting
 
@@ -220,7 +220,7 @@ Original failures remain evidence. [Approved exceptions](contract.json) and
 - **Consequence:** observations support later adaptive policy, but no adaptive formula, admission queue or fixed
   defaults are selected. Actual allocator OOM may remain process-fatal. Caller-requested cancellation/deadlines
   remain independent controls; representation/provider validity checks still apply.
-- **Evidence:** [accounting](../../src/crates/promql-engine/src/accounting.rs), [runtime contract](contract.json).
+- **Evidence:** [accounting](../../src/accounting.rs), [runtime contract](contract.json).
 
 ### 17. Precise observable accounting; explicit regex dependency estimates
 
@@ -233,7 +233,7 @@ Original failures remain evidence. [Approved exceptions](contract.json) and
   cannot infer unreported memory. These limitations remain visible rather than hidden in a supposedly exact total.
   Rust keeps its normal allocator; accounting does not replace the process allocator.
 - **Evidence:** [runtime accounting contract](contract.json),
-  [regex backend accounting](../../src/crates/promql-engine/src/frontend/regex_nfa.rs).
+  [regex backend accounting](../../src/frontend/regex_nfa.rs).
 
 ### 18. One precisely accounted shared owner; explicit cancellation attribution
 
@@ -245,8 +245,8 @@ Original failures remain evidence. [Approved exceptions](contract.json) and
   or copy-on-write support. Engine-created cancellation allocations remain charged to their creator, including
   cross-engine use; caller/default tokens remain external and query-held references are observed separately.
   Cycle-free accounting roots avoid leases retaining their own account indefinitely.
-- **Evidence:** [shared owner](../../src/crates/promql-engine/src/shared.rs),
-  [control ownership](../../src/crates/promql-engine/src/storage.rs), [accounting roots](../../src/crates/promql-engine/src/accounting.rs).
+- **Evidence:** [shared owner](../../src/shared.rs),
+  [control ownership](../../src/storage.rs), [accounting roots](../../src/accounting.rs).
 
 ### 19. Query-owned allocation handles cover temporary C memory and cleanup
 
@@ -259,9 +259,9 @@ Original failures remain evidence. [Approved exceptions](contract.json) and
   through handles or descendants. Normal callbacks obtain accounting through control; resource/close/abort callbacks
   receive it directly, including abort-before-begin for a valid query. An invalid call that never establishes a query
   has no fabricated account. Charges persist through actual cleanup.
-- **Evidence:** [C allocation interface](../../src/crates/promql-engine/include/netdata-promql.h),
-  [provider bridge](../../src/crates/promql-engine/src/c_abi/provider.rs),
-  [output cleanup](../../src/crates/promql-engine/src/c_abi/output.rs).
+- **Evidence:** [C allocation interface](../../include/netdata-promql.h),
+  [provider bridge](../../src/c_abi/provider.rs),
+  [output cleanup](../../src/c_abi/output.rs).
 
 ### 20. Typed cursors and one coherent C ABI 3
 
@@ -275,8 +275,8 @@ Original failures remain evidence. [Approved exceptions](contract.json) and
   Callers check ABI version before using unprefixed observation layouts.
 - **Concurrency:** immutable compiled queries have independent execution contexts; cancellation may be concurrent.
   Access/release of a handle must not race. Getter views belong to their live result/report owner.
-- **Evidence:** [C header](../../src/crates/promql-engine/include/netdata-promql.h),
-  [checked ABI](../../src/crates/promql-engine/src/c_abi/checked.rs).
+- **Evidence:** [C header](../../include/netdata-promql.h),
+  [checked ABI](../../src/c_abi/checked.rs).
 
 ### 21. Synchronous provisional chunks plus an independently owned collector
 
@@ -287,8 +287,8 @@ Original failures remain evidence. [Approved exceptions](contract.json) and
   retaining the whole answer while collection remains useful for callers needing independent ownership.
 - **Consequence:** there is no post-return provider access, output spool or selected HTTP publication policy.
   Owned collection deliberately grows with the answer and does not inherit the raw-page memory guarantee.
-- **Evidence:** [output model](../../src/crates/promql-engine/src/result.rs),
-  [C output bridge](../../src/crates/promql-engine/src/c_abi/output.rs).
+- **Evidence:** [output model](../../src/result.rs),
+  [C output bridge](../../src/c_abi/output.rs).
 
 ### 22. Contain ordinary Rust panics; preserve source failure semantics
 
@@ -299,8 +299,8 @@ Original failures remain evidence. [Approved exceptions](contract.json) and
 - **Consequence:** allocator abort, invalid foreign pointers, foreign unwinding/longjmp and double-panic abort are
   outside ordinary panic containment. Predictable reached upstream native faults retain their Runtime/WrappedRuntime
   semantics; they are not silently converted to arbitrary successful values or confused with Rust bugs.
-- **Evidence:** [crate profiles](../../src/crates/promql-engine/Cargo.toml),
-  [unwind guard](../../src/crates/promql-engine/src/lib.rs), [C containment](../../src/crates/promql-engine/src/c_abi/mod.rs).
+- **Evidence:** [crate profiles](../../Cargo.toml),
+  [unwind guard](../../src/lib.rs), [C containment](../../src/c_abi/mod.rs).
 
 ### 23. Cooperative control preserves failure and diagnostic precedence
 
@@ -312,7 +312,7 @@ Original failures remain evidence. [Approved exceptions](contract.json) and
 - **Consequence:** formatting uses accounted candidate storage before publishing a complete message; successful
   output commit has no later fallible setup. Controls do not preempt a blocking foreign callback.
 - **Evidence:** [control/work observations](README.md#cooperative-control-and-work-observations),
-  [annotation owner](../../src/crates/promql-engine/src/annotations.rs).
+  [annotation owner](../../src/annotations.rs).
 
 ## Approved data policies awaiting the production adapter
 

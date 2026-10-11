@@ -1,0 +1,1331 @@
+{
+  "files": {
+    "src/crates/promql-engine/Cargo.lock": {
+      "sha256": "3f1b08baa46f83a0f0106789cedde44910e0d2f92c45c3322fe32d58273c7f16",
+      "target": "Cargo.lock"
+    },
+    "src/crates/promql-engine/Cargo.toml": {
+      "sha256": "f88887b055e2841d9cfb340d38efeaed03066fe49bce56913713f89f1882e459",
+      "target": "Cargo.toml"
+    },
+    "src/crates/promql-engine/LICENSE-APACHE-2.0": {
+      "sha256": "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4",
+      "target": "LICENSE-APACHE-2.0"
+    },
+    "src/crates/promql-engine/LICENSE-GO-BSD": {
+      "sha256": "fc3df6449839c7d11800a6d66384c4e46f488fc4a7fc84d5278e747fb43faacf",
+      "target": "LICENSE-GO-BSD"
+    },
+    "src/crates/promql-engine/NOTICE": {
+      "sha256": "92096f5bb28f3c91463ad04aaca6dc63ff4bcef84479eb65026f313d1cfeaa5e",
+      "target": "NOTICE"
+    },
+    "src/crates/promql-engine/include/netdata-promql.h": {
+      "sha256": "5e8227777044dfc75b3fa5a7da1a7e1edf57ba512ffd6a8ab0324b0f2b00bb00",
+      "target": "include/netdata-promql.h"
+    },
+    "src/crates/promql-engine/src/absence.rs": {
+      "sha256": "afb4f330f5dff938c2eebfa64574b3cf9693cbd94b43a9cf60752b8094a14889",
+      "target": "src/absence.rs"
+    },
+    "src/crates/promql-engine/src/accounting.rs": {
+      "sha256": "216dd3a3a4638d4ea34ee17ab9311bfccb99e8914880b9adf26fccb1d3319bee",
+      "target": "src/accounting.rs"
+    },
+    "src/crates/promql-engine/src/aggregation.rs": {
+      "sha256": "70a6f770c7d42ce409a686d8e50f7b7c316c0da802745ba84528ecc0e6f24593",
+      "target": "src/aggregation.rs"
+    },
+    "src/crates/promql-engine/src/annotations.rs": {
+      "sha256": "1282361cc07c14ada94b348bc4d9f8ff3361723e14431f4be729d6646816e33b",
+      "target": "src/annotations.rs"
+    },
+    "src/crates/promql-engine/src/annotations_fixture.rs": {
+      "sha256": "e09857ac06bb846d4c05ec563f7f91eeeaec38ed5d669715f9ef0fb42672081c",
+      "target": "src/annotations_fixture.rs"
+    },
+    "src/crates/promql-engine/src/bin/fixture_codec.rs": {
+      "sha256": "cca2d78bcd9b9c9e8af6eb738362373db2294474575075709849632c19a09f79",
+      "target": "src/bin/fixture_codec.rs"
+    },
+    "src/crates/promql-engine/src/bin/frontend_fixture.rs": {
+      "sha256": "cd391e7c27888dceaa9d50665dc25572659fdcabeaa1003ceda367a0df397ded",
+      "target": "src/bin/frontend_fixture.rs"
+    },
+    "src/crates/promql-engine/src/bin/frontend_fixture_output.rs": {
+      "sha256": "bfd67448370e205a122a237657ea4f2bf558d81304713a8c1973902c2470de9d",
+      "target": "src/bin/frontend_fixture_output.rs"
+    },
+    "src/crates/promql-engine/src/bin/kernel_fixture.rs": {
+      "sha256": "88785f4a8094bc67a983e2434ce6cb1dea3313daf5ff01508c25209031f7f28b",
+      "target": "src/bin/kernel_fixture.rs"
+    },
+    "src/crates/promql-engine/src/bin/query_fixture.rs": {
+      "sha256": "9b8626015a60c39cb5d0d3980f2e4e9ac7147fa162f72efebc3ab3bdc7d2709e",
+      "target": "src/bin/query_fixture.rs"
+    },
+    "src/crates/promql-engine/src/bin/regex_fixture.rs": {
+      "sha256": "842aea6f73f2fc9de3a28a8cc527c4203136af317f9f1fb9cee6e915de86c41a",
+      "target": "src/bin/regex_fixture.rs"
+    },
+    "src/crates/promql-engine/src/binary_labels.rs": {
+      "sha256": "0ccaf0d7486420e7fcb2f717903a3fd9aa8ae2fa9ef42f56e6caaa17a534f5f9",
+      "target": "src/binary_labels.rs"
+    },
+    "src/crates/promql-engine/src/binary_value.rs": {
+      "sha256": "4a4b240370dda9491e0c1932ed131d290c731272c32b0d9e19bfd43037167ac4",
+      "target": "src/binary_value.rs"
+    },
+    "src/crates/promql-engine/src/c_abi/checked.rs": {
+      "sha256": "c6f9fbe0eaf960ea1aa5f0d4a52740bfdee00a281f4223676593d3a9e63241ae",
+      "target": "src/c_abi/checked.rs"
+    },
+    "src/crates/promql-engine/src/c_abi/getters.rs": {
+      "sha256": "03d9de4d99a220bbbcb18c395eb11b46abab89f5493cc91176f48966799e73cd",
+      "target": "src/c_abi/getters.rs"
+    },
+    "src/crates/promql-engine/src/c_abi/mod.rs": {
+      "sha256": "e418ac29bda083e6c340f987eacdd08c6e4650144588a1f5a61cdabba9749678",
+      "target": "src/c_abi/mod.rs"
+    },
+    "src/crates/promql-engine/src/c_abi/observations.rs": {
+      "sha256": "daf30a34adf2cada770ceed1760d44022e9a7e6d65a6f0d40d8166f7aad6eb23",
+      "target": "src/c_abi/observations.rs"
+    },
+    "src/crates/promql-engine/src/c_abi/output.rs": {
+      "sha256": "90feb8494f1433896d52cbb2c053fc1978766229771cbe8817b0fca9a409982d",
+      "target": "src/c_abi/output.rs"
+    },
+    "src/crates/promql-engine/src/c_abi/provider.rs": {
+      "sha256": "482177fe663e1ec08b960ca3cb11cecf0550ba728749cb1d45d1df97cb350438",
+      "target": "src/c_abi/provider.rs"
+    },
+    "src/crates/promql-engine/src/c_abi/tests.rs": {
+      "sha256": "136c35ec5e207345db336103e916fb5bcf2af6d009c111c7d78d1be2cc3451a6",
+      "target": "src/c_abi/tests.rs"
+    },
+    "src/crates/promql-engine/src/c_abi/tests/allocations.rs": {
+      "sha256": "03fd715274c8b7ba7bfaa2d1fcdb5f2b81ee4393e15f6cd3bb8a82e4e75693ef",
+      "target": "src/c_abi/tests/allocations.rs"
+    },
+    "src/crates/promql-engine/src/c_abi/tests/delivery.rs": {
+      "sha256": "f0855143b4cabd8b341a2597dbfe3cbe0b234ed75411b108fd6808d8bb9dd8bf",
+      "target": "src/c_abi/tests/delivery.rs"
+    },
+    "src/crates/promql-engine/src/c_abi/tests/ownership.rs": {
+      "sha256": "f10330b7e8cafdf233de9e4ed054e99c8e376ea684248c6b315cdaca3f98db36",
+      "target": "src/c_abi/tests/ownership.rs"
+    },
+    "src/crates/promql-engine/src/c_abi/tests/pages.rs": {
+      "sha256": "9af9fec790a324cf089dfb6076508e9c15f149eb600d35e1b1aae1f52024a99b",
+      "target": "src/c_abi/tests/pages.rs"
+    },
+    "src/crates/promql-engine/src/c_abi/tests/temporary.rs": {
+      "sha256": "820b987bb72c3a96fd0404a5050cfb38704ce84813f40780649603049ce26f83",
+      "target": "src/c_abi/tests/temporary.rs"
+    },
+    "src/crates/promql-engine/src/c_abi/types.rs": {
+      "sha256": "dd86e2696f9927638a45f25afc3cf71f1a59b0c00b8c234b23e8a47806cb6c2d",
+      "target": "src/c_abi/types.rs"
+    },
+    "src/crates/promql-engine/src/calendar.rs": {
+      "sha256": "55db69f99f506d532fa2deb2007afa76fe8832396c1e6345267f585f483e7e31",
+      "target": "src/calendar.rs"
+    },
+    "src/crates/promql-engine/src/classic_mutation.rs": {
+      "sha256": "98b9f131e020d78dc59566acb145172cbb89e8abc658ef7f114fe58fa3232dd6",
+      "target": "src/classic_mutation.rs"
+    },
+    "src/crates/promql-engine/src/classic_replay.rs": {
+      "sha256": "913617f4df3042dcd72711cd30f76b3705fc9566a065f1da7dab0cbcb558ab36",
+      "target": "src/classic_replay.rs"
+    },
+    "src/crates/promql-engine/src/count_values.rs": {
+      "sha256": "9625f9668b8d739547fb2bfcb15b38475c8d0f00ad1548ea20aa31e4dab56b2b",
+      "target": "src/count_values.rs"
+    },
+    "src/crates/promql-engine/src/derived_matrix.rs": {
+      "sha256": "649bd8ffbbd70625b2833b2abd52e6ccd76ff1a1160d5e7336e4e880444651be",
+      "target": "src/derived_matrix.rs"
+    },
+    "src/crates/promql-engine/src/derived_range.rs": {
+      "sha256": "c93797d31e7c4befc9a7bf60d18349fb96a35323e86726837122be781f604673",
+      "target": "src/derived_range.rs"
+    },
+    "src/crates/promql-engine/src/evaluator.rs": {
+      "sha256": "1a5ef8fe72f65a7185400440afdf129e774a5f042f9eee1e7937d6cdf3cb69ea",
+      "target": "src/evaluator.rs"
+    },
+    "src/crates/promql-engine/src/evaluator_order.rs": {
+      "sha256": "4fe85cce90ec23d7f85f9067b2e085ae45ca1e071a115b55e6c3790469d99784",
+      "target": "src/evaluator_order.rs"
+    },
+    "src/crates/promql-engine/src/evaluator_roster.rs": {
+      "sha256": "81010ee7f94d0c51b7e32770696a0046f92b316060df9da4491b71910f8ae3fc",
+      "target": "src/evaluator_roster.rs"
+    },
+    "src/crates/promql-engine/src/execution.rs": {
+      "sha256": "2fc09425142f25f5e4ebbe87d0fa4f5047c9b298320165a2e6c2f4fe8d071a2c",
+      "target": "src/execution.rs"
+    },
+    "src/crates/promql-engine/src/fixture_temporary_storage.rs": {
+      "sha256": "7112cc1255ec968c8b9579336eadc354c277adc74ee079cce6a363744c084847",
+      "target": "src/fixture_temporary_storage.rs"
+    },
+    "src/crates/promql-engine/src/float_functions.rs": {
+      "sha256": "83efa83146f67cf2b83bc8089683164f5d50bf73f15f0463c899dc2d95233613",
+      "target": "src/float_functions.rs"
+    },
+    "src/crates/promql-engine/src/float_text.rs": {
+      "sha256": "d572829188cac46c941b9c8d71b6683247ee3efee16058cc5f48662e64f4d640",
+      "target": "src/float_text.rs"
+    },
+    "src/crates/promql-engine/src/frontend/ast.rs": {
+      "sha256": "db2078055fd4c565d3b887dc31699cdb55fb750269953073d64b33f1db70dbbc",
+      "target": "src/frontend/ast.rs"
+    },
+    "src/crates/promql-engine/src/frontend/bytes.rs": {
+      "sha256": "e8c2b42fabe790d2445025389999ae29dc071150d510560c6f81d393883e35cc",
+      "target": "src/frontend/bytes.rs"
+    },
+    "src/crates/promql-engine/src/frontend/float.rs": {
+      "sha256": "824bbbb5755c28e3aa19fa55653e5ca3e0298e370a04e538e4eb4220ee50ae80",
+      "target": "src/frontend/float.rs"
+    },
+    "src/crates/promql-engine/src/frontend/float_decimal.rs": {
+      "sha256": "1c57f12a5a2e73cb0abb86b6ef01e80948809e93a275e405018d693c201ddc5f",
+      "target": "src/frontend/float_decimal.rs"
+    },
+    "src/crates/promql-engine/src/frontend/float_powers.rs": {
+      "sha256": "e1e410fd6d4d265c4c5e38f1b9e437ac643b77758b3506708dd91f99f8b5b5cd",
+      "target": "src/frontend/float_powers.rs"
+    },
+    "src/crates/promql-engine/src/frontend/float_scale.rs": {
+      "sha256": "e6a09533d44f27594f106dfcd0ddd3f0d3f6b442dfb754ff4d18e16395088645",
+      "target": "src/frontend/float_scale.rs"
+    },
+    "src/crates/promql-engine/src/frontend/functions.rs": {
+      "sha256": "088aa78b4d8e78066cdf79fbed30a8767038d07fb95db5b4406bfde01c5a4164",
+      "target": "src/frontend/functions.rs"
+    },
+    "src/crates/promql-engine/src/frontend/lexer.rs": {
+      "sha256": "f9b22e4bdcc2b3de1b92a118ada695445d2af666f5621786ef4e87ce92d12b20",
+      "target": "src/frontend/lexer.rs"
+    },
+    "src/crates/promql-engine/src/frontend/literal.rs": {
+      "sha256": "ac310b23bfa8b58e273a63b7512714026becce2e47e977fc88bda4b1c991e650",
+      "target": "src/frontend/literal.rs"
+    },
+    "src/crates/promql-engine/src/frontend/mod.rs": {
+      "sha256": "dfc4bd1b5330542c8911b0109d607f95426c757e9eed39721e78a6096b4b8c94",
+      "target": "src/frontend/mod.rs"
+    },
+    "src/crates/promql-engine/src/frontend/number.rs": {
+      "sha256": "c8200f9ea6d9f2e233bb7e8aa82461b80e6315f8fdf401d865ee981c36ad664e",
+      "target": "src/frontend/number.rs"
+    },
+    "src/crates/promql-engine/src/frontend/parser.rs": {
+      "sha256": "7a0e454d471568151b482969fc61dc5d84056a739c32f557006a8130105d6353",
+      "target": "src/frontend/parser.rs"
+    },
+    "src/crates/promql-engine/src/frontend/quote.rs": {
+      "sha256": "b636f7bdb00ab87cdd3a6650a92b7617ed82c72edc4c5db465193f97cfdf06a3",
+      "target": "src/frontend/quote.rs"
+    },
+    "src/crates/promql-engine/src/frontend/regex.rs": {
+      "sha256": "44dd8f64aa08e0e5e7c71d17214450de4cff3156ee96e75e64f056922dcd4228",
+      "target": "src/frontend/regex.rs"
+    },
+    "src/crates/promql-engine/src/frontend/regex_nfa.rs": {
+      "sha256": "9586e2ecfd17bd4b59a61c270856de046c2948441ea6423b8562d572e39b105f",
+      "target": "src/frontend/regex_nfa.rs"
+    },
+    "src/crates/promql-engine/src/frontend/regex_normalization.rs": {
+      "sha256": "674b0a6bc4c5db9cdc78c41e560aff48c495cb2ad98c4b7d1c48f662fbd3bb89",
+      "target": "src/frontend/regex_normalization.rs"
+    },
+    "src/crates/promql-engine/src/frontend/regex_normalization_data.rs": {
+      "sha256": "08c49ddd398eff9dc1c958461c2677279f79d4079657125d8f42e3bb3fc01723",
+      "target": "src/frontend/regex_normalization_data.rs"
+    },
+    "src/crates/promql-engine/src/frontend/regex_program.rs": {
+      "sha256": "13dfcbe260852cf24032038549ffbaad2275b38c3559b75ae4f530717abffd83",
+      "target": "src/frontend/regex_program.rs"
+    },
+    "src/crates/promql-engine/src/frontend/regex_runes.rs": {
+      "sha256": "b7e242358cde50e432a99cc17a80b2a196e10010c1056daf8cfb251916a0554b",
+      "target": "src/frontend/regex_runes.rs"
+    },
+    "src/crates/promql-engine/src/frontend/regex_selector.rs": {
+      "sha256": "58778f43b7548806d708bb78df0450db888619247a841c30cd9d1e731623eedf",
+      "target": "src/frontend/regex_selector.rs"
+    },
+    "src/crates/promql-engine/src/frontend/regex_string.rs": {
+      "sha256": "1bc3920b26db2838aa6c92254c7d2f4172fa17c4460197eb198779446a16c29c",
+      "target": "src/frontend/regex_string.rs"
+    },
+    "src/crates/promql-engine/src/frontend/regex_syntax.rs": {
+      "sha256": "3d2dbdb6adb208093cf75b2f6a092bc4a399b9890ac6f177ed228a5a73a08d38",
+      "target": "src/frontend/regex_syntax.rs"
+    },
+    "src/crates/promql-engine/src/frontend/regex_unicode.rs": {
+      "sha256": "eec365da885efc57f114feaa6cf23b6983401f6aa58b0ff1d681817dbe5b9c6a",
+      "target": "src/frontend/regex_unicode.rs"
+    },
+    "src/crates/promql-engine/src/frontend/token.rs": {
+      "sha256": "f6b1e8a95b8217d32d7d2205e3597987fed87feafe1c330e055ded4c7a579e33",
+      "target": "src/frontend/token.rs"
+    },
+    "src/crates/promql-engine/src/frontend/unicode.rs": {
+      "sha256": "1e8930244ac2c0e19033a4145784e0af27681139a508cfe08ab3c32351e2de6b",
+      "target": "src/frontend/unicode.rs"
+    },
+    "src/crates/promql-engine/src/frontend/validate.rs": {
+      "sha256": "22ee0809231225208ea1343025e8c3e144dec542cef693f90d95edcfeda0f6c7",
+      "target": "src/frontend/validate.rs"
+    },
+    "src/crates/promql-engine/src/frontend/work.rs": {
+      "sha256": "53fe4df045e45e5adbe10e161c1cdee13d041c4519072a64b3065577b58c5d5b",
+      "target": "src/frontend/work.rs"
+    },
+    "src/crates/promql-engine/src/go_sort.rs": {
+      "sha256": "d3758eade259e0e960aa5e2db2c54d1380eeeab219612d9029389d3f1050bfa9",
+      "target": "src/go_sort.rs"
+    },
+    "src/crates/promql-engine/src/go_sort_program.rs": {
+      "sha256": "2e0fa367c9442026e457040cfee64e152a359a6830b584e0185b1562687f6236",
+      "target": "src/go_sort_program.rs"
+    },
+    "src/crates/promql-engine/src/histogram.rs": {
+      "sha256": "369cc35df492a91a84ebc284ecd03c6a8a45da689dac486f44bbe4ac157040f5",
+      "target": "src/histogram.rs"
+    },
+    "src/crates/promql-engine/src/histogram_accumulator.rs": {
+      "sha256": "db1f0dd7b0ff9720e3b90e1d20620619ac3b38faf484996973094aa083529a31",
+      "target": "src/histogram_accumulator.rs"
+    },
+    "src/crates/promql-engine/src/histogram_arithmetic.rs": {
+      "sha256": "d89d7e5921e34147711c64196d585847d14159f71f767ad6182cf0ed19be9d1f",
+      "target": "src/histogram_arithmetic.rs"
+    },
+    "src/crates/promql-engine/src/histogram_bounds.rs": {
+      "sha256": "cd74aa19fa5c1a5413f582137db79f5bf78f079f06c1617dccfb98e3a3820edf",
+      "target": "src/histogram_bounds.rs"
+    },
+    "src/crates/promql-engine/src/histogram_bounds_table.rs": {
+      "sha256": "31815c0035c27ac4de637864f58dbfb9b936e652d0f3d69e2512493ea63ab495",
+      "target": "src/histogram_bounds_table.rs"
+    },
+    "src/crates/promql-engine/src/histogram_call.rs": {
+      "sha256": "24a1e965133de22f96d7bb02aea2da789556e464af2ba3a9cf73a3ef9f3e57d1",
+      "target": "src/histogram_call.rs"
+    },
+    "src/crates/promql-engine/src/histogram_classic.rs": {
+      "sha256": "8371cee4116de799f4efba54b8006fcc18f36e420f8849f22b843ac3fc6f859b",
+      "target": "src/histogram_classic.rs"
+    },
+    "src/crates/promql-engine/src/histogram_counter.rs": {
+      "sha256": "bd241d83c378ca2eaeaff21e3665c3d4468b1b6e7b9c973d520b3fc3f03d5749",
+      "target": "src/histogram_counter.rs"
+    },
+    "src/crates/promql-engine/src/histogram_equality.rs": {
+      "sha256": "5869af6eff571e7c6225b9da7125f3531f62e03af1fd8a2f80b1bfc278b3f2fc",
+      "target": "src/histogram_equality.rs"
+    },
+    "src/crates/promql-engine/src/histogram_functions.rs": {
+      "sha256": "39173ed0b0af0f222ee18a39c490af0b0213d4af35b29557b2ff65cdfe4d4636",
+      "target": "src/histogram_functions.rs"
+    },
+    "src/crates/promql-engine/src/histogram_iterator.rs": {
+      "sha256": "28893244b47c20e5f0c3608fa4c2e0692771e2009bfdf536b989e3ee2b0aa54d",
+      "target": "src/histogram_iterator.rs"
+    },
+    "src/crates/promql-engine/src/histogram_layout.rs": {
+      "sha256": "df59f86bf9eb7a7b263cd032d7f0a0432f58b130ecf54c76128c10616576a649",
+      "target": "src/histogram_layout.rs"
+    },
+    "src/crates/promql-engine/src/histogram_stats.rs": {
+      "sha256": "cf5bcec7a4dec490af999902aa7647f8ed888a67ffff4ce1b061d543e52d2f91",
+      "target": "src/histogram_stats.rs"
+    },
+    "src/crates/promql-engine/src/histogram_text.rs": {
+      "sha256": "3685ae72e85f3dd863149533f1e0c98e2585ec026d876a8c3458a2c9938ac337",
+      "target": "src/histogram_text.rs"
+    },
+    "src/crates/promql-engine/src/histogram_trim.rs": {
+      "sha256": "70eae28733481c93981e7c3029aa0b9f3ed43b5e063ca53523a140ae9785b901",
+      "target": "src/histogram_trim.rs"
+    },
+    "src/crates/promql-engine/src/histogram_work.rs": {
+      "sha256": "82b84c875ecff20d6b3eaae182b2382279ffb631095b567362b23f48d840995a",
+      "target": "src/histogram_work.rs"
+    },
+    "src/crates/promql-engine/src/info.rs": {
+      "sha256": "19903130458f1451def702044078c761f2bf1fed82e6c10240864926e1987808",
+      "target": "src/info.rs"
+    },
+    "src/crates/promql-engine/src/instant_select.rs": {
+      "sha256": "e4cf7521731afacf5b1094ef6bcbf70f2f9aed085ceaf3e4af28d92fda2d8edb",
+      "target": "src/instant_select.rs"
+    },
+    "src/crates/promql-engine/src/instant_statistics.rs": {
+      "sha256": "b98b770bfacd3734d45c3bc7761f0697c970ebe8445594f02fc61ce84a646bcf",
+      "target": "src/instant_statistics.rs"
+    },
+    "src/crates/promql-engine/src/label_encoding.rs": {
+      "sha256": "67cefa707fa5188ea77fd102ac4963efdaa230af41e8a2d4372d80f8c3964705",
+      "target": "src/label_encoding.rs"
+    },
+    "src/crates/promql-engine/src/label_encoding_tests.rs": {
+      "sha256": "32b85f4413fe91b339630545bef69b83139793df36b0c05784d8424f9a1ca868",
+      "target": "src/label_encoding_tests.rs"
+    },
+    "src/crates/promql-engine/src/label_functions.rs": {
+      "sha256": "bf700c25a9d84efc36a012e7db9ef5c7be521230ab092b0e5e377be5a513ce06",
+      "target": "src/label_functions.rs"
+    },
+    "src/crates/promql-engine/src/label_hash.rs": {
+      "sha256": "43ac1e89566ea9811b131fa5651d5dbe3a2d38d83e948966011e195d6416a8a4",
+      "target": "src/label_hash.rs"
+    },
+    "src/crates/promql-engine/src/lib.rs": {
+      "sha256": "00d960988a4635762224fdd0f07f28389d4dcb5d355f9faccc86b44a94d24425",
+      "target": "src/lib.rs"
+    },
+    "src/crates/promql-engine/src/mad.rs": {
+      "sha256": "d1a862a527883f9ce738aa2f7e8cce1c681b38a17678990128d4bb0647a6369c",
+      "target": "src/mad.rs"
+    },
+    "src/crates/promql-engine/src/matrix_heads.rs": {
+      "sha256": "963c6037e96efacd7d1c0e0e5df3baf6e99419f50f6ef26d23fcffe9cfb1b7c2",
+      "target": "src/matrix_heads.rs"
+    },
+    "src/crates/promql-engine/src/matrix_reader.rs": {
+      "sha256": "9dc3e5b8d560cf60843996cc8e1181fe3098a8a06cf136aa947532c13bcbb906",
+      "target": "src/matrix_reader.rs"
+    },
+    "src/crates/promql-engine/src/numerical.rs": {
+      "sha256": "740b808191232c114e4e7a15d7368e3f92417a9e7e17732b2c3c05165c8a001d",
+      "target": "src/numerical.rs"
+    },
+    "src/crates/promql-engine/src/numerical_exponential.rs": {
+      "sha256": "733c1b546a81fafd5108b9652628fd2a271c3736e08e2d8364a055c8890ed7fb",
+      "target": "src/numerical_exponential.rs"
+    },
+    "src/crates/promql-engine/src/numerical_hyperbolic.rs": {
+      "sha256": "eb3a44c15e0b03ad784afb96bb6b294343cea410136a4e0498e99c362e0fd7a3",
+      "target": "src/numerical_hyperbolic.rs"
+    },
+    "src/crates/promql-engine/src/numerical_math.rs": {
+      "sha256": "2c1ad85435a8da0e01c909aad7332995409b1a6df18007e75f4a20b5588d58d0",
+      "target": "src/numerical_math.rs"
+    },
+    "src/crates/promql-engine/src/numerical_trigonometric.rs": {
+      "sha256": "1943279dac9a440a5acc26db24305247cb34e26861b0164e9b9cff7f925c4e6b",
+      "target": "src/numerical_trigonometric.rs"
+    },
+    "src/crates/promql-engine/src/quantile_aggregate.rs": {
+      "sha256": "65f6ad016ee927e3c09e17e0415275a3464441296fa3419f33f13a4b800ecdee",
+      "target": "src/quantile_aggregate.rs"
+    },
+    "src/crates/promql-engine/src/query_bounds.rs": {
+      "sha256": "b947ae47bbea94d88c6e82a37578874274522c51e89bc7cf4f1c2d92dcaff053",
+      "target": "src/query_bounds.rs"
+    },
+    "src/crates/promql-engine/src/query_catalog.rs": {
+      "sha256": "a931d3510292b2602dbe4bbec2f5804eee95b34dbd130b47cb62422aab1afc70",
+      "target": "src/query_catalog.rs"
+    },
+    "src/crates/promql-engine/src/query_preparation.rs": {
+      "sha256": "2a20c565089f7858e467e2a25c1b7a563ab36ae78652345a12401a7bfac30e69",
+      "target": "src/query_preparation.rs"
+    },
+    "src/crates/promql-engine/src/query_scopes.rs": {
+      "sha256": "cf47ef061a6a49c2455dd0e1f5bb6d4cd6cee6fa2b18d457839ab5406a317d84",
+      "target": "src/query_scopes.rs"
+    },
+    "src/crates/promql-engine/src/range_cache.rs": {
+      "sha256": "4a230e93b07e27f061aef897913190920e14ee443db53fca7d572fcc637006fa",
+      "target": "src/range_cache.rs"
+    },
+    "src/crates/promql-engine/src/range_extended.rs": {
+      "sha256": "bbdcf07b42425f7d9db3b9186a72dee41dadb18642d6067a02a76e0b46395881",
+      "target": "src/range_extended.rs"
+    },
+    "src/crates/promql-engine/src/range_float.rs": {
+      "sha256": "d31aa80504599a6c58b089c880ba936a29a8f4d7321f6173007a3c9b4755fc8d",
+      "target": "src/range_float.rs"
+    },
+    "src/crates/promql-engine/src/range_numeric.rs": {
+      "sha256": "104c8bdea3408bfb9f54b84580bce200a5f1e551850409b87732aed1b007a763",
+      "target": "src/range_numeric.rs"
+    },
+    "src/crates/promql-engine/src/range_quantile_rank.rs": {
+      "sha256": "37b27f36dfb92e95cf7484604861b21348b582e77d222483e8df0d71b30d0f73",
+      "target": "src/range_quantile_rank.rs"
+    },
+    "src/crates/promql-engine/src/range_rates.rs": {
+      "sha256": "de30d26e8346766e72d2c94a8eebd40f68fcdc4b7a476bb2eacbe9832057615a",
+      "target": "src/range_rates.rs"
+    },
+    "src/crates/promql-engine/src/range_reduce.rs": {
+      "sha256": "b8d9eb4e18f6353cc184ae7603c2f3741e26e868711ba09e5eca7c6dbdc86090",
+      "target": "src/range_reduce.rs"
+    },
+    "src/crates/promql-engine/src/result.rs": {
+      "sha256": "f7a9578c51ade89343993ad721dd7499a7a449d2a025c3d9725d65edcadf8a26",
+      "target": "src/result.rs"
+    },
+    "src/crates/promql-engine/src/scheduled_expression.rs": {
+      "sha256": "80c26875c5228eb4927774ba8940377cfce60795721a2e83442fccfa5411b3ed",
+      "target": "src/scheduled_expression.rs"
+    },
+    "src/crates/promql-engine/src/selection_tests.rs": {
+      "sha256": "2170387bfc372ce6e56b1c66a060b561e064bb6389087af35d40e20f07a5744c",
+      "target": "src/selection_tests.rs"
+    },
+    "src/crates/promql-engine/src/shared.rs": {
+      "sha256": "cef4bdd7739fe10aa6a81e633fdcd073de9f4f23b242db751a0cc3018ed31c0c",
+      "target": "src/shared.rs"
+    },
+    "src/crates/promql-engine/src/storage.rs": {
+      "sha256": "6c6dce6028d5b9d378414af7c8a4d10a22515b5f1d50e0c3edfba2a97291390e",
+      "target": "src/storage.rs"
+    },
+    "src/crates/promql-engine/src/storage_observed.rs": {
+      "sha256": "1a9441dfb4607692754ac48c98709192d13c509e39afd8cf527376e4ac497010",
+      "target": "src/storage_observed.rs"
+    },
+    "src/crates/promql-engine/src/temporal_quantile.rs": {
+      "sha256": "fb64195de74a824d8a41e871a14f82f66fb514729dbe155c4e88115bfda0e06b",
+      "target": "src/temporal_quantile.rs"
+    },
+    "src/crates/promql-engine/src/temporal_quantile_sort.rs": {
+      "sha256": "c522b3e84e503086faab8557aac474f2d0234feb1717299008a6558bf1746f3b",
+      "target": "src/temporal_quantile_sort.rs"
+    },
+    "src/crates/promql-engine/src/temporary_float_bits.rs": {
+      "sha256": "6e6cb8f8bc5a4c5bf3ef98f54082d9614bd7077e9fa331bf7c1f87e66f243d5d",
+      "target": "src/temporary_float_bits.rs"
+    },
+    "src/crates/promql-engine/src/test_storage.rs": {
+      "sha256": "45e159c7f5a6045cf421ebdae5191456d1201ab3633ce84e50a367f5b5349e9e",
+      "target": "src/test_storage.rs"
+    },
+    "src/crates/promql-engine/src/topk.rs": {
+      "sha256": "945702cc8300b50a3a2b3a79820d02b682d819fd9cfb89cc81dfd014bd2648af",
+      "target": "src/topk.rs"
+    },
+    "src/crates/promql-engine/src/value.rs": {
+      "sha256": "2af905982026c7f50cee4ef6472adf53475277dc63e1125a4ddf069737e84659",
+      "target": "src/value.rs"
+    },
+    "src/crates/promql-engine/src/vector_matching.rs": {
+      "sha256": "42895b28dfbc5a202799e185c543ee2d55c5d030e94ce7054c3ad0fc0348ea69",
+      "target": "src/vector_matching.rs"
+    },
+    "src/crates/promql-engine/src/vector_sort.rs": {
+      "sha256": "65b8841515f72e9330043981b6025fa16804d2153c0a4ecbc824cecea4282879",
+      "target": "src/vector_sort.rs"
+    },
+    "tests/promql-conformance/.gitignore": {
+      "sha256": "6b0108077ea3965e473badb8f1eefe5b0aac87597bc05f74164f41cb79463eab",
+      "target": "tests/promql-conformance/.gitignore"
+    },
+    "tests/promql-conformance/DESIGN.md": {
+      "sha256": "a14c10ece3a9e82450fdd1ffa07093b985b936b4c8110c1b17d11a27279165ff",
+      "target": "tests/promql-conformance/DESIGN.md"
+    },
+    "tests/promql-conformance/README.md": {
+      "sha256": "851fcedbbcc80369f88138c5f5e99be0abd218acc24721c5c7851c527b6d862e",
+      "target": "tests/promql-conformance/README.md"
+    },
+    "tests/promql-conformance/build.py": {
+      "sha256": "f1d3d59d4de1673f28a7d5cb5bc7988a5c381b4c606b1f5d930620487c27aac6",
+      "target": "tests/promql-conformance/build.py"
+    },
+    "tests/promql-conformance/build_frontend.py": {
+      "sha256": "4a51934b6b57e86fd82ea222700308a7d856d00f2ddb6d1caaabe8729983bc7a",
+      "target": "tests/promql-conformance/build_frontend.py"
+    },
+    "tests/promql-conformance/c_embedding.c": {
+      "sha256": "644b8c8fa80217879fdc7670a3cc3ad39395b4c5dd1d5f443737e0779fb17e82",
+      "target": "tests/promql-conformance/c_embedding.c"
+    },
+    "tests/promql-conformance/c_embedding.py": {
+      "sha256": "cba7f48eef6dde0fa777675e276a3847adb34e15b96ab302188b04b8d9656f64",
+      "target": "tests/promql-conformance/c_embedding.py"
+    },
+    "tests/promql-conformance/capture.py": {
+      "sha256": "99e02e4dcd0fe33463a93603ccb08f40654c90c472c63f5650dbbfbe3dde3d47",
+      "target": "tests/promql-conformance/capture.py"
+    },
+    "tests/promql-conformance/capture/classic_common.go.in": {
+      "sha256": "e14ac371be5d6d12f73d5971b685598f26538b29aabc553fe5d6adee82a4bddf",
+      "target": "tests/promql-conformance/capture/classic_common.go.in"
+    },
+    "tests/promql-conformance/capture/classic_replay.go": {
+      "sha256": "7a3d8cca442d291c59a0c10db413356c4164fe5eb243c2412d7a8cfd588681e5",
+      "target": "tests/promql-conformance/capture/classic_replay.go"
+    },
+    "tests/promql-conformance/capture/classic_sources.go": {
+      "sha256": "6d4a08e15e006e057e28d83382274c0c530389dd2f8ccc834100d3b2d962de16",
+      "target": "tests/promql-conformance/capture/classic_sources.go"
+    },
+    "tests/promql-conformance/capture/classic_supplemental.go.in": {
+      "sha256": "7a1fc114ee7b55372a71446e88db04e683bf0b7cb8f80577c5b270b02399835a",
+      "target": "tests/promql-conformance/capture/classic_supplemental.go.in"
+    },
+    "tests/promql-conformance/capture/cursor_errors.go": {
+      "sha256": "fc2bc009c8e43b3d74cf9345546600957ed264c27ebbbc43e71cb379d356ab61",
+      "target": "tests/promql-conformance/capture/cursor_errors.go"
+    },
+    "tests/promql-conformance/capture/cursor_phase.go": {
+      "sha256": "395757a4e0a62c402f9cce6eb4b25257168abd8d25a9a989ade26fbfa35955ec",
+      "target": "tests/promql-conformance/capture/cursor_phase.go"
+    },
+    "tests/promql-conformance/capture/evaluation_test.go": {
+      "sha256": "d67222e141602d0fa4d27ed5d2fe60dd96113f729d4355cf3eb39362d9364d38",
+      "target": "tests/promql-conformance/capture/evaluation_test.go"
+    },
+    "tests/promql-conformance/capture/float_literals.go": {
+      "sha256": "f1ec25ddb70fa5cdcfd10c73e7be0fd977c58cc8008078d07ca0def8fcb8eb7b",
+      "target": "tests/promql-conformance/capture/float_literals.go"
+    },
+    "tests/promql-conformance/capture/float_text.go": {
+      "sha256": "4b4552df0cbe763c7b236f35e87927f1cc0c020c54a0402fbf71b3134467173b",
+      "target": "tests/promql-conformance/capture/float_text.go"
+    },
+    "tests/promql-conformance/capture/float_text_extract.go": {
+      "sha256": "a44ed2b3e98aec315facb0b69196d133e36afac3b5a0bdd73b0a7e989425cdd0",
+      "target": "tests/promql-conformance/capture/float_text_extract.go"
+    },
+    "tests/promql-conformance/capture/go_sort.go": {
+      "sha256": "83be68acf154e57e2f260ba020c36413002ac3ea87564ff70a546c7e488fc601",
+      "target": "tests/promql-conformance/capture/go_sort.go"
+    },
+    "tests/promql-conformance/capture/go_tables.go": {
+      "sha256": "6b378ca737daedc6b8e6fd123e6fffd5c838ae42f7a25391544d7c5b1b6c8093",
+      "target": "tests/promql-conformance/capture/go_tables.go"
+    },
+    "tests/promql-conformance/capture/histogram_annotations.go": {
+      "sha256": "8996437e5c0b48e82c5f69c1afe2472d36913ee7b447885e91449322df41020d",
+      "target": "tests/promql-conformance/capture/histogram_annotations.go"
+    },
+    "tests/promql-conformance/capture/histogram_functions_common.go.in": {
+      "sha256": "6589ec9be131a9fdc83dc64bd56df0dad2146459c42f6dc97c3dfc87a212643c",
+      "target": "tests/promql-conformance/capture/histogram_functions_common.go.in"
+    },
+    "tests/promql-conformance/capture/histogram_functions_dsl.go.in": {
+      "sha256": "c18d581920c3af46221227d2e1189abbdf4305f99ab73855ec4fd3453e01a652",
+      "target": "tests/promql-conformance/capture/histogram_functions_dsl.go.in"
+    },
+    "tests/promql-conformance/capture/histogram_functions_sources.go": {
+      "sha256": "dfb2490c2cc0127d3d518619f97eae820e78d9ff1fdbfab4a31edb1e700b158e",
+      "target": "tests/promql-conformance/capture/histogram_functions_sources.go"
+    },
+    "tests/promql-conformance/capture/histogram_functions_supplemental.go.in": {
+      "sha256": "c38028be4b17820e2209c5d29e8914be2a47a0af51484acaa27e259c8a3d9720",
+      "target": "tests/promql-conformance/capture/histogram_functions_supplemental.go.in"
+    },
+    "tests/promql-conformance/capture/histogram_provider.go": {
+      "sha256": "35bbbe7c16f547f04ef4af2de68c6d3420e05c8405bc9499b0f8195145b5a35a",
+      "target": "tests/promql-conformance/capture/histogram_provider.go"
+    },
+    "tests/promql-conformance/capture/histogram_statistics_dsl.go.in": {
+      "sha256": "eadd2a01519ee259eaa8dda0dece9cad27aae05654b8cb857576eaecfcf2d413",
+      "target": "tests/promql-conformance/capture/histogram_statistics_dsl.go.in"
+    },
+    "tests/promql-conformance/capture/histogram_statistics_sources.go": {
+      "sha256": "62f7418f4830b03fb28596c741dcad5334729a6387db282d7c4761756f462c1c",
+      "target": "tests/promql-conformance/capture/histogram_statistics_sources.go"
+    },
+    "tests/promql-conformance/capture/histogram_statistics_supplemental.go.in": {
+      "sha256": "4edc6c6c9fcb6d33f61ec6c227d775160d5d1f411dbb9ae02c7499a2f5af0272",
+      "target": "tests/promql-conformance/capture/histogram_statistics_supplemental.go.in"
+    },
+    "tests/promql-conformance/capture/histogram_tables.go": {
+      "sha256": "0d2f219f3ba214fcc4f9f5cdaaeb9a45defdc6115ef72798149b3123111695d6",
+      "target": "tests/promql-conformance/capture/histogram_tables.go"
+    },
+    "tests/promql-conformance/capture/histogram_test.go.in": {
+      "sha256": "ab8423d63934c50ac1db9cf4fca4124aa30d99d15cd75baeb6784146c3efdb27",
+      "target": "tests/promql-conformance/capture/histogram_test.go.in"
+    },
+    "tests/promql-conformance/capture/literal_cases.go": {
+      "sha256": "2899c8e30f0b92e1a392f7c1dd84ad44de21f893e01ec52cc2ce6c0b2600774d",
+      "target": "tests/promql-conformance/capture/literal_cases.go"
+    },
+    "tests/promql-conformance/capture/numerical_sources.go": {
+      "sha256": "6387367391272687f521c169ce6af6429f33e7f97e1d98628296e90677b8cb76",
+      "target": "tests/promql-conformance/capture/numerical_sources.go"
+    },
+    "tests/promql-conformance/capture/numerical_test.go.in": {
+      "sha256": "b747c965fd422be1fb83eb59cc16cdc2362fbe3832980918453277c0a54d87ee",
+      "target": "tests/promql-conformance/capture/numerical_test.go.in"
+    },
+    "tests/promql-conformance/capture/parser_test.go": {
+      "sha256": "611389eaf005606b5813a932899dc863f9f097d603918da214db2e00174fc2b4",
+      "target": "tests/promql-conformance/capture/parser_test.go"
+    },
+    "tests/promql-conformance/capture/plural_histogram.go": {
+      "sha256": "36c256c93917b1c8c6c24f4b7bd05cb71c55b63eac44b4c5262a12352fb4cee5",
+      "target": "tests/promql-conformance/capture/plural_histogram.go"
+    },
+    "tests/promql-conformance/capture/portable_histogram.go": {
+      "sha256": "5ab159db22e193b9df72c5c217e85300d3053d40f0b29e4fe7d4b8a897ff1080",
+      "target": "tests/promql-conformance/capture/portable_histogram.go"
+    },
+    "tests/promql-conformance/capture/portable_native.go": {
+      "sha256": "bc9773fc30f70e5e9a9bd2f434c44d31aedae2657545d2895158ee4d5de8f4ad",
+      "target": "tests/promql-conformance/capture/portable_native.go"
+    },
+    "tests/promql-conformance/capture/portable_queries.go": {
+      "sha256": "d30a5312a580302c139b2b73c191d413adf43679658b6d3728f3ea07e289c86a",
+      "target": "tests/promql-conformance/capture/portable_queries.go"
+    },
+    "tests/promql-conformance/capture/preprocessing.go": {
+      "sha256": "f228dc23e3a7e8761512d5a66eecbc9fafa965a390de33a3b9ce41e7cbf7bb0d",
+      "target": "tests/promql-conformance/capture/preprocessing.go"
+    },
+    "tests/promql-conformance/capture/quantile_policy.go.in": {
+      "sha256": "7bf228f186ab412d6cb61db2e6fa7b7d39c3b147ad4ce2573dbbfb0b60c27947",
+      "target": "tests/promql-conformance/capture/quantile_policy.go.in"
+    },
+    "tests/promql-conformance/capture/quantile_policy_main.go": {
+      "sha256": "c246d96444bb5672f318161b1e620a5b92dab2ae51ec32d37e5d2195c23d7552",
+      "target": "tests/promql-conformance/capture/quantile_policy_main.go"
+    },
+    "tests/promql-conformance/capture/ratio_sampler.go": {
+      "sha256": "ac5137096de432b7f7371b535b8c412ff347b6f36394e18b4b4ef8347e7ade7a",
+      "target": "tests/promql-conformance/capture/ratio_sampler.go"
+    },
+    "tests/promql-conformance/capture/regex_normalization.go": {
+      "sha256": "19527f8133844fd27b8a706fed9ff6d16af76ce1f7c0f86df1326b39ae840a0d",
+      "target": "tests/promql-conformance/capture/regex_normalization.go"
+    },
+    "tests/promql-conformance/capture/regex_selector_test.go": {
+      "sha256": "ce77199c4fe6f19d508c24f48d6f7f9cd79a736a0d46177ae7d61aa134fd920b",
+      "target": "tests/promql-conformance/capture/regex_selector_test.go"
+    },
+    "tests/promql-conformance/capture/regex_syntax_test.go": {
+      "sha256": "e5bbd12b9476054f3d7430035f3244d4ef75d65f37f2918fbfca2b48be8e4d00",
+      "target": "tests/promql-conformance/capture/regex_syntax_test.go"
+    },
+    "tests/promql-conformance/capture/regex_test.go": {
+      "sha256": "cae8fc622dcc6bbe5fc2d348f9b150385d740eb55bcd320aba2e9189d2a30e1e",
+      "target": "tests/promql-conformance/capture/regex_test.go"
+    },
+    "tests/promql-conformance/capture/regex_unicode.go": {
+      "sha256": "aaf53846bab56f31f192355515c1eb2202e8a1db3571ca5351e693dd07265216",
+      "target": "tests/promql-conformance/capture/regex_unicode.go"
+    },
+    "tests/promql-conformance/capture/selection_order.go": {
+      "sha256": "1c4349bc8de4107930b4cb3d759ce321306f21f86daf57a22690823efe462809",
+      "target": "tests/promql-conformance/capture/selection_order.go"
+    },
+    "tests/promql-conformance/capture/trim_sources.go": {
+      "sha256": "1a9b9d94436dbb8c96c9636267edda97117e7b37068718b12e7123d95bd9eeb5",
+      "target": "tests/promql-conformance/capture/trim_sources.go"
+    },
+    "tests/promql-conformance/capture/trim_supplemental.go.in": {
+      "sha256": "4eac40416daf136482c9f6f62a93acaea06c049ead1748b59202b58d1a070f73",
+      "target": "tests/promql-conformance/capture/trim_supplemental.go.in"
+    },
+    "tests/promql-conformance/capture/trim_test.go.in": {
+      "sha256": "4c31d4b5656035213a7dc36682f4bd48e315f6cf98cca12b46aed17bf3309e4a",
+      "target": "tests/promql-conformance/capture/trim_test.go.in"
+    },
+    "tests/promql-conformance/catalog-coverage.json": {
+      "sha256": "b128fa66b0213a1e477a0d72ad7f6a4743addc17373ff2ab8117759c3fb3d666",
+      "target": "tests/promql-conformance/catalog-coverage.json"
+    },
+    "tests/promql-conformance/classic-original-inputs.json": {
+      "sha256": "0c142b440564856201e5da63de5bfa53f55934eee0b1b950092297b667d43068",
+      "target": "tests/promql-conformance/classic-original-inputs.json"
+    },
+    "tests/promql-conformance/classic.py": {
+      "sha256": "b8496625f1e3913ba8b828604d15c587fc9c80cf7562deba7992cb3552bbb0b7",
+      "target": "tests/promql-conformance/classic.py"
+    },
+    "tests/promql-conformance/classic_capture.py": {
+      "sha256": "6aae0eeac553b161b30de7d31e4934c37bc4c0a1ef9045d7e0945fea6384c95b",
+      "target": "tests/promql-conformance/classic_capture.py"
+    },
+    "tests/promql-conformance/classic_mutation.py": {
+      "sha256": "0d6ebdbb6da82d803eea7208e5703c9dae92e218ee30f4fb56583ab1619b8ede",
+      "target": "tests/promql-conformance/classic_mutation.py"
+    },
+    "tests/promql-conformance/classic_reference.py": {
+      "sha256": "608e24cd7aec90e69dbf1f0b8d30aa6f38dd0a27973f8dbfb4c6283851921a31",
+      "target": "tests/promql-conformance/classic_reference.py"
+    },
+    "tests/promql-conformance/classic_replay.py": {
+      "sha256": "94a64fcd0ccc034caa5a4b6740111dd5ea50b0ea61ba59804f5bc53915a31a4d",
+      "target": "tests/promql-conformance/classic_replay.py"
+    },
+    "tests/promql-conformance/classic_replay_cases.py": {
+      "sha256": "ae295d127965fc7020b46d73c23876b8fe7804851db8aeba82ce202cbf2c1bb9",
+      "target": "tests/promql-conformance/classic_replay_cases.py"
+    },
+    "tests/promql-conformance/compare.py": {
+      "sha256": "65893c406c1eee8428968e8fe8d9b0f5215d3dc2fdb36e7042eaae442492ce76",
+      "target": "tests/promql-conformance/compare.py"
+    },
+    "tests/promql-conformance/contract.json": {
+      "sha256": "b5f5da95ae06e59a619e72ad1d356c5f95eb26cdbaa2ea8d8585c8f8a048c729",
+      "target": "tests/promql-conformance/contract.json"
+    },
+    "tests/promql-conformance/core-qualification.json": {
+      "sha256": "8de053d4a6936aa4f861537a1e1d2bf09e781498413c7a0308455f3a4b797762",
+      "target": "tests/promql-conformance/core-qualification.json"
+    },
+    "tests/promql-conformance/count_values_calls.py": {
+      "sha256": "3b19eea56fe5e4b081bbad0c607eb2c74c2c00bc11444d551e3d37b4e609120c",
+      "target": "tests/promql-conformance/count_values_calls.py"
+    },
+    "tests/promql-conformance/count_values_cases.py": {
+      "sha256": "f1dec8e6cd4c77c177a1273c2e1bcaead6bd45cf106453f9dd8681b74e71125f",
+      "target": "tests/promql-conformance/count_values_cases.py"
+    },
+    "tests/promql-conformance/cursor-original-inputs.json": {
+      "sha256": "8e571234c7f841b4c89059dc2934981869968bb87bb1017cc0d1f53444b9186d",
+      "target": "tests/promql-conformance/cursor-original-inputs.json"
+    },
+    "tests/promql-conformance/cursor_calls.py": {
+      "sha256": "42e0f93b5bec4c7f73a44288f2981b7fc01d936fb57d09c45aaa63d2a4cedaa1",
+      "target": "tests/promql-conformance/cursor_calls.py"
+    },
+    "tests/promql-conformance/default_profile_calls.py": {
+      "sha256": "0b5d39be5ecbefd54a92af6738d110953612d21d1f5b4dc1f1fb0c03372a59ed",
+      "target": "tests/promql-conformance/default_profile_calls.py"
+    },
+    "tests/promql-conformance/default_profile_cases.py": {
+      "sha256": "a55d297abc896f546cad2bbe0679fa2d7e5010dc34d05d1f3a451d49416958ef",
+      "target": "tests/promql-conformance/default_profile_cases.py"
+    },
+    "tests/promql-conformance/float_literal_cases.py": {
+      "sha256": "1fbc86d85da4743805e555fc669c592802c35ea268afde5e95472412e9369df4",
+      "target": "tests/promql-conformance/float_literal_cases.py"
+    },
+    "tests/promql-conformance/float_literals.py": {
+      "sha256": "389d9c7d8d32988facd26a70be2bd60c1e7f9144c96f31f8178ea4802aedbb04",
+      "target": "tests/promql-conformance/float_literals.py"
+    },
+    "tests/promql-conformance/float_text.py": {
+      "sha256": "0fed39943610dce7b65b6f730f2c7e5c06027f1cd2101105f6854417f8761ac6",
+      "target": "tests/promql-conformance/float_text.py"
+    },
+    "tests/promql-conformance/float_text_cases.py": {
+      "sha256": "189da82726b71a9af98cd116c6f4c3a695a3edfb59ef7bb3349480e362a1f56b",
+      "target": "tests/promql-conformance/float_text_cases.py"
+    },
+    "tests/promql-conformance/frontend.py": {
+      "sha256": "88d3122006f74357408141cce97ad43e0dae9c96cf749fffd4a64841657fe670",
+      "target": "tests/promql-conformance/frontend.py"
+    },
+    "tests/promql-conformance/go_sort.py": {
+      "sha256": "bb48caf4d5a3b6ebf90ffb99aa32409db8eba85cff051d8b55b4b5c9fae5575f",
+      "target": "tests/promql-conformance/go_sort.py"
+    },
+    "tests/promql-conformance/go_sort_cases.py": {
+      "sha256": "51f701669a15cbf39fd81d5f3f48faede30a8cd2ecd735d37b0f9bb3194c6047",
+      "target": "tests/promql-conformance/go_sort_cases.py"
+    },
+    "tests/promql-conformance/histogram-functions-original-inputs.json": {
+      "sha256": "99a4e1dfdaea4be34b8e76cfc5a584e71a2e587ac5f5bb799cc72ee1dcfe190b",
+      "target": "tests/promql-conformance/histogram-functions-original-inputs.json"
+    },
+    "tests/promql-conformance/histogram-original-inputs.json": {
+      "sha256": "70da083048f3189ddc88f1e554ce2f96c64db63bcbd9d1fea55b2027bedc6766",
+      "target": "tests/promql-conformance/histogram-original-inputs.json"
+    },
+    "tests/promql-conformance/histogram-statistics-original-inputs.json": {
+      "sha256": "46ed77cbc5491dff9b317d920593d211af2033b30a9b0ccb2ed6aeaadae471f2",
+      "target": "tests/promql-conformance/histogram-statistics-original-inputs.json"
+    },
+    "tests/promql-conformance/histogram.py": {
+      "sha256": "fa608de40132cc7a051a4d91d691ce2c179a85c789765f93af272b5079df73bd",
+      "target": "tests/promql-conformance/histogram.py"
+    },
+    "tests/promql-conformance/histogram_annotations.py": {
+      "sha256": "a14938bf0523714c1c52883a0a508b76d6336de86414a444bddf8d3b2b8058df",
+      "target": "tests/promql-conformance/histogram_annotations.py"
+    },
+    "tests/promql-conformance/histogram_annotations_cases.py": {
+      "sha256": "7b463d82a00cfb88300fd5f3d55bcacf72299aeaaf823f3c469cd2ca7db6fc00",
+      "target": "tests/promql-conformance/histogram_annotations_cases.py"
+    },
+    "tests/promql-conformance/histogram_bounds.py": {
+      "sha256": "cd60bfe178dba30788f4595a75ffeb999bb333d164919cca6223e5f893521912",
+      "target": "tests/promql-conformance/histogram_bounds.py"
+    },
+    "tests/promql-conformance/histogram_call_cases.py": {
+      "sha256": "63a8630adcfa9126eed4c5e3be607c36d8b359c7c2ccdee4b3509f83ef04535f",
+      "target": "tests/promql-conformance/histogram_call_cases.py"
+    },
+    "tests/promql-conformance/histogram_calls.py": {
+      "sha256": "eac7649d2d6fc86ab73aa75520fc4f1f3a7b1c16d8bd8fb00e3ded3e638511d2",
+      "target": "tests/promql-conformance/histogram_calls.py"
+    },
+    "tests/promql-conformance/histogram_capture.py": {
+      "sha256": "f3b9b34b7c71ca40130f8a172ccbc8e0624d5360cb3cb5e2be6cf48c27742257",
+      "target": "tests/promql-conformance/histogram_capture.py"
+    },
+    "tests/promql-conformance/histogram_functions.py": {
+      "sha256": "e726d72dfa80887bedf70c0602be57058c1787b7fede9b484629348c07d4ac3c",
+      "target": "tests/promql-conformance/histogram_functions.py"
+    },
+    "tests/promql-conformance/histogram_functions_capture.py": {
+      "sha256": "272b00299ae570545e99c16b7551c88f7d2666f6989bff378dc9864033c2a601",
+      "target": "tests/promql-conformance/histogram_functions_capture.py"
+    },
+    "tests/promql-conformance/histogram_functions_reference.py": {
+      "sha256": "874235bc4585392060dbf3c077770437f049e1487c1ee521ed9818e83b9b21c7",
+      "target": "tests/promql-conformance/histogram_functions_reference.py"
+    },
+    "tests/promql-conformance/histogram_reference.py": {
+      "sha256": "2461c8e1efb5530e4f5fc757a011fb723a24c843d821dc0c55b9fde6471d6970",
+      "target": "tests/promql-conformance/histogram_reference.py"
+    },
+    "tests/promql-conformance/histogram_statistics.py": {
+      "sha256": "a3d85782486163a471894671f785f66987adc91a8200c55d3f353cc8f9ed2044",
+      "target": "tests/promql-conformance/histogram_statistics.py"
+    },
+    "tests/promql-conformance/histogram_statistics_capture.py": {
+      "sha256": "db06218966f5e1a4a59636c41ba22b641a1cc7bdec6eb0371ffa228dd6fad8d0",
+      "target": "tests/promql-conformance/histogram_statistics_capture.py"
+    },
+    "tests/promql-conformance/histogram_statistics_reference.py": {
+      "sha256": "a40eec3d0f2bcb1207423965489cfbe24761605fd76cb952a96a590626951fce",
+      "target": "tests/promql-conformance/histogram_statistics_reference.py"
+    },
+    "tests/promql-conformance/info_calls.py": {
+      "sha256": "b7ee3ef5ce3f91603bc9f4ffad5d4ead9f1e85bafbad57c4c34a5136461116ea",
+      "target": "tests/promql-conformance/info_calls.py"
+    },
+    "tests/promql-conformance/info_cases.py": {
+      "sha256": "b27c6c895434608a38c3ae3ab0bb4b4cb8008acc2deccf91ca43808598d4fc02",
+      "target": "tests/promql-conformance/info_cases.py"
+    },
+    "tests/promql-conformance/language-catalog.json": {
+      "sha256": "0bb14b2860d539e9d927d712c88ba0e11260dcd4e8c7eadcc0c7c9daa6c3db0e",
+      "target": "tests/promql-conformance/language-catalog.json"
+    },
+    "tests/promql-conformance/limit_calls.py": {
+      "sha256": "c404f2f1e99c36f9c0a350a668a1b871be35de16a3e3d0f9ea30a8a25423c52c",
+      "target": "tests/promql-conformance/limit_calls.py"
+    },
+    "tests/promql-conformance/limit_cases.py": {
+      "sha256": "7c0dd1b6acfb5e5965eb8fcf8fb7c2966dc7ec99d403decd6f53eafa3baee33d",
+      "target": "tests/promql-conformance/limit_cases.py"
+    },
+    "tests/promql-conformance/limit_policy.py": {
+      "sha256": "3c824d8e19a11b46d84b8813111814d65f6b7ab615b7a2e29c05bf7c9b34b9f3",
+      "target": "tests/promql-conformance/limit_policy.py"
+    },
+    "tests/promql-conformance/literal-cases.json": {
+      "sha256": "467f8b622bc3fbbeec818ecd17e81ce94e64fbcaf6e51acf11ae3a0e3d5bfc40",
+      "target": "tests/promql-conformance/literal-cases.json"
+    },
+    "tests/promql-conformance/literals.py": {
+      "sha256": "c92fb75370a3de2df2e11f41c0a4ace73aad695d4a75fc98db44a3619c11720a",
+      "target": "tests/promql-conformance/literals.py"
+    },
+    "tests/promql-conformance/logical_bucket_calls.py": {
+      "sha256": "0a358fafc9e23537bbeae1a1d40a4c2b18b70877dc2c64217201fb0924b01b9e",
+      "target": "tests/promql-conformance/logical_bucket_calls.py"
+    },
+    "tests/promql-conformance/mad_calls.py": {
+      "sha256": "f25acf067aa4a83c2c8bea9ac44c87f59d1af0bdcee964e89119ce9a4e480857",
+      "target": "tests/promql-conformance/mad_calls.py"
+    },
+    "tests/promql-conformance/mad_cases.py": {
+      "sha256": "a0c876c10fbcbba8ebdba14fac7de12fbf3e924e224f3fa3ace2e1cadaf5a291",
+      "target": "tests/promql-conformance/mad_cases.py"
+    },
+    "tests/promql-conformance/matrix_reader_calls.py": {
+      "sha256": "ab81da593eefe19ca7dbae569ce7db3a0d1bf10fd4085d544c403e26f11afc6b",
+      "target": "tests/promql-conformance/matrix_reader_calls.py"
+    },
+    "tests/promql-conformance/matrix_reader_cases.py": {
+      "sha256": "dcd1a2f0369b30d8d1c5935a7a780acc09e2f64aecddfe1cc53c7b8b26ce7bb4",
+      "target": "tests/promql-conformance/matrix_reader_cases.py"
+    },
+    "tests/promql-conformance/native-trim-source-results.json": {
+      "sha256": "c06c4a688f7fdb0d71946cca5aa6e749f2fd4fae8969b1c3199d2eee83530633",
+      "target": "tests/promql-conformance/native-trim-source-results.json"
+    },
+    "tests/promql-conformance/native_matrix_calls.py": {
+      "sha256": "d729cf80add03e88799065b384e78877a4a656ef81f476ecfd8f1badfb7e8233",
+      "target": "tests/promql-conformance/native_matrix_calls.py"
+    },
+    "tests/promql-conformance/native_matrix_cases.py": {
+      "sha256": "7a5e29c7dd82dd5ae4eb0cc2caa10f677e095b98caee57cbc6d4ab2ce450c858",
+      "target": "tests/promql-conformance/native_matrix_cases.py"
+    },
+    "tests/promql-conformance/numerical-original-inputs.json": {
+      "sha256": "4c77f69befc0a759706e354e09b49b5ff793bccd35f7116d4212f8b18b47e502",
+      "target": "tests/promql-conformance/numerical-original-inputs.json"
+    },
+    "tests/promql-conformance/numerical.py": {
+      "sha256": "3b7eb33a5f825083ad748dfbe04819ab4818ccd0c8e38c711fbd05c1c5a0d16d",
+      "target": "tests/promql-conformance/numerical.py"
+    },
+    "tests/promql-conformance/numerical_capture.py": {
+      "sha256": "8e1dabab98ab6972ef3349c4695452e4cff631fd2ab1826096916601e87789ec",
+      "target": "tests/promql-conformance/numerical_capture.py"
+    },
+    "tests/promql-conformance/numerical_reference.py": {
+      "sha256": "8667f0a68092b2f3cf09309373da023917ff1e13d87beab4e627dfc353750604",
+      "target": "tests/promql-conformance/numerical_reference.py"
+    },
+    "tests/promql-conformance/oracle/codec/result.go": {
+      "sha256": "abc989eea4ed23298c27059bd29c7966d1f67541c4a2caaedb2f5fecf89b5629",
+      "target": "tests/promql-conformance/oracle/codec/result.go"
+    },
+    "tests/promql-conformance/oracle/expressions_test.go": {
+      "sha256": "57147280c499689c6c7aa4c33abc606256bbc0c9b961d8f87e26231f2336f6d5",
+      "target": "tests/promql-conformance/oracle/expressions_test.go"
+    },
+    "tests/promql-conformance/oracle/go.mod": {
+      "sha256": "eb3e55116a25ca1e00175a60b1d71adacc9876d545b895bc390d175836337ba5",
+      "target": "tests/promql-conformance/oracle/go.mod"
+    },
+    "tests/promql-conformance/oracle/go.sum": {
+      "sha256": "8a7b06eef224cf027118473cbb9792ddaab45e529fdf5c89c938ec2dc151c079",
+      "target": "tests/promql-conformance/oracle/go.sum"
+    },
+    "tests/promql-conformance/oracle/main.go": {
+      "sha256": "87404501bccb247a016edc87728486b78c64a15b1e4a5b1a024038840a55259c",
+      "target": "tests/promql-conformance/oracle/main.go"
+    },
+    "tests/promql-conformance/oracle/main_test.go": {
+      "sha256": "5dba0ce0ada659233ff2c95907611d7e1495da446f127e17c19981fb507a070d",
+      "target": "tests/promql-conformance/oracle/main_test.go"
+    },
+    "tests/promql-conformance/oracle/numeric_contract.go": {
+      "sha256": "10ba4e3b4dc7dd50a5f427b66b248a5c2d6c418edc3c0602371c6d435a3816d2",
+      "target": "tests/promql-conformance/oracle/numeric_contract.go"
+    },
+    "tests/promql-conformance/oracle/numeric_contract_test.go": {
+      "sha256": "479fdbcec34e84c18f6bdaabeca98fb773994a54cac31edc1779b4d45ef89f1e",
+      "target": "tests/promql-conformance/oracle/numeric_contract_test.go"
+    },
+    "tests/promql-conformance/oracle/source.go": {
+      "sha256": "0085aade4845793f5486d853068b6f3f9f3c0a9e9015963937ee8bb6d77899df",
+      "target": "tests/promql-conformance/oracle/source.go"
+    },
+    "tests/promql-conformance/oracle/types.go": {
+      "sha256": "1dd89133c3c518f5b054a802d9c0c67b1dbce86f7c1cd4421278ce18bea850b4",
+      "target": "tests/promql-conformance/oracle/types.go"
+    },
+    "tests/promql-conformance/oracle/wire/source.go": {
+      "sha256": "41296b0e9b1432103b01dd07eafd32131a0df1181c72e74c03dd05dfb78d0bcf",
+      "target": "tests/promql-conformance/oracle/wire/source.go"
+    },
+    "tests/promql-conformance/oracle/wire/types.go": {
+      "sha256": "44f0fcc6bec018d37aa4d41d0180f8e3efdfd498de903e8745c66b871732f3db",
+      "target": "tests/promql-conformance/oracle/wire/types.go"
+    },
+    "tests/promql-conformance/output_label_calls.py": {
+      "sha256": "c343049f160268b3fbafb08f73a5a0445d774b739cd8b586e3af8243ab9573e2",
+      "target": "tests/promql-conformance/output_label_calls.py"
+    },
+    "tests/promql-conformance/parser-cases.json": {
+      "sha256": "d68990c947643e1f9bfe1b1730e55f87dfc5c4bed7122787243d76985619b401",
+      "target": "tests/promql-conformance/parser-cases.json"
+    },
+    "tests/promql-conformance/parser-requests.json": {
+      "sha256": "2717b1de3bd866cb71d50e53d64cbdf66fdf5fbd3dfed72c8442fe5a9d72c2b6",
+      "target": "tests/promql-conformance/parser-requests.json"
+    },
+    "tests/promql-conformance/parser.py": {
+      "sha256": "54f61b7a66ba1453dfa0db0ef1e4f4f96b8074c234156a4ec2a39205aa8ddd90",
+      "target": "tests/promql-conformance/parser.py"
+    },
+    "tests/promql-conformance/parser_cases.py": {
+      "sha256": "76f0c0e1ed7029c844b80eb472d35e16e9b06db3a2dc4fc30eb590333a548a2f",
+      "target": "tests/promql-conformance/parser_cases.py"
+    },
+    "tests/promql-conformance/plural_histogram.py": {
+      "sha256": "f3fdf26b895fcb900a0ffa6bd717fc281138bf2dd6792410b15214fd49b2e2c4",
+      "target": "tests/promql-conformance/plural_histogram.py"
+    },
+    "tests/promql-conformance/plural_histogram_cases.py": {
+      "sha256": "883be6351da05ecf36211dde887524c54f9279561e1c58dad8c59cd813bd0644",
+      "target": "tests/promql-conformance/plural_histogram_cases.py"
+    },
+    "tests/promql-conformance/portable_arithmetic.py": {
+      "sha256": "6b1ec9cc50dbb28c0f6e826053b1ffcb02e67ab01cb0b6640af30b522ce87c79",
+      "target": "tests/promql-conformance/portable_arithmetic.py"
+    },
+    "tests/promql-conformance/portable_arithmetic_cases.py": {
+      "sha256": "2bf1c1216fe0ebd596704f9042d69dcd60a0e803b1201b999eb57a3f67095b3d",
+      "target": "tests/promql-conformance/portable_arithmetic_cases.py"
+    },
+    "tests/promql-conformance/portable_arithmetic_native.py": {
+      "sha256": "720b23d8e3caedbe01e75e78929bb8a6187ac1d7d715e30191c193690c961b55",
+      "target": "tests/promql-conformance/portable_arithmetic_native.py"
+    },
+    "tests/promql-conformance/preprocessing_flags.py": {
+      "sha256": "743c191b75cebda8cd89a90638863714bcd7505ce5343371c1751d240b6eea91",
+      "target": "tests/promql-conformance/preprocessing_flags.py"
+    },
+    "tests/promql-conformance/quantile_aggregate_calls.py": {
+      "sha256": "c44f4d2e2fd5cbdc198b5bb24aa8eb7309a37e59d281122537bcf2afe3238372",
+      "target": "tests/promql-conformance/quantile_aggregate_calls.py"
+    },
+    "tests/promql-conformance/quantile_aggregate_cases.py": {
+      "sha256": "b08db21cd5b99ebb04974b736ebbf641a597fac754d9b2f199551ae22e565c8f",
+      "target": "tests/promql-conformance/quantile_aggregate_cases.py"
+    },
+    "tests/promql-conformance/quantile_policy.py": {
+      "sha256": "2d82c803e5397b10d32134e0898e433547d40f9cd3d48b6ffdb995ec6afe6dde",
+      "target": "tests/promql-conformance/quantile_policy.py"
+    },
+    "tests/promql-conformance/query.py": {
+      "sha256": "863051b7f21cffc1c74630403540a4905ed3e3410496454808591a97eabf5bbd",
+      "target": "tests/promql-conformance/query.py"
+    },
+    "tests/promql-conformance/ratio_sampler.py": {
+      "sha256": "7da0a5525abf8267a88b1210208aa2f65d86157d348d028d2e23b1df35a2f37c",
+      "target": "tests/promql-conformance/ratio_sampler.py"
+    },
+    "tests/promql-conformance/regex-original-inputs.json": {
+      "sha256": "1de429e04f929d6feab76b635de81fd4a70435d04b2b2a58e7dce47a3612ee01",
+      "target": "tests/promql-conformance/regex-original-inputs.json"
+    },
+    "tests/promql-conformance/regex-requests.json": {
+      "sha256": "472ad9ecd37401b8ca1b9af5a08acf52be3953e84c2879f8708256b795354338",
+      "target": "tests/promql-conformance/regex-requests.json"
+    },
+    "tests/promql-conformance/regex_capture.py": {
+      "sha256": "8d6086678333af73a826a4dfb5456ea75c9719f2989b7950b45660ae728a7f45",
+      "target": "tests/promql-conformance/regex_capture.py"
+    },
+    "tests/promql-conformance/regex_cases.py": {
+      "sha256": "222adab1765ff9d13d786b6f4fb7c416ddfc77c09fd34ca3ceb708c0654c8bbe",
+      "target": "tests/promql-conformance/regex_cases.py"
+    },
+    "tests/promql-conformance/regex_reference.py": {
+      "sha256": "01965cfec40850fac3a04dea681f3403acb839921d2e77099bef0b171977c908",
+      "target": "tests/promql-conformance/regex_reference.py"
+    },
+    "tests/promql-conformance/regex_unicode.py": {
+      "sha256": "ca4e62ea65f6d895c945dd9290cc77ad39ec444c3c6026ee42f20b96f4bc48b1",
+      "target": "tests/promql-conformance/regex_unicode.py"
+    },
+    "tests/promql-conformance/scalar_trim_calls.py": {
+      "sha256": "1d18081d237b7dc9fd52eaafd37318fea073728fd98ab37f45be1e9ab212f64f",
+      "target": "tests/promql-conformance/scalar_trim_calls.py"
+    },
+    "tests/promql-conformance/scheduled_selector_calls.py": {
+      "sha256": "51634f4ca9f2b375cc608993c2395d7041e18e816335b43445bc908f2bb3371b",
+      "target": "tests/promql-conformance/scheduled_selector_calls.py"
+    },
+    "tests/promql-conformance/scheduled_selector_cases.py": {
+      "sha256": "a157dfae2c5531237d206674a6809fddd063a735455b37f0f167174f8f0832bd",
+      "target": "tests/promql-conformance/scheduled_selector_cases.py"
+    },
+    "tests/promql-conformance/selection_order.py": {
+      "sha256": "82e886d29a75cd0808a51031025cea977768088bc2aa8d812a032cc3e51b839c",
+      "target": "tests/promql-conformance/selection_order.py"
+    },
+    "tests/promql-conformance/selection_order_cases.py": {
+      "sha256": "980674b4334704bf68d67e17a0ada015c52c428d01ef947d8218de5adb42d6d0",
+      "target": "tests/promql-conformance/selection_order_cases.py"
+    },
+    "tests/promql-conformance/sre_inventory.py": {
+      "sha256": "9ff02a30baf23e7ef07be5a13868baf2b9c7404fdb0030c31ccf708668532961",
+      "target": "tests/promql-conformance/sre_inventory.py"
+    },
+    "tests/promql-conformance/temporal_quantile_calls.py": {
+      "sha256": "ddd94a8e1f9dd98a05ad09a659b652a88a93087caddb35e64aa2b516f5d2de29",
+      "target": "tests/promql-conformance/temporal_quantile_calls.py"
+    },
+    "tests/promql-conformance/temporal_quantile_cases.py": {
+      "sha256": "8ce5430915d9bc07390712fc707ef591ba41393be332eae4a10a80c1b3b5524f",
+      "target": "tests/promql-conformance/temporal_quantile_cases.py"
+    },
+    "tests/promql-conformance/temporary_quantile_calls.py": {
+      "sha256": "a9680295fa142ca7545d74a7e4bf7957752acea2bf48c9aff8c14d8a6f779fc8",
+      "target": "tests/promql-conformance/temporary_quantile_calls.py"
+    },
+    "tests/promql-conformance/temporary_quantile_cases.py": {
+      "sha256": "2ea0f873edbadc82ea9c52b4fa6fdf4e4e9304e7ac313d56571b53fe86bc4f07",
+      "target": "tests/promql-conformance/temporary_quantile_cases.py"
+    },
+    "tests/promql-conformance/test_capture.py": {
+      "sha256": "bb841ab85233574066a7023de5d5ec295e43dc1a10ddec6a4d5f31872a87fcfd",
+      "target": "tests/promql-conformance/test_capture.py"
+    },
+    "tests/promql-conformance/test_classic_reference.py": {
+      "sha256": "156681faae45dfe0c3e923570dd707308ef70758f03f667f1b4fab0cb9a9b65e",
+      "target": "tests/promql-conformance/test_classic_reference.py"
+    },
+    "tests/promql-conformance/test_classic_replay_reference.py": {
+      "sha256": "33d73b517d23fb397dd28b28b49fb33a6a8d701f8f587c93c143e926d03f2835",
+      "target": "tests/promql-conformance/test_classic_replay_reference.py"
+    },
+    "tests/promql-conformance/test_compare.py": {
+      "sha256": "6b6469e8f3af15e9dbaa10f26fa523401c262a45fdf22d77187172eaac01da18",
+      "target": "tests/promql-conformance/test_compare.py"
+    },
+    "tests/promql-conformance/test_count_values_cases.py": {
+      "sha256": "f2561099f527220e94fb9524474d2f6f8aa18a28e963081c173116995b0ba53c",
+      "target": "tests/promql-conformance/test_count_values_cases.py"
+    },
+    "tests/promql-conformance/test_cursor_calls.py": {
+      "sha256": "827bfb83c4c15a0852a5f157c4357fbaf6744ad09bb11d5e8b953100b01f0af0",
+      "target": "tests/promql-conformance/test_cursor_calls.py"
+    },
+    "tests/promql-conformance/test_cursor_error_capture.py": {
+      "sha256": "c17a9d28b687efd55c0eb89f8e28e1537e0648bbacb733b6288e48dcc247b18f",
+      "target": "tests/promql-conformance/test_cursor_error_capture.py"
+    },
+    "tests/promql-conformance/test_evaluation_capture.py": {
+      "sha256": "76134b41a1bc2eecb8890a5a72e34748865bb9c1c9de489ec025352477c472b1",
+      "target": "tests/promql-conformance/test_evaluation_capture.py"
+    },
+    "tests/promql-conformance/test_go_sort_reference.py": {
+      "sha256": "cca9b9967041a80c1b6ab65f2d366514ad041d7c4ced577f215c9416f4a52c60",
+      "target": "tests/promql-conformance/test_go_sort_reference.py"
+    },
+    "tests/promql-conformance/test_histogram_functions_reference.py": {
+      "sha256": "cbae77303083df56d94fa35b3d85041510c4d2ebfd2c5459f0c070ee97f73fd3",
+      "target": "tests/promql-conformance/test_histogram_functions_reference.py"
+    },
+    "tests/promql-conformance/test_histogram_reference.py": {
+      "sha256": "45cbbb86fe91906352d667d552d06c9c405a12fbfd25a0816d1d053175fc3623",
+      "target": "tests/promql-conformance/test_histogram_reference.py"
+    },
+    "tests/promql-conformance/test_histogram_statistics_reference.py": {
+      "sha256": "6e85e07adb12be9950f62de2092edc2b15a945379d42dd6e25dbcd2380227445",
+      "target": "tests/promql-conformance/test_histogram_statistics_reference.py"
+    },
+    "tests/promql-conformance/test_info_calls.py": {
+      "sha256": "30724e2a30fab8956fcb85ab5ebd20c6b627e799071984ff423e8b2d0d31ae0b",
+      "target": "tests/promql-conformance/test_info_calls.py"
+    },
+    "tests/promql-conformance/test_limit_cases.py": {
+      "sha256": "03a82eec815c5074f74adaa045ad108b03fbf347c622b524f54364e906a928b4",
+      "target": "tests/promql-conformance/test_limit_cases.py"
+    },
+    "tests/promql-conformance/test_limit_policy.py": {
+      "sha256": "6e2d26729359693ff3bccf09790b8bbefbff9bb95c57b934573ed745b05070e2",
+      "target": "tests/promql-conformance/test_limit_policy.py"
+    },
+    "tests/promql-conformance/test_mad_cases.py": {
+      "sha256": "574b455a1629c3449eb0782acb2859ead42497e6e5831a7020760258c039e94a",
+      "target": "tests/promql-conformance/test_mad_cases.py"
+    },
+    "tests/promql-conformance/test_matrix_reader_cases.py": {
+      "sha256": "0868cecbcb81924c6dff89f79ccb8de64d30159e067fec375a61552970fdc0e4",
+      "target": "tests/promql-conformance/test_matrix_reader_cases.py"
+    },
+    "tests/promql-conformance/test_native_matrix_calls.py": {
+      "sha256": "681e2ebd726095af90fcca1522ef3b6d51136612fbf9ab7be788044b80f017e2",
+      "target": "tests/promql-conformance/test_native_matrix_calls.py"
+    },
+    "tests/promql-conformance/test_numeric_oracle.py": {
+      "sha256": "4bc7ef83a69493523d46c5d6c55e8d122b2ab48de1eadcd2034ae21f64ecacf3",
+      "target": "tests/promql-conformance/test_numeric_oracle.py"
+    },
+    "tests/promql-conformance/test_numerical_reference.py": {
+      "sha256": "32146f4ccb7234601fd816ef71bc070ae29aa9cfd22669b583ab2334b852bb87",
+      "target": "tests/promql-conformance/test_numerical_reference.py"
+    },
+    "tests/promql-conformance/test_preprocessing_flags.py": {
+      "sha256": "1cf1c78d8943f1daae8b5a700b935a70d27d94ea07ad303e38508594792c0460",
+      "target": "tests/promql-conformance/test_preprocessing_flags.py"
+    },
+    "tests/promql-conformance/test_quantile_aggregate_cases.py": {
+      "sha256": "04b358db284b986d2903ae676fd6761b9ad3dc6603b1502fa1cc0b789788231e",
+      "target": "tests/promql-conformance/test_quantile_aggregate_cases.py"
+    },
+    "tests/promql-conformance/test_quantile_policy.py": {
+      "sha256": "64c2b5498aed5b576b8d7d34728c271e103ff60129bcd8084d265e378ed8ec47",
+      "target": "tests/promql-conformance/test_quantile_policy.py"
+    },
+    "tests/promql-conformance/test_query.py": {
+      "sha256": "078339dedfb9c5ecf9daab94540bd08cb14f4a4d664452b9a3155912d997555c",
+      "target": "tests/promql-conformance/test_query.py"
+    },
+    "tests/promql-conformance/test_ratio_sampler.py": {
+      "sha256": "70664360d910f4ce303e3901b9303557a5c47f59f7345e242f9ad996f680be34",
+      "target": "tests/promql-conformance/test_ratio_sampler.py"
+    },
+    "tests/promql-conformance/test_regex_reference.py": {
+      "sha256": "2d630f3f61073737e20e50b7f0a150efd83cb11f3b3aace289575030c0490c1b",
+      "target": "tests/promql-conformance/test_regex_reference.py"
+    },
+    "tests/promql-conformance/test_selection_order.py": {
+      "sha256": "83d19d7c897aa5ce116a564aac8f8e2587456bbd95498678152d3881622b8ca2",
+      "target": "tests/promql-conformance/test_selection_order.py"
+    },
+    "tests/promql-conformance/test_sre_inventory.py": {
+      "sha256": "13cb43e0ab6b764b1e28e361e3c87875b9e8d3ab667b56cde753cd73ce3c8047",
+      "target": "tests/promql-conformance/test_sre_inventory.py"
+    },
+    "tests/promql-conformance/test_topk_cases.py": {
+      "sha256": "d0893c8bac7ccce6aab46e8cd3688c638367ed3b5bfd76b6260504b5ae01a68f",
+      "target": "tests/promql-conformance/test_topk_cases.py"
+    },
+    "tests/promql-conformance/test_topk_policy.py": {
+      "sha256": "f5f37a085f2c4d712bc11b14d03502bbd93a0b7b70849598f9b4e8718558fbbf",
+      "target": "tests/promql-conformance/test_topk_policy.py"
+    },
+    "tests/promql-conformance/test_trim_reference.py": {
+      "sha256": "e8aa4bb7ebdc436b16ef5a9257b793bbed0883bed3c749d50c081c08a2c1f7fd",
+      "target": "tests/promql-conformance/test_trim_reference.py"
+    },
+    "tests/promql-conformance/topk_calls.py": {
+      "sha256": "0c2d55929b50e37f4c96643cf8c4d8afedc18cadaf72b9a1405fd37915a824eb",
+      "target": "tests/promql-conformance/topk_calls.py"
+    },
+    "tests/promql-conformance/topk_cases.py": {
+      "sha256": "83a08854459aefcfc5beb221dda369903e98aad9105a9afc388b63e8687ae84b",
+      "target": "tests/promql-conformance/topk_cases.py"
+    },
+    "tests/promql-conformance/topk_policy.py": {
+      "sha256": "e6781f7f8e76f5acdcf72eafc3ecc8abfaad0e5967d0fc61556099f9451fe64d",
+      "target": "tests/promql-conformance/topk_policy.py"
+    },
+    "tests/promql-conformance/trim-original-inputs.json": {
+      "sha256": "27b4cf2b1111c8c40ab5e67dde52fe265c9e931d07377fa9b9e403d5b203d8be",
+      "target": "tests/promql-conformance/trim-original-inputs.json"
+    },
+    "tests/promql-conformance/trim.py": {
+      "sha256": "9a2d654bdff425241ed4f9f8cefb2f312d94bceddc1606e598a1927745d2fd32",
+      "target": "tests/promql-conformance/trim.py"
+    },
+    "tests/promql-conformance/trim_capture.py": {
+      "sha256": "29355f617f25d3ac6ff159c9c9fa696225df2ca1aac9a5583090392f6cd7489e",
+      "target": "tests/promql-conformance/trim_capture.py"
+    },
+    "tests/promql-conformance/trim_reference.py": {
+      "sha256": "37db509820cfb7bb73bbe5ae3ab1eb766e6a73ff5e5028d4df1dab49ec21b564",
+      "target": "tests/promql-conformance/trim_reference.py"
+    },
+    "tests/promql-conformance/unvisited_matrix_calls.py": {
+      "sha256": "0115db1502b7b6e763d8c3b75e4fd5916f86ef0c08ccef181b83ce48e0d30c6b",
+      "target": "tests/promql-conformance/unvisited_matrix_calls.py"
+    },
+    "tests/promql-conformance/unvisited_matrix_cases.py": {
+      "sha256": "27703ef0e2b7d4ae8f61633fa0cc722968ca8472dba2bc334cde81cacc7d89e6",
+      "target": "tests/promql-conformance/unvisited_matrix_cases.py"
+    },
+    "tests/promql-conformance/upstream-sources.json": {
+      "sha256": "49ab8050225fae63e4c0328809b81f8ada7ba894fa48731e49376d97a0c65a63",
+      "target": "tests/promql-conformance/upstream-sources.json"
+    },
+    "tests/promql-conformance/upstream_inventory.py": {
+      "sha256": "af5ab795fc09f7f2fb7226c2ce33a0fc403b28206a391c8f5e9b3bfc75cf4844",
+      "target": "tests/promql-conformance/upstream_inventory.py"
+    }
+  },
+  "history_export_sha256": "35674c0a2f201491722ef57e6e14c08f802bb056cc5a0f250c48b6b35cbdca3f",
+  "source_commit": "1fe88bd7d2005c5a05938c43aaf5c05f09888fb4",
+  "source_repository": "ktsaou/netdata"
+}

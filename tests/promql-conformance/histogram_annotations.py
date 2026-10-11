@@ -8,7 +8,7 @@ import subprocess
 import tempfile
 from pathlib import Path
 
-from build import directory
+from build import directory, module_cache
 from capture import verify_facade
 from float_literals import COMMIT, decode, digest, invoke
 from float_text import GO_SOURCES, PROMETHEUS_COMMIT, PROMETHEUS_SOURCES
@@ -26,13 +26,13 @@ REQUIRED = {"histogram_annotations.go", "histogram_annotations_cases.py", "histo
             "original-tests.stdout", "original-tests.stderr", "time-tests.stdout", "time-tests.stderr"}
 
 
-def capture():
+def capture(mod_cache=None):
     parent = HERE / ".tmp"
     parent.mkdir(exist_ok=True)
     task = directory(tempfile.mkdtemp(prefix="histogram-annotations-capture-", dir=directory(parent)))
     private = task / "tmp"
     private.mkdir(mode=0o700)
-    cache = directory(HERE.parents[1].parent / "netdata/tests/promql-prototype/oracle/.cache/go-mod")
+    cache = module_cache(mod_cache)
     prometheus = directory(cache / "github.com/prometheus/prometheus@v0.315.0")
     env = os.environ.copy()
     env.update(GOTOOLCHAIN="local", GO111MODULE="on", GOWORK="off", GOFLAGS="-mod=readonly", GOAMD64="v1",
@@ -158,11 +158,12 @@ def compare(reference, binary):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--capture", action="store_true")
+    parser.add_argument("--mod-cache", help="existing Go module cache for a new reference capture")
     parser.add_argument("--reference")
     parser.add_argument("--binary", default=HERE / ".tmp/core-target/release/promql-frontend-fixture")
     args = parser.parse_args()
     if args.capture:
-        capture()
+        capture(args.mod_cache)
     elif args.reference:
         compare(args.reference, args.binary)
     else:

@@ -1,0 +1,8 @@
+/target/
+/.tmp/
+**/__pycache__/
+**/.pytest_cache/
+*.local.md
+/.agents/sow/pending/SOW-*.md
+/.agents/sow/current/SOW-*.md
+/.agents/sow/done/SOW-*.md

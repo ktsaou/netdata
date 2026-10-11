@@ -323,7 +323,7 @@ execution architecture: bounded raw pages, sufficient operator state, exact repl
 
 ## Owned Rust frontend
 
-`src/crates/promql-engine` is a standalone Cargo workspace, edition 2024 with an MSRV declaration of 1.91.
+`the repository root` is a standalone Cargo workspace, edition 2024 with an MSRV declaration of 1.91.
 It is outside the Agent/plugin default build. The library uses pinned `regex-automata` and `regex-syntax`;
 the optional `fixtures` feature adds `serde_json` for the test binary's projections.
 The checked toolchains are Rust 1.97.1 and the declared MSRV, Rust 1.91.0.
@@ -1802,7 +1802,7 @@ delegates for descriptor marshalling and independently owned collection.
 
 ### Synchronous C embedding
 
-`src/crates/promql-engine/include/netdata-promql.h` declares version 3 of the standalone interface. The crate emits an
+`include/netdata-promql.h` declares version 3 of the standalone interface. The crate emits an
 `rlib` and a static library. Production Agent/plugin build integration belongs to a later stage.
 
 - Engine, immutable query, control, report and result handles have paired release functions. Results and reports own

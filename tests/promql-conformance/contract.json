@@ -86,7 +86,7 @@
     }
   },
   "rust_frontend": {
-    "crate": "src/crates/promql-engine",
+    "crate": ".",
     "lexer_cases_passed": 157,
     "captured_string_literals_passed": 7,
     "targeted_literal_cases_passed": 32,

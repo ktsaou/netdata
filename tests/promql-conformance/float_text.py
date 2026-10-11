@@ -8,7 +8,7 @@ import shutil
 import tempfile
 from pathlib import Path
 
-from build import directory
+from build import directory, module_cache
 from float_literals import COMMIT, SOURCES, decode, digest, invoke
 from float_text_cases import generate
 from numerical_reference import PROFILE
@@ -58,14 +58,14 @@ def original_requests(original):
     return selected
 
 
-def capture():
+def capture(mod_cache=None):
     parent = HERE / ".tmp"
     parent.mkdir(exist_ok=True)
     parent = directory(parent)
     task = directory(tempfile.mkdtemp(prefix="float-text-capture-", dir=parent))
     private = task / "tmp"
     private.mkdir(mode=0o700)
-    cache = directory(HERE.parents[1].parent / "netdata/tests/promql-prototype/oracle/.cache/go-mod")
+    cache = module_cache(mod_cache)
     prometheus = directory(cache / "github.com/prometheus/prometheus@v0.315.0")
     env = os.environ.copy()
     env.update(GOTOOLCHAIN="local", GO111MODULE="on", GOWORK="off", GOFLAGS="-mod=readonly", GOAMD64="v1",
@@ -208,11 +208,12 @@ def compare(task, binary):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--capture", help="reuse an unchanged source/input-bound original reference")
+    parser.add_argument("--mod-cache", help="existing Go module cache for a new reference capture")
     parser.add_argument("--binary", default=HERE / ".tmp/core-target/release/promql-frontend-fixture",
                         help="existing standalone Rust frontend binary")
     parser.add_argument("--reference-only", action="store_true", help="capture and verify only the original reference")
     args = parser.parse_args()
-    task = directory(args.capture) if args.capture else capture()
+    task = directory(args.capture) if args.capture else capture(args.mod_cache)
     if args.reference_only:
         load(task)
     else:

@@ -16,6 +16,14 @@ def directory(path):
     return result
 
 
+def module_cache(path=None):
+    if path is None:
+        env = os.environ.copy()
+        env["GOTOOLCHAIN"] = "local"
+        path = subprocess.check_output(["go", "env", "GOMODCACHE"], env=env, text=True).strip()
+    return directory(path)
+
+
 def run(command, cwd, env):
     print(f"{cwd} > {shlex.join(map(str, command))}", flush=True)
     result = subprocess.run(list(map(str, command)), cwd=cwd, env=env)

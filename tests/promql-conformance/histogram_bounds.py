@@ -24,7 +24,7 @@ def generate(capture):
         lines.append("    ],")
     lines.append("];\n")
     root = directory(Path(__file__).resolve().parent.parent.parent)
-    target = directory(root / "src/crates/promql-engine/src") / "histogram_bounds_table.rs"
+    target = directory(root / "src") / "histogram_bounds_table.rs"
     target.write_text("\n".join(lines))
     print(f"generated {sum(map(len, table))} immutable bound constants: {target}")
 

@@ -243,7 +243,7 @@ def qualify(profiles, sanitizers, abort_check, cross_target=None):
             "cross qualification uses an installed GNU target without caller instrumentation"
         )
     root = directory(HERE.parent.parent)
-    crate = directory(root / "src/crates/promql-engine")
+    crate = root
     scratch = HERE / ".tmp"
     scratch.mkdir(exist_ok=True)
     directory(scratch)
