@@ -13,8 +13,9 @@ The standalone Rust core evaluates derived expressions, nested subqueries, ordin
 vector sorting and typed histogram operations through bounded storage replay. Subquery clocks, source preprocessing
 visits, parameter phases and diagnostic accumulation have separate owners. Raw provider pages and decoder state
 are released after each replay; completed folds and their scalar resume certificates may survive at the current
-evaluation clock. The cache replaces an older fold instead of retaining a timeline. No raw-history array, spill
-store, second storage-page cache or enabled admission limit is introduced.
+evaluation clock. The cache replaces an older fold instead of retaining a timeline. Raw histories remain paged;
+general temporal quantiles use separate provider-owned temporary backing. No second raw-storage page cache or
+enabled admission limit is introduced.
 
 Retained native qualification covers:
 
@@ -29,12 +30,11 @@ Retained native qualification covers:
 - All 3,229 parenthesized-matrix and native-operation controls in both builds at page sizes 1/17/1024:
   19,374 complete outcomes, with no unsupported result, mismatch or paired numerical bit difference in that panel.
 
-Complete-language acceptance remains in progress. The supplementary temporal panel has 2,002 exact matches and
-150 open outcomes: mixed histories longer than twelve floats still need the original sort's NaN payload and
-signed-zero provenance. That is a required implementation remainder, not a compatibility exception.
-The selected completion design uses a provider-owned paged temporary float-value store and the literal upstream
-sort, keeping resident pages bounded. Its storage interface and backing policy are still being designed; the
-temporary store is not implemented yet.
+Complete-language acceptance remains in progress. The retained pre-storage temporal checkpoint has 2,002 exact
+matches and 150 open mixed-history outcomes. Their completion now uses an implemented provider-owned paged float-bit
+store and the literal upstream sort; qualification of that implementation is in progress. Storage creation,
+configuration and cleanup belong to the provider. Missing or failed backing returns a specific storage error when
+the general-sort path is reached. The production core creates no files and has no whole-history RAM fallback.
 Parenthesized matrix arguments inside unvisited scalar aggregation parameters now follow the source's generic
 function path, including its successful results and distinct errors. Foreign Rust execution, dbengine/API
 integration, alert scheduling and Cloud distribution are separate stages; Alertmanager is outside this work.
@@ -1682,7 +1682,7 @@ delegates for descriptor marshalling and independently owned collection.
 
 ### Synchronous C embedding
 
-`src/crates/promql-engine/include/netdata-promql.h` declares version 2 of the standalone interface. The crate emits an
+`src/crates/promql-engine/include/netdata-promql.h` declares version 3 of the standalone interface. The crate emits an
 `rlib` and a static library. Production Agent/plugin build integration belongs to a later stage.
 
 - Engine, immutable query, control, report and result handles have paired release functions. Results and reports own
@@ -1694,6 +1694,11 @@ delegates for descriptor marshalling and independently owned collection.
 - Provider scopes, selections, series and cursors have paired ownership. Successful NULL opaque tokens receive their
   matching close. Series metadata survives selection close. Cursor pages survive until that cursor's next operation;
   one bounded raw page and its accounted view descriptors are retained. Repeated reads use the provider's stable input.
+- Temporary float-bit backing has five optional callbacks: create, read, write, resources and close. Provide all five
+  or none; incomplete groups are rejected before dispatch. None remains valid for expressions that do not require
+  backing. Successful creation owns its token, including NULL, until exactly one close; failed creation cleans its
+  own partial state. Offsets and lengths are 64-bit logical slots. Successful transfers must return the exact requested
+  count and preserve every NaN/signed-zero bit; slices remain borrowed for the callback only.
 - Raw sample tags distinguish floats, integer histograms and float histograms. Arrays preserve absent versus
   present-empty identity; scalar fields preserve binary64 bits. C `double` bit helpers use `memcpy`.
 - Output callbacks receive borrowed provisional chunks, then commit or one abort. Returned error bytes are copied
@@ -1714,7 +1719,7 @@ Use the configured development Python environment. The driver uses installed GCC
 private `.tmp/c-embedding-*` evidence containing commands, source hashes, layouts, binaries and witness output.
 Process identities and ordinary completion are retained without an automatic process-killing deadline. Static
 archives and the Rust layout dependency roster are hashed before and after their consuming commands and included
-in the evidence manifest. Both unwind profiles compare all 50 declared structures/unions, 12 callback aliases and
+in the evidence manifest. Both unwind profiles compare all 51 declared structures/unions, 15 callback aliases and
 33 shared constants between Rust,
 C11 and C++17, and check header/archive exports. The real foreign callers exercise arithmetic, repeated paging,
 resource conservation, independent results, opaque errors, output delivery and cancellation/error precedence.
@@ -1722,14 +1727,17 @@ ASan/UBSan instrument the C caller; the Rust core is exercised separately under 
 crate's compile guard.
 
 The generated-history sum witness uses pages of 1, 7 and 1,024 samples. Increasing history from 8,192 to 65,536 points
-leaves observed workspace peaks unchanged: 6,843, 7,632 and 227,088 bytes respectively on the qualified amd64 host.
+leaves observed workspace peaks unchanged: 7,427, 7,643 and 227,099 bytes respectively in the retained native-recovery
+and canonical-controller cohorts on the qualified amd64 host.
 Borrowed raw-page peaks are 32, 224 and 32,768 bytes. Fetched sample/page counters equal the provider's actual physical
 deliveries, including replay. These finite measurements do not bound cardinality-dependent operator state or output.
 
 Normal callbacks obtain their actual query's borrowed accounting context through `netdata_promql_callback_accounting`.
 Resource, close and abort callbacks receive it directly. Abort receives this capability even before begin when a valid
 query was established; an invalid query supplies NULL. Contexts expire when their callback returns and must not be
-retained. This ABI2 callback change rejects ABI1 tables before dispatch.
+retained. ABI3 rejects ABI1/ABI2 tables before dispatch. Every caller must rebuild and check
+`netdata_promql_abi_version()` before using tables or observation outputs: output getters write the complete current
+structure, without an input version prefix that could protect an older caller's smaller output buffer.
 
 `netdata_promql_allocation_acquire`, `resize` and `release` observe caller-reported live allocation bytes. They do not
 allocate or free foreign storage. An acquired handle retains its creator query and engine account independently of
@@ -1742,6 +1750,37 @@ replacement requires two handles for its two simultaneously live allocations; re
 allocator overlap. Resource snapshots report residual owner storage, excluding descendants, adapter buffers and bytes
 already covered by allocation handles. BorrowedView describes exposure separately from physical storage. Requested
 allocation bytes exclude allocator-internal metadata and do not measure process RSS.
+
+Temporary-storage observations are separate from the RAM census and raw page/sample counters. Extent reports
+logical `8 * value_count` bytes; stores reports simultaneous successful scopes. Read/write calls count attempts,
+and byte counters count accepted logical transfers. They do not measure physical blocks, kernel-cache residency
+or partial device I/O before failure. Charges remain live through physical close; nested and concurrent scopes
+contribute their actual overlap to engine and query peaks. All configured resource enforcement remains disabled.
+
+The literal sort retains two 1,024-value pages (16 KiB payload), plus precisely accounted wrappers and fixed
+controller state, per active operator. Materialization overlaps only the first value page with a raw source page;
+the second value page is allocated after the materializing cursor closes. Dirty pages write back on necessary
+eviction. Cleanup discards unused dirty pages and preserves an earlier query error.
+
+Qualification providers explicitly supply unnamed disk files on the verified Linux x86_64 fixture target. The Rust
+backend is compiled only for tests/the `fixtures` feature; the C gate receives a validated private scratch directory
+from its driver. Unsupported backing returns an explicit fixture error. No provider filesystem policy is imposed
+on production, and no files are silently created by the engine.
+
+The unchanged 2,152-case temporal panel and the independent 80-case temporary panel use these drivers:
+
+```sh
+python tests/promql-conformance/temporal_quantile_calls.py \
+  --reference "${PROMQL_TEMPORAL_REFERENCE:?}" --binary "${PROMQL_QUERY_FIXTURE:?}" --page-size 1024
+python tests/promql-conformance/temporary_quantile_calls.py --capture --upstream "${PROMQL_UPSTREAM_SOURCE:?}"
+python tests/promql-conformance/temporary_quantile_calls.py \
+  --reference "${PROMQL_TEMPORARY_REFERENCE:?}" --binary "${PROMQL_QUERY_FIXTURE:?}" --page-size 1024
+```
+
+The additional inputs cover 1,023/1,024/1,025/2,049-value cache boundaries, computed and overlapping subqueries,
+fixed timestamps/offsets, stale/native transitions, nested ambiguous NaN windows and 100,000-point generated
+history. Reference outcomes come from unchanged pinned Go. These snapshot-based semantic fixtures do not prove
+bounded input RAM; native Rust and real C/C++ generated providers retain one raw page for that separate proof.
 
 The native caller witnesses exercise temporary allocation and exact 7 MiB overlap through normal and cleanup callbacks,
 snapshot exclusion for a retained provider buffer, valid-query abort before begin, invalid-query NULL accounting,

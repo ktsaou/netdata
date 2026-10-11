@@ -352,6 +352,7 @@ def qualify(
     ordered=True,
     *,
     construction_errors=False,
+    process_runner=None,
 ):
     reference = directory(reference)
     binary = Path(binary).resolve(strict=True)
@@ -372,7 +373,8 @@ def qualify(
         (task / "candidate.jsonl").open("xb") as out,
         (task / "candidate.stderr").open("xb") as err,
     ):
-        process = subprocess.run(
+        run = subprocess.run if process_runner is None else process_runner
+        process = run(
             [str(binary)],
             stdin=inputs_stream,
             stdout=out,

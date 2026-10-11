@@ -2,7 +2,7 @@
 //! Fixed-width declarations mirrored by include/netdata-promql.h.
 use std::ffi::c_void;
 
-pub const ABI_VERSION: u32 = 2;
+pub const ABI_VERSION: u32 = 3;
 pub const OK: u32 = 0;
 pub const INVALID_ARGUMENT: u32 = 1;
 pub const PARSE_ERROR: u32 = 2;
@@ -319,6 +319,34 @@ pub type NextCallback = unsafe extern "C" fn(
     *mut Resources,
     *mut Bytes,
 ) -> u32;
+pub type TemporaryCreateCallback = unsafe extern "C" fn(
+    *mut c_void,
+    *mut c_void,
+    u64,
+    *const CallbackControl,
+    *mut *mut c_void,
+    *mut Bytes,
+) -> u32;
+pub type TemporaryReadCallback = unsafe extern "C" fn(
+    *mut c_void,
+    *mut c_void,
+    u64,
+    *mut u64,
+    u64,
+    *const CallbackControl,
+    *mut u64,
+    *mut Bytes,
+) -> u32;
+pub type TemporaryWriteCallback = unsafe extern "C" fn(
+    *mut c_void,
+    *mut c_void,
+    u64,
+    *const u64,
+    u64,
+    *const CallbackControl,
+    *mut u64,
+    *mut Bytes,
+) -> u32;
 
 #[repr(C)]
 #[derive(Clone, Copy, Default)]
@@ -339,6 +367,11 @@ pub struct Provider {
     pub cursor_resources: Option<ResourceCallback>,
     pub cursor_seek: Option<SeekCallback>,
     pub cursor_next: Option<NextCallback>,
+    pub temporary_create: Option<TemporaryCreateCallback>,
+    pub temporary_read: Option<TemporaryReadCallback>,
+    pub temporary_write: Option<TemporaryWriteCallback>,
+    pub temporary_resources: Option<ResourceCallback>,
+    pub temporary_close: Option<Close>,
 }
 #[repr(C)]
 #[derive(Clone, Copy, Default)]
@@ -459,9 +492,22 @@ pub struct CancellationReferences {
 }
 #[repr(C)]
 #[derive(Clone, Copy, Default)]
+pub struct TemporaryStorageObservations {
+    pub extent: MemoryObservation,
+    pub stores: ReferenceObservation,
+    pub read_calls: u64,
+    pub write_calls: u64,
+    pub read_bytes: u64,
+    pub written_bytes: u64,
+    pub counter_overflowed: u32,
+    pub reserved: u32,
+}
+#[repr(C)]
+#[derive(Clone, Copy, Default)]
 pub struct QueryObservations {
     pub memory: [MemoryObservation; crate::accounting::MEMORY_KINDS],
     pub cancellation_references: CancellationReferences,
+    pub temporary_storage: TemporaryStorageObservations,
     pub provider_calls: u64,
     pub pages: u64,
     pub samples_fetched: u64,
@@ -476,6 +522,7 @@ pub struct QueryObservations {
 pub struct EngineObservations {
     pub memory: [MemoryObservation; crate::accounting::MEMORY_KINDS],
     pub cancellation_references: CancellationReferences,
+    pub temporary_storage: TemporaryStorageObservations,
     pub active_executions: u64,
     pub peak_executions: u64,
     pub completed_executions: u64,

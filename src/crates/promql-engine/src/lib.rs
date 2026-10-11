@@ -30,6 +30,8 @@ pub mod evaluator;
 mod evaluator_order;
 mod evaluator_roster;
 pub mod execution;
+#[cfg(any(test, feature = "fixtures"))]
+pub mod fixture_temporary_storage;
 mod float_functions;
 mod float_text;
 pub mod frontend;
@@ -93,6 +95,7 @@ pub mod storage;
 mod storage_observed;
 mod temporal_quantile;
 mod temporal_quantile_sort;
+mod temporary_float_bits;
 #[cfg(test)]
 mod test_storage;
 pub mod value;

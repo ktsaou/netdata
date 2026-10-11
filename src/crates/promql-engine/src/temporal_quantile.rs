@@ -6,7 +6,7 @@ use crate::{
     numerical::quiet_nan,
     range_numeric::{NumericRangeError, NumericRangeInput, NumericRangeOutput, scan},
     range_quantile_rank::{NAN_KEY, Plan, Selector, ZERO_KEY, ordered_key, ordered_value},
-    storage::{Control, Series, StorageError},
+    storage::{Control, QueryProvider, Series, StorageError},
     temporal_quantile_sort::all_nan_ordinal,
     value::{SampleRef, SampleValueRef},
 };
@@ -95,6 +95,16 @@ pub(crate) struct Step {
     plan: Option<Plan>,
     phase: Phase,
 }
+#[derive(Clone, Copy)]
+pub(crate) struct Backing {
+    pub(crate) count: u64,
+    pub(crate) plan: Plan,
+}
+pub(crate) enum Pass {
+    Replay,
+    Complete(NumericRangeOutput),
+    Backing(Backing),
+}
 impl Step {
     pub(crate) fn new(quantile: f64) -> Self {
         Self {
@@ -162,12 +172,12 @@ impl Step {
         &mut self,
         control: &Control,
         account: &QueryAccounting,
-    ) -> Result<Option<NumericRangeOutput>, NumericRangeError> {
+    ) -> Result<Pass, StorageError> {
         control.check().map_err(StorageError::from)?;
         match &mut self.phase {
             Phase::Membership => {
                 if self.membership.count == 0 {
-                    return Ok(Some(self.output(None)));
+                    return Ok(Pass::Complete(self.output(None)));
                 }
                 if !(0.0..=1.0).contains(&self.quantile) {
                     let value = if self.quantile < 0.0 {
@@ -177,14 +187,16 @@ impl Step {
                     } else {
                         SOURCE_NAN
                     };
-                    return Ok(Some(self.output(Some(value))));
+                    return Ok(Pass::Complete(self.output(Some(value))));
                 }
                 let plan = Plan::new(self.quantile, self.membership.count);
                 self.plan = Some(plan);
                 let key = self.membership.first_key.expect("nonempty float window");
                 if self.membership.one_class {
                     if let Some(value) = self.membership.value(key) {
-                        return Ok(Some(self.output(Some(plan.interpolate([value; 2])))));
+                        return Ok(Pass::Complete(
+                            self.output(Some(plan.interpolate([value; 2]))),
+                        ));
                     }
                     let mut ordinals = plan.ordinals;
                     if key == NAN_KEY {
@@ -202,17 +214,20 @@ impl Step {
                 } else {
                     self.phase = Phase::Rank(Selector::new(plan));
                 }
-                Ok(None)
+                Ok(Pass::Replay)
             }
             Phase::Rank(selector) => {
                 let Some(keys) = selector.finish_pass(control, account)? else {
-                    return Ok(None);
+                    return Ok(Pass::Replay);
                 };
                 let values = keys.map(|key| self.membership.value(key));
                 let plan = self.plan.expect("quantile rank plan");
                 let [Some(lower), Some(upper)] = values else {
                     if self.membership.count > 12 {
-                        return Err(NumericRangeError::Provenance);
+                        return Ok(Pass::Backing(Backing {
+                            count: self.membership.count,
+                            plan,
+                        }));
                     }
                     let selections = std::array::from_fn(|lane| {
                         if values[lane].is_some() {
@@ -234,25 +249,33 @@ impl Step {
                         seen: [0; 2],
                         values,
                     };
-                    return Ok(None);
+                    return Ok(Pass::Replay);
                 };
-                Ok(Some(self.output(Some(plan.interpolate([lower, upper])))))
+                Ok(Pass::Complete(
+                    self.output(Some(plan.interpolate([lower, upper]))),
+                ))
             }
             Phase::Fetch { next, values, .. } => {
                 if *next != self.membership.count {
-                    return Err(StorageError::Invalid("quantile replay membership changed").into());
+                    return Err(StorageError::Invalid("quantile replay membership changed"));
                 }
                 let [Some(lower), Some(upper)] = *values else {
-                    return Err(StorageError::Invalid("quantile selected ordinal missing").into());
+                    return Err(StorageError::Invalid("quantile selected ordinal missing"));
                 };
                 let plan = self.plan.expect("quantile ordinal plan");
-                Ok(Some(self.output(Some(plan.interpolate([lower, upper])))))
+                Ok(Pass::Complete(
+                    self.output(Some(plan.interpolate([lower, upper]))),
+                ))
             }
         }
     }
+    pub(crate) fn backed_output(&self, value: f64) -> NumericRangeOutput {
+        self.output(Some(value))
+    }
 }
 
-pub(crate) fn evaluate<S: Series>(
+pub(crate) fn evaluate<S: Series, Q: QueryProvider>(
+    query: &Q,
     series: &S,
     input: NumericRangeInput,
     quantile: f64,
@@ -265,9 +288,37 @@ pub(crate) fn evaluate<S: Series>(
         let progress = scan(series, input, control, account, |sample| {
             step.receive(sample, control, account)
         })?;
-        if let Some(mut output) = step.finish_pass(control, account)? {
-            output.progress = progress;
-            return Ok(output);
+        match step.finish_pass(control, account)? {
+            Pass::Complete(mut output) => {
+                output.progress = progress;
+                return Ok(output);
+            }
+            Pass::Backing(backing) => {
+                input.matrix = input.matrix.map(|window| window.with_progress(progress));
+                let mut final_progress = None;
+                let value = crate::temporary_float_bits::quantile(
+                    query,
+                    backing.count,
+                    backing.plan,
+                    control,
+                    account,
+                    |writer| {
+                        final_progress = scan(series, input, control, account, |sample| {
+                            if let SampleValueRef::Float(value) = sample.value
+                                && !sample.value.is_stale()
+                            {
+                                writer.push(value.to_bits())?;
+                            }
+                            Ok(())
+                        })?;
+                        Ok::<_, NumericRangeError>(())
+                    },
+                )?;
+                let mut output = step.backed_output(value);
+                output.progress = final_progress;
+                return Ok(output);
+            }
+            Pass::Replay => (),
         }
         input.matrix = input.matrix.map(|window| window.with_progress(progress));
     }
@@ -358,6 +409,75 @@ mod tests {
         }
     }
 
+    fn mixed_zeros(index: usize) -> Sample {
+        let value = [-1.0, -0.0, 0.0, 1.0][index % 4];
+        Sample {
+            value: SampleValue::Float(value),
+            ..counter(index)
+        }
+    }
+
+    #[test]
+    fn generated_ambiguous_history_uses_flat_ram_and_provider_owned_extent() {
+        use crate::{
+            execution::{Engine, QueryRequest},
+            test_storage::FixtureProvider,
+        };
+        for page in [1, 17, 1024] {
+            let mut previous = None;
+            for count in [2048, 100_000] {
+                let engine = Engine::default();
+                let query = engine
+                    .compile(
+                        b"quantile_over_time(0.5,counter_total[100000s])",
+                        crate::execution::EngineOptions::default(),
+                        &Control::default(),
+                    )
+                    .unwrap();
+                let mut provider = FixtureProvider::new(count, page, 1);
+                provider.series[0].source.sample = mixed_zeros;
+                let report = query.collect_reported(
+                    &provider,
+                    QueryRequest::Instant {
+                        time_ms: count as i64 * 1000,
+                    },
+                    &Control::default(),
+                );
+                let output = report.result.as_ref().unwrap();
+                assert_eq!(output.series.len(), 1);
+                let crate::result::OwnedValue::Float(value) = output.series[0].points[0].value
+                else {
+                    panic!("float quantile");
+                };
+                assert_eq!(value.to_bits(), 0);
+                let snapshot = &report.observations;
+                let peaks = [
+                    MemoryKind::Workspace,
+                    MemoryKind::ProviderHeld,
+                    MemoryKind::BorrowedView,
+                ]
+                .map(|kind| snapshot.memory[kind as usize].peak);
+                if let Some(previous) = previous {
+                    assert_eq!(peaks, previous);
+                }
+                previous = Some(peaks);
+                assert_eq!(snapshot.temporary_storage.extent.peak, count as u64 * 8);
+                assert_eq!(snapshot.temporary_storage.extent.current, 0);
+                assert_eq!(snapshot.temporary_storage.stores.peak, 1);
+                assert_eq!(snapshot.temporary_storage.stores.current, 0);
+                assert!(snapshot.temporary_storage.read_calls > 0);
+                assert!(snapshot.temporary_storage.written_bytes >= count as u64 * 8);
+                let counters = &provider.series[0].source.counters;
+                assert_eq!(counters.active.load(Ordering::Relaxed), 0);
+                assert_eq!(counters.peak.load(Ordering::Relaxed), 1);
+                provider.assert_closed();
+                drop(report);
+                drop(query);
+                engine.accounting.snapshot().assert_memory_released();
+            }
+        }
+    }
+
     #[test]
     fn short_mixed_origin_controls_match_pinned_source() {
         type SourceCase = (fn(usize) -> Sample, usize, [u64; 3]);
@@ -383,8 +503,15 @@ mod tests {
                     let engine = EngineAccounting::default();
                     let account = engine.query();
                     let source = GeneratedSeries::new(count, page, sample);
-                    let output =
-                        evaluate(&source, window(count), q, &Control::default(), &account).unwrap();
+                    let output = evaluate(
+                        &crate::test_storage::NoTemporary,
+                        &source,
+                        window(count),
+                        q,
+                        &Control::default(),
+                        &account,
+                    )
+                    .unwrap();
                     assert_eq!(output.value.unwrap().to_bits(), bits, "q{q}/page{page}");
                     assert!(!output.invalid_quantile);
                     assert_eq!(output.annotation, None);
@@ -419,8 +546,15 @@ mod tests {
                     let engine = EngineAccounting::default();
                     let account = engine.query();
                     let source = GeneratedSeries::new(count, page, sample);
-                    let result =
-                        evaluate(&source, window(count), q, &Control::default(), &account).unwrap();
+                    let result = evaluate(
+                        &crate::test_storage::NoTemporary,
+                        &source,
+                        window(count),
+                        q,
+                        &Control::default(),
+                        &account,
+                    )
+                    .unwrap();
                     assert_eq!(
                         result.value.unwrap().to_bits(),
                         bits,
@@ -471,8 +605,15 @@ mod tests {
                     let engine = EngineAccounting::default();
                     let account = engine.query();
                     let source = GeneratedSeries::new(3, page, sample);
-                    let output =
-                        evaluate(&source, window(3), q, &Control::default(), &account).unwrap();
+                    let output = evaluate(
+                        &crate::test_storage::NoTemporary,
+                        &source,
+                        window(3),
+                        q,
+                        &Control::default(),
+                        &account,
+                    )
+                    .unwrap();
                     assert_eq!(output.invalid_quantile, has_floats);
                     assert_eq!(output.value.is_some(), has_floats);
                     assert_eq!(
@@ -497,6 +638,7 @@ mod tests {
             let mut source = GeneratedSeries::new(page + 1, page, nan);
             source.fail_page = Some(1);
             let result = evaluate(
+                &crate::test_storage::NoTemporary,
                 &source,
                 window(page + 1),
                 -1.0,
@@ -510,7 +652,14 @@ mod tests {
             drop(result);
             let control = Control::default();
             control.cancellation.cancel();
-            let result = evaluate(&source, window(page + 1), SOURCE_NAN, &control, &account);
+            let result = evaluate(
+                &crate::test_storage::NoTemporary,
+                &source,
+                window(page + 1),
+                SOURCE_NAN,
+                &control,
+                &account,
+            );
             assert!(matches!(
                 result,
                 Err(NumericRangeError::Storage(StorageError::Interrupted(

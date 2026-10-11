@@ -194,6 +194,7 @@ def records(output):
 def native_records(name, output):
     values = records(output)
     tail = [
+        {"temporary_failures": "pass", "cases": 11, "callback_phases": 5},
         {
             "foreign_accounting": "pass",
             "callback_phases": 9,
@@ -207,7 +208,18 @@ def native_records(name, output):
     ]
     expected = [(rows, size) for size in (1, 7, 1024) for rows in (8192, 65536)]
     actual = [(value.get("rows"), value.get("page_size")) for value in values[:6]]
-    if len(values) != 11 or actual != expected or values[6:] != tail:
+    temporary = [
+        (value.get("temporary_rows"), value.get("page_size")) for value in values[6:12]
+    ]
+    temporary_expected = [
+        (rows, size) for size in (1, 17, 1024) for rows in (2048, 100000)
+    ]
+    if (
+        len(values) != 18
+        or actual != expected
+        or temporary != temporary_expected
+        or values[12:] != tail
+    ):
         raise ValueError(name + ": incomplete native witnesses")
     return values
 
@@ -227,7 +239,12 @@ def qualify(profiles, sanitizers, abort_check):
     target = scratch / "core-target"
     target.mkdir(exist_ok=True)
     directory(target)
-    env = dict(os.environ, CARGO_NET_OFFLINE="true", CARGO_TARGET_DIR=str(target))
+    env = dict(
+        os.environ,
+        CARGO_NET_OFFLINE="true",
+        CARGO_TARGET_DIR=str(target),
+        NETDATA_PROMQL_FIXTURE_SCRATCH=str(task),
+    )
     common = ["--manifest-path", crate / "Cargo.toml", "--offline", "--locked", "--lib"]
     witnesses = {}
     link_inputs = {}

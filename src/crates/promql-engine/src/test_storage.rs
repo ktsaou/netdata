@@ -269,6 +269,20 @@ pub(crate) struct FixtureProvider {
 pub(crate) struct FixtureQuery<'a> {
     provider: &'a FixtureProvider,
 }
+pub(crate) struct NoTemporary;
+impl crate::storage::QueryProvider for NoTemporary {
+    type Selection<'a> = FixtureSelection<'a>;
+    fn resources(&self) -> ProviderResources {
+        ProviderResources::default()
+    }
+    fn select(
+        &self,
+        _: crate::storage::SelectionRequest<'_>,
+        _: &Control,
+    ) -> Result<Self::Selection<'_>, StorageError> {
+        Err(StorageError::Invalid("test query has no selectors"))
+    }
+}
 pub(crate) struct FixtureSelection<'a> {
     provider: &'a FixtureProvider,
     index: usize,
@@ -299,6 +313,14 @@ impl crate::storage::QueryProvider for FixtureQuery<'_> {
         Self: 'a;
     fn resources(&self) -> ProviderResources {
         ProviderResources::default()
+    }
+    fn with_temporary_float_bits<R>(
+        &self,
+        request: crate::storage::TemporaryFloatBitsRequest<'_>,
+        control: &Control,
+        visit: impl for<'a> FnOnce(&'a mut dyn crate::storage::TemporaryFloatBits) -> R,
+    ) -> Result<R, StorageError> {
+        crate::fixture_temporary_storage::with_store(request, control, visit)
     }
     fn select(
         &self,

@@ -60,6 +60,19 @@ impl<'a> Provider<'a> {
         {
             return Err(Invalid("missing provider callback"));
         }
+        let temporary = [
+            table.temporary_create.is_some(),
+            table.temporary_read.is_some(),
+            table.temporary_write.is_some(),
+            table.temporary_resources.is_some(),
+            table.temporary_close.is_some(),
+        ]
+        .into_iter()
+        .filter(|present| *present)
+        .count();
+        if temporary != 0 && temporary != 5 {
+            return Err(Invalid("incomplete temporary storage callbacks"));
+        }
         Ok(Self { table, account })
     }
     unsafe fn status(&self, status: u32, error: types::Bytes) -> Result<(), StorageError> {
@@ -122,6 +135,93 @@ pub(crate) struct Cursor<'a> {
     borrowed: MemoryLease,
     maximum: usize,
 }
+struct Temporary<'a> {
+    owner: Owner<'a>,
+    count: u64,
+}
+impl Temporary<'_> {
+    fn range(&self, offset: u64, len: usize) -> Result<u64, StorageError> {
+        let len =
+            u64::try_from(len).map_err(|_| StorageError::Invalid("temporary transfer overflow"))?;
+        if offset.checked_add(len).is_none_or(|end| end > self.count) {
+            return Err(StorageError::Invalid("temporary transfer out of bounds"));
+        }
+        Ok(len)
+    }
+}
+impl storage::TemporaryFloatBits for Temporary<'_> {
+    fn resources(&self) -> ProviderResources {
+        self.owner.resources()
+    }
+    fn read_into(
+        &mut self,
+        offset: u64,
+        values: &mut [u64],
+        control: &Control,
+    ) -> Result<(), StorageError> {
+        let len = self.range(offset, values.len())?;
+        control.check()?;
+        let provider = self.owner.provider;
+        let mut transferred = 0;
+        let mut error = types::Bytes::default();
+        let status = unsafe {
+            provider
+                .table
+                .temporary_read
+                .expect("validated temporary read")(
+                provider.table.context,
+                self.owner.handle,
+                offset,
+                values.as_mut_ptr(),
+                len,
+                checked::Callback::new(control, provider.account).as_ptr(),
+                &mut transferred,
+                &mut error,
+            )
+        };
+        unsafe { provider.status(status, error) }?;
+        if transferred != len {
+            return Err(StorageError::Invalid(
+                "temporary read returned incorrect length",
+            ));
+        }
+        Ok(())
+    }
+    fn write_at(
+        &mut self,
+        offset: u64,
+        values: &[u64],
+        control: &Control,
+    ) -> Result<(), StorageError> {
+        let len = self.range(offset, values.len())?;
+        control.check()?;
+        let provider = self.owner.provider;
+        let mut transferred = 0;
+        let mut error = types::Bytes::default();
+        let status = unsafe {
+            provider
+                .table
+                .temporary_write
+                .expect("validated temporary write")(
+                provider.table.context,
+                self.owner.handle,
+                offset,
+                values.as_ptr(),
+                len,
+                checked::Callback::new(control, provider.account).as_ptr(),
+                &mut transferred,
+                &mut error,
+            )
+        };
+        unsafe { provider.status(status, error) }?;
+        if transferred != len {
+            return Err(StorageError::Invalid(
+                "temporary write returned incorrect length",
+            ));
+        }
+        Ok(())
+    }
+}
 
 impl storage::Provider for Provider<'_> {
     type Query<'a>
@@ -161,6 +261,48 @@ impl storage::QueryProvider for Query<'_> {
         Self: 'a;
     fn resources(&self) -> ProviderResources {
         self.owner.resources()
+    }
+    fn with_temporary_float_bits<R>(
+        &self,
+        request: storage::TemporaryFloatBitsRequest<'_>,
+        control: &Control,
+        visit: impl for<'a> FnOnce(&'a mut dyn storage::TemporaryFloatBits) -> R,
+    ) -> Result<R, StorageError> {
+        request.extent_bytes()?;
+        let provider = self.owner.provider;
+        let table = &provider.table;
+        let Some(create) = table.temporary_create else {
+            return Err(storage::temporary_storage_error(
+                provider.account,
+                b"temporary float storage unavailable",
+            ));
+        };
+        control.check()?;
+        let mut handle = std::ptr::null_mut();
+        let mut error = types::Bytes::default();
+        let status = unsafe {
+            create(
+                table.context,
+                self.owner.handle,
+                request.value_count,
+                checked::Callback::new(control, provider.account).as_ptr(),
+                &mut handle,
+                &mut error,
+            )
+        };
+        unsafe { provider.status(status, error) }?;
+        let mut store = Temporary {
+            owner: Owner {
+                provider,
+                handle,
+                close: table.temporary_close.expect("validated temporary close"),
+                resource: table
+                    .temporary_resources
+                    .expect("validated temporary resources"),
+            },
+            count: request.value_count,
+        };
+        Ok(visit(&mut store))
     }
     fn select(
         &self,
