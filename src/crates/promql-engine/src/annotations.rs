@@ -759,16 +759,17 @@ pub(crate) fn write_position_suffix(
     out: &mut impl Write,
 ) -> fmt::Result {
     render_position(
-        position(query, start, None).expect("uncontrolled position"),
+        position(query, start, None, None).expect("uncontrolled position"),
         out,
     )
 }
 fn position(
     query: &[u8],
     start: isize,
-    observation: Option<(&Control, &QueryAccounting)>,
+    control: Option<&Control>,
+    account: Option<&QueryAccounting>,
 ) -> Result<Option<(usize, usize)>, Interrupted> {
-    if let Some((control, _)) = observation {
+    if let Some(control) = control {
         control.check()?;
     }
     if query.is_empty() {
@@ -780,8 +781,10 @@ fn position(
     let start = start as usize;
     let (mut line, mut column) = (1, start + 1);
     for (chunk_index, bytes) in query[..start].chunks(1024).enumerate() {
-        if let Some((control, account)) = observation {
+        if let Some(control) = control {
             control.check()?;
+        }
+        if let Some(account) = account {
             account.work(bytes.len() as u64);
         }
         for (index, &byte) in bytes.iter().enumerate() {
@@ -791,7 +794,7 @@ fn position(
             }
         }
     }
-    if let Some((control, _)) = observation {
+    if let Some(control) = control {
         control.check()?;
     }
     Ok(Some((line, column)))
@@ -810,7 +813,7 @@ fn write_position_suffix_with(
     control: Option<&Control>,
     account: &QueryAccounting,
 ) -> Result<(), Interrupted> {
-    let position = position(query, start, control.map(|control| (control, account)))?;
+    let position = position(query, start, control, Some(account))?;
     write_with(out, control, account, |writer| {
         render_position(position, writer)
     })
