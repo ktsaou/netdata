@@ -1,0 +1,819 @@
+{
+  "schema_version": 1,
+  "status": "implementation_qualified_final_review_and_documentation_pending",
+  "scope": "Standalone typed Rust PromQL expression core and C ABI. Production dbengine/API/rules/Cloud integration is approved staged work; Alertmanager is excluded.",
+  "reference": {
+    "repository": "prometheus/prometheus",
+    "module": "v0.315.0",
+    "commit": "5241a27fe3c6983549fccc32f6e65917408c63cd",
+    "go": "1.27.1",
+    "go_arch": "amd64",
+    "unicode": "17.0.0",
+    "numerical_route": "Retained AMD64 FMA-on arithmetic on every target",
+    "source_manifest": {
+      "path": "tests/promql-conformance/upstream-sources.json",
+      "sha256": "49ab8050225fae63e4c0328809b81f8ada7ba894fa48731e49376d97a0c65a63"
+    },
+    "language_catalog": {
+      "path": "tests/promql-conformance/language-catalog.json",
+      "sha256": "0bb14b2860d539e9d927d712c88ba0e11260dcd4e8c7eadcc0c7c9daa6c3db0e"
+    }
+  },
+  "implementation": {
+    "signed_code_checkpoint": "e4c2ec86e7dd357dc7428a5ae83341dc9416d2c9",
+    "crate_source_sha256": {
+      "src/absence.rs": "fc1fdf7bb0f82202d2ba01558de32f904acb3e776866796fa994cbd948f33e72",
+      "src/accounting.rs": "216dd3a3a4638d4ea34ee17ab9311bfccb99e8914880b9adf26fccb1d3319bee",
+      "src/aggregation.rs": "70a6f770c7d42ce409a686d8e50f7b7c316c0da802745ba84528ecc0e6f24593",
+      "src/annotations.rs": "ed30e9280090ca762d168b048121ec3bde728b4a62e3945972cf9c8f02df9f9e",
+      "src/annotations_fixture.rs": "8702d156a6c39b492bf63db209f62b0d978aebc73e272885ae3c2c960008f996",
+      "src/bin/fixture_codec.rs": "cca2d78bcd9b9c9e8af6eb738362373db2294474575075709849632c19a09f79",
+      "src/bin/frontend_fixture.rs": "cd391e7c27888dceaa9d50665dc25572659fdcabeaa1003ceda367a0df397ded",
+      "src/bin/frontend_fixture_output.rs": "bfd67448370e205a122a237657ea4f2bf558d81304713a8c1973902c2470de9d",
+      "src/bin/kernel_fixture.rs": "88785f4a8094bc67a983e2434ce6cb1dea3313daf5ff01508c25209031f7f28b",
+      "src/bin/query_fixture.rs": "9b8626015a60c39cb5d0d3980f2e4e9ac7147fa162f72efebc3ab3bdc7d2709e",
+      "src/bin/regex_fixture.rs": "842aea6f73f2fc9de3a28a8cc527c4203136af317f9f1fb9cee6e915de86c41a",
+      "src/binary_labels.rs": "78ad6f430d755de523024a8035ad26cb61336bf51d6ab56de76798dfe6593ac0",
+      "src/binary_value.rs": "4a4b240370dda9491e0c1932ed131d290c731272c32b0d9e19bfd43037167ac4",
+      "src/c_abi/checked.rs": "c6f9fbe0eaf960ea1aa5f0d4a52740bfdee00a281f4223676593d3a9e63241ae",
+      "src/c_abi/getters.rs": "03d9de4d99a220bbbcb18c395eb11b46abab89f5493cc91176f48966799e73cd",
+      "src/c_abi/mod.rs": "e418ac29bda083e6c340f987eacdd08c6e4650144588a1f5a61cdabba9749678",
+      "src/c_abi/observations.rs": "daf30a34adf2cada770ceed1760d44022e9a7e6d65a6f0d40d8166f7aad6eb23",
+      "src/c_abi/output.rs": "90feb8494f1433896d52cbb2c053fc1978766229771cbe8817b0fca9a409982d",
+      "src/c_abi/provider.rs": "6d4ae5c08154027ed12088257fe8e34da782f829452e3f3bbc9cc97f8f36dedc",
+      "src/c_abi/tests/allocations.rs": "03fd715274c8b7ba7bfaa2d1fcdb5f2b81ee4393e15f6cd3bb8a82e4e75693ef",
+      "src/c_abi/tests/delivery.rs": "52d940d47dd4dc3a3cb637dfdfcf407786f36ff41a45b409646e44c6d20a7e59",
+      "src/c_abi/tests/ownership.rs": "f10330b7e8cafdf233de9e4ed054e99c8e376ea684248c6b315cdaca3f98db36",
+      "src/c_abi/tests/pages.rs": "9af9fec790a324cf089dfb6076508e9c15f149eb600d35e1b1aae1f52024a99b",
+      "src/c_abi/tests/temporary.rs": "820b987bb72c3a96fd0404a5050cfb38704ce84813f40780649603049ce26f83",
+      "src/c_abi/tests.rs": "b77cc0de3951ef0512c4ce0ddec6bd22ed7238fed0a6c43ef25fde58c6344f5a",
+      "src/c_abi/types.rs": "dd86e2696f9927638a45f25afc3cf71f1a59b0c00b8c234b23e8a47806cb6c2d",
+      "src/calendar.rs": "55db69f99f506d532fa2deb2007afa76fe8832396c1e6345267f585f483e7e31",
+      "src/classic_mutation.rs": "98b9f131e020d78dc59566acb145172cbb89e8abc658ef7f114fe58fa3232dd6",
+      "src/classic_replay.rs": "913617f4df3042dcd72711cd30f76b3705fc9566a065f1da7dab0cbcb558ab36",
+      "src/count_values.rs": "8343c5311bb4c9741bd63ca23e11aaad8ed966b0bb84afe6b69caf832230db3d",
+      "src/derived_matrix.rs": "649bd8ffbbd70625b2833b2abd52e6ccd76ff1a1160d5e7336e4e880444651be",
+      "src/derived_range.rs": "e0e747e7a23879de327eeefc6af3e15b0357688c1c6ce90e336d59638ece8155",
+      "src/evaluator.rs": "9d1c1b2d7e3a2f4fca7130109a0d8103893f34d70a24d2d3eeea8e2781f52e37",
+      "src/evaluator_order.rs": "1b9494cbfccb3bbbd7354f6bca666246c48dcb9ab677093d9054af499f79edc3",
+      "src/evaluator_roster.rs": "1830aa2571855f01b096f9f4d282b30e9206074247c1ad84de26c56059d3e2ef",
+      "src/execution.rs": "b62febbdeda4b5ac38c83da497dca2d3fffe799b1c7c49c88d2f017634199ee7",
+      "src/fixture_temporary_storage.rs": "7112cc1255ec968c8b9579336eadc354c277adc74ee079cce6a363744c084847",
+      "src/float_functions.rs": "83efa83146f67cf2b83bc8089683164f5d50bf73f15f0463c899dc2d95233613",
+      "src/float_text.rs": "d572829188cac46c941b9c8d71b6683247ee3efee16058cc5f48662e64f4d640",
+      "src/frontend/ast.rs": "375f79238e69e46970ca448bb3e0dab2326f4ad80c68c6c15582a9641ec1b733",
+      "src/frontend/bytes.rs": "e8c2b42fabe790d2445025389999ae29dc071150d510560c6f81d393883e35cc",
+      "src/frontend/float.rs": "824bbbb5755c28e3aa19fa55653e5ca3e0298e370a04e538e4eb4220ee50ae80",
+      "src/frontend/float_decimal.rs": "1c57f12a5a2e73cb0abb86b6ef01e80948809e93a275e405018d693c201ddc5f",
+      "src/frontend/float_powers.rs": "e1e410fd6d4d265c4c5e38f1b9e437ac643b77758b3506708dd91f99f8b5b5cd",
+      "src/frontend/float_scale.rs": "e6a09533d44f27594f106dfcd0ddd3f0d3f6b442dfb754ff4d18e16395088645",
+      "src/frontend/functions.rs": "088aa78b4d8e78066cdf79fbed30a8767038d07fb95db5b4406bfde01c5a4164",
+      "src/frontend/lexer.rs": "f9b22e4bdcc2b3de1b92a118ada695445d2af666f5621786ef4e87ce92d12b20",
+      "src/frontend/literal.rs": "ac310b23bfa8b58e273a63b7512714026becce2e47e977fc88bda4b1c991e650",
+      "src/frontend/mod.rs": "dfc4bd1b5330542c8911b0109d607f95426c757e9eed39721e78a6096b4b8c94",
+      "src/frontend/number.rs": "c8200f9ea6d9f2e233bb7e8aa82461b80e6315f8fdf401d865ee981c36ad664e",
+      "src/frontend/parser.rs": "7a0e454d471568151b482969fc61dc5d84056a739c32f557006a8130105d6353",
+      "src/frontend/quote.rs": "b636f7bdb00ab87cdd3a6650a92b7617ed82c72edc4c5db465193f97cfdf06a3",
+      "src/frontend/regex.rs": "44dd8f64aa08e0e5e7c71d17214450de4cff3156ee96e75e64f056922dcd4228",
+      "src/frontend/regex_nfa.rs": "9586e2ecfd17bd4b59a61c270856de046c2948441ea6423b8562d572e39b105f",
+      "src/frontend/regex_normalization.rs": "674b0a6bc4c5db9cdc78c41e560aff48c495cb2ad98c4b7d1c48f662fbd3bb89",
+      "src/frontend/regex_normalization_data.rs": "08c49ddd398eff9dc1c958461c2677279f79d4079657125d8f42e3bb3fc01723",
+      "src/frontend/regex_program.rs": "13dfcbe260852cf24032038549ffbaad2275b38c3559b75ae4f530717abffd83",
+      "src/frontend/regex_runes.rs": "b7e242358cde50e432a99cc17a80b2a196e10010c1056daf8cfb251916a0554b",
+      "src/frontend/regex_selector.rs": "58778f43b7548806d708bb78df0450db888619247a841c30cd9d1e731623eedf",
+      "src/frontend/regex_string.rs": "1bc3920b26db2838aa6c92254c7d2f4172fa17c4460197eb198779446a16c29c",
+      "src/frontend/regex_syntax.rs": "3d2dbdb6adb208093cf75b2f6a092bc4a399b9890ac6f177ed228a5a73a08d38",
+      "src/frontend/regex_unicode.rs": "eec365da885efc57f114feaa6cf23b6983401f6aa58b0ff1d681817dbe5b9c6a",
+      "src/frontend/token.rs": "f6b1e8a95b8217d32d7d2205e3597987fed87feafe1c330e055ded4c7a579e33",
+      "src/frontend/unicode.rs": "1e8930244ac2c0e19033a4145784e0af27681139a508cfe08ab3c32351e2de6b",
+      "src/frontend/validate.rs": "22ee0809231225208ea1343025e8c3e144dec542cef693f90d95edcfeda0f6c7",
+      "src/frontend/work.rs": "53fe4df045e45e5adbe10e161c1cdee13d041c4519072a64b3065577b58c5d5b",
+      "src/go_sort.rs": "d3758eade259e0e960aa5e2db2c54d1380eeeab219612d9029389d3f1050bfa9",
+      "src/go_sort_program.rs": "2e0fa367c9442026e457040cfee64e152a359a6830b584e0185b1562687f6236",
+      "src/histogram.rs": "369cc35df492a91a84ebc284ecd03c6a8a45da689dac486f44bbe4ac157040f5",
+      "src/histogram_accumulator.rs": "db1f0dd7b0ff9720e3b90e1d20620619ac3b38faf484996973094aa083529a31",
+      "src/histogram_arithmetic.rs": "d89d7e5921e34147711c64196d585847d14159f71f767ad6182cf0ed19be9d1f",
+      "src/histogram_bounds.rs": "cd74aa19fa5c1a5413f582137db79f5bf78f079f06c1617dccfb98e3a3820edf",
+      "src/histogram_bounds_table.rs": "31815c0035c27ac4de637864f58dbfb9b936e652d0f3d69e2512493ea63ab495",
+      "src/histogram_call.rs": "fd6ad5050c613cbf76dc9c59917c7718ab732ba925bc47e250d23c4975099ae2",
+      "src/histogram_classic.rs": "8371cee4116de799f4efba54b8006fcc18f36e420f8849f22b843ac3fc6f859b",
+      "src/histogram_counter.rs": "bd241d83c378ca2eaeaff21e3665c3d4468b1b6e7b9c973d520b3fc3f03d5749",
+      "src/histogram_equality.rs": "5869af6eff571e7c6225b9da7125f3531f62e03af1fd8a2f80b1bfc278b3f2fc",
+      "src/histogram_functions.rs": "39173ed0b0af0f222ee18a39c490af0b0213d4af35b29557b2ff65cdfe4d4636",
+      "src/histogram_iterator.rs": "28893244b47c20e5f0c3608fa4c2e0692771e2009bfdf536b989e3ee2b0aa54d",
+      "src/histogram_layout.rs": "df59f86bf9eb7a7b263cd032d7f0a0432f58b130ecf54c76128c10616576a649",
+      "src/histogram_stats.rs": "3f187a888dbd360b3b7c729d78ad29cbbbcc95dc6f7c1ab031fefcd65c2fa6f7",
+      "src/histogram_text.rs": "3685ae72e85f3dd863149533f1e0c98e2585ec026d876a8c3458a2c9938ac337",
+      "src/histogram_trim.rs": "70eae28733481c93981e7c3029aa0b9f3ed43b5e063ca53523a140ae9785b901",
+      "src/histogram_work.rs": "82b84c875ecff20d6b3eaae182b2382279ffb631095b567362b23f48d840995a",
+      "src/info.rs": "582791d41e3202a4e71b0b227c213a0a756ee46d68bb9d3083b86a6b169a6385",
+      "src/instant_select.rs": "e4cf7521731afacf5b1094ef6bcbf70f2f9aed085ceaf3e4af28d92fda2d8edb",
+      "src/instant_statistics.rs": "b98b770bfacd3734d45c3bc7761f0697c970ebe8445594f02fc61ce84a646bcf",
+      "src/label_encoding.rs": "67cefa707fa5188ea77fd102ac4963efdaa230af41e8a2d4372d80f8c3964705",
+      "src/label_encoding_tests.rs": "32b85f4413fe91b339630545bef69b83139793df36b0c05784d8424f9a1ca868",
+      "src/label_functions.rs": "ddbc9e77ee1ad03431c48ed0fa5232c80ab79c5909fe3b5c640cbc942ff46d9a",
+      "src/label_hash.rs": "43ac1e89566ea9811b131fa5651d5dbe3a2d38d83e948966011e195d6416a8a4",
+      "src/lib.rs": "00d960988a4635762224fdd0f07f28389d4dcb5d355f9faccc86b44a94d24425",
+      "src/mad.rs": "d1a862a527883f9ce738aa2f7e8cce1c681b38a17678990128d4bb0647a6369c",
+      "src/matrix_heads.rs": "d451d1d8945be050c21458ad8fcd9b8fefae6a92fc62f689037d06bb57891fb9",
+      "src/matrix_reader.rs": "9dc3e5b8d560cf60843996cc8e1181fe3098a8a06cf136aa947532c13bcbb906",
+      "src/numerical.rs": "740b808191232c114e4e7a15d7368e3f92417a9e7e17732b2c3c05165c8a001d",
+      "src/numerical_exponential.rs": "733c1b546a81fafd5108b9652628fd2a271c3736e08e2d8364a055c8890ed7fb",
+      "src/numerical_hyperbolic.rs": "eb3a44c15e0b03ad784afb96bb6b294343cea410136a4e0498e99c362e0fd7a3",
+      "src/numerical_math.rs": "2c1ad85435a8da0e01c909aad7332995409b1a6df18007e75f4a20b5588d58d0",
+      "src/numerical_trigonometric.rs": "1943279dac9a440a5acc26db24305247cb34e26861b0164e9b9cff7f925c4e6b",
+      "src/quantile_aggregate.rs": "65f6ad016ee927e3c09e17e0415275a3464441296fa3419f33f13a4b800ecdee",
+      "src/query_bounds.rs": "e406d0bf163c963142dc5636526c326eab608f97a20bcacaaec2c23c176465d5",
+      "src/query_catalog.rs": "642ced2c18bd73444aade137d6f831fd7f1e96a4e2fcf396df166edf63a7e89d",
+      "src/query_preparation.rs": "61ae9d97fac14b767c5988b45962adaf0e9e3b7b3a13118c6a1ad4e1808219a8",
+      "src/query_scopes.rs": "948bc8ad549439a71a98dc076f30f460489e596814ea1f97322b3370b3e4ff76",
+      "src/range_cache.rs": "4a230e93b07e27f061aef897913190920e14ee443db53fca7d572fcc637006fa",
+      "src/range_extended.rs": "bbdcf07b42425f7d9db3b9186a72dee41dadb18642d6067a02a76e0b46395881",
+      "src/range_float.rs": "d31aa80504599a6c58b089c880ba936a29a8f4d7321f6173007a3c9b4755fc8d",
+      "src/range_numeric.rs": "104c8bdea3408bfb9f54b84580bce200a5f1e551850409b87732aed1b007a763",
+      "src/range_quantile_rank.rs": "37b27f36dfb92e95cf7484604861b21348b582e77d222483e8df0d71b30d0f73",
+      "src/range_rates.rs": "de30d26e8346766e72d2c94a8eebd40f68fcdc4b7a476bb2eacbe9832057615a",
+      "src/range_reduce.rs": "b8d9eb4e18f6353cc184ae7603c2f3741e26e868711ba09e5eca7c6dbdc86090",
+      "src/result.rs": "f7a9578c51ade89343993ad721dd7499a7a449d2a025c3d9725d65edcadf8a26",
+      "src/scheduled_expression.rs": "51852600bab74cde49a9b669e495a44ca38d17392fa9a65b588556b586f202d8",
+      "src/selection_tests.rs": "2170387bfc372ce6e56b1c66a060b561e064bb6389087af35d40e20f07a5744c",
+      "src/shared.rs": "cef4bdd7739fe10aa6a81e633fdcd073de9f4f23b242db751a0cc3018ed31c0c",
+      "src/storage.rs": "aa4a9efba77ec31fd919aa85e02cfe8f0a3fefb1e403d00c74eeeccf0246145d",
+      "src/storage_observed.rs": "1a9441dfb4607692754ac48c98709192d13c509e39afd8cf527376e4ac497010",
+      "src/temporal_quantile.rs": "fb64195de74a824d8a41e871a14f82f66fb514729dbe155c4e88115bfda0e06b",
+      "src/temporal_quantile_sort.rs": "c522b3e84e503086faab8557aac474f2d0234feb1717299008a6558bf1746f3b",
+      "src/temporary_float_bits.rs": "6e6cb8f8bc5a4c5bf3ef98f54082d9614bd7077e9fa331bf7c1f87e66f243d5d",
+      "src/test_storage.rs": "2ba1f2e027154092644b5b2ef0f359bcfa3c583e7ab0f0c16b6cfdbdbbcff6d2",
+      "src/topk.rs": "616939b47332b3ff6545af4a151ba98b39aa4a9fc9b739adc937a17a8058557a",
+      "src/value.rs": "2af905982026c7f50cee4ef6472adf53475277dc63e1125a4ddf069737e84659",
+      "src/vector_matching.rs": "42895b28dfbc5a202799e185c543ee2d55c5d030e94ce7054c3ad0fc0348ea69",
+      "src/vector_sort.rs": "08b57d2f4e8e059b0f968bbabf20e04cb32150576fa83b873a253d57eb10c09b",
+      "Cargo.toml": "f88887b055e2841d9cfb340d38efeaed03066fe49bce56913713f89f1882e459",
+      "Cargo.lock": "3f1b08baa46f83a0f0106789cedde44910e0d2f92c45c3322fe32d58273c7f16"
+    },
+    "source_owner_count": 128,
+    "c_abi_version": 3,
+    "header": {
+      "path": "src/crates/promql-engine/include/netdata-promql.h",
+      "sha256": "5e8227777044dfc75b3fa5a7da1a7e1edf57ba512ffd6a8ab0324b0f2b00bb00"
+    },
+    "header_test_reuse": "Tested header differs only in retained-page callback documentation; declaration tokens are identical.",
+    "rust_msrv": "1.91"
+  },
+  "catalog_coverage": {
+    "file": "catalog-coverage.json",
+    "sha256": "b128fa66b0213a1e477a0d72ad7f6a4743addc17373ff2ab8117759c3fb3d666",
+    "upstream_test_functions": 90,
+    "upstream_test_aggregations": 14,
+    "stable_default_functions": 73,
+    "stable_default_aggregations": 12,
+    "binary_operators": 18,
+    "meaning": "Named calls/aggregations occur in successfully evaluated expressions with nonempty original results. This is expression coverage, not instrumented node visitation or branch coverage.",
+    "default_meaning": "Every stable name occurs in the actual Go AST of a successful default-profile expression with a nonempty final result. This is query-expression evidence, not instrumented node visitation or branch coverage. Original witness provenance is separate from candidate-execution/source-equivalence attribution.",
+    "candidate_attribution": "Original expression AST witnesses do not constitute instrumented node visits. Candidate execution and scoped source-equivalence have their own cohorts below; historical originals are not relabeled current."
+  },
+  "corrected_cohort": {
+    "targets": [
+      "x86_64-unknown-linux-gnu",
+      "aarch64-unknown-linux-gnu",
+      "armv7-unknown-linux-gnueabihf"
+    ],
+    "builds": [
+      "release",
+      "release-min"
+    ],
+    "variants": {
+      "x86_64-unknown-linux-gnu/release": {
+        "source": {
+          "path": "tests/promql-conformance/.tmp/selector-batching-vp4vtxtu/qualified-duration-width-x86_64-unknown-linux-gnu-release/source.json",
+          "sha256": "8c30016d395bec0eea0ca1b01e064b5aca88a9bca266ec0ab4d230c25b57ee7e"
+        },
+        "binaries": {
+          "promql-query-fixture": "17a14279b2c4f4fd5b2ad8101f80b7fef633e395ba2501982cac48a540c606c6",
+          "promql-kernel-fixture": "5e4ed64326b513e660eb1cf512c7c40ed33f3f1b10dbec3683c13e68f16d764d",
+          "promql-frontend-fixture": "ebaeab44c5c387b377c7ed84be39ef3dd3e8948e94d83b37a91599a8a01d67e9"
+        }
+      },
+      "x86_64-unknown-linux-gnu/release-min": {
+        "source": {
+          "path": "tests/promql-conformance/.tmp/selector-batching-vp4vtxtu/qualified-duration-width-x86_64-unknown-linux-gnu-release-min/source.json",
+          "sha256": "8c30016d395bec0eea0ca1b01e064b5aca88a9bca266ec0ab4d230c25b57ee7e"
+        },
+        "binaries": {
+          "promql-query-fixture": "e007e5c54929392b1712d4fd396d24b5d90cbe177718ddfdccea914b33673ec1",
+          "promql-kernel-fixture": "01477a2c7693207632184b95d5ce30decfcead99e0425f369e8626c94d9a43a0",
+          "promql-frontend-fixture": "ada829a55cf54d754478a52e49c53270a164e8ef372f80b8c78f7e54177c8d2f"
+        }
+      },
+      "aarch64-unknown-linux-gnu/release": {
+        "source": {
+          "path": "tests/promql-conformance/.tmp/selector-batching-vp4vtxtu/qualified-duration-width-aarch64-unknown-linux-gnu-release/source.json",
+          "sha256": "8c30016d395bec0eea0ca1b01e064b5aca88a9bca266ec0ab4d230c25b57ee7e"
+        },
+        "binaries": {
+          "promql-query-fixture": "42335e7b677f4e877a312f21effeb057a54af09a0f0e11f424a13bc2b6bb75ba",
+          "promql-kernel-fixture": "086ddebcb7653f95d5f5be6b479d3532dcf7143050f34fd80d8e1e9e8c1ba14d",
+          "promql-frontend-fixture": "a8ec592109f017153c4e04dc9ed41aecfa27061d972ee8475f2651eb5d633d24"
+        }
+      },
+      "aarch64-unknown-linux-gnu/release-min": {
+        "source": {
+          "path": "tests/promql-conformance/.tmp/selector-batching-vp4vtxtu/qualified-duration-width-aarch64-unknown-linux-gnu-release-min/source.json",
+          "sha256": "8c30016d395bec0eea0ca1b01e064b5aca88a9bca266ec0ab4d230c25b57ee7e"
+        },
+        "binaries": {
+          "promql-query-fixture": "09ad305eb47411624ba8ac68c0b989a2a3d27fca4e45a6f163415990bf44004e",
+          "promql-kernel-fixture": "f6aade520a1fde99bf1f787f4ab7ac03a6dbc91da73f1012e6186c8d7f2f3006",
+          "promql-frontend-fixture": "8034c1a5db45826ed1056f8122e2e4985e57c43ea844598137d300f561617983"
+        }
+      },
+      "armv7-unknown-linux-gnueabihf/release": {
+        "source": {
+          "path": "tests/promql-conformance/.tmp/selector-batching-vp4vtxtu/qualified-duration-width-armv7-unknown-linux-gnueabihf-release/source.json",
+          "sha256": "8c30016d395bec0eea0ca1b01e064b5aca88a9bca266ec0ab4d230c25b57ee7e"
+        },
+        "binaries": {
+          "promql-query-fixture": "bc9c6fa61d749a3a33f292540223ad1160a449263f9d340cf6173a1d3bef8fb4",
+          "promql-kernel-fixture": "b02a8ca0b66e30dbdb1ea767b36e2afe899ed26e589e558310a131d138032404",
+          "promql-frontend-fixture": "1e08c85fe0e2122520e2bdef5143fa92752bb935183fcd8931297d7eb17f4e98"
+        }
+      },
+      "armv7-unknown-linux-gnueabihf/release-min": {
+        "source": {
+          "path": "tests/promql-conformance/.tmp/selector-batching-vp4vtxtu/qualified-duration-width-armv7-unknown-linux-gnueabihf-release-min/source.json",
+          "sha256": "8c30016d395bec0eea0ca1b01e064b5aca88a9bca266ec0ab4d230c25b57ee7e"
+        },
+        "binaries": {
+          "promql-query-fixture": "6a7fb4a91ce5ca16299b981082d82c99546294009ed142f91f1f51fd5fd2d28f",
+          "promql-kernel-fixture": "91c3ff533f81a2ac4ab6d3ec15e3a5185f94d4414f10884df843945a5d4b9ad3",
+          "promql-frontend-fixture": "4af31abab48b8353d7656d238374a20bdfb39638edcd30a105a6583757d4054c"
+        }
+      }
+    },
+    "compiled": {
+      "path": "tests/promql-conformance/.tmp/selector-batching-vp4vtxtu/duration-width-build-verification.json",
+      "sha256": "f101804b2c1bb50c35acd005434be9265f5d7614a9cfb8eef20fe2705a199d02",
+      "passed": true
+    },
+    "compiled_checks": 36,
+    "native_fixture_units_per_build": 460,
+    "rust_1_91_production_units": 459,
+    "focused_duration_regressions": 12,
+    "strict_clippy_checks": 12,
+    "frontend": {
+      "path": "tests/promql-conformance/.tmp/selector-batching-vp4vtxtu/duration-width-frontend-verification.json",
+      "sha256": "5873f7d098ea6a031b0a08b4a5aa1691deceac0f6d1d9e8829c42bf919227b75",
+      "passed": true
+    },
+    "frontend_comparisons": 135936,
+    "frontend_cases_per_variant": {
+      "lexer_and_strings": 164,
+      "literals": 32,
+      "parser": 356,
+      "parser_options": 784,
+      "regex": 21320
+    },
+    "default_profile": {
+      "path": "tests/promql-conformance/.tmp/selector-batching-vp4vtxtu/default-profile-completion-verification.json",
+      "sha256": "526b325af94bd6574f9ee385bb61e753272c52ec70630cb86eb32220c462e48d",
+      "passed": true
+    },
+    "default_profile_cases": 42,
+    "positive_cases": 37,
+    "disabled_cases": 5,
+    "default_profile_comparisons": 756,
+    "default_profile_page_sizes": [
+      1,
+      17,
+      1024
+    ],
+    "all_previous_41_inputs_and_complete_original_results_preserved": true,
+    "paired_bit_differences_in_frontend_and_default_gates": 0
+  },
+  "retained_native_expression_cohort": {
+    "qualification": {
+      "source_owners": 307,
+      "before": {
+        "path": "tests/promql-conformance/.tmp/selector-batching-vp4vtxtu/scalar-trim-expression-gate/source-before.json",
+        "sha256": "789090e87394fe1f0230ab47bb611f47d06e16b9cc27a54044f803c83588995d"
+      },
+      "after": {
+        "path": "tests/promql-conformance/.tmp/selector-batching-vp4vtxtu/scalar-trim-expression-gate/source-after.json",
+        "sha256": "789090e87394fe1f0230ab47bb611f47d06e16b9cc27a54044f803c83588995d"
+      }
+    },
+    "binaries": {
+      "release": {
+        "source": {
+          "path": "tests/promql-conformance/.tmp/selector-batching-vp4vtxtu/qualified-scalar-trim-release/source.json",
+          "sha256": "e983cbecb9c18960d72b9998d8ad0d79faed82c3c490728547b7e15fe0ca6029"
+        },
+        "binaries": {
+          "promql-query-fixture": "2c2c6d3c3ceed6d37dbcc178e9de840d4d1fdcea586a4e30d5eea742d4d02abd",
+          "promql-kernel-fixture": "31e063670261ceb8e266e8b9d134e8b69b8aaa4bf8402e69c796085066cb945a",
+          "promql-frontend-fixture": "6b470e90dccb8d098abab8e603610994e947c59700b39c00575f067e541386da"
+        }
+      },
+      "release-min": {
+        "source": {
+          "path": "tests/promql-conformance/.tmp/selector-batching-vp4vtxtu/qualified-scalar-trim-release-min/source.json",
+          "sha256": "e983cbecb9c18960d72b9998d8ad0d79faed82c3c490728547b7e15fe0ca6029"
+        },
+        "binaries": {
+          "promql-query-fixture": "f5b3add8e161ae7a5573293212ea4e69a5c98e547051db52d09101c1802217fe",
+          "promql-kernel-fixture": "69c59077f43167de9edc6bc4d3e4300fa3fbc1280228a4cb843a9af29d097c05",
+          "promql-frontend-fixture": "b15ca826ab7a4f44c501d1e705c8e01700e01738679c65c56889f35e37fd8bca"
+        }
+      }
+    },
+    "builtin_requests_per_variant": 21442,
+    "source_dsl_commands": 2243,
+    "source_eval_fail_commands": 3,
+    "builds": [
+      "release",
+      "release-min"
+    ],
+    "page_sizes": [
+      1,
+      17,
+      1024
+    ],
+    "builtin_comparisons": 128652,
+    "arithmetic_comparisons": 115284,
+    "scalar_trim_comparisons": 192,
+    "logical_width_comparisons": 192,
+    "semantic_failures": 0,
+    "open": 0,
+    "paired_bit_differences": 0,
+    "changed_owners": [
+      "src/frontend/number.rs",
+      "src/frontend/parser.rs"
+    ],
+    "reuse": "AMD64 usize/u64 duration algorithms have the same 64-bit domain for every input. The only other changes are two new tests. Original binary attribution is retained."
+  },
+  "retained_compiled_foreign_cohort": {
+    "compiled": {
+      "path": "tests/promql-conformance/.tmp/selector-batching-vp4vtxtu/live-final-compiled-verification.json",
+      "sha256": "225e4085dea756caece7cc51c3cfb78ba2c02a415c217e629c3bfb0aad398f41",
+      "passed": true
+    },
+    "expressions": {
+      "path": "tests/promql-conformance/.tmp/selector-batching-vp4vtxtu/live-final-foreign-expression-verification.json",
+      "sha256": "902fc97d7c6403a353eeec7287d27f03f73c9adfff651f707a214c1a002bce42",
+      "passed": true
+    },
+    "targets": [
+      "aarch64-unknown-linux-gnu",
+      "armv7-unknown-linux-gnueabihf"
+    ],
+    "builds": [
+      "release",
+      "release-min"
+    ],
+    "page_sizes": [
+      1,
+      17,
+      1024
+    ],
+    "builtin_comparisons": 257304,
+    "arithmetic_comparisons": 230568,
+    "logical_width_comparisons": 384,
+    "scalar_and_previous_default_controls": 876,
+    "binary_attribution": [
+      {
+        "label": "main-armv7-unknown-linux-gnueabihf-release-1",
+        "binary_sha256": "063ee1bc444c278e56e8656e79ee40ada7fe021f0754bb52a475165916846fc4",
+        "binding_sha256": "13a47bd00cbfdb01f81b5ee329cda02721daed0abde3cee09d26bbb2c9798c8e",
+        "report_sha256": "846291a189a2e13044d19d2fb0e2e3792d3bc5a1d6546a94d9d6bc2dc079eb58"
+      },
+      {
+        "label": "main-armv7-unknown-linux-gnueabihf-release-17",
+        "binary_sha256": "063ee1bc444c278e56e8656e79ee40ada7fe021f0754bb52a475165916846fc4",
+        "binding_sha256": "97bf810487dbc94c7b0bd984d2dcf4070316a21adb51ba6a6e875768739dfd70",
+        "report_sha256": "20331ae1e919640bd9fa982519ac5c082fe0c072c7500b352dd1cb03ba4cc0e3"
+      },
+      {
+        "label": "main-armv7-unknown-linux-gnueabihf-release-1024",
+        "binary_sha256": "063ee1bc444c278e56e8656e79ee40ada7fe021f0754bb52a475165916846fc4",
+        "binding_sha256": "45478d9888748eec73fcee7c49070fb922f8ef23aceef6b9ca7a9ee7fa885102",
+        "report_sha256": "975dc2184aef260e5184192e18b54f0330fe86d15594a3c2c2f8ea74494e267b"
+      },
+      {
+        "label": "main-armv7-unknown-linux-gnueabihf-release-min-1",
+        "binary_sha256": "d67b1c31e9cbd46669c46af684af31600eac2a97269f594b566b31f16c1fd970",
+        "binding_sha256": "221b9f12af6f34e6a3f073be7bbfbe26aaf2a4b479820752c95e250d357e8125",
+        "report_sha256": "47051a454dc0abe41ac1eede4ae2956ad7255eb3d20c75e7dd2cb6400309096c"
+      },
+      {
+        "label": "main-armv7-unknown-linux-gnueabihf-release-min-17",
+        "binary_sha256": "d67b1c31e9cbd46669c46af684af31600eac2a97269f594b566b31f16c1fd970",
+        "binding_sha256": "acc7c380ea3cd20c8dcd1cf0c7fa6b3651f877e641f867f175848669727c3529",
+        "report_sha256": "879ef09832b80ba426fea16cb4e58693f57c67d7b892a0dbdcb6a447ea3dfc17"
+      },
+      {
+        "label": "main-armv7-unknown-linux-gnueabihf-release-min-1024",
+        "binary_sha256": "d67b1c31e9cbd46669c46af684af31600eac2a97269f594b566b31f16c1fd970",
+        "binding_sha256": "d594a66c25f7e4ae74775098a706bc57c18940abcf543a182ef58f39a79be17e",
+        "report_sha256": "60d6d577d90efbc8d2bec8fc6ea9595e1627750896a2ffd6066060a8d28e11c9"
+      },
+      {
+        "label": "main-aarch64-unknown-linux-gnu-release-1",
+        "binary_sha256": "4834b690aaa06c787d2a6aec02a8da850c67f675ae0578fa64b4580667e9b5da",
+        "binding_sha256": "d2bfb022c40dc56b8d7199e89e6c5e4c8613a8246b1e979c6b659f3b18b93a7d",
+        "report_sha256": "1c5f7ed55ac3ee0aed08292a5b1642bc40e96ece9cc6f459137501a7abd160af"
+      },
+      {
+        "label": "main-aarch64-unknown-linux-gnu-release-17",
+        "binary_sha256": "4834b690aaa06c787d2a6aec02a8da850c67f675ae0578fa64b4580667e9b5da",
+        "binding_sha256": "77c8ce1cf7ffb3b11cc1dae27a0a985d858ba1a59d1d197706b456597ad86869",
+        "report_sha256": "72c676c421f3c3be36504f5db732ed52973b4ebd797e30646eab623049b8abb1"
+      },
+      {
+        "label": "main-aarch64-unknown-linux-gnu-release-1024",
+        "binary_sha256": "4834b690aaa06c787d2a6aec02a8da850c67f675ae0578fa64b4580667e9b5da",
+        "binding_sha256": "ec094524df91362fdccedbf4a9b07b283e439bbaccec840d3f163b6f1fa92dfa",
+        "report_sha256": "9466175b02eb3b631be1470b4d1052c5c4b15f72b416c448f30bff4fc69bd81d"
+      },
+      {
+        "label": "main-aarch64-unknown-linux-gnu-release-min-1",
+        "binary_sha256": "68fb30334b5e6d151526c60f956bb9039319b4cbe9765d1cd7127eec62a0908b",
+        "binding_sha256": "f3c4362285f433763325c6a6ef829ffa896363044aa4f8f2adab77f42784f7c1",
+        "report_sha256": "a7411b574a1018c724eee7fd2eb287d021574606ba3affa2638498dacb2f87db"
+      },
+      {
+        "label": "main-aarch64-unknown-linux-gnu-release-min-17",
+        "binary_sha256": "68fb30334b5e6d151526c60f956bb9039319b4cbe9765d1cd7127eec62a0908b",
+        "binding_sha256": "b24beaef48f07930d62318871182e8b9b6a35808ee6048563076c757a82504b9",
+        "report_sha256": "cc3adc9b61db5a2e9da7488cec539882ae6e6ca071d5e8d9435de61895e98da6"
+      },
+      {
+        "label": "main-aarch64-unknown-linux-gnu-release-min-1024",
+        "binary_sha256": "68fb30334b5e6d151526c60f956bb9039319b4cbe9765d1cd7127eec62a0908b",
+        "binding_sha256": "87675602ad3c06cddc31d9b89dfa382231f2c897d8f4e1fe449729d7ea2bbb39",
+        "report_sha256": "ce252ae1c77a0ea7d482893d0feb1aec89c05c6a827a5be2d576d02cf0a23ca9"
+      }
+    ],
+    "reuse": "Zero oversized duration-component candidates in the actual immutable main, portable expression and control input rosters. This is scoped source-equivalence, not fresh corrected-binary or foreign SRE execution.",
+    "source_equivalence": {
+      "path": "tests/promql-conformance/.tmp/selector-batching-vp4vtxtu/duration-width-source-equivalence.json",
+      "sha256": "a0f92b85909c6a78d5fe578e9def8621c0dbbef2effb0e7e3a48537846db1946"
+    },
+    "semantic_failures": 0,
+    "open": 0,
+    "paired_bit_differences": 0
+  },
+  "retained_expression_and_resource_families": {
+    "cohort": "tests/promql-conformance/.tmp/selector-batching-vp4vtxtu/page-reuse-expression-gate",
+    "source_owners": 306,
+    "before": {
+      "path": "tests/promql-conformance/.tmp/selector-batching-vp4vtxtu/page-reuse-expression-gate/source-before.json",
+      "sha256": "24a174b6c401c2e7cc78e2ab82141b36ee2d169b2d7e7af17ac2820bace8db9b"
+    },
+    "after": {
+      "path": "tests/promql-conformance/.tmp/selector-batching-vp4vtxtu/page-reuse-expression-gate/source-after.json",
+      "sha256": "24a174b6c401c2e7cc78e2ab82141b36ee2d169b2d7e7af17ac2820bace8db9b"
+    },
+    "builds": [
+      "release",
+      "release-min"
+    ],
+    "page_sizes": [
+      1,
+      17,
+      1024
+    ],
+    "comparisons": {
+      "builtin_overlaps_native_panel": 128652,
+      "temporal_quantile": 12912,
+      "temporary_storage": 504,
+      "scheduled_expression": 1248,
+      "count_values": 4776,
+      "plural_histogram_quantile": 2556
+    },
+    "changed_crate_owners_since_execution": [
+      "src/evaluator.rs",
+      "src/execution.rs",
+      "src/frontend/number.rs",
+      "src/frontend/parser.rs",
+      "src/go_sort.rs",
+      "src/range_numeric.rs"
+    ],
+    "binaries": {
+      "release": {
+        "source": {
+          "path": "tests/promql-conformance/.tmp/selector-batching-vp4vtxtu/qualified-page-reuse-release/source.json",
+          "sha256": "52c235a6329fd8cf19ef8b5e7be582b960797e41be6684ffdfc7a15f2f986ea2"
+        },
+        "binaries": {
+          "promql-query-fixture": "6422ef32d3b3ae78e50aa08e7f47f2e48c9ed10db8f474deeb33ade96dcfd4ed",
+          "promql-kernel-fixture": "63d562f62010fb23702fc04a848caf5cbfbd49cd3ea92e675e2f371ae088f6c3",
+          "promql-frontend-fixture": "cd5ac1b22279a362a0db9fb120faf9a3cd54839a224c11bbb9393e7ccbb2f6ae"
+        }
+      },
+      "release-min": {
+        "source": {
+          "path": "tests/promql-conformance/.tmp/selector-batching-vp4vtxtu/qualified-page-reuse-release-min/source.json",
+          "sha256": "52c235a6329fd8cf19ef8b5e7be582b960797e41be6684ffdfc7a15f2f986ea2"
+        },
+        "binaries": {
+          "promql-query-fixture": "d59d407b309f8479c98c5a25742085527fc33c9938cd2231f363b1d8a38cd4e3",
+          "promql-kernel-fixture": "b8175deaa1e6f179081c0ded42e5fff493a51f36de0065acf8a35a087c5a4c33",
+          "promql-frontend-fixture": "e7a61df9d21914f7e93b10e076004f727f6edf022ad619592568c69f1dc07493"
+        }
+      }
+    },
+    "reuse": "Actual retained binaries and source manifests remain attributed to this cohort. Width changes in execution/go_sort/range_numeric are tests only; scalar trim is a source error correction qualified separately; AMD64 duration accumulation is identical for all inputs. Reuse does not claim a fresh corrected-binary execution."
+  },
+  "retained_matrix_accounting_and_ordering": {
+    "cohort": "tests/promql-conformance/.tmp/selector-batching-vp4vtxtu/page-reuse-supplemental",
+    "source_owners": 306,
+    "before": {
+      "path": "tests/promql-conformance/.tmp/selector-batching-vp4vtxtu/page-reuse-supplemental/source-before.json",
+      "sha256": "24a174b6c401c2e7cc78e2ab82141b36ee2d169b2d7e7af17ac2820bace8db9b"
+    },
+    "after": {
+      "path": "tests/promql-conformance/.tmp/selector-batching-vp4vtxtu/page-reuse-supplemental/source-after.json",
+      "sha256": "24a174b6c401c2e7cc78e2ab82141b36ee2d169b2d7e7af17ac2820bace8db9b"
+    },
+    "builds": [
+      "release",
+      "release-min"
+    ],
+    "page_sizes": [
+      1,
+      17,
+      1024
+    ],
+    "comparisons": {
+      "matrix_and_native_operations": 19374,
+      "accounting": 11604,
+      "sort_and_ordering_policy": 102858
+    },
+    "changed_crate_owners_since_execution": [
+      "src/evaluator.rs",
+      "src/execution.rs",
+      "src/frontend/number.rs",
+      "src/frontend/parser.rs",
+      "src/go_sort.rs",
+      "src/range_numeric.rs"
+    ],
+    "binaries": {
+      "release": {
+        "source": {
+          "path": "tests/promql-conformance/.tmp/selector-batching-vp4vtxtu/qualified-page-reuse-release/source.json",
+          "sha256": "52c235a6329fd8cf19ef8b5e7be582b960797e41be6684ffdfc7a15f2f986ea2"
+        },
+        "binaries": {
+          "promql-query-fixture": "6422ef32d3b3ae78e50aa08e7f47f2e48c9ed10db8f474deeb33ade96dcfd4ed",
+          "promql-kernel-fixture": "63d562f62010fb23702fc04a848caf5cbfbd49cd3ea92e675e2f371ae088f6c3",
+          "promql-frontend-fixture": "cd5ac1b22279a362a0db9fb120faf9a3cd54839a224c11bbb9393e7ccbb2f6ae"
+        }
+      },
+      "release-min": {
+        "source": {
+          "path": "tests/promql-conformance/.tmp/selector-batching-vp4vtxtu/qualified-page-reuse-release-min/source.json",
+          "sha256": "52c235a6329fd8cf19ef8b5e7be582b960797e41be6684ffdfc7a15f2f986ea2"
+        },
+        "binaries": {
+          "promql-query-fixture": "d59d407b309f8479c98c5a25742085527fc33c9938cd2231f363b1d8a38cd4e3",
+          "promql-kernel-fixture": "b8175deaa1e6f179081c0ded42e5fff493a51f36de0065acf8a35a087c5a4c33",
+          "promql-frontend-fixture": "e7a61df9d21914f7e93b10e076004f727f6edf022ad619592568c69f1dc07493"
+        }
+      }
+    },
+    "reuse": "Actual retained binaries and source manifests remain attributed to this cohort. Width changes in execution/go_sort/range_numeric are tests only; scalar trim is a source error correction qualified separately; AMD64 duration accumulation is identical for all inputs. Reuse does not claim a fresh corrected-binary execution.",
+    "accounting_owner_families": 15,
+    "policy_reports": {
+      "path": "tests/promql-conformance/.tmp/selector-batching-vp4vtxtu/page-reuse-supplemental/sort-policy-replay-summary.json",
+      "sha256": "8b226abfb2cd36871f22c1ecc5a1aeab5b2f0f669fd29b3e10c01aa655341fe5"
+    }
+  },
+  "sre_expression_qualification": {
+    "cohort": "tests/promql-conformance/.tmp/selector-batching-vp4vtxtu/page-reuse-sre-gate",
+    "source_owners": 306,
+    "before": {
+      "path": "tests/promql-conformance/.tmp/selector-batching-vp4vtxtu/page-reuse-sre-gate/source-before.json",
+      "sha256": "24a174b6c401c2e7cc78e2ab82141b36ee2d169b2d7e7af17ac2820bace8db9b"
+    },
+    "after": {
+      "path": "tests/promql-conformance/.tmp/selector-batching-vp4vtxtu/page-reuse-sre-gate/source-after.json",
+      "sha256": "24a174b6c401c2e7cc78e2ab82141b36ee2d169b2d7e7af17ac2820bace8db9b"
+    },
+    "builds": [
+      "release",
+      "release-min"
+    ],
+    "page_sizes": [
+      1,
+      17,
+      1024
+    ],
+    "comparisons": {
+      "controlled_evaluations": 231540
+    },
+    "changed_crate_owners_since_execution": [
+      "src/evaluator.rs",
+      "src/execution.rs",
+      "src/frontend/number.rs",
+      "src/frontend/parser.rs",
+      "src/go_sort.rs",
+      "src/range_numeric.rs"
+    ],
+    "binaries": {
+      "release": {
+        "source": {
+          "path": "tests/promql-conformance/.tmp/selector-batching-vp4vtxtu/qualified-page-reuse-release/source.json",
+          "sha256": "52c235a6329fd8cf19ef8b5e7be582b960797e41be6684ffdfc7a15f2f986ea2"
+        },
+        "binaries": {
+          "promql-query-fixture": "6422ef32d3b3ae78e50aa08e7f47f2e48c9ed10db8f474deeb33ade96dcfd4ed",
+          "promql-kernel-fixture": "63d562f62010fb23702fc04a848caf5cbfbd49cd3ea92e675e2f371ae088f6c3",
+          "promql-frontend-fixture": "cd5ac1b22279a362a0db9fb120faf9a3cd54839a224c11bbb9393e7ccbb2f6ae"
+        }
+      },
+      "release-min": {
+        "source": {
+          "path": "tests/promql-conformance/.tmp/selector-batching-vp4vtxtu/qualified-page-reuse-release-min/source.json",
+          "sha256": "52c235a6329fd8cf19ef8b5e7be582b960797e41be6684ffdfc7a15f2f986ea2"
+        },
+        "binaries": {
+          "promql-query-fixture": "d59d407b309f8479c98c5a25742085527fc33c9938cd2231f363b1d8a38cd4e3",
+          "promql-kernel-fixture": "b8175deaa1e6f179081c0ded42e5fff493a51f36de0065acf8a35a087c5a4c33",
+          "promql-frontend-fixture": "e7a61df9d21914f7e93b10e076004f727f6edf022ad619592568c69f1dc07493"
+        }
+      }
+    },
+    "reuse": "All source and selected ASTs exclude scalar trim; the correction is therefore unreached. Native duration arithmetic is identical for all inputs. Preserve original source/binary attribution; no foreign SRE or live rule scheduling claim.",
+    "source_expressions": 1110,
+    "selected_requests_per_variant": 38590,
+    "recording_slots": 790,
+    "recording_expressions": 608,
+    "dependency_stages": 18972,
+    "candidate_owned_parents": true,
+    "go_parent_payloads_consumed": 0,
+    "recording_bridge_failures": 0,
+    "semantic_failures": 0,
+    "open": 0,
+    "paired_bit_differences": 0,
+    "privacy": "Only aggregate counts and evidence hashes are shared; original expressions and inputs remain private."
+  },
+  "c_embedding": [
+    {
+      "target": "x86_64-unknown-linux-gnu",
+      "manifest": {
+        "path": "tests/promql-conformance/.tmp/selector-batching-vp4vtxtu/probe/tests/promql-conformance/.tmp/c-embedding-13h_4fld/manifest.json",
+        "sha256": "aa8345e85069b68b640c71c50f76c10900c286efb49d6f2a9c3a68e31f98baf0"
+      },
+      "source_manifest": {
+        "path": "tests/promql-conformance/.tmp/selector-batching-vp4vtxtu/probe/tests/promql-conformance/.tmp/c-embedding-13h_4fld/source-sha256.json",
+        "sha256": "c1404a1d1e72105535d85c40b5ec6fec3e8005f555850a9e17f4ceb7293a8e66"
+      },
+      "witnesses": {
+        "path": "tests/promql-conformance/.tmp/selector-batching-vp4vtxtu/probe/tests/promql-conformance/.tmp/c-embedding-13h_4fld/witnesses.json",
+        "sha256": "ea410c70bc3ea117a879bd457ffcc693febfe8c9cf9334f9bc24bec2ad2e92f9"
+      },
+      "caller_executions": 10,
+      "caller_records_total": 180,
+      "caller_records_per_profile": 90,
+      "layout_observations_per_profile": 99,
+      "export_count": 40,
+      "sanitizers": true,
+      "sanitizer_scope": "C/C++ callers; Rust core is not instrumented",
+      "abort_profile_negative_check": true,
+      "attribution": "Retained earlier native cohort; unchanged ABI/callback/accounting owners. The current frontend/scalar corrections are separately qualified.",
+      "archives": {
+        "release": "800b9a1a213a4991cd5ac5221a1c765edc0af7572fb170c6bbec414e3fbb0102",
+        "release-min": "b0c74ea834bd76f0bcda3791385e9a553694da691a981308eb1201dfc26d5570"
+      }
+    },
+    {
+      "target": "armv7-unknown-linux-gnueabihf",
+      "manifest": {
+        "path": "tests/promql-conformance/.tmp/c-embedding-9rmhaee9/manifest.json",
+        "sha256": "e1bf74a1fced6663ce1104c8519f57d8eb354184cd1047f06a88f3ab89994767"
+      },
+      "source_manifest": {
+        "path": "tests/promql-conformance/.tmp/c-embedding-9rmhaee9/source-sha256.json",
+        "sha256": "caf199deecb40e496d9adec634c5c28de835f634f4e7f3f8d0c1513cbe5a29f7"
+      },
+      "witnesses": {
+        "path": "tests/promql-conformance/.tmp/c-embedding-9rmhaee9/witnesses.json",
+        "sha256": "672c26ffec73f48864a4dda6cc55d2e22a469304063e772900f090ee475aac8f"
+      },
+      "caller_executions": 4,
+      "caller_records_total": 72,
+      "caller_records_per_profile": 36,
+      "layout_observations_per_profile": 99,
+      "export_count": 40,
+      "sanitizers": false,
+      "sanitizer_scope": "C/C++ callers; Rust core is not instrumented",
+      "abort_profile_negative_check": false,
+      "attribution": "Retained actual ARM32 cohort; unchanged ABI/callback/accounting owners. Current duration correction is separately qualified.",
+      "archives": {
+        "release": "dfd2dfef4194307968f19e65d05ca7bab6fb40d2db9736f6b6cf352f135f3661",
+        "release-min": "4474575b62c3c2f8ded8c4c8807d76bf9c881de55a4d7e96753a5d0e351b2650"
+      }
+    },
+    {
+      "target": "aarch64-unknown-linux-gnu",
+      "manifest": {
+        "path": "tests/promql-conformance/.tmp/selector-batching-vp4vtxtu/duration-width-probe/tests/promql-conformance/.tmp/c-embedding-pffpfqth/manifest.json",
+        "sha256": "3ee02a01666119194bdda06e83672b8f42a1087319a7e3dc1787d4ba4c7f8b56"
+      },
+      "source_manifest": {
+        "path": "tests/promql-conformance/.tmp/selector-batching-vp4vtxtu/duration-width-probe/tests/promql-conformance/.tmp/c-embedding-pffpfqth/source-sha256.json",
+        "sha256": "b803376c90b753babe090128b3812ec4c2127bd1e4324b8d6010355ac1afac94"
+      },
+      "witnesses": {
+        "path": "tests/promql-conformance/.tmp/selector-batching-vp4vtxtu/duration-width-probe/tests/promql-conformance/.tmp/c-embedding-pffpfqth/witnesses.json",
+        "sha256": "66c3004285ff4c24d9f05b829b8818d327b705219fb01f48128554b72c5f909e"
+      },
+      "caller_executions": 4,
+      "caller_records_total": 72,
+      "caller_records_per_profile": 36,
+      "layout_observations_per_profile": 99,
+      "export_count": 40,
+      "sanitizers": false,
+      "sanitizer_scope": "C/C++ callers; Rust core is not instrumented",
+      "abort_profile_negative_check": false,
+      "attribution": "Corrected crate source matches the signed implementation; header comments only differ.",
+      "archives": {
+        "release": "2642702caebf6670a5aa35ff841750ae2e094357e2108c74a8887e9f0f492a90",
+        "release-min": "eb9c6fa28f8d06882c66cabef7091f4198ce4b9e2ca052af4bc25002fc1dda27"
+      }
+    }
+  ],
+  "c_embedding_arm64_verification": {
+    "path": "tests/promql-conformance/.tmp/selector-batching-vp4vtxtu/duration-width-aarch64-c-verification.json",
+    "sha256": "556896aabeb68900135c2aec82031a85080a80c53e64bcdbadc6ca8300af6e76",
+    "passed": true
+  },
+  "memory_and_runtime_contract": {
+    "raw_input": "One metric and bounded pages, decoder/operator state; neither raw matrix dimension is assumed resident. Exact replay replaces retained histories.",
+    "total_memory": "Metadata, groups, native payloads, diagnostics and independently owned output can grow. Disabled enforcement provides no fixed total-RAM or process-RSS bound.",
+    "observable_owned_and_borrowed_bytes": "Precisely accounted by ownership/lifetime; requested bytes and exposed borrowed views are distinct observations.",
+    "opaque_regex_and_selector_tables": "Explicit estimates; hidden compilation/search temporaries and capacity peaks are not exact allocator accounting.",
+    "query_concurrency_and_elapsed_time": "Observed, with admission/timeout/resource enforcement disabled.",
+    "cancellation": "Explicit caller cancellation/deadline checks are cooperative; a blocked foreign callback is not preempted.",
+    "allocation_failure": "Configured-budget rejection is supported; actual allocator OOM may remain fatal.",
+    "temporary_backing": "Provider-managed exact paged float-bit sorting and cleanup; specific reached unavailable/full errors, no core file creation or raw-history RAM fallback.",
+    "output": "Synchronous provisional chunks commit/abort; an optional owned collector retains and accounts the complete answer until release.",
+    "ordinary_rust_panics": "Contained at the C boundary under panic-unwind profiles; no unwinding escapes.",
+    "generated_history_unit": "temporal_quantile::tests::generated_ambiguous_history_uses_flat_ram_and_provider_owned_extent",
+    "generated_history_samples": [
+      2048,
+      100000
+    ],
+    "generated_history_page_sizes": [
+      1,
+      17,
+      1024
+    ],
+    "measured_retained_page_case": {
+      "samples": 100000,
+      "page_size": 1024,
+      "workspace_peak_bytes": 38476,
+      "borrowed_view_peak_bytes": 278528,
+      "temporary_logical_extent_bytes": 800000,
+      "before_samples_fetched": 7436964352,
+      "after_samples_fetched": 7300000,
+      "before_pages": 7300000,
+      "after_pages": 7154,
+      "before_elapsed_ns": 151649422656,
+      "after_elapsed_ns": 16490659728,
+      "scope": "Fixture timings, not a general throughput/RSS promise. Workspace is one accounted category, borrowed-view bytes are separate, and backing extent/traffic are not RAM.",
+      "evidence": {
+        "path": "tests/promql-conformance/.tmp/selector-batching-vp4vtxtu/page-reuse-performance.json",
+        "sha256": "3476e93ebf99a140dc5c6b7f6d74a25d87c47f960cd969ec5e00f24c2bbda1e9"
+      }
+    }
+  },
+  "ordering_and_compatibility": {
+    "source_specified_order": "Retained exactly where specified; canonical label-byte order only at approved source-unspecified boundaries.",
+    "scheduled_strict_row_order_disagreements": 42,
+    "scheduled_policy_disposition": "All 1248 complete comparisons pass under the original declared eight-case ordering policy; raw disagreements remain retained.",
+    "sort_policy": "102858 policy-qualified comparisons; raw membership/order/bit classifications remain in original policy receipts. No global strict-raw-order claim.",
+    "approved_exceptions": {
+      "nonadvancing_merge": "Approved 11.A: changes()/resets() return a specific execution error when the reached float/histogram merge has equal timestamps and the pinned source loop cannot advance. Earlier operand acquisition and errors retain precedence.",
+      "label_encoding": "Approved 17.A: every materialized label name/value must be shorter than 16777216 bytes. Reject the exactly-2^24-byte upstream corrupted-length boundary. This is per-field representation validity, not enabled query resource enforcement."
+    }
+  },
+  "limits_of_evidence": [
+    "Finite source-bound corpora do not prove equivalence for every possible input.",
+    "Counts overlap; no sum is presented as a count of unique queries.",
+    "Original AST witnesses are not node visitation, branch coverage or proof of every feature interaction.",
+    "Retained source-equivalent cohorts keep their actual source and binary identities.",
+    "Historical Miri used ABI2; no complete current ABI3 Miri qualification is claimed.",
+    "GNU/QEMU target checks do not qualify all operating systems or hardware environments.",
+    "The implementation and evidence await independent final assessment and coupled documentation closure."
+  ],
+  "remaining_integrations": [
+    "NIDL/dbengine adapter and Agent/Parent APIs",
+    "Go Cloud distributed query contract and implementation",
+    "Independent rules, lifecycle/templates and Netdata alert integration",
+    "Platform, failure, performance and operational qualification"
+  ],
+  "excluded": [
+    "Alertmanager"
+  ]
+}
