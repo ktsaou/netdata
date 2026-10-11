@@ -592,10 +592,10 @@ impl CompiledQuery {
         {
             return Ok(());
         }
-        let mut root = self.expression.root;
-        while let Expr::Paren(child) = self.expression.arena[root].expression {
-            root = child;
-        }
+        let root = self
+            .expression
+            .arena
+            .unparenthesized(self.expression.root, control, account)?;
         if let Expr::String(value) = &self.expression.arena[root].expression {
             sink.chunk_checked(
                 OutputChunk::String {
@@ -714,7 +714,7 @@ impl CompiledQuery {
         let mut traversal = crate::query_scopes::Traversal::new(
             evaluator_header.into(),
             !prepared.flags().boundaries[self.expression.root.0]
-                && self.helper_shortcut(self.expression.root),
+                && self.helper_shortcut(self.expression.root, control, account)?,
         );
         while let Some((time_ms, step_index)) = traversal.current() {
             let options = EvaluationOptions {
@@ -884,11 +884,11 @@ impl CompiledQuery {
         if !aliases && single_heads {
             return Ok(None);
         }
-        let mut cohorts = Rosters::new(account, 1);
+        let mut cohorts = Rosters::new(account, 1, control)?;
         if aliases {
             cohorts.ordered_output(NodeId(0), descriptors, control, account)?;
         } else {
-            cohorts.output(NodeId(0), descriptors, account);
+            cohorts.output(NodeId(0), descriptors, control, account)?;
         }
         Ok(Some(cohorts))
     }
@@ -904,29 +904,42 @@ impl CompiledQuery {
         }
     }
 
-    fn direct_clock_selector(&self, node: NodeId) -> Option<NodeId> {
+    fn direct_clock_selector(
+        &self,
+        node: NodeId,
+        control: &Control,
+        account: &QueryAccounting,
+    ) -> Result<Option<NodeId>, Interrupted> {
         let Expr::Call {
             function: Some(function),
             arguments,
         } = &self.expression.arena[node].expression
         else {
-            return None;
+            return Ok(None);
         };
         if !matches!(function.name, "timestamp" | "start_timestamp") {
-            return None;
+            return Ok(None);
         }
-        let argument = self
-            .preprocessing
-            .child(&self.expression, node, arguments[0]);
-        matches!(
+        let argument =
+            self.preprocessing
+                .child(&self.expression, node, arguments[0], control, account)?;
+        Ok(matches!(
             self.expression.arena[argument].expression,
             Expr::Selector(_)
         )
-        .then_some(argument)
+        .then_some(argument))
     }
 
-    fn helper_shortcut(&self, mut node: NodeId) -> bool {
+    fn helper_shortcut(
+        &self,
+        mut node: NodeId,
+        control: &Control,
+        account: &QueryAccounting,
+    ) -> Result<bool, Interrupted> {
         loop {
+            control.check()?;
+            account.work(1);
+            control.check()?;
             match &self.expression.arena[node].expression {
                 Expr::Paren(child)
                 | Expr::Unary {
@@ -935,23 +948,28 @@ impl CompiledQuery {
                 Expr::Call { arguments, .. }
                     if label_functions::is_label_call(&self.expression.arena[node].expression) =>
                 {
-                    node = self
-                        .preprocessing
-                        .child(&self.expression, node, arguments[0]);
+                    node = self.preprocessing.child(
+                        &self.expression,
+                        node,
+                        arguments[0],
+                        control,
+                        account,
+                    )?;
                 }
                 Expr::Call {
                     function: Some(function),
                     ..
                 } => {
-                    return function.name != "info"
-                        && !function.arguments.contains(&ValueType::Matrix);
+                    return Ok(
+                        function.name != "info" && !function.arguments.contains(&ValueType::Matrix)
+                    );
                 }
                 Expr::Aggregate { operator, .. } => {
-                    return *operator == TokenKind::COUNT_VALUES
-                        || crate::topk::is_selection(&self.expression.arena[node].expression);
+                    return Ok(*operator == TokenKind::COUNT_VALUES
+                        || crate::topk::is_selection(&self.expression.arena[node].expression));
                 }
-                Expr::Number { .. } | Expr::Binary { .. } => return true,
-                _ => return false,
+                Expr::Number { .. } | Expr::Binary { .. } => return Ok(true),
+                _ => return Ok(false),
             }
         }
     }
@@ -979,10 +997,7 @@ impl CompiledQuery {
         }
         prepared.statistics_index(node, 0, control, account)?;
         if self.expression.arena[node].value_type != ValueType::Matrix
-            && rosters
-                .descriptors(node)
-                .iter()
-                .any(|descriptor| descriptor.heads.multiple())
+            && crate::evaluator_roster::has_multiple(rosters.descriptors(node), control, account)?
         {
             return Err(EvaluationError::Invalid("unexpected number of samples"));
         }
@@ -995,7 +1010,9 @@ impl CompiledQuery {
         header: OutputHeader,
         prepared: &Prepared,
         rosters: &Rosters,
-    ) -> crate::matrix_heads::Clock {
+        control: &Control,
+        account: &QueryAccounting,
+    ) -> Result<crate::matrix_heads::Clock, Interrupted> {
         if !prepared.flags().boundaries[node.0] {
             let child = match &self.expression.arena[node].expression {
                 Expr::Paren(child)
@@ -1010,16 +1027,23 @@ impl CompiledQuery {
                 _ => None,
             };
             if let Some(child) = child {
-                let child = prepared.preprocessing.child(&self.expression, node, child);
+                let child = prepared.preprocessing.child(
+                    &self.expression,
+                    node,
+                    child,
+                    control,
+                    account,
+                )?;
                 if let Some(clock) = rosters.producer_clock(child) {
-                    return clock;
+                    return Ok(clock);
                 }
             }
         }
-        crate::matrix_heads::Clock {
+        Ok(crate::matrix_heads::Clock {
             grid: prepared.source_header(node, header).into(),
-            shortcut: !prepared.flags().boundaries[node.0] && self.helper_shortcut(node),
-        }
+            shortcut: !prepared.flags().boundaries[node.0]
+                && self.helper_shortcut(node, control, account)?,
+        })
     }
 
     fn prepare_rosters<Q: QueryProvider>(
@@ -1037,7 +1061,7 @@ impl CompiledQuery {
             LabelFinish(NodeId, OutputHeader, AccountedBox<LabelOperation<'a>>),
             AggregateParameter(NodeId, OutputHeader),
         }
-        let mut rosters = Rosters::new(account, self.expression.arena.nodes.len());
+        let mut rosters = Rosters::new(account, self.expression.arena.nodes.len(), control)?;
         let mut tasks = AccountedVec::new(account, MemoryKind::Workspace);
         tasks.push(Task::Visit(
             self.expression.root,
@@ -1062,9 +1086,13 @@ impl CompiledQuery {
                 else {
                     unreachable!("typed aggregate parameter")
                 };
-                let parameter = prepared
-                    .preprocessing
-                    .child(&self.expression, node, *parameter);
+                let parameter = prepared.preprocessing.child(
+                    &self.expression,
+                    node,
+                    *parameter,
+                    control,
+                    account,
+                )?;
                 let constant = match &self.expression.arena[parameter].expression {
                     Expr::Number { .. } => true,
                     Expr::Call {
@@ -1136,12 +1164,13 @@ impl CompiledQuery {
                     rosters.output(
                         node,
                         AccountedVec::new(account, MemoryKind::Workspace),
+                        control,
                         account,
-                    );
+                    )?;
                     if self.expression.arena[node].value_type != ValueType::Matrix {
                         rosters.prepare_matrix(
                             node,
-                            self.matrix_clock(node, header, prepared, &rosters),
+                            self.matrix_clock(node, header, prepared, &rosters, control, account)?,
                             prepared.flags().boundaries[node.0],
                             control,
                             account,
@@ -1155,8 +1184,9 @@ impl CompiledQuery {
                     rosters.output(
                         node,
                         AccountedVec::new(account, MemoryKind::Workspace),
+                        control,
                         account,
-                    );
+                    )?;
                     rosters.annotations(node, AnnotationBuilder::new(account));
                     continue;
                 }
@@ -1196,7 +1226,13 @@ impl CompiledQuery {
                     let grid = prepared.subquery_scope(node, control, account)?;
                     tasks.push(Task::Finish(node, header));
                     tasks.push(Task::Visit(
-                        prepared.preprocessing.child(&self.expression, node, *child),
+                        prepared.preprocessing.child(
+                            &self.expression,
+                            node,
+                            *child,
+                            control,
+                            account,
+                        )?,
                         grid.header(header),
                     ));
                     continue;
@@ -1212,14 +1248,24 @@ impl CompiledQuery {
                     };
                     tasks.push(Task::Finish(node, header));
                     tasks.push(Task::Visit(
-                        prepared.preprocessing.child(&self.expression, node, *child),
+                        prepared.preprocessing.child(
+                            &self.expression,
+                            node,
+                            *child,
+                            control,
+                            account,
+                        )?,
                         header,
                     ));
                     tasks.push(Task::AggregateParameter(node, header));
                     tasks.push(Task::Visit(
-                        prepared
-                            .preprocessing
-                            .child(&self.expression, node, *parameter),
+                        prepared.preprocessing.child(
+                            &self.expression,
+                            node,
+                            *parameter,
+                            control,
+                            account,
+                        )?,
                         header,
                     ));
                     continue;
@@ -1247,18 +1293,33 @@ impl CompiledQuery {
                         unreachable!()
                     };
                     tasks.push(Task::Visit(
-                        prepared
-                            .preprocessing
-                            .child(&self.expression, node, arguments[0]),
+                        prepared.preprocessing.child(
+                            &self.expression,
+                            node,
+                            arguments[0],
+                            control,
+                            account,
+                        )?,
                         header,
                     ));
                     continue;
                 }
                 tasks.push(Task::Finish(node, header));
-                if self.direct_clock_selector(node).is_none() {
-                    for child in children(&self.expression, prepared, node).rev() {
+                if self
+                    .direct_clock_selector(node, control, account)?
+                    .is_none()
+                {
+                    for child in children(&self.expression, prepared, node, control, account)?.rev()
+                    {
+                        let child = child?;
                         tasks.push(Task::Visit(
-                            prepared.preprocessing.child(&self.expression, node, child),
+                            prepared.preprocessing.child(
+                                &self.expression,
+                                node,
+                                child,
+                                control,
+                                account,
+                            )?,
                             header,
                         ));
                     }
@@ -1286,7 +1347,13 @@ impl CompiledQuery {
                     | Expr::Paren(child) => *child,
                     _ => unreachable!("derived matrix preparation"),
                 };
-                let child = prepared.preprocessing.child(&self.expression, node, child);
+                let child = prepared.preprocessing.child(
+                    &self.expression,
+                    node,
+                    child,
+                    control,
+                    account,
+                )?;
                 let notes = rosters
                     .take_annotations(child)
                     .unwrap_or_else(|| AnnotationBuilder::new(account));
@@ -1299,9 +1366,13 @@ impl CompiledQuery {
                 let Expr::Call { arguments, .. } = expression else {
                     unreachable!()
                 };
-                let child = prepared
-                    .preprocessing
-                    .child(&self.expression, node, arguments[0]);
+                let child = prepared.preprocessing.child(
+                    &self.expression,
+                    node,
+                    arguments[0],
+                    control,
+                    account,
+                )?;
                 let annotations = rosters
                     .take_annotations(child)
                     .unwrap_or_else(|| AnnotationBuilder::new(account));
@@ -1319,7 +1390,7 @@ impl CompiledQuery {
                 self.finish_invariant((node, source_header), prepared, &rosters, control, account)?;
                 rosters.prepare_matrix(
                     node,
-                    self.matrix_clock(node, source_header, prepared, &rosters),
+                    self.matrix_clock(node, source_header, prepared, &rosters, control, account)?,
                     prepared.flags().boundaries[node.0],
                     control,
                     account,
@@ -1346,7 +1417,13 @@ impl CompiledQuery {
             {
                 rosters.prepare_groups(
                     node,
-                    prepared.preprocessing.child(&self.expression, node, *child),
+                    prepared.preprocessing.child(
+                        &self.expression,
+                        node,
+                        *child,
+                        control,
+                        account,
+                    )?,
                     grouping.as_deref(),
                     *without,
                     account,
@@ -1363,7 +1440,13 @@ impl CompiledQuery {
                 };
                 rosters.prepare_selection(
                     node,
-                    prepared.preprocessing.child(&self.expression, node, *child),
+                    prepared.preprocessing.child(
+                        &self.expression,
+                        node,
+                        *child,
+                        control,
+                        account,
+                    )?,
                     &self.expression,
                     control,
                     account,
@@ -1377,7 +1460,13 @@ impl CompiledQuery {
             {
                 rosters.prepare_quantile(
                     node,
-                    prepared.preprocessing.child(&self.expression, node, *child),
+                    prepared.preprocessing.child(
+                        &self.expression,
+                        node,
+                        *child,
+                        control,
+                        account,
+                    )?,
                     &self.expression,
                     control,
                     account,
@@ -1389,9 +1478,13 @@ impl CompiledQuery {
                 };
                 rosters.prepare_sort(
                     node,
-                    prepared
-                        .preprocessing
-                        .child(&self.expression, node, arguments[0]),
+                    prepared.preprocessing.child(
+                        &self.expression,
+                        node,
+                        arguments[0],
+                        control,
+                        account,
+                    )?,
                     (&self.expression, prepared),
                     header.start_ms == header.end_ms,
                     control,
@@ -1419,7 +1512,9 @@ impl CompiledQuery {
                         &self.expression,
                         node,
                         arguments[function.vector_argument()],
-                    ),
+                        control,
+                        account,
+                    )?,
                     control,
                     account,
                 )?;
@@ -1438,9 +1533,13 @@ impl CompiledQuery {
                 && function.name == "info"
             {
                 let rows = rosters.projection_input(
-                    prepared
-                        .preprocessing
-                        .child(&self.expression, node, arguments[0]),
+                    prepared.preprocessing.child(
+                        &self.expression,
+                        node,
+                        arguments[0],
+                        control,
+                        account,
+                    )?,
                     control,
                     account,
                 )?;
@@ -1483,8 +1582,14 @@ impl CompiledQuery {
             } else {
                 None
             };
-            let generic_matrix =
-                crate::evaluator::generic_matrix_call(&self.expression, prepared, node).is_some();
+            let generic_matrix = crate::evaluator::generic_matrix_call(
+                &self.expression,
+                prepared,
+                node,
+                control,
+                account,
+            )?
+            .is_some();
             let generic_boundary = info_preparation.is_some()
                 || header.start_ms != header.end_ms
                     && self.expression.arena[node].value_type == ValueType::Vector
@@ -1497,14 +1602,26 @@ impl CompiledQuery {
                         if PointwiseFunction::parse(function.name).is_some()
                             || crate::histogram_call::Function::parse(function.name).is_some()));
             let mut annotations = AnnotationBuilder::new(account);
-            for child in children(&self.expression, prepared, node) {
-                let child = prepared.preprocessing.child(&self.expression, node, child);
+            for child in children(&self.expression, prepared, node, control, account)? {
+                let child = child?;
+                let child = prepared.preprocessing.child(
+                    &self.expression,
+                    node,
+                    child,
+                    control,
+                    account,
+                )?;
                 if let Some(child_annotations) = rosters.take_annotations(child) {
-                    annotations.merge(child_annotations, &self.expression.source);
+                    annotations.merge(
+                        child_annotations,
+                        &self.expression.source,
+                        Some(control),
+                        account,
+                    )?;
                 }
             }
             if let Some(notes) = info_annotations {
-                annotations.merge(notes, &self.expression.source);
+                annotations.merge(notes, &self.expression.source, Some(control), account)?;
             }
             if let Expr::Aggregate {
                 parameter: Some(parameter),
@@ -1512,15 +1629,20 @@ impl CompiledQuery {
             } = expression
                 && let Some(selection) = rosters.selection(node)
             {
-                let parameter = prepared
-                    .preprocessing
-                    .child(&self.expression, node, *parameter);
+                let parameter = prepared.preprocessing.child(
+                    &self.expression,
+                    node,
+                    *parameter,
+                    control,
+                    account,
+                )?;
                 selection.add_annotations(
                     &mut annotations,
                     self.expression.arena[parameter].span,
                     &self.expression.source,
+                    control,
                     account,
-                );
+                )?;
             }
             if let Expr::Aggregate {
                 parameter: Some(parameter),
@@ -1528,24 +1650,29 @@ impl CompiledQuery {
             } = expression
                 && let Some(quantile) = rosters.quantile(node)
             {
-                let parameter = prepared
-                    .preprocessing
-                    .child(&self.expression, node, *parameter);
+                let parameter = prepared.preprocessing.child(
+                    &self.expression,
+                    node,
+                    *parameter,
+                    control,
+                    account,
+                )?;
                 quantile.parameters.add_quantile_annotations(
                     &mut annotations,
                     self.expression.arena[parameter].span,
                     &self.expression.source,
+                    control,
                     account,
-                );
+                )?;
             }
             let mut descriptors = AccountedVec::<Descriptor>::new(account, MemoryKind::Workspace);
             let mut descriptor_index = DescriptorIndex::new(account);
             let unary_merge =
                 crate::evaluator_order::unary_merge(expression, self.options.delayed_name_removal);
             if unary_merge {
-                let child = children(&self.expression, prepared, node)
+                let child = children(&self.expression, prepared, node, control, account)?
                     .next()
-                    .expect("unary child");
+                    .expect("unary child")?;
                 let mut hashes = AccountedVec::new(account, MemoryKind::Workspace);
                 for descriptor in rosters.descriptors(child) {
                     let mut labels =
@@ -1579,21 +1706,34 @@ impl CompiledQuery {
             let site = if raw_selector {
                 Some(node)
             } else if range_function.is_some() {
-                crate::evaluator::range_selector(&self.expression, prepared, node)?
+                crate::evaluator::range_selector(
+                    &self.expression,
+                    prepared,
+                    node,
+                    control,
+                    account,
+                )?
             } else {
-                self.direct_clock_selector(node)
+                self.direct_clock_selector(node, control, account)?
             };
             if let Some(site) = site {
                 match catalog.expand(site, control, account) {
-                    Ok(notes) => annotations.merge(notes, &self.expression.source),
+                    Ok(notes) => {
+                        annotations.merge(notes, &self.expression.source, Some(control), account)?
+                    }
                     Err(failure) => {
-                        annotations.merge(failure.annotations, &self.expression.source);
+                        annotations.merge(
+                            failure.annotations,
+                            &self.expression.source,
+                            None,
+                            account,
+                        )?;
                         *failure_annotations = annotations.finish();
                         return Err(failure.error);
                     }
                 }
             }
-            if let Some(selector_node) = self.direct_clock_selector(node) {
+            if let Some(selector_node) = self.direct_clock_selector(node, control, account)? {
                 let Expr::Selector(selector) = &self.expression.arena[selector_node].expression
                 else {
                     unreachable!("direct clock selector")
@@ -1609,7 +1749,7 @@ impl CompiledQuery {
                             ordinal,
                             |series| -> Result<_, EvaluationError> {
                                 let labels = series.label_views_checked(account, control)?;
-                                crate::storage::validate_labels(&labels)?;
+                                crate::storage::validate_labels_checked(&labels, account, control)?;
                                 if !matches_checked(
                                     &labels,
                                     &selector.matchers,
@@ -1695,7 +1835,13 @@ impl CompiledQuery {
                     | Expr::Unary {
                         expression: child, ..
                     } => {
-                        let child = prepared.preprocessing.child(&self.expression, node, *child);
+                        let child = prepared.preprocessing.child(
+                            &self.expression,
+                            node,
+                            *child,
+                            control,
+                            account,
+                        )?;
                         rosters.descriptors(child).is_empty()
                     }
                     _ => false,
@@ -1764,7 +1910,7 @@ impl CompiledQuery {
                 }
             } else if let Some((child, _)) = scheduled {
                 let grid = crate::query_scopes::Grid::from(header);
-                let clock = self.direct_clock_selector(node);
+                let clock = self.direct_clock_selector(node, control, account)?;
                 let count = clock.map_or(rosters.descriptors(child).len(), |selector| {
                     catalog.len(selector)
                 });
@@ -1845,7 +1991,7 @@ impl CompiledQuery {
                     };
                     let mut traversal = crate::query_scopes::Traversal::new(
                         header.into(),
-                        self.helper_shortcut(node),
+                        self.helper_shortcut(node, control, account)?,
                     );
                     while let Some((time_ms, step_index)) = traversal.current() {
                         step_kinds.clear();
@@ -2002,12 +2148,8 @@ impl CompiledQuery {
                     remember_unique(&mut seen, &descriptor.labels, account, control)?;
                 }
             }
-            let merged_unary = unary_merge
-                && descriptors.iter().enumerate().any(|(index, descriptor)| {
-                    descriptors[..index].iter().any(|prior| {
-                        prior.hash == descriptor.hash && prior.ordinal != descriptor.ordinal
-                    })
-                });
+            let merged_unary =
+                unary_merge && rosters.has_merged_unary(node, &descriptors, control, account)?;
             rosters.finish_group_flags(node, &descriptors, control, account)?;
             if (crate::topk::is_selection(expression) || crate::vector_sort::is_sort(expression))
                 && single_step
@@ -2016,6 +2158,8 @@ impl CompiledQuery {
             } else if generic_boundary || merged_unary {
                 if merged_unary {
                     for descriptor in descriptors.iter_mut() {
+                        control.check()?;
+                        account.work(1);
                         descriptor.first_order = descriptor.ordinal;
                     }
                 }
@@ -2025,7 +2169,7 @@ impl CompiledQuery {
                     rosters.ordered_output(node, descriptors, control, account)?;
                 }
             } else {
-                rosters.output(node, descriptors, account);
+                rosters.output(node, descriptors, control, account)?;
             }
             if raw_selector {
                 if let Expr::Selector(selector) = expression
@@ -2063,14 +2207,21 @@ impl CompiledQuery {
             }
             rosters.prepare_matrix(
                 node,
-                self.matrix_clock(node, source_header, prepared, &rosters),
+                self.matrix_clock(node, source_header, prepared, &rosters, control, account)?,
                 prepared.flags().boundaries[node.0],
                 control,
                 account,
             )?;
             rosters.annotations(node, annotations);
-            for child in children(&self.expression, prepared, node) {
-                let child = prepared.preprocessing.child(&self.expression, node, child);
+            for child in children(&self.expression, prepared, node, control, account)? {
+                let child = child?;
+                let child = prepared.preprocessing.child(
+                    &self.expression,
+                    node,
+                    child,
+                    control,
+                    account,
+                )?;
                 rosters.release_output(child);
             }
         }
@@ -2113,7 +2264,10 @@ impl CompiledQuery {
             expression: child, ..
         } = expression
         {
-            let child = prepared.preprocessing.child(&self.expression, node, *child);
+            let child =
+                prepared
+                    .preprocessing
+                    .child(&self.expression, node, *child, control, account)?;
             if let Some(shape) = rosters.matrix(child) {
                 heads.inherit_order(shape.sorted(sample.ordinal, control, account)?);
             }
@@ -2145,10 +2299,13 @@ impl CompiledQuery {
             unreachable!("label call")
         };
         let mut descriptors = rosters.projection_input(
-            scope
-                .prepared
-                .preprocessing
-                .child(&self.expression, node, arguments[0]),
+            scope.prepared.preprocessing.child(
+                &self.expression,
+                node,
+                arguments[0],
+                control,
+                account,
+            )?,
             control,
             account,
         )?;
@@ -2161,10 +2318,13 @@ impl CompiledQuery {
         }
         drop(operation);
         rosters.projection_output(node, descriptors, control, account)?;
-        let child = scope
-            .prepared
-            .preprocessing
-            .child(&self.expression, node, arguments[0]);
+        let child = scope.prepared.preprocessing.child(
+            &self.expression,
+            node,
+            arguments[0],
+            control,
+            account,
+        )?;
         if let Some(selector) = rosters.scheduled_selector(child)
             && crate::scheduled_expression::unique_rows(
                 rosters.descriptors(node),
@@ -2186,8 +2346,10 @@ impl CompiledQuery {
             account.work(1);
             kinds.push(PointCounts::default());
         }
-        let mut traversal =
-            crate::query_scopes::Traversal::new(header.into(), self.helper_shortcut(node));
+        let mut traversal = crate::query_scopes::Traversal::new(
+            header.into(),
+            self.helper_shortcut(node, control, account)?,
+        );
         while let Some((time_ms, step_index)) = traversal.current() {
             for kind in kinds.iter_mut() {
                 control.check()?;
@@ -2259,10 +2421,10 @@ impl CompiledQuery {
         sink: &mut S,
         annotations: &mut Annotations,
     ) -> Result<(), ExecutionError> {
-        let mut root = self.expression.root;
-        while let Expr::Paren(child) = self.expression.arena[root].expression {
-            root = child;
-        }
+        let root = self
+            .expression
+            .arena
+            .unparenthesized(self.expression.root, control, account)?;
         if matches!(
             self.expression.arena[root].expression,
             Expr::Subquery { .. }
@@ -2494,7 +2656,9 @@ impl CompiledQuery {
         else {
             unreachable!("typed derived matrix")
         };
-        let body = prepared.preprocessing.child(&self.expression, node, body);
+        let body = prepared
+            .preprocessing
+            .child(&self.expression, node, body, control, account)?;
         let mut rosters = self.prepare_rosters(
             catalog,
             prepared,
@@ -2759,7 +2923,9 @@ fn children<'a>(
     expression: &'a ParsedExpression,
     prepared: &Prepared,
     node: NodeId,
-) -> impl DoubleEndedIterator<Item = NodeId> + 'a {
+    control: &'a Control,
+    account: &'a QueryAccounting,
+) -> Result<impl DoubleEndedIterator<Item = Result<NodeId, Interrupted>> + 'a, Interrupted> {
     let value = &expression.arena[node].expression;
     let mut matrix_position = None;
     let (fixed, slice): ([Option<NodeId>; 2], &[NodeId]) = match value {
@@ -2786,9 +2952,11 @@ fn children<'a>(
             arguments,
         } if function.arguments.contains(&ValueType::Matrix) => {
             let (position, argument) =
-                crate::evaluator::matrix_argument(expression, prepared, node)
+                crate::evaluator::matrix_argument(expression, prepared, node, control, account)?
                     .expect("typed matrix function");
-            if crate::evaluator::generic_matrix_call(expression, prepared, node).is_some() {
+            if crate::evaluator::generic_matrix_call(expression, prepared, node, control, account)?
+                .is_some()
+            {
                 ([None, None], arguments.as_ref())
             } else {
                 matrix_position = Some(position);
@@ -2809,19 +2977,27 @@ fn children<'a>(
         Expr::Call { arguments, .. } => ([None, None], arguments),
         _ => ([None, None], &[]),
     };
-    fixed
+    Ok(fixed
         .into_iter()
         .flatten()
+        .map(move |child| {
+            control.check()?;
+            account.work(1);
+            Ok(child)
+        })
         .chain(
             slice
                 .iter()
                 .enumerate()
-                .filter_map(move |(position, child)| {
-                    (Some(position) != matrix_position
+                .map(move |(position, child)| {
+                    control.check()?;
+                    account.work(1);
+                    Ok((Some(position) != matrix_position
                         && expression.arena[*child].value_type != ValueType::String)
-                        .then_some(*child)
-                }),
-        )
+                        .then_some(*child))
+                })
+                .filter_map(Result::transpose),
+        ))
 }
 
 #[cfg(test)]
@@ -3249,7 +3425,8 @@ mod tests {
                 )
                 .unwrap();
             let account = engine.accounting.query();
-            let mut rosters = Rosters::new(&account, query.expression.arena.nodes.len());
+            let mut rosters =
+                Rosters::new(&account, query.expression.arena.nodes.len(), &control).unwrap();
             let mut descriptors = AccountedVec::new(&account, MemoryKind::Workspace);
             let count = if aliases { 150 } else { 10_000 };
             for ordinal in 0..count {
@@ -3273,7 +3450,9 @@ mod tests {
                     heads: HeadSummary::default(),
                 });
             }
-            rosters.output(query.expression.root, descriptors, &account);
+            rosters
+                .output(query.expression.root, descriptors, &control, &account)
+                .unwrap();
             let result = crate::test_storage::interrupt_during(&account, &control, || {
                 query.instant_cohorts(&rosters, &control, &account)
             });
@@ -11857,6 +12036,173 @@ mod tests {
             }
             // This producer class rules out its known repeated-parameter factor, not every expression shape.
             assert!(reads[1] < reads[0] * 6, "{operator}: {reads:?}");
+        }
+    }
+
+    #[test]
+    fn parenthesis_projection_reports_work_and_observes_cancellation() {
+        use crate::storage::Interrupted;
+        let engine = Engine::default();
+        let control = Control::default();
+        let source = format!(
+            "sum({}counter_total{})",
+            "(".repeat(10_000),
+            ")".repeat(10_000)
+        );
+        let query = engine
+            .compile(source.as_bytes(), EngineOptions::default(), &control)
+            .unwrap();
+        let Expr::Aggregate {
+            expression: Some(argument),
+            ..
+        } = query.expression.arena[query.expression.root].expression
+        else {
+            panic!("aggregate argument");
+        };
+        let account = engine.accounting.query();
+        let before = account.snapshot().work;
+        let result = crate::test_storage::interrupt_during(&account, &control, || {
+            let child = query.preprocessing.child(
+                &query.expression,
+                query.expression.root,
+                argument,
+                &control,
+                &account,
+            )?;
+            control.check()?;
+            Ok(child)
+        });
+        assert_eq!(result, Err(Interrupted::Cancelled));
+        assert!(account.snapshot().work - before < 10_000);
+        drop(query);
+        account.snapshot().assert_memory_released();
+        drop(account);
+        engine.accounting.snapshot().assert_memory_released();
+    }
+
+    #[test]
+    fn skipped_variadic_string_children_poll_without_collecting_a_second_task_array() {
+        use crate::storage::Interrupted;
+        let engine = Engine::default();
+        let control = Control::default();
+        let mut source = b"sort_by_label(counter_total".to_vec();
+        for _ in 0..10_000 {
+            source.extend_from_slice(b",\"id\"");
+        }
+        source.push(b')');
+        let query = engine
+            .compile(
+                &source,
+                EngineOptions {
+                    parser: ParserOptions {
+                        experimental_functions: true,
+                        ..ParserOptions::default()
+                    },
+                    ..options(true)
+                },
+                &control,
+            )
+            .unwrap();
+        let account = engine.accounting.query();
+        let header = query
+            .header(QueryRequest::Instant { time_ms: 1000 })
+            .unwrap();
+        let prepared = Prepared::new(
+            &query.expression,
+            &query.preprocessing,
+            header,
+            query.options.no_step_subquery_interval_ms,
+            &control,
+            &account,
+        )
+        .unwrap();
+        let before = account.snapshot().work;
+        let result = crate::test_storage::interrupt_during(&account, &control, || {
+            children(
+                &query.expression,
+                &prepared,
+                query.expression.root,
+                &control,
+                &account,
+            )
+            .expect("typed child projection")
+            .next_back()
+        });
+        assert!(matches!(result, Some(Err(Interrupted::Cancelled))));
+        assert_eq!(account.snapshot().work - before, 8192);
+        drop(prepared);
+        drop(query);
+        account.snapshot().assert_memory_released();
+        drop(account);
+        engine.accounting.snapshot().assert_memory_released();
+    }
+
+    #[test]
+    fn cancellation_in_label_callbacks_stops_each_metadata_walk_and_releases_owners() {
+        use crate::{storage::Interrupted, test_storage::observe_label_reads};
+        const LABELS: usize = 4096;
+        for source in [
+            &b"counter_total"[..],
+            b"counter_total[2s]",
+            b"rate(counter_total[2s])",
+            b"sum(counter_total)",
+            b"scalar(counter_total)",
+        ] {
+            let mut provider = FixtureProvider::new(2, 1, 1);
+            for index in 2..LABELS {
+                provider.series[0]
+                    .labels
+                    .push((format!("z{index:05}").into_bytes(), b"v".to_vec()));
+            }
+            let engine = Engine::default();
+            let control = Control::default();
+            let query = engine.compile(source, options(true), &control).unwrap();
+            let mut sink = RecordingSink::default();
+            let (result, reads) = observe_label_reads(&control, None, || {
+                query.execute(
+                    &provider,
+                    QueryRequest::Instant { time_ms: 2000 },
+                    &control,
+                    &mut sink,
+                )
+            });
+            result.unwrap();
+            assert!(reads >= LABELS);
+            provider.assert_closed();
+            drop((query, sink));
+            engine.accounting.snapshot().assert_memory_released();
+            for cancel_at in (2..reads).step_by(provider.series[0].labels.len()) {
+                let control = Control::default();
+                let query = engine.compile(source, options(true), &control).unwrap();
+                let mut sink = RecordingSink::default();
+                let (result, observed) = observe_label_reads(&control, Some(cancel_at), || {
+                    query.execute(
+                        &provider,
+                        QueryRequest::Instant { time_ms: 2000 },
+                        &control,
+                        &mut sink,
+                    )
+                });
+                let error = result.unwrap_err();
+                assert!(matches!(
+                    error,
+                    ExecutionError::Evaluation(EvaluationError::Interrupted(
+                        Interrupted::Cancelled
+                    )) | ExecutionError::Evaluation(EvaluationError::Storage(
+                        StorageError::Interrupted(Interrupted::Cancelled)
+                    ))
+                ));
+                assert!(sink.begun && sink.aborted && !sink.committed);
+                provider.assert_closed();
+                drop((error, query, sink));
+                engine.accounting.snapshot().assert_memory_released();
+                assert_eq!(
+                    observed,
+                    cancel_at,
+                    "{}: cancellation callback must end this walk",
+                    String::from_utf8_lossy(source)
+                );
+            }
         }
     }
 

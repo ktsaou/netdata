@@ -395,3 +395,65 @@ fn provider_errors_preserve_upstream_phase_precedence_and_scratch_lifetimes() {
         }
     }
 }
+
+#[test]
+fn cancellation_at_selection_end_skips_the_terminal_diagnostic_roster() {
+    let mut work = Vec::new();
+    for count in [0, 16_384] {
+        unsafe {
+            let engine = engine();
+            let account = borrow::<Engine, _>(engine).unwrap().core.accounting.clone();
+            let query = compiled(engine, b"m");
+            let mut token = ptr::null_mut();
+            assert_eq!(
+                netdata_promql_control_create(engine, ptr::null(), &mut token),
+                types::OK
+            );
+            let mut fixture = Fixture::new(1);
+            fixture.cancel_stage = 7;
+            fixture.cancellation = token;
+            fixture.diagnostics = (0..count)
+                .map(|_| types::ProviderDiagnostic {
+                    message: types::Bytes::of(b""),
+                    severity: 0,
+                    position_present: 0,
+                    position: types::Position::default(),
+                })
+                .collect();
+            let provider = fixture.table();
+            let mut result = ptr::null_mut();
+            let mut report = ptr::null_mut();
+            assert_eq!(
+                netdata_promql_collect(
+                    query,
+                    &provider,
+                    &instant(1000),
+                    token,
+                    &mut result,
+                    &mut report
+                ),
+                types::CANCELLED
+            );
+            assert!(result.is_null() && !report.is_null());
+            assert_eq!(fixture.cancelled_status.get(), types::OK);
+            let mut observations = types::QueryObservations::default();
+            assert_eq!(
+                netdata_promql_report_observations(report, &mut observations),
+                types::OK
+            );
+            work.push(observations.work);
+            for index in 0..4 {
+                assert_eq!(fixture.opened[index].get(), fixture.closed[index].get());
+            }
+            assert_eq!(netdata_promql_report_release(report), types::OK);
+            assert_eq!(netdata_promql_query_release(query), types::OK);
+            assert_eq!(netdata_promql_control_release(token), types::OK);
+            assert_eq!(netdata_promql_engine_release(engine), types::OK);
+            account.snapshot().assert_memory_released();
+        }
+    }
+    assert_eq!(
+        work[0], work[1],
+        "a successful terminal callback cancellation must stop before diagnostic conversion"
+    );
+}

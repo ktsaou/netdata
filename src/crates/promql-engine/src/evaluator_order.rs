@@ -42,23 +42,33 @@ impl Preprocessing {
         expression: &ParsedExpression,
         parent: NodeId,
         child: NodeId,
-    ) -> NodeId {
+        control: &Control,
+        account: &QueryAccounting,
+    ) -> Result<NodeId, Interrupted> {
+        control.check()?;
         if self.visited[parent.0] {
-            preprocessed_child(expression, parent, child)
+            preprocessed_child(expression, parent, child, control, account)
         } else {
-            child
+            Ok(child)
         }
     }
 }
 
-fn preprocessed_child(expression: &ParsedExpression, parent: NodeId, child: NodeId) -> NodeId {
+fn preprocessed_child(
+    expression: &ParsedExpression,
+    parent: NodeId,
+    child: NodeId,
+    control: &Control,
+    account: &QueryAccounting,
+) -> Result<NodeId, Interrupted> {
     if matches!(
         expression.arena[parent].expression,
         Expr::Aggregate { .. } | Expr::Call { .. }
     ) {
-        expression.arena.unparenthesized(child)
+        expression.arena.unparenthesized(child, control, account)
     } else {
-        child
+        control.check()?;
+        Ok(child)
     }
 }
 
@@ -124,18 +134,23 @@ pub(crate) fn evaluation_flags(
             } = value
             {
                 // The source strips Param's outer parentheses but does not visit its subtree.
-                tasks.push((expression.arena.unparenthesized(*child), false));
+                tasks.push((
+                    expression.arena.unparenthesized(*child, control, account)?,
+                    false,
+                ));
             } else {
-                tasks.extend(
-                    value
-                        .children()
-                        .rev()
-                        .map(|child| (preprocessed_child(expression, node, child), false)),
-                );
+                for child in value.children().rev() {
+                    control.check()?;
+                    account.work(1);
+                    tasks.push((
+                        preprocessed_child(expression, node, child, control, account)?,
+                        false,
+                    ));
+                }
             }
             continue;
         }
-        let child = |child| preprocessed_child(expression, node, child);
+        let child = |child| preprocessed_child(expression, node, child, control, account);
         result.invariants[node.0] = match value {
             Expr::Number { .. } | Expr::String(_) | Expr::Duration { .. } => true,
             Expr::Selector(selector) => {
@@ -147,7 +162,7 @@ pub(crate) fn evaluation_flags(
             Expr::Aggregate {
                 expression: Some(inner),
                 ..
-            } => result.invariants[child(*inner).0],
+            } => result.invariants[child(*inner)?.0],
             Expr::Matrix {
                 selector: inner, ..
             }
@@ -165,7 +180,9 @@ pub(crate) fn evaluation_flags(
                 let mut invariant = !at_modifier_unsafe(function.name);
                 let mut fixed_timestamp = function.name == "timestamp";
                 for (index, arg) in arguments.iter().enumerate() {
-                    let arg = child(*arg);
+                    control.check()?;
+                    account.work(1);
+                    let arg = child(*arg)?;
                     if function.name == "info" && index == 1 {
                         continue;
                     }
@@ -174,7 +191,7 @@ pub(crate) fn evaluation_flags(
                         && matches!(expression.arena[arg].expression, Expr::Selector(_));
                 }
                 if function.name == "info" {
-                    invariant &= info_uniform(child(arguments[0]))?;
+                    invariant &= info_uniform(child(arguments[0])?)?;
                 }
                 invariant || fixed_timestamp
             }
@@ -192,10 +209,12 @@ pub(crate) fn evaluation_flags(
                 arguments,
             } if !result.invariants[node.0] => {
                 for (index, arg) in arguments.iter().enumerate() {
+                    control.check()?;
+                    account.work(1);
                     if function.name == "info" && index == 1 {
                         continue;
                     }
-                    let arg = child(*arg);
+                    let arg = child(*arg)?;
                     let wrap = should_wrap(expression, &result, arg, control, account)?;
                     result.boundaries[arg.0] |= wrap;
                 }
@@ -235,7 +254,7 @@ fn should_wrap(
                 expression: Some(inner),
                 ..
             } => {
-                node = preprocessed_child(expression, node, *inner);
+                node = preprocessed_child(expression, node, *inner, control, account)?;
             }
             Expr::Matrix { .. } | Expr::Subquery { .. } | Expr::Number { .. } | Expr::String(_) => {
                 return Ok(false);
@@ -339,4 +358,23 @@ pub(crate) fn unary_merge(expression: &Expr, delayed: bool) -> bool {
                 ..
             }
         )
+}
+
+pub(crate) fn contains<T: PartialEq>(
+    values: &[T],
+    value: &T,
+    control: &Control,
+    account: &QueryAccounting,
+) -> Result<bool, Interrupted> {
+    control.check()?;
+    for candidate in values {
+        control.check()?;
+        account.work(1);
+        if candidate == value {
+            control.check()?;
+            return Ok(true);
+        }
+    }
+    control.check()?;
+    Ok(false)
 }

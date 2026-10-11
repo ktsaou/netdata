@@ -206,7 +206,11 @@ impl<'p> Prepared<'p> {
                     }
                     _ => (),
                 }
-                tasks.extend(value.children().rev());
+                for child in value.children().rev() {
+                    control.check()?;
+                    account.work(1);
+                    tasks.push(child);
+                }
             }
             Some(durations)
         } else {
@@ -561,12 +565,11 @@ impl<'p> Prepared<'p> {
                         tasks.push(Task::Visit(arguments[0], scope));
                     } else {
                         tasks.push(Task::Finish(values.len(), true));
-                        tasks.extend(
-                            value
-                                .children()
-                                .rev()
-                                .map(|child| Task::Visit(child, scope)),
-                        );
+                        for child in value.children().rev() {
+                            control.check()?;
+                            account.work(1);
+                            tasks.push(Task::Visit(child, scope));
+                        }
                     }
                 }
             }

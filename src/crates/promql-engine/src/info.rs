@@ -105,10 +105,15 @@ impl Plan {
                 }
             }
         }
-        let positive = name_matchers
-            .iter()
-            .flatten()
-            .any(|matcher| matches!(matcher.kind, MatchType::Equal | MatchType::Regex));
+        let mut positive = false;
+        for matcher in name_matchers.iter().flatten() {
+            control.check()?;
+            account.work(1);
+            if matches!(matcher.kind, MatchType::Equal | MatchType::Regex) {
+                positive = true;
+                break;
+            }
+        }
         if !positive {
             let (kind, value) = if name_matchers.is_empty() {
                 (MatchType::Equal, &b"target_info"[..])
@@ -225,7 +230,7 @@ impl Plan {
                 account,
             )?;
             sites.push(site);
-            notes.merge(warnings, &expression.source);
+            notes.merge(warnings, &expression.source, Some(control), account)?;
         }
         // All selections expand before the source's series-major raw evaluation starts.
         for site in &*sites {

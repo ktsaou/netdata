@@ -306,7 +306,7 @@ impl<'a> Step<'a> {
             let Some(row) = self.shape.rows.get(self.position).copied() else {
                 return Ok(Action::Done);
             };
-            if !self.filter.accepts(row.ordinal) {
+            if !self.filter.accepts(row.ordinal, control, account)? {
                 self.position += 1;
                 continue;
             }

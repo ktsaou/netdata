@@ -426,8 +426,15 @@ impl<'a> storage::SeriesSelection for Selection<'a> {
         } else {
             unsafe { provider.status(status, error) }
         };
+        let diagnostic_control = returned.is_ok().then_some(control);
+        if let Some(control) = diagnostic_control {
+            control.check()?;
+        }
         let notes = unsafe { checked::slice(diagnostics.data, diagnostics.len) }?;
         for note in notes {
+            if let Some(control) = diagnostic_control {
+                control.check()?;
+            }
             provider.account.work(1);
             let severity = match note.severity {
                 0 => crate::annotations::Severity::Info,
@@ -451,6 +458,9 @@ impl<'a> storage::SeriesSelection for Selection<'a> {
             });
         }
         returned?;
+        if let Some(control) = diagnostic_control {
+            control.check()?;
+        }
         Ok(None)
     }
     fn diagnostic_count(&self) -> usize {

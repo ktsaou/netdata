@@ -288,11 +288,20 @@ impl Arena {
         }
     }
     /// Evaluation uses the inner argument without mutating captured source nodes.
-    pub(crate) fn unparenthesized(&self, mut id: NodeId) -> NodeId {
+    pub(crate) fn unparenthesized(
+        &self,
+        mut id: NodeId,
+        control: &crate::storage::Control,
+        account: &QueryAccounting,
+    ) -> Result<NodeId, crate::storage::Interrupted> {
+        control.check()?;
         while let Expr::Paren(child) = &self[id].expression {
+            control.check()?;
+            account.work(1);
             id = *child;
         }
-        id
+        control.check()?;
+        Ok(id)
     }
 
     pub fn push(&mut self, expression: Expr, span: Span) -> NodeId {

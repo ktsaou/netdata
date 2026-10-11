@@ -22,6 +22,24 @@ pub(crate) struct Descriptor {
     pub(crate) heads: HeadSummary,
 }
 
+pub(crate) fn has_multiple(
+    descriptors: &[Descriptor],
+    control: &Control,
+    account: &QueryAccounting,
+) -> Result<bool, Interrupted> {
+    control.check()?;
+    for descriptor in descriptors {
+        control.check()?;
+        account.work(1);
+        if descriptor.heads.multiple() {
+            control.check()?;
+            return Ok(true);
+        }
+    }
+    control.check()?;
+    Ok(false)
+}
+
 #[derive(Clone, Copy, Default)]
 pub(crate) struct PointCounts([u8; 2]);
 impl PointCounts {
@@ -664,12 +682,19 @@ impl Rosters {
             .expect("binary plan")
             .cache = cache;
     }
-    pub(crate) fn new(account: &QueryAccounting, nodes: usize) -> Self {
+    pub(crate) fn new(
+        account: &QueryAccounting,
+        nodes: usize,
+        control: &Control,
+    ) -> Result<Self, Interrupted> {
         let mut values = AccountedVec::new(account, MemoryKind::Workspace);
         for _ in 0..nodes {
+            control.check()?;
+            account.work(1);
             values.push(NodeRoster::default());
         }
-        Self { nodes: values }
+        control.check()?;
+        Ok(Self { nodes: values })
     }
     pub(crate) fn take_output(&mut self, node: NodeId) -> Option<AccountedVec<Descriptor>> {
         self.nodes[node.0].output.take()
@@ -686,21 +711,54 @@ impl Rosters {
         &mut self,
         node: NodeId,
         mut descriptors: AccountedVec<Descriptor>,
+        control: &Control,
         account: &QueryAccounting,
-    ) {
-        descriptors.sort_unstable_by_key(|descriptor| descriptor.ordinal);
-        if descriptors
-            .iter()
-            .any(|descriptor| descriptor.heads.multiple())
-        {
+    ) -> Result<(), Interrupted> {
+        // Production identities are unique here; identity-changing operators use ordered output.
+        evaluator_order::sort(&mut descriptors, control, account, |left, right| {
+            left.ordinal.cmp(&right.ordinal)
+        })?;
+        if has_multiple(&descriptors, control, account)? {
             let mut sources = AccountedVec::new(account, MemoryKind::Workspace);
             for descriptor in descriptors.iter_mut() {
+                control.check()?;
+                account.work(1);
                 descriptor.sources = sources.len()..sources.len() + 1;
                 sources.push(descriptor.ordinal);
             }
             self.nodes[node.0].sources = Some(sources);
         }
+        control.check()?;
         self.nodes[node.0].output = Some(descriptors);
+        Ok(())
+    }
+    pub(crate) fn has_merged_unary(
+        &self,
+        node: NodeId,
+        descriptors: &[Descriptor],
+        control: &Control,
+        account: &QueryAccounting,
+    ) -> Result<bool, Interrupted> {
+        let mut identities = AccountedVec::new(account, MemoryKind::Workspace);
+        for descriptor in descriptors {
+            control.check()?;
+            account.work(1);
+            if self.checks_merge(node, descriptor.hash, control, account)? {
+                identities.push((descriptor.hash, descriptor.ordinal));
+            }
+        }
+        // The prepared guard excludes unrelated rows; actual output still decides whether a merge occurred.
+        evaluator_order::sort(&mut identities, control, account, <(u64, usize)>::cmp)?;
+        for pair in identities.windows(2) {
+            control.check()?;
+            account.work(1);
+            if pair[0].0 == pair[1].0 && pair[0].1 != pair[1].1 {
+                control.check()?;
+                return Ok(true);
+            }
+        }
+        control.check()?;
+        Ok(false)
     }
     pub(crate) fn ordered(&self, node: NodeId) -> Option<(&[Descriptor], &[usize])> {
         let roster = &self.nodes[node.0];
@@ -760,7 +818,12 @@ impl Rosters {
                 if sort_collisions {
                     previous.heads.inherit_order(true);
                 }
-                if !sources[previous.sources.clone()].contains(&descriptor.ordinal) {
+                if !evaluator_order::contains(
+                    &sources[previous.sources.clone()],
+                    &descriptor.ordinal,
+                    control,
+                    account,
+                )? {
                     sources.push(descriptor.ordinal);
                     previous.sources.end = sources.len();
                 }
@@ -774,6 +837,8 @@ impl Rosters {
             left.labels.compare_checked(&right.labels, account, control)
         })?;
         for (ordinal, descriptor) in output.iter_mut().enumerate() {
+            control.check()?;
+            account.work(1);
             descriptor.ordinal = ordinal;
         }
         self.nodes[node.0].output = Some(output);
@@ -1048,6 +1113,51 @@ pub(crate) fn group_position<T>(
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn unary_metadata_detection_observes_cancellation_and_avoids_all_pairs() {
+        let engine = crate::accounting::EngineAccounting::default();
+        let account = engine.query();
+        let control = Control::default();
+        let mut rosters = Rosters::new(&account, 1, &control).unwrap();
+        let mut descriptors = AccountedVec::new(&account, MemoryKind::Workspace);
+        let mut hashes = AccountedVec::new(&account, MemoryKind::Workspace);
+        for ordinal in 0..10_000 {
+            let mut labels = OwnedLabels::new(&account, MemoryKind::Workspace);
+            labels.push(
+                b"id",
+                ordinal.to_string().as_bytes(),
+                &account,
+                MemoryKind::Workspace,
+            );
+            let hash = label_hash::full(&labels, &control, &account).unwrap();
+            hashes.push(hash);
+            descriptors.push(Descriptor {
+                labels,
+                ordinal,
+                hash,
+                drop_name: false,
+                first_order: ordinal,
+                sources: 0..0,
+                kinds: 1,
+                heads: HeadSummary::default(),
+            });
+        }
+        rosters
+            .prepare_merge_guard(NodeId(0), hashes, &control, &account)
+            .unwrap();
+        let before = account.snapshot().work;
+        let result = crate::test_storage::interrupt_during(&account, &control, || {
+            rosters.has_merged_unary(NodeId(0), &descriptors, &control, &account)
+        });
+        assert_eq!(result, Err(Interrupted::Cancelled));
+        assert!(
+            account.snapshot().work - before < 20_000,
+            "distinct projected hashes must avoid the all-pairs scan"
+        );
+        drop((descriptors, rosters));
+        account.snapshot().assert_memory_released();
+    }
+
     use super::*;
     use crate::accounting::EngineAccounting;
     use std::collections::VecDeque;

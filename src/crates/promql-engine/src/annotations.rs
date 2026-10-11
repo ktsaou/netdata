@@ -3,7 +3,7 @@
 use crate::{
     accounting::{AccountedBox, AccountedVec, AllocationContext, MemoryKind, QueryAccounting},
     float_text::{FloatTextStyle, float_text},
-    frontend::{Span, quote, token as tokens},
+    frontend::{Span, token as tokens},
     shared::Strong,
     storage::{Control, Interrupted},
 };
@@ -226,37 +226,46 @@ struct Annotation {
     monotonicity: Option<AccountedBox<Monotonicity>>,
 }
 impl Annotation {
-    fn format(&mut self, query: &[u8]) {
-        self.message.clear();
-        self.message.extend_from_slice(&self.raw_message);
-        if !query.is_empty()
-            && let Some(details) = &self.monotonicity
-        {
-            write!(
-                self.message,
-                ", from buckets {} to {}, with a max diff of {}, over {} samples from ",
-                float_text(details.min_bucket, FloatTextStyle::Shortest),
-                float_text(details.max_bucket, FloatTextStyle::Shortest),
-                float_text(details.max_diff, FloatTextStyle::TwoSignificant),
-                self.occurrences,
-            )
-            .expect("byte writer");
-            crate::calendar::write_rfc3339(details.min_ts / 1000, &mut self.message)
-                .expect("byte writer");
-            self.message.extend_from_slice(b" to ");
-            crate::calendar::write_rfc3339(details.max_ts / 1000, &mut self.message)
-                .expect("byte writer");
-        }
-        if !query.is_empty()
-            && self.kind == AnnotationKind::StartTimeOverlap
-            && self.occurrences > 1
-        {
-            write!(self.message, " ({} occurrences)", self.occurrences).expect("byte writer");
-        }
+    fn format(
+        &mut self,
+        query: &[u8],
+        control: Option<&Control>,
+        account: &QueryAccounting,
+    ) -> Result<(), Interrupted> {
+        let mut message = AccountedVec::new(account, MemoryKind::Result);
+        append(&mut message, &self.raw_message, control, account)?;
+        write_with(&mut message, control, account, |message| {
+            if !query.is_empty()
+                && let Some(details) = &self.monotonicity
+            {
+                write!(
+                    message,
+                    ", from buckets {} to {}, with a max diff of {}, over {} samples from ",
+                    float_text(details.min_bucket, FloatTextStyle::Shortest),
+                    float_text(details.max_bucket, FloatTextStyle::Shortest),
+                    float_text(details.max_diff, FloatTextStyle::TwoSignificant),
+                    self.occurrences,
+                )?;
+                crate::calendar::write_rfc3339(details.min_ts / 1000, message)?;
+                message.write_str(" to ")?;
+                crate::calendar::write_rfc3339(details.max_ts / 1000, message)?;
+            }
+            if !query.is_empty()
+                && self.kind == AnnotationKind::StartTimeOverlap
+                && self.occurrences > 1
+            {
+                write!(message, " ({} occurrences)", self.occurrences)?;
+            }
+            Ok(())
+        })?;
         if let Some(span) = self.span {
-            write_position_suffix(query, span.start as isize, &mut self.message)
-                .expect("byte writer");
+            write_position_suffix_with(query, span.start as isize, &mut message, control, account)?;
         }
+        if let Some(control) = control {
+            control.check()?;
+        }
+        self.message = message;
+        Ok(())
     }
     fn as_ref(&self) -> AnnotationRef<'_> {
         AnnotationRef {
@@ -318,7 +327,7 @@ impl CallbackAnnotations {
         control: &Control,
         account: &QueryAccounting,
     ) -> Result<(), Interrupted> {
-        self.values.merge(local, query);
+        self.values.merge(local, query, Some(control), account)?;
         while self.shared.len() < self.values.entries.len() {
             control.check()?;
             account.work(1);
@@ -345,14 +354,23 @@ impl CallbackAnnotations {
                 }
             }
             if special && self.shared[index] {
-                entry.occurrences = entry.occurrences.wrapping_mul(2);
-                entry.format(query);
+                let occurrences = entry.occurrences;
+                entry.occurrences = occurrences.wrapping_mul(2);
+                if let Err(error) = entry.format(query, Some(control), account) {
+                    entry.occurrences = occurrences;
+                    return Err(error);
+                }
                 outer.entries[prior.expect("shared callback diagnostic")] =
                     copy_annotation(entry, control, account)?;
             } else {
                 let shares_incoming = special
                     && prior.is_none_or(|position| outer.entries[position].kind != entry.kind);
-                outer.merge_one(copy_annotation(entry, control, account)?, query);
+                outer.merge_one(
+                    copy_annotation(entry, control, account)?,
+                    query,
+                    Some(control),
+                    account,
+                )?;
                 self.shared[index] = shares_incoming;
             }
         }
@@ -396,10 +414,16 @@ impl AnnotationBuilder {
         metric: &[u8],
         span: Span,
         query: &[u8],
+        control: &Control,
         account: &QueryAccounting,
-    ) {
+    ) -> Result<(), Interrupted> {
         let mut raw_message = AccountedVec::new(account, MemoryKind::Result);
-        raw_message.extend_from_slice(kind.prefix().as_bytes());
+        append(
+            &mut raw_message,
+            kind.prefix().as_bytes(),
+            Some(control),
+            account,
+        )?;
         if let AnnotationKind::IncompatibleBinaryTypes {
             left_histogram,
             operator,
@@ -407,50 +431,67 @@ impl AnnotationBuilder {
         } = kind
         {
             let operation = operator.text().expect("binary operator text");
-            quote::write_bytes(operation.as_bytes(), &mut raw_message).expect("byte writer");
+            crate::binary_labels::quoted(&mut raw_message, operation.as_bytes(), control, account)?;
             let left = if left_histogram { "histogram" } else { "float" };
             let right = if right_histogram {
                 "histogram"
             } else {
                 "float"
             };
-            write!(raw_message, ": {left} {operation} {right}").expect("byte writer");
+            write_with(&mut raw_message, Some(control), account, |out| {
+                write!(out, ": {left} {operation} {right}")
+            })?;
         } else if let AnnotationKind::IncompatibleBinaryLayout(operator) = kind {
-            raw_message
-                .extend_from_slice(operator.text().expect("binary operator text").as_bytes());
+            append(
+                &mut raw_message,
+                operator.text().expect("binary operator text").as_bytes(),
+                Some(control),
+                account,
+            )?;
         } else if let Some(operation) = kind.operation() {
-            raw_message.extend_from_slice(operation.name().as_bytes());
+            append(
+                &mut raw_message,
+                operation.name().as_bytes(),
+                Some(control),
+                account,
+            )?;
         } else if let AnnotationKind::HistogramIgnoredInAggregation(operator) = kind {
-            raw_message.extend_from_slice(operator.text().expect("aggregation text").as_bytes());
-            raw_message.extend_from_slice(b" aggregation");
+            append(
+                &mut raw_message,
+                operator.text().expect("aggregation text").as_bytes(),
+                Some(control),
+                account,
+            )?;
+            append(&mut raw_message, b" aggregation", Some(control), account)?;
         } else if kind.optional_metric_name() {
-            write_metric_name(metric, &mut raw_message);
-        } else if matches!(
+            write_metric_name(metric, &mut raw_message, control, account)?;
+        } else if !matches!(
             kind,
             AnnotationKind::MixedFloatsHistogramsAggregation | AnnotationKind::SortInRangeQuery
         ) {
-        } else {
-            quote::write_bytes(metric, &mut raw_message).expect("byte writer");
+            crate::binary_labels::quoted(&mut raw_message, metric, control, account)?;
         }
-        self.add_generated(kind, raw_message, span, query, account, None);
+        self.add_generated(kind, raw_message, span, query, control, account, None)
     }
     pub(crate) fn add_invalid_quantile(
         &mut self,
         q: f64,
         span: Span,
         query: &[u8],
+        control: &Control,
         account: &QueryAccounting,
-    ) {
+    ) -> Result<(), Interrupted> {
         let kind = AnnotationKind::InvalidQuantile;
         let mut raw = AccountedVec::new(account, MemoryKind::Result);
-        write!(
-            raw,
-            "{}, got {}",
-            kind.prefix(),
-            float_text(q, FloatTextStyle::Shortest),
-        )
-        .expect("byte writer");
-        self.add_generated(kind, raw, span, query, account, None);
+        write_with(&mut raw, Some(control), account, |out| {
+            write!(
+                out,
+                "{}, got {}",
+                kind.prefix(),
+                float_text(q, FloatTextStyle::Shortest)
+            )
+        })?;
+        self.add_generated(kind, raw, span, query, control, account, None)
     }
     pub(crate) fn add_invalid_ratio(
         &mut self,
@@ -458,19 +499,21 @@ impl AnnotationBuilder {
         capped: f64,
         span: Span,
         query: &[u8],
+        control: &Control,
         account: &QueryAccounting,
-    ) {
+    ) -> Result<(), Interrupted> {
         let kind = AnnotationKind::InvalidRatio;
         let mut raw = AccountedVec::new(account, MemoryKind::Result);
-        write!(
-            raw,
-            "{}, got {}, capping to {}",
-            kind.prefix(),
-            float_text(ratio, FloatTextStyle::Shortest),
-            float_text(capped, FloatTextStyle::Shortest)
-        )
-        .expect("byte writer");
-        self.add_generated(kind, raw, span, query, account, None);
+        write_with(&mut raw, Some(control), account, |out| {
+            write!(
+                out,
+                "{}, got {}, capping to {}",
+                kind.prefix(),
+                float_text(ratio, FloatTextStyle::Shortest),
+                float_text(capped, FloatTextStyle::Shortest)
+            )
+        })?;
+        self.add_generated(kind, raw, span, query, control, account, None)
     }
     pub(crate) fn add_bad_bucket(
         &mut self,
@@ -478,15 +521,16 @@ impl AnnotationBuilder {
         label: &[u8],
         span: Span,
         query: &[u8],
+        control: &Control,
         account: &QueryAccounting,
-    ) {
+    ) -> Result<(), Interrupted> {
         let kind = AnnotationKind::BadBucketLabel;
         let mut raw = AccountedVec::new(account, MemoryKind::Result);
-        raw.extend_from_slice(kind.prefix().as_bytes());
-        raw.extend_from_slice(b" of ");
-        quote::write_bytes(label, &mut raw).expect("byte writer");
-        write_metric_name(metric, &mut raw);
-        self.add_generated(kind, raw, span, query, account, None);
+        append(&mut raw, kind.prefix().as_bytes(), Some(control), account)?;
+        append(&mut raw, b" of ", Some(control), account)?;
+        crate::binary_labels::quoted(&mut raw, label, control, account)?;
+        write_metric_name(metric, &mut raw, control, account)?;
+        self.add_generated(kind, raw, span, query, control, account, None)
     }
     pub(crate) fn add_monotonicity(
         &mut self,
@@ -494,23 +538,26 @@ impl AnnotationBuilder {
         span: Span,
         details: Monotonicity,
         query: &[u8],
+        control: &Control,
         account: &QueryAccounting,
-    ) {
+    ) -> Result<(), Interrupted> {
         let kind = AnnotationKind::HistogramQuantileForcedMonotonicity;
         let mut raw = AccountedVec::new(account, MemoryKind::Result);
-        raw.extend_from_slice(kind.prefix().as_bytes());
-        write_metric_name(metric, &mut raw);
-        self.add_generated(kind, raw, span, query, account, Some(details));
+        append(&mut raw, kind.prefix().as_bytes(), Some(control), account)?;
+        write_metric_name(metric, &mut raw, control, account)?;
+        self.add_generated(kind, raw, span, query, control, account, Some(details))
     }
+    #[allow(clippy::too_many_arguments)]
     fn add_generated(
         &mut self,
         kind: AnnotationKind,
         raw_message: AccountedVec<u8>,
         span: Span,
         query: &[u8],
+        control: &Control,
         account: &QueryAccounting,
         details: Option<Monotonicity>,
-    ) {
+    ) -> Result<(), Interrupted> {
         let mut entry = Annotation {
             kind,
             raw_message,
@@ -524,8 +571,8 @@ impl AnnotationBuilder {
                 )
             }),
         };
-        entry.format(query);
-        self.merge_one(entry, query);
+        entry.format(query, Some(control), account)?;
+        self.merge_one(entry, query, Some(control), account)
     }
     pub(crate) fn add_provider(
         &mut self,
@@ -536,17 +583,16 @@ impl AnnotationBuilder {
     ) -> Result<(), Interrupted> {
         let mut raw_message = AccountedVec::new(account, MemoryKind::Result);
         let mut message = AccountedVec::new(account, MemoryKind::Result);
-        for bytes in diagnostic.message.chunks(1024) {
-            if let Some(control) = control {
-                control.check()?;
-            }
-            account.work(bytes.len() as u64);
-            raw_message.extend_from_slice(bytes);
-            message.extend_from_slice(bytes);
-        }
+        append(&mut raw_message, diagnostic.message, control, account)?;
+        append(&mut message, diagnostic.message, control, account)?;
         if let Some(position) = diagnostic.position {
-            write_position_suffix(query, position.start as isize, &mut message)
-                .expect("byte writer");
+            write_position_suffix_with(
+                query,
+                position.start as isize,
+                &mut message,
+                control,
+                account,
+            )?;
         }
         self.merge_one(
             Annotation {
@@ -558,15 +604,46 @@ impl AnnotationBuilder {
                 monotonicity: None,
             },
             query,
-        );
-        Ok(())
+            control,
+            account,
+        )
     }
-    fn merge_one(&mut self, incoming: Annotation, query: &[u8]) {
-        if let Some(index) = self
-            .entries
-            .iter()
-            .position(|entry| *entry.raw_message == *incoming.raw_message)
-        {
+    fn merge_one(
+        &mut self,
+        incoming: Annotation,
+        query: &[u8],
+        control: Option<&Control>,
+        account: &QueryAccounting,
+    ) -> Result<(), Interrupted> {
+        if let Some(control) = control {
+            control.check()?;
+        }
+        let mut found = None;
+        for (index, entry) in self.entries.iter().enumerate() {
+            if let Some(control) = control {
+                control.check()?;
+            }
+            account.work(1);
+            let equal = if let Some(control) = control {
+                crate::binary_labels::equal(
+                    &entry.raw_message,
+                    &incoming.raw_message,
+                    control,
+                    account,
+                )?
+            } else {
+                account.work(entry.raw_message.len().min(incoming.raw_message.len()) as u64);
+                *entry.raw_message == *incoming.raw_message
+            };
+            if equal {
+                found = Some(index);
+                break;
+            }
+        }
+        if let Some(control) = control {
+            control.check()?;
+        }
+        if let Some(index) = found {
             if incoming.kind == self.entries[index].kind
                 && matches!(
                     incoming.kind,
@@ -574,8 +651,10 @@ impl AnnotationBuilder {
                         | AnnotationKind::HistogramQuantileForcedMonotonicity
                 )
             {
-                // Special merges keep the previous object's first position.
+                // Special merges retain the previous object's first position.
                 let previous = &mut self.entries[index];
+                let occurrences = previous.occurrences;
+                let details = previous.monotonicity.as_ref().map(|details| **details);
                 if let Some(details) = &incoming.monotonicity {
                     previous
                         .monotonicity
@@ -583,20 +662,43 @@ impl AnnotationBuilder {
                         .expect("monotonicity payload")
                         .merge(details);
                 }
-                previous.occurrences = previous.occurrences.wrapping_add(incoming.occurrences);
-                previous.format(query);
+                previous.occurrences = occurrences.wrapping_add(incoming.occurrences);
+                if let Err(error) = previous.format(query, control, account) {
+                    previous.occurrences = occurrences;
+                    if let Some(details) = details {
+                        **previous.monotonicity.as_mut().unwrap() = details;
+                    }
+                    return Err(error);
+                }
             } else {
                 self.entries[index] = incoming;
             }
         } else {
             self.entries.push(incoming);
         }
+        Ok(())
     }
-    pub(crate) fn merge(&mut self, mut child: Self, query: &[u8]) {
-        child.entries.reverse();
-        while let Some(entry) = child.entries.pop() {
-            self.merge_one(entry, query);
+    pub(crate) fn merge(
+        &mut self,
+        child: Self,
+        query: &[u8],
+        control: Option<&Control>,
+        account: &QueryAccounting,
+    ) -> Result<(), Interrupted> {
+        if let Some(control) = control {
+            control.check()?;
         }
+        for entry in child.entries {
+            if let Some(control) = control {
+                control.check()?;
+            }
+            account.work(1);
+            self.merge_one(entry, query, control, account)?;
+        }
+        if let Some(control) = control {
+            control.check()?;
+        }
+        Ok(())
     }
     pub(crate) fn finish(self) -> Annotations {
         Annotations {
@@ -610,11 +712,41 @@ impl AnnotationBuilder {
     }
 }
 
-fn write_metric_name(metric: &[u8], raw: &mut AccountedVec<u8>) {
-    if !metric.is_empty() {
-        raw.extend_from_slice(b" for metric name ");
-        quote::write_bytes(metric, raw).expect("byte writer");
+fn append(
+    out: &mut AccountedVec<u8>,
+    bytes: &[u8],
+    control: Option<&Control>,
+    account: &QueryAccounting,
+) -> Result<(), Interrupted> {
+    if let Some(control) = control {
+        control.check()?;
+        crate::result::append_bytes_checked(out, bytes, account, control)?;
+        control.check()?;
+    } else {
+        account.work(bytes.len() as u64);
+        out.extend_from_slice(bytes);
     }
+    Ok(())
+}
+fn write_with(
+    out: &mut AccountedVec<u8>,
+    control: Option<&Control>,
+    account: &QueryAccounting,
+    write: impl FnOnce(&mut crate::binary_labels::Writer<'_>) -> fmt::Result,
+) -> Result<(), Interrupted> {
+    crate::binary_labels::write_with_control(out, control, account, write)
+}
+fn write_metric_name(
+    metric: &[u8],
+    raw: &mut AccountedVec<u8>,
+    control: &Control,
+    account: &QueryAccounting,
+) -> Result<(), Interrupted> {
+    if !metric.is_empty() {
+        append(raw, b" for metric name ", Some(control), account)?;
+        crate::binary_labels::quoted(raw, metric, control, account)?;
+    }
+    Ok(())
 }
 
 #[cfg(feature = "fixtures")]
@@ -626,28 +758,154 @@ pub(crate) fn write_position_suffix(
     start: isize,
     out: &mut impl Write,
 ) -> fmt::Result {
+    render_position(
+        position(query, start, None).expect("uncontrolled position"),
+        out,
+    )
+}
+fn position(
+    query: &[u8],
+    start: isize,
+    observation: Option<(&Control, &QueryAccounting)>,
+) -> Result<Option<(usize, usize)>, Interrupted> {
+    if let Some((control, _)) = observation {
+        control.check()?;
+    }
     if query.is_empty() {
-        return Ok(());
+        return Ok(None);
     }
     if start < 0 || start as usize > query.len() {
-        return out.write_str(" (invalid position)");
+        return Ok(Some((0, 0)));
     }
     let start = start as usize;
-    let mut line = 1;
-    let mut column = start + 1;
-    for (index, &byte) in query[..start].iter().enumerate() {
-        if byte == b'\n' {
-            line += 1;
-            column = start - index;
+    let (mut line, mut column) = (1, start + 1);
+    for (chunk_index, bytes) in query[..start].chunks(1024).enumerate() {
+        if let Some((control, account)) = observation {
+            control.check()?;
+            account.work(bytes.len() as u64);
+        }
+        for (index, &byte) in bytes.iter().enumerate() {
+            if byte == b'\n' {
+                line += 1;
+                column = start - (chunk_index * 1024 + index);
+            }
         }
     }
-    write!(out, " ({line}:{column})")
+    if let Some((control, _)) = observation {
+        control.check()?;
+    }
+    Ok(Some((line, column)))
+}
+fn render_position(position: Option<(usize, usize)>, out: &mut impl Write) -> fmt::Result {
+    match position {
+        None => Ok(()),
+        Some((0, 0)) => out.write_str(" (invalid position)"),
+        Some((line, column)) => write!(out, " ({line}:{column})"),
+    }
+}
+fn write_position_suffix_with(
+    query: &[u8],
+    start: isize,
+    out: &mut AccountedVec<u8>,
+    control: Option<&Control>,
+    account: &QueryAccounting,
+) -> Result<(), Interrupted> {
+    let position = position(query, start, control.map(|control| (control, account)))?;
+    write_with(out, control, account, |writer| {
+        render_position(position, writer)
+    })
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::accounting::EngineAccounting;
+    #[test]
+    fn cancelled_empty_provider_diagnostic_does_not_publish_a_note() {
+        let engine = EngineAccounting::default();
+        let account = engine.query();
+        let control = Control::default();
+        let mut builder = AnnotationBuilder::new(&account);
+        control.cancellation.cancel();
+        let result = builder.add_provider(
+            crate::storage::ProviderDiagnosticRef {
+                message: b"",
+                severity: Severity::Info,
+                position: None,
+            },
+            b"m",
+            Some(&control),
+            &account,
+        );
+        assert_eq!(result, Err(Interrupted::Cancelled));
+        assert!(builder.entries.is_empty());
+        drop(builder);
+        account.snapshot().assert_memory_released();
+    }
+
+    #[test]
+    fn callback_diagnostic_merge_stops_during_long_equal_prefix_search() {
+        let engine = EngineAccounting::default();
+        let account = engine.query();
+        let control = Control::default();
+        let mut local = AnnotationBuilder::new(&account);
+        for index in 0..16 {
+            let mut metric = vec![b'x'; 16_384];
+            metric.extend_from_slice(index.to_string().as_bytes());
+            local
+                .add(
+                    AnnotationKind::NativeHistogramNotCounter,
+                    &metric,
+                    Span { start: 0, end: 1 },
+                    b"m",
+                    &control,
+                    &account,
+                )
+                .unwrap();
+        }
+        let mut callbacks = CallbackAnnotations::new(&account);
+        let mut outer = AnnotationBuilder::new(&account);
+        let result = crate::test_storage::interrupt_during(&account, &control, || {
+            callbacks.merge(local, &mut outer, b"m", &control, &account)
+        });
+        assert_eq!(result, Err(Interrupted::Cancelled));
+        assert!(
+            callbacks.values.entries.len() < 16,
+            "the unchecked prelude must not merge the entire diagnostic roster"
+        );
+        assert!(outer.entries.is_empty());
+        drop((callbacks, outer));
+        account.snapshot().assert_memory_released();
+    }
+
+    #[test]
+    fn provider_position_scan_honors_control_even_when_message_is_empty() {
+        let engine = EngineAccounting::default();
+        let account = engine.query();
+        let control = Control::default();
+        let mut builder = AnnotationBuilder::new(&account);
+        let query = vec![b' '; 32_768];
+        let result = crate::test_storage::interrupt_during(&account, &control, || {
+            builder.add_provider(
+                crate::storage::ProviderDiagnosticRef {
+                    message: b"",
+                    severity: Severity::Info,
+                    position: Some(Span {
+                        start: query.len(),
+                        end: query.len(),
+                    }),
+                },
+                &query,
+                Some(&control),
+                &account,
+            )
+        });
+        assert_eq!(result, Err(Interrupted::Cancelled));
+        assert!(builder.entries.is_empty());
+        drop(builder);
+        account.snapshot().assert_memory_released();
+    }
+
     #[test]
     fn histogram_generic_notes_keep_last_position_and_quoted_bucket_bytes() {
         let engine = EngineAccounting::default();
@@ -658,8 +916,18 @@ mod tests {
                 start,
                 end: start + 1,
             };
-            builder.add_invalid_quantile(f64::NEG_INFINITY, span, b"a+b", &account);
-            builder.add_bad_bucket(b"", b"\xff\n", span, b"a+b", &account);
+            builder
+                .add_invalid_quantile(
+                    f64::NEG_INFINITY,
+                    span,
+                    b"a+b",
+                    &Control::default(),
+                    &account,
+                )
+                .unwrap();
+            builder
+                .add_bad_bucket(b"", b"\xff\n", span, b"a+b", &Control::default(), &account)
+                .unwrap();
         }
         let notes = builder.finish();
         assert_eq!(notes.len(), 2);
@@ -698,13 +966,16 @@ mod tests {
         let account = engine.query();
         let query = b"a+b+c";
         let mut builder = AnnotationBuilder::new(&account);
-        builder.add_monotonicity(
-            b"m",
-            Span { start: 0, end: 1 },
-            Monotonicity::new(2001, 2.0, 5.0, 3.0),
-            query,
-            &account,
-        );
+        builder
+            .add_monotonicity(
+                b"m",
+                Span { start: 0, end: 1 },
+                Monotonicity::new(2001, 2.0, 5.0, 3.0),
+                query,
+                &Control::default(),
+                &account,
+            )
+            .unwrap();
         let original = &**builder.entries[0].monotonicity.as_ref().unwrap() as *const Monotonicity;
         assert_eq!(
             account.snapshot().memory[MemoryKind::Result as usize].current,
@@ -712,18 +983,21 @@ mod tests {
         );
         let mut child = AnnotationBuilder::new(&account);
         for (start, ts, min, max, diff) in [(2, -1001, 1.0, 4.0, 2.0), (4, 3001, 3.0, 6.0, 5.0)] {
-            child.add_monotonicity(
-                b"m",
-                Span {
-                    start,
-                    end: start + 1,
-                },
-                Monotonicity::new(ts, min, max, diff),
-                query,
-                &account,
-            );
+            child
+                .add_monotonicity(
+                    b"m",
+                    Span {
+                        start,
+                        end: start + 1,
+                    },
+                    Monotonicity::new(ts, min, max, diff),
+                    query,
+                    &Control::default(),
+                    &account,
+                )
+                .unwrap();
         }
-        builder.merge(child, query);
+        builder.merge(child, query, None, &account).unwrap();
         let entry = &builder.entries[0];
         assert_eq!(
             &**entry.monotonicity.as_ref().unwrap() as *const Monotonicity,
@@ -766,7 +1040,16 @@ mod tests {
             Monotonicity::new(0, -0.0, payload, -0.0),
             Monotonicity::new(-999, 0.0, 4.0, 0.0),
         ] {
-            builder.add_monotonicity(b"", Span { start: 0, end: 1 }, details, b"", &account);
+            builder
+                .add_monotonicity(
+                    b"",
+                    Span { start: 0, end: 1 },
+                    details,
+                    b"",
+                    &Control::default(),
+                    &account,
+                )
+                .unwrap();
         }
         let entry = &builder.entries[0];
         let details = entry.monotonicity.as_ref().unwrap();
@@ -785,13 +1068,16 @@ mod tests {
         let control = Control::default();
         let mut builder = AnnotationBuilder::new(&account);
         let query = b"a+b+c";
-        builder.add_monotonicity(
-            b"m",
-            Span { start: 0, end: 1 },
-            Monotonicity::new(0, 1.0, 2.0, 1.0),
-            query,
-            &account,
-        );
+        builder
+            .add_monotonicity(
+                b"m",
+                Span { start: 0, end: 1 },
+                Monotonicity::new(0, 1.0, 2.0, 1.0),
+                query,
+                &Control::default(),
+                &account,
+            )
+            .unwrap();
         let raw = builder.entries[0].raw_message.to_vec();
         builder
             .add_provider(
@@ -810,13 +1096,16 @@ mod tests {
             account.snapshot().memory[MemoryKind::Result as usize].current,
             requested_result_bytes(&builder)
         );
-        builder.add_monotonicity(
-            b"m",
-            Span { start: 4, end: 5 },
-            Monotonicity::new(3000, 2.0, 4.0, 2.0),
-            query,
-            &account,
-        );
+        builder
+            .add_monotonicity(
+                b"m",
+                Span { start: 4, end: 5 },
+                Monotonicity::new(3000, 2.0, 4.0, 2.0),
+                query,
+                &Control::default(),
+                &account,
+            )
+            .unwrap();
         assert_eq!(builder.entries[0].span, Some(Span { start: 4, end: 5 }));
         assert_eq!(builder.entries[0].occurrences, 1);
         assert_eq!(
@@ -834,16 +1123,19 @@ mod tests {
         let mut builder = AnnotationBuilder::new(&account);
         let query = b"a+b+c";
         for start in [0, 2] {
-            builder.add(
-                AnnotationKind::StartTimeOverlap,
-                b"m",
-                Span {
-                    start,
-                    end: start + 1,
-                },
-                query,
-                &account,
-            );
+            builder
+                .add(
+                    AnnotationKind::StartTimeOverlap,
+                    b"m",
+                    Span {
+                        start,
+                        end: start + 1,
+                    },
+                    query,
+                    &Control::default(),
+                    &account,
+                )
+                .unwrap();
         }
         let raw = b"PromQL warning: sample has start time that overlaps with previous sample timestamp for metric \"m\"";
         builder
@@ -864,23 +1156,29 @@ mod tests {
         );
         assert_eq!(builder.entries[0].occurrences, 1);
         assert_eq!(&*builder.entries[0].message, raw);
-        builder.add(
-            AnnotationKind::StartTimeOverlap,
-            b"m",
-            Span { start: 4, end: 5 },
-            query,
-            &account,
-        );
+        builder
+            .add(
+                AnnotationKind::StartTimeOverlap,
+                b"m",
+                Span { start: 4, end: 5 },
+                query,
+                &Control::default(),
+                &account,
+            )
+            .unwrap();
         assert_eq!(builder.entries[0].kind, AnnotationKind::StartTimeOverlap);
         assert_eq!(builder.entries[0].occurrences, 1);
         assert_eq!(builder.entries[0].span, Some(Span { start: 4, end: 5 }));
-        builder.add(
-            AnnotationKind::StartTimeOverlap,
-            b"m",
-            Span { start: 0, end: 1 },
-            query,
-            &account,
-        );
+        builder
+            .add(
+                AnnotationKind::StartTimeOverlap,
+                b"m",
+                Span { start: 0, end: 1 },
+                query,
+                &Control::default(),
+                &account,
+            )
+            .unwrap();
         assert_eq!(builder.entries[0].occurrences, 2);
         assert!(
             builder.entries[0]
@@ -901,16 +1199,19 @@ mod tests {
                 AnnotationKind::MismatchedCustomBuckets(HistogramOperation::Aggregation),
                 AnnotationKind::MixedExponentialCustomHistograms,
             ] {
-                builder.add(
-                    kind,
-                    metric,
-                    Span {
-                        start,
-                        end: start + 1,
-                    },
-                    b"a+b",
-                    &account,
-                );
+                builder
+                    .add(
+                        kind,
+                        metric,
+                        Span {
+                            start,
+                            end: start + 1,
+                        },
+                        b"a+b",
+                        &Control::default(),
+                        &account,
+                    )
+                    .unwrap();
             }
         }
         let result = builder.finish();
@@ -942,10 +1243,28 @@ mod tests {
             AnnotationKind::PossibleNonCounter,
             AnnotationKind::StartTimeOverlap,
         ] {
-            first.add(kind, b"m\xff\n", Span { start: 0, end: 1 }, query, &account);
-            second.add(kind, b"m\xff\n", Span { start: 4, end: 5 }, query, &account);
+            first
+                .add(
+                    kind,
+                    b"m\xff\n",
+                    Span { start: 0, end: 1 },
+                    query,
+                    &Control::default(),
+                    &account,
+                )
+                .unwrap();
+            second
+                .add(
+                    kind,
+                    b"m\xff\n",
+                    Span { start: 4, end: 5 },
+                    query,
+                    &Control::default(),
+                    &account,
+                )
+                .unwrap();
         }
-        first.merge(second, query);
+        first.merge(second, query, None, &account).unwrap();
         let before_finish = account.snapshot().memory[MemoryKind::Result as usize].current;
         let result = first.finish();
         assert_eq!(

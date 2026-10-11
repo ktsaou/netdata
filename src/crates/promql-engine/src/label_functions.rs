@@ -83,9 +83,13 @@ impl<'a> LabelOperation<'a> {
             unreachable!("label call")
         };
         let string = |index| {
-            let argument = prepared
-                .preprocessing
-                .child(expression, node, arguments[index]);
+            let argument = prepared.preprocessing.child(
+                expression,
+                node,
+                arguments[index],
+                control,
+                account,
+            )?;
             if let Expr::String(value) = &expression.arena[argument].expression {
                 Ok(&value[..])
             } else {

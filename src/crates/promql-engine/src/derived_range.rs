@@ -389,12 +389,7 @@ impl<'a> Step<'a> {
         account: &QueryAccounting,
     ) -> Result<Action<'a>, EvaluationError> {
         let row = self.rows.get(self.position).expect("active range row");
-        let metric = row
-            .labels
-            .0
-            .iter()
-            .find(|label| label.name.as_ref() == b"__name__")
-            .map_or(b"".as_slice(), |label| label.value.as_ref());
+        let metric = row.labels.get_checked(b"__name__", account, control)?;
         if let RangeFunction::Rate(kind) = self.input.function
             && kind.checks_counter_name()
             && matches!(output.value, Some(OwnedValue::Float(_)))
@@ -456,7 +451,7 @@ impl<'a> Step<'a> {
             let Some(row) = self.rows.get(self.position) else {
                 return Ok(Action::Done);
             };
-            if !self.filter.accepts(row.ordinal) {
+            if !self.filter.accepts(row.ordinal, control, account)? {
                 self.position += 1;
                 continue;
             }

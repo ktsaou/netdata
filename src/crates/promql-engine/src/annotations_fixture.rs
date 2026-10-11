@@ -54,7 +54,9 @@ pub fn result(id: &str, input: &[u8]) -> Result<Value, String> {
     for event in events {
         let operation = event.get("op").and_then(Value::as_str);
         if operation == Some("merge") {
-            parent.merge(child, &query);
+            parent
+                .merge(child, &query, None, &account)
+                .map_err(|e| format!("{e:?}"))?;
             child = AnnotationBuilder::new(&account);
             continue;
         }
@@ -69,23 +71,37 @@ pub fn result(id: &str, input: &[u8]) -> Result<Value, String> {
         };
         let metric = bytes(event, "metric")?;
         match event.get("kind").and_then(Value::as_str) {
-            Some("monotonic") => builder.add_monotonicity(
-                &metric,
-                span,
-                Monotonicity::new(
-                    integer(event, "time_ms"),
-                    float(event, "min")?,
-                    float(event, "max")?,
-                    float(event, "diff")?,
-                ),
-                &query,
-                &account,
-            ),
+            Some("monotonic") => builder
+                .add_monotonicity(
+                    &metric,
+                    span,
+                    Monotonicity::new(
+                        integer(event, "time_ms"),
+                        float(event, "min")?,
+                        float(event, "max")?,
+                        float(event, "diff")?,
+                    ),
+                    &query,
+                    &control,
+                    &account,
+                )
+                .map_err(|e| format!("{e:?}"))?,
             Some("invalid_quantile") => {
-                builder.add_invalid_quantile(float(event, "q")?, span, &query, &account);
+                builder
+                    .add_invalid_quantile(float(event, "q")?, span, &query, &control, &account)
+                    .map_err(|e| format!("{e:?}"))?;
             }
             Some("bad_bucket") => {
-                builder.add_bad_bucket(&metric, &bytes(event, "label")?, span, &query, &account);
+                builder
+                    .add_bad_bucket(
+                        &metric,
+                        &bytes(event, "label")?,
+                        span,
+                        &query,
+                        &control,
+                        &account,
+                    )
+                    .map_err(|e| format!("{e:?}"))?;
             }
             Some("opaque") => {
                 let raw = bytes(event, "raw")?;
@@ -117,7 +133,9 @@ pub fn result(id: &str, input: &[u8]) -> Result<Value, String> {
                     Some("fraction_nans") => AnnotationKind::NativeHistogramFractionNaNs,
                     _ => return Err("unknown annotation kind".into()),
                 };
-                builder.add(kind, &metric, span, &query, &account);
+                builder
+                    .add(kind, &metric, span, &query, &control, &account)
+                    .map_err(|e| format!("{e:?}"))?;
             }
         }
     }

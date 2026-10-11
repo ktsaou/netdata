@@ -279,12 +279,11 @@ impl Scopes {
                 _ => (),
             }
             let child_tracking = if boundary { None } else { tracking };
-            tasks.extend(
-                value
-                    .children()
-                    .rev()
-                    .map(|child| (child, grid, binding, child_tracking)),
-            );
+            for child in value.children().rev() {
+                control.check()?;
+                account.work(1);
+                tasks.push((child, grid, binding, child_tracking));
+            }
         }
         Ok(Self(scopes))
     }
@@ -433,10 +432,16 @@ mod tests {
                 query,
                 header(4500, 4500, 0),
                 60_000,
-                |expression, prepared, _| {
-                    let (actual, argument) =
-                        crate::evaluator::matrix_argument(expression, prepared, expression.root)
-                            .unwrap();
+                |expression, prepared, account| {
+                    let (actual, argument) = crate::evaluator::matrix_argument(
+                        expression,
+                        prepared,
+                        expression.root,
+                        &Control::default(),
+                        account,
+                    )
+                    .unwrap()
+                    .unwrap();
                     assert_eq!(actual, position);
                     assert_eq!(
                         matches!(expression.arena[argument].expression, Expr::Subquery { .. }),
