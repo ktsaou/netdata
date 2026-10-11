@@ -5,7 +5,7 @@ It targets the complete pinned language, including all required SRE recording an
 Candidate qualification uses separately retained complete results; reference self-tests and SRE parsing alone
 do not establish engine compatibility.
 
-The historical C/C++/Rust experiment remains in `tests/promql-prototype/`, with its original evidence intact.
+The historical C/C++/Rust experiment and original evidence remain in the [Netdata experiment](https://github.com/ktsaou/netdata/blob/feature/promql-rust-core/tests/promql-prototype/README.md).
 This harness uses a separate Go module and the same dependency locks. It does not run a daemon or change metrics.
 
 ## Standalone expression core

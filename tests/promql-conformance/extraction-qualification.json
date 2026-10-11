@@ -102,5 +102,7 @@
     "Native AMD64 relocation panel; earlier ARM captures retain their original identities.",
     "No live Netdata integration qualification is claimed by extraction.",
     "Historical differential panels were not rerun for this source-only move."
-  ]
+  ],
+  "qualified_revision": "0a1c686e37681ba10614fbe2229c9f95d7ababd7",
+  "subsequent_documentation_changes": "Follow-up links identify the external Netdata experiment and storage sources; original changed-import and execution hashes above remain bound to the qualified revision."
 }

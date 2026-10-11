@@ -54,7 +54,7 @@ The [README](README.md#standalone-expression-core) summarizes implementation and
   establish completed-core performance or select production packaging flags.
 - **Experiment scope:** the approximate common dashboard/alert slice was an 80/20 feasibility threshold, not a
   measured percentage of monthly traffic. Full language and SRE completion replaced that prototype scope.
-- **Evidence:** [comparative prototypes and performance study](../promql-prototype/README.md).
+- **Evidence:** [comparative prototypes and performance study](https://github.com/ktsaou/netdata/blob/feature/promql-rust-core/tests/promql-prototype/README.md).
 
 ## Language and compatibility contract
 
@@ -324,7 +324,7 @@ Original failures remain evidence. [Approved exceptions](contract.json) and
 - **Consequence:** collector transformations, compression/downsampling and retained statistics remain meaningful.
   Language compatibility cannot reconstruct original values, gaps, timestamps or histogram meaning lost before evaluation.
 - **Status/evidence:** approved production direction; the historical
-  [dbengine replay prototype](../promql-prototype/README.md#implementations-and-input-contract) demonstrates a limited
+  [dbengine replay prototype](https://github.com/ktsaou/netdata/blob/feature/promql-rust-core/tests/promql-prototype/README.md#implementations-and-input-contract) demonstrates a limited
   retained-data path. The completed typed core does not include the live NIDL/dbengine adapter.
 
 ### 25. Expose exact and underscore names as distinct logical series
@@ -337,8 +337,8 @@ Original failures remain evidence. [Approved exceptions](contract.json) and
   names use standard quoted/string-selector syntax, not a grammar extension.
 - **Still open:** broader normalization, collisions between contexts and underscore names, exact identity-label
   keys, native-label collisions and histogram grouping.
-- **Evidence:** [NIDL model](../../docs/NIDL-Framework.md),
-  [retained-data prototype contract](../promql-prototype/README.md#implementations-and-input-contract).
+- **Evidence:** [NIDL model](https://github.com/ktsaou/netdata/blob/feature/promql-rust-core/docs/NIDL-Framework.md),
+  [retained-data prototype contract](https://github.com/ktsaou/netdata/blob/feature/promql-rust-core/tests/promql-prototype/README.md#implementations-and-input-contract).
 
 ### 26. Endpoint means, finest-tier ownership and ordinary lookback
 
@@ -354,9 +354,9 @@ Original failures remain evidence. [Approved exceptions](contract.json) and
   intervals; sparse historical samples can yield sparse instant results.
 - **Still open:** concrete API/rule lookback configuration, concurrent-expiry consistency, fixed Agent/Parent source
   selection and histogram projection. Frozen tier ownership alone does not provide transactional isolation.
-- **Evidence:** [retained point model](../../src/libnetdata/storage-point.h),
-  [storage cursor interface](../../src/database/storage-engine.h),
-  [prototype point projection](../promql-prototype/README.md#implementations-and-input-contract).
+- **Evidence:** [retained point model](https://github.com/ktsaou/netdata/blob/feature/promql-rust-core/src/libnetdata/storage-point.h),
+  [storage cursor interface](https://github.com/ktsaou/netdata/blob/feature/promql-rust-core/src/database/storage-engine.h),
+  [prototype point projection](https://github.com/ktsaou/netdata/blob/feature/promql-rust-core/tests/promql-prototype/README.md#implementations-and-input-contract).
 
 ## Qualification and remaining decisions
 
