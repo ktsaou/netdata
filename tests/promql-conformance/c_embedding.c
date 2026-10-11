@@ -3,6 +3,9 @@
 #ifndef _GNU_SOURCE
 #define _GNU_SOURCE
 #endif
+#ifndef _FILE_OFFSET_BITS
+#define _FILE_OFFSET_BITS 64
+#endif
 #include "netdata-promql.h"
 #include <assert.h>
 #include <inttypes.h>
@@ -12,6 +15,12 @@
 #include <fcntl.h>
 #include <sys/stat.h>
 #include <unistd.h>
+
+#if defined(__cplusplus)
+static_assert(sizeof(off_t) == 8, "temporary float storage needs 64-bit file offsets");
+#else
+_Static_assert(sizeof(off_t) == 8, "temporary float storage needs 64-bit file offsets");
+#endif
 
 typedef struct {
     int fd;

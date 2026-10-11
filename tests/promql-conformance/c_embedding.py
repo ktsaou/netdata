@@ -7,6 +7,7 @@ import json
 import os
 import re
 import shlex
+import shutil
 import subprocess
 import tempfile
 import time
@@ -224,7 +225,23 @@ def native_records(name, output):
     return values
 
 
-def qualify(profiles, sanitizers, abort_check):
+def qualify(profiles, sanitizers, abort_check, cross_target=None):
+    targets = {
+        "aarch64-unknown-linux-gnu": (
+            "aarch64-linux-gnu",
+            "qemu-aarch64",
+            "ld-linux-aarch64.so.1",
+        ),
+        "armv7-unknown-linux-gnueabihf": (
+            "arm-linux-gnueabihf",
+            "qemu-arm",
+            "ld-linux-armhf.so.3",
+        ),
+    }
+    if cross_target and (cross_target not in targets or sanitizers):
+        raise ValueError(
+            "cross qualification uses an installed GNU target without caller instrumentation"
+        )
     root = directory(HERE.parent.parent)
     crate = directory(root / "src/crates/promql-engine")
     scratch = HERE / ".tmp"
@@ -236,7 +253,9 @@ def qualify(profiles, sanitizers, abort_check):
     (task / "source-sha256.json").write_text(json.dumps(sources, indent=2) + "\n")
     shapes, callbacks, constants, header = layouts(crate)
     probes(task, shapes, callbacks, constants)
-    target = scratch / "core-target"
+    target = scratch / (
+        "core-target-" + cross_target if cross_target else "core-target"
+    )
     target.mkdir(exist_ok=True)
     directory(target)
     env = dict(
@@ -244,8 +263,87 @@ def qualify(profiles, sanitizers, abort_check):
         CARGO_NET_OFFLINE="true",
         CARGO_TARGET_DIR=str(target),
         NETDATA_PROMQL_FIXTURE_SCRATCH=str(task),
+        CARGO_BUILD_JOBS="4",
     )
     common = ["--manifest-path", crate / "Cargo.toml", "--offline", "--locked", "--lib"]
+    runner = []
+    rust_target = []
+    nm = "nm"
+    compilers = [
+        ("gcc", "c", "c11"),
+        ("g++", "c++", "c++17"),
+        ("clang", "c", "c11"),
+        ("clang++", "c++", "c++17"),
+    ]
+    tools = {}
+    if cross_target:
+        triplet, qemu, loader = targets[cross_target]
+        cc = triplet + "-gcc-14"
+        compilers = [(cc, "c", "c11"), (triplet + "-g++-14", "c++", "c++17")]
+        nm = triplet + "-nm"
+        env["CARGO_TARGET_" + cross_target.replace("-", "_").upper() + "_LINKER"] = cc
+        common += ["--target", cross_target]
+        rust_target = ["--target", cross_target, "-Clinker=" + cc]
+        selected = (
+            command(
+                task, "target-loader", [cc, "-print-file-name=" + loader], root, env
+            )
+            .stdout.decode()
+            .strip()
+        )
+        prefix = Path(selected).resolve(strict=True).parent.parent
+        if (
+            not prefix.is_absolute()
+            or not prefix.is_dir()
+            or prefix.name != triplet
+            or not (prefix / "lib" / loader).is_file()
+        ):
+            raise ValueError(
+                "target compiler did not supply the expected loader prefix"
+            )
+        runner = [qemu, "-L", str(prefix)]
+        for tool in [cc, triplet + "-g++-14", nm, qemu, "cargo", "rustc"]:
+            executable = shutil.which(tool, path=env["PATH"])
+            if executable is None:
+                raise ValueError("missing installed target tool: " + tool)
+            executable = Path(executable).resolve(strict=True)
+            tools[str(executable)] = digest(executable)
+            command(
+                task,
+                "version-" + tool.replace("+", "p"),
+                [tool, "--version"],
+                root,
+                env,
+            )
+        sysroot = Path(
+            command(task, "rust-sysroot", ["rustc", "--print", "sysroot"], root, env)
+            .stdout.decode()
+            .strip()
+        ).resolve(strict=True)
+        for name in ["cargo", "rustc"]:
+            executable = sysroot / "bin" / name
+            if not executable.is_file():
+                raise ValueError("selected Rust toolchain executable is missing")
+            tools[str(executable)] = digest(executable)
+        tools[str((prefix / "lib" / loader).resolve(strict=True))] = digest(
+            (prefix / "lib" / loader).resolve(strict=True)
+        )
+
+    def execute(name, binary, execution_env=env):
+        executable_inputs = [binary, *[Path(path) for path in tools]]
+        hashes = {
+            str(path.resolve(strict=True)): digest(path) for path in executable_inputs
+        }
+        return link_command(
+            task,
+            name,
+            [*runner, binary],
+            root,
+            execution_env,
+            executable_inputs,
+            hashes,
+        )
+
     witnesses = {}
     link_inputs = {}
     for profile in profiles:
@@ -269,7 +367,7 @@ def qualify(profiles, sanitizers, abort_check):
         if match is None:
             raise ValueError("rustc did not report native-static-libs")
         libs = shlex.split(match[1])
-        output = directory(target / profile)
+        output = directory(target / (cross_target or "") / profile)
         archive = output / "libnetdata_promql_engine.a"
         archive_inputs = {str(archive.resolve(strict=True)): digest(archive)}
         rlib = output / "libnetdata_promql_engine.rlib"
@@ -291,7 +389,7 @@ def qualify(profiles, sanitizers, abort_check):
         symbols = link_command(
             task,
             profile + "-symbols",
-            ["nm", "--defined-only", "-g", archive],
+            [nm, "--defined-only", "-g", archive],
             root,
             env,
             [archive],
@@ -318,6 +416,7 @@ def qualify(profiles, sanitizers, abort_check):
                 "rustc",
                 "--edition",
                 "2024",
+                *rust_target,
                 task / "layout.rs",
                 "--extern",
                 "netdata_promql_engine=" + str(rlib),
@@ -331,15 +430,10 @@ def qualify(profiles, sanitizers, abort_check):
             rust_inputs,
             rust_hashes,
         )
-        rust_layout = records(
-            command(task, profile + "-rust-layout", [rust_probe], root, env).stdout
-        )
-        for compiler, language, standard in [
-            ("gcc", "c", "c11"),
-            ("g++", "c++", "c++17"),
-            ("clang", "c", "c11"),
-            ("clang++", "c++", "c++17"),
-        ]:
+        rust_layout = records(execute(profile + "-rust-layout", rust_probe).stdout)
+        if len(rust_layout) != len(shapes) + len(callbacks) + len(constants):
+            raise ValueError("incomplete Rust layout and constant roster")
+        for compiler, language, standard in compilers:
             name = profile + "-" + compiler.replace("+", "p")
             flags = [
                 compiler,
@@ -361,9 +455,7 @@ def qualify(profiles, sanitizers, abort_check):
                 root,
                 env,
             )
-            c_layout = records(
-                command(task, name + "-layout", [layout_binary], root, env).stdout
-            )
+            c_layout = records(execute(name + "-layout", layout_binary).stdout)
             if c_layout != rust_layout:
                 raise ValueError(name + ": C/Rust layout or shared constant mismatch")
             binary = task / name
@@ -385,9 +477,7 @@ def qualify(profiles, sanitizers, abort_check):
                 [archive],
                 archive_inputs,
             )
-            witnesses[name] = native_records(
-                name, command(task, name, [binary], root, env).stdout
-            )
+            witnesses[name] = native_records(name, execute(name, binary).stdout)
         if sanitizers:
             name = profile + "-clang-sanitized"
             binary = task / name
@@ -423,7 +513,7 @@ def qualify(profiles, sanitizers, abort_check):
                 UBSAN_OPTIONS="halt_on_error=1",
             )
             witnesses[name] = native_records(
-                name, command(task, name, [binary], root, sanitizer_env).stdout
+                name, execute(name, binary, sanitizer_env).stdout
             )
     if abort_check:
         abort_target = scratch / "c-embedding-abort-target"
@@ -446,6 +536,10 @@ def qualify(profiles, sanitizers, abort_check):
             )
     if sources != source_hashes(root, crate):
         raise ValueError("source changed during C embedding qualification")
+    if any(digest(Path(path)) != value for path, value in tools.items()):
+        raise ValueError(
+            "target tool or loader changed during C embedding qualification"
+        )
     (task / "witnesses.json").write_text(json.dumps(witnesses, indent=2) + "\n")
     artifacts = {
         str(path.relative_to(task)): digest(path)
@@ -459,6 +553,9 @@ def qualify(profiles, sanitizers, abort_check):
                 "artifacts": artifacts,
                 "link_inputs": link_inputs,
                 "profiles": profiles,
+                "target": cross_target,
+                "runner": runner,
+                "tools": tools,
                 "structures": len(shapes),
                 "callbacks": len(callbacks),
                 "shared_constants": len(constants),
@@ -474,6 +571,7 @@ def qualify(profiles, sanitizers, abort_check):
         json.dumps(
             {
                 "native_embedding": "pass",
+                "target": cross_target,
                 "evidence": str(task),
                 "structures": len(shapes),
                 "callbacks": len(callbacks),
@@ -494,6 +592,11 @@ if __name__ == "__main__":
         default=["release", "release-min"],
     )
     parser.add_argument(
+        "--target",
+        choices=["aarch64-unknown-linux-gnu", "armv7-unknown-linux-gnueabihf"],
+        help="compile and execute GNU target callers and layouts with the installed QEMU loader",
+    )
+    parser.add_argument(
         "--sanitizers",
         action="store_true",
         help="instrument foreign C caller with ASan/UBSan",
@@ -504,4 +607,4 @@ if __name__ == "__main__":
         help="also require panic=abort compilation rejection",
     )
     args = parser.parse_args()
-    qualify(args.profiles, args.sanitizers, args.abort_check)
+    qualify(args.profiles, args.sanitizers, args.abort_check, args.target)
