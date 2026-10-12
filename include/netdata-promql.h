@@ -665,6 +665,9 @@ uint32_t netdata_promql_api_float_text(uint64_t value_bits, netdata_promql_numer
 uint32_t netdata_promql_api_scalar_float_text(uint64_t value_bits, netdata_promql_numeric_text_t *);
 uint32_t netdata_promql_api_timestamp_text(int64_t time_ms, netdata_promql_numeric_text_t *);
 uint32_t netdata_promql_api_scalar_timestamp_text(int64_t time_ms, netdata_promql_numeric_text_t *);
+/* Allocation-free Go17 Unicode IsPrint classification for caller-composed protocol diagnostics.
+ * All u32 inputs are accepted; invalid Unicode values are not printable. Output is0 or1. */
+uint32_t netdata_promql_api_rune_is_print(uint32_t value, uint32_t *printable);
 /* Synchronous helper usable only with a live enclosing callback control. The descriptor and
  * its arrays are borrowed for this call. Buckets include zero counts; consumers choose filtering.
  * A child report owns returned error bytes: retain it until the enclosing callback returns,

@@ -16,6 +16,7 @@ pub(crate) mod quote;
 pub mod regex;
 pub mod token;
 mod unicode;
+pub(crate) use unicode::is_print;
 pub mod validate;
 mod work;
 

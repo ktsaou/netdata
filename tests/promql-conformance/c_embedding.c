@@ -1354,6 +1354,14 @@ static void protocol_report_account(void *context, void *handle, const netdata_p
 }
 
 static void protocol_primitives(netdata_promql_engine_t *engine) {
+    const uint32_t runes[] = {0, 0x1f, 0x20, 0x7e, 0x7f, 0xa0, 0xa1, 0x200b, 0x20000, 0xd800, 0x110000, UINT32_MAX};
+    const uint32_t printability[] = {0, 0, 1, 1, 0, 0, 1, 0, 1, 0, 0, 0};
+    for(unsigned i = 0; i < sizeof(runes) / sizeof(runes[0]); i++) {
+        uint32_t printable = 99;
+        assert(netdata_promql_api_rune_is_print(runes[i], &printable) == NETDATA_PROMQL_OK);
+        assert(printable == printability[i]);
+    }
+    assert(netdata_promql_api_rune_is_print(0, NULL) == NETDATA_PROMQL_INVALID_ARGUMENT);
     netdata_promql_timestamp_t stamp;
     netdata_promql_report_t *report = NULL;
     assert(netdata_promql_api_parse_time(engine, text("1969-12-31T23:59:59.999999999Z"), NULL, &stamp, &report) == NETDATA_PROMQL_OK);

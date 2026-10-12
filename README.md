@@ -24,6 +24,7 @@ The limit parser retains pinned64-bit request behavior on every target. Report c
 for caller preparation and backed error bodies; independently owned allocation handles may outlive the report.
 Callback-scoped index sorting reuses the pinned Go routine for backed output, preserving the order of rows with
 equal displayed labels. Comparators read immutable caller metadata while Rust exclusively permutes the index array.
+An allocation-free rune getter shares the pinned Go Unicode17 printability table with native protocol diagnostics.
 
 Basic query statistics report actual execution phases, logical sample participation, useful source reads and
 the peak of owned sample values. They use fixed-size observations; per-step arrays remain disabled.

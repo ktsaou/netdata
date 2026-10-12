@@ -58,6 +58,8 @@ Netdata metadata, dbengine formats, HTTP transports and rule scheduling are call
 - Metadata discovery must fetch zero samples, release each provisional series and close providers before commit.
   Qualify normal END only for metadata rows, malformed nonmatches, first-error cleanup and owned output/report credits.
   Include selector-roster preparation in control/work/timing checks; cancellation must precede size-dependent copies.
+- Native protocol quoting reuses the existing Go Unicode17 printability table through its checked primitive getter.
+  Include control/nonprinting, supplementary, invalid Unicode and output-pointer boundaries in rebuilt C callers.
 - `precision.py --binary <query-fixture>` replays nine precise-clock originals at pages 1/17/1024.
   Run both primitive gates for both profiles; neither qualifies an HTTP router or live provider.
 - Histogram visitors and fixed-size basic statistics enlarge the ABI4 observation/layout roster. Rebuild actual

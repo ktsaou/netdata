@@ -481,7 +481,7 @@ integration, and Alertmanager remains excluded.
 
 ## Current library qualification
 
-- Both optimized builds pass521 fixture units; the production feature set passes519 units. Strict lint,
+- Both optimized builds pass522 fixture units; the production feature set passes520 units. Strict lint,
   formatting and the installed Rust1.91.0 minimum-version checks pass.
 - The retained full expression cohort at signed db210124 executes290956 cases, with overlapping families kept separate. All231540 required
   SRE executions pass across both builds and pages1/17/1024, including candidate-owned recording dependencies.
@@ -499,6 +499,9 @@ integration, and Alertmanager remains excluded.
   units/caller cohort remains distinct from the unchanged protocol/clock/arithmetic cohorts above.
 - The current index-sort bridge adds four focused units and six controls per C caller. The prior discovery517/515
   and430-record cohort remains attributed to d56f263; existing arithmetic and parser owners are unchanged.
+- The additive native quoting getter shares the existing Unicode17 printability table and checks its output shape.
+  One new unit and twelve rune boundaries per current C caller qualify it; table contents and quoting algorithms
+  are unchanged. The prior sorting521/519 and448-record cohort retains its56fea9c source identity.
 - Native Clang C ASan/UBSan checks and the rejected panic-abort compilation pass. Caller instrumentation
   does not instrument the linked Rust archive. No current full-engine Miri gate is claimed.
 - `core-qualification.json` binds every fresh receipt to its actual sources and binaries. These finite checks

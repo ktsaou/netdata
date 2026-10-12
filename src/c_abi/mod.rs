@@ -16,8 +16,8 @@ mod sort;
 pub use protocol::{
     netdata_promql_api_float_text, netdata_promql_api_parse_duration,
     netdata_promql_api_parse_limit, netdata_promql_api_parse_time,
-    netdata_promql_api_scalar_float_text, netdata_promql_api_scalar_timestamp_text,
-    netdata_promql_api_timestamp_text,
+    netdata_promql_api_rune_is_print, netdata_promql_api_scalar_float_text,
+    netdata_promql_api_scalar_timestamp_text, netdata_promql_api_timestamp_text,
 };
 pub use selection::{
     netdata_promql_selector_compile, netdata_promql_selector_matcher,

@@ -22,6 +22,10 @@ enabled admission limit is introduced.
 
 Retained qualification covers:
 
+- The native diagnostic printability getter reuses the existing Go Unicode17 table without allocating. Its
+  additive cohort passes522 fixture units in both profiles,520 production units, lint/format/MSRV checks and448
+  rebuilt C/C++ records across AMD64/ARM64/ARM32. Twelve rune boundaries and invalid output-pointer controls run
+  in actual callers. This qualifies the primitive; native form decoding and composed API messages remain caller work.
 - Precise query/protocol primitives in both native profiles:230 original parser/selector/text cases plus528
   label conjunctions per build, and27 precise-clock comparisons per build at pages1/17/1024. Their scoped follow-up
   passes479 production release and480 fixtures release-min unit tests, Rust1.91 checks and18 actual C/C++

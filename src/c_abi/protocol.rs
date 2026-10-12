@@ -69,6 +69,11 @@ impl Write for types::NumericText {
 }
 
 export! {
+    fn netdata_promql_api_rune_is_print(value: u32, out: *mut u32) {
+        unsafe { checked::output(out) }?;
+        unsafe { out.write(u32::from(crate::frontend::is_print(value))) };
+        Ok(types::OK)
+    }
     fn netdata_promql_api_parse_time(engine: *const types::Engine, source: types::Bytes, raw_control: *const types::Control, out: *mut types::Timestamp, out_report: *mut *mut types::Report) {
         unsafe { parse(engine, source, raw_control, out, out_report, |source, account, control| {
             Ok(http::parse_time(source, account, control)?.map(|Timestamp { unix_seconds, nanoseconds }| types::Timestamp { unix_seconds, nanoseconds, reserved: 0 }))

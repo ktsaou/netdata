@@ -2,7 +2,7 @@
 // Generated from Go 1.27.1 strconv.IsPrint, Unicode 17.0.0; see LICENSE-GO-BSD.
 // Regenerate with tests/promql-conformance/capture/go_tables.go.
 
-pub(super) fn is_print(r: u32) -> bool {
+pub(crate) fn is_print(r: u32) -> bool {
     PRINT_RANGES
         .binary_search_by(|&(start, end)| {
             if end < r {

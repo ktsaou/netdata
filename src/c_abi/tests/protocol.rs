@@ -2,6 +2,42 @@
 use super::*;
 
 #[test]
+fn native_diagnostic_printability_checks_pinned_boundaries_and_pointer_shape() {
+    for (rune, expected) in [
+        (0_u32, 0),
+        (0x1f, 0),
+        (0x20, 1),
+        (0x7e, 1),
+        (0x7f, 0),
+        (0xa0, 0),
+        (0xa1, 1),
+        (0x200b, 0),
+        (0x20000, 1),
+        (0xd800, 0),
+        (0x110000, 0),
+        (u32::MAX, 0),
+    ] {
+        let mut printable = 99;
+        assert_eq!(
+            unsafe { netdata_promql_api_rune_is_print(rune, &mut printable) },
+            types::OK
+        );
+        assert_eq!(printable, expected);
+    }
+    assert_eq!(
+        unsafe { netdata_promql_api_rune_is_print(0, std::ptr::null_mut()) },
+        types::INVALID_ARGUMENT
+    );
+    let mut aligned = 0_u64;
+    let misaligned = unsafe { (&mut aligned as *mut u64).cast::<u8>().add(1).cast::<u32>() };
+    assert_eq!(
+        unsafe { netdata_promql_api_rune_is_print(0, misaligned) },
+        types::INVALID_ARGUMENT
+    );
+    assert_eq!(aligned, 0);
+}
+
+#[test]
 fn limit_parameters_use_pinned_amd64_width_and_source_error_precedence() {
     unsafe {
         let engine = engine();
