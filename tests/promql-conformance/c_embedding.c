@@ -1370,7 +1370,7 @@ static void metadata_abort(void *context, const netdata_promql_accounting_contex
 }
 
 static void metadata_discovery(netdata_promql_engine_t *engine) {
-    for(unsigned test = 0; test < 5; test++) {
+    for(unsigned test = 0; test < 6; test++) {
         fixture source;
         init_fixture(&source, 8192, 1);
         netdata_promql_provider_t input = provider(&source);
@@ -1384,11 +1384,16 @@ static void metadata_discovery(netdata_promql_engine_t *engine) {
         memset(&output, 0, sizeof(output));
         output.source = &source;
         output.stop = test == 2;
-        output.output.accounting_engine = engine;
+        // Cleanup allocation probes would hide the cancelled roster's workspace peak.
+        output.output.accounting_engine = test == 5 ? NULL : engine;
         output.output.retain_output = 1;
         if(test == 4) {
             output.output.failure = output.output.cancel_at = 2;
             assert(netdata_promql_control_create(engine, NULL, &output.output.control) == NETDATA_PROMQL_OK);
+        }
+        if(test == 5) {
+            assert(netdata_promql_control_create(engine, NULL, &output.output.control) == NETDATA_PROMQL_OK);
+            assert(netdata_promql_control_cancel(output.output.control) == NETDATA_PROMQL_OK);
         }
         netdata_promql_output_t sink;
         memset(&sink, 0, sizeof(sink));
@@ -1396,25 +1401,32 @@ static void metadata_discovery(netdata_promql_engine_t *engine) {
         sink.header.struct_size = sizeof(sink);
         sink.context = &output;
         sink.begin = metadata_begin; sink.chunk = metadata_chunk; sink.commit = metadata_commit; sink.abort = metadata_abort;
-        const netdata_promql_selector_t *selectors[] = {selector};
+        const netdata_promql_selector_t *selectors[4096];
+        for(size_t i = 0; i < sizeof(selectors) / sizeof(selectors[0]); i++) selectors[i] = selector;
         netdata_promql_bounds_t bounds = {-123, 4567};
-        uint32_t status = netdata_promql_discover(engine, &input, bounds, selectors, test ? 1 : 0,
+        uint32_t status = netdata_promql_discover(engine, &input, bounds, selectors, test == 5 ? 4096 : test ? 1 : 0,
                                                  output.output.control, &sink, &report);
-        assert(status == (test == 4 ? NETDATA_PROMQL_OUTPUT_ERROR : NETDATA_PROMQL_OK));
-        assert(output.rows == (test == 3 ? 0u : 1u));
+        assert(status == (test == 4 ? NETDATA_PROMQL_OUTPUT_ERROR : test == 5 ? NETDATA_PROMQL_CANCELLED : NETDATA_PROMQL_OK));
+        assert(output.rows == (test == 3 || test == 5 ? 0u : 1u));
         assert(source.opened[3] == 0 && source.samples_returned == 0 && source.temporary_opened == 0);
-        assert(output.output.calls[3] == (test == 4));
+        assert(output.output.calls[3] == (test == 4 || test == 5));
+        if(test == 5) {
+            netdata_promql_query_observations_t observed;
+            assert(netdata_promql_report_observations(report, &observed) == NETDATA_PROMQL_OK);
+            assert(observed.memory[NETDATA_PROMQL_MEMORY_WORKSPACE].peak == 0 && observed.work == 0);
+            assert(!source.opened[0] && !output.output.calls[0]);
+        }
         released(&source);
         if(selector) assert(netdata_promql_selector_release(selector) == NETDATA_PROMQL_OK);
         assert(netdata_promql_report_release(report) == NETDATA_PROMQL_OK);
         if(output.output.control) assert(netdata_promql_control_release(output.output.control) == NETDATA_PROMQL_OK);
-        if(test != 4) {
+        if(test != 4 && test != 5) {
             assert(output.output.allocation && engine_observations(engine).memory[NETDATA_PROMQL_MEMORY_RESULT].current >= 4096);
             free(output.output.buffer);
             assert(netdata_promql_allocation_release(output.output.allocation) == NETDATA_PROMQL_OK);
         }
     }
-    puts("{\"metadata_discovery\":\"pass\",\"cases\":5}");
+    puts("{\"metadata_discovery\":\"pass\",\"cases\":6}");
 }
 
 int main(void) {

@@ -131,24 +131,29 @@ export! {
         sink.bind(&account);
         let raw = unsafe { checked::slice(raw_selectors, selector_count) }?;
         let mut selectors = crate::accounting::AccountedVec::new(&account, MemoryKind::Workspace);
-        for value in raw { selectors.push(unsafe { borrow::<selection::Selector, _>(*value) }?); }
         let control = unsafe { control(raw_control, &engine.core.accounting) }?;
         let provider = unsafe { provider::Provider::new(raw_provider, &account) }?;
         let mut report = Report::new(&account, false);
         let observation = account.execution();
         let control_observation = control.observe(&account);
         let mut annotations = Annotations::default();
-        let result = catch_unwind(AssertUnwindSafe(|| -> Result<(), ExecutionError> {
+        let result = catch_unwind(AssertUnwindSafe(|| -> Result<Result<(), ExecutionError>, Invalid> {
             let phase = account.phase(crate::statistics::Phase::Execution);
-            enumerate(&provider, TimeBounds { start_ms: bounds.start_ms, end_ms: bounds.end_ms },
-                      &selectors, &control, &mut sink, &account, &mut annotations)?;
+            for value in raw {
+                if let Err(error) = control.check() { return Ok(Err(error.into())); }
+                account.work(1);
+                selectors.push(unsafe { borrow::<selection::Selector, _>(*value) }?);
+            }
+            if let Err(error) = enumerate(&provider, TimeBounds { start_ms: bounds.start_ms, end_ms: bounds.end_ms },
+                                         &selectors, &control, &mut sink, &account, &mut annotations) {
+                return Ok(Err(error));
+            }
             drop(phase);
             let mut observations = account.snapshot();
             observations.elapsed = observations.elapsed.saturating_add(observation.elapsed());
-            sink.commit_checked(&observations, &control, &account)
-                .map_err(|error| ExecutionError::output(error, &account))?;
-            Ok(())
-        })).unwrap_or(Err(ExecutionError::Internal));
+            Ok(sink.commit_checked(&observations, &control, &account)
+                .map_err(|error| ExecutionError::output(error, &account)))
+        })).unwrap_or(Ok(Err(ExecutionError::Internal)))?;
         let result = if result.is_err() && catch_unwind(AssertUnwindSafe(|| sink.abort())).is_err() {
             Err(ExecutionError::Internal)
         } else { result };

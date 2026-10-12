@@ -438,3 +438,142 @@ fn metadata_output_failures_and_cancellation_abort_once_including_before_begin()
         }
     }
 }
+
+#[test]
+fn cancelled_metadata_roster_stops_before_size_dependent_preparation() {
+    unsafe {
+        let engine = engine();
+        let account = borrow::<Engine, _>(engine).unwrap().core.accounting.clone();
+        let selector = selector(engine, b"m");
+        let mut token = ptr::null_mut();
+        assert_eq!(
+            netdata_promql_control_create(engine, ptr::null(), &mut token),
+            types::OK
+        );
+        assert_eq!(netdata_promql_control_cancel(token), types::OK);
+        let mut peaks = Vec::new();
+        for count in [1, 65536] {
+            let raw = vec![selector.cast_const(); count];
+            let mut fixture = Fixture::new(1);
+            let table = provider(&mut fixture);
+            let mut output = Rows::default();
+            let sink = output.table();
+            let mut report = ptr::null_mut();
+            assert_eq!(
+                netdata_promql_discover(
+                    engine,
+                    &table,
+                    BOUNDS,
+                    raw.as_ptr(),
+                    count as u64,
+                    token,
+                    &sink,
+                    &mut report
+                ),
+                types::CANCELLED
+            );
+            let mut observed = types::QueryObservations::default();
+            assert_eq!(
+                netdata_promql_report_observations(report, &mut observed),
+                types::OK
+            );
+            peaks.push(observed.memory[MemoryKind::Workspace as usize].peak);
+            assert_eq!(
+                output.calls.each_ref().map(|value| value.get()),
+                [0, 0, 0, 1]
+            );
+            assert!(fixture.opened.iter().all(|value| value.get() == 0));
+            assert_eq!(netdata_promql_report_release(report), types::OK);
+        }
+        assert_eq!(netdata_promql_selector_release(selector), types::OK);
+        assert_eq!(netdata_promql_control_release(token), types::OK);
+        assert_eq!(netdata_promql_engine_release(engine), types::OK);
+        account.snapshot().assert_memory_released();
+        assert_eq!(
+            peaks[0], peaks[1],
+            "cancelled metadata must not copy the selector roster"
+        );
+    }
+}
+
+#[test]
+fn metadata_roster_preparation_is_in_work_observations() {
+    unsafe {
+        let engine = engine();
+        let account = borrow::<Engine, _>(engine).unwrap().core.accounting.clone();
+        let selector = selector(engine, b"m");
+        let mut work = Vec::new();
+        for count in [1, 1024] {
+            let raw = vec![selector.cast_const(); count];
+            let mut fixture = Fixture::new(1);
+            let table = provider(&mut fixture);
+            let mut output = Rows {
+                stop: true,
+                ..Rows::default()
+            };
+            let sink = output.table();
+            let mut report = ptr::null_mut();
+            assert_eq!(
+                netdata_promql_discover(
+                    engine,
+                    &table,
+                    BOUNDS,
+                    raw.as_ptr(),
+                    count as u64,
+                    ptr::null(),
+                    &sink,
+                    &mut report
+                ),
+                types::OK
+            );
+            let mut observed = types::QueryObservations::default();
+            assert_eq!(
+                netdata_promql_report_observations(report, &mut observed),
+                types::OK
+            );
+            work.push(observed.work);
+            assert_eq!(output.rows.borrow().len(), 1);
+            output.release_body();
+            assert_eq!(netdata_promql_report_release(report), types::OK);
+        }
+        assert_eq!(netdata_promql_selector_release(selector), types::OK);
+        assert_eq!(netdata_promql_engine_release(engine), types::OK);
+        account.snapshot().assert_memory_released();
+        assert_eq!(work[1] - work[0], 1023);
+    }
+}
+
+#[test]
+fn invalid_metadata_selector_aborts_before_provider_open_without_publishing_a_report() {
+    unsafe {
+        let engine = engine();
+        let account = borrow::<Engine, _>(engine).unwrap().core.accounting.clone();
+        let mut fixture = Fixture::new(1);
+        let table = provider(&mut fixture);
+        let mut output = Rows::default();
+        let sink = output.table();
+        let mut report = ptr::null_mut();
+        let raw = [ptr::null()];
+        assert_eq!(
+            netdata_promql_discover(
+                engine,
+                &table,
+                BOUNDS,
+                raw.as_ptr(),
+                1,
+                ptr::null(),
+                &sink,
+                &mut report
+            ),
+            types::INVALID_ARGUMENT
+        );
+        assert!(report.is_null());
+        assert_eq!(
+            output.calls.each_ref().map(|value| value.get()),
+            [0, 0, 0, 1]
+        );
+        assert!(fixture.opened.iter().all(|value| value.get() == 0));
+        assert_eq!(netdata_promql_engine_release(engine), types::OK);
+        account.snapshot().assert_memory_released();
+    }
+}

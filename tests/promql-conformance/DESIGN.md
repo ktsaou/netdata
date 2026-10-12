@@ -389,7 +389,7 @@ Original failures remain evidence. [Approved exceptions](contract.json) and
 - **Consequence:** unsupported required cases cannot count as passes. Keep original failures, numeric declarations,
   raw policy disagreements and each cohort's actual source/binary identity. Catalog AST witnesses and overlapping
   counts do not establish node visitation, branch coverage or equivalence for every possible input.
-- **Current evidence:** 508 fixture units in each optimized standalone build and506 production units, finite
+- **Retained db210124 evidence:** 508 fixture units in each optimized standalone build and506 production units, finite
   expression/SRE panels and rebuilt ABI 4 C/C++ callers on three GNU targets. The earlier501/499-unit ABI 3
   statistics checkpoint remains historical; each cohort retains its actual source, binary and interface version.
   Native caller sanitizers instrument C/C++, not Rust. Historical selected-owner Miri used ABI 2; it is not a
@@ -468,19 +468,22 @@ integration, and Alertmanager remains excluded.
 
 ## Current library qualification
 
-- Both optimized builds pass514 fixture units; the production feature set passes512 units. Strict lint,
+- Both optimized builds pass517 fixture units; the production feature set passes515 units. Strict lint,
   formatting and the installed Rust1.91.0 minimum-version checks pass.
 - The retained full expression cohort at signed db210124 executes290956 cases, with overlapping families kept separate. All231540 required
   SRE executions pass across both builds and pages1/17/1024, including candidate-owned recording dependencies.
   Neither panel has an unresolved expression or bitwise difference. The subsequent isolated metadata/API additions
   do not change arithmetic owners; these historical panels retain their actual source and binary identities.
-- The precise-clock panel passes27 comparisons per build. Protocol primitives pass230 cases and528 label
+- At f72d6aa, the precise-clock panel passes27 comparisons per build. Protocol primitives pass230 cases and528 label
   conjunctions per build; the separate pinned limit panel passes34 cases per build. HTTP wrapper cases remain Netdata integration work.
 - Actual rebuilt AMD64, ARM64 and ARM32 C/C++ callers pass430 records:414 current-caller records and16
   previous-header rejection records. Each layout has58 structures,16 callbacks and33 shared constants.
 - Metadata discovery checks zero sample cursors, prompt series release, normal early stop, provider/output failures,
   cancellation and allocation handles retained beyond reports. Report-account callbacks and64-bit limits are exercised
   by actual C callers, including ARM32. Existing ABI4 table layouts are unchanged.
+- Discovery selector preparation polls cancellation and counts work inside its execution timing. A prior-cancelled
+  roster performs no selector copy; all six metadata C cases pass on each current caller. The corrected loop's fresh
+  units/caller cohort remains distinct from the unchanged protocol/clock/arithmetic cohorts above.
 - Native Clang C ASan/UBSan checks and the rejected panic-abort compilation pass. Caller instrumentation
   does not instrument the linked Rust archive. No current full-engine Miri gate is claimed.
 - `core-qualification.json` binds every fresh receipt to its actual sources and binaries. These finite checks
