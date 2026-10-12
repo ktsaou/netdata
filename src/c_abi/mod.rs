@@ -12,6 +12,7 @@ mod output;
 mod protocol;
 mod provider;
 mod selection;
+mod sort;
 pub use protocol::{
     netdata_promql_api_float_text, netdata_promql_api_parse_duration,
     netdata_promql_api_parse_limit, netdata_promql_api_parse_time,
@@ -23,6 +24,7 @@ pub use selection::{
     netdata_promql_selector_matcher_count, netdata_promql_selector_matches,
     netdata_promql_selector_nonempty, netdata_promql_selector_release,
 };
+pub use sort::netdata_promql_callback_sort_indices;
 #[cfg(test)]
 mod tests;
 pub mod types;

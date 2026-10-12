@@ -62,6 +62,9 @@ Netdata metadata, dbengine formats, HTTP transports and rule scheduling are call
   Run both primitive gates for both profiles; neither qualifies an HTTP router or live provider.
 - Histogram visitors and fixed-size basic statistics enlarge the ABI4 observation/layout roster. Rebuild actual
   C/C++ callers, verify generated layouts and keep caller sanitizer scope distinct from the Rust archive.
+- Callback index sorting reuses the pinned Go controller; preserve equal-key comparison/swap provenance.
+  Comparators must not access the exclusively borrowed index array. Check permutation/trace, empty and invalid
+  shapes, error-before-cancellation and prompt borrowed-view release; rebuild the callback/layout C roster.
 - Basic statistics describe actual paged ownership. Check useful reads against unused fetched prefixes and
   validation-only acquisition; check logical totals across primary folds/subqueries independently of replays.
   Include output/copy/replacement lifetimes and pinned native-histogram weights in peak checks. Do not equate

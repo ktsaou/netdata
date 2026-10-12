@@ -1056,6 +1056,89 @@ static void histogram_delivery_cases(netdata_promql_engine_t *engine) {
     }
     puts("{\"histogram_buckets\":\"pass\",\"cases\":7}");
 }
+typedef struct {
+    delivery base;
+    unsigned kind, comparisons;
+    netdata_promql_report_t *child_report;
+} sort_delivery;
+
+static uint32_t sort_compare(void *context, uint64_t left, uint64_t right,
+                              const netdata_promql_callback_control_t *control,
+                              int32_t *ordering, netdata_promql_bytes_t *error) {
+    sort_delivery *d = (sort_delivery *)context;
+    static const unsigned keys[] = {2, 1, 1};
+    assert(checked_control(control) == NETDATA_PROMQL_OK && left < 3 && right < 3);
+    d->comparisons++;
+    *ordering = keys[left] < keys[right] ? -17 : keys[left] > keys[right] ? 23 : 0;
+    if(d->kind == 1 || d->kind == 2) {
+        assert(netdata_promql_control_cancel(d->base.control) == NETDATA_PROMQL_OK);
+        if(d->kind == 1) { *error = bytes("compare\0error", 13); return NETDATA_PROMQL_OUTPUT_ERROR; }
+    }
+    return NETDATA_PROMQL_OK;
+}
+
+static uint32_t sort_begin(void *context, const netdata_promql_output_header_t *header,
+                            const netdata_promql_callback_control_t *control, netdata_promql_bytes_t *error) {
+    sort_delivery *d = (sort_delivery *)context;
+    assert(output_begin(&d->base, header, control, error) == NETDATA_PROMQL_OK);
+    uint64_t indices[] = {0, 1, 2};
+    if(d->kind == 5) assert(netdata_promql_control_cancel(d->base.control) == NETDATA_PROMQL_OK);
+    uint32_t status = netdata_promql_callback_sort_indices(d->kind == 3 || d->kind == 4 ? NULL : indices,
+        d->kind == 3 ? 1 : d->kind == 4 ? 0 : 3, control, sort_compare, d, &d->child_report);
+    if(status == NETDATA_PROMQL_OK) {
+        if(d->kind == 0) assert(indices[0] == 1 && indices[1] == 2 && indices[2] == 0);
+        assert(netdata_promql_report_release(d->child_report) == NETDATA_PROMQL_OK);
+        d->child_report = NULL;
+        return NETDATA_PROMQL_OK;
+    }
+    if(d->child_report) {
+        netdata_promql_error_t failure;
+        assert(netdata_promql_report_error(d->child_report, 0, &failure) == NETDATA_PROMQL_OK);
+        *error = failure.message;
+    }
+    else *error = text("invalid sort array");
+    return status == NETDATA_PROMQL_INVALID_ARGUMENT ? NETDATA_PROMQL_OUTPUT_ERROR : status;
+}
+
+static void sort_abort(void *context, const netdata_promql_accounting_context_t *account) {
+    sort_delivery *d = (sort_delivery *)context;
+    if(d->child_report) {
+        assert(netdata_promql_report_release(d->child_report) == NETDATA_PROMQL_OK);
+        d->child_report = NULL;
+    }
+    output_abort(&d->base, account);
+}
+
+static void sort_delivery_cases(netdata_promql_engine_t *engine) {
+    for(unsigned kind = 0; kind < 6; kind++) {
+        sort_delivery d;
+        memset(&d, 0, sizeof(d)); d.kind = kind;
+        assert(netdata_promql_control_create(engine, NULL, &d.base.control) == NETDATA_PROMQL_OK);
+        fixture f; init_fixture(&f, 5, 7);
+        netdata_promql_provider_t p = provider(&f);
+        netdata_promql_query_t *query = compile(engine, "m");
+        netdata_promql_request_t request = instant(3000);
+        netdata_promql_output_t output = delivery_table(&d.base);
+        output.context = &d; output.begin = sort_begin; output.abort = sort_abort;
+        netdata_promql_report_t *report = NULL;
+        uint32_t status = netdata_promql_execute(query, &p, &request, d.base.control, &output, &report);
+        uint32_t expected = kind == 0 || kind == 4 ? NETDATA_PROMQL_OK :
+            kind == 1 || kind == 3 ? NETDATA_PROMQL_OUTPUT_ERROR : NETDATA_PROMQL_CANCELLED;
+        assert(status == expected && !d.child_report && d.base.calls[3] == (expected != NETDATA_PROMQL_OK));
+        assert(d.comparisons == (kind == 0 ? 3 : kind == 1 || kind == 2 ? 1 : 0));
+        if(kind == 1) {
+            netdata_promql_error_t failure;
+            assert(netdata_promql_report_error(report, 0, &failure) == NETDATA_PROMQL_OK);
+            assert(failure.message.len == 13 && memcmp(failure.message.data, "compare\0error", 13) == 0);
+        }
+        released(&f);
+        assert(netdata_promql_query_release(query) == NETDATA_PROMQL_OK);
+        assert(netdata_promql_control_release(d.base.control) == NETDATA_PROMQL_OK);
+        assert(netdata_promql_report_release(report) == NETDATA_PROMQL_OK);
+    }
+    puts("{\"index_sort\":\"pass\",\"cases\":6}");
+}
+
 static void foreign_provider_accounting(netdata_promql_engine_t *engine) {
     netdata_promql_query_t *query = compile(engine, "m[1s]");
     fixture f;
@@ -1474,6 +1557,8 @@ int main(void) {
     foreign_early_abort(engine);
     balanced(engine, &idle);
     histogram_delivery_cases(engine);
+    balanced(engine, &idle);
+    sort_delivery_cases(engine);
     balanced(engine, &idle);
     precise_requests(engine);
     balanced(engine, &idle);

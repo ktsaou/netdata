@@ -1857,7 +1857,7 @@ Use the configured development Python environment. The driver uses installed GCC
 private `.tmp/c-embedding-*` evidence containing commands, source hashes, layouts, binaries and witness output.
 Process identities and ordinary completion are retained without an automatic process-killing deadline. Static
 archives and the Rust layout dependency roster are hashed before and after their consuming commands and included
-in the evidence manifest. Both unwind profiles compare all 58 declared structures/unions, 16 callback aliases and
+in the evidence manifest. Both unwind profiles compare all 58 declared structures/unions, 17 callback aliases and
 33 shared constants between Rust,
 C11 and C++17, and check header/archive exports. The real foreign callers exercise arithmetic, repeated paging,
 resource conservation, independent results, opaque errors, output delivery and cancellation/error precedence.
@@ -1882,6 +1882,13 @@ and fetches no samples. Library units cover selector unions, malformed nonmatchi
 and cancellation. The C embedding gate covers absent selectors, matches/nonmatches, normal early stop, output failure
 ahead of concurrent cancellation, and retained output allocation handles after reports are released.
 These generic calls do not qualify a Netdata discovery route or its union/sorting policy.
+
+The callback index sorter uses the existing pinned Go sorting program with the enclosing account/control.
+Its comparator receives immutable index values and must not access the exclusively borrowed mutable index array.
+Units compare its complete permutation and comparison trace with the existing qualified routine, including ties.
+Actual C callers cover success, empty/invalid arrays, prior cancellation, cancellation during comparison and owned
+comparator errors ahead of cancellation. Partial permutations are discarded with failed surrounding output.
+This bridge qualifies generic ordering and ownership, not Netdata's backed label comparator or HTTP serializer.
 
 The limit parser has a separate frozen original capture:34 raw-byte cases run through the unchanged pinned
 Prometheus helper on Go1.27.1 AMD64. This includes64-bit bounds on ARM32, overflow/error precedence, signs,

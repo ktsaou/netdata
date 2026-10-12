@@ -211,6 +211,7 @@ def native_records(name, output):
         },
         {"foreign_early_abort": "pass", "cases": 11},
         {"histogram_buckets": "pass", "cases": 7},
+        {"index_sort": "pass", "cases": 6},
         {"precise_requests": "pass", "cases": 2},
         {"protocol_primitives": "pass"},
         {"metadata_discovery": "pass", "cases": 6},

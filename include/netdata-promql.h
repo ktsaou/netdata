@@ -517,6 +517,7 @@ typedef uint32_t (*netdata_promql_chunk_callback_t)(void *, const netdata_promql
 
 typedef uint32_t (*netdata_promql_commit_callback_t)(void *, const netdata_promql_query_observations_t *, const netdata_promql_callback_control_t *, netdata_promql_bytes_t *);
 typedef uint32_t (*netdata_promql_histogram_bucket_callback_t)(void *, const netdata_promql_histogram_bucket_t *, const netdata_promql_callback_control_t *, netdata_promql_bytes_t *);
+typedef uint32_t (*netdata_promql_sort_compare_callback_t)(void *, uint64_t left, uint64_t right, const netdata_promql_callback_control_t *, int32_t *ordering, netdata_promql_bytes_t *);
 
 typedef void (*netdata_promql_abort_callback_t)(void *, const netdata_promql_accounting_context_t *);
 
@@ -670,6 +671,15 @@ uint32_t netdata_promql_api_scalar_timestamp_text(int64_t time_ms, netdata_promq
  * or copy those bytes before releasing it. The enclosing output transaction owns abort.
  */
 uint32_t netdata_promql_callback_histogram_buckets(const netdata_promql_float_histogram_t *, const netdata_promql_callback_control_t *, netdata_promql_histogram_bucket_callback_t, void *, netdata_promql_report_t **);
+/* Sort caller-owned indices with the pinned Go algorithm, including equal-key provenance. The index array is
+ * exclusively borrowed and mutated during this synchronous call: the comparator MUST NOT access it, directly
+ * or through aliases. Compare immutable metadata identified by the supplied index values; return negative,
+ * zero or positive ordering on OK. Report/index storage must not overlap. Count zero accepts a NULL array.
+ * Uses the enclosing callback's control/account; observes array exposure and sort work, without copying indices.
+ * Failure may leave a partial permutation. This helper owns its child report and no surrounding output transaction;
+ * the caller handles abort, and keeps child error bytes live until copied or the enclosing callback returns.
+ */
+uint32_t netdata_promql_callback_sort_indices(uint64_t *indices, uint64_t count, const netdata_promql_callback_control_t *, netdata_promql_sort_compare_callback_t, void *, netdata_promql_report_t **);
 /* Selector syntax is parsed independently of the later API empty-matcher guard.
  * Source/matcher views remain valid until selector_release. Labels passed to matches must be
  * unique and sorted by their raw name bytes. The empty-matcher guard applies to every supplied set.

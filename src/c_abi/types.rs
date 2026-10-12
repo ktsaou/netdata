@@ -619,6 +619,14 @@ pub type HistogramBucketCallback = unsafe extern "C" fn(
     *const CallbackControl,
     *mut Bytes,
 ) -> u32;
+pub type SortCompareCallback = unsafe extern "C" fn(
+    *mut c_void,
+    u64,
+    u64,
+    *const CallbackControl,
+    *mut i32,
+    *mut Bytes,
+) -> u32;
 #[repr(C)]
 #[derive(Clone, Copy, Default)]
 pub struct Output {
