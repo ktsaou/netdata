@@ -39,6 +39,7 @@ struct Current {
     identity: Identity,
     kind: u8,
     value: OwnedValue,
+    _float_samples: Option<crate::statistics::OwnedSamples>,
 }
 
 #[derive(Clone, Copy)]
@@ -101,9 +102,13 @@ impl Reader {
     }
 
     pub(crate) fn receive(&mut self, sample: EvaluatedSample) -> bool {
-        self.receive_value(sample.value)
+        self.receive_value(sample.into_parts())
     }
-    pub(crate) fn receive_value(&mut self, mut value: OwnedValue) -> bool {
+    pub(crate) fn receive_value(&mut self, parts: crate::statistics::ValueParts) -> bool {
+        let crate::statistics::ValueParts {
+            mut value,
+            float_samples,
+        } = parts;
         assert!(self.pending, "requested derived child");
         if value.kind_bit() != self.cursor.kind {
             return false;
@@ -125,6 +130,7 @@ impl Reader {
             },
             kind: self.cursor.kind,
             value,
+            _float_samples: float_samples,
         });
         true
     }

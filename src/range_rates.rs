@@ -32,12 +32,27 @@ impl RateFunction {
 
 #[derive(Default)]
 pub(crate) struct RateOutput {
+    pub(crate) float_samples: Option<crate::statistics::OwnedSamples>,
     pub(crate) value: Option<OwnedValue>,
     pub(crate) annotations: [Option<AnnotationKind>; 6],
     pub(crate) nonempty: bool,
     pub(crate) progress: Option<Progress>,
 }
 impl RateOutput {
+    pub(crate) fn account_value(&mut self, account: &QueryAccounting) {
+        if self.float_samples.is_none() {
+            self.float_samples = self
+                .value
+                .as_ref()
+                .and_then(|value| crate::statistics::hold_float(account, value.as_ref()));
+        }
+    }
+    pub(crate) fn into_parts(self) -> Option<crate::statistics::ValueParts> {
+        self.value.map(|value| crate::statistics::ValueParts {
+            value,
+            float_samples: self.float_samples,
+        })
+    }
     pub(crate) fn note(&mut self, kind: AnnotationKind) {
         if self.annotations.contains(&Some(kind)) {
             return;
@@ -114,7 +129,7 @@ impl Step {
         account: &QueryAccounting,
     ) -> Result<(), StorageError> {
         match self {
-            Self::Float { step, .. } => step.receive(sample, control),
+            Self::Float { step, .. } => step.receive(sample, control, account),
             Self::Native(step) => step.receive(sample, control, account),
             Self::Instant(step) => step.receive(sample, control, account),
         }
@@ -161,6 +176,7 @@ impl Step {
         }?;
         if let Some(output) = &mut result {
             output.nonempty = nonempty;
+            output.account_value(account);
         }
         Ok(result)
     }
@@ -620,6 +636,7 @@ struct InstantPoint {
     time: i64,
     start: i64,
     value: OwnedValue,
+    _float_samples: Option<crate::statistics::OwnedSamples>,
 }
 pub(crate) struct InstantStep {
     counter: bool,
@@ -644,19 +661,19 @@ impl InstantStep {
             &mut self.histograms
         };
         points[0] = points[1].take();
+        let value = crate::statistics::ValueParts::new(
+            OwnedValue::from_sample_checked(sample.value, control, account, MemoryKind::Workspace)?,
+            account,
+        );
         points[1] = Some(InstantPoint {
+            _float_samples: value.float_samples,
             time: sample.time_ms,
             start: if self.start_timestamps {
                 sample.start_time_ms
             } else {
                 0
             },
-            value: OwnedValue::from_sample_checked(
-                sample.value,
-                control,
-                account,
-                MemoryKind::Workspace,
-            )?,
+            value: value.value,
         });
         Ok(())
     }
@@ -772,6 +789,7 @@ impl InstantStep {
                 None
             }
         };
+        output.account_value(account);
         Ok(output)
     }
 }
@@ -815,6 +833,31 @@ mod tests {
             end_ms: count as i64 * 1000,
             range_ns: count as i64 * 1_000_000_000,
             start_timestamps: false,
+        }
+    }
+
+    #[test]
+    fn instant_float_rate_counts_the_output_while_both_endpoints_are_borrowed() {
+        for page in [1, 17, 1024] {
+            for counter in [false, true] {
+                let account = EngineAccounting::default().query();
+                let source = GeneratedSeries::new(3, page, crate::test_storage::counter);
+                let output = evaluate(
+                    &source,
+                    window(3),
+                    RateFunction::Instant { counter },
+                    None,
+                    &Control::default(),
+                    &account,
+                )
+                .unwrap();
+                assert!(matches!(output.value, Some(OwnedValue::Float(_))));
+                assert_eq!(account.snapshot().statistics.samples.peak_samples, 3);
+                assert_eq!(account.current_samples(), 1);
+                drop(output);
+                assert_eq!(account.current_samples(), 0);
+                assert_eq!(source.counters.active.load(Ordering::Relaxed), 0);
+            }
         }
     }
 

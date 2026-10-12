@@ -314,6 +314,7 @@ impl<'a> Step<'a> {
                 &mut group.labels,
                 OwnedLabels::new(account, MemoryKind::Workspace),
             ),
+            float_samples: Some(crate::statistics::OwnedSamples::new(account, 1)),
             value: OwnedValue::Float(group.count as f64),
             source_time_ms: time_ms,
             source_start_time_ms: 0,

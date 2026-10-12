@@ -10,6 +10,8 @@ mod allocations;
 mod delivery;
 mod ownership;
 mod pages;
+mod precision;
+mod protocol;
 #[cfg(all(
     target_os = "linux",
     any(target_arch = "x86_64", target_arch = "aarch64", target_arch = "arm")

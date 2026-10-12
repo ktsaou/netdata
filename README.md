@@ -6,7 +6,7 @@ expression evaluation. Its caller supplies metadata, paged samples, temporary ba
 - Build: `cargo build --locked --release`.
 - Prepare fixture backing: `mkdir -p tests/promql-conformance/.tmp`.
 - Test: `cargo test --locked --features fixtures --release`.
-- C interface: [include/netdata-promql.h](include/netdata-promql.h), ABI 3.
+- C interface: [include/netdata-promql.h](include/netdata-promql.h), ABI 4.
 - Design: [approved decisions](tests/promql-conformance/DESIGN.md).
 - Qualification: [conformance guide](tests/promql-conformance/README.md) and
   [source and binary cohorts](tests/promql-conformance/core-qualification.json).
@@ -14,6 +14,14 @@ expression evaluation. Its caller supplies metadata, paged samples, temporary ba
 The default feature profile follows the pinned stable Prometheus server. Optional parser and evaluator features
 are explicit caller configuration. Raw samples stay paged across metrics and time. General exact quantiles use
 caller-owned temporary backing. Resource accounting is enabled; enforcement is disabled by default.
+
+Precise Rust and C requests preserve the pinned server's nanosecond request clocks alongside its millisecond
+sample grid. Owned selector handles, time/duration parsing and numeric formatting let callers reuse the same
+protocol semantics without retaining a parser tree or assembling a full query result.
+
+Basic query statistics report actual execution phases, logical sample participation, useful source reads and
+the peak of owned sample values. They use fixed-size observations; per-step arrays remain disabled.
+The enlarged statistics layout requires rebuilding ABI 3 callers and checking the library version before use.
 
 The C boundary contains ordinary Rust panics. Build the library with `panic=unwind`, including size-optimized builds.
 Rust 1.91 or later is required. Registry dependencies are locked; builds need an existing Cargo cache or network access.

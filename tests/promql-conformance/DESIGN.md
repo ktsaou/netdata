@@ -13,10 +13,11 @@ This document extracts the approved design and its consequences. It records the 
 
 | Status | Scope |
 | --- | --- |
-| Completed standalone core | Owned parser/type checker, float and native-histogram values, selectors, time/range/subquery evaluation, operators, joins, aggregations, stable and explicitly enabled optional functions, diagnostics, typed storage/output interfaces, C ABI 3, accounting and cooperative control. |
+| Completed standalone core | Owned parser/type checker, float and native-histogram values, selectors, time/range/subquery evaluation, operators, joins, aggregations, stable and explicitly enabled optional functions, diagnostics, typed storage/output interfaces, C ABI 4, accounting and cooperative control. |
 | Qualified evidence | Pinned upstream and required SRE expression panels, source-bound native/foreign checks, ownership/control regressions and actual C/C++ embedding. These finite checks do not prove equivalence for every possible input. |
 | Approved later integration | Existing retained Netdata data, dual metric names, endpoint/tier policy, Agent/Parent APIs, Go Cloud distribution and a meta health engine parallel to existing health. |
-| Designs still open | Production identity mapping and consistency, distributed plan/transport, API behavior, rule configuration/lifecycle/ownership, adaptive enforcement and broader platform/rollout policy. |
+| Approved Netdata integration | Caller-owned contexts metadata, paged dbengine reads, fixed counter origin, query/discovery APIs, fleet/explicit-host scope and bounded sealed response ownership. Implementation and live acceptance are tracked by Netdata. |
+| Designs still open | Distributed plan/transport, rule configuration/lifecycle/ownership, adaptive enforcement and broader platform/rollout policy. |
 | Excluded | Alertmanager implementation and compatibility. |
 
 The [README](README.md#standalone-expression-core) summarizes implementation and qualification.
@@ -259,18 +260,20 @@ Original failures remain evidence. [Approved exceptions](contract.json) and
   through handles or descendants. Normal callbacks obtain accounting through control; resource/close/abort callbacks
   receive it directly, including abort-before-begin for a valid query. An invalid call that never establishes a query
   has no fabricated account. Charges persist through actual cleanup.
+  Explicit handles also accept `BorrowedView`: a shared cache or pool loan measures this query's exposure without
+  attributing the underlying allocation to its owned workspace. Wrapper ownership remains charged to accounting.
 - **Evidence:** [C allocation interface](../../include/netdata-promql.h),
   [provider bridge](../../src/c_abi/provider.rs),
   [output cleanup](../../src/c_abi/output.rs).
 
-### 20. Typed cursors and one coherent C ABI 3
+### 20. Typed cursors and one coherent C ABI 4
 
 - **Choice:** expose opaque engine/query/result/report/control handles, counted byte views, tagged samples,
   complete typed histograms and explicit paired ownership. Providers may conservatively prefilter; Rust applies
   actual matcher semantics. Selection, series, cursor and query scopes close through their declared lifecycle.
 - **Reason:** typed cursors avoid caller materialization of the complete query dataset and define callback lifetimes.
 - **Consequence:** borrowing, successful NULL tokens and failed-open cleanup are explicit contracts. Headers,
-  adapters, callers and observations migrated together to ABI 3; incompatible versions are rejected and ABI 2
+  adapters, callers and observations use one coherent ABI 4; incompatible versions are rejected and ABI 2/3
   consumers must rebuild. Optional temporary callbacks are supplied as one complete group or absent until needed.
   Callers check ABI version before using unprefixed observation layouts.
 - **Concurrency:** immutable compiled queries have independent execution contexts; cancellation may be concurrent.
@@ -294,7 +297,8 @@ Original failures remain evidence. [Approved exceptions](contract.json) and
 
 - **Choice:** catch ordinary unwinding at the C boundary, discard the affected execution context and return an
   Internal error. Require panic-unwind builds, including the standalone `release-min` profile; install no process
-  runtime/executor/hooks. The standalone crate uses Rust edition 2024 and MSRV 1.91, outside the Agent's default build.
+  runtime/executor/hooks. The standalone crate uses Rust edition 2024 and MSRV 1.91 and builds independently
+  of the Agent's other Rust components.
 - **Reason:** a Rust engine bug should not unwind into a C caller or require a process-wide runtime change.
 - **Consequence:** allocator abort, invalid foreign pointers, foreign unwinding/longjmp and double-panic abort are
   outside ordinary panic containment. Predictable reached upstream native faults retain their Runtime/WrappedRuntime
@@ -335,8 +339,10 @@ Original failures remain evidence. [Approved exceptions](contract.json) and
 - **Consequence:** selectors matching both names return both logical series; aggregates may count both and functions
   removing metric names may cause ordinary duplicate-label errors. There is no special alias deduplication. Dotted
   names use standard quoted/string-selector syntax, not a grammar extension.
-- **Still open:** broader normalization, collisions between contexts and underscore names, exact identity-label
-  keys, native-label collisions and histogram grouping.
+- **Caller policy:** Netdata has selected `netdata_context` to distinguish colliding context aliases, separate
+  host-label namespacing and a reserved `netdata_` prefix. Chart keys beginning with that prefix, and the chart
+  key `__name__`, receive the once-only `netdata_chart_label_` escape. That adapter remains caller work.
+  Future native-histogram storage/grouping remains a separate decision.
 - **Evidence:** [NIDL model](https://github.com/ktsaou/netdata/blob/feature/promql-rust-core/docs/NIDL-Framework.md),
   [retained-data prototype contract](https://github.com/ktsaou/netdata/blob/feature/promql-rust-core/tests/promql-prototype/README.md#implementations-and-input-contract).
 
@@ -352,8 +358,10 @@ Original failures remain evidence. [Approved exceptions](contract.json) and
   samples, so coarse means do not recover original maxima or time-weighted histories.
 - **Lookback:** ordinary configurable PromQL lookback, initially five minutes. No automatic holding over coarse
   intervals; sparse historical samples can yield sparse instant results.
-- **Still open:** concrete API/rule lookback configuration, concurrent-expiry consistency, fixed Agent/Parent source
-  selection and histogram projection. Frozen tier ownership alone does not provide transactional isolation.
+- **Caller policy:** Netdata has selected explicit API lookback overrides, frozen promised-read errors and parent
+  fleet scope with explicit host prefixes. Their live implementation remains caller work. Independent rule
+  configuration and future native-histogram storage remain separate decisions; frozen ownership is not
+  transactional isolation.
 - **Evidence:** [retained point model](https://github.com/ktsaou/netdata/blob/feature/promql-rust-core/src/libnetdata/storage-point.h),
   [storage cursor interface](https://github.com/ktsaou/netdata/blob/feature/promql-rust-core/src/database/storage-engine.h),
   [prototype point projection](https://github.com/ktsaou/netdata/blob/feature/promql-rust-core/tests/promql-prototype/README.md#implementations-and-input-contract).
@@ -372,9 +380,11 @@ Original failures remain evidence. [Approved exceptions](contract.json) and
 - **Consequence:** unsupported required cases cannot count as passes. Keep original failures, numeric declarations,
   raw policy disagreements and each cohort's actual source/binary identity. Catalog AST witnesses and overlapping
   counts do not establish node visitation, branch coverage or equivalence for every possible input.
-- **Current evidence:** 471 native units in each standalone build, three GNU targets, finite full-language/SRE
-  panels and actual C ABI 3 callers. Native caller sanitizers instrument C/C++, not Rust. Historical selected-owner
-  Miri used ABI 2; it is not a complete current ABI 3 gate. Wider platform/operational qualification remains later work.
+- **Current evidence:** 508 fixture units in each optimized standalone build and506 production units, finite
+  expression/SRE panels and rebuilt ABI 4 C/C++ callers on three GNU targets. The earlier501/499-unit ABI 3
+  statistics checkpoint remains historical; each cohort retains its actual source, binary and interface version.
+  Native caller sanitizers instrument C/C++, not Rust. Historical selected-owner Miri used ABI 2; it is not a
+  complete current ABI 4 gate. Wider platform/operational qualification remains later work.
 - **Evidence:** [qualification report](core-qualification.json), [catalog witnesses](catalog-coverage.json),
   [SRE source and replay contract](README.md#required-sre-expression-sources).
 
@@ -382,12 +392,83 @@ Original failures remain evidence. [Approved exceptions](contract.json) and
 
 | Stage | Decisions still needed |
 | --- | --- |
-| NIDL/dbengine adapter | Exact series/label mapping, name collisions, archive metadata, repeatable reads/concurrent expiry and histogram views. |
-| Agent/Parent APIs | Query/internal interfaces, configuration, publication/error behavior and discovery semantics. |
+| NIDL/dbengine adapter | Netdata has selected its contexts identity, frozen reads, counter-only storage and paged provider contracts. Their live implementation/qualification and any future native-histogram storage remain caller work. |
+| Agent/Parent APIs | Netdata has selected query/discovery endpoints, feature configuration, host scope and sealed publication. Library protocol primitives are implemented; endpoint/transport acceptance remains caller work. |
 | Go Cloud execution | Native/Cloud split, safe pushdown versus exact fallback, replica/source ownership, lossless fragments, permissions, cancellation and incomplete-result policy. |
 | Independent rules | Rule-file contract, recording storage, result identity, templates, timers, persistence/reload and cross-role ownership/failover. |
 | Netdata alert integration | State/events and notification integration alongside existing component health. |
 | Platform and rollout | Broader OS/libc/device qualification, workload performance, adaptive limits and deployment policy. |
 
-These are approved subsequent targets with unresolved design contracts. The standalone engine and this extraction
-do not settle them. Cloud remains Go, the native engine remains Rust with C integration, and Alertmanager remains excluded.
+The generic core does not own those caller integrations. Cloud remains Go, the native engine remains Rust with C
+integration, and Alertmanager remains excluded.
+
+## Precise requests and protocol primitives
+
+- **Choice:** preserve normalized seconds/nanoseconds and raw duration nanoseconds at the request boundary.
+  Keep the existing millisecond sample/evaluation grid, including the pinned Go clock projections and reached
+  errors. Millisecond request entry points remain available; precise Rust/C entry points share ABI 4.
+- **Ownership:** protocol parse reports and selector handles own their data after the source bytes or engine are
+  released. Matcher/getter views remain borrowed from their handle. Label conjunctions match caller-owned bytes
+  with explicit work accounting and cancellation checks. The core owns no URL router, HTTP client or catalog API.
+- **Catalog behavior:** evaluate frozen selector matchers before copying a provisional descriptor. Continue
+  draining nonmatches for reached errors/annotations; preserve upstream's empty-expansion behavior. Narrow
+  selectors therefore avoid retaining the unrelated catalog's labels.
+- **Evidence:** `protocol-original.json` and `precision-original.json` preserve unchanged original outcomes.
+  Their replay tools bind each actual binary/source cohort. These checks qualify primitives and execution clocks;
+  they do not qualify Netdata endpoints, forms, metadata discovery or retained-data projections.
+
+## Basic query statistics
+
+- **Choice:** expose the six pinned timing fields and three sample fields through execution observations and
+  ABI4. Timings measure actual Rust execution phases. Evaluation includes preparation and inner evaluation;
+  execution includes evaluation and result ordering. Queue time is zero while admission remains disabled.
+  Observations are finalized before the output commit callback. Per-step arrays and their optional feature remain off.
+- **Logical participation:** `totalQueryableSamples` counts source samples participating in the primary logical
+  selector/windows, including overlaps and consumed subquery windows. Preparation carries compact counts through
+  completed folds. Parent, ordering and output replays do not credit the same logical work again. The implicit
+  `info()` selector participates before base-series or winning-info filtering.
+  Failed or cancelled queries retain reached primary participation. A completed parent replaces its already
+  counted children. Subquery bodies and invariant inner evaluations have private counts; successful scopes
+  publish the merged windows or reached outer copies. Partial instant admissions and completed source windows,
+  matrix series and info rows remain observable without retaining their raw history.
+- **Actual reads:** `samplesRead` counts useful, nonstale source samples admitted by real consumers. Repeated
+  numerical reads count again; acquisition-only validation, unused page prefixes/lookahead and generated subquery
+  rows add no source reads. Fetched page entries and operator work remain separate counters.
+- **Owned peak:** `peakSamples` measures simultaneously owned initialized sample values, scalar slots and float
+  work buffers. A float is one unit. A native histogram uses the pinned Go AMD64 weight
+  `floor((176 + 8 * combined_slice_lengths) / 16)` for its admitted five-slice representation. The timestamp
+  selector has its upstream one-unit source exception. Owned copies count independently; shared aliases, rank/index
+  metadata, numerical accumulators and borrowed provider pages add no owned samples.
+- **Consequence:** peak values describe Rust's bounded owning lifetimes, which differ from Go's materialized
+  matrices. Moves transfer leases; replacements and completed outputs retain their real overlaps. Cancellation,
+  errors and unwinding release owners. A convenience collector retains its output samples until that result is
+  released; the execution-time peak includes those outputs. These statistics are neither RAM-byte measurements
+  nor enabled query limits. No raw history is materialized to imitate upstream's memory use.
+- **Evidence:** `src/statistics.rs`, `src/accounting.rs` and focused tests in the scalar/window, histogram,
+  numeric, temporal, classic and temporary-backing owners. Fresh cohort receipts bind the tested sources and callers.
+
+## One coherent interface version
+
+- **Choice:** ABI 4 replaces ABI 3. The statistics fields enlarge the observation structure, so every existing
+  caller must rebuild and check the library version before using tables or observation outputs. Versioned inputs
+  reject older tables before dispatch. There is no parallel legacy observation interface.
+- **Reason:** an old ABI 3 declaration is 584 bytes while the enlarged structure is 704 bytes on the qualified
+  AMD64 target. Retaining version 3 would admit callers whose observation destination is too small.
+- **Evidence:** `src/c_abi/types.rs`, `include/netdata-promql.h` and the previous-header rejection caller.
+  Historical ABI 2/3 qualification remains attributed to its original sources, layouts and binaries.
+
+## Current library qualification
+
+- Both optimized builds pass508 fixture units; the production feature set passes506 units. Strict lint,
+  formatting and the installed Rust1.91.0 minimum-version checks pass.
+- Fresh expression panels execute290956 cases, with overlapping families kept separate. All231540 required
+  SRE executions pass across both builds and pages1/17/1024, including candidate-owned recording dependencies.
+  Neither panel has an unresolved expression or bitwise difference.
+- The precise-clock panel passes27 comparisons per build. Protocol primitives pass230 cases and528 label
+  conjunctions per build. HTTP wrapper cases remain Netdata integration work.
+- Actual rebuilt AMD64, ARM64 and ARM32 C/C++ callers pass412 records:396 current-caller records and16
+  previous-header rejection records. Each layout has58 structures,16 callbacks and33 shared constants.
+- Native Clang C ASan/UBSan checks and the rejected panic-abort compilation pass. Caller instrumentation
+  does not instrument the linked Rust archive. No current full-engine Miri gate is claimed.
+- `core-qualification.json` binds every fresh receipt to its actual sources and binaries. These finite checks
+  qualify the library; live metadata, dbengine projection, HTTP routing and response delivery belong to Netdata.

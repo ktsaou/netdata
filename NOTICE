@@ -25,6 +25,8 @@ derive from promql/value.go:598-650 and promql/engine.go:1645-1753,4032-4261.
 Unsigned label-hash ratio normalization and membership derive from promql/engine.go:4835-4885.
 Request-context duration evaluation derives from promql/durations.go and engine.go's preprocessing.
 INFO reference inference, identifying-label selection, signatures and enrichment derive from promql/info.go.
+HTTP time/duration parsing and scalar/sample JSON number projections derive from web/api/v1/api.go,
+util/jsonutil/marshal.go and promql/value.go. Discovery uses the parser's metric-selector start rule.
 Statistics-only histogram decoding, memoized selection and buffered access epochs derive from
 promql/histogram_stats_iterator.go, storage/memoized_iterator.go and storage/buffer.go.
 Classic bucket interpolation, coalescing and monotonicity derive from promql/quantile.go;
@@ -91,7 +93,10 @@ atan.go, atan2.go, asin.go, sinh.go, tanh.go, asinh.go, acosh.go, atanh.go,
 log1p.go and trig_reduce.go. Float rounding follows floor.go and floor_amd64.s.
 UTC calendar arithmetic derives from time/time.go. Copyright 2009, 2012, 2018
 The Go Authors. Licensed under the Go BSD license; see LICENSE-GO-BSD.
+Precise request timestamp projection, UTC wall-clock comparison and duration subtraction
+follow Go 1.27.1 time/time.go's Unix, UnixMilli, UnixNano, Before, Add and Sub algorithms.
 UTC annotation text also follows time/format_rfc3339.go and format.go's integer padding.
+HTTP RFC3339 parsing follows time/format.go and time/format_rfc3339.go's accepted fallback syntax.
 Copyright 2009, 2022 The Go Authors. Licensed under the Go BSD license; see LICENSE-GO-BSD.
 Log1p retains the Sun Microsystems permission notice above.
 The circular/tanh approximations retain the Cephes attribution and permission:

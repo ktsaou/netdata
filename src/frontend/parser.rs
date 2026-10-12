@@ -142,7 +142,55 @@ where
     C: FnMut(&[u8]) -> Result<Result<Strong<dyn CompiledMatcher>, E>, Interrupted>,
     E: Into<AccountedVec<u8>>,
 {
-    Parser {
+    parse_mode_in(input, options, compile, work, false)
+}
+
+/// Discovery accepts selector syntax before the API's separate empty-matcher guard.
+pub fn parse_metric_selector<C, E>(
+    input: &[u8],
+    options: ParserOptions,
+    mut compile: C,
+) -> ParseOutput
+where
+    C: FnMut(&[u8]) -> Result<Strong<dyn CompiledMatcher>, E>,
+    E: Into<AccountedVec<u8>>,
+{
+    parse_metric_selector_in(input, options, |pattern| Ok(compile(pattern)), None, None)
+        .expect("inert selector parser")
+}
+
+pub(crate) fn parse_metric_selector_in<C, E>(
+    input: &[u8],
+    options: ParserOptions,
+    compile: C,
+    account: Option<&QueryAccounting>,
+    control: Option<&Control>,
+) -> Result<ParseOutput, Interrupted>
+where
+    C: FnMut(&[u8]) -> Result<Result<Strong<dyn CompiledMatcher>, E>, Interrupted>,
+    E: Into<AccountedVec<u8>>,
+{
+    let context = account.map(|account| AllocationContext::new(account, MemoryKind::Compiled));
+    let work = Work {
+        context: context.as_ref(),
+        account,
+        control,
+    };
+    parse_mode_in(input, options, compile, work, true)
+}
+
+fn parse_mode_in<C, E>(
+    input: &[u8],
+    options: ParserOptions,
+    compile: C,
+    work: Work<'_>,
+    selector_only: bool,
+) -> Result<ParseOutput, Interrupted>
+where
+    C: FnMut(&[u8]) -> Result<Result<Strong<dyn CompiledMatcher>, E>, Interrupted>,
+    E: Into<AccountedVec<u8>>,
+{
+    let parser = Parser {
         input,
         work,
         lexer: Lexer::new_in(input, false, work),
@@ -154,8 +202,12 @@ where
         errors: work.buffer(),
         options,
         compile,
+    };
+    if selector_only {
+        parser.run_selector()
+    } else {
+        parser.run()
     }
-    .run()
 }
 
 struct Parser<'a, 'w, C> {
@@ -177,6 +229,29 @@ where
     C: FnMut(&[u8]) -> Result<Result<Strong<dyn CompiledMatcher>, E>, Interrupted>,
     E: Into<crate::accounting::AccountedVec<u8>>,
 {
+    fn run_selector(mut self) -> Result<ParseOutput, Interrupted> {
+        let item = self.peek()?;
+        let root = if item.kind == LEFT_BRACE {
+            self.selector(item)?
+        } else if item.kind.is_metric_identifier() {
+            self.take()?;
+            self.selector(item)?
+        } else {
+            if item.kind != ERROR {
+                self.unexpected("", "")?;
+            }
+            None
+        };
+        if root.is_some() && !matches!(self.peek()?.kind, EOF | ERROR) {
+            self.unexpected("", "")?;
+        }
+        Ok(ParseOutput {
+            arena: self.arena,
+            root,
+            errors: self.errors,
+        })
+    }
+
     fn error_owned(&mut self, span: Span, message: AccountedVec<u8>) -> Result<(), Interrupted> {
         self.work.step(0)?;
         self.errors.push(ParseError { span, message });

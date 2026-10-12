@@ -39,6 +39,11 @@ required-features = ["fixtures"]
 [profile.release]
 panic = "unwind"
 
+[[bin]]
+name = "promql-protocol-fixture"
+path = "src/bin/protocol_fixture.rs"
+required-features = ["fixtures"]
+
 [profile.release-min]
 inherits = "release"
 opt-level = "z"

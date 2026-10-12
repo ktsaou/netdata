@@ -52,6 +52,21 @@ fn temporary(
 }
 pub(crate) fn query(value: &accounting::QueryObservations) -> types::QueryObservations {
     types::QueryObservations {
+        statistics: types::Statistics {
+            timings: types::StatisticsTimings {
+                eval_total_time: duration(value.statistics.timings.eval_total_time),
+                result_sort_time: duration(value.statistics.timings.result_sort_time),
+                query_preparation_time: duration(value.statistics.timings.query_preparation_time),
+                inner_eval_time: duration(value.statistics.timings.inner_eval_time),
+                exec_queue_time: duration(value.statistics.timings.exec_queue_time),
+                exec_total_time: duration(value.statistics.timings.exec_total_time),
+            },
+            samples: types::StatisticsSamples {
+                total_queryable_samples: value.statistics.samples.total_queryable_samples,
+                samples_read: value.statistics.samples.samples_read,
+                peak_samples: value.statistics.samples.peak_samples,
+            },
+        },
         memory: value.memory.map(memory),
         cancellation_references: references(value.cancellation_references),
         temporary_storage: temporary(value.temporary_storage),

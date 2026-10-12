@@ -24,7 +24,7 @@
     "architecture": "Retained pinned Go 1.27.1 AMD64 FMA-on numerical route on every target, including signed 64-bit Go int semantics and observable NaN operand destinations (approved 13.A/19.A)."
   },
   "fixtures": {
-    "times": "Signed int64 milliseconds; explicit instant/range context, lookback and subquery step.",
+    "times": "Signed int64 milliseconds for retained requests and samples. Additive precise requests carry normalized signed seconds/unsigned nanoseconds and raw signed nanosecond step/lookback; preprocessing and evaluator clock projections remain source-defined.",
     "bytes": "Base64 JSON fields for label names/values, string values, query_bytes and diagnostic messages.",
     "numbers": "Sixteen hexadecimal digits encode binary64 bits; no JSON-number conversion.",
     "inputs": "Ordered series and strictly increasing mixed float/integer-histogram/float-histogram sample timelines, with optional start timestamps.",
@@ -76,13 +76,27 @@
     "regex_accounting": "Approved option 8.C: retain the qualified matcher. Explicitly estimate opaque backend/selector-table memory; precisely account observable engine-owned buffers and borrowed pages. Disclose hidden regex temporary peaks; totals including estimates are not exact requested bytes or guaranteed bounds.",
     "enforcement": "All engine resource caps disabled for now. Caller cancellation/deadlines remain explicit.",
     "future_policy": "Device-adaptive enforcement remains a later runtime/integration design; no fixed profile or adaptive formula selected.",
-    "status": "Implemented and independently assessed standalone Rust/C ABI3 expression runtime; finite native/foreign, ownership and C caller cohorts are source-bound in core-qualification.json. Live integration remains separate.",
+    "status": "Implemented standalone Rust/C ABI4 expression runtime; finite native/foreign, ownership and C caller cohorts retain their actual source and interface versions in core-qualification.json. Live integration remains separate.",
     "cooperative_control": {
       "query_walks": "Labels, validation, diagnostic formatting/merging, metadata rosters/filters, task scheduling and parenthesis projection poll existing cancellation/deadline control and record work. Compilation checks each variadic argument before enqueue.",
       "provider_failure_precedence": "An already returned provider failure keeps precedence while transporting its diagnostics; success/END callbacks poll before diagnostic conversion. Query-prefix work remains accounted while later cancellation is suppressed.",
       "diagnostic_publication": "Formatting uses accounted candidate storage before publishing the complete message.",
       "blocking_callbacks": "No preemption of a blocking foreign callback is promised.",
       "enforcement": "Accounting and explicit caller controls only; resource limits and implicit query timeouts remain disabled."
+    },
+    "protocol_primitives": {
+      "requests": "Additive precise instant/range requests preserve the existing millisecond API and converge into the same checked execution ownership.",
+      "parsing": "Pinned time/duration parsing and owned metric-selector parsing, matcher order, errors, spans, nonempty guard and conjunctions are exposed through Rust and ABI4.",
+      "formatting": "Pinned sample/scalar float and timestamp text are returned as length-delimited ASCII. The caller owns quoting, envelope JSON and HTTP parameter validation.",
+      "qualification": "New source-bound protocol and precision cohorts supplement historical complete expression cohorts. The primitives do not qualify an HTTP router, live dbengine provider or response transport."
+    },
+    "basic_statistics": {
+      "timings": "Six pinned fields observe actual Rust phases and are finalized before commit; evaluation encloses preparation/inner evaluation, execution encloses evaluation/ordering, queue time is zero.",
+      "samples": "Primary logical source/window participation, useful nonstale consumer source reads and actual owning float-equivalent sample peaks are distinct from fetched entries, work and memory bytes. Native histogram units follow the pinned Go AMD64 Size() contract.",
+      "failed_queries": "Reached primary participation survives errors and cancellation. Completed parents replace their child contributions; private subquery and invariant inner scopes publish only their completed merge or reached outer copies. No raw history is retained for statistics.",
+      "ownership": "Moves transfer sample leases; independent copies, initialized work buffers and retained outputs own units. Borrowed provider pages, aliases, rank/index metadata and numerical accumulators add no owned samples.",
+      "per_step": "Per-step-stats feature and arrays remain disabled.",
+      "qualification": "Fresh source-bound receipts qualify actual observations and ownership; historical complete expression cohorts retain their original identities."
     }
   },
   "rust_frontend": {

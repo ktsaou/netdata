@@ -24,10 +24,7 @@ mod disk {
     const O_TMPFILE: i32 = 0o20200000;
     #[cfg(any(target_arch = "aarch64", target_arch = "arm"))]
     const O_TMPFILE: i32 = 0o20040000;
-    const DIRECTORY: &str = concat!(
-        env!("CARGO_MANIFEST_DIR"),
-        "/tests/promql-conformance/.tmp"
-    );
+    const DIRECTORY: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/tests/promql-conformance/.tmp");
 
     fn error(
         request: TemporaryFloatBitsRequest<'_>,

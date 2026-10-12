@@ -247,7 +247,7 @@ unsafe extern "C" fn close(
 }
 
 #[test]
-fn abi3_rejects_legacy_short_and_every_partial_temporary_callback_group() {
+fn abi4_rejects_legacy_short_and_every_partial_temporary_callback_group() {
     let engine = crate::accounting::EngineAccounting::default();
     let account = engine.query();
     #[repr(align(16))]
@@ -255,8 +255,9 @@ fn abi3_rejects_legacy_short_and_every_partial_temporary_callback_group() {
     for (version, size) in [
         (1, u32::MAX),
         (2, u32::MAX),
+        (3, u32::MAX),
         (
-            3,
+            types::ABI_VERSION,
             (size_of::<types::Provider>() - 5 * size_of::<usize>()) as u32,
         ),
     ] {

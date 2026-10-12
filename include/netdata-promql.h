@@ -22,7 +22,7 @@ _Static_assert(sizeof(double) == 8 && DBL_MANT_DIG == 53 && DBL_MAX_EXP == 1024,
  * Shape/version checks cannot establish pointer liveness or prevent caller memory corruption.
  * Ordinary Rust unwind panics return INTERNAL_ERROR; abort/OOM/invalid-pointer faults are not recovered.
  */
-#define NETDATA_PROMQL_ABI_VERSION UINT32_C(3)
+#define NETDATA_PROMQL_ABI_VERSION UINT32_C(4)
 #define NETDATA_PROMQL_OK UINT32_C(0)
 #define NETDATA_PROMQL_INVALID_ARGUMENT UINT32_C(1)
 #define NETDATA_PROMQL_PARSE_ERROR UINT32_C(2)
@@ -93,6 +93,7 @@ typedef struct netdata_promql_control_t netdata_promql_control_t;
 typedef struct netdata_promql_callback_control_t netdata_promql_callback_control_t;
 typedef struct netdata_promql_accounting_context_t netdata_promql_accounting_context_t;
 typedef struct netdata_promql_allocation_handle_t netdata_promql_allocation_handle_t;
+typedef struct netdata_promql_selector_t netdata_promql_selector_t;
 
 typedef struct netdata_promql_header_t {
     uint32_t abi_version;
@@ -180,6 +181,14 @@ typedef struct netdata_promql_float_histogram_t {
     netdata_promql_f64_array_t negative_buckets;
     netdata_promql_f64_array_t custom_values;
 } netdata_promql_float_histogram_t;
+
+typedef struct netdata_promql_histogram_bucket_t {
+    uint64_t lower_bits;
+    uint64_t upper_bits;
+    uint64_t count_bits;
+    uint32_t lower_inclusive;
+    uint32_t upper_inclusive;
+} netdata_promql_histogram_bucket_t;
 
 typedef union netdata_promql_value_payload_t {
     uint64_t float_bits;
@@ -353,6 +362,34 @@ typedef struct netdata_promql_request_t {
     int64_t step_ms;
 } netdata_promql_request_t;
 
+typedef struct netdata_promql_timestamp_t {
+    int64_t unix_seconds;
+    uint32_t nanoseconds;
+    uint32_t reserved;
+} netdata_promql_timestamp_t;
+
+typedef struct netdata_promql_numeric_text_t {
+    uint32_t len;
+    uint32_t reserved;
+    uint8_t bytes[384];
+} netdata_promql_numeric_text_t;
+
+/* UTC timestamps retain full precision until the source-defined clock projections.
+ * nanoseconds must be below 1000000000; all reserved fields must be zero.
+ * The caller resolves lookback against its configuration, in nanoseconds.
+ * INSTANT uses start; RANGE uses start/end and a positive interval_ns.
+ * Positive sub-millisecond intervals reach the evaluator's zero-grid execution error.
+ */
+typedef struct netdata_promql_precise_request_t {
+    netdata_promql_header_t header;
+    uint32_t kind;
+    uint32_t reserved;
+    netdata_promql_timestamp_t start;
+    netdata_promql_timestamp_t end;
+    int64_t interval_ns;
+    int64_t lookback_ns;
+} netdata_promql_precise_request_t;
+
 typedef struct netdata_promql_output_header_t {
     uint32_t value_type;
     uint32_t reserved;
@@ -424,7 +461,31 @@ typedef struct netdata_promql_temporary_storage_observations_t {
     uint32_t reserved;
 } netdata_promql_temporary_storage_observations_t;
 
+typedef struct netdata_promql_statistics_timings_t {
+    netdata_promql_duration_t eval_total_time;
+    netdata_promql_duration_t result_sort_time;
+    netdata_promql_duration_t query_preparation_time;
+    netdata_promql_duration_t inner_eval_time;
+    netdata_promql_duration_t exec_queue_time;
+    netdata_promql_duration_t exec_total_time;
+} netdata_promql_statistics_timings_t;
+
+typedef struct netdata_promql_statistics_samples_t {
+    uint64_t total_queryable_samples;
+    uint64_t samples_read;
+    uint64_t peak_samples;
+} netdata_promql_statistics_samples_t;
+
+typedef struct netdata_promql_statistics_t {
+    netdata_promql_statistics_timings_t timings;
+    netdata_promql_statistics_samples_t samples;
+} netdata_promql_statistics_t;
+
+/* Finalized before commit. Timings observe Rust phases; peak counts real owning sample values.
+ * Native histogram counts use pinned Go AMD64 float-equivalent units. Queue time is zero.
+ * Fetched pages, byte allocations and work remain separate observations below. */
 typedef struct netdata_promql_query_observations_t {
+    netdata_promql_statistics_t statistics;
     netdata_promql_memory_observation_t memory[NETDATA_PROMQL_MEMORY_KINDS];
     netdata_promql_cancellation_references_t cancellation_references;
     netdata_promql_temporary_storage_observations_t temporary_storage;
@@ -455,6 +516,7 @@ typedef uint32_t (*netdata_promql_begin_callback_t)(void *, const netdata_promql
 typedef uint32_t (*netdata_promql_chunk_callback_t)(void *, const netdata_promql_chunk_t *, const netdata_promql_callback_control_t *, netdata_promql_bytes_t *);
 
 typedef uint32_t (*netdata_promql_commit_callback_t)(void *, const netdata_promql_query_observations_t *, const netdata_promql_callback_control_t *, netdata_promql_bytes_t *);
+typedef uint32_t (*netdata_promql_histogram_bucket_callback_t)(void *, const netdata_promql_histogram_bucket_t *, const netdata_promql_callback_control_t *, netdata_promql_bytes_t *);
 
 typedef void (*netdata_promql_abort_callback_t)(void *, const netdata_promql_accounting_context_t *);
 
@@ -528,7 +590,7 @@ static inline double netdata_promql_double_from_bits(uint64_t bits) {
  * Returned error bytes stay live until the next callback; the engine copies them first.
  * Callback control is borrowed only for that callback. Poll it cooperatively during blocking work.
  * Resource/close callbacks receive the same actual-query accounting capability without a cancellation contract.
- * ABI3 temporary_create/read/write/resources/close are either all present or all absent. Missing backing is an
+ * temporary_create/read/write/resources/close are either all present or all absent. Missing backing is an
  * error only when evaluation needs it. create receives the query token and logical float-value count (8N bytes).
  * Offsets and transfer lengths count uint64 float-bit values. Buffers live only during the callback. OK requires
  * the exact requested transfer count; short/oversized transfers are errors. Preserve every bit, including NaNs.
@@ -548,8 +610,8 @@ static inline double netdata_promql_double_from_bits(uint64_t bits) {
  */
 
 uint32_t netdata_promql_abi_version(void);
-/* Every caller must check ABI_VERSION before using tables or observation outputs; ABI2 callers must rebuild.
- * Observation outputs have no size prefix and require the complete ABI3 layout.
+/* Every caller must check ABI_VERSION before using tables or observation outputs; ABI2/ABI3 callers must rebuild.
+ * Observation outputs have no size prefix and require the complete ABI4 layout.
  */
 uint32_t netdata_promql_engine_options_default(netdata_promql_engine_options_t *out);
 uint32_t netdata_promql_control_options_default(netdata_promql_control_options_t *out);
@@ -569,8 +631,9 @@ uint32_t netdata_promql_callback_control_state(const netdata_promql_callback_con
  * Report requested live allocation bytes, excluding allocator-internal overhead; these calls do not allocate
  * or free foreign storage. Resize reports the new live size of one allocation. Two overlapping allocations
  * require two handles, including allocate/copy/free replacement. Release after the foreign storage is freed.
- * Valid payload kinds: COMPILED, WORKSPACE, RESULT, PROVIDER_HELD. Handle wrapper bytes are charged precisely
- * to ACCOUNTING. Observation/bootstrap categories are invalid payload kinds. Zero-byte handles are valid.
+ * Valid payload kinds: COMPILED, WORKSPACE, RESULT, PROVIDER_HELD, BORROWED_VIEW. Shared cache/pool views
+ * use BORROWED_VIEW and do not imply physical ownership. Handle wrapper bytes are charged precisely to
+ * ACCOUNTING. Observation/bootstrap categories are invalid payload kinds. Zero-byte handles are valid.
  * Acquire initializes its out handle to NULL on failure. Release must not race any use of the handle.
  * Normal callbacks obtain accounting through callback_accounting; cleanup receives it directly.
  */
@@ -585,6 +648,34 @@ uint32_t netdata_promql_query_type(const netdata_promql_query_t *, uint32_t *);
 uint32_t netdata_promql_query_compilation_observations(const netdata_promql_query_t *, netdata_promql_query_observations_t *);
 uint32_t netdata_promql_execute(const netdata_promql_query_t *, const netdata_promql_provider_t *, const netdata_promql_request_t *, const netdata_promql_control_t *, const netdata_promql_output_t *, netdata_promql_report_t **);
 uint32_t netdata_promql_collect(const netdata_promql_query_t *, const netdata_promql_provider_t *, const netdata_promql_request_t *, const netdata_promql_control_t *, netdata_promql_result_t **, netdata_promql_report_t **);
+uint32_t netdata_promql_execute_precise(const netdata_promql_query_t *, const netdata_promql_provider_t *, const netdata_promql_precise_request_t *, const netdata_promql_control_t *, const netdata_promql_output_t *, netdata_promql_report_t **);
+uint32_t netdata_promql_collect_precise(const netdata_promql_query_t *, const netdata_promql_provider_t *, const netdata_promql_precise_request_t *, const netdata_promql_control_t *, netdata_promql_result_t **, netdata_promql_report_t **);
+/* Numeric protocol parsing uses caller control and returns an independently owned report.
+ * Parser errors have no PromQL source position. Successful values retain no borrowed input.
+ * Formatting returns ASCII without JSON quotes or a trailing NUL; len selects the valid bytes.
+ */
+uint32_t netdata_promql_api_parse_time(const netdata_promql_engine_t *, netdata_promql_bytes_t, const netdata_promql_control_t *, netdata_promql_timestamp_t *, netdata_promql_report_t **);
+uint32_t netdata_promql_api_parse_duration(const netdata_promql_engine_t *, netdata_promql_bytes_t, const netdata_promql_control_t *, int64_t *, netdata_promql_report_t **);
+uint32_t netdata_promql_api_float_text(uint64_t value_bits, netdata_promql_numeric_text_t *);
+uint32_t netdata_promql_api_scalar_float_text(uint64_t value_bits, netdata_promql_numeric_text_t *);
+uint32_t netdata_promql_api_timestamp_text(int64_t time_ms, netdata_promql_numeric_text_t *);
+uint32_t netdata_promql_api_scalar_timestamp_text(int64_t time_ms, netdata_promql_numeric_text_t *);
+/* Synchronous helper usable only with a live enclosing callback control. The descriptor and
+ * its arrays are borrowed for this call. Buckets include zero counts; consumers choose filtering.
+ * A child report owns returned error bytes: retain it until the enclosing callback returns,
+ * or copy those bytes before releasing it. The enclosing output transaction owns abort.
+ */
+uint32_t netdata_promql_callback_histogram_buckets(const netdata_promql_float_histogram_t *, const netdata_promql_callback_control_t *, netdata_promql_histogram_bucket_callback_t, void *, netdata_promql_report_t **);
+/* Selector syntax is parsed independently of the later API empty-matcher guard.
+ * Source/matcher views remain valid until selector_release. Labels passed to matches must be
+ * unique and sorted by their raw name bytes. The empty-matcher guard applies to every supplied set.
+ */
+uint32_t netdata_promql_selector_compile(const netdata_promql_engine_t *, netdata_promql_bytes_t, const netdata_promql_control_t *, netdata_promql_selector_t **, netdata_promql_report_t **);
+uint32_t netdata_promql_selector_release(netdata_promql_selector_t *);
+uint32_t netdata_promql_selector_matcher_count(const netdata_promql_selector_t *, uint64_t *);
+uint32_t netdata_promql_selector_matcher(const netdata_promql_selector_t *, uint64_t index, netdata_promql_matcher_t *);
+uint32_t netdata_promql_selector_nonempty(const netdata_promql_selector_t *, const netdata_promql_control_t *, uint32_t *);
+uint32_t netdata_promql_selector_matches(const netdata_promql_selector_t *, netdata_promql_labels_t, const netdata_promql_control_t *, uint32_t *);
 uint32_t netdata_promql_report_release(netdata_promql_report_t *);
 uint32_t netdata_promql_report_status(const netdata_promql_report_t *, uint32_t *);
 uint32_t netdata_promql_report_error_count(const netdata_promql_report_t *, uint64_t *);

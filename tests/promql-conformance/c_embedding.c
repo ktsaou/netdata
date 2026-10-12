@@ -57,6 +57,9 @@ static netdata_promql_bytes_t bytes(const void *data, uint64_t len) {
     value.len = len;
     return value;
 }
+static netdata_promql_bytes_t text(const char *value) {
+    return bytes(value, strlen(value));
+}
 static void *foreign_buffer(size_t size) {
     volatile uint8_t *value = (volatile uint8_t *)malloc(size);
     assert(value && size);
@@ -75,6 +78,39 @@ static netdata_promql_engine_observations_t engine_observations(netdata_promql_e
     netdata_promql_engine_observations_t value;
     assert(netdata_promql_engine_observations(engine, &value) == NETDATA_PROMQL_OK);
     return value;
+}
+static int duration_order(netdata_promql_duration_t a, netdata_promql_duration_t b) {
+    if (a.seconds != b.seconds) return a.seconds < b.seconds ? -1 : 1;
+    return a.nanoseconds < b.nanoseconds ? -1 : a.nanoseconds > b.nanoseconds;
+}
+static void statistics_valid(const netdata_promql_statistics_t *s) {
+    const netdata_promql_duration_t phases[] = {
+        s->timings.eval_total_time, s->timings.result_sort_time, s->timings.query_preparation_time,
+        s->timings.inner_eval_time, s->timings.exec_queue_time, s->timings.exec_total_time,
+    };
+    for (unsigned i = 0; i < 6; i++) {
+        assert(phases[i].nanoseconds < 1000000000 && phases[i].reserved == 0);
+    }
+    assert(s->timings.exec_queue_time.seconds == 0 && s->timings.exec_queue_time.nanoseconds == 0);
+    assert(duration_order(s->timings.exec_total_time, s->timings.eval_total_time) >= 0);
+    assert(duration_order(s->timings.eval_total_time, s->timings.query_preparation_time) >= 0);
+    assert(duration_order(s->timings.eval_total_time, s->timings.inner_eval_time) >= 0);
+    assert(duration_order(s->timings.eval_total_time, s->timings.result_sort_time) >= 0);
+}
+static void statistics_equal(const netdata_promql_statistics_t *a, const netdata_promql_statistics_t *b) {
+    statistics_valid(a); statistics_valid(b);
+    const netdata_promql_duration_t left[] = {
+        a->timings.eval_total_time, a->timings.result_sort_time, a->timings.query_preparation_time,
+        a->timings.inner_eval_time, a->timings.exec_queue_time, a->timings.exec_total_time,
+    };
+    const netdata_promql_duration_t right[] = {
+        b->timings.eval_total_time, b->timings.result_sort_time, b->timings.query_preparation_time,
+        b->timings.inner_eval_time, b->timings.exec_queue_time, b->timings.exec_total_time,
+    };
+    for (unsigned i = 0; i < 6; i++) assert(duration_order(left[i], right[i]) == 0);
+    assert(a->samples.total_queryable_samples == b->samples.total_queryable_samples);
+    assert(a->samples.samples_read == b->samples.samples_read);
+    assert(a->samples.peak_samples == b->samples.peak_samples);
 }
 static void foreign_accounting_probe(netdata_promql_engine_t *engine,
                                      const netdata_promql_accounting_context_t *account) {
@@ -113,6 +149,32 @@ static void foreign_accounting_probe(netdata_promql_engine_t *engine,
     netdata_promql_engine_observations_t after = engine_observations(engine);
     assert(after.memory[NETDATA_PROMQL_MEMORY_WORKSPACE].current == before.memory[NETDATA_PROMQL_MEMORY_WORKSPACE].current);
     assert(after.memory[NETDATA_PROMQL_MEMORY_ACCOUNTING].current == before.memory[NETDATA_PROMQL_MEMORY_ACCOUNTING].current);
+
+    /* Two query exposures share one external backing; neither owns its bytes. */
+    static const uint8_t shared_view[4096] = {1};
+    assert(shared_view[0] == 1);
+    a = foreign_allocation(account, NETDATA_PROMQL_MEMORY_BORROWED_VIEW, 1024);
+    b = foreign_allocation(account, NETDATA_PROMQL_MEMORY_BORROWED_VIEW, 1024);
+    one = engine_observations(engine);
+    assert(one.memory[NETDATA_PROMQL_MEMORY_BORROWED_VIEW].current == before.memory[NETDATA_PROMQL_MEMORY_BORROWED_VIEW].current + 2048);
+    assert(one.memory[NETDATA_PROMQL_MEMORY_ACCOUNTING].current == before.memory[NETDATA_PROMQL_MEMORY_ACCOUNTING].current + 2 * wrapper);
+    assert(one.memory[NETDATA_PROMQL_MEMORY_WORKSPACE].current == before.memory[NETDATA_PROMQL_MEMORY_WORKSPACE].current);
+    assert(one.memory[NETDATA_PROMQL_MEMORY_PROVIDER_HELD].current == before.memory[NETDATA_PROMQL_MEMORY_PROVIDER_HELD].current);
+    assert(netdata_promql_allocation_resize(a, sizeof(shared_view)) == NETDATA_PROMQL_OK);
+    overlap = engine_observations(engine);
+    assert(overlap.memory[NETDATA_PROMQL_MEMORY_BORROWED_VIEW].current == before.memory[NETDATA_PROMQL_MEMORY_BORROWED_VIEW].current + 5120);
+    assert(overlap.memory[NETDATA_PROMQL_MEMORY_BORROWED_VIEW].peak >= overlap.memory[NETDATA_PROMQL_MEMORY_BORROWED_VIEW].current);
+    assert(netdata_promql_allocation_release(b) == NETDATA_PROMQL_OK);
+    assert(netdata_promql_allocation_resize(a, 0) == NETDATA_PROMQL_OK);
+    assert(netdata_promql_allocation_release(a) == NETDATA_PROMQL_OK);
+    const uint32_t invalid[] = {5, 6, 7, UINT32_MAX};
+    for (unsigned i = 0; i < 4; i++) {
+        netdata_promql_allocation_handle_t *rejected = NULL;
+        assert(netdata_promql_allocation_acquire(account, invalid[i], 1024, &rejected) == NETDATA_PROMQL_INVALID_ARGUMENT);
+        assert(!rejected);
+    }
+    after = engine_observations(engine);
+    for (unsigned i = 0; i < NETDATA_PROMQL_MEMORY_KINDS; i++) assert(after.memory[i].current == before.memory[i].current);
 }
 static void account_fixture(fixture *f, const netdata_promql_accounting_context_t *account, unsigned phase) {
     assert(account);
@@ -490,6 +552,13 @@ static netdata_promql_query_t *compile(netdata_promql_engine_t *engine, const ch
     netdata_promql_report_t *report = NULL;
     assert(netdata_promql_compile(engine, bytes(text, strlen(text)), NULL, &query, &report) == NETDATA_PROMQL_OK);
     assert(query && report);
+    netdata_promql_query_observations_t compilation, reported;
+    assert(netdata_promql_query_compilation_observations(query, &compilation) == NETDATA_PROMQL_OK);
+    assert(netdata_promql_report_observations(report, &reported) == NETDATA_PROMQL_OK);
+    netdata_promql_statistics_t empty;
+    memset(&empty, 0, sizeof(empty));
+    statistics_equal(&compilation.statistics, &empty);
+    statistics_equal(&reported.statistics, &empty);
     assert(netdata_promql_report_release(report) == NETDATA_PROMQL_OK);
     return query;
 }
@@ -517,7 +586,7 @@ static void balanced(netdata_promql_engine_t *engine, const netdata_promql_engin
     assert(observed.temporary_storage.extent.acquired == observed.temporary_storage.extent.released);
     assert(observed.temporary_storage.stores.acquired == observed.temporary_storage.stores.released);
 }
-static uint64_t temporary_window(netdata_promql_engine_t *engine, uint64_t rows, uint64_t maximum) {
+static uint64_t temporary_window(netdata_promql_engine_t *engine, uint64_t rows, uint64_t maximum, uint64_t *sample_peak) {
     netdata_promql_query_t *query = compile(engine, "quantile_over_time(0.5,m[100000s])");
     fixture f;
     init_fixture(&f, rows, maximum);
@@ -532,6 +601,10 @@ static uint64_t temporary_window(netdata_promql_engine_t *engine, uint64_t rows,
     assert(f.temporary_phases == 31);
     netdata_promql_query_observations_t observed;
     assert(netdata_promql_report_observations(report, &observed) == NETDATA_PROMQL_OK);
+    statistics_valid(&observed.statistics);
+    assert(observed.statistics.samples.total_queryable_samples == rows);
+    assert(observed.statistics.samples.samples_read >= rows);
+    *sample_peak = observed.statistics.samples.peak_samples;
     assert(observed.samples_fetched == f.samples_returned && observed.pages == f.pages_returned);
     assert(observed.temporary_storage.extent.peak == rows * 8);
     assert(observed.temporary_storage.stores.peak == 1);
@@ -602,7 +675,7 @@ static void temporary_failure_cases(netdata_promql_engine_t *engine) {
     }
     puts("{\"temporary_failures\":\"pass\",\"cases\":11,\"callback_phases\":5}");
 }
-static uint64_t long_window(netdata_promql_engine_t *engine, uint64_t rows, uint64_t maximum) {
+static uint64_t long_window(netdata_promql_engine_t *engine, uint64_t rows, uint64_t maximum, uint64_t *sample_peak) {
     char text[80];
     assert(snprintf(text, sizeof(text), "sum_over_time(m[%" PRIu64 "s])", rows) > 0);
     netdata_promql_query_t *query = compile(engine, text);
@@ -616,6 +689,10 @@ static uint64_t long_window(netdata_promql_engine_t *engine, uint64_t rows, uint
     released(&f);
     netdata_promql_query_observations_t observed;
     assert(netdata_promql_report_observations(report, &observed) == NETDATA_PROMQL_OK);
+    statistics_valid(&observed.statistics);
+    assert(observed.statistics.samples.total_queryable_samples == rows);
+    assert(observed.statistics.samples.samples_read >= rows);
+    *sample_peak = observed.statistics.samples.peak_samples;
     /* Physical reads include replay; every successfully returned page must be charged once. */
     assert(f.samples_returned >= rows);
     assert(observed.samples_fetched == f.samples_returned);
@@ -664,6 +741,46 @@ static void error_phases(netdata_promql_engine_t *engine) {
         assert(netdata_promql_report_release(report) == NETDATA_PROMQL_OK);
     }
 }
+static void basic_statistics_cases(netdata_promql_engine_t *engine) {
+    const char *sources[] = {"42", "\"text\"", "m", "m", "m[3s]", "sum_over_time(m[3s])", "m @ 3"};
+    const uint64_t totals[] = {0, 0, 1, 3, 3, 3, 3};
+    const uint64_t sizes[] = {1, 17, 1024};
+    for (unsigned page = 0; page < 3; page++) {
+        for (unsigned i = 0; i < 7; i++) {
+            netdata_promql_query_t *query = compile(engine, sources[i]);
+            fixture f;
+            init_fixture(&f, 2048, sizes[page]);
+            netdata_promql_provider_t p = provider(&f);
+            netdata_promql_request_t request = instant(3000);
+            if (i == 3 || i == 6) {
+                request.kind = NETDATA_PROMQL_REQUEST_RANGE;
+                request.start_ms = 2000; request.end_ms = 4000; request.step_ms = 1000;
+            }
+            netdata_promql_result_t *result = NULL;
+            netdata_promql_report_t *report = NULL;
+            assert(netdata_promql_collect(query, &p, &request, NULL, &result, &report) == NETDATA_PROMQL_OK);
+            released(&f);
+            netdata_promql_query_observations_t fixed, live;
+            assert(netdata_promql_report_observations(report, &fixed) == NETDATA_PROMQL_OK);
+            assert(netdata_promql_result_live_observations(result, &live) == NETDATA_PROMQL_OK);
+            statistics_equal(&fixed.statistics, &live.statistics);
+            assert(fixed.statistics.samples.total_queryable_samples == totals[i]);
+            if (totals[i]) {
+                assert(fixed.statistics.samples.samples_read > 0 && fixed.statistics.samples.peak_samples > 0);
+            } else assert(fixed.statistics.samples.samples_read == 0);
+            if (i == 1) assert(fixed.statistics.samples.peak_samples == 0);
+            if (i == 3 || i == 6) assert(fixed.statistics.samples.peak_samples >= 3);
+            if (i == 4) assert(fixed.statistics.samples.peak_samples == 4);
+            if (i == 2 && page == 2) assert(fixed.statistics.samples.samples_read < fixed.samples_fetched);
+            assert(netdata_promql_report_release(report) == NETDATA_PROMQL_OK);
+            assert(netdata_promql_query_release(query) == NETDATA_PROMQL_OK);
+            assert(netdata_promql_result_live_observations(result, &live) == NETDATA_PROMQL_OK);
+            statistics_equal(&fixed.statistics, &live.statistics);
+            assert(netdata_promql_result_release(result) == NETDATA_PROMQL_OK);
+        }
+    }
+    puts("{\"basic_statistics\":\"pass\",\"cases\":21,\"page_sizes\":3}");
+}
 static void range_result(netdata_promql_engine_t *engine) {
     netdata_promql_query_t *query = compile(engine, "m");
     fixture f;
@@ -702,6 +819,7 @@ typedef struct {
     uint64_t result_before;
     void *buffer;
     netdata_promql_allocation_handle_t *allocation;
+    netdata_promql_statistics_t committed_statistics;
 } delivery;
 static uint32_t output_status(delivery *d, uint32_t phase,
                               const netdata_promql_callback_control_t *control,
@@ -752,6 +870,11 @@ static uint32_t output_commit(void *context, const netdata_promql_query_observat
     assert(observations->output_samples == 1);
     assert(observations->memory[NETDATA_PROMQL_MEMORY_BORROWED_VIEW].current == 0);
     assert(observations->temporary_storage.extent.current == 0 && observations->temporary_storage.stores.current == 0);
+    statistics_valid(&observations->statistics);
+    assert(observations->statistics.samples.total_queryable_samples == 1);
+    assert(observations->statistics.samples.samples_read >= 1);
+    assert(observations->statistics.samples.peak_samples >= 1);
+    ((delivery *)context)->committed_statistics = observations->statistics;
     return output_status((delivery *)context, 3, control, error);
 }
 static void output_abort(void *context, const netdata_promql_accounting_context_t *account) {
@@ -801,6 +924,13 @@ static void output_delivery(netdata_promql_engine_t *engine) {
         assert(d.calls[1] == (d.failure != 1 && d.cancel_at != 1));
         assert(d.calls[2] == (test == 0 || d.failure == 3));
         released(&f);
+        if (status == NETDATA_PROMQL_OK) {
+            netdata_promql_query_observations_t fixed, live;
+            assert(netdata_promql_report_observations(report, &fixed) == NETDATA_PROMQL_OK);
+            assert(netdata_promql_report_live_observations(report, &live) == NETDATA_PROMQL_OK);
+            statistics_equal(&d.committed_statistics, &fixed.statistics);
+            statistics_equal(&d.committed_statistics, &live.statistics);
+        }
         if (d.failure) {
             static const uint8_t expected[] = {'o','u','t',0,255};
             netdata_promql_error_t error;
@@ -812,6 +942,119 @@ static void output_delivery(netdata_promql_engine_t *engine) {
         assert(netdata_promql_control_release(d.control) == NETDATA_PROMQL_OK);
         assert(netdata_promql_report_release(report) == NETDATA_PROMQL_OK);
     }
+}
+
+typedef struct {
+    delivery base;
+    unsigned kind, buckets;
+    netdata_promql_report_t *child_report;
+} histogram_delivery;
+
+static uint32_t histogram_bucket(void *context, const netdata_promql_histogram_bucket_t *bucket,
+                                 const netdata_promql_callback_control_t *control,
+                                 netdata_promql_bytes_t *error) {
+    histogram_delivery *d = (histogram_delivery *)context;
+    assert(checked_control(control) == NETDATA_PROMQL_OK);
+    assert(bucket->lower_inclusive <= 1 && bucket->upper_inclusive <= 1);
+    unsigned index = d->buckets++;
+    if (d->kind == 0) {
+        const double lower[] = {-0.25, 0.5, 1}, upper[] = {0.25, 1, 2}, count[] = {2, 0, 4};
+        assert(index < 3);
+        assert(bucket->lower_bits == netdata_promql_double_bits(lower[index]));
+        assert(bucket->upper_bits == netdata_promql_double_bits(upper[index]));
+        assert(bucket->count_bits == netdata_promql_double_bits(count[index]));
+        assert(bucket->lower_inclusive == (index == 0) && bucket->upper_inclusive == 1);
+    }
+    if (d->kind == 1 && index == 1) assert(bucket->count_bits == netdata_promql_double_bits(0));
+    if (d->kind == 3) assert(bucket->count_bits == (index == 0 ? UINT64_C(0x7ff8000000000042) : UINT64_C(0x7ff0000000000000)));
+    if (d->kind >= 5) {
+        assert(netdata_promql_control_cancel(d->base.control) == NETDATA_PROMQL_OK);
+        if (d->kind == 5) {
+            *error = bytes("bucket\0error", 12);
+            return NETDATA_PROMQL_OUTPUT_ERROR;
+        }
+    }
+    return NETDATA_PROMQL_OK;
+}
+
+static uint32_t histogram_begin(void *context, const netdata_promql_output_header_t *header,
+                                const netdata_promql_callback_control_t *control,
+                                netdata_promql_bytes_t *error) {
+    histogram_delivery *d = (histogram_delivery *)context;
+    assert(output_begin(&d->base, header, control, error) == NETDATA_PROMQL_OK);
+    netdata_promql_span_t span = {0, 2};
+    double buckets[] = {0, 4, 3}, bounds[] = {-1, 1};
+    netdata_promql_float_histogram_t histogram;
+    memset(&histogram, 0, sizeof(histogram));
+    histogram.zero_count_bits = netdata_promql_double_bits(2);
+    histogram.zero_threshold_bits = netdata_promql_double_bits(0.25);
+    histogram.positive_spans.data = &span; histogram.positive_spans.len = 1; histogram.positive_spans.present = 1;
+    histogram.positive_buckets.data = buckets; histogram.positive_buckets.len = 2; histogram.positive_buckets.present = 1;
+    if (d->kind == 1) {
+        histogram.schema = -53;
+        histogram.zero_count_bits = 0;
+        span.length = 3; buckets[0] = 2; buckets[1] = 0;
+        histogram.positive_buckets.len = 3;
+        histogram.custom_values.data = bounds; histogram.custom_values.len = 2; histogram.custom_values.present = 1;
+    }
+    if (d->kind == 2) { memset(&histogram, 0, sizeof(histogram)); histogram.schema = 7; }
+    if (d->kind == 3) {
+        histogram.zero_count_bits = 0;
+        buckets[0] = netdata_promql_double_from_bits(UINT64_C(0x7ff8000000000042));
+        buckets[1] = netdata_promql_double_from_bits(UINT64_C(0x7ff0000000000000));
+    }
+    if (d->kind == 4) histogram.positive_spans.present = 2;
+    uint32_t status = netdata_promql_callback_histogram_buckets(&histogram, control, histogram_bucket, d, &d->child_report);
+    if (status == NETDATA_PROMQL_OK) {
+        assert(netdata_promql_report_release(d->child_report) == NETDATA_PROMQL_OK);
+        d->child_report = NULL;
+        return status;
+    }
+    if (status == NETDATA_PROMQL_CANCELLED || status == NETDATA_PROMQL_DEADLINE) return status;
+    if (d->child_report) {
+        netdata_promql_error_t child;
+        assert(netdata_promql_report_error(d->child_report, 0, &child) == NETDATA_PROMQL_OK);
+        *error = child.message;
+    } else *error = text("invalid histogram view");
+    return NETDATA_PROMQL_OUTPUT_ERROR;
+}
+
+static void histogram_abort(void *context, const netdata_promql_accounting_context_t *account) {
+    histogram_delivery *d = (histogram_delivery *)context;
+    if (d->child_report) {
+        assert(netdata_promql_report_release(d->child_report) == NETDATA_PROMQL_OK);
+        d->child_report = NULL;
+    }
+    output_abort(&d->base, account);
+}
+
+static void histogram_delivery_cases(netdata_promql_engine_t *engine) {
+    for (unsigned kind = 0; kind < 7; kind++) {
+        histogram_delivery d;
+        memset(&d, 0, sizeof(d)); d.kind = kind;
+        assert(netdata_promql_control_create(engine, NULL, &d.base.control) == NETDATA_PROMQL_OK);
+        fixture f; init_fixture(&f, 5, 7);
+        netdata_promql_provider_t p = provider(&f);
+        netdata_promql_query_t *query = compile(engine, "m");
+        netdata_promql_request_t request = instant(3000);
+        netdata_promql_output_t output = delivery_table(&d.base);
+        output.context = &d; output.begin = histogram_begin; output.abort = histogram_abort;
+        netdata_promql_report_t *report = NULL;
+        uint32_t status = netdata_promql_execute(query, &p, &request, d.base.control, &output, &report);
+        assert(status == (kind < 4 ? NETDATA_PROMQL_OK : kind < 6 ? NETDATA_PROMQL_OUTPUT_ERROR : NETDATA_PROMQL_CANCELLED));
+        assert(d.buckets == (kind == 2 || kind == 4 ? 0 : kind >= 5 ? 1 : kind == 3 ? 2 : 3));
+        assert(!d.child_report && d.base.calls[3] == (kind >= 4));
+        if (kind == 5) {
+            netdata_promql_error_t error;
+            assert(netdata_promql_report_error(report, 0, &error) == NETDATA_PROMQL_OK);
+            assert(error.message.len == 12 && memcmp(error.message.data, "bucket\0error", 12) == 0);
+        }
+        released(&f);
+        assert(netdata_promql_query_release(query) == NETDATA_PROMQL_OK);
+        assert(netdata_promql_control_release(d.base.control) == NETDATA_PROMQL_OK);
+        assert(netdata_promql_report_release(report) == NETDATA_PROMQL_OK);
+    }
+    puts("{\"histogram_buckets\":\"pass\",\"cases\":7}");
 }
 static void foreign_provider_accounting(netdata_promql_engine_t *engine) {
     netdata_promql_query_t *query = compile(engine, "m[1s]");
@@ -837,19 +1080,21 @@ static void foreign_provider_accounting(netdata_promql_engine_t *engine) {
     puts("{\"foreign_accounting\":\"pass\",\"callback_phases\":9,\"overlap_bytes\":7340032,\"retained_bytes\":4096}");
 }
 static void foreign_early_abort(netdata_promql_engine_t *engine) {
-    for (unsigned test = 0; test < 7; test++) {
+    for (unsigned test = 0; test < 11; test++) {
         netdata_promql_query_t *query = compile(engine, test == 5 ? "m[step()]" : "m");
         fixture f;
         init_fixture(&f, 3, 1);
         netdata_promql_provider_t p = provider(&f);
-        if (test == 3) p.header.abi_version = 1;
+        unsigned old_provider = test == 3 || test == 7 || test == 8;
+        unsigned old_output = test == 6 || test == 9 || test == 10;
+        if (old_provider) p.header.abi_version = test == 3 ? 1 : test - 5;
         netdata_promql_request_t request = instant(3000);
         if (test == 2) request.kind = UINT32_MAX;
         delivery d;
         memset(&d, 0, sizeof(d));
         d.accounting_engine = engine;
         netdata_promql_output_t output = delivery_table(&d);
-        if (test == 6) output.header.abi_version = 1;
+        if (old_output) output.header.abi_version = test == 6 ? 1 : test - 7;
         if (test == 4) {
             assert(netdata_promql_control_create(engine, NULL, &d.control) == NETDATA_PROMQL_OK);
             assert(netdata_promql_control_cancel(d.control) == NETDATA_PROMQL_OK);
@@ -860,16 +1105,16 @@ static void foreign_early_abort(netdata_promql_engine_t *engine) {
         assert(status == (test == 4 ? NETDATA_PROMQL_CANCELLED :
                           test == 5 ? NETDATA_PROMQL_EVALUATION_ERROR : NETDATA_PROMQL_INVALID_ARGUMENT));
         assert(!d.calls[0] && !d.calls[1] && !d.calls[2]);
-        assert(d.calls[3] == (test != 6));
+        assert(d.calls[3] == !old_output);
         assert(d.null_accounting == (test == 0));
-        assert(d.accounting_callbacks == (test > 0 && test < 6));
+        assert(d.accounting_callbacks == (test > 0 && !old_output));
         assert(!f.opened[0]);
         released(&f);
         if (report) assert(netdata_promql_report_release(report) == NETDATA_PROMQL_OK);
         if (d.control) assert(netdata_promql_control_release(d.control) == NETDATA_PROMQL_OK);
         assert(netdata_promql_query_release(query) == NETDATA_PROMQL_OK);
     }
-    puts("{\"foreign_early_abort\":\"pass\",\"cases\":7}");
+    puts("{\"foreign_early_abort\":\"pass\",\"cases\":11}");
 }
 static void foreign_allocation_lifetime(void) {
     netdata_promql_engine_t *engine = NULL;
@@ -976,6 +1221,92 @@ static void label_field_boundary(netdata_promql_engine_t *engine) {
     free(field);
     puts("{\"label_field_boundary\":\"pass\",\"cases\":6}");
 }
+static void precise_requests(netdata_promql_engine_t *engine) {
+    netdata_promql_precise_request_t request;
+    memset(&request, 0, sizeof(request));
+    request.header.abi_version = NETDATA_PROMQL_ABI_VERSION;
+    request.header.struct_size = sizeof(request);
+    request.kind = NETDATA_PROMQL_REQUEST_INSTANT;
+    request.start.unix_seconds = -1;
+    request.start.nanoseconds = 999999999;
+    request.lookback_ns = INT64_C(300000000000);
+    fixture f;
+    init_fixture(&f, 17, 1);
+    netdata_promql_provider_t p = provider(&f);
+    netdata_promql_query_t *query = compile(engine, "vector(time())");
+    netdata_promql_result_t *result = NULL;
+    netdata_promql_report_t *report = NULL;
+    assert(netdata_promql_collect_precise(query, &p, &request, NULL, &result, &report) == NETDATA_PROMQL_OK);
+    netdata_promql_point_info_t point;
+    assert(netdata_promql_result_point(result, 0, 0, &point) == NETDATA_PROMQL_OK);
+    assert(point.time_ms == 0 && point.value_bits == 0);
+    released(&f);
+    assert(netdata_promql_result_release(result) == NETDATA_PROMQL_OK);
+    assert(netdata_promql_report_release(report) == NETDATA_PROMQL_OK);
+    assert(netdata_promql_query_release(query) == NETDATA_PROMQL_OK);
+
+    query = compile(engine, "m");
+    memset(&request.start, 0, sizeof(request.start));
+    request.kind = NETDATA_PROMQL_REQUEST_RANGE;
+    request.end.nanoseconds = 2000000;
+    request.interval_ns = 500000;
+    result = NULL; report = NULL;
+    assert(netdata_promql_collect_precise(query, &p, &request, NULL, &result, &report) == NETDATA_PROMQL_EVALUATION_ERROR);
+    assert(!result && report);
+    netdata_promql_error_t error;
+    const char message[] = "unexpected error: runtime error: integer divide by zero";
+    assert(netdata_promql_report_error(report, 0, &error) == NETDATA_PROMQL_OK);
+    assert(error.message.len == sizeof(message) - 1 && !memcmp(error.message.data, message, sizeof(message) - 1));
+    released(&f);
+    assert(netdata_promql_report_release(report) == NETDATA_PROMQL_OK);
+    assert(netdata_promql_query_release(query) == NETDATA_PROMQL_OK);
+    puts("{\"precise_requests\":\"pass\",\"cases\":2}");
+}
+static void protocol_primitives(netdata_promql_engine_t *engine) {
+    netdata_promql_timestamp_t stamp;
+    netdata_promql_report_t *report = NULL;
+    assert(netdata_promql_api_parse_time(engine, text("1969-12-31T23:59:59.999999999Z"), NULL, &stamp, &report) == NETDATA_PROMQL_OK);
+    assert(stamp.unix_seconds == -1 && stamp.nanoseconds == 999999999 && stamp.reserved == 0);
+    assert(netdata_promql_report_release(report) == NETDATA_PROMQL_OK);
+    int64_t duration = 0;
+    assert(netdata_promql_api_parse_duration(engine, text("0.0015"), NULL, &duration, &report) == NETDATA_PROMQL_OK);
+    assert(duration == 1500000);
+    assert(netdata_promql_report_release(report) == NETDATA_PROMQL_OK);
+    assert(netdata_promql_api_parse_time(engine, text("bad"), NULL, &stamp, &report) == NETDATA_PROMQL_PARSE_ERROR);
+    netdata_promql_error_t error;
+    assert(netdata_promql_report_error(report, 0, &error) == NETDATA_PROMQL_OK);
+    const char *expected_error = "cannot parse \"bad\" to a valid timestamp";
+    assert(error.position_present == 0 && error.message.len == strlen(expected_error));
+    assert(memcmp(error.message.data, expected_error, (size_t)error.message.len) == 0);
+    assert(netdata_promql_report_release(report) == NETDATA_PROMQL_OK);
+
+    netdata_promql_numeric_text_t number;
+    assert(netdata_promql_api_scalar_float_text(UINT64_C(0x8000000000000001), &number) == NETDATA_PROMQL_OK);
+    assert(number.len == 327 && memcmp(number.bytes, "-0.", 3) == 0 && number.bytes[326] == '5');
+    assert(netdata_promql_api_timestamp_text(100, &number) == NETDATA_PROMQL_OK);
+    assert(number.len == 5 && memcmp(number.bytes, "0.100", 5) == 0);
+    assert(netdata_promql_api_scalar_timestamp_text(100, &number) == NETDATA_PROMQL_OK);
+    assert(number.len == 3 && memcmp(number.bytes, "0.1", 3) == 0);
+
+    netdata_promql_selector_t *selector = NULL;
+    assert(netdata_promql_selector_compile(engine, text("{}"), NULL, &selector, &report) == NETDATA_PROMQL_OK);
+    uint32_t nonempty = 1;
+    assert(netdata_promql_selector_nonempty(selector, NULL, &nonempty) == NETDATA_PROMQL_OK && nonempty == 0);
+    assert(netdata_promql_selector_release(selector) == NETDATA_PROMQL_OK);
+    assert(netdata_promql_report_release(report) == NETDATA_PROMQL_OK);
+    assert(netdata_promql_selector_compile(engine, text("{zone=~\"x|y\",missing!=\"present\"}"), NULL, &selector, &report) == NETDATA_PROMQL_OK);
+    assert(netdata_promql_report_release(report) == NETDATA_PROMQL_OK);
+    netdata_promql_label_t label;
+    label.name = text("zone"); label.value = text("x");
+    netdata_promql_labels_t labels; labels.data = &label; labels.len = 1;
+    uint32_t matched = 0;
+    assert(netdata_promql_selector_matches(selector, labels, NULL, &matched) == NETDATA_PROMQL_OK && matched == 1);
+    label.value = text("z");
+    assert(netdata_promql_selector_matches(selector, labels, NULL, &matched) == NETDATA_PROMQL_OK && matched == 0);
+    assert(netdata_promql_selector_release(selector) == NETDATA_PROMQL_OK);
+    puts("{\"protocol_primitives\":\"pass\"}");
+}
+
 int main(void) {
     assert(netdata_promql_abi_version() == NETDATA_PROMQL_ABI_VERSION);
     netdata_promql_engine_options_t options;
@@ -988,21 +1319,27 @@ int main(void) {
     assert(netdata_promql_engine_observations(engine, &idle) == NETDATA_PROMQL_OK);
     const uint64_t sizes[] = {1, 7, 1024};
     for (unsigned i = 0; i < 3; i++) {
-        uint64_t first = long_window(engine, 8192, sizes[i]);
+        uint64_t first_samples, second_samples;
+        uint64_t first = long_window(engine, 8192, sizes[i], &first_samples);
         balanced(engine, &idle);
-        uint64_t second = long_window(engine, 65536, sizes[i]);
+        uint64_t second = long_window(engine, 65536, sizes[i], &second_samples);
         assert(first == second);
+        assert(first_samples == second_samples);
         balanced(engine, &idle);
     }
     const uint64_t temporary_sizes[] = {1, 17, 1024};
     for (unsigned i = 0; i < 3; i++) {
-        uint64_t first = temporary_window(engine, 2048, temporary_sizes[i]);
+        uint64_t first_samples, second_samples;
+        uint64_t first = temporary_window(engine, 2048, temporary_sizes[i], &first_samples);
         balanced(engine, &idle);
-        uint64_t second = temporary_window(engine, 100000, temporary_sizes[i]);
+        uint64_t second = temporary_window(engine, 100000, temporary_sizes[i], &second_samples);
         assert(first == second);
+        assert(first_samples == second_samples);
         balanced(engine, &idle);
     }
     temporary_failure_cases(engine);
+    balanced(engine, &idle);
+    basic_statistics_cases(engine);
     balanced(engine, &idle);
     range_result(engine);
     balanced(engine, &idle);
@@ -1013,6 +1350,12 @@ int main(void) {
     foreign_provider_accounting(engine);
     balanced(engine, &idle);
     foreign_early_abort(engine);
+    balanced(engine, &idle);
+    histogram_delivery_cases(engine);
+    balanced(engine, &idle);
+    precise_requests(engine);
+    balanced(engine, &idle);
+    protocol_primitives(engine);
     balanced(engine, &idle);
     label_field_boundary(engine);
     balanced(engine, &idle);

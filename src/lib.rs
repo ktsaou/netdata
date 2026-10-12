@@ -6,6 +6,13 @@
 #[cfg(panic = "abort")]
 compile_error!("PromQL requires panic=unwind for containment at its C boundary");
 
+#[cfg(all(test, feature = "fixtures"))]
+extern crate self as netdata_promql_engine;
+#[cfg(all(test, feature = "fixtures"))]
+#[allow(dead_code)]
+#[path = "bin/fixture_codec.rs"]
+mod fixture_codec;
+
 mod absence;
 pub mod accounting;
 mod aggregation;
@@ -79,6 +86,7 @@ mod query_bounds;
 mod query_catalog;
 mod query_preparation;
 mod query_scopes;
+pub mod query_time;
 mod range_cache;
 mod range_extended;
 pub mod range_float;
@@ -89,6 +97,7 @@ mod range_reduce;
 pub mod result;
 mod scheduled_expression;
 mod shared;
+pub mod statistics;
 pub use shared::Strong;
 #[cfg(test)]
 mod selection_tests;

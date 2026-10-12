@@ -637,6 +637,35 @@ unsafe fn floats<'a>(value: types::F64Array) -> Result<Option<&'a [f64]>, Invali
 unsafe fn integers<'a>(value: types::I64Array) -> Result<Option<&'a [i64]>, Invalid> {
     unsafe { checked::optional(value.data, value.len, value.present, value.reserved) }
 }
+pub(super) unsafe fn float_histogram<'a>(
+    pointer: *const types::FloatHistogram,
+    footprint: Option<&mut Footprint>,
+) -> Result<FloatHistogramRef<'a>, Invalid> {
+    let h = unsafe { checked::read(pointer) }?;
+    let h = FloatHistogramRef {
+        reset_hint: u8::try_from(h.reset_hint)
+            .map_err(|_| Invalid("reset hint does not fit byte"))?,
+        schema: h.schema,
+        zero_threshold: f64::from_bits(h.zero_threshold_bits),
+        zero_count: f64::from_bits(h.zero_count_bits),
+        count: f64::from_bits(h.count_bits),
+        sum: f64::from_bits(h.sum_bits),
+        positive_spans: unsafe { spans(h.positive_spans) }?,
+        negative_spans: unsafe { spans(h.negative_spans) }?,
+        positive_buckets: unsafe { floats(h.positive_buckets) }?,
+        negative_buckets: unsafe { floats(h.negative_buckets) }?,
+        custom_values: unsafe { floats(h.custom_values) }?,
+    };
+    if let Some(footprint) = footprint {
+        footprint.add(pointer, 1)?;
+        footprint.add_slice(h.positive_spans)?;
+        footprint.add_slice(h.negative_spans)?;
+        footprint.add_slice(h.positive_buckets)?;
+        footprint.add_slice(h.negative_buckets)?;
+        footprint.add_slice(h.custom_values)?;
+    }
+    Ok(h)
+}
 unsafe fn sample_view<'a>(
     value: types::Sample,
     mut footprint: Option<&mut Footprint>,
@@ -677,30 +706,7 @@ unsafe fn sample_view<'a>(
         }
         types::VALUE_FLOAT_HISTOGRAM => {
             let pointer = unsafe { value.value.payload.float_histogram };
-            let h = unsafe { checked::read(pointer) }?;
-            let h = FloatHistogramRef {
-                reset_hint: u8::try_from(h.reset_hint)
-                    .map_err(|_| Invalid("reset hint does not fit byte"))?,
-                schema: h.schema,
-                zero_threshold: f64::from_bits(h.zero_threshold_bits),
-                zero_count: f64::from_bits(h.zero_count_bits),
-                count: f64::from_bits(h.count_bits),
-                sum: f64::from_bits(h.sum_bits),
-                positive_spans: unsafe { spans(h.positive_spans) }?,
-                negative_spans: unsafe { spans(h.negative_spans) }?,
-                positive_buckets: unsafe { floats(h.positive_buckets) }?,
-                negative_buckets: unsafe { floats(h.negative_buckets) }?,
-                custom_values: unsafe { floats(h.custom_values) }?,
-            };
-            if let Some(footprint) = &mut footprint {
-                footprint.add(pointer, 1)?;
-                footprint.add_slice(h.positive_spans)?;
-                footprint.add_slice(h.negative_spans)?;
-                footprint.add_slice(h.positive_buckets)?;
-                footprint.add_slice(h.negative_buckets)?;
-                footprint.add_slice(h.custom_values)?;
-            }
-            SampleValueRef::FloatHistogram(h)
+            SampleValueRef::FloatHistogram(unsafe { float_histogram(pointer, footprint) }?)
         }
         _ => return Err(Invalid("invalid sample value tag")),
     };

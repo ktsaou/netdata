@@ -221,6 +221,7 @@ struct Comparison {
     inputs: [usize; 2],
     values: [f64; 2],
     position: usize,
+    samples: [Option<crate::statistics::OwnedSamples>; 2],
 }
 pub(crate) enum Action<'a> {
     Continue,
@@ -242,6 +243,7 @@ pub(crate) struct Step<'a> {
     waiting: bool,
     expected: Option<usize>,
     value: Option<f64>,
+    value_samples: Option<crate::statistics::OwnedSamples>,
     emitted: Option<EvaluatedSample>,
     position: usize,
     range_warning: bool,
@@ -283,6 +285,7 @@ impl<'a> Step<'a> {
             waiting: false,
             expected: None,
             value: None,
+            value_samples: None,
             emitted: None,
             position: 0,
             range_warning: false,
@@ -318,6 +321,7 @@ impl<'a> Step<'a> {
             && let OwnedValue::Float(value) = sample.value
         {
             self.value = Some(value);
+            self.value_samples = sample.float_samples;
         }
         Ok(())
     }
@@ -325,6 +329,7 @@ impl<'a> Step<'a> {
         self.waiting = true;
         self.expected = Some(input);
         self.value = None;
+        self.value_samples = None;
         self.emitted = None;
         Action::Child(Some(&self.plan.rows[input].ordinal))
     }
@@ -413,6 +418,7 @@ impl<'a> Step<'a> {
                         comparison.values[comparison.position] = self.value.take().ok_or(
                             EvaluationError::Invalid("sort operand changed during replay"),
                         )?;
+                        comparison.samples[comparison.position] = self.value_samples.take();
                         comparison.position += 1;
                     }
                     if comparison.position < 2 {
@@ -449,6 +455,7 @@ impl<'a> Step<'a> {
                             inputs: [self.indices[a], self.indices[b]],
                             values: [0.0; 2],
                             position: 0,
+                            samples: [None, None],
                         })
                     }
                     Operation::Swap(a, b) => {

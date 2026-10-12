@@ -2,6 +2,7 @@
 //! Synchronous query ownership, incremental output and ordinary-panic containment.
 #[cfg(test)]
 use crate::evaluator::metadata;
+pub use crate::query_time::{PreciseQueryRequest, Timestamp};
 use crate::{
     accounting::{
         AccountedBox, AccountedVec, AllocationContext, EngineAccounting, MemoryKind,
@@ -25,6 +26,7 @@ use crate::{
     matrix_reader::{MatrixWindow, scan as scan_matrix},
     query_catalog::Catalog,
     query_preparation::Prepared,
+    query_time::{Request as TimedRequest, Timing},
     range_reduce::RangeFunction,
     result::{CollectedResult, Collector, OutputChunk, OutputError, OutputHeader, OutputSink},
     storage::{
@@ -76,7 +78,7 @@ pub enum ExecutionError {
     Internal,
 }
 impl ExecutionError {
-    fn output(error: OutputError, account: &QueryAccounting) -> Self {
+    pub(crate) fn output(error: OutputError, account: &QueryAccounting) -> Self {
         match error {
             OutputError::Failure(bytes) => Self::sink(bytes, account),
             OutputError::Interrupted(error) => error.into(),
@@ -294,7 +296,7 @@ impl CompiledQuery {
         )?;
         let bounds = crate::query_bounds::find(
             &self.expression,
-            self.evaluation_options(header, header.start_ms),
+            self.evaluation_options(header, header.start_ms, &prepared),
             &prepared,
             control,
             &account,
@@ -322,7 +324,7 @@ impl CompiledQuery {
             control,
             &account,
         )?;
-        let options = self.evaluation_options(header, header.start_ms);
+        let options = self.evaluation_options(header, header.start_ms, &prepared);
         let bounds =
             crate::query_bounds::find(&self.expression, options, &prepared, control, &account)?;
         let sites = crate::query_bounds::selection_sites(
@@ -384,6 +386,46 @@ impl CompiledQuery {
         sink: &mut S,
         account: &QueryAccounting,
     ) -> ExecutionReport<()> {
+        self.execute_request_reported_in(provider, request.into(), control, sink, account)
+    }
+    pub fn execute_precise<P: Provider, S: OutputSink>(
+        &self,
+        provider: &P,
+        request: PreciseQueryRequest,
+        control: &Control,
+        sink: &mut S,
+    ) -> Result<QueryObservations, ExecutionError> {
+        let report = self.execute_precise_reported(provider, request, control, sink);
+        report.result.map(|()| report.observations)
+    }
+    pub fn execute_precise_reported<P: Provider, S: OutputSink>(
+        &self,
+        provider: &P,
+        request: PreciseQueryRequest,
+        control: &Control,
+        sink: &mut S,
+    ) -> ExecutionReport<()> {
+        let account = self.execution_accounting();
+        self.execute_precise_reported_in(provider, request, control, sink, &account)
+    }
+    pub(crate) fn execute_precise_reported_in<P: Provider, S: OutputSink>(
+        &self,
+        provider: &P,
+        request: PreciseQueryRequest,
+        control: &Control,
+        sink: &mut S,
+        account: &QueryAccounting,
+    ) -> ExecutionReport<()> {
+        self.execute_request_reported_in(provider, request.into(), control, sink, account)
+    }
+    fn execute_request_reported_in<P: Provider, S: OutputSink>(
+        &self,
+        provider: &P,
+        request: TimedRequest,
+        control: &Control,
+        sink: &mut S,
+        account: &QueryAccounting,
+    ) -> ExecutionReport<()> {
         let mut annotations = Annotations::default();
         let result = self
             .execute_accounted(provider, request, control, sink, account, &mut annotations)
@@ -422,6 +464,42 @@ impl CompiledQuery {
         control: &Control,
         account: &QueryAccounting,
     ) -> ExecutionReport<CollectedResult> {
+        self.collect_request_reported_in(provider, request.into(), control, account)
+    }
+    pub fn collect_precise<P: Provider>(
+        &self,
+        provider: &P,
+        request: PreciseQueryRequest,
+        control: &Control,
+    ) -> Result<(CollectedResult, QueryObservations), ExecutionError> {
+        let report = self.collect_precise_reported(provider, request, control);
+        report.result.map(|result| (result, report.observations))
+    }
+    pub fn collect_precise_reported<P: Provider>(
+        &self,
+        provider: &P,
+        request: PreciseQueryRequest,
+        control: &Control,
+    ) -> ExecutionReport<CollectedResult> {
+        let account = self.execution_accounting();
+        self.collect_precise_reported_in(provider, request, control, &account)
+    }
+    pub(crate) fn collect_precise_reported_in<P: Provider>(
+        &self,
+        provider: &P,
+        request: PreciseQueryRequest,
+        control: &Control,
+        account: &QueryAccounting,
+    ) -> ExecutionReport<CollectedResult> {
+        self.collect_request_reported_in(provider, request.into(), control, account)
+    }
+    fn collect_request_reported_in<P: Provider>(
+        &self,
+        provider: &P,
+        request: TimedRequest,
+        control: &Control,
+        account: &QueryAccounting,
+    ) -> ExecutionReport<CollectedResult> {
         let mut collector = Collector::new(account);
         let mut annotations = Annotations::default();
         let result = self
@@ -450,7 +528,7 @@ impl CompiledQuery {
     fn execute_accounted<P: Provider, S: OutputSink>(
         &self,
         provider: &P,
-        request: QueryRequest,
+        request: TimedRequest,
         control: &Control,
         sink: &mut S,
         account: &QueryAccounting,
@@ -459,19 +537,23 @@ impl CompiledQuery {
         let control_observation = control.observe(account);
         let observation = account.execution();
         let outcome = catch_unwind(AssertUnwindSafe(|| {
-            let header = self.header(request)?;
+            let execution_phase = account.phase(crate::statistics::Phase::Execution);
+            let evaluation_phase = account.phase(crate::statistics::Phase::Evaluation);
+            let preparation_phase = account.phase(crate::statistics::Phase::Preparation);
+            let (header, timing) = self.request_timing(request)?;
             control.check().map_err(EvaluationError::from)?;
-            let prepared = Prepared::new(
+            let prepared = Prepared::with_timing(
                 &self.expression,
                 &self.preprocessing,
                 header,
+                timing,
                 self.options.no_step_subquery_interval_ms,
                 control,
                 account,
             )?;
             let data_bounds = crate::query_bounds::find(
                 &self.expression,
-                self.evaluation_options(prepared.header, prepared.header.start_ms),
+                self.evaluation_options(prepared.header, prepared.header.start_ms, &prepared),
                 &prepared,
                 control,
                 account,
@@ -489,11 +571,12 @@ impl CompiledQuery {
                     &query,
                     &self.expression,
                     &prepared,
-                    self.evaluation_options(prepared.header, prepared.header.start_ms),
+                    self.evaluation_options(prepared.header, prepared.header.start_ms, &prepared),
                     self.options.no_step_subquery_interval_ms,
                     control,
                     account,
                 )?;
+                drop(preparation_phase);
                 self.evaluate(
                     &catalog,
                     EvaluationScope {
@@ -505,12 +588,14 @@ impl CompiledQuery {
                     sink,
                     annotations,
                 )?;
+                drop(evaluation_phase);
             }
             control.check().map_err(EvaluationError::from)?;
             if !annotations.is_empty() {
                 sink.chunk_checked(OutputChunk::Annotations(annotations), control, account)
                     .map_err(|error| ExecutionError::output(error, account))?;
             }
+            drop(execution_phase);
             let mut observations = account.snapshot();
             observations.elapsed = observations.elapsed.saturating_add(observation.elapsed());
             sink.commit_checked(&observations, control, account)
@@ -539,6 +624,36 @@ impl CompiledQuery {
         drop(observation);
         drop(control_observation);
         outcome.map(|()| account.snapshot())
+    }
+    fn request_timing(
+        &self,
+        request: TimedRequest,
+    ) -> Result<(OutputHeader, Timing), EvaluationError> {
+        match request {
+            TimedRequest::Milliseconds(request) => {
+                let header = self.header(request)?;
+                Ok((header, Timing::milliseconds(header)))
+            }
+            TimedRequest::Precise(request) => {
+                let timing = Timing::precise(request)?;
+                let value_type = self.value_type();
+                let range = matches!(request, PreciseQueryRequest::Range { .. });
+                if range && !matches!(value_type, ValueType::Vector | ValueType::Scalar) {
+                    return Err(EvaluationError::Invalid(
+                        "range expression must be a scalar or instant vector",
+                    ));
+                }
+                Ok((
+                    OutputHeader {
+                        value_type: if range { ValueType::Matrix } else { value_type },
+                        start_ms: timing.start_ms,
+                        end_ms: timing.end_ms,
+                        step_ms: timing.interval_ns / 1_000_000,
+                    },
+                    timing,
+                ))
+            }
+        }
     }
     fn header(&self, request: QueryRequest) -> Result<OutputHeader, EvaluationError> {
         let value_type = self.expression.arena[self.expression.root].value_type;
@@ -639,7 +754,7 @@ impl CompiledQuery {
                     catalog,
                     &self.expression,
                     self.expression.root,
-                    self.evaluation_options(evaluator_header, header.start_ms),
+                    self.evaluation_options(evaluator_header, header.start_ms, prepared),
                     control,
                     account,
                     EvaluationMetadata {
@@ -661,11 +776,11 @@ impl CompiledQuery {
                     // Public instant conversion prefers the histogram list over the float list.
                     if selected
                         .as_ref()
-                        .is_none_or(|value: &crate::result::OwnedValue| {
+                        .is_none_or(|value: &crate::statistics::ValueParts| {
                             value.kind_bit() == 1 && sample.value.kind_bit() == 2
                         })
                     {
-                        selected = Some(sample.value);
+                        selected = Some(sample.into_parts());
                     }
                 }
                 if let Some(value) = selected {
@@ -717,15 +832,14 @@ impl CompiledQuery {
                 && self.helper_shortcut(self.expression.root, control, account)?,
         );
         while let Some((time_ms, step_index)) = traversal.current() {
-            let options = EvaluationOptions {
+            let options = self.evaluation_options(
+                OutputHeader {
+                    step_ms: evaluator_header.step_ms,
+                    ..header
+                },
                 time_ms,
-                start_ms: header.start_ms,
-                end_ms: header.end_ms,
-                step_ms: evaluator_header.step_ms,
-                lookback_ms: self.options.lookback_ms,
-                start_timestamps: self.options.start_timestamps,
-                delayed_name_removal: self.options.delayed_name_removal,
-            };
+                prepared,
+            );
             let mut machine = Machine::new(
                 catalog,
                 &self.expression,
@@ -892,13 +1006,18 @@ impl CompiledQuery {
         }
         Ok(Some(cohorts))
     }
-    fn evaluation_options(&self, header: OutputHeader, time_ms: i64) -> EvaluationOptions {
+    fn evaluation_options(
+        &self,
+        header: OutputHeader,
+        time_ms: i64,
+        prepared: &Prepared,
+    ) -> EvaluationOptions {
         EvaluationOptions {
             time_ms,
             start_ms: header.start_ms,
             end_ms: header.end_ms,
             step_ms: header.step_ms,
-            lookback_ms: self.options.lookback_ms,
+            lookback_ms: prepared.lookback_ms(self.options.lookback_ms),
             start_timestamps: self.options.start_timestamps,
             delayed_name_removal: self.options.delayed_name_removal,
         }
@@ -979,6 +1098,7 @@ impl CompiledQuery {
         call: (NodeId, OutputHeader),
         prepared: &Prepared,
         rosters: &Rosters,
+        sample_units: u64,
         control: &Control,
         account: &QueryAccounting,
     ) -> Result<Option<i64>, EvaluationError> {
@@ -987,10 +1107,16 @@ impl CompiledQuery {
             return Ok(None);
         }
         let mut traversal = crate::query_scopes::Traversal::new(source_header.into(), false);
+        let progress = crate::statistics::PrimaryProgress::new(
+            account,
+            rosters.published_samples(),
+            rosters.publishes_statistics(node),
+        );
         let mut copies = 0_i64;
         while let Some((_, index)) = traversal.current() {
             control.check()?;
             account.work(1);
+            progress.add(sample_units);
             prepared.statistics_index(node, index, control, account)?;
             copies = copies.wrapping_add(1);
             traversal.advance();
@@ -1055,23 +1181,26 @@ impl CompiledQuery {
         account: &QueryAccounting,
         failure_annotations: &mut Annotations,
     ) -> Result<Rosters, EvaluationError> {
+        let _inner_phase = account.phase(crate::statistics::Phase::Inner);
         enum Task<'a> {
-            Visit(NodeId, OutputHeader),
+            Visit(NodeId, OutputHeader, bool),
             Finish(NodeId, OutputHeader),
             LabelFinish(NodeId, OutputHeader, AccountedBox<LabelOperation<'a>>),
             AggregateParameter(NodeId, OutputHeader),
         }
         let mut rosters = Rosters::new(account, self.expression.arena.nodes.len(), control)?;
+        rosters.set_result_node(self.expression.root);
         let mut tasks = AccountedVec::new(account, MemoryKind::Workspace);
         tasks.push(Task::Visit(
             self.expression.root,
             prepared.evaluator_header(),
+            true,
         ));
         while let Some(task) = tasks.pop() {
             control.check()?;
             account.work(1);
             let (node, mut header) = match &task {
-                Task::Visit(node, header)
+                Task::Visit(node, header, _)
                 | Task::Finish(node, header)
                 | Task::AggregateParameter(node, header)
                 | Task::LabelFinish(node, header, _) => (*node, *header),
@@ -1118,7 +1247,7 @@ impl CompiledQuery {
                         catalog,
                         &self.expression,
                         parameter,
-                        self.evaluation_options(scalar_header, time_ms),
+                        self.evaluation_options(scalar_header, time_ms, prepared),
                         control,
                         account,
                         EvaluationMetadata {
@@ -1138,7 +1267,7 @@ impl CompiledQuery {
                         let crate::result::OwnedValue::Float(value) = sample.value else {
                             unreachable!("typed scalar aggregate parameter")
                         };
-                        summary.push(value);
+                        summary.push(value, account);
                     }
                     if constant {
                         break;
@@ -1147,7 +1276,9 @@ impl CompiledQuery {
                 rosters.prepare_aggregate_parameter(node, *operator, summary, account);
                 continue;
             }
-            if matches!(task, Task::Visit(..)) {
+            if let Task::Visit(_, _, primary) = task {
+                rosters.set_statistics_role(node, primary);
+                let child_primary = primary && !prepared.flags().boundaries[node.0];
                 header = prepared.source_header(node, header);
                 if prepared.activate(header, control, account)?.is_none() {
                     if self.expression.arena[node].value_type == ValueType::Scalar {
@@ -1201,7 +1332,12 @@ impl CompiledQuery {
                             account,
                         )?));
                     }
-                    let notes = self.visit_raw_matrix(
+                    let progress = crate::statistics::PrimaryProgress::new(
+                        account,
+                        rosters.published_samples(),
+                        child_primary,
+                    );
+                    let (notes, sample_units) = self.visit_raw_matrix(
                         (
                             node,
                             header,
@@ -1209,6 +1345,7 @@ impl CompiledQuery {
                                 prepared,
                                 data_bounds,
                             },
+                            &progress,
                         ),
                         catalog,
                         control,
@@ -1216,6 +1353,7 @@ impl CompiledQuery {
                         failure_annotations,
                         |_, _, _, _| Ok::<_, EvaluationError>(()),
                     )?;
+                    rosters.finish_statistics(node, sample_units, 0, account);
                     rosters.annotations(node, notes);
                     continue;
                 }
@@ -1234,6 +1372,7 @@ impl CompiledQuery {
                             account,
                         )?,
                         grid.header(header),
+                        false,
                     ));
                     continue;
                 }
@@ -1256,6 +1395,7 @@ impl CompiledQuery {
                             account,
                         )?,
                         header,
+                        child_primary,
                     ));
                     tasks.push(Task::AggregateParameter(node, header));
                     tasks.push(Task::Visit(
@@ -1267,6 +1407,7 @@ impl CompiledQuery {
                             account,
                         )?,
                         header,
+                        child_primary,
                     ));
                     continue;
                 }
@@ -1301,6 +1442,7 @@ impl CompiledQuery {
                             account,
                         )?,
                         header,
+                        child_primary,
                     ));
                     continue;
                 }
@@ -1309,23 +1451,31 @@ impl CompiledQuery {
                     .direct_clock_selector(node, control, account)?
                     .is_none()
                 {
+                    let consumed = self.consumed_subquery(node, prepared, control, account)?;
                     for child in children(&self.expression, prepared, node, control, account)?.rev()
                     {
                         let child = child?;
+                        let child = prepared.preprocessing.child(
+                            &self.expression,
+                            node,
+                            child,
+                            control,
+                            account,
+                        )?;
                         tasks.push(Task::Visit(
-                            prepared.preprocessing.child(
-                                &self.expression,
-                                node,
-                                child,
-                                control,
-                                account,
-                            )?,
+                            child,
                             header,
+                            child_primary && Some(child) != consumed,
                         ));
                     }
                 }
                 continue;
             }
+            let progress = crate::statistics::PrimaryProgress::new(
+                account,
+                rosters.published_samples(),
+                rosters.publishes_statistics(node) && !prepared.flags().boundaries[node.0],
+            );
             let source_header = prepared.source_header(node, header);
             header = prepared.scope_header(node, header);
             if prepared.flags().boundaries[node.0] && header.end_ms >= header.start_ms {
@@ -1359,7 +1509,14 @@ impl CompiledQuery {
                     .unwrap_or_else(|| AnnotationBuilder::new(account));
                 // Consumers borrow the body roster; a matrix passthrough never moves or duplicates it.
                 rosters.annotations(node, notes);
-                self.finish_invariant((node, source_header), prepared, &rosters, control, account)?;
+                self.finish_statistics(
+                    (node, source_header),
+                    prepared,
+                    &mut rosters,
+                    0,
+                    control,
+                    account,
+                )?;
                 continue;
             }
             if let Task::LabelFinish(_, _, operation) = task {
@@ -1387,7 +1544,14 @@ impl CompiledQuery {
                     account,
                     &mut rosters,
                 )?;
-                self.finish_invariant((node, source_header), prepared, &rosters, control, account)?;
+                self.finish_statistics(
+                    (node, source_header),
+                    prepared,
+                    &mut rosters,
+                    0,
+                    control,
+                    account,
+                )?;
                 rosters.prepare_matrix(
                     node,
                     self.matrix_clock(node, source_header, prepared, &rosters, control, account)?,
@@ -1543,12 +1707,12 @@ impl CompiledQuery {
                     control,
                     account,
                 )?;
-                let scope = self.evaluation_options(header, header.start_ms);
+                let scope = self.evaluation_options(header, header.start_ms, prepared);
                 let (plan, notes) = crate::info::Plan::prepare(
                     rows,
                     (node, &self.expression, prepared),
                     catalog,
-                    (scope, data_bounds),
+                    (scope, data_bounds, &progress),
                     control,
                     account,
                 )?;
@@ -1666,6 +1830,7 @@ impl CompiledQuery {
                 )?;
             }
             let mut descriptors = AccountedVec::<Descriptor>::new(account, MemoryKind::Workspace);
+            let clock_selector = self.direct_clock_selector(node, control, account)?;
             let mut descriptor_index = DescriptorIndex::new(account);
             let unary_merge =
                 crate::evaluator_order::unary_merge(expression, self.options.delayed_name_removal);
@@ -1787,11 +1952,11 @@ impl CompiledQuery {
                 }
             }
             prepared.range_folds.clear(control, account)?;
-            let base = Machine::new(
+            let mut base = Machine::new(
                 catalog,
                 &self.expression,
                 node,
-                self.evaluation_options(header, header.start_ms),
+                self.evaluation_options(header, header.start_ms, prepared),
                 control,
                 account,
                 EvaluationMetadata {
@@ -1852,8 +2017,12 @@ impl CompiledQuery {
                     end_ms: header.end_ms,
                     interval_ms: header.step_ms,
                 };
-                let machine =
-                    base.replay(node, self.evaluation_options(header, header.end_ms), None);
+                let mut machine = base.replay(
+                    node,
+                    self.evaluation_options(header, header.end_ms, prepared),
+                    None,
+                );
+                machine.enable_primary_statistics(&progress);
                 for ordinal in 0..catalog.len(node) {
                     control.check()?;
                     account.work(1);
@@ -1911,6 +2080,9 @@ impl CompiledQuery {
             } else if let Some((child, _)) = scheduled {
                 let grid = crate::query_scopes::Grid::from(header);
                 let clock = self.direct_clock_selector(node, control, account)?;
+                if clock.is_some() {
+                    base.enable_primary_statistics(&progress);
+                }
                 let count = clock.map_or(rosters.descriptors(child).len(), |selector| {
                     catalog.len(selector)
                 });
@@ -1997,16 +2169,17 @@ impl CompiledQuery {
                         step_kinds.clear();
                         let mut machine = base.replay(
                             node,
-                            self.evaluation_options(header, time_ms),
+                            self.evaluation_options(header, time_ms, prepared),
                             Some(&mut annotations),
                         );
+                        machine.enable_primary_statistics(&progress);
                         machine.set_step_index(step_index);
                         let parameters = if series_site.is_some()
                             && let Some(function) = range_function
                         {
                             machine.range_parameters(node, function)?
                         } else {
-                            [0.0; 2]
+                            crate::statistics::FloatParameters::default()
                         };
                         let mut series_sample = if let Some(site) = series_site {
                             catalog
@@ -2014,7 +2187,7 @@ impl CompiledQuery {
                                     machine.range_series_sample(
                                         node,
                                         range_function.expect("range series site"),
-                                        parameters,
+                                        parameters.values,
                                         ordinal,
                                         series,
                                         initial.as_ref(),
@@ -2035,6 +2208,9 @@ impl CompiledQuery {
                             };
                             if self.expression.arena[node].value_type == ValueType::Scalar {
                                 scalar_points = scalar_points.wrapping_add(1);
+                            }
+                            if clock_selector.is_some() {
+                                progress.add(1);
                             }
                             if absent_range {
                                 continue;
@@ -2096,7 +2272,7 @@ impl CompiledQuery {
                         catalog,
                         &self.expression,
                         node,
-                        self.evaluation_options(header, time_ms),
+                        self.evaluation_options(header, time_ms, prepared),
                         control,
                         account,
                         EvaluationMetadata {
@@ -2188,8 +2364,15 @@ impl CompiledQuery {
             rosters.finish_count_projection(node, control, account)?;
             rosters.finish_selection_projection(node, control, account)?;
             rosters.finish_sort_projection(node, control, account)?;
-            if let Some(copies) =
-                self.finish_invariant((node, source_header), prepared, &rosters, control, account)?
+            let copies = self.finish_statistics(
+                (node, source_header),
+                prepared,
+                &mut rosters,
+                progress.units(),
+                control,
+                account,
+            )?;
+            if let Some(copies) = copies
                 && scalar_points != 0
             {
                 scalar_points = copies;
@@ -2226,6 +2409,79 @@ impl CompiledQuery {
             }
         }
         Ok(rosters)
+    }
+
+    fn consumed_subquery(
+        &self,
+        node: NodeId,
+        prepared: &Prepared,
+        control: &Control,
+        account: &QueryAccounting,
+    ) -> Result<Option<NodeId>, Interrupted> {
+        Ok(
+            crate::evaluator::matrix_argument(&self.expression, prepared, node, control, account)?
+                .map(|(_, argument)| argument)
+                .filter(|argument| {
+                    matches!(
+                        self.expression.arena[*argument].expression,
+                        Expr::Subquery { .. }
+                    )
+                }),
+        )
+    }
+
+    fn statistics_total(
+        &self,
+        node: NodeId,
+        prepared: &Prepared,
+        rosters: &Rosters,
+        mut units: u64,
+        control: &Control,
+        account: &QueryAccounting,
+    ) -> Result<(u64, u64), EvaluationError> {
+        let consumed = self.consumed_subquery(node, prepared, control, account)?;
+        let mut published_children = 0;
+        for child in children(&self.expression, prepared, node, control, account)? {
+            let child =
+                prepared
+                    .preprocessing
+                    .child(&self.expression, node, child?, control, account)?;
+            if Some(child) != consumed {
+                crate::statistics::add_units(&mut units, rosters.sample_units(child), account);
+            }
+            if rosters.publishes_statistics(child) {
+                crate::statistics::add_units(
+                    &mut published_children,
+                    rosters.sample_units(child),
+                    account,
+                );
+            }
+        }
+        Ok((units, published_children))
+    }
+
+    fn finish_statistics(
+        &self,
+        call: (NodeId, OutputHeader),
+        prepared: &Prepared,
+        rosters: &mut Rosters,
+        local_units: u64,
+        control: &Control,
+        account: &QueryAccounting,
+    ) -> Result<Option<i64>, EvaluationError> {
+        let (node, _) = call;
+        let (mut units, children) =
+            self.statistics_total(node, prepared, rosters, local_units, control, account)?;
+        let copies = self.finish_invariant(call, prepared, rosters, units, control, account)?;
+        if let Some(copies) = copies {
+            let multiplied = units.checked_mul(copies.max(0) as u64);
+            units = multiplied.unwrap_or(u64::MAX);
+            if multiplied.is_none() {
+                account.statistics_overflow();
+            }
+        }
+        rosters.finish_statistics(node, units, children, account);
+        Ok(copies)
     }
 
     fn record_descriptor(
@@ -2360,7 +2616,7 @@ impl CompiledQuery {
                 catalog,
                 &self.expression,
                 node,
-                self.evaluation_options(header, time_ms),
+                self.evaluation_options(header, time_ms, scope.prepared),
                 control,
                 account,
                 EvaluationMetadata {
@@ -2438,8 +2694,9 @@ impl CompiledQuery {
                 annotations,
             );
         }
-        let notes = self.visit_raw_matrix(
-            (root, scope.prepared.header, scope),
+        let progress = crate::statistics::PrimaryProgress::new(account, 0, true);
+        let (notes, sample_units) = self.visit_raw_matrix(
+            (root, scope.prepared.header, scope, &progress),
             catalog,
             control,
             account,
@@ -2451,6 +2708,7 @@ impl CompiledQuery {
                     account,
                     MemoryKind::Workspace,
                 )?;
+                let value = crate::statistics::ValueParts::new(value, account);
                 let point = SampleRef {
                     time_ms,
                     start_time_ms: 0,
@@ -2470,13 +2728,19 @@ impl CompiledQuery {
                 Ok(())
             },
         )?;
+        account.queryable_samples(sample_units);
         *annotations = notes.finish();
         Ok(())
     }
 
     fn visit_raw_matrix<Q: QueryProvider, E>(
         &self,
-        input: (NodeId, OutputHeader, EvaluationScope<'_>),
+        input: (
+            NodeId,
+            OutputHeader,
+            EvaluationScope<'_>,
+            &crate::statistics::PrimaryProgress<'_>,
+        ),
         catalog: &Catalog<'_, Q>,
         control: &Control,
         account: &QueryAccounting,
@@ -2487,11 +2751,13 @@ impl CompiledQuery {
             i64,
             crate::value::SampleValueRef<'a>,
         ) -> Result<(), E>,
-    ) -> Result<AnnotationBuilder, E>
+    ) -> Result<(AnnotationBuilder, u64), E>
     where
         E: From<EvaluationError> + From<StorageError> + From<Interrupted>,
     {
-        let (root, header, scope) = input;
+        let _inner_phase = account.phase(crate::statistics::Phase::Inner);
+        let mut sample_units = 0;
+        let (root, header, scope, statistics) = input;
         let EvaluationScope {
             prepared,
             data_bounds,
@@ -2514,7 +2780,7 @@ impl CompiledQuery {
         let extended = selector.anchored || selector.smoothed;
         let smoothed = selector.smoothed && !selector.anchored;
         let lookback = if extended {
-            self.options.lookback_ms.wrapping_mul(1_000_000) / 1_000_000
+            prepared.lookback_ns(self.options.lookback_ms) / 1_000_000
         } else {
             0
         };
@@ -2604,12 +2870,14 @@ impl CompiledQuery {
                                 .into());
                             }
                             prepared.sample_statistics_time(root, header.start_ms, control, account)?;
+                            crate::statistics::add_units(&mut sample_units, extension.sample_units(), account);
+                            statistics.add(extension.sample_units());
                             extension.visit(|time_ms, value| {
                                 visit(series_id, &labels, time_ms, crate::value::SampleValueRef::Float(value))
                             })?;
                         } else {
                             let mut statistics_checked = false;
-                            scan_matrix(
+                            let progress = scan_matrix(
                                 series,
                                 bounds,
                                 Some(matrix),
@@ -2625,6 +2893,8 @@ impl CompiledQuery {
                                     visit(series_id, &labels, sample.time_ms, sample.value)
                                 },
                             )?;
+                            crate::statistics::add_units(&mut sample_units, progress.map_or(0, |progress| progress.sample_units), account);
+                            statistics.add(progress.map_or(0, |progress| progress.sample_units));
                             if !statistics_checked {
                                 prepared.sample_statistics_time(
                                     root, header.start_ms, control, account,
@@ -2636,7 +2906,7 @@ impl CompiledQuery {
                 )
                 .expect("catalog ordinal")?;
         }
-        Ok(notes)
+        Ok((notes, sample_units))
     }
 
     fn evaluate_derived_matrix<Q: QueryProvider, S: OutputSink>(
@@ -2742,7 +3012,7 @@ impl CompiledQuery {
                     catalog,
                     &self.expression,
                     body,
-                    self.evaluation_options(grid.header(prepared.header), grid.end_ms),
+                    self.evaluation_options(grid.header(prepared.header), grid.end_ms, prepared),
                     control,
                     account,
                     EvaluationMetadata {
@@ -2806,7 +3076,8 @@ impl CompiledQuery {
                     continue;
                 }
             }
-            let options = self.evaluation_options(grid.header(prepared.header), grid.start_ms);
+            let options =
+                self.evaluation_options(grid.header(prepared.header), grid.start_ms, prepared);
             let mut iterator = (!grid.forward_without_wrap()).then(|| {
                 crate::matrix_heads::SeriesIterator::new(
                     clock,
@@ -3005,6 +3276,355 @@ mod tests {
     use super::*;
     use crate::{result::OwnedValue, test_storage::FixtureProvider};
     use std::sync::atomic::Ordering;
+
+    #[test]
+    fn failed_parent_retains_completed_selector_sample_totals() {
+        for page in [1, 17, 1024] {
+            let engine = Engine::default();
+            let control = Control::default();
+            let mut provider = FixtureProvider::new(3, page, 2);
+            provider.series[1].labels[0].1 = b"other_total".to_vec();
+            provider.series[1].labels[1].1 = b"0".to_vec();
+            let query = engine
+                .compile(b"abs({job=\"worker\"})", EngineOptions::default(), &control)
+                .unwrap();
+            let report = query.collect_reported(
+                &provider,
+                QueryRequest::Instant { time_ms: 3000 },
+                &control,
+            );
+            assert!(matches!(
+                &report.result,
+                Err(ExecutionError::Evaluation(EvaluationError::Invalid(
+                    "vector cannot contain metrics with the same labelset"
+                )))
+            ));
+            assert!(report.observations.statistics.samples.samples_read >= 2);
+            assert_eq!(
+                report
+                    .observations
+                    .statistics
+                    .samples
+                    .total_queryable_samples,
+                2
+            );
+            provider.assert_closed();
+            drop((report, query));
+            engine.accounting.snapshot().assert_memory_released();
+        }
+    }
+
+    #[test]
+    fn failed_statistics_keep_primary_siblings_and_private_scopes_separate() {
+        let instant = QueryRequest::Instant { time_ms: 3000 };
+        let range = QueryRequest::Range {
+            start_ms: 3000,
+            end_ms: 5000,
+            step_ms: 1000,
+        };
+        let cases = [
+            ("abs({job=\"worker\"})", range, 6),
+            ("sqrt(abs({job=\"worker\"}))", instant, 2),
+            ("counter_total + abs({job=\"worker\"})", instant, 3),
+            ("counter_total + abs({job=\"worker\"})", range, 9),
+            ("abs({job=\"worker\"})[3s:1s]", instant, 0),
+            ("sum_over_time(abs({job=\"worker\"})[3s:1s])", instant, 0),
+            ("sum_over_time(abs({job=\"worker\"})[3s:1s])", range, 0),
+            (
+                "counter_total + sum_over_time(abs({job=\"worker\"})[3s:1s])",
+                instant,
+                1,
+            ),
+            (
+                "counter_total + sum_over_time(abs({job=\"worker\"})[3s:1s])",
+                range,
+                3,
+            ),
+            ("abs({job=\"worker\"} @ 3)", instant, 0),
+            ("abs({job=\"worker\"} @ 3)", range, 0),
+        ];
+        for page in [1, 17, 1024] {
+            for (source, request, expected) in cases {
+                let engine = Engine::default();
+                let control = Control::default();
+                let mut provider = FixtureProvider::new(6, page, 2);
+                provider.series[1].labels[0].1 = b"other_total".to_vec();
+                provider.series[1].labels[1].1 = b"0".to_vec();
+                let query = engine
+                    .compile(source.as_bytes(), EngineOptions::default(), &control)
+                    .unwrap();
+                let report = query.collect_reported(&provider, request, &control);
+                assert!(
+                    is_duplicate(report.result.as_ref().unwrap_err()),
+                    "{source}"
+                );
+                assert_eq!(
+                    report
+                        .observations
+                        .statistics
+                        .samples
+                        .total_queryable_samples,
+                    expected,
+                    "{source}, {request:?}, page {page}"
+                );
+                provider.assert_closed();
+                drop((report, query));
+                engine.accounting.snapshot().assert_memory_released();
+            }
+        }
+    }
+
+    #[test]
+    fn failed_statistics_preserve_completed_source_windows_and_matrix_series() {
+        let instant = QueryRequest::Instant { time_ms: 3000 };
+        let cases = [
+            ("counter_total", instant, 1),
+            (
+                "counter_total",
+                QueryRequest::Range {
+                    start_ms: 3000,
+                    end_ms: 5000,
+                    step_ms: 1000,
+                },
+                3,
+            ),
+            ("sum_over_time(counter_total[3s])", instant, 3),
+            ("counter_total[3s]", instant, 3),
+        ];
+        for page in [1, 17, 1024] {
+            for (source, request, expected) in cases {
+                let engine = Engine::default();
+                let control = Control::default();
+                let mut provider = FixtureProvider::new(6, page, 2);
+                provider.series[1].source.fail_page = Some(0);
+                let query = engine
+                    .compile(source.as_bytes(), EngineOptions::default(), &control)
+                    .unwrap();
+                let report = query.collect_reported(&provider, request, &control);
+                assert!(matches!(
+                    &report.result,
+                    Err(ExecutionError::Evaluation(EvaluationError::Storage(
+                        StorageError::Provider(_)
+                    )))
+                ));
+                assert_eq!(
+                    report
+                        .observations
+                        .statistics
+                        .samples
+                        .total_queryable_samples,
+                    expected,
+                    "{source}, {request:?}, page {page}"
+                );
+                provider.assert_closed();
+                drop((report, query));
+                engine.accounting.snapshot().assert_memory_released();
+            }
+        }
+    }
+
+    #[test]
+    fn failed_statistics_preserve_info_float_admission_before_histogram_error() {
+        fn histogram(index: usize) -> crate::value::Sample {
+            let mut sample = crate::test_storage::counter(index);
+            sample.value = crate::value::SampleValue::FloatHistogram(Default::default());
+            sample
+        }
+        for page in [1, 17, 1024] {
+            let engine = Engine::default();
+            let control = Control::default();
+            let mut provider = FixtureProvider::new(6, page, 3);
+            for (index, series) in provider.series.iter_mut().enumerate().skip(1) {
+                series.labels[0].1 = b"target_info".to_vec();
+                series.labels[1].1 = b"0".to_vec();
+                series
+                    .labels
+                    .push((b"revision".to_vec(), index.to_string().into_bytes()));
+            }
+            provider.series[2].source.sample = histogram;
+            let mut settings = EngineOptions::default();
+            settings.parser.experimental_functions = true;
+            let query = engine
+                .compile(b"info(counter_total)", settings, &control)
+                .unwrap();
+            let report = query.collect_reported(
+                &provider,
+                QueryRequest::Instant { time_ms: 3000 },
+                &control,
+            );
+            assert!(matches!(
+                &report.result,
+                Err(ExecutionError::Evaluation(EvaluationError::Runtime(message)))
+                    if message.starts_with(b"this should be an info metric, with float samples:")
+            ));
+            assert_eq!(
+                report
+                    .observations
+                    .statistics
+                    .samples
+                    .total_queryable_samples,
+                2
+            );
+            provider.assert_closed();
+            drop((report, query));
+            engine.accounting.snapshot().assert_memory_released();
+        }
+    }
+
+    #[test]
+    fn cancelled_statistics_preserve_completed_source_contributions() {
+        thread_local! {
+            static CANCEL: std::cell::RefCell<Option<crate::storage::Cancellation>> = const { std::cell::RefCell::new(None) };
+        }
+        fn sample(index: usize) -> crate::value::Sample {
+            CANCEL.with_borrow(|cancel| cancel.as_ref().unwrap().cancel());
+            crate::test_storage::counter(index)
+        }
+        struct Restore;
+        impl Drop for Restore {
+            fn drop(&mut self) {
+                CANCEL.with_borrow_mut(|cancel| *cancel = None);
+            }
+        }
+        let instant = QueryRequest::Instant { time_ms: 3000 };
+        let cases = [
+            ("counter_total", instant, 1),
+            (
+                "counter_total",
+                QueryRequest::Range {
+                    start_ms: 3000,
+                    end_ms: 5000,
+                    step_ms: 1000,
+                },
+                3,
+            ),
+            ("sum_over_time(counter_total[3s])", instant, 3),
+            ("counter_total[3s]", instant, 3),
+        ];
+        for page in [1, 17, 1024] {
+            for (source, request, expected) in cases {
+                let engine = Engine::default();
+                let control = Control::default();
+                let mut provider = FixtureProvider::new(6, page, 2);
+                provider.series[1].source.sample = sample;
+                let query = engine
+                    .compile(source.as_bytes(), EngineOptions::default(), &control)
+                    .unwrap();
+                CANCEL.with_borrow_mut(|cancel| *cancel = Some(control.cancellation.clone()));
+                let _restore = Restore;
+                let report = query.collect_reported(&provider, request, &control);
+                assert!(matches!(
+                    &report.result,
+                    Err(ExecutionError::Evaluation(EvaluationError::Interrupted(
+                        Interrupted::Cancelled
+                    ))) | Err(ExecutionError::Evaluation(EvaluationError::Storage(
+                        StorageError::Interrupted(Interrupted::Cancelled)
+                    )))
+                ));
+                assert_eq!(
+                    report
+                        .observations
+                        .statistics
+                        .samples
+                        .total_queryable_samples,
+                    expected,
+                    "{source}, {request:?}, page {page}"
+                );
+                provider.assert_closed();
+                drop((report, query));
+                engine.accounting.snapshot().assert_memory_released();
+            }
+        }
+    }
+
+    #[test]
+    fn cancelled_statistics_preserve_reached_invariant_copies() {
+        for page in [1, 17, 1024] {
+            let engine = Engine::default();
+            let control = Control::default();
+            let provider = FixtureProvider::new(6, page, 2);
+            let query = engine
+                .compile(b"counter_total @ 3", EngineOptions::default(), &control)
+                .unwrap();
+            let account = engine.accounting.query();
+            let mut sink = RecordingSink::default();
+            let report = crate::test_storage::interrupt_during(&account, &control, || {
+                query.execute_reported_in(
+                    &provider,
+                    QueryRequest::Range {
+                        start_ms: 0,
+                        end_ms: 100_000_000,
+                        step_ms: 1000,
+                    },
+                    &control,
+                    &mut sink,
+                    &account,
+                )
+            });
+            assert!(matches!(
+                &report.result,
+                Err(ExecutionError::Evaluation(EvaluationError::Interrupted(
+                    Interrupted::Cancelled
+                )))
+            ));
+            let samples = report.observations.statistics.samples;
+            assert_eq!(samples.samples_read, 2);
+            assert!(
+                samples.total_queryable_samples > 0 && samples.total_queryable_samples < 200002
+            );
+            assert_eq!(samples.total_queryable_samples % 2, 0);
+            assert!(sink.aborted && !sink.committed);
+            provider.assert_closed();
+            drop((report, query, sink, account));
+            engine.accounting.snapshot().assert_memory_released();
+        }
+    }
+
+    #[test]
+    fn raw_matrix_output_statistics_charge_only_the_current_owned_point() {
+        for page in [1, 17, 1024] {
+            for count in [8, 8192] {
+                for failure in 0..3 {
+                    let engine = Engine::default();
+                    let control = Control::default();
+                    let provider = FixtureProvider::new(count, page, 1);
+                    let query = engine
+                        .compile(
+                            b"counter_total[100000s]",
+                            EngineOptions::default(),
+                            &control,
+                        )
+                        .unwrap();
+                    let mut sink = RecordingSink {
+                        fail_after: (failure == 1).then_some(1),
+                        panic_after: (failure == 2).then_some(1),
+                        ..RecordingSink::default()
+                    };
+                    let report = query.execute_reported(
+                        &provider,
+                        QueryRequest::Instant {
+                            time_ms: count as i64 * 1000,
+                        },
+                        &control,
+                        &mut sink,
+                    );
+                    match failure {
+                        0 => assert!(report.result.is_ok()),
+                        1 => assert!(matches!(report.result, Err(ExecutionError::Sink(_)))),
+                        2 => assert!(matches!(report.result, Err(ExecutionError::Internal))),
+                        _ => unreachable!(),
+                    }
+                    assert_eq!(report.observations.statistics.samples.peak_samples, 1);
+                    if failure == 0 {
+                        assert_eq!(report.observations.output_samples, count as u64);
+                    }
+                    provider.assert_closed();
+                    drop((report, query, sink));
+                    engine.accounting.snapshot().assert_memory_released();
+                }
+            }
+        }
+    }
 
     #[test]
     fn matrix_copy_phase_keeps_exact_native_irate_operands_and_overlap() {
@@ -6944,7 +7564,7 @@ mod tests {
                         .unwrap();
                         let bounds = crate::query_bounds::find(
                             &compiled.expression,
-                            compiled.evaluation_options(header, header.start_ms),
+                            compiled.evaluation_options(header, header.start_ms, &prepared),
                             &prepared,
                             &control,
                             &account,
@@ -6955,7 +7575,7 @@ mod tests {
                             &query,
                             &compiled.expression,
                             &prepared,
-                            compiled.evaluation_options(header, header.start_ms),
+                            compiled.evaluation_options(header, header.start_ms, &prepared),
                             compiled.options.no_step_subquery_interval_ms,
                             &control,
                             &account,
@@ -7030,7 +7650,7 @@ mod tests {
                         .unwrap();
                         let bounds = crate::query_bounds::find(
                             &compiled.expression,
-                            compiled.evaluation_options(header, header.start_ms),
+                            compiled.evaluation_options(header, header.start_ms, &prepared),
                             &prepared,
                             &control,
                             &account,
@@ -7041,7 +7661,7 @@ mod tests {
                             &query,
                             &compiled.expression,
                             &prepared,
-                            compiled.evaluation_options(header, header.start_ms),
+                            compiled.evaluation_options(header, header.start_ms, &prepared),
                             compiled.options.no_step_subquery_interval_ms,
                             &control,
                             &account,
@@ -8471,6 +9091,66 @@ mod tests {
         assert!(observed.memory[MemoryKind::Compiled as usize].released > 0);
         drop(retained);
         observer.snapshot().assert_memory_released();
+    }
+
+    #[test]
+    fn narrow_selection_retains_only_matches_from_a_large_unfiltered_catalog() {
+        use std::sync::atomic::Ordering;
+        for wanted in ["000000", "absent"] {
+            let mut peaks = Vec::new();
+            for metrics in [100, 100_000] {
+                let engine = Engine::default();
+                let mut provider = FixtureProvider::new(1, 1, metrics);
+                for (index, series) in provider.series.iter_mut().enumerate() {
+                    series.labels[1].1 = format!("{index:06}").into_bytes();
+                    if index != 0 || wanted == "absent" {
+                        series.source.fail_page = Some(0);
+                    }
+                }
+                let source = format!("counter_total{{instance=\"{wanted}\"}}");
+                let control = Control::default();
+                let query = engine
+                    .compile(source.as_bytes(), EngineOptions::default(), &control)
+                    .unwrap();
+                let (result, observed) = query
+                    .collect(
+                        &provider,
+                        QueryRequest::Range {
+                            start_ms: 1000,
+                            end_ms: 3000,
+                            step_ms: 1000,
+                        },
+                        &control,
+                    )
+                    .unwrap();
+                let expected = usize::from(wanted != "absent");
+                assert_eq!(result.series.len(), expected);
+                if expected == 1 {
+                    assert_eq!(result.series[0].points.len(), 3);
+                    assert_eq!(float_bits(&result.series[0].points[0]), 1.0f64.to_bits());
+                }
+                assert_eq!(
+                    provider.counts.series_opened.load(Ordering::Relaxed),
+                    metrics
+                );
+                assert_eq!(provider.counts.selections_opened.load(Ordering::Relaxed), 1);
+                let cursors = provider.series[0]
+                    .source
+                    .counters
+                    .opened
+                    .load(Ordering::Relaxed);
+                assert_eq!(cursors != 0, expected != 0);
+                peaks.push(observed.memory[MemoryKind::Workspace as usize].peak);
+                drop(result);
+                drop(query);
+                provider.assert_closed();
+                engine.accounting.snapshot().assert_memory_released();
+            }
+            assert_eq!(
+                peaks[0], peaks[1],
+                "nonmatching metadata must not remain in the query catalog"
+            );
+        }
     }
 
     #[test]
@@ -12489,6 +13169,15 @@ mod tests {
                 );
             } else {
                 let output = report.result.as_ref().unwrap();
+                assert_eq!(
+                    report
+                        .observations
+                        .statistics
+                        .samples
+                        .total_queryable_samples,
+                    5,
+                    "the implicit info selector participates before base/winner filtering",
+                );
                 assert_eq!(output.series.len(), 1);
                 assert_eq!(output.series[0].points.len(), 1);
                 assert_eq!(output.series[0].points[0].time_ms, 2000);

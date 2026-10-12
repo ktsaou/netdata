@@ -18,14 +18,16 @@ fn deviation(value: f64, median: f64) -> f64 {
 
 struct Median {
     center: Option<f64>,
+    _center_samples: Option<crate::statistics::OwnedSamples>,
     plan: Plan,
     selector: Selector,
 }
 impl Median {
-    fn new(count: u64, center: Option<f64>) -> Self {
+    fn new(count: u64, center: Option<f64>, account: &QueryAccounting) -> Self {
         let plan = Plan::new(0.5, count);
         Self {
             center,
+            _center_samples: center.map(|_| crate::statistics::OwnedSamples::new(account, 1)),
             plan,
             selector: Selector::new(plan),
         }
@@ -89,7 +91,7 @@ impl Step {
                 return Ok(None);
             };
             if median.center.is_none() {
-                self.median = Some(Median::new(self.count, Some(value)));
+                self.median = Some(Median::new(self.count, Some(value), account));
                 return Ok(None);
             }
             Some(value)
@@ -99,10 +101,11 @@ impl Step {
             Some(SOURCE_NAN)
         } else {
             // Complete membership precedes the shortcut and every median pass.
-            self.median = Some(Median::new(self.count, None));
+            self.median = Some(Median::new(self.count, None, account));
             return Ok(None);
         };
         Ok(Some(NumericRangeOutput {
+            float_samples: value.map(|_| crate::statistics::OwnedSamples::new(account, 1)),
             progress: None,
             value,
             invalid_quantile: false,
@@ -206,6 +209,8 @@ mod tests {
                 assert_eq!(source.counters.peak.load(Ordering::Relaxed), 1);
                 assert_eq!(source.counters.active.load(Ordering::Relaxed), 0);
                 account.snapshot().assert_memory_released();
+                drop(result);
+                assert_eq!(account.current_samples(), 0);
                 drop(account);
                 engine.snapshot().assert_memory_released();
             }
@@ -258,6 +263,8 @@ mod tests {
                     source.counters.closed.load(Ordering::Relaxed)
                 );
                 account.snapshot().assert_memory_released();
+                drop(result);
+                assert_eq!(account.current_samples(), 0);
                 drop(account);
                 engine.snapshot().assert_memory_released();
             }
@@ -294,6 +301,8 @@ mod tests {
                 assert_eq!(source.counters.peak.load(Ordering::Relaxed), 1);
                 assert_eq!(source.counters.active.load(Ordering::Relaxed), 0);
                 snapshot.assert_memory_released();
+                drop(result);
+                assert_eq!(account.current_samples(), 0);
                 drop(account);
                 engine.snapshot().assert_memory_released();
             }
@@ -426,6 +435,8 @@ mod tests {
             assert_eq!(source.source.counters.closed.load(Ordering::Relaxed), 33);
             assert_eq!(source.source.counters.active.load(Ordering::Relaxed), 0);
             account.snapshot().assert_memory_released();
+            drop(result);
+            assert_eq!(account.current_samples(), 0);
             drop(account);
             engine.snapshot().assert_memory_released();
         }

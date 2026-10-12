@@ -114,6 +114,7 @@ struct Group {
     drop_name: bool,
 }
 struct Snapshot {
+    _parameter_samples: Option<crate::statistics::OwnedSamples>,
     key: Key,
     parameter: f64,
     groups: AccountedVec<Group>,
@@ -132,6 +133,7 @@ struct Comparison {
     inputs: [usize; 2],
     values: [f64; 2],
     position: usize,
+    samples: [Option<crate::statistics::OwnedSamples>; 2],
 }
 enum Pending {
     Empty,
@@ -161,6 +163,8 @@ pub(crate) struct Step<'a> {
     waiting: bool,
     expected: Option<usize>,
     pending: Pending,
+    pending_samples: Option<crate::statistics::OwnedSamples>,
+    parameter_samples: Option<crate::statistics::OwnedSamples>,
     program: Option<Program>,
     comparison: Option<Comparison>,
     reply: Option<bool>,
@@ -206,6 +210,9 @@ impl<'a> Step<'a> {
             waiting: false,
             expected: None,
             pending: Pending::Empty,
+            pending_samples: None,
+            parameter_samples: (!matches!(stage, Stage::Parameter | Stage::Done))
+                .then(|| crate::statistics::OwnedSamples::new(account, 1)),
             program: None,
             comparison: None,
             reply: None,
@@ -217,6 +224,7 @@ impl<'a> Step<'a> {
         self.waiting = true;
         self.expected = Some(input);
         self.pending = Pending::Empty;
+        self.pending_samples = None;
         Action::Child {
             parameter: false,
             ordinal: Some(&self.plan.inputs[input].ordinal),
@@ -243,6 +251,7 @@ impl<'a> Step<'a> {
                 OwnedValue::Float(value) => Pending::Float(value),
                 OwnedValue::Histogram(_) => Pending::Histogram,
             };
+            self.pending_samples = sample.float_samples;
         }
         Ok(())
     }
@@ -262,6 +271,10 @@ impl<'a> Step<'a> {
         );
         let snapshot = Strong::new_in(
             Snapshot {
+                _parameter_samples: self
+                    .parameter_samples
+                    .as_ref()
+                    .map(|_| crate::statistics::OwnedSamples::new(account, 1)),
                 key: (self.options, self.step_index).into(),
                 parameter: self.parameter,
                 groups,
@@ -293,6 +306,7 @@ impl<'a> Step<'a> {
         Ok(Action::Sample(EvaluatedSample {
             ordinal,
             labels,
+            float_samples: Some(crate::statistics::OwnedSamples::new(account, 1)),
             value: OwnedValue::Float(value),
             source_time_ms: self.options.time_ms,
             source_start_time_ms: 0,
@@ -319,6 +333,7 @@ impl<'a> Step<'a> {
                 }
                 self.waiting = false;
                 self.parameter = self.float()?;
+                self.parameter_samples = self.pending_samples.take();
                 self.stage = Stage::Scan;
             }
             Stage::Scan => {
@@ -341,6 +356,7 @@ impl<'a> Step<'a> {
                 }
                 self.waiting = false;
                 let group = &mut self.groups[self.plan.bindings[self.input]];
+                let _pending_samples = self.pending_samples.take();
                 match std::mem::replace(&mut self.pending, Pending::Empty) {
                     Pending::Empty => (),
                     value => {
@@ -381,6 +397,7 @@ impl<'a> Step<'a> {
                         let value = self.float()?;
                         let comparison = self.comparison.as_mut().expect("quantile comparison");
                         comparison.values[comparison.position] = value;
+                        comparison.samples[comparison.position] = self.pending_samples.take();
                         comparison.position += 1;
                     }
                     let comparison = self.comparison.as_ref().expect("quantile comparison");
@@ -416,6 +433,7 @@ impl<'a> Step<'a> {
                         self.comparison = Some(Comparison {
                             inputs: [indices[left], indices[right]],
                             values: [0.0; 2],
+                            samples: [None, None],
                             position: 0,
                         });
                     }
@@ -459,6 +477,7 @@ impl<'a> Step<'a> {
                     self.comparison = Some(Comparison {
                         inputs: [group.indices[lower as usize], group.indices[upper as usize]],
                         values: [0.0; 2],
+                        samples: [None, None],
                         position: 0,
                     });
                 }
@@ -467,6 +486,7 @@ impl<'a> Step<'a> {
                     let value = self.float()?;
                     let comparison = self.comparison.as_mut().expect("quantile endpoints");
                     comparison.values[comparison.position] = value;
+                    comparison.samples[comparison.position] = self.pending_samples.take();
                     comparison.position += 1;
                 }
                 let comparison = self.comparison.as_ref().expect("quantile endpoints");

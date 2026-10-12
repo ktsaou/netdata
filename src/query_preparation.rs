@@ -8,6 +8,7 @@ use crate::{
         number, token as tokens,
     },
     numerical,
+    query_time::Timing,
     result::OutputHeader,
     storage::{Control, Interrupted},
 };
@@ -20,15 +21,16 @@ pub(crate) struct QueryContext {
     pub(crate) end_ms: i64,
     step_ns: i64,
     range_ns: i64,
+    same_time: bool,
 }
 impl QueryContext {
-    fn new(header: OutputHeader) -> Self {
-        let range = (i128::from(header.end_ms) - i128::from(header.start_ms)) * 1_000_000;
+    fn timing(timing: Timing) -> Self {
         Self {
-            start_ms: header.start_ms,
-            end_ms: header.end_ms,
-            step_ns: header.step_ms.wrapping_mul(1_000_000),
-            range_ns: range.clamp(i128::from(i64::MIN), i128::from(i64::MAX)) as i64,
+            start_ms: timing.start_ms,
+            end_ms: timing.end_ms,
+            step_ns: timing.interval_ns,
+            range_ns: timing.range_ns,
+            same_time: timing.same_time,
         }
     }
     pub(crate) fn scalar(self, name: &str) -> Option<f64> {
@@ -36,7 +38,7 @@ impl QueryContext {
             "start" => self.start_ms as f64 / 1000.0,
             "end" => self.end_ms as f64 / 1000.0,
             "range" => number::seconds(self.range_ns),
-            "step" if self.start_ms != self.end_ms => number::seconds(self.step_ns),
+            "step" if !self.same_time => number::seconds(self.step_ns),
             "step" => 0.0,
             _ => return None,
         })
@@ -53,11 +55,11 @@ struct RootClock {
     instant: bool,
 }
 impl RootClock {
-    fn new(header: OutputHeader) -> Self {
-        let duration_ns = header.step_ms.wrapping_mul(1_000_000);
+    fn timing(timing: Timing) -> Self {
+        let duration_ns = timing.interval_ns;
         Self {
             duration_ns,
-            instant: header.start_ms == header.end_ms && duration_ns == 0,
+            instant: timing.same_time && duration_ns == 0,
         }
     }
     fn statement_interval(self) -> i64 {
@@ -95,12 +97,14 @@ pub(crate) struct Prepared<'p> {
     pub(crate) context: QueryContext,
     pub(crate) header: OutputHeader,
     clock: RootClock,
+    lookback_ns: Option<i64>,
     durations: Option<AccountedVec<[i64; 3]>>,
     request_flags: Option<crate::evaluator_order::EvaluationFlags>,
     pub(crate) scopes: Option<crate::query_scopes::Scopes>,
     pub(crate) range_folds: crate::range_cache::Folds,
 }
 impl<'p> Prepared<'p> {
+    #[cfg(any(test, feature = "fixtures"))]
     pub(crate) fn new(
         expression: &ParsedExpression,
         preprocessing: &'p crate::evaluator_order::Preprocessing,
@@ -109,12 +113,38 @@ impl<'p> Prepared<'p> {
         control: &Control,
         account: &QueryAccounting,
     ) -> Result<Self, EvaluationError> {
-        let context = QueryContext::new(header);
-        let clock = RootClock::new(header);
+        Self::with_timing(
+            expression,
+            preprocessing,
+            header,
+            Timing::milliseconds(header),
+            no_step_interval_ms,
+            control,
+            account,
+        )
+    }
+    pub(crate) fn lookback_ns(&self, fallback_ms: i64) -> i64 {
+        self.lookback_ns
+            .unwrap_or_else(|| fallback_ms.wrapping_mul(1_000_000))
+    }
+    pub(crate) fn lookback_ms(&self, fallback_ms: i64) -> i64 {
+        self.lookback_ns.map_or(fallback_ms, |ns| ns / 1_000_000)
+    }
+    pub(crate) fn with_timing(
+        expression: &ParsedExpression,
+        preprocessing: &'p crate::evaluator_order::Preprocessing,
+        header: OutputHeader,
+        timing: Timing,
+        no_step_interval_ms: i64,
+        control: &Control,
+        account: &QueryAccounting,
+    ) -> Result<Self, EvaluationError> {
+        let context = QueryContext::timing(timing);
+        let clock = RootClock::timing(timing);
         // Evaluation uses the nanosecond clock; preprocessing retains Unix milliseconds.
         let header = OutputHeader {
-            start_ms: header.start_ms.wrapping_mul(1_000_000) / 1_000_000,
-            end_ms: header.end_ms.wrapping_mul(1_000_000) / 1_000_000,
+            start_ms: timing.evaluator_start_ms,
+            end_ms: timing.evaluator_end_ms,
             step_ms: clock.statement_interval(),
             value_type: if clock.instant {
                 expression.arena[expression.root].value_type
@@ -221,6 +251,7 @@ impl<'p> Prepared<'p> {
             context,
             header,
             clock,
+            lookback_ns: timing.lookback_ns,
             durations,
             request_flags: None,
             scopes: None,

@@ -16,6 +16,8 @@ from pathlib import Path
 from build import directory
 
 HERE = Path(__file__).resolve().parent
+PREVIOUS_HEADER_COMMIT = "f14c541028a9047da34bed7eb41b705abe9bd741"
+PREVIOUS_HEADER_SHA256 = "5e8227777044dfc75b3fa5a7da1a7e1edf57ba512ffd6a8ab0324b0f2b00bb00"
 
 
 def digest(path):
@@ -27,10 +29,14 @@ def source_hashes(root, crate):
         crate / "Cargo.toml",
         crate / "Cargo.lock",
         HERE / "c_embedding.c",
+        HERE / "abi3-header.h",
+        HERE / "abi3-rejection.c",
         Path(__file__).resolve(),
     ]
     files += list((crate / "src").rglob("*.rs"))
     files += list((crate / "include").glob("*.h"))
+    if digest(HERE / "abi3-header.h") != PREVIOUS_HEADER_SHA256:
+        raise ValueError("previous interface header differs from its pinned source")
     return {str(path.relative_to(root)): digest(path) for path in sorted(files)}
 
 
@@ -196,13 +202,17 @@ def native_records(name, output):
     values = records(output)
     tail = [
         {"temporary_failures": "pass", "cases": 11, "callback_phases": 5},
+        {"basic_statistics": "pass", "cases": 21, "page_sizes": 3},
         {
             "foreign_accounting": "pass",
             "callback_phases": 9,
             "overlap_bytes": 7340032,
             "retained_bytes": 4096,
         },
-        {"foreign_early_abort": "pass", "cases": 7},
+        {"foreign_early_abort": "pass", "cases": 11},
+        {"histogram_buckets": "pass", "cases": 7},
+        {"precise_requests": "pass", "cases": 2},
+        {"protocol_primitives": "pass"},
         {"label_field_boundary": "pass", "cases": 6},
         {"foreign_allocation_lifetime": "pass", "bytes": 16384, "abort_cases": 3},
         {"native_embedding": "pass"},
@@ -216,7 +226,7 @@ def native_records(name, output):
         (rows, size) for size in (1, 17, 1024) for rows in (2048, 100000)
     ]
     if (
-        len(values) != 18
+        len(values) != 12 + len(tail)
         or actual != expected
         or temporary != temporary_expected
         or values[12:] != tail
@@ -478,6 +488,39 @@ def qualify(profiles, sanitizers, abort_check, cross_target=None):
                 archive_inputs,
             )
             witnesses[name] = native_records(name, execute(name, binary).stdout)
+            previous_name = name + "-abi3"
+            previous_binary = task / previous_name
+            previous_inputs = [archive, HERE / "abi3-header.h", HERE / "abi3-rejection.c"]
+            previous_hashes = {
+                str(path.resolve(strict=True)): digest(path) for path in previous_inputs
+            }
+            link_command(
+                task,
+                previous_name + "-build",
+                [
+                    *flags,
+                    HERE / "abi3-rejection.c",
+                    "-x",
+                    "none",
+                    archive,
+                    *libs,
+                    "-o",
+                    previous_binary,
+                ],
+                root,
+                env,
+                previous_inputs,
+                previous_hashes,
+            )
+            previous = records(execute(previous_name, previous_binary).stdout)
+            if previous != [{
+                "old_header_rejected": "pass",
+                "caller_abi": 3,
+                "library_abi": 4,
+                "engine_options": "rejected",
+            }]:
+                raise ValueError(previous_name + ": incomplete previous-header rejection")
+            witnesses[previous_name] = previous
         if sanitizers:
             name = profile + "-clang-sanitized"
             binary = task / name
@@ -562,6 +605,12 @@ def qualify(profiles, sanitizers, abort_check, cross_target=None):
                 "sanitizers": sanitizers,
                 "sanitizer_scope": "foreign caller; Rust core is not instrumented",
                 "abort_negative": abort_check,
+                "previous_interface": {
+                    "version": 3,
+                    "header_commit": PREVIOUS_HEADER_COMMIT,
+                    "header_sha256": PREVIOUS_HEADER_SHA256,
+                    "rejection": "version handshake and otherwise valid engine options",
+                },
             },
             indent=2,
         )

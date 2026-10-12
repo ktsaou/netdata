@@ -9,6 +9,7 @@ use crate::{
     frontend::ast::ValueType,
     histogram::FloatHistogram,
     histogram_work::HistogramWork,
+    statistics::OwnedSamples,
     storage::{Control, Interrupted, LabelRef, LabelsRef},
     value::{SampleRef, SampleValueRef},
 };
@@ -329,14 +330,42 @@ pub struct OwnedHistogram {
 struct HistogramPayload {
     value: FloatHistogram,
     context: AllocationContext,
+    samples: OwnedSamples,
+}
+
+struct HistogramMutation<'a>(&'a mut HistogramPayload);
+impl std::ops::Deref for HistogramMutation<'_> {
+    type Target = HistogramPayload;
+    fn deref(&self) -> &Self::Target {
+        self.0
+    }
+}
+impl std::ops::DerefMut for HistogramMutation<'_> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        self.0
+    }
+}
+impl Drop for HistogramMutation<'_> {
+    fn drop(&mut self) {
+        self.0
+            .samples
+            .resize(crate::statistics::weight(SampleValueRef::FloatHistogram(
+                self.0.value.as_ref(),
+            )));
+    }
 }
 impl OwnedHistogram {
     fn new(value: FloatHistogram, context: AllocationContext) -> Self {
+        let samples = OwnedSamples::new(
+            context.accounting(),
+            crate::statistics::weight(SampleValueRef::FloatHistogram(value.as_ref())),
+        );
         Self {
             payload: AccountedBox::new(
                 HistogramPayload {
                     value,
                     context: context.clone(),
+                    samples,
                 },
                 &context,
             ),
@@ -345,13 +374,17 @@ impl OwnedHistogram {
     pub fn as_ref(&self) -> crate::histogram::FloatHistogramRef<'_> {
         self.payload.value.as_ref()
     }
+    fn mutation(&mut self) -> HistogramMutation<'_> {
+        HistogramMutation(&mut self.payload)
+    }
     pub(crate) fn copy_from_sample_checked(
         &mut self,
         source: SampleValueRef<'_>,
         control: &crate::storage::Control,
         account: &QueryAccounting,
     ) -> Result<(), crate::storage::Interrupted> {
-        let payload = &mut *self.payload;
+        let mut mutation = self.mutation();
+        let payload = &mut *mutation;
         let work = crate::histogram_work::HistogramWork::new(control, account);
         match source {
             SampleValueRef::FloatHistogram(value) => {
@@ -369,7 +402,8 @@ impl OwnedHistogram {
         control: &Control,
         account: &QueryAccounting,
     ) -> Result<(), Interrupted> {
-        let payload = &mut *self.payload;
+        let mut mutation = self.mutation();
+        let payload = &mut *mutation;
         let work = HistogramWork::new(control, account);
         match source {
             SampleValueRef::FloatHistogram(value) => {
@@ -404,7 +438,8 @@ impl OwnedHistogram {
         crate::histogram::HistogramArithmetic,
         crate::histogram_work::HistogramEvaluationError,
     > {
-        let payload = &mut *self.payload;
+        let mut mutation = self.mutation();
+        let payload = &mut *mutation;
         payload.value.add_or_sub_with(
             other,
             subtract,
@@ -433,7 +468,7 @@ impl OwnedHistogram {
         ))
     }
     pub(crate) fn normalize_copy_fields(&mut self) {
-        self.payload.value.normalize_copy_fields();
+        self.mutation().value.normalize_copy_fields();
     }
     #[cfg(test)]
     pub(crate) fn div(&mut self, divisor: f64) {
@@ -468,7 +503,8 @@ impl OwnedHistogram {
         control: &crate::storage::Control,
         account: &QueryAccounting,
     ) -> Result<(), crate::storage::Interrupted> {
-        let payload = &mut *self.payload;
+        let mut mutation = self.mutation();
+        let payload = &mut *mutation;
         payload
             .value
             .compact_with(0, Some(&payload.context), |work| {
@@ -487,7 +523,8 @@ impl OwnedHistogram {
         control: &crate::storage::Control,
         account: &QueryAccounting,
     ) -> Result<(), crate::storage::StorageError> {
-        let payload = &mut *self.payload;
+        let mut mutation = self.mutation();
+        let payload = &mut *mutation;
         payload.value.trim_buckets_with(
             threshold,
             upper,
@@ -539,13 +576,18 @@ impl OwnedHistogram {
         let mut value = retained
             .as_mut()
             .map(|histogram| std::mem::take(&mut histogram.payload.value));
-        let payload = &mut *self.payload;
+        let mut mutation = self.mutation();
+        let payload = &mut *mutation;
         let result = payload
             .value
             .kahan_add_with(other, &mut value, Some(&payload.context), work);
         *correction = value.map(|value| {
             if let Some(mut histogram) = retained {
                 histogram.payload.value = value;
+                let units = crate::statistics::weight(SampleValueRef::FloatHistogram(
+                    histogram.payload.value.as_ref(),
+                ));
+                histogram.payload.samples.resize(units);
                 histogram
             } else {
                 Self::new(value, payload.context.clone())
@@ -733,6 +775,7 @@ pub struct CollectedResult {
     pub string: Option<(i64, AccountedVec<u8>)>,
     pub series: AccountedVec<ResultSeries>,
     pub annotations: Annotations,
+    float_samples: OwnedSamples,
 }
 
 pub struct Collector {
@@ -763,6 +806,7 @@ impl Collector {
             string: None,
             series: AccountedVec::new(&self.account, MemoryKind::Result),
             annotations: Annotations::default(),
+            float_samples: OwnedSamples::new(&self.account, 0),
         });
     }
     fn chunk_with(
@@ -778,7 +822,12 @@ impl Collector {
         let result = self.result.as_mut().expect("output begins before chunks");
         match chunk {
             OutputChunk::Annotations(annotations) => result.annotations = annotations.clone(),
-            OutputChunk::Scalar { time_ms, value } => result.scalar = Some((time_ms, value)),
+            OutputChunk::Scalar { time_ms, value } => {
+                if result.scalar.is_none() {
+                    result.float_samples.add(1);
+                }
+                result.scalar = Some((time_ms, value));
+            }
             OutputChunk::String { time_ms, value } => {
                 let mut bytes = AccountedVec::with_capacity_in(
                     value.len(),
@@ -822,6 +871,9 @@ impl Collector {
                         time_ms: point.time_ms,
                         value: OwnedValue::copy_result_with(point.value, &self.account, work)?,
                     });
+                    if matches!(point.value, SampleValueRef::Float(_)) {
+                        result.float_samples.add(1);
+                    }
                 }
             }
         }
@@ -915,6 +967,51 @@ impl OutputSink for Collector {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn native_value_units_follow_copy_compaction_and_mutation_unwind() {
+        let account = crate::accounting::EngineAccounting::default().query();
+        let control = Control::default();
+        let input = FloatHistogram {
+            positive_spans: Some(
+                vec![crate::histogram::Span {
+                    offset: 0,
+                    length: 4,
+                }]
+                .into(),
+            ),
+            positive_buckets: Some(vec![1.0, 0.0, 0.0, 0.0].into()),
+            count: 1.0,
+            sum: 1.0,
+            ..FloatHistogram::default()
+        };
+        let OwnedValue::Histogram(mut value) = OwnedValue::from_sample_checked(
+            SampleValueRef::FloatHistogram(input.as_ref()),
+            &control,
+            &account,
+            MemoryKind::Workspace,
+        )
+        .unwrap() else {
+            unreachable!()
+        };
+        assert_eq!(account.current_samples(), 13);
+        let copy = value.copy_checked(&control, &account).unwrap();
+        assert_eq!(account.current_samples(), 26);
+        value.compact_checked(&control, &account).unwrap();
+        assert_eq!(account.current_samples(), 25);
+        drop(copy);
+        assert_eq!(account.current_samples(), 12);
+        let outcome = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            let mut mutation = value.mutation();
+            mutation.value.positive_buckets = None;
+            panic!("injected histogram mutation unwind");
+        }));
+        assert!(outcome.is_err());
+        assert_eq!(account.current_samples(), 11);
+        assert_eq!(account.snapshot().statistics.samples.peak_samples, 26);
+        drop(value);
+        assert_eq!(account.current_samples(), 0);
+        account.snapshot().assert_memory_released();
+    }
     use crate::{
         accounting::EngineAccounting,
         histogram::{CUSTOM_BUCKETS_SCHEMA, Span},

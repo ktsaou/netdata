@@ -1,14 +1,45 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Repeated backing mutations derive from pinned promql/quantile.go; see NOTICE.
 use crate::{
-    accounting::AccountedVec,
-    classic_replay::Bound,
+    accounting::{AccountedVec, MemoryKind, QueryAccounting},
+    classic_replay::{Bound, ResultParts},
     evaluator::EvaluationError,
     go_sort::sort_by_with,
     histogram_classic::{
         BucketQuantileResult, CountCorrection, NAN, bound_order, coalesced_count, count_correction,
     },
 };
+
+pub(crate) struct Producers {
+    values: AccountedVec<f64>,
+    samples: crate::statistics::OwnedSamples,
+}
+impl Producers {
+    pub(crate) fn new(account: &QueryAccounting) -> Self {
+        Self {
+            values: AccountedVec::new(account, MemoryKind::Workspace),
+            samples: crate::statistics::OwnedSamples::new(account, 0),
+        }
+    }
+    fn push(&mut self, value: f64, samples: Option<crate::statistics::OwnedSamples>) {
+        self.values.push(value);
+        if let Some(samples) = samples {
+            self.samples.absorb(samples);
+        } else {
+            self.samples.add(1);
+        }
+    }
+    #[cfg(test)]
+    fn accounting(&self) -> &QueryAccounting {
+        self.samples.accounting()
+    }
+}
+impl std::ops::Deref for Producers {
+    type Target = [f64];
+    fn deref(&self) -> &Self::Target {
+        &self.values
+    }
+}
 
 #[derive(Clone, Copy)]
 enum Phase {
@@ -22,20 +53,20 @@ enum Phase {
 
 pub(crate) enum Action {
     Count(usize),
-    Done {
-        length: usize,
-        result: BucketQuantileResult,
-    },
+    Done { length: usize, result: ResultParts },
 }
 
 pub(crate) struct Mutation {
     phase: Phase,
     result: BucketQuantileResult,
+    result_samples: crate::statistics::OwnedSamples,
     run: Option<Bound>,
     position: usize,
     length: usize,
     sum: Option<f64>,
+    sum_samples: Option<crate::statistics::OwnedSamples>,
     previous: Option<(usize, f64)>,
+    previous_samples: Option<crate::statistics::OwnedSamples>,
     waiting: bool,
 }
 
@@ -43,27 +74,34 @@ impl Mutation {
     pub(crate) fn new<E>(
         q: f64,
         bounds: &mut [Bound],
+        account: &QueryAccounting,
         mut poll: impl FnMut() -> Result<(), E>,
     ) -> Result<Self, E> {
         let mut state = Self {
             phase: Phase::Done,
             result: BucketQuantileResult::new(NAN),
+            result_samples: crate::statistics::OwnedSamples::new(account, 0),
             run: None,
             position: 0,
             length: 0,
             sum: None,
+            sum_samples: None,
             previous: None,
+            previous_samples: None,
             waiting: false,
         };
         if q.is_nan() {
+            state.result_samples.resize(1);
             return Ok(state);
         }
         if q < 0.0 {
             state.result.value = f64::NEG_INFINITY;
+            state.result_samples.resize(1);
             return Ok(state);
         }
         if q > 1.0 {
             state.result.value = f64::INFINITY;
+            state.result_samples.resize(1);
             return Ok(state);
         }
         sort_by_with(
@@ -72,6 +110,7 @@ impl Mutation {
             &mut poll,
         )?;
         if bounds[bounds.len() - 1].upper_bound != f64::INFINITY {
+            state.result_samples.resize(1);
             return Ok(state);
         }
         state.phase = Phase::Coalesce;
@@ -83,7 +122,7 @@ impl Mutation {
     pub(crate) fn next(
         &mut self,
         bounds: &mut [Bound],
-        producers: &mut AccountedVec<f64>,
+        producers: &mut Producers,
         row_base: usize,
         mut poll: impl FnMut() -> Result<(), EvaluationError>,
     ) -> Result<Action, EvaluationError> {
@@ -92,9 +131,14 @@ impl Mutation {
             poll()?;
             match self.phase {
                 Phase::Done => {
+                    let empty =
+                        crate::statistics::OwnedSamples::new(self.result_samples.accounting(), 0);
                     return Ok(Action::Done {
                         length: self.length,
-                        result: self.result,
+                        result: ResultParts {
+                            result: self.result,
+                            samples: std::mem::replace(&mut self.result_samples, empty),
+                        },
                     });
                 }
                 Phase::Coalesce => {
@@ -114,7 +158,7 @@ impl Mutation {
                             EvaluationError::Invalid("classic producer reference overflows"),
                         )?;
                         // Only completed multi-input folds are retained; singletons stay borrowed.
-                        producers.push(sum);
+                        producers.push(sum, self.sum_samples.take());
                     }
                     bounds[self.length] = run;
                     self.length += 1;
@@ -139,6 +183,9 @@ impl Mutation {
                 Phase::Repair => {
                     if self.position == self.length {
                         self.phase = Phase::Done;
+                        if self.length < 2 {
+                            self.result_samples.resize(1);
+                        }
                     } else {
                         self.phase = Phase::RepairValue;
                         self.waiting = true;
@@ -150,12 +197,18 @@ impl Mutation {
         }
     }
 
-    pub(crate) fn receive(&mut self, value: f64, bounds: &mut [Bound]) {
+    pub(crate) fn receive(
+        &mut self,
+        value: f64,
+        samples: Option<crate::statistics::OwnedSamples>,
+        bounds: &mut [Bound],
+    ) {
         assert!(self.waiting, "unsolicited mutation count");
         self.waiting = false;
         match self.phase {
             Phase::First => {
                 self.sum = Some(value);
+                self.sum_samples = samples;
                 self.phase = Phase::Arriving;
             }
             Phase::Arriving => {
@@ -176,6 +229,7 @@ impl Mutation {
                     }
                 } else {
                     self.previous = Some((bucket.ordinal, value));
+                    self.previous_samples = samples;
                 }
                 self.position += 1;
                 self.phase = Phase::Repair;
@@ -208,7 +262,7 @@ pub fn fixture(request: &serde_json::Value) -> serde_json::Value {
             ordinal,
         });
     }
-    let mut producers = AccountedVec::new(&account, MemoryKind::Workspace);
+    let mut producers = Producers::new(&account);
     let mut reads = 0usize;
     let mut steps = Vec::new();
     for q in request["quantiles"].as_array().expect("quantile list") {
@@ -219,7 +273,7 @@ pub fn fixture(request: &serde_json::Value) -> serde_json::Value {
                 account.work(1);
                 Ok::<_, EvaluationError>(())
             };
-            let mut mutation = Mutation::new(q, &mut bounds, &mut poll).unwrap();
+            let mut mutation = Mutation::new(q, &mut bounds, &account, &mut poll).unwrap();
             let (length, result) = loop {
                 match mutation
                     .next(&mut bounds, &mut producers, inputs.len(), &mut poll)
@@ -232,7 +286,11 @@ pub fn fixture(request: &serde_json::Value) -> serde_json::Value {
                         } else {
                             producers[reference - inputs.len()]
                         };
-                        mutation.receive(value, &mut bounds);
+                        mutation.receive(
+                            value,
+                            Some(crate::statistics::OwnedSamples::new(&account, 1)),
+                            &mut bounds,
+                        );
                     }
                     Action::Done { length, result } => break (length, result),
                 }
@@ -247,9 +305,12 @@ pub fn fixture(request: &serde_json::Value) -> serde_json::Value {
                         } else {
                             producers[reference - inputs.len()]
                         };
-                        replay.receive(value);
+                        replay.receive(
+                            value,
+                            Some(crate::statistics::OwnedSamples::new(&account, 1)),
+                        );
                     }
-                    classic_replay::Action::Done(result) => break result,
+                    classic_replay::Action::Done(result) => break result.result,
                 }
             }
         }));
@@ -309,13 +370,52 @@ mod tests {
         classic_replay::{self, Replay},
     };
 
+    #[test]
+    fn terminal_result_transfers_through_prepared_replay_without_a_duplicate_owner() {
+        for q in [NAN, -1.0, 2.0] {
+            let engine = EngineAccounting::default();
+            let account = engine.query();
+            let mut producers = Producers::new(&account);
+            let mut bounds = [Bound {
+                upper_bound: 1.0,
+                ordinal: 0,
+            }];
+            let mut mutation =
+                Mutation::new(q, &mut bounds, &account, || Err("no sorting")).unwrap();
+            assert_eq!(account.current_samples(), 1);
+            let Action::Done { length, result } = mutation
+                .next(&mut bounds, &mut producers, 1, || Ok(()))
+                .unwrap()
+            else {
+                panic!("no count request")
+            };
+            assert_eq!(length, 0);
+            drop(mutation);
+            let mut replay = Replay::from_prepared(q, &bounds[..length], result);
+            assert_eq!(account.current_samples(), 1);
+            let classic_replay::Action::Done(result) =
+                replay.next(&bounds[..length], || Ok::<_, ()>(())).unwrap()
+            else {
+                panic!("no count request")
+            };
+            drop(replay);
+            assert_eq!(account.current_samples(), 1);
+            assert_eq!(account.snapshot().statistics.samples.peak_samples, 1);
+            drop(result);
+            assert_eq!(account.current_samples(), 0);
+        }
+    }
+
     fn evaluate(
         q: f64,
         bounds: &mut [Bound],
-        producers: &mut AccountedVec<f64>,
+        producers: &mut Producers,
         raw: &[f64],
     ) -> BucketQuantileResult {
-        let mut mutation = Mutation::new(q, bounds, || Ok::<_, EvaluationError>(())).unwrap();
+        let mut mutation = Mutation::new(q, bounds, producers.accounting(), || {
+            Ok::<_, EvaluationError>(())
+        })
+        .unwrap();
         let (length, result) = loop {
             match mutation
                 .next(bounds, producers, raw.len(), || Ok(()))
@@ -327,7 +427,14 @@ mod tests {
                     } else {
                         producers[key - raw.len()]
                     };
-                    mutation.receive(value, bounds);
+                    mutation.receive(
+                        value,
+                        Some(crate::statistics::OwnedSamples::new(
+                            producers.accounting(),
+                            1,
+                        )),
+                        bounds,
+                    );
                 }
                 Action::Done { length, result } => break (length, result),
             }
@@ -344,9 +451,15 @@ mod tests {
                     } else {
                         producers[key - raw.len()]
                     };
-                    replay.receive(value);
+                    replay.receive(
+                        value,
+                        Some(crate::statistics::OwnedSamples::new(
+                            producers.accounting(),
+                            1,
+                        )),
+                    );
                 }
-                classic_replay::Action::Done(result) => return result,
+                classic_replay::Action::Done(result) => return result.result,
             }
         }
     }
@@ -355,7 +468,7 @@ mod tests {
     fn repeated_quantiles_preserve_the_original_length_and_mutated_tail() {
         let engine = EngineAccounting::default();
         let account = engine.query();
-        let mut producers = AccountedVec::new(&account, MemoryKind::Workspace);
+        let mut producers = Producers::new(&account);
         let mut bounds = [
             Bound {
                 upper_bound: 1.0,
@@ -396,7 +509,7 @@ mod tests {
     fn singletons_are_never_cached_and_equal_zero_keeps_previous_source() {
         let engine = EngineAccounting::default();
         let account = engine.query();
-        let mut producers = AccountedVec::new(&account, MemoryKind::Workspace);
+        let mut producers = Producers::new(&account);
         let mut bounds = [
             Bound {
                 upper_bound: 0.0,
@@ -429,7 +542,7 @@ mod tests {
     fn invalid_quantile_leaves_backing_and_accounting_untouched() {
         let engine = EngineAccounting::default();
         let account = engine.query();
-        let mut producers = AccountedVec::new(&account, MemoryKind::Workspace);
+        let mut producers = Producers::new(&account);
         let mut bounds = [
             Bound {
                 upper_bound: f64::INFINITY,

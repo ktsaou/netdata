@@ -2,7 +2,7 @@
 
 ## Goals
 
-This repository owns the standalone Rust PromQL evaluator, ABI3 C header and generic source-bound conformance suite.
+This repository owns the standalone Rust PromQL evaluator, ABI4 C header and generic source-bound conformance suite.
 Netdata supplies metadata, paged retained samples, temporary backing and output consumers. The core has no Netdata C dependency.
 Preserve the pinned same-input expression contract; live storage approximation belongs to the provider.
 

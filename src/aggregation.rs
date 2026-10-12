@@ -24,6 +24,7 @@ pub(crate) struct Group<'a> {
     pub(crate) hash: u64,
     pub(crate) seen: bool,
     value: f64,
+    value_samples: Option<crate::statistics::OwnedSamples>,
     compensation: f64,
     mean: f64,
     count: f64,
@@ -44,6 +45,7 @@ impl<'a> Group<'a> {
             ordinal,
             seen: false,
             value: 0.0,
+            value_samples: None,
             compensation: 0.0,
             mean: 0.0,
             count: 0.0,
@@ -104,6 +106,9 @@ impl<'a> Group<'a> {
                     };
                 }
                 GROUP => self.value = 1.0,
+                MIN | MAX => {
+                    self.value_samples = Some(crate::statistics::OwnedSamples::new(account, 1))
+                }
                 _ => (),
             }
             return Ok(None);
@@ -264,6 +269,10 @@ impl<'a> Group<'a> {
             Some(EvaluatedSample {
                 ordinal: self.ordinal,
                 labels,
+                float_samples: self
+                    .value_samples
+                    .take()
+                    .or_else(|| crate::statistics::hold_float(account, value.as_ref())),
                 value,
                 source_time_ms: time_ms,
                 source_start_time_ms: 0,

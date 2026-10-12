@@ -22,6 +22,7 @@ fn selector_bounds(
     reference: SelectorReference,
     anchored: bool,
     smoothed: bool,
+    lookback_ns: i64,
 ) -> TimeBounds {
     let (mut start_ms, mut end_ms) = if let Some(time) = reference.timestamp_ms {
         (time, time)
@@ -38,10 +39,7 @@ fn selector_bounds(
     let range_ms = if scope.eval_range_ns == 0 {
         options.lookback_ms
     } else if anchored || smoothed {
-        scope
-            .eval_range_ns
-            .wrapping_add(options.lookback_ms.wrapping_mul(1_000_000))
-            / 1_000_000
+        scope.eval_range_ns.wrapping_add(lookback_ns) / 1_000_000
     } else {
         scope.eval_range_ns / 1_000_000
     };
@@ -115,6 +113,7 @@ pub(crate) fn selection_sites<'a>(
                     },
                     selector.anchored,
                     selector.smoothed,
+                    prepared.lookback_ns(options.lookback_ms),
                 ),
                 hints: SelectionHints {
                     step_ms: if hints.step_ns == 0 {
@@ -220,6 +219,7 @@ pub(crate) fn find(
                         },
                         selector.anchored,
                         selector.smoothed,
+                        prepared.lookback_ns(options.lookback_ms),
                     ),
                 );
             }
@@ -256,7 +256,14 @@ pub(crate) fn find(
                 info_scope.eval_range_ns = 0;
                 include(
                     &mut bounds,
-                    selector_bounds(options, info_scope, reference, false, false),
+                    selector_bounds(
+                        options,
+                        info_scope,
+                        reference,
+                        false,
+                        false,
+                        prepared.lookback_ns(options.lookback_ms),
+                    ),
                 );
                 for child in arguments.iter().rev() {
                     control.check()?;

@@ -2,9 +2,24 @@
 //! Synchronous C embedding. See include/netdata-promql.h for pointer and paired-release contracts.
 mod checked;
 mod getters;
+mod histogram;
+pub use getters::{netdata_promql_report_error, netdata_promql_report_error_count};
+pub use histogram::netdata_promql_callback_histogram_buckets;
 mod observations;
 mod output;
+mod protocol;
 mod provider;
+mod selection;
+pub use protocol::{
+    netdata_promql_api_float_text, netdata_promql_api_parse_duration,
+    netdata_promql_api_parse_time, netdata_promql_api_scalar_float_text,
+    netdata_promql_api_scalar_timestamp_text, netdata_promql_api_timestamp_text,
+};
+pub use selection::{
+    netdata_promql_selector_compile, netdata_promql_selector_matcher,
+    netdata_promql_selector_matcher_count, netdata_promql_selector_matches,
+    netdata_promql_selector_nonempty, netdata_promql_selector_release,
+};
 #[cfg(test)]
 mod tests;
 pub mod types;
@@ -15,7 +30,7 @@ use crate::{
     evaluator::EvaluationError,
     execution::{
         CompileError, CompiledQuery, Engine as CoreEngine, EngineOptions, ExecutionError,
-        QueryRequest,
+        PreciseQueryRequest, QueryRequest, Timestamp,
     },
     frontend::ast::ParserOptions,
     result::CollectedResult,
@@ -37,6 +52,7 @@ struct ResultOwner {
 enum Outcome {
     Compile(Result<(), CompileError>),
     Execute(Result<(), ExecutionError>),
+    Protocol(Result<(), protocol::Error>),
 }
 struct Report {
     account: QueryAccounting,
@@ -52,6 +68,7 @@ fn allocation_kind(value: u32) -> Result<MemoryKind, Invalid> {
         value if value == MemoryKind::Workspace as u32 => Ok(MemoryKind::Workspace),
         value if value == MemoryKind::Result as u32 => Ok(MemoryKind::Result),
         value if value == MemoryKind::ProviderHeld as u32 => Ok(MemoryKind::ProviderHeld),
+        value if value == MemoryKind::BorrowedView as u32 => Ok(MemoryKind::BorrowedView),
         _ => Err(Invalid("invalid foreign allocation category")),
     }
 }
@@ -200,6 +217,50 @@ fn request(value: types::Request) -> Result<QueryRequest, Invalid> {
         _ => Err(Invalid("invalid request tag")),
     }
 }
+enum RawRequest {
+    Milliseconds(*const types::Request),
+    Precise(*const types::PreciseRequest),
+}
+impl RawRequest {
+    unsafe fn read(self) -> Result<crate::query_time::Request, Invalid> {
+        match self {
+            Self::Milliseconds(value) => Ok(request(unsafe { checked::versioned(value) }?)?.into()),
+            Self::Precise(value) => {
+                let value: types::PreciseRequest = unsafe { checked::versioned(value) }?;
+                if value.reserved != 0 {
+                    return Err(Invalid("nonzero reserved request field"));
+                }
+                let timestamp = |value: types::Timestamp| {
+                    if value.reserved != 0 || value.nanoseconds >= 1_000_000_000 {
+                        Err(Invalid("invalid normalized timestamp"))
+                    } else {
+                        Ok(Timestamp {
+                            unix_seconds: value.unix_seconds,
+                            nanoseconds: value.nanoseconds,
+                        })
+                    }
+                };
+                let start = timestamp(value.start)?;
+                let end = timestamp(value.end)?;
+                Ok(match value.kind {
+                    types::REQUEST_INSTANT => PreciseQueryRequest::Instant {
+                        time: start,
+                        lookback_ns: value.lookback_ns,
+                    },
+                    types::REQUEST_RANGE => PreciseQueryRequest::Range {
+                        start,
+                        end,
+                        interval_ns: value.interval_ns,
+                        lookback_ns: value.lookback_ns,
+                    },
+                    _ => return Err(Invalid("invalid request tag")),
+                }
+                .into())
+            }
+        }
+    }
+}
+
 fn engine_options(value: types::EngineOptions) -> Result<EngineOptions, Invalid> {
     if value.flags & !types::OPTION_FLAGS != 0 || value.reserved != 0 {
         return Err(Invalid("invalid engine flags"));
@@ -216,6 +277,100 @@ fn engine_options(value: types::EngineOptions) -> Result<EngineOptions, Invalid>
         start_timestamps: value.flags & types::START_TIMESTAMPS != 0,
         delayed_name_removal: value.flags & types::DELAYED_NAME_REMOVAL != 0,
     })
+}
+
+unsafe fn execute(
+    query: *const types::Query,
+    raw_provider: *const types::Provider,
+    raw_request: RawRequest,
+    raw_control: *const types::Control,
+    raw_output: *const types::Output,
+    out_report: *mut *mut types::Report,
+) -> Result<u32, Invalid> {
+    unsafe { checked::output(out_report) }?;
+    unsafe { out_report.write(std::ptr::null_mut()) };
+    let mut sink = unsafe { output::Sink::new(raw_output) }?;
+    let query = unsafe { borrow::<CompiledQuery, _>(query) }?;
+    let account = query.execution_accounting();
+    sink.bind(&account);
+    let request = unsafe { raw_request.read() }?;
+    let control = unsafe { control(raw_control, query.engine_accounting()) }?;
+    let provider = unsafe { provider::Provider::new(raw_provider, &account) }?;
+    let mut report = Report::new(&account, false);
+    let slot = report.get_mut().expect("unpublished execution report");
+    let completed = match request {
+        crate::query_time::Request::Milliseconds(request) => {
+            query.execute_reported_in(&provider, request, &control, &mut sink, &account)
+        }
+        crate::query_time::Request::Precise(request) => {
+            query.execute_precise_reported_in(&provider, request, &control, &mut sink, &account)
+        }
+    };
+    let status = execution_status(&completed.result);
+    slot.outcome = Outcome::Execute(completed.result);
+    slot.annotations = completed.annotations;
+    slot.observations = completed.observations;
+    unsafe { out_report.write(report.into_raw().cast()) };
+    Ok(status)
+}
+unsafe fn collect(
+    query: *const types::Query,
+    raw_provider: *const types::Provider,
+    raw_request: RawRequest,
+    raw_control: *const types::Control,
+    out_result: *mut *mut types::ResultHandle,
+    out_report: *mut *mut types::Report,
+) -> Result<u32, Invalid> {
+    checked::distinct_outputs(out_result, out_report)?;
+    unsafe {
+        out_result.write(std::ptr::null_mut());
+        out_report.write(std::ptr::null_mut());
+    }
+    let query = unsafe { borrow::<CompiledQuery, _>(query) }?;
+    let request = unsafe { raw_request.read() }?;
+    let control = unsafe { control(raw_control, query.engine_accounting()) }?;
+    let account = query.execution_accounting();
+    let provider = unsafe { provider::Provider::new(raw_provider, &account) }?;
+    let mut report = Report::new(&account, false);
+    let mut result = Strong::new_in(
+        ResultOwner {
+            account: account.clone(),
+            value: None,
+        },
+        Some(&AllocationContext::new(&account, MemoryKind::Result)),
+    );
+    let report_slot = report.get_mut().expect("unpublished collection report");
+    let result_slot = result.get_mut().expect("unpublished collection result");
+    let completed = match request {
+        crate::query_time::Request::Milliseconds(request) => {
+            query.collect_reported_in(&provider, request, &control, &account)
+        }
+        crate::query_time::Request::Precise(request) => {
+            query.collect_precise_reported_in(&provider, request, &control, &account)
+        }
+    };
+    let outcome = match completed.result {
+        Ok(value) => {
+            result_slot.value = Some(value);
+            Ok(())
+        }
+        Err(error) => Err(error),
+    };
+    let status = execution_status(&outcome);
+    report_slot.outcome = Outcome::Execute(outcome);
+    report_slot.annotations = completed.annotations;
+    let result = if status == types::OK {
+        Some(result)
+    } else {
+        drop(result);
+        None
+    };
+    report_slot.observations = account.snapshot();
+    if let Some(result) = result {
+        unsafe { out_result.write(result.into_raw().cast()) };
+    }
+    unsafe { out_report.write(report.into_raw().cast()) };
+    Ok(status)
 }
 
 export! {
@@ -317,47 +472,16 @@ export! {
     }
     fn netdata_promql_query_release(value: *mut types::Query) { unsafe { release::<CompiledQuery, _>(value) } }
     fn netdata_promql_execute(query: *const types::Query, raw_provider: *const types::Provider, raw_request: *const types::Request, raw_control: *const types::Control, raw_output: *const types::Output, out_report: *mut *mut types::Report) {
-        unsafe { checked::output(out_report) }?;
-        unsafe { out_report.write(std::ptr::null_mut()) };
-        let mut sink = unsafe { output::Sink::new(raw_output) }?;
-        let query = unsafe { borrow::<CompiledQuery, _>(query) }?;
-        let account = query.execution_accounting();
-        sink.bind(&account);
-        let request = request(unsafe { checked::versioned(raw_request) }?)?;
-        let control = unsafe { control(raw_control, query.engine_accounting()) }?;
-        let provider = unsafe { provider::Provider::new(raw_provider, &account) }?;
-        let mut report = Report::new(&account, false);
-        let slot = report.get_mut().expect("unpublished execution report");
-        let completed = query.execute_reported_in(&provider, request, &control, &mut sink, &account);
-        let status = execution_status(&completed.result);
-        slot.outcome = Outcome::Execute(completed.result);
-        slot.annotations = completed.annotations;
-        slot.observations = completed.observations;
-        unsafe { out_report.write(report.into_raw().cast()) };
-        Ok(status)
+        unsafe { execute(query, raw_provider, RawRequest::Milliseconds(raw_request), raw_control, raw_output, out_report) }
+    }
+    fn netdata_promql_execute_precise(query: *const types::Query, raw_provider: *const types::Provider, raw_request: *const types::PreciseRequest, raw_control: *const types::Control, raw_output: *const types::Output, out_report: *mut *mut types::Report) {
+        unsafe { execute(query, raw_provider, RawRequest::Precise(raw_request), raw_control, raw_output, out_report) }
     }
     fn netdata_promql_collect(query: *const types::Query, raw_provider: *const types::Provider, raw_request: *const types::Request, raw_control: *const types::Control, out_result: *mut *mut types::ResultHandle, out_report: *mut *mut types::Report) {
-        checked::distinct_outputs(out_result, out_report)?;
-        unsafe { out_result.write(std::ptr::null_mut()); out_report.write(std::ptr::null_mut()); }
-        let query = unsafe { borrow::<CompiledQuery, _>(query) }?;
-        let request = request(unsafe { checked::versioned(raw_request) }?)?;
-        let control = unsafe { control(raw_control, query.engine_accounting()) }?;
-        let account = query.execution_accounting();
-        let provider = unsafe { provider::Provider::new(raw_provider, &account) }?;
-        let mut report = Report::new(&account, false);
-        let mut result = Strong::new_in(ResultOwner { account: account.clone(), value: None }, Some(&AllocationContext::new(&account, MemoryKind::Result)));
-        let report_slot = report.get_mut().expect("unpublished collection report");
-        let result_slot = result.get_mut().expect("unpublished collection result");
-        let completed = query.collect_reported_in(&provider, request, &control, &account);
-        let outcome = match completed.result { Ok(value) => { result_slot.value = Some(value); Ok(()) }, Err(error) => Err(error) };
-        let status = execution_status(&outcome);
-        report_slot.outcome = Outcome::Execute(outcome);
-        report_slot.annotations = completed.annotations;
-        let result = if status == types::OK { Some(result) } else { drop(result); None };
-        report_slot.observations = account.snapshot();
-        if let Some(result) = result { unsafe { out_result.write(result.into_raw().cast()) }; }
-        unsafe { out_report.write(report.into_raw().cast()) };
-        Ok(status)
+        unsafe { collect(query, raw_provider, RawRequest::Milliseconds(raw_request), raw_control, out_result, out_report) }
+    }
+    fn netdata_promql_collect_precise(query: *const types::Query, raw_provider: *const types::Provider, raw_request: *const types::PreciseRequest, raw_control: *const types::Control, out_result: *mut *mut types::ResultHandle, out_report: *mut *mut types::Report) {
+        unsafe { collect(query, raw_provider, RawRequest::Precise(raw_request), raw_control, out_result, out_report) }
     }
     fn netdata_promql_report_release(value: *mut types::Report) { unsafe { release::<Report, _>(value) } }
     fn netdata_promql_result_release(value: *mut types::ResultHandle) { unsafe { release::<ResultOwner, _>(value) } }

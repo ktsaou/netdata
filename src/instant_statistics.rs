@@ -9,8 +9,24 @@ use crate::{
     value::SampleValueRef,
 };
 
+pub(crate) struct OwnedProjection {
+    value: Projection,
+    samples: crate::statistics::OwnedSamples,
+}
+impl OwnedProjection {
+    fn new(value: Projection, account: &QueryAccounting) -> Self {
+        Self {
+            samples: crate::statistics::OwnedSamples::new(
+                account,
+                crate::statistics::weight(value.as_ref()),
+            ),
+            value,
+        }
+    }
+}
+
 impl Projector for StatisticsDecoder {
-    type Value = Projection;
+    type Value = OwnedProjection;
     type Error = StorageError;
     fn moved(&mut self) {
         StatisticsDecoder::moved(self);
@@ -18,19 +34,23 @@ impl Projector for StatisticsDecoder {
     fn clear(&mut self) {
         StatisticsDecoder::clear(self);
     }
+    fn sample_units(&self, value: &OwnedProjection, _: SampleValueRef<'_>) -> u64 {
+        crate::statistics::weight(value.value.as_ref())
+    }
     fn project(
         &mut self,
         value: SampleValueRef<'_>,
         control: &Control,
         account: &QueryAccounting,
-    ) -> Result<Projection, StorageError> {
+    ) -> Result<OwnedProjection, StorageError> {
         StatisticsDecoder::project(self, value, control, account)
+            .map(|value| OwnedProjection::new(value, account))
     }
 }
 
 struct VisitorDecoder<E>(StatisticsDecoder, std::marker::PhantomData<E>);
 impl<E: From<StorageError> + From<Interrupted>> Projector for VisitorDecoder<E> {
-    type Value = Projection;
+    type Value = OwnedProjection;
     type Error = E;
     fn moved(&mut self) {
         self.0.moved();
@@ -38,13 +58,19 @@ impl<E: From<StorageError> + From<Interrupted>> Projector for VisitorDecoder<E> 
     fn clear(&mut self) {
         self.0.clear();
     }
+    fn sample_units(&self, value: &OwnedProjection, _: SampleValueRef<'_>) -> u64 {
+        crate::statistics::weight(value.value.as_ref())
+    }
     fn project(
         &mut self,
         value: SampleValueRef<'_>,
         control: &Control,
         account: &QueryAccounting,
-    ) -> Result<Projection, E> {
-        self.0.project(value, control, account).map_err(Into::into)
+    ) -> Result<OwnedProjection, E> {
+        self.0
+            .project(value, control, account)
+            .map(|value| OwnedProjection::new(value, account))
+            .map_err(Into::into)
     }
 }
 
@@ -66,7 +92,7 @@ pub(crate) fn visit_scheduled<S: Series, E: From<StorageError> + From<Interrupte
         |lookup, value| {
             visit(
                 lookup,
-                value.map(|(time, start, value)| (time, start, value.as_ref())),
+                value.map(|(time, start, value)| (time, start, value.value.as_ref())),
             )
         },
     )
@@ -78,7 +104,7 @@ pub(crate) fn select<S: Series>(
     window: InstantWindow,
     control: &Control,
     account: &QueryAccounting,
-) -> Result<Option<(i64, i64, OwnedValue)>, StorageError> {
+) -> Result<Option<(i64, i64, crate::statistics::ValueParts)>, StorageError> {
     owned(
         instant_select::select_with(
             series,
@@ -98,7 +124,7 @@ pub(crate) fn select_scheduled<S: Series>(
     control: &Control,
     account: &QueryAccounting,
     next_lookup: impl FnMut() -> Result<Option<i64>, StorageError>,
-) -> Result<Option<(i64, i64, OwnedValue)>, StorageError> {
+) -> Result<Option<(i64, i64, crate::statistics::ValueParts)>, StorageError> {
     owned(
         instant_select::select_scheduled(
             series,
@@ -114,21 +140,30 @@ pub(crate) fn select_scheduled<S: Series>(
 }
 
 fn owned(
-    selected: Option<(i64, i64, Projection)>,
+    selected: Option<(i64, i64, OwnedProjection)>,
     control: &Control,
     account: &QueryAccounting,
-) -> Result<Option<(i64, i64, OwnedValue)>, StorageError> {
+) -> Result<Option<(i64, i64, crate::statistics::ValueParts)>, StorageError> {
     selected
         .map(|(time, start, value)| {
             Ok((
                 time,
                 start,
-                OwnedValue::copy_from_checked(
-                    value.as_ref(),
-                    control,
-                    account,
-                    MemoryKind::Workspace,
-                )?,
+                match value.value {
+                    Projection::Float(float) => crate::statistics::ValueParts {
+                        value: OwnedValue::Float(float),
+                        float_samples: Some(value.samples),
+                    },
+                    histogram @ Projection::Histogram { .. } => crate::statistics::ValueParts::new(
+                        OwnedValue::copy_from_checked(
+                            histogram.as_ref(),
+                            control,
+                            account,
+                            MemoryKind::Workspace,
+                        )?,
+                        account,
+                    ),
+                },
             ))
         })
         .transpose()
@@ -167,6 +202,7 @@ mod tests {
             step_ms: 4000,
             lookback_ms: 500,
             delta_ms: 500,
+            unit_weight: false,
             data_bounds: TimeBounds {
                 start_ms: 501,
                 end_ms: 5000,
@@ -256,7 +292,7 @@ mod tests {
                     .unwrap()
                     .unwrap();
                 assert_eq!(result.0, 5000);
-                let OwnedValue::Histogram(histogram) = &result.2 else {
+                let OwnedValue::Histogram(histogram) = &result.2.value else {
                     panic!("histogram output")
                 };
                 let histogram = histogram.as_ref();
@@ -311,7 +347,7 @@ mod tests {
             )
             .unwrap()
             .unwrap();
-            let OwnedValue::Histogram(h) = &result.2 else {
+            let OwnedValue::Histogram(h) = &result.2.value else {
                 panic!("histogram output")
             };
             assert_eq!(h.as_ref().reset_hint, COUNTER_RESET);
@@ -392,6 +428,7 @@ mod tests {
                         step_ms: 1000,
                         lookback_ms: 5000,
                         delta_ms: 5000,
+                        unit_weight: false,
                         data_bounds: TimeBounds {
                             start_ms: -3999,
                             end_ms: count as i64 * 1000,

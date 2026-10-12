@@ -2,7 +2,7 @@
 //! Fixed-width declarations mirrored by include/netdata-promql.h.
 use std::ffi::c_void;
 
-pub const ABI_VERSION: u32 = 3;
+pub const ABI_VERSION: u32 = 4;
 pub const OK: u32 = 0;
 pub const INVALID_ARGUMENT: u32 = 1;
 pub const PARSE_ERROR: u32 = 2;
@@ -153,6 +153,15 @@ pub struct FloatHistogram {
     pub custom_values: F64Array,
 }
 #[repr(C)]
+#[derive(Clone, Copy, Default)]
+pub struct HistogramBucket {
+    pub lower_bits: u64,
+    pub upper_bits: u64,
+    pub count_bits: u64,
+    pub lower_inclusive: u32,
+    pub upper_inclusive: u32,
+}
+#[repr(C)]
 #[derive(Clone, Copy)]
 pub union ValuePayload {
     pub float_bits: u64,
@@ -272,7 +281,8 @@ opaque!(
     Control,
     CallbackControl,
     AccountingContext,
-    AllocationHandle
+    AllocationHandle,
+    Selector
 );
 
 pub type Close = unsafe extern "C" fn(*mut c_void, *mut c_void, *const AccountingContext);
@@ -416,6 +426,40 @@ pub struct Request {
 }
 #[repr(C)]
 #[derive(Clone, Copy, Default)]
+pub struct Timestamp {
+    pub unix_seconds: i64,
+    pub nanoseconds: u32,
+    pub reserved: u32,
+}
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct NumericText {
+    pub len: u32,
+    pub reserved: u32,
+    pub bytes: [u8; 384],
+}
+impl Default for NumericText {
+    fn default() -> Self {
+        Self {
+            len: 0,
+            reserved: 0,
+            bytes: [0; 384],
+        }
+    }
+}
+#[repr(C)]
+#[derive(Clone, Copy, Default)]
+pub struct PreciseRequest {
+    pub header: Header,
+    pub kind: u32,
+    pub reserved: u32,
+    pub start: Timestamp,
+    pub end: Timestamp,
+    pub interval_ns: i64,
+    pub lookback_ns: i64,
+}
+#[repr(C)]
+#[derive(Clone, Copy, Default)]
 pub struct OutputHeader {
     pub value_type: u32,
     pub reserved: u32,
@@ -504,7 +548,31 @@ pub struct TemporaryStorageObservations {
 }
 #[repr(C)]
 #[derive(Clone, Copy, Default)]
+pub struct StatisticsTimings {
+    pub eval_total_time: Duration,
+    pub result_sort_time: Duration,
+    pub query_preparation_time: Duration,
+    pub inner_eval_time: Duration,
+    pub exec_queue_time: Duration,
+    pub exec_total_time: Duration,
+}
+#[repr(C)]
+#[derive(Clone, Copy, Default)]
+pub struct StatisticsSamples {
+    pub total_queryable_samples: u64,
+    pub samples_read: u64,
+    pub peak_samples: u64,
+}
+#[repr(C)]
+#[derive(Clone, Copy, Default)]
+pub struct Statistics {
+    pub timings: StatisticsTimings,
+    pub samples: StatisticsSamples,
+}
+#[repr(C)]
+#[derive(Clone, Copy, Default)]
 pub struct QueryObservations {
+    pub statistics: Statistics,
     pub memory: [MemoryObservation; crate::accounting::MEMORY_KINDS],
     pub cancellation_references: CancellationReferences,
     pub temporary_storage: TemporaryStorageObservations,
@@ -545,6 +613,12 @@ pub type CommitCallback = unsafe extern "C" fn(
     *mut Bytes,
 ) -> u32;
 pub type AbortCallback = unsafe extern "C" fn(*mut c_void, *const AccountingContext);
+pub type HistogramBucketCallback = unsafe extern "C" fn(
+    *mut c_void,
+    *const HistogramBucket,
+    *const CallbackControl,
+    *mut Bytes,
+) -> u32;
 #[repr(C)]
 #[derive(Clone, Copy, Default)]
 pub struct Output {

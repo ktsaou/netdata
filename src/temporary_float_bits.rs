@@ -4,6 +4,7 @@ use crate::{
     accounting::{AccountedBox, AllocationContext, MemoryKind, QueryAccounting},
     go_sort_program::{Operation, Program},
     range_quantile_rank::Plan,
+    statistics::OwnedSamples,
     storage::{
         Control, QueryProvider, StorageError, TemporaryFloatBits, TemporaryFloatBitsRequest,
     },
@@ -18,6 +19,7 @@ pub(crate) struct Writer<'a> {
     count: u64,
     written: u64,
     len: usize,
+    samples: OwnedSamples,
     control: &'a Control,
     account: &'a QueryAccounting,
 }
@@ -32,6 +34,7 @@ impl Writer<'_> {
         }
         self.buffer[self.len] = bits;
         self.len += 1;
+        self.samples.resize(self.len as u64);
         if self.len == PAGE_VALUES {
             self.flush()?;
         }
@@ -48,6 +51,7 @@ impl Writer<'_> {
             )?;
             self.written += self.len as u64;
             self.len = 0;
+            self.samples.resize(0);
         }
         Ok(())
     }
@@ -76,6 +80,7 @@ struct Page {
     base: Option<u64>,
     len: usize,
     dirty: bool,
+    samples: OwnedSamples,
 }
 struct Cache<'a> {
     store: &'a mut dyn TemporaryFloatBits,
@@ -113,6 +118,7 @@ impl Cache<'_> {
                     page.dirty = false;
                 }
                 page.base = None;
+                page.samples.resize(0);
                 page.len = (self.count - base).min(PAGE_VALUES as u64) as usize;
                 self.account.provider_call();
                 self.account.temporary_transfer(false, None);
@@ -121,6 +127,7 @@ impl Cache<'_> {
                     .map_err(|error| error.accounted(self.account))?;
                 self.account
                     .temporary_transfer(false, Some(page.len as u64 * 8));
+                page.samples.resize(page.len as u64);
                 self.control.check()?;
                 page.base = Some(base);
                 slot
@@ -166,6 +173,7 @@ pub(crate) fn quantile<Q: QueryProvider, E: From<StorageError>>(
                 count,
                 written: 0,
                 len: 0,
+                samples: OwnedSamples::new(account, 0),
                 control,
                 account,
             };
@@ -186,12 +194,14 @@ pub(crate) fn quantile<Q: QueryProvider, E: From<StorageError>>(
                         base: None,
                         len: 0,
                         dirty: false,
+                        samples: OwnedSamples::new(account, 0),
                     },
                     Page {
                         values: AccountedBox::new([0; PAGE_VALUES], &context),
                         base: None,
                         len: 0,
                         dirty: false,
+                        samples: OwnedSamples::new(account, 0),
                     },
                 ],
                 recent: 0,
@@ -403,6 +413,70 @@ mod tests {
     }
 
     #[test]
+    fn accepted_cache_values_are_owned_before_postread_cancellation() {
+        struct CancellingRead {
+            fail: bool,
+        }
+        impl TemporaryFloatBits for CancellingRead {
+            fn resources(&self) -> ProviderResources {
+                ProviderResources::default()
+            }
+            fn read_into(
+                &mut self,
+                _: u64,
+                values: &mut [u64],
+                control: &Control,
+            ) -> Result<(), StorageError> {
+                values.fill(42.0f64.to_bits());
+                control.cancellation.cancel();
+                if self.fail {
+                    Err(StorageError::Invalid("injected incomplete cache read"))
+                } else {
+                    Ok(())
+                }
+            }
+            fn write_at(&mut self, _: u64, _: &[u64], _: &Control) -> Result<(), StorageError> {
+                panic!("clean cache does not write")
+            }
+        }
+        for fail in [false, true] {
+            let account = EngineAccounting::default().query();
+            let control = Control::default();
+            let context = AllocationContext::new(&account, MemoryKind::Workspace);
+            let mut store = CancellingRead { fail };
+            let mut cache = Cache {
+                store: &mut store,
+                pages: std::array::from_fn(|_| Page {
+                    values: AccountedBox::new([0; PAGE_VALUES], &context),
+                    base: None,
+                    len: 0,
+                    dirty: false,
+                    samples: OwnedSamples::new(&account, 0),
+                }),
+                recent: 0,
+                count: 2048,
+                control: &control,
+                account: &account,
+            };
+            let error = cache.get(0).unwrap_err();
+            assert_eq!(
+                error,
+                if fail {
+                    StorageError::Invalid("injected incomplete cache read")
+                } else {
+                    StorageError::Interrupted(Interrupted::Cancelled)
+                }
+            );
+            let owned = if fail { 0 } else { PAGE_VALUES as u64 };
+            assert_eq!(account.current_samples(), owned);
+            assert_eq!(account.snapshot().statistics.samples.peak_samples, owned);
+            drop(cache);
+            assert_eq!(account.current_samples(), 0);
+            account.snapshot().assert_memory_released();
+        }
+    }
+
+    #[test]
     fn disk_sort_crosses_pages_and_releases_backing_after_success_failure_and_cancel() {
         for (fail, cancel) in [
             (0, false),
@@ -501,6 +575,7 @@ mod tests {
             );
         }));
         assert!(result.is_err());
+        assert_eq!(account.current_samples(), 0);
         assert_eq!((query.opened.get(), query.closed.get()), (1, 1));
         drop(observed);
         account.snapshot().assert_memory_released();
@@ -538,6 +613,7 @@ mod tests {
                         count: 3069,
                         written: 0,
                         len: 0,
+                        samples: OwnedSamples::new(&account, 0),
                         control: &control,
                         account: &account,
                     };
@@ -556,12 +632,14 @@ mod tests {
                                 base: None,
                                 len: 0,
                                 dirty: false,
+                                samples: OwnedSamples::new(&account, 0),
                             },
                             Page {
                                 values: AccountedBox::new([0; PAGE_VALUES], &context),
                                 base: None,
                                 len: 0,
                                 dirty: false,
+                                samples: OwnedSamples::new(&account, 0),
                             },
                         ],
                         recent: 0,
@@ -589,10 +667,15 @@ mod tests {
                         account.snapshot().memory[MemoryKind::Workspace as usize].peak,
                         2 * page_bytes
                     );
+                    assert_eq!(
+                        account.snapshot().statistics.samples.peak_samples,
+                        2 * PAGE_VALUES as u64
+                    );
                 },
             )
             .unwrap();
         assert_eq!((query.opened.get(), query.closed.get()), (1, 1));
+        assert_eq!(account.current_samples(), 0);
         assert_eq!(account.snapshot().temporary_storage.extent.peak, 3069 * 8);
         drop(observed);
         drop(context);

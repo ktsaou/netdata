@@ -43,12 +43,13 @@ impl Report {
         match &self.outcome {
             Outcome::Compile(value) => compile_status(value),
             Outcome::Execute(value) => execution_status(value),
+            Outcome::Protocol(value) => protocol::status(value),
         }
     }
     fn error_count(&self) -> usize {
         match &self.outcome {
             Outcome::Compile(Err(CompileError::Parse(errors))) => errors.len(),
-            Outcome::Compile(Err(_)) | Outcome::Execute(Err(_)) => 1,
+            Outcome::Compile(Err(_)) | Outcome::Execute(Err(_)) | Outcome::Protocol(Err(_)) => 1,
             _ => 0,
         }
     }
@@ -72,6 +73,8 @@ impl Report {
             Outcome::Compile(Err(CompileError::Interrupted(value))) => interrupted(*value),
             Outcome::Compile(Err(CompileError::Internal)) => error(12, b"internal PromQL error"),
             Outcome::Execute(Err(value)) => execution_error(value),
+            Outcome::Protocol(Err(protocol::Error::Parse(value))) => error(1, value),
+            Outcome::Protocol(Err(protocol::Error::Interrupted(value))) => interrupted(*value),
             _ => unreachable!("error count excludes success"),
         })
     }

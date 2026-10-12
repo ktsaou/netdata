@@ -80,6 +80,7 @@ impl Input {
 
 #[derive(Default)]
 struct Output {
+    float_samples: Option<crate::statistics::OwnedSamples>,
     value: Option<OwnedValue>,
     invalid_quantile: bool,
     annotations: [Option<AnnotationKind>; 6],
@@ -98,7 +99,7 @@ enum Kernel {
     Quantile(temporal_quantile::Step),
 }
 impl Kernel {
-    fn new(input: Input) -> Self {
+    fn new(input: Input, account: &QueryAccounting) -> Self {
         match input.function {
             RangeFunction::Fold(kind) => {
                 Self::Fold(FoldStep::new(kind, input.options.start_timestamps))
@@ -108,12 +109,13 @@ impl Kernel {
             }
             RangeFunction::Numeric(NumericRangeFunction::Mad) => Self::Mad(mad::Step::default()),
             RangeFunction::Numeric(NumericRangeFunction::Quantile) => {
-                Self::Quantile(temporal_quantile::Step::new(input.parameters[0]))
+                Self::Quantile(temporal_quantile::Step::new(input.parameters[0], account))
             }
             RangeFunction::Numeric(kind) => Self::Numeric(Some(NumericStep::new(
                 kind,
                 input.parameters,
                 input.options.time_ms,
+                account,
             ))),
         }
     }
@@ -146,6 +148,7 @@ impl Kernel {
                 let Some(result) = step.finish_pass(control, account).map_err(fold_error)? else {
                     return Ok(Pass::Replay);
                 };
+                output.float_samples = result.float_samples;
                 output.value = result.value;
                 output.annotations[..2].copy_from_slice(&result.annotations);
                 output.nonempty = result.nonempty;
@@ -154,6 +157,7 @@ impl Kernel {
                 let Some(result) = step.finish_pass(control, account)? else {
                     return Ok(Pass::Replay);
                 };
+                output.float_samples = result.float_samples;
                 output.value = result.value;
                 output.annotations = result.annotations;
                 output.nonempty = result.nonempty;
@@ -162,8 +166,9 @@ impl Kernel {
                 let result = step
                     .take()
                     .expect("numeric pass")
-                    .finish()
+                    .finish(account)
                     .map_err(|error| crate::evaluator::numeric_range_error(error, account))?;
+                output.float_samples = result.float_samples;
                 output.value = result.value.map(OwnedValue::Float);
                 output.annotations[0] = result.annotation;
                 output.nonempty = result.nonempty;
@@ -172,6 +177,7 @@ impl Kernel {
                 let Some(result) = step.finish_pass(control, account)? else {
                     return Ok(Pass::Replay);
                 };
+                output.float_samples = result.float_samples;
                 output.value = result.value.map(OwnedValue::Float);
                 output.annotations[0] = result.annotation;
                 output.nonempty = result.nonempty;
@@ -182,6 +188,7 @@ impl Kernel {
                     temporal_quantile::Pass::Backing(backing) => return Ok(Pass::Backing(backing)),
                     temporal_quantile::Pass::Complete(result) => result,
                 };
+                output.float_samples = result.float_samples;
                 output.value = result.value.map(OwnedValue::Float);
                 output.invalid_quantile = result.invalid_quantile;
                 output.annotations[0] = result.annotation;
@@ -231,12 +238,15 @@ pub(crate) fn scheduled_reader_pass(
                 && let Some(sample) = value
                 && sample.value.kind_bit() == fetch.kind
             {
-                reader.receive_value(OwnedValue::from_sample_checked(
-                    sample.value,
-                    control,
+                reader.receive_value(crate::statistics::ValueParts::new(
+                    OwnedValue::from_sample_checked(
+                        sample.value,
+                        control,
+                        account,
+                        MemoryKind::Workspace,
+                    )?,
                     account,
-                    MemoryKind::Workspace,
-                )?);
+                ));
             }
             next = reader.advance(control, account, &mut visit)?;
         }
@@ -271,6 +281,7 @@ pub(crate) enum Action<'a> {
         annotations: [Option<AnnotationKind>; 6],
         metric: &'a [u8],
         nonempty: bool,
+        sample_units: u64,
     },
     Done,
 }
@@ -306,6 +317,7 @@ impl BackingSource {
 
 pub(crate) struct Step<'a> {
     input: Input,
+    _parameter_samples: crate::statistics::OwnedSamples,
     rows: &'a [Descriptor],
     filter: RowFilter<'a>,
     position: usize,
@@ -314,28 +326,43 @@ pub(crate) struct Step<'a> {
     dry: bool,
     scheduled_complete: bool,
     backed: Option<Output>,
+    sample_units: u64,
+    count_window: bool,
 }
 impl<'a> Step<'a> {
-    pub(crate) fn new(input: Input, rows: &'a [Descriptor], filter: RowFilter<'a>) -> Self {
+    pub(crate) fn new(
+        input: Input,
+        rows: &'a [Descriptor],
+        filter: RowFilter<'a>,
+        account: &QueryAccounting,
+    ) -> Self {
+        let parameter_units = match input.function {
+            RangeFunction::Numeric(kind) => kind.parameters() as u64,
+            _ => 0,
+        };
         Self {
             input,
+            _parameter_samples: crate::statistics::OwnedSamples::new(account, parameter_units),
             rows,
             filter,
             position: 0,
             reader: Reader::new(input.grid, input.window()),
-            kernel: Kernel::new(input),
+            kernel: Kernel::new(input, account),
             dry: true,
             scheduled_complete: false,
             backed: None,
+            sample_units: 0,
+            count_window: true,
         }
     }
 
-    pub(crate) fn receive_backed(&mut self, value: f64) {
+    pub(crate) fn receive_backed(&mut self, value: f64, account: &QueryAccounting) {
         let Kernel::Quantile(step) = &self.kernel else {
             unreachable!("backed quantile continuation")
         };
-        let result = step.backed_output(value);
+        let result = step.backed_output(value, account);
         self.backed = Some(Output {
+            float_samples: result.float_samples,
             value: result.value.map(OwnedValue::Float),
             invalid_quantile: result.invalid_quantile,
             annotations: [result.annotation, None, None, None, None, None],
@@ -365,6 +392,8 @@ impl<'a> Step<'a> {
         let dry = self.dry;
         let reader = &mut self.reader;
         let kernel = &mut self.kernel;
+        let units = &mut self.sample_units;
+        let counting = self.count_window;
         scheduled_reader_pass(
             reader,
             control,
@@ -373,6 +402,13 @@ impl<'a> Step<'a> {
                 if dry {
                     Ok(())
                 } else {
+                    if counting {
+                        crate::statistics::add_units(
+                            units,
+                            crate::statistics::weight(sample.value),
+                            account,
+                        );
+                    }
                     kernel.receive(sample, control, account)
                 }
             },
@@ -420,6 +456,7 @@ impl<'a> Step<'a> {
             Some(EvaluatedSample {
                 ordinal: row.ordinal,
                 labels,
+                float_samples: output.float_samples,
                 value,
                 source_time_ms: self.input.options.time_ms,
                 source_start_time_ms: 0,
@@ -429,14 +466,17 @@ impl<'a> Step<'a> {
             None
         };
         self.position += 1;
-        self.kernel = Kernel::new(self.input);
+        self.kernel = Kernel::new(self.input, account);
         self.dry = true;
+        let sample_units = std::mem::take(&mut self.sample_units);
+        self.count_window = true;
         Ok(Action::Series {
             sample,
             invalid_quantile: output.invalid_quantile.then_some(self.input.parameters[0]),
             annotations: output.annotations,
             metric,
             nonempty: output.nonempty,
+            sample_units,
         })
     }
 
@@ -474,10 +514,19 @@ impl<'a> Step<'a> {
             }
             let dry = self.dry;
             let kernel = &mut self.kernel;
+            let units = &mut self.sample_units;
+            let counting = self.count_window;
             match self.reader.advance(control, account, |sample| {
                 if dry {
                     Ok(())
                 } else {
+                    if counting {
+                        crate::statistics::add_units(
+                            units,
+                            crate::statistics::weight(sample.value),
+                            account,
+                        );
+                    }
                     kernel.receive(sample, control, account)
                 }
             })? {
@@ -503,6 +552,7 @@ impl<'a> Step<'a> {
                     }
                     match self.kernel.finish_pass(control, account)? {
                         Pass::Replay => {
+                            self.count_window = false;
                             self.dry = true;
                             continue;
                         }

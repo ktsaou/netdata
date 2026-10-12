@@ -17,6 +17,7 @@ pub(crate) struct InstantWindow {
     pub(crate) lookback_ms: i64,
     pub(crate) delta_ms: i64,
     pub(crate) data_bounds: TimeBounds,
+    pub(crate) unit_weight: bool,
 }
 impl InstantWindow {
     #[cfg(test)]
@@ -28,6 +29,7 @@ impl InstantWindow {
             lookback_ms,
             delta_ms: lookback_ms,
             data_bounds,
+            unit_weight: false,
         }
     }
     fn next_lookup(self, current: i64) -> Result<i64, StorageError> {
@@ -45,6 +47,9 @@ pub(crate) trait Projector {
     type Error: From<StorageError> + From<Interrupted>;
     fn moved(&mut self) {}
     fn clear(&mut self) {}
+    fn sample_units(&self, _: &Self::Value, source: SampleValueRef<'_>) -> u64 {
+        crate::statistics::weight(source)
+    }
     fn project(
         &mut self,
         value: SampleValueRef<'_>,
@@ -74,8 +79,15 @@ struct Point<T> {
     start_time_ms: i64,
     stale: bool,
     value: T,
+    units: u64,
+    admitted: std::cell::Cell<bool>,
 }
 impl<T> Point<T> {
+    fn admit(&self, account: &QueryAccounting) {
+        if !self.admitted.replace(true) {
+            account.samples_read(self.units);
+        }
+    }
     fn valid_ref(&self, lookup_ms: i64, lookback_ms: i64) -> Option<&Self> {
         (self.time_ms != i64::MIN
             && self.time_ms > lookup_ms.wrapping_sub(lookback_ms)
@@ -96,12 +108,22 @@ fn access<P: Projector>(
     sample: SampleRef<'_>,
     control: &Control,
     account: &QueryAccounting,
+    unit_weight: bool,
+    admitted: bool,
 ) -> Result<Point<P::Value>, P::Error> {
+    let value = projector.project(sample.value, control, account)?;
+    let units = if unit_weight {
+        1
+    } else {
+        projector.sample_units(&value, sample.value)
+    };
     Ok(Point {
         time_ms: sample.time_ms,
         start_time_ms: sample.start_time_ms,
         stale: sample.value.is_stale(),
-        value: projector.project(sample.value, control, account)?,
+        value,
+        units,
+        admitted: std::cell::Cell::new(admitted),
     })
 }
 
@@ -232,6 +254,7 @@ fn scheduled<S: Series, P: Projector>(
         control,
         account,
         |sample| {
+            let mut admitted = false;
             projector.moved();
             if !initial {
                 last_time = sample.time_ms;
@@ -252,11 +275,25 @@ fn scheduled<S: Series, P: Projector>(
                 if last_time < lookup_ms {
                     // Release the old buffer before projecting its replacement.
                     previous = None;
-                    previous = Some(access(&mut projector, sample, control, account)?);
+                    previous = Some(access(
+                        &mut projector,
+                        sample,
+                        control,
+                        account,
+                        window.unit_weight,
+                        admitted,
+                    )?);
                     return Ok(CursorAction::Next);
                 }
                 // Future access can mutate statistics state even when the predecessor wins.
-                let current = access(&mut projector, sample, control, account)?;
+                let current = access(
+                    &mut projector,
+                    sample,
+                    control,
+                    account,
+                    window.unit_weight,
+                    admitted,
+                )?;
                 let offered = if current.time_ms > lookup_ms {
                     previous
                         .as_ref()
@@ -264,6 +301,9 @@ fn scheduled<S: Series, P: Projector>(
                 } else {
                     (!current.stale).then_some(&current)
                 };
+                if let Some(point) = offered {
+                    point.admit(account);
+                }
                 if visit(
                     lookup_ms,
                     offered.map(|point| (point.time_ms, point.start_time_ms, &point.value)),
@@ -280,6 +320,7 @@ fn scheduled<S: Series, P: Projector>(
                     };
                     return Ok(CursorAction::Stop);
                 };
+                admitted = current.admitted.get();
                 drop(current);
                 lookup_ms = next;
             }
@@ -293,6 +334,9 @@ fn scheduled<S: Series, P: Projector>(
             let offered = previous
                 .as_ref()
                 .and_then(|point| point.valid_ref(lookup_ms, window.lookback_ms));
+            if let Some(point) = offered {
+                point.admit(account);
+            }
             if visit(
                 lookup_ms,
                 offered.map(|point| (point.time_ms, point.start_time_ms, &point.value)),

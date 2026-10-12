@@ -259,9 +259,27 @@ pub(crate) struct EvaluatedSample {
     pub ordinal: usize,
     pub labels: OwnedLabels,
     pub value: OwnedValue,
+    pub(crate) float_samples: Option<crate::statistics::OwnedSamples>,
     pub source_time_ms: i64,
     pub source_start_time_ms: i64,
     pub drop_name: bool,
+}
+impl EvaluatedSample {
+    pub(crate) fn into_parts(self) -> crate::statistics::ValueParts {
+        crate::statistics::ValueParts {
+            value: self.value,
+            float_samples: self.float_samples,
+        }
+    }
+    fn reconcile_samples(&mut self, account: &QueryAccounting) {
+        if matches!(self.value, OwnedValue::Float(_)) {
+            if self.float_samples.is_none() {
+                self.float_samples = crate::statistics::hold_float(account, self.value.as_ref());
+            }
+        } else {
+            self.float_samples = None;
+        }
+    }
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -472,6 +490,7 @@ struct Frame<'a> {
     options: EvaluationOptions,
     step_index: i64,
     boundary_time_ms: Option<i64>,
+    float_samples: [Option<crate::statistics::OwnedSamples>; 2],
 }
 impl<'a> Frame<'a> {
     fn new(
@@ -505,6 +524,7 @@ impl<'a> Frame<'a> {
             options,
             step_index,
             boundary_time_ms,
+            float_samples: [None, None],
         }
     }
 }
@@ -620,7 +640,7 @@ pub(crate) struct ScheduledRow {
 }
 struct SelectedPoint {
     labels: OwnedLabels,
-    value: Option<(i64, i64, OwnedValue)>,
+    value: Option<(i64, i64, crate::statistics::ValueParts)>,
 }
 pub(crate) struct Machine<'a, 'q, Q: QueryProvider + 'q> {
     catalog: &'a Catalog<'q, Q>,
@@ -643,6 +663,7 @@ pub(crate) struct Machine<'a, 'q, Q: QueryProvider + 'q> {
     count_preparation: Option<crate::count_values::Preparation<'a>>,
     scheduled_selector: Option<(NodeId, usize)>,
     selected_point: Option<SelectedPoint>,
+    primary_statistics: Option<&'a crate::statistics::PrimaryProgress<'a>>,
 }
 
 impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
@@ -688,6 +709,7 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
             count_preparation: metadata.count_preparation,
             scheduled_selector: None,
             selected_point: None,
+            primary_statistics: None,
         }
     }
     fn push(&mut self, node: NodeId) -> Result<(), EvaluationError> {
@@ -780,6 +802,19 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
         };
         self.frames[0].step_index = step_index;
         self.step_index = step_index;
+    }
+    pub(crate) fn enable_primary_statistics(
+        &mut self,
+        progress: &'a crate::statistics::PrimaryProgress<'a>,
+    ) {
+        self.primary_statistics = Some(progress);
+    }
+    fn credit_window(&mut self, node: NodeId, units: u64) {
+        if let Some(progress) = self.primary_statistics
+            && node == self.diagnostic_node
+        {
+            progress.add(units);
+        }
     }
     pub(crate) fn restrict(&mut self, ordinals: &'a [usize]) {
         self.frames[0].filter = RowFilter::Ordinals(ordinals);
@@ -941,9 +976,9 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
         grid: crate::query_scopes::Grid,
         mut annotations: Option<&mut AnnotationBuilder>,
         mut visit: impl FnMut(i64, i64, Option<EvaluatedSample>) -> Result<bool, E>,
-    ) -> Result<(), E> {
+    ) -> Result<u64, E> {
         let header = grid.header(self.prepared.header);
-        let leaf = self.replay(
+        let mut leaf = self.replay(
             row.selector,
             EvaluationOptions {
                 time_ms: grid.end_ms,
@@ -954,6 +989,7 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
             },
             None,
         );
+        leaf.primary_statistics = self.primary_statistics;
         leaf.visit_selected_series(
             row.selector,
             row.physical_ordinal,
@@ -990,12 +1026,15 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
                             Ok::<_, EvaluationError>((
                                 sample.time_ms,
                                 sample.start_time_ms,
-                                OwnedValue::from_sample_checked(
-                                    sample.value,
-                                    self.control,
+                                crate::statistics::ValueParts::new(
+                                    OwnedValue::from_sample_checked(
+                                        sample.value,
+                                        self.control,
+                                        self.account,
+                                        MemoryKind::Workspace,
+                                    )?,
                                     self.account,
-                                    MemoryKind::Workspace,
-                                )?,
+                                ),
                             ))
                         })
                         .transpose()?,
@@ -1035,6 +1074,7 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
                 }),
             )
         })
+        .map(|_| ())
     }
 
     pub(crate) fn visit_scheduled(
@@ -1052,7 +1092,8 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
                         visit(time, value)
                     })
                 })
-                .expect("raw scheduled ordinal");
+                .expect("raw scheduled ordinal")
+                .map(|_| ());
         }
         let row =
             self.scheduled_row(root, ordinal, grid, false)?
@@ -1119,9 +1160,20 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
         }
     }
     fn sample(&self, value: f64) -> EvaluatedSample {
+        self.sample_owned(
+            value,
+            Some(crate::statistics::OwnedSamples::new(self.account, 1)),
+        )
+    }
+    fn sample_owned(
+        &self,
+        value: f64,
+        float_samples: Option<crate::statistics::OwnedSamples>,
+    ) -> EvaluatedSample {
         EvaluatedSample {
             ordinal: 0,
             labels: OwnedLabels::new(self.account, MemoryKind::Workspace),
+            float_samples,
             value: OwnedValue::Float(value),
             source_time_ms: self.options.time_ms,
             source_start_time_ms: 0,
@@ -1227,6 +1279,7 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
             selector: identity.1,
             ordinal: identity.2,
             options: self.options,
+            lookback_ns: self.prepared.lookback_ns(self.options.lookback_ms),
             position: self.step_index,
             function,
             parameters,
@@ -1252,7 +1305,7 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
             .prepared
             .adjusted_offset(node, &selector.modifiers, grid.start_ms)
             / 1_000_000;
-        let lookback_ns = self.options.lookback_ms.wrapping_mul(1_000_000);
+        let lookback_ns = self.prepared.lookback_ns(self.options.lookback_ms);
         let lookback_ms = lookback_ns / 1_000_000;
         let data_ms = time_ms.wrapping_sub(offset_ms);
         let range_ms = lookback_ms.wrapping_mul(2);
@@ -1424,6 +1477,7 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
                     },
                     self.rosters.descriptors(body),
                     filter,
+                    self.account,
                 ),
                 &AllocationContext::new(self.account, MemoryKind::Workspace),
             )));
@@ -1447,6 +1501,7 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
                 .lookback_ms
                 .wrapping_sub(i64::from(self.timestamp_selectors[node.0])),
             data_bounds: self.data_bounds,
+            unit_weight: self.timestamp_selectors[node.0],
         }
     }
     pub(crate) fn visit_raw_series<
@@ -1464,7 +1519,7 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
             &[crate::storage::LabelRef<'_>],
             Option<SampleRef<'_>>,
         ) -> Result<bool, E>,
-    ) -> Result<(), E> {
+    ) -> Result<u64, E> {
         self.visit_selected_series(
             node,
             ordinal,
@@ -1513,7 +1568,8 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
             &[crate::storage::LabelRef<'_>],
             Option<SampleRef<'_>>,
         ) -> Result<bool, E>,
-    ) -> Result<(), E> {
+    ) -> Result<u64, E> {
+        let mut sample_units = 0;
         if self
             .prepared
             .activate(
@@ -1523,7 +1579,7 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
             )?
             .is_none()
         {
-            return Ok(());
+            return Ok(0);
         }
         self.select(node, SelectorOperation::Instant)?;
         self.control.check()?;
@@ -1536,7 +1592,7 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
             Some(self.account),
             self.control,
         )? {
-            return Ok(());
+            return Ok(0);
         }
         if self.smooths(node) {
             let mut traversal = crate::query_scopes::Traversal::new(grid, false);
@@ -1544,6 +1600,14 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
                 self.control.check()?;
                 self.account.work(1);
                 let output = self.smoothed_value(node, series, time, grid)?;
+                crate::statistics::add_units(
+                    &mut sample_units,
+                    output.progress.map_or(0, |progress| progress.sample_units),
+                    self.account,
+                );
+                if let Some(progress) = self.primary_statistics {
+                    progress.add(output.progress.map_or(0, |progress| progress.sample_units));
+                }
                 if let Some(annotations) = &mut annotations {
                     for kind in output.annotations.into_iter().flatten() {
                         annotations.add(
@@ -1566,7 +1630,7 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
                 }
                 traversal.advance();
             }
-            return Ok(());
+            return Ok(sample_units);
         }
         let empty = match self.rosters.clock_initial(node, ordinal) {
             Some(crate::storage::InitialSample::Empty) => true,
@@ -1593,7 +1657,7 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
                 }
                 traversal.advance();
             }
-            return Ok(());
+            return Ok(0);
         }
         let mut logical = crate::query_scopes::Traversal::new(grid, false);
         let mut emit = |value: Option<(i64, i64, crate::value::SampleValueRef<'_>)>| {
@@ -1608,6 +1672,17 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
                     start_time_ms,
                     value,
                 });
+                if let Some(sample) = sample {
+                    let units = if self.timestamp_selectors[node.0] {
+                        1
+                    } else {
+                        crate::statistics::weight(sample.value)
+                    };
+                    crate::statistics::add_units(&mut sample_units, units, self.account);
+                    if let Some(progress) = self.primary_statistics {
+                        progress.add(units);
+                    }
+                }
                 if visit(logical_time, index, &labels, sample)? {
                     return Ok::<_, E>(true);
                 }
@@ -1641,7 +1716,7 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
                 self.account,
                 next_lookup,
                 |_, value| emit(value),
-            )
+            )?;
         } else {
             crate::instant_select::visit_mapped(
                 series,
@@ -1649,26 +1724,30 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
                 self.control,
                 self.account,
                 |value| {
-                    Ok::<_, E>(OwnedValue::from_sample_checked(
-                        value,
-                        self.control,
+                    Ok::<_, E>(crate::statistics::ValueParts::new(
+                        OwnedValue::from_sample_checked(
+                            value,
+                            self.control,
+                            self.account,
+                            MemoryKind::Workspace,
+                        )?,
                         self.account,
-                        MemoryKind::Workspace,
-                    )?)
+                    ))
                 },
                 next_lookup,
                 |_, value| emit(value.map(|(time, start, value)| (time, start, value.as_ref()))),
-            )
+            )?;
         }
+        Ok(sample_units)
     }
     pub(crate) fn range_parameters(
         &self,
         node: NodeId,
         function: RangeFunction,
-    ) -> Result<[f64; 2], EvaluationError> {
+    ) -> Result<crate::statistics::FloatParameters, EvaluationError> {
         self.control.check()?;
         self.account.work(1);
-        let mut parameters = [0.0; 2];
+        let mut parameters = crate::statistics::FloatParameters::default();
         if let RangeFunction::Numeric(kind) = function {
             for (position, argument) in scalar_arguments(self.expression, node)
                 .take(kind.parameters())
@@ -1688,7 +1767,8 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
                     let OwnedValue::Float(value) = sample.value else {
                         unreachable!("scalar parameter")
                     };
-                    parameters[position] = value;
+                    parameters.values[position] = value;
+                    parameters.samples[position] = sample.float_samples;
                 }
             }
         }
@@ -1881,7 +1961,9 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
                         )?;
                     }
                 }
-                result.value.map(|value| (self.options.time_ms, 0, value))
+                result
+                    .into_parts()
+                    .map(|value| (self.options.time_ms, 0, value))
             }
             SelectorOperation::Instant => {
                 match self.rosters.clock_initial(selector_node, series_ordinal) {
@@ -1938,12 +2020,15 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
                         self.control,
                         self.account,
                         |value| {
-                            Ok(OwnedValue::from_sample_checked(
-                                value,
-                                self.control,
+                            Ok(crate::statistics::ValueParts::new(
+                                OwnedValue::from_sample_checked(
+                                    value,
+                                    self.control,
+                                    self.account,
+                                    MemoryKind::Workspace,
+                                )?,
                                 self.account,
-                                MemoryKind::Workspace,
-                            )?)
+                            ))
                         },
                         next_lookup,
                     )?
@@ -1982,7 +2067,7 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
                     let RateFunction::Extrapolated(kind) = kind else {
                         unreachable!("validated extended rate function")
                     };
-                    let lookback_ns = self.options.lookback_ms.wrapping_mul(1_000_000);
+                    let lookback_ns = self.prepared.lookback_ns(self.options.lookback_ms);
                     let lookback_ms = lookback_ns / 1_000_000;
                     matrix.range_ms = matrix.range_ms.wrapping_add(if selector.smoothed {
                         lookback_ms.wrapping_mul(2)
@@ -2087,6 +2172,7 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
                         )?;
                     }
                 }
+                self.credit_window(node, result.sample_units());
                 if result.nonempty {
                     self.prepared.sample_statistics_index(
                         node,
@@ -2095,7 +2181,9 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
                         self.account,
                     )?;
                 }
-                result.value.map(|value| (self.options.time_ms, 0, value))
+                result
+                    .into_parts()
+                    .map(|value| (self.options.time_ms, 0, value))
             }
             SelectorOperation::Fold { kind, range_ns } => {
                 let mut matrix = self.matrix_window(selector_node, range_ns, end_ms);
@@ -2163,6 +2251,7 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
                         )?;
                     }
                 }
+                self.credit_window(node, result.sample_units());
                 if result.nonempty {
                     self.prepared.sample_statistics_index(
                         node,
@@ -2171,7 +2260,9 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
                         self.account,
                     )?;
                 }
-                result.value.map(|value| (self.options.time_ms, 0, value))
+                result
+                    .into_parts()
+                    .map(|value| (self.options.time_ms, 0, value))
             }
             SelectorOperation::Numeric {
                 function,
@@ -2248,6 +2339,7 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
                         )?;
                     }
                 }
+                self.credit_window(node, result.sample_units());
                 if result.nonempty {
                     self.prepared.sample_statistics_index(
                         node,
@@ -2256,7 +2348,9 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
                         self.account,
                     )?;
                 }
-                result.value.map(|value| (self.options.time_ms, 0, value))
+                result
+                    .into_parts()
+                    .map(|value| (self.options.time_ms, 0, value))
             }
         };
         self.finish_selector_sample(
@@ -2291,7 +2385,7 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
         operation: SelectorOperation,
         series_ordinal: usize,
         series_labels: &[crate::storage::LabelRef<'_>],
-        value: Option<(i64, i64, OwnedValue)>,
+        value: Option<(i64, i64, crate::statistics::ValueParts)>,
     ) -> Result<Option<EvaluatedSample>, EvaluationError> {
         value
             .map(|(source_time_ms, source_start_time_ms, value)| {
@@ -2313,9 +2407,14 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
                 if drop_name && !self.options.delayed_name_removal {
                     drop_reserved(&mut labels, false, self.account, self.control)?;
                 }
+                let crate::statistics::ValueParts {
+                    value,
+                    float_samples,
+                } = value;
                 Ok::<_, EvaluationError>(EvaluatedSample {
                     ordinal: series_ordinal,
                     labels,
+                    float_samples,
                     value,
                     source_time_ms,
                     source_start_time_ms,
@@ -2712,6 +2811,7 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
                             options: self.options,
                             step_index: self.step_index,
                             boundary_time_ms: None,
+                            float_samples: [None, None],
                         });
                     } else {
                         self.push_all(arguments[0])?;
@@ -2987,6 +3087,7 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
                         }
                     };
                     sample.value = result;
+                    sample.reconcile_samples(self.account);
                     sample.drop_name |= drop_name;
                     if drop_name && !self.options.delayed_name_removal {
                         let name_only = matches!(operation,
@@ -3106,6 +3207,11 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
                     if let OwnedValue::Float(f) = sample.value {
                         *count = (*count + 1).min(2);
                         *value = if *count == 1 { Some(f) } else { None };
+                        self.frames[index].float_samples[0] = if *count == 1 {
+                            sample.float_samples
+                        } else {
+                            None
+                        };
                     }
                     return Ok(None);
                 }
@@ -3122,6 +3228,8 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
                     } else {
                         *right = Some(value);
                     }
+                    let slot = usize::from(*phase != 0);
+                    self.frames[index].float_samples[slot] = sample.float_samples;
                     return Ok(None);
                 }
                 State::Parameters {
@@ -3138,6 +3246,8 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
                         unreachable!("scalar parameter")
                     };
                     parameters[*position] = value;
+                    let slot = *position;
+                    self.frames[index].float_samples[slot] = sample.float_samples;
                     return Ok(None);
                 }
                 State::MixedBinary {
@@ -3149,6 +3259,7 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
                         unreachable!("scalar value")
                     };
                     *scalar = Some(value);
+                    self.frames[index].float_samples[0] = sample.float_samples;
                     return Ok(None);
                 }
                 _ => unreachable!("active parent consumes its child"),
@@ -3159,6 +3270,7 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
     }
 
     pub(crate) fn next(&mut self) -> Result<Option<EvaluatedSample>, EvaluationError> {
+        let _inner_phase = self.account.phase(crate::statistics::Phase::Inner);
         loop {
             self.control.check()?;
             let Some(index) = self.frames.len().checked_sub(1) else {
@@ -3221,7 +3333,7 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
                             |writer| self.materialize_range_bits(source, writer),
                         );
                         if let Ok(value) = &result {
-                            step.receive_backed(*value);
+                            step.receive_backed(*value, self.account);
                         }
                         self.frames[index].state = State::Range(step);
                         result?;
@@ -3265,7 +3377,9 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
                         annotations: notes,
                         metric,
                         nonempty,
+                        sample_units,
                     } => {
+                        self.credit_window(node, sample_units);
                         if node == self.diagnostic_node
                             && let Some(annotations) = &mut self.annotations
                         {
@@ -3826,8 +3940,11 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
                     } else {
                         NAN
                     };
+                    let samples = self.frames[index].float_samples[0]
+                        .take()
+                        .unwrap_or_else(|| crate::statistics::OwnedSamples::new(self.account, 1));
                     self.frames.pop();
-                    let sample = self.sample(value);
+                    let sample = self.sample_owned(value, Some(samples));
                     if let Some(sample) =
                         self.propagate(Self::rebind(sample, boundary_time_ms), self.frames.len())?
                     {
@@ -3848,6 +3965,7 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
                             labels,
                             OwnedLabels::new(self.account, MemoryKind::Workspace),
                         ),
+                        float_samples: Some(crate::statistics::OwnedSamples::new(self.account, 1)),
                         value: OwnedValue::Float(1.0),
                         source_time_ms: self.options.time_ms,
                         source_start_time_ms: 0,
@@ -3941,6 +4059,7 @@ impl<'a, 'q, Q: QueryProvider + 'q> Machine<'a, 'q, Q> {
                             continue;
                         }
                         parameters = [0.0; 2];
+                        self.frames[index].float_samples = [None, None];
                         position = 0;
                         self.frames[index].state = State::RawParameters {
                             function,

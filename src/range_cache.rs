@@ -96,6 +96,7 @@ pub(crate) struct Request {
     pub(crate) selector: NodeId,
     pub(crate) ordinal: usize,
     pub(crate) options: EvaluationOptions,
+    pub(crate) lookback_ns: i64,
     pub(crate) position: i64,
     pub(crate) function: RangeFunction,
     pub(crate) parameters: [f64; 2],
@@ -106,6 +107,7 @@ pub(crate) struct Request {
 #[derive(Clone, Copy, Eq, PartialEq)]
 struct Key {
     scope: Scope,
+    lookback_ns: i64,
     time_ms: i64,
     position: i64,
     function: RangeFunction,
@@ -119,6 +121,7 @@ impl From<&Request> for Key {
     fn from(request: &Request) -> Self {
         Self {
             scope: request.options.into(),
+            lookback_ns: request.lookback_ns,
             time_ms: request.options.time_ms,
             position: request.position,
             function: request.function,
@@ -132,6 +135,7 @@ impl From<&Request> for Key {
 }
 
 pub(crate) struct Folded {
+    float_samples: Option<crate::statistics::OwnedSamples>,
     pub(crate) value: Option<OwnedValue>,
     pub(crate) annotations: [Option<AnnotationKind>; 6],
     pub(crate) invalid_quantile: bool,
@@ -141,6 +145,7 @@ pub(crate) struct Folded {
 impl From<RateOutput> for Folded {
     fn from(output: RateOutput) -> Self {
         Self {
+            float_samples: output.float_samples,
             value: output.value,
             annotations: output.annotations,
             invalid_quantile: false,
@@ -152,6 +157,7 @@ impl From<RateOutput> for Folded {
 impl From<FoldResult> for Folded {
     fn from(output: FoldResult) -> Self {
         Self {
+            float_samples: output.float_samples,
             value: output.value,
             annotations: [
                 output.annotations[0],
@@ -170,6 +176,7 @@ impl From<FoldResult> for Folded {
 impl From<NumericRangeOutput> for Folded {
     fn from(output: NumericRangeOutput) -> Self {
         Self {
+            float_samples: output.float_samples,
             value: output.value.map(OwnedValue::Float),
             annotations: [output.annotation, None, None, None, None, None],
             invalid_quantile: output.invalid_quantile,
@@ -179,25 +186,38 @@ impl From<NumericRangeOutput> for Folded {
     }
 }
 impl Folded {
+    pub(crate) fn into_parts(self) -> Option<crate::statistics::ValueParts> {
+        self.value.map(|value| crate::statistics::ValueParts {
+            value,
+            float_samples: self.float_samples,
+        })
+    }
+    pub(crate) fn sample_units(&self) -> u64 {
+        self.progress.map_or(0, |progress| progress.sample_units)
+    }
     fn copy_checked(
         &self,
         control: &Control,
         account: &QueryAccounting,
     ) -> Result<Self, EvaluationError> {
         control.check()?;
+        let value = self
+            .value
+            .as_ref()
+            .map(|value| {
+                OwnedValue::from_sample_checked(
+                    value.as_ref(),
+                    control,
+                    account,
+                    MemoryKind::Workspace,
+                )
+            })
+            .transpose()?;
         Ok(Self {
-            value: self
-                .value
+            float_samples: value
                 .as_ref()
-                .map(|value| {
-                    OwnedValue::from_sample_checked(
-                        value.as_ref(),
-                        control,
-                        account,
-                        MemoryKind::Workspace,
-                    )
-                })
-                .transpose()?,
+                .and_then(|value| crate::statistics::hold_float(account, value.as_ref())),
+            value,
             annotations: self.annotations,
             invalid_quantile: self.invalid_quantile,
             nonempty: self.nonempty,
@@ -287,7 +307,13 @@ impl Folds {
         if let Some(cached) = cached {
             return cached.folded.copy_checked(control, account);
         }
-        let folded = evaluate(request.window.with_progress(progress))?;
+        let mut folded = evaluate(request.window.with_progress(progress))?;
+        if folded.float_samples.is_none() {
+            folded.float_samples = folded
+                .value
+                .as_ref()
+                .and_then(|value| crate::statistics::hold_float(account, value.as_ref()));
+        }
         let snapshot = Strong::new_in(
             Snapshot { key, folded },
             Some(&AllocationContext::new(account, MemoryKind::Workspace)),
@@ -341,6 +367,7 @@ mod tests {
         };
         Request {
             owner: NodeId(2),
+            lookback_ns: 1_000_000_000,
             selector: NodeId(0),
             ordinal: 0,
             options: EvaluationOptions {
@@ -370,6 +397,7 @@ mod tests {
     }
     fn completed(value: Option<OwnedValue>) -> Folded {
         Folded {
+            float_samples: None,
             value,
             annotations: [
                 Some(AnnotationKind::HistogramIgnoredInMixedRange),

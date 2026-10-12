@@ -134,27 +134,35 @@ impl Sink {
         error: types::Bytes,
         account: &QueryAccounting,
     ) -> Result<(), OutputError> {
-        match status {
-            types::OK => Ok(()),
-            types::CANCELLED => Err(Interrupted::Cancelled.into()),
-            types::DEADLINE => Err(Interrupted::Deadline.into()),
-            types::OUTPUT_ERROR => {
-                let bytes = match unsafe { checked::returned_error(error, account) } {
-                    Ok(bytes) => bytes,
-                    Err(error) => Self::invalid(error.0, account),
-                };
-                Err(OutputError::Failure(bytes))
-            }
-            _ => Err(OutputError::Failure(Self::invalid(
-                "invalid output callback status",
-                account,
-            ))),
-        }
+        unsafe { callback_status(status, error, account) }
     }
+}
+
+pub(super) unsafe fn callback_status(
+    status: u32,
+    error: types::Bytes,
+    account: &QueryAccounting,
+) -> Result<(), OutputError> {
     fn invalid(message: &'static str, account: &QueryAccounting) -> AccountedVec<u8> {
         let mut bytes = AccountedVec::new(account, MemoryKind::Workspace);
         bytes.extend_from_slice(message.as_bytes());
         bytes
+    }
+    match status {
+        types::OK => Ok(()),
+        types::CANCELLED => Err(Interrupted::Cancelled.into()),
+        types::DEADLINE => Err(Interrupted::Deadline.into()),
+        types::OUTPUT_ERROR => {
+            let bytes = match unsafe { checked::returned_error(error, account) } {
+                Ok(bytes) => bytes,
+                Err(error) => invalid(error.0, account),
+            };
+            Err(OutputError::Failure(bytes))
+        }
+        _ => Err(OutputError::Failure(invalid(
+            "invalid output callback status",
+            account,
+        ))),
     }
 }
 impl Drop for Sink {

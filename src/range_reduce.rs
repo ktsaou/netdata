@@ -93,6 +93,7 @@ impl FoldKind {
 }
 
 pub(crate) struct FoldResult {
+    pub(crate) float_samples: Option<crate::statistics::OwnedSamples>,
     pub(crate) value: Option<OwnedValue>,
     pub(crate) annotations: [Option<AnnotationKind>; 2],
     pub(crate) nonempty: bool,
@@ -130,6 +131,7 @@ impl NativeFold {
             self.accumulator
                 .finish(self.count as f64, Finalization::Range, control, account)?;
         Ok(FoldResult {
+            float_samples: None,
             progress: None,
             value: Some(OwnedValue::Histogram(result.value)),
             nonempty: true,
@@ -309,6 +311,7 @@ struct Previous {
     value: OwnedValue,
     time_ms: i64,
     start_time_ms: i64,
+    _float_samples: Option<crate::statistics::OwnedSamples>,
 }
 impl Previous {
     fn copy(
@@ -317,13 +320,13 @@ impl Previous {
         control: &Control,
         account: &QueryAccounting,
     ) -> Result<Self, Interrupted> {
+        let value = crate::statistics::ValueParts::new(
+            OwnedValue::from_sample_checked(sample.value, control, account, MemoryKind::Workspace)?,
+            account,
+        );
         Ok(Self {
-            value: OwnedValue::from_sample_checked(
-                sample.value,
-                control,
-                account,
-                MemoryKind::Workspace,
-            )?,
+            _float_samples: value.float_samples,
+            value: value.value,
             time_ms: sample.time_ms,
             start_time_ms: if use_start { sample.start_time_ms } else { 0 },
         })
@@ -375,6 +378,8 @@ impl FoldError {
 
 /// One owned window accumulator; None from finish_pass requests native replay.
 pub(crate) struct FoldStep {
+    selected_samples: Option<crate::statistics::OwnedSamples>,
+    extrema_samples: Option<crate::statistics::OwnedSamples>,
     kind: FoldKind,
     start_timestamps: bool,
     count: u64,
@@ -394,6 +399,8 @@ pub(crate) struct FoldStep {
 impl FoldStep {
     pub(crate) fn new(kind: FoldKind, start_timestamps: bool) -> Self {
         Self {
+            selected_samples: None,
+            extrema_samples: None,
             kind,
             start_timestamps,
             count: 0,
@@ -460,6 +467,9 @@ impl FoldStep {
                 });
                 if replace {
                     self.float = Some((value, sample.time_ms));
+                    if self.extrema_samples.is_none() {
+                        self.extrema_samples = crate::statistics::hold_float(account, sample.value);
+                    }
                 }
             }
         } else {
@@ -478,12 +488,17 @@ impl FoldStep {
             false
         };
         if replace {
-            self.selected = Some(OwnedValue::copy_from_checked(
-                sample.value,
-                control,
+            let value = crate::statistics::ValueParts::new(
+                OwnedValue::copy_from_checked(
+                    sample.value,
+                    control,
+                    account,
+                    MemoryKind::Workspace,
+                )?,
                 account,
-                MemoryKind::Workspace,
-            )?);
+            );
+            self.selected = Some(value.value);
+            self.selected_samples = value.float_samples;
             self.selected_time = Some(sample.time_ms);
         }
         if kind.previous() {
@@ -595,6 +610,7 @@ impl FoldStep {
                 Ok(result) => result,
                 Err(HistogramEvaluationError::Arithmetic(HistogramError::IncompatibleSchema)) => {
                     FoldResult {
+                        float_samples: None,
                         progress: None,
                         value: None,
                         nonempty: true,
@@ -615,6 +631,7 @@ impl FoldStep {
         if matches!(kind, Sum | Avg) && self.histogram_last.is_some() {
             if mixed {
                 return Ok(Some(FoldResult {
+                    float_samples: None,
                     progress: None,
                     value: None,
                     nonempty: true,
@@ -656,7 +673,15 @@ impl FoldStep {
                 Changes | Resets => Some(OwnedValue::Float(self.changes as f64)),
             }
         };
+        let float_samples = if matches!(kind, First | Last) {
+            self.selected_samples.take()
+        } else {
+            value
+                .as_ref()
+                .and_then(|value| crate::statistics::hold_float(account, value.as_ref()))
+        };
         Ok(Some(FoldResult {
+            float_samples,
             progress: None,
             value,
             nonempty: self.count != 0,
@@ -710,6 +735,7 @@ pub(crate) fn fold<S: Series>(
         )?;
         if !found {
             return Ok(FoldResult {
+                float_samples: None,
                 progress,
                 value: None,
                 nonempty: full_nonempty,
@@ -758,6 +784,68 @@ pub(crate) fn fold<S: Series>(
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn selected_value_replacement_counts_both_initialized_owners() {
+        let histogram = crate::histogram::FloatHistogram::default();
+        for (first, last, expected) in [
+            (SampleValueRef::Float(1.0), SampleValueRef::Float(2.0), 2),
+            (
+                SampleValueRef::Float(1.0),
+                SampleValueRef::FloatHistogram(histogram.as_ref()),
+                12,
+            ),
+            (
+                SampleValueRef::FloatHistogram(histogram.as_ref()),
+                SampleValueRef::Float(2.0),
+                12,
+            ),
+            (
+                SampleValueRef::FloatHistogram(histogram.as_ref()),
+                SampleValueRef::FloatHistogram(histogram.as_ref()),
+                22,
+            ),
+        ] {
+            let account = crate::accounting::EngineAccounting::default().query();
+            let control = Control::default();
+            let mut step = FoldStep::new(FoldKind::Last, false);
+            for (time, value) in [(1000, first), (2000, last)] {
+                step.receive(
+                    SampleRef {
+                        time_ms: time,
+                        start_time_ms: 0,
+                        value,
+                    },
+                    &control,
+                    &account,
+                )
+                .unwrap();
+            }
+            assert_eq!(account.snapshot().statistics.samples.peak_samples, expected);
+            let output = step.finish_pass(&control, &account).unwrap().unwrap();
+            drop((output, step));
+            assert_eq!(account.current_samples(), 0);
+        }
+    }
+
+    #[test]
+    fn failed_float_predecessor_construction_does_not_raise_sample_peak() {
+        let account = crate::accounting::EngineAccounting::default().query();
+        let control = Control::default();
+        control.cancellation.cancel();
+        let outcome = Previous::copy(
+            SampleRef {
+                time_ms: 1000,
+                start_time_ms: 0,
+                value: SampleValueRef::Float(1.0),
+            },
+            false,
+            &control,
+            &account,
+        );
+        assert!(matches!(outcome, Err(Interrupted::Cancelled)));
+        assert_eq!(account.snapshot().statistics.samples.peak_samples, 0);
+        assert_eq!(account.current_samples(), 0);
+    }
     use crate::{
         accounting::EngineAccounting,
         histogram::{FloatHistogram, Span},

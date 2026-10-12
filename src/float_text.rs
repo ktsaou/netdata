@@ -18,6 +18,8 @@ pub enum FloatTextStyle {
     TwoSignificant,
     /// Prometheus label formatting, with decimal zero and integer suffixes.
     OpenMetrics,
+    /// Prometheus API sample text, before the surrounding JSON quotes.
+    PrometheusApi,
 }
 
 /// Inline numeric text; final destination ownership stays with the caller.
@@ -87,6 +89,11 @@ pub fn float_text(value: f64, style: FloatTextStyle) -> FloatText {
             decimal.count as i32
         },
         style != FloatTextStyle::TwoSignificant,
+        if style == FloatTextStyle::PrometheusApi {
+            Some(value != 0.0 && (value.abs() < 1e-6 || value.abs() >= 1e21))
+        } else {
+            None
+        },
     );
     if style == FloatTextStyle::OpenMetrics
         && !output.as_bytes().iter().any(|&b| b == b'.' || b == b'e')
@@ -176,40 +183,57 @@ pub(crate) fn append_fixed(
 ) -> Result<(), Interrupted> {
     control.check()?;
     account.work(1);
-    let decimal = Decimal::new(value, true);
+    render_fixed(&Decimal::new(value, true), |bytes| {
+        append_bytes_checked(output, bytes, account, control)
+    })
+}
+
+pub(crate) fn fixed_text_into(value: f64, target: &mut [u8]) -> Result<usize, std::fmt::Error> {
+    let mut len = 0;
+    render_fixed(&Decimal::new(value, true), |bytes| {
+        let end = len + bytes.len();
+        let output = target.get_mut(len..end).ok_or(std::fmt::Error)?;
+        output.copy_from_slice(bytes);
+        len = end;
+        Ok(())
+    })?;
+    Ok(len)
+}
+
+fn render_fixed<E>(
+    decimal: &Decimal,
+    mut append: impl FnMut(&[u8]) -> Result<(), E>,
+) -> Result<(), E> {
     if let Some(special) = decimal.special {
-        return append_bytes_checked(output, special, account, control);
+        return append(special);
     }
     if decimal.negative {
-        append_bytes_checked(output, b"-", account, control)?;
+        append(b"-")?;
     }
     let digits = &decimal.digits[..decimal.count];
     let point = decimal.point;
     if point > 0 {
         let end = digits.len().min(point as usize);
-        append_bytes_checked(output, &digits[..end], account, control)?;
-        zeros(output, point as usize - end, control, account)?;
+        append(&digits[..end])?;
+        fixed_zeros(point as usize - end, &mut append)?;
     } else {
-        append_bytes_checked(output, b"0", account, control)?;
+        append(b"0")?;
     }
     if decimal.count as i32 > point {
-        append_bytes_checked(output, b".", account, control)?;
-        zeros(output, (-point).max(0) as usize, control, account)?;
-        append_bytes_checked(output, &digits[point.max(0) as usize..], account, control)?;
+        append(b".")?;
+        fixed_zeros((-point).max(0) as usize, &mut append)?;
+        append(&digits[point.max(0) as usize..])?;
     }
     Ok(())
 }
-
-fn zeros(
-    output: &mut AccountedVec<u8>,
+fn fixed_zeros<E>(
     mut count: usize,
-    control: &Control,
-    account: &QueryAccounting,
-) -> Result<(), Interrupted> {
+    append: &mut impl FnMut(&[u8]) -> Result<(), E>,
+) -> Result<(), E> {
     const ZEROS: &[u8] = &[b'0'; 32];
     while count != 0 {
         let next = count.min(ZEROS.len());
-        append_bytes_checked(output, &ZEROS[..next], account, control)?;
+        append(&ZEROS[..next])?;
         count -= next;
     }
     Ok(())
@@ -222,6 +246,7 @@ fn general(
     point: i32,
     mut precision: i32,
     shortest: bool,
+    scientific: Option<bool>,
 ) {
     let count = digits.len() as i32;
     let mut exponent_precision = precision;
@@ -235,7 +260,7 @@ fn general(
         output.push(b'-');
     }
     let mut exponent = point - 1;
-    if exponent < -4 || exponent >= exponent_precision {
+    if scientific.unwrap_or(exponent < -4 || exponent >= exponent_precision) {
         precision = precision.min(count) - 1;
         output.push(digits.first().copied().unwrap_or(b'0'));
         if precision > 0 {

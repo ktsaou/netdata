@@ -159,7 +159,7 @@ pub(crate) struct Step<'a> {
     position: usize,
     retry: bool,
     choice: Option<Choice>,
-    values: [Option<OwnedValue>; 2],
+    values: [Option<crate::statistics::ValueParts>; 2],
     last_diagnostic: Option<Diagnostic>,
 }
 impl<'a> Step<'a> {
@@ -209,7 +209,7 @@ impl<'a> Step<'a> {
                 let index = usize::from(matches!(self.phase, Phase::WaitRight));
                 let operand = self.operand(index).expect("pending pair operand");
                 if self.values[index].is_none() && sample.value.kind_bit() == operand.kind {
-                    self.values[index] = Some(sample.value);
+                    self.values[index] = Some(sample.into_parts());
                 }
             }
             _ => unreachable!("binary phase consumes child"),
@@ -514,7 +514,10 @@ impl<'a> Step<'a> {
                         continue;
                     };
                     if let Some(value) = operand.fill {
-                        self.values[index] = Some(OwnedValue::Float(value));
+                        self.values[index] = Some(crate::statistics::ValueParts::new(
+                            OwnedValue::Float(value),
+                            account,
+                        ));
                         self.phase = if index == 0 {
                             Phase::ReadRight
                         } else {
@@ -546,7 +549,7 @@ impl<'a> Step<'a> {
                 Phase::Emit => {
                     self.phase = Phase::Pairs;
                     let value = self.values[0].take().expect("first replay value");
-                    let (ordinal, labels, value, drop_name) = match self
+                    let (ordinal, labels, parts, drop_name) = match self
                         .choice
                         .expect("binary choice")
                     {
@@ -579,8 +582,13 @@ impl<'a> Step<'a> {
                             } else {
                                 (value, other)
                             };
-                            let pair =
-                                binary_value::evaluate(self.operator, lhs, rhs, control, account)?;
+                            let pair = binary_value::evaluate(
+                                self.operator,
+                                lhs.value,
+                                rhs.value,
+                                control,
+                                account,
+                            )?;
                             if pair.diagnostic.is_some() {
                                 self.last_diagnostic = pair.diagnostic;
                             }
@@ -637,7 +645,13 @@ impl<'a> Step<'a> {
                             } else if !pair.keep {
                                 continue;
                             }
-                            (ordinal, labels, value, self.return_bool)
+                            drop((lhs.float_samples, rhs.float_samples));
+                            (
+                                ordinal,
+                                labels,
+                                crate::statistics::ValueParts::new(value, account),
+                                self.return_bool,
+                            )
                         }
                     };
                     let hash = label_hash::full(&labels, control, account)?;
@@ -650,7 +664,8 @@ impl<'a> Step<'a> {
                     return Ok(Action::Sample(EvaluatedSample {
                         ordinal,
                         labels,
-                        value,
+                        float_samples: parts.float_samples,
+                        value: parts.value,
                         drop_name,
                         source_time_ms: options.time_ms,
                         source_start_time_ms: 0,

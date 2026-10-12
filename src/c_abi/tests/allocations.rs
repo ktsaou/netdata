@@ -149,13 +149,33 @@ fn foreign_overlap_resize_and_wrapper_bytes_are_precise_and_keep_the_creator() {
 }
 
 #[test]
+fn foreign_shared_exposure_is_separate_from_owned_storage() {
+    let engine = crate::accounting::EngineAccounting::default();
+    let account = engine.query();
+    unsafe {
+        let first = acquire(&account, MemoryKind::BorrowedView, 1024);
+        let second = acquire(&account, MemoryKind::BorrowedView, 1024);
+        assert_eq!(account.snapshot().memory[4].current, 2048);
+        assert_eq!(account.snapshot().memory[1].current, 0);
+        assert_eq!(account.snapshot().memory[3].current, 0);
+        assert_eq!(netdata_promql_allocation_resize(first, 4096), types::OK);
+        assert_eq!(account.snapshot().memory[4].peak, 5120);
+        assert_eq!(netdata_promql_allocation_release(second), types::OK);
+        drop(account);
+        assert_eq!(engine.snapshot().memory[4].current, 4096);
+        assert_eq!(netdata_promql_allocation_release(first), types::OK);
+    }
+    engine.snapshot().assert_memory_released();
+}
+
+#[test]
 fn allocation_shape_and_category_failures_do_not_acquire_a_lease() {
     let engine = crate::accounting::EngineAccounting::default();
     let account = engine.query();
     let before = account.snapshot();
     unsafe {
         let live = acquire(&account, MemoryKind::Workspace, 0);
-        for kind in [4, 5, 6, 7, u32::MAX] {
+        for kind in [5, 6, 7, u32::MAX] {
             let mut handle = live;
             assert_eq!(
                 netdata_promql_allocation_acquire(
@@ -207,6 +227,7 @@ fn allocation_shape_and_category_failures_do_not_acquire_a_lease() {
             MemoryKind::Workspace,
             MemoryKind::Result,
             MemoryKind::ProviderHeld,
+            MemoryKind::BorrowedView,
         ] {
             let handle = acquire(&account, kind, 31);
             assert_eq!(account.snapshot().memory[kind as usize].current, 31);

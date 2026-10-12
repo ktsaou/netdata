@@ -110,7 +110,16 @@ impl<'q, Q: QueryProvider + 'q> Catalog<'q, Q> {
     ) -> Result<AnnotationBuilder, ExpansionFailure> {
         let mut sites = self.sites.borrow_mut();
         let site = sites[node.0].as_mut().expect("upfront selector site");
-        self.expand_site(site, ExpansionMode::Ordinary, None, control, account)
+        let Expr::Selector(selector) = &self.expression.arena[node].expression else {
+            unreachable!("upfront selector site")
+        };
+        self.expand_site(
+            site,
+            ExpansionMode::Ordinary,
+            Some(&selector.matchers),
+            control,
+            account,
+        )
     }
 
     pub(crate) fn select_info(

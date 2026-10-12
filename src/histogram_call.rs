@@ -307,8 +307,10 @@ pub(crate) struct Step<'a> {
     replay: Option<Replay>,
     mutation: Option<Mutation>,
     prepared_length: usize,
-    producers: AccountedVec<f64>,
+    producers: crate::classic_mutation::Producers,
     pending: Option<OwnedValue>,
+    pending_samples: Option<crate::statistics::OwnedSamples>,
+    parameter_samples: [Option<crate::statistics::OwnedSamples>; 10],
     notes: Option<AnnotationBuilder>,
     seen: AccountedVec<u64>,
     duplicate: bool,
@@ -341,8 +343,10 @@ impl<'a> Step<'a> {
             replay: None,
             mutation: None,
             prepared_length: 0,
-            producers: AccountedVec::new(account, MemoryKind::Workspace),
+            producers: crate::classic_mutation::Producers::new(account),
             pending: None,
+            pending_samples: None,
+            parameter_samples: std::array::from_fn(|_| None),
             notes: logical.then(|| AnnotationBuilder::new(account)),
             seen: AccountedVec::new(account, MemoryKind::Workspace),
             duplicate: false,
@@ -361,6 +365,7 @@ impl<'a> Step<'a> {
                     && let OwnedValue::Float(value) = sample.value
                 {
                     self.parameters[index] = Some(value);
+                    self.parameter_samples[index] = sample.float_samples;
                 }
             }
             Phase::Vector => {
@@ -381,6 +386,7 @@ impl<'a> Step<'a> {
                     && self.plan.row(&sample, control, account)? == row
                 {
                     self.pending = Some(sample.value);
+                    self.pending_samples = sample.float_samples;
                 }
             }
             _ => unreachable!("histogram phase consumes child"),
@@ -729,6 +735,7 @@ impl<'a> Step<'a> {
     fn emit(
         &mut self,
         value: f64,
+        samples: Option<crate::statistics::OwnedSamples>,
         options: EvaluationOptions,
         preparation: Option<Preparation<'a>>,
         control: &Control,
@@ -801,6 +808,9 @@ impl<'a> Step<'a> {
         Ok(EvaluatedSample {
             ordinal,
             labels,
+            float_samples: Some(
+                samples.unwrap_or_else(|| crate::statistics::OwnedSamples::new(account, 1)),
+            ),
             value: OwnedValue::Float(value),
             source_time_ms: options.time_ms,
             source_start_time_ms: 0,
@@ -913,6 +923,7 @@ impl<'a> Step<'a> {
                                 self.mutation = Some(Mutation::new(
                                     self.parameters[self.quantile].unwrap(),
                                     &mut self.bounds[self.groups[position].bounds.clone()],
+                                    account,
                                     || {
                                         control.check()?;
                                         account.work(1);
@@ -938,6 +949,7 @@ impl<'a> Step<'a> {
                             self.replay = Some(Replay::new(
                                 operation,
                                 &mut self.bounds[self.groups[position].bounds.clone()],
+                                account,
                                 || {
                                     control.check()?;
                                     account.work(1);
@@ -1001,6 +1013,7 @@ impl<'a> Step<'a> {
                     }
                     return Ok(Action::Sample(self.emit(
                         result.value,
+                        None,
                         options,
                         preparation,
                         control,
@@ -1028,7 +1041,10 @@ impl<'a> Step<'a> {
                                         "classic producer reference is missing",
                                     ),
                                 )?;
-                                self.replay.as_mut().expect("classic replay").receive(value);
+                                self.replay.as_mut().expect("classic replay").receive(
+                                    value,
+                                    Some(crate::statistics::OwnedSamples::new(account, 1)),
+                                );
                                 continue;
                             }
                             self.phase = Phase::Count {
@@ -1042,7 +1058,8 @@ impl<'a> Step<'a> {
                                 ordinal: Some(&self.plan.rows[row].ordinal),
                             });
                         }
-                        classic_replay::Action::Done(result) => {
+                        classic_replay::Action::Done(parts) => {
+                            let result = parts.result;
                             if result.forced_monotonicity
                                 && let Some(notes) = &mut self.notes
                             {
@@ -1069,6 +1086,7 @@ impl<'a> Step<'a> {
                             self.replay = None;
                             return Ok(Action::Sample(self.emit(
                                 result.value,
+                                Some(parts.samples),
                                 options,
                                 preparation,
                                 control,
@@ -1096,10 +1114,11 @@ impl<'a> Step<'a> {
                                         "classic producer reference is missing",
                                     ),
                                 )?;
-                                self.mutation
-                                    .as_mut()
-                                    .expect("classic mutation")
-                                    .receive(value, &mut self.bounds[bounds]);
+                                self.mutation.as_mut().expect("classic mutation").receive(
+                                    value,
+                                    Some(crate::statistics::OwnedSamples::new(account, 1)),
+                                    &mut self.bounds[bounds],
+                                );
                                 continue;
                             }
                             self.phase = Phase::Count {
@@ -1135,6 +1154,7 @@ impl<'a> Step<'a> {
                     if mutating {
                         self.mutation.as_mut().expect("classic mutation").receive(
                             value,
+                            self.pending_samples.take(),
                             &mut self.bounds[self.groups[position].bounds.clone()],
                         );
                         self.phase = Phase::Mutate(position);
@@ -1142,7 +1162,7 @@ impl<'a> Step<'a> {
                         self.replay
                             .as_mut()
                             .expect("classic count continuation")
-                            .receive(value);
+                            .receive(value, self.pending_samples.take());
                         self.phase = Phase::Classic(position);
                     }
                 }

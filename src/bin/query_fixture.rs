@@ -6,7 +6,10 @@ use netdata_promql_engine::{
     accounting::{MemoryKind, QueryObservations},
     annotations::{Annotations, Severity},
     evaluator::EvaluationError,
-    execution::{CompileError, Engine, EngineOptions, ExecutionError, QueryRequest},
+    execution::{
+        CompileError, Engine, EngineOptions, ExecutionError, PreciseQueryRequest, QueryRequest,
+        Timestamp,
+    },
     frontend::ast::{MatchType, ParseError, ParserOptions, ValueType},
     result::{CollectedResult, OwnedValue},
     storage::{
@@ -496,6 +499,40 @@ fn parse_failure(source: &[u8], errors: &[ParseError]) -> Value {
     result["parse_errors"] = json!(errors.iter().map(|e| json!({"start": e.span.start, "end": e.span.end, "line_offset": 0, "message": encoded_bytes(&e.message)})).collect::<Vec<_>>());
     result
 }
+fn precise_request(request: &Value) -> Result<Option<PreciseQueryRequest>, Error> {
+    let Some(precise) = request.get("precise") else {
+        return Ok(None);
+    };
+    let timestamp = |value: &Value| -> Result<Timestamp, Error> {
+        Ok(Timestamp {
+            unix_seconds: value["unix_seconds"]
+                .as_i64()
+                .ok_or("invalid precise seconds")?,
+            nanoseconds: value["nanoseconds"]
+                .as_u64()
+                .ok_or("invalid precise nanoseconds")?
+                .try_into()?,
+        })
+    };
+    let lookback_ns = precise["lookback_ns"]
+        .as_i64()
+        .ok_or("missing resolved precise lookback")?;
+    Ok(Some(match request["mode"].as_str() {
+        Some("instant") => PreciseQueryRequest::Instant {
+            time: timestamp(&precise["start"])?,
+            lookback_ns,
+        },
+        Some("range") => PreciseQueryRequest::Range {
+            start: timestamp(&precise["start"])?,
+            end: timestamp(&precise["end"])?,
+            interval_ns: precise["interval_ns"]
+                .as_i64()
+                .ok_or("invalid precise interval")?,
+            lookback_ns,
+        },
+        _ => return Err("unknown precise query mode".into()),
+    }))
+}
 fn evaluate(provider: &FixtureProvider, request: &Value) -> Result<Value, Error> {
     let id = request["id"].as_str().ok_or("missing query id")?;
     if request["dataset_id"].as_str() != Some(&provider.id) {
@@ -587,7 +624,11 @@ fn evaluate(provider: &FixtureProvider, request: &Value) -> Result<Value, Error>
         );
         return Ok(json!({"id": id, "result": result}));
     }
-    let report = query.collect_reported(provider, query_request, &control);
+    let report = if let Some(precise) = precise_request(request)? {
+        query.collect_precise_reported(provider, precise, &control)
+    } else {
+        query.collect_reported(provider, query_request, &control)
+    };
     let observed = observations(&report.observations);
     result["warnings"] = json!(messages(&report.annotations, Severity::Warning));
     result["infos"] = json!(messages(&report.annotations, Severity::Info));

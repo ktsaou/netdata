@@ -19,7 +19,7 @@ Netdata metadata, dbengine formats, HTTP transports and rule scheduling are call
 - Default stable and explicit upstream-test profiles differ. An optional-feature witness does not qualify the default.
 - Historical panels retain their original source and binary identities. See `core-qualification.json` and `IMPORT.json`.
 - Raw history must remain paged on both axes. Temporary backing belongs to the provider; unavailable backing is an error.
-- C ABI3 owns explicit handles, borrows callback buffers and commits provisional output only after successful evaluation.
+- C ABI4 owns explicit handles, borrows callback buffers and commits provisional output only after successful evaluation.
 - Ordinary C-boundary panics must unwind. An abort build is rejected by `src/lib.rs`.
 
 ## Best practices
@@ -51,6 +51,18 @@ Netdata metadata, dbengine formats, HTTP transports and rule scheduling are call
 - `cargo test --locked --features fixtures --release` checks owned core behavior.
 - `cargo test --locked --features fixtures --profile release-min` checks the independent unwind profile.
 - `tests/promql-conformance/c_embedding.py` builds actual C/C++ callers; inspect `--help` for installed targets.
+- `protocol_primitives.py --binary <protocol-fixture>` replays frozen parsing/formatting/selectors. Its two
+  time-parameter and twelve batch-wrapper exclusions are caller coverage, not passing core cases.
+- `precision.py --binary <query-fixture>` replays nine precise-clock originals at pages 1/17/1024.
+  Run both primitive gates for both profiles; neither qualifies an HTTP router or live provider.
+- Histogram visitors and fixed-size basic statistics enlarge the ABI4 observation/layout roster. Rebuild actual
+  C/C++ callers, verify generated layouts and keep caller sanitizer scope distinct from the Rust archive.
+- Basic statistics describe actual paged ownership. Check useful reads against unused fetched prefixes and
+  validation-only acquisition; check logical totals across primary folds/subqueries independently of replays.
+  Include output/copy/replacement lifetimes and pinned native-histogram weights in peak checks. Do not equate
+  these counts with RAM bytes or recreate upstream's materialized matrices to match its physical peak.
+- Retained generic runners may use process-signalling timeout helpers. For a new qualification without explicit
+  signal approval, use a recorded Popen/communicate owner and preserve child identity/completion receipts.
 - Follow the conformance README for pinned differential panels; preserve its stated tolerance and bit diagnostics.
 - Check remaining references after source/header/harness moves, and disposition historical references explicitly.
 

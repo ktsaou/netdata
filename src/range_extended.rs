@@ -48,14 +48,19 @@ impl<S: Series> Reader<'_, S> {
         let mut point = None;
         self.walk::<StorageError>(|position, sample| {
             if position == index {
-                point = Some(Point {
-                    time: sample.time_ms,
-                    value: OwnedValue::from_sample_checked(
+                let value = crate::statistics::ValueParts::new(
+                    OwnedValue::from_sample_checked(
                         sample.value,
                         self.control,
                         self.account,
                         MemoryKind::Workspace,
                     )?,
+                    self.account,
+                );
+                point = Some(Point {
+                    time: sample.time_ms,
+                    value: value.value,
+                    float_samples: value.float_samples,
                 });
             }
             Ok(())
@@ -82,6 +87,7 @@ impl<S: Series> Reader<'_, S> {
             Ok(())
         })?;
         result.histograms_allocated = acquisition.histograms_allocated;
+        result.progress = Some(acquisition.progress);
         Ok(result)
     }
 
@@ -124,7 +130,7 @@ impl<S: Series> Reader<'_, S> {
         smoothed: bool,
         counter: bool,
         output: &mut RateOutput,
-    ) -> Result<Option<OwnedValue>, StorageError> {
+    ) -> Result<Option<crate::statistics::ValueParts>, StorageError> {
         let mut point = self.point(index)?;
         let time = if left {
             self.input.range_start_ms
@@ -141,7 +147,7 @@ impl<S: Series> Reader<'_, S> {
         if let OwnedValue::Histogram(value) = &mut point.value {
             value.normalize_copy_fields();
         }
-        Ok(Some(point.value))
+        Ok(Some(point.into_parts()))
     }
 
     fn interpolate(
@@ -151,7 +157,7 @@ impl<S: Series> Reader<'_, S> {
         time: i64,
         counter: bool,
         output: &mut RateOutput,
-    ) -> Result<Option<OwnedValue>, StorageError> {
+    ) -> Result<Option<crate::statistics::ValueParts>, StorageError> {
         if matches!(first.value, OwnedValue::Histogram(_)) {
             let exact = if time == first.time {
                 Some(&mut first.value)
@@ -163,9 +169,9 @@ impl<S: Series> Reader<'_, S> {
             if let Some(OwnedValue::Histogram(value)) = exact {
                 value.normalize_copy_fields();
                 return Ok(Some(if time == first.time {
-                    first.value
+                    first.into_parts()
                 } else {
-                    second.value
+                    second.into_parts()
                 }));
             }
         }
@@ -181,7 +187,10 @@ impl<S: Series> Reader<'_, S> {
                     first,
                     source_div(source_mul(source_sub(second, first), elapsed), interval),
                 );
-                Ok(Some(OwnedValue::Float(value)))
+                Ok(Some(crate::statistics::ValueParts::new(
+                    OwnedValue::Float(value),
+                    self.account,
+                )))
             }
             (OwnedValue::Histogram(first), OwnedValue::Histogram(mut second)) => {
                 let fraction = source_div(elapsed, interval);
@@ -199,7 +208,10 @@ impl<S: Series> Reader<'_, S> {
                 if !reset && !arithmetic(&mut second, first.as_ref(), false, output, self)? {
                     return Ok(None);
                 }
-                Ok(Some(OwnedValue::Histogram(second)))
+                Ok(Some(crate::statistics::ValueParts {
+                    value: OwnedValue::Histogram(second),
+                    float_samples: None,
+                }))
             }
             _ => Err(changed_kind()),
         }
@@ -215,6 +227,7 @@ impl<S: Series> Reader<'_, S> {
         let end = selected.last + u64::from(selected.last_time < self.input.range_end_ms);
         assert!(first <= end, "source float correction slice");
         let mut previous = left;
+        let _previous_samples = crate::statistics::OwnedSamples::new(self.account, 1);
         let mut correction = 0.0;
         self.walk::<StorageError>(|index, sample| {
             if index < first || index >= end {
@@ -317,6 +330,15 @@ impl<S: Series> Reader<'_, S> {
 struct Point {
     time: i64,
     value: OwnedValue,
+    float_samples: Option<crate::statistics::OwnedSamples>,
+}
+impl Point {
+    fn into_parts(self) -> crate::statistics::ValueParts {
+        crate::statistics::ValueParts {
+            value: self.value,
+            float_samples: self.float_samples,
+        }
+    }
 }
 
 enum Correction {
@@ -326,6 +348,7 @@ enum Correction {
 
 #[derive(Default)]
 struct Description {
+    progress: Option<crate::matrix_reader::Progress>,
     count: u64,
     floats: bool,
     histograms: bool,
@@ -455,8 +478,13 @@ pub(crate) struct MatrixExtension<'a, S> {
     outcome: MatrixOutcome,
     left: f64,
     right: f64,
+    endpoint_samples: [Option<crate::statistics::OwnedSamples>; 2],
+    sample_units: u64,
 }
 impl<S: Series> MatrixExtension<'_, S> {
+    pub(crate) fn sample_units(&self) -> u64 {
+        self.sample_units
+    }
     pub(crate) fn histograms(&self) -> bool {
         matches!(self.outcome, MatrixOutcome::Histograms)
     }
@@ -522,6 +550,10 @@ pub(crate) fn matrix<'a, S: Series>(
         outcome: MatrixOutcome::Empty,
         left: 0.0,
         right: 0.0,
+        endpoint_samples: [None, None],
+        sample_units: description
+            .progress
+            .map_or(0, |progress| progress.sample_units),
     };
     // Even an admitted stale histogram allocates the source histogram lane.
     if description.histograms_allocated {
@@ -535,22 +567,27 @@ pub(crate) fn matrix<'a, S: Series>(
         return Ok(extension);
     }
     let mut output = RateOutput::default();
-    let Some(OwnedValue::Float(left)) =
+    let Some(left) =
         extension
             .reader
             .boundary(selected.first, true, smoothed, false, &mut output)?
     else {
         return Err(changed_kind());
     };
-    let Some(OwnedValue::Float(right)) =
+    let Some(right) =
         extension
             .reader
             .boundary(selected.last, false, smoothed, false, &mut output)?
     else {
         return Err(changed_kind());
     };
-    extension.left = left;
-    extension.right = right;
+    let (OwnedValue::Float(left_value), OwnedValue::Float(right_value)) = (left.value, right.value)
+    else {
+        return Err(changed_kind());
+    };
+    extension.left = left_value;
+    extension.right = right_value;
+    extension.endpoint_samples = [left.float_samples, right.float_samples];
     extension.outcome = MatrixOutcome::Floats {
         first: selected.first + u64::from(selected.first_time <= input.range_start_ms),
         end: selected.last + u64::from(selected.last_time < input.range_end_ms),
@@ -575,6 +612,7 @@ pub(crate) fn smooth<S: Series>(
     let description = reader.describe()?;
     let mut output = RateOutput {
         nonempty: description.count != 0,
+        progress: description.progress,
         ..RateOutput::default()
     };
     // Classification covers the complete acquired window, including distant neighbors.
@@ -589,6 +627,7 @@ pub(crate) fn smooth<S: Series>(
             if let OwnedValue::Histogram(value) = &mut point.value {
                 value.normalize_copy_fields();
             }
+            output.float_samples = point.float_samples;
             output.value = Some(point.value);
         } else if index > 0 {
             let previous = reader.point(index - 1)?;
@@ -607,7 +646,10 @@ pub(crate) fn smooth<S: Series>(
                 }
                 _ => false,
             };
-            output.value = reader.interpolate(previous, next, time, counter, &mut output)?;
+            if let Some(value) = reader.interpolate(previous, next, time, counter, &mut output)? {
+                output.float_samples = value.float_samples;
+                output.value = Some(value.value);
+            }
         }
     } else if let Some(index) = description.count.checked_sub(1) {
         let mut point = reader.point(index)?;
@@ -615,8 +657,10 @@ pub(crate) fn smooth<S: Series>(
             value.normalize_copy_fields();
             value.set_reset_hint(crate::histogram::UNKNOWN_RESET);
         }
+        output.float_samples = point.float_samples;
         output.value = Some(point.value);
     }
+    output.account_value(account);
     Ok(output)
 }
 
@@ -639,6 +683,7 @@ pub(crate) fn evaluate<S: Series>(
     let description = reader.describe()?;
     let mut output = RateOutput {
         nonempty: description.count != 0,
+        progress: description.progress,
         ..RateOutput::default()
     };
     if description.floats && description.histograms {
@@ -658,7 +703,7 @@ pub(crate) fn evaluate<S: Series>(
     let Some(right) = reader.boundary(selected.last, false, smoothed, counter, &mut output)? else {
         return Ok(output);
     };
-    let value = match (left, right) {
+    let value = match (left.value, right.value) {
         (OwnedValue::Float(left), OwnedValue::Float(right)) => {
             let mut result = source_sub(right, left);
             if counter {
@@ -712,6 +757,7 @@ pub(crate) fn evaluate<S: Series>(
         _ => return Err(changed_kind()),
     };
     output.value = Some(value);
+    output.account_value(account);
     Ok(output)
 }
 
@@ -736,6 +782,7 @@ mod tests {
         };
         // A completed-lane descriptor exercises the boundary without retaining its history.
         let description = Description {
+            progress: None,
             count: boundary + 4,
             floats: true,
             histograms: false,

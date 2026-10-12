@@ -325,6 +325,8 @@ pub(crate) struct ScalarShape {
 
 #[derive(Default)]
 struct NodeRoster {
+    sample_units: u64,
+    primary_statistics: bool,
     scheduled_selector: Option<NodeId>,
     output: Option<AccountedVec<Descriptor>>,
     sources: Option<AccountedVec<usize>>,
@@ -346,8 +348,46 @@ struct NodeRoster {
 }
 pub(crate) struct Rosters {
     nodes: AccountedVec<NodeRoster>,
+    result_node: Option<NodeId>,
+    published_samples: u64,
 }
 impl Rosters {
+    pub(crate) fn set_result_node(&mut self, node: NodeId) {
+        self.result_node = Some(node);
+    }
+    pub(crate) fn sample_units(&self, node: NodeId) -> u64 {
+        self.nodes[node.0].sample_units
+    }
+    pub(crate) fn set_statistics_role(&mut self, node: NodeId, primary: bool) {
+        self.nodes[node.0].primary_statistics = primary;
+    }
+    pub(crate) fn publishes_statistics(&self, node: NodeId) -> bool {
+        self.nodes[node.0].primary_statistics
+    }
+    pub(crate) fn published_samples(&self) -> u64 {
+        self.published_samples
+    }
+    pub(crate) fn finish_statistics(
+        &mut self,
+        node: NodeId,
+        units: u64,
+        children: u64,
+        account: &QueryAccounting,
+    ) {
+        self.nodes[node.0].sample_units = units;
+        if self.publishes_statistics(node) {
+            // A completed parent replaces the contributions its children already published.
+            self.published_samples = self
+                .published_samples
+                .checked_sub(children)
+                .and_then(|remaining| remaining.checked_add(units))
+                .unwrap_or_else(|| {
+                    account.statistics_overflow();
+                    u64::MAX
+                });
+            account.queryable_samples(self.published_samples);
+        }
+    }
     pub(crate) fn scheduled_selector(&self, node: NodeId) -> Option<NodeId> {
         self.nodes[node.0].scheduled_selector
     }
@@ -694,7 +734,11 @@ impl Rosters {
             values.push(NodeRoster::default());
         }
         control.check()?;
-        Ok(Self { nodes: values })
+        Ok(Self {
+            nodes: values,
+            result_node: None,
+            published_samples: 0,
+        })
     }
     pub(crate) fn take_output(&mut self, node: NodeId) -> Option<AccountedVec<Descriptor>> {
         self.nodes[node.0].output.take()
@@ -715,6 +759,8 @@ impl Rosters {
         account: &QueryAccounting,
     ) -> Result<(), Interrupted> {
         // Production identities are unique here; identity-changing operators use ordered output.
+        let _sort_phase =
+            (self.result_node == Some(node)).then(|| account.phase(crate::statistics::Phase::Sort));
         evaluator_order::sort(&mut descriptors, control, account, |left, right| {
             left.ordinal.cmp(&right.ordinal)
         })?;
@@ -800,6 +846,8 @@ impl Rosters {
         control: &Control,
         account: &QueryAccounting,
     ) -> Result<(), Interrupted> {
+        let _sort_phase =
+            (self.result_node == Some(node)).then(|| account.phase(crate::statistics::Phase::Sort));
         evaluator_order::sort(&mut descriptors, control, account, |left, right| {
             left.hash
                 .cmp(&right.hash)

@@ -48,6 +48,9 @@ pub(crate) fn scan<S: Series>(
         control,
         account,
         |sample| {
+            if !sample.value.is_stale() {
+                account.samples_read(crate::statistics::weight(sample.value));
+            }
             visit(sample)?;
             Ok(CursorAction::Next)
         },
@@ -75,6 +78,7 @@ impl NumericRangeFunction {
 
 #[derive(Debug)]
 pub(crate) struct NumericRangeOutput {
+    pub(crate) float_samples: Option<crate::statistics::OwnedSamples>,
     pub(crate) value: Option<f64>,
     pub(crate) invalid_quantile: bool,
     pub(crate) annotation: Option<AnnotationKind>,
@@ -212,9 +216,16 @@ pub(crate) struct NumericStep {
     present: bool,
     histograms: bool,
     accumulator: Accumulator,
+    _parameters_samples: crate::statistics::OwnedSamples,
+    state_samples: Option<crate::statistics::OwnedSamples>,
 }
 impl NumericStep {
-    pub(crate) fn new(function: NumericRangeFunction, parameters: [f64; 2], time_ms: i64) -> Self {
+    pub(crate) fn new(
+        function: NumericRangeFunction,
+        parameters: [f64; 2],
+        time_ms: i64,
+        account: &QueryAccounting,
+    ) -> Self {
         assert!(
             !matches!(
                 function,
@@ -241,6 +252,11 @@ impl NumericStep {
             } else {
                 Accumulator::Regression(Regression::default())
             },
+            _parameters_samples: crate::statistics::OwnedSamples::new(
+                account,
+                function.parameters() as u64,
+            ),
+            state_samples: None,
         }
     }
 
@@ -270,13 +286,23 @@ impl NumericStep {
                     (self.function == NumericRangeFunction::PredictLinear).then_some(self.time_ms),
                 ),
             }
+            let units = match &self.accumulator {
+                Accumulator::Smoothing(state) => state.count.min(2),
+                Accumulator::Regression(_) => 1,
+            };
+            self.state_samples
+                .get_or_insert_with(|| crate::statistics::OwnedSamples::new(account, 0))
+                .resize(units);
         } else {
             self.histograms = true;
         }
         Ok(())
     }
 
-    pub(crate) fn finish(self) -> Result<NumericRangeOutput, NumericRangeError> {
+    pub(crate) fn finish(
+        mut self,
+        account: &QueryAccounting,
+    ) -> Result<NumericRangeOutput, NumericRangeError> {
         if self.present
             && let Some((index, value)) = self.invalid_factor
         {
@@ -300,7 +326,17 @@ impl NumericStep {
             }
             Accumulator::Smoothing(smoothing) => smoothing.current,
         });
+        let state_samples = self.state_samples.take();
+        let float_samples = if value.is_some() && self.function == NumericRangeFunction::Smoothing {
+            let mut samples = state_samples.expect("completed smoothing state");
+            samples.resize(1);
+            Some(samples)
+        } else {
+            drop(state_samples);
+            value.map(|_| crate::statistics::OwnedSamples::new(account, 1))
+        };
         Ok(NumericRangeOutput {
+            float_samples,
             progress: None,
             value,
             invalid_quantile: false,
@@ -336,11 +372,11 @@ pub(crate) fn evaluate<S: Series, Q: crate::storage::QueryProvider>(
             account,
         );
     }
-    let mut step = NumericStep::new(function, parameters, time_ms);
+    let mut step = NumericStep::new(function, parameters, time_ms, account);
     let progress = scan(series, input, control, account, |sample| {
         step.receive(sample, control, account)
     })?;
-    let mut output = step.finish()?;
+    let mut output = step.finish(account)?;
     output.progress = progress;
     Ok(output)
 }
@@ -505,6 +541,16 @@ mod tests {
                     assert_eq!(result.value.unwrap().to_bits(), expected_bits);
                     assert_eq!(result.annotation, None);
                     let snapshot = account.snapshot();
+                    assert_eq!(
+                        snapshot.statistics.samples.peak_samples,
+                        match function {
+                            NumericRangeFunction::Deriv => 1,
+                            NumericRangeFunction::PredictLinear => 2,
+                            NumericRangeFunction::Smoothing => 4,
+                            _ => unreachable!("regression test roster"),
+                        }
+                    );
+                    assert_eq!(account.current_samples(), 1);
                     let peak = snapshot.memory[MemoryKind::Workspace as usize].peak;
                     if let Some(previous) = previous_peak {
                         assert_eq!(peak, previous);
@@ -518,6 +564,8 @@ mod tests {
                         source.counters.closed.load(Ordering::Relaxed)
                     );
                     snapshot.assert_memory_released();
+                    drop(result);
+                    assert_eq!(account.current_samples(), 0);
                     drop(account);
                     engine.snapshot().assert_memory_released();
                 }

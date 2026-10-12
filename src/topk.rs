@@ -56,7 +56,6 @@ pub(crate) fn has_step_parameter(expression: &Expr) -> bool {
         )
 }
 
-#[derive(Clone, Copy)]
 pub(crate) struct Parameters {
     constant: bool,
     value: f64,
@@ -64,6 +63,7 @@ pub(crate) struct Parameters {
     maximum: f64,
     nan: bool,
     present: bool,
+    samples: Option<crate::statistics::OwnedSamples>,
 }
 impl Parameters {
     pub(crate) fn new(constant: bool) -> Self {
@@ -74,9 +74,13 @@ impl Parameters {
             maximum: -f64::MAX,
             nan: false,
             present: false,
+            samples: None,
         }
     }
-    pub(crate) fn push(&mut self, value: f64) {
+    pub(crate) fn push(&mut self, value: f64, account: &QueryAccounting) {
+        self.samples.get_or_insert_with(|| {
+            crate::statistics::OwnedSamples::new(account, if self.constant { 3 } else { 2 })
+        });
         if self.constant {
             self.value = value;
             self.minimum = value;
@@ -88,11 +92,11 @@ impl Parameters {
         self.nan |= value.is_nan();
         self.present = true;
     }
-    pub(crate) fn fixed_value(self) -> Option<f64> {
+    pub(crate) fn fixed_value(&self) -> Option<f64> {
         self.constant.then_some(self.value)
     }
     pub(crate) fn add_quantile_annotations(
-        self,
+        &self,
         annotations: &mut AnnotationBuilder,
         span: Span,
         source: &[u8],
@@ -117,7 +121,7 @@ impl Parameters {
         Ok(())
     }
     fn validate(
-        self,
+        &self,
         operator: TokenKind,
         control: &Control,
         account: &QueryAccounting,
@@ -343,6 +347,7 @@ struct Heap {
     indices: AccountedVec<usize>,
 }
 struct Snapshot {
+    _parameter_samples: Option<crate::statistics::OwnedSamples>,
     key: Key,
     k: usize,
     parameter: f64,
@@ -368,6 +373,7 @@ struct Comparison {
     inputs: [usize; 2],
     values: [f64; 2],
     position: usize,
+    samples: [Option<crate::statistics::OwnedSamples>; 2],
 }
 enum Pending {
     Empty,
@@ -400,7 +406,10 @@ pub(crate) struct Step<'a> {
     waiting: bool,
     expected: Option<usize>,
     pending: Pending,
+    pending_samples: Option<crate::statistics::OwnedSamples>,
+    parameter_samples: Option<crate::statistics::OwnedSamples>,
     candidate: f64,
+    candidate_samples: Option<crate::statistics::OwnedSamples>,
     program: Option<Program>,
     resume: Resume,
     comparison: Option<Comparison>,
@@ -457,7 +466,11 @@ impl<'a> Step<'a> {
             waiting: false,
             expected: None,
             pending: Pending::Empty,
+            pending_samples: None,
+            parameter_samples: (!matches!(stage, Stage::Parameter | Stage::Done))
+                .then(|| crate::statistics::OwnedSamples::new(account, 1)),
             candidate: 0.0,
+            candidate_samples: None,
             program: None,
             resume: Resume::Scan,
             comparison: None,
@@ -490,6 +503,7 @@ impl<'a> Step<'a> {
         self.waiting = true;
         self.expected = Some(input);
         self.pending = Pending::Empty;
+        self.pending_samples = None;
         Action::Child {
             parameter: false,
             ordinal: Some(&self.plan.inputs[input].ordinal),
@@ -520,6 +534,7 @@ impl<'a> Step<'a> {
                 OwnedValue::Float(value) => Pending::Float(value),
                 OwnedValue::Histogram(_) => Pending::Histogram,
             };
+            self.pending_samples = sample.float_samples;
         }
         Ok(())
     }
@@ -534,6 +549,7 @@ impl<'a> Step<'a> {
     fn comparison_value(&mut self) -> Result<f64, EvaluationError> {
         if self.native() && matches!(self.pending, Pending::Histogram) {
             self.pending = Pending::Empty;
+            self.pending_samples = None;
             Ok(0.0)
         } else {
             self.float()
@@ -553,6 +569,10 @@ impl<'a> Step<'a> {
         );
         let snapshot = Strong::new_in(
             Snapshot {
+                _parameter_samples: self
+                    .parameter_samples
+                    .as_ref()
+                    .map(|_| crate::statistics::OwnedSamples::new(account, 1)),
                 key: (self.options, self.step_index).into(),
                 k: self.k,
                 parameter: self.parameter,
@@ -629,6 +649,7 @@ impl<'a> Step<'a> {
                 }
                 self.waiting = false;
                 self.parameter = self.float()?;
+                self.parameter_samples = self.pending_samples.take();
                 self.k = Self::capacity(self.plan, self.parameter);
                 self.stage = Stage::Scan;
             }
@@ -656,6 +677,7 @@ impl<'a> Step<'a> {
                 }
                 self.waiting = false;
                 let group = self.plan.bindings[self.input].group;
+                let pending_samples = self.pending_samples.take();
                 match std::mem::replace(&mut self.pending, Pending::Empty) {
                     Pending::Empty => self.input += 1,
                     Pending::Histogram if !self.native() => {
@@ -691,6 +713,7 @@ impl<'a> Step<'a> {
                             self.input += 1;
                         } else {
                             self.candidate = value;
+                            self.candidate_samples = pending_samples;
                             self.group = group;
                             self.stage = Stage::Root;
                         }
@@ -703,11 +726,13 @@ impl<'a> Step<'a> {
                 }
                 self.waiting = false;
                 let root = self.float()?;
+                let _root_samples = self.pending_samples.take();
                 let replace = (if self.plan.operator == TokenKind::TOPK {
                     root < self.candidate
                 } else {
                     root > self.candidate
                 }) || root.is_nan() && !self.candidate.is_nan();
+                self.candidate_samples = None;
                 if replace {
                     self.heaps[self.group].indices[0] = self.input;
                 }
@@ -730,6 +755,7 @@ impl<'a> Step<'a> {
                         let value = self.comparison_value()?;
                         let comparison = self.comparison.as_mut().expect("comparison continuation");
                         comparison.values[position] = value;
+                        comparison.samples[position] = self.pending_samples.take();
                         comparison.position += 1;
                     }
                     let comparison = self.comparison.as_ref().expect("comparison continuation");
@@ -776,6 +802,7 @@ impl<'a> Step<'a> {
                         self.comparison = Some(Comparison {
                             inputs,
                             values: [0.0; 2],
+                            samples: [None, None],
                             position: 0,
                         });
                     }

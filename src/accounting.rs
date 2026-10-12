@@ -1,12 +1,16 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 //! Observations remain active without admitting, throttling or limiting queries.
 use crate::shared::Strong;
+use crate::statistics::{PHASES, Phase, Statistics};
 use std::{
     borrow::Borrow,
     hash::{Hash, Hasher},
     iter::FusedIterator,
     ops::{Deref, DerefMut, Range, RangeBounds},
-    sync::{Mutex, MutexGuard},
+    sync::{
+        Mutex, MutexGuard,
+        atomic::{AtomicU64, Ordering},
+    },
     time::{Duration, Instant},
 };
 
@@ -125,6 +129,7 @@ impl CancellationReferences {
 
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct QueryObservations {
+    pub statistics: Statistics,
     pub memory: [MemoryObservation; MEMORY_KINDS],
     pub cancellation_references: CancellationReferences,
     pub temporary_storage: TemporaryStorageObservations,
@@ -176,6 +181,8 @@ impl EngineAccounting {
             QueryState {
                 engine: self.clone(),
                 observations: Mutex::new(observations),
+                current_samples: AtomicU64::new(0),
+                timers: Mutex::new([TimerState::default(); PHASES]),
             },
             self,
         ))
@@ -193,6 +200,13 @@ impl EngineAccounting {
 struct QueryState {
     engine: EngineAccounting,
     observations: Mutex<QueryObservations>,
+    current_samples: AtomicU64,
+    timers: Mutex<[TimerState; PHASES]>,
+}
+#[derive(Clone, Copy, Debug, Default)]
+struct TimerState {
+    start: Option<Instant>,
+    active: u64,
 }
 #[derive(Clone, Debug)]
 pub struct QueryAccounting(Strong<QueryState>);
@@ -202,6 +216,53 @@ impl QueryAccounting {
     }
     pub fn snapshot(&self) -> QueryObservations {
         lock(&self.0.observations).clone()
+    }
+    pub(crate) fn phase(&self, phase: Phase) -> PhaseObservation {
+        let mut timers = lock(&self.0.timers);
+        let timer = &mut timers[phase as usize];
+        if timer.active == 0 {
+            timer.start = Some(Instant::now());
+        }
+        timer.active += 1;
+        PhaseObservation {
+            query: self.clone(),
+            phase,
+        }
+    }
+    pub(crate) fn samples_read(&self, units: u64) {
+        self.count(|value| &mut value.statistics.samples.samples_read, units);
+    }
+    pub(crate) fn queryable_samples(&self, units: u64) {
+        lock(&self.0.observations)
+            .statistics
+            .samples
+            .total_queryable_samples = units;
+    }
+    pub(crate) fn statistics_overflow(&self) {
+        lock(&self.0.observations).counter_overflowed = true;
+    }
+    pub(crate) fn resize_samples(&self, previous: u64, next: u64) {
+        if previous == next {
+            return;
+        }
+        let mut observed = lock(&self.0.observations);
+        let mut current = self.0.current_samples.load(Ordering::Relaxed);
+        if next > previous {
+            add(
+                &mut current,
+                next - previous,
+                &mut observed.counter_overflowed,
+            );
+            observed.statistics.samples.peak_samples =
+                observed.statistics.samples.peak_samples.max(current);
+        } else {
+            current = current.saturating_sub(previous - next);
+        }
+        self.0.current_samples.store(current, Ordering::Relaxed);
+    }
+    #[cfg(test)]
+    pub(crate) fn current_samples(&self) -> u64 {
+        self.0.current_samples.load(Ordering::Relaxed)
     }
     pub fn hold(&self, kind: MemoryKind, bytes: u64) -> MemoryLease {
         let mut lease = MemoryLease {
@@ -461,6 +522,27 @@ impl Drop for MemoryLease {
 pub struct ExecutionObservation {
     query: QueryAccounting,
     start: Instant,
+}
+pub(crate) struct PhaseObservation {
+    query: QueryAccounting,
+    phase: Phase,
+}
+impl Drop for PhaseObservation {
+    fn drop(&mut self) {
+        let elapsed = {
+            let mut timers = lock(&self.query.0.timers);
+            let timer = &mut timers[self.phase as usize];
+            timer.active -= 1;
+            if timer.active != 0 {
+                return;
+            }
+            timer.start.take().expect("active phase start").elapsed()
+        };
+        lock(&self.query.0.observations)
+            .statistics
+            .timings
+            .add(self.phase, elapsed);
+    }
 }
 
 pub(crate) struct CompilationObservation {

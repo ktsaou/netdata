@@ -1,0 +1,585 @@
+{
+  "schema_version": 1,
+  "reference": {
+    "module": "github.com/prometheus/prometheus@v0.315.0",
+    "commit": "5241a27fe3c6983549fccc32f6e65917408c63cd",
+    "go_version": "go1.27.1",
+    "go_arch": "amd64",
+    "go_os": "linux",
+    "original_only": true,
+    "binding_sha256": "a5c5e4ae026f26223f495e25f6d3762d3ea0edea3c39adcf35240bc4d92cfa9a",
+    "original_output_sha256": "feee62bb4de4913063fb06adaa447279b44c6020386bc479216f98d5f5338218",
+    "source_manifest_sha256": "329d5ad750b537af4a3c544276dbeabd5b8705a88431b8a20ae0b97f51fbb1d0"
+  },
+  "scope": "Precise engine requests after upstream HTTP parsing; the HTTP router is not executed.",
+  "cases": [
+    {
+      "dataset": {
+        "dataset": {
+          "schema_version": 1,
+          "series": []
+        },
+        "dataset_id": "http-precision:00-sub-ms-grid-runtime",
+        "op": "dataset"
+      },
+      "request": {
+        "dataset_id": "http-precision:00-sub-ms-grid-runtime",
+        "end_ms": 0,
+        "expression": "766563746f72283129",
+        "id": "http-precision:00-sub-ms-grid-runtime",
+        "lookback_ms": 0,
+        "mode": "range",
+        "precise": {
+          "end": {
+            "evaluator_ms": 2,
+            "nanoseconds": 2000000,
+            "unix_ms": 2,
+            "unix_seconds": 0
+          },
+          "interval_ns": 500000,
+          "lookback_ns": 300000000000,
+          "start": {
+            "evaluator_ms": 0,
+            "nanoseconds": 0,
+            "unix_ms": 0,
+            "unix_seconds": 0
+          }
+        },
+        "profile": "server-default",
+        "start_ms": 0,
+        "step_ms": 0,
+        "subquery_step_ms": 0,
+        "time_ms": 0
+      },
+      "expected": {
+        "id": "http-precision:00-sub-ms-grid-runtime",
+        "kind": "error",
+        "rows": [],
+        "warnings": [],
+        "infos": [],
+        "error": {
+          "phase": "execution",
+          "type": "*fmt.wrapError",
+          "message": "dW5leHBlY3RlZCBlcnJvcjogcnVudGltZSBlcnJvcjogaW50ZWdlciBkaXZpZGUgYnkgemVybw=="
+        }
+      }
+    },
+    {
+      "dataset": {
+        "dataset": {
+          "schema_version": 1,
+          "series": [
+            {
+              "labels": [
+                {
+                  "name": "5f5f6e616d655f5f",
+                  "value": "6d"
+                }
+              ],
+              "points": [
+                {
+                  "float": "3ff0000000000000",
+                  "kind": "float",
+                  "time_ms": 0
+                }
+              ]
+            }
+          ]
+        },
+        "dataset_id": "http-precision:01-sub-ms-grid-selector-phase",
+        "op": "dataset"
+      },
+      "request": {
+        "dataset_id": "http-precision:01-sub-ms-grid-selector-phase",
+        "end_ms": 0,
+        "expression": "6d",
+        "id": "http-precision:01-sub-ms-grid-selector-phase",
+        "lookback_ms": 0,
+        "mode": "range",
+        "precise": {
+          "end": {
+            "evaluator_ms": 2,
+            "nanoseconds": 2000000,
+            "unix_ms": 2,
+            "unix_seconds": 0
+          },
+          "interval_ns": 500000,
+          "lookback_ns": 300000000000,
+          "start": {
+            "evaluator_ms": 0,
+            "nanoseconds": 0,
+            "unix_ms": 0,
+            "unix_seconds": 0
+          }
+        },
+        "profile": "server-default",
+        "start_ms": 0,
+        "step_ms": 0,
+        "subquery_step_ms": 0,
+        "time_ms": 0
+      },
+      "expected": {
+        "id": "http-precision:01-sub-ms-grid-selector-phase",
+        "kind": "error",
+        "rows": [],
+        "warnings": [],
+        "infos": [],
+        "error": {
+          "phase": "execution",
+          "type": "*fmt.wrapError",
+          "message": "dW5leHBlY3RlZCBlcnJvcjogcnVudGltZSBlcnJvcjogaW50ZWdlciBkaXZpZGUgYnkgemVybw=="
+        }
+      }
+    },
+    {
+      "dataset": {
+        "dataset": {
+          "schema_version": 1,
+          "series": []
+        },
+        "dataset_id": "http-precision:02-step-1_5ms",
+        "op": "dataset"
+      },
+      "request": {
+        "dataset_id": "http-precision:02-step-1_5ms",
+        "end_ms": 0,
+        "expression": "766563746f722873746570282929",
+        "id": "http-precision:02-step-1_5ms",
+        "lookback_ms": 0,
+        "mode": "range",
+        "precise": {
+          "end": {
+            "evaluator_ms": 3,
+            "nanoseconds": 3000000,
+            "unix_ms": 3,
+            "unix_seconds": 0
+          },
+          "interval_ns": 1500000,
+          "lookback_ns": 300000000000,
+          "start": {
+            "evaluator_ms": 0,
+            "nanoseconds": 0,
+            "unix_ms": 0,
+            "unix_seconds": 0
+          }
+        },
+        "profile": "upstream-tests",
+        "start_ms": 0,
+        "step_ms": 0,
+        "subquery_step_ms": 0,
+        "time_ms": 0
+      },
+      "expected": {
+        "id": "http-precision:02-step-1_5ms",
+        "kind": "matrix",
+        "rows": [
+          {
+            "labels": [],
+            "points": [
+              {
+                "time_ms": 0,
+                "kind": "float",
+                "float": "3f589374bc6a7efa"
+              },
+              {
+                "time_ms": 1,
+                "kind": "float",
+                "float": "3f589374bc6a7efa"
+              },
+              {
+                "time_ms": 2,
+                "kind": "float",
+                "float": "3f589374bc6a7efa"
+              },
+              {
+                "time_ms": 3,
+                "kind": "float",
+                "float": "3f589374bc6a7efa"
+              }
+            ]
+          }
+        ],
+        "warnings": [],
+        "infos": []
+      }
+    },
+    {
+      "dataset": {
+        "dataset": {
+          "schema_version": 1,
+          "series": [
+            {
+              "labels": [
+                {
+                  "name": "5f5f6e616d655f5f",
+                  "value": "6d"
+                }
+              ],
+              "points": [
+                {
+                  "float": "3ff0000000000000",
+                  "kind": "float",
+                  "time_ms": 0
+                }
+              ]
+            }
+          ]
+        },
+        "dataset_id": "http-precision:03-lookback-positive-sub-ms-missing",
+        "op": "dataset"
+      },
+      "request": {
+        "dataset_id": "http-precision:03-lookback-positive-sub-ms-missing",
+        "end_ms": 0,
+        "expression": "6d",
+        "id": "http-precision:03-lookback-positive-sub-ms-missing",
+        "lookback_ms": 0,
+        "mode": "instant",
+        "precise": {
+          "end": {
+            "evaluator_ms": 1,
+            "nanoseconds": 1000000,
+            "unix_ms": 1,
+            "unix_seconds": 0
+          },
+          "interval_ns": 0,
+          "lookback_ns": 500000,
+          "start": {
+            "evaluator_ms": 1,
+            "nanoseconds": 1000000,
+            "unix_ms": 1,
+            "unix_seconds": 0
+          }
+        },
+        "profile": "server-default",
+        "start_ms": 0,
+        "step_ms": 0,
+        "subquery_step_ms": 0,
+        "time_ms": 0
+      },
+      "expected": {
+        "id": "http-precision:03-lookback-positive-sub-ms-missing",
+        "kind": "vector",
+        "rows": [],
+        "warnings": [],
+        "infos": []
+      }
+    },
+    {
+      "dataset": {
+        "dataset": {
+          "schema_version": 1,
+          "series": [
+            {
+              "labels": [
+                {
+                  "name": "5f5f6e616d655f5f",
+                  "value": "6d"
+                }
+              ],
+              "points": [
+                {
+                  "float": "3ff0000000000000",
+                  "kind": "float",
+                  "time_ms": 0
+                }
+              ]
+            }
+          ]
+        },
+        "dataset_id": "http-precision:04-lookback-default-present",
+        "op": "dataset"
+      },
+      "request": {
+        "dataset_id": "http-precision:04-lookback-default-present",
+        "end_ms": 0,
+        "expression": "6d",
+        "id": "http-precision:04-lookback-default-present",
+        "lookback_ms": 0,
+        "mode": "instant",
+        "precise": {
+          "end": {
+            "evaluator_ms": 1,
+            "nanoseconds": 1000000,
+            "unix_ms": 1,
+            "unix_seconds": 0
+          },
+          "interval_ns": 0,
+          "lookback_ns": 300000000000,
+          "start": {
+            "evaluator_ms": 1,
+            "nanoseconds": 1000000,
+            "unix_ms": 1,
+            "unix_seconds": 0
+          }
+        },
+        "profile": "server-default",
+        "start_ms": 0,
+        "step_ms": 0,
+        "subquery_step_ms": 0,
+        "time_ms": 0
+      },
+      "expected": {
+        "id": "http-precision:04-lookback-default-present",
+        "kind": "vector",
+        "rows": [
+          {
+            "labels": [
+              {
+                "name": "X19uYW1lX18=",
+                "value": "bQ=="
+              }
+            ],
+            "points": [
+              {
+                "time_ms": 1,
+                "kind": "float",
+                "float": "3ff0000000000000"
+              }
+            ]
+          }
+        ],
+        "warnings": [],
+        "infos": []
+      }
+    },
+    {
+      "dataset": {
+        "dataset": {
+          "schema_version": 1,
+          "series": [
+            {
+              "labels": [
+                {
+                  "name": "5f5f6e616d655f5f",
+                  "value": "6d"
+                }
+              ],
+              "points": [
+                {
+                  "float": "3ff0000000000000",
+                  "kind": "float",
+                  "time_ms": 0
+                },
+                {
+                  "float": "4000000000000000",
+                  "kind": "float",
+                  "time_ms": 1
+                }
+              ]
+            }
+          ]
+        },
+        "dataset_id": "http-precision:05-lookback-positive-sub-ms-exact",
+        "op": "dataset"
+      },
+      "request": {
+        "dataset_id": "http-precision:05-lookback-positive-sub-ms-exact",
+        "end_ms": 0,
+        "expression": "6d",
+        "id": "http-precision:05-lookback-positive-sub-ms-exact",
+        "lookback_ms": 0,
+        "mode": "instant",
+        "precise": {
+          "end": {
+            "evaluator_ms": 1,
+            "nanoseconds": 1000000,
+            "unix_ms": 1,
+            "unix_seconds": 0
+          },
+          "interval_ns": 0,
+          "lookback_ns": 500000,
+          "start": {
+            "evaluator_ms": 1,
+            "nanoseconds": 1000000,
+            "unix_ms": 1,
+            "unix_seconds": 0
+          }
+        },
+        "profile": "server-default",
+        "start_ms": 0,
+        "step_ms": 0,
+        "subquery_step_ms": 0,
+        "time_ms": 0
+      },
+      "expected": {
+        "id": "http-precision:05-lookback-positive-sub-ms-exact",
+        "kind": "vector",
+        "rows": [],
+        "warnings": [],
+        "infos": []
+      }
+    },
+    {
+      "dataset": {
+        "dataset": {
+          "schema_version": 1,
+          "series": []
+        },
+        "dataset_id": "http-precision:06-rfc3339-ns-range",
+        "op": "dataset"
+      },
+      "request": {
+        "dataset_id": "http-precision:06-rfc3339-ns-range",
+        "end_ms": 0,
+        "expression": "766563746f722872616e6765282929",
+        "id": "http-precision:06-rfc3339-ns-range",
+        "lookback_ms": 0,
+        "mode": "range",
+        "precise": {
+          "end": {
+            "evaluator_ms": 0,
+            "nanoseconds": 2,
+            "unix_ms": 0,
+            "unix_seconds": 0
+          },
+          "interval_ns": 1500000,
+          "lookback_ns": 300000000000,
+          "start": {
+            "evaluator_ms": 0,
+            "nanoseconds": 1,
+            "unix_ms": 0,
+            "unix_seconds": 0
+          }
+        },
+        "profile": "upstream-tests",
+        "start_ms": 0,
+        "step_ms": 0,
+        "subquery_step_ms": 0,
+        "time_ms": 0
+      },
+      "expected": {
+        "id": "http-precision:06-rfc3339-ns-range",
+        "kind": "matrix",
+        "rows": [
+          {
+            "labels": [],
+            "points": [
+              {
+                "time_ms": 0,
+                "kind": "float",
+                "float": "3e112e0be826d695"
+              }
+            ]
+          }
+        ],
+        "warnings": [],
+        "infos": []
+      }
+    },
+    {
+      "dataset": {
+        "dataset": {
+          "schema_version": 1,
+          "series": []
+        },
+        "dataset_id": "http-precision:07-rfc3339-ns-step",
+        "op": "dataset"
+      },
+      "request": {
+        "dataset_id": "http-precision:07-rfc3339-ns-step",
+        "end_ms": 0,
+        "expression": "766563746f722873746570282929",
+        "id": "http-precision:07-rfc3339-ns-step",
+        "lookback_ms": 0,
+        "mode": "range",
+        "precise": {
+          "end": {
+            "evaluator_ms": 0,
+            "nanoseconds": 2,
+            "unix_ms": 0,
+            "unix_seconds": 0
+          },
+          "interval_ns": 1500000,
+          "lookback_ns": 300000000000,
+          "start": {
+            "evaluator_ms": 0,
+            "nanoseconds": 1,
+            "unix_ms": 0,
+            "unix_seconds": 0
+          }
+        },
+        "profile": "upstream-tests",
+        "start_ms": 0,
+        "step_ms": 0,
+        "subquery_step_ms": 0,
+        "time_ms": 0
+      },
+      "expected": {
+        "id": "http-precision:07-rfc3339-ns-step",
+        "kind": "matrix",
+        "rows": [
+          {
+            "labels": [],
+            "points": [
+              {
+                "time_ms": 0,
+                "kind": "float",
+                "float": "3f589374bc6a7efa"
+              }
+            ]
+          }
+        ],
+        "warnings": [],
+        "infos": []
+      }
+    },
+    {
+      "dataset": {
+        "dataset": {
+          "schema_version": 1,
+          "series": []
+        },
+        "dataset_id": "http-precision:08-pre-epoch-rfc3339-ns",
+        "op": "dataset"
+      },
+      "request": {
+        "dataset_id": "http-precision:08-pre-epoch-rfc3339-ns",
+        "end_ms": 0,
+        "expression": "766563746f722874696d65282929",
+        "id": "http-precision:08-pre-epoch-rfc3339-ns",
+        "lookback_ms": 0,
+        "mode": "instant",
+        "precise": {
+          "end": {
+            "evaluator_ms": 0,
+            "nanoseconds": 999999999,
+            "unix_ms": -1,
+            "unix_seconds": -1
+          },
+          "interval_ns": 0,
+          "lookback_ns": 300000000000,
+          "start": {
+            "evaluator_ms": 0,
+            "nanoseconds": 999999999,
+            "unix_ms": -1,
+            "unix_seconds": -1
+          }
+        },
+        "profile": "server-default",
+        "start_ms": 0,
+        "step_ms": 0,
+        "subquery_step_ms": 0,
+        "time_ms": 0
+      },
+      "expected": {
+        "id": "http-precision:08-pre-epoch-rfc3339-ns",
+        "kind": "vector",
+        "rows": [
+          {
+            "labels": [],
+            "points": [
+              {
+                "time_ms": 0,
+                "kind": "float",
+                "float": "0000000000000000"
+              }
+            ]
+          }
+        ],
+        "warnings": [],
+        "infos": []
+      }
+    }
+  ]
+}

@@ -417,6 +417,14 @@ pub struct ReverseFloatBucketIterator<'a> {
 
 impl<'a> ReverseFloatBucketIterator<'a> {
     pub fn new(histogram: FloatHistogramRef<'a>, positive: bool) -> Self {
+        Self::new_with(histogram, positive, HistogramWork::default()).expect("inert histogram work")
+    }
+
+    pub(crate) fn new_with(
+        histogram: FloatHistogramRef<'a>,
+        positive: bool,
+        work: HistogramWork<'_>,
+    ) -> Result<Self, crate::storage::Interrupted> {
         let layout = Layout::new(histogram, positive);
         let span_index = layout.spans.len() as isize - 1;
         let within_span = if span_index >= 0 {
@@ -424,17 +432,20 @@ impl<'a> ReverseFloatBucketIterator<'a> {
         } else {
             0
         };
-        let current_index = layout.spans.iter().fold(0_i32, |index, span| {
-            index.wrapping_add(span.offset.wrapping_add(span.length as i32))
-        });
-        Self {
+        let mut current_index = 0_i32;
+        for span in layout.spans {
+            work.step(1)?;
+            current_index =
+                current_index.wrapping_add(span.offset.wrapping_add(span.length as i32));
+        }
+        Ok(Self {
             layout,
             span_index,
             within_span,
             bucket_index: layout.buckets.len() as isize - 1,
             current_index,
             current_count: 0.0,
-        }
+        })
     }
 
     pub fn advance(&mut self) -> bool {
@@ -504,13 +515,22 @@ pub struct AllFloatBucketIterator<'a> {
 
 impl<'a> AllFloatBucketIterator<'a> {
     pub fn new(histogram: FloatHistogramRef<'a>, reverse: bool) -> Self {
-        Self {
+        Self::new_with(histogram, reverse, HistogramWork::default()).expect("inert histogram work")
+    }
+
+    pub(crate) fn new_with(
+        histogram: FloatHistogramRef<'a>,
+        reverse: bool,
+        work: HistogramWork<'_>,
+    ) -> Result<Self, HistogramEvaluationError> {
+        work.step(1)?;
+        Ok(Self {
             histogram,
-            left: ReverseFloatBucketIterator::new(histogram, reverse),
-            right: FloatBucketIterator::new(histogram, !reverse, 0.0, histogram.schema),
+            left: ReverseFloatBucketIterator::new_with(histogram, reverse, work)?,
+            right: FloatBucketIterator::new_with(histogram, !reverse, 0.0, histogram.schema, work)?,
             state: -1,
             current: Bucket::default(),
-        }
+        })
     }
 
     pub fn advance(&mut self) -> bool {

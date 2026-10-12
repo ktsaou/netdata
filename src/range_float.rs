@@ -192,7 +192,7 @@ pub(crate) fn rate_with<S: Series>(
     loop {
         let progress =
             scan_matrix::<_, StorageError>(series, bounds, matrix, control, account, |sample| {
-                step.receive(sample, control)
+                step.receive(sample, control, account)
             })?;
         if let Some(result) = step.finish_pass() {
             return Ok(result);
@@ -202,6 +202,7 @@ pub(crate) fn rate_with<S: Series>(
 }
 
 pub(crate) struct FloatStep {
+    samples: Option<crate::statistics::OwnedSamples>,
     input: RateInput,
     kind: RateKind,
     first: Option<Point>,
@@ -219,6 +220,7 @@ impl FloatStep {
     }
     pub(crate) fn new(input: RateInput, kind: RateKind) -> Self {
         Self {
+            samples: None,
             input,
             kind,
             first: None,
@@ -235,6 +237,7 @@ impl FloatStep {
         &mut self,
         sample: SampleRef<'_>,
         control: &Control,
+        account: &QueryAccounting,
     ) -> Result<(), StorageError> {
         control.check()?;
         if sample.value.is_stale() {
@@ -270,6 +273,12 @@ impl FloatStep {
             self.last = Some(current);
             self.count += 1;
         }
+        let units = u64::from(self.first.is_some())
+            + u64::from(self.last.is_some())
+            + u64::from(self.previous.is_some());
+        self.samples
+            .get_or_insert_with(|| crate::statistics::OwnedSamples::new(account, 0))
+            .resize(units);
         Ok(())
     }
     pub(crate) fn finish_pass(&mut self) -> Option<RateResult> {
@@ -358,6 +367,7 @@ mod tests {
     #[test]
     fn streamed_rate_membership_preserves_u32_rollover() {
         let prefix = u64::from(u32::MAX);
+        let account = EngineAccounting::default().query();
         let control = Control::default();
         let mut step = FloatStep::new(window((prefix + 1) as i64).into(), RateKind::Delta);
         let sample = SampleRef {
@@ -365,7 +375,7 @@ mod tests {
             start_time_ms: 0,
             value: SampleValueRef::Float(1.0),
         };
-        step.receive(sample, &control).unwrap();
+        step.receive(sample, &control, &account).unwrap();
         // A constant prefix needs only its first, last and occurrence count.
         step.count = prefix;
         step.last = Some(Point {
@@ -379,6 +389,7 @@ mod tests {
                 ..sample
             },
             &control,
+            &account,
         )
         .unwrap();
         assert_eq!(step.count, prefix + 1);

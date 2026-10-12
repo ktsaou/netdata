@@ -22,6 +22,11 @@ enabled admission limit is introduced.
 
 Retained qualification covers:
 
+- Precise query/protocol primitives in both native profiles:230 original parser/selector/text cases plus528
+  label conjunctions per build, and27 precise-clock comparisons per build at pages1/17/1024. Their scoped follow-up
+  passes479 production release and480 fixtures release-min unit tests, Rust1.91 checks and18 actual C/C++
+  executions/360 records across AMD64/ARM64/ARM32. This does not execute an HTTP router or live provider; historical
+  full expression panels keep their original source and binary identities.
 - All 21,442 builtin expression variants in release and release-min, with no unsupported outcome, mismatch or
   paired numerical bit difference in that panel.
 - All 1,110 SRE source expressions through 231,540 controlled evaluations across both builds and page sizes
@@ -74,6 +79,10 @@ consumers may release provisional chunks immediately. General exact temporal qua
 temporary backing; the core has no whole-history RAM fallback.
 
 ## Cooperative control and work observations
+
+[Basic query statistics](DESIGN.md#basic-query-statistics) expose primary logical participation, useful source
+reads, actual owned sample peaks and execution phases separately from fetched entries, bytes and work. The
+streaming consumer and convenience collector have different output lifetimes; per-step arrays remain disabled.
 
 Label descriptor walks, ordered validation, diagnostic formatting/merging, metadata rosters/filters and variable
 query task walks use the query's existing cancellation/deadline control and work account. Long label comparisons
@@ -242,6 +251,9 @@ The internal wire format has `schema_version: 1`.
   `time_ms` or range `start_ms`/`end_ms`/`step_ms`. `lookback_ms` and `subquery_step_ms` are optional.
 - Results: `kind`, complete `rows`, separate warning/info sets and an optional structured `error`. Errors retain
   request/construction/execution phase, upstream type, original message bytes and parser positions when available.
+- Precise query fixtures additionally accept `precise.start`/`precise.end` timestamps with `unix_seconds` and
+  normalized `nanoseconds`, and raw `interval_ns`/`lookback_ns`. Instant requests use `precise.start`.
+  Request clocks retain nanoseconds; stored samples, evaluator grids and output points remain milliseconds.
 - Strings use base64 `string`; a missing string field represents an empty string. Output histograms are float histograms.
 - Matrix output may contain repeated points at one timestamp, including within one kind. Comparison pairs
   points by timestamp, kind and occurrence, preserving equal-time order within each kind. Equal-time cross-kind
@@ -930,7 +942,7 @@ The shared sort/heap controller uses `u64` logical addresses and canonical 64-bi
 frames. Physical metadata ordinals remain `usize`; each controller comparison and swap checks conversion and
 the physical buffer boundary before access. Boxed reducer state is charged at its actual allocation size.
 The controller can therefore address a paged logical window without constructing its whole-length array.
-ABI 3 provider-owned temporary storage now backs exact quantile windows through this controller and two bounded
+ABI 4 provider-owned temporary storage backs exact quantile windows through this controller and two bounded
 pages. Providers choose their backing policy; unavailable or full backing returns a specific query error.
 
 Nine virtual controls captured from unchanged Go 1.27.1 AMD64 sort/heap helpers cover `Fix` at four lengths,
@@ -1802,12 +1814,18 @@ delegates for descriptor marshalling and independently owned collection.
 
 ### Synchronous C embedding
 
-`include/netdata-promql.h` declares version 3 of the standalone interface. The crate emits an
+`include/netdata-promql.h` declares version 4 of the standalone interface. The crate emits an
 `rlib` and a static library. Production Agent/plugin build integration belongs to a later stage.
 
 - Engine, immutable query, control, report and result handles have paired release functions. Results and reports own
   their data independently of the query, foreign provider and engine handle. Individual getters borrow bytes and
   native arrays until the corresponding handle is released.
+- Selector handles own ordered byte matchers independently of the input bytes and engine. Matcher views borrow
+  until selector release. Conjunction testing consumes caller-owned labels and accounts for their traversal before
+  matching. Invalid selector errors retain upstream positions and order.
+- Additive precise requests distinguish Unix-millisecond projection from the pinned engine's wrapped nanosecond
+  projection. Lookback is already resolved by the caller. Time/duration helpers retain exact upstream errors;
+  formatter output is length-delimited text. Reached sub-millisecond range-grid errors remain observable.
 - Tables, options and requests have a version/size prefix; future trailing fields are ignored. Byte and array views
   use explicit counts. Shape checks cover active tags, reserved fields, optional presence, alignment, address/count
   arithmetic and required callbacks. Pointer liveness, correct handle types and nonracing access are caller contracts.
@@ -1839,13 +1857,25 @@ Use the configured development Python environment. The driver uses installed GCC
 private `.tmp/c-embedding-*` evidence containing commands, source hashes, layouts, binaries and witness output.
 Process identities and ordinary completion are retained without an automatic process-killing deadline. Static
 archives and the Rust layout dependency roster are hashed before and after their consuming commands and included
-in the evidence manifest. Both unwind profiles compare all 51 declared structures/unions, 15 callback aliases and
+in the evidence manifest. Both unwind profiles compare all 58 declared structures/unions, 16 callback aliases and
 33 shared constants between Rust,
 C11 and C++17, and check header/archive exports. The real foreign callers exercise arithmetic, repeated paging,
 resource conservation, independent results, opaque errors, output delivery and cancellation/error precedence.
 ASan/UBSan instrument the native C caller, not the Rust static library. The retained Miri checks cover selected
-Rust owners at their historical ABI 2 checkpoint; they are not a complete ABI 3 Miri gate. `panic=abort` must fail the
+Rust owners at their historical ABI 2 checkpoint; they are not a complete ABI 4 Miri gate. `panic=abort` must fail the
 crate's compile guard.
+
+The protocol primitive gate replays 230 original helper/selector outcomes and 528 nested labelset comparisons
+per native profile. It excludes two caller time-parameter wrappers and twelve selector-batch wrappers. The precise
+query gate compares nine original execution witnesses at page sizes 1/17/1024. Both retain immutable original
+expectations, source/binary identities and new receipts; neither executes an HTTP router or live storage.
+
+```sh
+python tests/promql-conformance/protocol_primitives.py --binary target/release/promql-protocol-fixture
+python tests/promql-conformance/precision.py --binary target/release/promql-query-fixture
+```
+
+Repeat with the `target/release-min/` fixture binaries. Build them with the `fixtures` feature first.
 
 With the installed Rust target libraries, GNU GCC/G++ 14, target libc and QEMU, run the same interface gate on ARM:
 
@@ -1869,7 +1899,10 @@ deliveries, including replay. These finite measurements do not bound cardinality
 Normal callbacks obtain their actual query's borrowed accounting context through `netdata_promql_callback_accounting`.
 Resource, close and abort callbacks receive it directly. Abort receives this capability even before begin when a valid
 query was established; an invalid query supplies NULL. Contexts expire when their callback returns and must not be
-retained. ABI3 rejects ABI1/ABI2 tables before dispatch. Every caller must rebuild and check
+retained. ABI4 rejects ABI1/ABI2/ABI3 tables before dispatch. The separate `abi3-rejection.c` executable uses the
+exact previous header from signed commit `f14c541028a9047da34bed7eb41b705abe9bd741`, checks the version mismatch
+and rejects otherwise valid old engine options. It does not call old observation getters after mismatch.
+Every caller must rebuild and check
 `netdata_promql_abi_version()` before using tables or observation outputs: output getters write the complete current
 structure, without an input version prefix that could protect an older caller's smaller output buffer.
 

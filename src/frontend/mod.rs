@@ -7,6 +7,7 @@ mod float_decimal;
 mod float_powers;
 pub(crate) mod float_scale;
 pub mod functions;
+pub mod http;
 pub mod lexer;
 pub mod literal;
 pub mod number;

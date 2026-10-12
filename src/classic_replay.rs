@@ -1,12 +1,14 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Single-call replay derives from Prometheus promql/quantile.go; see NOTICE.
 use crate::{
+    accounting::QueryAccounting,
     go_sort::sort_by_with,
     histogram_classic::{
         BucketQuantileResult, ClassicBucket, FractionRanks, NAN, bound_order, coalesced_count,
         corrected_count, quantile_interpolate,
     },
     numerical::source_mul,
+    statistics::OwnedSamples,
 };
 
 #[derive(Clone, Copy, Debug)]
@@ -23,7 +25,12 @@ pub(crate) enum Operation {
 
 pub(crate) enum Action {
     Count(usize),
-    Done(BucketQuantileResult),
+    Done(ResultParts),
+}
+
+pub(crate) struct ResultParts {
+    pub(crate) result: BucketQuantileResult,
+    pub(crate) samples: OwnedSamples,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -40,6 +47,7 @@ pub(crate) struct Replay {
     operation: Operation,
     phase: Phase,
     result: BucketQuantileResult,
+    result_samples: OwnedSamples,
     groups: usize,
     total: f64,
     rank: f64,
@@ -51,8 +59,12 @@ pub(crate) struct Replay {
     run_start: usize,
     group: usize,
     count: Option<f64>,
+    count_samples: Option<crate::statistics::OwnedSamples>,
     correction_previous: Option<f64>,
+    correction_samples: Option<crate::statistics::OwnedSamples>,
     previous_bucket: Option<ClassicBucket>,
+    previous_samples: Option<crate::statistics::OwnedSamples>,
+    total_samples: Option<crate::statistics::OwnedSamples>,
     correction: BucketQuantileResult,
     ranks: FractionRanks,
     waiting: bool,
@@ -60,11 +72,12 @@ pub(crate) struct Replay {
 }
 
 impl Replay {
-    fn initial(operation: Operation) -> Self {
+    fn initial(operation: Operation, account: &QueryAccounting) -> Self {
         Self {
             operation,
             phase: Phase::Done,
             result: BucketQuantileResult::new(NAN),
+            result_samples: OwnedSamples::new(account, 0),
             groups: 0,
             total: 0.0,
             rank: 0.0,
@@ -76,8 +89,12 @@ impl Replay {
             run_start: 0,
             group: 0,
             count: None,
+            count_samples: None,
             correction_previous: None,
+            correction_samples: None,
             previous_bucket: None,
+            previous_samples: None,
+            total_samples: None,
             correction: BucketQuantileResult::new(NAN),
             ranks: match operation {
                 Operation::Fraction(lower, upper) => FractionRanks::new(lower, upper),
@@ -91,19 +108,23 @@ impl Replay {
     pub(crate) fn new<E>(
         operation: Operation,
         bounds: &mut [Bound],
+        account: &QueryAccounting,
         mut poll: impl FnMut() -> Result<(), E>,
     ) -> Result<Self, E> {
-        let mut replay = Self::initial(operation);
+        let mut replay = Self::initial(operation, account);
         if let Operation::Quantile(q) = operation {
             if q.is_nan() {
+                replay.complete();
                 return Ok(replay);
             }
             if q < 0.0 {
                 replay.result.value = f64::NEG_INFINITY;
+                replay.complete();
                 return Ok(replay);
             }
             if q > 1.0 {
                 replay.result.value = f64::INFINITY;
+                replay.complete();
                 return Ok(replay);
             }
         }
@@ -114,6 +135,7 @@ impl Replay {
         )?;
         // Source tests exercise empty helper panics; actual query groups are nonempty.
         if bounds[bounds.len() - 1].upper_bound != f64::INFINITY {
+            replay.complete();
             return Ok(replay);
         }
         replay.groups = 1;
@@ -131,10 +153,11 @@ impl Replay {
         Ok(replay)
     }
 
-    pub(crate) fn from_prepared(q: f64, bounds: &[Bound], result: BucketQuantileResult) -> Self {
-        let mut replay = Self::initial(Operation::Quantile(q));
+    pub(crate) fn from_prepared(q: f64, bounds: &[Bound], parts: ResultParts) -> Self {
+        let mut replay = Self::initial(Operation::Quantile(q), parts.samples.accounting());
         replay.prepared = true;
-        replay.result = result;
+        replay.result = parts.result;
+        replay.result_samples = parts.samples;
         replay.groups = bounds.len();
         if bounds.len() >= 2 {
             replay.penultimate_bound = bounds[bounds.len() - 2].upper_bound;
@@ -143,13 +166,29 @@ impl Replay {
         replay
     }
 
+    fn complete(&mut self) {
+        self.phase = Phase::Done;
+        self.result_samples.resize(1);
+    }
+
+    fn take_result(&mut self) -> ResultParts {
+        let empty = OwnedSamples::new(self.result_samples.accounting(), 0);
+        ResultParts {
+            result: self.result,
+            samples: std::mem::replace(&mut self.result_samples, empty),
+        }
+    }
+
     fn reset_sweep(&mut self) {
         self.position = 0;
         self.run_start = 0;
         self.group = 0;
         self.count = None;
+        self.count_samples = None;
         self.correction_previous = None;
+        self.correction_samples = None;
         self.previous_bucket = None;
+        self.previous_samples = None;
         self.correction = BucketQuantileResult::new(NAN);
         self.correction.min_bound = f64::INFINITY;
         self.correction.max_bound = f64::NEG_INFINITY;
@@ -168,7 +207,7 @@ impl Replay {
         loop {
             poll()?;
             if self.phase == Phase::Done {
-                return Ok(Action::Done(self.result));
+                return Ok(Action::Done(self.take_result()));
             }
             if self.count.is_some()
                 && (self.position == bounds.len()
@@ -179,7 +218,8 @@ impl Replay {
                     count: self.count.take().unwrap(),
                 };
                 self.run_start = self.position;
-                self.finish_run(bucket, self.position == bounds.len());
+                let samples = self.count_samples.take();
+                self.finish_run(bucket, samples, self.position == bounds.len());
                 continue;
             }
             self.waiting = true;
@@ -187,12 +227,15 @@ impl Replay {
         }
     }
 
-    pub(crate) fn receive(&mut self, count: f64) {
+    pub(crate) fn receive(&mut self, count: f64, samples: Option<crate::statistics::OwnedSamples>) {
         assert!(self.waiting, "unsolicited bucket count");
         self.waiting = false;
         if self.prepared {
-            self.receive_prepared(count);
+            self.receive_prepared(count, samples);
             return;
+        }
+        if self.count.is_none() {
+            self.count_samples = samples;
         }
         self.count = Some(
             self.count
@@ -209,18 +252,18 @@ impl Replay {
         loop {
             poll()?;
             self.position = match self.phase {
-                Phase::Done => return Ok(Action::Done(self.result)),
+                Phase::Done => return Ok(Action::Done(self.take_result())),
                 Phase::QuantileTotal => self.groups - 1,
                 Phase::QuantileProbe => self.target,
                 Phase::QuantileEndpoint => {
                     if self.target == self.groups - 1 {
                         self.result.value = self.penultimate_bound;
-                        self.phase = Phase::Done;
+                        self.complete();
                         continue;
                     }
                     if self.target == 0 && bounds[0].upper_bound <= 0.0 {
                         self.result.value = bounds[0].upper_bound;
-                        self.phase = Phase::Done;
+                        self.complete();
                         continue;
                     }
                     if let Some(count) = self.count {
@@ -237,7 +280,7 @@ impl Replay {
                                 },
                                 previous,
                             );
-                            self.phase = Phase::Done;
+                            self.complete();
                             continue;
                         }
                         self.target - 1
@@ -252,12 +295,13 @@ impl Replay {
         }
     }
 
-    fn receive_prepared(&mut self, count: f64) {
+    fn receive_prepared(&mut self, count: f64, samples: Option<crate::statistics::OwnedSamples>) {
         match self.phase {
             Phase::QuantileTotal => {
                 self.total = count;
+                self.total_samples = samples;
                 if count == 0.0 {
-                    self.phase = Phase::Done;
+                    self.complete();
                 } else {
                     let Operation::Quantile(q) = self.operation else {
                         unreachable!("prepared quantile")
@@ -278,18 +322,25 @@ impl Replay {
             Phase::QuantileEndpoint => {
                 if self.position == self.target {
                     self.count = Some(count);
+                    self.count_samples = samples;
                 } else {
                     self.previous_bucket = Some(ClassicBucket {
                         upper_bound: 0.0,
                         count,
                     });
+                    self.previous_samples = samples;
                 }
             }
             _ => unreachable!("prepared count request"),
         }
     }
 
-    fn finish_run(&mut self, mut bucket: ClassicBucket, last: bool) {
+    fn finish_run(
+        &mut self,
+        mut bucket: ClassicBucket,
+        samples: Option<crate::statistics::OwnedSamples>,
+        last: bool,
+    ) {
         if matches!(self.operation, Operation::Quantile(_)) {
             bucket.count = if let Some(previous) = self.correction_previous.as_mut() {
                 corrected_count(
@@ -300,12 +351,15 @@ impl Replay {
                 )
             } else {
                 self.correction_previous = Some(bucket.count);
+                self.correction_samples =
+                    samples.as_ref().map(crate::statistics::OwnedSamples::copy);
                 bucket.count
             };
         }
         let index = self.group;
         self.group += 1;
         let previous = self.previous_bucket.replace(bucket);
+        let _previous_samples = std::mem::replace(&mut self.previous_samples, samples);
         match self.phase {
             Phase::QuantileTotal => {
                 if index + 2 == self.groups {
@@ -314,8 +368,12 @@ impl Replay {
                 if last {
                     self.result = self.correction;
                     self.total = bucket.count;
+                    self.total_samples = self
+                        .previous_samples
+                        .as_ref()
+                        .map(crate::statistics::OwnedSamples::copy);
                     if self.groups < 2 || self.total == 0.0 {
-                        self.phase = Phase::Done;
+                        self.complete();
                     } else {
                         let Operation::Quantile(q) = self.operation else {
                             unreachable!()
@@ -345,20 +403,24 @@ impl Replay {
                     } else {
                         quantile_interpolate(self.rank, bucket, previous)
                     };
-                    self.phase = Phase::Done;
+                    self.complete();
                 }
             }
             Phase::FractionTotal => {
                 if last {
                     self.total = bucket.count;
+                    self.total_samples = self
+                        .previous_samples
+                        .as_ref()
+                        .map(crate::statistics::OwnedSamples::copy);
                     let Operation::Fraction(lower, upper) = self.operation else {
                         unreachable!()
                     };
                     if self.total == 0.0 || lower.is_nan() || upper.is_nan() {
-                        self.phase = Phase::Done;
+                        self.complete();
                     } else if lower >= upper {
                         self.result.value = 0.0;
-                        self.phase = Phase::Done;
+                        self.complete();
                     } else {
                         self.phase = Phase::FractionRanks;
                         self.reset_sweep();
@@ -368,7 +430,7 @@ impl Replay {
             Phase::FractionRanks => {
                 if self.ranks.push(bucket) || last {
                     self.result.value = self.ranks.finish(self.total);
-                    self.phase = Phase::Done;
+                    self.complete();
                 }
             }
             Phase::Done => unreachable!(),
@@ -386,7 +448,9 @@ impl Replay {
         if self.prepared {
             // Completed prefix producers make the source predicate directly addressable.
             self.count = None;
+            self.count_samples = None;
             self.previous_bucket = None;
+            self.previous_samples = None;
         } else {
             self.reset_sweep();
         }
@@ -415,6 +479,8 @@ pub fn fixture(request: &serde_json::Value) -> serde_json::Value {
         "fraction" => Operation::Fraction(f(&op["lower"]), f(&op["upper"])),
         _ => panic!("unknown replay operation"),
     };
+    let engine = crate::accounting::EngineAccounting::default();
+    let account = engine.query();
     let mut reads = 0usize;
     let mut polls = 0usize;
     let outcome = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
@@ -422,14 +488,17 @@ pub fn fixture(request: &serde_json::Value) -> serde_json::Value {
             polls += 1;
             Ok::<_, std::convert::Infallible>(())
         };
-        let mut replay = Replay::new(operation, &mut bounds, &mut poll).unwrap();
+        let mut replay = Replay::new(operation, &mut bounds, &account, &mut poll).unwrap();
         loop {
             match replay.next(&bounds, &mut poll).unwrap() {
                 Action::Count(ordinal) => {
                     reads += 1;
-                    replay.receive(f(&request["buckets"][ordinal]["count"]));
+                    replay.receive(
+                        f(&request["buckets"][ordinal]["count"]),
+                        Some(crate::statistics::OwnedSamples::new(&account, 1)),
+                    );
                 }
-                Action::Done(result) => break result,
+                Action::Done(result) => break result.result,
             }
         }
     }));
@@ -462,6 +531,8 @@ mod tests {
     #[test]
     fn invalid_quantiles_leave_metadata_untouched_and_never_request_counts() {
         for (q, expected) in [(NAN, NAN), (-1.0, f64::NEG_INFINITY), (2.0, f64::INFINITY)] {
+            let engine = EngineAccounting::default();
+            let query = engine.query();
             let mut bounds = [
                 Bound {
                     upper_bound: 2.0,
@@ -472,15 +543,100 @@ mod tests {
                     ordinal: 0,
                 },
             ];
-            let mut replay =
-                Replay::new(Operation::Quantile(q), &mut bounds, || Err("must not sort")).unwrap();
+            let mut replay = Replay::new(Operation::Quantile(q), &mut bounds, &query, || {
+                Err("must not sort")
+            })
+            .unwrap();
             let Action::Done(result) = replay.next(&bounds, || Ok::<_, ()>(())).unwrap() else {
                 panic!("unexpected read")
             };
-            assert_eq!(result.value.to_bits(), expected.to_bits());
+            assert_eq!(result.result.value.to_bits(), expected.to_bits());
+            assert_eq!(result.samples.units(), 1);
+            assert_eq!(query.current_samples(), 1);
+            assert_eq!(query.snapshot().statistics.samples.peak_samples, 1);
+            assert_eq!(result.result.min_bound.to_bits(), 0);
+            drop(result);
+            assert_eq!(query.current_samples(), 0);
             assert_eq!(bounds.map(|b| b.ordinal), [1, 0]);
-            assert_eq!(result.min_bound.to_bits(), 0);
         }
+    }
+
+    #[test]
+    fn completed_results_overlap_endpoints_and_transfer_without_an_extra_copy() {
+        let engine = EngineAccounting::default();
+        let account = engine.query();
+        let bounds = [
+            Bound {
+                upper_bound: 1.0,
+                ordinal: 0,
+            },
+            Bound {
+                upper_bound: f64::INFINITY,
+                ordinal: 1,
+            },
+        ];
+        let mut replay = Replay::from_prepared(
+            0.5,
+            &bounds,
+            ResultParts {
+                result: BucketQuantileResult::new(NAN),
+                samples: OwnedSamples::new(&account, 0),
+            },
+        );
+        let result = loop {
+            match replay.next(&bounds, || Ok::<_, ()>(())).unwrap() {
+                Action::Count(ordinal) => {
+                    replay.receive([2.0, 4.0][ordinal], Some(OwnedSamples::new(&account, 1)))
+                }
+                Action::Done(result) => break result,
+            }
+        };
+        assert_eq!(result.result.value, 1.0);
+        assert_eq!(account.current_samples(), 3);
+        assert_eq!(account.snapshot().statistics.samples.peak_samples, 3);
+        drop(replay);
+        assert_eq!(account.current_samples(), 1);
+        drop(result);
+        assert_eq!(account.current_samples(), 0);
+    }
+
+    #[test]
+    fn cancellation_releases_a_result_completed_by_the_last_received_count() {
+        let engine = EngineAccounting::default();
+        let account = engine.query();
+        let bounds = [
+            Bound {
+                upper_bound: 1.0,
+                ordinal: 0,
+            },
+            Bound {
+                upper_bound: f64::INFINITY,
+                ordinal: 1,
+            },
+        ];
+        let mut replay = Replay::from_prepared(
+            0.5,
+            &bounds,
+            ResultParts {
+                result: BucketQuantileResult::new(NAN),
+                samples: OwnedSamples::new(&account, 0),
+            },
+        );
+        assert!(matches!(
+            replay.next(&bounds, || Ok::<_, ()>(())).unwrap(),
+            Action::Count(1)
+        ));
+        replay.receive(0.0, Some(OwnedSamples::new(&account, 1)));
+        assert_eq!(account.current_samples(), 2);
+        assert_eq!(account.snapshot().statistics.samples.peak_samples, 2);
+        let control = Control::default();
+        control.cancellation.cancel();
+        assert!(matches!(
+            replay.next(&bounds, || control.check()),
+            Err(Interrupted::Cancelled)
+        ));
+        drop(replay);
+        assert_eq!(account.current_samples(), 0);
     }
 
     #[test]
@@ -512,7 +668,7 @@ mod tests {
                 Operation::Quantile(0.55)
             };
             let mut replay = AccountedBox::new(
-                Replay::new(operation, &mut bounds, || Ok::<_, ()>(())).unwrap(),
+                Replay::new(operation, &mut bounds, &query, || Ok::<_, ()>(())).unwrap(),
                 &workspace,
             );
             let retained = query.snapshot().memory;
@@ -521,7 +677,10 @@ mod tests {
                     break;
                 }
                 match replay.next(&bounds, || Ok::<_, ()>(())).unwrap() {
-                    Action::Count(ordinal) => replay.receive(ordinal as f64),
+                    Action::Count(ordinal) => replay.receive(
+                        ordinal as f64,
+                        Some(crate::statistics::OwnedSamples::new(&query, 1)),
+                    ),
                     Action::Done(_) => panic!("phase was never reached: {phase:?}"),
                 }
             }
@@ -571,7 +730,7 @@ mod tests {
                     Operation::Fraction(25_000.0, 75_000.0),
                 ] {
                     let mut replay = AccountedBox::new(
-                        Replay::new(operation, &mut bounds, poll).unwrap(),
+                        Replay::new(operation, &mut bounds, &query, poll).unwrap(),
                         &workspace,
                     );
                     let retained = query.snapshot().memory;
@@ -580,9 +739,12 @@ mod tests {
                         match replay.next(&bounds, poll).unwrap() {
                             Action::Count(ordinal) => {
                                 reads += 1;
-                                replay.receive(ordinal.min(100_000) as f64);
+                                replay.receive(
+                                    ordinal.min(100_000) as f64,
+                                    Some(crate::statistics::OwnedSamples::new(&query, 1)),
+                                );
                             }
-                            Action::Done(result) => break result,
+                            Action::Done(result) => break result.result,
                         }
                     };
                     let (expected, bound) = match operation {

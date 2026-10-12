@@ -68,6 +68,7 @@ pub(crate) struct Progress {
     current_time_ms: Option<i64>,
     histograms_allocated: bool,
     start: Option<Start>,
+    pub(crate) sample_units: u64,
 }
 impl Progress {
     pub(crate) fn resume(self, window: MatrixWindow) -> Option<Resume> {
@@ -144,9 +145,11 @@ struct Replay {
     current_time_ms: Option<i64>,
     start: Option<Start>,
     decoder: StatisticsDecoder,
+    sample_units: u64,
+    consuming: bool,
 }
 impl Replay {
-    fn new(window: MatrixWindow) -> Self {
+    fn new(window: MatrixWindow, consuming: bool) -> Self {
         let start = window.certified_start();
         Self {
             end_ms: if start.is_some() {
@@ -162,6 +165,8 @@ impl Replay {
             current_time_ms: None,
             start,
             decoder: StatisticsDecoder::default(),
+            sample_units: 0,
+            consuming,
             window,
         }
     }
@@ -179,6 +184,9 @@ impl Replay {
         } else {
             None
         };
+        let _projection_samples = projection.map(|value| {
+            crate::statistics::OwnedSamples::new(account, crate::statistics::weight(value.as_ref()))
+        });
         let value = projection.map_or(sample.value, |value| value.as_ref());
         if !admit {
             return Ok(());
@@ -215,6 +223,11 @@ impl Replay {
                 }
                 value => value,
             };
+            let units = crate::statistics::weight(value);
+            crate::statistics::add_units(&mut self.sample_units, units, account);
+            if self.consuming {
+                account.samples_read(units);
+            }
             visit(SampleRef { value, ..sample })?;
             self.emitted = Some(sample.time_ms);
         }
@@ -256,12 +269,18 @@ pub(crate) fn scan<S: Series, E: From<StorageError> + From<Interrupted>>(
     window: Option<MatrixWindow>,
     control: &Control,
     account: &QueryAccounting,
-    visit: impl for<'a> FnMut(SampleRef<'a>) -> Result<(), E>,
+    mut visit: impl for<'a> FnMut(SampleRef<'a>) -> Result<(), E>,
 ) -> Result<Option<Progress>, E> {
     let bounds = bounds.into();
     let Some(window) = window else {
         return match bounds {
-            Some(bounds) => scan_with(series, bounds, control, account, visit).map(|_| None),
+            Some(bounds) => scan_with(series, bounds, control, account, |sample| {
+                if !sample.value.is_stale() {
+                    account.samples_read(crate::statistics::weight(sample.value));
+                }
+                visit(sample)
+            })
+            .map(|_| None),
             None => Ok(None),
         };
     };
@@ -278,23 +297,26 @@ pub(crate) fn acquire<S: Series, E: From<StorageError> + From<Interrupted>>(
     visit: impl for<'a> FnMut(SampleRef<'a>) -> Result<(), E>,
 ) -> Result<Acquisition, E> {
     let bounds = bounds.into();
-    let acquisition = replay(series, bounds, window, control, account, |_| Ok::<_, E>(()))?;
+    let acquisition = replay(series, bounds, window, false, control, account, |_| {
+        Ok::<_, E>(())
+    })?;
     if !acquisition.populated {
         return Ok(acquisition);
     }
     let window = window.with_progress(Some(acquisition.progress));
-    replay(series, bounds, window, control, account, visit)
+    replay(series, bounds, window, true, control, account, visit)
 }
 
 fn replay<S: Series, E: From<StorageError> + From<Interrupted>>(
     series: &S,
     bounds: Option<TimeBounds>,
     window: MatrixWindow,
+    consuming: bool,
     control: &Control,
     account: &QueryAccounting,
     mut visit: impl for<'a> FnMut(SampleRef<'a>) -> Result<(), E>,
 ) -> Result<Acquisition, E> {
-    let mut replay = Replay::new(window);
+    let mut replay = Replay::new(window, consuming);
     let mut initial_failure = None;
     let start = if let Some(start) = replay.start {
         WalkStart::Seek(start.target_ms)
@@ -393,6 +415,7 @@ fn replay<S: Series, E: From<StorageError> + From<Interrupted>>(
             current_time_ms: replay.current_time_ms,
             histograms_allocated: replay.histograms_allocated,
             start: replay.start,
+            sample_units: replay.sample_units,
         },
     })
 }

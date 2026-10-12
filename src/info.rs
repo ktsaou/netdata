@@ -69,12 +69,16 @@ impl Plan {
         rows: AccountedVec<Descriptor>,
         call: (NodeId, &ParsedExpression, &Prepared),
         catalog: &Catalog<'_, Q>,
-        scope: (EvaluationOptions, TimeBounds),
+        scope: (
+            EvaluationOptions,
+            TimeBounds,
+            &crate::statistics::PrimaryProgress<'_>,
+        ),
         control: &Control,
         account: &QueryAccounting,
     ) -> Result<(Self, AnnotationBuilder), EvaluationError> {
         let (node, expression, prepared) = call;
-        let (scope, data_bounds) = scope;
+        let (scope, data_bounds, progress) = scope;
         let Expr::Call { arguments, .. } = &expression.arena[node].expression else {
             unreachable!("INFO call")
         };
@@ -269,6 +273,7 @@ impl Plan {
                                     append_bytes_checked(&mut error, &rendered, account, control)?;
                                     return Err(EvaluationError::Runtime(error));
                                 }
+                                progress.add(1);
                                 productive = true;
                             }
                             let Some(next) = time_ms
@@ -452,6 +457,7 @@ fn read<S: Series>(
             lookback_ms: options.lookback_ms,
             delta_ms: options.lookback_ms,
             data_bounds,
+            unit_weight: false,
         },
         control,
         account,

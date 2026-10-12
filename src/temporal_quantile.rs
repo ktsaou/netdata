@@ -24,9 +24,10 @@ struct Membership {
     first_nan: Option<u64>,
     one_nan: bool,
     zero_signs: u8,
+    first_nan_samples: Option<crate::statistics::OwnedSamples>,
 }
 impl Membership {
-    fn receive(&mut self, value: f64) -> Result<(), StorageError> {
+    fn receive(&mut self, value: f64, account: &QueryAccounting) -> Result<(), StorageError> {
         let count = self
             .count
             .checked_add(1)
@@ -45,6 +46,7 @@ impl Membership {
                 self.one_nan &= first == quiet;
             } else {
                 self.first_nan = Some(quiet);
+                self.first_nan_samples = Some(crate::statistics::OwnedSamples::new(account, 1));
                 self.one_nan = true;
             }
         } else if value == 0.0 {
@@ -86,11 +88,13 @@ enum Phase {
         next: u64,
         seen: [u64; 2],
         values: [Option<f64>; 2],
+        samples: [Option<crate::statistics::OwnedSamples>; 2],
     },
 }
 
 pub(crate) struct Step {
     quantile: f64,
+    _quantile_samples: crate::statistics::OwnedSamples,
     membership: Membership,
     plan: Option<Plan>,
     phase: Phase,
@@ -106,9 +110,10 @@ pub(crate) enum Pass {
     Backing(Backing),
 }
 impl Step {
-    pub(crate) fn new(quantile: f64) -> Self {
+    pub(crate) fn new(quantile: f64, account: &QueryAccounting) -> Self {
         Self {
             quantile,
+            _quantile_samples: crate::statistics::OwnedSamples::new(account, 1),
             membership: Membership::default(),
             plan: None,
             phase: Phase::Membership,
@@ -128,13 +133,14 @@ impl Step {
         account.work(1);
         if let SampleValueRef::Float(value) = sample.value {
             match &mut self.phase {
-                Phase::Membership => self.membership.receive(value)?,
+                Phase::Membership => self.membership.receive(value, account)?,
                 Phase::Rank(selector) => selector.receive(value, account),
                 Phase::Fetch {
                     selections,
                     next,
                     seen,
                     values,
+                    samples,
                 } => {
                     for lane in 0..2 {
                         if let Some(selection) = selections[lane]
@@ -142,6 +148,9 @@ impl Step {
                         {
                             if seen[lane] == selection.ordinal {
                                 values[lane] = Some(value);
+                                samples[lane].get_or_insert_with(|| {
+                                    crate::statistics::OwnedSamples::new(account, 1)
+                                });
                             }
                             seen[lane] += 1;
                         }
@@ -157,8 +166,9 @@ impl Step {
         Ok(())
     }
 
-    fn output(&self, value: Option<f64>) -> NumericRangeOutput {
+    fn output(&self, value: Option<f64>, account: &QueryAccounting) -> NumericRangeOutput {
         NumericRangeOutput {
+            float_samples: value.map(|_| crate::statistics::OwnedSamples::new(account, 1)),
             progress: None,
             value,
             invalid_quantile: self.membership.count > 0 && !(0.0..=1.0).contains(&self.quantile),
@@ -177,7 +187,7 @@ impl Step {
         match &mut self.phase {
             Phase::Membership => {
                 if self.membership.count == 0 {
-                    return Ok(Pass::Complete(self.output(None)));
+                    return Ok(Pass::Complete(self.output(None, account)));
                 }
                 if !(0.0..=1.0).contains(&self.quantile) {
                     let value = if self.quantile < 0.0 {
@@ -187,7 +197,7 @@ impl Step {
                     } else {
                         SOURCE_NAN
                     };
-                    return Ok(Pass::Complete(self.output(Some(value))));
+                    return Ok(Pass::Complete(self.output(Some(value), account)));
                 }
                 let plan = Plan::new(self.quantile, self.membership.count);
                 self.plan = Some(plan);
@@ -195,7 +205,7 @@ impl Step {
                 if self.membership.one_class {
                     if let Some(value) = self.membership.value(key) {
                         return Ok(Pass::Complete(
-                            self.output(Some(plan.interpolate([value; 2]))),
+                            self.output(Some(plan.interpolate([value; 2])), account),
                         ));
                     }
                     let mut ordinals = plan.ordinals;
@@ -210,6 +220,7 @@ impl Step {
                         next: 0,
                         seen: [0; 2],
                         values: [None; 2],
+                        samples: [None, None],
                     };
                 } else {
                     self.phase = Phase::Rank(Selector::new(plan));
@@ -248,11 +259,14 @@ impl Step {
                         next: 0,
                         seen: [0; 2],
                         values,
+                        samples: values.map(|value| {
+                            value.map(|_| crate::statistics::OwnedSamples::new(account, 1))
+                        }),
                     };
                     return Ok(Pass::Replay);
                 };
                 Ok(Pass::Complete(
-                    self.output(Some(plan.interpolate([lower, upper]))),
+                    self.output(Some(plan.interpolate([lower, upper])), account),
                 ))
             }
             Phase::Fetch { next, values, .. } => {
@@ -264,13 +278,17 @@ impl Step {
                 };
                 let plan = self.plan.expect("quantile ordinal plan");
                 Ok(Pass::Complete(
-                    self.output(Some(plan.interpolate([lower, upper]))),
+                    self.output(Some(plan.interpolate([lower, upper])), account),
                 ))
             }
         }
     }
-    pub(crate) fn backed_output(&self, value: f64) -> NumericRangeOutput {
-        self.output(Some(value))
+    pub(crate) fn backed_output(
+        &self,
+        value: f64,
+        account: &QueryAccounting,
+    ) -> NumericRangeOutput {
+        self.output(Some(value), account)
     }
 }
 
@@ -283,7 +301,7 @@ pub(crate) fn evaluate<S: Series, Q: QueryProvider>(
     account: &QueryAccounting,
 ) -> Result<NumericRangeOutput, NumericRangeError> {
     let mut input = input;
-    let mut step = Step::new(quantile);
+    let mut step = Step::new(quantile, account);
     loop {
         let progress = scan(series, input, control, account, |sample| {
             step.receive(sample, control, account)
@@ -314,7 +332,7 @@ pub(crate) fn evaluate<S: Series, Q: QueryProvider>(
                         Ok::<_, NumericRangeError>(())
                     },
                 )?;
-                let mut output = step.backed_output(value);
+                let mut output = step.backed_output(value, account);
                 output.progress = final_progress;
                 return Ok(output);
             }
@@ -548,6 +566,8 @@ mod tests {
                     assert_eq!(source.counters.active.load(Ordering::Relaxed), 0);
                     assert_eq!(source.counters.peak.load(Ordering::Relaxed), 1);
                     account.snapshot().assert_memory_released();
+                    drop(output);
+                    assert_eq!(account.current_samples(), 0);
                     drop(account);
                     engine.snapshot().assert_memory_released();
                 }
@@ -615,6 +635,8 @@ mod tests {
                     assert_eq!(source.counters.peak.load(Ordering::Relaxed), 1);
                     assert_eq!(source.counters.active.load(Ordering::Relaxed), 0);
                     snapshot.assert_memory_released();
+                    drop(result);
+                    assert_eq!(account.current_samples(), 0);
                     drop(account);
                     engine.snapshot().assert_memory_released();
                 }
@@ -653,6 +675,8 @@ mod tests {
                     assert_eq!(source.counters.opened.load(Ordering::Relaxed), 1);
                     assert_eq!(source.counters.active.load(Ordering::Relaxed), 0);
                     account.snapshot().assert_memory_released();
+                    drop(output);
+                    assert_eq!(account.current_samples(), 0);
                     drop(account);
                     engine.snapshot().assert_memory_released();
                 }
