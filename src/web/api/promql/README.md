@@ -79,8 +79,8 @@ Errors use `status: error`, `errorType` and `error`. Typical HTTP statuses are:
 
 - `400`: invalid parameters or expression syntax.
 - `422`: expression evaluation failure.
-- `499`: canceled query when a response can still be returned.
-- `503`: expired deadline or shutdown admission refusal.
+- `499`: canceled query or shutdown admission refusal when a response can still be returned.
+- `503`: expired deadline.
 - `500`: metadata, storage, temporary backing or internal failure.
 - `413`: an ACLK result exceeds the MQTT packet or broker ceiling.
 

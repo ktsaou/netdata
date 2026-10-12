@@ -13,6 +13,7 @@ typedef struct {
     const char *backing_directory;
     bool absolute;
     uint64_t storage_pages[RRD_STORAGE_TIERS];
+    // Cursor reads and provider folds exclude native page-prefix decoding work.
     uint64_t storage_points[RRD_STORAGE_TIERS];
     uint64_t reconstruction_points;
     bool counters_overflowed;

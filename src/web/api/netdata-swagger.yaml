@@ -9694,13 +9694,13 @@ components:
           schema:
             $ref: '#/components/schemas/PromQLError'
     PromQLHttp499:
-      description: Query canceled, if the caller remains connected.
+      description: Query canceled or shutdown admission refused, if the caller remains connected.
       content:
         application/json:
           schema:
             $ref: '#/components/schemas/PromQLError'
     PromQLHttp503:
-      description: Expired deadline or shutdown admission refusal.
+      description: Expired deadline.
       content:
         application/json:
           schema:

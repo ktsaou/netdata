@@ -24,8 +24,9 @@ Alertmanager remains outside this work.
 
 - DBengine stores time series by UUID. The existing host/context/instance/metric hierarchy supplies metadata.
   There is no second persistent PromQL metadata catalogue or independent SQL-label cache.
-- Native context, instance and metric handles remain acquired while selected. Host lifetime guards protect
-  query owners from removal. Queries wait for the existing initial-load attempt, with cancellation checks;
+- Native acquired context, instance and metric handles protect metadata traversal and capture. Query descriptors
+  then retain immutable string references, host lifetime guards and UUID-backed storage handles. Queries wait for
+  the existing initial-load attempt, with cancellation checks;
   an unavailable initial load returns an error rather than a successful empty catalogue.
 - Archived labels use the existing on-demand contexts loader. Successful loads remain cached in the instance.
 - Immutable `STRING` references retain original names and label bytes. `string_dup()` increments a reference

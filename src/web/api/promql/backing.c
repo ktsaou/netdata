@@ -1,6 +1,13 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+// Backing offsets must remain wide on 32-bit hosts.
+#ifndef _FILE_OFFSET_BITS
+#define _FILE_OFFSET_BITS 64
+#endif
+
 #include "backing.h"
+
+_Static_assert(sizeof(off_t) >= sizeof(int64_t), "PromQL backing requires 64-bit file offsets");
 
 static bool file_offset(uint64_t value, off_t *out, int *error) {
     *out = (off_t)value;

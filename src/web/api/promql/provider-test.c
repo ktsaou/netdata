@@ -120,7 +120,7 @@ static int provider_case(netdata_promql_engine_t *engine, const PROVIDER_CASE *t
     if(query) netdata_promql_query_release(query);
     if(report) netdata_promql_report_release(report);
     printf("{\"provider_case\":\"%s\",\"status\":%u,\"errors\":%d,\"logical_pages\":%"PRIu64
-           ",\"logical_samples\":%"PRIu64",\"physical_points\":%"PRIu64",\"folds\":%"PRIu64"}\n",
+           ",\"logical_samples\":%"PRIu64",\"cursor_points\":%"PRIu64",\"provider_folds\":%"PRIu64"}\n",
            test->name, status, errors, observations.pages, observations.samples_fetched,
            context.storage_points[0], context.reconstruction_points);
     return errors;

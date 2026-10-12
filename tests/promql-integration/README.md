@@ -9,11 +9,17 @@ DBengine and PromQL enabled and `NETDATA_INTERNAL_CHECKS` explicitly defined.
 | `storage.py --binary BUILD/netdata` | Five-tier storage, native provider/API/dispatcher and controlled delivery |
 | `storage.py --binary BUILD/netdata --rtc-peers` | The same checks plus actual loopback WebRTC peers |
 | `live.py --binary BUILD/netdata` | Ordinary HTTP server over real collected DBengine data |
+| `backing.py` | Native backing I/O with sparse offsets above 2 GiB |
 
 Both storage codecs run by default; `--codecs array` or `--codecs gorilla` selects one. Actual peer qualification
 also requires the pinned libdatachannel build. Each runner requires its exact closed case roster, rejects duplicate
 or missing cases and nonzero errors, and binds the source cohort and executable. Fixture timeouts enable no product
 query cap.
+
+`backing.py` compiles the exact production I/O owner with a small allocation/control shim. It checks sparse
+3 GiB sizing, bounded reads and writes across the 2 GiB boundary, and offset overflow. Use `--cc COMPILER`
+and `--runner 'EMULATOR OPTIONS'` for an installed cross compiler and emulator. Its receipts do not qualify
+daemon memory accounting.
 
 ## Storage and native components
 
@@ -71,6 +77,9 @@ It sends no signal to a running Agent or unrelated process; its PID, command, ex
 Receipts bind the actual executable, pinned engine and affected sources. Allocation callbacks measure owned
 workspace, private pages and borrowed cache/pool exposure separately and must balance after owned work retires.
 They are not measurements of total process RSS.
+
+Provider fixture `cursor_points` and `provider_folds` count cursor reads and provider reconstruction only.
+Native page-prefix decoding is excluded; these diagnostics do not measure total physical work.
 
 The library's separate conformance corpus establishes same-input expression behavior. These fixtures qualify
 the retained-data bridge and the stated API/delivery paths. They do not prove original scrape timing recovery,
