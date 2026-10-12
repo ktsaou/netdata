@@ -273,6 +273,9 @@ static ALWAYS_INLINE void rrdmetric_rrddim_unlock(RRDDIM *rd) {
 }
 
 typedef struct rrdinstance {
+    SPINLOCK metadata_lock;
+    bool metadata_lock_initialized;
+    uint64_t metadata_generation;
     UUIDMAP_ID uuid;
     int update_every_s;                 // data collection frequency
 
@@ -302,6 +305,10 @@ typedef struct rrdinstance {
         // it goes up and then resets to zero, on every iteration
     } internal;
 } RRDINSTANCE;
+
+static inline void rrdinstance_metadata_lock(RRDINSTANCE *ri) { spinlock_lock(&ri->metadata_lock); }
+static inline void rrdinstance_metadata_unlock(RRDINSTANCE *ri) { spinlock_unlock(&ri->metadata_lock); }
+static inline void rrdinstance_metadata_changed(RRDINSTANCE *ri) { ri->metadata_generation++; }
 
 typedef struct rrdcontext {
     uint64_t version;
@@ -497,7 +504,7 @@ static ALWAYS_INLINE void rrdcontext_release(RRDCONTEXT_ACQUIRED *rca) {
 
 // ----------------------------------------------------------------------------
 // Forward definitions
-void load_instance_labels_on_demand(nd_uuid_t *uuid, void *data);
+bool load_instance_labels_on_demand(RRDINSTANCE *ri, bool (*poll)(void *), void *control);
 
 void rrdcontext_recalculate_context_retention(RRDCONTEXT *rc, RRD_FLAGS reason, bool worker_jobs);
 void rrdcontext_recalculate_host_retention(RRDHOST *host, RRD_FLAGS reason, bool worker_jobs);

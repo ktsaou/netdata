@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #include "rrdengine.h"
+#include "demand.h"
 
 #ifdef OS_WINDOWS
 void sync_uv_file_data(uv_file file)
@@ -182,6 +183,13 @@ bool datafile_acquire_for_deletion(struct rrdengine_datafile *df)
     else if(df->users.lockers)
         should_evict_open_pages = true;
     spinlock_tracked_unlock(&df->users.spinlock);
+
+    if(marked_pending) {
+        struct rrdengine_instance *ctx = datafile_ctx(df);
+        rw_spinlock_write_lock(&ctx->njfv2idx.spinlock);
+        rrdeng_read_expire_file(df);
+        rw_spinlock_write_unlock(&ctx->njfv2idx.spinlock);
+    }
 
     if(marked_pending)
         netdata_log_info("DBENGINE: tier %d: " DATAFILE_PREFIX RRDENG_FILE_NUMBER_PRINT_TMPL " is pending deletion",

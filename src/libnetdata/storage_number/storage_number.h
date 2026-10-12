@@ -83,6 +83,15 @@ typedef struct storage_number_tier1 {
     uint16_t anomaly_count;
 } storage_number_tier1_t;
 
+typedef struct storage_number_tier1_counter {
+    float sum_value;
+    float min_value;
+    float max_value;
+    uint32_t count;
+    uint32_t anomaly_count;
+    uint32_t flags;
+} storage_number_tier1_counter_t;
+
 #define STORAGE_NUMBER_FORMAT "%u"
 
 typedef uint32_t SN_FLAGS;
@@ -95,6 +104,24 @@ typedef uint32_t SN_FLAGS;
 #define SN_FLAG_NEGATIVE          ((SN_FLAGS)(UINT32_C(1) << 31)) // negative, else positive
 
 #define SN_USER_FLAGS (SN_FLAG_NOT_ANOMALOUS | SN_FLAG_RESET)
+
+// These bits are decoded metadata, never part of the packed number's fraction.
+#define SP_FLAG_NEGATIVE_PRESENTATION ((SN_FLAGS)(UINT32_C(1) << 0))
+#define SP_FLAG_HAS_GAP               ((SN_FLAGS)(UINT32_C(1) << 1))
+#define SP_FLAG_COUNT_UNKNOWN         ((SN_FLAGS)(UINT32_C(1) << 2))
+#define SP_FLAG_ANOMALY_COUNT_UNKNOWN ((SN_FLAGS)(UINT32_C(1) << 3))
+#define SP_FLAG_GAP_UNKNOWN           ((SN_FLAGS)(UINT32_C(1) << 4))
+#define SP_FLAG_RESET_UNKNOWN         ((SN_FLAGS)(UINT32_C(1) << 5))
+#define SP_FLAG_COUNTER_VALUE_VALID   ((SN_FLAGS)(UINT32_C(1) << 6))
+#define SP_FLAG_COUNTER_INVALID       ((SN_FLAGS)(UINT32_C(1) << 7))
+#define SP_FLAG_COUNTER_SOURCE        ((SN_FLAGS)(UINT32_C(1) << 8))
+#define SP_FLAG_ORDINARY_SOURCE       ((SN_FLAGS)(UINT32_C(1) << 9))
+#define SP_SOURCE_FLAGS (SP_FLAG_COUNTER_SOURCE | SP_FLAG_ORDINARY_SOURCE)
+
+#define SP_COUNTER_DISK_FLAGS (SN_USER_FLAGS | SP_FLAG_NEGATIVE_PRESENTATION | SP_FLAG_HAS_GAP | \
+    SP_FLAG_COUNT_UNKNOWN | SP_FLAG_ANOMALY_COUNT_UNKNOWN | SP_FLAG_GAP_UNKNOWN | SP_FLAG_RESET_UNKNOWN)
+#define SP_LEGACY_TIER_UNKNOWN (SP_FLAG_COUNT_UNKNOWN | SP_FLAG_ANOMALY_COUNT_UNKNOWN | \
+    SP_FLAG_GAP_UNKNOWN | SP_FLAG_RESET_UNKNOWN)
 
 // default flags for all storage numbers
 // anomaly bit is reversed, so we set it by default

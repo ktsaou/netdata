@@ -207,6 +207,7 @@ USAGE: ${PROGRAM} [options]
   --enable-plugin-freeipmi   Enable the FreeIPMI plugin. Default: enable it when libipmimonitoring is available.
   --disable-plugin-freeipmi  Explicitly disable the FreeIPMI plugin.
   --disable-dbengine         Explicitly disable DB engine support.
+  --disable-promql           Build without the PromQL query and discovery APIs.
   --enable-plugin-go         Enable the Go plugin. Default: Enabled when possible.
   --disable-plugin-go        Disable the Go plugin.
   --disable-go               Disable all Go components.
@@ -270,6 +271,7 @@ NETDATA_WINDOWS_PATH_PREFIX=
 LIBS_ARE_HERE=0
 NETDATA_ENABLE_ML=""
 ENABLE_DBENGINE=1
+ENABLE_PROMQL=1
 ENABLE_GO=1
 ENABLE_PYTHON=1
 ENABLE_CHARTS=1
@@ -307,6 +309,7 @@ while [ -n "${1}" ]; do
       warning "HTTPS cannot be disabled."
       ;;
     "--disable-dbengine") ENABLE_DBENGINE=0 ;;
+    "--disable-promql") ENABLE_PROMQL=0 ;;
     "--enable-plugin-go") ENABLE_GO=1 ;;
     "--disable-plugin-go") ENABLE_GO=0 ;;
     "--disable-go") ENABLE_GO=0 ;;

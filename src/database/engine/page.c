@@ -4,6 +4,10 @@
 
 #include "libnetdata/libnetdata.h"
 
+_Static_assert(sizeof(double) == 8, "Counter page anchors require binary64");
+_Static_assert(sizeof(storage_number_tier1_counter_t) == 24, "Counter aggregate record layout");
+_Static_assert(offsetof(storage_number_tier1_counter_t, flags) == 20, "Counter aggregate flag offset");
+
 typedef enum __attribute__((packed)) {
     PAGE_OPTION_ALL_VALUES_EMPTY    = (1 << 0),
     PAGE_OPTION_ARAL_MARKED         = (1 << 1),
@@ -44,6 +48,7 @@ struct pgd {
     PAGE_OPTIONS options;
 
     PGD_STATES states;
+    double counter_anchor;
 
     union {
         page_raw_t raw;
@@ -65,17 +70,17 @@ static PRINTFLIKE(2, 3) void pgd_fatal(const PGD *pg, const char *fmt, ...) {
         buffer_strcat(wb, "type: ");
         bool added = false;
 
-        if (pg->type == RRDENG_PAGE_TYPE_ARRAY_32BIT) {
+        if (rrdeng_page_type_base(pg->type) == RRDENG_PAGE_TYPE_ARRAY_32BIT) {
             buffer_sprintf(wb, "%s", "ARRAY_32BIT");
             added = true;
         }
 
-        if (pg->type == RRDENG_PAGE_TYPE_ARRAY_TIER1) {
+        if (rrdeng_page_type_base(pg->type) == RRDENG_PAGE_TYPE_ARRAY_TIER1) {
             buffer_sprintf(wb, added ? "|%s" : "%s", "ARRAY_TIER1");
             added = true;
         }
 
-        if (pg->type == RRDENG_PAGE_TYPE_GORILLA_32BIT) {
+        if (rrdeng_page_type_base(pg->type) == RRDENG_PAGE_TYPE_GORILLA_32BIT) {
             buffer_sprintf(wb, added ? "|%s" : "%s", "GORILLA_32BIT");
             added = true;
         }
@@ -461,6 +466,17 @@ ALWAYS_INLINE void *dbengine_extent_alloc(size_t size) {
     return pgd_data_alloc(size, 0, false);
 }
 
+size_t dbengine_extent_memory_footprint(size_t size) {
+    return pgd_data_footprint(size, 0);
+}
+
+size_t pgd_disk_memory_footprint(uint8_t type, uint32_t size) {
+    if(type > RRDENG_PAGE_TYPE_MAX || size < rrdeng_page_header_size(type))
+        return 0;
+    size_t partition = gettid_cached() % pgd_alloc_globals.partitions;
+    return pgd_alloc_globals.sizeof_pgd + pgd_data_footprint(size - rrdeng_page_header_size(type), partition);
+}
+
 ALWAYS_INLINE void dbengine_extent_free(void *extent, size_t size) {
     pgd_data_free(extent, size, 0);
 }
@@ -470,6 +486,12 @@ ALWAYS_INLINE void dbengine_extent_free(void *extent, size_t size) {
 
 ALWAYS_INLINE PGD *pgd_create(uint8_t type, uint32_t slots) {
 
+    if(type > RRDENG_PAGE_TYPE_MAX || !slots || slots > UINT16_MAX)
+        return PGD_EMPTY;
+    if(rrdeng_page_type_base(type) != RRDENG_PAGE_TYPE_GORILLA_32BIT &&
+       slots > UINT16_MAX / page_type_size[type])
+        return PGD_EMPTY;
+
     PGD *pg = pgd_alloc(true); // this is malloc'd !
     pg->type = type;
     pg->states = PGD_STATE_CREATED_FROM_COLLECTOR;
@@ -477,8 +499,9 @@ ALWAYS_INLINE PGD *pgd_create(uint8_t type, uint32_t slots) {
 
     pg->used = 0;
     pg->slots = slots;
+    pg->counter_anchor = 0.0;
 
-    switch (type) {
+    switch (rrdeng_page_type_base(type)) {
         case RRDENG_PAGE_TYPE_GORILLA_32BIT: {
             internal_fatal(slots == 1,
                       "DBENGINE: invalid number of slots (%u) or page type (%u)", slots, type);
@@ -521,15 +544,32 @@ ALWAYS_INLINE PGD *pgd_create(uint8_t type, uint32_t slots) {
 
 ALWAYS_INLINE PGD *pgd_create_from_disk_data(uint8_t type, void *base, uint32_t size) {
 
-    if (!size || size < page_type_size[type])
+    if(type > RRDENG_PAGE_TYPE_MAX || !base)
+        return PGD_EMPTY;
+
+    uint32_t header = rrdeng_page_header_size(type);
+    if(size < header || size - header < page_type_size[type] || size - header > UINT16_MAX)
+        return PGD_EMPTY;
+
+    if(rrdeng_page_type_base(type) == RRDENG_PAGE_TYPE_GORILLA_32BIT) {
+        if((size - header) % RRDENG_GORILLA_32BIT_BUFFER_SIZE)
+            return PGD_EMPTY;
+    }
+    else if((size - header) % page_type_size[type])
         return PGD_EMPTY;
 
     PGD *pg = pgd_alloc(false); // this is malloc'd !
     pg->type = type;
     pg->states = PGD_STATE_CREATED_FROM_DISK;
     pg->options = PAGE_OPTION_ARAL_UNMARKED;
+    pg->counter_anchor = 0.0;
+    if(header) {
+        memcpy(&pg->counter_anchor, base, header);
+        base = (uint8_t *)base + header;
+        size -= header;
+    }
 
-    switch (type)
+    switch (rrdeng_page_type_base(type))
     {
         case RRDENG_PAGE_TYPE_GORILLA_32BIT:
             internal_fatal(size == 0, "Asked to create page with 0 data!!!");
@@ -545,7 +585,7 @@ ALWAYS_INLINE PGD *pgd_create_from_disk_data(uint8_t type, void *base, uint32_t 
             uint32_t total_entries = 0;
             if(unlikely(!gorilla_buffer_patch((void *) pg->raw.data,
                                               size / RRDENG_GORILLA_32BIT_BUFFER_SIZE,
-                                              &total_entries))) {
+                                              &total_entries)) || !total_entries || total_entries > UINT16_MAX) {
                 netdata_log_error("DBENGINE: invalid gorilla disk page chain.");
                 pgd_free(pg);
                 pg = PGD_EMPTY;
@@ -575,6 +615,16 @@ ALWAYS_INLINE PGD *pgd_create_from_disk_data(uint8_t type, void *base, uint32_t 
     return pg;
 }
 
+void pgd_set_counter_anchor(PGD *pg, double counter) {
+    internal_fatal(!pg || pg == PGD_EMPTY || !rrdeng_page_type_is_counter(pg->type) || pg->used,
+                   "Counter anchor must be set before the first record");
+    pg->counter_anchor = counter;
+}
+
+double pgd_counter_anchor(PGD *pg) {
+    return pg && pg != PGD_EMPTY && rrdeng_page_type_is_counter(pg->type) ? pg->counter_anchor : NAN;
+}
+
 void pgd_free(PGD *pg) {
     if (!pg || pg == PGD_EMPTY)
         return;
@@ -582,7 +632,7 @@ void pgd_free(PGD *pg) {
     internal_fatal(pg->partition >= pgd_alloc_globals.partitions,
                    "PGD partition is invalid %u", pg->partition);
 
-    switch (pg->type)
+    switch (rrdeng_page_type_base(pg->type))
     {
         case RRDENG_PAGE_TYPE_GORILLA_32BIT: {
             if (pg->states & PGD_STATE_CREATED_FROM_DISK)
@@ -659,7 +709,7 @@ static void pgd_aral_unmark(PGD *pg) {
     internal_fatal(pg->partition >= pgd_alloc_globals.partitions,
                    "PGD partition is invalid %u", pg->partition);
 
-    switch (pg->type)
+    switch (rrdeng_page_type_base(pg->type))
     {
         case RRDENG_PAGE_TYPE_GORILLA_32BIT: {
             if (pg->states & PGD_STATE_CREATED_FROM_DISK)
@@ -720,7 +770,7 @@ ALWAYS_INLINE bool pgd_is_empty(PGD *pg)
     if (pg->used == 0)
         return true;
 
-    if (pg->options & PAGE_OPTION_ALL_VALUES_EMPTY)
+    if (!rrdeng_page_type_is_counter(pg->type) && (pg->options & PAGE_OPTION_ALL_VALUES_EMPTY))
         return true;
 
     return false;
@@ -758,7 +808,7 @@ ALWAYS_INLINE uint32_t pgd_memory_footprint(PGD *pg)
 
     size_t footprint = pgd_alloc_globals.sizeof_pgd;
 
-    switch (pg->type) {
+    switch (rrdeng_page_type_base(pg->type)) {
         case RRDENG_PAGE_TYPE_GORILLA_32BIT: {
             if (pg->states & PGD_STATE_CREATED_FROM_DISK)
                 footprint += pgd_data_footprint(pg->raw.size, pg->partition);
@@ -794,7 +844,7 @@ uint32_t pgd_buffer_memory_footprint(PGD *pg)
 
     size_t footprint = 0;
 
-    switch (pg->type) {
+    switch (rrdeng_page_type_base(pg->type)) {
         case RRDENG_PAGE_TYPE_GORILLA_32BIT: {
             if (pg->states & PGD_STATE_CREATED_FROM_DISK)
                 footprint = pg->raw.size;
@@ -827,7 +877,7 @@ uint32_t pgd_disk_footprint(PGD *pg)
     // since the page is ready for flushing, let's unmark its pages to ARAL
     pgd_aral_unmark(pg);
 
-    switch (pg->type) {
+    switch (rrdeng_page_type_base(pg->type)) {
         case RRDENG_PAGE_TYPE_GORILLA_32BIT: {
             if (pg->states & PGD_STATE_CREATED_FROM_COLLECTOR ||
                 pg->states & PGD_STATE_SCHEDULED_FOR_FLUSHING ||
@@ -870,6 +920,8 @@ uint32_t pgd_disk_footprint(PGD *pg)
             break;
     }
 
+    size += rrdeng_page_header_size(pg->type);
+
     internal_fatal(pg->states & PGD_STATE_CREATED_FROM_DISK,
                    "Disk footprint asked for page created from disk.");
 
@@ -882,7 +934,14 @@ void pgd_copy_to_extent(PGD *pg, uint8_t *dst, uint32_t dst_size)
     internal_fatal(pgd_disk_footprint(pg) != dst_size, "Wrong disk footprint size requested (need %u, available %u)",
                    pgd_disk_footprint(pg), dst_size);
 
-    switch (pg->type) {
+    uint32_t header = rrdeng_page_header_size(pg->type);
+    if(header) {
+        memcpy(dst, &pg->counter_anchor, header);
+        dst += header;
+        dst_size -= header;
+    }
+
+    switch (rrdeng_page_type_base(pg->type)) {
         case RRDENG_PAGE_TYPE_GORILLA_32BIT: {
             if ((pg->states & PGD_STATE_SCHEDULED_FOR_FLUSHING) == 0)
                 fatal("Copying to extent is supported only for PGDs that are scheduled for flushing.");
@@ -918,17 +977,90 @@ void pgd_copy_to_extent(PGD *pg, uint8_t *dst, uint32_t dst_size)
 // data collection
 
 // returns additional memory that may have been allocated to store this point
+static inline bool counter_number_is_gap(storage_number value) {
+    return (value & ~(SN_USER_FLAGS | SN_FLAG_NEGATIVE)) == SN_EMPTY_SLOT;
+}
+
+static inline storage_number pgd_pack_number(PGD *pg, NETDATA_DOUBLE n, SN_FLAGS flags) {
+    if(!rrdeng_page_type_is_counter(pg->type))
+        return pack_storage_number(n, flags);
+
+    storage_number value = pack_storage_number(fabsndd(n), flags);
+    if(!netdata_double_isnumber(n))
+        value |= flags & SN_USER_FLAGS;
+    if((flags & SP_FLAG_NEGATIVE_PRESENTATION) || (netdata_double_isnumber(n) && signbit(n)))
+        value |= SN_FLAG_NEGATIVE;
+    return value;
+}
+
+static void pgd_decode_number(PGD *pg, storage_number value, STORAGE_POINT *sp) {
+    bool counter = rrdeng_page_type_is_counter(pg->type);
+    sp->counter = NAN;
+    sp->flags = (value & SN_USER_FLAGS) | (counter ? SP_FLAG_COUNTER_SOURCE : SP_FLAG_ORDINARY_SOURCE);
+    sp->count = 1;
+    sp->anomaly_count = is_storage_number_anomalous(value) ? 1 : 0;
+    if(counter && counter_number_is_gap(value)) {
+        sp->min = sp->max = sp->sum = NAN;
+        sp->flags |= SP_FLAG_HAS_GAP;
+        sp->anomaly_count = 0;
+    }
+    else
+        sp->min = sp->max = sp->sum = unpack_storage_number(value);
+    if(counter && (value & SN_FLAG_NEGATIVE))
+        sp->flags |= SP_FLAG_NEGATIVE_PRESENTATION;
+}
+
+static bool pgd_decode_tier1(PGD *pg, uint32_t position, STORAGE_POINT *sp) {
+    sp->counter = NAN;
+    if(rrdeng_page_type_is_counter(pg->type)) {
+        storage_number_tier1_counter_t n = ((storage_number_tier1_counter_t *)pg->raw.data)[position];
+        if(n.flags & ~SP_COUNTER_DISK_FLAGS) {
+            storage_point_empty(*sp, sp->start_time_s, sp->end_time_s);
+            sp->flags |= SP_FLAG_COUNTER_INVALID;
+            return false;
+        }
+        sp->flags = n.flags | SP_FLAG_COUNTER_SOURCE;
+        sp->count = n.count;
+        sp->anomaly_count = n.anomaly_count;
+        sp->min = n.min_value;
+        sp->max = n.max_value;
+        sp->sum = n.sum_value;
+        if((isfinite(n.sum_value) && (!isfinite(n.min_value) || !isfinite(n.max_value) ||
+               n.sum_value < 0 || n.min_value < 0 || n.max_value < n.min_value)) ||
+           (!(n.flags & SP_FLAG_ANOMALY_COUNT_UNKNOWN) && n.anomaly_count > n.count)) {
+            sp->flags |= SP_FLAG_COUNTER_INVALID;
+            return false;
+        }
+        if(n.flags & SP_FLAG_NEGATIVE_PRESENTATION) {
+            sp->min = -n.max_value;
+            sp->max = -n.min_value;
+            sp->sum = -n.sum_value;
+        }
+        return true;
+    }
+    storage_number_tier1_t n = ((storage_number_tier1_t *)pg->raw.data)[position];
+    sp->flags = (n.anomaly_count ? SN_FLAG_NONE : SN_FLAG_NOT_ANOMALOUS) |
+                SP_LEGACY_TIER_UNKNOWN | SP_FLAG_ORDINARY_SOURCE;
+    sp->count = n.count;
+    sp->anomaly_count = n.anomaly_count;
+    sp->min = n.min_value;
+    sp->max = n.max_value;
+    sp->sum = n.sum_value;
+    return true;
+}
+
 ALWAYS_INLINE_HOT_FLATTEN
-size_t pgd_append_point(
+size_t pgd_append_point_with_retained(
     PGD *pg,
     usec_t point_in_time_ut __maybe_unused,
     NETDATA_DOUBLE n,
     NETDATA_DOUBLE min_value,
     NETDATA_DOUBLE max_value,
-    uint16_t count,
-    uint16_t anomaly_count,
+    uint32_t count,
+    uint32_t anomaly_count,
     SN_FLAGS flags,
-    uint32_t expected_slot)
+    uint32_t expected_slot,
+    STORAGE_POINT *retained)
 {
     if (pg->states & PGD_STATE_SCHEDULED_FOR_FLUSHING) {
         if(exit_initiated_get() == EXIT_REASON_NONE)
@@ -952,10 +1084,12 @@ size_t pgd_append_point(
         pgd_fatal(pg, "DBENGINE: attempted to write beyond page size (page type %u, slots %u, used %u)",
               pg->type, pg->slots, pg->used /* FIXME:, pg->size */);
 
-    switch (pg->type) {
+    switch (rrdeng_page_type_base(pg->type)) {
         case RRDENG_PAGE_TYPE_GORILLA_32BIT: {
             pg->used++;
-            storage_number t = pack_storage_number(n, flags);
+            storage_number t = pgd_pack_number(pg, n, flags);
+            if(retained)
+                pgd_decode_number(pg, t, retained);
 
             if ((pg->options & PAGE_OPTION_ALL_VALUES_EMPTY) && does_storage_number_exist(t))
                 pg->options &= ~PAGE_OPTION_ALL_VALUES_EMPTY;
@@ -978,6 +1112,33 @@ size_t pgd_append_point(
             break;
         }
         case RRDENG_PAGE_TYPE_ARRAY_TIER1: {
+            if(rrdeng_page_type_is_counter(pg->type)) {
+                storage_number_tier1_counter_t t = {
+                    .sum_value = (float)fabsndd(n),
+                    .min_value = (float)fabsndd(min_value),
+                    .max_value = (float)fabsndd(max_value),
+                    .count = count,
+                    .anomaly_count = anomaly_count,
+                    .flags = flags & SP_COUNTER_DISK_FLAGS,
+                };
+                if(t.min_value > t.max_value) {
+                    float minimum = t.max_value;
+                    t.max_value = t.min_value;
+                    t.min_value = minimum;
+                }
+                if((flags & SP_FLAG_NEGATIVE_PRESENTATION) || (netdata_double_isnumber(n) && signbit(n)))
+                    t.flags |= SP_FLAG_NEGATIVE_PRESENTATION;
+                if(!netdata_double_isnumber(n))
+                    t.flags |= SP_FLAG_HAS_GAP;
+                if(anomaly_count)
+                    t.flags &= ~SN_FLAG_NOT_ANOMALOUS;
+                else
+                    t.flags |= SN_FLAG_NOT_ANOMALOUS;
+                ((storage_number_tier1_counter_t *)pg->raw.data)[pg->used++] = t;
+                if(retained)
+                    pgd_decode_tier1(pg, expected_slot, retained);
+                break;
+            }
             storage_number_tier1_t *tier12_metric_data = (storage_number_tier1_t *)pg->raw.data;
             storage_number_tier1_t t;
             t.sum_value = (float) n;
@@ -986,6 +1147,8 @@ size_t pgd_append_point(
             t.anomaly_count = anomaly_count;
             t.count = count;
             tier12_metric_data[pg->used++] = t;
+            if(retained)
+                pgd_decode_tier1(pg, expected_slot, retained);
 
             if ((pg->options & PAGE_OPTION_ALL_VALUES_EMPTY) && fpclassify(n) != FP_NAN)
                 pg->options &= ~PAGE_OPTION_ALL_VALUES_EMPTY;
@@ -994,8 +1157,10 @@ size_t pgd_append_point(
         }
         case RRDENG_PAGE_TYPE_ARRAY_32BIT: {
             storage_number *tier0_metric_data = (storage_number *)pg->raw.data;
-            storage_number t = pack_storage_number(n, flags);
+            storage_number t = pgd_pack_number(pg, n, flags);
             tier0_metric_data[pg->used++] = t;
+            if(retained)
+                pgd_decode_number(pg, t, retained);
 
             if ((pg->options & PAGE_OPTION_ALL_VALUES_EMPTY) && does_storage_number_exist(t))
                 pg->options &= ~PAGE_OPTION_ALL_VALUES_EMPTY;
@@ -1010,6 +1175,13 @@ size_t pgd_append_point(
     return 0;
 }
 
+size_t pgd_append_point(PGD *pg, usec_t point_in_time_ut, NETDATA_DOUBLE n, NETDATA_DOUBLE min_value,
+                        NETDATA_DOUBLE max_value, uint32_t count, uint32_t anomaly_count,
+                        SN_FLAGS flags, uint32_t expected_slot) {
+    return pgd_append_point_with_retained(pg, point_in_time_ut, n, min_value, max_value,
+                                         count, anomaly_count, flags, expected_slot, NULL);
+}
+
 // ----------------------------------------------------------------------------
 // querying with cursor
 
@@ -1017,7 +1189,7 @@ static void pgdc_seek(PGDC *pgdc, uint32_t position)
 {
     PGD *pg = pgdc->pgd;
 
-    switch (pg->type) {
+    switch (rrdeng_page_type_base(pg->type)) {
         case RRDENG_PAGE_TYPE_GORILLA_32BIT: {
             if (pg->states & PGD_STATE_CREATED_FROM_DISK) {
                 pgdc->slots = pgdc->pgd->slots;
@@ -1068,6 +1240,8 @@ void pgdc_reset(PGDC *pgdc, PGD *pgd, uint32_t position)
 
     pgdc->pgd = pgd;
     pgdc->position = position;
+    pgdc->counter_value = pgd_counter_anchor(pgd);
+    pgdc->counter_position = 0;
 
     if (!pgd)
         return;
@@ -1082,7 +1256,7 @@ void pgdc_reset(PGDC *pgdc, PGD *pgd, uint32_t position)
 }
 
 ALWAYS_INLINE_HOT_FLATTEN
-bool pgdc_get_next_point(PGDC *pgdc, uint32_t expected_position __maybe_unused, STORAGE_POINT *sp)
+static bool pgdc_decode_next_point(PGDC *pgdc, uint32_t expected_position __maybe_unused, STORAGE_POINT *sp)
 {
     if (!pgdc->pgd || pgdc->pgd == PGD_EMPTY || pgdc->position >= pgdc->slots)
     {
@@ -1092,7 +1266,7 @@ bool pgdc_get_next_point(PGDC *pgdc, uint32_t expected_position __maybe_unused, 
 
     internal_fatal(pgdc->position != expected_position, "Wrong expected cursor position");
 
-    switch (pgdc->pgd->type)
+    switch (rrdeng_page_type_base(pgdc->pgd->type))
     {
         case RRDENG_PAGE_TYPE_GORILLA_32BIT: {
             pgdc->position++;
@@ -1101,10 +1275,7 @@ bool pgdc_get_next_point(PGDC *pgdc, uint32_t expected_position __maybe_unused, 
             bool ok = gorilla_reader_read(&pgdc->gr, &n);
 
             if (ok) {
-                sp->min = sp->max = sp->sum = unpack_storage_number(n);
-                sp->flags = (SN_FLAGS)(n & SN_USER_FLAGS);
-                sp->count = 1;
-                sp->anomaly_count = is_storage_number_anomalous(n) ? 1 : 0;
+                pgd_decode_number(pgdc->pgd, n, sp);
             } else {
                 storage_point_empty(*sp, sp->start_time_s, sp->end_time_s);
             }
@@ -1112,26 +1283,13 @@ bool pgdc_get_next_point(PGDC *pgdc, uint32_t expected_position __maybe_unused, 
             return ok;
         }
         case RRDENG_PAGE_TYPE_ARRAY_TIER1: {
-            storage_number_tier1_t *array = (storage_number_tier1_t *) pgdc->pgd->raw.data;
-            storage_number_tier1_t n = array[pgdc->position++];
-
-            sp->flags = n.anomaly_count ? SN_FLAG_NONE : SN_FLAG_NOT_ANOMALOUS;
-            sp->count = n.count;
-            sp->anomaly_count = n.anomaly_count;
-            sp->min = n.min_value;
-            sp->max = n.max_value;
-            sp->sum = n.sum_value;
-
-            return true;
+            return pgd_decode_tier1(pgdc->pgd, pgdc->position++, sp);
         }
         case RRDENG_PAGE_TYPE_ARRAY_32BIT: {
             storage_number *array = (storage_number *) pgdc->pgd->raw.data;
             storage_number n = array[pgdc->position++];
 
-            sp->min = sp->max = sp->sum = unpack_storage_number(n);
-            sp->flags = (SN_FLAGS)(n & SN_USER_FLAGS);
-            sp->count = 1;
-            sp->anomaly_count = is_storage_number_anomalous(n) ? 1 : 0;
+            pgd_decode_number(pgdc->pgd, n, sp);
 
             return true;
         }
@@ -1148,4 +1306,46 @@ bool pgdc_get_next_point(PGDC *pgdc, uint32_t expected_position __maybe_unused, 
             return false;
         }
     }
+}
+
+bool pgdc_get_next_point(PGDC *pgdc, uint32_t expected_position, STORAGE_POINT *sp) {
+    sp->counter = NAN;
+    bool counter = pgdc->pgd && pgdc->pgd != PGD_EMPTY && rrdeng_page_type_is_counter(pgdc->pgd->type);
+    if(counter && pgdc->position >= pgdc->slots) {
+        storage_point_empty(*sp, sp->start_time_s, sp->end_time_s);
+        return false;
+    }
+    if(counter && pgdc->counter_position != pgdc->position) {
+        PGDC prefix;
+        pgdc_reset(&prefix, pgdc->pgd, 0);
+        STORAGE_POINT prior = STORAGE_POINT_UNSET;
+        prior.start_time_s = sp->start_time_s;
+        prior.end_time_s = sp->end_time_s;
+        for(uint32_t i = 0; i < pgdc->position; i++) {
+            if(!pgdc_decode_next_point(&prefix, i, &prior)) {
+                storage_point_empty(*sp, sp->start_time_s, sp->end_time_s);
+                sp->flags |= SP_FLAG_COUNTER_INVALID;
+                return false;
+            }
+            if(!storage_counter_fold(&prefix.counter_value, &prior, true)) {
+                prefix.counter_value = NAN;
+            }
+        }
+        pgdc->counter_value = prefix.counter_value;
+        pgdc->counter_position = pgdc->position;
+    }
+
+    bool ok = pgdc_decode_next_point(pgdc, expected_position, sp);
+    if(ok && counter) {
+        pgdc->counter_position = pgdc->position;
+        if(!storage_counter_fold(&pgdc->counter_value, sp, true)) {
+            pgdc->counter_value = NAN;
+            sp->flags |= SP_FLAG_COUNTER_INVALID;
+        }
+        else if(!storage_point_is_gap(*sp)) {
+            sp->counter = pgdc->counter_value;
+            sp->flags |= SP_FLAG_COUNTER_VALUE_VALID;
+        }
+    }
+    return ok;
 }

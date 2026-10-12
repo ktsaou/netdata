@@ -13,6 +13,8 @@ typedef struct pgd_cursor {
     struct pgd *pgd;
     uint32_t position;
     uint32_t slots;
+    double counter_value;
+    uint32_t counter_position;
 
     gorilla_reader_t gr;
 } PGDC;
@@ -28,6 +30,8 @@ void pgd_init_arals(void);
 PGD *pgd_create(uint8_t type, uint32_t slots);
 PGD *pgd_create_from_disk_data(uint8_t type, void *base, uint32_t size);
 void pgd_free(PGD *pg);
+void pgd_set_counter_anchor(PGD *pg, double counter);
+double pgd_counter_anchor(PGD *pg);
 
 uint32_t pgd_type(PGD *pg);
 bool pgd_is_empty(PGD *pg);
@@ -35,6 +39,7 @@ uint32_t pgd_slots_used(PGD *pg);
 
 uint32_t pgd_buffer_memory_footprint(PGD *pg);
 uint32_t pgd_memory_footprint(PGD *pg);
+size_t pgd_disk_memory_footprint(uint8_t type, uint32_t size);
 uint32_t pgd_capacity(PGD *pg);
 uint32_t pgd_disk_footprint(PGD *pg);
 
@@ -48,15 +53,27 @@ size_t pgd_append_point(PGD *pg,
                       NETDATA_DOUBLE n,
                       NETDATA_DOUBLE min_value,
                       NETDATA_DOUBLE max_value,
-                      uint16_t count,
-                      uint16_t anomaly_count,
+                      uint32_t count,
+                      uint32_t anomaly_count,
                       SN_FLAGS flags,
                       uint32_t expected_slot);
+
+size_t pgd_append_point_with_retained(PGD *pg,
+                      usec_t point_in_time_ut,
+                      NETDATA_DOUBLE n,
+                      NETDATA_DOUBLE min_value,
+                      NETDATA_DOUBLE max_value,
+                      uint32_t count,
+                      uint32_t anomaly_count,
+                      SN_FLAGS flags,
+                      uint32_t expected_slot,
+                      STORAGE_POINT *retained);
 
 void pgdc_reset(PGDC *pgdc, PGD *pgd, uint32_t position);
 bool pgdc_get_next_point(PGDC *pgdc, uint32_t expected_position, STORAGE_POINT *sp);
 
 void *dbengine_extent_alloc(size_t size);
+size_t dbengine_extent_memory_footprint(size_t size);
 void dbengine_extent_free(void *extent, size_t size);
 
 #ifdef __cplusplus

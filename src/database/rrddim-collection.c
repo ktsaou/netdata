@@ -19,7 +19,7 @@ void store_metric_at_tier_flush_last_completed(RRDDIM *rd __maybe_unused, size_t
     if(!LAST_COMPLETED_POINT_EXISTS(t)) return;
 
     STORAGE_POINT *sp = &t->last_completed_point;
-    if(likely(!storage_point_is_unset(t->last_completed_point))) {
+    if(likely(!storage_point_is_unset(t->last_completed_point)) || (sp->flags & SP_SOURCE_FLAGS)) {
         storage_engine_store_metric(
             t->sch,
             sp->end_time_s * USEC_PER_SEC,
@@ -44,8 +44,7 @@ void store_metric_at_tier_flush_last_completed(RRDDIM *rd __maybe_unused, size_t
     rrdset_done_statistics_points_stored_per_tier[tier]++;
 
     // make the point unset
-    t->last_completed_point.count = 0;      // make it unset
-    t->last_completed_point.end_time_s = 0; // make it not saved
+    storage_point_unset(t->last_completed_point);
 }
 
 ALWAYS_INLINE_HOT
@@ -62,6 +61,12 @@ static void store_metric_at_tier_save_last_completed(RRDDIM *rd, size_t tier, st
 
 ALWAYS_INLINE_HOT
 void store_metric_at_tier(RRDDIM *rd, size_t tier, struct rrddim_tier *t, STORAGE_POINT sp, usec_t now_ut __maybe_unused) {
+    if(storage_point_has_counter_source(&sp)) {
+        if(netdata_double_isnumber(sp.sum) && signbit(sp.sum))
+            sp.flags |= SP_FLAG_NEGATIVE_PRESENTATION;
+        storage_point_make_positive(sp);
+    }
+
     if(LAST_COMPLETED_POINT_EXISTS(t) && sp.start_time_s % t->last_completed_point_flush_modulo == 0)
         store_metric_at_tier_flush_last_completed(rd, tier, t);
 
@@ -71,40 +76,16 @@ void store_metric_at_tier(RRDDIM *rd, size_t tier, struct rrddim_tier *t, STORAG
     if(unlikely(sp.start_time_s >= t->next_point_end_time_s)) {
         // flush the virtual point, it is done
 
-        if (likely(!storage_point_is_unset(t->virtual_point)))
+        if (likely(!storage_point_is_unset(t->virtual_point)) || (t->virtual_point.flags & SP_SOURCE_FLAGS))
             store_metric_at_tier_save_last_completed(rd, tier, t, t->virtual_point);
         else
             store_metric_at_tier_save_last_completed(rd, tier, t, STORAGE_POINT_UNSET);
 
-        t->virtual_point.count = 0; // make the point unset
+        storage_point_unset(t->virtual_point);
         t->next_point_end_time_s = tier_next_point_time_s(rd, t, sp.end_time_s);
     }
 
-    // merge the dates into our virtual point
-    if (unlikely(sp.start_time_s < t->virtual_point.start_time_s))
-        t->virtual_point.start_time_s = sp.start_time_s;
-
-    if (likely(sp.end_time_s > t->virtual_point.end_time_s))
-        t->virtual_point.end_time_s = sp.end_time_s;
-
-    // merge the values into our virtual point
-    if (likely(!storage_point_is_gap(sp))) {
-        // we aggregate only non NULLs into higher tiers
-
-        if (likely(!storage_point_is_unset(t->virtual_point))) {
-            // merge the collected point to our virtual one
-            t->virtual_point.sum += sp.sum;
-            t->virtual_point.min = MIN(t->virtual_point.min, sp.min);
-            t->virtual_point.max = MAX(t->virtual_point.max, sp.max);
-            t->virtual_point.count += sp.count;
-            t->virtual_point.anomaly_count += sp.anomaly_count;
-            t->virtual_point.flags |= sp.flags;
-        }
-        else {
-            // reset our virtual point to this one
-            t->virtual_point = sp;
-        }
-    }
+    storage_point_merge_collection(&t->virtual_point, &sp);
 }
 
 NOT_INLINE_HOT
@@ -146,6 +127,9 @@ void rrddim_store_metric(RRDDIM *rd, usec_t point_end_time_ut, NETDATA_DOUBLE n,
     rd->rrddim_store_metric_last_caller = function;
 #endif // NETDATA_LOG_COLLECTION_ERRORS
 
+    bool counter = rd->algorithm == RRD_ALGORITHM_INCREMENTAL;
+    flags |= counter ? SP_FLAG_COUNTER_SOURCE : SP_FLAG_ORDINARY_SOURCE;
+
     // store the metric on tier 0
     storage_engine_store_metric(rd->tiers[0].sch, point_end_time_ut,
                                 n, 0, 0,
@@ -155,12 +139,16 @@ void rrddim_store_metric(RRDDIM *rd, usec_t point_end_time_ut, NETDATA_DOUBLE n,
 
     time_t now_s = (time_t)(point_end_time_ut / USEC_PER_SEC);
 
+    NETDATA_DOUBLE tier_value = counter ? fabsndd(n) : n;
+    if(counter && netdata_double_isnumber(n) && signbit(n))
+        flags |= SP_FLAG_NEGATIVE_PRESENTATION;
     STORAGE_POINT sp = {
         .start_time_s = now_s - rd->rrdset->update_every,
         .end_time_s = now_s,
-        .min = n,
-        .max = n,
-        .sum = n,
+        .min = tier_value,
+        .max = tier_value,
+        .sum = tier_value,
+        .counter = NAN,
         .count = 1,
         .anomaly_count = (flags & SN_FLAG_NOT_ANOMALOUS) ? 0 : 1,
         .flags = flags

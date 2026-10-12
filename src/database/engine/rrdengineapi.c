@@ -11,7 +11,7 @@ struct rrdengine_instance multidb_ctx_storage_tier2 = { 0 };
 struct rrdengine_instance multidb_ctx_storage_tier3 = { 0 };
 struct rrdengine_instance multidb_ctx_storage_tier4 = { 0 };
 
-#define mrg_metric_ctx(metric) (struct rrdengine_instance *)mrg_metric_section(main_mrg, metric)
+#define mrg_metric_ctx(metric) ((struct rrdengine_instance *)mrg_metric_section(main_mrg, metric))
 
 #if RRD_STORAGE_TIERS != 5
 #error RRD_STORAGE_TIERS is not 5 - you need to add allocations here
@@ -32,20 +32,24 @@ size_t tier_page_size[RRD_STORAGE_TIERS] = {4096, 2048, 384, 384, 384};
 size_t tier_quota_mb[RRD_STORAGE_TIERS] = {1024, 1024, 1024, 128, 64};
 #endif
 
-#if RRDENG_PAGE_TYPE_MAX != 2
-#error PAGE_TYPE_MAX is not 2 - you need to add allocations here
+#if RRDENG_PAGE_TYPE_MAX != 5
+#error PAGE_TYPE_MAX is not 5 - you need to add allocations here
 #endif
 
 size_t page_type_size[256] = {
         [RRDENG_PAGE_TYPE_ARRAY_32BIT] = sizeof(storage_number),
         [RRDENG_PAGE_TYPE_ARRAY_TIER1] = sizeof(storage_number_tier1_t),
-        [RRDENG_PAGE_TYPE_GORILLA_32BIT] = sizeof(storage_number)
+        [RRDENG_PAGE_TYPE_GORILLA_32BIT] = sizeof(storage_number),
+        [RRDENG_PAGE_TYPE_ARRAY_32BIT_COUNTER] = sizeof(storage_number),
+        [RRDENG_PAGE_TYPE_ARRAY_TIER1_COUNTER] = sizeof(storage_number_tier1_counter_t),
+        [RRDENG_PAGE_TYPE_GORILLA_32BIT_COUNTER] = sizeof(storage_number)
 };
 
 static inline void initialize_single_ctx(struct rrdengine_instance *ctx) {
     memset(ctx, 0, sizeof(*ctx));
     netdata_rwlock_init(&ctx->datafiles.rwlock);
     rw_spinlock_init(&ctx->njfv2idx.spinlock);
+    spinlock_init(&ctx->read_promises.lock);
 }
 
 __attribute__((constructor)) void initialize_multidb_ctx(void) {
@@ -225,13 +229,14 @@ static inline bool check_completed_page_consistency(struct rrdeng_collect_handle
     if (unlikely(!handle->pgc_page || !handle->page_entries_max || !handle->page_position || !handle->page_end_time_ut))
         return false;
 
-    struct rrdengine_instance *ctx = mrg_metric_ctx(handle->metric);
-
     nd_uuid_t *uuid = mrg_metric_uuid(main_mrg, handle->metric);
     time_t start_time_s = pgc_page_start_time_s(handle->pgc_page);
     time_t end_time_s = pgc_page_end_time_s(handle->pgc_page);
     uint32_t update_every_s = pgc_page_update_every_s(handle->pgc_page);
-    size_t page_length = handle->page_position * CTX_POINT_SIZE_BYTES(ctx);
+    uint8_t type = pgd_type(handle->page_data);
+    size_t page_length = rrdeng_page_header_size(type) + handle->page_position * page_type_size[type];
+    if(rrdeng_page_type_base(type) == RRDENG_PAGE_TYPE_GORILLA_32BIT)
+        page_length = rrdeng_page_header_size(type) + pgd_buffer_memory_footprint(handle->page_data);
     size_t entries = handle->page_position;
     time_t overwrite_zero_update_every_s = (time_t)(handle->update_every_ut / USEC_PER_SEC);
 
@@ -244,7 +249,7 @@ static inline bool check_completed_page_consistency(struct rrdeng_collect_handle
             end_time_s,
             update_every_s,
             page_length,
-            ctx->config.page_type,
+            type,
             entries,
             0, // do not check for future timestamps - we inherit the timestamps of the children
             overwrite_zero_update_every_s,
@@ -305,6 +310,7 @@ STORAGE_COLLECT_HANDLE *rrdeng_store_metric_init(STORAGE_METRIC_HANDLE *smh, uin
     handle->page_position = 0;
     handle->page_entries_max = 0;
     handle->update_every_ut = (usec_t)update_every * USEC_PER_SEC;
+    handle->type = ctx->config.page_type;
     handle->options = options;
 
     __atomic_add_fetch(&ctx->atomic.collectors_running, 1, __ATOMIC_RELAXED);
@@ -369,6 +375,12 @@ static void rrdeng_store_metric_create_new_page(struct rrdeng_collect_handle *ha
     time_t point_in_time_s = (time_t)(point_in_time_ut / USEC_PER_SEC);
     const uint32_t update_every_s = (uint32_t)(handle->update_every_ut / USEC_PER_SEC);
 
+    RRDENG_PAGE_PROVENANCE provenance = {
+        .origin = RRDENG_PAGE_COLLECTED,
+        .first = point_in_time_s, .last = point_in_time_s,
+        .cadence = update_every_s, .entries = 1,
+    };
+
     PGC_ENTRY page_entry = {
             .section = (Word_t) ctx,
             .metric_id = mrg_metric_id(main_mrg, handle->metric),
@@ -377,7 +389,8 @@ static void rrdeng_store_metric_create_new_page(struct rrdeng_collect_handle *ha
             .size = pgd_memory_footprint(data),
             .data = data,
             .update_every_s = update_every_s,
-            .hot = true
+            .hot = true,
+            .custom_data = (uint8_t *)&provenance,
     };
 
     size_t conflicts = 0;
@@ -411,6 +424,7 @@ static void rrdeng_store_metric_create_new_page(struct rrdeng_collect_handle *ha
         point_in_time_s = (time_t)(point_in_time_ut / USEC_PER_SEC);
         page_entry.start_time_s = point_in_time_s;
         page_entry.end_time_s = point_in_time_s;
+        provenance.first = provenance.last = point_in_time_s;
         pgc_page = pgc_page_add_and_acquire(main_cache, page_entry, &added);
     }
 
@@ -451,7 +465,9 @@ static PGD *rrdeng_alloc_new_page_data(struct rrdeng_collect_handle *handle, use
     PGD *d = NULL;
     
     size_t max_size = tier_page_size[ctx->config.tier];
-    size_t max_slots = max_size / CTX_POINT_SIZE_BYTES(ctx);
+    size_t header = rrdeng_page_header_size(handle->type);
+    size_t stride = page_type_size[handle->type];
+    size_t max_slots = (max_size - header) / stride;
 
     size_t slots = aligned_allocation_entries(
             max_slots,
@@ -465,21 +481,26 @@ static PGD *rrdeng_alloc_new_page_data(struct rrdeng_collect_handle *handle, use
     if(slots < 3)
         slots = 3;
 
-    size_t size = slots * CTX_POINT_SIZE_BYTES(ctx); (void)size;
+    size_t size = header + slots * stride; (void)size;
 
     // internal_error(true, "PAGE ALLOC %zu bytes (%zu max)", size, max_size);
 
     internal_fatal(slots < 3 || slots > max_slots, "ooops! wrong distribution of metrics across time");
-    internal_fatal(size > tier_page_size[ctx->config.tier] || size < CTX_POINT_SIZE_BYTES(ctx) * 2, "ooops! wrong page size");
+    internal_fatal(size > tier_page_size[ctx->config.tier] || size < header + stride * 2, "ooops! wrong page size");
 
-    switch (ctx->config.page_type) {
+    switch (handle->type) {
         case RRDENG_PAGE_TYPE_ARRAY_32BIT:
         case RRDENG_PAGE_TYPE_ARRAY_TIER1:
         case RRDENG_PAGE_TYPE_GORILLA_32BIT:
-            d = pgd_create(ctx->config.page_type, slots);
+        case RRDENG_PAGE_TYPE_ARRAY_32BIT_COUNTER:
+        case RRDENG_PAGE_TYPE_ARRAY_TIER1_COUNTER:
+        case RRDENG_PAGE_TYPE_GORILLA_32BIT_COUNTER:
+            d = pgd_create(handle->type, slots);
+            if(rrdeng_page_type_is_counter(handle->type))
+                pgd_set_counter_anchor(d, handle->counter_value);
             break;
         default:
-            fatal("Unknown page type: %uc\n", ctx->config.page_type);
+            fatal("Unknown page type: %uc\n", handle->type);
     }
 
     timing_step(TIMING_STEP_DBENGINE_PAGE_ALLOC);
@@ -506,8 +527,8 @@ static ALWAYS_INLINE_HOT void rrdeng_store_metric_append_point(STORAGE_COLLECT_H
                                              const NETDATA_DOUBLE n,
                                              const NETDATA_DOUBLE min_value,
                                              const NETDATA_DOUBLE max_value,
-                                             const uint16_t count,
-                                             const uint16_t anomaly_count,
+                                             const uint32_t count,
+                                             const uint32_t anomaly_count,
                                              const SN_FLAGS flags)
 {
     struct rrdeng_collect_handle *handle = (struct rrdeng_collect_handle *)sch;
@@ -518,10 +539,22 @@ static ALWAYS_INLINE_HOT void rrdeng_store_metric_append_point(STORAGE_COLLECT_H
 
     timing_step(TIMING_STEP_DBENGINE_CHECK_DATA);
 
-    size_t additional_bytes = pgd_append_point(handle->page_data,
+    STORAGE_POINT retained = STORAGE_POINT_UNSET;
+    retained.end_time_s = (time_t)(point_in_time_ut / USEC_PER_SEC);
+    retained.start_time_s = retained.end_time_s - (time_t)(handle->update_every_ut / USEC_PER_SEC);
+    size_t additional_bytes = pgd_append_point_with_retained(handle->page_data,
                                                point_in_time_ut,
                                                n, min_value, max_value, count, anomaly_count, flags,
-                                               handle->page_position);
+                                               handle->page_position,
+                                               handle->counter_initialized ? &retained : NULL);
+
+    if(handle->counter_initialized) {
+        bool ok = rrdeng_page_type_is_counter(handle->type) ?
+            storage_counter_fold(&handle->counter_value, &retained, true) :
+            storage_counter_fold_legacy(&handle->counter_value, &retained, true);
+        if(!ok)
+            handle->counter_value = NAN;
+    }
 
     timing_step(TIMING_STEP_DBENGINE_PACK);
 
@@ -533,6 +566,12 @@ static ALWAYS_INLINE_HOT void rrdeng_store_metric_append_point(STORAGE_COLLECT_H
     }
     else {
         // update an existing page
+        RRDENG_PAGE_PROVENANCE *provenance =
+            (RRDENG_PAGE_PROVENANCE *)pgc_page_custom_data(main_cache, handle->pgc_page);
+        rrdeng_page_provenance_lock(provenance);
+        provenance->last = (time_t)(point_in_time_ut / USEC_PER_SEC);
+        provenance->entries = handle->page_position + 1;
+        rrdeng_page_provenance_unlock(provenance);
         pgc_page_hot_set_end_time_s(main_cache, handle->pgc_page,
                                     (time_t) (point_in_time_ut / USEC_PER_SEC), additional_bytes);
         handle->page_end_time_ut = point_in_time_ut;
@@ -594,8 +633,8 @@ ALWAYS_INLINE_HOT void rrdeng_store_metric_next(
     const NETDATA_DOUBLE n,
     const NETDATA_DOUBLE min_value,
     const NETDATA_DOUBLE max_value,
-    const uint16_t count,
-    const uint16_t anomaly_count,
+    const uint32_t count,
+    const uint32_t anomaly_count,
     const SN_FLAGS flags)
 {
     timing_step(TIMING_STEP_RRDSET_STORE_METRIC);
@@ -608,6 +647,32 @@ ALWAYS_INLINE_HOT void rrdeng_store_metric_next(
 #endif
 
     usec_t delta_ut = point_in_time_ut - handle->page_end_time_ut;
+
+    if(unlikely(point_in_time_ut <= handle->page_end_time_ut)) {
+        bool repeated = point_in_time_ut == handle->page_end_time_ut;
+        handle->page_flags |= repeated ? RRDENG_PAGE_REPEATED_COLLECTION : RRDENG_PAGE_PAST_COLLECTION;
+        store_metric_next_error_log(handle, point_in_time_ut,
+                                   repeated ? "is at the same time as the" : "is older than the");
+        return;
+    }
+
+    uint8_t type = rrdeng_page_type_base(mrg_metric_ctx(handle->metric)->config.page_type);
+    if((flags & SP_SOURCE_FLAGS) == SP_FLAG_COUNTER_SOURCE)
+        type += RRDENG_PAGE_TYPE_ARRAY_32BIT_COUNTER;
+    if(unlikely(type != handle->type)) {
+        rrdeng_store_metric_flush_current_page(sch);
+        handle->type = type;
+    }
+    if(rrdeng_page_type_is_counter(type) && !handle->counter_initialized) {
+        handle->counter_initialized = true;
+        if(!rrdeng_counter_recover((STORAGE_METRIC_HANDLE *)handle->metric, &handle->counter_value)) {
+            handle->counter_value = 0.0;
+            nd_log_limit_static_global_var(recovery_log, 1, 0);
+            nd_log_limit(&recovery_log, NDLS_DAEMON, NDLP_WARNING,
+                         "DBENGINE: tier %d counter has no usable tail checkpoint; starting a synthetic zero basis",
+                         mrg_metric_ctx(handle->metric)->config.tier);
+        }
+    }
 
     if(likely(delta_ut == handle->update_every_ut)) {
         // happy path
@@ -649,17 +714,6 @@ ALWAYS_INLINE_HOT void rrdeng_store_metric_next(
                 }
             }
         }
-    }
-    else if(unlikely(point_in_time_ut < handle->page_end_time_ut)) {
-        handle->page_flags |= RRDENG_PAGE_PAST_COLLECTION;
-        store_metric_next_error_log(handle, point_in_time_ut, "is older than the");
-        return;
-    }
-
-    else /* if(unlikely(point_in_time_ut == handle->page_end_time_ut)) */ {
-        handle->page_flags |= RRDENG_PAGE_REPEATED_COLLECTION;
-        store_metric_next_error_log(handle, point_in_time_ut, "is at the same time as the");
-        return;
     }
 
     timing_step(TIMING_STEP_DBENGINE_FIRST_CHECK);

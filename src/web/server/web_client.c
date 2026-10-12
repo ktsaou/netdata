@@ -4,6 +4,9 @@
 #include "web/websocket/websocket.h"
 #include "web/mcp/adapters/mcp-http.h"
 #include "web/mcp/adapters/mcp-sse.h"
+#ifdef ENABLE_PROMQL
+#include "web/api/promql/body.h"
+#endif
 
 // this is an async I/O implementation of the web server request parser
 // it is used by all netdata web servers
@@ -12,6 +15,57 @@ int respect_web_browser_do_not_track_policy = 0;
 const char *web_x_frame_options = NULL;
 
 int web_enable_gzip = 1, web_gzip_level = 3, web_gzip_strategy = Z_DEFAULT_STRATEGY;
+
+uint64_t web_client_response_length(const struct web_client *w) {
+#ifdef ENABLE_PROMQL
+    if(w->response.promql_body) return promql_body_length(w->response.promql_body);
+#endif
+    return w->response.data ? (uint64_t)w->response.data->len : 0;
+}
+
+#ifdef ENABLE_PROMQL
+typedef struct { netdata_promql_allocation_handle_t *lease; uint32_t status; } PROMQL_SEND_WINDOW;
+
+static void promql_send_window_account(void *context, void *handle __maybe_unused,
+                                       const netdata_promql_accounting_context_t *account) {
+    PROMQL_SEND_WINDOW *window = context;
+    window->status = netdata_promql_allocation_acquire(account, NETDATA_PROMQL_MEMORY_BORROWED_VIEW,
+                                                       PROMQL_BODY_WINDOW, &window->lease);
+}
+
+bool web_client_attach_promql_body(struct web_client *w, struct promql_body *body) {
+    if(!promql_body_is_sealed(body)) return false;
+    PROMQL_SEND_WINDOW window = {0};
+    if(promql_body_accounted(body, promql_send_window_account, &window, NULL) != NETDATA_PROMQL_OK ||
+       window.status != NETDATA_PROMQL_OK) return false;
+    if(w->response.promql_window) netdata_promql_allocation_release(w->response.promql_window);
+    promql_body_release(w->response.promql_body);
+    w->response.promql_body = body;
+    w->response.promql_window = window.lease;
+    w->response.promql_sent = 0;
+    w->response.sent = 0;
+    if(w->response.zinitialized) {
+        deflateEnd(&w->response.zstream);
+        w->response.zinitialized = false;
+    }
+    w->response.zoutput = false;
+    web_client_flag_clear(w, WEB_CLIENT_CHUNKED_TRANSFER);
+    buffer_flush(w->response.data);
+    buffer_need_bytes(w->response.data, PROMQL_BODY_WINDOW + 1);
+    return true;
+}
+
+void web_client_clear_promql_response(struct web_client *w) {
+    if(w->response.promql_window) netdata_promql_allocation_release(w->response.promql_window);
+    w->response.promql_window = NULL;
+    promql_body_release(w->response.promql_body);
+    w->response.promql_body = NULL;
+    w->response.promql_sent = 0;
+    w->promql_operation_id = 0;
+    w->promql_operation_hook = NULL;
+    w->promql_operation_hook_data = NULL;
+}
+#endif
 
 void web_client_set_conn_tcp(struct web_client *w) {
     web_client_flags_clear_conn(w);
@@ -130,6 +184,16 @@ void web_client_trim_url_decode_buffer_for_cache(struct web_client *w) {
 }
 
 static void web_client_reset_allocations(struct web_client *w, bool free_all) {
+#ifdef ENABLE_PROMQL
+    web_client_clear_promql_response(w);
+    freez(w->request_accept); w->request_accept = NULL;
+    freez(w->request_content_type); w->request_content_type = NULL;
+    w->promql_scoped = false;
+    w->promql_host_guid[0] = 0;
+    w->promql_operation_id = 0;
+    w->promql_operation_hook = NULL;
+    w->promql_operation_hook_data = NULL;
+#endif
 
     if(free_all) {
         // the web client is to be destroyed
@@ -232,8 +296,14 @@ void web_client_log_completed_request(struct web_client *w, bool update_web_stat
     struct timeval tv;
     now_monotonic_high_precision_timeval(&tv);
 
-    size_t size = w->response.data->len;
-    size_t sent = w->response.zoutput ? (size_t)w->response.zstream.total_out : size;
+    uint64_t size = web_client_response_length(w);
+    uint64_t sent = w->response.zoutput ? (uint64_t)w->response.zstream.total_out : size;
+#ifdef ENABLE_PROMQL
+    if(w->response.promql_body) {
+        size = promql_body_plain_length(w->response.promql_body);
+        sent = w->response.promql_sent;
+    }
+#endif
 
     usec_t prep_ut = w->timings.tv_ready.tv_sec ? dt_usec(&w->timings.tv_ready, &w->timings.tv_in) : 0;
     usec_t sent_ut = w->timings.tv_ready.tv_sec ? dt_usec(&tv, &w->timings.tv_ready) : 0;
@@ -1046,13 +1116,17 @@ void web_client_build_http_header(struct web_client *w) {
     // headers related to the transfer method
     if(likely(w->response.zoutput))
         buffer_strcat(w->response.header_output, "Content-Encoding: gzip\r\n");
+#ifdef ENABLE_PROMQL
+    else if(w->response.promql_body && promql_body_is_gzip(w->response.promql_body))
+        buffer_strcat(w->response.header_output, "Content-Encoding: gzip\r\n");
+#endif
 
     if(likely(w->flags & WEB_CLIENT_CHUNKED_TRANSFER))
         buffer_strcat(w->response.header_output, "Transfer-Encoding: chunked\r\n");
     else {
-        if(likely(w->response.data->len)) {
+        if(likely(web_client_response_length(w))) {
             // we know the content length, put it
-            buffer_sprintf(w->response.header_output, "Content-Length: %zu\r\n", (size_t)w->response.data->len);
+            buffer_sprintf(w->response.header_output, "Content-Length: %"PRIu64"\r\n", web_client_response_length(w));
         }
         else {
             // we don't know the content length, disable keep-alive
@@ -1197,6 +1271,9 @@ static inline int web_client_switch_host(RRDHOST *host, struct web_client *w, ch
     if(tok && *tok) {
         netdata_log_debug(D_WEB_CLIENT, "%llu: Searching for host with name '%s'.", w->id, tok);
 
+#ifdef ENABLE_PROMQL
+        rrd_rdlock();
+#endif
         if(nodeid) {
             host = rrdhost_find_by_node_id(tok);
             if(!host) {
@@ -1225,6 +1302,13 @@ static inline int web_client_switch_host(RRDHOST *host, struct web_client *w, ch
             }
         }
 
+#ifdef ENABLE_PROMQL
+        if(host) {
+            memcpy(w->promql_host_guid, host->machine_guid, sizeof(w->promql_host_guid));
+            w->promql_scoped = true;
+        }
+        rrd_rdunlock();
+#endif
         if (host) {
             if(!url)
                 //no delim found
@@ -1682,7 +1766,7 @@ void web_client_process_request_from_web_server(struct web_client *w) {
     web_client_send_http_header(w);
 
     // enable sending immediately if we have data
-    if(w->response.data->len) web_client_enable_wait_send(w);
+    if(web_client_response_length(w)) web_client_enable_wait_send(w);
     else web_client_disable_wait_send(w);
 
     switch(w->mode) {
@@ -1967,7 +2051,41 @@ ssize_t web_client_send_deflate(struct web_client *w)
     return(len);
 }
 
+#ifdef ENABLE_PROMQL
+static ssize_t web_client_send_promql(struct web_client *w) {
+    uint64_t length = promql_body_length(w->response.promql_body);
+    if(w->response.promql_sent == length) {
+        if(!web_client_has_keepalive(w)) WEB_CLIENT_IS_DEAD(w);
+        else web_client_request_done(w);
+        return 0;
+    }
+    if(w->response.sent == w->response.data->len) {
+        size_t count = (size_t)MIN(length - w->response.promql_sent, (uint64_t)PROMQL_BODY_WINDOW);
+        int error;
+        if(!promql_body_read(w->response.promql_body, w->response.promql_sent, w->response.data->buffer, count, NULL, &error)) {
+            WEB_CLIENT_IS_DEAD(w);
+            return -1;
+        }
+        w->response.sent = 0;
+        w->response.data->len = count;
+        w->response.data->buffer[count] = 0;
+    }
+    ssize_t bytes = web_client_send_data(w, w->response.data->buffer + w->response.sent,
+                                          w->response.data->len - w->response.sent, MSG_DONTWAIT);
+    if(bytes > 0) {
+        w->statistics.sent_bytes += (uint64_t)bytes;
+        w->response.sent += (size_t)bytes;
+        w->response.promql_sent += (uint64_t)bytes;
+    }
+    else if(bytes < 0) WEB_CLIENT_IS_DEAD(w);
+    return bytes;
+}
+#endif
+
 ssize_t web_client_send(struct web_client *w) {
+#ifdef ENABLE_PROMQL
+    if(w->response.promql_body) return web_client_send_promql(w);
+#endif
     if(likely(w->response.zoutput)) return web_client_send_deflate(w);
 
     ssize_t bytes;

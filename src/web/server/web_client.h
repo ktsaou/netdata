@@ -172,6 +172,11 @@ struct response {
     BUFFER *header_output;  // internal use
     BUFFER *data;           // our response data buffer
     size_t sent;            // current data length sent to output
+#ifdef ENABLE_PROMQL
+    struct promql_body *promql_body;
+    struct netdata_promql_allocation_handle_t *promql_window;
+    uint64_t promql_sent;
+#endif
     short int code;         // the HTTP response code
     bool has_cookies;
     bool zoutput;           // if set to 1, web_client_send() will send compressed data
@@ -224,6 +229,15 @@ struct web_client {
     char *forwarded_host;               // the X-Forwarded-Host: header
     char *origin;                       // the Origin: header
     char *user_agent;                   // the User-Agent: header
+#ifdef ENABLE_PROMQL
+    char *request_accept;
+    char *request_content_type;
+    bool promql_scoped;
+    char promql_host_guid[UUID_STR_LEN];
+    uint64_t promql_operation_id;
+    void (*promql_operation_hook)(void *data, uint64_t id);
+    void *promql_operation_hook_data;
+#endif
     nd_uuid_t mcp_session_id;            // the Mcp-Session-Id: header (MCP HTTP transport)
 
     // WebSocket related data - NEED TO BE FREED
@@ -250,7 +264,7 @@ struct web_client {
 
     struct {
         size_t received_bytes;
-        size_t sent_bytes;
+        uint64_t sent_bytes;
         size_t *memory_accounting;      // temporary pointer for constructor to use
     } statistics;
 
@@ -281,6 +295,11 @@ void web_client_process_request_from_web_server(struct web_client *w);
 void web_client_request_done(struct web_client *w);
 
 void web_client_build_http_header(struct web_client *w);
+uint64_t web_client_response_length(const struct web_client *w);
+#ifdef ENABLE_PROMQL
+bool web_client_attach_promql_body(struct web_client *w, struct promql_body *body);
+void web_client_clear_promql_response(struct web_client *w);
+#endif
 
 void web_client_reuse_from_cache(struct web_client *w);
 struct web_client *web_client_create(size_t *statistics_memory_accounting);

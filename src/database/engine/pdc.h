@@ -6,6 +6,8 @@
 #include "../engine/rrdengine.h"
 
 struct rrdeng_cmd;
+struct page_details_control;
+struct metric;
 
 #define PDCJudyLIns             JudyLIns
 #define PDCJudyLGet             JudyLGet
@@ -31,6 +33,11 @@ struct aral_statistics *epdl_extent_aral_stats(void);
 size_t extent_buffer_cache_size(void);
 
 void pdc_init(void);
+struct page_details_control *pdc_create(struct metric *metric, time_t start, time_t end, STORAGE_PRIORITY priority,
+                const RRDENG_READ_OPERATION *operation, RRDENG_READ_ERROR *error);
+void pdc_demand_release_page(struct page_details_control *pdc);
+bool pdc_demand_drained(struct page_details_control *pdc);
+bool pdc_demand_page(struct page_details_control *pdc, const RRDENG_READ_OPERATION *operation);
 void page_details_init(void);
 void epdl_init(void);
 void deol_init(void);
@@ -39,6 +46,8 @@ void extent_buffer_cleanup1(void);
 
 void epdl_cmd_dequeued(void *epdl_ptr);
 void epdl_cmd_queued(void *epdl_ptr, struct rrdeng_cmd *cmd);
+RRDENG_READ_LEASE *epdl_dispatch_allocation(EPDL *epdl);
+void epdl_dispatch_failed(EPDL *epdl, RRDENG_READ_ERROR_CODE code);
 
 struct extent_buffer {
     size_t bytes;

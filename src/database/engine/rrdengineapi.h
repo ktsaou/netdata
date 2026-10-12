@@ -45,10 +45,11 @@ void rrdeng_store_metric_change_collection_frequency(STORAGE_COLLECT_HANDLE *sch
 void rrdeng_store_metric_next(STORAGE_COLLECT_HANDLE *sch, usec_t point_in_time_ut, NETDATA_DOUBLE n,
                                      NETDATA_DOUBLE min_value,
                                      NETDATA_DOUBLE max_value,
-                                     uint16_t count,
-                                     uint16_t anomaly_count,
+                                     uint32_t count,
+                                     uint32_t anomaly_count,
                                      SN_FLAGS flags);
 int rrdeng_store_metric_finalize(STORAGE_COLLECT_HANDLE *sch);
+bool rrdeng_counter_recover(STORAGE_METRIC_HANDLE *smh, double *counter);
 
 void rrdeng_load_metric_init(STORAGE_METRIC_HANDLE *smh, struct storage_engine_query_handle *seqh,
                                     time_t start_time_s, time_t end_time_s, STORAGE_PRIORITY priority);

@@ -5,6 +5,9 @@
 #include "health/health-alert-entry.h"
 
 #include "sqlite_db_migration.h"
+#ifdef ENABLE_PROMQL
+#include "web/api/promql/operations.h"
+#endif
 
 #define DB_METADATA_VERSION 18
 
@@ -252,6 +255,9 @@ struct meta_config_s {
     uv_loop_t loop;
     uv_async_t async;
     uv_timer_t timer_req;
+#ifdef ENABLE_PROMQL
+    uv_timer_t promql_timer;
+#endif
     time_t metadata_check_after __attribute__((aligned(8)));
     Pvoid_t ae_DelJudyL;
     bool initialized;
@@ -1721,6 +1727,10 @@ static void async_cb(uv_async_t *handle __maybe_unused)
 #define TIMER_INITIAL_PERIOD_MS (1000)
 #define TIMER_REPEAT_PERIOD_MS (1000)
 
+#ifdef ENABLE_PROMQL
+static void promql_timer_cb(uv_timer_t *handle __maybe_unused) { promql_operations_tick(); }
+#endif
+
 static void timer_cb(uv_timer_t *handle)
 {
     struct meta_config_s *config = handle->data;
@@ -1948,7 +1958,7 @@ static void restore_host_context(void *arg)
     }
 
     usec_t started_ut = now_monotonic_usec(); (void)started_ut;
-    rrdhost_load_rrdcontext_data(host);
+    rrdhost_load_rrdcontext_data(host, false);
     usec_t ended_ut = now_monotonic_usec(); (void)ended_ut;
 
     char load_duration[64];
@@ -2054,6 +2064,11 @@ void reset_host_context_load_flag()
     RRDHOST *host;
     dfe_start_reentrant(rrdhost_root_index, host)
     {
+        if(rrdhost_flag_check(host, RRDHOST_FLAG_PENDING_CONTEXT_LOAD)) {
+            RRD_CONTEXT_LOAD_STATE expected = RRD_CONTEXT_LOAD_UNLOADED;
+            __atomic_compare_exchange_n(&host->rrdctx.initial_load, &expected, RRD_CONTEXT_LOAD_UNAVAILABLE,
+                                        false, __ATOMIC_RELEASE, __ATOMIC_RELAXED);
+        }
         rrdhost_flag_clear(host, RRDHOST_FLAG_PENDING_CONTEXT_LOAD);
     }
     dfe_done(host);
@@ -2840,6 +2855,10 @@ static void metadata_event_loop(void *arg)
     loop->data = config;
     config->async.data = config;
     config->timer_req.data = config;
+#ifdef ENABLE_PROMQL
+    fatal_assert(0 == uv_timer_init(loop, &config->promql_timer));
+    fatal_assert(0 == uv_timer_start(&config->promql_timer, promql_timer_cb, 1000, 1000));
+#endif
 
     nd_log(NDLS_DAEMON, NDLP_DEBUG, "Starting metadata sync thread");
     __atomic_store_n(
@@ -2859,7 +2878,11 @@ static void metadata_event_loop(void *arg)
     nd_log_daemon(NDLP_INFO, "METADATA: Synchronization thread is up and running");
     completion_mark_complete(&config->start_stop_complete);
 
-    while (likely(__atomic_load_n(&config->shutdown_requested, __ATOMIC_RELAXED) == false))  {
+    while (likely(__atomic_load_n(&config->shutdown_requested, __ATOMIC_RELAXED) == false)
+#ifdef ENABLE_PROMQL
+           || promql_operations_active()
+#endif
+    ) {
         nd_uuid_t *uuid;
         RRDHOST *host = NULL;
         ALARM_ENTRY *ae = NULL;
@@ -3014,6 +3037,9 @@ static void metadata_event_loop(void *arg)
     }
     config->initialized = false;
 
+#ifdef ENABLE_PROMQL
+    if(!uv_timer_stop(&config->promql_timer)) uv_close((uv_handle_t *)&config->promql_timer, NULL);
+#endif
     if (!uv_timer_stop(&config->timer_req))
         uv_close((uv_handle_t *)&config->timer_req, NULL);
 

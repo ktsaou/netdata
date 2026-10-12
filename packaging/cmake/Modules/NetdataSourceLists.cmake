@@ -978,6 +978,11 @@ set(RRD_DBENGINE_FILES
         src/database/engine/rrdengineapi.h
         src/database/engine/pagecache.c
         src/database/engine/pagecache.h
+        src/database/engine/demand.c
+        src/database/engine/demand-test.c
+        src/database/engine/collection-test.c
+        src/database/engine/demand.h
+        src/database/engine/read-types.h
         src/database/engine/page_test.cc
         src/database/engine/page.c
         src/database/engine/page.h

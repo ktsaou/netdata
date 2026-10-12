@@ -41,8 +41,8 @@ void rrddim_store_metric_change_collection_frequency(STORAGE_COLLECT_HANDLE *sch
 void rrddim_collect_store_metric(STORAGE_COLLECT_HANDLE *sch, usec_t point_in_time_ut, NETDATA_DOUBLE n,
                                  NETDATA_DOUBLE min_value,
                                  NETDATA_DOUBLE max_value,
-                                 uint16_t count,
-                                 uint16_t anomaly_count,
+                                 uint32_t count,
+                                 uint32_t anomaly_count,
                                  SN_FLAGS flags);
 void rrddim_store_metric_flush(STORAGE_COLLECT_HANDLE *sch);
 int rrddim_collect_finalize(STORAGE_COLLECT_HANDLE *sch);

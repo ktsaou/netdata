@@ -839,6 +839,19 @@ size_t rrdlabels_common_count(RRDLABELS *labels1, RRDLABELS *labels2)
 }
 
 
+void rrdlabels_replace(RRDLABELS *dst, RRDLABELS *src) {
+    if(!dst || !src || dst == src) return;
+    RRDLABELS *first = (uintptr_t)dst < (uintptr_t)src ? dst : src;
+    RRDLABELS *second = first == dst ? src : dst;
+    spinlock_lock(&first->spinlock);
+    spinlock_lock(&second->spinlock);
+    SWAP(dst->JudyL, src->JudyL);
+    __atomic_add_fetch(&dst->version, 1, __ATOMIC_RELAXED);
+    __atomic_add_fetch(&src->version, 1, __ATOMIC_RELAXED);
+    spinlock_unlock(&second->spinlock);
+    spinlock_unlock(&first->spinlock);
+}
+
 void rrdlabels_copy(RRDLABELS *dst, RRDLABELS *src)
 {
     if (!dst || !src || (dst == src))

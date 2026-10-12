@@ -4,3 +4,6 @@
 [submodule "src/collectors/debugfs.plugin/libsensors/vendored"]
 	path = src/collectors/debugfs.plugin/libsensors/vendored
 	url = https://github.com/lm-sensors/lm-sensors.git
+[submodule "src/crates/promql-engine"]
+	path = src/crates/promql-engine
+	url = https://github.com/netdata-labs/promql-engine.git

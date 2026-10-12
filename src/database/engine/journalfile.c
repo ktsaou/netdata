@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #include "rrdengine.h"
+#include "demand.h"
 
 // the default value is set in ND_PROFILE, not here
 time_t dbengine_journal_v2_unmount_time = 120;
@@ -120,7 +121,27 @@ restart:
 
         datafile = *PValue;
 
+        if(s->checked && datafile && datafile->journalfile) {
+            struct rrdengine_journalfile *journal = datafile->journalfile;
+            spinlock_tracked_lock(&journal->data_spinlock);
+            TIME_RANGE_COMPARE range = is_page_in_time_range(journal->v2.first_time_s, journal->v2.last_time_s,
+                                                            s->wanted_start_time_s, s->wanted_end_time_s);
+            spinlock_tracked_unlock(&journal->data_spinlock);
+            if(range != PAGE_IS_IN_RANGE) {
+                datafile = NULL;
+                PValue = NULL;
+                if(range == PAGE_IS_IN_THE_FUTURE) break;
+                continue;
+            }
+        }
+
         if (!datafile || !datafile_acquire(datafile, DATAFILE_ACQUIRE_PAGE_DETAILS)) {
+            if(s->checked) {
+                s->failed = true;
+                s->error = (RRDENG_READ_ERROR){ .code = RRDENG_READ_EXPIRED };
+                datafile = NULL;
+                break;
+            }
             datafile = NULL;
             PValue = NULL;
             continue;
@@ -147,6 +168,15 @@ restart:
                 JOURNALFILE_V2_ACCESS_AUTO, false);
             if(s->j2_header_acquired) {
                 // this is good to return
+                break;
+            }
+
+            if(s->checked) {
+                s->failed = true;
+                s->error = (RRDENG_READ_ERROR){ .code = RRDENG_READ_IO, .system_errno = errno,
+                                               .file = datafile->fileno };
+                datafile_release(datafile, DATAFILE_ACQUIRE_PAGE_DETAILS);
+                datafile = NULL;
                 break;
             }
 
@@ -229,13 +259,12 @@ static void njfv2idx_add(struct rrdengine_datafile *datafile) {
     rw_spinlock_write_unlock(&ctx->njfv2idx.spinlock);
 }
 
-static bool njfv2idx_remove_internal(struct rrdengine_datafile *datafile, bool required) {
+static bool njfv2idx_remove_if_indexed(struct rrdengine_datafile *datafile) {
     struct rrdengine_instance *ctx = datafile_ctx(datafile);
     rw_spinlock_write_lock(&ctx->njfv2idx.spinlock);
 
+    rrdeng_read_expire_file(datafile);
     if(!datafile->journalfile->njfv2idx.indexed_as) {
-        if(required)
-            internal_fatal(true, "DBENGINE: NJFV2IDX journalfile to remove is not indexed");
         rw_spinlock_write_unlock(&ctx->njfv2idx.spinlock);
         return false;
     }
@@ -250,14 +279,6 @@ static bool njfv2idx_remove_internal(struct rrdengine_datafile *datafile, bool r
     return true;
 }
 
-static void njfv2idx_remove(struct rrdengine_datafile *datafile) {
-    (void)njfv2idx_remove_internal(datafile, true);
-}
-
-static bool njfv2idx_remove_if_indexed(struct rrdengine_datafile *datafile) {
-    return njfv2idx_remove_internal(datafile, false);
-}
-
 // ----------------------------------------------------------------------------
 
 static struct journal_v2_header *journalfile_v2_mounted_data_get(struct rrdengine_journalfile *journalfile, size_t *data_size) {
@@ -268,7 +289,16 @@ static struct journal_v2_header *journalfile_v2_mounted_data_get(struct rrdengin
     if(!journalfile->mmap.data) {
         journalfile->mmap.data = nd_mmap(NULL, journalfile->mmap.size, PROT_READ, MAP_SHARED, journalfile->mmap.fd, 0);
         if (journalfile->mmap.data == MAP_FAILED) {
-            internal_fatal(true, "DBENGINE: failed to re-mmap() journal file v2");
+            int read_errno = errno;
+            if(!journalfile->read_failure.code)
+                journalfile->read_failure = (RRDENG_READ_ERROR){
+                    .code = RRDENG_READ_IO, .system_errno = read_errno, .file = journalfile->datafile->fileno,
+                };
+            if(journalfile->v2.first_time_s > 0 && journalfile->v2.last_time_s >= journalfile->v2.first_time_s) {
+                if(!journalfile->failed_first || journalfile->v2.first_time_s < journalfile->failed_first)
+                    journalfile->failed_first = journalfile->v2.first_time_s;
+                journalfile->failed_last = MAX(journalfile->failed_last, journalfile->v2.last_time_s);
+            }
             close(journalfile->mmap.fd);
             journalfile->mmap.fd = -1;
             journalfile->mmap.data = NULL;
@@ -481,6 +511,10 @@ static ALWAYS_INLINE struct journal_v2_header *journalfile_v2_data_acquire_inter
     return NULL;
 }
 
+struct journal_v2_header *journalfile_v2_data_acquire_checked(struct rrdengine_journalfile *journalfile) {
+    return journalfile_v2_data_acquire_internal(journalfile, NULL, 0, 0, JOURNALFILE_V2_ACCESS_RANDOM, false);
+}
+
 ALWAYS_INLINE struct journal_v2_header *journalfile_v2_data_acquire_with_hint(struct rrdengine_journalfile *journalfile,
     size_t *data_size, time_t wanted_first_time_s, time_t wanted_last_time_s, JOURNALFILE_V2_ACCESS_HINT hint)
 {
@@ -546,6 +580,7 @@ void journalfile_v2_data_set(struct rrdengine_journalfile *journalfile, int fd, 
     internal_fatal(journalfile->v2.refcount, "DBENGINE JOURNALFILE: trying to re-set journal_data of referenced journalfile");
 
     journalfile->mmap.fd = fd;
+    journalfile->read_directory_verified = false;
     journalfile->mmap.data = journal_data;
     journalfile->mmap.size = journal_data_size;
     journalfile->v2.not_needed_since_s = now_monotonic_sec();
@@ -580,10 +615,12 @@ static void journalfile_v2_data_clear_unmapped_state(struct rrdengine_journalfil
                 close(journalfile->mmap.fd);
 
             journalfile->mmap.fd = -1;
+            journalfile->read_directory_verified = false;
             journalfile->mmap.data = NULL;
             journalfile->mmap.size = 0;
             journalfile->v2.first_time_s = 0;
             journalfile->v2.last_time_s = 0;
+            journalfile->read_directory_verified = false;
             journalfile->v2.flags = 0;
             has_references = false;
         }
@@ -599,7 +636,7 @@ static void journalfile_v2_data_clear_unmapped_state(struct rrdengine_journalfil
 }
 
 static void journalfile_v2_data_unmap_permanently(struct rrdengine_journalfile *journalfile) {
-    njfv2idx_remove(journalfile->datafile);
+    (void)njfv2idx_remove_if_indexed(journalfile->datafile);
     journalfile_v2_data_clear_unmapped_state(journalfile);
 }
 
@@ -677,8 +714,7 @@ uint8_t journalfile_destroy_unsafe(struct rrdengine_journalfile *journalfile, st
 
     // Wait for all references to be released and unmap before deleting files.
     // This prevents SIGBUS when threads are still accessing the mmap'd data.
-    if(journalfile_v2_data_available(journalfile))
-        journalfile_v2_data_unmap_permanently(journalfile);
+    journalfile_v2_data_unmap_permanently(journalfile);
 
     // Now safe to delete the files - no threads are accessing them
     uint8_t deleted = 0;

@@ -10,6 +10,7 @@
 #include <openssl/evp.h>
 #include "../rrd.h"
 #include "rrddiskprotocol.h"
+#include "read-types.h"
 #include "rrdenginelib.h"
 #include "datafile.h"
 #include "journalfile.h"
@@ -56,7 +57,8 @@ struct rrdeng_cmd;
 #define MAX_PAGES_PER_EXTENT (109) /* TODO: can go higher only when journal supports bigger than 4KiB transactions */
 #define DEFAULT_PAGES_PER_EXTENT (109)
 
-#define MAX_EXTENT_UNCOMPRESSED_SIZE (MAX_PAGES_PER_EXTENT * (RRDENG_BLOCK_SIZE + RRDENG_GORILLA_32BIT_BUFFER_SIZE))
+#define MAX_EXTENT_UNCOMPRESSED_SIZE \
+    (MAX_PAGES_PER_EXTENT * (RRDENG_BLOCK_SIZE + 2 * RRDENG_GORILLA_32BIT_BUFFER_SIZE + sizeof(double)))
 
 static inline size_t rrdeng_min_extent_disk_size(void) {
     return sizeof(struct rrdeng_df_extent_header) +
@@ -149,6 +151,8 @@ typedef struct page_details_control {
     STORAGE_PRIORITY priority;
 
     time_t optimal_end_time_s;
+    struct page_details *demand_page;
+    RRDENG_READ_LEASE allocation;
 } PDC;
 
 PDC *pdc_get(void);
@@ -166,6 +170,11 @@ struct page_details {
     time_t last_time_s;
     uint32_t update_every_s;
     PDC_PAGE_STATUS status;
+    RRDENG_READ_ERROR error;
+    bool demand;
+    struct pgd *private_page;
+    RRDENG_READ_LEASE allocation, private_allocation, scratch_allocation, borrowed_allocation;
+    RRDENG_READ_LEASE router_allocation, extent_allocation;
 
     struct {
         struct page_details *prev;
@@ -253,6 +262,8 @@ struct rrdeng_collect_handle {
     usec_t page_start_time_ut;
     usec_t page_end_time_ut;
     usec_t update_every_ut;
+    double counter_value;
+    bool counter_initialized;
 };
 
 struct rrdeng_query_handle {
@@ -438,6 +449,11 @@ struct rrdengine_instance {
     } njfv2idx;
 
     struct {
+        SPINLOCK lock;
+        struct rrdeng_read_promise *head;
+    } read_promises;
+
+    struct {
         PAD64(unsigned) last_fileno;                       // newest index of datafile and journalfile
         PAD64(unsigned) last_flush_fileno;                 // newest index of datafile received data
 
@@ -585,6 +601,9 @@ void rrdeng_req_cmd(requeue_callback_t get_cmd_cb, void *data, STORAGE_PRIORITY 
 void rrdeng_enq_cmd(struct rrdengine_instance *ctx, enum rrdeng_opcode opcode, void *data,
                 struct completion *completion, enum storage_priority priority,
                 enqueue_callback_t enqueue_cb, dequeue_callback_t dequeue_cb);
+bool rrdeng_enq_cmd_allocated(struct rrdengine_instance *ctx, enum rrdeng_opcode opcode, void *data,
+                struct completion *completion, enum storage_priority priority,
+                enqueue_callback_t enqueue_cb, dequeue_callback_t dequeue_cb, RRDENG_READ_LEASE *allocation);
 
 void pdc_route_asynchronously(struct rrdengine_instance *ctx, struct page_details_control *pdc);
 void pdc_route_synchronously(struct rrdengine_instance *ctx, struct page_details_control *pdc);

@@ -782,6 +782,11 @@ void mqtt_wss_disconnect(mqtt_wss_client client, int timeout_ms)
 {
     // block application from sending more MQTT messages
     client->mqtt_disconnecting = 1;
+    if(mqtt_ng_payload_failed(client->mqtt)) {
+        // An incomplete packet cannot be followed by another MQTT packet or a graceful flush.
+        mqtt_wss_close_sockfd(client);
+        return;
+    }
 
     // send whatever was left at the time of calling this function
     int ret = mqtt_wss_service_all(client, timeout_ms / 4);
@@ -1435,6 +1440,24 @@ int mqtt_wss_publish5(mqtt_wss_client client,
         return rc;
     }
 
+    mqtt_wss_wakeup(client);
+    return MQTT_WSS_OK;
+}
+
+int mqtt_wss_publish_source(mqtt_wss_client client, const char *topic, struct mqtt_payload_source *source,
+                             uint8_t publish_flags, uint16_t *packet_id) {
+    if(packet_id) *packet_id = 0;
+    int rc = 1;
+    if(!client->mqtt_disconnecting && client->mqtt_connected && source) {
+        uint8_t flags = (publish_flags & MQTT_WSS_PUB_QOSMASK) << 1;
+        if(publish_flags & MQTT_WSS_PUB_RETAIN) flags |= MQTT_PUBLISH_RETAIN;
+        rc = mqtt_ng_publish_source(client->mqtt, topic, source, flags, packet_id);
+    }
+    if(rc != MQTT_NG_MSGGEN_OK) {
+        if(packet_id) *packet_id = 0;
+        if(source && source->release) source->release(source->context);
+        return rc == MQTT_NG_MSGGEN_MSG_TOO_BIG ? MQTT_WSS_ERR_MSG_TOO_BIG : rc;
+    }
     mqtt_wss_wakeup(client);
     return MQTT_WSS_OK;
 }

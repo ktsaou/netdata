@@ -6,6 +6,10 @@
 #include "daemon/daemon-shutdown-watcher.h"
 #include "static_threads.h"
 #include "common.h"
+#ifdef ENABLE_PROMQL
+#include "web/api/promql/operations.h"
+#include "web/api/promql/api.h"
+#endif
 
 #include <curl/curl.h>
 
@@ -192,6 +196,9 @@ static void netdata_cleanup_and_exit(EXIT_REASON reason, bool abnormal, bool exi
     watcher_thread_start();
     usec_t shutdown_start_time = now_monotonic_usec();
     watcher_shutdown_begin();
+#ifdef ENABLE_PROMQL
+    promql_operations_shutdown();
+#endif
 
 #ifdef ENABLE_DBENGINE
     if(!abnormal && dbengine_enabled) {
@@ -418,6 +425,9 @@ static void netdata_cleanup_and_exit(EXIT_REASON reason, bool abnormal, bool exi
     watcher_step_complete(WATCHER_STEP_ID_REMOVE_PID_FILE);
 
     netdata_ssl_cleanup();
+#ifdef ENABLE_PROMQL
+    promql_api_cleanup();
+#endif
     watcher_step_complete(WATCHER_STEP_ID_FREE_OPENSSL_STRUCTURES);
 
     watcher_shutdown_end();

@@ -6,6 +6,9 @@
 #include "aclk_capas.h"
 
 #include "schema-wrappers/proto_2_json.h"
+#ifdef ENABLE_PROMQL
+#include "web/api/promql/aclk-source.h"
+#endif
 
 #ifndef __GNUC__
 #pragma region aclk_tx_msgs helper functions
@@ -308,6 +311,40 @@ short aclk_http_msg_v2_direct(mqtt_wss_client client, const char *topic, const c
 
     return http_code;
 }
+
+#ifdef ENABLE_PROMQL
+short aclk_http_msg_v2_body(mqtt_wss_client client, const char *topic, const char *msg_id,
+                            usec_t t_exec, usec_t created, short http_code,
+                            const char *http_headers, size_t http_headers_len, PROMQL_BODY *body) {
+    if(!topic || topic[0] != '/') {
+        netdata_log_error("Full topic required!");
+        return HTTP_RESP_INTERNAL_SERVER_ERROR;
+    }
+    char generated[UUID_STR_LEN];
+    if(!msg_id) {
+        nd_uuid_t uuid;
+        uuid_generate(uuid); uuid_unparse(uuid, generated); msg_id = generated;
+    }
+    PROMQL_ACLK_ENVELOPE envelope = {.message_id = msg_id, .headers = http_headers,
+        .headers_length = http_headers_len, .timestamp = now_realtime_usec(), .session = aclk_session_load(),
+        .execution_time = t_exec, .received_time = created, .version = ACLK_HEADER_VERSION, .code = http_code};
+    int error = 0;
+    struct mqtt_payload_source *source = promql_aclk_source(body, &envelope, &error);
+    uint16_t packet_id = 0;
+    int rc = source ? mqtt_wss_publish_source(client, topic, source, MQTT_WSS_PUB_QOS1, &packet_id) : 1;
+    if(rc == MQTT_WSS_ERR_MSG_TOO_BIG) {
+        aclk_http_msg_v2_err(client, topic, msg_id, HTTP_RESP_CONTENT_TOO_LONG,
+                              CLOUD_EC_REQ_REPLY_TOO_BIG, CLOUD_EMSG_REQ_REPLY_TOO_BIG, NULL, 0);
+        return HTTP_RESP_CONTENT_TOO_LONG;
+    }
+    if(rc != MQTT_WSS_OK) {
+        aclk_http_msg_v2_err(client, topic, msg_id, HTTP_RESP_INTERNAL_SERVER_ERROR,
+                              CLOUD_EC_SND_TIMEOUT, CLOUD_EMSG_SND_TIMEOUT, NULL, 0);
+        return HTTP_RESP_INTERNAL_SERVER_ERROR;
+    }
+    return http_code;
+}
+#endif
 
 uint16_t aclk_send_agent_connection_update(mqtt_wss_client client, int reachable) {
     size_t len;

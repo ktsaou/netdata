@@ -130,6 +130,9 @@ struct web_client *web_client_get_from_cache(void) {
 
 void web_client_release_to_cache(struct web_client *w) {
     netdata_ssl_close(&w->ssl);
+#ifdef ENABLE_PROMQL
+    web_client_clear_promql_response(w);
+#endif
     web_client_trim_url_decode_buffer_for_cache(w);
 
     // unlink it from the used

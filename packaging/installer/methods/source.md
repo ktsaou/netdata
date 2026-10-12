@@ -28,6 +28,11 @@ The following additional dependencies are also needed, but will be prepared auto
 
 Additionally, the following build time features require additional dependencies:
 
+- PromQL query API (enabled by default with DBengine):
+  - Rust 1.91 or newer, the pinned `src/crates/promql-engine` Git submodule and locked Cargo dependencies.
+  - Network access or a populated Cargo cache for those dependencies. The engine uses `panic=unwind` to contain
+    ordinary Rust panics at the C boundary.
+  - Custom builds can opt out with `-DENABLE_PROMQL=Off`; disabling DBengine also disables PromQL.
 - Netdata Cloud support:
   - A working internet connection
   - protobuf (Google Protocol Buffers) and protoc compiler. If protobuf is not available on the system,

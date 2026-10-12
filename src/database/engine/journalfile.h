@@ -31,6 +31,9 @@ typedef enum __attribute__ ((__packed__)) {
 
 struct rrdengine_journalfile {
     SPINLOCK_TRACKED data_spinlock;  // tracked: journalfile_v2_data_acquire 3600s deadlocks need holder identity
+    RRDENG_READ_ERROR read_failure;
+    time_t failed_first, failed_last;
+    bool read_directory_verified;
     struct {
         void *data;                    // MMAPed file of journal v2
         uint32_t size;                 // Total file size mapped
@@ -313,6 +316,7 @@ bool journalfile_v2_data_available(struct rrdengine_journalfile *journalfile);
 size_t journalfile_v2_data_size_get(struct rrdengine_journalfile *journalfile);
 void journalfile_v2_data_set(struct rrdengine_journalfile *journalfile, int fd, void *journal_data, uint32_t journal_data_size);
 struct journal_v2_header *journalfile_v2_data_acquire(struct rrdengine_journalfile *journalfile, size_t *data_size, time_t wanted_first_time_s, time_t wanted_last_time_s);
+struct journal_v2_header *journalfile_v2_data_acquire_checked(struct rrdengine_journalfile *journalfile);
 struct journal_v2_header *journalfile_v2_data_acquire_with_hint(struct rrdengine_journalfile *journalfile, size_t *data_size, time_t wanted_first_time_s, time_t wanted_last_time_s, JOURNALFILE_V2_ACCESS_HINT hint);
 void journalfile_v2_data_release(struct rrdengine_journalfile *journalfile);
 void journalfile_v2_data_unmount_cleanup(time_t now_s);
@@ -324,6 +328,8 @@ typedef struct {
     time_t wanted_end_time_s;
     struct rrdengine_instance *ctx;
     struct journal_v2_header *j2_header_acquired;
+    bool checked, failed;
+    RRDENG_READ_ERROR error;
 } NJFV2IDX_FIND_STATE;
 
 struct rrdengine_datafile *njfv2idx_find_and_acquire_j2_header(NJFV2IDX_FIND_STATE *s);

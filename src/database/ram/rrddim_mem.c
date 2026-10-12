@@ -438,8 +438,8 @@ void rrddim_collect_store_metric(STORAGE_COLLECT_HANDLE *sch,
                                  NETDATA_DOUBLE n,
                                  NETDATA_DOUBLE min_value __maybe_unused,
                                  NETDATA_DOUBLE max_value __maybe_unused,
-                                 uint16_t count __maybe_unused,
-                                 uint16_t anomaly_count __maybe_unused,
+                                 uint32_t count __maybe_unused,
+                                 uint32_t anomaly_count __maybe_unused,
                                  SN_FLAGS flags)
 {
     struct mem_collect_handle *ch = (struct mem_collect_handle *)sch;
@@ -592,6 +592,7 @@ ALWAYS_INLINE STORAGE_POINT rrddim_query_next_metric(struct storage_engine_query
     size_t slot = h->slot;
 
     STORAGE_POINT sp;
+    sp.counter = NAN;
     sp.count = 1;
 
     time_t this_timestamp = h->next_timestamp;
@@ -618,7 +619,7 @@ ALWAYS_INLINE STORAGE_POINT rrddim_query_next_metric(struct storage_engine_query
     h->slot_timestamp += h->dt;
 
     sp.anomaly_count = is_storage_number_anomalous(n) ? 1 : 0;
-    sp.flags = (n & SN_USER_FLAGS);
+    sp.flags = (n & SN_USER_FLAGS) | SP_FLAG_ORDINARY_SOURCE;
     sp.min = sp.max = sp.sum = unpack_storage_number(n);
 
     return sp;

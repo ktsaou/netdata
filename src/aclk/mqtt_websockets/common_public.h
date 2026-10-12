@@ -5,6 +5,7 @@
 
 #include <stddef.h>
 #include <stdint.h>
+#include <stdbool.h>
 
 /* free_fnc_t in general (in whatever function or struct it is used)
  * decides how the related data will be handled.
@@ -20,6 +21,20 @@
 typedef void (*free_fnc_t)(void *ptr);
 void _caller_responsibility(void *ptr);
 #define CALLER_RESPONSIBILITY ((free_fnc_t)&_caller_responsibility)
+
+/* Owned publication source. read fills the exact requested interval; window remains mutable and exclusive to
+ * the transport after successful enqueue. view accounts exposed transaction-header bytes when supplied.
+ * release owns the containing source and its context. No callback may reenter the same MQTT client.
+ */
+struct mqtt_payload_source {
+    void *context;
+    uint64_t length;
+    unsigned char *window;
+    size_t window_size;
+    bool (*read)(void *context, uint64_t offset, void *bytes, size_t length);
+    bool (*view)(void *context, uint64_t bytes);
+    void (*release)(void *context);
+};
 
 struct mqtt_ng_stats {
     size_t tx_bytes_queued;

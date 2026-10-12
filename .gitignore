@@ -237,6 +237,7 @@ compile.sh
 run-ibm.sh
 
 tmp/
+/.tmp/
 
 build*.sh
 install.sh

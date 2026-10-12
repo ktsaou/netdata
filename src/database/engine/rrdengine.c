@@ -19,6 +19,7 @@ struct rrdeng_cmd {
     struct completion *completion;
     enum storage_priority priority;
     dequeue_callback_t dequeue_cb;
+    RRDENG_READ_LEASE allocation;
 
     struct {
         struct rrdeng_cmd *prev;
@@ -183,6 +184,7 @@ struct rrdeng_work {
     work_cb work_cb;
     after_work_cb after_work_cb;
     enum rrdeng_opcode opcode;
+    RRDENG_READ_LEASE allocation;
 };
 
 static void work_request_init(void) {
@@ -240,7 +242,9 @@ static inline void check_and_schedule_db_rotation(struct rrdengine_instance *ctx
 }
 
 static inline void work_done(struct rrdeng_work *work_request) {
+    RRDENG_READ_LEASE allocation = work_request->allocation;
     aral_freez(rrdeng_main.work_cmd.ar, work_request);
+    rrdeng_read_lease_release(&allocation);
 }
 
 static void work_standard_worker(uv_work_t *req) {
@@ -297,11 +301,17 @@ static void after_work_standard_callback(uv_work_t* req, int status) {
     worker_is_idle();
 }
 
-static bool work_dispatch(struct rrdengine_instance *ctx, void *data, struct completion *completion, enum rrdeng_opcode opcode, work_cb do_work_cb, after_work_cb do_after_work_cb) {
+static bool work_dispatch_allocated(struct rrdengine_instance *ctx, void *data, struct completion *completion,
+                                   enum rrdeng_opcode opcode, work_cb do_work_cb, after_work_cb do_after_work_cb,
+                                   RRDENG_READ_LEASE *allocation, RRDENG_READ_ERROR_CODE *failure) {
     struct rrdeng_work *work_request = NULL;
 
     internal_fatal(rrdeng_main.tid != gettid_cached(), "work_dispatch() can only be run from the event loop thread");
 
+    if(allocation && !rrdeng_read_lease_resize(allocation, aral_actual_element_size(rrdeng_main.work_cmd.ar))) {
+        if(failure) *failure = RRDENG_READ_ACCOUNTING;
+        return false;
+    }
     work_request = aral_mallocz(rrdeng_main.work_cmd.ar);
     memset(work_request, 0, sizeof(struct rrdeng_work));
     work_request->req.data = work_request;
@@ -311,9 +321,14 @@ static bool work_dispatch(struct rrdengine_instance *ctx, void *data, struct com
     work_request->work_cb = do_work_cb;
     work_request->after_work_cb = do_after_work_cb;
     work_request->opcode = opcode;
+    if(allocation) {
+        work_request->allocation = *allocation;
+        *allocation = (RRDENG_READ_LEASE){0};
+    }
 
     if(uv_queue_work(&rrdeng_main.loop, &work_request->req, work_standard_worker, after_work_standard_callback)) {
-        internal_fatal(true, "DBENGINE: cannot queue work");
+        if(failure) *failure = RRDENG_READ_IO;
+        else internal_fatal(true, "DBENGINE: cannot queue work");
         work_done(work_request);
         return false;
     }
@@ -321,6 +336,11 @@ static bool work_dispatch(struct rrdengine_instance *ctx, void *data, struct com
     __atomic_add_fetch(&rrdeng_main.work_cmd.atomics.dispatched, 1, __ATOMIC_RELAXED);
 
     return true;
+}
+
+static bool work_dispatch(struct rrdengine_instance *ctx, void *data, struct completion *completion,
+                          enum rrdeng_opcode opcode, work_cb do_work_cb, after_work_cb do_after_work_cb) {
+    return work_dispatch_allocated(ctx, data, completion, opcode, do_work_cb, do_after_work_cb, NULL, NULL);
 }
 
 // ----------------------------------------------------------------------------
@@ -551,11 +571,14 @@ ALWAYS_INLINE void rrdeng_req_cmd(requeue_callback_t get_cmd_cb, void *data, STO
     spinlock_unlock(&rrdeng_main.cmd_queue.unsafe.spinlock);
 }
 
-ALWAYS_INLINE void rrdeng_enq_cmd(struct rrdengine_instance *ctx, enum rrdeng_opcode opcode, void *data, struct completion *completion,
-               enum storage_priority priority, enqueue_callback_t enqueue_cb, dequeue_callback_t dequeue_cb) {
+bool rrdeng_enq_cmd_allocated(struct rrdengine_instance *ctx, enum rrdeng_opcode opcode, void *data,
+               struct completion *completion, enum storage_priority priority, enqueue_callback_t enqueue_cb,
+               dequeue_callback_t dequeue_cb, RRDENG_READ_LEASE *allocation) {
 
     priority = rrdeng_enq_cmd_map_opcode_to_priority(opcode, priority);
 
+    if(allocation && !rrdeng_read_lease_resize(allocation, aral_actual_element_size(rrdeng_main.cmd_queue.ar)))
+        return false;
     struct rrdeng_cmd *cmd = aral_mallocz(rrdeng_main.cmd_queue.ar);
     memset(cmd, 0, sizeof(struct rrdeng_cmd));
     cmd->ctx = ctx;
@@ -564,6 +587,10 @@ ALWAYS_INLINE void rrdeng_enq_cmd(struct rrdengine_instance *ctx, enum rrdeng_op
     cmd->completion = completion;
     cmd->priority = priority;
     cmd->dequeue_cb = dequeue_cb;
+    if(allocation) {
+        cmd->allocation = *allocation;
+        *allocation = (RRDENG_READ_LEASE){0};
+    }
 
     spinlock_lock(&rrdeng_main.cmd_queue.unsafe.spinlock);
     DOUBLE_LINKED_LIST_APPEND_ITEM_UNSAFE(rrdeng_main.cmd_queue.unsafe.waiting_items_by_priority[priority], cmd, queue.prev, queue.next);
@@ -573,6 +600,13 @@ ALWAYS_INLINE void rrdeng_enq_cmd(struct rrdengine_instance *ctx, enum rrdeng_op
     spinlock_unlock(&rrdeng_main.cmd_queue.unsafe.spinlock);
 
     rrdeng_async_wakeup();
+    return true;
+}
+
+ALWAYS_INLINE void rrdeng_enq_cmd(struct rrdengine_instance *ctx, enum rrdeng_opcode opcode, void *data,
+               struct completion *completion, enum storage_priority priority, enqueue_callback_t enqueue_cb,
+               dequeue_callback_t dequeue_cb) {
+    rrdeng_enq_cmd_allocated(ctx, opcode, data, completion, priority, enqueue_cb, dequeue_cb, NULL);
 }
 
 static inline bool rrdeng_cmd_has_waiting_opcodes_in_lower_priorities(STORAGE_PRIORITY priority, STORAGE_PRIORITY max_priority) {
@@ -644,6 +678,7 @@ static inline struct rrdeng_cmd rrdeng_deq_cmd(bool from_worker) {
         ret = *cmd;
 
         aral_freez(rrdeng_main.cmd_queue.ar, cmd);
+        rrdeng_read_lease_resize(&ret.allocation, 0);
     }
     else
         ret = opcode_empty;
@@ -991,7 +1026,11 @@ datafile_extent_build(struct rrdengine_instance *ctx, struct page_descr_with_dat
         header->descr[i].page_length = descr->page_length;
         header->descr[i].start_time_ut = descr->start_time_ut;
 
-        switch (descr->type) {
+        if(rrdeng_page_type_is_counter(descr->type)) {
+            header->descr[i].counter.entries = pgd_slots_used(descr->pgd);
+            header->descr[i].counter.update_every_s = descr->update_every_s;
+        }
+        else switch (rrdeng_page_type_base(descr->type)) {
             case RRDENG_PAGE_TYPE_ARRAY_32BIT:
             case RRDENG_PAGE_TYPE_ARRAY_TIER1:
                 header->descr[i].end_time_ut = descr->end_time_ut;
@@ -2157,8 +2196,9 @@ static void *extent_read_tp_worker(struct rrdengine_instance *ctx __maybe_unused
 }
 
 static NOT_INLINE_HOT void epdl_populate_pages_asynchronously(struct rrdengine_instance *ctx, EPDL *epdl, STORAGE_PRIORITY priority) {
-    rrdeng_enq_cmd(ctx, RRDENG_OPCODE_EXTENT_READ, epdl, NULL, priority,
-                   rrdeng_enqueue_epdl_cmd, rrdeng_dequeue_epdl_cmd);
+    if(!rrdeng_enq_cmd_allocated(ctx, RRDENG_OPCODE_EXTENT_READ, epdl, NULL, priority,
+                   rrdeng_enqueue_epdl_cmd, rrdeng_dequeue_epdl_cmd, epdl_dispatch_allocation(epdl)))
+        epdl_dispatch_failed(epdl, RRDENG_READ_ACCOUNTING);
 }
 
 NOT_INLINE_HOT void pdc_route_asynchronously(struct rrdengine_instance *ctx, struct page_details_control *pdc) {
@@ -2628,20 +2668,40 @@ static inline void worker_dispatch_extent_read(struct rrdeng_cmd cmd, bool from_
     struct rrdengine_instance *ctx = cmd.ctx;
     EPDL *epdl = cmd.data;
 
-    if(from_worker)
+    if(from_worker) {
         epdl_find_extent_and_populate_pages(ctx, epdl, true);
-    else
-        work_dispatch(ctx, epdl, NULL, cmd.opcode, extent_read_tp_worker, NULL);
+        rrdeng_read_lease_release(&cmd.allocation);
+    }
+    else if(epdl_dispatch_allocation(epdl)) {
+        RRDENG_READ_ERROR_CODE failure = RRDENG_READ_OK;
+        if(!work_dispatch_allocated(ctx, epdl, NULL, cmd.opcode, extent_read_tp_worker, NULL,
+                                    &cmd.allocation, &failure)) {
+            rrdeng_read_lease_release(&cmd.allocation);
+            epdl_dispatch_failed(epdl, failure);
+        }
+    }
+    else work_dispatch(ctx, epdl, NULL, cmd.opcode, extent_read_tp_worker, NULL);
 }
 
 static inline void worker_dispatch_query_prep(struct rrdeng_cmd cmd, bool from_worker) {
     struct rrdengine_instance *ctx = cmd.ctx;
     PDC *pdc = cmd.data;
 
-    if(from_worker)
+    if(from_worker) {
         rrdeng_prep_query(pdc, true);
-    else
-        work_dispatch(ctx, pdc, NULL, cmd.opcode, query_prep_tp_worker, NULL);
+        rrdeng_read_lease_release(&cmd.allocation);
+    }
+    else if(pdc->demand_page) {
+        RRDENG_READ_ERROR_CODE failure = RRDENG_READ_OK;
+        if(!work_dispatch_allocated(ctx, pdc, NULL, cmd.opcode, query_prep_tp_worker, NULL,
+                                    &cmd.allocation, &failure)) {
+            rrdeng_read_lease_release(&cmd.allocation);
+            if(!pdc->demand_page->error.code) pdc->demand_page->error.code = failure;
+            pdc_page_status_set(pdc->demand_page, PDC_PAGE_FAILED);
+            pdc_release_and_destroy_if_unreferenced(pdc, true, true);
+        }
+    }
+    else work_dispatch(ctx, pdc, NULL, cmd.opcode, query_prep_tp_worker, NULL);
 }
 
 uint64_t rrdeng_get_directory_free_bytes_space(struct rrdengine_instance *ctx)

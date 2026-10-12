@@ -86,6 +86,9 @@ static void http_header_user_agent(struct web_client *w, const char *v, size_t l
 }
 
 static void http_header_accept(struct web_client *w, const char *v, size_t len __maybe_unused) {
+#ifdef ENABLE_PROMQL
+    if(!w->request_accept) w->request_accept = strdupz(v);
+#endif
     web_client_flag_clear(w, WEB_CLIENT_FLAG_ACCEPT_JSON |
                              WEB_CLIENT_FLAG_ACCEPT_SSE |
                              WEB_CLIENT_FLAG_ACCEPT_TEXT);
@@ -120,6 +123,12 @@ static void http_header_accept(struct web_client *w, const char *v, size_t len _
         }
     }
 }
+
+#ifdef ENABLE_PROMQL
+static void http_header_content_type_request(struct web_client *w, const char *value, size_t length __maybe_unused) {
+    if(!w->request_content_type) w->request_content_type = strdupz(value);
+}
+#endif
 
 static void http_header_x_auth_token(struct web_client *w, const char *v, size_t len __maybe_unused) {
     freez(w->auth_bearer_token);
@@ -368,6 +377,9 @@ struct {
     { .hash = 0, .key = "DNT",                   .cb = http_header_dnt },
     { .hash = 0, .key = "User-Agent",            .cb = http_header_user_agent},
     { .hash = 0, .key = "Accept",                .cb = http_header_accept },
+#ifdef ENABLE_PROMQL
+    { .hash = 0, .key = "Content-Type",          .cb = http_header_content_type_request },
+#endif
     { .hash = 0, .key = "X-Auth-Token",          .cb = http_header_x_auth_token },
     { .hash = 0, .key = "Host",                  .cb = http_header_host },
     { .hash = 0, .key = "Accept-Encoding",       .cb = http_header_accept_encoding },

@@ -63,7 +63,7 @@ Flushed (saved) pages are **clean pages**, i.e., read-only pages that reside pri
 
 #### Pages Configuration
 
-Pages are configured like this:
+Ordinary pages are configured like this:
 
 | Attribute                                                                             |                 Tier0                 |                              Tier1                              |                              Tier2                              |
 |---------------------------------------------------------------------------------------|:-------------------------------------:|:---------------------------------------------------------------:|:---------------------------------------------------------------:|
@@ -72,6 +72,18 @@ Pages are configured like this:
 | Page Size in Bytes                                                                    | 4096<br/><small>2048 in 32bit</small> |              2048<br/><small>1024 in 32bit</small>              |               384<br/><small>192 in 32bit</small>               |
 | Collections per Point                                                                 |                   1                   | 60x Tier0<br/><small>configurable in<br/>`netdata.conf`</small> | 60x Tier1<br/><small>configurable in<br/>`netdata.conf`</small> |
 | Points per Page                                                                       | 1024<br/><small>512 in 32bit</small>  |               128<br/><small>64 in 32bit</small>                |                24<br/><small>12 in 32bit</small>                |
+
+Counter pages use separate formats. Each has one 8-byte cumulative anchor before the first contribution, including
+every higher tier. Tier0 retains its existing compact sample codec. A higher-tier counter record is 24 bytes:
+three float32 statistics, valid/anomalous u32 counts and a u32 flags word. Flags preserve reset, gap presence,
+presentation sign and unknown legacy provenance. There is no absolute counter field per sample.
+
+The anchor and retained contributions allow page-by-page cumulative reconstruction for the
+[PromQL API](/src/web/api/promql/README.md). Interpolation, streaming and native unit magnitudes remain unchanged.
+Higher tiers do not preserve reset order or missing-point positions within a bucket; older pages lack anchors
+and some flags. The [integration design](/tests/promql-conformance/DESIGN.md#counter-pages-and-migration) describes
+these approximations and the starting-basis rule. The ordinary estimates above do not describe counter-format
+capacity or compression guarantees.
 
 ### Files
 

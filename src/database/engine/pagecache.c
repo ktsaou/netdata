@@ -10,6 +10,11 @@ struct rrdeng_cache_efficiency_stats rrdeng_cache_efficiency_stats = {};
 
 static void main_cache_free_clean_page_callback(PGC *cache __maybe_unused, PGC_ENTRY entry __maybe_unused)
 {
+#ifdef SPINLOCK_IMPL_WITH_MUTEX
+    RRDENG_PAGE_PROVENANCE *provenance = (RRDENG_PAGE_PROVENANCE *)entry.custom_data;
+    if(provenance && __atomic_load_n(&provenance->lock_initialized, __ATOMIC_ACQUIRE) == 2)
+        netdata_mutex_destroy(&provenance->lock.inner);
+#endif
     // Release storage associated with the page
     pgd_free(entry.data);
 }
@@ -838,6 +843,13 @@ ALWAYS_INLINE_HOT void rrdeng_prep_query(struct page_details_control *pdc, bool 
     if(worker)
         worker_is_busy(UV_EVENT_DBENGINE_QUERY);
 
+    if(pdc->demand_page) {
+        completion_mark_complete(&pdc->prep_completion);
+        pdc_route_asynchronously(pdc->ctx, pdc);
+        if(worker) worker_is_idle();
+        return;
+    }
+
     pdc->page_list_JudyL = get_page_list(pdc->ctx, pdc->metric,
                                                  pdc->start_time_s * USEC_PER_SEC,
                                                  pdc->end_time_s * USEC_PER_SEC,
@@ -893,31 +905,10 @@ ALWAYS_INLINE_HOT void pg_cache_preload(struct rrdeng_query_handle *handle) {
     if (unlikely(!handle || !handle->metric))
         return;
 
-    __atomic_add_fetch(&handle->ctx->atomic.inflight_queries, 1, __ATOMIC_RELAXED);
-    __atomic_add_fetch(&rrdeng_cache_efficiency_stats.currently_running_queries, 1, __ATOMIC_RELAXED);
-    handle->pdc = pdc_get();
-    handle->pdc->ctx = handle->ctx;
-    handle->pdc->refcount = 1;
-    spinlock_init(&handle->pdc->refcount_spinlock);
-    handle->pdc->metric = mrg_metric_dup(main_mrg, handle->metric);
-    if(!handle->pdc->metric) {
-        // metric has been deleted, mark completions and return
-        completion_init(&handle->pdc->prep_completion);
-        completion_init(&handle->pdc->page_completion);
-        completion_mark_complete(&handle->pdc->prep_completion);
-        completion_mark_complete(&handle->pdc->page_completion);
-        pdc_release_and_destroy_if_unreferenced(handle->pdc, true, true);
-        handle->pdc = NULL;
-        __atomic_sub_fetch(&handle->ctx->atomic.inflight_queries, 1, __ATOMIC_RELAXED);
-        __atomic_sub_fetch(&rrdeng_cache_efficiency_stats.currently_running_queries, 1, __ATOMIC_RELAXED);
+    handle->pdc = pdc_create(handle->metric, handle->start_time_s, handle->end_time_s,
+                             handle->priority, NULL, NULL);
+    if(!handle->pdc)
         return;
-    }
-    handle->pdc->start_time_s = handle->start_time_s;
-    handle->pdc->end_time_s = handle->end_time_s;
-    handle->pdc->priority = handle->priority;
-    handle->pdc->optimal_end_time_s = handle->end_time_s;
-    completion_init(&handle->pdc->prep_completion);
-    completion_init(&handle->pdc->page_completion);
 
     if(ctx_is_available_for_queries(handle->ctx)) {
         handle->pdc->refcount++; // we get 1 for the query thread and 1 for the prep thread
@@ -1210,7 +1201,7 @@ void pgc_and_mrg_initialize(void)
             1,
             PGC_OPTIONS_AUTOSCALE | PGC_OPTIONS_EVICT_PAGES_NO_INLINE,
             0,
-            0
+            sizeof(RRDENG_PAGE_PROVENANCE)
     );
     pgc_set_nominal_page_size_callback(main_cache, pgc_main_nominal_page_size);
 

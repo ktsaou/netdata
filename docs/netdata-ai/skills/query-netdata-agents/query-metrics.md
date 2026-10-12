@@ -24,6 +24,11 @@ body. Cloud body fields map to Agent parameters such as
 target node as `scope_nodes`; the `/host/{node}` URL prefix does not
 scope the v3 data query itself.
 
+## PromQL queries
+
+For PromQL expressions and series discovery, follow the [PromQL API guide](../../../../src/web/api/promql/README.md).
+Its five v1 endpoints use retained fleet scope or an explicit host/node prefix, rather than v3 `scope_nodes`.
+
 ## Use the wrapper
 
 ```bash

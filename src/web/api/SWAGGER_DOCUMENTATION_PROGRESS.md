@@ -4,7 +4,7 @@
 **Status:** Phase 1 NEEDS VERIFICATION ⚠️ - Documentation may contain errors from assumptions
 **Current Phase:** Code Verification Required
 
-**Project Goal:** Complete accurate OpenAPI specification in `swagger.yaml` for all 68 Netdata APIs. User-facing documentation updates will be done separately AFTER swagger.yaml is complete.
+**Project Goal:** Complete accurate OpenAPI specification in `swagger.yaml` for all 73 Netdata APIs with PromQL enabled. User-facing documentation updates will be done separately AFTER swagger.yaml is complete.
 
 ---
 
@@ -369,7 +369,17 @@ This file tracks the comprehensive OpenAPI specification project to ensure:
 **Total V2 APIs:** 17 (**17 verified**, 0 need verification) ✅ **COMPLETE**
 **Verification Efficiency:** 15 APIs verified by V3 reference, 2 APIs fully verified (data, claim)
 
-#### V1 APIs (web_api_v1.c) - CONDITIONAL (ENABLE_API_V1)
+#### V1 APIs (web_api_v1.c)
+
+PromQL entries are conditional on `ENABLE_PROMQL`, independently of the legacy `ENABLE_API_V1` entries.
+The five additions have source-derived GET/form-POST documentation and routed fixture coverage; label values is GET-only.
+
+- [✅] `/api/v1/query` - PromQL instant evaluation
+- [✅] `/api/v1/query_range` - PromQL range evaluation
+- [✅] `/api/v1/labels` - PromQL label names
+- [✅] `/api/v1/label/{name}/values` - PromQL label values
+- [✅] `/api/v1/series` - PromQL series discovery
+
 - [✅] `/api/v1/data` - **VERIFIED** (Callback: api_v1_data) - Dual-agent verification complete
 - [⚠️] `/api/v1/weights` - Weights (ENABLE_API_V1) **NEEDS CODE VERIFICATION**
 - [⚠️] `/api/v1/metric_correlations` - Metric correlations (ENABLE_API_V1) **DEPRECATED - NEEDS CODE VERIFICATION**
@@ -395,9 +405,9 @@ This file tracks the comprehensive OpenAPI specification project to ensure:
 - [⚠️] `/api/v1/manage` - Management (ENABLE_API_V1) **NEEDS CODE VERIFICATION**
 - [✅] `/api/v1/config` - **VERIFIED VIA V3** (Callback: api_v1_config) - Reused in `/api/v3/config`
 
-**Total V1 APIs:** 24 (**24 verified with complete checklist**, 0 need verification) ✅ **COMPLETE**
+**Total V1 APIs:** 29 with PromQL enabled (24 previously recorded entries plus five PromQL routes).
 
-**Total APIs Across All Versions:** 68 (**68 verified with complete checklist**, 0 need verification) ✅ **ALL APIS VERIFIED**
+**Total APIs Across All Versions:** 73 with PromQL enabled. PromQL additions were checked separately; historical verification records above are retained.
 
 ## Phase 2: Cross-Reference with Swagger ✓ IN PROGRESS
 

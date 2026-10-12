@@ -156,18 +156,18 @@ static inline STORAGE_COLLECT_HANDLE *storage_metric_store_init(STORAGE_ENGINE_B
 void rrdeng_store_metric_next(
     STORAGE_COLLECT_HANDLE *sch, usec_t point_in_time_ut,
     NETDATA_DOUBLE n, NETDATA_DOUBLE min_value, NETDATA_DOUBLE max_value,
-    uint16_t count, uint16_t anomaly_count, SN_FLAGS flags);
+    uint32_t count, uint32_t anomaly_count, SN_FLAGS flags);
 
 void rrddim_collect_store_metric(
     STORAGE_COLLECT_HANDLE *sch, usec_t point_in_time_ut,
     NETDATA_DOUBLE n, NETDATA_DOUBLE min_value, NETDATA_DOUBLE max_value,
-    uint16_t count, uint16_t anomaly_count, SN_FLAGS flags);
+    uint32_t count, uint32_t anomaly_count, SN_FLAGS flags);
 
 ALWAYS_INLINE_HOT_FLATTEN
 static void storage_engine_store_metric(
     STORAGE_COLLECT_HANDLE *sch, usec_t point_in_time_ut,
     NETDATA_DOUBLE n, NETDATA_DOUBLE min_value, NETDATA_DOUBLE max_value,
-    uint16_t count, uint16_t anomaly_count, SN_FLAGS flags) {
+    uint32_t count, uint32_t anomaly_count, SN_FLAGS flags) {
     if(unlikely(!sch))
         return;
 

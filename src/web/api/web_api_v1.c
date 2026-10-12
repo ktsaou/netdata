@@ -4,6 +4,9 @@
 #include "v1/api_v1_calls.h"
 #include "v2/api_v2_calls.h"
 #include "v3/api_v3_calls.h"
+#ifdef ENABLE_PROMQL
+#include "promql/api.h"
+#endif
 
 static struct web_api_command api_commands_v1[] = {
     // time-series data APIs
@@ -15,6 +18,39 @@ static struct web_api_command api_commands_v1[] = {
         .callback = api_v1_data,
         .allow_subpaths = 0
     },
+#ifdef ENABLE_PROMQL
+    {
+        .api = "query",
+        .acl = HTTP_ACL_METRICS,
+        .access = HTTP_ACCESS_ANONYMOUS_DATA,
+        .callback = api_v1_promql_query,
+    },
+    {
+        .api = "query_range",
+        .acl = HTTP_ACL_METRICS,
+        .access = HTTP_ACCESS_ANONYMOUS_DATA,
+        .callback = api_v1_promql_query_range,
+    },
+    {
+        .api = "labels",
+        .acl = HTTP_ACL_METRICS,
+        .access = HTTP_ACCESS_ANONYMOUS_DATA,
+        .callback = api_v1_promql_labels,
+    },
+    {
+        .api = "label",
+        .acl = HTTP_ACL_METRICS,
+        .access = HTTP_ACCESS_ANONYMOUS_DATA,
+        .callback = api_v1_promql_label_values,
+        .allow_subpaths = 1,
+    },
+    {
+        .api = "series",
+        .acl = HTTP_ACL_METRICS,
+        .access = HTTP_ACCESS_ANONYMOUS_DATA,
+        .callback = api_v1_promql_series,
+    },
+#endif
 #if defined(ENABLE_API_V1)
     {
         .api = "weights",

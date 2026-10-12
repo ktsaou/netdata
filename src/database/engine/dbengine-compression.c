@@ -8,6 +8,7 @@
 #endif
 
 #ifdef ENABLE_ZSTD
+#define ZSTD_STATIC_LINKING_ONLY
 #include <zstd.h>
 #define DBENGINE_ZSTD_DEFAULT_COMPRESSION_LEVEL 3
 #endif
@@ -128,7 +129,55 @@ size_t dbengine_compress(void *payload, size_t uncompressed_size, uint8_t algori
     }
 }
 
-size_t dbengine_decompress(void *dst, void *src, size_t dst_size, size_t src_size, uint8_t algorithm) {
+#ifdef ENABLE_ZSTD
+typedef union {
+    max_align_t alignment;
+    size_t bytes;
+} TRACKED_ZSTD_HEADER;
+
+typedef struct {
+    RRDENG_READ_LEASE *allocation;
+    uint64_t base, live;
+    bool refused;
+} TRACKED_ZSTD;
+
+static void *tracked_zstd_allocate(void *context, size_t bytes) {
+    TRACKED_ZSTD *state = context;
+    if(bytes > SIZE_MAX - sizeof(TRACKED_ZSTD_HEADER) ||
+       state->live > UINT64_MAX - sizeof(TRACKED_ZSTD_HEADER) - bytes ||
+       state->base > UINT64_MAX - state->live - sizeof(TRACKED_ZSTD_HEADER) - bytes) {
+        state->refused = true;
+        return NULL;
+    }
+    size_t total = sizeof(TRACKED_ZSTD_HEADER) + bytes;
+    if(!rrdeng_read_lease_resize(state->allocation, state->base + state->live + total)) {
+        state->refused = true;
+        return NULL;
+    }
+    TRACKED_ZSTD_HEADER *header = mallocz(total);
+    header->bytes = total;
+    state->live += total;
+    return header + 1;
+}
+
+static void tracked_zstd_free(void *context, void *allocation) {
+    if(!allocation) return;
+    TRACKED_ZSTD *state = context;
+    TRACKED_ZSTD_HEADER *header = (TRACKED_ZSTD_HEADER *)allocation - 1;
+    size_t bytes = header->bytes;
+    freez(header);
+    state->live -= bytes;
+    rrdeng_read_lease_resize(state->allocation, state->base + state->live);
+}
+#endif
+
+size_t dbengine_decompress_accounted(void *dst, void *src, size_t dst_size, size_t src_size, uint8_t algorithm,
+                                   RRDENG_READ_LEASE *allocation, uint64_t base_bytes, bool *accounting_failed) {
+    if(accounting_failed) *accounting_failed = false;
+#ifndef ENABLE_ZSTD
+    (void)allocation;
+    (void)base_bytes;
+#endif
     switch(algorithm) {
 
 #ifdef ENABLE_LZ4
@@ -152,7 +201,23 @@ size_t dbengine_decompress(void *dst, void *src, size_t dst_size, size_t src_siz
 
 #ifdef ENABLE_ZSTD
         case RRDENG_COMPRESSION_ZSTD: {
-            size_t decompressed_size = ZSTD_decompress(dst, dst_size, src, src_size);
+            size_t decompressed_size;
+            if(allocation && allocation->allocation) {
+                TRACKED_ZSTD state = {.allocation = allocation, .base = base_bytes};
+                ZSTD_DCtx *decoder = ZSTD_createDCtx_advanced((ZSTD_customMem){
+                    .customAlloc = tracked_zstd_allocate, .customFree = tracked_zstd_free, .opaque = &state,
+                });
+                if(!decoder) {
+                    if(accounting_failed) *accounting_failed = state.refused;
+                    return 0;
+                }
+                decompressed_size = ZSTD_decompressDCtx(decoder, dst, dst_size, src, src_size);
+                ZSTD_freeDCtx(decoder);
+                if(accounting_failed) *accounting_failed = state.refused;
+                internal_fatal(state.live, "DBENGINE: ZSTD retained decode allocations");
+            }
+            else
+                decompressed_size = ZSTD_decompress(dst, dst_size, src, src_size);
 
             if (ZSTD_isError(decompressed_size)) {
                 nd_log(NDLS_DAEMON, NDLP_ERR, "DBENGINE: ZSTD decompression error %s",
@@ -173,4 +238,8 @@ size_t dbengine_decompress(void *dst, void *src, size_t dst_size, size_t src_siz
             internal_fatal(true, "DBENGINE: unknown compression algorithm %u", algorithm);
             return 0;
     }
+}
+
+size_t dbengine_decompress(void *dst, void *src, size_t dst_size, size_t src_size, uint8_t algorithm) {
+    return dbengine_decompress_accounted(dst, src, dst_size, src_size, algorithm, NULL, 0, NULL);
 }

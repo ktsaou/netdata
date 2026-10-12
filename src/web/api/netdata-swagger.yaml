@@ -39,7 +39,7 @@ info:
     - `/api/v3/claim` - Agent claiming
     - Additional management and streaming endpoints
 
-    **Note:** V1 and V2 APIs are deprecated and maintained for backwards compatibility only. New integrations should use V3 exclusively.
+    **Note:** Existing V1 and V2 endpoints are maintained for compatibility. New Netdata API integrations should use V3. The Prometheus-shaped PromQL query and discovery endpoints intentionally use V1 paths and are actively maintained when ENABLE_PROMQL is built.
   version: "v1-rolling"
   contact:
     name: Netdata Agent API
@@ -71,7 +71,817 @@ tags:
     description: Everything related to alerts
   - name: management
     description: Everything related to managing netdata Agents
+  - name: promql
+    description: PromQL over retained Netdata metrics
 paths:
+  /api/v1/query:
+    get:
+      operationId: promqlQuery
+      tags:
+      - promql
+      summary: Evaluate an instant PromQL query
+      description: Available with ENABLE_PROMQL and DBengine. Base paths query retained fleet hosts; an existing /host/{id}
+        or /node/{id} prefix selects one host. Uses HTTP_ACL_METRICS and HTTP_ACCESS_ANONYMOUS_DATA with the existing
+        bearer and connection gates. Data keeps Netdata native units, fixed-step interpolation and retained-tier counter
+        approximations. Implicit query resource caps are disabled; native request and transport ceilings remain active.
+      security:
+      - {}
+      - bearerAuth: []
+      responses:
+        '200':
+          description: Completed result; warnings and infos may accompany success.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PromQLQuerySuccess'
+        '400':
+          $ref: '#/components/responses/PromQLHttp400'
+        '422':
+          $ref: '#/components/responses/PromQLHttp422'
+        '499':
+          $ref: '#/components/responses/PromQLHttp499'
+        '503':
+          $ref: '#/components/responses/PromQLHttp503'
+        '500':
+          $ref: '#/components/responses/PromQLHttp500'
+        '413':
+          $ref: '#/components/responses/PromQLHttp413'
+      parameters:
+      - name: query
+        in: query
+        required: true
+        description: PromQL expression.
+        schema:
+          type: string
+      - name: time
+        in: query
+        required: false
+        description: Unix seconds or RFC3339 evaluation time; defaults to now.
+        schema:
+          type: string
+      - name: timeout
+        in: query
+        required: false
+        description: Explicit duration deadline; an earlier caller deadline wins.
+        schema:
+          type: string
+      - name: lookback_delta
+        in: query
+        required: false
+        description: Positive lookback override, in seconds or PromQL duration syntax.
+        schema:
+          type: string
+      - name: limit
+        in: query
+        required: false
+        description: Maximum returned series or discovery entries; zero or omitted means no output limit.
+        schema:
+          type: integer
+          format: int64
+          minimum: 0
+          default: 0
+      - name: stats
+        in: query
+        required: false
+        description: Optional statistics; all requests the full statistics object.
+        schema:
+          type: string
+      - name: options
+        in: query
+        required: false
+        description: 'Netdata extension: absolute normalizes legacy negative counter inputs; gauges and expression
+          results are unchanged.'
+        schema:
+          type: string
+          enum:
+          - absolute
+    post:
+      operationId: promqlQueryPost
+      tags:
+      - promql
+      summary: Evaluate an instant PromQL query
+      description: Available with ENABLE_PROMQL and DBengine. Base paths query retained fleet hosts; an existing /host/{id}
+        or /node/{id} prefix selects one host. Uses HTTP_ACL_METRICS and HTTP_ACCESS_ANONYMOUS_DATA with the existing
+        bearer and connection gates. Data keeps Netdata native units, fixed-step interpolation and retained-tier counter
+        approximations. Implicit query resource caps are disabled; native request and transport ceilings remain active.
+      security:
+      - {}
+      - bearerAuth: []
+      responses:
+        '200':
+          description: Completed result; warnings and infos may accompany success.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PromQLQuerySuccess'
+        '400':
+          $ref: '#/components/responses/PromQLHttp400'
+        '422':
+          $ref: '#/components/responses/PromQLHttp422'
+        '499':
+          $ref: '#/components/responses/PromQLHttp499'
+        '503':
+          $ref: '#/components/responses/PromQLHttp503'
+        '500':
+          $ref: '#/components/responses/PromQLHttp500'
+        '413':
+          $ref: '#/components/responses/PromQLHttp413'
+      parameters:
+      - name: query
+        in: query
+        required: false
+        description: PromQL expression.
+        schema:
+          type: string
+      - name: time
+        in: query
+        required: false
+        description: Unix seconds or RFC3339 evaluation time; defaults to now.
+        schema:
+          type: string
+      - name: timeout
+        in: query
+        required: false
+        description: Explicit duration deadline; an earlier caller deadline wins.
+        schema:
+          type: string
+      - name: lookback_delta
+        in: query
+        required: false
+        description: Positive lookback override, in seconds or PromQL duration syntax.
+        schema:
+          type: string
+      - name: limit
+        in: query
+        required: false
+        description: Maximum returned series or discovery entries; zero or omitted means no output limit.
+        schema:
+          type: integer
+          format: int64
+          minimum: 0
+          default: 0
+      - name: stats
+        in: query
+        required: false
+        description: Optional statistics; all requests the full statistics object.
+        schema:
+          type: string
+      - name: options
+        in: query
+        required: false
+        description: 'Netdata extension: absolute normalizes legacy negative counter inputs; gauges and expression
+          results are unchanged.'
+        schema:
+          type: string
+          enum:
+          - absolute
+      requestBody:
+        description: Form fields precede URL fields. The first singular value wins; repeated match[] values are combined.
+          Required values can be supplied in either place.
+        required: false
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              properties:
+                query:
+                  type: string
+                  description: PromQL expression.
+                time:
+                  type: string
+                  description: Unix seconds or RFC3339 evaluation time; defaults to now.
+                timeout:
+                  type: string
+                  description: Explicit duration deadline; an earlier caller deadline wins.
+                lookback_delta:
+                  type: string
+                  description: Positive lookback override, in seconds or PromQL duration syntax.
+                limit:
+                  type: integer
+                  format: int64
+                  minimum: 0
+                  default: 0
+                  description: Maximum returned series or discovery entries; zero or omitted means no output limit.
+                stats:
+                  type: string
+                  description: Optional statistics; all requests the full statistics object.
+                options:
+                  type: string
+                  enum:
+                  - absolute
+                  description: 'Netdata extension: absolute normalizes legacy negative counter inputs; gauges and
+                    expression results are unchanged.'
+  /api/v1/query_range:
+    get:
+      operationId: promqlQueryRange
+      tags:
+      - promql
+      summary: Evaluate a PromQL range query
+      description: Available with ENABLE_PROMQL and DBengine. Base paths query retained fleet hosts; an existing /host/{id}
+        or /node/{id} prefix selects one host. Uses HTTP_ACL_METRICS and HTTP_ACCESS_ANONYMOUS_DATA with the existing
+        bearer and connection gates. Data keeps Netdata native units, fixed-step interpolation and retained-tier counter
+        approximations. Implicit query resource caps are disabled; native request and transport ceilings remain active.
+      security:
+      - {}
+      - bearerAuth: []
+      responses:
+        '200':
+          description: Completed result; warnings and infos may accompany success.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PromQLQuerySuccess'
+        '400':
+          $ref: '#/components/responses/PromQLHttp400'
+        '422':
+          $ref: '#/components/responses/PromQLHttp422'
+        '499':
+          $ref: '#/components/responses/PromQLHttp499'
+        '503':
+          $ref: '#/components/responses/PromQLHttp503'
+        '500':
+          $ref: '#/components/responses/PromQLHttp500'
+        '413':
+          $ref: '#/components/responses/PromQLHttp413'
+      parameters:
+      - name: query
+        in: query
+        required: true
+        description: PromQL expression.
+        schema:
+          type: string
+      - name: timeout
+        in: query
+        required: false
+        description: Explicit duration deadline; an earlier caller deadline wins.
+        schema:
+          type: string
+      - name: lookback_delta
+        in: query
+        required: false
+        description: Positive lookback override, in seconds or PromQL duration syntax.
+        schema:
+          type: string
+      - name: limit
+        in: query
+        required: false
+        description: Maximum returned series or discovery entries; zero or omitted means no output limit.
+        schema:
+          type: integer
+          format: int64
+          minimum: 0
+          default: 0
+      - name: stats
+        in: query
+        required: false
+        description: Optional statistics; all requests the full statistics object.
+        schema:
+          type: string
+      - name: options
+        in: query
+        required: false
+        description: 'Netdata extension: absolute normalizes legacy negative counter inputs; gauges and expression
+          results are unchanged.'
+        schema:
+          type: string
+          enum:
+          - absolute
+      - name: start
+        in: query
+        required: true
+        description: 'Inclusive first evaluation time: Unix seconds or RFC3339.'
+        schema:
+          type: string
+      - name: end
+        in: query
+        required: true
+        description: 'Inclusive last evaluation time: Unix seconds or RFC3339.'
+        schema:
+          type: string
+      - name: step
+        in: query
+        required: true
+        description: Positive evaluation step, in seconds or PromQL duration syntax.
+        schema:
+          type: string
+    post:
+      operationId: promqlQueryRangePost
+      tags:
+      - promql
+      summary: Evaluate a PromQL range query
+      description: Available with ENABLE_PROMQL and DBengine. Base paths query retained fleet hosts; an existing /host/{id}
+        or /node/{id} prefix selects one host. Uses HTTP_ACL_METRICS and HTTP_ACCESS_ANONYMOUS_DATA with the existing
+        bearer and connection gates. Data keeps Netdata native units, fixed-step interpolation and retained-tier counter
+        approximations. Implicit query resource caps are disabled; native request and transport ceilings remain active.
+      security:
+      - {}
+      - bearerAuth: []
+      responses:
+        '200':
+          description: Completed result; warnings and infos may accompany success.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PromQLQuerySuccess'
+        '400':
+          $ref: '#/components/responses/PromQLHttp400'
+        '422':
+          $ref: '#/components/responses/PromQLHttp422'
+        '499':
+          $ref: '#/components/responses/PromQLHttp499'
+        '503':
+          $ref: '#/components/responses/PromQLHttp503'
+        '500':
+          $ref: '#/components/responses/PromQLHttp500'
+        '413':
+          $ref: '#/components/responses/PromQLHttp413'
+      parameters:
+      - name: query
+        in: query
+        required: false
+        description: PromQL expression.
+        schema:
+          type: string
+      - name: timeout
+        in: query
+        required: false
+        description: Explicit duration deadline; an earlier caller deadline wins.
+        schema:
+          type: string
+      - name: lookback_delta
+        in: query
+        required: false
+        description: Positive lookback override, in seconds or PromQL duration syntax.
+        schema:
+          type: string
+      - name: limit
+        in: query
+        required: false
+        description: Maximum returned series or discovery entries; zero or omitted means no output limit.
+        schema:
+          type: integer
+          format: int64
+          minimum: 0
+          default: 0
+      - name: stats
+        in: query
+        required: false
+        description: Optional statistics; all requests the full statistics object.
+        schema:
+          type: string
+      - name: options
+        in: query
+        required: false
+        description: 'Netdata extension: absolute normalizes legacy negative counter inputs; gauges and expression
+          results are unchanged.'
+        schema:
+          type: string
+          enum:
+          - absolute
+      - name: start
+        in: query
+        required: false
+        description: 'Inclusive first evaluation time: Unix seconds or RFC3339.'
+        schema:
+          type: string
+      - name: end
+        in: query
+        required: false
+        description: 'Inclusive last evaluation time: Unix seconds or RFC3339.'
+        schema:
+          type: string
+      - name: step
+        in: query
+        required: false
+        description: Positive evaluation step, in seconds or PromQL duration syntax.
+        schema:
+          type: string
+      requestBody:
+        description: Form fields precede URL fields. The first singular value wins; repeated match[] values are combined.
+          Required values can be supplied in either place.
+        required: false
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              properties:
+                query:
+                  type: string
+                  description: PromQL expression.
+                timeout:
+                  type: string
+                  description: Explicit duration deadline; an earlier caller deadline wins.
+                lookback_delta:
+                  type: string
+                  description: Positive lookback override, in seconds or PromQL duration syntax.
+                limit:
+                  type: integer
+                  format: int64
+                  minimum: 0
+                  default: 0
+                  description: Maximum returned series or discovery entries; zero or omitted means no output limit.
+                stats:
+                  type: string
+                  description: Optional statistics; all requests the full statistics object.
+                options:
+                  type: string
+                  enum:
+                  - absolute
+                  description: 'Netdata extension: absolute normalizes legacy negative counter inputs; gauges and
+                    expression results are unchanged.'
+                start:
+                  type: string
+                  description: 'Inclusive first evaluation time: Unix seconds or RFC3339.'
+                end:
+                  type: string
+                  description: 'Inclusive last evaluation time: Unix seconds or RFC3339.'
+                step:
+                  type: string
+                  description: Positive evaluation step, in seconds or PromQL duration syntax.
+  /api/v1/labels:
+    get:
+      operationId: promqlLabels
+      tags:
+      - promql
+      summary: Discover retained label names
+      description: Available with ENABLE_PROMQL and DBengine. Base paths query retained fleet hosts; an existing /host/{id}
+        or /node/{id} prefix selects one host. Uses HTTP_ACL_METRICS and HTTP_ACCESS_ANONYMOUS_DATA with the existing
+        bearer and connection gates. Data keeps Netdata native units, fixed-step interpolation and retained-tier counter
+        approximations. Implicit query resource caps are disabled; native request and transport ceilings remain active.
+      security:
+      - {}
+      - bearerAuth: []
+      responses:
+        '200':
+          description: Completed result; warnings and infos may accompany success.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PromQLLabelSuccess'
+        '400':
+          $ref: '#/components/responses/PromQLHttp400'
+        '422':
+          $ref: '#/components/responses/PromQLHttp422'
+        '499':
+          $ref: '#/components/responses/PromQLHttp499'
+        '503':
+          $ref: '#/components/responses/PromQLHttp503'
+        '500':
+          $ref: '#/components/responses/PromQLHttp500'
+        '413':
+          $ref: '#/components/responses/PromQLHttp413'
+      parameters:
+      - name: match[]
+        in: query
+        required: false
+        description: Repeated series selectors, combined as a union; each must contain a non-empty matcher.
+        schema:
+          type: array
+          items:
+            type: string
+        style: form
+        explode: true
+      - name: start
+        in: query
+        required: false
+        description: 'Optional retained-time overlap start: Unix seconds or RFC3339.'
+        schema:
+          type: string
+      - name: end
+        in: query
+        required: false
+        description: 'Optional retained-time overlap end: Unix seconds or RFC3339.'
+        schema:
+          type: string
+      - name: limit
+        in: query
+        required: false
+        description: Maximum returned series or discovery entries; zero or omitted means no output limit.
+        schema:
+          type: integer
+          format: int64
+          minimum: 0
+          default: 0
+    post:
+      operationId: promqlLabelsPost
+      tags:
+      - promql
+      summary: Discover retained label names
+      description: Available with ENABLE_PROMQL and DBengine. Base paths query retained fleet hosts; an existing /host/{id}
+        or /node/{id} prefix selects one host. Uses HTTP_ACL_METRICS and HTTP_ACCESS_ANONYMOUS_DATA with the existing
+        bearer and connection gates. Data keeps Netdata native units, fixed-step interpolation and retained-tier counter
+        approximations. Implicit query resource caps are disabled; native request and transport ceilings remain active.
+      security:
+      - {}
+      - bearerAuth: []
+      responses:
+        '200':
+          description: Completed result; warnings and infos may accompany success.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PromQLLabelSuccess'
+        '400':
+          $ref: '#/components/responses/PromQLHttp400'
+        '422':
+          $ref: '#/components/responses/PromQLHttp422'
+        '499':
+          $ref: '#/components/responses/PromQLHttp499'
+        '503':
+          $ref: '#/components/responses/PromQLHttp503'
+        '500':
+          $ref: '#/components/responses/PromQLHttp500'
+        '413':
+          $ref: '#/components/responses/PromQLHttp413'
+      parameters:
+      - name: match[]
+        in: query
+        required: false
+        description: Repeated series selectors, combined as a union; each must contain a non-empty matcher.
+        schema:
+          type: array
+          items:
+            type: string
+        style: form
+        explode: true
+      - name: start
+        in: query
+        required: false
+        description: 'Optional retained-time overlap start: Unix seconds or RFC3339.'
+        schema:
+          type: string
+      - name: end
+        in: query
+        required: false
+        description: 'Optional retained-time overlap end: Unix seconds or RFC3339.'
+        schema:
+          type: string
+      - name: limit
+        in: query
+        required: false
+        description: Maximum returned series or discovery entries; zero or omitted means no output limit.
+        schema:
+          type: integer
+          format: int64
+          minimum: 0
+          default: 0
+      requestBody:
+        description: Form fields precede URL fields. The first singular value wins; repeated match[] values are combined.
+          Required values can be supplied in either place.
+        required: false
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              properties:
+                match[]:
+                  type: array
+                  items:
+                    type: string
+                  description: Repeated series selectors, combined as a union; each must contain a non-empty matcher.
+                start:
+                  type: string
+                  description: 'Optional retained-time overlap start: Unix seconds or RFC3339.'
+                end:
+                  type: string
+                  description: 'Optional retained-time overlap end: Unix seconds or RFC3339.'
+                limit:
+                  type: integer
+                  format: int64
+                  minimum: 0
+                  default: 0
+                  description: Maximum returned series or discovery entries; zero or omitted means no output limit.
+            encoding:
+              match[]:
+                style: form
+                explode: true
+  /api/v1/label/{name}/values:
+    get:
+      operationId: promqlLabelValues
+      tags:
+      - promql
+      summary: Discover values of one retained label
+      description: Available with ENABLE_PROMQL and DBengine. Base paths query retained fleet hosts; an existing /host/{id}
+        or /node/{id} prefix selects one host. Uses HTTP_ACL_METRICS and HTTP_ACCESS_ANONYMOUS_DATA with the existing
+        bearer and connection gates. Data keeps Netdata native units, fixed-step interpolation and retained-tier counter
+        approximations. Implicit query resource caps are disabled; native request and transport ceilings remain active.
+      security:
+      - {}
+      - bearerAuth: []
+      responses:
+        '200':
+          description: Completed result; warnings and infos may accompany success.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PromQLLabelSuccess'
+        '400':
+          $ref: '#/components/responses/PromQLHttp400'
+        '422':
+          $ref: '#/components/responses/PromQLHttp422'
+        '499':
+          $ref: '#/components/responses/PromQLHttp499'
+        '503':
+          $ref: '#/components/responses/PromQLHttp503'
+        '500':
+          $ref: '#/components/responses/PromQLHttp500'
+        '413':
+          $ref: '#/components/responses/PromQLHttp413'
+      parameters:
+      - name: name
+        in: path
+        required: true
+        description: URL-encoded label name.
+        schema:
+          type: string
+      - name: match[]
+        in: query
+        required: false
+        description: Repeated series selectors, combined as a union; each must contain a non-empty matcher.
+        schema:
+          type: array
+          items:
+            type: string
+        style: form
+        explode: true
+      - name: start
+        in: query
+        required: false
+        description: 'Optional retained-time overlap start: Unix seconds or RFC3339.'
+        schema:
+          type: string
+      - name: end
+        in: query
+        required: false
+        description: 'Optional retained-time overlap end: Unix seconds or RFC3339.'
+        schema:
+          type: string
+      - name: limit
+        in: query
+        required: false
+        description: Maximum returned series or discovery entries; zero or omitted means no output limit.
+        schema:
+          type: integer
+          format: int64
+          minimum: 0
+          default: 0
+  /api/v1/series:
+    get:
+      operationId: promqlSeries
+      tags:
+      - promql
+      summary: Discover retained series
+      description: Available with ENABLE_PROMQL and DBengine. Base paths query retained fleet hosts; an existing /host/{id}
+        or /node/{id} prefix selects one host. Uses HTTP_ACL_METRICS and HTTP_ACCESS_ANONYMOUS_DATA with the existing
+        bearer and connection gates. Data keeps Netdata native units, fixed-step interpolation and retained-tier counter
+        approximations. Implicit query resource caps are disabled; native request and transport ceilings remain active.
+      security:
+      - {}
+      - bearerAuth: []
+      responses:
+        '200':
+          description: Completed result; warnings and infos may accompany success.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PromQLSeriesSuccess'
+        '400':
+          $ref: '#/components/responses/PromQLHttp400'
+        '422':
+          $ref: '#/components/responses/PromQLHttp422'
+        '499':
+          $ref: '#/components/responses/PromQLHttp499'
+        '503':
+          $ref: '#/components/responses/PromQLHttp503'
+        '500':
+          $ref: '#/components/responses/PromQLHttp500'
+        '413':
+          $ref: '#/components/responses/PromQLHttp413'
+      parameters:
+      - name: match[]
+        in: query
+        required: true
+        description: Repeated series selectors, combined as a union; each must contain a non-empty matcher.
+        schema:
+          type: array
+          items:
+            type: string
+        style: form
+        explode: true
+      - name: start
+        in: query
+        required: false
+        description: 'Optional retained-time overlap start: Unix seconds or RFC3339.'
+        schema:
+          type: string
+      - name: end
+        in: query
+        required: false
+        description: 'Optional retained-time overlap end: Unix seconds or RFC3339.'
+        schema:
+          type: string
+      - name: limit
+        in: query
+        required: false
+        description: Maximum returned series or discovery entries; zero or omitted means no output limit.
+        schema:
+          type: integer
+          format: int64
+          minimum: 0
+          default: 0
+    post:
+      operationId: promqlSeriesPost
+      tags:
+      - promql
+      summary: Discover retained series
+      description: Available with ENABLE_PROMQL and DBengine. Base paths query retained fleet hosts; an existing /host/{id}
+        or /node/{id} prefix selects one host. Uses HTTP_ACL_METRICS and HTTP_ACCESS_ANONYMOUS_DATA with the existing
+        bearer and connection gates. Data keeps Netdata native units, fixed-step interpolation and retained-tier counter
+        approximations. Implicit query resource caps are disabled; native request and transport ceilings remain active.
+      security:
+      - {}
+      - bearerAuth: []
+      responses:
+        '200':
+          description: Completed result; warnings and infos may accompany success.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PromQLSeriesSuccess'
+        '400':
+          $ref: '#/components/responses/PromQLHttp400'
+        '422':
+          $ref: '#/components/responses/PromQLHttp422'
+        '499':
+          $ref: '#/components/responses/PromQLHttp499'
+        '503':
+          $ref: '#/components/responses/PromQLHttp503'
+        '500':
+          $ref: '#/components/responses/PromQLHttp500'
+        '413':
+          $ref: '#/components/responses/PromQLHttp413'
+      parameters:
+      - name: match[]
+        in: query
+        required: false
+        description: Repeated series selectors, combined as a union; each must contain a non-empty matcher.
+        schema:
+          type: array
+          items:
+            type: string
+        style: form
+        explode: true
+      - name: start
+        in: query
+        required: false
+        description: 'Optional retained-time overlap start: Unix seconds or RFC3339.'
+        schema:
+          type: string
+      - name: end
+        in: query
+        required: false
+        description: 'Optional retained-time overlap end: Unix seconds or RFC3339.'
+        schema:
+          type: string
+      - name: limit
+        in: query
+        required: false
+        description: Maximum returned series or discovery entries; zero or omitted means no output limit.
+        schema:
+          type: integer
+          format: int64
+          minimum: 0
+          default: 0
+      requestBody:
+        description: Form fields precede URL fields. The first singular value wins; repeated match[] values are combined.
+          Required values can be supplied in either place.
+        required: false
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              properties:
+                match[]:
+                  type: array
+                  items:
+                    type: string
+                  description: Repeated series selectors, combined as a union; each must contain a non-empty matcher.
+                start:
+                  type: string
+                  description: 'Optional retained-time overlap start: Unix seconds or RFC3339.'
+                end:
+                  type: string
+                  description: 'Optional retained-time overlap end: Unix seconds or RFC3339.'
+                limit:
+                  type: integer
+                  format: int64
+                  minimum: 0
+                  default: 0
+                  description: Maximum returned series or discovery entries; zero or omitted means no output limit.
+            encoding:
+              match[]:
+                style: form
+                explode: true
   /api/v2/nodes:
     get:
       deprecated: true
@@ -8870,6 +9680,43 @@ paths:
         "503":
           description: Service unavailable - ML not compiled in, not enabled, or Netdata not ready
 components:
+  responses:
+    PromQLHttp400:
+      description: Invalid parameters or expression syntax.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/PromQLError'
+    PromQLHttp422:
+      description: Expression evaluation failed.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/PromQLError'
+    PromQLHttp499:
+      description: Query canceled, if the caller remains connected.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/PromQLError'
+    PromQLHttp503:
+      description: Expired deadline or shutdown admission refusal.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/PromQLError'
+    PromQLHttp500:
+      description: Metadata, storage, response backing or internal error.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/PromQLError'
+    PromQLHttp413:
+      description: ACLK response exceeds its broker or MQTT packet ceiling.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/PromQLError'
   securitySchemes:
     bearerAuth:
       type: http
@@ -9625,6 +10472,142 @@ components:
           - anomaly-rate
           - value
   schemas:
+    PromQLQuerySuccess:
+      type: object
+      required:
+      - status
+      - data
+      properties:
+        status:
+          type: string
+          enum:
+          - success
+        data:
+          type: object
+          required:
+          - resultType
+          - result
+          properties:
+            resultType:
+              type: string
+              enum:
+              - scalar
+              - string
+              - vector
+              - matrix
+            result:
+              anyOf:
+              - type: array
+                minItems: 2
+                maxItems: 2
+                description: Unix-seconds timestamp followed by a string float value (including NaN, +Inf or -Inf).
+                items:
+                  oneOf:
+                  - type: number
+                  - type: string
+              - type: array
+                items:
+                  type: object
+                  required:
+                  - metric
+                  properties:
+                    metric:
+                      type: object
+                      additionalProperties:
+                        type: string
+                    value:
+                      type: array
+                      minItems: 2
+                      maxItems: 2
+                      description: Unix-seconds timestamp followed by a string float value (including NaN, +Inf or -Inf).
+                      items:
+                        oneOf:
+                        - type: number
+                        - type: string
+                    values:
+                      type: array
+                      items:
+                        type: array
+                        minItems: 2
+                        maxItems: 2
+                        description: Unix-seconds timestamp followed by a string float value (including NaN, +Inf or
+                          -Inf).
+                        items:
+                          oneOf:
+                          - type: number
+                          - type: string
+            stats:
+              type: object
+              description: Requested query statistics.
+        warnings:
+          type: array
+          items:
+            type: string
+        infos:
+          type: array
+          items:
+            type: string
+    PromQLLabelSuccess:
+      type: object
+      required:
+      - status
+      - data
+      properties:
+        status:
+          type: string
+          enum:
+          - success
+        data:
+          type: array
+          items:
+            type: string
+        warnings:
+          type: array
+          items:
+            type: string
+        infos:
+          type: array
+          items:
+            type: string
+    PromQLSeriesSuccess:
+      type: object
+      required:
+      - status
+      - data
+      properties:
+        status:
+          type: string
+          enum:
+          - success
+        data:
+          type: array
+          items:
+            type: object
+            additionalProperties:
+              type: string
+        warnings:
+          type: array
+          items:
+            type: string
+        infos:
+          type: array
+          items:
+            type: string
+    PromQLError:
+      type: object
+      required:
+      - status
+      - errorType
+      - error
+      properties:
+        status:
+          type: string
+          enum:
+          - error
+        errorType:
+          type: string
+        error:
+          type: string
     info:
       type: object
       properties:

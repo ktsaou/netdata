@@ -8,8 +8,8 @@ NOINLINE void unittest_storage_engine_store_metric(
     NETDATA_DOUBLE n,
     NETDATA_DOUBLE min_value,
     NETDATA_DOUBLE max_value,
-    uint16_t count,
-    uint16_t anomaly_count,
+    uint32_t count,
+    uint32_t anomaly_count,
     SN_FLAGS flags) {
     storage_engine_store_metric(
         sch, point_in_time_ut, n, min_value, max_value, count, anomaly_count, flags);

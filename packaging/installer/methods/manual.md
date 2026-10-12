@@ -139,6 +139,10 @@ cd netdata
 
 - If your server does not have access to the internet and you have manually put the installation directory on your server, you will need to pass the option `--disable-go` to the installer. The option will prevent the installer from attempting to download and install `go.d.plugin`.
 
+- PromQL is enabled by default with DBengine and requires Rust 1.91 or newer, the pinned engine submodule and
+  locked Cargo dependencies. An offline build needs those dependencies cached in advance or `--disable-promql`.
+  Disabling Go alone does not disable the Rust PromQL build.
+
 ## Optional parameters to alter your installation
 
 `netdata-installer.sh` accepts a few parameters to customize your installation:
@@ -152,6 +156,7 @@ cd netdata
 - `--use-system-protobuf`: Use a system-installed copy of `libprotobuf` instead of the bundled copy. Requires the
   system `protobuf` and `protobuf-compiler` development packages to be installed beforehand.
 - `--disable-exporting-prometheus-remote-write`: Disable the Prometheus remote write exporting connector.
+- `--disable-promql`: Disable the PromQL query and discovery API for a custom build.
 
 ### Connect node to Netdata Cloud during installation
 

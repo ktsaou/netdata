@@ -261,6 +261,12 @@ int api_v1_allmetrics_json_unittest(void);
 #ifdef ENABLE_DBENGINE
 int promql_prototype_validate_paths(void);
 int promql_prototype_dbengine_export(void);
+int promql_dbengine_storage_fixture(void);
+#if defined(ENABLE_PROMQL) && defined(NETDATA_INTERNAL_CHECKS)
+int promql_http_fixture_seed(void);
+int promql_http_fixture_ready(void);
+#endif
+int mrg_read_promises_unittest(void);
 #endif
 int exporting_json_connector_unittest(void);
 int exporting_graphite_unittest(void);
@@ -351,6 +357,9 @@ int netdata_main(int argc, char **argv) {
     int i;
     int config_loaded = 0;
     bool close_open_fds = true; (void)close_open_fds;
+#if defined(ENABLE_PROMQL) && defined(NETDATA_INTERNAL_CHECKS)
+    bool promql_http_fixture = false;
+#endif
     const char *user = NULL;
 
 #ifdef OS_WINDOWS
@@ -440,6 +449,8 @@ int netdata_main(int argc, char **argv) {
                         if(strcmp(optarg, "pgd-tests") == 0) {
                             return pgd_test(argc, argv);
                         }
+                        if(strcmp(optarg, "counter-page-tests") == 0)
+                            return pgd_counter_test();
 #endif
 
                         if(strcmp(optarg, "sqlite-meta-recover") == 0) {
@@ -824,11 +835,27 @@ int netdata_main(int argc, char **argv) {
                         else if(strcmp(optarg, "mcpfunctionaccesstest") == 0)
                             return unittest_run_with_rrd(mcp_execute_function_access_unittest);
 #ifdef ENABLE_DBENGINE
+                        else if(strcmp(optarg, "promql-read-promises") == 0) {
+                            unittest_running = true;
+                            return mrg_read_promises_unittest();
+                        }
                         else if(strcmp(optarg, "promql-dbengine-export") == 0) {
                             if(promql_prototype_validate_paths())
                                 return 1;
                             return unittest_run_with_rrd(promql_prototype_dbengine_export);
                         }
+                        else if(strcmp(optarg, "promql-dbengine-storage") == 0) {
+                            if(promql_prototype_validate_paths())
+                                return 1;
+                            return unittest_run_with_rrd(promql_dbengine_storage_fixture);
+                        }
+#if defined(ENABLE_PROMQL) && defined(NETDATA_INTERNAL_CHECKS)
+                        else if(strcmp(optarg, "promql-http-fixture") == 0) {
+                            if(promql_prototype_validate_paths()) return 1;
+                            promql_http_fixture = true;
+                            dont_fork = 1;
+                        }
+#endif
 #endif
                         else if(strncmp(optarg, createdataset_string, strlen(createdataset_string)) == 0) {
                             optarg += strlen(createdataset_string);
@@ -1375,6 +1402,9 @@ int netdata_main(int argc, char **argv) {
     delta_startup_time("localhost labels");
 
     reload_host_labels();
+#if defined(ENABLE_PROMQL) && defined(NETDATA_INTERNAL_CHECKS)
+    if(promql_http_fixture && promql_http_fixture_seed()) fatal("Cannot seed the private PromQL HTTP fixture.");
+#endif
 
     // ----------------------------------------------------------------------------------------------------------------
     delta_startup_time("saved bearer tokens");
@@ -1465,6 +1495,9 @@ int netdata_main(int argc, char **argv) {
     nd_log_register_fatal_final_cb(netdata_exit_fatal);
     daemon_status_file_startup_step(NULL);
     daemon_status_file_update_status(DAEMON_STATUS_RUNNING);
+#if defined(ENABLE_PROMQL) && defined(NETDATA_INTERNAL_CHECKS)
+    if(promql_http_fixture && promql_http_fixture_ready()) fatal("Cannot publish the private PromQL HTTP fixture port.");
+#endif
     return 10;
 }
 

@@ -706,7 +706,7 @@ static size_t dbengine_cadence_test_query_points(
         if(sp.start_time_s != ep->start_time_s || sp.end_time_s != ep->end_time_s ||
            sp.min != ep->value || sp.max != ep->value || sp.sum != ep->value ||
            storage_point_is_gap(sp) || sp.count != 1 || sp.anomaly_count != 0 ||
-           sp.flags != SN_DEFAULT_FLAGS) {
+           sp.flags != (SN_DEFAULT_FLAGS | SP_FLAG_ORDINARY_SOURCE)) {
             fprintf(stderr,
                     " >>> DBENGINE: %s point %zu is %jd-%jd min=%f max=%f sum=%f count=%u "
                     "anomalies=%u flags=0x%x; expected %jd-%jd value=%f\n",

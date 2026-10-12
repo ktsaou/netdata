@@ -3,6 +3,10 @@
 #include "aclk_query.h"
 #include "aclk_tx_msgs.h"
 #include "web/server/web_client_cache.h"
+#ifdef ENABLE_PROMQL
+#include "web/api/promql/operations.h"
+#include "web/api/promql/body.h"
+#endif
 
 static HTTP_ACL default_aclk_http_acl = HTTP_ACL_ALL_FEATURES;
 
@@ -11,6 +15,7 @@ struct pending_req_list {
     uint32_t hash;
 
     int canceled;
+    uint64_t promql_operation_id;
 
     struct pending_req_list *next;
 };
@@ -72,6 +77,9 @@ void mark_pending_req_cancel_all()
     struct pending_req_list *curr = pending_req_list_head;
     while (curr) {
         __atomic_store_n(&curr->canceled, 1, __ATOMIC_RELAXED);
+#ifdef ENABLE_PROMQL
+        promql_operations_cancel_id(curr->promql_operation_id);
+#endif
         curr = curr->next;
     }
     spinlock_unlock(&pending_req_list_lock);
@@ -87,6 +95,9 @@ int mark_pending_req_cancelled(const char *msg_id)
     while (curr) {
         if (curr->hash == hash && strcmp(curr->msg_id, msg_id) == 0) {
             __atomic_store_n(&curr->canceled, 1, __ATOMIC_RELAXED);
+#ifdef ENABLE_PROMQL
+            promql_operations_cancel_id(curr->promql_operation_id);
+#endif
             spinlock_unlock(&pending_req_list_lock);
             return 0;
         }
@@ -103,6 +114,16 @@ static bool aclk_web_client_interrupt_cb(struct web_client *w __maybe_unused, vo
     return __atomic_load_n(&req->canceled, __ATOMIC_RELAXED);
 }
 
+#ifdef ENABLE_PROMQL
+static void aclk_promql_operation(void *data, uint64_t id) {
+    struct pending_req_list *request = data;
+    spinlock_lock(&pending_req_list_lock);
+    request->promql_operation_id = id;
+    if(id && __atomic_load_n(&request->canceled, __ATOMIC_RELAXED)) promql_operations_cancel_id(id);
+    spinlock_unlock(&pending_req_list_lock);
+}
+#endif
+
 int http_api_v2(mqtt_wss_client client, aclk_query_t *query)
 {
     ND_LOG_STACK lgs[] = {
@@ -115,7 +136,7 @@ int http_api_v2(mqtt_wss_client client, aclk_query_t *query)
     usec_t dt_ut = 0;
 
     int z_ret;
-    BUFFER *z_buffer = buffer_create(NETDATA_WEB_RESPONSE_INITIAL_SIZE, &netdata_buffers_statistics.buffers_aclk);
+    BUFFER *z_buffer = NULL;
 
     // set while the compressed buffer is installed in w->response.data; holds the pooled
     // web client's own buffer so it can be put back before the client is released
@@ -132,6 +153,10 @@ int http_api_v2(mqtt_wss_client client, aclk_query_t *query)
 
     w->interrupt.callback = aclk_web_client_interrupt_cb;
     w->interrupt.callback_data = pending_req_list_add(query->msg_id);
+#ifdef ENABLE_PROMQL
+    w->promql_operation_hook = aclk_promql_operation;
+    w->promql_operation_hook_data = w->interrupt.callback_data;
+#endif
 
     buffer_flush(w->response.data);
     buffer_strcat(w->response.data, query->data.http_api_v2.payload);
@@ -164,7 +189,21 @@ int http_api_v2(mqtt_wss_client client, aclk_query_t *query)
     w->response.code = (short)web_client_api_request_with_node_selection(localhost, w, path);
     web_client_timeout_checkpoint_response_ready(w, &dt_ut);
 
+#ifdef ENABLE_PROMQL
+    if(w->response.promql_body) {
+        web_client_build_http_header(w);
+        uint64_t length = promql_body_length(w->response.promql_body);
+        w->response.code = aclk_http_msg_v2_body(client, query->callback_topic, query->msg_id, dt_ut,
+            query->created, w->response.code, buffer_tostring(w->response.header_output),
+            buffer_strlen(w->response.header_output), w->response.promql_body);
+        if(w->response.code != HTTP_RESP_INTERNAL_SERVER_ERROR && w->response.code != HTTP_RESP_CONTENT_TOO_LONG)
+            w->response.promql_sent = length;
+        goto cleanup;
+    }
+#endif
+
     if (w->response.data->len && w->response.zinitialized) {
+        z_buffer = buffer_create(NETDATA_WEB_RESPONSE_INITIAL_SIZE, &netdata_buffers_statistics.buffers_aclk);
         w->response.zstream.next_in = (Bytef *)w->response.data->buffer;
         w->response.zstream.avail_in = w->response.data->len;
         do {

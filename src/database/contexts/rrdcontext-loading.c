@@ -4,13 +4,53 @@
 
 static __thread size_t th_ignored_metrics = 0, th_ignored_instances = 0, th_zero_retention_metrics = 0;
 
-static void rrdinstance_load_clabel(SQL_CLABEL_DATA *sld, void *data) {
-    RRDINSTANCE *ri = data;
-    rrdlabels_add(ri->rrdlabels, sld->label_key, sld->label_value, sld->label_source);
+typedef struct { RRDLABELS *labels; bool (*poll)(void *); void *control; } INSTANCE_LABEL_LOAD;
+
+static bool rrdinstance_load_clabel(SQL_CLABEL_DATA *sld, void *data) {
+    INSTANCE_LABEL_LOAD *load = data;
+    if(load->poll && !load->poll(load->control)) return false;
+    rrdlabels_add(load->labels, sld->label_key, sld->label_value, sld->label_source);
+    return true;
 }
 
-void load_instance_labels_on_demand(nd_uuid_t *uuid, void *data) {
-    ctx_get_label_list(uuid, rrdinstance_load_clabel, data);
+bool load_instance_labels_on_demand(RRDINSTANCE *ri, bool (*poll)(void *), void *control) {
+    for(;;) {
+        if(poll && !poll(control)) return false;
+        rrdinstance_metadata_lock(ri);
+        if(ri->rrdset || !rrd_flag_check_all(ri, RRD_FLAG_OWN_LABELS | RRD_FLAG_DEMAND_LABELS)) {
+            rrdinstance_metadata_unlock(ri);
+            return true;
+        }
+        if(!ri->uuid) { rrdinstance_metadata_unlock(ri); return false; }
+        nd_uuid_t uuid;
+        nd_uuid_copy(uuid, *uuidmap_uuid_ptr(ri->uuid));
+        uint64_t generation = ri->metadata_generation;
+        RRDLABELS *target = ri->rrdlabels;
+        rrdinstance_metadata_unlock(ri);
+
+        RRDLABELS *loaded = rrdlabels_create();
+        INSTANCE_LABEL_LOAD load = { .labels = loaded, .poll = poll, .control = control };
+        bool complete = ctx_get_label_list_checked(&uuid, rrdinstance_load_clabel, &load);
+        if(!complete || (poll && !poll(control))) {
+            rrdlabels_destroy(loaded);
+            return false;
+        }
+        rrdinstance_metadata_lock(ri);
+        bool current = !ri->rrdset && ri->metadata_generation == generation && ri->rrdlabels == target &&
+                       rrd_flag_check_all(ri, RRD_FLAG_OWN_LABELS | RRD_FLAG_DEMAND_LABELS) &&
+                       nd_uuid_eq(uuid, *uuidmap_uuid_ptr(ri->uuid));
+        if(current) {
+            rrdlabels_replace(target, loaded);
+            rrd_flag_clear(ri, RRD_FLAG_DEMAND_LABELS);
+            rrdinstance_metadata_changed(ri);
+        }
+        rrdinstance_metadata_unlock(ri);
+        rrdlabels_destroy(loaded);
+        if(current) {
+            rrdinstance_trigger_updates(ri, __FUNCTION__);
+            return true;
+        }
+    }
 }
 
 static void rrdinstance_load_dimension_callback(SQL_DIMENSION_DATA *sd, void *data) {
@@ -168,26 +208,32 @@ static void rrdcontext_load_context_callback(VERSIONED_CONTEXT_DATA *ctx_data, v
         string_freez(trc.id);
 }
 
-void rrdhost_load_rrdcontext_data(RRDHOST *host) {
-    if(host->rrdctx.contexts) return;
-
-    rrdhost_create_rrdcontexts(host);
+void rrdhost_load_rrdcontext_data(RRDHOST *host, bool update_locked) {
+    if(!update_locked) spinlock_lock(&host->rrdhost_update_lock);
+    bool created = !host->rrdctx.contexts;
+    if(created) {
+        __atomic_store_n(&host->rrdctx.initial_load, RRD_CONTEXT_LOAD_LOADING, __ATOMIC_RELEASE);
+        rrdhost_create_rrdcontexts(host);
+    }
+    if(!update_locked) spinlock_unlock(&host->rrdhost_update_lock);
+    if(!created) return;
+    bool complete = true;
     if (host->rrd_memory_mode != RRD_DB_MODE_DBENGINE)
-        return;
+        goto completed;
 
     th_ignored_metrics = th_ignored_instances = th_zero_retention_metrics = 0;
 
-    ctx_get_context_list(&host->host_id.uuid, rrdcontext_load_context_callback, host);
-    if (unlikely(exit_initiated_get()))
-        return;
+    complete = ctx_get_context_list(&host->host_id.uuid, rrdcontext_load_context_callback, host);
+    if (!complete || unlikely(exit_initiated_get()))
+        goto completed;
 
-    ctx_get_chart_list(&host->host_id.uuid, rrdinstance_load_instance_callback, host);
-    if (unlikely(exit_initiated_get()))
-        return;
+    complete = ctx_get_chart_list(&host->host_id.uuid, rrdinstance_load_instance_callback, host);
+    if (!complete || unlikely(exit_initiated_get()))
+        goto completed;
 
-    ctx_get_dimension_list(&host->host_id.uuid, rrdinstance_load_dimension_callback, host);
-    if (unlikely(exit_initiated_get()))
-        return;
+    complete = ctx_get_dimension_list(&host->host_id.uuid, rrdinstance_load_dimension_callback, host);
+    if (!complete || unlikely(exit_initiated_get()))
+        goto completed;
 
     size_t ignored_metrics = th_ignored_metrics, ignored_instances = th_ignored_instances, zero_retention_metrics = th_zero_retention_metrics;
     size_t loaded_metrics = 0, loaded_instances = 0, loaded_contexts = 0;
@@ -250,4 +296,8 @@ void rrdhost_load_rrdcontext_data(RRDHOST *host) {
            loaded_contexts, loaded_and_deleted_contexts,
            loaded_instances, loaded_and_deleted_instances, ignored_instances,
            loaded_metrics, ignored_metrics, zero_retention_metrics);
+completed:
+    // The dictionary becomes visible earlier; only its creating loader can publish the completed attempt.
+    __atomic_store_n(&host->rrdctx.initial_load,
+        !complete || exit_initiated_get() ? RRD_CONTEXT_LOAD_UNAVAILABLE : RRD_CONTEXT_LOAD_COMPLETE, __ATOMIC_RELEASE);
 }

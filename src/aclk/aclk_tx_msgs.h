@@ -19,6 +19,13 @@ short aclk_http_msg_v2_direct(mqtt_wss_client client, const char *topic, const c
                                const char *http_headers, size_t http_headers_len,
                                const char *body, size_t body_len);
 
+#ifdef ENABLE_PROMQL
+struct promql_body;
+short aclk_http_msg_v2_body(mqtt_wss_client client, const char *topic, const char *msg_id,
+                            usec_t t_exec, usec_t created, short http_code,
+                            const char *http_headers, size_t http_headers_len, struct promql_body *body);
+#endif
+
 uint16_t aclk_send_agent_connection_update(mqtt_wss_client client, int reachable);
 char *aclk_generate_lwt(size_t *size);
 

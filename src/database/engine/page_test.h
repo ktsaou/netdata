@@ -6,6 +6,7 @@ extern "C" {
 #endif
 
 int pgd_test(int argc, char *argv[]);
+int pgd_counter_test(void);
 
 #ifdef __cplusplus
 }

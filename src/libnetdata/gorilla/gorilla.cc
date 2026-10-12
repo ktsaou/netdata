@@ -283,6 +283,8 @@ bool gorilla_writer_serialize(const gorilla_writer_t *gw, uint8_t *dst, uint32_t
 }
 
 bool gorilla_buffer_patch(gorilla_buffer_t *gbuf, size_t nbuffers, uint32_t *entries) {
+    if(!gbuf || !nbuffers || !entries)
+        return false;
     gorilla_buffer_t *curr_gbuf = gbuf;
     uint32_t n = curr_gbuf->header.entries;
     size_t buffers = 1;
@@ -307,6 +309,8 @@ bool gorilla_buffer_patch(gorilla_buffer_t *gbuf, size_t nbuffers, uint32_t *ent
         if(unlikely(!gorilla_disk_buffer_has_valid_nbits(curr_gbuf)))
             return false;
 
+        if(unlikely(curr_gbuf->header.entries > UINT32_MAX - n))
+            return false;
         n += curr_gbuf->header.entries;
     }
 

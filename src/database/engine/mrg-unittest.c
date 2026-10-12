@@ -2,6 +2,7 @@
 
 #include "mrg-internals.h"
 #include "rrdengine.h"
+#include "demand.h"
 
 // Global dummy rrdengine_instances for tests
 static struct rrdengine_instance test_ctx_0 = {0};
@@ -2360,8 +2361,82 @@ static int mrg_jv2_same_uuid_grouped_once_unittest(void) {
     return errors;
 }
 
+int mrg_read_promises_unittest(void) {
+    int errors = 0;
+#define READ_CHECK(condition, label) do { if(!(condition)) { \
+    fprintf(stderr, "read promise failure: %s\n", label); errors++; } } while(0)
+    MRG *mrg = mrg_create_for_unittest();
+    MRG *saved = main_mrg;
+    main_mrg = mrg;
+    struct rrdengine_instance contexts[3] = {0};
+    METRIC *metrics[RRD_STORAGE_TIERS] = {0};
+    RRDENG_READ_PROMISE promises[RRD_STORAGE_TIERS] = {0};
+    RRDENG_READ_TIER_SPAN spans[RRDENG_READ_MAX_SPANS];
+    uint32_t count = 0;
+    nd_uuid_t uuid;
+    uuid_generate(uuid);
+    for(uint32_t tier = 0; tier < 3; tier++) {
+        rw_spinlock_init(&contexts[tier].njfv2idx.spinlock);
+        spinlock_init(&contexts[tier].read_promises.lock);
+        bool added = false;
+        metrics[tier] = mrg_metric_add_and_acquire(mrg, (MRG_ENTRY){
+            .uuid = &uuid, .section = (Word_t)&contexts[tier],
+            .first_time_s = 100 - 10 * tier, .last_time_s = 120 + 10 * tier,
+            .latest_update_every_s = 1 << tier,
+        }, &added);
+        READ_CHECK(metrics[tier] && added, "acquired tier metric");
+    }
+    if(!metrics[0] || !metrics[1] || !metrics[2]) goto cleanup;
+    bool frozen = rrdeng_read_freeze_tiers(metrics, RRD_STORAGE_TIERS, promises, 85, 135, spans, &count);
+    READ_CHECK(frozen, "all-tier freeze");
+    if(!frozen) goto cleanup;
+    READ_CHECK(count == 5, "coarse-fine-coarse spans");
+    const RRDENG_READ_TIER_SPAN expected[] = {{85, 89, 2}, {90, 99, 1}, {100, 120, 0}, {121, 130, 1}, {131, 135, 2}};
+    for(uint32_t i = 0; i < count && i < 5; i++)
+        READ_CHECK(spans[i].first == expected[i].first && spans[i].last == expected[i].last &&
+                   spans[i].tier == expected[i].tier, "frozen interval geometry");
+    mrg_metric_set_first_time_s(mrg, metrics[0], 95);
+    mrg_metric_set_clean_latest_time_s(mrg, metrics[0], 125);
+    READ_CHECK(promises[0].first == 100 && promises[0].last == 120 &&
+               rrdeng_read_promise_valid(&promises[0]), "growth preserves frozen coverage");
+    mrg_metric_set_first_time_s(mrg, metrics[2], 81);
+    READ_CHECK(rrdeng_read_promise_valid(&promises[2]), "unused prefix shrink does not expire");
+    spinlock_lock(&contexts[2].read_promises.lock);
+    rrdeng_read_expire_metric_unsafe(metrics[2], 91, 99);
+    spinlock_unlock(&contexts[2].read_promises.lock);
+    READ_CHECK(rrdeng_read_promise_valid(&promises[2]), "unused coarse interval does not expire");
+    spinlock_lock(&contexts[2].read_promises.lock);
+    rrdeng_read_expire_metric_unsafe(metrics[2], 133, 134);
+    spinlock_unlock(&contexts[2].read_promises.lock);
+    READ_CHECK(!rrdeng_read_promise_valid(&promises[2]) && rrdeng_read_promise_valid(&promises[1]),
+               "required coarse interval expires only its metric");
+    mrg_metric_set_clean_latest_time_s(mrg, metrics[0], 110);
+    READ_CHECK(!rrdeng_read_promise_valid(&promises[0]), "required fine endpoint shrink expires");
+    for(uint32_t tier = 0; tier < RRD_STORAGE_TIERS; tier++) rrdeng_read_unfreeze_metric(&promises[tier]);
+    for(uint32_t tier = 0; tier < 3; tier++) READ_CHECK(!contexts[tier].read_promises.head, "promises drained");
+    READ_CHECK(rrdeng_read_freeze_tiers(metrics, RRD_STORAGE_TIERS, promises, 300, 400, spans, &count) && !count,
+               "initially absent coverage is empty");
+    for(uint32_t tier = 0; tier < 3; tier++)
+        READ_CHECK(!promises[tier].required_count && !contexts[tier].read_promises.head,
+                   "empty coverage registers no promise");
+cleanup:
+    for(uint32_t tier = 0; tier < RRD_STORAGE_TIERS; tier++) rrdeng_read_unfreeze_metric(&promises[tier]);
+    for(uint32_t tier = 0; tier < 3; tier++) {
+        if(metrics[tier]) mrg_metric_release(mrg, metrics[tier]);
+#ifdef SPINLOCK_IMPL_WITH_MUTEX
+        netdata_mutex_destroy(&contexts[tier].read_promises.lock.inner);
+#endif
+    }
+    READ_CHECK(!mrg_destroy(mrg), "all metric references released");
+    main_mrg = saved;
+#undef READ_CHECK
+    fprintf(stderr, "read promise checks: %d failures\n", errors);
+    return errors;
+}
+
 int mrg_unittest(void) {
     int errors = dbengine_accounting_helpers_unittest();
+    errors += mrg_read_promises_unittest();
     errors += mrg_destroy_referenced_metric_unittest();
     errors += mrg_stale_peeked_id_unittest();
     errors += mrg_stale_metric_pointer_unittest();

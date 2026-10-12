@@ -153,6 +153,13 @@ typedef enum __attribute__ ((__packed__)) {
     )
 
 
+typedef enum {
+    RRD_CONTEXT_LOAD_UNLOADED,
+    RRD_CONTEXT_LOAD_LOADING,
+    RRD_CONTEXT_LOAD_COMPLETE,
+    RRD_CONTEXT_LOAD_UNAVAILABLE,
+} RRD_CONTEXT_LOAD_STATE;
+
 struct rrdhost {
     char machine_guid[GUID_LEN + 1];                // the unique ID of this host
 
@@ -397,6 +404,7 @@ struct rrdhost {
 
     struct {
         DICTIONARY *contexts;
+        RRD_CONTEXT_LOAD_STATE initial_load;        // atomic; independent of archived-load scheduling
         RRDCONTEXT_QUEUE_JudyLSet pp_queue;
         RRDCONTEXT_QUEUE_JudyLSet hub_queue;
         uint32_t metrics_count;                     // atomic

@@ -1,5 +1,6 @@
 #include "page.h"
 #include "page_test.h"
+#include "demand.h"
 
 #ifdef HAVE_GTEST
 
@@ -26,7 +27,7 @@ bool operator==(const STORAGE_POINT lhs, const STORAGE_POINT rhs) {
     if (lhs.count != rhs.count)
         return false;
 
-    if (lhs.flags != rhs.flags)
+    if ((lhs.flags & SN_USER_FLAGS) != (rhs.flags & SN_USER_FLAGS))
         return false;
 
     return true;
@@ -475,3 +476,246 @@ int pgd_test(int argc, char *argv[])
 }
 
 #endif // HAVE_GTEST
+
+int pgd_counter_test(void) {
+    PGC *cache = pgc_create("counter-page-tests", 32 * 1024 * 1024, NULL, 64, NULL, NULL,
+                           10, 10, 1000, 10, PGC_OPTIONS_NONE, 1, 11);
+    pgd_init_arals();
+    unsigned failures = 0;
+    auto check = [&failures](bool ok, const char *case_name) {
+        if(!ok) {
+            fprintf(stderr, "counter page failure: %s\n", case_name);
+            failures++;
+        }
+    };
+
+    RRDENG_READ_PROMISE promises[RRD_STORAGE_TIERS] = {};
+    RRDENG_READ_TIER_SPAN spans[RRDENG_READ_MAX_SPANS];
+    uint32_t span_count = 0;
+    for(uint32_t tier = 0; tier < RRD_STORAGE_TIERS; tier++) {
+        promises[tier].first = 2 * (RRD_STORAGE_TIERS - tier) - 1;
+        promises[tier].last = 2 * RRD_STORAGE_TIERS + 2 * tier;
+    }
+    check(rrdeng_read_plan_tiers(promises, RRD_STORAGE_TIERS, 1, 2 * RRDENG_READ_MAX_SPANS,
+                                 spans, &span_count), "nested tier plan");
+    check(span_count == RRDENG_READ_MAX_SPANS, "maximum bounded tier span count");
+    uint32_t seed = 17;
+    for(unsigned trial = 0; trial < 512; trial++) {
+        for(uint32_t tier = 0; tier < RRD_STORAGE_TIERS; tier++) {
+            seed = seed * 1664525u + 1013904223u;
+            promises[tier].first = seed % 65;
+            seed = seed * 1664525u + 1013904223u;
+            promises[tier].last = seed % 65;
+        }
+        check(rrdeng_read_plan_tiers(promises, RRD_STORAGE_TIERS, -10, 64, spans, &span_count),
+              "bounded randomized tier plan");
+        check(span_count <= RRDENG_READ_MAX_SPANS, "tier span bound");
+        for(time_t timestamp = 1; timestamp <= 64; timestamp++) {
+            uint32_t expected = RRD_STORAGE_TIERS, actual = RRD_STORAGE_TIERS;
+            for(uint32_t tier = 0; tier < RRD_STORAGE_TIERS; tier++)
+                if(promises[tier].first > 0 && promises[tier].first <= timestamp && timestamp <= promises[tier].last) {
+                    expected = tier;
+                    break;
+                }
+            for(uint32_t i = 0; i < span_count; i++)
+                if(spans[i].first <= timestamp && timestamp <= spans[i].last) actual = spans[i].tier;
+            check(expected == actual, "finest owned tier at every timestamp");
+            for(uint32_t tier = 0; tier < RRD_STORAGE_TIERS; tier++)
+                check(rrdeng_read_promise_overlaps(&promises[tier], timestamp, timestamp) == (actual == tier),
+                      "only owned intervals are promised");
+        }
+    }
+
+    STORAGE_POINT bucket = STORAGE_POINT_UNSET;
+    STORAGE_POINT input = STORAGE_POINT_UNSET;
+    input.start_time_s = 0;
+    input.end_time_s = 1;
+    input.flags = SP_FLAG_COUNTER_SOURCE | SN_FLAG_RESET;
+    storage_point_merge_collection(&bucket, &input);
+    check(bucket.count == 0 && storage_point_has_counter_source(&bucket) &&
+              (bucket.flags & (SP_FLAG_HAS_GAP | SN_FLAG_RESET)) == (SP_FLAG_HAS_GAP | SN_FLAG_RESET),
+          "counter gap metadata before first valid contribution");
+    input.start_time_s = 1;
+    input.end_time_s = 2;
+    input.min = input.max = input.sum = 2;
+    input.count = 1;
+    input.flags = SP_FLAG_COUNTER_SOURCE | SP_FLAG_COUNTER_VALUE_VALID;
+    input.counter = 100;
+    storage_point_merge_collection(&bucket, &input);
+    check(bucket.start_time_s == 0 && bucket.end_time_s == 2 && bucket.sum == 2 && bucket.count == 1 &&
+              (bucket.flags & (SP_FLAG_HAS_GAP | SN_FLAG_RESET)) == (SP_FLAG_HAS_GAP | SN_FLAG_RESET) &&
+              !(bucket.flags & SP_FLAG_COUNTER_VALUE_VALID) && isnan(bucket.counter),
+          "first valid contribution preserves earlier gap and reset metadata");
+    input.start_time_s = 2;
+    input.end_time_s = 3;
+    input.min = input.max = input.sum = NAN;
+    input.count = 0;
+    input.flags = SP_FLAG_ORDINARY_SOURCE;
+    storage_point_merge_collection(&bucket, &input);
+    check(!storage_point_has_counter_source(&bucket) && (bucket.flags & SP_SOURCE_FLAGS) == SP_SOURCE_FLAGS &&
+              bucket.sum == 2 && bucket.count == 1 && bucket.end_time_s == 3,
+          "ordinary gap keeps a mixed bucket ordinary");
+    input.min = input.max = input.sum = 3;
+    input.count = 1;
+    input.flags = SP_FLAG_COUNTER_SOURCE;
+    input.start_time_s = 3;
+    input.end_time_s = 4;
+    storage_point_merge_collection(&bucket, &input);
+    check(bucket.sum == 5 && bucket.count == 2 && !storage_point_has_counter_source(&bucket),
+          "later counter contribution cannot reclassify a mixed bucket");
+    storage_point_unset(bucket);
+    storage_point_merge_collection(&bucket, &input);
+    check(storage_point_has_counter_source(&bucket) && !(bucket.flags & (SP_FLAG_HAS_GAP | SN_FLAG_RESET)),
+          "new bucket clears prior provenance and reset history");
+    bucket.count = UINT32_MAX;
+    storage_point_merge_collection(&bucket, &input);
+    check(bucket.count == UINT32_MAX && (bucket.flags & SP_FLAG_COUNT_UNKNOWN), "counter valid-count overflow is explicit");
+    input.flags = SP_FLAG_ORDINARY_SOURCE | SP_FLAG_COUNT_UNKNOWN;
+    double legacy = 10;
+    check(storage_counter_fold_legacy(&legacy, &input, false) && legacy == 13,
+          "available legacy count remains usable for an approximate recurrence");
+    check(!storage_counter_fold(&legacy, &input, false), "promised new count requires complete metadata");
+    bucket = input;
+    bucket.flags |= SP_FLAG_COUNTER_VALUE_VALID;
+    bucket.counter = 100;
+    storage_point_add_to(bucket, input);
+    check(!(bucket.flags & SP_FLAG_COUNTER_VALUE_VALID) && isnan(bucket.counter), "aggregation drops unrelated counter endpoints");
+
+    const uint8_t types[] = {RRDENG_PAGE_TYPE_ARRAY_32BIT_COUNTER,
+                            RRDENG_PAGE_TYPE_ARRAY_TIER1_COUNTER,
+                            RRDENG_PAGE_TYPE_GORILLA_32BIT_COUNTER};
+    check(sizeof(struct rrdeng_extent_page_descr) == 37, "extent descriptor layout remains unchanged");
+    for(uint8_t type : types) {
+        struct rrdeng_extent_page_descr descriptor = {};
+        descriptor.type = type;
+        descriptor.start_time_ut = 100 * USEC_PER_SEC;
+        descriptor.counter.entries = 1;
+        descriptor.counter.update_every_s = 60;
+        descriptor.page_length = 8 + (rrdeng_page_type_base(type) == RRDENG_PAGE_TYPE_GORILLA_32BIT ?
+            RRDENG_GORILLA_32BIT_BUFFER_SIZE : (rrdeng_page_type_base(type) == RRDENG_PAGE_TYPE_ARRAY_TIER1 ? 24 : 4));
+        VALIDATED_PAGE_DESCRIPTOR validated = validate_extent_page_descr(&descriptor, 1000, 0, false);
+        check(validated.is_valid && validated.entries == 1 && validated.update_every_s == 60 &&
+                  validated.start_time_s == 100 && validated.end_time_s == 100,
+              "singleton counter cadence survives an unknown metric cadence");
+        descriptor.counter.entries = 3;
+        if(rrdeng_page_type_base(type) != RRDENG_PAGE_TYPE_GORILLA_32BIT)
+            descriptor.page_length = 8 + 3 * (rrdeng_page_type_base(type) == RRDENG_PAGE_TYPE_ARRAY_TIER1 ? 24 : 4);
+        validated = validate_extent_page_descr(&descriptor, 1000, 1, false);
+        check(validated.is_valid && validated.entries == 3 && validated.update_every_s == 60 && validated.end_time_s == 220,
+              "counter geometry overrides changed metric cadence");
+        if(rrdeng_page_type_base(type) != RRDENG_PAGE_TYPE_GORILLA_32BIT) {
+            descriptor.counter.entries = 4;
+            check(!validate_extent_page_descr(&descriptor, 1000, 1, false).is_valid,
+                  "counter descriptor count cannot repair mismatched physical records");
+            descriptor.counter.entries = 3;
+            descriptor.page_length--;
+            check(!validate_extent_page_descr(&descriptor, 1000, 1, false).is_valid,
+                  "counter descriptor rejects partial physical records");
+            descriptor.page_length++;
+        }
+        descriptor.counter.update_every_s = 0;
+        check(!validate_extent_page_descr(&descriptor, 1000, 1, false).is_valid,
+              "counter descriptor cannot borrow cadence for a missing stored cadence");
+        descriptor.counter.update_every_s = 60;
+        descriptor.counter.entries = 0;
+        check(!validate_extent_page_descr(&descriptor, 1000, 1, false).is_valid,
+              "counter descriptor requires its stored record count");
+    }
+    const uint8_t ordinary_types[] = {RRDENG_PAGE_TYPE_ARRAY_32BIT, RRDENG_PAGE_TYPE_ARRAY_TIER1,
+                                      RRDENG_PAGE_TYPE_GORILLA_32BIT};
+    for(uint8_t type : ordinary_types) {
+        struct rrdeng_extent_page_descr descriptor = {};
+        descriptor.type = type;
+        descriptor.start_time_ut = 100 * USEC_PER_SEC;
+        if(type == RRDENG_PAGE_TYPE_GORILLA_32BIT) {
+            descriptor.gorilla.entries = 3;
+            descriptor.gorilla.delta_time_s = 120;
+        }
+        else descriptor.end_time_ut = 220 * USEC_PER_SEC;
+        uint64_t last;
+        check(rrdeng_extent_page_end_time_s(&descriptor, &last) && last == 220,
+              "ordinary extent timing keeps its existing union interpretation");
+    }
+    for(uint8_t type : types) {
+        PGD *page = pgd_create(type, 8);
+        pgd_set_counter_anchor(page, 100.0);
+        bool coarse = rrdeng_page_type_base(type) == RRDENG_PAGE_TYPE_ARRAY_TIER1;
+        pgd_append_point(page, 3, coarse ? -200000.0 : -2.0, -2.0, -2.0,
+                         coarse ? 100000 : 1, 0, SN_FLAG_NOT_ANOMALOUS, 0);
+        pgd_append_point(page, 6, NAN, NAN, NAN, 0, 0, SN_FLAG_RESET | SN_FLAG_NOT_ANOMALOUS, 1);
+        pgd_append_point(page, 9, 4.0, 4.0, 4.0, 1, 0, SN_FLAG_NOT_ANOMALOUS, 2);
+        pgd_append_point(page, 12, 5.0, 5.0, 5.0, 1, 0, SN_FLAG_RESET | SN_FLAG_NOT_ANOMALOUS, 3);
+        check(!pgd_is_empty(page), "counter page exists");
+
+        uint32_t bytes = pgd_disk_footprint(page);
+        void *disk = dbengine_extent_alloc(bytes);
+        pgd_copy_to_extent(page, static_cast<uint8_t *>(disk), bytes);
+        double anchor;
+        memcpy(&anchor, disk, sizeof(anchor));
+        check(anchor == 100.0, "before-first-record anchor");
+        if(coarse)
+            check(bytes == 8 + 4 * 24, "coarse layout");
+        PGD *restored = pgd_create_from_disk_data(type, disk, bytes);
+        check(restored != PGD_EMPTY, "disk round trip");
+        const double expected[] = {106.0, NAN, 12.0, 15.0};
+        PGD *pages[] = {page, restored};
+        for(PGD *subject : pages) {
+            PGDC cursor;
+            pgdc_reset(&cursor, subject, 0);
+            for(uint32_t slot = 0; slot < 4; slot++) {
+                STORAGE_POINT sp = STORAGE_POINT_UNSET;
+                sp.start_time_s = 3 * slot;
+                sp.end_time_s = sp.start_time_s + 3;
+                check(pgdc_get_next_point(&cursor, slot, &sp), "decode record");
+                if(slot == 1) {
+                    check(isnan(sp.sum) && isnan(sp.counter), "missing record stays missing");
+                    check((sp.flags & (SN_FLAG_RESET | SP_FLAG_HAS_GAP)) ==
+                              (SN_FLAG_RESET | SP_FLAG_HAS_GAP), "gap retains reset");
+                }
+                else {
+                    check(sp.counter == expected[slot], "counter recurrence");
+                    check(sp.flags & SP_FLAG_COUNTER_VALUE_VALID, "counter validity");
+                }
+                if(slot == 0) {
+                    check(sp.sum == (coarse ? -200000.0 : -2.0), "calculated presentation");
+                    check(sp.flags & SP_FLAG_NEGATIVE_PRESENTATION, "presentation metadata");
+                    check(sp.count == (coarse ? 100000U : 1U), "full-width counts");
+                }
+            }
+            pgdc_reset(&cursor, subject, 3);
+            STORAGE_POINT sp = STORAGE_POINT_UNSET;
+            sp.start_time_s = 9;
+            sp.end_time_s = 12;
+            check(pgdc_get_next_point(&cursor, 3, &sp) && sp.counter == 15.0, "bounded page prefix seek");
+        }
+        check(pgd_create_from_disk_data(type, disk, 8) == PGD_EMPTY, "header-only page rejected");
+        if(coarse)
+            check(pgd_create_from_disk_data(type, disk, bytes - 1) == PGD_EMPTY, "partial record rejected");
+        pgd_free(restored);
+        dbengine_extent_free(disk, bytes);
+        pgd_free(page);
+
+        PGD *gap_page = pgd_create(type, 3);
+        pgd_set_counter_anchor(gap_page, 7.0);
+        pgd_append_point(gap_page, 3, NAN, NAN, NAN, 0, 0, SN_FLAG_RESET, 0);
+        check(!pgd_is_empty(gap_page), "gap-only counter page retained");
+        pgd_free(gap_page);
+    }
+
+    storage_number_tier1_counter_t invalid = {1.0f, NAN, NAN, 1, 0, SN_FLAG_NOT_ANOMALOUS};
+    uint8_t encoded[8 + sizeof(invalid)] = {};
+    memcpy(encoded + 8, &invalid, sizeof(invalid));
+    PGD *bad = pgd_create_from_disk_data(RRDENG_PAGE_TYPE_ARRAY_TIER1_COUNTER, encoded, sizeof(encoded));
+    PGDC cursor;
+    pgdc_reset(&cursor, bad, 0);
+    STORAGE_POINT sp = STORAGE_POINT_UNSET;
+    sp.start_time_s = 1;
+    sp.end_time_s = 2;
+    check(!pgdc_get_next_point(&cursor, 0, &sp) && (sp.flags & SP_FLAG_COUNTER_INVALID), "invalid extrema");
+    pgd_free(bad);
+    check(pgd_create_from_disk_data(255, encoded, sizeof(encoded)) == PGD_EMPTY, "unknown format rejected");
+
+    pgc_destroy(cache, false);
+    fprintf(stderr, "counter page checks: %u failures\n", failures);
+    return failures ? 1 : 0;
+}

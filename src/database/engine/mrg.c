@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 #include "mrg-internals.h"
+#include "demand.h"
 
 struct aral_statistics mrg_aral_statistics;
 
@@ -263,7 +264,133 @@ Word_t mrg_metric_section(MRG *mrg __maybe_unused, METRIC *metric) {
 }
 
 ALWAYS_INLINE
-bool mrg_metric_set_first_time_s(MRG *mrg __maybe_unused, METRIC *metric, time_t first_time_s) {
+static SPINLOCK *metric_promise_lock(MRG *mrg, METRIC *metric) {
+    if(mrg != main_mrg)
+        return NULL;
+    return &((struct rrdengine_instance *)metric->section)->read_promises.lock;
+}
+
+bool rrdeng_read_freeze_metric(METRIC *metric, RRDENG_READ_PROMISE *promise, time_t first, time_t last) {
+    struct rrdengine_instance *ctx = (struct rrdengine_instance *)metric->section;
+    mrg_metric_get_first_time_s_smart(main_mrg, metric);
+    rw_spinlock_read_lock(&ctx->njfv2idx.spinlock);
+    spinlock_lock(&ctx->read_promises.lock);
+    *promise = (RRDENG_READ_PROMISE){
+        .metric = metric,
+        .first = __atomic_load_n(&metric->first_time_s, __ATOMIC_RELAXED),
+        .last = MAX(__atomic_load_n(&metric->latest_time_s_clean, __ATOMIC_RELAXED),
+                    __atomic_load_n(&metric->latest_time_s_hot, __ATOMIC_RELAXED)),
+        .cadence = __atomic_load_n(&metric->latest_update_every_s, __ATOMIC_RELAXED),
+    };
+    time_t required_first = MAX(first, promise->first), required_last = MIN(last, promise->last);
+    if(required_first <= required_last && promise->first > 0) {
+        promise->required[0] = (RRDENG_READ_INTERVAL){ .first = required_first, .last = required_last };
+        promise->required_count = 1;
+    }
+    nd_uuid_copy(promise->uuid, *mrg_metric_uuid(main_mrg, metric));
+    if(promise->required_count)
+        DOUBLE_LINKED_LIST_APPEND_ITEM_UNSAFE(ctx->read_promises.head, promise, prev, next);
+    spinlock_unlock(&ctx->read_promises.lock);
+    rw_spinlock_read_unlock(&ctx->njfv2idx.spinlock);
+    return promise->first > 0 && promise->last >= promise->first;
+}
+
+bool rrdeng_read_plan_tiers(RRDENG_READ_PROMISE *promises, uint32_t tiers, time_t first, time_t last,
+                          RRDENG_READ_TIER_SPAN *spans, uint32_t *count) {
+    *count = 0;
+    if(tiers > RRD_STORAGE_TIERS || first > last) return false;
+    for(uint32_t tier = 0; tier < tiers; tier++) promises[tier].required_count = 0;
+    for(time_t next = MAX(first, 1); next <= last;) {
+        uint32_t owner = tiers;
+        time_t following = last;
+        bool have_following = false;
+        for(uint32_t tier = 0; tier < tiers; tier++) {
+            const RRDENG_READ_PROMISE *p = &promises[tier];
+            if(p->first <= 0 || p->last < p->first) continue;
+            if(p->first <= next && next <= p->last) { owner = tier; break; }
+            if(p->first > next && p->first <= last && (!have_following || p->first < following)) {
+                following = p->first;
+                have_following = true;
+            }
+        }
+        if(owner == tiers) {
+            if(!have_following) break;
+            next = following;
+            continue;
+        }
+        time_t end = MIN(last, promises[owner].last);
+        for(uint32_t tier = 0; tier < owner; tier++)
+            if(promises[tier].first > next && promises[tier].first <= end &&
+               promises[tier].last >= promises[tier].first)
+                end = promises[tier].first - 1;
+        fatal_assert(*count < RRDENG_READ_MAX_SPANS);
+        spans[(*count)++] = (RRDENG_READ_TIER_SPAN){ .first = next, .last = end, .tier = owner };
+        RRDENG_READ_PROMISE *p = &promises[owner];
+        p->required[p->required_count++] = (RRDENG_READ_INTERVAL){ .first = next, .last = end };
+        if(end == last) break;
+        next = end + 1;
+    }
+    return true;
+}
+
+bool rrdeng_read_freeze_tiers(METRIC *const *metrics, uint32_t tiers, RRDENG_READ_PROMISE *promises,
+                            time_t first, time_t last, RRDENG_READ_TIER_SPAN *spans, uint32_t *count) {
+    *count = 0;
+    if(tiers > RRD_STORAGE_TIERS || first > last) return false;
+    memset(promises, 0, tiers * sizeof(*promises));
+    struct rrdengine_instance *contexts[RRD_STORAGE_TIERS];
+    uint32_t context_count = 0;
+    for(uint32_t tier = 0; tier < tiers; tier++) {
+        if(!metrics[tier]) continue;
+        mrg_metric_get_first_time_s_smart(main_mrg, metrics[tier]);
+        struct rrdengine_instance *ctx = (struct rrdengine_instance *)metrics[tier]->section;
+        uint32_t at = 0;
+        while(at < context_count && (uintptr_t)contexts[at] < (uintptr_t)ctx) at++;
+        if(at < context_count && contexts[at] == ctx) continue;
+        memmove(contexts + at + 1, contexts + at, (context_count - at) * sizeof(*contexts));
+        contexts[at] = ctx;
+        context_count++;
+    }
+    for(uint32_t i = 0; i < context_count; i++) rw_spinlock_read_lock(&contexts[i]->njfv2idx.spinlock);
+    for(uint32_t i = 0; i < context_count; i++) spinlock_lock(&contexts[i]->read_promises.lock);
+    for(uint32_t tier = 0; tier < tiers; tier++) {
+        METRIC *metric = metrics[tier];
+        if(!metric) continue;
+        RRDENG_READ_PROMISE *promise = &promises[tier];
+        promise->metric = metric;
+        promise->first = __atomic_load_n(&metric->first_time_s, __ATOMIC_RELAXED);
+        promise->last = MAX(__atomic_load_n(&metric->latest_time_s_clean, __ATOMIC_RELAXED),
+                            __atomic_load_n(&metric->latest_time_s_hot, __ATOMIC_RELAXED));
+        promise->cadence = __atomic_load_n(&metric->latest_update_every_s, __ATOMIC_RELAXED);
+        nd_uuid_copy(promise->uuid, *mrg_metric_uuid(main_mrg, metric));
+    }
+    (void)rrdeng_read_plan_tiers(promises, tiers, first, last, spans, count);
+    for(uint32_t tier = 0; tier < tiers; tier++) {
+        RRDENG_READ_PROMISE *promise = &promises[tier];
+        if(!promise->metric || !promise->required_count) continue;
+        struct rrdengine_instance *ctx = (struct rrdengine_instance *)promise->metric->section;
+        DOUBLE_LINKED_LIST_APPEND_ITEM_UNSAFE(ctx->read_promises.head, promise, prev, next);
+    }
+    for(uint32_t i = context_count; i; i--) spinlock_unlock(&contexts[i - 1]->read_promises.lock);
+    for(uint32_t i = context_count; i; i--) rw_spinlock_read_unlock(&contexts[i - 1]->njfv2idx.spinlock);
+    return true;
+}
+
+void rrdeng_read_unfreeze_metric(RRDENG_READ_PROMISE *promise) {
+    if(!promise->metric)
+        return;
+    if(!promise->required_count) {
+        promise->metric = NULL;
+        return;
+    }
+    struct rrdengine_instance *ctx = (struct rrdengine_instance *)promise->metric->section;
+    spinlock_lock(&ctx->read_promises.lock);
+    DOUBLE_LINKED_LIST_REMOVE_ITEM_UNSAFE(ctx->read_promises.head, promise, prev, next);
+    promise->metric = NULL;
+    spinlock_unlock(&ctx->read_promises.lock);
+}
+
+bool mrg_metric_set_first_time_s(MRG *mrg, METRIC *metric, time_t first_time_s) {
     internal_fatal(first_time_s < 0, "DBENGINE METRIC: timestamp is negative");
 
     if(first_time_s == LONG_MAX)
@@ -272,7 +399,14 @@ bool mrg_metric_set_first_time_s(MRG *mrg __maybe_unused, METRIC *metric, time_t
     if(unlikely(first_time_s < 0))
         return false;
 
+    SPINLOCK *lock = metric_promise_lock(mrg, metric);
+    if(lock) {
+        spinlock_lock(lock);
+        if(!first_time_s || first_time_s > __atomic_load_n(&metric->first_time_s, __ATOMIC_RELAXED))
+            rrdeng_read_expire_metric_unsafe(metric, 0, first_time_s ? first_time_s - 1 : LONG_MAX);
+    }
     __atomic_store_n(&metric->first_time_s, first_time_s, __ATOMIC_RELAXED);
+    if(lock) spinlock_unlock(lock);
 
     return true;
 }
@@ -301,9 +435,19 @@ void mrg_metric_expand_retention(MRG *mrg __maybe_unused, METRIC *metric, time_t
 }
 
 ALWAYS_INLINE
-bool mrg_metric_set_first_time_s_if_bigger(MRG *mrg __maybe_unused, METRIC *metric, time_t first_time_s) {
+bool mrg_metric_set_first_time_s_if_bigger(MRG *mrg, METRIC *metric, time_t first_time_s) {
     internal_fatal(first_time_s < 0, "DBENGINE METRIC: timestamp is negative");
-    return set_metric_field_with_condition(metric->first_time_s, first_time_s, _wanted != 0 && _wanted != LONG_MAX && _wanted > _current);
+    SPINLOCK *lock = metric_promise_lock(mrg, metric);
+    if(lock) {
+        spinlock_lock(lock);
+        if(first_time_s > 0 && first_time_s != LONG_MAX &&
+           first_time_s > __atomic_load_n(&metric->first_time_s, __ATOMIC_RELAXED))
+            rrdeng_read_expire_metric_unsafe(metric, 0, first_time_s - 1);
+    }
+    bool changed = set_metric_field_with_condition(metric->first_time_s, first_time_s,
+                                                   _wanted != 0 && _wanted != LONG_MAX && _wanted > _current);
+    if(lock) spinlock_unlock(lock);
+    return changed;
 }
 
 ALWAYS_INLINE
@@ -311,10 +455,16 @@ time_t mrg_metric_get_first_time_s(MRG *mrg __maybe_unused, METRIC *metric) {
     return mrg_metric_get_first_time_s_smart(mrg, metric);
 }
 
-void mrg_metric_clear_retention(MRG *mrg __maybe_unused, METRIC *metric) {
+void mrg_metric_clear_retention(MRG *mrg, METRIC *metric) {
+    SPINLOCK *lock = metric_promise_lock(mrg, metric);
+    if(lock) {
+        spinlock_lock(lock);
+        rrdeng_read_expire_metric_unsafe(metric, 0, LONG_MAX);
+    }
     __atomic_store_n(&metric->first_time_s, 0, __ATOMIC_RELAXED);
     __atomic_store_n(&metric->latest_time_s_clean, 0, __ATOMIC_RELAXED);
     __atomic_store_n(&metric->latest_time_s_hot, 0, __ATOMIC_RELAXED);
+    if(lock) spinlock_unlock(lock);
 }
 
 ALWAYS_INLINE_HOT
@@ -339,11 +489,18 @@ bool mrg_metric_set_clean_latest_time_s(MRG *mrg __maybe_unused, METRIC *metric,
 //                   "DBENGINE METRIC: metric new clean latest time is older than the previous one");
 
     if(latest_time_s > 0) {
-        if(set_metric_field_with_condition(metric->latest_time_s_clean, latest_time_s, true)) {
+        SPINLOCK *lock = metric_promise_lock(mrg, metric);
+        if(lock) spinlock_lock(lock);
+        time_t hot = __atomic_load_n(&metric->latest_time_s_hot, __ATOMIC_RELAXED);
+        time_t old_last = MAX(hot, __atomic_load_n(&metric->latest_time_s_clean, __ATOMIC_RELAXED));
+        time_t new_last = MAX(hot, latest_time_s);
+        if(lock && new_last < old_last) rrdeng_read_expire_metric_unsafe(metric, new_last + 1, old_last);
+        bool changed = set_metric_field_with_condition(metric->latest_time_s_clean, latest_time_s, true);
+        if(changed) {
             set_metric_field_with_condition(metric->first_time_s, latest_time_s, _current <= 0 || _wanted < _current);
-
-            return true;
         }
+        if(lock) spinlock_unlock(lock);
+        return changed;
     }
 
     return false;
@@ -388,8 +545,19 @@ bool mrg_metric_has_zero_disk_retention(MRG *mrg __maybe_unused, METRIC *metric)
             internal_error(!countdown, "METRIC: giving up on updating the retention of metric without disk retention");
 
             do_again = false;
+            SPINLOCK *lock = metric_promise_lock(mrg, metric);
+            if(lock) {
+                spinlock_lock(lock);
+                time_t old_first = __atomic_load_n(&metric->first_time_s, __ATOMIC_RELAXED);
+                time_t old_last = __atomic_load_n(&metric->latest_time_s_clean, __ATOMIC_RELAXED);
+                if(!min_first_time_s || min_first_time_s > old_first)
+                    rrdeng_read_expire_metric_unsafe(metric, 0, min_first_time_s ? min_first_time_s - 1 : LONG_MAX);
+                if(max_end_time_s < old_last)
+                    rrdeng_read_expire_metric_unsafe(metric, max_end_time_s + 1, old_last);
+            }
             set_metric_field_with_condition(metric->first_time_s, min_first_time_s, true);
             set_metric_field_with_condition(metric->latest_time_s_clean, max_end_time_s, true);
+            if(lock) spinlock_unlock(lock);
         }
     } while(do_again);
 
@@ -406,7 +574,14 @@ bool mrg_metric_set_hot_latest_time_s(MRG *mrg __maybe_unused, METRIC *metric, t
 //                   "DBENGINE METRIC: metric latest time is in the future");
 
     if(likely(latest_time_s > 0)) {
+        SPINLOCK *lock = metric_promise_lock(mrg, metric);
+        if(lock) spinlock_lock(lock);
+        time_t clean = __atomic_load_n(&metric->latest_time_s_clean, __ATOMIC_RELAXED);
+        time_t old_last = MAX(clean, __atomic_load_n(&metric->latest_time_s_hot, __ATOMIC_RELAXED));
+        time_t new_last = MAX(clean, latest_time_s);
+        if(lock && new_last < old_last) rrdeng_read_expire_metric_unsafe(metric, new_last + 1, old_last);
         __atomic_store_n(&metric->latest_time_s_hot, latest_time_s, __ATOMIC_RELAXED);
+        if(lock) spinlock_unlock(lock);
         return true;
     }
 

@@ -83,17 +83,18 @@ extern __thread sqlite3 *db_context_thread;
 #define CTX_GET_CHART_LIST  "SELECT c.chart_id, c.type||'.'||c.id, c.name, c.context, c.title, c.unit, c.priority, " \
     "c.update_every, c.chart_type, c.family FROM chart c WHERE c.host_id = @host_id AND c.chart_id IS NOT NULL"
 
-void ctx_get_chart_list(nd_uuid_t *host_uuid, void (*dict_cb)(SQL_CHART_DATA *, void *), void *data)
+bool ctx_get_chart_list(nd_uuid_t *host_uuid, void (*dict_cb)(SQL_CHART_DATA *, void *), void *data)
 {
     sqlite3_stmt *res = NULL;
+    bool complete = false;
 
     if (unlikely(!host_uuid)) {
        internal_error(true, "Requesting context chart list without host_id");
-       return;
+       return false;
     }
 
     if (!PREPARE_STATEMENT(db_meta_thread ? db_meta_thread : db_meta, CTX_GET_CHART_LIST, &res))
-        return;
+        return false;
 
     int param = 0;
     SQLITE_BIND_FAIL(done, sqlite3_bind_blob(res, ++param, host_uuid, sizeof(*host_uuid), SQLITE_STATIC));
@@ -103,7 +104,8 @@ void ctx_get_chart_list(nd_uuid_t *host_uuid, void (*dict_cb)(SQL_CHART_DATA *, 
 
     param = 0;
     SQL_CHART_DATA chart_data = { 0 };
-    while (sqlite3_step_monitored(res) == SQLITE_ROW) {
+    int step;
+    while ((step = sqlite3_step_monitored(res)) == SQLITE_ROW) {
         if (unlikely(exit_initiated_get()))
             break;
 
@@ -123,21 +125,24 @@ void ctx_get_chart_list(nd_uuid_t *host_uuid, void (*dict_cb)(SQL_CHART_DATA *, 
         chart_data.family = (char *) sqlite3_column_text(res, 9);
         dict_cb(&chart_data, data);
     }
+    complete = step == SQLITE_DONE;
 
 done:
     REPORT_BIND_FAIL(res, param);
     SQLITE_FINALIZE(res);
+    return complete;
 }
 
 // Dimension list
 #define CTX_GET_DIMENSION_LIST  "SELECT d.dim_id, d.id, d.name, CASE WHEN INSTR(d.options,\"hidden\") > 0 THEN 1 ELSE 0 END, c.type||'.'||c.id, c.context, d.algorithm " \
     "FROM dimension d, chart c WHERE c.host_id = @host_id AND d.chart_id = c.chart_id AND d.dim_id IS NOT NULL ORDER BY d.rowid ASC"
-void ctx_get_dimension_list(nd_uuid_t *host_uuid, void (*dict_cb)(SQL_DIMENSION_DATA *, void *), void *data)
+bool ctx_get_dimension_list(nd_uuid_t *host_uuid, void (*dict_cb)(SQL_DIMENSION_DATA *, void *), void *data)
 {
     sqlite3_stmt *res = NULL;
+    bool complete = false;
 
     if (!PREPARE_STATEMENT(db_meta_thread ? db_meta_thread : db_meta, CTX_GET_DIMENSION_LIST, &res))
-        return;
+        return false;
 
     int param = 0;
     SQLITE_BIND_FAIL(done, sqlite3_bind_blob(res, ++param, host_uuid, sizeof(*host_uuid), SQLITE_STATIC));
@@ -148,7 +153,8 @@ void ctx_get_dimension_list(nd_uuid_t *host_uuid, void (*dict_cb)(SQL_DIMENSION_
     SQL_DIMENSION_DATA dimension_data;
 
     param = 0;
-    while (sqlite3_step_monitored(res) == SQLITE_ROW) {
+    int step;
+    while ((step = sqlite3_step_monitored(res)) == SQLITE_ROW) {
         if (unlikely(exit_initiated_get()))
             break;
 
@@ -165,53 +171,77 @@ void ctx_get_dimension_list(nd_uuid_t *host_uuid, void (*dict_cb)(SQL_DIMENSION_
         dimension_data.algorithm = sqlite3_column_int(res, 6);
         dict_cb(&dimension_data, data);
     }
+    complete = step == SQLITE_DONE;
 
 done:
     REPORT_BIND_FAIL(res, param);
     SQLITE_FINALIZE(res);
+    return complete;
 }
 
 // LABEL LIST
 #define CTX_GET_LABEL_LIST  "SELECT l.label_key, l.label_value, l.source_type FROM meta.chart_label l WHERE l.chart_id = @id"
 
-void ctx_get_label_list(nd_uuid_t *chart_uuid, void (*dict_cb)(SQL_CLABEL_DATA *, void *), void *data)
+bool ctx_get_label_list_checked(nd_uuid_t *chart_uuid, bool (*row_cb)(SQL_CLABEL_DATA *, void *), void *data)
 {
     sqlite3_stmt *res = NULL;
+    bool complete = false;
 
     if (!PREPARE_STATEMENT(db_context_meta, CTX_GET_LABEL_LIST, &res))
-        return;
+        return false;
 
     int param = 0;
     SQLITE_BIND_FAIL(done, sqlite3_bind_blob(res, ++param, chart_uuid, sizeof(*chart_uuid), SQLITE_STATIC));
 
     param = 0;
     SQL_CLABEL_DATA label_data;
+    int step;
 
-    while (sqlite3_step_monitored(res) == SQLITE_ROW) {
+    while ((step = sqlite3_step_monitored(res)) == SQLITE_ROW) {
         label_data.label_key = (char *) sqlite3_column_text(res, 0);
         label_data.label_value = (char *) sqlite3_column_text(res, 1);
         label_data.label_source = sqlite3_column_int(res, 2);
-        dict_cb(&label_data, data);
+        if(!row_cb(&label_data, data))
+            goto done;
     }
+    complete = step == SQLITE_DONE;
 
 done:
     REPORT_BIND_FAIL(res, param);
     SQLITE_FINALIZE(res);
+    return complete;
+}
+
+typedef struct {
+    void (*callback)(SQL_CLABEL_DATA *, void *);
+    void *data;
+} LABEL_LIST_CALLBACK;
+
+static bool ctx_label_list_row(SQL_CLABEL_DATA *row, void *context) {
+    LABEL_LIST_CALLBACK *callback = context;
+    callback->callback(row, callback->data);
+    return true;
+}
+
+bool ctx_get_label_list(nd_uuid_t *chart_uuid, void (*dict_cb)(SQL_CLABEL_DATA *, void *), void *data) {
+    LABEL_LIST_CALLBACK callback = { .callback = dict_cb, .data = data };
+    return ctx_get_label_list_checked(chart_uuid, ctx_label_list_row, &callback);
 }
 
 // CONTEXT LIST
 #define CTX_GET_CONTEXT_LIST  "SELECT id, version, title, chart_type, unit, priority, first_time_t, " \
     "last_time_t, deleted, family FROM context c WHERE c.host_id = @host_id"
 
-void ctx_get_context_list(nd_uuid_t *host_uuid, void (*dict_cb)(VERSIONED_CONTEXT_DATA *, void *), void *data)
+bool ctx_get_context_list(nd_uuid_t *host_uuid, void (*dict_cb)(VERSIONED_CONTEXT_DATA *, void *), void *data)
 {
     if (unlikely(!host_uuid))
-        return;
+        return false;
 
     sqlite3_stmt *res = NULL;
+    bool complete = false;
 
     if (!PREPARE_STATEMENT(db_context_thread ? db_context_thread : db_context_meta, CTX_GET_CONTEXT_LIST, &res))
-        return;
+        return false;
 
     VERSIONED_CONTEXT_DATA context_data = {0};
 
@@ -219,7 +249,8 @@ void ctx_get_context_list(nd_uuid_t *host_uuid, void (*dict_cb)(VERSIONED_CONTEX
     SQLITE_BIND_FAIL(done,  sqlite3_bind_blob(res, ++param, host_uuid, sizeof(*host_uuid), SQLITE_STATIC));
     param = 0;
 
-    while (sqlite3_step_monitored(res) == SQLITE_ROW) {
+    int step;
+    while ((step = sqlite3_step_monitored(res)) == SQLITE_ROW) {
         if (unlikely(exit_initiated_get()))
             break;
 
@@ -235,10 +266,12 @@ void ctx_get_context_list(nd_uuid_t *host_uuid, void (*dict_cb)(VERSIONED_CONTEX
         context_data.family = (char *) sqlite3_column_text(res, 9);
         dict_cb(&context_data, data);
     }
+    complete = step == SQLITE_DONE;
 
 done:
     REPORT_BIND_FAIL(res, param);
     SQLITE_FINALIZE(res);
+    return complete;
 }
 
 

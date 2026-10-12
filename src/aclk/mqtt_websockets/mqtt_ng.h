@@ -70,6 +70,14 @@ int mqtt_ng_publish(struct mqtt_ng_client *client,
                     uint8_t publish_flags,
                     uint16_t *packet_id);
 
+/* QoS1 complete-topic publication; source is consumed only on OK, including its window and release callback.
+ * A failed enqueue leaves it wholly with the caller. packet_id is required. No topic alias state is changed.
+ */
+int mqtt_ng_publish_source(struct mqtt_ng_client *client, const char *topic, struct mqtt_payload_source *source,
+                            uint8_t publish_flags, uint16_t *packet_id);
+bool mqtt_ng_payload_failed(const struct mqtt_ng_client *client);
+int mqtt_ng_source_unittest(void);
+
 struct mqtt_sub {
     char *topic;
     free_fnc_t topic_free;

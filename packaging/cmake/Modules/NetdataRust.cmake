@@ -6,7 +6,10 @@
 
 include_guard()
 
-if(ENABLE_NETDATA_JOURNAL_FILE_READER OR ENABLE_PLUGIN_OTEL OR ENABLE_PLUGIN_NETFLOW)
+if(ENABLE_PROMQL OR ENABLE_NETDATA_JOURNAL_FILE_READER OR ENABLE_PLUGIN_OTEL OR ENABLE_PLUGIN_NETFLOW)
+    if(ENABLE_PROMQL AND NOT EXISTS "${CMAKE_SOURCE_DIR}/src/crates/promql-engine/Cargo.toml")
+        message(FATAL_ERROR "The PromQL engine submodule is missing. Run git submodule update --init src/crates/promql-engine, or pass -DENABLE_PROMQL=Off for a custom build without the PromQL API.")
+    endif()
     # Check for the toolchain before fetching Corrosion: without this, a missing
     # rustc surfaces as an error deep inside Corrosion's FindRust with no hint of
     # which option to turn off (#23315). Corrosion's own Rust_COMPILER knob wins
@@ -21,25 +24,42 @@ if(ENABLE_NETDATA_JOURNAL_FILE_READER OR ENABLE_PLUGIN_OTEL OR ENABLE_PLUGIN_NET
         find_program(RUSTC_EXECUTABLE rustc HINTS "$ENV{CARGO_HOME}/bin" "$ENV{HOME}/.cargo/bin")
     endif()
     if(NOT RUSTC_EXECUTABLE)
-        message(FATAL_ERROR "A Rust toolchain (rustc) is required by the enabled Rust-based features but was not found. Install one (e.g. via rustup), or pass -DENABLE_PLUGIN_OTEL=Off -DENABLE_PLUGIN_NETFLOW=Off -DENABLE_NETDATA_JOURNAL_FILE_READER=Off to build without them.")
+        message(FATAL_ERROR "A Rust toolchain (rustc) is required by the enabled Rust-based features but was not found. Install one (e.g. via rustup), or pass -DENABLE_PROMQL=Off -DENABLE_PLUGIN_OTEL=Off -DENABLE_PLUGIN_NETFLOW=Off -DENABLE_NETDATA_JOURNAL_FILE_READER=Off to build without them.")
     endif()
 
-    file(STRINGS src/crates/Cargo.toml _nd_rust_version_line REGEX "^rust-version = \"")
-    string(REGEX REPLACE "^rust-version = \"([0-9.]+)\".*$" "\\1" _nd_min_rust_version "${_nd_rust_version_line}")
-    if(NOT _nd_min_rust_version MATCHES "^[0-9.]+$")
-        # Fail closed: an unparsed manifest would otherwise compare against the
-        # empty string, which VERSION_LESS treats as 0, silently dropping the floor.
-        message(FATAL_ERROR "Could not read rust-version from src/crates/Cargo.toml; update the extraction in NetdataRust.cmake to match the manifest's current shape.")
+    set(_nd_rust_manifests "")
+    if(ENABLE_PROMQL)
+        list(APPEND _nd_rust_manifests "src/crates/promql-engine/Cargo.toml")
     endif()
+    if(ENABLE_NETDATA_JOURNAL_FILE_READER)
+        list(APPEND _nd_rust_manifests "src/crates/jf/Cargo.toml")
+    endif()
+    if(ENABLE_PLUGIN_OTEL OR ENABLE_PLUGIN_NETFLOW)
+        list(APPEND _nd_rust_manifests "src/crates/Cargo.toml")
+    endif()
+    set(_nd_min_rust_version "0")
+    foreach(_nd_manifest IN LISTS _nd_rust_manifests)
+        file(STRINGS "${_nd_manifest}" _nd_rust_version_line REGEX "^rust-version = \"")
+        string(REGEX REPLACE "^rust-version = \"([0-9.]+)\".*$" "\\1" _nd_manifest_rust_version "${_nd_rust_version_line}")
+        if(NOT _nd_manifest_rust_version MATCHES "^[0-9.]+$")
+            message(FATAL_ERROR "Could not read rust-version from ${_nd_manifest}; update the extraction in NetdataRust.cmake to match the manifest's current shape.")
+        endif()
+        if(_nd_min_rust_version VERSION_LESS _nd_manifest_rust_version)
+            set(_nd_min_rust_version "${_nd_manifest_rust_version}")
+        endif()
+    endforeach()
     execute_process(COMMAND "${RUSTC_EXECUTABLE}" --version
                     RESULT_VARIABLE _nd_rustc_result
                     OUTPUT_VARIABLE _nd_rustc_version
                     OUTPUT_STRIP_TRAILING_WHITESPACE)
     string(REGEX REPLACE "^rustc ([0-9.]+).*$" "\\1" _nd_rustc_version "${_nd_rustc_version}")
     if(_nd_rustc_result OR _nd_rustc_version VERSION_LESS _nd_min_rust_version)
-        message(FATAL_ERROR "The enabled Rust-based features need rustc >= ${_nd_min_rust_version}, but ${RUSTC_EXECUTABLE} reports '${_nd_rustc_version}'. Update the toolchain, or pass -DENABLE_PLUGIN_OTEL=Off -DENABLE_PLUGIN_NETFLOW=Off -DENABLE_NETDATA_JOURNAL_FILE_READER=Off to build without them.")
+        message(FATAL_ERROR "The enabled Rust-based features need rustc >= ${_nd_min_rust_version}, but ${RUSTC_EXECUTABLE} reports '${_nd_rustc_version}'. Update the toolchain, or pass -DENABLE_PROMQL=Off -DENABLE_PLUGIN_OTEL=Off -DENABLE_PLUGIN_NETFLOW=Off -DENABLE_NETDATA_JOURNAL_FILE_READER=Off to build without them.")
     endif()
     unset(_nd_rust_version_line)
+    unset(_nd_rust_manifests)
+    unset(_nd_manifest)
+    unset(_nd_manifest_rust_version)
     unset(_nd_min_rust_version)
     unset(_nd_rustc_result)
     unset(_nd_rustc_version)
@@ -57,6 +77,20 @@ if(ENABLE_NETDATA_JOURNAL_FILE_READER OR ENABLE_PLUGIN_OTEL OR ENABLE_PLUGIN_NET
     # ninja clean removes it.  If a future Corrosion version changes this
     # path, this line must be updated to match.
     set_directory_properties(PROPERTIES ADDITIONAL_CLEAN_FILES "${CMAKE_BINARY_DIR}/cargo")
+
+    if(ENABLE_PROMQL)
+        corrosion_import_crate(
+                MANIFEST_PATH src/crates/promql-engine/Cargo.toml
+                CRATES netdata-promql-engine
+                CRATE_TYPES staticlib
+                PROFILE "$<IF:$<CONFIG:MinSizeRel>,release-min,$<IF:$<OR:$<CONFIG:Debug>,$<CONFIG:>>,dev,release>>"
+                LOCKED)
+        # This crate contains panics before returning through the C interface.
+        corrosion_add_target_rustflags(netdata_promql_engine "-C" "panic=unwind")
+        if(STATIC_BUILD)
+            corrosion_add_target_rustflags(netdata_promql_engine "-C" "target-feature=+crt-static")
+        endif()
+    endif()
 
     if(ENABLE_NETDATA_JOURNAL_FILE_READER)
         corrosion_import_crate(MANIFEST_PATH src/crates/jf/Cargo.toml

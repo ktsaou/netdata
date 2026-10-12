@@ -75,6 +75,7 @@ if(ENABLE_ML)
 endif()
 
 option(ENABLE_DBENGINE "Enable dbengine metrics storage" True)
+cmake_dependent_option(ENABLE_PROMQL "Enable the PromQL query and discovery APIs" True "ENABLE_DBENGINE" False)
 option(ENABLE_DASHBOARD "Enable local dashboard" True)
 mark_as_advanced(ENABLE_DASHBOARD)
 

@@ -238,6 +238,7 @@ void rrdcontext_trigger_updates(RRDCONTEXT *rc, const char *function) {
         rrdcontext_queue_for_post_processing(rc, function, rrd_flags_get(rc));
 }
 
+// The caller holds rrdhost_update_lock until the catalog and queues are initialized.
 void rrdhost_create_rrdcontexts(RRDHOST *host) {
     if(unlikely(!host)) return;
     if(likely(host->rrdctx.contexts)) return;
@@ -264,6 +265,7 @@ void rrdhost_destroy_rrdcontexts(RRDHOST *host) {
     if(unlikely(!host)) return;
     if(unlikely(!host->rrdctx.contexts)) return;
 
+    __atomic_store_n(&host->rrdctx.initial_load, RRD_CONTEXT_LOAD_UNLOADED, __ATOMIC_RELEASE);
     dictionary_destroy(host->rrdctx.contexts);
     host->rrdctx.contexts = NULL;
 

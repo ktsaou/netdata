@@ -56,11 +56,12 @@ typedef struct versioned_context_data {
 
 } VERSIONED_CONTEXT_DATA;
 
-void ctx_get_context_list(nd_uuid_t *host_uuid, void (*dict_cb)(VERSIONED_CONTEXT_DATA *, void *), void *data);
+bool ctx_get_context_list(nd_uuid_t *host_uuid, void (*dict_cb)(VERSIONED_CONTEXT_DATA *, void *), void *data);
 
-void ctx_get_chart_list(nd_uuid_t *host_uuid, void (*dict_cb)(SQL_CHART_DATA *, void *), void *data);
-void ctx_get_label_list(nd_uuid_t *chart_uuid, void (*dict_cb)(SQL_CLABEL_DATA *, void *), void *data);
-void ctx_get_dimension_list(nd_uuid_t *host_uuid, void (*dict_cb)(SQL_DIMENSION_DATA *, void *), void *data);
+bool ctx_get_chart_list(nd_uuid_t *host_uuid, void (*dict_cb)(SQL_CHART_DATA *, void *), void *data);
+bool ctx_get_label_list(nd_uuid_t *chart_uuid, void (*dict_cb)(SQL_CLABEL_DATA *, void *), void *data);
+bool ctx_get_label_list_checked(nd_uuid_t *chart_uuid, bool (*row_cb)(SQL_CLABEL_DATA *, void *), void *data);
+bool ctx_get_dimension_list(nd_uuid_t *host_uuid, void (*dict_cb)(SQL_DIMENSION_DATA *, void *), void *data);
 
 int ctx_store_context(nd_uuid_t *host_uuid, VERSIONED_CONTEXT_DATA *context_data);
 #define ctx_update_context(host_uuid, context_data)    ctx_store_context(host_uuid, context_data)

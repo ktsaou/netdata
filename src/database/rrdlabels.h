@@ -90,6 +90,8 @@ bool rrdlabels_migrate_to_these(RRDLABELS *dst, RRDLABELS *src);
 // value-changed entries).
 bool rrdlabels_remove_all_unmarked_and_changed(RRDLABELS *labels);
 void rrdlabels_copy(RRDLABELS *dst, RRDLABELS *src);
+// Publish a complete privately built set; src receives the previous contents for cleanup.
+void rrdlabels_replace(RRDLABELS *dst, RRDLABELS *src);
 size_t rrdlabels_common_count(RRDLABELS *labels1, RRDLABELS *labels2);
 
 int rrdlabels_unittest(void);

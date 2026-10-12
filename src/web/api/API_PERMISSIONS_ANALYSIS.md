@@ -1,12 +1,13 @@
 # Netdata API Permissions and Access Control Analysis
 
 **Verified:** 2026-07-16
-**Purpose:** Document the route ACL and `HTTP_ACCESS` requirements for the 68
-API route registrations in a normal production DBEngine build.
+**Purpose:** Document the route ACL and `HTTP_ACCESS` requirements for the 73
+API route registrations in a normal production DBEngine build with PromQL enabled.
 
-The count covers 27 v3, 17 v2, and 24 v1 route-table entries. The v1
+The count covers 27 v3, 17 v2, and 29 v1 route-table entries. The v1
 `dbengine_stats` entry is compiled only with `ENABLE_DBENGINE`; without it the
-inventory is 67. Root routes and the `/host/<id>/...` and `/node/<id>/...`
+inventory is 67 because the five PromQL entries are also disabled. With DBEngine enabled but PromQL disabled,
+the inventory is 68. The PromQL additions were checked against the native dispatcher on 2026-10-12. Root routes and the `/host/<id>/...` and `/node/<id>/...`
 aliases are dispatch paths, not additional API registrations.
 
 ## Permission System Overview
@@ -159,12 +160,20 @@ These require `HTTP_ACL_ACLK` - **ONLY accessible via Netdata Cloud (ACLK)**:
 
 ---
 
-## V1 APIs (24 total) - DEPRECATED
+## V1 APIs (29 total with PromQL enabled)
+
+The five Prometheus-shaped PromQL routes are maintained under `ENABLE_PROMQL`, independently of `ENABLE_API_V1`.
+The remaining legacy v1 routes retain their existing compatibility status.
 
 ### V1 anonymous-data APIs
 
 | API | ACL | Access |
 |-----|-----|--------|
+| `/api/v1/query` | `HTTP_ACL_METRICS` | `ANONYMOUS_DATA` |
+| `/api/v1/query_range` | `HTTP_ACL_METRICS` | `ANONYMOUS_DATA` |
+| `/api/v1/labels` | `HTTP_ACL_METRICS` | `ANONYMOUS_DATA` |
+| `/api/v1/label/{name}/values` | `HTTP_ACL_METRICS` | `ANONYMOUS_DATA` |
+| `/api/v1/series` | `HTTP_ACL_METRICS` | `ANONYMOUS_DATA` |
 | `/api/v1/data` | `HTTP_ACL_METRICS` | `ANONYMOUS_DATA` |
 | `/api/v1/weights` | `HTTP_ACL_METRICS` | `ANONYMOUS_DATA` |
 | `/api/v1/metric_correlations` | `HTTP_ACL_METRICS` | `ANONYMOUS_DATA` |
@@ -217,8 +226,8 @@ access columns. The ACL count is for a production build, where
 |---------|-------:|--------------:|------------------------:|--------------:|-------------------:|
 | v3 | 27 | 6 | 20 | 4 | 3 |
 | v2 | 17 | 3 | 13 | 1 | 3 |
-| v1 | 24 | 0 | 22 | 2 | 0 |
-| **Total** | **68** | **9** | **55** | **7** | **6** |
+| v1 | 29 | 0 | 27 | 2 | 0 |
+| **Total** | **73** | **9** | **60** | **7** | **6** |
 
 The nine `NOCHECK` routes split as follows:
 

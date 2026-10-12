@@ -58,7 +58,7 @@ RRDSET_TYPE rrdcontext_acquired_chart_type(RRDCONTEXT_ACQUIRED *rca);
 // ----------------------------------------------------------------------------
 // public API for rrdhost
 
-void rrdhost_load_rrdcontext_data(RRDHOST *host);
+void rrdhost_load_rrdcontext_data(RRDHOST *host, bool update_locked);
 void rrdhost_create_rrdcontexts(RRDHOST *host);
 void rrdhost_destroy_rrdcontexts(RRDHOST *host);
 

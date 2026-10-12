@@ -36,6 +36,51 @@ if(ENABLE_DBENGINE)
     )
 endif()
 
+if(ENABLE_PROMQL)
+    list(APPEND API_PLUGIN_FILES
+        src/web/api/promql/memory.h
+        src/web/api/promql/backing.h
+        src/web/api/promql/backing.c
+        src/web/api/promql/body.h
+        src/web/api/promql/body.c
+        src/web/api/promql/aclk-source.h
+        src/web/api/promql/aclk-source.c
+        src/web/api/promql/aclk-source-test.c
+        src/web/api/promql/rtc-body.h
+        src/web/api/promql/rtc-body.c
+        src/web/api/promql/rtc-body-test.c
+        src/web/rtc/webrtc-test.c
+        src/web/api/promql/json.h
+        src/web/api/promql/json.c
+        src/web/api/promql/keys.h
+        src/web/api/promql/keys.c
+        src/web/api/promql/notes.h
+        src/web/api/promql/notes.c
+        src/web/api/promql/request.h
+        src/web/api/promql/request.c
+        src/web/api/promql/request-test.c
+        src/web/api/promql/api.h
+        src/web/api/promql/api-internal.h
+        src/web/api/promql/api.c
+        src/web/api/promql/api-test.c
+        src/web/api/promql/live-test.c
+        src/web/api/promql/host-test.c
+        src/web/api/promql/discovery.c
+        src/web/api/promql/output.h
+        src/web/api/promql/output.c
+        src/web/api/promql/output-test.c
+        src/web/api/promql/operations.h
+        src/web/api/promql/operations.c
+        src/web/api/promql/operations-test.c
+        src/web/api/promql/provider.h
+        src/web/api/promql/provider-internal.h
+        src/web/api/promql/metadata.c
+        src/web/api/promql/metadata-test.c
+        src/web/api/promql/provider.c
+        src/web/api/promql/provider-test.c
+    )
+endif()
+
 set(NETDATA_FILES
         ${COLLECTORS_ALL_FILES}
         ${DAEMON_FILES}
@@ -221,3 +266,8 @@ target_link_libraries(netdata PRIVATE
 )
 
 netdata_add_protobuf(netdata)
+
+if(ENABLE_PROMQL)
+    target_include_directories(netdata PRIVATE "${CMAKE_SOURCE_DIR}/src/crates/promql-engine/include")
+    target_link_libraries(netdata PRIVATE netdata_promql_engine)
+endif()

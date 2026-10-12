@@ -32,6 +32,7 @@ void pulse_aclk_sent_message_acked(usec_t publish_latency, size_t len);
 // external data and data in the same buffer
 // we mark the former case with BUFFER_FRAG_DATA_EXTERNAL
 #define BUFFER_FRAG_DATA_EXTERNAL           0x04
+#define BUFFER_FRAG_DATA_SOURCE             0x08
 // as single MQTT Packet can be stored into multiple
 // buffer fragments (depending on copy requirements)
 // this marks this fragment to be the first/last
@@ -46,6 +47,7 @@ struct buffer_fragment {
     uint16_t packet_id;
     void (*free_fnc)(void *ptr);
     unsigned char *data;
+    uint32_t window_offset, window_length;
     // timestamp (monotonic usec) of when this MQTT packet was enqueued into the transaction buffer (set on HEAD)
     usec_t enqueued_monotonic_ut;
     usec_t sent_monotonic_ut;
@@ -228,6 +230,7 @@ struct mqtt_ng_client {
     struct transaction_buffer main_buffer;
 
     enum mqtt_client_state client_state;
+    bool payload_failed;
 
     mqtt_msg_data connect_msg;
 
@@ -415,6 +418,12 @@ static enum memory_mode ptr2memory_mode(void * ptr) {
 
 static void buffer_frag_free_data(struct buffer_fragment *frag)
 {
+    if((frag->flags & BUFFER_FRAG_DATA_SOURCE) && frag->data) {
+        struct mqtt_payload_source *source = (struct mqtt_payload_source *)frag->data;
+        source->release(source->context);
+        frag->data = NULL;
+        return;
+    }
     if ( frag->flags & BUFFER_FRAG_DATA_EXTERNAL && frag->data != NULL) {
         switch (ptr2memory_mode(frag->free_fnc)) {
             case MEMCPY:
@@ -750,7 +759,7 @@ static const char mqtt_protocol_name_frag[] =
     { 0x00, 0x04, 'M', 'Q', 'T', 'T', MQTT_VERSION_5_0 };
 
 // see 1.5.5
-#define MQTT_VARSIZE_INT_BYTES(value) ( value > 2097152 ? 4 : ( value > 16384 ? 3 : ( value > 128 ? 2 : 1 ) ) )
+#define MQTT_VARSIZE_INT_BYTES(value) ( value >= 2097152 ? 4 : ( value >= 16384 ? 3 : ( value >= 128 ? 2 : 1 ) ) )
 
 static size_t mqtt_ng_connect_size(struct mqtt_auth_properties *auth,
                     struct mqtt_lwt_properties *lwt,
@@ -1086,6 +1095,8 @@ int mqtt_ng_connect(
     uint16_t keep_alive)
 {
     client->client_state = MQTT_STATE_RAW;
+    __atomic_store_n(&client->payload_failed, false, __ATOMIC_RELAXED);
+    __atomic_store_n(&client->max_msg_size, 0, __ATOMIC_RELAXED);
     mqtt_ng_parser_reset(&client->parser);
 
     LOCK_HDR_BUFFER(&client->main_buffer);
@@ -1142,7 +1153,7 @@ static size_t mqtt_ng_publish_size(
     return retval;
 }
 
-int mqtt_ng_generate_publish(struct transaction_buffer *trx_buf,
+static int mqtt_ng_generate_publish_impl(struct transaction_buffer *trx_buf,
                              char *topic,
                              free_fnc_t topic_free,
                              void *msg,
@@ -1151,7 +1162,8 @@ int mqtt_ng_generate_publish(struct transaction_buffer *trx_buf,
                              uint8_t publish_flags,
                              uint16_t *packet_id,
                              uint16_t topic_alias,
-                             uint16_t topic_len)
+                             uint16_t topic_len,
+                             struct mqtt_payload_source *source)
 {
     // >> START THE RODEO <<
     transaction_buffer_transaction_start(trx_buf)
@@ -1206,8 +1218,15 @@ int mqtt_ng_generate_publish(struct transaction_buffer *trx_buf,
     if( (frag = buffer_new_frag(&trx_buf->hdr_buffer, BUFFER_FRAG_DATA_EXTERNAL)) == NULL )
         goto fail_rollback;
 
-    if (frag_set_external_data(frag, msg, msg_len, msg_free))
-        goto fail_rollback;
+    if(source) {
+        frag->data = NULL;
+        uint64_t view = BUFFER_BYTES_USED(&trx_buf->hdr_buffer) - BUFFER_BYTES_USED(&trx_buf->state_backup);
+        if(source->view && !source->view(source->context, view)) goto fail_rollback;
+        frag->data = (unsigned char *)source;
+        frag->len = (uint32_t)source->length;
+        frag->flags |= BUFFER_FRAG_DATA_SOURCE;
+    }
+    else if (frag_set_external_data(frag, msg, msg_len, msg_free)) goto fail_rollback;
 
     trx_buf->hdr_buffer.tail_frag->flags |= BUFFER_FRAG_MQTT_PACKET_TAIL;
     if (!qos)
@@ -1220,6 +1239,13 @@ int mqtt_ng_generate_publish(struct transaction_buffer *trx_buf,
 fail_rollback:
     transaction_buffer_transaction_rollback(trx_buf, mqtt_msg);
     return MQTT_NG_MSGGEN_BUFFER_OOM;
+}
+
+int mqtt_ng_generate_publish(struct transaction_buffer *trx_buf, char *topic, free_fnc_t topic_free,
+                             void *msg, free_fnc_t msg_free, size_t msg_len, uint8_t publish_flags,
+                             uint16_t *packet_id, uint16_t topic_alias, uint16_t topic_len) {
+    return mqtt_ng_generate_publish_impl(trx_buf, topic, topic_free, msg, msg_free, msg_len,
+        publish_flags, packet_id, topic_alias, topic_len, NULL);
 }
 
 static void mark_message_for_gc(struct buffer_fragment *frag)
@@ -1498,7 +1524,8 @@ int mqtt_ng_publish(struct mqtt_ng_client *client,
         }
     }
 
-    if (client->max_msg_size && PUBLISH_SP_SIZE + mqtt_ng_publish_size(topic_len, msg_len, topic_id) > client->max_msg_size) {
+    size_t maximum = __atomic_load_n(&client->max_msg_size, __ATOMIC_RELAXED);
+    if (maximum && PUBLISH_SP_SIZE + mqtt_ng_publish_size(topic_len, msg_len, topic_id) > maximum) {
         nd_log(NDLS_DAEMON, NDLP_ERR, "Message too big for server: %zu", msg_len);
         return MQTT_NG_MSGGEN_MSG_TOO_BIG;
     }
@@ -1522,6 +1549,30 @@ int mqtt_ng_publish(struct mqtt_ng_client *client,
     if (rc == MQTT_NG_MSGGEN_OK && packet_id)
         add_packet_to_timeout_monitor_list(client, *packet_id);
     return rc;
+}
+
+int mqtt_ng_publish_source(struct mqtt_ng_client *client, const char *topic, struct mqtt_payload_source *source,
+                            uint8_t publish_flags, uint16_t *packet_id) {
+    uint16_t topic_length;
+    if(!source || !topic || !*topic || !source->read || !source->release || !source->window || !source->window_size ||
+       source->window_size > UINT32_MAX || !packet_id || ((publish_flags >> 1) & 3) != 1 ||
+       !mqtt_ng_get_2byte_field_length("Topic Name", topic, &topic_length)) return MQTT_NG_MSGGEN_USER_ERROR;
+    uint64_t overhead = (uint64_t)topic_length + 5;
+    if(source->length > UINT64_C(268435455) - overhead) return MQTT_NG_MSGGEN_MSG_TOO_BIG;
+    uint32_t remaining = (uint32_t)(overhead + source->length);
+    unsigned char encoded[4];
+    int width = uint32_to_mqtt_vbi(remaining, encoded);
+    uint64_t total = UINT64_C(1) + (uint64_t)width + remaining;
+    size_t maximum = __atomic_load_n(&client->max_msg_size, __ATOMIC_RELAXED);
+    if(!width || (maximum && total > maximum)) return MQTT_NG_MSGGEN_MSG_TOO_BIG;
+    int rc = TRY_GENERATE_MESSAGE(mqtt_ng_generate_publish_impl, (char *)topic, NULL, NULL, NULL,
+        (size_t)source->length, publish_flags, packet_id, 0, topic_length, source);
+    if(rc == MQTT_NG_MSGGEN_OK) add_packet_to_timeout_monitor_list(client, *packet_id);
+    return rc;
+}
+
+bool mqtt_ng_payload_failed(const struct mqtt_ng_client *client) {
+    return __atomic_load_n(&client->payload_failed, __ATOMIC_RELAXED);
 }
 
 static int mqtt_ng_subscribe_size(struct mqtt_sub *subs, size_t sub_count, size_t *size)
@@ -2397,15 +2448,27 @@ static int send_fragment(struct mqtt_ng_client *client) {
     struct buffer_fragment *frag = client->main_buffer.sending_frag;
 
     // for readability
-    unsigned char *ptr = frag->data + frag->sent;
+    bool source_backed = frag->flags & BUFFER_FRAG_DATA_SOURCE;
+    unsigned char *ptr = source_backed ? NULL : frag->data + frag->sent;
     size_t bytes = frag->len - frag->sent;
+    if(source_backed && bytes) {
+        struct mqtt_payload_source *source = (struct mqtt_payload_source *)frag->data;
+        if(!frag->window_length || frag->sent < frag->window_offset || frag->sent - frag->window_offset >= frag->window_length) {
+            size_t count = MIN(bytes, source->window_size);
+            if(!source->read(source->context, frag->sent, source->window, count)) goto failed;
+            frag->window_offset = frag->sent;
+            frag->window_length = (uint32_t)count;
+        }
+        size_t offset = frag->sent - frag->window_offset;
+        ptr = source->window + offset;
+        bytes = frag->window_length - offset;
+    }
 
-    size_t processed = 0;
-
-    if (bytes)
-        processed = client->send_fnc_ptr(client->user_ctx, ptr, bytes);
+    ssize_t processed = 0;
+    if (bytes) processed = client->send_fnc_ptr(client->user_ctx, ptr, bytes);
     else
         nd_log(NDLS_DAEMON, NDLP_WARNING, "This fragment was fully sent already. This should not happen!");
+    if(processed < 0 || (size_t)processed > bytes) goto failed;
 
     // only a write that moved bytes is a transmission. Stamping every attempt, including the
     // zero-byte ones a full send buffer produces, would make this fragment read as "recently
@@ -2415,9 +2478,8 @@ static int send_fragment(struct mqtt_ng_client *client) {
     if (processed)
         frag->sent_monotonic_ut = now_monotonic_usec();
 
-    frag->sent += processed;
-    if (frag->sent != frag->len)
-        return -1;
+    frag->sent += (uint32_t)processed;
+    if (frag->sent != frag->len) return source_backed && (size_t)processed == bytes && bytes ? 0 : -1;
 
     if (frag->flags & BUFFER_FRAG_MQTT_PACKET_TAIL) {
         client->time_of_last_send = time(NULL);
@@ -2431,6 +2493,10 @@ static int send_fragment(struct mqtt_ng_client *client) {
     client->main_buffer.sending_frag = frag->next;
     
     return 0;
+failed:
+    __atomic_store_n(&client->payload_failed, true, __ATOMIC_RELAXED);
+    client->client_state = MQTT_STATE_ERROR;
+    return -2;
 }
 
 // attempt sending all fragments of current single MQTT packet
@@ -2440,11 +2506,13 @@ static int send_all_message_fragments(struct mqtt_ng_client *client) {
     return rc;
 }
 
-static void try_send_all(struct mqtt_ng_client *client) {
+static int try_send_all(struct mqtt_ng_client *client) {
+    int rc;
     do {
         if (client->main_buffer.sending_frag == NULL && mqtt_ng_next_to_send(client))
-            return;
-    } while(send_all_message_fragments(client) >= 0);
+            return 0;
+    } while((rc = send_all_message_fragments(client)) >= 0);
+    return rc == -2 ? MQTT_NG_CLIENT_INTERNAL_ERROR : 0;
 }
 
 int handle_incoming_traffic(struct mqtt_ng_client *client)
@@ -2482,7 +2550,7 @@ int handle_incoming_traffic(struct mqtt_ng_client *client)
 
             if ((prop = get_property_by_id(client->parser.properties_parser.head, MQTT_PROP_MAX_PKT_SIZE)) != NULL) {
                 nd_log(NDLS_DAEMON, NDLP_INFO, "ACLK: MQTT server limits message size to %" PRIu32, prop->data.uint32);
-                client->max_msg_size = prop->data.uint32;
+                __atomic_store_n(&client->max_msg_size, prop->data.uint32, __ATOMIC_RELAXED);
             }
 
             if ((prop = get_property_by_id(client->parser.properties_parser.head, MQTT_PROP_RECEIVE_MAX)) != NULL) {
@@ -2605,8 +2673,9 @@ int mqtt_ng_sync(struct mqtt_ng_client *client)
     worker_is_busy(WORKER_ACLK_TRY_SEND_ALL);
 
     LOCK_HDR_BUFFER(&client->main_buffer);
-    try_send_all(client);
+    int sent = try_send_all(client);
     UNLOCK_HDR_BUFFER(&client->main_buffer);
+    if(sent) return sent;
 
     int rc;
 
@@ -2618,8 +2687,9 @@ int mqtt_ng_sync(struct mqtt_ng_client *client)
             worker_is_busy(WORKER_ACLK_TRY_SEND_ALL);
 
             LOCK_HDR_BUFFER(&client->main_buffer);
-            try_send_all(client);
+            sent = try_send_all(client);
             UNLOCK_HDR_BUFFER(&client->main_buffer);
+            if(sent) return sent;
 
             worker_is_busy(WORKER_ACLK_HANDLE_INCOMING);
         }
@@ -3432,6 +3502,200 @@ static int mqtt_ng_unittest_packet_on_the_wire_is_never_dropped(void)
     return errors;
 }
 
+typedef struct {
+    struct mqtt_payload_source source;
+    unsigned char window[8192], prefix[64];
+    size_t prefix_length, read_calls, max_read;
+    uint64_t sent, limit, fail_at, view_bytes;
+    unsigned calls, releases;
+    bool refuse_view;
+    int errors;
+} MQTT_SOURCE_TEST;
+
+static unsigned char source_test_byte(uint64_t offset) {
+    return (unsigned char)((offset * 17 + offset / 256) % 251);
+}
+
+static bool source_test_read(void *context, uint64_t offset, void *bytes, size_t length) {
+    MQTT_SOURCE_TEST *test = context;
+    if(offset >= test->fail_at) return false;
+    test->read_calls++;
+    test->max_read = MAX(test->max_read, length);
+    for(size_t i = 0; i < length; i++) ((unsigned char *)bytes)[i] = source_test_byte(offset + i);
+    return true;
+}
+
+static bool source_test_view(void *context, uint64_t bytes) {
+    MQTT_SOURCE_TEST *test = context;
+    if(test->refuse_view) return false;
+    test->view_bytes = bytes;
+    return true;
+}
+
+static void source_test_release(void *context) {
+    MQTT_SOURCE_TEST *test = context;
+    test->releases++;
+    test->view_bytes = 0;
+}
+
+static ssize_t source_test_send(void *context, const void *bytes, size_t length) {
+    MQTT_SOURCE_TEST *test = context;
+    if(++test->calls % 7 == 0 || test->sent >= test->limit) return 0;
+    size_t accepted = (size_t)MIN(MIN((uint64_t)length, UINT64_C(997)), test->limit - test->sent);
+    for(size_t i = 0; i < accepted; i++) {
+        uint64_t offset = test->sent + i;
+        unsigned char expected = offset < test->prefix_length ? test->prefix[offset] : source_test_byte(offset - test->prefix_length);
+        if(((const unsigned char *)bytes)[i] != expected) test->errors++;
+    }
+    test->sent += accepted;
+    return (ssize_t)accepted;
+}
+
+static void source_test_prefix(MQTT_SOURCE_TEST *test, uint16_t packet_id, uint64_t length) {
+    size_t position = test->prefix_length;
+    test->prefix[position++] = 0x32;
+    uint64_t remaining = 12 + length;
+    do {
+        unsigned char byte = remaining & 127;
+        remaining >>= 7;
+        test->prefix[position++] = byte | (remaining ? 128 : 0);
+    } while(remaining);
+    test->prefix[position++] = 0; test->prefix[position++] = 7;
+    memcpy(test->prefix + position, "/source", 7); position += 7;
+    test->prefix[position++] = packet_id >> 8; test->prefix[position++] = packet_id & 255;
+    test->prefix[position++] = 0;
+    test->prefix_length = position;
+}
+
+static struct mqtt_ng_client *source_test_client(MQTT_SOURCE_TEST *test, rbuf_t *input, uint64_t length) {
+    *test = (MQTT_SOURCE_TEST){.limit = UINT64_MAX, .fail_at = UINT64_MAX};
+    test->source = (struct mqtt_payload_source){.context = test, .length = length, .window = test->window,
+        .window_size = sizeof(test->window), .read = source_test_read, .view = source_test_view, .release = source_test_release};
+    *input = rbuf_create(128, 128);
+    struct mqtt_ng_init settings = {.data_in = *input, .data_out_fnc = source_test_send, .user_ctx = test};
+    struct mqtt_ng_client *client = mqtt_ng_init(&settings);
+    client->client_state = MQTT_STATE_CONNECTED;
+    return client;
+}
+
+static int source_test_case(const char *name, uint64_t length, unsigned mode) {
+    MQTT_SOURCE_TEST test;
+    rbuf_t input;
+    struct mqtt_ng_client *client = source_test_client(&test, &input, length);
+    uint16_t packet_id = 0, predecessor = 0;
+    int errors = 0;
+    if(mode == 4) {
+        const char old[] = "old";
+        errors += mqtt_ng_publish(client, "/source", NULL, (void *)old, NULL, 3, 2, &predecessor) != MQTT_NG_MSGGEN_OK;
+        source_test_prefix(&test, predecessor, 3);
+        memcpy(test.prefix + test.prefix_length, old, 3); test.prefix_length += 3;
+    }
+    if(mode == 5) test.refuse_view = true;
+    int queued = mqtt_ng_publish_source(client, "/source", &test.source, 2, &packet_id);
+    errors += queued != (mode == 5 ? MQTT_NG_MSGGEN_BUFFER_OOM : MQTT_NG_MSGGEN_OK);
+    if(mode == 5) {
+        errors += test.releases || test.view_bytes || BUFFER_BYTES_USED(&client->main_buffer.hdr_buffer);
+        source_test_release(&test);
+    }
+    else {
+        source_test_prefix(&test, packet_id, length);
+        if(mode == 2 || mode == 4) test.limit = test.prefix_length + 500;
+        if(mode == 3) {
+            test.fail_at = sizeof(test.window);
+            uint16_t next_id;
+            char next = 'x';
+            errors += mqtt_ng_publish(client, "/next", NULL, &next, NULL, 1, 2, &next_id) != MQTT_NG_MSGGEN_OK;
+        }
+        int status = 0;
+        size_t attempts = 0;
+        uint64_t wanted = test.prefix_length + length;
+        while(!status && test.sent < MIN(wanted, test.limit) && attempts++ < 2000000) status = mqtt_ng_sync(client);
+        if(mode == 3) {
+            errors += status != MQTT_NG_CLIENT_INTERNAL_ERROR || !mqtt_ng_payload_failed(client) ||
+                test.sent != test.prefix_length + sizeof(test.window) || test.releases;
+            uint64_t held = test.sent;
+            errors += !mqtt_ng_sync(client) || test.sent != held;
+        }
+        else {
+            errors += status || test.sent != MIN(wanted, test.limit) || test.releases || !test.view_bytes;
+            if(mode == 4) {
+                size_t before = BUFFER_BYTES_USED(&client->main_buffer.hdr_buffer);
+                errors += mark_packet_acked(client, predecessor) != 0;
+                LOCK_HDR_BUFFER(&client->main_buffer);
+                transaction_buffer_garbage_collect(&client->main_buffer, true);
+                UNLOCK_HDR_BUFFER(&client->main_buffer);
+                errors += BUFFER_BYTES_USED(&client->main_buffer.hdr_buffer) >= before;
+                test.limit = UINT64_MAX;
+                while(!status && test.sent < wanted && attempts++ < 2000000) status = mqtt_ng_sync(client);
+                errors += status || test.sent != wanted;
+            }
+            if(mode == 2) {
+                __atomic_store_n(&client->max_msg_size, 19, __ATOMIC_RELAXED);
+                struct mqtt_auth_properties auth = {.client_id = "source-fixture"};
+                errors += mqtt_ng_connect(client, &auth, NULL, 60) != 0;
+                errors += __atomic_load_n(&client->max_msg_size, __ATOMIC_RELAXED) != 0 || test.releases != 1;
+            }
+            else if(mode == 1) {
+                for(struct buffer_fragment *frag = BUFFER_FIRST_FRAG(&client->main_buffer.hdr_buffer); frag; frag = frag->next)
+                    frag->sent_monotonic_ut = now_monotonic_usec() - (PACKET_ACK_TIMEOUT_SECS + 1) * USEC_PER_SEC;
+                errors += mark_packet_timed_out(client, packet_id) != 0 || test.releases != 1;
+            }
+            else errors += mark_packet_acked(client, packet_id) != 0 || test.releases != 1;
+        }
+        errors += test.max_read > sizeof(test.window) || !test.calls;
+        if(mode == 0 || mode == 4) errors += test.read_calls != (length + sizeof(test.window) - 1) / sizeof(test.window);
+    }
+    mqtt_ng_destroy(client); rbuf_free(input);
+    errors += test.releases != 1 || test.view_bytes || test.errors;
+    printf("{\"mqtt_source_case\":\"%s\",\"errors\":%d,\"bytes\":%"PRIu64",\"reads\":%zu,\"window\":%zu,\"releases\":%u}\n",
+           name, errors, test.sent, test.read_calls, test.max_read, test.releases);
+    return errors;
+}
+
+static int source_test_limits(void) {
+    const uint32_t remaining[] = {127, 128, 16383, 16384, 2097151, 2097152, 268435455};
+    int errors = 0;
+    for(size_t i = 0; i < sizeof(remaining) / sizeof(remaining[0]); i++) for(unsigned smaller = 0; smaller < 2; smaller++) {
+        MQTT_SOURCE_TEST test; rbuf_t input;
+        struct mqtt_ng_client *client = source_test_client(&test, &input, remaining[i] - 12);
+        unsigned width = remaining[i] < 128 ? 1 : remaining[i] < 16384 ? 2 : remaining[i] < 2097152 ? 3 : 4;
+        if(!smaller) errors += MQTT_VARSIZE_INT_BYTES(remaining[i]) != width;
+        size_t total = remaining[i] + width + 1;
+        __atomic_store_n(&client->max_msg_size, total - smaller, __ATOMIC_RELAXED);
+        uint16_t packet_id = 0;
+        int status = mqtt_ng_publish_source(client, "/source", &test.source, 2, &packet_id);
+        errors += status != (smaller ? MQTT_NG_MSGGEN_MSG_TOO_BIG : MQTT_NG_MSGGEN_OK);
+        errors += test.read_calls || test.releases || BUFFER_BYTES_USED(&client->main_buffer.hdr_buffer) > 512;
+        if(smaller) { errors += test.view_bytes || packet_id; source_test_release(&test); }
+        mqtt_ng_destroy(client); rbuf_free(input);
+        errors += test.releases != 1 || test.view_bytes;
+    }
+    MQTT_SOURCE_TEST test; rbuf_t input;
+    struct mqtt_ng_client *client = source_test_client(&test, &input, UINT64_MAX);
+    uint16_t packet_id = 0;
+    int alias_id = mqtt_ng_set_topic_alias(client, "/source");
+    errors += !alias_id || mqtt_ng_publish_source(client, "/source", &test.source, 2, &packet_id) != MQTT_NG_MSGGEN_MSG_TOO_BIG;
+    struct topic_alias_data *alias = NULL;
+    c_rhash_get_ptr_by_str(client->tx_topic_aliases.stoi_dict, "/source", (void **)&alias);
+    errors += !alias || __atomic_load_n(&alias->usage_count, __ATOMIC_RELAXED) || test.releases || packet_id;
+    source_test_release(&test);
+    mqtt_ng_destroy(client); rbuf_free(input);
+    printf("{\"mqtt_source_case\":\"wire-limits\",\"errors\":%d,\"boundaries\":7,\"releases\":%u}\n", errors, test.releases);
+    return errors;
+}
+
+int mqtt_ng_source_unittest(void) {
+    int errors = source_test_case("short-8193", 8193, 0);
+    errors += source_test_case("short-1000000", 1000000, 0);
+    errors += source_test_case("timeout-release", 16385, 1);
+    errors += source_test_case("reconnect-purge", 16385, 2);
+    errors += source_test_case("read-error-stops", 16385, 3);
+    errors += source_test_case("compact-partial", 16385, 4);
+    errors += source_test_case("view-refusal", 16385, 5);
+    errors += source_test_limits();
+    return errors;
+}
+
 int mqtt_ng_unittest(void)
 {
     int errors = 0;
@@ -3449,6 +3713,7 @@ int mqtt_ng_unittest(void)
     errors += mqtt_ng_unittest_recently_sent_packet_keeps_its_window();
     errors += mqtt_ng_unittest_timeout_starts_when_the_message_is_fully_sent();
     errors += mqtt_ng_unittest_packet_on_the_wire_is_never_dropped();
+    errors += mqtt_ng_source_unittest();
 
     if (errors)
         fprintf(stderr, "mqtt_ng unittest: %d ERROR(S)\n", errors);

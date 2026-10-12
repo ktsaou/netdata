@@ -14,6 +14,7 @@ The Netdata Agent REST API provides access to metrics, alerts, and configuration
 
 Explore the Agent API using:
 
+- **[PromQL API](promql/README.md)** - Query retained metrics with PromQL and discover series labels
 - **[Swagger UI](https://learn.netdata.cloud/api)** - Interactive API explorer
 - **[Swagger Editor](https://editor.swagger.io/?url=https://raw.githubusercontent.com/netdata/netdata/master/src/web/api/netdata-swagger.yaml)** - Edit and test API calls
 - **[OpenAPI Specification](https://raw.githubusercontent.com/netdata/netdata/master/src/web/api/netdata-swagger.yaml)** - Raw OpenAPI YAML

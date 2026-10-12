@@ -4,6 +4,7 @@
 #define NETDATA_RRDDISKPROTOCOL_H
 
 #include <stdint.h>
+#include <stdbool.h>
 
 #define RRDENG_BLOCK_SIZE (4096)
 #define RRDFILE_ALIGNMENT RRDENG_BLOCK_SIZE
@@ -43,7 +44,22 @@ struct rrdeng_df_sb {
 #define RRDENG_PAGE_TYPE_ARRAY_32BIT    (0)
 #define RRDENG_PAGE_TYPE_ARRAY_TIER1    (1)
 #define RRDENG_PAGE_TYPE_GORILLA_32BIT  (2)
-#define RRDENG_PAGE_TYPE_MAX            (2) // Maximum page type (inclusive)
+#define RRDENG_PAGE_TYPE_ARRAY_32BIT_COUNTER   (3)
+#define RRDENG_PAGE_TYPE_ARRAY_TIER1_COUNTER   (4)
+#define RRDENG_PAGE_TYPE_GORILLA_32BIT_COUNTER (5)
+#define RRDENG_PAGE_TYPE_MAX            (5) // Maximum page type (inclusive)
+
+static inline bool rrdeng_page_type_is_counter(uint8_t type) {
+    return type >= RRDENG_PAGE_TYPE_ARRAY_32BIT_COUNTER && type <= RRDENG_PAGE_TYPE_MAX;
+}
+
+static inline uint8_t rrdeng_page_type_base(uint8_t type) {
+    return rrdeng_page_type_is_counter(type) ? type - RRDENG_PAGE_TYPE_ARRAY_32BIT_COUNTER : type;
+}
+
+static inline uint32_t rrdeng_page_header_size(uint8_t type) {
+    return rrdeng_page_type_is_counter(type) ? sizeof(double) : 0;
+}
 
 /*
  * Data file page descriptor
@@ -60,9 +76,36 @@ struct rrdeng_extent_page_descr {
             uint32_t delta_time_s;
         } gorilla  __attribute__((packed));
 
+        struct {
+            uint32_t entries;
+            uint32_t update_every_s;
+        } counter __attribute__((packed));
+
         uint64_t end_time_ut;
     };
 } __attribute__ ((packed));
+
+static inline bool rrdeng_extent_page_end_time_s(const struct rrdeng_extent_page_descr *descr, uint64_t *end) {
+    uint64_t first = descr->start_time_ut / 1000000u;
+    if(rrdeng_page_type_is_counter(descr->type)) {
+        if(!descr->counter.entries || !descr->counter.update_every_s)
+            return false;
+        uint64_t delta = (uint64_t)(descr->counter.entries - 1) * descr->counter.update_every_s;
+        if(delta > UINT64_MAX - first)
+            return false;
+        *end = first + delta;
+        return true;
+    }
+    if(descr->type == RRDENG_PAGE_TYPE_GORILLA_32BIT) {
+        *end = first + descr->gorilla.delta_time_s;
+        return true;
+    }
+    if(descr->type == RRDENG_PAGE_TYPE_ARRAY_32BIT || descr->type == RRDENG_PAGE_TYPE_ARRAY_TIER1) {
+        *end = descr->end_time_ut / 1000000u;
+        return true;
+    }
+    return false;
+}
 
 /*
  * Data file extent header

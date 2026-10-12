@@ -165,6 +165,10 @@ int mqtt_wss_publish5(mqtt_wss_client client,
                       uint8_t publish_flags,
                       uint16_t *packet_id);
 
+/* Consumes source on every return, matching ordinary WSS publication ownership. QoS1 only. */
+int mqtt_wss_publish_source(mqtt_wss_client client, const char *topic, struct mqtt_payload_source *source,
+                             uint8_t publish_flags, uint16_t *packet_id);
+
 int mqtt_wss_set_topic_alias(mqtt_wss_client client, const char *topic);
 
 /* Subscribes to MQTT topic

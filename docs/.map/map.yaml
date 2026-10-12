@@ -1244,6 +1244,11 @@ sidebar:
           edit_url: https://github.com/netdata/netdata/edit/master/src/web/api/README.md
         items:
           - meta:
+              label: PromQL API
+              edit_url: https://github.com/netdata/netdata/edit/master/src/web/api/promql/README.md
+              description: Evaluate PromQL over Netdata's retained metrics and discover series labels on Agents and Parents.
+              keywords: [promql, query, prometheus, dbengine, labels, api]
+          - meta:
               label: Queries
               edit_url: https://github.com/netdata/netdata/edit/master/src/web/api/queries/README.md
             items:

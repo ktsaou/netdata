@@ -666,6 +666,8 @@ RRDHOST *rrdhost_create(
         nrpc_registry_init(&owner);
     }
 
+    // A published creator still owns initialization after releasing the index lock.
+    rw_spinlock_read_lock(&host->metadata_lifetime_lock);
     rrd_wrunlock();
 
     // ------------------------------------------------------------------------
@@ -711,11 +713,12 @@ RRDHOST *rrdhost_create(
         rrdhost_flag_set(host, RRDHOST_FLAG_METADATA_INFO | RRDHOST_FLAG_METADATA_UPDATE);
         if (is_localhost)
             store_host_info_and_metadata(host);
-        rrdhost_load_rrdcontext_data(host);
+        rrdhost_load_rrdcontext_data(host, false);
         ml_host_new(host);
     } else
         rrdhost_flag_set(host, RRDHOST_FLAG_PENDING_CONTEXT_LOAD | RRDHOST_FLAG_ARCHIVED | RRDHOST_FLAG_ORPHAN);
 
+    rw_spinlock_read_unlock(&host->metadata_lifetime_lock);
     return host;
 }
 
@@ -849,7 +852,7 @@ static void rrdhost_update(RRDHOST *host
 
         ml_host_new(host);
 
-        rrdhost_load_rrdcontext_data(host);
+        rrdhost_load_rrdcontext_data(host, true);
         nd_log(NDLS_DAEMON, NDLP_DEBUG,
                "Host %s is not in archived mode anymore",
                rrdhost_hostname(host));

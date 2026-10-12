@@ -36,16 +36,11 @@ inline STRING *rrdinstance_acquired_units_dup(RRDINSTANCE_ACQUIRED *ria) {
 }
 
 inline RRDLABELS *rrdinstance_labels(RRDINSTANCE *ri) {
-    if(ri->rrdset)
-        return ri->rrdset->rrdlabels;
-
-    if (rrd_flag_check_all(ri, RRD_FLAG_OWN_LABELS | RRD_FLAG_DEMAND_LABELS)) {
-        rrd_flag_clear(ri, RRD_FLAG_DEMAND_LABELS);
-        load_instance_labels_on_demand(uuidmap_uuid_ptr(ri->uuid), ri);
-        rrdinstance_trigger_updates(ri, __FUNCTION__ );
-    }
-
-    return ri->rrdlabels;
+    load_instance_labels_on_demand(ri, NULL, NULL);
+    rrdinstance_metadata_lock(ri);
+    RRDLABELS *labels = ri->rrdset ? ri->rrdset->rrdlabels : ri->rrdlabels;
+    rrdinstance_metadata_unlock(ri);
+    return labels;
 }
 
 inline RRDLABELS *rrdinstance_acquired_labels(RRDINSTANCE_ACQUIRED *ria) {
@@ -101,10 +96,17 @@ static void rrdinstance_free(RRDINSTANCE *ri) {
     ri->rrdlabels = NULL;
     ri->rrdmetrics = NULL;
     ri->rrdset = NULL;
+#ifdef SPINLOCK_IMPL_WITH_MUTEX
+    if(ri->metadata_lock_initialized) netdata_mutex_destroy(&ri->metadata_lock.inner);
+#endif
 }
 
 static void rrdinstance_insert_callback(const DICTIONARY_ITEM *item __maybe_unused, void *value, void *rrdcontext) {
     RRDINSTANCE *ri = value;
+
+    spinlock_init(&ri->metadata_lock);
+    ri->metadata_lock_initialized = true;
+    ri->metadata_generation = 1;
 
     // link it to its parent
     ri->rc = rrdcontext;
@@ -152,6 +154,8 @@ static bool rrdinstance_conflict_callback(const DICTIONARY_ITEM *item __maybe_un
     RRDINSTANCE *ri     = (RRDINSTANCE *)old_value;
     RRDINSTANCE *ri_new = (RRDINSTANCE *)new_value;
 
+    rrdinstance_metadata_lock(ri);
+
     internal_error(ri->id != ri_new->id,
                    "RRDINSTANCE: '%s' cannot change id to '%s'",
                    string2str(ri->id), string2str(ri_new->id));
@@ -162,10 +166,11 @@ static bool rrdinstance_conflict_callback(const DICTIONARY_ITEM *item __maybe_un
         uuid_unparse(*uuidmap_uuid_ptr(ri->uuid), uuid1);
         uuid_unparse(*uuidmap_uuid_ptr(ri_new->uuid), uuid2);
         internal_error(true, "RRDINSTANCE: '%s' of host '%s' changed UUID from '%s' to '%s'",
-                       string2str(ri->id), rrdhost_hostname(ri->rc->rrdhost), uuid1, uuid2);
+                       string2str(ri->id), ri->rc->rrdhost->machine_guid, uuid1, uuid2);
 #endif
 
         SWAP(ri->uuid, ri_new->uuid);
+        if(!ri->rrdset) rrd_flag_set(ri, RRD_FLAG_DEMAND_LABELS);
         rrd_flag_set_updated(ri, RRD_FLAG_UPDATE_REASON_CHANGED_METADATA);
     }
 
@@ -212,6 +217,7 @@ static bool rrdinstance_conflict_callback(const DICTIONARY_ITEM *item __maybe_un
     if(ri->rrdset) {
         // our labels are not needed any more
         rrdlabels_flush(ri->rrdlabels);
+        rrd_flag_clear(ri, RRD_FLAG_OWN_LABELS | RRD_FLAG_DEMAND_LABELS);
 
         if(unlikely(rrdset_flag_check(ri->rrdset, RRDSET_FLAG_HIDDEN)))
             rrd_flag_set(ri, RRD_FLAG_HIDDEN);
@@ -226,6 +232,9 @@ static bool rrdinstance_conflict_callback(const DICTIONARY_ITEM *item __maybe_un
 
     if(rrd_flag_is_updated(ri))
         rrd_flag_set(ri, RRD_FLAG_UPDATE_REASON_UPDATED_OBJECT);
+
+    rrdinstance_metadata_changed(ri);
+    rrdinstance_metadata_unlock(ri);
 
     // free the new one
     rrdinstance_free(ri_new);
@@ -260,6 +269,7 @@ void rrdinstances_destroy_from_rrdcontext(RRDCONTEXT *rc) {
 }
 
 void rrdinstance_trigger_updates(RRDINSTANCE *ri, const char *function) {
+    rrdinstance_metadata_lock(ri);
     RRDSET *st = ri->rrdset;
 
     if(st != NULL) {
@@ -269,6 +279,7 @@ void rrdinstance_trigger_updates(RRDINSTANCE *ri, const char *function) {
         }
         if(unlikely(st->update_every != ri->update_every_s)) {
             ri->update_every_s = st->update_every;
+            rrdinstance_metadata_changed(ri);
             rrd_flag_set_updated(ri, RRD_FLAG_UPDATE_REASON_CHANGED_METADATA);
         }
     }
@@ -278,6 +289,7 @@ void rrdinstance_trigger_updates(RRDINSTANCE *ri, const char *function) {
         rrdinstance_set_archived(ri);
         rrd_flag_set_updated(ri, RRD_FLAG_UPDATE_REASON_CHANGED_LINKING);
     }
+    rrdinstance_metadata_unlock(ri);
 
     if(rrd_flag_is_updated(ri) || !rrd_flag_check(ri, RRD_FLAG_LIVE_RETENTION)) {
         rrd_flag_set_updated(ri->rc, RRD_FLAG_UPDATE_REASON_TRIGGERED);
@@ -369,10 +381,13 @@ inline void rrdinstance_from_rrdset(RRDSET *st) {
                     if (!rd->rrdcontexts.rrdmetric) continue;
 
                     RRDMETRIC *rm_old = rrdmetric_acquired_value(rd->rrdcontexts.rrdmetric);
+                    rrdinstance_metadata_lock(ri_old);
                     rrdmetric_set_deleted_overwrite(rm_old, RRD_FLAG_UPDATED|RRD_FLAG_LIVE_RETENTION|RRD_FLAG_UPDATE_REASON_UNUSED|RRD_FLAG_UPDATE_REASON_ZERO_RETENTION);
                     rrdmetric_rrddim_atomic_store(rm_old, NULL);
                     rm_old->first_time_s = 0;
                     rm_old->last_time_s = 0;
+                    rrdinstance_metadata_changed(ri_old);
+                    rrdinstance_metadata_unlock(ri_old);
 
                     rrdmetric_release(rd->rrdcontexts.rrdmetric);
                     rd->rrdcontexts.rrdmetric = NULL;
@@ -382,13 +397,17 @@ inline void rrdinstance_from_rrdset(RRDSET *st) {
         rrddim_foreach_done(rd);
 
         // mark the old instance, ready to be deleted
+        rrdinstance_metadata_lock(ri_old);
         if(!rrd_flag_check(ri_old, RRD_FLAG_OWN_LABELS))
-            ri_old->rrdlabels = rrdlabels_create();
+            rrdlabels_flush(ri_old->rrdlabels);
 
         rrdinstance_set_deleted_overwrite(ri_old, RRD_FLAG_UPDATED|RRD_FLAG_OWN_LABELS|RRD_FLAG_LIVE_RETENTION|RRD_FLAG_UPDATE_REASON_UNUSED|RRD_FLAG_UPDATE_REASON_ZERO_RETENTION);
         ri_old->rrdset = NULL;
         ri_old->first_time_s = 0;
         ri_old->last_time_s = 0;
+        rrd_flag_clear(ri_old, RRD_FLAG_DEMAND_LABELS);
+        rrdinstance_metadata_changed(ri_old);
+        rrdinstance_metadata_unlock(ri_old);
 
         rrdinstance_trigger_updates(ri_old, __FUNCTION__ );
         rrdinstance_release(ria_old);
@@ -451,12 +470,16 @@ inline void rrdinstance_rrdset_is_freed(RRDSET *st) {
     RRDINSTANCE *ri = rrdset_get_rrdinstance(st);
     if(unlikely(!ri)) return;
 
+    rrdinstance_metadata_lock(ri);
     rrdinstance_set_archived(ri);
 
     SWAP(ri->rrdlabels, st->rrdlabels);
     rrd_flag_set(ri, RRD_FLAG_OWN_LABELS);
+    rrd_flag_clear(ri, RRD_FLAG_DEMAND_LABELS);
 
     ri->rrdset = NULL;
+    rrdinstance_metadata_changed(ri);
+    rrdinstance_metadata_unlock(ri);
 
     rrdinstance_trigger_updates(ri, __FUNCTION__ );
 
@@ -486,14 +509,19 @@ inline void rrdinstance_updated_rrdset_name(RRDSET *st) {
     RRDINSTANCE *ri = rrdset_get_rrdinstance(st);
     if(unlikely(!ri)) return;
 
+    rrdinstance_metadata_lock(ri);
+    bool changed = false;
     if(st->name != ri->name) {
         STRING *old = ri->name;
         ri->name = string_dup(st->name);
         string_freez(old);
 
         rrd_flag_set_updated(ri, RRD_FLAG_UPDATE_REASON_CHANGED_METADATA);
-        rrdinstance_trigger_updates(ri, __FUNCTION__ );
+        rrdinstance_metadata_changed(ri);
+        changed = true;
     }
+    rrdinstance_metadata_unlock(ri);
+    if(changed) rrdinstance_trigger_updates(ri, __FUNCTION__ );
 }
 
 inline void rrdinstance_updated_rrdset_flags_no_action(RRDINSTANCE *ri, RRDSET *st) {

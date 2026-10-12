@@ -116,6 +116,8 @@ static bool rrdmetric_conflict_callback(const DICTIONARY_ITEM *item __maybe_unus
     RRDMETRIC *rm_new = new_value;
     rm_new->ri = rm->ri;
 
+    rrdinstance_metadata_lock(rm->ri);
+
     internal_error(rm->id != rm_new->id,
                    "RRDMETRIC: '%s' cannot change id to '%s'",
                    string2str(rm->id), string2str(rm_new->id));
@@ -126,25 +128,16 @@ static bool rrdmetric_conflict_callback(const DICTIONARY_ITEM *item __maybe_unus
         uuid_unparse(*uuidmap_uuid_ptr(rm->uuid), uuid1);
         uuid_unparse(*uuidmap_uuid_ptr(rm_new->uuid), uuid2);
 
-        time_t old_first_time_s = 0;
-        time_t old_last_time_s = 0;
-        if(rrdmetric_update_retention(rm)) {
-            old_first_time_s = rm->first_time_s;
-            old_last_time_s = rm->last_time_s;
-        }
-
-        time_t new_first_time_s = 0;
-        time_t new_last_time_s = 0;
-        if(rrdmetric_update_retention(rm_new)) {
-            new_first_time_s = rm_new->first_time_s;
-            new_last_time_s = rm_new->last_time_s;
-        }
+        time_t old_first_time_s = rm->first_time_s;
+        time_t old_last_time_s = rm->last_time_s;
+        time_t new_first_time_s = rm_new->first_time_s;
+        time_t new_last_time_s = rm_new->last_time_s;
 
         internal_error(true,
                        "RRDMETRIC: '%s' of instance '%s' of host '%s' changed UUID from '%s' (retention %" PRId64 " to %" PRId64 ", %" PRId64 " secs) to '%s' (retention %" PRId64 " to %" PRId64 ", %" PRId64 " secs)"
                        , string2str(rm->id)
                        , string2str(rm->ri->id)
-                       , rrdhost_hostname(rm->ri->rc->rrdhost)
+                       , rm->ri->rc->rrdhost->machine_guid
                        , uuid1, (int64_t)old_first_time_s, (int64_t)old_last_time_s, (int64_t)(old_last_time_s - old_first_time_s)
                        , uuid2, (int64_t)new_first_time_s, (int64_t)new_last_time_s, (int64_t)(new_last_time_s - new_first_time_s)
                        );
@@ -192,6 +185,9 @@ static bool rrdmetric_conflict_callback(const DICTIONARY_ITEM *item __maybe_unus
 
     if(rrd_flag_check(rm, RRD_FLAG_UPDATED))
         rrd_flag_set(rm, RRD_FLAG_UPDATE_REASON_UPDATED_OBJECT);
+
+    rrdinstance_metadata_changed(rm->ri);
+    rrdinstance_metadata_unlock(rm->ri);
 
     rrdmetric_free(rm_new);
 
@@ -308,7 +304,10 @@ inline void rrdmetric_rrddim_is_freed(RRDDIM *rd) {
     if(unlikely(rrd_flag_is_collected(rm)))
         rrdmetric_set_archived(rm);
 
+    rrdinstance_metadata_lock(rm->ri);
     rrdmetric_rrddim_atomic_store(rm, NULL);
+    rrdinstance_metadata_changed(rm->ri);
+    rrdinstance_metadata_unlock(rm->ri);
     rrdmetric_trigger_updates(rm, __FUNCTION__ );
     rrdmetric_release(rd->rrdcontexts.rrdmetric);
     rd->rrdcontexts.rrdmetric = NULL;
@@ -335,10 +334,13 @@ inline void rrdmetric_updated_rrddim_algorithm(RRDDIM *rd) {
     RRDMETRIC *rm = rrddim_get_rrdmetric(rd);
     if(unlikely(!rm)) return;
 
+    rrdinstance_metadata_lock(rm->ri);
     if(rrdmetric_algorithm_atomic_load(rm) != rd->algorithm) {
         rrdmetric_algorithm_atomic_store(rm, rd->algorithm);
         rrd_flag_set_updated(rm, RRD_FLAG_UPDATE_REASON_CHANGED_METADATA);
+        rrdinstance_metadata_changed(rm->ri);
     }
+    rrdinstance_metadata_unlock(rm->ri);
 
     rrdmetric_trigger_updates(rm, __FUNCTION__ );
 }

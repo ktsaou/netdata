@@ -9,6 +9,9 @@ struct extent_page_details_list {
     Pvoid_t page_details_by_metric_id_JudyL;
     struct page_details_control *pdc;
     struct rrdengine_datafile *datafile;
+    struct page_details *demand_page;
+    size_t scratch_bytes;
+    size_t borrowed_bytes;
 
     struct rrdeng_cmd *cmd;
     EPDL_EXTENT *extent_base; // the extent this epdl is merged onto - resolved once by epdl_pending_add()
@@ -19,6 +22,8 @@ struct extent_page_details_list {
         struct extent_page_details_list *next;
     } query;
 };
+
+static void epdl_read_error(EPDL *epdl, RRDENG_READ_ERROR_CODE code, int system_errno);
 
 typedef struct datafile_extent_offset_list {
     uv_file file;
@@ -71,7 +76,9 @@ ALWAYS_INLINE PDC *pdc_get(void) {
 }
 
 static ALWAYS_INLINE void pdc_release(PDC *pdc) {
+    RRDENG_READ_LEASE allocation = pdc->allocation;
     aral_freez(pdc_globals.pdc.ar, pdc);
+    rrdeng_read_lease_release(&allocation);
 }
 
 struct aral_statistics *pdc_aral_stats(void) {
@@ -100,7 +107,16 @@ ALWAYS_INLINE struct page_details *page_details_get(void) {
 }
 
 static ALWAYS_INLINE void page_details_release(struct page_details *pd) {
+    RRDENG_READ_LEASE allocation = pd->allocation;
+    if(pd->private_page)
+        pgd_free(pd->private_page);
+    rrdeng_read_lease_release(&pd->private_allocation);
+    rrdeng_read_lease_release(&pd->scratch_allocation);
+    rrdeng_read_lease_release(&pd->borrowed_allocation);
+    rrdeng_read_lease_release(&pd->router_allocation);
+    rrdeng_read_lease_release(&pd->extent_allocation);
     aral_freez(pdc_globals.pd.ar, pd);
+    rrdeng_read_lease_release(&allocation);
 }
 
 struct aral_statistics *pd_aral_stats(void) {
@@ -257,7 +273,8 @@ void extent_buffer_cleanup1(void) {
     }
 }
 
-ALWAYS_INLINE struct extent_buffer *extent_buffer_get(size_t size) {
+static struct extent_buffer *extent_buffer_get_accounted(size_t size, RRDENG_READ_LEASE *borrowed,
+                                                        size_t other_bytes) {
     internal_fatal(size > extent_buffer_globals.max_size, "DBENGINE: extent size is too big");
 
     struct extent_buffer *eb = NULL;
@@ -283,13 +300,23 @@ ALWAYS_INLINE struct extent_buffer *extent_buffer_get(size_t size) {
 
     if(unlikely(!eb)) {
         size_t bytes = sizeof(struct extent_buffer) + size;
+        if(borrowed && !rrdeng_read_lease_resize(borrowed, other_bytes + bytes))
+            return NULL;
         eb = mallocz(bytes);
         eb->bytes = size;
         __atomic_add_fetch(&extent_buffer_globals.atomics.allocated, 1, __ATOMIC_RELAXED);
         __atomic_add_fetch(&extent_buffer_globals.atomics.allocated_bytes, bytes, __ATOMIC_RELAXED);
     }
+    else if(borrowed && !rrdeng_read_lease_resize(borrowed, other_bytes + sizeof(*eb) + eb->bytes)) {
+        extent_buffer_release(eb);
+        return NULL;
+    }
 
     return eb;
+}
+
+ALWAYS_INLINE struct extent_buffer *extent_buffer_get(size_t size) {
+    return extent_buffer_get_accounted(size, NULL, 0);
 }
 
 ALWAYS_INLINE void extent_buffer_release(struct extent_buffer *eb) {
@@ -310,6 +337,7 @@ size_t extent_buffer_cache_size(void) {
 
 static ALWAYS_INLINE void epdl_destroy(EPDL *epdl)
 {
+    struct page_details *demand_page = epdl->demand_page;
     Pvoid_t *pd_by_start_time_s_JudyL;
     Word_t metric_id_index = 0;
     bool metric_id_first = true;
@@ -320,11 +348,32 @@ static ALWAYS_INLINE void epdl_destroy(EPDL *epdl)
 
     PDCJudyLFreeArray(&epdl->page_details_by_metric_id_JudyL, PJE0);
     epdl_release(epdl);
+    if(demand_page) {
+        rrdeng_read_lease_resize(&demand_page->scratch_allocation, 0);
+        rrdeng_read_lease_resize(&demand_page->borrowed_allocation, 0);
+    }
 }
 
 static ALWAYS_INLINE void epdl_mark_all_not_loaded_pages_as_failed(EPDL *epdl, PDC_PAGE_STATUS tags, size_t *statistics_counter)
 {
     size_t pages_matched = 0;
+
+    if(epdl->demand_page) {
+        struct page_details *pd = epdl->demand_page;
+        if(!pdc_page_status_check(pd, PDC_PAGE_READY | PDC_PAGE_FAILED)) {
+            if(!pd->error.code)
+                pd->error = (RRDENG_READ_ERROR){
+                    .code = (tags & PDC_PAGE_CANCELLED) ? RRDENG_READ_CANCELLED :
+                            (tags & PDC_PAGE_FAILED_TO_MAP_EXTENT) ? RRDENG_READ_IO : RRDENG_READ_EXTENT,
+                    .system_errno = (tags & PDC_PAGE_FAILED_TO_MAP_EXTENT) ? errno : 0,
+                    .file = epdl->datafile->fileno, .block = epdl->extent_block,
+                };
+            pdc_page_status_set(pd, PDC_PAGE_FAILED | tags);
+            if(statistics_counter)
+                __atomic_add_fetch(statistics_counter, 1, __ATOMIC_RELAXED);
+        }
+        return;
+    }
 
     Word_t metric_id_index = 0;
     bool metric_id_first = true;
@@ -388,12 +437,35 @@ static bool epdl_check_if_pages_are_already_in_cache(struct rrdengine_instance *
 // ----------------------------------------------------------------------------
 // PDC logic
 
+static void pdc_cleanup_page(struct page_details *pd) {
+    if(pd->status & PDC_PAGE_DATAFILE_ACQUIRED)
+        datafile_release(pd->datafile.ptr, DATAFILE_ACQUIRE_PAGE_DETAILS);
+    if(pd->page && !(pd->status & PDC_PAGE_RELEASED))
+        pgc_page_release(main_cache, pd->page);
+    page_details_release(pd);
+}
+
+void pdc_demand_release_page(PDC *pdc) {
+    if(pdc->demand_page) {
+        pdc_cleanup_page(pdc->demand_page);
+        pdc->demand_page = NULL;
+    }
+}
+
+bool pdc_demand_drained(PDC *pdc) {
+    spinlock_lock(&pdc->refcount_spinlock);
+    bool drained = pdc->refcount == 1;
+    spinlock_unlock(&pdc->refcount_spinlock);
+    return drained;
+}
+
 static ALWAYS_INLINE void pdc_destroy(PDC *pdc) {
     if(pdc->metric)
         mrg_metric_release(main_mrg, pdc->metric);
 
     completion_destroy(&pdc->prep_completion);
     completion_destroy(&pdc->page_completion);
+    pdc_demand_release_page(pdc);
 
     Pvoid_t *PValue;
     struct page_details *pd;
@@ -439,6 +511,83 @@ static ALWAYS_INLINE void pdc_destroy(PDC *pdc) {
 
     if(cancelled)
         __atomic_add_fetch(&rrdeng_cache_efficiency_stats.pages_load_fail_cancelled, cancelled, __ATOMIC_RELAXED);
+}
+
+PDC *pdc_create(METRIC *metric, time_t start, time_t end, STORAGE_PRIORITY priority,
+                const RRDENG_READ_OPERATION *operation, RRDENG_READ_ERROR *error) {
+    RRDENG_READ_LEASE allocation;
+    if(!rrdeng_read_lease_acquire(operation, RRDENG_READ_MEMORY_WORKSPACE,
+                                 aral_actual_element_size(pdc_globals.pdc.ar), &allocation)) {
+        if(error) error->code = RRDENG_READ_ACCOUNTING;
+        return NULL;
+    }
+    PDC *pdc = pdc_get();
+    pdc->allocation = allocation;
+    pdc->ctx = (struct rrdengine_instance *)mrg_metric_section(main_mrg, metric);
+    pdc->refcount = 1;
+    spinlock_init(&pdc->refcount_spinlock);
+    completion_init(&pdc->prep_completion);
+    completion_init(&pdc->page_completion);
+    pdc->start_time_s = start;
+    pdc->end_time_s = end;
+    pdc->optimal_end_time_s = end;
+    pdc->priority = priority;
+    __atomic_add_fetch(&pdc->ctx->atomic.inflight_queries, 1, __ATOMIC_RELAXED);
+    __atomic_add_fetch(&rrdeng_cache_efficiency_stats.currently_running_queries, 1, __ATOMIC_RELAXED);
+    pdc->metric = mrg_metric_dup(main_mrg, metric);
+    if(!pdc->metric) {
+        if(error) error->code = RRDENG_READ_EXPIRED;
+        pdc_destroy(pdc);
+        return NULL;
+    }
+    return pdc;
+}
+
+bool pdc_demand_page(PDC *pdc, const RRDENG_READ_OPERATION *operation) {
+    RRDENG_READ_LEASE allocation, scratch, private_allocation, borrowed, router, extent;
+    if(!rrdeng_read_lease_acquire(operation, RRDENG_READ_MEMORY_WORKSPACE,
+                                 aral_actual_element_size(pdc_globals.pd.ar), &allocation))
+        return false;
+    if(!rrdeng_read_lease_acquire(operation, RRDENG_READ_MEMORY_WORKSPACE, 0, &scratch)) {
+        rrdeng_read_lease_release(&allocation);
+        return false;
+    }
+    if(!rrdeng_read_lease_acquire(operation, RRDENG_READ_MEMORY_PAGE, 0, &private_allocation)) {
+        rrdeng_read_lease_release(&scratch);
+        rrdeng_read_lease_release(&allocation);
+        return false;
+    }
+    if(!rrdeng_read_lease_acquire(operation, RRDENG_READ_MEMORY_BORROWED, 0, &borrowed)) {
+        rrdeng_read_lease_release(&private_allocation);
+        rrdeng_read_lease_release(&scratch);
+        rrdeng_read_lease_release(&allocation);
+        return false;
+    }
+    if(!rrdeng_read_lease_acquire(operation, RRDENG_READ_MEMORY_WORKSPACE, 0, &router)) {
+        rrdeng_read_lease_release(&borrowed);
+        rrdeng_read_lease_release(&private_allocation);
+        rrdeng_read_lease_release(&scratch);
+        rrdeng_read_lease_release(&allocation);
+        return false;
+    }
+    if(!rrdeng_read_lease_acquire(operation, RRDENG_READ_MEMORY_WORKSPACE, 0, &extent)) {
+        rrdeng_read_lease_release(&router);
+        rrdeng_read_lease_release(&borrowed);
+        rrdeng_read_lease_release(&private_allocation);
+        rrdeng_read_lease_release(&scratch);
+        rrdeng_read_lease_release(&allocation);
+        return false;
+    }
+    pdc->demand_page = page_details_get();
+    pdc->demand_page->demand = true;
+    pdc->demand_page->allocation = allocation;
+    pdc->demand_page->scratch_allocation = scratch;
+    pdc->demand_page->private_allocation = private_allocation;
+    pdc->demand_page->borrowed_allocation = borrowed;
+    pdc->demand_page->router_allocation = router;
+    pdc->demand_page->extent_allocation = extent;
+    completion_reset(&pdc->page_completion);
+    return true;
 }
 
 ALWAYS_INLINE void pdc_acquire(PDC *pdc) {
@@ -488,6 +637,16 @@ ALWAYS_INLINE void epdl_cmd_queued(void *epdl_ptr, struct rrdeng_cmd *cmd) {
 ALWAYS_INLINE void epdl_cmd_dequeued(void *epdl_ptr) {
     EPDL *epdl = epdl_ptr;
     epdl->cmd = NULL;
+}
+
+RRDENG_READ_LEASE *epdl_dispatch_allocation(EPDL *epdl) {
+    return epdl->demand_page ? &epdl->demand_page->extent_allocation : NULL;
+}
+
+void epdl_dispatch_failed(EPDL *epdl, RRDENG_READ_ERROR_CODE code) {
+    epdl_read_error(epdl, code, 0);
+    __atomic_store_n(&epdl->pdc->workers_should_stop, true, __ATOMIC_RELAXED);
+    epdl_find_extent_and_populate_pages(epdl->pdc->ctx, epdl, false);
 }
 
 static ALWAYS_INLINE struct rrdeng_cmd *epdl_get_cmd(void *epdl_ptr) {
@@ -585,6 +744,8 @@ static ALWAYS_INLINE void epdl_pending_del(EPDL *epdl) {
 // onto the extent after the check would have its pages marked as cancelled by the cleanup of
 // epdl_find_extent_and_populate_pages(), although its pdc is still alive.
 static bool epdl_pending_del_if_all_should_stop(EPDL *epdl) {
+    if(epdl->demand_page)
+        return __atomic_load_n(&epdl->pdc->workers_should_stop, __ATOMIC_RELAXED);
     EPDL_EXTENT *e = epdl->extent_base;
 
     spinlock_lock(&e->spinlock);
@@ -609,8 +770,74 @@ static bool epdl_pending_del_if_all_should_stop(EPDL *epdl) {
     return should_stop;
 }
 
+static void epdl_read_error(EPDL *epdl, RRDENG_READ_ERROR_CODE code, int system_errno) {
+    for(EPDL *ep = epdl; ep; ep = ep->query.next) {
+        struct page_details *pd = ep->demand_page;
+        if(pd && !pd->error.code)
+            pd->error = (RRDENG_READ_ERROR){
+                .code = code, .system_errno = system_errno,
+                .file = ep->datafile->fileno, .block = ep->extent_block,
+            };
+    }
+}
+
+static bool epdl_scratch_resize(EPDL *epdl, size_t bytes) {
+    bool needed = false;
+    for(EPDL *ep = epdl; ep; ep = ep->query.next) {
+        ep->scratch_bytes = bytes;
+        struct page_details *pd = ep->demand_page;
+        if(!pd) needed = true;
+        else if(!pdc_page_status_check(pd, PDC_PAGE_FAILED)) {
+            if(rrdeng_read_lease_resize(&pd->scratch_allocation, aral_actual_element_size(pdc_globals.epdl.ar) + bytes))
+                needed = true;
+            else {
+                if(!pd->error.code) pd->error.code = RRDENG_READ_ACCOUNTING;
+                pdc_page_status_set(pd, PDC_PAGE_FAILED);
+            }
+        }
+    }
+    return needed;
+}
+
+static bool epdl_borrowed_resize(EPDL *epdl, size_t bytes) {
+    struct page_details *pd = epdl->demand_page;
+    epdl->borrowed_bytes = bytes;
+    if(!pd)
+        return true;
+    if(rrdeng_read_lease_resize(&pd->borrowed_allocation, bytes))
+        return true;
+    if(!pd->error.code) pd->error.code = RRDENG_READ_ACCOUNTING;
+    pdc_page_status_set(pd, PDC_PAGE_FAILED);
+    return false;
+}
+
+static void epdl_page_read_error(struct page_details *pd_list, RRDENG_READ_ERROR error) {
+    for(struct page_details *pd = pd_list; pd; pd = pd->load.next)
+        if(!pd->error.code) pd->error = error;
+}
+
 ALWAYS_INLINE_HOT void pdc_to_epdl_router(struct rrdengine_instance *ctx, PDC *pdc, execute_extent_page_details_list_t exec_first_extent_list, execute_extent_page_details_list_t exec_rest_extent_list)
 {
+    if(pdc->demand_page) {
+        struct page_details *pd = pdc->demand_page;
+        if(!rrdeng_read_lease_resize(&pd->scratch_allocation, aral_actual_element_size(pdc_globals.epdl.ar))) {
+            pd->error.code = RRDENG_READ_ACCOUNTING;
+            pdc_page_status_set(pd, PDC_PAGE_FAILED);
+            pdc_release_and_destroy_if_unreferenced(pdc, true, true);
+            return;
+        }
+        EPDL *single = epdl_get();
+        single->pdc = pdc;
+        single->demand_page = pd;
+        single->extent_block = pd->datafile.block;
+        single->extent_size = pd->datafile.bytes;
+        single->datafile = pd->datafile.ptr;
+        pdc_acquire(pdc);
+        // Each demand owns its worker scratch; completed payloads still use the shared caches.
+        exec_first_extent_list(ctx, single, pdc->priority);
+        pdc_release_and_destroy_if_unreferenced(pdc, true, true);
+        return;
+    }
     Pvoid_t *PValue;
     Pvoid_t *PValue1;
     Pvoid_t *PValue2;
@@ -742,12 +969,31 @@ void collect_page_flags_to_buffer(BUFFER *wb, RRDENG_COLLECT_PAGE_FLAGS flags) {
 }
 
 ALWAYS_INLINE VALIDATED_PAGE_DESCRIPTOR validate_extent_page_descr(const struct rrdeng_extent_page_descr *descr, time_t now_s, uint32_t overwrite_zero_update_every_s, bool have_read_error) {
+    if(rrdeng_page_type_is_counter(descr->type)) {
+        uint64_t last;
+        uint64_t first = descr->start_time_ut / USEC_PER_SEC;
+        size_t header = rrdeng_page_header_size(descr->type);
+        size_t stride = page_type_size[descr->type];
+        bool array = rrdeng_page_type_base(descr->type) != RRDENG_PAGE_TYPE_GORILLA_32BIT;
+        if(!rrdeng_extent_page_end_time_s(descr, &last) || (time_t)first < 0 ||
+           (uint64_t)(time_t)first != first || (time_t)last < 0 || (uint64_t)(time_t)last != last ||
+           descr->page_length < header ||
+           (array && ((descr->page_length - header) % stride ||
+                      (descr->page_length - header) / stride != descr->counter.entries)))
+            return (VALIDATED_PAGE_DESCRIPTOR){ .type = descr->type, .is_valid = false };
+        VALIDATED_PAGE_DESCRIPTOR vd = validate_page((nd_uuid_t *)descr->uuid, first, last,
+            descr->counter.update_every_s, descr->page_length, descr->type, descr->counter.entries,
+            now_s, descr->counter.update_every_s, have_read_error, "loaded", 0);
+        vd.is_valid &= vd.start_time_s == (time_t)first && vd.end_time_s == (time_t)last &&
+                       vd.update_every_s == descr->counter.update_every_s && vd.entries == descr->counter.entries;
+        return vd;
+    }
     time_t start_time_s = (time_t) (descr->start_time_ut / USEC_PER_SEC);
 
     time_t end_time_s = 0;
     size_t entries = 0;
 
-    switch (descr->type) {
+    switch (rrdeng_page_type_base(descr->type)) {
         case RRDENG_PAGE_TYPE_ARRAY_32BIT:
         case RRDENG_PAGE_TYPE_ARRAY_TIER1:
             end_time_s = descr->end_time_ut / USEC_PER_SEC;
@@ -880,24 +1126,29 @@ VALIDATED_PAGE_DESCRIPTOR validate_page(
             .end_time_s = end_time_s,
             .update_every_s = update_every_s,
             .page_length = page_length,
-            .point_size = page_type_size[page_type],
+            .point_size = page_type <= RRDENG_PAGE_TYPE_MAX ? page_type_size[page_type] : 0,
             .type = page_type,
             .is_valid = true,
     };
 
-    bool known_page_type = true;
-    switch (page_type) {
+    bool known_page_type = page_type <= RRDENG_PAGE_TYPE_MAX;
+    size_t header = rrdeng_page_header_size(page_type);
+    bool invalid_layout = !known_page_type || page_length < header;
+    size_t payload = invalid_layout ? 0 : page_length - header;
+    switch (rrdeng_page_type_base(page_type)) {
         case RRDENG_PAGE_TYPE_ARRAY_32BIT:
         case RRDENG_PAGE_TYPE_ARRAY_TIER1:
             // always calculate entries by size
-            vd.entries = page_entries_by_size(vd.page_length, vd.point_size);
+            vd.entries = page_entries_by_size(payload, vd.point_size);
+            if(rrdeng_page_type_is_counter(page_type))
+                invalid_layout |= !vd.entries || payload % vd.point_size;
 
             // allow to be called without entries (when loading pages from disk)
             if(!entries)
                 entries = vd.entries;
             break;
         case RRDENG_PAGE_TYPE_GORILLA_32BIT:
-            internal_fatal(entries == 0, "0 number of entries found on gorilla page");
+            invalid_layout |= !entries || payload % RRDENG_GORILLA_32BIT_BUFFER_SIZE;
             vd.entries = entries;
             break;
         default:
@@ -923,9 +1174,10 @@ VALIDATED_PAGE_DESCRIPTOR validate_page(
     // If gorilla can not compress the data we might end up needing slightly more
     // than 4KiB. However, gorilla pages extend the page length by increments of
     // 512 bytes.
-    max_page_length += ((page_type == RRDENG_PAGE_TYPE_GORILLA_32BIT) * (2 * RRDENG_GORILLA_32BIT_BUFFER_SIZE));
+    max_page_length += ((rrdeng_page_type_base(page_type) == RRDENG_PAGE_TYPE_GORILLA_32BIT) *
+                        (2 * RRDENG_GORILLA_32BIT_BUFFER_SIZE + header));
 
-    if (!known_page_type                                        ||
+    if (!known_page_type || invalid_layout                      ||
         have_read_error                                         ||
         vd.page_length == 0                                     ||
         vd.page_length > max_page_length                        ||
@@ -984,6 +1236,19 @@ static ALWAYS_INLINE struct page_details *epdl_get_pd_load_link_list_from_metric
                    "DBENGINE: traversing an epdl list that is not detached");
 
     for(EPDL *ep = epdl; ep ;ep = ep->query.next) {
+        if(ep->demand_page) {
+            struct page_details *pd = ep->demand_page;
+            if(pd->metric_id == metric_id && pd->first_time_s == start_time_s &&
+               !pdc_page_status_check(pd, PDC_PAGE_READY | PDC_PAGE_FAILED)) {
+                if(__atomic_load_n(&ep->pdc->workers_should_stop, __ATOMIC_RELAXED)) {
+                    if(!pd->error.code) pd->error.code = RRDENG_READ_CANCELLED;
+                    pdc_page_status_set(pd, PDC_PAGE_FAILED | PDC_PAGE_CANCELLED);
+                }
+                else
+                    DOUBLE_LINKED_LIST_APPEND_ITEM_UNSAFE(pd_list, pd, load.prev, load.next);
+            }
+            continue;
+        }
         Pvoid_t *pd_by_start_time_s_judyL = PDCJudyLGet(ep->page_details_by_metric_id_JudyL, metric_id, PJE0);
         internal_fatal(pd_by_start_time_s_judyL == PJERR, "DBENGINE: corrupted extent metrics JudyL");
 
@@ -1071,7 +1336,11 @@ static void epdl_extent_loading_error_log(struct rrdengine_instance *ctx, EPDL *
 
     if (descr) {
         start_time_s = (time_t)(descr->start_time_ut / USEC_PER_SEC);
-        switch (descr->type) {
+        uint64_t decoded_end;
+        if(rrdeng_extent_page_end_time_s(descr, &decoded_end)) {
+            end_time_s = decoded_end;
+        }
+        else switch (rrdeng_page_type_base(descr->type)) {
             case RRDENG_PAGE_TYPE_ARRAY_32BIT:
             case RRDENG_PAGE_TYPE_ARRAY_TIER1:
                 end_time_s = (time_t)(descr->end_time_ut / USEC_PER_SEC);
@@ -1179,6 +1448,7 @@ static bool epdl_populate_pages_from_extent_data(
         (data_length != payload_offset + payload_length + sizeof(*trailer))
         ) {
         epdl_extent_loading_error_log(ctx, epdl, NULL, "header is INVALID", NDLP_ERR);
+        epdl_read_error(epdl, RRDENG_READ_EXTENT, 0);
         return false;
     }
 
@@ -1188,6 +1458,7 @@ static bool epdl_populate_pages_from_extent_data(
         ctx_io_error(ctx);
         have_read_error = true;
         epdl_extent_loading_error_log(ctx, epdl, NULL, "CRC32 checksum FAILED", NDLP_ERR);
+        epdl_read_error(epdl, RRDENG_READ_CHECKSUM, 0);
     }
 
     if(worker)
@@ -1198,30 +1469,51 @@ static bool epdl_populate_pages_from_extent_data(
         uncompressed_payload_length = 0;
         for (i = 0; i < count; ++i) {
             size_t page_length = header->descr[i].page_length;
-            if (page_length > RRDENG_BLOCK_SIZE &&
-                (header->descr[i].type != RRDENG_PAGE_TYPE_GORILLA_32BIT ||
-                 (header->descr[i].type == RRDENG_PAGE_TYPE_GORILLA_32BIT &&
-                  (page_length - RRDENG_BLOCK_SIZE) % RRDENG_GORILLA_32BIT_BUFFER_SIZE))) {
+            uint8_t type = header->descr[i].type;
+            size_t page_header = rrdeng_page_header_size(type);
+            if (type > RRDENG_PAGE_TYPE_MAX || page_length < page_header ||
+                (page_length > RRDENG_BLOCK_SIZE &&
+                 (rrdeng_page_type_base(type) != RRDENG_PAGE_TYPE_GORILLA_32BIT ||
+                  (page_length - page_header) % RRDENG_GORILLA_32BIT_BUFFER_SIZE))) {
                 have_read_error = true;
+                epdl_read_error(epdl, RRDENG_READ_DESCRIPTOR, 0);
                 break;
             }
 
             uncompressed_payload_length += header->descr[i].page_length;
         }
 
-        if(unlikely(uncompressed_payload_length > MAX_EXTENT_UNCOMPRESSED_SIZE))
+        if(unlikely(uncompressed_payload_length > MAX_EXTENT_UNCOMPRESSED_SIZE)) {
             have_read_error = true;
+            epdl_read_error(epdl, RRDENG_READ_DESCRIPTOR, 0);
+        }
 
         if(likely(!have_read_error)) {
-            eb = extent_buffer_get(uncompressed_payload_length);
+            if(epdl->demand_page) {
+                eb = extent_buffer_get_accounted(uncompressed_payload_length,
+                        &epdl->demand_page->borrowed_allocation, epdl->borrowed_bytes);
+                if(!eb) {
+                    epdl_read_error(epdl, RRDENG_READ_ACCOUNTING, 0);
+                    return false;
+                }
+                epdl->borrowed_bytes += sizeof(*eb) + eb->bytes;
+            }
+            else
+                eb = extent_buffer_get(uncompressed_payload_length);
             uncompressed_buf = eb->data;
 
-            size_t bytes = dbengine_decompress(uncompressed_buf, data + payload_offset,
+            bool accounting_failed;
+            size_t bytes = dbengine_decompress_accounted(uncompressed_buf, data + payload_offset,
                                                uncompressed_payload_length, payload_length,
-                                               header->compression_algorithm);
+                                               header->compression_algorithm,
+                                               epdl->demand_page ? &epdl->demand_page->scratch_allocation : NULL,
+                                               aral_actual_element_size(pdc_globals.epdl.ar) + epdl->scratch_bytes,
+                                               &accounting_failed);
 
-            if(!bytes)
+            if(bytes != uncompressed_payload_length) {
                 have_read_error = true;
+                epdl_read_error(epdl, accounting_failed ? RRDENG_READ_ACCOUNTING : RRDENG_READ_DECOMPRESSION, 0);
+            }
             else {
                 __atomic_add_fetch(&ctx->stats.before_decompress_bytes, payload_length, __ATOMIC_RELAXED);
                 __atomic_add_fetch(&ctx->stats.after_decompress_bytes, bytes, __ATOMIC_RELAXED);
@@ -1244,6 +1536,13 @@ static bool epdl_populate_pages_from_extent_data(
 
     struct epdl_wanted_metric wanted_on_stack[EPDL_WANTED_METRICS_ON_STACK];
     size_t queries = epdl_queries_count(epdl);
+    size_t wanted_bytes = queries <= EPDL_WANTED_METRICS_ON_STACK ? 0 : queries * sizeof(struct epdl_wanted_metric);
+    size_t scratch_bytes = wanted_bytes;
+    if(!epdl_scratch_resize(epdl, scratch_bytes)) {
+        extent_buffer_release(eb);
+        epdl_borrowed_resize(epdl, dbengine_extent_memory_footprint(data_length));
+        return false;
+    }
     struct epdl_wanted_metric *wanted = (queries <= EPDL_WANTED_METRICS_ON_STACK) ?
         wanted_on_stack : mallocz(queries * sizeof(*wanted));
     size_t wanted_count = epdl_wanted_metrics_get(epdl, wanted);
@@ -1274,6 +1573,11 @@ static bool epdl_populate_pages_from_extent_data(
                 (pd_list) ? pd_list->update_every_s : 0,
                 have_read_error);
 
+        RRDENG_READ_ERROR page_error = {
+            .file = epdl->datafile->fileno, .block = epdl->extent_block, .slot = i,
+        };
+        if(!vd.is_valid) page_error.code = RRDENG_READ_DESCRIPTOR;
+
         if(worker)
             worker_is_busy(UV_EVENT_DBENGINE_EXTENT_PAGE_ALLOCATION);
 
@@ -1284,6 +1588,12 @@ static bool epdl_populate_pages_from_extent_data(
             stats_load_invalid_page++;
         }
         else {
+            size_t footprint = pgd_disk_memory_footprint(header->descr[i].type, vd.page_length);
+            if(!epdl_scratch_resize(epdl, scratch_bytes + footprint)) {
+                page_error.code = RRDENG_READ_ACCOUNTING;
+                epdl_page_read_error(pd_list, page_error);
+                continue;
+            }
             if (RRDENG_COMPRESSION_NONE == header->compression_algorithm) {
                 if (unlikely(vd.page_length > payload_length ||
                              page_offset > payload_length - vd.page_length)) {
@@ -1294,6 +1604,7 @@ static bool epdl_populate_pages_from_extent_data(
                     epdl_extent_loading_error_log(ctx, epdl, &header->descr[i], log, NDLP_ERR);
 
                     pgd = PGD_EMPTY;
+                    page_error.code = RRDENG_READ_PAYLOAD;
                     stats_load_invalid_page++;
                 }
                 else {
@@ -1313,6 +1624,7 @@ static bool epdl_populate_pages_from_extent_data(
                     epdl_extent_loading_error_log(ctx, epdl, &header->descr[i], log, NDLP_ERR);
 
                     pgd = PGD_EMPTY;
+                    page_error.code = RRDENG_READ_PAYLOAD;
                     stats_load_invalid_page++;
                 }
                 else {
@@ -1324,9 +1636,19 @@ static bool epdl_populate_pages_from_extent_data(
             }
         }
 
+        if(pgd == PGD_EMPTY && !page_error.code) page_error.code = RRDENG_READ_PAYLOAD;
+        if(pgd != PGD_EMPTY && pgd_slots_used(pgd) != vd.entries && !page_error.code)
+            page_error.code = RRDENG_READ_DESCRIPTOR;
+        if(page_error.code) epdl_page_read_error(pd_list, page_error);
+
         if(worker)
             worker_is_busy(UV_EVENT_DBENGINE_EXTENT_PAGE_POPULATION);
 
+        RRDENG_PAGE_PROVENANCE provenance = {
+            .origin = page_error.code ? RRDENG_PAGE_FAILED : RRDENG_PAGE_LOADED,
+            .error = page_error, .first = vd.start_time_s, .last = vd.end_time_s,
+            .cadence = vd.update_every_s, .entries = vd.entries,
+        };
         PGC_ENTRY page_entry = {
                 .hot = false,
                 .section = (Word_t)ctx,
@@ -1336,18 +1658,44 @@ static bool epdl_populate_pages_from_extent_data(
                 .update_every_s = (uint32_t) vd.update_every_s,
                 .size = pgd_memory_footprint(pgd), // the footprint of the entire PGD, for accurate memory management
                 .data = pgd,
+                .custom_data = (uint8_t *)&provenance,
         };
 
         bool added = true;
         PGC_PAGE *page = pgc_page_add_and_acquire(main_cache, page_entry, &added);
         if (false == added) {
-            pgd_free(pgd);
+            PGD *fresh = pgd;
+            RRDENG_PAGE_PROVENANCE *existing = pgc_page_custom_data(main_cache, page);
+            rrdeng_page_provenance_lock(existing);
+            PGD *cached = pgc_page_data(page);
+            bool failed_cache = existing->error.code != RRDENG_READ_OK || cached == PGD_EMPTY ||
+                existing->origin == RRDENG_PAGE_UNVERIFIED || existing->origin == RRDENG_PAGE_FAILED ||
+                existing->first != vd.start_time_s || existing->last < vd.end_time_s ||
+                existing->cadence != vd.update_every_s || existing->entries < vd.entries ||
+                (cached != PGD_EMPTY && pgd_type(cached) != header->descr[i].type);
+            rrdeng_page_provenance_unlock(existing);
+            if(failed_cache && fresh != PGD_EMPTY) {
+                for(struct page_details *pd = pd_list; pd; pd = pd->load.next) {
+                    if(!pd->demand || pd->error.code) continue;
+                    if(!rrdeng_read_lease_resize(&pd->private_allocation, pgd_memory_footprint(fresh))) {
+                        pd->error.code = RRDENG_READ_ACCOUNTING;
+                        continue;
+                    }
+                    void *source = header->compression_algorithm == RRDENG_COMPRESSION_NONE ?
+                        data + payload_offset + page_offset : uncompressed_buf + page_offset;
+                    pd->private_page = pgd_create_from_disk_data(header->descr[i].type, source, vd.page_length);
+                    if(pd->private_page == PGD_EMPTY) pd->error.code = RRDENG_READ_PAYLOAD;
+                }
+            }
+            pgd_free(fresh);
             pgd = pgc_page_data(page);
             stats_cache_hit_while_inserting++;
             stats_data_from_main_cache++;
         }
         else
             stats_data_from_extent++;
+        // The cache owns an inserted PGD; a rejected fresh copy has already been freed.
+        epdl_scratch_resize(epdl, scratch_bytes);
 
         // One reference per pd. pgc_page_add_and_acquire() above returned the page with a
         // single reference held; take the remaining ones here, BEFORE publishing any pd.
@@ -1388,6 +1736,13 @@ static bool epdl_populate_pages_from_extent_data(
 
         PDC_PAGE_STATUS status = PDC_PAGE_READY | tags | (pgd_is_empty(pgd) ? PDC_PAGE_EMPTY : 0);
         for(struct page_details *pd = pd_list; pd ; pd = pd->load.next) {
+            PGD *selected = pd->private_page ? pd->private_page : pgd;
+            if(pd->demand && !pd->error.code &&
+               (selected == PGD_EMPTY || pgd_slots_used(selected) < vd.entries ||
+                pd->first_time_s != vd.start_time_s || pd->last_time_s != vd.end_time_s ||
+                pd->update_every_s != vd.update_every_s))
+                pd->error = (RRDENG_READ_ERROR){ .code = RRDENG_READ_DESCRIPTOR,
+                    .file = epdl->datafile->fileno, .block = epdl->extent_block, .slot = i };
             pd->page = page;
             pdc_page_status_set(pd, status);
         }
@@ -1425,18 +1780,23 @@ static bool epdl_populate_pages_from_extent_data(
         freez(wanted);
 
     extent_buffer_release(eb);
+    epdl_borrowed_resize(epdl, dbengine_extent_memory_footprint(data_length));
+    epdl_scratch_resize(epdl, 0);
 
     return true;
 }
 
-static inline void *datafile_extent_read(struct rrdengine_instance *ctx, uv_file file, uint32_t block, unsigned size_bytes)
+static inline void *datafile_extent_read(struct rrdengine_instance *ctx, uv_file file, uint32_t block,
+                                        unsigned size_bytes, int *read_error)
 {
+    *read_error = 0;
     if (unlikely(!rrdeng_valid_extent_disk_size(size_bytes))) {
         nd_log_limit_static_global_var(erl, 1, 0);
         nd_log_limit(&erl, NDLS_DAEMON, NDLP_ERR,
                      "DBENGINE: refusing to read extent at offset %" PRIu64 " with invalid size %u",
                      BLOCK_TO_OFFSET(block), size_bytes);
         ctx_io_error(ctx);
+        *read_error = UV_EINVAL;
         return NULL;
     }
 
@@ -1449,6 +1809,7 @@ static inline void *datafile_extent_read(struct rrdengine_instance *ctx, uv_file
     uv_buf_t iov = uv_buf_init(buffer, real_io_size);
     int ret = uv_fs_read(NULL, &request, file, &iov, 1, (int64_t) BLOCK_TO_OFFSET(block), NULL);
     if (unlikely(ret < 0 || (unsigned)ret != real_io_size)) {
+        *read_error = ret < 0 ? ret : UV_EIO;
         ctx_io_error(ctx);
         posix_memalign_freez(buffer);
         buffer = NULL;
@@ -1480,7 +1841,7 @@ NOT_INLINE_HOT void epdl_find_extent_and_populate_pages(struct rrdengine_instanc
         not_loaded_pages_tag = PDC_PAGE_CANCELLED;
         goto cleanup;
     }
-
+    epdl_pending_del(epdl);
     bool extent_found_in_cache = false;
 
     void *extent_compressed_data = NULL;
@@ -1490,24 +1851,39 @@ NOT_INLINE_HOT void epdl_find_extent_and_populate_pages(struct rrdengine_instanc
             PGC_SEARCH_EXACT);
 
     if(extent_cache_page) {
+        if(epdl->extent_size != pgc_page_data_size(extent_cache, extent_cache_page)) {
+            epdl_read_error(epdl, RRDENG_READ_EXTENT, 0);
+            pgc_page_release(extent_cache, extent_cache_page);
+            not_loaded_pages_tag = PDC_PAGE_FAILED_INVALID_EXTENT;
+            statistics_counter = &rrdeng_cache_efficiency_stats.pages_load_fail_invalid_extent;
+            goto cleanup;
+        }
         extent_compressed_data = pgc_page_data(extent_cache_page);
-        internal_fatal(epdl->extent_size != pgc_page_data_size(extent_cache, extent_cache_page),
-                       "DBENGINE: cache size does not match the expected size");
 
         loaded_pages_tag |= PDC_PAGE_EXTENT_FROM_CACHE;
         not_loaded_pages_tag |= PDC_PAGE_EXTENT_FROM_CACHE;
         extent_found_in_cache = true;
+        if(!epdl_borrowed_resize(epdl, dbengine_extent_memory_footprint(epdl->extent_size))) {
+            pgc_page_release(extent_cache, extent_cache_page);
+            goto cleanup;
+        }
     }
     else {
         if(worker)
             worker_is_busy(UV_EVENT_DBENGINE_EXTENT_MMAP);
 
-        void *extent_data = datafile_extent_read(ctx, epdl->datafile->file, epdl->extent_block, epdl->extent_size);
+        size_t io_workspace = ALIGN_BYTES_CEILING(epdl->extent_size) +
+                              dbengine_extent_memory_footprint(epdl->extent_size);
+        if(!epdl_scratch_resize(epdl, io_workspace)) goto cleanup;
+        int read_error;
+        void *extent_data = datafile_extent_read(ctx, epdl->datafile->file,
+                                               epdl->extent_block, epdl->extent_size, &read_error);
         if(extent_data != NULL) {
 
             void *tmp = dbengine_extent_alloc(epdl->extent_size);
             memcpy(tmp, extent_data, epdl->extent_size);
             datafile_extent_read_free(extent_data);
+            epdl_scratch_resize(epdl, dbengine_extent_memory_footprint(epdl->extent_size));
             extent_data = tmp;
 
             if(worker)
@@ -1527,15 +1903,27 @@ NOT_INLINE_HOT void epdl_find_extent_and_populate_pages(struct rrdengine_instanc
 
             if (!added) {
                 dbengine_extent_free(extent_data, epdl->extent_size);
-                internal_fatal(epdl->extent_size != pgc_page_data_size(extent_cache, extent_cache_page),
-                               "DBENGINE: cache size does not match the expected size");
+                if(epdl->extent_size != pgc_page_data_size(extent_cache, extent_cache_page)) {
+                    epdl_read_error(epdl, RRDENG_READ_EXTENT, 0);
+                    pgc_page_release(extent_cache, extent_cache_page);
+                    not_loaded_pages_tag = PDC_PAGE_FAILED_INVALID_EXTENT;
+                    statistics_counter = &rrdeng_cache_efficiency_stats.pages_load_fail_invalid_extent;
+                    goto cleanup;
+                }
             }
 
             extent_compressed_data = pgc_page_data(extent_cache_page);
 
+            epdl_scratch_resize(epdl, 0);
+            if(!epdl_borrowed_resize(epdl, dbengine_extent_memory_footprint(epdl->extent_size))) {
+                pgc_page_release(extent_cache, extent_cache_page);
+                goto cleanup;
+            }
+
             loaded_pages_tag |= PDC_PAGE_EXTENT_FROM_DISK;
             not_loaded_pages_tag |= PDC_PAGE_EXTENT_FROM_DISK;
         }
+        else epdl_read_error(epdl, RRDENG_READ_IO, read_error);
     }
 
     if(extent_compressed_data) {
@@ -1562,6 +1950,7 @@ NOT_INLINE_HOT void epdl_find_extent_and_populate_pages(struct rrdengine_instanc
 
     if(extent_cache_page)
         pgc_page_release(extent_cache, extent_cache_page);
+    epdl_borrowed_resize(epdl, 0);
 
 cleanup:
     // remove it from the datafile extent_queries
@@ -1578,11 +1967,11 @@ cleanup:
     for(EPDL *ep = epdl, *next = NULL; ep ; ep = next) {
         next = ep->query.next;
 
-        completion_mark_complete_a_job(&ep->pdc->page_completion);
-        pdc_release_and_destroy_if_unreferenced(ep->pdc, true, false);
-
         // Free the Judy that holds the requested pagelist and the extents
+        PDC *pdc = ep->pdc;
         epdl_destroy(ep);
+        completion_mark_complete_a_job(&pdc->page_completion);
+        pdc_release_and_destroy_if_unreferenced(pdc, true, false);
     }
 
     if(worker)

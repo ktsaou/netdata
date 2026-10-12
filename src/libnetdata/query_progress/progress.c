@@ -33,8 +33,8 @@ typedef struct query {
     HTTP_REQUEST_MODE mode;
     HTTP_ACL acl;
 
-    uint32_t sent_size;
-    uint32_t response_size;
+    uint64_t sent_size;
+    uint64_t response_size;
     short response_code;
 
     bool indexed;
@@ -275,7 +275,7 @@ void query_progress_done_step(nd_uuid_t *transaction, size_t done) {
     spinlock_unlock(&progress.spinlock);
 }
 
-void query_progress_finished(nd_uuid_t *transaction, usec_t finished_ut, short int response_code, usec_t duration_ut, size_t response_size, size_t sent_size) {
+void query_progress_finished(nd_uuid_t *transaction, usec_t finished_ut, short int response_code, usec_t duration_ut, uint64_t response_size, uint64_t sent_size) {
     if(!transaction)
         return;
 
@@ -412,7 +412,7 @@ int progress_function_result(BUFFER *wb, const char *hostname) {
 
     usec_t now_ut = now_realtime_usec();
     usec_t max_duration_ut = 0;
-    size_t max_size = 0, max_sent = 0;
+    uint64_t max_size = 0, max_sent = 0;
     size_t archived __maybe_unused = 0; // only read by the assert() below
     SIMPLE_HASHTABLE_FOREACH_READ_ONLY(&progress.hashtable, sl, _QUERY) {
         QUERY_PROGRESS *qp = SIMPLE_HASHTABLE_FOREACH_READ_ONLY_VALUE(sl);
