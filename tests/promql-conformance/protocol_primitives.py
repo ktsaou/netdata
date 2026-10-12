@@ -26,7 +26,7 @@ def requests(original):
         if case["op"] == "time_param":
             continue
         request = {"id": case["id"], "op": case["op"]}
-        if case["op"] in ("time", "time_boundary", "duration"):
+        if case["op"] in ("time", "time_boundary", "duration", "limit"):
             request["input"] = hex_bytes(case.get("resolved_input", case["input"]))
         elif case["op"] in ("sample_float", "scalar_float"):
             request["bits"] = case["bits"]
@@ -82,6 +82,9 @@ def projections(want, got):
     elif "duration_ns" in want:
         expected["duration_ns"] = want["duration_ns"]
         actual["duration_ns"] = got["duration_ns"]
+    elif "limit" in want:
+        expected["limit"] = want["limit"]
+        actual["limit"] = got["limit"]
     else:
         expected["raw_json"] = hex_bytes(want["raw_json"])
         actual["raw_json"] = got["raw_json"]
@@ -129,8 +132,10 @@ def compare(binary, reference):
     result = {"schema_version": 1, "cases": len(actual), "failures": failures,
               "selector_labelset_comparisons": sum(len(value.get("labelset_matches", [])) for value in actual),
               "source_sha256": sources, "binary_sha256": identity, "reference_sha256": digest(reference),
-              "scope": "Typed UTC/clock projections, exact durations/formatter bytes, selector matcher order/errors/spans/nonempty guard and complete label conjunctions.",
-              "caller_cases_not_executed": {"time_param": 2, "selector_batches": 12},
+              "scope": "Typed UTC/clock projections, exact durations/limits/formatter bytes, selector matcher order/errors/spans/nonempty guard and complete label conjunctions.",
+              "caller_cases_not_executed": {
+                  "time_param": sum(value["op"] == "time_param" for value in original["helpers"]),
+                  "selector_batches": sum(value["op"] == "batch" for value in original["selectors"])},
               "http_router_executed": False}
     (task / "comparison.json").write_text(json.dumps(result, indent=2) + "\n")
     return task, result

@@ -213,6 +213,7 @@ def native_records(name, output):
         {"histogram_buckets": "pass", "cases": 7},
         {"precise_requests": "pass", "cases": 2},
         {"protocol_primitives": "pass"},
+        {"metadata_discovery": "pass", "cases": 5},
         {"label_field_boundary": "pass", "cases": 6},
         {"foreign_allocation_lifetime": "pass", "bytes": 16384, "abort_cases": 3},
         {"native_embedding": "pass"},

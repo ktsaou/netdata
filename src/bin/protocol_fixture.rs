@@ -53,11 +53,16 @@ unsafe fn evaluate(engine: *const types::Engine, request: &Value) -> Result<Valu
             }
             status
         }
-        "duration" => {
+        "duration" | "limit" => {
             let input = decoded_bytes(&request["input"])?;
             let mut duration = 0;
+            let parse = if op == "limit" {
+                c::netdata_promql_api_parse_limit
+            } else {
+                c::netdata_promql_api_parse_duration
+            };
             let status = unsafe {
-                c::netdata_promql_api_parse_duration(
+                parse(
                     engine,
                     bytes(&input),
                     ptr::null(),
@@ -66,7 +71,11 @@ unsafe fn evaluate(engine: *const types::Engine, request: &Value) -> Result<Valu
                 )
             };
             if status == types::OK {
-                result["duration_ns"] = json!(duration);
+                if op == "limit" {
+                    result["limit"] = json!(duration.to_string());
+                } else {
+                    result["duration_ns"] = json!(duration);
+                }
             }
             status
         }

@@ -276,6 +276,15 @@ Original failures remain evidence. [Approved exceptions](contract.json) and
   adapters, callers and observations use one coherent ABI 4; incompatible versions are rejected and ABI 2/3
   consumers must rebuild. Optional temporary callbacks are supplied as one complete group or absent until needed.
   Callers check ABI version before using unprefixed observation layouts.
+- **Metadata discovery:** the additive `netdata_promql_discover` operation uses the same query accounting,
+  provider lifetimes and provisional output while opening no sample cursors. It validates every supplied series
+  before matching, releases each series promptly and closes provider scopes before final commit. Selector unions,
+  final ordering and endpoint limits belong to the caller. Returning END from a label-only metadata row is
+  successful early stop; ordinary expression-output status rules remain unchanged. No ABI4 table layout changes.
+- **Caller preparation:** time, duration and limit parsing return owned reports. A synchronous report callback can
+  borrow that report's actual account for preparation and error-body backing, without returning an accounting pointer.
+  Allocation handles retain their creator account after the callback/report ends. Limit syntax, width and diagnostics
+  follow pinned Go AMD64; an explicit requested limit remains caller result policy, with enforcement otherwise disabled.
 - **Concurrency:** immutable compiled queries have independent execution contexts; cancellation may be concurrent.
   Access/release of a handle must not race. Getter views belong to their live result/report owner.
 - **Evidence:** [C header](../../include/netdata-promql.h),
@@ -459,15 +468,19 @@ integration, and Alertmanager remains excluded.
 
 ## Current library qualification
 
-- Both optimized builds pass508 fixture units; the production feature set passes506 units. Strict lint,
+- Both optimized builds pass514 fixture units; the production feature set passes512 units. Strict lint,
   formatting and the installed Rust1.91.0 minimum-version checks pass.
-- Fresh expression panels execute290956 cases, with overlapping families kept separate. All231540 required
+- The retained full expression cohort at signed db210124 executes290956 cases, with overlapping families kept separate. All231540 required
   SRE executions pass across both builds and pages1/17/1024, including candidate-owned recording dependencies.
-  Neither panel has an unresolved expression or bitwise difference.
+  Neither panel has an unresolved expression or bitwise difference. The subsequent isolated metadata/API additions
+  do not change arithmetic owners; these historical panels retain their actual source and binary identities.
 - The precise-clock panel passes27 comparisons per build. Protocol primitives pass230 cases and528 label
-  conjunctions per build. HTTP wrapper cases remain Netdata integration work.
-- Actual rebuilt AMD64, ARM64 and ARM32 C/C++ callers pass412 records:396 current-caller records and16
+  conjunctions per build; the separate pinned limit panel passes34 cases per build. HTTP wrapper cases remain Netdata integration work.
+- Actual rebuilt AMD64, ARM64 and ARM32 C/C++ callers pass430 records:414 current-caller records and16
   previous-header rejection records. Each layout has58 structures,16 callbacks and33 shared constants.
+- Metadata discovery checks zero sample cursors, prompt series release, normal early stop, provider/output failures,
+  cancellation and allocation handles retained beyond reports. Report-account callbacks and64-bit limits are exercised
+  by actual C callers, including ARM32. Existing ABI4 table layouts are unchanged.
 - Native Clang C ASan/UBSan checks and the rejected panic-abort compilation pass. Caller instrumentation
   does not instrument the linked Rust archive. No current full-engine Miri gate is claimed.
 - `core-qualification.json` binds every fresh receipt to its actual sources and binaries. These finite checks

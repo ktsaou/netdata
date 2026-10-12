@@ -77,6 +77,9 @@ export! {
     fn netdata_promql_api_parse_duration(engine: *const types::Engine, source: types::Bytes, raw_control: *const types::Control, out: *mut i64, out_report: *mut *mut types::Report) {
         unsafe { parse(engine, source, raw_control, out, out_report, http::parse_duration) }
     }
+    fn netdata_promql_api_parse_limit(engine: *const types::Engine, source: types::Bytes, raw_control: *const types::Control, out: *mut i64, out_report: *mut *mut types::Report) {
+        unsafe { parse(engine, source, raw_control, out, out_report, http::parse_limit) }
+    }
     fn netdata_promql_api_float_text(value_bits: u64, out: *mut types::NumericText) {
         unsafe { checked::output(out) }?;
         let text = crate::float_text::float_text(f64::from_bits(value_bits), crate::float_text::FloatTextStyle::PrometheusApi);

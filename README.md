@@ -18,6 +18,10 @@ caller-owned temporary backing. Resource accounting is enabled; enforcement is d
 Precise Rust and C requests preserve the pinned server's nanosecond request clocks alongside its millisecond
 sample grid. Owned selector handles, time/duration parsing and numeric formatting let callers reuse the same
 protocol semantics without retaining a parser tree or assembling a full query result.
+Metadata discovery visits one validated series at a time, supplies the actual query account to provider/output callbacks,
+and fetches no samples. Callers own selector unions and final ordering; a row can request successful early stop.
+The limit parser retains pinned64-bit request behavior on every target. Report callbacks provide a borrowed account
+for caller preparation and backed error bodies; independently owned allocation handles may outlive the report.
 
 Basic query statistics report actual execution phases, logical sample participation, useful source reads and
 the peak of owned sample values. They use fixed-size observations; per-step arrays remain disabled.

@@ -2,6 +2,138 @@
 use super::*;
 
 #[test]
+fn limit_parameters_use_pinned_amd64_width_and_source_error_precedence() {
+    unsafe {
+        let engine = engine();
+        let account = borrow::<Engine, _>(engine).unwrap().core.accounting.clone();
+        for (input, expected, error) in [
+            (b"".as_slice(), 0_i64, None),
+            (b"-0", 0, None),
+            (b"+0007", 7, None),
+            (b"2147483648", 2_147_483_648, None),
+            (b"9223372036854775807", i64::MAX, None),
+            (
+                b"-9223372036854775808",
+                0,
+                Some(b"limit must be non-negative".as_slice()),
+            ),
+            (b"-1", 0, Some(b"limit must be non-negative")),
+            (
+                b"9223372036854775808",
+                0,
+                Some(b"strconv.Atoi: parsing \"9223372036854775808\": value out of range"),
+            ),
+            (
+                b"9223372036854775808x",
+                0,
+                Some(b"strconv.Atoi: parsing \"9223372036854775808x\": invalid syntax"),
+            ),
+            (
+                b"184467440737095516160x",
+                0,
+                Some(b"strconv.Atoi: parsing \"184467440737095516160x\": value out of range"),
+            ),
+            (
+                b"\xff",
+                0,
+                Some(b"strconv.Atoi: parsing \"\\xff\": invalid syntax"),
+            ),
+        ] {
+            let mut result = 99_i64;
+            let mut report = ptr::null_mut();
+            assert_eq!(
+                netdata_promql_api_parse_limit(
+                    engine,
+                    types::Bytes::of(input),
+                    ptr::null(),
+                    &mut result,
+                    &mut report
+                ),
+                if error.is_some() {
+                    types::PARSE_ERROR
+                } else {
+                    types::OK
+                }
+            );
+            assert_eq!(result, expected);
+            if let Some(expected) = error {
+                let mut value = types::Error::default();
+                assert_eq!(
+                    netdata_promql_report_error(report, 0, &mut value),
+                    types::OK
+                );
+                assert_eq!(checked::bytes(value.message).unwrap(), expected);
+                assert_eq!(value.position_present, 0);
+            }
+            assert_eq!(netdata_promql_report_release(report), types::OK);
+        }
+        assert_eq!(netdata_promql_engine_release(engine), types::OK);
+        account.snapshot().assert_memory_released();
+    }
+}
+
+unsafe extern "C" fn report_body(
+    context: *mut c_void,
+    handle: *mut c_void,
+    account: *const types::AccountingContext,
+) {
+    assert!(handle.is_null());
+    let lease = unsafe { &mut *context.cast::<*mut types::AllocationHandle>() };
+    assert_eq!(
+        unsafe {
+            netdata_promql_allocation_acquire(account, MemoryKind::Result as u32, 65536, lease)
+        },
+        types::OK
+    );
+}
+
+#[test]
+fn report_callbacks_borrow_actual_creator_account_and_body_handles_outlive_the_report() {
+    unsafe {
+        let engine = engine();
+        let account = borrow::<Engine, _>(engine).unwrap().core.accounting.clone();
+        let mut result = 0_i64;
+        let mut report = ptr::null_mut();
+        assert_eq!(
+            netdata_promql_api_parse_limit(
+                engine,
+                types::Bytes::of(b"-1"),
+                ptr::null(),
+                &mut result,
+                &mut report
+            ),
+            types::PARSE_ERROR
+        );
+        let expected_account = borrow::<Report, _>(report).unwrap().account.clone();
+        assert_eq!(
+            netdata_promql_report_accounted(report, None, ptr::null_mut(), ptr::null_mut()),
+            types::INVALID_ARGUMENT
+        );
+        let mut lease: *mut types::AllocationHandle = ptr::null_mut();
+        assert_eq!(
+            netdata_promql_report_accounted(
+                report,
+                Some(report_body),
+                (&mut lease as *mut *mut types::AllocationHandle).cast(),
+                ptr::null_mut()
+            ),
+            types::OK
+        );
+        assert!(expected_account.snapshot().memory[MemoryKind::Result as usize].current >= 65536);
+        assert_eq!(netdata_promql_report_release(report), types::OK);
+        assert_eq!(netdata_promql_engine_release(engine), types::OK);
+        assert_eq!(
+            expected_account.snapshot().memory[MemoryKind::Result as usize].current,
+            65536
+        );
+        assert_eq!(netdata_promql_allocation_release(lease), types::OK);
+        expected_account.snapshot().assert_memory_released();
+        drop(expected_account);
+        account.snapshot().assert_memory_released();
+    }
+}
+
+#[test]
 fn selectors_own_source_and_match_with_checked_borrowed_labels_after_engine_release() {
     unsafe {
         let engine = engine();

@@ -8,6 +8,7 @@ use std::{
 
 mod allocations;
 mod delivery;
+mod discovery;
 mod ownership;
 mod pages;
 mod precision;

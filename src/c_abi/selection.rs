@@ -10,18 +10,21 @@ use crate::{
     storage::{LabelRef, matches_checked, validate_labels_checked},
 };
 
-struct Selector {
+pub(super) struct Selector {
     expression: ParsedExpression,
     account: QueryAccounting,
     engine: EngineAccounting,
 }
 impl Selector {
-    fn matchers(&self) -> &[Option<Matcher>] {
+    pub(super) fn matchers(&self) -> &[Option<Matcher>] {
         let Expr::Selector(selector) = &self.expression.arena[self.expression.root].expression
         else {
             unreachable!("metric selector grammar result")
         };
         &selector.matchers
+    }
+    pub(super) fn source(&self) -> &[u8] {
+        &self.expression.source
     }
 }
 

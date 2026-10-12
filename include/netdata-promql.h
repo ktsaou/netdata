@@ -656,6 +656,10 @@ uint32_t netdata_promql_collect_precise(const netdata_promql_query_t *, const ne
  */
 uint32_t netdata_promql_api_parse_time(const netdata_promql_engine_t *, netdata_promql_bytes_t, const netdata_promql_control_t *, netdata_promql_timestamp_t *, netdata_promql_report_t **);
 uint32_t netdata_promql_api_parse_duration(const netdata_promql_engine_t *, netdata_promql_bytes_t, const netdata_promql_control_t *, int64_t *, netdata_promql_report_t **);
+/* Empty/zero means no requested limit. Parse signed decimal using the pinned AMD64 int64 contract;
+ * negative nonzero values are rejected. A requested limit remains caller output policy, not engine enforcement.
+ */
+uint32_t netdata_promql_api_parse_limit(const netdata_promql_engine_t *, netdata_promql_bytes_t, const netdata_promql_control_t *, int64_t *, netdata_promql_report_t **);
 uint32_t netdata_promql_api_float_text(uint64_t value_bits, netdata_promql_numeric_text_t *);
 uint32_t netdata_promql_api_scalar_float_text(uint64_t value_bits, netdata_promql_numeric_text_t *);
 uint32_t netdata_promql_api_timestamp_text(int64_t time_ms, netdata_promql_numeric_text_t *);
@@ -676,7 +680,24 @@ uint32_t netdata_promql_selector_matcher_count(const netdata_promql_selector_t *
 uint32_t netdata_promql_selector_matcher(const netdata_promql_selector_t *, uint64_t index, netdata_promql_matcher_t *);
 uint32_t netdata_promql_selector_nonempty(const netdata_promql_selector_t *, const netdata_promql_control_t *, uint32_t *);
 uint32_t netdata_promql_selector_matches(const netdata_promql_selector_t *, netdata_promql_labels_t, const netdata_promql_control_t *, uint32_t *);
+/* Metadata-only operation: bounds go directly to query/selection callbacks; no sample cursor or float backing is opened.
+ * With zero selectors, enumerate all metadata; otherwise visit each supplied selector in order. The caller owns
+ * union/deduplication, final ordering and endpoint limits. Each series is validated and released after its callback.
+ * Output begins as VECTOR and emits label-only SERIES chunks with increasing IDs and zero points. Returning END
+ * from such a row requests successful early stop; this is distinct from cancellation and ordinary execute output.
+ * All other output/error/cleanup and query allocation-handle contracts apply. Commit follows provider cleanup.
+ * Selector handles remain live through this synchronous call. API empty-matcher guards remain caller validation.
+ */
+uint32_t netdata_promql_discover(const netdata_promql_engine_t *, const netdata_promql_provider_t *, netdata_promql_bounds_t,
+    const netdata_promql_selector_t *const *, uint64_t selector_count, const netdata_promql_control_t *,
+    const netdata_promql_output_t *, netdata_promql_report_t **);
 uint32_t netdata_promql_report_release(netdata_promql_report_t *);
+/* Invoke an infallible caller callback with this report's actual borrowed account. This supports accounted
+ * caller preparation/error-body construction outside execute callbacks. Keep the report live throughout the call;
+ * borrow the account only in the callback. Retained foreign allocations use independently owned handles.
+ * The helper has no cancellation/commit semantics; the caller owns its construction status and publication.
+ */
+uint32_t netdata_promql_report_accounted(const netdata_promql_report_t *, netdata_promql_close_t, void *context, void *handle);
 uint32_t netdata_promql_report_status(const netdata_promql_report_t *, uint32_t *);
 uint32_t netdata_promql_report_error_count(const netdata_promql_report_t *, uint64_t *);
 uint32_t netdata_promql_report_error(const netdata_promql_report_t *, uint64_t, netdata_promql_error_t *);

@@ -1877,6 +1877,28 @@ python tests/promql-conformance/precision.py --binary target/release/promql-quer
 
 Repeat with the `target/release-min/` fixture binaries. Build them with the `fixtures` feature first.
 
+Metadata discovery uses the actual provider and provisional output callbacks, validates one series at a time,
+and fetches no samples. Library units cover selector unions, malformed nonmatching labels, provider/output failures
+and cancellation. The C embedding gate covers absent selectors, matches/nonmatches, normal early stop, output failure
+ahead of concurrent cancellation, and retained output allocation handles after reports are released.
+These generic calls do not qualify a Netdata discovery route or its union/sorting policy.
+
+The limit parser has a separate frozen original capture:34 raw-byte cases run through the unchanged pinned
+Prometheus helper on Go1.27.1 AMD64. This includes64-bit bounds on ARM32, overflow/error precedence, signs,
+invalid UTF-8 and long leading-zero inputs. The capture command requires the existing toolchain and checks the
+complete original api.go hash before extracting its helper. It installs or downloads nothing.
+
+```sh
+python tests/promql-conformance/protocol_primitives.py \
+  --binary target/release/promql-protocol-fixture \
+  --reference tests/promql-conformance/api-limit-original.json
+```
+
+Run the same frozen limit gate for `release-min`. To regenerate the unchanged original, use
+`api_limit_capture.py --source <pinned-api.go> --go <existing-Go1.27.1>`; keep its recorded source/helper identity.
+Successful/error reports also supply a borrowed callback account for caller preparation and response backing.
+Actual C callers verify that allocation handles acquired there keep the account alive independently of the report.
+
 With the installed Rust target libraries, GNU GCC/G++ 14, target libc and QEMU, run the same interface gate on ARM:
 
 ```sh

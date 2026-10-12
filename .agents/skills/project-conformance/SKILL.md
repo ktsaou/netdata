@@ -53,6 +53,10 @@ Netdata metadata, dbengine formats, HTTP transports and rule scheduling are call
 - `tests/promql-conformance/c_embedding.py` builds actual C/C++ callers; inspect `--help` for installed targets.
 - `protocol_primitives.py --binary <protocol-fixture>` replays frozen parsing/formatting/selectors. Its two
   time-parameter and twelve batch-wrapper exclusions are caller coverage, not passing core cases.
+- Its separate `--reference .../api-limit-original.json` gate replays34 unchanged pinned AMD64 limit outcomes,
+  including64-bit width on ARM32. It has no wrapper exclusions; retain its distinct original/source/binary identity.
+- Metadata discovery must fetch zero samples, release each provisional series and close providers before commit.
+  Qualify normal END only for metadata rows, malformed nonmatches, first-error cleanup and owned output/report credits.
 - `precision.py --binary <query-fixture>` replays nine precise-clock originals at pages 1/17/1024.
   Run both primitive gates for both profiles; neither qualifies an HTTP router or live provider.
 - Histogram visitors and fixed-size basic statistics enlarge the ABI4 observation/layout roster. Rebuild actual

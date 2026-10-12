@@ -73,6 +73,55 @@ pub fn parse_duration(
     ))?))
 }
 
+pub fn parse_limit(
+    input: &[u8],
+    account: &QueryAccounting,
+    control: &Control,
+) -> Result<Result<i64, AccountedVec<u8>>, Interrupted> {
+    let context = AllocationContext::new(account, crate::accounting::MemoryKind::Workspace);
+    let work = Work::new(Some(&context), Some(control));
+    work.step(0)?;
+    if input.is_empty() {
+        return Ok(Ok(0));
+    }
+    let negative = input[0] == b'-';
+    let digits = if matches!(input[0], b'+' | b'-') {
+        &input[1..]
+    } else {
+        input
+    };
+    let mut value = 0_u64;
+    let mut failure = digits.is_empty().then_some("invalid syntax");
+    for &byte in digits {
+        work.step(1)?;
+        if !byte.is_ascii_digit() {
+            failure = Some("invalid syntax");
+            break;
+        }
+        let Some(next) = value
+            .checked_mul(10)
+            .and_then(|value| value.checked_add(u64::from(byte - b'0')))
+        else {
+            failure = Some("value out of range");
+            break;
+        };
+        value = next;
+    }
+    if failure.is_none() && value > (i64::MAX as u64 + u64::from(negative)) {
+        failure = Some("value out of range");
+    }
+    if let Some(reason) = failure {
+        return Ok(Err(work.format(format_args!(
+            "strconv.Atoi: parsing {}: {reason}",
+            quote::quoted(input)
+        ))?));
+    }
+    if negative && value != 0 {
+        return Ok(Err(work.copy(b"limit must be non-negative")?));
+    }
+    Ok(Ok(value as i64))
+}
+
 fn digits(input: &[u8], begin: usize, count: usize) -> Option<u32> {
     let mut value = 0;
     for &byte in input.get(begin..begin.checked_add(count)?)? {

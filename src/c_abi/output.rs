@@ -128,6 +128,52 @@ impl Sink {
     pub(crate) fn bind(&mut self, account: &QueryAccounting) {
         self.account = Some(account.clone());
     }
+    pub(crate) fn metadata_row(
+        &mut self,
+        series_id: u64,
+        values: &[crate::storage::LabelRef<'_>],
+        control: &Control,
+        account: &QueryAccounting,
+    ) -> Result<bool, OutputError> {
+        let mut labels = AccountedVec::new(account, MemoryKind::Workspace);
+        for value in values {
+            control.check()?;
+            account.work(1);
+            labels.push(types::Label {
+                name: types::Bytes::of(value.name),
+                value: types::Bytes::of(value.value),
+            });
+        }
+        let row = types::Chunk {
+            kind: types::CHUNK_SERIES,
+            reserved: 0,
+            payload: types::ChunkPayload {
+                series: types::SeriesChunk {
+                    series_id,
+                    labels: types::Labels {
+                        data: labels.as_ptr(),
+                        len: labels.len() as u64,
+                    },
+                    points: types::Samples::default(),
+                },
+            },
+        };
+        control.check()?;
+        let mut error = types::Bytes::default();
+        let status = unsafe {
+            self.table.chunk.expect("validated metadata output")(
+                self.table.context,
+                &row,
+                checked::Callback::new(control, account).as_ptr(),
+                &mut error,
+            )
+        };
+        if status == types::END {
+            return Ok(false);
+        }
+        unsafe { self.status(status, error, account) }?;
+        Ok(true)
+    }
     unsafe fn status(
         &self,
         status: u32,

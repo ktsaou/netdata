@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 //! Synchronous C embedding. See include/netdata-promql.h for pointer and paired-release contracts.
 mod checked;
+mod discovery;
+pub use discovery::netdata_promql_discover;
 mod getters;
 mod histogram;
 pub use getters::{netdata_promql_report_error, netdata_promql_report_error_count};
@@ -12,8 +14,9 @@ mod provider;
 mod selection;
 pub use protocol::{
     netdata_promql_api_float_text, netdata_promql_api_parse_duration,
-    netdata_promql_api_parse_time, netdata_promql_api_scalar_float_text,
-    netdata_promql_api_scalar_timestamp_text, netdata_promql_api_timestamp_text,
+    netdata_promql_api_parse_limit, netdata_promql_api_parse_time,
+    netdata_promql_api_scalar_float_text, netdata_promql_api_scalar_timestamp_text,
+    netdata_promql_api_timestamp_text,
 };
 pub use selection::{
     netdata_promql_selector_compile, netdata_promql_selector_matcher,
@@ -375,6 +378,12 @@ unsafe fn collect(
 
 export! {
     fn netdata_promql_abi_version() { Ok(types::ABI_VERSION) }
+    fn netdata_promql_report_accounted(value: *const types::Report, callback: Option<types::Close>, context: *mut std::ffi::c_void, handle: *mut std::ffi::c_void) {
+        let report = unsafe { borrow::<Report, _>(value) }?;
+        let callback = callback.ok_or(Invalid("missing accounted report callback"))?;
+        unsafe { callback(context, handle, checked::accounting_context(&report.account)) };
+        Ok(types::OK)
+    }
     fn netdata_promql_engine_options_default(out: *mut types::EngineOptions) {
         unsafe { checked::output(out) }?;
         let options = EngineOptions::default();
